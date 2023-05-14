@@ -1,4 +1,4 @@
 module.exports = {
 	root: true,
-	extends: ['devist-base'],
+	extends: ['devist-server'],
 };

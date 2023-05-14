@@ -1,0 +1,22 @@
+{
+  "arrowParens": "avoid",
+  "bracketSameLine": true,
+  "semi": true,
+  "trailingComma": "all",
+  "singleQuote": true,
+  "printWidth": 120,
+  "bracketSpacing": true,
+  "endOfLine": "lf",
+  "useTabs": true,
+  "tabWidth": 2,
+  "importOrder": [
+    "^react$",
+    "<THIRD_PARTY_MODULES>",
+		"^@devist/(.*)$",
+		"^[../]",
+    "^[./]"
+  ],
+  "importOrderSeparation": true,
+  "importOrderCaseInsensitive": true,
+  "importOrderGroupNamespaceSpecifiers": true
+}

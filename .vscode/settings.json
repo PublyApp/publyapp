@@ -1,0 +1,8 @@
+{
+	"cSpell.words": ["devist", "nextjs"],
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.codeActionsOnSave": {
+		"source.fixAll": true
+	},
+	"editor.formatOnSave": true
+}
