@@ -10,19 +10,16 @@
 		"dev": "turbo run dev",
 		"format": "prettier --write .",
 		"lint": "turbo run lint",
-		"lint:fix": "turbo run lint:fix"
+		"lint:fix": "turbo run lint:fix",
+		"prepare": "husky install",
+		"pre-commit": "npm run format && git add -A ."
 	},
 	"devDependencies": {
 		"eslint": "^8.40.0",
 		"eslint-config-custom": "*",
-		"husky": "^8.0.3",
 		"prettier": "^2.8.8",
-		"turbo": "^1.9.3"
+		"turbo": "^1.9.3",
+		"husky": "^8.0.0"
 	},
-	"packageManager": "npm@9.5.1",
-	"husky": {
-		"hooks": {
-			"pre-commit": "prettier --write . && git add -A ."
-		}
-	}
+	"packageManager": "npm@9.5.1"
 }
