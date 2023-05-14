@@ -1,4 +1,12 @@
 {
   "name": "server",
-  "version": "0.0.0"
+  "version": "0.0.0",
+  "scripts": {
+    "lint": "eslint src --ext ts,js",
+    "lint:fix": "npm run lint --fix"
+  },
+  "dependencies": {
+    "eslint": "^8.40.0",
+    "eslint-config-devist-server": "*"
+  }
 }

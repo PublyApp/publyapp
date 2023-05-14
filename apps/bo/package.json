@@ -1,12 +1,13 @@
 {
   "name": "bo",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
+    "build": "npm run lint && tsc && vite build",
     "dev": "vite",
-    "build": "tsc && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "npm run lint --fix",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -19,9 +20,11 @@
     "@typescript-eslint/eslint-plugin": "^5.57.1",
     "@typescript-eslint/parser": "^5.57.1",
     "@vitejs/plugin-react": "^4.0.0",
-    "eslint": "^8.38.0",
+    "eslint": "^8.40.0",
+    "eslint-config-devist-react-vite": "*",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.3.4",
+    "tsconfig": "*",
     "typescript": "^5.0.2",
     "vite": "^4.3.2"
   }

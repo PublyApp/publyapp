@@ -1,0 +1,18 @@
+{
+  "name": "eslint-config-devist-nextjs",
+  "version": "0.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "eslint": "^8.40.0",
+    "eslint-config-devist-base": "*",
+    "eslint-config-next": "^13.4.1",
+    "eslint-plugin-react": "7.28.0"
+  },
+  "dependencies": {
+    "next": "^13.4.2"
+  }
+}

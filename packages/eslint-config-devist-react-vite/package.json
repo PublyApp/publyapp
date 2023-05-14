@@ -1,0 +1,14 @@
+{
+  "name": "eslint-config-devist-react-vite",
+  "version": "0.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "eslint": "^8.40.0",
+    "eslint-config-devist-base": "*",
+    "eslint-config-react-app": "^7.0.1"
+  }
+}
