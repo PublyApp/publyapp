@@ -15,7 +15,7 @@ module.exports = {
 		semi: 'warn',
 		'eol-last': 'warn',
 		'object-curly-spacing': ['warn', 'always'],
-		'no-unused-vars': 'warn',
+		'no-unused-vars': 'off',
 		'@typescript-eslint/no-explicit-any': 'warn',
 		'padding-line-between-statements': [
 			'warn',
