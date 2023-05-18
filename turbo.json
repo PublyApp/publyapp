@@ -1,36 +1,9 @@
 {
 	"$schema": "https://turbo.build/schema.json",
 	"globalDependencies": ["**/.env.*local"],
-	"globalEnv": [
-		"ONLINE",
-		"PORT",
-		"DATABASE_URI",
-		"MASTER_KEY",
-		"SERVER_URL",
-		"NODE_ENV",
-		"APP_ENV",
-		"MODE",
-		"REST_API_KEY",
-		"PARSE_SERVER_URL",
-		"FRONT_URL",
-		"TEST_ONLINE",
-		"VITE_SERVER_URL",
-		"VITE_PARSE_SERVER_URL",
-		"VITE_REST_API_KEY",
-		"VITE_API_PATH",
-		"VITE_PARSE_PATH",
-		"API_PATH",
-		"PARSE_PATH",
-		"DEV",
-		"JOB_INPUT"
-	],
-	"tasks": {
+	"pipeline": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": [".next/**", "!.next/cache/**", ".svelte-kit", "dist", "build"]
-		},
-		"build:local": {
-			"dependsOn": ["^build:local"],
 			"outputs": [".next/**", "!.next/cache/**", ".svelte-kit", "dist", "build"]
 		},
 		"lint": {
@@ -40,7 +13,6 @@
 			"cache": false
 		},
 		"dev": {
-			"persistent": true,
 			"cache": false
 		}
 	}
