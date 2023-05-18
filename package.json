@@ -1,7 +1,10 @@
 {
-	"name": "publyapp",
-	"version": "0.0.0",
+	"name": "devist-platform",
 	"private": true,
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
 	"scripts": {
 		"deploy:artifacts": "node ./scripts/deploy.mjs",
 		"format": "oxfmt --check \".lintstagedrc.js\" \"dfs.config.cjs\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"scripts/**/*.{js,mjs,cjs}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\"",

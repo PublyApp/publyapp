@@ -1,18 +1,17 @@
 {
 	"name": "front",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"imports": {
 		"#app/*": "./src/*"
 	},
 	"scripts": {
-		"dev": "cross-env NODE_ENV=development node server.js",
-		"start": "node server.js",
-		"build": "react-router build",
-		"build:dev": "react-router build --mode development",
-		"build:local": "pnpm run build:dev",
-		"type-check": "react-router typegen && tsc"
+		"build": "tsc && next build",
+		"dev": "next dev --port 3000",
+		"lint": "next lint",
+		"lint:fix": "npm run lint --fix",
+		"start": "next start"
 	},
 	"dependencies": {
 		"@emotion/cache": "^11.14.0",

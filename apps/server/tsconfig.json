@@ -1,0 +1,17 @@
+{
+	"extends": "tsconfig/tsconfig.base.json",
+	"compilerOptions": {
+		"target": "ES2015",
+		"outDir": "dist",
+		"baseUrl": "./src",
+		"noEmit": true,
+		"sourceMap": true,
+		"skipLibCheck": true,
+		"paths": {
+			"@/*": ["*"],
+			"@cloud/*": ["cloud/*"]
+		}
+	},
+	"include": ["src", "@types"],
+	"exclude": ["dist", "node_modules"]
+}
