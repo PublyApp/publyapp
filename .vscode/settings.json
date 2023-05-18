@@ -1,8 +1,18 @@
 {
-	"cSpell.words": ["devist", "nextjs"],
+	"cSpell.words": ["devist", "nextjs", "Parens"],
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.codeActionsOnSave": {
 		"source.fixAll": true
 	},
-	"editor.formatOnSave": true
+	"editor.formatOnSave": true,
+	"editor.tabSize": 2,
+	"editor.insertSpaces": false,
+	"editor.renderWhitespace": "all",
+	"editor.renderFinalNewline": "dimmed",
+	"editor.trimAutoWhitespace": true,
+	"material-icon-theme.files.associations": {
+		".env.preprod": "tune",
+		"tsconfig.nextjs.json*": "tsconfig",
+		"tsconfig.react-library.json*": "tsconfig"
+	}
 }

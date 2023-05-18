@@ -1,5 +1,5 @@
 module.exports = {
-	extends: ['devist-base', 'next'],
+	extends: ['next', 'devist-base'],
 	rules: {
 		'@next/next/no-html-link-for-pages': 'off',
 	},

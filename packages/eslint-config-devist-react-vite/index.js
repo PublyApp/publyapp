@@ -1,6 +1,6 @@
 module.exports = {
 	env: { browser: true, es2020: true },
-	extends: ['devist-base', 'react-app'],
+	extends: ['react-app', 'devist-base'],
 	parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
 	plugins: ['react-refresh'],
 	rules: {
