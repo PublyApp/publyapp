@@ -1,4 +1,4 @@
-import { Button, Header } from '@devist/ui';
+import { Button, Header } from '@devist/ui-react';
 
 export default function Page() {
 	return (

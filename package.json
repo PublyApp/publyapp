@@ -1,5 +1,5 @@
 {
-	"name": "platform",
+	"name": "devist-platform",
 	"private": true,
 	"workspaces": [
 		"apps/*",
@@ -8,6 +8,8 @@
 	"scripts": {
 		"build": "turbo run build",
 		"dev": "turbo run dev",
+		"dev2": "turbo run dev --filter server --filter kit --filter bo",
+		"check-format": "prettier --check .",
 		"format": "prettier --write .",
 		"lint": "turbo run lint",
 		"lint:fix": "turbo run lint:fix",
@@ -16,10 +18,10 @@
 	},
 	"devDependencies": {
 		"eslint": "^8.40.0",
-		"eslint-config-custom": "*",
+		"eslint-config-devist-base": "*",
+		"husky": "^8.0.0",
 		"prettier": "^2.8.8",
-		"turbo": "^1.9.3",
-		"husky": "^8.0.0"
+		"turbo": "^1.9.7"
 	},
 	"packageManager": "npm@9.5.1"
 }

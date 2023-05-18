@@ -4,15 +4,16 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"build": "npm run format && npm run lint:fix && tsc && vite build",
-		"dev": "vite",
+		"build": "tsc && vite build",
+		"dev": "vite dev --port 5173",
 		"preview": "vite preview",
 		"lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
 		"lint:fix": "npm run lint --fix"
 	},
 	"dependencies": {
 		"react": "^18.2.0",
-		"react-dom": "^18.2.0"
+		"react-dom": "^18.2.0",
+		"@devist/ui-react": "*"
 	},
 	"devDependencies": {
 		"@types/react": "^18.0.28",

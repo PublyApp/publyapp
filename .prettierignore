@@ -1,2 +1,11 @@
+# nextjs
 .next
+
+# vite builds
+build
+
+# sveltekit
+.svelte-kit
+
+# our custom build folders
 dist
