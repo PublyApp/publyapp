@@ -6,7 +6,7 @@
 		"start": "node --enable-source-maps dist/index.js",
 		"dev": "npx concurrently \"node esbuild/watch.js\" \"node esbuild/watch.cloud.js\" \"npx nodemon\"",
 		"lint": "eslint . --ext ts,js",
-		"lint:fix": "npm run lint --fix"
+		"lint:fix": "pnpm run lint --fix"
 	},
 	"dependencies": {
 		"cors": "^2.8.5",
@@ -16,14 +16,15 @@
 		"typescript": "^5.0.4"
 	},
 	"devDependencies": {
+		"@types/cors": "^2.8.13",
 		"@types/express": "^4.17.17",
 		"@types/parse": "^3.0.4",
 		"concurrently": "^8.0.1",
 		"esbuild": "^0.17.19",
 		"esbuild-node-externals": "^1.7.0",
 		"eslint": "^8.40.0",
-		"eslint-config-devist-server": "*",
+		"eslint-config-devist-server": "workspace:*",
 		"nodemon": "^2.0.22",
-		"tsconfig": "*"
+		"tsconfig": "workspace:*"
 	}
 }
