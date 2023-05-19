@@ -1,9 +1,9 @@
 module.exports = {
 	extends: [
-		'turbo',
 		'eslint:recommended',
 		'plugin:prettier/recommended',
 		'plugin:@typescript-eslint/recommended',
+		'turbo',
 		'prettier',
 	],
 	parser: '@typescript-eslint/parser',
@@ -24,5 +24,6 @@ module.exports = {
 			{ blankLine: 'always', prev: '*', next: 'block-like' },
 			{ blankLine: 'always', prev: 'block-like', next: '*' },
 		],
+		'prefer-template': 'warn',
 	},
 };

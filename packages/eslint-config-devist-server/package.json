@@ -7,7 +7,7 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"eslint-config-devist-base": "*",
+		"eslint-config-devist-base": "workspace:*",
 		"eslint": "^8.40.0"
 	}
 }

@@ -8,7 +8,7 @@
 	},
 	"devDependencies": {
 		"eslint": "^8.40.0",
-		"eslint-config-devist-base": "*",
+		"eslint-config-devist-base": "workspace:*",
 		"eslint-config-react-app": "^7.0.1"
 	}
 }
