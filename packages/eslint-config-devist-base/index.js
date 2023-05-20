@@ -78,5 +78,8 @@ module.exports = {
 			},
 		],
 		'import/prefer-default-export': 'off',
+
+		// eslint-config-airbnb-typescript overrides
+		'import/no-unresolved': 'error',
 	},
 };
