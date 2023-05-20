@@ -1,5 +1,7 @@
+/* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable @typescript-eslint/no-var-requires */
 const esbuild = require('esbuild');
+
 const { buildOptions } = require('./build');
 
 async function watch() {

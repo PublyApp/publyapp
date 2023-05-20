@@ -1,0 +1,25 @@
+{
+	// extend your base config to share compilerOptions, etc
+	"extends": "tsconfig/tsconfig.base.json",
+	"compilerOptions": {
+		// ensure that nobody can accidentally use this config for a build
+		"noEmit": true
+	},
+	"include": [
+		// whatever paths you intend to lint
+		"packages/eslint-config-devist-base",
+		"packages/eslint-config-devist-nextjs",
+		"packages/eslint-config-devist-react-vite",
+		"packages/eslint-config-devist-server",
+		"packages/bo/.eslintrc.cjs",
+		"apps/docs/.eslintrc.js",
+		"apps/front/.eslintrc.js",
+		"apps/kit/.eslintrc.cjs",
+		"apps/kit/playwright.config.ts",
+		"apps/kit/svelte.config.js",
+		"apps/server/.eslintrc.js",
+		"apps/server/esbuild",
+		"./.eslintrc.js",
+		"./knip.config.js"
+	]
+}

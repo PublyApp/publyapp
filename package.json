@@ -1,10 +1,6 @@
 {
 	"name": "devist-platform",
 	"private": true,
-	"workspaces": [
-		"apps/*",
-		"packages/*"
-	],
 	"scripts": {
 		"build": "turbo run build",
 		"dev": "turbo run dev",
@@ -21,7 +17,8 @@
 		"eslint-config-devist-base": "workspace:*",
 		"husky": "^8.0.0",
 		"prettier": "^2.8.8",
-		"turbo": "^1.9.7"
+		"turbo": "^1.9.7",
+		"tsconfig": "workspace:*"
 	},
-	"packageManager": "npm@9.5.1"
+	"packageManager": "pnpm@7.15.0"
 }
