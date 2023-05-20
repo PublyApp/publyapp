@@ -16,11 +16,9 @@ const bootstrap = async () => {
 	global.LOCAL = !process.env.ONLINE;
 	global.PRODUCTION = false;
 
-	const PORT = Number(process.env.PORT) || 1337;
-	const MASTER_KEY = process.env.MASTER_KEY || 'local-master-key';
-	const DATABASE_URI = process.env.DATABASE_URI || 'mongodb://localhost:27017/devist-local';
-	const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
-
+	// --------------------------------------------------------------------------------------//
+	//                           determine which .env file to load                           //
+	// --------------------------------------------------------------------------------------//
 	let envFileName = '.env.local';
 
 	if ((!global.LOCAL && !global.PRODUCTION) || global.FORCE_PREPROD) {
@@ -31,6 +29,17 @@ const bootstrap = async () => {
 
 	dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
 
+	// --------------------------------------------------------------------------------------//
+	//                          set the mainly important constants                          //
+	// --------------------------------------------------------------------------------------//
+	const PORT = Number(process.env.PORT) || 1337;
+	const MASTER_KEY = process.env.MASTER_KEY || 'local-master-key';
+	const DATABASE_URI = process.env.DATABASE_URI || 'mongodb://localhost:27017/devist-local';
+	const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+
+	// --------------------------------------------------------------------------------------//
+	//                            setup express ans parse server                            //
+	// --------------------------------------------------------------------------------------//
 	const app = express();
 
 	// setup middlewares
@@ -38,13 +47,14 @@ const bootstrap = async () => {
 	app.use(express.urlencoded({ extended: false }));
 	app.use(express.json());
 
+	// initialize parse server
 	const parseServer = new ParseServer({
 		appId: 'devist',
 		masterKey: MASTER_KEY,
 		cloud: path.resolve(__dirname, './cloud/index'),
 		databaseUri: DATABASE_URI,
-		serverURL: SERVER_URL,
-		publicServerURL: SERVER_URL,
+		serverURL: `${SERVER_URL}/parse`,
+		publicServerURL: `${SERVER_URL}/parse`,
 		// =============================================
 		allowClientClassCreation: false,
 		schema: {
@@ -58,6 +68,9 @@ const bootstrap = async () => {
 
 	app.use('/parse', parseServer.app);
 
+	// --------------------------------------------------------------------------------------//
+	//                                    run he server                                     //
+	// --------------------------------------------------------------------------------------//
 	app.listen(PORT, () => {
 		console.log('====================================');
 		console.log(`   server running on port ${PORT}   `);

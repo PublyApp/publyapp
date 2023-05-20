@@ -1,5 +1,5 @@
 {
-	"cSpell.words": ["devist", "middlewares", "nextjs", "Parens", "PREPROD"],
+	"cSpell.words": ["Authed", "devist", "middlewares", "nextjs", "Parens", "PREPROD"],
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.codeActionsOnSave": {
 		"source.fixAll": true

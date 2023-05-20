@@ -11,14 +11,17 @@
 		"packages/eslint-config-devist-nextjs",
 		"packages/eslint-config-devist-react-vite",
 		"packages/eslint-config-devist-server",
-		"packages/bo/.eslintrc.cjs",
+
+		"apps/bo/.eslintrc.cjs",
 		"apps/docs/.eslintrc.js",
 		"apps/front/.eslintrc.js",
 		"apps/kit/.eslintrc.cjs",
-		"apps/kit/playwright.config.ts",
 		"apps/kit/svelte.config.js",
 		"apps/server/.eslintrc.js",
+
+		"apps/kit/playwright.config.ts",
 		"apps/server/esbuild",
+
 		"./.eslintrc.js",
 		"./knip.config.js"
 	]

@@ -24,6 +24,9 @@ importers:
 
   apps/bo:
     dependencies:
+      '@devist/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@devist/ui-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
@@ -39,6 +42,9 @@ importers:
       '@mui/material':
         specifier: ^5.13.1
         version: 5.13.1(@emotion/react@11.11.0)(@emotion/styled@11.11.0)(@types/react@18.2.0)(react-dom@18.2.0)(react@18.2.0)
+      '@tanstack/react-query':
+        specifier: ^4.29.7
+        version: 4.29.7(react-dom@18.2.0)(react@18.2.0)
       react:
         specifier: ^18.2.0
         version: 18.2.0
@@ -49,6 +55,9 @@ importers:
         specifier: ^6.11.2
         version: 6.11.2(react-dom@18.2.0)(react@18.2.0)
     devDependencies:
+      '@types/parse':
+        specifier: ^3.0.4
+        version: 3.0.4
       '@types/react':
         specifier: ^18.0.28
         version: 18.2.0
@@ -360,6 +369,12 @@ importers:
         specifier: workspace:*
         version: link:../eslint-config-devist-base
 
+  packages/shared:
+    devDependencies:
+      tsconfig:
+        specifier: workspace:*
+        version: link:../tsconfig
+
   packages/tsconfig: {}
 
   packages/ui-react:
@@ -377,6 +392,9 @@ importers:
         specifier: ^18.2.0
         version: 18.2.0
     devDependencies:
+      '@types/parse':
+        specifier: ^3.0.4
+        version: 3.0.4
       '@types/react':
         specifier: ^18.2.0
         version: 18.2.0
@@ -1986,6 +2004,30 @@ packages:
       { integrity: sha512-sJ902EfIzn1Fa+qYmjdQqh8tPsoxyBz+8yBKC2HKUxyezKJFwPGOn7pv4WY6QuQW//ySQi5lJjA/ZT9sNWWNTg== }
     dependencies:
       tslib: 2.4.1
+    dev: false
+
+  /@tanstack/query-core@4.29.7:
+    resolution:
+      { integrity: sha512-GXG4b5hV2Loir+h2G+RXhJdoZhJLnrBWsuLB2r0qBRyhWuXq9w/dWxzvpP89H0UARlH6Mr9DiVj4SMtpkF/aUA== }
+    dev: false
+
+  /@tanstack/react-query@4.29.7(react-dom@18.2.0)(react@18.2.0):
+    resolution:
+      { integrity: sha512-ijBWEzAIo09fB1yd22slRZzprrZ5zMdWYzBnCg5qiXuFbH78uGN1qtGz8+Ed4MuhaPaYSD+hykn+QEKtQviEtg== }
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0
+      react-native: '*'
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
+      react-native:
+        optional: true
+    dependencies:
+      '@tanstack/query-core': 4.29.7
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
+      use-sync-external-store: 1.2.0(react@18.2.0)
     dev: false
 
   /@types/body-parser@1.19.2:
@@ -7867,6 +7909,15 @@ packages:
       { integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg== }
     dependencies:
       punycode: 2.3.0
+
+  /use-sync-external-store@1.2.0(react@18.2.0):
+    resolution:
+      { integrity: sha512-eEgnFxGQ1Ife9bzYs6VLi8/4X6CObHMw9Qr9tPY43iKwsPw8xE8+EFsf/2cFZ5S3esXgpWgtSCtLNS41F+sKPA== }
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+    dependencies:
+      react: 18.2.0
+    dev: false
 
   /util-deprecate@1.0.2:
     resolution:
