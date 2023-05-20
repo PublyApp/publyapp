@@ -33,6 +33,9 @@ importers:
       '@emotion/styled':
         specifier: ^11.11.0
         version: 11.11.0(@emotion/react@11.11.0)(@types/react@18.2.0)(react@18.2.0)
+      '@mui/icons-material':
+        specifier: ^5.11.16
+        version: 5.11.16(@mui/material@5.13.1)(@types/react@18.2.0)(react@18.2.0)
       '@mui/material':
         specifier: ^5.13.1
         version: 5.13.1(@emotion/react@11.11.0)(@emotion/styled@11.11.0)(@types/react@18.2.0)(react-dom@18.2.0)(react@18.2.0)
@@ -42,6 +45,9 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.2.0(react@18.2.0)
+      react-router-dom:
+        specifier: ^6.11.2
+        version: 6.11.2(react-dom@18.2.0)(react@18.2.0)
     devDependencies:
       '@types/react':
         specifier: ^18.0.28
@@ -1347,6 +1353,24 @@ packages:
       { integrity: sha512-qDHtNDO72NcBQMhaWBt9EZMvNiO+OXjPg5Sdk/6LgRDw6Zr3HdEZ5n2FJ/qtYsaT/okGyCuQavQkcZCOCEVf/g== }
     dev: false
 
+  /@mui/icons-material@5.11.16(@mui/material@5.13.1)(@types/react@18.2.0)(react@18.2.0):
+    resolution:
+      { integrity: sha512-oKkx9z9Kwg40NtcIajF9uOXhxiyTZrrm9nmIJ4UjkU2IdHpd4QVLbCc/5hZN/y0C6qzi2Zlxyr9TGddQx2vx2A== }
+    engines: { node: '>=12.0.0' }
+    peerDependencies:
+      '@mui/material': ^5.0.0
+      '@types/react': ^17.0.0 || ^18.0.0
+      react: ^17.0.0 || ^18.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+    dependencies:
+      '@babel/runtime': 7.21.5
+      '@mui/material': 5.13.1(@emotion/react@11.11.0)(@emotion/styled@11.11.0)(@types/react@18.2.0)(react-dom@18.2.0)(react@18.2.0)
+      '@types/react': 18.2.0
+      react: 18.2.0
+    dev: false
+
   /@mui/material@5.13.1(@emotion/react@11.11.0)(@emotion/styled@11.11.0)(@types/react@18.2.0)(react-dom@18.2.0)(react@18.2.0):
     resolution:
       { integrity: sha512-qSnbJZer8lIuDYFDv19/t3s0AXYY9SxcOdhCnGvetRSfOG4gy3TkiFXNCdW5OLNveTieiMpOuv46eXUmE3ZA6A== }
@@ -1880,6 +1904,12 @@ packages:
   /@popperjs/core@2.11.7:
     resolution:
       { integrity: sha512-Cr4OjIkipTtcXKjAsm8agyleBuDHvxzeBoa1v543lbv1YaIwQjESsVcmjiWiPEbC1FIeHOG/Op9kdCmAmiS3Kw== }
+    dev: false
+
+  /@remix-run/router@1.6.2:
+    resolution:
+      { integrity: sha512-LzqpSrMK/3JBAVBI9u3NWtOhWNw5AMQfrUFYB0+bDHTSw17z++WJLsPsxAuK+oSddsxk4d7F/JcdDPM1M5YAhA== }
+    engines: { node: '>=14' }
     dev: false
 
   /@repeaterjs/repeater@3.0.4:
@@ -6572,6 +6602,31 @@ packages:
       { integrity: sha512-wViHqhAd8OHeLS/IRMJjTSDHF3U9eWi62F/MledQGPdJGDhodXJ9PBLNGr6WWL7qlH12Mt3TyTpbS+hGXMjCzQ== }
     engines: { node: '>=0.10.0' }
     dev: true
+
+  /react-router-dom@6.11.2(react-dom@18.2.0)(react@18.2.0):
+    resolution:
+      { integrity: sha512-JNbKtAeh1VSJQnH6RvBDNhxNwemRj7KxCzc5jb7zvDSKRnPWIFj9pO+eXqjM69gQJ0r46hSz1x4l9y0651DKWw== }
+    engines: { node: '>=14' }
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+    dependencies:
+      '@remix-run/router': 1.6.2
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
+      react-router: 6.11.2(react@18.2.0)
+    dev: false
+
+  /react-router@6.11.2(react@18.2.0):
+    resolution:
+      { integrity: sha512-74z9xUSaSX07t3LM+pS6Un0T55ibUE/79CzfZpy5wsPDZaea1F8QkrsiyRnA2YQ7LwE/umaydzXZV80iDCPkMg== }
+    engines: { node: '>=14' }
+    peerDependencies:
+      react: '>=16.8'
+    dependencies:
+      '@remix-run/router': 1.6.2
+      react: 18.2.0
+    dev: false
 
   /react-transition-group@4.4.5(react-dom@18.2.0)(react@18.2.0):
     resolution:

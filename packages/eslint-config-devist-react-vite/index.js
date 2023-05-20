@@ -5,5 +5,16 @@ module.exports = {
 	plugins: ['react-refresh'],
 	rules: {
 		'react-refresh/only-export-components': 'warn',
+
+		// override for react
+		'react/function-component-definition': [
+			'warn',
+			{
+				namedComponents: 'arrow-function',
+				unnamedComponents: 'arrow-function',
+			},
+		],
+		'react/jsx-closing-bracket-location': 'warn',
+		'react/jsx-props-no-spreading': 'off',
 	},
 };
