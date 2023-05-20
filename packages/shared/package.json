@@ -1,0 +1,7 @@
+{
+	"name": "@devist/shared",
+	"version": "0.0.0",
+	"devDependencies": {
+		"tsconfig": "workspace:*"
+	}
+}
