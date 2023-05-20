@@ -14,6 +14,8 @@ const router = createBrowserRouter(
 				<Route element={<Layout />}>
 					<Route index element={<Home />} />
 					<Route path="account" element={<Account />} />
+
+					{/* // ---- not found page ------------------------------------------------------------------- */}
 					<Route path="*" element={<NotFound />} />
 				</Route>
 			</Route>

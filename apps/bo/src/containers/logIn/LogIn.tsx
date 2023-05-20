@@ -1,17 +1,39 @@
 import { FormEventHandler, useState } from 'react';
 
 import { Box, Button, TextField } from '@mui/material';
+// import { useQuery } from '@tanstack/react-query';
+import { Navigate } from 'react-router-dom';
+
+// import { logInFn } from '../../reactQuery/queryFns/logIn.fn';
+import { useAuth } from '../../contexts/auth/useAuth';
 
 const LogIn = () => {
 	// State variables for form inputs
-	const [password, setPassword] = useState('');
 	const [email, setEmail] = useState('');
+	const [password, setPassword] = useState('');
 
-	const handleSubmit: FormEventHandler<HTMLFormElement> = (e) => {
+	const { logIn, isAuthed } = useAuth();
+
+	// const { data: logInResult, refetch } = useQuery({
+	// 	queryKey: ['logIn', { email, password }],
+	// 	queryFn: logInFn,
+	// 	enabled: false,
+	// });
+
+	// useEffect(() => {
+	// 	setUser();
+	// }, [data]);
+
+	const handleSubmit: FormEventHandler<HTMLFormElement> = async (e) => {
 		e.preventDefault();
 		console.log('Submitted!', email, password);
-		// Perform further actions, such as sending data to a server
+		// await refetch();
+		await logIn({ email, password });
 	};
+
+	if (isAuthed) {
+		return <Navigate to="/" />;
+	}
 
 	return (
 		<Box
