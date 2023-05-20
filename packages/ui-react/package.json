@@ -13,8 +13,13 @@
 		"@types/react-dom": "^18.2.0",
 		"eslint": "^8.40.0",
 		"eslint-config-devist-react-vite": "workspace:*",
-		"react": "^17.0.2",
 		"tsconfig": "workspace:*",
 		"typescript": "^4.5.2"
+	},
+	"dependencies": {
+		"react": "^18.2.0",
+		"@emotion/react": "^11.11.0",
+		"@emotion/styled": "^11.11.0",
+		"@mui/material": "^5.13.1"
 	}
 }
