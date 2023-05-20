@@ -25,9 +25,9 @@ const menuItems = [
 		link: '/',
 	},
 	{
-		text: 'Post',
+		text: 'Posts',
 		icon: <ArticleIcon />,
-		link: '/',
+		link: '/posts',
 	},
 	{
 		text: 'Account',
