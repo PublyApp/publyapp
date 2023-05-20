@@ -21,15 +21,15 @@
 		"@sveltejs/kit": "^1.5.0",
 		"@types/cookie": "^0.5.1",
 		"eslint": "^8.40.0",
+		"eslint-config-devist-base": "workspace:*",
 		"eslint-plugin-svelte": "^2.26.0",
 		"prettier-plugin-svelte": "^2.8.1",
-		"svelte": "^3.54.0",
+		"svelte": "^3.55.0",
 		"svelte-check": "^3.0.1",
 		"tslib": "^2.4.1",
 		"typescript": "^5.0.0",
-		"vite": "^4.3.0",
-		"vitest": "^0.25.3",
-		"eslint-config-devist-base": "workspace:*"
+		"vite": "^4.3.8",
+		"vitest": "^0.31.1"
 	},
 	"type": "module"
 }

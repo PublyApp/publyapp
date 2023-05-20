@@ -1,13 +1,14 @@
+import path from 'path';
+
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import ParseServer from 'parse-server';
-import path from 'path';
 
 const bootstrap = async () => {
-	//--------------------------------------------------------------------------------------//
+	// --------------------------------------------------------------------------------------//
 	//                                 set the global vars                                  //
-	//--------------------------------------------------------------------------------------//
+	// --------------------------------------------------------------------------------------//
 	global.FORCE_PROD = false;
 	global.FORCE_PREPROD = false;
 
