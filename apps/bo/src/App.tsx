@@ -1,15 +1,16 @@
-import { Button } from '@devist/ui-react';
+import { ThemeProvider } from '@emotion/react';
+import { createTheme } from '@mui/material';
 
-import image from './assets/react.svg';
+import AppRoutes from './AppRoutes';
 
-function App() {
+const theme = createTheme();
+
+const App = () => {
 	return (
-		<>
-			<img src={image} alt="cool" />
-			<h1>This is the bo</h1>
-			<Button />
-		</>
+		<ThemeProvider theme={theme}>
+			<AppRoutes />
+		</ThemeProvider>
 	);
-}
+};
 
 export default App;

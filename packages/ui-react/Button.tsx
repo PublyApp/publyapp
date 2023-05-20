@@ -13,7 +13,8 @@ export const Button = ({ onClick, text }: Props) => {
 				(() => {
 					return console.log('Hello');
 				})
-			}>
+			}
+		>
 			{text || 'Hello'}
 		</button>
 	);
