@@ -4,7 +4,9 @@ import ReactDOM from 'react-dom/client';
 
 import App from './App';
 
-// initialize parse
+// --------------------------------------------------------------------------------------//
+//                                   initialize parse                                   //
+// --------------------------------------------------------------------------------------//
 Parse.initialize('devist');
 
 const locationOrigin = window.location.origin;
@@ -15,6 +17,9 @@ const parseServerURL =
 
 Parse.serverURL = parseServerURL;
 
+// --------------------------------------------------------------------------------------//
+//                                 render the react app                                 //
+// --------------------------------------------------------------------------------------//
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 	<React.StrictMode>
 		<App />

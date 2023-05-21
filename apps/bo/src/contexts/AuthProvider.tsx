@@ -2,13 +2,13 @@ import { PropsWithChildren, createContext, useCallback, useEffect, useMemo, useS
 
 import { User } from '@devist/shared/types/user.types';
 
-import { LogInFnInput } from '../../reactQuery/queryFns/logIn.fn';
-import { useLogInQuery } from '../../hooks/useLogInQuery';
-import { useLogOutQuery } from '../../hooks/useLogOutQuery';
+import { LogInFnInput } from '../reactQuery/queryFns/logIn.fn';
+import { useLogInQuery } from '../hooks/useLogInQuery';
+import { useLogOutQuery } from '../hooks/useLogOutQuery';
 
 type AuthContextType = {
 	user: User | null;
-	setUser: (user: User) => void;
+	setUser: (user: User | null) => void;
 	token: string;
 	isAuthed: boolean;
 	logIn: (input: LogInFnInput) => Promise<void>;
