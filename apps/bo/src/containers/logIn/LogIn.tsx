@@ -6,6 +6,7 @@ import { Navigate } from 'react-router-dom';
 
 // import { logInFn } from '../../reactQuery/queryFns/logIn.fn';
 import { useAuth } from '../../hooks/useAuth';
+// import { useBreadcrumbs } from '../../hooks/useBreadcrumbs';
 
 const LogIn = () => {
 	// State variables for form inputs
@@ -13,6 +14,18 @@ const LogIn = () => {
 	const [password, setPassword] = useState('');
 
 	const { logIn, isAuthed, isLogInLoading } = useAuth();
+	// const breadCrumbs = useBreadcrumbs();
+
+	// breadCrumbs([
+	// 	{
+	// 		link: 'contact',
+	// 		text: 'Contact',
+	// 	},
+	// 	{
+	// 		link: 'contact',
+	// 		text: 'Contact',
+	// 	},
+	// ]);
 
 	// const { data: logInResult, refetch } = useQuery({
 	// 	queryKey: ['logIn', { email, password }],

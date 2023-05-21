@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../hooks/useAuth';
+import { useApp } from '../hooks/useApp';
 
 import Link from './Link';
 
@@ -50,6 +51,7 @@ const menuItems = [
 
 const Layout = () => {
 	const { logOut, isLogOutLoading } = useAuth();
+	const { breadcrumbs } = useApp();
 
 	const handleLogOut = () => {
 		logOut();
@@ -111,6 +113,9 @@ const Layout = () => {
 				<Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
 					<Typography>Home</Typography>
 					<Typography>Stats</Typography>
+					{breadcrumbs.map(({ link, text }) => {
+						return <Link to={link}>{text}</Link>;
+					})}
 				</Breadcrumbs>
 				{/* <Typography variant="h5">ok</Typography> */}
 				<Outlet />

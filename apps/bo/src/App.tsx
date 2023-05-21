@@ -1,32 +1,21 @@
 import { ThemeProvider } from '@emotion/react';
-import { createTheme } from '@mui/material';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+
+import { theme } from '@devist/ui-react/utils/theme';
 
 import AppRoutes from './AppRoutes';
-import { AuthProvider } from './contexts/auth/AuthProvider';
-
-// const queryClient = new QueryClient();
-const twentyFourHoursInMs = 1000 * 60 * 60 * 24;
-const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: {
-			refetchOnWindowFocus: false,
-			// refetchOnmount: false,
-			refetchOnReconnect: false,
-			retry: false,
-			staleTime: twentyFourHoursInMs,
-		},
-	},
-});
-
-const theme = createTheme();
+import { AuthProvider } from './contexts/AuthProvider';
+import { queryClient } from './reactQuery/queryClient';
+import AppProvider from './contexts/AppProvider';
 
 const App = () => {
 	return (
 		<QueryClientProvider client={queryClient}>
 			<AuthProvider>
 				<ThemeProvider theme={theme}>
-					<AppRoutes />
+					<AppProvider>
+						<AppRoutes />
+					</AppProvider>
 				</ThemeProvider>
 			</AuthProvider>
 		</QueryClientProvider>
