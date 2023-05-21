@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import {
 	AppBar,
 	Box,
+	Button,
 	Divider,
 	Drawer,
 	List,
@@ -11,8 +12,19 @@ import {
 	ListItemText,
 	Toolbar,
 	Typography,
+	Grid,
+	Breadcrumbs,
+	CircularProgress,
 } from '@mui/material';
-import { Home as HomeIcon, Person as PersonIcon, Article as ArticleIcon } from '@mui/icons-material';
+import {
+	Home as HomeIcon,
+	Person as PersonIcon,
+	Article as ArticleIcon,
+	Logout as LogoutIcon,
+	NavigateNext as NavigateNextIcon,
+} from '@mui/icons-material';
+
+import { useAuth } from '../hooks/useAuth';
 
 import Link from './Link';
 
@@ -37,15 +49,34 @@ const menuItems = [
 ];
 
 const Layout = () => {
+	const { logOut, isLogOutLoading } = useAuth();
+
+	const handleLogOut = () => {
+		logOut();
+	};
+
 	return (
 		<Box sx={{ display: 'flex' }}>
 			<AppBar position="fixed" sx={{ width: `calc(100% - ${drawerWidth}px)`, ml: `${drawerWidth}px` }}>
 				<Toolbar>
-					<Typography variant="h6" noWrap component="div">
-						Permanent drawer
-					</Typography>
+					<Grid container justifyContent="space-between">
+						<Grid item>
+							<Typography variant="h6" noWrap component="div">
+								Permanent drawer
+							</Typography>
+						</Grid>
+						<Grid item>
+							<Button variant="contained" color="primary" disableElevation onClick={handleLogOut}>
+								{isLogOutLoading ? <CircularProgress color="inherit" size="16px" /> : <LogoutIcon />}{' '}
+								<Typography textTransform="capitalize" ml="0.5rem">
+									Log Out
+								</Typography>
+							</Button>
+						</Grid>
+					</Grid>
 				</Toolbar>
 			</AppBar>
+
 			<Drawer
 				variant="permanent"
 				sx={{
@@ -74,8 +105,13 @@ const Layout = () => {
 					})}
 				</List>
 			</Drawer>
+
 			<Box component="main" sx={{ flexGrow: 1 }}>
 				<Toolbar />
+				<Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
+					<Typography>Home</Typography>
+					<Typography>Stats</Typography>
+				</Breadcrumbs>
 				{/* <Typography variant="h5">ok</Typography> */}
 				<Outlet />
 			</Box>

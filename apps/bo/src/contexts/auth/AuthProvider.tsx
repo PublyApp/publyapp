@@ -3,47 +3,64 @@ import { PropsWithChildren, createContext, useCallback, useEffect, useMemo, useS
 import { User } from '@devist/shared/types/user.types';
 
 import { LogInFnInput } from '../../reactQuery/queryFns/logIn.fn';
-
-import { useLogin } from './useLogin';
+import { useLogInQuery } from '../../hooks/useLogInQuery';
+import { useLogOutQuery } from '../../hooks/useLogOutQuery';
 
 type AuthContextType = {
 	user: User | null;
-	token?: string;
+	setUser: (user: User) => void;
+	token: string;
 	isAuthed: boolean;
 	logIn: (input: LogInFnInput) => Promise<void>;
+	isLogInLoading: boolean;
 	logOut: () => Promise<void>;
+	isLogOutLoading: boolean;
 };
 
 export const AuthContext = createContext<AuthContextType>({
 	user: null,
+	setUser: () => {},
+	token: '',
 	isAuthed: false,
 	logIn: async () => {},
+	isLogInLoading: false,
 	logOut: async () => {},
+	isLogOutLoading: false,
 });
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
-	const [token, setToken] = useState<string | undefined>(() => {
-		return Parse.User.current()?.getSessionToken();
-	});
-	const [user, setUser] = useState<User | null>(() => {
-		return Parse.User.current()?.toJSON() as unknown as User;
-	});
+	const getCurrentUser = () => {
+		return Parse.User.current();
+	};
+
+	const [user, setUser] = useState<User | null>(getCurrentUser()?.toJSON() as unknown as User);
+	const [token, setToken] = useState<string>(getCurrentUser()?.getSessionToken() || '');
 	const [isAuthed, setIsAuthed] = useState<boolean>(false);
 
-	const { logIn: triggerLogIn, logInResult } = useLogin();
+	const { triggerLogIn, logInResult, isLogInSuccess, isLogInFetching } = useLogInQuery();
+	const { triggerLogOut, isLogOutSuccess, isLogOutFetching } = useLogOutQuery();
 
 	useEffect(() => {
 		setIsAuthed(!!token);
 	}, [token]);
 
 	useEffect(() => {
-		if (logInResult) {
+		if (!isLogInFetching && isLogInSuccess && logInResult) {
 			const loggedUser = logInResult;
 			const userJSON = loggedUser.toJSON() as unknown as User;
 			setUser(userJSON);
 			setToken(loggedUser.getSessionToken());
 		}
-	}, [logInResult]);
+	}, [isLogInFetching, isLogInSuccess, logInResult]);
+
+	useEffect(() => {
+		if (!isLogOutFetching && isLogOutSuccess) {
+			// setUser(getCurrentUser()?.toJSON() as unknown as User);
+			// setToken(getCurrentUser()?.getSessionToken());
+			setUser(null);
+			setToken('');
+		}
+	}, [isLogOutFetching, isLogOutSuccess]);
 
 	const logIn = useCallback(
 		async (input: LogInFnInput) => {
@@ -52,16 +69,22 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 		[triggerLogIn],
 	);
 
-	const logOut = async () => {};
+	const logOut = useCallback(async () => {
+		await triggerLogOut();
+	}, [triggerLogOut]);
 
 	const memoizedValue = useMemo<AuthContextType>(() => {
 		return {
 			user,
+			setUser,
 			token,
 			isAuthed,
 			logIn,
+			isLogInLoading: isLogInFetching,
 			logOut,
+			isLogOutLoading: isLogOutFetching,
 		};
-	}, [isAuthed, logIn, token, user]);
+	}, [isAuthed, isLogInFetching, isLogOutFetching, logIn, logOut, token, user]);
+
 	return <AuthContext.Provider value={memoizedValue}>{children}</AuthContext.Provider>;
 };
