@@ -12,7 +12,7 @@ Parse.initialize('devist');
 const locationOrigin = window.location.origin;
 const parseServerURL =
 	locationOrigin.includes('localhost') || locationOrigin.includes('127.0.0.1')
-		? 'http://localhost:1338/parse'
+		? 'http://localhost:6182/parse'
 		: `${locationOrigin}/parse`;
 
 Parse.serverURL = parseServerURL;

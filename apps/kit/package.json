@@ -2,7 +2,7 @@
 	"name": "kit",
 	"version": "0.0.1",
 	"scripts": {
-		"dev": "vite dev --port 5174",
+		"dev": "vite dev --port 6179",
 		"build": "pnpm run check && vite build",
 		"preview": "vite preview",
 		"test": "playwright test",
