@@ -5,7 +5,7 @@ import Home from './containers/home/Home';
 import NotFound from './containers/notFound/NotFound';
 import Account from './containers/account/Account';
 import PrivateRoute from './components/PrivateRoute';
-import LogIn from './containers/logIn/LogIn';
+import LogIn from './containers/logIn/LogIn.old';
 
 const router = createBrowserRouter(
 	createRoutesFromElements(
