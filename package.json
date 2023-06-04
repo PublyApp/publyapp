@@ -10,15 +10,17 @@
 		"lint": "turbo run lint",
 		"lint:fix": "turbo run lint:fix",
 		"prepare": "husky install",
-		"pre-commit": "pnpm run format && git add -A ."
+		"pre-commit": "lint-staged",
+		"pre-commit:old": "pnpm run format && git add -A ."
 	},
 	"devDependencies": {
 		"eslint": "^8.40.0",
 		"eslint-config-devist-base": "workspace:*",
 		"husky": "^8.0.0",
+		"lint-staged": "^13.2.2",
 		"prettier": "^2.8.8",
-		"turbo": "^1.9.7",
-		"tsconfig": "workspace:*"
+		"tsconfig": "workspace:*",
+		"turbo": "^1.9.7"
 	},
 	"packageManager": "pnpm@7.15.0"
 }

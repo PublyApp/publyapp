@@ -1,20 +1,22 @@
-// import { useApp } from '../../hooks/useApp';
+import { useEffect } from 'react';
 
-import { useBreadcrumbs } from '../../hooks/useBreadcrumbs';
+import { useApp } from '../../hooks/useApp';
 
 const Home = () => {
-	const breadcrumbs = useBreadcrumbs();
+	const { setBreadcrumbs } = useApp();
 
-	breadcrumbs([
-		{
-			link: 'contact',
-			text: 'Contact',
-		},
-		{
-			link: 'contact',
-			text: 'Contact',
-		},
-	]);
+	useEffect(() => {
+		setBreadcrumbs([
+			{
+				link: 'contact',
+				text: 'Contact',
+			},
+			{
+				link: 'contact',
+				text: 'Contact',
+			},
+		]);
+	}, [setBreadcrumbs]);
 
 	return <div>Home</div>;
 };

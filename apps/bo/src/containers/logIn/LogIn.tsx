@@ -14,28 +14,6 @@ const LogIn = () => {
 	const [password, setPassword] = useState('');
 
 	const { logIn, isAuthed, isLogInLoading } = useAuth();
-	// const breadCrumbs = useBreadcrumbs();
-
-	// breadCrumbs([
-	// 	{
-	// 		link: 'contact',
-	// 		text: 'Contact',
-	// 	},
-	// 	{
-	// 		link: 'contact',
-	// 		text: 'Contact',
-	// 	},
-	// ]);
-
-	// const { data: logInResult, refetch } = useQuery({
-	// 	queryKey: ['logIn', { email, password }],
-	// 	queryFn: logInFn,
-	// 	enabled: false,
-	// });
-
-	// useEffect(() => {
-	// 	setUser();
-	// }, [data]);
 
 	const handleSubmit: FormEventHandler<HTMLFormElement> = async (e) => {
 		e.preventDefault();
