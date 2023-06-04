@@ -114,7 +114,11 @@ const Layout = () => {
 					<Typography>Home</Typography>
 					<Typography>Stats</Typography>
 					{breadcrumbs.map(({ link, text }) => {
-						return <Link to={link}>{text}</Link>;
+						return (
+							<Link key={text} to={link}>
+								{text}
+							</Link>
+						);
 					})}
 				</Breadcrumbs>
 				{/* <Typography variant="h5">ok</Typography> */}
