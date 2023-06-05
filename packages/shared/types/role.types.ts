@@ -1,12 +1,10 @@
 import { Attributes } from 'parse';
 
-export interface IUser extends Attributes {
+export interface IRole extends Attributes {
 	// Parse built-ins
-	username: string;
-	email: string;
+	name: string;
 	// custom fields
-	firstName?: string;
-	lastName?: string;
+	// nothing for now
 	// === generic Parse built-ins
 	objectId: string;
 	createdAt: string;
