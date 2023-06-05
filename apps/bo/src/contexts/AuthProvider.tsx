@@ -1,90 +1,75 @@
-import { PropsWithChildren, createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { PropsWithChildren, createContext, useCallback, useMemo, useState } from 'react';
 
-import { User } from '@devist/shared/types/user.types';
+import { IUser } from '@devist/shared/types/user.types';
+import { IRole } from '@devist/shared/types/role.types';
 
-import { LogInFnInput } from '../reactQuery/queryFns/logIn.fn';
-import { useLogInQuery } from '../hooks/useLogInQuery';
-import { useLogOutQuery } from '../hooks/useLogOutQuery';
+import { ROLES_LOCAL_STORAGE_KEY } from '../utils/constants';
+import useLocalStorage from '../hooks/useLocalStorage';
 
 type AuthContextType = {
-	user: User | null;
-	setUser: (user: User | null) => void;
-	token: string;
 	isAuthed: boolean;
-	logIn: (input: LogInFnInput) => Promise<void>;
-	isLogInLoading: boolean;
-	logOut: () => Promise<void>;
-	isLogOutLoading: boolean;
+	user?: IUser;
+	roles: IRole[];
+	syncUserState: () => void;
+	refetchUser: () => void;
 };
 
 export const AuthContext = createContext<AuthContextType>({
-	user: null,
-	setUser: () => {},
-	token: '',
 	isAuthed: false,
-	logIn: async () => {},
-	isLogInLoading: false,
-	logOut: async () => {},
-	isLogOutLoading: false,
+	user: undefined,
+	roles: [],
+	syncUserState: () => {},
+	refetchUser: () => {},
 });
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
-	const getCurrentUser = () => {
-		return Parse.User.current();
+	const getAuthStatus = () => {
+		const user = Parse.User.current();
+
+		if (!user) {
+			return false;
+		}
+
+		if (!user.getSessionToken()) {
+			return false;
+		}
+
+		return true;
 	};
 
-	const [user, setUser] = useState<User | null>(getCurrentUser()?.toJSON() as unknown as User);
-	const [token, setToken] = useState<string>(getCurrentUser()?.getSessionToken() || '');
-	const [isAuthed, setIsAuthed] = useState<boolean>(false);
+	const getAuthedUser = (): IUser | undefined => {
+		return Parse.User.current<Parse.User<IUser>>()?.toJSON() as any;
+	};
 
-	const { triggerLogIn, logInResult, isLogInSuccess, isLogInFetching } = useLogInQuery();
-	const { triggerLogOut, isLogOutSuccess, isLogOutFetching } = useLogOutQuery();
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const [isAuthed, setIsAuthed] = useState<boolean>(getAuthStatus());
+	const [user, setUser] = useState<IUser | undefined>(getAuthedUser());
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const [roles, setRoles] = useLocalStorage<IRole[]>(ROLES_LOCAL_STORAGE_KEY, []);
 
-	useEffect(() => {
-		setIsAuthed(!!token);
-	}, [token]);
+	const syncUserState = useCallback(() => {
+		setUser(getAuthedUser());
+	}, []);
 
-	useEffect(() => {
-		if (!isLogInFetching && isLogInSuccess && logInResult) {
-			const loggedUser = logInResult;
-			const userJSON = loggedUser.toJSON() as unknown as User;
-			setUser(userJSON);
-			setToken(loggedUser.getSessionToken());
-		}
-	}, [isLogInFetching, isLogInSuccess, logInResult]);
+	const refetchUser = useCallback(() => {
+		const run = async () => {
+			const iUser = Parse.User.current();
+			const result = await iUser?.fetch();
+			setUser(result?.toJSON() as any);
+		};
 
-	useEffect(() => {
-		if (!isLogOutFetching && isLogOutSuccess) {
-			// setUser(getCurrentUser()?.toJSON() as unknown as User);
-			// setToken(getCurrentUser()?.getSessionToken());
-			setUser(null);
-			setToken('');
-		}
-	}, [isLogOutFetching, isLogOutSuccess]);
-
-	const logIn = useCallback(
-		async (input: LogInFnInput) => {
-			triggerLogIn(input);
-		},
-		[triggerLogIn],
-	);
-
-	const logOut = useCallback(async () => {
-		await triggerLogOut();
-	}, [triggerLogOut]);
+		run();
+	}, []);
 
 	const memoizedValue = useMemo<AuthContextType>(() => {
 		return {
-			user,
-			setUser,
-			token,
 			isAuthed,
-			logIn,
-			isLogInLoading: isLogInFetching,
-			logOut,
-			isLogOutLoading: isLogOutFetching,
+			user,
+			roles,
+			syncUserState,
+			refetchUser,
 		};
-	}, [isAuthed, isLogInFetching, isLogOutFetching, logIn, logOut, token, user]);
+	}, [isAuthed, refetchUser, roles, syncUserState, user]);
 
 	return <AuthContext.Provider value={memoizedValue}>{children}</AuthContext.Provider>;
 };

@@ -47,7 +47,8 @@ module.exports = {
 
 		// @typescript-eslint overrides
 		'no-unused-vars': 'off',
-		'@typescript-eslint/no-explicit-any': 'warn',
+		// '@typescript-eslint/no-explicit-any': 'warn',
+		'@typescript-eslint/no-explicit-any': 'off',
 
 		// eslint-config-prettier overrides
 		'prettier/prettier': 'warn',
