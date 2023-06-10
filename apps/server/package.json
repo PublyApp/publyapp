@@ -24,7 +24,7 @@
 		"esbuild": "^0.17.19",
 		"esbuild-node-externals": "^1.7.0",
 		"eslint": "^8.40.0",
-		"eslint-config-devist-server": "workspace:*",
+		"eslint-config-custom-server": "workspace:*",
 		"nodemon": "^2.0.22",
 		"tsconfig": "workspace:*"
 	}

@@ -8,7 +8,7 @@ import './main.css';
 // --------------------------------------------------------------------------------------//
 //                                   initialize parse                                   //
 // --------------------------------------------------------------------------------------//
-Parse.initialize('devist');
+Parse.initialize('aktivpost');
 
 const locationOrigin = window.location.origin;
 const parseServerURL =

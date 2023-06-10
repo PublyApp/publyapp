@@ -1,4 +1,4 @@
 module.exports = {
 	root: true,
-	extends: ['devist-react-vite'],
+	extends: ['custom-react-vite'],
 };

@@ -1,6 +1,6 @@
 // import { QueryFunctionContext } from '@tanstack/react-query';
 
-import { IUser } from '@devist/shared/types/user.types';
+import { IUser } from '@aktivpost/shared/types/user.types';
 
 // --------------------------------------------------------------------------------------//
 //                                                                                      //

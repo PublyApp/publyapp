@@ -1,5 +1,5 @@
 {
-	"name": "eslint-config-devist-server",
+	"name": "eslint-config-custom-server",
 	"version": "0.0.0",
 	"main": "index.js",
 	"license": "MIT",
@@ -7,7 +7,7 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"eslint-config-devist-base": "workspace:*",
+		"eslint-config-custom-base": "workspace:*",
 		"eslint": "^8.40.0"
 	}
 }

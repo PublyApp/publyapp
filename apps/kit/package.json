@@ -21,7 +21,7 @@
 		"@sveltejs/kit": "^1.5.0",
 		"@types/cookie": "^0.5.1",
 		"eslint": "^8.40.0",
-		"eslint-config-devist-base": "workspace:*",
+		"eslint-config-custom-base": "workspace:*",
 		"eslint-plugin-svelte": "^2.26.0",
 		"prettier-plugin-svelte": "^2.8.1",
 		"svelte": "^3.55.0",

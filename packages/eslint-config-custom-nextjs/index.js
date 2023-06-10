@@ -5,7 +5,7 @@ module.exports = {
 		'airbnb-typescript',
 		'plugin:react/jsx-runtime',
 		'plugin:@next/next/recommended',
-		'devist-base',
+		'custom-base',
 	],
 	rules: {
 		'@next/next/no-html-link-for-pages': 'off',

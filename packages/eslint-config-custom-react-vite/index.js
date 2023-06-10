@@ -1,6 +1,6 @@
 module.exports = {
 	env: { browser: true, es2020: true },
-	extends: ['airbnb', 'airbnb/hooks', 'airbnb-typescript', 'plugin:react/jsx-runtime', 'devist-base'],
+	extends: ['airbnb', 'airbnb/hooks', 'airbnb-typescript', 'plugin:react/jsx-runtime', 'custom-base'],
 	parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
 	plugins: ['react-refresh'],
 	rules: {
