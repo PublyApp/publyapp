@@ -7,9 +7,9 @@ importers:
       eslint:
         specifier: ^8.40.0
         version: 8.40.0
-      eslint-config-devist-base:
+      eslint-config-custom-base:
         specifier: workspace:*
-        version: link:packages/eslint-config-devist-base
+        version: link:packages/eslint-config-custom-base
       husky:
         specifier: ^8.0.0
         version: 8.0.0
@@ -28,10 +28,10 @@ importers:
 
   apps/bo:
     dependencies:
-      '@devist/shared':
+      '@aktivpost/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@devist/ui-react':
+      '@aktivpost/ui-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
       '@emotion/react':
@@ -89,9 +89,9 @@ importers:
       eslint:
         specifier: ^8.40.0
         version: 8.40.0
-      eslint-config-devist-react-vite:
+      eslint-config-custom-react-vite:
         specifier: workspace:*
-        version: link:../../packages/eslint-config-devist-react-vite
+        version: link:../../packages/eslint-config-custom-react-vite
       eslint-plugin-react-hooks:
         specifier: ^4.6.0
         version: 4.6.0(eslint@8.40.0)
@@ -116,7 +116,7 @@ importers:
 
   apps/docs:
     dependencies:
-      '@devist/ui-react':
+      '@aktivpost/ui-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
       next:
@@ -141,9 +141,9 @@ importers:
       eslint:
         specifier: ^8.40.0
         version: 8.40.0
-      eslint-config-devist-nextjs:
+      eslint-config-custom-nextjs:
         specifier: workspace:*
-        version: link:../../packages/eslint-config-devist-nextjs
+        version: link:../../packages/eslint-config-custom-nextjs
       tsconfig:
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -153,7 +153,7 @@ importers:
 
   apps/front:
     dependencies:
-      '@devist/ui-react':
+      '@aktivpost/ui-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
       '@emotion/react':
@@ -187,9 +187,9 @@ importers:
       eslint:
         specifier: ^8.40.0
         version: 8.40.0
-      eslint-config-devist-nextjs:
+      eslint-config-custom-nextjs:
         specifier: workspace:*
-        version: link:../../packages/eslint-config-devist-nextjs
+        version: link:../../packages/eslint-config-custom-nextjs
       tsconfig:
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -220,9 +220,9 @@ importers:
       eslint:
         specifier: ^8.40.0
         version: 8.40.0
-      eslint-config-devist-base:
+      eslint-config-custom-base:
         specifier: workspace:*
-        version: link:../../packages/eslint-config-devist-base
+        version: link:../../packages/eslint-config-custom-base
       eslint-plugin-svelte:
         specifier: ^2.26.0
         version: 2.26.0(eslint@8.40.0)(svelte@3.55.0)
@@ -290,9 +290,9 @@ importers:
       eslint:
         specifier: ^8.40.0
         version: 8.40.0
-      eslint-config-devist-server:
+      eslint-config-custom-server:
         specifier: workspace:*
-        version: link:../../packages/eslint-config-devist-server
+        version: link:../../packages/eslint-config-custom-server
       nodemon:
         specifier: ^2.0.22
         version: 2.0.22
@@ -300,7 +300,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/tsconfig
 
-  packages/eslint-config-devist-base:
+  packages/eslint-config-custom-base:
     devDependencies:
       '@typescript-eslint/eslint-plugin':
         specifier: ^5.59.5
@@ -339,7 +339,7 @@ importers:
         specifier: ^5.0.4
         version: 5.0.4
 
-  packages/eslint-config-devist-nextjs:
+  packages/eslint-config-custom-nextjs:
     dependencies:
       next:
         specifier: ^13.4.2
@@ -354,9 +354,9 @@ importers:
       eslint-config-airbnb-typescript:
         specifier: ^17.0.0
         version: 17.0.0(@typescript-eslint/eslint-plugin@5.59.5)(@typescript-eslint/parser@5.59.5)(eslint-plugin-import@2.27.5)(eslint@8.40.0)
-      eslint-config-devist-base:
+      eslint-config-custom-base:
         specifier: workspace:*
-        version: link:../eslint-config-devist-base
+        version: link:../eslint-config-custom-base
       eslint-config-next:
         specifier: ^13.4.1
         version: 13.4.1(eslint@8.40.0)(typescript@5.0.4)
@@ -364,7 +364,7 @@ importers:
         specifier: 7.28.0
         version: 7.28.0(eslint@8.40.0)
 
-  packages/eslint-config-devist-react-vite:
+  packages/eslint-config-custom-react-vite:
     devDependencies:
       eslint:
         specifier: ^8.40.0
@@ -375,18 +375,18 @@ importers:
       eslint-config-airbnb-typescript:
         specifier: ^17.0.0
         version: 17.0.0(@typescript-eslint/eslint-plugin@5.59.5)(@typescript-eslint/parser@5.59.5)(eslint-plugin-import@2.27.5)(eslint@8.40.0)
-      eslint-config-devist-base:
+      eslint-config-custom-base:
         specifier: workspace:*
-        version: link:../eslint-config-devist-base
+        version: link:../eslint-config-custom-base
 
-  packages/eslint-config-devist-server:
+  packages/eslint-config-custom-server:
     devDependencies:
       eslint:
         specifier: ^8.40.0
         version: 8.40.0
-      eslint-config-devist-base:
+      eslint-config-custom-base:
         specifier: workspace:*
-        version: link:../eslint-config-devist-base
+        version: link:../eslint-config-custom-base
 
   packages/shared:
     dependencies:
@@ -430,9 +430,9 @@ importers:
       eslint:
         specifier: ^8.40.0
         version: 8.40.0
-      eslint-config-devist-react-vite:
+      eslint-config-custom-react-vite:
         specifier: workspace:*
-        version: link:../eslint-config-devist-react-vite
+        version: link:../eslint-config-custom-react-vite
       tsconfig:
         specifier: workspace:*
         version: link:../tsconfig

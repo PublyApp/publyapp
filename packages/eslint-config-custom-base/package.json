@@ -1,5 +1,5 @@
 {
-	"name": "eslint-config-devist-base",
+	"name": "eslint-config-custom-base",
 	"version": "0.0.0",
 	"main": "index.js",
 	"license": "MIT",

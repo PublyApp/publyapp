@@ -10,7 +10,7 @@
 		"start": "next start"
 	},
 	"dependencies": {
-		"@devist/ui-react": "workspace:*",
+		"@aktivpost/ui-react": "workspace:*",
 		"@emotion/react": "^11.11.0",
 		"@emotion/styled": "^11.11.0",
 		"@mui/material": "^5.13.1",
@@ -23,7 +23,7 @@
 		"@types/react": "^18.0.22",
 		"@types/react-dom": "^18.0.7",
 		"eslint": "^8.40.0",
-		"eslint-config-devist-nextjs": "workspace:*",
+		"eslint-config-custom-nextjs": "workspace:*",
 		"tsconfig": "workspace:*",
 		"typescript": "^4.5.3"
 	}

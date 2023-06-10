@@ -7,10 +7,10 @@
 	},
 	"include": [
 		// whatever paths you intend to lint
-		"packages/eslint-config-devist-base",
-		"packages/eslint-config-devist-nextjs",
-		"packages/eslint-config-devist-react-vite",
-		"packages/eslint-config-devist-server",
+		"packages/eslint-config-custom-base",
+		"packages/eslint-config-custom-nextjs",
+		"packages/eslint-config-custom-react-vite",
+		"packages/eslint-config-custom-server",
 
 		"apps/bo/.eslintrc.cjs",
 		"apps/docs/.eslintrc.js",

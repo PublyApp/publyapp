@@ -65,7 +65,7 @@ module.exports = {
 				pathGroupsExcludedImportTypes: ['react'],
 				pathGroups: [
 					{
-						pattern: '@devist/**',
+						pattern: '@aktivpost/**',
 						group: 'external',
 						position: 'after',
 					},

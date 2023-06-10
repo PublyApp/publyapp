@@ -1,4 +1,4 @@
 module.exports = {
 	root: true,
-	extends: ['devist-nextjs'],
+	extends: ['custom-nextjs'],
 };

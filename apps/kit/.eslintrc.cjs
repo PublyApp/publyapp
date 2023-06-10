@@ -1,6 +1,6 @@
 module.exports = {
 	root: true,
-	extends: ['devist-base', 'plugin:svelte/recommended'],
+	extends: ['custom-base', 'plugin:svelte/recommended'],
 	parserOptions: {
 		sourceType: 'module',
 		ecmaVersion: 2020,
