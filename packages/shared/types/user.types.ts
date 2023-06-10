@@ -1,6 +1,6 @@
-import { Attributes } from 'parse';
+import { IAttributes } from './parse.types';
 
-export interface IUser extends Attributes {
+export type IUser = IAttributes & {
 	// Parse built-ins
 	username: string;
 	email: string;
@@ -11,4 +11,4 @@ export interface IUser extends Attributes {
 	objectId: string;
 	createdAt: string;
 	updatedAt: string;
-}
+};

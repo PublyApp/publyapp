@@ -1,6 +1,6 @@
-import { Attributes } from 'parse';
+import { IAttributes } from './parse.types';
 
-export interface IRole extends Attributes {
+export type IRole = IAttributes & {
 	// Parse built-ins
 	name: string;
 	// custom fields
@@ -9,4 +9,4 @@ export interface IRole extends Attributes {
 	objectId: string;
 	createdAt: string;
 	updatedAt: string;
-}
+};
