@@ -1,5 +1,5 @@
 // import { QueryFunctionContext } from '@tanstack/react-query';
-
+import { LogInInput } from '@aktivpost/shared/validations/auth.validations';
 import { IUser } from '@aktivpost/shared/types/user.types';
 
 // --------------------------------------------------------------------------------------//
@@ -13,11 +13,6 @@ import { IUser } from '@aktivpost/shared/types/user.types';
 //                                      MUTATIONS                                       //
 //                                                                                      //
 // --------------------------------------------------------------------------------------//
-
-export type LogInInput = {
-	email: string;
-	password: string;
-};
 
 export const logInAction = async (input: LogInInput) => {
 	try {

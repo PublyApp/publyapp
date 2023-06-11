@@ -250,6 +250,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@aktivpost/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       cors:
         specifier: ^2.8.5
         version: 2.8.5
@@ -393,6 +396,9 @@ importers:
       parse:
         specifier: ^4.1.0
         version: 4.1.0
+      zod:
+        specifier: ^3.21.4
+        version: 3.21.4
     devDependencies:
       '@types/parse':
         specifier: ^3.0.4

@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 import express from 'express';
 import ParseServer from 'parse-server';
 
+import { createRolesIfNotExist } from './utils/role.utils';
+import RoleSchema from './schemas/role.schema';
+
 const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                                 set the global vars                                  //
@@ -59,9 +62,9 @@ const bootstrap = async () => {
 		allowClientClassCreation: false,
 		schema: {
 			strict: true,
-			definitions: [],
+			definitions: [RoleSchema],
 		},
-		masterKeyIps: ['0.0.0.0/0'],
+		masterKeyIps: ['0.0.0.0/0', '::1'],
 	});
 
 	await parseServer.start();
@@ -69,13 +72,18 @@ const bootstrap = async () => {
 	app.use('/parse', parseServer.app);
 
 	// --------------------------------------------------------------------------------------//
-	//                                    run he server                                     //
+	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
 	app.listen(PORT, () => {
 		console.log('====================================');
 		console.log(`   server running on port ${PORT}   `);
 		console.log('====================================');
 	});
+
+	//--------------------------------------------------------------------------------------//
+	//                                   create the roles                                   //
+	//--------------------------------------------------------------------------------------//
+	createRolesIfNotExist();
 };
 
 bootstrap();
