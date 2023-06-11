@@ -6,20 +6,20 @@ import { theme } from '@aktivpost/ui-react/utils/theme';
 
 import AppRoutes from './AppRoutes';
 import { AuthProvider } from './contexts/AuthProvider';
-import { queryClient } from './reactQuery/queryClient';
+import { queryClient } from './query/queryClient';
 import AppProvider from './contexts/AppProvider';
 
 const App = () => {
 	return (
-		<QueryClientProvider client={queryClient}>
-			<AuthProvider>
+		<AuthProvider>
+			<QueryClientProvider client={queryClient}>
 				<ThemeProvider theme={theme}>
 					<AppProvider>
 						<AppRoutes />
 					</AppProvider>
 				</ThemeProvider>
-			</AuthProvider>
-		</QueryClientProvider>
+			</QueryClientProvider>
+		</AuthProvider>
 	);
 };
 
