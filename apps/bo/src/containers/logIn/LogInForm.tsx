@@ -1,6 +1,26 @@
-import { Box, TextField } from '@mui/material';
+import { Box, Button, CircularProgress, TextField } from '@mui/material';
+import { SubmitHandler, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+import { LogInInput, logInSchema } from '@aktivpost/shared/validations/auth.validations';
+
+import { useLogInMutation } from '../../query/features/auth/auth.hooks';
 
 const LogInForm = () => {
+	const form = useForm<LogInInput>({ resolver: zodResolver(logInSchema) });
+
+	const {
+		handleSubmit,
+		register,
+		formState: { errors /* , isDirty, isValid */ },
+	} = form;
+
+	const { mutate: logIn, isLoading } = useLogInMutation();
+
+	const onSubmitHandler: SubmitHandler<LogInInput> = async (values) => {
+		logIn(values);
+	};
+
 	return (
 		<Box
 			sx={{
@@ -12,20 +32,16 @@ const LogInForm = () => {
 			}}
 		>
 			<Box component="form">
+				<TextField type="email" error={!!errors.email} helperText={errors.email?.message} {...register('email')} />
 				<TextField
-					id="outlined-basic"
-					/* label="Outlined"  */
-					sx={{
-						// '& .MuiInputBase-input': {
-						// 	backgroundColor: '#fff',
-						// 	// borderColor: '#dbdbdb',
-						// 	borderColor: 'red',
-						// 	borderRadius: '44px',
-						// 	color: '#363636',
-						// },
-						borderRadius: '44px',
-					}}
+					type="password"
+					error={!!errors.password}
+					helperText={errors.password?.message}
+					{...register('password')}
 				/>
+				<Button variant="contained" onClick={handleSubmit(onSubmitHandler)}>
+					{isLoading ? <CircularProgress /> : 'Log In'}
+				</Button>
 			</Box>
 		</Box>
 	);

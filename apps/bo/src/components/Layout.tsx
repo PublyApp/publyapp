@@ -24,8 +24,8 @@ import {
 	NavigateNext as NavigateNextIcon,
 } from '@mui/icons-material';
 
-import { useAuth } from '../hooks/useAuth';
 import { useApp } from '../hooks/useApp';
+import { useLogOutMutation } from '../query/features/auth/auth.hooks';
 
 import Link from './Link';
 
@@ -50,8 +50,9 @@ const menuItems = [
 ];
 
 const Layout = () => {
-	const { logOut, isLogOutLoading } = useAuth();
 	const { breadcrumbs } = useApp();
+
+	const { mutate: logOut, isLoading } = useLogOutMutation();
 
 	const handleLogOut = () => {
 		logOut();
@@ -69,7 +70,7 @@ const Layout = () => {
 						</Grid>
 						<Grid item>
 							<Button variant="contained" color="primary" disableElevation onClick={handleLogOut}>
-								{isLogOutLoading ? <CircularProgress color="inherit" size="16px" /> : <LogoutIcon />}{' '}
+								{isLoading ? <CircularProgress color="inherit" size="16px" /> : <LogoutIcon />}{' '}
 								<Typography textTransform="capitalize" ml="0.5rem">
 									Log Out
 								</Typography>

@@ -1,4 +1,4 @@
-import { PropsWithChildren, createContext, useCallback, useMemo, useState } from 'react';
+import { PropsWithChildren, createContext, useCallback, useMemo, useState, useEffect } from 'react';
 
 import { IUser } from '@aktivpost/shared/types/user.types';
 import { IRole } from '@aktivpost/shared/types/role.types';
@@ -41,11 +41,14 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 		return Parse.User.current<Parse.User<IUser>>()?.toJSON() as any;
 	};
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const [isAuthed, setIsAuthed] = useState<boolean>(getAuthStatus());
 	const [user, setUser] = useState<IUser | undefined>(getAuthedUser());
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const [roles, setRoles] = useLocalStorage<IRole[]>(ROLES_LOCAL_STORAGE_KEY, []);
+
+	useEffect(() => {
+		setIsAuthed(getAuthStatus());
+		setRoles(JSON.parse(localStorage.getItem(ROLES_LOCAL_STORAGE_KEY) as any));
+	}, [setRoles, user]);
 
 	const syncUserState = useCallback(() => {
 		setUser(getAuthedUser());
