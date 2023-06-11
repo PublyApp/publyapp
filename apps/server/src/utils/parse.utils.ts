@@ -1,9 +1,12 @@
-type ParseInnerFunction = (request?: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest) => Promise<unknown>;
+// type ParseInnerFunction = (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest) => Promise<unknown>;
+type ParseInnerFunction =
+	| ((req: Parse.Cloud.TriggerRequest) => Promise<any>)
+	| ((req: Parse.Cloud.FunctionRequest) => Promise<any>);
 
 export const parseFunction = (innerFunction: ParseInnerFunction) => {
-	return async (request: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest): Promise<unknown> => {
+	return async (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest): Promise<any> => {
 		try {
-			let result = await innerFunction(request);
+			let result = await innerFunction(req as any);
 
 			if (result == null) {
 				result = 'ok';
@@ -28,3 +31,24 @@ export const parseFunction = (innerFunction: ParseInnerFunction) => {
 		}
 	};
 };
+
+// type FromAction = (req: Parse.Cloud.FunctionRequest, user: Parse.User) => void;
+
+// type FromOptions = {
+// 	allowedRoles: any[];
+// };
+
+// export const from = async (action: FromAction, _options: FromOptions) => {
+// 	return parseFunction(async (req: Parse.Cloud.FunctionRequest) => {
+// 		const user = req.user;
+
+// 		if (!user) {
+// 			throw new Error('You need to be authenticated to perform this action');
+// 		}
+
+// 		// verify roles
+// 		// TODO: verify roles
+
+// 		return action(req, user);
+// 	});
+// };

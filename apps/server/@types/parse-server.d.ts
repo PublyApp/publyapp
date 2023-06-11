@@ -60,8 +60,10 @@ declare module 'parse-server' {
 			| /* @Typescript 4.1+ `user:${string}` | `role:${string}` */ string;
 		type CLPInfo = { [key: string]: boolean };
 		type CLPData = { [key: string]: CLPOperation[] };
-		type CLPValue = { [key: string]: boolean };
-		type CLPInterface = { [key: string]: CLPValue };
+		// type CLPValue = { [key: string]: boolean };
+		// type CLPInterface = { [key: string]: CLPValue };
+		// type CLPInterface = { [key: CLPPermission]: boolean };
+		type CLPInterface = Record<CLPPermission, boolean>;
 
 		export interface CPLsInterface {
 			find?: CLPInterface;
