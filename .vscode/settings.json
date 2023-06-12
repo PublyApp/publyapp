@@ -1,5 +1,16 @@
 {
-	"cSpell.words": ["aktivpost", "Authed", "hookform", "middlewares", "nextjs", "Parens", "PREPROD", "svgr", "tanstack"],
+	"cSpell.words": [
+		"aktivpost",
+		"Authed",
+		"hookform",
+		"languagedetector",
+		"middlewares",
+		"nextjs",
+		"Parens",
+		"PREPROD",
+		"svgr",
+		"tanstack"
+	],
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.codeActionsOnSave": {
 		"source.fixAll": true
