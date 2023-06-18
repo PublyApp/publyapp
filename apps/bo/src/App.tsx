@@ -1,35 +1,26 @@
-import { useState } from 'react';
+// import { ThemeProvider } from '@emotion/react';
+import { ThemeProvider } from '@emotion/react';
+import { QueryClientProvider } from '@tanstack/react-query';
 
-import { Button } from '@devist/ui-react';
+import { theme } from '@aktivpost/ui-react/utils/theme';
 
-import './App.css';
-import reactLogo from './assets/react.svg';
-import viteLogo from '/vite.svg';
+import AppRoutes from './AppRoutes';
+import { AuthProvider } from './contexts/AuthProvider';
+import { queryClient } from './query/queryClient';
+import AppProvider from './contexts/AppProvider';
 
-function App() {
-	const [count, setCount] = useState(0);
-
+const App = () => {
 	return (
-		<>
-			<div>
-				<a href="https://vitejs.dev" target="_blank" rel="noreferrer">
-					<img src={viteLogo} className="logo" alt="Vite logo" />
-				</a>
-				<a href="https://react.dev" target="_blank" rel="noreferrer">
-					<img src={reactLogo} className="logo react" alt="React logo" />
-				</a>
-			</div>
-			<h1>Vite + React</h1>
-			<div className="card">
-				{/* <button onClick={() => setCount(count => count + 1)}>count is {count}</button> */}
-				<Button onClick={() => setCount((count) => count + 1)} text={`count is ${count}`} />
-				<p>
-					Edit <code>src/App.tsx</code> and save to test HMR
-				</p>
-			</div>
-			<p className="read-the-docs">Click on the Vite and React logos to learn more</p>
-		</>
+		<AuthProvider>
+			<QueryClientProvider client={queryClient}>
+				<ThemeProvider theme={theme}>
+					<AppProvider>
+						<AppRoutes />
+					</AppProvider>
+				</ThemeProvider>
+			</QueryClientProvider>
+		</AuthProvider>
 	);
-}
+};
 
 export default App;

@@ -6,5 +6,16 @@ export type Props = {
 };
 
 export const Button = ({ onClick, text }: Props) => {
-	return <button onClick={onClick || (() => alert('boop'))}>{text || 'Boop'}</button>;
+	return (
+		<button
+			onClick={
+				onClick ||
+				(() => {
+					return console.log('Hello');
+				})
+			}
+		>
+			{text || 'Hello'}
+		</button>
+	);
 };

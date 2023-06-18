@@ -1,10 +1,22 @@
 {
-	"cSpell.words": ["devist", "nextjs", "Parens"],
+	"cSpell.language": "en,fr",
+	"cSpell.words": [
+		"aktivpost",
+		"Authed",
+		"hookform",
+		"languagedetector",
+		"middlewares",
+		"nextjs",
+		"Parens",
+		"PREPROD",
+		"svgr",
+		"tanstack"
+	],
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.codeActionsOnSave": {
 		"source.fixAll": true
 	},
-	"editor.formatOnSave": true,
+	// "editor.formatOnSave": true,
 	"editor.tabSize": 2,
 	"editor.insertSpaces": false,
 	"editor.renderWhitespace": "all",
