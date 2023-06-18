@@ -1,4 +1,5 @@
 {
+	"editorconfig": true,
 	"arrowParens": "always",
 	"bracketSameLine": false,
 	"semi": true,

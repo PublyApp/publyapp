@@ -1,4 +1,11 @@
-import { PropsWithChildren, createContext, useMemo, useState } from 'react';
+import { PropsWithChildren, createContext, useEffect, useMemo, useState } from 'react';
+
+import { useLocalStorage } from 'react-use';
+// import { useQueryClient } from '@tanstack/react-query';
+
+import { AppLocale, defaultLocale } from '@aktivpost/shared/i18n/resources';
+import i18n, { getCurrentLocale } from '@aktivpost/ui-react/utils/i18n';
+import { I18N_LOCALE_KEY } from '@aktivpost/shared/utils/constants';
 
 type Toast = {
 	type: 'info' | 'success' | 'warning' | 'error';
@@ -15,6 +22,8 @@ type AppContextType = {
 	setToast: (toast: Toast | null) => void;
 	breadcrumbs: Breadcrumb[];
 	setBreadcrumbs: (breadcrumbs: Breadcrumb[]) => void;
+	locale: AppLocale;
+	setLocale: (locale: AppLocale) => void;
 };
 
 export const AppContext = createContext<AppContextType>({
@@ -22,11 +31,23 @@ export const AppContext = createContext<AppContextType>({
 	setToast: () => {},
 	breadcrumbs: [],
 	setBreadcrumbs: () => {},
+	locale: defaultLocale,
+	setLocale: () => {},
 });
 
 const AppProvider = ({ children }: PropsWithChildren) => {
 	const [toast, setToast] = useState<Toast | null>(null);
 	const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
+	const [locale, setLocale] = useLocalStorage(I18N_LOCALE_KEY, getCurrentLocale());
+	// const queryClient = useQueryClient();
+
+	useEffect(() => {
+		Parse.CoreManager.set('REQUEST_HEADERS', {
+			[I18N_LOCALE_KEY]: locale,
+		});
+		i18n.changeLanguage(locale);
+		// queryClient.invalidateQueries();
+	}, [locale]);
 
 	const memoizedValue = useMemo<AppContextType>(() => {
 		return {
@@ -34,8 +55,10 @@ const AppProvider = ({ children }: PropsWithChildren) => {
 			setToast,
 			breadcrumbs,
 			setBreadcrumbs,
+			locale,
+			setLocale,
 		};
-	}, [breadcrumbs, toast]);
+	}, [breadcrumbs, locale, setLocale, toast]);
 
 	return <AppContext.Provider value={memoizedValue}>{children}</AppContext.Provider>;
 };

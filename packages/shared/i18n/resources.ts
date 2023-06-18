@@ -8,5 +8,8 @@ export const resources = {
 	fr,
 };
 
+export type AppLocale = keyof typeof resources;
+
 export const NS = Object.keys(fr);
 export const defaultNS = 'common';
+export const defaultLocale: AppLocale = 'en';
