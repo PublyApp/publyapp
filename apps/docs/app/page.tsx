@@ -1,6 +1,4 @@
-import React from 'react';
-
-import { Button, Header } from '@devist/ui-react';
+import { Button, Header } from '@aktivpost/ui-react';
 
 export default function Page() {
 	return (

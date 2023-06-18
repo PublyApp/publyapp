@@ -5,28 +5,43 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsc && vite build",
-		"dev": "vite dev --port 5173",
+		"dev": "vite dev --port 6178",
 		"preview": "vite preview",
 		"lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-		"lint:fix": "npm run lint --fix"
+		"lint:fix": "pnpm run lint --fix"
 	},
 	"dependencies": {
+		"@aktivpost/shared": "workspace:*",
+		"@aktivpost/ui-react": "workspace:*",
+		"@emotion/react": "^11.11.0",
+		"@emotion/styled": "^11.11.0",
+		"@hookform/resolvers": "^3.1.0",
+		"@mui/icons-material": "^5.11.16",
+		"@mui/material": "^5.13.1",
+		"@tanstack/react-query": "^4.29.7",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
-		"@devist/ui-react": "*"
+		"react-hook-form": "^7.44.3",
+		"react-i18next": "^12.3.1",
+		"react-router-dom": "^6.11.2",
+		"react-use": "^17.4.0",
+		"zod": "^3.21.4"
 	},
 	"devDependencies": {
+		"@types/parse": "^3.0.4",
 		"@types/react": "^18.0.28",
 		"@types/react-dom": "^18.0.11",
 		"@typescript-eslint/eslint-plugin": "^5.57.1",
 		"@typescript-eslint/parser": "^5.57.1",
 		"@vitejs/plugin-react": "^4.0.0",
 		"eslint": "^8.40.0",
-		"eslint-config-devist-react-vite": "*",
+		"eslint-config-custom-react-vite": "workspace:*",
 		"eslint-plugin-react-hooks": "^4.6.0",
 		"eslint-plugin-react-refresh": "^0.3.4",
-		"tsconfig": "*",
+		"tsconfig": "workspace:*",
 		"typescript": "^5.0.2",
-		"vite": "^4.3.2"
+		"vite": "^4.3.8",
+		"vite-plugin-svgr": "^3.2.0",
+		"vite-tsconfig-paths": "^4.2.0"
 	}
 }

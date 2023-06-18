@@ -1,6 +1,7 @@
 {
+	"editorconfig": true,
 	"arrowParens": "always",
-	"bracketSameLine": true,
+	"bracketSameLine": false,
 	"semi": true,
 	"trailingComma": "all",
 	"singleQuote": true,
@@ -9,11 +10,6 @@
 	"endOfLine": "lf",
 	"useTabs": true,
 	"tabWidth": 2,
-
-	"importOrder": ["^react$", "<THIRD_PARTY_MODULES>", "^@devist/(.*)$", "^[../]", "^[./]"],
-	"importOrderSeparation": true,
-	"importOrderCaseInsensitive": true,
-	"importOrderGroupNamespaceSpecifiers": true,
 
 	"plugins": ["prettier-plugin-svelte"],
 	"pluginSearchDirs": ["."],

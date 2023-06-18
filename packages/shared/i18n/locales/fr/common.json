@@ -1,0 +1,5 @@
+{
+	"hello": "Bonjour",
+	"actionRequireAuth": "Vous devez être authentifié pour effectuer cette action",
+	"insufficientRoleForAction": "Vos rôles ne permettent pas d'effectuer cette action"
+}

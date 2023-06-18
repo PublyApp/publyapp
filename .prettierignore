@@ -9,3 +9,7 @@ build
 
 # our custom build folders
 dist
+
+# pnpm
+pnpm-lock.yaml
+pnpm-workspace.yaml
