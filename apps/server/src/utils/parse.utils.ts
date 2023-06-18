@@ -1,3 +1,8 @@
+import { I18N_LOCALE_KEY, RolesEnum } from '@aktivpost/shared/utils/constants';
+import { defaultLocale } from '@aktivpost/shared/i18n/resources';
+
+import { getT } from './i18n';
+
 // type ParseInnerFunction = (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest) => Promise<unknown>;
 type ParseInnerFunction =
 	| ((req: Parse.Cloud.TriggerRequest) => Promise<any>)
@@ -32,23 +37,57 @@ export const parseFunction = (innerFunction: ParseInnerFunction) => {
 	};
 };
 
-// type FromAction = (req: Parse.Cloud.FunctionRequest, user: Parse.User) => void;
+type ParseFromParams =
+	| {
+			requireUser: true;
+			allowedRoles: RolesEnum[];
+			action: (req: Parse.Cloud.FunctionRequest, user: Parse.User, t: ReturnType<typeof getT>) => Promise<any>;
+	  }
+	| {
+			requireUser: false;
+			action: (req: Parse.Cloud.FunctionRequest, t: ReturnType<typeof getT>) => Promise<any>;
+			allowedRoles?: undefined;
+	  };
 
-// type FromOptions = {
-// 	allowedRoles: any[];
-// };
+const hasRole = async (user: Parse.User, roles: RolesEnum[]) => {
+	const foundRole = await new Parse.Query(Parse.Role)
+		.equalTo('users', user)
+		.containedIn('code', roles)
+		.first({ useMasterKey: true });
+	return !!foundRole;
+};
 
-// export const from = async (action: FromAction, _options: FromOptions) => {
-// 	return parseFunction(async (req: Parse.Cloud.FunctionRequest) => {
-// 		const user = req.user;
+export const parseFrom = (params: ParseFromParams) => {
+	return parseFunction(async (req: Parse.Cloud.FunctionRequest) => {
+		const { requireUser, action, allowedRoles } = params;
 
-// 		if (!user) {
-// 			throw new Error('You need to be authenticated to perform this action');
-// 		}
+		const { user, headers } = req;
 
-// 		// verify roles
-// 		// TODO: verify roles
+		const locale = headers[I18N_LOCALE_KEY] as string | undefined;
 
-// 		return action(req, user);
-// 	});
-// };
+		console.log('====================================');
+		console.log(locale);
+		console.log('====================================');
+
+		const t = getT(locale || defaultLocale);
+
+		if (!requireUser) {
+			return action(req, t);
+		}
+
+		if (!user) {
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+			throw new Error(t('common:actionRequireAuth')!);
+		}
+
+		// verify the roles
+		const userHasRole = await hasRole(user, allowedRoles);
+
+		if (!userHasRole) {
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+			throw new Error(t('common:insufficientRoleForAction')!);
+		}
+
+		return action(req, user, t);
+	});
+};

@@ -1,3 +1,5 @@
 {
-	"hello": "Hello"
+	"hello": "Hello",
+	"actionRequireAuth": "You need to be authenticated to perform this action",
+	"insufficientRoleForAction": "Your roles does not permit to perform this action"
 }

@@ -3,7 +3,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 
 // import { DEFAULT_LANGUAGE } from '../../utils/constants';
-import { resources, defaultNS, NS } from '@aktivpost/shared/i18n/resources';
+import { resources, defaultNS, NS, defaultLocale } from '@aktivpost/shared/i18n/resources';
 
 i18n
 	.use(initReactI18next) // passes i18n down to react-i18next
@@ -14,7 +14,7 @@ i18n
 		resources,
 		compatibilityJSON: 'v3',
 		// language to use if translations in user language are not available.
-		fallbackLng: 'fr', // default language
+		fallbackLng: defaultLocale,
 		ns: NS,
 		defaultNS,
 		interpolation: {

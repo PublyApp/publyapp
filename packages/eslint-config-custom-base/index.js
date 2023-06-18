@@ -50,7 +50,7 @@ module.exports = {
 		// '@typescript-eslint/no-explicit-any': 'warn',
 		'@typescript-eslint/no-explicit-any': 'off',
 
-		// eslint-config-prettier overrides
+		// eslint-plugin-prettier overrides
 		'prettier/prettier': 'warn',
 
 		// airbnb-base override

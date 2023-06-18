@@ -1,13 +1,15 @@
-import { parseFunction } from '../../utils/parse.utils';
+import { RolesEnum } from '@aktivpost/shared/utils/constants';
+
+import { parseFrom } from '../../utils/parse.utils';
 
 Parse.Cloud.define(
 	'hello',
-	parseFunction(async (req: any) => {
-		console.log('====================================');
-		console.log(req);
-		console.log('====================================');
-		console.log('hello');
-
-		return req;
+	parseFrom({
+		requireUser: true,
+		allowedRoles: [RolesEnum.ADMIN, RolesEnum.MODERATOR, RolesEnum.AUTHOR, RolesEnum.READER],
+		// allowedRoles: [],
+		action: async (_req, _user, t) => {
+			return t('common:hello');
+		},
 	}),
 );

@@ -18,3 +18,5 @@ export const classNames = {
 	ROLE: '_Role',
 	POST: 'Post',
 };
+
+export const I18N_LOCALE_KEY = 'xxx-app-i18n-locale';

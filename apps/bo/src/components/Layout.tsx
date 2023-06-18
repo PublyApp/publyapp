@@ -22,7 +22,9 @@ import {
 	Article as ArticleIcon,
 	Logout as LogoutIcon,
 	NavigateNext as NavigateNextIcon,
+	// Settings as SettingsIcon,
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 
 import { useApp } from '../hooks/useApp';
 import { useLogOutMutation } from '../query/features/auth/auth.hooks';
@@ -47,10 +49,16 @@ const menuItems = [
 		icon: <PersonIcon />,
 		link: '/account',
 	},
+	// {
+	// 	text: 'Settings',
+	// 	icon: <SettingsIcon />,
+	// 	link: '/settings',
+	// },
 ];
 
 const Layout = () => {
-	const { breadcrumbs } = useApp();
+	const { breadcrumbs, locale } = useApp();
+	const { t } = useTranslation();
 
 	const { mutate: logOut, isLoading } = useLogOutMutation();
 
@@ -65,7 +73,8 @@ const Layout = () => {
 					<Grid container justifyContent="space-between">
 						<Grid item>
 							<Typography variant="h6" noWrap component="div">
-								Permanent drawer
+								{/* Permanent drawer */}
+								{t('common:hello')}&nbsp; the current locale is {locale}
 							</Typography>
 						</Grid>
 						<Grid item>
