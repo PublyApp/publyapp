@@ -12,7 +12,7 @@ declare module 'parse-server' {
 	}
 
 	// --------------------------------------------------------------------------------------//
-	//                                types from goplan-app                                 //
+	//                                types from goplan-app                                  //
 	// --------------------------------------------------------------------------------------//
 	export namespace SchemaMigrations {
 		export type FieldValueType =

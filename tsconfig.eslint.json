@@ -16,8 +16,11 @@
 		"apps/docs/.eslintrc.js",
 		"apps/front/.eslintrc.js",
 		"apps/kit/.eslintrc.cjs",
-		"apps/kit/svelte.config.js",
 		"apps/server/.eslintrc.js",
+
+		"apps/kit/svelte.config.js",
+		"apps/front/next.config.js",
+		"apps/docs/next.config.js",
 
 		"apps/kit/playwright.config.ts",
 		"apps/server/esbuild",
