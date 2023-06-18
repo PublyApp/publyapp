@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link } from 'react-router-dom';
 import {
 	AppBar,
 	Box,
@@ -27,7 +27,7 @@ import {
 import { useApp } from '../hooks/useApp';
 import { useLogOutMutation } from '../query/features/auth/auth.hooks';
 
-import Link from './Link';
+// import Link from './Link';
 
 const drawerWidth = 240;
 
