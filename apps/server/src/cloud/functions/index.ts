@@ -8,7 +8,7 @@ Parse.Cloud.define(
 		requireUser: true,
 		allowedRoles: [RolesEnum.ADMIN, RolesEnum.MODERATOR, RolesEnum.AUTHOR, RolesEnum.READER],
 		// allowedRoles: [],
-		action: async (_req, _user, t) => {
+		action: async ({ t }) => {
 			return t('common:hello');
 		},
 	}),

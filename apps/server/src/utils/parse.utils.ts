@@ -37,15 +37,26 @@ export const parseFunction = (innerFunction: ParseInnerFunction) => {
 	};
 };
 
+type ActionContext2 = {
+	req: Parse.Cloud.FunctionRequest;
+	t: ReturnType<typeof getT>;
+};
+
+type ActionContext1 = {
+	req: Parse.Cloud.FunctionRequest;
+	t: ReturnType<typeof getT>;
+	user: Parse.User;
+};
+
 type ParseFromParams =
 	| {
 			requireUser: true;
 			allowedRoles: RolesEnum[];
-			action: (req: Parse.Cloud.FunctionRequest, user: Parse.User, t: ReturnType<typeof getT>) => Promise<any>;
+			action: (ctx: ActionContext1) => Promise<any>;
 	  }
 	| {
 			requireUser: false;
-			action: (req: Parse.Cloud.FunctionRequest, t: ReturnType<typeof getT>) => Promise<any>;
+			action: (ctx: ActionContext2) => Promise<any>;
 			allowedRoles?: undefined;
 	  };
 
@@ -72,7 +83,7 @@ export const parseFrom = (params: ParseFromParams) => {
 		const t = getT(locale || defaultLocale);
 
 		if (!requireUser) {
-			return action(req, t);
+			return action({ req, t });
 		}
 
 		if (!user) {
@@ -88,6 +99,6 @@ export const parseFrom = (params: ParseFromParams) => {
 			throw new Error(t('common:insufficientRoleForAction')!);
 		}
 
-		return action(req, user, t);
+		return action({ req, user, t });
 	});
 };
