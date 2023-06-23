@@ -50,8 +50,8 @@ importers:
         specifier: ^5.13.1
         version: 5.13.1(@emotion/react@11.11.0)(@emotion/styled@11.11.0)(@types/react@18.2.0)(react-dom@18.2.0)(react@18.2.0)
       '@tanstack/react-query':
-        specifier: ^4.29.7
-        version: 4.29.7(react-dom@18.2.0)(react@18.2.0)
+        specifier: ^4.29.14
+        version: 4.29.14(react-dom@18.2.0)(react@18.2.0)
       react:
         specifier: ^18.2.0
         version: 18.2.0
@@ -63,7 +63,7 @@ importers:
         version: 7.44.3(react@18.2.0)
       react-i18next:
         specifier: ^12.3.1
-        version: 12.3.1(i18next@22.5.1)(react-dom@18.2.0)(react@18.2.0)
+        version: 12.3.1(i18next@23.1.0)(react-dom@18.2.0)(react@18.2.0)
       react-router-dom:
         specifier: ^6.11.2
         version: 6.11.2(react-dom@18.2.0)(react@18.2.0)
@@ -389,7 +389,7 @@ importers:
         version: 8.40.0
       eslint-config-airbnb:
         specifier: ^19.0.4
-        version: 19.0.4(eslint-plugin-import@2.27.5)(eslint-plugin-jsx-a11y@6.7.1)(eslint-plugin-react-hooks@4.6.0)(eslint-plugin-react@7.28.0)(eslint@8.40.0)
+        version: 19.0.4(eslint-plugin-import@2.27.5)(eslint-plugin-jsx-a11y@6.7.1)(eslint-plugin-react-hooks@4.6.0)(eslint-plugin-react@7.32.2)(eslint@8.40.0)
       eslint-config-airbnb-typescript:
         specifier: ^17.0.0
         version: 17.0.0(@typescript-eslint/eslint-plugin@5.59.11)(@typescript-eslint/parser@5.59.11)(eslint-plugin-import@2.27.5)(eslint@8.40.0)
@@ -877,6 +877,13 @@ packages:
     engines: {node: '>=6.9.0'}
     dependencies:
       regenerator-runtime: 0.13.11
+
+  /@babel/runtime@7.22.5:
+    resolution: {integrity: sha512-ecjvYlnAaZ/KVneE/OdKYBYfgXV3Ptu6zQWmgEF7vwKhQnvVS6bjMD2XYgj+SNvQ1GfK/pjgokfPkC/2CO8CuA==}
+    engines: {node: '>=6.9.0'}
+    dependencies:
+      regenerator-runtime: 0.13.11
+    dev: false
 
   /@babel/template@7.20.7:
     resolution: {integrity: sha512-8SegXApWe6VoNw0r9JHpSteLKTpTiLZ4rMlGIm9JQ18KiCtyQiAMEazujAHrUS5flrcqYZa75ukev3P6QmUwUw==}
@@ -2348,12 +2355,12 @@ packages:
       tslib: 2.5.2
     dev: false
 
-  /@tanstack/query-core@4.29.7:
-    resolution: {integrity: sha512-GXG4b5hV2Loir+h2G+RXhJdoZhJLnrBWsuLB2r0qBRyhWuXq9w/dWxzvpP89H0UARlH6Mr9DiVj4SMtpkF/aUA==}
+  /@tanstack/query-core@4.29.14:
+    resolution: {integrity: sha512-ElEAahtLWA7Y7c2Haw10KdEf2tx+XZl/Z8dmyWxZehxWK3TPL5qtXtb7kUEhvt/8u2cSP62fLxgh2qqzMMGnDQ==}
     dev: false
 
-  /@tanstack/react-query@4.29.7(react-dom@18.2.0)(react@18.2.0):
-    resolution: {integrity: sha512-ijBWEzAIo09fB1yd22slRZzprrZ5zMdWYzBnCg5qiXuFbH78uGN1qtGz8+Ed4MuhaPaYSD+hykn+QEKtQviEtg==}
+  /@tanstack/react-query@4.29.14(react-dom@18.2.0)(react@18.2.0):
+    resolution: {integrity: sha512-wh4bd/QIy85YgTDBtj/7/9ZkpRX41QdZuUL8xKoSzuMCukXvAE1/oJ4p0F15lqQq9W3g2pgcbr2Aa+CNvqABhg==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0
@@ -2364,7 +2371,7 @@ packages:
       react-native:
         optional: true
     dependencies:
-      '@tanstack/query-core': 4.29.7
+      '@tanstack/query-core': 4.29.14
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       use-sync-external-store: 1.2.0(react@18.2.0)
@@ -4191,6 +4198,26 @@ packages:
       object.entries: 1.1.6
     dev: true
 
+  /eslint-config-airbnb@19.0.4(eslint-plugin-import@2.27.5)(eslint-plugin-jsx-a11y@6.7.1)(eslint-plugin-react-hooks@4.6.0)(eslint-plugin-react@7.32.2)(eslint@8.40.0):
+    resolution: {integrity: sha512-T75QYQVQX57jiNgpF9r1KegMICE94VYwoFQyMGhrvc+lB8YF2E/M/PYDaQe1AJcWaEgqLE+ErXV1Og/+6Vyzew==}
+    engines: {node: ^10.12.0 || ^12.22.0 || ^14.17.0 || >=16.0.0}
+    peerDependencies:
+      eslint: ^7.32.0 || ^8.2.0
+      eslint-plugin-import: ^2.25.3
+      eslint-plugin-jsx-a11y: ^6.5.1
+      eslint-plugin-react: ^7.28.0
+      eslint-plugin-react-hooks: ^4.3.0
+    dependencies:
+      eslint: 8.40.0
+      eslint-config-airbnb-base: 15.0.0(eslint-plugin-import@2.27.5)(eslint@8.40.0)
+      eslint-plugin-import: 2.27.5(@typescript-eslint/parser@5.59.5)(eslint-import-resolver-typescript@3.5.5)(eslint@8.40.0)
+      eslint-plugin-jsx-a11y: 6.7.1(eslint@8.40.0)
+      eslint-plugin-react: 7.32.2(eslint@8.40.0)
+      eslint-plugin-react-hooks: 4.6.0(eslint@8.40.0)
+      object.assign: 4.1.4
+      object.entries: 1.1.6
+    dev: true
+
   /eslint-config-next@13.4.6(eslint@8.40.0)(typescript@5.1.3):
     resolution: {integrity: sha512-nlv4FYish1RYYHILbQwM5/rD37cOvEqtMfDjtQCYbXdE2O3MggqHu2q6IDeLE2Z6u8ZJyNPgWOA6OimWcxj3qw==}
     peerDependencies:
@@ -5201,6 +5228,12 @@ packages:
     resolution: {integrity: sha512-8TGPgM3pAD+VRsMtUMNknRz3kzqwp/gPALrWMsDnmC1mKqJwpWyooQRLMcbTwq8z8YwSmuj+ZYvc+xCuEpkssA==}
     dependencies:
       '@babel/runtime': 7.21.5
+    dev: false
+
+  /i18next@23.1.0:
+    resolution: {integrity: sha512-CObNPofJpw7zGVGYLd58mtMZUF+NZQl9czYMihbJkStjX+Nlu9kC3PHiC6uE1niP3qxP/3ocLXIBc2zqbAb1dg==}
+    dependencies:
+      '@babel/runtime': 7.22.5
     dev: false
 
   /iconv-lite@0.4.24:
@@ -6971,6 +7004,26 @@ packages:
       '@babel/runtime': 7.21.5
       html-parse-stringify: 3.0.1
       i18next: 22.5.1
+      react: 18.2.0
+      react-dom: 18.2.0(react@18.2.0)
+    dev: false
+
+  /react-i18next@12.3.1(i18next@23.1.0)(react-dom@18.2.0)(react@18.2.0):
+    resolution: {integrity: sha512-5v8E2XjZDFzK7K87eSwC7AJcAkcLt5xYZ4+yTPDAW1i7C93oOY1dnr4BaQM7un4Hm+GmghuiPvevWwlca5PwDA==}
+    peerDependencies:
+      i18next: '>= 19.0.0'
+      react: '>= 16.8.0'
+      react-dom: '*'
+      react-native: '*'
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
+      react-native:
+        optional: true
+    dependencies:
+      '@babel/runtime': 7.21.5
+      html-parse-stringify: 3.0.1
+      i18next: 23.1.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
     dev: false
