@@ -1,0 +1,105 @@
+[
+    {
+        "label": "Home",
+        "path": "#",
+        "submenu": [
+            {
+                "sublabel": "Home One",
+                "subpath": "/"
+            },
+            {
+                "sublabel": "Home Two",
+                "subpath": "/home-two"
+            },
+            {
+                "sublabel": "Home Three",
+                "subpath": "/home-three"
+            },
+            {
+                "sublabel": "Home Four",
+                "subpath": "/home-four"
+            },
+            {
+                "sublabel": "Home Five",
+                "subpath": "/home-five"
+            }
+        ]
+    },
+    {
+        "label": "Posts",
+        "path": "#",
+        "submenu": [
+            {
+                "sublabel": "Post Standard",
+                "subpath": "/post/vr-is-the-use-of-computer-technology-to-create-a-simulated-environment."
+            },
+            {
+                "sublabel": "Post Gallery",
+                "subpath": "/post/trip-to-iqaluit-in-nunavut-a-canadian-arctic-city"
+            },
+            {
+                "sublabel": "Post Video",
+                "subpath": "/post/want-to-win-a-travelPro-bag"
+            },
+            {
+                "sublabel": "Post Audio",
+                "subpath": "/post/teslas-cooking-up-a-new-way-to-wire-its-cars-report-says"
+            },
+            {
+                "sublabel": "Post Quote",
+                "subpath": "/post/barbecue-party-tips-for-a-truly-amazing-event"
+            },
+            {
+                "sublabel": "Post Text Only",
+                "subpath": "/post/deep-fryer-pieces-of-wisdom"
+            }
+        ]
+    },
+    {
+        "label": "Fashion",
+        "path": "/category/fashion"
+    },
+    {
+        "label": "Lifestyle",
+        "path": "/category/lifestyle"
+    },
+    {
+        "label": "Technology",
+        "path": "/category/technology"
+    },
+    {
+        "label": "Sports",
+        "path": "/category/sports"
+    },
+    {
+        "label": "Pages",
+        "path": "#",
+        "submenu": [
+            {
+                "sublabel": "Author",
+                "subpath": "/author/amachea-jajah"
+            },
+            {
+                "sublabel": "404 Error",
+                "subpath": "/404"
+            },
+            {
+                "sublabel": "Coming Soon",
+                "subpath": "/coming-soon"
+            },
+            {
+                "sublabel": "About Us",
+                "subpath": "/about-us"
+            },
+            {
+                "sublabel": "Team",
+                "subpath": "/team"
+            },
+            {
+                "sublabel": "Contact Us",
+                "subpath": "/contact"
+            }
+        ]
+    }
+   
+]
