@@ -1,4 +1,4 @@
 module.exports = {
 	reactStrictMode: true,
-	transpilePackages: ['@aktivpost/ui-react'],
+	transpilePackages: ['@aktiveo/ui-react'],
 };

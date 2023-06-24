@@ -9,7 +9,7 @@ import './main.css';
 // --------------------------------------------------------------------------------------//
 //                                   initialize parse                                   //
 // --------------------------------------------------------------------------------------//
-Parse.initialize('aktivpost');
+Parse.initialize('aktiveo');
 
 const locationOrigin = window.location.origin;
 const parseServerURL =
