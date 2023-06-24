@@ -1,6 +1,6 @@
 import { SchemaMigrations } from 'parse-server';
 
-import { classNames } from '@aktivpost/shared/utils/constants';
+import { classNames } from '@aktiveo/shared/utils/constants';
 
 const RoleSchema = SchemaMigrations.makeSchema(classNames.ROLE, {
 	fields: {

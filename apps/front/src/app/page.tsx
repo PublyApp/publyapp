@@ -2,7 +2,7 @@
 
 import { Button as MUIButton } from '@mui/material';
 
-import { Button, Header } from '@aktivpost/ui-react';
+import { Button, Header } from '@aktiveo/ui-react';
 
 export default function Page() {
 	return (

@@ -1,4 +1,4 @@
-import { RolesEnum } from '@aktivpost/shared/utils/constants';
+import { RolesEnum } from '@aktiveo/shared/utils/constants';
 
 import { parseFrom } from '../../utils/parse.utils';
 

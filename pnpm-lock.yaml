@@ -28,10 +28,10 @@ importers:
 
   apps/bo:
     dependencies:
-      '@aktivpost/shared':
+      '@aktiveo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@aktivpost/ui-react':
+      '@aktiveo/ui-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
       '@emotion/react':
@@ -122,7 +122,7 @@ importers:
 
   apps/docs:
     dependencies:
-      '@aktivpost/ui-react':
+      '@aktiveo/ui-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
       next:
@@ -159,7 +159,7 @@ importers:
 
   apps/front:
     dependencies:
-      '@aktivpost/ui-react':
+      '@aktiveo/ui-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
       '@emotion/react':
@@ -265,7 +265,7 @@ importers:
 
   apps/server:
     dependencies:
-      '@aktivpost/shared':
+      '@aktiveo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       cors:
@@ -435,7 +435,7 @@ importers:
 
   packages/ui-react:
     dependencies:
-      '@aktivpost/shared':
+      '@aktiveo/shared':
         specifier: workspace:*
         version: link:../shared
       '@emotion/react':

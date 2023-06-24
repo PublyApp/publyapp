@@ -2,7 +2,7 @@
 import { ThemeProvider } from '@emotion/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 
-import { theme } from '@aktivpost/ui-react/utils/theme';
+import { theme } from '@aktiveo/ui-react/utils/theme';
 
 import AppRoutes from './AppRoutes';
 import { AuthProvider } from './contexts/AuthProvider';
