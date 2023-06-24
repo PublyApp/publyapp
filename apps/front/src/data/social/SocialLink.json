@@ -1,0 +1,47 @@
+{
+    "fb": {
+        "url": "https://facebook.com/",
+        "icon": "fab fa-facebook-f",
+        "follower": "2000+"
+    },
+    "twitter": {
+        "url": "https://twitter.com/",
+        "icon": "fab fa-twitter",
+        "follower": "4000+"
+    },
+    "instagram": {
+        "url": "https://www.instagram.com/",
+        "icon": "fab fa-instagram",
+        "follower": "1K+"
+    },
+    "linked": {
+        "url": "https://www.linkedin.com/",
+        "icon": "fab fa-linkedin-in",
+        "follower": "600+"
+    },
+    "yt": {
+        "url": "https://www.youtube.com/",
+        "icon": "fab fa-youtube",
+        "follower": "1M+"
+    },
+    "pinterest": {
+        "url": "https://www.pinterest.com/",
+        "icon": "fab fa-pinterest",
+        "follower": "600+"
+    },
+    "discord": {
+        "url": "https://discord.com/",
+        "icon": "fab fa-discord",
+        "follower": "1K+"
+    },
+    "slack": {
+        "url": "https://slack.com/",
+        "icon": "fab fa-slack",
+        "follower": "1000+"
+    },
+    "behance": {
+        "url": "https://www.behance.net/",
+        "icon": "fab fa-behance",
+        "follower": "2000+"
+    }
+}

@@ -1,8 +1,8 @@
 {
 	"cSpell.language": "en,fr",
 	"cSpell.words": [
-		"Aktiveo",
 		"aktiveo",
+		"Aktiveo",
 		"Authed",
 		"hookform",
 		"languagedetector",
@@ -10,6 +10,7 @@
 		"nextjs",
 		"Parens",
 		"PREPROD",
+		"sublabel",
 		"svgr",
 		"tanstack"
 	],
