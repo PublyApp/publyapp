@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { Typography, Button, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 
-import { AppLocale } from '@aktivpost/shared/i18n/resources';
+import { AppLocale } from '@aktiveo/shared/i18n/resources';
 
 import { useApp } from '../../hooks/useApp';
 

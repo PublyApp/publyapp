@@ -11,8 +11,8 @@
 		"lint:fix": "pnpm run lint --fix"
 	},
 	"dependencies": {
-		"@aktivpost/shared": "workspace:*",
-		"@aktivpost/ui-react": "workspace:*",
+		"@aktiveo/shared": "workspace:*",
+		"@aktiveo/ui-react": "workspace:*",
 		"@emotion/react": "^11.11.0",
 		"@emotion/styled": "^11.11.0",
 		"@hookform/resolvers": "^3.1.0",

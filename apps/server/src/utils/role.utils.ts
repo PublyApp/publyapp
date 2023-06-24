@@ -1,6 +1,6 @@
 /* eslint-disable no-continue */
 /* eslint-disable no-await-in-loop */
-import { RolesEnum } from '@aktivpost/shared/utils/constants';
+import { RolesEnum } from '@aktiveo/shared/utils/constants';
 
 export const createRolesIfNotExist = async () => {
 	const roleEntries = Object.entries(RolesEnum).filter((e) => {

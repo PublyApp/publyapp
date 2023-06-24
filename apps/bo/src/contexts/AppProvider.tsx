@@ -3,9 +3,9 @@ import { PropsWithChildren, createContext, useEffect, useMemo, useState } from '
 import { useLocalStorage } from 'react-use';
 // import { useQueryClient } from '@tanstack/react-query';
 
-import { AppLocale, defaultLocale } from '@aktivpost/shared/i18n/resources';
-import i18n, { getCurrentLocale } from '@aktivpost/ui-react/utils/i18n';
-import { I18N_LOCALE_KEY } from '@aktivpost/shared/utils/constants';
+import { AppLocale, defaultLocale } from '@aktiveo/shared/i18n/resources';
+import i18n, { getCurrentLocale } from '@aktiveo/ui-react/utils/i18n';
+import { I18N_LOCALE_KEY } from '@aktiveo/shared/utils/constants';
 
 type Toast = {
 	type: 'info' | 'success' | 'warning' | 'error';

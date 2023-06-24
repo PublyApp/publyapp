@@ -2,7 +2,7 @@ import { Box, Button, CircularProgress, TextField } from '@mui/material';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { LogInInput, logInSchema } from '@aktivpost/shared/validations/auth.validations';
+import { LogInInput, logInSchema } from '@aktiveo/shared/validations/auth.validations';
 
 import { useLogInMutation } from '../../query/features/auth/auth.hooks';
 

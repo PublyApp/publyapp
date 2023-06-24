@@ -1,7 +1,7 @@
 import { PropsWithChildren, createContext, useCallback, useMemo, useState, useEffect } from 'react';
 
-import { IUser } from '@aktivpost/shared/types/user.types';
-import { IRole } from '@aktivpost/shared/types/role.types';
+import { IUser } from '@aktiveo/shared/types/user.types';
+import { IRole } from '@aktiveo/shared/types/role.types';
 
 import { ROLES_LOCAL_STORAGE_KEY } from '../utils/constants';
 import useLocalStorage from '../hooks/useLocalStorage';

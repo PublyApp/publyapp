@@ -37,7 +37,7 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	const PORT = Number(process.env.PORT) || 1337;
 	const MASTER_KEY = process.env.MASTER_KEY || 'local-master-key';
-	const DATABASE_URI = process.env.DATABASE_URI || 'mongodb://localhost:27017/aktivpost-local';
+	const DATABASE_URI = process.env.DATABASE_URI || 'mongodb://localhost:27017/aktiveo-local';
 	const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 
 	// --------------------------------------------------------------------------------------//
@@ -52,7 +52,7 @@ const bootstrap = async () => {
 
 	// initialize parse server
 	const parseServer = new ParseServer({
-		appId: 'aktivpost',
+		appId: 'aktiveo',
 		masterKey: MASTER_KEY,
 		cloud: path.resolve(__dirname, './cloud/index'),
 		databaseUri: DATABASE_URI,

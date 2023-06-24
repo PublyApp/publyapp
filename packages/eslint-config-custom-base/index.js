@@ -65,7 +65,7 @@ module.exports = {
 				pathGroupsExcludedImportTypes: ['react'],
 				pathGroups: [
 					{
-						pattern: '@aktivpost/**',
+						pattern: '@aktiveo/**',
 						group: 'external',
 						position: 'after',
 					},
