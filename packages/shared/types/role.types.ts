@@ -1,6 +1,6 @@
-import { IAttributes } from './parse.types';
+import { BaseAttributes } from 'parse';
 
-export type IRole = IAttributes & {
+export type IRole = BaseAttributes & {
 	// Parse built-ins
 	name: string;
 	// custom fields
