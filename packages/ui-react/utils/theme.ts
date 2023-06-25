@@ -1,13 +1,21 @@
 import { createTheme } from '@mui/material';
 
+const colors = {
+	black: '#121213',
+};
+
 export const theme = createTheme({
 	palette: {
-		black: '#121213',
+		black: colors.black,
+		text: {
+			primary: colors.black,
+		},
 	},
-	// typography: {
-	// 	body2: {
-	// 		fontSize: '14px',
-	// 		fontWeight: 400,
-	// 	},
-	// },
+	typography: {
+		fontFamily: ['Poppins'].join(', '),
+		// body2: {
+		// 	fontSize: '14px',
+		// 	fontWeight: 400,
+		// },
+	},
 });

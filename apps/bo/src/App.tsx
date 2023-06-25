@@ -3,6 +3,7 @@ import { ThemeProvider } from '@emotion/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 
 import { theme } from '@aktiveo/ui-react/utils/theme';
+import '@aktiveo/ui-react/styles/fonts.css';
 
 import AppRoutes from './AppRoutes';
 import { AuthProvider } from './contexts/AuthProvider';
