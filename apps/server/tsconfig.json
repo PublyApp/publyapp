@@ -7,10 +7,10 @@
 		"noEmit": true,
 		"sourceMap": true,
 		"skipLibCheck": true,
-		"paths": {
-			"@/*": ["*"],
-			"@cloud/*": ["cloud/*"]
-		},
+		// "paths": {
+		// 	"@/*": ["*"],
+		// 	"@cloud/*": ["cloud/*"]
+		// },
 		"resolveJsonModule": true,
 	},
 	"include": ["src", "@types"],

@@ -3,6 +3,11 @@ import { defaultLocale } from '@aktiveo/shared/i18n/resources';
 
 import { getT } from './i18n';
 
+// type InnerFunctionContext = {
+// 	req: Parse.Cloud.TriggerRequest;
+// 	t:
+// }
+
 // type ParseInnerFunction = (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest) => Promise<unknown>;
 type ParseInnerFunction =
 	| ((req: Parse.Cloud.TriggerRequest) => Promise<any>)
@@ -69,16 +74,12 @@ const hasRole = async (user: Parse.User, roles: RolesEnum[]) => {
 };
 
 export const parseFrom = (params: ParseFromParams) => {
-	return parseFunction(async (req: Parse.Cloud.FunctionRequest) => {
+	const actionBuilder = parseFunction(async (req: Parse.Cloud.FunctionRequest) => {
 		const { requireUser, action, allowedRoles } = params;
 
 		const { user, headers } = req;
 
 		const locale = headers[I18N_LOCALE_KEY] as string | undefined;
-
-		console.log('====================================');
-		console.log(locale);
-		console.log('====================================');
 
 		const t = getT(locale || defaultLocale);
 
@@ -101,4 +102,31 @@ export const parseFrom = (params: ParseFromParams) => {
 
 		return action({ req, user, t });
 	});
+
+	return actionBuilder;
+};
+
+type TriggerContext = {
+	req: Parse.Cloud.TriggerRequest;
+	t: ReturnType<typeof getT>;
+};
+
+type ParseTriggerParams = {
+	trigger: (ctx: TriggerContext) => Promise<any>;
+};
+
+export const parseTrigger = (params: ParseTriggerParams) => {
+	const triggerBuilder = parseFunction(async (req: Parse.Cloud.TriggerRequest) => {
+		const { trigger } = params;
+
+		const { headers } = req;
+
+		const locale = headers[I18N_LOCALE_KEY] as string | undefined;
+
+		const t = getT(locale || defaultLocale);
+
+		return trigger({ req, t });
+	});
+
+	return triggerBuilder;
 };

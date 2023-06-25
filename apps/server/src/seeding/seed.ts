@@ -1,0 +1,29 @@
+import path from 'path';
+
+import Parse from 'parse/node';
+import dotenv from 'dotenv';
+import dotenvExpand from 'dotenv-expand';
+
+import { run } from './main.seeder';
+
+const runConfig = {
+	usersNum: 5,
+	postsNum: 17,
+	reactionsNum: 100,
+};
+
+const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env.local') }); // ! warning only for local
+dotenvExpand.expand(envConfig);
+
+const PORT = Number(process.env.PORT) || 1337;
+const APP_ID = 'aktiveo';
+const MASTER_KEY = process.env.MASTER_KEY || 'local-master-key';
+const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+
+Parse.initialize(APP_ID, '', MASTER_KEY);
+Parse.serverURL = `${SERVER_URL}/parse`;
+
+run(runConfig).catch(async (reason: any) => {
+	console.error(reason);
+	process.exit(1);
+});
