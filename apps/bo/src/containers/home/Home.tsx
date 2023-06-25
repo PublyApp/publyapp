@@ -4,12 +4,38 @@ import { Typography, Button, FormControl, InputLabel, Select, MenuItem, SelectCh
 import { useQuery } from '@tanstack/react-query';
 
 import { AppLocale } from '@aktiveo/shared/i18n/resources';
+import { User } from '@aktiveo/shared/parse/classes/user.class';
+import { classNames } from '@aktiveo/shared/utils/constants';
 
 import { useApp } from '../../hooks/useApp';
 
 const helloAction = async () => {
 	try {
 		return Parse.Cloud.run('hello') as any;
+	} catch (error) {
+		return Promise.reject(error);
+	}
+};
+
+const dummyAction = async () => {
+	try {
+		// return Parse.Cloud.run('hello') as any;
+		// const user = new User({
+		// });
+		const q = new Parse.Query(classNames.USER);
+
+		const users: User[] = await q.findAll();
+
+		console.log('-------users', users);
+
+		const user = new User();
+		user.set('ok', 'ok');
+		users.push(user);
+
+		return users.map((_user) => {
+			return _user.toJSON();
+		});
+		// return users;
 	} catch (error) {
 		return Promise.reject(error);
 	}
@@ -29,6 +55,17 @@ const Home = () => {
 		onSuccess: (result) => {
 			// eslint-disable-next-line no-alert
 			alert(result);
+		},
+	});
+
+	const { /*  _data, */ refetch: dummyRun } = useQuery({
+		queryKey: ['dummy'],
+		queryFn: dummyAction,
+		enabled: false,
+		onSuccess: (result) => {
+			// eslint-disable-next-line no-alert
+			// alert(result);
+			console.log(result);
 		},
 	});
 
@@ -56,6 +93,15 @@ const Home = () => {
 				}}
 			>
 				Say Hello
+			</Button>
+
+			<Button
+				variant="contained"
+				onClick={() => {
+					dummyRun();
+				}}
+			>
+				Run Dummy
 			</Button>
 
 			{/* <pre>{JSON.stringify(data, null, 2)}</pre> */}

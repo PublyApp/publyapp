@@ -1,5 +1,6 @@
 /* eslint-disable no-continue */
 /* eslint-disable no-await-in-loop */
+
 import { RolesEnum } from '@aktiveo/shared/utils/constants';
 
 export const createRolesIfNotExist = async () => {

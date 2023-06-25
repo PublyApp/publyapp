@@ -1,6 +1,6 @@
-import { AppLocale } from '../i18n/resources';
+import { BaseAttributes } from 'parse';
 
-import { IAttributes } from './parse.types';
+import { AppLocale } from '../i18n/resources';
 
 type PostTranslation = {
 	title: string;
@@ -8,10 +8,12 @@ type PostTranslation = {
 	content: string;
 };
 
-export type IPost = IAttributes & {
+export type PostAttributes = {
 	// custom fields
 	slug: string;
 	// cover: Media;
 	cover: string; // TODO: DO some research: what is the best fo images. but for now we use the url of the image.
 	translation: Record<AppLocale, PostTranslation>;
 };
+
+export type IPost = BaseAttributes & PostAttributes;

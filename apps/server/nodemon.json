@@ -1,5 +1,6 @@
 {
 	"watch": ["dist", ".env.local"],
 	"ext": "js,ts,json",
-	"exec": "npm run start"
+	"exec": "npm run start",
+	"ignore": ["dist/seeding/*.js"]
 }
