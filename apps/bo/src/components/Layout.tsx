@@ -26,8 +26,10 @@ import {
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 
+import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
+
 import { useApp } from '../hooks/useApp';
-import { useLogOutMutation } from '../query/features/auth/auth.hooks';
+import { useAuth } from '../hooks/useAuth';
 
 // import Link from './Link';
 
@@ -60,7 +62,7 @@ const Layout = () => {
 	const { breadcrumbs, locale } = useApp();
 	const { t } = useTranslation();
 
-	const { mutate: logOut, isLoading } = useLogOutMutation();
+	const { mutate: logOut, isPending } = useLogOutMutation({ useAuth });
 
 	const handleLogOut = () => {
 		logOut();
@@ -79,7 +81,7 @@ const Layout = () => {
 						</Grid>
 						<Grid item>
 							<Button variant="contained" color="primary" disableElevation onClick={handleLogOut}>
-								{isLoading ? <CircularProgress color="inherit" size="16px" /> : <LogoutIcon />}{' '}
+								{isPending ? <CircularProgress color="inherit" size="16px" /> : <LogoutIcon />}{' '}
 								<Typography textTransform="capitalize" ml="0.5rem">
 									Log Out
 								</Typography>
