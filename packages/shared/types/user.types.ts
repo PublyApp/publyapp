@@ -7,8 +7,4 @@ export type IUser = IAttributes & {
 	// custom fields
 	firstName?: string;
 	lastName?: string;
-	// === generic Parse built-ins
-	objectId: string;
-	createdAt: string;
-	updatedAt: string;
 };

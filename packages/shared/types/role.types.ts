@@ -5,8 +5,4 @@ export type IRole = IAttributes & {
 	name: string;
 	// custom fields
 	// nothing for now
-	// === generic Parse built-ins
-	objectId: string;
-	createdAt: string;
-	updatedAt: string;
 };

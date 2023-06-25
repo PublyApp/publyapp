@@ -4,9 +4,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
 import ParseServer from 'parse-server';
+import ParseDashboard from 'parse-dashboard';
+import dotenvExpand from 'dotenv-expand';
 
 import { createRolesIfNotExist } from './utils/role.utils';
 import RoleSchema from './schemas/role.schema';
+import PostSchema from './schemas/post.schema';
 
 const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
@@ -30,7 +33,8 @@ const bootstrap = async () => {
 		envFileName = '.env.production';
 	}
 
-	dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
+	const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
+	dotenvExpand.expand(envConfig);
 
 	// --------------------------------------------------------------------------------------//
 	//                          set the mainly important constants                          //
@@ -39,6 +43,7 @@ const bootstrap = async () => {
 	const MASTER_KEY = process.env.MASTER_KEY || 'local-master-key';
 	const DATABASE_URI = process.env.DATABASE_URI || 'mongodb://localhost:27017/aktiveo-local';
 	const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+	const APP_ID = 'aktiveo';
 
 	// --------------------------------------------------------------------------------------//
 	//                            setup express ans parse server                            //
@@ -52,7 +57,7 @@ const bootstrap = async () => {
 
 	// initialize parse server
 	const parseServer = new ParseServer({
-		appId: 'aktiveo',
+		appId: APP_ID,
 		masterKey: MASTER_KEY,
 		cloud: path.resolve(__dirname, './cloud/index'),
 		databaseUri: DATABASE_URI,
@@ -62,7 +67,7 @@ const bootstrap = async () => {
 		allowClientClassCreation: false,
 		schema: {
 			strict: true,
-			definitions: [RoleSchema],
+			definitions: [RoleSchema, PostSchema],
 		},
 		masterKeyIps: ['0.0.0.0/0', '::1'],
 		allowExpiredAuthDataToken: false,
@@ -71,6 +76,30 @@ const bootstrap = async () => {
 	await parseServer.start();
 
 	app.use('/parse', parseServer.app);
+
+	// --------------------------------------------------------------------------------------//
+	//                         setup parse dashboard when in local                          //
+	// --------------------------------------------------------------------------------------//
+	if (global.LOCAL) {
+		const dashboard = new ParseDashboard(
+			{
+				apps: [
+					{
+						serverURL: `${SERVER_URL}/parse`, // ! localhost only
+						appId: APP_ID,
+						masterKey: MASTER_KEY,
+						appName: 'Aktiveo Express Dash Local',
+					},
+				],
+			},
+			{
+				// allowInsecureHTTP: false,
+				port: PORT,
+			},
+		);
+
+		app.use('/pdash', dashboard);
+	}
 
 	// --------------------------------------------------------------------------------------//
 	//                                    run the server                                     //
