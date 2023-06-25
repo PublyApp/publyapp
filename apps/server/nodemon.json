@@ -1,0 +1,5 @@
+{
+	"watch": ["dist", ".env.local"],
+	"ext": "js,ts,json",
+	"exec": "npm run start"
+}
