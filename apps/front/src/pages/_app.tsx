@@ -5,6 +5,7 @@ import { AppProps } from 'next/app';
 import Head from 'next/head';
 
 import { theme } from '@aktiveo/ui-react/utils/theme';
+import '@aktiveo/ui-react/styles/fonts.css';
 
 import Layout from '../components/layout/Layout';
 
