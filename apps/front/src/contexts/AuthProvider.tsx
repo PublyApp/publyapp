@@ -1,5 +1,6 @@
 import { PropsWithChildren, createContext, useCallback, useMemo, useState, useEffect } from 'react';
 
+// import Parse from 'parse';
 import { useLocalStorage } from 'react-use';
 
 import { IUser } from '@aktiveo/shared/types/user.types';
@@ -24,6 +25,8 @@ export const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
 	const getAuthStatus = () => {
+		if (!(typeof window !== 'undefined')) return false;
+
 		const user = Parse.User.current();
 
 		if (!user) {
@@ -38,6 +41,8 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 	};
 
 	const getAuthedUser = (): IUser | undefined => {
+		if (!(typeof window !== 'undefined')) return undefined;
+
 		return Parse.User.current<Parse.User<IUser>>()?.toJSON() as any;
 	};
 

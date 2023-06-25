@@ -11,12 +11,7 @@ import './main.css';
 // --------------------------------------------------------------------------------------//
 Parse.initialize('aktiveo');
 
-const locationOrigin = window.location.origin;
-const parseServerURL =
-	locationOrigin.includes('localhost') || locationOrigin.includes('127.0.0.1')
-		? 'http://localhost:6182/parse'
-		: `${locationOrigin}/parse`;
-
+const parseServerURL = 'http://localhost:6182/parse';
 Parse.serverURL = parseServerURL;
 
 // --------------------------------------------------------------------------------------//

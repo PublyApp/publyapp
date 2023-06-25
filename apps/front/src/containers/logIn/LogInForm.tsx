@@ -33,11 +33,13 @@ const LogInForm = () => {
 			}}
 		>
 			<Box component="form">
+				{/* eslint-disable-next-line react/jsx-props-no-spreading */}
 				<TextField type="email" error={!!errors.email} helperText={errors.email?.message} {...register('email')} />
 				<TextField
 					type="password"
 					error={!!errors.password}
 					helperText={errors.password?.message}
+					// eslint-disable-next-line react/jsx-props-no-spreading
 					{...register('password')}
 				/>
 				<Button variant="contained" onClick={handleSubmit(onSubmitHandler)}>
