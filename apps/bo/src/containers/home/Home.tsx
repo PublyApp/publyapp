@@ -24,7 +24,7 @@ const dummyAction = async () => {
 		// });
 		const q = new Parse.Query(classNames.USER);
 
-		const users: User[] = await q.findAll();
+		const users: User[] = (await q.findAll()) as any;
 
 		console.log('-------users', users);
 
@@ -52,21 +52,21 @@ const Home = () => {
 		queryKey: ['sayHello'],
 		queryFn: helloAction,
 		enabled: false,
-		onSuccess: (result) => {
-			// eslint-disable-next-line no-alert
-			alert(result);
-		},
+		// onSuccess: (result) => {
+		// 	// eslint-disable-next-line no-alert
+		// 	alert(result);
+		// },
 	});
 
 	const { /*  _data, */ refetch: dummyRun } = useQuery({
 		queryKey: ['dummy'],
 		queryFn: dummyAction,
 		enabled: false,
-		onSuccess: (result) => {
-			// eslint-disable-next-line no-alert
-			// alert(result);
-			console.log(result);
-		},
+		// onSuccess: (result) => {
+		// 	// eslint-disable-next-line no-alert
+		// 	// alert(result);
+		// 	console.log(result);
+		// },
 	});
 
 	useEffect(() => {
