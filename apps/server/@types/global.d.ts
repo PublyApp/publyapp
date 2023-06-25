@@ -5,3 +5,5 @@ var LOCAL: boolean | undefined;
 var PRODUCTION: boolean | undefined;
 var FORCE_PROD: boolean | undefined;
 var FORCE_PREPROD: boolean | undefined;
+
+declare module 'parse-dashboard';
