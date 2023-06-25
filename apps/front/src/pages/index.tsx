@@ -1,4 +1,4 @@
-import { Typography } from '@mui/material';
+// import { Typography } from '@mui/material';
 
 import PostsList from '../components/post/PostsList';
 
