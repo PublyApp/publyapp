@@ -1,8 +1,6 @@
 import { FC } from 'react';
 
-import { ThemeProvider } from '@emotion/react';
-
-import { theme } from '@aktiveo/ui-react/utils/theme';
+import ThemeProvider from '@aktiveo/ui-react/providers/ThemeProvider';
 import '@aktiveo/ui-react/styles/fonts.css';
 
 import AppRoutes from './AppRoutes';
@@ -14,7 +12,7 @@ const App: FC = () => {
 	return (
 		<AuthProvider>
 			<AppProvider>
-				<ThemeProvider theme={theme}>
+				<ThemeProvider>
 					<QueryProvider>
 						<AppRoutes />
 					</QueryProvider>

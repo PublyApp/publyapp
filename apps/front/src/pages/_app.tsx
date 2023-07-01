@@ -1,12 +1,10 @@
 // import Parse from 'parse';
-import CssBaseline from '@mui/material/CssBaseline';
-import { ThemeProvider } from '@emotion/react';
 import { AppProps } from 'next/app';
 import Head from 'next/head';
 import { HydrationBoundary } from '@tanstack/react-query';
 
-import { theme } from '@aktiveo/ui-react/utils/theme';
 import '@aktiveo/ui-react/styles/fonts.css';
+import ThemeProvider from '@aktiveo/ui-react/providers/ThemeProvider';
 
 import Layout from '../components/layout/Layout';
 import { AuthProvider } from '../contexts/AuthProvider';
@@ -31,8 +29,7 @@ const MyApp = ({ Component, pageProps }: AppProps) => {
 			<AuthProvider>
 				<QueryProvider>
 					<HydrationBoundary state={pageProps.dehydratedState}>
-						<ThemeProvider theme={theme}>
-							<CssBaseline />
+						<ThemeProvider>
 							<Layout>
 								{/* eslint-disable-next-line react/jsx-props-no-spreading */}
 								<Component {...pageProps} />

@@ -7,6 +7,7 @@ import Account from './containers/account/Account';
 import RequireAuth from './components/RequireAuth';
 import LogIn from './containers/logIn/LogIn';
 import TypoPage from './containers/designSystem/TypoPage';
+import ButtonsPage from './containers/designSystem/ButtonsPage';
 
 const router = createBrowserRouter(
 	createRoutesFromElements(
@@ -15,7 +16,10 @@ const router = createBrowserRouter(
 				<Route element={<Layout />}>
 					<Route index element={<Home />} />
 					<Route path="account" element={<Account />} />
+
+					{/* ------- Showcasing the design system here */}
 					<Route path="typography" element={<TypoPage />} />
+					<Route path="buttons" element={<ButtonsPage />} />
 
 					{/* // ---- not found page ------------------------------------------------------------------- */}
 					<Route path="*" element={<NotFound />} />
