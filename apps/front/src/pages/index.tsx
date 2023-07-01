@@ -1,6 +1,6 @@
 // import { Typography } from '@mui/material';
 
-import { TextField, Typography } from '@mui/material';
+import { /* Button,  */ TextField, Typography } from '@mui/material';
 
 // import PostsList from '../components/post/PostsList';
 
@@ -34,6 +34,9 @@ const Home = () => {
 				harum nobis aut ea? Repudiandae, reiciendis?
 			</Typography>
 			<TextField disabled placeholder="DISABLBED" />
+			{/* <Button variant="contained" raised>
+				lol
+			</Button> */}
 		</>
 	);
 };

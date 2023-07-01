@@ -3,6 +3,7 @@
 /// <reference types="@types/parse" />
 /// <reference types="@emotion/react/types/css-prop" />
 /// <reference types="vite-plugin-svgr/client" />
+/// <reference types="@aktiveo/ui-react/@types/@mui__material" />
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 namespace Parse {
