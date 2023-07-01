@@ -33,6 +33,7 @@ export const logInAction = async (input: LogInInput) => {
 			return role.toJSON();
 		});
 
+		// TODO: Instead of creating a new local storage append roles to the user in 'Parse/User/current' key
 		localStorage.setItem(ROLES_LOCAL_STORAGE_KEY, JSON.stringify(JSONRoles));
 
 		// ? should I return the logged in User?
