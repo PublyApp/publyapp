@@ -28,8 +28,8 @@ import { useTranslation } from 'react-i18next';
 
 import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 
-import { useApp } from '../hooks/useApp';
-import { useAuth } from '../hooks/useAuth';
+import { useApp } from '../../hooks/useApp';
+import { useAuth } from '../../hooks/useAuth';
 
 // import Link from './Link';
 
@@ -50,6 +50,11 @@ const menuItems = [
 		text: 'Account',
 		icon: <PersonIcon />,
 		link: '/account',
+	},
+	{
+		text: 'Typography',
+		icon: <PersonIcon />,
+		link: '/typography',
 	},
 	// {
 	// 	text: 'Settings',
@@ -74,18 +79,22 @@ const Layout = () => {
 				<Toolbar>
 					<Grid container justifyContent="space-between">
 						<Grid item>
-							<Typography variant="h6" noWrap component="div">
-								{/* Permanent drawer */}
-								{t('common:hello')}&nbsp; the current locale is {locale}
-							</Typography>
+							<Box display="flex" alignItems="center" height="100%">
+								<Typography variant="body1" noWrap component="div">
+									{/* Permanent drawer */}
+									{t('common:hello')}&nbsp; the current locale is {locale}
+								</Typography>
+							</Box>
 						</Grid>
 						<Grid item>
-							<Button variant="contained" color="primary" disableElevation onClick={handleLogOut}>
-								{isPending ? <CircularProgress color="inherit" size="16px" /> : <LogoutIcon />}{' '}
-								<Typography textTransform="capitalize" ml="0.5rem">
-									Log Out
-								</Typography>
-							</Button>
+							<Box>
+								<Button variant="contained" color="primary" disableElevation onClick={handleLogOut}>
+									{isPending ? <CircularProgress color="inherit" size="16px" /> : <LogoutIcon />}{' '}
+									<Typography textTransform="capitalize" ml="0.5rem">
+										Log Out
+									</Typography>
+								</Button>
+							</Box>
 						</Grid>
 					</Grid>
 				</Toolbar>

@@ -1,21 +1,155 @@
 import { createTheme } from '@mui/material';
 
-const colors = {
-	black: '#121213',
+import { getResponsiveFontSizes, pxToRem } from './styles';
+
+// const colors = {
+// 	black: '#121213',
+// };
+
+const { palette } = createTheme();
+
+const rawColors = {
+	// === main colors
+	purple: '#7703fc',
+	pink: '#e32b6b',
+	blue: '#0398e2',
+	green: '#38c79c',
+	orange: '#faad42',
+	red: '#e62864',
+	// == text colors
+	lightGrey: '#a3a6b9',
+	mediumGrey: '#747990',
+	darkGrey: '#283252',
+};
+
+// eslint-disable-next-line quotes
+const PRIMARY_FONT = ["'Roboto'", 'sans-serif'].join(', ');
+// eslint-disable-next-line quotes
+const TITLE_FONT = ["'Montserrat'", 'sans-serif'].join(', ');
+
+const defaultTypographyStyles = {
+	lineHeight: 1,
+	fontWeight: 400,
+	fontStyle: 'normal',
+	fontFamily: PRIMARY_FONT,
+};
+
+const titleTypographyStyles = {
+	...defaultTypographyStyles,
+	fontFamily: TITLE_FONT,
 };
 
 export const theme = createTheme({
 	palette: {
-		black: colors.black,
+		primary: palette.augmentColor({ color: { main: rawColors.purple } }),
+		secondary: palette.augmentColor({ color: { main: rawColors.pink } }),
+		info: palette.augmentColor({ color: { main: rawColors.blue } }),
+		success: palette.augmentColor({ color: { main: rawColors.green } }),
+		warning: palette.augmentColor({ color: { main: rawColors.orange } }),
+		error: palette.augmentColor({ color: { main: rawColors.red } }),
 		text: {
-			primary: colors.black,
+			primary: rawColors.mediumGrey,
+			secondary: rawColors.darkGrey,
+			disabled: rawColors.lightGrey,
 		},
 	},
 	typography: {
-		fontFamily: ['Poppins'].join(', '),
-		// body2: {
-		// 	fontSize: '14px',
-		// 	fontWeight: 400,
-		// },
+		fontFamily: PRIMARY_FONT,
+		// fontWeightRegular: 400,
+		// fontWeightMedium: 600,
+		// fontWeightBold: 700,
+		h1: {
+			...titleTypographyStyles,
+			fontWeight: 700,
+			lineHeight: 80 / 64,
+			fontSize: pxToRem(40),
+			letterSpacing: 2,
+			...getResponsiveFontSizes({ sm: 52, md: 58, lg: 64 }),
+		},
+		h2: {
+			...titleTypographyStyles,
+			fontWeight: 700,
+			lineHeight: 64 / 48,
+			fontSize: pxToRem(32),
+			...getResponsiveFontSizes({ sm: 40, md: 44, lg: 48 }),
+		},
+		h3: {
+			...titleTypographyStyles,
+			fontWeight: 700,
+			lineHeight: 1.5,
+			fontSize: pxToRem(24),
+			...getResponsiveFontSizes({ sm: 26, md: 30, lg: 32 }),
+		},
+		h4: {
+			...titleTypographyStyles,
+			fontWeight: 700,
+			lineHeight: 1.5,
+			fontSize: pxToRem(20),
+			...getResponsiveFontSizes({ sm: 20, md: 24, lg: 24 }),
+		},
+		h5: {
+			...titleTypographyStyles,
+			fontWeight: 700,
+			lineHeight: 1.5,
+			fontSize: pxToRem(18),
+			...getResponsiveFontSizes({ sm: 19, md: 20, lg: 20 }),
+		},
+		h6: {
+			...titleTypographyStyles,
+			fontWeight: 700,
+			lineHeight: 28 / 18,
+			fontSize: pxToRem(17),
+			...getResponsiveFontSizes({ sm: 18, md: 18, lg: 18 }),
+		},
+		subtitle1: {
+			...defaultTypographyStyles,
+			fontWeight: 600,
+			lineHeight: 1.5,
+			fontSize: pxToRem(16),
+		},
+		subtitle2: {
+			...defaultTypographyStyles,
+			fontWeight: 600,
+			lineHeight: 22 / 14,
+			fontSize: pxToRem(14),
+		},
+		body1: {
+			...defaultTypographyStyles,
+			lineHeight: 1.5,
+			fontSize: pxToRem(16),
+		},
+		body2: {
+			...defaultTypographyStyles,
+			lineHeight: 22 / 14,
+			fontSize: pxToRem(14),
+		},
+		caption: {
+			...defaultTypographyStyles,
+			lineHeight: 1.5,
+			fontSize: pxToRem(12),
+		},
+		overline: {
+			...defaultTypographyStyles,
+			fontWeight: 700,
+			lineHeight: 1.5,
+			fontSize: pxToRem(12),
+			textTransform: 'uppercase',
+		},
+		button: {
+			...defaultTypographyStyles,
+			fontWeight: 700,
+			lineHeight: 24 / 14,
+			fontSize: pxToRem(14),
+			textTransform: 'capitalize',
+		},
+	},
+	breakpoints: {
+		values: {
+			xs: 0,
+			sm: 600,
+			md: 900,
+			lg: 1200,
+			xl: 1536,
+		},
 	},
 });
