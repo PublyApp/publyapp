@@ -13,11 +13,13 @@ declare module '@mui/material' {
 	// 	welfare: PaletteColor,
 	// }
 
+	// eslint-disable-next-line @typescript-eslint/no-empty-interface
 	interface PaletteOptions {
-		black: string;
+		// black: string;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-empty-interface
 	interface Palette {
-		black: string;
+		// black: string;
 	}
 }
