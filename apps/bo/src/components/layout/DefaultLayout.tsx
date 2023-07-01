@@ -56,6 +56,11 @@ const menuItems = [
 		icon: <PersonIcon />,
 		link: '/typography',
 	},
+	{
+		text: 'Buttons',
+		icon: <PersonIcon />,
+		link: '/buttons',
+	},
 	// {
 	// 	text: 'Settings',
 	// 	icon: <SettingsIcon />,
