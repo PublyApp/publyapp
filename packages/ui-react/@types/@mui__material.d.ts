@@ -13,6 +13,6 @@ declare module '@mui/material' {
 	}
 
 	interface ButtonOwnProps {
-		raised?: boolean;
+		raised?: 0 | 1 | boolean;
 	}
 }

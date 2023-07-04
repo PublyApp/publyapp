@@ -18,6 +18,8 @@ module.exports = {
 				unnamedComponents: 'arrow-function',
 			},
 		],
+		'react/jsx-closing-bracket-location': 'warn',
+		'react/jsx-props-no-spreading': 'off',
 	},
 	parserOptions: {
 		babelOptions: {

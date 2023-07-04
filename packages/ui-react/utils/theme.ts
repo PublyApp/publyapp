@@ -1,4 +1,4 @@
-import { PaletteOptions, ThemeOptions, createTheme } from '@mui/material';
+import { PaletteOptions, ThemeOptions, createTheme, lighten, alpha } from '@mui/material';
 import { TypographyOptions } from '@mui/material/styles/createTypography';
 
 import { getResponsiveFontSizes, pxToRem } from './styles';
@@ -171,15 +171,32 @@ export const themeOptions: ThemeOptions = {
 			xl: 1536,
 		},
 	},
-	// components: {
-	// 	MuiButton: {
-	// 		styleOverrides: {
-	// 			root: ({ /* ownerState, */ theme }) => {
-	// 				return {
-	// 					background: theme.palette.info.main,
-	// 				};
-	// 			},
-	// 		},
-	// 	},
-	// },
+	components: {
+		MuiButton: {
+			styleOverrides: {
+				root: ({ ownerState, theme }) => {
+					const getShadow = (color: string) => {
+						const lightenedColor = lighten(color, 0.2);
+						return `${alpha(lightenedColor, 0.42)} 0px 14px 26px -12px, rgba(0, 0, 0, 0.12) 0px 4px 23px 0px, ${alpha(
+							lightenedColor,
+							0.2,
+						)} 0px 8px 10px -5px`;
+					};
+
+					return {
+						borderRadius: pxToRem(10.4),
+						...(ownerState.variant === 'contained' && {
+							boxShadow: 'none',
+							'&:hover': {
+								boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
+							},
+						}),
+						...(ownerState.raised && {
+							boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
+						}),
+					};
+				},
+			},
+		},
+	},
 };
