@@ -7,7 +7,7 @@
 		"dev": "npx concurrently \"node esbuild/watch.js\" \"node esbuild/watch.cloud.js\" \"npx nodemon\"",
 		"lint": "eslint . --ext ts,js",
 		"lint:fix": "pnpm run lint --fix",
-		"seed": "node esbuild/build.seed.js && node -r ./esbuild/defineParse.js dist/seeding/seed.js"
+		"seed": "node esbuild/build.seed.js && node --enable-source-maps -r ./esbuild/defineParse.js dist/seeding/seed.js"
 	},
 	"dependencies": {
 		"@aktiveo/shared": "workspace:*",
