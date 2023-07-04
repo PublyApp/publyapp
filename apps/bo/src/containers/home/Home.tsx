@@ -4,10 +4,9 @@ import { Typography, Button, FormControl, InputLabel, Select, MenuItem, SelectCh
 import { useQuery } from '@tanstack/react-query';
 
 import { AppLocale } from '@aktiveo/shared/i18n/resources';
-import { User } from '@aktiveo/shared/parse/classes/user.class';
-import { classNames } from '@aktiveo/shared/utils/constants';
 
 import { useApp } from '../../hooks/useApp';
+import { setBreadcrumbs, setLocale } from '../../contexts/AppProvider';
 
 const helloAction = async () => {
 	try {
@@ -17,70 +16,34 @@ const helloAction = async () => {
 	}
 };
 
-const dummyAction = async () => {
-	try {
-		// return Parse.Cloud.run('hello') as any;
-		// const user = new User({
-		// });
-		const q = new Parse.Query(classNames.USER);
-
-		const users: User[] = (await q.findAll()) as any;
-
-		console.log('-------users', users);
-
-		const user = new User();
-		user.set('ok', 'ok');
-		users.push(user);
-
-		return users.map((_user) => {
-			return _user.toJSON();
-		});
-		// return users;
-	} catch (error) {
-		return Promise.reject(error);
-	}
-};
-
 const Home = () => {
-	const { setBreadcrumbs, setLocale, locale } = useApp();
+	const { dispatch, state } = useApp();
 
 	const handleChangeLocale = (e: SelectChangeEvent) => {
-		setLocale(e.target.value as AppLocale);
+		// setLocale(e.target.value as AppLocale);
+		dispatch(setLocale(e.target.value as AppLocale));
 	};
 
 	const { /*  _data, */ refetch: sayHello } = useQuery({
 		queryKey: ['sayHello'],
 		queryFn: helloAction,
 		enabled: false,
-		// onSuccess: (result) => {
-		// 	// eslint-disable-next-line no-alert
-		// 	alert(result);
-		// },
-	});
-
-	const { /*  _data, */ refetch: dummyRun } = useQuery({
-		queryKey: ['dummy'],
-		queryFn: dummyAction,
-		enabled: false,
-		// onSuccess: (result) => {
-		// 	// eslint-disable-next-line no-alert
-		// 	// alert(result);
-		// 	console.log(result);
-		// },
 	});
 
 	useEffect(() => {
-		setBreadcrumbs([
-			{
-				link: 'contact',
-				text: 'Contact',
-			},
-			{
-				link: 'contact',
-				text: 'Contact',
-			},
-		]);
-	}, [setBreadcrumbs]);
+		dispatch(
+			setBreadcrumbs([
+				{
+					link: 'contact',
+					text: 'Contact',
+				},
+				{
+					link: 'contact',
+					text: 'Contact',
+				},
+			]),
+		);
+	}, [dispatch]);
 
 	return (
 		<div>
@@ -95,12 +58,7 @@ const Home = () => {
 				Say Hello
 			</Button>
 
-			<Button
-				variant="contained"
-				onClick={() => {
-					dummyRun();
-				}}
-			>
+			<Button variant="contained" onClick={() => {}}>
 				Run Dummy
 			</Button>
 
@@ -111,7 +69,7 @@ const Home = () => {
 				<Select
 					labelId="demo-simple-select-label"
 					id="demo-simple-select"
-					value={locale}
+					value={state.locale}
 					label="Age"
 					onChange={handleChangeLocale}
 				>

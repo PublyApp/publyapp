@@ -69,7 +69,7 @@ const menuItems = [
 ];
 
 const Layout = () => {
-	const { breadcrumbs, locale } = useApp();
+	const { state } = useApp();
 	const { t } = useTranslation();
 
 	const { mutate: logOut, isPending } = useLogOutMutation({ useAuth });
@@ -87,7 +87,7 @@ const Layout = () => {
 							<Box display="flex" alignItems="center" height="100%">
 								<Typography variant="body1" noWrap component="div">
 									{/* Permanent drawer */}
-									{t('common:hello')}&nbsp; the current locale is {locale}
+									{t('common:hello')}&nbsp; the current locale is {state.locale}
 								</Typography>
 							</Box>
 						</Grid>
@@ -137,9 +137,7 @@ const Layout = () => {
 			<Box component="main" sx={{ flexGrow: 1 }}>
 				<Toolbar />
 				<Breadcrumbs separator={<NavigateNextIcon fontSize="small" />} aria-label="breadcrumb">
-					<Typography>Home</Typography>
-					<Typography>Stats</Typography>
-					{breadcrumbs.map(({ link, text }) => {
+					{state.breadcrumbs.map(({ link, text }) => {
 						return (
 							<Link key={text} to={link}>
 								{text}
