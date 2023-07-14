@@ -191,9 +191,11 @@ export const themeOptions: ThemeOptions = {
 								boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
 							},
 						}),
-						...(ownerState.raised && {
-							boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
-						}),
+						...(ownerState.raised
+							? {
+									boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
+							  }
+							: {}),
 					};
 				},
 			},
