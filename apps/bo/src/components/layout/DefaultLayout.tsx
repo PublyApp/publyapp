@@ -27,9 +27,7 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
-
-import { useApp } from '../../hooks/useApp';
-import { useAuth } from '../../hooks/useAuth';
+import { useApp } from '@aktiveo/ui-react/hooks/useApp';
 
 // import Link from './Link';
 
@@ -72,7 +70,7 @@ const Layout = () => {
 	const { state } = useApp();
 	const { t } = useTranslation();
 
-	const { mutate: logOut, isPending } = useLogOutMutation({ useAuth });
+	const { mutate: logOut, isPending } = useLogOutMutation();
 
 	const handleLogOut = () => {
 		logOut();

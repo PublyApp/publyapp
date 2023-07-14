@@ -1,8 +1,3 @@
-export const BO_PATH_NAMES = {
-	home: '/',
-	logIn: '/login',
-};
-
 export enum RolesEnum {
 	ADMIN = 12308120948,
 	MODERATOR = 21143141341,
@@ -20,3 +15,12 @@ export const classNames = {
 };
 
 export const I18N_LOCALE_KEY = 'xxx-app-i18n-locale';
+
+export const FRONT_PATH_NAMES = {
+	home: '/',
+};
+
+export const BO_PATH_NAMES = {
+	home: '/',
+	logIn: '/login',
+};

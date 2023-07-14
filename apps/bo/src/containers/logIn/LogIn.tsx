@@ -2,7 +2,7 @@ import { Box, Typography, useTheme } from '@mui/material';
 // import { useQuery } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
 
 import LogInForm from './LogInForm';
 

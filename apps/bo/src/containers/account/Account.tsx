@@ -2,7 +2,7 @@ import { FormEventHandler, useState } from 'react';
 
 import { Box, Button, TextField, Typography } from '@mui/material';
 
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
 
 const Account = () => {
 	const { user } = useAuth();
