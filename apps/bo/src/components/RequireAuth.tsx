@@ -1,8 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
-import { useAuth } from '../hooks/useAuth';
-import { BO_PATH_NAMES } from '../utils/constants';
-
+import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
+import { BO_PATH_NAMES } from '@aktiveo/shared/utils/constants';
 // type Props = {};
 
 const RequireAuth = (/* props: Props */) => {

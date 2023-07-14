@@ -4,9 +4,8 @@ import { Typography, Button, FormControl, InputLabel, Select, MenuItem, SelectCh
 import { useQuery } from '@tanstack/react-query';
 
 import { AppLocale } from '@aktiveo/shared/i18n/resources';
-
-import { useApp } from '../../hooks/useApp';
-import { setBreadcrumbs, setLocale } from '../../contexts/AppProvider';
+import { useApp } from '@aktiveo/ui-react/hooks/useApp';
+import { setBreadcrumbs, setLocale } from '@aktiveo/ui-react/contexts/AppProvider';
 
 const helloAction = async () => {
 	try {

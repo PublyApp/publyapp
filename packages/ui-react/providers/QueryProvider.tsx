@@ -2,7 +2,7 @@ import { ReactNode, useState } from 'react';
 
 import { QueryClientProvider } from '@tanstack/react-query';
 
-import { getQueryClient } from '@aktiveo/ui-react/query/queryClient';
+import { getQueryClient } from '../query/queryClient';
 
 type Props = {
 	children: ReactNode;

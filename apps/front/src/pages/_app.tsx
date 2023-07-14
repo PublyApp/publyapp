@@ -5,10 +5,10 @@ import { HydrationBoundary } from '@tanstack/react-query';
 
 import '@aktiveo/ui-react/styles/fonts.css';
 import ThemeProvider from '@aktiveo/ui-react/providers/ThemeProvider';
+import QueryProvider from '@aktiveo/ui-react/providers/QueryProvider';
 
 import Layout from '../components/layout/Layout';
 import { AuthProvider } from '../contexts/AuthProvider';
-import QueryProvider from '../providers/QueryProvider';
 
 // --------------------------------------------------------------------------------------//
 //                                   initialize parse                                   //
