@@ -5,8 +5,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { LogInInput, logInSchema } from '@aktiveo/shared/validations/auth.validations';
 import { useLogInMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 
-import { useAuth } from '../../hooks/useAuth';
-
 const LogInForm = () => {
 	const form = useForm<LogInInput>({ resolver: zodResolver(logInSchema) });
 
@@ -16,7 +14,7 @@ const LogInForm = () => {
 		formState: { errors /* , isDirty, isValid */ },
 	} = form;
 
-	const { mutate: logIn, isPending } = useLogInMutation({ useAuth });
+	const { mutate: logIn, isPending } = useLogInMutation();
 
 	const onSubmitHandler: SubmitHandler<LogInInput> = async (values) => {
 		logIn(values);

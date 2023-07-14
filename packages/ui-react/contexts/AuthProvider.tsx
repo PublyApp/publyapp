@@ -4,7 +4,8 @@ import { useLocalStorage } from 'react-use';
 
 import { IUser } from '@aktiveo/shared/types/user.types';
 import { IRole } from '@aktiveo/shared/types/role.types';
-import { ROLES_LOCAL_STORAGE_KEY } from '@aktiveo/ui-react/utils/constants';
+
+import { ROLES_LOCAL_STORAGE_KEY } from '../utils/constants';
 
 type AuthContextType = {
 	isAuthed: boolean;

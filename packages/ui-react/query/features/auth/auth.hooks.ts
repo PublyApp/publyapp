@@ -1,8 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 
+import { useAuth } from '../../../hooks/useAuth';
+
 import { logInAction, logOutAction } from './auth.actions';
 
-export const useLogInMutation = ({ useAuth }: { useAuth: () => any }) => {
+export const useLogInMutation = () => {
 	const { syncUserState } = useAuth();
 
 	const mutationResult = useMutation({
@@ -16,7 +18,7 @@ export const useLogInMutation = ({ useAuth }: { useAuth: () => any }) => {
 	return mutationResult;
 };
 
-export const useLogOutMutation = ({ useAuth }: { useAuth: () => any }) => {
+export const useLogOutMutation = () => {
 	const { syncUserState } = useAuth();
 
 	const mutationResult = useMutation({
