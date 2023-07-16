@@ -66,7 +66,7 @@ const menuItems = [
 	// },
 ];
 
-const Layout = () => {
+const DefaultLayoutBO = () => {
 	const { state } = useApp();
 	const { t } = useTranslation();
 
@@ -91,8 +91,13 @@ const Layout = () => {
 						</Grid>
 						<Grid item>
 							<Box>
-								<Button variant="contained" color="primary" disableElevation onClick={handleLogOut}>
-									{isPending ? <CircularProgress color="inherit" size="16px" /> : <LogoutIcon />}{' '}
+								<Button
+									variant="contained"
+									color="primary"
+									disableElevation
+									onClick={handleLogOut}
+									startIcon={isPending ? <CircularProgress color="inherit" size="16px" /> : <LogoutIcon />}
+								>
 									<Typography textTransform="capitalize" ml="0.5rem">
 										Log Out
 									</Typography>
@@ -150,4 +155,4 @@ const Layout = () => {
 	);
 };
 
-export default Layout;
+export default DefaultLayoutBO;

@@ -8,7 +8,7 @@ import ThemeProvider from '@aktiveo/ui-react/providers/ThemeProvider';
 import QueryProvider from '@aktiveo/ui-react/providers/QueryProvider';
 import { AuthProvider } from '@aktiveo/ui-react/contexts/AuthProvider';
 
-import Layout from '../components/layout/Layout';
+import Layout from '../components/layout/LayoutFront';
 
 // --------------------------------------------------------------------------------------//
 //                                   initialize parse                                    //

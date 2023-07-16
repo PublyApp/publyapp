@@ -6,7 +6,7 @@ type Props = {
 	children: ReactNode;
 };
 
-const DefaultLayout = ({ children }: Props) => {
+const DefaultLayoutFront = ({ children }: Props) => {
 	return (
 		<>
 			<HeaderOne />
@@ -15,4 +15,4 @@ const DefaultLayout = ({ children }: Props) => {
 	);
 };
 
-export default DefaultLayout;
+export default DefaultLayoutFront;
