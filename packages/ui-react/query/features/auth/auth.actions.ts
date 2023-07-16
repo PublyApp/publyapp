@@ -1,4 +1,6 @@
 // import { QueryFunctionContext } from '@tanstack/react-query';
+import Cookies from 'universal-cookie';
+
 import { LogInInput } from '@aktiveo/shared/validations/auth.validations';
 import { IUser } from '@aktiveo/shared/types/user.types';
 
@@ -27,6 +29,8 @@ export const logInAction = async (input: LogInInput) => {
 		const { email, password } = input;
 		const user = await Parse.User.logIn(email, password);
 
+		new Cookies().set('xxx-session-token', user.getSessionToken());
+
 		// TODO: fetch user's roles and set the local storage
 		const roles = await getUserRoles(user);
 		const JSONRoles = roles.map((role) => {
@@ -44,15 +48,17 @@ export const logInAction = async (input: LogInInput) => {
 	}
 };
 
-// eslint-disable-next-line consistent-return
 export const logOutAction = async (): Promise<void> => {
 	try {
 		await Parse.User.logOut();
+
+		new Cookies().remove('xxx-session-token');
 
 		// remove roles from local storage
 		localStorage.setItem(ROLES_LOCAL_STORAGE_KEY, JSON.stringify([]));
 
 		console.log('----- logged Out -----');
+		return await Promise.resolve();
 	} catch (error) {
 		console.log('----- logOutAction error ----------', error);
 		return Promise.reject(error);
