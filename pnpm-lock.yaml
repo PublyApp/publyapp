@@ -205,6 +205,9 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.2.0
+      react-cookie:
+        specifier: ^4.1.1
+        version: 4.1.1(react@18.2.0)
       react-dom:
         specifier: ^18.2.0
         version: 18.2.0(react@18.2.0)
@@ -214,6 +217,9 @@ importers:
       react-use:
         specifier: ^17.4.0
         version: 17.4.0(react-dom@18.2.0)(react@18.2.0)
+      universal-cookie:
+        specifier: ^4.0.4
+        version: 4.0.4
     devDependencies:
       '@emotion/babel-plugin':
         specifier: ^11.11.0
@@ -502,12 +508,18 @@ importers:
       react:
         specifier: ^18.2.0
         version: 18.2.0
+      react-cookie:
+        specifier: ^4.1.1
+        version: 4.1.1(react@18.2.0)
       react-i18next:
         specifier: ^12.3.1
         version: 12.3.1(i18next@22.5.1)(react-dom@18.2.0)(react@18.2.0)
       react-use:
         specifier: ^17.4.0
         version: 17.4.0(react-dom@18.2.0)(react@18.2.0)
+      universal-cookie:
+        specifier: ^4.0.4
+        version: 4.0.4
       use-immer:
         specifier: ^0.9.0
         version: 0.9.0(immer@10.0.2)(react@18.2.0)
@@ -2888,6 +2900,10 @@ packages:
     resolution: {integrity: sha512-cdeYyv4KWoEgpBISTxWvqYsVy444DOqehiF3fM3ne10AmJ62RSyNkUnxMJXHQWRQQX2eR94m5y1IZyDwBjV9FQ==}
     dependencies:
       '@types/node': 17.0.12
+
+  /@types/cookie@0.3.3:
+    resolution: {integrity: sha512-LKVP3cgXBT9RYj+t+9FDKwS5tdI+rPBXaNSkma7hvqy35lc7mAokC2zsqWJH0LaqIt3B962nuYI77hsJoT1gow==}
+    dev: false
 
   /@types/cookie@0.5.1:
     resolution: {integrity: sha512-COUnqfB2+ckwXXSFInsFdOAWQzCCx+a5hq2ruyj+Vjund94RJQd4LG2u9hnvJrTgunKAaax7ancBYlDrNYxA0g==}
@@ -8506,6 +8522,17 @@ packages:
       react: 16.14.0
     dev: false
 
+  /react-cookie@4.1.1(react@18.2.0):
+    resolution: {integrity: sha512-ffn7Y7G4bXiFbnE+dKhHhbP+b8I34mH9jqnm8Llhj89zF4nPxPutxHT1suUqMeCEhLDBI7InYwf1tpaSoK5w8A==}
+    peerDependencies:
+      react: '>= 16.3.0'
+    dependencies:
+      '@types/hoist-non-react-statics': 3.3.1
+      hoist-non-react-statics: 3.3.2
+      react: 18.2.0
+      universal-cookie: 4.0.4
+    dev: false
+
   /react-dnd-html5-backend@10.0.2:
     resolution: {integrity: sha512-ny17gUdInZ6PIGXdzfwPhoztRdNVVvjoJMdG80hkDBamJBeUPuNF2Wv4D3uoQJLjXssX1+i9PhBqc7EpogClwQ==}
     dependencies:
@@ -10241,6 +10268,13 @@ packages:
   /undici@5.5.1:
     resolution: {integrity: sha512-MEvryPLf18HvlCbLSzCW0U00IMftKGI5udnjrQbC5D4P0Hodwffhv+iGfWuJwg16Y/TK11ZFK8i+BPVW2z/eAw==}
     engines: {node: '>=12.18'}
+    dev: false
+
+  /universal-cookie@4.0.4:
+    resolution: {integrity: sha512-lbRVHoOMtItjWbM7TwDLdl8wug7izB0tq3/YVKhT/ahB4VDvWMyvnADfnJI8y6fSvsjh51Ix7lTGC6Tn4rMPhw==}
+    dependencies:
+      '@types/cookie': 0.3.3
+      cookie: 0.4.0
     dev: false
 
   /unpipe@1.0.0:

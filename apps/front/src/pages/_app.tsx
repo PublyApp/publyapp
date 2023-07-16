@@ -6,19 +6,32 @@ import { HydrationBoundary } from '@tanstack/react-query';
 import '@aktiveo/ui-react/styles/fonts.css';
 import ThemeProvider from '@aktiveo/ui-react/providers/ThemeProvider';
 import QueryProvider from '@aktiveo/ui-react/providers/QueryProvider';
+import { AuthProvider } from '@aktiveo/ui-react/contexts/AuthProvider';
 
 import Layout from '../components/layout/Layout';
-import { AuthProvider } from '../contexts/AuthProvider';
 
 // --------------------------------------------------------------------------------------//
-//                                   initialize parse                                   //
-// --------------------------------------------------------------------------------------//
-if (typeof window !== 'undefined') {
-	Parse.initialize('aktiveo');
+//                                   initialize parse                                    //
+// --------------------------------------------------------------------------------------/
+const isServer = typeof window === 'undefined';
 
-	const parseServerURL = 'http://localhost:6182/parse';
-	Parse.serverURL = parseServerURL;
+// ---- code copied from parse-react/ssr -------------------------------------------------
+if ((process as any).browser) {
+	// eslint-disable-next-line global-require
+	global.Parse = require('parse');
+} else {
+	// eslint-disable-next-line global-require
+	global.Parse = require('parse/node');
 }
+
+Parse.initialize('aktiveo');
+
+if (!isServer) {
+	Parse.enableLocalDatastore();
+}
+// ---- end of code copied from parse-react/ssr -------------------------------------------------
+
+Parse.serverURL = 'http://localhost:6180/parse';
 
 const MyApp = ({ Component, pageProps }: AppProps) => {
 	return (
