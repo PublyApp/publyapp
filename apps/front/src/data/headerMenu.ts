@@ -1,10 +1,10 @@
 export const headerMenu = [
 	{
 		text: 'Product',
-		path: '/',
+		path: '/product',
 	},
 	{
 		text: 'Pricing',
-		path: '/',
+		path: '/pricing',
 	},
 ];
