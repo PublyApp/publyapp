@@ -9,9 +9,7 @@ import './main.css';
 //                                   initialize parse                                   //
 // --------------------------------------------------------------------------------------//
 Parse.initialize('aktiveo');
-
-const parseServerURL = 'http://localhost:6182/parse';
-Parse.serverURL = parseServerURL;
+Parse.serverURL = 'http://localhost:6180/parse';
 
 // --------------------------------------------------------------------------------------//
 //                                 render the react app                                 //

@@ -1,9 +1,12 @@
+import { useEffect } from 'react';
+
 import { Box, Typography, useTheme } from '@mui/material';
 // import { useQuery } from '@tanstack/react-query';
 // import { Navigate } from 'react-router-dom';
 import { useRouter } from 'next/router';
 
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
+
 import LogInForm from '../containers/logIn/LogInForm';
 
 const LogIn = () => {
@@ -11,10 +14,13 @@ const LogIn = () => {
 	const theme = useTheme();
 	const router = useRouter();
 
-	if (isAuthed) {
-		// return <Navigate to="/" />;
-		router.replace('/');
-	}
+	// if (isAuthed) {
+	// 	// return <Navigate to="/" />;
+	// 	router.replace('/');
+	// }
+	useEffect(() => {
+		if (isAuthed) router.replace('/');
+	}, [isAuthed, router]);
 
 	return (
 		<Box

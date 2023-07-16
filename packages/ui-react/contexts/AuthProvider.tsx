@@ -1,6 +1,7 @@
 import { PropsWithChildren, createContext, useCallback, useMemo, useState, useEffect } from 'react';
 
-import { useLocalStorage } from 'react-use';
+import { useLocalStorage, useCookie } from 'react-use';
+import Cookies from 'universal-cookie';
 
 import { IUser } from '@aktiveo/shared/types/user.types';
 import { IRole } from '@aktiveo/shared/types/role.types';
@@ -45,9 +46,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 	const [isAuthed, setIsAuthed] = useState<boolean>(getAuthStatus());
 	const [user, setUser] = useState<IUser | undefined>(getAuthedUser());
 	const [roles, setRoles] = useLocalStorage<IRole[]>(ROLES_LOCAL_STORAGE_KEY, []);
+	const [, setTokenCookie] = useCookie('xxx-session-token');
 
 	useEffect(() => {
 		setIsAuthed(getAuthStatus());
+		setTokenCookie(new Cookies().get('xxx-session-token'));
 		setRoles(JSON.parse(localStorage.getItem(ROLES_LOCAL_STORAGE_KEY) as any));
 	}, [setRoles, user]);
 
@@ -68,7 +71,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 	const memoizedValue = useMemo<AuthContextType>(() => {
 		return {
 			isAuthed,
-			user,
+			user, // TODO: remove from here
 			roles: roles || [],
 			syncUserState,
 			refetchUser,
