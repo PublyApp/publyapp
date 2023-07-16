@@ -1,5 +1,3 @@
-import { useEffect } from 'react';
-
 import { Box, Typography, useTheme } from '@mui/material';
 // import { useQuery } from '@tanstack/react-query';
 // import { Navigate } from 'react-router-dom';
@@ -14,13 +12,13 @@ const LogIn = () => {
 	const theme = useTheme();
 	const router = useRouter();
 
-	// if (isAuthed) {
-	// 	// return <Navigate to="/" />;
-	// 	router.replace('/');
-	// }
-	useEffect(() => {
-		if (isAuthed) router.replace('/');
-	}, [isAuthed, router]);
+	if (isAuthed) {
+		// return <Navigate to="/" />;
+		router.replace('/');
+	}
+	// useEffect(() => {
+	// 	if (isAuthed) router.replace('/');
+	// }, [isAuthed, router]);
 
 	return (
 		<Box

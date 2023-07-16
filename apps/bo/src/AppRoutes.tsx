@@ -1,6 +1,6 @@
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
 
-import Layout from './components/layout/Layout';
+import LayoutBO from './components/layout/LayoutBO';
 import Home from './containers/home/Home';
 import NotFound from './containers/notFound/NotFound';
 import Account from './containers/account/Account';
@@ -13,7 +13,7 @@ const router = createBrowserRouter(
 	createRoutesFromElements(
 		<Route path="/">
 			<Route element={<RequireAuth />}>
-				<Route element={<Layout />}>
+				<Route element={<LayoutBO />}>
 					<Route index element={<Home />} />
 					<Route path="account" element={<Account />} />
 
