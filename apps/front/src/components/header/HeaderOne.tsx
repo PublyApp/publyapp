@@ -1,8 +1,11 @@
+'use client';
+
 import { useEffect, useRef, useState } from 'react';
 
 import { AppBar, Box, Button, Container, Link, Toolbar, useTheme, CircularProgress } from '@mui/material';
 import NextLink from 'next/link';
-import { useRouter } from 'next/router';
+// import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import { Logout as LogoutIcon } from '@mui/icons-material';
 
 import { pxToRem } from '@aktiveo/ui-react/utils/styles';
@@ -17,6 +20,7 @@ const HeaderOne = () => {
 	const theme = useTheme();
 	const { isAuthed } = useAuth();
 	const router = useRouter();
+	// const router = useNavigation();
 
 	const { mutate: logOut, isPending } = useLogOutMutation();
 
@@ -77,7 +81,7 @@ const HeaderOne = () => {
 									<Button
 										variant="contained"
 										onClick={() => {
-											router.replace('/login');
+											router.push('/login');
 										}}
 										sx={{ height: pxToRem(48) }}
 									>

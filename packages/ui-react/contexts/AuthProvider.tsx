@@ -1,3 +1,5 @@
+'use client';
+
 import { PropsWithChildren, createContext, useCallback, useMemo, useState, useEffect } from 'react';
 
 import { useLocalStorage, useCookie } from 'react-use';
