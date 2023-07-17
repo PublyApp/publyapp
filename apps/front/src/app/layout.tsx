@@ -13,9 +13,11 @@ import ThemeProviderNext from '../providers/ThemeProviderNext';
 const isServer = typeof window === 'undefined';
 
 // ---- code copied from parse-react/ssr -------------------------------------------------
-if ((process as any).browser) {
+if (/* (process as any).browser */ !isServer) {
 	// eslint-disable-next-line global-require
-	global.Parse = require('parse');
+	// global.Parse = require('parse');
+	// eslint-disable-next-line global-require
+	window.Parse = require('parse');
 } else {
 	// eslint-disable-next-line global-require
 	global.Parse = require('parse/node');
@@ -46,8 +48,6 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
 					<QueryNextProvider>
 						<ThemeProviderNext>
 							<LayoutFront>{children}</LayoutFront>
-
-							{/* {children} */}
 						</ThemeProviderNext>
 					</QueryNextProvider>
 				</AuthProvider>
