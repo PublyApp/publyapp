@@ -1,7 +1,9 @@
+'use client';
+
 import { Box, Typography, useTheme } from '@mui/material';
 // import { useQuery } from '@tanstack/react-query';
 // import { Navigate } from 'react-router-dom';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
 
@@ -14,7 +16,7 @@ const LogIn = () => {
 
 	if (isAuthed) {
 		// return <Navigate to="/" />;
-		router.replace('/');
+		router.push('/');
 	}
 	// useEffect(() => {
 	// 	if (isAuthed) router.replace('/');

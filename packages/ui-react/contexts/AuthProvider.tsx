@@ -2,7 +2,6 @@
 
 import { PropsWithChildren, createContext, useCallback, useMemo, useState, useEffect } from 'react';
 
-// import Parse from 'parse';
 import { useLocalStorage, useCookie } from 'react-use';
 import Cookies from 'universal-cookie';
 
@@ -10,6 +9,10 @@ import { IUser } from '@aktiveo/shared/types/user.types';
 import { IRole } from '@aktiveo/shared/types/role.types';
 
 import { ROLES_LOCAL_STORAGE_KEY } from '../utils/constants';
+
+// const isServer = typeof window === 'undefined';
+// const Parse = isServer ? global.Parse : window.Parse;
+// const { Parse } = global;
 
 type AuthContextType = {
 	isAuthed: boolean;
@@ -29,7 +32,7 @@ export const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
 	const getAuthStatus = () => {
-		const user = Parse.User.current();
+		const user = Parse?.User.current();
 
 		if (!user) {
 			return false;
@@ -43,7 +46,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 	};
 
 	const getAuthedUser = (): IUser | undefined => {
-		return Parse.User.current<Parse.User<IUser>>()?.toJSON() as any;
+		return Parse?.User.current<Parse.User<IUser>>()?.toJSON() as any;
 	};
 
 	const [isAuthed, setIsAuthed] = useState<boolean>(
