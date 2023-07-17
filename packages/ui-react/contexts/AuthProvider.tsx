@@ -2,6 +2,7 @@
 
 import { PropsWithChildren, createContext, useCallback, useMemo, useState, useEffect } from 'react';
 
+// import Parse from 'parse';
 import { useLocalStorage, useCookie } from 'react-use';
 import Cookies from 'universal-cookie';
 
@@ -9,8 +10,6 @@ import { IUser } from '@aktiveo/shared/types/user.types';
 import { IRole } from '@aktiveo/shared/types/role.types';
 
 import { ROLES_LOCAL_STORAGE_KEY } from '../utils/constants';
-
-// const isServer = typeof window === 'undefined';
 
 type AuthContextType = {
 	isAuthed: boolean;
