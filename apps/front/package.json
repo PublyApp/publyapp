@@ -41,5 +41,11 @@
 		"eslint-config-custom-nextjs": "workspace:*",
 		"tsconfig": "workspace:*",
 		"typescript": "^4.5.3"
-	}
+	},
+	"browser": {
+		"tls": false,
+		"child_process": false,
+		"fs": false,
+    "net": false
+  }
 }
