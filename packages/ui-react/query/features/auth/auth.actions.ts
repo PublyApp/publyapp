@@ -6,6 +6,9 @@ import { IUser } from '@aktiveo/shared/types/user.types';
 
 import { ROLES_LOCAL_STORAGE_KEY } from '../../../utils/constants';
 
+// const isServer = typeof window === 'undefined';
+// const Parse = isServer ? global.Parse : window.Parse;
+
 // --------------------------------------------------------------------------------------//
 //                                                                                      //
 //                                       QUERIES                                        //

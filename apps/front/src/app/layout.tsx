@@ -1,36 +1,37 @@
 import React from 'react';
 
 import '@aktiveo/ui-react/styles/fonts.css';
-import { AuthProvider } from '@aktiveo/ui-react/contexts/AuthProvider';
+import AppFront from './app';
+// import { AuthProvider } from '@aktiveo/ui-react/contexts/AuthProvider';
 
-import QueryNextProvider from '../providers/QueryNextProvider';
-import LayoutFront from '../components/layout/LayoutFront';
-import ThemeProviderNext from '../providers/ThemeProviderNext';
+// import QueryNextProvider from '../providers/QueryNextProvider';
+// import LayoutFront from '../components/layout/LayoutFront';
+// import ThemeProviderNext from '../providers/ThemeProviderNext';
 
-// --------------------------------------------------------------------------------------//
-//                                   initialize parse                                    //
-// --------------------------------------------------------------------------------------/
-const isServer = typeof window === 'undefined';
+// // --------------------------------------------------------------------------------------//
+// //                                   initialize parse                                    //
+// // --------------------------------------------------------------------------------------/
+// const isServer = typeof window === 'undefined';
 
-// ---- code copied from parse-react/ssr -------------------------------------------------
-if (/* (process as any).browser */ !isServer) {
-	// eslint-disable-next-line global-require
-	// global.Parse = require('parse');
-	// eslint-disable-next-line global-require
-	window.Parse = require('parse');
-} else {
-	// eslint-disable-next-line global-require
-	global.Parse = require('parse/node');
-}
+// // ---- code copied from parse-react/ssr -------------------------------------------------
+// if (/* (process as any).browser */ !isServer) {
+// 	// eslint-disable-next-line global-require
+// 	// global.Parse = require('parse');
+// 	// eslint-disable-next-line global-require
+// 	window.Parse = require('parse');
+// } else {
+// 	// eslint-disable-next-line global-require
+// 	global.Parse = require('parse/node');
+// }
 
-Parse.initialize('aktiveo');
+// Parse.initialize('aktiveo');
 
-if (!isServer) {
-	Parse.enableLocalDatastore();
-}
-// ---- end of code copied from parse-react/ssr -------------------------------------------------
+// if (!isServer) {
+// 	Parse.enableLocalDatastore();
+// }
+// // ---- end of code copied from parse-react/ssr -------------------------------------------------
 
-Parse.serverURL = 'http://localhost:6180/parse';
+// Parse.serverURL = 'http://localhost:6180/parse';
 
 // --------------------------------------------------------------------------------------//
 //                               Nextjs metadata for SEO                                //
@@ -44,13 +45,14 @@ const RootLayout = ({ children }: { children: React.ReactNode }) => {
 	return (
 		<html lang="en">
 			<body>
-				<AuthProvider>
+				{/* <AuthProvider>
 					<QueryNextProvider>
 						<ThemeProviderNext>
 							<LayoutFront>{children}</LayoutFront>
 						</ThemeProviderNext>
 					</QueryNextProvider>
-				</AuthProvider>
+				</AuthProvider> */}
+				<AppFront>{children}</AppFront>
 			</body>
 		</html>
 	);
