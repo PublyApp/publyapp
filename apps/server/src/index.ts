@@ -20,7 +20,8 @@ const bootstrap = async () => {
 
 	// * The ONLINE environment variable is to set only in your host provider's interface
 	global.LOCAL = !process.env.ONLINE;
-	global.PRODUCTION = false;
+	// * The PRODUCTION environment variable is to set only in your host provider's interface
+	global.PRODUCTION = Boolean(process.env.PRODUCTION);
 
 	// --------------------------------------------------------------------------------------//
 	//                           determine which .env file to load                           //
@@ -60,7 +61,7 @@ const bootstrap = async () => {
 		appId: APP_ID,
 		masterKey: MASTER_KEY,
 		cloud: path.resolve(__dirname, './cloud/index'),
-		databaseUri: DATABASE_URI,
+		databaseURI: DATABASE_URI,
 		serverURL: `${SERVER_URL}/parse`,
 		publicServerURL: `${SERVER_URL}/parse`,
 		// =============================================

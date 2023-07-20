@@ -5,8 +5,25 @@ declare module 'parse-server/lib/Config';
 declare module 'parse-server' {
 	import type { Application } from 'express';
 
+	export type ParseServerOptions = {
+		appId: string;
+		masterKey: string;
+		cloud: string;
+		databaseURI: string;
+		serverURL: string;
+		publicServerURL: string;
+		// =============================================
+		allowClientClassCreation?: boolean;
+		schema?: {
+			strict?: boolean;
+			definitions: SchemaMigrations.JSONSchema[];
+		};
+		masterKeyIps?: string[];
+		allowExpiredAuthDataToken?: boolean;
+	} & Record<string, any>;
+
 	export default class ParseServer {
-		constructor(options: any);
+		constructor(options: ParseServerOptions);
 		start(): Promise<void>;
 		app: Application;
 	}
