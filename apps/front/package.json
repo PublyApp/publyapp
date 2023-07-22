@@ -23,6 +23,7 @@
 		"dayjs": "^1.11.8",
 		"lodash": "^4.17.21",
 		"next": "^13.4.7",
+		"next-auth": "^4.22.3",
 		"parse": "^4.1.0",
 		"react": "^18.2.0",
 		"react-cookie": "^4.1.1",
@@ -46,6 +47,6 @@
 		"tls": false,
 		"child_process": false,
 		"fs": false,
-    "net": false
-  }
+		"net": false
+	}
 }
