@@ -32,7 +32,7 @@ export const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
 	const getAuthStatus = () => {
-		const user = Parse?.User.current();
+		const user = Parse.User.current();
 
 		if (!user) {
 			return false;
@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 	};
 
 	const getAuthedUser = (): IUser | undefined => {
-		return Parse?.User.current<Parse.User<IUser>>()?.toJSON() as any;
+		return Parse.User.current<Parse.User<IUser>>()?.toJSON() as any;
 	};
 
 	const [isAuthed, setIsAuthed] = useState<boolean>(
