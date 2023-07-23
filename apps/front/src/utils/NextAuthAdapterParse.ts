@@ -1,6 +1,6 @@
 import { Adapter, AdapterUser, AdapterSession } from 'next-auth/adapters';
 
-import { initParseFront } from './initParseFront';
+import { initParseNext } from './initParseFront';
 
 const convertUser = (user: Parse.User): AdapterUser => {
 	return {
@@ -18,8 +18,13 @@ const convertSession = (session: Parse.Session): AdapterSession => {
 	};
 };
 
-export const NextAuthAdapterParse = (): Adapter => {
-	initParseFront();
+export const NextAuthAdapterParse = (
+	serverURL: string,
+	applicationId: string,
+	javascriptKey: string | undefined,
+	masterKey: string,
+): Adapter => {
+	initParseNext(serverURL, applicationId, javascriptKey, masterKey);
 
 	return {
 		createUser: async (attributes) => {
@@ -28,7 +33,7 @@ export const NextAuthAdapterParse = (): Adapter => {
 			return convertUser(user);
 		},
 		getUser: async (id) => {
-			const user = await new Parse.Query(Parse.User).get(id);
+			const user = await new Parse.Query(Parse.User).get(id, { useMasterKey: true });
 			return convertUser(user);
 		},
 		getUserByEmail: async (email) => {
