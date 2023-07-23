@@ -1,4 +1,4 @@
-import { Adapter, AdapterUser } from 'next-auth/adapters';
+import { Adapter, AdapterUser, AdapterSession } from 'next-auth/adapters';
 
 import { initParseFront } from './initParseFront';
 
@@ -7,6 +7,14 @@ const convertUser = (user: Parse.User): AdapterUser => {
 		id: user.id,
 		email: user.getEmail(),
 		emailVerified: user.get('emailVerified'),
+	};
+};
+
+const convertSession = (session: Parse.Session): AdapterSession => {
+	return {
+		sessionToken: session.getSessionToken(),
+		expires: session.get('expiresAt'),
+		userId: session.get('user').id,
 	};
 };
 
@@ -32,7 +40,6 @@ export const NextAuthAdapterParse = (): Adapter => {
 			return convertUser(user);
 		},
 		updateUser: async ({ id, ...attributes }) => {
-			if (!id) throw new Error('[updateUser] Missing id');
 			const foundUser = await new Parse.Query(Parse.User).get(id);
 
 			// eslint-disable-next-line no-restricted-syntax
@@ -49,8 +56,45 @@ export const NextAuthAdapterParse = (): Adapter => {
 			const user = await foundUser.save();
 			return convertUser(user);
 		},
-		linkAccount: async (account) => {
-			// return AdapterAccount
+		linkAccount: async ({ provider, userId, ...authData }) => {
+			const foundUser = await new Parse.Query(Parse.User).get(userId);
+			await foundUser.linkWith(provider, { authData });
+		},
+		// TODO: unlinkAccount
+		createSession: async ({ expires, sessionToken, userId }) => {
+			const newSession = new Parse.Session();
+			const user = await new Parse.Query(Parse.User).get(userId);
+			newSession.set('user', user);
+			newSession.set('sessionToken', sessionToken);
+			newSession.set('expiresAt', expires);
+			const session = await newSession.save();
+			return convertSession(session);
+		},
+		getSessionAndUser: async (sessionToken) => {
+			const foundSessionWithUser = await new Parse.Query(Parse.Session)
+				.equalTo('sessionToken', sessionToken)
+				.include('user')
+				.first();
+			const session = convertSession(foundSessionWithUser);
+			const parseUser = foundSessionWithUser.get('user');
+			const user = convertUser(parseUser);
+			return { session, user };
+		},
+		updateSession: async ({ sessionToken, ...rest }) => {
+			const foundSession = await new Parse.Query(Parse.Session).equalTo('sessionToken', sessionToken).first();
+
+			// eslint-disable-next-line no-restricted-syntax
+			for (const key of Object.keys(rest)) {
+				foundSession.set(key, rest[key]);
+			}
+
+			const session = await foundSession.save();
+			return convertSession(session);
+		},
+		deleteSession: async (sessionToken) => {
+			const foundSession = await new Parse.Query(Parse.Session).equalTo('sessionToken', sessionToken).first();
+			const session = await foundSession.destroy();
+			return convertSession(session);
 		},
 	};
 };
