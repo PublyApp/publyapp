@@ -1,4 +1,4 @@
-const initParseNext = (serverURL: string, applicationId: string, javascriptKey?: string) => {
+export const initParseNext = (serverURL: string, applicationId: string, javascriptKey?: string, masterKey?: string) => {
 	const isServer = typeof window === 'undefined';
 
 	// ---- code copied from parse-react/ssr -------------------------------------------------
@@ -12,7 +12,7 @@ const initParseNext = (serverURL: string, applicationId: string, javascriptKey?:
 		global.Parse = require('parse/node');
 	}
 
-	Parse.initialize(applicationId, javascriptKey);
+	Parse.initialize(applicationId, javascriptKey, masterKey);
 
 	if (!isServer) {
 		Parse.enableLocalDatastore();
