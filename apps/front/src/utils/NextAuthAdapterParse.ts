@@ -96,5 +96,36 @@ export const NextAuthAdapterParse = (): Adapter => {
 			const session = await foundSession.destroy();
 			return convertSession(session);
 		},
+		createVerificationToken: async (attributes) => {
+			const tokenToCreate = new Parse.Object('VerificationToken', attributes);
+
+			const token = await tokenToCreate.save();
+
+			return {
+				expires: token.get('expires'),
+				identifier: token.get('identifier'),
+				token: token.get('token'),
+			};
+		},
+		useVerificationToken: async ({ identifier, token: tokenStr }) => {
+			const foundToken = await new Parse.Query('VerificationToken')
+				.equalTo('token', tokenStr)
+				.equalTo('identifier', identifier)
+				.first();
+
+			// const result = {
+			// 	expires: token.get('expires'),
+			// 	identifier: token.get('identifier'),
+			// 	token: token.get('token'),
+			// };
+
+			const token = await foundToken.destroy();
+
+			return {
+				expires: token.get('expires'),
+				identifier: token.get('identifier'),
+				token: token.get('token'),
+			};
+		},
 	};
 };
