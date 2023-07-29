@@ -2,7 +2,7 @@ import { Adapter, AdapterUser, AdapterSession } from 'next-auth/adapters';
 
 import { initParseNext } from './initParseFront';
 
-const convertUser = (user: Parse.User): AdapterUser => {
+export const convertUser = (user: Parse.User): AdapterUser => {
 	return {
 		id: user.id,
 		email: user.getEmail(),
@@ -45,30 +45,30 @@ export const NextAuthAdapterParse = (
 			return convertUser(user);
 		},
 		updateUser: async ({ id, ...attributes }) => {
-			const foundUser = await new Parse.Query(Parse.User).get(id);
+			const foundUser = await new Parse.Query(Parse.User).get(id, { useMasterKey: true });
 
 			// eslint-disable-next-line no-restricted-syntax
 			for (const key of Object.keys(attributes)) {
 				foundUser.set(key, attributes[key]);
 			}
 
-			const user = await foundUser.save(/* null, { useMasterKey: true } */);
+			const user = await foundUser.save(null, { useMasterKey: true });
 			return convertUser(user);
 		},
 		deleteUser: async (userId) => {
-			const foundUser = await new Parse.Query(Parse.User).get(userId);
+			const foundUser = await new Parse.Query(Parse.User).get(userId, { useMasterKey: true });
 			foundUser.set('deleted', true);
-			const user = await foundUser.save();
+			const user = await foundUser.save(null, { useMasterKey: true });
 			return convertUser(user);
 		},
 		linkAccount: async ({ provider, userId, ...authData }) => {
-			const foundUser = await new Parse.Query(Parse.User).get(userId);
+			const foundUser = await new Parse.Query(Parse.User).get(userId, { useMasterKey: true });
 			await foundUser.linkWith(provider, { authData });
 		},
 		// TODO: unlinkAccount
 		createSession: async ({ expires, sessionToken, userId }) => {
 			const newSession = new Parse.Session();
-			const user = await new Parse.Query(Parse.User).get(userId);
+			const user = await new Parse.Query(Parse.User).get(userId, { useMasterKey: true });
 			newSession.set('user', user);
 			newSession.set('sessionToken', sessionToken);
 			newSession.set('expiresAt', expires);
@@ -79,7 +79,7 @@ export const NextAuthAdapterParse = (
 			const foundSessionWithUser = await new Parse.Query(Parse.Session)
 				.equalTo('sessionToken', sessionToken)
 				.include('user')
-				.first();
+				.first({ useMasterKey: true });
 			const session = convertSession(foundSessionWithUser);
 			const parseUser = foundSessionWithUser.get('user');
 			const user = convertUser(parseUser);
@@ -97,7 +97,12 @@ export const NextAuthAdapterParse = (
 			return convertSession(session);
 		},
 		deleteSession: async (sessionToken) => {
-			const foundSession = await new Parse.Query(Parse.Session).equalTo('sessionToken', sessionToken).first();
+			console.log('====================================');
+			console.log('okoko', sessionToken);
+			console.log('====================================');
+			const foundSession = await new Parse.Query(Parse.Session)
+				.equalTo('sessionToken', sessionToken)
+				.first({ useMasterKey: true });
 			const session = await foundSession.destroy();
 			return convertSession(session);
 		},
