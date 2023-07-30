@@ -18,7 +18,7 @@ export const getServerAuth = async () => {
 		const sessionWithUser = await new Parse.Query(Parse.Session)
 			.equalTo('sessionToken', cookie.value)
 			.include('user')
-			.first({ useMasterKey: true });
+			.first({ /* useMasterKey: true */ sessionToken: cookie.value });
 
 		const roles = await getUserRoles(sessionWithUser.get('user'));
 
