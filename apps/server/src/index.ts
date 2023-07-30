@@ -34,8 +34,10 @@ const bootstrap = async () => {
 		envFileName = '.env.production';
 	}
 
-	const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
-	dotenvExpand.expand(envConfig);
+	if (global.LOCAL) {
+		const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
+		dotenvExpand.expand(envConfig);
+	}
 
 	// --------------------------------------------------------------------------------------//
 	//                          set the mainly important constants                          //

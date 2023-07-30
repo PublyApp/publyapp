@@ -1,0 +1,49 @@
+name: deploy-server
+on:
+  push:
+    branches: [deploy-server]
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: Get latest code
+        uses: actions/checkout@v3
+
+      - name: Clean remote directory
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            source /home/devistxy/nodevenv/engine.aktiveo.net/16/bin/activate && cd /home/devistxy/engine.aktiveo.net
+            rm -rf server
+
+      - name: Upload FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: "./scripts/deploy/server/.deploy/"
+          server-dir: "server/"
+
+      - name: Install dependecies
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          script: |
+            source /home/devistxy/nodevenv/engine.aktiveo.net/16/bin/activate && cd /home/devistxy/engine.aktiveo.net/server
+            if ! command -v pnpm &> /dev/null; then
+              npm i -g pnpm
+            else
+              echo pnpm already installed
+            fi
+            pnpm i

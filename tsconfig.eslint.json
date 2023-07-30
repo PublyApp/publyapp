@@ -26,6 +26,8 @@
 		"apps/server/esbuild",
 
 		"./.eslintrc.js",
-		"./knip.config.js"
+		"./knip.config.js",
+
+		"./scripts/**/*.js"
 	]
 }
