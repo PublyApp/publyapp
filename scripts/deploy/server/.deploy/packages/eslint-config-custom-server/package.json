@@ -1,0 +1,13 @@
+{
+	"name": "eslint-config-custom-server",
+	"version": "0.0.0",
+	"main": "index.js",
+	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"eslint-config-custom-base": "workspace:*",
+		"eslint": "^8.40.0"
+	}
+}

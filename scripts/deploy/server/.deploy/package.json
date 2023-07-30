@@ -1,0 +1,28 @@
+{
+	"name": "aktiveo-platform",
+	"private": true,
+	"scripts": {
+		"build": "turbo run build",
+		"dev": "turbo run dev",
+		"dev2": "turbo run dev --filter server --filter kit --filter bo",
+		"check-format": "prettier --check .",
+		"format": "prettier --write .",
+		"lint": "turbo run lint",
+		"lint:fix": "turbo run lint:fix",
+		"prepare": "husky install",
+		"pre-commit:old": "pnpm run format && git add -A .",
+		"prepare:deploy": "node ./scripts/deploy/server/index.js",
+		"start": "node ./app.js"
+	},
+	"devDependencies": {
+		"eslint": "^8.40.0",
+		"eslint-config-custom-base": "workspace:*",
+		"fs-extra": "^11.1.1",
+		"husky": "^8.0.0",
+		"lint-staged": "^13.2.2",
+		"prettier": "^2.8.8",
+		"tsconfig": "workspace:*",
+		"turbo": "^1.9.7"
+	},
+	"packageManager": "pnpm@7.15.0"
+}
