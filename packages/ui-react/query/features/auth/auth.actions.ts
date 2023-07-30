@@ -4,7 +4,7 @@ import Cookies from 'universal-cookie';
 import { LogInInput } from '@aktiveo/shared/validations/auth.validations';
 import { IUser } from '@aktiveo/shared/types/user.types';
 
-import { ROLES_LOCAL_STORAGE_KEY } from '../../../utils/constants';
+import { ROLES_LOCAL_STORAGE_KEY, SESSION_TOKEN_COOKIE_KEY } from '../../../utils/constants';
 
 // const isServer = typeof window === 'undefined';
 // const Parse = isServer ? global.Parse : window.Parse;
@@ -32,7 +32,7 @@ export const logInAction = async (input: LogInInput) => {
 		const { email, password } = input;
 		const user = await Parse.User.logIn(email, password);
 
-		new Cookies().set('xxx-session-token', user.getSessionToken());
+		new Cookies().set(SESSION_TOKEN_COOKIE_KEY, user.getSessionToken());
 
 		// TODO: fetch user's roles and set the local storage
 		const roles = await getUserRoles(user);
@@ -55,7 +55,7 @@ export const logOutAction = async (): Promise<void> => {
 	try {
 		await Parse.User.logOut();
 
-		new Cookies().remove('xxx-session-token');
+		new Cookies().remove(SESSION_TOKEN_COOKIE_KEY);
 
 		// remove roles from local storage
 		localStorage.setItem(ROLES_LOCAL_STORAGE_KEY, JSON.stringify([]));

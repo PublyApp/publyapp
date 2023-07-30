@@ -23,5 +23,6 @@ export const initParseNext = (serverURL: string, applicationId: string, javascri
 };
 
 export const initParseFront = () => {
-	initParseNext('http://localhost:6180/parse', 'aktiveo');
+	const isServer = typeof window === 'undefined';
+	initParseNext('http://localhost:6180/parse', 'aktiveo', undefined, isServer ? 'local-master-key' : undefined);
 };

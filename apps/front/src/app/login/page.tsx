@@ -1,43 +1,16 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { Box, Typography, useTheme } from '@mui/material';
-// import { useQuery } from '@tanstack/react-query';
-// import { Navigate } from 'react-router-dom';
-import { useRouter } from 'next/navigation';
+import Login from '../../containers/logIn/Login';
+import { getServerAuth } from '../../utils/parseAuth';
 
-import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
+const LogIn = async () => {
+	const auth = await getServerAuth();
 
-import LogInForm from '../../containers/logIn/LogInForm';
-
-const LogIn = () => {
-	const { isAuthed } = useAuth();
-	const theme = useTheme();
-	const router = useRouter();
-
-	if (isAuthed) {
-		// return <Navigate to="/" />;
-		router.push('/');
+	if (auth) {
+		redirect('/');
 	}
-	// useEffect(() => {
-	// 	if (isAuthed) router.replace('/');
-	// }, [isAuthed, router]);
 
-	return (
-		<Box
-			sx={{
-				bgcolor: theme.palette.grey[200],
-				display: 'flex',
-				justifyContent: 'center',
-				alignItems: 'center',
-				height: '100vh',
-			}}
-		>
-			<Box>
-				<Typography>LogIn</Typography>
-				<LogInForm />
-			</Box>
-		</Box>
-	);
+	return <Login />;
 };
 
 export default LogIn;
