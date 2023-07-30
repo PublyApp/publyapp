@@ -7,14 +7,14 @@ import { ReactNode } from 'react';
 import QueryNextProvider from '../providers/QueryNextProvider';
 import LayoutFront from '../components/layout/LayoutFront';
 import ThemeProviderNext from '../providers/ThemeProviderNext';
-import { initParseFront } from '../utils/initParseFront';
+// import { initParseFront } from '../utils/initParseFront';
 
 type Props = { children: ReactNode };
 
 // --------------------------------------------------------------------------------------//
 //                                   initialize parse                                    //
 // --------------------------------------------------------------------------------------//
-initParseFront();
+// initParseFront();
 
 const AppFront = ({ children }: Props) => {
 	return (

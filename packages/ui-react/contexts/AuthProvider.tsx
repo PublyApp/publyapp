@@ -8,11 +8,7 @@ import Cookies from 'universal-cookie';
 import { IUser } from '@aktiveo/shared/types/user.types';
 import { IRole } from '@aktiveo/shared/types/role.types';
 
-import { ROLES_LOCAL_STORAGE_KEY } from '../utils/constants';
-
-// const isServer = typeof window === 'undefined';
-// const Parse = isServer ? global.Parse : window.Parse;
-// const { Parse } = global;
+import { ROLES_LOCAL_STORAGE_KEY, SESSION_TOKEN_COOKIE_KEY } from '../utils/constants';
 
 type AuthContextType = {
 	isAuthed: boolean;
@@ -49,16 +45,14 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 		return Parse.User.current<Parse.User<IUser>>()?.toJSON() as any;
 	};
 
-	const [isAuthed, setIsAuthed] = useState<boolean>(
-		/* isServer ? Boolean(new Cookies().get('xxx-session-token')) : */ getAuthStatus(),
-	);
+	const [isAuthed, setIsAuthed] = useState<boolean>(getAuthStatus());
 	const [user, setUser] = useState<IUser | undefined>(getAuthedUser());
 	const [roles, setRoles] = useLocalStorage<IRole[]>(ROLES_LOCAL_STORAGE_KEY, []);
-	const [, setTokenCookie] = useCookie('xxx-session-token');
+	const [, setTokenCookie] = useCookie(SESSION_TOKEN_COOKIE_KEY);
 
 	useEffect(() => {
-		setIsAuthed(/* isServer ? Boolean(new Cookies().get('xxx-session-token')) :  */ getAuthStatus());
-		setTokenCookie(new Cookies().get('xxx-session-token'));
+		setIsAuthed(getAuthStatus());
+		setTokenCookie(new Cookies().get(SESSION_TOKEN_COOKIE_KEY));
 		setRoles(JSON.parse(localStorage.getItem(ROLES_LOCAL_STORAGE_KEY) as any));
 	}, [setRoles, user]);
 

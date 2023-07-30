@@ -1,3 +1,5 @@
+'use client';
+
 import { Box, Button, CircularProgress, TextField } from '@mui/material';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
