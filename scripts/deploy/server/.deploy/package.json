@@ -11,7 +11,8 @@
 		"lint:fix": "turbo run lint:fix",
 		"prepare": "husky install",
 		"pre-commit:old": "pnpm run format && git add -A .",
-		"prepare:deploy": "node ./scripts/deploy/server/index.js"
+		"prepare:deploy": "node ./scripts/deploy/server/index.js",
+		"start": "node ./app.js"
 	},
 	"devDependencies": {
 		"eslint": "^8.40.0",
