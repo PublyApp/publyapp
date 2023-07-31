@@ -37,3 +37,6 @@ yarn-error.log*
 
 # parse server
 logs
+
+# deploy
+# .deploy/
