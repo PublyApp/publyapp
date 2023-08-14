@@ -21,13 +21,15 @@ export const useLogInMutation = () => {
 export const useLogOutMutation = () => {
 	const { syncUserState } = useAuth();
 
-	const mutationResult = useMutation({
-		mutationKey: ['logOut'],
+	const key = ['logout'] as const;
+
+	const result = useMutation({
+		mutationKey: key,
 		mutationFn: logOutAction,
 		onSuccess: () => {
 			syncUserState();
 		},
 	});
 
-	return mutationResult;
+	return { result, key };
 };
