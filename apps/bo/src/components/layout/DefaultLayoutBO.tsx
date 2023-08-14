@@ -1,3 +1,5 @@
+import { ReactNode } from 'react';
+
 import { Outlet, Link } from 'react-router-dom';
 import {
 	AppBar,
@@ -22,12 +24,13 @@ import {
 	Article as ArticleIcon,
 	Logout as LogoutIcon,
 	NavigateNext as NavigateNextIcon,
-	// Settings as SettingsIcon,
+	Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 
 import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 import { useApp } from '@aktiveo/ui-react/hooks/useApp';
+import { FRONT_PATH_NAMES } from '@aktiveo/shared/utils/constants';
 
 // import Link from './Link';
 
@@ -59,18 +62,29 @@ const menuItems = [
 		icon: <PersonIcon />,
 		link: '/buttons',
 	},
-	// {
-	// 	text: 'Settings',
-	// 	icon: <SettingsIcon />,
-	// 	link: '/settings',
-	// },
+	{
+		text: 'AI Tools',
+		icon: <SettingsIcon />,
+		link: FRONT_PATH_NAMES.aiTools,
+	},
+	{
+		text: 'Settings',
+		icon: <SettingsIcon />,
+		link: '/settings',
+	},
 ];
 
-const DefaultLayoutBO = () => {
+type Props = {
+	children?: ReactNode;
+};
+
+const DefaultLayoutBO = ({ children }: Props) => {
 	const { state } = useApp();
 	const { t } = useTranslation();
 
-	const { mutate: logOut, isPending } = useLogOutMutation();
+	const {
+		result: { mutate: logOut, isPending },
+	} = useLogOutMutation();
 
 	const handleLogOut = () => {
 		logOut();
@@ -149,7 +163,7 @@ const DefaultLayoutBO = () => {
 					})}
 				</Breadcrumbs>
 				{/* <Typography variant="h5">ok</Typography> */}
-				<Outlet />
+				{children ?? <Outlet />}
 			</Box>
 		</Box>
 	);
