@@ -7,32 +7,33 @@ import {
 	// type MRT_PaginationState,
 	// type MRT_SortingState,
 } from 'material-react-table';
-import { Box } from '@mui/material';
+// import { Box } from '@mui/material';
 
 import { pxToRem } from '@aktiveo/ui-react/utils/styles';
+import { AITool } from '@aktiveo/shared/types/aiTool.types';
 
-const pricingType = {
-	FREE: 'free',
-	FREEMIUM: 'freemium',
-	PAID: 'paid',
-} as const;
+// const pricingType = {
+// 	FREE: 'free',
+// 	FREEMIUM: 'freemium',
+// 	PAID: 'paid',
+// } as const;
 
-const pricingModel = {
-	PAY_PER_USE: 'pay-per-use',
-	SUBSCRIPTION: 'subscription',
-	FREE: 'free',
-} as const;
+// const pricingModel = {
+// 	PAY_PER_USE: 'pay-per-use',
+// 	SUBSCRIPTION: 'subscription',
+// 	FREE: 'free',
+// } as const;
 
-type PricingType = (typeof pricingType)[keyof typeof pricingType];
-type PricingModel = (typeof pricingModel)[keyof typeof pricingModel];
+// type PricingType = (typeof pricingType)[keyof typeof pricingType];
+// type PricingModel = (typeof pricingModel)[keyof typeof pricingModel];
 
-type AITool = {
-	name: string;
-	description: string;
-	tags: string[];
-	pricingType: PricingType;
-	pricingModel: PricingModel;
-};
+// type AITool = {
+// 	name: string;
+// 	description: string;
+// 	tags: string[];
+// 	pricingType: PricingType;
+// 	pricingModel: PricingModel;
+// };
 
 const fakeAITools: AITool[] = [
 	{
@@ -126,9 +127,17 @@ const AITools = () => {
 	}, []);
 
 	return (
-		<Box padding={pxToRem(32)}>
-			<MaterialReactTable columns={columns} /* data={data?.data ?? []} */ data={fakeAITools} />
-		</Box>
+		// <Box padding={pxToRem(32)}>
+		<MaterialReactTable
+			columns={columns}
+			/* data={data?.data ?? []} */ data={fakeAITools}
+			muiTableProps={{
+				sx: {
+					padding: pxToRem(32),
+				},
+			}}
+		/>
+		// </Box>
 	);
 };
 

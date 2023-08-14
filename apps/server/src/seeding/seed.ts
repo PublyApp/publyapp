@@ -4,7 +4,7 @@ import Parse from 'parse/node';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 
-import { run } from './main.seeder';
+import { RunConfig, run } from './main.seeder';
 
 const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env.local') }); // ! warning only for local
 dotenvExpand.expand(envConfig);
@@ -17,10 +17,11 @@ const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 Parse.initialize(APP_ID, '', MASTER_KEY);
 Parse.serverURL = `${SERVER_URL}/parse`;
 
-const runConfig = {
-	usersNum: 5,
-	postsNum: 17,
-	reactionsNum: 100,
+const runConfig: RunConfig = {
+	usersNum: 0,
+	// postsNum: 17,
+	// reactionsNum: 100,
+	aiToolsNum: 100,
 };
 
 run(runConfig).catch(async (reason: any) => {

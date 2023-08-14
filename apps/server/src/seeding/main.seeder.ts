@@ -5,14 +5,16 @@ import { RolesEnum } from '@aktiveo/shared/utils/constants';
 import { findRoleByCode } from '../utils/role.utils';
 
 import { userFactory } from './factories/user.factory';
+import { aiToolFactory } from './factories/aiTool.factory';
 
-type RunConfig = {
+export type RunConfig = {
 	usersNum: number;
 	// postsNum: number;
 	// reactionsNum: number;
+	aiToolsNum: number;
 };
 
-export async function run({ usersNum /* , postsNum, reactionsNum */ }: RunConfig) {
+export async function run({ usersNum /* , postsNum, reactionsNum */, aiToolsNum }: RunConfig) {
 	// =================== USERS =======================//
 	/* const users =  */
 	await Promise.all(
@@ -30,6 +32,16 @@ export async function run({ usersNum /* , postsNum, reactionsNum */ }: RunConfig
 	);
 
 	console.info('users seeding done');
+
+	await Promise.all(
+		Array.from({ length: aiToolsNum }).map(async () => {
+			const iTool = await aiToolFactory(faker);
+			const createdAITool = await iTool.save(null, { useMasterKey: true });
+			return createdAITool;
+		}),
+	);
+
+	console.info('AI tools seeding done');
 
 	// const userIds = users.map((user) => {
 	// 	return user.id;

@@ -12,6 +12,7 @@ export const classNames = {
 	USER: '_User',
 	ROLE: '_Role',
 	POST: 'Post',
+	AI_TOOL: 'AITool',
 } as const;
 
 export const I18N_LOCALE_KEY = 'xxx-app-i18n-locale';
