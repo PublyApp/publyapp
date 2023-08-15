@@ -1,10 +1,10 @@
 import { Faker } from '@faker-js/faker';
 
 import { pricingTypes, pricingModels } from '@aktiveo/shared/types/aiTool.types';
-import { classNames } from '@aktiveo/shared/utils/constants';
+import { className } from '@aktiveo/shared/utils/constants';
 
 export const aiToolFactory = async (faker: Faker) => {
-	const aiTool = new Parse.Object(classNames.AI_TOOL);
+	const aiTool = new Parse.Object(className.AI_TOOL);
 
 	aiTool.set('name', faker.company.buzzNoun());
 	aiTool.set('description', faker.company.buzzPhrase());

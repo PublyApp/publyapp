@@ -8,7 +8,7 @@ export enum RolesEnum {
 /**
  * Parse Server class names
  */
-export const classNames = {
+export const className = {
 	USER: '_User',
 	ROLE: '_Role',
 	POST: 'Post',
@@ -25,4 +25,8 @@ export const FRONT_PATH_NAMES = {
 export const BO_PATH_NAMES = {
 	home: '/',
 	logIn: '/login',
+} as const;
+
+export const functionName = {
+	getAITools: 'getAITools',
 } as const;

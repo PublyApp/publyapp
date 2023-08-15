@@ -419,6 +419,9 @@ importers:
       typescript:
         specifier: ^5.0.4
         version: 5.0.4
+      zod:
+        specifier: ^3.21.4
+        version: 3.21.4
     devDependencies:
       '@types/cors':
         specifier: ^2.8.13

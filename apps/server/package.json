@@ -22,7 +22,8 @@
 		"parse": "^4.1.0",
 		"parse-dashboard": "^5.1.0",
 		"parse-server": "^6.1.0",
-		"typescript": "^5.0.4"
+		"typescript": "^5.0.4",
+		"zod": "^3.21.4"
 	},
 	"devDependencies": {
 		"@types/cors": "^2.8.13",
@@ -34,7 +35,7 @@
 		"eslint": "^8.40.0",
 		"eslint-config-custom-server": "workspace:*",
 		"nodemon": "^2.0.22",
-		"tsconfig": "workspace:*",
-		"ts-node": "^10.9.1"
+		"ts-node": "^10.9.1",
+		"tsconfig": "workspace:*"
 	}
 }
