@@ -1,6 +1,6 @@
 // import Parse from 'parse/node';
 
-import { classNames } from '../../utils/constants';
+import { className } from '../../utils/constants';
 import { UserAttributes } from '../../types/user.types';
 
 // const Parse = typeof window !== 'undefined' ? window.Parse : require('parse/node');
@@ -28,4 +28,4 @@ export class User extends Parse.User {
 	// }
 }
 
-Parse.Object.registerSubclass(classNames.USER, User);
+Parse.Object.registerSubclass(className.USER, User);
