@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { className, functionName } from '@aktiveo/shared/utils/constants';
+import { DEFAULT_PAGE_SIZE, className, functionName } from '@aktiveo/shared/utils/constants';
 
 import { parseFrom } from '../../utils/parse.utils';
 
@@ -16,19 +16,49 @@ Parse.Cloud.define(
 		action: async ({ req /* , t  */ }) => {
 			const { page, pageSize } = getAIToolsFunctionParamsSchema.parse(req.params);
 
-			const defaultPageSize = 25;
-			const limit = pageSize || defaultPageSize;
-			const skip = ((page || 1) - 1) * (pageSize || defaultPageSize);
+			const limit = pageSize || DEFAULT_PAGE_SIZE;
+			const skip = ((page || 1) - 1) * (pageSize || DEFAULT_PAGE_SIZE);
 
-			const pipeline: any[] = [
+			const query = [
 				{
 					$match: {},
 				},
-				{ $limit: limit },
 				{ $skip: skip },
+				{ $limit: limit },
 			];
-			const aiTools = await new Parse.Query(className.AI_TOOL).aggregate(pipeline);
-			return aiTools;
+
+			const pipeline: any[] = [
+				{
+					$facet: {
+						aiTools: query,
+						totalCount: [
+							{
+								$match: {},
+							},
+							{ $count: 'value' },
+						],
+					},
+				},
+			];
+
+			const {
+				0: {
+					aiTools,
+					totalCount: {
+						0: { value: totalCount },
+					},
+				},
+			} = await new Parse.Query(className.AI_TOOL).aggregate(pipeline);
+
+			const count = (aiTools as any[]).length;
+
+			return {
+				aiTools,
+				meta: {
+					totalCount,
+					count,
+				},
+			};
 		},
 	}),
 );

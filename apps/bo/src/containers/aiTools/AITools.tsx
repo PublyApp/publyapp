@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { /* useEffect, */ useMemo, useState } from 'react';
 
 import {
 	MaterialReactTable,
@@ -12,6 +12,7 @@ import { Box } from '@mui/material';
 import { useGetAITools } from '@aktiveo/ui-react/query/features/aiTools/aiTool.hooks';
 import { pxToRem } from '@aktiveo/ui-react/utils/styles';
 import { AITool } from '@aktiveo/shared/types/aiTool.types';
+import { DEFAULT_PAGE_SIZE } from '@aktiveo/shared/utils/constants';
 
 // const pricingType = {
 // 	FREE: 'free',
@@ -112,7 +113,7 @@ import { AITool } from '@aktiveo/shared/types/aiTool.types';
 const AITools = () => {
 	const [pagination, setPagination] = useState<MRT_PaginationState>({
 		pageIndex: 0,
-		pageSize: 25,
+		pageSize: DEFAULT_PAGE_SIZE,
 	});
 
 	const columns = useMemo<MRT_ColumnDef<AITool>[]>(() => {
@@ -136,13 +137,22 @@ const AITools = () => {
 		result: { data: aiToolsData },
 	} = useGetAITools({ page: pagination.pageIndex + 1, pageSize: pagination.pageSize });
 
+	// useEffect(() => {
+	// 	if (!aiToolsData) return;
+
+	// 	console.log('====================================');
+	// 	console.log(aiToolsData);
+	// 	console.log('====================================');
+	// }, [aiToolsData]);
+
 	return (
 		<Box padding={pxToRem(32)}>
 			<MaterialReactTable
 				columns={columns}
 				/* data={data?.data ?? []} */
-				data={aiToolsData ?? []}
+				data={aiToolsData?.aiTools ?? []}
 				manualPagination
+				rowCount={aiToolsData?.meta.totalCount}
 				onPaginationChange={setPagination}
 				// muiTableProps={{
 				// 	sx: {
