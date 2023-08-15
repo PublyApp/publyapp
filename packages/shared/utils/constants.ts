@@ -30,3 +30,5 @@ export const BO_PATH_NAMES = {
 export const functionName = {
 	getAITools: 'getAITools',
 } as const;
+
+export const DEFAULT_PAGE_SIZE = 20;
