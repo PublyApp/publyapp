@@ -1,3 +1,7 @@
+// import { BaseAttributes } from 'parse';
+
+import { BaseDocument } from './mongoDB.types';
+
 export const pricingType = {
 	FREE: 'free',
 	FREEMIUM: 'freemium',
@@ -23,4 +27,4 @@ export type AITool = {
 	tags: string[];
 	pricingType: PricingType;
 	pricingModel: PricingModel;
-};
+} & BaseDocument;
