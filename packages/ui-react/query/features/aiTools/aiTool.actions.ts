@@ -13,7 +13,7 @@ export type GetAIToolsQueryParams = {
 	pageSize: number;
 };
 
-type GetAIToolsFunctionResult = {
+export type GetAIToolsFunctionResult = {
 	aiTools: AITool[];
 	meta: {
 		totalCount: number;
