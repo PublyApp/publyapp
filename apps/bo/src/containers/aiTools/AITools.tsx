@@ -9,11 +9,12 @@ import {
 	// type MRT_SortingState,
 	// type MRT_TableInstance,
 } from 'material-react-table';
-import { Box, Button, IconButton, TableCell, TableRow, TextField } from '@mui/material';
+import { Box, Button, IconButton, TableCell, TextField } from '@mui/material';
 import { Cancel, Edit } from '@mui/icons-material';
 // import { useToggle } from 'react-use';
 import _ from 'lodash';
 import { useToggle } from 'react-use';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useGetAITools } from '@aktiveo/ui-react/query/features/aiTools/aiTool.hooks';
 import { pxToRem } from '@aktiveo/ui-react/utils/styles';
@@ -21,40 +22,64 @@ import { AITool } from '@aktiveo/shared/types/aiTool.types';
 import { DEFAULT_PAGE_SIZE } from '@aktiveo/shared/utils/constants';
 // import { GetAIToolsFunctionResult } from '@aktiveo/ui-react/query/features/aiTools/aiTool.actions';
 
+import BOProviders from '../../providers/BOProviders';
+
 // const NEW_IDENTIFIER = 'new_identifier';
 const AI_TABLE_CONTAINER_ID = 'AI_TABLE_CONTAINER_ID';
+const AI_TABLE_CREATION_ROW_ID = 'AI_TABLE_CREATION_ROW_ID';
 
 const AITools = () => {
 	const [pagination, setPagination] = useState<MRT_PaginationState>({
 		pageIndex: 0,
-		pageSize: DEFAULT_PAGE_SIZE,
+		pageSize: DEFAULT_PAGE_SIZE / 4,
 	});
-	const [showCreationRow, setShowCreationRow] = useToggle(false);
+	const [showCreationRow, toggleCreationRow] = useToggle(false);
 	// const tableInstanceRef = useRef<MRT_TableInstance<AITool>>(null);
 	const tableContainerRef = useRef<HTMLDivElement>(null);
+	const queryClient = useQueryClient();
 
 	const prependElement = useMemo(() => {
 		return (
-			<TableRow /* sx={{ display: showCreationRow ? 'block' : 'none' }} */>
+			// <TableRow /* sx={{ display: showCreationRow ? 'block' : 'none' }} */>
+			<BOProviders queryClient={queryClient}>
 				<TableCell>X</TableCell>
 				<TableCell>X</TableCell>
 				<TableCell>
 					<TextField variant="standard" />
 				</TableCell>
-			</TableRow>
+			</BOProviders>
+			// </TableRow>
 		);
-	}, []);
+	}, [queryClient]);
 
 	useEffect(() => {
 		const tbody = document.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
-		const div = document.createElement('div');
-		tbody?.prepend(div);
-		ReactDOM.createRoot(div)?.render(prependElement);
+
+		if (!showCreationRow) {
+			const foundNewTr = tbody?.querySelector(`#${AI_TABLE_CREATION_ROW_ID}`);
+
+			if (foundNewTr) {
+				tbody?.removeChild(foundNewTr);
+			}
+
+			return () => {
+				// if (newTr) tbody?.removeChild(newTr);
+			};
+		}
+
+		const oldTr = tbody?.lastElementChild;
+		// const div = document.createElement('div');
+		const newTr = document.createElement('tr');
+		newTr.className = oldTr?.className || '';
+		newTr.setAttribute('id', AI_TABLE_CREATION_ROW_ID);
+
+		tbody?.prepend(newTr);
+		ReactDOM.createRoot(newTr)?.render(prependElement);
 
 		return () => {
-			tbody?.removeChild(div);
+			tbody?.removeChild(newTr);
 		};
-	}, [prependElement]);
+	}, [prependElement, showCreationRow]);
 
 	// const [tableData, setTableData] = useState<GetAIToolsFunctionResult['aiTools'] | undefined>();
 
@@ -79,7 +104,7 @@ const AITools = () => {
 				},
 				// eslint-disable-next-line react/no-unstable-nested-components
 				Edit: ({ cell }) => {
-					return <TextField value={cell.getValue<string>()} sx={{ bgcolor: 'yellow' }} />;
+					return <TextField value={cell.getValue<string>()} variant="standard" />;
 				},
 			},
 			{
@@ -181,6 +206,7 @@ const AITools = () => {
 								// tableContainerRef.current?.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
 								// const tbody = document.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
 								// tbody?.prepend(prependElement);
+								toggleCreationRow();
 							}}
 							variant="contained"
 						>
