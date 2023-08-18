@@ -28,8 +28,9 @@ export const getAIToolsAction: QueryFunction<
 	try {
 		const params = context.queryKey[1];
 
-		const aiTools: GetAIToolsFunctionResult = await Parse.Cloud.run(functionName.getAITools, params);
-		return aiTools;
+		const result: GetAIToolsFunctionResult = await Parse.Cloud.run(functionName.getAITools, params);
+
+		return result;
 	} catch (error) {
 		console.log('----- getAIToolsAction error ----------', error);
 		return Promise.reject(error);

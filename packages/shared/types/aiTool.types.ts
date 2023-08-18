@@ -1,6 +1,5 @@
-// import { BaseAttributes } from 'parse';
-
-import { BaseDocument } from './mongoDB.types';
+import { BaseAttributes } from 'parse';
+// import { BaseDocument } from './mongoDB.types';
 
 export const pricingType = {
 	FREE: 'free',
@@ -27,4 +26,4 @@ export type AITool = {
 	tags: string[];
 	pricingType: PricingType;
 	pricingModel: PricingModel;
-} & BaseDocument;
+} & BaseAttributes;

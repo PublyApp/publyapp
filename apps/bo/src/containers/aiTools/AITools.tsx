@@ -1,6 +1,6 @@
-import { cloneElement, useEffect, useMemo, useRef, useState } from 'react';
+import { /* useEffect, */ useMemo, useRef, useState } from 'react';
 
-import ReactDOM from 'react-dom/client';
+// import ReactDOM from 'react-dom/client';
 import {
 	MaterialReactTable,
 	type MRT_ColumnDef,
@@ -9,12 +9,12 @@ import {
 	// type MRT_SortingState,
 	// type MRT_TableInstance,
 } from 'material-react-table';
-import { Box, Button, IconButton, TableCell, TextField } from '@mui/material';
+import { Box, Button, IconButton, /* TableCell, */ TextField } from '@mui/material';
 import { Cancel, Edit } from '@mui/icons-material';
 // import { useToggle } from 'react-use';
 import _ from 'lodash';
-import { useToggle } from 'react-use';
-import { useQueryClient } from '@tanstack/react-query';
+// import { useToggle } from 'react-use';
+// import { useQueryClient } from '@tanstack/react-query';
 
 import { useGetAITools } from '@aktiveo/ui-react/query/features/aiTools/aiTool.hooks';
 import { pxToRem } from '@aktiveo/ui-react/utils/styles';
@@ -22,64 +22,64 @@ import { AITool } from '@aktiveo/shared/types/aiTool.types';
 import { DEFAULT_PAGE_SIZE } from '@aktiveo/shared/utils/constants';
 // import { GetAIToolsFunctionResult } from '@aktiveo/ui-react/query/features/aiTools/aiTool.actions';
 
-import BOProviders from '../../providers/BOProviders';
+// import BOProviders from '../../providers/BOProviders';
 
 // const NEW_IDENTIFIER = 'new_identifier';
 const AI_TABLE_CONTAINER_ID = 'AI_TABLE_CONTAINER_ID';
-const AI_TABLE_CREATION_ROW_ID = 'AI_TABLE_CREATION_ROW_ID';
+// const AI_TABLE_CREATION_ROW_ID = 'AI_TABLE_CREATION_ROW_ID';
 
 const AITools = () => {
 	const [pagination, setPagination] = useState<MRT_PaginationState>({
 		pageIndex: 0,
 		pageSize: DEFAULT_PAGE_SIZE / 4,
 	});
-	const [showCreationRow, toggleCreationRow] = useToggle(false);
+	// const [showCreationRow, toggleCreationRow] = useToggle(false);
 	// const tableInstanceRef = useRef<MRT_TableInstance<AITool>>(null);
 	const tableContainerRef = useRef<HTMLDivElement>(null);
-	const queryClient = useQueryClient();
+	// const queryClient = useQueryClient();
 
-	const prependElement = useMemo(() => {
-		return (
-			// <TableRow /* sx={{ display: showCreationRow ? 'block' : 'none' }} */>
-			<BOProviders queryClient={queryClient}>
-				<TableCell>X</TableCell>
-				<TableCell>X</TableCell>
-				<TableCell>
-					<TextField variant="standard" />
-				</TableCell>
-			</BOProviders>
-			// </TableRow>
-		);
-	}, [queryClient]);
+	// const prependElement = useMemo(() => {
+	// 	return (
+	// 		// <TableRow /* sx={{ display: showCreationRow ? 'block' : 'none' }} */>
+	// 		<BOProviders queryClient={queryClient}>
+	// 			<TableCell>X</TableCell>
+	// 			<TableCell>X</TableCell>
+	// 			<TableCell>
+	// 				<TextField variant="standard" />
+	// 			</TableCell>
+	// 		</BOProviders>
+	// 		// </TableRow>
+	// 	);
+	// }, [queryClient]);
 
-	useEffect(() => {
-		const tbody = document.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
+	// useEffect(() => {
+	// 	const tbody = document.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
 
-		if (!showCreationRow) {
-			const foundNewTr = tbody?.querySelector(`#${AI_TABLE_CREATION_ROW_ID}`);
+	// 	if (!showCreationRow) {
+	// 		const foundNewTr = tbody?.querySelector(`#${AI_TABLE_CREATION_ROW_ID}`);
 
-			if (foundNewTr) {
-				tbody?.removeChild(foundNewTr);
-			}
+	// 		if (foundNewTr) {
+	// 			tbody?.removeChild(foundNewTr);
+	// 		}
 
-			return () => {
-				// if (newTr) tbody?.removeChild(newTr);
-			};
-		}
+	// 		return () => {
+	// 			// if (newTr) tbody?.removeChild(newTr);
+	// 		};
+	// 	}
 
-		const oldTr = tbody?.lastElementChild;
-		// const div = document.createElement('div');
-		const newTr = document.createElement('tr');
-		newTr.className = oldTr?.className || '';
-		newTr.setAttribute('id', AI_TABLE_CREATION_ROW_ID);
+	// 	const oldTr = tbody?.lastElementChild;
+	// 	// const div = document.createElement('div');
+	// 	const newTr = document.createElement('tr');
+	// 	newTr.className = oldTr?.className || '';
+	// 	newTr.setAttribute('id', AI_TABLE_CREATION_ROW_ID);
 
-		tbody?.prepend(newTr);
-		ReactDOM.createRoot(newTr)?.render(prependElement);
+	// 	tbody?.prepend(newTr);
+	// 	ReactDOM.createRoot(newTr)?.render(prependElement);
 
-		return () => {
-			tbody?.removeChild(newTr);
-		};
-	}, [prependElement, showCreationRow]);
+	// 	return () => {
+	// 		tbody?.removeChild(newTr);
+	// 	};
+	// }, [prependElement, showCreationRow]);
 
 	// const [tableData, setTableData] = useState<GetAIToolsFunctionResult['aiTools'] | undefined>();
 
@@ -92,7 +92,7 @@ const AITools = () => {
 		return [
 			{
 				header: 'id',
-				accessorKey: '_id',
+				accessorKey: 'objectId',
 			},
 			{
 				header: 'name',
@@ -122,113 +122,108 @@ const AITools = () => {
 		result: { data: aiToolsData },
 	} = useGetAITools({ page: pagination.pageIndex + 1, pageSize: pagination.pageSize });
 
-	const originalTableElement = (
-		<MaterialReactTable
-			// ref={tableRef}
-			// tableInstanceRef={tableInstanceRef}
-			columns={columns}
-			/* data={data?.data ?? []} */
-			// data={tableData ?? []}
-			data={aiToolsData?.aiTools ?? []}
-			manualPagination
-			rowCount={aiToolsData?.meta.totalCount}
-			onPaginationChange={setPagination}
-			state={{
-				pagination,
-			}}
-			enableEditing
-			editingMode="row"
-			enableRowActions
-			renderRowActions={({ row, table }) => {
-				// eslint-disable-next-line react-hooks/rules-of-hooks
-				const { editingRow } = table.getState();
+	// console.log('====================================');
+	// console.log(originalTableElement);
+	// console.log('====================================');
 
-				// eslint-disable-next-line no-underscore-dangle
-				// const isNew = row.original._id === NEW_IDENTIFIER;
-
-				// eslint-disable-next-line react-hooks/rules-of-hooks
-				// useEffect(() => {
-				// 	if (isNew) {
-				// 		table.setEditingRow(row);
-				// 	}
-				// }, [isNew, row, table]);
-
-				const isEdited = _.isEqual(row, editingRow);
-
-				return (
-					<>
-						{!isEdited && (
-							<IconButton
-								onClick={() => {
-									table.setEditingRow(row);
-								}}
-							>
-								<Edit />
-							</IconButton>
-						)}
-						{isEdited && (
-							<IconButton
-								onClick={() => {
-									// if (isNew) {
-									// 	setTableData(tableData?.slice(1));
-									// }
-
-									table.setEditingRow(null);
-								}}
-							>
-								<Cancel />
-							</IconButton>
-						)}
-					</>
-				);
-			}}
-			positionActionsColumn="last"
-			enableRowSelection
-			renderTopToolbarCustomActions={
-				(/* { table } */) => {
-					// const emptyAITool: AITool = {
-					// 	_id: NEW_IDENTIFIER, // isNew
-					// 	name: '',
-					// 	description: '',
-					// 	pricingType: '',
-					// 	pricingModel: '',
-					// 	tags: [],
-					// } as any;
-
-					return (
-						<Button
-							color="info"
-							// disabled={!table.getIsSomeRowsSelected()}
-							onClick={() => {
-								// if (tableHasNewData) return;
-								// setTableData([emptyAITool, ...(tableData || [])]);
-								// tableInstanceRef.current?.
-								// tableContainerRef.current?.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
-								// const tbody = document.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
-								// tbody?.prepend(prependElement);
-								toggleCreationRow();
-							}}
-							variant="contained"
-						>
-							Add New AI Tool
-						</Button>
-					);
-				}
-			}
-		/>
-	);
-
-	console.log('====================================');
-	console.log(originalTableElement);
-	console.log('====================================');
-
-	const tableWithCreationRow = cloneElement(originalTableElement, {
-		// children: [originalTableElement.props.children]
-	});
+	// const tableWithCreationRow = cloneElement(originalTableElement, {
+	// 	// children: [originalTableElement.props.children]
+	// });
 
 	return (
 		<Box padding={pxToRem(32)} ref={tableContainerRef} id={AI_TABLE_CONTAINER_ID}>
-			{tableWithCreationRow}
+			<MaterialReactTable
+				// ref={tableRef}
+				// tableInstanceRef={tableInstanceRef}
+				columns={columns}
+				/* data={data?.data ?? []} */
+				// data={tableData ?? []}
+				data={aiToolsData?.aiTools ?? []}
+				manualPagination
+				rowCount={aiToolsData?.meta.totalCount}
+				onPaginationChange={setPagination}
+				state={{
+					pagination,
+				}}
+				enableEditing
+				editingMode="row"
+				enableRowActions
+				renderRowActions={({ row, table }) => {
+					// eslint-disable-next-line react-hooks/rules-of-hooks
+					const { editingRow } = table.getState();
+					// eslint-disable-next-line no-underscore-dangle
+					// const isNew = row.original._id === NEW_IDENTIFIER;
+
+					// eslint-disable-next-line react-hooks/rules-of-hooks
+					// useEffect(() => {
+					// 	if (isNew) {
+					// 		table.setEditingRow(row);
+					// 	}
+					// }, [isNew, row, table]);
+
+					const isEdited = _.isEqual(row, editingRow);
+
+					return (
+						<>
+							{!isEdited && (
+								<IconButton
+									onClick={() => {
+										table.setEditingRow(row);
+									}}
+								>
+									<Edit />
+								</IconButton>
+							)}
+							{isEdited && (
+								<IconButton
+									onClick={() => {
+										// if (isNew) {
+										// 	setTableData(tableData?.slice(1));
+										// }
+
+										table.setEditingRow(null);
+									}}
+								>
+									<Cancel />
+								</IconButton>
+							)}
+						</>
+					);
+				}}
+				positionActionsColumn="last"
+				enableRowSelection
+				renderTopToolbarCustomActions={
+					(/* { table } */) => {
+						// const emptyAITool: AITool = {
+						// 	_id: NEW_IDENTIFIER, // isNew
+						// 	name: '',
+						// 	description: '',
+						// 	pricingType: '',
+						// 	pricingModel: '',
+						// 	tags: [],
+						// } as any;
+
+						return (
+							<Button
+								color="info"
+								// disabled={!table.getIsSomeRowsSelected()}
+								onClick={() => {
+									// if (tableHasNewData) return;
+									// setTableData([emptyAITool, ...(tableData || [])]);
+									// tableInstanceRef.current?.
+									// tableContainerRef.current?.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
+									// const tbody = document.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
+									// tbody?.prepend(prependElement);
+									// toggleCreationRow();
+								}}
+								variant="contained"
+							>
+								Add New AI Tool
+							</Button>
+						);
+					}
+				}
+			/>
 		</Box>
 	);
 };

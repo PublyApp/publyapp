@@ -19,38 +19,31 @@ Parse.Cloud.define(
 			const limit = pageSize || DEFAULT_PAGE_SIZE;
 			const skip = ((page || 1) - 1) * (pageSize || DEFAULT_PAGE_SIZE);
 
-			const query = [
+			const pipeline: any[] = [
 				{
 					$match: {},
 				},
 				{ $skip: skip },
 				{ $limit: limit },
+				{ $project: { _id: 1 } },
 			];
 
-			const pipeline: any[] = [
-				{
-					$facet: {
-						aiTools: query,
-						totalCount: [
-							{
-								$match: {},
-							},
-							{ $count: 'value' },
-						],
-					},
-				},
-			];
+			const documents: { objectId: string }[] = await new Parse.Query(className.AI_TOOL).aggregate(pipeline);
 
-			const {
-				0: {
-					aiTools,
-					totalCount: {
-						0: { value: totalCount },
-					},
-				},
-			} = await new Parse.Query(className.AI_TOOL).aggregate(pipeline);
+			const ids = documents.map((doc) => {
+				return doc.objectId;
+			});
 
-			const count = (aiTools as any[]).length;
+			const [iAiTools, totalCount] = await Promise.all([
+				new Parse.Query(className.AI_TOOL).containedIn('objectId', ids).find(),
+				new Parse.Query(className.AI_TOOL).count(),
+			]);
+
+			const aiTools = iAiTools.map((iTool) => {
+				return iTool.toJSON();
+			});
+
+			const count = iAiTools.length;
 
 			return {
 				aiTools,
