@@ -1,19 +1,15 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import {
-	Box,
-	Button,
-	// IconButton, // TextField,
-} from '@mui/material';
-import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
+import { Box } from '@mui/material';
+import { createColumnHelper, PaginationState, type ColumnDef } from '@tanstack/react-table';
 
 import { AITool } from '@aktiveo/shared/types/aiTool.types';
-import { DEFAULT_PAGE_SIZE } from '@aktiveo/shared/utils/constants';
-import BestTable, { BTTable_PaginationState } from '@aktiveo/ui-react/components/BestTable';
+import BestTable /* , { ROWS_PER_PAGE_OPTION }  */ from '@aktiveo/ui-react/components/BestTable';
 import { GetAIToolsFunctionResult } from '@aktiveo/ui-react/query/features/aiTools/aiTool.actions';
 import { useGetAITools } from '@aktiveo/ui-react/query/features/aiTools/aiTool.hooks';
 import { pxToRem } from '@aktiveo/ui-react/utils/styles';
 
+// import { DEFAULT_PAGE_SIZE } from '@aktiveo/shared/utils/constants';
 // import ReactDOM from 'react-dom/client';
 // import { useToggle } from 'react-use';
 // import { useQueryClient } from '@tanstack/react-query';
@@ -27,104 +23,15 @@ const AI_TABLE_CONTAINER_ID = 'AI_TABLE_CONTAINER_ID';
 const columnHelper = createColumnHelper<GetAIToolsFunctionResult['aiTools'][0]>();
 
 const AITools = () => {
-	const [pagination, setPagination] = useState<BTTable_PaginationState>({
+	// const [pageIndex, setPageIndex] = useState<number>(0);
+	// const [rowsPerPage, setRowsPerPage] = useState<number>(ROWS_PER_PAGE_OPTION[50]);
+	const [pagination, setPagination] = useState<PaginationState>({
 		pageIndex: 0,
-		pageSize: DEFAULT_PAGE_SIZE / 4,
+		pageSize: 5,
 	});
-	// const [showCreationRow, toggleCreationRow] = useToggle(false);
-	// const tableInstanceRef = useRef<MRT_TableInstance<AITool>>(null);
-	const tableContainerRef = useRef<HTMLDivElement>(null);
-	// const queryClient = useQueryClient();
-
-	// const prependElement = useMemo(() => {
-	// 	return (
-	// 		// <TableRow /* sx={{ display: showCreationRow ? 'block' : 'none' }} */>
-	// 		<BOProviders queryClient={queryClient}>
-	// 			<TableCell>X</TableCell>
-	// 			<TableCell>X</TableCell>
-	// 			<TableCell>
-	// 				<TextField variant="standard" />
-	// 			</TableCell>
-	// 		</BOProviders>
-	// 		// </TableRow>
-	// 	);
-	// }, [queryClient]);
-
-	// useEffect(() => {
-	// 	const tbody = document.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
-
-	// 	if (!showCreationRow) {
-	// 		const foundNewTr = tbody?.querySelector(`#${AI_TABLE_CREATION_ROW_ID}`);
-
-	// 		if (foundNewTr) {
-	// 			tbody?.removeChild(foundNewTr);
-	// 		}
-
-	// 		return () => {
-	// 			// if (newTr) tbody?.removeChild(newTr);
-	// 		};
-	// 	}
-
-	// 	const oldTr = tbody?.lastElementChild;
-	// 	// const div = document.createElement('div');
-	// 	const newTr = document.createElement('tr');
-	// 	newTr.className = oldTr?.className || '';
-	// 	newTr.setAttribute('id', AI_TABLE_CREATION_ROW_ID);
-
-	// 	tbody?.prepend(newTr);
-	// 	ReactDOM.createRoot(newTr)?.render(prependElement);
-
-	// 	return () => {
-	// 		tbody?.removeChild(newTr);
-	// 	};
-	// }, [prependElement, showCreationRow]);
-
-	// const [tableData, setTableData] = useState<GetAIToolsFunctionResult['aiTools'] | undefined>();
-
-	// eslint-disable-next-line no-underscore-dangle
-	// const tableHasNewData = tableData?.[0]._id === NEW_IDENTIFIER;
-
-	// const handleRenderCreationRow = () => {};
-
-	// const columns = useMemo<MRT_ColumnDef<AITool>[]>(() => {
-	// 	return [
-	// 		{
-	// 			header: 'id',
-	// 			accessorKey: 'objectId',
-	// 		},
-	// 		{
-	// 			header: 'name',
-	// 			accessorKey: 'name',
-	// 			// eslint-disable-next-line react/no-unstable-nested-components
-	// 			Cell: ({ cell }) => {
-	// 				// eslint-disable-next-line react/prop-types
-	// 				return <Box bgcolor="red">{cell.getValue<string>()}</Box>;
-	// 			},
-	// 			// eslint-disable-next-line react/no-unstable-nested-components
-	// 			Edit: ({ cell }) => {
-	// 				return <TextField value={cell.getValue<string>()} variant="standard" />;
-	// 			},
-	// 		},
-	// 		{
-	// 			header: 'pricing model',
-	// 			accessorKey: 'pricingModel',
-	// 		},
-	// 		{
-	// 			header: 'tags',
-	// 			accessorKey: 'tags',
-	// 		},
-	// 	];
-	// }, []);
 
 	const columns = useMemo<ColumnDef<AITool, string>[]>(() => {
 		return [
-			// {
-			// 	accessorKey: 'objectId',
-			// 	// eslint-disable-next-line react/no-unstable-nested-components
-			// 	cell: (props) => {
-			// 		return <Box>{props.getValue()}</Box>;
-			// 	},
-			// },
 			columnHelper.accessor(
 				(row) => {
 					return row.objectId;
@@ -133,7 +40,7 @@ const AITools = () => {
 					id: 'objectId',
 					// eslint-disable-next-line react/no-unstable-nested-components
 					cell: (props) => {
-						return <Box>{props.getValue()}</Box>;
+						return <Box /* bgcolor="red" */>{props.getValue()}</Box>;
 					},
 				},
 			),
@@ -141,102 +48,29 @@ const AITools = () => {
 	}, []);
 
 	const {
-		result: { data: aiToolsData },
+		result: { data: aiToolsData, isLoading },
 	} = useGetAITools({ page: pagination.pageIndex + 1, pageSize: pagination.pageSize });
 
 	return (
-		<Box padding={pxToRem(32)} ref={tableContainerRef} id={AI_TABLE_CONTAINER_ID}>
+		<Box padding={pxToRem(32)} id={AI_TABLE_CONTAINER_ID}>
 			<BestTable
-				// ref={tableRef}
-				// tableInstanceRef={tableInstanceRef}
 				columns={columns}
-				/* data={data?.data ?? []} */
-				// data={tableData ?? []}
 				data={aiToolsData?.aiTools ?? []}
-				manualPagination
-				rowCount={aiToolsData?.meta.totalCount}
-				onPaginationChange={setPagination}
+				isLoading={isLoading}
+				rowsCount={aiToolsData?.meta.totalCount ?? 0}
+				pageCount={aiToolsData?.meta.lastPage ?? 0}
+				setPagination={setPagination}
 				state={{
 					pagination,
 				}}
-				enableEditing
-				// editingMode="modal"
-				// enableRowActions
-				// renderRowActions={({ row, table }) => {
-				// 	// eslint-disable-next-line react-hooks/rules-of-hooks
-				// 	const { editingRow } = table.getState();
-				// 	// eslint-disable-next-line no-underscore-dangle
-				// 	// const isNew = row.original._id === NEW_IDENTIFIER;
-
-				// 	// eslint-disable-next-line react-hooks/rules-of-hooks
-				// 	// useEffect(() => {
-				// 	// 	if (isNew) {
-				// 	// 		table.setEditingRow(row);
-				// 	// 	}
-				// 	// }, [isNew, row, table]);
-
-				// 	const isEdited = _.isEqual(row, editingRow);
-
-				// 	return (
-				// 		<>
-				// 			{!isEdited && (
-				// 				<IconButton
-				// 					onClick={() => {
-				// 						table.setEditingRow(row);
-				// 					}}
-				// 				>
-				// 					<Edit />
-				// 				</IconButton>
-				// 			)}
-				// 			{isEdited && (
-				// 				<IconButton
-				// 					onClick={() => {
-				// 						// if (isNew) {
-				// 						// 	setTableData(tableData?.slice(1));
-				// 						// }
-
-				// 						table.setEditingRow(null);
-				// 					}}
-				// 				>
-				// 					<Cancel />
-				// 				</IconButton>
-				// 			)}
-				// 		</>
-				// 	);
-				// }}
-				positionActionsColumn="last"
-				enableRowSelection
-				renderTopToolbarCustomActions={
-					(/* { table } */) => {
-						// const emptyAITool: AITool = {
-						// 	_id: NEW_IDENTIFIER, // isNew
-						// 	name: '',
-						// 	description: '',
-						// 	pricingType: '',
-						// 	pricingModel: '',
-						// 	tags: [],
-						// } as any;
-
-						return (
-							<Button
-								color="info"
-								// disabled={!table.getIsSomeRowsSelected()}
-								onClick={() => {
-									// if (tableHasNewData) return;
-									// setTableData([emptyAITool, ...(tableData || [])]);
-									// tableInstanceRef.current?.
-									// tableContainerRef.current?.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
-									// const tbody = document.querySelector(`#${AI_TABLE_CONTAINER_ID} tbody`);
-									// tbody?.prepend(prependElement);
-									// toggleCreationRow();
-								}}
-								variant="contained"
-							>
-								Add New AI Tool
-							</Button>
-						);
-					}
-				}
+				// rowsCount={aiToolsData?.meta.totalCount ?? 0}
+				// ==
+				// rowsPerPage={rowsPerPage}
+				// setRowsPerPage={setRowsPerPage}
+				// // ==
+				// pageIndex={pageIndex}
+				// setPageIndex={setPageIndex}
+				// // ==
 			/>
 		</Box>
 	);

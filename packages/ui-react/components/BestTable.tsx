@@ -1,4 +1,4 @@
-import { useState } from 'react';
+// import { useState } from 'react';
 
 import {
 	Box,
@@ -9,41 +9,41 @@ import {
 	TableHead,
 	TablePagination,
 	TableRow,
+	// type TablePaginationProps,
 	type TableProps,
 } from '@mui/material';
 import {
 	flexRender,
 	getCoreRowModel,
-	getPaginationRowModel,
+	// getPaginationRowModel,
 	getSortedRowModel,
+	RowData,
 	useReactTable,
-	type ColumnDef,
 	// type ColumnDefResolved,
+	type ColumnDef,
+	type OnChangeFn,
+	type PaginationState,
+	type TableState,
 } from '@tanstack/react-table';
-
-// import { Box } from 'lucide-react';
-
-// export type BT_Column<TData> = {
-
-// }
-
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export type BTTable_PaginationState = {
-	pageIndex: number;
-	pageSize: number;
-};
 
 type Props<TData, TValue> = {
 	columns: ColumnDef<TData, TValue>[];
 	// columns: ColumnDefResolved<TData, TValue>[];
 	data: TData[];
 	isLoading: boolean;
-	tableProps?: TableProps;
+	state: Partial<TableState>;
 	rowsCount: number;
-	page: number;
+	pageCount: number;
+	setPagination: OnChangeFn<PaginationState>;
+	tableProps?: TableProps;
+	// rowsCount: number;
+	// rowsPerPage: number;
+	// setRowsPerPage: (value: number) => void;
+	// pageIndex: number;
+	// setPageIndex: (value: number) => void;
 };
 
-const ROWS_PER_PAGE_OPTION = {
+export const ROWS_PER_PAGE_OPTION = {
 	5: 5,
 	10: 10,
 	20: 20,
@@ -51,31 +51,52 @@ const ROWS_PER_PAGE_OPTION = {
 	100: 100,
 } as const;
 
-type RowPerPageOption = keyof typeof ROWS_PER_PAGE_OPTION;
+export type RowPerPageOption = keyof typeof ROWS_PER_PAGE_OPTION;
 
-const BestTable = <TData extends Record<string, unknown> = Record<string, unknown>, TValue = unknown>({
+const BestTable = <TData extends RowData = RowData, TValue = any>({
 	columns,
 	data,
 	isLoading,
-	tableProps = {},
+	state,
 	rowsCount,
-	page,
-}: Props<TData, TValue>) => {
+	pageCount,
+	setPagination,
+	tableProps = {},
+}: // state,
+// pagination,
+/* rowsCount,
+	rowsPerPage,
+	setRowsPerPage,
+	pageIndex,
+	setPageIndex, */
+Props<TData, TValue>) => {
 	const table = useReactTable({
 		// columns,
 		columns,
 		data,
+		state,
+		// state: {
+		// 	pagination,
+		// },
 		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
+		// getPaginationRowModel: getPaginationRowModel(),
+		pageCount,
+		manualPagination: true,
+		onPaginationChange: setPagination,
 		getSortedRowModel: getSortedRowModel(), // order doesn't matter anymore!
 		// etc.
+		debugTable: true,
 	});
 	// const theme = useTheme();
 
 	// const a = table.getState();
 	// a.rowSelection
 
-	const [rowsPerPage, setRowsPerPage] = useState<RowPerPageOption>(ROWS_PER_PAGE_OPTION[5]);
+	// console.log('====================================');
+	// console.log(data.length, table.getRowModel().rows.length);
+	// console.log('====================================');
+
+	// const [rowsPerPage, setRowsPerPage] = useState<RowPerPageOption>(ROWS_PER_PAGE_OPTION[5]);
 
 	return (
 		<Box className="table-container">
@@ -151,12 +172,22 @@ const BestTable = <TData extends Record<string, unknown> = Record<string, unknow
 			<TablePagination
 				component="div"
 				count={rowsCount}
-				page={page}
-				// eslint-disable-next-line @typescript-eslint/no-empty-function
-				onPageChange={/* handleChangePage */ () => {}}
-				rowsPerPage={rowsPerPage}
+				page={table.getState().pagination.pageIndex}
+				onPageChange={(_, iPage) => {
+					// setPageIndex(iPage);
+					table.setPageIndex(iPage);
+				}}
+				rowsPerPage={table.getState().pagination.pageSize}
 				onRowsPerPageChange={(event) => {
-					setRowsPerPage(Number(event.target.value) as RowPerPageOption);
+					// setRowsPerPage(Number(event.target.value) as RowPerPageOption);
+					// table.getState().pagination.
+					// table.setPagination((prev) => {
+					// 	return {
+					// 		...prev,
+					// 		pageSize: Number(event.target.value),
+					// 	};
+					// });
+					table.setPageSize(Number(event.target.value));
 				}}
 				rowsPerPageOptions={Object.values(ROWS_PER_PAGE_OPTION)}
 			/>

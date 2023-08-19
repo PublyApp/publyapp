@@ -19,6 +19,8 @@ export type GetAIToolsFunctionResult = {
 	meta: {
 		totalCount: number;
 		count: number;
+		page: number;
+		lastPage: number;
 	};
 };
 
