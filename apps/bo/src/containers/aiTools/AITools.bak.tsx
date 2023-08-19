@@ -1,33 +1,36 @@
-import { useMemo, useRef, useState } from 'react';
+import { /* useEffect, */ useMemo, useRef, useState } from 'react';
 
+import { Cancel, Edit } from '@mui/icons-material';
+import { Box /* TableCell, */, Button, IconButton, TextField } from '@mui/material';
+import _ from 'lodash';
+// import { useToggle } from 'react-use';
+// import ReactDOM from 'react-dom/client';
 import {
-	Box,
-	Button,
-	// IconButton, // TextField,
-} from '@mui/material';
-import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
+	MaterialReactTable,
+	type MRT_ColumnDef,
+	// type MRT_ColumnFiltersState,
+	type MRT_PaginationState,
+	// type MRT_SortingState,
+	// type MRT_TableInstance,
+} from 'material-react-table';
 
+// import { useToggle } from 'react-use';
+// import { useQueryClient } from '@tanstack/react-query';
 import { AITool } from '@aktiveo/shared/types/aiTool.types';
 import { DEFAULT_PAGE_SIZE } from '@aktiveo/shared/utils/constants';
-import BestTable, { BTTable_PaginationState } from '@aktiveo/ui-react/components/BestTable';
-import { GetAIToolsFunctionResult } from '@aktiveo/ui-react/query/features/aiTools/aiTool.actions';
 import { useGetAITools } from '@aktiveo/ui-react/query/features/aiTools/aiTool.hooks';
 import { pxToRem } from '@aktiveo/ui-react/utils/styles';
 
-// import ReactDOM from 'react-dom/client';
-// import { useToggle } from 'react-use';
-// import { useQueryClient } from '@tanstack/react-query';
-// import { useToggle } from 'react-use';
 // import { GetAIToolsFunctionResult } from '@aktiveo/ui-react/query/features/aiTools/aiTool.actions';
+
 // import BOProviders from '../../providers/BOProviders';
+
 // const NEW_IDENTIFIER = 'new_identifier';
+const AI_TABLE_CONTAINER_ID = 'AI_TABLE_CONTAINER_ID';
 // const AI_TABLE_CREATION_ROW_ID = 'AI_TABLE_CREATION_ROW_ID';
 
-const AI_TABLE_CONTAINER_ID = 'AI_TABLE_CONTAINER_ID';
-const columnHelper = createColumnHelper<GetAIToolsFunctionResult['aiTools'][0]>();
-
 const AITools = () => {
-	const [pagination, setPagination] = useState<BTTable_PaginationState>({
+	const [pagination, setPagination] = useState<MRT_PaginationState>({
 		pageIndex: 0,
 		pageSize: DEFAULT_PAGE_SIZE / 4,
 	});
@@ -86,57 +89,33 @@ const AITools = () => {
 
 	// const handleRenderCreationRow = () => {};
 
-	// const columns = useMemo<MRT_ColumnDef<AITool>[]>(() => {
-	// 	return [
-	// 		{
-	// 			header: 'id',
-	// 			accessorKey: 'objectId',
-	// 		},
-	// 		{
-	// 			header: 'name',
-	// 			accessorKey: 'name',
-	// 			// eslint-disable-next-line react/no-unstable-nested-components
-	// 			Cell: ({ cell }) => {
-	// 				// eslint-disable-next-line react/prop-types
-	// 				return <Box bgcolor="red">{cell.getValue<string>()}</Box>;
-	// 			},
-	// 			// eslint-disable-next-line react/no-unstable-nested-components
-	// 			Edit: ({ cell }) => {
-	// 				return <TextField value={cell.getValue<string>()} variant="standard" />;
-	// 			},
-	// 		},
-	// 		{
-	// 			header: 'pricing model',
-	// 			accessorKey: 'pricingModel',
-	// 		},
-	// 		{
-	// 			header: 'tags',
-	// 			accessorKey: 'tags',
-	// 		},
-	// 	];
-	// }, []);
-
-	const columns = useMemo<ColumnDef<AITool, string>[]>(() => {
+	const columns = useMemo<MRT_ColumnDef<AITool>[]>(() => {
 		return [
-			// {
-			// 	accessorKey: 'objectId',
-			// 	// eslint-disable-next-line react/no-unstable-nested-components
-			// 	cell: (props) => {
-			// 		return <Box>{props.getValue()}</Box>;
-			// 	},
-			// },
-			columnHelper.accessor(
-				(row) => {
-					return row.objectId;
+			{
+				header: 'id',
+				accessorKey: 'objectId',
+			},
+			{
+				header: 'name',
+				accessorKey: 'name',
+				// eslint-disable-next-line react/no-unstable-nested-components
+				Cell: ({ cell }) => {
+					// eslint-disable-next-line react/prop-types
+					return <Box bgcolor="red">{cell.getValue<string>()}</Box>;
 				},
-				{
-					id: 'objectId',
-					// eslint-disable-next-line react/no-unstable-nested-components
-					cell: (props) => {
-						return <Box>{props.getValue()}</Box>;
-					},
+				// eslint-disable-next-line react/no-unstable-nested-components
+				Edit: ({ cell }) => {
+					return <TextField value={cell.getValue<string>()} variant="standard" />;
 				},
-			),
+			},
+			{
+				header: 'pricing model',
+				accessorKey: 'pricingModel',
+			},
+			{
+				header: 'tags',
+				accessorKey: 'tags',
+			},
 		];
 	}, []);
 
@@ -144,9 +123,17 @@ const AITools = () => {
 		result: { data: aiToolsData },
 	} = useGetAITools({ page: pagination.pageIndex + 1, pageSize: pagination.pageSize });
 
+	// console.log('====================================');
+	// console.log(originalTableElement);
+	// console.log('====================================');
+
+	// const tableWithCreationRow = cloneElement(originalTableElement, {
+	// 	// children: [originalTableElement.props.children]
+	// });
+
 	return (
 		<Box padding={pxToRem(32)} ref={tableContainerRef} id={AI_TABLE_CONTAINER_ID}>
-			<BestTable
+			<MaterialReactTable
 				// ref={tableRef}
 				// tableInstanceRef={tableInstanceRef}
 				columns={columns}
@@ -161,49 +148,49 @@ const AITools = () => {
 				}}
 				enableEditing
 				// editingMode="modal"
-				// enableRowActions
-				// renderRowActions={({ row, table }) => {
-				// 	// eslint-disable-next-line react-hooks/rules-of-hooks
-				// 	const { editingRow } = table.getState();
-				// 	// eslint-disable-next-line no-underscore-dangle
-				// 	// const isNew = row.original._id === NEW_IDENTIFIER;
+				enableRowActions
+				renderRowActions={({ row, table }) => {
+					// eslint-disable-next-line react-hooks/rules-of-hooks
+					const { editingRow } = table.getState();
+					// eslint-disable-next-line no-underscore-dangle
+					// const isNew = row.original._id === NEW_IDENTIFIER;
 
-				// 	// eslint-disable-next-line react-hooks/rules-of-hooks
-				// 	// useEffect(() => {
-				// 	// 	if (isNew) {
-				// 	// 		table.setEditingRow(row);
-				// 	// 	}
-				// 	// }, [isNew, row, table]);
+					// eslint-disable-next-line react-hooks/rules-of-hooks
+					// useEffect(() => {
+					// 	if (isNew) {
+					// 		table.setEditingRow(row);
+					// 	}
+					// }, [isNew, row, table]);
 
-				// 	const isEdited = _.isEqual(row, editingRow);
+					const isEdited = _.isEqual(row, editingRow);
 
-				// 	return (
-				// 		<>
-				// 			{!isEdited && (
-				// 				<IconButton
-				// 					onClick={() => {
-				// 						table.setEditingRow(row);
-				// 					}}
-				// 				>
-				// 					<Edit />
-				// 				</IconButton>
-				// 			)}
-				// 			{isEdited && (
-				// 				<IconButton
-				// 					onClick={() => {
-				// 						// if (isNew) {
-				// 						// 	setTableData(tableData?.slice(1));
-				// 						// }
+					return (
+						<>
+							{!isEdited && (
+								<IconButton
+									onClick={() => {
+										table.setEditingRow(row);
+									}}
+								>
+									<Edit />
+								</IconButton>
+							)}
+							{isEdited && (
+								<IconButton
+									onClick={() => {
+										// if (isNew) {
+										// 	setTableData(tableData?.slice(1));
+										// }
 
-				// 						table.setEditingRow(null);
-				// 					}}
-				// 				>
-				// 					<Cancel />
-				// 				</IconButton>
-				// 			)}
-				// 		</>
-				// 	);
-				// }}
+										table.setEditingRow(null);
+									}}
+								>
+									<Cancel />
+								</IconButton>
+							)}
+						</>
+					);
+				}}
 				positionActionsColumn="last"
 				enableRowSelection
 				renderTopToolbarCustomActions={
