@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
-import { Box } from '@mui/material';
-import { createColumnHelper, PaginationState, type ColumnDef } from '@tanstack/react-table';
+import { Box, Button } from '@mui/material';
+import { createColumnHelper, PaginationState, type ColumnDef, type SortingState } from '@tanstack/react-table';
 
 import { AITool } from '@aktiveo/shared/types/aiTool.types';
 import BestTable /* , { ROWS_PER_PAGE_OPTION }  */ from '@aktiveo/ui-react/components/BestTable';
@@ -29,6 +29,7 @@ const AITools = () => {
 		pageIndex: 0,
 		pageSize: 5,
 	});
+	const [sorting, setSorting] = useState<SortingState>([]);
 
 	const columns = useMemo<ColumnDef<AITool, string>[]>(() => {
 		return [
@@ -38,6 +39,58 @@ const AITools = () => {
 				},
 				{
 					id: 'objectId',
+					// eslint-disable-next-line react/no-unstable-nested-components
+					header: (props) => {
+						return (
+							<>
+								{props.header.column.id}
+								<Button
+									onClick={() => {
+										// props.header.column.getToggleSortingHandler()
+										props.header.column.toggleSorting(undefined, true);
+									}}
+								>
+									Sort:{' '}
+									{{
+										asc: ' 🔼',
+										desc: ' 🔽',
+									}[props.header.column.getIsSorted() as string] ?? '-'}
+								</Button>
+							</>
+						);
+					},
+					// eslint-disable-next-line react/no-unstable-nested-components
+					cell: (props) => {
+						return <Box /* bgcolor="red" */>{props.getValue()}</Box>;
+					},
+				},
+			),
+			columnHelper.accessor(
+				(row) => {
+					return row.name;
+				},
+				{
+					id: 'name',
+					// eslint-disable-next-line react/no-unstable-nested-components
+					header: (props) => {
+						return (
+							<>
+								{props.header.column.id}
+								<Button
+									onClick={() => {
+										// props.header.column.getToggleSortingHandler()
+										props.header.column.toggleSorting(undefined, true);
+									}}
+								>
+									Sort:{' '}
+									{{
+										asc: ' 🔼',
+										desc: ' 🔽',
+									}[props.header.column.getIsSorted() as string] ?? '-'}
+								</Button>
+							</>
+						);
+					},
 					// eslint-disable-next-line react/no-unstable-nested-components
 					cell: (props) => {
 						return <Box /* bgcolor="red" */>{props.getValue()}</Box>;
@@ -49,7 +102,7 @@ const AITools = () => {
 
 	const {
 		result: { data: aiToolsData, isLoading },
-	} = useGetAITools({ page: pagination.pageIndex + 1, pageSize: pagination.pageSize });
+	} = useGetAITools({ page: pagination.pageIndex + 1, pageSize: pagination.pageSize, sorting });
 
 	return (
 		<Box padding={pxToRem(32)} id={AI_TABLE_CONTAINER_ID}>
@@ -60,8 +113,10 @@ const AITools = () => {
 				rowsCount={aiToolsData?.meta.totalCount ?? 0}
 				pageCount={aiToolsData?.meta.lastPage ?? 0}
 				setPagination={setPagination}
+				setSorting={setSorting}
 				state={{
 					pagination,
+					sorting,
 				}}
 				// rowsCount={aiToolsData?.meta.totalCount ?? 0}
 				// ==

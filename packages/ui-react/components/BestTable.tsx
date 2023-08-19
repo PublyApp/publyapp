@@ -19,10 +19,11 @@ import {
 	getSortedRowModel,
 	RowData,
 	useReactTable,
-	// type ColumnDefResolved,
 	type ColumnDef,
 	type OnChangeFn,
 	type PaginationState,
+	// type ColumnDefResolved,
+	type SortingState,
 	type TableState,
 } from '@tanstack/react-table';
 
@@ -31,10 +32,11 @@ type Props<TData, TValue> = {
 	// columns: ColumnDefResolved<TData, TValue>[];
 	data: TData[];
 	isLoading: boolean;
-	state: Partial<TableState>;
 	rowsCount: number;
 	pageCount: number;
+	state: Partial<TableState>;
 	setPagination: OnChangeFn<PaginationState>;
+	setSorting: OnChangeFn<SortingState>;
 	tableProps?: TableProps;
 	// rowsCount: number;
 	// rowsPerPage: number;
@@ -61,6 +63,7 @@ const BestTable = <TData extends RowData = RowData, TValue = any>({
 	rowsCount,
 	pageCount,
 	setPagination,
+	setSorting,
 	tableProps = {},
 }: // state,
 // pagination,
@@ -83,6 +86,9 @@ Props<TData, TValue>) => {
 		pageCount,
 		manualPagination: true,
 		onPaginationChange: setPagination,
+		manualSorting: true,
+		enableMultiSort: true,
+		onSortingChange: setSorting,
 		getSortedRowModel: getSortedRowModel(), // order doesn't matter anymore!
 		// etc.
 		debugTable: true,

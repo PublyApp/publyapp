@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { z } from 'zod';
 
 import { className, DEFAULT_PAGE_SIZE, functionName } from '@aktiveo/shared/utils/constants';
@@ -7,6 +8,13 @@ import { parseFrom } from '../../utils/parse.utils';
 const getAIToolsFunctionParamsSchema = z.object({
 	page: z.number().optional(),
 	pageSize: z.number().optional(),
+	sorting: z
+		.object({
+			id: z.string(),
+			desc: z.boolean(),
+		})
+		.array()
+		.optional(),
 });
 
 Parse.Cloud.define(
@@ -14,15 +22,25 @@ Parse.Cloud.define(
 	parseFrom({
 		requireUser: false,
 		action: async ({ req /* , t  */ }) => {
-			const { page, pageSize } = getAIToolsFunctionParamsSchema.parse(req.params);
+			const { page, pageSize, sorting } = getAIToolsFunctionParamsSchema.parse(req.params);
 
 			const limit = pageSize || DEFAULT_PAGE_SIZE;
 			const skip = ((page || 1) - 1) * (pageSize || DEFAULT_PAGE_SIZE);
+
+			const sortingOperations: Record<string, 1 | -1> = {};
+
+			if (sorting && !_.isEmpty(sorting)) {
+				// eslint-disable-next-line no-restricted-syntax
+				for (const element of sorting) {
+					sortingOperations[element.id] = element.desc ? -1 : 1;
+				}
+			}
 
 			const pipeline: any[] = [
 				{
 					$match: {},
 				},
+				...(sorting && !_.isEmpty(sorting) ? [{ $sort: sortingOperations }] : []),
 				{ $skip: skip },
 				{ $limit: limit },
 				{ $project: { _id: 1 } },

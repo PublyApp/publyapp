@@ -1,4 +1,5 @@
 import { QueryFunction } from '@tanstack/react-query';
+import { ColumnSort } from '@tanstack/react-table';
 
 import { AITool } from '@aktiveo/shared/types/aiTool.types';
 import { functionName } from '@aktiveo/shared/utils/constants';
@@ -11,6 +12,7 @@ import { functionName } from '@aktiveo/shared/utils/constants';
 export type GetAIToolsQueryParams = {
 	page: number;
 	pageSize: number;
+	sorting: ColumnSort[];
 };
 
 // TODO: move this type right in the same file of the corresponding cloud function
