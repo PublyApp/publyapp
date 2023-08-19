@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { DEFAULT_PAGE_SIZE, className, functionName } from '@aktiveo/shared/utils/constants';
+import { className, DEFAULT_PAGE_SIZE, functionName } from '@aktiveo/shared/utils/constants';
 
 import { parseFrom } from '../../utils/parse.utils';
 
@@ -44,12 +44,15 @@ Parse.Cloud.define(
 			});
 
 			const count = iAiTools.length;
+			const lastPage = Math.floor(totalCount / count);
 
 			return {
 				aiTools,
 				meta: {
 					totalCount,
 					count,
+					page,
+					lastPage,
 				},
 			};
 		},
