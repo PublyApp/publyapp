@@ -1,4 +1,5 @@
 import { BaseAttributes } from 'parse';
+
 // import { BaseDocument } from './mongoDB.types';
 
 export const pricingType = {
