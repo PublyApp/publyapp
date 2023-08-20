@@ -1,4 +1,4 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 
 import { functionName } from '@aktiveo/shared/utils/constants';
 
@@ -11,6 +11,17 @@ export const useGetAITools = (params: GetAIToolsQueryParams) => {
 		queryKey: key,
 		queryFn: getAIToolsAction,
 		placeholderData: keepPreviousData,
+	});
+
+	return { result, key };
+};
+
+export const useCreateAITool = () => {
+	const key = [functionName.createAITool] as const;
+
+	const result = useMutation({
+		mutationKey: key,
+		mutationFn: createAIToolAction,
 	});
 
 	return { result, key };

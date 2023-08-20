@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 
 import { ThemeProvider as EmotionProvider } from '@emotion/react';
-import { CssBaseline, createTheme } from '@mui/material';
+import { createTheme, CssBaseline } from '@mui/material';
 
 import { themeOptions } from '../utils/theme';
 

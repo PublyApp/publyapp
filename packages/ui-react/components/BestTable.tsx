@@ -1,8 +1,9 @@
-// import { useState } from 'react';
+import { ReactNode } from 'react';
 
 import {
 	Box,
 	LinearProgress,
+	styled,
 	Table,
 	TableBody,
 	TableCell, // TableFooter,
@@ -38,6 +39,8 @@ type Props<TData, TValue> = {
 	setPagination: OnChangeFn<PaginationState>;
 	setSorting: OnChangeFn<SortingState>;
 	tableProps?: TableProps;
+	openCreationRowForm?: boolean;
+	creationRowForm?: ReactNode;
 	// rowsCount: number;
 	// rowsPerPage: number;
 	// setRowsPerPage: (value: number) => void;
@@ -55,6 +58,12 @@ export const ROWS_PER_PAGE_OPTION = {
 
 export type RowPerPageOption = keyof typeof ROWS_PER_PAGE_OPTION;
 
+export const CustomTableCell = styled(TableCell)(() => {
+	return {
+		padding: 0,
+	};
+});
+
 const BestTable = <TData extends RowData = RowData, TValue = any>({
 	columns,
 	data,
@@ -64,6 +73,8 @@ const BestTable = <TData extends RowData = RowData, TValue = any>({
 	pageCount,
 	setPagination,
 	setSorting,
+	openCreationRowForm = false,
+	creationRowForm,
 	tableProps = {},
 }: // state,
 // pagination,
@@ -137,9 +148,9 @@ Props<TData, TValue>) => {
 							<TableRow key={headerGroup.id}>
 								{headerGroup.headers.map((header) => {
 									return (
-										<TableCell key={header.id}>
+										<CustomTableCell key={header.id}>
 											{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-										</TableCell>
+										</CustomTableCell>
 									);
 								})}
 							</TableRow>
@@ -147,12 +158,15 @@ Props<TData, TValue>) => {
 					})}
 				</TableHead>
 				<TableBody>
+					{openCreationRowForm && creationRowForm}
 					{table.getRowModel().rows.map((row) => {
 						return (
 							<TableRow key={row.id}>
 								{row.getVisibleCells().map((cell) => {
 									return (
-										<TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+										<CustomTableCell key={cell.id}>
+											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+										</CustomTableCell>
 									);
 								})}
 							</TableRow>

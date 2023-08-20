@@ -1,4 +1,4 @@
-import { QueryFunction } from '@tanstack/react-query';
+import { MutationFunction, QueryFunction } from '@tanstack/react-query';
 import { ColumnSort } from '@tanstack/react-table';
 
 import { AITool } from '@aktiveo/shared/types/aiTool.types';
@@ -47,3 +47,14 @@ export const getAIToolsAction: QueryFunction<
 //                                      MUTATIONS                                       //
 //                                                                                      //
 // --------------------------------------------------------------------------------------//
+
+export const createAIToolAction: MutationFunction = ({}) => {
+	try {
+		const result = Parse.Cloud.run(functionName.createAITool);
+
+		return result;
+	} catch (error) {
+		console.log('----- createAIToolAction error ----------', error);
+		return Promise.reject(error);
+	}
+};
