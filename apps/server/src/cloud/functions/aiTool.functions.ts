@@ -1,7 +1,8 @@
 import _ from 'lodash';
 import { z } from 'zod';
 
-import { className, DEFAULT_PAGE_SIZE, functionName } from '@aktiveo/shared/utils/constants';
+import { className, DEFAULT_PAGE_SIZE, functionName, RolesEnum } from '@aktiveo/shared/utils/constants';
+import { createAIToolInputSchema } from '@aktiveo/shared/validations/aiTool.validations';
 
 import { parseFrom } from '../../utils/parse.utils';
 
@@ -57,7 +58,16 @@ Parse.Cloud.define(
 				new Parse.Query(className.AI_TOOL).count(),
 			]);
 
-			const aiTools = iAiTools.map((iTool) => {
+			const idsToParseObjects = new Map();
+			iAiTools.forEach((iAiTool) => {
+				idsToParseObjects.set(iAiTool.id, iAiTool);
+			});
+
+			const orderedAiTools = ids.map((id) => {
+				return idsToParseObjects.get(id);
+			});
+
+			const aiTools = orderedAiTools.map((iTool) => {
 				return iTool.toJSON();
 			});
 
@@ -73,6 +83,22 @@ Parse.Cloud.define(
 					lastPage,
 				},
 			};
+		},
+	}),
+);
+
+Parse.Cloud.define(
+	functionName.createAITool,
+	parseFrom({
+		requireUser: true,
+		allowedRoles: [RolesEnum.ADMIN],
+		action: async ({ req }) => {
+			const reqParams = createAIToolInputSchema.parse(req.params);
+
+			const newAITool = new Parse.Object(className.AI_TOOL, reqParams);
+			const savedAITool = await newAITool.save();
+
+			return savedAITool;
 		},
 	}),
 );
