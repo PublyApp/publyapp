@@ -40,3 +40,6 @@ logs
 
 # deploy
 # .deploy/
+
+# custom builds
+dist
