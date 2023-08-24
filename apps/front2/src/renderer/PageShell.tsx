@@ -12,8 +12,8 @@ const PageShell = ({ children, pageContext }: { children: React.ReactNode; pageC
 	return (
 		<React.StrictMode>
 			<PageContextProvider pageContext={pageContext}>
-				<Layout>
-					{/* <Sidebar>
+				{/* <Layout>
+					<Sidebar>
 						<Logo />
 						<Link className="navitem" href="/">
 							Home
@@ -22,27 +22,29 @@ const PageShell = ({ children, pageContext }: { children: React.ReactNode; pageC
 							About
 						</Link>
 					</Sidebar>
-					<Content></Content> */}
-					{children}
-				</Layout>
+					<Content>
+						{children}
+					</Content>
+				</Layout> */}
+				{children}
 			</PageContextProvider>
 		</React.StrictMode>
 	);
 };
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
-	return (
-		<div
-			style={{
-				display: 'flex',
-				maxWidth: 900,
-				margin: 'auto',
-			}}
-		>
-			{children}
-		</div>
-	);
-};
+// const Layout = ({ children }: { children: React.ReactNode }) => {
+// 	return (
+// 		<div
+// 			style={{
+// 				display: 'flex',
+// 				maxWidth: 900,
+// 				margin: 'auto',
+// 			}}
+// 		>
+// 			{children}
+// 		</div>
+// 	);
+// };
 
 // const Sidebar = ({ children }: { children: React.ReactNode }) => {
 // 	return (
