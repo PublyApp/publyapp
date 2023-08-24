@@ -1,7 +1,11 @@
-import { Dispatch, /*  useCallback, */ useEffect } from 'react';
+import { Dispatch /*  useCallback, */, useEffect } from 'react';
 
-import { ImmerReducer, useImmerReducer } from 'use-immer';
 import { useLocalStorage } from 'react-use';
+import { type ImmerReducer } from 'use-immer';
+
+const isServer = typeof window === 'undefined';
+// const { useImmerReducer } = !isServer ? require('use-immer') : { useImmerReducer: () => {} };
+
 // import type { Draft } from 'immer';
 
 // type Draft<S> = Parameters<ImmerReducer<S, any>>[0];

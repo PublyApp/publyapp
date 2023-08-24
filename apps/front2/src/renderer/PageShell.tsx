@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import React from 'react';
 
+import VPSFrontProvider from '../providers/VPSFrontProvider';
 import type { PageContext } from './types';
 // import logo from './logo.svg';
 import { PageContextProvider } from './usePageContext';
@@ -26,7 +26,7 @@ const PageShell = ({ children, pageContext }: { children: React.ReactNode; pageC
 						{children}
 					</Content>
 				</Layout> */}
-				{children}
+				<VPSFrontProvider>{children}</VPSFrontProvider>
 			</PageContextProvider>
 		</React.StrictMode>
 	);
