@@ -1,9 +1,9 @@
-import { classNames } from '../../utils/constants';
+import { className } from '../../utils/constants';
 
 export class Post extends Parse.Object {
 	constructor() {
-		super(classNames.POST);
+		super(className.POST);
 	}
 }
 
-Parse.Object.registerSubclass(classNames.POST, Post);
+Parse.Object.registerSubclass(className.POST, Post);

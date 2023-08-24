@@ -1,15 +1,16 @@
 import path from 'path';
 
+import ParseServer from 'parse-server';
+
 import cors from 'cors';
 import dotenv from 'dotenv';
-import express from 'express';
-import ParseServer from 'parse-server';
-import ParseDashboard from 'parse-dashboard';
 import dotenvExpand from 'dotenv-expand';
+import express from 'express';
+import ParseDashboard from 'parse-dashboard';
 
-import { createRolesIfNotExist } from './utils/role.utils';
-import RoleSchema from './schemas/role.schema';
 import PostSchema from './schemas/post.schema';
+import RoleSchema from './schemas/role.schema';
+import { createRolesIfNotExist } from './utils/role.utils';
 
 const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//

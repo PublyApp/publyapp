@@ -1,10 +1,22 @@
-import { Outlet, Link } from 'react-router-dom';
+import { ReactNode } from 'react';
+
+import {
+	Article as ArticleIcon,
+	Home as HomeIcon,
+	Logout as LogoutIcon,
+	NavigateNext as NavigateNextIcon,
+	Person as PersonIcon,
+	Settings as SettingsIcon,
+} from '@mui/icons-material';
 import {
 	AppBar,
 	Box,
+	Breadcrumbs,
 	Button,
+	CircularProgress,
 	Divider,
 	Drawer,
+	Grid,
 	List,
 	ListItem,
 	ListItemButton,
@@ -12,22 +24,13 @@ import {
 	ListItemText,
 	Toolbar,
 	Typography,
-	Grid,
-	Breadcrumbs,
-	CircularProgress,
 } from '@mui/material';
-import {
-	Home as HomeIcon,
-	Person as PersonIcon,
-	Article as ArticleIcon,
-	Logout as LogoutIcon,
-	NavigateNext as NavigateNextIcon,
-	// Settings as SettingsIcon,
-} from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
+import { Link, Outlet } from 'react-router-dom';
 
-import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
+import { FRONT_PATH_NAMES } from '@aktiveo/shared/utils/constants';
 import { useApp } from '@aktiveo/ui-react/hooks/useApp';
+import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 
 // import Link from './Link';
 
@@ -59,18 +62,29 @@ const menuItems = [
 		icon: <PersonIcon />,
 		link: '/buttons',
 	},
-	// {
-	// 	text: 'Settings',
-	// 	icon: <SettingsIcon />,
-	// 	link: '/settings',
-	// },
+	{
+		text: 'AI Tools',
+		icon: <SettingsIcon />,
+		link: FRONT_PATH_NAMES.aiTools,
+	},
+	{
+		text: 'Settings',
+		icon: <SettingsIcon />,
+		link: '/settings',
+	},
 ];
 
-const DefaultLayoutBO = () => {
+type Props = {
+	children?: ReactNode;
+};
+
+const DefaultLayoutBO = ({ children }: Props) => {
 	const { state } = useApp();
 	const { t } = useTranslation();
 
-	const { mutate: logOut, isPending } = useLogOutMutation();
+	const {
+		result: { mutate: logOut, isPending },
+	} = useLogOutMutation();
 
 	const handleLogOut = () => {
 		logOut();
@@ -149,7 +163,7 @@ const DefaultLayoutBO = () => {
 					})}
 				</Breadcrumbs>
 				{/* <Typography variant="h5">ok</Typography> */}
-				<Outlet />
+				{children ?? <Outlet />}
 			</Box>
 		</Box>
 	);
