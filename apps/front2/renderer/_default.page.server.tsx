@@ -27,13 +27,19 @@ async function render(pageContext: PageContextServer) {
     <html lang="en">
       <head>
         <meta charset="UTF-8" />
-        <link rel="icon" href="${logoUrl}" />
+        <link rel="icon" href="${/* TODO: */ '/idk.png'}" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="description" content="${desc}" />
         <title>${title}</title>
       </head>
       <body>
         <div id="react-root">${dangerouslySkipEscape(pageHtml)}</div>
+				<script
+					src="https://cdnjs.cloudflare.com/ajax/libs/parse/4.1.0/parse.min.js"
+					integrity="sha512-2/9fubrdhOAa2Cvi5O+knV3Wn6OQolBy2gehNiLTfDSV0dffegVlQEfEK9kIGdNmJimGuNS0g/3+kyxIKlTy1w=="
+					crossorigin="anonymous"
+					referrerpolicy="no-referrer"
+				></script>
       </body>
     </html>`;
 
