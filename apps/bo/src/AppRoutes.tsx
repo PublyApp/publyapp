@@ -1,13 +1,16 @@
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
 
+import { FRONT_PATH_NAMES } from '@aktiveo/shared/utils/constants';
+
 import LayoutBO from './components/layout/LayoutBO';
-import Home from './containers/home/Home';
-import NotFound from './containers/notFound/NotFound';
-import Account from './containers/account/Account';
 import RequireAuth from './components/RequireAuth';
-import LogIn from './containers/logIn/LogIn';
-import TypoPage from './containers/designSystem/TypoPage';
+import Account from './containers/account/Account';
+import AITools from './containers/aiTools/AITools';
 import ButtonsPage from './containers/designSystem/ButtonsPage';
+import TypoPage from './containers/designSystem/TypoPage';
+import Home from './containers/home/Home';
+import LogIn from './containers/logIn/LogIn';
+import NotFound from './containers/notFound/NotFound';
 
 const router = createBrowserRouter(
 	createRoutesFromElements(
@@ -20,6 +23,9 @@ const router = createBrowserRouter(
 					{/* ------- Showcasing the design system here */}
 					<Route path="typography" element={<TypoPage />} />
 					<Route path="buttons" element={<ButtonsPage />} />
+
+					{/* ------- AI Tools ------------------------ */}
+					<Route path={FRONT_PATH_NAMES.aiTools} element={<AITools />} />
 
 					{/* // ---- not found page ------------------------------------------------------------------- */}
 					<Route path="*" element={<NotFound />} />

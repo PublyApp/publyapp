@@ -1,8 +1,8 @@
 // import { QueryFunctionContext } from '@tanstack/react-query';
 import Cookies from 'universal-cookie';
 
-import { LogInInput } from '@aktiveo/shared/validations/auth.validations';
 import { IUser } from '@aktiveo/shared/types/user.types';
+import { LogInInput } from '@aktiveo/shared/validations/auth.validations';
 
 import { ROLES_LOCAL_STORAGE_KEY, SESSION_TOKEN_COOKIE_KEY } from '../../../utils/constants';
 
@@ -21,6 +21,7 @@ import { ROLES_LOCAL_STORAGE_KEY, SESSION_TOKEN_COOKIE_KEY } from '../../../util
 //                                                                                      //
 // --------------------------------------------------------------------------------------//
 
+// TODO:
 export async function getUserRoles(user: Parse.User) {
 	const roleQuery = new Parse.Query(Parse.Role).equalTo('users', user);
 	const roles = await roleQuery.find();

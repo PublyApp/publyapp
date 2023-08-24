@@ -62,18 +62,23 @@ module.exports = {
 			'warn',
 			{
 				'newlines-between': 'always',
-				pathGroupsExcludedImportTypes: ['react'],
+				pathGroupsExcludedImportTypes: ['react', 'parse', 'parse-server'],
 				pathGroups: [
+					{
+						pattern: '{react,parse,parse/*,parse-server,parse-server/*}',
+						group: 'builtin',
+						position: 'after',
+					},
 					{
 						pattern: '@aktiveo/**',
 						group: 'external',
 						position: 'after',
 					},
-					{
-						pattern: 'react',
-						group: 'builtin',
-						position: 'before',
-					},
+					// {
+					// 	pattern: 'react',
+					// 	group: 'builtin',
+					// 	position: 'before',
+					// },
 				],
 				distinctGroup: true,
 			},

@@ -1,8 +1,8 @@
 import { SchemaMigrations } from 'parse-server';
 
-import { classNames } from '@aktiveo/shared/utils/constants';
+import { className } from '@aktiveo/shared/utils/constants';
 
-const RoleSchema = SchemaMigrations.makeSchema(classNames.ROLE, {
+const RoleSchema = SchemaMigrations.makeSchema(className.ROLE, {
 	fields: {
 		code: { type: 'Number' },
 	},
