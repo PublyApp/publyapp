@@ -3,8 +3,6 @@ import { hydrateRoot } from 'react-dom/client';
 import { PageShell } from './PageShell';
 import type { PageContextClient } from './types';
 
-export { render };
-
 // This render() hook only supports SSR, see https://vite-plugin-ssr.com/render-modes for how to modify render() to support SPA
 async function render(pageContext: PageContextClient) {
 	const { Page, pageProps } = pageContext;
@@ -19,6 +17,9 @@ async function render(pageContext: PageContextClient) {
 	);
 }
 
+export { render };
+
 /* To enable Client-side Routing:
 export const clientRouting = true
 // !! WARNING !! Before doing so, read https://vite-plugin-ssr.com/clientRouting */
+export const clientRouting = true;
