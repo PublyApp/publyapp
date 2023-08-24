@@ -1,18 +1,19 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import React from 'react';
 
-import logo from './logo.svg';
-import { PageContextProvider } from './usePageContext';
 import type { PageContext } from './types';
-import './PageShell.css';
-import { Link } from './Link';
+// import logo from './logo.svg';
+import { PageContextProvider } from './usePageContext';
+
+// import './PageShell.css';
+// import { Link } from './Link';
 
 const PageShell = ({ children, pageContext }: { children: React.ReactNode; pageContext: PageContext }) => {
 	return (
 		<React.StrictMode>
 			<PageContextProvider pageContext={pageContext}>
 				<Layout>
-					<Sidebar>
+					{/* <Sidebar>
 						<Logo />
 						<Link className="navitem" href="/">
 							Home
@@ -21,7 +22,8 @@ const PageShell = ({ children, pageContext }: { children: React.ReactNode; pageC
 							About
 						</Link>
 					</Sidebar>
-					<Content>{children}</Content>
+					<Content></Content> */}
+					{children}
 				</Layout>
 			</PageContextProvider>
 		</React.StrictMode>
@@ -42,51 +44,51 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 	);
 };
 
-const Sidebar = ({ children }: { children: React.ReactNode }) => {
-	return (
-		<div
-			style={{
-				padding: 20,
-				flexShrink: 0,
-				display: 'flex',
-				flexDirection: 'column',
-				alignItems: 'center',
-				lineHeight: '1.8em',
-			}}
-		>
-			{children}
-		</div>
-	);
-};
+// const Sidebar = ({ children }: { children: React.ReactNode }) => {
+// 	return (
+// 		<div
+// 			style={{
+// 				padding: 20,
+// 				flexShrink: 0,
+// 				display: 'flex',
+// 				flexDirection: 'column',
+// 				alignItems: 'center',
+// 				lineHeight: '1.8em',
+// 			}}
+// 		>
+// 			{children}
+// 		</div>
+// 	);
+// };
 
-const Content = ({ children }: { children: React.ReactNode }) => {
-	return (
-		<div
-			style={{
-				padding: 20,
-				paddingBottom: 50,
-				borderLeft: '2px solid #eee',
-				minHeight: '100vh',
-			}}
-		>
-			{children}
-		</div>
-	);
-};
+// const Content = ({ children }: { children: React.ReactNode }) => {
+// 	return (
+// 		<div
+// 			style={{
+// 				padding: 20,
+// 				paddingBottom: 50,
+// 				borderLeft: '2px solid #eee',
+// 				minHeight: '100vh',
+// 			}}
+// 		>
+// 			{children}
+// 		</div>
+// 	);
+// };
 
-const Logo = () => {
-	return (
-		<div
-			style={{
-				marginTop: 20,
-				marginBottom: 10,
-			}}
-		>
-			<a href="/">
-				<img src={logo} height={64} width={64} alt="logo" />
-			</a>
-		</div>
-	);
-};
+// const Logo = () => {
+// 	return (
+// 		<div
+// 			style={{
+// 				marginTop: 20,
+// 				marginBottom: 10,
+// 			}}
+// 		>
+// 			<a href="/">
+// 				<img src={logo} height={64} width={64} alt="logo" />
+// 			</a>
+// 		</div>
+// 	);
+// };
 
 export { PageShell };
