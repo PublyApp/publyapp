@@ -1,8 +1,8 @@
 import ReactDOMServer from 'react-dom/server';
-import { escapeInject, dangerouslySkipEscape } from 'vite-plugin-ssr/server';
+import { dangerouslySkipEscape, escapeInject } from 'vite-plugin-ssr/server';
 
-import { PageShell } from './PageShell';
 import logoUrl from './logo.svg';
+import { PageShell } from './PageShell';
 import type { PageContextServer } from './types';
 
 // See https://vite-plugin-ssr.com/data-fetching

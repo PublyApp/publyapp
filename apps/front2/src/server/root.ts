@@ -5,6 +5,6 @@ import { fileURLToPath } from 'url';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention, no-underscore-dangle
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = `${__dirname}/..`;
+const root = `${__dirname}/../..`;
 
 export { root };
