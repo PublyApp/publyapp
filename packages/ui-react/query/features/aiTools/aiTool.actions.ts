@@ -12,9 +12,9 @@ import { functionName } from '@aktiveo/shared/utils/constants';
 //                                                                                      //
 // --------------------------------------------------------------------------------------//
 export type GetAIToolsQueryParams = {
-	page: number;
-	pageSize: number;
-	sorting: ColumnSort[];
+	page?: number;
+	pageSize?: number;
+	sorting?: ColumnSort[];
 };
 
 // TODO: move this type right in the same file of the corresponding cloud function
@@ -44,13 +44,40 @@ export const getAIToolsAction: QueryFunction<
 	}
 };
 
+export type GetInfiniteAIToolsQueryParams = {
+	pageSize?: number;
+};
+
+export const getInfiniteAIToolsAction: QueryFunction<
+	GetAIToolsFunctionResult,
+	readonly [typeof functionName.getAITools, 'Infinite', GetInfiniteAIToolsQueryParams],
+	{ page?: number }
+> = async (context) => {
+	try {
+		const {
+			pageParam,
+			queryKey: { 2: params },
+		} = context;
+
+		const result: GetAIToolsFunctionResult = await Parse.Cloud.run(functionName.getAITools, {
+			page: pageParam.page,
+			...params,
+		});
+
+		return result;
+	} catch (error) {
+		console.log('----- getInfiniteAIToolsAction error ----------', error);
+		return Promise.reject(error);
+	}
+};
+
 // --------------------------------------------------------------------------------------//
 //                                                                                      //
 //                                      MUTATIONS                                       //
 //                                                                                      //
 // --------------------------------------------------------------------------------------//
 
-export const createAIToolAction: MutationFunction = ({}) => {
+export const createAIToolAction: MutationFunction = () => {
 	try {
 		const result = Parse.Cloud.run(functionName.createAITool);
 
