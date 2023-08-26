@@ -11,7 +11,9 @@
 		"dev:esbuild": "npx concurrently \"node esbuild/watch.js\" \"node esbuild/watch.cloud.js\" \"npx nodemon\"",
 		"lint": "eslint . --ext ts,js",
 		"lint:fix": "pnpm run lint --fix",
-		"seed": "node esbuild/build.seed.js && node --enable-source-maps -r ./esbuild/defineParse.js dist/seeding/seed.js"
+		"seed": "pnpm run seed:pack",
+		"seed:pack": "node --enable-source-maps -r ./esbuild/defineParse.js dist/seeding/seed.js",
+		"seed:esbuild": "node esbuild/build.seed.js && node --enable-source-maps -r ./esbuild/defineParse.js dist/seeding/seed.js"
 	},
 	"dependencies": {
 		"@aktiveo/shared": "workspace:*",

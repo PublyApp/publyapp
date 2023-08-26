@@ -4,8 +4,8 @@ import { RolesEnum } from '@aktiveo/shared/utils/constants';
 
 import { findRoleByCode } from '../utils/role.utils';
 
-import { userFactory } from './factories/user.factory';
 import { aiToolFactory } from './factories/aiTool.factory';
+import { userFactory } from './factories/user.factory';
 
 export type RunConfig = {
 	usersNum: number;
