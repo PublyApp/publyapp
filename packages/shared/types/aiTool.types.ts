@@ -25,4 +25,5 @@ export type AITool = {
 	tags: string[];
 	pricingType: PricingType;
 	pricingModel: PricingModel;
+	image: string;
 } & BaseAttributes;

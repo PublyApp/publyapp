@@ -1,10 +1,11 @@
 import path from 'path';
 
 import Parse from 'parse/node';
+
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 
-import { RunConfig, run } from './main.seeder';
+import { run, RunConfig } from './main.seeder';
 
 const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env.local') }); // ! warning only for local
 dotenvExpand.expand(envConfig);
