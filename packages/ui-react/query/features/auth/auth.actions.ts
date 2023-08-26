@@ -1,3 +1,5 @@
+import Parse from 'parse';
+
 // import { QueryFunctionContext } from '@tanstack/react-query';
 import Cookies from 'universal-cookie';
 
