@@ -36,13 +36,21 @@ function findExternals() {
 
 		const packageFile = JSON.parse(fs.readFileSync(filePath, { encoding: 'utf-8' }));
 
-		if (!packageFile.dependencies) return;
+		if (packageFile.dependencies) {
+			// eslint-disable-next-line no-restricted-syntax
+			Object.entries(packageFile.dependencies).forEach(([key, value]) => {
+				if (value === 'workspace:*') return;
+				externalsSet.add(key);
+			});
+		}
 
-		// eslint-disable-next-line no-restricted-syntax
-		Object.entries(packageFile.dependencies).forEach(([key, value]) => {
-			if (value === 'workspace:*') return;
-			externalsSet.add(key);
-		});
+		if (packageFile.devDependencies) {
+			// eslint-disable-next-line no-restricted-syntax
+			Object.entries(packageFile.devDependencies).forEach(([key, value]) => {
+				if (value === 'workspace:*') return;
+				externalsSet.add(key);
+			});
+		}
 	});
 
 	return [...externalsSet];
@@ -52,6 +60,7 @@ module.exports = {
 	entry: {
 		index: path.resolve(__dirname, 'src/index.ts'),
 		'cloud/index': path.resolve(__dirname, 'src/cloud/index.ts'),
+		'seeding/seed': path.resolve(__dirname, 'src/seeding/seed.ts'),
 	},
 	output: {
 		path: path.resolve(__dirname, 'dist'),
@@ -60,5 +69,5 @@ module.exports = {
 	target: 'node',
 	mode: 'development',
 	externalsType: 'commonjs',
-	externals: findExternals(),
+	externals: [...findExternals(), 'utf-8-validate', 'bufferutil'],
 };

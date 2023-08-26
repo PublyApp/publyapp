@@ -3,6 +3,7 @@ import { faker } from '@faker-js/faker';
 import { RolesEnum } from '@aktiveo/shared/utils/constants';
 
 import { findRoleByCode } from '../utils/role.utils';
+
 import { aiToolFactory } from './factories/aiTool.factory';
 import { userFactory } from './factories/user.factory';
 
