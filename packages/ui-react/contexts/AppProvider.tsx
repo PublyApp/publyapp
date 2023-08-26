@@ -1,12 +1,13 @@
-import { PropsWithChildren, createContext, useEffect, useMemo, Dispatch } from 'react';
+import Parse from 'parse';
+import { createContext, Dispatch, PropsWithChildren, useEffect, useMemo } from 'react';
 
 import { ImmerReducer } from 'use-immer';
 
 import { AppLocale, defaultLocale } from '@aktiveo/shared/i18n/resources';
 import { I18N_LOCALE_KEY } from '@aktiveo/shared/utils/constants';
 
-import i18n, { getCurrentLocale } from '../utils/i18n';
 import { usePersistImmerReducer } from '../hooks/usePersistImmerReducer';
+import i18n, { getCurrentLocale } from '../utils/i18n';
 
 type Toast = {
 	type: 'info' | 'success' | 'warning' | 'error';
