@@ -8,9 +8,12 @@
 	"include": [
 		// whatever paths you intend to lint
 		"packages/eslint-config-custom-base",
+		"packages/eslint-config-custom-common-react",
 		"packages/eslint-config-custom-nextjs",
 		"packages/eslint-config-custom-react-vite",
 		"packages/eslint-config-custom-server",
+
+		"packages/ui-react/.eslintrc.js",
 
 		"apps/bo/.eslintrc.cjs",
 		"apps/docs/.eslintrc.js",

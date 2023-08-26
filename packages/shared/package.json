@@ -3,7 +3,9 @@
 	"version": "0.0.0",
 	"devDependencies": {
 		"@types/parse": "^3.0.4",
-		"tsconfig": "workspace:*"
+		"tsconfig": "workspace:*",
+		"eslint-config-custom-common-react": "workspace:*",
+		"eslint-config-custom-base": "workspace:*"
 	},
 	"dependencies": {
 		"parse": "^4.1.0",
