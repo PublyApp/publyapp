@@ -1,4 +1,4 @@
-import { PaletteOptions, ThemeOptions, createTheme, lighten, alpha } from '@mui/material';
+import { alpha, createTheme, lighten, PaletteOptions, ThemeOptions } from '@mui/material';
 import { TypographyOptions } from '@mui/material/styles/createTypography';
 
 import { getResponsiveFontSizes, pxToRem } from './styles';

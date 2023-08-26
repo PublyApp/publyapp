@@ -1,8 +1,9 @@
 import path from 'path';
 
+import Parse from 'parse/node';
+
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
-import Parse from 'parse/node';
 
 import { run, RunConfig } from './main.seeder';
 
