@@ -23,9 +23,9 @@
 		"",
 		"^@aktiveo/(.*)$",
 		"",
-		"^[./]",
+		"^../",
 		"",
-		"^[../]"
+		"^./"
 	],
 	"importOrderSeparation": true,
 	"importOrderParserPlugins": ["typescript", "jsx", "decorators-legacy"],

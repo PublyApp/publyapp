@@ -22,7 +22,7 @@ const runConfig: RunConfig = {
 	usersNum: 0,
 	// postsNum: 17,
 	// reactionsNum: 100,
-	aiToolsNum: 100,
+	aiToolsNum: 0,
 };
 
 run(runConfig).catch(async (reason: any) => {
