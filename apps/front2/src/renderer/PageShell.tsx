@@ -1,11 +1,12 @@
 import React from 'react';
 
 import VPSFrontProvider from '../providers/VPSFrontProvider';
-import type { PageContext } from './types';
 // import logo from './logo.svg';
+import type { PageContext } from './types';
 import { PageContextProvider } from './usePageContext';
 
-// import './PageShell.css';
+import './PageShell.css';
+
 // import { Link } from './Link';
 
 const PageShell = ({ children, pageContext }: { children: React.ReactNode; pageContext: PageContext }) => {

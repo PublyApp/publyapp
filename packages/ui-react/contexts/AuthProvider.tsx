@@ -1,12 +1,12 @@
-'use client';
+// 'use client'; // * For nextjs
+import Parse from 'parse';
+import { createContext, PropsWithChildren, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { PropsWithChildren, createContext, useCallback, useMemo, useState, useEffect } from 'react';
-
-import { useLocalStorage, useCookie } from 'react-use';
+import { useCookie, useLocalStorage } from 'react-use';
 import Cookies from 'universal-cookie';
 
-import { IUser } from '@aktiveo/shared/types/user.types';
 import { IRole } from '@aktiveo/shared/types/role.types';
+import { IUser } from '@aktiveo/shared/types/user.types';
 
 import { ROLES_LOCAL_STORAGE_KEY, SESSION_TOKEN_COOKIE_KEY } from '../utils/constants';
 
