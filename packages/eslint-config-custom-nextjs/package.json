@@ -12,7 +12,8 @@
 		"eslint-config-airbnb-typescript": "^17.0.0",
 		"eslint-config-custom-base": "workspace:*",
 		"eslint-config-next": "^13.4.7",
-		"eslint-plugin-react": "7.28.0"
+		"eslint-plugin-react": "7.28.0",
+		"eslint-config-custom-common-react": "workspace:*"
 	},
 	"dependencies": {
 		"next": "^13.4.7"
