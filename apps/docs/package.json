@@ -4,7 +4,7 @@
 	"private": true,
 	"scripts": {
 		"build": "tsc && next build",
-		"dev": "next dev --port 6184",
+		"dev": "next dev --port 6185",
 		"lint": "next lint",
 		"lint:fix": "pnpm run lint --fix",
 		"start": "next start"

@@ -2,14 +2,15 @@ import path from 'path';
 
 import ParseServer from 'parse-server';
 
-import cors from 'cors';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
+import { cors } from './middlewares/cors';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
+import { whiteList } from './utils/constants';
 import { createRolesIfNotExist } from './utils/role.utils';
 
 const bootstrap = async () => {
@@ -50,12 +51,12 @@ const bootstrap = async () => {
 	const APP_ID = 'aktiveo';
 
 	// --------------------------------------------------------------------------------------//
-	//                            setup express ans parse server                            //
+	//                            setup express and parse server                            //
 	// --------------------------------------------------------------------------------------//
 	const app = express();
 
 	// setup middlewares
-	app.use(cors({ origin: '*' }));
+	app.use(cors({ whiteList: global.LOCAL ? whiteList.LOCAL : whiteList.ONLINE }));
 	app.use(express.urlencoded({ extended: false }));
 	app.use(express.json());
 
@@ -73,7 +74,7 @@ const bootstrap = async () => {
 			strict: true,
 			definitions: [RoleSchema, PostSchema],
 		},
-		masterKeyIps: ['0.0.0.0/0', '::1'],
+		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
 	});
 
