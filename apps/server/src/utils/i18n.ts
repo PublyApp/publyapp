@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 
-import { resources, defaultNS, NS, defaultLocale } from '@aktiveo/shared/i18n/resources';
+import { defaultLocale, defaultNS, NS, resources } from '@aktiveo/shared/i18n/resources';
 
 i18next.init({
 	debug: false,
