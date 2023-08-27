@@ -1,6 +1,6 @@
 import path from 'path';
 
-import ParseServer from 'parse-server';
+import ParseServer, { logger } from 'parse-server';
 
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
@@ -11,6 +11,7 @@ import { cors } from './middlewares/cors';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
 import { whiteList } from './utils/constants';
+import { consoleTransport } from './utils/logger';
 import { createRolesIfNotExist } from './utils/role.utils';
 
 const bootstrap = async () => {
@@ -69,6 +70,7 @@ const bootstrap = async () => {
 		serverURL: `${SERVER_URL}/parse`,
 		publicServerURL: `${SERVER_URL}/parse`,
 		// =============================================
+		logLevel: 'silly',
 		allowClientClassCreation: false,
 		schema: {
 			strict: true,
@@ -77,6 +79,9 @@ const bootstrap = async () => {
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
 	});
+
+	// setup a better console transport for our logger
+	logger.adapter.addTransport(consoleTransport);
 
 	await parseServer.start();
 
@@ -110,9 +115,12 @@ const bootstrap = async () => {
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
 	app.listen(PORT, () => {
-		console.log('====================================');
-		console.log(`   server running on port ${PORT}   `);
-		console.log('====================================');
+		// logger.info('====================================');
+		// logger.info(`   server running on port ${PORT}   `);
+		// logger.info('====================================');
+		logger.info('====================================');
+		logger.info(`   server running on port ${PORT}   `);
+		logger.info('====================================');
 	});
 
 	// --------------------------------------------------------------------------------------//

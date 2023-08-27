@@ -4,6 +4,7 @@ declare module 'parse-server/lib/Config';
 
 declare module 'parse-server' {
 	import type { Application } from 'express';
+	// eslint-disable-next-line import/no-unresolved
 
 	export type ParseServerOptions = {
 		appId: string;
@@ -20,6 +21,7 @@ declare module 'parse-server' {
 		};
 		masterKeyIps?: string[];
 		allowExpiredAuthDataToken?: boolean;
+		logLevel?: string;
 	} & Record<string, any>;
 
 	export default class ParseServer {
@@ -111,5 +113,69 @@ declare module 'parse-server' {
 		}
 
 		function makeSchema(className: ClassNameType, schema: Omit<JSONSchema, 'className'>): JSONSchema;
+	}
+
+	// logger instance
+	// eslint-disable-next-line import/no-unresolved
+	export { logger } from 'parse-server/lib/logger';
+}
+
+declare module 'parse-server/lib/logger' {
+	// eslint-disable-next-line import/no-unresolved
+	import { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
+
+	export const logger: LoggerController;
+
+	export function setLogger(replacementLogger: LoggerController): void;
+}
+
+declare module 'parse-server/lib/defaults' {
+	const defaults: {
+		logsFolder: string;
+		jsonLogs: string;
+		verbose: boolean;
+		silent: boolean;
+	};
+	export default defaults;
+}
+
+declare module 'parse-server/lib/Controllers/LoggerController' {
+	// eslint-disable-next-line import/no-unresolved
+	import { WinstonLoggerAdapter } from 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter';
+
+	export type LogLevel = 'info' | 'error' | 'warn' | 'verbose' | 'debug' | 'silly';
+
+	type LogRequestParams = { method: string; url: string; headers: any; body: any };
+	type LogResponseParams = { method: string; url: string; result: any };
+
+	// I Only typed important methods
+	export class LoggerController /*  extends AdaptableController */ {
+		adapter: WinstonLoggerAdapter;
+
+		log(level: LogLevel, ...args: any[]);
+
+		info(...args: any[]): void;
+
+		error(...args: any[]): void;
+
+		warn(...args: any[]);
+
+		verbose(...args: any[]);
+
+		debug(...args: any[]);
+
+		silly(...args: any[]);
+
+		logRequest(request: LogRequestParams): void;
+
+		logResponse(response: LogResponseParams): void;
+
+		truncateLogMessage(string: string): string;
+	}
+}
+
+declare module 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter' {
+	class WinstonLoggerAdapter {
+		addTransport(transport: any); // TODO: idk
 	}
 }
