@@ -30,6 +30,8 @@
 		"parse-dashboard": "^5.1.0",
 		"parse-server": "^6.1.0",
 		"typescript": "^5.0.4",
+		"winston": "^3.10.0",
+		"winston-console-format": "^1.0.8",
 		"zod": "^3.21.4"
 	},
 	"devDependencies": {
