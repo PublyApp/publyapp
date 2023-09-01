@@ -2,10 +2,14 @@
 	"name": "bo",
 	"version": "0.0.0",
 	"private": true,
-	"type": "module",
+	"type": "commonjs",
 	"scripts": {
-		"build": "tsc && vite build",
-		"dev": "vite dev --port 6182",
+		"build": "pnpm run build:pack",
+		"dev": "pnpm run dev:pack",
+		"build:vite": "tsc && vite build",
+		"dev:vite": "vite dev --port 6182",
+		"dev:pack": "rspack serve",
+		"build:pack": "tsc && rspack build",
 		"preview": "vite preview",
 		"lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
 		"lint:fix": "pnpm run lint --fix"
@@ -33,6 +37,7 @@
 		"zod": "^3.21.4"
 	},
 	"devDependencies": {
+		"@rspack/cli": "^0.3.0",
 		"@types/lodash": "^4.14.197",
 		"@types/parse": "^3.0.4",
 		"@types/react": "^18.0.28",
