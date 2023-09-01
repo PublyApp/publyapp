@@ -29,6 +29,7 @@
 		"apps/kit/playwright.config.ts",
 		"apps/server/esbuild",
 		"apps/server/rspack.config.js",
+		"apps/bo/rspack.config.js",
 
 		"./.eslintrc.js",
 		"./knip.config.js",
