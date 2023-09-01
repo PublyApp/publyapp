@@ -38,8 +38,8 @@
     "vite-plugin-ssr": "^0.4.136",
 		"@emotion/react": "^11.11.1",
 "@emotion/styled": "^11.11.0",
-"@mui/icons-material": "^5.14.3",
-"@mui/material": "^5.14.4"
+"@mui/icons-material": "^5.14.7",
+"@mui/material": "^5.14.7"
   },
   "type": "module",
   "devDependencies": {
