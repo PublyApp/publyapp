@@ -19,6 +19,7 @@
 		"Roboto",
 		"sublabel",
 		"svgr",
+		"svkit",
 		"tanstack"
 	],
 	"editor.defaultFormatter": "esbenp.prettier-vscode",

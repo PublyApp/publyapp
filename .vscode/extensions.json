@@ -1,3 +1,18 @@
 {
-	"recommendations": ["esbenp.prettier-vscode", "EditorConfig.EditorConfig", "aaron-bond.better-comments"]
+	"recommendations": [
+		"esbenp.prettier-vscode",
+		"EditorConfig.EditorConfig",
+		"aaron-bond.better-comments",
+		"styled-components.vscode-styled-components",
+    "cpylua.language-postcss",
+    "dbaeumer.vscode-eslint",
+    "drKnoxy.eslint-disable-snippets",
+    "mkaufman.htmlhint",
+    "streetsidesoftware.code-spell-checker",
+    "codezombiech.gitignore",
+    "jasonnutter.search-node-modules",
+    "jock.svg",
+    "mikestead.dotenv",
+    "vscode-icons-team.vscode-icons"
+]
 }
