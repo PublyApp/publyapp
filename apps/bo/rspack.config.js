@@ -1,3 +1,10 @@
+const { EnvironmentPlugin } = require('@rspack/core');
+const dotenv = require('dotenv');
+const dotenvExpand = require('dotenv-expand');
+
+const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
+dotenvExpand.expand(envConfig);
+
 /** @type {import('@rspack/cli').Configuration} */
 const config = {
 	entry: {

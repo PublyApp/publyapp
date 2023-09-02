@@ -1,0 +1,32 @@
+// 'use client';
+
+import { ReactNode } from 'react';
+
+import LayoutFront from '../components/layout/LayoutFront';
+// import { AuthProvider } from '@aktiveo/ui-react/contexts/AuthProvider';
+
+import QueryNextProvider from '../providers/QueryNextProvider';
+import ThemeProviderNext from '../providers/ThemeProviderNext';
+
+// import { initParseFront } from '../utils/initParseFront';
+
+type Props = { children: ReactNode };
+
+// --------------------------------------------------------------------------------------//
+//                                   initialize parse                                    //
+// --------------------------------------------------------------------------------------//
+// initParseFront();
+
+const AppFront = ({ children }: Props) => {
+	return (
+		// <AuthProvider>
+		<QueryNextProvider>
+			<ThemeProviderNext>
+				<LayoutFront>{children}</LayoutFront>
+			</ThemeProviderNext>
+		</QueryNextProvider>
+		// </AuthProvider>
+	);
+};
+
+export default AppFront;
