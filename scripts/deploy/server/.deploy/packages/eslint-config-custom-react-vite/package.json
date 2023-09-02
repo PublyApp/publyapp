@@ -1,5 +1,5 @@
 {
-	"name": "eslint-config-custom-react-vite",
+	"name": "eslint-config-custom-react",
 	"version": "0.0.0",
 	"main": "index.js",
 	"license": "MIT",
