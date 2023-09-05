@@ -8,6 +8,7 @@ import App from './App';
 import './main.css';
 
 console.log('====================================');
+// eslint-disable-next-line turbo/no-undeclared-env-vars
 console.log(process.env.ACME);
 console.log('====================================');
 
