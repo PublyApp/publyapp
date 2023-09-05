@@ -25,6 +25,16 @@ const config = {
 	entry: {
 		main: './src/main.tsx', // Configure the project entry file
 	},
+	...(!isLocal
+		? {
+				optimization: {
+					splitChunks: {
+						chunks: 'all',
+						maxSize: 60,
+					},
+				},
+		  }
+		: {}),
 	builtins: {
 		html: [
 			{
