@@ -22,7 +22,9 @@ const HeaderOne = () => {
 	const router = useRouter();
 	// const router = useNavigation();
 
-	const { mutate: logOut, isPending } = useLogOutMutation();
+	const {
+		result: { mutate: logOut, isPending },
+	} = useLogOutMutation();
 
 	useEffect(() => {
 		setAppBarHeight(appBarRef.current?.getBoundingClientRect().height);
