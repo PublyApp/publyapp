@@ -26,9 +26,9 @@ import {
 	Typography,
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import { Link, Outlet } from 'react-router-dom';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
 
-import { FRONT_PATH_NAMES } from '@aktiveo/shared/utils/constants';
+import { BO_PATH_NAMES, FRONT_PATH_NAMES } from '@aktiveo/shared/utils/constants';
 import { useApp } from '@aktiveo/ui-react/hooks/useApp';
 import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 
@@ -81,10 +81,15 @@ type Props = {
 const DefaultLayoutBO = ({ children }: Props) => {
 	const { state } = useApp();
 	const { t } = useTranslation();
+	const navigate = useNavigate();
 
 	const {
 		result: { mutate: logOut, isPending },
-	} = useLogOutMutation();
+	} = useLogOutMutation({
+		onSuccess: () => {
+			navigate(BO_PATH_NAMES.logIn);
+		},
+	});
 
 	const handleLogOut = () => {
 		logOut();

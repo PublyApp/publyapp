@@ -6,7 +6,6 @@ import NextLink from 'next/link';
 // import { useRouter } from 'next/router';
 import { useRouter } from 'next/navigation';
 
-// import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
 // import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 import { pxToRem } from '@aktiveo/ui-react/utils/styles';
 
@@ -16,7 +15,6 @@ const HeaderOne = () => {
 	const appBarRef = useRef<HTMLDivElement>(null);
 	const [appBarHeight, setAppBarHeight] = useState<number>(0);
 	const theme = useTheme();
-	// const { isAuthed } = useAuth();
 	const router = useRouter();
 	// const router = useNavigation();
 
