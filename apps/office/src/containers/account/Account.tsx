@@ -2,10 +2,12 @@ import { FormEventHandler, useState } from 'react';
 
 import { Box, Button, TextField, Typography } from '@mui/material';
 
-import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
+import { useGetClientAuth } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 
 const Account = () => {
-	const { user } = useAuth();
+	const {
+		result: { data, isLoading },
+	} = useGetClientAuth();
 
 	const [name, setName] = useState<string>('');
 	const [email, setEmail] = useState<string>('');
@@ -20,8 +22,14 @@ const Account = () => {
 		<Box>
 			<Box mb="2.5rem">
 				<Typography variant="h1">Hello User!!</Typography>
-				<Typography>username: {user?.username}</Typography>
-				<Typography>email: {user?.email}</Typography>
+				{isLoading ? (
+					'Loading...'
+				) : (
+					<>
+						<Typography>username: {data?.user?.username}</Typography>
+						<Typography>email: {data?.user?.email}</Typography>
+					</>
+				)}
 			</Box>
 			<Typography variant="h5">Update your informations</Typography>
 			<Box component="form" onSubmit={handleSubmit}>

@@ -1,12 +1,22 @@
 import { ReactNode } from 'react';
 
-import { Outlet, Link } from 'react-router-dom';
+import {
+	Article as ArticleIcon,
+	Home as HomeIcon,
+	Logout as LogoutIcon,
+	NavigateNext as NavigateNextIcon,
+	Person as PersonIcon,
+	Settings as SettingsIcon,
+} from '@mui/icons-material';
 import {
 	AppBar,
 	Box,
+	Breadcrumbs,
 	Button,
+	CircularProgress,
 	Divider,
 	Drawer,
+	Grid,
 	List,
 	ListItem,
 	ListItemButton,
@@ -14,23 +24,13 @@ import {
 	ListItemText,
 	Toolbar,
 	Typography,
-	Grid,
-	Breadcrumbs,
-	CircularProgress,
 } from '@mui/material';
-import {
-	Home as HomeIcon,
-	Person as PersonIcon,
-	Article as ArticleIcon,
-	Logout as LogoutIcon,
-	NavigateNext as NavigateNextIcon,
-	Settings as SettingsIcon,
-} from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
+import { Link, Outlet, useNavigate } from 'react-router-dom';
 
-import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
+import { BO_PATH_NAMES, FRONT_PATH_NAMES } from '@aktiveo/shared/utils/constants';
 import { useApp } from '@aktiveo/ui-react/hooks/useApp';
-import { FRONT_PATH_NAMES } from '@aktiveo/shared/utils/constants';
+import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 
 // import Link from './Link';
 
@@ -81,10 +81,15 @@ type Props = {
 const DefaultLayoutBO = ({ children }: Props) => {
 	const { state } = useApp();
 	const { t } = useTranslation();
+	const navigate = useNavigate();
 
 	const {
 		result: { mutate: logOut, isPending },
-	} = useLogOutMutation();
+	} = useLogOutMutation({
+		onSuccess: () => {
+			navigate(BO_PATH_NAMES.logIn);
+		},
+	});
 
 	const handleLogOut = () => {
 		logOut();

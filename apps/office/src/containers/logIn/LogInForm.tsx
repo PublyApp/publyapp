@@ -1,12 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Button, CircularProgress, TextField } from '@mui/material';
+import { useQueryClient } from '@tanstack/react-query';
 import { SubmitHandler, useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 
+import { BO_PATH_NAMES } from '@aktiveo/shared/utils/constants';
 import { LogInInput, logInSchema } from '@aktiveo/shared/validations/auth.validations';
-import { useLogInMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
+import { useGetClientAuth, useLogInMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 
 const LogInForm = () => {
 	const form = useForm<LogInInput>({ resolver: zodResolver(logInSchema) });
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 
 	const {
 		handleSubmit,
@@ -14,7 +19,16 @@ const LogInForm = () => {
 		formState: { errors /* , isDirty, isValid */ },
 	} = form;
 
-	const { mutate: logIn, isPending } = useLogInMutation();
+	const { key } = useGetClientAuth({ enabled: false });
+
+	const {
+		result: { mutate: logIn, isPending },
+	} = useLogInMutation({
+		onSuccess: () => {
+			queryClient.removeQueries({ queryKey: key });
+			navigate(BO_PATH_NAMES.home);
+		},
+	});
 
 	const onSubmitHandler: SubmitHandler<LogInInput> = async (values) => {
 		logIn(values);

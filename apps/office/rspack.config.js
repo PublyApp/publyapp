@@ -52,6 +52,7 @@ const config = {
 	plugins: [new EnvironmentPlugin(env)],
 	devServer: {
 		port: 6182,
+		historyApiFallback: true,
 	},
 };
 
