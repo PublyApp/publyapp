@@ -1,10 +1,10 @@
 {
-	"name": "next",
+	"name": "front",
 	"version": "1.0.0",
 	"private": true,
 	"scripts": {
 		"build": "tsc && next build",
-		"dev": "next dev --port 6181",
+		"dev": "next dev --port 6181 --turbo",
 		"lint": "next lint",
 		"lint:fix": "pnpm run lint --fix",
 		"start": "next start"
