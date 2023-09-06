@@ -1,30 +1,28 @@
-'use client';
-
 import { useEffect, useRef, useState } from 'react';
 
-import { Logout as LogoutIcon } from '@mui/icons-material';
-import { AppBar, Box, Button, CircularProgress, Container, Link, Toolbar, useTheme } from '@mui/material';
+// import { Logout as LogoutIcon } from '@mui/icons-material';
+import { AppBar /* CircularProgress, */, Box, Button, Container, Link, Toolbar, useTheme } from '@mui/material';
 import NextLink from 'next/link';
 // import { useRouter } from 'next/router';
 import { useRouter } from 'next/navigation';
 
-import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
-import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
+// import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
+// import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 import { pxToRem } from '@aktiveo/ui-react/utils/styles';
 
-import { headerMenu } from '../../data/headerMenu';
+import { headerMenu } from '../data/headerMenu';
 
 const HeaderOne = () => {
 	const appBarRef = useRef<HTMLDivElement>(null);
 	const [appBarHeight, setAppBarHeight] = useState<number>(0);
 	const theme = useTheme();
-	const { isAuthed } = useAuth();
+	// const { isAuthed } = useAuth();
 	const router = useRouter();
 	// const router = useNavigation();
 
-	const {
-		result: { mutate: logOut, isPending },
-	} = useLogOutMutation();
+	// const {
+	// 	result: { mutate: logOut, isPending },
+	// } = useLogOutMutation();
 
 	useEffect(() => {
 		setAppBarHeight(appBarRef.current?.getBoundingClientRect().height);
@@ -79,7 +77,16 @@ const HeaderOne = () => {
 							</Box>
 
 							<Box /* marginLeft="auto" */ height={pxToRem(70)} paddingX={pxToRem(12)} paddingY={pxToRem(8)}>
-								{!isAuthed ? (
+								<Button
+									variant="contained"
+									onClick={() => {
+										router.push('/login');
+									}}
+									sx={{ height: pxToRem(48) }}
+								>
+									Log in
+								</Button>
+								{/* {!isAuthed ? (
 									<Button
 										variant="contained"
 										onClick={() => {
@@ -100,13 +107,13 @@ const HeaderOne = () => {
 									>
 										Log out
 									</Button>
-								)}
+								)} */}
 							</Box>
 						</Box>
 					</Box>
 				</Container>
 			</AppBar>
-			<Toolbar variant="dense" sx={{ minHeight: `${appBarHeight}px` }} />
+			<Toolbar variant="dense" sx={{ minHeight: pxToRem(appBarHeight) }} />
 		</>
 	);
 };

@@ -1,8 +1,6 @@
-'use client';
-
 import { ReactNode } from 'react';
 
-import HeaderOne from '../header/HeaderOne';
+import HeaderOne from '../HeaderOne';
 
 type Props = {
 	children: ReactNode;

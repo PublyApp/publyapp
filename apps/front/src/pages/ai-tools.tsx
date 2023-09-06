@@ -1,13 +1,11 @@
-import Typography from '@mui/material/Typography';
-
 import DefaultLayoutFront from '../components/layout/DefaultLayoutFront';
 
-const Home = () => {
+const AITools = () => {
 	return (
 		<DefaultLayoutFront>
-			<Typography>Welcome home!!</Typography>
+			<div>AITools</div>
 		</DefaultLayoutFront>
 	);
 };
 
-export default Home;
+export default AITools;
