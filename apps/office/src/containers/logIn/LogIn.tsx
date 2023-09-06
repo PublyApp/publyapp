@@ -1,18 +1,28 @@
-import { Box, Typography, useTheme } from '@mui/material';
-// import { useQuery } from '@tanstack/react-query';
-import { Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
-import { useAuth } from '@aktiveo/ui-react/hooks/useAuth';
+import { Box, Typography, useTheme } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+
+// import { useQuery } from '@tanstack/react-query';
+
+import { BO_PATH_NAMES } from '@aktiveo/shared/utils/constants';
+import { useGetClientAuth } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
 
 import LogInForm from './LogInForm';
 
 const LogIn = () => {
-	const { isAuthed } = useAuth();
 	const theme = useTheme();
+	const navigate = useNavigate();
 
-	if (isAuthed) {
-		return <Navigate to="/" />;
-	}
+	const {
+		result: { data /* , isLoading */ },
+	} = useGetClientAuth();
+
+	useEffect(() => {
+		if (data) {
+			navigate(BO_PATH_NAMES.home);
+		}
+	}, [data, navigate]);
 
 	return (
 		<Box

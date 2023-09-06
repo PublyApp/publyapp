@@ -26,6 +26,7 @@ export const parseFunction = (innerFunction: ParseInnerFunction) => {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} catch (error: any) {
 			if (global.LOCAL) {
+				// eslint-disable-next-line no-console
 				console.trace(error);
 			}
 

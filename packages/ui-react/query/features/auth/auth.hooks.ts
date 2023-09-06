@@ -1,32 +1,58 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type MutateOptions } from '@tanstack/react-query';
 
-import { useAuth } from '../../../hooks/useAuth';
-import { logInAction, logOutAction } from './auth.actions';
+import { IUser } from '@aktiveo/shared/types/user.types';
+import { LogInInput } from '@aktiveo/shared/validations/auth.validations';
 
-export const useLogInMutation = () => {
-	const { syncUserState } = useAuth();
+import { getClientAuthAction, logInAction, logOutAction } from './auth.actions';
 
-	const mutationResult = useMutation({
-		mutationKey: ['logIn'],
-		mutationFn: logInAction,
-		onSuccess: () => {
-			syncUserState();
-		},
-	});
-
-	return mutationResult;
+type UseLogInMutationProps = {
+	onSuccess?: MutateOptions<IUser, Error, LogInInput>['onSuccess'];
 };
 
-export const useLogOutMutation = () => {
-	const { syncUserState } = useAuth();
+export const useLogInMutation = ({ onSuccess }: UseLogInMutationProps = {}) => {
+	const key = ['logIn'] as const;
 
-	const key = ['logout'] as const;
+	const result = useMutation({
+		mutationKey: key,
+		mutationFn: logInAction,
+		onSuccess,
+	});
+
+	return { result, key };
+};
+
+type UseGetClientAuthProps = {
+	enabled?: boolean;
+};
+
+export const useGetClientAuth = ({ enabled }: UseGetClientAuthProps = {}) => {
+	const key = ['getClientAuth'] as const;
+
+	const result = useQuery({
+		queryKey: key,
+		queryFn: getClientAuthAction,
+		enabled,
+	});
+
+	return { result, key };
+};
+
+type UseLogOutMutationProps = {
+	onSuccess?: MutateOptions['onSuccess'];
+};
+
+export const useLogOutMutation = ({ onSuccess }: UseLogOutMutationProps = {}) => {
+	const queryClient = useQueryClient();
+	// const { key: getClientAuthKey } = useGetClientAuth({ enabled: false });
+	const key = ['logOut'] as const;
 
 	const result = useMutation({
 		mutationKey: key,
 		mutationFn: logOutAction,
-		onSuccess: () => {
-			syncUserState();
+		onSuccess: (...args) => {
+			onSuccess?.(...args);
+			// queryClient.invalidateQueries({ queryKey: getClientAuthKey });
+			queryClient.removeQueries(); // TODO: find out which method is better
 		},
 	});
 
