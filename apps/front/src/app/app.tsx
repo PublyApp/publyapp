@@ -2,9 +2,9 @@
 
 import { ReactNode } from 'react';
 
-import LayoutFront from '../components/layout/LayoutFront';
 // import { AuthProvider } from '@aktiveo/ui-react/contexts/AuthProvider';
 
+import LayoutFront from '../components/layout/LayoutFront';
 import QueryNextProvider from '../providers/QueryNextProvider';
 import ThemeProviderNext from '../providers/ThemeProviderNext';
 

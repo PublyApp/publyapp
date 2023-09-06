@@ -15,9 +15,8 @@
 
 		"packages/ui-react/.eslintrc.js",
 
-		"apps/bo/.eslintrc.js",
+		"apps/office/.eslintrc.js",
 		"apps/front/.eslintrc.js",
-		"apps/next/.eslintrc.js",
 		"apps/svkit/.eslintrc.cjs",
 		"apps/server/.eslintrc.js",
 
@@ -27,7 +26,7 @@
 		"apps/svkit/playwright.config.ts",
 		"apps/server/esbuild",
 		"apps/server/rspack.config.js",
-		"apps/bo/rspack.config.js",
+		"apps/office/rspack.config.js",
 
 		"./.eslintrc.js",
 		"./knip.config.js",
