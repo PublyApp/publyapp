@@ -7,15 +7,15 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"eslint": "^8.40.0",
+		"eslint": "^8.48.0",
 		"eslint-config-airbnb": "^19.0.4",
-		"eslint-config-airbnb-typescript": "^17.0.0",
+		"eslint-config-airbnb-typescript": "^17.1.0",
 		"eslint-config-custom-base": "workspace:*",
-		"eslint-config-next": "^13.4.7",
-		"eslint-plugin-react": "7.28.0",
-		"eslint-config-custom-common-react": "workspace:*"
+		"eslint-config-custom-common-react": "workspace:*",
+		"eslint-config-next": "^13.4.19",
+		"eslint-plugin-react": "7.28.0"
 	},
 	"dependencies": {
-		"next": "^13.4.7"
+		"next": "^13.4.19"
 	}
 }
