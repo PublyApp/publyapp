@@ -16,20 +16,20 @@
 	"devDependencies": {
 		"@fontsource/fira-mono": "^4.5.10",
 		"@neoconfetti/svelte": "^1.0.0",
-		"@playwright/test": "^1.28.1",
-		"@sveltejs/adapter-auto": "^2.0.0",
-		"@sveltejs/kit": "^1.5.0",
-		"@types/cookie": "^0.5.1",
-		"eslint": "^8.40.0",
+		"@playwright/test": "^1.37.1",
+		"@sveltejs/adapter-auto": "^2.1.0",
+		"@sveltejs/kit": "^1.24.1",
+		"@types/cookie": "^0.5.2",
+		"eslint": "^8.48.0",
 		"eslint-config-custom-base": "workspace:*",
-		"eslint-plugin-svelte": "^2.26.0",
-		"prettier-plugin-svelte": "^2.8.1",
-		"svelte": "^3.55.0",
-		"svelte-check": "^3.0.1",
-		"tslib": "^2.4.1",
-		"typescript": "^5.0.0",
-		"vite": "^4.3.8",
-		"vitest": "^0.31.1"
+		"eslint-plugin-svelte": "^2.33.0",
+		"prettier-plugin-svelte": "^2.10.1",
+		"svelte": "^3.59.2",
+		"svelte-check": "^3.5.1",
+		"tslib": "^2.6.2",
+		"typescript": "^5.2.2",
+		"vite": "^4.4.9",
+		"vitest": "^0.31.4"
 	},
 	"type": "module"
 }
