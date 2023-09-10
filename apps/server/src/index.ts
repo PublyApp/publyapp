@@ -10,6 +10,7 @@ import ParseDashboard from 'parse-dashboard';
 import { cors } from './middlewares/cors';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
+import WebHostingSchema from './schemas/webHosting.schema';
 import { whiteList } from './utils/constants';
 import { consoleTransport } from './utils/logger';
 import { createRolesIfNotExist } from './utils/role.utils';
@@ -74,7 +75,7 @@ const bootstrap = async () => {
 		allowClientClassCreation: false,
 		schema: {
 			strict: true,
-			definitions: [RoleSchema, PostSchema],
+			definitions: [RoleSchema, PostSchema, WebHostingSchema],
 		},
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
@@ -115,9 +116,6 @@ const bootstrap = async () => {
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
 	app.listen(PORT, () => {
-		// logger.info('====================================');
-		// logger.info(`   server running on port ${PORT}   `);
-		// logger.info('====================================');
 		logger.info('====================================');
 		logger.info(`   server running on port ${PORT}   `);
 		logger.info('====================================');
