@@ -1,10 +1,12 @@
 /* eslint-disable max-classes-per-file */
+
 // declare module 'parse-server';
 declare module 'parse-server/lib/Config';
 
 declare module 'parse-server' {
+	import { BaseAttributes } from 'parse';
+
 	import type { Application } from 'express';
-	// eslint-disable-next-line import/no-unresolved
 
 	export type ParseServerOptions = {
 		appId: string;
@@ -60,9 +62,12 @@ declare module 'parse-server' {
 			[key: string]: string[];
 		}
 
-		interface FieldsInterface {
-			[key: string]: FieldInterface;
-		}
+		type FieldsInterface<T extends Record<string, any> = Record<string, any>> = {
+			[P in keyof Omit<T, keyof BaseAttributes>]: FieldInterface;
+		};
+		// interface FieldsInterface<T extends Record<string, any> = Record<string, any>> {
+		// [key: string]: FieldInterface;
+		// }
 
 		export interface IndexInterface {
 			[key: string]: number;
@@ -76,13 +81,15 @@ declare module 'parse-server' {
 		type CLPPermission =
 			| 'requiresAuthentication'
 			| '*'
-			| /* @Typescript 4.1+ `user:${string}` | `role:${string}` */ string;
+			// @Typescript 4.1+
+			| `user:${string}`
+			| `role:${string}`;
 		type CLPInfo = { [key: string]: boolean };
 		type CLPData = { [key: string]: CLPOperation[] };
 		// type CLPValue = { [key: string]: boolean };
 		// type CLPInterface = { [key: string]: CLPValue };
 		// type CLPInterface = { [key: CLPPermission]: boolean };
-		type CLPInterface = Record<CLPPermission, boolean>;
+		type CLPInterface = Partial<Record<CLPPermission, boolean>>;
 
 		export interface CPLsInterface {
 			find?: CLPInterface;
@@ -95,10 +102,11 @@ declare module 'parse-server' {
 			protectedFields?: ProtectedFieldsInterface;
 		}
 
-		export interface JSONSchema {
-			fields: FieldsInterface;
+		export interface JSONSchema<T extends Record<string, any> = Record<string, any>> {
+			fields: FieldsInterface<T>;
 			indexes: IndexesInterface;
 			classLevelPermissions: CPLsInterface;
+			className: string;
 		}
 
 		export interface MigrationsOptions {
@@ -112,7 +120,10 @@ declare module 'parse-server' {
 			static allow(perms: CLPData): CLPInterface;
 		}
 
-		function makeSchema(className: ClassNameType, schema: Omit<JSONSchema, 'className'>): JSONSchema;
+		function makeSchema<T extends Record<string, any> = Record<string, any>>(
+			className: ClassNameType,
+			schema: Omit<JSONSchema<T>, 'className'>,
+		): JSONSchema;
 	}
 
 	// logger instance
