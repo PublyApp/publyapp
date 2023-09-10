@@ -3,7 +3,7 @@ import { SchemaMigrations } from 'parse-server';
 import { WebHosting } from '@aktiveo/shared/types/webHosting.types';
 import { className } from '@aktiveo/shared/utils/constants';
 
-const WebHostingSchema = SchemaMigrations.makeSchema<WebHosting>(className.POST, {
+const WebHostingSchema = SchemaMigrations.makeSchema<WebHosting>(className.WEB_HOSTING, {
 	fields: {
 		name: { type: 'String' }, // or name
 		slug: { type: 'String' },
