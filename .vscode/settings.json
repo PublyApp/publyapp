@@ -26,7 +26,7 @@
 	"editor.codeActionsOnSave": {
 		"source.fixAll": true
 	},
-	// "editor.formatOnSave": true,
+	"editor.formatOnSave": true,
 	"editor.tabSize": 2,
 	"editor.insertSpaces": false,
 	"editor.renderWhitespace": "all",
