@@ -10,14 +10,14 @@ const PostSchema = SchemaMigrations.makeSchema(className.POST, {
 		slug: { type: 'String' },
 	},
 	classLevelPermissions: {
-		create: {
-			requiresAuthentication: true,
-		},
 		find: {
 			'*': true,
 		},
 		get: {
 			'*': true,
+		},
+		create: {
+			requiresAuthentication: true,
 		},
 		update: {
 			requiresAuthentication: true,
