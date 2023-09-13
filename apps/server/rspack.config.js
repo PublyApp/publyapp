@@ -8,6 +8,8 @@ const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
 const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
 const PACKAGE_FILE = 'package.json';
 
+const toDeploy = ['preprod', 'production'].includes(process.env.APP_ENV);
+
 function listDirectories(pth) {
 	const directories = fs
 		.readdirSync(pth, { withFileTypes: true })
@@ -56,6 +58,7 @@ function findExternals() {
 	return [...externalsSet];
 }
 
+/** @type {import('@rspack/cli').Configuration} */
 module.exports = {
 	entry: {
 		index: path.resolve(__dirname, 'src/index.ts'),
@@ -67,7 +70,7 @@ module.exports = {
 		filename: '[name].js',
 	},
 	target: 'node',
-	mode: 'development',
+	mode: toDeploy ? 'production' : 'development',
 	externalsType: 'commonjs',
-	externals: [...findExternals(), 'utf-8-validate', 'bufferutil'],
+	externals: [...findExternals(), 'parse/node'],
 };
