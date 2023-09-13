@@ -2,7 +2,9 @@
 	"name": "server",
 	"version": "0.0.0",
 	"scripts": {
-		"build": "pnpm run build:pack",
+		"build": "pnpm run build:pack:prod",
+		"build:pack:prod": "cross-env APP_ENV=production pnpm run build:pack",
+		"build:pack:preprod": "cross-env APP_ENV=preprod pnpm run build:pack",
 		"build:pack": "rspack",
 		"build:esbuild": "tsc && concurrently \"node esbuild/build.js\" \"node esbuild/build.cloud.js\"",
 		"start": "node --enable-source-maps dist/index.js",
@@ -19,6 +21,7 @@
 		"@aktiveo/shared": "workspace:*",
 		"@faker-js/faker": "^8.0.2",
 		"cors": "^2.8.5",
+		"cross-env": "^7.0.3",
 		"dotenv": "^16.3.1",
 		"dotenv-expand": "^10.0.0",
 		"express": "^4.18.2",
