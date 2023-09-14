@@ -163,42 +163,42 @@ export const themeOptions: ThemeOptions = {
 	palette,
 	typography,
 	breakpoints: {
-		values: {
-			xs: 0,
-			sm: 600,
-			md: 900,
-			lg: 1200,
-			xl: 1536,
-		},
+		// These are already the defaults
+		// values: {
+		// 	xs: 0,
+		// 	sm: 600,
+		// 	md: 900,
+		// 	lg: 1200,
+		// 	xl: 1536,
+		// },
 	},
 	components: {
-		MuiButton: {
-			styleOverrides: {
-				root: ({ ownerState, theme }) => {
-					const getShadow = (color: string) => {
-						const lightenedColor = lighten(color, 0.2);
-						return `${alpha(lightenedColor, 0.42)} 0px 14px 26px -12px, rgba(0, 0, 0, 0.12) 0px 4px 23px 0px, ${alpha(
-							lightenedColor,
-							0.2,
-						)} 0px 8px 10px -5px`;
-					};
-
-					return {
-						borderRadius: pxToRem(10.4),
-						...(ownerState.variant === 'contained' && {
-							boxShadow: 'none',
-							'&:hover': {
-								boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
-							},
-						}),
-						...(ownerState.raised
-							? {
-									boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
-							  }
-							: {}),
-					};
-				},
-			},
-		},
+		// MuiButton: {
+		// 	styleOverrides: {
+		// 		root: ({ ownerState, theme }) => {
+		// 			const getShadow = (color: string) => {
+		// 				const lightenedColor = lighten(color, 0.2);
+		// 				return `${alpha(lightenedColor, 0.42)} 0px 14px 26px -12px, rgba(0, 0, 0, 0.12) 0px 4px 23px 0px, ${alpha(
+		// 					lightenedColor,
+		// 					0.2,
+		// 				)} 0px 8px 10px -5px`;
+		// 			};
+		// 			return {
+		// 				borderRadius: pxToRem(10.4),
+		// 				...(ownerState.variant === 'contained' && {
+		// 					boxShadow: 'none',
+		// 					'&:hover': {
+		// 						boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
+		// 					},
+		// 				}),
+		// 				...(ownerState.raised
+		// 					? {
+		// 							boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
+		// 					  }
+		// 					: {}),
+		// 			};
+		// 		},
+		// 	},
+		// },
 	},
 };
