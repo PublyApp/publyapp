@@ -1,7 +1,8 @@
 import { ReactNode } from 'react';
 
-import { Box } from '@mui/material';
+import { Box, Toolbar } from '@mui/material';
 
+import { HEADER } from '../../utils/constants';
 import Header from '../Header';
 
 type Props = { children: ReactNode };
@@ -17,6 +18,10 @@ const MainLayout = ({ children }: Props) => {
 				}}
 			>
 				{/* {!actionPage(spacingLayout) && <Spacing />} */}
+				<Toolbar
+					variant="dense"
+					sx={{ /* bgcolor: 'red', */ height: { xs: HEADER.H_MOBILE, md: HEADER.H_MAIN_DESKTOP } }}
+				/>
 				{/* <Outlet /> */}
 				{children}
 			</Box>

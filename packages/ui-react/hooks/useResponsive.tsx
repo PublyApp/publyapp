@@ -1,12 +1,10 @@
 import { Breakpoint, useMediaQuery, useTheme } from '@mui/material';
 
-type ReturnType = boolean;
-
 type Query = 'up' | 'down' | 'between' | 'only';
 
 type Value = Breakpoint | number;
 
-export default function useResponsive(query: Query, start?: Value, end?: Value): ReturnType {
+const useResponsive = (query: Query, start?: Value, end?: Value): boolean => {
 	const theme = useTheme();
 
 	switch (query) {
@@ -34,4 +32,6 @@ export default function useResponsive(query: Query, start?: Value, end?: Value):
 			// eslint-disable-next-line quotes
 			throw new Error("useResponsive 'query' argument is mandatory");
 	}
-}
+};
+
+export default useResponsive;
