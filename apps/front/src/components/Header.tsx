@@ -1,7 +1,21 @@
-import { AppBar, Box, Button, Container, Link, Stack, Toolbar } from '@mui/material';
+import { AppBar /*  Button, */, Box, Container, Link, Stack, Toolbar, useTheme } from '@mui/material';
+
+import useOffsetTop from '@aktiveo/ui-react/hooks/useOffsetTop';
+import useResponsive from '@aktiveo/ui-react/hooks/useResponsive';
+
+import { HEADER } from '../utils/constants';
+import { bgBlur } from '../utils/cssUtils';
+import { navConfig } from '../utils/temp';
+
+import Label from './Label';
+import Logo from './Logo';
+import NavDesktop from './nav/NavDesktop';
 
 const Header = () => {
 	const theme = useTheme();
+	const isOffset = useOffsetTop();
+	const isMdUp = useResponsive('up', 'md');
+
 	return (
 		<AppBar color="transparent" sx={{ boxShadow: 'none' }}>
 			<Toolbar
@@ -54,23 +68,23 @@ const Header = () => {
 
 					<Stack spacing={2} flexGrow={1} direction="row" alignItems="center" justifyContent="flex-end">
 						<Stack spacing={1} direction="row" alignItems="center">
-							<Searchbar />
+							{/* <Searchbar />
 
-							<SettingsDrawer />
+							<SettingsDrawer /> */}
 						</Stack>
 
-						{isMdUp && (
+						{/* {isMdUp && (
 							<Button variant="contained" color="inherit" href={paths.zoneStore} target="_blank" rel="noopener">
 								Buy Now
 							</Button>
-						)}
+						)} */}
 					</Stack>
 
-					{!isMdUp && <NavMobile data={navConfig} />}
+					{/* {!isMdUp && <NavMobile data={navConfig} />} */}
 				</Container>
 			</Toolbar>
 
-			{isOffset && <HeaderShadow />}
+			{/* {isOffset && <HeaderShadow />} */}
 		</AppBar>
 	);
 };
