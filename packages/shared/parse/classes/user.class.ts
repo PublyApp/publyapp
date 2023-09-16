@@ -1,7 +1,7 @@
 // import Parse from 'parse/node';
 
-import { UserAttributes } from '../../types/user.types';
-import { className } from '../../utils/constants';
+import { UserAttributes } from '@shared/types/user.types';
+import { className } from '@shared/utils/constants';
 
 // const Parse = typeof window !== 'undefined' ? window.Parse : require('parse/node');
 

@@ -2,7 +2,8 @@ import { ReactNode } from 'react';
 
 import { Box, Toolbar } from '@mui/material';
 
-import { HEADER } from '../../utils/constants';
+import { HEADER } from '@front/utils/constants';
+
 import Header from '../Header';
 
 type Props = { children: ReactNode };
