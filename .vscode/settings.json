@@ -7,7 +7,7 @@
 		"source.fixAll.csharp": "explicit",
 		"source.organizeImports.csharp": "explicit"
 	},
-	"editor.formatOnSave": true,
+	// "editor.formatOnSave": true, // not needed since prettier is integred as an eslint rule
 	"editor.tabSize": 2,
 	"editor.insertSpaces": false,
 	"editor.renderWhitespace": "all",
