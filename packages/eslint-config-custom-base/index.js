@@ -24,7 +24,9 @@ module.exports = {
 	},
 	settings: {
 		'import/resolver': {
-			typescript: {},
+			typescript: {
+				project: ['apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
+			},
 		},
 	},
 	rules: {
@@ -71,6 +73,11 @@ module.exports = {
 					},
 					{
 						pattern: '@aktiveo/**',
+						group: 'external',
+						position: 'after',
+					},
+					{
+						pattern: '@{shared,ui-react,front,server,office}/**',
 						group: 'external',
 						position: 'after',
 					},

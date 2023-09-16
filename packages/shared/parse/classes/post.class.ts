@@ -1,4 +1,4 @@
-import { className } from '../../utils/constants';
+import { className } from '@shared/utils/constants';
 
 export class Post extends Parse.Object {
 	constructor() {

@@ -2,6 +2,10 @@
 	"extends": "tsconfig/tsconfig.base.json",
 	"compilerOptions": {
 		"resolveJsonModule": true,
+		"baseUrl": ".",
+		"paths": {
+			"@shared/*": ["*"]
+		}
 	},
 	"include": ["."]
 }
