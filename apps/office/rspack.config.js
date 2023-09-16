@@ -6,6 +6,9 @@ const dotenv = require('dotenv');
 const dotenvExpand = require('dotenv-expand');
 const { EnvironmentPlugin } = require('@rspack/core');
 
+// const APPS_DIR = path.resolve(__dirname, '../../apps');
+const PACKAGES_DIR = path.resolve(__dirname, '../../packages');
+
 const isLocal = process.env.APP_ENV === 'local';
 const isProduction = process.env.APP_ENV === 'production';
 
@@ -53,6 +56,12 @@ const config = {
 	devServer: {
 		port: 6182,
 		historyApiFallback: true,
+	},
+	resolve: {
+		alias: {
+			'@shared': path.join(PACKAGES_DIR, 'shared'),
+			'@ui-react': path.join(PACKAGES_DIR, 'ui-react'),
+		},
 	},
 };
 

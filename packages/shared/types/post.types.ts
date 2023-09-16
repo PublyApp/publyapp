@@ -1,6 +1,6 @@
 import { BaseAttributes } from 'parse';
 
-import { AppLocale } from '../i18n/resources';
+import { AppLocale } from '@shared/i18n/resources';
 
 type PostTranslation = {
 	title: string;
