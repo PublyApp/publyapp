@@ -43,3 +43,5 @@ logs
 
 # custom builds
 dist
+
+_mock

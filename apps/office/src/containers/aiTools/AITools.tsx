@@ -23,7 +23,7 @@ import BestTable, { CustomTableCell } from '@aktiveo/ui-react/components/BestTab
 import TableHeaderCell from '@aktiveo/ui-react/components/TableHeaderCell';
 import { GetAIToolsFunctionResult } from '@aktiveo/ui-react/query/features/aiTools/aiTool.actions';
 import { useCreateAITool, useGetAITools } from '@aktiveo/ui-react/query/features/aiTools/aiTool.hooks';
-import { pxToRem } from '@aktiveo/ui-react/utils/styles';
+import { pxToRem } from '@aktiveo/ui-react/utils/cssUtils';
 
 // import { DEFAULT_PAGE_SIZE } from '@aktiveo/shared/utils/constants';
 // import ReactDOM from 'react-dom/client';

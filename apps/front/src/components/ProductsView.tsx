@@ -1,10 +1,69 @@
-import { Box, Button, Container, Divider, Stack, Typography } from '@mui/material';
+import { useState } from 'react';
+
+import {
+	Box,
+	Button,
+	Container,
+	Divider,
+	FormControl,
+	MenuItem,
+	Select,
+	SelectChangeEvent,
+	Stack,
+	ToggleButton,
+	ToggleButtonGroup,
+	Typography,
+} from '@mui/material';
+
+import { _products } from '@front/_mock';
+import { NAV } from '@front/utils/constants';
 
 import Iconify from './Iconify';
+import ProductList from './ProductList';
 
-type Props = {};
+// type Props = {};
 
-const ProductsList = (props: Props) => {
+// ----------------------------------------------------------------------
+
+const VIEW_OPTIONS = [
+	{ value: 'list', icon: <Iconify icon="carbon:list-boxes" /> },
+	{ value: 'grid', icon: <Iconify icon="carbon:grid" /> },
+] as const;
+
+type ViewOption = (typeof VIEW_OPTIONS)[number]['value'];
+
+const SORT_OPTIONS = [
+	{ value: 'latest', label: 'Latest' },
+	{ value: 'oldest', label: 'Oldest' },
+	{ value: 'popular', label: 'Popular' },
+] as const;
+
+type SortOption = (typeof SORT_OPTIONS)[number]['value'];
+
+// ----------------------------------------------------------------------
+
+const ProductsView = (/* props: Props */) => {
+	const [viewMode, setViewMode] = useState<ViewOption>('grid');
+	const [sort, setSort] = useState<SortOption>('latest');
+
+	const handleChangeViewMode = (_event: React.MouseEvent<HTMLElement>, newAlignment: string | null) => {
+		if (newAlignment !== null) {
+			setViewMode(newAlignment as ViewOption);
+		}
+	};
+
+	const handleChangeSort = (event: SelectChangeEvent) => {
+		setSort(event.target.value as SortOption);
+	};
+
+	const handleMobileOpen = () => {
+		// setMobileOpen(true);
+	};
+
+	// const handleMobileClose = () => {
+	// 	setMobileOpen(false);
+	// };
+
 	return (
 		<>
 			{/* <EcommerceHeader /> */}
@@ -90,7 +149,8 @@ const ProductsList = (props: Props) => {
 							</FormControl>
 						</Stack>
 
-						<EcommerceProductList loading={loading} viewMode={viewMode} products={_products.slice(0, 16)} />
+						{/* eslint-disable-next-line react/jsx-boolean-value */}
+						<ProductList loading={false} viewMode={viewMode} products={_products.slice(0, 16)} />
 					</Box>
 				</Stack>
 			</Container>
@@ -98,4 +158,4 @@ const ProductsList = (props: Props) => {
 	);
 };
 
-export default ProductsList;
+export default ProductsView;

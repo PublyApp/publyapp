@@ -1,22 +1,5 @@
 // eslint-disable-next-line prettier/prettier
 export {};
-// import type { PaletteColor, ColorPartial } from '@mui/material';
-
-// declare module '@mui/material' {
-// 	// eslint-disable-next-line @typescript-eslint/no-empty-interface
-// 	interface PaletteOptions {
-// 		// black: string;
-// 	}
-
-// 	// eslint-disable-next-line @typescript-eslint/no-empty-interface
-// 	interface Palette {
-// 		// black: string;
-// 	}
-
-// 	interface ButtonOwnProps {
-// 		raised?: 0 | 1 | boolean;
-// 	}
-// }
 
 declare module '@mui/material/styles' {
 	interface Theme {
@@ -58,4 +41,35 @@ declare module '@mui/material/styles' {
 		dialog: string;
 		dropdown: string;
 	}
+}
+
+// NEW VARIANT
+declare module '@mui/material/Button' {
+	interface ButtonPropsVariantOverrides {
+		soft: true;
+	}
+}
+
+declare module '@mui/material/styles/createPalette' {
+	interface TypeBackground {
+		neutral: string;
+	}
+
+	interface TypeBackgroundOptions {
+		neutral: string;
+	}
+
+	// interface PaletteOptions {
+	// 	background: {
+	// 		neutral: string;
+	// 	};
+	// }
+	// interface SimplePaletteColorOptions {
+	//   lighter: string;
+	//   darker: string;
+	// }
+	// interface PaletteColor {
+	//   lighter: string;
+	//   darker: string;
+	// }
 }
