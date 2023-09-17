@@ -71,6 +71,9 @@ importers:
       '@tanstack/react-query-next-experimental':
         specifier: 5.0.0-alpha.80
         version: 5.0.0-alpha.80(@tanstack/react-query@5.0.0-alpha.71)(next@13.4.19)(react-dom@18.2.0)(react@18.2.0)
+      date-fns:
+        specifier: ^2.30.0
+        version: 2.30.0
       dayjs:
         specifier: ^1.11.9
         version: 1.11.9
@@ -83,6 +86,9 @@ importers:
       next-auth:
         specifier: ^4.23.1
         version: 4.23.1(next@13.4.19)(react-dom@18.2.0)(react@18.2.0)
+      numeral:
+        specifier: ^2.0.6
+        version: 2.0.6
       parse:
         specifier: ^4.1.0
         version: 4.1.0
@@ -117,6 +123,9 @@ importers:
       '@types/node':
         specifier: ^17.0.45
         version: 17.0.45
+      '@types/numeral':
+        specifier: ^2.0.2
+        version: 2.0.2
       '@types/react':
         specifier: ^18.2.21
         version: 18.2.21
@@ -573,6 +582,9 @@ importers:
       i18next-browser-languagedetector:
         specifier: ^7.1.0
         version: 7.1.0
+      numeral:
+        specifier: ^2.0.6
+        version: 2.0.6
       parse:
         specifier: ^4.1.0
         version: 4.1.0
@@ -595,6 +607,9 @@ importers:
         specifier: ^0.9.0
         version: 0.9.0(immer@10.0.2)(react@18.2.0)
     devDependencies:
+      '@types/numeral':
+        specifier: ^2.0.2
+        version: 2.0.2
       '@types/parse':
         specifier: ^3.0.4
         version: 3.0.4
@@ -3737,6 +3752,10 @@ packages:
   /@types/node@20.5.9:
     resolution: {integrity: sha512-PcGNd//40kHAS3sTlzKB9C9XL4K0sTup8nbG5lC14kzEteTNuAFh9u5nA0o5TWnSG2r/JNPRXFVcHJIIeRlmqQ==}
 
+  /@types/numeral@2.0.2:
+    resolution: {integrity: sha512-A8F30k2gYJ/6e07spSCPpkuZu79LCnkPTvqmIWQzNGcrzwFKpVOydG41lNt5wZXjSI149qjyzC2L1+F2PD/NUA==}
+    dev: true
+
   /@types/object.omit@3.0.1:
     resolution: {integrity: sha512-24XD34UeRWw505TsMNBrQ4bES2s8IxiFC59mmNUFhTz9IX2hAtA7gQ8wVww1i17QmhBYILg5iqYP2y7aqA3pwQ==}
     dev: false
@@ -5472,7 +5491,6 @@ packages:
     engines: {node: '>=0.11'}
     dependencies:
       '@babel/runtime': 7.22.15
-    dev: true
 
   /date-time@3.1.0:
     resolution: {integrity: sha512-uqCUKXE5q1PNBXjPqvwhwJf9SwMoAHBgWJ6DcrnS5o+W2JOiIILl0JEdVD8SGujrNS02GGxgwAg2PN2zONgtjg==}
@@ -9058,6 +9076,10 @@ packages:
   /number-is-nan@1.0.1:
     resolution: {integrity: sha512-4jbtZXNAsfZbAHiiqjLPBiCl16dES1zI4Hpzzxw61Tk+loF+sBDBKx1ICKKKwIqQ7M0mFn1TmkN7euSncWgHiQ==}
     engines: {node: '>=0.10.0'}
+    dev: false
+
+  /numeral@2.0.6:
+    resolution: {integrity: sha512-qaKRmtYPZ5qdw4jWJD6bxEf1FJEqllJrwxCLIm0sQU/A7v2/czigzOb+C2uSiFsa9lBUzeH7M1oK+Q+OLxL3kA==}
     dev: false
 
   /oauth-sign@0.9.0:
