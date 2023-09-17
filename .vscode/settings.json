@@ -37,5 +37,14 @@
 		".env.preprod": "tune",
 		"tsconfig.nextjs.json*": "tsconfig",
 		"tsconfig.react-library.json*": "tsconfig"
-	}
+	},
+	"vscode-color-picker.languages": [
+		"javascript",
+		"javascriptreact",
+		"typescript",
+		"typescriptreact",
+		"postcss",
+		"xml",
+		"html"
+	],
 }

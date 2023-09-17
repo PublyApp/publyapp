@@ -7,7 +7,7 @@ import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 
 // import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
-import { pxToRem } from '@aktiveo/ui-react/utils/styles';
+import { pxToRem } from '@aktiveo/ui-react/utils/cssUtils';
 
 import { headerMenu } from '../data/headerMenu';
 

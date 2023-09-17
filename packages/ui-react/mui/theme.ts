@@ -1,7 +1,7 @@
-import { alpha, createTheme, CustomShadowOptions, PaletteOptions, ThemeOptions } from '@mui/material';
+import { alpha, createTheme, CustomShadowOptions, lighten, PaletteOptions, Shadows, ThemeOptions } from '@mui/material';
 import { TypographyOptions } from '@mui/material/styles/createTypography';
 
-import { getResponsiveFontSizes, pxToRem } from './styles';
+import { getResponsiveFontSizes, pxToRem } from '../utils/cssUtils';
 
 const {
 	palette: { augmentColor },
@@ -41,6 +41,10 @@ const iPalette = {
 		300: rawColors.lightGrey,
 		500: rawColors.mediumGrey,
 		800: rawColors.darkGrey,
+	},
+	background: {
+		neutral: lighten(rawColors.lightGrey, 0.8),
+		// neutral: alpha(rawColors.lightGrey, 0.5),
 	},
 };
 
@@ -164,7 +168,7 @@ const typography: TypographyOptions = {
 // --------------------------------------------------------------------------------------//
 
 // eslint-disable-next-line @typescript-eslint/no-shadow
-const createShadow = (color: string) => {
+const createCustomShadows = (color: string): CustomShadowOptions => {
 	const transparent = (opacity: number) => {
 		return alpha(color, opacity);
 	};
@@ -191,7 +195,46 @@ const createShadow = (color: string) => {
 	};
 };
 
-const customShadows: CustomShadowOptions = createShadow(iPalette.grey[500]);
+const customShadows = createCustomShadows(iPalette.grey[500]);
+
+// --------------------------------------------------------------------------------------//
+//                                       shadows                                        //
+// --------------------------------------------------------------------------------------//
+const createShadows = (color: string): Shadows => {
+	const transparent1 = alpha(color, 0.2);
+	const transparent2 = alpha(color, 0.14);
+	const transparent3 = alpha(color, 0.12);
+
+	return [
+		'none',
+		`0px 2px 1px -1px ${transparent1},0px 1px 1px 0px ${transparent2},0px 1px 3px 0px ${transparent3}`,
+		`0px 3px 1px -2px ${transparent1},0px 2px 2px 0px ${transparent2},0px 1px 5px 0px ${transparent3}`,
+		`0px 3px 3px -2px ${transparent1},0px 3px 4px 0px ${transparent2},0px 1px 8px 0px ${transparent3}`,
+		`0px 2px 4px -1px ${transparent1},0px 4px 5px 0px ${transparent2},0px 1px 10px 0px ${transparent3}`,
+		`0px 3px 5px -1px ${transparent1},0px 5px 8px 0px ${transparent2},0px 1px 14px 0px ${transparent3}`,
+		`0px 3px 5px -1px ${transparent1},0px 6px 10px 0px ${transparent2},0px 1px 18px 0px ${transparent3}`,
+		`0px 4px 5px -2px ${transparent1},0px 7px 10px 1px ${transparent2},0px 2px 16px 1px ${transparent3}`,
+		`0px 5px 5px -3px ${transparent1},0px 8px 10px 1px ${transparent2},0px 3px 14px 2px ${transparent3}`,
+		`0px 5px 6px -3px ${transparent1},0px 9px 12px 1px ${transparent2},0px 3px 16px 2px ${transparent3}`,
+		`0px 6px 6px -3px ${transparent1},0px 10px 14px 1px ${transparent2},0px 4px 18px 3px ${transparent3}`,
+		`0px 6px 7px -4px ${transparent1},0px 11px 15px 1px ${transparent2},0px 4px 20px 3px ${transparent3}`,
+		`0px 7px 8px -4px ${transparent1},0px 12px 17px 2px ${transparent2},0px 5px 22px 4px ${transparent3}`,
+		`0px 7px 8px -4px ${transparent1},0px 13px 19px 2px ${transparent2},0px 5px 24px 4px ${transparent3}`,
+		`0px 7px 9px -4px ${transparent1},0px 14px 21px 2px ${transparent2},0px 5px 26px 4px ${transparent3}`,
+		`0px 8px 9px -5px ${transparent1},0px 15px 22px 2px ${transparent2},0px 6px 28px 5px ${transparent3}`,
+		`0px 8px 10px -5px ${transparent1},0px 16px 24px 2px ${transparent2},0px 6px 30px 5px ${transparent3}`,
+		`0px 8px 11px -5px ${transparent1},0px 17px 26px 2px ${transparent2},0px 6px 32px 5px ${transparent3}`,
+		`0px 9px 11px -5px ${transparent1},0px 18px 28px 2px ${transparent2},0px 7px 34px 6px ${transparent3}`,
+		`0px 9px 12px -6px ${transparent1},0px 19px 29px 2px ${transparent2},0px 7px 36px 6px ${transparent3}`,
+		`0px 10px 13px -6px ${transparent1},0px 20px 31px 3px ${transparent2},0px 8px 38px 7px ${transparent3}`,
+		`0px 10px 13px -6px ${transparent1},0px 21px 33px 3px ${transparent2},0px 8px 40px 7px ${transparent3}`,
+		`0px 10px 14px -6px ${transparent1},0px 22px 35px 3px ${transparent2},0px 8px 42px 7px ${transparent3}`,
+		`0px 11px 14px -7px ${transparent1},0px 23px 36px 3px ${transparent2},0px 9px 44px 8px ${transparent3}`,
+		`0px 11px 15px -7px ${transparent1},0px 24px 38px 3px ${transparent2},0px 9px 46px 8px ${transparent3}`,
+	];
+};
+
+const shadows = createShadows(iPalette.grey[500]);
 
 // --------------------------------------------------------------------------------------//
 //                                     Theme Options                                     //
@@ -200,43 +243,16 @@ export const themeOptions: ThemeOptions = {
 	palette,
 	typography,
 	customShadows,
-	breakpoints: {
-		// These are already the defaults
-		// values: {
-		// 	xs: 0,
-		// 	sm: 600,
-		// 	md: 900,
-		// 	lg: 1200,
-		// 	xl: 1536,
-		// },
-	},
-	components: {
-		// MuiButton: {
-		// 	styleOverrides: {
-		// 		root: ({ ownerState, theme }) => {
-		// 			const getShadow = (color: string) => {
-		// 				const lightenedColor = lighten(color, 0.2);
-		// 				return `${alpha(lightenedColor, 0.42)} 0px 14px 26px -12px, rgba(0, 0, 0, 0.12) 0px 4px 23px 0px, ${alpha(
-		// 					lightenedColor,
-		// 					0.2,
-		// 				)} 0px 8px 10px -5px`;
-		// 			};
-		// 			return {
-		// 				borderRadius: pxToRem(10.4),
-		// 				...(ownerState.variant === 'contained' && {
-		// 					boxShadow: 'none',
-		// 					'&:hover': {
-		// 						boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
-		// 					},
-		// 				}),
-		// 				...(ownerState.raised
-		// 					? {
-		// 							boxShadow: ownerState.color ? getShadow((theme.palette as any)[ownerState.color].main) : 'none',
-		// 					  }
-		// 					: {}),
-		// 			};
-		// 		},
-		// 	},
-		// },
-	},
+	shadows,
+	shape: { borderRadius: 8 },
+	// breakpoints: {
+	// These are already the defaults
+	// values: {
+	// 	xs: 0,
+	// 	sm: 600,
+	// 	md: 900,
+	// 	lg: 1200,
+	// 	xl: 1536,
+	// },
+	// },
 };

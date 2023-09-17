@@ -19,7 +19,7 @@ import {
 import { AITool } from '@aktiveo/shared/types/aiTool.types';
 import { DEFAULT_PAGE_SIZE } from '@aktiveo/shared/utils/constants';
 import { useGetAITools } from '@aktiveo/ui-react/query/features/aiTools/aiTool.hooks';
-import { pxToRem } from '@aktiveo/ui-react/utils/styles';
+import { pxToRem } from '@aktiveo/ui-react/utils/cssUtils';
 
 // import { GetAIToolsFunctionResult } from '@aktiveo/ui-react/query/features/aiTools/aiTool.actions';
 

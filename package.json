@@ -3,6 +3,7 @@
 	"private": true,
 	"scripts": {
 		"build": "turbo run build",
+		"build2": "turbo run build --filter server --filter front --filter office",
 		"dev": "turbo run dev --no-daemon",
 		"dev2": "turbo run dev --filter server --filter front --filter office --no-daemon",
 		"check-format": "prettier --check .",
