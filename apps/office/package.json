@@ -10,7 +10,7 @@
 		"dev": "cross-env APP_ENV='local' pnpm run dev:pack",
 		"build:pack": "tsc && rspack build",
 		"dev:pack": "rspack serve",
-		"lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+		"lint": "eslint src --ext ts,tsx --max-warnings 0",
 		"lint:fix": "pnpm run lint --fix"
 	},
 	"dependencies": {

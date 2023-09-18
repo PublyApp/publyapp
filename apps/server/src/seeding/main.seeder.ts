@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { faker } from '@faker-js/faker';
 
 import { RolesEnum } from '@aktiveo/shared/utils/constants';

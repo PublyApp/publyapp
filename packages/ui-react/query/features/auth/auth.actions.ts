@@ -28,9 +28,10 @@ type IRole = {
 };
 
 // TODO: move to utils
-function getUserRoles(user: Parse.User, toJSON?: false): Promise<Parse.Role[]>;
-function getUserRoles(user: Parse.User, toJSON: true): Promise<IRole[]>;
-async function getUserRoles(user: Parse.User, toJSON?: boolean) {
+export function getUserRoles(user: Parse.User, toJSON?: false): Promise<Parse.Role[]>;
+export function getUserRoles(user: Parse.User, toJSON: true): Promise<IRole[]>;
+
+export async function getUserRoles(user: Parse.User, toJSON?: boolean) {
 	const roleQuery = new Parse.Query(Parse.Role).equalTo('users', user);
 	const roles = await roleQuery.find();
 

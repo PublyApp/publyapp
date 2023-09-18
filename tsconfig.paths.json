@@ -1,0 +1,19 @@
+{
+	// extend your base config to share compilerOptions, etc
+	"extends": "tsconfig/tsconfig.base.json",
+	"compilerOptions": {
+		// ensure that nobody can accidentally use this config for a build
+		"noEmit": true,
+
+		// making tsconfig paths work when type checking with tsc
+		"baseUrl": ".",
+		"paths": {
+			"@server/*": ["./apps/server/src/*"],
+			"@front/*": ["./apps/front/src/*"],
+			"@office/*": ["./apps/office/src/*"],
+
+			"@shared/*": ["./packages/shared/*"],
+			"@ui-react/*": ["./packages/ui-react/*"]
+		}
+	}
+}
