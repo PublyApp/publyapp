@@ -246,8 +246,11 @@ const AIToolCreationRowFrom = () => {
 							<MenuItem value={20}>Twenty</MenuItem>
 							<MenuItem value={30}>Thirty</MenuItem> */}
 						</Select>
-						{form.formState.errors.pricingType && (
-							<FormHelperText sx={{ color: theme.palette.error.main }}>
+						{form.formState.errors.pricingType && typeof form.formState.errors.pricingType.message === 'string' && (
+							<FormHelperText
+								sx={{ color: theme.palette.error.main }}
+								// children={form.formState.errors.pricingType.message}
+							>
 								{form.formState.errors.pricingType.message}
 							</FormHelperText>
 						)}
@@ -287,7 +290,7 @@ const AIToolCreationRowFrom = () => {
 							<MenuItem value={20}>Twenty</MenuItem>
 							<MenuItem value={30}>Thirty</MenuItem> */}
 						</Select>
-						{form.formState.errors.pricingModel && (
+						{form.formState.errors.pricingModel && typeof form.formState.errors.pricingModel.message === 'string' && (
 							<FormHelperText sx={{ color: theme.palette.error.main }}>
 								{form.formState.errors.pricingModel.message}
 							</FormHelperText>

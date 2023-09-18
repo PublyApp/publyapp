@@ -1,17 +1,16 @@
 {
 	"extends": "tsconfig/tsconfig.base.json",
 	"compilerOptions": {
-		"target": "ES2015",
+		"target": "ESNext",
+
 		"outDir": "dist",
-		"baseUrl": "./src",
-		"noEmit": true,
-		"sourceMap": true,
+		"baseUrl": "src",
+		"paths": {
+			"@server/*": ["*"],
+			"@shared/*": ["../../packages/shared/*"]
+		},
+
 		"skipLibCheck": true,
-		// "paths": {
-		// 	"@/*": ["*"],
-		// 	"@cloud/*": ["cloud/*"]
-		// },
-		"resolveJsonModule": true
 	},
 	"include": ["src", "@types"],
 	"exclude": ["dist", "node_modules"]
