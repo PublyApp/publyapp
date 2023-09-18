@@ -14,14 +14,22 @@ const isProduction = process.env.APP_ENV === 'production';
 
 let envFileName = '.env.local';
 
-if (isProduction) {
+// ! for local build
+if (isProduction && isLocal) {
 	envFileName = '.env.production';
+} else if (isProduction && !isLocal) {
+	envFileName = null; // on vercel for example
 } else if (!isProduction && !isLocal) {
 	envFileName = '.env.preprod';
 }
 
-const envConfig = dotenv.config({ path: path.resolve(__dirname, envFileName) });
-const { parsed: env } = dotenvExpand.expand(envConfig);
+let env;
+
+if (envFileName) {
+	const envConfig = dotenv.config({ path: path.resolve(__dirname, envFileName) });
+	const { parsed } = dotenvExpand.expand(envConfig);
+	env = parsed;
+}
 
 /** @type {import('@rspack/cli').Configuration} */
 const config = {
@@ -52,7 +60,7 @@ const config = {
 			],
 		},
 	},
-	plugins: [new EnvironmentPlugin(env)],
+	plugins: [new EnvironmentPlugin(env ?? process.env)],
 	devServer: {
 		port: 6182,
 		historyApiFallback: true,
