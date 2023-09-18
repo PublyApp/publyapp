@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import path from 'path';
 
 import Parse from 'parse/node';

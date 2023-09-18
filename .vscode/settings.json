@@ -46,5 +46,6 @@
 		"postcss",
 		"xml",
 		"html"
-	]
+	],
+	"typescript.tsdk": "node_modules\\typescript\\lib"
 }

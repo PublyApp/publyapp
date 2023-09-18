@@ -1,19 +1,18 @@
 {
-	"extends": "tsconfig/tsconfig.base.json",
-  "compilerOptions": {
-    "target": "ES6",
+	"extends": "../../tsconfig.paths.json",
+	"compilerOptions": {
+		"target": "ES6",
 		"lib": ["DOM", "DOM.Iterable", "ESNext"],
 		"module": "ESNext",
 
-    "jsx": "react-jsx",
+		"jsx": "react-jsx",
 
-		"baseUrl": "src",
-		"paths": {
-			"@office/*": ["*"],
-			"@ui-react/*": ["../../packages/ui-react/*"],
-			"@shared/*": ["../../packages/shared/*"]
-		},
-  },
+		// For fixing the below error
+		// The inferred type of AITools cannot be named without a reference to '@ui-react/node_modules/@types/react/jsx-runtime'. This is likely not portable. A type annotation is necessary.
+		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
+		"declarationMap": false,
+		"declaration": false
+	},
 	"include": ["src"],
-  "exclude": ["node_modules", "dist"],
+	"exclude": ["node_modules", "dist"]
 }
