@@ -1,6 +1,8 @@
 /* eslint-disable no-continue */
 /* eslint-disable no-await-in-loop */
 
+import { logger } from 'parse-server';
+
 import { RolesEnum } from '@aktiveo/shared/utils/constants';
 
 export const createRolesIfNotExist = async () => {
@@ -18,10 +20,10 @@ export const createRolesIfNotExist = async () => {
 		const foundRole = await new Parse.Query(Parse.Role).equalTo('name', roleName).first();
 
 		if (foundRole) {
-			console.log(`role: '${roleName}' already exists, skipping its creation`);
+			logger.info(`role: '${roleName}' already exists, skipping its creation`);
 
 			if (foundRole.get('code') !== roleCode) {
-				console.log(`changing code for role: '${roleName}'`);
+				logger.info(`changing code for role: '${roleName}'`);
 				foundRole.set('code', roleCode);
 			}
 
@@ -41,7 +43,7 @@ export const createRolesIfNotExist = async () => {
 				});
 
 				if (!hasChildRole) {
-					console.log(`setting child role for role: '${roleName}'`);
+					logger.info(`setting child role for role: '${roleName}'`);
 					foundRole.getRoles().add(directChildRole);
 				}
 			}

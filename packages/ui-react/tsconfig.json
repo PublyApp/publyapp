@@ -2,18 +2,17 @@
 	"extends": "tsconfig/tsconfig.base.json",
 	"compilerOptions": {
 		"target": "ES6",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+		"lib": ["DOM", "DOM.Iterable", "ESNext"],
 		"module": "ESNext",
 
-    "jsx": "react-jsx",
+		"jsx": "react-jsx",
 
 		"baseUrl": ".",
 		"paths": {
 			"@ui-react/*": ["*"],
-			// "@ui-react/*": ["../../packages/ui-react/*"],
-			// "@shared/*": ["../../packages/shared/*"]
+			"@shared/*": ["../../packages/shared/*"]
 		}
 	},
 	"include": ["."],
-	"exclude": [/* "dist", "build",  */"node_modules"]
+	"exclude": [/* "dist", "build",  */ "node_modules"]
 }

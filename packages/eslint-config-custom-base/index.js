@@ -17,15 +17,22 @@ module.exports = {
 		tsconfigRootDir: path.resolve(__dirname, '../../'),
 		project: [
 			'./tsconfig.eslint.json',
+			'./tsconfig.paths.json',
 			'./apps/*/tsconfig.json',
 			'./packages/*/tsconfig.json',
-			'./apps/*/tsconfig.node.json',
+			'./apps/*/tsconfig.node.json', // for vite projects
 		],
 	},
 	settings: {
 		'import/resolver': {
 			typescript: {
-				project: ['apps/*/tsconfig.json', 'packages/*/tsconfig.json'],
+				project: [
+					'./tsconfig.eslint.json',
+					'./tsconfig.paths.json',
+					'apps/*/tsconfig.json',
+					'packages/*/tsconfig.json',
+					'./apps/*/tsconfig.node.json', // for vite projects
+				],
 			},
 		},
 	},
