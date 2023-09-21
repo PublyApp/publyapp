@@ -1,3 +1,5 @@
+import type { SchemaMigrations } from 'parse-server';
+
 export const ADMIN_EMAILS = ['radandevist@gmail.com'];
 
 // Cors white lists
@@ -11,4 +13,22 @@ export const whiteList = {
 		'http://localhost:6185',
 	],
 	ONLINE: ['https://devist.net', 'https://app.devist.net', 'https://bo.devist.net'], // ? We're gonna see over time
+};
+
+/**
+ * Parse server strict class level permissions
+ */
+export const DEFAULT_STRICT_CLP: SchemaMigrations.CPLsInterface = {
+	find: {
+		'*': true,
+	},
+	get: {
+		'*': true,
+	},
+	create: {
+		requiresAuthentication: true,
+	},
+	update: {
+		requiresAuthentication: true,
+	},
 };
