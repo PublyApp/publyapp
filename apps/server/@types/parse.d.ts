@@ -9,20 +9,5 @@ declare global {
 				headers: Record<string, any>;
 			}
 		}
-
-		namespace Query {
-			type AggregationOptions = {
-				$search?: {
-					index: string;
-					autocomplete: {
-						query: string;
-						path: string;
-						fuzzy: {
-							maxEdits: number;
-						};
-					};
-				};
-			};
-		}
 	}
 }

@@ -56,6 +56,8 @@ module.exports = {
 
 		// @typescript-eslint overrides
 		'no-unused-vars': 'off',
+		'@typescript-eslint/consistent-type-imports': 'error',
+		'@typescript-eslint/consistent-type-exports': 'error',
 		// '@typescript-eslint/no-explicit-any': 'warn',
 		'@typescript-eslint/no-explicit-any': 'off',
 

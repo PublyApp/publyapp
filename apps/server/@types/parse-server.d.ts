@@ -4,7 +4,7 @@
 declare module 'parse-server/lib/Config';
 
 declare module 'parse-server' {
-	import { BaseAttributes } from 'parse';
+	import type { BaseAttributes } from 'parse';
 
 	import type { Application } from 'express';
 
@@ -133,7 +133,7 @@ declare module 'parse-server' {
 
 declare module 'parse-server/lib/logger' {
 	// eslint-disable-next-line import/no-unresolved
-	import { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
+	import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 
 	export const logger: LoggerController;
 
@@ -152,7 +152,7 @@ declare module 'parse-server/lib/defaults' {
 
 declare module 'parse-server/lib/Controllers/LoggerController' {
 	// eslint-disable-next-line import/no-unresolved
-	import { WinstonLoggerAdapter } from 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter';
+	import type { WinstonLoggerAdapter } from 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter';
 
 	export type LogLevel = 'info' | 'error' | 'warn' | 'verbose' | 'debug' | 'silly';
 
