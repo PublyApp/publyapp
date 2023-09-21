@@ -2,6 +2,8 @@ import { SchemaMigrations } from 'parse-server';
 
 import { className } from '@devist/shared/utils/constants';
 
+import { DEFAULT_STRICT_CLP } from '@server/utils/constants';
+
 const PostSchema = SchemaMigrations.makeSchema(className.POST, {
 	fields: {
 		// title: { type: 'String' },
@@ -9,20 +11,7 @@ const PostSchema = SchemaMigrations.makeSchema(className.POST, {
 		translations: { type: 'Object' },
 		slug: { type: 'String' },
 	},
-	classLevelPermissions: {
-		find: {
-			'*': true,
-		},
-		get: {
-			'*': true,
-		},
-		create: {
-			requiresAuthentication: true,
-		},
-		update: {
-			requiresAuthentication: true,
-		},
-	},
+	classLevelPermissions: DEFAULT_STRICT_CLP,
 	indexes: {},
 });
 

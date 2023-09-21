@@ -67,6 +67,7 @@ const config = {
 	},
 	resolve: {
 		alias: {
+			'@office': '.',
 			'@shared': path.join(PACKAGES_DIR, 'shared'),
 			'@ui-react': path.join(PACKAGES_DIR, 'ui-react'),
 		},

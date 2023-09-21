@@ -75,6 +75,7 @@ module.exports = {
 	externals: [...findExternals(), 'parse/node'],
 	resolve: {
 		alias: {
+			'@server': '.',
 			'@shared': path.join(PACKAGES_DIR, 'shared'),
 			// '@ui-react': path.join(PACKAGES_DIR, 'ui-react'), // ! warning! we are bundling for server here
 		},

@@ -2,21 +2,13 @@ import { SchemaMigrations } from 'parse-server';
 
 import { className } from '@devist/shared/utils/constants';
 
+import { DEFAULT_STRICT_CLP } from '@server/utils/constants';
+
 const RoleSchema = SchemaMigrations.makeSchema(className.ROLE, {
 	fields: {
 		code: { type: 'Number' },
 	},
-	classLevelPermissions: {
-		create: {
-			'*': true,
-		},
-		find: {
-			'*': true,
-		},
-		get: {
-			'*': true,
-		},
-	},
+	classLevelPermissions: DEFAULT_STRICT_CLP,
 	indexes: {},
 });
 
