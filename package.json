@@ -23,10 +23,8 @@
 		"lint-staged": "^13.3.0",
 		"prettier": "^2.8.8",
 		"tsconfig": "workspace:*",
-		"turbo": "^1.10.13"
-	},
-	"packageManager": "pnpm@7.15.0",
-	"dependencies": {
+		"turbo": "^1.10.13",
 		"typescript": "^5.2.2"
-	}
+	},
+	"packageManager": "pnpm@7.15.0"
 }
