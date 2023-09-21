@@ -1,5 +1,5 @@
 {
-	"name": "aktiveo-platform",
+	"name": "devist-platform",
 	"private": true,
 	"scripts": {
 		"build": "turbo run build",

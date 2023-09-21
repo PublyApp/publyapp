@@ -1,5 +1,28 @@
 {
-	"cSpell.words": ["devist", "nextjs", "Parens"],
+	"cSpell.language": "en,fr",
+	"cSpell.words": [
+		"Aktiv",
+		"devist",
+		"Devist",
+		"Authed",
+		"goplan",
+		"hookform",
+		"iconify",
+		"immer",
+		"Immer",
+		"languagedetector",
+		"middlewares",
+		"nextjs",
+		"Parens",
+		"pdash",
+		"preprod",
+		"PREPROD",
+		"Roboto",
+		"sublabel",
+		"svgr",
+		"svkit",
+		"tanstack"
+	],
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.codeActionsOnSave": {
 		"source.fixAll": true
@@ -14,5 +37,15 @@
 		".env.preprod": "tune",
 		"tsconfig.nextjs.json*": "tsconfig",
 		"tsconfig.react-library.json*": "tsconfig"
-	}
+	},
+	"vscode-color-picker.languages": [
+		"javascript",
+		"javascriptreact",
+		"typescript",
+		"typescriptreact",
+		"postcss",
+		"xml",
+		"html"
+	],
+	"typescript.tsdk": "node_modules\\typescript\\lib"
 }

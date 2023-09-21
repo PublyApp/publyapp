@@ -10,7 +10,7 @@
 		"seed": "node esbuild/build.seed.js && node --enable-source-maps -r ./esbuild/defineParse.js dist/seeding/seed.js"
 	},
 	"dependencies": {
-		"@aktiveo/shared": "workspace:*",
+		"@devist/shared": "workspace:*",
 		"@faker-js/faker": "^8.0.2",
 		"cors": "^2.8.5",
 		"dotenv": "^16.0.3",
