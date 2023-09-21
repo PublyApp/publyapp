@@ -17,20 +17,20 @@ import { createColumnHelper, PaginationState, type ColumnDef, type SortingState 
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { useToggle } from 'react-use';
 
-import { AITool, PRICING_MODELS, PRICING_TYPES } from '@aktiveo/shared/types/aiTool.types';
-import { CreateAIToolInput, createAIToolInputSchema } from '@aktiveo/shared/validations/aiTool.validations';
-import BestTable, { CustomTableCell } from '@aktiveo/ui-react/components/BestTable';
-import TableHeaderCell from '@aktiveo/ui-react/components/TableHeaderCell';
-import { GetAIToolsFunctionResult } from '@aktiveo/ui-react/query/features/aiTools/aiTool.actions';
-import { useCreateAITool, useGetAITools } from '@aktiveo/ui-react/query/features/aiTools/aiTool.hooks';
-import { pxToRem } from '@aktiveo/ui-react/utils/cssUtils';
+import { AITool, PRICING_MODELS, PRICING_TYPES } from '@devist/shared/types/aiTool.types';
+import { CreateAIToolInput, createAIToolInputSchema } from '@devist/shared/validations/aiTool.validations';
+import BestTable, { CustomTableCell } from '@devist/ui-react/components/BestTable';
+import TableHeaderCell from '@devist/ui-react/components/TableHeaderCell';
+import { GetAIToolsFunctionResult } from '@devist/ui-react/query/features/aiTools/aiTool.actions';
+import { useCreateAITool, useGetAITools } from '@devist/ui-react/query/features/aiTools/aiTool.hooks';
+import { pxToRem } from '@devist/ui-react/utils/cssUtils';
 
-// import { DEFAULT_PAGE_SIZE } from '@aktiveo/shared/utils/constants';
+// import { DEFAULT_PAGE_SIZE } from '@devist/shaared/utils/constants';
 // import ReactDOM from 'react-dom/client';
 // import { useToggle } from 'react-use';
 // import { useQueryClient } from '@tanstack/react-query';
 // import { useToggle } from 'react-use';
-// import { GetAIToolsFunctionResult } from '@aktiveo/ui-react/query/features/aiTools/aiTool.actions';
+// import { GetAIToolsFunctionResult } from '@devist/ui-react/query/features/aiTools/aiTool.actions';
 // import BOProviders from '../../providers/BOProviders';
 // const NEW_IDENTIFIER = 'new_identifier';
 // const AI_TABLE_CREATION_ROW_ID = 'AI_TABLE_CREATION_ROW_ID';

@@ -3,8 +3,8 @@ import Parse from 'parse';
 import { MutationFunction, QueryFunction } from '@tanstack/react-query';
 import { ColumnSort } from '@tanstack/react-table';
 
-import { AITool } from '@aktiveo/shared/types/aiTool.types';
-import { functionName } from '@aktiveo/shared/utils/constants';
+import { AITool } from '@devist/shared/types/aiTool.types';
+import { functionName } from '@devist/shared/utils/constants';
 
 // --------------------------------------------------------------------------------------//
 //                                                                                      //

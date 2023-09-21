@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
-import { BO_PATH_NAMES } from '@aktiveo/shared/utils/constants';
-import { useGetClientAuth } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
+import { BO_PATH_NAMES } from '@devist/shared/utils/constants';
+import { useGetClientAuth } from '@devist/ui-react/query/features/auth/auth.hooks';
 
 const RequireAuth = (/* props: Props */) => {
 	const location = useLocation();

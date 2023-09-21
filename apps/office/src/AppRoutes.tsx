@@ -1,6 +1,6 @@
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
 
-import { FRONT_PATH_NAMES } from '@aktiveo/shared/utils/constants';
+import { FRONT_PATH_NAMES } from '@devist/shared/utils/constants';
 
 import LayoutBO from './components/layout/LayoutBO';
 import Home from './containers/home/Home';

@@ -1,5 +1,6 @@
 import './aiTool.functions';
-// import { RolesEnum } from '@aktiveo/shared/utils/constants';
+
+// import { RolesEnum } from '@devist/shared/utils/constants';
 
 // import { parseFrom } from '../../utils/parse.utils';
 

@@ -1,6 +1,6 @@
 import { Box, Stack, StackProps } from '@mui/material';
 
-import { fCurrency } from '@aktiveo/ui-react/utils/formatNumber';
+import { fCurrency } from '@devist/ui-react/utils/formatNumber';
 
 interface Props extends StackProps {
 	price: number;

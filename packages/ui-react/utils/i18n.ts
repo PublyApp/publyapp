@@ -1,9 +1,9 @@
+// import { DEFAULT_LANGUAGE } from '../../utils/constants';
 import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 
-// import { DEFAULT_LANGUAGE } from '../../utils/constants';
-import { defaultLocale, defaultNS, NS, resources } from '@aktiveo/shared/i18n/resources';
+import { defaultLocale, defaultNS, NS, resources } from '@devist/shared/i18n/resources';
 
 i18n
 	.use(initReactI18next) // passes i18n down to react-i18next

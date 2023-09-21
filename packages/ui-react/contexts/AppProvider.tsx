@@ -3,8 +3,8 @@ import { createContext, Dispatch, PropsWithChildren, useEffect, useMemo } from '
 
 import { ImmerReducer } from 'use-immer';
 
-import { AppLocale, defaultLocale } from '@aktiveo/shared/i18n/resources';
-import { I18N_LOCALE_KEY } from '@aktiveo/shared/utils/constants';
+import { AppLocale, defaultLocale } from '@devist/shared/i18n/resources';
+import { I18N_LOCALE_KEY } from '@devist/shared/utils/constants';
 
 import { usePersistImmerReducer } from '@ui-react/hooks/usePersistImmerReducer';
 import i18n, { getCurrentLocale } from '@ui-react/utils/i18n';

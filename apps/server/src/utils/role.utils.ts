@@ -3,7 +3,7 @@
 
 import { logger } from 'parse-server';
 
-import { RolesEnum } from '@aktiveo/shared/utils/constants';
+import { RolesEnum } from '@devist/shared/utils/constants';
 
 export const createRolesIfNotExist = async () => {
 	const roleEntries = Object.entries(RolesEnum).filter((e) => {

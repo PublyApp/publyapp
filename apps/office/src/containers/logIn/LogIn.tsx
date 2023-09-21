@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 
 import { Box, Typography, useTheme } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-
 // import { useQuery } from '@tanstack/react-query';
 
-import { BO_PATH_NAMES } from '@aktiveo/shared/utils/constants';
-import { useGetClientAuth } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
+import { useNavigate } from 'react-router-dom';
+
+import { BO_PATH_NAMES } from '@devist/shared/utils/constants';
+import { useGetClientAuth } from '@devist/ui-react/query/features/auth/auth.hooks';
 
 import LogInForm from './LogInForm';
 

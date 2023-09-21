@@ -1,6 +1,6 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 
-import { functionName } from '@aktiveo/shared/utils/constants';
+import { functionName } from '@devist/shared/utils/constants';
 
 import {
 	createAIToolAction,

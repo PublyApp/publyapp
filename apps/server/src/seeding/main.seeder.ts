@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { faker } from '@faker-js/faker';
 
-import { RolesEnum } from '@aktiveo/shared/utils/constants';
+import { RolesEnum } from '@devist/shared/utils/constants';
 
 import { findRoleByCode } from '../utils/role.utils';
 

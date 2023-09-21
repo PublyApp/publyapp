@@ -1,4 +1,4 @@
-import { RolesEnum } from '@aktiveo/shared/utils/constants';
+import { RolesEnum } from '@devist/shared/utils/constants';
 
 import { ADMIN_EMAILS } from '../../utils/constants';
 import { parseTrigger } from '../../utils/parse.utils';

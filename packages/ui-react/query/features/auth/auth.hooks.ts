@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type MutateOptions } from '@tanstack/react-query';
 
-import { IUser } from '@aktiveo/shared/types/user.types';
-import { LogInInput } from '@aktiveo/shared/validations/auth.validations';
+import { IUser } from '@devist/shared/types/user.types';
+import { LogInInput } from '@devist/shared/validations/auth.validations';
 
 import { getClientAuthAction, logInAction, logOutAction } from './auth.actions';
 
