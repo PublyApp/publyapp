@@ -1,7 +1,7 @@
 import { SchemaMigrations } from 'parse-server';
 
-import { WebHosting } from '@aktiveo/shared/types/webHosting.types';
-import { className } from '@aktiveo/shared/utils/constants';
+import { WebHosting } from '@devist/shared/types/webHosting.types';
+import { className } from '@devist/shared/utils/constants';
 
 const WebHostingSchema = SchemaMigrations.makeSchema<WebHosting>(className.WEB_HOSTING, {
 	fields: {
