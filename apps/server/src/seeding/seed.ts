@@ -12,7 +12,7 @@ const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', '..', '.en
 dotenvExpand.expand(envConfig);
 
 const PORT = Number(process.env.PORT) || 1337;
-const APP_ID = 'aktiveo';
+const APP_ID = 'devist';
 const MASTER_KEY = process.env.MASTER_KEY || 'local-master-key';
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 

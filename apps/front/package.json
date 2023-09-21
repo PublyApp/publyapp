@@ -10,8 +10,8 @@
 		"start": "next start"
 	},
 	"dependencies": {
-		"@aktiveo/shared": "workspace:*",
-		"@aktiveo/ui-react": "workspace:*",
+		"@devist/shared": "workspace:*",
+		"@devist/ui-react": "workspace:*",
 		"@emotion/cache": "latest",
 		"@emotion/react": "^11.11.1",
 		"@emotion/styled": "^11.11.0",

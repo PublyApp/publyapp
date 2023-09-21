@@ -3,8 +3,8 @@ import React from 'react';
 
 import type { AppProps } from 'next/app';
 
-import QueryProvider from '@aktiveo/ui-react/providers/QueryProvider';
-import ThemeProvider from '@aktiveo/ui-react/providers/ThemeProvider';
+import QueryProvider from '@devist/ui-react/providers/QueryProvider';
+import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
 
 const App = ({ Component, pageProps }: AppProps) => {
 	return (

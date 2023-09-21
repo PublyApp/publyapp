@@ -1,7 +1,7 @@
 import { AppBar /*  Button, */, Box, Container, Link, Stack, Toolbar, useTheme } from '@mui/material';
 
-import useOffsetTop from '@aktiveo/ui-react/hooks/useOffsetTop';
-import useResponsive from '@aktiveo/ui-react/hooks/useResponsive';
+import useOffsetTop from '@devist/ui-react/hooks/useOffsetTop';
+import useResponsive from '@devist/ui-react/hooks/useResponsive';
 
 import { HEADER } from '../utils/constants';
 import { bgBlur } from '../utils/cssUtils';

@@ -1,8 +1,8 @@
 import _ from 'lodash';
 import { z } from 'zod';
 
-import { className, DEFAULT_PAGE_SIZE, functionName, RolesEnum } from '@aktiveo/shared/utils/constants';
-import { createAIToolInputSchema } from '@aktiveo/shared/validations/aiTool.validations';
+import { className, DEFAULT_PAGE_SIZE, functionName, RolesEnum } from '@devist/shared/utils/constants';
+import { createAIToolInputSchema } from '@devist/shared/validations/aiTool.validations';
 
 import { parseFrom } from '../../utils/parse.utils';
 

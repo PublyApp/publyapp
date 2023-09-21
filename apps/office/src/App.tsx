@@ -1,13 +1,13 @@
 import { FC } from 'react';
 
-import '@aktiveo/ui-react/styles/fonts.css';
+import '@devist/ui-react/styles/fonts.css';
 
-import AppProvider from '@aktiveo/ui-react/contexts/AppProvider';
-import QueryProvider from '@aktiveo/ui-react/providers/QueryProvider';
-import ThemeProvider from '@aktiveo/ui-react/providers/ThemeProvider';
-import defaultQueryClient from '@aktiveo/ui-react/query/queryClient';
+import AppProvider from '@devist/ui-react/contexts/AppProvider';
+import QueryProvider from '@devist/ui-react/providers/QueryProvider';
+import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
+import defaultQueryClient from '@devist/ui-react/query/queryClient';
 
-// import { AuthProvider } from '@aktiveo/ui-react/contexts/AuthProvider';
+// import { AuthProvider } from '@devist/ui-react/contexts/AuthProvider';
 
 import AppRoutes from './AppRoutes';
 

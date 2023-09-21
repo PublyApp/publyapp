@@ -17,12 +17,12 @@ export {};
 
 // // import { useToggle } from 'react-use';
 // // import { useQueryClient } from '@tanstack/react-query';
-// import { AITool } from '@aktiveo/shared/types/aiTool.types';
-// import { DEFAULT_PAGE_SIZE } from '@aktiveo/shared/utils/constants';
-// import { useGetAITools } from '@aktiveo/ui-react/query/features/aiTools/aiTool.hooks';
-// import { pxToRem } from '@aktiveo/ui-react/utils/cssUtils';
+// import { AITool } from '@devist/shared/types/aiTool.types';
+// import { DEFAULT_PAGE_SIZE } from '@devist/shared/utils/constants';
+// import { useGetAITools } from '@devist/ui-react/query/features/aiTools/aiTool.hooks';
+// import { pxToRem } from '@devist/ui-react/utils/cssUtils';
 
-// // import { GetAIToolsFunctionResult } from '@aktiveo/ui-react/query/features/aiTools/aiTool.actions';
+// // import { GetAIToolsFunctionResult } from '@devist/ui-react/query/features/aiTools/aiTool.actions';
 
 // // import BOProviders from '../../providers/BOProviders';
 

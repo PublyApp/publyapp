@@ -35,10 +35,10 @@ importers:
 
   apps/bo:
     dependencies:
-      '@aktiveo/shared':
+      '@devist/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@aktiveo/ui-react':
+      '@devist/ui-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
       '@emotion/react':
@@ -132,7 +132,7 @@ importers:
 
   apps/docs:
     dependencies:
-      '@aktiveo/ui-react':
+      '@devist/ui-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
       next:
@@ -169,10 +169,10 @@ importers:
 
   apps/front:
     dependencies:
-      '@aktiveo/shared':
+      '@devist/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@aktiveo/ui-react':
+      '@devist/ui-react':
         specifier: workspace:*
         version: link:../../packages/ui-react
       '@emotion/cache':
@@ -314,7 +314,7 @@ importers:
 
   apps/server:
     dependencies:
-      '@aktiveo/shared':
+      '@devist/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@faker-js/faker':
@@ -496,7 +496,7 @@ importers:
 
   packages/ui-react:
     dependencies:
-      '@aktiveo/shared':
+      '@devist/shared':
         specifier: workspace:*
         version: link:../shared
       '@emotion/react':
