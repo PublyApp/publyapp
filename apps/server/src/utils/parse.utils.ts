@@ -1,5 +1,5 @@
-import { defaultLocale } from '@aktiveo/shared/i18n/resources';
-import { I18N_LOCALE_KEY, RolesEnum } from '@aktiveo/shared/utils/constants';
+import { defaultLocale } from '@devist/shared/i18n/resources';
+import { I18N_LOCALE_KEY, RolesEnum } from '@devist/shared/utils/constants';
 
 import { getT } from './i18n';
 

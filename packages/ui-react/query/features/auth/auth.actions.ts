@@ -3,8 +3,8 @@ import Parse from 'parse';
 // import { QueryFunctionContext } from '@tanstack/react-query';
 // import Cookies from 'universal-cookie';
 
-import { IUser } from '@aktiveo/shared/types/user.types';
-import { LogInInput } from '@aktiveo/shared/validations/auth.validations';
+import { IUser } from '@devist/shared/types/user.types';
+import { LogInInput } from '@devist/shared/validations/auth.validations';
 
 // import { ROLES_LOCAL_STORAGE_KEY, SESSION_TOKEN_COOKIE_KEY } from '../../../utils/constants';
 

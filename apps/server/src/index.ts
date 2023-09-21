@@ -48,9 +48,9 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	const PORT = Number(process.env.PORT) || 1337;
 	const MASTER_KEY = process.env.MASTER_KEY || 'local-master-key';
-	const DATABASE_URI = process.env.DATABASE_URI || 'mongodb://localhost:27017/aktiveo-local';
+	const DATABASE_URI = process.env.DATABASE_URI || 'mongodb://localhost:27017/devist-local';
 	const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
-	const APP_ID = 'aktiveo';
+	const APP_ID = 'devist';
 
 	// --------------------------------------------------------------------------------------//
 	//                            setup express and parse server                            //
@@ -99,7 +99,7 @@ const bootstrap = async () => {
 						serverURL: `${SERVER_URL}/parse`, // ! localhost only
 						appId: APP_ID,
 						masterKey: MASTER_KEY,
-						appName: 'Aktiveo Express Dash Local',
+						appName: 'Devist Express Dash Local',
 					},
 				],
 			},

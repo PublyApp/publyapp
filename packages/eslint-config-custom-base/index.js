@@ -79,7 +79,7 @@ module.exports = {
 						position: 'after',
 					},
 					{
-						pattern: '@aktiveo/**',
+						pattern: '@devist/**',
 						group: 'external',
 						position: 'after',
 					},

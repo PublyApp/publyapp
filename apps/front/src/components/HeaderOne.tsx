@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 
+// import { useLogOutMutation } from '@devist/ui-react/query/features/auth/auth.hooks';
 // import { Logout as LogoutIcon } from '@mui/icons-material';
 import { AppBar /* CircularProgress, */, Box, Button, Container, Link, Toolbar, useTheme } from '@mui/material';
 import NextLink from 'next/link';
 // import { useRouter } from 'next/router';
 import { useRouter } from 'next/navigation';
 
-// import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
-import { pxToRem } from '@aktiveo/ui-react/utils/cssUtils';
+import { pxToRem } from '@devist/ui-react/utils/cssUtils';
 
 import { headerMenu } from '../data/headerMenu';
 

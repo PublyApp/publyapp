@@ -1,4 +1,4 @@
 module.exports = {
 	reactStrictMode: true,
-	transpilePackages: ['@aktiveo/ui-react'],
+	transpilePackages: ['@devist/ui-react'],
 };

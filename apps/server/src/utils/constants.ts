@@ -10,5 +10,5 @@ export const whiteList = {
 		'http://localhost:6184',
 		'http://localhost:6185',
 	],
-	ONLINE: ['https://aktiveo.net', 'https://app.aktiveo.net', 'https://bo.aktiveo.net'], // ? We're gonna see over time
+	ONLINE: ['https://devist.net', 'https://app.devist.net', 'https://bo.devist.net'], // ? We're gonna see over time
 };

@@ -1,5 +1,5 @@
 {
-	"name": "@aktiveo/shared",
+	"name": "@devist/shared",
 	"version": "0.0.0",
 	"devDependencies": {
 		"@types/parse": "^3.0.4",

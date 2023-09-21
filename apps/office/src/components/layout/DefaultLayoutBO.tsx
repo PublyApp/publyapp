@@ -28,9 +28,9 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 
-import { BO_PATH_NAMES, FRONT_PATH_NAMES } from '@aktiveo/shared/utils/constants';
-import { useApp } from '@aktiveo/ui-react/hooks/useApp';
-import { useLogOutMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
+import { BO_PATH_NAMES, FRONT_PATH_NAMES } from '@devist/shared/utils/constants';
+import { useApp } from '@devist/ui-react/hooks/useApp';
+import { useLogOutMutation } from '@devist/ui-react/query/features/auth/auth.hooks';
 
 // import Link from './Link';
 

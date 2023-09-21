@@ -3,7 +3,7 @@ import { forwardRef } from 'react';
 import { Link, LinkProps, Typography, TypographyProps } from '@mui/material';
 import { Variant } from '@mui/material/styles/createTypography';
 
-import { useTypography } from '@aktiveo/ui-react/hooks/useTypography';
+import { useTypography } from '@devist/ui-react/hooks/useTypography';
 
 type IProps = TypographyProps & LinkProps;
 

@@ -3,9 +3,9 @@ import { useEffect } from 'react';
 import { Button, FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 
-import { AppLocale } from '@aktiveo/shared/i18n/resources';
-import { setBreadcrumbs, setLocale } from '@aktiveo/ui-react/contexts/AppProvider';
-import { useApp } from '@aktiveo/ui-react/hooks/useApp';
+import { AppLocale } from '@devist/shared/i18n/resources';
+import { setBreadcrumbs, setLocale } from '@devist/ui-react/contexts/AppProvider';
+import { useApp } from '@devist/ui-react/hooks/useApp';
 
 const helloAction = async () => {
 	try {

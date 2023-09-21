@@ -4,9 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { SubmitHandler, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 
-import { BO_PATH_NAMES } from '@aktiveo/shared/utils/constants';
-import { LogInInput, logInSchema } from '@aktiveo/shared/validations/auth.validations';
-import { useGetClientAuth, useLogInMutation } from '@aktiveo/ui-react/query/features/auth/auth.hooks';
+import { BO_PATH_NAMES } from '@devist/shared/utils/constants';
+import { LogInInput, logInSchema } from '@devist/shared/validations/auth.validations';
+import { useGetClientAuth, useLogInMutation } from '@devist/ui-react/query/features/auth/auth.hooks';
 
 const LogInForm = () => {
 	const form = useForm<LogInInput>({ resolver: zodResolver(logInSchema) });
