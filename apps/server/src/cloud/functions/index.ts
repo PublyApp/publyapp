@@ -1,4 +1,5 @@
 import './aiTool.functions';
+import './webHostingProvider.functions';
 
 // import { RolesEnum } from '@devist/shared/utils/constants';
 

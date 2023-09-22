@@ -2,9 +2,9 @@
 	"cSpell.language": "en,fr",
 	"cSpell.words": [
 		"Aktiv",
+		"Authed",
 		"devist",
 		"Devist",
-		"Authed",
 		"goplan",
 		"hookform",
 		"iconify",
@@ -21,7 +21,8 @@
 		"sublabel",
 		"svgr",
 		"svkit",
-		"tanstack"
+		"tanstack",
+		"tiptap"
 	],
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.codeActionsOnSave": {

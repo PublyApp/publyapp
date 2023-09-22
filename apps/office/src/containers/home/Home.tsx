@@ -1,11 +1,22 @@
 import { useEffect } from 'react';
 
-import { Button, FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Typography } from '@mui/material';
+import {
+	Box,
+	Button,
+	FormControl,
+	InputLabel,
+	MenuItem,
+	Select,
+	Typography,
+	type SelectChangeEvent,
+} from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 
-import { AppLocale } from '@devist/shared/i18n/resources';
+import type { AppLocale } from '@devist/shared/i18n/resources';
 import { setBreadcrumbs, setLocale } from '@devist/ui-react/contexts/AppProvider';
 import { useApp } from '@devist/ui-react/hooks/useApp';
+
+import TipTap from '@office/components/tipTap/TipTap';
 
 const helloAction = async () => {
 	try {
@@ -45,7 +56,7 @@ const Home = () => {
 	}, [dispatch]);
 
 	return (
-		<div>
+		<Box>
 			<Typography variant="h1">Home</Typography>
 
 			<Button
@@ -76,7 +87,9 @@ const Home = () => {
 					<MenuItem value="fr">French</MenuItem>
 				</Select>
 			</FormControl>
-		</div>
+
+			<TipTap />
+		</Box>
 	);
 };
 

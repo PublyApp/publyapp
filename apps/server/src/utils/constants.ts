@@ -12,7 +12,13 @@ export const whiteList = {
 		'http://localhost:6184',
 		'http://localhost:6185',
 	],
-	ONLINE: ['https://devist.net', 'https://app.devist.net', 'https://bo.devist.net'], // ? We're gonna see over time
+	ONLINE: [
+		'https://devist.xyz',
+		'https://www.devist.xyz',
+		'https://app.devist.xyz',
+		'https://bo.devist.xyz',
+		'engine://www.devist.xyz',
+	], // ? We're gonna see over time
 };
 
 /**
