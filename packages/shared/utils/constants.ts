@@ -1,4 +1,4 @@
-export enum RolesEnum {
+export enum RolesEnum { // TODO: convert into const expression
 	ADMIN = 12308120948,
 	MODERATOR = 21143141341,
 	AUTHOR = 7589243534538,
@@ -31,6 +31,7 @@ export const BO_PATH_NAMES = {
 export const functionName = {
 	getAITools: 'getAITools',
 	createAITool: 'createAITool',
+	createWebHostingProvider: 'createWebHostingProvider',
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 20;
