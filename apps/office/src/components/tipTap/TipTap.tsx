@@ -81,6 +81,8 @@ const MenuBar = () => {
 		return null;
 	}
 
+	// editor.getHTML();
+
 	return (
 		<>
 			<Button
