@@ -88,6 +88,21 @@ const bootstrap = async () => {
 
 	app.use('/parse', parseServer.app);
 
+	app.get('/*', async (req, res, next) => {
+		// req.get('origin');
+		const { origin, host } = req.headers;
+
+		if (origin === 'https://link.devist.xyz') {
+			// run parse cloud function;
+			const longUrl = await getLongUrl();
+
+			res.redirect(longUrl);
+			return;
+		}
+
+		next();
+	});
+
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                          //
 	// --------------------------------------------------------------------------------------//
