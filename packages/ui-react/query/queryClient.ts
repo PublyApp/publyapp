@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { /* MutationCache, */ QueryClient } from '@tanstack/react-query';
 
 const twentyFourHoursInMs = 1000 * 60 * 60 * 24;
 
@@ -12,6 +12,11 @@ export const createQueryClient = () => {
 				staleTime: twentyFourHoursInMs,
 			},
 		},
+		// mutationCache: new MutationCache({
+		// 	onError(error, variables, context, mutation) {
+		// 		toast(error);
+		// 	},
+		// })
 	});
 
 	return queryClient;

@@ -1,11 +1,11 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import {
-	Article as ArticleIcon,
+	// Article as ArticleIcon,
 	Home as HomeIcon,
 	Logout as LogoutIcon,
 	NavigateNext as NavigateNextIcon,
-	Person as PersonIcon,
+	// Person as PersonIcon,
 	Settings as SettingsIcon,
 } from '@mui/icons-material';
 import {
@@ -28,7 +28,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 
-import { BO_PATH_NAMES, FRONT_PATH_NAMES } from '@devist/shared/utils/constants';
+import { BO_PATH_NAMES /* , FRONT_PATH_NAMES */ } from '@devist/shared/utils/constants';
 import { useApp } from '@devist/ui-react/hooks/useApp';
 import { useLogOutMutation } from '@devist/ui-react/query/features/auth/auth.hooks';
 
@@ -42,35 +42,40 @@ const menuItems = [
 		icon: <HomeIcon />,
 		link: '/',
 	},
+	// {
+	// 	text: 'Posts',
+	// 	icon: <ArticleIcon />,
+	// 	link: '/posts',
+	// },
+	// {
+	// 	text: 'Account',
+	// 	icon: <PersonIcon />,
+	// 	link: '/account',
+	// },
+	// {
+	// 	text: 'Typography',
+	// 	icon: <PersonIcon />,
+	// 	link: '/typography',
+	// },
+	// {
+	// 	text: 'Buttons',
+	// 	icon: <PersonIcon />,
+	// 	link: '/buttons',
+	// },
+	// {
+	// 	text: 'AI Tools',
+	// 	icon: <SettingsIcon />,
+	// 	link: FRONT_PATH_NAMES.aiTools,
+	// },
+	// {
+	// 	text: 'Settings',
+	// 	icon: <SettingsIcon />,
+	// 	link: '/settings',
+	// },
 	{
-		text: 'Posts',
-		icon: <ArticleIcon />,
-		link: '/posts',
-	},
-	{
-		text: 'Account',
-		icon: <PersonIcon />,
-		link: '/account',
-	},
-	{
-		text: 'Typography',
-		icon: <PersonIcon />,
-		link: '/typography',
-	},
-	{
-		text: 'Buttons',
-		icon: <PersonIcon />,
-		link: '/buttons',
-	},
-	{
-		text: 'AI Tools',
+		text: 'Web hosts',
 		icon: <SettingsIcon />,
-		link: FRONT_PATH_NAMES.aiTools,
-	},
-	{
-		text: 'Settings',
-		icon: <SettingsIcon />,
-		link: '/settings',
+		link: '/web-hosts',
 	},
 ];
 

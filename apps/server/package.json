@@ -2,7 +2,7 @@
 	"name": "server",
 	"version": "0.0.0",
 	"scripts": {
-		"build": "pnpm run build:pack:prod",
+		"build": "tsc && pnpm run build:pack:prod",
 		"build:pack:prod": "cross-env APP_ENV=production pnpm run build:pack",
 		"build:pack:preprod": "cross-env APP_ENV=preprod pnpm run build:pack",
 		"build:pack": "rspack",

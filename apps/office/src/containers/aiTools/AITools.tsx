@@ -13,15 +13,15 @@ import {
 	TextField,
 	useTheme,
 } from '@mui/material';
-import { createColumnHelper, PaginationState, type ColumnDef, type SortingState } from '@tanstack/react-table';
-import { SubmitHandler, useForm } from 'react-hook-form';
+import { createColumnHelper, type ColumnDef, type PaginationState, type SortingState } from '@tanstack/react-table';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useToggle } from 'react-use';
 
-import { AITool, PRICING_MODELS, PRICING_TYPES } from '@devist/shared/types/aiTool.types';
-import { CreateAIToolInput, createAIToolInputSchema } from '@devist/shared/validations/aiTool.validations';
+import { PRICING_MODELS, PRICING_TYPES, type AITool } from '@devist/shared/types/aiTool.types';
+import { createAIToolInputSchema, type CreateAIToolInput } from '@devist/shared/validations/aiTool.validations';
 import BestTable, { CustomTableCell } from '@devist/ui-react/components/BestTable';
 import TableHeaderCell from '@devist/ui-react/components/TableHeaderCell';
-import { GetAIToolsFunctionResult } from '@devist/ui-react/query/features/aiTools/aiTool.actions';
+import type { GetAIToolsFunctionResult } from '@devist/ui-react/query/features/aiTools/aiTool.actions';
 import { useCreateAITool, useGetAITools } from '@devist/ui-react/query/features/aiTools/aiTool.hooks';
 import { pxToRem } from '@devist/ui-react/utils/cssUtils';
 

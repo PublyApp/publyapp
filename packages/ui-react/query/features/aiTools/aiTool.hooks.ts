@@ -5,9 +5,9 @@ import { functionName } from '@devist/shared/utils/constants';
 import {
 	createAIToolAction,
 	getAIToolsAction,
-	GetAIToolsQueryParams,
 	getInfiniteAIToolsAction,
-	GetInfiniteAIToolsQueryParams,
+	type GetAIToolsQueryParams,
+	type GetInfiniteAIToolsQueryParams,
 } from './aiTool.actions';
 
 export const useGetAITools = (params: GetAIToolsQueryParams) => {

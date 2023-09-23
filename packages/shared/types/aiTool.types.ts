@@ -1,4 +1,4 @@
-import { BaseAttributes } from 'parse';
+import type { BaseAttributes } from 'parse';
 
 export const PRICING_TYPES = ['free', 'freemium', 'paid'] as const;
 

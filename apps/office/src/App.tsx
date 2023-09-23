@@ -1,5 +1,8 @@
-import { FC } from 'react';
+import type { FC } from 'react';
 
+import { ToastContainer } from 'react-toastify';
+
+import 'react-toastify/dist/ReactToastify.css';
 import '@devist/ui-react/styles/fonts.css';
 
 import AppProvider from '@devist/ui-react/contexts/AppProvider';
@@ -17,6 +20,7 @@ const App: FC = () => {
 			<AppProvider>
 				<ThemeProvider>
 					<AppRoutes />
+					<ToastContainer />
 				</ThemeProvider>
 			</AppProvider>
 		</QueryProvider>

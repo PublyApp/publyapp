@@ -35,7 +35,7 @@ import type { AppLocale } from '@shared/i18n/resources';
 // eslint-disable-next-line @typescript-eslint/ban-types
 // export type WebHostingFull = WebHosting & {};
 
-export type IWebHostingProvider = {
+export type WebHost = {
 	translations: Record<
 		AppLocale,
 		{
