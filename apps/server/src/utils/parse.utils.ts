@@ -1,5 +1,9 @@
+import { logger } from 'parse-server';
+
+import { ZodError } from 'zod';
+
 import { defaultLocale } from '@devist/shared/i18n/resources';
-import { I18N_LOCALE_KEY, RolesEnum } from '@devist/shared/utils/constants';
+import { I18N_LOCALE_KEY, type RolesEnum } from '@devist/shared/utils/constants';
 
 import { getT } from './i18n';
 
@@ -25,6 +29,10 @@ export const parseFunction = (innerFunction: ParseInnerFunction) => {
 			return result;
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		} catch (error: any) {
+			// console.log('====================================');
+			// console.log(error instanceof ZodError);
+			// console.log('====================================');
+
 			if (global.LOCAL) {
 				// eslint-disable-next-line no-console
 				console.trace(error);
@@ -36,6 +44,12 @@ export const parseFunction = (innerFunction: ParseInnerFunction) => {
 				message = error.message;
 			} else {
 				message = 'Unknown error';
+			}
+
+			// handle zod errors
+			if (error instanceof ZodError) {
+				message = error.issues[0].message;
+				logger.info(error);
 			}
 
 			return Promise.reject(message);

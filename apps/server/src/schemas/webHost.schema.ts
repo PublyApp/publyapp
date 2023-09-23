@@ -1,11 +1,11 @@
 import { SchemaMigrations } from 'parse-server';
 
-import type { IWebHostingProvider } from '@devist/shared/types/webHostingProvider.types';
+import type { WebHost } from '@devist/shared/types/webHost.types';
 import { className } from '@devist/shared/utils/constants';
 
 import { DEFAULT_STRICT_CLP } from '@server/utils/constants';
 
-const WebHostingSchema = SchemaMigrations.makeSchema<IWebHostingProvider>(className.WEB_HOSTING_PROVIDER, {
+const WebHostSchema = SchemaMigrations.makeSchema<WebHost>(className.WEB_HOST, {
 	fields: {
 		translations: { type: 'Object' },
 
@@ -53,4 +53,4 @@ const WebHostingSchema = SchemaMigrations.makeSchema<IWebHostingProvider>(classN
 	indexes: {},
 });
 
-export default WebHostingSchema;
+export default WebHostSchema;
