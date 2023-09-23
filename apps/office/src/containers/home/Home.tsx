@@ -1,3 +1,4 @@
+import Parse from 'parse';
 import { useEffect } from 'react';
 
 import {
@@ -11,6 +12,7 @@ import {
 	type SelectChangeEvent,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
 
 import type { AppLocale } from '@devist/shared/i18n/resources';
 import { setBreadcrumbs, setLocale } from '@devist/ui-react/contexts/AppProvider';
@@ -29,17 +31,6 @@ const helloAction = async () => {
 const Home = () => {
 	const { dispatch, state } = useApp();
 
-	const handleChangeLocale = (e: SelectChangeEvent) => {
-		// setLocale(e.target.value as AppLocale);
-		dispatch(setLocale(e.target.value as AppLocale));
-	};
-
-	const { /*  _data, */ refetch: sayHello } = useQuery({
-		queryKey: ['sayHello'],
-		queryFn: helloAction,
-		enabled: false,
-	});
-
 	useEffect(() => {
 		dispatch(
 			setBreadcrumbs([
@@ -54,6 +45,29 @@ const Home = () => {
 			]),
 		);
 	}, [dispatch]);
+
+	const handleChangeLocale = (e: SelectChangeEvent) => {
+		// setLocale(e.target.value as AppLocale);
+		dispatch(setLocale(e.target.value as AppLocale));
+	};
+
+	const {
+		/*  _data, */
+		refetch: sayHello,
+		isSuccess,
+		data,
+		isFetching,
+	} = useQuery({
+		queryKey: ['sayHello'],
+		queryFn: helloAction,
+		enabled: false,
+	});
+
+	useEffect(() => {
+		if (!isFetching && isSuccess && data) {
+			alert(data);
+		}
+	}, [isSuccess, data, isFetching]);
 
 	return (
 		<Box>
@@ -70,6 +84,26 @@ const Home = () => {
 
 			<Button variant="contained" onClick={() => {}}>
 				Run Dummy
+			</Button>
+
+			<Button
+				variant="contained"
+				onClick={() => {
+					console.log('rrrrrrrrrr');
+
+					toast('WRYYYY!!', {
+						position: 'top-right',
+						autoClose: 5000,
+						hideProgressBar: false,
+						closeOnClick: true,
+						pauseOnHover: true,
+						draggable: true,
+						progress: undefined,
+						theme: 'light',
+					});
+				}}
+			>
+				Toastify
 			</Button>
 
 			{/* <pre>{JSON.stringify(data, null, 2)}</pre> */}

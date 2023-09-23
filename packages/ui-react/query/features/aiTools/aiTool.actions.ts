@@ -1,9 +1,9 @@
 import Parse from 'parse';
 
-import { MutationFunction, QueryFunction } from '@tanstack/react-query';
-import { ColumnSort } from '@tanstack/react-table';
+import type { MutationFunction, QueryFunction } from '@tanstack/react-query';
+import type { ColumnSort } from '@tanstack/react-table';
 
-import { AITool } from '@devist/shared/types/aiTool.types';
+import type { AITool } from '@devist/shared/types/aiTool.types';
 import { functionName } from '@devist/shared/utils/constants';
 
 // --------------------------------------------------------------------------------------//

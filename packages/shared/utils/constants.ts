@@ -13,7 +13,8 @@ export const className = {
 	ROLE: '_Role',
 	POST: 'Post',
 	AI_TOOL: 'AITool',
-	WEB_HOSTING_PROVIDER: 'WebHostingProvider',
+	// WEB_HOSTING_PROVIDER: 'WebHostingProvider',
+	WEB_HOST: 'WebHost',
 } as const;
 
 export const I18N_LOCALE_KEY = 'xxx-app-i18n-locale';
@@ -21,6 +22,7 @@ export const I18N_LOCALE_KEY = 'xxx-app-i18n-locale';
 export const FRONT_PATH_NAMES = {
 	home: '/',
 	aiTools: 'ai-tools',
+	webHosts: 'web-hosts',
 } as const;
 
 export const BO_PATH_NAMES = {
@@ -31,7 +33,7 @@ export const BO_PATH_NAMES = {
 export const functionName = {
 	getAITools: 'getAITools',
 	createAITool: 'createAITool',
-	createWebHostingProvider: 'createWebHostingProvider',
+	createWebHost: 'createWebHost',
 } as const;
 
-export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 25;

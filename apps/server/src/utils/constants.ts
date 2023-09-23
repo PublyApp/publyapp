@@ -21,6 +21,8 @@ export const whiteList = {
 	], // ? We're gonna see over time
 };
 
+export const USE_MASTER_KEY = { useMasterKey: true } as const;
+
 /**
  * Parse server strict class level permissions
  */

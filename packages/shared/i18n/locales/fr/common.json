@@ -3,5 +3,15 @@
 	"actionRequireAuth": "Vous devez être authentifié pour effectuer cette action",
 	"insufficientRoleForAction": "Vos rôles ne permettent pas d'effectuer cette action",
 	"userHasNoEmail": "L'utilisateur n'a pas d'email",
-	"roleNotFound": "Role introuvable"
+	"roleNotFound": "Role introuvable",
+
+	"name": "nom",
+	"form": {
+		"error": {
+			"invalidStringType": "{{field}} devrait être une chaîne de caractère",
+			"invalidNumberType": "{{field}} devrait être un nombre",
+			"invalidBooleanType": "{{field}} devrait être vrai ou faux",
+			"required": "{{field}} obligatoire"
+		}
+	}
 }

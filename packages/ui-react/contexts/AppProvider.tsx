@@ -1,9 +1,9 @@
 import Parse from 'parse';
-import { createContext, Dispatch, PropsWithChildren, useEffect, useMemo } from 'react';
+import { createContext, useEffect, useMemo, type Dispatch, type PropsWithChildren } from 'react';
 
-import { ImmerReducer } from 'use-immer';
+import type { ImmerReducer } from 'use-immer';
 
-import { AppLocale, defaultLocale } from '@devist/shared/i18n/resources';
+import { defaultLocale, type AppLocale } from '@devist/shared/i18n/resources';
 import { I18N_LOCALE_KEY } from '@devist/shared/utils/constants';
 
 import { usePersistImmerReducer } from '@ui-react/hooks/usePersistImmerReducer';

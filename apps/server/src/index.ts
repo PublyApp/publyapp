@@ -10,7 +10,7 @@ import ParseDashboard from 'parse-dashboard';
 import { cors } from './middlewares/cors';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
-import WebHostingProviderSchema from './schemas/webHostingProvider.schema';
+import WebHostSchema from './schemas/webHost.schema';
 import { whiteList } from './utils/constants';
 import { consoleTransport } from './utils/logger';
 import { createRolesIfNotExist } from './utils/role.utils';
@@ -75,7 +75,7 @@ const bootstrap = async () => {
 		allowClientClassCreation: false,
 		schema: {
 			strict: true,
-			definitions: [RoleSchema, PostSchema, WebHostingProviderSchema],
+			definitions: [RoleSchema, PostSchema, WebHostSchema],
 		},
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
@@ -88,20 +88,20 @@ const bootstrap = async () => {
 
 	app.use('/parse', parseServer.app);
 
-	app.get('/*', async (req, res, next) => {
-		// req.get('origin');
-		const { origin, host } = req.headers;
+	// app.get('/*', async (req, res, next) => {
+	// 	// req.get('origin');
+	// 	const { origin, host } = req.headers;
 
-		if (origin === 'https://link.devist.xyz') {
-			// run parse cloud function;
-			const longUrl = await getLongUrl();
+	// 	if (origin === 'https://link.devist.xyz') {
+	// 		// run parse cloud function;
+	// 		const longUrl = await getLongUrl();
 
-			res.redirect(longUrl);
-			return;
-		}
+	// 		res.redirect(longUrl);
+	// 		return;
+	// 	}
 
-		next();
-	});
+	// 	next();
+	// });
 
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                          //
