@@ -34,6 +34,9 @@ export const functionName = {
 	getAITools: 'getAITools',
 	createAITool: 'createAITool',
 	createWebHost: 'createWebHost',
+	getWebHosts: 'getWebHosts',
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 25;
+
+export const isServer = typeof window === 'undefined';
