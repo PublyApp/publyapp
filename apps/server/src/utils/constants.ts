@@ -33,6 +33,9 @@ export const DEFAULT_STRICT_CLP: SchemaMigrations.CPLsInterface = {
 	get: {
 		'*': true,
 	},
+	// count: {
+	// 	'*': true,
+	// },
 	create: {
 		requiresAuthentication: true,
 	},

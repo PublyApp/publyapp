@@ -1,22 +1,14 @@
 import _ from 'lodash';
-import { z } from 'zod';
+import type { PipelineStage } from 'mongoose';
 
 import { className, DEFAULT_PAGE_SIZE, functionName, RolesEnum } from '@devist/shared/utils/constants';
 import { createAIToolInputSchema } from '@devist/shared/validations/aiTool.validations';
 
-import { parseFrom } from '../../utils/parse.utils';
+import { pageToSkip } from '@server/utils/any.utils';
+import { parseFrom, reOrderObjects } from '@server/utils/parse.utils';
+import { getListParamsSchema } from '@server/utils/validation.utils';
 
-const getAIToolsFunctionParamsSchema = z.object({
-	page: z.number().optional(),
-	pageSize: z.number().optional(),
-	sorting: z
-		.object({
-			id: z.string(),
-			desc: z.boolean(),
-		})
-		.array()
-		.optional(),
-});
+const getAIToolsFunctionParamsSchema = getListParamsSchema;
 
 Parse.Cloud.define(
 	functionName.getAITools,
@@ -26,7 +18,7 @@ Parse.Cloud.define(
 			const { page, pageSize, sorting } = getAIToolsFunctionParamsSchema.parse(req.params);
 
 			const limit = pageSize || DEFAULT_PAGE_SIZE;
-			const skip = ((page || 1) - 1) * (pageSize || DEFAULT_PAGE_SIZE);
+			const skip = pageToSkip(page, pageSize);
 
 			const sortingOperations: Record<string, 1 | -1> = {};
 
@@ -37,7 +29,7 @@ Parse.Cloud.define(
 				}
 			}
 
-			const pipeline: any[] = [
+			const pipeline: PipelineStage[] = [
 				{
 					$match: {},
 				},
@@ -58,14 +50,7 @@ Parse.Cloud.define(
 				new Parse.Query(className.AI_TOOL).count(),
 			]);
 
-			const idsToParseObjects = new Map();
-			iAiTools.forEach((iAiTool) => {
-				idsToParseObjects.set(iAiTool.id, iAiTool);
-			});
-
-			const orderedAiTools = ids.map((id) => {
-				return idsToParseObjects.get(id);
-			});
+			const orderedAiTools = reOrderObjects(ids, iAiTools);
 
 			const aiTools = orderedAiTools.map((iTool) => {
 				return iTool.toJSON();

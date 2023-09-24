@@ -50,7 +50,9 @@ const bootstrap = async () => {
 	const MASTER_KEY = process.env.MASTER_KEY || 'local-master-key';
 	const DATABASE_URI = process.env.DATABASE_URI || 'mongodb://localhost:27017/devist-local';
 	const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
-	const APP_ID = 'devist';
+	const APP_ID = process.env.APP_ID || 'devist';
+
+	// logger.info(`MASTER_KEY: ${MASTER_KEY}`);
 
 	// --------------------------------------------------------------------------------------//
 	//                            setup express and parse server                            //
@@ -71,7 +73,7 @@ const bootstrap = async () => {
 		serverURL: `${SERVER_URL}/parse`,
 		publicServerURL: `${SERVER_URL}/parse`,
 		// =============================================
-		logLevel: 'silly',
+		logLevel: 'silly', // this seem to be not working at all
 		allowClientClassCreation: false,
 		schema: {
 			strict: true,

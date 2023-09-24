@@ -7,15 +7,25 @@ import { findRoleByCode } from '../utils/role.utils';
 
 import { aiToolFactory } from './factories/aiTool.factory';
 import { userFactory } from './factories/user.factory';
+import { webHostFactory } from './factories/webHost.factory';
 
 export type RunConfig = {
+	// masterKey: string;
 	usersNum: number;
 	// postsNum: number;
 	// reactionsNum: number;
 	aiToolsNum: number;
+	webHostsNum: number;
 };
 
-export async function run({ usersNum /* , postsNum, reactionsNum */, aiToolsNum }: RunConfig) {
+export async function run({
+	/* masterKey, */ usersNum /* , postsNum, reactionsNum */,
+	aiToolsNum,
+	webHostsNum,
+}: RunConfig) {
+	// Problem with PArse and MAster Key
+	// Parse.masterKey = masterKey;
+
 	// =================== USERS =======================//
 	/* const users =  */
 	await Promise.all(
@@ -34,6 +44,9 @@ export async function run({ usersNum /* , postsNum, reactionsNum */, aiToolsNum 
 
 	console.info('users seeding done');
 
+	// --------------------------------------------------------------------------------------//
+	//                                       AI Tools                                       //
+	// --------------------------------------------------------------------------------------//
 	await Promise.all(
 		Array.from({ length: aiToolsNum }).map(async () => {
 			const iTool = await aiToolFactory(faker);
@@ -43,6 +56,19 @@ export async function run({ usersNum /* , postsNum, reactionsNum */, aiToolsNum 
 	);
 
 	console.info('AI tools seeding done');
+
+	// --------------------------------------------------------------------------------------//
+	//                                       Web hosts                                       //
+	// --------------------------------------------------------------------------------------//
+	await Promise.all(
+		Array.from({ length: webHostsNum }).map(async () => {
+			const webHost = await webHostFactory(faker);
+			const createdWebHost = await webHost.save(null, { useMasterKey: true });
+			return createdWebHost;
+		}),
+	);
+
+	console.info('Web hosts seeding done');
 
 	// const userIds = users.map((user) => {
 	// 	return user.id;

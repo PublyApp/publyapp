@@ -145,3 +145,17 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 
 	return triggerBuilder;
 };
+
+export const reOrderObjects = (ids: string[], objects: Parse.Object[]) => {
+	const objectsMap = new Map();
+
+	objects.forEach((iWebHost) => {
+		objectsMap.set(iWebHost.id, iWebHost);
+	});
+
+	const orderedObjects = ids.map((id) => {
+		return objectsMap.get(id);
+	});
+
+	return orderedObjects;
+};

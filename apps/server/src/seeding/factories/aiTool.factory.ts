@@ -1,4 +1,4 @@
-import { Faker } from '@faker-js/faker';
+import type { Faker } from '@faker-js/faker';
 
 import { PRICING_MODELS, PRICING_TYPES } from '@devist/shared/types/aiTool.types';
 import { className } from '@devist/shared/utils/constants';
