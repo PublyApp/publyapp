@@ -1,13 +1,13 @@
-import { keepPreviousData, useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
+import { keepPreviousData /* useInfiniteQuery, */, useMutation, useQuery } from '@tanstack/react-query';
 
 import { functionName } from '@devist/shared/utils/constants';
 
 import {
 	createAIToolAction,
 	getAIToolsAction,
-	getInfiniteAIToolsAction,
+	// getInfiniteAIToolsAction,
 	type GetAIToolsQueryParams,
-	type GetInfiniteAIToolsQueryParams,
+	// type GetInfiniteAIToolsQueryParams,
 } from './aiTool.actions';
 
 export const useGetAITools = (params: GetAIToolsQueryParams) => {
@@ -22,30 +22,30 @@ export const useGetAITools = (params: GetAIToolsQueryParams) => {
 	return { result, key };
 };
 
-type UseGetInfiniteAIToolsProps = {
-	pageParam?: { page: number };
-	queryParams?: GetInfiniteAIToolsQueryParams;
-	// sorting
-	// filters
-};
+// type UseGetInfiniteAIToolsProps = {
+// 	pageParam?: { page: number };
+// 	queryParams?: GetInfiniteAIToolsQueryParams;
+// 	// sorting
+// 	// filters
+// };
 
-export const useGetInfiniteAITools = (
-	props?: UseGetInfiniteAIToolsProps /* = { pageParam: { page: 1 }, queryParams: { pageSize: 6 } } */,
-) => {
-	const defaultProps: Required<UseGetInfiniteAIToolsProps> = { pageParam: { page: 1 }, queryParams: { pageSize: 6 } };
-	const key = [functionName.getAITools, 'Infinite', props?.queryParams ?? defaultProps.queryParams] as const;
+// export const useGetInfiniteAITools = (
+// 	props?: UseGetInfiniteAIToolsProps /* = { pageParam: { page: 1 }, queryParams: { pageSize: 6 } } */,
+// ) => {
+// 	const defaultProps: Required<UseGetInfiniteAIToolsProps> = { pageParam: { page: 1 }, queryParams: { pageSize: 6 } };
+// 	const key = [functionName.getAITools, 'Infinite', props?.queryParams ?? defaultProps.queryParams] as const;
 
-	const result = useInfiniteQuery({
-		queryKey: key,
-		queryFn: getInfiniteAIToolsAction,
-		defaultPageParam: { page: 1 },
-		getNextPageParam: (lastPage /* , allPages, lastPageParam */) => {
-			return { page: lastPage.meta.page + 1 };
-		},
-	});
+// 	const result = useInfiniteQuery({
+// 		queryKey: key,
+// 		queryFn: getInfiniteAIToolsAction,
+// 		defaultPageParam: { page: 1 },
+// 		getNextPageParam: (lastPage /* , allPages, lastPageParam */) => {
+// 			return { page: lastPage.meta.page + 1 };
+// 		},
+// 	});
 
-	return { key, result };
-};
+// 	return { key, result };
+// };
 
 export const useCreateAITool = () => {
 	const key = [functionName.createAITool] as const;

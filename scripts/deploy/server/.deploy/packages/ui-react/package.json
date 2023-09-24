@@ -22,7 +22,7 @@
 		"@emotion/react": "latest",
 		"@emotion/styled": "latest",
 		"@mui/material": "latest",
-		"@tanstack/react-query": "5.0.0-alpha.71",
+		"@tanstack/react-query": "^5.0.0-beta.35",
 		"i18next": "^22.5.1",
 		"i18next-browser-languagedetector": "^7.0.2",
 		"parse": "^4.1.0",

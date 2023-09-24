@@ -2,14 +2,15 @@
 	"name": "@devist/shared",
 	"version": "0.0.0",
 	"devDependencies": {
-		"@types/parse": "^3.0.4",
+		"@types/parse": "^3.0.5",
 		"eslint-config-custom-base": "workspace:*",
 		"eslint-config-custom-common-react": "workspace:*",
 		"tsconfig": "workspace:*"
 	},
 	"dependencies": {
 		"i18next": "^22.5.1",
-		"parse": "^4.1.0",
+		"mongoose": "^7.5.2",
+		"parse": "^4.2.0",
 		"zod": "^3.22.2"
 	}
 }

@@ -1,8 +1,8 @@
-import { useMutation } from '@tanstack/react-query';
+import { /* keepPreviousData, */ useMutation, useSuspenseQuery } from '@tanstack/react-query';
 
 import { functionName } from '@devist/shared/utils/constants';
 
-import { createWebHostAction } from './webHost.actions';
+import { createWebHostAction, getWebHostsAction, type GetWebHostsQueryParams } from './webHost.actions';
 
 export const useCreateWebHost = () => {
 	const key = [functionName.createWebHost] as const;
@@ -10,6 +10,18 @@ export const useCreateWebHost = () => {
 	const result = useMutation({
 		mutationKey: key,
 		mutationFn: createWebHostAction,
+	});
+
+	return { result, key };
+};
+
+export const useGetWebHosts = (params: GetWebHostsQueryParams) => {
+	const key = [functionName.getWebHosts, params] as const;
+
+	const result = useSuspenseQuery({
+		queryKey: key,
+		queryFn: getWebHostsAction,
+		// placeholderData: keepPreviousData,
 	});
 
 	return { result, key };
