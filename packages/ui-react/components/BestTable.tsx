@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import {
 	Box,
@@ -19,11 +19,13 @@ import {
 	getCoreRowModel,
 	// getPaginationRowModel,
 	getSortedRowModel,
-	RowData,
 	useReactTable,
 	type ColumnDef,
 	type OnChangeFn,
 	type PaginationState,
+	type RowData,
+	type RowSelectionState,
+	// type RowData,
 	// type ColumnDefResolved,
 	type SortingState,
 	type TableState,
@@ -67,7 +69,7 @@ export const CustomTableCell = styled(TableCell)(() => {
 
 const BestTable = <TData extends RowData = RowData, TValue = any>({
 	columns,
-	data,
+	data: defaultData,
 	isLoading,
 	state,
 	rowsCount,
@@ -85,6 +87,16 @@ const BestTable = <TData extends RowData = RowData, TValue = any>({
 	pageIndex,
 	setPageIndex, */
 Props<TData, TValue>) => {
+	const [data, setData] = useState(() => {
+		return [...defaultData];
+	});
+
+	useEffect(() => {
+		setData(defaultData);
+	}, [defaultData]);
+
+	const [editedRows, setEditedRows] = useState<RowSelectionState>({});
+
 	const table = useReactTable({
 		// columns,
 		columns,
@@ -102,6 +114,27 @@ Props<TData, TValue>) => {
 		enableMultiSort: true,
 		onSortingChange: setSorting,
 		getSortedRowModel: getSortedRowModel(), // order doesn't matter anymore!
+		// enableRowSelection: true,
+		// enableSubRowSelection: true,
+		meta: {
+			editedRows,
+			setEditedRows,
+			updateData: (rowIndex: number, columnId: string, value: unknown) => {
+				setData((old) => {
+					const newValue = old.map((row, index) => {
+						if (index === rowIndex) {
+							return {
+								...(old as any[])[rowIndex],
+								[columnId]: value,
+							};
+						}
+
+						return row;
+					});
+					return newValue;
+				});
+			},
+		},
 		// etc.
 		debugTable: true,
 	});

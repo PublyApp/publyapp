@@ -1,5 +1,5 @@
 import { Button } from '@mui/material';
-import { HeaderContext, RowData } from '@tanstack/react-table';
+import type { HeaderContext, RowData } from '@tanstack/react-table';
 
 type Props<TData extends RowData = RowData, TValue = any> = {
 	ctx: HeaderContext<TData, TValue>;
