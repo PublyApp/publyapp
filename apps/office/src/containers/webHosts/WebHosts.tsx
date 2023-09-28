@@ -173,7 +173,7 @@ const WebHostsTable = ({ openCreationRow }: WebHostsTableProps) => {
 					return row.translations.en.name;
 				},
 				{
-					id: 'name',
+					id: 'translations.en.name',
 					// eslint-disable-next-line react/no-unstable-nested-components
 					header: (props) => {
 						return <TableHeaderCell ctx={props} label={props.column.id} />;

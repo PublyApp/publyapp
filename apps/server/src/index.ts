@@ -7,13 +7,13 @@ import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
+import { createIndexes, createRolesIfNotExist } from './helpers/helpers';
 import { cors } from './middlewares/cors';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
 import WebHostSchema from './schemas/webHost.schema';
 import { whiteList } from './utils/constants';
 import { consoleTransport } from './utils/logger';
-import { createRolesIfNotExist } from './utils/role.utils';
 
 const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
@@ -137,6 +137,11 @@ const bootstrap = async () => {
 		logger.info(`   server running on port ${PORT}   `);
 		logger.info('====================================');
 	});
+
+	// --------------------------------------------------------------------------------------//
+	//    Manually create nested keys indexes that are not supported by Parse server yet    //
+	// --------------------------------------------------------------------------------------//
+	createIndexes();
 
 	// --------------------------------------------------------------------------------------//
 	//                                   create the roles                                    //

@@ -1,0 +1,24 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Launch Server",
+			"cwd": "${workspaceFolder}/apps/server",
+			"program": "src/index.ts",
+      // "program": "dist/index.js",
+      "outFiles": ["dist/**/*.js"],
+			"preLaunchTask": "npm: build:pack - apps/server",
+			"sourceMaps": true,
+			"smartStep": true,
+			"internalConsoleOptions": "openOnSessionStart",
+			"runtimeArgs": ["-r", "esbuild-register"]
+			// "runtimeArgs": ["-r", "ts-node/register", "-r", "tsconfig-paths/register"],
+			// "runtimeArgs": ["--enable-source-maps"]
+		},
+	]
+}

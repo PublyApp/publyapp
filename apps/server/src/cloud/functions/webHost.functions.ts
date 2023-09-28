@@ -3,7 +3,7 @@ import type { PipelineStage } from 'mongoose';
 
 import { pageToSkip } from '@server/utils/any.utils';
 import { USE_MASTER_KEY } from '@server/utils/constants';
-import { parseFrom, reOrderObjects } from '@server/utils/parse.utils';
+import { aggregate, parseFrom, reOrderObjects } from '@server/utils/parse.utils';
 import { getListParamsSchema } from '@server/utils/validation.utils';
 import { ParseWebHost } from '@shared/parse/classes/webHost.class';
 import { /* className, */ className, DEFAULT_PAGE_SIZE, functionName, RolesEnum } from '@shared/utils/constants';
@@ -35,6 +35,57 @@ Parse.Cloud.define(
 
 const getWebHostsFunctionParamsSchema = getListParamsSchema;
 
+// Parse.Cloud.define(
+// 	functionName.getWebHosts,
+// 	parseFrom({
+// 		requireUser: false,
+// 		action: async ({ req /* , t  */ }) => {
+// 			const { page, pageSize, sorting } = getWebHostsFunctionParamsSchema.parse(req.params);
+
+// 			const limit = pageSize || DEFAULT_PAGE_SIZE;
+// 			const skip = pageToSkip(page, pageSize);
+
+// 			const query = new Parse.Query(className.WEB_HOST);
+
+// 			if (sorting && !_.isEmpty(sorting)) {
+// 				sorting.forEach((e) => {
+// 					if (e.desc) {
+// 						query.addDescending(e.id === '_id' ? 'objectId' : e.id);
+// 					} else {
+// 						query.addAscending(e.id === '_id' ? 'objectId' : e.id);
+// 					}
+// 				});
+// 			}
+
+// 			query.skip(skip).limit(limit).hint('translations.en.name_1');
+// 			// query.explain(true);
+
+// 			const [webHosts, totalCount] = await Promise.all([
+// 				// new Parse.Query(className.WEB_HOST).containedIn('objectId', ids).find(),
+// 				query.find({ /* caseInsensitive: true, */ json: true }),
+// 				new Parse.Query(className.WEB_HOST).count(USE_MASTER_KEY),
+// 			]);
+
+// 			// const webHosts = iWebHosts.map((iWebHost) => {
+// 			// 	return iWebHost.toJSON();
+// 			// });
+
+// 			const count = webHosts.length;
+// 			const lastPage = Math.floor(totalCount / count);
+
+// 			return {
+// 				webHosts,
+// 				meta: {
+// 					totalCount,
+// 					count,
+// 					page,
+// 					lastPage,
+// 				},
+// 			};
+// 		},
+// 	}),
+// );
+
 Parse.Cloud.define(
 	functionName.getWebHosts,
 	parseFrom({
@@ -64,10 +115,12 @@ Parse.Cloud.define(
 				{ $project: { _id: 1 } },
 			];
 
-			const documents: { objectId: string }[] = await new Parse.Query(className.WEB_HOST).aggregate(pipeline);
+			// eslint-disable-next-line @typescript-eslint/no-use-before-define
+			const documents: { _id: string }[] = await aggregate(className.WEB_HOST, pipeline);
 
 			const ids = documents.map((doc) => {
-				return doc.objectId;
+				// eslint-disable-next-line no-underscore-dangle
+				return doc._id;
 			});
 
 			const [iWebHosts, totalCount] = await Promise.all([
@@ -77,8 +130,8 @@ Parse.Cloud.define(
 
 			const orderedWebHosts = reOrderObjects(ids, iWebHosts);
 
-			const webHosts = orderedWebHosts.map((iTool) => {
-				return iTool.toJSON();
+			const webHosts = orderedWebHosts.map((iWebHost) => {
+				return iWebHost.toJSON();
 			});
 
 			const count = iWebHosts.length;
