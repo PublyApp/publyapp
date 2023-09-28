@@ -50,7 +50,15 @@ const WebHostSchema = SchemaMigrations.makeSchema<WebHost>(className.WEB_HOST, {
 		// // TODO: fill progressively
 	},
 	classLevelPermissions: DEFAULT_STRICT_CLP,
-	indexes: {},
+	indexes: {
+		// 'translations.en.name': {
+		// 	translations: {
+		// 		en: {
+		// 			name: 1,
+		// 		},
+		// 	},
+		// },
+	},
 });
 
 export default WebHostSchema;

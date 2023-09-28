@@ -72,7 +72,7 @@ module.exports = {
 	target: 'node',
 	mode: toDeploy ? 'production' : 'development',
 	externalsType: 'commonjs',
-	externals: [...findExternals(), 'parse/node'],
+	externals: [...findExternals(), 'parse/node', 'parse-server/lib/Config'],
 	resolve: {
 		alias: {
 			'@server': '.',

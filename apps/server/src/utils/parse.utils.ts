@@ -1,5 +1,9 @@
 import { logger } from 'parse-server';
+import Config from 'parse-server/lib/Config';
 
+import _ from 'lodash';
+import type { AggregateOptions } from 'mongodb';
+import type { PipelineStage } from 'mongoose';
 import { ZodError } from 'zod';
 
 import { defaultLocale } from '@devist/shared/i18n/resources';
@@ -158,4 +162,37 @@ export const reOrderObjects = (ids: string[], objects: Parse.Object[]) => {
 	});
 
 	return orderedObjects;
+};
+
+// // eslint-disable-next-line no-underscore-dangle
+// function _interopRequireDefault(obj: any) {
+// 	// eslint-disable-next-line no-underscore-dangle
+// 	return obj && obj.__esModule ? obj : { default: obj };
+// }
+
+/**
+ * More configurable aggregation method than Parse query's aggregate method.
+ * @param className collection name
+ * @param pipeline aggregation pipeline stages
+ * @param options aggregation options
+ * @returns a promise containing the documents
+ */
+export const aggregate = async (className: string, pipeline?: PipelineStage[], options: AggregateOptions = {}) => {
+	const config = Config.get(Parse.applicationId);
+	// eslint-disable-next-line no-underscore-dangle
+	const collection = (await config.database.adapter._adaptiveCollection(className))._mongoCollection;
+	// const collection = await config.database.adapter.database.collection(className);
+
+	const aggregationOptions = _.merge(
+		{
+			collation: {
+				locale: 'en_US',
+				strength: 2,
+			},
+		},
+		options,
+	);
+	const results = await collection.aggregate(pipeline, aggregationOptions).toArray();
+
+	return results;
 };
