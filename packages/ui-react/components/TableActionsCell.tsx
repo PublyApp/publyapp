@@ -17,23 +17,37 @@ const TableActionsCell = <TData, TValue>({ ctx: { row, table } }: Props<TData, T
 		});
 	};
 
+	const handleOpenEdit = () => {
+		toggleEdit();
+	};
+
+	const handleCancelEdit = () => {
+		tableMeta?.revertData(row.index, true);
+		toggleEdit();
+	};
+
+	const handleSave = () => {
+		toggleEdit();
+		tableMeta?.revertData(row.index, false);
+	};
+
 	return (
 		<>
 			{!tableMeta?.editedRows[row.id] ? (
 				<>
-					<Button variant="text" onClick={toggleEdit}>
+					<Button variant="text" onClick={handleOpenEdit}>
 						🖊
 					</Button>
-					<Button variant="text" disabled onClick={toggleEdit /* delete operation */}>
+					<Button variant="text" disabled /* onClick={handleDelete} */>
 						❌
 					</Button>
 				</>
 			) : (
 				<>
-					<Button variant="text" onClick={toggleEdit}>
+					<Button variant="text" onClick={handleCancelEdit}>
 						❎
 					</Button>
-					<Button variant="text" onClick={toggleEdit}>
+					<Button variant="text" onClick={handleSave}>
 						✅
 					</Button>
 				</>
