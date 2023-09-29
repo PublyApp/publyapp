@@ -12,7 +12,8 @@
 		"lint:fix": "turbo run lint:fix",
 		"prepare": "husky install",
 		"pre-commit:old": "pnpm run format && git add -A .",
-		"prepare:deploy": "node ./scripts/deploy/server/index.js"
+		"prepare:deploy": "node ./scripts/deploy/server/index.js",
+		"update-deps": "node ./scripts/updateDeps/index.js"
 	},
 	"devDependencies": {
 		"@ianvs/prettier-plugin-sort-imports": "^4.1.0",
