@@ -1,4 +1,4 @@
-import { useEffect, useState, type FocusEventHandler } from 'react';
+import { useEffect, useState, type ChangeEventHandler, type FocusEventHandler } from 'react';
 
 import { Box, MenuItem, Select, TextField, type SelectChangeEvent } from '@mui/material';
 import type { CellContext, SelectOption } from '@tanstack/react-table';
@@ -10,12 +10,17 @@ type Props<TData, TValue> = {
 const TableRowCell = <TData, TValue>({ ctx: { getValue, row, column, table } }: Props<TData, TValue>) => {
 	const tableMeta = table.options.meta;
 	const columnMeta = column.columnDef.meta;
-	const initialValue = getValue();
+	const initialValue: any = getValue();
 	const [value, setValue] = useState<any>(initialValue); // !
 
 	useEffect(() => {
 		setValue(initialValue);
-	}, [initialValue]);
+	}, [initialValue /* , getValue */]);
+
+	const handleInputChange: ChangeEventHandler<HTMLInputElement> = (e) => {
+		setValue(e.target.value);
+		// tableMeta?.updateData(row.index, column.id, e.currentTarget.value);
+	};
 
 	const onBlur: FocusEventHandler = () => {
 		tableMeta?.updateData(row.index, column.id, value);
@@ -23,7 +28,7 @@ const TableRowCell = <TData, TValue>({ ctx: { getValue, row, column, table } }: 
 
 	const onSelectChange = (e: SelectChangeEvent<SelectOption>) => {
 		setValue(e.target.value);
-		tableMeta?.updateData(row.index, column.id, e.target.value);
+		// tableMeta?.updateData(row.index, column.id, e.target.value);
 	};
 
 	if (tableMeta?.editedRows[row.id]) {
@@ -40,10 +45,11 @@ const TableRowCell = <TData, TValue>({ ctx: { getValue, row, column, table } }: 
 		) : (
 			<TextField
 				value={value}
-				onChange={(e) => {
-					setValue(e.target.value);
-				}}
+				// onChange={(e) => {
+				// 	setValue(e.target.value);
+				// }}
 				onBlur={onBlur}
+				onChange={handleInputChange}
 				type={column.columnDef.meta?.type || 'text'}
 			/>
 		);

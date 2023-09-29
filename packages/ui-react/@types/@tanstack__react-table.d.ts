@@ -10,6 +10,7 @@ declare module '@tanstack/react-table' {
 		editedRows: RowSelectionState;
 		setEditedRows: Dispatch<SetStateAction<RowSelectionState>>;
 		updateData: (rowIndex: number, columnId: string, value: unknown) => void;
+		revertData: (rowIndex: number, revert: boolean) => void;
 	}
 
 	export type SelectOption = {

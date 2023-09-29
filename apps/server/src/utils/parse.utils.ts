@@ -172,6 +172,8 @@ export const reOrderObjects = (ids: string[], objects: Parse.Object[]) => {
 
 /**
  * More configurable aggregation method than Parse query's aggregate method.
+ * Use this function when you want to provide other options than Parse Query's aggregate method.
+ * For example here I specified a collation so when I am using sort, the relut will be sorted in an insensitive case manner.
  * @param className collection name
  * @param pipeline aggregation pipeline stages
  * @param options aggregation options

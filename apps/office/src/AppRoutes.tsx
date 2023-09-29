@@ -1,4 +1,7 @@
-import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router-dom';
+import qs from 'query-string';
+import { createBrowserRouter, createRoutesFromElements, Outlet, Route, RouterProvider } from 'react-router-dom';
+import { QueryParamProvider } from 'use-query-params';
+import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
 
 import { FRONT_PATH_NAMES } from '@devist/shared/utils/constants';
 
@@ -15,7 +18,20 @@ import WebHostingProviders from './containers/webHosts/WebHosts';
 
 const router = createBrowserRouter(
 	createRoutesFromElements(
-		<Route path="/">
+		<Route
+			path="/"
+			element={
+				<QueryParamProvider
+					adapter={ReactRouter6Adapter}
+					options={{
+						searchStringToObject: qs.parse,
+						objectToSearchString: qs.stringify,
+					}}
+				>
+					<Outlet />
+				</QueryParamProvider>
+			}
+		>
 			<Route element={<RequireAuth />}>
 				<Route element={<LayoutBO />}>
 					<Route index element={<Home />} />
