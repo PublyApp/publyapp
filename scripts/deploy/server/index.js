@@ -25,7 +25,7 @@ const SERVER_APP_DIR_DEST = path.join(APPS_DIR_DEST, SERVER_APP_NAME);
 
 const onWindows = /^win/.test(process.platform);
 const npxCommand = onWindows ? 'npx.cmd' : 'npx';
-const npmCommand = onWindows ? 'npm.cmd' : 'npm';
+const npmCommand = onWindows ? 'pnpm.cmd' : 'pnpm';
 
 // --------------------------------------------------------------------------------------//
 //                             clean the destination folder                              //
