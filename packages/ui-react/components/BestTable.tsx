@@ -30,6 +30,7 @@ import {
 	type SortingState,
 	type TableState,
 } from '@tanstack/react-table';
+import _ from 'lodash';
 
 type Props<TData, TValue> = {
 	columns: ColumnDef<TData, TValue>[];
@@ -87,12 +88,12 @@ const BestTable = <TData extends RowData = RowData, TValue = any>({
 	pageIndex,
 	setPageIndex, */
 Props<TData, TValue>) => {
-	const [data, setData] = useState(() => {
-		return [...defaultData];
-	});
+	const [data, setData] = useState<TData[]>([]);
+	const [originalData, setOriginalData] = useState<TData[]>([]);
 
 	useEffect(() => {
 		setData(defaultData);
+		setOriginalData(_.cloneDeep(defaultData));
 	}, [defaultData]);
 
 	const [editedRows, setEditedRows] = useState<RowSelectionState>({});
@@ -123,16 +124,29 @@ Props<TData, TValue>) => {
 				setData((old) => {
 					const newValue = old.map((row, index) => {
 						if (index === rowIndex) {
-							return {
-								...(old as any[])[rowIndex],
-								[columnId]: value,
-							};
+							const newRow = _.set((old as any[])[rowIndex], columnId, value);
+							return newRow;
 						}
 
 						return row;
 					});
 					return newValue;
 				});
+			},
+			revertData: (rowIndex: number, revert: boolean) => {
+				if (revert) {
+					setData((prev) => {
+						return prev.map((row, index) => {
+							return index === rowIndex ? _.cloneDeep(originalData[rowIndex]) : row;
+						});
+					});
+				} else {
+					setOriginalData((prev) => {
+						return prev.map((row, index) => {
+							return index === rowIndex ? _.cloneDeep(data[rowIndex]) : row;
+						});
+					});
+				}
 			},
 		},
 		// etc.
@@ -227,7 +241,7 @@ Props<TData, TValue>) => {
 				component="div"
 				count={rowsCount}
 				page={table.getState().pagination.pageIndex}
-				onPageChange={(_, iPage) => {
+				onPageChange={(_e, iPage) => {
 					// setPageIndex(iPage);
 					table.setPageIndex(iPage);
 				}}
