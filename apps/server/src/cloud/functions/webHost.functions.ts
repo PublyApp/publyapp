@@ -5,86 +5,69 @@ import { pageToSkip } from '@server/utils/any.utils';
 import { USE_MASTER_KEY } from '@server/utils/constants';
 import { aggregate, parseFrom, reOrderObjects } from '@server/utils/parse.utils';
 import { getListParamsSchema } from '@server/utils/validation.utils';
+import { defaultLocale } from '@shared/i18n/resources';
 import { ParseWebHost } from '@shared/parse/classes/webHost.class';
 import { /* className, */ className, DEFAULT_PAGE_SIZE, functionName, RolesEnum } from '@shared/utils/constants';
-import { getCreateWebHostInputSchema } from '@shared/validations/webHost.validations';
+import { getSaveWebHostInputSchema } from '@shared/validations/webHost.validations';
 
+// Parse.Cloud.define(
+// 	functionName.createWebHost,
+// 	parseFrom({
+// 		requireUser: true,
+// 		allowedRoles: [RolesEnum.ADMIN],
+// 		action: async ({ req, t }) => {
+// 			const reqParams = getCreateWebHostInputSchema(t).parse(req.params);
+
+// 			// const newWebHost = new Parse.Object(className.WEB_HOST, reqParams);
+// 			const newWebHost = new ParseWebHost({
+// 				translations: {
+// 					en: {
+// 						name: reqParams.name,
+// 						description: reqParams.description,
+// 					},
+// 				},
+// 			});
+// 			const savedWebHost = await newWebHost.save(null, USE_MASTER_KEY);
+
+// 			return savedWebHost;
+// 		},
+// 	}),
+// );
+
+// --------------------------------------------------------------------------------------//
+//                     For creating an updating records of WebHost                      //
+// --------------------------------------------------------------------------------------//
 Parse.Cloud.define(
-	functionName.createWebHost,
+	functionName.saveWebHost,
 	parseFrom({
 		requireUser: true,
 		allowedRoles: [RolesEnum.ADMIN],
 		action: async ({ req, t }) => {
-			const reqParams = getCreateWebHostInputSchema(t).parse(req.params);
+			const reqParams = getSaveWebHostInputSchema(t).parse(req.params);
 
-			// const newWebHost = new Parse.Object(className.WEB_HOST, reqParams);
-			const newWebHost = new ParseWebHost({
+			const localeSave = reqParams.locale ?? defaultLocale;
+
+			// const webHost = new Parse.Object(className.WEB_HOST, reqParams);
+			const webHost = new ParseWebHost({
+				objectId: reqParams.objectId,
 				translations: {
-					en: {
+					[localeSave]: {
 						name: reqParams.name,
 						description: reqParams.description,
 					},
 				},
 			});
-			const savedWebHost = await newWebHost.save(null, USE_MASTER_KEY);
+			const savedWebHost = await webHost.save(null, USE_MASTER_KEY);
 
 			return savedWebHost;
 		},
 	}),
 );
 
+// --------------------------------------------------------------------------------------//
+//                                    Find operation                                    //
+// --------------------------------------------------------------------------------------//
 const getWebHostsFunctionParamsSchema = getListParamsSchema;
-
-// Parse.Cloud.define(
-// 	functionName.getWebHosts,
-// 	parseFrom({
-// 		requireUser: false,
-// 		action: async ({ req /* , t  */ }) => {
-// 			const { page, pageSize, sorting } = getWebHostsFunctionParamsSchema.parse(req.params);
-
-// 			const limit = pageSize || DEFAULT_PAGE_SIZE;
-// 			const skip = pageToSkip(page, pageSize);
-
-// 			const query = new Parse.Query(className.WEB_HOST);
-
-// 			if (sorting && !_.isEmpty(sorting)) {
-// 				sorting.forEach((e) => {
-// 					if (e.desc) {
-// 						query.addDescending(e.id === '_id' ? 'objectId' : e.id);
-// 					} else {
-// 						query.addAscending(e.id === '_id' ? 'objectId' : e.id);
-// 					}
-// 				});
-// 			}
-
-// 			query.skip(skip).limit(limit).hint('translations.en.name_1');
-// 			// query.explain(true);
-
-// 			const [webHosts, totalCount] = await Promise.all([
-// 				// new Parse.Query(className.WEB_HOST).containedIn('objectId', ids).find(),
-// 				query.find({ /* caseInsensitive: true, */ json: true }),
-// 				new Parse.Query(className.WEB_HOST).count(USE_MASTER_KEY),
-// 			]);
-
-// 			// const webHosts = iWebHosts.map((iWebHost) => {
-// 			// 	return iWebHost.toJSON();
-// 			// });
-
-// 			const count = webHosts.length;
-// 			const lastPage = Math.floor(totalCount / count);
-
-// 			return {
-// 				webHosts,
-// 				meta: {
-// 					totalCount,
-// 					count,
-// 					page,
-// 					lastPage,
-// 				},
-// 			};
-// 		},
-// 	}),
-// );
 
 Parse.Cloud.define(
 	functionName.getWebHosts,
