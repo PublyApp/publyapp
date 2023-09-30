@@ -1,12 +1,13 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { /*  useEffect, useState, */ type ReactNode } from 'react';
 
 import {
-	Box,
+	// Box,
 	LinearProgress,
 	styled,
 	Table,
 	TableBody,
 	TableCell,
+	TableContainer,
 	// TableFooter,
 	TableHead,
 	TablePagination,
@@ -24,13 +25,15 @@ import {
 	type OnChangeFn,
 	type PaginationState,
 	type RowData,
-	type RowSelectionState,
+	// type RowSelectionState,
 	// type RowData,
 	// type ColumnDefResolved,
 	type SortingState,
+	type TableMeta,
 	type TableState,
 } from '@tanstack/react-table';
-import _ from 'lodash';
+// import _ from 'lodash';
+import { useForm /* , type SubmitHandler */ } from 'react-hook-form';
 
 type Props<TData, TValue> = {
 	columns: ColumnDef<TData, TValue>[];
@@ -45,6 +48,11 @@ type Props<TData, TValue> = {
 	tableProps?: TableProps;
 	openCreationRowForm?: boolean;
 	creationRowForm?: ReactNode;
+	toggleEditDialog: TableMeta<TData>['toggleEditDialog'];
+	editedRows: TableMeta<TData>['editedRows'];
+	setEditedRows: TableMeta<TData>['setEditedRows'];
+	// ====
+	setDialogEditedRow: TableMeta<TData>['setDialogEditedRow'];
 	// rowsCount: number;
 	// rowsPerPage: number;
 	// setRowsPerPage: (value: number) => void;
@@ -70,7 +78,8 @@ export const CustomTableCell = styled(TableCell)(() => {
 
 const BestTable = <TData extends RowData = RowData, TValue = any>({
 	columns,
-	data: defaultData,
+	// data: defaultData,
+	data,
 	isLoading,
 	state,
 	rowsCount,
@@ -80,6 +89,11 @@ const BestTable = <TData extends RowData = RowData, TValue = any>({
 	openCreationRowForm = false,
 	creationRowForm,
 	tableProps = {},
+	toggleEditDialog,
+	editedRows,
+	setEditedRows,
+	// =====
+	setDialogEditedRow,
 }: // state,
 // pagination,
 /* rowsCount,
@@ -88,15 +102,30 @@ const BestTable = <TData extends RowData = RowData, TValue = any>({
 	pageIndex,
 	setPageIndex, */
 Props<TData, TValue>) => {
-	const [data, setData] = useState<TData[]>([]);
-	const [originalData, setOriginalData] = useState<TData[]>([]);
+	// const [data, setData] = useState<TData[]>([]);
+	// const [originalData, setOriginalData] = useState<TData[]>([]);
 
-	useEffect(() => {
-		setData(defaultData);
-		setOriginalData(_.cloneDeep(defaultData));
-	}, [defaultData]);
+	// useEffect(() => {
+	// 	setData(defaultData);
+	// 	setOriginalData(_.cloneDeep(defaultData));
+	// }, [defaultData]);
 
-	const [editedRows, setEditedRows] = useState<RowSelectionState>({});
+	// const [forms, setForms] = useState<Record<string, any>>({});
+	// const [editedRows, setEditedRows] = useState<Record<string, { form: any, /* ... */ }>>({});
+
+	// useEffect(() => {
+	// 	const novo: Record<string, any> = {};
+	// 	Object.entries(editedRows).forEach(([k, v]) => {
+	// 		if (v) novo[k] = useForm();
+	// 	});
+
+	// 	setForms((prev) => {
+	// 		return {
+	// 			...novo,
+	// 			...prev,
+	// 		};
+	// 	});
+	// }, [editedRows]);
 
 	const table = useReactTable({
 		// columns,
@@ -120,34 +149,39 @@ Props<TData, TValue>) => {
 		meta: {
 			editedRows,
 			setEditedRows,
-			updateData: (rowIndex: number, columnId: string, value: unknown) => {
-				setData((old) => {
-					const newValue = old.map((row, index) => {
-						if (index === rowIndex) {
-							const newRow = _.set((old as any[])[rowIndex], columnId, value);
-							return newRow;
-						}
 
-						return row;
-					});
-					return newValue;
-				});
-			},
-			revertData: (rowIndex: number, revert: boolean) => {
-				if (revert) {
-					setData((prev) => {
-						return prev.map((row, index) => {
-							return index === rowIndex ? _.cloneDeep(originalData[rowIndex]) : row;
-						});
-					});
-				} else {
-					setOriginalData((prev) => {
-						return prev.map((row, index) => {
-							return index === rowIndex ? _.cloneDeep(data[rowIndex]) : row;
-						});
-					});
-				}
-			},
+			toggleEditDialog,
+			setDialogEditedRow,
+
+			// forms,
+			// updateData: (rowIndex: number, columnId: string, value: unknown) => {
+			// 	setData((old) => {
+			// 		const newValue = old.map((row, index) => {
+			// 			if (index === rowIndex) {
+			// 				const newRow = _.set((old as any[])[rowIndex], columnId, value);
+			// 				return newRow;
+			// 			}
+
+			// 			return row;
+			// 		});
+			// 		return newValue;
+			// 	});
+			// },
+			// revertData: (rowIndex: number, revert: boolean) => {
+			// 	if (revert) {
+			// 		setData((prev) => {
+			// 			return prev.map((row, index) => {
+			// 				return index === rowIndex ? _.cloneDeep(originalData[rowIndex]) : row;
+			// 			});
+			// 		});
+			// 	} else {
+			// 		setOriginalData((prev) => {
+			// 			return prev.map((row, index) => {
+			// 				return index === rowIndex ? _.cloneDeep(data[rowIndex]) : row;
+			// 			});
+			// 		});
+			// 	}
+			// },
 		},
 		// etc.
 		debugTable: true,
@@ -164,7 +198,7 @@ Props<TData, TValue>) => {
 	// const [rowsPerPage, setRowsPerPage] = useState<RowPerPageOption>(ROWS_PER_PAGE_OPTION[5]);
 
 	return (
-		<Box className="table-container">
+		<TableContainer>
 			{isLoading && <LinearProgress />}
 			<Table
 				// css={{
@@ -207,18 +241,42 @@ Props<TData, TValue>) => {
 				</TableHead>
 				<TableBody>
 					{openCreationRowForm && creationRowForm}
+					{/* =============================== */}
 					{table.getRowModel().rows.map((row) => {
-						return (
-							<TableRow key={row.id}>
-								{row.getVisibleCells().map((cell) => {
-									return (
-										<CustomTableCell key={cell.id}>
-											{flexRender(cell.column.columnDef.cell, cell.getContext())}
-										</CustomTableCell>
-									);
-								})}
-							</TableRow>
-						);
+						const Row = ({ form }: { form?: any }) => {
+							return (
+								<TableRow key={row.id}>
+									{row.getVisibleCells().map((cell) => {
+										const cellContext = cell.getContext();
+										// cellContext.row.hookForm = form;
+										Object.assign(cellContext.row, { hookForm: form });
+
+										return (
+											<CustomTableCell key={cell.id}>
+												{flexRender(cell.column.columnDef.cell, cellContext)}
+											</CustomTableCell>
+										);
+									})}
+								</TableRow>
+							);
+						};
+
+						const RowWithForm = () => {
+							const form = useForm({
+								defaultValues: async (/* _payload */) => {
+									const defaultValues = {};
+
+									row.getVisibleCells().forEach((cell) => {
+										Object.assign(defaultValues, { [cell.column.id]: cell.getContext().getValue() });
+									});
+
+									return defaultValues;
+								},
+							});
+							return <Row form={form} />;
+						};
+
+						return table.options.meta?.editedRows[row.id] ? <RowWithForm /> : <Row />;
 					})}
 				</TableBody>
 				{/* <TableFooter>
@@ -259,7 +317,7 @@ Props<TData, TValue>) => {
 				}}
 				rowsPerPageOptions={Object.values(ROWS_PER_PAGE_OPTION)}
 			/>
-		</Box>
+		</TableContainer>
 	);
 };
 

@@ -8,13 +8,13 @@ import { FRONT_PATH_NAMES } from '@devist/shared/utils/constants';
 import LayoutBO from './components/layout/LayoutBO';
 import RequireAuth from './components/RequireAuth';
 import Account from './containers/account/Account';
-import AITools from './containers/aiTools/AITools';
+// import AITools from './containers/aiTools/AITools';
 import ButtonsPage from './containers/designSystem/ButtonsPage';
 import TypoPage from './containers/designSystem/TypoPage';
 import Home from './containers/home/Home';
 import LogIn from './containers/logIn/LogIn';
 import NotFound from './containers/notFound/NotFound';
-import WebHostingProviders from './containers/webHosts/WebHosts';
+import WebHosts from './containers/webHosts/WebHosts';
 
 const router = createBrowserRouter(
 	createRoutesFromElements(
@@ -42,8 +42,8 @@ const router = createBrowserRouter(
 					<Route path="buttons" element={<ButtonsPage />} />
 
 					{/* ------- AI Tools ------------------------ */}
-					<Route path={FRONT_PATH_NAMES.webHosts} element={<WebHostingProviders />} />
-					<Route path={FRONT_PATH_NAMES.aiTools} element={<AITools />} />
+					<Route path={FRONT_PATH_NAMES.webHosts} element={<WebHosts />} />
+					{/* <Route path={FRONT_PATH_NAMES.aiTools} element={<AITools />} /> */}
 
 					{/* // ---- not found page ------------------------------------------------------------------- */}
 					<Route path="*" element={<NotFound />} />

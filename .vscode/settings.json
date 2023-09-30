@@ -23,7 +23,8 @@
 		"svkit",
 		"tanstack",
 		"tiptap",
-		"toastify"
+		"toastify",
+		"valueof"
 	],
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.codeActionsOnSave": {

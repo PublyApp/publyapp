@@ -2,14 +2,15 @@
 import en from './locales/en';
 import fr from './locales/fr';
 
-// Export here your language files import
-export const resources = {
+export const appLocales = ['en', 'fr'] as const;
+
+export type AppLocale = (typeof appLocales)[number];
+
+export const resources: Record<AppLocale, typeof en | typeof fr> = {
 	en,
 	fr,
-};
-
-export type AppLocale = keyof typeof resources;
+} as const;
 
 export const NS = Object.keys(fr);
 export const defaultNS = 'common';
-export const defaultLocale: AppLocale = 'en';
+export const defaultLocale: (typeof appLocales)[0] = 'en';

@@ -6,7 +6,7 @@ import type { ColumnSort } from '@tanstack/react-table';
 import type { ParseWebHost } from '@devist/shared/parse/classes/webHost.class';
 import type { WebHost } from '@devist/shared/types/webHost.types';
 import { functionName } from '@devist/shared/utils/constants';
-import type { CreateWebHostInput } from '@devist/shared/validations/webHost.validations';
+import type { SaveWebHostInput } from '@devist/shared/validations/webHost.validations';
 
 // --------------------------------------------------------------------------------------//
 //                                                                                      //
@@ -52,13 +52,13 @@ export const getWebHostsAction: QueryFunction<
 //                                                                                      //
 // --------------------------------------------------------------------------------------//
 
-export const createWebHostAction: MutationFunction<ParseWebHost, CreateWebHostInput> = async (data) => {
+export const saveWebHostAction: MutationFunction<ParseWebHost, SaveWebHostInput> = async (data) => {
 	try {
-		const result = (await Parse.Cloud.run(functionName.createWebHost, data)) as ParseWebHost;
+		const result = (await Parse.Cloud.run(functionName.saveWebHost, data)) as ParseWebHost;
 
 		return result;
 	} catch (error) {
-		console.log('----- createWebHostAction error ----------', error);
+		console.log('----- saveWebHostAction error ----------', error);
 		return Promise.reject(error);
 	}
 };
