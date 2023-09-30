@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Button, CircularProgress, TextField } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
-import { SubmitHandler, useForm } from 'react-hook-form';
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 
 import { BO_PATH_NAMES } from '@devist/shared/utils/constants';
-import { LogInInput, logInSchema } from '@devist/shared/validations/auth.validations';
+import { logInSchema, type LogInInput } from '@devist/shared/validations/auth.validations';
 import { useGetClientAuth, useLogInMutation } from '@devist/ui-react/query/features/auth/auth.hooks';
 
 const LogInForm = () => {

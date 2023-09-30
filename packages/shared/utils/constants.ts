@@ -33,7 +33,8 @@ export const BO_PATH_NAMES = {
 export const functionName = {
 	getAITools: 'getAITools',
 	createAITool: 'createAITool',
-	createWebHost: 'createWebHost',
+	// createWebHost: 'createWebHost',
+	saveWebHost: 'saveWebHost',
 	getWebHosts: 'getWebHosts',
 } as const;
 
