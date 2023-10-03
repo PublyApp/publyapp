@@ -245,11 +245,25 @@ Props<TData, TValue>) => {
 					{table.getRowModel().rows.map((row) => {
 						const Row = ({ form }: { form?: any }) => {
 							return (
-								<TableRow key={row.id}>
+								<TableRow /* key={row.id} */>
 									{row.getVisibleCells().map((cell) => {
 										const cellContext = cell.getContext();
-										// cellContext.row.hookForm = form;
-										Object.assign(cellContext.row, { hookForm: form });
+
+										try {
+											cellContext.row.hookForm = form;
+											// Object.assign(cellContext.row, { hookForm: form });
+										} catch (error) {
+											if (
+												error instanceof TypeError &&
+												// eslint-disable-next-line quotes
+												error.message === "Cannot assign to read only property 'hookForm' of object '#<Object>'"
+											) {
+												console.log(error.message);
+												// do nothing
+											} else {
+												throw error;
+											}
+										}
 
 										return (
 											<CustomTableCell key={cell.id}>
@@ -276,7 +290,8 @@ Props<TData, TValue>) => {
 							return <Row form={form} />;
 						};
 
-						return table.options.meta?.editedRows[row.id] ? <RowWithForm /> : <Row />;
+						// return table.options.meta?.editedRows[row.id] ? <RowWithForm key={row.id} /> : <Row key={row.id} />;
+						return <RowWithForm key={row.id} />;
 					})}
 				</TableBody>
 				{/* <TableFooter>
@@ -314,6 +329,7 @@ Props<TData, TValue>) => {
 					// 	};
 					// });
 					table.setPageSize(Number(event.target.value));
+					table.setPageIndex(0);
 				}}
 				rowsPerPageOptions={Object.values(ROWS_PER_PAGE_OPTION)}
 			/>
