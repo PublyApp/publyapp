@@ -56,18 +56,30 @@ const Home = () => {
 		refetch: sayHello,
 		isSuccess,
 		data,
-		isFetching,
+		// isFetching,
+		// isLoading,
+		// // isStale,
+		// isFetched,
 	} = useQuery({
 		queryKey: ['sayHello'],
 		queryFn: helloAction,
 		enabled: false,
+		// placeholderData: keepPreviousData,
 	});
 
+	// useEffect(() => {
+	// 	if (!isFetching && isSuccess && data && data) {
+	// 		alert(data);
+	// 	}
+	// }, [isSuccess, data, isFetching, isLoading]);
 	useEffect(() => {
-		if (!isFetching && isSuccess && data) {
-			alert(data);
+		if (isSuccess && data) {
+			// alert(data);
+			console.log('====================================');
+			console.log(data);
+			console.log('====================================');
 		}
-	}, [isSuccess, data, isFetching]);
+	}, [data, isSuccess]);
 
 	return (
 		<Box>

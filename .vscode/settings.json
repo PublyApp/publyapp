@@ -24,7 +24,8 @@
 		"tanstack",
 		"tiptap",
 		"toastify",
-		"valueof"
+		"valueof",
+		"zustand"
 	],
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.codeActionsOnSave": {
