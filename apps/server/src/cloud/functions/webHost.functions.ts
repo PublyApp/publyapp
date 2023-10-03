@@ -118,7 +118,7 @@ Parse.Cloud.define(
 			});
 
 			const count = iWebHosts.length;
-			const lastPage = Math.floor(totalCount / count);
+			const lastPage = Math.ceil(totalCount / count);
 
 			return {
 				webHosts,

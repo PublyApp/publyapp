@@ -1,4 +1,5 @@
 import qs from 'query-string';
+// import qs from 'qs';
 import { createBrowserRouter, createRoutesFromElements, Outlet, Route, RouterProvider } from 'react-router-dom';
 import { QueryParamProvider } from 'use-query-params';
 import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
@@ -24,8 +25,14 @@ const router = createBrowserRouter(
 				<QueryParamProvider
 					adapter={ReactRouter6Adapter}
 					options={{
-						searchStringToObject: qs.parse,
-						objectToSearchString: qs.stringify,
+						// searchStringToObject: qs.parse,
+						// objectToSearchString: qs.stringify,
+						searchStringToObject: (str) => {
+							return qs.parse(str, { decode: true }) as any;
+						},
+						objectToSearchString: (param) => {
+							return qs.stringify(param, { encode: false });
+						},
 					}}
 				>
 					<Outlet />
