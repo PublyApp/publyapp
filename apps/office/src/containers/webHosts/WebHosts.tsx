@@ -36,6 +36,7 @@ import {
 	type RowSelectionState,
 	type SortingState,
 } from '@tanstack/react-table';
+import _ from 'lodash';
 // import qs from 'query-string';
 // import qs from 'qs';
 // import type { Draft } from 'immer';
@@ -52,6 +53,7 @@ import {
 	// StringParam,
 	useQueryParam,
 	useQueryParams,
+	withDefault,
 } from 'use-query-params';
 // import { toast } from 'react-toastify';
 // import { useToggle } from 'react-use';
@@ -193,6 +195,14 @@ const createWebHostStore = (initialProps?: Partial<CreateWebHostStoreProps>) => 
 		dialogEditedRow: undefined,
 	};
 
+	// const a = {
+	// 	...DEFAULT_PROPS,
+	// 	...initialProps,
+	// };
+	// console.log('====================================');
+	// console.log('a', a);
+	// console.log('====================================');
+
 	return createStore<WebHostState>()(
 		immer((set) => {
 			return {
@@ -232,7 +242,10 @@ const useWebHostQueryParams = () => {
 	// 	'pagination',
 	// 	GenericParam,
 	// );
-	const [paginationParam, setPaginationParam] = useQueryParams({ pageIndex: NumberParam, pageSize: NumberParam });
+	const [paginationParam, setPaginationParam] = useQueryParams({
+		pageIndex: withDefault(NumberParam, 0),
+		pageSize: withDefault(NumberParam, ROWS_PER_PAGE_OPTION[5]),
+	});
 	const [sortingParam, setSortingParam] = useQueryParam<WebHostURLQueryParams['sorting']>('sorting', JsonParam);
 	// useQueryParams [sortingParam, setSortingParam] = useQuery
 
@@ -661,7 +674,13 @@ function useWebHostContext<T>(selector?: ((state: WebHostState) => T) | undefine
 const Page = () => {
 	const { paginationParam, sortingParam } = useWebHostQueryParams();
 
-	const store = useRef(createWebHostStore({ pagination: paginationParam as any, sorting: sortingParam })).current;
+	// console.log('====================================');
+	// console.log('AAAAA', _.omitBy(paginationParam, _.isNil));
+	// console.log('====================================');
+
+	const store = useRef(
+		createWebHostStore({ pagination: _.omitBy(paginationParam, _.isNil) as any, sorting: sortingParam }),
+	).current;
 
 	// useEffect(() => {
 	// 	setPaginationParam(pagination);
