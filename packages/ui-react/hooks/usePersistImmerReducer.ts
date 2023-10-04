@@ -1,4 +1,4 @@
-import { Dispatch /*  useCallback, */, useEffect } from 'react';
+import { useEffect, type Dispatch /*  useCallback, */ } from 'react';
 
 import { useLocalStorage } from 'react-use';
 import { useImmerReducer, type ImmerReducer } from 'use-immer';

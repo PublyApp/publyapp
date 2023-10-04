@@ -12,6 +12,7 @@ module.exports = {
 		'turbo',
 		'prettier',
 	],
+	plugins: ['prefer-arrow'],
 	parser: '@typescript-eslint/parser',
 	parserOptions: {
 		tsconfigRootDir: path.resolve(__dirname, '../../'),
@@ -103,5 +104,17 @@ module.exports = {
 
 		// eslint-config-airbnb-typescript overrides
 		'import/no-unresolved': 'error',
+
+		// enforce arrow functions
+		'prefer-arrow/prefer-arrow-functions': [
+			'error',
+			{
+				disallowPrototype: true,
+				singleReturnOnly: false,
+				classPropertiesAllowed: false,
+			},
+		],
+		'prefer-arrow-callback': ['error', { allowNamedFunctions: true }],
+		'func-style': ['error', 'expression'],
 	},
 };

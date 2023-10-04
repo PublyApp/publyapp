@@ -72,67 +72,9 @@ import TableHeaderCell from '@devist/ui-react/components/TableHeaderCell';
 import TableRowCell from '@devist/ui-react/components/TableRowCell';
 import { useGetWebHosts, useSaveWebHost } from '@devist/ui-react/query/features/webHosts/webHost.hooks';
 import { pxToRem } from '@devist/ui-react/utils/cssUtils';
+import { createSetter } from '@devist/ui-react/zustand/utils';
 
 import { ENABLE_TABLE_INLINE_EDITING } from '@ui-react/utils/constants';
-
-// import i18n from '@devist/ui-react/utils/i18n';
-
-// @link https://muhimasri.com/blogs/react-editable-table/
-
-// import { TableLoader } from '@office/components/loaders/TableLoader';
-
-// const GenericParam = {
-// 	encode: (obj: any) => {
-// 		return qs.stringify(obj, { encode: false });
-// 	},
-// 	decode: (str: string) => {
-// 		return qs.parse(str);
-// 	},
-// };
-
-// type WebHostStore = {
-// 	openCreationRow: boolean;
-// 	editedRows: RowSelectionState;
-// 	editDialogOpen: boolean;
-// 	sorting: SortingState;
-// 	pagination: PaginationState;
-// 	dialogEditedRow: Row<WebHost> | undefined;
-// 	toggleOpenCreationRow: () => void;
-// 	setEditedRows: Dispatch<SetStateAction<RowSelectionState>>;
-// 	toggleEditDialog: () => void;
-// 	setSorting: Dispatch<SetStateAction<SortingState>>;
-// 	setPagination: Dispatch<SetStateAction<PaginationState>>;
-// 	setDialogEditedRow: Dispatch<SetStateAction<Row<WebHost> | undefined>>;
-// };
-
-type SetType<T> = Parameters<Parameters<typeof immer<T>>[0]>[0];
-
-// @link https://stackoverflow.com/a/70123495/15003148
-// eslint-disable-next-line @typescript-eslint/ban-types
-const isCallback = (maybeFunction: unknown): maybeFunction is Function => {
-	return typeof maybeFunction === 'function';
-};
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const createSetter = <T extends Record<string, unknown>>(
-	set: SetType<T>,
-	key: keyof T,
-	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-	// @ts-ignore
-): Dispatch<SetStateAction<T[key]>> => {
-	return (s) => {
-		set((state) => {
-			if (isCallback(s)) {
-				// eslint-disable-next-line no-param-reassign
-				(state as T)[key] = s((state as T)[key]);
-				return;
-			}
-
-			// eslint-disable-next-line no-param-reassign
-			(state as T)[key] = s;
-		});
-	};
-};
 
 // const useWebHostStore = create<WebHostStore>()(
 // 	immer((set) => {
