@@ -15,10 +15,11 @@ import {
 	Typography,
 } from '@mui/material';
 
+import Iconify from '@devist/ui-react/components/Iconify';
+
 import { _products } from '@front/_mock';
 import { NAV } from '@front/utils/constants';
 
-import Iconify from './Iconify';
 import ProductList from './ProductList';
 
 // type Props = {};

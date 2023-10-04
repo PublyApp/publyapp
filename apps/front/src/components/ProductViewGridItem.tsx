@@ -1,7 +1,8 @@
 import { Box, Fab, Link, Stack, StackProps } from '@mui/material';
 import NextLink from 'next/link';
 
-import Iconify from './Iconify';
+import Iconify from '@devist/ui-react/components/Iconify';
+
 import Image from './Image';
 import Label from './Label';
 import { type IProductItemProps } from './ProductList';

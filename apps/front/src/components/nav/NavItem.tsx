@@ -3,7 +3,7 @@ import { forwardRef } from 'react';
 import { Link, ListItemButton, styled } from '@mui/material';
 import NextLink from 'next/link';
 
-import Iconify from '../Iconify';
+import Iconify from '@devist/ui-react/components/Iconify';
 
 import { NavItemProps } from './types';
 
