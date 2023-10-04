@@ -18,13 +18,13 @@ import { getT } from './i18n';
 
 // type ParseInnerFunction = (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest) => Promise<unknown>;
 type ParseInnerFunction =
-	| ((req: Parse.Cloud.TriggerRequest) => Promise<any>)
-	| ((req: Parse.Cloud.FunctionRequest) => Promise<any>);
+	| ((req: Parse.Cloud.TriggerRequest) => Promise<unknown>)
+	| ((req: Parse.Cloud.FunctionRequest) => Promise<unknown>);
 
 export const parseFunction = (innerFunction: ParseInnerFunction) => {
-	return async (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest): Promise<any> => {
+	return async (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest): Promise<unknown> => {
 		try {
-			let result = await innerFunction(req as any);
+			let result = await innerFunction(req as Parse.Cloud.TriggerRequest & Parse.Cloud.FunctionRequest);
 
 			if (result == null) {
 				result = 'ok';
@@ -76,11 +76,11 @@ type ParseFromParams =
 	| {
 			requireUser: true;
 			allowedRoles: RolesEnum[];
-			action: (ctx: ActionContext1) => Promise<any>;
+			action: (ctx: ActionContext1) => Promise<unknown>;
 	  }
 	| {
 			requireUser: false;
-			action: (ctx: ActionContext2) => Promise<any>;
+			action: (ctx: ActionContext2) => Promise<unknown>;
 			allowedRoles?: undefined;
 	  };
 
@@ -131,7 +131,7 @@ type TriggerContext = {
 };
 
 type ParseTriggerParams = {
-	trigger: (ctx: TriggerContext) => Promise<any>;
+	trigger: (ctx: TriggerContext) => Promise<unknown>;
 };
 
 export const parseTrigger = (params: ParseTriggerParams) => {
