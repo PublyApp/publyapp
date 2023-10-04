@@ -10,7 +10,7 @@ import {
 	Portal,
 	Stack,
 	styled,
-	Theme,
+	type Theme,
 } from '@mui/material';
 import NextLink from 'next/link';
 import { useRouter } from 'next/router';
@@ -22,8 +22,7 @@ import Image from '../Image';
 import Label from '../Label';
 
 import { NavItem } from './NavItem';
-// import { StyledMenu, StyledSubheader } from './styles';
-import { NavItemBaseProps, NavListProps } from './types';
+import type { NavItemBaseProps, NavListProps } from './types';
 
 // ----------------------------------------------------------------------
 type Props = { item: NavItemBaseProps };

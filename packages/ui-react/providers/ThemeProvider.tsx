@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 
 import { ThemeProvider as EmotionProvider } from '@emotion/react';
 import { createTheme, CssBaseline } from '@mui/material';
