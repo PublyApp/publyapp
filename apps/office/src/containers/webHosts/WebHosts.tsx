@@ -36,7 +36,6 @@ import {
 	type RowSelectionState,
 	type SortingState,
 } from '@tanstack/react-table';
-import _ from 'lodash';
 // import qs from 'query-string';
 // import qs from 'qs';
 // import type { Draft } from 'immer';
@@ -108,8 +107,14 @@ import { ENABLE_TABLE_INLINE_EDITING } from '@ui-react/utils/constants';
 
 type SetType<T> = Parameters<Parameters<typeof immer<T>>[0]>[0];
 
+// @link https://stackoverflow.com/a/70123495/15003148
+// eslint-disable-next-line @typescript-eslint/ban-types
+const isCallback = (maybeFunction: unknown): maybeFunction is Function => {
+	return typeof maybeFunction === 'function';
+};
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const createSetter = <T extends Record<string, any>>(
+const createSetter = <T extends Record<string, unknown>>(
 	set: SetType<T>,
 	key: keyof T,
 	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -117,14 +122,14 @@ const createSetter = <T extends Record<string, any>>(
 ): Dispatch<SetStateAction<T[key]>> => {
 	return (s) => {
 		set((state) => {
-			if (typeof s === 'function' && 'caller' in s) {
+			if (isCallback(s)) {
 				// eslint-disable-next-line no-param-reassign
-				(state as any)[key] = s((state as any)[key]);
+				(state as T)[key] = s((state as T)[key]);
 				return;
 			}
 
 			// eslint-disable-next-line no-param-reassign
-			(state as any)[key] = s;
+			(state as T)[key] = s;
 		});
 	};
 };
@@ -168,7 +173,7 @@ type CreateWebHostStoreProps = {
 	editDialogOpen: boolean;
 	sorting: SortingState;
 	pagination: PaginationState;
-	dialogEditedRow: undefined;
+	dialogEditedRow: Row<WebHost> | undefined;
 };
 
 type WebHostState = CreateWebHostStoreProps & {
@@ -400,6 +405,7 @@ const WebHostCreationRowFrom = () => {
 const columnHelper = createColumnHelper<WebHost>();
 
 const WebHostsTable = (/* { openCreationRow }: WebHostsTableProps */) => {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const columns = useMemo<ColumnDef<WebHost, any>[]>(() => {
 		return [
 			columnHelper.accessor(
@@ -523,7 +529,7 @@ const WebHostsTable = (/* { openCreationRow }: WebHostsTableProps */) => {
 		result: { data: webHostsData, isFetching: isWebHostListFetching, refetch: refetchWebHostList },
 	} = useGetWebHosts({ page: pagination.pageIndex + 1, pageSize: pagination.pageSize, sorting });
 
-	const { original: dialogRowData } = dialogEditedRow ?? ({} as any);
+	const dialogRowData = dialogEditedRow?.original;
 
 	const { t } = useTranslation();
 	const saveWebHostInputSchema = getSaveWebHostInputSchema(t);
@@ -679,7 +685,10 @@ const Page = () => {
 	// console.log('====================================');
 
 	const store = useRef(
-		createWebHostStore({ pagination: _.omitBy(paginationParam, _.isNil) as any, sorting: sortingParam }),
+		createWebHostStore({
+			pagination: paginationParam,
+			sorting: sortingParam,
+		}),
 	).current;
 
 	// useEffect(() => {

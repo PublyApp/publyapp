@@ -240,42 +240,10 @@ Props<TData, TValue>) => {
 					})}
 				</TableHead>
 				<TableBody>
-					{openCreationRowForm && creationRowForm}
+					{openCreationRowForm && creationRowForm} {/* TODO: Rethink this implementation */}
 					{/* =============================== */}
 					{table.getRowModel().rows.map((row) => {
-						const Row = ({ form }: { form?: any }) => {
-							return (
-								<TableRow /* key={row.id} */>
-									{row.getVisibleCells().map((cell) => {
-										const cellContext = cell.getContext();
-
-										try {
-											cellContext.row.hookForm = form;
-											// Object.assign(cellContext.row, { hookForm: form });
-										} catch (error) {
-											if (
-												error instanceof TypeError &&
-												// eslint-disable-next-line quotes
-												error.message === "Cannot assign to read only property 'hookForm' of object '#<Object>'"
-											) {
-												console.log(error.message);
-												// do nothing
-											} else {
-												throw error;
-											}
-										}
-
-										return (
-											<CustomTableCell key={cell.id}>
-												{flexRender(cell.column.columnDef.cell, cellContext)}
-											</CustomTableCell>
-										);
-									})}
-								</TableRow>
-							);
-						};
-
-						const RowWithForm = () => {
+						const Row = () => {
 							const form = useForm({
 								defaultValues: async (/* _payload */) => {
 									const defaultValues = {};
@@ -287,11 +255,61 @@ Props<TData, TValue>) => {
 									return defaultValues;
 								},
 							});
-							return <Row form={form} />;
+
+							// eslint-disable-next-line no-param-reassign
+							row.hookForm = form;
+
+							return (
+								<TableRow /* key={row.id} */>
+									{row.getVisibleCells().map((cell) => {
+										// const cellContext = cell.getContext();
+
+										// try {
+										// 	cellContext.row.hookForm = form;
+										// 	// Object.assign(cellContext.row, { hookForm: form });
+										// } catch (error) {
+										// 	if (
+										// 		error instanceof TypeError &&
+										// 		// eslint-disable-next-line quotes
+										// 		error.message === "Cannot assign to read only property 'hookForm' of object '#<Object>'"
+										// 	) {
+										// 		console.log(error.message);
+										// 		// do nothing
+										// 	} else {
+										// 		throw error;
+										// 	}
+										// }
+
+										return (
+											<CustomTableCell key={cell.id}>
+												{flexRender(cell.column.columnDef.cell, /* cellContext */ cell.getContext())}
+											</CustomTableCell>
+										);
+									})}
+								</TableRow>
+							);
 						};
 
+						return <Row />;
+
+						// const RowWithForm = () => {
+						// 	const form = useForm({
+						// 		defaultValues: async (/* _payload */) => {
+						// 			const defaultValues = {};
+
+						// 			row.getVisibleCells().forEach((cell) => {
+						// 				Object.assign(defaultValues, { [cell.column.id]: cell.getContext().getValue() });
+						// 			});
+
+						// 			return defaultValues;
+						// 		},
+						// 	});
+
+						// 	return <Row form={form} />;
+						// };
+
 						// return table.options.meta?.editedRows[row.id] ? <RowWithForm key={row.id} /> : <Row key={row.id} />;
-						return <RowWithForm key={row.id} />;
+						// return <RowWithForm key={row.id} />;
 					})}
 				</TableBody>
 				{/* <TableFooter>
