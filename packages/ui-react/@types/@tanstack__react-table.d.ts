@@ -15,6 +15,7 @@ declare module '@tanstack/react-table' {
 
 		toggleEditDialog: (s?: boolean | ((prev: boolean) => boolean)) => void;
 		setDialogEditedRow: Dispatch<SetStateAction<Row<TData> | undefined>>;
+		// setDialogEditedRow: Dispatch<SetStateAction<string>>;
 	}
 
 	// export type SelectOption = {

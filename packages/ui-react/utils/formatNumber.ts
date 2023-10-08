@@ -10,12 +10,18 @@ const result = (format: string, key = '.00') => {
 
 type InputValue = string | number | null;
 
-export function fNumber(number: InputValue) {
+export const fNumber = (number: InputValue) => {
 	return numeral(number).format();
-}
+};
 
-export function fCurrency(number: InputValue) {
+export const fCurrency = (number: InputValue) => {
 	const format = number ? numeral(number).format('$0,0.00') : '';
 
 	return result(format, '.00');
-}
+};
+
+export const fData = (number: InputValue) => {
+	const format = number ? numeral(number).format('0.0 b') : '';
+
+	return result(format, '.0');
+};

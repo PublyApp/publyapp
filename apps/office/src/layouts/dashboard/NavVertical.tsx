@@ -9,7 +9,7 @@ import Logo from '@office/components/Logo';
 import NavSectionVertical from '@office/components/nav-section/nav-vertical/NavSectionVertical';
 import Scrollbar from '@office/components/Scrollbar';
 import { useNavData } from '@office/hooks/useNavData';
-import { usePathname } from '@office/hooks/usePathName';
+import usePathname from '@office/hooks/usePathName';
 import { NAV } from '@office/utils/constants';
 import useResponsive from '@ui-react/hooks/useResponsive';
 

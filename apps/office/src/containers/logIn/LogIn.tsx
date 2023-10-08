@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
 
 import { Box, Typography, useTheme } from '@mui/material';
-// import { useQuery } from '@tanstack/react-query';
-
 import { useNavigate } from 'react-router-dom';
 
 import { BO_PATH_NAMES } from '@devist/shared/utils/constants';
@@ -20,7 +18,7 @@ const LogIn = () => {
 
 	useEffect(() => {
 		if (data) {
-			navigate(BO_PATH_NAMES.home);
+			navigate(BO_PATH_NAMES.dashboard);
 		}
 	}, [data, navigate]);
 

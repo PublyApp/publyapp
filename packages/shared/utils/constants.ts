@@ -17,17 +17,26 @@ export const className = {
 	WEB_HOST: 'WebHost',
 } as const;
 
-export const I18N_LOCALE_KEY = 'xxx-app-i18n-locale';
+export const LOCALE_HEADER_KEY = 'xxx-app-i18n-locale';
 
 export const FRONT_PATH_NAMES = {
-	home: '/',
-	aiTools: 'ai-tools',
-	webHosts: 'web-hosts',
+	// dashboard: ROOTS.DASHBOARD,
+	// webHosts: `${ROOTS.DASHBOARD}/web-hosts`,
+	// createWebHost: `${ROOTS.DASHBOARD}/web-hosts/new`,
+	// TODO: edit route
+} as const;
+
+const ROOTS = {
+	AUTH: '/auth',
+	DASHBOARD: '/dashboard',
 } as const;
 
 export const BO_PATH_NAMES = {
-	home: '/',
-	logIn: '/login',
+	// home: '/',
+	logIn: `${ROOTS.DASHBOARD}/login`,
+	dashboard: ROOTS.DASHBOARD,
+	webHosts: `${ROOTS.DASHBOARD}/web-hosts`,
+	createWebHost: `${ROOTS.DASHBOARD}/web-hosts/new`,
 } as const;
 
 export const functionName = {
