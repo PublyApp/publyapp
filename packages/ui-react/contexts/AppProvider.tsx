@@ -4,7 +4,7 @@
 // import type { ImmerReducer } from 'use-immer';
 
 // import { defaultLocale, type AppLocale } from '@devist/shared/i18n/resources';
-// import { I18N_LOCALE_KEY } from '@devist/shared/utils/constants';
+// import { LOCALE_HEADER_KEY } from '@devist/shared/utils/constants';
 
 // import { usePersistImmerReducer } from '@ui-react/hooks/usePersistImmerReducer';
 // import i18n, { getCurrentLocale } from '@ui-react/utils/i18n';
@@ -108,7 +108,7 @@
 
 // 	useEffect(() => {
 // 		Parse.CoreManager.set('REQUEST_HEADERS', {
-// 			[I18N_LOCALE_KEY]: state.locale,
+// 			[LOCALE_HEADER_KEY]: state.locale,
 // 		});
 // 		i18n.changeLanguage(state.locale);
 // 		// queryClient.invalidateQueries();

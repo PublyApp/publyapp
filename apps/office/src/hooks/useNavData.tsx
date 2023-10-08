@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 
 import SvgColor from '@office/components/SvgColor';
-import { paths } from '@office/utils/paths';
+import { BO_PATH_NAMES } from '@shared/utils/constants';
+
+// import { paths } from '@office/utils/paths';
 
 // routes
 // import { paths } from 'src/routes/paths';
@@ -56,7 +58,7 @@ export const useNavData = () => {
 			{
 				// subheader: 'overview v5.5.0',
 				items: [
-					{ title: 'dashboard', path: paths.dashboard.root, icon: ICONS.dashboard },
+					{ title: 'dashboard', path: BO_PATH_NAMES.dashboard, icon: ICONS.dashboard },
 					// { title: 'two', path: paths.dashboard.two, icon: ICONS.ecommerce },
 					// {
 					// 	title: 'three',
@@ -83,7 +85,7 @@ export const useNavData = () => {
 					// },
 					{
 						title: 'Web hosts',
-						path: paths.dashboard.directory.webHosts,
+						path: BO_PATH_NAMES.webHosts,
 						icon: ICONS.dashboard,
 					},
 				],

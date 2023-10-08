@@ -1,142 +1,142 @@
-import Parse from 'parse';
-import { useEffect } from 'react';
+// import Parse from 'parse';
+// import { useEffect } from 'react';
 
-import {
-	Box,
-	Button,
-	FormControl,
-	InputLabel,
-	MenuItem,
-	Select,
-	Typography,
-	type SelectChangeEvent,
-} from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
-import { toast } from 'react-toastify';
+// import {
+// 	Box,
+// 	Button,
+// 	FormControl,
+// 	InputLabel,
+// 	MenuItem,
+// 	Select,
+// 	Typography,
+// 	type SelectChangeEvent,
+// } from '@mui/material';
+// import { useQuery } from '@tanstack/react-query';
+// import { toast } from 'react-toastify';
 
-import type { AppLocale } from '@devist/shared/i18n/resources';
-import { setBreadcrumbs, setLocale } from '@devist/ui-react/contexts/AppProvider';
-import { useApp } from '@devist/ui-react/hooks/useApp';
+// import type { AppLocale } from '@devist/shared/i18n/resources';
 
-import TipTap from '@office/components/tipTap/TipTap';
+// // import { setBreadcrumbs, setLocale } from '@devist/ui-react/contexts/AppProvider';
 
-const helloAction = async () => {
-	try {
-		return Parse.Cloud.run('hello') as any;
-	} catch (error) {
-		return Promise.reject(error);
-	}
-};
+// import TipTap from '@office/components/tipTap/TipTap';
 
-const Home = () => {
-	const { dispatch, state } = useApp();
+// const helloAction = async () => {
+// 	try {
+// 		return Parse.Cloud.run('hello') as any;
+// 	} catch (error) {
+// 		return Promise.reject(error);
+// 	}
+// };
 
-	useEffect(() => {
-		dispatch(
-			setBreadcrumbs([
-				{
-					link: 'contact',
-					text: 'Contact',
-				},
-				{
-					link: 'contact',
-					text: 'Contact',
-				},
-			]),
-		);
-	}, [dispatch]);
+// const Home = () => {
+// 	// const { dispatch, state } = useApp();
 
-	const handleChangeLocale = (e: SelectChangeEvent) => {
-		// setLocale(e.target.value as AppLocale);
-		dispatch(setLocale(e.target.value as AppLocale));
-	};
+// 	// useEffect(() => {
+// 	// 	dispatch(
+// 	// 		setBreadcrumbs([
+// 	// 			{
+// 	// 				link: 'contact',
+// 	// 				text: 'Contact',
+// 	// 			},
+// 	// 			{
+// 	// 				link: 'contact',
+// 	// 				text: 'Contact',
+// 	// 			},
+// 	// 		]),
+// 	// 	);
+// 	// }, [dispatch]);
 
-	const {
-		/*  _data, */
-		refetch: sayHello,
-		isSuccess,
-		data,
-		// isFetching,
-		// isLoading,
-		// // isStale,
-		// isFetched,
-	} = useQuery({
-		queryKey: ['sayHello'],
-		queryFn: helloAction,
-		enabled: false,
-		// placeholderData: keepPreviousData,
-	});
+// 	const handleChangeLocale = (e: SelectChangeEvent) => {
+// 		// setLocale(e.target.value as AppLocale);
+// 		// dispatch(setLocale(e.target.value as AppLocale));
+// 	};
 
-	// useEffect(() => {
-	// 	if (!isFetching && isSuccess && data && data) {
-	// 		alert(data);
-	// 	}
-	// }, [isSuccess, data, isFetching, isLoading]);
-	useEffect(() => {
-		if (isSuccess && data) {
-			// alert(data);
-			console.log('====================================');
-			console.log(data);
-			console.log('====================================');
-		}
-	}, [data, isSuccess]);
+// 	const {
+// 		/*  _data, */
+// 		refetch: sayHello,
+// 		isSuccess,
+// 		data,
+// 		// isFetching,
+// 		// isLoading,
+// 		// // isStale,
+// 		// isFetched,
+// 	} = useQuery({
+// 		queryKey: ['sayHello'],
+// 		queryFn: helloAction,
+// 		enabled: false,
+// 		// placeholderData: keepPreviousData,
+// 	});
 
-	return (
-		<Box>
-			<Typography variant="h1">Home</Typography>
+// 	// useEffect(() => {
+// 	// 	if (!isFetching && isSuccess && data && data) {
+// 	// 		alert(data);
+// 	// 	}
+// 	// }, [isSuccess, data, isFetching, isLoading]);
+// 	useEffect(() => {
+// 		if (isSuccess && data) {
+// 			// alert(data);
+// 			console.log('====================================');
+// 			console.log(data);
+// 			console.log('====================================');
+// 		}
+// 	}, [data, isSuccess]);
 
-			<Button
-				variant="contained"
-				onClick={() => {
-					sayHello();
-				}}
-			>
-				Say Hello
-			</Button>
+// 	return (
+// 		<Box>
+// 			<Typography variant="h1">Home</Typography>
 
-			<Button variant="contained" onClick={() => {}}>
-				Run Dummy
-			</Button>
+// 			<Button
+// 				variant="contained"
+// 				onClick={() => {
+// 					sayHello();
+// 				}}
+// 			>
+// 				Say Hello
+// 			</Button>
 
-			<Button
-				variant="contained"
-				onClick={() => {
-					console.log('rrrrrrrrrr');
+// 			<Button variant="contained" onClick={() => {}}>
+// 				Run Dummy
+// 			</Button>
 
-					toast('WRYYYY!!', {
-						position: 'top-right',
-						autoClose: 5000,
-						hideProgressBar: false,
-						closeOnClick: true,
-						pauseOnHover: true,
-						draggable: true,
-						progress: undefined,
-						theme: 'light',
-					});
-				}}
-			>
-				Toastify
-			</Button>
+// 			<Button
+// 				variant="contained"
+// 				onClick={() => {
+// 					console.log('rrrrrrrrrr');
 
-			{/* <pre>{JSON.stringify(data, null, 2)}</pre> */}
+// 					toast('WRYYYY!!', {
+// 						position: 'top-right',
+// 						autoClose: 5000,
+// 						hideProgressBar: false,
+// 						closeOnClick: true,
+// 						pauseOnHover: true,
+// 						draggable: true,
+// 						progress: undefined,
+// 						theme: 'light',
+// 					});
+// 				}}
+// 			>
+// 				Toastify
+// 			</Button>
 
-			<FormControl fullWidth>
-				<InputLabel id="demo-simple-select-label">Language</InputLabel>
-				<Select
-					labelId="demo-simple-select-label"
-					id="demo-simple-select"
-					value={state.locale}
-					label="Age"
-					onChange={handleChangeLocale}
-				>
-					<MenuItem value="en">English</MenuItem>
-					<MenuItem value="fr">French</MenuItem>
-				</Select>
-			</FormControl>
+// 			{/* <pre>{JSON.stringify(data, null, 2)}</pre> */}
 
-			<TipTap />
-		</Box>
-	);
-};
+// 			<FormControl fullWidth>
+// 				<InputLabel id="demo-simple-select-label">Language</InputLabel>
+// 				<Select
+// 					labelId="demo-simple-select-label"
+// 					id="demo-simple-select"
+// 					value={state.locale}
+// 					label="Age"
+// 					onChange={handleChangeLocale}
+// 				>
+// 					<MenuItem value="en">English</MenuItem>
+// 					<MenuItem value="fr">French</MenuItem>
+// 				</Select>
+// 			</FormControl>
 
-export default Home;
+// 			<TipTap />
+// 		</Box>
+// 	);
+// };
+
+// export default Home;

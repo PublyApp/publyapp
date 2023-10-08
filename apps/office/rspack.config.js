@@ -36,6 +36,9 @@ const config = {
 	entry: {
 		main: './src/main.tsx', // Configure the project entry file
 	},
+	output: {
+		publicPath: '/',
+	},
 	...(!isLocal
 		? {
 				optimization: {

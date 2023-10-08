@@ -1,13 +1,13 @@
 import { useTheme } from '@mui/material/styles';
-import { Variant } from '@mui/material/styles/createTypography';
+import type { Variant } from '@mui/material/styles/createTypography';
 
 import { remToPx } from '@ui-react/utils/cssUtils';
 
-import { useWidth } from './useWidth';
+import useWidth from './useWidth';
 
 // ----------------------------------------------------------------------
 
-export const useTypography = (variant: Variant) => {
+const useTypography = (variant: Variant) => {
 	const theme = useTheme();
 
 	const breakpoints = useWidth();
@@ -33,3 +33,5 @@ export const useTypography = (variant: Variant) => {
 
 	return { fontSize, lineHeight, fontWeight, letterSpacing };
 };
+
+export default useTypography;

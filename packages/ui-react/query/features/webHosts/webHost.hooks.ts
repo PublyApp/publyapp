@@ -1,7 +1,6 @@
 // import { useEffect } from 'react';
 
 import { keepPreviousData, useMutation, useQuery, type MutationOptions } from '@tanstack/react-query';
-import { toast } from 'react-toastify';
 
 import type { ParseWebHost } from '@devist/shared/parse/classes/webHost.class';
 import { functionName } from '@devist/shared/utils/constants';
@@ -34,24 +33,6 @@ export const useSaveWebHost = ({ successMessage, onSuccess, onError }: UseSaveWe
 			onError?.(error, variables, context);
 		},
 	});
-
-	// const { isError, error, isSuccess, data } = result;
-
-	// // ? may should I put this effect inside the useSaveWebHost hook too?
-	// useEffect(() => {
-	// 	if (isError && error) {
-	// 		toast.error(error.message);
-	// 		onError?.();
-	// 	}
-	// }, [isError, error]);
-
-	// // ? may should I put this effect inside the useSaveWebHost hook too?
-	// useEffect(() => {
-	// 	if (data && isSuccess) {
-	// 		toast.success(successMessage ?? 'TODO: Translated success message');
-	// 		onSuccess?.();
-	// 	}
-	// }, [isSuccess, data]);
 
 	return { result, key };
 };
