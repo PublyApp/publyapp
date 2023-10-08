@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 // @mui
 import Collapse from '@mui/material/Collapse';
 
-import { useActiveLink } from '@office/hooks/useActiveLink';
-import { usePathname } from '@office/hooks/usePathName';
+import useActiveLink from '@office/hooks/useActiveLink';
+import usePathname from '@office/hooks/usePathName';
 
 import type { NavConfigProps, NavListProps } from '../types';
 

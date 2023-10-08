@@ -1,4 +1,4 @@
-import { Breakpoint, useMediaQuery, useTheme } from '@mui/material';
+import { useMediaQuery, useTheme, type Breakpoint } from '@mui/material';
 
 type Query = 'up' | 'down' | 'between' | 'only';
 

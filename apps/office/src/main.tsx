@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom/client';
 
 import App from './App';
 
-import './main.css';
+// import './main.css';
 
 console.log('====================================');
 // eslint-disable-next-line turbo/no-undeclared-env-vars

@@ -7,7 +7,7 @@ import type { PipelineStage } from 'mongoose';
 import { ZodError } from 'zod';
 
 import { defaultLocale } from '@devist/shared/i18n/resources';
-import { I18N_LOCALE_KEY, type RolesEnum } from '@devist/shared/utils/constants';
+import { LOCALE_HEADER_KEY, type RolesEnum } from '@devist/shared/utils/constants';
 
 import { getT } from './i18n';
 
@@ -98,7 +98,7 @@ export const parseFrom = (params: ParseFromParams) => {
 
 		const { user, headers } = req;
 
-		const locale = headers[I18N_LOCALE_KEY] as string | undefined;
+		const locale = headers[LOCALE_HEADER_KEY] as string | undefined;
 
 		const t = getT(locale || defaultLocale);
 
@@ -140,7 +140,7 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 
 		const { headers } = req;
 
-		const locale = headers[I18N_LOCALE_KEY] as string | undefined;
+		const locale = headers[LOCALE_HEADER_KEY] as string | undefined;
 
 		const t = getT(locale || defaultLocale);
 

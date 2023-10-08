@@ -1,12 +1,8 @@
-import { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 
-import { immer } from 'zustand/middleware/immer';
+import type { immer } from 'zustand/middleware/immer';
 
-// @link https://stackoverflow.com/a/70123495/15003148
-// eslint-disable-next-line @typescript-eslint/ban-types
-const isCallback = (maybeFunction: unknown): maybeFunction is Function => {
-	return typeof maybeFunction === 'function';
-};
+import { isCallback } from '@devist/shared/utils/any.utils';
 
 type SetType<T> = Parameters<Parameters<typeof immer<T>>[0]>[0];
 

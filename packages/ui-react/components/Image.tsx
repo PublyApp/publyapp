@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 
-import { Box, BoxProps } from '@mui/material';
-import { LazyLoadImage, LazyLoadImageProps } from 'react-lazy-load-image-component';
+import { Box, type BoxProps } from '@mui/material';
+import { LazyLoadImage, type LazyLoadImageProps } from 'react-lazy-load-image-component';
 
 // ----------------------------------------------------------------------
 
