@@ -9,7 +9,7 @@ import Toolbar from '@mui/material/Toolbar';
 import SvgColor from '@office/components/SvgColor';
 import { HEADER, NAV } from '@office/utils/constants';
 import useResponsive from '@ui-react/hooks/useResponsive';
-import { bgBlur } from '@ui-react/utils/cssUtils';
+import { bgBlur } from '@ui-react/utils/css.utils';
 
 // hooks
 // import { useOffSetTop } from 'src/hooks/use-off-set-top';

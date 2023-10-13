@@ -3,7 +3,7 @@ import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 
-import { defaultLocale, defaultNS, NS, resources } from '@devist/shared/i18n/resources';
+import { appLocales, defaultLocale, defaultNS, NS, resources, type AppLocale } from '@devist/shared/i18n/resources';
 
 i18n
 	.use(initReactI18next) // passes i18n down to react-i18next
@@ -26,13 +26,18 @@ i18n
 		},
 	});
 
-export const locales = Object.keys(resources);
+// export const locales = Object.keys(resources);
 
 // export const readOnlyLocales = [...locales] as const;
-export const getCurrentLocale = (): any => {
-	return i18n.languages.find((lang: any) => {
-		return locales.indexOf(lang) !== -1;
+export const getCurrentLocale = (): AppLocale => {
+	// const foundLocale = i18n.languages.find((lang) => {
+	// 	return appLocales.indexOf(lang as AppLocale) !== -1;
+	// });
+	const foundLocale = appLocales.find((locale) => {
+		return i18n.languages.indexOf(locale) !== -1;
 	});
+
+	return foundLocale || defaultLocale;
 };
 
 export default i18n;

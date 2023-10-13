@@ -346,12 +346,18 @@ importers:
       '@faker-js/faker':
         specifier: ^8.1.0
         version: 8.1.0
+      cloudinary:
+        specifier: ^1.41.0
+        version: 1.41.0
       cors:
         specifier: ^2.8.5
         version: 2.8.5
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
+      datauri:
+        specifier: ^4.1.0
+        version: 4.1.0
       dotenv:
         specifier: ^16.3.1
         version: 16.3.1
@@ -2770,7 +2776,7 @@ packages:
       react-refresh: 0.14.0
       schema-utils: 3.3.0
       source-map: 0.7.4
-      webpack: 5.76.0
+      webpack: 5.76.0(esbuild@0.17.19)
       webpack-dev-server: 4.13.1(webpack@5.76.0)
     dev: true
 
@@ -5205,6 +5211,24 @@ packages:
     engines: {node: '>=0.8'}
     dev: false
 
+  /cloudinary-core@2.13.0(lodash@4.17.21):
+    resolution: {integrity: sha512-Nt0Q5I2FtenmJghtC4YZ3MZZbGg1wLm84SsxcuVwZ83OyJqG9CNIGp86CiI6iDv3QobaqBUpOT7vg+HqY5HxEA==}
+    peerDependencies:
+      lodash: '>=4.0'
+    dependencies:
+      lodash: 4.17.21
+    dev: false
+
+  /cloudinary@1.41.0:
+    resolution: {integrity: sha512-qFf2McjvILJITePf4VF1PrY/8c2zy+/q5FVV6V3VWrP/gpIZsusPqXL4QZ6ZKXibPRukzMYqsQEhaSQgJHKKow==}
+    engines: {node: '>=0.6'}
+    dependencies:
+      cloudinary-core: 2.13.0(lodash@4.17.21)
+      core-js: 3.33.0
+      lodash: 4.17.21
+      q: 1.5.1
+    dev: false
+
   /clsx@1.2.1:
     resolution: {integrity: sha512-EcR6r5a8bj6pu3ycsa/E/cKVGuTgZJZdsyUYHOksG/UHIiKfjxzRxYJpyVBwYaQeOvghal9fcc4PidlgzugAQg==}
     engines: {node: '>=6'}
@@ -5486,6 +5510,11 @@ packages:
     requiresBuild: true
     dev: false
 
+  /core-js@3.33.0:
+    resolution: {integrity: sha512-HoZr92+ZjFEKar5HS6MC776gYslNOKHt75mEBKWKnPeFDpZ6nH5OeF3S6HFT1mUAUZKrzkez05VboaX8myjSuw==}
+    requiresBuild: true
+    dev: false
+
   /core-util-is@1.0.2:
     resolution: {integrity: sha512-3lqz5YjWTYnW6dlDa5TLaTCcShfar1e40rmcJVwCBJC6mWlFuj0eCHIElmG1g5kyuJ/GD+8Wn4FFCcz4gJPfaQ==}
     dev: false
@@ -5625,6 +5654,14 @@ packages:
     engines: {node: '>=0.10'}
     dependencies:
       assert-plus: 1.0.0
+    dev: false
+
+  /datauri@4.1.0:
+    resolution: {integrity: sha512-y17kh32+I82G+ED9MNWFkZiP/Cq/vO1hN9+tSZsT9C9qn3NrvcBnh7crSepg0AQPge1hXx2Ca44s1FRdv0gFWA==}
+    engines: {node: '>= 10'}
+    dependencies:
+      image-size: 1.0.0
+      mimer: 2.0.2
     dev: false
 
   /date-fns@2.30.0:
@@ -7888,6 +7925,14 @@ packages:
     resolution: {integrity: sha512-MAb38BcSbH0eHNBxn7ql2NH/kX33OkB3lZ1BNdh7ENeRChHTYsTvWrMubiIAMNS2llXEEgZ1MUOBtXChP3kaFQ==}
     engines: {node: '>= 4'}
 
+  /image-size@1.0.0:
+    resolution: {integrity: sha512-JLJ6OwBfO1KcA+TvJT+v8gbE6iWbj24LyDNFgFEN0lzegn6cC6a/p3NIDaepMsJjQjlUWqIC7wJv8lBFxPNjcw==}
+    engines: {node: '>=12.0.0'}
+    hasBin: true
+    dependencies:
+      queue: 6.0.2
+    dev: false
+
   /immer@10.0.2:
     resolution: {integrity: sha512-Rx3CqeqQ19sxUtYV9CU911Vhy8/721wRFnJv3REVGWUmoAcIwzifTsdmJte/MV+0/XpM35LZdQMBGkRIoLPwQA==}
     dev: false
@@ -8958,6 +9003,12 @@ packages:
     resolution: {integrity: sha512-jSCU7/VB1loIWBZe14aEYHU/+1UMEHoaO7qxCOVJOw9GgH72VAWppxNcjU+x9a2k3GSIBXNKxXQFqRvvZ7vr3A==}
     engines: {node: '>=10.0.0'}
     hasBin: true
+
+  /mimer@2.0.2:
+    resolution: {integrity: sha512-izxvjsB7Ur5HrTbPu6VKTrzxSMBFBqyZQc6dWlZNQ4/wAvf886fD4lrjtFd8IQ8/WmZKdxKjUtqFFNaj3hQ52g==}
+    engines: {node: '>= 12'}
+    hasBin: true
+    dev: false
 
   /mimic-fn@2.1.0:
     resolution: {integrity: sha512-OqbOk5oEQeAZ8WXWydlu9HJjz9WVdEIvamMCcXmuqUYjTknH/sqsWvhQ3vgwKFRR1HpjvNBKQ37nbJgYzGqGcg==}
@@ -10414,6 +10465,11 @@ packages:
     resolution: {integrity: sha512-QFADYnsVoBMw1srW7OVKEYjG+MbIa49s54w1MA1EDY6r2r/sTcKKYqRX1f4GYvnXP7eN/Pe9HFcX+hwzmrXRHA==}
     dev: false
 
+  /q@1.5.1:
+    resolution: {integrity: sha512-kV/CThkXo6xyFEZUugw/+pIOywXcDbFYgSct5cT3gqlbkBE1SJdwy6UQoZvodiWF/ckQLZyDE/Bu1M6gVu5lVw==}
+    engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
+    dev: false
+
   /qrcode@1.5.1:
     resolution: {integrity: sha512-nS8NJ1Z3md8uTjKtP+SGGhfqmTCs5flU/xR623oI0JX+Wepz9R8UrRVCTBTJm3qGw3rH6jJ6MUHjkDx15cxSSg==}
     engines: {node: '>=10.13.0'}
@@ -10461,6 +10517,12 @@ packages:
 
   /queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
+
+  /queue@6.0.2:
+    resolution: {integrity: sha512-iHZWu+q3IdFZFX36ro/lKBkSvfkztY5Y7HMiPlOUjhupPcG2JMfst2KKEpu5XndviX/3UhFbRngUPNKtgvtZiA==}
+    dependencies:
+      inherits: 2.0.4
+    dev: false
 
   /quick-lru@5.1.1:
     resolution: {integrity: sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA==}
@@ -13042,7 +13104,7 @@ packages:
       mime-types: 2.1.35
       range-parser: 1.2.1
       schema-utils: 4.2.0
-      webpack: 5.76.0
+      webpack: 5.76.0(esbuild@0.17.19)
     dev: true
 
   /webpack-dev-middleware@6.0.2(webpack@5.76.0):
@@ -13059,7 +13121,7 @@ packages:
       mime-types: 2.1.35
       range-parser: 1.2.1
       schema-utils: 4.2.0
-      webpack: 5.76.0
+      webpack: 5.76.0(esbuild@0.17.19)
     dev: true
 
   /webpack-dev-server@4.13.1(webpack@5.76.0):
@@ -13103,7 +13165,7 @@ packages:
       serve-index: 1.9.1
       sockjs: 0.3.24
       spdy: 4.0.2
-      webpack: 5.76.0
+      webpack: 5.76.0(esbuild@0.17.19)
       webpack-dev-middleware: 5.3.3(webpack@5.76.0)
       ws: 8.14.2
     transitivePeerDependencies:

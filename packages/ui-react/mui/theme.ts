@@ -1,7 +1,7 @@
 import { alpha, createTheme, CustomShadowOptions, lighten, PaletteOptions, Shadows, ThemeOptions } from '@mui/material';
 import { TypographyOptions } from '@mui/material/styles/createTypography';
 
-import { getResponsiveFontSizes, pxToRem } from '../utils/cssUtils';
+import { getResponsiveFontSizes, pxToRem } from '../utils/css.utils';
 
 const {
 	palette: { augmentColor },

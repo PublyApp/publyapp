@@ -20,7 +20,7 @@ export {};
 // import { AITool } from '@devist/shared/types/aiTool.types';
 // import { DEFAULT_PAGE_SIZE } from '@devist/shared/utils/constants';
 // import { useGetAITools } from '@devist/ui-react/query/features/aiTools/aiTool.hooks';
-// import { pxToRem } from '@devist/ui-react/utils/cssUtils';
+// import { pxToRem } from '@devist/ui-react/utils/css.utils';
 
 // // import { GetAIToolsFunctionResult } from '@devist/ui-react/query/features/aiTools/aiTool.actions';
 

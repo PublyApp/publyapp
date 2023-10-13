@@ -17,9 +17,9 @@ import Iconify from '../Iconify';
 //
 // import Iconify from '../iconify';
 
-import MultiFilePreview from './preview-multi-file';
-import SingleFilePreview from './preview-single-file';
+import MultiFilePreview from './MultiFilePreview';
 import RejectionFiles from './RejectionFiles';
+import SingleFilePreview from './SingleFilePreview';
 //
 import type { UploadProps } from './types';
 
