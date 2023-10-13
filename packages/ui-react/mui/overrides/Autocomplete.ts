@@ -2,7 +2,7 @@ import { autocompleteClasses } from '@mui/material/Autocomplete';
 import { alpha, type Theme } from '@mui/material/styles';
 import { svgIconClasses } from '@mui/material/SvgIcon';
 
-import { menuItem, paper } from '@ui-react/utils/cssUtils';
+import { menuItem, paper } from '@ui-react/utils/css.utils';
 
 // ----------------------------------------------------------------------
 

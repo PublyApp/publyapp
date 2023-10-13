@@ -1,7 +1,7 @@
 import { drawerClasses, type DrawerProps } from '@mui/material/Drawer';
 import { alpha, type Theme } from '@mui/material/styles';
 
-import { paper } from '@ui-react/utils/cssUtils';
+import { paper } from '@ui-react/utils/css.utils';
 
 //
 // import { paper } from '../../css';

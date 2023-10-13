@@ -20,37 +20,26 @@ import FormProvider from '@devist/ui-react/components/form/FormProvider';
 import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
 import { RHFUpload } from '@devist/ui-react/components/form/RHFUpload';
 
+import type { WebHost } from '@shared/types/webHost.types';
 import { getSaveWebHostInputSchema } from '@shared/validations/webHost.validations';
 import useResponsive from '@ui-react/hooks/useResponsive';
 
-// type Props = {}
+type Props = {
+	currentWebHost?: WebHost;
+};
 
-const WebHostForm = () => {
+const WebHostForm = ({ currentWebHost }: Props) => {
 	const mdUp = useResponsive('up', 'md');
 	const { enqueueSnackbar } = useSnackbar();
 
-	// const defaultValues = useMemo(() => {
-	// 	return {
-	// 		name: currentProduct?.name || '',
-	// 		description: currentProduct?.description || '',
-	// 		subDescription: currentProduct?.subDescription || '',
-	// 		images: currentProduct?.images || [],
-	// 		//
-	// 		code: currentProduct?.code || '',
-	// 		sku: currentProduct?.sku || '',
-	// 		price: currentProduct?.price || 0,
-	// 		quantity: currentProduct?.quantity || 0,
-	// 		priceSale: currentProduct?.priceSale || 0,
-	// 		tags: currentProduct?.tags || [],
-	// 		taxes: currentProduct?.taxes || 0,
-	// 		gender: currentProduct?.gender || '',
-	// 		category: currentProduct?.category || '',
-	// 		colors: currentProduct?.colors || [],
-	// 		sizes: currentProduct?.sizes || [],
-	// 		newLabel: currentProduct?.newLabel || { enabled: false, content: '' },
-	// 		saleLabel: currentProduct?.saleLabel || { enabled: false, content: '' },
-	// 	};
-	// }, [currentProduct]);
+	const defaultValues = useMemo(() => {
+		return {
+			name: currentWebHost?.translations.en.name || '',
+			description: currentWebHost?.translations.en.description || '',
+			images: currentWebHost?.images || [],
+		};
+	}, [currentWebHost]);
+
 	const { t } = useTranslation();
 	const saveWebHostInputSchema = getSaveWebHostInputSchema(t);
 
@@ -122,7 +111,7 @@ const WebHostForm = () => {
 				<FormControlLabel control={<Switch defaultChecked />} label="Publish" sx={{ flexGrow: 1, pl: 3 }} />
 
 				<LoadingButton type="submit" variant="contained" size="large" loading={isSubmitting}>
-					{!currentProduct ? 'Create Product' : 'Save Changes'}
+					{!currentWebHost ? 'Create Product' : 'Save Changes'}
 				</LoadingButton>
 			</Grid>
 		</>

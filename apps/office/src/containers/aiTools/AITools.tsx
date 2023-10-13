@@ -23,7 +23,7 @@
 // import TableHeaderCell from '@devist/ui-react/components/TableHeaderCell';
 // import type { GetAIToolsFunctionResult } from '@devist/ui-react/query/features/aiTools/aiTool.actions';
 // import { useCreateAITool, useGetAITools } from '@devist/ui-react/query/features/aiTools/aiTool.hooks';
-// import { pxToRem } from '@devist/ui-react/utils/cssUtils';
+// import { pxToRem } from '@devist/ui-react/utils/css.utils';
 
 // // import { DEFAULT_PAGE_SIZE } from '@devist/shaared/utils/constants';
 // // import ReactDOM from 'react-dom/client';

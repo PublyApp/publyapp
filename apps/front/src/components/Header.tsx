@@ -4,7 +4,7 @@ import useOffsetTop from '@devist/ui-react/hooks/useOffsetTop';
 import useResponsive from '@devist/ui-react/hooks/useResponsive';
 
 import { HEADER } from '../utils/constants';
-import { bgBlur } from '../utils/cssUtils';
+import { bgBlur } from '../utils/css.utils';
 import { navConfig } from '../utils/temp';
 
 import Label from './Label';
