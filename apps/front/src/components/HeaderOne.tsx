@@ -7,7 +7,7 @@ import NextLink from 'next/link';
 // import { useRouter } from 'next/router';
 import { useRouter } from 'next/navigation';
 
-import { pxToRem } from '@devist/ui-react/utils/cssUtils';
+import { pxToRem } from '@devist/ui-react/utils/css.utils';
 
 import { headerMenu } from '../data/headerMenu';
 

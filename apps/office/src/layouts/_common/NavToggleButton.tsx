@@ -5,7 +5,7 @@ import { useTheme } from '@mui/material/styles';
 import { NAV } from '@office/utils/constants';
 import Iconify from '@ui-react/components/Iconify';
 import useResponsive from '@ui-react/hooks/useResponsive';
-import { bgBlur } from '@ui-react/utils/cssUtils';
+import { bgBlur } from '@ui-react/utils/css.utils';
 
 // hooks
 // import { useResponsive } from 'src/hooks/use-responsive';
