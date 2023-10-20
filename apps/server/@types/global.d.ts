@@ -10,3 +10,11 @@ var FORCE_PROD: boolean | undefined;
 var FORCE_PREPROD: boolean | undefined;
 
 declare module 'parse-dashboard';
+
+namespace NodeJS {
+	interface A {
+		a: number;
+	}
+	// eslint-disable-next-line @typescript-eslint/no-empty-interface
+	interface ProcessEnv extends A {}
+}

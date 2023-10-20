@@ -2,7 +2,7 @@
 
 // declare module 'parse-server';
 declare module 'parse-server/lib/Config';
-
+declare module 'parse-server/lib/Auth';
 declare module 'parse-server' {
 	import type { BaseAttributes } from 'parse';
 
@@ -159,7 +159,8 @@ declare module 'parse-server/lib/Controllers/LoggerController' {
 	type LogRequestParams = { method: string; url: string; headers: any; body: any };
 	type LogResponseParams = { method: string; url: string; result: any };
 
-	// I Only typed important methods
+	// ! I Only typed important methods
+	/* eslint-disable @typescript-eslint/no-explicit-any */
 	export class LoggerController /*  extends AdaptableController */ {
 		adapter: WinstonLoggerAdapter;
 
@@ -183,6 +184,7 @@ declare module 'parse-server/lib/Controllers/LoggerController' {
 
 		truncateLogMessage(string: string): string;
 	}
+	/* eslint-enable @typescript-eslint/no-explicit-any */
 }
 
 declare module 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter' {
