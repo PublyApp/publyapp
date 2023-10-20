@@ -15,6 +15,7 @@ export const className = {
 	AI_TOOL: 'AITool',
 	// WEB_HOSTING_PROVIDER: 'WebHostingProvider',
 	WEB_HOST: 'WebHost',
+	APP_FILE: 'AppFile',
 } as const;
 
 export const LOCALE_HEADER_KEY = 'xxx-app-i18n-locale';

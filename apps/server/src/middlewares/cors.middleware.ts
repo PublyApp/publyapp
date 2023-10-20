@@ -13,7 +13,7 @@ type CorsOptions = { whiteList: string[] };
  */
 export const cors = ({ whiteList }: CorsOptions) => {
 	return _cors({
-		origin(origin, callback) {
+		origin: (origin, callback) => {
 			if (!origin || whiteList.indexOf(origin) !== -1) {
 				callback(null, true);
 			} else {

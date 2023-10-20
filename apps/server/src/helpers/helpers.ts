@@ -1,8 +1,8 @@
 /* eslint-disable no-continue */
 /* eslint-disable no-await-in-loop */
-
 import { logger } from 'parse-server';
 
+import cloudinary from 'cloudinary';
 import { MongoClient } from 'mongodb';
 
 import { className, RolesEnum } from '@devist/shared/utils/constants';
@@ -86,4 +86,13 @@ export const createIndexes = async () => {
 	);
 
 	client.close();
+};
+
+export const initCloudinary = async () => {
+	cloudinary.v2.config({
+		cloud_name: CLOUDINARY_NAME,
+		api_key: CLOUDINARY_API_KEY,
+		api_secret: CLOUDINARY_API_SECRET,
+		secure: true,
+	});
 };
