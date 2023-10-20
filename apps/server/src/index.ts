@@ -7,8 +7,11 @@ import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
-import { createIndexes, createRolesIfNotExist } from './helpers/helpers';
-import { cors } from './middlewares/cors';
+// import { z } from 'zod';
+
+import { createIndexes, createRolesIfNotExist, initCloudinary } from './helpers/helpers';
+import { cors } from './middlewares/cors.middleware';
+import FilesRoute from './routes/file.routes';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
 import WebHostSchema from './schemas/webHost.schema';
@@ -42,6 +45,11 @@ const bootstrap = async () => {
 		const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
 		dotenvExpand.expand(envConfig);
 	}
+
+	// --------------------------------------------------------------------------------------//
+	//                                Type check process.env                                //
+	// --------------------------------------------------------------------------------------//
+	// process.env = z.parse(envSchema);
 
 	// --------------------------------------------------------------------------------------//
 	//                          set the mainly important constants                          //
@@ -90,20 +98,11 @@ const bootstrap = async () => {
 
 	app.use('/parse', parseServer.app);
 
-	// app.get('/*', async (req, res, next) => {
-	// 	// req.get('origin');
-	// 	const { origin, host } = req.headers;
+	// set Routes
+	const fileRoutes = new FilesRoute();
+	app.use('/', fileRoutes.router);
 
-	// 	if (origin === 'https://link.devist.xyz') {
-	// 		// run parse cloud function;
-	// 		const longUrl = await getLongUrl();
-
-	// 		res.redirect(longUrl);
-	// 		return;
-	// 	}
-
-	// 	next();
-	// });
+	// set error middleware // ! must be after all routes definition (I am wondering if I should make it after the parse dashboard as)
 
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                          //
@@ -147,6 +146,11 @@ const bootstrap = async () => {
 	//                                   create the roles                                    //
 	// --------------------------------------------------------------------------------------//
 	createRolesIfNotExist();
+
+	// --------------------------------------------------------------------------------------//
+	//                                 Init cloudinary SDK                                  //
+	// --------------------------------------------------------------------------------------//
+	initCloudinary();
 };
 
 bootstrap();

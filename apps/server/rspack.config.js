@@ -1,3 +1,5 @@
+/* eslint-disable prefer-arrow/prefer-arrow-functions */
+/* eslint-disable func-style */
 /* eslint-disable @typescript-eslint/no-use-before-define */
 /* eslint-disable @typescript-eslint/no-var-requires */
 const path = require('path');
@@ -72,7 +74,7 @@ module.exports = {
 	target: 'node',
 	mode: toDeploy ? 'production' : 'development',
 	externalsType: 'commonjs',
-	externals: [...findExternals(), 'parse/node', 'parse-server/lib/Config'],
+	externals: [...findExternals(), 'parse/node', 'parse-server/lib/Config', 'parse-server/lib/Auth'],
 	resolve: {
 		alias: {
 			'@server': '.',
