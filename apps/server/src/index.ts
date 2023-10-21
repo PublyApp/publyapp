@@ -7,15 +7,15 @@ import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
-// import { z } from 'zod';
-
 import { createIndexes, createRolesIfNotExist, initCloudinary } from './helpers/helpers';
 import { cors } from './middlewares/cors.middleware';
+import errorMiddleware from './middlewares/error.middleware';
 import FilesRoute from './routes/file.routes';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
 import WebHostSchema from './schemas/webHost.schema';
 import { whiteList } from './utils/constants';
+import { env, envSchema, setAppEnv } from './utils/env';
 import { consoleTransport } from './utils/logger';
 
 const bootstrap = async () => {
@@ -49,18 +49,10 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                                Type check process.env                                //
 	// --------------------------------------------------------------------------------------//
-	// process.env = z.parse(envSchema);
+	const checkedEnv = envSchema.parse(process.env);
+	setAppEnv(checkedEnv);
 
-	// --------------------------------------------------------------------------------------//
-	//                          set the mainly important constants                          //
-	// --------------------------------------------------------------------------------------//
-	const PORT = Number(process.env.PORT) || 1337;
-	const MASTER_KEY = process.env.MASTER_KEY || 'local-master-key';
-	const DATABASE_URI = process.env.DATABASE_URI || 'mongodb://localhost:27017/devist-local';
-	const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
-	const APP_ID = process.env.APP_ID || 'devist';
-
-	// logger.info(`MASTER_KEY: ${MASTER_KEY}`);
+	const { DATABASE_URI, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL, PORT } = env;
 
 	// --------------------------------------------------------------------------------------//
 	//                            setup express and parse server                            //
@@ -74,12 +66,12 @@ const bootstrap = async () => {
 
 	// initialize parse server
 	const parseServer = new ParseServer({
-		appId: APP_ID,
-		masterKey: MASTER_KEY,
+		appId: PARSE_APP_ID,
+		masterKey: PARSE_MASTER_KEY,
 		cloud: path.resolve(__dirname, './cloud/index'),
 		databaseURI: DATABASE_URI,
-		serverURL: `${SERVER_URL}/parse`,
-		publicServerURL: `${SERVER_URL}/parse`,
+		serverURL: PARSE_SERVER_URL,
+		publicServerURL: PARSE_SERVER_URL,
 		// =============================================
 		logLevel: 'silly', // this seem to be not working at all
 		allowClientClassCreation: false,
@@ -102,7 +94,8 @@ const bootstrap = async () => {
 	const fileRoutes = new FilesRoute();
 	app.use('/', fileRoutes.router);
 
-	// set error middleware // ! must be after all routes definition (I am wondering if I should make it after the parse dashboard as)
+	// set error middleware // ! must be after all routes definition (I am wondering if I should make it after the parse dashboard also)
+	app.use(errorMiddleware);
 
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                          //
@@ -112,9 +105,9 @@ const bootstrap = async () => {
 			{
 				apps: [
 					{
-						serverURL: `${SERVER_URL}/parse`, // ! localhost only
-						appId: APP_ID,
-						masterKey: MASTER_KEY,
+						serverURL: PARSE_SERVER_URL, // ! localhost only
+						appId: PARSE_APP_ID,
+						masterKey: PARSE_MASTER_KEY,
 						appName: 'Devist Express Dash Local',
 					},
 				],
