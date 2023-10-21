@@ -3,6 +3,9 @@
 // declare module 'parse-server';
 declare module 'parse-server/lib/Config';
 declare module 'parse-server/lib/Auth';
+
+declare module 'parse-dashboard';
+
 declare module 'parse-server' {
 	import type { BaseAttributes } from 'parse';
 

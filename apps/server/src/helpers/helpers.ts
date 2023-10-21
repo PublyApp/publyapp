@@ -7,6 +7,10 @@ import { MongoClient } from 'mongodb';
 
 import { className, RolesEnum } from '@devist/shared/utils/constants';
 
+import { env } from '@server/utils/env';
+
+const { CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_NAME } = env;
+
 export const createRolesIfNotExist = async () => {
 	const roleEntries = Object.entries(RolesEnum).filter((e) => {
 		return Number.isNaN(Number(e[0]));
