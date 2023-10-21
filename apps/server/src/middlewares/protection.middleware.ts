@@ -4,6 +4,7 @@ import type { RequestHandler } from 'express';
 
 import { AuthCloudService } from '@server/cloud/services/auth.cloud.service';
 import { HttpException } from '@server/exceptions/HttpException';
+import { env } from '@server/utils/env';
 
 type Input = {
 	withKey?: boolean;
@@ -20,7 +21,7 @@ const protectionMiddleware = ({ withKey = true, withAuth = true }: Input): Reque
 				// if the key exists, go to next
 				if (!apiKey) {
 					next(new HttpException(400, 'Missing "X-Devist-Key" params'));
-				} else if (apiKey && apiKey !== process.env.REST_API_KEY) {
+				} else if (apiKey && apiKey !== env.REST_API_KEY) {
 					next(new HttpException(400, 'Invalid "X-Devist-Key"'));
 				}
 			}
