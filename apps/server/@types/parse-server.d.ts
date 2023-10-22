@@ -5,9 +5,10 @@ declare module 'parse-server/lib/Config';
 declare module 'parse-server/lib/Auth';
 
 declare module 'parse-dashboard';
+declare module '@parse/fs-files-adapter';
 
 declare module 'parse-server' {
-	import type { BaseAttributes } from 'parse';
+	import type { /* BaseAttributes, */ NewAttributes } from 'parse';
 
 	import type { Application } from 'express';
 
@@ -27,6 +28,7 @@ declare module 'parse-server' {
 		masterKeyIps?: string[];
 		allowExpiredAuthDataToken?: boolean;
 		logLevel?: string;
+		filesAdapter?: any;
 	} & Record<string, any>;
 
 	export default class ParseServer {
@@ -66,7 +68,7 @@ declare module 'parse-server' {
 		}
 
 		type FieldsInterface<T extends Record<string, any> = Record<string, any>> = {
-			[P in keyof Omit<T, keyof BaseAttributes>]: FieldInterface;
+			[P in keyof NewAttributes<T>]: FieldInterface;
 		};
 		// interface FieldsInterface<T extends Record<string, any> = Record<string, any>> {
 		// [key: string]: FieldInterface;
