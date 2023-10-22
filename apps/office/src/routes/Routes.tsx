@@ -10,7 +10,8 @@ import {
 import { QueryParamProvider } from 'use-query-params';
 import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
 
-import Blank from '@office/containers/blank/Blank';
+// import Blank from '@office/containers/blank/Blank';
+import Home from '@office/containers/home/Home';
 import CreateWebHost from '@office/containers/webHosts/CreateWebHost';
 import WebHosts from '@office/containers/webHosts/WebHosts';
 import DashboardLayout from '@office/layouts/dashboard/DashBoardLayout';
@@ -58,7 +59,7 @@ const router = createBrowserRouter(
 				}
 			>
 				<Route path="/" element={<Navigate to={BO_PATH_NAMES.dashboard} /* replace */ />} />
-				<Route path={BO_PATH_NAMES.dashboard} element={<Blank />} />
+				<Route path={BO_PATH_NAMES.dashboard} element={<Home />} />
 				<Route path={BO_PATH_NAMES.webHosts} element={<WebHosts />} />
 				<Route path={BO_PATH_NAMES.createWebHost} element={<CreateWebHost />} />
 			</Route>

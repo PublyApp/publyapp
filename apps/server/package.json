@@ -20,6 +20,7 @@
 	"dependencies": {
 		"@devist/shared": "workspace:*",
 		"@faker-js/faker": "^8.1.0",
+		"@parse/fs-files-adapter": "^2.0.1",
 		"cloudinary": "^1.41.0",
 		"cors": "^2.8.5",
 		"cross-env": "^7.0.3",
@@ -31,6 +32,7 @@
 		"i18n-node": "^2.1.5",
 		"i18next": "^22.5.1",
 		"i18next-fs-backend": "^2.2.0",
+		"image-size": "^1.0.2",
 		"lodash": "^4.17.21",
 		"mongodb": "^6.1.0",
 		"mongoose": "^7.5.3",
@@ -39,6 +41,7 @@
 		"parse-dashboard": "^5.2.0",
 		"parse-server": "^6.3.0",
 		"qs": "^6.11.2",
+		"sharp": "^0.32.6",
 		"typescript": "^5.2.2",
 		"vhost": "^3.0.2",
 		"winston": "^3.10.0",

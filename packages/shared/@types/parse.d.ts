@@ -3,6 +3,8 @@
 namespace Parse {
 	import type { PipelineStage } from 'mongoose';
 
+	export type NewAttributes<T> = Omit<T, keyof BaseAttributes>;
+
 	namespace Cloud {
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		interface FunctionRequest<T extends Params = Params> {

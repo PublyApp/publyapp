@@ -46,6 +46,7 @@ export const functionName = {
 	// createWebHost: 'createWebHost',
 	saveWebHost: 'saveWebHost',
 	getWebHosts: 'getWebHosts',
+	uploadFile: 'uploadFile',
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 25;

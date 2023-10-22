@@ -1,142 +1,85 @@
-// import Parse from 'parse';
-// import { useEffect } from 'react';
+import { useRef, useState } from 'react';
 
-// import {
-// 	Box,
-// 	Button,
-// 	FormControl,
-// 	InputLabel,
-// 	MenuItem,
-// 	Select,
-// 	Typography,
-// 	type SelectChangeEvent,
-// } from '@mui/material';
-// import { useQuery } from '@tanstack/react-query';
-// import { toast } from 'react-toastify';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
 
-// import type { AppLocale } from '@devist/shared/i18n/resources';
+import { functionName } from '@shared/utils/constants';
 
-// // import { setBreadcrumbs, setLocale } from '@devist/ui-react/contexts/AppProvider';
+const Home = () => {
+	const fileInputRef = useRef<HTMLInputElement>(null);
 
-// import TipTap from '@office/components/tipTap/TipTap';
+	// const fileList = fileInputRef.current?.files;
+	const [files, setFiles] = useState<File[]>([]);
 
-// const helloAction = async () => {
-// 	try {
-// 		return Parse.Cloud.run('hello') as any;
-// 	} catch (error) {
-// 		return Promise.reject(error);
-// 	}
-// };
+	return (
+		<>
+			<Typography variant="h1">Home</Typography>
+			<Typography>Test Parse Upload</Typography>
+			<label htmlFor="raised-button-file">
+				<input
+					accept="image/*"
+					ref={fileInputRef}
+					// className={classes.input}
+					hidden
+					id="raised-button-file"
+					multiple
+					type="file"
+					onChange={(e) => {
+						setFiles([...(e.currentTarget.files ?? [])]);
+					}}
+				/>
+			</label>
+			<Typography>Preview</Typography>
+			{files.map((file) => {
+				return <Typography key={file.name}>{file.name}</Typography>;
+			})}
+			<Button
+				onClick={() => {
+					fileInputRef.current?.click();
+				}}
+			>
+				Choose File
+			</Button>
+			<Button
+				onClick={async () => {
+					// files.forEach(())
+					if (files.length < 1) return;
+					const file = files[0];
 
-// const Home = () => {
-// 	// const { dispatch, state } = useApp();
+					const toBase64 = (file: File): Promise<string | ArrayBuffer | null> => {
+						return new Promise((resolve, reject) => {
+							const reader = new FileReader();
+							reader.readAsDataURL(file);
 
-// 	// useEffect(() => {
-// 	// 	dispatch(
-// 	// 		setBreadcrumbs([
-// 	// 			{
-// 	// 				link: 'contact',
-// 	// 				text: 'Contact',
-// 	// 			},
-// 	// 			{
-// 	// 				link: 'contact',
-// 	// 				text: 'Contact',
-// 	// 			},
-// 	// 		]),
-// 	// 	);
-// 	// }, [dispatch]);
+							reader.onload = () => {
+								return resolve(reader.result);
+							};
 
-// 	const handleChangeLocale = (e: SelectChangeEvent) => {
-// 		// setLocale(e.target.value as AppLocale);
-// 		// dispatch(setLocale(e.target.value as AppLocale));
-// 	};
+							reader.onerror = reject;
+						});
+					};
 
-// 	const {
-// 		/*  _data, */
-// 		refetch: sayHello,
-// 		isSuccess,
-// 		data,
-// 		// isFetching,
-// 		// isLoading,
-// 		// // isStale,
-// 		// isFetched,
-// 	} = useQuery({
-// 		queryKey: ['sayHello'],
-// 		queryFn: helloAction,
-// 		enabled: false,
-// 		// placeholderData: keepPreviousData,
-// 	});
+					const getFileUploadInput = async (file: File) => {
+						// const arrayBuffer = await file.arrayBuffer();
+						// const buffer = [...new Uint32Array(arrayBuffer)];
+						const base64 = await toBase64(file);
 
-// 	// useEffect(() => {
-// 	// 	if (!isFetching && isSuccess && data && data) {
-// 	// 		alert(data);
-// 	// 	}
-// 	// }, [isSuccess, data, isFetching, isLoading]);
-// 	useEffect(() => {
-// 		if (isSuccess && data) {
-// 			// alert(data);
-// 			console.log('====================================');
-// 			console.log(data);
-// 			console.log('====================================');
-// 		}
-// 	}, [data, isSuccess]);
+						return {
+							name: file.name,
+							type: file.type,
+							base64,
+							// buffer,
+						};
+					};
 
-// 	return (
-// 		<Box>
-// 			<Typography variant="h1">Home</Typography>
+					const uploadInput = await getFileUploadInput(file);
+					Parse.Cloud.run(functionName.uploadFile, uploadInput);
+				}}
+			>
+				Upload
+			</Button>
+		</>
+	);
+};
 
-// 			<Button
-// 				variant="contained"
-// 				onClick={() => {
-// 					sayHello();
-// 				}}
-// 			>
-// 				Say Hello
-// 			</Button>
-
-// 			<Button variant="contained" onClick={() => {}}>
-// 				Run Dummy
-// 			</Button>
-
-// 			<Button
-// 				variant="contained"
-// 				onClick={() => {
-// 					console.log('rrrrrrrrrr');
-
-// 					toast('WRYYYY!!', {
-// 						position: 'top-right',
-// 						autoClose: 5000,
-// 						hideProgressBar: false,
-// 						closeOnClick: true,
-// 						pauseOnHover: true,
-// 						draggable: true,
-// 						progress: undefined,
-// 						theme: 'light',
-// 					});
-// 				}}
-// 			>
-// 				Toastify
-// 			</Button>
-
-// 			{/* <pre>{JSON.stringify(data, null, 2)}</pre> */}
-
-// 			<FormControl fullWidth>
-// 				<InputLabel id="demo-simple-select-label">Language</InputLabel>
-// 				<Select
-// 					labelId="demo-simple-select-label"
-// 					id="demo-simple-select"
-// 					value={state.locale}
-// 					label="Age"
-// 					onChange={handleChangeLocale}
-// 				>
-// 					<MenuItem value="en">English</MenuItem>
-// 					<MenuItem value="fr">French</MenuItem>
-// 				</Select>
-// 			</FormControl>
-
-// 			<TipTap />
-// 		</Box>
-// 	);
-// };
-
-// export default Home;
+export default Home;

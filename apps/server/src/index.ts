@@ -2,15 +2,15 @@ import path from 'path';
 
 import ParseServer, { logger } from 'parse-server';
 
+import FSFilesAdapter from '@parse/fs-files-adapter';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
-import { createIndexes, createRolesIfNotExist, initCloudinary } from './helpers/helpers';
+import { createIndexes, createRolesIfNotExist } from './helpers/helpers';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
-import FilesRoute from './routes/file.routes';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
 import WebHostSchema from './schemas/webHost.schema';
@@ -64,6 +64,12 @@ const bootstrap = async () => {
 	app.use(express.urlencoded({ extended: false }));
 	app.use(express.json());
 
+	// File System adapter for Parse
+	const fsAdapter = new FSFilesAdapter({
+		filesSubDirectory: 'parse-uploads', // optional, defaults to ./files
+		// encryptionKey: 'local-file-encryption-key', // optional, but mandatory if you want to encrypt files
+	});
+
 	// initialize parse server
 	const parseServer = new ParseServer({
 		appId: PARSE_APP_ID,
@@ -72,6 +78,8 @@ const bootstrap = async () => {
 		databaseURI: DATABASE_URI,
 		serverURL: PARSE_SERVER_URL,
 		publicServerURL: PARSE_SERVER_URL,
+		filesAdapter: fsAdapter,
+		// preserveFileName: true,
 		// =============================================
 		logLevel: 'silly', // this seem to be not working at all
 		allowClientClassCreation: false,
@@ -91,8 +99,8 @@ const bootstrap = async () => {
 	app.use('/parse', parseServer.app);
 
 	// set Routes
-	const fileRoutes = new FilesRoute();
-	app.use('/', fileRoutes.router);
+	// const fileRoutes = new FilesRoute();
+	// app.use('/', fileRoutes.router);
 
 	// set error middleware // ! must be after all routes definition (I am wondering if I should make it after the parse dashboard also)
 	app.use(errorMiddleware);
@@ -139,11 +147,6 @@ const bootstrap = async () => {
 	//                                   create the roles                                    //
 	// --------------------------------------------------------------------------------------//
 	createRolesIfNotExist();
-
-	// --------------------------------------------------------------------------------------//
-	//                                 Init cloudinary SDK                                  //
-	// --------------------------------------------------------------------------------------//
-	initCloudinary();
 };
 
 bootstrap();
