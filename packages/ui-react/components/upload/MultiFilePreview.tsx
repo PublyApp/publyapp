@@ -3,7 +3,7 @@ import ListItemText from '@mui/material/ListItemText';
 import Stack from '@mui/material/Stack';
 // @mui
 import { alpha } from '@mui/material/styles';
-import { AnimatePresence, m } from 'framer-motion';
+import { AnimatePresence, motion as m } from 'framer-motion';
 
 import { fileData } from '@ui-react/utils/files.utils';
 import { fData } from '@ui-react/utils/number.utils';

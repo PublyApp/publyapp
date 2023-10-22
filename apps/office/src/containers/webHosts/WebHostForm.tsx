@@ -1,5 +1,5 @@
 // import React from 'react'
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -25,6 +25,7 @@ import { RHFUpload } from '@devist/ui-react/components/form/RHFUpload';
 import type { WebHost } from '@shared/types/webHost.types';
 import { getSaveWebHostInputSchema } from '@shared/validations/webHost.validations';
 import useResponsive from '@ui-react/hooks/useResponsive';
+import useRouter from '@ui-react/hooks/useRouter';
 
 type Props = {
 	currentWebHost?: WebHost;
@@ -33,6 +34,7 @@ type Props = {
 const WebHostForm = ({ currentWebHost }: Props) => {
 	const mdUp = useResponsive('up', 'md');
 	const { enqueueSnackbar } = useSnackbar();
+	const router = useRouter();
 
 	const defaultValues = useMemo(() => {
 		return {
@@ -47,7 +49,7 @@ const WebHostForm = ({ currentWebHost }: Props) => {
 
 	const form = useForm({
 		resolver: zodResolver(saveWebHostInputSchema),
-		// defaultValues,
+		defaultValues,
 	});
 
 	const {
@@ -57,6 +59,53 @@ const WebHostForm = ({ currentWebHost }: Props) => {
 		handleSubmit,
 		formState: { isSubmitting },
 	} = form;
+
+	const values = watch();
+
+	const handleDrop = useCallback(
+		(acceptedFiles: File[]) => {
+			const files = values.images || [];
+
+			const newFiles = acceptedFiles.map((file) => {
+				return Object.assign(file, {
+					preview: URL.createObjectURL(file),
+				});
+			});
+
+			setValue('images', [...files, ...newFiles], { shouldValidate: true });
+		},
+		[setValue, values.images],
+	);
+
+	const handleRemoveFile = useCallback(
+		(inputFile: File | string) => {
+			const filtered =
+				values.images &&
+				values.images?.filter((file) => {
+					return file !== inputFile;
+				});
+			setValue('images', filtered);
+		},
+		[setValue, values.images],
+	);
+
+	const handleRemoveAllFiles = useCallback(() => {
+		setValue('images', []);
+	}, [setValue]);
+
+	const onSubmit = handleSubmit(async (data) => {
+		// try {
+		// 	// await new Promise((resolve) => {
+		// 	// 	return setTimeout(resolve, 500);
+		// 	// });
+		// 	// reset();
+		// 	// enqueueSnackbar(currentProduct ? 'Update success!' : 'Create success!');
+		// 	// router.push(paths.dashboard.product.root);
+		// 	console.info('DATA', data);
+		// } catch (error) {
+		// 	console.error(error);
+		// }
+	});
 
 	const renderDetails = (
 		<>
