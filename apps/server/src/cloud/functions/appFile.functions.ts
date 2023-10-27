@@ -1,39 +1,44 @@
-import z from 'zod';
+// import { logger } from 'parse-server';
 
-import { functionName, RolesEnum } from '@devist/shared/utils/constants';
+// import z from 'zod';
 
-import { USE_MASTER_KEY } from '@server/utils/constants';
+// import { functionName, RolesEnum } from '@devist/shared/utils/constants';
+
 // import { USE_MASTER_KEY } from '@server/utils/constants';
-import { parseFrom } from '@server/utils/parse.utils';
+// // import { USE_MASTER_KEY } from '@server/utils/constants';
+// import { parseFrom } from '@server/utils/parse.utils';
 
-import FileCloudService from '../services/file.cloud.service';
+// import FileCloudService from '../services/file.cloud.service';
 
-// import type { AppFile } from '@shared/types/appFiles.types';
+// // import type { AppFile } from '@shared/types/appFiles.types';
 
-const uploadSchema = z.object({
-	name: z.string(),
-	type: z.string(),
-	// buffer: z.array(z.number()),
-	base64: z.string(),
-});
+// const uploadSchema = z.object({
+// 	name: z.string(),
+// 	type: z.string(),
+// 	// buffer: z.array(z.number()),
+// 	base64: z.string(),
+// });
 
-Parse.Cloud.define(
-	functionName.uploadFile,
-	parseFrom({
-		requireUser: true,
-		allowedRoles: [RolesEnum.ADMIN, RolesEnum.MODERATOR, RolesEnum.AUTHOR, RolesEnum.READER],
-		action: async ({ /* t, */ req, user }) => {
-			const { name, type, base64 } = uploadSchema.parse(req.params);
+// Parse.Cloud.define(
+// 	functionName.uploadFile,
+// 	parseFrom({
+// 		requireUser: true,
+// 		allowedRoles: [RolesEnum.ADMIN, RolesEnum.MODERATOR, RolesEnum.AUTHOR, RolesEnum.READER],
+// 		action: async ({ /* t, */ req, user }) => {
+// 			logger.info(req);
 
-			const sessionToken = user.getSessionToken();
+// 			return 'lolololo';
+// 			const { name, type, base64 } = uploadSchema.parse(req.params);
 
-			const fileService = new FileCloudService({ base64, fileName: name, fileType: type, sessionToken });
+// 			const sessionToken = user.getSessionToken();
 
-			const appFile = await fileService.save(USE_MASTER_KEY);
+// 			const fileService = new FileCloudService({ base64, fileName: name, fileType: type, sessionToken });
 
-			return {
-				appFile,
-			};
-		},
-	}),
-);
+// 			const appFile = await fileService.save(USE_MASTER_KEY);
+
+// 			return {
+// 				appFile,
+// 			};
+// 		},
+// 	}),
+// );

@@ -7,6 +7,18 @@ declare module 'parse-server/lib/Auth';
 declare module 'parse-dashboard';
 declare module '@parse/fs-files-adapter';
 
+// declare module 'parse-server';
+// declare module 'parse-server/lib/logger';
+// declare module 'parse-server/lib/defaults';
+// declare module 'parse-server/lib/Controllers/LoggerController';
+// declare module 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter';
+
+// --------------------------------------------------------------------------------------//
+//                                                                                      //
+//                                        ######                                        //
+//                                                                                      //
+// --------------------------------------------------------------------------------------//
+
 declare module 'parse-server' {
 	import type { /* BaseAttributes, */ NewAttributes } from 'parse';
 

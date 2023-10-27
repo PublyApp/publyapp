@@ -38,7 +38,7 @@ export const useSaveWebHost = ({ successMessage, onSuccess, onError }: UseSaveWe
 };
 
 export const useGetWebHosts = (params: GetWebHostsQueryParams) => {
-	const key = [functionName.getWebHosts, params] as const;
+	const key = [functionName.findWebHost, params] as const;
 
 	const result = useQuery({
 		queryKey: key,

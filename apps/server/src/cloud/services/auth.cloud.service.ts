@@ -4,11 +4,32 @@ import Config from 'parse-server/lib/Config';
 
 import type { ParsedQs } from 'qs';
 
-export class AuthCloudService {
-	public sessionToken: string | ParsedQs | string[] | ParsedQs[];
+type AuthCloudServiceProps = {
+	sessionToken: string | ParsedQs | string[] | ParsedQs[];
+	// user?: Parse.User;
+};
 
-	constructor(sessionToken: string | ParsedQs | string[] | ParsedQs[]) {
+export class AuthCloudService {
+	readonly sessionToken: string | ParsedQs | string[] | ParsedQs[];
+
+	private auth: any;
+
+	private constructor({
+		sessionToken,
+	}: // user,
+	AuthCloudServiceProps) {
 		this.sessionToken = sessionToken;
+	}
+
+	static createAuthCloudService({ sessionToken }: AuthCloudServiceProps) {
+		const instance = new AuthCloudService({ sessionToken });
+		instance.initialize();
+		return instance;
+	}
+
+	private async initialize() {
+		const config = Config.get(Parse.applicationId);
+		this.auth = Auth.getAuthForSessionToken({ config, sessionToken: this.sessionToken });
 	}
 
 	/**
@@ -16,9 +37,22 @@ export class AuthCloudService {
 	 * @param {*} sessionToken
 	 * @returns
 	 */
-	public async getUserForSessionToken(): Promise<User> {
-		const config = Config.get(Parse.applicationId);
-		const auth = await Auth.getAuthForSessionToken({ config, sessionToken: this.sessionToken });
-		return auth.user;
+	async getUserForSessionToken(): Promise<User> {
+		return this.auth.user;
+	}
+
+	/**
+	 * get all roles names including the inherited ones
+	 */
+	async getRoleNamesForSessionToken(): Promise<string[]> {
+		return this.auth.getUserRoles();
+	}
+
+	/**
+	 * Maybe get only the direct roles associated with the user
+	 * Must verify this
+	 */
+	async getRolesForSessionToken(): Promise<Parse.Role[]> {
+		return this.auth.getRolesForUser();
 	}
 }

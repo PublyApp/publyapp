@@ -11,9 +11,6 @@ export const getServerAuth = async () => {
 	try {
 		const cookieStore = cookies();
 		const cookie = cookieStore.get(SESSION_TOKEN_COOKIE_KEY);
-		// console.log('====================================');
-		// console.log(cookie);
-		// console.log('====================================');
 
 		const sessionWithUser = await new Parse.Query(Parse.Session)
 			.equalTo('sessionToken', cookie.value)

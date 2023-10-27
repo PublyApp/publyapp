@@ -3,26 +3,22 @@ import React from 'react';
 
 import ReactDOM from 'react-dom/client';
 
+import { initReactLocalization } from '@devist/ui-react/utils/i18n';
+
 import App from './App';
 
 // import './main.css';
 
-console.log('====================================');
-// eslint-disable-next-line turbo/no-undeclared-env-vars
-console.log(process.env.ACME);
-console.log('====================================');
-
-// --------------------------------------------------------------------------------------//
-//                                   initialize parse                                   //
-// --------------------------------------------------------------------------------------//
+// ---- initialize parse -----------------------------------------------------------------
 Parse.initialize('devist');
 Parse.serverURL = 'http://localhost:6180/parse';
 
 window.Parse = Parse;
 
-// --------------------------------------------------------------------------------------//
-//                                 render the react app                                 //
-// --------------------------------------------------------------------------------------//
+// ---- i18next localization -------------------------------------------------------------
+initReactLocalization();
+
+// ---- render the react app -------------------------------------------------------------
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 	<React.StrictMode>
 		<App />

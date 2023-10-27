@@ -35,7 +35,6 @@ const getHandler = (basePath) => {
 apps.forEach(getHandler(APPS_DIR));
 packages.forEach(getHandler(PACKAGES_DIR));
 
-// eslint-disable-next-line no-restricted-syntax
 for (const cwdPath of cwdPaths) {
 	console.log('====================================');
 	console.log('🔥', cwdPath);

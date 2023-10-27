@@ -1,9 +1,13 @@
+import path from 'path';
+
 import type { SchemaMigrations } from 'parse-server';
+
+import { imageFormatTypes } from '@shared/types/appFile.types';
 
 export const ADMIN_EMAILS = ['radandevist@gmail.com'];
 
 // Cors white lists
-export const whiteList = {
+export const corsWhiteList = {
 	LOCAL: [
 		'http://localhost:6180',
 		'http://localhost:6181',
@@ -26,20 +30,43 @@ export const USE_MASTER_KEY = { useMasterKey: true } as const;
 /**
  * Parse server strict class level permissions
  */
-export const DEFAULT_STRICT_CLP: SchemaMigrations.CPLsInterface = {
+export const DEFAULT_CLP: SchemaMigrations.CPLsInterface = {};
+
+export const READONLY_CLP: SchemaMigrations.CPLsInterface = {
 	find: {
 		'*': true,
 	},
 	get: {
 		'*': true,
 	},
-	// count: {
-	// 	'*': true,
-	// },
-	create: {
-		requiresAuthentication: true,
+	count: {
+		'*': true,
 	},
-	update: {
-		requiresAuthentication: true,
+	// create: {
+	// 	requiresAuthentication: true,
+	// },
+	// update: {
+	// 	requiresAuthentication: true,
+	// },
+};
+
+export const FILE_UPLOAD_DESTINATION = path.join(process.cwd(), 'files/multer-uploads');
+
+export const IMAGE_FORMAT_CONFIG = {
+	[imageFormatTypes[0]]: {
+		width: 100,
+		height: 100,
+	},
+	[imageFormatTypes[1]]: {
+		width: 200,
+		height: 200,
+	},
+	[imageFormatTypes[2]]: {
+		width: 300,
+		height: 300,
+	},
+	[imageFormatTypes[3]]: {
+		width: 400,
+		height: 400,
 	},
 };
