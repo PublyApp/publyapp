@@ -10,30 +10,6 @@ import { ParseWebHost } from '@shared/parse/classes/webHost.class';
 import { /* className, */ className, DEFAULT_PAGE_SIZE, functionName, RolesEnum } from '@shared/utils/constants';
 import { getSaveWebHostInputSchema } from '@shared/validations/webHost.validations';
 
-// Parse.Cloud.define(
-// 	functionName.createWebHost,
-// 	parseFrom({
-// 		requireUser: true,
-// 		allowedRoles: [RolesEnum.ADMIN],
-// 		action: async ({ req, t }) => {
-// 			const reqParams = getCreateWebHostInputSchema(t).parse(req.params);
-
-// 			// const newWebHost = new Parse.Object(className.WEB_HOST, reqParams);
-// 			const newWebHost = new ParseWebHost({
-// 				translations: {
-// 					en: {
-// 						name: reqParams.name,
-// 						description: reqParams.description,
-// 					},
-// 				},
-// 			});
-// 			const savedWebHost = await newWebHost.save(null, USE_MASTER_KEY);
-
-// 			return savedWebHost;
-// 		},
-// 	}),
-// );
-
 // --------------------------------------------------------------------------------------//
 //                     For creating an updating records of WebHost                      //
 // --------------------------------------------------------------------------------------//
@@ -47,7 +23,6 @@ Parse.Cloud.define(
 
 			const localeSave = reqParams.locale ?? defaultLocale;
 
-			// const webHost = new Parse.Object(className.WEB_HOST, reqParams);
 			const webHost = new ParseWebHost({
 				objectId: reqParams.objectId,
 				translations: {
@@ -70,7 +45,7 @@ Parse.Cloud.define(
 const getWebHostsFunctionParamsSchema = getListParamsSchema;
 
 Parse.Cloud.define(
-	functionName.getWebHosts,
+	functionName.findWebHost,
 	parseFrom({
 		requireUser: false,
 		action: async ({ req /* , t  */ }) => {
@@ -82,7 +57,6 @@ Parse.Cloud.define(
 			const sortingOperations: Record<string, 1 | -1> = {};
 
 			if (sorting && !_.isEmpty(sorting)) {
-				// eslint-disable-next-line no-restricted-syntax
 				for (const element of sorting) {
 					sortingOperations[element.id] = element.desc ? -1 : 1;
 				}
@@ -98,12 +72,10 @@ Parse.Cloud.define(
 				{ $project: { _id: 1 } },
 			];
 
-			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			const documents: { _id: string }[] = await aggregate(className.WEB_HOST, pipeline);
 
 			const ids = documents.map((doc) => {
-				// eslint-disable-next-line no-underscore-dangle
-				return doc._id;
+				return _.get(doc, '_id');
 			});
 
 			const [iWebHosts, totalCount] = await Promise.all([

@@ -34,9 +34,9 @@ const protectionMiddleware = ({ withKey = true, withAuth = true }: Input): Reque
 					return next(new HttpException(400, 'Missing session params'));
 				}
 
-				const Auth = new AuthCloudService(parseSession);
+				const authService = AuthCloudService.createAuthCloudService({ sessionToken: parseSession });
 
-				const user = await Auth.getUserForSessionToken();
+				const user = authService.getUserForSessionToken();
 
 				// if user exists, go to next
 				if (!user) {

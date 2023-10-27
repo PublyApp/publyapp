@@ -39,7 +39,7 @@ module.exports = {
 	},
 	rules: {
 		'no-undef': 'off',
-		quotes: ['warn', 'single'],
+		quotes: ['warn', 'single', { avoidEscape: true }],
 		'quote-props': ['warn', 'as-needed'],
 		'comma-dangle': ['warn', 'always-multiline'],
 		semi: 'warn',
@@ -68,6 +68,7 @@ module.exports = {
 		// airbnb-base override
 		'arrow-body-style': ['warn', 'always'],
 		'no-console': 'off',
+		'no-restricted-syntax': 'off',
 
 		// eslint-plugin-import overrides
 		'import/order': [

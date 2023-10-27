@@ -1,77 +1,34 @@
-// import { UploadUserImageDto } from "@/dtos/files.dto";
-// import { UploadedFile } from "@/interfaces/files.interface";
-// import FileService from "@/services/files.service";
-// import { logger } from "@/utils/logger";
 import { logger } from 'parse-server';
 
-import type { NextFunction, Request, Response } from 'express';
+import type { RequestHandler } from 'express';
 
-import FileService, { type UploadedFile } from '@server/services/files.service';
+import { HttpException } from '@server/exceptions/HttpException';
+import FileService from '@server/services/file.service';
 
-class FileController {
-	// public fileService = new FileService();
-
-	// upload single file
-	static uploadFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-		try {
-			const { file }: any = req;
-			const { folder, userId } /* : UploadUserImageDto */ = req.body;
-
-			if (!userId) {
-				throw Error('Missing user id parameter');
-			}
-
-			if (!file) {
-				throw Error('Missing file');
-			}
-
-			if (!folder) {
-				throw Error('Missing folder parameter');
-			}
-
-			const { publicId, url }: UploadedFile = await FileService.uploadFile(file, folder);
-
-			res.status(201).json({ publicId, url });
-		} catch (error) {
-			logger.error(`[src/controllers/files.controllers.ts:FilesController.uploadFile] error:\n${error /* .message */}`);
-
-			next(error);
+export const handleUploadSingleFile: RequestHandler = async (req, res, next) => {
+	try {
+		if (!req.file) {
+			throw new HttpException(400, 'file to upload missing');
 		}
-	};
 
-	// upload multiple files
-	static uploadFiles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-		try {
-			const { files }: any = req;
-			const { folder, userId } /* : UploadUserImageDto */ = req.body;
+		// logger.info(req.file);
+		const fileService = new FileService(req.file);
 
-			if (!userId) {
-				throw Error('Missing user id parameter');
-			}
-
-			if (!files) {
-				throw Error('Missing files');
-			}
-
-			if (!folder) {
-				throw Error('Missing folder parameter');
-			}
-
-			const responses = files.map((file: any) => {
-				return FileService.uploadFile(file, folder);
-			});
-
-			const uploadedFiles = await Promise.all(responses);
-
-			res.status(201).json({ uploadedFiles });
-		} catch (error) {
-			logger.error(
-				`[src/controllers/files.controllers.ts:FilesController.uploadFiles] error:\n${error /* .message */}`,
-			);
-
-			next(error);
+		if (req.file?.mimetype.startsWith('image/')) {
+			// create different files formats
+			// saves these formats into the fs
+			await fileService.generateImageFormats();
+			logger.info(fileService.formats);
+			// console.log('####', fileService.formats);
+		} else {
+			//
 		}
-	};
-}
 
-export default FileController;
+		fileService.saveDBRecord();
+
+		// =
+		res.status(201).send('ok');
+	} catch (error) {
+		next(error);
+	}
+};

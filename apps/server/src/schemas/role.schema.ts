@@ -2,13 +2,13 @@ import { SchemaMigrations } from 'parse-server';
 
 import { className } from '@devist/shared/utils/constants';
 
-import { DEFAULT_STRICT_CLP } from '@server/utils/constants';
+import { READONLY_CLP } from '@server/utils/constants';
 
 const RoleSchema = SchemaMigrations.makeSchema(className.ROLE, {
 	fields: {
 		code: { type: 'Number' },
 	},
-	classLevelPermissions: DEFAULT_STRICT_CLP,
+	classLevelPermissions: READONLY_CLP,
 	indexes: {},
 });
 

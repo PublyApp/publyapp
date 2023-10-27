@@ -179,7 +179,7 @@ export const reOrderObjects = (ids: string[], objects: Parse.Object[]) => {
  * @param options aggregation options
  * @returns a promise containing the documents
  */
-export const aggregate = async (className: string, pipeline?: PipelineStage[], options: AggregateOptions = {}) => {
+export const aggregate = async (className: string, pipeline: PipelineStage[], options: AggregateOptions = {}) => {
 	const config = Config.get(Parse.applicationId);
 	// eslint-disable-next-line no-underscore-dangle
 	const collection = (await config.database.adapter._adaptiveCollection(className))._mongoCollection;
@@ -194,6 +194,7 @@ export const aggregate = async (className: string, pipeline?: PipelineStage[], o
 		},
 		options,
 	);
+
 	const results = await collection.aggregate(pipeline, aggregationOptions).toArray();
 
 	return results;

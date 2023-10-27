@@ -1,5 +1,13 @@
-import { alpha, createTheme, CustomShadowOptions, lighten, PaletteOptions, Shadows, ThemeOptions } from '@mui/material';
-import { TypographyOptions } from '@mui/material/styles/createTypography';
+import {
+	alpha,
+	createTheme,
+	lighten,
+	type CustomShadowOptions,
+	type PaletteOptions,
+	type Shadows,
+	type ThemeOptions,
+} from '@mui/material';
+import type { TypographyOptions } from '@mui/material/styles/createTypography';
 
 import { getResponsiveFontSizes, pxToRem } from '../utils/css.utils';
 
@@ -54,9 +62,7 @@ const palette: PaletteOptions = iPalette;
 //                                      Typography                                      //
 // --------------------------------------------------------------------------------------//
 
-// eslint-disable-next-line quotes
 const PRIMARY_FONT = ["'Roboto'", 'sans-serif'].join(', ');
-// eslint-disable-next-line quotes
 const TITLE_FONT = ["'Montserrat'", 'sans-serif'].join(', ');
 const defaultTypographyStyles = {
 	lineHeight: 1,
@@ -167,7 +173,6 @@ const typography: TypographyOptions = {
 //                                    Custom shadows                                    //
 // --------------------------------------------------------------------------------------//
 
-// eslint-disable-next-line @typescript-eslint/no-shadow
 const createCustomShadows = (color: string): CustomShadowOptions => {
 	const transparent = (opacity: number) => {
 		return alpha(color, opacity);

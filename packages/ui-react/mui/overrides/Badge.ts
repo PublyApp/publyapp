@@ -42,7 +42,6 @@ export const Badge = (theme: Theme) => {
 						height: 10,
 						minWidth: 'auto',
 						'&:before, &:after': {
-							// eslint-disable-next-line quotes
 							content: "''",
 							borderRadius: 1,
 							backgroundColor: theme.palette.common.white,

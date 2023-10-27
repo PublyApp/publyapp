@@ -7,6 +7,7 @@
 		{
 			"name": "Attach by Process ID",
 			"processId": "${command:PickProcess}",
+			"sourceMaps": true,
 			"request": "attach",
 			"skipFiles": [
 				"<node_internals>/**"
