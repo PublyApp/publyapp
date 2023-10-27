@@ -1,52 +1,52 @@
-import { /* useCallback, */ useEffect } from 'react';
+import { useCallback, type Dispatch, type SetStateAction } from 'react';
 
 import { useTranslation } from 'react-i18next';
-import { useLocalStorage } from 'react-use';
 
-// utils
-// import { localStorageGetItem } from 'src/utils/storage-available';
-
-//
-// import { allLangs, defaultLang } from './config-lang';
-import { /* appLocales, defaultLocale, */ type AppLocale } from '@devist/shared/i18n/resources';
+import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/i18n/resources';
+import { isCallback } from '@devist/shared/utils/any.utils';
 import { LOCALE_HEADER_KEY } from '@devist/shared/utils/constants';
+
+// import i18n from '@ui-react/utils/i18n';
+import { localStorageGetItem } from '@ui-react/utils/localStorage';
 
 // ----------------------------------------------------------------------
 
 const useLocale = () => {
-	const { i18n /* , t */ } = useTranslation();
+	const { i18n /* t, ready */ } = useTranslation();
 
-	// const settings = useSettingsContext();
+	const storedLocale = localStorageGetItem('i18nextLng');
+	const locale =
+		appLocales.find((lang) => {
+			return lang === storedLocale;
+		}) || defaultLocale;
 
-	// const langStorage = localStorageGetItem('i18nextLng');
-	const [locale, setLocale] = useLocalStorage<AppLocale>('i18nextLng', undefined, { raw: true });
-
-	// const currentLocale =
-	// 	appLocales.find((lang) => {
-	// 		// return lang.value === langStorage;
-	// 		return lang === storedLocale;
-	// 	}) || defaultLocale;
-
-	// const changeLang = useCallback(
-	// 	(newLang: string) => {
-	// 		i18n.changeLanguage(newLang);
-	// 		// settings.onChangeDirectionByLang(newLang);
-	// 	},
-	// 	[i18n /* , settings */],
-	// );
-	// const changeLocale = useCallback((newLocale: AppLocale) => {});
-
-	useEffect(() => {
+	const changeLocale = (value: AppLocale) => {
+		i18n.changeLanguage(value);
 		Parse.CoreManager.set('REQUEST_HEADERS', {
-			[LOCALE_HEADER_KEY]: locale,
+			[LOCALE_HEADER_KEY]: value,
 		});
-		i18n.changeLanguage(locale);
-		// queryClient.invalidateQueries();
-	}, [locale]);
+	};
+
+	const setLocale: Dispatch<SetStateAction<AppLocale>> = useCallback(
+		(value) => {
+			if (isCallback(value)) {
+				const updater = value;
+				const iValue = updater(locale);
+				changeLocale(iValue);
+				return;
+			}
+
+			changeLocale(value);
+		},
+		[i18n],
+	);
 
 	return {
 		locale,
 		setLocale,
+		// i18n,
+		// t,
+		// ready,
 	};
 };
 

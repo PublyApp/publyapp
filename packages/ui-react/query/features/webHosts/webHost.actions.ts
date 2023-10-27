@@ -32,12 +32,12 @@ export type GetWebHostsFunctionResult = {
 
 export const getWebHostsAction: QueryFunction<
 	GetWebHostsFunctionResult,
-	readonly [typeof functionName.getWebHosts, GetWebHostsQueryParams]
+	readonly [typeof functionName.findWebHost, GetWebHostsQueryParams]
 > = async (context) => {
 	try {
 		const params = context.queryKey[1];
 
-		const result: GetWebHostsFunctionResult = await Parse.Cloud.run(functionName.getWebHosts, params);
+		const result: GetWebHostsFunctionResult = await Parse.Cloud.run(functionName.findWebHost, params);
 
 		return result;
 	} catch (error) {

@@ -3,7 +3,6 @@ import { useCallback, useMemo } from 'react';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import LoadingButton from '@mui/lab/LoadingButton';
-// import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 // import Chip from '@mui/material/Chip';
@@ -22,6 +21,7 @@ import FormProvider from '@devist/ui-react/components/form/FormProvider';
 import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
 import { RHFUpload } from '@devist/ui-react/components/form/RHFUpload';
 
+import MediaLibPicker from '@office/components/MediaLibPicker';
 import type { WebHost } from '@shared/types/webHost.types';
 import { getSaveWebHostInputSchema } from '@shared/validations/webHost.validations';
 import useResponsive from '@ui-react/hooks/useResponsive';
@@ -135,8 +135,11 @@ const WebHostForm = ({ currentWebHost }: Props) => {
 						</Stack> */}
 
 						<Stack spacing={1.5}>
-							<Typography variant="subtitle2">Images</Typography>
-							<RHFUpload
+							<Typography variant="subtitle2">Image</Typography>
+
+							<MediaLibPicker />
+
+							{/* <RHFUpload
 								multiple
 								thumbnail
 								name="images"
@@ -147,7 +150,7 @@ const WebHostForm = ({ currentWebHost }: Props) => {
 								onUpload={() => {
 									return console.info('ON UPLOAD');
 								}}
-							/>
+							/> */}
 						</Stack>
 					</Stack>
 				</Card>

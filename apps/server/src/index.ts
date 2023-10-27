@@ -8,15 +8,19 @@ import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
-import { createIndexes, createRolesIfNotExist } from './helpers/helpers';
+import { handleUploadSingleFile } from './controllers/file.controller';
+import { createIndexes, createRolesIfNotExist, createUploadDirIfNotExist } from './helpers/helpers';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
+import protectionMiddleware from './middlewares/protection.middleware';
+import AppFileSchema from './schemas/appFile.schema';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
 import WebHostSchema from './schemas/webHost.schema';
-import { whiteList } from './utils/constants';
+import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './utils/constants';
 import { env, envSchema, setAppEnv } from './utils/env';
 import { consoleTransport } from './utils/logger';
+import { multerConfig } from './utils/multer';
 
 const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
@@ -52,7 +56,7 @@ const bootstrap = async () => {
 	const checkedEnv = envSchema.parse(process.env);
 	setAppEnv(checkedEnv);
 
-	const { DATABASE_URI, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL, PORT } = env;
+	const { DATABASE_URI, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL, PORT, PARSE_PATH } = env;
 
 	// --------------------------------------------------------------------------------------//
 	//                            setup express and parse server                            //
@@ -60,9 +64,10 @@ const bootstrap = async () => {
 	const app = express();
 
 	// setup middlewares
-	app.use(cors({ whiteList: global.LOCAL ? whiteList.LOCAL : whiteList.ONLINE }));
+	app.use(cors({ whiteList: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
 	app.use(express.urlencoded({ extended: false }));
 	app.use(express.json());
+	app.use('/app/files', express.static(FILE_UPLOAD_DESTINATION));
 
 	// File System adapter for Parse
 	const fsAdapter = new FSFilesAdapter({
@@ -85,7 +90,7 @@ const bootstrap = async () => {
 		allowClientClassCreation: false,
 		schema: {
 			strict: true,
-			definitions: [RoleSchema, PostSchema, WebHostSchema],
+			definitions: [RoleSchema, PostSchema, WebHostSchema, AppFileSchema],
 		},
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
@@ -96,11 +101,15 @@ const bootstrap = async () => {
 
 	await parseServer.start();
 
-	app.use('/parse', parseServer.app);
+	app.use(PARSE_PATH, parseServer.app);
 
 	// set Routes
-	// const fileRoutes = new FilesRoute();
-	// app.use('/', fileRoutes.router);
+	app.post(
+		'/upload-file-single',
+		protectionMiddleware({ withAuth: true, withKey: false }),
+		multerConfig.single('file'),
+		handleUploadSingleFile,
+	);
 
 	// set error middleware // ! must be after all routes definition (I am wondering if I should make it after the parse dashboard also)
 	app.use(errorMiddleware);
@@ -138,15 +147,15 @@ const bootstrap = async () => {
 		logger.info('====================================');
 	});
 
-	// --------------------------------------------------------------------------------------//
-	//    Manually create nested keys indexes that are not supported by Parse server yet    //
-	// --------------------------------------------------------------------------------------//
+	// Manually create nested keys indexes
+	// because they are not supported by Parse server yet
 	createIndexes();
 
-	// --------------------------------------------------------------------------------------//
-	//                                   create the roles                                    //
-	// --------------------------------------------------------------------------------------//
+	// create the roles
 	createRolesIfNotExist();
+
+	// create the upload folder
+	createUploadDirIfNotExist();
 };
 
 bootstrap();

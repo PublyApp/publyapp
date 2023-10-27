@@ -45,7 +45,7 @@ export const functionName = {
 	createAITool: 'createAITool',
 	// createWebHost: 'createWebHost',
 	saveWebHost: 'saveWebHost',
-	getWebHosts: 'getWebHosts',
+	findWebHost: 'findWebHost',
 	uploadFile: 'uploadFile',
 } as const;
 

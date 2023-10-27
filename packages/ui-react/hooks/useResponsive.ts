@@ -29,7 +29,6 @@ const useResponsive = (query: Query, start?: Value, end?: Value): boolean => {
 		}
 
 		default:
-			// eslint-disable-next-line quotes
 			throw new Error("useResponsive 'query' argument is mandatory");
 	}
 };

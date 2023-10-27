@@ -1,4 +1,3 @@
-// eslint-disable-next-line prettier/prettier
 export {};
 
 declare module '@mui/material/styles' {

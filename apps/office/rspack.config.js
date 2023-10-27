@@ -4,7 +4,7 @@ const path = require('path');
 
 const dotenv = require('dotenv');
 const dotenvExpand = require('dotenv-expand');
-const { EnvironmentPlugin } = require('@rspack/core');
+const { EnvironmentPlugin, HtmlRspackPlugin, CopyRspackPlugin } = require('@rspack/core');
 
 // const APPS_DIR = path.resolve(__dirname, '../../apps');
 const PACKAGES_DIR = path.resolve(__dirname, '../../packages');
@@ -49,21 +49,19 @@ const config = {
 				},
 		  }
 		: {}),
-	builtins: {
-		html: [
-			{
-				template: './index.html', // Align CRA to generate index.html
-			},
-		],
-		copy: {
+	plugins: [
+		new EnvironmentPlugin(env ?? process.env),
+		new HtmlRspackPlugin({
+			template: './index.html', // Align CRA to generate index.html
+		}),
+		new CopyRspackPlugin({
 			patterns: [
 				{
 					from: 'public',
 				},
 			],
-		},
-	},
-	plugins: [new EnvironmentPlugin(env ?? process.env)],
+		}),
+	],
 	devServer: {
 		port: 6182,
 		historyApiFallback: true,

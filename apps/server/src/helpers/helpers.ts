@@ -1,5 +1,7 @@
 /* eslint-disable no-continue */
 /* eslint-disable no-await-in-loop */
+import { existsSync, promises as fs } from 'fs';
+
 import { logger } from 'parse-server';
 
 import cloudinary from 'cloudinary';
@@ -7,6 +9,7 @@ import { MongoClient } from 'mongodb';
 
 import { className, RolesEnum } from '@devist/shared/utils/constants';
 
+import { FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@server/utils/constants';
 import { env } from '@server/utils/env';
 
 const { CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_NAME } = env;
@@ -23,7 +26,7 @@ export const createRolesIfNotExist = async () => {
 		const roleACL = new Parse.ACL();
 		roleACL.setPublicReadAccess(true);
 
-		const foundRole = await new Parse.Query(Parse.Role).equalTo('name', roleName).first();
+		const foundRole = await new Parse.Query(Parse.Role).equalTo('name', roleName).first(USE_MASTER_KEY);
 
 		if (foundRole) {
 			logger.info(`role: '${roleName}' already exists, skipping its creation`);
@@ -36,8 +39,10 @@ export const createRolesIfNotExist = async () => {
 			const index = roleEntries.indexOf(entry);
 
 			if (index > 0) {
-				const childRoles = await foundRole.getRoles().query().find();
-				const directChildRole = await new Parse.Query(Parse.Role).equalTo('name', roleEntries[index - 1][0]).first();
+				const childRoles = await foundRole.getRoles().query().find(USE_MASTER_KEY);
+				const directChildRole = await new Parse.Query(Parse.Role)
+					.equalTo('name', roleEntries[index - 1][0])
+					.first(USE_MASTER_KEY);
 
 				if (!directChildRole) {
 					// something that should never happen
@@ -55,7 +60,7 @@ export const createRolesIfNotExist = async () => {
 			}
 
 			if (foundRole.dirty()) {
-				await foundRole.save(null, { useMasterKey: true });
+				await foundRole.save(null, USE_MASTER_KEY);
 			}
 
 			continue;
@@ -64,7 +69,7 @@ export const createRolesIfNotExist = async () => {
 		const role = new Parse.Role(roleName, roleACL);
 		role.set('code', roleCode);
 
-		await role.save(null, { useMasterKey: true });
+		await role.save(null, USE_MASTER_KEY);
 	}
 };
 
@@ -99,4 +104,12 @@ export const initCloudinary = async () => {
 		api_secret: CLOUDINARY_API_SECRET,
 		secure: true,
 	});
+};
+
+export const createUploadDirIfNotExist = async () => {
+	if (existsSync(FILE_UPLOAD_DESTINATION)) {
+		return;
+	}
+
+	fs.mkdir(FILE_UPLOAD_DESTINATION, { recursive: true });
 };

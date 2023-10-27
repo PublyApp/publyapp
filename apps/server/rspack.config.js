@@ -29,7 +29,6 @@ function findExternals() {
 	// read all apps package.json
 	const appDirs = listDirectories(APPS_DIR);
 	const packagesDirs = listDirectories(PACKAGES_DIR);
-	// const a = fs.readFileSync(path.join(MONOREPO_ROOT_DIR, PACKAGE_FILE), { encoding: 'utf8' });
 
 	const externalsSet = new Set();
 
@@ -41,7 +40,6 @@ function findExternals() {
 		const packageFile = JSON.parse(fs.readFileSync(filePath, { encoding: 'utf-8' }));
 
 		if (packageFile.dependencies) {
-			// eslint-disable-next-line no-restricted-syntax
 			Object.entries(packageFile.dependencies).forEach(([key, value]) => {
 				if (value === 'workspace:*') return;
 				externalsSet.add(key);
@@ -49,7 +47,6 @@ function findExternals() {
 		}
 
 		if (packageFile.devDependencies) {
-			// eslint-disable-next-line no-restricted-syntax
 			Object.entries(packageFile.devDependencies).forEach(([key, value]) => {
 				if (value === 'workspace:*') return;
 				externalsSet.add(key);
