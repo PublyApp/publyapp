@@ -1,6 +1,6 @@
 {
-	"watch": ["dist", ".env.local"],
+	"watch": ["src", ".env.local"],
 	"ext": "js,ts,json",
-	"exec": "npm run start",
+	"exec": "npm run build:pack && npm run start",
 	"ignore": ["dist/seeding/*"]
 }
