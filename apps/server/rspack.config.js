@@ -2,8 +2,11 @@
 /* eslint-disable func-style */
 /* eslint-disable @typescript-eslint/no-use-before-define */
 /* eslint-disable @typescript-eslint/no-var-requires */
+
 const path = require('path');
 const fs = require('fs');
+
+const { ExternalsPlugin, node } = require('@rspack/core');
 
 const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../');
 const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
@@ -58,7 +61,7 @@ function findExternals() {
 }
 
 /** @type {import('@rspack/cli').Configuration} */
-module.exports = {
+const config = {
 	entry: {
 		index: path.resolve(__dirname, 'src/index.ts'),
 		'cloud/index': path.resolve(__dirname, 'src/cloud/index.ts'),
@@ -70,8 +73,17 @@ module.exports = {
 	},
 	target: 'node',
 	mode: toDeploy ? 'production' : 'development',
-	externalsType: 'commonjs',
-	externals: [...findExternals(), 'parse/node', 'parse-server/lib/Config', 'parse-server/lib/Auth'],
+	// externalsType: 'commonjs',
+	// externals: [...findExternals(), 'parse/node', 'parse-server/lib/Config', 'parse-server/lib/Auth'],
+	plugins: [
+		new node.NodeTargetPlugin(),
+		new ExternalsPlugin('commonjs', [
+			...findExternals(),
+			'parse/node',
+			'parse-server/lib/Config',
+			'parse-server/lib/Auth',
+		]),
+	],
 	resolve: {
 		alias: {
 			'@server': '.',
@@ -80,3 +92,5 @@ module.exports = {
 		},
 	},
 };
+
+exports.default = config;
