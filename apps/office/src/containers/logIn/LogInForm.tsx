@@ -4,9 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 
-import { BO_PATH_NAMES } from '@devist/shared/utils/constants';
+import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 import { logInSchema, type LogInInput } from '@devist/shared/validations/auth.validations';
-import { useGetClientAuth, useLogInMutation } from '@devist/ui-react/query/features/auth/auth.hooks';
+import { useGetClientAuth, useLogInMutation } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
 
 const LogInForm = () => {
 	const form = useForm<LogInInput>({ resolver: zodResolver(logInSchema) });
@@ -26,7 +26,7 @@ const LogInForm = () => {
 	} = useLogInMutation({
 		onSuccess: () => {
 			queryClient.removeQueries({ queryKey: key });
-			navigate(BO_PATH_NAMES.home);
+			navigate(BO_PATH_NAMES.dashboard);
 		},
 	});
 

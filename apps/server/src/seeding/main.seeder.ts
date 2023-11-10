@@ -1,9 +1,9 @@
 /* eslint-disable no-console */
 import { faker } from '@faker-js/faker';
 
-import { RolesEnum } from '@devist/shared/utils/constants';
+import { roleEnum } from '@devist/shared/lib/constants';
 
-import { findRoleByCode } from '../utils/role.utils';
+import { findRoleByCode } from '../lib/parse';
 
 import { aiToolFactory } from './factories/aiTool.factory';
 import { userFactory } from './factories/user.factory';
@@ -18,11 +18,11 @@ export type RunConfig = {
 	webHostsNum: number;
 };
 
-export async function run({
+export const run = async ({
 	/* masterKey, */ usersNum /* , postsNum, reactionsNum */,
 	aiToolsNum,
 	webHostsNum,
-}: RunConfig) {
+}: RunConfig) => {
 	// Problem with PArse and MAster Key
 	// Parse.masterKey = masterKey;
 
@@ -34,7 +34,7 @@ export async function run({
 			const createdUser = await iUser.save(null, { useMasterKey: true });
 
 			// assign role to user
-			const authorRole = await findRoleByCode(RolesEnum.AUTHOR, true);
+			const authorRole = await findRoleByCode(roleEnum.AUTHOR.code, true);
 			authorRole?.getUsers().add(createdUser);
 			await authorRole?.save(null, { useMasterKey: true });
 
@@ -173,4 +173,4 @@ export async function run({
 	// const tagIds = tags.map((post) => post.id);
 
 	// prismaClient.post.create({ data: { tags: { connect: [{id: 'fef'}, {}] } } });
-}
+};

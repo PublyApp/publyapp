@@ -1,10 +1,6 @@
-// import { User, Role } from '@prisma/client';
-import { Faker } from '@faker-js/faker';
+import { type Faker } from '@faker-js/faker';
 
-import { User } from '@devist/shared/parse/classes/user.class';
-
-// import { RolesEnum } from '@devist/shared/utils/constants';
-// import { findRoleByCode } from '@/utils/role.utils';
+import { User } from '@devist/shared/lib/parse/classes/user.class';
 
 export const userFactory = async (faker: Faker) => {
 	// const getBool = faker.datatype.boolean;

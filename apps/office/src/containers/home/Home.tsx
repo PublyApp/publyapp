@@ -63,7 +63,7 @@ const Home = () => {
 
 					// Parse.Cloud.run(functionName.uploadFile, formData);
 					const url = new URL('http://localhost:6180/upload-file-single');
-					const res = await fetch(url, {
+					await fetch(url, {
 						method: 'post',
 						body: formData,
 						headers: {

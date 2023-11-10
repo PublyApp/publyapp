@@ -4,20 +4,15 @@ import { existsSync, promises as fs } from 'fs';
 
 import { logger } from 'parse-server';
 
-import cloudinary from 'cloudinary';
-import { MongoClient } from 'mongodb';
+import { className, roleEnum } from '@devist/shared/lib/constants';
 
-import { className, RolesEnum } from '@devist/shared/utils/constants';
+import { FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@server/lib/constants';
+import { getDatabase } from '@server/lib/parse';
 
-import { FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@server/utils/constants';
-import { env } from '@server/utils/env';
-
-const { CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_NAME } = env;
-
-export const createRolesIfNotExist = async () => {
-	const roleEntries = Object.entries(RolesEnum).filter((e) => {
-		return Number.isNaN(Number(e[0]));
-	}) as [string, number][];
+export const createRolesIfNotExists = async () => {
+	const roleEntries = Object.values(roleEnum).map((e) => {
+		return [e.name, e.code] as readonly [string, number];
+	});
 
 	// eslint-disable-next-line no-restricted-syntax
 	for (const entry of roleEntries) {
@@ -74,39 +69,12 @@ export const createRolesIfNotExist = async () => {
 };
 
 export const createIndexes = async () => {
-	const client = new MongoClient(process.env.DATABASE_URI || '');
-	await client.connect();
-
-	const db = client.db('devist-local');
-
-	// ! JUST For example
-	const WebHost = db.collection(className.WEB_HOST);
-	await WebHost.createIndex(
-		{
-			'translations.en.name': 1,
-		},
-		{
-			name: 'translations.en.name_1',
-			collation: {
-				locale: 'en',
-				strength: 2,
-			},
-		},
-	);
-
-	client.close();
+	const AppFile = getDatabase().collection(className.APP_FILE);
+	// ensure path is unique
+	await AppFile.createIndex({ path: 1 }, { unique: true });
 };
 
-export const initCloudinary = async () => {
-	cloudinary.v2.config({
-		cloud_name: CLOUDINARY_NAME,
-		api_key: CLOUDINARY_API_KEY,
-		api_secret: CLOUDINARY_API_SECRET,
-		secure: true,
-	});
-};
-
-export const createUploadDirIfNotExist = async () => {
+export const createUploadDirIfNotExists = async () => {
 	if (existsSync(FILE_UPLOAD_DESTINATION)) {
 		return;
 	}

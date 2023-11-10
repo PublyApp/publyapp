@@ -9,7 +9,11 @@ import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
 import { handleUploadSingleFile } from './controllers/file.controller';
-import { createIndexes, createRolesIfNotExist, createUploadDirIfNotExist } from './helpers/helpers';
+import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
+import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
+import { env, envSchema, setAppEnv } from './lib/env';
+import { consoleTransport } from './lib/logger';
+import { multerConfig } from './lib/multer';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import protectionMiddleware from './middlewares/protection.middleware';
@@ -17,10 +21,6 @@ import AppFileSchema from './schemas/appFile.schema';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
 import WebHostSchema from './schemas/webHost.schema';
-import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './utils/constants';
-import { env, envSchema, setAppEnv } from './utils/env';
-import { consoleTransport } from './utils/logger';
-import { multerConfig } from './utils/multer';
 
 const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
@@ -56,7 +56,8 @@ const bootstrap = async () => {
 	const checkedEnv = envSchema.parse(process.env);
 	setAppEnv(checkedEnv);
 
-	const { DATABASE_URI, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL, PORT, PARSE_PATH } = env;
+	const { DATABASE_URI, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL, PORT, PARSE_PATH, EXPRESS_FILES_MOUNT_PATH } =
+		env;
 
 	// --------------------------------------------------------------------------------------//
 	//                            setup express and parse server                            //
@@ -67,7 +68,7 @@ const bootstrap = async () => {
 	app.use(cors({ whiteList: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
 	app.use(express.urlencoded({ extended: false }));
 	app.use(express.json());
-	app.use('/app/files', express.static(FILE_UPLOAD_DESTINATION));
+	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 
 	// File System adapter for Parse
 	const fsAdapter = new FSFilesAdapter({
@@ -152,10 +153,10 @@ const bootstrap = async () => {
 	createIndexes();
 
 	// create the roles
-	createRolesIfNotExist();
+	createRolesIfNotExists();
 
 	// create the upload folder
-	createUploadDirIfNotExist();
+	createUploadDirIfNotExists();
 };
 
 bootstrap();

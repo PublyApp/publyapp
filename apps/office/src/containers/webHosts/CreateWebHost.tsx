@@ -1,7 +1,7 @@
 import Container from '@mui/material/Container';
 
 import CustomBreadcrumbs from '@office/components/CustomBreadcrumbs';
-import { BO_PATH_NAMES } from '@shared/utils/constants';
+import { BO_PATH_NAMES } from '@shared/lib/constants';
 
 import WebHostForm from './WebHostForm';
 

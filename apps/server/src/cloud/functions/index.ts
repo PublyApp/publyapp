@@ -1,5 +1,8 @@
 import './aiTool.functions';
 import './webHost.functions';
+import './appFile.functions';
+
+// import { parseTrigger } from '@server/lib/parse';
 
 // import './appFile.functions';
 
@@ -15,6 +18,14 @@ import './webHost.functions';
 // 		// allowedRoles: [],
 // 		action: async ({ t }) => {
 // 			return t('common:hello');
+// 		},
+// 	}),
+// );
+
+// Parse.Cloud.beforeLogin(
+// 	parseTrigger({
+// 		trigger: async ({ req, t }) => {
+// 			req.master = true;
 // 		},
 // 	}),
 // );

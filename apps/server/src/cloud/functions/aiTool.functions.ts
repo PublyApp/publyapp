@@ -1,11 +1,11 @@
 import _ from 'lodash';
 import type { PipelineStage } from 'mongoose';
 
-import { className, DEFAULT_PAGE_SIZE, functionName, RolesEnum } from '@devist/shared/utils/constants';
+import { className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 import { createAIToolInputSchema } from '@devist/shared/validations/aiTool.validations';
 
+import { parseFrom, reOrderObjects } from '@server/lib/parse';
 import { pageToSkip } from '@server/utils/any.utils';
-import { parseFrom, reOrderObjects } from '@server/utils/parse.utils';
 import { getListParamsSchema } from '@server/utils/validation.utils';
 
 const getAIToolsFunctionParamsSchema = getListParamsSchema;
@@ -76,7 +76,7 @@ Parse.Cloud.define(
 	functionName.createAITool,
 	parseFrom({
 		requireUser: true,
-		allowedRoles: [RolesEnum.ADMIN],
+		allowedRoles: roleSet.adminOnly,
 		action: async ({ req }) => {
 			const reqParams = createAIToolInputSchema.parse(req.params);
 
