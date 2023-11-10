@@ -3,7 +3,7 @@ import React from 'react';
 
 import ReactDOM from 'react-dom/client';
 
-import { initReactLocalization } from '@devist/ui-react/utils/i18n';
+import { initReactLocalization } from '@devist/ui-react/lib/i18n';
 
 import App from './App';
 

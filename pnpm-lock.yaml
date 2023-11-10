@@ -228,6 +228,9 @@ importers:
       material-react-table:
         specifier: ^1.15.1
         version: 1.15.1(@emotion/react@11.11.1)(@emotion/styled@11.11.0)(@mui/icons-material@5.14.16)(@mui/material@5.14.16)(react-dom@18.2.0)(react@18.2.0)
+      nanoid:
+        specifier: ^3.3.6
+        version: 3.3.6
       notistack:
         specifier: ^3.0.1
         version: 3.0.1(csstype@3.1.2)(react-dom@18.2.0)(react@18.2.0)
@@ -2837,7 +2840,7 @@ packages:
       react-refresh: 0.14.0
       schema-utils: 3.3.0
       source-map: 0.7.4
-      webpack: 5.76.0(esbuild@0.17.19)
+      webpack: 5.76.0
       webpack-dev-server: 4.13.1(webpack@5.76.0)
     dev: true
 
@@ -13771,7 +13774,7 @@ packages:
       mime-types: 2.1.35
       range-parser: 1.2.1
       schema-utils: 4.2.0
-      webpack: 5.76.0(esbuild@0.17.19)
+      webpack: 5.76.0
     dev: true
 
   /webpack-dev-middleware@6.0.2(webpack@5.76.0):
@@ -13788,7 +13791,7 @@ packages:
       mime-types: 2.1.35
       range-parser: 1.2.1
       schema-utils: 4.2.0
-      webpack: 5.76.0(esbuild@0.17.19)
+      webpack: 5.76.0
     dev: true
 
   /webpack-dev-server@4.13.1(webpack@5.76.0):
@@ -13832,7 +13835,7 @@ packages:
       serve-index: 1.9.1
       sockjs: 0.3.24
       spdy: 4.0.2
-      webpack: 5.76.0(esbuild@0.17.19)
+      webpack: 5.76.0
       webpack-dev-middleware: 5.3.3(webpack@5.76.0)
       ws: 8.14.2
     transitivePeerDependencies:

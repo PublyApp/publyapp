@@ -13,11 +13,10 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
+import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 import { getSaveWebHostInputSchema, type SaveWebHostInput } from '@devist/shared/validations/webHost.validations';
-import { useSaveWebHost } from '@devist/ui-react/query/features/webHosts/webHost.hooks';
-
-import { BO_PATH_NAMES } from '@shared/utils/constants';
-import { ENABLE_TABLE_INLINE_EDITING } from '@ui-react/utils/constants';
+import { ENABLE_TABLE_INLINE_EDITING } from '@devist/ui-react/lib/constants';
+import { useSaveWebHost } from '@devist/ui-react/lib/react-query/features/webHosts/webHost.hooks';
 
 import useWebHosts from './useWebHosts';
 import WebHostsTable from './WebHostsTable';

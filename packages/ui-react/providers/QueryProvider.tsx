@@ -1,8 +1,8 @@
-import { ReactNode, useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 
-import defaultQueryClient from '../query/queryClient';
+import defaultQueryClient from '@ui-react/lib/react-query/queryClient';
 
 type Props = {
 	children: ReactNode;

@@ -10,14 +10,12 @@ import {
 import { QueryParamProvider } from 'use-query-params';
 import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
 
-// import Blank from '@office/containers/blank/Blank';
+import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
+
 import Home from '@office/containers/home/Home';
 import CreateWebHost from '@office/containers/webHosts/CreateWebHost';
 import WebHosts from '@office/containers/webHosts/WebHosts';
 import DashboardLayout from '@office/layouts/dashboard/DashBoardLayout';
-import { BO_PATH_NAMES } from '@shared/utils/constants';
-
-// import { paths } from '@office/utils/paths';
 
 import RequireAuth from '../components/RequireAuth';
 import LogIn from '../containers/logIn/LogIn';

@@ -1,44 +1,22 @@
-// import { logger } from 'parse-server';
+import { DEFAULT_PAGE_SIZE, functionName } from '@devist/shared/lib/constants';
 
-// import z from 'zod';
+import { parseFrom } from '@server/lib/parse';
+import FileService from '@server/services/file.service';
+import FolderService from '@server/services/folder.service';
 
-// import { functionName, RolesEnum } from '@devist/shared/utils/constants';
+Parse.Cloud.define(
+	functionName.findAppFile,
+	parseFrom({
+		requireUser: false,
+		action: async ({ /* t, */ req }) => {
+			// logger.info(req);
+			const { pageSize, page, folderPath } = req.params;
 
-// import { USE_MASTER_KEY } from '@server/utils/constants';
-// // import { USE_MASTER_KEY } from '@server/utils/constants';
-// import { parseFrom } from '@server/utils/parse.utils';
+			const folderService = new FolderService({ path: folderPath });
+			const folder = await folderService.getByPath();
+			const fileService = new FileService({ folder });
 
-// import FileCloudService from '../services/file.cloud.service';
-
-// // import type { AppFile } from '@shared/types/appFiles.types';
-
-// const uploadSchema = z.object({
-// 	name: z.string(),
-// 	type: z.string(),
-// 	// buffer: z.array(z.number()),
-// 	base64: z.string(),
-// });
-
-// Parse.Cloud.define(
-// 	functionName.uploadFile,
-// 	parseFrom({
-// 		requireUser: true,
-// 		allowedRoles: [RolesEnum.ADMIN, RolesEnum.MODERATOR, RolesEnum.AUTHOR, RolesEnum.READER],
-// 		action: async ({ /* t, */ req, user }) => {
-// 			logger.info(req);
-
-// 			return 'lolololo';
-// 			const { name, type, base64 } = uploadSchema.parse(req.params);
-
-// 			const sessionToken = user.getSessionToken();
-
-// 			const fileService = new FileCloudService({ base64, fileName: name, fileType: type, sessionToken });
-
-// 			const appFile = await fileService.save(USE_MASTER_KEY);
-
-// 			return {
-// 				appFile,
-// 			};
-// 		},
-// 	}),
-// );
+			return fileService.listFiles({ pageSize: pageSize || DEFAULT_PAGE_SIZE, page: page || 1, json: true });
+		},
+	}),
+);

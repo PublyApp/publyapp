@@ -1,5 +1,3 @@
-import { logger } from 'parse-server';
-
 import type { RequestHandler } from 'express';
 
 import { HttpException } from '@server/exceptions/HttpException';
@@ -11,23 +9,10 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 			throw new HttpException(400, 'file to upload missing');
 		}
 
-		// logger.info(req.file);
-		const fileService = new FileService(req.file);
+		const fileService = new FileService({ file: req.file });
+		const savedParseFile = await fileService.save();
 
-		if (req.file?.mimetype.startsWith('image/')) {
-			// create different files formats
-			// saves these formats into the fs
-			await fileService.generateImageFormats();
-			logger.info(fileService.formats);
-			// console.log('####', fileService.formats);
-		} else {
-			//
-		}
-
-		fileService.saveDBRecord();
-
-		// =
-		res.status(201).send('ok');
+		res.status(201).send(savedParseFile.toJSON());
 	} catch (error) {
 		next(error);
 	}

@@ -1,21 +1,18 @@
 import { SchemaMigrations } from 'parse-server';
 
-import type { AppFile } from '@devist/shared/types/appFile.types';
-import { className } from '@devist/shared/utils/constants';
+import { className } from '@devist/shared/lib/constants';
+import type { AppFileWithPointers } from '@devist/shared/types/appFile.types';
 
-import { DEFAULT_CLP } from '@server/utils/constants';
-
-type AppFileWithPointers = AppFile & {
-	folder: string; // or object
-};
+import { DEFAULT_CLP } from '@server/lib/constants';
 
 const AppFileSchema = SchemaMigrations.makeSchema<AppFileWithPointers>(className.APP_FILE, {
 	fields: {
 		// ! for now we use the server's Filesystem only
+		path: { type: 'String', required: true },
 		name: { type: 'String', required: true },
 		mimeType: { type: 'String', required: true },
 		provider: { type: 'String', required: true }, // Cloudinary or Google storage or whatever.
-		folder: { type: 'Pointer', targetClass: className.APP_FILE, required: true }, // Has to be of type Folder
+		folder: { type: 'Pointer', targetClass: className.APP_FILE }, // Has to be of type Folder
 		size: { type: 'Number' },
 		url: { type: 'String' },
 		alternativeText: { type: 'String' },
@@ -26,7 +23,9 @@ const AppFileSchema = SchemaMigrations.makeSchema<AppFileWithPointers>(className
 		formats: { type: 'Object' },
 	},
 	classLevelPermissions: DEFAULT_CLP,
-	indexes: {},
+	indexes: {
+		// uniquePath: { path: }
+	},
 });
 
 export default AppFileSchema;

@@ -1,13 +1,13 @@
 import _ from 'lodash';
 import type { PipelineStage } from 'mongoose';
 
+import { USE_MASTER_KEY } from '@server/lib/constants';
+import { aggregate, parseFrom, reOrderObjects } from '@server/lib/parse';
 import { pageToSkip } from '@server/utils/any.utils';
-import { USE_MASTER_KEY } from '@server/utils/constants';
-import { aggregate, parseFrom, reOrderObjects } from '@server/utils/parse.utils';
 import { getListParamsSchema } from '@server/utils/validation.utils';
-import { defaultLocale } from '@shared/i18n/resources';
-import { ParseWebHost } from '@shared/parse/classes/webHost.class';
-import { /* className, */ className, DEFAULT_PAGE_SIZE, functionName, RolesEnum } from '@shared/utils/constants';
+import { /* className, */ className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@shared/lib/constants';
+import { defaultLocale } from '@shared/lib/i18n/resources';
+import { ParseWebHost } from '@shared/lib/parse/classes/webHost.class';
 import { getSaveWebHostInputSchema } from '@shared/validations/webHost.validations';
 
 // --------------------------------------------------------------------------------------//
@@ -17,7 +17,7 @@ Parse.Cloud.define(
 	functionName.saveWebHost,
 	parseFrom({
 		requireUser: true,
-		allowedRoles: [RolesEnum.ADMIN],
+		allowedRoles: roleSet.adminOnly,
 		action: async ({ req, t }) => {
 			const reqParams = getSaveWebHostInputSchema(t).parse(req.params);
 
@@ -79,7 +79,7 @@ Parse.Cloud.define(
 			});
 
 			const [iWebHosts, totalCount] = await Promise.all([
-				new Parse.Query(className.WEB_HOST).containedIn('objectId', ids).find(),
+				new Parse.Query(className.WEB_HOST).containedIn('objectId', ids).find(USE_MASTER_KEY),
 				new Parse.Query(className.WEB_HOST).count(USE_MASTER_KEY),
 			]);
 

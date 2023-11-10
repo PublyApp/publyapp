@@ -2,7 +2,7 @@
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import { useTheme } from '@mui/material/styles';
 
-import { NAV } from '@office/utils/constants';
+import { NAV } from '@office/lib/constants';
 import Iconify from '@ui-react/components/Iconify';
 import useResponsive from '@ui-react/hooks/useResponsive';
 import { bgBlur } from '@ui-react/utils/css.utils';
