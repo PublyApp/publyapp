@@ -21,7 +21,7 @@ import FormProvider from '@devist/ui-react/components/form/FormProvider';
 import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
 import { RHFUpload } from '@devist/ui-react/components/form/RHFUpload';
 
-import MediaLibPicker from '@office/components/MediaLibPicker';
+import MediaLibDialog from '@office/components/MediaLibDialog';
 import type { WebHost } from '@shared/types/webHost.types';
 import { getSaveWebHostInputSchema } from '@shared/validations/webHost.validations';
 import useResponsive from '@ui-react/hooks/useResponsive';
@@ -137,7 +137,7 @@ const WebHostForm = ({ currentWebHost }: Props) => {
 						<Stack spacing={1.5}>
 							<Typography variant="subtitle2">Image</Typography>
 
-							<MediaLibPicker />
+							<MediaLibDialog />
 
 							{/* <RHFUpload
 								multiple

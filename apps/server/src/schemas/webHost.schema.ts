@@ -1,9 +1,9 @@
 import { SchemaMigrations } from 'parse-server';
 
+import { className } from '@devist/shared/lib/constants';
 import type { WebHost } from '@devist/shared/types/webHost.types';
-import { className } from '@devist/shared/utils/constants';
 
-import { READONLY_CLP } from '@server/utils/constants';
+import { DEFAULT_CLP } from '@server/lib/constants';
 
 const WebHostSchema = SchemaMigrations.makeSchema<WebHost>(className.WEB_HOST, {
 	fields: {
@@ -49,7 +49,8 @@ const WebHostSchema = SchemaMigrations.makeSchema<WebHost>(className.WEB_HOST, {
 		// // siteBuilder: {},
 		// // TODO: fill progressively
 	},
-	classLevelPermissions: READONLY_CLP,
+	// classLevelPermissions: READONLY_CLP,
+	classLevelPermissions: DEFAULT_CLP,
 	indexes: {
 		// 'translations.en.name': {
 		// 	translations: {

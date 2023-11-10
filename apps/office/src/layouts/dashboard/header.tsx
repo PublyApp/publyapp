@@ -7,7 +7,7 @@ import Toolbar from '@mui/material/Toolbar';
 
 // import Logo from '@office/components/Logo';
 import SvgColor from '@office/components/SvgColor';
-import { HEADER, NAV } from '@office/utils/constants';
+import { HEADER, NAV } from '@office/lib/constants';
 import useResponsive from '@ui-react/hooks/useResponsive';
 import { bgBlur } from '@ui-react/utils/css.utils';
 

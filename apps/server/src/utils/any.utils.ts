@@ -1,4 +1,4 @@
-import { DEFAULT_PAGE_SIZE } from '@shared/utils/constants';
+import { DEFAULT_PAGE_SIZE } from '@shared/lib/constants';
 
 export const pageToSkip = (page?: number, pageSize?: number) => {
 	return ((page || 1) - 1) * (pageSize || DEFAULT_PAGE_SIZE);

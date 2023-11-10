@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-// import { useLogOutMutation } from '@devist/ui-react/query/features/auth/auth.hooks';
+// import { useLogOutMutation } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
 // import { Logout as LogoutIcon } from '@mui/icons-material';
 import { AppBar /* CircularProgress, */, Box, Button, Container, Link, Toolbar, useTheme } from '@mui/material';
 import NextLink from 'next/link';

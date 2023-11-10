@@ -2,7 +2,7 @@ import { FormEventHandler, useState } from 'react';
 
 import { Box, Button, TextField, Typography } from '@mui/material';
 
-import { useGetClientAuth } from '@devist/ui-react/query/features/auth/auth.hooks';
+import { useGetClientAuth } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
 
 const Account = () => {
 	const {

@@ -10,7 +10,7 @@ import NavSectionVertical from '@office/components/nav-section/nav-vertical/NavS
 import Scrollbar from '@office/components/Scrollbar';
 import { useNavData } from '@office/hooks/useNavData';
 import usePathname from '@office/hooks/usePathName';
-import { NAV } from '@office/utils/constants';
+import { NAV } from '@office/lib/constants';
 import useResponsive from '@ui-react/hooks/useResponsive';
 
 import NavToggleButton from '../_common/NavToggleButton';

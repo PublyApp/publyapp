@@ -3,8 +3,8 @@ import { useEffect } from 'react';
 import { Box, Typography, useTheme } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
-import { BO_PATH_NAMES } from '@devist/shared/utils/constants';
-import { useGetClientAuth } from '@devist/ui-react/query/features/auth/auth.hooks';
+import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
+import { useGetClientAuth } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
 
 import LogInForm from './LogInForm';
 

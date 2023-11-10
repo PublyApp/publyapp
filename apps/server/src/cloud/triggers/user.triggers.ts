@@ -1,8 +1,7 @@
-import { RolesEnum } from '@devist/shared/utils/constants';
+import { roleEnum } from '@devist/shared/lib/constants';
 
-import { ADMIN_EMAILS } from '../../utils/constants';
-import { parseTrigger } from '../../utils/parse.utils';
-import { assignRoleToUser, findRoleByCode } from '../../utils/role.utils';
+import { ADMIN_EMAILS } from '../../lib/constants';
+import { assignRoleToUser, findRoleByCode, parseTrigger } from '../../lib/parse';
 
 Parse.Cloud.afterSave(
 	Parse.User,
@@ -22,7 +21,7 @@ Parse.Cloud.afterSave(
 			}
 
 			if (ADMIN_EMAILS.includes(email)) {
-				const adminRole = await findRoleByCode(RolesEnum.ADMIN, true);
+				const adminRole = await findRoleByCode(roleEnum.ADMIN.code, true);
 
 				if (!adminRole) {
 					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion

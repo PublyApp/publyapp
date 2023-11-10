@@ -4,9 +4,10 @@ import type { Row } from '@tanstack/react-table';
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
+import { createSetter } from '@devist/ui-react/lib/zustand';
+
 import type { WebHost } from '@shared/types/webHost.types';
-import { useGetWebHosts } from '@ui-react/query/features/webHosts/webHost.hooks';
-import { createSetter } from '@ui-react/zustand/utils';
+import { useFindWebHost } from '@ui-react/lib/react-query/features/webHosts/webHost.hooks';
 
 import useTableQueryParams from '../../hooks/useTableQueryParams';
 
@@ -38,7 +39,7 @@ const useWebHosts = () => {
 	const tableQueryParams = useTableQueryParams();
 	const webHostsStore = useWebHostsStore();
 
-	const getWebHostsReturn = useGetWebHosts({
+	const getWebHostsReturn = useFindWebHost({
 		page: tableQueryParams.pagination.pageIndex + 1,
 		pageSize: tableQueryParams.pagination.pageSize,
 		sorting: tableQueryParams.sorting,

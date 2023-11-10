@@ -2,12 +2,12 @@ import { useCallback, type Dispatch, type SetStateAction } from 'react';
 
 import { useTranslation } from 'react-i18next';
 
-import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/i18n/resources';
+import { LOCALE_HEADER_KEY } from '@devist/shared/lib/constants';
+import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 import { isCallback } from '@devist/shared/utils/any.utils';
-import { LOCALE_HEADER_KEY } from '@devist/shared/utils/constants';
 
 // import i18n from '@ui-react/utils/i18n';
-import { localStorageGetItem } from '@ui-react/utils/localStorage';
+import { localStorageGetItem } from '@ui-react/utils/storage.utils';
 
 // ----------------------------------------------------------------------
 
