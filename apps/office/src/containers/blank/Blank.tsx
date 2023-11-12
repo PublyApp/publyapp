@@ -10,7 +10,16 @@ import Typography from '@mui/material/Typography';
 // import { useImmer } from 'use-immer';
 
 const Blank = () => {
-	return <Typography variant="h2">Blank</Typography>;
+	return (
+		<Typography
+			variant="h2"
+			// onClick={() => {
+			// 	throw new Error('Bruh');
+			// }}
+		>
+			Blank
+		</Typography>
+	);
 };
 
 export default Blank;

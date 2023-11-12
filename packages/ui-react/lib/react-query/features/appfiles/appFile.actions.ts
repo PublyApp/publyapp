@@ -18,6 +18,7 @@ export type FindAppFileFunctionResult = {
 export type FindAppFileQueryParams = {
 	page?: number;
 	pageSize?: number;
+	folderPath?: string;
 	// sorting?: ColumnSort[];
 };
 

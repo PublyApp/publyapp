@@ -1,18 +1,44 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 
 import useLocale from '@devist/ui-react/hooks/useLocale';
+
+import { useMainStore } from '@office/lib/zustand/store';
 
 const Home = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const { t } = useTranslation();
 	const { locale, setLocale /* , t */ } = useLocale();
 
+	// =========================
+	const [searchParams] = useSearchParams();
+	const addBear = useMainStore((state) => {
+		return state.dummySlice.addBear;
+	});
+	const removeBear = useMainStore((state) => {
+		return state.dummySlice.removeBear;
+	});
+	const bear = useMainStore((state) => {
+		return state.dummySlice.bear;
+	});
+	const folderPath = useMainStore((state) => {
+		return state.fileManager.folderPath;
+	});
+	const goToFolder = useMainStore((state) => {
+		return state.fileManager.goToFolder;
+	});
+
 	// const fileList = fileInputRef.current?.files;
 	const [files, setFiles] = useState<File[]>([]);
+
+	useEffect(() => {
+		console.log(decodeURIComponent(searchParams.toString()));
+	}, [searchParams]);
 
 	// console.log('ggggg');
 	return (
@@ -22,6 +48,7 @@ const Home = () => {
 				onClick={() => {
 					setLocale(locale === 'en' ? 'fr' : 'en');
 				}}
+				color="primary"
 			>
 				Change locale
 			</Button>
@@ -49,6 +76,7 @@ const Home = () => {
 				onClick={() => {
 					fileInputRef.current?.click();
 				}}
+				color="secondary"
 			>
 				Choose File
 			</Button>
@@ -102,6 +130,47 @@ const Home = () => {
 				}}
 			>
 				Upload
+			</Button>
+
+			<Divider>fgzefgzegzefgzegzefgz</Divider>
+
+			<Typography>folderPath: {folderPath}</Typography>
+
+			<Button
+				variant="contained"
+				onClick={() => {
+					goToFolder('/a');
+				}}
+			>
+				go to Folder '/a'
+			</Button>
+			<Button
+				variant="contained"
+				onClick={() => {
+					goToFolder('/b');
+				}}
+			>
+				go to Folder '/b'
+			</Button>
+
+			<Typography>bear count: {bear}</Typography>
+
+			<Button
+				variant="contained"
+				onClick={() => {
+					addBear();
+				}}
+			>
+				add bear
+			</Button>
+			<Button
+				variant="contained"
+				color="warning"
+				onClick={() => {
+					removeBear();
+				}}
+			>
+				remove Bear
 			</Button>
 		</>
 	);

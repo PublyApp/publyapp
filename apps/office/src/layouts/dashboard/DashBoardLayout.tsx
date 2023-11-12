@@ -16,6 +16,8 @@ type Props = {
 };
 
 const DashboardLayout = ({ children }: Props) => {
+	// const [searchParams] = useSearchParams();
+
 	// const settings = useSettingsContext();
 
 	const lgUp = useResponsive('up', 'lg');
