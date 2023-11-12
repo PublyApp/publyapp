@@ -4,5 +4,4 @@
 /// <reference types="@devist/ui-react/@types/@mui__material" />
 /// <reference types="@devist/ui-react/@types/@tanstack__react-table" />
 
-/// <reference types="@devist/shared/@types/parse" />
-/// <reference types="@devist/shared/@types/utils" />
+/// <reference types="@devist/shared/@types/index" />

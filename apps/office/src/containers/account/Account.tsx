@@ -1,4 +1,4 @@
-import { FormEventHandler, useState } from 'react';
+import { useState, type FormEventHandler } from 'react';
 
 import { Box, Button, TextField, Typography } from '@mui/material';
 

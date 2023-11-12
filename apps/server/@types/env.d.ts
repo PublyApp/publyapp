@@ -1,2 +1,1 @@
-/// <reference types="@devist/shared/@types/parse" />
-/// <reference types="@devist/shared/@types/utils" />
+/// <reference types="@devist/shared/@types/index" />

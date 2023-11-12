@@ -6,8 +6,12 @@ import ReactDOM from 'react-dom/client';
 import { initReactLocalization } from '@devist/ui-react/lib/i18n';
 
 import App from './App';
+import { syncPopState } from './lib/zustand/store';
 
 // import './main.css';
+
+// --- sync popstate event with zustand
+// syncPopState();
 
 // ---- initialize parse -----------------------------------------------------------------
 Parse.initialize('devist');

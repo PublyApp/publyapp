@@ -12,6 +12,7 @@ import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
 
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 
+import FileManager from '@office/containers/fileManager/FileManager';
 import Home from '@office/containers/home/Home';
 import CreateWebHost from '@office/containers/webHosts/CreateWebHost';
 import WebHosts from '@office/containers/webHosts/WebHosts';
@@ -25,6 +26,7 @@ const router = createBrowserRouter(
 	createRoutesFromElements(
 		<Route
 			path="/"
+			// errorElement={<ErrorBoundary fallback={<h1>Bruh, :3</h1>} />}
 			element={
 				<QueryParamProvider
 					adapter={ReactRouter6Adapter}
@@ -60,6 +62,7 @@ const router = createBrowserRouter(
 				<Route path={BO_PATH_NAMES.dashboard} element={<Home />} />
 				<Route path={BO_PATH_NAMES.webHosts} element={<WebHosts />} />
 				<Route path={BO_PATH_NAMES.createWebHost} element={<CreateWebHost />} />
+				<Route path={BO_PATH_NAMES.fileManager} element={<FileManager />} />
 			</Route>
 
 			{/* // ---- not found page ------------------------------------------------------------------- */}
