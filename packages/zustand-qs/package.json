@@ -1,0 +1,15 @@
+{
+  "name": "@devist/zustand-qs",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.ts",
+  "types": "index.ts",
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "zustand": "^4.4.6"
+  },
+  "devDependencies": {
+    "lodash-es": "^4.17.21"
+  }
+}
