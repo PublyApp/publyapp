@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
 
 import useLocale from '@devist/ui-react/hooks/useLocale';
 
@@ -16,7 +15,6 @@ const Home = () => {
 	const { locale, setLocale /* , t */ } = useLocale();
 
 	// =========================
-	const [searchParams] = useSearchParams();
 	const addBear = useMainStore((state) => {
 		return state.dummySlice.addBear;
 	});
@@ -35,10 +33,6 @@ const Home = () => {
 
 	// const fileList = fileInputRef.current?.files;
 	const [files, setFiles] = useState<File[]>([]);
-
-	useEffect(() => {
-		console.log(decodeURIComponent(searchParams.toString()));
-	}, [searchParams]);
 
 	// console.log('ggggg');
 	return (

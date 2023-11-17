@@ -7,13 +7,11 @@ import QueryProvider from '@devist/ui-react/providers/QueryProvider';
 import SnackbarProvider from '@devist/ui-react/providers/SnackbarProvider';
 import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
 
-// import Sync from './lib/zustand/Sync';
 import AppRoutes from './routes/Routes';
 
 const App: FC = () => {
 	return (
 		<QueryProvider queryClient={defaultQueryClient}>
-			{/* <Sync /> */}
 			<ThemeProvider>
 				<SnackbarProvider>
 					<AppRoutes />

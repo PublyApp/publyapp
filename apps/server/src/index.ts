@@ -95,6 +95,7 @@ const bootstrap = async () => {
 		},
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
+		encodeParseObjectInCloudFunction: true,
 	});
 
 	// setup a better console transport for our logger

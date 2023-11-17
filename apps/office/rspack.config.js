@@ -6,7 +6,6 @@ const dotenv = require('dotenv');
 const dotenvExpand = require('dotenv-expand');
 const { EnvironmentPlugin, HtmlRspackPlugin, CopyRspackPlugin } = require('@rspack/core');
 
-// const APPS_DIR = path.resolve(__dirname, '../../apps');
 const PACKAGES_DIR = path.resolve(__dirname, '../../packages');
 
 const isLocal = process.env.APP_ENV === 'local';
