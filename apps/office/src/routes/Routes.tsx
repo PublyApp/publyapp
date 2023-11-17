@@ -37,6 +37,7 @@ const router = createBrowserRouter(
 						},
 					}}
 				>
+					{/* <Sync /> */}
 					<Outlet />
 				</QueryParamProvider>
 			}

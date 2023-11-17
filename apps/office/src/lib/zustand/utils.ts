@@ -3,7 +3,7 @@ import { type StateCreator } from 'zustand';
 import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 
-const getUrlSearch = () => {
+export const getUrlSearch = () => {
 	return window.location.search.slice(1);
 };
 
@@ -36,10 +36,32 @@ const getStorage = (/* selectedFields: string[] */): StateStorage => {
 			const storedValue = searchParams.get(key);
 			return storedValue;
 		},
+		// setItem: (key, newValue): void => {
+		// 	const searchParams = new URLSearchParams(getUrlSearch());
+		// 	searchParams.set(key, newValue);
+		// 	// window.history.replaceState(null, null as never, `?${decodeURIComponent(searchParams.toString())}`);
+		// 	window.history.pushState(null, null as never, `?${decodeURIComponent(searchParams.toString())}`);
+		// 	// window.history.pushState(null, null as any, `?${searchParams}`);
+		// },
 		setItem: (key, newValue): void => {
 			const searchParams = new URLSearchParams(getUrlSearch());
-			searchParams.set(key, newValue);
-			window.history.pushState(null, null as never, `?${decodeURIComponent(searchParams.toString())}`);
+			const parsed = JSON.parse(newValue);
+			// console.log('newValue', newValue);
+			const isPopstateEvent = _.has(parsed, 'state.isPopstateEvent');
+
+			// console.log('isPopstateEvent', isPopstateEvent);
+
+			if (isPopstateEvent) {
+				delete parsed.isPopstateEvent;
+			}
+
+			const str = JSON.stringify(parsed);
+
+			searchParams.set(key, str);
+
+			if (!isPopstateEvent) {
+				window.history.pushState(null, null as never, `?${decodeURIComponent(searchParams.toString())}`);
+			}
 			// window.history.pushState(null, null as any, `?${searchParams}`);
 		},
 		removeItem: (key): void => {
@@ -61,10 +83,13 @@ export const combinedMiddlewares = <T>(
 				return getStorage(/* selectedFields */);
 			}) as never,
 			merge: (persistedState, currentState) => {
-				return _.merge(persistedState, currentState);
+				return _.merge(currentState, persistedState);
 			},
 			partialize: (state) => {
-				return _.pick(state, selectedFields);
+				// console.log('state', JSON.stringify(state));
+				const p = _.pick(state, [...selectedFields, 'isPopstateEvent']);
+				// console.log('picked', JSON.stringify(p));
+				return p;
 			},
 		}),
 	);

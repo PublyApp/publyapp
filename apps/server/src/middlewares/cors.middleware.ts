@@ -1,8 +1,5 @@
 import _cors from 'cors';
 
-// import { clientUrl } from '../config/app';
-// import { Environment, environment } from '../config/environment';
-
 type CorsOptions = { whiteList: string[] };
 
 /**

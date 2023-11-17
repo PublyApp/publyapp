@@ -4,12 +4,15 @@
 	"private": true,
 	"type": "commonjs",
 	"scripts": {
-		"build": "pnpm run build:prod",
-		"build:prod": "cross-env APP_ENV='production' pnpm run build:pack",
-		"build:preprod": "cross-env APP_ENV='preprod' pnpm run build:pack",
-		"dev": "cross-env APP_ENV='local' pnpm run dev:pack",
+		"build": "pnpm run build:prod:online",
+		"build:prod:online": "cross-env APP_ENV='production' pnpm run build:rs",
+		"build:prod:local": "cross-env APP_ENV='production-local' pnpm run build:rs",
+		"build:preprod": "cross-env APP_ENV='preprod' pnpm run build:rs",
+		"dev": "cross-env APP_ENV='local' pnpm run dev:rs",
 		"build:pack": "tsc && rspack build",
 		"dev:pack": "rspack serve",
+		"build:rs": "rsbuild build",
+		"dev:rs": "rsbuild dev",
 		"lint": "eslint src --ext ts,tsx --max-warnings 0",
 		"lint:fix": "pnpm run lint --fix"
 	},
@@ -59,6 +62,9 @@
 		"zustand": "^4.4.6"
 	},
 	"devDependencies": {
+		"@rsbuild/core": "^0.0.25",
+		"@rsbuild/plugin-react": "^0.0.25",
+		"@rsbuild/plugin-svgr": "^0.0.25",
 		"@rspack/cli": "^0.3.10",
 		"@rspack/core": "^0.3.10",
 		"@types/lodash": "^4.14.200",
