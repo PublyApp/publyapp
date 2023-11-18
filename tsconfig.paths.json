@@ -11,6 +11,7 @@
 			"@server/*": ["./apps/server/src/*"],
 			"@front/*": ["./apps/front/src/*"],
 			"@office/*": ["./apps/office/src/*"],
+			"@awsm/*": ["./apps/awsm/src/*"],
 
 			"@shared/*": ["./packages/shared/*"],
 			"@ui-react/*": ["./packages/ui-react/*"]
