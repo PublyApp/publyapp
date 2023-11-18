@@ -21,7 +21,7 @@ type Join<Key, Previous, TKey extends number | string = string> = Key extends TK
 
 type Previous = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...0[]];
 
-export type Paths<TEntity, TDepth extends number = 3, TKey extends number | string = string> = [TDepth] extends [never]
+type Paths<TEntity, TDepth extends number = 3, TKey extends number | string = string> = [TDepth] extends [never]
 	? never
 	: TEntity extends object
 	? {
