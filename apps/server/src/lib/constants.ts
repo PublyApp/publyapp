@@ -20,7 +20,8 @@ export const corsWhiteList = {
 		'https://www.devist.xyz',
 		'https://app.devist.xyz',
 		'https://bo.devist.xyz',
-		'engine://www.devist.xyz',
+		'https://engine.devist.xyz',
+		'https://amazing.devist.xyz',
 	], // ? We're gonna see over time
 };
 
