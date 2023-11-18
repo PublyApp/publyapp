@@ -68,8 +68,6 @@ const run = async () => {
 			source: {
 				entry: {
 					index: './src/index.ts',
-					'cloud/index': './src/cloud/index.ts',
-					'seeding/seed': './src/seeding/seed.ts',
 				},
 			},
 			output: {

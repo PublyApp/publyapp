@@ -30,6 +30,7 @@ export const className = {
 	// WEB_HOSTING_PROVIDER: 'WebHostingProvider',
 	WEB_HOST: 'WebHost',
 	APP_FILE: 'AppFile',
+	AWESOME_LINK: 'AwesomeLink',
 } as const;
 
 export const LOCALE_HEADER_KEY = 'xxx-app-i18n-locale';

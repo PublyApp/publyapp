@@ -17,13 +17,11 @@
 
 		"apps/office/.eslintrc.js",
 		"apps/front/.eslintrc.js",
-		"apps/svkit/.eslintrc.cjs",
+		"apps/awsm/.eslintrc.js",
 		"apps/server/.eslintrc.js",
 
-		"apps/svkit/svelte.config.js",
 		"apps/front/next.config.js",
 
-		"apps/svkit/playwright.config.ts",
 		"apps/server/esbuild",
 		"apps/server/rspack.config.js",
 		"apps/office/rspack.config.js",

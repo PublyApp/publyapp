@@ -1,0 +1,34 @@
+{
+  "name": "awsm",
+  "version": "0.0.0",
+  "description": "",
+  "scripts": {
+    "build": "tsc && pnpm run build:rs:prod",
+    "build:local": "pnpm run build:rs",
+    "build:rs:preprod": "cross-env APP_ENV=preprod pnpm run build:rs",
+    "build:rs": "node -r esbuild-register build.ts",
+    "start": "node --enable-source-maps dist/index.js",
+    "dev": "nodemon",
+    "lint": "eslint . --ext ts,js",
+    "lint:fix": "pnpm run lint --fix"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@rsbuild/core": "^0.0.25",
+    "@types/express": "^4.17.20",
+    "@types/parse": "^3.0.6",
+    "cross-env": "^7.0.3",
+    "esbuild-register": "^3.5.0",
+    "eslint": "^8.54.0",
+    "eslint-config-custom-server": "workspace:*",
+    "nodemon": "^2.0.22",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@devist/shared": "workspace:^",
+    "express": "^4.18.2",
+    "parse": "^4.2.0"
+  }
+}
