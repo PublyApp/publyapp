@@ -3,18 +3,18 @@ import { Suspense, useMemo, useRef, type ComponentProps } from 'react';
 
 import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
+import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
-import { folderPathSelector, goToFolderSelector } from '@office/lib/zustand/features/fileManager.slice';
-import { useMainStore } from '@office/lib/zustand/store';
 import { useFindAppFileSuspense } from '@ui-react/lib/react-query/features/appFiles/appFile.hooks';
 
-import CustomBreadcrumbs from '../CustomBreadcrumbs';
+import CustomBreadcrumbs from '../../components/CustomBreadcrumbs';
+import FileManagerFileItem from '../../components/file-manager/FileManagerFileItem';
+import FileManagerFolderItem from '../../components/file-manager/FileManagerFolderItem';
+import FileManagerPanel from '../../components/file-manager/FileManagerPanel';
+import { appFileData, appFolderData } from '../../components/file-manager/utils';
 
-import FileManagerFileItem from './FileManagerFileItem';
-import FileManagerFolderItem from './FileManagerFolderItem';
-import FileManagerPanel from './FileManagerPanel';
-import { appFileData, appFolderData } from './utils';
+import useFileManager from './useFilManager';
 
 // components
 // import Iconify from 'src/components/iconify';
@@ -35,7 +35,7 @@ import { appFileData, appFolderData } from './utils';
 // 	onDeleteItem: (id: string) => void;
 // };
 
-const FileManagerGridView = (/* { table,  data, dataFiltered, onDeleteItem, onOpenConfirm }: Props */) => {
+const FileManagerGrid = (/* { table,  data, dataFiltered, onDeleteItem, onOpenConfirm }: Props */) => {
 	// const { selected, onSelectRow: onSelectItem, onSelectAllRows: onSelectAllItems } = table;
 
 	const containerRef = useRef(null);
@@ -116,16 +116,30 @@ const FileManagerGridView = (/* { table,  data, dataFiltered, onDeleteItem, onOp
 	);
 };
 
-export default FileManagerGridView;
+export default FileManagerGrid;
 
 // --------------------
 const Panel = () => {
 	// const folderPath = useMainStore(folderPathSelector);
 	// const getFolde
+	const { folderPath } = useFileManager();
+
+	// const {
+	// 	result: { data },
+	// } = useFindAppFileSuspense({ folderPath });
+	const getFolderName = () => {
+		const lastPath = _.last(folderPath.split('/'));
+
+		if (!lastPath) {
+			return 'root folder';
+		}
+
+		return lastPath;
+	};
 
 	return (
 		<FileManagerPanel
-			title="sfsf"
+			title={getFolderName()}
 			sx={{ marginBottom: 0 }}
 			// subTitle={`${
 			// 	data.filter((item) => {
@@ -141,18 +155,20 @@ const Panel = () => {
 
 // --------------------
 const Breadcrumbs = () => {
-	const folderPath = useMainStore(folderPathSelector);
+	// const folderPath = useMainStore(folderPathSelector);
+	const { folderPath } = useFileManager();
 
 	//  = folderPath.split('/')
 	const links = useMemo(() => {
-		const iLinks: ComponentProps<typeof CustomBreadcrumbs>['links'] = [];
+		const iLinks: ComponentProps<typeof CustomBreadcrumbs>['links'] = [{ name: '/' }];
 
-		if (folderPath === '/') {
-			iLinks.push({ name: '' });
-			return iLinks;
-		}
+		// if (folderPath === '/') {
+		// 	iLinks.push({ name: '/' });
+		// 	return iLinks;
+		// }
 
-		folderPath.split('/').forEach((name /* , index, array */) => {
+		folderPath.split('/').forEach((name, index /* ,  array */) => {
+			if (index < 1) return;
 			iLinks.push({
 				name,
 			});
@@ -164,11 +180,14 @@ const Breadcrumbs = () => {
 	return <CustomBreadcrumbs links={links} separator=">" sx={{ marginBottom: '22px' }} />;
 };
 
+const GRID_ITEM_MAX_WIDTH = '270px';
+
 // --------------------
 const GridItems = () => {
-	const goToFolder = useMainStore(goToFolderSelector);
-
-	const folderPath = useMainStore(folderPathSelector);
+	// const goToFolder = useMainStore(goToFolderSelector);
+	// const folderPath = useMainStore(folderPathSelector);
+	// const [folderPath, setFolderPath] = useQueryParam('folderPath', withDefault(StringParam, '/'));
+	const { folderPath, setFolderPath } = useFileManager();
 
 	const {
 		result: { data },
@@ -179,7 +198,7 @@ const GridItems = () => {
 			return (
 				<FileManagerFolderItem
 					onDoubleClick={() => {
-						goToFolder(appFile.path);
+						setFolderPath(appFile.path);
 					}}
 					key={appFile.objectId}
 					folder={appFolderData(appFile)}
@@ -190,7 +209,7 @@ const GridItems = () => {
 					onDelete={() => {
 						// return onDeleteItem(folder.id);
 					}}
-					sx={{ maxWidth: '270px' }}
+					sx={{ maxWidth: GRID_ITEM_MAX_WIDTH }}
 				/>
 			);
 		}
@@ -206,7 +225,7 @@ const GridItems = () => {
 				onDelete={() => {
 					// return onDeleteItem(file.id);
 				}}
-				sx={{ maxWidth: '270px' }}
+				sx={{ maxWidth: GRID_ITEM_MAX_WIDTH }}
 			/>
 		);
 	});
