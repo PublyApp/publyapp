@@ -6,14 +6,11 @@ import ReactDOM from 'react-dom/client';
 import { initReactLocalization } from '@devist/ui-react/lib/i18n';
 
 import App from './App';
-import { syncEventsForZustand } from './lib/zustand/store';
 
-// import './main.css';
-
-// console.log('process.env.ACME', process.env.ACME);
+import './main.css';
 
 // --- sync necessary events with zustand
-syncEventsForZustand();
+// syncEventsForZustand();
 
 // ---- initialize parse -----------------------------------------------------------------
 Parse.initialize('devist');
