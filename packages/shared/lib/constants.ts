@@ -88,3 +88,5 @@ export const IMAGE_FORMAT_CONFIG = {
 		height: 400,
 	},
 };
+
+export const ACTIVE_AWESOME_LINKS_POOL_SIZE = 5;
