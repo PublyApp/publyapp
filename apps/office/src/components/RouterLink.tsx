@@ -1,41 +1,44 @@
-import { forwardRef, useMemo } from 'react';
+import { forwardRef } from 'react';
 
 import { Link, useLocation, type LinkProps } from 'react-router-dom';
-
-import usePathname from '@office/hooks/usePathName';
 
 // ----------------------------------------------------------------------
 
 interface RouterLinkProps extends Omit<LinkProps, 'to'> {
 	href: string;
-	withQuery?: boolean;
+	preserveQuery?: boolean;
 }
 
-const RouterLink = forwardRef<HTMLAnchorElement, RouterLinkProps>(({ href, withQuery = false, ...other }, ref) => {
+const RouterLink = forwardRef<HTMLAnchorElement, RouterLinkProps>(({ href, preserveQuery = false, ...other }, ref) => {
 	const { search } = useLocation();
-	const pathname = usePathname();
 
-	const url = useMemo(() => {
-		if (!href.startsWith('http://') || !href.startsWith('https://')) {
-			return new URL(window.location.origin + href);
-		}
+	return <Link ref={ref} to={href + (preserveQuery ? search : '')} {...other} />;
 
-		return new URL(href);
-	}, [href]);
+	// const [searchParams] = useSearchParams();
+	// const search = `?${decodeURIComponent(searchParams.toString())}`;
+	// console.log('###', search);
 
-	if (url.pathname === pathname) {
-		if (!url.search) {
-			return <Link ref={ref} to={href + search} {...other} />;
-		}
+	// const pathname = usePathname();
 
-		return <Link ref={ref} to={href} {...other} />;
-	}
+	// const url = useMemo(() => {
+	// 	if (!href.startsWith('http://') || !href.startsWith('https://')) {
+	// 		return new URL(window.location.origin + href);
+	// 	}
 
-	if (!withQuery) {
-		return <Link ref={ref} to={href} {...other} />;
-	}
+	// 	return new URL(href);
+	// }, [href]);
 
-	return <Link ref={ref} to={href + search} {...other} />;
+	// if (url.pathname === pathname) {
+	// 	if (!url.search) {
+	// 		return <Link ref={ref} to={href + search} {...other} />;
+	// 	}
+
+	// 	return <Link ref={ref} to={href} {...other} />;
+	// }
+
+	// if (!withQuery) {
+	// 	return <Link ref={ref} to={href} {...other} />;
+	// }
 });
 
 export default RouterLink;
