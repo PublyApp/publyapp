@@ -1,4 +1,4 @@
-import Slice from '../Slice';
+import Slice from '../utils/Slice';
 
 export type DummySliceState = {
 	bear: number;
@@ -22,24 +22,27 @@ const dummySlice = new Slice<DummySliceContent, typeof sliceName>({
 	defaultValues,
 	initializer: (set) => {
 		return {
-			dummySlice: {
-				...defaultValues,
-				addBear: () => {
-					set((state) => {
-						// eslint-disable-next-line no-param-reassign
-						state.dummySlice.bear += 1;
-					});
-				},
-				removeBear: () => {
-					set((state) => {
-						// eslint-disable-next-line no-param-reassign
-						state.dummySlice.bear -= 1;
-					});
-				},
+			// dummySlice: {
+			...defaultValues,
+			addBear: () => {
+				set((state) => {
+					// eslint-disable-next-line no-param-reassign
+					state.dummySlice.bear += 1;
+				});
+			},
+			removeBear: () => {
+				set((state) => {
+					// eslint-disable-next-line no-param-reassign
+					state.dummySlice.bear -= 1;
+				});
+				// },
 			},
 		};
 	},
-	persistedFields: ['bear'],
+	persistedFields: [
+		//
+		// 'bear',
+	],
 });
 
 export default dummySlice;

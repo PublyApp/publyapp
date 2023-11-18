@@ -72,7 +72,7 @@ Parse.Cloud.define(
 				{ $project: { _id: 1 } },
 			];
 
-			const documents: { _id: string }[] = await aggregate(className.WEB_HOST, pipeline);
+			const documents = await aggregate(className.WEB_HOST, pipeline);
 
 			const ids = documents.map((doc) => {
 				return _.get(doc, '_id');

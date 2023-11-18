@@ -1,5 +1,5 @@
-import Slice from '../Slice';
-import { type RootState } from '../store';
+import { type RootState } from '../slices';
+import Slice from '../utils/Slice';
 
 type FileManagerSliceState = {
 	folderPath: string;
@@ -23,23 +23,23 @@ const fileManagerSlice = new Slice<FileManagerSliceContent, typeof sliceName>({
 	defaultValues,
 	initializer: (set) => {
 		return {
-			fileManager: {
-				...defaultValues,
-				goToFolder: (path) => {
-					set((state) => {
-						// eslint-disable-next-line no-param-reassign
-						state.fileManager.folderPath = path;
-					});
-				},
-				goToParent: () => {
-					set((state) => {
-						const splitted = state.fileManager.folderPath.split('/');
-						splitted.pop();
-						// eslint-disable-next-line no-param-reassign
-						state.fileManager.folderPath = splitted.join('/');
-					});
-				},
+			// fileManager: {
+			...defaultValues,
+			goToFolder: (path) => {
+				set((state) => {
+					// eslint-disable-next-line no-param-reassign
+					state.fileManager.folderPath = path;
+				});
 			},
+			goToParent: () => {
+				set((state) => {
+					const splitted = state.fileManager.folderPath.split('/');
+					splitted.pop();
+					// eslint-disable-next-line no-param-reassign
+					state.fileManager.folderPath = splitted.join('/');
+				});
+			},
+			// },
 		};
 	},
 	persistedFields: ['folderPath'],

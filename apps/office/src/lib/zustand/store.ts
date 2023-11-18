@@ -1,40 +1,73 @@
 import _ from 'lodash';
 import { create } from 'zustand';
 
-import dummySlice from './features/dummy.slice';
-import fileManagerSlice from './features/fileManager.slice';
-import { combinedMiddlewares, getUrlSearch } from './utils';
-
-export type RootState = typeof fileManagerSlice.sliceContent & typeof dummySlice.sliceContent;
+import { defaultRootValues, getInitialStore, persistedFields, type RootState } from './slices';
+import { combinedMiddlewares } from './utils/middleware';
+import { getUrlSearch } from './utils/utils';
 
 export const useMainStore = create<RootState>()(
 	combinedMiddlewares(
 		(...a) => {
-			return {
-				...fileManagerSlice.initializer(...a),
-				...dummySlice.initializer(...a),
-			};
+			return getInitialStore(...a);
 		},
-		[...fileManagerSlice.persistedFields, ...dummySlice.persistedFields],
+		[
+			//
+			...persistedFields,
+		],
 	),
 );
 
-export const syncPopstateEvent = () => {
+const buildURLSuffix = (params: DeepPartial<RootState>, version = 0) => {
+	const searchParams = new URLSearchParams();
+
+	const zustandStoreParams = {
+		state: params,
+		version, // version is here because that is included with how Zustand sets the state
+	};
+
+	// The URL param key should match the name of the store, as specified as in storageOptions above
+	searchParams.set('store', JSON.stringify(zustandStoreParams));
+	return decodeURIComponent(searchParams.toString());
+};
+
+export const buildShareableUrl = (baseURL: string, params: DeepPartial<RootState>, version = 0) => {
+	// ${window.location.origin}
+	return `${baseURL}?${buildURLSuffix(params, version)}`;
+};
+
+const syncPopstateEvent = () => {
 	window.addEventListener('popstate', () => {
 		const searchParams = new URLSearchParams(getUrlSearch());
-		// console.log(decodeURIComponent(searchParams.toString()));
-		// console.log('######');
 		const str = decodeURIComponent(searchParams.get('store') || '{}');
 		const val = JSON.parse(str);
-		_.assign(val, { state: { isPopstateEvent: true } });
-		// console.log('URLval', JSON.stringify(val.state));
-		// const currState = useMainStore.getState();
-		// console.log('currState', JSON.stringify(currState));
-		// const merged = _.merge(val.state, currState);
-		// console.log('merged', JSON.stringify(merged));
+		const persistedState = val.state || {};
+
+		window.isPopstateEventZustand = true;
+
 		useMainStore.setState((state) => {
+			const persistedOnlyDefaultValues = _.pick(defaultRootValues, persistedFields);
 			// eslint-disable-next-line no-param-reassign, @typescript-eslint/no-unused-vars
-			state = _.merge(state, val.state);
+			state = _.merge(state, persistedOnlyDefaultValues, persistedState);
 		});
 	});
+};
+
+const syncPathnameChangeEvent = () => {
+	window.addEventListener('pathnameChange', () => {
+		const searchParams = new URLSearchParams(getUrlSearch());
+		const str = decodeURIComponent(searchParams.get('store') || '{}');
+		const val = JSON.parse(str);
+		const persistedState = val.state || {};
+
+		useMainStore.setState((state) => {
+			const defaultValues = defaultRootValues;
+			// eslint-disable-next-line no-param-reassign, @typescript-eslint/no-unused-vars
+			state = _.merge(state, defaultValues, persistedState);
+		});
+	});
+};
+
+export const syncEventsForZustand = () => {
+	syncPopstateEvent();
+	syncPathnameChangeEvent();
 };

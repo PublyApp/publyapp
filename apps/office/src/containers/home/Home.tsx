@@ -7,7 +7,9 @@ import { useTranslation } from 'react-i18next';
 
 import useLocale from '@devist/ui-react/hooks/useLocale';
 
-import { useMainStore } from '@office/lib/zustand/store';
+import RouterLink from '@office/components/RouterLink';
+import { buildShareableUrl, useMainStore } from '@office/lib/zustand/store';
+import { BO_PATH_NAMES } from '@shared/lib/constants';
 
 const Home = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -125,11 +127,8 @@ const Home = () => {
 			>
 				Upload
 			</Button>
-
 			<Divider>fgzefgzegzefgzegzefgz</Divider>
-
 			<Typography>folderPath: {folderPath}</Typography>
-
 			<Button
 				variant="contained"
 				onClick={() => {
@@ -146,9 +145,7 @@ const Home = () => {
 			>
 				go to Folder '/b'
 			</Button>
-
 			<Typography>bear count: {bear}</Typography>
-
 			<Button
 				variant="contained"
 				onClick={() => {
@@ -166,6 +163,10 @@ const Home = () => {
 			>
 				remove Bear
 			</Button>
+			AAAAAAAAAAA
+			<RouterLink href={buildShareableUrl(BO_PATH_NAMES.fileManager, { fileManager: { folderPath: '/parent' } })}>
+				test link to parent dir
+			</RouterLink>
 		</>
 	);
 };
