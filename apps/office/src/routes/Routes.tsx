@@ -17,7 +17,6 @@ import Home from '@office/containers/home/Home';
 import CreateWebHost from '@office/containers/webHosts/CreateWebHost';
 import WebHosts from '@office/containers/webHosts/WebHosts';
 import DashboardLayout from '@office/layouts/dashboard/DashBoardLayout';
-import Sync from '@office/lib/zustand/utils/Sync';
 
 import RequireAuth from '../components/RequireAuth';
 import LogIn from '../containers/logIn/LogIn';
@@ -38,7 +37,7 @@ const router = createBrowserRouter(
 						},
 					}}
 				>
-					<Sync />
+					{/* <Sync /> */}
 					<Outlet />
 				</QueryParamProvider>
 			}

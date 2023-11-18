@@ -36,7 +36,7 @@ const getStorage = (): StateStorage => {
 	};
 };
 
-export const combinedMiddlewares = <T>(
+export const combinedMiddlewaresWithPersist = <T>(
 	initializer: StateCreator<T, [['zustand/immer', never]], []>,
 	selectedFields: string[],
 ) => {
@@ -55,4 +55,13 @@ export const combinedMiddlewares = <T>(
 			},
 		}),
 	);
+};
+
+export const combinedMiddlewares = <T>(initializer: StateCreator<T, [['zustand/immer', never]], []>) => {
+	return devtools(immer<T>(initializer), {
+		name: 'store',
+		storage: createJSONStorage<T>(() => {
+			return getStorage();
+		}) as never,
+	});
 };
