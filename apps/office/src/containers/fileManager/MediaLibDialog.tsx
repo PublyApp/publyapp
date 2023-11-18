@@ -1,0 +1,83 @@
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+
+import SingleFilePreview from '@devist/ui-react/components/upload/SingleFilePreview';
+import useBoolean from '@devist/ui-react/hooks/useBoolean';
+
+import FileManagerGrid from './FileManagerGrid';
+
+// type Props = {};
+
+const MediaLibDialog = () => {
+	const dialog = useBoolean();
+
+	return (
+		<>
+			<Box position="relative">
+				<SingleFilePreview />
+			</Box>
+
+			<Button variant="contained" color="warning" onClick={dialog.setTrue}>
+				Add Image
+			</Button>
+			<Dialog open={dialog.value} onClose={dialog.setFalse} maxWidth="lg" fullWidth>
+				<DialogTitle>Media library</DialogTitle>
+				<DialogContent>
+					{/* <Suspense> */}
+					{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
+					{/* <FileList files={data.appFiles} /> */}
+					{/* </Suspense> */}
+					<FileManagerGrid />
+				</DialogContent>
+
+				<DialogActions>
+					{/* <Button onClick={dialog.onFalse} variant="contained">
+            Close
+          </Button> */}
+				</DialogActions>
+			</Dialog>
+		</>
+	);
+};
+
+export default MediaLibDialog;
+
+// type FileListProps = {
+// 	// files: AppFile[];
+// };
+
+// const FileList = (/* {  }: FileListProps */) => {
+// 	const theme = useTheme();
+
+// 	const {
+// 		result: { data },
+// 	} = useFindAppFileSuspense({});
+
+// 	// const fallbackElement = Array.from({ length: 5 }).map(() => {
+// 	// 	return <Skeleton key={nanoid()} variant="rounded" width={pxToRem(200)} height={pxToRem(200)} />;
+// 	// });
+
+// 	return (
+// 		// <Suspense fallback={fallbackElement}>
+// 		<Grid container spacing={3}>
+// 			{data.appFiles.map((file) => {
+// 				console.log(file);
+// 				return (
+// 					<Grid key={nanoid()} item xs={4}>
+// 						<Image
+// 							border={`4px solid ${theme.palette.common.black}`}
+// 							width={IMAGE_FORMAT_CONFIG.thumbnail.width}
+// 							height={IMAGE_FORMAT_CONFIG.thumbnail.height}
+// 							src={`http://localhost:6180${/* file.formats?.thumbnail.url ??  */ file.url}`}
+// 						/>
+// 					</Grid>
+// 				);
+// 			})}
+// 		</Grid>
+// 		// </Suspense>
+// 	);
+// };
