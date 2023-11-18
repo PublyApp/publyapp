@@ -21,7 +21,7 @@ import FormProvider from '@devist/ui-react/components/form/FormProvider';
 import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
 import { RHFUpload } from '@devist/ui-react/components/form/RHFUpload';
 
-import MediaLibDialog from '@office/components/MediaLibDialog';
+import MediaLibDialog from '@office/containers/fileManager/MediaLibDialog';
 import type { WebHost } from '@shared/types/webHost.types';
 import { getSaveWebHostInputSchema } from '@shared/validations/webHost.validations';
 import useResponsive from '@ui-react/hooks/useResponsive';

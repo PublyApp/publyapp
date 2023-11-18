@@ -6,7 +6,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 
 // import EmptyContent from '@office/components/EmptyContent';
-import FileManagerGridView from '@office/components/file-manager/FileManagerGridView';
+import FileManagerGrid from '@office/containers/fileManager/FileManagerGrid';
 import Iconify from '@ui-react/components/Iconify';
 import useBoolean from '@ui-react/hooks/useBoolean';
 
@@ -41,7 +41,7 @@ import useBoolean from '@ui-react/hooks/useBoolean';
 
 // ----------------------------------------------------------------------
 
-const FileManagerView = () => {
+const FileManager = () => {
 	// const table = useTable({ defaultRowsPerPage: 10 });
 
 	// const settings = useSettingsContext();
@@ -222,7 +222,7 @@ const FileManagerView = () => {
 					onOpenConfirm={confirm.onTrue}
 					/>
 				)} */}
-				<FileManagerGridView
+				<FileManagerGrid
 				// table={table}
 				// data={tableData}
 				// dataFiltered={dataFiltered}
@@ -259,7 +259,7 @@ const FileManagerView = () => {
 	);
 };
 
-export default FileManagerView;
+export default FileManager;
 
 // ----------------------------------------------------------------------
 
