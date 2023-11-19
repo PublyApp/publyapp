@@ -4,17 +4,17 @@
 	"private": true,
 	"type": "commonjs",
 	"scripts": {
-		"build": "pnpm run build:prod:online",
-		"build:prod:online": "cross-env APP_ENV='production' pnpm run build:rs",
-		"build:prod:local": "cross-env APP_ENV='production-local' pnpm run build:rs",
-		"build:preprod": "cross-env APP_ENV='preprod' pnpm run build:rs",
-		"dev": "cross-env APP_ENV='local' pnpm run dev:rs",
+		"build": " pnpm build:prod:online",
+		"build:prod:online": "cross-env APP_ENV='production'  pnpm build:rs",
+		"build:prod:local": "cross-env APP_ENV='production-local'  pnpm build:rs",
+		"build:preprod": "cross-env APP_ENV='preprod'  pnpm build:rs",
+		"dev": "cross-env APP_ENV='local'  pnpm dev:rs",
 		"build:pack": "tsc && rspack build",
 		"dev:pack": "rspack serve",
 		"build:rs": "rsbuild build",
 		"dev:rs": "rsbuild dev",
 		"lint": "eslint src --ext ts,tsx --max-warnings 0",
-		"lint:fix": "pnpm run lint --fix"
+		"lint:fix": " pnpm lint --fix"
 	},
 	"dependencies": {
 		"@devist/shared": "workspace:*",
