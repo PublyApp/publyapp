@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { appLocales } from '@shared/lib/i18n/resources';
 
-import { getErrorMap } from '../utils/zod';
+import { getErrorMap } from '../lib/zod';
 
 export const getSaveWebHostInputSchema = (t: TFunction) => {
 	const NAME = t('common:name');

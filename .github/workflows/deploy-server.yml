@@ -19,7 +19,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-            source /home/devistxy/nodevenv/engine.devist.xyz/16/bin/activate && cd /home/devistxy/engine.devist.xyz
+            source /home/devistxy/nodevenv/engine.devist.xyz/18/bin/activate && cd /home/devistxy/engine.devist.xyz
             rm -rf server
 
       - name: Upload FTP
@@ -40,7 +40,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script: |
-            source /home/devistxy/nodevenv/engine.devist.xyz/16/bin/activate && cd /home/devistxy/engine.devist.xyz/server
+            source /home/devistxy/nodevenv/engine.devist.xyz/18/bin/activate && cd /home/devistxy/engine.devist.xyz/server
             if ! command -v pnpm &> /dev/null; then
               npm i -g pnpm
             else

@@ -1,24 +1,69 @@
 /* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable no-console */
 import { EventEmitter } from 'events';
+import path from 'path';
 
 import Parse from 'parse/node';
 
+import dotenv from 'dotenv';
+import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import _ from 'lodash';
 
 import { className } from '@devist/shared/lib/constants';
 
-Parse.initialize('devist', undefined, 'local-master-key');
-Parse.serverURL = 'http://localhost:6180/parse';
+import { env, envSchema, setAppEnv } from './env';
+
+// --------------------------------------------------------------------------------------//
+//                                 set the global vars                                  //
+// --------------------------------------------------------------------------------------//
+global.FORCE_PROD = false;
+global.FORCE_PREPROD = false;
+
+// * The ONLINE environment variable is to set only in your host provider's interface
+global.LOCAL = !process.env.ONLINE;
+// * The PRODUCTION environment variable is to set only in your host provider's interface
+global.PRODUCTION = Boolean(process.env.PRODUCTION);
+
+// --------------------------------------------------------------------------------------//
+//                           determine which .env file to load                           //
+// --------------------------------------------------------------------------------------//
+let envFileName = '.env.local';
+
+if ((!global.LOCAL && !global.PRODUCTION) || global.FORCE_PREPROD) {
+	envFileName = '.env.preprod';
+} else if (global.PRODUCTION || global.FORCE_PROD) {
+	envFileName = '.env.production';
+}
+
+if (global.LOCAL) {
+	const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
+	dotenvExpand.expand(envConfig);
+}
+
+// --------------------------------------------------------------------------------------//
+//                                Type check process.env                                //
+// --------------------------------------------------------------------------------------//
+const checkedEnv = envSchema.parse(process.env);
+setAppEnv(checkedEnv);
+
+const { PORT, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL } = env;
+
+// --------------------------------------------------------------------------------------//
+//                                      Init Parse                                      //
+// --------------------------------------------------------------------------------------//
+Parse.initialize(PARSE_APP_ID, undefined, PARSE_MASTER_KEY);
+Parse.serverURL = PARSE_SERVER_URL;
 
 global.Parse = Parse;
 
-const PORT = 6183;
 const USE_MASTER_KEY = { useMasterKey: true };
 
 let cursor = 0;
 
+// --------------------------------------------------------------------------------------//
+//                    Event driven layer to avoid long response time                    //
+// --------------------------------------------------------------------------------------//
 const linkServiceEmitter = new EventEmitter();
 
 linkServiceEmitter.on('saveLinkMeta', async ({ link: linkJson }: { link: object }) => {
@@ -34,6 +79,9 @@ linkServiceEmitter.on('saveLinkMeta', async ({ link: linkJson }: { link: object 
 	}
 });
 
+// --------------------------------------------------------------------------------------//
+//                                    Setup Express                                     //
+// --------------------------------------------------------------------------------------//
 const app = express();
 
 app.get('/*', async (_req, res) => {
@@ -57,10 +105,6 @@ app.get('/*', async (_req, res) => {
 
 		linkServiceEmitter.emit('saveLinkMeta', { link: link.toJSON() });
 
-		// res.send({
-		// 	link,
-		// 	totalCount,
-		// });
 		res.status(301).redirect(link.get('url'));
 	} catch (error) {
 		console.error(error);

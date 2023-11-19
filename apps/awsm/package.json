@@ -5,7 +5,7 @@
   "scripts": {
     "build": "tsc && pnpm run build:rs:prod",
     "build:local": "pnpm run build:rs",
-		"build:rs:prod": "cross-env APP_ENV=production pnpm run build:rs",
+    "build:rs:prod": "cross-env APP_ENV=production pnpm run build:rs",
     "build:rs:preprod": "cross-env APP_ENV=preprod pnpm run build:rs",
     "build:rs": "node -r esbuild-register build.ts",
     "start": "node --enable-source-maps dist/index.js",
@@ -30,8 +30,11 @@
   },
   "dependencies": {
     "@devist/shared": "workspace:^",
+    "dotenv": "^16.3.1",
+		"dotenv-expand": "^10.0.0",
     "express": "^4.18.2",
     "lodash": "^4.17.21",
-    "parse": "^4.2.0"
+    "parse": "^4.2.0",
+    "zod": "^3.22.4"
   }
 }
