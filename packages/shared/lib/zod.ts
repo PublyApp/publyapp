@@ -44,3 +44,16 @@ export const getErrorMap: (t: TFunction, opts: { field: string }) => z.ZodErrorM
 		return { message: ctx.defaultError };
 	};
 };
+
+export const numericStringSchema = z
+	.string()
+	.refine(
+		(v) => {
+			const n = Number(v);
+			return !Number.isNaN(n) && v?.length > 0;
+		},
+		{ message: 'Invalid number' },
+	)
+	.transform((v) => {
+		return Number(v);
+	});
