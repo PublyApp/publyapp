@@ -1,5 +1,5 @@
 {
-	"name": "eslint-config-custom-server",
+	"name": "eslint-config-custom-common-react",
 	"version": "0.0.0",
 	"main": "index.js",
 	"license": "MIT",
@@ -8,6 +8,6 @@
 	},
 	"devDependencies": {
 		"eslint": "^8.52.0",
-		"eslint-config-custom-base": "workspace:*"
+		"eslint-plugin-react": "^7.33.2"
 	}
 }

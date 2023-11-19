@@ -1,5 +1,5 @@
 {
-	"name": "eslint-config-custom-react",
+	"name": "eslint-config-custom-server",
 	"version": "0.0.0",
 	"main": "index.js",
 	"license": "MIT",
@@ -7,9 +7,7 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"eslint": "^8.40.0",
-		"eslint-config-airbnb": "^19.0.4",
-		"eslint-config-airbnb-typescript": "^17.0.0",
+		"eslint": "^8.52.0",
 		"eslint-config-custom-base": "workspace:*"
 	}
 }
