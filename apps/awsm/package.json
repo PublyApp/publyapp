@@ -3,15 +3,15 @@
   "version": "0.0.0",
   "description": "",
   "scripts": {
-    "build": "tsc && pnpm run build:rs:prod",
-    "build:local": "pnpm run build:rs",
-    "build:rs:prod": "cross-env APP_ENV=production pnpm run build:rs",
-    "build:rs:preprod": "cross-env APP_ENV=preprod pnpm run build:rs",
+    "build": "tsc &&  pnpm build:rs:prod",
+    "build:local": " pnpm build:rs",
+    "build:rs:prod": "cross-env APP_ENV=production  pnpm build:rs",
+    "build:rs:preprod": "cross-env APP_ENV=preprod  pnpm build:rs",
     "build:rs": "node -r esbuild-register build.ts",
     "start": "node --enable-source-maps dist/index.js",
     "dev": "nodemon",
     "lint": "eslint . --ext ts,js",
-    "lint:fix": "pnpm run lint --fix"
+    "lint:fix": " pnpm lint --fix"
   },
   "keywords": [],
   "author": "",

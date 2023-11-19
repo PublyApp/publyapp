@@ -6,7 +6,7 @@
 		"build": "tsc && next build",
 		"dev": "next dev --port 6181 --turbo",
 		"lint": "next lint",
-		"lint:fix": "pnpm run lint --fix",
+		"lint:fix": " pnpm lint --fix",
 		"start": "next start"
 	},
 	"dependencies": {

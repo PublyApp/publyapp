@@ -1,8 +1,10 @@
-import { ACTIVE_AWESOME_LINKS_POOL_SIZE, className } from '@devist/shared/lib/constants';
+import { className } from '@devist/shared/lib/constants';
 
 import { USE_MASTER_KEY } from '@server/lib/constants';
 
 import { parseTrigger } from '../../lib/parse';
+
+const ACTIVE_AWESOME_LINKS_POOL_SIZE = 20;
 
 Parse.Cloud.afterSave(
 	className.AWESOME_LINK,

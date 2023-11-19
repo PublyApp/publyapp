@@ -3,9 +3,6 @@
 
 import { className } from '@shared/lib/constants';
 import type { UserAttributes } from '@shared/types/user.types';
-import { defineGlobalParse } from '@shared/utils/parse.utils';
-
-defineGlobalParse();
 
 export class User extends Parse.User {
 	// eslint-disable-next-line @typescript-eslint/no-useless-constructor

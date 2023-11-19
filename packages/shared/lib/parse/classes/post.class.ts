@@ -8,7 +8,3 @@ export class Post extends Parse.Object<IPost> {
 }
 
 Parse.Object.registerSubclass(className.POST, Post);
-
-// const p = new Post();
-
-// const a = p.get('translation');
