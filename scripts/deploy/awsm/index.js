@@ -2,5 +2,5 @@
 const { deployAppServer } = require('../index');
 
 deployAppServer({
-	SERVER_APP_NAME: 'server',
+	SERVER_APP_NAME: 'awsm',
 });
