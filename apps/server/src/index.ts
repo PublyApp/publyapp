@@ -31,9 +31,9 @@ const bootstrap = async () => {
 	global.FORCE_PREPROD = false;
 
 	// * The ONLINE environment variable is to set only in your host provider's interface
-	global.LOCAL = process.env.ONLINE === 'true' ? true : false;
+	global.LOCAL = process.env.ONLINE === 'true';
 	// * The PRODUCTION environment variable is to set only in your host provider's interface
-	global.PRODUCTION = process.env.PRODUCTION === 'true' ? true : false;
+	global.PRODUCTION = process.env.PRODUCTION === 'true';
 
 	// --------------------------------------------------------------------------------------//
 	//                           determine which .env file to load                           //
@@ -45,9 +45,6 @@ const bootstrap = async () => {
 	} else if (global.PRODUCTION || global.FORCE_PROD) {
 		envFileName = '.env.production';
 	}
-
-	// console.log('local', LOCAL);
-	// console.log('.env', envFileName);
 
 	// override process.env with values in .env file
 	if (global.LOCAL) {
