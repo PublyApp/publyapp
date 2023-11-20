@@ -21,9 +21,9 @@ global.FORCE_PROD = false;
 global.FORCE_PREPROD = false;
 
 // * The ONLINE environment variable is to set only in your host provider's interface
-global.LOCAL = !process.env.ONLINE;
+global.LOCAL = process.env.ONLINE === 'true';
 // * The PRODUCTION environment variable is to set only in your host provider's interface
-global.PRODUCTION = Boolean(process.env.PRODUCTION);
+global.PRODUCTION = process.env.PRODUCTION === 'true';
 
 // --------------------------------------------------------------------------------------//
 //                           determine which .env file to load                           //
@@ -36,6 +36,7 @@ if ((!global.LOCAL && !global.PRODUCTION) || global.FORCE_PREPROD) {
 	envFileName = '.env.production';
 }
 
+// override process.env with values in .env file
 if (global.LOCAL) {
 	const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
 	dotenvExpand.expand(envConfig);
