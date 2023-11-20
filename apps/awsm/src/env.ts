@@ -3,7 +3,7 @@ import z from 'zod';
 import { numericStringSchema } from '@shared/lib/zod';
 
 export const envSchema = z.object({
-	PORT: numericStringSchema,
+	PORT: numericStringSchema.default('3000'),
 	SERVER_URL: z.string(),
 	// ===
 	PARSE_APP_ID: z.string(),
