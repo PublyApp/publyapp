@@ -67,7 +67,12 @@ const bootstrap = async () => {
 	const app = express();
 
 	// setup middlewares
-	app.use(cors({ whiteList: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
+	app.use(
+		// process.env.NODE_ENV === 'development'
+		// 	? cors()
+		// : cors({ whiteList: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }),
+		cors({ whiteList: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }),
+	);
 	app.use(express.urlencoded({ extended: false }));
 	app.use(express.json());
 	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
