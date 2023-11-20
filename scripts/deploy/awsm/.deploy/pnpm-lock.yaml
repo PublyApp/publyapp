@@ -828,16 +828,6 @@ importers:
         specifier: ^4.9.5
         version: 4.9.5
 
-  packages/zustand-qs:
-    dependencies:
-      zustand:
-        specifier: ^4.4.6
-        version: 4.4.6(@types/react@18.2.34)(immer@10.0.3)(react@18.2.0)
-    devDependencies:
-      lodash-es:
-        specifier: ^4.17.21
-        version: 4.17.21
-
 packages:
 
   /@aashutoshrathi/word-wrap@1.2.6:
@@ -10243,6 +10233,7 @@ packages:
 
   /lodash-es@4.17.21:
     resolution: {integrity: sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==}
+    dev: false
 
   /lodash.clonedeep@4.5.0:
     resolution: {integrity: sha512-H5ZhCF25riFd9uB5UCkVKo61m3S/xZk1x4wA6yp/L3RFP6Z/eHH1ymQcGLo7J3GMPfm0V/7m1tryHuGVxpqEBQ==}
