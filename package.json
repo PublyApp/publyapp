@@ -3,9 +3,7 @@
 	"private": true,
 	"scripts": {
 		"build": "turbo build",
-		"build2": "turbo build --filter server --filter front --filter office",
 		"dev": "turbo dev --no-daemon",
-		"dev2": "turbo dev --filter server --filter front --filter office --no-daemon",
 		"check-format": "prettier --check .",
 		"format": "prettier --write .",
 		"lint": "turbo lint",
