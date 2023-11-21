@@ -31,7 +31,7 @@ const bootstrap = async () => {
 	global.FORCE_PREPROD = false;
 
 	// * The ONLINE environment variable is to set only in your host provider's interface
-	global.LOCAL = process.env.ONLINE === 'true';
+	global.LOCAL = process.env.ONLINE !== 'true';
 	// * The PRODUCTION environment variable is to set only in your host provider's interface
 	global.PRODUCTION = process.env.PRODUCTION === 'true';
 
@@ -168,3 +168,24 @@ const bootstrap = async () => {
 };
 
 bootstrap();
+// .catch(async (error) => {
+// 	// Log the error to the console
+// 	// eslint-disable-next-line no-console
+// 	console.error(error);
+
+// 	// Write the error to a file
+// 	const logMessage = `${new Date().toISOString()}: ${error.stack}\n`;
+
+// 	try {
+// 		// Check if the file exists
+// 		await fs.access('error.log');
+
+// 		// File exists, append the log
+// 		await fs.appendFile('error.log', logMessage);
+// 	} catch (err) {
+// 		// File does not exist, create it and write the log
+// 		await fs.writeFile('error.log', logMessage);
+// 	}
+
+// 	process.exit(1);
+// });

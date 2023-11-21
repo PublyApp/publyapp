@@ -43,6 +43,7 @@ logs
 # .deploy/
 
 # custom builds
-dist
+apps/*/dist
+packages/*/dist
 
 _mock
