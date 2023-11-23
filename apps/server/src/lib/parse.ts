@@ -164,12 +164,6 @@ export const reOrderObjects = <T extends Parse.Object = Parse.Object>(ids: strin
 	return orderedObjects;
 };
 
-// // eslint-disable-next-line no-underscore-dangle
-// function _interopRequireDefault(obj: any) {
-// 	// eslint-disable-next-line no-underscore-dangle
-// 	return obj && obj.__esModule ? obj : { default: obj };
-// }
-
 export const getConfig = () => {
 	return Config.get(Parse.applicationId);
 };
@@ -194,11 +188,6 @@ export const getDatabase = (): Db => {
  * @returns a promise containing the documents
  */
 export const aggregate = async (className: string, pipeline: PipelineStage[], options: AggregateOptions = {}) => {
-	// const config = Config.get(Parse.applicationId);
-	// // eslint-disable-next-line no-underscore-dangle
-	// const collection = (await config.database.adapter._adaptiveCollection(className))._mongoCollection;
-	// const collection = await config.database.adapter.database.collection(className);
-
 	const collection = getDatabase().collection(className);
 
 	const aggregationOptions = _.merge(

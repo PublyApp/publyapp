@@ -14,8 +14,6 @@ const { APP_ENV } = process.env;
 const isLocal = APP_ENV === 'local' || APP_ENV === 'production-local';
 const isProduction = APP_ENV === 'production' || APP_ENV === 'production-local';
 
-console.log('###', process.env.NODE_ENV);
-
 let envFileName: string | null = '.env.local';
 
 // ! for local build
