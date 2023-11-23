@@ -1,8 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 
+import _ from 'lodash';
 import type { immer } from 'zustand/middleware/immer';
-
-import { isCallback } from '@devist/shared/utils/any.utils';
 
 type SetType<T> = Parameters<Parameters<typeof immer<T>>[0]>[0];
 
@@ -15,7 +14,7 @@ export const createSetter = <T extends Record<string, unknown>>(
 ): Dispatch<SetStateAction<T[key]>> => {
 	return (s) => {
 		set((state) => {
-			if (isCallback(s)) {
+			if (_.isFunction(s)) {
 				// eslint-disable-next-line no-param-reassign
 				(state as T)[key] = s((state as T)[key]);
 				return;

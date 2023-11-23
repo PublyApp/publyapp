@@ -1,10 +1,10 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 
+import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
 
 import { LOCALE_HEADER_KEY } from '@devist/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
-import { isCallback } from '@devist/shared/utils/any.utils';
 
 // import i18n from '@ui-react/utils/i18n';
 import { localStorageGetItem } from '@ui-react/utils/storage.utils';
@@ -29,7 +29,7 @@ const useLocale = () => {
 
 	const setLocale: Dispatch<SetStateAction<AppLocale>> = useCallback(
 		(value) => {
-			if (isCallback(value)) {
+			if (_.isFunction(value)) {
 				const updater = value;
 				const iValue = updater(locale);
 				changeLocale(iValue);
