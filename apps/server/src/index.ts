@@ -18,7 +18,7 @@ import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import protectionMiddleware from './middlewares/protection.middleware';
 import AppFileSchema from './schemas/appFile.schema';
-import AwesomeLinkSchema from './schemas/awesomLink.schema';
+import AwesomeLinkSchema from './schemas/awesomeLink.schema';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
 import WebHostSchema from './schemas/webHost.schema';
