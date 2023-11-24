@@ -12,7 +12,7 @@ const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
 const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
 
 // ! folder names
-const apps = ['server', 'office', 'front' /* 'svkit' */];
+const apps = ['server', 'office', 'front'];
 const packages = [
 	'eslint-config-custom-base',
 	'eslint-config-custom-common-react',
