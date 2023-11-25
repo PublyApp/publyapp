@@ -1,7 +1,6 @@
 import { memo } from 'react';
 
-import { Box, BoxProps, Link } from '@mui/material';
-// @mui
+import { Box, Link, type BoxProps } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import NextLink from 'next/link';
 
@@ -37,7 +36,7 @@ const Logo = ({ single = false, sx }: LogoProps) => {
 	);
 
 	return (
-		<Link component={NextLink} href="/" /* to="/" */ color="inherit" aria-label="go to homepage" sx={{ lineHeight: 0 }}>
+		<Link component={NextLink} href="/" color="inherit" aria-label="go to homepage" sx={{ lineHeight: 0 }}>
 			<Box
 				sx={{
 					width: single ? 64 : 75,

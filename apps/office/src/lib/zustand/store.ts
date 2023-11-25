@@ -10,10 +10,10 @@ export const useMainStore = create<RootState>()(
 		(...a) => {
 			return getInitialStore(...a);
 		},
-		[
-			//
-			...persistedFields,
-		],
+		// [
+		// 	//
+		// 	...persistedFields,
+		// ],
 	),
 );
 

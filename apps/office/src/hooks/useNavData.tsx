@@ -56,7 +56,7 @@ export const useNavData = () => {
 			// OVERVIEW
 			// ----------------------------------------------------------------------
 			{
-				// subheader: 'overview v5.5.0',
+				subheader: 'overview v5.5.0',
 				items: [
 					{ title: 'dashboard', path: BO_PATH_NAMES.dashboard, icon: ICONS.dashboard },
 					{ title: 'file manager', path: BO_PATH_NAMES.fileManager, icon: ICONS.dashboard },
