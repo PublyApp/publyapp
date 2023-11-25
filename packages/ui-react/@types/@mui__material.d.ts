@@ -58,17 +58,15 @@ declare module '@mui/material/styles/createPalette' {
 		neutral: string;
 	}
 
-	// interface PaletteOptions {
-	// 	background: {
-	// 		neutral: string;
-	// 	};
-	// }
-	// interface SimplePaletteColorOptions {
-	//   lighter: string;
-	//   darker: string;
-	// }
-	// interface PaletteColor {
-	//   lighter: string;
-	//   darker: string;
-	// }
+	interface TypeBackground {
+		neutral: string;
+	}
+	interface SimplePaletteColorOptions {
+		lighter: string;
+		darker: string;
+	}
+	interface PaletteColor {
+		lighter: string;
+		darker: string;
+	}
 }

@@ -1,4 +1,5 @@
-import type { IFileManager, IFolderManager } from '@office/types/file';
+import type { IFileManager, IFolderManager } from '@devist/ui-react/types/file';
+
 import type { AppFile } from '@shared/types/appFile.types';
 
 export const appFileData = (file: AppFile): IFileManager => {

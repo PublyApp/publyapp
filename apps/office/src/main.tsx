@@ -7,6 +7,7 @@ import { initReactLocalization } from '@devist/ui-react/lib/i18n';
 
 import App from './App';
 
+import 'react-lazy-load-image-component/src/effects/blur.css';
 import './main.css';
 
 // --- sync necessary events with zustand

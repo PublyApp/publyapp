@@ -10,8 +10,9 @@ import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 
+import type { IFolderManager } from '@devist/ui-react/types/file';
+
 import usePopover from '@office/hooks/usePopover';
-import type { IFolderManager } from '@office/types/file';
 import Iconify from '@ui-react/components/Iconify';
 import { fData } from '@ui-react/utils/number.utils';
 

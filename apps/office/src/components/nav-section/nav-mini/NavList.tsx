@@ -6,7 +6,7 @@ import Popover from '@mui/material/Popover';
 import Stack from '@mui/material/Stack';
 
 import useActiveLink from '@office/hooks/useActiveLink';
-import usePathname from '@office/hooks/usePathName';
+import usePathname from '@office/hooks/usePathame';
 
 import type { NavConfigProps, NavListProps } from '../types';
 

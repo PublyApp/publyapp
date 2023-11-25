@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 
+import { SESSION_TOKEN_COOKIE_KEY } from '@devist/ui-react/lib/constants';
 import { getUserRoles } from '@devist/ui-react/lib/react-query/features/auth/auth.actions';
-import { SESSION_TOKEN_COOKIE_KEY } from '@devist/ui-react/utils/constants';
 
 import { initParseFront } from './initParseFront';
 
