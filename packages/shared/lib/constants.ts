@@ -40,6 +40,8 @@ export const FRONT_PATH_NAMES = {
 	// webHosts: `${ROOTS.DASHBOARD}/web-hosts`,
 	// createWebHost: `${ROOTS.DASHBOARD}/web-hosts/new`,
 	// TODO: edit route
+	home: '/',
+	job: '/job',
 } as const;
 
 const ROOTS = {

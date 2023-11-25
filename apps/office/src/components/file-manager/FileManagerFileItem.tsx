@@ -10,14 +10,15 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
+import type { IFileManager } from '@devist/ui-react/types/file';
+
 import usePopover from '@office/hooks/usePopover';
-import type { IFileManager } from '@office/types/file';
 import Iconify from '@ui-react/components/Iconify';
 import { fDateTime } from '@ui-react/utils/date.utils';
 import { fData } from '@ui-react/utils/number.utils';
 
 import CustomPopover from '../CustomPopover';
-import TextMaxLine from '../TextMaxLine';
 
 import FileThumbnail from './FileThumbnail';
 

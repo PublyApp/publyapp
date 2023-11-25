@@ -1,11 +1,10 @@
+'use client';
+
 import { useRef } from 'react';
 
-// @mui
 import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
-// @mui
 import { alpha, styled } from '@mui/material/styles';
-//
 import { closeSnackbar, MaterialDesignContent, SnackbarProvider as NotistackProvider } from 'notistack';
 
 import Iconify from '@ui-react/components/Iconify';
