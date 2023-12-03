@@ -1,4 +1,4 @@
-import { customShadows } from '../theme/customShadows';
+import { customShadows } from '../theme/custom-shadows';
 import { createPalette } from '../theme/palette';
 import { createShadows } from '../theme/shadows';
 
