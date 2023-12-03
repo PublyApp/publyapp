@@ -44,7 +44,7 @@ const deployAppServer = ({
 	fse.copyFileSync(rootPackageJsonSrc, rootPackageJsonDest);
 
 	// --------------------------------------------------------------------------------------//
-	//                                copy lock file on root                                //
+	//                                 copy lock file on root                                //
 	// --------------------------------------------------------------------------------------//
 	const lockFileName = 'pnpm-lock.yaml';
 	const rootLockFileSrc = path.join(MONOREPO_ROOT_DIR, lockFileName);
@@ -60,7 +60,15 @@ const deployAppServer = ({
 	fse.copyFileSync(workspaceFileSrc, workspaceFileDest);
 
 	// --------------------------------------------------------------------------------------//
-	//                             copy the app's package.json                             //
+	//                                   copy .npmrc file on root                            //
+	// --------------------------------------------------------------------------------------//
+	const npmrcFileName = '.npmrc';
+	const npmrcFileSrc = path.join(MONOREPO_ROOT_DIR, npmrcFileName);
+	const npmrcFileDest = path.join(DEPLOY_ROOT_DIR, npmrcFileName);
+	fse.copyFileSync(npmrcFileSrc, npmrcFileDest);
+
+	// --------------------------------------------------------------------------------------//
+	//                              copy the app's package.json                              //
 	// --------------------------------------------------------------------------------------//
 	const serverAppPackageJsonSrc = path.join(SERVER_APP_DIR_SRC, packageJsonFileName);
 	const serverAppPackageJsonDest = path.join(SERVER_APP_DIR_DEST, packageJsonFileName);
