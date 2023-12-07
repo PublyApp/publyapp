@@ -3,7 +3,7 @@ import { Box, Card, Divider, Skeleton, Stack, type CardProps } from '@mui/materi
 import { nanoid } from 'nanoid';
 
 // ----------------------------------------------------------------------
-const CareerJobItemSkeleton = ({ ...other }: CardProps) => {
+const AwesomeToolItemSkeleton = ({ ...other }: CardProps) => {
 	return (
 		<Card {...other}>
 			<Stack spacing={2} sx={{ p: 3 }}>
@@ -41,4 +41,4 @@ const CareerJobItemSkeleton = ({ ...other }: CardProps) => {
 	);
 };
 
-export default CareerJobItemSkeleton;
+export default AwesomeToolItemSkeleton;
