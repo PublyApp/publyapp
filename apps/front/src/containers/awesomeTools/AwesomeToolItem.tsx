@@ -11,23 +11,40 @@ import Grid from '@mui/material/Unstable_Grid2';
 import { FRONT_PATH_NAMES } from '@devist/shared/lib/constants';
 import Iconify from '@devist/ui-react/components/Iconify';
 import Image from '@devist/ui-react/components/Image';
-import Label from '@devist/ui-react/components/Label';
+// import Label from '@devist/ui-react/components/Label';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 import type { IJobProps } from '@devist/ui-react/types/job';
-import { fDate } from '@devist/ui-react/utils/date.utils';
-import { fCurrency } from '@devist/ui-react/utils/number.utils';
+
+// import { fDate } from '@devist/ui-react/utils/date.utils';
+// import { fCurrency } from '@devist/ui-react/utils/number.utils';
 
 import RouterLink from '@front/components/RouterLink';
 
 // ----------------------------------------------------------------------
 
-type Props = {
-	job: IJobProps;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type IAwesomeTool = {
+	name: string;
+	shortDescription: string;
+	// ... more to come
 };
 
-const CareerJobItem = ({ job }: Props) => {
-	const { slug, type, level, salary, location, isUrgent, createdAt, favorited, experience, companyName, companyLogo } =
-		job;
+type Props = {
+	job: IJobProps;
+	// tool: IAwesomeTool;
+};
+
+const AwesomeToolItem = ({ job }: Props) => {
+	const {
+		// slug,
+		// type,
+		// level,
+		// salary,
+		// location, isUrgent, createdAt,  experience,
+		favorited,
+		companyName,
+		companyLogo,
+	} = job;
 
 	const [favorite, setFavorite] = useState(favorited);
 
@@ -58,29 +75,30 @@ const CareerJobItem = ({ job }: Props) => {
 				<Stack direction="row" alignItems="center" spacing={2.5}>
 					<Image alt={companyName} src={companyLogo} sx={{ width: 48, height: 48, borderRadius: 1 }} />
 
-					{isUrgent && <Label color="error">Urgent</Label>}
+					{/* {isUrgent && <Label color="error">Urgent</Label>} */}
 				</Stack>
 
 				<Stack spacing={0.5} sx={{ mt: 3, mb: 2 }}>
 					<Link component={RouterLink} href={FRONT_PATH_NAMES.job} color="inherit">
 						<TextMaxLine variant="h6" line={1}>
-							{slug}
+							{/* {slug} */}
+							{companyName}
 						</TextMaxLine>
 					</Link>
 
 					<Typography variant="body2" sx={{ color: 'info.main' }}>
-						{companyName}
+						{/* {companyName} */}
 					</Typography>
 
-					<Stack direction="row" alignItems="center" sx={{ typography: 'body2', color: 'text.secondary' }}>
+					{/* <Stack direction="row" alignItems="center" sx={{ typography: 'body2', color: 'text.secondary' }}>
 						<Iconify icon="carbon:location" width={18} sx={{ mr: 0.5 }} />
 						{location}
-					</Stack>
+					</Stack> */}
 				</Stack>
 
-				<Typography variant="caption" sx={{ color: 'text.disabled' }}>
+				{/* <Typography variant="caption" sx={{ color: 'text.disabled' }}>
 					Posted day: {fDate(createdAt)}
-				</Typography>
+				</Typography> */}
 			</Stack>
 
 			<Divider sx={{ borderStyle: 'dashed', my: 2 }} />
@@ -96,36 +114,36 @@ const CareerJobItem = ({ job }: Props) => {
 					textTransform: 'capitalize',
 				}}
 			>
-				<Grid xs={6}>
+				{/* <Grid xs={6}>
 					<Stack direction="row" alignItems="center" sx={{ typography: 'body2' }}>
 						<Iconify icon="carbon:increase-level" sx={{ mr: 1 }} />
 						{`${experience} year exp`}
 					</Stack>
-				</Grid>
+				</Grid> */}
 
-				<Grid xs={6}>
+				{/* <Grid xs={6}>
 					<Stack direction="row" alignItems="center" sx={{ typography: 'body2' }}>
 						<Iconify icon="carbon:time" sx={{ mr: 1 }} />
 						{type}
 					</Stack>
-				</Grid>
+				</Grid> */}
 
-				<Grid xs={6}>
+				{/* <Grid xs={6}>
 					<Stack direction="row" alignItems="center" sx={{ typography: 'body2' }}>
 						<Iconify icon="carbon:money" sx={{ mr: 1 }} />
 						{typeof salary === 'number' ? fCurrency(salary) : salary}
 					</Stack>
-				</Grid>
+				</Grid> */}
 
-				<Grid xs={6}>
+				{/* <Grid xs={6}>
 					<Stack direction="row" alignItems="center" sx={{ typography: 'body2' }}>
 						<Iconify icon="carbon:user" sx={{ mr: 1 }} />
 						{level}
 					</Stack>
-				</Grid>
+				</Grid> */}
 			</Grid>
 		</Card>
 	);
 };
 
-export default CareerJobItem;
+export default AwesomeToolItem;
