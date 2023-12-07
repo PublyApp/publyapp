@@ -3,8 +3,8 @@ import { nanoid } from 'nanoid';
 
 import type { IJobProps } from '@devist/ui-react/types/job';
 
-import CareerJobItem from './CareerJobItem';
-import CareerJobItemSkeleton from './CareerJobItemSkeleton';
+import AwesomeToolItem from './AwesomeToolItem';
+import AwesomeToolItemSkeleton from './AwesomeToolItemSkeleton';
 
 // ----------------------------------------------------------------------
 
@@ -29,7 +29,7 @@ const CareerJobList = ({ jobs, loading }: Props) => {
 				}}
 			>
 				{(loading ? [...Array(9)] : jobs).map((job) => {
-					return job ? <CareerJobItem key={job.id} job={job} /> : <CareerJobItemSkeleton key={nanoid()} />;
+					return job ? <AwesomeToolItem key={job.id} job={job} /> : <AwesomeToolItemSkeleton key={nanoid()} />;
 				})}
 			</Box>
 

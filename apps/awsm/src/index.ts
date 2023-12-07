@@ -110,6 +110,8 @@ const bootstrap = async () => {
 			res.status(301).redirect(link.get('url'));
 		} catch (error) {
 			console.error(error);
+
+			res.status(500).send('an error ocurred in our side');
 		}
 	});
 

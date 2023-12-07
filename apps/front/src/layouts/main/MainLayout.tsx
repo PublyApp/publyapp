@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
-import { Box, Toolbar } from '@mui/material';
+import Box from '@mui/material/Box';
+import Toolbar from '@mui/material/Toolbar';
 
 import { HEADER } from '@front/lib/constants';
 

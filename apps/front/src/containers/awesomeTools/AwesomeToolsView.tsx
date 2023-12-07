@@ -1,77 +1,38 @@
 'use client';
 
-import { useState } from 'react';
-
-import {
-	Box,
-	Button,
-	Container,
-	Divider,
-	FormControl,
-	MenuItem,
-	Select,
-	Stack,
-	ToggleButton,
-	ToggleButtonGroup,
-	Typography,
-	type SelectChangeEvent,
-} from '@mui/material';
+import { Box, Button, Container, Divider, Stack, Typography } from '@mui/material';
 
 import Iconify from '@devist/ui-react/components/Iconify';
+import useFakeLoading from '@devist/ui-react/hooks/useFakeLoading';
 
-import { _products } from '@front/_mock';
+import { _jobs } from '@front/_mock';
+import MainLayout from '@front/layouts/main/MainLayout';
 import { NAV } from '@front/lib/constants';
 
-import ProductList from './ProductList';
+import AwesomeToolsList from './AwesomeToolsList';
 
-// type Props = {};
-
-// ----------------------------------------------------------------------
-
-const VIEW_OPTIONS = [
-	{ value: 'list', icon: <Iconify icon="carbon:list-boxes" /> },
-	{ value: 'grid', icon: <Iconify icon="carbon:grid" /> },
-] as const;
-
-type ViewOption = (typeof VIEW_OPTIONS)[number]['value'];
-
-const SORT_OPTIONS = [
-	{ value: 'latest', label: 'Latest' },
-	{ value: 'oldest', label: 'Oldest' },
-	{ value: 'popular', label: 'Popular' },
-] as const;
-
-type SortOption = (typeof SORT_OPTIONS)[number]['value'];
+//
+// import NewsletterCareer from '../../newsletter/career';
+// import CareerFilters from '../job/filters';
+// import { AwesomeToolsList } from '../job/list';
 
 // ----------------------------------------------------------------------
 
-const ProductsView = (/* props: Props */) => {
-	const [viewMode, setViewMode] = useState<ViewOption>('grid');
-	const [sort, setSort] = useState<SortOption>('latest');
-
-	const handleChangeViewMode = (_event: React.MouseEvent<HTMLElement>, newAlignment: string | null) => {
-		if (newAlignment !== null) {
-			setViewMode(newAlignment as ViewOption);
-		}
-	};
-
-	const handleChangeSort = (event: SelectChangeEvent) => {
-		setSort(event.target.value as SortOption);
-	};
+const AwesomeToolsView = () => {
+	const loading = useFakeLoading();
 
 	const handleMobileOpen = () => {
 		// setMobileOpen(true);
 	};
 
-	// const handleMobileClose = () => {
-	// 	setMobileOpen(false);
-	// };
-
 	return (
-		<>
-			{/* <EcommerceHeader /> */}
-
+		<MainLayout>
 			<Container>
+				{/* <CareerFilters /> */}
+				{/* <Typography variant="h1">Hello</Typography> */}
+
+				{/* <AwesomeToolsList jobs={_jobs} loading={loading} /> */}
+
 				<Stack
 					direction="row"
 					alignItems="center"
@@ -114,7 +75,7 @@ const ProductsView = (/* props: Props */) => {
 							width: { md: `calc(100% - ${NAV.W_DRAWER}px)` },
 						}}
 					>
-						<Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 5 }}>
+						{/* <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 5 }}>
 							<ToggleButtonGroup
 								exclusive
 								size="small"
@@ -150,15 +111,18 @@ const ProductsView = (/* props: Props */) => {
 									})}
 								</Select>
 							</FormControl>
-						</Stack>
+						</Stack> */}
 
 						{/* eslint-disable-next-line react/jsx-boolean-value */}
-						<ProductList loading={false} viewMode={viewMode} products={_products.slice(0, 16)} />
+						{/* <ProductList loading={false} viewMode={viewMode} products={_products.slice(0, 16)} /> */}
+						<AwesomeToolsList jobs={_jobs} loading={loading} />
 					</Box>
 				</Stack>
 			</Container>
-		</>
+
+			{/* <NewsletterCareer /> */}
+		</MainLayout>
 	);
 };
 
-export default ProductsView;
+export default AwesomeToolsView;
