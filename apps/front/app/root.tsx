@@ -1,3 +1,7 @@
+/* eslint-disable react/function-component-definition */
+/* eslint-disable prefer-arrow/prefer-arrow-functions */
+/* eslint-disable func-style */
+/* eslint-disable no-param-reassign */
 import * as React from 'react';
 
 import { withEmotionCache } from '@emotion/react';
@@ -30,10 +34,10 @@ const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCa
 		// re-link sheet container
 		emotionCache.sheet.container = document.head;
 		// re-inject tags
-		const tags = emotionCache.sheet.tags;
+		const { tags } = emotionCache.sheet;
 		emotionCache.sheet.flush();
 		tags.forEach((tag) => {
-			// eslint-disable-next-line no-underscore-dangle
+			// eslint-disable-next-line no-underscore-dangle, @typescript-eslint/no-explicit-any
 			(emotionCache.sheet as any)._insertTag(tag);
 		});
 		// reset cache to reapply global styles
@@ -81,11 +85,12 @@ export default function App() {
 }
 
 // https://remix.run/docs/en/main/route/error-boundary
-export function ErrorBoundary() {
+export const ErrorBoundary = () => {
 	const error = useRouteError();
 
 	if (isRouteErrorResponse(error)) {
 		let message;
+
 		switch (error.status) {
 			case 401:
 				message = <p>Oops! Looks like you tried to visit a page that you do not have access to.</p>;
@@ -127,4 +132,4 @@ export function ErrorBoundary() {
 	}
 
 	return <h1>Unknown Error</h1>;
-}
+};
