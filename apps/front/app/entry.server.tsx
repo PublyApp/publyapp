@@ -1,4 +1,5 @@
-import * as React from 'react';
+/* eslint-disable prefer-arrow/prefer-arrow-functions */
+// import * as React from 'react';
 
 import { CacheProvider } from '@emotion/react';
 import createEmotionServer from '@emotion/server/create-instance';
@@ -20,7 +21,7 @@ export default function handleRequest(
 	const cache = createEmotionCache();
 	const { extractCriticalToChunks } = createEmotionServer(cache);
 
-	function MuiRemixServer() {
+	const MuiRemixServer = () => {
 		return (
 			<CacheProvider value={cache}>
 				<ThemeProvider theme={theme}>
@@ -30,7 +31,7 @@ export default function handleRequest(
 				</ThemeProvider>
 			</CacheProvider>
 		);
-	}
+	};
 
 	// Render the component to a string.
 	const html = ReactDOMServer.renderToString(<MuiRemixServer />);
