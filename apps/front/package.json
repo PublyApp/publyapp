@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "build": "remix build",
-    "dev": "remix dev --manual",
-    "start": "remix-serve ./build/index.js",
+    "dev2": "remix dev --manual",
+    "dev3": "remix dev --manual -c \"node --experimental-specifier-resolution=node build/index.js\"",
+    "dev": "remix dev --manual -c \"node dist/index.js\"",
+    "start": "remix-serve ./build/index.js --experimental-specifier-resolution=node",
     "typecheck": "tsc"
   },
   "dependencies": {
@@ -15,12 +17,17 @@
     "@emotion/react": "^11.11.1",
     "@emotion/server": "^11.11.0",
     "@emotion/styled": "^11.11.0",
+    "@iconify/react": "^4.1.1",
+    "@mui/lab": "5.0.0-alpha.147",
     "@mui/material": "^5.14.18",
+    "@mui/system": "^5.14.18",
     "@remix-run/css-bundle": "^2.3.1",
     "@remix-run/node": "^2.3.1",
     "@remix-run/react": "^2.3.1",
     "@remix-run/serve": "^2.3.1",
     "@remix-run/server-runtime": "^2.3.1",
+    "cross-env": "^7.0.3",
+    "lodash": "^4.17.21",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
@@ -29,10 +36,13 @@
   },
   "devDependencies": {
     "@remix-run/dev": "^2.3.1",
+    "@rsbuild/core": "^0.0.25",
+    "@types/lodash": "^4.14.202",
     "@types/react": "^18.2.38",
     "@types/react-dom": "^18.2.17",
-    "typescript": "^5.3.3",
-		"eslint": "^8.54.0",
-		"eslint-config-custom-react": "workspace:*"
+    "esbuild-register": "^3.5.0",
+    "eslint": "^8.54.0",
+    "eslint-config-custom-react": "workspace:*",
+    "typescript": "^5.3.3"
   }
 }
