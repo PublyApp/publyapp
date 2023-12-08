@@ -47,3 +47,5 @@ apps/*/dist
 packages/*/dist
 
 _mock
+
+front-next
