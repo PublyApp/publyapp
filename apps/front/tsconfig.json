@@ -5,7 +5,7 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "jsx": "react-jsx",
-    "moduleResolution": "node",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "target": "ES2022",
     "strict": true,
@@ -26,9 +26,5 @@
 		"declarationMap": false,
 		"declaration": false
   },
-	"include": [
-		// "remix.env.d.ts",
-		"@types",
-		"**/*.ts", "**/*.tsx"
-	],
+	"include": ["@types", "**/*.ts", "**/*.tsx"],
 }

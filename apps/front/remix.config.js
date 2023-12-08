@@ -1,5 +1,6 @@
 /** @type {import('@remix-run/dev').AppConfig} */
 module.exports = {
+	ignoredRouteFiles: ['**/.*'],
 	appDirectory: 'app',
 	browserBuildDirectory: 'public/build',
 	publicPath: '/build/',
@@ -8,8 +9,8 @@ module.exports = {
 	// TODO: when mui has esm support, remove this (default is esm)
 	// check it https://github.com/mui/material-ui/issues/30671
 	serverModuleFormat: 'cjs',
-
 	serverDependenciesToBundle: [
-		// todo
+		/^@devist\/.*/,
+		// /^@ui-react\/.*/
 	],
 };

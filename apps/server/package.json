@@ -65,6 +65,6 @@
 		"nodemon": "^2.0.22",
 		"ts-node": "^10.9.1",
 		"tsconfig": "workspace:*",
-		"typescript": "^5.3.2"
+		"typescript": "^5.3.3"
 	}
 }
