@@ -9,7 +9,7 @@
 		"baseUrl": ".",
 		"paths": {
 			"@server/*": ["./apps/server/src/*"],
-			"@front/*": ["./apps/front/src/*"],
+			"@front/*": ["./apps/front/app/*"],
 			"@office/*": ["./apps/office/src/*"],
 			"@awsm/*": ["./apps/awsm/src/*"],
 

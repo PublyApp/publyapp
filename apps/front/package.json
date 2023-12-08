@@ -27,7 +27,6 @@
   "engines": {
     "node": ">=14"
   },
-  "sideEffects": false,
   "devDependencies": {
     "@remix-run/dev": "^2.3.1",
     "@types/react": "^18.2.38",
