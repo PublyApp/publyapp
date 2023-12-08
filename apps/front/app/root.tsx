@@ -5,7 +5,7 @@
 import * as React from 'react';
 
 import { withEmotionCache } from '@emotion/react';
-import { unstable_useEnhancedEffect as useEnhancedEffect } from '@mui/material';
+import { unstable_useEnhancedEffect as useEnhancedEffect, useTheme } from '@mui/material';
 import {
 	isRouteErrorResponse,
 	Links,
@@ -17,9 +17,10 @@ import {
 	useRouteError,
 } from '@remix-run/react';
 
-import ClientStyleContext from './src/ClientStyleContext';
-import Layout from './src/Layout';
-import theme from './src/theme';
+import ClientStyleContext from './contexts/ClientStyleContext';
+import Layout from './layouts/Layout';
+
+// import theme from './src/theme';
 
 interface DocumentProps {
 	children: React.ReactNode;
@@ -28,6 +29,7 @@ interface DocumentProps {
 
 const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCache) => {
 	const clientStyleData = React.useContext(ClientStyleContext);
+	const theme = useTheme();
 
 	// Only executed on client
 	useEnhancedEffect(() => {
