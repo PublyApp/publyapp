@@ -9,15 +9,31 @@
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@devist/shared": "workspace:*",
+    "@devist/ui-react": "workspace:*",
+    "@emotion/cache": "^11.11.0",
     "@emotion/react": "^11.11.1",
+    "@emotion/server": "^11.11.0",
     "@emotion/styled": "^11.11.0",
-    "@mui/material": "^5.14.18"
-  },
-  "devDependencies": {
-
+    "@mui/material": "^5.14.18",
+    "@remix-run/css-bundle": "^2.3.1",
+    "@remix-run/node": "^2.3.1",
+    "@remix-run/react": "^2.3.1",
+    "@remix-run/serve": "^2.3.1",
+    "@remix-run/server-runtime": "^2.3.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "engines": {
     "node": ">=14"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "devDependencies": {
+    "@remix-run/dev": "^2.3.1",
+    "@types/react": "^18.2.38",
+    "@types/react-dom": "^18.2.17",
+    "typescript": "^5.3.3",
+		"eslint": "^8.54.0",
+		"eslint-config-custom-react": "workspace:*"
+  }
 }

@@ -14,7 +14,10 @@
 			"@awsm/*": ["./apps/awsm/src/*"],
 
 			"@shared/*": ["./packages/shared/*"],
-			"@ui-react/*": ["./packages/ui-react/*"]
+			"@ui-react/*": ["./packages/ui-react/*"],
+
+			// for remix app
+			"~/front/*": ["./apps/front/app/*"]
 		}
 	}
 }

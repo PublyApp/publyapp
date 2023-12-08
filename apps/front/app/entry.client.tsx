@@ -1,3 +1,5 @@
+/* eslint-disable prefer-arrow/prefer-arrow-functions */
+/* eslint-disable func-style */
 import * as React from 'react';
 
 import { CacheProvider } from '@emotion/react';
@@ -13,24 +15,24 @@ import theme from './src/theme';
 interface ClientCacheProviderProps {
 	children: React.ReactNode;
 }
-function ClientCacheProvider({ children }: ClientCacheProviderProps) {
+
+const ClientCacheProvider = ({ children }: ClientCacheProviderProps) => {
 	const [cache, setCache] = React.useState(createEmotionCache());
 
-	const clientStyleContextValue = React.useMemo(
-		() => ({
+	const clientStyleContextValue = React.useMemo(() => {
+		return {
 			reset() {
 				setCache(createEmotionCache());
 			},
-		}),
-		[],
-	);
+		};
+	}, []);
 
 	return (
 		<ClientStyleContext.Provider value={clientStyleContextValue}>
 			<CacheProvider value={cache}>{children}</CacheProvider>
 		</ClientStyleContext.Provider>
 	);
-}
+};
 
 const hydrate = () => {
 	React.startTransition(() => {
