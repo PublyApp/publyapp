@@ -1,4 +1,4 @@
-import buttonClasses from '@mui/material/Button/buttonClasses';
+import { buttonClasses } from '@mui/material/Button';
 import { listClasses } from '@mui/material/List';
 import { listItemIconClasses } from '@mui/material/ListItemIcon';
 import { paperClasses } from '@mui/material/Paper';

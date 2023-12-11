@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "build1": "remix build",
-    "dev2": "remix dev --manual",
-    "dev3": "remix dev --manual -c \"node --experimental-specifier-resolution=node build/index.js\"",
+    "dev": "remix dev --manual",
+    "dev2": "remix dev --manual -c \"node --experimental-specifier-resolution=node build/index.js\"",
     "dev1": "remix dev --manual -c \"node dist/index.js\"",
     "start": "remix-serve ./build/index.js --experimental-specifier-resolution=node",
     "typecheck": "tsc",
-    "build": "vite build && vite build --ssr",
-    "dev": "vite dev"
+    "build0": "vite build && vite build --ssr",
+    "dev0": "vite dev"
   },
   "dependencies": {
     "@devist/shared": "workspace:*",
@@ -23,6 +23,7 @@
     "@mui/lab": "5.0.0-alpha.147",
     "@mui/material": "^5.14.18",
     "@mui/system": "^5.14.18",
+    "@mui/utils": "^5.14.20",
     "@remix-run/css-bundle": "^2.3.1",
     "@remix-run/node": "^2.3.1",
     "@remix-run/react": "^2.3.1",
