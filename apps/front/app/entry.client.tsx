@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { CacheProvider } from '@emotion/react';
-import CssBaseline from '@mui/material/CssBaseline';
+// import CssBaseline from '@mui/material/CssBaseline';
 // import { ThemeProvider } from '@mui/material/styles';
 import { RemixBrowser } from '@remix-run/react';
 import * as ReactDOM from 'react-dom/client';
@@ -44,7 +44,7 @@ const hydrate = () => {
 			<ClientCacheProvider>
 				<ThemeProvider>
 					{/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
-					<CssBaseline />
+					{/* <CssBaseline /> */}
 					<RemixBrowser />
 				</ThemeProvider>
 			</ClientCacheProvider>,
