@@ -3,12 +3,14 @@
   "version": "5.0.0",
   "private": true,
   "scripts": {
-    "build": "remix build",
+    "build1": "remix build",
     "dev2": "remix dev --manual",
     "dev3": "remix dev --manual -c \"node --experimental-specifier-resolution=node build/index.js\"",
-    "dev": "remix dev --manual -c \"node dist/index.js\"",
+    "dev1": "remix dev --manual -c \"node dist/index.js\"",
     "start": "remix-serve ./build/index.js --experimental-specifier-resolution=node",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "build": "vite build && vite build --ssr",
+    "dev": "vite dev"
   },
   "dependencies": {
     "@devist/shared": "workspace:*",
@@ -29,7 +31,8 @@
     "cross-env": "^7.0.3",
     "lodash": "^4.17.21",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "vite": "^5.0.7"
   },
   "engines": {
     "node": ">=14"
@@ -43,6 +46,7 @@
     "esbuild-register": "^3.5.0",
     "eslint": "^8.54.0",
     "eslint-config-custom-react": "workspace:*",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vite-tsconfig-paths": "^4.2.2"
   }
 }

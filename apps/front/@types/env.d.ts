@@ -1,3 +1,6 @@
+/// <reference types="@remix-run/node" />
+/// <reference types="vite/client" />
+
 /// <reference types="@emotion/react/types/css-prop" />
 /// <reference types="vite-plugin-svgr/client" />
 
