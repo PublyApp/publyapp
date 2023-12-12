@@ -18,7 +18,8 @@ import {
 } from '@remix-run/react';
 
 import ClientStyleContext from './contexts/ClientStyleContext';
-import Layout from './layouts/Layout';
+
+// import Layout from './layouts/Layout';
 
 // import theme from './src/theme';
 
@@ -79,9 +80,9 @@ const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCa
 export default function App() {
 	return (
 		<Document>
-			<Layout>
-				<Outlet />
-			</Layout>
+			{/* <Layout> */}
+			<Outlet />
+			{/* </Layout> */}
 		</Document>
 	);
 }
@@ -107,12 +108,12 @@ export const ErrorBoundary = () => {
 
 		return (
 			<Document title={`${error.status} ${error.statusText}`}>
-				<Layout>
-					<h1>
-						{error.status}: {error.statusText}
-					</h1>
-					{message}
-				</Layout>
+				{/* <Layout> */}
+				<h1>
+					{error.status}: {error.statusText}
+				</h1>
+				{message}
+				{/* </Layout> */}
 			</Document>
 		);
 	}
@@ -121,14 +122,14 @@ export const ErrorBoundary = () => {
 		console.error(error);
 		return (
 			<Document title="Error!">
-				<Layout>
-					<div>
-						<h1>There was an error</h1>
-						<p>{error.message}</p>
-						<hr />
-						<p>Hey, developer, you should replace this with what you want your users to see.</p>
-					</div>
-				</Layout>
+				{/* <Layout> */}
+				<div>
+					<h1>There was an error</h1>
+					<p>{error.message}</p>
+					<hr />
+					<p>Hey, developer, you should replace this with what you want your users to see.</p>
+				</div>
+				{/* </Layout> */}
 			</Document>
 		);
 	}

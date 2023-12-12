@@ -1,4 +1,3 @@
-// @mui
 import Box from '@mui/material/Box';
 import Breadcrumbs, { type BreadcrumbsProps } from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
@@ -6,13 +5,6 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
 import RouterLink from './RouterLink';
-
-// import LinkItem from './link-item';
-
-//
-// import type { CustomBreadcrumbsProps } from './types';
-
-// @mui
 
 // ----------------------------------------------------------------------
 
