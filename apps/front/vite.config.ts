@@ -1,7 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { unstable_vitePlugin as remix } from '@remix-run/dev';
 import { defineConfig } from 'vite';
-// import { cjsInterop } from 'vite-plugin-cjs-interop';
+import { cjsInterop } from 'vite-plugin-cjs-interop';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
@@ -11,8 +11,8 @@ export default defineConfig({
 			// serverModuleFormat: 'esm',
 		}),
 		tsconfigPaths(),
-		// cjsInterop({
-		// 	dependencies: ['@mui/material/*'],
-		// }),
+		cjsInterop({
+			dependencies: ['react-lazy-load-image-component'],
+		}),
 	],
 });

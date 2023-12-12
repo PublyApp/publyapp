@@ -1,7 +1,11 @@
 import { forwardRef } from 'react';
 
 import { Box, type BoxProps } from '@mui/material';
-import { LazyLoadImage, type LazyLoadImageProps } from 'react-lazy-load-image-component';
+import _ from 'lodash';
+import * as pkg from 'react-lazy-load-image-component';
+import { type LazyLoadImageProps } from 'react-lazy-load-image-component';
+
+const { LazyLoadImage } = pkg;
 
 // ----------------------------------------------------------------------
 
@@ -36,7 +40,7 @@ const Image = forwardRef<unknown | undefined, ImageProps>(
 	({ ratio, disabledEffect = false, effect = 'blur', sx, ...other }, ref) => {
 		const content = (
 			<Box
-				component={LazyLoadImage}
+				component={LazyLoadImage as never}
 				wrapperClassName="wrapper"
 				effect={disabledEffect ? undefined : effect}
 				placeholderSrc={disabledEffect ? '/assets/transparent.png' : '/assets/placeholder.svg'}
