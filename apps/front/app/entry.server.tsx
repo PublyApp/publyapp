@@ -3,8 +3,6 @@
 
 import { CacheProvider } from '@emotion/react';
 import createEmotionServer from '@emotion/server/create-instance';
-// import CssBaseline from '@mui/material/CssBaseline';
-// import { ThemeProvider } from '@mui/material/styles';
 import type { EntryContext } from '@remix-run/node';
 import { RemixServer } from '@remix-run/react';
 import * as ReactDOMServer from 'react-dom/server';
