@@ -1,7 +1,6 @@
 // import * as React from 'react';
 
-import Link from '@mui/material/Link';
-import Typography from '@mui/material/Typography';
+import { Link, Typography } from '@mui/material';
 import type { MetaFunction } from '@remix-run/node';
 import { Link as RemixLink } from '@remix-run/react';
 
@@ -20,6 +19,7 @@ const Index = () => {
 			<Link to="/about" color="secondary" component={RemixLink}>
 				Go to the about page
 			</Link>
+			{/* <p>lol</p> */}
 		</>
 	);
 };

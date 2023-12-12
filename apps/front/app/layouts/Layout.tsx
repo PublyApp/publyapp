@@ -1,7 +1,10 @@
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 // import * as React from 'react';
 
-import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
+import { Box, Container } from '@mui/material';
+
+// import Box from '@mui/material/Box';
+// import Container from '@mui/material/Container';
 
 // import Copyright from './Copyright';
 // import ProTip from './ProTip';
