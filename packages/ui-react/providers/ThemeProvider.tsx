@@ -3,7 +3,7 @@
 import { useMemo, type ReactNode } from 'react';
 
 import { ThemeProvider as EmotionProvider } from '@emotion/react';
-import CssBaseline from '@mui/material/CssBaseline';
+import { CssBaseline } from '@mui/material';
 import { createTheme, type ThemeOptions } from '@mui/material/styles';
 import _ from 'lodash';
 

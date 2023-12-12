@@ -48,6 +48,7 @@
     "eslint": "^8.54.0",
     "eslint-config-custom-react": "workspace:*",
     "typescript": "^5.3.3",
+    "vite-plugin-cjs-interop": "^1.2.0",
     "vite-tsconfig-paths": "^4.2.2"
   }
 }
