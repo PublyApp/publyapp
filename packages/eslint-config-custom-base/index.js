@@ -45,6 +45,7 @@ module.exports = {
 		semi: 'warn',
 		'eol-last': 'warn',
 		'object-curly-spacing': ['warn', 'always'],
+		'no-underscore-dangle': 'off',
 
 		'padding-line-between-statements': [
 			'warn',
@@ -57,6 +58,14 @@ module.exports = {
 
 		// @typescript-eslint overrides
 		'no-unused-vars': 'off',
+		'@typescript-eslint/no-unused-vars': [
+			'error', // "error" or "warn"
+			{
+				argsIgnorePattern: '^_',
+				varsIgnorePattern: '^_',
+				caughtErrorsIgnorePattern: '^_',
+			},
+		],
 		'@typescript-eslint/consistent-type-imports': 'error',
 		'@typescript-eslint/consistent-type-exports': 'error',
 		'@typescript-eslint/no-explicit-any': 'warn',

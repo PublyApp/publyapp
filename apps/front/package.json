@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "build1": "remix build",
-    "dev": "remix dev --manual",
+    "dev0": "remix dev --manual",
     "dev2": "remix dev --manual -c \"node --experimental-specifier-resolution=node build/index.js\"",
     "dev1": "remix dev --manual -c \"node dist/index.js\"",
     "start": "remix-serve ./build/index.js --experimental-specifier-resolution=node",
     "typecheck": "tsc",
-    "build0": "vite build && vite build --ssr",
-    "dev0": "vite dev"
+    "build": "vite build && vite build --ssr",
+    "dev": "vite dev"
   },
   "dependencies": {
     "@devist/shared": "workspace:*",
@@ -30,7 +30,9 @@
     "@remix-run/serve": "^2.3.1",
     "@remix-run/server-runtime": "^2.3.1",
     "cross-env": "^7.0.3",
+    "date-fns": "^2.30.0",
     "lodash": "^4.17.21",
+    "nanoid": "^3.3.7",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "vite": "^5.0.7"
