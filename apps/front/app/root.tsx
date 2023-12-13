@@ -17,6 +17,8 @@ import {
 	useRouteError,
 } from '@remix-run/react';
 
+import MotionLazy from '@devist/ui-react/components/MotionLazy';
+
 import ClientStyleContext from './contexts/ClientStyleContext';
 import { initParse } from './lib/parse';
 
@@ -79,7 +81,9 @@ const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCa
 export default function App() {
 	return (
 		<Document>
-			<Outlet />
+			<MotionLazy>
+				<Outlet />
+			</MotionLazy>
 		</Document>
 	);
 }
