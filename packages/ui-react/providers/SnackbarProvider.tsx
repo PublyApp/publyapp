@@ -2,8 +2,7 @@
 
 import { useRef } from 'react';
 
-import Collapse from '@mui/material/Collapse';
-import IconButton from '@mui/material/IconButton';
+import { Collapse, IconButton } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import { closeSnackbar, MaterialDesignContent, SnackbarProvider as NotistackProvider } from 'notistack';
 
