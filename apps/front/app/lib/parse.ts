@@ -31,3 +31,23 @@ export const initParse = () => {
 	// const isServer = typeof window === 'undefined';
 	initParseSSR('http://localhost:6180/parse', 'devist', undefined, /* isServer ? 'local-master-key' : */ undefined);
 };
+
+/**
+ * You basically don't need this method once initParse has been called in your app's entrypoint
+ * Parse is available as a global namespace
+ */
+export const getParse = (): typeof Parse => {
+	const isServer = typeof window === 'undefined';
+
+	if (/* (process as any).browser */ !isServer) {
+		// eslint-disable-next-line global-require
+		// global.Parse = require('parse');
+		// eslint-disable-next-line global-require
+		// window.Parse = require('parse');
+		return _Parse;
+	}
+
+	// eslint-disable-next-line global-require
+	// global.Parse = require('parse/node');
+	return _ParseNode;
+};

@@ -41,8 +41,6 @@ const hydrate = () => {
 			document,
 			<ClientCacheProvider>
 				<ThemeProvider>
-					{/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
-					{/* <CssBaseline /> */}
 					<RemixBrowser />
 				</ThemeProvider>
 			</ClientCacheProvider>,
