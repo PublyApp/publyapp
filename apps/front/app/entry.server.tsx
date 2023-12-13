@@ -1,6 +1,4 @@
 /* eslint-disable prefer-arrow/prefer-arrow-functions */
-// import * as React from 'react';
-
 import { CacheProvider } from '@emotion/react';
 import createEmotionServer from '@emotion/server/create-instance';
 import type { EntryContext } from '@remix-run/node';
@@ -10,8 +8,6 @@ import * as ReactDOMServer from 'react-dom/server';
 import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
 
 import createEmotionCache from './lib/emotion/createEmotionCache';
-
-// import theme from './src/theme';
 
 export default function handleRequest(
 	request: Request,
@@ -26,8 +22,6 @@ export default function handleRequest(
 		return (
 			<CacheProvider value={cache}>
 				<ThemeProvider>
-					{/* CssBaseline kickstart an elegant, consistent, and simple baseline to build upon. */}
-					{/* <CssBaseline /> */}
 					<RemixServer context={remixContext} url={request.url} />
 				</ThemeProvider>
 			</CacheProvider>
