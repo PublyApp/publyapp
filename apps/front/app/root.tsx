@@ -18,15 +18,14 @@ import {
 } from '@remix-run/react';
 
 import ClientStyleContext from './contexts/ClientStyleContext';
-
-// import Layout from './layouts/Layout';
-
-// import theme from './src/theme';
+import { initParse } from './lib/parse';
 
 interface DocumentProps {
 	children: React.ReactNode;
 	title?: string;
 }
+
+initParse();
 
 const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCache) => {
 	const clientStyleData = React.useContext(ClientStyleContext);
