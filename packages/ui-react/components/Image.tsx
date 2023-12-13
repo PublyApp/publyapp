@@ -1,7 +1,6 @@
 import { forwardRef } from 'react';
 
 import { Box, type BoxProps } from '@mui/material';
-import _ from 'lodash';
 import * as pkg from 'react-lazy-load-image-component';
 import { type LazyLoadImageProps } from 'react-lazy-load-image-component';
 
