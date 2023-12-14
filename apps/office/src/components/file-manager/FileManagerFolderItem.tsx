@@ -12,9 +12,9 @@ import Stack from '@mui/material/Stack';
 
 import type { IFolderManager } from '@devist/ui-react/types/file';
 
-import usePopover from '@office/hooks/usePopover';
-import Iconify from '@ui-react/components/Iconify';
-import { fData } from '@ui-react/utils/number.utils';
+import usePopover from '@/office/hooks/usePopover';
+import Iconify from '@/ui-react/components/Iconify';
+import { fData } from '@/ui-react/utils/number.utils';
 
 import CustomPopover from '../CustomPopover';
 

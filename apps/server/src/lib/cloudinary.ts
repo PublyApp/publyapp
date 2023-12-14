@@ -1,6 +1,6 @@
 import cloudinary from 'cloudinary';
 
-import { env } from '@server/lib/env';
+import { env } from '@/server/lib/env';
 
 const { CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_NAME } = env;
 

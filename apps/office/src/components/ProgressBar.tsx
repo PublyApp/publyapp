@@ -4,7 +4,7 @@ import GlobalStyles from '@mui/material/GlobalStyles';
 import { useTheme } from '@mui/material/styles';
 import NProgress from 'nprogress';
 
-import usePathname from '@office/hooks/usePathame';
+import usePathname from '@/office/hooks/usePathame';
 
 // ----------------------------------------------------------------------
 

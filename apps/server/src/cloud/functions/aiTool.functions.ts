@@ -4,9 +4,9 @@ import type { PipelineStage } from 'mongoose';
 import { className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 import { createAIToolInputSchema } from '@devist/shared/validations/aiTool.validations';
 
-import { parseFrom, reOrderObjects } from '@server/lib/parse';
-import { pageToSkip } from '@server/utils/any.utils';
-import { getListParamsSchema } from '@server/utils/validation.utils';
+import { parseFrom, reOrderObjects } from '@/server/lib/parse';
+import { pageToSkip } from '@/server/utils/any.utils';
+import { getListParamsSchema } from '@/server/utils/validation.utils';
 
 const getAIToolsFunctionParamsSchema = getListParamsSchema;
 

@@ -1,7 +1,7 @@
 import type { SortingState } from '@tanstack/react-table';
 import { JsonParam, NumberParam, useQueryParam, useQueryParams, withDefault } from 'use-query-params';
 
-import { ROWS_PER_PAGE_OPTION } from '@ui-react/components/BestTable';
+import { ROWS_PER_PAGE_OPTION } from '@/ui-react/components/BestTable';
 
 const useTableQueryParams = () => {
 	// storable in the URL

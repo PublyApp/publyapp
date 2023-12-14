@@ -2,7 +2,7 @@ import './aiTool.functions';
 import './webHost.functions';
 import './appFile.functions';
 
-// import { parseTrigger } from '@server/lib/parse';
+// import { parseTrigger } from '@/server/lib/parse';
 
 // import './appFile.functions';
 

@@ -3,7 +3,7 @@ import { SchemaMigrations } from 'parse-server';
 import { className } from '@devist/shared/lib/constants';
 import type { AppFileWithPointers } from '@devist/shared/types/appFile.types';
 
-import { DEFAULT_CLP } from '@server/lib/constants';
+import { DEFAULT_CLP } from '@/server/lib/constants';
 
 const AppFileSchema = SchemaMigrations.makeSchema<AppFileWithPointers>(className.APP_FILE, {
 	fields: {

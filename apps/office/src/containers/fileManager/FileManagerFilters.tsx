@@ -10,8 +10,8 @@
 // import TextField from '@mui/material/TextField';
 // import Typography from '@mui/material/Typography';
 
-// import type { IFileFilters, IFileFilterValue } from '@office/types/file';
-// import Iconify from '@ui-react/components/Iconify';
+// import type { IFileFilters, IFileFilterValue } from '@/office/types/file';
+// import Iconify from '@/ui-react/components/Iconify';
 
 // // types
 // // import { IFileFilters, IFileFilterValue } from 'src/types/file';

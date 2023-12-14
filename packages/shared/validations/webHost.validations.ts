@@ -1,7 +1,7 @@
 import { type TFunction } from 'i18next';
 import { z } from 'zod';
 
-import { appLocales } from '@shared/lib/i18n/resources';
+import { appLocales } from '@/shared/lib/i18n/resources';
 
 import { getErrorMap } from '../lib/zod';
 

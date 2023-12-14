@@ -8,11 +8,11 @@ import { IMAGE_FORMAT_CONFIG } from '@devist/shared/lib/constants';
 import { ParseAppFile } from '@devist/shared/lib/parse/classes/appFile.class';
 import type { ListMeta } from '@devist/shared/types/any.types';
 
-import { USE_MASTER_KEY } from '@server/lib/constants';
-import { env } from '@server/lib/env';
-import { applySkipAndLimit } from '@server/lib/parse';
-import { addSuffixToFileName } from '@server/utils/any.utils';
-import type { AppFile, ImageFormatData, ImageFormatType } from '@shared/types/appFile.types';
+import { USE_MASTER_KEY } from '@/server/lib/constants';
+import { env } from '@/server/lib/env';
+import { applySkipAndLimit } from '@/server/lib/parse';
+import { addSuffixToFileName } from '@/server/utils/any.utils';
+import type { AppFile, ImageFormatData, ImageFormatType } from '@/shared/types/appFile.types';
 
 export type FileServiceProps = {
 	file?: Express.Multer.File;

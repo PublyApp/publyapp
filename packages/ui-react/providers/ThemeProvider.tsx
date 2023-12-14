@@ -7,13 +7,13 @@ import { CssBaseline } from '@mui/material';
 import { createTheme, type ThemeOptions } from '@mui/material/styles';
 import _ from 'lodash';
 
-import { darkMode } from '@ui-react/lib/mui/options/darkMode';
-import { presets } from '@ui-react/lib/mui/options/presets';
-import { getComponentOverrides } from '@ui-react/lib/mui/overrides/_index';
-import { customShadows } from '@ui-react/lib/mui/theme/custom-shadows';
-import { createPalette } from '@ui-react/lib/mui/theme/palette';
-import { createShadows } from '@ui-react/lib/mui/theme/shadows';
-import { typography } from '@ui-react/lib/mui/theme/typography';
+import { darkMode } from '@/ui-react/lib/mui/options/darkMode';
+import { presets } from '@/ui-react/lib/mui/options/presets';
+import { getComponentOverrides } from '@/ui-react/lib/mui/overrides/_index';
+import { customShadows } from '@/ui-react/lib/mui/theme/custom-shadows';
+import { createPalette } from '@/ui-react/lib/mui/theme/palette';
+import { createShadows } from '@/ui-react/lib/mui/theme/shadows';
+import { typography } from '@/ui-react/lib/mui/theme/typography';
 
 type Props = {
 	children: ReactNode;

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import usePathname from '@office/hooks/usePathame';
+import usePathname from '@/office/hooks/usePathame';
 
 // const popstateEvent = new PopStateEvent('popstate', { state: null });
 const pathnameChangeEvent = new Event('pathnameChange');

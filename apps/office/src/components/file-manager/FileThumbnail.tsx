@@ -5,9 +5,9 @@ import Stack from '@mui/material/Stack';
 import { useTheme, type SxProps, type Theme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 
-import Iconify from '@ui-react/components/Iconify';
-import { bgBlur } from '@ui-react/utils/css.utils';
-import { fileData, fileFormat, fileThumb } from '@ui-react/utils/files.utils';
+import Iconify from '@/ui-react/components/Iconify';
+import { bgBlur } from '@/ui-react/utils/css.utils';
+import { fileData, fileFormat, fileThumb } from '@/ui-react/utils/files.utils';
 
 // ----------------------------------------------------------------------
 

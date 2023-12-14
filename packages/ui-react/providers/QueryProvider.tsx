@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 
-import defaultQueryClient from '@ui-react/lib/react-query/queryClient';
+import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
 type Props = {
 	children: ReactNode;

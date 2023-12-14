@@ -13,10 +13,10 @@ import Typography from '@mui/material/Typography';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 import type { IFileManager } from '@devist/ui-react/types/file';
 
-import usePopover from '@office/hooks/usePopover';
-import Iconify from '@ui-react/components/Iconify';
-import { fDateTime } from '@ui-react/utils/date.utils';
-import { fData } from '@ui-react/utils/number.utils';
+import usePopover from '@/office/hooks/usePopover';
+import Iconify from '@/ui-react/components/Iconify';
+import { fDateTime } from '@/ui-react/utils/date.utils';
+import { fData } from '@/ui-react/utils/number.utils';
 
 import CustomPopover from '../CustomPopover';
 

@@ -1,6 +1,6 @@
 import type { BaseAttributes } from 'parse';
 
-import type { AppLocale } from '@shared/lib/i18n/resources';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 export type WebHost = BaseAttributes & {
 	translations: Record<

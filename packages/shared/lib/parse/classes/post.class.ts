@@ -1,5 +1,5 @@
-import { className } from '@shared/lib/constants';
-import type { IPost } from '@shared/types/post.types';
+import { className } from '@/shared/lib/constants';
+import type { IPost } from '@/shared/types/post.types';
 
 export class Post extends Parse.Object<IPost> {
 	constructor(attributes?: IPost) {

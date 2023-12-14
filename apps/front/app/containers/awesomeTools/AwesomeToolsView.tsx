@@ -3,7 +3,7 @@ import { Container } from '@mui/material';
 
 // import useFakeLoading from '@devist/ui-react/hooks/useFakeLoading';
 
-// import { _jobs } from '@front/_mock';
+// import { _jobs } from '@/front/_mock';
 
 import AwesomeToolsList from './AwesomeToolsList';
 

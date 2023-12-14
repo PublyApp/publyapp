@@ -6,11 +6,11 @@ import Stack from '@mui/material/Stack';
 // import Logo from 'src/components/logo';
 // import { NavSectionMini } from 'src/components/nav-section';
 
-import Logo from '@office/components/Logo';
-import NavSectionMini from '@office/components/nav-section/nav-mini/NavSectionMini';
-import { useNavData } from '@office/hooks/useNavData';
-import { NAV } from '@office/lib/constants';
-import { hideScroll } from '@ui-react/utils/css.utils';
+import Logo from '@/office/components/Logo';
+import NavSectionMini from '@/office/components/nav-section/nav-mini/NavSectionMini';
+import { useNavData } from '@/office/hooks/useNavData';
+import { NAV } from '@/office/lib/constants';
+import { hideScroll } from '@/ui-react/utils/css.utils';
 
 import NavToggleButton from '../_common/NavToggleButton';
 

@@ -5,7 +5,7 @@ import IconButton from '@mui/material/IconButton';
 import Stack, { type StackProps } from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import Iconify from '@ui-react/components/Iconify';
+import Iconify from '@/ui-react/components/Iconify';
 
 import RouterLink from '../RouterLink';
 

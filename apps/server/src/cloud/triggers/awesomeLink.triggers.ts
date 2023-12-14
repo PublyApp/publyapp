@@ -1,6 +1,6 @@
 import { className } from '@devist/shared/lib/constants';
 
-import { USE_MASTER_KEY } from '@server/lib/constants';
+import { USE_MASTER_KEY } from '@/server/lib/constants';
 
 import { parseTrigger } from '../../lib/parse';
 

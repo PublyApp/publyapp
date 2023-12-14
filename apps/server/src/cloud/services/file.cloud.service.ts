@@ -5,10 +5,10 @@
 // import sharp from 'sharp';
 // import z from 'zod';
 
-// import type { AppFile, FormatData } from '@shared/types/appFile.types';
-// import { className } from '@shared/utils/constants';
+// import type { AppFile, FormatData } from '@/shared/types/appFile.types';
+// import { className } from '@/shared/utils/constants';
 
-// // import { USE_MASTER_KEY } from "@server/utils/constants";
+// // import { USE_MASTER_KEY } from "@/server/utils/constants";
 
 // type FileCloudServiceProps = {
 // 	base64: string;

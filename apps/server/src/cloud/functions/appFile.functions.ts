@@ -1,8 +1,8 @@
 import { DEFAULT_PAGE_SIZE, functionName } from '@devist/shared/lib/constants';
 
-import { parseFrom } from '@server/lib/parse';
-import FileService from '@server/services/file.service';
-import FolderService from '@server/services/folder.service';
+import { parseFrom } from '@/server/lib/parse';
+import FileService from '@/server/services/file.service';
+import FolderService from '@/server/services/folder.service';
 
 Parse.Cloud.define(
 	functionName.findAppFile,

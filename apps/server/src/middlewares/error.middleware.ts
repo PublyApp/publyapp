@@ -2,7 +2,7 @@ import { logger } from 'parse-server';
 
 import type { NextFunction, Request, Response } from 'express';
 
-import type { HttpException } from '@server/exceptions/HttpException';
+import type { HttpException } from '@/server/exceptions/HttpException';
 
 const errorMiddleware = (error: HttpException, req: Request, res: Response, next: NextFunction): any => {
 	try {

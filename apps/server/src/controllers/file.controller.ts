@@ -1,7 +1,7 @@
 import type { RequestHandler } from 'express';
 
-import { HttpException } from '@server/exceptions/HttpException';
-import FileService from '@server/services/file.service';
+import { HttpException } from '@/server/exceptions/HttpException';
+import FileService from '@/server/services/file.service';
 
 export const handleUploadSingleFile: RequestHandler = async (req, res, next) => {
 	try {

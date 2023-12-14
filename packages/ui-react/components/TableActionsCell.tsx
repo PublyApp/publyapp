@@ -4,7 +4,7 @@ import { Button } from '@mui/material';
 import type { CellContext, RowSelectionState } from '@tanstack/react-table';
 import { useNavigate } from 'react-router-dom';
 
-import { ENABLE_TABLE_INLINE_EDITING } from '@ui-react/lib/constants';
+import { ENABLE_TABLE_INLINE_EDITING } from '@/ui-react/lib/constants';
 
 type Props<TData, TValue> = {
 	ctx: CellContext<TData, TValue>;

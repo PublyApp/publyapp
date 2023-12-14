@@ -6,8 +6,8 @@ import { immer } from 'zustand/middleware/immer';
 
 import { createSetter } from '@devist/ui-react/lib/zustand';
 
-import type { WebHost } from '@shared/types/webHost.types';
-import { useFindWebHost } from '@ui-react/lib/react-query/features/webHosts/webHost.hooks';
+import type { WebHost } from '@/shared/types/webHost.types';
+import { useFindWebHost } from '@/ui-react/lib/react-query/features/webHosts/webHost.hooks';
 
 import useTableQueryParams from '../../hooks/useTableQueryParams';
 
