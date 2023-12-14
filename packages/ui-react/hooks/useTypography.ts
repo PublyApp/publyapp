@@ -1,7 +1,7 @@
 import { useTheme } from '@mui/material/styles';
 import type { Variant } from '@mui/material/styles/createTypography';
 
-import { remToPx } from '@ui-react/utils/css.utils';
+import { remToPx } from '@/ui-react/utils/css.utils';
 
 import useWidth from './useWidth';
 

@@ -8,13 +8,13 @@
 		// making tsconfig paths work when type checking with tsc
 		"baseUrl": ".",
 		"paths": {
-			"@server/*": ["./apps/server/src/*"],
-			"@front/*": ["./apps/front/app/*"],
-			"@office/*": ["./apps/office/src/*"],
-			"@awsm/*": ["./apps/awsm/src/*"],
+			"@/server/*": ["./apps/server/src/*"],
+			"@/front/*": ["./apps/front/app/*"],
+			"@/office/*": ["./apps/office/src/*"],
+			"@/awsm/*": ["./apps/awsm/src/*"],
 
-			"@shared/*": ["./packages/shared/*"],
-			"@ui-react/*": ["./packages/ui-react/*"],
+			"@/shared/*": ["./packages/shared/*"],
+			"@/ui-react/*": ["./packages/ui-react/*"],
 
 			// for remix app
 			"~/front/*": ["./apps/front/app/*"]

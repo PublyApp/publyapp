@@ -6,7 +6,7 @@ import Skeleton from '@mui/material/Skeleton';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
-import { useFindAppFileSuspense } from '@ui-react/lib/react-query/features/appFiles/appFile.hooks';
+import { useFindAppFileSuspense } from '@/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 
 import CustomBreadcrumbs from '../../components/CustomBreadcrumbs';
 import FileManagerFileItem from '../../components/file-manager/FileManagerFileItem';

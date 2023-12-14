@@ -5,8 +5,8 @@ import Stack from '@mui/material/Stack';
 import { alpha } from '@mui/material/styles';
 import { AnimatePresence, m } from 'framer-motion';
 
-import { fileData } from '@ui-react/utils/files.utils';
-import { fData } from '@ui-react/utils/number.utils';
+import { fileData } from '@/ui-react/utils/files.utils';
+import { fData } from '@/ui-react/utils/number.utils';
 
 // utils
 // import { fData } from 'src/utils/format-number';

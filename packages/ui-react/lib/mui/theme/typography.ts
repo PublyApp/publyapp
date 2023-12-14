@@ -1,6 +1,6 @@
 import type { TypographyOptions } from '@mui/material/styles/createTypography';
 
-import { getResponsiveFontSizes, pxToRem } from '@ui-react/utils/css.utils';
+import { getResponsiveFontSizes, pxToRem } from '@/ui-react/utils/css.utils';
 
 const PRIMARY_FONT = ["'Roboto'", 'sans-serif'].join(', ');
 const TITLE_FONT = ["'Montserrat'", 'sans-serif'].join(', ');

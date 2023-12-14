@@ -1,7 +1,7 @@
 import type { Theme } from '@mui/material/styles';
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 
-import Iconify from '@ui-react/components/Iconify';
+import Iconify from '@/ui-react/components/Iconify';
 
 // components
 

@@ -3,7 +3,7 @@ import { menuItemClasses } from '@mui/material/MenuItem';
 import Popover, { type PopoverOrigin, type PopoverProps } from '@mui/material/Popover';
 import { alpha, styled } from '@mui/material/styles';
 
-import { bgBlur } from '@ui-react/utils/css.utils';
+import { bgBlur } from '@/ui-react/utils/css.utils';
 
 // ----------------------------------------------------------------------
 export type MenuPopoverArrowValue =

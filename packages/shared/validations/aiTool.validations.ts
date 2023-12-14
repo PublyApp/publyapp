@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { /* PricingType, */ PRICING_MODELS, PRICING_TYPES } from '@shared/types/aiTool.types';
+import { /* PricingType, */ PRICING_MODELS, PRICING_TYPES } from '@/shared/types/aiTool.types';
 
 export const createAIToolInputSchema = z.object({
 	name: z.string().min(1),

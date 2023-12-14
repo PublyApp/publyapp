@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 
-import SvgColor from '@office/components/SvgColor';
-import { BO_PATH_NAMES } from '@shared/lib/constants';
+import SvgColor from '@/office/components/SvgColor';
+import { BO_PATH_NAMES } from '@/shared/lib/constants';
 
-// import { paths } from '@office/utils/paths';
+// import { paths } from '@/office/utils/paths';
 
 // routes
 // import { paths } from 'src/routes/paths';

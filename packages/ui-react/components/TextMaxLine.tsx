@@ -4,7 +4,7 @@ import Link, { type LinkProps } from '@mui/material/Link';
 import type { Variant } from '@mui/material/styles/createTypography';
 import Typography, { type TypographyProps } from '@mui/material/Typography';
 
-import useTypography from '@ui-react/hooks/useTypography';
+import useTypography from '@/ui-react/hooks/useTypography';
 
 // ----------------------------------------------------------------------
 

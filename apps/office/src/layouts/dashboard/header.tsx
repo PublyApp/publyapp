@@ -5,11 +5,11 @@ import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
 import Toolbar from '@mui/material/Toolbar';
 
-// import Logo from '@office/components/Logo';
-import SvgColor from '@office/components/SvgColor';
-import { HEADER, NAV } from '@office/lib/constants';
-import useResponsive from '@ui-react/hooks/useResponsive';
-import { bgBlur } from '@ui-react/utils/css.utils';
+// import Logo from '@/office/components/Logo';
+import SvgColor from '@/office/components/SvgColor';
+import { HEADER, NAV } from '@/office/lib/constants';
+import useResponsive from '@/ui-react/hooks/useResponsive';
+import { bgBlur } from '@/ui-react/utils/css.utils';
 
 // hooks
 // import { useOffSetTop } from 'src/hooks/use-off-set-top';

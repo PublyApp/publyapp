@@ -1,7 +1,7 @@
 import { listClasses } from '@mui/material/List';
 import type { Theme } from '@mui/material/styles';
 
-import { paper } from '@ui-react/utils/css.utils';
+import { paper } from '@/ui-react/utils/css.utils';
 
 // ----------------------------------------------------------------------
 

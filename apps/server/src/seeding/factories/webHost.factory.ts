@@ -1,8 +1,8 @@
 import type { Faker } from '@faker-js/faker';
 
-import { ParseWebHost } from '@shared/lib/parse/classes/webHost.class';
+import { ParseWebHost } from '@/shared/lib/parse/classes/webHost.class';
 
-// import { className } from '@shared/utils/constants';
+// import { className } from '@/shared/utils/constants';
 
 export const webHostFactory = async (faker: Faker) => {
 	const webHost = new ParseWebHost({

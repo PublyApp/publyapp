@@ -2,7 +2,7 @@
 import IconButton from '@mui/material/IconButton';
 import { useTheme } from '@mui/material/styles';
 
-import { bgBlur } from '@ui-react/utils/css.utils';
+import { bgBlur } from '@/ui-react/utils/css.utils';
 
 import Iconify from '../Iconify';
 

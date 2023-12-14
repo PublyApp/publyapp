@@ -12,11 +12,11 @@ import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
 
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 
-import FileManager from '@office/containers/fileManager/FileManager';
-import Home from '@office/containers/home/Home';
-import CreateWebHost from '@office/containers/webHosts/CreateWebHost';
-import WebHosts from '@office/containers/webHosts/WebHosts';
-import DashboardLayout from '@office/layouts/dashboard/DashBoardLayout';
+import FileManager from '@/office/containers/fileManager/FileManager';
+import Home from '@/office/containers/home/Home';
+import CreateWebHost from '@/office/containers/webHosts/CreateWebHost';
+import WebHosts from '@/office/containers/webHosts/WebHosts';
+import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 
 import RequireAuth from '../components/RequireAuth';
 import LogIn from '../containers/logIn/LogIn';

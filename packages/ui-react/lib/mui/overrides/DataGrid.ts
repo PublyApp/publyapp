@@ -5,7 +5,7 @@ import { paperClasses } from '@mui/material/Paper';
 import { alpha, type Theme } from '@mui/material/styles';
 import { tablePaginationClasses } from '@mui/material/TablePagination';
 
-import { paper } from '@ui-react/utils/css.utils';
+import { paper } from '@/ui-react/utils/css.utils';
 
 //
 // import { paper } from '../../css';

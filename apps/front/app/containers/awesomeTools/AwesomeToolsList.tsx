@@ -4,9 +4,9 @@ import { nanoid } from 'nanoid';
 // import { CareerJobItem, CareerJobItemSkeleton } from '../item';
 // import type { IJobProps } from 'src/types/job';
 
-import { _jobs } from '@front/_mock';
-import useFakeLoading from '@ui-react/hooks/useFakeLoading';
-import type { IJobProps } from '@ui-react/types/job';
+import { _jobs } from '@/front/_mock';
+import useFakeLoading from '@/ui-react/hooks/useFakeLoading';
+import type { IJobProps } from '@/ui-react/types/job';
 
 import AwesomeToolItem from './AwesomeToolItem';
 import AwesomeToolItemSkeleton from './AwesomeToolItemSkeleton';

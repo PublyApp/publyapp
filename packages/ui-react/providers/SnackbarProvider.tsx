@@ -6,7 +6,7 @@ import { Collapse, IconButton } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import { closeSnackbar, MaterialDesignContent, SnackbarProvider as NotistackProvider } from 'notistack';
 
-import Iconify from '@ui-react/components/Iconify';
+import Iconify from '@/ui-react/components/Iconify';
 
 //
 // import Iconify from '../iconify';

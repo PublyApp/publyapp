@@ -1,6 +1,6 @@
 import z from 'zod';
 
-import { numericStringSchema } from '@shared/lib/zod';
+import { numericStringSchema } from '@/shared/lib/zod';
 
 export const envSchema = z.object({
 	PORT: numericStringSchema.default('3000'),

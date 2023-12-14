@@ -6,8 +6,8 @@ import { logger } from 'parse-server';
 
 import { className, roleEnum } from '@devist/shared/lib/constants';
 
-import { FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@server/lib/constants';
-import { getDatabase } from '@server/lib/parse';
+import { FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@/server/lib/constants';
+import { getDatabase } from '@/server/lib/parse';
 
 export const createRolesIfNotExists = async () => {
 	const roleEntries = Object.values(roleEnum).map((e) => {
