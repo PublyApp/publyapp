@@ -4,7 +4,8 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 
 const onWindows = /^win/.test(process.platform);
-const npmCommand = onWindows ? 'pnpm.cmd' : 'pnpm';
+const command = onWindows ? 'corepack.cmd' : 'corepack';
+// const command = onWindows ? 'pnpm.cmd' : 'pnpm';
 
 const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../');
 
@@ -12,7 +13,7 @@ const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
 const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
 
 // ! folder names
-const apps = ['server', 'office', 'front'];
+const apps = ['server', 'office', 'front', 'awsm'];
 const packages = [
 	'eslint-config-custom-base',
 	'eslint-config-custom-common-react',
@@ -39,7 +40,7 @@ for (const cwdPath of cwdPaths) {
 	console.log('====================================');
 	console.log('🔥', cwdPath);
 	console.log('====================================');
-	spawnSync(npmCommand, ['update'], { cwd: cwdPath, stdio: 'inherit' });
+	spawnSync(command, ['pnpm', 'update'], { cwd: cwdPath, stdio: 'inherit' });
 }
 
 process.exit(0);
