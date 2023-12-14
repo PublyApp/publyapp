@@ -21,15 +21,14 @@ import MotionLazy from '@devist/ui-react/components/MotionLazy';
 import SnackbarProvider from '@devist/ui-react/providers/SnackbarProvider';
 
 import ClientStyleContext from './contexts/ClientStyleContext';
-
-// import { initParse } from './lib/parse';
+import { initParse } from './lib/parse';
 
 interface DocumentProps {
 	children: React.ReactNode;
 	title?: string;
 }
 
-// initParse();
+initParse();
 
 const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCache) => {
 	const clientStyleData = React.useContext(ClientStyleContext);

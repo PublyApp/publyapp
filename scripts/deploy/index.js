@@ -15,7 +15,8 @@ const PACKAGES_DIR_SRC = path.join(MONOREPO_ROOT_DIR, PACKAGES_DIRNAME);
 
 const onWindows = /^win/.test(process.platform);
 const npxCommand = onWindows ? 'npx.cmd' : 'npx';
-const npmCommand = onWindows ? 'pnpm.cmd' : 'pnpm';
+const command = onWindows ? 'corepack.cmd' : 'corepack';
+// const command = onWindows ? 'pnpm.cmd' : 'pnpm';
 
 const deployAppServer = ({
 	//
@@ -121,8 +122,8 @@ const deployAppServer = ({
 	const mainFile = path.relative(MONOREPO_ROOT_DIR, path.join(MONOREPO_ROOT_DIR, appJsFileName));
 	// console.log(mainFile);
 	const START_SCRIPT = `node ./${mainFile.replace(/\\/g, '/')}`;
-	const npmArgs = ['pkg', 'set', `scripts.start=${START_SCRIPT}`];
-	spawnSync(npmCommand, npmArgs, {
+	const args = ['pnpm', 'pkg', 'set', `scripts.start=${START_SCRIPT}`];
+	spawnSync(command, args, {
 		cwd: path.join(DEPLOY_ROOT_DIR),
 		stdio: 'inherit',
 	});
