@@ -42,6 +42,7 @@ export const FRONT_PATH_NAMES = {
 	// TODO: edit route
 	home: '/',
 	job: '/job',
+	awesomeTools: '/awesome-tools',
 } as const;
 
 const ROOTS = {
