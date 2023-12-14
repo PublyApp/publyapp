@@ -1,6 +1,6 @@
-import { Components } from '@mui/material';
+import type { Components } from '@mui/material';
 
-import { InputSelectIcon } from '@ui-react/components/CustomIcons';
+import { InputSelectIcon } from '@/ui-react/components/CustomIcons';
 
 type Return = Pick<Components, 'MuiSelect'>;
 

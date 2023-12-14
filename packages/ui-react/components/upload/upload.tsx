@@ -7,7 +7,7 @@ import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { useDropzone } from 'react-dropzone';
 
-import UploadIllustration from '@ui-react/assets/illustrations/UploadIllustration';
+import UploadIllustration from '@/ui-react/assets/illustrations/UploadIllustration';
 
 import Iconify from '../Iconify';
 

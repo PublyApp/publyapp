@@ -5,8 +5,8 @@ import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import type { FileRejection } from 'react-dropzone';
 
-import { fileData } from '@ui-react/utils/files.utils';
-import { fData } from '@ui-react/utils/number.utils';
+import { fileData } from '@/ui-react/utils/files.utils';
+import { fData } from '@/ui-react/utils/number.utils';
 
 // utils
 // import { fData } from 'src/utils/format-number';

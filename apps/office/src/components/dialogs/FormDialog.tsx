@@ -7,7 +7,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 
-import useBoolean from '@ui-react/hooks/useBoolean';
+import useBoolean from '@/ui-react/hooks/useBoolean';
 
 // hooks
 // import { useBoolean } from 'src/hooks/use-boolean';

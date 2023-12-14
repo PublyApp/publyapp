@@ -1,7 +1,7 @@
 import { buttonClasses } from '@mui/material/Button';
 import type { Theme } from '@mui/material/styles';
 
-import Iconify from '@ui-react/components/Iconify';
+import Iconify from '@/ui-react/components/Iconify';
 
 // components
 

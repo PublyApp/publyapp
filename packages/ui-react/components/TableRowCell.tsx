@@ -3,7 +3,7 @@
 import { Box /* MenuItem, Select, */, TextField /* , type SelectChangeEvent  */ } from '@mui/material';
 import type { CellContext /* , SelectOption */ } from '@tanstack/react-table';
 
-import { ENABLE_TABLE_INLINE_EDITING } from '@ui-react/lib/constants';
+import { ENABLE_TABLE_INLINE_EDITING } from '@/ui-react/lib/constants';
 
 // import _ from 'lodash';
 

@@ -9,7 +9,7 @@ import { ZodError } from 'zod';
 import { LOCALE_HEADER_KEY, type IRoleConfig } from '@devist/shared/lib/constants';
 import { defaultLocale } from '@devist/shared/lib/i18n/resources';
 
-import { pageToSkip } from '@server/utils/any.utils';
+import { pageToSkip } from '@/server/utils/any.utils';
 
 import { USE_MASTER_KEY } from './constants';
 import { getT } from './i18n';

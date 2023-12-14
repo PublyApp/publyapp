@@ -7,9 +7,9 @@ import { useTranslation } from 'react-i18next';
 
 import useLocale from '@devist/ui-react/hooks/useLocale';
 
-import RouterLink from '@office/components/RouterLink';
-import { buildShareableUrl, useMainStore } from '@office/lib/zustand/store';
-import { BO_PATH_NAMES } from '@shared/lib/constants';
+import RouterLink from '@/office/components/RouterLink';
+import { buildShareableUrl, useMainStore } from '@/office/lib/zustand/store';
+import { BO_PATH_NAMES } from '@/shared/lib/constants';
 
 const Home = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);

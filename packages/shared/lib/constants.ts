@@ -1,4 +1,4 @@
-import { imageFormatTypes } from '@shared/types/appFile.types';
+import { imageFormatTypes } from '@/shared/types/appFile.types';
 
 export type IRoleConfig = {
 	name: string;

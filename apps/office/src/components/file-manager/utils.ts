@@ -1,6 +1,6 @@
 import type { IFileManager, IFolderManager } from '@devist/ui-react/types/file';
 
-import type { AppFile } from '@shared/types/appFile.types';
+import type { AppFile } from '@/shared/types/appFile.types';
 
 export const appFileData = (file: AppFile): IFileManager => {
 	const { mimeType: type, objectId: id, updatedAt: modifiedAt } = file;

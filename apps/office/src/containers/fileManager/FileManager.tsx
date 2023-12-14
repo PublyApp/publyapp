@@ -5,12 +5,14 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 
-// import EmptyContent from '@office/components/EmptyContent';
-import FileManagerGrid from '@office/containers/fileManager/FileManagerGrid';
-import Iconify from '@ui-react/components/Iconify';
-import useBoolean from '@ui-react/hooks/useBoolean';
+// import EmptyContent from '@/office/components/EmptyContent';
+// import Iconify from '@/ui-react/components/Iconify';
 
-// import { fileFormat } from '@ui-react/utils/files.utils';
+import FileManagerGrid from '@/office/containers/fileManager/FileManagerGrid';
+import Iconify from '@/ui-react/components/Iconify';
+import useBoolean from '@/ui-react/hooks/useBoolean';
+
+// import { fileFormat } from '@/ui-react/utils/files.utils';
 
 // import { _allFiles, FILE_TYPE_OPTIONS } from 'src/_mock';
 // import { ConfirmDialog } from 'src/components/custom-dialog';

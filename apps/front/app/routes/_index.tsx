@@ -1,7 +1,7 @@
 // import { Link, Typography } from '@mui/material';
 import type { MetaFunction } from '@remix-run/node';
 
-import AwesomeToolsView from '@front/containers/awesomeTools/AwesomeToolsView';
+import AwesomeToolsView from '@/front/containers/awesomeTools/AwesomeToolsView';
 
 // import { Link as RemixLink } from '@remix-run/react';
 

@@ -1,8 +1,8 @@
 // @mui
 import Box, { type BoxProps } from '@mui/material/Box';
 
-import { HEADER, NAV } from '@office/lib/constants';
-import useResponsive from '@ui-react/hooks/useResponsive';
+import { HEADER, NAV } from '@/office/lib/constants';
+import useResponsive from '@/ui-react/hooks/useResponsive';
 
 // components
 // import { useSettingsContext } from 'src/components/settings';

@@ -1,8 +1,8 @@
 /* eslint-disable global-require */
 // import Parse from 'parse/node';
 
-import { className } from '@shared/lib/constants';
-import type { UserAttributes } from '@shared/types/user.types';
+import { className } from '@/shared/lib/constants';
+import type { UserAttributes } from '@/shared/types/user.types';
 
 export class User extends Parse.User {
 	// eslint-disable-next-line @typescript-eslint/no-useless-constructor

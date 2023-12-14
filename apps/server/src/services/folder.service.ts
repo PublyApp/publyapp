@@ -1,5 +1,5 @@
-import { USE_MASTER_KEY } from '@server/lib/constants';
-import { ParseAppFile } from '@shared/lib/parse/classes/appFile.class';
+import { USE_MASTER_KEY } from '@/server/lib/constants';
+import { ParseAppFile } from '@/shared/lib/parse/classes/appFile.class';
 
 type FolderServiceProps = {
 	path?: string;

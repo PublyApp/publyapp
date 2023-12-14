@@ -6,8 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { LOCALE_HEADER_KEY } from '@devist/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
-// import i18n from '@ui-react/utils/i18n';
-import { localStorageGetItem } from '@ui-react/utils/storage.utils';
+// import i18n from '@/ui-react/utils/i18n';
+import { localStorageGetItem } from '@/ui-react/utils/storage.utils';
 
 // ----------------------------------------------------------------------
 

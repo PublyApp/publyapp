@@ -6,7 +6,7 @@ import Tooltip from '@mui/material/Tooltip';
 
 import Iconify from '@devist/ui-react/components/Iconify';
 
-import RouterLink from '@office/components/RouterLink';
+import RouterLink from '@/office/components/RouterLink';
 
 import type { NavConfigProps, NavItemProps } from '../types';
 

@@ -6,8 +6,8 @@ import ListItemText from '@mui/material/ListItemText';
 import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 
-import RouterLink from '@office/components/RouterLink';
-import Iconify from '@ui-react/components/Iconify';
+import RouterLink from '@/office/components/RouterLink';
+import Iconify from '@/ui-react/components/Iconify';
 
 import type { NavConfigProps, NavItemProps } from '../types';
 
