@@ -21,6 +21,7 @@ import MotionLazy from '@devist/ui-react/components/MotionLazy';
 import SnackbarProvider from '@devist/ui-react/providers/SnackbarProvider';
 
 import ClientStyleContext from './contexts/ClientStyleContext';
+import MainLayout from './layouts/main/MainLayout';
 import { initParse } from './lib/parse';
 
 interface DocumentProps {
@@ -84,7 +85,9 @@ export default function App() {
 		<Document>
 			<MotionLazy>
 				<SnackbarProvider>
-					<Outlet />
+					<MainLayout>
+						<Outlet />
+					</MainLayout>
 				</SnackbarProvider>
 			</MotionLazy>
 		</Document>
