@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import { forwardRef } from 'react';
 
-import Box, { type BoxProps } from '@mui/material/Box';
+import { Box } from '@mui/material';
+import { type BoxProps } from '@mui/material/Box';
 import { alpha, styled, useTheme } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
