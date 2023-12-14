@@ -5,27 +5,19 @@ import Label from '@devist/ui-react/components/Label';
 import useOffsetTop from '@devist/ui-react/hooks/useOffsetTop';
 import useResponsive from '@devist/ui-react/hooks/useResponsive';
 
-// import Label from 'src/components/label';
+import Logo from '@/front/components/Logo';
 // components
-// import Logo from 'src/components/logo';
 // import SettingsDrawer from 'src/components/settings/drawer';
-// config
-// import { HEADER } from 'src/config-global';
-// hooks
-// import useOffSetTop from 'src/hooks/useOffSetTop';
-// import useResponsive from 'src/hooks/useResponsive';
-// routes
-// import { paths } from 'src/routes/paths';
-// utils
-// import { bgBlur } from 'src/utils/cssStyles';
 
-// import HeaderShadow from '../../components/HeaderShadow';
-// import Searchbar from '../../components/Searchbar';
-//
 import { HEADER } from '@/front/lib/constants';
 import { bgBlur } from '@/ui-react/utils/css.utils';
 
-// import { navConfig, NavDesktop, NavMobile } from '../nav';
+import HeaderShadow from '../common/HeaderShadow';
+import Searchbar from '../common/Searchbar';
+
+import NavDesktop from './nav/desktop/NavDesktop';
+import NavMobile from './nav/mobile/NavMobile';
+import { navConfig } from './nav/navConfig';
 
 // ----------------------------------------------------------------------
 
@@ -67,7 +59,7 @@ const Header = ({ headerOnDark }: Props) => {
 			>
 				<Container sx={{ height: 1, display: 'flex', alignItems: 'center' }}>
 					<Box sx={{ lineHeight: 0, position: 'relative' }}>
-						{/* <Logo /> */}
+						<Logo />
 
 						<Link href="https://zone-docs.vercel.app/changelog" target="_blank" rel="noopener">
 							<Label
@@ -88,11 +80,11 @@ const Header = ({ headerOnDark }: Props) => {
 						</Link>
 					</Box>
 
-					{/* {isMdUp && <NavDesktop data={navConfig} />} */}
+					{isMdUp && <NavDesktop data={navConfig} />}
 
 					<Stack spacing={2} flexGrow={1} direction="row" alignItems="center" justifyContent="flex-end">
 						<Stack spacing={1} direction="row" alignItems="center">
-							{/* <Searchbar /> */}
+							<Searchbar />
 
 							{/* <SettingsDrawer /> */}
 						</Stack>
@@ -104,11 +96,11 @@ const Header = ({ headerOnDark }: Props) => {
 						)}
 					</Stack>
 
-					{/* {!isMdUp && <NavMobile data={navConfig} />} */}
+					{!isMdUp && <NavMobile data={navConfig} />}
 				</Container>
 			</Toolbar>
 
-			{/* {isOffset && <HeaderShadow />} */}
+			{isOffset && <HeaderShadow />}
 		</AppBar>
 	);
 };
