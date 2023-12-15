@@ -1,13 +1,11 @@
 import { forwardRef } from 'react';
 
-// @mui
 import { Link } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
-// components
-import Iconify from 'src/components/iconify';
+import { Link as RouterLink } from '@remix-run/react';
 
-//
-import { NavItemProps } from '../types';
+import Iconify from '@/ui-react/components/Iconify';
+
+import { type NavItemProps } from '../types';
 
 import { StyledNavItem } from './styles';
 
