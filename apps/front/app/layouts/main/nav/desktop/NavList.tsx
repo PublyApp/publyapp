@@ -1,23 +1,21 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useEffect, useState } from 'react';
 
-// @mui
 import { Box, Fade, Unstable_Grid2 as Grid, Link, Portal, Stack } from '@mui/material';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
-// components
-import Image from 'src/components/image';
-import Label from 'src/components/label';
-// hooks
-import useActiveLink from 'src/hooks/useActiveLink';
+import { Link as RouterLink, useLocation } from '@remix-run/react';
 
-//
-import { NavItemBaseProps, NavListProps } from '../types';
+import useActiveLink from '@/front/hooks/useActiveLink';
+import Image from '@/ui-react/components/Image';
+import Label from '@/ui-react/components/Label';
+
+import type { NavItemBaseProps, NavListProps } from '../types';
 
 import { NavItem } from './NavItem';
 import { StyledMenu, StyledSubheader } from './styles';
 
 // ----------------------------------------------------------------------
 
-export default function NavList({ item }: { item: NavItemBaseProps }) {
+const NavList = ({ item }: { item: NavItemBaseProps }) => {
 	const { pathname } = useLocation();
 
 	const [openMenu, setOpenMenu] = useState(false);
@@ -26,16 +24,17 @@ export default function NavList({ item }: { item: NavItemBaseProps }) {
 
 	const { active, isExternalLink } = useActiveLink(path, false);
 
-	const mainList = children ? children.filter((list) => list.subheader !== 'Common') : [];
+	const mainList = children
+		? children.filter((list) => {
+				return list.subheader !== 'Common';
+		  })
+		: [];
 
-	const commonList = children ? children.find((list) => list.subheader === 'Common') : null;
-
-	useEffect(() => {
-		if (openMenu) {
-			handleCloseMenu();
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [pathname]);
+	const commonList = children
+		? children.find((list) => {
+				return list.subheader === 'Common';
+		  })
+		: null;
 
 	const handleOpenMenu = () => {
 		if (children) {
@@ -46,6 +45,13 @@ export default function NavList({ item }: { item: NavItemBaseProps }) {
 	const handleCloseMenu = () => {
 		setOpenMenu(false);
 	};
+
+	useEffect(() => {
+		if (openMenu) {
+			handleCloseMenu();
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [pathname]);
 
 	return (
 		<>
@@ -75,15 +81,17 @@ export default function NavList({ item }: { item: NavItemBaseProps }) {
 											bgcolor: 'background.neutral',
 										}}
 									>
-										{mainList.map((list) => (
-											<NavSubList
-												key={list.subheader}
-												subheader={list.subheader}
-												cover={list.cover}
-												items={list.items}
-												isNew={list.isNew}
-											/>
-										))}
+										{mainList.map((list) => {
+											return (
+												<NavSubList
+													key={list.subheader}
+													subheader={list.subheader}
+													cover={list.cover}
+													items={list.items}
+													isNew={list.isNew}
+												/>
+											);
+										})}
 									</Box>
 								</Grid>
 
@@ -101,11 +109,13 @@ export default function NavList({ item }: { item: NavItemBaseProps }) {
 			)}
 		</>
 	);
-}
+};
+
+export default NavList;
 
 // ----------------------------------------------------------------------
 
-function NavSubList({ subheader, isNew, cover, items }: NavListProps) {
+const NavSubList = ({ subheader, isNew, cover, items }: NavListProps) => {
 	const { pathname } = useLocation();
 
 	const coverPath = items.length ? items[0].path : '';
@@ -133,11 +143,17 @@ function NavSubList({ subheader, isNew, cover, items }: NavListProps) {
 						sx={{
 							borderRadius: 1,
 							cursor: 'pointer',
-							boxShadow: (theme) => theme.customShadows.z8,
-							transition: (theme) => theme.transitions.create('all'),
+							boxShadow: (theme) => {
+								return theme.customShadows.z8;
+							},
+							transition: (theme) => {
+								return theme.transitions.create('all');
+							},
 							'&:hover': {
 								opacity: 0.8,
-								boxShadow: (theme) => theme.customShadows.z24,
+								boxShadow: (theme) => {
+									return theme.customShadows.z24;
+								},
 							},
 						}}
 					/>
@@ -145,10 +161,10 @@ function NavSubList({ subheader, isNew, cover, items }: NavListProps) {
 			)}
 
 			<Stack spacing={1.5} alignItems="flex-start">
-				{items.map((item) => (
-					<NavItem key={item.title} item={item} active={item.path === pathname} subItem />
-				))}
+				{items.map((item) => {
+					return <NavItem key={item.title} item={item} active={item.path === pathname} subItem />;
+				})}
 			</Stack>
 		</Stack>
 	);
-}
+};

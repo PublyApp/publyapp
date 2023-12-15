@@ -1,16 +1,15 @@
 import { useEffect } from 'react';
 
-// @mui
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import Stack from '@mui/material/Stack';
 
 import Logo from '@/office/components/Logo';
 import NavSectionVertical from '@/office/components/nav-section/nav-vertical/NavSectionVertical';
-import Scrollbar from '@/office/components/Scrollbar';
 import { useNavData } from '@/office/hooks/useNavData';
-import usePathname from '@/office/hooks/usePathame';
+import usePathname from '@/office/hooks/usePathname';
 import { NAV } from '@/office/lib/constants';
+import Scrollbar from '@/ui-react/components/Scrollbar';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 
 import NavToggleButton from '../_common/NavToggleButton';

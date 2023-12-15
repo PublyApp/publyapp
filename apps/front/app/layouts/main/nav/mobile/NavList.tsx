@@ -1,15 +1,12 @@
 import { useState } from 'react';
 
-// @mui
 import { Collapse } from '@mui/material';
-import { useLocation } from 'react-router-dom';
-// components
-import { NavSectionVertical } from 'src/components/nav-section';
-// hooks
-import useActiveLink from 'src/hooks/useActiveLink';
+import { useLocation } from '@remix-run/react';
 
-//
-import { NavItemBaseProps } from '../types';
+import NavSectionVertical from '@/front/components/nav-section/vertical/NavSectionVertical';
+import useActiveLink from '@/front/hooks/useActiveLink';
+
+import type { NavItemBaseProps } from '../types';
 
 import NavItem from './NavItem';
 
@@ -19,7 +16,7 @@ type NavListProps = {
 	item: NavItemBaseProps;
 };
 
-export default function NavList({ item }: NavListProps) {
+const NavList = ({ item }: NavListProps) => {
 	const { pathname } = useLocation();
 
 	const { path, children } = item;
@@ -33,7 +30,9 @@ export default function NavList({ item }: NavListProps) {
 			<NavItem
 				item={item}
 				open={open}
-				onClick={() => setOpen(!open)}
+				onClick={() => {
+					return setOpen(!open);
+				}}
 				active={pathname === path}
 				isExternalLink={isExternalLink}
 			/>
@@ -45,4 +44,6 @@ export default function NavList({ item }: NavListProps) {
 			)}
 		</>
 	);
-}
+};
+
+export default NavList;

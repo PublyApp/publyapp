@@ -1,17 +1,15 @@
-// @mui
 import { Link, ListItemIcon, ListItemText } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
-// components
-import Iconify from 'src/components/iconify';
+import { Link as RouterLink } from '@remix-run/react';
 
-//
-import { NavItemProps } from '../types';
+import Iconify from '@/ui-react/components/Iconify';
+
+import type { NavItemProps } from '../types';
 
 import { StyledNavItem } from './styles';
 
 // ----------------------------------------------------------------------
 
-export default function NavItem({ item, open, active, isExternalLink, ...other }: NavItemProps) {
+const NavItem = ({ item, open, active, isExternalLink, ...other }: NavItemProps) => {
 	const { title, path, icon, children } = item;
 
 	const renderContent = (
@@ -44,4 +42,6 @@ export default function NavItem({ item, open, active, isExternalLink, ...other }
 			{renderContent}
 		</Link>
 	);
-}
+};
+
+export default NavItem;

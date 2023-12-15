@@ -1,23 +1,21 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useEffect, useState } from 'react';
 
-// @mui
 import { Button, Drawer, IconButton, List, Stack } from '@mui/material';
-import { useLocation } from 'react-router-dom';
-import Iconify from 'src/components/iconify';
-// components
-import Logo from 'src/components/logo';
-import Scrollbar from 'src/components/scrollbar';
-// config
-import { NAV } from 'src/config-global';
+import { useLocation } from '@remix-run/react';
 
-//
-import { NavProps } from '../types';
+import Logo from '@/front/components/Logo';
+import { NAV } from '@/front/lib/constants';
+import Iconify from '@/ui-react/components/Iconify';
+import Scrollbar from '@/ui-react/components/Scrollbar';
+
+import type { NavProps } from '../types';
 
 import NavList from './NavList';
 
 // ----------------------------------------------------------------------
 
-export default function NavMobile({ data }: NavProps) {
+const NavMobile = ({ data }: NavProps) => {
 	const { pathname } = useLocation();
 
 	const [open, setOpen] = useState(false);
@@ -57,9 +55,9 @@ export default function NavMobile({ data }: NavProps) {
 					<Logo sx={{ mx: 2.5, my: 3 }} />
 
 					<List component="nav" disablePadding>
-						{data.map((link) => (
-							<NavList key={link.title} item={link} />
-						))}
+						{data.map((link) => {
+							return <NavList key={link.title} item={link} />;
+						})}
 					</List>
 
 					<Stack spacing={1.5} sx={{ p: 3 }}>
@@ -71,4 +69,6 @@ export default function NavMobile({ data }: NavProps) {
 			</Drawer>
 		</>
 	);
-}
+};
+
+export default NavMobile;
