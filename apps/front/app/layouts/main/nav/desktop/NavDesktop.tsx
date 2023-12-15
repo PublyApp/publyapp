@@ -1,14 +1,12 @@
-// @mui
 import { Stack } from '@mui/material';
 
-//
-import { NavProps } from '../types';
+import type { NavProps } from '../types';
 
 import NavList from './NavList';
 
 // ----------------------------------------------------------------------
 
-export default function NavDesktop({ data, sx }: NavProps) {
+const NavDesktop = ({ data, sx }: NavProps) => {
 	return (
 		<Stack
 			component="nav"
@@ -20,9 +18,11 @@ export default function NavDesktop({ data, sx }: NavProps) {
 				...sx,
 			}}
 		>
-			{data.map((link) => (
-				<NavList key={link.title} item={link} />
-			))}
+			{data.map((link) => {
+				return <NavList key={link.title} item={link} />;
+			})}
 		</Stack>
 	);
-}
+};
+
+export default NavDesktop;

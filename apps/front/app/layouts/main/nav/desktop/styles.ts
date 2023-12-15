@@ -1,16 +1,16 @@
-// @mui
 import { ListItemButton, ListSubheader, Paper } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
-//
-import { NavItemProps } from '../types';
+import { type NavItemProps } from '../types';
 
 // ----------------------------------------------------------------------
 
 type StyledNavItemProps = Omit<NavItemProps, 'item'>;
 
 export const StyledNavItem = styled(ListItemButton, {
-	shouldForwardProp: (prop) => prop !== 'active' && prop !== 'open' && prop !== 'subItem',
+	shouldForwardProp: (prop) => {
+		return prop !== 'active' && prop !== 'open' && prop !== 'subItem';
+	},
 })<StyledNavItemProps>(({ active, open, subItem, theme }) => {
 	const dotActiveStyle = {
 		content: '""',
@@ -65,21 +65,25 @@ export const StyledNavItem = styled(ListItemButton, {
 
 // ----------------------------------------------------------------------
 
-export const StyledMenu = styled(Paper)(({ theme }) => ({
-	top: 72,
-	width: '100%',
-	borderRadius: 0,
-	position: 'fixed',
-	zIndex: theme.zIndex.modal,
-	boxShadow: theme.customShadows.dialog,
-	backgroundColor: theme.palette.background.default,
-}));
+export const StyledMenu = styled(Paper)(({ theme }) => {
+	return {
+		top: 72,
+		width: '100%',
+		borderRadius: 0,
+		position: 'fixed',
+		zIndex: theme.zIndex.modal,
+		boxShadow: theme.customShadows.dialog,
+		backgroundColor: theme.palette.background.default,
+	};
+});
 
 // ----------------------------------------------------------------------
 
-export const StyledSubheader = styled(ListSubheader)(({ theme }) => ({
-	...theme.typography.h6,
-	padding: 0,
-	color: theme.palette.text.primary,
-	backgroundColor: 'transparent',
-}));
+export const StyledSubheader = styled(ListSubheader)(({ theme }) => {
+	return {
+		...theme.typography.h6,
+		padding: 0,
+		color: theme.palette.text.primary,
+		backgroundColor: 'transparent',
+	};
+});

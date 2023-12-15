@@ -1,25 +1,14 @@
 import { forwardRef, memo } from 'react';
 
-// @mui
-import Box from '@mui/material/Box';
-// @mui
+import { Box } from '@mui/material';
 import { alpha, styled, type SxProps, type Theme } from '@mui/material/styles';
 import SimpleBar, { type Props as SimplebarProps } from 'simplebar-react';
-
-//
-// import { StyledRootScrollbar, StyledScrollbar } from './styles';
-// import type { ScrollbarProps } from './types';
-
-// import type { Theme, SxProps } from '@mui/material/styles';
-
-// ----------------------------------------------------------------------
 
 export interface ScrollbarProps extends SimplebarProps {
 	children?: React.ReactNode;
 	sx?: SxProps<Theme>;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 const Scrollbar = forwardRef<HTMLDivElement, ScrollbarProps>(({ children, sx, ...other }, ref) => {
 	const userAgent = typeof navigator === 'undefined' ? 'SSR' : navigator.userAgent;
 
@@ -51,7 +40,6 @@ const Scrollbar = forwardRef<HTMLDivElement, ScrollbarProps>(({ children, sx, ..
 	);
 });
 
-// eslint-disable-next-line react-refresh/only-export-components
 export default memo(Scrollbar);
 
 // ----------------------------------------------------------------------
