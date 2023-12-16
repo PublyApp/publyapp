@@ -9,6 +9,8 @@ import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i1
 // import i18n from '@/ui-react/utils/i18n';
 import { localStorageGetItem } from '@/ui-react/utils/storage.utils';
 
+import { defaultLangConfig, langConfigsMap } from '../config/lang.config';
+
 // ----------------------------------------------------------------------
 
 const useLocale = () => {
@@ -16,16 +18,18 @@ const useLocale = () => {
 
 	const storedLocale = localStorageGetItem('i18nextLng');
 	const locale =
-		appLocales.find((lang) => {
-			return lang === storedLocale;
+		appLocales.find((iLocale) => {
+			return iLocale === storedLocale;
 		}) || defaultLocale;
 
-	const changeLocale = (value: AppLocale) => {
+	const lang = langConfigsMap.get(locale) || defaultLangConfig;
+
+	const changeLocale = useCallback((value: AppLocale) => {
 		i18n.changeLanguage(value);
 		Parse.CoreManager.set('REQUEST_HEADERS', {
 			[LOCALE_HEADER_KEY]: value,
 		});
-	};
+	}, []);
 
 	const setLocale: Dispatch<SetStateAction<AppLocale>> = useCallback(
 		(value) => {
@@ -42,7 +46,8 @@ const useLocale = () => {
 	);
 
 	return {
-		locale,
+		// locale,
+		lang,
 		setLocale,
 		// i18n,
 		// t,
