@@ -33,7 +33,29 @@ export const USE_MASTER_KEY = { useMasterKey: true } as const;
 /**
  * Parse server strict class level permissions
  */
-export const DEFAULT_CLP: SchemaMigrations.CPLsInterface = {};
+export const DEFAULT_CLP: SchemaMigrations.CPLsInterface = {
+	find: {
+		'*': true,
+	},
+	get: {
+		'*': true,
+	},
+	count: {
+		'*': true,
+	},
+	create: {
+		requiresAuthentication: true,
+	},
+	update: {
+		requiresAuthentication: true,
+	},
+	delete: {
+		requiresAuthentication: true,
+	},
+	addField: {
+		requiresAuthentication: true,
+	},
+};
 
 export const PUBLIC_READONLY_CLP: SchemaMigrations.CPLsInterface = {
 	find: {
