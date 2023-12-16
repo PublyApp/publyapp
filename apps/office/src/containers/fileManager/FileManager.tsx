@@ -12,6 +12,8 @@ import FileManagerGrid from '@/office/containers/fileManager/FileManagerGrid';
 import Iconify from '@/ui-react/components/Iconify';
 import useBoolean from '@/ui-react/hooks/useBoolean';
 
+import FileManagerFilters from './FileManagerFilters';
+
 // import { fileFormat } from '@/ui-react/utils/files.utils';
 
 // import { _allFiles, FILE_TYPE_OPTIONS } from 'src/_mock';
@@ -130,19 +132,19 @@ const FileManager = () => {
 
 	const renderFilters = (
 		<Stack spacing={2} direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-end', md: 'center' }}>
-			{/* <FileManagerFilters
-				openDateRange={openDateRange.value}
-				onCloseDateRange={openDateRange.onFalse}
-				onOpenDateRange={openDateRange.onTrue}
-				//
-				filters={filters}
-				onFilters={handleFilters}
-				//
-				dateError={dateError}
-				typeOptions={FILE_TYPE_OPTIONS}
-			/> */}
+			<FileManagerFilters
+			// openDateRange={openDateRange.value}
+			// onCloseDateRange={openDateRange.onFalse}
+			// onOpenDateRange={openDateRange.onTrue}
+			// //
+			// filters={filters}
+			// onFilters={handleFilters}
+			// //
+			// dateError={dateError}
+			// typeOptions={FILE_TYPE_OPTIONS}
+			/>
 
-			<ToggleButtonGroup size="small" value={view} exclusive onChange={() => {} /* handleChangeView */}>
+			{/* <ToggleButtonGroup size="small" value={view} exclusive onChange={handleChangeView}>
 				<ToggleButton value="list">
 					<Iconify icon="solar:list-bold" />
 				</ToggleButton>
@@ -150,7 +152,7 @@ const FileManager = () => {
 				<ToggleButton value="grid">
 					<Iconify icon="mingcute:dot-grid-fill" />
 				</ToggleButton>
-			</ToggleButtonGroup>
+			</ToggleButtonGroup> */}
 		</Stack>
 	);
 

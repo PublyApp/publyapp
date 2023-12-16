@@ -14,7 +14,7 @@ import { BO_PATH_NAMES } from '@/shared/lib/constants';
 const Home = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const { t } = useTranslation();
-	const { locale, setLocale /* , t */ } = useLocale();
+	const { lang, setLocale /* , t */ } = useLocale();
 
 	// =========================
 	const addBear = useMainStore((state) => {
@@ -42,7 +42,7 @@ const Home = () => {
 			<Typography variant="h1">Home / {t('common:hello')}</Typography>
 			<Button
 				onClick={() => {
-					setLocale(locale === 'en' ? 'fr' : 'en');
+					setLocale(lang.value === 'en' ? 'fr' : 'en');
 				}}
 				color="primary"
 			>
