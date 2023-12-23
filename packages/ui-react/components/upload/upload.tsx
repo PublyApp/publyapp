@@ -2,7 +2,6 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
-// @mui
 import { alpha } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { useDropzone } from 'react-dropzone';
@@ -11,16 +10,9 @@ import UploadIllustration from '@/ui-react/assets/illustrations/UploadIllustrati
 
 import Iconify from '../Iconify';
 
-// assets
-// import { UploadIllustration } from 'src/assets/illustrations';
-
-//
-// import Iconify from '../iconify';
-
 import MultiFilePreview from './MultiFilePreview';
 import RejectionFiles from './RejectionFiles';
 import SingleFilePreview from './SingleFilePreview';
-//
 import type { UploadProps } from './types';
 
 // ----------------------------------------------------------------------
