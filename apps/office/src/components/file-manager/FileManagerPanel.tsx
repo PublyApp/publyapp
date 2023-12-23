@@ -9,11 +9,6 @@ import Iconify from '@/ui-react/components/Iconify';
 
 import RouterLink from '../RouterLink';
 
-// // routes
-// import { RouterLink } from 'src/routes/components';
-// // components
-// import Iconify from 'src/components/iconify';
-
 // ----------------------------------------------------------------------
 
 interface Props extends StackProps {
