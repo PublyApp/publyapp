@@ -69,8 +69,8 @@ const FileManagerGrid = (/* { table,  data, dataFiltered, onDeleteItem, onOpenCo
 	return (
 		<>
 			<Box ref={containerRef}>
-				<Panel />
-				<Breadcrumbs />
+				{/* <Panel /> */}
+				{/* <Breadcrumbs /> */}
 
 				<Box
 					gap={3}
@@ -119,66 +119,39 @@ const FileManagerGrid = (/* { table,  data, dataFiltered, onDeleteItem, onOpenCo
 export default FileManagerGrid;
 
 // --------------------
-const Panel = () => {
-	// const folderPath = useMainStore(folderPathSelector);
-	// const getFolde
-	const { folderPath } = useFileManager();
+// const Panel = () => {
+// 	// const folderPath = useMainStore(folderPathSelector);
+// 	// const getFolde
+// 	const { folderPath } = useFileManager();
 
-	// const {
-	// 	result: { data },
-	// } = useFindAppFileSuspense({ folderPath });
-	const getFolderName = () => {
-		const lastPath = _.last(folderPath.split('/'));
+// 	// const {
+// 	// 	result: { data },
+// 	// } = useFindAppFileSuspense({ folderPath });
+// 	const getFolderName = () => {
+// 		const lastPath = _.last(folderPath.split('/'));
 
-		if (!lastPath) {
-			return 'root folder';
-		}
+// 		if (!lastPath) {
+// 			return 'root folder';
+// 		}
 
-		return lastPath;
-	};
+// 		return lastPath;
+// 	};
 
-	return (
-		<FileManagerPanel
-			title={getFolderName()}
-			sx={{ marginBottom: 0 }}
-			// subTitle={`${
-			// 	data.filter((item) => {
-			// 		return item.type === 'folder';
-			// 	}).length
-			// } folders`}
-			onOpen={/* newFolder.setTrue */ () => {}}
-			// collapse={/* folders.value */ false}
-			// onCollapse={/* folders.toggle */ () => {}}
-		/>
-	);
-};
-
-// --------------------
-const Breadcrumbs = () => {
-	// const folderPath = useMainStore(folderPathSelector);
-	const { folderPath } = useFileManager();
-
-	//  = folderPath.split('/')
-	const links = useMemo(() => {
-		const iLinks: ComponentProps<typeof CustomBreadcrumbs>['links'] = [{ name: '/' }];
-
-		// if (folderPath === '/') {
-		// 	iLinks.push({ name: '/' });
-		// 	return iLinks;
-		// }
-
-		folderPath.split('/').forEach((name, index /* ,  array */) => {
-			if (index < 1) return;
-			iLinks.push({
-				name,
-			});
-		});
-
-		return iLinks;
-	}, [folderPath]);
-
-	return <CustomBreadcrumbs links={links} separator=">" sx={{ marginBottom: '22px' }} />;
-};
+// 	return (
+// 		<FileManagerPanel
+// 			title={getFolderName()}
+// 			sx={{ marginBottom: 0 }}
+// 			// subTitle={`${
+// 			// 	data.filter((item) => {
+// 			// 		return item.type === 'folder';
+// 			// 	}).length
+// 			// } folders`}
+// 			onOpen={/* newFolder.setTrue */ () => {}}
+// 			// collapse={/* folders.value */ false}
+// 			// onCollapse={/* folders.toggle */ () => {}}
+// 		/>
+// 	);
+// };
 
 const GRID_ITEM_MAX_WIDTH = '270px';
 
