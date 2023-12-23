@@ -4,10 +4,13 @@
 /* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable prefer-arrow/prefer-arrow-functions */
 /* eslint-disable func-style */
-import fs from 'fs';
-import path from 'path';
 
-import { createRsbuild } from '@rsbuild/core';
+// @ts-check
+
+const path = require('path');
+const fs = require('fs');
+
+const { createRsbuild } = require('@rsbuild/core');
 
 const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../');
 const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
@@ -16,7 +19,12 @@ const PACKAGE_FILE = 'package.json';
 
 const toDeploy = ['preprod', 'production'].includes(process.env.APP_ENV || '');
 
-function listDirectories(pth: string) {
+/**
+ * list directories of provided folder path
+ * @param {string} pth
+ * @returns {string[]}
+ */
+function listDirectories(pth) {
 	const directories = fs
 		.readdirSync(pth, { withFileTypes: true })
 		.filter((dirent) => {
@@ -34,7 +42,8 @@ function findExternals() {
 	const appDirs = listDirectories(APPS_DIR);
 	const packagesDirs = listDirectories(PACKAGES_DIR);
 
-	const externalsSet = new Set<string>();
+	/** @type {Set<string>} */
+	const externalsSet = new Set();
 
 	[...appDirs, ...packagesDirs].forEach((dirName) => {
 		const filePath = path.join(dirName, PACKAGE_FILE);
@@ -63,7 +72,6 @@ function findExternals() {
 
 const run = async () => {
 	const rsbuild = await createRsbuild({
-		target: 'node',
 		rsbuildConfig: {
 			source: {
 				entry: {
@@ -71,6 +79,7 @@ const run = async () => {
 				},
 			},
 			output: {
+				targets: ['node'],
 				distPath: {
 					server: '',
 				},

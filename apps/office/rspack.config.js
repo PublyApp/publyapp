@@ -46,7 +46,7 @@ const config = {
 						maxSize: 60,
 					},
 				},
-		  }
+			}
 		: {}),
 	plugins: [
 		new EnvironmentPlugin(env ?? process.env),
