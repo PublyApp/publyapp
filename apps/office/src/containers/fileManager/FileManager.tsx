@@ -1,20 +1,12 @@
-// import {Box} from '@mui/material';
-import Button from '@mui/material/Button';
+import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
-// import ToggleButton from '@mui/material/ToggleButton';
-// import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 
-import Iconify from '@devist/ui-react/components/Iconify';
-import useBoolean from '@devist/ui-react/hooks/useBoolean';
-
-// import EmptyContent from '@/office/components/EmptyContent';
-// import Iconify from '@/ui-react/components/Iconify';
-
-import FileManagerNewFolderDialog from '@/office/components/file-manager/FileManagerNewFolderDialog';
 import FileManagerGrid from '@/office/containers/fileManager/FileManagerGrid';
 
+import FileManagerActions from './FileManagerActions';
+import FileManagerBreadcrumbs from './FileManagerBreadcrumbs';
 import FileManagerFilters from './FileManagerFilters';
 
 // import { fileFormat } from '@/ui-react/utils/files.utils';
@@ -57,7 +49,7 @@ const FileManager = () => {
 
 	// const confirm = useBoolean();
 
-	const upload = useBoolean();
+	// const upload = useBoolean();
 
 	// const [view, setView] = useState('list');
 	// const view = 'grid';
@@ -133,31 +125,31 @@ const FileManager = () => {
 	// 	setFilters(defaultFilters);
 	// }, []);
 
-	const renderFilters = (
-		<Stack spacing={2} direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-end', md: 'center' }}>
-			<FileManagerFilters
-			// openDateRange={openDateRange.value}
-			// onCloseDateRange={openDateRange.onFalse}
-			// onOpenDateRange={openDateRange.onTrue}
-			// //
-			// filters={filters}
-			// onFilters={handleFilters}
-			// //
-			// dateError={dateError}
-			// typeOptions={FILE_TYPE_OPTIONS}
-			/>
+	// const renderFilters = (
+	// 	<Stack spacing={2} direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-end', md: 'center' }}>
+	// 		<FileManagerFilters
+	// 		// openDateRange={openDateRange.value}
+	// 		// onCloseDateRange={openDateRange.onFalse}
+	// 		// onOpenDateRange={openDateRange.onTrue}
+	// 		// //
+	// 		// filters={filters}
+	// 		// onFilters={handleFilters}
+	// 		// //
+	// 		// dateError={dateError}
+	// 		// typeOptions={FILE_TYPE_OPTIONS}
+	// 		/>
 
-			{/* <ToggleButtonGroup size="small" value={view} exclusive onChange={handleChangeView}>
-				<ToggleButton value="list">
-					<Iconify icon="solar:list-bold" />
-				</ToggleButton>
+	// 		{/* <ToggleButtonGroup size="small" value={view} exclusive onChange={handleChangeView}>
+	// 			<ToggleButton value="list">
+	// 				<Iconify icon="solar:list-bold" />
+	// 			</ToggleButton>
 
-				<ToggleButton value="grid">
-					<Iconify icon="mingcute:dot-grid-fill" />
-				</ToggleButton>
-			</ToggleButtonGroup> */}
-		</Stack>
-	);
+	// 			<ToggleButton value="grid">
+	// 				<Iconify icon="mingcute:dot-grid-fill" />
+	// 			</ToggleButton>
+	// 		</ToggleButtonGroup> */}
+	// 	</Stack>
+	// );
 
 	// const renderResults = (
 	// 	<FileManagerFiltersResult
@@ -173,17 +165,18 @@ const FileManager = () => {
 
 	return (
 		<>
-			<Container maxWidth={/* settings.themeStretch ? false : 'lg' */ 'lg'}>
+			<Container maxWidth="lg">
 				<Stack direction="row" alignItems="center" justifyContent="space-between">
-					<Typography variant="h4">File Manager</Typography>
-					{/* <Box> */}
-					<Button variant="contained" startIcon={<Iconify icon="eva:cloud-upload-fill" />} onClick={upload.setTrue}>
-						New Folder
-					</Button>
-					<Button variant="contained" startIcon={<Iconify icon="eva:cloud-upload-fill" />} onClick={upload.setTrue}>
-						Upload
-					</Button>
-					{/* </Box> */}
+					<Box>
+						<Typography variant="h4" gutterBottom>
+							File Manager
+						</Typography>
+						<FileManagerBreadcrumbs />
+					</Box>
+
+					<Box>
+						<FileManagerActions />
+					</Box>
 				</Stack>
 
 				<Stack
@@ -192,7 +185,10 @@ const FileManager = () => {
 						my: { xs: 3, md: 5 },
 					}}
 				>
-					{renderFilters}
+					{/* {renderFilters} */}
+					<Stack spacing={2} direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'flex-end', md: 'center' }}>
+						<FileManagerFilters />
+					</Stack>
 
 					{/* {canReset && renderResults} */}
 				</Stack>
@@ -234,16 +230,8 @@ const FileManager = () => {
 					onOpenConfirm={confirm.onTrue}
 					/>
 				)} */}
-				<FileManagerGrid
-				// table={table}
-				// data={tableData}
-				// dataFiltered={dataFiltered}
-				// onDeleteItem={handleDeleteItem}
-				// onOpenConfirm={confirm.onTrue}
-				/>
+				<FileManagerGrid />
 			</Container>
-
-			<FileManagerNewFolderDialog open={upload.value} onClose={upload.setFalse} />
 
 			{/* <ConfirmDialog
 				open={confirm.value}
