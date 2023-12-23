@@ -13,7 +13,7 @@
 		"eslint-config-custom-base": "workspace:*",
 		"eslint-config-custom-common-react": "workspace:*",
 		"eslint-config-next": "^14.0.4",
-		"eslint-plugin-react": "7.28.0"
+		"eslint-plugin-react": "7.33.2"
 	},
 	"dependencies": {
 		"next": "^14.0.4"

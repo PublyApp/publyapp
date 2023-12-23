@@ -18,7 +18,7 @@ import WebHosts from '@/office/containers/webHosts/WebHosts';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 
 import RequireAuth from '../components/RequireAuth';
-import FileManager from '../containers/fileManager/FileManager.1';
+import FileManager from '../containers/fileManager/FileManager';
 import LogIn from '../containers/logIn/LogIn';
 import NotFound from '../containers/notFound/NotFound';
 
