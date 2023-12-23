@@ -123,7 +123,7 @@ const FileManagerFilters = (
 			const checked = filters.type.includes(newValue)
 				? filters.type.filter((value) => {
 						return value !== newValue;
-				  })
+					})
 				: [...filters.type, newValue];
 			onFilters('type', checked);
 		},
