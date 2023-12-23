@@ -1,20 +1,29 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable no-param-reassign */
+/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable import/no-extraneous-dependencies */
 /* eslint-disable prefer-arrow/prefer-arrow-functions */
 /* eslint-disable func-style */
-/* eslint-disable @typescript-eslint/no-use-before-define */
-/* eslint-disable @typescript-eslint/no-var-requires */
+
+// @ts-check
 
 const path = require('path');
 const fs = require('fs');
 
-const { ExternalsPlugin, node } = require('@rspack/core');
+const { createRsbuild } = require('@rsbuild/core');
 
 const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../');
 const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
 const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
 const PACKAGE_FILE = 'package.json';
 
-const toDeploy = ['preprod', 'production'].includes(process.env.APP_ENV);
+const toDeploy = ['preprod', 'production'].includes(process.env.APP_ENV || '');
 
+/**
+ * list directories of provided folder path
+ * @param {string} pth
+ * @returns {string[]}
+ */
 function listDirectories(pth) {
 	const directories = fs
 		.readdirSync(pth, { withFileTypes: true })
@@ -33,6 +42,7 @@ function findExternals() {
 	const appDirs = listDirectories(APPS_DIR);
 	const packagesDirs = listDirectories(PACKAGES_DIR);
 
+	/** @type {Set<string>} */
 	const externalsSet = new Set();
 
 	[...appDirs, ...packagesDirs].forEach((dirName) => {
@@ -60,37 +70,29 @@ function findExternals() {
 	return [...externalsSet];
 }
 
-/** @type {import('@rspack/cli').Configuration} */
-const config = {
-	entry: {
-		index: path.resolve(__dirname, 'src/index.ts'),
-		'cloud/index': path.resolve(__dirname, 'src/cloud/index.ts'),
-		'seeding/seed': path.resolve(__dirname, 'src/seeding/seed.ts'),
-	},
-	output: {
-		path: path.resolve(__dirname, 'dist'),
-		filename: '[name].js',
-	},
-	target: 'node',
-	mode: toDeploy ? 'production' : 'development',
-	// externalsType: 'commonjs',
-	// externals: [...findExternals(), 'parse/node', 'parse-server/lib/Config', 'parse-server/lib/Auth'],
-	plugins: [
-		new node.NodeTargetPlugin(),
-		new ExternalsPlugin('commonjs', [
-			...findExternals(),
-			'parse/node',
-			'parse-server/lib/Config',
-			'parse-server/lib/Auth',
-		]),
-	],
-	resolve: {
-		alias: {
-			'@server': '.',
-			'@shared': path.join(PACKAGES_DIR, 'shared'),
-			// '@ui-react': path.join(PACKAGES_DIR, 'ui-react'), // ! warning! we are bundling for server here
+const run = async () => {
+	const rsbuild = await createRsbuild({
+		rsbuildConfig: {
+			source: {
+				entry: {
+					index: './src/index.ts',
+					'cloud/index': './src/cloud/index.ts',
+					'seeding/seed': './src/seeding/seed.ts',
+				},
+			},
+			output: {
+				targets: ['node'],
+				distPath: {
+					server: '',
+				},
+				externals: [...findExternals(), 'parse/node', 'parse-server/lib/Config', 'parse-server/lib/Auth'],
+			},
 		},
-	},
+	});
+
+	await rsbuild.build({
+		mode: toDeploy ? 'production' : 'development',
+	});
 };
 
-exports.default = config;
+run();

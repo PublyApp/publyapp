@@ -54,13 +54,13 @@ export default defineConfig({
 		},
 		define: _.assign({}, getDefinedEnv(env ?? (process.env as never))),
 	},
-	dev: {
-		port: 6182,
-		historyApiFallback: true,
-	},
 	output: {
 		copy: {
 			patterns: [{ from: 'public' }],
 		},
+	},
+	server: {
+		port: 6182,
+		historyApiFallback: true,
 	},
 });
