@@ -8,7 +8,9 @@ import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
-import { handleUploadSingleFile } from './controllers/file.controller';
+import { endPoint } from '@/shared/lib/constants';
+
+import { handleUploadManyFiles, handleUploadSingleFile } from './controllers/file.controller';
 import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
 import { env, envSchema, setAppEnv } from './lib/env';
@@ -110,10 +112,17 @@ const bootstrap = async () => {
 
 	// set Routes
 	app.post(
-		'/upload-file-single',
+		endPoint.uploadSingleFile,
 		protectionMiddleware({ withAuth: true, withKey: false }),
 		multerConfig.single('file'),
 		handleUploadSingleFile,
+	);
+
+	app.post(
+		endPoint.uploadManyFiles,
+		protectionMiddleware({ withAuth: true, withKey: false }),
+		multerConfig.array('files'),
+		handleUploadManyFiles,
 	);
 
 	// set error middleware // ! must be after all routes definition (I am wondering if I should make it after the parse dashboard also)

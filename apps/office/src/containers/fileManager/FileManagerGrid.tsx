@@ -62,10 +62,6 @@ const FileManagerGrid = (/* { table,  data, dataFiltered, onDeleteItem, onOpenCo
 	// 	setFolderName(event.target.value);
 	// }, []);
 
-	// const {
-	// 	result: { data },
-	// } = useFindAppFileSuspense({});
-
 	return (
 		<>
 			<Box ref={containerRef}>
@@ -124,9 +120,6 @@ export default FileManagerGrid;
 // 	// const getFolde
 // 	const { folderPath } = useFileManager();
 
-// 	// const {
-// 	// 	result: { data },
-// 	// } = useFindAppFileSuspense({ folderPath });
 // 	const getFolderName = () => {
 // 		const lastPath = _.last(folderPath.split('/'));
 
