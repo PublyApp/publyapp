@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 // import { Box } from '@mui/material';
 import Button from '@mui/material/Button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import _ from 'lodash';
 import { useForm } from 'react-hook-form';
 import z from 'zod';
 
@@ -12,7 +13,8 @@ import z from 'zod';
 
 import Iconify from '@devist/ui-react/components/Iconify';
 import useBoolean from '@devist/ui-react/hooks/useBoolean';
-import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
+
+// import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 
 import FileManagerNewFolderDialog from '@/office/components/file-manager/FileManagerNewFolderDialog';
 import { http } from '@/office/lib/axios/http';
@@ -29,7 +31,10 @@ const fileSchema = z.custom<File>((data) => {
 }, 'Data is not an instance of File');
 
 const schema = z.object({
-	files: z.array(fileSchema),
+	files: z.array(fileSchema).min(1),
+	// .refine((data) => {
+	// 	return _.isEmpty(data);
+	// }, 'files must be non empty'),
 });
 
 type Input = z.infer<typeof schema>;
@@ -49,7 +54,7 @@ const FileManagerActions = () => {
 
 	// const { folderPath, setFolderPath } = useFileManager();
 
-	const { key: findAppFileQueryKey } = useFindAppFileSuspense({ folderPath: '/' });
+	// const { key: findAppFileQueryKey } = useFindAppFileSuspense({ folderPath: '/' });
 	const queryClient = useQueryClient();
 
 	const { mutate: uploadManyFiles } = useMutation({
@@ -70,7 +75,7 @@ const FileManagerActions = () => {
 			);
 		},
 		onSuccess: (/* data, variables, context */) => {
-			queryClient.invalidateQueries({ queryKey: [findAppFileQueryKey[0]] });
+			queryClient.invalidateQueries({ queryKey: [/* findAppFileQueryKey[0] */ 'findAppFile'] });
 		},
 	});
 
@@ -142,3 +147,5 @@ const FileManagerActions = () => {
 };
 
 export default FileManagerActions;
+
+// ========================
