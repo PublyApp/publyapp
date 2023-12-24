@@ -19,6 +19,8 @@ interface Props extends DialogProps {
 	//
 	open: boolean;
 	onClose: VoidFunction;
+	//
+	onUpload: VoidFunction;
 }
 
 const FileManagerNewFolderDialog = ({
@@ -31,6 +33,9 @@ const FileManagerNewFolderDialog = ({
 	//
 	folderName,
 	onChangeFolderName,
+	//
+	onUpload,
+	//
 	...other
 }: Props) => {
 	const [files, setFiles] = useState<(File | string)[]>([]);
@@ -55,6 +60,7 @@ const FileManagerNewFolderDialog = ({
 	);
 
 	const handleUpload = () => {
+		onUpload();
 		onClose();
 		console.info('ON UPLOAD');
 	};
@@ -88,7 +94,8 @@ const FileManagerNewFolderDialog = ({
 					<TextField fullWidth label="Folder name" value={folderName} onChange={onChangeFolderName} sx={{ mb: 3 }} />
 				)}
 
-				<Upload multiple files={files} onDrop={handleDrop} onRemove={handleRemoveFile} />
+				{/* only accept images for now */}
+				<Upload accept={{ 'image/*': [] }} multiple files={files} onDrop={handleDrop} onRemove={handleRemoveFile} />
 			</DialogContent>
 
 			<DialogActions>
