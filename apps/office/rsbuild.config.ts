@@ -52,7 +52,8 @@ export default defineConfig({
 		entry: {
 			index: './src/main.tsx',
 		},
-		define: _.assign({}, getDefinedEnv(env ?? (process.env as never))),
+		// define: _.assign({}, getDefinedEnv(env ?? (process.env as never))),
+		define: getDefinedEnv(env ?? (process.env as never)),
 	},
 	output: {
 		copy: {

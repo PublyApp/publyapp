@@ -25,14 +25,19 @@ const FileManagerActions = () => {
 
 	return (
 		<>
-			<Button variant="contained" startIcon={<Iconify icon="eva:cloud-upload-fill" />} onClick={newFolder.setTrue}>
+			<Button
+				variant="contained"
+				startIcon={<Iconify icon="eva:cloud-upload-fill" />}
+				onClick={newFolder.setTrue}
+				// disabled
+			>
 				New Folder
 			</Button>
 			<Button variant="contained" startIcon={<Iconify icon="eva:cloud-upload-fill" />} onClick={upload.setTrue}>
 				Upload
 			</Button>
 
-			<FileManagerNewFolderDialog open={upload.value} onClose={upload.setFalse} />
+			<FileManagerNewFolderDialog open={upload.value} onClose={upload.setFalse} onUpload={() => {}} />
 
 			<FileManagerNewFolderDialog
 				open={newFolder.value}
@@ -45,6 +50,7 @@ const FileManagerActions = () => {
 				}}
 				folderName={folderName}
 				onChangeFolderName={handleChangeFolderName}
+				onUpload={() => {}}
 			/>
 		</>
 	);

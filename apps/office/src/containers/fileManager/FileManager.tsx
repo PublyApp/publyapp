@@ -169,7 +169,7 @@ const FileManager = () => {
 				<Stack direction="row" alignItems="center" justifyContent="space-between">
 					<Box>
 						<Typography variant="h4" gutterBottom>
-							File Manager
+							File Manager{/* maybe render the current folder name here */}
 						</Typography>
 						<FileManagerBreadcrumbs />
 					</Box>
