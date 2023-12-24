@@ -9,16 +9,18 @@ export const createInstance = (baseURL: string) => {
 	});
 };
 
-/**
- * set api bearer token header
- * @param {boolean} hasFile
- * @param {string} sessionToken // session token of the current user
- * @returns
- */
-export const protectRequest = (sessionToken: string, hasFile = false): AxiosRequestConfig => {
+export const protectRequest = ({
+	sessionToken,
+	restApiKey,
+	hasFile = false,
+}: {
+	sessionToken?: string;
+	hasFile?: boolean;
+	restApiKey?: string;
+}): AxiosRequestConfig => {
 	return {
 		headers: {
-			// 'X-1lalana-Key': import.meta.env.VITE_REST_API_KEY ?? '',
+			'X-Devist-Key': restApiKey,
 			'X-Parse-Session-Token': sessionToken,
 			'Content-Type': hasFile ? 'multipart/form-data' : 'application/json',
 		},
