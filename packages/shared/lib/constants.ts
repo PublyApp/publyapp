@@ -69,6 +69,11 @@ export const functionName = {
 	findAppFile: 'findAppFile',
 } as const;
 
+export const endPoint = {
+	uploadSingleFile: '/upload-single-file',
+	uploadManyFiles: '/upload-many-files',
+} as const;
+
 export const DEFAULT_PAGE_SIZE = 25;
 
 export const isServer = typeof window === 'undefined';

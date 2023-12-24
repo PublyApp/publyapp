@@ -21,6 +21,8 @@ interface Props extends DialogProps {
 	onClose: VoidFunction;
 	//
 	onUpload: VoidFunction;
+	// onUpload?: ({ files }: { files: File[] }) => void;
+	onDropFiles?: ({ files }: { files: File[] }) => void;
 }
 
 const FileManagerNewFolderDialog = ({
@@ -35,10 +37,11 @@ const FileManagerNewFolderDialog = ({
 	onChangeFolderName,
 	//
 	onUpload,
+	onDropFiles,
 	//
 	...other
 }: Props) => {
-	const [files, setFiles] = useState<(File | string)[]>([]);
+	const [files, setFiles] = useState<File /*  | string */[]>([]);
 
 	useEffect(() => {
 		if (!open) {
@@ -54,13 +57,16 @@ const FileManagerNewFolderDialog = ({
 				});
 			});
 
-			setFiles([...files, ...newFiles]);
+			const iFiles = [...files, ...newFiles];
+
+			onDropFiles?.({ files: iFiles });
+			setFiles(iFiles);
 		},
-		[files],
+		[files, onDropFiles],
 	);
 
 	const handleUpload = () => {
-		onUpload();
+		onUpload?.(/* { files } */);
 		onClose();
 		console.info('ON UPLOAD');
 	};
