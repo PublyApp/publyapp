@@ -313,6 +313,9 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.2.0(react@18.2.0)
+      react-dropzone:
+        specifier: ^14.2.3
+        version: 14.2.3(react@18.2.0)
       react-error-boundary:
         specifier: ^4.0.12
         version: 4.0.12(react@18.2.0)
@@ -688,9 +691,15 @@ importers:
       i18next:
         specifier: ^23.7.11
         version: 23.7.11
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
       mongoose:
         specifier: ^8.0.3
         version: 8.0.3
+      multer:
+        specifier: 1.4.5-lts.1
+        version: 1.4.5-lts.1
       parse:
         specifier: ^4.3.1
         version: 4.3.1
@@ -698,6 +707,12 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@types/lodash':
+        specifier: ^4.14.202
+        version: 4.14.202
+      '@types/multer':
+        specifier: ^1.4.11
+        version: 1.4.11
       '@types/parse':
         specifier: ^3.0.9
         version: 3.0.9

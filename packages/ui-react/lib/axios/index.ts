@@ -43,11 +43,11 @@ export class AxiosHttp {
 		return this.axios.get<T>(url, config).then(responseBody);
 	}
 
-	async post<I, T>(url: string, body: I, config?: AxiosRequestConfig) {
+	async post<T, B = unknown>(url: string, body: B, config?: AxiosRequestConfig) {
 		return this.axios.post<T>(url, body, config).then(responseBody);
 	}
 
-	async put<I, T>(url: string, body: I, config?: AxiosRequestConfig) {
+	async put<T, B = unknown>(url: string, body: B, config?: AxiosRequestConfig) {
 		return this.axios.put<T>(url, body, config).then(responseBody);
 	}
 

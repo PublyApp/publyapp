@@ -5,7 +5,7 @@ import sizeOf from 'image-size';
 import _ from 'lodash';
 import sharp from 'sharp';
 
-import { IMAGE_FORMAT_CONFIG } from '@devist/shared/lib/constants';
+import { fileProvider, IMAGE_FORMAT_CONFIG } from '@devist/shared/lib/constants';
 import { ParseAppFile } from '@devist/shared/lib/parse/classes/appFile.class';
 import type { ListMeta } from '@devist/shared/types/any.types';
 
@@ -18,9 +18,10 @@ import type { AppFile, ImageFormatData, ImageFormatType } from '@/shared/types/a
 export type FileServiceProps = {
 	file?: Express.Multer.File;
 	files?: Express.Multer.File[];
-	folder?: ParseAppFile | Parse.Object;
+	parentFolder?: ParseAppFile | Parse.Object;
 	alternativeText?: string;
 	caption?: string;
+	sessionToken?: string;
 };
 
 // type ListFilesOptions = { page: number; pageSize: number; json?: boolean };
@@ -30,7 +31,7 @@ export default class FileService {
 
 	files?: Express.Multer.File[];
 
-	folder?: ParseAppFile | Parse.Object;
+	parentFolder?: ParseAppFile | Parse.Object;
 
 	formats?: Record<ImageFormatType, ImageFormatData>[];
 
@@ -38,20 +39,23 @@ export default class FileService {
 
 	caption?: string;
 
-	constructor({ file, files, alternativeText, caption, folder }: FileServiceProps) {
+	sessionToken?: string;
+
+	constructor({ file, files, alternativeText, caption, parentFolder, sessionToken }: FileServiceProps) {
 		this.file = file;
 		this.files = files;
-		this.folder = folder;
+		this.parentFolder = parentFolder;
 		this.alternativeText = alternativeText;
 		this.caption = caption;
+		this.sessionToken = sessionToken;
 	}
 
 	static isImage(file: Express.Multer.File) {
 		return file.mimetype.startsWith('image/');
 	}
 
-	getFolderPath(): string {
-		return (this.folder as ParseAppFile | undefined)?.get('path') ?? '/';
+	getParentFolderPath(): string {
+		return (this.parentFolder as ParseAppFile | undefined)?.get('path') ?? '/';
 	}
 
 	private async generateImageFormats(file: Express.Multer.File) {
@@ -64,14 +68,13 @@ export default class FileService {
 		}
 
 		const { originalname, path: filePath, destination } = file;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const uid = _.get(this.file as any, 'uid') as string;
+		const uid: string = _.get(file, 'uid')!;
 
 		const formats = {} as unknown as NonNullable<typeof this.formats>[number];
 
 		const getFormatsPromise = Promise.all(
 			Object.entries(IMAGE_FORMAT_CONFIG).map(async ([format, config]) => {
-				const formatFileName = addSuffixToFileName(originalname, `${uid}_@${format}`);
+				const formatFileName = addSuffixToFileName(originalname, `_${uid}_@${format}`);
 
 				const sharpFileInfo = await sharp(filePath)
 					.resize(config.width, config.height, {
@@ -116,12 +119,12 @@ export default class FileService {
 		const { mimetype, filename, path: filePath, size } = file;
 
 		const parseFile = new ParseAppFile({
-			provider: 'local',
+			provider: fileProvider.LOCAL,
 			url: `${env.EXPRESS_FILES_MOUNT_PATH}/${filename}`,
 			mimeType: mimetype,
 			name: filename,
-			path: this.getFolderPath() + filename,
-			folder: this.folder,
+			path: this.getParentFolderPath() + filename,
+			folder: this.parentFolder,
 			size,
 		});
 
@@ -194,18 +197,20 @@ export default class FileService {
 	async listFiles(options: {
 		page: number;
 		pageSize: number;
-		sessionToken?: string;
+		// sessionToken?: string;
 		json?: true;
 	}): Promise<{ appFiles: AppFile[] } & ListMeta>;
 	async listFiles(options: {
 		page: number;
 		pageSize: number;
-		sessionToken?: string;
+		// sessionToken?: string;
 		json: false;
 	}): Promise<{ appFiles: ParseAppFile[] } & ListMeta>;
-	async listFiles(options: { page: number; pageSize: number; json?: boolean; sessionToken?: string }) {
-		const { sessionToken } = options;
-		const folderPath = this.getFolderPath();
+	async listFiles(options: { page: number; pageSize: number; json?: boolean /* sessionToken?: string */ }) {
+		// const { sessionToken } = options;
+		const { sessionToken } = this;
+
+		const parentFolderPath = this.getParentFolderPath();
 		const totalCountQuery = new Parse.Query(ParseAppFile);
 
 		const listRootFolderFiles = async (page: number, pageSize: number, json?: boolean) => {
@@ -231,7 +236,7 @@ export default class FileService {
 		};
 
 		const listAnyOtherFolderFiles = async (page: number, pageSize: number, json?: boolean) => {
-			const folderQuery = new Parse.Query(ParseAppFile).equalTo('path', folderPath);
+			const folderQuery = new Parse.Query(ParseAppFile).equalTo('path', parentFolderPath);
 			const query = new Parse.Query(ParseAppFile).matchesQuery('folder', folderQuery);
 			applySkipAndLimit(query, { type: 'page', page, pageSize });
 			const [appFiles, totalCount] = await Promise.all([
@@ -256,7 +261,7 @@ export default class FileService {
 		if (options.json) {
 			const { page, pageSize, json } = options;
 
-			if (folderPath === '/') {
+			if (parentFolderPath === '/') {
 				return (await listRootFolderFiles(page, pageSize, json)) as unknown as {
 					appFiles: AppFile[];
 				} & ListMeta;
@@ -269,7 +274,7 @@ export default class FileService {
 
 		const { page, pageSize, json } = options;
 
-		if (folderPath === '/') {
+		if (parentFolderPath === '/') {
 			return (await listRootFolderFiles(page, pageSize, json)) as unknown as { appFiles: ParseAppFile[] } & ListMeta;
 		}
 

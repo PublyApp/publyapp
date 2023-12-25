@@ -1,22 +1,47 @@
-import { DEFAULT_PAGE_SIZE, functionName } from '@devist/shared/lib/constants';
+import z from 'zod';
+
+import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 
 import { parseFrom } from '@/server/lib/parse';
 import FileService from '@/server/services/file.service';
 import FolderService from '@/server/services/folder.service';
+import { folderNameSchema } from '@/shared/validations/file/file.validations';
 
 Parse.Cloud.define(
 	functionName.findAppFile,
 	parseFrom({
 		requireUser: false,
-		action: async ({ /* t, */ req }) => {
-			// logger.info(req);
+		// allowedRoles: roleSet.ALL,
+		action: async ({ /* t, */ req, user }) => {
 			const { pageSize, page, folderPath } = req.params;
 
-			const folderService = new FolderService({ path: folderPath });
-			const folder = await folderService.getByPath();
-			const fileService = new FileService({ folder });
+			const sessionToken = user?.getSessionToken();
 
+			const folderService = new FolderService({ path: folderPath, sessionToken });
+			const parentFolder = await folderService.getByPath();
+
+			const fileService = new FileService({ parentFolder });
 			return fileService.listFiles({ pageSize: pageSize || DEFAULT_PAGE_SIZE, page: page || 1, json: true });
+		},
+	}),
+);
+
+const schema = z.object({
+	folderName: folderNameSchema,
+});
+
+Parse.Cloud.define(
+	functionName.saveAppFileFolder,
+	parseFrom({
+		requireUser: true,
+		allowedRoles: roleSet.ALL,
+		action: async ({ req, user }) => {
+			const { folderName } = schema.parse(req.params);
+
+			const sessionToken = user.getSessionToken();
+
+			const folderService = new FolderService({ sessionToken });
+			return folderService.saveOne({ folderName });
 		},
 	}),
 );

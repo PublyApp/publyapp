@@ -13,10 +13,10 @@ export const roleEnum = {
 } satisfies Record<string, IRoleConfig>;
 
 export const roleSet = {
-	adminOnly: [roleEnum.ADMIN],
-	aboveModerator: [roleEnum.MODERATOR, roleEnum.ADMIN],
-	aboveAuthor: [roleEnum.AUTHOR, roleEnum.MODERATOR, roleEnum.ADMIN],
-	allRoles: Object.values(roleEnum),
+	ADMIN_ONLY: [roleEnum.ADMIN],
+	ABOVE_MODERATOR: [roleEnum.MODERATOR, roleEnum.ADMIN],
+	ABOVE_AUTHOR: [roleEnum.AUTHOR, roleEnum.MODERATOR, roleEnum.ADMIN],
+	ALL: Object.values(roleEnum),
 } satisfies Record<string, IRoleConfig[]>;
 
 /**
@@ -67,6 +67,7 @@ export const functionName = {
 	findWebHost: 'findWebHost',
 	// Files
 	findAppFile: 'findAppFile',
+	saveAppFileFolder: 'saveAppFileFolder',
 } as const;
 
 export const endPoint = {
@@ -95,4 +96,8 @@ export const IMAGE_FORMAT_CONFIG = {
 		width: 400,
 		height: 400,
 	},
+};
+
+export const fileProvider = {
+	LOCAL: 'local',
 };

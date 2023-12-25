@@ -5,14 +5,17 @@
   "version": "0.2.0",
   "configurations": [
 		{
-			"name": "Attach by Process ID",
-			"processId": "${command:PickProcess}",
-			"sourceMaps": true,
+			"type": "node",
 			"request": "attach",
+			"name": "Attach by Process ID",
+			// "cwd": "${workspaceFolder}/apps/server",
+			"processId": "${command:PickProcess}",
+			// "outFiles": ["dist/**/*.js"],
+			"sourceMaps": true,
+			"smartStep": true,
 			"skipFiles": [
 				"<node_internals>/**"
 			],
-			"type": "node"
 		},
     {
       "type": "node",
@@ -22,13 +25,16 @@
 			"program": "src/index.ts",
       // "program": "dist/index.js",
       "outFiles": ["dist/**/*.js"],
-			"preLaunchTask": "npm: build:pack - apps/server",
+			"preLaunchTask": "npm: build:local - apps/server",
 			"sourceMaps": true,
 			"smartStep": true,
 			"internalConsoleOptions": "openOnSessionStart",
-			"runtimeArgs": ["-r", "esbuild-register"]
+			"runtimeArgs": ["-r", "esbuild-register"],
 			// "runtimeArgs": ["-r", "ts-node/register", "-r", "tsconfig-paths/register"],
 			// "runtimeArgs": ["--enable-source-maps"]
+			"skipFiles": [
+				"<node_internals>/**"
+			],
 		},
 	]
 }
