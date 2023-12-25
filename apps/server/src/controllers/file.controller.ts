@@ -1,7 +1,10 @@
 import type { RequestHandler } from 'express';
 
+import { multerFilesArraySchema } from '@devist/shared/validations/file/file.validations.server';
+
 import { HttpException } from '@/server/exceptions/HttpException';
 import FileService from '@/server/services/file.service';
+import type { AppFile } from '@/shared/types/appFile.types';
 
 export const handleUploadSingleFile: RequestHandler = async (req, res, next) => {
 	try {
@@ -20,17 +23,13 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 
 export const handleUploadManyFiles: RequestHandler = async (req, res, next) => {
 	try {
-		const { files } = req;
-
-		// if (!files) {
-		// 	throw new HttpException(400, 'file to upload missing');
-		// }
+		const files = multerFilesArraySchema.parse(req.files);
 
 		const fileService = new FileService({ files });
 		const savedParseFiles = await fileService.saveMany();
 
-		const savedFiles = savedParseFiles.map((file) => {
-			return file.toJSON();
+		const savedFiles: AppFile[] = savedParseFiles.map((file) => {
+			return file.toJSON() as unknown as AppFile;
 		});
 
 		res.status(201).send(savedFiles);

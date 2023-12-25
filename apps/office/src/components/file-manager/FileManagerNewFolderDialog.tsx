@@ -2,11 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField } from '@mui/material';
 import { type DialogProps } from '@mui/material/Dialog';
+import type { Accept } from 'react-dropzone';
 
 import Iconify from '@devist/ui-react/components/Iconify';
 import Upload from '@devist/ui-react/components/upload/Upload';
 
 // ----------------------------------------------------------------------
+
+type DialogAction = ({ files }: { files: File[] }) => void;
 
 interface Props extends DialogProps {
 	title?: string;
@@ -20,9 +23,9 @@ interface Props extends DialogProps {
 	open: boolean;
 	onClose: VoidFunction;
 	//
-	onUpload: VoidFunction;
-	// onUpload?: ({ files }: { files: File[] }) => void;
-	onDropFiles?: ({ files }: { files: File[] }) => void;
+	onUpload?: VoidFunction;
+	onDropFiles?: DialogAction;
+	accept?: Accept;
 }
 
 const FileManagerNewFolderDialog = ({
@@ -38,6 +41,7 @@ const FileManagerNewFolderDialog = ({
 	//
 	onUpload,
 	onDropFiles,
+	accept,
 	//
 	...other
 }: Props) => {
@@ -101,7 +105,7 @@ const FileManagerNewFolderDialog = ({
 				)}
 
 				{/* only accept images for now */}
-				<Upload accept={{ 'image/*': [] }} multiple files={files} onDrop={handleDrop} onRemove={handleRemoveFile} />
+				<Upload accept={accept} multiple files={files} onDrop={handleDrop} onRemove={handleRemoveFile} />
 			</DialogContent>
 
 			<DialogActions>
