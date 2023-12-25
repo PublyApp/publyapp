@@ -1,110 +1,156 @@
-import { useCallback, useState, type ComponentProps } from 'react';
+import { useCallback, type ComponentProps } from 'react';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 // import { Box } from '@mui/material';
 import Button from '@mui/material/Button';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { /* useMutation, */ useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useForm } from 'react-hook-form';
-import z from 'zod';
 
 // import ToggleButton from '@mui/material/ToggleButton';
 // import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
+// import {
+// 	runCreateAppFileFolder,
+// 	type CreateAppFileFolderFunctionParams,
+// } from '@devist/shared/lib/parse/cloudRunners/appFile.runner';
+
+import {
+	clientCreateFolderSchema,
+	clientUploadManyFilesSchema,
+	type ClientCreateFolderInput,
+	type ClientUploadManyFilesInput,
+} from '@devist/shared/validations/file/file.validations.client';
 import Iconify from '@devist/ui-react/components/Iconify';
 import useBoolean from '@devist/ui-react/hooks/useBoolean';
+// import { endPoint } from '@/shared/lib/constants';
+// import { uploadManyFilesAction } from '@/ui-react/lib/react-query/features/appFiles/appFile.actions';
+// import { protectRequest } from '@/ui-react/lib/axios';
+import {
+	findAppFileQueryKeyString,
+	useCreateAppFileFolder,
+	useUploadManyFilesMutation,
+} from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 
 // import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 
 import FileManagerNewFolderDialog from '@/office/components/file-manager/FileManagerNewFolderDialog';
 import { http } from '@/office/lib/axios/http';
 import { env } from '@/office/lib/env';
-import { endPoint } from '@/shared/lib/constants';
-import { protectRequest } from '@/ui-react/lib/axios';
 
+// import { http } from '@/office/lib/axios/http';
 // import EmptyContent from '@/office/components/EmptyContent';
 // import Iconify from '@/ui-react/components/Iconify';
 
-const fileSchema = z.custom<File>((data) => {
-	// return typeof window === 'undefined' ? data instanceof Buffer : data instanceof File;
-	return data instanceof File;
-}, 'Data is not an instance of File');
+// const fileSchema = z.custom<File>((data) => {
+// 	// return typeof window === 'undefined' ? data instanceof Buffer : data instanceof File;
+// 	return data instanceof File;
+// }, 'Data is not an instance of File');
 
-const schema = z.object({
-	files: z.array(fileSchema).min(1),
-	// .refine((data) => {
-	// 	return _.isEmpty(data);
-	// }, 'files must be non empty'),
-});
+// const folderNameSchema = z
+// 	.string()
+// 	.min(1)
+// 	.refine((data) => {
+// 		return data.indexOf('/') !== -1;
+// 	}, "folder name must no contain slashes ('/')");
 
-type Input = z.infer<typeof schema>;
+// const newFolderSchema = z.object({
+// 	folderName: folderNameSchema,
+// 	files: z.array(fileSchema).min(1).optional(),
+// 	parentFolderPath: folderNameSchema.optional(),
+// });
+
+// type NewFolderInput = z.infer<typeof newFolderSchema>;
 
 const FileManagerActions = () => {
 	const upload = useBoolean();
 	const newFolder = useBoolean();
-	const [folderName, setFolderName] = useState('');
+	// const [newFolderName, setNewFolderName] = useState('');
 
-	const handleChangeFolderName = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-		setFolderName(event.target.value);
-	}, []);
-
-	const form = useForm<Input>({
-		resolver: zodResolver(schema),
-	});
-
-	// const { folderPath, setFolderPath } = useFileManager();
-
-	// const { key: findAppFileQueryKey } = useFindAppFileSuspense({ folderPath: '/' });
 	const queryClient = useQueryClient();
 
-	const { mutate: uploadManyFiles } = useMutation({
-		mutationKey: [endPoint.uploadManyFiles] as const,
-		mutationFn: async (p: { files: File[] }) => {
-			const formData = new FormData();
+	const uploadForm = useForm<ClientUploadManyFilesInput>({
+		resolver: zodResolver(clientUploadManyFilesSchema),
+	});
 
-			p.files.forEach((file) => {
-				formData.append('files', file);
-			});
+	// const { parentFolderPath, setparentFolderPath } = useFileManager();
 
-			const sessionToken = (await Parse.User.currentAsync())?.getSessionToken() || '';
+	// const { key: findAppFileQueryKey } = useFindAppFileSuspense({ parentFolderPath: '/' });
 
-			await http.post(
-				endPoint.uploadManyFiles,
-				formData,
-				protectRequest({ hasFile: true, sessionToken, restApiKey: env.REST_API_KEY }),
-			);
-		},
-		onSuccess: (/* data, variables, context */) => {
-			queryClient.invalidateQueries({ queryKey: [/* findAppFileQueryKey[0] */ 'findAppFile'] });
+	const {
+		result: { mutate: uploadManyFiles },
+	} = useUploadManyFilesMutation({
+		options: {
+			onSuccess: (/* data, variables, context */) => {
+				queryClient.invalidateQueries({ queryKey: [findAppFileQueryKeyString] });
+			},
 		},
 	});
 
-	const handleDropFiles: ComponentProps<typeof FileManagerNewFolderDialog>['onDropFiles'] = ({ files }) => {
-		form.setValue('files', files);
+	const handleDropFilesUpload: ComponentProps<typeof FileManagerNewFolderDialog>['onDropFiles'] = ({ files }) => {
+		uploadForm.setValue('files', files);
 	};
 
-	// const handleUploadFiles: ComponentProps<typeof FileManagerNewFolderDialog>['onUpload'] = (/* { files } */) => {
-	// 	form.handleSubmit(
-	// 		(data) => {
-	// 			uploadManyFiles({ files: data.files });
-	// 		},
-	// 		(errors) => {
-	// 			console.log('====================================');
-	// 			console.log('invalid upload datas');
-	// 			console.log(errors);
-	// 			console.log('====================================');
-	// 		},
-	// 	)();
-	// };
-	const handleUploadFiles: ComponentProps<typeof FileManagerNewFolderDialog>['onUpload'] = form.handleSubmit(
+	const handleUploadFiles: ComponentProps<typeof FileManagerNewFolderDialog>['onUpload'] = uploadForm.handleSubmit(
 		async ({ files }) => {
-			uploadManyFiles({ files });
+			uploadManyFiles({
+				files,
+				// parentFolderPath: '/sfdsfds'
+				http,
+				restApiKey: env.REST_API_KEY,
+			});
 		},
-		(errors) => {
-			console.log('====================================');
-			console.log('invalid upload datas');
-			console.log(errors);
-			console.log('====================================');
+	);
+
+	// ================
+	const newFolderForm = useForm<ClientCreateFolderInput>({
+		resolver: zodResolver(clientCreateFolderSchema),
+	});
+
+	const handleChangeFolderName = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			// setNewFolderName(event.target.value);
+			newFolderForm.setValue('folderName', event.target.value);
+		},
+		[newFolderForm],
+	);
+
+	const {
+		result: { mutate: createAppFileFolder },
+	} = useCreateAppFileFolder({
+		options: {
+			onSuccess: (/* data, variables, context */) => {
+				queryClient.invalidateQueries({ queryKey: [findAppFileQueryKeyString] });
+			},
+		},
+	});
+	// const { mutate: createAppFileFolder } = useMutation({
+	// 	mutationKey: [endPoint.uploadManyFiles] as const,
+	// 	mutationFn: async ({ parentFolderPath, folderName }: CreateAppFileFolderFunctionParams) => {
+	// 		const appFileFolder = await runCreateAppFileFolder({ folderName, parentFolderPath });
+	// 		uploadManyFilesAction({  })
+	// 		return appFileFolder;
+	// 	},
+	// 	onSuccess: (data, _variables, _context) => {
+	// 		const parentFolderPath = data.get('path');
+	// 		const files = newFolderForm.getValues().files ?? [];
+	// 		const restApiKey = env.REST_API_KEY;
+
+	// 		uploadManyFiles({ files, http, restApiKey, parentFolderPath });
+	// 		queryClient.invalidateQueries({ queryKey: [findAppFileQueryKeyString] });
+	// 	},
+	// });
+
+	const handleDropFilesNewFolder: ComponentProps<typeof FileManagerNewFolderDialog>['onDropFiles'] = ({ files }) => {
+		uploadForm.setValue('files', files);
+	};
+
+	const handleCreateFolder: ComponentProps<typeof FileManagerNewFolderDialog>['onUpload'] = newFolderForm.handleSubmit(
+		async ({ files, folderName, parentFolderPath }) => {
+			createAppFileFolder({ folderName, parentFolderPath, files, http, restApiKey: env.REST_API_KEY });
+		},
+		(err) => {
+			console.log('😀😀', err);
 		},
 	);
 
@@ -126,21 +172,26 @@ const FileManagerActions = () => {
 				open={upload.value}
 				onClose={upload.setFalse}
 				onUpload={handleUploadFiles}
-				onDropFiles={handleDropFiles}
+				onDropFiles={handleDropFilesUpload}
+				accept={{ 'image/*': [] }} // image only for now
 			/>
 
 			<FileManagerNewFolderDialog
 				open={newFolder.value}
 				onClose={newFolder.setFalse}
 				title="New Folder"
-				onCreate={() => {
-					newFolder.setFalse();
-					setFolderName('');
-					console.info('CREATE NEW FOLDER', folderName);
-				}}
-				folderName={folderName}
+				// onCreate={() => {
+				// 	newFolder.setFalse();
+				// 	// setNewFolderName('');
+				// 	// newFolderForm.reset();
+				// 	console.info('CREATE NEW FOLDER', newFolderForm.getValues().folderName);
+				// }}
+				onCreate={handleCreateFolder}
+				folderName={newFolderForm.getValues().folderName}
 				onChangeFolderName={handleChangeFolderName}
-				onUpload={() => {}}
+				onDropFiles={handleDropFilesNewFolder}
+				// onUpload={() => {}}
+				accept={{ 'image/*': [] }} // image only for now
 			/>
 		</>
 	);
