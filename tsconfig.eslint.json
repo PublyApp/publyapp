@@ -20,11 +20,7 @@
 		"apps/awsm/.eslintrc.js",
 		"apps/server/.eslintrc.js",
 
-		"apps/front/next.config.js",
-
-		"apps/server/esbuild",
-		"apps/server/rspack.config.js",
-		"apps/office/rspack.config.js",
+		"apps/server/scripts/**/*.js",
 
 		"./.eslintrc.js",
 		"./knip.config.js",

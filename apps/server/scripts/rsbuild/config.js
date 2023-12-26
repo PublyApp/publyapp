@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable no-param-reassign */
 /* eslint-disable @typescript-eslint/no-var-requires */
@@ -10,14 +11,13 @@
 const path = require('path');
 const fs = require('fs');
 
-const { createRsbuild } = require('@rsbuild/core');
+const { createRsbuild: _createRsbuild } = require('@rsbuild/core');
 
-const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../');
+const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../../../');
+
 const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
 const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
 const PACKAGE_FILE = 'package.json';
-
-const toDeploy = ['preprod', 'production'].includes(process.env.APP_ENV || '');
 
 /**
  * list directories of provided folder path
@@ -36,6 +36,8 @@ function listDirectories(pth) {
 
 	return directories;
 }
+
+exports.listDirectories = listDirectories;
 
 function findExternals() {
 	// read all apps package.json
@@ -70,8 +72,10 @@ function findExternals() {
 	return [...externalsSet];
 }
 
-const run = async () => {
-	const rsbuild = await createRsbuild({
+exports.findExternals = findExternals;
+
+function createRsbuild() {
+	return _createRsbuild({
 		rsbuildConfig: {
 			source: {
 				entry: {
@@ -89,10 +93,33 @@ const run = async () => {
 			},
 		},
 	});
+}
 
-	await rsbuild.build({
+exports.createRsbuild = createRsbuild;
+
+const toDeploy = ['preprod', 'production'].includes(process.env.APP_ENV || '');
+
+/**
+ *
+ * @param {import('@rsbuild/core').RsbuildInstance} rsbuild
+ */
+function watch(rsbuild) {
+	rsbuild.build({
+		mode: toDeploy ? 'production' : 'development',
+		watch: true,
+	});
+}
+
+exports.watch = watch;
+
+/**
+ *
+ * @param {import('@rsbuild/core').RsbuildInstance} rsbuild
+ */
+function build(rsbuild) {
+	rsbuild.build({
 		mode: toDeploy ? 'production' : 'development',
 	});
-};
+}
 
-run();
+exports.build = build;

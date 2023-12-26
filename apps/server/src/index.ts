@@ -173,24 +173,3 @@ const bootstrap = async () => {
 };
 
 bootstrap();
-// .catch(async (error) => {
-// 	// Log the error to the console
-// 	// eslint-disable-next-line no-console
-// 	console.error(error);
-
-// 	// Write the error to a file
-// 	const logMessage = `${new Date().toISOString()}: ${error.stack}\n`;
-
-// 	try {
-// 		// Check if the file exists
-// 		await fs.access('error.log');
-
-// 		// File exists, append the log
-// 		await fs.appendFile('error.log', logMessage);
-// 	} catch (err) {
-// 		// File does not exist, create it and write the log
-// 		await fs.writeFile('error.log', logMessage);
-// 	}
-
-// 	process.exit(1);
-// });
