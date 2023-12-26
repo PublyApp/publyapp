@@ -6,12 +6,14 @@
 		"build:local": "pnpm build:rs",
 		"build:rs:prod": "cross-env APP_ENV=production pnpm build:rs",
 		"build:rs:preprod": "cross-env APP_ENV=preprod pnpm build:rs",
-		"build:rs": "node build.js",
+		"build:rs": "node scripts/rsbuild/build.js",
 		"start": "node --enable-source-maps dist/index.js",
-		"dev": "nodemon",
+		"dev": "node scripts/rsbuild/watch.js",
+		"dev:old": "nodemon",
 		"lint": "eslint . --ext ts,js",
 		"lint:fix": " pnpm lint --fix",
-		"seed": "node --enable-source-maps dist/seeding/seed.js"
+		"seed": "node --enable-source-maps dist/seeding/seed.js",
+		"dev2": "node watch.js"
 	},
 	"dependencies": {
 		"@devist/shared": "workspace:*",
