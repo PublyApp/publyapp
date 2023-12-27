@@ -22,7 +22,5 @@ export const cors = (options?: CorsOptions) => {
 				callback(new Error('Not allowed by CORS'));
 			}
 		},
-		// exposedHeaders: ['Etag']
-		exposedHeaders: 'X-Parse-Job-Status-Id, X-Parse-Push-Status-Id',
 	});
 };

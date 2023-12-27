@@ -13,21 +13,13 @@ export default class FolderService {
 
 	sessionToken?: string;
 
-	private currentAppFileFolder?: ParseAppFile;
-
 	constructor({ path = '/', sessionToken }: FolderServiceProps = {}) {
 		this.path = path;
 		this.sessionToken = sessionToken;
 	}
 
 	async getByPath() {
-		if (!this.currentAppFileFolder) {
-			this.currentAppFileFolder = await new Parse.Query(ParseAppFile)
-				.equalTo('path', this.path)
-				.first({ sessionToken: this.sessionToken });
-		}
-
-		return this.currentAppFileFolder;
+		return new Parse.Query(ParseAppFile).equalTo('path', this.path).first({ sessionToken: this.sessionToken });
 	}
 
 	static async getByPath(path: string, options: { sessionToken?: string } = {}) {
@@ -36,14 +28,18 @@ export default class FolderService {
 
 	async saveOne({
 		folderName,
+		// parentFolderPath,
 		newFolderName,
 		newParentFolder,
 	}: {
 		folderName: string;
+		// parentFolderPath?: string;
+		// in case of an update
 		newFolderName?: string;
 		newParentFolder?: ParseAppFile;
 	}) {
 		const parentFolder = await this.getByPath();
+		// const parentFolder = await FolderService.getByPath(parentFolderPath || '/');
 
 		const foundAppFileFolder = await new Parse.Query(ParseAppFile)
 			.equalTo('path', this.path + folderName)
@@ -54,7 +50,8 @@ export default class FolderService {
 				name: folderName,
 				provider: fileProvider.LOCAL,
 				mimeType: 'folder',
-				path: this.path + folderName,
+				// path: this.path + folderName,
+				path: `${this.path}/${folderName}`,
 				folder: parentFolder,
 			});
 

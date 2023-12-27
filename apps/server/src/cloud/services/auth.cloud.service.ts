@@ -1,6 +1,6 @@
-import type { User } from 'parse';
 import Auth from 'parse-server/lib/Auth';
 import Config from 'parse-server/lib/Config';
+import Parse from 'parse/node';
 
 import type { ParsedQs } from 'qs';
 
@@ -12,6 +12,7 @@ type AuthCloudServiceProps = {
 export class AuthCloudService {
 	readonly sessionToken: string | ParsedQs | string[] | ParsedQs[];
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private auth: any;
 
 	private constructor({
@@ -37,7 +38,7 @@ export class AuthCloudService {
 	 * @param {*} sessionToken
 	 * @returns
 	 */
-	async getUserForSessionToken(): Promise<User> {
+	async getUserForSessionToken(): Promise<Parse.User> {
 		return this.auth.user;
 	}
 
