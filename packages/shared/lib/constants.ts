@@ -101,3 +101,6 @@ export const IMAGE_FORMAT_CONFIG = {
 export const fileProvider = {
 	LOCAL: 'local',
 };
+
+export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
+export const DEVIST_REST_API_HEADER_KEY = 'X-Devist-Key';

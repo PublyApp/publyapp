@@ -9,7 +9,6 @@ import { fileProvider, IMAGE_FORMAT_CONFIG } from '@devist/shared/lib/constants'
 import { ParseAppFile } from '@devist/shared/lib/parse/classes/appFile.class';
 import type { ListMeta } from '@devist/shared/types/any.types';
 
-import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
 import { applySkipAndLimit } from '@/server/lib/parse';
 import { addSuffixToFileName } from '@/server/utils/any.utils';
@@ -139,7 +138,7 @@ export default class FileService {
 		}
 
 		// logger.info(parseFile.toJSON());
-		return parseFile.save(null, USE_MASTER_KEY);
+		return parseFile.save(null, { sessionToken: this.sessionToken });
 	}
 
 	private async _saveOne(file: Express.Multer.File) {
@@ -215,9 +214,12 @@ export default class FileService {
 
 		const listRootFolderFiles = async (page: number, pageSize: number, json?: boolean) => {
 			const query = new Parse.Query(ParseAppFile).doesNotExist('folder');
+
+			query.descending('updatedAt');
 			applySkipAndLimit(query, { type: 'page', page, pageSize });
+
 			const [appFiles, totalCount] = await Promise.all([
-				query.find({ ...USE_MASTER_KEY, sessionToken, json }),
+				query.find({ sessionToken, json }),
 				totalCountQuery.count({ sessionToken }),
 			]);
 
@@ -238,10 +240,13 @@ export default class FileService {
 		const listAnyOtherFolderFiles = async (page: number, pageSize: number, json?: boolean) => {
 			const folderQuery = new Parse.Query(ParseAppFile).equalTo('path', parentFolderPath);
 			const query = new Parse.Query(ParseAppFile).matchesQuery('folder', folderQuery);
+
+			query.descending('updatedAt');
 			applySkipAndLimit(query, { type: 'page', page, pageSize });
+
 			const [appFiles, totalCount] = await Promise.all([
-				query.find({ ...USE_MASTER_KEY, sessionToken, json }),
-				totalCountQuery.count({ ...USE_MASTER_KEY, sessionToken }),
+				query.find({ sessionToken, json }),
+				totalCountQuery.count({ sessionToken }),
 			]);
 
 			const count = appFiles.length;

@@ -1,4 +1,4 @@
-import { Readable } from 'stream';
+import type { Readable } from 'stream';
 
 import { z } from 'zod';
 
@@ -10,12 +10,12 @@ export const multerFileSchema: z.ZodType<Express.Multer.File> = z.object({
 	encoding: z.string(),
 	mimetype: z.string(),
 	size: z.number(),
-	stream: z.instanceof(Readable),
+	stream: z.custom<Readable>(),
 	// stream: z.custom<any>(), // cast to any just to avoid client-side compilation errors
 	destination: z.string(),
 	filename: z.string(),
 	path: z.string(),
-	buffer: z.instanceof(Buffer),
+	buffer: z.custom<Buffer>(),
 });
 
 // export function getFileSchema(environment: 'browser'): z.ZodType<File, z.ZodTypeDef, File>;

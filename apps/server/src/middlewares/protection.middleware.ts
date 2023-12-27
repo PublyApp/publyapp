@@ -5,6 +5,7 @@ import type { RequestHandler } from 'express';
 import { AuthCloudService } from '@/server/cloud/services/auth.cloud.service';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { env } from '@/server/lib/env';
+import { DEVIST_REST_API_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 type Input = {
 	withKey?: boolean;
@@ -16,19 +17,19 @@ const protectionMiddleware = ({ withKey = true, withAuth = true }: Input): Reque
 		try {
 			// should have a header key
 			if (withKey) {
-				const apiKey = req.get('X-Devist-Key');
+				const apiKey = req.get(DEVIST_REST_API_HEADER_KEY);
 
 				// if the key exists, go to next
 				if (!apiKey) {
-					next(new HttpException(400, 'Missing "X-Devist-Key" params'));
+					next(new HttpException(400, `Missing ${DEVIST_REST_API_HEADER_KEY} params`));
 				} else if (apiKey && apiKey !== env.REST_API_KEY) {
-					next(new HttpException(400, 'Invalid "X-Devist-Key"'));
+					next(new HttpException(400, `Invalid ${DEVIST_REST_API_HEADER_KEY}`));
 				}
 			}
 
 			// should have a header session token
 			if (withAuth) {
-				const parseSession = req.get('X-Parse-Session-Token') || req.query.sessionToken;
+				const parseSession = req.get(PARSE_SESSION_TOKEN_HEADER_KEY) || req.query.sessionToken;
 
 				if (!parseSession) {
 					return next(new HttpException(400, 'Missing session params'));

@@ -9,7 +9,7 @@ import useLocale from '@devist/ui-react/hooks/useLocale';
 
 import RouterLink from '@/office/components/RouterLink';
 import { buildShareableUrl, useMainStore } from '@/office/lib/zustand/store';
-import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import { BO_PATH_NAMES, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 const Home = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,7 +91,7 @@ const Home = () => {
 						method: 'post',
 						body: formData,
 						headers: {
-							'X-Parse-Session-Token': Parse.User.current()?.getSessionToken() ?? '',
+							[PARSE_SESSION_TOKEN_HEADER_KEY]: Parse.User.current()?.getSessionToken() ?? '',
 						},
 					});
 

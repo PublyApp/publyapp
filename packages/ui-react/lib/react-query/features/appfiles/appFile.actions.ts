@@ -90,11 +90,11 @@ export const createAppFileFolderAction = async ({
 }: CreateAppFileFOlderActionParams) => {
 	try {
 		const appFileFolder = await runCreateAppFileFolder({ folderName, parentFolderPath });
-		const newFilesParentFolderPath = appFileFolder.get('path');
 
 		let appFiles: AppFile[] = [];
 
 		if (files) {
+			const newFilesParentFolderPath = appFileFolder.get('path');
 			appFiles = await uploadManyFilesAction({
 				files,
 				http,

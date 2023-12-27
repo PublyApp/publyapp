@@ -1,5 +1,7 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 
+import { DEVIST_REST_API_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@devist/shared/lib/constants';
+
 // ======
 // the axios instance factory function
 // ======
@@ -20,8 +22,8 @@ export const protectRequest = ({
 }): AxiosRequestConfig => {
 	return {
 		headers: {
-			'X-Devist-Key': restApiKey,
-			'X-Parse-Session-Token': sessionToken,
+			[DEVIST_REST_API_HEADER_KEY]: restApiKey,
+			[PARSE_SESSION_TOKEN_HEADER_KEY]: sessionToken,
 			'Content-Type': hasFile ? 'multipart/form-data' : 'application/json',
 		},
 	};

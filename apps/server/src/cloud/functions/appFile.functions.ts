@@ -28,6 +28,7 @@ Parse.Cloud.define(
 
 const schema = z.object({
 	folderName: folderNameSchema,
+	parentFolderPath: z.string().min(1).optional(),
 });
 
 Parse.Cloud.define(
@@ -36,11 +37,11 @@ Parse.Cloud.define(
 		requireUser: true,
 		allowedRoles: roleSet.ALL,
 		action: async ({ req, user }) => {
-			const { folderName } = schema.parse(req.params);
+			const { folderName, parentFolderPath } = schema.parse(req.params);
 
 			const sessionToken = user.getSessionToken();
 
-			const folderService = new FolderService({ sessionToken });
+			const folderService = new FolderService({ path: parentFolderPath, sessionToken });
 			return folderService.saveOne({ folderName });
 		},
 	}),
