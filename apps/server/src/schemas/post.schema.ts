@@ -10,6 +10,8 @@ const PostSchema = SchemaMigrations.makeSchema(className.POST, {
 		author: { type: 'Pointer', targetClass: className.USER },
 		translations: { type: 'Object' },
 		slug: { type: 'String' },
+		// ...
+		// relatedArticles create a query for that
 	},
 	classLevelPermissions: DEFAULT_CLP,
 	indexes: {},

@@ -57,6 +57,8 @@ export const BO_PATH_NAMES = {
 	webHosts: `${ROOTS.DASHBOARD}/web-hosts`,
 	createWebHost: `${ROOTS.DASHBOARD}/web-hosts/new`,
 	fileManager: `${ROOTS.DASHBOARD}/file-manager`,
+	posts: `${ROOTS.DASHBOARD}/posts`,
+	createPost: `${ROOTS.DASHBOARD}/posts/new`,
 } as const;
 
 export const functionName = {

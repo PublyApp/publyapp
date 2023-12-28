@@ -51,7 +51,7 @@ export default class FolderService {
 				provider: fileProvider.LOCAL,
 				mimeType: 'folder',
 				// path: this.path + folderName,
-				path: `${this.path}/${folderName}`,
+				path: `${this.path === '/' ? '' : this.path}/${folderName}`,
 				folder: parentFolder,
 			});
 

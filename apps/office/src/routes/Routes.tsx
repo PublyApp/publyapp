@@ -21,6 +21,8 @@ import RequireAuth from '../components/RequireAuth';
 import FileManager from '../containers/fileManager/FileManager';
 import LogIn from '../containers/logIn/LogIn';
 import NotFound from '../containers/notFound/NotFound';
+import NewPost from '../containers/posts/NewPost';
+import PostsList from '../containers/posts/PostsList';
 
 const router = createBrowserRouter(
 	createRoutesFromElements(
@@ -64,6 +66,8 @@ const router = createBrowserRouter(
 				<Route path={BO_PATH_NAMES.webHosts} element={<WebHosts />} />
 				<Route path={BO_PATH_NAMES.createWebHost} element={<CreateWebHost />} />
 				<Route path={BO_PATH_NAMES.fileManager} element={<FileManager />} />
+				<Route path={BO_PATH_NAMES.posts} element={<PostsList />} />
+				<Route path={BO_PATH_NAMES.createPost} element={<NewPost />} />
 			</Route>
 
 			{/* // ---- not found page ------------------------------------------------------------------- */}
