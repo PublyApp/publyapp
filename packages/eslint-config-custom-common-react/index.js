@@ -1,6 +1,12 @@
 module.exports = {
 	env: { browser: true, es2020: true },
-	extends: [/* 'airbnb', 'airbnb/hooks', 'airbnb-typescript',  */ 'plugin:react/jsx-runtime' /* , 'custom-base' */],
+	extends: [
+		// 'airbnb',
+		// 'airbnb/hooks',
+		// 'airbnb-typescript',
+		'plugin:react/jsx-runtime',
+		// 'custom-base',
+	],
 	parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
 	// plugins: ['react-refresh'],
 	rules: {
@@ -17,6 +23,7 @@ module.exports = {
 		'react/require-default-props': 'off',
 		'react/prop-types': 'off',
 		'react/no-unescaped-entities': 'off',
+		'react/no-unknown-property': ['error', { ignore: ['css'] }],
 	},
 	settings: {
 		react: {
