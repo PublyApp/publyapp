@@ -89,6 +89,16 @@ export const useNavData = () => {
 						path: BO_PATH_NAMES.webHosts,
 						icon: ICONS.dashboard,
 					},
+					{
+						title: 'Posts',
+						path: BO_PATH_NAMES.posts,
+						icon: ICONS.dashboard,
+					},
+					{
+						title: 'New Post',
+						path: BO_PATH_NAMES.createPost,
+						icon: ICONS.dashboard,
+					},
 				],
 			},
 		];

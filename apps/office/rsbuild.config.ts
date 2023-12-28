@@ -64,4 +64,40 @@ export default defineConfig({
 		port: 6182,
 		historyApiFallback: true,
 	},
+	// tools: {
+	// 	rspack: {
+	// 		builtins: {
+	// 			emotion: true,
+	// 			react: {
+	// 				importSource: '@emotion/react',
+	// 			},
+	// 		},
+	// 	},
+	// },
+	tools: {
+		rspack: {
+			module: {
+				rules: [
+					{
+						test: /\.tsx$/,
+						loader: 'builtin:swc-loader',
+						options: {
+							jsc: {
+								transform: {
+									react: {
+										importSource: '@emotion/react',
+										runtime: 'automatic',
+									},
+								},
+							},
+							rspackExperiments: {
+								emotion: true,
+							},
+						},
+						type: 'javascript/auto',
+					},
+				],
+			},
+		},
+	},
 });

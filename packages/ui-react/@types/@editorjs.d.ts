@@ -1,0 +1,17 @@
+declare module '@editorjs/header';
+declare module '@calumk/editorjs-codeflask';
+declare module '@editorjs/checklist';
+declare module '@editorjs/code';
+declare module '@editorjs/delimiter';
+declare module '@editorjs/embed';
+declare module '@editorjs/image';
+declare module '@editorjs/inline-code';
+declare module '@editorjs/link';
+declare module '@editorjs/list';
+declare module '@editorjs/nested-list';
+declare module '@editorjs/paragraph';
+declare module '@editorjs/quote';
+declare module '@editorjs/raw';
+declare module '@editorjs/table';
+declare module '@editorjs/underline';
+declare module '@editorjs/warning';
