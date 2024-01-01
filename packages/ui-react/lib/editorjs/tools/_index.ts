@@ -15,6 +15,8 @@ import Table from '@editorjs/table';
 import Underline from '@editorjs/underline';
 import Warning from '@editorjs/warning';
 
+import TimeLineTool from './timeline/TimelineTool';
+
 // import Code from '@editorjs/code';
 // import List from '@editorjs/list';
 
@@ -70,6 +72,7 @@ const tools: EditorConfig['tools'] = {
 	},
 	raw: RawHtml,
 	underline: Underline,
+	timeline: TimeLineTool,
 };
 
 export default tools;
