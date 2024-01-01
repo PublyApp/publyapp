@@ -2,7 +2,7 @@
 
 import { useMemo, type ReactNode } from 'react';
 
-import { ThemeProvider as EmotionProvider } from '@emotion/react';
+import { ThemeProvider as EmotionThemeProvider } from '@emotion/react';
 import { CssBaseline } from '@mui/material';
 import { createTheme, type ThemeOptions } from '@mui/material/styles';
 import _ from 'lodash';
@@ -37,20 +37,20 @@ const ThemeProvider = ({ children }: Props) => {
 			typography,
 			shape: { borderRadius: 8 },
 		};
-	}, []);
+	}, [settings.themeMode]);
 
 	const memoizedThemeOptions = useMemo(() => {
 		return _.merge(baseOption, darkModeOption, presetsOption) as ThemeOptions;
-	}, [baseOption, presetsOption]);
+	}, [baseOption, darkModeOption, presetsOption]);
 
 	const theme = createTheme(memoizedThemeOptions);
 	theme.components = getComponentOverrides(theme);
 
 	return (
-		<EmotionProvider theme={theme}>
+		<EmotionThemeProvider theme={theme}>
 			<CssBaseline />
 			{children}
-		</EmotionProvider>
+		</EmotionThemeProvider>
 	);
 };
 

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 
 import EditorJS, { type LogLevels, type OutputData } from '@editorjs/editorjs';
-import { css, cx } from '@emotion/css';
+import { /* css , cx */ type Interpolation } from '@emotion/react';
+import type { Theme } from '@mui/material';
 import _ from 'lodash';
 
-import tools from '../lib/editorjs/tools';
+import tools from '../lib/editorjs/tools/_index';
 
 // import '../assets/styles/xonokai-prism.css';
 
@@ -24,22 +25,24 @@ const DEFAULT_INITIAL_DATA: OutputData = {
 const EDITOR_HOLDER_ID = 'editorjs';
 
 const styles = {
-	patchCodeEditor: css({
-		'.codeflask.codeflask--has-line-numbers:before, .codeflask__lines': {
-			zIndex: '0!important',
-		},
-		'.editorjs-codeFlask_Wrapper': {
-			/* ... */
-			zIndex: 0,
-			position: 'inherit',
-		},
-		'& > div > div.ce-toolbar.ce-toolbar--opened > div > div > div.ce-settings > div > div.ce-popover.ce-popover--opened':
-			{
-				// overflow: 'auto!important',
-				overflow: 'unset',
+	patchCodeBlockTool: (_theme: Theme) => {
+		return {
+			'.codeflask.codeflask--has-line-numbers:before, .codeflask__lines': {
+				zIndex: '0!important',
 			},
-	}),
-};
+			'.editorjs-codeFlask_Wrapper': {
+				/* ... */
+				zIndex: 0,
+				position: 'inherit',
+			},
+			'& > div > div.ce-toolbar.ce-toolbar--opened > div > div > div.ce-settings > div > div.ce-popover.ce-popover--opened':
+				{
+					// overflow: 'auto!important',
+					overflow: 'unset',
+				},
+		};
+	},
+} satisfies Record<string, Interpolation<Theme>>;
 
 const Editor = (/* _props: any */) => {
 	const ejInstance = useRef<EditorJS | null>();
@@ -83,7 +86,21 @@ const Editor = (/* _props: any */) => {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	return <div className={cx(styles.patchCodeEditor)} id={EDITOR_HOLDER_ID} />;
+	return (
+		<div
+			id={EDITOR_HOLDER_ID}
+			css={styles.patchCodeBlockTool}
+			// className={cx(styles.patchCodeBlockTool)}
+			// css={(t) => {
+			// 	return styles.patchCodeBlockTool(t);
+			// }}
+			// css={(theme) => {
+			// 	return {
+			// 		cursor: 'pointer',
+			// 	};
+			// }}
+		/>
+	);
 };
 
 export default Editor;
