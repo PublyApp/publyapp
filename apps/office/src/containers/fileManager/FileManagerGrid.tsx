@@ -8,11 +8,11 @@ import { nanoid } from 'nanoid';
 
 import { useFindAppFileSuspense } from '@/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 
-import CustomBreadcrumbs from '../../components/CustomBreadcrumbs';
 import FileManagerFileItem from '../../components/file-manager/FileManagerFileItem';
 import FileManagerFolderItem from '../../components/file-manager/FileManagerFolderItem';
 import FileManagerPanel from '../../components/file-manager/FileManagerPanel';
 import { appFileData, appFolderData } from '../../components/file-manager/utils';
+import PageHeader from '../../components/PageHeader';
 
 import useFileManager from './useFilManager';
 

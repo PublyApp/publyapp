@@ -42,6 +42,7 @@
 		"@emotion/styled": "^11.11.0",
 		"@hookform/resolvers": "^3.3.2",
 		"@iconify/react": "^4.1.1",
+		"@mdxeditor/editor": "^2.1.0",
 		"@mui/icons-material": "^5.15.1",
 		"@mui/lab": "5.0.0-alpha.157",
 		"@mui/material": "^5.15.1",
@@ -55,6 +56,7 @@
 		"@tiptap/pm": "^2.1.13",
 		"@tiptap/react": "^2.1.13",
 		"@tiptap/starter-kit": "^2.1.13",
+		"events": "^3.3.0",
 		"framer-motion": "^10.16.16",
 		"i18next": "^23.7.11",
 		"immer": "^10.0.3",
@@ -107,6 +109,9 @@
 		"eslint-plugin-react-hooks": "^4.6.0",
 		"eslint-plugin-react-refresh": "^0.4.5",
 		"tsconfig": "workspace:*",
-		"typescript": "^5.3.3"
+		"typescript": "^5.3.3",
+		"vite": "^5.0.10",
+		"vite-plugin-cjs-interop": "^1.2.0",
+		"vite-tsconfig-paths": "^4.2.2"
 	}
 }
