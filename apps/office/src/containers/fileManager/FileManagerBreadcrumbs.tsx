@@ -1,6 +1,6 @@
 import { useMemo, type ComponentProps } from 'react';
 
-import CustomBreadcrumbs from '@/office/components/CustomBreadcrumbs';
+import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 
 import useFileManager from './useFilManager';
@@ -21,7 +21,7 @@ const FileManagerBreadcrumbs = () => {
 
 	//  = folderPath.split('/')
 	const links = useMemo(() => {
-		const iLinks: ComponentProps<typeof CustomBreadcrumbs>['links'] = [
+		const iLinks: ComponentProps<typeof PageHeader.Breadcrumbs>['links'] = [
 			{ name: '/', href: getFileManagerBreadcrumbURL('/') },
 		];
 
@@ -37,7 +37,7 @@ const FileManagerBreadcrumbs = () => {
 		return iLinks;
 	}, [folderPath]);
 
-	return <CustomBreadcrumbs links={links} /* separator=">" */ /* sx={{ marginBottom: '22px' }} */ />;
+	return <PageHeader.Breadcrumbs links={links} /* separator=">" */ /* sx={{ marginBottom: '22px' }} */ />;
 };
 
 export default FileManagerBreadcrumbs;
