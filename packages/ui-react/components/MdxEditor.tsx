@@ -1,32 +1,61 @@
 import '@mdxeditor/editor/style.css';
 
-import { MDXEditor } from '@mdxeditor/editor';
+import { useEffect /*  forwardRef, */, useRef, type ForwardedRef, type ReactNode } from 'react';
+
+import { MDXEditor, type MDXEditorMethods, type MDXEditorProps } from '@mdxeditor/editor';
+import { alpha, Box, type SxProps, type Theme } from '@mui/material';
+import { type SystemStyleObject } from '@mui/system';
+import _ from 'lodash';
 
 import { ALL_PLUGINS } from '../lib/mdxEditor/boilerplate';
 
-// import { BoldItalicUnderlineToggles, headingsPlugin, MDXEditor, toolbarPlugin, UndoRedo, KitchenSinkToolbar } from '@mdxeditor/editor';
+export type MdxEditorProps = MDXEditorProps & {
+	id: string;
+	helperText?: ReactNode;
+	error?: boolean;
+	sx?: SxProps<Theme>;
+};
 
-const MdxEditor = () => {
-	return <MDXEditor markdown="# Hello world" plugins={ALL_PLUGINS} />;
-	// return (
-	// 	<MDXEditor
-	// 		markdown="# Hello world"
-	// 		plugins={[
-	// 			toolbarPlugin({
-	// 				// eslint-disable-next-line react/no-unstable-nested-components
-	// 				toolbarContents: () => {
-	// 					return (
-	// 						<>
-	// 							{' '}
-	// 							<UndoRedo />
-	// 							<BoldItalicUnderlineToggles />
-	// 						</>
-	// 					);
-	// 				},
-	// 			}),
-	// 		]}
-	// 	/>
-	// );
+const MdxEditor = ({
+	id,
+	helperText,
+	error,
+	sx /* = {} */,
+	markdown = '# Hello world',
+	plugins = ALL_PLUGINS,
+	...other
+}: MdxEditorProps) => {
+	return (
+		<Box
+			id={`#${id}`}
+			sx={[
+				(theme) => {
+					const radius = theme.spacing(1);
+
+					return {
+						border: `solid 1px ${alpha(theme.palette.grey[500], 0.2)}`,
+						borderRadius: radius,
+						'& [role="textbox"]': {
+							backgroundColor: alpha(theme.palette.grey[500], 0.08),
+						},
+						'& [role="toolbar"]': {
+							borderRadius: `${radius} ${radius} 0 0`,
+						},
+						...(error && {
+							border: `solid 1px ${theme.palette.error.main}`,
+							'& [role="textbox"]': {
+								bgcolor: alpha(theme.palette.error.main, 0.08),
+							},
+						}),
+					};
+				},
+				...(_.isArray(sx) ? sx : [sx]),
+			]}
+		>
+			<MDXEditor markdown={markdown} plugins={plugins} {...other} />
+			{helperText && helperText}
+		</Box>
+	);
 };
 
 export default MdxEditor;

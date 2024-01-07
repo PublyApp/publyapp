@@ -31,6 +31,6 @@ export type ImageOnlyFields = {
 
 export type ImageFormatData = Omit<BaseFileFields, 'path'> & ImageOnlyFields;
 
-export type AppFileWithPointers = AppFile & {
+export type AppFileWithRelations = AppFile & {
 	folder: string | Parse.Object; // or object
 };

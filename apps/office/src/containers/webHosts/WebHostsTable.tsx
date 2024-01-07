@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import Box from '@mui/material/Box';
 import { createColumnHelper, type ColumnDef } from '@tanstack/react-table';
 
-import type { WebHost } from '@/shared/types/webHost.types';
+import type { WebHost } from '@/shared/types/db/webHost.types';
 import BestTable from '@/ui-react/components/BestTable';
 import TableActionsCell from '@/ui-react/components/TableActionsCell';
 import TableHeaderCell from '@/ui-react/components/TableHeaderCell';

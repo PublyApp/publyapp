@@ -1,72 +1,70 @@
-// import { USE_MASTER_KEY } from '@/server/lib/constants';
+import _ from 'lodash';
 
 import { fileProvider } from '@/shared/lib/constants';
 import { ParseAppFile } from '@/shared/lib/parse/classes/appFile.class';
 
 type FolderServiceProps = {
-	path?: string;
-	sessionToken?: string;
+	sessionToken: string | undefined;
+};
+
+type CreateFolderInput = {
+	name: string;
+	parentFolder?: ParseAppFile;
 };
 
 export default class FolderService {
-	path: string;
-
 	sessionToken?: string;
 
-	constructor({ path = '/', sessionToken }: FolderServiceProps = {}) {
-		this.path = path;
+	constructor({ sessionToken }: FolderServiceProps) {
 		this.sessionToken = sessionToken;
 	}
 
-	async getByPath() {
-		return new Parse.Query(ParseAppFile).equalTo('path', this.path).first({ sessionToken: this.sessionToken });
+	static getPathForFolder(folder: ParseAppFile | undefined): string {
+		if (!FolderService.isFolder(folder)) {
+			throw new Error("[FolderService.getPathForFolder]: folder mimeType must be 'folder'");
+		}
+
+		return folder?.get('path') ?? '/';
 	}
 
-	static async getByPath(path: string, options: { sessionToken?: string } = {}) {
-		return new Parse.Query(ParseAppFile).equalTo('path', path).first({ sessionToken: options.sessionToken });
+	static isFolder(appFileFolder: ParseAppFile | undefined) {
+		if (_.isNil(appFileFolder)) {
+			// we consider this is the root folder: root folder does not have a db document
+			return true;
+		}
+
+		return appFileFolder.get('mimeType') === 'folder';
 	}
 
-	async saveOne({
-		folderName,
-		// parentFolderPath,
-		newFolderName,
-		newParentFolder,
-	}: {
-		folderName: string;
-		// parentFolderPath?: string;
-		// in case of an update
-		newFolderName?: string;
-		newParentFolder?: ParseAppFile;
-	}) {
-		const parentFolder = await this.getByPath();
-		// const parentFolder = await FolderService.getByPath(parentFolderPath || '/');
+	async getByPath(path: string | undefined) {
+		// eslint-disable-next-line @typescript-eslint/naming-convention
+		const _path = path || '/';
+		return new Parse.Query(ParseAppFile)
+			.equalTo('path', _path)
+			.equalTo('mimeType', 'folder')
+			.first({ sessionToken: this.sessionToken });
+	}
+
+	async createOne({ name, parentFolder }: CreateFolderInput) {
+		const parentFolderPath = FolderService.getPathForFolder(parentFolder);
+		const path = parentFolderPath === '/' ? parentFolderPath + name : `${parentFolderPath}/${name}`;
 
 		const foundAppFileFolder = await new Parse.Query(ParseAppFile)
-			.equalTo('path', this.path + folderName)
+			.equalTo('path', path)
 			.first({ sessionToken: this.sessionToken });
 
-		if (!foundAppFileFolder) {
-			const appFileFolder = new ParseAppFile({
-				name: folderName,
-				provider: fileProvider.LOCAL,
-				mimeType: 'folder',
-				// path: this.path + folderName,
-				path: `${this.path === '/' ? '' : this.path}/${folderName}`,
-				folder: parentFolder,
-			});
-
-			return appFileFolder.save(null, { sessionToken: this.sessionToken });
+		if (foundAppFileFolder) {
+			throw new Error('A folder with the same name already exists in this directory');
 		}
 
-		if (newFolderName) {
-			foundAppFileFolder.set('name', newFolderName);
-		}
+		const appFileFolder = new ParseAppFile({
+			name,
+			provider: fileProvider.LOCAL,
+			mimeType: 'folder',
+			path,
+			folder: parentFolder,
+		});
 
-		if (newParentFolder) {
-			foundAppFileFolder.set('folder', newParentFolder);
-			foundAppFileFolder.set('path', (newParentFolder.get('path') || '/') + folderName);
-		}
-
-		return foundAppFileFolder.save(null, { sessionToken: this.sessionToken });
+		return appFileFolder.save(null, { sessionToken: this.sessionToken });
 	}
 }

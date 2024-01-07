@@ -1,9 +1,10 @@
 import _ from 'lodash';
 import { create } from 'zustand';
 
-import { defaultRootValues, getInitialStore, persistedFields, type RootState } from './slices';
+import { /* defaultRootValues, */ getInitialStore /* persistedFields, */, type RootState } from './slices';
 import { combinedMiddlewares } from './utils/middleware';
-import { getUrlSearch } from './utils/utils';
+
+// import { getUrlSearch } from './utils/utils';
 
 export const useMainStore = create<RootState>()(
 	combinedMiddlewares(
@@ -35,39 +36,39 @@ export const buildShareableUrl = (baseURL: string, params: DeepPartial<RootState
 	return `${baseURL}?${buildURLSuffix(params, version)}`;
 };
 
-const syncPopstateEvent = () => {
-	window.addEventListener('popstate', () => {
-		const searchParams = new URLSearchParams(getUrlSearch());
-		const str = decodeURIComponent(searchParams.get('store') || '{}');
-		const val = JSON.parse(str);
-		const persistedState = val.state || {};
+// const syncPopstateEvent = () => {
+// 	window.addEventListener('popstate', () => {
+// 		const searchParams = new URLSearchParams(getUrlSearch());
+// 		const str = decodeURIComponent(searchParams.get('store') || '{}');
+// 		const val = JSON.parse(str);
+// 		const persistedState = val.state || {};
 
-		window.isPopstateEventZustand = true;
+// 		window.isPopstateEventZustand = true;
 
-		useMainStore.setState((state) => {
-			const persistedOnlyDefaultValues = _.pick(defaultRootValues, persistedFields);
-			// eslint-disable-next-line no-param-reassign, @typescript-eslint/no-unused-vars
-			state = _.merge(state, persistedOnlyDefaultValues, persistedState);
-		});
-	});
-};
+// 		useMainStore.setState((state) => {
+// 			const persistedOnlyDefaultValues = _.pick(defaultRootValues, persistedFields);
+// 			// eslint-disable-next-line no-param-reassign, @typescript-eslint/no-unused-vars
+// 			state = _.merge(state, persistedOnlyDefaultValues, persistedState);
+// 		});
+// 	});
+// };
 
-const syncPathnameChangeEvent = () => {
-	window.addEventListener('pathnameChange', () => {
-		const searchParams = new URLSearchParams(getUrlSearch());
-		const str = decodeURIComponent(searchParams.get('store') || '{}');
-		const val = JSON.parse(str);
-		const persistedState = val.state || {};
+// const syncPathnameChangeEvent = () => {
+// 	window.addEventListener('pathnameChange', () => {
+// 		const searchParams = new URLSearchParams(getUrlSearch());
+// 		const str = decodeURIComponent(searchParams.get('store') || '{}');
+// 		const val = JSON.parse(str);
+// 		const persistedState = val.state || {};
 
-		useMainStore.setState((state) => {
-			const defaultValues = defaultRootValues;
-			// eslint-disable-next-line no-param-reassign, @typescript-eslint/no-unused-vars
-			state = _.merge(state, defaultValues, persistedState);
-		});
-	});
-};
+// 		useMainStore.setState((state) => {
+// 			const defaultValues = defaultRootValues;
+// 			// eslint-disable-next-line no-param-reassign, @typescript-eslint/no-unused-vars
+// 			state = _.merge(state, defaultValues, persistedState);
+// 		});
+// 	});
+// };
 
-export const syncEventsForZustand = () => {
-	syncPopstateEvent();
-	syncPathnameChangeEvent();
-};
+// export const syncEventsForZustand = () => {
+// 	syncPopstateEvent();
+// 	syncPathnameChangeEvent();
+// };

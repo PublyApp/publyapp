@@ -9,7 +9,7 @@ import {
 	type FindAppFileFunctionResult,
 } from '@devist/shared/lib/parse/cloudRunners/appFile.runner';
 
-import type { AppFile } from '@/shared/types/appFile.types';
+import type { AppFile } from '@/shared/types/db/appFile.types';
 import { protectRequest, type AxiosHttp } from '@/ui-react/lib/axios';
 
 // import { http } from '@/office/lib/axios/http';

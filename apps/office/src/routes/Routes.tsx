@@ -21,7 +21,7 @@ import RequireAuth from '../components/RequireAuth';
 import FileManager from '../containers/fileManager/FileManager';
 import LogIn from '../containers/logIn/LogIn';
 import NotFound from '../containers/notFound/NotFound';
-import NewPost from '../containers/posts/NewPost';
+import EditPost from '../containers/posts/EditPost';
 import PostsList from '../containers/posts/PostsList';
 
 const router = createBrowserRouter(
@@ -67,7 +67,7 @@ const router = createBrowserRouter(
 				<Route path={BO_PATH_NAMES.createWebHost} element={<CreateWebHost />} />
 				<Route path={BO_PATH_NAMES.fileManager} element={<FileManager />} />
 				<Route path={BO_PATH_NAMES.posts} element={<PostsList />} />
-				<Route path={BO_PATH_NAMES.createPost} element={<NewPost />} />
+				<Route path={BO_PATH_NAMES.createPost} element={<EditPost />} />
 			</Route>
 
 			{/* // ---- not found page ------------------------------------------------------------------- */}
