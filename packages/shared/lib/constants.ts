@@ -1,4 +1,4 @@
-import { imageFormatTypes } from '@/shared/types/appFile.types';
+import { imageFormatTypes } from '@/shared/types/db/appFile.types';
 
 export type IRoleConfig = {
 	name: string;
@@ -33,7 +33,7 @@ export const className = {
 	AWESOME_LINK: 'AwesomeLink',
 } as const;
 
-export const LOCALE_HEADER_KEY = 'xxx-app-i18n-locale';
+export const LOCALE_HEADER_KEY = 'X-Devist-Locale';
 
 export const FRONT_PATH_NAMES = {
 	// dashboard: ROOTS.DASHBOARD,
@@ -70,6 +70,10 @@ export const functionName = {
 	// Files
 	findAppFile: 'findAppFile',
 	saveAppFileFolder: 'saveAppFileFolder',
+	// Posts
+	createPost: 'createPost',
+	updatePost: 'updatePost',
+	// savePost: 'savePost',
 } as const;
 
 export const endPoint = {

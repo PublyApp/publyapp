@@ -1,7 +1,7 @@
 import type { Faker } from '@faker-js/faker';
 
 import { className } from '@devist/shared/lib/constants';
-import { PRICING_MODELS, PRICING_TYPES } from '@devist/shared/types/aiTool.types';
+import { PRICING_MODELS, PRICING_TYPES } from '@devist/shared/types/db/aiTool.types';
 
 export const aiToolFactory = async (faker: Faker) => {
 	const aiTool = new Parse.Object(className.AI_TOOL);

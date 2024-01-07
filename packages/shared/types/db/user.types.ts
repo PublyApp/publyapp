@@ -1,4 +1,4 @@
-import { BaseAttributes } from 'parse';
+import { type BaseAttributes } from 'parse';
 
 export type UserAttributes = {
 	// Parse built-ins

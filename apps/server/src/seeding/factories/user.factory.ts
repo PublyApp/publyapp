@@ -1,11 +1,11 @@
 import { type Faker } from '@faker-js/faker';
 
-import { User } from '@devist/shared/lib/parse/classes/user.class';
+import { ParseUser } from '@devist/shared/lib/parse/classes/user.class';
 
 export const userFactory = async (faker: Faker) => {
 	// const getBool = faker.datatype.boolean;
 	// const user = {} as User;
-	const user = new User();
+	const user = new ParseUser();
 
 	user.set('firstName', faker.person.firstName());
 	user.set('lastName', faker.person.lastName());

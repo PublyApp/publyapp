@@ -5,7 +5,7 @@ import { multerFilesArraySchema } from '@devist/shared/validations/file/file.val
 import { HttpException } from '@/server/exceptions/HttpException';
 import FileService from '@/server/services/file.service';
 import { PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
-import type { AppFile } from '@/shared/types/appFile.types';
+import type { AppFile } from '@/shared/types/db/appFile.types';
 
 import FolderService from '../services/folder.service';
 
@@ -20,8 +20,11 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 		const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
 		// const authService = AuthCloudService.createAuthCloudService();
 
-		const fileService = new FileService({ file: req.file, sessionToken });
-		const savedParseFile = await fileService.saveOne();
+		const fileService = new FileService({ sessionToken });
+		const savedParseFile = await fileService.createOne({
+			file: req.file,
+			// parentFolder,
+		});
 
 		res.status(201).send(savedParseFile.toJSON());
 	} catch (error) {
@@ -38,11 +41,14 @@ export const handleUploadManyFiles: RequestHandler = async (req, res, next) => {
 
 		const { parentFolderPath } = req.body;
 
-		const folderService = new FolderService({ path: parentFolderPath, sessionToken });
-		const parentFolder = await folderService.getByPath();
+		const folderService = new FolderService({ sessionToken });
+		const parentFolder = await folderService.getByPath(parentFolderPath);
 
-		const fileService = new FileService({ files, sessionToken, parentFolder });
-		const savedParseFiles = await fileService.saveMany();
+		const fileService = new FileService({ sessionToken });
+		const savedParseFiles = await fileService.createMany({
+			files,
+			parentFolder,
+		});
 
 		const savedFiles: AppFile[] = savedParseFiles.map((file) => {
 			return file.toJSON() as unknown as AppFile;

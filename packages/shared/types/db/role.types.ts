@@ -1,4 +1,4 @@
-import { BaseAttributes } from 'parse';
+import { type BaseAttributes } from 'parse';
 
 export type IRole = BaseAttributes & {
 	// Parse built-ins

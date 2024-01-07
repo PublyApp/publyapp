@@ -11,7 +11,7 @@
 		"dev": "cross-env APP_ENV='local' pnpm dev:rs",
 		"build:pack": "tsc && rspack build",
 		"dev:pack": "rspack serve",
-		"build:rs": "rsbuild build",
+		"build:rs": "tsc && rsbuild build",
 		"dev:rs": "rsbuild dev",
 		"lint": "eslint src --ext ts,tsx --max-warnings 0",
 		"lint:fix": "pnpm lint --fix"

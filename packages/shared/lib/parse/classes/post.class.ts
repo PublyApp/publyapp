@@ -1,10 +1,12 @@
 import { className } from '@/shared/lib/constants';
-import type { IPost } from '@/shared/types/post.types';
+import type { IPostWithRelations } from '@/shared/types/db/post.types';
 
-export class Post extends Parse.Object<IPost> {
-	constructor(attributes?: IPost) {
-		super(className.POST, attributes as IPost);
+export class ParsePost extends Parse.Object<IPostWithRelations> {
+	static className = className.APP_FILE;
+
+	constructor(attributes?: DeepPartial<IPostWithRelations>) {
+		super(className.POST, attributes as IPostWithRelations);
 	}
 }
 
-Parse.Object.registerSubclass(className.POST, Post);
+Parse.Object.registerSubclass(ParsePost.className, ParsePost);

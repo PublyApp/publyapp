@@ -1,5 +1,5 @@
 import { className /* , isServer */ } from '@/shared/lib/constants';
-import type { WebHost } from '@/shared/types/webHost.types';
+import type { WebHost } from '@/shared/types/db/webHost.types';
 
 export class ParseWebHost extends Parse.Object<WebHost> {
 	constructor(attributes?: DeepPartial<WebHost>) {

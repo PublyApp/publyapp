@@ -1,4 +1,4 @@
-import type { AppFile } from '@/shared/types/appFile.types';
+import type { AppFile } from '@/shared/types/db/appFile.types';
 
 import { functionName } from '../../constants';
 import type { ParseAppFile } from '../classes/appFile.class';
