@@ -1,18 +1,15 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { Suspense, useMemo, useRef, type ComponentProps } from 'react';
+import { Suspense, useRef } from 'react';
 
 import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
-import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
 import { useFindAppFileSuspense } from '@/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 
 import FileManagerFileItem from '../../components/file-manager/FileManagerFileItem';
 import FileManagerFolderItem from '../../components/file-manager/FileManagerFolderItem';
-import FileManagerPanel from '../../components/file-manager/FileManagerPanel';
 import { appFileData, appFolderData } from '../../components/file-manager/utils';
-import PageHeader from '../../components/PageHeader';
 
 import useFileManager from './useFilManager';
 

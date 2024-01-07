@@ -24,12 +24,15 @@ const useLocale = () => {
 
 	const lang = langConfigsMap.get(locale) || defaultLangConfig;
 
-	const changeLocale = useCallback((value: AppLocale) => {
-		i18n.changeLanguage(value);
-		Parse.CoreManager.set('REQUEST_HEADERS', {
-			[LOCALE_HEADER_KEY]: value,
-		});
-	}, []);
+	const changeLocale = useCallback(
+		(value: AppLocale) => {
+			i18n.changeLanguage(value);
+			Parse.CoreManager.set('REQUEST_HEADERS', {
+				[LOCALE_HEADER_KEY]: value,
+			});
+		},
+		[i18n],
+	);
 
 	const setLocale: Dispatch<SetStateAction<AppLocale>> = useCallback(
 		(value) => {
@@ -42,7 +45,7 @@ const useLocale = () => {
 
 			changeLocale(value);
 		},
-		[i18n],
+		[changeLocale, locale],
 	);
 
 	return {

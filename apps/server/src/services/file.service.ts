@@ -7,45 +7,27 @@ import sharp from 'sharp';
 
 import { fileProvider, IMAGE_FORMAT_CONFIG } from '@devist/shared/lib/constants';
 import { ParseAppFile } from '@devist/shared/lib/parse/classes/appFile.class';
-import type { ListMeta } from '@devist/shared/types/any.types';
+import type { ListMeta } from '@devist/shared/types/db/any.types';
+import type { AppFile, ImageFormatData, ImageFormatType } from '@devist/shared/types/db/appFile.types';
 
 import { env } from '@/server/lib/env';
 import { applySkipAndLimit } from '@/server/lib/parse';
 import { addSuffixToFileName } from '@/server/utils/any.utils';
-import type { AppFile, ImageFormatData, ImageFormatType } from '@/shared/types/appFile.types';
+
+import FolderService from './folder.service';
 
 export type FileServiceProps = {
-	file?: Express.Multer.File;
-	files?: Express.Multer.File[];
-	parentFolder?: ParseAppFile | Parse.Object;
-	alternativeText?: string;
-	caption?: string;
-	sessionToken?: string;
+	sessionToken: string | undefined;
 };
+
+type Formats = Record<ImageFormatType, ImageFormatData>;
 
 // type ListFilesOptions = { page: number; pageSize: number; json?: boolean };
 
 export default class FileService {
-	file?: Express.Multer.File;
-
-	files?: Express.Multer.File[];
-
-	parentFolder?: ParseAppFile | Parse.Object;
-
-	formats?: Record<ImageFormatType, ImageFormatData>[];
-
-	alternativeText?: string;
-
-	caption?: string;
-
 	sessionToken?: string;
 
-	constructor({ file, files, alternativeText, caption, parentFolder, sessionToken }: FileServiceProps) {
-		this.file = file;
-		this.files = files;
-		this.parentFolder = parentFolder;
-		this.alternativeText = alternativeText;
-		this.caption = caption;
+	constructor({ sessionToken }: FileServiceProps) {
 		this.sessionToken = sessionToken;
 	}
 
@@ -53,15 +35,13 @@ export default class FileService {
 		return file.mimetype.startsWith('image/');
 	}
 
-	getParentFolderPath(): string {
-		return (this.parentFolder as ParseAppFile | undefined)?.get('path') ?? '/';
-	}
+	// static getPathForFolder(folder: ParseAppFile | undefined): string {
+	// 	// FileService.checkMimeType(folder, ['folder']);
 
-	private async generateImageFormats(file: Express.Multer.File) {
-		// if (!file) {
-		// 	throw new Error('[FileService.generateImageFormats]: file member is missing');
-		// }
+	// 	return folder?.get('path') ?? '/';
+	// }
 
+	private static async _generateImageFormats(file: Express.Multer.File) {
 		if (!FileService.isImage(file)) {
 			throw new Error("[FileService.generateImageFormats]: File must be of type 'image/*'");
 		}
@@ -69,7 +49,7 @@ export default class FileService {
 		const { originalname, path: filePath, destination } = file;
 		const uid: string = _.get(file, 'uid')!;
 
-		const formats = {} as unknown as NonNullable<typeof this.formats>[number];
+		const formats = {} as unknown as Formats;
 
 		const getFormatsPromise = Promise.all(
 			Object.entries(IMAGE_FORMAT_CONFIG).map(async ([format, config]) => {
@@ -94,27 +74,19 @@ export default class FileService {
 		);
 
 		await getFormatsPromise;
-		// .catch((reason) => {
-		// 	formats = undefined;
-		// });
 
 		return formats;
-
-		// await promise
-		// 	.then(() => {
-		// 		this.formats = formats;
-		// 	})
-		// 	.catch((reason) => {
-		// 		this.formats = undefined;
-		// 		throw reason;
-		// 	});
 	}
 
-	private async saveRecord(file: Express.Multer.File, formats?: NonNullable<typeof this.formats>[number]) {
-		// if (!this.file) {
-		// 	throw new Error('[FileService.saveRecord]: file member is missing');
-		// }
-
+	private async _createRecord({
+		file,
+		formats,
+		parentFolder,
+	}: {
+		file: Express.Multer.File;
+		formats?: Formats;
+		parentFolder?: ParseAppFile;
+	}) {
 		const { mimetype, filename, path: filePath, size } = file;
 
 		const parseFile = new ParseAppFile({
@@ -122,12 +94,10 @@ export default class FileService {
 			url: `${env.EXPRESS_FILES_MOUNT_PATH}/${filename}`,
 			mimeType: mimetype,
 			name: filename,
-			path: this.getParentFolderPath() + filename,
-			folder: this.parentFolder,
+			path: FolderService.getPathForFolder(parentFolder) + filename,
+			folder: parentFolder,
 			size,
 		});
-
-		// getFormatsForFile
 
 		if (FileService.isImage(file) && !_.isEmpty(formats)) {
 			const { height, width } = sizeOf(filePath);
@@ -141,52 +111,47 @@ export default class FileService {
 		return parseFile.save(null, { sessionToken: this.sessionToken });
 	}
 
-	private async _saveOne(file: Express.Multer.File) {
-		// if (!this.file) {
-		// 	throw new Error('[FileService.saveOne]: file member is missing');
-		// }
-		let formats: NonNullable<typeof this.formats>[number] | undefined;
+	async createOne({ file, parentFolder }: { file: Express.Multer.File; parentFolder?: ParseAppFile }) {
+		if (!FolderService.isFolder(parentFolder)) {
+			throw new Error("[FileService.createOne]: folder mimeType must be 'folder'");
+		}
+
+		let formats: Formats | undefined;
 
 		if (FileService.isImage(file)) {
 			// create different files formats
 			// saves these formats into the fs
-			formats = await this.generateImageFormats(file);
+			formats = await FileService._generateImageFormats(file);
 		} else {
 			//
 		}
 
 		// save file's datas into the database
-		return this.saveRecord(file, formats);
+		return this._createRecord({ file, formats, parentFolder });
 	}
 
-	async saveOne() {
-		if (!this.file) {
-			throw new Error('[FileService.saveOne]: file member is missing');
+	// static checkMimeType(appFile: ParseAppFile | undefined, mimeTypes: string[], throws?: true | undefined): void;
+	// static checkMimeType(appFile: ParseAppFile | undefined, mimeTypes: string[], throws: false): boolean;
+	// // eslint-disable-next-line consistent-return
+	// static checkMimeType(appFile: ParseAppFile | undefined, mimeTypes: string[], throws = true) {
+	// 	const CONDITION = !_.isNil(appFile) && !mimeTypes.includes(appFile.get('mimeType'));
+
+	// 	if (throws) {
+	// 		if (CONDITION) {
+	// 			throw new Error('[FileService.checkMimeType]: Invalid mimeType');
+	// 		}
+	// 	} else {
+	// 		return CONDITION;
+	// 	}
+	// }
+
+	async createMany({ files, parentFolder }: { files: Express.Multer.File[]; parentFolder?: ParseAppFile }) {
+		if (!FolderService.isFolder(parentFolder)) {
+			throw new Error("[FileService.createMany]: folder mimeType must be 'folder'");
 		}
 
-		const appFile = await this._saveOne(this.file);
-
-		return appFile;
-
-		// if (FileService.isImage(this.file)) {
-		// 	// create different files formats
-		// 	// saves these formats into the fs
-		// 	await this.generateImageFormats();
-		// } else {
-		// 	//
-		// }
-
-		// // save file's datas into the database
-		// return this.saveRecord();
-	}
-
-	async saveMany() {
-		if (!this.files) {
-			throw new Error('[FileService.saveMany]: files member is missing');
-		}
-
-		const parseFiles = await async.map(this.files, async (file: Express.Multer.File) => {
-			const savedFile = await this._saveOne(file);
+		const parseFiles = await async.map(files, async (file: Express.Multer.File) => {
+			const savedFile = await this.createOne({ file, parentFolder });
 			return savedFile;
 		});
 
@@ -196,20 +161,23 @@ export default class FileService {
 	async listFiles(options: {
 		page: number;
 		pageSize: number;
-		// sessionToken?: string;
 		json?: true;
+		parentFolder?: ParseAppFile;
 	}): Promise<{ appFiles: AppFile[] } & ListMeta>;
 	async listFiles(options: {
 		page: number;
 		pageSize: number;
-		// sessionToken?: string;
 		json: false;
+		parentFolder?: ParseAppFile;
 	}): Promise<{ appFiles: ParseAppFile[] } & ListMeta>;
-	async listFiles(options: { page: number; pageSize: number; json?: boolean /* sessionToken?: string */ }) {
-		// const { sessionToken } = options;
+	async listFiles(options: { page: number; pageSize: number; json?: boolean; parentFolder?: ParseAppFile }) {
 		const { sessionToken } = this;
 
-		const parentFolderPath = this.getParentFolderPath();
+		if (!FolderService.isFolder(options.parentFolder)) {
+			throw new Error("[FileService.listFiles]: folder mimeType must be 'folder'");
+		}
+
+		const parentFolderPath = FolderService.getPathForFolder(options.parentFolder);
 		const totalCountQuery = new Parse.Query(ParseAppFile);
 
 		const listRootFolderFiles = async (page: number, pageSize: number, json?: boolean) => {
@@ -284,5 +252,13 @@ export default class FileService {
 		}
 
 		return (await listAnyOtherFolderFiles(page, pageSize, json)) as unknown as { appFiles: ParseAppFile[] } & ListMeta;
+	}
+
+	async getById(objectId: string) {
+		const query = new Parse.Query(ParseAppFile).notEqualTo('mimeType', 'folder').equalTo('objectId', objectId);
+
+		const appFile = query.first({ sessionToken: this.sessionToken });
+
+		return appFile;
 	}
 }

@@ -17,11 +17,18 @@ Parse.Cloud.define(
 
 			const sessionToken = user?.getSessionToken();
 
-			const folderService = new FolderService({ path: folderPath, sessionToken });
-			const parentFolder = await folderService.getByPath();
+			const folderService = new FolderService({ sessionToken });
 
-			const fileService = new FileService({ parentFolder });
-			return fileService.listFiles({ pageSize: pageSize || DEFAULT_PAGE_SIZE, page: page || 1, json: true });
+			const parentFolder = await folderService.getByPath(folderPath);
+
+			const fileService = new FileService({ sessionToken });
+
+			return fileService.listFiles({
+				pageSize: pageSize || DEFAULT_PAGE_SIZE,
+				page: page || 1,
+				json: true,
+				parentFolder,
+			});
 		},
 	}),
 );
@@ -41,8 +48,11 @@ Parse.Cloud.define(
 
 			const sessionToken = user.getSessionToken();
 
-			const folderService = new FolderService({ path: parentFolderPath, sessionToken });
-			return folderService.saveOne({ folderName });
+			const folderService = new FolderService({ sessionToken });
+
+			const parentFolder = await folderService.getByPath(parentFolderPath);
+
+			return folderService.createOne({ name: folderName, parentFolder });
 		},
 	}),
 );

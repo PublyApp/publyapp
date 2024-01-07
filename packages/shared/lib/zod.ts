@@ -7,7 +7,7 @@ export const getErrorMap: (t: TFunction, opts: { field: string }) => z.ZodErrorM
 		 * This is where you override the various error codes
 		 */
 		switch (error.code) {
-			case z.ZodIssueCode.invalid_type:
+			case z.ZodIssueCode.invalid_type: {
 				if (error.expected === 'string') {
 					return { message: t('form.error.invalidStringType', { field }) };
 				}
@@ -21,6 +21,7 @@ export const getErrorMap: (t: TFunction, opts: { field: string }) => z.ZodErrorM
 				}
 
 				break;
+			}
 
 			case z.ZodIssueCode.custom: {
 				// produce a custom message using error.params

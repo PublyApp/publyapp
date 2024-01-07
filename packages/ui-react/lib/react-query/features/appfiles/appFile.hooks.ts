@@ -2,7 +2,7 @@ import { useMutation, useSuspenseQuery, type UseMutationOptions } from '@tanstac
 
 import { endPoint, functionName } from '@devist/shared/lib/constants';
 
-import type { AppFile } from '@/shared/types/appFile.types';
+import type { AppFile } from '@/shared/types/db/appFile.types';
 
 import {
 	createAppFileFolderAction,

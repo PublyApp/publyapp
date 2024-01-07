@@ -7,11 +7,13 @@ const emailFieldSchema = z
 	.max(120, 'Email must be 120 chars max');
 // .refine(value => value.toLowerCase());
 
+const SPECIAL_CHAR_REGEX = /[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/;
+
 const passwordFieldSchema = z
 	.string({ required_error: 'Password required' })
 	.min(8, 'Password must be 8 chars min')
-	.max(64, 'Password must be 64 chars min')
-	.regex(/[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/, 'At least 8 chars and 1 spacial char');
+	.max(64, 'Password must be 64 chars max')
+	.regex(SPECIAL_CHAR_REGEX, 'At least 8 chars and 1 spacial char');
 
 export const logInSchema = z.object({
 	email: emailFieldSchema,
