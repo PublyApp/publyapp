@@ -35,16 +35,16 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 export const handleUploadManyFiles: RequestHandler = async (req, res, next) => {
 	try {
 		const files = multerFilesArraySchema.parse(req.files);
-
-		const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
-		// const authService = AuthCloudService.createAuthCloudService();
-
 		const { parentFolderPath } = req.body;
 
+		const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
+
 		const folderService = new FolderService({ sessionToken });
+		const fileService = new FileService({ sessionToken });
+		// const authService = AuthCloudService.createAuthCloudService();
+
 		const parentFolder = await folderService.getByPath(parentFolderPath);
 
-		const fileService = new FileService({ sessionToken });
 		const savedParseFiles = await fileService.createMany({
 			files,
 			parentFolder,
