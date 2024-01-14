@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { createElement, useMemo } from 'react';
+
+import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 
 import SvgColor from '@/office/components/SvgColor';
-import { BO_PATH_NAMES } from '@/shared/lib/constants';
 
 // import { paths } from '@/office/utils/paths';
 
@@ -13,7 +14,8 @@ import { BO_PATH_NAMES } from '@/shared/lib/constants';
 // ----------------------------------------------------------------------
 
 const icon = (name: string) => {
-	return <SvgColor src={`/assets/icons/navbar/${name}.svg`} sx={{ width: 1, height: 1 }} />;
+	// return <SvgColor src={`/assets/icons/navbar/${name}.svg`} sx={{ width: 1, height: 1 }} />;
+	return createElement(SvgColor, { src: `/assets/icons/navbar/${name}.svg`, sx: { width: 1, height: 1 } });
 	// OR
 	// <Iconify icon="fluent:mail-24-filled" />
 	// https://icon-sets.iconify.design/solar/
@@ -84,11 +86,11 @@ export const useNavData = () => {
 					// 		{ title: 'six', path: paths.dashboard.group.six },
 					// 	],
 					// },
-					{
-						title: 'Web hosts',
-						path: BO_PATH_NAMES.dashboard.root,
-						icon: ICONS.dashboard,
-					},
+					// {
+					// 	title: 'Web hosts',
+					// 	path: BO_PATH_NAMES.dashboard.root,
+					// 	icon: ICONS.dashboard,
+					// },
 					{
 						title: 'Posts',
 						path: BO_PATH_NAMES.dashboard.posts.root,
