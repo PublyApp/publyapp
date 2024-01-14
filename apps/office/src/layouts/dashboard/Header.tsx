@@ -101,7 +101,7 @@ const Header = ({ onOpenNav }: Props) => {
 					...(isNavMini
 						? {
 								width: `calc(100% - ${NAV.W_MINI + 1}px)`,
-						  }
+							}
 						: {}),
 				}),
 			}}
