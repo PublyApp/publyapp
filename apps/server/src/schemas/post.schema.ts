@@ -14,6 +14,9 @@ const PostSchema = SchemaMigrations.makeSchema(className.POST, {
 		author: { type: 'Pointer', targetClass: className.USER },
 		cover: { type: 'Pointer', targetClass: className.APP_FILE },
 		// ...
+		noIndex: { type: 'Boolean' },
+		publishDate: { type: 'Date' },
+		updateDate: { type: 'Date' },
 		// relatedArticles create a query for that
 	},
 	classLevelPermissions: DEFAULT_CLP,

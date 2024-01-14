@@ -1,16 +1,19 @@
 import { Suspense } from 'react';
 
 import loadable from '@loadable/component';
+import Button from '@mui/material/Button';
 import { QueryErrorResetBoundary } from '@tanstack/react-query';
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
-import { Navigate, type RouteObject } from 'react-router-dom';
+import { Navigate, Outlet, type RouteObject } from 'react-router-dom';
 
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { AUTH_REQUIRED_ERROR_MSG } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 
+import LoadingScreen from '../components/LoadingScreen';
 import RequireAuth from '../components/RequireAuth';
+import SplashScreen from '../components/SplashScreen';
 import FileManager from '../containers/fileManager/FileManager';
 import NotFound from '../containers/notFound/NotFound';
 import NewPost from '../containers/posts/NewPost';
@@ -22,7 +25,7 @@ const EditPost = loadable(() => {
 	return import('../containers/posts/EditPost');
 });
 
-const FallBackComponent = ({ error /* , resetErrorBoundary */ }: FallbackProps) => {
+const FallBackComponent = ({ error, resetErrorBoundary }: FallbackProps) => {
 	if (error.message === AUTH_REQUIRED_ERROR_MSG) {
 		return <Navigate to={BO_PATH_NAMES.auth.login} />;
 	}
@@ -30,6 +33,7 @@ const FallBackComponent = ({ error /* , resetErrorBoundary */ }: FallbackProps) 
 	return (
 		<div role="alert">
 			<h1>Something went wrong!!</h1>
+			<Button onClick={resetErrorBoundary}>Retry loading</Button>
 			{/* <pre style={{ color: 'red' }}>{error.message}</pre> */}
 		</div>
 	);
@@ -42,9 +46,13 @@ export const dashboardRoutes: RouteObject[] = [
 				{({ reset }) => {
 					return (
 						<ErrorBoundary FallbackComponent={FallBackComponent} onReset={reset}>
-							<Suspense fallback={<h1>Dashboard Suspense</h1>}>
+							<Suspense fallback={<SplashScreen />}>
 								<RequireAuth>
-									<DashboardLayout />
+									<DashboardLayout>
+										<Suspense fallback={<LoadingScreen />}>
+											<Outlet />
+										</Suspense>
+									</DashboardLayout>
 								</RequireAuth>
 							</Suspense>
 						</ErrorBoundary>
@@ -97,7 +105,7 @@ export const dashboardRoutes: RouteObject[] = [
 							},
 							{
 								path: getLastPath(BO_PATH_NAMES.dashboard.posts.edit(':postId'), 2),
-								element: <EditPost fallback={<h1>😎😎😎😎</h1>} />,
+								element: <EditPost />,
 							},
 						],
 					},
