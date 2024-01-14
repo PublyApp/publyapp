@@ -11,17 +11,6 @@ import LogInForm from './LogInForm';
 
 const LogIn = () => {
 	const theme = useTheme();
-	// const navigate = useNavigate();
-
-	// const {
-	// 	result: { data /* , isLoading */ },
-	// } = useGetClientAuth();
-
-	// useEffect(() => {
-	// 	if (data) {
-	// 		navigate(BO_PATH_NAMES.dashboard.root);
-	// 	}
-	// }, [data, navigate]);
 
 	return (
 		<Box

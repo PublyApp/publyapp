@@ -1,9 +1,14 @@
+import { Suspense } from 'react';
+
 import loadable from '@loadable/component';
-import { type RouteObject } from 'react-router-dom';
+import { QueryErrorResetBoundary } from '@tanstack/react-query';
+import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
+import { Navigate, type RouteObject } from 'react-router-dom';
 
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import { AUTH_REQUIRED_ERROR_MSG } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 
 import RequireAuth from '../components/RequireAuth';
 import FileManager from '../containers/fileManager/FileManager';
@@ -17,12 +22,35 @@ const EditPost = loadable(() => {
 	return import('../containers/posts/EditPost');
 });
 
+const FallBackComponent = ({ error /* , resetErrorBoundary */ }: FallbackProps) => {
+	if (error.message === AUTH_REQUIRED_ERROR_MSG) {
+		return <Navigate to={BO_PATH_NAMES.auth.login} />;
+	}
+
+	return (
+		<div role="alert">
+			<h1>Something went wrong!!</h1>
+			{/* <pre style={{ color: 'red' }}>{error.message}</pre> */}
+		</div>
+	);
+};
+
 export const dashboardRoutes: RouteObject[] = [
 	{
 		element: (
-			<RequireAuth>
-				<DashboardLayout />
-			</RequireAuth>
+			<QueryErrorResetBoundary>
+				{({ reset }) => {
+					return (
+						<ErrorBoundary FallbackComponent={FallBackComponent} onReset={reset}>
+							<Suspense fallback={<h1>Dashboard Suspense</h1>}>
+								<RequireAuth>
+									<DashboardLayout />
+								</RequireAuth>
+							</Suspense>
+						</ErrorBoundary>
+					);
+				}}
+			</QueryErrorResetBoundary>
 		),
 		children: [
 			{
