@@ -63,6 +63,7 @@ export const BO_PATH_NAMES = {
 	auth: {
 		root: ROOTS.AUTH,
 		login: makePath(ROOTS.AUTH, 'login'),
+		register: makePath(ROOTS.AUTH, 'register'),
 	},
 	dashboard: {
 		root: ROOTS.DASHBOARD,
