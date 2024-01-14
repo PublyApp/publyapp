@@ -1,83 +1,20 @@
-import qs from 'query-string';
-import {
-	createBrowserRouter,
-	createRoutesFromElements,
-	Navigate,
-	Outlet,
-	Route,
-	RouterProvider,
-} from 'react-router-dom';
-import { QueryParamProvider } from 'use-query-params';
-import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
-import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
+import QueryParamProvider from '../providers/QueryParamProvider';
 
-import Home from '@/office/containers/home/Home';
-import CreateWebHost from '@/office/containers/webHosts/CreateWebHost';
-import WebHosts from '@/office/containers/webHosts/WebHosts';
-import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
+import { dashboardRoutes } from './_dashboardRoutes';
+import { publicRoutes } from './_publicRoutes';
 
-import RequireAuth from '../components/RequireAuth';
-import FileManager from '../containers/fileManager/FileManager';
-import LogIn from '../containers/logIn/LogIn';
-import NotFound from '../containers/notFound/NotFound';
-import EditPost from '../containers/posts/EditPost';
-import PostsList from '../containers/posts/PostsList';
+const router = createBrowserRouter([
+	{
+		element: <QueryParamProvider />,
+		children: [...dashboardRoutes, ...publicRoutes],
+	},
+]);
 
-const router = createBrowserRouter(
-	createRoutesFromElements(
-		<Route
-			path="/"
-			// errorElement={<ErrorBoundary fallback={<h1>Bruh, :3</h1>} />}
-			element={
-				<QueryParamProvider
-					adapter={ReactRouter6Adapter}
-					options={{
-						searchStringToObject: qs.parse,
-						objectToSearchString: (encodedParam) => {
-							return qs.stringify(encodedParam, { arrayFormat: 'bracket', encode: false });
-						},
-					}}
-				>
-					{/* <Sync /> */}
-					<Outlet />
-				</QueryParamProvider>
-			}
-		>
-			{/* //-------------------------------------------------------------------------------------- */}
-			{/* //                                        Auth routes                                    */}
-			{/* //-------------------------------------------------------------------------------------- */}
-			<Route path={BO_PATH_NAMES.logIn} element={<LogIn />} />
-
-			{/* //-------------------------------------------------------------------------------------- */}
-			{/* //                                   Dashboard routes                                    */}
-			{/* //-------------------------------------------------------------------------------------- */}
-			<Route
-				element={
-					<RequireAuth>
-						<DashboardLayout>
-							<Outlet />
-						</DashboardLayout>
-					</RequireAuth>
-				}
-			>
-				<Route path="/" element={<Navigate to={BO_PATH_NAMES.dashboard} /* replace */ />} />
-				<Route path={BO_PATH_NAMES.dashboard} element={<Home />} />
-				<Route path={BO_PATH_NAMES.webHosts} element={<WebHosts />} />
-				<Route path={BO_PATH_NAMES.createWebHost} element={<CreateWebHost />} />
-				<Route path={BO_PATH_NAMES.fileManager} element={<FileManager />} />
-				<Route path={BO_PATH_NAMES.posts} element={<PostsList />} />
-				<Route path={BO_PATH_NAMES.createPost} element={<EditPost />} />
-			</Route>
-
-			{/* // ---- not found page ------------------------------------------------------------------- */}
-			<Route path="*" element={<NotFound />} />
-		</Route>,
-	),
-);
-
-const AppRoutes = () => {
+const Routes = () => {
+	// https://github.com/remix-run/react-router/discussions/10223#discussioncomment-5909050
 	return <RouterProvider router={router} />;
 };
 
-export default AppRoutes;
+export default Routes;

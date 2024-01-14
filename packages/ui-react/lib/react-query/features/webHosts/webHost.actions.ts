@@ -5,7 +5,7 @@ import type { ColumnSort } from '@tanstack/react-table';
 
 import { functionName } from '@devist/shared/lib/constants';
 import type { ParseWebHost } from '@devist/shared/lib/parse/classes/webHost.class';
-import type { WebHost } from '@devist/shared/types/webHost.types';
+import type { WebHost } from '@devist/shared/types/db/webHost.types';
 import type { SaveWebHostInput } from '@devist/shared/validations/webHost.validations';
 
 // --------------------------------------------------------------------------------------//

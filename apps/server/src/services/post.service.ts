@@ -1,8 +1,8 @@
 import _ from 'lodash';
 
-import { roleEnum } from '@/shared/lib/constants';
 import type { ParseAppFile } from '@/shared/lib/parse/classes/appFile.class';
 import { ParsePost } from '@/shared/lib/parse/classes/post.class';
+import type { ParseUser } from '@/shared/lib/parse/classes/user.class';
 import type { IPostWithRelations } from '@/shared/types/db/post.types';
 
 type Props = {
@@ -71,8 +71,9 @@ export default class PostService {
 		// set ACL
 		const acl = new Parse.ACL();
 		acl.setPublicReadAccess(false);
+		// author can read and write
+		acl.setReadAccess(author.id, true);
 		acl.setWriteAccess(author.id, true);
-		acl.setRoleWriteAccess(roleEnum.MODERATOR.name, true);
 
 		post.setACL(acl);
 
@@ -97,18 +98,27 @@ export default class PostService {
 
 		if (_.isNil(published)) {
 			// do nothing
-		} else if (published) {
-			if (acl) {
-				acl.setPublicReadAccess(true);
-				post.setACL(acl);
-			}
+		} else if (acl) {
+			acl.setPublicReadAccess(published);
+			post.setACL(acl);
 		}
 
 		if (_.isNil(author)) {
 			// do nothing
 		} else if (author) {
 			if (acl) {
-				acl.setWriteAccess(author.id, true);
+				const formerAuthor = post.get('author') as unknown as ParseUser;
+
+				if (formerAuthor.id !== author.id) {
+					// give permission to the new author
+					acl.setReadAccess(author.id, true);
+					acl.setWriteAccess(author.id, true);
+
+					// remove permission from the former author
+					acl.setReadAccess(formerAuthor.id, false);
+					acl.setWriteAccess(formerAuthor.id, false);
+				}
+
 				post.setACL(acl);
 			}
 		}
@@ -133,6 +143,16 @@ export default class PostService {
 
 	getById(objectId: string) {
 		const query = new Parse.Query(ParsePost).equalTo('objectId', objectId);
+		return query.first({ sessionToken: this.sessionToken });
+	}
+
+	getBySlug(slug: string, { select }: { select?: string[] } = {}) {
+		const query = new Parse.Query(ParsePost).equalTo('slug', slug);
+
+		if (select) {
+			query.select(select as never);
+		}
+
 		return query.first({ sessionToken: this.sessionToken });
 	}
 }

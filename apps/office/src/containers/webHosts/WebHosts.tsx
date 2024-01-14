@@ -13,7 +13,7 @@ import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
+// import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 import { getSaveWebHostInputSchema, type SaveWebHostInput } from '@devist/shared/validations/webHost.validations';
 import { ENABLE_TABLE_INLINE_EDITING } from '@devist/ui-react/lib/constants';
 import { useSaveWebHost } from '@devist/ui-react/lib/react-query/features/webHosts/webHost.hooks';
@@ -99,7 +99,7 @@ const WebHosts = () => {
 				<Button
 					variant="contained"
 					onClick={() => {
-						navigate(BO_PATH_NAMES.createWebHost);
+						navigate(/* BO_PATH_NAMES.createWebHost */ '#');
 					}}
 				>
 					Add (form)

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type MutateOptions } from '@tanstack/react-query';
 
-import type { IUser } from '@devist/shared/types/user.types';
+import type { IUser } from '@devist/shared/types/db/user.types';
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
 import { getClientAuthAction, logInAction, logOutAction } from './auth.actions';

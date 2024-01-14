@@ -1,5 +1,3 @@
-import type { FC } from 'react';
-
 import '@devist/ui-react/styles/fonts.css';
 
 import MotionLazy from '@devist/ui-react/components/MotionLazy';
@@ -8,16 +6,16 @@ import QueryProvider from '@devist/ui-react/providers/QueryProvider';
 import SnackbarProvider from '@devist/ui-react/providers/SnackbarProvider';
 import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
 
-import AppRoutes from './routes/Routes';
+import Routes from './routes/Routes';
 
-const App: FC = () => {
+const App = () => {
 	return (
 		<QueryProvider>
 			<MuiDatePickerLocalizationProvider>
 				<ThemeProvider>
 					<MotionLazy>
 						<SnackbarProvider>
-							<AppRoutes />
+							<Routes />
 						</SnackbarProvider>
 					</MotionLazy>
 				</ThemeProvider>

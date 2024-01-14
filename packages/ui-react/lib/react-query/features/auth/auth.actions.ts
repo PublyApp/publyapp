@@ -3,7 +3,7 @@ import Parse from 'parse';
 // import { QueryFunctionContext } from '@tanstack/react-query';
 // import Cookies from 'universal-cookie';
 
-import type { IUser } from '@devist/shared/types/user.types';
+import type { IUser } from '@devist/shared/types/db/user.types';
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
 // import { ROLES_LOCAL_STORAGE_KEY, SESSION_TOKEN_COOKIE_KEY } from '../../../utils/constants';
@@ -39,7 +39,7 @@ export async function getUserRoles(user: Parse.User, toJSON?: boolean) {
 	if (!toJSON) return roles;
 
 	const rolesJSON = roles.map((role) => {
-		return role.toJSON() as any as IRole;
+		return role.toJSON() as unknown as IRole;
 	});
 	return rolesJSON;
 }
@@ -50,7 +50,7 @@ export const logInAction = async (input: LogInInput) => {
 		const user = await Parse.User.logIn(email, password);
 
 		// ? should I return the logged in User?
-		return user.toJSON() as any as IUser;
+		return user.toJSON() as unknown as IUser;
 	} catch (error) {
 		console.log('----- logInAction error ----------', error);
 		return Promise.reject(error);
@@ -84,7 +84,7 @@ export const getClientAuthAction = async () => {
 			sessionToken: storedUser.getSessionToken(),
 		});
 
-		const user: IUser = foundUser.toJSON() as any;
+		const user = foundUser.toJSON() as unknown as IUser;
 		const sessionToken = foundUser.getSessionToken();
 		const roles = await getUserRoles(foundUser, true);
 

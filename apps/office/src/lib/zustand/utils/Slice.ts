@@ -5,7 +5,7 @@ type AppSliceProps<T, N extends string, D = ExcludeFunctionPropertyNames<T>> = {
 	defaultValues: D;
 	// initializer: (set:any) => StateCreator<T, [['zustand/immer', never]], []>;
 	initializer: (set: Set<T, N, D>) => T;
-	persistedFields: Paths<D>[];
+	// persistedFields: Paths<D>[];
 };
 
 type SliceIgniter<T, N extends string, D> = Slice<T, N, D>['initializer'];
@@ -19,7 +19,7 @@ export default class Slice<T, N extends string, D = ExcludeFunctionPropertyNames
 	// initializer: AppSliceProps<T, N>['initializer'];
 	initializer: StateCreator<Record<StringLiteral<N>, T>, [['zustand/immer', never]], []>;
 
-	persistedFields: string[];
+	// persistedFields: string[];
 
 	// eslint-disable-next-line class-methods-use-this
 	get sliceContent(): Record<StringLiteral<N>, T> {
@@ -39,8 +39,8 @@ export default class Slice<T, N extends string, D = ExcludeFunctionPropertyNames
 			} as never;
 		};
 
-		this.persistedFields = props.persistedFields.map((field) => {
-			return `${this.name}.${field}`;
-		});
+		// this.persistedFields = props.persistedFields.map((field) => {
+		// 	return `${this.name}.${field}`;
+		// });
 	}
 }

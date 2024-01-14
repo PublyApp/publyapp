@@ -20,7 +20,7 @@ const RequireAuth = ({ children }: Props) => {
 	}
 
 	if (!authData) {
-		return <Navigate replace state={{ from: location }} to={BO_PATH_NAMES.logIn} />;
+		return <Navigate replace state={{ from: location }} to={BO_PATH_NAMES.auth.login} />;
 	}
 
 	return children ?? <Outlet />;

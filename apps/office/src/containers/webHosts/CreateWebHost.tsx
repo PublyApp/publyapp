@@ -13,11 +13,11 @@ const CreateWebHost = () => {
 			links={[
 				{
 					name: 'Dashboard',
-					href: BO_PATH_NAMES.dashboard,
+					href: BO_PATH_NAMES.dashboard.root,
 				},
 				{
 					name: 'Web hosts',
-					href: BO_PATH_NAMES.webHosts,
+					href: BO_PATH_NAMES.dashboard.root,
 				},
 				{ name: 'New web host' },
 			]}

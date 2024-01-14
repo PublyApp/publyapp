@@ -58,8 +58,8 @@ export const useNavData = () => {
 			{
 				subheader: 'overview v5.5.0',
 				items: [
-					{ title: 'dashboard', path: BO_PATH_NAMES.dashboard, icon: ICONS.dashboard },
-					{ title: 'file manager', path: BO_PATH_NAMES.fileManager, icon: ICONS.dashboard },
+					{ title: 'dashboard', path: BO_PATH_NAMES.dashboard.root, icon: ICONS.dashboard },
+					{ title: 'file manager', path: BO_PATH_NAMES.dashboard.fileManager.root, icon: ICONS.dashboard },
 					// { title: 'two', path: paths.dashboard.two, icon: ICONS.ecommerce },
 					// {
 					// 	title: 'three',
@@ -86,17 +86,17 @@ export const useNavData = () => {
 					// },
 					{
 						title: 'Web hosts',
-						path: BO_PATH_NAMES.webHosts,
+						path: BO_PATH_NAMES.dashboard.root,
 						icon: ICONS.dashboard,
 					},
 					{
 						title: 'Posts',
-						path: BO_PATH_NAMES.posts,
+						path: BO_PATH_NAMES.dashboard.posts.root,
 						icon: ICONS.dashboard,
 					},
 					{
 						title: 'New Post',
-						path: BO_PATH_NAMES.createPost,
+						path: BO_PATH_NAMES.dashboard.posts.create,
 						icon: ICONS.dashboard,
 					},
 				],
