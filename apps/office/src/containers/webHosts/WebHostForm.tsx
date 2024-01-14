@@ -24,7 +24,7 @@ import useResponsive from '@devist/ui-react/hooks/useResponsive';
 import useRouter from '@devist/ui-react/hooks/useRouter';
 
 import MediaLibDialog from '@/office/containers/fileManager/MediaLibDialog';
-import type { WebHost } from '@/shared/types/webHost.types';
+import type { WebHost } from '@/shared/types/db/webHost.types';
 import { getSaveWebHostInputSchema } from '@/shared/validations/webHost.validations';
 
 type Props = {

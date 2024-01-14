@@ -1,5 +1,4 @@
 import { functionName } from '../../constants';
-import type { ParseAppFile } from '../classes/appFile.class';
 import type { ParsePost } from '../classes/post.class';
 
 import { cloudRunner } from './_cloudRunner';
@@ -12,8 +11,20 @@ export type CreatePostFunctionParams = {
 	description: string;
 	content: string;
 	slug: string;
-	author: Parse.User;
-	cover?: ParseAppFile;
+	authorId?: string;
+	coverId?: string;
 };
 
-export const runCreatePost = cloudRunner<ParsePost, CreatePostFunctionParams>(functionName.createPost);
+export type CreatePostFunctionResult = ParsePost;
+
+export const runCreatePost = cloudRunner<CreatePostFunctionResult, CreatePostFunctionParams>(functionName.createPost);
+
+// ---- 2 --------------------------------------------------------------------------------
+
+export type GetPostByIdFunctionParams = {
+	id: string;
+};
+
+export type GetPostByIdFunctionResult = ParsePost;
+
+export const runGetPostById = cloudRunner<GetPostByIdFunctionResult, GetPostByIdFunctionParams>(functionName.getPost);

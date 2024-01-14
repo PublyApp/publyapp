@@ -42,7 +42,7 @@
 		"parse-dashboard": "^5.3.0",
 		"parse-server": "^6.4.0",
 		"qs": "^6.11.2",
-		"sharp": "^0.33.1",
+		"sharp": "^0.32.6",
 		"vhost": "^3.0.2",
 		"winston": "^3.11.0",
 		"winston-console-format": "^1.0.8",

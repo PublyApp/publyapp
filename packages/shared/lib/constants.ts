@@ -48,17 +48,35 @@ export const FRONT_PATH_NAMES = {
 const ROOTS = {
 	AUTH: '/auth',
 	DASHBOARD: '/dashboard',
+} as const satisfies Record<string, `/${string}`>;
+
+const RESOURCE = {
+	posts: 'posts',
+	fileManager: 'file-manager',
 } as const;
 
+const makePath = (...params: string[]) => {
+	return params.join('/');
+};
+
 export const BO_PATH_NAMES = {
-	// home: '/',
-	logIn: `${ROOTS.DASHBOARD}/login`,
-	dashboard: ROOTS.DASHBOARD,
-	webHosts: `${ROOTS.DASHBOARD}/web-hosts`,
-	createWebHost: `${ROOTS.DASHBOARD}/web-hosts/new`,
-	fileManager: `${ROOTS.DASHBOARD}/file-manager`,
-	posts: `${ROOTS.DASHBOARD}/posts`,
-	createPost: `${ROOTS.DASHBOARD}/posts/new`,
+	auth: {
+		root: ROOTS.AUTH,
+		login: makePath(ROOTS.AUTH, 'login'),
+	},
+	dashboard: {
+		root: ROOTS.DASHBOARD,
+		posts: {
+			root: makePath(ROOTS.DASHBOARD, RESOURCE.posts),
+			create: makePath(ROOTS.DASHBOARD, RESOURCE.posts, 'new'),
+			edit: (postId?: string) => {
+				return makePath(ROOTS.DASHBOARD, RESOURCE.posts, 'edit', postId || '');
+			},
+		},
+		fileManager: {
+			root: makePath(ROOTS.DASHBOARD, RESOURCE.fileManager),
+		},
+	},
 } as const;
 
 export const functionName = {
@@ -73,6 +91,8 @@ export const functionName = {
 	// Posts
 	createPost: 'createPost',
 	updatePost: 'updatePost',
+	getPost: 'getPost',
+	findPost: 'findPost',
 	// savePost: 'savePost',
 } as const;
 

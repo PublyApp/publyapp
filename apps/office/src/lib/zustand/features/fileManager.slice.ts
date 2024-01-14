@@ -1,7 +1,7 @@
 import { type RootState } from '../slices';
 import Slice from '../utils/Slice';
 
-type FileManagerSliceState = {
+type FileManagerSliceValues = {
 	folderPath: string;
 };
 
@@ -10,15 +10,15 @@ type FileManagerSliceActions = {
 	goToParent: () => void;
 };
 
-type FileManagerSliceContent = FileManagerSliceState & FileManagerSliceActions;
+type FileManagerSliceState = FileManagerSliceValues & FileManagerSliceActions;
 
-const defaultValues: FileManagerSliceState = {
+const defaultValues: FileManagerSliceValues = {
 	folderPath: '/',
 };
 
 const sliceName = 'fileManager' as const;
 
-const fileManagerSlice = new Slice<FileManagerSliceContent, typeof sliceName>({
+const fileManagerSlice = new Slice<FileManagerSliceState, typeof sliceName>({
 	name: sliceName,
 	defaultValues,
 	initializer: (set) => {
@@ -42,7 +42,7 @@ const fileManagerSlice = new Slice<FileManagerSliceContent, typeof sliceName>({
 			// },
 		};
 	},
-	persistedFields: ['folderPath'],
+	// persistedFields: ['folderPath'],
 });
 
 export default fileManagerSlice;
