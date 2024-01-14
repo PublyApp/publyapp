@@ -52,6 +52,28 @@ export const dashboardRoutes: RouteObject[] = [
 				}}
 			</QueryErrorResetBoundary>
 		),
+		// loader: async (/* { params, request, context } */) => {
+		// 	try {
+		// 		console.log('😋😋😋😋');
+		// 		const cachedAuthData = defaultQueryClient.getQueryData([getClientAuthQueryKeyBase]);
+
+		// 		if (!cachedAuthData) {
+		// 			const authData = await getClientAuthAction();
+		// 			defaultQueryClient.setQueryData([getClientAuthQueryKeyBase], authData);
+		// 		}
+
+		// 		return null;
+		// 	} catch (error) {
+		// 		if (error instanceof Error) {
+		// 			if (error.message === AUTH_REQUIRED_ERROR_MSG) {
+		// 				redirect(BO_PATH_NAMES.auth.login);
+		// 			}
+		// 		}
+
+		// 		return Promise.reject(error);
+		// 		// redirect(); redirect to page 500
+		// 	}
+		// },
 		children: [
 			{
 				path: getLastPath(BO_PATH_NAMES.dashboard.root),
