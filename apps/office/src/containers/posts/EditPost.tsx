@@ -10,6 +10,7 @@ import { getUpdatePostInputSchema, type UpdatePostInput } from '@devist/shared/v
 import { useGetPostByIdSuspenseQuery } from '@devist/ui-react/lib/react-query/features/posts/post.hooks';
 
 import PageHeader from '@/office/components/PageHeader';
+import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import useLocale from '@/ui-react/hooks/useLocale';
 
 import PostForm from './PostForm';
@@ -61,7 +62,24 @@ const EditPost = () => {
 	);
 
 	const headingElement = <PageHeader.Heading text="Edit post" />;
-	const breadcrumbsElement = <PageHeader.Breadcrumbs links={[{ name: 'ok' }]} />;
+	const breadcrumbsElement = (
+		<PageHeader.Breadcrumbs
+			links={[
+				{
+					name: 'Dashboard',
+					href: BO_PATH_NAMES.dashboard.root,
+				},
+				{
+					name: 'Posts',
+					href: BO_PATH_NAMES.dashboard.posts.root,
+				},
+				{
+					name: 'Edit',
+					// href: BO_PATH_NAMES.dashboard.posts.edi,
+				},
+			]}
+		/>
+	);
 
 	const renderHeaderActions = (
 		<>
