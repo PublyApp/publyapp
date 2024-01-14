@@ -2,6 +2,7 @@ import type { BaseAttributes } from 'parse';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
+import type { DateType } from './any.types';
 import { type AppFile } from './appFile.types';
 import type { IUser } from './user.types';
 
@@ -30,6 +31,10 @@ export type PostAttributes = {
 	// cover: Media;
 	// cover: string; // cover is a Pointer to parse AppFile
 	translation: Record<AppLocale, PostTranslation>;
+	//
+	noIndex?: boolean;
+	publishDate?: DateType;
+	updateDate?: DateType;
 };
 
 export type IPost = BaseAttributes & PostAttributes;
