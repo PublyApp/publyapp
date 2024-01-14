@@ -7,9 +7,8 @@ import { useTranslation } from 'react-i18next';
 
 import useLocale from '@devist/ui-react/hooks/useLocale';
 
-import RouterLink from '@/office/components/RouterLink';
-import { buildShareableUrl, useMainStore } from '@/office/lib/zustand/store';
-import { BO_PATH_NAMES, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import { useMainStore } from '@/office/lib/zustand/store';
+import { PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 const Home = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -164,9 +163,9 @@ const Home = () => {
 				remove Bear
 			</Button>
 			AAAAAAAAAAA
-			<RouterLink href={buildShareableUrl(BO_PATH_NAMES.fileManager, { fileManager: { folderPath: '/parent' } })}>
+			{/* <RouterLink href={buildShareableUrl(BO_PATH_NAMES.fileManager, { fileaManger: { folderPath: '/parent' } })}>
 				test link to parent dir
-			</RouterLink>
+			</RouterLink> */}
 		</>
 	);
 };

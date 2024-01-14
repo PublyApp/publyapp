@@ -1,6 +1,7 @@
 import './aiTool.functions';
 import './webHost.functions';
 import './appFile.functions';
+import './post.functions';
 
 // import { parseTrigger } from '@/server/lib/parse';
 

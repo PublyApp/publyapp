@@ -1,70 +1,72 @@
-// import Editor from '@devist/ui-react/components/Editor';
 import { useMemo } from 'react';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-// import { type MDXEditorMethods } from '@mdxeditor/editor';
-import { Button, Container, Stack, Typography } from '@mui/material';
+import { Button, Container } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { useParams } from 'react-router-dom';
 
-import { getCreatePostInputSchema, type CreatePostInput } from '@devist/shared/validations/post.validations';
-import FormProvider from '@devist/ui-react/components/form/FormProvider';
-import RHFMdxEditor from '@devist/ui-react/components/form/RHFMdxEditor';
-import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
+import { getUpdatePostInputSchema, type UpdatePostInput } from '@devist/shared/validations/post.validations';
+import { useGetPostByIdSuspenseQuery } from '@devist/ui-react/lib/react-query/features/posts/post.hooks';
 
 import PageHeader from '@/office/components/PageHeader';
-// import { postContentTypes } from '@/shared/types/db/post.types';
 import useLocale from '@/ui-react/hooks/useLocale';
 
+import PostForm from './PostForm';
+
 const EditPost = () => {
-	// return <Editor />;
-	// const editorRef = useRef<MDXEditorMethods>(null);
 	const { t } = useTranslation();
 	const { lang } = useLocale();
+	const params = useParams();
 
 	const savePostInputSchema = useMemo(() => {
-		return getCreatePostInputSchema(t);
+		return getUpdatePostInputSchema(t);
 	}, [t]);
 
-	const createPostForm = useForm<CreatePostInput>({
+	const {
+		result: { data: post },
+	} = useGetPostByIdSuspenseQuery({ params: { id: params.postId || '' } });
+
+	const updatePostForm = useForm<UpdatePostInput>({
 		resolver: zodResolver(savePostInputSchema),
-		values: {
-			locale: lang.value,
-			slug: 'what-the-fuck',
-			title: 'your post title',
-			description: 'your post description',
-			content: '## your content here',
-		},
-		// defaultValues: async () => {
-		// 	return {
-		// 		locale: lang.value,
-		// 		title: 'your post title',
-		// 		description: 'your post description',
-		// 		content: '## your content here',
-		// 		// content: {
-		// 		// 	type: postContentTypes[0],
-		// 		// 	value: '## your content here',
-		// 		// },
-		// 	};
+		// values: {
+		// 	locale: lang.value,
+		// 	slug: 'what-the-fuck',
+		// 	title: 'your post title',
+		// 	description: 'your post description',
+		// 	content: '## your content here',
 		// },
+		defaultValues: {
+			objectId: post.objectId,
+			locale: lang.value,
+			authorId: post.author.objectId,
+			title: post.translation[lang.value].title,
+			description: post.translation[lang.value].description,
+			content: post.translation[lang.value].content,
+			published: post.published,
+			slug: post.slug,
+		},
 	});
 
-	const headingElement = <PageHeader.Heading text="New post" />;
-	const breadcrumbsElement = <PageHeader.Breadcrumbs links={[{ name: 'ok' }]} />;
-
-	const handleSavePost = createPostForm.handleSubmit(
-		async (value) => {
-			console.log('😁😁😁', value);
+	const handleUpdatePost = updatePostForm.handleSubmit(
+		(input) => {
+			console.log('--- handleUpdatePost input ---', input);
+			// const newPost = Post.save()
+			// queryClient.setQueryData({ key: ['getPostById'], data: newPost });
+			// navigate(/posts/edit/newPost.id)
 		},
-		(v) => {
-			console.log('😡😡😡', v);
+		(errors) => {
+			console.log('--- handleUpdatePost errors ---', errors);
 		},
 	);
+
+	const headingElement = <PageHeader.Heading text="Edit post" />;
+	const breadcrumbsElement = <PageHeader.Breadcrumbs links={[{ name: 'ok' }]} />;
 
 	const renderHeaderActions = (
 		<>
 			<Button>preview</Button>
-			<Button variant="contained" onClick={handleSavePost}>
+			<Button variant="contained" onClick={handleUpdatePost}>
 				save
 			</Button>
 		</>
@@ -81,18 +83,7 @@ const EditPost = () => {
 					mb: { xs: 3, md: 5 },
 				}}
 			/>
-			<FormProvider form={createPostForm} /* onSubmit={handleSavePost} */>
-				<Stack spacing={3}>
-					<RHFTextField name="title" label="Post Title" />
-					<RHFTextField name="description" label="Description" multiline rows={3} />
-					<RHFTextField name="slug" label="Slug" />
-
-					<Stack spacing={1.5}>
-						<Typography variant="subtitle2">Content</Typography>
-						<RHFMdxEditor name="content" />
-					</Stack>
-				</Stack>
-			</FormProvider>
+			<PostForm form={updatePostForm} />
 		</Container>
 	);
 };

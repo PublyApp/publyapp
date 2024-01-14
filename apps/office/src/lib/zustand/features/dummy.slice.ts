@@ -1,6 +1,6 @@
 import Slice from '../utils/Slice';
 
-export type DummySliceState = {
+export type DummySliceValues = {
 	bear: number;
 };
 
@@ -9,15 +9,15 @@ export type DummySliceActions = {
 	removeBear: () => void;
 };
 
-export type DummySliceContent = DummySliceState & DummySliceActions;
+export type DummySliceState = DummySliceValues & DummySliceActions;
 
-const defaultValues: DummySliceState = {
+const defaultValues: DummySliceValues = {
 	bear: 0,
 };
 
 const sliceName = 'dummySlice' as const;
 
-const dummySlice = new Slice<DummySliceContent, typeof sliceName>({
+const dummySlice = new Slice<DummySliceState, typeof sliceName>({
 	name: sliceName,
 	defaultValues,
 	initializer: (set) => {
@@ -39,10 +39,10 @@ const dummySlice = new Slice<DummySliceContent, typeof sliceName>({
 			},
 		};
 	},
-	persistedFields: [
-		//
-		// 'bear',
-	],
+	// persistedFields: [
+	// 	//
+	// 	// 'bear',
+	// ],
 });
 
 export default dummySlice;

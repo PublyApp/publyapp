@@ -5,6 +5,8 @@ import { className } from '@/shared/lib/constants';
 import type { UserAttributes } from '@/shared/types/db/user.types';
 
 export class ParseUser extends Parse.User {
+	static className = className.USER;
+
 	// eslint-disable-next-line @typescript-eslint/no-useless-constructor
 	constructor(attributes?: UserAttributes) {
 		super(attributes);
@@ -27,4 +29,4 @@ export class ParseUser extends Parse.User {
 	// }
 }
 
-Parse.Object.registerSubclass(className.USER, ParseUser);
+Parse.Object.registerSubclass(ParseUser.className, ParseUser);

@@ -1,8 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Button, CircularProgress, TextField } from '@mui/material';
-import { useQueryClient } from '@tanstack/react-query';
 import { useForm, type SubmitHandler } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 import { logInSchema, type LogInInput } from '@devist/shared/validations/auth.validations';
@@ -11,7 +10,8 @@ import { useGetClientAuth, useLogInMutation } from '@devist/ui-react/lib/react-q
 const LogInForm = () => {
 	const form = useForm<LogInInput>({ resolver: zodResolver(logInSchema) });
 	const navigate = useNavigate();
-	const queryClient = useQueryClient();
+	// const queryClient = useQueryClient();
+	const location = useLocation();
 
 	const {
 		handleSubmit,
@@ -19,14 +19,19 @@ const LogInForm = () => {
 		formState: { errors /* , isDirty, isValid */ },
 	} = form;
 
-	const { key } = useGetClientAuth({ enabled: false });
+	const {
+		// key: useGetClientAuthQueryKey,
+		result: { refetch: refetchClientAuth },
+	} = useGetClientAuth({ enabled: false });
 
 	const {
 		result: { mutate: logIn, isPending },
 	} = useLogInMutation({
-		onSuccess: () => {
-			queryClient.removeQueries({ queryKey: key });
-			navigate(BO_PATH_NAMES.dashboard);
+		onSuccess: async () => {
+			// queryClient.removeQueries({ queryKey: key });
+			// queryClient.invalidateQueries({ queryKey: useGetClientAuthQueryKey });
+			refetchClientAuth();
+			navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
 		},
 	});
 

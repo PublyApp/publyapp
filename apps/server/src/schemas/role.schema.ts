@@ -7,6 +7,8 @@ import { AUTHED_READONLY_CLP /* , PUBLIC_READONLY_CLP */ } from '@/server/lib/co
 const RoleSchema = SchemaMigrations.makeSchema(className.ROLE, {
 	fields: {
 		code: { type: 'Number' },
+		// verbs permissions
+		canDeletePostOfOtherUsers: { type: 'Boolean' },
 	},
 	classLevelPermissions: AUTHED_READONLY_CLP,
 	// classLevelPermissions: PUBLIC_READONLY_CLP,

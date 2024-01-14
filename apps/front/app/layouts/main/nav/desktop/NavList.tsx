@@ -27,13 +27,13 @@ const NavList = ({ item }: { item: NavItemBaseProps }) => {
 	const mainList = children
 		? children.filter((list) => {
 				return list.subheader !== 'Common';
-		  })
+			})
 		: [];
 
 	const commonList = children
 		? children.find((list) => {
 				return list.subheader === 'Common';
-		  })
+			})
 		: null;
 
 	const handleOpenMenu = () => {

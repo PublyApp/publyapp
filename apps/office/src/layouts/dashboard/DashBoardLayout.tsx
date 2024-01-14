@@ -1,5 +1,5 @@
-// @mui
 import Box from '@mui/material/Box';
+import { Outlet } from 'react-router-dom';
 
 import useBoolean from '@devist/ui-react/hooks/useBoolean';
 import useResponsive from '@devist/ui-react/hooks/useResponsive';
@@ -12,7 +12,7 @@ import NavVertical from './NavVertical';
 // ----------------------------------------------------------------------
 
 type Props = {
-	children: React.ReactNode;
+	children?: React.ReactNode;
 };
 
 const DashboardLayout = ({ children }: Props) => {
@@ -41,7 +41,7 @@ const DashboardLayout = ({ children }: Props) => {
 
 	// 			{lgUp ? renderHorizontal : renderNavVertical}
 
-	// 			<Main>{children}</Main>
+	// 			<Main>{children ?? <Outlet />}</Main>
 	// 		</>
 	// 	);
 	// }
@@ -60,7 +60,7 @@ const DashboardLayout = ({ children }: Props) => {
 				>
 					{lgUp ? renderNavMini : renderNavVertical}
 
-					<Main>{children}</Main>
+					<Main>{children ?? <Outlet />}</Main>
 				</Box>
 			</>
 		);
@@ -79,7 +79,7 @@ const DashboardLayout = ({ children }: Props) => {
 			>
 				{renderNavVertical}
 
-				<Main>{children}</Main>
+				<Main>{children ?? <Outlet />}</Main>
 			</Box>
 		</>
 	);
