@@ -69,12 +69,15 @@ export const logOutAction = async (): Promise<void> => {
 	}
 };
 
+// ---- 3 --------------------------------------------------------------------------------
+export const AUTH_REQUIRED_ERROR_MSG = 'Auth required';
+
 export const getClientAuthAction = async () => {
 	try {
 		const storedUser = await Parse.User.currentAsync();
 
 		if (!storedUser) {
-			throw new Error('Auth required');
+			throw new Error(AUTH_REQUIRED_ERROR_MSG);
 		}
 
 		// Handle tha cases:
