@@ -21,6 +21,7 @@ export const envSchema = z.object({
 
 export type AppEnv = z.infer<typeof envSchema>;
 
+// export const env: Readonly<AppEnv> = {} as AppEnv;
 export const env: AppEnv = {} as AppEnv;
 
 export const setAppEnv = (newEnv: AppEnv) => {
