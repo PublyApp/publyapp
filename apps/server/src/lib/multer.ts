@@ -13,9 +13,7 @@ export const multerConfig = multer({
 		},
 		filename: (_req, file, cb) => {
 			const uid = createId();
-			// Object.assign(file, { uid });
 			_.assign(file, { uid });
-			// _.set(file, 'uid', uid);
 
 			cb(null, addSuffixToFileName(file.originalname, `_${uid}_@original`));
 		},
