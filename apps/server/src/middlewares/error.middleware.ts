@@ -4,7 +4,7 @@ import type { NextFunction, Request, Response } from 'express';
 
 import type { HttpException } from '@/server/exceptions/HttpException';
 
-const errorMiddleware = (error: HttpException, req: Request, res: Response, next: NextFunction): any => {
+const errorMiddleware = (error: HttpException, req: Request, res: Response, next: NextFunction) => {
 	try {
 		const status: number = error.status || 500;
 		const message: string = error.message || 'Something went wrong';
