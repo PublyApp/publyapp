@@ -1,11 +1,11 @@
 import { Container, Unstable_Grid2 as Grid } from '@mui/material';
 
 import _mock, { _blogCareerPosts, _categories, _tags } from '@/front/_mock';
+import BlogSidebar from '@/front/containers/posts/blogSidebar/BlogSidebar';
 
 // import { BlogCareerPosts } from '../../blog/career';
 // import { PostSearchMobile } from '../../blog/components';
 // import NewsletterCareer from '../../newsletter/career';
-import BlogSidebar from '../../blog/sidebar';
 
 const PostsPage = () => {
 	return (
@@ -28,12 +28,12 @@ const PostsPage = () => {
 							popularTags={_tags}
 							categories={_categories}
 							recentPosts={{ list: _blogCareerPosts.slice(-4) }}
-							advertisement={{
-								title: 'Advertisement',
-								description: 'Duis leo. Donec orci lectus, aliquam ut, faucibus non',
-								imageUrl: _mock.image.career(10),
-								path: '',
-							}}
+							// advertisement={{
+							// 	title: 'Advertisement',
+							// 	description: 'Duis leo. Donec orci lectus, aliquam ut, faucibus non',
+							// 	imageUrl: _mock.image.career(10),
+							// 	path: '',
+							// }}
 						/>
 					</Grid>
 				</Grid>
