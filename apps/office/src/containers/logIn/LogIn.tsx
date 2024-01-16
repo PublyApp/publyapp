@@ -28,8 +28,11 @@ const LogIn = () => {
 			<Box>
 				<Typography>LogIn</Typography>
 				<LogInForm />
+				<Box>
+					<RouterLink href={BO_PATH_NAMES.auth.register}>Register</RouterLink>{' '}
+					<RouterLink href={BO_PATH_NAMES.dashboard.root}>Dashboard</RouterLink>
+				</Box>
 			</Box>
-			<RouterLink href={BO_PATH_NAMES.auth.register}>Register</RouterLink>
 		</Box>
 	);
 };

@@ -1,4 +1,3 @@
-import Parse from 'parse';
 import React from 'react';
 
 import ReactDOM from 'react-dom/client';
@@ -6,7 +5,7 @@ import ReactDOM from 'react-dom/client';
 import { initReactLocalization } from '@devist/ui-react/lib/i18n';
 
 import App from './App';
-import { env } from './lib/env';
+import { initParse } from './lib/parse';
 
 import './main.css';
 import 'react-lazy-load-image-component/src/effects/blur.css';
@@ -15,10 +14,7 @@ import 'react-lazy-load-image-component/src/effects/blur.css';
 // syncEventsForZustand();
 
 // ---- initialize parse -----------------------------------------------------------------
-Parse.initialize(env.PARSE_APP_ID);
-Parse.serverURL = env.PARSE_SERVER_URL;
-
-window.Parse = Parse;
+initParse();
 
 // ---- i18next localization -------------------------------------------------------------
 initReactLocalization();
