@@ -9,38 +9,39 @@ const command = onWindows ? 'corepack.cmd' : 'corepack';
 
 const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../');
 
-const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
-const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
+// const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
+// const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
 
-// ! folder names
-const apps = ['server', 'office', 'front', 'awsm'];
-const packages = [
-	'eslint-config-custom-base',
-	'eslint-config-custom-common-react',
-	'eslint-config-custom-nextjs',
-	'eslint-config-custom-react',
-	'eslint-config-custom-server',
-	'shared',
-	'tsconfig',
-	'ui-react',
-];
+// // ! folder names
+// const apps = ['server', 'office', 'front', 'awsm'];
+// const packages = [
+// 	'eslint-config-custom-base',
+// 	'eslint-config-custom-common-react',
+// 	'eslint-config-custom-nextjs',
+// 	'eslint-config-custom-react',
+// 	'eslint-config-custom-server',
+// 	'shared',
+// 	'tsconfig',
+// 	'ui-react',
+// ];
 
-const cwdPaths = ['.'];
+// const cwdPaths = ['.'];
 
-const getHandler = (basePath) => {
-	return (e) => {
-		cwdPaths.push(path.join(basePath, e));
-	};
-};
+// const getHandler = (basePath) => {
+// 	return (e) => {
+// 		cwdPaths.push(path.join(basePath, e));
+// 	};
+// };
 
-apps.forEach(getHandler(APPS_DIR));
-packages.forEach(getHandler(PACKAGES_DIR));
+// apps.forEach(getHandler(APPS_DIR));
+// packages.forEach(getHandler(PACKAGES_DIR));
 
-for (const cwdPath of cwdPaths) {
-	console.log('====================================');
-	console.log('🔥', cwdPath);
-	console.log('====================================');
-	spawnSync(command, ['pnpm', 'update'], { cwd: cwdPath, stdio: 'inherit' });
-}
+// for (const cwdPath of cwdPaths) {
+// 	console.log('====================================');
+// 	console.log('🔥', cwdPath);
+// 	console.log('====================================');
+// 	spawnSync(command, ['pnpm', 'update'], { cwd: cwdPath, stdio: 'inherit' });
+// }
 
+spawnSync(command, ['pnpm', 'update', '-r', '-i'], { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit' });
 process.exit(0);
