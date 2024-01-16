@@ -43,6 +43,8 @@ export const FRONT_PATH_NAMES = {
 	home: '/',
 	job: '/job',
 	awesomeTools: '/awesome-tools',
+	//
+	posts: 'posts',
 } as const;
 
 const ROOTS = {

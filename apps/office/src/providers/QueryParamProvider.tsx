@@ -16,7 +16,6 @@ const QueryParamProvider = (/* props: Props */) => {
 				},
 			}}
 		>
-			{/* <Sync /> */}
 			<Outlet />
 		</QueryParamProviderLib>
 	);
