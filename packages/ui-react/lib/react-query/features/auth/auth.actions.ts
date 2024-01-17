@@ -6,6 +6,8 @@ import Parse from 'parse';
 import type { IUser } from '@devist/shared/types/db/user.types';
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
+import { ClientException } from '@/ui-react/exceptions/ClientException';
+
 // import { ROLES_LOCAL_STORAGE_KEY, SESSION_TOKEN_COOKIE_KEY } from '../../../utils/constants';
 
 // const isServer = typeof window === 'undefined';
@@ -70,14 +72,15 @@ export const logOutAction = async (): Promise<void> => {
 };
 
 // ---- 3 --------------------------------------------------------------------------------
-export const AUTH_REQUIRED_ERROR_MSG = 'Auth required';
+// export const AUTH_REQUIRED_ERROR_MSG = 'Auth required';
 
 export const getClientAuthAction = async () => {
 	try {
-		const storedUser = await Parse.User.currentAsync();
+		// const storedUser = await Parse.User.currentAsync();
+		const storedUser = Parse.User.current();
 
 		if (!storedUser) {
-			throw new Error(AUTH_REQUIRED_ERROR_MSG);
+			throw new ClientException(ClientException.AUTH_REQUIRED, /* i18n.t('---xxx----') */ 'Auth required');
 		}
 
 		// Handle tha cases:
@@ -97,8 +100,14 @@ export const getClientAuthAction = async () => {
 			roles,
 		};
 	} catch (error) {
-		logOutAction();
 		console.log('----- getAuthAction error ----------', error);
+
+		if (error instanceof ClientException) {
+			if (error.code === ClientException.AUTH_REQUIRED) {
+				logOutAction();
+			}
+		}
+
 		return Promise.reject(error);
 	}
 };
