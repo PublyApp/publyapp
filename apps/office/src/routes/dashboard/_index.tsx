@@ -9,25 +9,26 @@ import { Navigate, Outlet, type RouteObject } from 'react-router-dom';
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
-import { AUTH_REQUIRED_ERROR_MSG } from '@/ui-react/lib/react-query/features/auth/auth.actions';
+import { ClientException } from '@/ui-react/exceptions/ClientException';
 
-import LoadingScreen from '../components/LoadingScreen';
-import RequireAuth from '../components/RequireAuth';
-import SplashScreen from '../components/SplashScreen';
-import FileManager from '../containers/fileManager/FileManager';
-import NotFound from '../containers/notFound/NotFound';
-import NewPost from '../containers/posts/NewPost';
-import PostsList from '../containers/posts/PostsList';
-
-import { getLastPath } from './utils';
+import LoadingScreen from '../../components/LoadingScreen';
+import RequireAuth from '../../components/RequireAuth';
+import SplashScreen from '../../components/SplashScreen';
+import FileManager from '../../containers/fileManager/FileManager';
+import NotFound from '../../containers/notFound/NotFound';
+import NewPost from '../../containers/posts/NewPost';
+import PostsList from '../../containers/posts/PostsList';
+import { getLastPath } from '../utils';
 
 const EditPost = loadable(() => {
-	return import('../containers/posts/EditPost');
+	return import('../../containers/posts/EditPost');
 });
 
 const FallBackComponent = ({ error, resetErrorBoundary }: FallbackProps) => {
-	if (error.message === AUTH_REQUIRED_ERROR_MSG) {
-		return <Navigate to={BO_PATH_NAMES.auth.login} />;
+	if (error instanceof ClientException) {
+		if (error.code === ClientException.AUTH_REQUIRED) {
+			return <Navigate to={BO_PATH_NAMES.auth.login} />;
+		}
 	}
 
 	return (
@@ -60,28 +61,6 @@ export const dashboardRoutes: RouteObject[] = [
 				}}
 			</QueryErrorResetBoundary>
 		),
-		// loader: async (/* { params, request, context } */) => {
-		// 	try {
-		// 		console.log('😋😋😋😋');
-		// 		const cachedAuthData = defaultQueryClient.getQueryData([getClientAuthQueryKeyBase]);
-
-		// 		if (!cachedAuthData) {
-		// 			const authData = await getClientAuthAction();
-		// 			defaultQueryClient.setQueryData([getClientAuthQueryKeyBase], authData);
-		// 		}
-
-		// 		return null;
-		// 	} catch (error) {
-		// 		if (error instanceof Error) {
-		// 			if (error.message === AUTH_REQUIRED_ERROR_MSG) {
-		// 				redirect(BO_PATH_NAMES.auth.login);
-		// 			}
-		// 		}
-
-		// 		return Promise.reject(error);
-		// 		// redirect(); redirect to page 500
-		// 	}
-		// },
 		children: [
 			{
 				path: getLastPath(BO_PATH_NAMES.dashboard.root),
@@ -105,6 +84,10 @@ export const dashboardRoutes: RouteObject[] = [
 							},
 							{
 								path: getLastPath(BO_PATH_NAMES.dashboard.posts.edit(':postId'), 2),
+								// loader: getRouteLoader(async ({ params }) => {
+								// 	const post = getCurrentlyEditedPost(params.postId)
+								// 	return defer({ post });
+								// }),
 								element: <EditPost />,
 							},
 						],

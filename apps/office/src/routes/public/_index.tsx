@@ -6,17 +6,18 @@ import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { Outlet, type RouteObject } from 'react-router-dom';
 
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
-import { AUTH_REQUIRED_ERROR_MSG } from '@/ui-react/lib/react-query/features/auth/auth.actions';
+import { ClientException } from '@/ui-react/exceptions/ClientException';
 
-import PublicOnly from '../components/PublicOnly';
-import SplashScreen from '../components/SplashScreen';
-import LogIn from '../containers/logIn/LogIn';
-
-import { getLastPath } from './utils';
+import PublicOnly from '../../components/PublicOnly';
+import SplashScreen from '../../components/SplashScreen';
+import LogIn from '../../containers/logIn/LogIn';
+import { getLastPath } from '../utils';
 
 const FallBackComponent = ({ error, resetErrorBoundary }: FallbackProps) => {
-	if (error.message === AUTH_REQUIRED_ERROR_MSG) {
-		return <Outlet />;
+	if (error instanceof ClientException) {
+		if (error.code === ClientException.AUTH_REQUIRED) {
+			return <Outlet />;
+		}
 	}
 
 	return (
