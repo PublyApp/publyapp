@@ -100,7 +100,8 @@ const bootstrap = async () => {
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
-		allowHeaders: ['Access-Control-Expose-Headers', 'access-control-expose-headers', 'Etag'],
+		// allowHeaders: ['Access-Control-Expose-Headers', 'access-control-expose-headers', 'Etag'],
+		directAccess: true,
 	});
 
 	// setup a better console transport for our logger

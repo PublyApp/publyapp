@@ -8,6 +8,7 @@ import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 
+// import defaultQueryClient from '../../queryClient';
 // import { ROLES_LOCAL_STORAGE_KEY, SESSION_TOKEN_COOKIE_KEY } from '../../../utils/constants';
 
 // const isServer = typeof window === 'undefined';
@@ -50,6 +51,8 @@ export const logInAction = async (input: LogInInput) => {
 	try {
 		const { email, password } = input;
 		const user = await Parse.User.logIn(email, password);
+
+		// defaultQueryClient.getQueryCache().find({ queryKey})
 
 		// ? should I return the logged in User?
 		return user.toJSON() as unknown as IUser;

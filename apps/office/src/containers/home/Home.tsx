@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 import useLocale from '@devist/ui-react/hooks/useLocale';
 
+import RouterLink from '@/office/components/RouterLink';
 import { useMainStore } from '@/office/lib/zustand/store';
 import { PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
@@ -163,9 +164,9 @@ const Home = () => {
 				remove Bear
 			</Button>
 			AAAAAAAAAAA
-			{/* <RouterLink href={buildShareableUrl(BO_PATH_NAMES.fileManager, { fileaManger: { folderPath: '/parent' } })}>
-				test link to parent dir
-			</RouterLink> */}
+			<RouterLink href="/unexistant-path">test link to 404 not found</RouterLink>
+			<br />
+			<RouterLink href="/dashboard/posts/edit/fsdfsfsfdsdfsdfs">test not found resource</RouterLink>
 		</>
 	);
 };

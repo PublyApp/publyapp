@@ -108,7 +108,8 @@ Parse.Cloud.define(
 			const post = await postService.getById(postId);
 
 			if (!post) {
-				throw new Error('Post not found');
+				// eslint-disable-next-line @typescript-eslint/no-throw-literal
+				throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Post not Found');
 			}
 
 			return post;
