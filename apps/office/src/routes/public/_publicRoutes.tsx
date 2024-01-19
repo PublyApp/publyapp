@@ -2,16 +2,26 @@ import { Suspense } from 'react';
 
 // import Button from '@mui/material/Button';
 // import { type FallbackProps } from 'react-error-boundary';
-import { useNavigation /* Outlet, */, useRouteError, type RouteObject } from 'react-router-dom';
+import {
+	Await,
+	defer,
+	Outlet,
+	redirect,
+	useNavigation /* Outlet, */,
+	useRouteError,
+	type RouteObject,
+} from 'react-router-dom';
 
 // import ErrorBoundary from '@/office/components/ErrorBoundary';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
+import { getClientAuthQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
+import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
 import PublicOnly from '../../components/PublicOnly';
 import SplashScreen from '../../components/SplashScreen';
 import LogIn from '../../containers/logIn/LogIn';
-import { getLastPath } from '../utils';
+import { getLastPath, getRouteLoader } from '../utils';
 
 // const PublicRootFallback = ({ error, resetErrorBoundary }: FallbackProps) => {
 // 	if (error instanceof ClientException) {
@@ -30,20 +40,20 @@ import { getLastPath } from '../utils';
 // };
 
 const PublicRootError = () => {
-	const error = useRouteError();
-	const navigation = useNavigation();
+	// const error = useRouteError();
+	// const navigation = useNavigation();
 
-	if (navigation.state === 'loading') {
-		return <SplashScreen />;
-	}
+	// if (navigation.state === 'loading') {
+	// 	return <SplashScreen />;
+	// }
 
-	if (error instanceof ClientException) {
-		if (error.code === ClientException.AUTH_REQUIRED) {
-			// return <Outlet />;
-			// return <Navigate to={BO_PATH_NAMES.auth.login} />;
-			return <LogIn />;
-		}
-	}
+	// if (error instanceof ClientException) {
+	// 	if (error.code === ClientException.AUTH_REQUIRED) {
+	// 		// return <Outlet />;
+	// 		// return <Navigate to={BO_PATH_NAMES.auth.login} />;
+	// 		return <LogIn />;
+	// 	}
+	// }
 
 	return (
 		<div role="alert">
@@ -57,13 +67,29 @@ export const publicRoutes: RouteObject[] = [
 	// auth
 	{
 		path: getLastPath(BO_PATH_NAMES.auth.root),
-		element: (
-			// <ErrorBoundary FallbackComponent={PublicRootFallback}>
-			<Suspense fallback={<SplashScreen />}>
-				<PublicOnly />
-			</Suspense>
-			// </ErrorBoundary>
-		),
+		loader: getRouteLoader(async () => {
+			const storedUser = Parse.User.current();
+
+			if (!storedUser) {
+				return null;
+			}
+
+			const cachedAutData = defaultQueryClient.getQueryData(getClientAuthQuery.queryKey);
+
+			if (!cachedAutData) {
+				defaultQueryClient.prefetchQuery(getClientAuthQuery);
+			}
+
+			return redirect(BO_PATH_NAMES.dashboard.root);
+		}),
+		// element: (
+		// 	// <ErrorBoundary FallbackComponent={PublicRootFallback}>
+		// 	// <Suspense fallback={<SplashScreen />}>
+		// 	// 	<PublicOnly />
+		// 	// 	<Outlet />
+		// 	// </Suspense>
+		// 	// </ErrorBoundary>
+		// ),
 		errorElement: <PublicRootError />,
 		children: [
 			{
