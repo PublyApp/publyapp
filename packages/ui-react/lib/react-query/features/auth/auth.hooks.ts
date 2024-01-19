@@ -31,11 +31,12 @@ export const getClientAuthQuery = queryOptions({
 	queryKey: [getClientAuthQueryKeyBase],
 	queryFn: getClientAuthAction,
 });
+
 type UseGetClientAuthProps = {
-	options: Omit<typeof getClientAuthQuery, 'queryKey' | 'queryFn'>;
+	options?: Omit<typeof getClientAuthQuery, 'queryKey' | 'queryFn'>;
 };
 
-export const useGetClientAuthSuspenseQuery = ({ options }: UseGetClientAuthProps) => {
+export const useGetClientAuthSuspenseQuery = ({ options }: UseGetClientAuthProps = {}) => {
 	const query = getClientAuthQuery;
 
 	const result = useSuspenseQuery({
@@ -60,9 +61,9 @@ export const useLogOutMutation = ({ onSuccess }: UseLogOutMutationProps = {}) =>
 		mutationKey: key,
 		mutationFn: logOutAction,
 		onSuccess: (...args) => {
-			onSuccess?.(...args);
 			// queryClient.invalidateQueries({ queryKey: getClientAuthKey });
 			queryClient.removeQueries(); // TODO: find out which method is better
+			onSuccess?.(...args);
 		},
 	});
 

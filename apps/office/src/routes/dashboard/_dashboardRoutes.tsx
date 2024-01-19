@@ -10,6 +10,7 @@ import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
+import { getClientAuthQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 import { getPostByIdQuery } from '@/ui-react/lib/react-query/features/posts/post.hooks';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
@@ -94,6 +95,17 @@ const DashboardPageError = () => {
 
 export const dashboardRoutes: RouteObject[] = [
 	{
+		loader: getRouteLoader(async () => {
+			const cachedAutData = defaultQueryClient.getQueryData(getClientAuthQuery.queryKey);
+
+			const authData = cachedAutData
+				? Promise.resolve(cachedAutData)
+				: defaultQueryClient.fetchQuery(getClientAuthQuery);
+
+			return defer({
+				authData,
+			});
+		}),
 		element: (
 			// <ErrorBoundary FallbackComponent={DashboardRootFallback}>
 			<Suspense fallback={<SplashScreen />}>
@@ -142,7 +154,9 @@ export const dashboardRoutes: RouteObject[] = [
 										loader: getRouteLoader(async ({ params }) => {
 											// eslint-disable-next-line @typescript-eslint/naming-convention
 											const _getPostByIdQuery = getPostByIdQuery({ id: params.postId ?? '' });
+
 											const cachedPost = defaultQueryClient.getQueryData(_getPostByIdQuery.queryKey);
+
 											const post = cachedPost
 												? Promise.resolve(cachedPost)
 												: defaultQueryClient.fetchQuery(_getPostByIdQuery);

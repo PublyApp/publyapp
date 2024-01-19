@@ -7,7 +7,11 @@ import { useLocation, useNavigate, useRevalidator } from 'react-router-dom';
 
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 import { logInSchema, type LogInInput } from '@devist/shared/validations/auth.validations';
-import { getClientAuthQueryKeyBase, useLogInMutation } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
+import {
+	getClientAuthQuery,
+	getClientAuthQueryKeyBase,
+	useLogInMutation,
+} from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
 
 // import { getClientAuthAction } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 
@@ -37,7 +41,7 @@ const LogInForm = () => {
 			// resetBoundary();
 			// navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
 
-			queryClient.invalidateQueries({ queryKey: [getClientAuthQueryKeyBase] });
+			queryClient.invalidateQueries({ queryKey: getClientAuthQuery.queryKey });
 
 			// refetchClientAuth();
 
