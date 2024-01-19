@@ -1,4 +1,4 @@
-import { logger } from 'parse-server';
+// import { logger } from 'parse-server';
 import Config from 'parse-server/lib/Config';
 
 import _ from 'lodash';
@@ -24,27 +24,16 @@ export const parseFunction = <T = unknown>(innerFunction: ParseInnerFunction<T>)
 			const result = await innerFunction(req as Parse.Cloud.TriggerRequest & Parse.Cloud.FunctionRequest);
 			return result;
 		} catch (error: unknown) {
-			if (global.LOCAL) {
-				// eslint-disable-next-line no-console
-				console.trace(error);
-			}
-
-			let message;
-
-			// get message for generic errors
-			if (_.isObject(error) && 'message' in error) {
-				message = error.message;
-			} else {
-				message = 'Unknown error';
-			}
+			let message = 'Unknown error';
 
 			// get zod errors message
 			if (error instanceof ZodError) {
 				message = error.issues[0].message;
+
+				return Promise.reject(message);
 			}
 
-			logger.error(error);
-			return Promise.reject(message);
+			return Promise.reject(error);
 		}
 	};
 };
@@ -101,16 +90,14 @@ export const parseFrom = (params: ParseFromParams) => {
 		}
 
 		if (!user) {
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			throw new Error(t('common:actionRequireAuth')!);
+			throw new Error(t('common:actionRequireAuth'));
 		}
 
 		// verify the roles
 		const userHasRole = await hasRole(user, allowedRoles);
 
 		if (!userHasRole) {
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			throw new Error(t('common:insufficientRoleForAction')!);
+			throw new Error(t('common:insufficientRoleForAction'));
 		}
 
 		return action({ req, user, t });

@@ -1,9 +1,11 @@
-import { useMutation, useQueryClient, useSuspenseQuery, type MutateOptions } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQueryClient, useSuspenseQuery, type MutateOptions } from '@tanstack/react-query';
 
 import type { IUser } from '@devist/shared/types/db/user.types';
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
 import { getClientAuthAction, logInAction, logOutAction } from './auth.actions';
+
+// ---- 1 --------------------------------------------------------------------------------
 
 type UseLogInMutationProps = {
 	onSuccess?: MutateOptions<IUser, Error, LogInInput>['onSuccess'];
@@ -21,24 +23,30 @@ export const useLogInMutation = ({ onSuccess }: UseLogInMutationProps = {}) => {
 	return { result, key };
 };
 
-// type UseGetClientAuthProps = {
-// 	enabled?: boolean;
-// };
+// ---- 2 --------------------------------------------------------------------------------
 
 export const getClientAuthQueryKeyBase = 'getClientAuth' as const;
 
-// eslint-disable-next-line no-empty-pattern
-export const useGetClientAuthSuspenseQuery = (/* { enabled = true }?: UseGetClientAuthProps = {} */) => {
-	const key = [getClientAuthQueryKeyBase] as const;
+export const getClientAuthQuery = queryOptions({
+	queryKey: [getClientAuthQueryKeyBase],
+	queryFn: getClientAuthAction,
+});
+type UseGetClientAuthProps = {
+	options: Omit<typeof getClientAuthQuery, 'queryKey' | 'queryFn'>;
+};
+
+export const useGetClientAuthSuspenseQuery = ({ options }: UseGetClientAuthProps) => {
+	const query = getClientAuthQuery;
 
 	const result = useSuspenseQuery({
-		queryKey: key,
-		queryFn: getClientAuthAction,
-		// enabled,
+		...query,
+		...options,
 	});
 
-	return { result, key };
+	return { result, key: query.queryKey };
 };
+
+// ---- 3 --------------------------------------------------------------------------------
 
 type UseLogOutMutationProps = {
 	onSuccess?: MutateOptions['onSuccess'];

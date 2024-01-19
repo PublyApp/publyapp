@@ -1,26 +1,26 @@
-import { useMutation, useQueryClient, useSuspenseQuery, type UseSuspenseQueryOptions } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
 
 import { BO_PATH_NAMES, functionName } from '@/shared/lib/constants';
-import type { GetPostByIdFunctionParams } from '@/shared/lib/parse/cloudRunners/post.runner';
 
 import {
 	createPostAction,
 	getPostByIdAction,
 	updatePostMutationAction,
-	type GetPostByIdActionResult,
 	type GetPostByIdQueryParams,
 } from './post.actions';
 
 // ---- 1 --------------------------------------------------------------------------------
+
+export const createPostMutationKeyBase = functionName.createPost;
 
 export const useCreatePostMutation = () => {
 	const { enqueueSnackbar } = useSnackbar();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
-	const key = [functionName.createPost] as const;
+	const key = [createPostMutationKeyBase] as const;
 
 	const result = useMutation({
 		mutationKey: key,
@@ -49,33 +49,61 @@ export const useCreatePostMutation = () => {
 
 // ---- 2 --------------------------------------------------------------------------------
 
+// type UseGetPostByIdSuspenseQueryProps = {
+// 	params: GetPostByIdQueryParams;
+// 	options?: Omit<
+// 		UseSuspenseQueryOptions<
+// 			GetPostByIdActionResult,
+// 			Error,
+// 			GetPostByIdActionResult,
+// 			readonly ['getPost', GetPostByIdFunctionParams]
+// 		>,
+// 		'queryKey' | 'queryFn'
+// 	>;
+// };
+
+export const getPostByIdSuspenseQueryKeyBase = functionName.getPost;
+
+export const getPostByIdQuery = (params: GetPostByIdQueryParams) => {
+	return queryOptions({
+		queryKey: [getPostByIdSuspenseQueryKeyBase, params],
+		queryFn: getPostByIdAction,
+	});
+};
+
 type UseGetPostByIdSuspenseQueryProps = {
 	params: GetPostByIdQueryParams;
-	options?: Omit<
-		UseSuspenseQueryOptions<
-			GetPostByIdActionResult,
-			Error,
-			GetPostByIdActionResult,
-			readonly ['getPost', GetPostByIdFunctionParams]
-		>,
-		'queryKey' | 'queryFn'
-	>;
+	options?: Omit<ReturnType<typeof getPostByIdQuery>, 'queryKey' | 'queryFn'>;
 };
 
 export const useGetPostByIdSuspenseQuery = (props: UseGetPostByIdSuspenseQueryProps) => {
-	const key = [functionName.getPost, props.params] as const;
+	const query = getPostByIdQuery(props.params);
 
 	const result = useSuspenseQuery({
-		queryKey: key,
-		queryFn: getPostByIdAction,
+		...query,
 		...props.options,
 	});
 
 	return {
-		key,
+		key: query.queryKey,
 		result,
 	};
 };
+
+// export const useGetPostByIdSuspenseQuery = (props: UseGetPostByIdSuspenseQueryProps) => {
+// 	const key = [functionName.getPost, props.params] as const;
+
+// 	const result = useSuspenseQuery({
+// 		queryKey: key,
+// 		queryFn: getPostByIdAction,
+// 		...props.options,
+// 	});
+
+// 	return {
+// 		key,
+// 		result,
+// 	};
+// };
 
 // ---- 3 --------------------------------------------------------------------------------
 

@@ -1,17 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Button, CircularProgress, TextField } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
-import { useErrorBoundary } from 'react-error-boundary';
+// import { useErrorBoundary } from 'react-error-boundary';
 import { useForm, type SubmitHandler } from 'react-hook-form';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useRevalidator } from 'react-router-dom';
 
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 import { logInSchema, type LogInInput } from '@devist/shared/validations/auth.validations';
-import {
-	getClientAuthQueryKeyBase,
-	// useGetClientAuthSuspenseQuery,
-	useLogInMutation,
-} from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
+import { getClientAuthQueryKeyBase, useLogInMutation } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
 
 // import { getClientAuthAction } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 
@@ -20,7 +16,8 @@ const LogInForm = () => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const location = useLocation();
-	const { resetBoundary } = useErrorBoundary();
+	const { revalidate } = useRevalidator();
+	// const { resetBoundary } = useErrorBoundary();
 
 	const {
 		handleSubmit,
@@ -37,11 +34,18 @@ const LogInForm = () => {
 		result: { mutate: logIn, isPending },
 	} = useLogInMutation({
 		onSuccess: async () => {
-			resetBoundary();
-			await queryClient.invalidateQueries({ queryKey: [getClientAuthQueryKeyBase] });
+			// resetBoundary();
+			// navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
+
+			queryClient.invalidateQueries({ queryKey: [getClientAuthQueryKeyBase] });
+
+			// refetchClientAuth();
+
 			// const authData = await getClientAuthAction();
 			// queryClient.setQueryData([getClientAuthQueryKeyBase] as const, authData);
-			// refetchClientAuth();
+
+			revalidate();
+
 			navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
 		},
 	});

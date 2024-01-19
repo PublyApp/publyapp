@@ -25,13 +25,15 @@ declare module 'parse-server' {
 	import type { Application } from 'express';
 
 	export type ParseServerOptions = {
+		// Required options
 		appId: string;
-		masterKey: string;
 		cloud: string;
 		databaseURI: string;
-		serverURL: string;
+		masterKey: string;
 		publicServerURL: string;
-		// =============================================
+		serverURL: string;
+
+		// Options I actually use
 		allowClientClassCreation?: boolean;
 		schema?: {
 			strict?: boolean;
@@ -41,7 +43,51 @@ declare module 'parse-server' {
 		allowExpiredAuthDataToken?: boolean;
 		logLevel?: string;
 		filesAdapter?: any;
+
+		// Other options
+		accountLockout?: AccountLockoutOptions;
+		allowCustomObjectId?: boolean;
+		allowHeaders?: string[];
+		allowOrigin?: string | string[];
+		analyticsAdapter?: any;
+		appName?: string;
+		auth?: Record<string, any>;
+		cacheAdapter?: any;
+		cacheMaxSize?: number;
+		cacheTTL?: number;
+		clientKey?: string;
+		cluster?: number | boolean;
+		collectionPrefix?: string;
+		customPages?: CustomPagesOptions;
+		databaseAdapter?: any;
+		databaseOptions?: DatabaseOptions;
+		defaultLimit?: number;
+		directAccess?: boolean;
 	} & Record<string, any>;
+
+	type AccountLockoutOptions = {
+		duration?: number;
+		threshold?: number;
+		unlockOnPasswordReset?: boolean;
+	};
+
+	type CustomPagesOptions = {
+		choosePassword?: string;
+		expiredVerificationLink?: string;
+		invalidLink?: string;
+		invalidPasswordResetLink?: string;
+		invalidVerificationLink?: string;
+		linkSendFail?: string;
+		linkSendSuccess?: string;
+		parseFrameURL?: string;
+		passwordResetSuccess?: string;
+		verifyEmailSuccess?: string;
+	};
+
+	type DatabaseOptions = {
+		enableSchemaHooks?: boolean;
+		schemaCacheTtl?: number;
+	};
 
 	export default class ParseServer {
 		constructor(options: ParseServerOptions);
