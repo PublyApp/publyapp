@@ -77,6 +77,7 @@ export const logOutAction = async (): Promise<void> => {
 // ---- 3 --------------------------------------------------------------------------------
 // export const AUTH_REQUIRED_ERROR_MSG = 'Auth required';
 
+// TODO: create a cloud function and call it from instead
 export const getClientAuthAction = async () => {
 	try {
 		// const storedUser = await Parse.User.currentAsync();

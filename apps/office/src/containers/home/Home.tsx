@@ -4,12 +4,14 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
+import { Navigate, useNavigate, useRevalidator } from 'react-router-dom';
 
 import useLocale from '@devist/ui-react/hooks/useLocale';
 
 import RouterLink from '@/office/components/RouterLink';
 import { useMainStore } from '@/office/lib/zustand/store';
-import { PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import { BO_PATH_NAMES, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import { useLogOutMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 
 const Home = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -35,6 +37,18 @@ const Home = () => {
 
 	// const fileList = fileInputRef.current?.files;
 	const [files, setFiles] = useState<File[]>([]);
+
+	const { revalidate } = useRevalidator();
+	const navigate = useNavigate();
+
+	const {
+		result: { mutate: logOut },
+	} = useLogOutMutation({
+		onSuccess: () => {
+			revalidate();
+			navigate(BO_PATH_NAMES.auth.login);
+		},
+	});
 
 	// console.log('ggggg');
 	return (
@@ -149,10 +163,12 @@ const Home = () => {
 			<Button
 				variant="contained"
 				onClick={() => {
-					addBear();
+					// addBear();
+					logOut();
 				}}
 			>
-				add bear
+				{/* add bear */}
+				log out
 			</Button>
 			<Button
 				variant="contained"
