@@ -5,7 +5,7 @@ import { Link as RouterLink } from '@remix-run/react';
 
 import { FRONT_PATH_NAMES } from '@devist/shared/lib/constants';
 import Iconify from '@devist/ui-react/components/Iconify';
-import Image from '@devist/ui-react/components/Image';
+import ImageSSR from '@devist/ui-react/components/ImageSSR';
 import Label from '@devist/ui-react/components/Label';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 import type { IJobProps } from '@devist/ui-react/types/job';
@@ -54,7 +54,7 @@ const AwesomeToolItem = ({ job }: Props) => {
 
 			<Stack sx={{ p: 3, pb: 0 }}>
 				<Stack direction="row" alignItems="center" spacing={2.5}>
-					<Image alt={companyName} src={companyLogo} sx={{ width: 48, height: 48, borderRadius: 1 }} />
+					<ImageSSR alt={companyName} src={companyLogo} sx={{ width: 48, height: 48, borderRadius: 1 }} />
 
 					{isUrgent && <Label color="error">Urgent</Label>}
 				</Stack>

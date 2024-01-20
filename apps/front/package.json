@@ -53,6 +53,7 @@
     "esbuild-register": "^3.5.0",
     "eslint": "^8.56.0",
     "eslint-config-custom-react": "workspace:*",
+    "remix-development-tools": "^3.7.2",
     "typescript": "^5.3.3",
     "vite": "^5.0.11",
     "vite-plugin-cjs-interop": "^2.0.2",

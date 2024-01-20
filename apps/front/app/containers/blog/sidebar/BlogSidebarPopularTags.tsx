@@ -1,8 +1,6 @@
-// @mui
 import { Box, Chip, Typography } from '@mui/material';
 
-// types
-import type { IBlogTagsProps } from '@devist/ui-react';
+import type { IBlogTagsProps } from '@devist/ui-react/types/blog';
 
 // ----------------------------------------------------------------------
 
@@ -10,7 +8,7 @@ type Props = {
 	popularTags: IBlogTagsProps[];
 };
 
-export default function BlogSidebarPopularTags({ popularTags }: Props) {
+const BlogSidebarPopularTags = ({ popularTags }: Props) => {
 	return (
 		<Box>
 			<Typography variant="h5" sx={{ mb: 3 }}>
@@ -22,4 +20,6 @@ export default function BlogSidebarPopularTags({ popularTags }: Props) {
 			})}
 		</Box>
 	);
-}
+};
+
+export default BlogSidebarPopularTags;
