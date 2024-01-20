@@ -1,11 +1,8 @@
 import { Suspense } from 'react';
 
 import loadable from '@loadable/component';
-// import Button from '@mui/material/Button';
-// import type { FallbackProps } from 'react-error-boundary';
 import { defer, Navigate, Outlet, useRouteError, type RouteObject } from 'react-router-dom';
 
-// import ErrorBoundary from '@/office/components/ErrorBoundary';
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
@@ -26,38 +23,6 @@ import { getLastPath, getRouteLoader } from '../utils';
 const EditPost = loadable(() => {
 	return import('../../containers/posts/EditPost');
 });
-
-// const DashboardRootFallback = ({ error, resetErrorBoundary }: FallbackProps) => {
-// 	if (error instanceof ClientException) {
-// 		if (error.code === ClientException.AUTH_REQUIRED) {
-// 			return <Navigate to={BO_PATH_NAMES.auth.login} />;
-// 		}
-// 	}
-
-// 	return (
-// 		<div role="alert">
-// 			<h1>Something went wrong!!</h1>
-// 			<Button onClick={resetErrorBoundary}>Retry loading</Button>
-// 			<pre style={{ color: 'red' }}>{JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}</pre>
-// 		</div>
-// 	);
-// };
-
-// const DashboardPageFallback = ({ error, resetErrorBoundary }: FallbackProps) => {
-// 	if (error instanceof Parse.Error) {
-// 		if (error.code === Parse.Error.OBJECT_NOT_FOUND) {
-// 			return <NotFound />;
-// 		}
-// 	}
-
-// 	return (
-// 		<div role="alert">
-// 			<h1>Something went wrong!! (Page)</h1>
-// 			<Button onClick={resetErrorBoundary}>Retry loading</Button>
-// 			<pre style={{ color: 'red' }}>{JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}</pre>
-// 		</div>
-// 	);
-// };
 
 const DashboardRootError = () => {
 	const error = useRouteError();
