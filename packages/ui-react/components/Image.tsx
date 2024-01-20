@@ -1,25 +1,25 @@
 import { forwardRef } from 'react';
 
 import { Box, type BoxProps } from '@mui/material';
-import * as pkg from 'react-lazy-load-image-component';
-import { type LazyLoadImageProps } from 'react-lazy-load-image-component';
+import { LazyLoadImage, type LazyLoadImageProps } from 'react-lazy-load-image-component';
 
-const { LazyLoadImage } = pkg;
+// import * as pkg from 'react-lazy-load-image-component';
+// const { LazyLoadImage } = pkg;
 
 // ----------------------------------------------------------------------
-
-type IProps = BoxProps & LazyLoadImageProps;
 
 export type ImageRatio = '4/3' | '3/4' | '6/4' | '4/6' | '16/9' | '9/16' | '21/9' | '9/21' | '1/1';
 
-export interface ImageProps extends IProps {
-	ratio?: ImageRatio;
-	disabledEffect?: boolean;
-}
+export type ImageProps = BoxProps &
+	LazyLoadImageProps & {
+		overlay?: string;
+		ratio?: ImageRatio;
+		disabledEffect?: boolean;
+	};
 
 // ----------------------------------------------------------------------
 
-const getRatio = (ratio = '1/1') => {
+export const getRatio = (ratio = '1/1') => {
 	return {
 		'4/3': 'calc(100% / 4 * 3)',
 		'3/4': 'calc(100% / 3 * 4)',

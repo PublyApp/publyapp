@@ -1,9 +1,7 @@
-// @mui
 import { Stack, Typography } from '@mui/material';
-// types
-import { IBlogPostProps } from 'src/types/blog';
 
-//
+import type { IBlogPostProps } from '@devist/ui-react/types/blog';
+
 import PostItemMobile from '../components/PostItemMobile';
 
 // ----------------------------------------------------------------------
@@ -14,16 +12,18 @@ type Props = {
 	};
 };
 
-export default function BlogSidebarRecentPosts({ recentPosts }: Props) {
+const BlogSidebarRecentPosts = ({ recentPosts }: Props) => {
 	const { list } = recentPosts;
 
 	return (
 		<Stack spacing={3}>
 			<Typography variant="h5">Recent Posts</Typography>
 
-			{list.map((post) => (
-				<PostItemMobile key={post.id} post={post} onSiderbar />
-			))}
+			{list.map((post) => {
+				return <PostItemMobile key={post.id} post={post} onSiderbar />;
+			})}
 		</Stack>
 	);
-}
+};
+
+export default BlogSidebarRecentPosts;
