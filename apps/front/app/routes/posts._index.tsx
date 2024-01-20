@@ -1,7 +1,7 @@
 import { Container, Unstable_Grid2 as Grid } from '@mui/material';
 
 import _mock, { _blogCareerPosts, _categories, _tags } from '@/front/_mock';
-import BlogSidebar from '@/front/containers/posts/blogSidebar/BlogSidebar';
+import BlogSidebar from '@/front/containers/blog/sidebar/BlogSidebar';
 
 // import { BlogCareerPosts } from '../../blog/career';
 // import { PostSearchMobile } from '../../blog/components';
