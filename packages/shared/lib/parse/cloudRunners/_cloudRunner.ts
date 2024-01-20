@@ -1,8 +1,10 @@
 import Parse from 'parse';
 
-export const cloudRunner = <ReturnType, Params extends Record<string, unknown> = Record<string, unknown>>(
+type ClouParams = Record<string, unknown>;
+
+export const cloudRunner = <ReturnType, ParamsType extends ClouParams = ClouParams>(
 	name: string,
-): ((params: Params, options?: Parse.Cloud.RunOptions) => Promise<ReturnType>) => {
+): ((params: ParamsType, options?: Parse.Cloud.RunOptions) => Promise<ReturnType>) => {
 	return (params, options) => {
 		return Parse.Cloud.run(name, params, options);
 	};

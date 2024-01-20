@@ -1,4 +1,5 @@
 import { functionName } from '../../constants';
+import type { AppLocale } from '../../i18n/resources';
 import type { ParsePost } from '../classes/post.class';
 
 import { cloudRunner } from './_cloudRunner';
@@ -6,7 +7,7 @@ import { cloudRunner } from './_cloudRunner';
 // ---- 1 --------------------------------------------------------------------------------
 
 export type CreatePostFunctionParams = {
-	locale: string;
+	locale: AppLocale;
 	title: string;
 	description: string;
 	content: string;
