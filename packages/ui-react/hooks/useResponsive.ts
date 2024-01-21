@@ -7,30 +7,27 @@ type Value = Breakpoint | number;
 const useResponsive = (query: Query, start?: Value, end?: Value): boolean => {
 	const theme = useTheme();
 
-	switch (query) {
-		case 'up': {
-			const mediaUp = useMediaQuery(theme.breakpoints.up(start as Value));
-			return mediaUp;
-		}
+	const mediaUp = useMediaQuery(theme.breakpoints.up(start as Value));
 
-		case 'down': {
-			const mediaDown = useMediaQuery(theme.breakpoints.down(start as Value));
-			return mediaDown;
-		}
+	const mediaDown = useMediaQuery(theme.breakpoints.down(start as Value));
 
-		case 'between': {
-			const mediaBetween = useMediaQuery(theme.breakpoints.between(start as Value, end as Value));
-			return mediaBetween;
-		}
+	const mediaBetween = useMediaQuery(theme.breakpoints.between(start as Value, end as Value));
 
-		case 'only': {
-			const mediaOnly = useMediaQuery(theme.breakpoints.only(start as Breakpoint));
-			return mediaOnly;
-		}
+	const mediaOnly = useMediaQuery(theme.breakpoints.only(start as Breakpoint));
 
-		default:
-			throw new Error("useResponsive 'query' argument is mandatory");
+	if (query === 'up') {
+		return mediaUp;
 	}
+
+	if (query === 'down') {
+		return mediaDown;
+	}
+
+	if (query === 'between') {
+		return mediaBetween;
+	}
+
+	return mediaOnly;
 };
 
 export default useResponsive;

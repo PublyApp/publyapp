@@ -3,6 +3,14 @@
 namespace Parse {
 	import type { PipelineStage } from 'mongoose';
 
+	// import type { DateType } from '../types/db/any.types';
+
+	// interface BaseAttributes {
+	// 	createdAt: DateType;
+	// 	objectId: string;
+	// 	updatedAt: DateType;
+	// }
+
 	export type NewAttributes<T> = Omit<T, keyof BaseAttributes>;
 
 	namespace Cloud {

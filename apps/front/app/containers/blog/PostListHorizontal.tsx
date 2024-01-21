@@ -1,20 +1,21 @@
 import { Box, Pagination, paginationClasses } from '@mui/material';
+import { useLoaderData } from '@remix-run/react';
 import { nanoid } from 'nanoid';
 
-import { _blogCareerPosts } from '@/front/_mock';
-import useFakeLoading from '@/ui-react/hooks/useFakeLoading';
-
 // import type { IPostItem } from '@devist/ui-react/types/blog';
+
+import { _blogCareerPosts } from '@/front/_mock';
+import type { PostListLoaderFunction } from '@/front/routes/posts.page.$pageNum';
 
 import PostItemHorizontal from './components/PostItemHorizontal';
 import { PostItemSkeleton } from './components/PostItemSkeleton';
 
-const posts = _blogCareerPosts.map((post) => {
-	return {
-		...post,
-		coverUrl: post.coverImg.replace('https://devist.dev', ''),
-	};
-});
+// const posts = _blogCareerPosts.map((post) => {
+// 	return {
+// 		...post,
+// 		coverUrl: post.coverImg.replace('https://devist.dev', ''),
+// 	};
+// });
 
 // ----------------------------------------------------------------------
 // Fill the array below with 16 items
@@ -25,7 +26,9 @@ const posts = _blogCareerPosts.map((post) => {
 // };
 
 const PostListHorizontal = (/* { posts, loading }: Props */) => {
-	const loading = useFakeLoading();
+	// const loading = useFakeLoading();
+	const loading = false;
+	const { posts } = useLoaderData<PostListLoaderFunction>();
 
 	const renderSkeleton = (
 		<>
@@ -38,7 +41,7 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 	const renderList = (
 		<>
 			{posts.map((post) => {
-				return <PostItemHorizontal key={post.id} post={post} />;
+				return <PostItemHorizontal key={post.objectId} post={post as never} />;
 			})}
 		</>
 	);
