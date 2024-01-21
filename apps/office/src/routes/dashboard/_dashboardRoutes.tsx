@@ -5,6 +5,7 @@ import { defer, Navigate, Outlet, useRouteError, type RouteObject } from 'react-
 
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
+// import { PARSE_CURRENT_USER_LOCAL_STORAGE_KEY } from '@/office/lib/constants';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import { getClientAuthQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
@@ -33,9 +34,19 @@ const DashboardRootError = () => {
 		}
 	}
 
+	if (error instanceof Parse.Error) {
+		if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
+			if (Parse.User.current()) {
+				Parse.User.logOut();
+			}
+
+			return <Navigate to={BO_PATH_NAMES.auth.login} />;
+		}
+	}
+
 	return (
 		<div role="alert">
-			<h1>Something went wrong!!</h1>
+			<h1>Something went wrong!! (Dash)</h1>
 			<pre style={{ color: 'red' }}>{JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}</pre>
 		</div>
 	);
@@ -72,7 +83,6 @@ export const dashboardRoutes: RouteObject[] = [
 			});
 		}),
 		element: (
-			// <ErrorBoundary FallbackComponent={DashboardRootFallback}>
 			<Suspense fallback={<SplashScreen />}>
 				<RequireAuth>
 					<DashboardLayout>
@@ -80,17 +90,14 @@ export const dashboardRoutes: RouteObject[] = [
 					</DashboardLayout>
 				</RequireAuth>
 			</Suspense>
-			// </ErrorBoundary>
 		),
 		errorElement: <DashboardRootError />,
 		children: [
 			{
 				element: (
-					// <ErrorBoundary FallbackComponent={DashboardPageFallback}>
 					<Suspense fallback={<LoadingScreen />}>
 						<Outlet />
 					</Suspense>
-					// </ErrorBoundary>
 				),
 				errorElement: <DashboardPageError />,
 				children: [
@@ -112,7 +119,6 @@ export const dashboardRoutes: RouteObject[] = [
 									{
 										path: getLastPath(BO_PATH_NAMES.dashboard.posts.create),
 										element: <NewPost />,
-										// element: <h1>This is temporary</h1>,
 									},
 									{
 										path: getLastPath(BO_PATH_NAMES.dashboard.posts.edit(':postId'), 2),

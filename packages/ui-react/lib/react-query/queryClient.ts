@@ -27,6 +27,12 @@ export const createQueryClient = ({ env = 'development' }: Options = {}) => {
 						}
 					}
 
+					if (error instanceof Parse.Error) {
+						if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
+							return false;
+						}
+					}
+
 					return failureCount <= 2;
 				},
 			},
