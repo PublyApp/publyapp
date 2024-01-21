@@ -32,14 +32,17 @@ export type PostAttributes = {
 	// cover: string; // cover is a Pointer to parse AppFile
 	translation: Record<AppLocale, PostTranslation>;
 	//
+	tags?: string[];
 	noIndex?: boolean;
 	publishDate?: DateType;
 	updateDate?: DateType;
+	views?: number;
 };
 
 export type IPost = BaseAttributes & PostAttributes;
 
 export type IPostWithRelations = IPost & {
 	author: IUser;
-	cover: AppFile;
+	cover?: AppFile;
+	views?: number;
 };

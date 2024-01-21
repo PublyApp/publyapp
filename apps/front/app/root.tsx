@@ -1,8 +1,4 @@
-/* eslint-disable react/function-component-definition */
-/* eslint-disable prefer-arrow/prefer-arrow-functions */
-/* eslint-disable func-style */
-/* eslint-disable no-param-reassign */
-import * as React from 'react';
+import { useContext, type ReactNode } from 'react';
 
 import { withEmotionCache } from '@emotion/react';
 import { unstable_useEnhancedEffect as useEnhancedEffect, useTheme } from '@mui/material';
@@ -17,10 +13,13 @@ import {
 	useRouteError,
 } from '@remix-run/react';
 
-import MotionLazy from '@devist/ui-react/components/MotionLazy';
+import MotionLazyContainer from '@devist/ui-react/components/MotionLazyContainer';
 import SnackbarProvider from '@devist/ui-react/providers/SnackbarProvider';
 
+import Error404 from './components/Error404';
+import Error500 from './components/Error500';
 import ClientStyleContext from './contexts/ClientStyleContext';
+import CompactLayout from './layouts/compact/CompactLayout';
 import MainLayout from './layouts/main/MainLayout';
 import { initParse } from './lib/parse';
 
@@ -32,12 +31,13 @@ interface DocumentProps {
 initParse();
 
 const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCache) => {
-	const clientStyleData = React.useContext(ClientStyleContext);
+	const clientStyleData = useContext(ClientStyleContext);
 	const theme = useTheme();
 
 	// Only executed on client
 	useEnhancedEffect(() => {
 		// re-link sheet container
+		// eslint-disable-next-line no-param-reassign
 		emotionCache.sheet.container = document.head;
 		// re-inject tags
 		const { tags } = emotionCache.sheet;
@@ -80,47 +80,54 @@ const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCa
 
 // https://remix.run/docs/en/main/route/component
 // https://remix.run/docs/en/main/file-conventions/routes
-export default function App() {
+const App = () => {
 	return (
 		<Document>
-			<MotionLazy>
+			<MotionLazyContainer>
 				<SnackbarProvider>
 					<MainLayout>
 						<Outlet />
 					</MainLayout>
 				</SnackbarProvider>
-			</MotionLazy>
+			</MotionLazyContainer>
 		</Document>
 	);
-}
+};
+
+export default App;
 
 // https://remix.run/docs/en/main/route/error-boundary
 export const ErrorBoundary = () => {
 	const error = useRouteError();
 
 	if (isRouteErrorResponse(error)) {
-		let message;
+		let message: ReactNode;
 
 		switch (error.status) {
-			case 401:
+			case 401: {
 				message = <p>Oops! Looks like you tried to visit a page that you do not have access to.</p>;
 				break;
-			case 404:
-				message = <p>Oops! Looks like you tried to visit a page that does not exist.</p>;
-				break;
+			}
 
-			default:
+			case 404: {
+				// message = <p>Oops! Looks like you tried to visit a page that does not exist.</p>;
+				message = <Error404 />;
+				break;
+			}
+
+			default: {
 				throw new Error(error.data || error.statusText);
+			}
 		}
 
 		return (
 			<Document title={`${error.status} ${error.statusText}`}>
-				{/* <Layout> */}
-				<h1>
+				<CompactLayout>
+					{/* <h1>
 					{error.status}: {error.statusText}
-				</h1>
-				{message}
-				{/* </Layout> */}
+				</h1> */}
+					{message}
+				</CompactLayout>
 			</Document>
 		);
 	}
@@ -129,14 +136,15 @@ export const ErrorBoundary = () => {
 		console.error(error);
 		return (
 			<Document title="Error!">
-				{/* <Layout> */}
-				<div>
-					<h1>There was an error</h1>
-					<p>{error.message}</p>
-					<hr />
-					<p>Hey, developer, you should replace this with what you want your users to see.</p>
-				</div>
-				{/* </Layout> */}
+				<CompactLayout>
+					{/* <div>
+						<h1>There was an error</h1>
+						<p>{error.message}</p>
+						<hr />
+						<p>Hey, developer, you should replace this with what you want your users to see.</p>
+					</div>  */}
+					<Error500 />
+				</CompactLayout>
 			</Document>
 		);
 	}

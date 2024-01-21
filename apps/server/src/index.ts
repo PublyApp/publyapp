@@ -23,6 +23,7 @@ import AppFileSchema from './schemas/appFile.schema';
 import AwesomeLinkSchema from './schemas/awesomeLink.schema';
 import PostSchema from './schemas/post.schema';
 import RoleSchema from './schemas/role.schema';
+import UserSchema from './schemas/user.schema';
 import WebHostSchema from './schemas/webHost.schema';
 
 const bootstrap = async () => {
@@ -95,7 +96,7 @@ const bootstrap = async () => {
 		allowClientClassCreation: false,
 		schema: {
 			strict: true,
-			definitions: [RoleSchema, PostSchema, WebHostSchema, AppFileSchema, AwesomeLinkSchema],
+			definitions: [RoleSchema, UserSchema, PostSchema, WebHostSchema, AppFileSchema, AwesomeLinkSchema],
 		},
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,

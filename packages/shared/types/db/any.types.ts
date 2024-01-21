@@ -1,4 +1,4 @@
-import { type Dayjs } from 'dayjs';
+// import { type Dayjs } from 'dayjs';
 
 export type ListMeta = {
 	count: number;
@@ -7,4 +7,4 @@ export type ListMeta = {
 	pageSize: number;
 };
 
-export type DateType = string | number | Date | Dayjs | null | undefined;
+export type DateType = string | number | Date | null | undefined;

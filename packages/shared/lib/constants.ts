@@ -54,10 +54,14 @@ export const FRONT_PATH_NAMES = {
 	home: '/',
 	posts: {
 		root: `/${RESOURCE.posts}`,
+		page: (pageNum: number) => {
+			return makePath(`/${RESOURCE.posts}`, 'page', String(pageNum));
+		},
 		details: (postId: string) => {
 			return makePath(`/${RESOURCE.posts}`, postId);
 		},
 	},
+	support: '/support',
 } as const;
 
 export const BO_PATH_NAMES = {

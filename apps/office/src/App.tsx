@@ -1,6 +1,6 @@
 import '@devist/ui-react/styles/fonts.css';
 
-import MotionLazy from '@devist/ui-react/components/MotionLazy';
+import MotionLazyContainer from '@devist/ui-react/components/MotionLazyContainer';
 import MuiDatePickerLocalizationProvider from '@devist/ui-react/providers/MuiDatePickerLocalizationProvider';
 import QueryClientProvider from '@devist/ui-react/providers/QueryClientProvider';
 import SnackbarProvider from '@devist/ui-react/providers/SnackbarProvider';
@@ -13,11 +13,11 @@ const App = () => {
 		<QueryClientProvider>
 			<MuiDatePickerLocalizationProvider>
 				<ThemeProvider>
-					<MotionLazy>
+					<MotionLazyContainer>
 						<SnackbarProvider>
 							<Routes />
 						</SnackbarProvider>
-					</MotionLazy>
+					</MotionLazyContainer>
 				</ThemeProvider>
 			</MuiDatePickerLocalizationProvider>
 		</QueryClientProvider>

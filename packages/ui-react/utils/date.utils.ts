@@ -24,7 +24,7 @@ export const fToNow = (date: InputValue) => {
 	return date
 		? formatDistanceToNow(new Date(date), {
 				addSuffix: true,
-		  })
+			})
 		: '';
 };
 
