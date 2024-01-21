@@ -20,7 +20,7 @@ export const roleSet = {
 } satisfies Record<string, IRoleConfig[]>;
 
 /**
- * Parse Server class names
+ * Parse Server class names (collection names)
  */
 export const className = {
 	USER: '_User',
@@ -35,31 +35,30 @@ export const className = {
 
 export const LOCALE_HEADER_KEY = 'X-Devist-Locale';
 
-export const FRONT_PATH_NAMES = {
-	// dashboard: ROOTS.DASHBOARD,
-	// webHosts: `${ROOTS.DASHBOARD}/web-hosts`,
-	// createWebHost: `${ROOTS.DASHBOARD}/web-hosts/new`,
-	// TODO: edit route
-	home: '/',
-	job: '/job',
-	awesomeTools: '/awesome-tools',
-	//
+const RESOURCE = {
 	posts: 'posts',
+	fileManager: 'file-manager',
+	blog: 'blog',
 } as const;
+
+const makePath = (...params: string[]) => {
+	return params.join('/');
+};
 
 const ROOTS = {
 	AUTH: '/auth',
 	DASHBOARD: '/dashboard',
 } as const satisfies Record<string, `/${string}`>;
 
-const RESOURCE = {
-	posts: 'posts',
-	fileManager: 'file-manager',
+export const FRONT_PATH_NAMES = {
+	home: '/',
+	posts: {
+		root: `/${RESOURCE.posts}`,
+		details: (postId: string) => {
+			return makePath(`/${RESOURCE.posts}`, postId);
+		},
+	},
 } as const;
-
-const makePath = (...params: string[]) => {
-	return params.join('/');
-};
 
 export const BO_PATH_NAMES = {
 	auth: {

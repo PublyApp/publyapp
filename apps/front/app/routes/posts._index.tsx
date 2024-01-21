@@ -3,6 +3,8 @@ import { Container, Unstable_Grid2 as Grid } from '@mui/material';
 import _mock, { _blogCareerPosts, _categories, _tags } from '@/front/_mock';
 import BlogSidebar from '@/front/containers/blog/sidebar/BlogSidebar';
 
+import PostListHorizontal from '../containers/blog/PostListHorizontal';
+
 // import { BlogCareerPosts } from '../../blog/career';
 // import { PostSearchMobile } from '../../blog/components';
 // import NewsletterCareer from '../../newsletter/career';
@@ -21,6 +23,7 @@ const PostsPage = () => {
 				<Grid container spacing={{ md: 8 }}>
 					<Grid xs={12} md={8}>
 						{/* <BlogCareerPosts posts={_blogCareerPosts} /> */}
+						<PostListHorizontal />
 					</Grid>
 
 					<Grid xs={12} md={4}>
