@@ -46,6 +46,6 @@ logs
 apps/*/dist
 packages/*/dist
 
-_mock
+# _mock
 
 front-next
