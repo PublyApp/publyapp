@@ -8,7 +8,7 @@ type Props = {
 	children: React.ReactNode;
 };
 
-const MotionLazy = ({ children }: Props) => {
+const MotionLazyContainer = ({ children }: Props) => {
 	return (
 		<LazyMotion strict features={domMax}>
 			<m.div style={{ height: '100%' }}>{children}</m.div>
@@ -16,4 +16,4 @@ const MotionLazy = ({ children }: Props) => {
 	);
 };
 
-export default MotionLazy;
+export default MotionLazyContainer;

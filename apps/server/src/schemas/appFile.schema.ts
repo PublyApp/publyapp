@@ -1,7 +1,7 @@
 import { SchemaMigrations } from 'parse-server';
 
 import { className } from '@devist/shared/lib/constants';
-import type { AppFileWithRelations } from '@devist/shared/types/appFile.types';
+import type { AppFileWithRelations } from '@devist/shared/types/db/appFile.types';
 
 import { DEFAULT_CLP } from '@/server/lib/constants';
 

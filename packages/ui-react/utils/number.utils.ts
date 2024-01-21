@@ -8,7 +8,7 @@ const result = (format: string, key = '.00') => {
 
 // ----------------------------------------------------------------------
 
-type InputValue = string | number | null;
+type InputValue = string | number | null | undefined;
 
 export const fNumber = (number: InputValue) => {
 	return numeral(number).format();
@@ -27,7 +27,7 @@ export const fPercent = (number: InputValue) => {
 };
 
 export const fShortenNumber = (number: InputValue) => {
-	const format = number ? numeral(number).format('0.00a') : '';
+	const format = number ? numeral(number).format('0.00a') : '0';
 
 	return result(format, '.00');
 };

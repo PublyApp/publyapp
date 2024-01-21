@@ -1,23 +1,17 @@
 import _Parse from 'parse';
 import _ParseNode from 'parse/node';
 
-export const initParseSSR = (serverURL: string, applicationId: string, javascriptKey?: string, masterKey?: string) => {
+const initParseSSR = (serverURL: string, applicationId: string, javascriptKey?: string) => {
 	const isServer = typeof window === 'undefined';
 
 	// ---- code copied from parse-react/ssr -------------------------------------------------
-	if (/* (process as any).browser */ !isServer) {
-		// eslint-disable-next-line global-require
-		// global.Parse = require('parse');
-		// eslint-disable-next-line global-require
-		// window.Parse = require('parse');
+	if (!isServer) {
 		window.Parse = _Parse;
 	} else {
-		// eslint-disable-next-line global-require
-		// global.Parse = require('parse/node');
 		global.Parse = _ParseNode;
 	}
 
-	Parse.initialize(applicationId, javascriptKey, masterKey);
+	Parse.initialize(applicationId, javascriptKey, 'local-master-key');
 
 	if (!isServer) {
 		Parse.enableLocalDatastore();
@@ -28,8 +22,7 @@ export const initParseSSR = (serverURL: string, applicationId: string, javascrip
 };
 
 export const initParse = () => {
-	// const isServer = typeof window === 'undefined';
-	initParseSSR('http://localhost:6180/parse', 'devist', undefined, /* isServer ? 'local-master-key' : */ undefined);
+	initParseSSR('http://localhost:6180/parse', 'devist', undefined);
 };
 
 /**
@@ -39,15 +32,9 @@ export const initParse = () => {
 export const getParse = (): typeof Parse => {
 	const isServer = typeof window === 'undefined';
 
-	if (/* (process as any).browser */ !isServer) {
-		// eslint-disable-next-line global-require
-		// global.Parse = require('parse');
-		// eslint-disable-next-line global-require
-		// window.Parse = require('parse');
+	if (!isServer) {
 		return _Parse;
 	}
 
-	// eslint-disable-next-line global-require
-	// global.Parse = require('parse/node');
 	return _ParseNode;
 };
