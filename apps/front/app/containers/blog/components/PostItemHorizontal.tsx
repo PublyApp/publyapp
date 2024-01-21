@@ -1,4 +1,4 @@
-import { alpha, Avatar, Box, Card, Link, Stack, useTheme } from '@mui/material';
+import { Avatar, Box, Card, Link, Stack, useTheme } from '@mui/material';
 
 // import Box from '@mui/material/Box';
 // import Card from '@mui/material/Card';
@@ -33,7 +33,7 @@ import RouterLink from '@/front/components/RouterLink';
 import { /* BO_PATH_NAMES, */ FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import type { IUserWithRelations } from '@/shared/types/db/user.types';
 import Iconify from '@/ui-react/components/Iconify';
-import ImageSSR from '@/ui-react/components/Image';
+import Image from '@/ui-react/components/Image';
 import Label from '@/ui-react/components/Label';
 import TextMaxLine from '@/ui-react/components/TextMaxLine';
 
@@ -87,11 +87,10 @@ const PostItemHorizontal = ({ post }: Props) => {
 						src={author.avatar?.url}
 						sx={{ position: 'absolute', top: 16, left: 16, zIndex: 9 }}
 					/>
-					<ImageSSR
+					<Image
 						alt={cover?.alternativeText || translation.en?.title}
 						src={cover?.url || '/assets/images/marketing/marketing_1.jpg'}
 						sx={{ height: 1, borderRadius: 1.5 }}
-						overlay={alpha(theme.palette.grey[900], 0.5)}
 					/>
 				</Box>
 

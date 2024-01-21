@@ -1,6 +1,6 @@
 import { Link, Stack } from '@mui/material';
 
-import ImageSSR from '@devist/ui-react/components/ImageSSR';
+import Image from '@devist/ui-react/components/Image';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 import type { IBlogPostProps } from '@devist/ui-react/types/blog';
 import { fDate } from '@devist/ui-react/utils/date.utils';
@@ -19,7 +19,7 @@ const PostItemMobile = ({ post, onSiderbar }: Props) => {
 
 	return (
 		<Stack spacing={2} direction="row" alignItems={{ xs: 'flex-start', md: 'unset' }} sx={{ width: 1 }}>
-			<ImageSSR
+			<Image
 				alt={title}
 				src={coverImg}
 				sx={{
