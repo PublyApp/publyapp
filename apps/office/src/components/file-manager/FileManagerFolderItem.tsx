@@ -10,13 +10,12 @@ import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 
-import type { IFolderManager } from '@devist/ui-react/types/file';
+import CustomPopover from '@devist/ui-react/components/CustomPopover';
+import usePopover from '@devist/ui-react/hooks/usePopover';
 
-import usePopover from '@/office/hooks/usePopover';
 import Iconify from '@/ui-react/components/Iconify';
+import type { IFolderManager } from '@/ui-react/types/file';
 import { fData } from '@/ui-react/utils/number.utils';
-
-import CustomPopover from '../CustomPopover';
 
 // // hooks
 // import { useBoolean } from 'src/hooks/use-boolean';
@@ -44,7 +43,7 @@ interface Props extends CardProps {
 	onDelete: VoidFunction;
 }
 
-const FileManagerFolderItem = ({ folder, selected, onSelect, onDelete, sx, ...other }: Props) => {
+const FileManagerFolderItem = ({ folder, /* selected, onSelect, onDelete, */ sx, ...other }: Props) => {
 	// const { enqueueSnackbar } = useSnackbar();
 
 	// const { copy } = useCopyToClipboard();

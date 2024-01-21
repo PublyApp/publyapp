@@ -12,8 +12,7 @@ import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 // };
 
 export const loader: ActionFunction = async () => {
-	// return redirect(FRONT_PATH_NAMES.awesomeTools, 301);
-	return redirect(FRONT_PATH_NAMES.posts, 301);
+	return redirect(FRONT_PATH_NAMES.posts.root, 301);
 };
 
 // https://remix.run/docs/en/main/file-conventions/routes#basic-routes
