@@ -4,15 +4,15 @@ import { Box, Button, CardActionArea, InputAdornment, Stack, TextField, Typograp
 import { alpha } from '@mui/material/styles';
 
 import CustomDateRangePicker from '@devist/ui-react/components/CustomDateRangePicker';
+import CustomPopover from '@devist/ui-react/components/CustomPopover';
 import Iconify from '@devist/ui-react/components/Iconify';
 import Label from '@devist/ui-react/components/Label';
 import useBoolean from '@devist/ui-react/hooks/useBoolean';
+import usePopover from '@devist/ui-react/hooks/usePopover';
 import { type IFileFilters, type IFileFilterValue } from '@devist/ui-react/types/file';
 import { shortDateLabel } from '@devist/ui-react/utils/date.utils';
 
-import CustomPopover from '@/office/components/CustomPopover';
 import FileThumbnail from '@/office/components/file-manager/FileThumbnail';
-import usePopover from '@/office/hooks/usePopover';
 
 // types
 // import { IFileFilters, IFileFilterValue } from 'src/types/file';
