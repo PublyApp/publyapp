@@ -1,5 +1,4 @@
-import { sliderClasses } from '@mui/material/Slider';
-import type { Theme } from '@mui/material/styles';
+import { sliderClasses, type Theme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

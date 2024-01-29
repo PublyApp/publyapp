@@ -1,4 +1,4 @@
-import { alpha, type Shadows } from '@mui/material/styles';
+import { alpha, type Shadows } from '@mui/material';
 
 import { createPalette } from './palette';
 

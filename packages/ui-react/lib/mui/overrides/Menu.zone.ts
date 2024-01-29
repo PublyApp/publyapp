@@ -1,4 +1,4 @@
-import type { Components, Theme } from '@mui/material/styles';
+import type { Components, Theme } from '@mui/material';
 
 type Return = Pick<Components, 'MuiMenuItem'>;
 

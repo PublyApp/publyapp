@@ -1,14 +1,12 @@
-import { drawerClasses, type DrawerProps } from '@mui/material/Drawer';
-import { alpha, type Theme } from '@mui/material/styles';
+import { alpha, drawerClasses, type DrawerProps, type Theme } from '@mui/material';
 
 import { paper } from '@/ui-react/utils/css.utils';
 
-//
 // import { paper } from '../../css';
 
 // ----------------------------------------------------------------------
 
-export function Drawer(theme: Theme) {
+export const Drawer = (theme: Theme) => {
 	const lightMode = theme.palette.mode === 'light';
 
 	return {
@@ -38,4 +36,4 @@ export function Drawer(theme: Theme) {
 			},
 		},
 	};
-}
+};

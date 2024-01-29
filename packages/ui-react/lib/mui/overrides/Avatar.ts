@@ -1,6 +1,4 @@
-import type { AvatarProps } from '@mui/material/Avatar';
-import { avatarGroupClasses, type AvatarGroupProps } from '@mui/material/AvatarGroup';
-import { alpha, type Theme } from '@mui/material/styles';
+import { alpha, avatarGroupClasses, type AvatarGroupProps, type AvatarProps, type Theme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 
@@ -38,14 +36,14 @@ export const Avatar = (theme: Theme) => {
 								color: theme.palette.text.secondary,
 								backgroundColor: alpha(theme.palette.grey[500], 0.24),
 							},
-					  }
+						}
 					: {
 							props: { color },
 							style: {
 								color: theme.palette[color].contrastText,
 								backgroundColor: theme.palette[color].main,
 							},
-					  };
+						};
 			}),
 
 			styleOverrides: {
@@ -61,11 +59,11 @@ export const Avatar = (theme: Theme) => {
 								? {
 										color: theme.palette[color].contrastText,
 										backgroundColor: theme.palette[color].main,
-								  }
+									}
 								: {
 										color: theme.palette.text.secondary,
 										backgroundColor: alpha(theme.palette.grey[500], 0.24),
-								  }),
+									}),
 						}),
 					};
 				},

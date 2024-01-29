@@ -1,5 +1,4 @@
-import { ListItemButton, ListSubheader, Paper } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { ListItemButton, ListSubheader, Paper, styled } from '@mui/material';
 
 import { type NavItemProps } from '../types';
 

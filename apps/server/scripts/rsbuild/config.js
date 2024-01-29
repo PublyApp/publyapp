@@ -105,7 +105,7 @@ const toDeploy = ['preprod', 'production'].includes(process.env.APP_ENV || '');
  */
 function watch(rsbuild) {
 	rsbuild.build({
-		mode: toDeploy ? 'production' : 'development',
+		mode: 'development', // watch mode only works in development mode
 		watch: true,
 	});
 }

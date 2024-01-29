@@ -2,8 +2,7 @@
 
 import { useRef } from 'react';
 
-import { Collapse, IconButton } from '@mui/material';
-import { alpha, styled } from '@mui/material/styles';
+import { alpha, Collapse, IconButton, styled } from '@mui/material';
 import { closeSnackbar, MaterialDesignContent, SnackbarProvider as NotistackProvider } from 'notistack';
 
 import Iconify from '@/ui-react/components/Iconify';
@@ -116,6 +115,7 @@ const SnackbarProvider = ({ children }: Props) => {
 				error: StyledNotistack,
 			}}
 			// with close as default
+			// eslint-disable-next-line react/no-unstable-nested-components
 			action={(snackbarId) => {
 				return (
 					<IconButton

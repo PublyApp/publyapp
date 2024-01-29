@@ -1,7 +1,6 @@
 import { memo } from 'react';
 
-// @mui
-import { useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

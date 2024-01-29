@@ -1,7 +1,6 @@
 import { type ReactNode } from 'react';
 
-// @mui
-import FormHelperText from '@mui/material/FormHelperText';
+import { FormHelperText } from '@mui/material';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import MdxEditor, { type MdxEditorProps } from '../MdxEditor';

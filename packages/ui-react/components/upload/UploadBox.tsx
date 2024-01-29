@@ -1,6 +1,4 @@
-import Box from '@mui/material/Box';
-// @mui
-import { alpha } from '@mui/material/styles';
+import { alpha, Box } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 
 import Iconify from '../Iconify';

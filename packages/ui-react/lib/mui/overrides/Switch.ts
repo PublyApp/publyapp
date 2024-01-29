@@ -1,5 +1,4 @@
-import { alpha, type Theme } from '@mui/material/styles';
-import { switchClasses, type SwitchProps } from '@mui/material/Switch';
+import { alpha, switchClasses, type SwitchProps, type Theme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

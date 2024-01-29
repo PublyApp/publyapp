@@ -1,4 +1,4 @@
-import type { SxProps, Theme } from '@mui/material/styles';
+import type { SxProps, Theme } from '@mui/material';
 import type { DropzoneOptions } from 'react-dropzone';
 
 // ----------------------------------------------------------------------

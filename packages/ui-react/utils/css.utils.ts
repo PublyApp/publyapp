@@ -1,8 +1,11 @@
-import { alpha, type Theme } from '@mui/material';
-import { autocompleteClasses } from '@mui/material/Autocomplete';
-import { checkboxClasses } from '@mui/material/Checkbox';
-import { dividerClasses } from '@mui/material/Divider';
-import { menuItemClasses } from '@mui/material/MenuItem';
+import {
+	alpha,
+	autocompleteClasses,
+	checkboxClasses,
+	dividerClasses,
+	menuItemClasses,
+	type Theme,
+} from '@mui/material';
 
 // ----------------------------------------------------------------------
 

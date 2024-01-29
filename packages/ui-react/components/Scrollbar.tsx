@@ -1,7 +1,6 @@
 import { forwardRef, memo } from 'react';
 
-import { Box } from '@mui/material';
-import { alpha, styled, type SxProps, type Theme } from '@mui/material/styles';
+import { alpha, Box, styled, type SxProps, type Theme } from '@mui/material';
 import SimpleBar, { type Props as SimplebarProps } from 'simplebar-react';
 
 export interface ScrollbarProps extends SimplebarProps {

@@ -1,8 +1,4 @@
-import IconButton from '@mui/material/IconButton';
-import ListItemText from '@mui/material/ListItemText';
-import Stack from '@mui/material/Stack';
-// @mui
-import { alpha } from '@mui/material/styles';
+import { alpha, IconButton, ListItemText, Stack } from '@mui/material';
 import { AnimatePresence, m } from 'framer-motion';
 
 import { fileData } from '@/ui-react/utils/files.utils';
