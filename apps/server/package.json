@@ -8,7 +8,7 @@
 		"build:preprod": "cross-env APP_ENV=preprod pnpm build:rs",
 		"build:rs": "node scripts/rsbuild/build.js",
 		"start": "node --enable-source-maps dist/index.js",
-		"dev": "pnpm dev:rs",
+		"dev": "corepack pnpm dev:rs",
 		"dev:rs": "node scripts/rsbuild/watch.js",
 		"lint": "eslint . --ext ts,js",
 		"lint:fix": "pnpm lint --fix",
