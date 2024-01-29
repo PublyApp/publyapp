@@ -1,7 +1,5 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { menuItemClasses } from '@mui/material/MenuItem';
-import Popover, { type PopoverOrigin, type PopoverProps } from '@mui/material/Popover';
-import { alpha, styled } from '@mui/material/styles';
+import { alpha, menuItemClasses, Popover, styled, type PopoverOrigin, type PopoverProps } from '@mui/material';
 
 import { bgBlur } from '@/ui-react/utils/css.utils';
 

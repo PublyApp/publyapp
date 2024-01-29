@@ -1,5 +1,4 @@
-import { chipClasses, type ChipProps } from '@mui/material/Chip';
-import { alpha, type Theme } from '@mui/material/styles';
+import { alpha, chipClasses, type ChipProps, type Theme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

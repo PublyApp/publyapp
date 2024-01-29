@@ -1,7 +1,17 @@
 import { useState } from 'react';
 
-import { Button, ClickAwayListener, IconButton, Input, InputAdornment, Slide, type SxProps } from '@mui/material';
-import { alpha, styled, type Theme } from '@mui/material/styles';
+import {
+	alpha,
+	Button,
+	ClickAwayListener,
+	IconButton,
+	Input,
+	InputAdornment,
+	Slide,
+	styled,
+	type SxProps,
+	type Theme,
+} from '@mui/material';
 
 import Iconify from '@devist/ui-react/components/Iconify';
 

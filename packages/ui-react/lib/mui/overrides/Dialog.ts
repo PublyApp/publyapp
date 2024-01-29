@@ -1,5 +1,4 @@
-import type { DialogProps } from '@mui/material/Dialog';
-import type { Theme } from '@mui/material/styles';
+import type { DialogProps, Theme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

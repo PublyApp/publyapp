@@ -1,9 +1,4 @@
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import Stack from '@mui/material/Stack';
-import { alpha } from '@mui/material/styles';
-import Typography from '@mui/material/Typography';
+import { alpha, Box, Button, IconButton, Stack, Typography } from '@mui/material';
 import { useDropzone } from 'react-dropzone';
 
 import UploadIllustration from '@/ui-react/assets/illustrations/UploadIllustration';

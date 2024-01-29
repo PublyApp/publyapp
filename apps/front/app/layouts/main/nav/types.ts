@@ -1,5 +1,4 @@
-import type { ListItemButtonProps, SxProps } from '@mui/material';
-import type { Theme } from '@mui/material/styles';
+import type { ListItemButtonProps, SxProps, Theme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

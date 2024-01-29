@@ -1,7 +1,6 @@
 import { memo } from 'react';
 
-import { Box, Link, type BoxProps } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { Box, Link, useTheme, type BoxProps } from '@mui/material';
 import { Link as RouterLink } from '@remix-run/react';
 
 // ----------------------------------------------------------------------

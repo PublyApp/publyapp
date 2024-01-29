@@ -4,16 +4,15 @@
 	"scripts": {
 		"build": "tsc && pnpm build:rs:prod",
 		"build:local": "pnpm build:rs",
-		"build:rs:prod": "cross-env APP_ENV=production pnpm build:rs",
-		"build:rs:preprod": "cross-env APP_ENV=preprod pnpm build:rs",
+		"build:prod": "cross-env APP_ENV=production pnpm build:rs",
+		"build:preprod": "cross-env APP_ENV=preprod pnpm build:rs",
 		"build:rs": "node scripts/rsbuild/build.js",
 		"start": "node --enable-source-maps dist/index.js",
-		"dev": "node scripts/rsbuild/watch.js",
-		"dev:old": "nodemon",
+		"dev": "pnpm dev:rs",
+		"dev:rs": "node scripts/rsbuild/watch.js",
 		"lint": "eslint . --ext ts,js",
-		"lint:fix": " pnpm lint --fix",
-		"seed": "node --enable-source-maps dist/seeding/seed.js",
-		"dev2": "node watch.js"
+		"lint:fix": "pnpm lint --fix",
+		"seed": "node --enable-source-maps dist/seeding/seed.js"
 	},
 	"dependencies": {
 		"@devist/shared": "workspace:*",

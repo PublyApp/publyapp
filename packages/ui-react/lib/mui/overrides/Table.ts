@@ -1,6 +1,4 @@
-import { alpha, type Theme } from '@mui/material/styles';
-import { tableCellClasses } from '@mui/material/TableCell';
-import { tableRowClasses } from '@mui/material/TableRow';
+import { alpha, tableCellClasses, tableRowClasses, type Theme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

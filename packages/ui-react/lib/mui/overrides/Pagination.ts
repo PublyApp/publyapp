@@ -1,6 +1,4 @@
-import type { PaginationProps } from '@mui/material/Pagination/Pagination';
-import { paginationItemClasses } from '@mui/material/PaginationItem';
-import { alpha, type Theme } from '@mui/material/styles';
+import { alpha, paginationItemClasses, type PaginationProps, type Theme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

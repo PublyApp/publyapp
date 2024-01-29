@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { alpha } from '@mui/material/styles';
+import { alpha } from '@mui/material';
 
 import { createPalette } from '../theme/palette';
 

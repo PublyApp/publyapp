@@ -1,5 +1,4 @@
-import type { Theme } from '@mui/material/styles';
-import { tabClasses } from '@mui/material/Tab';
+import { tabClasses, type Theme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

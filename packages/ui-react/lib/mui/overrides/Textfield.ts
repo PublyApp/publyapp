@@ -1,8 +1,11 @@
-import { filledInputClasses } from '@mui/material/FilledInput';
-import { inputBaseClasses } from '@mui/material/InputBase';
-import { inputLabelClasses } from '@mui/material/InputLabel';
-import { outlinedInputClasses } from '@mui/material/OutlinedInput';
-import { alpha, type Theme } from '@mui/material/styles';
+import {
+	alpha,
+	filledInputClasses,
+	inputBaseClasses,
+	inputLabelClasses,
+	outlinedInputClasses,
+	type Theme,
+} from '@mui/material';
 
 // ----------------------------------------------------------------------
 

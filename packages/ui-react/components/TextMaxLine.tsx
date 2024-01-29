@@ -1,7 +1,6 @@
 import { forwardRef } from 'react';
 
-import { Link, Typography, type LinkProps, type TypographyProps } from '@mui/material';
-import type { Variant } from '@mui/material/styles/createTypography';
+import { Link, Typography, type LinkProps, type TypographyProps, type Variant } from '@mui/material';
 
 import useTypography from '@/ui-react/hooks/useTypography';
 

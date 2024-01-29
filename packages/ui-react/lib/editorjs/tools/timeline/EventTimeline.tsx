@@ -9,11 +9,9 @@ import TimelineDot from '@mui/lab/TimelineDot';
 import TimelineItem from '@mui/lab/TimelineItem';
 import TimelineOppositeContent from '@mui/lab/TimelineOppositeContent';
 import TimelineSeparator from '@mui/lab/TimelineSeparator';
-import type { SxProps } from '@mui/material';
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
+import { Box, Paper, Typography, type SxProps } from '@mui/material';
+
 // import { makeStyles } from '@mui/material/styles';
-import Typography from '@mui/material/Typography';
 
 const DEFAULT_INITIAL_DATA = () => {
 	return {
