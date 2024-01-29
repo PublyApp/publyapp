@@ -1,4 +1,4 @@
-import { useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material';
 import type { Variant } from '@mui/material/styles/createTypography';
 
 import { remToPx } from '@/ui-react/utils/css.utils';

@@ -1,12 +1,5 @@
 /* eslint-disable react/no-unused-prop-types */
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import FormHelperText from '@mui/material/FormHelperText';
-import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormHelperText, Paper, Stack } from '@mui/material';
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 

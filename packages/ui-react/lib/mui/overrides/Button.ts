@@ -1,5 +1,4 @@
-import type { ButtonProps, Components } from '@mui/material';
-import { alpha, type Theme } from '@mui/material/styles';
+import { alpha, type ButtonProps, type Components, type Theme } from '@mui/material';
 
 const COLORS = ['primary', 'secondary', 'info', 'success', 'warning', 'error'] as const;
 

@@ -1,7 +1,4 @@
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import type { SxProps, Theme } from '@mui/material/styles';
-import Tooltip from '@mui/material/Tooltip';
+import { Box, Stack, Tooltip, type SxProps } from '@mui/material';
 
 import { fileData, fileFormat, fileThumb } from '@/ui-react/utils/files.utils';
 

@@ -1,6 +1,4 @@
-// @mui
-import IconButton from '@mui/material/IconButton';
-import { useTheme } from '@mui/material/styles';
+import { IconButton, useTheme } from '@mui/material';
 
 import { bgBlur } from '@/ui-react/utils/css.utils';
 

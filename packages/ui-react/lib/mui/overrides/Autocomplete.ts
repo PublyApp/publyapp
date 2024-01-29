@@ -1,6 +1,4 @@
-import { autocompleteClasses } from '@mui/material/Autocomplete';
-import { alpha, type Theme } from '@mui/material/styles';
-import { svgIconClasses } from '@mui/material/SvgIcon';
+import { alpha, autocompleteClasses, svgIconClasses, type Theme } from '@mui/material';
 
 import { menuItem, paper } from '@/ui-react/utils/css.utils';
 

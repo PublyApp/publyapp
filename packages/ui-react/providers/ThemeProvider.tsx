@@ -3,8 +3,7 @@
 import { useMemo, type ReactNode } from 'react';
 
 import { ThemeProvider as EmotionThemeProvider } from '@emotion/react';
-import { CssBaseline } from '@mui/material';
-import { createTheme, type ThemeOptions } from '@mui/material/styles';
+import { createTheme, CssBaseline, type ThemeOptions } from '@mui/material';
 import _ from 'lodash';
 
 import { darkMode } from '@/ui-react/lib/mui/options/darkMode';

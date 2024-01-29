@@ -1,5 +1,4 @@
-import { alertClasses, type AlertProps } from '@mui/material/Alert';
-import { alpha, type Theme } from '@mui/material/styles';
+import { alertClasses, alpha, type AlertProps, type Theme } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

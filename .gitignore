@@ -46,6 +46,5 @@ logs
 apps/*/dist
 packages/*/dist
 
-# _mock
-
-front-next
+.env.preprod
+.env.production

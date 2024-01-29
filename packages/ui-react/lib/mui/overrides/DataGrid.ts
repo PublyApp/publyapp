@@ -1,9 +1,12 @@
-import { buttonClasses } from '@mui/material/Button';
-import { listClasses } from '@mui/material/List';
-import { listItemIconClasses } from '@mui/material/ListItemIcon';
-import { paperClasses } from '@mui/material/Paper';
-import { alpha, type Theme } from '@mui/material/styles';
-import { tablePaginationClasses } from '@mui/material/TablePagination';
+import {
+	alpha,
+	buttonClasses,
+	listClasses,
+	listItemIconClasses,
+	paperClasses,
+	tablePaginationClasses,
+	type Theme,
+} from '@mui/material';
 
 import { paper } from '@/ui-react/utils/css.utils';
 

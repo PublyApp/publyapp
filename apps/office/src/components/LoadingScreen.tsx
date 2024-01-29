@@ -1,5 +1,4 @@
-import Box, { type BoxProps } from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
+import { Box, LinearProgress, type BoxProps } from '@mui/material';
 
 // ----------------------------------------------------------------------
 

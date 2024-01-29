@@ -1,14 +1,10 @@
-import { AppBar, Box, Button, Container, Link, Stack, Toolbar } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { AppBar, Box, Button, Container, Link, Stack, Toolbar, useTheme } from '@mui/material';
 
 import Label from '@devist/ui-react/components/Label';
 import useOffsetTop from '@devist/ui-react/hooks/useOffsetTop';
 import useResponsive from '@devist/ui-react/hooks/useResponsive';
 
 import Logo from '@/front/components/Logo';
-// components
-// import SettingsDrawer from 'src/components/settings/drawer';
-
 import { HEADER } from '@/front/lib/constants';
 import { bgBlur } from '@/ui-react/utils/css.utils';
 
