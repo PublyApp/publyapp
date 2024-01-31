@@ -1,8 +1,26 @@
 import _Parse from 'parse';
 import _ParseNode from 'parse/node';
 
+import { checkIsServer } from '@devist/shared/utils/env.utils';
+
 const initParseSSR = (serverURL: string, applicationId: string, javascriptKey?: string) => {
-	const isServer = typeof window === 'undefined';
+	const isServer = checkIsServer();
+
+	// if (!isServer) {
+	// 	_Parse.initialize(applicationId, javascriptKey, 'local-master-key');
+	// 	_Parse.serverURL = serverURL;
+
+	// 	if (!window.Parse) {
+	// 		window.Parse = _Parse;
+	// 	}
+	// } else {
+	// 	_ParseNode.initialize(applicationId, javascriptKey, 'local-master-key');
+	// 	_ParseNode.serverURL = serverURL;
+
+	// 	if (!global.Parse) {
+	// 		global.Parse = _ParseNode;
+	// 	}
+	// }
 
 	// ---- code copied from parse-react/ssr -------------------------------------------------
 	if (!isServer) {
