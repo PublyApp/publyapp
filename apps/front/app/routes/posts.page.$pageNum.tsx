@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import { Container, Unstable_Grid2 as Grid } from '@mui/material';
 import type { LoaderFunction } from '@remix-run/node';
 
@@ -18,7 +20,7 @@ export const loader = (async ({ params }) => {
 
 	const query = new Parse.Query(ParsePost).exists('translation.en' as never).include('author');
 	const posts = (await query.find({
-		useMasterKey: true,
+		// useMasterKey: true,
 		json: true,
 	})) as unknown as (IPostWithRelations & {
 		author: IUserWithRelations;
@@ -34,6 +36,12 @@ export const loader = (async ({ params }) => {
 export type PostListLoaderFunction = typeof loader;
 
 const PostsPage = () => {
+	useEffect(() => {
+		const r = new Parse.Role('Admin', new Parse.ACL());
+
+		console.log('zzzzzzzzzzzzzzzz', r);
+	}, []);
+
 	return (
 		<>
 			{/* <PostSearchMobile /> */}
