@@ -7,6 +7,8 @@ import { nanoid } from 'nanoid';
 
 import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/i-appFile.hook';
 
+import { AppFile } from '@/shared/types/db/appFile.types';
+
 import FileManagerFileItem from '../../components/file-manager/FileManagerFileItem';
 import FileManagerFolderItem from '../../components/file-manager/FileManagerFolderItem';
 import { appFileData, appFolderData } from '../../components/file-manager/utils';
@@ -156,7 +158,7 @@ const GridItems = () => {
 		result: { data },
 	} = useFindAppFileSuspense({ folderPath });
 
-	return data.appFiles.map((appFile) => {
+	return data.appFiles.map((appFile: AppFile) => {
 		if (appFile.mimeType === 'folder') {
 			return (
 				<FileManagerFolderItem
