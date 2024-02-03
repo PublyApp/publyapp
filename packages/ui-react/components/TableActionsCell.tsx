@@ -2,7 +2,8 @@ import type { MouseEventHandler } from 'react';
 
 import { Button } from '@mui/material';
 import type { CellContext, RowSelectionState } from '@tanstack/react-table';
-import { useNavigate } from 'react-router-dom';
+
+// import { useNavigate } from 'react-router-dom';
 
 import { ENABLE_TABLE_INLINE_EDITING } from '@/ui-react/lib/constants';
 
@@ -45,18 +46,20 @@ const TableActionsCell = <TData, TValue>({ ctx: { row, table } }: Props<TData, T
 		tableMeta?.setDialogEditedRow(row);
 	};
 
-	const navigate = useNavigate();
+	// const navigate = useNavigate();
 
 	// redirect to the form
 	const handleOpenEditForm = () => {
 		// console.log('===', row);
-		navigate(`/${row.original.objectId}`); // TODO: think of a better way to get this
+		// navigate(`/${row.original.objectId}`); // TODO: think of a better way to get this
+		console.log('#####');
 		// example of a better way
 		// columnMeta.getEditFormUrl(row) // return the url
 		// or simply pass the url as a prop
 	};
 
 	return (
+		// eslint-disable-next-line react/jsx-no-useless-fragment
 		<>
 			{!tableMeta?.editedRows[row.id] ? (
 				<>

@@ -5,7 +5,6 @@ import { defer, Navigate, Outlet, useRouteError, type RouteObject } from 'react-
 
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
-// import { PARSE_CURRENT_USER_LOCAL_STORAGE_KEY } from '@/office/lib/constants';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import { getClientAuthQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';

@@ -1,10 +1,9 @@
 import '@mdxeditor/editor/style.css';
 
-import { useEffect /*  forwardRef, */, useRef, type ForwardedRef, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 
-import { MDXEditor, type MDXEditorMethods, type MDXEditorProps } from '@mdxeditor/editor';
+import { MDXEditor, type MDXEditorProps } from '@mdxeditor/editor';
 import { alpha, Box, type SxProps, type Theme } from '@mui/material';
-import { type SystemStyleObject } from '@mui/system';
 import _ from 'lodash';
 
 import { ALL_PLUGINS } from '../lib/mdxEditor/boilerplate';

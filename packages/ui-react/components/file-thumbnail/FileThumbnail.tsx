@@ -1,4 +1,4 @@
-import { Box, Stack, Tooltip, type SxProps } from '@mui/material';
+import { Box, Stack, Tooltip, type SxProps, type Theme } from '@mui/material';
 
 import { fileData, fileFormat, fileThumb } from '@/ui-react/utils/files.utils';
 
