@@ -1,4 +1,3 @@
-/* eslint-disable prefer-arrow/prefer-arrow-functions */
 import { CacheProvider } from '@emotion/react';
 import createEmotionServer from '@emotion/server/create-instance';
 import type { EntryContext } from '@remix-run/node';
@@ -9,12 +8,12 @@ import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
 
 import createEmotionCache from './lib/emotion/createEmotionCache';
 
-export default function handleRequest(
+const handleRequest = (
 	request: Request,
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	remixContext: EntryContext,
-) {
+) => {
 	const cache = createEmotionCache();
 	const { extractCriticalToChunks } = createEmotionServer(cache);
 
@@ -54,4 +53,6 @@ export default function handleRequest(
 		status: responseStatusCode,
 		headers: responseHeaders,
 	});
-}
+};
+
+export default handleRequest;

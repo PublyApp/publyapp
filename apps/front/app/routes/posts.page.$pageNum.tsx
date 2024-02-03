@@ -1,47 +1,27 @@
-import { useEffect } from 'react';
-
 import { Container, Unstable_Grid2 as Grid } from '@mui/material';
-import type { LoaderFunction } from '@remix-run/node';
+import { type LoaderFunction } from '@remix-run/node';
 
-import { ParsePost } from '@devist/shared/lib/parse/classes/post.class';
-
-import _mock, { _blogCareerPosts, _categories, _tags } from '@/front/_mock';
+import { _categories, _tags } from '@/front/_mock';
 import BlogSidebar from '@/front/containers/blog/sidebar/BlogSidebar';
-import type { IPostWithRelations } from '@/shared/types/db/post.types';
-import type { IUserWithRelations } from '@/shared/types/db/user.types';
 
 import PostListHorizontal from '../containers/blog/PostListHorizontal';
-
-// import { PostSearchMobile } from '../../blog/components';
+import { findPost } from '../lib/parse/request/post.request';
+import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
 export const loader = (async ({ params }) => {
-	const { pageNum } = params;
-	console.log('page', pageNum);
+	const pageNum = Number(params.pageNum);
 
-	const query = new Parse.Query(ParsePost).exists('translation.en' as never).include('author');
-	const posts = (await query.find({
-		// useMasterKey: true,
-		json: true,
-	})) as unknown as (IPostWithRelations & {
-		author: IUserWithRelations;
-	})[];
-
-	console.log(posts[0]);
+	const posts = await safelyRunInLoader(findPost)({ pageNum });
 
 	return {
 		posts,
+		aaaa: new Error('aaaa'),
 	};
 }) satisfies LoaderFunction;
 
 export type PostListLoaderFunction = typeof loader;
 
 const PostsPage = () => {
-	useEffect(() => {
-		const r = new Parse.Role('Admin', new Parse.ACL());
-
-		console.log('zzzzzzzzzzzzzzzz', r);
-	}, []);
-
 	return (
 		<>
 			{/* <PostSearchMobile /> */}

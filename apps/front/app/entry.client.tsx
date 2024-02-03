@@ -1,5 +1,3 @@
-/* eslint-disable prefer-arrow/prefer-arrow-functions */
-/* eslint-disable func-style */
 import * as React from 'react';
 
 import { CacheProvider } from '@emotion/react';
@@ -22,7 +20,7 @@ const ClientCacheProvider = ({ children }: ClientCacheProviderProps) => {
 
 	const clientStyleContextValue = React.useMemo(() => {
 		return {
-			reset() {
+			reset: () => {
 				setCache(createEmotionCache());
 			},
 		};

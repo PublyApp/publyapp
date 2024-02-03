@@ -21,14 +21,15 @@ import Error500 from './components/Error500';
 import ClientStyleContext from './contexts/ClientStyleContext';
 import CompactLayout from './layouts/compact/CompactLayout';
 import MainLayout from './layouts/main/MainLayout';
-import { initParse } from './lib/parse';
+
+// import { initParse } from './lib/parse/legacy';
 
 interface DocumentProps {
 	children: React.ReactNode;
 	title?: string;
 }
 
-initParse();
+// initParse();
 
 const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCache) => {
 	const clientStyleData = useContext(ClientStyleContext);
@@ -110,7 +111,6 @@ export const ErrorBoundary = () => {
 			}
 
 			case 404: {
-				// message = <p>Oops! Looks like you tried to visit a page that does not exist.</p>;
 				message = <Error404 />;
 				break;
 			}
@@ -122,27 +122,15 @@ export const ErrorBoundary = () => {
 
 		return (
 			<Document title={`${error.status} ${error.statusText}`}>
-				<CompactLayout>
-					{/* <h1>
-					{error.status}: {error.statusText}
-				</h1> */}
-					{message}
-				</CompactLayout>
+				<CompactLayout>{message}</CompactLayout>
 			</Document>
 		);
 	}
 
 	if (error instanceof Error) {
-		console.error(error);
 		return (
 			<Document title="Error!">
 				<CompactLayout>
-					{/* <div>
-						<h1>There was an error</h1>
-						<p>{error.message}</p>
-						<hr />
-						<p>Hey, developer, you should replace this with what you want your users to see.</p>
-					</div>  */}
 					<Error500 />
 				</CompactLayout>
 			</Document>
