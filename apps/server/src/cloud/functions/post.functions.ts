@@ -1,12 +1,13 @@
 import { functionName, roleSet } from '@devist/shared/lib/constants';
 import { getCreatePostInputSchema, getUpdatePostInputSchema } from '@devist/shared/validations/post.validations';
 
-import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { parseFrom, type FunctionReturn } from '@/server/lib/parse';
 import FileService from '@/server/services/file.service';
 import PostService from '@/server/services/post.service';
 import UserService from '@/server/services/user.service';
-import { ParsePost } from '@/shared/lib/parse/classes/post.class';
+import { getListParamsSchema } from '@/server/utils/validation.utils';
+
+export type CreatePostFunctionReturn = FunctionReturn<typeof createPostFunction>;
 
 const createPostFunction = parseFrom({
 	requireUser: true,
@@ -21,8 +22,8 @@ const createPostFunction = parseFrom({
 		const fileService = new FileService({ sessionToken });
 		const userService = new UserService({ sessionToken });
 
-		const coverPromise = fileService.getById(coverId || '');
-		const authorPromise = userService.getById(authorId || '');
+		const coverPromise = fileService.getById(coverId || '', { select: [] });
+		const authorPromise = userService.getById(authorId || '', { select: [] });
 
 		const findPostWithSameSlugPromise = postService.getBySlug(slug, { select: [] });
 
@@ -42,6 +43,8 @@ const createPostFunction = parseFrom({
 	},
 });
 
+export type UpdatePostFunctionReturn = FunctionReturn<typeof updatePostFunction>;
+
 const updatePostFunction = parseFrom({
 	requireUser: true,
 	allowedRoles: roleSet.ABOVE_AUTHOR,
@@ -58,9 +61,9 @@ const updatePostFunction = parseFrom({
 		const userService = new UserService({ sessionToken });
 		const fileService = new FileService({ sessionToken });
 
-		const postPromise = postService.getById(objectId);
-		const authorPromise = userService.getById(authorId || '');
-		const coverPromise = fileService.getById(coverId || '');
+		const postPromise = postService.getById(objectId, { select: [] });
+		const authorPromise = userService.getById(authorId || '', { select: [] });
+		const coverPromise = fileService.getById(coverId || '', { select: [] });
 
 		const post = await postPromise;
 
@@ -81,6 +84,8 @@ const updatePostFunction = parseFrom({
 	},
 });
 
+export type GetPostFunctionReturn = FunctionReturn<typeof getPostFunction>;
+
 // type A =
 // 	| {
 // 			id: string;
@@ -98,7 +103,7 @@ const getPostFunction = parseFrom({
 
 		const postService = new PostService({ sessionToken });
 
-		const post = await postService.getById(postId);
+		const post = await postService.getById(postId, { select: [] });
 
 		if (!post) {
 			// eslint-disable-next-line @typescript-eslint/no-throw-literal
@@ -113,38 +118,13 @@ export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
 
 const findPostFunction = parseFrom({
 	requireUser: false,
-	action: async (/* { req, t,  user } */) => {
-		// const { page, pageSize, sorting } = req.params;
+	action: async ({ req, user, locale }) => {
+		const { page, pageSize, sorting } = getListParamsSchema.parse(req.params);
 
-		// const sessionToken = user?.getSessionToken();
+		const sessionToken = user?.getSessionToken();
+		const postService = new PostService({ sessionToken });
 
-		// const postService = new PostService({ sessionToken });
-
-		// const limit = pageSize || 10;
-		// const skip = (page || 1) - 1;
-
-		// const sortingOperations: Record<string, 1 | -1> = {};
-
-		// if (sorting && !_.isEmpty(sorting)) {
-		// 	for (const element of sorting) {
-		// 		sortingOperations[element.id] = element.desc ? -1 : 1;
-		// 	}
-		// }
-
-		// const pipeline: PipelineStage[] = [
-		// 	{
-		// 		$match: {},
-		// 	},
-		// 	...(sorting && !_.isEmpty(sorting) ? [{ $sort: sortingOperations }] : []),
-		// 	{ $skip: skip },
-		// 	{ $limit: limit },
-		// 	{ $project: { _id: 1 } },
-		// ];
-
-		// throw new Error('Not implemented yet');
-
-		// return postService.aggregate(pipeline);
-		const posts = await new Parse.Query(ParsePost).find(USE_MASTER_KEY);
+		const posts = await postService.find({ page, pageSize, sorting, locale });
 		return posts;
 	},
 });

@@ -1,6 +1,7 @@
 import type { BaseAttributes } from 'parse';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
+import type { ParseAppFile } from '@/shared/lib/parse/classes/appFile.class';
 
 import type { DateType } from './any.types';
 import { type AppFile } from './appFile.types';
@@ -44,5 +45,9 @@ export type IPost = BaseAttributes & PostAttributes;
 export type IPostWithRelations = IPost & {
 	author: IUser;
 	cover?: AppFile;
-	views?: number;
+};
+
+export type IPostWithParseRelations = IPost & {
+	author: IUser;
+	cover?: ParseAppFile;
 };

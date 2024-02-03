@@ -10,7 +10,13 @@ export default class UserService {
 		this.sessionToken = sessionToken;
 	}
 
-	async getById(userId: string) {
-		return new Parse.Query(ParseUser).equalTo('objectId', userId).first({ sessionToken: this.sessionToken });
+	async getById(userId: string, options: { select?: string[] } = {}) {
+		const query = new Parse.Query(ParseUser).equalTo('objectId', userId);
+
+		if (options.select) {
+			query.select(options.select);
+		}
+
+		return query.first({ sessionToken: this.sessionToken });
 	}
 }
