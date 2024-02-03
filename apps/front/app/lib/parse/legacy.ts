@@ -6,22 +6,6 @@ import { checkIsServer } from '@devist/shared/utils/env.utils';
 const initParseSSR = (serverURL: string, applicationId: string, javascriptKey?: string) => {
 	const isServer = checkIsServer();
 
-	// if (!isServer) {
-	// 	_Parse.initialize(applicationId, javascriptKey, 'local-master-key');
-	// 	_Parse.serverURL = serverURL;
-
-	// 	if (!window.Parse) {
-	// 		window.Parse = _Parse;
-	// 	}
-	// } else {
-	// 	_ParseNode.initialize(applicationId, javascriptKey, 'local-master-key');
-	// 	_ParseNode.serverURL = serverURL;
-
-	// 	if (!global.Parse) {
-	// 		global.Parse = _ParseNode;
-	// 	}
-	// }
-
 	// ---- code copied from parse-react/ssr -------------------------------------------------
 	if (!isServer) {
 		window.Parse = _Parse;
@@ -29,7 +13,7 @@ const initParseSSR = (serverURL: string, applicationId: string, javascriptKey?: 
 		global.Parse = _ParseNode;
 	}
 
-	Parse.initialize(applicationId, javascriptKey, 'local-master-key');
+	Parse.initialize(applicationId, javascriptKey);
 
 	if (!isServer) {
 		Parse.enableLocalDatastore();

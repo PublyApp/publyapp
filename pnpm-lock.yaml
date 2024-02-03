@@ -102,6 +102,9 @@ importers:
 
   apps/front:
     dependencies:
+      '@devist/parse-rest-client':
+        specifier: workspace:*
+        version: link:../../packages/parse-rest-client
       '@devist/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -153,6 +156,9 @@ importers:
       '@remix-run/server-runtime':
         specifier: ^2.5.0
         version: 2.5.1(typescript@5.3.3)
+      '@types/parse':
+        specifier: ^3.0.9
+        version: 3.0.9
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
@@ -180,6 +186,9 @@ importers:
       react-dom:
         specifier: ^18.2.0
         version: 18.2.0(react@18.2.0)
+      zod:
+        specifier: ^3.22.4
+        version: 3.22.4
     devDependencies:
       '@remix-run/dev':
         specifier: ^2.5.0
@@ -190,9 +199,6 @@ importers:
       '@types/lodash':
         specifier: ^4.14.202
         version: 4.14.202
-      '@types/parse':
-        specifier: ^3.0.9
-        version: 3.0.9
       '@types/react':
         specifier: ^18.2.48
         version: 18.2.48
@@ -781,6 +787,22 @@ importers:
       eslint-config-custom-base:
         specifier: workspace:*
         version: link:../eslint-config-custom-base
+
+  packages/parse-rest-client:
+    dependencies:
+      '@devist/ui-react':
+        specifier: workspace:*
+        version: link:../ui-react
+      axios:
+        specifier: ^1.6.5
+        version: 1.6.7
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
+    devDependencies:
+      '@types/lodash':
+        specifier: ^4.14.202
+        version: 4.14.202
 
   packages/shared:
     dependencies:
@@ -6494,7 +6516,6 @@ packages:
     resolution: {integrity: sha512-DGTHygc7krgmNAK8h42giwmAofCd9uv2++RD+zw6OmWI7AEnlTYZwEuWsx22SA2CSMQrZW8P2INHLpQbnQFUng==}
     dependencies:
       '@types/node': 20.11.10
-    dev: true
 
   /@types/prismjs@1.26.3:
     resolution: {integrity: sha512-A0D0aTXvjlqJ5ZILMz3rNfDBOx9hHxLZYv2by47Sm/pqW35zzjusrZTryatjN/Rf8Us2gZrJD+KeHbUSTux1Cw==}

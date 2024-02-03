@@ -17,11 +17,17 @@ import { getT } from './i18n';
 type ParseInnerFunction<T = unknown> =
 	| ((req: Parse.Cloud.TriggerRequest) => Promise<T>)
 	| ((req: Parse.Cloud.FunctionRequest) => Promise<T>);
+// interface ParseInnerFunction<T = unknown> {
+// 	(req: Parse.Cloud.TriggerRequest): Promise<T>;
+// 	(req: Parse.Cloud.FunctionRequest): Promise<T>;
+// }
 
 export const parseFunction = <T = unknown>(innerFunction: ParseInnerFunction<T>) => {
 	return async (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest): Promise<T> => {
 		try {
-			const result = await innerFunction(req as Parse.Cloud.TriggerRequest & Parse.Cloud.FunctionRequest);
+			const result = await innerFunction(
+				req as never /* as Parse.Cloud.TriggerRequest & Parse.Cloud.FunctionRequest */,
+			);
 			return result;
 		} catch (error: unknown) {
 			let message = 'Unknown error';
@@ -50,15 +56,15 @@ type ActionContext1 = {
 	user: Parse.User;
 };
 
-type ParseFromParams =
+type ParseFromParams<T = unknown> =
 	| {
 			requireUser: true;
 			allowedRoles: IRoleConfig[];
-			action: (ctx: ActionContext1) => Promise<unknown>;
+			action: (ctx: ActionContext1) => Promise<T>;
 	  }
 	| {
 			requireUser: false;
-			action: (ctx: ActionContext2) => Promise<unknown>;
+			action: (ctx: ActionContext2) => Promise<T>;
 			allowedRoles?: undefined;
 	  };
 
@@ -75,8 +81,8 @@ const hasRole = async (user: Parse.User, roles: IRoleConfig[]) => {
 	return !!foundRole;
 };
 
-export const parseFrom = (params: ParseFromParams) => {
-	const actionBuilder = parseFunction(async (req: Parse.Cloud.FunctionRequest) => {
+export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
+	const innerFunction = async (req: Parse.Cloud.FunctionRequest) => {
 		const { requireUser, action, allowedRoles } = params;
 
 		const { user, headers } = req;
@@ -101,7 +107,9 @@ export const parseFrom = (params: ParseFromParams) => {
 		}
 
 		return action({ req, user, t });
-	});
+	};
+
+	const actionBuilder = parseFunction<T>(innerFunction as never);
 
 	return actionBuilder;
 };
@@ -225,3 +233,6 @@ export const applySkipAndLimit = (query: Parse.Query, options: LimitAndSkipOptio
 		query.skip(skip).limit(options.pageSize);
 	}
 };
+
+export type FunctionReturn<T> = T extends (...args: never[]) => Promise<infer R> ? R : never;
+// export type Awaited<T> = T extends PromiseLike<infer U> ? U : T;
