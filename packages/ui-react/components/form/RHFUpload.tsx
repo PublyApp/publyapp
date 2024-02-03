@@ -1,8 +1,8 @@
 import { FormHelperText } from '@mui/material';
 import { Controller, useFormContext } from 'react-hook-form';
 
+import Upload from '../upload/i-Uploads';
 import type { UploadProps } from '../upload/types';
-import Upload from '../upload/Upload';
 import UploadAvatar from '../upload/UploadAvatar';
 import UploadBox from '../upload/UploadBox';
 
