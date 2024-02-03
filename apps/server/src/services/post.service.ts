@@ -1,9 +1,13 @@
 import _ from 'lodash';
 
+import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
+import { defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type { ParseAppFile } from '@/shared/lib/parse/classes/appFile.class';
 import { ParsePost } from '@/shared/lib/parse/classes/post.class';
 import type { ParseUser } from '@/shared/lib/parse/classes/user.class';
-import type { IPostWithRelations } from '@/shared/types/db/post.types';
+import type { IPostWithParseRelations } from '@/shared/types/db/post.types';
+
+import { applySkipAndLimit, applySorting } from '../lib/parse';
 
 type Props = {
 	sessionToken?: string;
@@ -36,6 +40,13 @@ type PostUpdateInput = Partial<Omit<PostCreateInput, 'locale'>> & {
 	// post: ParsePost;
 };
 
+type FindPostInput = {
+	page?: number;
+	pageSize?: number;
+	sorting?: { id: string; desc: boolean }[];
+	locale?: AppLocale;
+};
+
 export default class PostService {
 	sessionToken?: string;
 
@@ -44,7 +55,7 @@ export default class PostService {
 	}
 
 	async create({ author, content, description, slug, title, cover, locale }: PostCreateInput) {
-		const attributes /* : DeepPartial<IPostWithRelations> */ = {
+		const attributes: DeepPartial<IPostWithParseRelations> = {
 			slug,
 			translation: {
 				[locale]: {
@@ -55,7 +66,7 @@ export default class PostService {
 			},
 			author,
 			cover,
-		} satisfies DeepPartial<IPostWithRelations>;
+		}; /*  satisfies DeepPartial<IPostWithParseRelations> */
 
 		// create an mongo unique index and let mongo handle this
 		// const postWithSameSlug = await new Parse.Query(ParsePost)
@@ -123,7 +134,7 @@ export default class PostService {
 			}
 		}
 
-		const attributes: DeepPartial<IPostWithRelations> = {
+		const attributes: DeepPartial<IPostWithParseRelations> = {
 			slug,
 			published,
 			author,
@@ -141,8 +152,13 @@ export default class PostService {
 		return post.save(attributes as never, { sessionToken });
 	}
 
-	getById(objectId: string) {
+	getById(objectId: string, options: { select?: string[] } = {}) {
 		const query = new Parse.Query(ParsePost).equalTo('objectId', objectId);
+
+		if (options.select) {
+			query.select(options.select as never);
+		}
+
 		return query.first({ sessionToken: this.sessionToken });
 	}
 
@@ -154,5 +170,37 @@ export default class PostService {
 		}
 
 		return query.first({ sessionToken: this.sessionToken });
+	}
+
+	find({ page = 1, pageSize = DEFAULT_PAGE_SIZE, sorting = [], locale = defaultLocale }: FindPostInput) {
+		const query = new Parse.Query(ParsePost);
+		applySkipAndLimit(query, { type: 'page', page, pageSize });
+
+		if (sorting && !_.isEmpty(sorting)) {
+			applySorting(query, sorting);
+		}
+
+		if (locale) {
+			query.exists(`translation.${locale}` as never);
+		}
+
+		return query.find({ sessionToken: this.sessionToken });
+
+		// const sortingOperations: Record<string, 1 | -1> = {};
+		// if (sorting && !_.isEmpty(sorting)) {
+		// 	for (const element of sorting) {
+		// 		sortingOperations[element.id] = element.desc ? -1 : 1;
+		// 	}
+		// }
+		// const pipeline: PipelineStage[] = [
+		// 	{
+		// 		$match: {},
+		// 	},
+		// 	...(sorting && !_.isEmpty(sorting) ? [{ $sort: sortingOperations }] : []),
+		// 	{ $skip: skip },
+		// 	{ $limit: limit },
+		// 	{ $project: { _id: 1 } },
+		// ];
+		// return postService.aggregate(pipeline);
 	}
 }

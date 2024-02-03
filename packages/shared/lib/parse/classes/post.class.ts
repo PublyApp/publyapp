@@ -1,11 +1,11 @@
 import { className } from '@/shared/lib/constants';
-import type { IPostWithRelations } from '@/shared/types/db/post.types';
+import type { IPostWithParseRelations } from '@/shared/types/db/post.types';
 
-export class ParsePost extends Parse.Object<IPostWithRelations> {
+export class ParsePost extends Parse.Object<IPostWithParseRelations> {
 	static className = className.POST;
 
-	constructor(attributes?: DeepPartial<IPostWithRelations>) {
-		super(ParsePost.className, attributes as IPostWithRelations);
+	constructor(attributes: DeepPartial<IPostWithParseRelations> = {}) {
+		super(ParsePost.className, attributes as never);
 	}
 }
 

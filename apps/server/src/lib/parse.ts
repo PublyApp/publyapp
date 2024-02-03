@@ -7,7 +7,7 @@ import type { PipelineStage } from 'mongoose';
 import { ZodError } from 'zod';
 
 import { LOCALE_HEADER_KEY, type IRoleConfig } from '@devist/shared/lib/constants';
-import { defaultLocale } from '@devist/shared/lib/i18n/resources';
+import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { pageToSkip } from '@/server/utils/any.utils';
 
@@ -47,12 +47,14 @@ export const parseFunction = <T = unknown>(innerFunction: ParseInnerFunction<T>)
 type ActionContext2 = {
 	req: Parse.Cloud.FunctionRequest;
 	t: ReturnType<typeof getT>;
+	locale: AppLocale;
 	user?: Parse.User;
 };
 
 type ActionContext1 = {
 	req: Parse.Cloud.FunctionRequest;
 	t: ReturnType<typeof getT>;
+	locale: AppLocale;
 	user: Parse.User;
 };
 
@@ -87,12 +89,16 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		const { user, headers } = req;
 
-		const locale = headers[LOCALE_HEADER_KEY] as string | undefined;
+		const localeInHeader: string | undefined = headers[LOCALE_HEADER_KEY];
+
+		const locale: AppLocale = appLocales.includes(localeInHeader as never)
+			? (localeInHeader as AppLocale)
+			: defaultLocale;
 
 		const t = getT(locale || defaultLocale);
 
 		if (!requireUser) {
-			return action({ req, t, user });
+			return action({ req, t, user, locale });
 		}
 
 		if (!user) {
@@ -106,7 +112,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 			throw new Error(t('common:insufficientRoleForAction'));
 		}
 
-		return action({ req, user, t });
+		return action({ req, user, t, locale });
 	};
 
 	const actionBuilder = parseFunction<T>(innerFunction as never);
@@ -231,6 +237,16 @@ export const applySkipAndLimit = (query: Parse.Query, options: LimitAndSkipOptio
 	if (options.type === 'page') {
 		const skip = pageToSkip(options.page);
 		query.skip(skip).limit(options.pageSize);
+	}
+};
+
+export const applySorting = (query: Parse.Query, sorting: { id: string; desc: boolean }[]) => {
+	for (const element of sorting) {
+		if (element.desc) {
+			query.addDescending(element.id as never);
+		} else {
+			query.addAscending(element.id as never);
+		}
 	}
 };
 
