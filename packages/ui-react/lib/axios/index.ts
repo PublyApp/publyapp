@@ -1,6 +1,10 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 
-import { DEVIST_REST_API_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@devist/shared/lib/constants';
+import {
+	DEVIST_REST_API_HEADER_KEY,
+	PARSE_APPLICATION_ID_HEADER_KEY,
+	PARSE_SESSION_TOKEN_HEADER_KEY,
+} from '@devist/shared/lib/constants';
 
 // ======
 // the axios instance factory function
@@ -14,9 +18,11 @@ export const createInstance = (baseURL: string) => {
 export const protectRequest = ({
 	sessionToken,
 	restApiKey,
+	applicationId,
 	hasFile = false,
 }: {
 	sessionToken?: string;
+	applicationId?: string;
 	hasFile?: boolean;
 	restApiKey?: string;
 }): AxiosRequestConfig => {
@@ -24,6 +30,7 @@ export const protectRequest = ({
 		headers: {
 			[DEVIST_REST_API_HEADER_KEY]: restApiKey,
 			[PARSE_SESSION_TOKEN_HEADER_KEY]: sessionToken,
+			[PARSE_APPLICATION_ID_HEADER_KEY]: applicationId,
 			'Content-Type': hasFile ? 'multipart/form-data' : 'application/json',
 		},
 	};

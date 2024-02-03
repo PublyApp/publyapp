@@ -10,6 +10,7 @@
     "type-check": "tsc"
   },
   "dependencies": {
+    "@devist/parse-rest-client": "workspace:*",
     "@devist/shared": "workspace:*",
     "@devist/ui-react": "workspace:*",
     "@emotion/cache": "^11.11.0",
@@ -27,6 +28,7 @@
     "@remix-run/react": "^2.5.0",
     "@remix-run/serve": "^2.5.0",
     "@remix-run/server-runtime": "^2.5.0",
+    "@types/parse": "^3.0.9",
     "cross-env": "^7.0.3",
     "date-fns": "^2.25.0",
     "events": "^3.3.0",
@@ -35,16 +37,16 @@
     "nanoid": "^5.0.4",
     "parse": "^4.3.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "zod": "^3.22.4"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=20.6.1"
   },
   "devDependencies": {
     "@remix-run/dev": "^2.5.0",
     "@rsbuild/core": "^0.3.3",
     "@types/lodash": "^4.14.202",
-    "@types/parse": "^3.0.9",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "esbuild-register": "^3.5.0",
