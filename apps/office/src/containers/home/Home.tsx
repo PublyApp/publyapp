@@ -4,7 +4,7 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
-import { Navigate, useNavigate, useRevalidator } from 'react-router-dom';
+import { useNavigate, useRevalidator } from 'react-router-dom';
 
 import useLocale from '@devist/ui-react/hooks/useLocale';
 
@@ -19,9 +19,9 @@ const Home = () => {
 	const { lang, setLocale /* , t */ } = useLocale();
 
 	// =========================
-	const addBear = useMainStore((state) => {
-		return state.dummySlice.addBear;
-	});
+	// const addBear = useMainStore((state) => {
+	// 	return state.dummySlice.addBear;
+	// });
 	const removeBear = useMainStore((state) => {
 		return state.dummySlice.removeBear;
 	});

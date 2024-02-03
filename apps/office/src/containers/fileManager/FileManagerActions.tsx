@@ -31,7 +31,7 @@ import {
 	findAppFileQueryKeyString,
 	useCreateAppFileFolder,
 	useUploadManyFilesMutation,
-} from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
+} from '@devist/ui-react/lib/react-query/features/appFiles/i-appFile.hook';
 
 // import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 
