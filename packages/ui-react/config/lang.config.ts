@@ -1,4 +1,4 @@
-import { enUS as enUSCore, frFR as frFRCore } from '@mui/material';
+import { enUS as enUSCore, frFR as frFRCore } from '@mui/material/locale';
 import { enUS as enUSDataGrid, frFR as frFRDataGrid } from '@mui/x-data-grid';
 import { enUS as enUSDate, frFR as frFRDate } from '@mui/x-date-pickers/locales';
 import { enUS as enUSAdapter, fr as frFRAdapter } from 'date-fns/locale';
