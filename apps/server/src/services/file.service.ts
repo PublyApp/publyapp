@@ -254,11 +254,13 @@ export default class FileService {
 		return (await listAnyOtherFolderFiles(page, pageSize, json)) as unknown as { appFiles: ParseAppFile[] } & ListMeta;
 	}
 
-	async getById(objectId: string) {
+	async getById(objectId: string, options: { select?: string[] } = {}) {
 		const query = new Parse.Query(ParseAppFile).notEqualTo('mimeType', 'folder').equalTo('objectId', objectId);
 
-		const appFile = query.first({ sessionToken: this.sessionToken });
+		if (options.select) {
+			query.select(options.select as never);
+		}
 
-		return appFile;
+		return query.first({ sessionToken: this.sessionToken });
 	}
 }
