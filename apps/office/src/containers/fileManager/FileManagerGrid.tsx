@@ -5,9 +5,8 @@ import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
 import { nanoid } from 'nanoid';
 
-import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/i-appFile.hook';
-
 import { AppFile } from '@/shared/types/db/appFile.types';
+import { useFindAppFileSuspense } from '@/ui-react/lib/react-query/features/appFiles/i-appFile.hook';
 
 import FileManagerFileItem from '../../components/file-manager/FileManagerFileItem';
 import FileManagerFolderItem from '../../components/file-manager/FileManagerFolderItem';

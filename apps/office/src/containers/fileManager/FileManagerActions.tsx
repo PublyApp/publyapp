@@ -24,14 +24,6 @@ import {
 } from '@devist/shared/validations/file/file.validations.client';
 import Iconify from '@devist/ui-react/components/Iconify';
 import useBoolean from '@devist/ui-react/hooks/useBoolean';
-// import { endPoint } from '@/shared/lib/constants';
-// import { uploadManyFilesAction } from '@/ui-react/lib/react-query/features/appFiles/appFile.actions';
-// import { protectRequest } from '@/ui-react/lib/axios';
-import {
-	findAppFileQueryKeyString,
-	useCreateAppFileFolder,
-	useUploadManyFilesMutation,
-} from '@devist/ui-react/lib/react-query/features/appFiles/i-appFile.hook';
 
 // import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 
@@ -39,6 +31,14 @@ import {
 import FileManagerActionDialog from '@/office/components/file-manager/FileManagerActionDialog';
 import { http } from '@/office/lib/axios/http';
 import { env } from '@/office/lib/env';
+// import { endPoint } from '@/shared/lib/constants';
+// import { uploadManyFilesAction } from '@/ui-react/lib/react-query/features/appFiles/appFile.actions';
+// import { protectRequest } from '@/ui-react/lib/axios';
+import {
+	findAppFileQueryKeyString,
+	useCreateAppFileFolder,
+	useUploadManyFilesMutation,
+} from '@/ui-react/lib/react-query/features/appFiles/i-appFile.hook';
 
 import useFileManager from './useFilManager';
 
