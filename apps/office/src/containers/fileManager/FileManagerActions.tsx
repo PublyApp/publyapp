@@ -38,7 +38,7 @@ import {
 	findAppFileQueryKeyString,
 	useCreateAppFileFolder,
 	useUploadManyFilesMutation,
-} from '@/ui-react/lib/react-query/features/appFiles/i-appFile.hook';
+} from '@/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 
 import useFileManager from './useFilManager';
 
