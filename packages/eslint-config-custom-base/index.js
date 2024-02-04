@@ -113,7 +113,7 @@ module.exports = {
 		'import/prefer-default-export': 'off',
 
 		// eslint-config-airbnb-typescript overrides
-		'import/no-unresolved': 'error',
+		'import/no-unresolved': 'off',
 
 		// enforce arrow functions
 		'prefer-arrow/prefer-arrow-functions': [
