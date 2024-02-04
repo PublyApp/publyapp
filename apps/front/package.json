@@ -40,9 +40,6 @@
     "react-dom": "^18.2.0",
     "zod": "^3.22.4"
   },
-  "engines": {
-    "node": ">=20.6.1"
-  },
   "devDependencies": {
     "@remix-run/dev": "^2.5.0",
     "@rsbuild/core": "^0.3.3",
