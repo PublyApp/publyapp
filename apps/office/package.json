@@ -9,11 +9,10 @@
 		"build:prod:local": "cross-env APP_ENV='production-local' corepack pnpm build:rs",
 		"build:preprod": "cross-env APP_ENV='preprod' pnpm build:rs",
 		"dev": "cross-env APP_ENV='local' corepack pnpm dev:rs",
-		"build:rs": "rsbuild build",
+		"build:rs": "tsc && rsbuild build",
 		"dev:rs": "rsbuild dev",
 		"lint": "eslint src --ext ts,tsx --max-warnings 0",
-		"lint:fix": "corepack pnpm lint --fix",
-		"type-check": "tsc"
+		"lint:fix": "corepack pnpm lint --fix"
 	},
 	"dependencies": {
 		"@calumk/editorjs-codeflask": "^1.0.10",
