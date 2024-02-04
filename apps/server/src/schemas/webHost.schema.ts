@@ -1,7 +1,7 @@
 import { SchemaMigrations } from 'parse-server';
 
 import { className } from '@devist/shared/lib/constants';
-import type { WebHost } from '@devist/shared/types/webHost.types';
+import type { WebHost } from '@devist/shared/types/db/webHost.types';
 
 import { DEFAULT_CLP } from '@/server/lib/constants';
 

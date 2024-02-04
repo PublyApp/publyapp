@@ -97,7 +97,7 @@ function createRsbuild() {
 
 exports.createRsbuild = createRsbuild;
 
-const toDeploy = ['preprod', 'production'].includes(process.env.APP_ENV || '');
+const toDeploy = ['preprod', 'production'].includes(process.env.MODE || '');
 
 /**
  *
