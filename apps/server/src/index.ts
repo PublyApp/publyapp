@@ -27,36 +27,20 @@ import UserSchema from './schemas/user.schema';
 import WebHostSchema from './schemas/webHost.schema';
 
 const bootstrap = async () => {
-	// --------------------------------------------------------------------------------------//
-	//                                 set the global vars                                  //
-	// --------------------------------------------------------------------------------------//
-	global.FORCE_PROD = false;
-	global.FORCE_PREPROD = false;
-
-	// * The ONLINE environment variable is to set only in your host provider's interface
 	global.LOCAL = process.env.ONLINE !== 'true';
-	// * The PRODUCTION environment variable is to set only in your host provider's interface
-	global.PRODUCTION = process.env.PRODUCTION === 'true';
+	global.MODE = process.env.MODE || 'local';
 
 	// --------------------------------------------------------------------------------------//
-	//                           determine which .env file to load                           //
+	//                    override process.env with values in .env file                      //
 	// --------------------------------------------------------------------------------------//
-	let envFileName = '.env.local';
-
-	if ((!global.LOCAL && !global.PRODUCTION) || global.FORCE_PREPROD) {
-		envFileName = '.env.preprod';
-	} else if (global.PRODUCTION || global.FORCE_PROD) {
-		envFileName = '.env.production';
-	}
-
-	// override process.env with values in .env file
 	if (global.LOCAL) {
+		const envFileName = `.env.${global.MODE}`;
 		const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
 		dotenvExpand.expand(envConfig);
 	}
 
 	// --------------------------------------------------------------------------------------//
-	//                                Type check process.env                                //
+	//                                Type check process.env                                 //
 	// --------------------------------------------------------------------------------------//
 	const checkedEnv = envSchema.parse(process.env);
 	setAppEnv(checkedEnv);
@@ -65,7 +49,7 @@ const bootstrap = async () => {
 		env;
 
 	// --------------------------------------------------------------------------------------//
-	//                            setup express and parse server                            //
+	//                            setup express and parse server                             //
 	// --------------------------------------------------------------------------------------//
 	const app = express();
 

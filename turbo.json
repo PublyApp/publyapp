@@ -11,6 +11,7 @@
 		"SERVER_URL",
 		"NODE_ENV",
 		"APP_ENV",
+		"MODE",
 		"REST_API_KEY",
 		"PARSE_SERVER_URL",
 		"PARSE_APP_ID"

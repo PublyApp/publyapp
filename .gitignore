@@ -40,7 +40,7 @@ yarn-error.log*
 logs
 
 # deploy
-# .deploy/
+.deploy/
 
 # custom builds
 apps/*/dist

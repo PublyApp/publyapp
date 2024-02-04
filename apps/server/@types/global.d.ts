@@ -5,7 +5,8 @@ export {};
 
 declare global {
 	var LOCAL: boolean | undefined;
-	var PRODUCTION: boolean | undefined;
-	var FORCE_PROD: boolean | undefined;
-	var FORCE_PREPROD: boolean | undefined;
+	var MODE: string | undefined;
+	// var PRODUCTION: boolean | undefined;
+	// var FORCE_PROD: boolean | undefined;
+	// var FORCE_PREPROD: boolean | undefined;
 }
