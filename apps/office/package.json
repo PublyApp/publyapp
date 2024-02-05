@@ -5,20 +5,20 @@
 	"type": "commonjs",
 	"scripts": {
 		"// =============== BUILD COMMANDS =================": "================================",
-		"build": "corepack pnpm build:prod",
-		"build:local": "cross-env MODE=local corepack pnpm build:rs",
-		"build:prod": "cross-env MODE=production corepack pnpm build:rs",
+		"build": "pnpm build:prod",
+		"build:local": "cross-env MODE=local pnpm build:rs",
+		"build:prod": "cross-env MODE=production pnpm build:rs",
 		"build:preprod": "cross-env MODE=preprod pnpm build:rs",
 		"build:rs": "tsc && rsbuild build",
 		"// =============== DEV COMMANDS =================": "================================",
-		"dev": "corepack pnpm dev:local",
-		"dev:local": "cross-env MODE=local corepack pnpm dev:rs",
-		"dev:prod": "cross-env MODE=production corepack pnpm dev:rs",
-		"dev:preprod": "cross-env MODE=preprod corepack pnpm dev:rs",
+		"dev": "pnpm dev:local",
+		"dev:local": "cross-env MODE=local pnpm dev:rs",
+		"dev:prod": "cross-env MODE=production pnpm dev:rs",
+		"dev:preprod": "cross-env MODE=preprod pnpm dev:rs",
 		"dev:rs": "rsbuild dev",
 		"// =============== LINT COMMANDS =================": "================================",
 		"lint": "eslint src --ext ts,tsx --max-warnings 0",
-		"lint:fix": "corepack pnpm lint --fix"
+		"lint:fix": "pnpm lint --fix"
 	},
 	"dependencies": {
 		"@calumk/editorjs-codeflask": "^1.0.10",
