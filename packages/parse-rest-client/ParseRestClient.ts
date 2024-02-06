@@ -31,7 +31,9 @@ export default class ParseRestClient {
 				return response;
 			},
 			(error) => {
-				if (error.response.status === 400) {
+				console.log('🤢🤢🤢🤢');
+
+				if (error.response?.status === 400) {
 					const { code, error: errorMessage } = error.response.data;
 					throw new ParseRestError(code, errorMessage);
 				}

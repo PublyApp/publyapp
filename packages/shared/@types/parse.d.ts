@@ -11,12 +11,17 @@ namespace Parse {
 	// 	updatedAt: DateType;
 	// }
 
-	export type NewAttributes<T> = Omit<T, keyof BaseAttributes>;
+	export type OmitBaseAttributes<T> = Omit<T, keyof BaseAttributes>;
 
 	namespace Cloud {
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		interface FunctionRequest<T extends Params = Params> {
-			headers: Record<string, any>;
+			headers: Record<string, any> | undefined;
+		}
+
+		// eslint-disable-next-line @typescript-eslint/ban-types
+		interface TriggerRequest<T = Object> {
+			query: Query<T> | undefined;
 		}
 	}
 
