@@ -38,6 +38,7 @@ export const className = {
 } as const;
 
 export const LOCALE_HEADER_KEY = 'X-Devist-Locale';
+export const TENANT_ID_HEADER_KEY = 'X-Devist-TenantId';
 
 const RESOURCE = {
 	posts: 'posts',
