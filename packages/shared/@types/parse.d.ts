@@ -3,14 +3,6 @@
 namespace Parse {
 	import type { PipelineStage } from 'mongoose';
 
-	// import type { DateType } from '../types/db/any.types';
-
-	// interface BaseAttributes {
-	// 	createdAt: DateType;
-	// 	objectId: string;
-	// 	updatedAt: DateType;
-	// }
-
 	export type OmitBaseAttributes<T> = Omit<T, keyof BaseAttributes>;
 
 	namespace Cloud {
@@ -22,6 +14,7 @@ namespace Parse {
 		// eslint-disable-next-line @typescript-eslint/ban-types
 		interface TriggerRequest<T = Object> {
 			query: Query<T> | undefined;
+			context: Record<string, unknown> | undefined;
 		}
 	}
 
@@ -37,5 +30,11 @@ namespace Parse {
 		aggregate<V = any>(
 			pipeline: /* Query.AggregationOptions | Query.AggregationOptions[] */ PipelineStage[],
 		): Promise<V>;
+	}
+
+	namespace Query {
+		interface FindOptions {
+			context?: Record<string, any>;
+		}
 	}
 }

@@ -11,6 +11,7 @@ import { applySkipAndLimit, applySorting } from '../lib/parse';
 
 type Props = {
 	sessionToken?: string;
+	headers?: Record<string, unknown>;
 };
 
 // type PostUpdateInput = {
@@ -45,13 +46,17 @@ type FindPostInput = {
 	pageSize?: number;
 	sorting?: { id: string; desc: boolean }[];
 	locale?: AppLocale;
+	isPublic: boolean | undefined;
 };
 
 export default class PostService {
 	sessionToken?: string;
 
-	constructor({ sessionToken }: Props) {
+	headers?: Record<string, unknown>;
+
+	constructor({ sessionToken, headers }: Props) {
 		this.sessionToken = sessionToken;
+		this.headers = headers;
 	}
 
 	async create({ author, content, description, slug, title, cover, locale }: PostCreateInput) {
@@ -172,7 +177,13 @@ export default class PostService {
 		return query.first({ sessionToken: this.sessionToken });
 	}
 
-	find({ page = 1, pageSize = DEFAULT_PAGE_SIZE, sorting = [], locale = defaultLocale }: FindPostInput) {
+	find({
+		page = 1,
+		pageSize = DEFAULT_PAGE_SIZE,
+		sorting = [],
+		locale = defaultLocale,
+		isPublic = false,
+	}: FindPostInput) {
 		const query = new Parse.Query(ParsePost);
 		applySkipAndLimit(query, { type: 'page', page, pageSize });
 
@@ -184,7 +195,7 @@ export default class PostService {
 			query.exists(`translation.${locale}` as never);
 		}
 
-		return query.find({ sessionToken: this.sessionToken });
+		return query.find({ sessionToken: this.sessionToken, context: { /* headers: this.headers,  */ isPublic } });
 
 		// const sortingOperations: Record<string, 1 | -1> = {};
 		// if (sorting && !_.isEmpty(sorting)) {
