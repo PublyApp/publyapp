@@ -6,7 +6,12 @@ import type { AggregateOptions, Db, MongoClient } from 'mongodb';
 import type { PipelineStage } from 'mongoose';
 import { ZodError } from 'zod';
 
-import { className as classNames, LOCALE_HEADER_KEY, type IRoleConfig } from '@devist/shared/lib/constants';
+import {
+	className as classNames,
+	LOCALE_HEADER_KEY,
+	TENANT_ID_HEADER_KEY,
+	type IRoleConfig,
+} from '@devist/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { pageToSkip } from '@/server/utils/any.utils';
@@ -134,15 +139,31 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 	const triggerBuilder = parseFunction(async (req: Parse.Cloud.TriggerRequest) => {
 		const { trigger } = params;
 
-		const { headers } = req;
+		const { headers, context } = req;
 
-		const localeInHeader: string | undefined = headers?.[LOCALE_HEADER_KEY];
+		// eslint-disable-next-line @typescript-eslint/naming-convention
+		let _headers: Record<string, unknown> = {};
 
-		const locale: AppLocale = appLocales.includes(localeInHeader as never)
-			? (localeInHeader as AppLocale)
+		if (_.isObject(headers) && !_.isEmpty(headers)) {
+			_headers = headers as never;
+		} else if (_.isObject(context?.headers) && !_.isEmpty(context.headers)) {
+			_headers = context.headers as never;
+		}
+
+		// eslint-disable-next-line @typescript-eslint/naming-convention
+		const _localeInHeaders = _headers[LOCALE_HEADER_KEY];
+		const localeInHeaders = _.isString(_localeInHeaders) ? _localeInHeaders : undefined;
+
+		const locale: AppLocale = appLocales.includes(localeInHeaders as never)
+			? (localeInHeaders as AppLocale)
 			: defaultLocale;
 
 		const t = getT(locale);
+
+		// // we are not allowing any operations outside the cloud functions
+		// if (installationId !== 'cloud') {
+		// 	throw new Error(t('Operations outside the cloud functions are not allowed'));
+		// }
 
 		return trigger({ req, t, locale });
 	});
@@ -155,16 +176,34 @@ export const multiTenantTrigger = (params: ParseTriggerParams) => {
 		trigger: async ({ locale, req, t }) => {
 			const { trigger } = params;
 
-			// maybe it's better to alter the originalQuery instead
+			const { headers, context } = req;
+			const isPublic = context?.isPublic;
 
-			// in the case of a CREATE or READ or UPDATE or DELETE operation
-			// we need to check if the tenant of the object and the tenant of the user match
-			if (req.original) {
-				const objectTenant = req.original.get('tenant');
-				const userTenant = req.user?.get('tenant');
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			let _headers: Record<string, unknown> = {};
 
-				if (objectTenant?.id !== userTenant?.id) {
-					throw new Error('object tenant and user tenant do not match');
+			if (_.isObject(headers) && !_.isEmpty(headers)) {
+				_headers = headers as never;
+			} else if (_.isObject(context?.headers) && !_.isEmpty(context.headers)) {
+				_headers = context.headers as never;
+			}
+
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			const _tenantId = _headers[TENANT_ID_HEADER_KEY];
+			const tenantId = _.isString(_tenantId) ? _tenantId : undefined;
+
+			if (req.triggerName === 'beforeFind') {
+				if (!tenantId && !req.master && !isPublic) {
+					throw new Error(t('Tenant id is required'));
+				}
+
+				// if (isPublic) {
+				// 	return trigger({ locale, req, t });
+				// }
+
+				if (tenantId) {
+					req.query?.equalTo('tenant', tenantId);
+					return trigger({ locale, req, t });
 				}
 			}
 
