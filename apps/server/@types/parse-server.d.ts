@@ -20,7 +20,7 @@ declare module '@parse/fs-files-adapter';
 // --------------------------------------------------------------------------------------//
 
 declare module 'parse-server' {
-	import type { /* BaseAttributes, */ NewAttributes } from 'parse';
+	import type { /* BaseAttributes, */ OmitBaseAttributes } from 'parse';
 
 	import type { Application } from 'express';
 
@@ -98,94 +98,96 @@ declare module 'parse-server' {
 	// --------------------------------------------------------------------------------------//
 	//                                types from goplan-app                                  //
 	// --------------------------------------------------------------------------------------//
+	export type FieldValueType =
+		| 'String'
+		| 'Boolean'
+		| 'File'
+		| 'Number'
+		| 'Relation'
+		| 'Pointer'
+		| 'Date'
+		| 'GeoPoint'
+		| 'Polygon'
+		| 'Array'
+		| 'Object';
+
+	interface FieldInterface {
+		type: FieldValueType;
+		targetClass?: string;
+		required?: boolean;
+		defaultValue?: number | string | unknown;
+	}
+
+	type ClassNameType = '_User' | '_Role' | string;
+
+	export interface ProtectedFieldsInterface {
+		[key: string]: string[];
+	}
+
+	type FieldsInterface<T extends Record<string, any> = Record<string, any>> = {
+		[P in keyof OmitBaseAttributes<T>]: FieldInterface;
+	};
+	// interface FieldsInterface<T extends Record<string, any> = Record<string, any>> {
+	// [key: string]: FieldInterface;
+	// }
+
+	export interface IndexInterface {
+		[key: string]: number;
+	}
+
+	export interface IndexesInterface {
+		[key: string]: IndexInterface;
+	}
+
+	export type CLPOperation = 'find' | 'count' | 'get' | 'update' | 'create' | 'delete';
+	type CLPPermission =
+		| 'requiresAuthentication'
+		| '*'
+		// @Typescript 4.1+
+		| `user:${string}`
+		| `role:${string}`;
+	type CLPInfo = { [key: string]: boolean };
+	type CLPData = { [key: string]: CLPOperation[] };
+	// type CLPValue = { [key: string]: boolean };
+	// type CLPInterface = { [key: string]: CLPValue };
+	// type CLPInterface = { [key: CLPPermission]: boolean };
+	type CLPInterface = Partial<Record<CLPPermission, boolean>>;
+
+	export interface CPLsInterface {
+		find?: CLPInterface;
+		count?: CLPInterface;
+		get?: CLPInterface;
+		update?: CLPInterface;
+		create?: CLPInterface;
+		delete?: CLPInterface;
+		addField?: CLPInterface;
+		protectedFields?: ProtectedFieldsInterface;
+	}
+
+	export interface JSONSchema<T extends Record<string, any> = Record<string, any>> {
+		fields: FieldsInterface<T>;
+		indexes: IndexesInterface;
+		classLevelPermissions: CPLsInterface;
+		className: string;
+	}
+
+	export interface MigrationsOptions {
+		schemas: JSONSchema[];
+		strict: boolean;
+		deleteExtraFields: boolean;
+		recreateModifiedFields: boolean;
+	}
+
+	export type Schema<T> = Omit<JSONSchema<T>, 'className'>;
+
 	export namespace SchemaMigrations {
-		export type FieldValueType =
-			| 'String'
-			| 'Boolean'
-			| 'File'
-			| 'Number'
-			| 'Relation'
-			| 'Pointer'
-			| 'Date'
-			| 'GeoPoint'
-			| 'Polygon'
-			| 'Array'
-			| 'Object';
-
-		interface FieldInterface {
-			type: FieldValueType;
-			targetClass?: string;
-			required?: boolean;
-			defaultValue?: number | string | unknown;
-		}
-
-		type ClassNameType = '_User' | '_Role' | string;
-
-		export interface ProtectedFieldsInterface {
-			[key: string]: string[];
-		}
-
-		type FieldsInterface<T extends Record<string, any> = Record<string, any>> = {
-			[P in keyof NewAttributes<T>]: FieldInterface;
-		};
-		// interface FieldsInterface<T extends Record<string, any> = Record<string, any>> {
-		// [key: string]: FieldInterface;
-		// }
-
-		export interface IndexInterface {
-			[key: string]: number;
-		}
-
-		export interface IndexesInterface {
-			[key: string]: IndexInterface;
-		}
-
-		export type CLPOperation = 'find' | 'count' | 'get' | 'update' | 'create' | 'delete';
-		type CLPPermission =
-			| 'requiresAuthentication'
-			| '*'
-			// @Typescript 4.1+
-			| `user:${string}`
-			| `role:${string}`;
-		type CLPInfo = { [key: string]: boolean };
-		type CLPData = { [key: string]: CLPOperation[] };
-		// type CLPValue = { [key: string]: boolean };
-		// type CLPInterface = { [key: string]: CLPValue };
-		// type CLPInterface = { [key: CLPPermission]: boolean };
-		type CLPInterface = Partial<Record<CLPPermission, boolean>>;
-
-		export interface CPLsInterface {
-			find?: CLPInterface;
-			count?: CLPInterface;
-			get?: CLPInterface;
-			update?: CLPInterface;
-			create?: CLPInterface;
-			delete?: CLPInterface;
-			addField?: CLPInterface;
-			protectedFields?: ProtectedFieldsInterface;
-		}
-
-		export interface JSONSchema<T extends Record<string, any> = Record<string, any>> {
-			fields: FieldsInterface<T>;
-			indexes: IndexesInterface;
-			classLevelPermissions: CPLsInterface;
-			className: string;
-		}
-
-		export interface MigrationsOptions {
-			schemas: JSONSchema[];
-			strict: boolean;
-			deleteExtraFields: boolean;
-			recreateModifiedFields: boolean;
-		}
-
-		export class CLP {
+		class CLP {
 			static allow(perms: CLPData): CLPInterface;
 		}
 
 		function makeSchema<T extends Record<string, any> = Record<string, any>>(
 			className: ClassNameType,
-			schema: Omit<JSONSchema<T>, 'className'>,
+			schema: Schema<T>,
 		): JSONSchema;
 	}
 

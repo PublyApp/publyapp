@@ -25,6 +25,10 @@ export const roleSet = {
 export const className = {
 	USER: '_User',
 	ROLE: '_Role',
+	// =====================
+	// === Multi Tenancy ===
+	TENANT: 'Tenant',
+	// === Custom classes ===
 	POST: 'Post',
 	AI_TOOL: 'AITool',
 	// WEB_HOSTING_PROVIDER: 'WebHostingProvider',

@@ -1,6 +1,6 @@
 import path from 'path';
 
-import type { SchemaMigrations } from 'parse-server';
+import type { CPLsInterface } from 'parse-server';
 
 export const ADMIN_EMAILS = ['radandevist@gmail.com'];
 
@@ -34,7 +34,7 @@ export const USE_MASTER_KEY = { useMasterKey: true } as const;
 /**
  * Parse server strict class level permissions
  */
-export const DEFAULT_CLP: SchemaMigrations.CPLsInterface = {
+export const DEFAULT_CLP: CPLsInterface = {
 	find: {
 		'*': true,
 	},
@@ -58,7 +58,7 @@ export const DEFAULT_CLP: SchemaMigrations.CPLsInterface = {
 	},
 };
 
-export const PUBLIC_READONLY_CLP: SchemaMigrations.CPLsInterface = {
+export const PUBLIC_READONLY_CLP: CPLsInterface = {
 	find: {
 		'*': true,
 	},
@@ -70,7 +70,7 @@ export const PUBLIC_READONLY_CLP: SchemaMigrations.CPLsInterface = {
 	},
 };
 
-export const AUTHED_READONLY_CLP: SchemaMigrations.CPLsInterface = {
+export const AUTHED_READONLY_CLP: CPLsInterface = {
 	find: {
 		requiresAuthentication: true,
 	},
