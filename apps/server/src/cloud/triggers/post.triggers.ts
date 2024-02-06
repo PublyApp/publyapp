@@ -1,13 +1,15 @@
-// import { parseFunction, parseTrigger } from '@/server/lib/parse';
-// import { ParsePost } from '@/shared/lib/parse/classes/post.class';
+import { logger } from 'parse-server';
 
-// Parse.Cloud.beforeSave(
-// 	ParsePost,
-// 	parseTrigger({
-// 		trigger: async ({ req, t }) => {
-// 			const postToSave = req.object;
+import { parseTrigger } from '@/server/lib/parse';
+import { ParsePost } from '@/shared/lib/parse/classes/post.class';
 
-// 			postToSave.get();
-// 		},
-// 	}),
-// );
+Parse.Cloud.beforeFind(
+	ParsePost,
+	parseTrigger({
+		trigger: async ({ req, t, locale }) => {
+			logger.info('beforeFind', req);
+
+			// const postToSave = req.object;
+		},
+	}),
+);

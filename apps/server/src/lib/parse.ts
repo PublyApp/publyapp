@@ -1,4 +1,4 @@
-// import { logger } from 'parse-server';
+import { SchemaMigrations, type Schema } from 'parse-server';
 import Config from 'parse-server/lib/Config';
 
 import _ from 'lodash';
@@ -6,12 +6,12 @@ import type { AggregateOptions, Db, MongoClient } from 'mongodb';
 import type { PipelineStage } from 'mongoose';
 import { ZodError } from 'zod';
 
-import { LOCALE_HEADER_KEY, type IRoleConfig } from '@devist/shared/lib/constants';
+import { className as classNames, LOCALE_HEADER_KEY, type IRoleConfig } from '@devist/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { pageToSkip } from '@/server/utils/any.utils';
 
-import { USE_MASTER_KEY } from './constants';
+import { DEFAULT_CLP, USE_MASTER_KEY } from './constants';
 import { getT } from './i18n';
 
 type ParseInnerFunction<T = unknown> =
@@ -89,13 +89,13 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		const { user, headers } = req;
 
-		const localeInHeader: string | undefined = headers[LOCALE_HEADER_KEY];
+		const localeInHeader: string | undefined = headers?.[LOCALE_HEADER_KEY];
 
 		const locale: AppLocale = appLocales.includes(localeInHeader as never)
 			? (localeInHeader as AppLocale)
 			: defaultLocale;
 
-		const t = getT(locale || defaultLocale);
+		const t = getT(locale);
 
 		if (!requireUser) {
 			return action({ req, t, user, locale });
@@ -123,6 +123,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 type TriggerContext = {
 	req: Parse.Cloud.TriggerRequest;
 	t: ReturnType<typeof getT>;
+	locale: AppLocale;
 };
 
 type ParseTriggerParams = {
@@ -135,14 +136,41 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 
 		const { headers } = req;
 
-		const locale = headers[LOCALE_HEADER_KEY] as string | undefined;
+		const localeInHeader: string | undefined = headers?.[LOCALE_HEADER_KEY];
 
-		const t = getT(locale || defaultLocale);
+		const locale: AppLocale = appLocales.includes(localeInHeader as never)
+			? (localeInHeader as AppLocale)
+			: defaultLocale;
 
-		return trigger({ req, t });
+		const t = getT(locale);
+
+		return trigger({ req, t, locale });
 	});
 
 	return triggerBuilder;
+};
+
+export const multiTenantTrigger = (params: ParseTriggerParams) => {
+	return parseTrigger({
+		trigger: async ({ locale, req, t }) => {
+			const { trigger } = params;
+
+			// maybe it's better to alter the originalQuery instead
+
+			// in the case of a CREATE or READ or UPDATE or DELETE operation
+			// we need to check if the tenant of the object and the tenant of the user match
+			if (req.original) {
+				const objectTenant = req.original.get('tenant');
+				const userTenant = req.user?.get('tenant');
+
+				if (objectTenant?.id !== userTenant?.id) {
+					throw new Error('object tenant and user tenant do not match');
+				}
+			}
+
+			return trigger({ locale, req, t });
+		},
+	});
 };
 
 export const reOrderObjects = <T extends Parse.Object = Parse.Object>(ids: string[], objects: T[]) => {
@@ -251,4 +279,28 @@ export const applySorting = (query: Parse.Query, sorting: { id: string; desc: bo
 };
 
 export type FunctionReturn<T> = T extends (...args: never[]) => Promise<infer R> ? R : never;
-// export type Awaited<T> = T extends PromiseLike<infer U> ? U : T;
+
+export const defineSchema = <T extends Record<string, unknown>>(className: string, schema: Schema<T>) => {
+	const fields = schema.fields || undefined;
+	const classLevelPermissions = schema.classLevelPermissions || DEFAULT_CLP;
+	const indexes = schema.indexes || {};
+
+	return SchemaMigrations.makeSchema(className, {
+		fields,
+		classLevelPermissions,
+		indexes,
+	});
+};
+
+export const defineMultiTenantSchema = <T extends Record<string, unknown>>(className: string, schema: Schema<T>) => {
+	const schemaFields = schema.fields || {};
+	(schemaFields as Record<string, unknown>).tenant = {
+		type: 'Pointer',
+		required: true,
+		targetClass: classNames.TENANT,
+	};
+	// eslint-disable-next-line no-param-reassign
+	schema.fields = schemaFields;
+
+	return defineSchema(className, schema);
+};
