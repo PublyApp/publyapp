@@ -4,6 +4,8 @@ import ReactDOM from 'react-dom/client';
 
 import { initReactLocalization } from '@devist/ui-react/lib/i18n';
 
+// import { initReactLocalization } from '@/office/lib/i18n';
+
 import App from './App';
 import { initParse } from './lib/parse';
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
@@ -27,12 +27,16 @@ const useLocale = () => {
 		};
 	}, [i18n.language]);
 
+	// for forcing re-renders
+	const [, setLocaleState] = useState<AppLocale>(locale);
+
 	const changeLocale = useCallback(
 		(value: AppLocale) => {
 			i18n.changeLanguage(value);
 			Parse.CoreManager.set('REQUEST_HEADERS', {
 				[LOCALE_HEADER_KEY]: value,
 			});
+			setLocaleState(value);
 		},
 		[i18n],
 	);

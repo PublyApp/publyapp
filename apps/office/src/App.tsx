@@ -21,6 +21,7 @@ const App = () => {
 				</ThemeProvider>
 			</MuiDatePickerLocalizationProvider>
 		</QueryClientProvider>
+		// </I18nextProvider>
 	);
 };
 
