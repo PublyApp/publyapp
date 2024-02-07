@@ -6,6 +6,8 @@ import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useRevalidator } from 'react-router-dom';
 
+// import { useTranslation } from '@devist/ui-react/lib/i18n';
+
 import useLocale from '@devist/ui-react/hooks/useLocale';
 
 import RouterLink from '@/office/components/RouterLink';
@@ -58,6 +60,7 @@ const Home = () => {
 				onClick={() => {
 					// const locale = i18n.language;
 					setLocale(lang.value === 'en' ? 'fr' : 'en');
+					// i18n.changeLanguage(i18n.language === 'en' ? 'fr' : 'en');
 				}}
 				color="primary"
 			>

@@ -1,15 +1,19 @@
 import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
+// import HttpBackend from 'i18next-http-backend';
 import { initReactI18next } from 'react-i18next';
 
 import { appLocales, defaultLocale, defaultNS, NS, resources, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
+// export { useTranslation } from 'react-i18next';
+
 export const initReactLocalization = () => {
 	i18n
 		.use(LanguageDetector)
+		// .use(HttpBackend)
 		.use(initReactI18next) // passes i18n down to react-i18next
 		.init({
-			debug: false,
+			debug: true,
 			// debug: process.env.NODE_ENV === 'development',
 			resources,
 			compatibilityJSON: 'v3',
@@ -21,8 +25,10 @@ export const initReactLocalization = () => {
 				escapeValue: false, // not needed for react as it escapes by default
 			},
 			react: {
-				useSuspense: false,
+				useSuspense: true,
 				transSupportBasicHtmlNodes: false,
+				// bindI18nStore: 'languageChanged',
+				// bindI18n: 'added',
 			},
 		});
 };

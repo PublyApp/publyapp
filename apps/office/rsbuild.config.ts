@@ -33,6 +33,13 @@ export default defineConfig({
 			index: './src/main.tsx',
 		},
 		define: getDefinedEnv(env || (process.env as never)),
+		alias: {
+			// 	'react-i18next': path.resolve(
+			// 		__dirname,
+			// 		'node_modules/@devist/ui-react/node_modules/react-i18next/dist/commonjs/index.js',
+			// 	),
+			'react-i18next': require.resolve('react-i18next'),
+		},
 	},
 	output: {
 		copy: {
