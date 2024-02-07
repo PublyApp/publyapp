@@ -22,3 +22,11 @@ export const localStorageGetItem = (key: string, defaultValue = '') => {
 
 	return value;
 };
+
+export const localStorageSetItem = (key: string, value: string) => {
+	const storageAvailable = localStorageAvailable();
+
+	if (storageAvailable) {
+		localStorage.setItem(key, value);
+	}
+};
