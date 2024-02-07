@@ -171,7 +171,15 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 	return triggerBuilder;
 };
 
-export const multiTenantTrigger = (params: ParseTriggerParams) => {
+type MultiTenantTriggerContext = TriggerContext & {
+	tenantId?: string;
+};
+
+type MultiTenantTriggerParams = {
+	trigger: (ctx: MultiTenantTriggerContext) => Promise<void>;
+};
+
+export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 	return parseTrigger({
 		trigger: async ({ locale, req, t }) => {
 			const { trigger } = params;
@@ -203,7 +211,7 @@ export const multiTenantTrigger = (params: ParseTriggerParams) => {
 
 				if (tenantId) {
 					req.query?.equalTo('tenant', tenantId);
-					return trigger({ locale, req, t });
+					return trigger({ locale, req, t, tenantId });
 				}
 			}
 

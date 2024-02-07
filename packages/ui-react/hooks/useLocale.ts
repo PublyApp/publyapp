@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 
 import _ from 'lodash';
 import { useTranslation } from 'react-i18next';
@@ -6,23 +6,29 @@ import { useTranslation } from 'react-i18next';
 import { LOCALE_HEADER_KEY } from '@devist/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
-// import i18n from '@/ui-react/utils/i18n';
-import { localStorageGetItem } from '@/ui-react/utils/storage.utils';
-
 import { defaultLangConfig, langConfigsMap } from '../config/lang.config';
 
 // ----------------------------------------------------------------------
 
 const useLocale = () => {
-	const { i18n /* t, ready */ } = useTranslation();
+	const { i18n, t, ready } = useTranslation();
 
-	const storedLocale = localStorageGetItem('i18nextLng');
-	const locale =
-		appLocales.find((iLocale) => {
-			return iLocale === storedLocale;
-		}) || defaultLocale;
+	const { locale, lang } = useMemo(() => {
+		// eslint-disable-next-line @typescript-eslint/naming-convention
+		let _locale = i18n.language as AppLocale;
+		_locale = appLocales.includes(_locale) ? _locale : defaultLocale;
 
-	const lang = langConfigsMap.get(locale) || defaultLangConfig;
+		// eslint-disable-next-line @typescript-eslint/naming-convention
+		const _lang = langConfigsMap.get(_locale as AppLocale) || defaultLangConfig;
+
+		return {
+			locale: _locale,
+			lang: _lang,
+		};
+	}, [i18n.language]);
+
+	// for forcing re-renders
+	const [, setLocaleState] = useState<AppLocale>(locale);
 
 	const changeLocale = useCallback(
 		(value: AppLocale) => {
@@ -30,6 +36,7 @@ const useLocale = () => {
 			Parse.CoreManager.set('REQUEST_HEADERS', {
 				[LOCALE_HEADER_KEY]: value,
 			});
+			setLocaleState(value);
 		},
 		[i18n],
 	);
@@ -49,12 +56,12 @@ const useLocale = () => {
 	);
 
 	return {
-		// locale,
+		locale,
 		lang,
 		setLocale,
-		// i18n,
-		// t,
-		// ready,
+		i18n,
+		t,
+		ready,
 	};
 };
 

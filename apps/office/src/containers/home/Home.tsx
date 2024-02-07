@@ -16,7 +16,7 @@ import { useLogOutMutation } from '@/ui-react/lib/react-query/features/auth/auth
 const Home = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const { t } = useTranslation();
-	const { lang, setLocale /* , t */ } = useLocale();
+	const { lang, setLocale } = useLocale();
 
 	// =========================
 	// const addBear = useMainStore((state) => {
@@ -56,6 +56,7 @@ const Home = () => {
 			<Typography variant="h1">Home / {t('common:hello')}</Typography>
 			<Button
 				onClick={() => {
+					// const locale = i18n.language;
 					setLocale(lang.value === 'en' ? 'fr' : 'en');
 				}}
 				color="primary"

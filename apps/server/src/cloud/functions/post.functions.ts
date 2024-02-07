@@ -119,12 +119,12 @@ export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
 const findPostFunction = parseFrom({
 	requireUser: false,
 	action: async ({ req, user, locale }) => {
-		const { page, pageSize, sorting } = getListParamsSchema.parse(req.params);
+		const { page, pageSize, sorting, isPublic = false } = getListParamsSchema.parse(req.params);
 
 		const sessionToken = user?.getSessionToken();
 		const postService = new PostService({ sessionToken, headers: req.headers });
 
-		const posts = await postService.find({ page, pageSize, sorting, locale, isPublic: true });
+		const posts = await postService.find({ page, pageSize, sorting, locale, isPublic });
 		return posts;
 	},
 });

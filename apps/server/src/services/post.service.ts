@@ -195,7 +195,7 @@ export default class PostService {
 			query.exists(`translation.${locale}` as never);
 		}
 
-		return query.find({ sessionToken: this.sessionToken, context: { /* headers: this.headers,  */ isPublic } });
+		return query.find({ sessionToken: this.sessionToken, context: { headers: this.headers, isPublic } });
 
 		// const sortingOperations: Record<string, 1 | -1> = {};
 		// if (sorting && !_.isEmpty(sorting)) {

@@ -10,4 +10,5 @@ export const getListParamsSchema = z.object({
 		})
 		.array()
 		.optional(),
+	isPublic: z.boolean().optional(),
 });
