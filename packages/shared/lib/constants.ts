@@ -6,17 +6,39 @@ export type IRoleConfig = {
 };
 
 export const roleEnum = {
-	ADMIN: { name: 'ADMIN', code: 12308120948 },
-	MODERATOR: { name: 'MODERATOR', code: 21143141341 },
-	AUTHOR: { name: 'AUTHOR', code: 7589243534538 },
-	READER: { name: 'READER', code: 934525757347 },
+	STAFF_ADMIN: { name: 'ADMIN', code: 23109870572456 } as const,
+	STAFF_EDITOR: { name: 'MODERATOR', code: 49360279358027 } as const,
+	STAFF_USER: { name: 'AUTHOR', code: 3445632345235435 } as const,
+	STAFF_CONTRIBUTOR: { name: 'READER', code: 8945454534244523 } as const,
+	// =======================================================
+	TENANT_ADMIN: { name: 'ADMIN', code: 12308120948 } as const,
+	TENANT_EDITOR: { name: 'MODERATOR', code: 21143141341 } as const,
+	TENANT_USER: { name: 'AUTHOR', code: 7589243534538 } as const,
+	TENANT_CONTRIBUTOR: { name: 'READER', code: 934525757347 } as const,
+	// =======================================================
+	AUTHED_USER: { name: 'AUTHED_USER', code: 94353424535348 } as const,
 } satisfies Record<string, IRoleConfig>;
 
+const STAFF_ADMIN_ONLY = [roleEnum.STAFF_ADMIN]; /* as const */
+const ABOVE_STAFF_EDITOR = [...STAFF_ADMIN_ONLY, roleEnum.STAFF_EDITOR]; /* as const */
+const ABOVE_STAFF_USER = [...ABOVE_STAFF_EDITOR, roleEnum.STAFF_USER]; /* as const */
+const ABOVE_STAFF_CONTRIBUTOR = [...ABOVE_STAFF_USER, roleEnum.STAFF_CONTRIBUTOR]; /* as const */
+const ABOVE_TENANT_ADMIN = [...ABOVE_STAFF_CONTRIBUTOR, roleEnum.TENANT_ADMIN]; /* as const */
+const ABOVE_TENANT_EDITOR = [...ABOVE_TENANT_ADMIN, roleEnum.TENANT_EDITOR]; /* as const */
+const ABOVE_TENANT_USER = [...ABOVE_TENANT_EDITOR, roleEnum.TENANT_USER]; /* as const */
+const ABOVE_TENANT_CONTRIBUTOR = [...ABOVE_TENANT_USER, roleEnum.TENANT_CONTRIBUTOR]; /* as const */
+const ALL = [...ABOVE_TENANT_CONTRIBUTOR, roleEnum.AUTHED_USER]; /* as const */
+
 export const roleSet = {
-	ADMIN_ONLY: [roleEnum.ADMIN],
-	ABOVE_MODERATOR: [roleEnum.MODERATOR, roleEnum.ADMIN],
-	ABOVE_AUTHOR: [roleEnum.AUTHOR, roleEnum.MODERATOR, roleEnum.ADMIN],
-	ALL: Object.values(roleEnum),
+	STAFF_ADMIN_ONLY,
+	ABOVE_STAFF_EDITOR,
+	ABOVE_STAFF_USER,
+	ABOVE_STAFF_CONTRIBUTOR,
+	ABOVE_TENANT_ADMIN,
+	ABOVE_TENANT_EDITOR,
+	ABOVE_TENANT_USER,
+	ABOVE_TENANT_CONTRIBUTOR,
+	ALL,
 } satisfies Record<string, IRoleConfig[]>;
 
 /**

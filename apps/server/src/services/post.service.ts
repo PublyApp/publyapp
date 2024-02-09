@@ -46,17 +46,17 @@ type FindPostInput = {
 	pageSize?: number;
 	sorting?: { id: string; desc: boolean }[];
 	locale?: AppLocale;
-	isPublic: boolean | undefined;
+	fromPublic: boolean | undefined;
 };
 
 export default class PostService {
 	sessionToken?: string;
 
-	headers?: Record<string, unknown>;
+	// headers?: Record<string, unknown>;
 
-	constructor({ sessionToken, headers }: Props) {
+	constructor({ sessionToken /* , headers */ }: Props) {
 		this.sessionToken = sessionToken;
-		this.headers = headers;
+		// this.headers = headers;
 	}
 
 	async create({ author, content, description, slug, title, cover, locale }: PostCreateInput) {
@@ -182,7 +182,7 @@ export default class PostService {
 		pageSize = DEFAULT_PAGE_SIZE,
 		sorting = [],
 		locale = defaultLocale,
-		isPublic = false,
+		// fromPublic = false,
 	}: FindPostInput) {
 		const query = new Parse.Query(ParsePost);
 		applySkipAndLimit(query, { type: 'page', page, pageSize });
@@ -195,7 +195,7 @@ export default class PostService {
 			query.exists(`translation.${locale}` as never);
 		}
 
-		return query.find({ sessionToken: this.sessionToken, context: { headers: this.headers, isPublic } });
+		return query.find({ sessionToken: this.sessionToken /* , context: { headers: this.headers, fromPublic } */ });
 
 		// const sortingOperations: Record<string, 1 | -1> = {};
 		// if (sorting && !_.isEmpty(sorting)) {
