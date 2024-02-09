@@ -11,7 +11,7 @@ export type CreatePostFunctionReturn = FunctionReturn<typeof createPostFunction>
 
 const createPostFunction = parseFrom({
 	requireUser: true,
-	allowedRoles: roleSet.ABOVE_AUTHOR,
+	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
 	action: async ({ req, t, user }) => {
 		const createPostInputSchema = getCreatePostInputSchema(t);
 		const { locale, title, description, content, slug, coverId, authorId } = createPostInputSchema.parse(req.params);
@@ -47,7 +47,7 @@ export type UpdatePostFunctionReturn = FunctionReturn<typeof updatePostFunction>
 
 const updatePostFunction = parseFrom({
 	requireUser: true,
-	allowedRoles: roleSet.ABOVE_AUTHOR,
+	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
 	action: async ({ req, t, user }) => {
 		const updatePostInputSchema = getUpdatePostInputSchema(t);
 		const { locale, title, description, content, slug, authorId, objectId, published } = updatePostInputSchema.parse(
@@ -119,12 +119,13 @@ export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
 const findPostFunction = parseFrom({
 	requireUser: false,
 	action: async ({ req, user, locale }) => {
-		const { page, pageSize, sorting, isPublic = false } = getListParamsSchema.parse(req.params);
+		const { page, pageSize, sorting, fromPublic = false } = getListParamsSchema.parse(req.params);
 
-		const sessionToken = user?.getSessionToken();
+		const sessionToken = fromPublic ? '' : user?.getSessionToken();
+
 		const postService = new PostService({ sessionToken, headers: req.headers });
 
-		const posts = await postService.find({ page, pageSize, sorting, locale, isPublic });
+		const posts = await postService.find({ page, pageSize, sorting, locale, fromPublic });
 		return posts;
 	},
 });
