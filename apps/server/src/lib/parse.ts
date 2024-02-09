@@ -1,6 +1,7 @@
 import { SchemaMigrations, type Schema } from 'parse-server';
 import Config from 'parse-server/lib/Config';
 
+// import { TFunction } from 'i18next';
 import _ from 'lodash';
 import type { AggregateOptions, Db, MongoClient } from 'mongodb';
 import type { PipelineStage } from 'mongoose';
@@ -9,6 +10,7 @@ import { ZodError } from 'zod';
 import {
 	className as classNames,
 	LOCALE_HEADER_KEY,
+	roleSet,
 	TENANT_ID_HEADER_KEY,
 	type IRoleConfig,
 } from '@devist/shared/lib/constants';
@@ -49,17 +51,17 @@ export const parseFunction = <T = unknown>(innerFunction: ParseInnerFunction<T>)
 	};
 };
 
-type ActionContext2 = {
+type BaseActionContext = {
 	req: Parse.Cloud.FunctionRequest;
 	t: ReturnType<typeof getT>;
 	locale: AppLocale;
+};
+
+type ActionContext2 = BaseActionContext & {
 	user?: Parse.User;
 };
 
-type ActionContext1 = {
-	req: Parse.Cloud.FunctionRequest;
-	t: ReturnType<typeof getT>;
-	locale: AppLocale;
+type ActionContext1 = BaseActionContext & {
 	user: Parse.User;
 };
 
@@ -75,7 +77,7 @@ type ParseFromParams<T = unknown> =
 			allowedRoles?: undefined;
 	  };
 
-const hasRole = async (user: Parse.User, roles: IRoleConfig[]) => {
+export const hasRole = async (user: Parse.User, roles: IRoleConfig[]) => {
 	const foundRole = await new Parse.Query(Parse.Role)
 		.equalTo('users', user)
 		.containedIn(
@@ -123,6 +125,73 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 	const actionBuilder = parseFunction<T>(innerFunction as never);
 
 	return actionBuilder;
+};
+
+type MultiTenantActionContext2 = ActionContext2 & {
+	fromPublic: boolean;
+	fromStaff: boolean;
+	fromTenantMember: boolean;
+};
+
+type MultiTenantActionContext1 = ActionContext1;
+
+type MultiTenantParseFromParams<T = unknown> =
+	| {
+			requireUser: true;
+			allowedRoles: IRoleConfig[];
+			action: (ctx: MultiTenantActionContext1) => Promise<T>;
+	  }
+	| {
+			requireUser: false;
+			action: (ctx: MultiTenantActionContext2) => Promise<T>;
+			allowedRoles?: undefined;
+	  };
+
+export const multiTenantParseFrom = <T = unknown>(params: MultiTenantParseFromParams<T>) => {
+	const { action, requireUser, allowedRoles } = params;
+
+	if (!requireUser) {
+		return parseFrom<T>({
+			requireUser,
+			allowedRoles,
+			action: async ({ locale, req, t, user }) => {
+				// eslint-disable-next-line @typescript-eslint/naming-convention
+				const { fromPublic, fromStaff: _fromStaff } = req.params;
+
+				const fromTenantMember = !fromPublic && !_fromStaff;
+
+				let fromStaff = _fromStaff;
+
+				if (fromPublic) {
+					if (user) {
+						user.set('sessionToken', '');
+					}
+
+					fromStaff = false;
+				}
+
+				if (fromStaff) {
+					if (!user) {
+						throw new Error(t('User is required'));
+					}
+
+					const isStaff = await hasRole(user, roleSet.ABOVE_STAFF_CONTRIBUTOR);
+
+					if (!isStaff) {
+						throw new Error(t('User is not staff'));
+					}
+				}
+
+				return action({ req, user, t, locale, fromPublic, fromStaff, fromTenantMember });
+			},
+		});
+	}
+
+	return parseFrom<T>({
+		requireUser,
+		allowedRoles,
+		action,
+	});
 };
 
 type TriggerContext = {
@@ -185,7 +254,8 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 			const { trigger } = params;
 
 			const { headers, context } = req;
-			const isPublic = context?.isPublic;
+			const fromPublic = context?.fromPublic;
+			const fromStaff = context?.fromStaff;
 
 			// eslint-disable-next-line @typescript-eslint/naming-convention
 			let _headers: Record<string, unknown> = {};
@@ -201,7 +271,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 			const tenantId = _.isString(_tenantId) ? _tenantId : undefined;
 
 			if (req.triggerName === 'beforeFind') {
-				if (!tenantId && !req.master && !isPublic) {
+				if (!tenantId && !req.master && !fromStaff && !fromPublic) {
 					throw new Error(t('Tenant id is required'));
 				}
 
@@ -351,3 +421,22 @@ export const defineMultiTenantSchema = <T extends Record<string, unknown>>(class
 
 	return defineSchema(className, schema);
 };
+
+// export const checkFromWho = ({ fromPublic, fromStaff, sessionToken, t }: { fromPublic: string | undefined, fromStaff: string | undefined, sessionToken?: string, t: TFunction }) => {
+// 	if (fromPublic) {
+// 		sessionToken = undefined;
+// 		fromStaff = false;
+// 	}
+
+// 	if (fromStaff) {
+// 		if (!user) {
+// 			throw new Error(t('User is required'));
+// 		}
+
+// 		const isStaff = await hasRole(user, roleSet.ABOVE_STAFF_CONTRIBUTOR);
+
+// 		if (!isStaff) {
+// 			throw new Error(t('User is not staff'));
+// 		}
+// 	}
+// };
