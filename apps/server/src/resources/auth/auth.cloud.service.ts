@@ -1,6 +1,6 @@
-import Auth from 'parse-server/lib/Auth';
-import Config from 'parse-server/lib/Config';
-import Parse from 'parse/node';
+import Auth from 'parse-server/lib/Auth.js';
+import Config from 'parse-server/lib/Config.js';
+import Parse from 'parse/node.js';
 
 import type { ParsedQs } from 'qs';
 

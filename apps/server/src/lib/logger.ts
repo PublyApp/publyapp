@@ -2,6 +2,8 @@
 // import { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 // import defaults from 'parse-server/lib/defaults';
 
+import { getLogger } from 'parse-server/lib/logger.js';
+
 import { format, transports } from 'winston';
 import { consoleFormat } from 'winston-console-format';
 
@@ -22,6 +24,9 @@ export const consoleTransport = new transports.Console({
 		}),
 	),
 });
+
+const logger = getLogger();
+export default logger;
 
 // export const createSillyLogger = (appId: string) => {
 // 	const options = {
