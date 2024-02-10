@@ -10,7 +10,6 @@ import ParseDashboard from 'parse-dashboard';
 
 import { endPoint } from '@/shared/lib/constants';
 
-import { handleUploadManyFiles, handleUploadSingleFile } from './controllers/file.controller';
 import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
 import { env, envSchema, setAppEnv } from './lib/env';
@@ -19,12 +18,13 @@ import { multerConfig } from './lib/multer';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import protectionMiddleware from './middlewares/protection.middleware';
-import AppFileSchema from './schemas/appFile.schema';
-import AwesomeLinkSchema from './schemas/awesomeLink.schema';
-import PostSchema from './schemas/post.schema';
-import RoleSchema from './schemas/role.schema';
-import UserSchema from './schemas/user.schema';
-import WebHostSchema from './schemas/webHost.schema';
+import AppFileSchema from './resources/appFile/appFile.schema';
+import AwesomeLinkSchema from './resources/awesomeLink/awesomeLink.schema';
+import { handleUploadManyFiles, handleUploadSingleFile } from './resources/file/file.controller';
+import PostSchema from './resources/post/post.schema';
+import RoleSchema from './resources/role/role.schema';
+import UserSchema from './resources/user/user.schema';
+import WebHostSchema from './resources/webHost/webHost.schema';
 
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
@@ -69,7 +69,7 @@ const bootstrap = async () => {
 	const parseServer = new ParseServer({
 		appId: PARSE_APP_ID,
 		masterKey: PARSE_MASTER_KEY,
-		cloud: path.resolve(__dirname, './cloud/index'),
+		cloud: path.resolve(__dirname, './cloud/_index'),
 		databaseURI: DATABASE_URI,
 		serverURL: PARSE_SERVER_URL,
 		publicServerURL: PARSE_SERVER_URL,

@@ -14,7 +14,7 @@ import { env } from '@/server/lib/env';
 import { applySkipAndLimit } from '@/server/lib/parse';
 import { addSuffixToFileName } from '@/server/utils/any.utils';
 
-import FolderService from './folder.service';
+import FolderService from '../folder/folder.service';
 
 export type FileServiceProps = {
 	sessionToken: string | undefined;

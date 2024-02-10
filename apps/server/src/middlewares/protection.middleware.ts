@@ -2,9 +2,9 @@ import { logger } from 'parse-server';
 
 import type { RequestHandler } from 'express';
 
-import { AuthCloudService } from '@/server/cloud/services/auth.cloud.service';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { env } from '@/server/lib/env';
+import { AuthCloudService } from '@/server/resources/auth/auth.cloud.service';
 import {
 	DEVIST_REST_API_HEADER_KEY,
 	PARSE_INSTALLATION_ID_HEADER_KEY,

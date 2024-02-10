@@ -3,11 +3,11 @@ import type { RequestHandler } from 'express';
 import { multerFilesArraySchema } from '@devist/shared/validations/file/file.validations.server';
 
 import { HttpException } from '@/server/exceptions/HttpException';
-import FileService from '@/server/services/file.service';
+import FileService from '@/server/resources/file/file.service';
 import { PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 
-import FolderService from '../services/folder.service';
+import FolderService from '../folder/folder.service';
 
 // import { AuthCloudService } from '../cloud/services/auth.cloud.service';
 
