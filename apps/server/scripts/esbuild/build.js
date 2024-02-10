@@ -4,30 +4,11 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable import/order */
 const esbuild = require('esbuild');
-const { nodeExternalsPlugin } = require('esbuild-node-externals');
-const { packageNames } = require('./esbuild.utils');
-const path = require('path');
 
-const buildOptions = {
-	entryPoints: [path.resolve(__dirname, '../../src/index.ts'), path.resolve(__dirname, '../../src/cloud/_index.ts')],
-	bundle: true,
-	platform: 'node',
-	format: 'esm',
-	outExtension: {
-		'.js': '.mjs',
-	},
-	// external: ['@remix-run/express'],
-	// outfile: path.resolve(__dirname, '../dist/index.js'),
-	outdir: path.resolve(__dirname, '../../dist'),
-	sourcemap: true,
-	plugins: [
-		nodeExternalsPlugin({
-			allowList: [...packageNames],
-		}),
-	],
-};
+const { buildOptions } = require('./config');
 
-exports.buildOptions = buildOptions;
+const toDeploy = ['production', 'preprod'].includes(process.env.MODE);
+buildOptions.minify = toDeploy;
 
 async function build() {
 	esbuild.build(buildOptions);
