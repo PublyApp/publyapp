@@ -1,5 +1,3 @@
-import { logger } from 'parse-server/lib/logger';
-
 import type { RequestHandler } from 'express';
 
 import { HttpException } from '@/server/exceptions/HttpException';
@@ -10,6 +8,8 @@ import {
 	PARSE_INSTALLATION_ID_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
 } from '@/shared/lib/constants';
+
+import logger from '../lib/logger';
 
 type Input = {
 	withKey?: boolean;
