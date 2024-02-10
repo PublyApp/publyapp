@@ -1,4 +1,4 @@
-import { logger } from 'parse-server';
+import { logger } from 'parse-server/lib/logger';
 
 import type { RequestHandler } from 'express';
 
