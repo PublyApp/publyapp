@@ -6,15 +6,15 @@ export type IRoleConfig = {
 };
 
 export const roleEnum = {
-	STAFF_ADMIN: { name: 'ADMIN', code: 23109870572456 } as const,
-	STAFF_EDITOR: { name: 'MODERATOR', code: 49360279358027 } as const,
-	STAFF_USER: { name: 'AUTHOR', code: 3445632345235435 } as const,
-	STAFF_CONTRIBUTOR: { name: 'READER', code: 8945454534244523 } as const,
+	STAFF_ADMIN: { name: 'STAFF_ADMIN', code: 23109870572456 } as const,
+	STAFF_EDITOR: { name: 'STAFF_EDITOR', code: 49360279358027 } as const,
+	STAFF_USER: { name: 'STAFF_USER', code: 3445632345235435 } as const,
+	STAFF_CONTRIBUTOR: { name: 'STAFF_CONTRIBUTOR', code: 8945454534244523 } as const,
 	// =======================================================
-	TENANT_ADMIN: { name: 'ADMIN', code: 12308120948 } as const,
-	TENANT_EDITOR: { name: 'MODERATOR', code: 21143141341 } as const,
-	TENANT_USER: { name: 'AUTHOR', code: 7589243534538 } as const,
-	TENANT_CONTRIBUTOR: { name: 'READER', code: 934525757347 } as const,
+	TENANT_ADMIN: { name: 'TENANT_ADMIN', code: 12308120948 } as const,
+	TENANT_EDITOR: { name: 'TENANT_EDITOR', code: 21143141341 } as const,
+	TENANT_USER: { name: 'TENANT_USER', code: 7589243534538 } as const,
+	TENANT_CONTRIBUTOR: { name: 'TENANT_CONTRIBUTOR', code: 934525757347 } as const,
 	// =======================================================
 	AUTHED_USER: { name: 'AUTHED_USER', code: 94353424535348 } as const,
 } satisfies Record<string, IRoleConfig>;

@@ -1,7 +1,6 @@
-import './aiTool.functions';
-import './webHost.functions';
-import './appFile.functions';
-import './post.functions';
+import '@/server/resources/user/user.triggers';
+import '@/server/resources/awesomeLink/awesomeLink.triggers';
+import '@/server/resources/post/post.triggers';
 
 // import { parseTrigger } from '@/server/lib/parse';
 

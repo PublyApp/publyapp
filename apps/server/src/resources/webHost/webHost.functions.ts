@@ -17,7 +17,7 @@ Parse.Cloud.define(
 	functionName.saveWebHost,
 	parseFrom({
 		requireUser: true,
-		allowedRoles: roleSet.ADMIN_ONLY,
+		allowedRoles: roleSet.STAFF_ADMIN_ONLY,
 		action: async ({ req, t }) => {
 			const reqParams = getSaveWebHostInputSchema(t).parse(req.params);
 

@@ -8,7 +8,7 @@ import type { PipelineStage } from 'mongoose';
 import { ZodError } from 'zod';
 
 import {
-	className as classNames,
+	className as _className,
 	LOCALE_HEADER_KEY,
 	roleSet,
 	TENANT_ID_HEADER_KEY,
@@ -18,7 +18,9 @@ import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i1
 
 import { pageToSkip } from '@/server/utils/any.utils';
 
-import { DEFAULT_CLP, USE_MASTER_KEY } from './constants';
+import RoleUtils from '../resources/role/role.utils';
+
+import { DEFAULT_CLP } from './constants';
 import { getT } from './i18n';
 
 type ParseInnerFunction<T = unknown> =
@@ -77,19 +79,6 @@ type ParseFromParams<T = unknown> =
 			allowedRoles?: undefined;
 	  };
 
-export const hasRole = async (user: Parse.User, roles: IRoleConfig[]) => {
-	const foundRole = await new Parse.Query(Parse.Role)
-		.equalTo('users', user)
-		.containedIn(
-			'code',
-			roles.map((config) => {
-				return config.code;
-			}),
-		)
-		.first(USE_MASTER_KEY);
-	return !!foundRole;
-};
-
 export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 	const innerFunction = async (req: Parse.Cloud.FunctionRequest) => {
 		const { requireUser, action, allowedRoles } = params;
@@ -113,7 +102,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 		}
 
 		// verify the roles
-		const userHasRole = await hasRole(user, allowedRoles);
+		const userHasRole = await RoleUtils.hasRole(user, allowedRoles);
 
 		if (!userHasRole) {
 			throw new Error(t('common:insufficientRoleForAction'));
@@ -175,7 +164,7 @@ export const multiTenantParseFrom = <T = unknown>(params: MultiTenantParseFromPa
 						throw new Error(t('User is required'));
 					}
 
-					const isStaff = await hasRole(user, roleSet.ABOVE_STAFF_CONTRIBUTOR);
+					const isStaff = await RoleUtils.hasRole(user, roleSet.ABOVE_STAFF_CONTRIBUTOR);
 
 					if (!isStaff) {
 						throw new Error(t('User is not staff'));
@@ -351,17 +340,6 @@ export const aggregate = async (className: string, pipeline: PipelineStage[], op
 	return results;
 };
 
-export const findRoleByCode = async (code: number, useMasterKey = false) => {
-	const roleQuery = new Parse.Query(Parse.Role);
-	return roleQuery.equalTo('code', code).first({ useMasterKey });
-};
-
-export const assignRoleToUser = async (user: Parse.User, role: Parse.Role, useMasterKey = false) => {
-	const relation = role.getUsers();
-	relation.add(user);
-	return role.save(null, { useMasterKey });
-};
-
 export type LimitAndSkipOptions =
 	| {
 			type: 'limit';
@@ -414,7 +392,7 @@ export const defineMultiTenantSchema = <T extends Record<string, unknown>>(class
 	(schemaFields as Record<string, unknown>).tenant = {
 		type: 'Pointer',
 		required: true,
-		targetClass: classNames.TENANT,
+		targetClass: _className.TENANT,
 	};
 	// eslint-disable-next-line no-param-reassign
 	schema.fields = schemaFields;
