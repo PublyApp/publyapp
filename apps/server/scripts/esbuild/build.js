@@ -16,6 +16,7 @@ const buildOptions = {
 	outExtension: {
 		'.js': '.mjs',
 	},
+	// external: ['@remix-run/express'],
 	// outfile: path.resolve(__dirname, '../dist/index.js'),
 	outdir: path.resolve(__dirname, '../../dist'),
 	sourcemap: true,
