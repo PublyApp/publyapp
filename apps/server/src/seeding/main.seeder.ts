@@ -3,11 +3,10 @@ import { faker } from '@faker-js/faker';
 
 import { roleEnum } from '@devist/shared/lib/constants';
 
-import { findRoleByCode } from '../lib/parse';
-
-import { aiToolFactory } from './factories/aiTool.factory';
-import { userFactory } from './factories/user.factory';
-import { webHostFactory } from './factories/webHost.factory';
+import { aiToolFactory } from '../resources/aiTool/aiTool.factory';
+import RoleUtils from '../resources/role/role.utils';
+import { userFactory } from '../resources/user/user.factory';
+import { webHostFactory } from '../resources/webHost/webHost.factory';
 
 export type RunConfig = {
 	// masterKey: string;
@@ -34,7 +33,7 @@ export const run = async ({
 			const createdUser = await iUser.save(null, { useMasterKey: true });
 
 			// assign role to user
-			const authorRole = await findRoleByCode(roleEnum.AUTHOR.code, true);
+			const authorRole = await RoleUtils.findRoleByCode(roleEnum.STAFF_EDITOR.code, true);
 			authorRole?.getUsers().add(createdUser);
 			await authorRole?.save(null, { useMasterKey: true });
 

@@ -76,7 +76,7 @@ Parse.Cloud.define(
 	functionName.createAITool,
 	parseFrom({
 		requireUser: true,
-		allowedRoles: roleSet.ABOVE_AUTHOR,
+		allowedRoles: roleSet.ABOVE_STAFF_EDITOR,
 		action: async ({ req }) => {
 			const reqParams = createAIToolInputSchema.parse(req.params);
 
