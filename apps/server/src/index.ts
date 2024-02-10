@@ -1,6 +1,7 @@
 import path from 'path';
 
-import ParseServer, { logger } from 'parse-server';
+import ParseServer from 'parse-server';
+import { logger } from 'parse-server/lib/logger';
 
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import dotenv from 'dotenv';

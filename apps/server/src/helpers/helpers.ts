@@ -2,7 +2,7 @@
 /* eslint-disable no-await-in-loop */
 import { existsSync, promises as fs } from 'fs';
 
-import { logger } from 'parse-server';
+import { logger } from 'parse-server/lib/logger';
 
 import { className, roleEnum } from '@devist/shared/lib/constants';
 
