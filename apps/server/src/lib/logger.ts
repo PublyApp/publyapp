@@ -1,3 +1,4 @@
+/* eslint-disable import/extensions */
 // import { WinstonLoggerAdapter } from 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter';
 // import { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 // import defaults from 'parse-server/lib/defaults';

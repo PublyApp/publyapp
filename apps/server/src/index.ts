@@ -1,9 +1,12 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable import/extensions */
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 import * as ps from 'parse-server/lib/index.js';
 
 import FSFilesAdapter from '@parse/fs-files-adapter';
+import { createRequestHandler } from '@remix-run/express';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import express from 'express';
@@ -34,6 +37,9 @@ const __dirname = path.dirname(__filename);
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
 	global.MODE = process.env.MODE || 'local';
+
+	console.log('global.LOCAL:', global.LOCAL);
+	console.log('global.MODE:', global.MODE);
 
 	// --------------------------------------------------------------------------------------//
 	//                    override process.env with values in .env file                      //
@@ -97,10 +103,8 @@ const bootstrap = async () => {
 
 	// setup a better console transport for our logger
 	logger.adapter.addTransport(consoleTransport);
-	// console.log('😡😡😡😡😡', ps);
 
 	await parseServer.start();
-
 	app.use(PARSE_PATH, parseServer.app);
 
 	// set Routes
@@ -143,6 +147,32 @@ const bootstrap = async () => {
 		);
 
 		app.use('/pdash', dashboard);
+	}
+
+	// --------------------------------------------------------------------------------------//
+	//                  mount remix build when in a deployment environment                  //
+	// --------------------------------------------------------------------------------------//
+	if (!global.LOCAL) {
+		app.use(express.static(path.resolve(__dirname, '../../front/build/client')));
+
+		// needs to handle all verbs (GET, POST, etc.)
+		app.all(
+			'*',
+			createRequestHandler({
+				// `remix build` and `remix dev` output files to a build directory, you need
+				// to pass that build to the request handler
+				// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+				// @ts-ignore
+				build: await import('front/build/server/index.js'),
+
+				// return anything you want here to be available as `context` in your
+				// loaders and actions. This is where you can bridge the gap between Remix
+				// and your server
+				// getLoadContext(req, res) {
+				// 	return {};
+				// },
+			}),
+		);
 	}
 
 	// --------------------------------------------------------------------------------------//

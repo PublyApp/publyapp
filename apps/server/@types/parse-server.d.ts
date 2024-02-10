@@ -1,7 +1,9 @@
 /* eslint-disable max-classes-per-file */
 
 // declare module 'parse-server';
+declare module 'parse-server/lib/Config.js';
 declare module 'parse-server/lib/Config';
+declare module 'parse-server/lib/Auth.js';
 declare module 'parse-server/lib/Auth';
 
 declare module 'parse-dashboard';
@@ -19,7 +21,13 @@ declare module '@parse/fs-files-adapter';
 //                                                                                      //
 // --------------------------------------------------------------------------------------//
 
+declare module 'parse-server/lib/index.js' {
+	export * from 'parse-server';
+}
+
 declare module 'parse-server' {
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	import Parse from 'parse';
 	import type { /* BaseAttributes, */ OmitBaseAttributes } from 'parse';
 
 	import type { Application } from 'express';
@@ -27,7 +35,7 @@ declare module 'parse-server' {
 	export type ParseServerOptions = {
 		// Required options
 		appId: string;
-		cloud: string;
+		cloud: string | ((Parse: typeof Parse) => Promise<void>);
 		databaseURI: string;
 		masterKey: string;
 		publicServerURL: string;
@@ -89,11 +97,13 @@ declare module 'parse-server' {
 		schemaCacheTtl?: number;
 	};
 
-	export default class ParseServer {
+	export class ParseServer {
 		constructor(options: ParseServerOptions);
 		start(): Promise<void>;
 		app: Application;
 	}
+
+	export default ParseServer;
 
 	// --------------------------------------------------------------------------------------//
 	//                                types from goplan-app                                  //
@@ -196,6 +206,10 @@ declare module 'parse-server' {
 	// export { logger } from 'parse-server/lib/logger';
 }
 
+declare module 'parse-server/lib/logger.js' {
+	export * from 'parse-server/lib/logger';
+}
+
 declare module 'parse-server/lib/logger' {
 	// eslint-disable-next-line import/no-unresolved
 	import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
@@ -203,6 +217,8 @@ declare module 'parse-server/lib/logger' {
 	export const logger: LoggerController;
 
 	export function setLogger(replacementLogger: LoggerController): void;
+
+	export function getLogger(): LoggerController;
 }
 
 declare module 'parse-server/lib/defaults' {
