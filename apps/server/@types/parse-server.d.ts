@@ -193,7 +193,7 @@ declare module 'parse-server' {
 
 	// logger instance
 	// eslint-disable-next-line import/no-unresolved
-	export { logger } from 'parse-server/lib/logger';
+	// export { logger } from 'parse-server/lib/logger';
 }
 
 declare module 'parse-server/lib/logger' {
