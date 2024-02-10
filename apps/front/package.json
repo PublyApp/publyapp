@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build && vite build --ssr",
+		"build:local": "vite build --mode _local && vite build --ssr --mode _local",
     "start": "remix-serve ./build/server/index.js",
     "type-check": "tsc"
   },
