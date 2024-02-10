@@ -2,12 +2,12 @@
 /* eslint-disable no-await-in-loop */
 import { existsSync, promises as fs } from 'fs';
 
-import { logger } from 'parse-server/lib/logger';
-
 import { className, roleEnum } from '@devist/shared/lib/constants';
 
 import { FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@/server/lib/constants';
 import { getDatabase } from '@/server/lib/parse';
+
+import logger from '../lib/logger';
 
 export const createRolesIfNotExists = async () => {
 	const roleEntries = Object.values(roleEnum).map((e) => {

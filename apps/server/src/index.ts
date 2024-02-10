@@ -1,7 +1,7 @@
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-import ParseServer from 'parse-server';
-import { logger } from 'parse-server/lib/logger';
+import * as ps from 'parse-server/lib/index.js';
 
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import dotenv from 'dotenv';
@@ -11,10 +11,11 @@ import ParseDashboard from 'parse-dashboard';
 
 import { endPoint } from '@/shared/lib/constants';
 
+import { cloud } from './cloud/_index';
 import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
 import { env, envSchema, setAppEnv } from './lib/env';
-import { consoleTransport } from './lib/logger';
+import logger, { consoleTransport } from './lib/logger';
 import { multerConfig } from './lib/multer';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
@@ -26,6 +27,9 @@ import PostSchema from './resources/post/post.schema';
 import RoleSchema from './resources/role/role.schema';
 import UserSchema from './resources/user/user.schema';
 import WebHostSchema from './resources/webHost/webHost.schema';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
@@ -67,10 +71,11 @@ const bootstrap = async () => {
 	});
 
 	// initialize parse server
-	const parseServer = new ParseServer({
+	const parseServer = new ps.ParseServer({
 		appId: PARSE_APP_ID,
 		masterKey: PARSE_MASTER_KEY,
-		cloud: path.resolve(__dirname, './cloud/_index'),
+		// cloud: path.resolve(__dirname, './cloud/_index'),
+		cloud,
 		databaseURI: DATABASE_URI,
 		serverURL: PARSE_SERVER_URL,
 		publicServerURL: PARSE_SERVER_URL,
@@ -87,11 +92,12 @@ const bootstrap = async () => {
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
 		// allowHeaders: ['Access-Control-Expose-Headers', 'access-control-expose-headers', 'Etag'],
-		directAccess: true,
+		// directAccess: true,
 	});
 
 	// setup a better console transport for our logger
 	logger.adapter.addTransport(consoleTransport);
+	// console.log('😡😡😡😡😡', ps);
 
 	await parseServer.start();
 

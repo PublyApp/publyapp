@@ -1,5 +1,5 @@
 import { SchemaMigrations, type Schema } from 'parse-server';
-import Config from 'parse-server/lib/Config';
+import Config from 'parse-server/lib/Config.js';
 
 // import { TFunction } from 'i18next';
 import _ from 'lodash';

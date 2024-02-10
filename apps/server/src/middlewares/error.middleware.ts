@@ -1,8 +1,8 @@
-import { logger } from 'parse-server/lib/logger';
-
 import type { NextFunction, Request, Response } from 'express';
 
 import type { HttpException } from '@/server/exceptions/HttpException';
+
+import logger from '../lib/logger';
 
 const errorMiddleware = (error: HttpException, req: Request, res: Response, next: NextFunction) => {
 	try {
