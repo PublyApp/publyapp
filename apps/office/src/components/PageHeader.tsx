@@ -99,10 +99,13 @@ const LinkItem = ({ link, activeLast, disabled }: LinkItemProps) => {
 // ----------------------------------------------------------------------
 
 const PageHeader = ({
-	/* links, */ action,
+	/* links, */
+	action,
 	heading,
 	moreLink,
-	/* activeLast, */ sx /* ...other  */,
+	/* activeLast, */
+	sx,
+	/* ...other  */
 	breadcrumbs,
 }: PageHeaderProps) => {
 	// const lastLink = links[links.length - 1].name;

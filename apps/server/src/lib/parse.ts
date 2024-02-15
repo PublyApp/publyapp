@@ -1,4 +1,5 @@
 import { SchemaMigrations, type Schema } from 'parse-server';
+// eslint-disable-next-line import/extensions
 import Config from 'parse-server/lib/Config.js';
 
 // import { TFunction } from 'i18next';

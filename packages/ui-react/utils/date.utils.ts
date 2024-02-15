@@ -16,6 +16,11 @@ export const fDateTime = (date: InputValue, newFormat?: string) => {
 	return date ? format(new Date(date), fm) : '';
 };
 
+export const fTime = (date: InputValue, newFormat?: string) => {
+	const fm = newFormat || 'p';
+	return fDateTime(date, fm);
+};
+
 export const fTimestamp = (date: InputValue) => {
 	return date ? getTime(new Date(date)) : '';
 };

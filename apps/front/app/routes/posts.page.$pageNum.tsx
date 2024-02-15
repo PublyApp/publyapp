@@ -11,11 +11,11 @@ import { safelyRunInLoader } from '../lib/remix/safelyRun';
 export const loader = (async ({ params }) => {
 	const pageNum = Number(params.pageNum);
 
-	const posts = await safelyRunInLoader(findPost)({ pageNum });
+	const posts = await safelyRunInLoader(findPost)({ page: pageNum });
 
 	return {
 		posts,
-		aaaa: new Error('aaaa'),
+		// aaaa: new Error('aaaa'),
 	};
 }) satisfies LoaderFunction;
 
