@@ -2,14 +2,16 @@ import type { QueryFunction } from '@tanstack/react-query';
 
 import {
 	runCreatePost,
+	runFindPost,
 	runGetPostById,
 	type CreatePostFunctionParams,
+	type FinPostFunctionParams,
 	type GetPostByIdFunctionParams,
 	// type GetPostByIdFunctionResult,
 } from '@devist/shared/lib/parse/cloudRunners/post.runner';
 
 import type { functionName } from '@/shared/lib/constants';
-import type { IPostWithRelations } from '@/shared/types/db/post.types';
+import type { IPostWithRelations, TranslatedIPostWithParseRelations } from '@/shared/types/db/post.types';
 
 // ---- 1 --------------------------------------------------------------------------------
 
@@ -47,6 +49,32 @@ export const getPostByIdAction: QueryFunction<
 
 // ---- 3 --------------------------------------------------------------------------------
 
-export const updatePostMutationAction = async () => {
+export const updatePostAction = async () => {
 	return null;
+};
+
+// ---- 4 --------------------------------------------------------------------------------
+
+export type FindPostQueryParams = FinPostFunctionParams;
+export type FindPostActionResult = TranslatedIPostWithParseRelations[];
+
+export const findPostAction: QueryFunction<
+	FindPostActionResult,
+	readonly [typeof functionName.findPost, FindPostQueryParams]
+> = async (context) => {
+	try {
+		const params = context.queryKey[1];
+		// console.log(params);
+
+		// const posts = await runFindPost(params);
+		// return posts;
+		// await sleep(3000);
+		// return [];
+		const posts = await runFindPost(params);
+		console.log('🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡', posts);
+		return posts;
+	} catch (error) {
+		console.log('----- findPostAction error ----------', error);
+		return Promise.reject(error);
+	}
 };

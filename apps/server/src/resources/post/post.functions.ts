@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import { functionName, roleSet } from '@devist/shared/lib/constants';
 import { getCreatePostInputSchema, getUpdatePostInputSchema } from '@devist/shared/validations/post.validations';
 
@@ -116,17 +118,59 @@ const getPostFunction = parseFrom({
 
 export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
 
+const findPostFunctionParamsSchema = getListParamsSchema.and(
+	z.discriminatedUnion('view', [
+		z.object({
+			view: z.literal('front-list'),
+		}),
+		z.object({
+			view: z.literal('bo-table'),
+			fromPublic: z.boolean().optional().default(true),
+		}),
+	]),
+);
+
 const findPostFunction = parseFrom({
 	requireUser: false,
 	action: async ({ req, user, locale }) => {
-		const { page, pageSize, sorting, fromPublic = false } = getListParamsSchema.parse(req.params);
+		const { page, pageSize, sorting, ...params } = findPostFunctionParamsSchema.parse(req.params);
 
-		const sessionToken = fromPublic ? '' : user?.getSessionToken();
-
+		const sessionToken = user?.getSessionToken();
 		const postService = new PostService({ sessionToken, headers: req.headers });
 
-		const posts = await postService.find({ page, pageSize, sorting, locale, fromPublic });
-		return posts;
+		if (params.view === 'front-list') {
+			const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
+			return posts;
+		}
+
+		if (params.view === 'bo-table') {
+			const posts = await postService.findPostBoTable({
+				page,
+				pageSize,
+				sorting,
+				locale,
+				fromPublic: params.fromPublic,
+			});
+			return posts;
+		}
+
+		return [];
+
+		// const foundPosts = await postService.find({
+		// 	page,
+		// 	pageSize,
+		// 	sorting,
+		// 	locale,
+		// 	fromPublic,
+		// 	json: true,
+		// 	include: ['author'],
+		// });
+
+		// return foundPosts;
+
+		// const finalPosts = postAdapter.boPostsTable(foundPosts, { locale });
+
+		// return finalPosts;
 	},
 });
 

@@ -28,7 +28,7 @@ export const useLogInMutation = ({ onSuccess }: UseLogInMutationProps = {}) => {
 export const getClientAuthQueryKeyBase = 'getClientAuth' as const;
 
 export const getClientAuthQuery = queryOptions({
-	queryKey: [getClientAuthQueryKeyBase],
+	queryKey: [getClientAuthQueryKeyBase] as const,
 	queryFn: getClientAuthAction,
 });
 

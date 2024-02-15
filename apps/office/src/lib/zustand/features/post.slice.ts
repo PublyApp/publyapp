@@ -1,36 +1,41 @@
 import type { Dispatch, SetStateAction } from 'react';
 
 import _ from 'lodash';
-import type { UseFormReturn } from 'react-hook-form';
+
+// import type { UseFormReturn } from 'react-hook-form';
 
 import type { ParsePost } from '@devist/shared/lib/parse/classes/post.class';
+
+import type { TranslatedIPostWithParseRelations } from '@/shared/types/db/post.types';
 
 import type { RootState } from '../slices';
 import Slice from '../utils/Slice';
 
 export type PostSliceValues = {
-	// bear: number;
+	// edit post page
 	currentlyEditedPost: ParsePost | undefined;
 
-	hookForm: UseFormReturn | undefined;
+	// posts list (table)
+	posts: TranslatedIPostWithParseRelations[];
+	selectedPosts: TranslatedIPostWithParseRelations[];
 };
 
 export type PostSliceActions = {
-	// addBear: () => void;
-	// removeBear: () => void;
 	setCurrentlyEditedPost: Dispatch<SetStateAction<PostSliceValues['currentlyEditedPost']>>;
-	setHookForm: Dispatch<SetStateAction<PostSliceValues['hookForm']>>;
 
-	// savePostHandler: (...args: any[]) => any;
-	// setSavePostHandler: (fn: (...args: any[]) => any) => void;
+	setPosts: Dispatch<SetStateAction<PostSliceValues['posts']>>;
+	// addPost: VoidFunction;
+	// removePost: VoidFunction;
+	// updatePost: VoidFunction;
 };
 
 export type PostSliceState = PostSliceValues & PostSliceActions;
 
 const defaultValues: PostSliceValues = {
-	// bear: 0,
 	currentlyEditedPost: undefined,
-	hookForm: undefined,
+
+	posts: [],
+	selectedPosts: [],
 };
 
 const sliceName = 'postSlice' as const;
@@ -40,8 +45,8 @@ const PostSlice = new Slice<PostSliceState, typeof sliceName>({
 	defaultValues,
 	initializer: (set) => {
 		return {
-			// PostSlice: {
 			...defaultValues,
+
 			setCurrentlyEditedPost: (value) => {
 				set((state) => {
 					let newValue: PostSliceValues['currentlyEditedPost'];
@@ -55,74 +60,37 @@ const PostSlice = new Slice<PostSliceState, typeof sliceName>({
 					// eslint-disable-next-line no-param-reassign
 					state.postSlice.currentlyEditedPost = newValue;
 				});
-				// 	set()
-				// }
 			},
-			setHookForm: (value) => {
+
+			setPosts: (value) => {
 				set((state) => {
-					let newValue: PostSliceValues['hookForm'];
+					let newValue: PostSliceValues['posts'];
 
 					if (_.isFunction(value)) {
-						newValue = value(state.postSlice.hookForm as never);
+						newValue = value(state.postSlice.posts);
 					} else {
 						newValue = value;
 					}
 
 					// eslint-disable-next-line no-param-reassign
-					state.postSlice.hookForm = newValue as never;
+					state.postSlice.posts = newValue;
 				});
-				// 	set()
-				// }
 			},
-			// savePostHandler: () => {
-			// 	console.log('-- default savePostHandler ---');
-			// },
-			// setSavePostHandler: (fn) => {
-			// 	set((state) => {
-			// 		// eslint-disable-next-line no-param-reassign
-			// 		state.postSlice.savePostHandler = fn;
-			// 	});
-			// },
-			// addBear: () => {
-			// 	set((state) => {
-			// 		// eslint-disable-next-line no-param-reassign
-			// 		state.postSlice.bear += 1;
-			// 	});
-			// },
-			// removeBear: () => {
-			// 	set((state) => {
-			// 		// eslint-disable-next-line no-param-reassign
-			// 		state.postSlice.bear -= 1;
-			// 	});
-			// 	// },
-			// },
 		};
 	},
-	// persistedFields: [
-	// 	//
-	// 	// 'bear',
-	// ],
 });
 
 export default PostSlice;
 
 // ---- selectors ------------------------------------------------------------------------
-export const selectCurrentlyEditedPost = (s: RootState) => {
-	return s.postSlice.currentlyEditedPost;
+export const selectCurrentlyEditedPost = (state: RootState) => {
+	return state.postSlice.currentlyEditedPost;
 };
 
-export const selectHookForm = (s: RootState) => {
-	return s.postSlice.hookForm;
+export const selectPosts = (state: RootState) => {
+	return state.postSlice.posts;
 };
 
-export const setHookForm = (s: RootState) => {
-	return s.postSlice.setHookForm;
+export const selectSetPosts = (state: RootState) => {
+	return state.postSlice.setPosts;
 };
-
-// export const selectSetSavePostHandler = (s: RootState) => {
-// 	return s.postSlice.setSavePostHandler;
-// };
-
-// export const selectSavePostHandler = (s: RootState) => {
-// 	return s.postSlice.savePostHandler;
-// };

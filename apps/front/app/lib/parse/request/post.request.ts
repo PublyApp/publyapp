@@ -3,6 +3,12 @@ import type { IPostWithRelations } from '@/shared/types/db/post.types';
 
 import { parseApi } from '../client';
 
-export const findPost = async ({ pageNum }: { pageNum: number }) => {
-	return parseApi.cloudRun<IPostWithRelations[]>(functionName.findPost, { params: { pageNum } });
+type FindPostParams = {
+	page: number;
+	pagesize?: number;
+	// no sorting yet
+};
+
+export const findPost = async ({ page }: FindPostParams) => {
+	return parseApi.cloudRun<IPostWithRelations[]>(functionName.findPost, { params: { view: 'front-list', page } });
 };

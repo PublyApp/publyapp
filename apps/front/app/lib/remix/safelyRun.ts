@@ -3,6 +3,7 @@ import _ from 'lodash';
 /**
  * Generic function that accepts any number of parameters.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GenericFunction = ((...args: any[]) => any) | ((...args: any[]) => Promise<any>);
 
 /**
@@ -11,7 +12,10 @@ type GenericFunction = ((...args: any[]) => any) | ((...args: any[]) => Promise<
  *
  * @param F - Function that should be wrapped.
  */
-type TryCatchWrapper<F extends GenericFunction> = (...args: Parameters<F>) => ReturnType<F>;
+type TryCatchWrapper<F extends GenericFunction> = (
+	...args: Parameters<F>
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+) => ReturnType<F> extends PromiseLike<any> ? ReturnType<F> | Promise<Error> : ReturnType<F> | Error;
 
 /**
  * Wraps a function within a try/catch block to catch any
