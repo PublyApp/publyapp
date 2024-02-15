@@ -17,6 +17,7 @@ const PostSchema = SchemaMigrations.makeSchema(className.POST, {
 		publishDate: { type: 'Date' },
 		updateDate: { type: 'Date' },
 		views: { type: 'Number' },
+		coverUrl: { type: 'String' },
 		// shares: { type: 'Number' }, // TODO
 		// commentCount: create PostComment collection and do a query to get that
 		// relatedArticles create a query for that

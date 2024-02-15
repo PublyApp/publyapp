@@ -1,4 +1,4 @@
-import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
 
@@ -6,8 +6,9 @@ import { BO_PATH_NAMES, functionName } from '@/shared/lib/constants';
 
 import {
 	createPostAction,
+	findPostAction,
 	getPostByIdAction,
-	updatePostMutationAction,
+	updatePostAction,
 	type GetPostByIdQueryParams,
 } from './post.actions';
 
@@ -66,7 +67,7 @@ export const getPostByIdSuspenseQueryKeyBase = functionName.getPost;
 
 export const getPostByIdQuery = (params: GetPostByIdQueryParams) => {
 	return queryOptions({
-		queryKey: [getPostByIdSuspenseQueryKeyBase, params],
+		queryKey: [getPostByIdSuspenseQueryKeyBase, params] as const,
 		queryFn: getPostByIdAction,
 	});
 };
@@ -112,8 +113,54 @@ export const useUpdatePostMutation = () => {
 
 	const result = useMutation({
 		mutationKey: key,
-		mutationFn: updatePostMutationAction,
+		mutationFn: updatePostAction,
 	});
 
 	return { result, key };
+};
+
+// ---- 4 --------------------------------------------------------------------------------
+
+export const findPostQueryKeyBase = functionName.findPost;
+
+export type FindPostQueryParams = {};
+
+export const findPostQuery = (params: FindPostQueryParams) => {
+	return queryOptions({
+		queryKey: [getPostByIdSuspenseQueryKeyBase, params] as const,
+		queryFn: findPostAction,
+	});
+};
+
+type UseFindPostSuspenseQueryProps = {
+	params: FindPostQueryParams;
+	options?: Omit<ReturnType<typeof findPostQuery>, 'queryKey' | 'queryFn'>;
+};
+
+export const useFindPostSuspenseQuery = (props: UseFindPostSuspenseQueryProps) => {
+	const query = findPostQuery(props.params);
+
+	const result = useSuspenseQuery({
+		...query,
+		...props.options,
+	});
+
+	return {
+		key: query.queryKey,
+		result,
+	};
+};
+
+export const useFindPostQuery = (props: UseFindPostSuspenseQueryProps) => {
+	const query = findPostQuery(props.params);
+
+	const result = useQuery({
+		...query,
+		...props.options,
+	});
+
+	return {
+		key: query.queryKey,
+		result,
+	};
 };

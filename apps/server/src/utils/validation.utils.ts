@@ -10,6 +10,6 @@ export const getListParamsSchema = z.object({
 		})
 		.array()
 		.optional(),
-	fromPublic: z.boolean().optional(),
+	// fromPublic: z.boolean().optional(),
 	// fromStaff: z.boolean().optional(),
 });

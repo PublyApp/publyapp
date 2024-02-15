@@ -4,7 +4,8 @@ import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
 import Toolbar from '@mui/material/Toolbar';
-import { useTranslation } from 'react-i18next';
+
+// import { useTranslation } from 'react-i18next';
 
 // import { useTranslation } from '@devist/ui-react/lib/i18n';
 
@@ -39,7 +40,7 @@ type Props = {
 };
 
 const Header = ({ onOpenNav }: Props) => {
-	const { t } = useTranslation();
+	// const { t } = useTranslation();
 	const theme = useTheme();
 
 	// const settings = useSettingsContext();
@@ -117,7 +118,7 @@ const Header = ({ onOpenNav }: Props) => {
 					px: { lg: 5 },
 				}}
 			>
-				{t('hello')}
+				{/* {t('hello')} */}
 				{renderContent}
 			</Toolbar>
 		</AppBar>

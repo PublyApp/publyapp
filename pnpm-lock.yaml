@@ -264,6 +264,9 @@ importers:
       '@mui/material':
         specifier: ^5.15.4
         version: 5.15.7(@emotion/react@11.11.3)(@emotion/styled@11.11.0)(@types/react@18.2.53)(react-dom@18.2.0)(react@18.2.0)
+      '@mui/x-data-grid':
+        specifier: ^6.18.7
+        version: 6.19.3(@mui/material@5.15.7)(@mui/system@5.15.7)(@types/react@18.2.53)(react-dom@18.2.0)(react@18.2.0)
       '@mui/x-date-pickers':
         specifier: ^6.19.0
         version: 6.19.3(@emotion/react@11.11.3)(@emotion/styled@11.11.0)(@mui/material@5.15.7)(@mui/system@5.15.7)(@types/react@18.2.53)(date-fns@2.30.0)(react-dom@18.2.0)(react@18.2.0)

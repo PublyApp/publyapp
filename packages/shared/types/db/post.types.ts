@@ -51,3 +51,6 @@ export type IPostWithParseRelations = IPost & {
 	author: IUser;
 	cover?: ParseAppFile;
 };
+
+export type TranslatedIPostWithRelations = PostTranslation & IPostWithRelations;
+export type TranslatedIPostWithParseRelations = PostTranslation & IPostWithParseRelations;

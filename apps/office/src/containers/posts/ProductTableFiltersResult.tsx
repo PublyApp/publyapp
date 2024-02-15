@@ -1,0 +1,141 @@
+import { useCallback } from 'react';
+
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Paper from '@mui/material/Paper';
+import Stack, { type StackProps } from '@mui/material/Stack';
+
+import Iconify from '@devist/ui-react/components/Iconify';
+import type { IProductTableFilters, IProductTableFilterValue } from '@devist/ui-react/types/product';
+
+// ----------------------------------------------------------------------
+
+type Props = StackProps & {
+	filters: IProductTableFilters;
+	onFilters: (name: string, value: IProductTableFilterValue) => void;
+	//
+	onResetFilters: VoidFunction;
+	//
+	results: number;
+};
+
+const ProductTableFiltersResult = ({
+	filters,
+	onFilters,
+	//
+	onResetFilters,
+	//
+	results,
+	...other
+}: Props) => {
+	const handleRemoveStock = useCallback(
+		(inputValue: string) => {
+			const newValue = filters.stock.filter((item) => {
+				return item !== inputValue;
+			});
+
+			onFilters('stock', newValue);
+		},
+		[filters.stock, onFilters],
+	);
+
+	const handleRemovePublish = useCallback(
+		(inputValue: string) => {
+			const newValue = filters.publish.filter((item) => {
+				return item !== inputValue;
+			});
+
+			onFilters('publish', newValue);
+		},
+		[filters.publish, onFilters],
+	);
+
+	return (
+		<Stack spacing={1.5} {...other}>
+			<Box sx={{ typography: 'body2' }}>
+				<strong>{results}</strong>
+				<Box component="span" sx={{ color: 'text.secondary', ml: 0.25 }}>
+					results found
+				</Box>
+			</Box>
+
+			<Stack flexGrow={1} spacing={1} direction="row" flexWrap="wrap" alignItems="center">
+				{!!filters.stock.length && (
+					// eslint-disable-next-line @typescript-eslint/no-use-before-define
+					<Block label="Stock:">
+						{filters.stock.map((item) => {
+							return (
+								<Chip
+									key={item}
+									label={item}
+									size="small"
+									onDelete={() => {
+										return handleRemoveStock(item);
+									}}
+								/>
+							);
+						})}
+					</Block>
+				)}
+
+				{!!filters.publish.length && (
+					// eslint-disable-next-line @typescript-eslint/no-use-before-define
+					<Block label="Publish:">
+						{filters.publish.map((item) => {
+							return (
+								<Chip
+									key={item}
+									label={item}
+									size="small"
+									onDelete={() => {
+										return handleRemovePublish(item);
+									}}
+								/>
+							);
+						})}
+					</Block>
+				)}
+
+				<Button color="error" onClick={onResetFilters} startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}>
+					Clear
+				</Button>
+			</Stack>
+		</Stack>
+	);
+};
+
+export default ProductTableFiltersResult;
+
+// ----------------------------------------------------------------------
+
+type BlockProps = StackProps & {
+	label: string;
+};
+
+const Block = ({ label, children, sx, ...other }: BlockProps) => {
+	return (
+		<Stack
+			component={Paper}
+			variant="outlined"
+			spacing={1}
+			direction="row"
+			sx={{
+				p: 1,
+				borderRadius: 1,
+				overflow: 'hidden',
+				borderStyle: 'dashed',
+				...sx,
+			}}
+			{...other}
+		>
+			<Box component="span" sx={{ typography: 'subtitle2' }}>
+				{label}
+			</Box>
+
+			<Stack spacing={1} direction="row" flexWrap="wrap">
+				{children}
+			</Stack>
+		</Stack>
+	);
+};

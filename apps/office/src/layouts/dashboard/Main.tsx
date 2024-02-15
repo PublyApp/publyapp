@@ -62,7 +62,7 @@ const Main = ({ children, sx, ...other }: BoxProps) => {
 					...(isNavMini
 						? {
 								width: `calc(100% - ${NAV.W_MINI}px)`,
-						  }
+							}
 						: {}),
 				}),
 				...sx,

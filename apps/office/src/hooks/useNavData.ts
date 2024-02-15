@@ -61,7 +61,7 @@ export const useNavData = () => {
 				subheader: 'overview v5.5.0',
 				items: [
 					{ title: 'dashboard', path: BO_PATH_NAMES.dashboard.root, icon: ICONS.dashboard },
-					{ title: 'file manager', path: BO_PATH_NAMES.dashboard.fileManager.root, icon: ICONS.dashboard },
+					// { title: 'file manager', path: BO_PATH_NAMES.dashboard.fileManager.root, icon: ICONS.dashboard },
 					// { title: 'two', path: paths.dashboard.two, icon: ICONS.ecommerce },
 					// {
 					// 	title: 'three',

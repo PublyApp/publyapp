@@ -54,3 +54,10 @@ export type IProductOrderProps = {
 	orderId: string;
 	deliveryDate: Date | string | number;
 };
+
+export type IProductTableFilterValue = string | string[];
+
+export type IProductTableFilters = {
+	stock: string[];
+	publish: string[];
+};

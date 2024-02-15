@@ -105,6 +105,9 @@ export const BO_PATH_NAMES = {
 			edit: (postId?: string) => {
 				return makePath(ROOTS.DASHBOARD, RESOURCE.posts, 'edit', postId || '');
 			},
+			details: (postId: string) => {
+				return makePath(ROOTS.DASHBOARD, RESOURCE.posts, postId);
+			},
 		},
 		fileManager: {
 			root: makePath(ROOTS.DASHBOARD, RESOURCE.fileManager),

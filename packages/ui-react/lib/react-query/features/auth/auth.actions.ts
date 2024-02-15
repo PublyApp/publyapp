@@ -47,6 +47,8 @@ export async function getUserRoles(user: Parse.User, toJSON?: boolean) {
 	return rolesJSON;
 }
 
+// ---- 1 --------------------------------------------------------------------------------
+
 export const logInAction = async (input: LogInInput) => {
 	try {
 		const { email, password } = input;
@@ -61,6 +63,8 @@ export const logInAction = async (input: LogInInput) => {
 		return Promise.reject(error);
 	}
 };
+
+// ---- 2 --------------------------------------------------------------------------------
 
 export const logOutAction = async (): Promise<void> => {
 	try {

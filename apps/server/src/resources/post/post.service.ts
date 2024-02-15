@@ -1,11 +1,11 @@
 import _ from 'lodash';
 
 import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
-import { defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
+import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type { ParseAppFile } from '@/shared/lib/parse/classes/appFile.class';
 import { ParsePost } from '@/shared/lib/parse/classes/post.class';
 import type { ParseUser } from '@/shared/lib/parse/classes/user.class';
-import type { IPostWithParseRelations } from '@/shared/types/db/post.types';
+import type { IPostWithParseRelations, IPostWithRelations } from '@/shared/types/db/post.types';
 
 import { applySkipAndLimit, applySorting } from '../../lib/parse';
 
@@ -46,8 +46,16 @@ type FindPostInput = {
 	pageSize?: number;
 	sorting?: { id: string; desc: boolean }[];
 	locale?: AppLocale;
-	fromPublic: boolean | undefined;
+	json?: boolean;
+	select?: string[];
+	include?: string[];
+	exclude?: string[];
+	// sessionToken?: string;
+	fromPublic?: boolean;
 };
+
+type FindPostFrontListParams = Pick<FindPostInput, 'page' | 'pageSize' | 'sorting' | 'locale'>;
+type FindPostBoTableParams = FindPostFrontListParams & { fromPublic: boolean };
 
 export default class PostService {
 	sessionToken?: string;
@@ -157,7 +165,7 @@ export default class PostService {
 		return post.save(attributes as never, { sessionToken });
 	}
 
-	getById(objectId: string, options: { select?: string[] } = {}) {
+	async getById(objectId: string, options: { select?: string[] } = {}) {
 		const query = new Parse.Query(ParsePost).equalTo('objectId', objectId);
 
 		if (options.select) {
@@ -167,7 +175,7 @@ export default class PostService {
 		return query.first({ sessionToken: this.sessionToken });
 	}
 
-	getBySlug(slug: string, { select }: { select?: string[] } = {}) {
+	async getBySlug(slug: string, { select }: { select?: string[] } = {}) {
 		const query = new Parse.Query(ParsePost).equalTo('slug', slug);
 
 		if (select) {
@@ -177,12 +185,20 @@ export default class PostService {
 		return query.first({ sessionToken: this.sessionToken });
 	}
 
-	find({
+	async find(params: Omit<FindPostInput, 'json'> & { json: true }): Promise<IPostWithParseRelations[]>;
+	async find(params: Omit<FindPostInput, 'json'> & { json?: false | undefined }): Promise<ParsePost[]>;
+	async find({
 		page = 1,
 		pageSize = DEFAULT_PAGE_SIZE,
 		sorting = [],
 		locale = defaultLocale,
-		// fromPublic = false,
+		select,
+		include,
+		exclude,
+		// ===
+		json = false,
+		fromPublic = true,
+		// sessionToken = this.sessionToken,
 	}: FindPostInput) {
 		const query = new Parse.Query(ParsePost);
 		applySkipAndLimit(query, { type: 'page', page, pageSize });
@@ -191,11 +207,34 @@ export default class PostService {
 			applySorting(query, sorting);
 		}
 
-		if (locale) {
-			query.exists(`translation.${locale}` as never);
+		// locale filter
+		query.exists(`translation.${locale}` as never);
+
+		if (select) {
+			query.select(select as never);
 		}
 
-		return query.find({ sessionToken: this.sessionToken /* , context: { headers: this.headers, fromPublic } */ });
+		if (include) {
+			query.include(include as never);
+		}
+
+		if (exclude) {
+			query.exclude(exclude as never);
+		}
+
+		const sessionToken = fromPublic ? undefined : this.sessionToken;
+
+		const posts = await query.find({
+			sessionToken,
+			json,
+			/* , context: { headers: this.headers, fromPublic } */
+		});
+
+		if (json) {
+			return posts as unknown as IPostWithParseRelations[];
+		}
+
+		return posts;
 
 		// const sortingOperations: Record<string, 1 | -1> = {};
 		// if (sorting && !_.isEmpty(sorting)) {
@@ -213,5 +252,56 @@ export default class PostService {
 		// 	{ $project: { _id: 1 } },
 		// ];
 		// return postService.aggregate(pipeline);
+	}
+
+	static getExcludedTranslations(locale: AppLocale) {
+		const excludedTranslations: string[] = [];
+
+		appLocales.forEach((iLocale) => {
+			if (iLocale === locale) return;
+			excludedTranslations.push(`translation.${iLocale}`);
+		});
+
+		return excludedTranslations;
+	}
+
+	async findPostBoTable({ page, pageSize, sorting, locale = defaultLocale, fromPublic }: FindPostBoTableParams) {
+		const include = ['author'];
+		const exclude = PostService.getExcludedTranslations(locale as never);
+
+		const posts = await this.find({ page, pageSize, sorting, locale, include, exclude, json: true, fromPublic });
+
+		const finalPosts = posts.map((post) => {
+			_.unset(post, 'author.__type');
+			_.assign(post, post.translation[locale]);
+			return post as unknown as IPostWithRelations;
+		});
+
+		return finalPosts;
+	}
+
+	async findPostFrontList({ page, pageSize, sorting, locale = defaultLocale }: FindPostFrontListParams) {
+		const include = ['author'];
+		const exclude = PostService.getExcludedTranslations(locale as never);
+
+		const posts = await this.find({
+			page,
+			pageSize,
+			sorting,
+			locale,
+			include,
+			exclude,
+			json: true,
+			fromPublic: true,
+			// sessionToken: PUBLIC_SESSION_TOKEN,
+		});
+
+		const finalPosts = posts.map((post) => {
+			_.unset(post, 'author.__type');
+			_.assign(post, post.translation[locale]);
+			return post as unknown as IPostWithRelations;
+		});
+
+		return finalPosts;
 	}
 }

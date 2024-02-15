@@ -5,7 +5,7 @@ import { unstable_useEnhancedEffect as useEnhancedEffect, useTheme } from '@mui/
 import {
 	isRouteErrorResponse,
 	Links,
-	LiveReload,
+	// LiveReload,
 	Meta,
 	Outlet,
 	Scripts,
@@ -73,7 +73,7 @@ const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCa
 				{children}
 				<ScrollRestoration />
 				<Scripts />
-				<LiveReload />
+				{/* <LiveReload /> */} {/* ! obsolete if using vite */}
 			</body>
 		</html>
 	);
