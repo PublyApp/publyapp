@@ -27,7 +27,7 @@ import { useSnackbar } from 'notistack';
 import EmptyContent from '@/office/components/EmptyContent';
 import PageHeader from '@/office/components/PageHeader';
 import RouterLink from '@/office/components/RouterLink';
-import { selectSetPosts } from '@/office/lib/zustand/features/post.slice';
+import { selectPosts, selectSetPosts } from '@/office/lib/zustand/features/post.slice';
 import { useMainStore } from '@/office/lib/zustand/store';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 // import Iconify from '@/office/components/iconify';
@@ -40,6 +40,7 @@ import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import Iconify from '@/ui-react/components/Iconify';
 import useBoolean from '@/ui-react/hooks/useBoolean';
 import useRouter from '@/ui-react/hooks/useRouter';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 import { useFindPostQuery } from '@/ui-react/lib/react-query/features/posts/post.hooks';
 import type { IProductTableFilters } from '@/ui-react/types/product';
 
@@ -49,7 +50,7 @@ import {
 	RenderCellPrice,
 	RenderCellProduct,
 	RenderCellPublish,
-	RenderCellStock,
+	// RenderCellStock,
 } from './ProductTableRow';
 import ProductTableToolbar from './ProductTableToolbar';
 
@@ -82,6 +83,8 @@ export const PRODUCT_STOCK_OPTIONS = [
 // ----------------------------------------------------------------------
 
 const ProductListView = () => {
+	const { t } = useTranslate();
+
 	const { enqueueSnackbar } = useSnackbar();
 
 	const confirmRows = useBoolean();
@@ -92,7 +95,7 @@ const ProductListView = () => {
 
 	// const { products, productsLoading } = useGetProducts();
 	const {
-		result: { data: findPostData, isLoading: isFindPostLoading },
+		result: { data: findPostData, /* isLoading: isFindPostLoading, */ isFetching: isFindPostFetching },
 	} = useFindPostQuery({ params: {} });
 
 	// const [tableData, setTableData] = useState<IProductItem[]>([]);
@@ -103,6 +106,7 @@ const ProductListView = () => {
 
 	const [columnVisibilityModel, setColumnVisibilityModel] = useState<GridColumnVisibilityModel>(HIDE_COLUMNS);
 
+	const posts = useMainStore(selectPosts);
 	const setPosts = useMainStore(selectSetPosts);
 
 	useEffect(() => {
@@ -117,7 +121,7 @@ const ProductListView = () => {
 	// 	inputData: tableData,
 	// 	filters,
 	// });
-	const dataFiltered: any[] = [];
+	// const dataFiltered: any[] = [];
 
 	const canReset = !_.isEqual(defaultFilters, filters);
 
@@ -172,13 +176,13 @@ const ProductListView = () => {
 	);
 
 	const columns: GridColDef[] = [
+		// {
+		// 	field: 'category',
+		// 	headerName: 'Category',
+		// 	filterable: false,
+		// },
 		{
-			field: 'category',
-			headerName: 'Category',
-			filterable: false,
-		},
-		{
-			field: 'name',
+			field: 'title',
 			headerName: 'Product',
 			flex: 1,
 			minWidth: 360,
@@ -189,25 +193,25 @@ const ProductListView = () => {
 		},
 		{
 			field: 'createdAt',
-			headerName: 'Create at',
+			headerName: t('created-at'),
 			width: 160,
 			renderCell: (params) => {
 				return <RenderCellCreatedAt params={params} />;
 			},
 		},
-		{
-			field: 'inventoryType',
-			headerName: 'Stock',
-			width: 160,
-			type: 'singleSelect',
-			valueOptions: PRODUCT_STOCK_OPTIONS,
-			renderCell: (params) => {
-				return <RenderCellStock params={params} />;
-			},
-		},
+		// {
+		// 	field: 'inventoryType',
+		// 	headerName: 'Stock',
+		// 	width: 160,
+		// 	type: 'singleSelect',
+		// 	valueOptions: PRODUCT_STOCK_OPTIONS,
+		// 	renderCell: (params) => {
+		// 		return <RenderCellStock params={params} />;
+		// 	},
+		// },
 		{
 			field: 'price',
-			headerName: 'Price',
+			headerName: t('common:views'),
 			width: 140,
 			editable: true,
 			renderCell: (params) => {
@@ -305,7 +309,7 @@ const ProductListView = () => {
 							links={[
 								{ name: 'Dashboard', href: BO_PATH_NAMES.dashboard.root },
 								{
-									name: 'Product',
+									name: 'Posts',
 									href: BO_PATH_NAMES.dashboard.posts.root,
 								},
 								{ name: 'List' },
@@ -321,7 +325,8 @@ const ProductListView = () => {
 							variant="contained"
 							startIcon={<Iconify icon="mingcute:add-line" />}
 						>
-							New Product
+							{/* New Post */}
+							{t('common:new-post')}
 						</Button>
 					}
 					sx={{
@@ -341,11 +346,15 @@ const ProductListView = () => {
 					}}
 				>
 					<DataGrid
+						getRowId={(row) => {
+							return row.objectId;
+						}}
 						checkboxSelection
 						disableRowSelectionOnClick
-						rows={dataFiltered}
+						// rows={dataFiltered}
+						rows={posts}
 						columns={columns}
-						loading={isFindPostLoading}
+						loading={isFindPostFetching}
 						getRowHeight={() => {
 							return 'auto';
 						}}
@@ -400,7 +409,8 @@ const ProductListView = () => {
 												filters={filters}
 												onFilters={handleFilters}
 												onResetFilters={handleResetFilters}
-												results={dataFiltered.length}
+												// results={dataFiltered.length}
+												results={posts.length}
 												sx={{ p: 2.5, pt: 0 }}
 											/>
 										)}

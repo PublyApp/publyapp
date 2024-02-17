@@ -18,5 +18,8 @@
 			"maxLength": "{{field}} must have {{maxLength}} characters or less",
 			"invalid": "Invalid {{field}}"
 		}
-	}
+	},
+	"new-post": "New post",
+	"views": "Views",
+	"created-at": "Created at"
 }

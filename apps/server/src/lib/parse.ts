@@ -86,7 +86,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		const { user, headers } = req;
 
-		const localeInHeader: string | undefined = headers?.[LOCALE_HEADER_KEY];
+		const localeInHeader: string | undefined = headers?.[_.toLower(LOCALE_HEADER_KEY)];
 
 		const locale: AppLocale = appLocales.includes(localeInHeader as never)
 			? (localeInHeader as AppLocale)
@@ -210,7 +210,7 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 		}
 
 		// eslint-disable-next-line @typescript-eslint/naming-convention
-		const _localeInHeaders = _headers[LOCALE_HEADER_KEY];
+		const _localeInHeaders = _headers[_.toLower(LOCALE_HEADER_KEY)];
 		const localeInHeaders = _.isString(_localeInHeaders) ? _localeInHeaders : undefined;
 
 		const locale: AppLocale = appLocales.includes(localeInHeaders as never)
@@ -257,7 +257,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 			}
 
 			// eslint-disable-next-line @typescript-eslint/naming-convention
-			const _tenantId = _headers[TENANT_ID_HEADER_KEY];
+			const _tenantId = _headers[_.toLower(TENANT_ID_HEADER_KEY)];
 			const tenantId = _.isString(_tenantId) ? _tenantId : undefined;
 
 			if (req.triggerName === 'beforeFind') {
@@ -376,7 +376,10 @@ export const applySorting = (query: Parse.Query, sorting: { id: string; desc: bo
 
 export type FunctionReturn<T> = T extends (...args: never[]) => Promise<infer R> ? R : never;
 
-export const defineSchema = <T extends Record<string, unknown>>(className: string, schema: Schema<T>) => {
+export const defineSchema = <T extends Record<string, unknown> = Record<string, unknown>>(
+	className: string,
+	schema: Schema<T>,
+) => {
 	const fields = schema.fields || undefined;
 	const classLevelPermissions = schema.classLevelPermissions || DEFAULT_CLP;
 	const indexes = schema.indexes || {};

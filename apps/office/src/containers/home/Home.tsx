@@ -8,7 +8,7 @@ import { useNavigate, useRevalidator } from 'react-router-dom';
 
 // import { useTranslation } from '@devist/ui-react/lib/i18n';
 
-import useLocale from '@devist/ui-react/hooks/useLocale';
+import useTranslate from '@devist/ui-react/hooks/useTranslate';
 
 import RouterLink from '@/office/components/RouterLink';
 import { useMainStore } from '@/office/lib/zustand/store';
@@ -18,7 +18,7 @@ import { useLogOutMutation } from '@/ui-react/lib/react-query/features/auth/auth
 const Home = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const { t } = useTranslation();
-	const { lang, setLocale } = useLocale();
+	const { lang, setLocale } = useTranslate();
 
 	// =========================
 	// const addBear = useMainStore((state) => {

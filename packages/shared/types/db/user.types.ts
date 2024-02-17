@@ -10,6 +10,9 @@ export type UserAttributes = {
 	// custom fields
 	firstName?: string;
 	lastName?: string;
+
+	// ===
+	avatarUrl?: string;
 };
 
 export type IUser = BaseAttributes & UserAttributes;
