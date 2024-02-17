@@ -1,4 +1,3 @@
-// @mui
 import AppBar from '@mui/material/AppBar';
 import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
@@ -15,6 +14,9 @@ import SvgColor from '@/office/components/SvgColor';
 import { HEADER, NAV } from '@/office/lib/constants';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import { bgBlur } from '@/ui-react/utils/css.utils';
+
+import LanguagePopover from '../_common/LnaguagePopover';
+import SearchBar from '../_common/SearchBar';
 
 // hooks
 // import { useOffSetTop } from 'src/hooks/use-off-set-top';
@@ -65,10 +67,10 @@ const Header = ({ onOpenNav }: Props) => {
 				</IconButton>
 			)}
 
-			{/* <SearchBar /> */}
+			<SearchBar />
 
 			<Stack flexGrow={1} direction="row" alignItems="center" justifyContent="flex-end" spacing={{ xs: 0.5, sm: 1 }}>
-				{/* <LanguagePopover /> */}
+				<LanguagePopover />
 
 				{/* <NotificationsPopover /> */}
 

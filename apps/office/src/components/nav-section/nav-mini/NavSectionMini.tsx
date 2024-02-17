@@ -3,8 +3,6 @@ import { memo } from 'react';
 import Stack from '@mui/material/Stack';
 
 import { navMiniConfig } from '../config';
-// import { navMiniConfig } from '../config';
-//
 import type { NavConfigProps, NavListProps, NavSectionProps } from '../types';
 
 import NavList from './NavList';

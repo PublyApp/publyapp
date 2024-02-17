@@ -8,14 +8,14 @@ import { useTranslation } from 'react-i18next';
 import { getCreatePostInputSchema, type CreatePostInput } from '@devist/shared/validations/post.validations';
 
 import PageHeader from '@/office/components/PageHeader';
-import useLocale from '@/ui-react/hooks/useLocale';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 import { useCreatePostMutation } from '@/ui-react/lib/react-query/features/posts/post.hooks';
 
 import PostForm from './PostForm';
 
 const NewPost = () => {
 	const { t } = useTranslation();
-	const { lang } = useLocale();
+	const { lang } = useTranslate();
 
 	const savePostInputSchema = useMemo(() => {
 		return getCreatePostInputSchema(t);

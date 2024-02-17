@@ -5,7 +5,7 @@ import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/res
 import type { ParseAppFile } from '@/shared/lib/parse/classes/appFile.class';
 import { ParsePost } from '@/shared/lib/parse/classes/post.class';
 import type { ParseUser } from '@/shared/lib/parse/classes/user.class';
-import type { IPostWithParseRelations, IPostWithRelations } from '@/shared/types/db/post.types';
+import type { IPostWithParseRelations, TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
 
 import { applySkipAndLimit, applySorting } from '../../lib/parse';
 
@@ -274,7 +274,7 @@ export default class PostService {
 		const finalPosts = posts.map((post) => {
 			_.unset(post, 'author.__type');
 			_.assign(post, post.translation[locale]);
-			return post as unknown as IPostWithRelations;
+			return post as unknown as TranslatedIPostWithRelations;
 		});
 
 		return finalPosts;
@@ -299,7 +299,7 @@ export default class PostService {
 		const finalPosts = posts.map((post) => {
 			_.unset(post, 'author.__type');
 			_.assign(post, post.translation[locale]);
-			return post as unknown as IPostWithRelations;
+			return post as unknown as TranslatedIPostWithRelations;
 		});
 
 		return finalPosts;

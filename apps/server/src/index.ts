@@ -12,7 +12,7 @@ import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
-import { endPoint } from '@/shared/lib/constants';
+import { endPoint, LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
 
 import { cloud } from './cloud/_index';
 import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
@@ -98,6 +98,7 @@ const bootstrap = async () => {
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
 		// allowHeaders: ['Access-Control-Expose-Headers', 'access-control-expose-headers', 'Etag'],
+		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
 		// directAccess: true,
 	});
 

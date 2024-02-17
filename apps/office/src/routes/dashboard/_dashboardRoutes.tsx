@@ -1,7 +1,8 @@
 import { Suspense } from 'react';
 
 import loadable from '@loadable/component';
-import { defer, Navigate, Outlet, useRouteError, type RouteObject } from 'react-router-dom';
+import { Button } from '@mui/material';
+import { defer, Navigate, Outlet, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
@@ -26,6 +27,7 @@ const EditPost = loadable(() => {
 
 const DashboardRootError = () => {
 	const error = useRouteError();
+	const { revalidate } = useRevalidator();
 
 	if (error instanceof ClientException) {
 		if (error.code === ClientException.AUTH_REQUIRED) {
@@ -47,6 +49,15 @@ const DashboardRootError = () => {
 		<div role="alert">
 			<h1>Something went wrong!! (Dash)</h1>
 			<pre style={{ color: 'red' }}>{JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}</pre>
+			<Button
+				type="button"
+				onClick={() => {
+					// defaultQueryClient.invalidateQueries(getClientAuthQuery.queryKey);
+					revalidate();
+				}}
+			>
+				retry
+			</Button>
 		</div>
 	);
 };

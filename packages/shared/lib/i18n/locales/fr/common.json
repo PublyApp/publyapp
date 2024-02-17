@@ -18,5 +18,8 @@
 			"maxLength": "{{field}} doit avoir {{maxLength}} caractères ou moins",
 			"invalid": "{{field}} invalide"
 		}
-	}
+	},
+	"new-post": "Nouvel article",
+	"views": "Vues",
+	"created-at": "Créé le"
 }

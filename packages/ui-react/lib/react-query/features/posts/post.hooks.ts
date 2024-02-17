@@ -3,6 +3,8 @@ import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
 
 import { BO_PATH_NAMES, functionName } from '@/shared/lib/constants';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 
 import {
 	createPostAction,
@@ -29,6 +31,8 @@ export const useCreatePostMutation = () => {
 		onSuccess: async (data /* , variables, context */) => {
 			enqueueSnackbar({ variant: 'success', message: 'New post created' });
 			queryClient.setQueryData([functionName.getPost, { id: data.objectId }], data);
+			// eslint-disable-next-line @typescript-eslint/no-use-before-define
+			queryClient.invalidateQueries({ queryKey: [findPostQueryKeyBase] });
 			navigate(BO_PATH_NAMES.dashboard.posts.edit(data.objectId));
 		},
 		onError: async (error /* , variables, context */) => {
@@ -123,22 +127,35 @@ export const useUpdatePostMutation = () => {
 
 export const findPostQueryKeyBase = functionName.findPost;
 
-export type FindPostQueryParams = {};
+export type FindPostQueryParams = {
+	page?: number;
+	pageSize?: number;
+	// sorting?: any; // todo later
+	locale: AppLocale;
+};
 
 export const findPostQuery = (params: FindPostQueryParams) => {
 	return queryOptions({
-		queryKey: [getPostByIdSuspenseQueryKeyBase, params] as const,
+		queryKey: [
+			findPostQueryKeyBase,
+			{
+				view: 'bo-table',
+				...params,
+			},
+		] as const,
 		queryFn: findPostAction,
 	});
 };
 
-type UseFindPostSuspenseQueryProps = {
-	params: FindPostQueryParams;
+type UseFindPostQueryProps = {
+	params: Omit<FindPostQueryParams, 'locale'>;
 	options?: Omit<ReturnType<typeof findPostQuery>, 'queryKey' | 'queryFn'>;
 };
 
-export const useFindPostSuspenseQuery = (props: UseFindPostSuspenseQueryProps) => {
-	const query = findPostQuery(props.params);
+export const useFindPostSuspenseQuery = (props: UseFindPostQueryProps) => {
+	const { locale } = useTranslate();
+
+	const query = findPostQuery({ ...props.params, locale });
 
 	const result = useSuspenseQuery({
 		...query,
@@ -151,8 +168,10 @@ export const useFindPostSuspenseQuery = (props: UseFindPostSuspenseQueryProps) =
 	};
 };
 
-export const useFindPostQuery = (props: UseFindPostSuspenseQueryProps) => {
-	const query = findPostQuery(props.params);
+export const useFindPostQuery = (props: UseFindPostQueryProps) => {
+	const { locale } = useTranslate();
+
+	const query = findPostQuery({ ...props.params, locale });
 
 	const result = useQuery({
 		...query,

@@ -5,7 +5,7 @@ import QueryParamProvider from '../providers/QueryParamProvider';
 import { dashboardRoutes } from './dashboard/_dashboardRoutes';
 import { publicRoutes } from './public/_publicRoutes';
 
-export const router = createBrowserRouter([
+const router = createBrowserRouter([
 	{
 		element: <QueryParamProvider />,
 		children: [...dashboardRoutes, ...publicRoutes],

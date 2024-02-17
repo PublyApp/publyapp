@@ -6,7 +6,7 @@ import _ from 'lodash';
 
 import type { ParsePost } from '@devist/shared/lib/parse/classes/post.class';
 
-import type { TranslatedIPostWithParseRelations } from '@/shared/types/db/post.types';
+import type { TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
 
 import type { RootState } from '../slices';
 import Slice from '../utils/Slice';
@@ -16,8 +16,8 @@ export type PostSliceValues = {
 	currentlyEditedPost: ParsePost | undefined;
 
 	// posts list (table)
-	posts: TranslatedIPostWithParseRelations[];
-	selectedPosts: TranslatedIPostWithParseRelations[];
+	posts: TranslatedIPostWithRelations[];
+	selectedPosts: TranslatedIPostWithRelations[];
 };
 
 export type PostSliceActions = {

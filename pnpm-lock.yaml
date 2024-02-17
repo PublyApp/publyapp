@@ -297,6 +297,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^2.1.16
         version: 2.2.1(@tiptap/pm@2.2.1)
+      autosuggest-highlight:
+        specifier: ^3.3.4
+        version: 3.3.4
       date-fns:
         specifier: ^2.25.0
         version: 2.30.0
@@ -406,6 +409,9 @@ importers:
       '@rspack/core':
         specifier: ^0.5.1
         version: 0.5.3(@swc/helpers@0.5.3)
+      '@types/autosuggest-highlight':
+        specifier: ^3.2.3
+        version: 3.2.3
       '@types/editorjs__header':
         specifier: ^2.6.3
         version: 2.6.3
@@ -6095,6 +6101,10 @@ packages:
     resolution: {integrity: sha512-8iHVLHsCCOBKjCF2KwFe0p9Z3rfM9mL+sSP8btyR5vTjJRAqpBYD28/ZLgXPf0pjG1VxOvtCV/BgXkQbpSe8Hw==}
     dev: true
 
+  /@types/autosuggest-highlight@3.2.3:
+    resolution: {integrity: sha512-8Mb21KWtpn6PvRQXjsKhrXIcxbSloGqNH50RntwGeJsGPW4xvNhfml+3kKulaKpO/7pgZfOmzsJz7VbepArlGQ==}
+    dev: true
+
   /@types/body-parser@1.19.5:
     resolution: {integrity: sha512-fB3Zu92ucau0iQ0JMCFQE7b/dv8Ot07NI3KaZIkIUNXq82k4eBAqUaneXfleGY9JWskeS9y+u0nXMyspcuQrCg==}
     dependencies:
@@ -7144,6 +7154,12 @@ packages:
   /attr-accept@2.2.2:
     resolution: {integrity: sha512-7prDjvt9HmqiZ0cl5CRjtS84sEyhsHP2coDkaZKRKVfCDo9s7iw7ChVmar78Gu9pC4SoR/28wFu/G5JJhTnqEg==}
     engines: {node: '>=4'}
+    dev: false
+
+  /autosuggest-highlight@3.3.4:
+    resolution: {integrity: sha512-j6RETBD2xYnrVcoV1S5R4t3WxOlWZKyDQjkwnggDPSjF5L4jV98ZltBpvPvbkM1HtoSe5o+bNrTHyjPbieGeYA==}
+    dependencies:
+      remove-accents: 0.4.2
     dev: false
 
   /available-typed-arrays@1.0.6:
