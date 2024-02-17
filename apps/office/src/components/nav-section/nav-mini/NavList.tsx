@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { appBarClasses } from '@mui/material/AppBar';
 import Popover from '@mui/material/Popover';
-// @mui
 import Stack from '@mui/material/Stack';
 
 import useActiveLink from '@/office/hooks/useActiveLink';

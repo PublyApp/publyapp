@@ -35,7 +35,7 @@ export const runGetPostById = cloudRunner<GetPostByIdFunctionResult, GetPostById
 // ---- 3 --------------------------------------------------------------------------------
 
 export type FinPostFunctionParams = {
-	page?: string;
+	page?: number;
 };
 
 export type FindPostFunctionResult = FindPostFunctionReturn;

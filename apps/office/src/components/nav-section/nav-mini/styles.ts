@@ -1,9 +1,7 @@
-// @mui
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import { alpha, styled } from '@mui/material/styles';
 
-//
 import type { NavConfigProps, NavItemProps } from '../types';
 
 // ----------------------------------------------------------------------

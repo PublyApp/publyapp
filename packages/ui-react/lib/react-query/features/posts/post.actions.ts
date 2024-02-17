@@ -5,13 +5,13 @@ import {
 	runFindPost,
 	runGetPostById,
 	type CreatePostFunctionParams,
+	type FindPostFunctionResult,
 	type FinPostFunctionParams,
 	type GetPostByIdFunctionParams,
-	// type GetPostByIdFunctionResult,
 } from '@devist/shared/lib/parse/cloudRunners/post.runner';
 
 import type { functionName } from '@/shared/lib/constants';
-import type { IPostWithRelations, TranslatedIPostWithParseRelations } from '@/shared/types/db/post.types';
+import type { IPostWithRelations } from '@/shared/types/db/post.types';
 
 // ---- 1 --------------------------------------------------------------------------------
 
@@ -55,8 +55,8 @@ export const updatePostAction = async () => {
 
 // ---- 4 --------------------------------------------------------------------------------
 
-export type FindPostQueryParams = FinPostFunctionParams;
-export type FindPostActionResult = TranslatedIPostWithParseRelations[];
+export type FindPostQueryParams = FinPostFunctionParams & { view: 'bo-table' };
+export type FindPostActionResult = FindPostFunctionResult;
 
 export const findPostAction: QueryFunction<
 	FindPostActionResult,
@@ -64,12 +64,6 @@ export const findPostAction: QueryFunction<
 > = async (context) => {
 	try {
 		const params = context.queryKey[1];
-		// console.log(params);
-
-		// const posts = await runFindPost(params);
-		// return posts;
-		// await sleep(3000);
-		// return [];
 		const posts = await runFindPost(params);
 		console.log('🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡', posts);
 		return posts;

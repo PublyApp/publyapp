@@ -125,7 +125,7 @@ const findPostFunctionParamsSchema = getListParamsSchema.and(
 		}),
 		z.object({
 			view: z.literal('bo-table'),
-			fromPublic: z.boolean().optional().default(true),
+			fromPublic: z.boolean().optional().default(false),
 		}),
 	]),
 );

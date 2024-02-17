@@ -2,7 +2,6 @@ import { forwardRef } from 'react';
 
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
-// @mui
 import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 

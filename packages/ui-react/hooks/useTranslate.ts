@@ -10,8 +10,12 @@ import { defaultLangConfig, langConfigsMap } from '../config/lang.config';
 
 // ----------------------------------------------------------------------
 
-const useLocale = () => {
+const useTranslate = () => {
 	const { i18n, t, ready } = useTranslation();
+
+	const allLangs = useMemo(() => {
+		return Array.from(langConfigsMap.values());
+	}, []);
 
 	const { locale, lang } = useMemo(() => {
 		// eslint-disable-next-line @typescript-eslint/naming-convention
@@ -30,9 +34,9 @@ const useLocale = () => {
 	const changeLocale = useCallback(
 		(value: AppLocale) => {
 			i18n.changeLanguage(value);
-			Parse.CoreManager.set('REQUEST_HEADERS', {
-				[LOCALE_HEADER_KEY]: value,
-			});
+
+			const reqHeaders = Parse.CoreManager.get('REQUEST_HEADERS');
+			Parse.CoreManager.set('REQUEST_HEADERS', _.assign(reqHeaders, { [LOCALE_HEADER_KEY]: value }));
 		},
 		[i18n],
 	);
@@ -58,7 +62,8 @@ const useLocale = () => {
 		i18n,
 		t,
 		ready,
+		allLangs,
 	};
 };
 
-export default useLocale;
+export default useTranslate;

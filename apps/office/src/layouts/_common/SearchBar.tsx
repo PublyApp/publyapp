@@ -1,170 +1,372 @@
-// import { useState, memo, useCallback } from 'react';
-// import parse from 'autosuggest-highlight/parse';
-// import match from 'autosuggest-highlight/match';
-// // @mui
-// import { useTheme } from '@mui/material/styles';
-// import Box from '@mui/material/Box';
-// import List from '@mui/material/List';
-// import Stack from '@mui/material/Stack';
-// import InputBase from '@mui/material/InputBase';
-// import IconButton from '@mui/material/IconButton';
-// import InputAdornment from '@mui/material/InputAdornment';
-// import Dialog, { dialogClasses } from '@mui/material/Dialog';
-// // hooks
-// import { useBoolean } from 'src/hooks/use-boolean';
-// import { useResponsive } from 'src/hooks/use-responsive';
-// import { useEventListener } from 'src/hooks/use-event-listener';
-// // components
-// import Label from 'src/components/label';
-// import Iconify from 'src/components/iconify';
-// import Scrollbar from 'src/components/scrollbar';
-// import { useRouter } from 'src/routes/hooks';
-// import SearchNotFound from 'src/components/search-not-found';
-// //
-// import ResultItem from './result-item';
-// import { useNavData } from '../../dashboard/config-navigation';
-// import { applyFilter, groupedData, getAllItems } from './utils';
+/* eslint-disable @typescript-eslint/no-use-before-define */
+import { memo, useCallback, useState } from 'react';
 
-// // ----------------------------------------------------------------------
+import Box from '@mui/material/Box';
+import Dialog, { dialogClasses } from '@mui/material/Dialog';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
+import InputBase from '@mui/material/InputBase';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import Stack from '@mui/material/Stack';
+import { alpha, useTheme } from '@mui/material/styles';
+import match from 'autosuggest-highlight/match';
+import parse from 'autosuggest-highlight/parse';
+import { nanoid } from 'nanoid';
 
-// function SearchBar() {
-//   const theme = useTheme();
+import type { NavListProps, NavSectionProps } from '@/office/components/nav-section/types';
+import SearchNotFound from '@/office/components/SearchNotFound';
+import { useNavData } from '@/office/hooks/useNavData';
+import Iconify from '@/ui-react/components/Iconify';
+import Label from '@/ui-react/components/Label';
+import Scrollbar from '@/ui-react/components/Scrollbar';
+import useBoolean from '@/ui-react/hooks/useBoolean';
+import useEventListener from '@/ui-react/hooks/useEventListener';
+import useResponsive from '@/ui-react/hooks/useResponsive';
+import useRouter from '@/ui-react/hooks/useRouter';
+import { flattenArray } from '@/ui-react/utils/array.utils';
 
-//   const router = useRouter();
+// ----------------------------------------------------------------------
 
-//   const search = useBoolean();
+const SearchBar = () => {
+	const theme = useTheme();
 
-//   const lgUp = useResponsive('up', 'lg');
+	const router = useRouter();
 
-//   const [searchQuery, setSearchQuery] = useState('');
+	const search = useBoolean();
 
-//   const navData = useNavData();
+	const lgUp = useResponsive('up', 'lg');
 
-//   const handleClose = useCallback(() => {
-//     search.onFalse();
-//     setSearchQuery('');
-//   }, [search]);
+	const [searchQuery, setSearchQuery] = useState('');
 
-//   const handleKeyDown = (event: KeyboardEvent) => {
-//     if (event.key === 'k' && event.metaKey) {
-//       search.onToggle();
-//       setSearchQuery('');
-//     }
-//   };
+	const navData = useNavData();
 
-//   useEventListener('keydown', handleKeyDown);
+	const handleClose = useCallback(() => {
+		search.setFalse();
+		setSearchQuery('');
+	}, [search]);
 
-//   const handleClick = useCallback(
-//     (path: string) => {
-//       if (path.includes('http')) {
-//         window.open(path);
-//       } else {
-//         router.push(path);
-//       }
-//       handleClose();
-//     },
-//     [handleClose, router]
-//   );
+	const handleKeyDown = (event: KeyboardEvent) => {
+		if (event.key === 'k' && event.metaKey) {
+			search.toggle();
+			setSearchQuery('');
+		}
+	};
 
-//   const handleSearch = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
-//     setSearchQuery(event.target.value);
-//   }, []);
+	useEventListener('keydown', handleKeyDown);
 
-//   const dataFiltered = applyFilter({
-//     inputData: getAllItems({ data: navData }),
-//     query: searchQuery,
-//   });
+	const handleClick = useCallback(
+		(path: string) => {
+			if (path.includes('http')) {
+				window.open(path);
+			} else {
+				router.push(path);
+			}
 
-//   const notFound = searchQuery && !dataFiltered.length;
+			handleClose();
+		},
+		[handleClose, router],
+	);
 
-//   const renderItems = () => {
-//     const data = groupedData(dataFiltered);
+	const handleSearch = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
+		setSearchQuery(event.target.value);
+	}, []);
 
-//     return Object.keys(data)
-//       .sort((a, b) => -b.localeCompare(a))
-//       .map((group, index) => (
-//         <List key={group || index} disablePadding>
-//           {data[group].map((item) => {
-//             const { title, path } = item;
+	const dataFiltered = applyFilter({
+		inputData: getAllItems({ data: navData }),
+		query: searchQuery,
+	});
 
-//             const partsTitle = parse(title, match(title, searchQuery));
+	const notFound = searchQuery && !dataFiltered.length;
 
-//             const partsPath = parse(path, match(path, searchQuery));
+	const renderItems = () => {
+		const data = groupedData(dataFiltered);
 
-//             return (
-//               <ResultItem
-//                 path={partsPath}
-//                 title={partsTitle}
-//                 key={`${title}${path}`}
-//                 groupLabel={searchQuery && group}
-//                 onClickItem={() => handleClick(path)}
-//               />
-//             );
-//           })}
-//         </List>
-//       ));
-//   };
+		return Object.keys(data)
+			.sort((a, b) => {
+				return -b.localeCompare(a);
+			})
+			.map((group, index) => {
+				return (
+					<List key={group || index} disablePadding>
+						{data[group].map((item) => {
+							const { title, path } = item;
 
-//   const renderButton = (
-//     <Stack direction="row" alignItems="center">
-//       <IconButton onClick={search.onTrue}>
-//         <Iconify icon="eva:search-fill" />
-//       </IconButton>
+							const partsTitle = parse(title, match(title, searchQuery));
 
-//       {lgUp && <Label sx={{ px: 0.75, fontSize: 12, color: 'text.secondary' }}>⌘K</Label>}
-//     </Stack>
-//   );
+							const partsPath = parse(path, match(path, searchQuery));
 
-//   return (
-//     <>
-//       {renderButton}
+							return (
+								<ResultItem
+									path={partsPath}
+									title={partsTitle}
+									key={`${title}${path}`}
+									groupLabel={searchQuery && group}
+									onClickItem={() => {
+										return handleClick(path);
+									}}
+								/>
+							);
+						})}
+					</List>
+				);
+			});
+	};
 
-//       <Dialog
-//         fullWidth
-//         maxWidth="sm"
-//         open={search.value}
-//         onClose={handleClose}
-//         transitionDuration={{
-//           enter: theme.transitions.duration.shortest,
-//           exit: 0,
-//         }}
-//         PaperProps={{
-//           sx: {
-//             mt: 15,
-//             overflow: 'unset',
-//           },
-//         }}
-//         sx={{
-//           [`& .${dialogClasses.container}`]: {
-//             alignItems: 'flex-start',
-//           },
-//         }}
-//       >
-//         <Box sx={{ p: 3, borderBottom: `solid 1px ${theme.palette.divider}` }}>
-//           <InputBase
-//             fullWidth
-//             autoFocus
-//             placeholder="Search..."
-//             value={searchQuery}
-//             onChange={handleSearch}
-//             startAdornment={
-//               <InputAdornment position="start">
-//                 <Iconify icon="eva:search-fill" width={24} sx={{ color: 'text.disabled' }} />
-//               </InputAdornment>
-//             }
-//             endAdornment={<Label sx={{ letterSpacing: 1, color: 'text.secondary' }}>esc</Label>}
-//             inputProps={{
-//               sx: { typography: 'h6' },
-//             }}
-//           />
-//         </Box>
+	const renderButton = (
+		<Stack direction="row" alignItems="center">
+			<IconButton onClick={search.setTrue}>
+				<Iconify icon="eva:search-fill" />
+			</IconButton>
 
-//         <Scrollbar sx={{ p: 3, pt: 2, height: 400 }}>
-//           {notFound ? <SearchNotFound query={searchQuery} sx={{ py: 10 }} /> : renderItems()}
-//         </Scrollbar>
-//       </Dialog>
-//     </>
-//   );
-// }
+			{lgUp && <Label sx={{ px: 0.75, fontSize: 12, color: 'text.secondary' }}>⌘K</Label>}
+		</Stack>
+	);
 
-// export default memo(SearchBar);
+	return (
+		<>
+			{renderButton}
+
+			<Dialog
+				fullWidth
+				maxWidth="sm"
+				open={search.value}
+				onClose={handleClose}
+				transitionDuration={{
+					enter: theme.transitions.duration.shortest,
+					exit: 0,
+				}}
+				PaperProps={{
+					sx: {
+						mt: 15,
+						overflow: 'unset',
+					},
+				}}
+				sx={{
+					[`& .${dialogClasses.container}`]: {
+						alignItems: 'flex-start',
+					},
+				}}
+			>
+				<Box sx={{ p: 3, borderBottom: `solid 1px ${theme.palette.divider}` }}>
+					<InputBase
+						fullWidth
+						autoFocus
+						placeholder="Search..."
+						value={searchQuery}
+						onChange={handleSearch}
+						startAdornment={
+							<InputAdornment position="start">
+								<Iconify icon="eva:search-fill" width={24} sx={{ color: 'text.disabled' }} />
+							</InputAdornment>
+						}
+						endAdornment={<Label sx={{ letterSpacing: 1, color: 'text.secondary' }}>esc</Label>}
+						inputProps={{
+							sx: { typography: 'h6' },
+						}}
+					/>
+				</Box>
+
+				<Scrollbar sx={{ p: 3, pt: 2, height: 400 }}>
+					{notFound ? <SearchNotFound query={searchQuery} sx={{ py: 10 }} /> : renderItems()}
+				</Scrollbar>
+			</Dialog>
+		</>
+	);
+};
+
+export default memo(SearchBar);
+
+// ----------------------------------------------------------------------
+
+type ResultItemProps = {
+	title: {
+		text: string;
+		highlight: boolean;
+	}[];
+	path: {
+		text: string;
+		highlight: boolean;
+	}[];
+	groupLabel: string;
+	onClickItem: VoidFunction;
+};
+
+const ResultItem = ({ title, path, groupLabel, onClickItem }: ResultItemProps) => {
+	return (
+		<ListItemButton
+			onClick={onClickItem}
+			sx={{
+				borderWidth: 1,
+				borderStyle: 'dashed',
+				borderColor: 'transparent',
+				borderBottomColor: (theme) => {
+					return theme.palette.divider;
+				},
+				'&:hover': {
+					borderRadius: 1,
+					borderColor: (theme) => {
+						return theme.palette.primary.main;
+					},
+					backgroundColor: (theme) => {
+						return alpha(theme.palette.primary.main, theme.palette.action.hoverOpacity);
+					},
+				},
+			}}
+		>
+			<ListItemText
+				primaryTypographyProps={{
+					typography: 'subtitle2',
+					sx: { textTransform: 'capitalize' },
+				}}
+				secondaryTypographyProps={{ typography: 'caption' }}
+				primary={title.map((part) => {
+					return (
+						<Box
+							key={nanoid()}
+							component="span"
+							sx={{
+								color: part.highlight ? 'primary.main' : 'text.primary',
+							}}
+						>
+							{part.text}
+						</Box>
+					);
+				})}
+				secondary={path.map((part) => {
+					return (
+						<Box
+							key={nanoid()}
+							component="span"
+							sx={{
+								color: part.highlight ? 'primary.main' : 'text.secondary',
+							}}
+						>
+							{part.text}
+						</Box>
+					);
+				})}
+			/>
+
+			{groupLabel && <Label color="info">{groupLabel}</Label>}
+		</ListItemButton>
+	);
+};
+
+// ----------------------------------------------------------------------
+
+type ItemProps = {
+	group: string;
+	title: string;
+	path: string;
+};
+
+export const getAllItems = ({ data }: NavSectionProps) => {
+	const reduceItems = data
+		.map((list) => {
+			return handleLoop(list.items, list.subheader);
+		})
+		.flat();
+
+	const items = flattenArray(reduceItems).map((option) => {
+		const group = splitPath(reduceItems, option.path);
+
+		return {
+			group: group && group.length > 1 ? group[0] : option.subheader,
+			title: option.title,
+			path: option.path,
+		};
+	});
+
+	return items;
+};
+
+// ----------------------------------------------------------------------
+
+type FilterProps = {
+	inputData: ItemProps[];
+	query: string;
+};
+
+export const applyFilter = ({ inputData, query }: FilterProps) => {
+	if (query) {
+		// eslint-disable-next-line no-param-reassign
+		inputData = inputData.filter((item) => {
+			return (
+				item.title.toLowerCase().indexOf(query.toLowerCase()) !== -1 ||
+				item.path.toLowerCase().indexOf(query.toLowerCase()) !== -1
+			);
+		});
+	}
+
+	return inputData;
+};
+
+// ----------------------------------------------------------------------
+
+export const splitPath = (array: NavListProps[], key: string) => {
+	let stack = array.map((item) => {
+		return {
+			path: [item.title],
+			currItem: item,
+		};
+	});
+
+	while (stack.length) {
+		const { path, currItem } = stack.pop() as {
+			path: string[];
+			currItem: NavListProps;
+		};
+
+		if (currItem.path === key) {
+			return path;
+		}
+
+		if (currItem.children?.length) {
+			stack = stack.concat(
+				currItem.children.map((item: NavListProps) => {
+					return {
+						path: path.concat(item.title),
+						currItem: item,
+					};
+				}),
+			);
+		}
+	}
+
+	return null;
+};
+
+// ----------------------------------------------------------------------
+
+export const handleLoop = (array: any, subheader?: string) => {
+	return array?.map((list: any) => {
+		return {
+			subheader,
+			...list,
+			...(list.children && {
+				children: handleLoop(list.children, subheader),
+			}),
+		};
+	});
+};
+
+// ----------------------------------------------------------------------
+
+type GroupsProps = {
+	[key: string]: ItemProps[];
+};
+
+export const groupedData = (array: ItemProps[]) => {
+	const group = array.reduce((groups: GroupsProps, item) => {
+		// eslint-disable-next-line no-param-reassign
+		groups[item.group] = groups[item.group] || [];
+
+		groups[item.group].push(item);
+
+		return groups;
+	}, {});
+
+	return group;
+};

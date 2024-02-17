@@ -1,7 +1,7 @@
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider as MuiLocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 
-import useLocale from '../hooks/useLocale';
+import useTranslate from '../hooks/useTranslate';
 
 // ----------------------------------------------------------------------
 
@@ -10,7 +10,7 @@ type Props = {
 };
 
 const MuiDatePickerLocalizationProvider = ({ children }: Props) => {
-	const { lang } = useLocale();
+	const { lang } = useTranslate();
 
 	return (
 		<MuiLocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={lang.adapterLocale}>

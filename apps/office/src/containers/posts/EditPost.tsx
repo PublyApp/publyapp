@@ -11,13 +11,13 @@ import { useGetPostByIdSuspenseQuery } from '@devist/ui-react/lib/react-query/fe
 
 import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
-import useLocale from '@/ui-react/hooks/useLocale';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 
 import PostForm from './PostForm';
 
 const EditPost = () => {
 	const { t } = useTranslation();
-	const { lang } = useLocale();
+	const { lang } = useTranslate();
 	const params = useParams();
 
 	const savePostInputSchema = useMemo(() => {

@@ -10,7 +10,7 @@ const newText =
 	"    res.header('Access-Control-Expose-Headers', 'X-Parse-Job-Status-Id, X-Parse-Push-Status-Id, access-control-expose-headers');";
 
 lineReplace({
-	file: path.resolve('../node_modules/parse-server/lib/middlewares.js'),
+	file: path.resolve(__dirname, '../node_modules/parse-server/lib/middlewares.js'),
 	line: 359,
 	text: newText,
 	addNewLine: true,
