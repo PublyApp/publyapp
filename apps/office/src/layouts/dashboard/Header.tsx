@@ -15,7 +15,7 @@ import { HEADER, NAV } from '@/office/lib/constants';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import { bgBlur } from '@/ui-react/utils/css.utils';
 
-import LanguagePopover from '../_common/LnaguagePopover';
+import LanguagePopover from '../_common/LanguagePopover';
 import SearchBar from '../_common/SearchBar';
 
 // hooks
