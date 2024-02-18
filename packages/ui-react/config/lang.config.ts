@@ -6,13 +6,15 @@ import merge from 'lodash/merge';
 
 import { type AppLocale } from '@/shared/lib/i18n/resources';
 
+type SystemValue = typeof enUSDate & typeof enUSDataGrid & typeof enUSCore;
+
 // PLEASE REMOVE `LOCAL STORAGE` WHEN YOU CHANGE SETTINGS.
 // ----------------------------------------------------------------------
 
 export type LangConfig = {
 	label: string;
 	value: AppLocale;
-	systemValue: any;
+	systemValue: SystemValue;
 	adapterLocale: Locale;
 	icon: string;
 };

@@ -6,7 +6,7 @@ import { initReactI18next } from 'react-i18next';
 
 import { appLocales, defaultLocale, defaultNS, NS, resources, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
-export const initReactLocalization = () => {
+export const initI18next = () => {
 	i18n
 		.use(LanguageDetector)
 		// .use(HttpBackend)

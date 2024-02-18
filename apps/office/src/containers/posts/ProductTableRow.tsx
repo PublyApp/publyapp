@@ -10,7 +10,7 @@ import _ from 'lodash';
 import Label from '@devist/ui-react/components/Label';
 
 import { fDate, fTime } from '@/ui-react/utils/date.utils';
-import { fCurrency } from '@/ui-react/utils/number.utils';
+import { fCurrency, fNumber } from '@/ui-react/utils/number.utils';
 
 // import { fCurrency } from 'src/utils/format-number';
 // import { fDate, fTime } from 'src/utils/format-time';
@@ -22,7 +22,8 @@ type ParamsProps = {
 };
 
 export const RenderCellPrice = ({ params }: ParamsProps) => {
-	return <>{fCurrency(params.row.price)}</>;
+	// return <>{fCurrency(params.row.price)}</>;
+	return <>{fNumber(params.row.views)}</>;
 };
 
 export const RenderCellPublish = ({ params }: ParamsProps) => {

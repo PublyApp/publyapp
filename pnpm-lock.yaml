@@ -333,6 +333,9 @@ importers:
       nprogress:
         specifier: ^0.2.0
         version: 0.2.0
+      numeral:
+        specifier: ^2.0.6
+        version: 2.0.6
       parse:
         specifier: ^4.3.1
         version: 4.3.1
@@ -424,6 +427,9 @@ importers:
       '@types/nprogress':
         specifier: ^0.2.3
         version: 0.2.3
+      '@types/numeral':
+        specifier: ^2.0.5
+        version: 2.0.5
       '@types/parse':
         specifier: ^3.0.9
         version: 3.0.9
