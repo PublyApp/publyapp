@@ -1,4 +1,6 @@
+// eslint-disable-next-line import/extensions
 import Auth from 'parse-server/lib/Auth.js';
+// eslint-disable-next-line import/extensions
 import Config from 'parse-server/lib/Config.js';
 import Parse from 'parse/node.js';
 
@@ -22,15 +24,15 @@ export class AuthCloudService {
 		this.sessionToken = sessionToken;
 	}
 
-	static createAuthCloudService({ sessionToken }: AuthCloudServiceProps) {
+	static async createAuthCloudService({ sessionToken }: AuthCloudServiceProps) {
 		const instance = new AuthCloudService({ sessionToken });
-		instance.initialize();
+		await instance.initialize();
 		return instance;
 	}
 
 	private async initialize() {
 		const config = Config.get(Parse.applicationId);
-		this.auth = Auth.getAuthForSessionToken({ config, sessionToken: this.sessionToken });
+		this.auth = await Auth.getAuthForSessionToken({ config, sessionToken: this.sessionToken });
 	}
 
 	/**

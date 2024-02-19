@@ -95,6 +95,8 @@ const Home = () => {
 				Choose File
 			</Button>
 			<Button
+				color="success"
+				variant="contained"
 				onClick={async () => {
 					// files.forEach(())
 					if (files.length < 1) return;
@@ -104,7 +106,7 @@ const Home = () => {
 					formData.set('file', file);
 
 					// Parse.Cloud.run(functionName.uploadFile, formData);
-					const url = new URL('http://localhost:6180/upload-file-single');
+					const url = new URL('http://localhost:6180/upload-single-file');
 					await fetch(url, {
 						method: 'post',
 						body: formData,
