@@ -42,7 +42,7 @@ const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallatio
 					return next(new HttpException(400, 'Missing session params'));
 				}
 
-				const authService = AuthCloudService.createAuthCloudService({ sessionToken });
+				const authService = await AuthCloudService.createAuthCloudService({ sessionToken });
 
 				const user = authService.getUserForSessionToken();
 
