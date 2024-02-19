@@ -1,8 +1,11 @@
-import type { CreatePostFunctionReturn, FindPostFunctionReturn } from '@/server/resources/post/post.functions';
+import type {
+	CreatePostFunctionReturn,
+	FindPostFunctionReturn,
+	GetPostFunctionReturn,
+} from '@/server/resources/post/post.functions';
 
 import { functionName } from '../../constants';
 import type { AppLocale } from '../../i18n/resources';
-import type { ParsePost } from '../classes/post.class';
 
 import { cloudRunner } from './_cloudRunner';
 
@@ -28,7 +31,7 @@ export type GetPostByIdFunctionParams = {
 	id: string;
 };
 
-export type GetPostByIdFunctionResult = ParsePost;
+export type GetPostByIdFunctionResult = GetPostFunctionReturn;
 
 export const runGetPostById = cloudRunner<GetPostByIdFunctionResult, GetPostByIdFunctionParams>(functionName.getPost);
 

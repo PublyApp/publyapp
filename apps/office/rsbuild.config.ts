@@ -30,16 +30,15 @@ export default defineConfig({
 	plugins: [pluginReact(), pluginSvgr()],
 	source: {
 		entry: {
-			index: './src/main.tsx',
+			index: './src/main.tsx', // the key ('index' in our case here) must match our html's file name
 		},
 		define: getDefinedEnv(env || (process.env as never)),
-		alias: {
-			// 	'react-i18next': path.resolve(
-			// 		__dirname,
-			// 		'node_modules/@devist/ui-react/node_modules/react-i18next/dist/commonjs/index.js',
-			// 	),
-			'react-i18next': require.resolve('react-i18next'),
-		},
+		// alias: {
+		// 	'react-i18next': require.resolve('react-i18next'),
+		// },
+	},
+	html: {
+		template: 'index.html',
 	},
 	output: {
 		copy: {

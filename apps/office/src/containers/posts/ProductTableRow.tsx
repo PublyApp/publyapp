@@ -1,6 +1,6 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import LinearProgress from '@mui/material/LinearProgress';
+// import LinearProgress from '@mui/material/LinearProgress';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
 import Stack from '@mui/material/Stack';
@@ -9,8 +9,9 @@ import _ from 'lodash';
 
 import Label from '@devist/ui-react/components/Label';
 
+import useTranslate from '@/ui-react/hooks/useTranslate';
 import { fDate, fTime } from '@/ui-react/utils/date.utils';
-import { fCurrency, fNumber } from '@/ui-react/utils/number.utils';
+import { fNumber } from '@/ui-react/utils/number.utils';
 
 // import { fCurrency } from 'src/utils/format-number';
 // import { fDate, fTime } from 'src/utils/format-time';
@@ -27,9 +28,11 @@ export const RenderCellPrice = ({ params }: ParamsProps) => {
 };
 
 export const RenderCellPublish = ({ params }: ParamsProps) => {
+	const { t } = useTranslate();
+
 	return (
-		<Label variant="soft" color={(params.row.publish === 'published' && 'info') || 'default'}>
-			{params.row.publish}
+		<Label variant="soft" color={params.row.published ? 'info' : 'default'}>
+			{params.row.published ? t('published') : t('draft')}
 		</Label>
 	);
 };
@@ -49,23 +52,23 @@ export const RenderCellCreatedAt = ({ params }: ParamsProps) => {
 	);
 };
 
-export const RenderCellStock = ({ params }: ParamsProps) => {
-	return (
-		<Stack sx={{ typography: 'caption', color: 'text.secondary' }}>
-			<LinearProgress
-				value={(params.row.available * 100) / params.row.quantity}
-				variant="determinate"
-				color={
-					(params.row.inventoryType === 'out of stock' && 'error') ||
-					(params.row.inventoryType === 'low stock' && 'warning') ||
-					'success'
-				}
-				sx={{ mb: 1, height: 6, maxWidth: 80 }}
-			/>
-			{!!params.row.available && params.row.available} {params.row.inventoryType}
-		</Stack>
-	);
-};
+// export const RenderCellStock = ({ params }: ParamsProps) => {
+// 	return (
+// 		<Stack sx={{ typography: 'caption', color: 'text.secondary' }}>
+// 			<LinearProgress
+// 				value={(params.row.available * 100) / params.row.quantity}
+// 				variant="determinate"
+// 				color={
+// 					(params.row.inventoryType === 'out of stock' && 'error') ||
+// 					(params.row.inventoryType === 'low stock' && 'warning') ||
+// 					'success'
+// 				}
+// 				sx={{ mb: 1, height: 6, maxWidth: 80 }}
+// 			/>
+// 			{!!params.row.available && params.row.available} {params.row.inventoryType}
+// 		</Stack>
+// 	);
+// };
 
 export const RenderCellProduct = ({ params }: ParamsProps) => {
 	return (

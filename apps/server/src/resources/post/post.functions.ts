@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { z } from 'zod';
 
 import { functionName, roleSet } from '@devist/shared/lib/constants';
@@ -8,6 +9,8 @@ import FileService from '@/server/resources/file/file.service';
 import PostService from '@/server/resources/post/post.service';
 import UserService from '@/server/resources/user/user.service';
 import { getListParamsSchema } from '@/server/utils/validation.utils';
+import { ParsePost } from '@/shared/lib/parse/classes/post.class';
+import type { IPostWithRelations } from '@/shared/types/db/post.types';
 
 export type CreatePostFunctionReturn = FunctionReturn<typeof createPostFunction>;
 
@@ -33,6 +36,7 @@ const createPostFunction = parseFrom({
 			throw new Error('A post with the same slug already exists');
 		}
 
+		// TODO: return JSON objects instead of Parse Objects
 		return postService.create({
 			locale,
 			title,
@@ -105,14 +109,17 @@ const getPostFunction = parseFrom({
 
 		const postService = new PostService({ sessionToken });
 
-		const post = await postService.getById(postId, { select: [] });
+		const post = await postService.getById(postId, { select: undefined });
 
 		if (!post) {
 			// eslint-disable-next-line @typescript-eslint/no-throw-literal
 			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Post not Found');
 		}
 
-		return post;
+		const finalPost = post.toJSON();
+		_.unset(finalPost, 'author.__type');
+
+		return finalPost as unknown as IPostWithRelations;
 	},
 });
 
@@ -174,7 +181,25 @@ const findPostFunction = parseFrom({
 	},
 });
 
+const findPostTag = parseFrom({
+	requireUser: false,
+	action: async (/* { locale, req, t, user } */) => {
+		const pipeline: Parse.PipelineStage[] = [
+			{ $unwind: '$tags' },
+			{ $group: { _id: '$tags', count: { $sum: 1 } } },
+			{ $project: { _id: 0, tag: '$_id', count: '$count' } },
+		];
+
+		const query = new Parse.Query(ParsePost);
+
+		// { tag: string, count: number }[]000000000000000000
+		const results = await query.aggregate(pipeline);
+		return results;
+	},
+});
+
 Parse.Cloud.define(functionName.createPost, createPostFunction);
 Parse.Cloud.define(functionName.updatePost, updatePostFunction);
 Parse.Cloud.define(functionName.getPost, getPostFunction);
 Parse.Cloud.define(functionName.findPost, findPostFunction);
+Parse.Cloud.define('findPostTag', findPostTag);

@@ -17,7 +17,7 @@ export const initParse = () => {
 		const locale = appLocales.includes(storedLocale as never) ? storedLocale : defaultLocale;
 
 		Parse.CoreManager.set('REQUEST_HEADERS', {
-			[LOCALE_HEADER_KEY]: locale,
+			[LOCALE_HEADER_KEY]: locale || defaultLocale,
 		});
 
 		window.Parse = Parse;

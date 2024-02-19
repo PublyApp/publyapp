@@ -3,6 +3,8 @@
 namespace Parse {
 	import type { PipelineStage } from 'mongoose';
 
+	export type PipelineStage = PipelineStage;
+
 	export type OmitBaseAttributes<T> = Omit<T, keyof BaseAttributes>;
 
 	namespace Cloud {

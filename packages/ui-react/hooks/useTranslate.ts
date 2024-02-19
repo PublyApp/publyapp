@@ -1,6 +1,7 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 
 import _ from 'lodash';
+import numeral from 'numeral';
 import { useTranslation } from 'react-i18next';
 
 import { LOCALE_HEADER_KEY } from '@devist/shared/lib/constants';
@@ -35,8 +36,12 @@ const useTranslate = () => {
 		(value: AppLocale) => {
 			i18n.changeLanguage(value);
 
+			// set locale header for parse-server
 			const reqHeaders = Parse.CoreManager.get('REQUEST_HEADERS');
 			Parse.CoreManager.set('REQUEST_HEADERS', _.assign(reqHeaders, { [LOCALE_HEADER_KEY]: value }));
+
+			// se locale of numeral.js (number formatting)
+			numeral.locale(value);
 		},
 		[i18n],
 	);

@@ -21,5 +21,7 @@
 	},
 	"new-post": "Nouvel article",
 	"views": "Vues",
-	"created-at": "Créé le"
+	"created-at": "Créé le",
+	"published": "Publié",
+	"draft": "Brouillon"
 }
