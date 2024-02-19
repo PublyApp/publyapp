@@ -1,5 +1,4 @@
 import _ from 'lodash';
-import type { PipelineStage } from 'mongoose';
 
 import { className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 import { createAIToolInputSchema } from '@devist/shared/validations/aiTool.validations';
@@ -29,7 +28,7 @@ Parse.Cloud.define(
 				}
 			}
 
-			const pipeline: PipelineStage[] = [
+			const pipeline: Parse.PipelineStage[] = [
 				{
 					$match: {},
 				},

@@ -376,9 +376,10 @@ export const applySorting = (query: Parse.Query, sorting: { id: string; desc: bo
 
 export type FunctionReturn<T> = T extends (...args: never[]) => Promise<infer R> ? R : never;
 
-export const defineSchema = <T extends Record<string, unknown> = Record<string, unknown>>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const defineSchema = <T extends Record<string, any> = Record<string, any>>(
 	className: string,
-	schema: Schema<T>,
+	schema: Partial<Omit<Schema<T>, 'fields'>> & Pick<Schema<T>, 'fields'>,
 ) => {
 	const fields = schema.fields || undefined;
 	const classLevelPermissions = schema.classLevelPermissions || DEFAULT_CLP;

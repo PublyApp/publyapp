@@ -1,5 +1,4 @@
 import _ from 'lodash';
-import type { PipelineStage } from 'mongoose';
 
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { aggregate, parseFrom, reOrderObjects } from '@/server/lib/parse';
@@ -62,7 +61,7 @@ Parse.Cloud.define(
 				}
 			}
 
-			const pipeline: PipelineStage[] = [
+			const pipeline: Parse.PipelineStage[] = [
 				{
 					$match: {},
 				},

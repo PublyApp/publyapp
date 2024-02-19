@@ -5,12 +5,17 @@ import QueryParamProvider from '../providers/QueryParamProvider';
 import { dashboardRoutes } from './dashboard/_dashboardRoutes';
 import { publicRoutes } from './public/_publicRoutes';
 
-const router = createBrowserRouter([
+const router = createBrowserRouter(
+	[
+		{
+			element: <QueryParamProvider />,
+			children: [...dashboardRoutes, ...publicRoutes],
+		},
+	],
 	{
-		element: <QueryParamProvider />,
-		children: [...dashboardRoutes, ...publicRoutes],
+		basename: '/bo',
 	},
-]);
+);
 
 const Routes = () => {
 	// https://github.com/remix-run/react-router/discussions/10223#discussioncomment-5909050

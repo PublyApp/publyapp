@@ -304,4 +304,40 @@ export default class PostService {
 
 		return finalPosts;
 	}
+
+	// I expect this function to be only for public usage (for now)
+	// eslint-disable-next-line class-methods-use-this
+	async findMostViewedTags() {
+		// const pipeline: Parse.PipelineStage[] = [
+		// 	{ $unwind: '$tags' },
+		// 	{ $group: { _id: '$tags', count: { $sum: 1 } } },
+		// 	{ $project: { _id: 0, tag: '$_id', count: '$count' } },
+		// ];
+		const pipeline: Parse.PipelineStage[] = [
+			{
+				$match: {
+					tags: { $exists: true },
+					published: true,
+				},
+			},
+			{ $unwind: '$tags' },
+			{
+				$group: {
+					_id: '$tags',
+					tag: { $first: '$tags' }, // Get the first tag from the array
+					viewCount: { $sum: '$viewCount' },
+					postCount: { $sum: 1 },
+				},
+			},
+
+			{ $sort: { viewCount: -1 } }, // Sort by viewCount in descending order
+
+			{ $project: { _id: 0, tag: '$tag', viewCount: '$viewCount', postCount: '$postCount' } }, // Remove unnecessary field
+		];
+
+		const query = new Parse.Query(ParsePost);
+
+		const results = await query.aggregate(pipeline);
+		return results;
+	}
 }

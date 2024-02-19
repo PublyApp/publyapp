@@ -37,7 +37,8 @@ export type PostAttributes = {
 	noIndex?: boolean;
 	publishDate?: DateType;
 	updateDate?: DateType;
-	views?: number;
+	viewCount?: number;
+	coverUrl?: string;
 };
 
 export type IPost = BaseAttributes & PostAttributes;

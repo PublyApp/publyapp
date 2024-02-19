@@ -27,9 +27,10 @@ import { useSnackbar } from 'notistack';
 import EmptyContent from '@/office/components/EmptyContent';
 import PageHeader from '@/office/components/PageHeader';
 import RouterLink from '@/office/components/RouterLink';
+import { env } from '@/office/lib/env';
 import { selectPosts, selectSetPosts } from '@/office/lib/zustand/features/post.slice';
 import { useMainStore } from '@/office/lib/zustand/store';
-import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import { BO_PATH_NAMES, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 // import Iconify from '@/office/components/iconify';
 // import { useSettingsContext } from '@/office/components/settings';
 // import { useSnackbar } from '@/office/components/snackbar';
@@ -39,7 +40,7 @@ import { BO_PATH_NAMES } from '@/shared/lib/constants';
 // import { paths } from '@/office/routes/paths';
 import Iconify from '@/ui-react/components/Iconify';
 import useBoolean from '@/ui-react/hooks/useBoolean';
-import useRouter from '@/ui-react/hooks/useRouter';
+// import useRouter from '@/ui-react/hooks/useRouter';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 import { useFindPostQuery } from '@/ui-react/lib/react-query/features/posts/post.hooks';
 import type { IProductTableFilters } from '@/ui-react/types/product';
@@ -89,7 +90,7 @@ const ProductListView = () => {
 
 	const confirmRows = useBoolean();
 
-	const router = useRouter();
+	// const router = useRouter();
 
 	// const settings = useSettingsContext();
 
@@ -161,19 +162,24 @@ const ProductListView = () => {
 	// 	// setTableData(deleteRows);
 	// }, [enqueueSnackbar /* , selectedRowIds, tableData */]);
 
-	const handleEditRow = useCallback(
-		(id: string) => {
-			router.push(BO_PATH_NAMES.dashboard.posts.edit(id));
-		},
-		[router],
-	);
+	// const handleEditRow = useCallback(
+	// 	(id: string) => {
+	// 		router.push(BO_PATH_NAMES.dashboard.posts.edit(id));
+	// 	},
+	// 	[router],
+	// );
 
-	const handleViewRow = useCallback(
-		(id: string) => {
-			router.push(BO_PATH_NAMES.dashboard.posts.details(id));
-		},
-		[router],
-	);
+	// const handleViewRow = useCallback(
+	// 	(id: string) => {
+	// 		// router.push(FRONT_PATH_NAMES.posts.details(id));
+	// 		const previewURL = new URL(env.FRONT_URL);
+	// 		previewURL.pathname = FRONT_PATH_NAMES.posts.preview(id);
+	// 		window.open(previewURL);
+	// 	},
+	// 	[
+	// 		/* router */
+	// 	],
+	// );
 
 	const columns: GridColDef[] = [
 		// {
@@ -240,24 +246,36 @@ const ProductListView = () => {
 			filterable: false,
 			disableColumnMenu: true,
 			getActions: (params) => {
+				const previewURL = new URL(env.FRONT_URL);
+				previewURL.pathname = FRONT_PATH_NAMES.posts.preview(params.row.objectId);
+
 				return [
 					<GridActionsCellItem
 						key={nanoid()}
 						showInMenu
 						icon={<Iconify icon="solar:eye-bold" />}
 						label="View"
-						onClick={() => {
-							return handleViewRow(params.row.id);
-						}}
+						// onClick={() => {
+						// 	return handleViewRow(params.row.objectId);
+						// }}
+						component={RouterLink}
+						// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+						// @ts-ignore
+						href={previewURL.toString()}
+						target="_blank"
 					/>,
 					<GridActionsCellItem
 						key={nanoid()}
 						showInMenu
 						icon={<Iconify icon="solar:pen-bold" />}
 						label="Edit"
-						onClick={() => {
-							return handleEditRow(params.row.id);
-						}}
+						// onClick={() => {
+						// 	return handleEditRow(params.row.objectId);
+						// }}
+						component={RouterLink}
+						// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+						// @ts-ignore
+						href={BO_PATH_NAMES.dashboard.posts.edit(params.row.objectId)}
 					/>,
 					<GridActionsCellItem
 						key={nanoid()}

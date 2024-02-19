@@ -84,8 +84,11 @@ export const FRONT_PATH_NAMES = {
 		page: (pageNum: number) => {
 			return makePath(`/${RESOURCE.posts}`, 'page', String(pageNum));
 		},
-		details: (postId: string) => {
-			return makePath(`/${RESOURCE.posts}`, postId);
+		details: (postSlug: string) => {
+			return makePath(`/${RESOURCE.posts}`, postSlug);
+		},
+		preview: (postId: string) => {
+			return makePath(`/${RESOURCE.posts}`, 'preview', postId);
 		},
 	},
 	support: '/support',

@@ -95,6 +95,16 @@ export const useNavData = () => {
 						title: 'Posts',
 						path: BO_PATH_NAMES.dashboard.posts.root,
 						icon: ICONS.dashboard,
+						children: [
+							{
+								title: 'List',
+								path: BO_PATH_NAMES.dashboard.posts.root,
+							},
+							{
+								title: 'New',
+								path: BO_PATH_NAMES.dashboard.posts.create,
+							},
+						],
 					},
 					// {
 					// 	title: 'New Post',

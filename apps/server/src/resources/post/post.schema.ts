@@ -1,10 +1,9 @@
-import { SchemaMigrations } from 'parse-server';
-
 import { className } from '@devist/shared/lib/constants';
 
-import { DEFAULT_CLP } from '@/server/lib/constants';
+import { defineSchema } from '@/server/lib/parse';
+import type { IPostWithRelations } from '@/shared/types/db/post.types';
 
-const PostSchema = SchemaMigrations.makeSchema(className.POST, {
+const PostSchema = defineSchema<IPostWithRelations>(className.POST, {
 	fields: {
 		// title: { type: 'String' },
 		slug: { type: 'String' },
@@ -16,7 +15,7 @@ const PostSchema = SchemaMigrations.makeSchema(className.POST, {
 		noIndex: { type: 'Boolean' },
 		publishDate: { type: 'Date' },
 		updateDate: { type: 'Date' },
-		views: { type: 'Number' },
+		viewCount: { type: 'Number' },
 		coverUrl: { type: 'String' },
 		// shares: { type: 'Number' }, // TODO
 		// commentCount: create PostComment collection and do a query to get that
@@ -26,8 +25,6 @@ const PostSchema = SchemaMigrations.makeSchema(className.POST, {
 		author: { type: 'Pointer', targetClass: className.USER, required: true },
 		cover: { type: 'Pointer', targetClass: className.APP_FILE },
 	},
-	classLevelPermissions: DEFAULT_CLP,
-	indexes: {},
 });
 
 export default PostSchema;
