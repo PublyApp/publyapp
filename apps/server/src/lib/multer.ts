@@ -1,6 +1,7 @@
-import { createId } from '@paralleldrive/cuid2';
+// import { createId } from '@paralleldrive/cuid2';
 import _ from 'lodash';
 import multer from 'multer';
+import { nanoid } from 'nanoid';
 
 import { addSuffixToFileName } from '../utils/any.utils';
 
@@ -12,7 +13,8 @@ export const multerConfig = multer({
 			cb(null, FILE_UPLOAD_DESTINATION);
 		},
 		filename: (_req, file, cb) => {
-			const uid = createId();
+			// const uid = createId();
+			const uid = nanoid();
 			_.assign(file, { uid });
 
 			cb(null, addSuffixToFileName(file.originalname, `_${uid}_@original`));

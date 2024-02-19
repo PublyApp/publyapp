@@ -18,7 +18,7 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 		}
 
 		const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
-		// const authService = AuthCloudService.createAuthCloudService();
+		// const authService = await AuthCloudService.createAuthCloudService();
 
 		const fileService = new FileService({ sessionToken });
 		const savedParseFile = await fileService.createOne({
@@ -41,7 +41,7 @@ export const handleUploadManyFiles: RequestHandler = async (req, res, next) => {
 
 		const folderService = new FolderService({ sessionToken });
 		const fileService = new FileService({ sessionToken });
-		// const authService = AuthCloudService.createAuthCloudService();
+		// const authService = await AuthCloudService.createAuthCloudService();
 
 		const parentFolder = await folderService.getByPath(parentFolderPath);
 
