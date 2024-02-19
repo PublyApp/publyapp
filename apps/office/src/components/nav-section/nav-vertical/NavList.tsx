@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 
-// @mui
 import Collapse from '@mui/material/Collapse';
 
 import useActiveLink from '@/office/hooks/useActiveLink';
@@ -22,6 +21,15 @@ type NavListRootProps = {
 const NavList = ({ data, depth, hasChild, config }: NavListRootProps) => {
 	const pathname = usePathname();
 
+	// const deepMatchActiveLink = (() => {
+	// 	if (data.path === FRONT_PATH_NAMES.home) {
+	// 		return false;
+	// 	}
+
+	// 	return hasChild;
+	// })();
+
+	// const active = useActiveLink(data.path, deepMatchActiveLink);
 	const active = useActiveLink(data.path, hasChild);
 
 	const externalLink = data.path.includes('http');

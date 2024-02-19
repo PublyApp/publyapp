@@ -40,7 +40,7 @@ export const getPostByIdAction: QueryFunction<
 		const params = context.queryKey[1];
 
 		const post = await runGetPostById(params);
-		return post.toJSON() as unknown as IPostWithRelations;
+		return post;
 	} catch (error) {
 		console.log('----- getPostByIdAction error ----------', error);
 		return Promise.reject(error);

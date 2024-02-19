@@ -1,11 +1,9 @@
-import { SchemaMigrations } from 'parse-server';
-
 import { className } from '@devist/shared/lib/constants';
 import type { AppFileWithRelations } from '@devist/shared/types/db/appFile.types';
 
-import { DEFAULT_CLP } from '@/server/lib/constants';
+import { defineSchema } from '@/server/lib/parse';
 
-const AppFileSchema = SchemaMigrations.makeSchema<AppFileWithRelations>(className.APP_FILE, {
+const AppFileSchema = defineSchema<AppFileWithRelations>(className.APP_FILE, {
 	fields: {
 		// ! for now we use the server's Filesystem only
 		path: { type: 'String', required: true },
@@ -21,10 +19,6 @@ const AppFileSchema = SchemaMigrations.makeSchema<AppFileWithRelations>(classNam
 		height: { type: 'Number' },
 		width: { type: 'Number' },
 		formats: { type: 'Object' },
-	},
-	classLevelPermissions: DEFAULT_CLP,
-	indexes: {
-		// uniquePath: { path: }
 	},
 });
 

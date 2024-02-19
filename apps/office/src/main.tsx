@@ -6,13 +6,16 @@ import { initI18next } from '@devist/ui-react/lib/i18n';
 import { initNumeral } from '@devist/ui-react/lib/numeral';
 
 import App from './App';
+import { env } from './lib/env';
 import { initParse } from './lib/parse';
 
 import './main.css';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 
-// --- sync necessary events with zustand
-// syncEventsForZustand();
+// --- redirect to the app's basename
+if (window.location.pathname === '/') {
+	window.location.pathname = env.OFFICE_ROUTER_BASENAME;
+}
 
 // ---- i18next localization -------------------------------------------------------------
 initI18next();

@@ -14,7 +14,9 @@
 		"MODE",
 		"REST_API_KEY",
 		"PARSE_SERVER_URL",
-		"PARSE_APP_ID"
+		"PARSE_APP_ID",
+		"OFFICE_ROUTER_BASENAME",
+		"FRONT_URL"
 	],
 	"pipeline": {
 		"build": {

@@ -21,5 +21,7 @@
 	},
 	"new-post": "New post",
 	"views": "Views",
-	"created-at": "Created at"
+	"created-at": "Created at",
+	"published": "Published",
+	"draft": "Draft"
 }
