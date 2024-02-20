@@ -1,4 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * https://github.com/remix-run/react-router/discussions/10421
+ * */
+
 import type { ReactNode } from 'react';
 
 import { Await } from '@remix-run/react';
