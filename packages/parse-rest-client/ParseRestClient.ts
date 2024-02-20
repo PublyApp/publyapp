@@ -1,6 +1,7 @@
-import axios, { type AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 import _ from 'lodash';
 
+import { PARSE_APPLICATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@devist/shared/lib/constants';
 import { AxiosHttp, protectRequest } from '@devist/ui-react/lib/axios';
 
 import ParseRestError from './ParseRestError';
@@ -19,23 +20,31 @@ type RunOptions<P extends Record<string, unknown>> = {
 export default class ParseRestClient {
 	private http: AxiosHttp;
 
-	private applicationId: string;
+	public readonly applicationId: string;
 
 	constructor({ parseServerUrl, applicationId }: Props) {
 		const axiosInstance = axios.create({
 			baseURL: parseServerUrl,
 		});
 
+		// set default headers
+		axiosInstance.defaults.headers.common[PARSE_APPLICATION_ID_HEADER_KEY] = applicationId;
+
+		// interceptors
 		axiosInstance.interceptors.response.use(
 			(response) => {
+				response.data = response.data.result;
 				return response;
 			},
 			(error) => {
-				console.log('🤢🤢🤢🤢');
-
 				if (error.response?.status === 400) {
 					const { code, error: errorMessage } = error.response.data;
 					throw new ParseRestError(code, errorMessage);
+				}
+
+				if (error.response?.status === 403) {
+					const { error: errorMessage } = error.response.data;
+					throw new ParseRestError(-1, errorMessage);
 				}
 
 				return Promise.reject(error);
@@ -46,6 +55,18 @@ export default class ParseRestClient {
 		this.applicationId = applicationId;
 	}
 
+	setHeader(key: string, value: string) {
+		if (_.toLower(key) === _.toLower(PARSE_APPLICATION_ID_HEADER_KEY)) {
+			throw new Error('You cannot set X-Parse-Application-Id header');
+		}
+
+		this.http.axios.defaults.headers.common[key] = value;
+	}
+
+	setSessionToken(token: string) {
+		this.setHeader(PARSE_SESSION_TOKEN_HEADER_KEY, token);
+	}
+
 	/**
 	 * run cloud function
 	 */
@@ -53,26 +74,17 @@ export default class ParseRestClient {
 		functionName: string,
 		options: RunOptions<P> = {},
 	) {
-		const additionalConfig: AxiosRequestConfig = {
-			transformResponse: (data, _headers, status) => {
-				const iData = JSON.parse(data);
-
-				if (status === 400) {
-					return iData;
-				}
-
-				const { result } = iData;
-				return result;
-			},
-		};
-
 		return this.http.post<R, P>(
 			_.join(['/functions', functionName], '/'),
 			options.params as never,
-			_.merge(
-				protectRequest({ sessionToken: options.sessionToken, applicationId: this.applicationId }),
-				additionalConfig,
-			),
+			protectRequest({ sessionToken: options.sessionToken }),
+			// {
+			// 	headers: (options.headers || {}) as never,
+			// },
+			// _.merge(
+			// 	protectRequest({ sessionToken: options.sessionToken, applicationId: this.applicationId }),
+			// 	additionalConfig,
+			// ),
 		);
 	}
 }
