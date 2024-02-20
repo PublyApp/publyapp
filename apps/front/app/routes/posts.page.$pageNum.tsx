@@ -1,5 +1,6 @@
 import { Container, Unstable_Grid2 as Grid } from '@mui/material';
 import { type LoaderFunction } from '@remix-run/node';
+import type { ClientLoaderFunction } from '@remix-run/react';
 
 import { _categories, _tags } from '@/front/_mock';
 import BlogSidebar from '@/front/containers/blog/sidebar/BlogSidebar';
@@ -15,11 +16,29 @@ export const loader = (async ({ params }) => {
 
 	return {
 		posts,
-		// aaaa: new Error('aaaa'),
 	};
 }) satisfies LoaderFunction;
 
-export type PostListLoaderFunction = typeof loader;
+export const clientLoader = (async ({ params, serverLoader }) => {
+	const pageNum = Number(params.pageNum);
+
+	// const iPosts = await safelyRunInLoader(findPost)({ page: pageNum });
+	console.log('😡😡😡😡😡😡😡😡😡😡😡😡', pageNum);
+
+	// console.log(await serverLoader());
+	const { posts } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
+
+	return {
+		pageNum,
+		posts,
+	};
+}) satisfies ClientLoaderFunction;
+
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+clientLoader.hydrate = true;
+
+export type PostListLoaderFunction = typeof clientLoader;
 
 const PostsPage = () => {
 	return (
