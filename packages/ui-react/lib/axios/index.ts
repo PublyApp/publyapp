@@ -15,24 +15,41 @@ export const createInstance = (baseURL: string) => {
 	});
 };
 
-export const protectRequest = ({
-	sessionToken,
-	restApiKey,
-	applicationId,
-	hasFile = false,
-}: {
+export const protectRequest = (options: {
 	sessionToken?: string;
 	applicationId?: string;
 	hasFile?: boolean;
 	restApiKey?: string;
 }): AxiosRequestConfig => {
+	const headers: Record<string, unknown> = {
+		'Content-Type': options.hasFile ? 'multipart/form-data' : 'application/json',
+	};
+
+	const mapper: Record<string, string> = {
+		restApiKey: DEVIST_REST_API_HEADER_KEY,
+		sessionToken: PARSE_SESSION_TOKEN_HEADER_KEY,
+		applicationId: PARSE_APPLICATION_ID_HEADER_KEY,
+	};
+
+	for (const [key, value] of Object.entries(options)) {
+		if (key === 'hasFile') {
+			// eslint-disable-next-line no-continue
+			continue;
+		}
+
+		if (value) {
+			headers[mapper[key]] = value;
+		}
+	}
+
 	return {
-		headers: {
-			[DEVIST_REST_API_HEADER_KEY]: restApiKey,
-			[PARSE_SESSION_TOKEN_HEADER_KEY]: sessionToken,
-			[PARSE_APPLICATION_ID_HEADER_KEY]: applicationId,
-			'Content-Type': hasFile ? 'multipart/form-data' : 'application/json',
-		},
+		headers: headers as never,
+		// headers: {
+		// 	[DEVIST_REST_API_HEADER_KEY]: restApiKey,
+		// 	[PARSE_SESSION_TOKEN_HEADER_KEY]: sessionToken,
+		// 	[PARSE_APPLICATION_ID_HEADER_KEY]: applicationId,
+		// 	'Content-Type': hasFile ? 'multipart/form-data' : 'application/json',
+		// },
 	};
 };
 

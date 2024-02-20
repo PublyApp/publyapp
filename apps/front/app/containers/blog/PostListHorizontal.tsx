@@ -29,7 +29,7 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 	// const loading = useFakeLoading();
 	const loading = false;
 	const { posts } = useLoaderData<PostListLoaderFunction>();
-	// console.log('🤢🤢🤢🤢', posts);
+	console.log('🤢🤢🤢🤢', posts);
 
 	const renderSkeleton = (
 		<>
@@ -41,9 +41,11 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 
 	const renderList = (
 		<>
-			{posts.map((post) => {
-				return <PostItemHorizontal key={post.objectId} post={post as never} />;
-			})}
+			{posts
+				? posts.map((post) => {
+						return <PostItemHorizontal key={post.objectId} post={post as never} />;
+					})
+				: null}
 		</>
 	);
 
@@ -60,7 +62,7 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 				{loading ? renderSkeleton : renderList}
 			</Box>
 
-			{posts.length > 8 && (
+			{(posts || []).length > 8 && (
 				<Pagination
 					count={8}
 					sx={{

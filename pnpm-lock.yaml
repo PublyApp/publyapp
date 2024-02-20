@@ -759,6 +759,9 @@ importers:
 
   packages/parse-rest-client:
     dependencies:
+      '@devist/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@devist/ui-react':
         specifier: workspace:*
         version: link:../ui-react
