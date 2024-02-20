@@ -10,23 +10,28 @@ import { findPost } from '../lib/parse/request/post.request';
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
 export const loader = (async ({ params }) => {
-	const pageNum = Number(params.pageNum);
+	// const pageNum = Number(params.pageNum);
 
-	const posts = await safelyRunInLoader(findPost)({ page: pageNum });
+	// const posts = await safelyRunInLoader(findPost)({ page: pageNum });
 
 	return {
-		posts,
+		ok: 'lol',
 	};
 }) satisfies LoaderFunction;
 
 export const clientLoader = (async ({ params, serverLoader }) => {
-	const pageNum = Number(params.pageNum);
+	// const pageNum = Number(params.pageNum);
 
 	// const iPosts = await safelyRunInLoader(findPost)({ page: pageNum });
-	console.log('😡😡😡😡😡😡😡😡😡😡😡😡', pageNum);
 
 	// console.log(await serverLoader());
-	const { posts } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
+	const { ok } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
+
+	const pageNum = Number(params.pageNum);
+
+	const posts = await safelyRunInLoader(findPost)({ page: pageNum });
+
+	console.log('😡😡😡😡😡😡😡😡😡😡😡😡', posts);
 
 	return {
 		pageNum,
