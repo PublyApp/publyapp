@@ -13,8 +13,9 @@ import './main.css';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 
 // --- redirect to the app's basename
-if (window.location.pathname === '/') {
-	window.location.pathname = env.OFFICE_ROUTER_BASENAME;
+if (!window.location.pathname.startsWith(env.OFFICE_ROUTER_BASENAME)) {
+	const newPathName = env.OFFICE_ROUTER_BASENAME + window.location.pathname;
+	window.location.pathname = newPathName;
 }
 
 // ---- i18next localization -------------------------------------------------------------

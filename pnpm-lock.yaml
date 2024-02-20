@@ -81,19 +81,19 @@ importers:
         specifier: ^5.15.4
         version: 5.15.7(@types/react@18.2.53)(react@18.2.0)
       '@remix-run/css-bundle':
-        specifier: ^2.5.0
+        specifier: ^2.6.0
         version: 2.6.0
       '@remix-run/node':
-        specifier: ^2.5.0
+        specifier: ^2.6.0
         version: 2.6.0(typescript@5.3.3)
       '@remix-run/react':
-        specifier: ^2.5.0
+        specifier: ^2.6.0
         version: 2.6.0(react-dom@18.2.0)(react@18.2.0)(typescript@5.3.3)
       '@remix-run/serve':
-        specifier: ^2.5.0
+        specifier: ^2.6.0
         version: 2.6.0(typescript@5.3.3)
       '@remix-run/server-runtime':
-        specifier: ^2.5.0
+        specifier: ^2.6.0
         version: 2.6.0(typescript@5.3.3)
       '@types/parse':
         specifier: ^3.0.9

@@ -3,6 +3,7 @@ import { type UseFormReturn } from 'react-hook-form';
 
 import FormProvider from '@devist/ui-react/components/form/FormProvider';
 import RHFMdxEditor from '@devist/ui-react/components/form/RHFMdxEditor';
+import RHFSwitch from '@devist/ui-react/components/form/RHFSwitch';
 import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
 
 type Props = {
@@ -17,6 +18,7 @@ const PostForm = ({ form }: Props) => {
 			// onSubmit={handleSavePost}
 		>
 			<Stack spacing={3}>
+				<RHFSwitch name="published" label="Publish" color="success" />
 				<RHFTextField name="title" label="Post Title" />
 				<RHFTextField name="description" label="Description" multiline rows={3} />
 				<RHFTextField name="slug" label="Slug" />
