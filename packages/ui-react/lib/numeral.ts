@@ -2,7 +2,7 @@ import numeral from 'numeral';
 
 import { appLocales, defaultLocale } from '@/shared/lib/i18n/resources';
 
-import { localStorageGetItem } from '../utils/storage.utils';
+import { getInitialLocale } from './i18n';
 
 export const initNumeral = () => {
 	numeral.register('locale', appLocales[1], {
@@ -24,8 +24,7 @@ export const initNumeral = () => {
 		},
 	});
 
-	const storedLocale = localStorageGetItem('i18nextLng');
-	const locale = appLocales.includes(storedLocale as never) ? storedLocale : defaultLocale;
+	const locale = getInitialLocale();
 
 	numeral.locale(locale || defaultLocale);
 };

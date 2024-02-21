@@ -22,6 +22,7 @@
 	},
 	"dependencies": {
 		"@calumk/editorjs-codeflask": "^1.0.10",
+		"@devist/parse-rest-client": "workspace:*",
 		"@devist/shared": "workspace:*",
 		"@devist/ui-react": "workspace:*",
 		"@editorjs/checklist": "^1.6.0",

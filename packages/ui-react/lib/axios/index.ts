@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import _ from 'lodash';
 
 import {
 	DEVIST_REST_API_HEADER_KEY,
@@ -22,34 +23,20 @@ export const protectRequest = (options: {
 	restApiKey?: string;
 }): AxiosRequestConfig => {
 	const headers: Record<string, unknown> = {
+		[DEVIST_REST_API_HEADER_KEY]: options.restApiKey,
+		[PARSE_SESSION_TOKEN_HEADER_KEY]: options.sessionToken,
+		[PARSE_APPLICATION_ID_HEADER_KEY]: options.applicationId,
 		'Content-Type': options.hasFile ? 'multipart/form-data' : 'application/json',
 	};
 
-	const mapper: Record<string, string> = {
-		restApiKey: DEVIST_REST_API_HEADER_KEY,
-		sessionToken: PARSE_SESSION_TOKEN_HEADER_KEY,
-		applicationId: PARSE_APPLICATION_ID_HEADER_KEY,
-	};
-
-	for (const [key, value] of Object.entries(options)) {
-		if (key === 'hasFile') {
-			// eslint-disable-next-line no-continue
-			continue;
+	_.keys(headers).forEach((key) => {
+		if (_.isNil(headers[key])) {
+			delete headers[key];
 		}
-
-		if (value) {
-			headers[mapper[key]] = value;
-		}
-	}
+	});
 
 	return {
 		headers: headers as never,
-		// headers: {
-		// 	[DEVIST_REST_API_HEADER_KEY]: restApiKey,
-		// 	[PARSE_SESSION_TOKEN_HEADER_KEY]: sessionToken,
-		// 	[PARSE_APPLICATION_ID_HEADER_KEY]: applicationId,
-		// 	'Content-Type': hasFile ? 'multipart/form-data' : 'application/json',
-		// },
 	};
 };
 

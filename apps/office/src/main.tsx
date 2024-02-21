@@ -7,10 +7,12 @@ import { initNumeral } from '@devist/ui-react/lib/numeral';
 
 import App from './App';
 import { env } from './lib/env';
-import { initParse } from './lib/parse';
+// import { initParse } from './lib/parse/legacy';
 
 import './main.css';
 import 'react-lazy-load-image-component/src/effects/blur.css';
+
+import { initParse } from './lib/parse/client';
 
 // --- redirect to the app's basename
 if (!window.location.pathname.startsWith(env.OFFICE_ROUTER_BASENAME)) {

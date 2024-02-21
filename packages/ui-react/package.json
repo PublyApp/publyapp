@@ -25,6 +25,7 @@
 	"dependencies": {
 		"@calumk/editorjs-codeflask": "^1.0.10",
 		"@devist/shared": "workspace:*",
+		"@devist/parse-rest-client": "workspace:*",
 		"@editorjs/checklist": "^1.6.0",
 		"@editorjs/code": "^2.9.0",
 		"@editorjs/delimiter": "^1.4.0",
