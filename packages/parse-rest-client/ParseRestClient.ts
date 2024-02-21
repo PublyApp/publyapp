@@ -4,6 +4,8 @@ import _ from 'lodash';
 import { PARSE_APPLICATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@devist/shared/lib/constants';
 import { AxiosHttp, protectRequest } from '@devist/ui-react/lib/axios';
 
+import type { IUser } from '@/shared/types/db/user.types';
+
 import ParseRestError from './ParseRestError';
 
 type Props = {
@@ -78,13 +80,22 @@ export default class ParseRestClient {
 			_.join(['/functions', functionName], '/'),
 			options.params as never,
 			protectRequest({ sessionToken: options.sessionToken }),
-			// {
-			// 	headers: (options.headers || {}) as never,
-			// },
-			// _.merge(
-			// 	protectRequest({ sessionToken: options.sessionToken, applicationId: this.applicationId }),
-			// 	additionalConfig,
-			// ),
+		);
+	}
+
+	/**
+	 * login with username/email and password
+	 */
+	async passwordLogin(username: string, password: string) {
+		// todo use a custom login cloud function instead of the default login endpoint
+		// because I think I'll want to return the user object with its relations populated someday
+		return this.http.post<IUser>(
+			'/login',
+			{ username, password },
+			_.merge(protectRequest({}), {
+				'X-Parse-Revocable-Session': '1',
+				[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
+			}),
 		);
 	}
 }

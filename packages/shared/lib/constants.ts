@@ -119,6 +119,9 @@ export const BO_PATH_NAMES = {
 } as const;
 
 export const functionName = {
+	// users
+	getUserAuthData: 'getUserAuthData',
+	//
 	getAITools: 'getAITools',
 	createAITool: 'createAITool',
 	// Web hosts

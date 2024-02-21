@@ -180,6 +180,9 @@ importers:
       '@calumk/editorjs-codeflask':
         specifier: ^1.0.10
         version: 1.0.10(@rspack/core@0.5.3)(prismjs@1.24.1)(webpack@5.90.1)
+      '@devist/parse-rest-client':
+        specifier: workspace:*
+        version: link:../../packages/parse-rest-client
       '@devist/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -826,6 +829,9 @@ importers:
       '@calumk/editorjs-codeflask':
         specifier: ^1.0.10
         version: 1.0.10(@rspack/core@0.5.3)(prismjs@1.24.1)(webpack@5.90.1)
+      '@devist/parse-rest-client':
+        specifier: workspace:*
+        version: link:../parse-rest-client
       '@devist/shared':
         specifier: workspace:*
         version: link:../shared

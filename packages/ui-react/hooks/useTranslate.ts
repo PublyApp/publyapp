@@ -9,9 +9,12 @@ import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i1
 
 import { defaultLangConfig, langConfigsMap } from '../config/lang.config';
 
+import useHttpClients from './useHttpClients';
+
 // ----------------------------------------------------------------------
 
 const useTranslate = () => {
+	const { parseApi } = useHttpClients();
 	const { i18n, t, ready } = useTranslation();
 
 	const allLangs = useMemo(() => {
@@ -37,13 +40,14 @@ const useTranslate = () => {
 			i18n.changeLanguage(value);
 
 			// set locale header for parse-server
-			const reqHeaders = Parse.CoreManager.get('REQUEST_HEADERS');
-			Parse.CoreManager.set('REQUEST_HEADERS', _.assign(reqHeaders, { [LOCALE_HEADER_KEY]: value }));
+			// const reqHeaders = Parse.CoreManager.get('REQUEST_HEADERS');
+			// Parse.CoreManager.set('REQUEST_HEADERS', _.assign(reqHeaders, { [LOCALE_HEADER_KEY]: value }));
+			parseApi.parseRestClient.setHeader(LOCALE_HEADER_KEY, value);
 
 			// se locale of numeral.js (number formatting)
 			numeral.locale(value);
 		},
-		[i18n],
+		[i18n, parseApi],
 	);
 
 	const setLocale: Dispatch<SetStateAction<AppLocale>> = useCallback(

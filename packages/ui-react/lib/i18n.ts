@@ -6,6 +6,8 @@ import { initReactI18next } from 'react-i18next';
 
 import { appLocales, defaultLocale, defaultNS, NS, resources, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
+import { localStorageGetItem } from '../utils/storage.utils';
+
 export const initI18next = () => {
 	i18n
 		.use(LanguageDetector)
@@ -38,6 +40,17 @@ export const getCurrentLocale = (): AppLocale => {
 	});
 
 	return foundLocale || defaultLocale;
+};
+
+/**
+ * Get the locale from the local storage
+ * Used to set the locale when the app starts
+ */
+export const getInitialLocale = (): AppLocale => {
+	const storedLocale = localStorageGetItem('i18nextLng');
+	const locale = appLocales.includes(storedLocale as never) ? storedLocale! : defaultLocale;
+
+	return locale as never;
 };
 
 export default i18n;

@@ -5,33 +5,34 @@ import type { ClientLoaderFunction } from '@remix-run/react';
 import { _categories, _tags } from '@/front/_mock';
 import BlogSidebar from '@/front/containers/blog/sidebar/BlogSidebar';
 
+import { parseApi } from '../api/_index';
 import PostListHorizontal from '../containers/blog/PostListHorizontal';
-import { findPost } from '../lib/parse/request/post.request';
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
 export const loader = (async ({ params }) => {
-	// const pageNum = Number(params.pageNum);
+	const pageNum = Number(params.pageNum);
 
-	// const posts = await safelyRunInLoader(findPost)({ page: pageNum });
+	const posts = await safelyRunInLoader(parseApi.posts.findPost)({ page: pageNum });
 
 	return {
-		ok: 'lol',
+		// ok: 'lol',
+		posts,
 	};
 }) satisfies LoaderFunction;
 
 export const clientLoader = (async ({ params, serverLoader }) => {
-	// const pageNum = Number(params.pageNum);
+	const pageNum = Number(params.pageNum);
 
 	// const iPosts = await safelyRunInLoader(findPost)({ page: pageNum });
 
 	// console.log(await serverLoader());
-	const { ok } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
+	const { posts } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
 
-	const pageNum = Number(params.pageNum);
+	// const pageNum = Number(params.pageNum);
 
-	const posts = await safelyRunInLoader(findPost)({ page: pageNum });
+	// const posts = await safelyRunInLoader(findPost)({ page: pageNum });
 
-	console.log('😡😡😡😡😡😡😡😡😡😡😡😡', posts);
+	// console.log('😡😡😡😡😡😡😡😡😡😡😡😡', posts);
 
 	return {
 		pageNum,

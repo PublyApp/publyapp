@@ -1,11 +1,10 @@
-import Parse from 'parse';
-
+// import Parse from 'parse';
 // import { QueryFunctionContext } from '@tanstack/react-query';
 // import Cookies from 'universal-cookie';
 
-import type { IUser } from '@devist/shared/types/db/user.types';
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
+import type ParseApi from '@/ui-react/api/parse/_index';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 
 // import defaultQueryClient from '../../queryClient';
@@ -26,42 +25,42 @@ import { ClientException } from '@/ui-react/exceptions/ClientException';
 //                                                                                      //
 // --------------------------------------------------------------------------------------//
 
-type IRole = {
-	name: string;
-};
+// type IRole = {
+// 	name: string;
+// };
 
-// TODO: move to utils
-export function getUserRoles(user: Parse.User, toJSON?: false): Promise<Parse.Role[]>;
-export function getUserRoles(user: Parse.User, toJSON: true): Promise<IRole[]>;
+// // TODO: move to utils
+// export function getUserRoles(user: Parse.User, toJSON?: false): Promise<Parse.Role[]>;
+// export function getUserRoles(user: Parse.User, toJSON: true): Promise<IRole[]>;
 
-// eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions
-export async function getUserRoles(user: Parse.User, toJSON?: boolean) {
-	const roleQuery = new Parse.Query(Parse.Role).equalTo('users', user);
-	const roles = await roleQuery.find();
+// // eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions
+// export async function getUserRoles(user: Parse.User, toJSON?: boolean) {
+// 	const roleQuery = new Parse.Query(Parse.Role).equalTo('users', user);
+// 	const roles = await roleQuery.find();
 
-	if (!toJSON) return roles;
+// 	if (!toJSON) return roles;
 
-	const rolesJSON = roles.map((role) => {
-		return role.toJSON() as unknown as IRole;
-	});
-	return rolesJSON;
-}
+// 	const rolesJSON = roles.map((role) => {
+// 		return role.toJSON() as unknown as IRole;
+// 	});
+// 	return rolesJSON;
+// }
 
 // ---- 1 --------------------------------------------------------------------------------
 
-export const logInAction = async (input: LogInInput) => {
-	try {
-		const { email, password } = input;
-		const user = await Parse.User.logIn(email, password);
+export const logInAction = (parseApi: ParseApi) => {
+	return async (input: LogInInput) => {
+		try {
+			const { email, password } = input;
 
-		// defaultQueryClient.getQueryCache().find({ queryKey})
+			const user = await parseApi.parseRestClient.passwordLogin(email, password);
 
-		// ? should I return the logged in User?
-		return user.toJSON() as unknown as IUser;
-	} catch (error) {
-		console.log('----- logInAction error ----------', error);
-		return Promise.reject(error);
-	}
+			return user;
+		} catch (error) {
+			console.log('----- logInAction error ----------', error);
+			return Promise.reject(error);
+		}
+	};
 };
 
 // ---- 2 --------------------------------------------------------------------------------
@@ -79,43 +78,23 @@ export const logOutAction = async (): Promise<void> => {
 };
 
 // ---- 3 --------------------------------------------------------------------------------
-// export const AUTH_REQUIRED_ERROR_MSG = 'Auth required';
 
-// TODO: create a cloud function and call it from instead
-export const getClientAuthAction = async () => {
-	try {
-		// const storedUser = await Parse.User.currentAsync();
-		const storedUser = Parse.User.current();
+export const getClientAuthAction = (parseApi: ParseApi) => {
+	return async () => {
+		try {
+			const authData = await parseApi.parseRestClient.cloudRun('getUserAuthData');
 
-		if (!storedUser) {
-			throw new ClientException(ClientException.AUTH_REQUIRED, /* i18n.t('---xxx----') */ 'Auth required');
-		}
+			return authData;
+		} catch (error) {
+			console.log('----- getAuthAction error ----------', error);
 
-		// Handle tha cases:
-		// the id does not exists
-		// the session token is invalid (does not exist or expired)
-		const foundUser = await new Parse.Query(Parse.User).get(storedUser.id, {
-			sessionToken: storedUser.getSessionToken(),
-		});
-
-		const user = foundUser.toJSON() as unknown as IUser;
-		const sessionToken = foundUser.getSessionToken();
-		const roles = await getUserRoles(foundUser, true);
-
-		return {
-			user,
-			sessionToken,
-			roles,
-		};
-	} catch (error) {
-		console.log('----- getAuthAction error ----------', error);
-
-		if (error instanceof ClientException) {
-			if (error.code === ClientException.AUTH_REQUIRED) {
-				logOutAction();
+			if (error instanceof ClientException) {
+				if (error.code === ClientException.AUTH_REQUIRED) {
+					logOutAction();
+				}
 			}
-		}
 
-		return Promise.reject(error);
-	}
+			return Promise.reject(error);
+		}
+	};
 };
