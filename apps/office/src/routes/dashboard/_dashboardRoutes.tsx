@@ -4,11 +4,12 @@ import loadable from '@loadable/component';
 import { Button } from '@mui/material';
 import { defer, Navigate, Outlet, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
+import clients from '@/office/api/clients';
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
-import { getClientAuthQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
+import AuthActions from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { getPostByIdQuery } from '@/ui-react/lib/react-query/features/posts/post.hooks';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
@@ -35,15 +36,15 @@ const DashboardRootError = () => {
 		}
 	}
 
-	if (error instanceof Parse.Error) {
-		if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
-			if (Parse.User.current()) {
-				Parse.User.logOut();
-			}
+	// if (error instanceof Parse.Error) {
+	// 	if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
+	// 		if (Parse.User.current()) {
+	// 			Parse.User.logOut();
+	// 		}
 
-			return <Navigate to={BO_PATH_NAMES.auth.login} />;
-		}
-	}
+	// 		return <Navigate to={BO_PATH_NAMES.auth.login} />;
+	// 	}
+	// }
 
 	return (
 		<div role="alert">
@@ -82,11 +83,12 @@ const DashboardPageError = () => {
 export const dashboardRoutes: RouteObject[] = [
 	{
 		loader: getRouteLoader(async () => {
-			const cachedAutData = defaultQueryClient.getQueryData(getClientAuthQuery.queryKey);
+			const authActions = new AuthActions(clients.parseApi);
+			const cachedAuthData = defaultQueryClient.getQueryData(authActions.getUserAuthDataQuery.queryKey);
 
-			const authData = cachedAutData
-				? Promise.resolve(cachedAutData)
-				: defaultQueryClient.fetchQuery(getClientAuthQuery);
+			const authData = cachedAuthData
+				? Promise.resolve(cachedAuthData)
+				: defaultQueryClient.fetchQuery(authActions.getUserAuthDataQuery);
 
 			return defer({
 				authData,

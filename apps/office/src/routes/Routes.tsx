@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 
+import { env } from '../lib/env';
 import QueryParamProvider from '../providers/QueryParamProvider';
 
 import { dashboardRoutes } from './dashboard/_dashboardRoutes';
@@ -13,7 +14,7 @@ const router = createBrowserRouter(
 		},
 	],
 	{
-		basename: '/bo',
+		basename: env.OFFICE_ROUTER_BASENAME,
 	},
 );
 

@@ -51,8 +51,7 @@ const PostItemHorizontal = ({ post }: Props) => {
 
 	// const mdUp = useResponsive('up', 'md');
 
-	const { author, slug, translation, cover, views, /* tags, */ published, publishDate, createdAt, commentsCount } =
-		post;
+	const { author, slug, translation, cover, viewCount, published, publishDate, createdAt, commentsCount, tags } = post;
 	// const { title, author, publish, coverUrl, createdAt, totalViews, totalShares, totalComments, description } = post;
 
 	const theme = useTheme();
@@ -146,7 +145,7 @@ const PostItemHorizontal = ({ post }: Props) => {
 
 							<Stack direction="row" alignItems="center">
 								<Iconify icon="solar:eye-bold" width={16} sx={{ mr: 0.5 }} />
-								{fShortenNumber(views)}
+								{fShortenNumber(viewCount)}
 							</Stack>
 
 							{/* <Stack direction="row" alignItems="center">

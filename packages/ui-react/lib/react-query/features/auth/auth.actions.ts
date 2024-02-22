@@ -2,99 +2,75 @@
 // import { QueryFunctionContext } from '@tanstack/react-query';
 // import Cookies from 'universal-cookie';
 
+import { queryOptions } from '@tanstack/react-query';
+
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
+import { functionName } from '@/shared/lib/constants';
 import type ParseApi from '@/ui-react/api/parse/_index';
-import { ClientException } from '@/ui-react/exceptions/ClientException';
 
-// import defaultQueryClient from '../../queryClient';
-// import { ROLES_LOCAL_STORAGE_KEY, SESSION_TOKEN_COOKIE_KEY } from '../../../utils/constants';
+// import { ClientException } from '@/ui-react/exceptions/ClientException';
 
-// const isServer = typeof window === 'undefined';
-// const Parse = isServer ? global.Parse : window.Parse;
+export default class AuthActions {
+	constructor(private parseApi: ParseApi) {}
 
-// --------------------------------------------------------------------------------------//
-//                                                                                      //
-//                                       QUERIES                                        //
-//                                                                                      //
-// --------------------------------------------------------------------------------------//
+	// ---- 1 --------------------------------------------------------------------------------
 
-// --------------------------------------------------------------------------------------//
-//                                                                                      //
-//                                      MUTATIONS                                       //
-//                                                                                      //
-// --------------------------------------------------------------------------------------//
-
-// type IRole = {
-// 	name: string;
-// };
-
-// // TODO: move to utils
-// export function getUserRoles(user: Parse.User, toJSON?: false): Promise<Parse.Role[]>;
-// export function getUserRoles(user: Parse.User, toJSON: true): Promise<IRole[]>;
-
-// // eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions
-// export async function getUserRoles(user: Parse.User, toJSON?: boolean) {
-// 	const roleQuery = new Parse.Query(Parse.Role).equalTo('users', user);
-// 	const roles = await roleQuery.find();
-
-// 	if (!toJSON) return roles;
-
-// 	const rolesJSON = roles.map((role) => {
-// 		return role.toJSON() as unknown as IRole;
-// 	});
-// 	return rolesJSON;
-// }
-
-// ---- 1 --------------------------------------------------------------------------------
-
-export const logInAction = (parseApi: ParseApi) => {
-	return async (input: LogInInput) => {
+	async logInAction(input: LogInInput) {
 		try {
 			const { email, password } = input;
 
-			const user = await parseApi.parseRestClient.passwordLogin(email, password);
+			const user = await this.parseApi.parseRestClient.passwordLogin(email, password);
 
 			return user;
 		} catch (error) {
 			console.log('----- logInAction error ----------', error);
 			return Promise.reject(error);
 		}
-	};
-};
-
-// ---- 2 --------------------------------------------------------------------------------
-
-export const logOutAction = async (): Promise<void> => {
-	try {
-		await Parse.User.logOut();
-
-		console.log('----- logged Out -----');
-		return await Promise.resolve();
-	} catch (error) {
-		console.log('----- logOutAction error ----------', error);
-		return Promise.reject(error);
 	}
-};
 
-// ---- 3 --------------------------------------------------------------------------------
+	// ---- 2 --------------------------------------------------------------------------------
 
-export const getClientAuthAction = (parseApi: ParseApi) => {
-	return async () => {
+	async logOutAction(): Promise<void> {
 		try {
-			const authData = await parseApi.parseRestClient.cloudRun('getUserAuthData');
+			await this.parseApi.parseRestClient.logOut();
+			// await Parse.User.logOut();
+
+			console.log('----- logged Out -----');
+			return await Promise.resolve();
+		} catch (error) {
+			console.log('----- logOutAction error ----------', error);
+			return Promise.reject(error);
+		}
+	}
+
+	// ---- 3 --------------------------------------------------------------------------------
+
+	static getUserAuthDataQueryKeyBase = functionName.getUserAuthData;
+
+	getUserAuthDataQuery = queryOptions({
+		queryKey: [AuthActions.getUserAuthDataQueryKeyBase] as const,
+		queryFn: this.getUserAuthDataAction.bind(this),
+	});
+
+	async getUserAuthDataAction() {
+		try {
+			const authData = await this.parseApi.users.getUserAuthData();
 
 			return authData;
 		} catch (error) {
-			console.log('----- getAuthAction error ----------', error);
+			console.log('----- getUserAuthData error ----------', error);
 
-			if (error instanceof ClientException) {
-				if (error.code === ClientException.AUTH_REQUIRED) {
-					logOutAction();
-				}
-			}
+			// what if invalid sessionToken ?
+			// what if no session token at all ?
+
+			// if (error instanceof ClientException) {
+			// 	if (error.code === ClientException.AUTH_REQUIRED) {
+			// 		logOutAction();
+			// 	}
+			// }
 
 			return Promise.reject(error);
 		}
-	};
-};
+	}
+}
