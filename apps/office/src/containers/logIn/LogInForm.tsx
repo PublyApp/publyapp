@@ -7,9 +7,10 @@ import { useLocation, useNavigate, useRevalidator } from 'react-router-dom';
 
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 import { logInSchema, type LogInInput } from '@devist/shared/validations/auth.validations';
-import { getClientAuthQuery, useLogInMutation } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
+import AuthActions from '@devist/ui-react/lib/react-query/features/auth/auth.actions';
+import { useLogInMutation } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
 
-// import { getClientAuthAction } from '@/ui-react/lib/react-query/features/auth/auth.actions';
+// import useHttpClients from '@devist/ui-react/hooks/useHttpClients';
 
 const LogInForm = () => {
 	const form = useForm<LogInInput>({ resolver: zodResolver(logInSchema) });
@@ -30,23 +31,29 @@ const LogInForm = () => {
 	// 	result: { refetch: refetchClientAuth },
 	// } = useGetClientAuthSuspenseQuery(/* { enabled: false } */);
 
+	// const { parseApi } = useHttpClients();
+
 	const {
 		result: { mutate: logIn, isPending },
 	} = useLogInMutation({
-		onSuccess: async () => {
-			// resetBoundary();
-			// navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
+		options: {
+			onSuccess: async () => {
+				// resetBoundary();
+				// navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
 
-			queryClient.invalidateQueries({ queryKey: getClientAuthQuery.queryKey });
+				// const authActions = new AuthActions(parseApi);
 
-			// refetchClientAuth();
+				queryClient.invalidateQueries({ queryKey: [AuthActions.getUserAuthDataQueryKeyBase] });
 
-			// const authData = await getClientAuthAction();
-			// queryClient.setQueryData([getClientAuthQueryKeyBase] as const, authData);
+				// refetchClientAuth();
 
-			revalidate();
+				// const authData = await getClientAuthAction();
+				// queryClient.setQueryData([getClientAuthQueryKeyBase] as const, authData);
 
-			navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
+				revalidate();
+
+				navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
+			},
 		},
 	});
 
