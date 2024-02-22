@@ -174,3 +174,5 @@ export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
 export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';
 export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
 export const DEVIST_REST_API_HEADER_KEY = 'X-Devist-Key';
+
+export const SESSION_TOKEN_LOCAL_STORAGE_KEY = 'sessionToken';

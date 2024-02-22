@@ -1,6 +1,7 @@
 import { redirect, type RouteObject } from 'react-router-dom';
 
-import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
+import { localStorageGetItem } from '@/ui-react/utils/storage.utils';
 
 // import { getClientAuthQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 // import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
@@ -33,9 +34,10 @@ export const publicRoutes: RouteObject[] = [
 				path: getLastPath(BO_PATH_NAMES.auth.root),
 				// * Public only loader check
 				loader: getRouteLoader(async () => {
-					const storedUser = Parse.User.current();
+					// const storedUser = Parse.User.current();
+					const storedToken = localStorageGetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY);
 
-					if (!storedUser) {
+					if (/* !storedUser */ !storedToken) {
 						return null;
 					}
 
