@@ -19,9 +19,9 @@ import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i1
 
 import { pageToSkip } from '@/server/utils/any.utils';
 
-import RoleUtils from '../resources/role/role.utils';
+import RoleService from '../resources/role/role.service';
 
-import { DEFAULT_CLP } from './constants';
+import { DEFAULT_CLP, USE_MASTER_KEY } from './constants';
 import { getT } from './i18n';
 
 type ParseInnerFunction<T = unknown> =
@@ -103,7 +103,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 		}
 
 		// verify the roles
-		const userHasRole = await RoleUtils.hasRole(user, allowedRoles);
+		const userHasRole = await new RoleService(USE_MASTER_KEY).hasRole(user, allowedRoles);
 
 		if (!userHasRole) {
 			throw new Error(t('common:insufficientRoleForAction'));
@@ -165,7 +165,7 @@ export const multiTenantParseFrom = <T = unknown>(params: MultiTenantParseFromPa
 						throw new Error(t('User is required'));
 					}
 
-					const isStaff = await RoleUtils.hasRole(user, roleSet.ABOVE_STAFF_CONTRIBUTOR);
+					const isStaff = await new RoleService(USE_MASTER_KEY).hasRole(user, roleSet.ABOVE_STAFF_CONTRIBUTOR);
 
 					if (!isStaff) {
 						throw new Error(t('User is not staff'));

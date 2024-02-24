@@ -11,7 +11,7 @@ export default class UserEndPoints {
 	// 	});
 	// }
 
-	async getUserAuthData() {
+	getUserAuthData = async () => {
 		return this.parseRestClient.cloudRun(functionName.getUserAuthData);
-	}
+	};
 }

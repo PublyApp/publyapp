@@ -147,6 +147,9 @@ const findPostFunction = parseFrom({
 
 		if (params.view === 'front-list') {
 			const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
+
+			console.log(posts);
+
 			return posts;
 		}
 

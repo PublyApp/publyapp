@@ -10,11 +10,16 @@ type FindPostParams = {
 };
 
 export class PostEndPoints {
-	constructor(private parseRestClient: ParseRestClient) {}
+	constructor(private parseRestClient: ParseRestClient) {
+		//
+		this.findPost = this.findPost.bind(this);
+	}
 
 	async findPost({ page }: FindPostParams) {
-		return this.parseRestClient.cloudRun<IPostWithRelations[]>(functionName.findPost, {
+		const res = await this.parseRestClient.cloudRun<IPostWithRelations[]>(functionName.findPost, {
 			params: { view: 'front-list', page },
 		});
+
+		return res;
 	}
 }

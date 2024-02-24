@@ -1,9 +1,7 @@
 import { parseFrom } from '@/server/lib/parse';
 import { functionName, roleSet } from '@/shared/lib/constants';
 
-import RoleUtils from '../role/role.utils';
-
-import UserService from './user.service';
+import RoleService from '../role/role.service';
 
 const getUserAuthDataFunction = parseFrom({
 	requireUser: true,
@@ -11,11 +9,17 @@ const getUserAuthDataFunction = parseFrom({
 	action: async ({ req: _r, user }) => {
 		const sessionToken = user.getSessionToken();
 
-		const rolesPromises = RoleUtils.getUserRoles(user, true);
-		const fetchUserPromise = new UserService({ sessionToken }).getById(user.id);
+		const rolesPromises = new RoleService({ sessionToken }).getUserRoles(user, true);
+		// const fetchUserPromise = new UserService({ sessionToken }).getById(user.id);
+
+		// const [roles, iUser] = await Promise.all([rolesPromises, fetchUserPromise]);
+
+		// console.log('[[[[[[[[[[[[', user.toJSON());
 
 		return {
-			user: await fetchUserPromise,
+			// user: await fetchUserPromise,
+			// roles: await rolesPromises,
+			user: user.toJSON(),
 			roles: await rolesPromises,
 			sessionToken,
 		};

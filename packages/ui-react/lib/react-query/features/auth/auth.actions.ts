@@ -16,7 +16,7 @@ export default class AuthActions {
 
 	// ---- 1 --------------------------------------------------------------------------------
 
-	async logInAction(input: LogInInput) {
+	logInAction = async (input: LogInInput) => {
 		try {
 			const { email, password } = input;
 
@@ -27,7 +27,7 @@ export default class AuthActions {
 			console.log('----- logInAction error ----------', error);
 			return Promise.reject(error);
 		}
-	}
+	};
 
 	// ---- 2 --------------------------------------------------------------------------------
 

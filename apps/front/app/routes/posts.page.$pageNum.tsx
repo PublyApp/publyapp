@@ -14,6 +14,8 @@ export const loader = (async ({ params }) => {
 
 	const posts = await safelyRunInLoader(parseApi.posts.findPost)({ page: pageNum });
 
+	console.log('🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡', posts);
+
 	return {
 		// ok: 'lol',
 		posts,
@@ -32,7 +34,7 @@ export const clientLoader = (async ({ params, serverLoader }) => {
 
 	// const posts = await safelyRunInLoader(findPost)({ page: pageNum });
 
-	// console.log('😡😡😡😡😡😡😡😡😡😡😡😡', posts);
+	console.log('😡😡😡😡😡😡😡😡😡😡😡😡', posts);
 
 	return {
 		pageNum,
@@ -42,7 +44,7 @@ export const clientLoader = (async ({ params, serverLoader }) => {
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-clientLoader.hydrate = true;
+// clientLoader.hydrate = true;
 
 export type PostListLoaderFunction = typeof clientLoader;
 
