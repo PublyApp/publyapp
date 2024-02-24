@@ -1,8 +1,8 @@
 import { roleEnum } from '@devist/shared/lib/constants';
 
-import { ADMIN_EMAILS } from '../../lib/constants';
+import { ADMIN_EMAILS, USE_MASTER_KEY } from '../../lib/constants';
 import { parseTrigger } from '../../lib/parse';
-import RoleUtils from '../role/role.utils';
+import RoleService from '../role/role.service';
 
 Parse.Cloud.afterSave(
 	Parse.User,
@@ -20,15 +20,17 @@ Parse.Cloud.afterSave(
 				throw new Error(t('common:userHasNoEmail'));
 			}
 
+			const roleService = new RoleService(USE_MASTER_KEY);
+
 			if (ADMIN_EMAILS.includes(email)) {
-				const adminRole = await RoleUtils.findRoleByCode(roleEnum.STAFF_ADMIN.code, true);
+				const adminRole = await roleService.findRoleByCode(roleEnum.STAFF_ADMIN.code);
 
 				if (!adminRole) {
 					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 					throw new Error(t('common:roleNotFound')!);
 				}
 
-				await RoleUtils.assignRoleToUser(user, adminRole, true);
+				await roleService.assignRoleToUser(user, adminRole);
 			}
 		},
 	}),

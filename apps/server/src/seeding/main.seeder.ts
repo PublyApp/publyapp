@@ -3,8 +3,9 @@ import { faker } from '@faker-js/faker';
 
 import { roleEnum } from '@devist/shared/lib/constants';
 
+import { USE_MASTER_KEY } from '../lib/constants';
 import { aiToolFactory } from '../resources/aiTool/aiTool.factory';
-import RoleUtils from '../resources/role/role.utils';
+import RoleService from '../resources/role/role.service';
 import { userFactory } from '../resources/user/user.factory';
 import { webHostFactory } from '../resources/webHost/webHost.factory';
 
@@ -30,12 +31,12 @@ export const run = async ({
 	await Promise.all(
 		Array.from({ length: usersNum }).map(async () => {
 			const iUser = await userFactory(faker);
-			const createdUser = await iUser.save(null, { useMasterKey: true });
+			const createdUser = await iUser.save(null, USE_MASTER_KEY);
 
 			// assign role to user
-			const authorRole = await RoleUtils.findRoleByCode(roleEnum.STAFF_EDITOR.code, true);
+			const authorRole = await new RoleService(USE_MASTER_KEY).findRoleByCode(roleEnum.STAFF_EDITOR.code);
 			authorRole?.getUsers().add(createdUser);
-			await authorRole?.save(null, { useMasterKey: true });
+			await authorRole?.save(null, USE_MASTER_KEY);
 
 			return createdUser;
 		}),

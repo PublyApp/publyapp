@@ -41,11 +41,12 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 
 	const renderList = (
 		<>
-			{posts
+			AAAAAAAAAAA
+			{/* {posts
 				? posts.map((post) => {
 						return <PostItemHorizontal key={post.objectId} post={post as never} />;
 					})
-				: null}
+				: null} */}
 		</>
 	);
 

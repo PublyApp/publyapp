@@ -1,7 +1,7 @@
 import { redirect, type RouteObject } from 'react-router-dom';
 
-import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
-import { localStorageGetItem } from '@/ui-react/utils/storage.utils';
+import clients from '@/office/api/clients';
+import { BO_PATH_NAMES } from '@/shared/lib/constants';
 
 // import { getClientAuthQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 // import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
@@ -26,7 +26,13 @@ export const publicRoutes: RouteObject[] = [
 			{
 				path: '/',
 				loader: getRouteLoader(async () => {
-					return redirect(BO_PATH_NAMES.dashboard.root);
+					const sessionToken = clients.parseApi.parseRestClient.getSessionToken();
+
+					if (sessionToken) {
+						return redirect(BO_PATH_NAMES.dashboard.root);
+					}
+
+					return redirect(BO_PATH_NAMES.auth.login);
 				}),
 			},
 			// auth
@@ -35,9 +41,9 @@ export const publicRoutes: RouteObject[] = [
 				// * Public only loader check
 				loader: getRouteLoader(async () => {
 					// const storedUser = Parse.User.current();
-					const storedToken = localStorageGetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY);
+					const sessionToken = clients.parseApi.parseRestClient.getSessionToken();
 
-					if (/* !storedUser */ !storedToken) {
+					if (!sessionToken) {
 						return null;
 					}
 

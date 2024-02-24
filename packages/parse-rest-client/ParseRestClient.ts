@@ -23,18 +23,44 @@ export default class ParseRestClient {
 
 	public readonly applicationId: string;
 
+	public readonly parseServerUrl: string;
+
 	constructor({ parseServerUrl, applicationId }: Props) {
+		this.parseServerUrl = parseServerUrl;
+
 		const axiosInstance = axios.create({
-			baseURL: parseServerUrl,
+			baseURL: this.parseServerUrl,
 		});
 
 		// set default headers
 		axiosInstance.defaults.headers.common[PARSE_APPLICATION_ID_HEADER_KEY] = applicationId;
 
+		// const defaultTransformer = axiosInstance.defaults.transformResponse;
+
+		// axiosInstance.defaults.transformResponse = [
+		// 	...toMerge,
+		// 	(data) => {
+		// 		console.log('🚫🚫🚫🚫🚫', data);
+
+		// 		if (data?.result) {
+		// 			return data.result;
+		// 		}
+
+		// 		return data;
+		// 	},
+		// ];
+
 		// interceptors
 		axiosInstance.interceptors.response.use(
 			(response) => {
-				response.data = response.data.result;
+				// const { request } = response;
+
+				// if (request instanceof XMLHttpRequest) {
+				// 	if (request.responseURL.startsWith(`${this.parseServerUrl}/functions`)) {
+				// 		response.data = response.data.result;
+				// 	}
+				// }
+
 				return response;
 			},
 			(error) => {
@@ -64,8 +90,12 @@ export default class ParseRestClient {
 		this.http.axios.defaults.headers.common[key] = value;
 	}
 
-	setSessionToken(token: string) {
-		this.setHeader(PARSE_SESSION_TOKEN_HEADER_KEY, token);
+	setSessionToken(token?: string) {
+		this.setHeader(PARSE_SESSION_TOKEN_HEADER_KEY, token as never);
+	}
+
+	getSessionToken() {
+		return this.http.axios.defaults.headers.common[PARSE_SESSION_TOKEN_HEADER_KEY];
 	}
 
 	/**
@@ -78,7 +108,18 @@ export default class ParseRestClient {
 		return this.http.post<R, P>(
 			_.join(['/functions', functionName], '/'),
 			options.params as never,
-			protectRequest({ sessionToken: options.sessionToken }),
+			_.merge(protectRequest({ sessionToken: options.sessionToken }), {
+				transformResponse: [
+					...(this.http.axios.defaults.transformResponse as never),
+					(data: unknown) => {
+						if (_.isObject(data) && 'result' in data) {
+							return data.result;
+						}
+
+						return data;
+					},
+				],
+			}),
 		);
 	}
 
