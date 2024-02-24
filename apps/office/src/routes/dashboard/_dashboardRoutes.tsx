@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 
 import loadable from '@loadable/component';
 import { Button } from '@mui/material';
-import { defer, Navigate, Outlet, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
+import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
 import clients from '@/office/api/clients';
 import Home from '@/office/containers/home/Home';
@@ -83,6 +83,10 @@ const DashboardPageError = () => {
 export const dashboardRoutes: RouteObject[] = [
 	{
 		loader: getRouteLoader(async () => {
+			if (!clients.parseApi.parseRestClient.getSessionToken()) {
+				return redirect(BO_PATH_NAMES.auth.login);
+			}
+
 			const authActions = new AuthActions(clients.parseApi);
 			const cachedAuthData = defaultQueryClient.getQueryData(authActions.getUserAuthDataQuery.queryKey);
 
