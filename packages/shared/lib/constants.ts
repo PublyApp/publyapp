@@ -135,6 +135,7 @@ export const functionName = {
 	updatePost: 'updatePost',
 	getPost: 'getPost',
 	findPost: 'findPost',
+	findPostTag: 'findPostTag',
 	// savePost: 'savePost',
 } as const;
 

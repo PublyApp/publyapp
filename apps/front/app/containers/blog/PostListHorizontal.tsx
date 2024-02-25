@@ -29,7 +29,6 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 	// const loading = useFakeLoading();
 	const loading = false;
 	const { posts } = useLoaderData<PostListLoaderFunction>();
-	console.log('🤢🤢🤢🤢', posts);
 
 	const renderSkeleton = (
 		<>

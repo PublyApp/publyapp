@@ -49,6 +49,7 @@ export type UpdatePostFunctionResult = UpdatePostFunctionReturn;
 export class PostEndPoints {
 	constructor(private parseRestClient: ParseRestClient) {
 		this.findPost = this.findPost.bind(this);
+		this.findPostTag = this.findPostTag.bind(this);
 	}
 
 	async findPost(params: FindPostFunctionParams) {
@@ -72,5 +73,11 @@ export class PostEndPoints {
 	async updatePost(params: UpdatePostFunctionParams) {
 		const post = await this.parseRestClient.cloudRun<UpdatePostFunctionResult>(functionName.updatePost, { params });
 		return post;
+	}
+
+	async findPostTag() {
+		const tags = await this.parseRestClient.cloudRun<FindPostFunctionResult>(functionName.findPostTag);
+		console.log('ggggggggggggggggggggggggggg', tags);
+		return tags;
 	}
 }
