@@ -76,7 +76,7 @@ const updatePostFunction = parseFrom({
 		const userService = new UserService({ sessionToken });
 		const fileService = new FileService({ sessionToken });
 
-		const postPromise = postService.getById(objectId, { select: ['author'] });
+		const postPromise = postService.getById(objectId, { select: ['author', 'translation'] });
 		const authorPromise = userService.getById(authorId || '', { select: [] });
 		const coverPromise = fileService.getById(coverId || '', { select: [] });
 
@@ -219,4 +219,4 @@ Parse.Cloud.define(functionName.createPost, createPostFunction);
 Parse.Cloud.define(functionName.updatePost, updatePostFunction);
 Parse.Cloud.define(functionName.getPost, getPostFunction);
 Parse.Cloud.define(functionName.findPost, findPostFunction);
-Parse.Cloud.define('findPostTag', findPostTag);
+Parse.Cloud.define(functionName.findPostTag, findPostTag);
