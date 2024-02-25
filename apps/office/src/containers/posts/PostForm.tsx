@@ -9,16 +9,17 @@ import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
 type Props = {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	form: UseFormReturn<any>;
+	edit?: boolean;
 };
 
-const PostForm = ({ form }: Props) => {
+const PostForm = ({ form, edit = false }: Props) => {
 	return (
 		<FormProvider
 			form={form}
 			// onSubmit={handleSavePost}
 		>
 			<Stack spacing={3}>
-				<RHFSwitch name="published" label="Publish" color="success" />
+				{edit ? <RHFSwitch name="published" label="Publish" color="success" /> : null}
 				<RHFTextField name="title" label="Post Title" />
 				<RHFTextField name="description" label="Description" multiline rows={3} />
 				<RHFTextField name="slug" label="Slug" />

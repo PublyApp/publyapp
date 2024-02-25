@@ -97,7 +97,11 @@ const ProductListView = () => {
 	// const { products, productsLoading } = useGetProducts();
 	const {
 		result: { data: findPostData, /* isLoading: isFindPostLoading, */ isFetching: isFindPostFetching },
-	} = useFindPostQuery({ params: {} });
+	} = useFindPostQuery({
+		params: {
+			view: 'bo-table',
+		},
+	});
 
 	// const [tableData, setTableData] = useState<IProductItem[]>([]);
 

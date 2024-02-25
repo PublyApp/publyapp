@@ -31,7 +31,7 @@ export type PostAttributes = {
 	published?: boolean;
 	// cover: Media;
 	// cover: string; // cover is a Pointer to parse AppFile
-	translation: Record<AppLocale, PostTranslation>;
+	translation: Partial<Record<AppLocale, PostTranslation>>;
 	//
 	tags?: string[];
 	noIndex?: boolean;

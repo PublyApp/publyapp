@@ -36,16 +36,25 @@ const createPostFunction = parseFrom({
 			throw new Error('A post with the same slug already exists');
 		}
 
+		// const author = (await authorPromise) ?? (user.toJSON() as unknown as IUser);
+
 		// TODO: return JSON objects instead of Parse Objects
-		return postService.create({
+		const post = await postService.create({
 			locale,
 			title,
 			description,
 			content,
 			slug,
-			author: (await authorPromise) ?? user,
+			author: (await authorPromise) || user,
 			cover: await coverPromise,
 		});
+
+		const finalPost = post.toJSON();
+
+		_.unset(finalPost, 'author.__type');
+		_.unset(finalPost, 'cover.__type');
+
+		return finalPost as unknown as IPostWithRelations;
 	},
 });
 
@@ -67,17 +76,18 @@ const updatePostFunction = parseFrom({
 		const userService = new UserService({ sessionToken });
 		const fileService = new FileService({ sessionToken });
 
-		const postPromise = postService.getById(objectId, { select: [] });
+		const postPromise = postService.getById(objectId, { select: ['author'] });
 		const authorPromise = userService.getById(authorId || '', { select: [] });
 		const coverPromise = fileService.getById(coverId || '', { select: [] });
 
 		const post = await postPromise;
 
 		if (!post) {
-			throw new Error('(Post) not found');
+			// eslint-disable-next-line @typescript-eslint/no-throw-literal
+			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Post not Found');
 		}
 
-		return postService.update(post, {
+		const updatedPost = await postService.update(post, {
 			locale,
 			title,
 			description,
@@ -87,6 +97,13 @@ const updatePostFunction = parseFrom({
 			cover: await coverPromise,
 			published,
 		});
+
+		const finalPost = updatedPost.toJSON();
+
+		_.unset(finalPost, 'author.__type');
+		_.unset(finalPost, 'cover.__type');
+
+		return finalPost as unknown as IPostWithRelations;
 	},
 });
 
@@ -147,9 +164,6 @@ const findPostFunction = parseFrom({
 
 		if (params.view === 'front-list') {
 			const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
-
-			console.log(posts);
-
 			return posts;
 		}
 

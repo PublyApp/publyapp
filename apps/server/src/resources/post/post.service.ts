@@ -109,15 +109,7 @@ export default class PostService {
 		{ description, locale, slug, title, content, published, author, cover }: PostUpdateInput,
 	) {
 		const { sessionToken } = this;
-		// let existingPost: ParsePost | undefined;
 
-		// if (objectId) {
-		// 	existingPost = await new Parse.Query(ParsePost).equalTo('objectId', objectId).first({ sessionToken });
-
-		// 	if (!existingPost) {
-		// 		throw new Error('(Post) with id (xxx) not found');
-		// 	}
-		// }
 		const acl = post.getACL();
 
 		if (_.isNil(published)) {
