@@ -154,7 +154,11 @@ export default class PostService {
 			},
 		};
 
-		return post.save(attributes as never, { sessionToken });
+		if (attributes.translation?.[locale as never]) {
+			post.set(`translation.${locale}` as never, attributes.translation[locale as never]);
+		}
+
+		return post.save(_.omit(attributes, ['translation']) as never, { sessionToken });
 	}
 
 	async getById(objectId: string, options: { select?: string[] } = {}) {

@@ -1,6 +1,6 @@
 import { Container, Unstable_Grid2 as Grid } from '@mui/material';
 import { type LoaderFunction } from '@remix-run/node';
-import type { ClientLoaderFunction } from '@remix-run/react';
+import { useLoaderData, type ClientLoaderFunction } from '@remix-run/react';
 
 import { _categories, _tags } from '@/front/_mock';
 import BlogSidebar from '@/front/containers/blog/sidebar/BlogSidebar';
@@ -14,41 +14,37 @@ export const loader = (async ({ params }) => {
 
 	const posts = await safelyRunInLoader(parseApi.posts.findPost)({ page: pageNum });
 
-	console.log('🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡🫡', posts);
-
 	return {
-		// ok: 'lol',
 		posts,
 	};
 }) satisfies LoaderFunction;
 
-export const clientLoader = (async ({ params, serverLoader }) => {
-	const pageNum = Number(params.pageNum);
-
-	// const iPosts = await safelyRunInLoader(findPost)({ page: pageNum });
-
-	// console.log(await serverLoader());
+export const clientLoader = (async ({ serverLoader }) => {
+	const tags = await safelyRunInLoader(parseApi.posts.findPostTag)();
 	const { posts } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
 
-	// const pageNum = Number(params.pageNum);
-
-	// const posts = await safelyRunInLoader(findPost)({ page: pageNum });
-
-	console.log('😡😡😡😡😡😡😡😡😡😡😡😡', posts);
+	console.log('tags xxxxxxxxxxxxxxxxx', tags);
 
 	return {
-		pageNum,
 		posts,
+		tags,
 	};
 }) satisfies ClientLoaderFunction;
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-// clientLoader.hydrate = true;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(clientLoader as any).hydrate = true;
 
 export type PostListLoaderFunction = typeof clientLoader;
 
 const PostsPage = () => {
+	const data = useLoaderData<PostListLoaderFunction>();
+
+	console.log('data -----------------------', data);
+
+	const { tags } = data;
+
+	console.log('😅😅😅😅', tags);
+
 	return (
 		<>
 			{/* <PostSearchMobile /> */}
