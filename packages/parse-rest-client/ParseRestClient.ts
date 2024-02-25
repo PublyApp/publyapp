@@ -90,6 +90,10 @@ export default class ParseRestClient {
 		this.http.axios.defaults.headers.common[key] = value;
 	}
 
+	getHeader(key: string) {
+		return this.http.axios.defaults.headers.common[key];
+	}
+
 	setSessionToken(token?: string) {
 		this.setHeader(PARSE_SESSION_TOKEN_HEADER_KEY, token as never);
 	}

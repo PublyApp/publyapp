@@ -10,7 +10,7 @@ import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import AuthActions from '@/ui-react/lib/react-query/features/auth/auth.actions';
-import { getPostByIdQuery } from '@/ui-react/lib/react-query/features/posts/post.hooks';
+import PostActions from '@/ui-react/lib/react-query/features/posts/post.actions';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
 import LoadingScreen from '../../components/LoadingScreen';
@@ -66,11 +66,13 @@ const DashboardRootError = () => {
 const DashboardPageError = () => {
 	const error = useRouteError();
 
-	if (error instanceof Parse.Error) {
-		if (error.code === Parse.Error.OBJECT_NOT_FOUND) {
-			return <NotFound />;
-		}
-	}
+	// if (error instanceof Parse.Error) {
+	// 	if (error.code === Parse.Error.OBJECT_NOT_FOUND) {
+	// 		return <NotFound />;
+	// 	}
+	// }
+
+	// console.trace(error);
 
 	return (
 		<div role="alert">
@@ -139,14 +141,14 @@ export const dashboardRoutes: RouteObject[] = [
 									{
 										path: getLastPath(BO_PATH_NAMES.dashboard.posts.edit(':postId'), 2),
 										loader: getRouteLoader(async ({ params }) => {
-											// eslint-disable-next-line @typescript-eslint/naming-convention
-											const _getPostByIdQuery = getPostByIdQuery({ id: params.postId ?? '' });
+											const postActions = new PostActions(clients.parseApi);
+											const getPostByIdQuery = postActions.getPostByIdQuery({ id: params.postId ?? '' });
 
-											const cachedPost = defaultQueryClient.getQueryData(_getPostByIdQuery.queryKey);
+											const cachedPost = defaultQueryClient.getQueryData(getPostByIdQuery.queryKey);
 
 											const post = cachedPost
 												? Promise.resolve(cachedPost)
-												: defaultQueryClient.fetchQuery(_getPostByIdQuery);
+												: defaultQueryClient.fetchQuery(getPostByIdQuery);
 
 											return defer({
 												post,
