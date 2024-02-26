@@ -142,6 +142,7 @@ export const functionName = {
 export const endPoint = {
 	uploadSingleFile: '/upload-single-file',
 	uploadManyFiles: '/upload-many-files',
+	passwordLogin: '/password-login',
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 25;

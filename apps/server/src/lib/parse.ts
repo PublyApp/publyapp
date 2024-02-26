@@ -1,6 +1,8 @@
 import { SchemaMigrations, type Schema } from 'parse-server';
 // eslint-disable-next-line import/extensions
 import Config from 'parse-server/lib/Config.js';
+// eslint-disable-next-line import/extensions
+import RestWrite from 'parse-server/lib/RestWrite.js';
 
 // import { TFunction } from 'i18next';
 import _ from 'lodash';
@@ -102,8 +104,21 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 			throw new Error(t('common:actionRequireAuth'));
 		}
 
+		// verify the ip address
+		const sessionToken = user.getSessionToken();
+		const sessionPromise = new Parse.Query(Parse.Session)
+			.equalTo('sessionToken', sessionToken)
+			.select(['ipAddress'])
+			.first({ sessionToken });
+
 		// verify the roles
-		const userHasRole = await new RoleService(USE_MASTER_KEY).hasRole(user, allowedRoles);
+		const userHasRolePromise = new RoleService(USE_MASTER_KEY).hasRole(user, allowedRoles);
+
+		const [session, userHasRole] = await Promise.all([sessionPromise, userHasRolePromise]);
+
+		if (session?.get('ipAddress') !== req.ip) {
+			throw new Error(t('common:sessionInvalid'));
+		}
 
 		if (!userHasRole) {
 			throw new Error(t('common:insufficientRoleForAction'));
@@ -219,10 +234,26 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 
 		const t = getT(locale);
 
+		// ! not a good idea in my opinion after reconsideration
 		// // we are not allowing any operations outside the cloud functions
-		// if (installationId !== 'cloud') {
+		// if (req.installationId !== 'cloud') {
 		// 	throw new Error(t('Operations outside the cloud functions are not allowed'));
 		// }
+
+		// verify ip address if the request is not from the cloud functions and from an user with a session token
+		if (req.installationId !== 'cloud') {
+			if (req.user) {
+				const sessionToken = req.user.getSessionToken();
+				const session = await new Parse.Query(Parse.Session)
+					.equalTo('sessionToken', sessionToken)
+					.select(['ipAddress'])
+					.first({ sessionToken });
+
+				if (req.ip !== session?.get('ipAddress')) {
+					throw new Error(t('common:sessionInvalid'));
+				}
+			}
+		}
 
 		return trigger({ req, t, locale });
 	});
@@ -423,3 +454,62 @@ export const defineMultiTenantSchema = <T extends Record<string, unknown>>(class
 // 		}
 // 	}
 // };
+
+export type CreateSessionOptions<AdditionalSessionData extends Record<string, unknown> = Record<string, unknown>> = {
+	userId: string;
+	action?: string;
+	authProvider?: string;
+	installationId?: string;
+	additionalSessionData?: AdditionalSessionData;
+	sessionToken?: string;
+};
+
+type CreateSessionResult<AdditionalSessionData extends Record<string, unknown> = Record<string, unknown>> = {
+	sessionToken: string;
+	user: {
+		__type: string;
+		className: string;
+		objectId: string;
+	};
+	createdWith: {
+		action: string;
+		authProvider: string;
+	};
+	expiresAt: unknown; // todo: fix this
+} & AdditionalSessionData;
+
+/**
+ * creates a session using the masterKey,
+ * code taken from Parse.UsersRouter's handleLogIn
+ * @param {CreateSessionOptions} options
+ * @param {string} options.userId
+ * @param {string} options.action can be 'login' or 'signup' or 'masterKey' or whatever, defaults to 'login'
+ * @param {string} options.authProvider can be 'password' or 'facebook' (or 'google'...), defaults to 'password'
+ * @param {string} options.installationId
+ * @param {object} options.additionalSessionData additional fields that will be added to the session object
+ *
+ */
+export const createSessionServer = async <
+	AdditionalSessionData extends Record<string, unknown> = Record<string, unknown>,
+>(
+	options: CreateSessionOptions<AdditionalSessionData>,
+): Promise<CreateSessionResult<AdditionalSessionData>> => {
+	const { userId, action = 'login', authProvider = 'password', installationId, additionalSessionData } = options;
+	const config = Config.get(Parse.applicationId);
+
+	const result = RestWrite.createSession(config, {
+		userId,
+		createdWith: {
+			action,
+			authProvider,
+		},
+		installationId,
+		additionalSessionData,
+	});
+
+	const { sessionData, createSession } = result;
+
+	await createSession();
+
+	return sessionData;
+};

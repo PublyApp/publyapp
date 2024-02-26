@@ -5,6 +5,9 @@ declare module 'parse-server/lib/Config.js';
 declare module 'parse-server/lib/Config';
 declare module 'parse-server/lib/Auth.js';
 declare module 'parse-server/lib/Auth';
+declare module 'parse-server/lib/RestWrite.js';
+declare module 'parse-server/lib/RestWrite';
+declare module 'parse-server/lib/Routers/UsersRouter.js';
 
 declare module 'parse-dashboard';
 declare module '@parse/fs-files-adapter';
@@ -30,7 +33,7 @@ declare module 'parse-server' {
 	import Parse from 'parse';
 	import type { /* BaseAttributes, */ OmitBaseAttributes } from 'parse';
 
-	import type { Application } from 'express';
+	import type { Application, RequestHandler } from 'express';
 
 	export type ParseServerOptions = {
 		// Required options
@@ -71,6 +74,7 @@ declare module 'parse-server' {
 		databaseOptions?: DatabaseOptions;
 		defaultLimit?: number;
 		directAccess?: boolean;
+		middleware?: string | RequestHandler /*  | RequestHandler[] */;
 	} & Record<string, any>;
 
 	type AccountLockoutOptions = {
@@ -214,7 +218,7 @@ declare module 'parse-server/lib/logger' {
 	// eslint-disable-next-line import/no-unresolved
 	import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 
-	export const logger: LoggerController;
+	// export const logger: LoggerController;
 
 	export function setLogger(replacementLogger: LoggerController): void;
 

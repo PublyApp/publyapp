@@ -1,10 +1,15 @@
 // eslint-disable-next-line import/extensions
-import Auth from 'parse-server/lib/Auth.js';
+import auth from 'parse-server/lib/Auth.js';
 // eslint-disable-next-line import/extensions
 import Config from 'parse-server/lib/Config.js';
-import Parse from 'parse/node.js';
+// eslint-disable-next-line import/extensions
+import { UsersRouter } from 'parse-server/lib/Routers/UsersRouter.js';
+
+// import Parse from 'parse/node.js';
 
 import type { ParsedQs } from 'qs';
+
+import type { IUser } from '@/shared/types/db/user.types';
 
 type AuthCloudServiceProps = {
 	sessionToken: string | ParsedQs | string[] | ParsedQs[];
@@ -32,7 +37,7 @@ export class AuthCloudService {
 
 	private async initialize() {
 		const config = Config.get(Parse.applicationId);
-		this.auth = await Auth.getAuthForSessionToken({ config, sessionToken: this.sessionToken });
+		this.auth = await auth.getAuthForSessionToken({ config, sessionToken: this.sessionToken });
 	}
 
 	/**
@@ -57,5 +62,35 @@ export class AuthCloudService {
 	 */
 	async getRolesForSessionToken(): Promise<Parse.Role[]> {
 		return this.auth.getRolesForUser();
+	}
+
+	static async authenticateUserWithPassword({
+		usernameOrEmail,
+		password,
+	}: {
+		usernameOrEmail: string;
+		password: string;
+	}) {
+		// mimic auth object
+		// eslint-disable-next-line @typescript-eslint/naming-convention
+		const _auth = { isMaster: true };
+		// new auth.Auth({});
+
+		const config = Config.get(Parse.applicationId);
+
+		// const mimic req object
+		const req = {
+			config,
+			auth: _auth,
+			body: {
+				username: usernameOrEmail,
+				password,
+			},
+		};
+
+		const usersRouter = new UsersRouter();
+		const user: IUser = await usersRouter._authenticateUserFromRequest(req);
+
+		return user;
 	}
 }
