@@ -10,7 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@devist/ui-react": "workspace:*",
 		"@devist/shared": "workspace:*",
     "axios": "^1.6.5",
     "lodash": "^4.17.21"

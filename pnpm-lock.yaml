@@ -765,9 +765,6 @@ importers:
       '@devist/shared':
         specifier: workspace:*
         version: link:../shared
-      '@devist/ui-react':
-        specifier: workspace:*
-        version: link:../ui-react
       axios:
         specifier: ^1.6.5
         version: 1.6.7

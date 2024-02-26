@@ -11,6 +11,7 @@ namespace Parse {
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		interface FunctionRequest<T extends Params = Params> {
 			headers: Record<string, any> | undefined;
+			ip: string | undefined;
 		}
 
 		// eslint-disable-next-line @typescript-eslint/ban-types
