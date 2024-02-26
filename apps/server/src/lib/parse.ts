@@ -106,6 +106,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		// verify the ip address
 		const sessionToken = user.getSessionToken();
+
 		const sessionPromise = new Parse.Query(Parse.Session)
 			.equalTo('sessionToken', sessionToken)
 			.select(['ipAddress'])
@@ -116,6 +117,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		const [session, userHasRole] = await Promise.all([sessionPromise, userHasRolePromise]);
 
+		// ! we assume that we will never call cloud functions from server cloud code
 		if (session?.get('ipAddress') !== req.ip) {
 			throw new Error(t('common:sessionInvalid'));
 		}
@@ -240,10 +242,21 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 		// 	throw new Error(t('Operations outside the cloud functions are not allowed'));
 		// }
 
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+		const cloudInstallationId = await getCurrentInstallationId();
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+		const { directAccess } = getConfig();
+
 		// verify ip address if the request is not from the cloud functions and from an user with a session token
-		if (req.installationId !== 'cloud') {
+		// * especially necessary if directAccess is set to false
+
+		if (
+			(directAccess && req.installationId !== 'cloud') ||
+			(!directAccess && req.installationId !== cloudInstallationId)
+		) {
 			if (req.user) {
 				const sessionToken = req.user.getSessionToken();
+
 				const session = await new Parse.Query(Parse.Session)
 					.equalTo('sessionToken', sessionToken)
 					.select(['ipAddress'])
@@ -343,6 +356,10 @@ export const getMongoClient = (): MongoClient => {
 export const getDatabase = (): Db => {
 	const config = getConfig();
 	return config.database.adapter.database;
+};
+
+export const getCurrentInstallationId = async () => {
+	return Parse.CoreManager.getInstallationController().currentInstallationId();
 };
 
 /**
@@ -495,7 +512,7 @@ export const createSessionServer = async <
 	options: CreateSessionOptions<AdditionalSessionData>,
 ): Promise<CreateSessionResult<AdditionalSessionData>> => {
 	const { userId, action = 'login', authProvider = 'password', installationId, additionalSessionData } = options;
-	const config = Config.get(Parse.applicationId);
+	const config = getConfig();
 
 	const result = RestWrite.createSession(config, {
 		userId,

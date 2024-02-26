@@ -5,19 +5,18 @@
 
 // Parse.Cloud.beforeFind(
 // 	ParsePost,
-// 	// parseTrigger({
-// 	// 	trigger: async ({ req, t, locale }) => {
-// 	// 		logger.info('beforeFind', req);
-
-// 	// 		// const postToSave = req.object;
-// 	// 	},
-// 	// }),
-// 	multiTenantTrigger({
-// 		trigger: async ({ locale, req, t }) => {
-// 			console.log('🤢🤢🤢🤢beforeFind', req);
-// 			console.log(req.user?.toJSON());
+// 	parseTrigger({
+// 		trigger: async ({ req, t, locale }) => {
+// 			// logger.info('beforeFind', req);
+// 			// const postToSave = req.object;
 // 		},
 // 	}),
+// 	// multiTenantTrigger({
+// 	// 	trigger: async ({ locale, req, t }) => {
+// 	// 		console.log('🤢🤢🤢🤢beforeFind', req);
+// 	// 		console.log(req.user?.toJSON());
+// 	// 	},
+// 	// }),
 // );
 
 // Parse.Cloud.beforeSave(

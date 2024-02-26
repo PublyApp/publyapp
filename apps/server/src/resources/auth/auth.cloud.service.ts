@@ -1,14 +1,13 @@
 // eslint-disable-next-line import/extensions
 import auth from 'parse-server/lib/Auth.js';
 // eslint-disable-next-line import/extensions
-import Config from 'parse-server/lib/Config.js';
-// eslint-disable-next-line import/extensions
 import { UsersRouter } from 'parse-server/lib/Routers/UsersRouter.js';
 
 // import Parse from 'parse/node.js';
 
 import type { ParsedQs } from 'qs';
 
+import { getConfig } from '@/server/lib/parse';
 import type { IUser } from '@/shared/types/db/user.types';
 
 type AuthCloudServiceProps = {
@@ -36,7 +35,7 @@ export class AuthCloudService {
 	}
 
 	private async initialize() {
-		const config = Config.get(Parse.applicationId);
+		const config = getConfig();
 		this.auth = await auth.getAuthForSessionToken({ config, sessionToken: this.sessionToken });
 	}
 
@@ -76,7 +75,7 @@ export class AuthCloudService {
 		const _auth = { isMaster: true };
 		// new auth.Auth({});
 
-		const config = Config.get(Parse.applicationId);
+		const config = getConfig();
 
 		// const mimic req object
 		const req = {
