@@ -21,11 +21,17 @@ namespace Parse {
 		}
 	}
 
+	interface InstallationController {
+		currentInstallationId(): Promise<string>;
+	}
+
 	namespace CoreManager {
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		function set(key: string, value: any): void;
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		function get(key: string): void;
+
+		function getInstallationController(): InstallationController;
 	}
 
 	// eslint-disable-next-line @typescript-eslint/ban-types
