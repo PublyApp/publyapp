@@ -1,10 +1,14 @@
 import axios from 'axios';
 import _ from 'lodash';
 
-import { PARSE_APPLICATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@devist/shared/lib/constants';
+import {
+	endPoint,
+	PARSE_APPLICATION_ID_HEADER_KEY,
+	PARSE_SESSION_TOKEN_HEADER_KEY,
+} from '@devist/shared/lib/constants';
 import type { IUser } from '@devist/shared/types/db/user.types';
-import { AxiosHttp, protectRequest } from '@devist/ui-react/lib/axios';
 
+import { AxiosHttp, protectRequest } from './lib/axios';
 import ParseRestError from './ParseRestError';
 
 type Props = {
@@ -130,11 +134,30 @@ export default class ParseRestClient {
 	/**
 	 * login with username/email and password
 	 */
-	async passwordLogin(username: string, password: string) {
+	async oldPasswordLogin(username: string, password: string) {
 		// todo use a custom login cloud function instead of the default login endpoint
 		// because I think I'll want to return the user object with its relations populated someday
 		return this.http.post<IUser & { sessionToken: string }>(
 			'/login',
+			{ username, password },
+			_.merge(protectRequest({}), {
+				'X-Parse-Revocable-Session': '1',
+				[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
+			}),
+		);
+	}
+
+	/**
+	 * login with username/email and password
+	 */
+	async passwordLogin(username: string, password: string) {
+		// todo use a custom login cloud function instead of the default login endpoint
+		// because I think I'll want to return the user object with its relations populated someday
+
+		const url = new URL(this.parseServerUrl);
+
+		return this.http.post<IUser & { sessionToken: string }>(
+			url.origin + endPoint.passwordLogin,
 			{ username, password },
 			_.merge(protectRequest({}), {
 				'X-Parse-Revocable-Session': '1',

@@ -28,6 +28,7 @@ import AwesomeLinkSchema from './resources/awesomeLink/awesomeLink.schema';
 import { handleUploadManyFiles, handleUploadSingleFile } from './resources/file/file.controller';
 import PostSchema from './resources/post/post.schema';
 import RoleSchema from './resources/role/role.schema';
+import { handlePasswordLogin } from './resources/user/user.controller';
 import UserSchema from './resources/user/user.schema';
 import WebHostSchema from './resources/webHost/webHost.schema';
 
@@ -122,6 +123,8 @@ const bootstrap = async () => {
 		multerConfig.array('files'),
 		handleUploadManyFiles,
 	);
+
+	app.post(endPoint.passwordLogin, handlePasswordLogin);
 
 	// set error middleware // ! must be after all routes definition (I am wondering if I should make it after the parse dashboard also)
 	app.use(errorMiddleware);
