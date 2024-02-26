@@ -11,9 +11,13 @@ import { useNavigate, useRevalidator } from 'react-router-dom';
 import useTranslate from '@devist/ui-react/hooks/useTranslate';
 
 import RouterLink from '@/office/components/RouterLink';
+import { initParse } from '@/office/lib/parse/legacy';
 import { useMainStore } from '@/office/lib/zustand/store';
 import { BO_PATH_NAMES, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 import { useLogOutMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
+import { localStorageGetItem } from '@/ui-react/utils/storage.utils';
+
+initParse();
 
 const Home = () => {
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -189,6 +193,23 @@ const Home = () => {
 			<RouterLink href="/unexistant-path">test link to 404 not found</RouterLink>
 			<br />
 			<RouterLink href="/dashboard/posts/edit/fsdfsfsfdsdfsdfs">test not found resource</RouterLink>
+			<Button
+				variant="contained"
+				color="warning"
+				onClick={async () => {
+					// removeBear();
+					const token = localStorageGetItem('sessionToken');
+					console.log('✅✅✅✅✅', token);
+					const session = await new Parse.Query(Parse.Session)
+						.equalTo('sessionToken', token)
+						.first({ sessionToken: token });
+
+					console.log('😡😡😡😡😡😡😡😡😡', session);
+				}}
+			>
+				Test get session object
+			</Button>
+			AAAAAAAAAAA
 		</>
 	);
 };

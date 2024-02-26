@@ -47,6 +47,7 @@ export const roleSet = {
 export const className = {
 	USER: '_User',
 	ROLE: '_Role',
+	SESSION: '_Session',
 	// =====================
 	// === Multi Tenancy ===
 	TENANT: 'Tenant',

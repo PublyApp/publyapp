@@ -22,12 +22,14 @@ import logger, { consoleTransport } from './lib/logger';
 import { multerConfig } from './lib/multer';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
+import parseServerMiddleware from './middlewares/parseServer.middleware';
 import protectionMiddleware from './middlewares/protection.middleware';
 import AppFileSchema from './resources/appFile/appFile.schema';
 import AwesomeLinkSchema from './resources/awesomeLink/awesomeLink.schema';
 import { handleUploadManyFiles, handleUploadSingleFile } from './resources/file/file.controller';
 import PostSchema from './resources/post/post.schema';
 import RoleSchema from './resources/role/role.schema';
+import SessionSchema from './resources/session/session.schema';
 import { handlePasswordLogin } from './resources/user/user.controller';
 import UserSchema from './resources/user/user.schema';
 import WebHostSchema from './resources/webHost/webHost.schema';
@@ -68,8 +70,18 @@ const bootstrap = async () => {
 	// setup middlewares
 	app.use(cors({ whiteList: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
 	app.use(express.urlencoded({ extended: false }));
-	app.use(express.json());
+	app.use(
+		express.json({
+			type: (req) => {
+				return ['application/json', 'application/json; charset=UTF-8', 'text/plain'].includes(
+					req.headers['content-type'] || '',
+				);
+			},
+		}),
+	);
 	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
+
+	// app.use(parseServerMiddleware);
 
 	// File System adapter for Parse
 	const fsAdapter = new FSFilesAdapter({
@@ -93,21 +105,23 @@ const bootstrap = async () => {
 		allowClientClassCreation: false,
 		schema: {
 			strict: true,
-			definitions: [RoleSchema, UserSchema, PostSchema, WebHostSchema, AppFileSchema, AwesomeLinkSchema],
+			definitions: [RoleSchema, UserSchema, SessionSchema, PostSchema, WebHostSchema, AppFileSchema, AwesomeLinkSchema],
 		},
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
 		// allowHeaders: ['Access-Control-Expose-Headers', 'access-control-expose-headers', 'Etag'],
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
-		// directAccess: true,
+		// directAccess: false, // in parse server 6 this is true by default
+		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
 	});
 
 	// setup a better console transport for our logger
 	logger.adapter.addTransport(consoleTransport);
 
 	await parseServer.start();
-	app.use(PARSE_PATH, parseServer.app);
+	// app.use(PARSE_PATH, parseServer.app);
+	app.use(PARSE_PATH, parseServerMiddleware, parseServer.app);
 
 	// set Routes
 	app.post(
