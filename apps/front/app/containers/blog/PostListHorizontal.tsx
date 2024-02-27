@@ -1,5 +1,6 @@
 import { Box, Pagination, paginationClasses } from '@mui/material';
 import { useLoaderData } from '@remix-run/react';
+import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
 // import type { IPostItem } from '@devist/ui-react/types/blog';
@@ -30,9 +31,13 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 	const loading = false;
 	const { posts } = useLoaderData<PostListLoaderFunction>();
 
+	// if (_.isArray(posts)) {
+	// 	posts[0]
+	// }
+
 	const renderSkeleton = (
 		<>
-			{[...Array(16)].map((_) => {
+			{[...Array(16)].map((__) => {
 				return <PostItemSkeleton key={nanoid()} variant="horizontal" />;
 			})}
 		</>
@@ -40,12 +45,12 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 
 	const renderList = (
 		<>
-			AAAAAAAAAAA
-			{/* {posts
+			{null}
+			{posts && _.isArray(posts)
 				? posts.map((post) => {
-						return <PostItemHorizontal key={post.objectId} post={post as never} />;
+						return <PostItemHorizontal key={post.objectId} post={post} />;
 					})
-				: null} */}
+				: null}
 		</>
 	);
 
@@ -62,7 +67,7 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 				{loading ? renderSkeleton : renderList}
 			</Box>
 
-			{(posts || []).length > 8 && (
+			{posts && _.isArray(posts) && (posts || []).length > 8 && (
 				<Pagination
 					count={8}
 					sx={{

@@ -38,6 +38,7 @@ export type PostAttributes = {
 	publishDate?: DateType;
 	updateDate?: DateType;
 	viewCount?: number;
+	commentCount?: number;
 	coverUrl?: string;
 };
 
@@ -46,12 +47,14 @@ export type IPost = BaseAttributes & PostAttributes;
 export type IPostWithRelations = IPost & {
 	author: IUser;
 	cover?: AppFile;
+	// comments?: IComment[];
 };
 
 export type IPostWithParseRelations = IPost & {
 	author: IUser;
 	cover?: ParseAppFile;
+	// comments?: ParseComment[];
 };
 
-export type TranslatedIPostWithRelations = PostTranslation & IPostWithRelations;
+export type TranslatedIPostWithRelations = IPostWithRelations & PostTranslation & { locale: AppLocale };
 export type TranslatedIPostWithParseRelations = PostTranslation & IPostWithParseRelations;
