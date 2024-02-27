@@ -16,7 +16,7 @@ import { Avatar, Box, Card, Link, Stack, useTheme } from '@mui/material';
 // import { paths } from 'src/routes/paths';
 // types
 // import type { IPostItem } from '@devist/ui-react/types/blog';
-import type { IPostWithRelations } from '@devist/shared/types/db/post.types';
+import type { TranslatedIPostWithRelations } from '@devist/shared/types/db/post.types';
 import { getUserFullName } from '@devist/shared/utils/user.utils';
 import { fDate } from '@devist/ui-react/utils/date.utils';
 import { fShortenNumber } from '@devist/ui-react/utils/number.utils';
@@ -24,7 +24,7 @@ import { fShortenNumber } from '@devist/ui-react/utils/number.utils';
 import RouterLink from '@/front/components/RouterLink';
 // import useRouter from '@/front/hooks/useRouter';
 import { /* BO_PATH_NAMES, */ FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import type { IUserWithRelations } from '@/shared/types/db/user.types';
+// import type { IUserWithRelations } from '@/shared/types/db/user.types';
 import Iconify from '@/ui-react/components/Iconify';
 import Image from '@/ui-react/components/Image';
 import Label from '@/ui-react/components/Label';
@@ -34,10 +34,11 @@ import TextMaxLine from '@/ui-react/components/TextMaxLine';
 
 // ----------------------------------------------------------------------
 
-type IPostItem = IPostWithRelations & {
-	author: IUserWithRelations;
-	commentsCount?: number;
-};
+// type IPostItem = IPostWithRelations & {
+// 	author: IUserWithRelations;
+// 	commentsCount?: number;
+// };
+type IPostItem = TranslatedIPostWithRelations;
 
 type Props = {
 	// post: IPostItem;
@@ -51,7 +52,8 @@ const PostItemHorizontal = ({ post }: Props) => {
 
 	// const mdUp = useResponsive('up', 'md');
 
-	const { author, slug, translation, cover, viewCount, published, publishDate, createdAt, commentsCount, tags } = post;
+	const { author, cover } = post;
+	// const { author, slug, translation, cover, viewCount, published, publishDate, createdAt, tags } = post;
 	// const { title, author, publish, coverUrl, createdAt, totalViews, totalShares, totalComments, description } = post;
 
 	const theme = useTheme();
@@ -76,11 +78,11 @@ const PostItemHorizontal = ({ post }: Props) => {
 					<Avatar
 						alt={getUserFullName(author)}
 						// src={author.avatarUrl}
-						src={author.avatar?.url}
+						src={author.avatarUrl}
 						sx={{ position: 'absolute', top: 16, left: 16, zIndex: 9 }}
 					/>
 					<Image
-						alt={cover?.alternativeText || translation.en?.title}
+						alt={cover?.alternativeText || post.translation.en?.title}
 						src={cover?.url || '/assets/images/marketing/marketing_1.jpg'}
 						sx={{ height: 1, borderRadius: 1.5 }}
 					/>
@@ -97,12 +99,12 @@ const PostItemHorizontal = ({ post }: Props) => {
 					}}
 				>
 					<Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-						<Label variant="soft" color={published ? 'info' : 'default'}>
-							{published ? 'Published' : 'Draft'}
+						<Label variant="soft" color={post.published ? 'info' : 'default'}>
+							{post.published ? 'Published' : 'Draft'}
 						</Label>
 
 						<Box component="span" sx={{ typography: 'caption', color: 'text.disabled' }}>
-							{fDate(publishDate || createdAt)}
+							{fDate(post.publishDate || post.createdAt)}
 						</Box>
 					</Stack>
 
@@ -110,16 +112,16 @@ const PostItemHorizontal = ({ post }: Props) => {
 						<Link
 							color="inherit"
 							component={RouterLink}
-							href={FRONT_PATH_NAMES.posts.details(slug)}
+							href={FRONT_PATH_NAMES.posts.details(post.slug)}
 							sx={{ width: 'fit-content' }}
 						>
 							<TextMaxLine variant="h4" line={2} sx={{ width: 'fit-content' }}>
-								{translation.en?.title}
+								{post.translation.en?.title}
 							</TextMaxLine>
 						</Link>
 
 						<TextMaxLine variant="body2" sx={{ color: 'text.secondary' }}>
-							{translation.en?.description}
+							{post.translation.en?.description}
 						</TextMaxLine>
 					</Stack>
 
@@ -140,12 +142,12 @@ const PostItemHorizontal = ({ post }: Props) => {
 						>
 							<Stack direction="row" alignItems="center">
 								<Iconify icon="eva:message-circle-fill" width={16} sx={{ mr: 0.5 }} />
-								{fShortenNumber(commentsCount)}
+								{fShortenNumber(post.commentCount || 0)}
 							</Stack>
 
 							<Stack direction="row" alignItems="center">
 								<Iconify icon="solar:eye-bold" width={16} sx={{ mr: 0.5 }} />
-								{fShortenNumber(viewCount)}
+								{fShortenNumber(post.viewCount)}
 							</Stack>
 
 							{/* <Stack direction="row" alignItems="center">

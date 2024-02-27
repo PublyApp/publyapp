@@ -77,7 +77,6 @@ export class PostEndPoints {
 
 	async findPostTag() {
 		const tags = await this.parseRestClient.cloudRun<FindPostFunctionResult>(functionName.findPostTag);
-		console.log('ggggggggggggggggggggggggggg', tags);
 		return tags;
 	}
 }

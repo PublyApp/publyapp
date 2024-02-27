@@ -293,8 +293,10 @@ export default class PostService {
 		});
 
 		const finalPosts = posts.map((post) => {
+			_.unset(post, 'cover.__type');
 			_.unset(post, 'author.__type');
 			_.assign(post, post.translation[locale]);
+			_.set(post, 'locale', locale);
 			return post as unknown as TranslatedIPostWithRelations;
 		});
 
