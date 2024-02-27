@@ -23,8 +23,6 @@ export const clientLoader = (async ({ serverLoader }) => {
 	const tags = await safelyRunInLoader(parseApi.posts.findPostTag)();
 	const { posts } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
 
-	console.log('tags xxxxxxxxxxxxxxxxx', tags);
-
 	return {
 		posts,
 		tags,
@@ -40,10 +38,6 @@ const PostsPage = () => {
 	const data = useLoaderData<PostListLoaderFunction>();
 
 	console.log('data -----------------------', data);
-
-	const { tags } = data;
-
-	console.log('😅😅😅😅', tags);
 
 	return (
 		<>

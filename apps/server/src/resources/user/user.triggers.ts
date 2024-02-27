@@ -4,6 +4,31 @@ import { ADMIN_EMAILS, USE_MASTER_KEY } from '../../lib/constants';
 import { parseTrigger } from '../../lib/parse';
 import RoleService from '../role/role.service';
 
+Parse.Cloud.beforeSave(
+	Parse.User,
+	parseTrigger({
+		trigger: async ({ req }) => {
+			const user = req.object as Parse.User;
+
+			// const userExists = await user.exists(USE_MASTER_KEY);
+
+			let acl: Parse.ACL | undefined;
+
+			acl = user.getACL();
+
+			if (!acl) {
+				acl = new Parse.ACL();
+			}
+
+			if (acl.getPublicReadAccess()) {
+				// do nothing
+			} else {
+				acl.setPublicReadAccess(true);
+			}
+		},
+	}),
+);
+
 Parse.Cloud.afterSave(
 	Parse.User,
 	parseTrigger({

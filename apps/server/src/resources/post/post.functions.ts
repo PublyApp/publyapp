@@ -179,22 +179,6 @@ const findPostFunction = parseFrom({
 		}
 
 		return [];
-
-		// const foundPosts = await postService.find({
-		// 	page,
-		// 	pageSize,
-		// 	sorting,
-		// 	locale,
-		// 	fromPublic,
-		// 	json: true,
-		// 	include: ['author'],
-		// });
-
-		// return foundPosts;
-
-		// const finalPosts = postAdapter.boPostsTable(foundPosts, { locale });
-
-		// return finalPosts;
 	},
 });
 
@@ -203,13 +187,13 @@ const findPostTag = parseFrom({
 	action: async (/* { locale, req, t, user } */) => {
 		const pipeline: Parse.PipelineStage[] = [
 			{ $unwind: '$tags' },
-			{ $group: { _id: '$tags', count: { $sum: 1 } } },
-			{ $project: { _id: 0, tag: '$_id', count: '$count' } },
+			{ $group: { _id: '$tags', postsCount: { $sum: 1 } } },
+			{ $project: { _id: 0, tag: '$_id', postsCount: '$postsCount' } },
 		];
 
 		const query = new Parse.Query(ParsePost);
 
-		// { tag: string, count: number }[]000000000000000000
+		// { tag: string, postsCount: number }[]
 		const results = await query.aggregate(pipeline);
 		return results;
 	},
