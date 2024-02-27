@@ -171,7 +171,7 @@ const bootstrap = async () => {
 	//                  mount remix build when in a deployment environment                  //
 	// --------------------------------------------------------------------------------------//
 	if (!global.LOCAL) {
-		app.use(express.static(path.resolve(__dirname, '../../front/build/client')));
+		app.use(express.static(path.resolve(__dirname, '../node_modules/front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
