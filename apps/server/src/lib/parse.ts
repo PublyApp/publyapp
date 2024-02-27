@@ -25,7 +25,6 @@ import RoleService from '../resources/role/role.service';
 
 import { DEFAULT_CLP, USE_MASTER_KEY } from './constants';
 import { getT } from './i18n';
-import logger from './logger';
 
 type ParseInnerFunction<T = unknown> =
 	| ((req: Parse.Cloud.TriggerRequest) => Promise<T>)
@@ -118,7 +117,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		const [session, userHasRole] = await Promise.all([sessionPromise, userHasRolePromise]);
 
-		logger.info('req.ip', req.ip);
+		console.log('req', req);
 
 		// ! we assume that we will never call cloud functions from server cloud code
 		if (session?.get('ipAddress') !== req.ip) {
