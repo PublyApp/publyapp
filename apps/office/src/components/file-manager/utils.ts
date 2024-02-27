@@ -12,7 +12,7 @@ export const appFileData = (file: AppFile): IFileManager => {
 		modifiedAt,
 		isFavorited: false,
 		shared: [],
-	};
+	} as IFileManager;
 };
 
 export const appFolderData = (folder: AppFile): IFolderManager => {
@@ -25,5 +25,5 @@ export const appFolderData = (folder: AppFile): IFolderManager => {
 		modifiedAt,
 		isFavorited: false,
 		shared: [],
-	};
+	} as IFolderManager;
 };
