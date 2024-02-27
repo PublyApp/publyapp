@@ -181,7 +181,7 @@ const bootstrap = async () => {
 				// to pass that build to the request handler
 				// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 				// @ts-ignore
-				build: await import('front/build/server/index'),
+				build: await import('front/build/server/index.js'),
 
 				// return anything you want here to be available as `context` in your
 				// loaders and actions. This is where you can bridge the gap between Remix
