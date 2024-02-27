@@ -117,7 +117,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		const [session, userHasRole] = await Promise.all([sessionPromise, userHasRolePromise]);
 
-		console.log('req', req);
+		console.log('req', req, 'req');
 
 		// ! we assume that we will never call cloud functions from server cloud code
 		if (session?.get('ipAddress') !== req.ip) {
