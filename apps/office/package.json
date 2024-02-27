@@ -18,7 +18,9 @@
 		"dev:rs": "rsbuild dev",
 		"// =============== LINT COMMANDS =================": "================================",
 		"lint": "eslint src --ext ts,tsx --max-warnings 0",
-		"lint:fix": "pnpm lint --fix"
+		"lint:fix": "pnpm lint --fix",
+		"// =============== DEPLOY COMMANDS =================": "================================",
+		"deploy:prebuilt": "vercel deploy --prebuilt"
 	},
 	"dependencies": {
 		"@calumk/editorjs-codeflask": "^1.0.10",
