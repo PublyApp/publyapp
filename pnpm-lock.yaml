@@ -430,6 +430,9 @@ importers:
       '@types/lodash':
         specifier: ^4.14.202
         version: 4.14.202
+      '@types/multer':
+        specifier: ^1.4.11
+        version: 1.4.11
       '@types/nprogress':
         specifier: ^0.2.3
         version: 0.2.3
