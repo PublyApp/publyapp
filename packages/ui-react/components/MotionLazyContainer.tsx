@@ -1,5 +1,3 @@
-'use client';
-
 import { domMax, LazyMotion, m } from 'framer-motion';
 
 // ----------------------------------------------------------------------
