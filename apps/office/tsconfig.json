@@ -14,6 +14,6 @@
 		"declarationMap": false,
 		"declaration": false
 	},
-	"include": ["src", "@types"],
-	"exclude": ["node_modules", "dist"]
+	"include": ["src", "@types", "../server/@types/parse-server.d.ts"],
+	// "exclude": ["node_modules", "dist"]
 }

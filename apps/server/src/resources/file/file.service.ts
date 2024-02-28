@@ -1,5 +1,7 @@
 import path from 'path';
 
+// import type { Express } from 'express';
+
 import async from 'async';
 import sizeOf from 'image-size';
 import _ from 'lodash';

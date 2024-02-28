@@ -18,7 +18,9 @@
 		"dev:rs": "rsbuild dev",
 		"// =============== LINT COMMANDS =================": "================================",
 		"lint": "eslint src --ext ts,tsx --max-warnings 0",
-		"lint:fix": "pnpm lint --fix"
+		"lint:fix": "pnpm lint --fix",
+		"// =============== DEPLOY COMMANDS =================": "================================",
+		"deploy:prebuilt": "vercel deploy --prebuilt"
 	},
 	"dependencies": {
 		"@calumk/editorjs-codeflask": "^1.0.10",
@@ -107,6 +109,7 @@
 		"@types/editorjs__header": "^2.6.3",
 		"@types/loadable__component": "^5.13.8",
 		"@types/lodash": "^4.14.202",
+		"@types/multer": "^1.4.11",
 		"@types/nprogress": "^0.2.3",
 		"@types/numeral": "^2.0.5",
 		"@types/parse": "^3.0.9",

@@ -112,7 +112,7 @@ const bootstrap = async () => {
 		encodeParseObjectInCloudFunction: true,
 		// allowHeaders: ['Access-Control-Expose-Headers', 'access-control-expose-headers', 'Etag'],
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
-		directAccess: false, // in parse server 6 this is true by default
+		// directAccess: false, // in parse server 6 this is true by default
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
 	});
 
@@ -171,7 +171,7 @@ const bootstrap = async () => {
 	//                  mount remix build when in a deployment environment                  //
 	// --------------------------------------------------------------------------------------//
 	if (!global.LOCAL) {
-		app.use(express.static(path.resolve(__dirname, '../../front/build/client')));
+		app.use(express.static(path.resolve(__dirname, '../node_modules/front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
