@@ -14,19 +14,24 @@ const getStorage = (): StateStorage => {
 		},
 		setItem: (key, newValue): void => {
 			const searchParams = new URLSearchParams(getUrlSearch());
-			const isPopstateEvent = window.isPopstateEventZustand && window.isPopstateEventZustand === true;
+			// const isPopstateEvent = window.isPopstateEventZustand && window.isPopstateEventZustand === true;
 			const oldValue = searchParams.get(key);
 
 			searchParams.set(key, newValue);
 
-			if (!isPopstateEvent) {
-				if (newValue !== oldValue) {
-					// eslint-disable-next-line @typescript-eslint/no-use-before-define
-					window.history.pushState(null, null as never, `?${decodeURIComponent(searchParams.toString())}`);
-				}
-			} else {
-				window.isPopstateEventZustand = false;
+			if (newValue !== oldValue) {
+				// eslint-disable-next-line @typescript-eslint/no-use-before-define
+				window.history.pushState(null, null as never, `?${decodeURIComponent(searchParams.toString())}`);
 			}
+
+			// if (!isPopstateEvent) {
+			// 	if (newValue !== oldValue) {
+			// 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+			// 		window.history.pushState(null, null as never, `?${decodeURIComponent(searchParams.toString())}`);
+			// 	}
+			// } else {
+			// 	// window.isPopstateEventZustand = false;
+			// }
 		},
 		removeItem: (key): void => {
 			const searchParams = new URLSearchParams(getUrlSearch());

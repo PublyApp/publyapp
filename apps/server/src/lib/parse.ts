@@ -118,7 +118,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 		const [session, userHasRole] = await Promise.all([sessionPromise, userHasRolePromise]);
 
 		// ! we assume that we will never call cloud functions from server cloud code
-		if (session?.get('ipAddress') !== req.ip) {
+		if (session?.get('ipAddress') !== req.headers?.['x-forwarded-for']) {
 			throw new Error(t('common:sessionInvalid'));
 		}
 
@@ -262,7 +262,7 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 					.select(['ipAddress'])
 					.first({ sessionToken });
 
-				if (req.ip !== session?.get('ipAddress')) {
+				if (session?.get('ipAddress') !== req.headers?.['x-forwarded-for']) {
 					throw new Error(t('common:sessionInvalid'));
 				}
 			}
