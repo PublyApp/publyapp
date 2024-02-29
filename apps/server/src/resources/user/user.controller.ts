@@ -12,7 +12,7 @@ export const handlePasswordLogin: RequestHandler = async (req, res, next) => {
 
 		const user = await AuthCloudService.authenticateUserWithPassword({ usernameOrEmail: username, password });
 
-		const ipAddress = req.get('x-forwarded-for') || nanoid();
+		const ipAddress = (global.LOCAL ? req.ip : req.get('x-forwarded-for')) || nanoid();
 
 		const result = await createSessionServer({
 			userId: user.objectId,

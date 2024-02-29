@@ -117,8 +117,11 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		const [session, userHasRole] = await Promise.all([sessionPromise, userHasRolePromise]);
 
+		const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
+		const onlineMatchConditionIp = !global.LOCAL && session?.get('ipAddress') !== req.headers?.['x-forwarded-for'];
+
 		// ! we assume that we will never call cloud functions from server cloud code
-		if (session?.get('ipAddress') !== req.headers?.['x-forwarded-for']) {
+		if (localMatchConditionIp || onlineMatchConditionIp) {
 			throw new Error(t('common:sessionInvalid'));
 		}
 
@@ -262,7 +265,10 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 					.select(['ipAddress'])
 					.first({ sessionToken });
 
-				if (session?.get('ipAddress') !== req.headers?.['x-forwarded-for']) {
+				const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
+				const onlineMatchConditionIp = !global.LOCAL && session?.get('ipAddress') !== req.headers?.['x-forwarded-for'];
+
+				if (localMatchConditionIp || onlineMatchConditionIp) {
 					throw new Error(t('common:sessionInvalid'));
 				}
 			}
