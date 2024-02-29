@@ -24,7 +24,7 @@ type ParamsProps = {
 
 export const RenderCellPrice = ({ params }: ParamsProps) => {
 	// return <>{fCurrency(params.row.price)}</>;
-	return <>{fNumber(params.row.views)}</>;
+	return <>{fNumber(params.row.viewCount)}</>;
 };
 
 export const RenderCellPublish = ({ params }: ParamsProps) => {
