@@ -196,7 +196,8 @@ export default class PostService {
 		fromPublic = true,
 		// sessionToken = this.sessionToken,
 	}: FindPostInput) {
-		const query = new Parse.Query(ParsePost);
+		const query = new Parse.Query(ParsePost).notEqualTo('deleted' as never, true as never);
+
 		applySkipAndLimit(query, { type: 'page', page, pageSize });
 
 		if (sorting && !_.isEmpty(sorting)) {
@@ -337,5 +338,15 @@ export default class PostService {
 
 		const results = await query.aggregate(pipeline);
 		return results;
+	}
+
+	async deleteById(objectId: string) {
+		const query = new Parse.Query(ParsePost).equalTo('objectId', objectId);
+		const post = await query.first({ sessionToken: this.sessionToken });
+
+		// todo: add error message if no post was found
+		post?.set('deleted' as never, true as never);
+
+		return post?.save(null, { sessionToken: this.sessionToken });
 	}
 }
