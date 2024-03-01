@@ -1,7 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 // import path from 'path';
 
-import { unstable_vitePlugin as remix } from '@remix-run/dev';
+import { vitePlugin as remix } from '@remix-run/dev';
 import { remixDevTools } from 'remix-development-tools/vite';
 import { defineConfig } from 'vite';
 import { cjsInterop } from 'vite-plugin-cjs-interop';

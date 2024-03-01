@@ -23,7 +23,11 @@ function getPackageNames() {
 // exports.packageNames = getPackageNames();
 
 const buildOptions = {
-	entryPoints: [path.resolve(__dirname, '../../src/index.ts'), path.resolve(__dirname, '../../src/cloud/_index.ts')],
+	entryPoints: [
+		path.resolve(__dirname, '../../src/index.ts'),
+		// path.resolve(__dirname, '../../src/cloud/_index.ts'),
+		path.resolve(__dirname, '../../src/seeding/seed.ts'),
+	],
 	bundle: true,
 	platform: 'node',
 	format: 'esm',
