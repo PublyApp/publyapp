@@ -349,4 +349,59 @@ export default class PostService {
 
 		return post?.save(null, { sessionToken: this.sessionToken });
 	}
+
+	static async searchPostTag(searchQuery: string) {
+		const query = new Parse.Query(ParsePost);
+
+		const pipeline: Parse.PipelineStage[] = [
+			{
+				$search: {
+					index: 'default',
+					autocomplete: {
+						query: searchQuery,
+						path: 'tags',
+						fuzzy: {
+							maxEdits: 2,
+							maxExpansions: 100,
+						},
+						tokenOrder: 'any',
+					},
+				},
+			},
+			{
+				$project: {
+					tags: {
+						$filter: {
+							input: '$tags',
+							as: 'item',
+							cond: {
+								$regexMatch: {
+									input: '$$item',
+									regex: new RegExp(searchQuery, 'i'),
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				$unwind: '$tags',
+			},
+			{
+				$group: {
+					_id: '$tags',
+				},
+			},
+			// { $limit: 5 },
+			// { $skip: 0 },
+			{
+				$project: {
+					_id: 0,
+					name: '$_id',
+				},
+			},
+		];
+
+		return query.aggregate(pipeline);
+	}
 }

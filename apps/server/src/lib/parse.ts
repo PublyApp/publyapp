@@ -4,10 +4,8 @@ import Config from 'parse-server/lib/Config.js';
 // eslint-disable-next-line import/extensions
 import RestWrite from 'parse-server/lib/RestWrite.js';
 
-// import { TFunction } from 'i18next';
 import _ from 'lodash';
 import type { AggregateOptions, Db, MongoClient } from 'mongodb';
-import type { PipelineStage } from 'mongoose';
 import { ZodError } from 'zod';
 
 import {
@@ -377,7 +375,7 @@ export const getCurrentInstallationId = async () => {
  * @param options aggregation options
  * @returns a promise containing the documents
  */
-export const aggregate = async (className: string, pipeline: PipelineStage[], options: AggregateOptions = {}) => {
+export const aggregate = async (className: string, pipeline: Parse.PipelineStage[], options: AggregateOptions = {}) => {
 	const collection = getDatabase().collection(className);
 
 	const aggregationOptions = _.merge(
