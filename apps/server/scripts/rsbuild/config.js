@@ -80,16 +80,53 @@ function createRsbuild() {
 			source: {
 				entry: {
 					index: './src/index.ts',
-					'cloud/_index': './src/cloud/_index.ts',
+					// 'cloud/_index': './src/cloud/_index.ts',
 					'seeding/seed': './src/seeding/seed.ts',
 				},
 			},
 			output: {
+				// filename: {
+				// 	js: '[name].[contenthash:8].js',
+				// },
 				targets: ['node'],
 				distPath: {
 					server: '',
 				},
-				externals: [...findExternals(), 'parse/node', 'parse-server/lib/Config', 'parse-server/lib/Auth'],
+				externals: [
+					...findExternals(),
+					'parse/node',
+					'parse-server/lib/Config',
+					'parse-server/lib/Auth',
+
+					'parse/node.js',
+					'parse-server/lib/Config.js',
+					'parse-server/lib/Auth.js',
+					'parse-server/lib/Config.js',
+
+					'parse-server/lib/Config',
+					'parse-server/lib/Auth.js',
+					'parse-server/lib/Auth',
+					'parse-server/lib/RestWrite.js',
+					'parse-server/lib/RestWrite',
+					'parse-server/lib/Routers/UsersRouter.js',
+
+					'parse-server/lib/index.js',
+
+					'parse-server/lib/logger',
+					'parse-server/lib/logger.js',
+
+					'front/build/server/index.js',
+				],
+			},
+			tools: {
+				rspack: {
+					output: {
+						libraryTarget: 'module',
+						module: true,
+						chunkFormat: 'module',
+						filename: '[name].mjs',
+					},
+				},
 			},
 		},
 	});
