@@ -53,6 +53,7 @@ export const className = {
 	TENANT: 'Tenant',
 	// === Custom classes ===
 	POST: 'Post',
+	POST_SERIES: 'PostSeries',
 	AI_TOOL: 'AITool',
 	// WEB_HOSTING_PROVIDER: 'WebHostingProvider',
 	WEB_HOST: 'WebHost',

@@ -6,5 +6,3 @@ export type ListMeta = {
 	page: number;
 	pageSize: number;
 };
-
-export type DateType = string | number | Date | null | undefined;

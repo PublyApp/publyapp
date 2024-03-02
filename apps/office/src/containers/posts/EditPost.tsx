@@ -33,44 +33,45 @@ const EditPost = () => {
 	} = useGetPostByIdSuspenseQuery({ params: { id: params.postId || '' } });
 
 	const {
-		result: { mutate: updatePost },
-	} = useUpdatePostMutation();
+		result: { mutateAsync: updatePostAsync, isPending: isUpdatePostPending },
+	} = useUpdatePostMutation({
+		onSuccess: () => {},
+	});
+
+	// const publishDate = useMemo(() => {
+	// 	return post.publishDate ? new Date(post.publishDate) : undefined;
+	// }, [post.publishDate]);
+
+	// const updateDate = useMemo(() => {
+	// 	return post.updateDate ? new Date(post.updateDate) : undefined;
+	// }, [post.updateDate]);
 
 	const updatePostForm = useForm<UpdatePostInput>({
 		resolver: zodResolver(savePostInputSchema),
-		// values: {
-		// 	locale: lang.value,
-		// 	slug: 'what-the-fuck',
-		// 	title: 'your post title',
-		// 	description: 'your post description',
-		// 	content: '## your content here',
-		// },
-		// defaultValues: {
-		// 	objectId: post.objectId,
-		// 	locale: lang.value,
-		// 	authorId: post.author.objectId,
-		// 	title: post.translation[lang.value]?.title,
-		// 	description: post.translation[lang.value]?.description,
-		// 	content: post.translation[lang.value]?.content,
-		// 	published: post.published,
-		// 	slug: post.slug,
-		// },
 		values: {
 			objectId: post.objectId,
-			locale: lang.value,
 			authorId: post.author.objectId,
+			published: post.published,
+			// --
+			locale: lang.value,
 			title: post.translation[lang.value]?.title || '',
 			description: post.translation[lang.value]?.description || '',
 			content: post.translation[lang.value]?.content || '',
-			published: post.published || false,
 			slug: post.slug,
+			publishDate: post.publishDate ? new Date(post.publishDate) : undefined,
+			updateDate: post.updateDate ? new Date(post.updateDate) : undefined,
+			coverUrl: undefined,
+			coverId: undefined,
+			tags: post.tags,
 		},
+		disabled: isUpdatePostPending,
 	});
 
 	const handleUpdatePost = updatePostForm.handleSubmit(
-		(input) => {
+		async (input) => {
 			console.log('--- handleUpdatePost input ---', input);
-			updatePost(input);
+			// updatePost(input);
+			updatePostAsync(input);
 		},
 		(errors) => {
 			console.log('--- handleUpdatePost errors ---', errors);

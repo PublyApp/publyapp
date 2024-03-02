@@ -15,6 +15,8 @@ import match from 'autosuggest-highlight/match';
 import parse from 'autosuggest-highlight/parse';
 import { nanoid } from 'nanoid';
 
+import { flattenArray } from '@devist/shared/utils/array.utils';
+
 import type { NavListProps, NavSectionProps } from '@/office/components/nav-section/types';
 import SearchNotFound from '@/office/components/SearchNotFound';
 import { useNavData } from '@/office/hooks/useNavData';
@@ -25,7 +27,6 @@ import useBoolean from '@/ui-react/hooks/useBoolean';
 import useEventListener from '@/ui-react/hooks/useEventListener';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import useRouter from '@/ui-react/hooks/useRouter';
-import { flattenArray } from '@/ui-react/utils/array.utils';
 
 // ----------------------------------------------------------------------
 

@@ -34,7 +34,8 @@ export default defineConfig({
 		},
 		define: getDefinedEnv(env || (process.env as never)),
 		// alias: {
-		// 	'react-i18next': require.resolve('react-i18next'),
+		// 	// 'react-i18next': require.resolve('react-i18next'),
+		// 	// '@mui/x-date-pickers': require.resolve('../../packages/ui-react/node_modules/@mui/x-date-pickers'),
 		// },
 	},
 	html: {

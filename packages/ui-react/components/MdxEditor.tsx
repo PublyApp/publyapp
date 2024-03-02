@@ -11,6 +11,7 @@ import { ALL_PLUGINS } from '../lib/mdxEditor/boilerplate';
 export type MdxEditorProps = MDXEditorProps & {
 	id: string;
 	helperText?: ReactNode;
+	disabled?: boolean;
 	error?: boolean;
 	sx?: SxProps<Theme>;
 };
@@ -19,6 +20,7 @@ const MdxEditor = ({
 	id,
 	helperText,
 	error,
+	disabled = false,
 	sx /* = {} */,
 	markdown = '# Hello world',
 	plugins = ALL_PLUGINS,
@@ -39,11 +41,22 @@ const MdxEditor = ({
 						},
 						'& [role="toolbar"]': {
 							borderRadius: `${radius} ${radius} 0 0`,
+							...(disabled && {
+								backgroundColor: alpha(theme.palette.grey[500], 0.24),
+								color: theme.palette.text.disabled,
+							}),
 						},
 						...(error && {
 							border: `solid 1px ${theme.palette.error.main}`,
 							'& [role="textbox"]': {
 								bgcolor: alpha(theme.palette.error.main, 0.08),
+							},
+						}),
+						...(disabled && {
+							pointerEvents: 'none',
+							'& [role="textbox"]': {
+								bgcolor: alpha(theme.palette.grey[500], 0.24),
+								color: theme.palette.text.disabled,
 							},
 						}),
 					};

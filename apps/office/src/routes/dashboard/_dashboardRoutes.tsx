@@ -77,7 +77,9 @@ const DashboardPageError = () => {
 	return (
 		<div role="alert">
 			<h1>Something went wrong!! (Page)</h1>
-			<pre style={{ color: 'red' }}>{JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}</pre>
+			<pre style={{ color: 'red' }}>
+				{JSON.stringify(error, Object.getOwnPropertyNames(error), 2).replaceAll('\\n', '\n\t\t')}
+			</pre>
 		</div>
 	);
 };

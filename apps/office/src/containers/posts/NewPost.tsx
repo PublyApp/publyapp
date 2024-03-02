@@ -25,10 +25,14 @@ const NewPost = () => {
 		resolver: zodResolver(savePostInputSchema),
 		values: {
 			locale: lang.value,
-			slug: 'what-the-fuck',
 			title: 'your post title',
 			description: 'your post description',
 			content: '## your content here',
+			slug: 'your-post-slug',
+			tags: undefined,
+			publishDate: undefined,
+			updateDate: undefined,
+			coverUrl: undefined,
 		},
 	});
 
@@ -39,21 +43,7 @@ const NewPost = () => {
 	const handleCreatePost = createPostForm.handleSubmit(
 		async (input) => {
 			console.log('--- handleCreatePost input ---', input);
-
-			const { content, description, locale, slug, title, authorId, coverId } = input;
-
-			createPost({
-				title,
-				content,
-				description,
-				locale,
-				slug,
-				authorId,
-				coverId,
-			});
-			// const newPost = Post.save()
-			// queryClient.setQueryData({ key: ['getPostById'], data: newPost });
-			// navigate(/posts/edit/newPost.id)
+			createPost(input);
 		},
 		(errors) => {
 			console.log('--- handleCreatePost errors ---', errors);

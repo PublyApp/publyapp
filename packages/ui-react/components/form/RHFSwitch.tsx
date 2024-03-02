@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import { FormControlLabel, FormHelperText, Switch, type FormControlLabelProps } from '@mui/material';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -16,9 +18,31 @@ const RHFSwitch = ({ name, helperText, color, ...other }: Props) => {
 			name={name}
 			control={control}
 			render={({ field, fieldState: { error } }) => {
+				// eslint-disable-next-line react-hooks/rules-of-hooks
+				const defaultChecked = useMemo(() => {
+					return field.value;
+					// eslint-disable-next-line react-hooks/exhaustive-deps
+				}, []);
+
 				return (
 					<div>
-						<FormControlLabel control={<Switch {...field} checked={field.value} color={color as never} />} {...other} />
+						<FormControlLabel
+							control={
+								<Switch
+									{...field}
+									// ! I want an uncontrolled field
+									checked={undefined}
+									defaultChecked={defaultChecked}
+									// value={undefined}
+									// defaultValue={field.value}
+									onChange={(e) => {
+										return field.onChange(e.target.checked);
+									}}
+									color={color as never}
+								/>
+							}
+							{...other}
+						/>
 
 						{(!!error || helperText) && (
 							<FormHelperText error={!!error}>{error ? error?.message : helperText}</FormHelperText>

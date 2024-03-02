@@ -1,7 +1,5 @@
 import { SchemaMigrations, type Schema } from 'parse-server';
-// eslint-disable-next-line import/extensions
 import Config from 'parse-server/lib/Config.js';
-// eslint-disable-next-line import/extensions
 import RestWrite from 'parse-server/lib/RestWrite.js';
 
 import _ from 'lodash';

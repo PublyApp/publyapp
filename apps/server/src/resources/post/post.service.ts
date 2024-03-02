@@ -33,6 +33,10 @@ type PostCreateInput = {
 	content: string;
 	author: Parse.User;
 	cover?: ParseAppFile;
+	coverUrl?: string;
+	publishDate?: Date;
+	updateDate?: Date;
+	tags?: string[];
 };
 
 type PostUpdateInput = Partial<Omit<PostCreateInput, 'locale'>> & {
@@ -67,7 +71,9 @@ export default class PostService {
 		// this.headers = headers;
 	}
 
-	async create({ author, content, description, slug, title, cover, locale }: PostCreateInput) {
+	async create(input: PostCreateInput) {
+		const { author, content, description, slug, title, cover, locale, coverUrl, publishDate, tags, updateDate } = input;
+
 		const attributes: DeepPartial<IPostWithParseRelations> = {
 			slug,
 			translation: {
@@ -79,6 +85,10 @@ export default class PostService {
 			},
 			author,
 			cover,
+			coverUrl,
+			publishDate,
+			tags,
+			updateDate,
 		}; /*  satisfies DeepPartial<IPostWithParseRelations> */
 
 		// create an mongo unique index and let mongo handle this
@@ -104,10 +114,22 @@ export default class PostService {
 		return post.save(null, { sessionToken: this.sessionToken });
 	}
 
-	async update(
-		post: ParsePost,
-		{ description, locale, slug, title, content, published, author, cover }: PostUpdateInput,
-	) {
+	async update(post: ParsePost, input: PostUpdateInput) {
+		const {
+			description,
+			locale,
+			slug,
+			title,
+			content,
+			published,
+			author,
+			cover,
+			coverUrl,
+			publishDate,
+			tags,
+			updateDate,
+		} = input;
+
 		const { sessionToken } = this;
 
 		const acl = post.getACL();
@@ -152,13 +174,22 @@ export default class PostService {
 					content,
 				},
 			},
+			coverUrl,
+			publishDate,
+			tags,
+			updateDate,
 		};
 
 		if (attributes.translation?.[locale as never]) {
 			post.set(`translation.${locale}` as never, attributes.translation[locale as never]);
 		}
 
-		return post.save(_.omit(attributes, ['translation']) as never, { sessionToken });
+		const attrs = _.omitBy(attributes, (value, key) => {
+			if (['translation'].includes(key)) return true;
+			return _.isNil(value);
+		});
+
+		return post.save(attrs as never, { sessionToken });
 	}
 
 	async getById(objectId: string, options: { select?: string[] } = {}) {
