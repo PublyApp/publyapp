@@ -1,6 +1,4 @@
-// eslint-disable-next-line import/extensions
 import auth from 'parse-server/lib/Auth.js';
-// eslint-disable-next-line import/extensions
 import { UsersRouter } from 'parse-server/lib/Routers/UsersRouter.js';
 
 // import Parse from 'parse/node.js';

@@ -3,8 +3,10 @@ import type { BaseAttributes } from 'parse';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { ParseAppFile } from '@/shared/lib/parse/classes/appFile.class';
 
-import type { DateType } from './any.types';
+import type { DateType } from '../date.types';
+
 import { type AppFile } from './appFile.types';
+import type { IPostSeries } from './postSeries.types';
 import type { IUser } from './user.types';
 
 export const postContentTypes = ['mdx', 'other'] as const;
@@ -40,12 +42,14 @@ export type PostAttributes = {
 	viewCount?: number;
 	commentCount?: number;
 	coverUrl?: string;
+	postSeriesOrder?: number;
 };
 
 export type IPost = BaseAttributes & PostAttributes;
 
 export type IPostWithRelations = IPost & {
 	author: IUser;
+	postSeries?: IPostSeries;
 	cover?: AppFile;
 	// comments?: IComment[];
 };

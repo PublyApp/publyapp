@@ -1,4 +1,10 @@
-import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
+import {
+	useMutation,
+	useQuery,
+	useQueryClient,
+	useSuspenseQuery,
+	type UseMutationOptions,
+} from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
 
@@ -116,8 +122,17 @@ export const useFindPostQuery = (props: UseFindPostQueryProps) => {
 };
 
 // ---- 4 --------------------------------------------------------------------------------
+type UseUpdatePostMutationProps = Omit<
+	UseMutationOptions<
+		Awaited<ReturnType<typeof PostActions.prototype.updatePostAction>>,
+		Error,
+		Parameters<typeof PostActions.prototype.updatePostAction>[0]
+	>,
+	'mutationKey' | 'mutationFn'
+>;
 
-export const useUpdatePostMutation = () => {
+export const useUpdatePostMutation = (props: UseUpdatePostMutationProps = {}) => {
+	const { onError, onSuccess, ...otherProps } = props;
 	const { parseApi } = useHttpClients();
 	const { enqueueSnackbar } = useSnackbar();
 	const queryClient = useQueryClient();
@@ -129,12 +144,13 @@ export const useUpdatePostMutation = () => {
 	const result = useMutation({
 		mutationKey: key,
 		mutationFn: postActions.updatePostAction,
-		onSuccess: (data /* variables, context */) => {
+		onSuccess: (data, variables, context) => {
 			enqueueSnackbar({ variant: 'success', message: 'Post updated' });
 			queryClient.setQueryData([PostActions.getPostQueryKeyBase, { id: data.objectId }], data);
 			queryClient.invalidateQueries({ queryKey: [PostActions.findPostQueryKeyBase] });
+			onSuccess?.(data, variables, context);
 		},
-		onError: async (error /* , variables, context */) => {
+		onError: async (error, variables, context) => {
 			let message = 'Unknown error';
 
 			if (error instanceof Error) {
@@ -142,7 +158,10 @@ export const useUpdatePostMutation = () => {
 			}
 
 			enqueueSnackbar({ variant: 'error', message });
+
+			onError?.(error, variables, context);
 		},
+		...otherProps,
 	});
 
 	return { result, key };

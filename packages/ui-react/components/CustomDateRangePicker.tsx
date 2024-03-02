@@ -1,7 +1,6 @@
 /* eslint-disable react/no-unused-prop-types */
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, FormHelperText, Paper, Stack } from '@mui/material';
-import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { DateCalendar, DatePicker } from '@mui/x-date-pickers';
 
 import useResponsive from '@/ui-react/hooks/useResponsive';
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { sleep } from '../utils/any.utils';
+import { sleep } from '@devist/shared/utils/any.utils';
 
 const useFakeLoading = (timeout = 500) => {
 	const [loading, setLoading] = useState(true);

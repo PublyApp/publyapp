@@ -68,7 +68,7 @@ const Home = () => {
 				}}
 				color="primary"
 			>
-				Change locale
+				Change locale XXXXXXXXXXXX
 			</Button>
 			<Typography>Test Parse Upload</Typography>
 			{/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}

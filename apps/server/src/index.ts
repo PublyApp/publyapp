@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable import/extensions */
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -28,6 +27,7 @@ import AppFileSchema from './resources/appFile/appFile.schema';
 import AwesomeLinkSchema from './resources/awesomeLink/awesomeLink.schema';
 import { handleUploadManyFiles, handleUploadSingleFile } from './resources/file/file.controller';
 import PostSchema from './resources/post/post.schema';
+import PostSeriesSchema from './resources/postSeries/postSeries.schema';
 import RoleSchema from './resources/role/role.schema';
 import SessionSchema from './resources/session/session.schema';
 import { handlePasswordLogin } from './resources/user/user.controller';
@@ -105,7 +105,16 @@ const bootstrap = async () => {
 		allowClientClassCreation: false,
 		schema: {
 			strict: true,
-			definitions: [RoleSchema, UserSchema, SessionSchema, PostSchema, WebHostSchema, AppFileSchema, AwesomeLinkSchema],
+			definitions: [
+				RoleSchema,
+				UserSchema,
+				SessionSchema,
+				PostSchema,
+				PostSeriesSchema,
+				WebHostSchema,
+				AppFileSchema,
+				AwesomeLinkSchema,
+			],
 		},
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,

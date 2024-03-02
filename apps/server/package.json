@@ -34,7 +34,7 @@
 		"@faker-js/faker": "^8.3.1",
 		"@paralleldrive/cuid2": "^2.2.2",
 		"@parse/fs-files-adapter": "^2.0.1",
-		"@remix-run/express": "^2.6.0",
+		"@remix-run/express": "^2.8.0",
 		"async": "^3.2.5",
 		"body-parser": "^1.20.2",
 		"chalk": "^5.3.0",
@@ -64,9 +64,12 @@
 		"vhost": "^3.0.2",
 		"winston": "^3.11.0",
 		"winston-console-format": "^1.0.8",
-		"zod": "^3.22.4"
+		"zod": "^3.22.4",
+		"date-fns": "^2.25.0",
+		"numeral": "^2.0.6"
 	},
 	"devDependencies": {
+		"@types/numeral": "^2.0.5",
 		"@rsbuild/core": "^0.3.3",
 		"@rspack/cli": "^0.5.5",
 		"@rspack/core": "^0.5.5",

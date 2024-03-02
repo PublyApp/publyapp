@@ -53,6 +53,8 @@ const createPostFunction = parseFrom({
 
 		_.unset(finalPost, 'author.__type');
 		_.unset(finalPost, 'cover.__type');
+		_.set(finalPost, 'publishDate', (finalPost.publishDate as any)?.iso);
+		_.set(finalPost, 'updateDate', (finalPost.updateDate as any)?.iso);
 
 		return finalPost as unknown as IPostWithRelations;
 	},
@@ -65,10 +67,8 @@ const updatePostFunction = parseFrom({
 	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
 	action: async ({ req, t, user }) => {
 		const updatePostInputSchema = getUpdatePostInputSchema(t);
-		const { locale, title, description, content, slug, authorId, objectId, published } = updatePostInputSchema.parse(
-			req.params,
-		);
-		let coverId: string | undefined; // todo
+		const params = updatePostInputSchema.parse(req.params);
+		const { coverId, authorId, objectId, ...input } = params;
 
 		const sessionToken = user.getSessionToken();
 
@@ -88,20 +88,17 @@ const updatePostFunction = parseFrom({
 		}
 
 		const updatedPost = await postService.update(post, {
-			locale,
-			title,
-			description,
-			content,
-			slug,
+			...input,
 			author: await authorPromise,
 			cover: await coverPromise,
-			published,
 		});
 
 		const finalPost = updatedPost.toJSON();
 
 		_.unset(finalPost, 'author.__type');
 		_.unset(finalPost, 'cover.__type');
+		_.set(finalPost, 'publishDate', (finalPost.publishDate as any)?.iso);
+		_.set(finalPost, 'updateDate', (finalPost.updateDate as any)?.iso);
 
 		return finalPost as unknown as IPostWithRelations;
 	},
@@ -135,6 +132,8 @@ const getPostFunction = parseFrom({
 
 		const finalPost = post.toJSON();
 		_.unset(finalPost, 'author.__type');
+		_.set(finalPost, 'publishDate', (finalPost.publishDate as any)?.iso);
+		_.set(finalPost, 'updateDate', (finalPost.updateDate as any)?.iso);
 
 		return finalPost as unknown as IPostWithRelations;
 	},

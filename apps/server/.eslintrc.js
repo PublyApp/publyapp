@@ -3,5 +3,6 @@ module.exports = {
 	extends: ['custom-server'],
 	rules: {
 		'no-console': 'warn',
+		'import/extensions': 'off',
 	},
 };
