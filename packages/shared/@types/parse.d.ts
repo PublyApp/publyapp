@@ -4,7 +4,7 @@
 namespace Parse {
 	import type { PipelineStage } from 'mongoose';
 
-	import type { DateType } from '../types/db/any.types';
+	import type { DateType } from '../types/date.types';
 
 	interface BaseAttributes {
 		objectId: string;

@@ -1,10 +1,9 @@
-import { useState } from 'react';
-
-import { Grid, Stack, Typography } from '@mui/material';
-import { DesktopDatePicker } from '@mui/x-date-pickers/DesktopDatePicker';
+import { Chip, Grid, Stack, Typography } from '@mui/material';
 import { type UseFormReturn } from 'react-hook-form';
 
 import FormProvider from '@devist/ui-react/components/form/FormProvider';
+import RHFAutocomplete from '@devist/ui-react/components/form/RHFAutocomplete';
+import RHFDesktopDatePicker from '@devist/ui-react/components/form/RHFDesktopDatePicker';
 import RHFMdxEditor from '@devist/ui-react/components/form/RHFMdxEditor';
 import RHFSwitch from '@devist/ui-react/components/form/RHFSwitch';
 import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
@@ -13,10 +12,11 @@ type Props = {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	form: UseFormReturn<any>;
 	edit?: boolean;
+	tags?: string[];
 };
 
-const PostForm = ({ form, edit = false }: Props) => {
-	const [value, setValue] = useState<Date | null>(new Date());
+const PostForm = ({ form, edit = false, tags: _tags = [] }: Props) => {
+	// const [value, setValue] = useState<Date | null>(new Date());
 
 	return (
 		<FormProvider
@@ -28,36 +28,10 @@ const PostForm = ({ form, edit = false }: Props) => {
 
 				<Grid display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={{ xs: 0, md: 4 }}>
 					<Grid item>
-						<DesktopDatePicker
-							label="Publish date"
-							value={value}
-							minDate={new Date('2017-01-01')}
-							onChange={(newValue) => {
-								setValue(newValue);
-							}}
-							slotProps={{
-								textField: {
-									fullWidth: true,
-									margin: 'normal',
-								},
-							}}
-						/>
+						<RHFDesktopDatePicker name="publishDate" label="Publish date" />
 					</Grid>
 					<Grid item>
-						<DesktopDatePicker
-							label="Update date"
-							value={value}
-							minDate={new Date('2017-01-01')}
-							onChange={(newValue) => {
-								setValue(newValue);
-							}}
-							slotProps={{
-								textField: {
-									fullWidth: true,
-									margin: 'normal',
-								},
-							}}
-						/>
+						<RHFDesktopDatePicker name="updateDate" label="Update date" />
 					</Grid>
 				</Grid>
 

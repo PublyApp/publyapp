@@ -45,6 +45,7 @@ const RHFMdxEditor = ({ name, helperText, ...other }: Props) => {
 						markdown={field.value}
 						onChange={field.onChange}
 						error={!!error}
+						disabled={field.disabled}
 						helperText={
 							(!!error || helperText) && (
 								<FormHelperText error={!!error} sx={{ px: 2 }}>

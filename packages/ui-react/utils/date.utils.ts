@@ -1,31 +1,29 @@
 import { format, formatDistanceToNow, getTime, getYear, isSameDay, isSameMonth } from 'date-fns';
 
-// ----------------------------------------------------------------------
+import type { DateType } from '@devist/shared/types/date.types';
 
-type InputValue = Date | string | number | null | undefined;
-
-export const fDate = (date: InputValue, newFormat?: string) => {
+export const fDate = (date: DateType, newFormat?: string) => {
 	const fm = newFormat || 'dd MMM yyyy';
 
 	return date ? format(new Date(date), fm) : '';
 };
 
-export const fDateTime = (date: InputValue, newFormat?: string) => {
+export const fDateTime = (date: DateType, newFormat?: string) => {
 	const fm = newFormat || 'dd MMM yyyy p';
 
 	return date ? format(new Date(date), fm) : '';
 };
 
-export const fTime = (date: InputValue, newFormat?: string) => {
+export const fTime = (date: DateType, newFormat?: string) => {
 	const fm = newFormat || 'p';
 	return fDateTime(date, fm);
 };
 
-export const fTimestamp = (date: InputValue) => {
+export const fTimestamp = (date: DateType) => {
 	return date ? getTime(new Date(date)) : '';
 };
 
-export const fToNow = (date: InputValue) => {
+export const fToNow = (date: DateType) => {
 	return date
 		? formatDistanceToNow(new Date(date), {
 				addSuffix: true,

@@ -51,6 +51,14 @@ const getLocaleSchema = (t: TFunction) => {
 	});
 };
 
+export const dateTypeSchema = z
+	.date()
+	.or(z.string())
+	.or(z.number())
+	.transform((value) => {
+		return new Date(value);
+	});
+
 export const getCreatePostInputSchema = (t: TFunction) => {
 	const TITLE = t('common:title');
 	const SLUG = 'Slug';
@@ -58,6 +66,7 @@ export const getCreatePostInputSchema = (t: TFunction) => {
 	const CONTENT = t('common:content');
 	const AUTHOR_ID = 'authorId';
 	const COVER = t('common:cover');
+	const COVER_URL = t('common:cover');
 	// const DESCRIPTION = t('common:description')
 
 	const TITLE_MAX_LENGTH = 170;
@@ -95,6 +104,13 @@ export const getCreatePostInputSchema = (t: TFunction) => {
 			.string({ errorMap: getErrorMap(t, { field: COVER }) })
 			.min(1, { message: t('common:form.error.required', { field: COVER }) })
 			.optional(),
+		coverUrl: z
+			.string({ errorMap: getErrorMap(t, { field: COVER_URL }) })
+			.min(1, { message: t('common:form.error.required', { field: COVER }) })
+			.optional(),
+		tags: z.array(z.string()).max(5).optional(), // TODO: locale mappings
+		publishDate: dateTypeSchema.optional(),
+		updateDate: dateTypeSchema.optional(),
 	});
 };
 
