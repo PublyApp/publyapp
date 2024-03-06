@@ -2,7 +2,7 @@ import { className } from '@devist/shared/lib/constants';
 
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 
-import { parseTrigger } from '../../lib/parse';
+import { parseTrigger } from '../../lib/parse/utils';
 
 const ACTIVE_AWESOME_LINKS_POOL_SIZE = 20;
 

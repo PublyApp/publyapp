@@ -17,10 +17,9 @@ import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i1
 
 import { pageToSkip } from '@/server/utils/any.utils';
 
-import RoleService from '../resources/role/role.service';
-
-import { DEFAULT_CLP, USE_MASTER_KEY } from './constants';
-import { getT } from './i18n';
+import RoleService from '../../resources/role/role.service';
+import { DEFAULT_CLP, USE_MASTER_KEY } from '../constants';
+import { getT } from '../i18n';
 
 type ParseInnerFunction<T = unknown> =
 	| ((req: Parse.Cloud.TriggerRequest) => Promise<T>)

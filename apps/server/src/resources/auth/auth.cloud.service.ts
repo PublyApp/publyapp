@@ -5,7 +5,7 @@ import { UsersRouter } from 'parse-server/lib/Routers/UsersRouter.js';
 
 import type { ParsedQs } from 'qs';
 
-import { getConfig } from '@/server/lib/parse';
+import { getConfig } from '@/server/lib/parse/utils';
 import type { IUser } from '@/shared/types/db/user.types';
 
 type AuthCloudServiceProps = {

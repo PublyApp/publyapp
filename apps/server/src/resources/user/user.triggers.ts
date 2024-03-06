@@ -1,7 +1,7 @@
 import { roleEnum } from '@devist/shared/lib/constants';
 
 import { ADMIN_EMAILS, USE_MASTER_KEY } from '../../lib/constants';
-import { parseTrigger } from '../../lib/parse';
+import { parseTrigger } from '../../lib/parse/utils';
 import RoleService from '../role/role.service';
 
 Parse.Cloud.beforeSave(

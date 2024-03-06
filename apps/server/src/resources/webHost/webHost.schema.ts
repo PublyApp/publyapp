@@ -1,7 +1,7 @@
 import { className } from '@devist/shared/lib/constants';
 import type { WebHost } from '@devist/shared/types/db/webHost.types';
 
-import { defineSchema } from '@/server/lib/parse';
+import { defineSchema } from '@/server/lib/parse/utils';
 
 const WebHostSchema = defineSchema<WebHost>(className.WEB_HOST, {
 	fields: {

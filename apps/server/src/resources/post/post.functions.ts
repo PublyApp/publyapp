@@ -4,13 +4,12 @@ import { z } from 'zod';
 import { functionName, roleSet } from '@devist/shared/lib/constants';
 import { getCreatePostInputSchema, getUpdatePostInputSchema } from '@devist/shared/validations/post.validations';
 
-import { parseFrom, type FunctionReturn } from '@/server/lib/parse';
+import { ParsePost } from '@/server/lib/parse/classes/post.class';
+import { parseFrom, type FunctionReturn } from '@/server/lib/parse/utils';
 import FileService from '@/server/resources/file/file.service';
 import PostService from '@/server/resources/post/post.service';
 import UserService from '@/server/resources/user/user.service';
 import { getListParamsSchema } from '@/server/utils/validation.utils';
-import { ParsePost } from '@/shared/lib/parse/classes/post.class';
-import type { IPostWithRelations } from '@/shared/types/db/post.types';
 
 export type CreatePostFunctionReturn = FunctionReturn<typeof createPostFunction>;
 
@@ -49,14 +48,8 @@ const createPostFunction = parseFrom({
 			cover: await coverPromise,
 		});
 
-		const finalPost = post.toJSON();
-
-		_.unset(finalPost, 'author.__type');
-		_.unset(finalPost, 'cover.__type');
-		_.set(finalPost, 'publishDate', (finalPost.publishDate as any)?.iso);
-		_.set(finalPost, 'updateDate', (finalPost.updateDate as any)?.iso);
-
-		return finalPost as unknown as IPostWithRelations;
+		const finalPost = PostService.toJSON(post);
+		return finalPost;
 	},
 });
 
@@ -93,14 +86,8 @@ const updatePostFunction = parseFrom({
 			cover: await coverPromise,
 		});
 
-		const finalPost = updatedPost.toJSON();
-
-		_.unset(finalPost, 'author.__type');
-		_.unset(finalPost, 'cover.__type');
-		_.set(finalPost, 'publishDate', (finalPost.publishDate as any)?.iso);
-		_.set(finalPost, 'updateDate', (finalPost.updateDate as any)?.iso);
-
-		return finalPost as unknown as IPostWithRelations;
+		const finalPost = PostService.toJSON(updatedPost);
+		return finalPost;
 	},
 });
 
@@ -130,12 +117,8 @@ const getPostFunction = parseFrom({
 			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Post not Found');
 		}
 
-		const finalPost = post.toJSON();
-		_.unset(finalPost, 'author.__type');
-		_.set(finalPost, 'publishDate', (finalPost.publishDate as any)?.iso);
-		_.set(finalPost, 'updateDate', (finalPost.updateDate as any)?.iso);
-
-		return finalPost as unknown as IPostWithRelations;
+		const finalPost = PostService.toJSON(post);
+		return finalPost;
 	},
 });
 

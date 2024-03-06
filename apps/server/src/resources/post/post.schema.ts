@@ -1,6 +1,6 @@
 import { className } from '@devist/shared/lib/constants';
 
-import { defineSchema } from '@/server/lib/parse';
+import { defineSchema } from '@/server/lib/parse/utils';
 import type { IPostWithRelations } from '@/shared/types/db/post.types';
 
 const PostSchema = defineSchema<IPostWithRelations>(className.POST, {
@@ -20,12 +20,13 @@ const PostSchema = defineSchema<IPostWithRelations>(className.POST, {
 		// shares: { type: 'Number' }, // TODO
 		// commentCount: create PostComment collection and do a query to get that
 		// relatedArticles create a query for that
-		postSeriesOrder: { type: 'Number' },
+		// postSeriesOrder: { type: 'Number' },
 
 		// relations
 		author: { type: 'Pointer', targetClass: className.USER, required: true },
-		postSeries: { type: 'Pointer', targetClass: className.POST_SERIES },
 		cover: { type: 'Pointer', targetClass: className.APP_FILE },
+		postSeriesArray: { type: 'Array' },
+		// postSeries: { type: 'Pointer', targetClass: className.POST_SERIES },
 	},
 });
 
