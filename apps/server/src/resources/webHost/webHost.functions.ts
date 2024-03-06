@@ -1,12 +1,12 @@
 import _ from 'lodash';
 
 import { USE_MASTER_KEY } from '@/server/lib/constants';
-import { aggregate, parseFrom, reOrderObjects } from '@/server/lib/parse';
+import { ParseWebHost } from '@/server/lib/parse/classes/webHost.class';
+import { aggregate, parseFrom, reOrderObjects } from '@/server/lib/parse/utils';
 import { pageToSkip } from '@/server/utils/any.utils';
 import { getListParamsSchema } from '@/server/utils/validation.utils';
 import { /* className, */ className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@/shared/lib/constants';
 import { defaultLocale } from '@/shared/lib/i18n/resources';
-import { ParseWebHost } from '@/shared/lib/parse/classes/webHost.class';
 import { getSaveWebHostInputSchema } from '@/shared/validations/webHost.validations';
 
 // --------------------------------------------------------------------------------------//

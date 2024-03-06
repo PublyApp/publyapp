@@ -3,7 +3,7 @@ import _ from 'lodash';
 import { className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 import { createAIToolInputSchema } from '@devist/shared/validations/aiTool.validations';
 
-import { parseFrom, reOrderObjects } from '@/server/lib/parse';
+import { parseFrom, reOrderObjects } from '@/server/lib/parse/utils';
 import { pageToSkip } from '@/server/utils/any.utils';
 import { getListParamsSchema } from '@/server/utils/validation.utils';
 

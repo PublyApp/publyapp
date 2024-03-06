@@ -2,7 +2,7 @@ import z from 'zod';
 
 import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 
-import { parseFrom } from '@/server/lib/parse';
+import { parseFrom } from '@/server/lib/parse/utils';
 import FileService from '@/server/resources/file/file.service';
 import FolderService from '@/server/resources/folder/folder.service';
 import { folderNameSchema } from '@/shared/validations/file/file.validations';
