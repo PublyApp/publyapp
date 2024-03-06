@@ -1,6 +1,6 @@
 import { className } from '@devist/shared/lib/constants';
 
-import { defineSchema } from '@/server/lib/parse';
+import { defineSchema } from '@/server/lib/parse/utils';
 
 const AwesomeLinkSchema = defineSchema(className.AWESOME_LINK, {
 	fields: {

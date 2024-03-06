@@ -8,12 +8,12 @@ import _ from 'lodash';
 import sharp from 'sharp';
 
 import { fileProvider, IMAGE_FORMAT_CONFIG } from '@devist/shared/lib/constants';
-import { ParseAppFile } from '@devist/shared/lib/parse/classes/appFile.class';
 import type { ListMeta } from '@devist/shared/types/db/any.types';
 import type { AppFile, ImageFormatData, ImageFormatType } from '@devist/shared/types/db/appFile.types';
 
 import { env } from '@/server/lib/env';
-import { applySkipAndLimit } from '@/server/lib/parse';
+import { ParseAppFile } from '@/server/lib/parse/classes/appFile.class';
+import { applySkipAndLimit } from '@/server/lib/parse/utils';
 import { addSuffixToFileName } from '@/server/utils/any.utils';
 
 import FolderService from '../folder/folder.service';

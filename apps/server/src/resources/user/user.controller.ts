@@ -2,7 +2,7 @@ import type { RequestHandler } from 'express';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
-import { createSessionServer } from '@/server/lib/parse';
+import { createSessionServer } from '@/server/lib/parse/utils';
 
 import { AuthCloudService } from '../auth/auth.cloud.service';
 

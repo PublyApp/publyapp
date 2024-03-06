@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
+import { ParseAppFile } from '@/server/lib/parse/classes/appFile.class';
 import { fileProvider } from '@/shared/lib/constants';
-import { ParseAppFile } from '@/shared/lib/parse/classes/appFile.class';
 
 type FolderServiceProps = {
 	sessionToken: string | undefined;

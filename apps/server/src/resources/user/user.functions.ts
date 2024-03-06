@@ -1,4 +1,4 @@
-import { parseFrom } from '@/server/lib/parse';
+import { parseFrom } from '@/server/lib/parse/utils';
 import { functionName, roleSet } from '@/shared/lib/constants';
 
 import RoleService from '../role/role.service';

@@ -1,13 +1,17 @@
 import _ from 'lodash';
 
+import type { ParseAppFile } from '@/server/lib/parse/classes/appFile.class';
+import { ParsePost } from '@/server/lib/parse/classes/post.class';
+import type { ParseUser } from '@/server/lib/parse/classes/user.class';
 import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
-import type { ParseAppFile } from '@/shared/lib/parse/classes/appFile.class';
-import { ParsePost } from '@/shared/lib/parse/classes/post.class';
-import type { ParseUser } from '@/shared/lib/parse/classes/user.class';
-import type { IPostWithParseRelations, TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
+import type {
+	IPostWithParseRelations,
+	IPostWithRelations,
+	TranslatedIPostWithRelations,
+} from '@/shared/types/db/post.types';
 
-import { applySkipAndLimit, applySorting } from '../../lib/parse';
+import { applySkipAndLimit, applySorting } from '../../lib/parse/utils';
 
 type Props = {
 	sessionToken?: string;
@@ -212,13 +216,14 @@ export default class PostService {
 		return query.first({ sessionToken: this.sessionToken });
 	}
 
-	async find(params: Omit<FindPostInput, 'json'> & { json: true }): Promise<IPostWithParseRelations[]>;
+	async find(params: Omit<FindPostInput, 'json'> & { json: true }): Promise<IPostWithRelations[]>;
 	async find(params: Omit<FindPostInput, 'json'> & { json?: false | undefined }): Promise<ParsePost[]>;
 	async find({
 		page = 1,
 		pageSize = DEFAULT_PAGE_SIZE,
 		sorting = [],
-		locale = defaultLocale,
+		// locale = defaultLocale,
+		locale,
 		select,
 		include,
 		exclude,
@@ -236,7 +241,9 @@ export default class PostService {
 		}
 
 		// locale filter
-		query.exists(`translation.${locale}` as never);
+		if (locale) {
+			query.exists(`translation.${locale}` as never);
+		}
 
 		if (select) {
 			query.select(select as never);
@@ -254,12 +261,16 @@ export default class PostService {
 
 		const posts = await query.find({
 			sessionToken,
-			json,
+			// json,
 			/* , context: { headers: this.headers, fromPublic } */
 		});
 
 		if (json) {
-			return posts as unknown as IPostWithParseRelations[];
+			const jsonPosts = posts.map((post) => {
+				return PostService.toJSON(post);
+			});
+
+			return jsonPosts;
 		}
 
 		return posts;
@@ -300,8 +311,8 @@ export default class PostService {
 		const posts = await this.find({ page, pageSize, sorting, locale, include, exclude, json: true, fromPublic });
 
 		const finalPosts = posts.map((post) => {
-			_.unset(post, 'author.__type');
 			_.assign(post, post.translation[locale]);
+			_.set(post, 'locale', locale);
 			return post as unknown as TranslatedIPostWithRelations;
 		});
 
@@ -321,12 +332,9 @@ export default class PostService {
 			exclude,
 			json: true,
 			fromPublic: true,
-			// sessionToken: PUBLIC_SESSION_TOKEN,
 		});
 
 		const finalPosts = posts.map((post) => {
-			_.unset(post, 'cover.__type');
-			_.unset(post, 'author.__type');
 			_.assign(post, post.translation[locale]);
 			_.set(post, 'locale', locale);
 			return post as unknown as TranslatedIPostWithRelations;
@@ -434,5 +442,16 @@ export default class PostService {
 		];
 
 		return query.aggregate(pipeline);
+	}
+
+	static toJSON(post: ParsePost) {
+		const finalPost = post.toJSON();
+
+		_.unset(finalPost, 'author.__type');
+		_.unset(finalPost, 'cover.__type');
+		_.set(finalPost, 'publishDate', (finalPost.publishDate as any)?.iso);
+		_.set(finalPost, 'updateDate', (finalPost.updateDate as any)?.iso);
+
+		return finalPost as unknown as IPostWithRelations;
 	}
 }

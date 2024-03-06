@@ -5,7 +5,7 @@ import { existsSync, promises as fs } from 'fs';
 import { className, roleEnum } from '@devist/shared/lib/constants';
 
 import { FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@/server/lib/constants';
-import { getDatabase } from '@/server/lib/parse';
+import { getDatabase } from '@/server/lib/parse/utils';
 
 import logger from '../lib/logger';
 

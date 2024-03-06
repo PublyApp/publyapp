@@ -6,7 +6,7 @@ import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from
 
 import { env } from '../lib/env';
 import logger from '../lib/logger';
-import { getCurrentInstallationId } from '../lib/parse';
+import { getCurrentInstallationId } from '../lib/parse/utils';
 
 const parseServerMiddleware: RequestHandler = async (req, res, next) => {
 	try {

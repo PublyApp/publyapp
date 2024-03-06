@@ -1,7 +1,7 @@
 import { className } from '@devist/shared/lib/constants';
 
 import { AUTHED_READONLY_CLP } from '@/server/lib/constants';
-import { defineSchema } from '@/server/lib/parse';
+import { defineSchema } from '@/server/lib/parse/utils';
 import type { IRole } from '@/shared/types/db/role.types';
 
 const RoleSchema = defineSchema<Omit<IRole, 'name'>>(className.ROLE, {
