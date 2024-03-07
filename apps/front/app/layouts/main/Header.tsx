@@ -1,4 +1,4 @@
-import { AppBar, Box, Button, Container, Link, Stack, Toolbar, useTheme } from '@mui/material';
+import { AppBar /* Button, */, Box, Container, Link, Stack, Toolbar, useTheme } from '@mui/material';
 
 import Label from '@devist/ui-react/components/Label';
 import useOffsetTop from '@devist/ui-react/hooks/useOffsetTop';
@@ -9,7 +9,8 @@ import { HEADER } from '@/front/lib/constants';
 import { bgBlur } from '@/ui-react/utils/css.utils';
 
 import HeaderShadow from '../common/HeaderShadow';
-import Searchbar from '../common/Searchbar';
+
+// import Searchbar from '../common/Searchbar';
 
 import NavDesktop from './nav/desktop/NavDesktop';
 import NavMobile from './nav/mobile/NavMobile';
@@ -80,16 +81,16 @@ const Header = ({ headerOnDark }: Props) => {
 
 					<Stack spacing={2} flexGrow={1} direction="row" alignItems="center" justifyContent="flex-end">
 						<Stack spacing={1} direction="row" alignItems="center">
-							<Searchbar />
+							{/* <Searchbar /> */}
 
 							{/* <SettingsDrawer /> */}
 						</Stack>
 
-						{isMdUp && (
+						{/* {isMdUp && (
 							<Button variant="contained" color="inherit" href="#" target="_blank" rel="noopener">
 								Buy Now
 							</Button>
-						)}
+						)} */}
 					</Stack>
 
 					{!isMdUp && <NavMobile data={navConfig} />}
