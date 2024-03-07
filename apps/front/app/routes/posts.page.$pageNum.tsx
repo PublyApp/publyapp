@@ -1,6 +1,6 @@
 import { Container, Unstable_Grid2 as Grid } from '@mui/material';
-import { type LoaderFunction } from '@remix-run/node';
-import { useLoaderData, type ClientLoaderFunction } from '@remix-run/react';
+// import { type LoaderFunction } from '@remix-run/node';
+import { /* useLoaderData, */ type ClientLoaderFunction } from '@remix-run/react';
 
 import { _categories, _tags } from '@/front/_mock';
 import BlogSidebar from '@/front/containers/blog/sidebar/BlogSidebar';
@@ -9,19 +9,20 @@ import { parseApi } from '../api/_index';
 import PostListHorizontal from '../containers/blog/PostListHorizontal';
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
-export const loader = (async ({ params }) => {
-	const pageNum = Number(params.pageNum);
+// export const loader = (async ({ params }) => {
+// 	const pageNum = Number(params.pageNum);
 
-	const posts = await safelyRunInLoader(parseApi.posts.findPost)({ page: pageNum });
+// 	const posts = await safelyRunInLoader(parseApi.posts.findPost)({ page: pageNum });
 
-	return {
-		posts,
-	};
-}) satisfies LoaderFunction;
+// 	return {
+// 		posts,
+// 	};
+// }) satisfies LoaderFunction;
 
-export const clientLoader = (async ({ serverLoader }) => {
+export const clientLoader = (async ({ /* serverLoader, */ params }) => {
 	const tags = await safelyRunInLoader(parseApi.posts.findPostTag)();
-	const { posts } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
+	// const { posts } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
+	const posts = await safelyRunInLoader(parseApi.posts.findPost)({ page: Number(params.pageNum) });
 
 	return {
 		posts,
@@ -30,14 +31,12 @@ export const clientLoader = (async ({ serverLoader }) => {
 }) satisfies ClientLoaderFunction;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-(clientLoader as any).hydrate = true;
+// (clientLoader as any).hydrate = true;
 
 export type PostListLoaderFunction = typeof clientLoader;
 
 const PostsPage = () => {
-	const data = useLoaderData<PostListLoaderFunction>();
-
-	console.log('data -----------------------', data);
+	// const data = useLoaderData<PostListLoaderFunction>();
 
 	return (
 		<>

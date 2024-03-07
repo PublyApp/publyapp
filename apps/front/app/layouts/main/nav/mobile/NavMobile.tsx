@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import { useEffect, useState } from 'react';
 
-import { Button, Drawer, IconButton, List, Stack } from '@mui/material';
+import { /* Button, */ Drawer, IconButton, List /* Stack */ } from '@mui/material';
 import { useLocation } from '@remix-run/react';
 
 import Logo from '@/front/components/Logo';
@@ -60,11 +60,11 @@ const NavMobile = ({ data }: NavProps) => {
 						})}
 					</List>
 
-					<Stack spacing={1.5} sx={{ p: 3 }}>
+					{/* <Stack spacing={1.5} sx={{ p: 3 }}>
 						<Button fullWidth variant="contained" color="inherit">
 							Buy Now
 						</Button>
-					</Stack>
+					</Stack> */}
 				</Scrollbar>
 			</Drawer>
 		</>

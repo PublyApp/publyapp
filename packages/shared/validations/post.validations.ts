@@ -108,7 +108,7 @@ export const getCreatePostInputSchema = (t: TFunction) => {
 			.string({ errorMap: getErrorMap(t, { field: COVER_URL }) })
 			.min(1, { message: t('common:form.error.required', { field: COVER }) })
 			.optional(),
-		tags: z.array(z.string()).max(5).optional(), // TODO: locale mappings
+		tags: z.array(z.string()).max(4).optional(), // TODO: locale mappings
 		publishDate: dateTypeSchema.optional(),
 		updateDate: dateTypeSchema.optional(),
 	});

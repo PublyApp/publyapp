@@ -28,6 +28,7 @@ const Label = forwardRef<HTMLSpanElement, LabelProps>(
 		};
 
 		return (
+			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			<StyledLabel
 				ref={ref}
 				component="span"

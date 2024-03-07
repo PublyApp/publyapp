@@ -1,4 +1,5 @@
 import { Avatar, Box, Card, Link, Stack, useTheme } from '@mui/material';
+import { nanoid } from 'nanoid';
 
 // import CustomPopover from '@devist/ui-react/components/CustomPopover';
 // import usePopover from '@devist/ui-react/hooks/usePopover';
@@ -16,6 +17,8 @@ import { Avatar, Box, Card, Link, Stack, useTheme } from '@mui/material';
 // import { paths } from 'src/routes/paths';
 // types
 // import type { IPostItem } from '@devist/ui-react/types/blog';
+// import { nanoid } from 'nanoid';
+
 import type { TranslatedIPostWithRelations } from '@devist/shared/types/db/post.types';
 import { getUserFullName } from '@devist/shared/utils/user.utils';
 import { fDate } from '@devist/ui-react/utils/date.utils';
@@ -29,6 +32,7 @@ import Iconify from '@/ui-react/components/Iconify';
 import Image from '@/ui-react/components/Image';
 import Label from '@/ui-react/components/Label';
 import TextMaxLine from '@/ui-react/components/TextMaxLine';
+import { pxToRem } from '@/ui-react/utils/css.utils';
 
 // import useResponsive from '@/ui-react/hooks/useResponsive';
 
@@ -99,9 +103,10 @@ const PostItemHorizontal = ({ post }: Props) => {
 					}}
 				>
 					<Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-						<Label variant="soft" color={post.published ? 'info' : 'default'}>
+						{/* <Label variant="soft" color={post.published ? 'info' : 'default'}>
 							{post.published ? 'Published' : 'Draft'}
-						</Label>
+						</Label> */}
+						<Box />
 
 						<Box component="span" sx={{ typography: 'caption', color: 'text.disabled' }}>
 							{fDate(post.publishDate || post.createdAt)}
@@ -120,9 +125,28 @@ const PostItemHorizontal = ({ post }: Props) => {
 							</TextMaxLine>
 						</Link>
 
-						<TextMaxLine variant="body2" sx={{ color: 'text.secondary' }}>
+						<TextMaxLine variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
 							{post.translation.en?.description}
 						</TextMaxLine>
+
+						<Stack direction="row" /* maxWidth="80%" */ flexWrap="wrap" gap={1}>
+							{post.tags?.map((tag) => {
+								return (
+									<Label key={nanoid()} variant="soft" color="default" alignItems="center">
+										<Box
+											maxWidth={pxToRem(100)}
+											height="100%"
+											textOverflow="ellipsis"
+											whiteSpace="nowrap"
+											overflow="hidden"
+											lineHeight={2}
+										>
+											{`#${tag}`}
+										</Box>
+									</Label>
+								);
+							})}
+						</Stack>
 					</Stack>
 
 					<Stack direction="row" alignItems="center">
