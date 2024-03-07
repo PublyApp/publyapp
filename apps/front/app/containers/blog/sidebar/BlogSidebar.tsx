@@ -43,7 +43,7 @@ const BlogSidebar = ({
 			{author && isMdUp && <BlogSidebarAuthor author={author} />}
 
 			{/* {isMdUp && ( */}
-			<TextField
+			{/* <TextField
 				fullWidth
 				hiddenLabel
 				placeholder="Search..."
@@ -59,13 +59,13 @@ const BlogSidebar = ({
 						display: 'none',
 					},
 				}}
-			/>
+			/> */}
 			{/* )} */}
 
 			<Stack
 				spacing={5}
 				sx={{
-					pt: { md: 5 },
+					pt: { xs: 8, md: 0 },
 					pb: { xs: 8, md: 0 },
 					...sx,
 				}}

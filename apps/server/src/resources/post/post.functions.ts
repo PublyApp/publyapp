@@ -18,7 +18,7 @@ const createPostFunction = parseFrom({
 	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
 	action: async ({ req, t, user }) => {
 		const createPostInputSchema = getCreatePostInputSchema(t);
-		const { locale, title, description, content, slug, coverId, authorId } = createPostInputSchema.parse(req.params);
+		const { coverId, authorId, ...input } = createPostInputSchema.parse(req.params);
 
 		const sessionToken = user.getSessionToken();
 
@@ -29,7 +29,7 @@ const createPostFunction = parseFrom({
 		const coverPromise = fileService.getById(coverId || '', { select: [] });
 		const authorPromise = userService.getById(authorId || '', { select: [] });
 
-		const findPostWithSameSlugPromise = postService.getBySlug(slug, { select: [] });
+		const findPostWithSameSlugPromise = postService.getBySlug(input.slug, { select: [] });
 
 		if (await findPostWithSameSlugPromise) {
 			throw new Error('A post with the same slug already exists');
@@ -39,11 +39,7 @@ const createPostFunction = parseFrom({
 
 		// TODO: return JSON objects instead of Parse Objects
 		const post = await postService.create({
-			locale,
-			title,
-			description,
-			content,
-			slug,
+			...input,
 			author: (await authorPromise) || user,
 			cover: await coverPromise,
 		});
