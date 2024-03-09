@@ -1,9 +1,9 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "configurations": [
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
 		{
 			"type": "node",
 			"request": "attach",
@@ -13,18 +13,16 @@
 			// "outFiles": ["dist/**/*.js"],
 			"sourceMaps": true,
 			"smartStep": true,
-			"skipFiles": [
-				"<node_internals>/**"
-			],
+			"skipFiles": ["<node_internals>/**"]
 		},
-    {
-      "type": "node",
-      "request": "launch",
-      "name": "Launch Server",
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Launch Server",
 			"cwd": "${workspaceFolder}/apps/server",
 			"program": "src/index.ts",
-      // "program": "dist/index.js",
-      "outFiles": ["dist/**/*.js"],
+			// "program": "dist/index.js",
+			"outFiles": ["dist/**/*.js"],
 			"preLaunchTask": "npm: build:local - apps/server",
 			"sourceMaps": true,
 			"smartStep": true,
@@ -32,9 +30,7 @@
 			"runtimeArgs": ["-r", "esbuild-register"],
 			// "runtimeArgs": ["-r", "ts-node/register", "-r", "tsconfig-paths/register"],
 			// "runtimeArgs": ["--enable-source-maps"]
-			"skipFiles": [
-				"<node_internals>/**"
-			],
-		},
+			"skipFiles": ["<node_internals>/**"]
+		}
 	]
 }

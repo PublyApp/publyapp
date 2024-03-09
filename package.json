@@ -3,18 +3,18 @@
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
-		"build": "pnpm turbo build",
-		"dev": "pnpm turbo dev",
+		"build": "turbo build",
+		"dev": "turbo dev",
 		"check-format": "prettier --check .",
 		"format": "prettier --write .",
-		"lint": "pnpm turbo lint",
-		"lint:fix": "pnpm turbo lint:fix",
+		"lint": "turbo lint",
+		"lint:fix": "turbo lint:fix",
 		"prepare": "husky install",
-		"pre-commit:old": "pnpm format && git add -A .",
-		"prepare:deploy": "pnpm prepare:deploy:server && pnpm prepare:deploy:awesome",
-		"prepare:deploy:server": "node ./scripts/deploy/server/index.js",
-		"prepare:deploy:awesome": "node ./scripts/deploy/awsm/index.js",
-		"update-deps": "node ./scripts/updateDeps/index.js"
+		"pre-commit:old": "bun run format && git add -A .",
+		"prepare:deploy": "bun run prepare:deploy:server && bun run prepare:deploy:awesome",
+		"prepare:deploy:server": "bun ./scripts/deploy/server/index.js",
+		"prepare:deploy:awesome": "bun ./scripts/deploy/awsm/index.js",
+		"update-deps": "bun ./scripts/updateDeps/index.js"
 	},
 	"devDependencies": {
 		"@ianvs/prettier-plugin-sort-imports": "^4.1.1",
@@ -28,8 +28,11 @@
 		"turbo": "^1.12.2",
 		"typescript": "^5.3.3"
 	},
-	"packageManager": "pnpm@8.15.1",
-	"engines": {
-    "node": ">=16.0.0"
-  }
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"trustedDependencies": [
+		"sharp"
+	]
 }

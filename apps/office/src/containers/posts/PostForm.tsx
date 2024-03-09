@@ -2,7 +2,7 @@ import { Chip, Grid, Stack, Typography } from '@mui/material';
 import { type UseFormReturn } from 'react-hook-form';
 
 import FormProvider from '@devist/ui-react/components/form/FormProvider';
-import RHFAutocomplete from '@devist/ui-react/components/form/RHFAutocomplete';
+import RHFAutocomplete from '@devist/ui-react/components/form/RHFAutoComplete';
 import RHFDesktopDatePicker from '@devist/ui-react/components/form/RHFDesktopDatePicker';
 import RHFMdxEditor from '@devist/ui-react/components/form/RHFMdxEditor';
 import RHFSwitch from '@devist/ui-react/components/form/RHFSwitch';

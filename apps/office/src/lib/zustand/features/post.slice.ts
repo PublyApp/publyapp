@@ -2,18 +2,14 @@ import type { Dispatch, SetStateAction } from 'react';
 
 import _ from 'lodash';
 
-// import type { UseFormReturn } from 'react-hook-form';
-
-import type { ParsePost } from '@devist/shared/lib/parse/classes/post.class';
-
-import type { TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
+import type { IPostWithRelations, TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
 
 import type { RootState } from '../slices';
 import Slice from '../utils/Slice';
 
 export type PostSliceValues = {
 	// edit post page
-	currentlyEditedPost: ParsePost | undefined;
+	currentlyEditedPost: IPostWithRelations | undefined;
 
 	// posts list (table)
 	posts: TranslatedIPostWithRelations[];
