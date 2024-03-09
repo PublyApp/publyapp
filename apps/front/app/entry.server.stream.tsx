@@ -1,4 +1,4 @@
-import { PassThrough, Transform } from 'stream';
+import { PassThrough /* , Transform */ } from 'stream';
 
 import { CacheProvider } from '@emotion/react';
 import createEmotionServer from '@emotion/server/create-instance';
@@ -34,7 +34,7 @@ const handleRequest = (
 		const { pipe } = ReactDOMServer.renderToPipeableStream(<MuiRemixServer />, {
 			onShellReady: () => {
 				const body = new PassThrough({
-					transform: (chunk, encoding, callback) => {
+					transform: (chunk, _encoding, callback) => {
 						console.log('😡😡😡😡', chunk.toString());
 
 						callback(null, chunk);
