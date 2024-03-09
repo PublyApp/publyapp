@@ -6,7 +6,7 @@
 	"license": "MIT",
 	"scripts": {
 		"lint": "eslint . --ext=ts,tsx,js,jsx",
-		"lint:fix": " pnpm lint --fix"
+		"lint:fix": "bun lint --fix"
 	},
 	"devDependencies": {
 		"@types/numeral": "^2.0.5",

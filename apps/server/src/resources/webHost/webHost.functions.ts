@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import { USE_MASTER_KEY } from '@/server/lib/constants';
-import { ParseWebHost } from '@/server/lib/parse/classes/webHost.class';
+import ParseWebHost from '@/server/lib/parse/classes/webHost.class';
 import { aggregate, parseFrom, reOrderObjects } from '@/server/lib/parse/utils';
 import { pageToSkip } from '@/server/utils/any.utils';
 import { getListParamsSchema } from '@/server/utils/validation.utils';

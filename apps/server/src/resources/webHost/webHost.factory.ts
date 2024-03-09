@@ -1,6 +1,6 @@
 import type { Faker } from '@faker-js/faker';
 
-import { ParseWebHost } from '@/server/lib/parse/classes/webHost.class';
+import ParseWebHost from '@/server/lib/parse/classes/webHost.class';
 
 // import { className } from '@/shared/utils/constants';
 

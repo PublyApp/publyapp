@@ -4,7 +4,7 @@
 import { className } from '@/shared/lib/constants';
 import type { UserAttributes } from '@/shared/types/db/user.types';
 
-export class ParseUser extends Parse.User {
+export default class ParseUser extends Parse.User {
 	static className = className.USER;
 
 	// eslint-disable-next-line @typescript-eslint/no-useless-constructor

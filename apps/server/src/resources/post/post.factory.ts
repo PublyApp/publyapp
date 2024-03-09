@@ -1,6 +1,6 @@
 import { type Faker } from '@faker-js/faker';
 
-import { ParseUser } from '@/server/lib/parse/classes/user.class';
+import ParseUser from '@/server/lib/parse/classes/user.class';
 
 export const userFactory = async (faker: Faker) => {
 	// const getBool = faker.datatype.boolean;

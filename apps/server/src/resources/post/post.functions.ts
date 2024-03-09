@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { functionName, roleSet } from '@devist/shared/lib/constants';
 import { getCreatePostInputSchema, getUpdatePostInputSchema } from '@devist/shared/validations/post.validations';
 
-import { ParsePost } from '@/server/lib/parse/classes/post.class';
+import ParsePost from '@/server/lib/parse/classes/post.class';
 import { parseFrom, type FunctionReturn } from '@/server/lib/parse/utils';
 import FileService from '@/server/resources/file/file.service';
 import PostService from '@/server/resources/post/post.service';

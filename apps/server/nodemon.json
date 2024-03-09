@@ -1,6 +1,6 @@
 {
 	"watch": ["src", ".env.local"],
 	"ext": "js,ts,json",
-	"exec": "pnpm build:local && pnpm start",
+	"exec": "bun run build:local && bun run start",
 	"ignore": ["dist/seeding/*"]
 }
