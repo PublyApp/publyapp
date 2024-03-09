@@ -1,8 +1,8 @@
 import _ from 'lodash';
 
-import type { ParseAppFile } from '@/server/lib/parse/classes/appFile.class';
-import { ParsePost } from '@/server/lib/parse/classes/post.class';
-import type { ParseUser } from '@/server/lib/parse/classes/user.class';
+import type ParseAppFile from '@/server/lib/parse/classes/appFile.class';
+import ParsePost from '@/server/lib/parse/classes/post.class';
+import type ParseUser from '@/server/lib/parse/classes/user.class';
 import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type {

@@ -1,7 +1,7 @@
 // import { logger } from 'parse-server';
 
 // import { multiTenantTrigger, parseTrigger } from '@/server/lib/parse';
-// import { ParsePost } from '@/shared/lib/parse/classes/post.class';
+// import ParsePost  from '@/shared/lib/parse/classes/post.class';
 
 // Parse.Cloud.beforeFind(
 // 	ParsePost,

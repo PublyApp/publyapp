@@ -1,7 +1,7 @@
 import { className } from '@/shared/lib/constants';
 import type { AppFileWithRelations } from '@/shared/types/db/appFile.types';
 
-export class ParseAppFile extends Parse.Object<AppFileWithRelations> {
+export default class ParseAppFile extends Parse.Object<AppFileWithRelations> {
 	static className = className.APP_FILE;
 
 	constructor(attributes?: DeepPartial<AppFileWithRelations>) {
