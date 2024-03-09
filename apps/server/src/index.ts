@@ -43,6 +43,7 @@ const bootstrap = async () => {
 
 	console.log('global.LOCAL:', global.LOCAL);
 	console.log('global.MODE:', global.MODE);
+	console.log('hello thank you');
 
 	// --------------------------------------------------------------------------------------//
 	//                    override process.env with values in .env file                      //

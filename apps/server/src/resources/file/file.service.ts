@@ -12,7 +12,7 @@ import type { ListMeta } from '@devist/shared/types/db/any.types';
 import type { AppFile, ImageFormatData, ImageFormatType } from '@devist/shared/types/db/appFile.types';
 
 import { env } from '@/server/lib/env';
-import { ParseAppFile } from '@/server/lib/parse/classes/appFile.class';
+import ParseAppFile from '@/server/lib/parse/classes/appFile.class';
 import { applySkipAndLimit } from '@/server/lib/parse/utils';
 import { addSuffixToFileName } from '@/server/utils/any.utils';
 

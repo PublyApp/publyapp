@@ -1,6 +1,6 @@
 import type { BaseAttributes } from 'parse';
 
-import type { ParseAppFile } from '@/server/lib/parse/classes/appFile.class';
+import type ParseAppFile  from '@/server/lib/parse/classes/appFile.class';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 import type { DateType } from '../date.types';
