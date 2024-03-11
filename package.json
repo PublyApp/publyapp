@@ -1,38 +1,39 @@
 {
-	"name": "devist-platform",
-	"version": "0.0.0",
-	"private": true,
-	"scripts": {
-		"build": "turbo build",
-		"dev": "turbo dev",
-		"check-format": "prettier --check .",
-		"format": "prettier --write .",
-		"lint": "turbo lint",
-		"lint:fix": "turbo lint:fix",
-		"prepare": "husky install",
-		"pre-commit:old": "bun run format && git add -A .",
-		"prepare:deploy": "bun run prepare:deploy:server && bun run prepare:deploy:awesome",
-		"prepare:deploy:server": "bun ./scripts/deploy/server/index.js",
-		"prepare:deploy:awesome": "bun ./scripts/deploy/awsm/index.js",
-		"update-deps": "bun ./scripts/updateDeps/index.js"
-	},
-	"devDependencies": {
-		"@ianvs/prettier-plugin-sort-imports": "^4.1.1",
-		"eslint": "^8.56.0",
-		"eslint-config-custom-base": "workspace:*",
-		"fs-extra": "^11.2.0",
-		"husky": "^8.0.3",
-		"lint-staged": "^15.2.0",
-		"prettier": "^3.2.2",
-		"tsconfig": "workspace:*",
-		"turbo": "^1.12.2",
-		"typescript": "^5.3.3"
-	},
-	"workspaces": [
-		"apps/*",
-		"packages/*"
-	],
-	"trustedDependencies": [
-		"sharp"
-	]
+  "name": "devist-platform",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "check-format": "prettier --check .",
+    "format": "prettier --write .",
+    "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
+    "prepare": "husky install",
+    "pre-commit:old": "bun run format && git add -A .",
+    "prepare:deploy:server": "bun ./scripts/deploy/server/index.js",
+    "update-deps": "bun update",
+		"update-deps:pnpm": "pnpm -i -r",
+		"workspace": "bun run scripts/workspace.ts"
+  },
+  "devDependencies": {
+    "@ianvs/prettier-plugin-sort-imports": "^4.1.1",
+    "@types/bun": "^1.0.8",
+    "eslint": "^8.56.0",
+    "eslint-config-custom-base": "workspace:*",
+    "fs-extra": "^11.2.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.2",
+    "tsconfig": "workspace:*",
+    "turbo": "^1.12.2",
+    "typescript": "^5.3.3"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "trustedDependencies": [
+    "sharp"
+  ]
 }
