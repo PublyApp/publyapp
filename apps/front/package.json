@@ -7,6 +7,7 @@
 		"dev": "vite dev",
 		"build": "tsc && vite build && vite build --ssr",
 		"build:dev": "vite build --mode development && vite build --ssr --mode development",
+		"build:flexible": "vite build --mode $([ $MODE == local ] && echo 'development' || echo $MODE) && vite build --ssr --mode $([ $MODE == local ] && echo 'development' || echo $MODE)",
 		"start": "remix-serve ./build/server/index.js",
 		"type-check": "tsc"
 	},

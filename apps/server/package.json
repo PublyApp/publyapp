@@ -19,6 +19,9 @@
 		"start:common": "bun run start:bun",
 		"start:bundle": "bun --enable-source-maps dist/index.mjs",
 		"start:bun": "bun src/index.ts",
+		"prestart:bun": "bun run workspace ../front build:flexible",
+		"test:start:online:dev:bun": "bunx cross-env ONLINE=true bun run start:local",
+		"test:start:online:prod:bun": "bunx cross-env ONLINE=true bun run start",
 		"// =============== DEV COMMANDs =================": "================================",
 		"dev": "bun run dev:local",
 		"dev:local": "cross-env MODE=local bun run dev:common",
@@ -34,7 +37,9 @@
 		"// =============== SEED COMMANDS =================": "================================",
 		"seed": "bun --enable-source-maps dist/seeding/seed.js",
 		"// =============== TEST COMMANDS =================": "================================",
-		"postinstall": "bun scripts/patch.js"
+		"postinstall": "bun scripts/patch.js",
+		"// =============== Utilities =====================": "===============================",
+		"workspace": "bun ../../scripts/workspace.ts"
 	},
 	"dependencies": {
 		"@devist/shared": "workspace:*",

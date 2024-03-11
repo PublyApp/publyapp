@@ -41,7 +41,9 @@ const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
 	global.MODE = process.env.MODE || 'local';
 
+	// eslint-disable-next-line no-console
 	console.log('global.LOCAL:', global.LOCAL);
+	// eslint-disable-next-line no-console
 	console.log('global.MODE:', global.MODE);
 
 	// --------------------------------------------------------------------------------------//
@@ -180,7 +182,7 @@ const bootstrap = async () => {
 	//                  mount remix build when in a deployment environment                  //
 	// --------------------------------------------------------------------------------------//
 	if (!global.LOCAL) {
-		app.use(express.static(path.resolve(__dirname, '../node_modules/front/build/client')));
+		app.use(express.static(path.resolve(__dirname, '../../../node_modules/front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
