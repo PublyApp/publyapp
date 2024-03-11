@@ -27,6 +27,8 @@ export const corsWhiteList = {
 		'https://awesome.devist.xyz',
 		'https://amazing.devist.xyz',
 		'http://localhost:4040',
+		// test online
+		'http://localhost:6180',
 	], // ? We're gonna see over time
 };
 

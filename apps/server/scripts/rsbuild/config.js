@@ -74,6 +74,33 @@ function findExternals() {
 
 exports.findExternals = findExternals;
 
+const externals = [
+	...findExternals(),
+	'parse-server/lib/index.js',
+
+	'parse/node',
+	'parse/node.js',
+
+	'parse-server/lib/Auth',
+	'parse-server/lib/Auth.js',
+
+	'parse-server/lib/Config.js',
+	'parse-server/lib/Config',
+
+	'parse-server/lib/RestWrite',
+	'parse-server/lib/RestWrite.js',
+
+	'parse-server/lib/Routers/UsersRouter',
+	'parse-server/lib/Routers/UsersRouter.js',
+
+	'parse-server/lib/logger',
+	'parse-server/lib/logger.js',
+
+	'front/build/server/index.js',
+];
+
+exports.externals = externals;
+
 function createRsbuild() {
 	return _createRsbuild({
 		rsbuildConfig: {
@@ -92,31 +119,7 @@ function createRsbuild() {
 				distPath: {
 					server: '',
 				},
-				externals: [
-					...findExternals(),
-					'parse/node',
-					'parse-server/lib/Config',
-					'parse-server/lib/Auth',
-
-					'parse/node.js',
-					'parse-server/lib/Config.js',
-					'parse-server/lib/Auth.js',
-					'parse-server/lib/Config.js',
-
-					'parse-server/lib/Config',
-					'parse-server/lib/Auth.js',
-					'parse-server/lib/Auth',
-					'parse-server/lib/RestWrite.js',
-					'parse-server/lib/RestWrite',
-					'parse-server/lib/Routers/UsersRouter.js',
-
-					'parse-server/lib/index.js',
-
-					'parse-server/lib/logger',
-					'parse-server/lib/logger.js',
-
-					'front/build/server/index.js',
-				],
+				externals,
 			},
 			tools: {
 				rspack: {
