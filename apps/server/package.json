@@ -37,7 +37,7 @@
 		"// =============== SEED COMMANDS =================": "================================",
 		"seed": "bun --enable-source-maps dist/seeding/seed.js",
 		"// =============== TEST COMMANDS =================": "================================",
-		"postinstall": "bun scripts/patch.js",
+		"postinstall": "bun scripts/patch/index.js",
 		"// =============== Utilities =====================": "===============================",
 		"workspace": "bun ../../scripts/workspace.ts"
 	},
