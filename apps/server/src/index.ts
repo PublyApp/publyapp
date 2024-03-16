@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 import * as ps from 'parse-server/lib/index.js';
 
@@ -34,9 +32,6 @@ import { handlePasswordLogin } from './resources/user/user.controller';
 import UserSchema from './resources/user/user.schema';
 import WebHostSchema from './resources/webHost/webHost.schema';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
 	global.MODE = process.env.MODE || 'local';
@@ -61,8 +56,8 @@ const bootstrap = async () => {
 	const checkedEnv = envSchema.parse(process.env);
 	setAppEnv(checkedEnv);
 
-	const { DATABASE_URI, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL, PORT, PARSE_PATH, EXPRESS_FILES_MOUNT_PATH } =
-		env;
+	// const { DATABASE_URI, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL, PORT, PARSE_PATH, EXPRESS_FILES_MOUNT_PATH } =
+	// 	env;
 
 	// --------------------------------------------------------------------------------------//
 	//                            setup express and parse server                             //
@@ -81,7 +76,7 @@ const bootstrap = async () => {
 			},
 		}),
 	);
-	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
+	app.use(env.EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 
 	// app.use(parseServerMiddleware);
 
@@ -93,13 +88,13 @@ const bootstrap = async () => {
 
 	// initialize parse server
 	const parseServer = new ps.ParseServer({
-		appId: PARSE_APP_ID,
-		masterKey: PARSE_MASTER_KEY,
+		appId: env.PARSE_APP_ID,
+		masterKey: env.PARSE_MASTER_KEY,
 		// cloud: path.resolve(__dirname, './cloud/_index'),
 		cloud,
-		databaseURI: DATABASE_URI,
-		serverURL: PARSE_SERVER_URL,
-		publicServerURL: PARSE_SERVER_URL,
+		databaseURI: env.DATABASE_URI,
+		serverURL: env.PARSE_SERVER_URL,
+		publicServerURL: env.PARSE_SERVER_URL,
 		filesAdapter: fsAdapter,
 		// preserveFileName: true,
 		// =============================================
@@ -121,7 +116,6 @@ const bootstrap = async () => {
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
-		// allowHeaders: ['Access-Control-Expose-Headers', 'access-control-expose-headers', 'Etag'],
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
 		// directAccess: false, // in parse server 6 this is true by default
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
@@ -132,7 +126,7 @@ const bootstrap = async () => {
 
 	await parseServer.start();
 	// app.use(PARSE_PATH, parseServer.app);
-	app.use(PARSE_PATH, parseServerMiddleware, parseServer.app);
+	app.use(env.PARSE_PATH, parseServerMiddleware, parseServer.app);
 
 	// set Routes
 	app.post(
@@ -162,16 +156,20 @@ const bootstrap = async () => {
 			{
 				apps: [
 					{
-						serverURL: PARSE_SERVER_URL, // ! localhost only
-						appId: PARSE_APP_ID,
-						masterKey: PARSE_MASTER_KEY,
+						serverURL: env.PARSE_SERVER_URL, // ! localhost only
+						appId: env.PARSE_APP_ID,
+						masterKey: env.PARSE_MASTER_KEY,
 						appName: 'Devist Express Dash Local',
 					},
 				],
+				// users: [{ user: 'radandevist', pass: 'azerty' }],
 			},
 			{
-				// allowInsecureHTTP: false,
-				port: PORT,
+				dev: true,
+				allowInsecureHTTP: true,
+				trustProxy: true,
+				masterKey: env.PARSE_MASTER_KEY,
+				port: env.PORT,
 			},
 		);
 
@@ -207,9 +205,9 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
-	app.listen(PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
+	app.listen(env.PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
 		logger.info('====================================');
-		logger.info(`   server running on port ${PORT}   `);
+		logger.info(`   server running on port ${env.PORT}   `);
 		logger.info('====================================');
 	});
 
