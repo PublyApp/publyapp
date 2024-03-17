@@ -4,7 +4,6 @@ import { multerFilesArraySchema } from '@devist/shared/validations/file/file.val
 
 import { HttpException } from '@/server/exceptions/HttpException';
 import FileService from '@/server/resources/file/file.service';
-import { PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 
 import FolderService from '../folder/folder.service';
@@ -19,7 +18,8 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 
 		const { provider, parentFolderPath } = req.body;
 
-		const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
+		// const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
+		const sessionToken = req.user?.getSessionToken();
 
 		const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;
 
@@ -33,7 +33,9 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 			parentFolder,
 		});
 
-		res.status(201).send(savedParseFile.toJSON());
+		const appFile = savedParseFile.toJSON(); // TODO: inspect the final value
+
+		res.status(201).send(appFile);
 	} catch (error) {
 		next(error);
 	}
@@ -45,7 +47,8 @@ export const handleUploadManyFiles: RequestHandler = async (req, res, next) => {
 
 		const { parentFolderPath, provider } = req.body;
 
-		const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
+		// const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
+		const sessionToken = req.user?.getSessionToken();
 
 		const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;
 

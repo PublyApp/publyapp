@@ -8,6 +8,8 @@ import {
 } from '@devist/shared/lib/constants';
 import type { IUser } from '@devist/shared/types/db/user.types';
 
+import type { AppFile } from '@/shared/types/db/appFile.types';
+
 import { AxiosHttp, protectRequest } from './lib/axios';
 import ParseRestError from './ParseRestError';
 
@@ -135,8 +137,6 @@ export default class ParseRestClient {
 	 * login with username/email and password
 	 */
 	async oldPasswordLogin(username: string, password: string) {
-		// todo use a custom login cloud function instead of the default login endpoint
-		// because I think I'll want to return the user object with its relations populated someday
 		return this.http.post<IUser & { sessionToken: string }>(
 			'/login',
 			{ username, password },
@@ -168,5 +168,38 @@ export default class ParseRestClient {
 
 	async logOut() {
 		return this.http.post('/logout', {}, protectRequest({}));
+	}
+
+	async uploadSingleFile(params: { file: File; parentFolderPath?: string }, options: { restApiKey?: string } = {}) {
+		const formData = new FormData();
+
+		formData.set('file', params.file);
+
+		if (params.parentFolderPath) {
+			formData.set('parentFolderPath', params.parentFolderPath);
+		}
+
+		return this.http.post<AppFile>(
+			endPoint.uploadSingleFile,
+			formData,
+			protectRequest({
+				hasFile: true,
+				restApiKey: options.restApiKey,
+			}),
+		);
+	}
+
+	async uploadManyFiles(params: { files: File[]; parentFolderPath?: string }, options: { restApiKey?: string } = {}) {
+		const formData = new FormData();
+
+		params.files.forEach((file) => {
+			formData.append('files', file);
+		});
+
+		return this.http.post<AppFile[]>(
+			endPoint.uploadManyFiles,
+			formData,
+			protectRequest({ hasFile: true, restApiKey: options.restApiKey }),
+		);
 	}
 }

@@ -4,12 +4,13 @@ import sharp from 'sharp';
 
 import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
+import { fileProvider } from '@/shared/lib/constants';
 
 import type UploadAdapterInterface from './UploadAdapterInterface';
 import type { UploadInput } from './UploadAdapterInterface';
 
 export default class LocalDiskUploadAdapter implements UploadAdapterInterface {
-	provider = 'localDisk' as const;
+	provider = fileProvider.LOCAL_DISK;
 
 	// eslint-disable-next-line class-methods-use-this
 	async upload(params: UploadInput) {
