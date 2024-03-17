@@ -1,74 +1,103 @@
-import path from 'path';
-
-// import type { Express } from 'express';
-
 import async from 'async';
-import sizeOf from 'image-size';
+// import sizeOf from 'image-size';
 import _ from 'lodash';
+import { nanoid } from 'nanoid';
 import sharp from 'sharp';
 
-import { fileProvider, IMAGE_FORMAT_CONFIG } from '@devist/shared/lib/constants';
+import { IMAGE_FORMAT_CONFIG } from '@devist/shared/lib/constants';
 import type { ListMeta } from '@devist/shared/types/db/any.types';
 import type { AppFile, ImageFormatData, ImageFormatType } from '@devist/shared/types/db/appFile.types';
 
-import { env } from '@/server/lib/env';
 import { ParseAppFile } from '@/server/lib/parse/classes/appFile.class';
 import { applySkipAndLimit } from '@/server/lib/parse/utils';
 import { addSuffixToFileName } from '@/server/utils/any.utils';
 
 import FolderService from '../folder/folder.service';
 
+import CloudinaryUploadAdapter from './upload/CloudinaryUploadAdapter';
+import LocalDiskUploadAdapter from './upload/LocalDiskUploadAdapter';
+import type UploadAdapterInterface from './upload/UploadAdapterInterface';
+
 export type FileServiceProps = {
 	sessionToken: string | undefined;
+	uploadAdapter: UploadAdapterInterface;
 };
 
-type Formats = Record<ImageFormatType, ImageFormatData>;
+type ServiceFormatData = Omit<ImageFormatData, 'url'> & {
+	buffer: Buffer;
+};
+
+type ServiceFormatsOut = Record<ImageFormatType, ImageFormatData>;
+
+type ServiceFormatsIn = Record<ImageFormatType, ServiceFormatData>;
 
 // type ListFilesOptions = { page: number; pageSize: number; json?: boolean };
+
+export type CreateAppFileInput = {
+	filename: string;
+	mimetype: string;
+	path: string;
+	url: string;
+	size: number;
+	provider: string;
+	height?: number;
+	width?: number;
+	formats?: ServiceFormatsOut;
+	parentFolder?: ParseAppFile;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	meta?: Record<string, any>;
+	// file: Express.Multer.File;
+};
 
 export default class FileService {
 	sessionToken?: string;
 
-	constructor({ sessionToken }: FileServiceProps) {
+	uploadAdapter: UploadAdapterInterface;
+
+	constructor({ sessionToken, uploadAdapter }: FileServiceProps) {
 		this.sessionToken = sessionToken;
+		this.uploadAdapter = uploadAdapter;
 	}
 
-	static isImage(file: Express.Multer.File) {
+	static isImage(file: Express.Multer.File | string) {
+		if (typeof file === 'string') {
+			return file.startsWith('image/');
+		}
+
 		return file.mimetype.startsWith('image/');
 	}
 
-	// static getPathForFolder(folder: ParseAppFile | undefined): string {
-	// 	// FileService.checkMimeType(folder, ['folder']);
-
-	// 	return folder?.get('path') ?? '/';
-	// }
-
-	private static async _generateImageFormats(file: Express.Multer.File) {
+	private static async _generateImageFormats(file: Express.Multer.File, uid: string) {
 		if (!FileService.isImage(file)) {
 			throw new Error("[FileService.generateImageFormats]: File must be of type 'image/*'");
 		}
 
-		const { originalname, path: filePath, destination } = file;
-		const uid: string = _.get(file, 'uid')!;
+		const { originalname, buffer } = file;
+		// const uid = nanoid();
 
-		const formats = {} as unknown as Formats;
+		let formats: ServiceFormatsIn | undefined;
 
 		const getFormatsPromise = Promise.all(
 			Object.entries(IMAGE_FORMAT_CONFIG).map(async ([format, config]) => {
-				const formatFileName = addSuffixToFileName(originalname, `_${uid}_@${format}`);
-
-				const sharpFileInfo = await sharp(filePath)
+				const { data: formatBuffer, info: formatInfo } = await sharp(buffer)
 					.resize(config.width, config.height, {
 						fit: 'inside',
 					})
-					.toFile(path.join(destination, formatFileName));
+					.toBuffer({ resolveWithObject: true });
 
-				const imageFormatData: ImageFormatData = {
+				const formatFileName = addSuffixToFileName(originalname, `_${uid}_@${format}`);
+
+				if (!formats) {
+					formats = {} as never;
+				}
+
+				const imageFormatData: ServiceFormatData = {
 					name: formatFileName,
-					size: sharpFileInfo.size,
-					url: `${env.EXPRESS_FILES_MOUNT_PATH}/${formatFileName}`,
-					height: sharpFileInfo.height,
-					width: sharpFileInfo.width,
+					size: formatInfo.size,
+					height: formatInfo.height,
+					width: formatInfo.width,
+					buffer: formatBuffer,
+					// url: `${env.EXPRESS_FILES_MOUNT_PATH}/${formatFileName}`,
 				};
 
 				Object.assign(formats, { [format]: imageFormatData });
@@ -80,33 +109,22 @@ export default class FileService {
 		return formats;
 	}
 
-	private async _createRecord({
-		file,
-		formats,
-		parentFolder,
-	}: {
-		file: Express.Multer.File;
-		formats?: Formats;
-		parentFolder?: ParseAppFile;
-	}) {
-		const { mimetype, filename, path: filePath, size } = file;
-
+	private async _createRecord(params: CreateAppFileInput) {
 		const parseFile = new ParseAppFile({
-			provider: fileProvider.LOCAL,
-			url: `${env.EXPRESS_FILES_MOUNT_PATH}/${filename}`,
-			mimeType: mimetype,
-			name: filename,
-			path: FolderService.getPathForFolder(parentFolder) + filename,
-			folder: parentFolder,
-			size,
+			name: params.filename,
+			mimeType: params.mimetype,
+			path: params.path,
+			url: params.url,
+			size: params.size,
+			provider: params.provider,
+			folder: params.parentFolder,
+			...(params.meta && { meta: params.meta }),
 		});
 
-		if (FileService.isImage(file) && !_.isEmpty(formats)) {
-			const { height, width } = sizeOf(filePath);
-
-			parseFile.set('formats', formats);
-			parseFile.set('height', height);
-			parseFile.set('width', width);
+		if (FileService.isImage(params.mimetype) && !_.isEmpty(params.formats)) {
+			parseFile.set('formats', params.formats);
+			parseFile.set('height', params.height);
+			parseFile.set('width', params.width);
 		}
 
 		// logger.info(parseFile.toJSON());
@@ -115,21 +133,66 @@ export default class FileService {
 
 	async createOne({ file, parentFolder }: { file: Express.Multer.File; parentFolder?: ParseAppFile }) {
 		if (!FolderService.isFolder(parentFolder)) {
-			throw new Error("[FileService.createOne]: folder mimeType must be 'folder'");
+			throw new Error("[FileService.createOne]: parentFolder mimeType must be 'folder'");
 		}
 
-		let formats: Formats | undefined;
+		const uid = nanoid();
+		let formats: ServiceFormatsIn | undefined;
 
 		if (FileService.isImage(file)) {
 			// create different files formats
-			// saves these formats into the fs
-			formats = await FileService._generateImageFormats(file);
+			formats = await FileService._generateImageFormats(file, uid);
 		} else {
-			//
+			// do nothing
 		}
 
+		// upload the file here
+		const mainPromise = this.uploadAdapter.upload({ buffer: file.buffer, name: file.originalname });
+
+		let formatsPromise: Promise<undefined | void[]> = new Promise((resolve) => {
+			resolve(undefined);
+		});
+
+		let outFormats: ServiceFormatsOut | undefined;
+
+		if (formats && !_.isEmpty(formats)) {
+			formatsPromise = Promise.all(
+				Object.entries(formats).map(async ([format, data]) => {
+					const result = await this.uploadAdapter.upload({ buffer: data.buffer, name: data.name });
+
+					if (!outFormats) {
+						outFormats = {} as never;
+					}
+
+					const outFormatData = {
+						..._.omit(data, 'buffer'),
+						url: result.url,
+						meta: result.meta,
+					};
+
+					Object.assign(outFormats, {
+						[format]: outFormatData,
+					});
+				}),
+			);
+		}
+
+		await Promise.all([mainPromise, formatsPromise]);
+
+		const result = await mainPromise;
+
 		// save file's datas into the database
-		return this._createRecord({ file, formats, parentFolder });
+		return this._createRecord({
+			formats: outFormats,
+			parentFolder,
+			provider: this.uploadAdapter.provider,
+			filename: file.originalname,
+			mimetype: file.mimetype,
+			path: FolderService.getPathForFolder(parentFolder) + file.originalname,
+			size: file.size,
+			url: result.url,
+			meta: result.meta,
+		});
 	}
 
 	// static checkMimeType(appFile: ParseAppFile | undefined, mimeTypes: string[], throws?: true | undefined): void;
@@ -264,5 +327,21 @@ export default class FileService {
 		}
 
 		return query.first({ sessionToken: this.sessionToken });
+	}
+
+	public static get uploadAdapterMap() {
+		const localDiskUploadAdapter = new LocalDiskUploadAdapter();
+		const cloudinaryUploadAdapter = new CloudinaryUploadAdapter();
+
+		const uploadAdapterMap = new Map([
+			[localDiskUploadAdapter.provider, localDiskUploadAdapter as UploadAdapterInterface],
+			[cloudinaryUploadAdapter.provider, cloudinaryUploadAdapter as UploadAdapterInterface],
+		]);
+
+		return uploadAdapterMap;
+	}
+
+	public static get defaultUploadAdapter(): UploadAdapterInterface {
+		return new LocalDiskUploadAdapter();
 	}
 }

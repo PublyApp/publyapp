@@ -17,13 +17,20 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 			throw new HttpException(400, 'file to upload missing');
 		}
 
-		const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
-		// const authService = await AuthCloudService.createAuthCloudService();
+		const { provider, parentFolderPath } = req.body;
 
-		const fileService = new FileService({ sessionToken });
+		const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
+
+		const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;
+
+		const folderService = new FolderService({ sessionToken });
+		const fileService = new FileService({ sessionToken, uploadAdapter });
+
+		const parentFolder = await folderService.getByPath(parentFolderPath);
+
 		const savedParseFile = await fileService.createOne({
 			file: req.file,
-			// parentFolder,
+			parentFolder,
 		});
 
 		res.status(201).send(savedParseFile.toJSON());
@@ -35,13 +42,15 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 export const handleUploadManyFiles: RequestHandler = async (req, res, next) => {
 	try {
 		const files = multerFilesArraySchema.parse(req.files);
-		const { parentFolderPath } = req.body;
+
+		const { parentFolderPath, provider } = req.body;
 
 		const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
 
+		const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;
+
 		const folderService = new FolderService({ sessionToken });
-		const fileService = new FileService({ sessionToken });
-		// const authService = await AuthCloudService.createAuthCloudService();
+		const fileService = new FileService({ sessionToken, uploadAdapter });
 
 		const parentFolder = await folderService.getByPath(parentFolderPath);
 
