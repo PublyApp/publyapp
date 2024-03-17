@@ -1,12 +1,39 @@
 {
-	"extends": "tsconfig/tsconfig.nextjs.json",
-	"compilerOptions": {
-		"plugins": [{ "name": "next" }],
-		"baseUrl": "src",
-		"paths": {
-			"@front/*": ["*"]
-		}
-	},
-	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-	"exclude": ["node_modules"]
+	"extends": ["../../tsconfig.paths.json"],
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "target": "ES2022",
+    "strict": true,
+    "allowJs": true,
+    "forceConsistentCasingInFileNames": true,
+
+		"module": "ES2022",
+
+    // "baseUrl": ".",
+    // "paths": {
+    //   "~/*": ["./app/*"]
+    // },
+		// "baseUrl": ".",
+		// "paths": {
+		// 	"@/ui-react/*": ["../../packages/ui-react/*"],
+		// 	"@/shared/*": ["../../packages/shared/*"],
+		// 	"~/*": ["./app/*"]
+		// },
+
+    // Remix takes care of building everything in `remix build`.
+    "noEmit": true,
+
+		// For fixing the below error
+		// The inferred type of AITools cannot be named without a reference to '@/ui-react/node_modules/@types/react/jsx-runtime'. This is likely not portable. A type annotation is necessary.
+		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
+		"declarationMap": false,
+		"declaration": false
+  },
+	"include": ["@types", "app", "../server/@types"],
+	"exclude": ["node_modules", "dist"]
 }
