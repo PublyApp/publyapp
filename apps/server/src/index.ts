@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 import * as ps from 'parse-server/lib/index.js';
 
@@ -31,6 +33,9 @@ import SessionSchema from './resources/session/session.schema';
 import { handlePasswordLogin } from './resources/user/user.controller';
 import UserSchema from './resources/user/user.schema';
 import WebHostSchema from './resources/webHost/webHost.schema';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
@@ -116,6 +121,7 @@ const bootstrap = async () => {
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
+		// allowHeaders: ['Access-Control-Expose-Headers', 'access-control-expose-headers', 'Etag'],
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
 		// directAccess: false, // in parse server 6 this is true by default
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
@@ -162,13 +168,9 @@ const bootstrap = async () => {
 						appName: 'Devist Express Dash Local',
 					},
 				],
-				// users: [{ user: 'radandevist', pass: 'azerty' }],
 			},
 			{
-				dev: true,
-				allowInsecureHTTP: true,
-				trustProxy: true,
-				masterKey: env.PARSE_MASTER_KEY,
+				// allowInsecureHTTP: false,
 				port: env.PORT,
 			},
 		);
@@ -180,7 +182,7 @@ const bootstrap = async () => {
 	//                  mount remix build when in a deployment environment                  //
 	// --------------------------------------------------------------------------------------//
 	if (!global.LOCAL) {
-		app.use(express.static(path.resolve(__dirname, '../../../node_modules/front/build/client')));
+		app.use(express.static(path.resolve(__dirname, '../node_modules/front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
@@ -212,6 +214,7 @@ const bootstrap = async () => {
 	});
 
 	// Manually create nested keys indexes
+	// ! TODO: must create nested indexes Parse Server's DefineSchema
 	// because they are not supported by Parse server yet
 	createIndexes();
 

@@ -1,6 +1,6 @@
 import { createContext } from 'react';
 
-import type ParseApi from '../api/parse/_index';
+import type ParseApi from '../api/parse/ParseApi';
 import type { AxiosHttp } from '../lib/axios';
 
 type Clients<T extends ParseApi = ParseApi> = {

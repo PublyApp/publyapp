@@ -54,6 +54,7 @@
 		"cors": "^2.8.5",
 		"cross-env": "^7.0.3",
 		"datauri": "^4.1.0",
+		"date-fns": "^2.25.0",
 		"dotenv": "^16.3.1",
 		"dotenv-expand": "^10.0.0",
 		"esbuild-register": "^3.5.0",
@@ -68,6 +69,7 @@
 		"mongoose": "^8.0.4",
 		"multer": "1.4.5-lts.1",
 		"nanoid": "^5.0.4",
+		"numeral": "^2.0.6",
 		"parse": "^4.3.1",
 		"parse-dashboard": "^5.3.0",
 		"parse-server": "^6.4.0",
@@ -77,11 +79,9 @@
 		"winston": "^3.11.0",
 		"winston-console-format": "^1.0.8",
 		"zod": "^3.22.4",
-		"date-fns": "^2.25.0",
-		"numeral": "^2.0.6"
+		"zod-i18n-map": "^2.27.0"
 	},
 	"devDependencies": {
-		"@types/numeral": "^2.0.5",
 		"@rsbuild/core": "^0.3.3",
 		"@rspack/cli": "^0.5.6",
 		"@rspack/core": "^0.5.6",
@@ -91,6 +91,7 @@
 		"@types/express": "^4.17.21",
 		"@types/lodash": "^4.14.202",
 		"@types/multer": "^1.4.11",
+		"@types/numeral": "^2.0.5",
 		"@types/parse": "^3.0.9",
 		"@types/qs": "^6.9.11",
 		"concurrently": "^8.2.2",

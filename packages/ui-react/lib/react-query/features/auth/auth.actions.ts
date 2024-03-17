@@ -7,7 +7,7 @@ import { queryOptions } from '@tanstack/react-query';
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
 import { functionName } from '@/shared/lib/constants';
-import type ParseApi from '@/ui-react/api/parse/_index';
+import type ParseApi from '@/ui-react/api/parse/ParseApi';
 
 // import { ClientException } from '@/ui-react/exceptions/ClientException';
 

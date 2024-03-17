@@ -12,7 +12,7 @@ import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
 
 import { functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import type ParseApi from '@/ui-react/api/parse/_index';
+import type ParseApi from '@/ui-react/api/parse/ParseApi';
 import type {
 	CreatePostFunctionParams,
 	FindPostFunctionParams,
