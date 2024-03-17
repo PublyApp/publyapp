@@ -59,7 +59,7 @@ export default class FolderService {
 
 		const appFileFolder = new ParseAppFile({
 			name,
-			provider: fileProvider.LOCAL,
+			provider: fileProvider.LOCAL_DISK,
 			mimeType: 'folder',
 			path,
 			folder: parentFolder,

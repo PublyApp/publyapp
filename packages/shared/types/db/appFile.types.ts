@@ -21,6 +21,7 @@ export type BaseFileFields = {
 	name: string;
 	url: string;
 	size: number;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	meta?: Record<string, any>;
 };
 
