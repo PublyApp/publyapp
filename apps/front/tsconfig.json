@@ -34,6 +34,6 @@
 		"declarationMap": false,
 		"declaration": false
   },
-	"include": ["@types", "**/*.ts", "**/*.tsx"],
+	"include": ["@types", "app", "../server/@types"],
 	"exclude": ["node_modules", "dist"]
 }

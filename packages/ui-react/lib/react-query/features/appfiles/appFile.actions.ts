@@ -1,15 +1,18 @@
-import type { QueryFunction } from '@tanstack/react-query';
+import type { QueryFunction, QueryFunctionContext } from '@tanstack/react-query';
 
 import { endPoint, type functionName } from '@devist/shared/lib/constants';
-import {
-	runCreateAppFileFolder,
-	runFindAppFile,
-	type CreateAppFileFolderFunctionParams,
-	type FindAppFileFunctionParams,
-	type FindAppFileFunctionResult,
-} from '@devist/shared/lib/parse/cloudRunners/appFile.runner';
+
+// import {
+// 	runCreateAppFileFolder,
+// 	runFindAppFile,
+// 	type CreateAppFileFolderFunctionParams,
+// 	type FindAppFileFunctionParams,
+// 	type FindAppFileFunctionResult,
+// } from '@devist/shared/lib/parse/cloudRunners/appFile.runner';
 
 import type { AppFile } from '@/shared/types/db/appFile.types';
+import type { FindAppFileFunctionParams } from '@/ui-react/api/parse/appFile.endpoints';
+import type ParseApi from '@/ui-react/api/parse/ParseApi';
 import { protectRequest, type AxiosHttp } from '@/ui-react/lib/axios';
 
 // import { http } from '@/office/lib/axios/http';
@@ -17,25 +20,44 @@ import { protectRequest, type AxiosHttp } from '@/ui-react/lib/axios';
 
 // import type { ParseAppFile} from '@devist/shared/lib/parse/classes/appFile.class';
 
-// ---- 1 --------------------------------------------------------------------------------
-
 export type FindAppFileQueryParams = FindAppFileFunctionParams;
 
-export const findAppFileAction: QueryFunction<
-	FindAppFileFunctionResult,
-	readonly [typeof functionName.findAppFile, FindAppFileQueryParams]
-> = async (context) => {
-	try {
-		const params = context.queryKey[1];
+export default class PostActions {
+	constructor(private parseApi: ParseApi) {}
 
-		const result = await runFindAppFile(params);
+	async findAppFileAction(
+		context: QueryFunctionContext<readonly [typeof functionName.findAppFile, FindAppFileQueryParams]>,
+	) {
+		try {
+			const params = context.queryKey[1];
 
-		return result;
-	} catch (error) {
-		console.log('----- findAppFileAction error ----------', error);
-		return Promise.reject(error);
+			const result = await this.parseApi.appFiles.findAppFile(params);
+
+			return result;
+		} catch (error) {
+			console.log('----- findAppFileAction error ----------', error);
+			return Promise.reject(error);
+		}
 	}
-};
+}
+
+// ---- 1 --------------------------------------------------------------------------------
+
+// export const findAppFileAction: QueryFunction<
+// 	FindAppFileFunctionResult,
+// 	readonly [typeof functionName.findAppFile, FindAppFileQueryParams]
+// > = async (context) => {
+// 	try {
+// 		const params = context.queryKey[1];
+
+// 		const result = await runFindAppFile(params);
+
+// 		return result;
+// 	} catch (error) {
+// 		console.log('----- findAppFileAction error ----------', error);
+// 		return Promise.reject(error);
+// 	}
+// };
 
 // ---- 2 --------------------------------------------------------------------------------
 

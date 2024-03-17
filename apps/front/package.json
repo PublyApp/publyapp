@@ -40,12 +40,14 @@
     "parse": "^4.3.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "zod-i18n-map": "^2.27.0"
   },
   "devDependencies": {
     "@remix-run/dev": "^2.8.0",
     "@rsbuild/core": "^0.3.3",
     "@types/lodash": "^4.14.202",
+    "@types/multer": "^1.4.11",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "esbuild-register": "^3.5.0",

@@ -41,7 +41,9 @@ const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
 	global.MODE = process.env.MODE || 'local';
 
+	// eslint-disable-next-line no-console
 	console.log('global.LOCAL:', global.LOCAL);
+	// eslint-disable-next-line no-console
 	console.log('global.MODE:', global.MODE);
 
 	// --------------------------------------------------------------------------------------//
@@ -59,8 +61,8 @@ const bootstrap = async () => {
 	const checkedEnv = envSchema.parse(process.env);
 	setAppEnv(checkedEnv);
 
-	const { DATABASE_URI, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL, PORT, PARSE_PATH, EXPRESS_FILES_MOUNT_PATH } =
-		env;
+	// const { DATABASE_URI, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL, PORT, PARSE_PATH, EXPRESS_FILES_MOUNT_PATH } =
+	// 	env;
 
 	// --------------------------------------------------------------------------------------//
 	//                            setup express and parse server                             //
@@ -79,7 +81,7 @@ const bootstrap = async () => {
 			},
 		}),
 	);
-	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
+	app.use(env.EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 
 	// app.use(parseServerMiddleware);
 
@@ -91,13 +93,13 @@ const bootstrap = async () => {
 
 	// initialize parse server
 	const parseServer = new ps.ParseServer({
-		appId: PARSE_APP_ID,
-		masterKey: PARSE_MASTER_KEY,
+		appId: env.PARSE_APP_ID,
+		masterKey: env.PARSE_MASTER_KEY,
 		// cloud: path.resolve(__dirname, './cloud/_index'),
 		cloud,
-		databaseURI: DATABASE_URI,
-		serverURL: PARSE_SERVER_URL,
-		publicServerURL: PARSE_SERVER_URL,
+		databaseURI: env.DATABASE_URI,
+		serverURL: env.PARSE_SERVER_URL,
+		publicServerURL: env.PARSE_SERVER_URL,
 		filesAdapter: fsAdapter,
 		// preserveFileName: true,
 		// =============================================
@@ -130,7 +132,7 @@ const bootstrap = async () => {
 
 	await parseServer.start();
 	// app.use(PARSE_PATH, parseServer.app);
-	app.use(PARSE_PATH, parseServerMiddleware, parseServer.app);
+	app.use(env.PARSE_PATH, parseServerMiddleware, parseServer.app);
 
 	// set Routes
 	app.post(
@@ -160,16 +162,16 @@ const bootstrap = async () => {
 			{
 				apps: [
 					{
-						serverURL: PARSE_SERVER_URL, // ! localhost only
-						appId: PARSE_APP_ID,
-						masterKey: PARSE_MASTER_KEY,
+						serverURL: env.PARSE_SERVER_URL, // ! localhost only
+						appId: env.PARSE_APP_ID,
+						masterKey: env.PARSE_MASTER_KEY,
 						appName: 'Devist Express Dash Local',
 					},
 				],
 			},
 			{
 				// allowInsecureHTTP: false,
-				port: PORT,
+				port: env.PORT,
 			},
 		);
 
@@ -205,13 +207,14 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
-	app.listen(PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
+	app.listen(env.PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
 		logger.info('====================================');
-		logger.info(`   server running on port ${PORT}   `);
+		logger.info(`   server running on port ${env.PORT}   `);
 		logger.info('====================================');
 	});
 
 	// Manually create nested keys indexes
+	// ! TODO: must create nested indexes Parse Server's DefineSchema
 	// because they are not supported by Parse server yet
 	createIndexes();
 

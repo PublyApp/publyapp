@@ -1,6 +1,5 @@
-import { InputAdornment, Stack, TextField, useTheme, type StackProps } from '@mui/material';
+import { Stack, type StackProps } from '@mui/material';
 
-import Iconify from '@devist/ui-react/components/Iconify';
 import useResponsive from '@devist/ui-react/hooks/useResponsive';
 import type { IAuthorProps } from '@devist/ui-react/types/author';
 import type { IBlogCategoryProps /* IBlogPostProps, */, IBlogTagsProps } from '@devist/ui-react/types/blog';
@@ -35,7 +34,7 @@ const BlogSidebar = ({
 	sx,
 	...other
 }: Props) => {
-	const theme = useTheme();
+	// const theme = useTheme();
 	const isMdUp = useResponsive('up', 'md');
 
 	return (
