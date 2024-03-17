@@ -1,10 +1,12 @@
 import { sleep } from '@devist/shared/utils/any.utils';
 
+import { fileProvider } from '@/shared/lib/constants';
+
 import type UploadAdapterInterface from './UploadAdapterInterface';
 import type { UploadInput } from './UploadAdapterInterface';
 
 export default class LocalDiskUploadAdapter implements UploadAdapterInterface {
-	provider = 'cloudinary' as const;
+	provider = fileProvider.CLOUDINARY;
 
 	// eslint-disable-next-line class-methods-use-this
 	async upload(_params: UploadInput) {
