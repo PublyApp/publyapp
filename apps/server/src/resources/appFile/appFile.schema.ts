@@ -15,6 +15,7 @@ const AppFileSchema = defineSchema<AppFileWithRelations>(className.APP_FILE, {
 		url: { type: 'String' },
 		alternativeText: { type: 'String' },
 		caption: { type: 'String' },
+		meta: { type: 'Object' },
 		// ! only for image/* types
 		height: { type: 'Number' },
 		width: { type: 'Number' },

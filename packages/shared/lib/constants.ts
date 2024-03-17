@@ -170,9 +170,9 @@ export const IMAGE_FORMAT_CONFIG = {
 	},
 };
 
-export const fileProvider = {
-	LOCAL: 'local',
-};
+// export const fileProvider = {
+// 	LOCAL: 'local',
+// };
 
 export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
 export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';

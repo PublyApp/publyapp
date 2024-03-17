@@ -21,6 +21,7 @@ export type BaseFileFields = {
 	name: string;
 	url: string;
 	size: number;
+	meta?: Record<string, any>;
 };
 
 export type ImageOnlyFields = {
@@ -32,5 +33,9 @@ export type ImageOnlyFields = {
 export type ImageFormatData = Omit<BaseFileFields, 'path'> & ImageOnlyFields;
 
 export type AppFileWithRelations = AppFile & {
-	folder: string | Parse.Object; // or object
+	folder: string /* | Parse.Object; // or object */; // TODO: verify iif it really give a string
+};
+
+export type AppFileWithParseRelations = AppFile & {
+	folder: Parse.Object; // or object
 };
