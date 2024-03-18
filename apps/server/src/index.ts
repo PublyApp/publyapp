@@ -32,7 +32,8 @@ import RoleSchema from './resources/role/role.schema';
 import SessionSchema from './resources/session/session.schema';
 import { handlePasswordLogin } from './resources/user/user.controller';
 import UserSchema from './resources/user/user.schema';
-import WebHostSchema from './resources/webHost/webHost.schema';
+
+// import WebHostSchema from './resources/webHost/webHost.schema';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -113,7 +114,7 @@ const bootstrap = async () => {
 				SessionSchema,
 				PostSchema,
 				PostSeriesSchema,
-				WebHostSchema,
+				// WebHostSchema,
 				AppFileSchema,
 				AwesomeLinkSchema,
 			],

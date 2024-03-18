@@ -42,7 +42,7 @@ export type PostAttributes = {
 	viewCount?: number;
 	commentCount?: number;
 	coverUrl?: string;
-	// postSeriesOrder?: number;
+	postSeriesOrder?: number;
 };
 
 export type IPost = BaseAttributes & PostAttributes;
@@ -50,20 +50,22 @@ export type IPost = BaseAttributes & PostAttributes;
 export type IPostWithRelations = IPost & {
 	author: IUser;
 	cover?: AppFile;
-	postSeriesArray?: {
-		order: number;
-		postSeries: IPostSeries;
-	}[];
+	postSeries?: IPostSeries;
+	// postSeriesArray?: {
+	// 	order: number;
+	// 	postSeries: IPostSeries;
+	// }[];
 	// comments?: IComment[];
 };
 
 export type IPostWithParseRelations = IPost & {
 	author: IUser;
 	cover?: ParseAppFile;
-	postSeriesArray?: {
-		order: number;
-		postSeries: IPostSeries;
-	}[];
+	// postSeries?: ParsePostSeries;
+	// postSeriesArray?: {
+	// 	order: number;
+	// 	postSeries: IPostSeries;
+	// }[];
 	// comments?: ParseComment[];
 };
 
