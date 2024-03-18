@@ -243,7 +243,7 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		const cloudInstallationId = await getCurrentInstallationId();
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		const { directAccess } = getConfig();
+		const { directAccess } = getInternalConfig();
 
 		// verify ip address if the request is not from the cloud functions and from an user with a session token
 		// * especially necessary if directAccess is set to false
@@ -345,17 +345,17 @@ export const reOrderObjects = <T extends Parse.Object = Parse.Object>(ids: strin
 	return orderedObjects;
 };
 
-export const getConfig = () => {
+export const getInternalConfig = () => {
 	return Config.get(Parse.applicationId);
 };
 
 export const getMongoClient = (): MongoClient => {
-	const config = getConfig();
+	const config = getInternalConfig();
 	return config.database.adapter.client;
 };
 
 export const getDatabase = (): Db => {
-	const config = getConfig();
+	const config = getInternalConfig();
 	return config.database.adapter.database;
 };
 
@@ -513,7 +513,7 @@ export const createSessionServer = async <
 	options: CreateSessionOptions<AdditionalSessionData>,
 ): Promise<CreateSessionResult<AdditionalSessionData>> => {
 	const { userId, action = 'login', authProvider = 'password', installationId, additionalSessionData } = options;
-	const config = getConfig();
+	const config = getInternalConfig();
 
 	const result = RestWrite.createSession(config, {
 		userId,
