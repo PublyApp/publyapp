@@ -1,4 +1,4 @@
-import ParseApi from '@devist/ui-react/api/parse/_index';
+import ParseApi from '@devist/ui-react/api/parse/ParseApi';
 
 import { parseRestClient } from '../lib/parse/client';
 
