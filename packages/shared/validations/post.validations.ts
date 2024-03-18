@@ -1,9 +1,12 @@
 import { type TFunction } from 'i18next';
-import { z } from 'zod';
+
+// import { z } from 'zod';
 
 import { appLocales } from '@/shared/lib/i18n/resources';
 
-import { getErrorMap } from '../lib/zod';
+import type CustomZod from '../lib/zod/CustomZod';
+
+// import { getErrorMap } from '../lib/zod';
 
 // import { postContentTypes } from '../types/db/post.types';
 
@@ -36,37 +39,39 @@ import { getErrorMap } from '../lib/zod';
 // 	// ]);
 // };
 
-const SLUG_REGEX = /^[a-z0-9-]+$/;
-
 // const getSlugSchema = (t: TFunction) => {
 // 	return z
 // };
 
-const getLocaleSchema = (t: TFunction) => {
-	const LOCALE = t('common:locale');
+const SLUG_REGEX = /^[a-z0-9-]+$/;
+
+const getLocaleSchema = (z: CustomZod) => {
+	const LOCALE = z.t('common:locale');
 
 	return z.enum(appLocales, {
-		invalid_type_error: t('common:form.error.invalid', { field: LOCALE }),
-		required_error: t('common:form.error.required', { field: LOCALE }),
+		invalid_type_error: z.t('common:form.error.invalid', { field: LOCALE }),
+		required_error: z.t('common:form.error.required', { field: LOCALE }),
 	});
 };
 
-export const dateTypeSchema = z
-	.date()
-	.or(z.string())
-	.or(z.number())
-	.transform((value) => {
-		return new Date(value);
-	});
+export const getDateTypeSchema = (z: CustomZod) => {
+	return z
+		.date()
+		.or(z.string())
+		.or(z.number())
+		.transform((value) => {
+			return new Date(value);
+		});
+};
 
-export const getCreatePostInputSchema = (t: TFunction) => {
-	const TITLE = t('common:title');
-	const SLUG = 'Slug';
-	const DESCRIPTION = 'Description';
-	const CONTENT = t('common:content');
-	const AUTHOR_ID = 'authorId';
-	const COVER = t('common:cover');
-	const COVER_URL = t('common:cover');
+export const getCreatePostInputSchema = (z: CustomZod) => {
+	// const TITLE = t('common:title');
+	// const SLUG = 'Slug';
+	// const DESCRIPTION = 'Description';
+	// const CONTENT = t('common:content');
+	// const AUTHOR_ID = 'authorId';
+	// const COVER = t('common:cover');
+	// const COVER_URL = t('common:cover');
 	// const DESCRIPTION = t('common:description')
 
 	const TITLE_MAX_LENGTH = 170;

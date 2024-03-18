@@ -23,5 +23,6 @@
 	"views": "Views",
 	"created-at": "Created at",
 	"published": "Published",
-	"draft": "Draft"
+	"draft": "Draft",
+	"invalid-number": "Invalid number"
 }
