@@ -23,5 +23,6 @@
 	"views": "Vues",
 	"created-at": "Créé le",
 	"published": "Publié",
-	"draft": "Brouillon"
+	"draft": "Brouillon",
+	"invalid-number": "Nombre invalide"
 }
