@@ -38,17 +38,21 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 	// console.log(installationId);
 	// console.log(cloudInstallationId);
 
-	// * if directAccess equals to false (see ParseServer options), we need to differentiate between cloud code calls to the API and client calls
-	if (installationId !== cloudInstallationId) {
-		const session = await new Parse.Query(Parse.Session)
-			.equalTo('sessionToken', sessionToken)
-			.select(['ipAddress'])
-			.first({ sessionToken });
+	// * when directAccess equals to false (see ParseServer options), we need to differentiate between cloud code calls to the API and client calls
+	if (installationId === cloudInstallationId) {
+		return;
+	}
 
-		if (session) {
-			if (session.get('ipAddress') !== req.ip) {
-				throw new Error('Invalid session token');
-			}
+	const session = await new Parse.Query(Parse.Session)
+		.equalTo('sessionToken', sessionToken)
+		.select(['ipAddress'])
+		.first({ sessionToken });
+
+	if (session) {
+		const requestIp = req.ip || req.get('x-forwarded-for');
+
+		if (session.get('ipAddress') !== requestIp) {
+			throw new Error('Invalid session token');
 		}
 	}
 };
