@@ -17,6 +17,7 @@ const PostSchema = defineSchema<IPostWithRelations>(className.POST, {
 		updateDate: { type: 'Date' },
 		viewCount: { type: 'Number' },
 		coverUrl: { type: 'String' },
+		postSeriesOrder: { type: 'Number' },
 		// shares: { type: 'Number' }, // TODO
 		// commentCount: create PostComment collection and do a query to get that
 		// relatedArticles create a query for that
@@ -25,7 +26,8 @@ const PostSchema = defineSchema<IPostWithRelations>(className.POST, {
 		// relations
 		author: { type: 'Pointer', targetClass: className.USER, required: true },
 		cover: { type: 'Pointer', targetClass: className.APP_FILE },
-		postSeriesArray: { type: 'Array' },
+		postSeries: { type: 'Pointer', targetClass: className.POST_SERIES },
+		// postSeriesArray: { type: 'Array' },
 		// postSeries: { type: 'Pointer', targetClass: className.POST_SERIES },
 	},
 });

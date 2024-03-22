@@ -1,176 +1,176 @@
-/* eslint-disable no-console */
-import { faker } from '@faker-js/faker';
+// /* eslint-disable no-console */
+// import { faker } from '@faker-js/faker';
 
-import { roleEnum } from '@devist/shared/lib/constants';
+// import { roleEnum } from '@devist/shared/lib/constants';
 
-import { USE_MASTER_KEY } from '../lib/constants';
-import { aiToolFactory } from '../resources/aiTool/aiTool.factory';
-import RoleService from '../resources/role/role.service';
-import { userFactory } from '../resources/user/user.factory';
-import { webHostFactory } from '../resources/webHost/webHost.factory';
+// import { USE_MASTER_KEY } from '../lib/constants';
+// import { aiToolFactory } from '../resources/aiTool/aiTool.factory';
+// import RoleService from '../resources/role/role.service';
+// import { userFactory } from '../resources/user/user.factory';
+// import { webHostFactory } from '../resources/webHost/webHost.factory';
 
-export type RunConfig = {
-	// masterKey: string;
-	usersNum: number;
-	// postsNum: number;
-	// reactionsNum: number;
-	aiToolsNum: number;
-	webHostsNum: number;
-};
+// export type RunConfig = {
+// 	// masterKey: string;
+// 	usersNum: number;
+// 	// postsNum: number;
+// 	// reactionsNum: number;
+// 	aiToolsNum: number;
+// 	webHostsNum: number;
+// };
 
-export const run = async ({
-	/* masterKey, */ usersNum /* , postsNum, reactionsNum */,
-	aiToolsNum,
-	webHostsNum,
-}: RunConfig) => {
-	// Problem with PArse and MAster Key
-	// Parse.masterKey = masterKey;
+// export const run = async ({
+// 	/* masterKey, */ usersNum /* , postsNum, reactionsNum */,
+// 	aiToolsNum,
+// 	webHostsNum,
+// }: RunConfig) => {
+// 	// Problem with PArse and MAster Key
+// 	// Parse.masterKey = masterKey;
 
-	// =================== USERS =======================//
-	/* const users =  */
-	await Promise.all(
-		Array.from({ length: usersNum }).map(async () => {
-			const iUser = await userFactory(faker);
-			const createdUser = await iUser.save(null, USE_MASTER_KEY);
+// 	// =================== USERS =======================//
+// 	/* const users =  */
+// 	await Promise.all(
+// 		Array.from({ length: usersNum }).map(async () => {
+// 			const iUser = await userFactory(faker);
+// 			const createdUser = await iUser.save(null, USE_MASTER_KEY);
 
-			// assign role to user
-			const authorRole = await new RoleService(USE_MASTER_KEY).findRoleByCode(roleEnum.STAFF_EDITOR.code);
-			authorRole?.getUsers().add(createdUser);
-			await authorRole?.save(null, USE_MASTER_KEY);
+// 			// assign role to user
+// 			const authorRole = await new RoleService(USE_MASTER_KEY).findRoleByCode(roleEnum.STAFF_EDITOR.code);
+// 			authorRole?.getUsers().add(createdUser);
+// 			await authorRole?.save(null, USE_MASTER_KEY);
 
-			return createdUser;
-		}),
-	);
+// 			return createdUser;
+// 		}),
+// 	);
 
-	console.info('users seeding done');
+// 	console.info('users seeding done');
 
-	// --------------------------------------------------------------------------------------//
-	//                                       AI Tools                                       //
-	// --------------------------------------------------------------------------------------//
-	await Promise.all(
-		Array.from({ length: aiToolsNum }).map(async () => {
-			const iTool = await aiToolFactory(faker);
-			const createdAITool = await iTool.save(null, { useMasterKey: true });
-			return createdAITool;
-		}),
-	);
+// 	// --------------------------------------------------------------------------------------//
+// 	//                                       AI Tools                                       //
+// 	// --------------------------------------------------------------------------------------//
+// 	await Promise.all(
+// 		Array.from({ length: aiToolsNum }).map(async () => {
+// 			const iTool = await aiToolFactory(faker);
+// 			const createdAITool = await iTool.save(null, { useMasterKey: true });
+// 			return createdAITool;
+// 		}),
+// 	);
 
-	console.info('AI tools seeding done');
+// 	console.info('AI tools seeding done');
 
-	// --------------------------------------------------------------------------------------//
-	//                                       Web hosts                                       //
-	// --------------------------------------------------------------------------------------//
-	await Promise.all(
-		Array.from({ length: webHostsNum }).map(async () => {
-			const webHost = await webHostFactory(faker);
-			const createdWebHost = await webHost.save(null, { useMasterKey: true });
-			return createdWebHost;
-		}),
-	);
+// 	// --------------------------------------------------------------------------------------//
+// 	//                                       Web hosts                                       //
+// 	// --------------------------------------------------------------------------------------//
+// 	await Promise.all(
+// 		Array.from({ length: webHostsNum }).map(async () => {
+// 			const webHost = await webHostFactory(faker);
+// 			const createdWebHost = await webHost.save(null, { useMasterKey: true });
+// 			return createdWebHost;
+// 		}),
+// 	);
 
-	console.info('Web hosts seeding done');
+// 	console.info('Web hosts seeding done');
 
-	// const userIds = users.map((user) => {
-	// 	return user.id;
-	// });
+// 	// const userIds = users.map((user) => {
+// 	// 	return user.id;
+// 	// });
 
-	// set the UserFollows relation
-	// await Promise.all(
-	// 	userIds.map(async (userId) => {
-	// 		const filteredIds = userIds.filter((id) => {
-	// 			return id !== userId;
-	// 		});
-	// 		await prismaClient.user.update({
-	// 			where: { id: userId },
-	// 			data: {
-	// 				followers: {
-	// 					connect: faker.helpers.arrayElements(
-	// 						filteredIds.map((id) => {
-	// 							return { id };
-	// 						}),
-	// 					),
-	// 				},
-	// 			},
-	// 		});
-	// 	}),
-	// );
+// 	// set the UserFollows relation
+// 	// await Promise.all(
+// 	// 	userIds.map(async (userId) => {
+// 	// 		const filteredIds = userIds.filter((id) => {
+// 	// 			return id !== userId;
+// 	// 		});
+// 	// 		await prismaClient.user.update({
+// 	// 			where: { id: userId },
+// 	// 			data: {
+// 	// 				followers: {
+// 	// 					connect: faker.helpers.arrayElements(
+// 	// 						filteredIds.map((id) => {
+// 	// 							return { id };
+// 	// 						}),
+// 	// 					),
+// 	// 				},
+// 	// 			},
+// 	// 		});
+// 	// 	}),
+// 	// );
 
-	// =================== POSTS =======================//
-	// const madePosts = Array.from({ length: postsNum }).map(() => {
-	//   const post = postFactory(faker) as Post & { tags: any };
-	//   post.userId = faker.helpers.arrayElement(userIds);
-	//   // randomly set a value for now
-	//   // TODO set the dateTime fields to a date after related user's creation
-	//   // if (post.published) post.publishedAt = faker.datatype.datetime();
-	//   // post.publishedAt = faker.datatype.datetime(); // default to now in schema
+// 	// =================== POSTS =======================//
+// 	// const madePosts = Array.from({ length: postsNum }).map(() => {
+// 	//   const post = postFactory(faker) as Post & { tags: any };
+// 	//   post.userId = faker.helpers.arrayElement(userIds);
+// 	//   // randomly set a value for now
+// 	//   // TODO set the dateTime fields to a date after related user's creation
+// 	//   // if (post.published) post.publishedAt = faker.datatype.datetime();
+// 	//   // post.publishedAt = faker.datatype.datetime(); // default to now in schema
 
-	//   // // ! connect to existing tags
-	//   // post.tags = {
-	//   //   connect: faker.helpers.arrayElements(tagIds.map((id) => ({ id }))).slice(0, 4),
-	//   // };
+// 	//   // // ! connect to existing tags
+// 	//   // post.tags = {
+// 	//   //   connect: faker.helpers.arrayElements(tagIds.map((id) => ({ id }))).slice(0, 4),
+// 	//   // };
 
-	//   return post;
-	// });
+// 	//   return post;
+// 	// });
 
-	// await prismaClient.post.createMany({ data: madePosts });
-	// const posts = await prismaClient.post.findMany();
-	// log.info("post seeding done");
+// 	// await prismaClient.post.createMany({ data: madePosts });
+// 	// const posts = await prismaClient.post.findMany();
+// 	// log.info("post seeding done");
 
-	// const postsIds = posts.map((post) => post.id);
+// 	// const postsIds = posts.map((post) => post.id);
 
-	// ==================== COMMENTS (ON POSTS) =======================//
+// 	// ==================== COMMENTS (ON POSTS) =======================//
 
-	// =================== REACTIONS (TO POSTS) =======================//
-	// const madeReactions = Array.from({ length: reactionsNum }).map(() => {
-	//   const reaction = reactionFactory(faker);
+// 	// =================== REACTIONS (TO POSTS) =======================//
+// 	// const madeReactions = Array.from({ length: reactionsNum }).map(() => {
+// 	//   const reaction = reactionFactory(faker);
 
-	//   reaction.postId = faker.helpers.arrayElement(postsIds);
-	//   // ! there should be only an unique combination of [postId, type, userId]
-	//   // but we don't care for now
-	//   reaction.userId = faker.helpers.arrayElement(userIds);
+// 	//   reaction.postId = faker.helpers.arrayElement(postsIds);
+// 	//   // ! there should be only an unique combination of [postId, type, userId]
+// 	//   // but we don't care for now
+// 	//   reaction.userId = faker.helpers.arrayElement(userIds);
 
-	//   return reaction;
-	// });
+// 	//   return reaction;
+// 	// });
 
-	// await prismaClient.reaction.createMany({ data: madeReactions });
-	// const reactions = await prismaClient.reaction.findMany();
-	// log.info("reactions seeding done");
+// 	// await prismaClient.reaction.createMany({ data: madeReactions });
+// 	// const reactions = await prismaClient.reaction.findMany();
+// 	// log.info("reactions seeding done");
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	// const reactionsIds = reactions.map((reaction) => {
-	// 	return reaction.id;
-	// });
+// 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// 	// const reactionsIds = reactions.map((reaction) => {
+// 	// 	return reaction.id;
+// 	// });
 
-	// =================== TAGS =======================//
-	// for ensuring that tag names are unique we use the hardcoded array below
-	// const tagNames = ["React", "Prisma", "Midlleware", "General Coding", "HTML"];
-	// const tagNames = [...new Set(faker.lorem.words(10).split(" "))];
+// 	// =================== TAGS =======================//
+// 	// for ensuring that tag names are unique we use the hardcoded array below
+// 	// const tagNames = ["React", "Prisma", "Midlleware", "General Coding", "HTML"];
+// 	// const tagNames = [...new Set(faker.lorem.words(10).split(" "))];
 
-	// const madeTags = tagNames.map((name) => {
-	//   const tag = tagFactory(faker);
-	//   tag.name = name;
-	//   return tag;
-	// });
+// 	// const madeTags = tagNames.map((name) => {
+// 	//   const tag = tagFactory(faker);
+// 	//   tag.name = name;
+// 	//   return tag;
+// 	// });
 
-	// await prismaClient.tag.createMany({ data: madeTags });
-	// await Promise.all(madeTags.map(async (tag) => {
-	//   await prismaClient.tag.create({
-	//     data: {
-	//       ...tag,
-	//       posts: {
-	//         connect: faker.helpers.arrayElements(postsIds.map((id) => ({ id }))),
-	//       },
-	//       followers: {
-	//         connect: faker.helpers.arrayElements(userIds.map((id) => ({ id }))),
-	//       },
-	//     },
-	//   });
-	// }));
-	// const tags = await prismaClient.tag.findMany();
-	// log.info("tags seeding done");
+// 	// await prismaClient.tag.createMany({ data: madeTags });
+// 	// await Promise.all(madeTags.map(async (tag) => {
+// 	//   await prismaClient.tag.create({
+// 	//     data: {
+// 	//       ...tag,
+// 	//       posts: {
+// 	//         connect: faker.helpers.arrayElements(postsIds.map((id) => ({ id }))),
+// 	//       },
+// 	//       followers: {
+// 	//         connect: faker.helpers.arrayElements(userIds.map((id) => ({ id }))),
+// 	//       },
+// 	//     },
+// 	//   });
+// 	// }));
+// 	// const tags = await prismaClient.tag.findMany();
+// 	// log.info("tags seeding done");
 
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	// const tagIds = tags.map((post) => post.id);
+// 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// 	// const tagIds = tags.map((post) => post.id);
 
-	// prismaClient.post.create({ data: { tags: { connect: [{id: 'fef'}, {}] } } });
-};
+// 	// prismaClient.post.create({ data: { tags: { connect: [{id: 'fef'}, {}] } } });
+// };

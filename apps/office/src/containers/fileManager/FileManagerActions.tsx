@@ -37,7 +37,6 @@ import {
 // import FileManagerNewFolderDialog from '@/office/components/file-manager/FileManagerNewFolderDialog';
 
 import FileManagerActionDialog from '@/office/components/file-manager/FileManagerActionDialog';
-import { http } from '@/office/lib/axios/http';
 import { env } from '@/office/lib/env';
 
 // import { endPoint } from '@/shared/lib/constants';
@@ -106,7 +105,7 @@ const FileManagerActions = () => {
 		files: File[];
 		parentFolderPath?: string;
 	}) => {
-		uploadManyFiles({ files, parentFolderPath: currentFolderPath, http, restApiKey: env.REST_API_KEY });
+		uploadManyFiles({ files, parentFolderPath: currentFolderPath, restApiKey: env.REST_API_KEY });
 	};
 
 	// const handleDropFilesUpload: ComponentProps<typeof FileManagerActionDialog>['onDropFiles'] = ({ files }) => {
@@ -166,7 +165,7 @@ const FileManagerActions = () => {
 		files?: File[];
 		parentFolderPath?: string;
 	}) => {
-		createAppFileFolder({ folderName, files, parentFolderPath: currentFolderPath, http, restApiKey: env.REST_API_KEY });
+		createAppFileFolder({ folderName, files, parentFolderPath: currentFolderPath, restApiKey: env.REST_API_KEY });
 	};
 	// const { mutate: createAppFileFolder } = useMutation({
 	// 	mutationKey: [endPoint.uploadManyFiles] as const,

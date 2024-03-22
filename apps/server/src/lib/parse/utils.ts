@@ -16,6 +16,7 @@ import {
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { pageToSkip } from '@/server/utils/any.utils';
+import CustomZod from '@/shared/lib/zod/CustomZod';
 
 import RoleService from '../../resources/role/role.service';
 import { DEFAULT_CLP, USE_MASTER_KEY } from '../constants';
@@ -55,6 +56,7 @@ type BaseActionContext = {
 	req: Parse.Cloud.FunctionRequest;
 	t: ReturnType<typeof getT>;
 	locale: AppLocale;
+	z: CustomZod;
 };
 
 type ActionContext2 = BaseActionContext & {
@@ -91,8 +93,10 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		const t = getT(locale);
 
+		const z = new CustomZod(t);
+
 		if (!requireUser) {
-			return action({ req, t, user, locale });
+			return action({ req, t, user, locale, z });
 		}
 
 		if (!user) {
@@ -124,7 +128,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 			throw new Error(t('common:insufficientRoleForAction'));
 		}
 
-		return action({ req, user, t, locale });
+		return action({ req, user, t, locale, z });
 	};
 
 	const actionBuilder = parseFunction<T>(innerFunction as never);
@@ -159,7 +163,7 @@ export const multiTenantParseFrom = <T = unknown>(params: MultiTenantParseFromPa
 		return parseFrom<T>({
 			requireUser,
 			allowedRoles,
-			action: async ({ locale, req, t, user }) => {
+			action: async ({ locale, req, t, user, z }) => {
 				// eslint-disable-next-line @typescript-eslint/naming-convention
 				const { fromPublic, fromStaff: _fromStaff } = req.params;
 
@@ -187,7 +191,7 @@ export const multiTenantParseFrom = <T = unknown>(params: MultiTenantParseFromPa
 					}
 				}
 
-				return action({ req, user, t, locale, fromPublic, fromStaff, fromTenantMember });
+				return action({ req, user, t, locale, fromPublic, fromStaff, fromTenantMember, z });
 			},
 		});
 	}

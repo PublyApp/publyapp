@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 
 import { initI18next } from '@devist/ui-react/lib/i18n';
 import { initNumeral } from '@devist/ui-react/lib/numeral';
+import { initZod } from '@devist/ui-react/lib/zod';
 
 import App from './App';
 import { env } from './lib/env';
@@ -19,14 +20,10 @@ if (!window.location.pathname.startsWith(env.OFFICE_ROUTER_BASENAME)) {
 	window.location.pathname = newPathName;
 }
 
-// ---- i18next localization -------------------------------------------------------------
 initI18next();
-
-// ---- numeral.js init ------------------------------------------------------------------
 initNumeral();
-
-// ---- initialize parse -----------------------------------------------------------------
 initParse();
+initZod();
 
 // ---- render the react app -------------------------------------------------------------
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);

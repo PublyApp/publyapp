@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, Button, Container } from '@mui/material';
 import { m } from 'framer-motion';
@@ -15,18 +13,17 @@ import {
 import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import useTranslate from '@/ui-react/hooks/useTranslate';
+import zod from '@/ui-react/lib/zod';
 import { pxToRem } from '@/ui-react/utils/css.utils';
 
 import PostForm from './PostForm';
 
 const EditPost = () => {
 	// const { t } = useTranslation();
-	const { lang, t } = useTranslate();
+	const { lang } = useTranslate();
 	const params = useParams();
 
-	const savePostInputSchema = useMemo(() => {
-		return getUpdatePostInputSchema(t);
-	}, [t]);
+	const savePostInputSchema = getUpdatePostInputSchema(zod);
 
 	const {
 		result: { data: post },

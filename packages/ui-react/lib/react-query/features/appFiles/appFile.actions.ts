@@ -11,8 +11,12 @@ import type ParseApi from '@/ui-react/api/parse/ParseApi';
 
 export type FindAppFileQueryParams = FindAppFileFunctionParams;
 
-export default class PostActions {
-	constructor(private parseApi: ParseApi) {}
+export default class AppFileActions {
+	constructor(private parseApi: ParseApi) {
+		this.findAppFileAction = this.findAppFileAction.bind(this);
+		this.uploadManyFilesAction = this.uploadManyFilesAction.bind(this);
+		this.createAppFileFolderAction = this.createAppFileFolderAction.bind(this);
+	}
 
 	async findAppFileAction(
 		context: QueryFunctionContext<readonly [typeof functionName.findAppFile, FindAppFileQueryParams]>,

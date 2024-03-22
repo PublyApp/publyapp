@@ -1,29 +1,33 @@
 import _ from 'lodash';
-import { z } from 'zod';
 
 import { functionName, roleSet } from '@devist/shared/lib/constants';
-import { getCreatePostInputSchema, getUpdatePostInputSchema } from '@devist/shared/validations/post.validations';
+import {
+	getCreatePostInputSchema,
+	getFindPostFunctionParamsSchema,
+	getUpdatePostInputSchema,
+} from '@devist/shared/validations/post.validations';
 
 import ParsePost from '@/server/lib/parse/classes/post.class';
 import { parseFrom, type FunctionReturn } from '@/server/lib/parse/utils';
 import FileService from '@/server/resources/file/file.service';
 import PostService from '@/server/resources/post/post.service';
 import UserService from '@/server/resources/user/user.service';
-import { getListParamsSchema } from '@/server/utils/validation.utils';
+
+// import { getListParamsSchema } from '@/server/utils/validation.utils';
 
 export type CreatePostFunctionReturn = FunctionReturn<typeof createPostFunction>;
 
 const createPostFunction = parseFrom({
 	requireUser: true,
 	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
-	action: async ({ req, t, user }) => {
-		const createPostInputSchema = getCreatePostInputSchema(t);
+	action: async ({ req, user, z }) => {
+		const createPostInputSchema = getCreatePostInputSchema(z);
 		const { coverId, authorId, ...input } = createPostInputSchema.parse(req.params);
 
 		const sessionToken = user.getSessionToken();
 
 		const postService = new PostService({ sessionToken });
-		const fileService = new FileService({ sessionToken });
+		const fileService = new FileService({ sessionToken, uploadAdapter: FileService.defaultUploadAdapter });
 		const userService = new UserService({ sessionToken });
 
 		const coverPromise = fileService.getById(coverId || '', { select: [] });
@@ -54,8 +58,8 @@ export type UpdatePostFunctionReturn = FunctionReturn<typeof updatePostFunction>
 const updatePostFunction = parseFrom({
 	requireUser: true,
 	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
-	action: async ({ req, t, user }) => {
-		const updatePostInputSchema = getUpdatePostInputSchema(t);
+	action: async ({ req, user, z }) => {
+		const updatePostInputSchema = getUpdatePostInputSchema(z);
 		const params = updatePostInputSchema.parse(req.params);
 		const { coverId, authorId, objectId, ...input } = params;
 
@@ -63,7 +67,7 @@ const updatePostFunction = parseFrom({
 
 		const postService = new PostService({ sessionToken });
 		const userService = new UserService({ sessionToken });
-		const fileService = new FileService({ sessionToken });
+		const fileService = new FileService({ sessionToken, uploadAdapter: FileService.defaultUploadAdapter });
 
 		const postPromise = postService.getById(objectId, { select: ['author', 'translation'] });
 		const authorPromise = userService.getById(authorId || '', { select: [] });
@@ -100,7 +104,7 @@ export type GetPostFunctionReturn = FunctionReturn<typeof getPostFunction>;
 // 	  };
 const getPostFunction = parseFrom({
 	requireUser: false,
-	action: async ({ req, /* t,  */ user }) => {
+	action: async ({ req, user }) => {
 		const postId = req.params.id;
 		const sessionToken = user?.getSessionToken();
 
@@ -120,22 +124,10 @@ const getPostFunction = parseFrom({
 
 export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
 
-const findPostFunctionParamsSchema = getListParamsSchema.and(
-	z.discriminatedUnion('view', [
-		z.object({
-			view: z.literal('front-list'),
-		}),
-		z.object({
-			view: z.literal('bo-table'),
-			fromPublic: z.boolean().optional().default(false),
-		}),
-	]),
-);
-
 const findPostFunction = parseFrom({
 	requireUser: false,
-	action: async ({ req, user, locale }) => {
-		const { page, pageSize, sorting, ...params } = findPostFunctionParamsSchema.parse(req.params);
+	action: async ({ req, user, locale, z }) => {
+		const { page, pageSize, sorting, ...params } = getFindPostFunctionParamsSchema(z).parse(req.params);
 
 		const sessionToken = user?.getSessionToken();
 		const postService = new PostService({ sessionToken, headers: req.headers });

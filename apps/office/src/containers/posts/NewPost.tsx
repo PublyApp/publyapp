@@ -1,25 +1,20 @@
-import { useMemo } from 'react';
-
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Container } from '@mui/material';
 import { useForm } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
 
 import { getCreatePostInputSchema, type CreatePostInput } from '@devist/shared/validations/post.validations';
 
 import PageHeader from '@/office/components/PageHeader';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 import { useCreatePostMutation } from '@/ui-react/lib/react-query/features/posts/post.hooks';
+import zod from '@/ui-react/lib/zod';
 
 import PostForm from './PostForm';
 
 const NewPost = () => {
-	const { t } = useTranslation();
 	const { lang } = useTranslate();
 
-	const savePostInputSchema = useMemo(() => {
-		return getCreatePostInputSchema(t);
-	}, [t]);
+	const savePostInputSchema = getCreatePostInputSchema(zod);
 
 	const createPostForm = useForm<CreatePostInput>({
 		resolver: zodResolver(savePostInputSchema),
