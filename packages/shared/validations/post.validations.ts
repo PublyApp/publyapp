@@ -1,10 +1,9 @@
-import { type TFunction } from 'i18next';
-
-// import { z } from 'zod';
+import type zod from 'zod';
 
 import { appLocales } from '@/shared/lib/i18n/resources';
 
 import type CustomZod from '../lib/zod/CustomZod';
+import { getListParamsSchema } from '../utils/validation.utils';
 
 // import { getErrorMap } from '../lib/zod';
 
@@ -65,12 +64,12 @@ export const getDateTypeSchema = (z: CustomZod) => {
 };
 
 export const getCreatePostInputSchema = (z: CustomZod) => {
-	// const TITLE = t('common:title');
-	// const SLUG = 'Slug';
-	// const DESCRIPTION = 'Description';
-	// const CONTENT = t('common:content');
+	const TITLE = z.t('common:title');
+	const SLUG = 'Slug';
+	const DESCRIPTION = 'Description';
+	const CONTENT = z.t('common:content');
 	// const AUTHOR_ID = 'authorId';
-	// const COVER = t('common:cover');
+	const COVER = z.t('common:cover');
 	// const COVER_URL = t('common:cover');
 	// const DESCRIPTION = t('common:description')
 
@@ -80,60 +79,70 @@ export const getCreatePostInputSchema = (z: CustomZod) => {
 	return z.object({
 		// objectId: z.string({ errorMap: getErrorMap(t, { field: ID }) }).optional(),
 		// published: z.boolean({ errorMap: getErrorMap(t, { field: PUBLISHED }) }).optional(),
-		locale: getLocaleSchema(t),
+		locale: getLocaleSchema(z),
 		title: z
-			.string({ errorMap: getErrorMap(t, { field: TITLE }) })
-			.min(1, { message: t('common:form.error.required', { field: TITLE }) })
+			.string()
+			.min(1, { message: z.t('common:form.error.required', { field: TITLE }) })
 			.max(TITLE_MAX_LENGTH, {
-				message: t('common:form.error.maxLength', { field: TITLE, maxLength: TITLE_MAX_LENGTH }),
+				message: z.t('common:form.error.maxLength', { field: TITLE, maxLength: TITLE_MAX_LENGTH }),
 			}),
 		slug: z
-			.string({ errorMap: getErrorMap(t, { field: SLUG }) })
-			.min(1, { message: t('common:form.error.required', { field: SLUG }) })
-			.regex(SLUG_REGEX, t('common:form.error.invalid', { field: SLUG })),
+			.string()
+			.min(1, { message: z.t('common:form.error.required', { field: SLUG }) })
+			.regex(SLUG_REGEX, z.t('common:form.error.invalid', { field: SLUG })),
 		description: z
-			.string({ errorMap: getErrorMap(t, { field: DESCRIPTION }) })
-			.min(1, { message: t('common:form.error.required', { field: DESCRIPTION }) })
+			.string()
+			.min(1, { message: z.t('common:form.error.required', { field: DESCRIPTION }) })
 			.max(DESCRIPTION_MAX_LENGTH, {
-				message: t('common:form.error.maxLength', { field: DESCRIPTION, maxLength: DESCRIPTION_MAX_LENGTH }),
+				message: z.t('common:form.error.maxLength', { field: DESCRIPTION, maxLength: DESCRIPTION_MAX_LENGTH }),
 			}),
 		// content: getPostContentSchema(t),
-		content: z
-			.string({ errorMap: getErrorMap(t, { field: CONTENT }) })
-			.min(1, { message: t('common:form.error.required', { field: CONTENT }) }),
+		content: z.string().min(1, { message: z.t('common:form.error.required', { field: CONTENT }) }),
 		authorId: z
-			.string({ errorMap: getErrorMap(t, { field: AUTHOR_ID }) })
+			.string()
 			// .min(1, { message: t('common:form.error.required', { field: AUTHOR_ID }) })
 			.optional(),
 		coverId: z
-			.string({ errorMap: getErrorMap(t, { field: COVER }) })
-			.min(1, { message: t('common:form.error.required', { field: COVER }) })
+			.string()
+			.min(1, { message: z.t('common:form.error.required', { field: COVER }) })
 			.optional(),
 		coverUrl: z
-			.string({ errorMap: getErrorMap(t, { field: COVER_URL }) })
-			.min(1, { message: t('common:form.error.required', { field: COVER }) })
+			.string()
+			.min(1, { message: z.t('common:form.error.required', { field: COVER }) })
 			.optional(),
-		tags: z.array(z.string()).max(4).optional(), // TODO: locale mappings
-		publishDate: dateTypeSchema.optional(),
-		updateDate: dateTypeSchema.optional(),
+		tags: z.array(z.string()).max(4).optional(),
+		publishDate: getDateTypeSchema(z).optional(),
+		updateDate: getDateTypeSchema(z).optional(),
 	});
 };
 
-export const getUpdatePostInputSchema = (t: TFunction) => {
+export const getUpdatePostInputSchema = (z: CustomZod) => {
 	const ID = 'ObjectId';
-	const PUBLISHED = t('common:published');
+	// const PUBLISHED = z.t('common:published');
 
-	return getCreatePostInputSchema(t)
+	return getCreatePostInputSchema(z)
 		.omit({ locale: true })
 		.partial()
 		.extend({
-			objectId: z
-				.string({ errorMap: getErrorMap(t, { field: ID }) })
-				.min(1, { message: t('common:form.error.required', { field: ID }) }),
-			published: z.boolean({ errorMap: getErrorMap(t, { field: PUBLISHED }) }).optional(),
-			locale: getLocaleSchema(t),
+			objectId: z.string().min(1, { message: z.t('common:form.error.required', { field: ID }) }),
+			published: z.boolean().optional(),
+			locale: getLocaleSchema(z),
 		});
 };
 
-export type CreatePostInput = z.infer<ReturnType<typeof getCreatePostInputSchema>>;
-export type UpdatePostInput = z.infer<ReturnType<typeof getUpdatePostInputSchema>>;
+export const getFindPostFunctionParamsSchema = (z: CustomZod) => {
+	return getListParamsSchema(z).and(
+		z.discriminatedUnion('view', [
+			z.object({
+				view: z.literal('front-list'),
+			}),
+			z.object({
+				view: z.literal('bo-table'),
+				fromPublic: z.boolean().optional().default(false),
+			}),
+		]),
+	);
+};
+
+export type CreatePostInput = zod.infer<ReturnType<typeof getCreatePostInputSchema>>;
+export type UpdatePostInput = zod.infer<ReturnType<typeof getUpdatePostInputSchema>>;
