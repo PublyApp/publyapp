@@ -1,16 +1,10 @@
 import axios from 'axios';
 import _ from 'lodash';
 
-import {
-	endPoint,
-	PARSE_APPLICATION_ID_HEADER_KEY,
-	PARSE_SESSION_TOKEN_HEADER_KEY,
-} from '@devist/shared/lib/constants';
+import { AxiosHttp, protectRequest } from '@devist/shared/lib/axios';
+import { PARSE_APPLICATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@devist/shared/lib/constants';
 import type { IUser } from '@devist/shared/types/db/user.types';
 
-import type { AppFile } from '@/shared/types/db/appFile.types';
-
-import { AxiosHttp, protectRequest } from './lib/axios';
 import ParseRestError from './ParseRestError';
 
 type Props = {
@@ -136,7 +130,7 @@ export default class ParseRestClient {
 	/**
 	 * login with username/email and password
 	 */
-	async oldPasswordLogin(username: string, password: string) {
+	async passwordLogin(username: string, password: string) {
 		return this.http.post<IUser & { sessionToken: string }>(
 			'/login',
 			{ username, password },
@@ -147,59 +141,7 @@ export default class ParseRestClient {
 		);
 	}
 
-	/**
-	 * login with username/email and password
-	 */
-	async passwordLogin(username: string, password: string) {
-		// todo use a custom login cloud function instead of the default login endpoint
-		// because I think I'll want to return the user object with its relations populated someday
-
-		const url = new URL(this.parseServerUrl);
-
-		return this.http.post<IUser & { sessionToken: string }>(
-			url.origin + endPoint.passwordLogin,
-			{ username, password },
-			_.merge(protectRequest({}), {
-				'X-Parse-Revocable-Session': '1',
-				[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
-			}),
-		);
-	}
-
 	async logOut() {
 		return this.http.post('/logout', {}, protectRequest({}));
-	}
-
-	async uploadSingleFile(params: { file: File; parentFolderPath?: string }, options: { restApiKey?: string } = {}) {
-		const formData = new FormData();
-
-		formData.set('file', params.file);
-
-		if (params.parentFolderPath) {
-			formData.set('parentFolderPath', params.parentFolderPath);
-		}
-
-		return this.http.post<AppFile>(
-			endPoint.uploadSingleFile,
-			formData,
-			protectRequest({
-				hasFile: true,
-				restApiKey: options.restApiKey,
-			}),
-		);
-	}
-
-	async uploadManyFiles(params: { files: File[]; parentFolderPath?: string }, options: { restApiKey?: string } = {}) {
-		const formData = new FormData();
-
-		params.files.forEach((file) => {
-			formData.append('files', file);
-		});
-
-		return this.http.post<AppFile[]>(
-			endPoint.uploadManyFiles,
-			formData,
-			protectRequest({ hasFile: true, restApiKey: options.restApiKey }),
-		);
 	}
 }

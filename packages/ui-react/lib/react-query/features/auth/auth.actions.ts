@@ -20,7 +20,7 @@ export default class AuthActions {
 		try {
 			const { email, password } = input;
 
-			const user = await this.parseApi.parseRestClient.passwordLogin(email, password);
+			const user = await this.parseApi.users.passwordLogin(email, password);
 
 			return user;
 		} catch (error) {

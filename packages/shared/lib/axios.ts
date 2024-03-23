@@ -1,11 +1,17 @@
-import { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import _ from 'lodash';
 
 import {
 	DEVIST_REST_API_HEADER_KEY,
 	PARSE_APPLICATION_ID_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
-} from '@devist/shared/lib/constants';
+} from './constants';
+
+export const createInstance = (baseURL?: string) => {
+	return axios.create({
+		baseURL,
+	});
+};
 
 // get the data field response directly
 const responseBody = <O>(response: AxiosResponse<O>) => {
@@ -59,3 +65,5 @@ export const protectRequest = (options: {
 		headers: headers as never,
 	};
 };
+
+export const defaultHttp = new AxiosHttp(createInstance());
