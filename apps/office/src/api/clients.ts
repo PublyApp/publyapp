@@ -1,13 +1,13 @@
 import ParseApi from '@devist/ui-react/api/parse/ParseApi';
 
-import { http } from '../lib/axios/http';
+import { officeHttp } from '../lib/axios';
 import { parseRestClient } from '../lib/parse/client';
 
 const parseApi = new ParseApi({ parseRestClient });
 
 const clients = {
 	parseApi,
-	http,
+	http: officeHttp,
 };
 
 export default clients;

@@ -35,7 +35,7 @@ export default class AppFileActions {
 
 	async uploadManyFilesAction(params: UploadManyFilesActionParams) {
 		try {
-			const result = this.parseApi.parseRestClient.uploadManyFiles(
+			const result = this.parseApi.appFiles.uploadManyFiles(
 				{ files: params.files || [], parentFolderPath: params.parentFolderPath },
 				{ restApiKey: params.restApiKey },
 			);
