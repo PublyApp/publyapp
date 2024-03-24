@@ -22,7 +22,7 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 		// const sessionToken = getHEader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
 		const sessionToken = req.user?.getSessionToken();
 
-		const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;
+		const uploadAdapter = FileService.uploadAdapterMap.get('cloudinary') || FileService.defaultUploadAdapter;
 
 		const folderService = new FolderService({ sessionToken });
 		const fileService = new FileService({ sessionToken, uploadAdapter });
