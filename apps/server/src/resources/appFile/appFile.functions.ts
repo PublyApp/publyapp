@@ -1,12 +1,10 @@
-import z from 'zod';
-
 import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 
 import { parseFrom, type FunctionReturn } from '@/server/lib/parse/utils';
 import FileService from '@/server/resources/file/file.service';
 import FolderService from '@/server/resources/folder/folder.service';
 import type { AppFile } from '@/shared/types/db/appFile.types';
-import { folderNameSchema } from '@/shared/validations/file/file.validations';
+import { getMulterCreateFolderSchema } from '@/shared/validations/file/file.validations.server';
 
 export type FindAppFileFunctionReturn = FunctionReturn<typeof findAppFileFunction>;
 
@@ -33,18 +31,13 @@ const findAppFileFunction = parseFrom({
 	},
 });
 
-const createAppFileFolderSchema = z.object({
-	folderName: folderNameSchema,
-	parentFolderPath: z.string().min(1).optional(),
-});
-
 export type CreateAppFileFunctionReturn = FunctionReturn<typeof createAppFileFolderFunction>;
 
 const createAppFileFolderFunction = parseFrom({
 	requireUser: true,
 	allowedRoles: roleSet.ALL,
-	action: async ({ req, user }) => {
-		const { folderName, parentFolderPath } = createAppFileFolderSchema.parse(req.params);
+	action: async ({ req, user, z }) => {
+		const { folderName, parentFolderPath } = getMulterCreateFolderSchema(z).parse(req.params);
 
 		const sessionToken = user.getSessionToken();
 

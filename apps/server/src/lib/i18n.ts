@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 
-import { defaultLocale, defaultNS, NS, resources } from '@devist/shared/lib/i18n/resources';
+import { appLocales, defaultLocale, defaultNS, NS, resources, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 i18next.init({
 	debug: false,
@@ -15,6 +15,10 @@ i18next.init({
 	},
 });
 
-export const getT = (locale: string) => {
+export const getT = (locale: AppLocale) => {
 	return i18next.getFixedT(locale);
+};
+
+export const getCorrectLocale = (stringInput: string | undefined): AppLocale => {
+	return appLocales.includes(stringInput as never) ? (stringInput as AppLocale) : defaultLocale;
 };

@@ -13,14 +13,14 @@ import {
 	TENANT_ID_HEADER_KEY,
 	type IRoleConfig,
 } from '@devist/shared/lib/constants';
-import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
+import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { pageToSkip } from '@/server/utils/any.utils';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
 import RoleService from '../../resources/role/role.service';
 import { DEFAULT_CLP, USE_MASTER_KEY } from '../constants';
-import { getT } from '../i18n';
+import { getCorrectLocale, getT } from '../i18n';
 
 type ParseInnerFunction<T = unknown> =
 	| ((req: Parse.Cloud.TriggerRequest) => Promise<T>)
@@ -87,9 +87,10 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		const localeInHeader: string | undefined = headers?.[_.toLower(LOCALE_HEADER_KEY)];
 
-		const locale: AppLocale = appLocales.includes(localeInHeader as never)
-			? (localeInHeader as AppLocale)
-			: defaultLocale;
+		// const locale: AppLocale = appLocales.includes(localeInHeader as never)
+		// 	? (localeInHeader as AppLocale)
+		// 	: defaultLocale;
+		const locale = getCorrectLocale(localeInHeader);
 
 		const t = getT(locale);
 
@@ -232,9 +233,10 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 		const _localeInHeaders = _headers[_.toLower(LOCALE_HEADER_KEY)];
 		const localeInHeaders = _.isString(_localeInHeaders) ? _localeInHeaders : undefined;
 
-		const locale: AppLocale = appLocales.includes(localeInHeaders as never)
-			? (localeInHeaders as AppLocale)
-			: defaultLocale;
+		// const locale: AppLocale = appLocales.includes(localeInHeaders as never)
+		// 	? (localeInHeaders as AppLocale)
+		// 	: defaultLocale;
+		const locale = getCorrectLocale(localeInHeaders);
 
 		const t = getT(locale);
 

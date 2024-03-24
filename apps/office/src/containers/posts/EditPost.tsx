@@ -68,7 +68,7 @@ const EditPost = () => {
 		async (input) => {
 			console.log('--- handleUpdatePost input ---', input);
 			// updatePost(input);
-			updatePostAsync(input);
+			await updatePostAsync(input);
 		},
 		(errors) => {
 			console.log('--- handleUpdatePost errors ---', errors);
