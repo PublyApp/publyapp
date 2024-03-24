@@ -16,7 +16,8 @@
 			"invalidBooleanType": "{{field}} devrait être vrai ou faux",
 			"required": "{{field}} obligatoire",
 			"maxLength": "{{field}} doit avoir {{maxLength}} caractères ou moins",
-			"invalid": "{{field}} invalide"
+			"invalid": "{{field}} invalide",
+			"notInstanceOf": "{{field}} doit être une instance de {{type}}"
 		}
 	},
 	"new-post": "Nouvel article",
@@ -24,5 +25,7 @@
 	"created-at": "Créé le",
 	"published": "Publié",
 	"draft": "Brouillon",
-	"invalid-number": "Nombre invalide"
+	"invalid-number": "Nombre invalide",
+	"file": "Fichier",
+	"field": "Champ"
 }

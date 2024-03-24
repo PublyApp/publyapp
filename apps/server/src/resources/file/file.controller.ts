@@ -1,9 +1,10 @@
 import type { RequestHandler } from 'express';
 
-import { multerFilesArraySchema } from '@devist/shared/validations/file/file.validations.server';
+import { getMulterFilesArraySchema } from '@devist/shared/validations/file/file.validations.server';
 
 import { HttpException } from '@/server/exceptions/HttpException';
 import FileService from '@/server/resources/file/file.service';
+import { getRequestUtils } from '@/server/utils/request.utils';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 
 import FolderService from '../folder/folder.service';
@@ -43,7 +44,8 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 
 export const handleUploadManyFiles: RequestHandler = async (req, res, next) => {
 	try {
-		const files = multerFilesArraySchema.parse(req.files);
+		const { z } = getRequestUtils(req);
+		const files = getMulterFilesArraySchema(z).parse(req.files);
 
 		const { parentFolderPath, provider } = req.body;
 

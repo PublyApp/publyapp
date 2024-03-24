@@ -181,3 +181,5 @@ export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
 export const DEVIST_REST_API_HEADER_KEY = 'X-Devist-Key';
 
 export const SESSION_TOKEN_LOCAL_STORAGE_KEY = 'sessionToken';
+
+export const SLUG_REGEX = /^[a-z0-9-]+$/;

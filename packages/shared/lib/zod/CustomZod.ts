@@ -62,6 +62,11 @@ class CustomZod {
 	literal(value: Parameters<typeof z.literal>[0], params?: Parameters<typeof z.literal>[1]) {
 		return z.literal(value, { errorMap: this.getErrorMap(), ...params });
 	}
+
+	// eslint-disable-next-line class-methods-use-this
+	custom<T>(check?: Parameters<typeof z.custom>[0], params?: Parameters<typeof z.custom>[1]) {
+		return z.custom<T>(check, params);
+	}
 }
 
 export default CustomZod;

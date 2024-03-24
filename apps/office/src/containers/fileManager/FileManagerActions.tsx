@@ -1,26 +1,15 @@
-// import { useCallback, type ComponentProps } from 'react';
-
 import { zodResolver } from '@hookform/resolvers/zod';
-// import { Box } from '@mui/material';
 import Button from '@mui/material/Button';
-import { /* useMutation, */ useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useSnackbar } from 'notistack';
 import { useForm } from 'react-hook-form';
 
-// import ToggleButton from '@mui/material/ToggleButton';
-// import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-
-// import {
-// 	runCreateAppFileFolder,
-// 	type CreateAppFileFolderFunctionParams,
-// } from '@devist/shared/lib/parse/cloudRunners/appFile.runner';
-
 import {
-	clientCreateFolderSchema,
-	clientUploadManyFilesSchema,
-	type ClientCreateFolderInput,
-	type ClientUploadManyFilesInput,
+	getCreateFolderSchemaClientSide,
+	getUploadManyFilesSchemaClientSide,
+	type CreateFolderInputClientSide,
+	type UploadManyFilesInputClientSide,
 } from '@devist/shared/validations/file/file.validations.client';
 import Iconify from '@devist/ui-react/components/Iconify';
 import useBoolean from '@devist/ui-react/hooks/useBoolean';
@@ -32,6 +21,7 @@ import {
 	useCreateAppFileFolder,
 	useUploadManyFilesMutation,
 } from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
+import z from '@devist/ui-react/lib/zod';
 
 // import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 // import FileManagerNewFolderDialog from '@/office/components/file-manager/FileManagerNewFolderDialog';
@@ -78,8 +68,8 @@ const FileManagerActions = () => {
 	const { folderPath: _currentFolderPath } = useFileManager();
 	const currentFolderPath = decodeURIComponent(_currentFolderPath);
 
-	const uploadForm = useForm<ClientUploadManyFilesInput>({
-		resolver: zodResolver(clientUploadManyFilesSchema),
+	const uploadForm = useForm<UploadManyFilesInputClientSide>({
+		resolver: zodResolver(getUploadManyFilesSchemaClientSide(z)),
 	});
 
 	// const { parentFolderPath, setparentFolderPath } = useFileManager();
@@ -124,8 +114,8 @@ const FileManagerActions = () => {
 	// );
 
 	// ================
-	const newFolderForm = useForm<ClientCreateFolderInput>({
-		resolver: zodResolver(clientCreateFolderSchema),
+	const newFolderForm = useForm<CreateFolderInputClientSide>({
+		resolver: zodResolver(getCreateFolderSchemaClientSide(z)),
 		defaultValues: {
 			folderName: '',
 		},

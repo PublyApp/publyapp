@@ -16,7 +16,8 @@
 			"invalidBooleanType": "{{field}} must be a boolean",
 			"required": "{{field}} required",
 			"maxLength": "{{field}} must have {{maxLength}} characters or less",
-			"invalid": "Invalid {{field}}"
+			"invalid": "Invalid {{field}}",
+			"notInstanceOf": "{{field}} must be an instance of {{type}}"
 		}
 	},
 	"new-post": "New post",
@@ -24,5 +25,6 @@
 	"created-at": "Created at",
 	"published": "Published",
 	"draft": "Draft",
-	"invalid-number": "Invalid number"
+	"invalid-number": "Invalid number",
+	"field": "Field"
 }

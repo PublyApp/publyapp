@@ -1,8 +1,10 @@
-import { z } from 'zod';
+import type CustomZod from '@/shared/lib/zod/CustomZod';
 
-export const folderNameSchema = z
-	.string()
-	.min(1)
-	.refine((data) => {
-		return data.indexOf('/') === -1;
-	}, "folder name must no contain slashes ('/')");
+export const getFolderNameSchema = (z: CustomZod) => {
+	return z
+		.string()
+		.min(1)
+		.refine((data) => {
+			return data.indexOf('/') === -1;
+		}, "folder name must no contain slashes ('/')");
+};
