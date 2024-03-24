@@ -76,7 +76,6 @@ const updatePostFunction = parseFrom({
 		const post = await postPromise;
 
 		if (!post) {
-			// eslint-disable-next-line @typescript-eslint/no-throw-literal
 			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Post not Found');
 		}
 
@@ -110,10 +109,9 @@ const getPostFunction = parseFrom({
 
 		const postService = new PostService({ sessionToken });
 
-		const post = await postService.getById(postId, { select: undefined });
+		const post = await postService.getById(postId, { select: undefined, include: ['author', 'cover'] });
 
 		if (!post) {
-			// eslint-disable-next-line @typescript-eslint/no-throw-literal
 			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Post not Found');
 		}
 

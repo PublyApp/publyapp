@@ -5,7 +5,7 @@ import { fileProvider } from '@/shared/lib/constants';
 import type UploadAdapterInterface from './UploadAdapterInterface';
 import type { UploadInput } from './UploadAdapterInterface';
 
-export default class LocalDiskUploadAdapter implements UploadAdapterInterface {
+export default class CloudinaryUploadAdapter implements UploadAdapterInterface {
 	provider = fileProvider.CLOUDINARY;
 
 	// eslint-disable-next-line class-methods-use-this

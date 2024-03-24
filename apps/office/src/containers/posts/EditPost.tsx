@@ -15,8 +15,6 @@ import {
 
 import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
-import type { AppFile } from '@/shared/types/db/appFile.types';
-import useHttpClients from '@/ui-react/hooks/useHttpClients';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 import zod from '@/ui-react/lib/zod';
 import { pxToRem } from '@/ui-react/utils/css.utils';
@@ -27,7 +25,7 @@ const EditPost = () => {
 	// const { t } = useTranslation();
 	const { lang } = useTranslate();
 	const params = useParams();
-	const { parseApi } = useHttpClients();
+	// const { parseApi } = useHttpClients();
 
 	const savePostInputSchema = getUpdatePostSchemaClientSide(zod);
 
@@ -65,23 +63,19 @@ const EditPost = () => {
 			updateDate: post.updateDate ? new Date(post.updateDate) : undefined,
 			coverUrl: undefined,
 			coverId: undefined,
-			coverFile: undefined,
+			coverFile: post.coverFile,
 			tags: post.tags,
 		},
 		disabled: isUpdatePostPending,
 	});
 
+	// updatePostForm.setValue('coverUrl', { preView: post.cover?.url }, { shouldValidate: true });
+
 	const handleUpdatePost = updatePostForm.handleSubmit(
-		async ({ coverFile, ...restInput }) => {
-			console.log('--- handleUpdatePost input ---', coverFile, restInput);
+		async (input) => {
+			console.log('--- handleUpdatePost input ---', input);
 
-			let uploadResult: AppFile | undefined;
-
-			if (coverFile) {
-				uploadResult = await parseApi.appFiles.uploadSingleFile({ file: coverFile });
-			}
-
-			await updatePostAsync({ ...restInput, coverId: uploadResult?.objectId });
+			await updatePostAsync(input);
 		},
 		(errors) => {
 			console.log('--- handleUpdatePost errors ---', errors);
