@@ -4,7 +4,7 @@ import {
 	type CreateAppFileFunctionReturn,
 	type FindAppFileFunctionReturn,
 } from '@/server/resources/appFile/appFile.functions';
-import { defaultHttp, protectRequest } from '@/shared/lib/axios';
+import { protectRequest } from '@/shared/lib/axios';
 import { endPoint, functionName } from '@/shared/lib/constants';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 
@@ -42,7 +42,7 @@ export default class AppFileEndPoints {
 
 		const url = new URL(this.parseRestClient.parseServerUrl);
 
-		return defaultHttp.post<AppFile>(
+		return this.parseRestClient.http.post<AppFile>(
 			url.origin + endPoint.uploadSingleFile,
 			formData,
 			protectRequest({
@@ -62,7 +62,7 @@ export default class AppFileEndPoints {
 
 		const url = new URL(this.parseRestClient.parseServerUrl);
 
-		return defaultHttp.post<AppFile[]>(
+		return this.parseRestClient.http.post<AppFile[]>(
 			url.origin + endPoint.uploadManyFiles,
 			formData,
 			protectRequest({ hasFile: true, restApiKey: options.restApiKey }),

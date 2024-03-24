@@ -33,6 +33,15 @@ export default class AppFileActions {
 		}
 	}
 
+	async uploadSingleFileAction(params: { file: File }) {
+		try {
+			return await this.parseApi.appFiles.uploadSingleFile(params);
+		} catch (error) {
+			console.log('----- uploadSingleFileAction error ----------', error);
+			return Promise.reject(error);
+		}
+	}
+
 	async uploadManyFilesAction(params: UploadManyFilesActionParams) {
 		try {
 			const result = this.parseApi.appFiles.uploadManyFiles(

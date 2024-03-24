@@ -19,7 +19,7 @@ type RunOptions<P extends Record<string, unknown>> = {
 };
 
 export default class ParseRestClient {
-	private http: AxiosHttp;
+	public readonly http: AxiosHttp;
 
 	public readonly applicationId: string;
 
