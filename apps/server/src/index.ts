@@ -15,6 +15,7 @@ import { LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants'
 
 import { cloud } from './cloud/_index';
 import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
+import { initCloudinary } from './lib/cloudinary';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
 import { env, envSchema, setAppEnv } from './lib/env';
 import logger, { consoleTransport } from './lib/logger';
@@ -207,6 +208,9 @@ const bootstrap = async () => {
 
 	// create the upload folder
 	createUploadDirIfNotExists();
+
+	// init cloudinary
+	initCloudinary();
 };
 
 bootstrap();
