@@ -27,17 +27,17 @@ const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallatio
 
 				// if the key exists, go to next
 				if (!apiKey) {
-					return next(new HttpException(400, `Missing ${DEVIST_REST_API_HEADER_KEY} params`));
+					return next(new HttpException(400, `Missing ${DEVIST_REST_API_HEADER_KEY} param`));
 				}
 
 				if (apiKey && apiKey !== env.REST_API_KEY) {
-					return next(new HttpException(400, `Invalid ${DEVIST_REST_API_HEADER_KEY}`));
+					return next(new HttpException(400, `Invalid ${DEVIST_REST_API_HEADER_KEY} param`));
 				}
 			}
 
 			// should have a header session token
 			if (withAuth) {
-				const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) || req.query.sessionToken;
+				const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
 
 				if (!sessionToken) {
 					return next(new HttpException(400, 'Missing session params'));

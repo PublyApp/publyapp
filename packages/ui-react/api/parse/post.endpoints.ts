@@ -57,6 +57,7 @@ export class PostEndPoints {
 		const posts = await this.parseRestClient.cloudRun<FindPostFunctionResult>(functionName.findPost, {
 			params: { view, page, pageSize },
 		});
+
 		return posts;
 	}
 
@@ -72,6 +73,7 @@ export class PostEndPoints {
 
 	async updatePost(params: UpdatePostFunctionParams) {
 		const post = await this.parseRestClient.cloudRun<UpdatePostFunctionResult>(functionName.updatePost, { params });
+
 		return post;
 	}
 
