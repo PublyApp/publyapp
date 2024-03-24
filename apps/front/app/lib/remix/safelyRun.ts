@@ -24,33 +24,45 @@ type TryCatchWrapper<F extends GenericFunction> = (
  * @param func - Function that should be wrapped.
  */
 export const safelyRunInLoader = <F extends GenericFunction>(func: F): TryCatchWrapper<F> => {
+	if (func.constructor.name === 'AsyncFunction') {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const asyncToRun = async (...args: any[]) => {
+			try {
+				// eslint-disable-next-line @typescript-eslint/return-await
+				return await func(...args);
+			} catch (error) {
+				// Do whatever you want.
+				// eslint-disable-next-line @typescript-eslint/naming-convention
+				let _error = error;
+
+				if (!(error instanceof Error)) {
+					_error = new Error('Unknown error');
+				}
+
+				return _error;
+			}
+		};
+
+		return asyncToRun as never;
+	}
+
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const toRun = (...args: any[]) => {
 		try {
 			// eslint-disable-next-line @typescript-eslint/return-await
 			return func(...args);
 		} catch (error) {
-			// console.error(error);
-			return error;
 			// Do whatever you want.
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			let _error = error;
+
+			if (!(error instanceof Error)) {
+				_error = new Error('Unknown error');
+			}
+
+			return _error;
 		}
 	};
-
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const asyncToRun = async (...args: any[]) => {
-		try {
-			// eslint-disable-next-line @typescript-eslint/return-await
-			return await func(...args);
-		} catch (error) {
-			// console.error(error);
-			return error;
-			// Do whatever you want.
-		}
-	};
-
-	if (func.constructor.name === 'AsyncFunction') {
-		return asyncToRun as never;
-	}
 
 	return toRun as never;
 };
