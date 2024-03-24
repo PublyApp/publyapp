@@ -196,11 +196,15 @@ export default class PostService {
 		return post.save(attrs as never, { sessionToken });
 	}
 
-	async getById(objectId: string, options: { select?: string[] } = {}) {
+	async getById(objectId: string, options: { select?: string[]; include?: string[] } = {}) {
 		const query = new Parse.Query(ParsePost).equalTo('objectId', objectId);
 
 		if (options.select) {
 			query.select(options.select as never);
+		}
+
+		if (options.include) {
+			query.include(options.include as never);
 		}
 
 		return query.first({ sessionToken: this.sessionToken });

@@ -8,7 +8,13 @@ export const getFileSchemaClientSide = (z: CustomZod) => {
 	const field = z.t('common:field');
 	const type = z.t('common:file');
 
-	return z.custom<File>(
+	return z.custom<
+		File & {
+			preview?: string;
+			// alreadyUploaded?: boolean
+			appFileId?: string;
+		}
+	>(
 		(data) => {
 			return data instanceof File;
 		},

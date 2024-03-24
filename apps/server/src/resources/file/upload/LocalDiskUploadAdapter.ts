@@ -17,7 +17,7 @@ export default class LocalDiskUploadAdapter implements UploadAdapterInterface {
 		await sharp(params.buffer).toFile(path.join(FILE_UPLOAD_DESTINATION, params.name));
 
 		return {
-			url: path.join(env.EXPRESS_FILES_MOUNT_PATH, params.name),
+			url: path.posix.join(env.EXPRESS_FILES_MOUNT_PATH, params.name),
 		};
 	}
 }

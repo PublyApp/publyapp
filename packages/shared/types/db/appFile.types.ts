@@ -9,7 +9,8 @@ export type AppFile = BaseAttributes &
 	// ImageOnlyFields
 	BaseFileFields &
 	ImageOnlyFields & {
-		provider: string; // only local for now
+		displayName: string;
+		provider: string;
 		mimeType: string; // mime type
 		alternativeText?: string;
 		caption?: string;

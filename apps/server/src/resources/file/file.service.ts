@@ -35,6 +35,7 @@ type ServiceFormatsIn = Record<ImageFormatType, ServiceFormatData>;
 
 export type CreateAppFileInput = {
 	filename: string;
+	displayName: string;
 	mimetype: string;
 	path: string;
 	url: string;
@@ -112,6 +113,7 @@ export default class FileService {
 	private async _createRecord(params: CreateAppFileInput) {
 		const parseFile = new ParseAppFile({
 			name: params.filename,
+			displayName: params.displayName,
 			mimeType: params.mimetype,
 			path: params.path,
 			url: params.url,
@@ -146,8 +148,13 @@ export default class FileService {
 			// do nothing
 		}
 
+		const filename = addSuffixToFileName(file.originalname, `_${uid}_@original`);
+
 		// upload the file here
-		const mainPromise = this.uploadAdapter.upload({ buffer: file.buffer, name: file.originalname });
+		const mainPromise = this.uploadAdapter.upload({
+			buffer: file.buffer,
+			name: filename,
+		});
 
 		let formatsPromise: Promise<undefined | void[]> = new Promise((resolve) => {
 			resolve(undefined);
@@ -186,9 +193,12 @@ export default class FileService {
 			formats: outFormats,
 			parentFolder,
 			provider: this.uploadAdapter.provider,
-			filename: file.originalname,
+			// filename: file.originalname,
+			filename,
+			displayName: file.originalname,
 			mimetype: file.mimetype,
-			path: FolderService.getPathForFolder(parentFolder) + file.originalname,
+			// path: FolderService.getPathForFolder(parentFolder) + file.originalname,
+			path: FolderService.getPathForFolder(parentFolder) + filename,
 			size: file.size,
 			url: result.url,
 			meta: result.meta,

@@ -22,6 +22,10 @@ import RoleService from '../../resources/role/role.service';
 import { DEFAULT_CLP, USE_MASTER_KEY } from '../constants';
 import { getCorrectLocale, getT } from '../i18n';
 
+export const getParseFunctionHeader = (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest, key: string) => {
+	return req.headers?.[key] || req.headers?.[_.toLower(key)];
+};
+
 type ParseInnerFunction<T = unknown> =
 	| ((req: Parse.Cloud.TriggerRequest) => Promise<T>)
 	| ((req: Parse.Cloud.FunctionRequest) => Promise<T>);
@@ -83,9 +87,9 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 	const innerFunction = async (req: Parse.Cloud.FunctionRequest) => {
 		const { requireUser, action, allowedRoles } = params;
 
-		const { user, headers } = req;
+		const { user } = req;
 
-		const localeInHeader: string | undefined = headers?.[_.toLower(LOCALE_HEADER_KEY)];
+		const localeInHeader: string | undefined = getParseFunctionHeader(req, LOCALE_HEADER_KEY);
 
 		// const locale: AppLocale = appLocales.includes(localeInHeader as never)
 		// 	? (localeInHeader as AppLocale)
@@ -118,7 +122,8 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 		const [session, userHasRole] = await Promise.all([sessionPromise, userHasRolePromise]);
 
 		const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
-		const onlineMatchConditionIp = !global.LOCAL && session?.get('ipAddress') !== req.headers?.['x-forwarded-for'];
+		const onlineMatchConditionIp =
+			!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-forwarded-For');
 
 		// ! we assume that we will never call cloud functions from server cloud code
 		if (localMatchConditionIp || onlineMatchConditionIp) {
@@ -267,7 +272,8 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 					.first({ sessionToken });
 
 				const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
-				const onlineMatchConditionIp = !global.LOCAL && session?.get('ipAddress') !== req.headers?.['x-forwarded-for'];
+				const onlineMatchConditionIp =
+					!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
 
 				if (localMatchConditionIp || onlineMatchConditionIp) {
 					throw new Error(t('common:sessionInvalid'));
