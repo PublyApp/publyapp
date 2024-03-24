@@ -1,22 +1,10 @@
 import type zod from 'zod';
 
-import { appLocales } from '@/shared/lib/i18n/resources';
-
 import { SLUG_REGEX } from '../lib/constants';
 import type CustomZod from '../lib/zod/CustomZod';
 import { getListParamsSchema } from '../utils/validation.utils';
 
-const getLocaleSchema = (z: CustomZod) => {
-	// const LOCALE = z.t('common:locale');
-
-	return z.enum(
-		appLocales,
-		// 	, {
-		// 	invalid_type_error: z.t('common:form.error.invalid', { field: LOCALE }),
-		// 	required_error: z.t('common:form.error.required', { field: LOCALE }),
-		// }
-	);
-};
+import { getLocaleSchema } from './locale.validation';
 
 export const getDateTypeSchema = (z: CustomZod) => {
 	return z
@@ -48,6 +36,7 @@ export const getCreatePostInputSchema = (z: CustomZod) => {
 		title: z
 			.string()
 			.min(1, { message: z.t('common:form.error.required', { field: TITLE }) })
+			// .min(1)
 			.max(TITLE_MAX_LENGTH, {
 				message: z.t('common:form.error.maxLength', { field: TITLE, maxLength: TITLE_MAX_LENGTH }),
 			}),
@@ -86,12 +75,11 @@ export const getUpdatePostInputSchema = (z: CustomZod) => {
 	// const PUBLISHED = z.t('common:published');
 
 	return getCreatePostInputSchema(z)
-		.omit({ locale: true })
 		.partial()
+		.required({ locale: true })
 		.extend({
 			objectId: z.string().min(1, { message: z.t('common:form.error.required', { field: ID }) }),
 			published: z.boolean().optional(),
-			locale: getLocaleSchema(z),
 		});
 };
 

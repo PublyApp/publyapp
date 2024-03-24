@@ -7,9 +7,10 @@ import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from
 import { env } from '../lib/env';
 import logger from '../lib/logger';
 import { getCurrentInstallationId } from '../lib/parse/utils';
+import { getHeader } from '../utils/request.utils';
 
 const isMaster = (req: Request) => {
-	return req.body._MasterKey === env.PARSE_MASTER_KEY || req.get('X-Parse-Master-Key') === env.PARSE_MASTER_KEY;
+	return req.body._MasterKey === env.PARSE_MASTER_KEY || getHeader(req, 'X-Parse-Master-Key') === env.PARSE_MASTER_KEY;
 };
 
 const handleMatchSessionIp = async (req: express.Request, _res: express.Response) => {
@@ -29,8 +30,8 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 		return;
 	}
 
-	const installationId = req.get(_.toLower(PARSE_INSTALLATION_ID_HEADER_KEY)) || req.body._InstallationId;
-	const sessionToken = req.get(_.toLower(PARSE_SESSION_TOKEN_HEADER_KEY)) || req.body._SessionToken;
+	const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) || req.body._InstallationId;
+	const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) || req.body._SessionToken;
 
 	const cloudInstallationId = await getCurrentInstallationId();
 
@@ -49,7 +50,7 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 		.first({ sessionToken });
 
 	if (session) {
-		const requestIp = req.ip || req.get('x-forwarded-for');
+		const requestIp = req.ip || getHeader(req, 'x-forwarded-for');
 
 		if (session.get('ipAddress') !== requestIp) {
 			throw new Error('Invalid session token');

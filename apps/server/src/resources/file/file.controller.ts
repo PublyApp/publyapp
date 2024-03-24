@@ -19,7 +19,7 @@ export const handleUploadSingleFile: RequestHandler = async (req, res, next) => 
 
 		const { provider, parentFolderPath } = req.body;
 
-		// const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
+		// const sessionToken = getHEader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
 		const sessionToken = req.user?.getSessionToken();
 
 		const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;
@@ -49,7 +49,7 @@ export const handleUploadManyFiles: RequestHandler = async (req, res, next) => {
 
 		const { parentFolderPath, provider } = req.body;
 
-		// const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY);
+		// const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
 		const sessionToken = req.user?.getSessionToken();
 
 		const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;

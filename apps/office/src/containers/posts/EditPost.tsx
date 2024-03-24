@@ -4,7 +4,10 @@ import { m } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 
-import { getUpdatePostInputSchema, type UpdatePostInput } from '@devist/shared/validations/post.validations';
+import {
+	getUpdatePostSchemaClientSide,
+	type UpdatePostSchemaClientSide,
+} from '@devist/shared/validations/post/post.validations.client';
 import {
 	useGetPostByIdSuspenseQuery,
 	useUpdatePostMutation,
@@ -12,6 +15,8 @@ import {
 
 import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import type { AppFile } from '@/shared/types/db/appFile.types';
+import useHttpClients from '@/ui-react/hooks/useHttpClients';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 import zod from '@/ui-react/lib/zod';
 import { pxToRem } from '@/ui-react/utils/css.utils';
@@ -22,8 +27,9 @@ const EditPost = () => {
 	// const { t } = useTranslation();
 	const { lang } = useTranslate();
 	const params = useParams();
+	const { parseApi } = useHttpClients();
 
-	const savePostInputSchema = getUpdatePostInputSchema(zod);
+	const savePostInputSchema = getUpdatePostSchemaClientSide(zod);
 
 	const {
 		result: { data: post },
@@ -43,7 +49,7 @@ const EditPost = () => {
 	// 	return post.updateDate ? new Date(post.updateDate) : undefined;
 	// }, [post.updateDate]);
 
-	const updatePostForm = useForm<UpdatePostInput>({
+	const updatePostForm = useForm<UpdatePostSchemaClientSide>({
 		resolver: zodResolver(savePostInputSchema),
 		values: {
 			objectId: post.objectId,
@@ -59,16 +65,23 @@ const EditPost = () => {
 			updateDate: post.updateDate ? new Date(post.updateDate) : undefined,
 			coverUrl: undefined,
 			coverId: undefined,
+			coverFile: undefined,
 			tags: post.tags,
 		},
 		disabled: isUpdatePostPending,
 	});
 
 	const handleUpdatePost = updatePostForm.handleSubmit(
-		async (input) => {
-			console.log('--- handleUpdatePost input ---', input);
-			// updatePost(input);
-			await updatePostAsync(input);
+		async ({ coverFile, ...restInput }) => {
+			console.log('--- handleUpdatePost input ---', coverFile, restInput);
+
+			let uploadResult: AppFile | undefined;
+
+			if (coverFile) {
+				uploadResult = await parseApi.appFiles.uploadSingleFile({ file: coverFile });
+			}
+
+			await updatePostAsync({ ...restInput, coverId: uploadResult?.objectId });
 		},
 		(errors) => {
 			console.log('--- handleUpdatePost errors ---', errors);

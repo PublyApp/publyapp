@@ -31,14 +31,14 @@ const PostForm = ({ form, edit = false, tags: _tags = [] }: Props) => {
 			});
 
 			if (file) {
-				setValue('coverUrl', newFile, { shouldValidate: true });
+				setValue('coverFile', newFile, { shouldValidate: true });
 			}
 		},
 		[setValue],
 	);
 
 	const handleRemoveFile = useCallback(() => {
-		setValue('coverUrl', null);
+		setValue('coverFile', null);
 	}, [setValue]);
 
 	return (
@@ -46,7 +46,7 @@ const PostForm = ({ form, edit = false, tags: _tags = [] }: Props) => {
 			form={form}
 			// onSubmit={handleSavePost}
 		>
-			<RHFUpload name="coverUrl" multiple={false} maxSize={3145728} onDrop={handleDrop} onDelete={handleRemoveFile} />
+			<RHFUpload name="coverFile" multiple={false} maxSize={3145728} onDrop={handleDrop} onDelete={handleRemoveFile} />
 
 			<Stack spacing={3}>
 				{edit ? <RHFSwitch name="published" label="Publish" color="success" /> : null}
