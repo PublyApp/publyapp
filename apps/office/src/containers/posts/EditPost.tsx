@@ -23,7 +23,7 @@ import PostForm from './PostForm';
 
 const EditPost = () => {
 	// const { t } = useTranslation();
-	const { lang } = useTranslate();
+	const { lang, t } = useTranslate();
 	const params = useParams();
 	// const { parseApi } = useHttpClients();
 
@@ -74,7 +74,6 @@ const EditPost = () => {
 	const handleUpdatePost = updatePostForm.handleSubmit(
 		async (input) => {
 			console.log('--- handleUpdatePost input ---', input);
-
 			await updatePostAsync(input);
 		},
 		(errors) => {
@@ -82,7 +81,7 @@ const EditPost = () => {
 		},
 	);
 
-	const headingElement = <PageHeader.Heading text="Edit post" />;
+	const headingElement = <PageHeader.Heading text={t('edit-post')} />;
 	const breadcrumbsElement = (
 		<PageHeader.Breadcrumbs
 			links={[
@@ -91,11 +90,11 @@ const EditPost = () => {
 					href: BO_PATH_NAMES.dashboard.root,
 				},
 				{
-					name: 'Posts',
+					name: `${t('post')}s`,
 					href: BO_PATH_NAMES.dashboard.posts.root,
 				},
 				{
-					name: 'Edit',
+					name: t('edit'),
 					// href: BO_PATH_NAMES.dashboard.posts.edi,
 				},
 			]}
@@ -104,9 +103,9 @@ const EditPost = () => {
 
 	const renderHeaderActions = (
 		<>
-			<Button>preview</Button>
+			<Button>{t('preview')}</Button>
 			<Button variant="contained" onClick={handleUpdatePost}>
-				save
+				{t('save')}
 			</Button>
 		</>
 	);

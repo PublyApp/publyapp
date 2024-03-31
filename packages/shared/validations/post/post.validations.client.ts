@@ -3,7 +3,8 @@ import type zod from 'zod';
 import type CustomZod from '@/shared/lib/zod/CustomZod';
 
 import { getFileSchemaClientSide } from '../file/file.validations.client';
-import { getUpdatePostInputSchema } from '../post.validations';
+
+import { getCreatePostInputSchema, getUpdatePostInputSchema } from './post.validations';
 
 // export const getUpdatePostInputSchemaClientSide = (z: CustomZod) => {
 // 	const ID = 'ObjectId';
@@ -24,4 +25,11 @@ export const getUpdatePostSchemaClientSide = (z: CustomZod) => {
 	});
 };
 
+export const getCreatePostInputSchemaClientSide = (z: CustomZod) => {
+	return getCreatePostInputSchema(z).extend({
+		coverFile: getFileSchemaClientSide(z).optional(),
+	});
+};
+
 export type UpdatePostSchemaClientSide = zod.infer<ReturnType<typeof getUpdatePostSchemaClientSide>>;
+export type CreatePostSchemaClientSide = zod.infer<ReturnType<typeof getCreatePostInputSchemaClientSide>>;

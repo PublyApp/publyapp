@@ -45,7 +45,19 @@ export type PostAttributes = {
 	postSeriesOrder?: number;
 };
 
-export type IPost = BaseAttributes & PostAttributes;
+type SEOAttributes = {
+	title?: string;
+	description?: string;
+	robots?: {
+		index?: boolean;
+		follow?: boolean;
+	};
+};
+
+export type IPost = BaseAttributes &
+	PostAttributes & {
+		seo?: SEOAttributes;
+	};
 
 export type IPostWithRelations = IPost & {
 	author: IUser;

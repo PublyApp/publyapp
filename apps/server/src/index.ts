@@ -6,6 +6,7 @@ import * as ps from 'parse-server/lib/index.js';
 
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@remix-run/express';
+import chalk from 'chalk';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import express from 'express';
@@ -140,8 +141,10 @@ const bootstrap = async () => {
 	app.use(errorMiddleware);
 
 	// --------------------------------------------------------------------------------------//
-	//                         setup parse dashboard when in local                          //
-	// --------------------------------------------------------------------------------------//
+	//                         setup parse dashboard when in local                           //
+	// ------------------------------------------------------------------------------------- //
+	const PARSE_DASHBOARD_MOUNT_PATH = '/pdash';
+
 	if (global.LOCAL) {
 		const dashboard = new ParseDashboard(
 			{
@@ -160,7 +163,7 @@ const bootstrap = async () => {
 			},
 		);
 
-		app.use('/pdash', dashboard);
+		app.use(PARSE_DASHBOARD_MOUNT_PATH, dashboard);
 	}
 
 	// --------------------------------------------------------------------------------------//
@@ -193,9 +196,14 @@ const bootstrap = async () => {
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
 	app.listen(env.PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
-		logger.info('====================================');
-		logger.info(`   server running on port ${env.PORT}   `);
-		logger.info('====================================');
+		logger.info('================================================================');
+		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
+
+		if (global.LOCAL) {
+			logger.info(`    access the dashboard at ${chalk.cyan(`${env.SERVER_URL}${PARSE_DASHBOARD_MOUNT_PATH}`)}    `);
+		}
+
+		logger.info('================================================================');
 	});
 
 	// Manually create nested keys indexes

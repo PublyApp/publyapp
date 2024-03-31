@@ -27,5 +27,16 @@
 	"draft": "Brouillon",
 	"invalid-number": "Nombre invalide",
 	"file": "Fichier",
-	"field": "Champ"
+	"field": "Champ",
+	"post": "Article",
+	"new": "Nouveau",
+	"your-description": "Votre description",
+	"your-title": "Votre titre",
+	"your-content": "Votre contenu",
+	"publish-date": "Date de publication",
+	"update-date": "Date de mise à jour",
+	"save": "Sauvegarder",
+	"preview": "Aperçu",
+	"edit-post": "Éditer l'article",
+	"edit": "Éditer"
 }

@@ -310,9 +310,19 @@ export default class PostService {
 
 	async findPostBoTable({ page, pageSize, sorting, locale = defaultLocale, fromPublic }: FindPostBoTableParams) {
 		const include = ['author'];
-		const exclude = PostService.getExcludedTranslations(locale as never);
+		// const exclude = [...PostService.getExcludedTranslations(locale as never), `translation.${locale}.content`];
+		const select = [`translation.${locale}.title`, 'tags', 'viewCount', 'published'];
 
-		const posts = await this.find({ page, pageSize, sorting, locale, include, exclude, json: true, fromPublic });
+		const posts = await this.find({
+			page,
+			pageSize,
+			sorting,
+			locale,
+			include,
+			select,
+			/* exclude, */ json: true,
+			fromPublic,
+		});
 
 		const finalPosts = posts.map((post) => {
 			_.assign(post, post.translation[locale]);

@@ -1,10 +1,9 @@
 import type zod from 'zod';
 
-import { SLUG_REGEX } from '../lib/constants';
-import type CustomZod from '../lib/zod/CustomZod';
-import { getListParamsSchema } from '../utils/validation.utils';
-
-import { getLocaleSchema } from './locale.validation';
+import { SLUG_REGEX } from '../../lib/constants';
+import type CustomZod from '../../lib/zod/CustomZod';
+import { getListParamsSchema } from '../../utils/validation.utils';
+import { getLocaleSchema } from '../locale.validation';
 
 export const getDateTypeSchema = (z: CustomZod) => {
 	return z

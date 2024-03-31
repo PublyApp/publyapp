@@ -5,7 +5,7 @@ import {
 	getCreatePostInputSchema,
 	getFindPostFunctionParamsSchema,
 	getUpdatePostInputSchema,
-} from '@devist/shared/validations/post.validations';
+} from '@devist/shared/validations/post/post.validations';
 
 import { ParsePost } from '@/server/lib/parse/classes/post.class';
 import { parseFrom, type FunctionReturn } from '@/server/lib/parse/utils';
