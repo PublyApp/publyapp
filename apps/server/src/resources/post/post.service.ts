@@ -338,6 +338,7 @@ export default class PostService {
 		const include = ['author', 'cover'];
 		// const exclude = PostService.getExcludedTranslations(locale as never);
 		const select = [
+			'slug',
 			'tags',
 			`translation.${locale}.title`,
 			`translation.${locale}.description`,
