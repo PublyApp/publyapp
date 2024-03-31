@@ -130,6 +130,23 @@ export const expressImageUploadHandler = async (image: File) => {
 //   }
 // }
 
+// https://github.com/mdx-editor/editor/issues/370#issuecomment-1975081955
+const codeblockLanguages = [
+	// '',
+	'javascript',
+	'typescript',
+	'html',
+	'css',
+	'xml',
+	'json',
+	'markdown',
+	'sql',
+	'bash',
+	'shell',
+	'text',
+	'txt',
+];
+
 export const ALL_PLUGINS = [
 	toolbarPlugin({
 		toolbarContents: () => {
@@ -147,7 +164,12 @@ export const ALL_PLUGINS = [
 	frontmatterPlugin(),
 	codeBlockPlugin({ defaultCodeBlockLanguage: 'txt' }),
 	// sandpackPlugin({ sandpackConfig: virtuosoSampleSandpackConfig }),
-	codeMirrorPlugin({ codeBlockLanguages: { js: 'JavaScript', css: 'CSS', txt: 'text', tsx: 'TypeScript' } }),
+	codeMirrorPlugin({
+		codeBlockLanguages: codeblockLanguages.reduce((acc: any, value) => {
+			acc[value] = value;
+			return acc;
+		}, {}),
+	}),
 	directivesPlugin({ directiveDescriptors: [/* YoutubeDirectiveDescriptor, */ AdmonitionDirectiveDescriptor] }),
 	diffSourcePlugin({ viewMode: 'rich-text', diffMarkdown: 'boo' }),
 	markdownShortcutPlugin(),
