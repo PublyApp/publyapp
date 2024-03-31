@@ -2,9 +2,10 @@ import { useMutation, useSuspenseQuery, type UseMutationOptions } from '@tanstac
 
 import { endPoint, functionName } from '@devist/shared/lib/constants';
 
-import useHttpClients from '@/ui-react/hooks/useHttpClients';
+import parseApi from '@/ui-react/api/parse/ParseApi';
 
 // import AppFileActions,  { UploadManyFilesActionParams } from "./appFile.actions";
+
 import AppFileActions, {
 	type CreateAppFileFolderActionParams,
 	type FindAppFileQueryParams,
@@ -22,7 +23,6 @@ export const findAppFileQueryKeyString = functionName.findAppFile;
 
 export const useFindAppFileSuspense = (params: FindAppFileQueryParams) => {
 	const key = [findAppFileQueryKeyString, params] as const;
-	const { parseApi } = useHttpClients();
 
 	const appFileActions = new AppFileActions(parseApi);
 
@@ -53,7 +53,6 @@ type UseUploadManyFilesMutationProps = {
 
 export const useUploadManyFilesMutation = ({ options }: UseUploadManyFilesMutationProps = {}) => {
 	const key = [uploadManyFilesMutationKeyString] as const;
-	const { parseApi } = useHttpClients();
 
 	const appFileActions = new AppFileActions(parseApi);
 
@@ -84,7 +83,6 @@ type UseCreateAppFileFolderMutationProps = {
 
 export const useCreateAppFileFolder = ({ options }: UseCreateAppFileFolderMutationProps) => {
 	const key = [createAppFileFolderMutationKey] as const;
-	const { parseApi } = useHttpClients();
 
 	const appFileActions = new AppFileActions(parseApi);
 

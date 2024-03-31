@@ -25,7 +25,6 @@ const EditPost = () => {
 	// const { t } = useTranslation();
 	const { lang, t } = useTranslate();
 	const params = useParams();
-	// const { parseApi } = useHttpClients();
 
 	const savePostInputSchema = getUpdatePostSchemaClientSide(zod);
 

@@ -26,13 +26,6 @@ const LogInForm = () => {
 		formState: { errors /* , isDirty, isValid */ },
 	} = form;
 
-	// const {
-	// 	// key: useGetClientAuthQueryKey,
-	// 	result: { refetch: refetchClientAuth },
-	// } = useGetClientAuthSuspenseQuery(/* { enabled: false } */);
-
-	// const { parseApi } = useHttpClients();
-
 	const {
 		result: { mutate: logIn, isPending },
 	} = useLogInMutation({
