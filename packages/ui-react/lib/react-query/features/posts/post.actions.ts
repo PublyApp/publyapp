@@ -1,20 +1,10 @@
 import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
 
-// import {
-// 	// runCreatePost,
-// 	// runFindPost,
-// 	// runGetPostById,
-// 	// type CreatePostFunctionParams,
-// 	// type FindPostFunctionResult,
-// 	// type FinPostFunctionParams,
-// 	// type GetPostByIdFunctionParams,
-// } from '@devist/shared/lib/parse/cloudRunners/post.runner';
-
 import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 import { type IPostWithRelations } from '@/shared/types/db/post.types';
-import type ParseApi from '@/ui-react/api/parse/ParseApi';
+import { type ParseApi } from '@/ui-react/api/parse/ParseApi';
 import type {
 	CreatePostFunctionParams,
 	FindPostFunctionParams,
