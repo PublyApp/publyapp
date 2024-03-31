@@ -12,7 +12,9 @@ import { type ParseApi } from '@/ui-react/api/parse/ParseApi';
 // import { ClientException } from '@/ui-react/exceptions/ClientException';
 
 export default class AuthActions {
-	constructor(private parseApi: ParseApi) {}
+	constructor(private parseApi: ParseApi) {
+		this.logOutAction = this.logOutAction.bind(this);
+	}
 
 	// ---- 1 --------------------------------------------------------------------------------
 
