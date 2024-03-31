@@ -5,20 +5,42 @@ import { PostEndPoints } from './post.endpoints';
 import UserEndPoints from './user.endpoints';
 
 export default class ParseApi {
-	readonly parseRestClient: ParseRestClient;
+	private _parseRestClient!: ParseRestClient;
 
-	readonly posts: PostEndPoints;
+	private _posts!: PostEndPoints;
 
-	readonly users: UserEndPoints;
+	private _users!: UserEndPoints;
 
-	readonly appFiles: AppFileEndPoints;
+	private _appFiles!: AppFileEndPoints;
 
-	constructor({ parseRestClient }: { parseRestClient: ParseRestClient }) {
-		this.parseRestClient = parseRestClient;
+	constructor({ parseRestClient }: { parseRestClient?: ParseRestClient }) {
+		if (parseRestClient) {
+			this.setRestClient(parseRestClient);
+		}
+	}
+
+	setRestClient(parseRestClient: ParseRestClient) {
+		this._parseRestClient = parseRestClient;
 
 		// endpoints
-		this.users = new UserEndPoints(this.parseRestClient);
-		this.posts = new PostEndPoints(this.parseRestClient);
-		this.appFiles = new AppFileEndPoints(this.parseRestClient);
+		this._users = new UserEndPoints(this._parseRestClient);
+		this._posts = new PostEndPoints(this._parseRestClient);
+		this._appFiles = new AppFileEndPoints(this._parseRestClient);
+	}
+
+	public get parseRestClient() {
+		return this._parseRestClient;
+	}
+
+	public get users() {
+		return this._users;
+	}
+
+	public get posts() {
+		return this._posts;
+	}
+
+	public get appFiles() {
+		return this._appFiles;
 	}
 }

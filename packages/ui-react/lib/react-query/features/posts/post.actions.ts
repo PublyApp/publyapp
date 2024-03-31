@@ -13,6 +13,7 @@ import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
 import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { AppFile } from '@/shared/types/db/appFile.types';
+import { type IPostWithRelations } from '@/shared/types/db/post.types';
 import type ParseApi from '@/ui-react/api/parse/ParseApi';
 import type {
 	CreatePostFunctionParams,
@@ -23,7 +24,9 @@ import type {
 import { getImageFileFromUrl } from '@/ui-react/utils/image.utils';
 
 // == createPost ==================
-export type CreatePostActionParams = CreatePostFunctionParams;
+export type CreatePostActionParams = CreatePostFunctionParams & {
+	coverFile?: File & { preview?: string; appFileId?: string };
+};
 
 // == getPostById ===================
 export type GetPostByIdQueryParams = GetPostByIdFunctionParams;
@@ -53,7 +56,16 @@ export default class PostActions {
 
 	async createPostAction(params: CreatePostActionParams) {
 		try {
-			const post = await this.parseApi.posts.createPost(params);
+			const { coverFile, ...restParams } = params;
+
+			let uploadResult: AppFile | undefined;
+
+			if (coverFile && !coverFile.appFileId) {
+				uploadResult = await this.parseApi.appFiles.uploadSingleFile({ file: coverFile });
+				// Object.assign(coverFile, { appFileId: uploadResult.objectId });
+			}
+
+			const post = await this.parseApi.posts.createPost({ ...restParams, coverId: uploadResult?.objectId });
 			return post;
 		} catch (error) {
 			console.log('----- createPostAction error ----------', error);
@@ -65,14 +77,16 @@ export default class PostActions {
 
 	static readonly findPostQueryKeyBase = functionName.findPost;
 
-	findPostQuery(params: FindPostQueryParams) {
+	findPostQuery(params?: FindPostQueryParams) {
 		return queryOptions({
 			queryKey: [PostActions.findPostQueryKeyBase, params] as const,
 			queryFn: this.findPostAction,
 		});
 	}
 
-	async findPostAction(context: QueryFunctionContext<readonly [typeof functionName.findPost, FindPostQueryParams]>) {
+	async findPostAction(
+		context: QueryFunctionContext<readonly [typeof functionName.findPost, FindPostQueryParams | undefined]>,
+	) {
 		try {
 			const params = context.queryKey[1];
 			const posts = this.parseApi.posts.findPost(params);
@@ -102,24 +116,7 @@ export default class PostActions {
 			// const post = await runGetPostById(params);
 			const post = await this.parseApi.posts.getPostById(params);
 
-			let coverFile: (File & { preview: string; alreadyUploaded?: boolean }) | undefined;
-
-			if (post.cover && post.cover.url) {
-				let origin = '';
-
-				if (post.cover.provider === fileProvider.LOCAL_DISK) {
-					const url = new URL(this.parseApi.parseRestClient.parseServerUrl);
-					origin = url.origin;
-				}
-
-				// eslint-disable-next-line @typescript-eslint/naming-convention
-				const _coverFile = await getImageFileFromUrl(origin + post.cover.url, post.cover.displayName);
-
-				coverFile = Object.assign(_coverFile, {
-					preview: URL.createObjectURL(_coverFile),
-					appFileId: post.cover.objectId,
-				});
-			}
+			const coverFile = await this.getCoverFile(post);
 
 			return {
 				...post,
@@ -150,5 +147,28 @@ export default class PostActions {
 			console.log('----- updatePostAction error ----------', error);
 			return Promise.reject(error);
 		}
+	}
+
+	async getCoverFile(post: IPostWithRelations) {
+		let coverFile: (File & { preview: string; alreadyUploaded?: boolean }) | undefined;
+
+		if (post.cover && post.cover.url) {
+			let origin = '';
+
+			if (post.cover.provider === fileProvider.LOCAL_DISK) {
+				const url = new URL(this.parseApi.parseRestClient.parseServerUrl);
+				origin = url.origin;
+			}
+
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			const _coverFile = await getImageFileFromUrl(origin + post.cover.url, post.cover.displayName);
+
+			coverFile = Object.assign(_coverFile, {
+				preview: URL.createObjectURL(_coverFile),
+				appFileId: post.cover.objectId,
+			});
+		}
+
+		return coverFile;
 	}
 }

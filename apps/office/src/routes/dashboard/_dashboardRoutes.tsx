@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 
 import loadable from '@loadable/component';
-import { Button } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
 import clients from '@/office/api/clients';
@@ -28,7 +28,11 @@ const EditPost = loadable(() => {
 
 const DashboardRootError = () => {
 	const error = useRouteError();
-	const { revalidate } = useRevalidator();
+	const { revalidate, state } = useRevalidator();
+
+	if (state === 'loading') {
+		return <SplashScreen />;
+	}
 
 	if (error instanceof ClientException) {
 		if (error.code === ClientException.AUTH_REQUIRED) {
@@ -47,19 +51,36 @@ const DashboardRootError = () => {
 	// }
 
 	return (
-		<div role="alert">
+		<Box role="alert" sx={{ px: 3 }}>
 			<h1>Something went wrong!! (Dash)</h1>
-			<pre style={{ color: 'red' }}>{JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}</pre>
+			<pre
+				css={{
+					color: 'red',
+					maxWidth: '100%',
+					background: '#f7f7f7',
+					overflowX: 'auto',
+					margin: '0 auto',
+					borderRadius: '6px',
+					padding: '12px',
+					marginBottom: '12px',
+				}}
+			>
+				{JSON.stringify(error, Object.getOwnPropertyNames(error), 2).replaceAll('\\n', '\n\t\t')}
+			</pre>
 			<Button
 				type="button"
 				onClick={() => {
 					// defaultQueryClient.invalidateQueries(getClientAuthQuery.queryKey);
 					revalidate();
 				}}
+				sx={(theme) => {
+					return { margin: '0 auto', background: theme.palette.common.black };
+				}}
+				variant="contained"
 			>
 				retry
 			</Button>
-		</div>
+		</Box>
 	);
 };
 

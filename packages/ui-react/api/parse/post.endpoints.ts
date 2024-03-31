@@ -52,10 +52,9 @@ export class PostEndPoints {
 		this.findPostTag = this.findPostTag.bind(this);
 	}
 
-	async findPost(params: FindPostFunctionParams) {
-		const { view = 'front-list', page, pageSize } = params;
+	async findPost(params: FindPostFunctionParams | undefined) {
 		const posts = await this.parseRestClient.cloudRun<FindPostFunctionResult>(functionName.findPost, {
-			params: { view, page, pageSize },
+			params,
 		});
 
 		return posts;

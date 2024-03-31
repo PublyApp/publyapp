@@ -26,5 +26,16 @@
 	"published": "Published",
 	"draft": "Draft",
 	"invalid-number": "Invalid number",
-	"field": "Field"
+	"field": "Field",
+	"post": "Post",
+	"new": "New",
+	"your-description": "Your description",
+	"your-title": "Your title",
+	"your-content": "Your content",
+	"publish-date": "Publish date",
+	"update-date": "Update Date",
+	"save": "Save",
+	"preview": "Preview",
+	"edit-post": "Edit post",
+	"edit": "Edit"
 }

@@ -19,7 +19,7 @@ import PostActions, { type FindPostQueryParams, type GetPostByIdQueryParams } fr
 export const useCreatePostMutation = () => {
 	const { enqueueSnackbar } = useSnackbar();
 	const navigate = useNavigate();
-	const queryClient = useQueryClient();
+	// const queryClient = useQueryClient();
 	const { parseApi } = useHttpClients();
 
 	const key = [PostActions.createPostMutationKeyBase] as const;
@@ -31,8 +31,8 @@ export const useCreatePostMutation = () => {
 		mutationFn: postActions.createPostAction,
 		onSuccess: async (data /* , variables, context */) => {
 			enqueueSnackbar({ variant: 'success', message: 'New post created' });
-			queryClient.setQueryData([PostActions.getPostQueryKeyBase, { id: data.objectId }], data);
-			queryClient.invalidateQueries({ queryKey: [PostActions.findPostQueryKeyBase] });
+			// queryClient.setQueryData([PostActions.getPostQueryKeyBase, { id: data.objectId }], data);
+			// queryClient.invalidateQueries({ queryKey: [PostActions.findPostQueryKeyBase] });
 			navigate(BO_PATH_NAMES.dashboard.posts.edit(data.objectId));
 		},
 		onError: async (error /* , variables, context */) => {
@@ -146,8 +146,8 @@ export const useUpdatePostMutation = (props: UseUpdatePostMutationProps = {}) =>
 		mutationFn: postActions.updatePostAction,
 		onSuccess: (data, variables, context) => {
 			enqueueSnackbar({ variant: 'success', message: 'Post updated' });
-			queryClient.setQueryData([PostActions.getPostQueryKeyBase, { id: data.objectId }], data);
-			queryClient.invalidateQueries({ queryKey: [PostActions.findPostQueryKeyBase] });
+			queryClient.invalidateQueries({ queryKey: postActions.getPostByIdQuery({ id: data.objectId }).queryKey });
+			queryClient.invalidateQueries({ queryKey: postActions.findPostQuery().queryKey });
 			onSuccess?.(data, variables, context);
 		},
 		onError: async (error, variables, context) => {

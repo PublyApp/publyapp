@@ -11,6 +11,7 @@ import RHFSwitch from '@devist/ui-react/components/form/RHFSwitch';
 import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
 
 import { RHFUpload } from '@/ui-react/components/form/RHFUpload';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 
 type Props = {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,6 +21,7 @@ type Props = {
 };
 
 const PostForm = ({ form, edit = false, tags: _tags = [] }: Props) => {
+	const { t } = useTranslate();
 	const { setValue } = form;
 
 	const handleDrop = useCallback(
@@ -46,13 +48,20 @@ const PostForm = ({ form, edit = false, tags: _tags = [] }: Props) => {
 			form={form}
 			// onSubmit={handleSavePost}
 		>
-			<RHFUpload name="coverFile" multiple={false} maxSize={3145728} onDrop={handleDrop} onDelete={handleRemoveFile} />
+			<RHFUpload
+				name="coverFile"
+				multiple={false}
+				maxSize={3145728}
+				onDrop={handleDrop}
+				onDelete={handleRemoveFile}
+				sx={{ mb: 3 }}
+			/>
 
 			<Stack spacing={3}>
 				{edit ? <RHFSwitch name="published" label="Publish" color="success" /> : null}
 
-				<RHFTextField name="title" label="Post Title" />
-				<RHFTextField name="description" label="Description" multiline rows={3} />
+				<RHFTextField name="title" label={t('title')} placeholder={t('your-title')} />
+				<RHFTextField name="description" label="Description" multiline rows={3} placeholder={t('your-description')} />
 
 				<RHFAutocomplete
 					name="tags"
@@ -90,16 +99,16 @@ const PostForm = ({ form, edit = false, tags: _tags = [] }: Props) => {
 				/>
 
 				<Stack spacing={1.5}>
-					<Typography variant="subtitle2">Content</Typography>
-					<RHFMdxEditor name="content" />
+					<Typography variant="subtitle2">{t('content')}</Typography>
+					<RHFMdxEditor name="content" placeholder={t('your-content')} />
 				</Stack>
 
 				<Grid display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={{ xs: 0, md: 4 }}>
 					<Grid item>
-						<RHFDesktopDatePicker name="publishDate" label="Publish date" />
+						<RHFDesktopDatePicker name="publishDate" label={t('publish-date')} />
 					</Grid>
 					<Grid item>
-						<RHFDesktopDatePicker name="updateDate" label="Update date" />
+						<RHFDesktopDatePicker name="updateDate" label={t('update-date')} />
 					</Grid>
 				</Grid>
 
