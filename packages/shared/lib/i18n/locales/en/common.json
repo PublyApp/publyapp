@@ -37,5 +37,6 @@
 	"save": "Save",
 	"preview": "Preview",
 	"edit-post": "Edit post",
-	"edit": "Edit"
+	"edit": "Edit",
+	"must-init-parse-api": "Must init with a REST client"
 }

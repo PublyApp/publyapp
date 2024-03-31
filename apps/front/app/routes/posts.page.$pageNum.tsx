@@ -4,8 +4,8 @@ import { /* useLoaderData, */ defer, type ClientLoaderFunction } from '@remix-ru
 
 import { _categories, _tags } from '@/front/_mock';
 import BlogSidebar from '@/front/containers/blog/sidebar/BlogSidebar';
+import parseApi from '@/ui-react/api/parse/ParseApi';
 
-import { parseApi } from '../api/_index';
 import PostListHorizontal from '../containers/blog/PostListHorizontal';
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 

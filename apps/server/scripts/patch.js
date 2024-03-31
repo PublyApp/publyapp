@@ -58,4 +58,8 @@ const patchParseServerSelectNestedObjects = async () => {
 	}
 };
 
-Promise.all([patchParseServerMiddleWareHeader(), patchParseServerSelectNestedObjects()]);
+Promise.all([
+	//
+	patchParseServerMiddleWareHeader(),
+	patchParseServerSelectNestedObjects(),
+]);

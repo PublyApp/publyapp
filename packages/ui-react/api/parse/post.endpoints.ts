@@ -53,8 +53,12 @@ export class PostEndPoints {
 	}
 
 	async findPost(params: FindPostFunctionParams | undefined) {
+		const view = params?.view || 'front-list';
 		const posts = await this.parseRestClient.cloudRun<FindPostFunctionResult>(functionName.findPost, {
-			params,
+			params: {
+				...params,
+				view,
+			},
 		});
 
 		return posts;

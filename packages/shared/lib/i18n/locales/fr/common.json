@@ -38,5 +38,6 @@
 	"save": "Sauvegarder",
 	"preview": "Aperçu",
 	"edit-post": "Éditer l'article",
-	"edit": "Éditer"
+	"edit": "Éditer",
+	"must-init-parse-api": "Doit être initialisé avec un client REST"
 }
