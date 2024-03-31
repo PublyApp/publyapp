@@ -31,3 +31,11 @@ export const localStorageSetItem = (key: string, value: string) => {
 		localStorage.setItem(key, value);
 	}
 };
+
+export const localStorageUnsetItem = (key: string) => {
+	const storageAvailable = localStorageAvailable();
+
+	if (storageAvailable) {
+		localStorage.removeItem(key);
+	}
+};

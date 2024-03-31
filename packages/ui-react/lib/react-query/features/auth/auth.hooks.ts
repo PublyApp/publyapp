@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient, useSuspenseQuery, type MutateOptions } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 
 import type { IUser } from '@devist/shared/types/db/user.types';
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
-import { SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
+import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
 import parseApi from '@/ui-react/api/parse/ParseApi';
-import { localStorageSetItem } from '@/ui-react/utils/storage.utils';
+import { localStorageSetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
 import AuthActions from './auth.actions';
 
@@ -76,6 +77,7 @@ type UseLogOutMutationProps = {
 
 export const useLogOutMutation = ({ onSuccess }: UseLogOutMutationProps = {}) => {
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 
 	const authActions = new AuthActions(parseApi);
 
@@ -85,7 +87,9 @@ export const useLogOutMutation = ({ onSuccess }: UseLogOutMutationProps = {}) =>
 		mutationKey: key,
 		mutationFn: authActions.logOutAction,
 		onSuccess: (...args) => {
+			localStorageUnsetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY);
 			queryClient.removeQueries();
+			navigate(BO_PATH_NAMES.auth.login);
 			onSuccess?.(...args);
 		},
 	});

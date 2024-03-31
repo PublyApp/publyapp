@@ -1,12 +1,10 @@
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useRevalidator } from 'react-router-dom';
 
 import useTranslate from '@devist/ui-react/hooks/useTranslate';
 
 import RouterLink from '@/office/components/RouterLink';
-import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { useLogOutMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 
 // import { initParse } from '@/office/lib/parse/legacy';
@@ -15,15 +13,13 @@ import { useLogOutMutation } from '@/ui-react/lib/react-query/features/auth/auth
 const Home = () => {
 	const { t } = useTranslation();
 	const { lang, setLocale } = useTranslate();
-	const { revalidate } = useRevalidator();
-	const navigate = useNavigate();
 
 	const {
 		result: { mutate: logOut },
 	} = useLogOutMutation({
 		onSuccess: () => {
-			revalidate();
-			navigate(BO_PATH_NAMES.auth.login);
+			// navigate(BO_PATH_NAMES.auth.login);
+			// revalidate();
 		},
 	});
 

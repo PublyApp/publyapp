@@ -4,6 +4,7 @@ import loadable from '@loadable/component';
 import { Box, Button } from '@mui/material';
 import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
+import ErrorDisplay from '@/office/components/ErrorDisplay';
 // import clients from '@/office/api/clients';
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
@@ -52,26 +53,11 @@ const DashboardRootError = () => {
 	// }
 
 	return (
-		<Box role="alert" sx={{ px: 3 }}>
-			<h1>Something went wrong!! (Dash)</h1>
-			<pre
-				css={{
-					color: 'red',
-					maxWidth: '100%',
-					background: '#f7f7f7',
-					overflowX: 'auto',
-					margin: '0 auto',
-					borderRadius: '6px',
-					padding: '12px',
-					marginBottom: '12px',
-				}}
-			>
-				{JSON.stringify(error, Object.getOwnPropertyNames(error), 2).replaceAll('\\n', '\n\t\t')}
-			</pre>
+		<Box sx={{ p: 3 }}>
+			<ErrorDisplay error={error as never} title="Something went wrong!! (Dash)" />
 			<Button
 				type="button"
 				onClick={() => {
-					// defaultQueryClient.invalidateQueries(getClientAuthQuery.queryKey);
 					revalidate();
 				}}
 				sx={(theme) => {
