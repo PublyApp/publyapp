@@ -4,8 +4,7 @@ import type { IUser } from '@devist/shared/types/db/user.types';
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
 import { SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
-// import type ParseApi from '@/ui-react/api/parse/_index';
-import useHttpClients from '@/ui-react/hooks/useHttpClients';
+import parseApi from '@/ui-react/api/parse/ParseApi';
 import { localStorageSetItem } from '@/ui-react/utils/storage.utils';
 
 import AuthActions from './auth.actions';
@@ -23,8 +22,6 @@ type UseLogInMutationProps = {
 
 export const useLogInMutation = ({ options = {} }: UseLogInMutationProps = {}) => {
 	const { onSuccess, ...restOptions } = options;
-
-	const { parseApi } = useHttpClients();
 
 	const authActions = new AuthActions(parseApi);
 
@@ -60,8 +57,6 @@ type UseGetClientAuthProps = {
 };
 
 export const useGetClientAuthSuspenseQuery = ({ options }: UseGetClientAuthProps = {}) => {
-	const { parseApi } = useHttpClients();
-
 	const authActions = new AuthActions(parseApi);
 	const query = authActions.getUserAuthDataQuery;
 
@@ -81,7 +76,6 @@ type UseLogOutMutationProps = {
 
 export const useLogOutMutation = ({ onSuccess }: UseLogOutMutationProps = {}) => {
 	const queryClient = useQueryClient();
-	const { parseApi } = useHttpClients();
 
 	const authActions = new AuthActions(parseApi);
 

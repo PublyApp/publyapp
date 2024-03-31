@@ -78,7 +78,7 @@ const NewPost = () => {
 		<>
 			{/* <Button>preview</Button> */}
 			<Button variant="contained" onClick={handleCreatePost}>
-				save
+				{t('save')}
 			</Button>
 		</>
 	);

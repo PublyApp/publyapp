@@ -7,15 +7,13 @@ import { useTranslation } from 'react-i18next';
 import { LOCALE_HEADER_KEY } from '@devist/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
+import parseApi from '../api/parse/ParseApi';
 import { defaultLangConfig, langConfigsMap } from '../config/lang.config';
 import zod from '../lib/zod';
-
-import useHttpClients from './useHttpClients';
 
 // ----------------------------------------------------------------------
 
 const useTranslate = () => {
-	const { parseApi } = useHttpClients();
 	const { i18n, t, ready } = useTranslation();
 
 	const allLangs = useMemo(() => {
@@ -51,7 +49,7 @@ const useTranslate = () => {
 			// set locale for our CustomZod instance
 			zod.t = i18n.getFixedT(value);
 		},
-		[i18n, parseApi],
+		[i18n],
 	);
 
 	const setLocale: Dispatch<SetStateAction<AppLocale>> = useCallback(

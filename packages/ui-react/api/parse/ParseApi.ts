@@ -4,7 +4,7 @@ import AppFileEndPoints from './appFile.endpoints';
 import { PostEndPoints } from './post.endpoints';
 import UserEndPoints from './user.endpoints';
 
-export default class ParseApi {
+export class ParseApi {
 	private _parseRestClient!: ParseRestClient;
 
 	private _posts!: PostEndPoints;
@@ -13,7 +13,7 @@ export default class ParseApi {
 
 	private _appFiles!: AppFileEndPoints;
 
-	constructor({ parseRestClient }: { parseRestClient?: ParseRestClient }) {
+	constructor({ parseRestClient }: { parseRestClient?: ParseRestClient } = {}) {
 		if (parseRestClient) {
 			this.setRestClient(parseRestClient);
 		}
@@ -44,3 +44,7 @@ export default class ParseApi {
 		return this._appFiles;
 	}
 }
+
+const parseApi = new ParseApi();
+
+export default parseApi;

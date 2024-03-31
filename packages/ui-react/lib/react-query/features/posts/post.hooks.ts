@@ -9,7 +9,7 @@ import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
 
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
-import useHttpClients from '@/ui-react/hooks/useHttpClients';
+import parseApi from '@/ui-react/api/parse/ParseApi';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 
 import PostActions, { type FindPostQueryParams, type GetPostByIdQueryParams } from './post.actions';
@@ -20,7 +20,6 @@ export const useCreatePostMutation = () => {
 	const { enqueueSnackbar } = useSnackbar();
 	const navigate = useNavigate();
 	// const queryClient = useQueryClient();
-	const { parseApi } = useHttpClients();
 
 	const key = [PostActions.createPostMutationKeyBase] as const;
 
@@ -60,7 +59,6 @@ type UseGetPostByIdSuspenseQueryProps = {
 };
 
 export const useGetPostByIdSuspenseQuery = (props: UseGetPostByIdSuspenseQueryProps) => {
-	const { parseApi } = useHttpClients();
 	const postActions = new PostActions(parseApi);
 
 	const query = postActions.getPostByIdQuery(props.params);
@@ -84,7 +82,6 @@ type UseFindPostQueryProps = {
 };
 
 export const useFindPostSuspenseQuery = (props: UseFindPostQueryProps) => {
-	const { parseApi } = useHttpClients();
 	const { locale } = useTranslate();
 
 	const postActions = new PostActions(parseApi);
@@ -104,7 +101,6 @@ export const useFindPostSuspenseQuery = (props: UseFindPostQueryProps) => {
 
 export const useFindPostQuery = (props: UseFindPostQueryProps) => {
 	const { locale } = useTranslate();
-	const { parseApi } = useHttpClients();
 
 	const postActions = new PostActions(parseApi);
 
@@ -133,7 +129,6 @@ type UseUpdatePostMutationProps = Omit<
 
 export const useUpdatePostMutation = (props: UseUpdatePostMutationProps = {}) => {
 	const { onError, onSuccess, ...otherProps } = props;
-	const { parseApi } = useHttpClients();
 	const { enqueueSnackbar } = useSnackbar();
 	const queryClient = useQueryClient();
 
