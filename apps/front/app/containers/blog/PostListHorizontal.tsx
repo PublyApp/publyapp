@@ -1,5 +1,7 @@
-import { Box, Pagination, paginationClasses } from '@mui/material';
-import { useLoaderData } from '@remix-run/react';
+import { Suspense } from 'react';
+
+import { Box, Pagination, paginationClasses, Typography } from '@mui/material';
+import { Await, useLoaderData } from '@remix-run/react';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
@@ -28,8 +30,9 @@ import { PostItemSkeleton } from './components/PostItemSkeleton';
 
 const PostListHorizontal = (/* { posts, loading }: Props */) => {
 	// const loading = useFakeLoading();
-	const loading = false;
+	// const loading = false;
 	const { posts } = useLoaderData<PostListLoaderFunction>();
+	// const { state } = useNavigation();
 
 	// if (_.isArray(posts)) {
 	// 	posts[0]
@@ -37,21 +40,32 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 
 	const renderSkeleton = (
 		<>
-			{[...Array(16)].map((__) => {
+			{[...Array(16)].map((_void) => {
 				return <PostItemSkeleton key={nanoid()} variant="horizontal" />;
 			})}
 		</>
 	);
 
 	const renderList = (
-		<>
-			{null}
-			{posts && _.isArray(posts)
+		<Suspense fallback={renderSkeleton}>
+			<Await resolve={posts}>
+				{/* eslint-disable-next-line @typescript-eslint/no-shadow */}
+				{(posts) => {
+					return !_.isError(posts) ? (
+						posts.map((post) => {
+							return <PostItemHorizontal key={post.objectId} post={post} />;
+						})
+					) : (
+						<Typography sx={{ color: 'red' }}>An Error occurred: {posts.message}</Typography>
+					);
+				}}
+				{/* {posts && _.isArray(posts)
 				? posts.map((post) => {
-						return <PostItemHorizontal key={post.objectId} post={post} />;
-					})
-				: null}
-		</>
+					return <PostItemHorizontal key={post.objectId} post={post} />;
+				})
+				: null} */}
+			</Await>
+		</Suspense>
 	);
 
 	return (
@@ -64,7 +78,8 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 					// md: 'repeat(2, 1fr)',
 				}}
 			>
-				{loading ? renderSkeleton : renderList}
+				{/* {state === 'loading' ? renderSkeleton : renderList} */}
+				{renderList}
 			</Box>
 
 			{posts && _.isArray(posts) && (posts || []).length > 8 && (

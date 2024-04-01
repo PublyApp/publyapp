@@ -1,53 +1,47 @@
-import { z } from 'zod';
+import type zod from 'zod';
 
-import { folderNameSchema } from './file.validations';
+import type CustomZod from '@/shared/lib/zod/CustomZod';
 
-export const clientFileSchema = z.custom<File>((data) => {
-	return data instanceof File;
-}, 'Data is not an instance of File');
+import { getFolderNameSchema } from './file.validations';
 
-// export function getFileSchema(environment: 'browser'): z.ZodType<File, z.ZodTypeDef, File>;
-// export function getFileSchema(environment: 'node'): z.ZodType<Express.Multer.File, z.ZodTypeDef, Express.Multer.File>;
+export const getFileSchemaClientSide = (z: CustomZod) => {
+	const field = z.t('common:field');
+	const type = z.t('common:file');
 
-// // eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions
-// export function getFileSchema(environment: 'node' | 'browser') {
-// 	if (environment === 'browser') {
-// 		return clientFileSchema;
-// 	}
+	return z.custom<
+		File & {
+			preview?: string;
+			// alreadyUploaded?: boolean
+			appFileId?: string;
+		}
+	>(
+		(data) => {
+			return data instanceof File;
+		},
+		{
+			message: z.t('notInstanceOf', { field, type }),
+		},
+	);
+};
 
-// 	if (environment === 'node') {
-// 		return multerFileSchema;
-// 	}
+export const getFilesArraySchemaClientSide = (z: CustomZod) => {
+	return z.array(getFileSchemaClientSide(z)).min(1);
+};
 
-// 	throw new Error('Invalid environment');
-// }
+export const getUploadManyFilesSchemaClientSide = (z: CustomZod) => {
+	return z.object({
+		files: getFilesArraySchemaClientSide(z),
+		parentFolderPath: getFolderNameSchema(z).optional(),
+	});
+};
 
-export const clientFilesArraySchema = z.array(clientFileSchema).min(1);
+export const getCreateFolderSchemaClientSide = (z: CustomZod) => {
+	return z.object({
+		folderName: getFolderNameSchema(z),
+		parentFolderPath: getFolderNameSchema(z).optional(),
+		files: getFilesArraySchemaClientSide(z).optional(),
+	});
+};
 
-export const clientUploadManyFilesSchema = z.object({
-	files: clientFilesArraySchema,
-	parentFolderPath: folderNameSchema.optional(),
-});
-
-// export const multerUploadManyFilesSchema = z.object({
-// 	files: clientFilesArraySchema,
-// 	parentFolderPath: folderNameSchema.optional(),
-// });
-
-export type ClientUploadManyFilesInput = z.infer<typeof clientUploadManyFilesSchema>;
-// export type MulterUploadMAnyFilesInput = z.infer<typeof multerUploadManyFilesSchema>;
-
-export const clientCreateFolderSchema = z.object({
-	folderName: folderNameSchema,
-	parentFolderPath: folderNameSchema.optional(),
-	files: clientFilesArraySchema.optional(),
-});
-
-// export const multerCreateFolderSchema = z.object({
-// 	folderName: folderNameSchema,
-// 	parentFolderPath: folderNameSchema.optional(),
-// 	files: multerFilesArraySchema.optional(),
-// });
-
-export type ClientCreateFolderInput = z.infer<typeof clientCreateFolderSchema>;
-// export type MulterCreateFolderInput = z.infer<typeof multerCreateFolderSchema>;
+export type UploadManyFilesInputClientSide = zod.infer<ReturnType<typeof getUploadManyFilesSchemaClientSide>>;
+export type CreateFolderInputClientSide = zod.infer<ReturnType<typeof getCreateFolderSchemaClientSide>>;

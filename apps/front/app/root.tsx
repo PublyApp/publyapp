@@ -21,6 +21,7 @@ import Error500 from './components/Error500';
 import ClientStyleContext from './contexts/ClientStyleContext';
 import CompactLayout from './layouts/compact/CompactLayout';
 import MainLayout from './layouts/main/MainLayout';
+import { initParse } from './lib/parse/client';
 
 // import { initParse } from './lib/parse/legacy';
 
@@ -29,7 +30,7 @@ interface DocumentProps {
 	title?: string;
 }
 
-// initParse();
+initParse();
 
 const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCache) => {
 	const clientStyleData = useContext(ClientStyleContext);

@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import ParseAppFile  from '@/server/lib/parse/classes/appFile.class';
+import ParseAppFile from '@/server/lib/parse/classes/appFile.class';
 import { fileProvider } from '@/shared/lib/constants';
 
 type FolderServiceProps = {
@@ -59,7 +59,7 @@ export default class FolderService {
 
 		const appFileFolder = new ParseAppFile({
 			name,
-			provider: fileProvider.LOCAL,
+			provider: fileProvider.LOCAL_DISK,
 			mimeType: 'folder',
 			path,
 			folder: parentFolder,

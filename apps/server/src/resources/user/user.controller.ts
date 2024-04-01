@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
 import { createSessionServer } from '@/server/lib/parse/utils';
+import { getHeader } from '@/server/utils/request.utils';
 
 import { AuthCloudService } from '../auth/auth.cloud.service';
 
@@ -12,7 +13,7 @@ export const handlePasswordLogin: RequestHandler = async (req, res, next) => {
 
 		const user = await AuthCloudService.authenticateUserWithPassword({ usernameOrEmail: username, password });
 
-		const ipAddress = (global.LOCAL ? req.ip : req.get('x-forwarded-for')) || nanoid();
+		const ipAddress = global.LOCAL ? req.ip : getHeader(req, 'X-Forwarded-For') || nanoid();
 
 		const result = await createSessionServer({
 			userId: user.objectId,

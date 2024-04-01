@@ -10,6 +10,7 @@ import {
 } from '@/shared/lib/constants';
 
 import logger from '../lib/logger';
+import { getHeader } from '../utils/request.utils';
 
 type Input = {
 	withKey?: boolean;
@@ -22,21 +23,21 @@ const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallatio
 		try {
 			// should have a header key
 			if (withKey) {
-				const apiKey = req.get(DEVIST_REST_API_HEADER_KEY);
+				const apiKey = getHeader(req, DEVIST_REST_API_HEADER_KEY);
 
 				// if the key exists, go to next
 				if (!apiKey) {
-					return next(new HttpException(400, `Missing ${DEVIST_REST_API_HEADER_KEY} params`));
+					return next(new HttpException(400, `Missing ${DEVIST_REST_API_HEADER_KEY} param`));
 				}
 
 				if (apiKey && apiKey !== env.REST_API_KEY) {
-					return next(new HttpException(400, `Invalid ${DEVIST_REST_API_HEADER_KEY}`));
+					return next(new HttpException(400, `Invalid ${DEVIST_REST_API_HEADER_KEY} param`));
 				}
 			}
 
 			// should have a header session token
 			if (withAuth) {
-				const sessionToken = req.get(PARSE_SESSION_TOKEN_HEADER_KEY) || req.query.sessionToken;
+				const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
 
 				if (!sessionToken) {
 					return next(new HttpException(400, 'Missing session params'));
@@ -55,7 +56,7 @@ const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallatio
 			}
 
 			if (withInstallation) {
-				const installationId = req.get(PARSE_INSTALLATION_ID_HEADER_KEY);
+				const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY);
 
 				if (!installationId) {
 					return next(new HttpException(400, 'Missing installationId header'));

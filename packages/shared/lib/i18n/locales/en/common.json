@@ -16,12 +16,27 @@
 			"invalidBooleanType": "{{field}} must be a boolean",
 			"required": "{{field}} required",
 			"maxLength": "{{field}} must have {{maxLength}} characters or less",
-			"invalid": "Invalid {{field}}"
+			"invalid": "Invalid {{field}}",
+			"notInstanceOf": "{{field}} must be an instance of {{type}}"
 		}
 	},
 	"new-post": "New post",
 	"views": "Views",
 	"created-at": "Created at",
 	"published": "Published",
-	"draft": "Draft"
+	"draft": "Draft",
+	"invalid-number": "Invalid number",
+	"field": "Field",
+	"post": "Post",
+	"new": "New",
+	"your-description": "Your description",
+	"your-title": "Your title",
+	"your-content": "Your content",
+	"publish-date": "Publish date",
+	"update-date": "Update Date",
+	"save": "Save",
+	"preview": "Preview",
+	"edit-post": "Edit post",
+	"edit": "Edit",
+	"must-init-parse-api": "Must init with a REST client"
 }

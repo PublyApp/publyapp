@@ -1,15 +1,15 @@
-import { useContext } from 'react';
+// import { useContext } from 'react';
 
-import { HttpClientsContext } from '../providers/HttpClientsProvider';
+// import { HttpClientsContext } from '../providers/HttpClientsProvider';
 
-const useHttpClients = () => {
-	const clients = useContext(HttpClientsContext);
+// const useHttpClients = () => {
+// 	const clients = useContext(HttpClientsContext);
 
-	if (!clients) {
-		throw new Error('useHttpClients must be used within a ParseApiProvider');
-	}
+// 	if (!clients) {
+// 		throw new Error('useHttpClients must be used within a HttpClientsContext');
+// 	}
 
-	return clients;
-};
+// 	return clients;
+// };
 
-export default useHttpClients;
+// export default useHttpClients;

@@ -69,6 +69,7 @@ module.exports = {
 		'@typescript-eslint/consistent-type-imports': 'error',
 		'@typescript-eslint/consistent-type-exports': 'error',
 		'@typescript-eslint/no-explicit-any': 'warn',
+		'@typescript-eslint/no-throw-literal': 'off',
 		// '@typescript-eslint/no-explicit-any': 'off',
 
 		// eslint-plugin-prettier overrides
@@ -97,7 +98,7 @@ module.exports = {
 						position: 'after',
 					},
 					{
-						pattern: '@/{shared,ui-react,front,server,office,awsm}/**',
+						pattern: '@/{shared,ui-react,front,server,office}/**',
 						group: 'external',
 						position: 'after',
 					},

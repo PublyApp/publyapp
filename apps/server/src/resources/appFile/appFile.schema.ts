@@ -8,6 +8,7 @@ const AppFileSchema = defineSchema<AppFileWithRelations>(className.APP_FILE, {
 		// ! for now we use the server's Filesystem only
 		path: { type: 'String', required: true },
 		name: { type: 'String', required: true },
+		displayName: { type: 'String', required: true },
 		mimeType: { type: 'String', required: true },
 		provider: { type: 'String', required: true }, // Cloudinary or Google storage or whatever.
 		folder: { type: 'Pointer', targetClass: className.APP_FILE }, // Has to be of type Folder
@@ -15,6 +16,7 @@ const AppFileSchema = defineSchema<AppFileWithRelations>(className.APP_FILE, {
 		url: { type: 'String' },
 		alternativeText: { type: 'String' },
 		caption: { type: 'String' },
+		meta: { type: 'Object' },
 		// ! only for image/* types
 		height: { type: 'Number' },
 		width: { type: 'Number' },

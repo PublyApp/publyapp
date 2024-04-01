@@ -1,25 +1,26 @@
-import { createContext } from 'react';
+// import { createContext } from 'react';
 
-import type ParseApi from '../api/parse/_index';
-import type { AxiosHttp } from '../lib/axios';
+// import type { AxiosHttp } from '@/shared/lib/axios';
 
-type Clients<T extends ParseApi = ParseApi> = {
-	parseApi: T;
-	http: AxiosHttp; // a default axios instance
-};
+// import type ParseApi from '../api/parse/ParseApi';
 
-export const HttpClientsContext = createContext<Clients | undefined>(undefined);
+// type Clients<T extends ParseApi = ParseApi> = {
+// 	parseApi: T;
+// 	http: AxiosHttp; // a default axios instance
+// };
 
-type Props<T extends ParseApi = ParseApi> = {
-	clients: Clients<T>;
-	children: React.ReactNode;
-};
+// export const HttpClientsContext = createContext<Clients | undefined>(undefined);
 
-/**
- * ! use for dependency injection purpose only
- */
-const HttpClientsProvider = ({ clients, children }: Props) => {
-	return <HttpClientsContext.Provider value={clients}>{children}</HttpClientsContext.Provider>;
-};
+// type Props<T extends ParseApi = ParseApi> = {
+// 	clients: Clients<T>;
+// 	children: React.ReactNode;
+// };
 
-export default HttpClientsProvider;
+// /**
+//  * ! use for dependency injection purpose only
+//  */
+// const HttpClientsProvider = ({ clients, children }: Props) => {
+// 	return <HttpClientsContext.Provider value={clients}>{children}</HttpClientsContext.Provider>;
+// };
+
+// export default HttpClientsProvider;

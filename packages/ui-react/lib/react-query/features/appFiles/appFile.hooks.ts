@@ -2,15 +2,19 @@ import { useMutation, useSuspenseQuery, type UseMutationOptions } from '@tanstac
 
 import { endPoint, functionName } from '@devist/shared/lib/constants';
 
-import type { AppFile } from '@/shared/types/db/appFile.types';
+import parseApi from '@/ui-react/api/parse/ParseApi';
 
-import {
-	createAppFileFolderAction,
-	findAppFileAction,
-	uploadManyFilesAction,
-	type CreateAppFileFOlderActionParams,
+// import AppFileActions,  { UploadManyFilesActionParams } from "./appFile.actions";
+
+import AppFileActions, {
+	type CreateAppFileFolderActionParams,
 	type FindAppFileQueryParams,
-	type UploadManyFilesActionInput,
+	type UploadManyFilesActionParams,
+	// createAppFileFolderAction,
+	// findAppFileAction,
+	// uploadManyFilesAction,
+	// type CreateAppFileFOlderActionParams,
+	// type UploadManyFilesActionInput,
 } from './appFile.actions';
 
 // ---- 1 --------------------------------------------------------------------------------
@@ -20,9 +24,11 @@ export const findAppFileQueryKeyString = functionName.findAppFile;
 export const useFindAppFileSuspense = (params: FindAppFileQueryParams) => {
 	const key = [findAppFileQueryKeyString, params] as const;
 
+	const appFileActions = new AppFileActions(parseApi);
+
 	const result = useSuspenseQuery({
 		queryKey: key,
-		queryFn: findAppFileAction,
+		queryFn: appFileActions.findAppFileAction,
 		// placeholderData: keepPreviousData,
 	});
 
@@ -35,7 +41,12 @@ export const uploadManyFilesMutationKeyString = endPoint.uploadManyFiles;
 
 type UseUploadManyFilesMutationProps = {
 	options?: Omit<
-		UseMutationOptions<AppFile[], Error, UploadManyFilesActionInput, unknown>,
+		UseMutationOptions<
+			Awaited<ReturnType<typeof AppFileActions.prototype.uploadManyFilesAction>>,
+			Error,
+			UploadManyFilesActionParams,
+			unknown
+		>,
 		'mutationKey' | 'mutationFn'
 	>;
 };
@@ -43,9 +54,11 @@ type UseUploadManyFilesMutationProps = {
 export const useUploadManyFilesMutation = ({ options }: UseUploadManyFilesMutationProps = {}) => {
 	const key = [uploadManyFilesMutationKeyString] as const;
 
+	const appFileActions = new AppFileActions(parseApi);
+
 	const result = useMutation({
 		mutationKey: key,
-		mutationFn: uploadManyFilesAction,
+		mutationFn: appFileActions.uploadManyFilesAction,
 		...options,
 	});
 
@@ -59,9 +72,9 @@ export const createAppFileFolderMutationKey = 'createAppFileFolder' as const;
 type UseCreateAppFileFolderMutationProps = {
 	options: Omit<
 		UseMutationOptions<
-			Awaited<ReturnType<typeof createAppFileFolderAction>>,
+			Awaited<ReturnType<typeof AppFileActions.prototype.createAppFileFolderAction>>,
 			Error,
-			CreateAppFileFOlderActionParams,
+			CreateAppFileFolderActionParams,
 			unknown
 		>,
 		'mutationKey' | 'mutationFn'
@@ -71,9 +84,11 @@ type UseCreateAppFileFolderMutationProps = {
 export const useCreateAppFileFolder = ({ options }: UseCreateAppFileFolderMutationProps) => {
 	const key = [createAppFileFolderMutationKey] as const;
 
+	const appFileActions = new AppFileActions(parseApi);
+
 	const result = useMutation({
 		mutationKey: key,
-		mutationFn: createAppFileFolderAction,
+		mutationFn: appFileActions.createAppFileFolderAction,
 		...options,
 		// onSuccess: (data, _variables, _context) => {
 		// 	const parentFolderPath = data.get('path');

@@ -1,6 +1,6 @@
 import type { BaseAttributes } from 'parse';
 
-import type ParseAppFile  from '@/server/lib/parse/classes/appFile.class';
+import type ParseAppFile from '@/server/lib/parse/classes/appFile.class';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 import type { DateType } from '../date.types';
@@ -42,28 +42,42 @@ export type PostAttributes = {
 	viewCount?: number;
 	commentCount?: number;
 	coverUrl?: string;
-	// postSeriesOrder?: number;
+	postSeriesOrder?: number;
 };
 
-export type IPost = BaseAttributes & PostAttributes;
+type SEOAttributes = {
+	title?: string;
+	description?: string;
+	robots?: {
+		index?: boolean;
+		follow?: boolean;
+	};
+};
+
+export type IPost = BaseAttributes &
+	PostAttributes & {
+		seo?: SEOAttributes;
+	};
 
 export type IPostWithRelations = IPost & {
 	author: IUser;
 	cover?: AppFile;
-	postSeriesArray?: {
-		order: number;
-		postSeries: IPostSeries;
-	}[];
+	postSeries?: IPostSeries;
+	// postSeriesArray?: {
+	// 	order: number;
+	// 	postSeries: IPostSeries;
+	// }[];
 	// comments?: IComment[];
 };
 
 export type IPostWithParseRelations = IPost & {
 	author: IUser;
 	cover?: ParseAppFile;
-	postSeriesArray?: {
-		order: number;
-		postSeries: IPostSeries;
-	}[];
+	// postSeries?: ParsePostSeries;
+	// postSeriesArray?: {
+	// 	order: number;
+	// 	postSeries: IPostSeries;
+	// }[];
 	// comments?: ParseComment[];
 };
 

@@ -5,7 +5,7 @@ import { UsersRouter } from 'parse-server/lib/Routers/UsersRouter.js';
 
 import type { ParsedQs } from 'qs';
 
-import { getConfig } from '@/server/lib/parse/utils';
+import { getInternalConfig } from '@/server/lib/parse/utils';
 import type { IUser } from '@/shared/types/db/user.types';
 
 type AuthCloudServiceProps = {
@@ -33,7 +33,7 @@ export class AuthCloudService {
 	}
 
 	private async initialize() {
-		const config = getConfig();
+		const config = getInternalConfig();
 		this.auth = await auth.getAuthForSessionToken({ config, sessionToken: this.sessionToken });
 	}
 
@@ -73,7 +73,7 @@ export class AuthCloudService {
 		const _auth = { isMaster: true };
 		// new auth.Auth({});
 
-		const config = getConfig();
+		const config = getInternalConfig();
 
 		// const mimic req object
 		const req = {

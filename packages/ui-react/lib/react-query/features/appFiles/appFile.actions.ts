@@ -1,26 +1,22 @@
-import type { QueryFunction, QueryFunctionContext } from '@tanstack/react-query';
+import type { QueryFunctionContext } from '@tanstack/react-query';
 
-import { endPoint, type functionName } from '@devist/shared/lib/constants';
-
-// import {
-// 	runCreateAppFileFolder,
-// 	runFindAppFile,
-// 	type CreateAppFileFolderFunctionParams,
-// 	type FindAppFileFunctionParams,
-// 	type FindAppFileFunctionResult,
-// } from '@devist/shared/lib/parse/cloudRunners/appFile.runner';
+import { type functionName } from '@devist/shared/lib/constants';
 
 import type { AppFile } from '@/shared/types/db/appFile.types';
-import type ParseApi from '@/ui-react/api/parse/_index';
-import { protectRequest, type AxiosHttp } from '@/ui-react/lib/axios';
+import type {
+	CreateAppFileFolderFunctionParams,
+	FindAppFileFunctionParams,
+} from '@/ui-react/api/parse/appFile.endpoints';
+import { type ParseApi } from '@/ui-react/api/parse/ParseApi';
 
-// import { http } from '@/office/lib/axios/http';
-// import { env } from '@/office/lib/env';
+export type FindAppFileQueryParams = FindAppFileFunctionParams;
 
-// import type { ParseAppFile} from '@devist/shared/lib/parse/classes/appFile.class';
-
-export default class PostActions {
-	constructor(private parseApi: ParseApi) {}
+export default class AppFileActions {
+	constructor(private parseApi: ParseApi) {
+		this.findAppFileAction = this.findAppFileAction.bind(this);
+		this.uploadManyFilesAction = this.uploadManyFilesAction.bind(this);
+		this.createAppFileFolderAction = this.createAppFileFolderAction.bind(this);
+	}
 
 	async findAppFileAction(
 		context: QueryFunctionContext<readonly [typeof functionName.findAppFile, FindAppFileQueryParams]>,
@@ -36,100 +32,73 @@ export default class PostActions {
 			return Promise.reject(error);
 		}
 	}
-}
 
-// ---- 1 --------------------------------------------------------------------------------
-
-export type FindAppFileQueryParams = FindAppFileFunctionParams;
-
-export const findAppFileAction: QueryFunction<
-	FindAppFileFunctionResult,
-	readonly [typeof functionName.findAppFile, FindAppFileQueryParams]
-> = async (context) => {
-	try {
-		const params = context.queryKey[1];
-
-		const result = await runFindAppFile(params);
-
-		return result;
-	} catch (error) {
-		console.log('----- findAppFileAction error ----------', error);
-		return Promise.reject(error);
+	async uploadSingleFileAction(params: { file: File }) {
+		try {
+			return await this.parseApi.appFiles.uploadSingleFile(params);
+		} catch (error) {
+			console.log('----- uploadSingleFileAction error ----------', error);
+			return Promise.reject(error);
+		}
 	}
-};
+
+	async uploadManyFilesAction(params: UploadManyFilesActionParams) {
+		try {
+			const result = this.parseApi.appFiles.uploadManyFiles(
+				{ files: params.files || [], parentFolderPath: params.parentFolderPath },
+				{ restApiKey: params.restApiKey },
+			);
+
+			return await result;
+		} catch (error) {
+			console.log('----- uploadManyFilesAction error ----------', error);
+			return Promise.reject(error);
+		}
+	}
+
+	async createAppFileFolderAction({
+		parentFolderPath,
+		folderName,
+		files,
+		restApiKey,
+	}: CreateAppFileFolderActionParams) {
+		try {
+			const appFileFolder = await this.parseApi.appFiles.createAppFileFolder({ folderName, parentFolderPath });
+
+			let appFiles: AppFile[] = [];
+
+			if (files) {
+				const newFilesParentFolderPath = appFileFolder.path;
+
+				appFiles = await this.uploadManyFilesAction({
+					files,
+					restApiKey,
+					parentFolderPath: newFilesParentFolderPath,
+				});
+			}
+
+			return {
+				appFileFolder,
+				appFiles,
+			};
+		} catch (error) {
+			console.log('----- createAppFileFolderAction error ----------', error);
+			return Promise.reject(error);
+		}
+	}
+}
 
 // ---- 2 --------------------------------------------------------------------------------
 
-export type UploadManyFilesActionInput = {
+export type UploadManyFilesActionParams = {
 	files?: File[];
 	parentFolderPath?: string;
-	http: AxiosHttp;
-	restApiKey: string;
-};
-
-export const uploadManyFilesAction = async (input: UploadManyFilesActionInput) => {
-	try {
-		const formData = new FormData();
-
-		if (input.parentFolderPath) {
-			formData.set('parentFolderPath', input.parentFolderPath);
-		}
-
-		input.files?.forEach((file) => {
-			formData.append('files', file);
-		});
-
-		const sessionToken = (await Parse.User.currentAsync())?.getSessionToken() || '';
-
-		const result = await input.http.post<AppFile[]>(
-			endPoint.uploadManyFiles,
-			formData,
-			protectRequest({ hasFile: true, sessionToken, restApiKey: input.restApiKey }),
-		);
-
-		return result;
-	} catch (error) {
-		console.log('----- uploadManyFilesAction error ----------', error);
-		return Promise.reject(error);
-	}
+	restApiKey?: string;
 };
 
 // ---- 3 --------------------------------------------------------------------------------
 
-export type CreateAppFileFOlderActionParams = CreateAppFileFolderFunctionParams & {
+export type CreateAppFileFolderActionParams = CreateAppFileFolderFunctionParams & {
 	files?: File[];
-	http: AxiosHttp;
-	restApiKey: string;
-};
-
-export const createAppFileFolderAction = async ({
-	parentFolderPath,
-	folderName,
-	files,
-	http,
-	restApiKey,
-}: CreateAppFileFOlderActionParams) => {
-	try {
-		const appFileFolder = await runCreateAppFileFolder({ folderName, parentFolderPath });
-
-		let appFiles: AppFile[] = [];
-
-		if (files) {
-			const newFilesParentFolderPath = appFileFolder.get('path');
-			appFiles = await uploadManyFilesAction({
-				files,
-				http,
-				restApiKey,
-				parentFolderPath: newFilesParentFolderPath,
-			});
-		}
-
-		return {
-			appFileFolder,
-			appFiles,
-		};
-	} catch (error) {
-		console.log('----- createAppFileFolderAction error ----------', error);
-		return Promise.reject(error);
-	}
+	restApiKey?: string;
 };
