@@ -1,13 +1,15 @@
 import { Suspense } from 'react';
 
 import loadable from '@loadable/component';
-import { Button } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
-import clients from '@/office/api/clients';
+import ErrorDisplay from '@/office/components/ErrorDisplay';
+// import clients from '@/office/api/clients';
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import parseApi from '@/ui-react/api/parse/ParseApi';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import AuthActions from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import PostActions from '@/ui-react/lib/react-query/features/posts/post.actions';
@@ -28,7 +30,11 @@ const EditPost = loadable(() => {
 
 const DashboardRootError = () => {
 	const error = useRouteError();
-	const { revalidate } = useRevalidator();
+	const { revalidate, state } = useRevalidator();
+
+	if (state === 'loading') {
+		return <SplashScreen />;
+	}
 
 	if (error instanceof ClientException) {
 		if (error.code === ClientException.AUTH_REQUIRED) {
@@ -47,19 +53,21 @@ const DashboardRootError = () => {
 	// }
 
 	return (
-		<div role="alert">
-			<h1>Something went wrong!! (Dash)</h1>
-			<pre style={{ color: 'red' }}>{JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}</pre>
+		<Box sx={{ p: 3 }}>
+			<ErrorDisplay error={error as never} title="Something went wrong!! (Dash)" />
 			<Button
 				type="button"
 				onClick={() => {
-					// defaultQueryClient.invalidateQueries(getClientAuthQuery.queryKey);
 					revalidate();
 				}}
+				sx={(theme) => {
+					return { margin: '0 auto', background: theme.palette.common.black };
+				}}
+				variant="contained"
 			>
 				retry
 			</Button>
-		</div>
+		</Box>
 	);
 };
 
@@ -87,11 +95,11 @@ const DashboardPageError = () => {
 export const dashboardRoutes: RouteObject[] = [
 	{
 		loader: getRouteLoader(async () => {
-			if (!clients.parseApi.parseRestClient.getSessionToken()) {
+			if (!parseApi.parseRestClient.getSessionToken()) {
 				return redirect(BO_PATH_NAMES.auth.login);
 			}
 
-			const authActions = new AuthActions(clients.parseApi);
+			const authActions = new AuthActions(parseApi);
 			const cachedAuthData = defaultQueryClient.getQueryData(authActions.getUserAuthDataQuery.queryKey);
 
 			const authData = cachedAuthData
@@ -143,7 +151,7 @@ export const dashboardRoutes: RouteObject[] = [
 									{
 										path: getLastPath(BO_PATH_NAMES.dashboard.posts.edit(':postId'), 2),
 										loader: getRouteLoader(async ({ params }) => {
-											const postActions = new PostActions(clients.parseApi);
+											const postActions = new PostActions(parseApi);
 											const getPostByIdQuery = postActions.getPostByIdQuery({ id: params.postId ?? '' });
 
 											const cachedPost = defaultQueryClient.getQueryData(getPostByIdQuery.queryKey);

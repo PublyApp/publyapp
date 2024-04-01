@@ -13,13 +13,18 @@ import {
 	TENANT_ID_HEADER_KEY,
 	type IRoleConfig,
 } from '@devist/shared/lib/constants';
-import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
+import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { pageToSkip } from '@/server/utils/any.utils';
+import CustomZod from '@/shared/lib/zod/CustomZod';
 
 import RoleService from '../../resources/role/role.service';
 import { DEFAULT_CLP, USE_MASTER_KEY } from '../constants';
-import { getT } from '../i18n';
+import { getCorrectLocale, getT } from '../i18n';
+
+export const getParseFunctionHeader = (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest, key: string) => {
+	return req.headers?.[key] || req.headers?.[_.toLower(key)];
+};
 
 type ParseInnerFunction<T = unknown> =
 	| ((req: Parse.Cloud.TriggerRequest) => Promise<T>)
@@ -55,6 +60,7 @@ type BaseActionContext = {
 	req: Parse.Cloud.FunctionRequest;
 	t: ReturnType<typeof getT>;
 	locale: AppLocale;
+	z: CustomZod;
 };
 
 type ActionContext2 = BaseActionContext & {
@@ -81,18 +87,21 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 	const innerFunction = async (req: Parse.Cloud.FunctionRequest) => {
 		const { requireUser, action, allowedRoles } = params;
 
-		const { user, headers } = req;
+		const { user } = req;
 
-		const localeInHeader: string | undefined = headers?.[_.toLower(LOCALE_HEADER_KEY)];
+		const localeInHeader: string | undefined = getParseFunctionHeader(req, LOCALE_HEADER_KEY);
 
-		const locale: AppLocale = appLocales.includes(localeInHeader as never)
-			? (localeInHeader as AppLocale)
-			: defaultLocale;
+		// const locale: AppLocale = appLocales.includes(localeInHeader as never)
+		// 	? (localeInHeader as AppLocale)
+		// 	: defaultLocale;
+		const locale = getCorrectLocale(localeInHeader);
 
 		const t = getT(locale);
 
+		const z = new CustomZod(t);
+
 		if (!requireUser) {
-			return action({ req, t, user, locale });
+			return action({ req, t, user, locale, z });
 		}
 
 		if (!user) {
@@ -113,7 +122,8 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 		const [session, userHasRole] = await Promise.all([sessionPromise, userHasRolePromise]);
 
 		const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
-		const onlineMatchConditionIp = !global.LOCAL && session?.get('ipAddress') !== req.headers?.['x-forwarded-for'];
+		const onlineMatchConditionIp =
+			!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-forwarded-For');
 
 		// ! we assume that we will never call cloud functions from server cloud code
 		if (localMatchConditionIp || onlineMatchConditionIp) {
@@ -124,7 +134,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 			throw new Error(t('common:insufficientRoleForAction'));
 		}
 
-		return action({ req, user, t, locale });
+		return action({ req, user, t, locale, z });
 	};
 
 	const actionBuilder = parseFunction<T>(innerFunction as never);
@@ -159,7 +169,7 @@ export const multiTenantParseFrom = <T = unknown>(params: MultiTenantParseFromPa
 		return parseFrom<T>({
 			requireUser,
 			allowedRoles,
-			action: async ({ locale, req, t, user }) => {
+			action: async ({ locale, req, t, user, z }) => {
 				// eslint-disable-next-line @typescript-eslint/naming-convention
 				const { fromPublic, fromStaff: _fromStaff } = req.params;
 
@@ -187,7 +197,7 @@ export const multiTenantParseFrom = <T = unknown>(params: MultiTenantParseFromPa
 					}
 				}
 
-				return action({ req, user, t, locale, fromPublic, fromStaff, fromTenantMember });
+				return action({ req, user, t, locale, fromPublic, fromStaff, fromTenantMember, z });
 			},
 		});
 	}
@@ -228,9 +238,10 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 		const _localeInHeaders = _headers[_.toLower(LOCALE_HEADER_KEY)];
 		const localeInHeaders = _.isString(_localeInHeaders) ? _localeInHeaders : undefined;
 
-		const locale: AppLocale = appLocales.includes(localeInHeaders as never)
-			? (localeInHeaders as AppLocale)
-			: defaultLocale;
+		// const locale: AppLocale = appLocales.includes(localeInHeaders as never)
+		// 	? (localeInHeaders as AppLocale)
+		// 	: defaultLocale;
+		const locale = getCorrectLocale(localeInHeaders);
 
 		const t = getT(locale);
 
@@ -243,7 +254,7 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		const cloudInstallationId = await getCurrentInstallationId();
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
-		const { directAccess } = getConfig();
+		const { directAccess } = getInternalConfig();
 
 		// verify ip address if the request is not from the cloud functions and from an user with a session token
 		// * especially necessary if directAccess is set to false
@@ -261,7 +272,8 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 					.first({ sessionToken });
 
 				const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
-				const onlineMatchConditionIp = !global.LOCAL && session?.get('ipAddress') !== req.headers?.['x-forwarded-for'];
+				const onlineMatchConditionIp =
+					!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
 
 				if (localMatchConditionIp || onlineMatchConditionIp) {
 					throw new Error(t('common:sessionInvalid'));
@@ -345,17 +357,17 @@ export const reOrderObjects = <T extends Parse.Object = Parse.Object>(ids: strin
 	return orderedObjects;
 };
 
-export const getConfig = () => {
+export const getInternalConfig = () => {
 	return Config.get(Parse.applicationId);
 };
 
 export const getMongoClient = (): MongoClient => {
-	const config = getConfig();
+	const config = getInternalConfig();
 	return config.database.adapter.client;
 };
 
 export const getDatabase = (): Db => {
-	const config = getConfig();
+	const config = getInternalConfig();
 	return config.database.adapter.database;
 };
 
@@ -513,7 +525,7 @@ export const createSessionServer = async <
 	options: CreateSessionOptions<AdditionalSessionData>,
 ): Promise<CreateSessionResult<AdditionalSessionData>> => {
 	const { userId, action = 'login', authProvider = 'password', installationId, additionalSessionData } = options;
-	const config = getConfig();
+	const config = getInternalConfig();
 
 	const result = RestWrite.createSession(config, {
 		userId,

@@ -1,9 +1,10 @@
 import _ from 'lodash';
 
+import { env } from '@/server/lib/env';
 import type ParseAppFile from '@/server/lib/parse/classes/appFile.class';
 import ParsePost from '@/server/lib/parse/classes/post.class';
 import type ParseUser from '@/server/lib/parse/classes/user.class';
-import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
+import { DEFAULT_PAGE_SIZE, fileProvider } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type {
 	IPostWithParseRelations,
@@ -196,11 +197,15 @@ export default class PostService {
 		return post.save(attrs as never, { sessionToken });
 	}
 
-	async getById(objectId: string, options: { select?: string[] } = {}) {
+	async getById(objectId: string, options: { select?: string[]; include?: string[] } = {}) {
 		const query = new Parse.Query(ParsePost).equalTo('objectId', objectId);
 
 		if (options.select) {
 			query.select(options.select as never);
+		}
+
+		if (options.include) {
+			query.include(options.include as never);
 		}
 
 		return query.first({ sessionToken: this.sessionToken });
@@ -245,12 +250,12 @@ export default class PostService {
 			query.exists(`translation.${locale}` as never);
 		}
 
-		if (select) {
-			query.select(select as never);
-		}
-
 		if (include) {
 			query.include(include as never);
+		}
+
+		if (select) {
+			query.select(select as never);
 		}
 
 		if (exclude) {
@@ -306,9 +311,19 @@ export default class PostService {
 
 	async findPostBoTable({ page, pageSize, sorting, locale = defaultLocale, fromPublic }: FindPostBoTableParams) {
 		const include = ['author'];
-		const exclude = PostService.getExcludedTranslations(locale as never);
+		// const exclude = [...PostService.getExcludedTranslations(locale as never), `translation.${locale}.content`];
+		const select = [`translation.${locale}.title`, 'tags', 'viewCount', 'published'];
 
-		const posts = await this.find({ page, pageSize, sorting, locale, include, exclude, json: true, fromPublic });
+		const posts = await this.find({
+			page,
+			pageSize,
+			sorting,
+			locale,
+			include,
+			select,
+			/* exclude, */ json: true,
+			fromPublic,
+		});
 
 		const finalPosts = posts.map((post) => {
 			_.assign(post, post.translation[locale]);
@@ -320,8 +335,24 @@ export default class PostService {
 	}
 
 	async findPostFrontList({ page, pageSize, sorting, locale = defaultLocale }: FindPostFrontListParams) {
-		const include = ['author'];
-		const exclude = PostService.getExcludedTranslations(locale as never);
+		const include = ['author', 'cover'];
+		// const exclude = PostService.getExcludedTranslations(locale as never);
+		const select = [
+			'slug',
+			'tags',
+			`translation.${locale}.title`,
+			`translation.${locale}.description`,
+			'viewCount',
+			'publishDate',
+			'author',
+
+			'cover',
+			'cover.url',
+			'cover.provider',
+
+			'author.firstName',
+			'author.lastName',
+		];
 
 		const posts = await this.find({
 			page,
@@ -329,14 +360,26 @@ export default class PostService {
 			sorting,
 			locale,
 			include,
-			exclude,
+			// exclude,
+			select,
 			json: true,
 			fromPublic: true,
 		});
 
 		const finalPosts = posts.map((post) => {
-			_.assign(post, post.translation[locale]);
-			_.set(post, 'locale', locale);
+			_.assign(post, post.translation[locale], {
+				locale,
+			});
+
+			if (post.cover) {
+				let fileUrl = post.cover.url;
+
+				if (post.cover.provider === fileProvider.LOCAL_DISK || fileUrl.startsWith('/')) {
+					fileUrl = env.SERVER_URL + fileUrl;
+					_.set(post.cover, 'url', fileUrl);
+				}
+			}
+
 			return post as unknown as TranslatedIPostWithRelations;
 		});
 

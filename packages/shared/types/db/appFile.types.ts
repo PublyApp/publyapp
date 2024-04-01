@@ -9,7 +9,8 @@ export type AppFile = BaseAttributes &
 	// ImageOnlyFields
 	BaseFileFields &
 	ImageOnlyFields & {
-		provider: string; // only local for now
+		displayName: string;
+		provider: string;
 		mimeType: string; // mime type
 		alternativeText?: string;
 		caption?: string;
@@ -21,6 +22,8 @@ export type BaseFileFields = {
 	name: string;
 	url: string;
 	size: number;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	meta?: Record<string, any>;
 };
 
 export type ImageOnlyFields = {
@@ -32,5 +35,9 @@ export type ImageOnlyFields = {
 export type ImageFormatData = Omit<BaseFileFields, 'path'> & ImageOnlyFields;
 
 export type AppFileWithRelations = AppFile & {
-	folder: string | Parse.Object; // or object
+	folder: string /* | Parse.Object; // or object */; // TODO: verify iif it really give a string
+};
+
+export type AppFileWithParseRelations = AppFile & {
+	folder: Parse.Object; // or object
 };

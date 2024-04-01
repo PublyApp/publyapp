@@ -4,33 +4,33 @@ import * as ps from 'parse-server/lib/index.js';
 
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@remix-run/express';
+import chalk from 'chalk';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
-import { endPoint, LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
+import { LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
 
 import { cloud } from './cloud/_index';
 import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
+import { initCloudinary } from './lib/cloudinary';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
 import { env, envSchema, setAppEnv } from './lib/env';
 import logger, { consoleTransport } from './lib/logger';
-import { multerConfig } from './lib/multer';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
-import protectionMiddleware from './middlewares/protection.middleware';
 import AppFileSchema from './resources/appFile/appFile.schema';
 import AwesomeLinkSchema from './resources/awesomeLink/awesomeLink.schema';
-import { handleUploadManyFiles, handleUploadSingleFile } from './resources/file/file.controller';
 import PostSchema from './resources/post/post.schema';
 import PostSeriesSchema from './resources/postSeries/postSeries.schema';
 import RoleSchema from './resources/role/role.schema';
 import SessionSchema from './resources/session/session.schema';
-import { handlePasswordLogin } from './resources/user/user.controller';
 import UserSchema from './resources/user/user.schema';
-import WebHostSchema from './resources/webHost/webHost.schema';
+import customEndPointsRouter from './router/customEndPointsRouter';
+
+// import WebHostSchema from './resources/webHost/webHost.schema';
 
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
@@ -108,7 +108,7 @@ const bootstrap = async () => {
 				SessionSchema,
 				PostSchema,
 				PostSeriesSchema,
-				WebHostSchema,
+				// WebHostSchema,
 				AppFileSchema,
 				AwesomeLinkSchema,
 			],
@@ -128,29 +128,17 @@ const bootstrap = async () => {
 	// app.use(PARSE_PATH, parseServer.app);
 	app.use(env.PARSE_PATH, parseServerMiddleware, parseServer.app);
 
-	// set Routes
-	app.post(
-		endPoint.uploadSingleFile,
-		protectionMiddleware({ withAuth: true, withKey: false }),
-		multerConfig.single('file'),
-		handleUploadSingleFile,
-	);
-
-	app.post(
-		endPoint.uploadManyFiles,
-		protectionMiddleware({ withAuth: true, withKey: false }),
-		multerConfig.array('files'),
-		handleUploadManyFiles,
-	);
-
-	app.post(endPoint.passwordLogin, handlePasswordLogin);
+	// set custom ennPoints routes
+	app.use(customEndPointsRouter);
 
 	// set error middleware // ! must be after all routes definition (I am wondering if I should make it after the parse dashboard also)
 	app.use(errorMiddleware);
 
 	// --------------------------------------------------------------------------------------//
-	//                         setup parse dashboard when in local                          //
-	// --------------------------------------------------------------------------------------//
+	//                         setup parse dashboard when in local                           //
+	// ------------------------------------------------------------------------------------- //
+	const PARSE_DASHBOARD_MOUNT_PATH = '/pdash';
+
 	if (global.LOCAL) {
 		const dashboard = new ParseDashboard(
 			{
@@ -165,15 +153,15 @@ const bootstrap = async () => {
 				// users: [{ user: 'radandevist', pass: 'azerty' }],
 			},
 			{
-				dev: true,
-				allowInsecureHTTP: true,
-				trustProxy: true,
-				masterKey: env.PARSE_MASTER_KEY,
+				// dev: true,
+				// allowInsecureHTTP: true,
+				// trustProxy: true,
+				// masterKey: env.PARSE_MASTER_KEY,
 				port: env.PORT,
 			},
 		);
 
-		app.use('/pdash', dashboard);
+		app.use(PARSE_DASHBOARD_MOUNT_PATH, dashboard);
 	}
 
 	// --------------------------------------------------------------------------------------//
@@ -206,12 +194,18 @@ const bootstrap = async () => {
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
 	app.listen(env.PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
-		logger.info('====================================');
-		logger.info(`   server running on port ${env.PORT}   `);
-		logger.info('====================================');
+		logger.info('================================================================');
+		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
+
+		if (global.LOCAL) {
+			logger.info(`    access the dashboard at ${chalk.cyan(`${env.SERVER_URL}${PARSE_DASHBOARD_MOUNT_PATH}`)}    `);
+		}
+
+		logger.info('================================================================');
 	});
 
 	// Manually create nested keys indexes
+	// ! TODO: must create nested indexes Parse Server's DefineSchema
 	// because they are not supported by Parse server yet
 	createIndexes();
 
@@ -220,6 +214,9 @@ const bootstrap = async () => {
 
 	// create the upload folder
 	createUploadDirIfNotExists();
+
+	// init cloudinary
+	initCloudinary();
 };
 
 bootstrap();

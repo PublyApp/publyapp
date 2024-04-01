@@ -1,11 +1,11 @@
 import { Container, Unstable_Grid2 as Grid } from '@mui/material';
 // import { type LoaderFunction } from '@remix-run/node';
-import { /* useLoaderData, */ type ClientLoaderFunction } from '@remix-run/react';
+import { /* useLoaderData, */ defer, type ClientLoaderFunction } from '@remix-run/react';
 
 import { _categories, _tags } from '@/front/_mock';
 import BlogSidebar from '@/front/containers/blog/sidebar/BlogSidebar';
+import parseApi from '@/ui-react/api/parse/ParseApi';
 
-import { parseApi } from '../api/_index';
 import PostListHorizontal from '../containers/blog/PostListHorizontal';
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
@@ -20,14 +20,14 @@ import { safelyRunInLoader } from '../lib/remix/safelyRun';
 // }) satisfies LoaderFunction;
 
 export const clientLoader = (async ({ /* serverLoader, */ params }) => {
-	const tags = await safelyRunInLoader(parseApi.posts.findPostTag)();
+	const tags = safelyRunInLoader(parseApi.posts.findPostTag)();
 	// const { posts } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
-	const posts = await safelyRunInLoader(parseApi.posts.findPost)({ page: Number(params.pageNum) });
+	const posts = safelyRunInLoader(parseApi.posts.findPost)({ page: Number(params.pageNum) });
 
-	return {
+	return defer({
 		posts,
 		tags,
-	};
+	});
 }) satisfies ClientLoaderFunction;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

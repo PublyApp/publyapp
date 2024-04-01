@@ -131,7 +131,7 @@ export const functionName = {
 	findWebHost: 'findWebHost',
 	// Files
 	findAppFile: 'findAppFile',
-	saveAppFileFolder: 'saveAppFileFolder',
+	createAppFileFolder: 'createAppFileFolder',
 	// Posts
 	createPost: 'createPost',
 	updatePost: 'updatePost',
@@ -171,8 +171,9 @@ export const IMAGE_FORMAT_CONFIG = {
 };
 
 export const fileProvider = {
-	LOCAL: 'local',
-};
+	LOCAL_DISK: 'localDisk',
+	CLOUDINARY: 'cloudinary',
+} as const;
 
 export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
 export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';
@@ -180,3 +181,5 @@ export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
 export const DEVIST_REST_API_HEADER_KEY = 'X-Devist-Key';
 
 export const SESSION_TOKEN_LOCAL_STORAGE_KEY = 'sessionToken';
+
+export const SLUG_REGEX = /^[a-z0-9-]+$/;

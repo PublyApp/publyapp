@@ -16,12 +16,28 @@
 			"invalidBooleanType": "{{field}} devrait être vrai ou faux",
 			"required": "{{field}} obligatoire",
 			"maxLength": "{{field}} doit avoir {{maxLength}} caractères ou moins",
-			"invalid": "{{field}} invalide"
+			"invalid": "{{field}} invalide",
+			"notInstanceOf": "{{field}} doit être une instance de {{type}}"
 		}
 	},
 	"new-post": "Nouvel article",
 	"views": "Vues",
 	"created-at": "Créé le",
 	"published": "Publié",
-	"draft": "Brouillon"
+	"draft": "Brouillon",
+	"invalid-number": "Nombre invalide",
+	"file": "Fichier",
+	"field": "Champ",
+	"post": "Article",
+	"new": "Nouveau",
+	"your-description": "Votre description",
+	"your-title": "Votre titre",
+	"your-content": "Votre contenu",
+	"publish-date": "Date de publication",
+	"update-date": "Date de mise à jour",
+	"save": "Sauvegarder",
+	"preview": "Aperçu",
+	"edit-post": "Éditer l'article",
+	"edit": "Éditer",
+	"must-init-parse-api": "Doit être initialisé avec un client REST"
 }

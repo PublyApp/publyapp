@@ -1,9 +1,11 @@
 import z from 'zod';
 
-import { numericStringSchema } from '@devist/shared/lib/zod';
+import { getNumericStringSchema } from '@devist/shared/lib/zod/utils';
+
+import { defaultZod } from './zod';
 
 export const envSchema = z.object({
-	PORT: numericStringSchema.default('3000'),
+	PORT: getNumericStringSchema(defaultZod).default('3000'),
 	SERVER_URL: z.string(),
 	DATABASE_URI: z.string(),
 	REST_API_KEY: z.string(),

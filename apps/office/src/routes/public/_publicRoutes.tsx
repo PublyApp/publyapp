@@ -1,20 +1,32 @@
-import { redirect, type RouteObject } from 'react-router-dom';
+import { Box } from '@mui/material';
+import { redirect, useRouteError, type RouteObject } from 'react-router-dom';
 
-import clients from '@/office/api/clients';
+import ErrorDisplay from '@/office/components/ErrorDisplay';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
-
-// import { getClientAuthQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
-// import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
+import parseApi from '@/ui-react/api/parse/ParseApi';
 
 import LogIn from '../../containers/logIn/LogIn';
 import { getLastPath, getRouteLoader } from '../utils';
 
 const PublicRootError = () => {
+	const error = useRouteError();
+
 	return (
-		<div role="alert">
-			<h1>Something went wrong!! (public)</h1>
-			{/* <pre style={{ color: 'red' }}>{error.message}</pre> */}
-		</div>
+		<Box sx={{ p: 3 }}>
+			<ErrorDisplay error={error as never} title="Something went wrong!! (Dash)" />
+			{/* <Button
+				type="button"
+				onClick={() => {
+					revalidate();
+				}}
+				sx={(theme) => {
+					return { margin: '0 auto', background: theme.palette.common.black };
+				}}
+				variant="contained"
+			>
+				retry
+			</Button> */}
+		</Box>
 	);
 };
 
@@ -26,7 +38,7 @@ export const publicRoutes: RouteObject[] = [
 			{
 				path: '/',
 				loader: getRouteLoader(async () => {
-					const sessionToken = clients.parseApi.parseRestClient.getSessionToken();
+					const sessionToken = parseApi.parseRestClient.getSessionToken();
 
 					if (sessionToken) {
 						return redirect(BO_PATH_NAMES.dashboard.root);
@@ -41,7 +53,7 @@ export const publicRoutes: RouteObject[] = [
 				// * Public only loader check
 				loader: getRouteLoader(async () => {
 					// const storedUser = Parse.User.current();
-					const sessionToken = clients.parseApi.parseRestClient.getSessionToken();
+					const sessionToken = parseApi.parseRestClient.getSessionToken();
 
 					if (!sessionToken) {
 						return null;

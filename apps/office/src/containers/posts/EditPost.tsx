@@ -1,12 +1,13 @@
-import { useMemo } from 'react';
-
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, Button, Container } from '@mui/material';
 import { m } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 
-import { getUpdatePostInputSchema, type UpdatePostInput } from '@devist/shared/validations/post.validations';
+import {
+	getUpdatePostSchemaClientSide,
+	type UpdatePostSchemaClientSide,
+} from '@devist/shared/validations/post/post.validations.client';
 import {
 	useGetPostByIdSuspenseQuery,
 	useUpdatePostMutation,
@@ -15,6 +16,7 @@ import {
 import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import useTranslate from '@/ui-react/hooks/useTranslate';
+import zod from '@/ui-react/lib/zod';
 import { pxToRem } from '@/ui-react/utils/css.utils';
 
 import PostForm from './PostForm';
@@ -24,9 +26,7 @@ const EditPost = () => {
 	const { lang, t } = useTranslate();
 	const params = useParams();
 
-	const savePostInputSchema = useMemo(() => {
-		return getUpdatePostInputSchema(t);
-	}, [t]);
+	const savePostInputSchema = getUpdatePostSchemaClientSide(zod);
 
 	const {
 		result: { data: post },
@@ -46,7 +46,7 @@ const EditPost = () => {
 	// 	return post.updateDate ? new Date(post.updateDate) : undefined;
 	// }, [post.updateDate]);
 
-	const updatePostForm = useForm<UpdatePostInput>({
+	const updatePostForm = useForm<UpdatePostSchemaClientSide>({
 		resolver: zodResolver(savePostInputSchema),
 		values: {
 			objectId: post.objectId,
@@ -62,23 +62,25 @@ const EditPost = () => {
 			updateDate: post.updateDate ? new Date(post.updateDate) : undefined,
 			coverUrl: undefined,
 			coverId: undefined,
+			coverFile: post.coverFile,
 			tags: post.tags,
 		},
 		disabled: isUpdatePostPending,
 	});
 
+	// updatePostForm.setValue('coverUrl', { preView: post.cover?.url }, { shouldValidate: true });
+
 	const handleUpdatePost = updatePostForm.handleSubmit(
 		async (input) => {
 			console.log('--- handleUpdatePost input ---', input);
-			// updatePost(input);
-			updatePostAsync(input);
+			await updatePostAsync(input);
 		},
 		(errors) => {
 			console.log('--- handleUpdatePost errors ---', errors);
 		},
 	);
 
-	const headingElement = <PageHeader.Heading text="Edit post" />;
+	const headingElement = <PageHeader.Heading text={t('edit-post')} />;
 	const breadcrumbsElement = (
 		<PageHeader.Breadcrumbs
 			links={[
@@ -87,11 +89,11 @@ const EditPost = () => {
 					href: BO_PATH_NAMES.dashboard.root,
 				},
 				{
-					name: 'Posts',
+					name: `${t('post')}s`,
 					href: BO_PATH_NAMES.dashboard.posts.root,
 				},
 				{
-					name: 'Edit',
+					name: t('edit'),
 					// href: BO_PATH_NAMES.dashboard.posts.edi,
 				},
 			]}
@@ -100,9 +102,9 @@ const EditPost = () => {
 
 	const renderHeaderActions = (
 		<>
-			<Button>preview</Button>
+			<Button>{t('preview')}</Button>
 			<Button variant="contained" onClick={handleUpdatePost}>
-				save
+				{t('save')}
 			</Button>
 		</>
 	);

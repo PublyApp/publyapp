@@ -9,7 +9,7 @@ import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
 
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
-import useHttpClients from '@/ui-react/hooks/useHttpClients';
+import parseApi from '@/ui-react/api/parse/ParseApi';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 
 import PostActions, { type FindPostQueryParams, type GetPostByIdQueryParams } from './post.actions';
@@ -19,8 +19,7 @@ import PostActions, { type FindPostQueryParams, type GetPostByIdQueryParams } fr
 export const useCreatePostMutation = () => {
 	const { enqueueSnackbar } = useSnackbar();
 	const navigate = useNavigate();
-	const queryClient = useQueryClient();
-	const { parseApi } = useHttpClients();
+	// const queryClient = useQueryClient();
 
 	const key = [PostActions.createPostMutationKeyBase] as const;
 
@@ -31,8 +30,8 @@ export const useCreatePostMutation = () => {
 		mutationFn: postActions.createPostAction,
 		onSuccess: async (data /* , variables, context */) => {
 			enqueueSnackbar({ variant: 'success', message: 'New post created' });
-			queryClient.setQueryData([PostActions.getPostQueryKeyBase, { id: data.objectId }], data);
-			queryClient.invalidateQueries({ queryKey: [PostActions.findPostQueryKeyBase] });
+			// queryClient.setQueryData([PostActions.getPostQueryKeyBase, { id: data.objectId }], data);
+			// queryClient.invalidateQueries({ queryKey: [PostActions.findPostQueryKeyBase] });
 			navigate(BO_PATH_NAMES.dashboard.posts.edit(data.objectId));
 		},
 		onError: async (error /* , variables, context */) => {
@@ -60,7 +59,6 @@ type UseGetPostByIdSuspenseQueryProps = {
 };
 
 export const useGetPostByIdSuspenseQuery = (props: UseGetPostByIdSuspenseQueryProps) => {
-	const { parseApi } = useHttpClients();
 	const postActions = new PostActions(parseApi);
 
 	const query = postActions.getPostByIdQuery(props.params);
@@ -84,7 +82,6 @@ type UseFindPostQueryProps = {
 };
 
 export const useFindPostSuspenseQuery = (props: UseFindPostQueryProps) => {
-	const { parseApi } = useHttpClients();
 	const { locale } = useTranslate();
 
 	const postActions = new PostActions(parseApi);
@@ -104,7 +101,6 @@ export const useFindPostSuspenseQuery = (props: UseFindPostQueryProps) => {
 
 export const useFindPostQuery = (props: UseFindPostQueryProps) => {
 	const { locale } = useTranslate();
-	const { parseApi } = useHttpClients();
 
 	const postActions = new PostActions(parseApi);
 
@@ -133,7 +129,6 @@ type UseUpdatePostMutationProps = Omit<
 
 export const useUpdatePostMutation = (props: UseUpdatePostMutationProps = {}) => {
 	const { onError, onSuccess, ...otherProps } = props;
-	const { parseApi } = useHttpClients();
 	const { enqueueSnackbar } = useSnackbar();
 	const queryClient = useQueryClient();
 
@@ -146,8 +141,8 @@ export const useUpdatePostMutation = (props: UseUpdatePostMutationProps = {}) =>
 		mutationFn: postActions.updatePostAction,
 		onSuccess: (data, variables, context) => {
 			enqueueSnackbar({ variant: 'success', message: 'Post updated' });
-			queryClient.setQueryData([PostActions.getPostQueryKeyBase, { id: data.objectId }], data);
-			queryClient.invalidateQueries({ queryKey: [PostActions.findPostQueryKeyBase] });
+			queryClient.invalidateQueries({ queryKey: postActions.getPostByIdQuery({ id: data.objectId }).queryKey });
+			queryClient.invalidateQueries({ queryKey: postActions.findPostQuery().queryKey });
 			onSuccess?.(data, variables, context);
 		},
 		onError: async (error, variables, context) => {
