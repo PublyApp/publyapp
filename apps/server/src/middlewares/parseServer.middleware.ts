@@ -52,6 +52,8 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 	if (session) {
 		const requestIp = req.ip || getHeader(req, 'x-forwarded-for');
 
+		console.log('😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡', requestIp);
+
 		if (session.get('ipAddress') !== requestIp) {
 			throw new Error('Invalid session token');
 		}
