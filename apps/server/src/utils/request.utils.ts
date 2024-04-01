@@ -22,3 +22,7 @@ export const getRequestUtils = (req: Request) => {
 		z,
 	};
 };
+
+export const getRequestIp = (req: Request) => {
+	return getHeader(req, 'X-Forwarded-For') || req.socket.remoteAddress;
+};
