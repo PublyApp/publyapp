@@ -3,16 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
+    "build": "bun turbo build",
+    "dev": "bun turbo dev",
     "check-format": "prettier --check .",
     "format": "prettier --write .",
     "lint": "turbo lint",
     "lint:fix": "turbo lint:fix",
     "prepare": "husky install",
     "update-deps": "bun update",
-		"update-deps:pnpm": "pnpm -i -r",
-		"workspace": "bun run scripts/workspace.ts",
+    "update-deps:pnpm": "pnpm -i -r",
+    "workspace": "bun run scripts/workspace.ts",
     "pre-commit:old": "bun run format && git add -A .",
     "prepare:deploy:server": "bun ./scripts/deploy/server/index.js"
   },
@@ -35,5 +35,8 @@
   ],
   "trustedDependencies": [
     "sharp"
-  ]
+  ],
+  "dependencies": {
+    "sharp": "^0.33.3"
+  }
 }

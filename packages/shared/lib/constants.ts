@@ -1,4 +1,4 @@
-import { imageFormatTypes } from '@/shared/types/db/appFile.types';
+import { imageFormatTypes } from '@devist/shared/types/db/appFile.types';
 
 export type IRoleConfig = {
 	name: string;

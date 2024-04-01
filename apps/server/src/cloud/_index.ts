@@ -9,7 +9,7 @@ export const cloud = async () => {
 		await Promise.all([import('./functions'), import('./triggers')]);
 	} catch (error) {
 		logger.error('Error while importing cloud code:');
-		logger.error(error);
+		// logger.error(error);
 
 		// eslint-disable-next-line no-console
 		console.trace(error);
