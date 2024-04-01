@@ -117,7 +117,7 @@ const bootstrap = async () => {
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
-		// directAccess: false, // in parse server 6 this is true by default
+		directAccess: false, // in parse server 6 this is true by default
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
 	});
 
