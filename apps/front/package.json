@@ -5,9 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "bun vite dev",
-		"build": "bun tsc && bun vite build && bun vite build --ssr",
+		"build": "bun vite build && bun vite build --ssr",
 		"build:dev": "bun vite build --mode development && bun vite build --ssr --mode development",
-		"build:flexible": "bun vite build --mode $([ $MODE == local ] && echo 'development' || echo $MODE) && vite build --ssr --mode $([ $MODE == local ] && echo 'development' || echo $MODE)",
 		"start": "bun remix-serve ./build/server/index.js",
 		"type-check": "bun tsc"
 	},
