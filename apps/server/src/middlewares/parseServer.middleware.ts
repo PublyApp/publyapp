@@ -1,5 +1,5 @@
 import type express from 'express';
-import { type Request, type RequestHandler } from 'express';
+import { type RequestHandler } from 'express';
 import _ from 'lodash';
 
 import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
@@ -9,7 +9,7 @@ import logger from '../lib/logger';
 import { getCurrentInstallationId } from '../lib/parse/utils';
 import { getHeader, getRequestIp } from '../utils/request.utils';
 
-const isMaster = (req: Request) => {
+const isMaster = (req: express.Request) => {
 	return req.body._MasterKey === env.PARSE_MASTER_KEY || getHeader(req, 'X-Parse-Master-Key') === env.PARSE_MASTER_KEY;
 };
 
@@ -51,8 +51,6 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 
 	if (session) {
 		const requestIp = getRequestIp(req);
-
-		console.log('😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡😡', requestIp);
 
 		if (session.get('ipAddress') !== requestIp) {
 			throw new Error('Invalid session token');

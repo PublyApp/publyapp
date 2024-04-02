@@ -1,3 +1,4 @@
+import { createServer } from 'http';
 import path from 'path';
 
 import * as ps from 'parse-server/lib/index.js';
@@ -8,6 +9,7 @@ import chalk from 'chalk';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import express from 'express';
+import _ from 'lodash';
 import ParseDashboard from 'parse-dashboard';
 
 import { LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
@@ -29,8 +31,6 @@ import RoleSchema from './resources/role/role.schema';
 import SessionSchema from './resources/session/session.schema';
 import UserSchema from './resources/user/user.schema';
 import customEndPointsRouter from './router/customEndPointsRouter';
-
-// import WebHostSchema from './resources/webHost/webHost.schema';
 
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
@@ -193,7 +193,14 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
-	app.listen(env.PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
+	const server = createServer(app);
+
+	server.on('request', (req, _res) => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		req.socket.remoteAddress; // make express req.ip work
+	});
+
+	server.listen(env.PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
 		logger.info('================================================================');
 		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
 
