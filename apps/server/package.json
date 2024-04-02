@@ -19,7 +19,7 @@
 		"start:common": "bun run start:bun",
 		"start:bundle": "bun --enable-source-maps dist/index.mjs",
 		"start:bun": "bun src/index.ts",
-		"prestart:bun": "bun run workspace ../front build:flexible",
+		"prestart:bun": "bun run workspace ../front build",
 		"test:start:online:dev:bun": "bunx cross-env ONLINE=true bun run start:local",
 		"test:start:online:prod:bun": "bunx cross-env ONLINE=true bun run start",
 		"// =============== DEV COMMANDs =================": "================================",
@@ -74,13 +74,13 @@
 		"parse-dashboard": "^5.3.0",
 		"parse-server": "^6.4.0",
 		"qs": "^6.11.2",
-		"sharp": "^0.32.6",
 		"streamifier": "^0.1.1",
 		"vhost": "^3.0.2",
 		"winston": "^3.11.0",
 		"winston-console-format": "^1.0.8",
 		"zod": "^3.22.4",
-		"zod-i18n-map": "^2.27.0"
+		"zod-i18n-map": "^2.27.0",
+		"sharp": "^0.33.3"
 	},
 	"devDependencies": {
 		"@rsbuild/core": "^0.3.3",

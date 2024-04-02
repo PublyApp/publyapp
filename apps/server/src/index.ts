@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+import { createServer } from 'http';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 import * as ps from 'parse-server/lib/index.js';
 
@@ -10,6 +9,7 @@ import chalk from 'chalk';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import express from 'express';
+import _ from 'lodash';
 import ParseDashboard from 'parse-dashboard';
 
 import { LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
@@ -31,11 +31,6 @@ import RoleSchema from './resources/role/role.schema';
 import SessionSchema from './resources/session/session.schema';
 import UserSchema from './resources/user/user.schema';
 import customEndPointsRouter from './router/customEndPointsRouter';
-
-// import WebHostSchema from './resources/webHost/webHost.schema';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
@@ -121,7 +116,6 @@ const bootstrap = async () => {
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
-		// allowHeaders: ['Access-Control-Expose-Headers', 'access-control-expose-headers', 'Etag'],
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
 		directAccess: false, // in parse server 6 this is true by default
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
@@ -156,9 +150,13 @@ const bootstrap = async () => {
 						appName: 'Devist Express Dash Local',
 					},
 				],
+				// users: [{ user: 'radandevist', pass: 'azerty' }],
 			},
 			{
-				// allowInsecureHTTP: false,
+				// dev: true,
+				// allowInsecureHTTP: true,
+				// trustProxy: true,
+				// masterKey: env.PARSE_MASTER_KEY,
 				port: env.PORT,
 			},
 		);
@@ -170,7 +168,7 @@ const bootstrap = async () => {
 	//                  mount remix build when in a deployment environment                  //
 	// --------------------------------------------------------------------------------------//
 	if (!global.LOCAL) {
-		app.use(express.static(path.resolve(__dirname, '../node_modules/front/build/client')));
+		app.use(express.static(path.resolve(__dirname, '../../../node_modules/front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
@@ -195,7 +193,14 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
-	app.listen(env.PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
+	const server = createServer(app);
+
+	server.on('request', (req, _res) => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		req.socket.remoteAddress; // make express req.ip work
+	});
+
+	server.listen(env.PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
 		logger.info('================================================================');
 		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
 
