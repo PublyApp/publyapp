@@ -6,10 +6,6 @@ import { varBounce } from '@devist/ui-react/components/animate/variants/bounce';
 import Image from '@devist/ui-react/components/Image';
 import MotionContainer from '@devist/ui-react/components/MotionContainer';
 
-// import { MotionContainer, varBounce } from 'src/components/animate';
-
-// ----------------------------------------------------------------------
-
 const Error404 = () => {
 	return (
 		<MotionContainer>

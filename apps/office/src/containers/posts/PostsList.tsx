@@ -24,7 +24,8 @@ import { useSnackbar } from 'notistack';
 // import { useGetProducts } from '@/office/api/product';
 // import CustomBreadcrumbs from '@/office/components/custom-breadcrumbs';
 // import { ConfirmDialog } from '@/office/components/custom-dialog';
-import EmptyContent from '@/office/components/EmptyContent';
+import EmptyContent from '@devist/ui-react/components/EmptyContent';
+
 import PageHeader from '@/office/components/PageHeader';
 import RouterLink from '@/office/components/RouterLink';
 import { env } from '@/office/lib/env';
