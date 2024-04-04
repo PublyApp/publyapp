@@ -6,3 +6,5 @@ node_modules
 .env
 
 .vercel
+
+vite.config.js.timestamp*
