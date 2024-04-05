@@ -1,15 +1,4 @@
-import {
-	Avatar,
-	AvatarGroup,
-	Button,
-	Checkbox,
-	Chip,
-	Container,
-	Divider,
-	FormControlLabel,
-	Stack,
-	Typography,
-} from '@mui/material';
+import { Button, Chip, Container, Stack, Typography } from '@mui/material';
 import { useLoaderData } from '@remix-run/react';
 
 import EmptyContent from '@devist/ui-react/components/EmptyContent';
@@ -17,6 +6,8 @@ import Iconify from '@devist/ui-react/components/Iconify';
 
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
+import Breadcrumbs from '../components/Breadcrumbs';
+import Markdown from '../components/Markdown';
 import RouterLink from '../components/RouterLink';
 import PostDetailsHero from '../containers/postDetails/PostDetailsHero';
 import { PostDetailsSkeleton } from '../containers/postDetails/PostDetailsSkeleton';
@@ -61,7 +52,7 @@ const PostDetailsPage = () => {
 					},
 				}}
 			>
-				<CustomBreadcrumbs
+				<Breadcrumbs
 					links={[
 						{
 							name: 'Home',
@@ -69,7 +60,7 @@ const PostDetailsPage = () => {
 						},
 						{
 							name: 'Blog',
-							href: paths.post.root,
+							href: FRONT_PATH_NAMES.posts.root,
 						},
 						{
 							name: post?.title,
@@ -106,7 +97,7 @@ const PostDetailsPage = () => {
 						</Stack>
 
 						<Stack direction="row" alignItems="center">
-							<FormControlLabel
+							{/* <FormControlLabel
 								control={
 									<Checkbox
 										defaultChecked
@@ -118,13 +109,13 @@ const PostDetailsPage = () => {
 								}
 								label={fShortenNumber(post.totalFavorites)}
 								sx={{ mr: 1 }}
-							/>
+							/> */}
 
-							<AvatarGroup>
+							{/* <AvatarGroup>
 								{post.favoritePerson.map((person) => {
 									return <Avatar key={person.name} alt={person.name} src={person.avatarUrl} />;
 								})}
-							</AvatarGroup>
+							</AvatarGroup> */}
 						</Stack>
 					</Stack>
 
@@ -136,11 +127,11 @@ const PostDetailsPage = () => {
 						</Typography>
 					</Stack>
 
-					<PostCommentForm />
+					{/* <PostCommentForm /> */}
 
-					<Divider sx={{ mt: 5, mb: 2 }} />
+					{/* <Divider sx={{ mt: 5, mb: 2 }} /> */}
 
-					<PostCommentList comments={post.comments} />
+					{/* <PostCommentList comments={post.comments} /> */}
 				</Stack>
 			</Container>
 		</>
