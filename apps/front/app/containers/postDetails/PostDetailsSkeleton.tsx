@@ -1,6 +1,6 @@
 import { Skeleton, Stack, type StackProps } from '@mui/material';
 
-export const PostDetailsSkeleton = ({ ...other }: StackProps) => {
+const PostDetailsSkeleton = ({ ...other }: StackProps) => {
 	return (
 		<Stack {...other}>
 			<Skeleton variant="rectangular" sx={{ height: 480 }} />
@@ -21,3 +21,5 @@ export const PostDetailsSkeleton = ({ ...other }: StackProps) => {
 		</Stack>
 	);
 };
+
+export default PostDetailsSkeleton;

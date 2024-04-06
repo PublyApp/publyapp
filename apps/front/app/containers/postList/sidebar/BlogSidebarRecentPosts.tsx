@@ -2,7 +2,7 @@ import { Stack, Typography } from '@mui/material';
 
 import type { IBlogPostProps } from '@devist/ui-react/types/blog';
 
-import PostItemMobile from '../components/PostItemMobile';
+import PostItemMobile from '../../../components/PostItemMobile';
 
 // ----------------------------------------------------------------------
 
