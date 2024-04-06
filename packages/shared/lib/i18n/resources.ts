@@ -11,6 +11,8 @@ export const resources = {
 	fr,
 } as const;
 
-export const NS = Object.keys(fr);
-export const defaultNS = 'common';
 export const defaultLocale = appLocales[0];
+export const NS = Object.keys(resources[defaultLocale]);
+export const defaultNS: keyof (typeof resources)[typeof defaultLocale] = 'common';
+
+export type DefaultNS = typeof defaultNS;

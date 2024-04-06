@@ -1,10 +1,13 @@
 import zodEn from 'zod-i18n-map/locales/en/zod.json';
 
-import common from './common.json';
+import common from './common';
 
-const namespaces = {
+const resourceEN = {
 	common,
 	zod: zodEn,
-};
+} as const;
 
-export default namespaces;
+export type Resource = typeof resourceEN;
+export type LooseResource = ToPrimitive<Resource>;
+
+export default resourceEN;
