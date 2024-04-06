@@ -2,6 +2,8 @@ import { type Faker } from '@faker-js/faker';
 
 import ParseUser from '@/server/lib/parse/classes/user.class';
 
+import type { GetPostFunctionReturn } from './post.functions';
+
 export const userFactory = async (faker: Faker) => {
 	// const getBool = faker.datatype.boolean;
 	// const user = {} as User;
@@ -26,4 +28,8 @@ export const userFactory = async (faker: Faker) => {
 	// user.availableFor = getBool() ? faker.lorem.words() : null;
 
 	return user;
+};
+
+const a: GetPostFunctionReturn.FrontView = {
+	todo: 'lol',
 };

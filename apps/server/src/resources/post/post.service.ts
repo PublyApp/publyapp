@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import _ from 'lodash';
 
 import { env } from '@/server/lib/env';
@@ -12,7 +13,7 @@ import type {
 	TranslatedIPostWithRelations,
 } from '@/shared/types/db/post.types';
 
-import { applySkipAndLimit, applySorting } from '../../lib/parse/utils';
+import { applySkipAndLimit, applySorting, toIsoString } from '../../lib/parse/utils';
 
 type Props = {
 	sessionToken?: string;
@@ -211,8 +212,15 @@ export default class PostService {
 		return query.first({ sessionToken: this.sessionToken });
 	}
 
-	async getBySlug(slug: string, { select, include }: { select?: string[]; include?: string[] } = {}) {
+	async getBySlug(
+		slug: string,
+		{ select, include, published = true }: { select?: string[]; include?: string[]; published?: boolean } = {},
+	) {
 		const query = new Parse.Query(ParsePost).equalTo('slug', slug);
+
+		if (published) {
+			query.equalTo('published', true);
+		}
 
 		if (select) {
 			query.select(select as never);
@@ -496,9 +504,91 @@ export default class PostService {
 
 		_.unset(finalPost, 'author.__type');
 		_.unset(finalPost, 'cover.__type');
-		_.set(finalPost, 'publishDate', (finalPost.publishDate as any)?.iso);
-		_.set(finalPost, 'updateDate', (finalPost.updateDate as any)?.iso);
+		_.set(finalPost, 'publishDate', toIsoString(finalPost.publishDate));
+		_.set(finalPost, 'updateDate', toIsoString(finalPost.updateDate));
 
 		return finalPost as unknown as IPostWithRelations;
+	}
+
+	async getPostDetailFront(slug: string, { locale, t }: { locale: AppLocale; t: TFunction }) {
+		const MORE_POSTS_COUNT = 4;
+		const include = ['author', 'cover'];
+		const select = [
+			'author',
+			'cover',
+			'tags',
+			// 'cover.url',
+
+			`translation.${locale}`,
+		];
+
+		const post = await this.getBySlug(slug, { include, select });
+
+		if (!post) {
+			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+		}
+
+		const relatedPostsQuery = new Parse.Query(ParsePost)
+			.notEqualTo('objectId', post.id)
+			.equalTo('published', true)
+			.ascending('createdAt')
+			.limit(MORE_POSTS_COUNT);
+
+		const tags = post.get('tags');
+
+		if (tags && !_.isEmpty(tags)) {
+			relatedPostsQuery.containedIn('tags', tags as never);
+		}
+
+		const relatedPosts = await relatedPostsQuery.find({ sessionToken: this.sessionToken });
+
+		if (relatedPosts.length >= MORE_POSTS_COUNT) {
+			// relatedPosts.splice(MORE_POSTS_COUNT);
+
+			return {
+				post: PostService.toJSON(post),
+				morePosts: relatedPosts.map((p) => {
+					return PostService.toJSON(p);
+				}),
+			};
+		}
+
+		const additionalPostQuery = new Parse.Query(ParsePost)
+			.notEqualTo('objectId', post.id)
+			.equalTo('published', true)
+			.ascending('createdAt')
+			.limit(MORE_POSTS_COUNT - relatedPosts.length);
+
+		const additionalPosts = await additionalPostQuery.find({ sessionToken: this.sessionToken });
+
+		const morePosts = _.concat(relatedPosts, additionalPosts);
+
+		return {
+			post: PostService.toJSON(post),
+			morePosts: morePosts.map((p) => {
+				return PostService.toJSON(p);
+			}),
+		};
+	}
+
+	async getPostDetailBoEditForm(id: string, { t }: { t: TFunction }) {
+		// TODO: select only the necessary fields
+		// const include = ['author', 'cover'];
+		// const select = [
+		// 	'author',
+		// 	'cover',
+		// 	'tags',
+		// 	// 'cover.url',
+
+		// 	'translation',
+		// ];
+
+		const post = await this.getById(id /* , { include, select } */);
+
+		if (!post) {
+			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+		}
+
+		return PostService.toJSON(post);
 	}
 }

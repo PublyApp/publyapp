@@ -1,33 +1,25 @@
 const commonEN = {
 	hello: 'Hello',
-	actionRequireAuth: 'You need to be authenticated to perform this action',
-	insufficientRoleForAction: 'Your roles does not permit to perform this action',
 	userHasNoEmail: 'User has no email',
-	roleNotFound: 'Role not found',
+
+	// item types
+	authentication: 'Authentication',
+	user: 'User',
 	name: 'name',
 	title: 'Title',
 	cover: 'Cover',
 	locale: 'Locale',
 	content: 'Content',
-	form: {
-		error: {
-			invalidStringType: '{{field}} must be a string',
-			invalidNumberType: '{{field}} must be a number',
-			invalidBooleanType: '{{field}} must be a boolean',
-			required: '{{field}} required',
-			maxLength: '{{field}} must have {{maxLength}} characters or less',
-			invalid: 'Invalid {{field}}',
-			notInstanceOf: '{{field}} must be an instance of {{type}}',
-		},
-	},
-	'new-post': 'New post',
+	file: 'File',
+	post: 'Post',
+	field: 'Field',
+
+	// ? ...
 	views: 'Views',
 	'created-at': 'Created at',
 	published: 'Published',
 	draft: 'Draft',
 	'invalid-number': 'Invalid number',
-	field: 'Field',
-	post: 'Post',
 	new: 'New',
 	'your-description': 'Your description',
 	'your-title': 'Your title',
@@ -38,7 +30,22 @@ const commonEN = {
 	preview: 'Preview',
 	'edit-post': 'Edit post',
 	edit: 'Edit',
+
+	// ???
+	'item-is-required': '{{item}} is required',
+	'item-not-found': '{{item}} not found',
+	'item-is-invalid': '{{item}} is invalid',
+	'new-item': 'New {{item}}',
+
+	// very specific sentences
+	'unknown-error': 'Unknown error',
 	'must-init-parse-api': 'Must init with a REST client',
+	'invalid-session': 'Invalid session',
+	'user-is-not-staff': 'User is not from internal staff',
+	'insufficient-role': 'Insufficient role',
+	'new-post': 'New post',
 } as const;
+
+export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;
 
 export default commonEN;

@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { functionName, roleSet } from '@devist/shared/lib/constants';
 import {
 	getCreatePostInputSchema,
+	getFindOnePostFunctionParamsSchema,
 	getFindPostFunctionParamsSchema,
 	getUpdatePostInputSchema,
 } from '@devist/shared/validations/post/post.validations';
@@ -58,7 +59,7 @@ export type UpdatePostFunctionReturn = FunctionReturn<typeof updatePostFunction>
 const updatePostFunction = parseFrom({
 	requireUser: true,
 	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
-	action: async ({ req, user, z }) => {
+	action: async ({ req, user, z, t }) => {
 		const updatePostInputSchema = getUpdatePostInputSchema(z);
 		const params = updatePostInputSchema.parse(req.params);
 		const { coverId, authorId, objectId, ...input } = params;
@@ -76,7 +77,7 @@ const updatePostFunction = parseFrom({
 		const post = await postPromise;
 
 		if (!post) {
-			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Post not Found');
+			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
 		}
 
 		const updatedPost = await postService.update(post, {
@@ -90,38 +91,31 @@ const updatePostFunction = parseFrom({
 	},
 });
 
-export type GetPostFunctionReturn = FunctionReturn<typeof getPostFunction>;
+// export type GetPostFunctionReturn = FunctionReturn<typeof getPostFunction>;
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace GetPostFunctionReturn {
+	export type FrontView = ReturnType<typeof PostService.prototype.getPostDetailFront>;
+	export type BoEditFormView = ReturnType<typeof PostService.prototype.getPostDetailBoEditForm>;
+}
 
-// type A =
-// 	| {
-// 			id: string;
-// 			slug: undefined;
-// 	  }
-// 	| {
-// 			id: undefined;
-// 			slug: string;
-// 	  };
 const getPostFunction = parseFrom({
 	requireUser: false,
-	action: async ({ req, user, t }) => {
-		const postId = req.params.id;
-
-		if (!postId) {
-			throw new Parse.Error(Parse.Error.INVALID_JSON, t('Post ID is required'));
-		}
+	action: async ({ req, user, t, z, locale }) => {
+		const params = getFindOnePostFunctionParamsSchema(z).parse(req.params);
 
 		const sessionToken = user?.getSessionToken();
 
 		const postService = new PostService({ sessionToken });
 
-		const post = await postService.getById(postId, { select: undefined, include: ['author', 'cover'] });
-
-		if (!post) {
-			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('Post not Found'));
+		if (params.view === 'front-post-detail') {
+			return postService.getPostDetailFront(params.slug, { locale, t });
 		}
 
-		const finalPost = PostService.toJSON(post);
-		return finalPost;
+		if (params.view === 'bo-edit-form') {
+			return postService.getPostDetailBoEditForm(params.id, { t });
+		}
+
+		return new Error('Invalid view');
 	},
 });
 
