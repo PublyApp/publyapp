@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 
 import {
-	getUpdatePostSchemaClientSide,
-	type UpdatePostSchemaClientSide,
+	getUpdatePostInputSchemaClientSide,
+	type UpdatePostInputClientSide,
 } from '@devist/shared/validations/post/post.validations.client';
 import {
 	useGetPostByIdSuspenseQuery,
@@ -26,7 +26,7 @@ const EditPost = () => {
 	const { lang, t } = useTranslate();
 	const params = useParams();
 
-	const savePostInputSchema = getUpdatePostSchemaClientSide(zod);
+	const savePostInputSchema = getUpdatePostInputSchemaClientSide(zod);
 
 	const {
 		result: { data: post },
@@ -46,7 +46,7 @@ const EditPost = () => {
 	// 	return post.updateDate ? new Date(post.updateDate) : undefined;
 	// }, [post.updateDate]);
 
-	const updatePostForm = useForm<UpdatePostSchemaClientSide>({
+	const updatePostForm = useForm<UpdatePostInputClientSide>({
 		resolver: zodResolver(savePostInputSchema),
 		values: {
 			objectId: post.objectId,

@@ -2,6 +2,7 @@ import { SchemaMigrations, type Schema } from 'parse-server';
 import Config from 'parse-server/lib/Config.js';
 import RestWrite from 'parse-server/lib/RestWrite.js';
 
+import dayjs from 'dayjs';
 import _ from 'lodash';
 import type { AggregateOptions, Db, MongoClient } from 'mongodb';
 import { ZodError } from 'zod';
@@ -105,7 +106,7 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 		}
 
 		if (!user) {
-			throw new Error(t('common:actionRequireAuth'));
+			throw new Error(t('item-is-required', { item: t('authentication') }));
 		}
 
 		// verify the ip address
@@ -127,11 +128,11 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 
 		// ! we assume that we will never call cloud functions from server cloud code
 		if (localMatchConditionIp || onlineMatchConditionIp) {
-			throw new Error(t('common:sessionInvalid'));
+			throw new Error(t('invalid-session'));
 		}
 
 		if (!userHasRole) {
-			throw new Error(t('common:insufficientRoleForAction'));
+			throw new Error(t('insufficient-role'));
 		}
 
 		return action({ req, user, t, locale, z });
@@ -187,13 +188,13 @@ export const multiTenantParseFrom = <T = unknown>(params: MultiTenantParseFromPa
 
 				if (fromStaff) {
 					if (!user) {
-						throw new Error(t('User is required'));
+						throw new Error(t('item-is-required', { item: t('authentication') }));
 					}
 
 					const isStaff = await new RoleService(USE_MASTER_KEY).hasRole(user, roleSet.ABOVE_STAFF_CONTRIBUTOR);
 
 					if (!isStaff) {
-						throw new Error(t('User is not staff'));
+						throw new Error(t('user-is-not-staff'));
 					}
 				}
 
@@ -276,7 +277,7 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 					!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
 
 				if (localMatchConditionIp || onlineMatchConditionIp) {
-					throw new Error(t('common:sessionInvalid'));
+					throw new Error(t('invalid-session'));
 				}
 			}
 		}
@@ -319,7 +320,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 
 			if (req.triggerName === 'beforeFind') {
 				if (!tenantId && !req.master && !fromStaff && !fromPublic) {
-					throw new Error(t('Tenant id is required'));
+					throw new Error(t('item-is-required', { item: 'tenantId' }));
 				}
 
 				// if (isPublic) {
@@ -542,4 +543,34 @@ export const createSessionServer = async <
 	await createSession();
 
 	return sessionData;
+};
+
+type EncodedDateType =
+	| string
+	| number
+	| {
+			__type: 'Date';
+			iso: string;
+	  }
+	| null
+	| undefined;
+
+export const toIsoString = (value: EncodedDateType) => {
+	// if (_.isNil(value)) {
+	// 	return undefined;
+	// }
+
+	if (_.isString(value)) {
+		return dayjs(value).toISOString();
+	}
+
+	if (_.isNumber(value)) {
+		return dayjs(value).toISOString();
+	}
+
+	if (_.isObject(value)) {
+		return dayjs(value.iso).toISOString();
+	}
+
+	return undefined;
 };
