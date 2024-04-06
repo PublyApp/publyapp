@@ -6,7 +6,7 @@ import { getFileSchemaClientSide } from '../file/file.validations.client';
 
 import { getCreatePostInputSchema, getUpdatePostInputSchema } from './post.validations';
 
-export const getUpdatePostSchemaClientSide = (z: CustomZod) => {
+export const getUpdatePostInputSchemaClientSide = (z: CustomZod) => {
 	return getUpdatePostInputSchema(z).extend({
 		coverFile: getFileSchemaClientSide(z).optional(),
 	});
@@ -18,5 +18,5 @@ export const getCreatePostInputSchemaClientSide = (z: CustomZod) => {
 	});
 };
 
-export type UpdatePostSchemaClientSide = zod.infer<ReturnType<typeof getUpdatePostSchemaClientSide>>;
-export type CreatePostSchemaClientSide = zod.infer<ReturnType<typeof getCreatePostInputSchemaClientSide>>;
+export type UpdatePostInputClientSide = zod.infer<ReturnType<typeof getUpdatePostInputSchemaClientSide>>;
+export type CreatePostInputClientSide = zod.infer<ReturnType<typeof getCreatePostInputSchemaClientSide>>;

@@ -1,45 +1,51 @@
+import type { LooseCommonNamespace } from '../en/common';
+
 const commonFR = {
 	hello: 'Bonjour',
-	actionRequireAuth: 'Vous devez être authentifié pour effectuer cette action',
-	insufficientRoleForAction: "Vos rôles ne permettent pas d'effectuer cette action",
 	userHasNoEmail: "L'utilisateur n'a pas d'email",
-	roleNotFound: 'Role introuvable',
-	name: 'Nom',
-	title: 'Titre',
-	cover: 'Couverture',
-	locale: 'Language',
+
+	// item types
+	authentication: 'Authentification',
 	content: 'Contenu',
-	form: {
-		error: {
-			invalidStringType: '{{field}} devrait être une chaîne de caractère',
-			invalidNumberType: '{{field}} devrait être un nombre',
-			invalidBooleanType: '{{field}} devrait être vrai ou faux',
-			required: '{{field}} obligatoire',
-			maxLength: '{{field}} doit avoir {{maxLength}} caractères ou moins',
-			invalid: '{{field}} invalide',
-			notInstanceOf: '{{field}} doit être une instance de {{type}}',
-		},
-	},
-	'new-post': 'Nouvel article',
-	views: 'Vues',
-	'created-at': 'Créé le',
-	published: 'Publié',
-	draft: 'Brouillon',
-	'invalid-number': 'Nombre invalide',
-	file: 'Fichier',
+	cover: 'Couverture',
 	field: 'Champ',
+	file: 'Fichier',
+	locale: 'Language',
+	name: 'Nom',
 	post: 'Article',
+	title: 'Titre',
+	user: 'User',
+
+	// ? ...
+	'created-at': 'Créé le',
+	draft: 'Brouillon',
+	'edit-post': "Éditer l'article",
+	edit: 'Éditer',
+	'invalid-number': 'Nombre invalide',
 	new: 'Nouveau',
+	preview: 'Aperçu',
+	'publish-date': 'Date de publication',
+	published: 'Publié',
+	save: 'Sauvegarder',
+	'update-date': 'Date de mise à jour',
+	views: 'Vues',
 	'your-description': 'Votre description',
 	'your-title': 'Votre titre',
 	'your-content': 'Votre contenu',
-	'publish-date': 'Date de publication',
-	'update-date': 'Date de mise à jour',
-	save: 'Sauvegarder',
-	preview: 'Aperçu',
-	'edit-post': "Éditer l'article",
-	edit: 'Éditer',
+
+	// ???
+	'item-is-required': '{{item}} est obligatoire',
+	'item-not-found': '{{item}} non trouvé',
+	'item-is-invalid': '{{item}} is invalid',
+	'new-item': 'Nouveau {{item}}',
+
+	// very specific sentences
+	'unknown-error': 'Erreur inconnue',
+	'invalid-session': 'Session invalide',
 	'must-init-parse-api': 'Doit être initialisé avec un client REST',
-} as const;
+	'user-is-not-staff': "L'utilisateur n'est pas du personnel interne",
+	'insufficient-role': 'Rôle insuffisant',
+	'new-post': 'Nouvel article',
+} as const satisfies LooseCommonNamespace;
 
 export default commonFR;

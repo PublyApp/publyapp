@@ -1,5 +1,3 @@
-import type zod from 'zod';
-
 import { SLUG_REGEX } from '../../lib/constants';
 import type CustomZod from '../../lib/zod/CustomZod';
 import { getListParamsSchema } from '../../utils/validation.utils';
@@ -16,12 +14,12 @@ export const getDateTypeSchema = (z: CustomZod) => {
 };
 
 export const getCreatePostInputSchema = (z: CustomZod) => {
-	const TITLE = z.t('common:title');
+	const TITLE = z.t('title');
 	const SLUG = 'Slug';
 	const DESCRIPTION = 'Description';
-	const CONTENT = z.t('common:content');
+	const CONTENT = z.t('content');
 	// const AUTHOR_ID = 'authorId';
-	const COVER = z.t('common:cover');
+	const COVER = z.t('cover');
 	// const COVER_URL = t('common:cover');
 	// const DESCRIPTION = t('common:description')
 
@@ -34,34 +32,30 @@ export const getCreatePostInputSchema = (z: CustomZod) => {
 		locale: getLocaleSchema(z),
 		title: z
 			.string()
-			.min(1, { message: z.t('common:form.error.required', { field: TITLE }) })
+			.min(1, { message: z.t('item-is-required', { item: TITLE }) })
 			// .min(1)
-			.max(TITLE_MAX_LENGTH, {
-				message: z.t('common:form.error.maxLength', { field: TITLE, maxLength: TITLE_MAX_LENGTH }),
-			}),
+			.max(TITLE_MAX_LENGTH),
 		slug: z
 			.string()
-			.min(1, { message: z.t('common:form.error.required', { field: SLUG }) })
-			.regex(SLUG_REGEX, z.t('common:form.error.invalid', { field: SLUG })),
+			.min(1, { message: z.t('item-is-required', { item: SLUG }) })
+			.regex(SLUG_REGEX, z.t('item-is-invalid', { item: SLUG })),
 		description: z
 			.string()
-			.min(1, { message: z.t('common:form.error.required', { field: DESCRIPTION }) })
-			.max(DESCRIPTION_MAX_LENGTH, {
-				message: z.t('common:form.error.maxLength', { field: DESCRIPTION, maxLength: DESCRIPTION_MAX_LENGTH }),
-			}),
+			.min(1, { message: z.t('item-is-required', { item: DESCRIPTION }) })
+			.max(DESCRIPTION_MAX_LENGTH),
 		// content: getPostContentSchema(t),
-		content: z.string().min(1, { message: z.t('common:form.error.required', { field: CONTENT }) }),
+		content: z.string().min(1, { message: z.t('item-is-required', { item: CONTENT }) }),
 		authorId: z
 			.string()
 			// .min(1, { message: t('common:form.error.required', { field: AUTHOR_ID }) })
 			.optional(),
 		coverId: z
 			.string()
-			.min(1, { message: z.t('common:form.error.required', { field: COVER }) })
+			.min(1, { message: z.t('item-is-required', { item: COVER }) })
 			.optional(),
 		coverUrl: z
 			.string()
-			.min(1, { message: z.t('common:form.error.required', { field: COVER }) })
+			.min(1, { message: z.t('item-is-required', { item: COVER }) })
 			.optional(),
 		tags: z.array(z.string()).max(4).optional(),
 		publishDate: getDateTypeSchema(z).optional(),
@@ -71,13 +65,12 @@ export const getCreatePostInputSchema = (z: CustomZod) => {
 
 export const getUpdatePostInputSchema = (z: CustomZod) => {
 	const ID = 'ObjectId';
-	// const PUBLISHED = z.t('common:published');
 
 	return getCreatePostInputSchema(z)
 		.partial()
 		.required({ locale: true })
 		.extend({
-			objectId: z.string().min(1, { message: z.t('common:form.error.required', { field: ID }) }),
+			objectId: z.string().min(1, { message: z.t('item-is-required', { item: ID }) }),
 			published: z.boolean().optional(),
 		});
 };
@@ -96,5 +89,18 @@ export const getFindPostFunctionParamsSchema = (z: CustomZod) => {
 	);
 };
 
-export type CreatePostInput = zod.infer<ReturnType<typeof getCreatePostInputSchema>>;
-export type UpdatePostInput = zod.infer<ReturnType<typeof getUpdatePostInputSchema>>;
+export const getFindOnePostFunctionParamsSchema = (z: CustomZod) => {
+	return z.discriminatedUnion('view', [
+		z.object({
+			view: z.literal('front-post-detail'),
+			slug: z.string(),
+		}),
+		z.object({
+			view: z.literal('bo-edit-form'),
+			id: z.string(),
+		}),
+	]);
+};
+
+// export type CreatePostInput = zod.infer<ReturnType<typeof getCreatePostInputSchema>>;
+// export type UpdatePostInput = zod.infer<ReturnType<typeof getUpdatePostInputSchema>>;

@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 
 import {
 	getCreatePostInputSchemaClientSide,
-	type CreatePostSchemaClientSide,
+	type CreatePostInputClientSide,
 } from '@devist/shared/validations/post/post.validations.client';
 
 import PageHeader from '@/office/components/PageHeader';
@@ -20,7 +20,7 @@ const NewPost = () => {
 
 	const savePostInputSchema = getCreatePostInputSchemaClientSide(zod);
 
-	const createPostForm = useForm<CreatePostSchemaClientSide>({
+	const createPostForm = useForm<CreatePostInputClientSide>({
 		resolver: zodResolver(savePostInputSchema),
 		values: {
 			locale: lang.value,

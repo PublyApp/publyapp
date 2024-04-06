@@ -1,5 +1,11 @@
 import type { TFunction } from 'i18next';
-import z, { number, type RawCreateParams, type Writeable, type ZodEnum } from 'zod';
+import z, {
+	type Primitive,
+	type RawCreateParams,
+	type Writeable,
+	type ZodDiscriminatedUnionOption,
+	type ZodEnum,
+} from 'zod';
 import { makeZodI18nMap } from 'zod-i18n-map';
 
 // type B = Parameters<typeof z.object>[1];
@@ -17,7 +23,7 @@ class CustomZod {
 	}
 
 	getErrorMap() {
-		return makeZodI18nMap({ t: this.t });
+		return makeZodI18nMap({ t: this.t as never });
 	}
 
 	string(params?: Parameters<typeof z.string>) {
@@ -40,7 +46,7 @@ class CustomZod {
 	}
 
 	number(params?: Parameters<typeof z.number>) {
-		return number({ errorMap: this.getErrorMap(), ...params });
+		return z.number({ errorMap: this.getErrorMap(), ...params });
 	}
 
 	array(schema: Parameters<typeof z.array>[0], params?: Parameters<typeof z.array>[1]) {
@@ -51,15 +57,14 @@ class CustomZod {
 		return z.boolean({ errorMap: this.getErrorMap(), ...params });
 	}
 
-	discriminatedUnion(
-		discriminator: Parameters<typeof z.discriminatedUnion>[0],
-		options: Parameters<typeof z.discriminatedUnion>[1],
-		params?: Parameters<typeof z.discriminatedUnion>[2],
-	) {
+	discriminatedUnion<
+		Discriminator extends string,
+		Types extends [ZodDiscriminatedUnionOption<Discriminator>, ...ZodDiscriminatedUnionOption<Discriminator>[]],
+	>(discriminator: Discriminator, options: Types, params?: RawCreateParams) {
 		return z.discriminatedUnion(discriminator, options, { errorMap: this.getErrorMap(), ...params });
 	}
 
-	literal(value: Parameters<typeof z.literal>[0], params?: Parameters<typeof z.literal>[1]) {
+	literal<T extends Primitive>(value: T, params?: RawCreateParams) {
 		return z.literal(value, { errorMap: this.getErrorMap(), ...params });
 	}
 
