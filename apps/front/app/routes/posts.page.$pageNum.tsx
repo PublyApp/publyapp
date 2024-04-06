@@ -3,10 +3,10 @@ import { Container, Unstable_Grid2 as Grid } from '@mui/material';
 import { /* useLoaderData, */ defer, type ClientLoaderFunction } from '@remix-run/react';
 
 import { _categories, _tags } from '@/front/_mock';
-import BlogSidebar from '@/front/containers/blog/sidebar/BlogSidebar';
+import PostListHorizontal from '@/front/containers/postList/PostListHorizontal';
+import BlogSidebar from '@/front/containers/postList/sidebar/BlogSidebar';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 
-import PostListHorizontal from '../containers/blog/PostListHorizontal';
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
 // export const loader = (async ({ params }) => {

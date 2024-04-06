@@ -3,7 +3,7 @@ import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
 import i18n from '@/ui-react/lib/i18n';
 
 import AppFileEndPoints from './appFile.endpoints';
-import { PostEndPoints } from './post.endpoints';
+import PostEndPoints from './post.endpoints';
 import UserEndPoints from './user.endpoints';
 
 export class ParseApi {

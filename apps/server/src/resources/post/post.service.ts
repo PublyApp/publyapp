@@ -211,11 +211,15 @@ export default class PostService {
 		return query.first({ sessionToken: this.sessionToken });
 	}
 
-	async getBySlug(slug: string, { select }: { select?: string[] } = {}) {
+	async getBySlug(slug: string, { select, include }: { select?: string[]; include?: string[] } = {}) {
 		const query = new Parse.Query(ParsePost).equalTo('slug', slug);
 
 		if (select) {
 			query.select(select as never);
+		}
+
+		if (include) {
+			query.include(include as never);
 		}
 
 		return query.first({ sessionToken: this.sessionToken });
