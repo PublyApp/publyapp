@@ -103,8 +103,13 @@ export type GetPostFunctionReturn = FunctionReturn<typeof getPostFunction>;
 // 	  };
 const getPostFunction = parseFrom({
 	requireUser: false,
-	action: async ({ req, user }) => {
+	action: async ({ req, user, t }) => {
 		const postId = req.params.id;
+
+		if (!postId) {
+			throw new Parse.Error(Parse.Error.INVALID_JSON, t('Post ID is required'));
+		}
+
 		const sessionToken = user?.getSessionToken();
 
 		const postService = new PostService({ sessionToken });
@@ -112,7 +117,7 @@ const getPostFunction = parseFrom({
 		const post = await postService.getById(postId, { select: undefined, include: ['author', 'cover'] });
 
 		if (!post) {
-			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Post not Found');
+			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('Post not Found'));
 		}
 
 		const finalPost = PostService.toJSON(post);

@@ -6,11 +6,11 @@ export const appLocales = ['en', 'fr'] as const;
 
 export type AppLocale = (typeof appLocales)[number];
 
-export const resources: Record<AppLocale, typeof en | typeof fr> = {
+export const resources = {
 	en,
 	fr,
 } as const;
 
 export const NS = Object.keys(fr);
 export const defaultNS = 'common';
-export const defaultLocale: (typeof appLocales)[0] = 'en';
+export const defaultLocale = appLocales[0];

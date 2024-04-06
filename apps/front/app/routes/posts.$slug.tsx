@@ -1,16 +1,28 @@
 import { Button, Chip, Container, Stack, Typography } from '@mui/material';
+import { LoaderFunction } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
+import _ from 'lodash';
 
 import EmptyContent from '@devist/ui-react/components/EmptyContent';
 import Iconify from '@devist/ui-react/components/Iconify';
 
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import parseApi from '@/ui-react/api/parse/ParseApi';
 
 import Breadcrumbs from '../components/Breadcrumbs';
 import Markdown from '../components/Markdown';
 import RouterLink from '../components/RouterLink';
 import PostDetailsHero from '../containers/postDetails/PostDetailsHero';
-import { PostDetailsSkeleton } from '../containers/postDetails/PostDetailsSkeleton';
+import PostDetailsSkeleton from '../containers/postDetails/PostDetailsSkeleton';
+import { safelyRunInLoader } from '../lib/remix/safelyRun';
+
+export const loader = (async ({ params }) => {
+	const slug = _.toString(params.slug);
+	const post = safelyRunInLoader(parseApi.posts.getPostBySlug)({ slug });
+	return {
+		post,
+	};
+}) satisfies LoaderFunction;
 
 const PostDetailsPage = () => {
 	const { post } = useLoaderData<{ post: any }>();

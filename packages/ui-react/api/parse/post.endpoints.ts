@@ -46,10 +46,11 @@ export type UpdatePostFunctionParams = Partial<Omit<CreatePostFunctionParams, 'l
 };
 export type UpdatePostFunctionResult = UpdatePostFunctionReturn;
 
-export class PostEndPoints {
+export default class PostEndPoints {
 	constructor(private parseRestClient: ParseRestClient) {
 		this.findPost = this.findPost.bind(this);
 		this.findPostTag = this.findPostTag.bind(this);
+		this.getSinglePostFront = this.getSinglePostFront.bind(this);
 	}
 
 	async findPost(params: FindPostFunctionParams | undefined) {
@@ -83,5 +84,9 @@ export class PostEndPoints {
 	async findPostTag() {
 		const tags = await this.parseRestClient.cloudRun<FindPostFunctionResult>(functionName.findPostTag);
 		return tags;
+	}
+
+	getSinglePostFrontView(params: GetPostBySlugFunctionParams) {
+		return this.parseRestClient.cloudRun<GetPostFunctionResult>(functionName.getPost, { params });
 	}
 }

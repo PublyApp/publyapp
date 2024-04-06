@@ -10,8 +10,8 @@ import { nanoid } from 'nanoid';
 import { _blogCareerPosts } from '@/front/_mock';
 import type { PostListLoaderFunction } from '@/front/routes/posts.page.$pageNum';
 
-import PostItemHorizontal from './components/PostItemHorizontal';
-import { PostItemSkeleton } from './components/PostItemSkeleton';
+import PostItemHorizontal from '../../components/PostItemHorizontal';
+import PostItemSkeleton from '../../components/PostItemSkeleton';
 
 // const posts = _blogCareerPosts.map((post) => {
 // 	return {
