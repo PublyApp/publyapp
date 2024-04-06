@@ -1,10 +1,12 @@
 import zodFr from 'zod-i18n-map/locales/fr/zod.json';
 
-import common from './common.json';
+import type { LooseResource } from '../en';
 
-const namespaces = {
+import common from './common';
+
+const resourceFR = {
 	common,
 	zod: zodFr,
-};
+} as const satisfies LooseResource;
 
-export default namespaces;
+export default resourceFR;
