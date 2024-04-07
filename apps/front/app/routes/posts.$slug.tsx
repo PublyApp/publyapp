@@ -1,5 +1,5 @@
 import { Button, Chip, Container, Stack, Typography } from '@mui/material';
-import { LoaderFunction } from '@remix-run/node';
+import type { LoaderFunction } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
 import _ from 'lodash';
 
@@ -18,14 +18,12 @@ import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
 export const loader = (async ({ params }) => {
 	const slug = _.toString(params.slug);
-	const post = safelyRunInLoader(parseApi.posts.getPostBySlug)({ slug });
-	return {
-		post,
-	};
+	const result = await safelyRunInLoader(parseApi.posts.getPostDetailFront)({ slug });
+	return result;
 }) satisfies LoaderFunction;
 
 const PostDetailsPage = () => {
-	const { post } = useLoaderData<{ post: any }>();
+	const result = useLoaderData<typeof loader>();
 
 	const renderSkeleton = <PostDetailsSkeleton />;
 
@@ -50,9 +48,22 @@ const PostDetailsPage = () => {
 		</Container>
 	);
 
-	const renderPost = post && (
+	const renderPost = _.isError(result) ? (
+		<h1
+			css={{
+				color: 'red',
+			}}
+		>
+			Error
+		</h1>
+	) : (
 		<>
-			<PostDetailsHero title={post.title} author={post.author} coverUrl={post.coverUrl} createdAt={post.createdAt} />
+			<PostDetailsHero
+				title={result.post.title}
+				author={post.author}
+				coverUrl={post.coverUrl}
+				createdAt={post.createdAt}
+			/>
 
 			<Container
 				maxWidth={false}

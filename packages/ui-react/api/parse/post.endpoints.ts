@@ -3,11 +3,12 @@ import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
 import type {
 	CreatePostFunctionReturn,
 	FindPostFunctionReturn,
-	GetPostFunctionReturn,
+	GetPostFunction,
 	UpdatePostFunctionReturn,
 } from '@/server/resources/post/post.functions';
 import { functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
+import { findOnePostView, findPostView } from '@/shared/validations/post/post.validations';
 
 // == findPost
 export type FindPostFunctionParams = {
@@ -34,10 +35,10 @@ export type CreatePostFunctionResult = CreatePostFunctionReturn;
 export type GetPostByIdFunctionParams = {
 	id: string;
 };
-export type GetPostBySlugFunctionParams = {
-	slug: string;
-};
-export type GetPostFunctionResult = GetPostFunctionReturn;
+// export type GetPostBySlugFunctionParams = {
+// 	slug: string;
+// };
+// export type GetPostFunctionResult = GetPostFunctionReturn;
 
 // == updatePost
 export type UpdatePostFunctionParams = Partial<Omit<CreatePostFunctionParams, 'locale'>> & {
@@ -50,7 +51,7 @@ export default class PostEndPoints {
 	constructor(private parseRestClient: ParseRestClient) {
 		this.findPost = this.findPost.bind(this);
 		this.findPostTag = this.findPostTag.bind(this);
-		this.getSinglePostFront = this.getSinglePostFront.bind(this);
+		this.getPostDetailFront = this.getPostDetailFront.bind(this);
 	}
 
 	async findPost(params: FindPostFunctionParams | undefined) {
@@ -70,8 +71,16 @@ export default class PostEndPoints {
 		return post;
 	}
 
-	async getPostById(params: GetPostByIdFunctionParams) {
-		const post = await this.parseRestClient.cloudRun<GetPostFunctionResult>(functionName.getPost, { params });
+	async getPostById(params: { id: string }) {
+		const post = await this.parseRestClient.cloudRun<GetPostFunction.BoEdit.Return, GetPostFunction.BoEdit.Params>(
+			functionName.getPost,
+			{
+				params: {
+					view: findOnePostView.boEditForm,
+					...params,
+				},
+			},
+		);
 		return post;
 	}
 
@@ -86,7 +95,15 @@ export default class PostEndPoints {
 		return tags;
 	}
 
-	getSinglePostFrontView(params: GetPostBySlugFunctionParams) {
-		return this.parseRestClient.cloudRun<GetPostFunctionResult>(functionName.getPost, { params });
+	getPostDetailFront(params: { slug: string }) {
+		return this.parseRestClient.cloudRun<GetPostFunction.FrontView.Return, GetPostFunction.FrontView.Params>(
+			functionName.getPost,
+			{
+				params: {
+					view: findOnePostView.frontDetail,
+					...params,
+				},
+			},
+		);
 	}
 }

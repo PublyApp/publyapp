@@ -4,6 +4,7 @@
 namespace Parse {
 	import type { PipelineStage } from 'mongoose';
 
+	import type { AppLocale } from '../lib/i18n/resources';
 	import type { DateType } from '../types/date.types';
 
 	interface BaseAttributes {
@@ -25,8 +26,10 @@ namespace Parse {
 		// eslint-disable-next-line @typescript-eslint/ban-types
 		interface TriggerRequest<T = Object> {
 			query: Query<T> | undefined;
-			context: Record<string, unknown> | undefined;
+			context: (Record<string, unknown> & { locale?: unknown }) | undefined;
 		}
+
+		function define<T extends Params = Params>(name: string, handler: (request: FunctionRequest<T>) => any): void;
 	}
 
 	interface InstallationController {
@@ -50,8 +53,15 @@ namespace Parse {
 	}
 
 	namespace Query {
-		interface FindOptions {
-			context?: Record<string, any>;
+		interface ContextOptions {
+			locale?: AppLocale | undefined;
+			[key: string]: unknown;
 		}
+
+		interface FindOptions {
+			context?: ContextOptions;
+		}
+
+		// TODO: add ContextOptions to more operations
 	}
 }

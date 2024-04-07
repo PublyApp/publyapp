@@ -23,86 +23,137 @@ import RoleService from '../../resources/role/role.service';
 import { DEFAULT_CLP, USE_MASTER_KEY } from '../constants';
 import { getCorrectLocale, getT } from '../i18n';
 
-export const getParseFunctionHeader = (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest, key: string) => {
+export const getParseFunctionHeader = (
+	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest,
+	key: string,
+): string | undefined => {
 	return req.headers?.[key] || req.headers?.[_.toLower(key)];
 };
 
-type ParseInnerFunction<T = unknown> =
-	| ((req: Parse.Cloud.TriggerRequest) => Promise<T>)
-	| ((req: Parse.Cloud.FunctionRequest) => Promise<T>);
+type ParseTrigger<T = unknown> = (req: Parse.Cloud.TriggerRequest) => Promise<T>;
+type ParseFunction<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
+	req: Parse.Cloud.FunctionRequest<P>,
+) => Promise<T>;
+
+type ParseInnerFunction<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> =
+	| ParseFunction<P, T>
+	| ParseTrigger<T>;
 // interface ParseInnerFunction<T = unknown> {
 // 	(req: Parse.Cloud.TriggerRequest): Promise<T>;
 // 	(req: Parse.Cloud.FunctionRequest): Promise<T>;
 // }
 
-export const parseFunction = <T = unknown>(innerFunction: ParseInnerFunction<T>) => {
-	return async (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest): Promise<T> => {
+type CloudFunction = {
+	<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+		innerFunction: ParseFunction<P, T>,
+	): ParseFunction<P, T>;
+	<T = unknown>(innerFunction: ParseTrigger<T>): ParseTrigger<T>;
+};
+
+const isTriggerRequest = (
+	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest,
+): req is Parse.Cloud.TriggerRequest => {
+	return !_.isNil((req as Parse.Cloud.TriggerRequest).triggerName);
+};
+
+export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+	innerFunction: ParseInnerFunction<P, T>,
+) => {
+	return async (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest<P>): Promise<T> => {
 		try {
-			const result = await innerFunction(
-				req as never /* as Parse.Cloud.TriggerRequest & Parse.Cloud.FunctionRequest */,
-			);
+			const result = await innerFunction(req as never);
 			return result;
 		} catch (error: unknown) {
-			let message = 'Unknown error';
+			const localeInHeader = getCorrectLocale(getParseFunctionHeader(req, LOCALE_HEADER_KEY));
+
+			let t = getT(localeInHeader);
+
+			const isTrigger = isTriggerRequest(req);
+
+			if (isTrigger) {
+				const localeInContext = getCorrectLocale(_.isString(req.context?.locale) ? req.context.locale : undefined);
+
+				if (localeInContext !== localeInHeader) {
+					t = getT(localeInContext);
+				}
+			} else {
+				// do nothing
+			}
+
+			let message: string = t('unknown-error');
 
 			// get zod errors message
 			if (error instanceof ZodError) {
 				message = error.issues[0].message;
-
 				return Promise.reject(message);
 			}
 
-			return Promise.reject(error);
+			if (error instanceof Error) {
+				return Promise.reject(error);
+			}
+
+			if (_.isString(error)) {
+				message = error;
+			}
+
+			return Promise.reject(message);
 		}
 	};
 };
 
-type BaseActionContext = {
-	req: Parse.Cloud.FunctionRequest;
+export const parseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+	innerFunction: ParseFunction<P, T>,
+) => {
+	return cloudFunction<P, T>(innerFunction);
+};
+
+type BaseActionContext<P extends Parse.Cloud.Params = Parse.Cloud.Params> = {
+	req: Parse.Cloud.FunctionRequest /* <P> */;
 	t: ReturnType<typeof getT>;
 	locale: AppLocale;
 	z: CustomZod;
+	params: P;
 };
 
-type ActionContext2 = BaseActionContext & {
+type ActionContext2<P extends Parse.Cloud.Params = Parse.Cloud.Params> = BaseActionContext<P> & {
 	user?: Parse.User;
 };
 
-type ActionContext1 = BaseActionContext & {
+type ActionContext1<P extends Parse.Cloud.Params = Parse.Cloud.Params> = BaseActionContext<P> & {
 	user: Parse.User;
 };
 
-type ParseFromParams<T = unknown> =
+type ParseFunctionEnhancedParams<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
 	| {
 			requireUser: true;
-			allowedRoles: IRoleConfig[];
-			action: (ctx: ActionContext1) => Promise<T>;
+			allowedRoles?: IRoleConfig[] | undefined;
+			action: (ctx: ActionContext1<P>) => Promise<T>;
 	  }
 	| {
-			requireUser: false;
-			action: (ctx: ActionContext2) => Promise<T>;
+			requireUser?: false | undefined;
 			allowedRoles?: undefined;
-	  };
+			action: (ctx: ActionContext2<P>) => Promise<T>;
+	  }
+) & {
+	validateParams?: ({ params, z }: { params: Parse.Cloud.Params; z: CustomZod }) => P;
+};
 
-export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
-	const innerFunction = async (req: Parse.Cloud.FunctionRequest) => {
-		const { requireUser, action, allowedRoles } = params;
+export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+	params: ParseFunctionEnhancedParams<P, T>,
+) => {
+	const actionBuilder = parseFunction<P, T>(async (req) => {
+		const { requireUser, action, allowedRoles = roleSet.ALL, validateParams } = params;
 
 		const { user } = req;
 
-		const localeInHeader: string | undefined = getParseFunctionHeader(req, LOCALE_HEADER_KEY);
-
-		// const locale: AppLocale = appLocales.includes(localeInHeader as never)
-		// 	? (localeInHeader as AppLocale)
-		// 	: defaultLocale;
+		const localeInHeader = getParseFunctionHeader(req, LOCALE_HEADER_KEY);
 		const locale = getCorrectLocale(localeInHeader);
-
 		const t = getT(locale);
-
 		const z = new CustomZod(t);
 
 		if (!requireUser) {
-			return action({ req, t, user, locale, z });
+			const validatedParams = validateParams?.({ params: req.params, z });
+			return action({ req, t, user, locale, z, params: validatedParams || req.params });
 		}
 
 		if (!user) {
@@ -135,41 +186,46 @@ export const parseFrom = <T = unknown>(params: ParseFromParams<T>) => {
 			throw new Error(t('insufficient-role'));
 		}
 
-		return action({ req, user, t, locale, z });
-	};
-
-	const actionBuilder = parseFunction<T>(innerFunction as never);
+		const validatedParams = validateParams?.({ params: req.params, z });
+		return action({ req, user, t, locale, z, params: validatedParams || req.params });
+	});
 
 	return actionBuilder;
 };
 
-type MultiTenantActionContext2 = ActionContext2 & {
+type MultiTenantActionContext2<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ActionContext2<P> & {
 	fromPublic: boolean;
 	fromStaff: boolean;
 	fromTenantMember: boolean;
 };
 
-type MultiTenantActionContext1 = ActionContext1;
+type MultiTenantActionContext1<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ActionContext1<P>;
 
-type MultiTenantParseFromParams<T = unknown> =
+type MultiTenantParseFunctionEnhancedParams<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
 	| {
 			requireUser: true;
 			allowedRoles: IRoleConfig[];
-			action: (ctx: MultiTenantActionContext1) => Promise<T>;
+			action: (ctx: MultiTenantActionContext1<P>) => Promise<T>;
 	  }
 	| {
 			requireUser: false;
-			action: (ctx: MultiTenantActionContext2) => Promise<T>;
+			action: (ctx: MultiTenantActionContext2<P>) => Promise<T>;
 			allowedRoles?: undefined;
-	  };
+	  }
+) & {
+	validateParams: ({ params, z }: { params: Parse.Cloud.Params; z: CustomZod }) => P;
+};
 
-export const multiTenantParseFrom = <T = unknown>(params: MultiTenantParseFromParams<T>) => {
-	const { action, requireUser, allowedRoles } = params;
+export const multiTenantParseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+	params: MultiTenantParseFunctionEnhancedParams<P, T>,
+) => {
+	const { action, requireUser, allowedRoles, validateParams } = params;
 
 	if (!requireUser) {
-		return parseFrom<T>({
+		return parseFunctionEnhanced<P, T>({
 			requireUser,
 			allowedRoles,
+			validateParams,
 			action: async ({ locale, req, t, user, z }) => {
 				// eslint-disable-next-line @typescript-eslint/naming-convention
 				const { fromPublic, fromStaff: _fromStaff } = req.params;
@@ -198,14 +254,16 @@ export const multiTenantParseFrom = <T = unknown>(params: MultiTenantParseFromPa
 					}
 				}
 
-				return action({ req, user, t, locale, fromPublic, fromStaff, fromTenantMember, z });
+				const validatedParams = validateParams({ params: req.params, z });
+				return action({ req, user, t, locale, fromPublic, fromStaff, fromTenantMember, z, params: validatedParams });
 			},
 		});
 	}
 
-	return parseFrom<T>({
+	return parseFunctionEnhanced<P, T>({
 		requireUser,
 		allowedRoles,
+		validateParams,
 		action,
 	});
 };
@@ -216,34 +274,22 @@ type TriggerContext = {
 	locale: AppLocale;
 };
 
-type ParseTriggerParams = {
+export const parseTrigger = <T = unknown>(innerFunction: ParseTrigger<T>) => {
+	return cloudFunction<T>(innerFunction);
+};
+
+type ParseTriggerEnhancedParams = {
 	trigger: (ctx: TriggerContext) => Promise<void>;
 };
 
-export const parseTrigger = (params: ParseTriggerParams) => {
-	const triggerBuilder = parseFunction(async (req: Parse.Cloud.TriggerRequest) => {
+export const parseTriggerEnhanced = (params: ParseTriggerEnhancedParams) => {
+	const triggerBuilder = parseTrigger(async (req /* : Parse.Cloud.TriggerRequest */) => {
 		const { trigger } = params;
 
-		const { headers, context } = req;
+		const localeInHeaders = getParseFunctionHeader(req, LOCALE_HEADER_KEY);
+		const localeInContext = _.isString(req.context?.locale) ? req.context.locale : undefined;
 
-		// eslint-disable-next-line @typescript-eslint/naming-convention
-		let _headers: Record<string, unknown> = {};
-
-		if (_.isObject(headers) && !_.isEmpty(headers)) {
-			_headers = headers as never;
-		} else if (_.isObject(context?.headers) && !_.isEmpty(context.headers)) {
-			_headers = context.headers as never;
-		}
-
-		// eslint-disable-next-line @typescript-eslint/naming-convention
-		const _localeInHeaders = _headers[_.toLower(LOCALE_HEADER_KEY)];
-		const localeInHeaders = _.isString(_localeInHeaders) ? _localeInHeaders : undefined;
-
-		// const locale: AppLocale = appLocales.includes(localeInHeaders as never)
-		// 	? (localeInHeaders as AppLocale)
-		// 	: defaultLocale;
-		const locale = getCorrectLocale(localeInHeaders);
-
+		const locale = getCorrectLocale(localeInContext || localeInHeaders);
 		const t = getT(locale);
 
 		// ! not a good idea in my opinion after reconsideration
@@ -259,7 +305,6 @@ export const parseTrigger = (params: ParseTriggerParams) => {
 
 		// verify ip address if the request is not from the cloud functions and from an user with a session token
 		// * especially necessary if directAccess is set to false
-
 		if (
 			(directAccess && req.installationId !== 'cloud') ||
 			(!directAccess && req.installationId !== cloudInstallationId)
@@ -296,8 +341,11 @@ type MultiTenantTriggerParams = {
 	trigger: (ctx: MultiTenantTriggerContext) => Promise<void>;
 };
 
+/**
+ * ! Warning!!!!!!!! This is a work in progress
+ */
 export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
-	return parseTrigger({
+	return parseTriggerEnhanced({
 		trigger: async ({ locale, req, t }) => {
 			const { trigger } = params;
 

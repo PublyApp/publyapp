@@ -2,6 +2,8 @@ import _ from 'lodash';
 
 import { functionName, roleSet } from '@devist/shared/lib/constants';
 import {
+	findOnePostView,
+	findPostView,
 	getCreatePostInputSchema,
 	getFindOnePostFunctionParamsSchema,
 	getFindPostFunctionParamsSchema,
@@ -9,16 +11,14 @@ import {
 } from '@devist/shared/validations/post/post.validations';
 
 import ParsePost from '@/server/lib/parse/classes/post.class';
-import { parseFrom, type FunctionReturn } from '@/server/lib/parse/utils';
+import { parseFunctionEnhanced, type FunctionReturn } from '@/server/lib/parse/utils';
 import FileService from '@/server/resources/file/file.service';
 import PostService from '@/server/resources/post/post.service';
 import UserService from '@/server/resources/user/user.service';
 
-// import { getListParamsSchema } from '@/server/utils/validation.utils';
-
 export type CreatePostFunctionReturn = FunctionReturn<typeof createPostFunction>;
 
-const createPostFunction = parseFrom({
+const createPostFunction = parseFunctionEnhanced({
 	requireUser: true,
 	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
 	action: async ({ req, user, z }) => {
@@ -40,9 +40,6 @@ const createPostFunction = parseFrom({
 			throw new Error('A post with the same slug already exists');
 		}
 
-		// const author = (await authorPromise) ?? (user.toJSON() as unknown as IUser);
-
-		// TODO: return JSON objects instead of Parse Objects
 		const post = await postService.create({
 			...input,
 			author: (await authorPromise) || user,
@@ -56,9 +53,9 @@ const createPostFunction = parseFrom({
 
 export type UpdatePostFunctionReturn = FunctionReturn<typeof updatePostFunction>;
 
-const updatePostFunction = parseFrom({
+const updatePostFunction = parseFunctionEnhanced({
 	requireUser: true,
-	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
+	// allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
 	action: async ({ req, user, z, t }) => {
 		const updatePostInputSchema = getUpdatePostInputSchema(z);
 		const params = updatePostInputSchema.parse(req.params);
@@ -91,50 +88,95 @@ const updatePostFunction = parseFrom({
 	},
 });
 
-// export type GetPostFunctionReturn = FunctionReturn<typeof getPostFunction>;
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace GetPostFunctionReturn {
-	export type FrontView = ReturnType<typeof PostService.prototype.getPostDetailFront>;
-	export type BoEditFormView = ReturnType<typeof PostService.prototype.getPostDetailBoEditForm>;
+export namespace GetPostFunction {
+	export namespace FrontView {
+		export type Params = {
+			view: typeof findOnePostView.frontDetail;
+			slug: string;
+		};
+		export type Return = FunctionReturn<typeof PostService.prototype.getOnePostFront>;
+	}
+	export namespace BoEdit {
+		export type Params = {
+			view: typeof findOnePostView.boEditForm;
+			id: string;
+		};
+		export type Return = FunctionReturn<typeof PostService.prototype.getOnePostBoEdit>;
+	}
 }
 
-const getPostFunction = parseFrom({
-	requireUser: false,
-	action: async ({ req, user, t, z, locale }) => {
-		const params = getFindOnePostFunctionParamsSchema(z).parse(req.params);
-
+const getPostFunction = parseFunctionEnhanced({
+	validateParams: ({ params, z }) => {
+		return getFindOnePostFunctionParamsSchema(z).parse(params);
+	},
+	action: async ({ user, t, locale, params }) => {
 		const sessionToken = user?.getSessionToken();
 
 		const postService = new PostService({ sessionToken });
 
-		if (params.view === 'front-post-detail') {
-			return postService.getPostDetailFront(params.slug, { locale, t });
+		if (params.view === findOnePostView.frontDetail) {
+			const post = await postService.getOnePostFront(params.slug, { locale });
+
+			if (!post) {
+				throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+			}
+
+			return PostService.toJSON(post);
 		}
 
-		if (params.view === 'bo-edit-form') {
-			return postService.getPostDetailBoEditForm(params.id, { t });
+		if (params.view === findOnePostView.boEditForm) {
+			const post = await postService.getOnePostBoEdit(params.id);
+
+			if (!post) {
+				throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+			}
+
+			return PostService.toJSON(post);
 		}
 
-		return new Error('Invalid view');
+		throw new Error(t('item-is-invalid', { item: 'view' }));
 	},
 });
 
-export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
+// export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
+export namespace FindPostFunction {
+	export namespace FrontList {
+		export type Params = {
+			view: typeof findPostView.frontList;
+			page: number;
+			pageSize: number;
+			sorting: { id: string; desc: boolean }[];
+		};
+		export type Return = FunctionReturn<typeof PostService.prototype.findPostFrontList>;
+	}
+	export namespace BoTable {
+		export type Params = {
+			view: typeof findPostView.boTable;
+			page: number;
+			pageSize: number;
+			sorting: { id: string; desc: boolean }[];
+			fromPublic: boolean;
+		};
+		export type Return = FunctionReturn<typeof PostService.prototype.findPostBoTable>;
+	}
+}
 
-const findPostFunction = parseFrom({
-	requireUser: false,
-	action: async ({ req, user, locale, z }) => {
-		const { page, pageSize, sorting, ...params } = getFindPostFunctionParamsSchema(z).parse(req.params);
+const findPostFunction = parseFunctionEnhanced({
+	validateParams: ({ params, z }) => {
+		return getFindPostFunctionParamsSchema(z).parse(params);
+	},
+	action: async ({ req, user, locale, params: _params }) => {
+		const { page, pageSize, sorting, ...params } = _params; /* getFindPostFunctionParamsSchema(z).parse(req.params); */
 
 		const sessionToken = user?.getSessionToken();
 		const postService = new PostService({ sessionToken, headers: req.headers });
 
-		if (params.view === 'front-list') {
+		if (params.view === findPostView.frontList) {
 			const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
 			return posts;
 		}
 
-		if (params.view === 'bo-table') {
+		if (params.view === findPostView.boTable) {
 			const posts = await postService.findPostBoTable({
 				page,
 				pageSize,
@@ -149,8 +191,7 @@ const findPostFunction = parseFrom({
 	},
 });
 
-const findPostTag = parseFrom({
-	requireUser: false,
+const findPostTag = parseFunctionEnhanced({
 	action: async (/* { locale, req, t, user } */) => {
 		const pipeline: Parse.PipelineStage[] = [
 			{ $unwind: '$tags' },
