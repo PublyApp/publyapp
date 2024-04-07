@@ -1,6 +1,6 @@
 import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 
-import { parseFrom, type FunctionReturn } from '@/server/lib/parse/utils';
+import { parseFunctionEnhanced, type FunctionReturn } from '@/server/lib/parse/utils';
 import FileService from '@/server/resources/file/file.service';
 import FolderService from '@/server/resources/folder/folder.service';
 import type { AppFile } from '@/shared/types/db/appFile.types';
@@ -8,10 +8,8 @@ import { getMulterCreateFolderSchema } from '@/shared/validations/file/file.vali
 
 export type FindAppFileFunctionReturn = FunctionReturn<typeof findAppFileFunction>;
 
-const findAppFileFunction = parseFrom({
-	requireUser: false,
-	// allowedRoles: roleSet.ALL,
-	action: async ({ /* t, */ req, user }) => {
+const findAppFileFunction = parseFunctionEnhanced({
+	action: async ({ req, user }) => {
 		const { pageSize, page, folderPath } = req.params;
 
 		const sessionToken = user?.getSessionToken();
@@ -33,7 +31,7 @@ const findAppFileFunction = parseFrom({
 
 export type CreateAppFileFunctionReturn = FunctionReturn<typeof createAppFileFolderFunction>;
 
-const createAppFileFolderFunction = parseFrom({
+const createAppFileFolderFunction = parseFunctionEnhanced({
 	requireUser: true,
 	allowedRoles: roleSet.ALL,
 	action: async ({ req, user, z }) => {

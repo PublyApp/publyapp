@@ -1,9 +1,9 @@
-import { parseFrom } from '@/server/lib/parse/utils';
+import { parseFunctionEnhanced } from '@/server/lib/parse/utils';
 import { functionName, roleSet } from '@/shared/lib/constants';
 
 import RoleService from '../role/role.service';
 
-const getUserAuthDataFunction = parseFrom({
+const getUserAuthDataFunction = parseFunctionEnhanced({
 	requireUser: true,
 	allowedRoles: roleSet.ALL,
 	action: async ({ req: _r, user }) => {

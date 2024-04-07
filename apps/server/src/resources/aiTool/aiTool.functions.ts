@@ -3,7 +3,7 @@
 // import { className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 // import { createAIToolInputSchema } from '@devist/shared/validations/aiTool.validations';
 
-// import { parseFrom, reOrderObjects } from '@/server/lib/parse/utils';
+// import { parseFunctionEnhanced, reOrderObjects } from '@/server/lib/parse/utils';
 // import { pageToSkip } from '@/server/utils/any.utils';
 // import { getListParamsSchema } from '@/server/utils/validation.utils';
 
@@ -11,8 +11,7 @@
 
 // Parse.Cloud.define(
 // 	functionName.getAITools,
-// 	parseFrom({
-// 		requireUser: false,
+// 	parseFunctionEnhanced({
 // 		action: async ({ req /* , t  */ }) => {
 // 			const { page, pageSize, sorting } = getAIToolsFunctionParamsSchema.parse(req.params);
 
@@ -73,7 +72,7 @@
 
 // Parse.Cloud.define(
 // 	functionName.createAITool,
-// 	parseFrom({
+// 	parseFunctionEnhanced({
 // 		requireUser: true,
 // 		allowedRoles: roleSet.ABOVE_STAFF_EDITOR,
 // 		action: async ({ req }) => {
