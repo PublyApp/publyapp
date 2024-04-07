@@ -19,6 +19,9 @@ export const envSchema = z.object({
 	CLOUDINARY_NAME: z.string(),
 	CLOUDINARY_API_KEY: z.string(),
 	CLOUDINARY_API_SECRET: z.string(),
+	// ===
+	FRONT_URL: z.string(),
+	OFFICE_URL: z.string(),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

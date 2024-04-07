@@ -2,7 +2,7 @@ import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
 
 import type {
 	CreatePostFunctionReturn,
-	FindPostFunctionReturn,
+	// FindPostFunctionReturn,
 	GetPostFunction,
 	UpdatePostFunctionReturn,
 } from '@/server/resources/post/post.functions';
@@ -11,13 +11,13 @@ import type { AppLocale } from '@/shared/lib/i18n/resources';
 import { findOnePostView, findPostView } from '@/shared/validations/post/post.validations';
 
 // == findPost
-export type FindPostFunctionParams = {
-	page?: number;
-	pageSize?: number;
-	view?: 'bo-table' | 'front-list';
-	// no sorting yet
-};
-export type FindPostFunctionResult = FindPostFunctionReturn;
+// export type FindPostFunctionParams = {
+// 	page?: number;
+// 	pageSize?: number;
+// 	view?: 'bo-table' | 'front-list';
+// 	// no sorting yet
+// };
+// export type FindPostFunctionResult = FindPostFunctionReturn;
 
 // == createPost
 export type CreatePostFunctionParams = {
