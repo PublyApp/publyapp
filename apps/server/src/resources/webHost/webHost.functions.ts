@@ -2,7 +2,7 @@
 
 // import { USE_MASTER_KEY } from '@/server/lib/constants';
 // import { ParseWebHost } from '@/server/lib/parse/classes/webHost.class';
-// import { aggregate, parseFrom, reOrderObjects } from '@/server/lib/parse/utils';
+// import { aggregate, parseFunctionEnhanced, reOrderObjects } from '@/server/lib/parse/utils';
 // import { pageToSkip } from '@/server/utils/any.utils';
 // import { getListParamsSchema } from '@/server/utils/validation.utils';
 // import { /* className, */ className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@/shared/lib/constants';
@@ -14,7 +14,7 @@
 // // --------------------------------------------------------------------------------------//
 // Parse.Cloud.define(
 // 	functionName.saveWebHost,
-// 	parseFrom({
+// 	parseFunctionEnhanced({
 // 		requireUser: true,
 // 		allowedRoles: roleSet.STAFF_ADMIN_ONLY,
 // 		action: async ({ req, t }) => {
@@ -45,8 +45,7 @@
 
 // Parse.Cloud.define(
 // 	functionName.findWebHost,
-// 	parseFrom({
-// 		requireUser: false,
+// 	parseFunctionEnhanced({
 // 		action: async ({ req /* , t  */ }) => {
 // 			const { page, pageSize, sorting } = getWebHostsFunctionParamsSchema.parse(req.params);
 

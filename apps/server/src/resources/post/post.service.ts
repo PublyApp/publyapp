@@ -1,4 +1,3 @@
-import type { TFunction } from 'i18next';
 import _ from 'lodash';
 
 import { env } from '@/server/lib/env';
@@ -510,8 +509,8 @@ export default class PostService {
 		return finalPost as unknown as IPostWithRelations;
 	}
 
-	async getPostDetailFront(slug: string, { locale, t }: { locale: AppLocale; t: TFunction }) {
-		const MORE_POSTS_COUNT = 4;
+	async getOnePostFront(slug: string, { locale }: { locale: AppLocale }) {
+		// const MORE_POSTS_COUNT = 4;
 		const include = ['author', 'cover'];
 		const select = [
 			'author',
@@ -524,54 +523,64 @@ export default class PostService {
 
 		const post = await this.getBySlug(slug, { include, select });
 
-		if (!post) {
-			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
-		}
+		return post;
 
-		const relatedPostsQuery = new Parse.Query(ParsePost)
-			.notEqualTo('objectId', post.id)
-			.equalTo('published', true)
-			.ascending('createdAt')
-			.limit(MORE_POSTS_COUNT);
+		// const morePostsQuery = new Parse.Query(ParsePost).equalTo('published', true).descending('createdAt');
 
-		const tags = post.get('tags');
+		// if (!post) {
+		// 	throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+		// morePostsQuery.limit(MORE_POSTS_COUNT);
 
-		if (tags && !_.isEmpty(tags)) {
-			relatedPostsQuery.containedIn('tags', tags as never);
-		}
+		// const morePosts = await morePostsQuery.find({ sessionToken: this.sessionToken });
 
-		const relatedPosts = await relatedPostsQuery.find({ sessionToken: this.sessionToken });
+		// return {
+		// 	notFound: true,
+		// 	morePosts: morePosts.map((p) => {
+		// 		return PostService.toJSON(p);
+		// 	}),
+		// };
+		// }
 
-		if (relatedPosts.length >= MORE_POSTS_COUNT) {
-			// relatedPosts.splice(MORE_POSTS_COUNT);
+		// const relatedPostsQuery = new Parse.Query(ParsePost)
+		// 	.notEqualTo('objectId', post.id)
+		// 	.equalTo('published', true)
+		// 	.ascending('createdAt')
+		// 	.limit(MORE_POSTS_COUNT);
 
-			return {
-				post: PostService.toJSON(post),
-				morePosts: relatedPosts.map((p) => {
-					return PostService.toJSON(p);
-				}),
-			};
-		}
+		// const tags = post.get('tags');
 
-		const additionalPostQuery = new Parse.Query(ParsePost)
-			.notEqualTo('objectId', post.id)
-			.equalTo('published', true)
-			.ascending('createdAt')
-			.limit(MORE_POSTS_COUNT - relatedPosts.length);
+		// if (tags && !_.isEmpty(tags)) {
+		// 	relatedPostsQuery.containedIn('tags', tags as never);
+		// }
 
-		const additionalPosts = await additionalPostQuery.find({ sessionToken: this.sessionToken });
+		// const relatedPosts = await relatedPostsQuery.find({ sessionToken: this.sessionToken });
 
-		const morePosts = _.concat(relatedPosts, additionalPosts);
+		// if (relatedPosts.length >= MORE_POSTS_COUNT) {
+		// 	// relatedPosts.splice(MORE_POSTS_COUNT);
 
-		return {
-			post: PostService.toJSON(post),
-			morePosts: morePosts.map((p) => {
-				return PostService.toJSON(p);
-			}),
-		};
+		// 	return {
+		// 		post: PostService.toJSON(post),
+		// 		morePosts: relatedPosts.map((p) => {
+		// 			return PostService.toJSON(p);
+		// 		}),
+		// 	};
+		// }
+
+		// morePostsQuery.notEqualTo('objectId', post.id).limit(MORE_POSTS_COUNT - relatedPosts.length);
+
+		// const additionalPosts = await morePostsQuery.find({ sessionToken: this.sessionToken });
+
+		// const morePosts = _.concat(relatedPosts, additionalPosts);
+
+		// return {
+		// 	post: PostService.toJSON(post),
+		// 	morePosts: morePosts.map((p) => {
+		// 		return PostService.toJSON(p);
+		// 	}),
+		// };
 	}
 
-	async getPostDetailBoEditForm(id: string, { t }: { t: TFunction }) {
+	async getOnePostBoEdit(id: string) {
 		// TODO: select only the necessary fields
 		// const include = ['author', 'cover'];
 		// const select = [
@@ -586,9 +595,10 @@ export default class PostService {
 		const post = await this.getById(id /* , { include, select } */);
 
 		if (!post) {
-			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+			// throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+			return undefined;
 		}
 
-		return PostService.toJSON(post);
+		return post;
 	}
 }

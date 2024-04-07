@@ -4,5 +4,6 @@ module.exports = {
 	rules: {
 		'no-console': 'warn',
 		'import/extensions': 'off',
+		'@typescript-eslint/no-namespace': 'off',
 	},
 };
