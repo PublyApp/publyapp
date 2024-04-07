@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
+import ParseUser from '@/server/lib/parse/classes/user.class';
 import { createSessionServer } from '@/server/lib/parse/utils';
 import { getRequestIp } from '@/server/utils/request.utils';
 import { defaultHttp } from '@/shared/lib/axios';
@@ -44,13 +45,13 @@ const applicationFromURL = {
 } as const;
 
 const getFacebookRedirectURL = (applicationFrom?: keyof typeof applicationFromURL) => {
-	return `${applicationFromURL[applicationFrom || 'office']}/facebook-login/loading`;
+	return `${applicationFromURL[applicationFrom || 'office']}/facebook-auth/loading`;
 };
 
-// GET: /facebook-login/dialog-url body: { applicationFrom: 'office' | 'front' }
+// GET: /facebook-auth/dialog-url body: { applicationFrom: 'office' | 'front' }
 export const handleGetFacebookLoginDialogURL: RequestHandler = async (req, res, next) => {
 	try {
-		const { applicationFrom } = req.body;
+		const { applicationFrom, isLinkingUser } = req.body;
 
 		const url = new URL('https://www.facebook.com/v19.0/dialog/oauth');
 		// eslint-disable-next-line turbo/no-undeclared-env-vars
@@ -58,7 +59,7 @@ export const handleGetFacebookLoginDialogURL: RequestHandler = async (req, res, 
 		// eslint-disable-next-line turbo/no-undeclared-env-vars
 		url.searchParams.append('redirect_uri', getFacebookRedirectURL(applicationFrom));
 		// eslint-disable-next-line turbo/no-undeclared-env-vars
-		url.searchParams.append('state', '"{is=void}"');
+		url.searchParams.append('state', `"{${isLinkingUser ? 'isLinkingUser=true' : ''}}"`);
 
 		return res.status(200).json({ url: url.toString() });
 	} catch (error) {
@@ -66,9 +67,10 @@ export const handleGetFacebookLoginDialogURL: RequestHandler = async (req, res, 
 	}
 };
 
-// GET: /facebook-login/callback
+// GET: /facebook-auth/callback
 export const handleFacebookLoginDialogResponse: RequestHandler = async (req, res, next) => {
 	try {
+		const { applicationFrom, userId /* , isLinkingUser */ } = req.body;
 		const { code, error, error_reason, error_description } = req.query;
 
 		if (error) {
@@ -85,7 +87,7 @@ export const handleFacebookLoginDialogResponse: RequestHandler = async (req, res
 
 		const url = new URL('https://graph.facebook.com/v19.0/oauth/access_token');
 		url.searchParams.append('client_id', '');
-		url.searchParams.append('redirect_uri', `${env.SERVER_URL}/facebook-login/callback`);
+		url.searchParams.append('redirect_uri', getFacebookRedirectURL(applicationFrom));
 		url.searchParams.append('client_secret', '');
 		url.searchParams.append('code', code.toString());
 
@@ -119,6 +121,14 @@ export const handleFacebookLoginDialogResponse: RequestHandler = async (req, res
 		// status code of 201 Created, indicating that a new user was created:
 
 		// @link https://docs.parseplatform.org/js/guide/#linking-users
+		if (userId) {
+			const _user = await new Parse.Query(ParseUser).select([]).get(userId, USE_MASTER_KEY);
+
+			const user = await _user.linkWith('facebook', { authData }, USE_MASTER_KEY);
+
+			return res.status(200).json(user.toJSON());
+		}
+
 		const user = await Parse.User.logInWith('facebook', { authData }, USE_MASTER_KEY);
 
 		return res.status(201).json(user.toJSON());
