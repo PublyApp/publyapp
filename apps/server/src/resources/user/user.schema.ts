@@ -8,7 +8,7 @@ import { defineSchema } from '@/server/lib/parse/utils';
 const UserSchema = defineSchema<Omit<IUserWithRelations, 'email' | 'username' | 'password'>>(className.USER, {
 	fields: {
 		firstName: { type: 'String' },
-		lastName: { type: 'String', required: true },
+		lastName: { type: 'String' /* , required: true */ },
 		avatarUrl: { type: 'String' },
 
 		// relations
