@@ -37,9 +37,9 @@
 		"// =============== SEED COMMANDS =================": "================================",
 		"seed": "bun --enable-source-maps dist/seeding/seed.js",
 		"// =============== TEST COMMANDS =================": "================================",
-		"postinstall": "bun scripts/patch/index.js",
+		"postinstall": "bun scripts/patch.js",
 		"// =============== Utilities =====================": "===============================",
-		"workspace": "echo 'bun ../../scripts/workspace.ts'"
+		"workspace": "bun ../../scripts/workspace.ts"
 	},
 	"dependencies": {
 		"@devist/shared": "workspace:*",
@@ -104,6 +104,7 @@
 		"eslint-config-custom-server": "workspace:*",
 		"line-replace": "^2.0.1",
 		"nodemon": "^3.0.2",
+		"replace-in-file": "^7.1.0",
 		"ts-node": "^10.9.2",
 		"tsconfig": "workspace:*",
 		"typescript": "^5.3.3"
