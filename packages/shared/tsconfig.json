@@ -4,6 +4,8 @@
 	"compilerOptions": {
 		"resolveJsonModule": true,
 
+		"module": "ESNext",
+
 		// "baseUrl": ".",
 		// "paths": {
 		// 	"@/shared/*": ["*"]

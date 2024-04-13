@@ -31,6 +31,10 @@ import RoleSchema from './resources/role/role.schema';
 import SessionSchema from './resources/session/session.schema';
 import UserSchema from './resources/user/user.schema';
 import customEndPointsRouter from './router/customEndPointsRouter';
+import { getCurrentFolderNameESM } from './utils/fs.utils';
+
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const __dirname = getCurrentFolderNameESM();
 
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
