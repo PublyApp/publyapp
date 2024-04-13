@@ -95,16 +95,16 @@ export const handleFacebookLoginDialogResponse: RequestHandler = async (req, res
 			access_token,
 			token_type: _token_type,
 			expires_in,
-		} = await defaultHttp.get<Record<string, any>>(url.toString());
+		} = await defaultHttp.get<Record<string, unknown>>(url.toString());
 
 		// https://graph.facebook.com/me?fields=id&access_token="xxxxx"
 		const meUrl = new URL('https://graph.facebook.com/me');
 		meUrl.searchParams.append('fields', 'id');
-		meUrl.searchParams.append('access_token', access_token);
+		meUrl.searchParams.append('access_token', _.toString(access_token));
 
-		const { user_id } = await defaultHttp.get<Record<string, any>>(url.toString());
+		const { user_id } = await defaultHttp.get<Record<string, unknown>>(url.toString());
 
-		const expiration_date = dayjs().add(expires_in, 'second').toISOString();
+		const expiration_date = dayjs().add(_.toNumber(expires_in), 'second').toISOString();
 
 		const authData = {
 			id: user_id,

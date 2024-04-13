@@ -39,7 +39,7 @@
 		"// =============== TEST COMMANDS =================": "================================",
 		"postinstall": "bun scripts/patch/index.js",
 		"// =============== Utilities =====================": "===============================",
-		"workspace": "bun ../../scripts/workspace.ts"
+		"workspace": "echo 'bun ../../scripts/workspace.ts'"
 	},
 	"dependencies": {
 		"@devist/shared": "workspace:*",
