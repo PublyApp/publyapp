@@ -75,10 +75,10 @@ export const getUpdatePostInputSchema = (z: CustomZod) => {
 		});
 };
 
-export const findPostView = {
-	frontList: 'front-list',
-	boTable: 'bo-table',
-} as const;
+// export const findPostView = {
+// 	frontList: 'front-list',
+// 	boTable: 'bo-table',
+// } as const;
 
 export const getFindPostFunctionParamsSchema = (z: CustomZod) => {
 	return getListParamsSchema(z).and(
@@ -94,22 +94,33 @@ export const getFindPostFunctionParamsSchema = (z: CustomZod) => {
 	);
 };
 
-export const findOnePostView = {
-	frontDetail: 'front-post-detail',
-	boEditForm: 'bo-edit-form',
-} as const;
+// export const findOnePostView = {
+// 	frontDetail: 'front-post-detail',
+// 	boEditForm: 'bo-edit-form',
+// } as const;
 
-export const getFindOnePostFunctionParamsSchema = (z: CustomZod) => {
-	return z.discriminatedUnion('view', [
-		z.object({
-			view: z.literal(findOnePostView.frontDetail),
-			slug: z.string(),
-		}),
-		z.object({
-			view: z.literal(findOnePostView.boEditForm),
-			id: z.string(),
-		}),
-	]);
+// export const getFindOnePostFunctionParamsSchema = (z: CustomZod) => {
+// 	return z.discriminatedUnion('view', [
+// 		z.object({
+// 			view: z.literal(findOnePostView.frontDetail),
+// 			slug: z.string(),
+// 		}),
+// 		z.object({
+// 			view: z.literal(findOnePostView.boEditForm),
+// 			id: z.string(),
+// 		}),
+// 	]);
+// };
+export const getGetPostFunctionFrontDetailsView = (z: CustomZod) => {
+	return z.object({
+		slug: z.string(),
+	});
+};
+
+export const getGetPostFunctionBackOfficeEditForm = (z: CustomZod) => {
+	return z.object({
+		id: z.string(),
+	});
 };
 
 // export type CreatePostInput = zod.infer<ReturnType<typeof getCreatePostInputSchema>>;

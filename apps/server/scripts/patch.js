@@ -7,7 +7,7 @@ console.log('==================> postInstall <=================');
 
 const path = require('path');
 
-const patchParseServerSelectNestedObjects = async () => {
+const patchParseServerSelectNestedObjectKeys = async () => {
 	const filePath1 = path.resolve(import.meta.dir, '../node_modules/parse-server/lib/RestQuery.js');
 	const filePath2 = path.resolve(import.meta.dir, '../../../node_modules/parse-server/lib/RestQuery.js');
 
@@ -22,4 +22,4 @@ const patchParseServerSelectNestedObjects = async () => {
 	});
 };
 
-patchParseServerSelectNestedObjects();
+patchParseServerSelectNestedObjectKeys();

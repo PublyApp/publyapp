@@ -1,8 +1,7 @@
 import '../lib/highlight';
 
-import { alpha, Link, styled } from '@mui/material';
-import { SxProps, Theme } from '@mui/material/styles';
-import ReactMarkdown, { Options } from 'react-markdown';
+import { alpha, Link, styled, type SxProps, type Theme } from '@mui/material';
+import ReactMarkdown, { type Options } from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
@@ -21,9 +20,11 @@ export interface MarkdownProps extends Options {
 
 const Markdown = ({ sx, ...other }: MarkdownProps) => {
 	return (
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		<StyledMarkdown sx={sx}>
 			<ReactMarkdown
 				rehypePlugins={[rehypeRaw, rehypeHighlight, [remarkGfm, { singleTilde: false }]]}
+				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				components={components}
 				{...other}
 			/>
