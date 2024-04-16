@@ -8,7 +8,6 @@ import type {
 } from '@/server/resources/post/post.functions';
 import { functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import { findOnePostView, findPostView } from '@/shared/validations/post/post.validations';
 
 // == findPost
 // export type FindPostFunctionParams = {
@@ -71,14 +70,15 @@ export default class PostEndPoints {
 		return post;
 	}
 
-	async getPostById(params: { id: string }) {
+	async getPostById(params: GetPostFunction.BoEdit.Params) {
 		const post = await this.parseRestClient.cloudRun<GetPostFunction.BoEdit.Return, GetPostFunction.BoEdit.Params>(
 			functionName.getPost,
 			{
-				params: {
-					view: findOnePostView.boEditForm,
-					...params,
-				},
+				params,
+				// : {
+				// 	view: findOnePostView.boEditForm,
+				// 	...params,
+				// },
 			},
 		);
 		return post;
@@ -95,14 +95,15 @@ export default class PostEndPoints {
 		return tags;
 	}
 
-	getPostDetailFront(params: { slug: string }) {
+	getPostDetailFront(params: GetPostFunction.FrontView.Params) {
 		return this.parseRestClient.cloudRun<GetPostFunction.FrontView.Return, GetPostFunction.FrontView.Params>(
 			functionName.getPost,
 			{
-				params: {
-					view: findOnePostView.frontDetail,
-					...params,
-				},
+				params,
+				// : {
+				// 	// view: findOnePostView.frontDetail,
+				// 	...params,
+				// },
 			},
 		);
 	}
