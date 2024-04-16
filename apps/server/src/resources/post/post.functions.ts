@@ -2,16 +2,18 @@ import _ from 'lodash';
 
 import { functionName, roleSet } from '@devist/shared/lib/constants';
 import {
-	findOnePostView,
+	// findOnePostView,
 	findPostView,
 	getCreatePostInputSchema,
-	getFindOnePostFunctionParamsSchema,
+	// getFindOnePostFunctionParamsSchema,
 	getFindPostFunctionParamsSchema,
+	getGetPostFunctionBackOfficeEditForm,
+	getGetPostFunctionFrontDetailsView,
 	getUpdatePostInputSchema,
 } from '@devist/shared/validations/post/post.validations';
 
 import ParsePost from '@/server/lib/parse/classes/post.class';
-import { parseFunctionEnhanced, type FunctionReturn } from '@/server/lib/parse/utils';
+import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
 import FileService from '@/server/resources/file/file.service';
 import PostService from '@/server/resources/post/post.service';
 import UserService from '@/server/resources/user/user.service';
@@ -90,74 +92,101 @@ const updatePostFunction = parseFunctionEnhanced({
 
 export namespace GetPostFunction {
 	export namespace FrontView {
-		export type Params = {
-			view: typeof findOnePostView.frontDetail;
-			slug: string;
-		};
-		export type Return = FunctionReturn<typeof PostService.prototype.getOnePostFront>;
+		export type Params = FunctionParams<typeof getPostFunctionFrontDetailsView>;
+		export type Return = FunctionReturn<typeof getPostFunctionFrontDetailsView>;
 	}
 	export namespace BoEdit {
-		export type Params = {
-			view: typeof findOnePostView.boEditForm;
-			id: string;
-		};
-		export type Return = FunctionReturn<typeof PostService.prototype.getOnePostBoEdit>;
+		export type Params = FunctionParams<typeof getPostFunctionBackOfficeEditForm>;
+		export type Return = FunctionReturn<typeof getPostFunctionBackOfficeEditForm>;
 	}
 }
 
-const getPostFunction = parseFunctionEnhanced({
+const getPostFunctionBackOfficeEditForm = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
-		return getFindOnePostFunctionParamsSchema(z).parse(params);
+		return getGetPostFunctionBackOfficeEditForm(z).parse(params);
+	},
+	action: async ({ user, t, /* locale, */ params }) => {
+		const sessionToken = user?.getSessionToken();
+
+		const postService = new PostService({ sessionToken });
+
+		// if (params.view === findOnePostView.frontDetail) {
+		// 	const post = await postService.getOnePostFront(params.slug, { locale });
+
+		// 	if (!post) {
+		// 		throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+		// 	}
+
+		// 	return PostService.toJSON(post);
+		// }
+
+		// if (params.view === findOnePostView.boEditForm) {
+		const post = await postService.getOnePostBoEdit(params.id);
+
+		if (!post) {
+			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+		}
+
+		return PostService.toJSON(post);
+		// }
+
+		// throw new Error(t('item-is-invalid', { item: 'view' }));
+	},
+});
+
+const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
+	validateParams: ({ params, z }) => {
+		return getGetPostFunctionFrontDetailsView(z).parse(params);
 	},
 	action: async ({ user, t, locale, params }) => {
 		const sessionToken = user?.getSessionToken();
 
 		const postService = new PostService({ sessionToken });
 
-		if (params.view === findOnePostView.frontDetail) {
-			const post = await postService.getOnePostFront(params.slug, { locale });
+		// if (params.view === findOnePostView.frontDetail) {
+		const post = await postService.getOnePostFront(params.slug, { locale });
 
-			if (!post) {
-				throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
-			}
-
-			return PostService.toJSON(post);
+		if (!post) {
+			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
 		}
 
-		if (params.view === findOnePostView.boEditForm) {
-			const post = await postService.getOnePostBoEdit(params.id);
+		return PostService.toJSON(post);
+		// }
 
-			if (!post) {
-				throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
-			}
+		// if (params.view === findOnePostView.boEditForm) {
+		// 	const post = await postService.getOnePostBoEdit(params.id);
 
-			return PostService.toJSON(post);
-		}
+		// 	if (!post) {
+		// 		throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+		// 	}
 
-		throw new Error(t('item-is-invalid', { item: 'view' }));
+		// 	return PostService.toJSON(post);
+		// }
+
+		// throw new Error(t('item-is-invalid', { item: 'view' }));
 	},
 });
 
 // export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
 export namespace FindPostFunction {
 	export namespace FrontList {
-		export type Params = {
-			view: typeof findPostView.frontList;
-			page: number;
-			pageSize: number;
-			sorting: { id: string; desc: boolean }[];
-		};
-		export type Return = FunctionReturn<typeof PostService.prototype.findPostFrontList>;
+		// export type Params = {
+		// 	view: typeof findPostView.frontList;
+		// 	page: number;
+		// 	pageSize: number;
+		// 	sorting: { id: string; desc: boolean }[];
+		// };
+		// export type Return = FunctionReturn<typeof PostService.prototype.findPostFrontList>;
 	}
 	export namespace BoTable {
-		export type Params = {
-			view: typeof findPostView.boTable;
-			page: number;
-			pageSize: number;
-			sorting: { id: string; desc: boolean }[];
-			fromPublic: boolean;
-		};
-		export type Return = FunctionReturn<typeof PostService.prototype.findPostBoTable>;
+		// export type Params = {
+		// 	view: typeof findPostView.boTable;
+		// 	page: number;
+		// 	pageSize: number;
+		// 	sorting: { id: string; desc: boolean }[];
+		// 	fromPublic: boolean;
+		// };
+		// export type Return = FunctionReturn<typeof PostService.prototype.findPostBoTable>;
 	}
 }
 
@@ -209,6 +238,9 @@ const findPostTag = parseFunctionEnhanced({
 
 Parse.Cloud.define(functionName.createPost, createPostFunction);
 Parse.Cloud.define(functionName.updatePost, updatePostFunction);
-Parse.Cloud.define(functionName.getPost, getPostFunction);
-Parse.Cloud.define(functionName.findPost, findPostFunction);
 Parse.Cloud.define(functionName.findPostTag, findPostTag);
+
+Parse.Cloud.define(functionName.findPost, findPostFunction); // TODO: separate views
+
+Parse.Cloud.define(functionName.getPost, getPostFunctionFrontDetailsView);
+Parse.Cloud.define(functionName.getPost, getPostFunctionBackOfficeEditForm);

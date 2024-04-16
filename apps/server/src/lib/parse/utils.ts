@@ -484,7 +484,12 @@ export const applySorting = (query: Parse.Query, sorting: { id: string; desc: bo
 	}
 };
 
-export type FunctionReturn<T> = T extends (...args: never[]) => Promise<infer R> ? R : never;
+// export type FunctionReturn<T> = T extends (...args: never[]) => Promise<infer R> ? R : never;
+// export type FunctionParams<T> = T extends (...args: infer P) => Promise<never> ? P : never;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<ReturnType<T>>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type FunctionParams<T extends ParseFunction<any, any>> = Parameters<T>[0]['params'];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const defineSchema = <T extends Record<string, any> = Record<string, any>>(
