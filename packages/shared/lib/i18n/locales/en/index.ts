@@ -1,4 +1,5 @@
-import zodEn from 'zod-i18n-map/locales/en/zod.json';
+// eslint-disable-next-line prettier/prettier
+import zodEn from 'zod-i18n-map/locales/en/zod.json' assert { type: 'json' };
 
 import common from './common';
 

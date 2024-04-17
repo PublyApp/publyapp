@@ -12,6 +12,7 @@ const path = require('path');
 const fs = require('fs');
 
 const { createRsbuild: _createRsbuild } = require('@rsbuild/core');
+// const rspack = require('@rspack/core');
 
 const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../../../');
 
@@ -129,6 +130,16 @@ function createRsbuild() {
 						chunkFormat: 'module',
 						filename: '[name].mjs',
 					},
+					// plugins: [
+					// 	new rspack.DefinePlugin({
+					// 		'import.meta.filename': 'import.meta.filename',
+					// 		'import.meta.dirname': "eval('import.meta.filename')",
+					// 		// TRUE: true,
+					// 		// TRUE_STRING: 'true',
+					// 		// UNDEFINED: undefined,
+					// 		// UNDEFINED_STRING: 'undefined',
+					// 	}),
+					// ],
 				},
 			},
 		},

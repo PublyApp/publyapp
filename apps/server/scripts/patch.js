@@ -1,17 +1,18 @@
 /* eslint-disable no-console */
 /* eslint-disable @typescript-eslint/no-var-requires */
 /* eslint-disable import/no-extraneous-dependencies */
-import replace from 'replace-in-file';
+const fs = require('fs');
+const path = require('path');
+
+const replace = require('replace-in-file');
 
 console.log('==================> postInstall <=================');
 
-const path = require('path');
-
 const patchParseServerSelectNestedObjectKeys = async () => {
-	const filePath1 = path.resolve(import.meta.dir, '../node_modules/parse-server/lib/RestQuery.js');
-	const filePath2 = path.resolve(import.meta.dir, '../../../node_modules/parse-server/lib/RestQuery.js');
+	const filePath1 = path.resolve(__dirname, '../node_modules/parse-server/lib/RestQuery.js');
+	const filePath2 = path.resolve(__dirname, '../../../node_modules/parse-server/lib/RestQuery.js');
 
-	const exists1 = Bun.file(filePath1).exists();
+	const exists1 = fs.existsSync(filePath1);
 
 	// const results =
 	replace({

@@ -4,11 +4,11 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "bun vite dev",
-		"build": "bun vite build && bun vite build --ssr",
-		"build:dev": "bun vite build --mode development && bun vite build --ssr --mode development",
-		"start": "bun remix-serve ./build/server/index.js",
-		"type-check": "bun tsc"
+		"dev": "vite dev",
+		"build": "vite build && vite build --ssr",
+		"build:dev": "vite build --mode development && vite build --ssr --mode development",
+		"start": "remix-serve ./build/server/index.js",
+		"type-check": "tsc"
 	},
 	"dependencies": {
 		"highlight.js": "^11.9.0",
