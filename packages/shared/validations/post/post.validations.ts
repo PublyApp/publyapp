@@ -75,10 +75,10 @@ export const getUpdatePostInputSchema = (z: CustomZod) => {
 		});
 };
 
-// export const findPostView = {
-// 	frontList: 'front-list',
-// 	boTable: 'bo-table',
-// } as const;
+export const findPostView = {
+	frontList: 'front-list',
+	boTable: 'bo-table',
+} as const;
 
 export const getFindPostFunctionParamsSchema = (z: CustomZod) => {
 	return getListParamsSchema(z).and(

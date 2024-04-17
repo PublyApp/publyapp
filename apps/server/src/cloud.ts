@@ -15,9 +15,9 @@ export const cloud = async () => {
 
 const functions = async () => {
 	await Promise.all([
-		import('./resources/appFile/appFile.functions'),
-		import('./resources/post/post.functions'),
-		import('./resources/user/user.functions'),
+		import('@/server/resources/appFile/appFile.functions'),
+		import('@/server/resources/post/post.functions'),
+		import('@/server/resources/user/user.functions'),
 		// 	import('../resources/aiTool/aiTool.functions'),
 		// import('../resources/webHost/webHost.functions'),
 	]);

@@ -16,7 +16,8 @@
 		"PARSE_SERVER_URL",
 		"PARSE_APP_ID",
 		"OFFICE_ROUTER_BASENAME",
-		"FRONT_URL"
+		"FRONT_URL",
+		"TEST_ONLINE"
 	],
 	"pipeline": {
 		"build": {
