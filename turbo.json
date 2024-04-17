@@ -1,6 +1,24 @@
 {
 	"$schema": "https://turbo.build/schema.json",
 	"globalDependencies": ["**/.env.*local"],
+	"globalEnv": [
+		"APP_ID",
+		"ONLINE",
+		"PRODUCTION",
+		"PORT",
+		"DATABASE_URI",
+		"MASTER_KEY",
+		"SERVER_URL",
+		"NODE_ENV",
+		"APP_ENV",
+		"MODE",
+		"REST_API_KEY",
+		"PARSE_SERVER_URL",
+		"PARSE_APP_ID",
+		"OFFICE_ROUTER_BASENAME",
+		"FRONT_URL",
+		"TEST_ONLINE"
+	],
 	"pipeline": {
 		"build": {
 			"dependsOn": ["^build"],
