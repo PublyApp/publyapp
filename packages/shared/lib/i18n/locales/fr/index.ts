@@ -1,4 +1,5 @@
-import zodFr from 'zod-i18n-map/locales/fr/zod.json';
+// eslint-disable-next-line prettier/prettier
+import zodFr from 'zod-i18n-map/locales/fr/zod.json' assert { type: 'json' };
 
 import type { LooseResource } from '../en';
 

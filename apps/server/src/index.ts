@@ -34,10 +34,11 @@ import customEndPointsRouter from './router/customEndPointsRouter';
 import { getCurrentFolderNameESM } from './utils/fs.utils';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
-const __dirname = getCurrentFolderNameESM();
+const __dirname = getCurrentFolderNameESM(import.meta.url);
 
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
+	global.TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';
 	global.MODE = process.env.MODE || 'local';
 
 	// eslint-disable-next-line no-console
@@ -48,7 +49,11 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                    override process.env with values in .env file                      //
 	// --------------------------------------------------------------------------------------//
-	if (global.LOCAL) {
+	// const envFileName = `.env.${global.MODE}`;
+	// console.log(path.resolve(__dirname, '..', envFileName));
+	// return;
+
+	if (global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
 		const envFileName = `.env.${global.MODE}`;
 		const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
 		dotenvExpand.expand(envConfig);
@@ -171,7 +176,7 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                  //
 	// --------------------------------------------------------------------------------------//
-	if (!global.LOCAL) {
+	if (!global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
 		app.use(express.static(path.resolve(__dirname, '../../../node_modules/front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
@@ -180,8 +185,9 @@ const bootstrap = async () => {
 			createRequestHandler({
 				// `remix build` and `remix dev` output files to a build directory, you need
 				// to pass that build to the request handler
-				// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-				// @ts-ignore
+				// // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+				// // @ts-ignore
+				/* webpackIgnore: true */
 				build: await import('front/build/server/index.js'), // ! the '.js' extension is important
 
 				// return anything you want here to be available as `context` in your

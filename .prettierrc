@@ -30,6 +30,6 @@
 		"^./"
 	],
 	"importOrderSeparation": true,
-	"importOrderParserPlugins": ["typescript", "jsx", "decorators-legacy"],
+	"importOrderParserPlugins": ["typescript", "jsx", "decorators-legacy", "importAssertions"],
 	"importOrderTypeScriptVersion": "5.0.0"
 }
