@@ -33,8 +33,7 @@ import UserSchema from './resources/user/user.schema';
 import customEndPointsRouter from './router/customEndPointsRouter';
 import { getCurrentFolderNameESM } from './utils/fs.utils';
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const __dirname = getCurrentFolderNameESM(import.meta.url);
+const dirname = getCurrentFolderNameESM(import.meta.url);
 
 const bootstrap = async () => {
 	global.LOCAL = process.env.ONLINE !== 'true';
@@ -50,12 +49,12 @@ const bootstrap = async () => {
 	//                    override process.env with values in .env file                      //
 	// --------------------------------------------------------------------------------------//
 	// const envFileName = `.env.${global.MODE}`;
-	// console.log(path.resolve(__dirname, '..', envFileName));
+	// console.log(path.resolve(dirname, '..', envFileName));
 	// return;
 
 	if (global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
 		const envFileName = `.env.${global.MODE}`;
-		const envConfig = dotenv.config({ path: path.resolve(__dirname, '..', envFileName) });
+		const envConfig = dotenv.config({ path: path.resolve(dirname, '..', envFileName) });
 		dotenvExpand.expand(envConfig);
 	}
 
@@ -99,7 +98,7 @@ const bootstrap = async () => {
 	const parseServer = new ps.ParseServer({
 		appId: env.PARSE_APP_ID,
 		masterKey: env.PARSE_MASTER_KEY,
-		// cloud: path.resolve(__dirname, './cloud/_index'),
+		// cloud: path.resolve(dirname, './cloud/_index'),
 		cloud,
 		databaseURI: env.DATABASE_URI,
 		serverURL: env.PARSE_SERVER_URL,
@@ -177,7 +176,7 @@ const bootstrap = async () => {
 	//                  mount remix build when in a deployment environment                  //
 	// --------------------------------------------------------------------------------------//
 	if (!global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
-		app.use(express.static(path.resolve(__dirname, '../../../node_modules/front/build/client')));
+		app.use(express.static(path.resolve(dirname, '../../../node_modules/front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
