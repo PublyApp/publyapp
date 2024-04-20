@@ -11,6 +11,10 @@ export const safelyRunInLoader = <F extends GenericFunction>(func: F): SafeLoade
 	const wrappedFunction = tryCatchWrapper(func, (_error) => {
 		let error = _error;
 
+		if (_.isString(error)) {
+			error = new Error(error);
+		}
+
 		if (!(error instanceof Error)) {
 			error = new Error('Unknown error');
 		}
