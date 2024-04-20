@@ -50,6 +50,8 @@ namespace Parse {
 		aggregate<V = any>(
 			pipeline: /* Query.AggregationOptions | Query.AggregationOptions[] */ PipelineStage[],
 		): Promise<V>;
+
+		comment(comment: string): Query<T>;
 	}
 
 	namespace Query {

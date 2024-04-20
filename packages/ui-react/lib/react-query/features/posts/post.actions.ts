@@ -7,7 +7,7 @@ import { type IPostWithRelations } from '@/shared/types/db/post.types';
 import { type ParseApi } from '@/ui-react/api/parse/ParseApi';
 import type {
 	CreatePostFunctionParams,
-	FindPostFunctionParams,
+	// FindPostFunctionParams,
 	GetPostByIdFunctionParams,
 	UpdatePostFunctionParams,
 } from '@/ui-react/api/parse/post.endpoints';

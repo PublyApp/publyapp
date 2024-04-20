@@ -17,24 +17,23 @@ const errorMiddleware = (error: unknown, req: Request, res: Response, next: Next
 			message = error;
 		}
 
+		if (error instanceof HttpException) {
+			status = error.status;
+		}
+
+		if (error instanceof Parse.Error) {
+			parseErrorCode = error.code;
+			status = 400;
+		}
+
 		if (error instanceof Error) {
-			if (error instanceof HttpException) {
-				status = error.status;
-			}
-
-			if (error instanceof Parse.Error) {
-				parseErrorCode = error.code;
-				status = 400;
-			}
-
 			message = error.message;
 		}
 
 		logger.error(`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message:: ${message}`);
 		res.status(status).json({ message, code: parseErrorCode });
-		// eslint-disable-next-line @typescript-eslint/no-shadow
-	} catch (error) {
-		next(error);
+	} catch (_error) {
+		next(_error);
 	}
 };
 
