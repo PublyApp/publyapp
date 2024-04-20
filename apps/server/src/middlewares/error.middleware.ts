@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from 'express';
+import type { ErrorRequestHandler } from 'express';
 import _ from 'lodash';
 
 import { HttpException } from '@/server/exceptions/HttpException';
@@ -6,7 +6,8 @@ import { HttpException } from '@/server/exceptions/HttpException';
 import logger from '../lib/logger';
 import { getRequestUtils } from '../utils/request.utils';
 
-const errorMiddleware = (error: unknown, req: Request, res: Response, next: NextFunction) => {
+// ! this is only middleware that we should not wrap into expressHandler wrapper function
+const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 	try {
 		const { t } = getRequestUtils(req);
 		let status = 500;
@@ -33,6 +34,7 @@ const errorMiddleware = (error: unknown, req: Request, res: Response, next: Next
 		logger.error(`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message:: ${message}`);
 		res.status(status).json({ message, code: parseErrorCode });
 	} catch (_error) {
+		// you can do somme async login to third party services here
 		next(_error);
 	}
 };

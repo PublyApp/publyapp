@@ -1,10 +1,10 @@
 import type express from 'express';
-import { type RequestHandler } from 'express';
 import _ from 'lodash';
 
 import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 import { env } from '../lib/env';
+import { expressHandler } from '../lib/express';
 import { getCurrentInstallationId } from '../lib/parse/utils';
 import { getHeader, getRequestIp } from '../utils/request.utils';
 
@@ -57,18 +57,14 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 	}
 };
 
-const parseServerMiddleware: RequestHandler = async (req, res, next) => {
-	try {
-		const isMaster = checkIsMaster(req);
+const parseServerMiddleware = expressHandler(async (req, res, next) => {
+	const isMaster = checkIsMaster(req);
 
-		if (!isMaster) {
-			await handleMatchSessionIp(req, res);
-		}
-
-		return next();
-	} catch (_error) {
-		return next(_error);
+	if (!isMaster) {
+		await handleMatchSessionIp(req, res);
 	}
-};
+
+	return next();
+});
 
 export default parseServerMiddleware;
