@@ -117,8 +117,8 @@ importers:
         specifier: ^3.3.2
         version: 3.3.2
       parse:
-        specifier: ^4.3.1
-        version: 4.3.1
+        specifier: ^5.0.0
+        version: 5.0.0
       react:
         specifier: ^18.2.0
         version: 18.2.0
@@ -358,8 +358,8 @@ importers:
         specifier: ^2.0.6
         version: 2.0.6
       parse:
-        specifier: ^4.3.1
-        version: 4.3.1
+        specifier: ^5.0.0
+        version: 5.0.0
       qs:
         specifier: ^6.11.2
         version: 6.12.1
@@ -605,8 +605,8 @@ importers:
         specifier: ^2.0.6
         version: 2.0.6
       parse:
-        specifier: ^4.3.1
-        version: 4.3.1
+        specifier: ^5.0.0
+        version: 5.0.0
       parse-dashboard:
         specifier: ^5.3.0
         version: 5.3.0(@codemirror/language@6.0.0)(@types/node@20.12.7)(react-is@17.0.2)
@@ -860,8 +860,8 @@ importers:
         specifier: ^2.0.6
         version: 2.0.6
       parse:
-        specifier: ^4.3.1
-        version: 4.3.1
+        specifier: ^5.0.0
+        version: 5.0.0
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -1037,8 +1037,8 @@ importers:
         specifier: ^2.0.6
         version: 2.0.6
       parse:
-        specifier: ^4.3.1
-        version: 4.3.1
+        specifier: ^5.0.0
+        version: 5.0.0
       qs:
         specifier: ^6.11.2
         version: 6.12.1
@@ -15723,23 +15723,6 @@ packages:
       xmlhttprequest: 1.8.0
     optionalDependencies:
       crypto-js: 4.1.1
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-    dev: false
-
-  /parse@4.3.1:
-    resolution: {integrity: sha512-ypLPhMPFsJY+C2MXg6HdrVu6ielsL+kUjcSqh7J01lPC5oBuLh70F9YMQSw51QBocEeMSVgB7eUorFOH+MkVpA==}
-    engines: {node: '>=14.21.0 <17 || >=18 <20'}
-    dependencies:
-      '@babel/runtime-corejs3': 7.23.2
-      idb-keyval: 6.2.1
-      react-native-crypto-js: 1.0.0
-      uuid: 9.0.1
-      ws: 8.13.0
-      xmlhttprequest: 1.8.0
-    optionalDependencies:
-      crypto-js: 4.2.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate

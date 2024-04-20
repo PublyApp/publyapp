@@ -1,25 +1,15 @@
 import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
 
 import type {
-	CreatePostFunctionReturn,
+	CreatePostFunction,
 	FindPostFunction,
-	// FindPostFunctionReturn,
 	GetPostFunction,
-	UpdatePostFunctionReturn,
+	UpdatePostFunction,
 } from '@/server/resources/post/post.functions';
 import { functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
-// == findPost
-// export type FindPostFunctionParams = {
-// 	page?: number;
-// 	pageSize?: number;
-// 	view?: 'bo-table' | 'front-list';
-// 	// no sorting yet
-// };
-// export type FindPostFunctionResult = FindPostFunctionReturn;
-
-// == createPost
+// == create post
 export type CreatePostFunctionParams = {
 	locale: AppLocale;
 	title: string;
@@ -29,23 +19,12 @@ export type CreatePostFunctionParams = {
 	authorId?: string;
 	coverId?: string;
 };
-export type CreatePostFunctionResult = CreatePostFunctionReturn;
-
-// == getPost
-export type GetPostByIdFunctionParams = {
-	id: string;
-};
-// export type GetPostBySlugFunctionParams = {
-// 	slug: string;
-// };
-// export type GetPostFunctionResult = GetPostFunctionReturn;
 
 // == updatePost
 export type UpdatePostFunctionParams = Partial<Omit<CreatePostFunctionParams, 'locale'>> & {
 	locale: AppLocale;
 	published?: boolean;
 };
-export type UpdatePostFunctionResult = UpdatePostFunctionReturn;
 
 export default class PostEndPoints {
 	constructor(private parseRestClient: ParseRestClient) {
@@ -72,20 +51,20 @@ export default class PostEndPoints {
 	}
 
 	async createPost(params: CreatePostFunctionParams) {
-		const post = await this.parseRestClient.cloudRun<CreatePostFunctionResult>(functionName.createPost, { params });
+		const post = await this.parseRestClient.cloudRun<CreatePostFunction.Return>(functionName.createPost, { params });
 		return post;
 	}
 
 	async getPostById(params: GetPostFunction.BoEdit.Params) {
 		const post = await this.parseRestClient.cloudRun<GetPostFunction.BoEdit.Return, GetPostFunction.BoEdit.Params>(
-			functionName.getPost,
+			functionName.getPostBoEdit,
 			{ params },
 		);
 		return post;
 	}
 
 	async updatePost(params: UpdatePostFunctionParams) {
-		const post = await this.parseRestClient.cloudRun<UpdatePostFunctionResult>(functionName.updatePost, { params });
+		const post = await this.parseRestClient.cloudRun<UpdatePostFunction.Return>(functionName.updatePost, { params });
 
 		return post;
 	}
@@ -97,7 +76,7 @@ export default class PostEndPoints {
 
 	getPostDetailFront(params: GetPostFunction.FrontView.Params) {
 		return this.parseRestClient.cloudRun<GetPostFunction.FrontView.Return, GetPostFunction.FrontView.Params>(
-			functionName.getPost,
+			functionName.getPostFrontDetails,
 			{ params },
 		);
 	}

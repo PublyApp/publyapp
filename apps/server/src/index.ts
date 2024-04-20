@@ -132,15 +132,11 @@ const bootstrap = async () => {
 	// setup a better console transport for our logger
 	logger.adapter.addTransport(consoleTransport);
 
-	await parseServer.start();
-	// app.use(PARSE_PATH, parseServer.app);
-	app.use(env.PARSE_PATH, parseServerMiddleware, parseServer.app);
+	// start the parse server setup in the background
+	const startParsePromise = parseServer.start();
 
 	// set custom ennPoints routes
 	app.use(customEndPointsRouter);
-
-	// set error middleware // ! must be after all routes definition (I am wondering if I should make it after the parse dashboard also)
-	app.use(errorMiddleware);
 
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                           //
@@ -206,8 +202,16 @@ const bootstrap = async () => {
 
 	server.on('request', (req, _res) => {
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-		req.socket.remoteAddress; // make express req.ip work
+		req.socket.remoteAddress; // make express req.ip work in bun
 	});
+
+	// wait for the parse server setup to finish, the mount the parse app to the express app
+	await startParsePromise;
+	app.use(env.PARSE_PATH, parseServerMiddleware, parseServer.app);
+
+	// set error middleware
+	// ! this must be mounted after all routes and all other middlewares
+	app.use(errorMiddleware);
 
 	server.listen(env.PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
 		logger.info('================================================================');

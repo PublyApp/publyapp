@@ -5,11 +5,10 @@ import _ from 'lodash';
 import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 import { env } from '../lib/env';
-import logger from '../lib/logger';
 import { getCurrentInstallationId } from '../lib/parse/utils';
 import { getHeader, getRequestIp } from '../utils/request.utils';
 
-const isMaster = (req: express.Request) => {
+const checkIsMaster = (req: express.Request) => {
 	return req.body._MasterKey === env.PARSE_MASTER_KEY || getHeader(req, 'X-Parse-Master-Key') === env.PARSE_MASTER_KEY;
 };
 
@@ -60,26 +59,15 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 
 const parseServerMiddleware: RequestHandler = async (req, res, next) => {
 	try {
-		// eslint-disable-next-line @typescript-eslint/naming-convention
-		const _isMaster = isMaster(req);
+		const isMaster = checkIsMaster(req);
 
-		if (!_isMaster) {
+		if (!isMaster) {
 			await handleMatchSessionIp(req, res);
 		}
 
 		return next();
-	} catch (error) {
-		logger.error(error);
-		// eslint-disable-next-line no-console
-		console.trace(error);
-
-		let message = 'Unknown error';
-
-		if (error instanceof Error) {
-			message = error.message;
-		}
-
-		return res.status(401).json({ message });
+	} catch (_error) {
+		return next(_error);
 	}
 };
 

@@ -25,3 +25,10 @@ customEndPointsRouter.post(
 );
 
 customEndPointsRouter.post(endPoint.passwordLogin, handlePasswordLogin);
+
+// const handleTest = expressEndpoint(async (req, res) => {
+// 	console.log(req.path);
+// 	res.send('Hello World');
+// });
+
+// customEndPointsRouter.get('/test', handleTest);

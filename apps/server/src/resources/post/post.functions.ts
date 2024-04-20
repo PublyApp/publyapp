@@ -20,7 +20,10 @@ import PostService from '@/server/resources/post/post.service';
 import UserService from '@/server/resources/user/user.service';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 
-export type CreatePostFunctionReturn = FunctionReturn<typeof createPostFunction>;
+export namespace CreatePostFunction {
+	export type Params = FunctionReturn<typeof createPostFunction>;
+	export type Return = FunctionReturn<typeof createPostFunction>;
+}
 
 const createPostFunction = parseFunctionEnhanced({
 	requireUser: true,
@@ -55,7 +58,10 @@ const createPostFunction = parseFunctionEnhanced({
 	},
 });
 
-export type UpdatePostFunctionReturn = FunctionReturn<typeof updatePostFunction>;
+export namespace UpdatePostFunction {
+	export type Params = FunctionParams<typeof updatePostFunction>;
+	export type Return = FunctionReturn<typeof updatePostFunction>;
+}
 
 const updatePostFunction = parseFunctionEnhanced({
 	requireUser: true,
@@ -264,8 +270,8 @@ Parse.Cloud.define(functionName.createPost, createPostFunction);
 Parse.Cloud.define(functionName.updatePost, updatePostFunction);
 Parse.Cloud.define(functionName.findPostTag, findPostTag);
 
-Parse.Cloud.define(functionName.findPostBoTable, findPostFunctionBoTable); // TODO: separate views
+Parse.Cloud.define(functionName.findPostBoTable, findPostFunctionBoTable);
 Parse.Cloud.define(functionName.findPostFrontList, findPostFunctionFrontList);
 
-Parse.Cloud.define(functionName.getPost, getPostFunctionFrontDetailsView);
-Parse.Cloud.define(functionName.getPost, getPostFunctionBackOfficeEditForm);
+Parse.Cloud.define(functionName.getPostFrontDetails, getPostFunctionFrontDetailsView);
+Parse.Cloud.define(functionName.getPostBoEdit, getPostFunctionBackOfficeEditForm);

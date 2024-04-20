@@ -9,7 +9,6 @@ import {
 	PARSE_SESSION_TOKEN_HEADER_KEY,
 } from '@/shared/lib/constants';
 
-import logger from '../lib/logger';
 import { getHeader } from '../utils/request.utils';
 
 type Input = {
@@ -19,7 +18,7 @@ type Input = {
 };
 
 const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallation = false }: Input): RequestHandler => {
-	return async (req, res, next) => {
+	return async (req, _res, next) => {
 		try {
 			// should have a header key
 			if (withKey) {
@@ -40,7 +39,7 @@ const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallatio
 				const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
 
 				if (!sessionToken) {
-					return next(new HttpException(400, 'Missing session params'));
+					return next(new HttpException(400, `Missing ${PARSE_SESSION_TOKEN_HEADER_KEY} param`));
 				}
 
 				const authService = await AuthCloudService.createAuthCloudService({ sessionToken });
@@ -59,16 +58,15 @@ const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallatio
 				const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY);
 
 				if (!installationId) {
-					return next(new HttpException(400, 'Missing installationId header'));
+					return next(new HttpException(400, `Missing ${PARSE_INSTALLATION_ID_HEADER_KEY} param`));
 				}
 
 				req.installationId = installationId;
 			}
 
 			return next();
-		} catch (e) {
-			logger.error(`[middlewares/protectionMiddleware] error: ${e /* .message */}`);
-			return res.status(400).json({ error: 400, message: 'Bad request' });
+		} catch (error) {
+			return next(error);
 		}
 	};
 };
