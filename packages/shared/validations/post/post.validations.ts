@@ -75,22 +75,16 @@ export const getUpdatePostInputSchema = (z: CustomZod) => {
 		});
 };
 
-export const findPostView = {
-	frontList: 'front-list',
-	boTable: 'bo-table',
-} as const;
+// export const findPostView = {
+// 	frontList: 'front-list',
+// 	boTable: 'bo-table',
+// } as const;
 
-export const getFindPostFunctionParamsSchema = (z: CustomZod) => {
+export const getFindPostFunctionBoTableParamsSchema = (z: CustomZod) => {
 	return getListParamsSchema(z).and(
-		z.discriminatedUnion('view', [
-			z.object({
-				view: z.literal(findPostView.frontList),
-			}),
-			z.object({
-				view: z.literal(findPostView.boTable),
-				fromPublic: z.boolean().optional().default(false),
-			}),
-		]),
+		z.object({
+			fromPublic: z.boolean().optional().default(false),
+		}),
 	);
 };
 

@@ -22,7 +22,7 @@ import { safelyRunInLoader } from '../lib/remix/safelyRun';
 export const clientLoader = (async ({ /* serverLoader, */ params }) => {
 	const tags = safelyRunInLoader(parseApi.posts.findPostTag)();
 	// const { posts } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
-	const posts = safelyRunInLoader(parseApi.posts.findPost)({ page: Number(params.pageNum) });
+	const posts = safelyRunInLoader(parseApi.posts.findPostFrontList)({ page: Number(params.pageNum) });
 
 	return defer({
 		posts,

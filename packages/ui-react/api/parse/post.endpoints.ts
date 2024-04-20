@@ -2,6 +2,7 @@ import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
 
 import type {
 	CreatePostFunctionReturn,
+	FindPostFunction,
 	// FindPostFunctionReturn,
 	GetPostFunction,
 	UpdatePostFunctionReturn,
@@ -48,20 +49,25 @@ export type UpdatePostFunctionResult = UpdatePostFunctionReturn;
 
 export default class PostEndPoints {
 	constructor(private parseRestClient: ParseRestClient) {
-		this.findPost = this.findPost.bind(this);
+		this.findPostBoTable = this.findPostBoTable.bind(this);
+		this.findPostFrontList = this.findPostFrontList.bind(this);
 		this.findPostTag = this.findPostTag.bind(this);
 		this.getPostDetailFront = this.getPostDetailFront.bind(this);
 	}
 
-	async findPost(params: FindPostFunctionParams | undefined) {
-		const view = params?.view || 'front-list';
-		const posts = await this.parseRestClient.cloudRun<FindPostFunctionResult>(functionName.findPost, {
-			params: {
-				...params,
-				view,
-			},
+	async findPostBoTable(params: FindPostFunction.BoTable.Params) {
+		const posts = await this.parseRestClient.cloudRun<FindPostFunction.BoTable.Return>(functionName.findPostBoTable, {
+			params,
 		});
 
+		return posts;
+	}
+
+	async findPostFrontList(params: FindPostFunction.FrontList.Params) {
+		const posts = await this.parseRestClient.cloudRun<FindPostFunction.FrontList.Return>(
+			functionName.findPostFrontList,
+			{ params },
+		);
 		return posts;
 	}
 
@@ -73,13 +79,7 @@ export default class PostEndPoints {
 	async getPostById(params: GetPostFunction.BoEdit.Params) {
 		const post = await this.parseRestClient.cloudRun<GetPostFunction.BoEdit.Return, GetPostFunction.BoEdit.Params>(
 			functionName.getPost,
-			{
-				params,
-				// : {
-				// 	view: findOnePostView.boEditForm,
-				// 	...params,
-				// },
-			},
+			{ params },
 		);
 		return post;
 	}
@@ -91,20 +91,14 @@ export default class PostEndPoints {
 	}
 
 	async findPostTag() {
-		const tags = await this.parseRestClient.cloudRun<FindPostFunctionResult>(functionName.findPostTag);
+		const tags = await this.parseRestClient.cloudRun<any>(functionName.findPostTag);
 		return tags;
 	}
 
 	getPostDetailFront(params: GetPostFunction.FrontView.Params) {
 		return this.parseRestClient.cloudRun<GetPostFunction.FrontView.Return, GetPostFunction.FrontView.Params>(
 			functionName.getPost,
-			{
-				params,
-				// : {
-				// 	// view: findOnePostView.frontDetail,
-				// 	...params,
-				// },
-			},
+			{ params },
 		);
 	}
 }

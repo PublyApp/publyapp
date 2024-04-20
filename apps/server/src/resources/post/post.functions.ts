@@ -3,10 +3,11 @@ import _ from 'lodash';
 import { functionName, roleSet } from '@devist/shared/lib/constants';
 import {
 	// findOnePostView,
-	findPostView,
+	// findPostView,
 	getCreatePostInputSchema,
+	getFindPostFunctionBoTableParamsSchema,
 	// getFindOnePostFunctionParamsSchema,
-	getFindPostFunctionParamsSchema,
+	// getFindPostFunctionParamsSchema,
 	getGetPostFunctionBackOfficeEditForm,
 	getGetPostFunctionFrontDetailsView,
 	getUpdatePostInputSchema,
@@ -17,6 +18,7 @@ import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from 
 import FileService from '@/server/resources/file/file.service';
 import PostService from '@/server/resources/post/post.service';
 import UserService from '@/server/resources/user/user.service';
+import { getListParamsSchema } from '@/shared/utils/validation.utils';
 
 export type CreatePostFunctionReturn = FunctionReturn<typeof createPostFunction>;
 
@@ -170,7 +172,9 @@ const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
 // export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
 export namespace FindPostFunction {
 	export namespace FrontList {
-		// export type Params = {
+		export type Params = FunctionParams<typeof findPostFunctionFrontList>;
+		export type Return = FunctionReturn<typeof findPostFunctionFrontList>;
+		// {
 		// 	view: typeof findPostView.frontList;
 		// 	page: number;
 		// 	pageSize: number;
@@ -179,6 +183,8 @@ export namespace FindPostFunction {
 		// export type Return = FunctionReturn<typeof PostService.prototype.findPostFrontList>;
 	}
 	export namespace BoTable {
+		export type Params = FunctionParams<typeof findPostFunctionBoTable>;
+		export type Return = FunctionReturn<typeof findPostFunctionBoTable>;
 		// export type Params = {
 		// 	view: typeof findPostView.boTable;
 		// 	page: number;
@@ -190,9 +196,9 @@ export namespace FindPostFunction {
 	}
 }
 
-const findPostFunction = parseFunctionEnhanced({
+const findPostFunctionBoTable = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
-		return getFindPostFunctionParamsSchema(z).parse(params);
+		return getFindPostFunctionBoTableParamsSchema(z).parse(params);
 	},
 	action: async ({ req, user, locale, params: _params }) => {
 		const { page, pageSize, sorting, ...params } = _params; /* getFindPostFunctionParamsSchema(z).parse(req.params); */
@@ -200,23 +206,41 @@ const findPostFunction = parseFunctionEnhanced({
 		const sessionToken = user?.getSessionToken();
 		const postService = new PostService({ sessionToken, headers: req.headers });
 
-		if (params.view === findPostView.frontList) {
-			const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
-			return posts;
-		}
+		// if (params.view === findPostView.frontList) {
+		// 	const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
+		// 	return posts;
+		// }
 
-		if (params.view === findPostView.boTable) {
-			const posts = await postService.findPostBoTable({
-				page,
-				pageSize,
-				sorting,
-				locale,
-				fromPublic: params.fromPublic,
-			});
-			return posts;
-		}
+		// if (params.view === findPostView.boTable) {
+		const posts = await postService.findPostBoTable({
+			page,
+			pageSize,
+			sorting,
+			locale,
+			fromPublic: params.fromPublic,
+		});
+		return posts;
+		// }
 
-		return [];
+		// return [];
+	},
+});
+
+const findPostFunctionFrontList = parseFunctionEnhanced({
+	validateParams: ({ params, z }) => {
+		return getListParamsSchema(z).parse(params);
+	},
+	action: async ({ params: _params, locale, req, user }) => {
+		const { page, pageSize, sorting /* ...params */ } =
+			_params; /* getFindPostFunctionParamsSchema(z).parse(req.params); */
+
+		const sessionToken = user?.getSessionToken();
+		const postService = new PostService({ sessionToken, headers: req.headers });
+
+		// if (params.view === findPostView.frontList) {
+		const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
+		return posts;
+		// }
 	},
 });
 
@@ -240,7 +264,8 @@ Parse.Cloud.define(functionName.createPost, createPostFunction);
 Parse.Cloud.define(functionName.updatePost, updatePostFunction);
 Parse.Cloud.define(functionName.findPostTag, findPostTag);
 
-Parse.Cloud.define(functionName.findPost, findPostFunction); // TODO: separate views
+Parse.Cloud.define(functionName.findPostBoTable, findPostFunctionBoTable); // TODO: separate views
+Parse.Cloud.define(functionName.findPostFrontList, findPostFunctionFrontList);
 
 Parse.Cloud.define(functionName.getPost, getPostFunctionFrontDetailsView);
 Parse.Cloud.define(functionName.getPost, getPostFunctionBackOfficeEditForm);

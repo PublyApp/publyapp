@@ -33,3 +33,9 @@ type ToPrimitive<T> = T extends string
 							: {
 									[K in keyof T]: ToPrimitive<T[K]>;
 								};
+
+/**
+ * Generic function that accepts any number of parameters.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type GenericFunction = ((...args: any[]) => any) | ((...args: any[]) => Promise<any>);
