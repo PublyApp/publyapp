@@ -82,6 +82,10 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 
 			let message: string = t('unknown-error');
 
+			if (_.isString(error)) {
+				message = error;
+			}
+
 			// get zod errors message
 			if (error instanceof ZodError) {
 				message = error.issues[0].message;
@@ -90,10 +94,6 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 
 			if (error instanceof Error) {
 				return Promise.reject(error);
-			}
-
-			if (_.isString(error)) {
-				message = error;
 			}
 
 			return Promise.reject(message);

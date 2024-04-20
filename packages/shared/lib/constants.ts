@@ -135,7 +135,9 @@ export const functionName = {
 	// Posts
 	createPost: 'createPost',
 	updatePost: 'updatePost',
-	getPost: 'getPost',
+	// getPost: 'getPost',
+	getPostFrontDetails: 'getPostFrontDetails',
+	getPostBoEdit: 'getPostBoEdit',
 	// findPost: 'findPost',
 	findPostFrontList: 'findPostFrontList',
 	findPostBoTable: 'findPostBoTable',
