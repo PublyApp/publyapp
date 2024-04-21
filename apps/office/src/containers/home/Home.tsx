@@ -26,7 +26,7 @@ const Home = () => {
 	// console.log('ggggg');
 	return (
 		<>
-			<Typography variant="h1">Home / {t('common:hello')}</Typography>
+			<Typography variant="h1">Home / {t('hello')}</Typography>
 
 			<br />
 			<Button

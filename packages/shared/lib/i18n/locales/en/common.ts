@@ -4,15 +4,16 @@ const commonEN = {
 
 	// item types
 	authentication: 'Authentication',
-	user: 'User',
-	name: 'name',
-	title: 'Title',
-	cover: 'Cover',
-	locale: 'Locale',
 	content: 'Content',
-	file: 'File',
-	post: 'Post',
+	cover: 'Cover',
 	field: 'Field',
+	file: 'File',
+	locale: 'Locale',
+	name: 'name',
+	post: 'Post',
+	title: 'Title',
+	user: 'User',
+	number: 'Number',
 
 	// ? ...
 	views: 'Views',
@@ -44,6 +45,7 @@ const commonEN = {
 	'user-is-not-staff': 'User is not from internal staff',
 	'insufficient-role': 'Insufficient role',
 	'new-post': 'New post',
+	'user-has-no-email': 'User has no email',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;
