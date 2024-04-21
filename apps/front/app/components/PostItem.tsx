@@ -5,6 +5,9 @@ import Image from '@devist/ui-react/components/Image';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import useResponsive from '@/ui-react/hooks/useResponsive';
+import { fDate } from '@/ui-react/utils/date.utils';
+import { fShortenNumber } from '@/ui-react/utils/number.utils';
 
 import RouterLink from './RouterLink';
 
@@ -22,7 +25,7 @@ type Props = {
 	index?: number;
 };
 
-export default function PostItem({ post, index }: Props) {
+const PostItem = ({ post, index }: Props) => {
 	const theme = useTheme();
 
 	const mdUp = useResponsive('up', 'md');
@@ -104,7 +107,9 @@ export default function PostItem({ post, index }: Props) {
 			/>
 		</Card>
 	);
-}
+};
+
+export default PostItem;
 
 // ----------------------------------------------------------------------
 
@@ -117,7 +122,7 @@ type PostContentProps = {
 	createdAt: Date | string | number;
 };
 
-export function PostContent({ title, createdAt, totalViews, totalShares, totalComments, index }: PostContentProps) {
+export const PostContent = ({ title, createdAt, totalViews, totalShares, totalComments, index }: PostContentProps) => {
 	const mdUp = useResponsive('up', 'md');
 
 	const linkTo = FRONT_PATH_NAMES.posts.details(title);
@@ -192,4 +197,4 @@ export function PostContent({ title, createdAt, totalViews, totalShares, totalCo
 			</Stack>
 		</CardContent>
 	);
-}
+};

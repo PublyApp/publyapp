@@ -8,7 +8,7 @@ import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/con
 import parseApi from '@/ui-react/api/parse/ParseApi';
 import { localStorageSetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
-import AuthActions from './auth.actions';
+import { getUserAuthDataQuery, logInAction, logOutAction } from './auth.actions';
 
 // import { getUserAuthDataAction, logInAction, logOutAction } from './auth.actions';
 
@@ -24,13 +24,11 @@ type UseLogInMutationProps = {
 export const useLogInMutation = ({ options = {} }: UseLogInMutationProps = {}) => {
 	const { onSuccess, ...restOptions } = options;
 
-	const authActions = new AuthActions(parseApi);
-
 	const key = ['logIn'] as const;
 
 	const result = useMutation({
 		mutationKey: key,
-		mutationFn: authActions.logInAction,
+		mutationFn: logInAction,
 		onSuccess: (data, variables, context) => {
 			localStorageSetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY, data.sessionToken);
 			parseApi.parseRestClient.setSessionToken(data.sessionToken);
@@ -54,12 +52,11 @@ export const useLogInMutation = ({ options = {} }: UseLogInMutationProps = {}) =
 // };
 
 type UseGetClientAuthProps = {
-	options?: Omit<typeof AuthActions.prototype.getUserAuthDataQuery, 'queryKey' | 'queryFn'>;
+	options?: Omit<typeof getUserAuthDataQuery, 'queryKey' | 'queryFn'>;
 };
 
 export const useGetClientAuthSuspenseQuery = ({ options }: UseGetClientAuthProps = {}) => {
-	const authActions = new AuthActions(parseApi);
-	const query = authActions.getUserAuthDataQuery;
+	const query = getUserAuthDataQuery;
 
 	const result = useSuspenseQuery({
 		...query,
@@ -79,13 +76,11 @@ export const useLogOutMutation = ({ onSuccess }: UseLogOutMutationProps = {}) =>
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 
-	const authActions = new AuthActions(parseApi);
-
 	const key = ['logOut'] as const;
 
 	const result = useMutation({
 		mutationKey: key,
-		mutationFn: authActions.logOutAction,
+		mutationFn: logOutAction,
 		onSuccess: (...args) => {
 			localStorageUnsetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY);
 			queryClient.removeQueries();

@@ -1,16 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Button, CircularProgress, TextField } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
-// import { useErrorBoundary } from 'react-error-boundary';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useLocation, useNavigate, useRevalidator } from 'react-router-dom';
 
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 import { logInSchema, type LogInInput } from '@devist/shared/validations/auth.validations';
-import AuthActions from '@devist/ui-react/lib/react-query/features/auth/auth.actions';
 import { useLogInMutation } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
 
-// import useHttpClients from '@devist/ui-react/hooks/useHttpClients';
+import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 
 const LogInForm = () => {
 	const form = useForm<LogInInput>({ resolver: zodResolver(logInSchema) });
@@ -36,7 +34,7 @@ const LogInForm = () => {
 
 				// const authActions = new AuthActions(parseApi);
 
-				queryClient.invalidateQueries({ queryKey: [AuthActions.getUserAuthDataQueryKeyBase] });
+				queryClient.invalidateQueries({ queryKey: getUserAuthDataQuery.queryKey });
 
 				// refetchClientAuth();
 

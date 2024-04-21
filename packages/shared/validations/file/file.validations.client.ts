@@ -19,7 +19,7 @@ export const getFileSchemaClientSide = (z: CustomZod) => {
 			return data instanceof File;
 		},
 		{
-			message: z.t('notInstanceOf', { field, type }),
+			message: z.t('item-is-not-instance-of-type', { item: field, type }),
 		},
 	);
 };

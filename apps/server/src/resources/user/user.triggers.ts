@@ -47,7 +47,7 @@ const afterSAveUser = parseTriggerEnhanced({
 
 			if (!adminRole) {
 				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-				throw new Error(t('common:roleNotFound')!);
+				throw new Error(t('item-not-found', { item: t('role') })!);
 			}
 
 			await roleService.assignRoleToUser(user, adminRole);

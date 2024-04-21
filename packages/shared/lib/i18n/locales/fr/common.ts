@@ -13,6 +13,7 @@ const commonFR = {
 	locale: 'Language',
 	name: 'Nom',
 	post: 'Article',
+	role: 'Rôle',
 	title: 'Titre',
 	user: 'User',
 	number: 'Nombre',
@@ -39,6 +40,7 @@ const commonFR = {
 	'item-not-found': '{{item}} non trouvé',
 	'item-is-invalid': '{{item}} is invalid',
 	'new-item': 'Nouveau {{item}}',
+	'item-is-not-instance-of-type': "{{item}} n'est pas une instance de {{type}}",
 
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',
