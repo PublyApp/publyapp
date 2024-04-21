@@ -15,6 +15,7 @@ const commonFR = {
 	post: 'Article',
 	title: 'Titre',
 	user: 'User',
+	number: 'Nombre',
 
 	// ? ...
 	'created-at': 'Créé le',
@@ -46,6 +47,7 @@ const commonFR = {
 	'user-is-not-staff': "L'utilisateur n'est pas du personnel interne",
 	'insufficient-role': 'Rôle insuffisant',
 	'new-post': 'Nouvel article',
+	'user-has-no-email': 'Utilisateur sans email',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
