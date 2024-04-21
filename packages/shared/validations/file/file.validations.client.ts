@@ -5,8 +5,8 @@ import type CustomZod from '@/shared/lib/zod/CustomZod';
 import { getFolderNameSchema } from './file.validations';
 
 export const getFileSchemaClientSide = (z: CustomZod) => {
-	const field = z.t('common:field');
-	const type = z.t('common:file');
+	const field = z.t('field');
+	const type = z.t('file');
 
 	return z.custom<
 		File & {

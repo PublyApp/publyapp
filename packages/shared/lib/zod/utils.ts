@@ -8,7 +8,7 @@ export const getNumericStringSchema = (z: CustomZod) => {
 				const n = Number(v);
 				return !Number.isNaN(n) && v?.length > 0;
 			},
-			{ message: z.t('Invalid number') },
+			{ message: z.t('item-is-invalid', { item: z.t('number') }) },
 		)
 		.transform((v) => {
 			return Number(v);

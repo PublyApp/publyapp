@@ -222,7 +222,7 @@ const ProductListView = () => {
 		// },
 		{
 			field: 'price',
-			headerName: t('common:views'),
+			headerName: t('views'),
 			width: 140,
 			editable: true,
 			renderCell: (params) => {
@@ -349,7 +349,7 @@ const ProductListView = () => {
 							startIcon={<Iconify icon="mingcute:add-line" />}
 						>
 							{/* New Post */}
-							{t('common:new-post')}
+							{t('new-post')}
 						</Button>
 					}
 					sx={{
