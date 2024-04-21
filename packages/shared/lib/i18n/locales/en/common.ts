@@ -11,6 +11,7 @@ const commonEN = {
 	locale: 'Locale',
 	name: 'name',
 	post: 'Post',
+	role: 'Role',
 	title: 'Title',
 	user: 'User',
 	number: 'Number',
@@ -37,6 +38,7 @@ const commonEN = {
 	'item-not-found': '{{item}} not found',
 	'item-is-invalid': '{{item}} is invalid',
 	'new-item': 'New {{item}}',
+	'item-is-not-instance-of-type': '{{item}} is not instance of {{type}}',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
