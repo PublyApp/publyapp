@@ -1,5 +1,4 @@
 import async from 'async';
-// import sizeOf from 'image-size';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
 import sharp from 'sharp';

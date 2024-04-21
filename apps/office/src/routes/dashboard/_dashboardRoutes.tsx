@@ -5,14 +5,13 @@ import { Box, Button } from '@mui/material';
 import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
 import ErrorDisplay from '@/office/components/ErrorDisplay';
-// import clients from '@/office/api/clients';
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
-import AuthActions from '@/ui-react/lib/react-query/features/auth/auth.actions';
-import PostActions from '@/ui-react/lib/react-query/features/posts/post.actions';
+import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
+import { getPostBoEditFormQuery } from '@/ui-react/lib/react-query/features/posts/post.actions';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
 import LoadingScreen from '../../components/LoadingScreen';
@@ -99,12 +98,11 @@ export const dashboardRoutes: RouteObject[] = [
 				return redirect(BO_PATH_NAMES.auth.login);
 			}
 
-			const authActions = new AuthActions(parseApi);
-			const cachedAuthData = defaultQueryClient.getQueryData(authActions.getUserAuthDataQuery.queryKey);
+			const cachedAuthData = defaultQueryClient.getQueryData(getUserAuthDataQuery.queryKey);
 
 			const authData = cachedAuthData
 				? Promise.resolve(cachedAuthData)
-				: defaultQueryClient.fetchQuery(authActions.getUserAuthDataQuery);
+				: defaultQueryClient.fetchQuery(getUserAuthDataQuery);
 
 			return defer({
 				authData,
@@ -151,8 +149,7 @@ export const dashboardRoutes: RouteObject[] = [
 									{
 										path: getLastPath(BO_PATH_NAMES.dashboard.posts.edit(':postId'), 2),
 										loader: getRouteLoader(async ({ params }) => {
-											const postActions = new PostActions(parseApi);
-											const getPostByIdQuery = postActions.getPostByIdQuery({ id: params.postId ?? '' });
+											const getPostByIdQuery = getPostBoEditFormQuery({ id: params.postId ?? '' });
 
 											const cachedPost = defaultQueryClient.getQueryData(getPostByIdQuery.queryKey);
 

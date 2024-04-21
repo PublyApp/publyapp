@@ -7,86 +7,35 @@ import type {
 	CreateAppFileFolderFunctionParams,
 	FindAppFileFunctionParams,
 } from '@/ui-react/api/parse/appFile.endpoints';
-import type ParseApi from '@/ui-react/api/parse/ParseApi';
+import parseApi from '@/ui-react/api/parse/ParseApi';
+
+// ---- 1 --------------------------------------------------------------------------------
 
 export type FindAppFileQueryParams = FindAppFileFunctionParams;
 
-export default class AppFileActions {
-	constructor(private parseApi: ParseApi) {
-		this.findAppFileAction = this.findAppFileAction.bind(this);
-		this.uploadManyFilesAction = this.uploadManyFilesAction.bind(this);
-		this.createAppFileFolderAction = this.createAppFileFolderAction.bind(this);
+export const findAppFileAction = async (
+	context: QueryFunctionContext<readonly [typeof functionName.findAppFile, FindAppFileQueryParams]>,
+) => {
+	try {
+		const params = context.queryKey[1];
+
+		const result = await parseApi.appFiles.findAppFile(params);
+
+		return result;
+	} catch (error) {
+		console.log('----- findAppFileAction error ----------', error);
+		return Promise.reject(error);
 	}
+};
 
-	async findAppFileAction(
-		context: QueryFunctionContext<readonly [typeof functionName.findAppFile, FindAppFileQueryParams]>,
-	) {
-		try {
-			const params = context.queryKey[1];
-
-			const result = await this.parseApi.appFiles.findAppFile(params);
-
-			return result;
-		} catch (error) {
-			console.log('----- findAppFileAction error ----------', error);
-			return Promise.reject(error);
-		}
+export const uploadSingleFileAction = async (params: { file: File }) => {
+	try {
+		return await parseApi.appFiles.uploadSingleFile(params);
+	} catch (error) {
+		console.log('----- uploadSingleFileAction error ----------', error);
+		return Promise.reject(error);
 	}
-
-	async uploadSingleFileAction(params: { file: File }) {
-		try {
-			return await this.parseApi.appFiles.uploadSingleFile(params);
-		} catch (error) {
-			console.log('----- uploadSingleFileAction error ----------', error);
-			return Promise.reject(error);
-		}
-	}
-
-	async uploadManyFilesAction(params: UploadManyFilesActionParams) {
-		try {
-			const result = this.parseApi.appFiles.uploadManyFiles(
-				{ files: params.files || [], parentFolderPath: params.parentFolderPath },
-				{ restApiKey: params.restApiKey },
-			);
-
-			return await result;
-		} catch (error) {
-			console.log('----- uploadManyFilesAction error ----------', error);
-			return Promise.reject(error);
-		}
-	}
-
-	async createAppFileFolderAction({
-		parentFolderPath,
-		folderName,
-		files,
-		restApiKey,
-	}: CreateAppFileFolderActionParams) {
-		try {
-			const appFileFolder = await this.parseApi.appFiles.createAppFileFolder({ folderName, parentFolderPath });
-
-			let appFiles: AppFile[] = [];
-
-			if (files) {
-				const newFilesParentFolderPath = appFileFolder.path;
-
-				appFiles = await this.uploadManyFilesAction({
-					files,
-					restApiKey,
-					parentFolderPath: newFilesParentFolderPath,
-				});
-			}
-
-			return {
-				appFileFolder,
-				appFiles,
-			};
-		} catch (error) {
-			console.log('----- createAppFileFolderAction error ----------', error);
-			return Promise.reject(error);
-		}
-	}
-}
+};
 
 // ---- 2 --------------------------------------------------------------------------------
 
@@ -96,9 +45,54 @@ export type UploadManyFilesActionParams = {
 	restApiKey?: string;
 };
 
+export const uploadManyFilesAction = async (params: UploadManyFilesActionParams) => {
+	try {
+		const result = parseApi.appFiles.uploadManyFiles(
+			{ files: params.files || [], parentFolderPath: params.parentFolderPath },
+			{ restApiKey: params.restApiKey },
+		);
+
+		return await result;
+	} catch (error) {
+		console.log('----- uploadManyFilesAction error ----------', error);
+		return Promise.reject(error);
+	}
+};
+
 // ---- 3 --------------------------------------------------------------------------------
 
 export type CreateAppFileFolderActionParams = CreateAppFileFolderFunctionParams & {
 	files?: File[];
 	restApiKey?: string;
+};
+
+export const createAppFileFolderAction = async ({
+	parentFolderPath,
+	folderName,
+	files,
+	restApiKey,
+}: CreateAppFileFolderActionParams) => {
+	try {
+		const appFileFolder = await parseApi.appFiles.createAppFileFolder({ folderName, parentFolderPath });
+
+		let appFiles: AppFile[] = [];
+
+		if (files) {
+			const newFilesParentFolderPath = appFileFolder.path;
+
+			appFiles = await uploadManyFilesAction({
+				files,
+				restApiKey,
+				parentFolderPath: newFilesParentFolderPath,
+			});
+		}
+
+		return {
+			appFileFolder,
+			appFiles,
+		};
+	} catch (error) {
+		console.log('----- createAppFileFolderAction error ----------', error);
+		return Promise.reject(error);
+	}
 };
