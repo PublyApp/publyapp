@@ -24,7 +24,6 @@ import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
 import AppFileSchema from './resources/appFile/appFile.schema';
-import AwesomeLinkSchema from './resources/awesomeLink/awesomeLink.schema';
 import PostSchema from './resources/post/post.schema';
 import PostSeriesSchema from './resources/postSeries/postSeries.schema';
 import RoleSchema from './resources/role/role.schema';
@@ -118,7 +117,6 @@ const bootstrap = async () => {
 				PostSeriesSchema,
 				// WebHostSchema,
 				AppFileSchema,
-				AwesomeLinkSchema,
 			],
 		},
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
