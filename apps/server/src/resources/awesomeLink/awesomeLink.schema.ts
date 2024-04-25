@@ -1,13 +1,13 @@
-import { className } from '@devist/shared/lib/constants';
+// import { className } from '@devist/shared/lib/constants';
 
-import { defineSchema } from '@/server/lib/parse/utils';
+// import { defineSchema } from '@/server/lib/parse/utils';
 
-const AwesomeLinkSchema = defineSchema(className.AWESOME_LINK, {
-	fields: {
-		url: { type: 'String', required: true },
-		deleted: { type: 'Boolean' },
-		meta: { type: 'Object' },
-	},
-});
+// const AwesomeLinkSchema = defineSchema(className.AWESOME_LINK, {
+// 	fields: {
+// 		url: { type: 'String', required: true },
+// 		deleted: { type: 'Boolean' },
+// 		meta: { type: 'Object' },
+// 	},
+// });
 
-export default AwesomeLinkSchema;
+// export default AwesomeLinkSchema;

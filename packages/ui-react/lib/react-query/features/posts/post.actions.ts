@@ -95,7 +95,7 @@ const getPostBoEditFormAction = async (
 		const params = context.queryKey[1];
 
 		// const post = await runGetPostById(params);
-		const post = await parseApi.posts.getPostById(params);
+		const post = await parseApi.posts.getPostBoEditForm(params);
 
 		const coverFile = await getCoverFile(post);
 

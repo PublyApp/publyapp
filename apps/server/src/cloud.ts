@@ -23,7 +23,6 @@ const functions = async () => {
 const triggers = async () => {
 	await Promise.all([
 		import('@/server/resources/user/user.triggers'),
-		import('@/server/resources/awesomeLink/awesomeLink.triggers'),
 		// import('@/server/resources/post/post.triggers'),
 		// import('@/server/resources/session/session.triggers'),
 	]);

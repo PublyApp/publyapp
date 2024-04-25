@@ -23,7 +23,7 @@ export class ParseApi {
 
 	private checkClient() {
 		if (!this._parseRestClient) {
-			throw new Error(i18n.t('must-init-parse-api') || 'must-init-parse-api');
+			throw new Error(i18n.t('must-init-parse-api'));
 		}
 	}
 
