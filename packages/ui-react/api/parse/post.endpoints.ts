@@ -55,7 +55,7 @@ export default class PostEndPoints {
 		return post;
 	}
 
-	async getPostById(params: GetPostFunction.BoEdit.Params) {
+	async getPostBoEditForm(params: GetPostFunction.BoEdit.Params) {
 		const post = await this.parseRestClient.cloudRun<GetPostFunction.BoEdit.Return, GetPostFunction.BoEdit.Params>(
 			functionName.getPostBoEdit,
 			{ params },

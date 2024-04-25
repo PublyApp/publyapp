@@ -54,11 +54,12 @@ export const className = {
 	// === Custom classes ===
 	POST: 'Post',
 	POST_SERIES: 'PostSeries',
-	AI_TOOL: 'AITool',
-	// WEB_HOSTING_PROVIDER: 'WebHostingProvider',
 	WEB_HOST: 'WebHost',
 	APP_FILE: 'AppFile',
-	AWESOME_LINK: 'AwesomeLink',
+	// ==== not use anymore
+	// AI_TOOL: 'AITool',
+	// WEB_HOSTING_PROVIDER: 'WebHostingProvider',
+	// AWESOME_LINK: 'AwesomeLink',
 } as const;
 
 export const LOCALE_HEADER_KEY = 'X-Devist-Locale';
