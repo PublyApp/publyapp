@@ -197,8 +197,12 @@ export default class PostService {
 		return post.save(attrs as never, { sessionToken });
 	}
 
-	async getById(objectId: string, options: { select?: string[]; include?: string[] } = {}) {
+	async getById(objectId: string, options: { select?: string[]; include?: string[]; exclude?: string[] } = {}) {
 		const query = new Parse.Query(ParsePost).equalTo('objectId', objectId);
+
+		if (options.exclude) {
+			query.exclude(options.exclude as never);
+		}
 
 		if (options.select) {
 			query.select(options.select as never);
@@ -581,8 +585,8 @@ export default class PostService {
 	}
 
 	async getOnePostBoEdit(id: string) {
-		// TODO: select only the necessary fields
-		// const include = ['author', 'cover'];
+		const include = ['author', 'cover'];
+		const exclude = ['cover.formats'];
 		// const select = [
 		// 	'author',
 		// 	'cover',
@@ -592,7 +596,7 @@ export default class PostService {
 		// 	'translation',
 		// ];
 
-		const post = await this.getById(id /* , { include, select } */);
+		const post = await this.getById(id, { include, exclude /* , select */ });
 
 		if (!post) {
 			// throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
