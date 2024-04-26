@@ -13,6 +13,7 @@ const commonEN = {
 	post: 'Post',
 	role: 'Role',
 	title: 'Title',
+	translation: 'Translation',
 	user: 'User',
 	number: 'Number',
 
