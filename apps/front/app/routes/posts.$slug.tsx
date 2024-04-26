@@ -1,3 +1,5 @@
+import fs from 'fs';
+
 import { Button, Chip, Container, Stack, Typography } from '@mui/material';
 import type { LoaderFunction } from '@remix-run/node';
 import { useLoaderData } from '@remix-run/react';
@@ -18,12 +20,15 @@ import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
 export const loader = (async ({ params }) => {
 	const slug = _.toString(params.slug);
-	const result = await safelyRunInLoader(parseApi.posts.getPostDetailFront)({ slug });
-	return result;
+	const mainContent = await safelyRunInLoader(parseApi.posts.getPostDetailFrontMainContent)({ slug });
+	fs.writeFileSync('test.json', JSON.stringify(mainContent, null, 2));
+	return {
+		mainContent,
+	};
 }) satisfies LoaderFunction;
 
 const PostDetailsPage = () => {
-	const result = useLoaderData<typeof loader>();
+	const { mainContent } = useLoaderData<typeof loader>();
 
 	const renderSkeleton = <PostDetailsSkeleton />;
 
@@ -48,7 +53,7 @@ const PostDetailsPage = () => {
 		</Container>
 	);
 
-	const renderPost = _.isError(result) ? (
+	const renderPost = _.isError(mainContent) ? (
 		<h1
 			css={{
 				color: 'red',
@@ -59,10 +64,10 @@ const PostDetailsPage = () => {
 	) : (
 		<>
 			<PostDetailsHero
-				title={result.post.title}
-				author={post.author}
-				coverUrl={post.coverUrl}
-				createdAt={post.createdAt}
+				title={mainContent.title}
+				// author={mainContent.author}
+				coverUrl={mainContent.cover?.url || ''}
+				createdAt={mainContent.createdAt}
 			/>
 
 			<Container
@@ -86,7 +91,7 @@ const PostDetailsPage = () => {
 							href: FRONT_PATH_NAMES.posts.root,
 						},
 						{
-							name: post?.title,
+							name: mainContent?.title,
 						},
 					]}
 					sx={{ maxWidth: 720, mx: 'auto' }}
@@ -96,10 +101,10 @@ const PostDetailsPage = () => {
 			<Container maxWidth={false}>
 				<Stack sx={{ maxWidth: 720, mx: 'auto' }}>
 					<Typography variant="subtitle1" sx={{ mb: 5 }}>
-						{post.description}
+						{mainContent.description}
 					</Typography>
 
-					<Markdown children={post.content} />
+					<Markdown /* children={} */>{mainContent.content}</Markdown>
 
 					<Stack
 						spacing={3}
@@ -114,7 +119,7 @@ const PostDetailsPage = () => {
 						}}
 					>
 						<Stack direction="row" flexWrap="wrap" spacing={1}>
-							{post.tags.map((tag) => {
+							{mainContent.tags?.map((tag) => {
 								return <Chip key={tag} label={tag} variant="soft" />;
 							})}
 						</Stack>
@@ -142,13 +147,13 @@ const PostDetailsPage = () => {
 						</Stack>
 					</Stack>
 
-					<Stack direction="row" sx={{ mb: 3, mt: 5 }}>
+					{/* <Stack direction="row" sx={{ mb: 3, mt: 5 }}>
 						<Typography variant="h4">Comments</Typography>
 
 						<Typography variant="subtitle2" sx={{ color: 'text.disabled' }}>
 							({post.comments.length})
 						</Typography>
-					</Stack>
+					</Stack> */}
 
 					{/* <PostCommentForm /> */}
 
@@ -160,25 +165,26 @@ const PostDetailsPage = () => {
 		</>
 	);
 
-	const renderLatestPosts = (
-		<>
-			<Typography variant="h4" sx={{ mb: 5 }}>
-				Recent Posts
-			</Typography>
+	// const renderLatestPosts = (
+	// 	<>
+	// 		<Typography variant="h4" sx={{ mb: 5 }}>
+	// 			Recent Posts
+	// 		</Typography>
 
-			<PostList posts={latestPosts.slice(latestPosts.length - 4)} loading={latestPostsLoading} disabledIndex />
-		</>
-	);
+	// 		<PostList posts={latestPosts.slice(latestPosts.length - 4)} loading={latestPostsLoading} disabledIndex />
+	// 	</>
+	// );
 
 	return (
 		<>
-			{postLoading && renderSkeleton}
+			{/* {postLoading && renderSkeleton} */}
 
-			{postError && renderError}
+			{/* {postError && renderError} */}
 
-			{post && renderPost}
+			{/* {post && renderPost} */}
+			{renderPost}
 
-			<Container sx={{ pb: 15 }}>{!!latestPosts.length && renderLatestPosts}</Container>
+			{/* <Container sx={{ pb: 15 }}>{!!latestPosts.length && renderLatestPosts}</Container> */}
 		</>
 	);
 };

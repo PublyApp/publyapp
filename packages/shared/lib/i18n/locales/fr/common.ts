@@ -15,6 +15,7 @@ const commonFR = {
 	post: 'Article',
 	role: 'Rôle',
 	title: 'Titre',
+	translation: 'Traduction',
 	user: 'User',
 	number: 'Nombre',
 

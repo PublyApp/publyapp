@@ -7,6 +7,7 @@ import type ParseUser from '@/server/lib/parse/classes/user.class';
 import { DEFAULT_PAGE_SIZE, fileProvider } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type {
+	IPost,
 	IPostWithParseRelations,
 	IPostWithRelations,
 	TranslatedIPostWithRelations,
@@ -217,23 +218,42 @@ export default class PostService {
 
 	async getBySlug(
 		slug: string,
-		{ select, include, published = true }: { select?: string[]; include?: string[]; published?: boolean } = {},
+		options?: undefined | { select?: string[]; include?: string[]; published?: boolean; json?: false | undefined },
+	): Promise<ParsePost | undefined>;
+	async getBySlug(
+		slug: string,
+		options: { select?: string[]; include?: string[]; published?: boolean; json: true },
+	): Promise<IPost | undefined>;
+	async getBySlug(
+		slug: string,
+		options: { select?: string[]; include?: string[]; published?: boolean; json?: boolean } = {},
 	) {
+		// eslint-disable-next-line no-param-reassign
+		options.published = options.published ?? true;
+
 		const query = new Parse.Query(ParsePost).equalTo('slug', slug);
 
-		if (published) {
+		if (options.published) {
 			query.equalTo('published', true);
 		}
 
-		if (select) {
-			query.select(select as never);
+		if (options.select) {
+			query.select(options.select as never);
 		}
 
-		if (include) {
-			query.include(include as never);
+		if (options.include) {
+			query.include(options.include as never);
 		}
 
-		return query.first({ sessionToken: this.sessionToken });
+		const result = query.first({ sessionToken: this.sessionToken, json: options.json });
+
+		if (options.json) {
+			// return query.first({ sessionToken: this.sessionToken, json: options.json }) as never;
+			return result as never;
+		}
+
+		// return query.first({ sessionToken: this.sessionToken }) as never;
+		return result as never;
 	}
 
 	async find(params: Omit<FindPostInput, 'json'> & { json: true }): Promise<IPostWithRelations[]>;
@@ -515,19 +535,36 @@ export default class PostService {
 
 	async getOnePostFront(slug: string, { locale }: { locale: AppLocale }) {
 		// const MORE_POSTS_COUNT = 4;
-		const include = ['author', 'cover'];
+		// const include = ['author', 'cover'];
 		const select = [
-			'author',
-			'cover',
-			'tags',
-			// 'cover.url',
+			// 'author',
+			// 'cover',
+			// 'tags',
+			// // 'cover.url',
 
 			`translation.${locale}`,
 		];
 
-		const post = await this.getBySlug(slug, { include, select });
+		const post = (await this.getBySlug(slug, { /* include: [], */ select, json: true })) as IPostWithRelations;
 
-		return post;
+		if (!post) {
+			return undefined;
+		}
+
+		if (!post.translation[locale]) {
+			return 'TRANSLATION_NOT_FOUND' as const;
+		}
+
+		const finalPost: TranslatedIPostWithRelations = {
+			...post,
+			title: post.translation[locale].title,
+			description: post.translation[locale].description,
+			content: post.translation[locale].content,
+			locale,
+		};
+
+		return finalPost;
+		// return post;
 
 		// const morePostsQuery = new Parse.Query(ParsePost).equalTo('published', true).descending('createdAt');
 

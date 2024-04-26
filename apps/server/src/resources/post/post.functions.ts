@@ -8,8 +8,8 @@ import {
 	getFindPostFunctionBoTableParamsSchema,
 	// getFindOnePostFunctionParamsSchema,
 	// getFindPostFunctionParamsSchema,
-	getGetPostFunctionBackOfficeEditForm,
-	getGetPostFunctionFrontDetailsView,
+	getGetPostFunctionBackOfficeEditFormSchema,
+	getGetPostFunctionFrontDetailsViewSchema,
 	getUpdatePostInputSchema,
 } from '@devist/shared/validations/post/post.validations';
 
@@ -99,19 +99,25 @@ const updatePostFunction = parseFunctionEnhanced({
 });
 
 export namespace GetPostFunction {
-	export namespace FrontView {
-		export type Params = FunctionParams<typeof getPostFunctionFrontDetailsView>;
-		export type Return = FunctionReturn<typeof getPostFunctionFrontDetailsView>;
+	export namespace FrontViewMainContent {
+		export type Params = FunctionParams<typeof getPostFunctionFrontDetailsViewMainContent>;
+		export type Return = FunctionReturn<typeof getPostFunctionFrontDetailsViewMainContent>;
 	}
+
+	// export namespace FrontViewRelatedPosts {
+	// 	export type Params = FunctionParams<typeof getPostFunctionFrontDetailsView>;
+	// 	export type Return = FunctionReturn<typeof getPostFunctionFrontDetailsView>;
+	// }
+
 	export namespace BoEdit {
-		export type Params = FunctionParams<typeof getPostFunctionBackOfficeEditForm>;
-		export type Return = FunctionReturn<typeof getPostFunctionBackOfficeEditForm>;
+		export type Params = FunctionParams<typeof getPostFunctionBoEditForm>;
+		export type Return = FunctionReturn<typeof getPostFunctionBoEditForm>;
 	}
 }
 
-const getPostFunctionBackOfficeEditForm = parseFunctionEnhanced({
+const getPostFunctionBoEditForm = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
-		return getGetPostFunctionBackOfficeEditForm(z).parse(params);
+		return getGetPostFunctionBackOfficeEditFormSchema(z).parse(params);
 	},
 	action: async ({ user, t, /* locale, */ params }) => {
 		const sessionToken = user?.getSessionToken();
@@ -142,9 +148,9 @@ const getPostFunctionBackOfficeEditForm = parseFunctionEnhanced({
 	},
 });
 
-const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
+const getPostFunctionFrontDetailsViewMainContent = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
-		return getGetPostFunctionFrontDetailsView(z).parse(params);
+		return getGetPostFunctionFrontDetailsViewSchema(z).parse(params);
 	},
 	action: async ({ user, t, locale, params }) => {
 		const sessionToken = user?.getSessionToken();
@@ -158,7 +164,12 @@ const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
 			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
 		}
 
-		return PostService.toJSON(post);
+		if (post === 'TRANSLATION_NOT_FOUND') {
+			throw new Parse.Error(Parse.Error.SCRIPT_FAILED, t('item-not-found', { item: t('translation') }));
+		}
+
+		// return PostService.toJSON(post);
+		return post;
 		// }
 
 		// if (params.view === findOnePostView.boEditForm) {
@@ -273,5 +284,5 @@ Parse.Cloud.define(functionName.findPostTag, findPostTag);
 Parse.Cloud.define(functionName.findPostBoTable, findPostFunctionBoTable);
 Parse.Cloud.define(functionName.findPostFrontList, findPostFunctionFrontList);
 
-Parse.Cloud.define(functionName.getPostFrontDetails, getPostFunctionFrontDetailsView);
-Parse.Cloud.define(functionName.getPostBoEdit, getPostFunctionBackOfficeEditForm);
+Parse.Cloud.define(functionName.getPostFrontDetailsMainContent, getPostFunctionFrontDetailsViewMainContent);
+Parse.Cloud.define(functionName.getPostBoEdit, getPostFunctionBoEditForm);
