@@ -105,13 +105,13 @@ export const getFindPostFunctionBoTableParamsSchema = (z: CustomZod) => {
 // 		}),
 // 	]);
 // };
-export const getGetPostFunctionFrontDetailsView = (z: CustomZod) => {
+export const getGetPostFunctionFrontDetailsViewSchema = (z: CustomZod) => {
 	return z.object({
 		slug: z.string(),
 	});
 };
 
-export const getGetPostFunctionBackOfficeEditForm = (z: CustomZod) => {
+export const getGetPostFunctionBackOfficeEditFormSchema = (z: CustomZod) => {
 	return z.object({
 		id: z.string(),
 	});

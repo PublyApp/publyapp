@@ -1,13 +1,5 @@
 // @mui
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
-import ListItemText from '@mui/material/ListItemText';
-// import SpeedDial from '@mui/material/SpeedDial';
-// import SpeedDialAction from '@mui/material/SpeedDialAction';
-import Stack from '@mui/material/Stack';
-import { alpha, useTheme } from '@mui/material/styles';
-import Typography from '@mui/material/Typography';
+import { alpha, Avatar, Box, Container, ListItemText, Stack, Typography, useTheme } from '@mui/material';
 
 // import { useResponsive } from 'src/hooks/use-responsive';
 import { bgGradient } from '@devist/ui-react/utils/css.utils';

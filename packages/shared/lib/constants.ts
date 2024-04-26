@@ -137,7 +137,9 @@ export const functionName = {
 	createPost: 'createPost',
 	updatePost: 'updatePost',
 	// getPost: 'getPost',
-	getPostFrontDetails: 'getPostFrontDetails',
+	getPostFrontDetailsMainContent: 'getPostFrontDetailsMainContent',
+	getPostFrontDetailsRelatedPosts: 'getPostFrontDetailsRelatedPosts',
+	// ==
 	getPostBoEdit: 'getPostBoEdit',
 	// findPost: 'findPost',
 	findPostFrontList: 'findPostFrontList',

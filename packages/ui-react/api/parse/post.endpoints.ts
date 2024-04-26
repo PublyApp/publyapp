@@ -31,7 +31,7 @@ export default class PostEndPoints {
 		this.findPostBoTable = this.findPostBoTable.bind(this);
 		this.findPostFrontList = this.findPostFrontList.bind(this);
 		this.findPostTag = this.findPostTag.bind(this);
-		this.getPostDetailFront = this.getPostDetailFront.bind(this);
+		this.getPostDetailFrontMainContent = this.getPostDetailFrontMainContent.bind(this);
 	}
 
 	async findPostBoTable(params: FindPostFunction.BoTable.Params) {
@@ -74,10 +74,10 @@ export default class PostEndPoints {
 		return tags;
 	}
 
-	getPostDetailFront(params: GetPostFunction.FrontView.Params) {
-		return this.parseRestClient.cloudRun<GetPostFunction.FrontView.Return, GetPostFunction.FrontView.Params>(
-			functionName.getPostFrontDetails,
-			{ params },
-		);
+	getPostDetailFrontMainContent(params: GetPostFunction.FrontViewMainContent.Params) {
+		return this.parseRestClient.cloudRun<
+			GetPostFunction.FrontViewMainContent.Return,
+			GetPostFunction.FrontViewMainContent.Params
+		>(functionName.getPostFrontDetailsMainContent, { params });
 	}
 }
