@@ -127,7 +127,7 @@ const ProductListView = () => {
 
 	const canReset = !_.isEqual(defaultFilters, filters);
 
-	const handleFilters = useCallback((name: string, value: /* IProductTableFilterValue */ any) => {
+	const handleFilters = useCallback((name: string, value: IProductTableFilterValue) => {
 		setFilters((prevState) => {
 			return {
 				...prevState,
