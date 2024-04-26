@@ -62,5 +62,8 @@
 		"vite-tsconfig-paths": "^4.2.3",
 		"@types/parse": "^3.0.9",
 		"cross-env": "^7.0.3"
-	}
+	},
+	"engines": {
+    "node": ">=20.12.2"
+  }
 }
