@@ -1,8 +1,8 @@
-import fs from 'fs';
+// import fs from 'fs';
 
 import { Button, Chip, Container, Stack, Typography } from '@mui/material';
 import type { LoaderFunction } from '@remix-run/node';
-import { useLoaderData } from '@remix-run/react';
+import { isRouteErrorResponse, useLoaderData, useRouteError } from '@remix-run/react';
 import _ from 'lodash';
 
 import EmptyContent from '@devist/ui-react/components/EmptyContent';
@@ -15,59 +15,68 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import Markdown from '../components/Markdown';
 import RouterLink from '../components/RouterLink';
 import PostDetailsHero from '../containers/postDetails/PostDetailsHero';
-import PostDetailsSkeleton from '../containers/postDetails/PostDetailsSkeleton';
-import { safelyRunInLoader } from '../lib/remix/safelyRun';
+import { isErrorJSON, safelyRunInLoader } from '../lib/remix/safelyRun';
 
+// import PostDetailsSkeleton from '../containers/postDetails/PostDetailsSkeleton';
+// import { safelyRunInLoader } from '../lib/remix/safelyRun';
+
+// eslint-disable-next-line consistent-return
 export const loader = (async ({ params }) => {
 	const slug = _.toString(params.slug);
-	const mainContent = await safelyRunInLoader(parseApi.posts.getPostDetailFrontMainContent)({ slug });
-	fs.writeFileSync('test.json', JSON.stringify(mainContent, null, 2));
+
+	const postPromise = safelyRunInLoader(parseApi.posts.getPostDetailFront)({ slug });
+	const relatedPostsPromise = safelyRunInLoader(parseApi.posts.getRelatedPostsFrontDetails)({ slug });
+
+	const [post, relatedPosts] = await Promise.all([postPromise, relatedPostsPromise]);
+
+	// console.log('*****************', post);
+	// fs.writeFileSync('test.json', JSON.stringify(post, null, 2));
 	return {
-		mainContent,
+		post,
+		relatedPosts,
 	};
 }) satisfies LoaderFunction;
 
 const PostDetailsPage = () => {
-	const { mainContent } = useLoaderData<typeof loader>();
+	const { post, relatedPosts } = useLoaderData<typeof loader>();
+	// console.log(data);
+	// const post = {};
 
-	const renderSkeleton = <PostDetailsSkeleton />;
+	// const renderSkeleton = <PostDetailsSkeleton />;
 
-	const renderError = (
-		<Container sx={{ my: 10 }}>
-			<EmptyContent
-				filled
-				// title={`${postError?.message}`}
-				title="Post not found"
-				action={
-					<Button
-						component={RouterLink}
-						href={FRONT_PATH_NAMES.posts.root}
-						startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={16} />}
-						sx={{ mt: 3 }}
-					>
-						Back to List
-					</Button>
-				}
-				sx={{ py: 10 }}
-			/>
-		</Container>
-	);
+	// const renderError = (
+	// 	<Container sx={{ my: 10 }}>
+	// 		<EmptyContent
+	// 			filled
+	// 			// title={`${postError?.message}`}
+	// 			title="Post not found"
+	// 			action={
+	// 				<Button
+	// 					component={RouterLink}
+	// 					href={FRONT_PATH_NAMES.posts.root}
+	// 					startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={16} />}
+	// 					sx={{ mt: 3 }}
+	// 				>
+	// 					Back to List
+	// 				</Button>
+	// 			}
+	// 			sx={{ py: 10 }}
+	// 		/>
+	// 	</Container>
+	// );
 
-	const renderPost = _.isError(mainContent) ? (
-		<h1
-			css={{
-				color: 'red',
-			}}
-		>
-			Error
-		</h1>
+	const renderPost = isErrorJSON(post) ? (
+		<>
+			<h1 css={{ color: 'red' }}>Error while getting post</h1>
+			<pre>{JSON.stringify(post, null, 2)}</pre>
+		</>
 	) : (
 		<>
 			<PostDetailsHero
-				title={mainContent.title}
-				// author={mainContent.author}
-				coverUrl={mainContent.cover?.url || ''}
-				createdAt={mainContent.createdAt}
+				title={post.title}
+				// author={post.author}
+				coverUrl={post.cover?.url || ''}
+				createdAt={post.createdAt}
 			/>
 
 			<Container
@@ -91,7 +100,7 @@ const PostDetailsPage = () => {
 							href: FRONT_PATH_NAMES.posts.root,
 						},
 						{
-							name: mainContent?.title,
+							name: post?.title,
 						},
 					]}
 					sx={{ maxWidth: 720, mx: 'auto' }}
@@ -101,10 +110,10 @@ const PostDetailsPage = () => {
 			<Container maxWidth={false}>
 				<Stack sx={{ maxWidth: 720, mx: 'auto' }}>
 					<Typography variant="subtitle1" sx={{ mb: 5 }}>
-						{mainContent.description}
+						{post.description}
 					</Typography>
 
-					<Markdown /* children={} */>{mainContent.content}</Markdown>
+					<Markdown /* children={} */>{post.content}</Markdown>
 
 					<Stack
 						spacing={3}
@@ -119,7 +128,7 @@ const PostDetailsPage = () => {
 						}}
 					>
 						<Stack direction="row" flexWrap="wrap" spacing={1}>
-							{mainContent.tags?.map((tag) => {
+							{post.tags?.map((tag) => {
 								return <Chip key={tag} label={tag} variant="soft" />;
 							})}
 						</Stack>
@@ -175,6 +184,8 @@ const PostDetailsPage = () => {
 	// 	</>
 	// );
 
+	// const renderRelatedPosts = <RelatedPosts />;
+
 	return (
 		<>
 			{/* {postLoading && renderSkeleton} */}
@@ -190,3 +201,46 @@ const PostDetailsPage = () => {
 };
 
 export default PostDetailsPage;
+
+// export const ErrorBoundary = () => {
+// 	const error = useRouteError();
+
+// 	// When NODE_ENV=production:
+// 	// error.message = "Unexpected Server Error"
+// 	// error.stack = undefined
+// 	const renderErrorNotFound = (
+// 		<Container sx={{ my: 10 }}>
+// 			<EmptyContent
+// 				filled
+// 				// title={`${postError?.message}`}
+// 				title="Post not found"
+// 				action={
+// 					<Button
+// 						component={RouterLink}
+// 						href={FRONT_PATH_NAMES.posts.root}
+// 						startIcon={<Iconify icon="eva:arrow-ios-back-fill" width={16} />}
+// 						sx={{ mt: 3 }}
+// 					>
+// 						Back to List
+// 					</Button>
+// 				}
+// 				sx={{ py: 10 }}
+// 			/>
+// 		</Container>
+// 	);
+
+// 	if (isRouteErrorResponse(error)) {
+// 		// error.status = 500
+// 		// error.data = "Oh no! Something went wrong!"
+// 		if (error.status === 404) {
+// 			return renderErrorNotFound;
+// 		}
+// 	}
+
+// 	return (
+// 		<>
+// 			{/* {renderError} */}
+// 			{/* <RelatedPosts /> */}
+// 		</>
+// 	);
+// };

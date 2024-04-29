@@ -18,6 +18,7 @@ import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from 
 import FileService from '@/server/resources/file/file.service';
 import PostService from '@/server/resources/post/post.service';
 import UserService from '@/server/resources/user/user.service';
+// import type { IPost } from '@/shared/types/db/post.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 
 export namespace CreatePostFunction {
@@ -99,15 +100,10 @@ const updatePostFunction = parseFunctionEnhanced({
 });
 
 export namespace GetPostFunction {
-	export namespace FrontViewMainContent {
-		export type Params = FunctionParams<typeof getPostFunctionFrontDetailsViewMainContent>;
-		export type Return = FunctionReturn<typeof getPostFunctionFrontDetailsViewMainContent>;
+	export namespace FrontView {
+		export type Params = FunctionParams<typeof getPostFunctionFrontDetailsView>;
+		export type Return = FunctionReturn<typeof getPostFunctionFrontDetailsView>;
 	}
-
-	// export namespace FrontViewRelatedPosts {
-	// 	export type Params = FunctionParams<typeof getPostFunctionFrontDetailsView>;
-	// 	export type Return = FunctionReturn<typeof getPostFunctionFrontDetailsView>;
-	// }
 
 	export namespace BoEdit {
 		export type Params = FunctionParams<typeof getPostFunctionBoEditForm>;
@@ -148,7 +144,7 @@ const getPostFunctionBoEditForm = parseFunctionEnhanced({
 	},
 });
 
-const getPostFunctionFrontDetailsViewMainContent = parseFunctionEnhanced({
+const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getGetPostFunctionFrontDetailsViewSchema(z).parse(params);
 	},
@@ -191,27 +187,103 @@ export namespace FindPostFunction {
 	export namespace FrontList {
 		export type Params = FunctionParams<typeof findPostFunctionFrontList>;
 		export type Return = FunctionReturn<typeof findPostFunctionFrontList>;
-		// {
-		// 	view: typeof findPostView.frontList;
-		// 	page: number;
-		// 	pageSize: number;
-		// 	sorting: { id: string; desc: boolean }[];
-		// };
-		// export type Return = FunctionReturn<typeof PostService.prototype.findPostFrontList>;
 	}
+
 	export namespace BoTable {
 		export type Params = FunctionParams<typeof findPostFunctionBoTable>;
 		export type Return = FunctionReturn<typeof findPostFunctionBoTable>;
-		// export type Params = {
-		// 	view: typeof findPostView.boTable;
-		// 	page: number;
-		// 	pageSize: number;
-		// 	sorting: { id: string; desc: boolean }[];
-		// 	fromPublic: boolean;
-		// };
-		// export type Return = FunctionReturn<typeof PostService.prototype.findPostBoTable>;
+	}
+
+	export namespace FrontDetailsRelatedPosts {
+		export type Params = FunctionParams<typeof finPostFrontDetailsRelatedPosts>;
+		export type Return = FunctionReturn<typeof finPostFrontDetailsRelatedPosts>;
 	}
 }
+
+const finPostFrontDetailsRelatedPosts = parseFunctionEnhanced({
+	validateParams: ({ params, z }) => {
+		return getGetPostFunctionFrontDetailsViewSchema(z).parse(params);
+	},
+	action: async ({ locale: _locale, params }) => {
+		// return [];
+		const postService = new PostService({});
+		const post = await postService.getBySlug(params.slug, {
+			select: ['relatedPosts', 'tags'],
+			include: ['relatedPosts'],
+			json: true,
+		});
+
+		const relatedPosts = post?.relatedPosts ?? [];
+		let remainingPostsCount = 4 - relatedPosts.length;
+		const tags = post?.tags;
+
+		const getLatestPostsQuery = (iPost: typeof post, iRemainingPostsCount: number) => {
+			const query = new Parse.Query(ParsePost)
+				.limit(iRemainingPostsCount)
+				.addDescending('publishDate')
+				.addDescending('createdAt'); // TODO: better condition
+			// TODO: add locale and add select
+
+			if (iPost) {
+				query.notEqualTo('objectId', iPost.objectId);
+			}
+
+			return query;
+		};
+
+		if (remainingPostsCount < 4) {
+			if (tags && !_.isEmpty(tags)) {
+				const relatedPostsByTagsQuery = new Parse.Query(ParsePost)
+					.containedIn('tags', tags as never)
+					.notEqualTo('objectId', post?.objectId);
+
+				const relatedPostsByTagsCount = await relatedPostsByTagsQuery.count();
+
+				const relatedPostsByTagsPromise = relatedPostsByTagsQuery
+					// .select([
+					// 	//
+					// 	`translation.${locale}`,
+					// ] as never)
+					.limit(remainingPostsCount)
+					.find({ json: true });
+
+				if (relatedPostsByTagsCount < remainingPostsCount) {
+					// eslint-disable-next-line operator-assignment
+					remainingPostsCount = remainingPostsCount - relatedPostsByTagsCount;
+
+					const latestPostsQuery = getLatestPostsQuery(post, remainingPostsCount);
+					latestPostsQuery.notContainedIn('tags', tags as never);
+					// new Parse.Query(ParsePost)
+					// 	.notContainedIn('tags', tags as never)
+					// 	.notEqualTo('objectId', post?.objectId)
+					// 	.limit(remainingPostsCount);
+					const latestPostsPromise = latestPostsQuery.find({ json: true });
+
+					const [relatedPostsByTags, latestPosts] = await Promise.all([relatedPostsByTagsPromise, latestPostsPromise]);
+
+					relatedPosts.push(...(relatedPostsByTags as never[]), ...(latestPosts as []));
+				}
+			} else {
+				// if !tags || _.isEmpty(tags)
+				const latestPostsQuery = getLatestPostsQuery(post, remainingPostsCount);
+				// new Parse.Query(ParsePost)
+				// 	.notContainedIn('tags', tags as never)
+				// 	.notEqualTo('objectId', post?.objectId)
+				// 	.limit(remainingPostsCount);
+
+				const latestPosts = await latestPostsQuery.find({ json: true });
+				relatedPosts.push(...(latestPosts as never[]));
+			}
+			// await postService.findRelatedPostsByTags(post?.tags || [], {
+			// 	relatedPosts,
+			// 	remainingPostsCount,
+			// 	locale,
+			// });
+		}
+
+		return relatedPosts;
+	},
+});
 
 const findPostFunctionBoTable = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
@@ -283,6 +355,7 @@ Parse.Cloud.define(functionName.findPostTag, findPostTag);
 
 Parse.Cloud.define(functionName.findPostBoTable, findPostFunctionBoTable);
 Parse.Cloud.define(functionName.findPostFrontList, findPostFunctionFrontList);
+Parse.Cloud.define(functionName.findPostFrontDetailsRelatedPosts, finPostFrontDetailsRelatedPosts);
 
-Parse.Cloud.define(functionName.getPostFrontDetailsMainContent, getPostFunctionFrontDetailsViewMainContent);
+Parse.Cloud.define(functionName.getPostFrontDetails, getPostFunctionFrontDetailsView);
 Parse.Cloud.define(functionName.getPostBoEdit, getPostFunctionBoEditForm);
