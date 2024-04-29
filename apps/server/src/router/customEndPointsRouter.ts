@@ -4,6 +4,7 @@ import { endPoint } from '@/shared/lib/constants';
 
 import { multerConfig } from '../lib/multer';
 import protectionMiddleware from '../middlewares/protection.middleware';
+import { handleVerification, handleWebHook } from '../resources/facebookMessenger/facebookMessenger.controller';
 import { handleUploadManyFiles, handleUploadSingleFile } from '../resources/file/file.controller';
 import { handlePasswordLogin } from '../resources/user/user.controller';
 
@@ -25,6 +26,9 @@ customEndPointsRouter.post(
 );
 
 customEndPointsRouter.post(endPoint.passwordLogin, handlePasswordLogin);
+
+customEndPointsRouter.post(endPoint.facebookMessengerBotWebHook, handleWebHook);
+customEndPointsRouter.get(endPoint.facebookMessengerBotWebHook, handleVerification);
 
 // const handleTest = expressEndpoint(async (req, res) => {
 // 	console.log(req.path);

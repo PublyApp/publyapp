@@ -153,6 +153,7 @@ export const endPoint = {
 	uploadSingleFile: '/upload-single-file',
 	uploadManyFiles: '/upload-many-files',
 	passwordLogin: '/password-login',
+	facebookMessengerBotWebHook: '/facebook-messenger-bot-webhook',
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 25;
