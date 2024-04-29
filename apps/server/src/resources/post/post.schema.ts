@@ -30,6 +30,7 @@ const PostSchema = defineSchema<IPostWithRelations>(className.POST, {
 		postSeries: { type: 'Pointer', targetClass: className.POST_SERIES },
 		// postSeriesArray: { type: 'Array' },
 		// postSeries: { type: 'Pointer', targetClass: className.POST_SERIES },
+		relatedPosts: { type: 'Array' },
 	},
 });
 

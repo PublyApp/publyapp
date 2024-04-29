@@ -137,7 +137,7 @@ export const functionName = {
 	createPost: 'createPost',
 	updatePost: 'updatePost',
 	// getPost: 'getPost',
-	getPostFrontDetailsMainContent: 'getPostFrontDetailsMainContent',
+	getPostFrontDetails: 'getPostFrontDetails',
 	getPostFrontDetailsRelatedPosts: 'getPostFrontDetailsRelatedPosts',
 	// ==
 	getPostBoEdit: 'getPostBoEdit',
@@ -145,6 +145,7 @@ export const functionName = {
 	findPostFrontList: 'findPostFrontList',
 	findPostBoTable: 'findPostBoTable',
 	findPostTag: 'findPostTag',
+	findPostFrontDetailsRelatedPosts: 'findPostFrontDetailsRelatedPosts',
 	// savePost: 'savePost',
 } as const;
 

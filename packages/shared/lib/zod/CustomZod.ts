@@ -1,12 +1,16 @@
-import type { TFunction } from 'i18next';
+import { type TFunction } from 'i18next';
+import _ from 'lodash';
 import z, {
+	defaultErrorMap,
+	ZodIssueCode,
 	type Primitive,
 	type RawCreateParams,
 	type Writeable,
 	type ZodDiscriminatedUnionOption,
 	type ZodEnum,
+	type ZodErrorMap,
 } from 'zod';
-import { makeZodI18nMap } from 'zod-i18n-map';
+import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
 
 // type B = Parameters<typeof z.object>[1];
 // type A = Parameters<typeof z.object>[0];
@@ -22,11 +26,84 @@ class CustomZod {
 		this.t = t;
 	}
 
-	getErrorMap() {
-		return makeZodI18nMap({ t: this.t as never });
+	getErrorMap(option?: ZodI18nMapOption) {
+		const errorMap1 = makeZodI18nMap({ t: this.t as never });
+
+		const errorMap2: ZodErrorMap = (issue, ctx) => {
+			const defaultNs = 'zod';
+
+			const { t, ns, handlePath } = {
+				// t: i18next.t,
+				t: this.t,
+				ns: defaultNs,
+				...option,
+				handlePath:
+					option?.handlePath !== false
+						? {
+								context: 'with_path',
+								ns: option?.ns ?? defaultNs,
+								keyPrefix: undefined,
+								...option?.handlePath,
+							}
+						: null,
+			};
+
+			let message: string;
+			message = defaultErrorMap(issue, ctx).message;
+
+			const path =
+				issue.path.length > 0 && !!handlePath
+					? {
+							context: handlePath.context,
+							path: (t as GenericFunction)([handlePath.keyPrefix, issue.path.join('.')].filter(Boolean).join('.'), {
+								ns: handlePath.ns,
+								defaultValue: issue.path.join('.'),
+							} as never),
+						}
+					: {};
+
+			switch (issue.code) {
+				case ZodIssueCode.invalid_type: {
+					message = (t as GenericFunction)(
+						'errors.invalid_type' as never,
+						{
+							expected: (t as GenericFunction)(
+								`types.${issue.expected}` as never,
+								{
+									defaultValue: issue.expected,
+									ns,
+								} as never,
+							),
+							received: (t as GenericFunction)(
+								`types.${issue.received}` as never,
+								{
+									defaultValue: issue.received,
+									ns,
+								} as never,
+							),
+							ns,
+							defaultValue: message,
+							...path,
+						} as never,
+					);
+					break;
+				}
+
+				default: {
+					// eslint-disable-next-line @typescript-eslint/naming-convention
+					const { message: _message } = errorMap1(issue, ctx);
+					message = _message;
+					break;
+				}
+			}
+
+			return { message };
+		};
+
+		return errorMap2;
 	}
 
-	string(params?: Parameters<typeof z.string>) {
+	string(params?: Parameters<typeof z.string>[0]) {
 		return z.string({ errorMap: this.getErrorMap(), ...params });
 	}
 
@@ -41,11 +118,11 @@ class CustomZod {
 		return z.object(schema, { errorMap: this.getErrorMap(), ...params });
 	}
 
-	date(params?: Parameters<typeof z.date>) {
+	date(params?: Parameters<typeof z.date>[0]) {
 		return z.date({ errorMap: this.getErrorMap(), ...params });
 	}
 
-	number(params?: Parameters<typeof z.number>) {
+	number(params?: Parameters<typeof z.number>[0]) {
 		return z.number({ errorMap: this.getErrorMap(), ...params });
 	}
 
@@ -53,7 +130,7 @@ class CustomZod {
 		return z.array(schema, { errorMap: this.getErrorMap(), ...params });
 	}
 
-	boolean(params?: Parameters<typeof z.boolean>) {
+	boolean(params?: Parameters<typeof z.boolean>[0]) {
 		return z.boolean({ errorMap: this.getErrorMap(), ...params });
 	}
 
