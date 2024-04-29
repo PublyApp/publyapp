@@ -7,7 +7,6 @@ import type ParseUser from '@/server/lib/parse/classes/user.class';
 import { DEFAULT_PAGE_SIZE, fileProvider } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type {
-	IPost,
 	IPostWithParseRelations,
 	IPostWithRelations,
 	TranslatedIPostWithRelations,
@@ -223,7 +222,7 @@ export default class PostService {
 	async getBySlug(
 		slug: string,
 		options: { select?: string[]; include?: string[]; published?: boolean; json: true },
-	): Promise<IPost | undefined>;
+	): Promise<IPostWithRelations | undefined>;
 	async getBySlug(
 		slug: string,
 		options: { select?: string[]; include?: string[]; published?: boolean; json?: boolean } = {},

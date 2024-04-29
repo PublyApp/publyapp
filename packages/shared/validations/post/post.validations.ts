@@ -107,13 +107,24 @@ export const getFindPostFunctionBoTableParamsSchema = (z: CustomZod) => {
 // };
 export const getGetPostFunctionFrontDetailsViewSchema = (z: CustomZod) => {
 	return z.object({
-		slug: z.string(),
+		slug: z
+			.string({
+				// errorMap: z.getErrorMap({
+				// 	errors: {
+				// 		invalid_type_received_undefined: z.t('item-is-required', { item: 'Slug' }),
+				// 		invalid_type_received_null: z.t('item-is-required', { item: 'Slug' }),
+				// 	},
+				// }),
+			})
+			.min(1, z.t('item-is-required', { item: 'Slug' })),
 	});
 };
 
 export const getGetPostFunctionBackOfficeEditFormSchema = (z: CustomZod) => {
 	return z.object({
-		id: z.string(),
+		id: z
+			.string({ required_error: z.t('item-is-required', { item: 'Id' }) })
+			.min(1, z.t('item-is-required', { item: 'Id' })),
 	});
 };
 

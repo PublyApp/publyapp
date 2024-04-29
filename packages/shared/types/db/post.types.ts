@@ -1,6 +1,7 @@
 import type { BaseAttributes } from 'parse';
 
 import type ParseAppFile from '@/server/lib/parse/classes/appFile.class';
+import type ParsePost from '@/server/lib/parse/classes/post.class';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 import type { DateType } from '../date.types';
@@ -68,6 +69,7 @@ export type IPostWithRelations = IPost & {
 	// 	postSeries: IPostSeries;
 	// }[];
 	// comments?: IComment[];
+	relatedPosts?: IPost[];
 };
 
 export type IPostWithParseRelations = IPost & {
@@ -79,6 +81,7 @@ export type IPostWithParseRelations = IPost & {
 	// 	postSeries: IPostSeries;
 	// }[];
 	// comments?: ParseComment[];
+	relatedPosts?: ParsePost[];
 };
 
 export type TranslatedIPostWithRelations = IPostWithRelations & PostTranslation & { locale: AppLocale };
