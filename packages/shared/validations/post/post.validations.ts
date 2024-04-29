@@ -116,7 +116,7 @@ export const getGetPostFunctionFrontDetailsViewSchema = (z: CustomZod) => {
 				// 	},
 				// }),
 			})
-			.min(1, z.t('item-is-required', { item: 'Slug' })),
+			.min(5),
 	});
 };
 
