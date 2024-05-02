@@ -1,0 +1,15 @@
+I have a text,
+I want to publish it on several social media at once:
+
+Meta:
+	- Facebook
+	- Instagram
+	- Threads
+	- WhatsApp
+Other:
+	- TikTok
+	- Telegram
+	- Discord
+	- Mastodon
+	- Twitter (X.com) (The API is paid though)
+	- Reddit

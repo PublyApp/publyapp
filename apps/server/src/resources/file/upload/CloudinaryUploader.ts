@@ -4,10 +4,10 @@ import streamifier from 'streamifier';
 import cloudinary from '@/server/lib/cloudinary';
 import { fileProvider } from '@/shared/lib/constants';
 
-import type UploaderInterface from './UploaderInterface';
-import type { UploadInput } from './UploaderInterface';
+import type Uploader from './Uploader';
+import type { UploadInput } from './Uploader';
 
-export default class CloudinaryUploader implements UploaderInterface {
+export default class CloudinaryUploader implements Uploader {
 	provider = fileProvider.CLOUDINARY;
 
 	// eslint-disable-next-line class-methods-use-this

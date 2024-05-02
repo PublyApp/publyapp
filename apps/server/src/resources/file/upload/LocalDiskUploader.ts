@@ -6,10 +6,10 @@ import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
 import { fileProvider } from '@/shared/lib/constants';
 
-import type UploaderInterface from './UploaderInterface';
-import type { UploadInput } from './UploaderInterface';
+import type Uploader from './Uploader';
+import type { UploadInput } from './Uploader';
 
-export default class LocalDiskUploader implements UploaderInterface {
+export default class LocalDiskUploader implements Uploader {
 	provider = fileProvider.LOCAL_DISK;
 
 	// eslint-disable-next-line class-methods-use-this
