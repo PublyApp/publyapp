@@ -15,11 +15,11 @@ import FolderService from '../folder/folder.service';
 
 import CloudinaryUploader from './upload/CloudinaryUploader';
 import LocalDiskUploader from './upload/LocalDiskUploader';
-import type UploaderInterface from './upload/UploaderInterface';
+import type Uploader from './upload/Uploader';
 
 export type FileServiceProps = {
 	sessionToken: string | undefined;
-	uploadAdapter: UploaderInterface;
+	uploadAdapter: Uploader;
 };
 
 type ServiceFormatData = Omit<ImageFormatData, 'url'> & {
@@ -52,7 +52,7 @@ export type CreateAppFileInput = {
 export default class FileService {
 	sessionToken?: string;
 
-	uploadAdapter: UploaderInterface;
+	uploadAdapter: Uploader;
 
 	constructor({ sessionToken, uploadAdapter }: FileServiceProps) {
 		this.sessionToken = sessionToken;
@@ -343,14 +343,14 @@ export default class FileService {
 		const cloudinaryUploader = new CloudinaryUploader();
 
 		const uploadAdapterMap = new Map([
-			[localDiskUploader.provider, localDiskUploader as UploaderInterface],
-			[cloudinaryUploader.provider, cloudinaryUploader as UploaderInterface],
+			[localDiskUploader.provider, localDiskUploader as Uploader],
+			[cloudinaryUploader.provider, cloudinaryUploader as Uploader],
 		]);
 
 		return uploadAdapterMap;
 	}
 
-	public static get defaultUploadAdapter(): UploaderInterface {
+	public static get defaultUploadAdapter(): Uploader {
 		return new LocalDiskUploader();
 	}
 }
