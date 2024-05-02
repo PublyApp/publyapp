@@ -13,13 +13,13 @@ import { addSuffixToFileName } from '@/server/utils/any.utils';
 
 import FolderService from '../folder/folder.service';
 
-import CloudinaryUploadAdapter from './upload/CloudinaryUploadAdapter';
-import LocalDiskUploadAdapter from './upload/LocalDiskUploadAdapter';
-import type UploadAdapterInterface from './upload/UploadAdapterInterface';
+import CloudinaryUploader from './upload/CloudinaryUploader';
+import LocalDiskUploader from './upload/LocalDiskUploader';
+import type UploaderInterface from './upload/UploaderInterface';
 
 export type FileServiceProps = {
 	sessionToken: string | undefined;
-	uploadAdapter: UploadAdapterInterface;
+	uploadAdapter: UploaderInterface;
 };
 
 type ServiceFormatData = Omit<ImageFormatData, 'url'> & {
@@ -52,7 +52,7 @@ export type CreateAppFileInput = {
 export default class FileService {
 	sessionToken?: string;
 
-	uploadAdapter: UploadAdapterInterface;
+	uploadAdapter: UploaderInterface;
 
 	constructor({ sessionToken, uploadAdapter }: FileServiceProps) {
 		this.sessionToken = sessionToken;
@@ -339,18 +339,18 @@ export default class FileService {
 	}
 
 	public static get uploadAdapterMap() {
-		const localDiskUploadAdapter = new LocalDiskUploadAdapter();
-		const cloudinaryUploadAdapter = new CloudinaryUploadAdapter();
+		const localDiskUploader = new LocalDiskUploader();
+		const cloudinaryUploader = new CloudinaryUploader();
 
 		const uploadAdapterMap = new Map([
-			[localDiskUploadAdapter.provider, localDiskUploadAdapter as UploadAdapterInterface],
-			[cloudinaryUploadAdapter.provider, cloudinaryUploadAdapter as UploadAdapterInterface],
+			[localDiskUploader.provider, localDiskUploader as UploaderInterface],
+			[cloudinaryUploader.provider, cloudinaryUploader as UploaderInterface],
 		]);
 
 		return uploadAdapterMap;
 	}
 
-	public static get defaultUploadAdapter(): UploadAdapterInterface {
-		return new LocalDiskUploadAdapter();
+	public static get defaultUploadAdapter(): UploaderInterface {
+		return new LocalDiskUploader();
 	}
 }
