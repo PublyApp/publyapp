@@ -1,4 +1,4 @@
-import { appLocales, defaultLocale, defaultNS, NS, resources } from '@/shared/lib/i18n/resources';
+import { appLocales, defaultLocale, defaultNS, NS, resources, type AppLocale } from '@/shared/lib/i18n/resources';
 
 export default {
 	supportedLngs: appLocales,
@@ -17,4 +17,12 @@ export default {
 		// bindI18nStore: 'languageChanged',
 		// bindI18n: 'added',
 	},
+};
+
+export const returnLanguageIfSupported = (lang?: string): AppLocale | undefined => {
+	if (appLocales.includes(lang as AppLocale)) {
+		return lang as AppLocale;
+	}
+
+	return undefined;
 };
