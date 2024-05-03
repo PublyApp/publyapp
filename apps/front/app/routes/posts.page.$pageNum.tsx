@@ -1,12 +1,16 @@
 import { Container, Unstable_Grid2 as Grid } from '@mui/material';
 // import { type LoaderFunction } from '@remix-run/node';
 import { /* useLoaderData, */ defer, type ClientLoaderFunction } from '@remix-run/react';
+import { useTranslation } from 'react-i18next';
+
+// import { t } from 'i18next';
 
 import { _categories, _tags } from '@/front/_mock';
 import PostListHorizontal from '@/front/containers/postList/PostListHorizontal';
 import BlogSidebar from '@/front/containers/postList/sidebar/BlogSidebar';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 
+import { LanguageSwitcher } from '../components/LangageSwitcher';
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
 // export const loader = (async ({ params }) => {
@@ -37,6 +41,7 @@ export type PostListLoaderFunction = typeof clientLoader;
 
 const PostsPage = () => {
 	// const data = useLoaderData<PostListLoaderFunction>();
+	const { t } = useTranslation();
 
 	return (
 		<>
@@ -50,6 +55,8 @@ const PostsPage = () => {
 			>
 				<Grid container spacing={{ md: 8 }}>
 					<Grid xs={12} md={8}>
+						<LanguageSwitcher />
+						<h1>{t('hello')}</h1>
 						<PostListHorizontal />
 					</Grid>
 

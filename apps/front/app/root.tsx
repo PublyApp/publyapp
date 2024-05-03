@@ -2,25 +2,31 @@ import { useContext, type ReactNode } from 'react';
 
 import { withEmotionCache } from '@emotion/react';
 import { unstable_useEnhancedEffect as useEnhancedEffect, useTheme } from '@mui/material';
+import { json, type LoaderFunctionArgs } from '@remix-run/node';
 import {
 	isRouteErrorResponse,
 	Links,
-	// LiveReload,
 	Meta,
 	Outlet,
 	Scripts,
 	ScrollRestoration,
+	useLoaderData,
 	useRouteError,
 } from '@remix-run/react';
+import { useTranslation } from 'react-i18next';
+import { useChangeLanguage } from 'remix-i18next/react';
 
 import MotionLazyContainer from '@devist/ui-react/components/MotionLazyContainer';
 import SnackbarProvider from '@devist/ui-react/providers/SnackbarProvider';
+
+import { defaultNS } from '@/shared/lib/i18n/resources';
 
 import Error404 from './components/Error404';
 import Error500 from './components/Error500';
 import ClientStyleContext from './contexts/ClientStyleContext';
 import CompactLayout from './layouts/compact/CompactLayout';
 import MainLayout from './layouts/main/MainLayout';
+import i18next from './lib/i18n/i18next.server';
 import { initParse } from './lib/parse/client';
 
 // import { initParse } from './lib/parse/legacy';
@@ -32,9 +38,32 @@ interface DocumentProps {
 
 initParse();
 
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+	const locale = await i18next.getLocale(request);
+	return json({ locale });
+	// return { locale };
+};
+
+export const handle = {
+	// In the handle export, we can add a i18n key with namespaces our route
+	// will need to load. This key can be a single string or an array of strings.
+	// TIP: In most cases, you should set this to your defaultNS from your i18n config
+	// or if you did not set one, set it to the i18next default namespace "translation"
+	i18n: defaultNS,
+};
+
 const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCache) => {
+	const { locale } = useLoaderData<typeof loader>();
+	const { i18n } = useTranslation();
+
 	const clientStyleData = useContext(ClientStyleContext);
 	const theme = useTheme();
+
+	// This hook will change the i18n instance language to the current locale
+	// detected by the loader, this way, when we do something to change the
+	// language, this locale will change and i18next will load the correct
+	// translation files
+	useChangeLanguage(locale);
 
 	// Only executed on client
 	useEnhancedEffect(() => {
@@ -54,7 +83,7 @@ const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCa
 	}, []);
 
 	return (
-		<html lang="en">
+		<html lang={locale} dir={i18n.dir()}>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width,initial-scale=1" />
