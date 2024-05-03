@@ -1,11 +1,20 @@
-import { appLocales, defaultLocale, defaultNS } from '@/shared/lib/i18n/resources';
+import { appLocales, defaultLocale, defaultNS, NS, resources } from '@/shared/lib/i18n/resources';
 
 export default {
-	// This is the list of languages your application supports
 	supportedLngs: appLocales,
-	// This is the language you want to use in case
-	// if the user language is not in the supportedLngs
+	debug: false,
+	resources,
+	compatibilityJSON: 'v3' as const,
 	fallbackLng: defaultLocale,
-	// The default namespace of i18next is "translation", but you can customize it here
+	ns: NS,
 	defaultNS,
+	interpolation: {
+		escapeValue: false, // not needed for react as it escapes by default
+	},
+	react: {
+		useSuspense: true,
+		transSupportBasicHtmlNodes: false,
+		// bindI18nStore: 'languageChanged',
+		// bindI18n: 'added',
+	},
 };
