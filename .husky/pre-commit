@@ -1,4 +1,7 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
+# makes sure fnm will make npx work
+eval "$(fnm env --use-on-cd)"
+
 npx lint-staged
