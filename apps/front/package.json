@@ -32,6 +32,7 @@
 		"date-fns": "^2.25.0",
 		"events": "^3.3.0",
 		"framer-motion": "^10.18.0",
+		"glob": "^10.3.12",
 		"highlight.js": "^11.9.0",
 		"i18next": "^23.11.2",
 		"i18next-browser-languagedetector": "^7.2.1",
@@ -48,6 +49,7 @@
 		"rehype-highlight": "^7.0.0",
 		"rehype-raw": "^7.0.0",
 		"remark-gfm": "^4.0.0",
+		"remix-custom-routes": "^1.0.1",
 		"remix-i18next": "^6.1.0",
 		"zod": "^3.22.4"
 	},
