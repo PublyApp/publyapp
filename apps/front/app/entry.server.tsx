@@ -12,7 +12,7 @@ import { I18nextProvider, initReactI18next } from 'react-i18next';
 import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
 
 import createEmotionCache from './lib/emotion/createEmotionCache';
-import i18n from './lib/i18n/i18n';
+import i18n, { returnLanguageIfSupported } from './lib/i18n/i18n';
 import i18next from './lib/i18n/i18next.server';
 
 const handleRequest = async (
@@ -21,8 +21,12 @@ const handleRequest = async (
 	responseHeaders: Headers,
 	remixContext: EntryContext,
 ) => {
+	const url = new URL(request.url);
+	const { pathname } = url;
+	const lang = pathname.split('/')[1];
+
 	const instance = createInstance();
-	const lng = await i18next.getLocale(request);
+	const lng = returnLanguageIfSupported(lang) ?? (await i18next.getLocale(request));
 	const ns = i18next.getRouteNamespaces(remixContext);
 
 	await instance
