@@ -1,8 +1,6 @@
 import _ from 'lodash';
 
-import { tryCatchWrapper } from './tryCatchWrapper';
-
-// import { tryCatchWrapper } from '@devist/shared/utils/tryCatchWrapper';
+import { tryCatchWrapper } from '@devist/shared/utils/tryCatchWrapper';
 
 const errorJSONModel = {
 	isErrorJSON: true,
