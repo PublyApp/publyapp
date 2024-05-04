@@ -35,46 +35,32 @@ export default class ParseRestClient {
 		// set default headers
 		axiosInstance.defaults.headers.common[PARSE_APPLICATION_ID_HEADER_KEY] = applicationId;
 
-		// const defaultTransformer = axiosInstance.defaults.transformResponse;
-
-		// axiosInstance.defaults.transformResponse = [
-		// 	...toMerge,
-		// 	(data) => {
-		// 		console.log('🚫🚫🚫🚫🚫', data);
-
-		// 		if (data?.result) {
-		// 			return data.result;
-		// 		}
-
-		// 		return data;
-		// 	},
-		// ];
-
 		// interceptors
 		axiosInstance.interceptors.response.use(
 			(response) => {
-				// const { request } = response;
-
-				// if (request instanceof XMLHttpRequest) {
-				// 	if (request.responseURL.startsWith(`${this.parseServerUrl}/functions`)) {
-				// 		response.data = response.data.result;
-				// 	}
-				// }
-
 				return response;
 			},
-			(error) => {
-				if (error.response?.status === 400) {
-					const { code, error: errorMessage } = error.response.data;
-					throw new ParseRestError(code, errorMessage);
+			(error: unknown) => {
+				// return error;
+				// !!! do not reject Promises here, throw errors instead !!!!
+				// This error interceptor is very specific to the case of we are exclusively using Parse Server cloud functions via the REST API only
+
+				if (_.isString(error)) {
+					throw new Error(error);
 				}
 
-				if (error.response?.status === 403) {
-					const { error: errorMessage } = error.response.data;
-					throw new ParseRestError(-1, errorMessage);
+				if (axios.isAxiosError(error)) {
+					const statusCode = _.toNumber(error.response?.status);
+					const { code, error: errorMessage } = error.response?.data ?? {};
+
+					throw new ParseRestError({ code: _.isNil(code) ? -1 : code, message: errorMessage, statusCode });
 				}
 
-				return Promise.reject(error);
+				if (_.isError(error)) {
+					throw error;
+				}
+
+				throw new Error('Unknown error');
 			},
 		);
 

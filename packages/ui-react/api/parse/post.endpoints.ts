@@ -32,6 +32,7 @@ export default class PostEndPoints {
 		this.findPostFrontList = this.findPostFrontList.bind(this);
 		this.findPostTag = this.findPostTag.bind(this);
 		this.getPostDetailFront = this.getPostDetailFront.bind(this);
+		this.getRelatedPostsFrontDetails = this.getRelatedPostsFrontDetails.bind(this);
 	}
 
 	async findPostBoTable(params: FindPostFunction.BoTable.Params) {
@@ -74,7 +75,7 @@ export default class PostEndPoints {
 		return tags;
 	}
 
-	getPostDetailFront(params: GetPostFunction.FrontView.Params) {
+	async getPostDetailFront(params: GetPostFunction.FrontView.Params) {
 		// throw new Error('Method not implemented.');
 		return this.parseRestClient.cloudRun<GetPostFunction.FrontView.Return, GetPostFunction.FrontView.Params>(
 			functionName.getPostFrontDetails,
@@ -82,7 +83,7 @@ export default class PostEndPoints {
 		);
 	}
 
-	getRelatedPostsFrontDetails(params: FindPostFunction.FrontDetailsRelatedPosts.Params) {
+	async getRelatedPostsFrontDetails(params: FindPostFunction.FrontDetailsRelatedPosts.Params) {
 		return this.parseRestClient.cloudRun<
 			FindPostFunction.FrontDetailsRelatedPosts.Return,
 			FindPostFunction.FrontDetailsRelatedPosts.Params

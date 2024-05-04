@@ -1,11 +1,13 @@
 export default class ParseRestError extends Error {
-	constructor(
-		public code: number,
-		message: string,
-	) {
+	code: number;
+
+	statusCode: number;
+
+	constructor({ statusCode, code, message }: { statusCode: number; code: number; message: string }) {
 		super(message);
 		this.name = 'ParseRestError';
 		this.code = code;
+		this.statusCode = statusCode;
 		this.message = message;
 	}
 }
