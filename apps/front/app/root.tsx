@@ -10,8 +10,9 @@ import {
 	Outlet,
 	Scripts,
 	ScrollRestoration,
-	useLoaderData,
+	// useLoaderData,
 	useRouteError,
+	useRouteLoaderData,
 } from '@remix-run/react';
 import { useTranslation } from 'react-i18next';
 import { useChangeLanguage } from 'remix-i18next/react';
@@ -19,7 +20,7 @@ import { useChangeLanguage } from 'remix-i18next/react';
 import MotionLazyContainer from '@devist/ui-react/components/MotionLazyContainer';
 import SnackbarProvider from '@devist/ui-react/providers/SnackbarProvider';
 
-import { defaultNS } from '@/shared/lib/i18n/resources';
+import { defaultLocale, defaultNS } from '@/shared/lib/i18n/resources';
 
 import Error404 from './components/Error404';
 import Error500 from './components/Error500';
@@ -62,17 +63,18 @@ export const handle = {
 };
 
 const Document = withEmotionCache(({ children, title }: DocumentProps, emotionCache) => {
-	const { locale } = useLoaderData<typeof loader>();
+	// const { locale } = useLoaderData<typeof loader>();
+	const { locale } = useRouteLoaderData<typeof loader>('root') ?? { locale: defaultLocale };
 	const { i18n } = useTranslation();
-
-	const clientStyleData = useContext(ClientStyleContext);
-	const theme = useTheme();
 
 	// This hook will change the i18n instance language to the current locale
 	// detected by the loader, this way, when we do something to change the
 	// language, this locale will change and i18next will load the correct
 	// translation files
 	useChangeLanguage(locale);
+
+	const clientStyleData = useContext(ClientStyleContext);
+	const theme = useTheme();
 
 	// Only executed on client
 	useEnhancedEffect(() => {
@@ -145,7 +147,7 @@ export const ErrorBoundary = () => {
 
 		switch (error.status) {
 			case 401: {
-				message = <p>Oops! Looks like you tried to visit a page that you do not have access to.</p>;
+				message = <p>Oops! Looks like you tried to visit a page that you do not have access to.</p>; // TODO: change this
 				break;
 			}
 
