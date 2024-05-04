@@ -1,6 +1,8 @@
 import _ from 'lodash';
 
-import { tryCatchWrapper } from '@devist/shared/utils/tryCatchWrapper';
+import { tryCatchWrapper } from './tryCatchWrapper';
+
+// import { tryCatchWrapper } from '@devist/shared/utils/tryCatchWrapper';
 
 const errorJSONModel = {
 	isErrorJSON: true,
@@ -41,12 +43,9 @@ export const safelyRunInLoader = <F extends GenericFunction>(func: F): SafeLoade
 			error = _error;
 		}
 
-		// if (!(_error instanceof Error)) {
-		// 	error = new Error('Unknown error');
-		// }
+		const json = jsonifyError(error);
 
-		// return error;
-		return jsonifyError(error);
+		return json;
 	});
 
 	return wrappedFunction as never;

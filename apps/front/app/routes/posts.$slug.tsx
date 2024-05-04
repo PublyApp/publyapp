@@ -34,17 +34,19 @@ export const loader = getServerLoader(async ({ params, parseApi }) => {
 	const relatedPostsPromise = safelyRunInLoader(parseApi.posts.getRelatedPostsFrontDetails)({ slug });
 
 	const [post, relatedPosts] = await Promise.all([postPromise, relatedPostsPromise]);
+	// const post = await postPromise;
 
-	// console.log('*****************', post);
+	console.log('🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑', [post, relatedPosts]);
 	// fs.writeFileSync('test.json', JSON.stringify(post, null, 2));
 	return {
 		post,
-		relatedPosts,
+		// relatedPosts,
 	};
 }) satisfies LoaderFunction;
 
 const PostDetailsPage = () => {
-	const { post /* , relatedPosts */ } = useLoaderData<typeof loader>();
+	const { post: _post /* , relatedPosts */ } = useLoaderData<typeof loader>();
+	const post = _post ?? {};
 	// console.log(data);
 	// const post = {};
 
