@@ -16,7 +16,7 @@ export const initParse = () => {
 	const locale = getInitialLocale();
 	const storedSessionToken = localStorageGetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY);
 
-	// se locale header
+	// set locale header
 	parseRestClient.setHeader(LOCALE_HEADER_KEY, locale);
 
 	// set session token

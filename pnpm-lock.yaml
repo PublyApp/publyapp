@@ -89,6 +89,9 @@ importers:
       '@remix-run/react':
         specifier: ^2.8.0
         version: 2.8.1(react-dom@18.3.0)(react@18.3.0)(typescript@5.4.5)
+      '@remix-run/router':
+        specifier: ^1.16.0
+        version: 1.16.0
       '@remix-run/serve':
         specifier: ^2.8.0
         version: 2.8.1(typescript@5.4.5)
@@ -5943,6 +5946,11 @@ packages:
     resolution: {integrity: sha512-JUQb6sztqJpRbsdKpx3D4+6eaGmHU4Yb/QeKrES/ZbLuijlZMOmZ+gV0ohX5vrRDnJHJmcQPq3Tpk0GGPNM9gg==}
     engines: {node: '>=14.0.0'}
     dev: true
+
+  /@remix-run/router@1.16.0:
+    resolution: {integrity: sha512-Quz1KOffeEf/zwkCBM3kBtH4ZoZ+pT3xIXBG4PPW/XFtDP7EGhtTiC2+gpL9GnR7+Qdet5Oa6cYSvwKYg6kN9Q==}
+    engines: {node: '>=14.0.0'}
+    dev: false
 
   /@remix-run/serve@2.8.1(typescript@5.4.5):
     resolution: {integrity: sha512-PyCV7IMnRshwfFw7JJ2hZJppX88VAhZyYjeTAmYb6PK7IDtdmqUf5eOrYDi8gCu914C+aZRu6blxpLRlpyCY8Q==}
