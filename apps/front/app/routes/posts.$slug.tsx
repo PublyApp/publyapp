@@ -1,27 +1,33 @@
 // import fs from 'fs';
 
-import { Button, Chip, Container, Stack, Typography } from '@mui/material';
+import { Chip, Container, Stack, Typography } from '@mui/material';
 import type { LoaderFunction } from '@remix-run/node';
-import { isRouteErrorResponse, useLoaderData, useRouteError } from '@remix-run/react';
+import {
+	// isRouteErrorResponse,
+	useLoaderData,
+	// useRouteError
+} from '@remix-run/react';
 import _ from 'lodash';
 
-import EmptyContent from '@devist/ui-react/components/EmptyContent';
-import Iconify from '@devist/ui-react/components/Iconify';
+// import EmptyContent from '@devist/ui-react/components/EmptyContent';
+// import Iconify from '@devist/ui-react/components/Iconify';
 
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import parseApi from '@/ui-react/api/parse/ParseApi';
+
+// import parseApi from '@/ui-react/api/parse/ParseApi';
 
 import Breadcrumbs from '../components/Breadcrumbs';
 import Markdown from '../components/Markdown';
-import RouterLink from '../components/RouterLink';
+// import RouterLink from '../components/RouterLink';
 import PostDetailsHero from '../containers/postDetails/PostDetailsHero';
+import { getServerLoader } from '../lib/remix/getServerLoader';
 import { isErrorJSON, safelyRunInLoader } from '../lib/remix/safelyRun';
 
 // import PostDetailsSkeleton from '../containers/postDetails/PostDetailsSkeleton';
 // import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
 // eslint-disable-next-line consistent-return
-export const loader = (async ({ params }) => {
+export const loader = getServerLoader(async ({ params, parseApi }) => {
 	const slug = _.toString(params.slug);
 
 	const postPromise = safelyRunInLoader(parseApi.posts.getPostDetailFront)({ slug });
@@ -38,7 +44,7 @@ export const loader = (async ({ params }) => {
 }) satisfies LoaderFunction;
 
 const PostDetailsPage = () => {
-	const { post, relatedPosts } = useLoaderData<typeof loader>();
+	const { post /* , relatedPosts */ } = useLoaderData<typeof loader>();
 	// console.log(data);
 	// const post = {};
 
