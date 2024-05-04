@@ -10,7 +10,6 @@ import PostListHorizontal from '@/front/containers/postList/PostListHorizontal';
 import BlogSidebar from '@/front/containers/postList/sidebar/BlogSidebar';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 
-import { LanguageSwitcher } from '../components/LangageSwitcher';
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
 // export const loader = (async ({ params }) => {
@@ -55,7 +54,7 @@ const PostsPage = () => {
 			>
 				<Grid container spacing={{ md: 8 }}>
 					<Grid xs={12} md={8}>
-						<LanguageSwitcher />
+						{/* <LanguageSwitcher /> */}
 						<h1>{t('hello')}</h1>
 						<PostListHorizontal />
 					</Grid>
