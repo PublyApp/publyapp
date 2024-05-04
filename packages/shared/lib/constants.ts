@@ -72,13 +72,30 @@ const RESOURCE = {
 } as const;
 
 const makePath = (...params: string[]) => {
-	return params.join('/');
+	// eslint-disable-next-line @typescript-eslint/naming-convention
+	const _params: string[] = [];
+
+	params.forEach((param /* , index */) => {
+		if (param.length <= 0 || param === '/') {
+			return;
+		}
+
+		_params.push(param);
+	});
+
+	let path = _params.join('/').replace(/\/{2,}/g, '/');
+
+	if (!path.startsWith('/')) {
+		path = `/${path}`;
+	}
+
+	return path;
 };
 
 const ROOTS = {
-	AUTH: '/auth',
-	DASHBOARD: '/dashboard',
-} as const satisfies Record<string, `/${string}`>;
+	AUTH: 'auth',
+	DASHBOARD: 'dashboard',
+} as const; /* satisfies Record<string, `/${string}`> */
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
@@ -154,6 +171,11 @@ export const endPoint = {
 	uploadManyFiles: '/upload-many-files',
 	passwordLogin: '/password-login',
 	facebookMessengerBotWebHook: '/facebook-messenger-bot-webhook',
+	// =======
+	// auth: {
+	// 	root: ROOTS.AUTH,
+	// 	facebook: makePath(ROOTS.AUTH, 'facebook'),
+	// },
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 25;

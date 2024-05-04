@@ -6,7 +6,8 @@ import { HEADER } from '@/front/lib/constants';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { bgBlur } from '@/ui-react/utils/css.utils';
 
-import HeaderShadow from '../common/HeaderShadow';
+import HeaderShadow from '../_common/HeaderShadow';
+import LanguagePopover from '../_common/LanguagePopover';
 
 // ----------------------------------------------------------------------
 
@@ -41,6 +42,8 @@ const Header = ({ isOffset }: Props) => {
 				<Logo />
 
 				<Stack spacing={1} direction="row" alignItems="center">
+					<LanguagePopover />
+
 					{/* <SettingsDrawer /> */}
 
 					<Link to={FRONT_PATH_NAMES.support} component={RouterLink} variant="subtitle2" color="inherit">
