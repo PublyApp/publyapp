@@ -14,14 +14,12 @@ export const getDateTypeSchema = (z: CustomZod) => {
 };
 
 export const getCreatePostInputSchema = (z: CustomZod) => {
-	const TITLE = z.t('title');
+	// const TITLE = z.t('title');
 	const SLUG = 'Slug';
-	const DESCRIPTION = 'Description';
-	const CONTENT = z.t('content');
+	// const DESCRIPTION = 'Description';
+	// const CONTENT = z.t('content');
 	// const AUTHOR_ID = 'authorId';
-	const COVER = z.t('cover');
-	// const COVER_URL = t('common:cover');
-	// const DESCRIPTION = t('common:description')
+	// const COVER = z.t('cover');
 
 	const TITLE_MAX_LENGTH = 170;
 	const DESCRIPTION_MAX_LENGTH = 300;
@@ -32,30 +30,48 @@ export const getCreatePostInputSchema = (z: CustomZod) => {
 		locale: getLocaleSchema(z),
 		title: z
 			.string()
-			.min(1, { message: z.t('item-is-required', { item: TITLE }) })
+			.min(
+				1,
+				// { message: z.t('item-is-required', { item: TITLE }) }
+			)
 			// .min(1)
 			.max(TITLE_MAX_LENGTH),
 		slug: z
 			.string()
-			.min(1, { message: z.t('item-is-required', { item: SLUG }) })
+			.min(
+				1,
+				// { message: z.t('item-is-required', { item: SLUG }) }
+			)
 			.regex(SLUG_REGEX, z.t('item-is-invalid', { item: SLUG })),
 		description: z
 			.string()
-			.min(1, { message: z.t('item-is-required', { item: DESCRIPTION }) })
+			.min(
+				1,
+				// { message: z.t('item-is-required', { item: DESCRIPTION }) }
+			)
 			.max(DESCRIPTION_MAX_LENGTH),
 		// content: getPostContentSchema(t),
-		content: z.string().min(1, { message: z.t('item-is-required', { item: CONTENT }) }),
+		content: z.string().min(
+			1,
+			// { message: z.t('item-is-required', { item: CONTENT }) }
+		),
 		authorId: z
 			.string()
 			// .min(1, { message: t('common:form.error.required', { field: AUTHOR_ID }) })
 			.optional(),
 		coverId: z
 			.string()
-			.min(1, { message: z.t('item-is-required', { item: COVER }) })
+			.min(
+				1,
+				// { message: z.t('item-is-required', { item: COVER }) }
+			)
 			.optional(),
 		coverUrl: z
 			.string()
-			.min(1, { message: z.t('item-is-required', { item: COVER }) })
+			.min(
+				1,
+				// { message: z.t('item-is-required', { item: COVER }) }
+			)
 			.optional(),
 		tags: z.array(z.string()).max(4).optional(),
 		publishDate: getDateTypeSchema(z).optional(),

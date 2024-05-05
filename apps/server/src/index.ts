@@ -6,19 +6,17 @@ import * as ps from 'parse-server/lib/index.js';
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@remix-run/express';
 import chalk from 'chalk';
-import dotenv from 'dotenv';
-import dotenvExpand from 'dotenv-expand';
 import express from 'express';
 import _ from 'lodash';
 import ParseDashboard from 'parse-dashboard';
 
-import { LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
+import { LOCALE_HEADER_KEY, PARSE_PATH, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
 
 import { cloud } from './cloud';
 import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
-import { env, envSchema, setAppEnv } from './lib/env';
+import { env } from './lib/env';
 import logger, { consoleTransport } from './lib/logger';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
@@ -29,43 +27,16 @@ import PostSeriesSchema from './resources/postSeries/postSeries.schema';
 import RoleSchema from './resources/role/role.schema';
 import SessionSchema from './resources/session/session.schema';
 import UserSchema from './resources/user/user.schema';
-import customEndPointsRouter from './router/customEndPointsRouter';
-import { getCurrentFolderNameESM } from './utils/fs.utils';
+import customAPIRouter from './router/customAPIRouter';
 
-const dirname = getCurrentFolderNameESM(import.meta.url);
+// import { getCurrentFolderNameESM } from './utils/fs.utils';
+
+// ! not reliable because dirname is different in the bundled file
+// * use process.cwd() instead
+// const dirname = getCurrentFolderNameESM(import.meta.url);
+const CWD = process.cwd();
 
 const bootstrap = async () => {
-	global.LOCAL = process.env.ONLINE !== 'true';
-	global.TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';
-	global.MODE = process.env.MODE || 'local';
-
-	// eslint-disable-next-line no-console
-	console.log('global.LOCAL:', global.LOCAL);
-	// eslint-disable-next-line no-console
-	console.log('global.MODE:', global.MODE);
-
-	// --------------------------------------------------------------------------------------//
-	//                    override process.env with values in .env file                      //
-	// --------------------------------------------------------------------------------------//
-	// const envFileName = `.env.${global.MODE}`;
-	// console.log(path.resolve(dirname, '..', envFileName));
-	// return;
-
-	if (global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
-		const envFileName = `.env.${global.MODE}`;
-		const envConfig = dotenv.config({ path: path.resolve(dirname, '..', envFileName) });
-		dotenvExpand.expand(envConfig);
-	}
-
-	// --------------------------------------------------------------------------------------//
-	//                                Type check process.env                                 //
-	// --------------------------------------------------------------------------------------//
-	const checkedEnv = envSchema.parse(process.env);
-	setAppEnv(checkedEnv);
-
-	// const { DATABASE_URI, PARSE_APP_ID, PARSE_MASTER_KEY, PARSE_SERVER_URL, PORT, PARSE_PATH, EXPRESS_FILES_MOUNT_PATH } =
-	// 	env;
-
 	// --------------------------------------------------------------------------------------//
 	//                            setup express and parse server                             //
 	// --------------------------------------------------------------------------------------//
@@ -134,7 +105,7 @@ const bootstrap = async () => {
 	const startParsePromise = parseServer.start();
 
 	// set custom ennPoints routes
-	app.use(customEndPointsRouter);
+	app.use(customAPIRouter);
 
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                           //
@@ -170,7 +141,8 @@ const bootstrap = async () => {
 	//                  mount remix build when in a deployment environment                  //
 	// --------------------------------------------------------------------------------------//
 	if (!global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
-		app.use(express.static(path.resolve(dirname, '../../../node_modules/front/build/client')));
+		// app.use(express.static(path.resolve(dirname, '../../../node_modules/front/build/client')));
+		app.use(express.static(path.resolve(CWD, 'node_modules/front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
@@ -205,7 +177,7 @@ const bootstrap = async () => {
 
 	// wait for the parse server setup to finish, the mount the parse app to the express app
 	await startParsePromise;
-	app.use(env.PARSE_PATH, parseServerMiddleware, parseServer.app);
+	app.use(PARSE_PATH, parseServerMiddleware, parseServer.app);
 
 	// set error middleware
 	// ! this must be mounted after all routes and all other middlewares

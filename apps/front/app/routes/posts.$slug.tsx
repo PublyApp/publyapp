@@ -44,6 +44,7 @@ export const loader = getServerLoader(async ({ params, parseApi }) => {
 }) satisfies LoaderFunction;
 
 const PostDetailsPage = () => {
+	// eslint-disable-next-line @typescript-eslint/naming-convention
 	const { post: _post /* , relatedPosts */ } = useLoaderData<typeof loader>();
 	const post = _post ?? {};
 	// console.log(data);

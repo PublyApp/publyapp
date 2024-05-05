@@ -17,7 +17,11 @@
 		"PARSE_APP_ID",
 		"OFFICE_ROUTER_BASENAME",
 		"FRONT_URL",
-		"TEST_ONLINE"
+		"TEST_ONLINE",
+		"VITE_SERVER_URL",
+		"VITE_PARSE_APP_ID",
+		"VITE_PARSE_SERVER_URL",
+		"VITE_REST_API_KEY"
 	],
 	"pipeline": {
 		"build": {
