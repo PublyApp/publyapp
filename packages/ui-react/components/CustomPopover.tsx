@@ -52,6 +52,7 @@ const CustomPopover = ({ open, children, arrow = 'top-right', hiddenArrow, sx, .
 					},
 				},
 			}}
+			disableScrollLock
 			{...other}
 		>
 			{!hiddenArrow && <StyledArrow arrow={arrow} />}

@@ -123,8 +123,9 @@ export const getGetPostFunctionFrontDetailsViewSchema = (z: CustomZod) => {
 export const getGetPostFunctionBackOfficeEditFormSchema = (z: CustomZod) => {
 	return z.object({
 		id: z
-			.string({ required_error: z.t('item-is-required', { item: 'Id' }) })
-			.min(1, z.t('item-is-required', { item: 'Id' })),
+			.string()
+			// { required_error: z.t('item-is-required', { item: 'Id' }) }
+			.min(1 /* , z.t('item-is-required', { item: 'Id' }) */),
 	});
 };
 

@@ -36,11 +36,10 @@ export const loader = getServerLoader(async ({ params, parseApi }) => {
 	const [post, relatedPosts] = await Promise.all([postPromise, relatedPostsPromise]);
 	// const post = await postPromise;
 
-	console.log('🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑🛑', [post, relatedPosts]);
 	// fs.writeFileSync('test.json', JSON.stringify(post, null, 2));
 	return {
 		post,
-		// relatedPosts,
+		relatedPosts,
 	};
 }) satisfies LoaderFunction;
 
