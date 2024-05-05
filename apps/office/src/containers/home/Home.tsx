@@ -10,6 +10,8 @@ import { useLogOutMutation } from '@/ui-react/lib/react-query/features/auth/auth
 // import { initParse } from '@/office/lib/parse/legacy';
 // initParse();
 
+// ! test check if is Promise
+
 const Home = () => {
 	const { t } = useTranslation();
 	const { lang, setLocale } = useTranslate();

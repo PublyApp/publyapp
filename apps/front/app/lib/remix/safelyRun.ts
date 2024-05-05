@@ -17,10 +17,7 @@ type SafeLoaderFunction<F extends GenericFunction> = (
 ) => ReturnType<F> extends PromiseLike<any> ? ReturnType<F> | Promise<ErrorJSON> : ReturnType<F> | ErrorJSON;
 
 const jsonifyError = (error: Error): ErrorJSON => {
-	const errorJson = {
-		isErrorJSON: true,
-		message: 'Unknown error',
-	} satisfies ErrorJSONBase;
+	const errorJson = _.cloneDeep(errorJSONModel) satisfies ErrorJSONBase;
 
 	Object.getOwnPropertyNames(error).forEach((property) => {
 		_.set(errorJson, property, (error as never)[property]);
