@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { isAsyncFunction } from './any.utils';
+import { isAsyncFunction, isPromise } from './any.utils';
 
 type Handler = (error: unknown) => any;
 type AsyncHandler = (error: unknown) => Promise<any>;
@@ -46,7 +46,13 @@ export const tryCatchWrapper = <F extends GenericFunction>(
 
 	const wrappedFunctionSync = (...args: any[]) => {
 		try {
-			return func(...args);
+			const result = func(...args);
+
+			if (isPromise(result)) {
+				return result.catch(errorHandler as never);
+			}
+
+			return result;
 		} catch (error) {
 			return errorHandler(error);
 		}
