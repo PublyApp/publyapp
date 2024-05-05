@@ -1,4 +1,8 @@
+import _ from 'lodash';
+
 import { imageFormatTypes } from '@/shared/types/db/appFile.types';
+
+// import { checkIsBrowser, checkIsServer } from '../utils/env.utils';
 
 export type IRoleConfig = {
 	name: string;
@@ -92,9 +96,15 @@ const makePath = (...params: string[]) => {
 	return path;
 };
 
+export const PARSE_PATH = '/parse';
+export const API_PATH = '/api';
+
 const ROOTS = {
 	AUTH: 'auth',
 	DASHBOARD: 'dashboard',
+
+	// for endpoints
+	UPLOAD: 'upload',
 } as const; /* satisfies Record<string, `/${string}`> */
 
 export const FRONT_PATH_NAMES = {
@@ -116,12 +126,12 @@ export const FRONT_PATH_NAMES = {
 
 export const BO_PATH_NAMES = {
 	auth: {
-		root: ROOTS.AUTH,
+		root: makePath(ROOTS.AUTH),
 		login: makePath(ROOTS.AUTH, 'login'),
 		register: makePath(ROOTS.AUTH, 'register'),
 	},
 	dashboard: {
-		root: ROOTS.DASHBOARD,
+		root: makePath(ROOTS.DASHBOARD),
 		posts: {
 			root: makePath(ROOTS.DASHBOARD, RESOURCE.posts),
 			create: makePath(ROOTS.DASHBOARD, RESOURCE.posts, 'new'),
@@ -167,11 +177,27 @@ export const functionName = {
 } as const;
 
 export const endPoint = {
-	uploadSingleFile: '/upload-single-file',
-	uploadManyFiles: '/upload-many-files',
-	passwordLogin: '/password-login',
+	// uploadSingleFile: '/upload-single-file',
+	// uploadManyFiles: '/upload-many-files',
+	// passwordLogin: '/password-login',
 	facebookMessengerBotWebHook: '/facebook-messenger-bot-webhook',
 	// =======
+	parse: {
+		root: PARSE_PATH,
+		functions: makePath(PARSE_PATH, 'functions'),
+	},
+	// =======
+	api: {
+		root: API_PATH,
+		auth: {
+			// root: makePath(API_PATH, ROOTS.AUTH),
+			passwordLogin: makePath(API_PATH, ROOTS.AUTH, 'password-login'),
+		},
+		upload: {
+			single: makePath(API_PATH, ROOTS.UPLOAD, 'single'),
+			many: makePath(API_PATH, ROOTS.UPLOAD, 'many'),
+		},
+	},
 	// auth: {
 	// 	root: ROOTS.AUTH,
 	// 	facebook: makePath(ROOTS.AUTH, 'facebook'),

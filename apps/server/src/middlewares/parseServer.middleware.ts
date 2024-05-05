@@ -1,7 +1,7 @@
 import type express from 'express';
 import _ from 'lodash';
 
-import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_PATH, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 import { env } from '../lib/env';
 import { expressHandler } from '../lib/express';
@@ -18,7 +18,7 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 
 	const sessionPaths = [..._sessionPaths];
 	_sessionPaths.forEach((path) => {
-		sessionPaths.push(env.PARSE_PATH + path);
+		sessionPaths.push(PARSE_PATH + path);
 	});
 
 	const isSessionPath = sessionPaths.some((path) => {

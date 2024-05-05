@@ -55,7 +55,7 @@ const PostsPage = () => {
 				<Grid container spacing={{ md: 8 }}>
 					<Grid xs={12} md={8}>
 						{/* <LanguageSwitcher /> */}
-						<h1>{t('hello')}</h1>
+						<h1>{t('hello')} aaa</h1>
 						<PostListHorizontal />
 					</Grid>
 

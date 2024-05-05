@@ -1,6 +1,15 @@
+import path from 'path';
+
+import dotenv from 'dotenv';
+import dotenvExpand from 'dotenv-expand';
+import _ from 'lodash';
 import z from 'zod';
 
 import { getNumericStringSchema } from '@devist/shared/lib/zod/utils';
+
+// import { getCurrentFolderNameESM } from '../utils/fs.utils';
+
+import { checkIsBrowser, checkIsServer } from '@/shared/utils/env.utils';
 
 import { defaultZod } from './zod';
 
@@ -12,7 +21,6 @@ export const envSchema = z.object({
 	EXPRESS_FILES_MOUNT_PATH: z.string(),
 	// ===
 	PARSE_APP_ID: z.string(),
-	PARSE_PATH: z.string(),
 	PARSE_SERVER_URL: z.string(),
 	PARSE_MASTER_KEY: z.string(),
 	// ===
@@ -27,8 +35,48 @@ export const envSchema = z.object({
 export type AppEnv = z.infer<typeof envSchema>;
 
 // export const env: Readonly<AppEnv> = {} as AppEnv;
-export const env: AppEnv = {} as AppEnv;
+// const env: AppEnv = {} as AppEnv;
 
-export const setAppEnv = (newEnv: AppEnv) => {
-	Object.assign(env, newEnv);
+global.LOCAL = process.env.ONLINE !== 'true';
+global.TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';
+global.MODE = process.env.MODE || 'local';
+
+// eslint-disable-next-line no-console
+console.log('global.LOCAL:', global.LOCAL);
+// eslint-disable-next-line no-console
+console.log('global.MODE:', global.MODE);
+
+// --------------------------------------------------------------------------------------//
+//                    override process.env with values in .env file                      //
+// --------------------------------------------------------------------------------------//
+// ! not reliable because dirname is different in the bundled file
+// * use process.cwd() instead
+// const dirname = getCurrentFolderNameESM(import.meta.url);
+
+if (global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
+	const envFileName = `.env.${global.MODE}`;
+	// const envConfig = dotenv.config({ path: path.resolve(dirname, '../../', envFileName) });
+	const envConfig = dotenv.config({ path: path.resolve(process.cwd(), envFileName) });
+	dotenvExpand.expand(envConfig);
+}
+
+// --------------------------------------------------------------------------------------//
+//                                Type check process.env                                 //
+// --------------------------------------------------------------------------------------//
+const checkedEnv = envSchema.parse(process.env);
+
+const getAppEnv = (newEnv: AppEnv) => {
+	return Object.assign({} as AppEnv, newEnv);
 };
+
+export const env = getAppEnv(checkedEnv);
+
+// set env to window or global
+// i need it to define PARSE_API_PATH in packages/shared/lib/constants.ts
+if (checkIsBrowser()) {
+	_.set(window, 'env', env);
+}
+
+if (checkIsServer()) {
+	_.set(global, 'env', env);
+}

@@ -43,7 +43,7 @@ const LogInForm = () => {
 
 				revalidate();
 
-				navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
+				navigate(location.state?.from || BO_PATH_NAMES.dashboard.root, { replace: true });
 			},
 		},
 	});
