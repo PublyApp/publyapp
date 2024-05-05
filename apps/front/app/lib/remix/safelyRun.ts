@@ -4,7 +4,7 @@ import { tryCatchWrapper } from '@devist/shared/utils/tryCatchWrapper';
 
 const errorJSONModel = {
 	isErrorJSON: true,
-	message: 'Unknown error',
+	message: 'Unknown error' as string,
 } as const;
 
 type ErrorJSONBase = typeof errorJSONModel;

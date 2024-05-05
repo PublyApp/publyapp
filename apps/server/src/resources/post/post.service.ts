@@ -16,7 +16,7 @@ import { applySkipAndLimit, applySorting, toIsoString } from '../../lib/parse/ut
 
 type Props = {
 	sessionToken?: string;
-	headers?: Record<string, unknown>;
+	// headers?: Record<string, unknown>;
 };
 
 // type PostUpdateInput = {
@@ -640,5 +640,92 @@ export default class PostService {
 		}
 
 		return post;
+	}
+
+	async findRelatedPostsFrontDetails(
+		post: ParsePost | undefined,
+		options?: { locale?: AppLocale; fromPublic?: boolean },
+	) {
+		const defaultOptions = { locale: defaultLocale, fromPublic: true };
+		const { fromPublic, locale } = { ...defaultOptions, ...options };
+
+		const relatedPosts = (post?.get('relatedPosts') as ParsePost[] | undefined) ?? [];
+		let remainingPostsCount = 4 - relatedPosts.length;
+		const tags = post?.attributes.tags;
+
+		const getLatestPostsQuery = (iPost: typeof post, iRemainingPostsCount: number) => {
+			// TODO: add select and includes
+			const query = new Parse.Query(ParsePost)
+				.limit(iRemainingPostsCount)
+				.addDescending('publishDate')
+				.addDescending('createdAt')
+				.equalTo('published', true)
+				.exists(`translation.${locale}` as never);
+
+			if (iPost) {
+				query.notEqualTo('objectId', iPost.id);
+			}
+
+			return query;
+		};
+
+		if (remainingPostsCount > 0) {
+			if (tags && !_.isEmpty(tags)) {
+				const relatedPostsByTagsQuery = new Parse.Query(ParsePost)
+					.containedIn('tags', tags as never)
+					.notEqualTo('objectId', post.id);
+
+				// if (post) {
+				// 	relatedPostsByTagsQuery.notEqualTo('objectId', post.id)
+				// }
+
+				const relatedPostsByTagsCount = await relatedPostsByTagsQuery.count({
+					sessionToken: fromPublic ? undefined : this.sessionToken,
+				});
+
+				// TODO: add select and includes
+				const relatedPostsByTagsPromise = relatedPostsByTagsQuery
+					// .select([
+					// 	//
+					// 	`translation.${locale}`,
+					// ] as never)
+					.limit(remainingPostsCount)
+					.find({
+						// json: true,
+						sessionToken: fromPublic ? undefined : this.sessionToken,
+					});
+
+				if (relatedPostsByTagsCount < remainingPostsCount) {
+					// eslint-disable-next-line operator-assignment
+					remainingPostsCount = remainingPostsCount - relatedPostsByTagsCount;
+
+					const latestPostsQuery = getLatestPostsQuery(post, remainingPostsCount);
+					latestPostsQuery.notContainedIn('tags', tags as never);
+
+					const latestPostsPromise = latestPostsQuery.find({
+						// json: true,
+						sessionToken: fromPublic ? undefined : this.sessionToken,
+					});
+
+					const [relatedPostsByTags, latestPosts] = await Promise.all([relatedPostsByTagsPromise, latestPostsPromise]);
+
+					relatedPosts.push(...relatedPostsByTags, ...(latestPosts as []));
+				}
+			} else {
+				const latestPostsQuery = getLatestPostsQuery(post, remainingPostsCount);
+
+				const latestPosts = await latestPostsQuery.find({
+					// json: true,
+					sessionToken: fromPublic ? undefined : this.sessionToken,
+				});
+				relatedPosts.push(...latestPosts);
+			}
+		}
+
+		const finalPosts = relatedPosts.map((relatedPost) => {
+			return PostService.toJSON(relatedPost);
+		});
+
+		return finalPosts;
 	}
 }
