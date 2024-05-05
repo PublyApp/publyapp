@@ -1,4 +1,9 @@
+import _ from 'lodash';
 import z from 'zod';
+
+import { deepFreeze } from '@/shared/utils/any.utils';
+
+// import { checkIsBrowser, checkIsServer } from '@/shared/utils/env.utils';
 
 const envSchema = z.object({
 	SERVER_URL: z.string(),
@@ -29,4 +34,4 @@ const dotEnv = {
 	FRONT_URL: process.env.FRONT_URL,
 } satisfies Partial<AppEnv>;
 
-export const env = envSchema.parse(dotEnv);
+export const env = deepFreeze(envSchema.parse(dotEnv));

@@ -12,20 +12,20 @@ const customEndPointsRouter = Router();
 export default customEndPointsRouter;
 
 customEndPointsRouter.post(
-	endPoint.uploadSingleFile,
+	endPoint.api.upload.single,
 	protectionMiddleware({ withAuth: true, withKey: false }),
 	multerConfig.single('file'),
 	handleUploadSingleFile,
 );
 
 customEndPointsRouter.post(
-	endPoint.uploadManyFiles,
+	endPoint.api.upload.many,
 	protectionMiddleware({ withAuth: true, withKey: false }),
 	multerConfig.array('files'),
 	handleUploadManyFiles,
 );
 
-customEndPointsRouter.post(endPoint.passwordLogin, handlePasswordLogin);
+customEndPointsRouter.post(endPoint.api.auth.passwordLogin, handlePasswordLogin);
 
 customEndPointsRouter.post(endPoint.facebookMessengerBotWebHook, handleWebHook);
 customEndPointsRouter.get(endPoint.facebookMessengerBotWebHook, handleVerification);

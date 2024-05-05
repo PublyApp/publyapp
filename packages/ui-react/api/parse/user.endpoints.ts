@@ -26,7 +26,7 @@ export default class UserEndPoints {
 		const url = new URL(this.parseRestClient.parseServerUrl);
 
 		return defaultHttp.post<IUser & { sessionToken: string }>(
-			url.origin + endPoint.passwordLogin,
+			url.origin + endPoint.api.auth.passwordLogin,
 			{ username, password },
 			_.merge(protectRequest({}), {
 				'X-Parse-Revocable-Session': '1',
