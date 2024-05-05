@@ -204,82 +204,17 @@ const finPostFrontDetailsRelatedPosts = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getGetPostFunctionFrontDetailsViewSchema(z).parse(params);
 	},
-	action: async ({ locale: _locale, params }) => {
+	action: async ({ locale, params }) => {
 		// return [];
 		const postService = new PostService({});
+
 		const post = await postService.getBySlug(params.slug, {
 			select: ['relatedPosts', 'tags'],
 			include: ['relatedPosts'],
-			json: true,
+			// json: true,
 		});
 
-		const relatedPosts = post?.relatedPosts ?? [];
-		let remainingPostsCount = 4 - relatedPosts.length;
-		const tags = post?.tags;
-
-		const getLatestPostsQuery = (iPost: typeof post, iRemainingPostsCount: number) => {
-			const query = new Parse.Query(ParsePost)
-				.limit(iRemainingPostsCount)
-				.addDescending('publishDate')
-				.addDescending('createdAt'); // TODO: better condition
-			// TODO: add locale and add select
-
-			if (iPost) {
-				query.notEqualTo('objectId', iPost.objectId);
-			}
-
-			return query;
-		};
-
-		if (remainingPostsCount < 4) {
-			if (tags && !_.isEmpty(tags)) {
-				const relatedPostsByTagsQuery = new Parse.Query(ParsePost)
-					.containedIn('tags', tags as never)
-					.notEqualTo('objectId', post?.objectId);
-
-				const relatedPostsByTagsCount = await relatedPostsByTagsQuery.count();
-
-				const relatedPostsByTagsPromise = relatedPostsByTagsQuery
-					// .select([
-					// 	//
-					// 	`translation.${locale}`,
-					// ] as never)
-					.limit(remainingPostsCount)
-					.find({ json: true });
-
-				if (relatedPostsByTagsCount < remainingPostsCount) {
-					// eslint-disable-next-line operator-assignment
-					remainingPostsCount = remainingPostsCount - relatedPostsByTagsCount;
-
-					const latestPostsQuery = getLatestPostsQuery(post, remainingPostsCount);
-					latestPostsQuery.notContainedIn('tags', tags as never);
-					// new Parse.Query(ParsePost)
-					// 	.notContainedIn('tags', tags as never)
-					// 	.notEqualTo('objectId', post?.objectId)
-					// 	.limit(remainingPostsCount);
-					const latestPostsPromise = latestPostsQuery.find({ json: true });
-
-					const [relatedPostsByTags, latestPosts] = await Promise.all([relatedPostsByTagsPromise, latestPostsPromise]);
-
-					relatedPosts.push(...(relatedPostsByTags as never[]), ...(latestPosts as []));
-				}
-			} else {
-				// if !tags || _.isEmpty(tags)
-				const latestPostsQuery = getLatestPostsQuery(post, remainingPostsCount);
-				// new Parse.Query(ParsePost)
-				// 	.notContainedIn('tags', tags as never)
-				// 	.notEqualTo('objectId', post?.objectId)
-				// 	.limit(remainingPostsCount);
-
-				const latestPosts = await latestPostsQuery.find({ json: true });
-				relatedPosts.push(...(latestPosts as never[]));
-			}
-			// await postService.findRelatedPostsByTags(post?.tags || [], {
-			// 	relatedPosts,
-			// 	remainingPostsCount,
-			// 	locale,
-			// });
-		}
+		const relatedPosts = await postService.findRelatedPostsFrontDetails(post, { locale });
 
 		return relatedPosts;
 	},
@@ -289,11 +224,11 @@ const findPostFunctionBoTable = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getFindPostFunctionBoTableParamsSchema(z).parse(params);
 	},
-	action: async ({ req, user, locale, params: _params }) => {
+	action: async ({ /* req, */ user, locale, params: _params }) => {
 		const { page, pageSize, sorting, ...params } = _params; /* getFindPostFunctionParamsSchema(z).parse(req.params); */
 
 		const sessionToken = user?.getSessionToken();
-		const postService = new PostService({ sessionToken, headers: req.headers });
+		const postService = new PostService({ sessionToken /* , headers: req.headers */ });
 
 		// if (params.view === findPostView.frontList) {
 		// 	const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
@@ -319,12 +254,12 @@ const findPostFunctionFrontList = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getListParamsSchema(z).parse(params);
 	},
-	action: async ({ params: _params, locale, req, user }) => {
+	action: async ({ params: _params, locale, /* req, */ user }) => {
 		const { page, pageSize, sorting /* ...params */ } =
 			_params; /* getFindPostFunctionParamsSchema(z).parse(req.params); */
 
 		const sessionToken = user?.getSessionToken();
-		const postService = new PostService({ sessionToken, headers: req.headers });
+		const postService = new PostService({ sessionToken /* , headers: req.headers */ });
 
 		// if (params.view === findPostView.frontList) {
 		const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
