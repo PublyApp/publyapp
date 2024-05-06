@@ -1,9 +1,10 @@
-import FacebookSocialMedia from '../socialMedia/FacebookSocialMedia';
+// import FacebookSocialMedia from '../socialMedia/FacebookSocialMedia';
 
 /* eslint-disable class-methods-use-this */
 export default class SocialMediaPostService {
-	async create(attributes: any): Promise<void> {
+	async create(_attributes: any): Promise<void> {
 		//
+		return Promise.resolve();
 	}
 
 	async publish({ postId }: { postId: string | Parse.Object }): Promise<void> {
@@ -16,6 +17,8 @@ export default class SocialMediaPostService {
 		} else {
 			post = postId;
 
+			console.log(post);
+
 			// if (!post.get('text')) {
 			// 	const postQuery = new Parse.Query('SocialPost');
 			// 	post = await postQuery /* .select(['text']) */
@@ -23,7 +26,7 @@ export default class SocialMediaPostService {
 			// }
 		}
 
-		new FacebookSocialMedia().publishPost({ post });
+		// new FacebookSocialMedia().publishPost({ post });
 		// new Tiktok().publishPost(post.get('text'));
 
 		// if (post.get('isPublished')) {
@@ -32,5 +35,7 @@ export default class SocialMediaPostService {
 		//
 	}
 
-	async schedule({ postId, date }: { postId: string; date: Date }): Promise<void> {}
+	async schedule({ postId: _1, date: _2 }: { postId: string; date: Date }): Promise<void> {
+		return Promise.resolve();
+	}
 }

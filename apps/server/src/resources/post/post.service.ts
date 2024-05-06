@@ -550,15 +550,17 @@ export default class PostService {
 			return undefined;
 		}
 
-		if (!post.translation[locale]) {
+		const translation = post.translation[locale];
+
+		if (!translation) {
 			return 'TRANSLATION_NOT_FOUND' as const;
 		}
 
 		const finalPost: TranslatedIPostWithRelations = {
 			...post,
-			title: post.translation[locale].title,
-			description: post.translation[locale].description,
-			content: post.translation[locale].content,
+			title: translation.title,
+			description: translation.description,
+			content: translation.content,
 			locale,
 		};
 

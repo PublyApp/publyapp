@@ -6,7 +6,8 @@ import type SocialMediaPlatform from './SocialMediaPlatform.interface';
 export default class Facebook implements SocialMediaPlatform {
 	apiUrl = 'https://graph.facebook.com/v11.0';
 
-	publishPost({ post }: { post: ParseSocialMediaPost }): Promise<void> {
+	publishPost({ post: _ }: { post: ParseSocialMediaPost }): Promise<void> {
 		// Publish post to Facebook
+		return Promise.resolve();
 	}
 }
