@@ -108,14 +108,10 @@ function createRsbuild() {
 			source: {
 				entry: {
 					index: './src/index.ts',
-					// 'cloud/_index': './src/cloud/_index.ts',
 					'seeding/seed': './src/seeding/seed.ts',
 				},
 			},
 			output: {
-				// filename: {
-				// 	js: '[name].[contenthash:8].js',
-				// },
 				targets: ['node'],
 				distPath: {
 					server: '',
@@ -132,12 +128,8 @@ function createRsbuild() {
 					},
 					// plugins: [
 					// 	new rspack.DefinePlugin({
-					// 		'import.meta.filename': 'import.meta.filename',
-					// 		'import.meta.dirname': "eval('import.meta.filename')",
-					// 		// TRUE: true,
-					// 		// TRUE_STRING: 'true',
-					// 		// UNDEFINED: undefined,
-					// 		// UNDEFINED_STRING: 'undefined',
+					// 		// 'import.meta.filename': 'import.meta.filename',
+					// 		// 'import.meta.dirname': 'import.meta.filename',
 					// 	}),
 					// ],
 				},

@@ -49,13 +49,9 @@ console.log('global.MODE:', global.MODE);
 // --------------------------------------------------------------------------------------//
 //                    override process.env with values in .env file                      //
 // --------------------------------------------------------------------------------------//
-// ! not reliable because dirname is different in the bundled file
-// * use process.cwd() instead
-// const dirname = getCurrentFolderNameESM(import.meta.url);
 
 if (global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
 	const envFileName = `.env.${global.MODE}`;
-	// const envConfig = dotenv.config({ path: path.resolve(dirname, '../../', envFileName) });
 	const envConfig = dotenv.config({ path: path.resolve(process.cwd(), envFileName) });
 	dotenvExpand.expand(envConfig);
 }

@@ -101,11 +101,11 @@
 		"zustand": "^4.4.7"
 	},
 	"devDependencies": {
-		"@rsbuild/core": "^0.3.3",
-		"@rsbuild/plugin-react": "^0.3.3",
-		"@rsbuild/plugin-svgr": "^0.3.3",
-		"@rspack/cli": "^0.5.6",
-		"@rspack/core": "^0.5.6",
+		"@rsbuild/core": "^0.6.11",
+		"@rsbuild/plugin-react": "^0.6.11",
+		"@rsbuild/plugin-svgr": "^0.6.11",
+		"@rspack/cli": "^0.6.3",
+		"@rspack/core": "^0.6.3",
 		"@types/autosuggest-highlight": "^3.2.3",
 		"@types/editorjs__header": "^2.6.3",
 		"@types/loadable__component": "^5.13.8",
@@ -133,6 +133,6 @@
 		"vite-tsconfig-paths": "^4.2.3"
 	},
 	"engines": {
-    "node": ">=20.12.2"
-  }
+		"node": ">=20.12.2"
+	}
 }
