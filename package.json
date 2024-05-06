@@ -11,7 +11,7 @@
     "lint:fix": "turbo lint:fix",
     "prepare": "husky install",
     "update-deps": "pnpm update",
-    "update-deps:pnpm": "pnpm -i -r",
+    "update-deps:pnpm": "pnpm up -i -r",
     "pre-commit:old": "pnpm format && git add -A .",
     "prepare:deploy:server": "pnpm ./scripts/deploy/server/index.js"
   },

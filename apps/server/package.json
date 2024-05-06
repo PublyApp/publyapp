@@ -7,7 +7,7 @@
 		"build:local": "cross-env MODE=local pnpm build:common",
 		"build:prod": "cross-env MODE=production pnpm build:common",
 		"build:preprod": "cross-env MODE=preprod pnpm build:common",
-		"build:common": "pnpm build:es",
+		"build:common": "pnpm build:rs",
 		"build:rs": "node scripts/rsbuild/build.js",
 		"build:es": "node scripts/esbuild/build.js",
 		"// =============== START COMMANDs =================": "================================",
@@ -77,9 +77,9 @@
 		"zod-i18n-map": "^2.27.0"
 	},
 	"devDependencies": {
-		"@rsbuild/core": "^0.3.3",
-		"@rspack/cli": "^0.5.6",
-		"@rspack/core": "^0.5.6",
+		"@rsbuild/core": "^0.6.11",
+		"@rspack/cli": "^0.6.3",
+		"@rspack/core": "^0.6.3",
 		"@types/async": "^3.2.24",
 		"@types/body-parser": "^1.19.5",
 		"@types/chai": "^4.3.14",
