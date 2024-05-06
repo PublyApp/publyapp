@@ -16,8 +16,6 @@ const MainPostContent = () => {
 	const { post } = data;
 	const { t } = useTranslate();
 
-	console.log('🤫🤫🤫🤫🤫🤫🤫🤫🤫🤫🤫🤫', data);
-
 	// if (!post) { // improbable + we don't handle this here, bun in the root route error boundary.
 	// 	return <h1>Post does not exist</h1>; // improbable
 	// }
@@ -38,10 +36,19 @@ const MainPostContent = () => {
 		}
 
 		return (
-			<>
+			<Container
+				maxWidth="lg"
+				sx={{
+					py: 3,
+					mb: 5,
+					// borderBottom: (theme) => {
+					// 	return `solid 1px ${theme.palette.divider}`;
+					// },
+				}}
+			>
 				<h1>{message}</h1>
 				<p>{description}</p>
-			</>
+			</Container>
 		);
 	}
 

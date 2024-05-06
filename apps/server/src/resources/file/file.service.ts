@@ -15,7 +15,7 @@ import FolderService from '../folder/folder.service';
 
 import CloudinaryUploader from './upload/CloudinaryUploader';
 import LocalDiskUploader from './upload/LocalDiskUploader';
-import type Uploader from './upload/Uploader';
+import type Uploader from './upload/Uploader.interface';
 
 export type FileServiceProps = {
 	sessionToken: string | undefined;

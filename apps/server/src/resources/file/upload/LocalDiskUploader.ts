@@ -6,8 +6,8 @@ import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
 import { fileProvider } from '@/shared/lib/constants';
 
-import type Uploader from './Uploader';
-import type { UploadInput } from './Uploader';
+import type Uploader from './Uploader.interface';
+import type { UploadInput } from './Uploader.interface';
 
 export default class LocalDiskUploader implements Uploader {
 	provider = fileProvider.LOCAL_DISK;
