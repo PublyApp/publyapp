@@ -29,13 +29,6 @@ import SessionSchema from './resources/session/session.schema';
 import UserSchema from './resources/user/user.schema';
 import customAPIRouter from './router/customAPIRouter';
 
-// import { getCurrentFolderNameESM } from './utils/fs.utils';
-
-// ! not reliable because dirname is different in the bundled file
-// * use process.cwd() instead
-// const dirname = getCurrentFolderNameESM(import.meta.url);
-const CWD = process.cwd();
-
 const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                            setup express and parse server                             //
@@ -138,11 +131,10 @@ const bootstrap = async () => {
 	}
 
 	// --------------------------------------------------------------------------------------//
-	//                  mount remix build when in a deployment environment                  //
-	// --------------------------------------------------------------------------------------//
+	//                  mount remix build when in a deployment environment                   //
+	// ------------------------------------------------------------------------------------ -//
 	if (!global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
-		// app.use(express.static(path.resolve(dirname, '../../../node_modules/front/build/client')));
-		app.use(express.static(path.resolve(CWD, 'node_modules/front/build/client')));
+		app.use(express.static(path.resolve(process.cwd(), 'node_modules/front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
@@ -150,10 +142,7 @@ const bootstrap = async () => {
 			createRequestHandler({
 				// `remix build` and `remix dev` output files to a build directory, you need
 				// to pass that build to the request handler
-				// // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-				// // @ts-ignore
-				/* webpackIgnore: true */
-				build: await import('front/build/server/index.js'), // ! the '.js' extension is important
+				build: await import(/* webpackIgnore: true */ 'front/build/server/index.js'), // ! the '.js' extension is important
 
 				// return anything you want here to be available as `context` in your
 				// loaders and actions. This is where you can bridge the gap between Remix
