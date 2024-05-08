@@ -18,6 +18,7 @@ export default class UserEndPoints extends BaseEndPoints {
 	 * login with username/email and password
 	 */
 	async passwordLogin(username: string, password: string) {
+		console.log(this.parseRestClient.serverUrl, endPoint.api(this.apiPath).auth.passwordLogin);
 		return defaultHttp.post<IUser & { sessionToken: string }>(
 			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).auth.passwordLogin,
 			{ username, password },
