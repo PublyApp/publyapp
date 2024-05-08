@@ -97,7 +97,6 @@ export default class FileService {
 					height: formatInfo.height,
 					width: formatInfo.width,
 					buffer: formatBuffer,
-					// url: `${env.EXPRESS_FILES_MOUNT_PATH}/${formatFileName}`,
 				};
 
 				Object.assign(formats, { [format]: imageFormatData });

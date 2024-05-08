@@ -17,6 +17,8 @@ export default class LocalDiskUploader implements Uploader {
 		await sharp(params.buffer).toFile(path.join(FILE_UPLOAD_DESTINATION, params.name));
 
 		return {
+			// TODO: remove express mount path when saving
+			// form the correct path in the server and not on the client when getting an AppFile
 			url: path.posix.join(env.EXPRESS_FILES_MOUNT_PATH, params.name),
 		};
 	}
