@@ -7,10 +7,6 @@ import z from 'zod';
 
 import { getNumericStringSchema } from '@devist/shared/lib/zod/utils';
 
-// import { getCurrentFolderNameESM } from '../utils/fs.utils';
-
-import { checkIsBrowser, checkIsServer } from '@/shared/utils/env.utils';
-
 import { defaultZod } from './zod';
 
 export const envSchema = z.object({
@@ -19,8 +15,10 @@ export const envSchema = z.object({
 	DATABASE_URI: z.string(),
 	REST_API_KEY: z.string(),
 	EXPRESS_FILES_MOUNT_PATH: z.string(),
+	API_PATH: z.string(),
 	// ===
 	PARSE_APP_ID: z.string(),
+	PARSE_PATH: z.string(),
 	PARSE_SERVER_URL: z.string(),
 	PARSE_MASTER_KEY: z.string(),
 	// ===
@@ -66,13 +64,3 @@ const getAppEnv = (newEnv: AppEnv) => {
 };
 
 export const env = getAppEnv(checkedEnv);
-
-// set env to window or global
-// i need it to define PARSE_API_PATH in packages/shared/lib/constants.ts
-if (checkIsBrowser()) {
-	_.set(window, 'env', env);
-}
-
-if (checkIsServer()) {
-	_.set(global, 'env', env);
-}

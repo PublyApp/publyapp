@@ -5,11 +5,11 @@
 	"type": "commonjs",
 	"scripts": {
 		"// =============== BUILD COMMANDS =================": "================================",
-		"build": "pnpm build:prod",
+		"build": "tsc && pnpm build:prod",
 		"build:local": "cross-env MODE=local pnpm build:rs",
 		"build:prod": "cross-env MODE=production pnpm build:rs",
 		"build:preprod": "cross-env MODE=preprod pnpm build:rs",
-		"build:rs": "tsc && rsbuild build",
+		"build:rs": "rsbuild build",
 		"// =============== DEV COMMANDS =================": "================================",
 		"dev": "pnpm dev:local",
 		"dev:local": "cross-env MODE=local pnpm dev:rs",

@@ -8,8 +8,6 @@ import type { AppFile } from '@/shared/types/db/appFile.types';
 
 import FolderService from '../folder/folder.service';
 
-// import { AuthCloudService } from '../cloud/services/auth.cloud.service';
-
 export const handleUploadSingleFile = expressHandler(async (req, res) => {
 	if (!req.file) {
 		throw new HttpException(400, 'file to upload missing');
@@ -17,7 +15,7 @@ export const handleUploadSingleFile = expressHandler(async (req, res) => {
 
 	const { provider, parentFolderPath } = req.body;
 
-	// const sessionToken = getHEader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
+	// const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
 	const sessionToken = req.user?.getSessionToken();
 
 	const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;

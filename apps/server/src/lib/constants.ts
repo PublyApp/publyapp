@@ -2,6 +2,10 @@ import path from 'path';
 
 import type { CPLsInterface } from 'parse-server';
 
+import { endPoint } from '@/shared/lib/constants';
+
+import { env } from './env';
+
 export const ADMIN_EMAILS = ['radandevist@gmail.com'];
 
 // Cors white lists
@@ -86,3 +90,6 @@ export const AUTHED_READONLY_CLP: CPLsInterface = {
 };
 
 export const FILE_UPLOAD_DESTINATION = path.join(process.cwd(), 'files/multer-uploads');
+
+export const apiEndPoint = endPoint.api(env.API_PATH);
+export const parseEndPoint = endPoint.parse(env.PARSE_PATH);

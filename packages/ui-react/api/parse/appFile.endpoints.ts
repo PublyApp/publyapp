@@ -1,5 +1,3 @@
-import type ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
-
 import {
 	type CreateAppFileFunctionReturn,
 	type FindAppFileFunctionReturn,
@@ -7,6 +5,8 @@ import {
 import { protectRequest } from '@/shared/lib/axios';
 import { endPoint, functionName } from '@/shared/lib/constants';
 import type { AppFile } from '@/shared/types/db/appFile.types';
+
+import BaseEndPoints from './_base.endpoints';
 
 export type FindAppFileFunctionParams = {
 	page?: number;
@@ -19,9 +19,7 @@ export type CreateAppFileFolderFunctionParams = {
 	parentFolderPath?: string;
 };
 
-export default class AppFileEndPoints {
-	constructor(private parseRestClient: ParseRestClient) {}
-
+export default class AppFileEndPoints extends BaseEndPoints {
 	async findAppFile(params: FindAppFileFunctionParams) {
 		return this.parseRestClient.cloudRun<FindAppFileFunctionReturn>(functionName.findAppFile, { params });
 	}
@@ -40,10 +38,8 @@ export default class AppFileEndPoints {
 			formData.set('parentFolderPath', params.parentFolderPath);
 		}
 
-		const url = new URL(this.parseRestClient.parseServerUrl);
-
 		return this.parseRestClient.http.post<AppFile>(
-			url.origin + endPoint.uploadSingleFile,
+			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).upload.single,
 			formData,
 			protectRequest({
 				hasFile: true,
@@ -60,10 +56,8 @@ export default class AppFileEndPoints {
 			formData.append('files', file);
 		});
 
-		const url = new URL(this.parseRestClient.parseServerUrl);
-
 		return this.parseRestClient.http.post<AppFile[]>(
-			url.origin + endPoint.uploadManyFiles,
+			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).upload.many,
 			formData,
 			protectRequest({ hasFile: true, restApiKey: options.restApiKey }),
 		);
