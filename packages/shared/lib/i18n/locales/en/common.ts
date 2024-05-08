@@ -40,6 +40,7 @@ const commonEN = {
 	'item-is-invalid': '{{item}} is invalid',
 	'new-item': 'New {{item}}',
 	'item-is-not-instance-of-type': '{{item}} is not instance of {{type}}',
+	'item-not-translated': 'This {{item}} is not yet translated in the current language',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',

@@ -1,10 +1,12 @@
-import { Button, Grid, Stack } from '@mui/material';
+import { /* Button, */ Unstable_Grid2 as Grid /* Stack */ } from '@mui/material';
+// import Grid from '@mui/material/Unstable_Grid2';
 import { nanoid } from 'nanoid';
 
-import Iconify from '@devist/ui-react/components/Iconify';
+// import Iconify from '@devist/ui-react/components/Iconify';
 
 import PostItem from '@/front/components/PostItem';
-import PostItemSkeleton from '@/front/components/PostItemSkeleton';
+
+// import PostItemSkeleton from '@/front/components/PostItemSkeleton';
 
 // import { IPostItem } from 'src/types/blog';
 // import PostItem from './post-item';
@@ -18,24 +20,24 @@ type Props = {
 	disabledIndex?: boolean;
 };
 
-const MorePostList = ({ posts, loading, disabledIndex }: Props) => {
-	const renderSkeleton = (
-		<>
-			{[...Array(16)].map((_) => {
-				return (
-					<Grid key={nanoid()} xs={12} sm={6} md={3}>
-						<PostItemSkeleton />
-					</Grid>
-				);
-			})}
-		</>
-	);
+const MorePostList = ({ posts, loading, disabledIndex = true }: Props) => {
+	// const renderSkeleton = (
+	// 	<>
+	// 		{[...Array(16)].map((_) => {
+	// 			return (
+	// 				<Grid key={nanoid()} xs={12} sm={6} md={3}>
+	// 					<PostItemSkeleton />
+	// 				</Grid>
+	// 			);
+	// 		})}
+	// 	</>
+	// );
 
 	const renderList = (
 		<>
 			{posts.map((post, index) => {
 				return (
-					<Grid key={post.id} xs={12} sm={6} md={!disabledIndex && index === 0 ? 6 : 3}>
+					<Grid key={nanoid()} /* key={post.id} */ xs={12} sm={6} md={!disabledIndex && index === 0 ? 6 : 3}>
 						<PostItem post={post} index={!disabledIndex ? index : undefined} />
 					</Grid>
 				);
@@ -45,11 +47,12 @@ const MorePostList = ({ posts, loading, disabledIndex }: Props) => {
 
 	return (
 		<>
-			<Grid container spacing={3}>
-				{loading ? renderSkeleton : renderList}
+			<Grid container spacing={3} justifyContent="center">
+				{/* {loading ? renderSkeleton : renderList} */}
+				{renderList}
 			</Grid>
 
-			{posts.length > 8 && (
+			{/* {posts.length > 8 && (
 				<Stack
 					alignItems="center"
 					sx={{
@@ -65,7 +68,7 @@ const MorePostList = ({ posts, loading, disabledIndex }: Props) => {
 						Load More
 					</Button>
 				</Stack>
-			)}
+			)} */}
 		</>
 	);
 };
