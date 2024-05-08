@@ -15,7 +15,7 @@ export class ParseApi {
 
 	private _appFiles!: AppFileEndPoints;
 
-	public readonly apiPath: string;
+	public apiPath: string;
 
 	constructor(
 		{ parseRestClient, apiPath }: { parseRestClient?: ParseRestClient; apiPath: string } = { apiPath: '/api' },
