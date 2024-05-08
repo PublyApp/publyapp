@@ -5,13 +5,6 @@ import common from './common';
 
 const resourceEN = {
 	common,
-	// zod: _.merge(zodEn, {
-	// 	errors: {
-	// 		invalid_type: 'Expected {{expected}}, received {{received}}',
-	// 		invalid_type_received_undefined: 'Expected {{expected}}, received {{received}}',
-	// 		invalid_type_received_null: 'Expected {{expected}}, received {{received}}',
-	// 	},
-	// }),
 	zod: zodEn,
 } as const;
 

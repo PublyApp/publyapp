@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid';
 // import Iconify from '@devist/ui-react/components/Iconify';
 
 import PostItem from '@/front/components/PostItem';
+import { type TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
 
 // import PostItemSkeleton from '@/front/components/PostItemSkeleton';
 
@@ -15,12 +16,12 @@ import PostItem from '@/front/components/PostItem';
 // ----------------------------------------------------------------------
 
 type Props = {
-	posts: IPostItem[];
-	loading?: boolean;
+	posts: TranslatedIPostWithRelations[];
+	// loading?: boolean;
 	disabledIndex?: boolean;
 };
 
-const MorePostList = ({ posts, loading, disabledIndex = true }: Props) => {
+const MorePostList = ({ posts, /* loading, */ disabledIndex = true }: Props) => {
 	// const renderSkeleton = (
 	// 	<>
 	// 		{[...Array(16)].map((_) => {

@@ -15,9 +15,8 @@ export const getCoverFile = async (post: IPostWithRelations) => {
 	if (post.cover && post.cover.url) {
 		let origin = '';
 
-		if (post.cover.provider === fileProvider.LOCAL_DISK) {
-			const url = new URL(parseApi.parseRestClient.parseServerUrl);
-			origin = url.origin;
+		if (post.cover.provider === fileProvider.LOCAL_DISK && post.cover.url) {
+			origin = parseApi.parseRestClient.serverUrl;
 		}
 
 		// eslint-disable-next-line @typescript-eslint/naming-convention

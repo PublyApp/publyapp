@@ -52,7 +52,7 @@ export const combinedMiddlewaresWithPersist = <T>(
 				return getStorage();
 			}) as never,
 			merge: (persistedState, currentState) => {
-				return _.merge(currentState, persistedState);
+				return _.merge({}, currentState, persistedState);
 			},
 			partialize: (state) => {
 				const p = _.pick(state, [...selectedFields]);
