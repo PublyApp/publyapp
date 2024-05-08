@@ -25,8 +25,19 @@ export default class ParseRestClient {
 
 	public readonly parseServerUrl: string;
 
+	public readonly serverUrl: string;
+
+	public readonly parsePath: string;
+
 	constructor({ parseServerUrl, applicationId }: Props) {
 		this.parseServerUrl = parseServerUrl;
+
+		const url = new URL(parseServerUrl);
+
+		this.serverUrl = url.origin;
+
+		// eslint-disable-next-line prefer-destructuring
+		this.parsePath = url.pathname[1];
 
 		const axiosInstance = axios.create({
 			baseURL: this.parseServerUrl,

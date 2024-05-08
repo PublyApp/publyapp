@@ -1,6 +1,6 @@
 import { useMutation, useSuspenseQuery, type UseMutationOptions } from '@tanstack/react-query';
 
-import { endPoint, functionName } from '@devist/shared/lib/constants';
+import { functionName } from '@devist/shared/lib/constants';
 
 import {
 	createAppFileFolderAction,
@@ -29,7 +29,7 @@ export const useFindAppFileSuspense = (params: FindAppFileQueryParams) => {
 
 // ---- 2 --------------------------------------------------------------------------------
 
-export const uploadManyFilesMutationKeyString = endPoint.uploadManyFiles;
+export const uploadManyFilesMutationKeyString = 'uploadManyFiles' as const;
 
 type UseUploadManyFilesMutationProps = {
 	options?: Omit<
