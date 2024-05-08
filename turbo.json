@@ -21,7 +21,11 @@
 		"VITE_SERVER_URL",
 		"VITE_PARSE_APP_ID",
 		"VITE_PARSE_SERVER_URL",
-		"VITE_REST_API_KEY"
+		"VITE_REST_API_KEY",
+		"VITE_API_PATH",
+		"VITE_PARSE_PATH",
+		"API_PATH",
+		"PARSE_PATH"
 	],
 	"pipeline": {
 		"build": {
