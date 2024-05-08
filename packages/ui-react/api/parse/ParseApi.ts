@@ -15,10 +15,16 @@ export class ParseApi {
 
 	private _appFiles!: AppFileEndPoints;
 
-	constructor({ parseRestClient }: { parseRestClient?: ParseRestClient } = {}) {
+	public readonly apiPath: string;
+
+	constructor(
+		{ parseRestClient, apiPath }: { parseRestClient?: ParseRestClient; apiPath: string } = { apiPath: '/api' },
+	) {
 		if (parseRestClient) {
 			this.setRestClient(parseRestClient);
 		}
+
+		this.apiPath = apiPath;
 	}
 
 	private checkClient() {
@@ -31,9 +37,9 @@ export class ParseApi {
 		this._parseRestClient = parseRestClient;
 
 		// endpoints
-		this._users = new UserEndPoints(this._parseRestClient);
-		this._posts = new PostEndPoints(this._parseRestClient);
-		this._appFiles = new AppFileEndPoints(this._parseRestClient);
+		this._users = new UserEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
+		this._posts = new PostEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
+		this._appFiles = new AppFileEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
 	}
 
 	public get parseRestClient() {

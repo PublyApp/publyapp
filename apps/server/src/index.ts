@@ -10,7 +10,7 @@ import express from 'express';
 import _ from 'lodash';
 import ParseDashboard from 'parse-dashboard';
 
-import { LOCALE_HEADER_KEY, PARSE_PATH, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
+import { LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
 
 import { cloud } from './cloud';
 import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
@@ -166,7 +166,7 @@ const bootstrap = async () => {
 
 	// wait for the parse server setup to finish, the mount the parse app to the express app
 	await startParsePromise;
-	app.use(PARSE_PATH, parseServerMiddleware, parseServer.app);
+	app.use(env.PARSE_PATH, parseServerMiddleware, parseServer.app);
 
 	// set error middleware
 	// ! this must be mounted after all routes and all other middlewares

@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import { endPoint } from '@/shared/lib/constants';
 
+import { apiEndPoint } from '../lib/constants';
 import { multerConfig } from '../lib/multer';
 import protectionMiddleware from '../middlewares/protection.middleware';
 import { handleVerification, handleWebHook } from '../resources/facebookMessenger/facebookMessenger.controller';
@@ -12,20 +13,20 @@ const customAPIRouter = Router();
 export default customAPIRouter;
 
 customAPIRouter.post(
-	endPoint.api.upload.single,
+	apiEndPoint.upload.single,
 	protectionMiddleware({ withAuth: true, withKey: false }),
 	multerConfig.single('file'),
 	handleUploadSingleFile,
 );
 
 customAPIRouter.post(
-	endPoint.api.upload.many,
+	apiEndPoint.upload.many,
 	protectionMiddleware({ withAuth: true, withKey: false }),
 	multerConfig.array('files'),
 	handleUploadManyFiles,
 );
 
-customAPIRouter.post(endPoint.api.auth.passwordLogin, handlePasswordLogin);
+customAPIRouter.post(apiEndPoint.auth.passwordLogin, handlePasswordLogin);
 
 // ==============
 customAPIRouter.post(endPoint.facebookMessengerBotWebHook, handleWebHook);

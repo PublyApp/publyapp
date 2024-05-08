@@ -127,10 +127,10 @@ function createRsbuild() {
 						filename: '[name].mjs',
 					},
 					// plugins: [
-					// 	new rspack.DefinePlugin({
-					// 		// 'import.meta.filename': 'import.meta.filename',
-					// 		// 'import.meta.dirname': 'import.meta.filename',
-					// 	}),
+					// 	// new rspack.DefinePlugin({
+					// 	// 	'import.meta.dirname': "eval('import.meta.dirname')",
+					// 	// 	// 'import.meta.filename': 'import.meta.filename',
+					// 	// }),
 					// ],
 				},
 			},

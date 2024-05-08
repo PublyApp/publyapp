@@ -21,7 +21,7 @@
 		"dev:local": "cross-env MODE=local pnpm dev:common",
 		"dev:prod": "cross-env MODE=production pnpm dev:common",
 		"dev:preprod": "cross-env MODE=preprod pnpm dev:common",
-		"dev:common": "pnpm dev:es",
+		"dev:common": "pnpm dev:rs",
 		"dev:rs": "node scripts/rsbuild/watch.js",
 		"dev:es": "node scripts/esbuild/watch.js",
 		"// =============== LINT COMMANDS =================": "================================",

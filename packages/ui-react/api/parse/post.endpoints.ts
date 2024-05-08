@@ -1,5 +1,3 @@
-import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
-
 import type {
 	CreatePostFunction,
 	FindPostFunction,
@@ -8,6 +6,8 @@ import type {
 } from '@/server/resources/post/post.functions';
 import { functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
+
+import BaseEndPoints, { type BaseEndPointsProps } from './_base.endpoints';
 
 // == create post
 export type CreatePostFunctionParams = {
@@ -26,8 +26,10 @@ export type UpdatePostFunctionParams = Partial<Omit<CreatePostFunctionParams, 'l
 	published?: boolean;
 };
 
-export default class PostEndPoints {
-	constructor(private parseRestClient: ParseRestClient) {
+export default class PostEndPoints extends BaseEndPoints {
+	constructor({ parseRestClient, apiPath }: BaseEndPointsProps) {
+		super({ parseRestClient, apiPath });
+
 		this.findPostBoTable = this.findPostBoTable.bind(this);
 		this.findPostFrontList = this.findPostFrontList.bind(this);
 		this.findPostTag = this.findPostTag.bind(this);

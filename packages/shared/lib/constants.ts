@@ -96,9 +96,6 @@ const makePath = (...params: string[]) => {
 	return path;
 };
 
-export const PARSE_PATH = '/parse';
-export const API_PATH = '/api';
-
 const ROOTS = {
 	AUTH: 'auth',
 	DASHBOARD: 'dashboard',
@@ -182,21 +179,25 @@ export const endPoint = {
 	// passwordLogin: '/password-login',
 	facebookMessengerBotWebHook: '/facebook-messenger-bot-webhook',
 	// =======
-	parse: {
-		root: PARSE_PATH,
-		functions: makePath(PARSE_PATH, 'functions'),
+	parse: (parsePath: string) => {
+		return {
+			root: parsePath,
+			functions: makePath(parsePath, 'functions'),
+		} as const;
 	},
 	// =======
-	api: {
-		root: API_PATH,
-		auth: {
-			// root: makePath(API_PATH, ROOTS.AUTH),
-			passwordLogin: makePath(API_PATH, ROOTS.AUTH, 'password-login'),
-		},
-		upload: {
-			single: makePath(API_PATH, ROOTS.UPLOAD, 'single'),
-			many: makePath(API_PATH, ROOTS.UPLOAD, 'many'),
-		},
+	api: (apiPath: string) => {
+		return {
+			root: apiPath,
+			auth: {
+				// root: makePath(apiPath, ROOTS.AUTH),
+				passwordLogin: makePath(apiPath, ROOTS.AUTH, 'password-login'),
+			},
+			upload: {
+				single: makePath(apiPath, ROOTS.UPLOAD, 'single'),
+				many: makePath(apiPath, ROOTS.UPLOAD, 'many'),
+			},
+		} as const;
 	},
 	// auth: {
 	// 	root: ROOTS.AUTH,
