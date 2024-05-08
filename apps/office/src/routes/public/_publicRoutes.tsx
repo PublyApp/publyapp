@@ -2,6 +2,7 @@ import { Box } from '@mui/material';
 import { redirect, useRouteError, type RouteObject } from 'react-router-dom';
 
 import ErrorDisplay from '@/office/components/ErrorDisplay';
+import Register from '@/office/containers/register/Register';
 import AuthLayout from '@/office/layouts/auth/AuthLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import parseApi from '@/ui-react/api/parse/ParseApi';
@@ -63,17 +64,14 @@ export const publicRoutes: RouteObject[] = [
 					return redirect(BO_PATH_NAMES.dashboard.root);
 				}),
 				// errorElement: <PublicRootError />,
+				element: <AuthLayout />,
 				children: [
 					{
 						path: getLastPath(BO_PATH_NAMES.auth.login),
-						element: (
-							<AuthLayout>
-								<LogIn />
-							</AuthLayout>
-						),
+						element: <LogIn />,
 						index: true,
 					},
-					{ path: getLastPath(BO_PATH_NAMES.auth.register), element: <h1>Register form</h1> },
+					{ path: getLastPath(BO_PATH_NAMES.auth.register), element: <Register /> },
 				],
 			},
 		],

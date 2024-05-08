@@ -39,6 +39,12 @@ export const sendEmailUpdateEmailSchema = z.object({
 	newEmail: emailFieldSchema,
 });
 
+export const registerSchema = logInSchema.extend({
+	firstName: z.string({ required_error: 'First name required' }),
+	lastName: z.string({ required_error: 'Last name required' }),
+});
+
 export type LogInInput = z.infer<typeof logInSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type SendUpdateEmailFormInput = z.infer<typeof sendEmailUpdateEmailSchema>;
