@@ -1,5 +1,6 @@
-import { Chip, Container, Stack, Typography } from '@mui/material';
+import { /* Chip, */ Container, Stack, Typography } from '@mui/material';
 import { useLoaderData } from '@remix-run/react';
+import _ from 'lodash';
 
 import Breadcrumbs from '@/front/components/Breadcrumbs';
 import Markdown from '@/front/components/Markdown';
@@ -32,7 +33,7 @@ const MainPostContent = () => {
 
 		if (message === t('item-not-found', { item: t('translation') })) {
 			// return <h1>{error.message}</h1>;
-			description = 'This post is not yet translated in the current language';
+			description = t('item-not-translated', { item: _.toLower(t('post')) });
 		}
 
 		return (
@@ -95,9 +96,15 @@ const MainPostContent = () => {
 						{post.description}
 					</Typography>
 
-					<Markdown /* children={} */>{post.content}</Markdown>
+					<Markdown
+						/* children={} */ sx={{
+							mb: 12,
+						}}
+					>
+						{post.content}
+					</Markdown>
 
-					<Stack
+					{/* <Stack
 						spacing={3}
 						sx={{
 							py: 3,
@@ -116,7 +123,7 @@ const MainPostContent = () => {
 						</Stack>
 
 						<Stack direction="row" alignItems="center">
-							{/* <FormControlLabel
+							<FormControlLabel
 								control={
 									<Checkbox
 										defaultChecked
@@ -128,15 +135,15 @@ const MainPostContent = () => {
 								}
 								label={fShortenNumber(post.totalFavorites)}
 								sx={{ mr: 1 }}
-							/> */}
-
-							{/* <AvatarGroup>
+							/>
+<AvatarGroup>
 								{post.favoritePerson.map((person) => {
 									return <Avatar key={person.name} alt={person.name} src={person.avatarUrl} />;
 								})}
-							</AvatarGroup> */}
+							</A
+							vatarGroup>
 						</Stack>
-					</Stack>
+					</Stack> */}
 
 					{/* <Stack direction="row" sx={{ mb: 3, mt: 5 }}>
 						<Typography variant="h4">Comments</Typography>

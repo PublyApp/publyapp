@@ -9,6 +9,7 @@ import useResponsive from '@/ui-react/hooks/useResponsive';
 import { fDate } from '@/ui-react/utils/date.utils';
 import { fShortenNumber } from '@/ui-react/utils/number.utils';
 
+import AvatarShape from './AvatarShape';
 import RouterLink from './RouterLink';
 
 // import { paths } from 'src/routes/paths';
@@ -48,6 +49,7 @@ const PostItem = ({ post, index }: Props) => {
 					}}
 				/>
 
+				{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 				<PostContent
 					title={title}
 					createdAt={createdAt}
@@ -98,6 +100,7 @@ const PostItem = ({ post, index }: Props) => {
 				<Image alt={title} src={coverUrl} ratio="4/3" />
 			</Box>
 
+			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 			<PostContent
 				title={title}
 				totalViews={totalViews}
