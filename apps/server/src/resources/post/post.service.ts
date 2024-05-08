@@ -11,6 +11,7 @@ import type {
 	IPostWithRelations,
 	TranslatedIPostWithRelations,
 } from '@/shared/types/db/post.types';
+import { urlStartWithProtocol } from '@/shared/utils/any.utils';
 
 import { applySkipAndLimit, applySorting, toIsoString } from '../../lib/parse/utils';
 
@@ -359,10 +360,9 @@ export default class PostService {
 			fromPublic,
 		});
 
-		const finalPosts = posts.map((post) => {
-			_.assign(post, post.translation[locale]);
-			_.set(post, 'locale', locale);
-			return post as unknown as TranslatedIPostWithRelations;
+		const finalPosts = posts.map((_post) => {
+			const post = PostService.toTranslatedIPost(_post, locale);
+			return post;
 		});
 
 		return finalPosts;
@@ -400,10 +400,8 @@ export default class PostService {
 			fromPublic: true,
 		});
 
-		const finalPosts = posts.map((post) => {
-			_.assign(post, post.translation[locale], {
-				locale,
-			});
+		const finalPosts = posts.map((_post) => {
+			const post = PostService.toTranslatedIPost(_post, locale);
 
 			if (post.cover) {
 				let fileUrl = post.cover.url;
@@ -414,7 +412,7 @@ export default class PostService {
 				}
 			}
 
-			return post as unknown as TranslatedIPostWithRelations;
+			return post;
 		});
 
 		return finalPosts;
@@ -550,76 +548,15 @@ export default class PostService {
 			return undefined;
 		}
 
-		const translation = post.translation[locale];
+		const translation = post.translation?.[locale];
 
 		if (!translation) {
 			return 'TRANSLATION_NOT_FOUND' as const;
 		}
 
-		const finalPost: TranslatedIPostWithRelations = {
-			...post,
-			title: translation.title,
-			description: translation.description,
-			content: translation.content,
-			locale,
-		};
+		const finalPost = PostService.toTranslatedIPost(post, locale);
 
 		return finalPost;
-		// return post;
-
-		// const morePostsQuery = new Parse.Query(ParsePost).equalTo('published', true).descending('createdAt');
-
-		// if (!post) {
-		// 	throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
-		// morePostsQuery.limit(MORE_POSTS_COUNT);
-
-		// const morePosts = await morePostsQuery.find({ sessionToken: this.sessionToken });
-
-		// return {
-		// 	notFound: true,
-		// 	morePosts: morePosts.map((p) => {
-		// 		return PostService.toJSON(p);
-		// 	}),
-		// };
-		// }
-
-		// const relatedPostsQuery = new Parse.Query(ParsePost)
-		// 	.notEqualTo('objectId', post.id)
-		// 	.equalTo('published', true)
-		// 	.ascending('createdAt')
-		// 	.limit(MORE_POSTS_COUNT);
-
-		// const tags = post.get('tags');
-
-		// if (tags && !_.isEmpty(tags)) {
-		// 	relatedPostsQuery.containedIn('tags', tags as never);
-		// }
-
-		// const relatedPosts = await relatedPostsQuery.find({ sessionToken: this.sessionToken });
-
-		// if (relatedPosts.length >= MORE_POSTS_COUNT) {
-		// 	// relatedPosts.splice(MORE_POSTS_COUNT);
-
-		// 	return {
-		// 		post: PostService.toJSON(post),
-		// 		morePosts: relatedPosts.map((p) => {
-		// 			return PostService.toJSON(p);
-		// 		}),
-		// 	};
-		// }
-
-		// morePostsQuery.notEqualTo('objectId', post.id).limit(MORE_POSTS_COUNT - relatedPosts.length);
-
-		// const additionalPosts = await morePostsQuery.find({ sessionToken: this.sessionToken });
-
-		// const morePosts = _.concat(relatedPosts, additionalPosts);
-
-		// return {
-		// 	post: PostService.toJSON(post),
-		// 	morePosts: morePosts.map((p) => {
-		// 		return PostService.toJSON(p);
-		// 	}),
-		// };
 	}
 
 	async getOnePostBoEdit(id: string) {
@@ -655,14 +592,30 @@ export default class PostService {
 		let remainingPostsCount = 4 - relatedPosts.length;
 		const tags = post?.attributes.tags;
 
-		const getLatestPostsQuery = (iPost: typeof post, iRemainingPostsCount: number) => {
-			// TODO: add select and includes
-			const query = new Parse.Query(ParsePost)
-				.limit(iRemainingPostsCount)
+		const applyCommonContraints = (query: Parse.Query) => {
+			query
 				.addDescending('publishDate')
 				.addDescending('createdAt')
 				.equalTo('published', true)
-				.exists(`translation.${locale}` as never);
+				.exists(`translation.${locale}` as never)
+				.include(['author', 'cover'])
+				.select([
+					//
+					`translation.${locale}.title`,
+
+					'author',
+					'author.firstName',
+					'author.lastName',
+
+					'cover',
+					'cover.url',
+				]);
+			// TODO: add select and includes
+		};
+
+		const getLatestPostsQuery = (iPost: typeof post, iRemainingPostsCount: number) => {
+			const query = new Parse.Query(ParsePost).limit(iRemainingPostsCount);
+			applyCommonContraints(query);
 
 			if (iPost) {
 				query.notEqualTo('objectId', iPost.id);
@@ -676,6 +629,7 @@ export default class PostService {
 				const relatedPostsByTagsQuery = new Parse.Query(ParsePost)
 					.containedIn('tags', tags as never)
 					.notEqualTo('objectId', post.id);
+				applyCommonContraints(relatedPostsByTagsQuery);
 
 				// if (post) {
 				// 	relatedPostsByTagsQuery.notEqualTo('objectId', post.id)
@@ -725,9 +679,27 @@ export default class PostService {
 		}
 
 		const finalPosts = relatedPosts.map((relatedPost) => {
-			return PostService.toJSON(relatedPost);
+			const iPost = PostService.toTranslatedIPost(PostService.toJSON(relatedPost), locale);
+			const coverUrl = _.get(iPost, 'cover.url');
+
+			if (coverUrl) {
+				// if (coverUrl.startsWith('http://'))
+				if (!urlStartWithProtocol(coverUrl)) {
+					_.set(iPost, 'cover.url', env.SERVER_URL + coverUrl);
+				}
+			}
+
+			return iPost;
 		});
 
 		return finalPosts;
+	}
+
+	static toTranslatedIPost(post: IPostWithRelations, locale: AppLocale): TranslatedIPostWithRelations {
+		const translation = post.translation?.[locale] ?? {};
+
+		const finalPost = _.assign({} as TranslatedIPostWithRelations, post, translation, { locale });
+
+		return finalPost;
 	}
 }

@@ -59,3 +59,9 @@ export const deepFreeze = <T>(o: T): DeepReadonly<T> => {
 
 	return o as never;
 };
+
+export const urlStartWithProtocol = (url: string) => {
+	return ['http://', 'https://'].some((protocol) => {
+		return url.startsWith(protocol);
+	});
+};

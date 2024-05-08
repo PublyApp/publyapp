@@ -37,7 +37,7 @@ const ThemeProvider = ({ children }: Props) => {
 	}, [settings.themeMode]);
 
 	const memoizedThemeOptions = useMemo(() => {
-		return _.merge(baseOption, darkModeOption, presetsOption) as ThemeOptions;
+		return _.merge({}, baseOption, darkModeOption, presetsOption) as ThemeOptions;
 	}, [baseOption, darkModeOption, presetsOption]);
 
 	const theme = createTheme(memoizedThemeOptions);

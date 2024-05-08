@@ -1,13 +1,16 @@
-import { alpha, Avatar, Box, Card, CardContent, Link, Stack, Typography, useTheme } from '@mui/material';
+import { alpha, Avatar, Box, Card, CardContent, Link, Typography, useTheme } from '@mui/material';
 
-import Iconify from '@devist/ui-react/components/Iconify';
+// import Iconify from '@devist/ui-react/components/Iconify';
 import Image from '@devist/ui-react/components/Image';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { type TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
+import { getUserFullName } from '@/shared/utils/user.utils';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import { fDate } from '@/ui-react/utils/date.utils';
-import { fShortenNumber } from '@/ui-react/utils/number.utils';
+
+// import { fShortenNumber } from '@/ui-react/utils/number.utils';
 
 import AvatarShape from './AvatarShape';
 import RouterLink from './RouterLink';
@@ -22,7 +25,7 @@ import RouterLink from './RouterLink';
 // ----------------------------------------------------------------------
 
 type Props = {
-	post: IPostItem;
+	post: TranslatedIPostWithRelations;
 	index?: number;
 };
 
@@ -31,7 +34,8 @@ const PostItem = ({ post, index }: Props) => {
 
 	const mdUp = useResponsive('up', 'md');
 
-	const { coverUrl, title, totalViews, totalComments, totalShares, author, createdAt } = post;
+	const { /* coverUrl, */ title, slug, /* title, totalViews, totalComments, totalShares, */ author, createdAt, cover } =
+		post;
 
 	const latestPost = index === 0 || index === 1 || index === 2;
 
@@ -39,7 +43,7 @@ const PostItem = ({ post, index }: Props) => {
 		return (
 			<Card>
 				<Avatar
-					alt={author.name}
+					alt={getUserFullName(author)}
 					src={author.avatarUrl}
 					sx={{
 						top: 24,
@@ -52,16 +56,17 @@ const PostItem = ({ post, index }: Props) => {
 				{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 				<PostContent
 					title={title}
+					slug={slug}
 					createdAt={createdAt}
-					totalViews={totalViews}
-					totalShares={totalShares}
-					totalComments={totalComments}
+					// totalViews={totalViews}
+					// totalShares={totalShares}
+					// totalComments={totalComments}
 					index={index}
 				/>
 
 				<Image
 					alt={title}
-					src={coverUrl}
+					src={cover?.url}
 					overlay={alpha(theme.palette.grey[900], 0.48)}
 					sx={{
 						width: 1,
@@ -87,7 +92,7 @@ const PostItem = ({ post, index }: Props) => {
 				/>
 
 				<Avatar
-					alt={author.name}
+					alt={getUserFullName(author)}
 					src={author.avatarUrl}
 					sx={{
 						left: 24,
@@ -97,15 +102,16 @@ const PostItem = ({ post, index }: Props) => {
 					}}
 				/>
 
-				<Image alt={title} src={coverUrl} ratio="4/3" />
+				<Image alt={title} src={cover?.url} ratio="4/3" />
 			</Box>
 
 			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 			<PostContent
 				title={title}
-				totalViews={totalViews}
-				totalComments={totalComments}
-				totalShares={totalShares}
+				slug={slug}
+				// totalViews={totalViews}
+				// totalComments={totalComments}
+				// totalShares={totalShares}
 				createdAt={createdAt}
 			/>
 		</Card>
@@ -118,17 +124,26 @@ export default PostItem;
 
 type PostContentProps = {
 	title: string;
+	slug: string;
 	index?: number;
-	totalViews: number;
-	totalShares: number;
-	totalComments: number;
+	totalViews?: number;
+	totalShares?: number;
+	totalComments?: number;
 	createdAt: Date | string | number;
 };
 
-export const PostContent = ({ title, createdAt, totalViews, totalShares, totalComments, index }: PostContentProps) => {
+export const PostContent = ({
+	title,
+	slug,
+	createdAt,
+	totalViews: _1,
+	totalShares: _2,
+	totalComments: _3,
+	index,
+}: PostContentProps) => {
 	const mdUp = useResponsive('up', 'md');
 
-	const linkTo = FRONT_PATH_NAMES.posts.details(title);
+	const linkTo = FRONT_PATH_NAMES.posts.details(slug);
 
 	const latestPostLarge = index === 0;
 
@@ -169,7 +184,7 @@ export const PostContent = ({ title, createdAt, totalViews, totalShares, totalCo
 				</TextMaxLine>
 			</Link>
 
-			<Stack
+			{/* <Stack
 				spacing={1.5}
 				direction="row"
 				justifyContent="flex-end"
@@ -197,7 +212,7 @@ export const PostContent = ({ title, createdAt, totalViews, totalShares, totalCo
 					<Iconify icon="solar:share-bold" width={16} sx={{ mr: 0.5 }} />
 					{fShortenNumber(totalShares)}
 				</Stack>
-			</Stack>
+			</Stack> */}
 		</CardContent>
 	);
 };
