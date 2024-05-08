@@ -7,8 +7,6 @@ import { ParseApi } from '@/ui-react/api/parse/ParseApi';
 import { env } from '../env';
 
 export const initParseOnServer = async ({ locale }: { locale: AppLocale }) => {
-	const parseApi = new ParseApi();
-
 	const parseRestClient = new ParseRestClient({
 		applicationId: env.VITE_PARSE_APP_ID,
 		parseServerUrl: env.VITE_PARSE_SERVER_URL,
@@ -17,7 +15,9 @@ export const initParseOnServer = async ({ locale }: { locale: AppLocale }) => {
 	// set locale header
 	parseRestClient.setHeader(LOCALE_HEADER_KEY, locale);
 
-	parseApi.setRestClient(parseRestClient);
-
+	const parseApi = new ParseApi({
+		apiPath: env.VITE_API_PATH,
+		parseRestClient,
+	});
 	return parseApi;
 };
