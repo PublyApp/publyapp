@@ -23,5 +23,5 @@ export const initParse = () => {
 	parseRestClient.setSessionToken(storedSessionToken);
 
 	parseApi.setRestClient(parseRestClient);
-	parseApi.apiPath = env.PARSE_PATH;
+	parseApi.apiPath = env.API_PATH;
 };
