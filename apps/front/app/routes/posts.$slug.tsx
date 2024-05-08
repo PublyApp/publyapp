@@ -2,6 +2,7 @@ import type { LoaderFunction } from '@remix-run/node';
 import _ from 'lodash';
 
 import MainPostContent from '../containers/postDetails/MainPostContent';
+import RelatedPosts from '../containers/postDetails/RelatedPosts';
 import { getServerLoader } from '../lib/remix/getServerLoader';
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
@@ -185,6 +186,7 @@ const PostDetailsPage = () => {
 			<MainPostContent />
 
 			{/* <Container sx={{ pb: 15 }}>{!!latestPosts.length && renderLatestPosts}</Container> */}
+			<RelatedPosts />
 		</>
 	);
 };
