@@ -20,7 +20,7 @@ interface AsyncRequestHandler<
 	): Promise<any>;
 }
 
-export const expressHandler = <T extends AsyncRequestHandler>(innerHandler: T): RequestHandler => {
+export const expressHandler = (innerHandler: AsyncRequestHandler): RequestHandler => {
 	const handler: RequestHandler = async (req, res, next) => {
 		const wrappedFunction = tryCatchWrapper(innerHandler, (error) => {
 			return next(error);
