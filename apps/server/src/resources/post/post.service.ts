@@ -4,7 +4,7 @@ import { env } from '@/server/lib/env';
 import type ParseAppFile from '@/server/lib/parse/classes/appFile.class';
 import ParsePost from '@/server/lib/parse/classes/post.class';
 import type ParseUser from '@/server/lib/parse/classes/user.class';
-import { DEFAULT_PAGE_SIZE, fileProvider } from '@/shared/lib/constants';
+import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type {
 	IPostWithParseRelations,
@@ -403,14 +403,23 @@ export default class PostService {
 		const finalPosts = posts.map((_post) => {
 			const post = PostService.toTranslatedIPost(_post, locale);
 
-			if (post.cover) {
-				let fileUrl = post.cover.url;
+			const coverUrl = _.get(post, 'cover.url');
 
-				if (post.cover.provider === fileProvider.LOCAL_DISK || fileUrl.startsWith('/')) {
-					fileUrl = env.SERVER_URL + fileUrl;
-					_.set(post.cover, 'url', fileUrl);
+			if (coverUrl) {
+				// if (coverUrl.startsWith('http://'))
+				if (!urlStartWithProtocol(coverUrl)) {
+					_.set(post, 'cover.url', env.SERVER_URL + coverUrl);
 				}
 			}
+
+			// if (post.cover) {
+			// 	let fileUrl = post.cover.url;
+
+			// 	if (post.cover.provider === fileProvider.LOCAL_DISK || fileUrl.startsWith('/')) {
+			// 		fileUrl = env.SERVER_URL + fileUrl;
+			// 		_.set(post.cover, 'url', fileUrl);
+			// 	}
+			// }
 
 			return post;
 		});

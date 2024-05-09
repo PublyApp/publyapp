@@ -58,9 +58,9 @@ export const className = {
 	// === Custom classes ===
 	POST: 'Post',
 	POST_SERIES: 'PostSeries',
-	WEB_HOST: 'WebHost',
 	APP_FILE: 'AppFile',
 	// ==== not use anymore
+	// WEB_HOST: 'WebHost',
 	// AI_TOOL: 'AITool',
 	// WEB_HOSTING_PROVIDER: 'WebHostingProvider',
 	// AWESOME_LINK: 'AwesomeLink',
@@ -107,15 +107,15 @@ const ROOTS = {
 export const FRONT_PATH_NAMES = {
 	home: '/',
 	posts: {
-		root: `/${RESOURCE.posts}`,
+		root: makePath(RESOURCE.posts),
 		page: (pageNum: number) => {
-			return makePath(`/${RESOURCE.posts}`, 'page', String(pageNum));
+			return makePath(RESOURCE.posts, 'page', String(pageNum));
 		},
 		details: (postSlug: string) => {
-			return makePath(`/${RESOURCE.posts}`, postSlug);
+			return makePath(RESOURCE.posts, postSlug);
 		},
 		preview: (postId: string) => {
-			return makePath(`/${RESOURCE.posts}`, 'preview', postId);
+			return makePath(RESOURCE.posts, 'preview', postId);
 		},
 	},
 	support: '/support',
@@ -139,6 +139,7 @@ export const BO_PATH_NAMES = {
 			details: (postId: string) => {
 				return makePath(ROOTS.DASHBOARD, RESOURCE.posts, postId);
 			},
+			settings: makePath(ROOTS.DASHBOARD, RESOURCE.posts, 'settings'),
 		},
 		fileManager: {
 			root: makePath(ROOTS.DASHBOARD, RESOURCE.fileManager),

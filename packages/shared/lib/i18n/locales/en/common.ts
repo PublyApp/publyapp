@@ -33,6 +33,8 @@ const commonEN = {
 	preview: 'Preview',
 	'edit-post': 'Edit post',
 	edit: 'Edit',
+	list: 'List',
+	settings: 'Settings',
 
 	// ???
 	'item-is-required': '{{item}} is required',
