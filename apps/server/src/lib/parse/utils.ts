@@ -627,3 +627,29 @@ export const toIsoString = (value: EncodedDateType) => {
 
 	return undefined;
 };
+
+export const getGlobalConfig = async () => {
+	const config = await Parse.Config.get(USE_MASTER_KEY);
+	return config;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Serializable = string | number | Record<string, any> | any[];
+
+export const setGlobalConfig = async (attributes: Record<string, { value: Serializable; masterKeyOnly?: boolean }>) => {
+	const entries = _.entries(attributes);
+
+	const param1: Record<string, Serializable> = {};
+	const param2: Record<string, boolean> = {};
+
+	entries.forEach(([key, { value, masterKeyOnly }]) => {
+		param1[key] = value;
+
+		if (!_.isNil(masterKeyOnly)) {
+			param2[key] = masterKeyOnly;
+		}
+	});
+
+	const config = await Parse.Config.save(param1, param2);
+	return config;
+};

@@ -592,7 +592,7 @@ export default class PostService {
 		let remainingPostsCount = 4 - relatedPosts.length;
 		const tags = post?.attributes.tags;
 
-		const applyCommonContraints = (query: Parse.Query) => {
+		const applyCommonConstraints = (query: Parse.Query) => {
 			query
 				.addDescending('publishDate')
 				.addDescending('createdAt')
@@ -615,7 +615,7 @@ export default class PostService {
 
 		const getLatestPostsQuery = (iPost: typeof post, iRemainingPostsCount: number) => {
 			const query = new Parse.Query(ParsePost).limit(iRemainingPostsCount);
-			applyCommonContraints(query);
+			applyCommonConstraints(query);
 
 			if (iPost) {
 				query.notEqualTo('objectId', iPost.id);
@@ -629,7 +629,7 @@ export default class PostService {
 				const relatedPostsByTagsQuery = new Parse.Query(ParsePost)
 					.containedIn('tags', tags as never)
 					.notEqualTo('objectId', post.id);
-				applyCommonContraints(relatedPostsByTagsQuery);
+				applyCommonConstraints(relatedPostsByTagsQuery);
 
 				// if (post) {
 				// 	relatedPostsByTagsQuery.notEqualTo('objectId', post.id)
