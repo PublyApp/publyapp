@@ -1,4 +1,4 @@
-import { /* Chip, */ Container, Stack, Typography } from '@mui/material';
+import { /* Chip, */ Chip, Container, Stack, Typography } from '@mui/material';
 import { useLoaderData } from '@remix-run/react';
 import _ from 'lodash';
 
@@ -96,6 +96,47 @@ const MainPostContent = () => {
 						{post.description}
 					</Typography>
 
+					<Stack
+						spacing={3}
+						sx={{
+							py: 3,
+							mb: 5,
+							borderTop: (theme) => {
+								return `dashed 1px ${theme.palette.divider}`;
+							},
+							borderBottom: (theme) => {
+								return `dashed 1px ${theme.palette.divider}`;
+							},
+						}}
+					>
+						<Stack direction="row" flexWrap="wrap" spacing={1}>
+							{post.tags?.map((tag) => {
+								return <Chip key={tag} label={tag} variant="soft" />;
+							})}
+						</Stack>
+
+						{/* <Stack direction="row" alignItems="center">
+							<FormControlLabel
+								control={
+									<Checkbox
+										defaultChecked
+										size="small"
+										color="error"
+										icon={<Iconify icon="solar:heart-bold" />}
+										checkedIcon={<Iconify icon="solar:heart-bold" />}
+									/>
+								}
+								label={fShortenNumber(post.totalFavorites)}
+								sx={{ mr: 1 }}
+							/>
+							<AvatarGroup>
+								{post.favoritePerson.map((person) => {
+									return <Avatar key={person.name} alt={person.name} src={person.avatarUrl} />;
+								})}
+							</AvatarGroup>
+						</Stack> */}
+					</Stack>
+
 					<Markdown
 						/* children={} */ sx={{
 							mb: 12,
@@ -136,12 +177,11 @@ const MainPostContent = () => {
 								label={fShortenNumber(post.totalFavorites)}
 								sx={{ mr: 1 }}
 							/>
-<AvatarGroup>
+							<AvatarGroup>
 								{post.favoritePerson.map((person) => {
 									return <Avatar key={person.name} alt={person.name} src={person.avatarUrl} />;
 								})}
-							</A
-							vatarGroup>
+							</AvatarGroup>
 						</Stack>
 					</Stack> */}
 
