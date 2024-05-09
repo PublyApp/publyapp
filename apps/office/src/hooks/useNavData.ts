@@ -3,6 +3,7 @@ import { createElement, useMemo } from 'react';
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 
 import SvgColor from '@/office/components/SvgColor';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 
 // import { paths } from '@/office/utils/paths';
 
@@ -53,6 +54,8 @@ const ICONS = {
 // ----------------------------------------------------------------------
 
 export const useNavData = () => {
+	const { t } = useTranslate();
+
 	const data = useMemo(() => {
 		return [
 			// OVERVIEW
@@ -92,17 +95,21 @@ export const useNavData = () => {
 					// 	icon: ICONS.dashboard,
 					// },
 					{
-						title: 'Posts',
+						title: `${t('post')}s`,
 						path: BO_PATH_NAMES.dashboard.posts.root,
-						icon: ICONS.dashboard,
+						icon: ICONS.blog,
 						children: [
 							{
-								title: 'List',
+								title: t('list'),
 								path: BO_PATH_NAMES.dashboard.posts.root,
 							},
 							{
-								title: 'New',
+								title: t('new'),
 								path: BO_PATH_NAMES.dashboard.posts.create,
+							},
+							{
+								title: t('settings'),
+								path: BO_PATH_NAMES.dashboard.posts.settings,
 							},
 						],
 					},
@@ -114,7 +121,7 @@ export const useNavData = () => {
 				],
 			},
 		];
-	}, []);
+	}, [t]);
 
 	return data;
 };
