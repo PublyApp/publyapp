@@ -35,6 +35,8 @@ const commonFR = {
 	'your-description': 'Votre description',
 	'your-title': 'Votre titre',
 	'your-content': 'Votre contenu',
+	list: 'Liste',
+	settings: 'Paramètres',
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',

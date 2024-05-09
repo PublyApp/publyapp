@@ -7,6 +7,7 @@ import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type 
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
+import BlogSettings from '@/office/modules/blog/settings/BlogSettings';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
@@ -162,6 +163,10 @@ export const dashboardRoutes: RouteObject[] = [
 											});
 										}),
 										element: <EditPost />,
+									},
+									{
+										path: getLastPath(BO_PATH_NAMES.dashboard.posts.settings),
+										element: <BlogSettings />,
 									},
 								],
 							},
