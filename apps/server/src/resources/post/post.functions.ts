@@ -103,6 +103,7 @@ export namespace GetPostFunction {
 	export namespace FrontView {
 		export type Params = FunctionParams<typeof getPostFunctionFrontDetailsView>;
 		export type Return = FunctionReturn<typeof getPostFunctionFrontDetailsView>;
+		// export type Status = 'POST_NOT_FOUND' | 'POST_NOT_TRANSLATED';
 	}
 
 	export namespace BoEdit {
@@ -153,7 +154,6 @@ const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
 
 		const postService = new PostService({ sessionToken });
 
-		// if (params.view === findOnePostView.frontDetail) {
 		const post = await postService.getOnePostFront(params.slug, { locale });
 
 		if (!post) {
@@ -164,21 +164,7 @@ const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
 			throw new Parse.Error(Parse.Error.SCRIPT_FAILED, t('item-not-found', { item: t('translation') }));
 		}
 
-		// return PostService.toJSON(post);
 		return post;
-		// }
-
-		// if (params.view === findOnePostView.boEditForm) {
-		// 	const post = await postService.getOnePostBoEdit(params.id);
-
-		// 	if (!post) {
-		// 		throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
-		// 	}
-
-		// 	return PostService.toJSON(post);
-		// }
-
-		// throw new Error(t('item-is-invalid', { item: 'view' }));
 	},
 });
 

@@ -532,23 +532,36 @@ export default class PostService {
 
 	async getOnePostFront(slug: string, { locale }: { locale: AppLocale }) {
 		// const MORE_POSTS_COUNT = 4;
-		// const include = ['author', 'cover'];
+		const include = ['author', 'cover'];
 		const select = [
-			// 'author',
-			// 'cover',
-			// 'tags',
+			'author',
+			'author.firstName',
+			'author.lastName',
+
+			'cover',
+			'cover.url',
+
+			'tags',
 			// // 'cover.url',
 
 			`translation.${locale}`,
 		];
 
-		const post = (await this.getBySlug(slug, { /* include: [], */ select, json: true })) as IPostWithRelations;
+		const post = (await this.getBySlug(slug, { include, select, json: true })) as IPostWithRelations;
 
 		if (!post) {
 			return undefined;
 		}
 
 		const translation = post.translation?.[locale];
+
+		const coverUrl = _.get(post, 'cover.url');
+
+		if (coverUrl) {
+			if (!urlStartWithProtocol(coverUrl)) {
+				_.set(post, 'cover.url', env.SERVER_URL + coverUrl);
+			}
+		}
 
 		if (!translation) {
 			return 'TRANSLATION_NOT_FOUND' as const;
@@ -683,7 +696,6 @@ export default class PostService {
 			const coverUrl = _.get(iPost, 'cover.url');
 
 			if (coverUrl) {
-				// if (coverUrl.startsWith('http://'))
 				if (!urlStartWithProtocol(coverUrl)) {
 					_.set(iPost, 'cover.url', env.SERVER_URL + coverUrl);
 				}
