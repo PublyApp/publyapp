@@ -17,7 +17,7 @@ export const isAsyncFunction = (func: GenericFunction): func is Asyncfunction =>
 };
 
 // https://github.com/browserify/node-util/blob/ef984721db7150f651800e051de4314c9517d42c/support/types.js#L50-L63
-// eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions, @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const isPromise = (input: unknown): input is Promise<any> => {
 	return (
 		(typeof Promise !== 'undefined' && input instanceof Promise) ||

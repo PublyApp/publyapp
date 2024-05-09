@@ -17,6 +17,7 @@ import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } fro
 import { initCloudinary } from './lib/cloudinary';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
 import { env } from './lib/env';
+import { expressHandler } from './lib/express';
 import logger, { consoleTransport } from './lib/logger';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
@@ -128,6 +129,13 @@ const bootstrap = async () => {
 		);
 
 		app.use(PARSE_DASHBOARD_MOUNT_PATH, dashboard);
+
+		app.all(
+			path.posix.join(env.API_PATH, 'test'),
+			expressHandler(async (_req, res) => {
+				return res.status(200).json({ ok: 'ok' });
+			}),
+		);
 	}
 
 	// --------------------------------------------------------------------------------------//

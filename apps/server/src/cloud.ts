@@ -3,7 +3,7 @@ import logger from './lib/logger';
 
 export const cloud = async () => {
 	try {
-		await Promise.all([functions(), triggers()]);
+		await Promise.all([functions(), triggers(), jobs()]);
 	} catch (error) {
 		logger.error('Error while importing cloud code:', error);
 		process.exit(1);
@@ -26,4 +26,8 @@ const triggers = async () => {
 		// import('@/server/resources/post/post.triggers'),
 		// import('@/server/resources/session/session.triggers'),
 	]);
+};
+
+const jobs = async () => {
+	await Promise.all([import('@/server/resources/post/post.jobs')]);
 };

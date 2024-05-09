@@ -11,14 +11,12 @@ const RelatedPosts = () => {
 	const data = useLoaderData<SinglePostLoaderFunction>();
 	const { relatedPosts: posts } = data;
 
-	console.log('posts', posts);
-
 	if (isErrorJSON(posts)) {
 		// const error = posts;
 
 		return (
 			<>
-				<h2>A error ocurred.</h2>
+				<h2>An error ocurred.</h2>
 				<button type="button">Retry</button>
 			</>
 		);
