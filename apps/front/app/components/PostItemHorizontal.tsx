@@ -5,7 +5,7 @@ import { nanoid } from 'nanoid';
 // import usePopover from '@devist/ui-react/hooks/usePopover';
 // import CustomPopover, { usePopover } from 'src/components/custom-popover';
 // import Iconify from 'src/components/iconify';
-// import Image from 'src/components/image';
+// import Image from 'src/components/image/Image';
 // components
 // import Label from 'src/components/label';
 // import TextMaxLine from 'src/components/text-max-line';
@@ -29,7 +29,8 @@ import RouterLink from '@/front/components/RouterLink';
 import { /* BO_PATH_NAMES, */ FRONT_PATH_NAMES } from '@/shared/lib/constants';
 // import type { IUserWithRelations } from '@/shared/types/db/user.types';
 import Iconify from '@/ui-react/components/Iconify';
-import Image from '@/ui-react/components/Image';
+import Image from '@/ui-react/components/image/Image';
+// import NcImage from '@/ui-react/components/image/NcImage';
 import Label from '@/ui-react/components/Label';
 import TextMaxLine from '@/ui-react/components/TextMaxLine';
 import { pxToRem } from '@/ui-react/utils/css.utils';
@@ -87,9 +88,15 @@ const PostItemHorizontal = ({ post }: Props) => {
 					/>
 					<Image
 						alt={cover?.alternativeText || post.translation.en?.title}
-						src={cover?.url || '/assets/images/marketing/marketing_1.jpg'}
+						src={cover?.url}
 						sx={{ height: 1, borderRadius: 1.5 }}
 					/>
+					{/* <NcImage
+						alt={cover?.alternativeText || post.translation.en?.title}
+						// src={cover?.url || '/assets/images/marketing/marketing_1.jpg'}
+						src={cover?.url}
+						sx={{ height: 1, borderRadius: 1.5 }}
+					/> */}
 				</Box>
 
 				<Stack

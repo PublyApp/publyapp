@@ -3,7 +3,8 @@ import { useDropzone } from 'react-dropzone';
 
 //
 import Iconify from '../Iconify';
-import Image from '../Image';
+// import Image from '../image/Image.old.bak';
+import Image from '../image/Image';
 
 import RejectionFiles from './RejectionFiles';
 //

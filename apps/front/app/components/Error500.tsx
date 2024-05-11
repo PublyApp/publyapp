@@ -3,7 +3,7 @@ import { Link as RouterLink, useRouteError } from '@remix-run/react';
 import { m } from 'framer-motion';
 
 import { varBounce } from '@devist/ui-react/components/animate/variants/bounce';
-import Image from '@devist/ui-react/components/Image';
+import Image from '@devist/ui-react/components/image/Image';
 import MotionContainer from '@devist/ui-react/components/MotionContainer';
 
 // ----------------------------------------------------------------------
