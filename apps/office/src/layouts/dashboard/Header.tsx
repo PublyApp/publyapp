@@ -12,6 +12,8 @@ import Toolbar from '@mui/material/Toolbar';
 
 import SvgColor from '@/office/components/SvgColor';
 import { HEADER, NAV } from '@/office/lib/constants';
+import { selectSidebar } from '@/office/lib/zustand/features/settings.slice';
+import { useMainStore } from '@/office/lib/zustand/store';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import { bgBlur } from '@/ui-react/utils/css.utils';
 
@@ -44,12 +46,13 @@ type Props = {
 const Header = ({ onOpenNav }: Props) => {
 	// const { t } = useTranslation();
 	const theme = useTheme();
+	const sidebar = useMainStore(selectSidebar);
 
 	// const settings = useSettingsContext();
 
 	// const isNavHorizontal = settings.themeLayout === 'horizontal';
 
-	const isNavMini = false; /* settings.themeLayout === 'mini' */
+	const isNavMini = sidebar === 'mini';
 
 	const lgUp = useResponsive('up', 'lg');
 
