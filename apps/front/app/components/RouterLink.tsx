@@ -2,6 +2,8 @@ import { forwardRef } from 'react';
 
 import { Link, useLocation, type LinkProps } from '@remix-run/react';
 
+import useResponsive from '@/ui-react/hooks/useResponsive';
+
 // ----------------------------------------------------------------------
 
 interface RouterLinkProps extends Omit<LinkProps, 'to'> {
@@ -11,8 +13,16 @@ interface RouterLinkProps extends Omit<LinkProps, 'to'> {
 
 const RouterLink = forwardRef<HTMLAnchorElement, RouterLinkProps>(({ href, preserveQuery = false, ...other }, ref) => {
 	const { search } = useLocation();
+	const isTabletAndMobile = useResponsive('down', 'md');
 
-	return <Link ref={ref} to={href + (preserveQuery ? search : '')} {...other} />;
+	return (
+		<Link
+			ref={ref}
+			prefetch={isTabletAndMobile ? 'viewport' : 'intent'}
+			to={href + (preserveQuery ? search : '')}
+			{...other}
+		/>
+	);
 
 	// const [searchParams] = useSearchParams();
 	// const search = `?${decodeURIComponent(searchParams.toString())}`;
