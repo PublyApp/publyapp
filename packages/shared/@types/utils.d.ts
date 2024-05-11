@@ -34,8 +34,12 @@ type ToPrimitive<T> = T extends string
 									[K in keyof T]: ToPrimitive<T[K]>;
 								};
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, prettier/prettier
+type SyncFunction = (...args: any[] | undefined) => any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, prettier/prettier
+type AsyncFunction = (...args: any[] | undefined) => Promise<any>;
+
 /**
  * Generic function that accepts any number of parameters.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GenericFunction = ((...args: any[]) => any) | ((...args: any[]) => Promise<any>);
+type GenericFunction = SyncFunction | AsyncFunction;

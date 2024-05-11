@@ -36,7 +36,7 @@ const defaultValues: PostSliceValues = {
 
 const sliceName = 'postSlice' as const;
 
-const PostSlice = new Slice<PostSliceState, typeof sliceName>({
+const postSlice = new Slice<PostSliceState, typeof sliceName>({
 	name: sliceName,
 	defaultValues,
 	initializer: (set) => {
@@ -76,7 +76,7 @@ const PostSlice = new Slice<PostSliceState, typeof sliceName>({
 	},
 });
 
-export default PostSlice;
+export default postSlice;
 
 // ---- selectors ------------------------------------------------------------------------
 export const selectCurrentlyEditedPost = (state: RootState) => {

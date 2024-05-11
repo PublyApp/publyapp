@@ -3,6 +3,8 @@ import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import { useTheme } from '@mui/material/styles';
 
 import { NAV } from '@/office/lib/constants';
+import { selectSetSidebar, selectSidebar } from '@/office/lib/zustand/features/settings.slice';
+import { useMainStore } from '@/office/lib/zustand/store';
 import Iconify from '@/ui-react/components/Iconify';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import { bgBlur } from '@/ui-react/utils/css.utils';
@@ -21,10 +23,14 @@ import { bgBlur } from '@/ui-react/utils/css.utils';
 
 const NavToggleButton = ({ sx, ...other }: IconButtonProps) => {
 	const theme = useTheme();
+	const setSidebar = useMainStore(selectSetSidebar);
+	const sidebar = useMainStore(selectSidebar);
 
 	// const settings = useSettingsContext();
 
 	const lgUp = useResponsive('up', 'lg');
+
+	const isMini = sidebar === 'mini';
 
 	if (!lgUp) {
 		return null;
@@ -35,6 +41,7 @@ const NavToggleButton = ({ sx, ...other }: IconButtonProps) => {
 			size="small"
 			onClick={() => {
 				// return settings.onUpdate('themeLayout', settings.themeLayout === 'vertical' ? 'mini' : 'vertical');
+				setSidebar(isMini ? 'large' : 'mini');
 			}}
 			sx={{
 				p: 0.5,
@@ -53,8 +60,8 @@ const NavToggleButton = ({ sx, ...other }: IconButtonProps) => {
 		>
 			<Iconify
 				width={16}
-				// icon={settings.themeLayout === 'vertical' ? 'eva:arrow-ios-back-fill' : 'eva:arrow-ios-forward-fill'}
-				icon="eva:arrow-ios-back-fill"
+				icon={!isMini ? 'eva:arrow-ios-back-fill' : 'eva:arrow-ios-forward-fill'}
+				// icon="eva:arrow-ios-back-fill"
 			/>
 		</IconButton>
 	);

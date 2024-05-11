@@ -4,6 +4,9 @@ import { Outlet } from 'react-router-dom';
 import useBoolean from '@devist/ui-react/hooks/useBoolean';
 import useResponsive from '@devist/ui-react/hooks/useResponsive';
 
+import { selectSidebar } from '@/office/lib/zustand/features/settings.slice';
+import { useMainStore } from '@/office/lib/zustand/store';
+
 import Header from './Header';
 import Main from './Main';
 import NavMini from './NavMini';
@@ -19,6 +22,7 @@ const DashboardLayout = ({ children }: Props) => {
 	// const [searchParams] = useSearchParams();
 
 	// const settings = useSettingsContext();
+	const sidebar = useMainStore(selectSidebar);
 
 	const lgUp = useResponsive('up', 'lg');
 
@@ -26,7 +30,7 @@ const DashboardLayout = ({ children }: Props) => {
 
 	// const isHorizontal = settings.themeLayout === 'horizontal';
 
-	const isMini = /* settings.themeLayout === 'mini' */ false;
+	const isMini = sidebar === 'mini';
 
 	const renderNavMini = <NavMini />;
 
