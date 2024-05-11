@@ -1,7 +1,7 @@
 import { alpha, Avatar, Box, Card, CardContent, Link, Typography, useTheme } from '@mui/material';
 
 // import Iconify from '@devist/ui-react/components/Iconify';
-import Image from '@devist/ui-react/components/Image';
+import Image from '@devist/ui-react/components/image/Image';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';

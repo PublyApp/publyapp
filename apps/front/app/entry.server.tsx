@@ -5,7 +5,7 @@ import createEmotionServer from '@emotion/server/create-instance';
 import type { EntryContext } from '@remix-run/node';
 import { RemixServer } from '@remix-run/react';
 import _ from 'lodash';
-import * as ReactDOMServer from 'react-dom/server';
+import ReactDOMServer from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
 
 import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';

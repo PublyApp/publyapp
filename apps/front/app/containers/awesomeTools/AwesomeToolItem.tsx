@@ -5,7 +5,7 @@ import { Link as RouterLink } from '@remix-run/react';
 
 import { FRONT_PATH_NAMES } from '@devist/shared/lib/constants';
 import Iconify from '@devist/ui-react/components/Iconify';
-import Image from '@devist/ui-react/components/Image';
+import Image from '@devist/ui-react/components/image/Image';
 import Label from '@devist/ui-react/components/Label';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 import type { IJobProps } from '@devist/ui-react/types/job';

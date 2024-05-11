@@ -1,6 +1,6 @@
 import { Link, Stack } from '@mui/material';
 
-import Image from '@devist/ui-react/components/Image';
+import Image from '@devist/ui-react/components/image/Image';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 import type { IBlogPostProps } from '@devist/ui-react/types/blog';
 import { fDate } from '@devist/ui-react/utils/date.utils';

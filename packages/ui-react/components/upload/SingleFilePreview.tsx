@@ -1,7 +1,9 @@
 import { Box } from '@mui/material';
 
 //
-import Image from '../Image';
+// import Image from '../image/Image.old.bak';
+
+import Image from '../image/Image';
 
 // ----------------------------------------------------------------------
 
