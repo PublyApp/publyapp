@@ -159,7 +159,8 @@ const EditPost = () => {
 				animate={!post.translation[lang.value] ? 'show' : 'hide'}
 			>
 				<Alert severity="info" onClose={undefined} sx={{ width: 1, mb: pxToRem(24) }}>
-					This post does not have a translation in the current language
+					{/* This post does not have a translation in the current language */}
+					{t('item-not-translated', { item: t('post') })}
 				</Alert>
 			</m.div>
 
@@ -169,7 +170,7 @@ const EditPost = () => {
 				variants={variants.form}
 				animate={!post.translation[lang.value] ? 'showAlert' : 'hideAlert'}
 			>
-				<PostForm form={updatePostForm} edit />
+				<PostForm form={updatePostForm} edit localeContent={post.translation[lang.value]?.content || ''} />
 			</m.div>
 			{/* </m.div> */}
 		</Container>
