@@ -44,7 +44,7 @@ const commonFR = {
 	'item-is-invalid': '{{item}} est invalide',
 	'new-item': 'Nouveau {{item}}',
 	'item-is-not-instance-of-type': "{{item}} n'est pas une instance de {{type}}",
-	'item-not-translated': "Cet {{item}} article n'est pas encore traduit dans le language actuel",
+	'item-not-translated': "Cet {{item}} n'est pas encore traduit dans le language actuel",
 
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',

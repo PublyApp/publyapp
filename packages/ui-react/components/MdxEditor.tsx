@@ -1,8 +1,8 @@
 import '@mdxeditor/editor/style.css';
 
-import { type ReactNode } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 
-import { MDXEditor, type MDXEditorProps } from '@mdxeditor/editor';
+import { MDXEditor, type MDXEditorMethods, type MDXEditorProps } from '@mdxeditor/editor';
 import { alpha, Box, type SxProps, type Theme } from '@mui/material';
 import _ from 'lodash';
 
@@ -16,58 +16,63 @@ export type MdxEditorProps = MDXEditorProps & {
 	sx?: SxProps<Theme>;
 };
 
-const MdxEditor = ({
-	id,
-	helperText,
-	error,
-	disabled = false,
-	sx /* = {} */,
-	markdown = '# Hello world',
-	plugins = ALL_PLUGINS,
-	...other
-}: MdxEditorProps) => {
-	return (
-		<Box
-			id={`#${id}`}
-			sx={[
-				(theme) => {
-					const radius = theme.spacing(1);
+const MdxEditor = forwardRef<MDXEditorMethods, MdxEditorProps>(
+	(
+		{
+			id,
+			helperText,
+			error,
+			disabled = false,
+			sx /* = {} */,
+			markdown = '# Hello world',
+			plugins = ALL_PLUGINS,
+			...other
+		}: MdxEditorProps,
+		ref,
+	) => {
+		return (
+			<Box
+				id={`#${id}`}
+				sx={[
+					(theme) => {
+						const radius = theme.spacing(1);
 
-					return {
-						border: `solid 1px ${alpha(theme.palette.grey[500], 0.2)}`,
-						borderRadius: radius,
-						'& [role="textbox"]': {
-							backgroundColor: alpha(theme.palette.grey[500], 0.08),
-						},
-						'& [role="toolbar"]': {
-							borderRadius: `${radius} ${radius} 0 0`,
-							...(disabled && {
-								backgroundColor: alpha(theme.palette.grey[500], 0.24),
-								color: theme.palette.text.disabled,
+						return {
+							border: `solid 1px ${alpha(theme.palette.grey[500], 0.2)}`,
+							borderRadius: radius,
+							'& [role="textbox"]': {
+								backgroundColor: alpha(theme.palette.grey[500], 0.08),
+							},
+							'& [role="toolbar"]': {
+								borderRadius: `${radius} ${radius} 0 0`,
+								...(disabled && {
+									backgroundColor: alpha(theme.palette.grey[500], 0.24),
+									color: theme.palette.text.disabled,
+								}),
+							},
+							...(error && {
+								border: `solid 1px ${theme.palette.error.main}`,
+								'& [role="textbox"]': {
+									bgcolor: alpha(theme.palette.error.main, 0.08),
+								},
 							}),
-						},
-						...(error && {
-							border: `solid 1px ${theme.palette.error.main}`,
-							'& [role="textbox"]': {
-								bgcolor: alpha(theme.palette.error.main, 0.08),
-							},
-						}),
-						...(disabled && {
-							pointerEvents: 'none',
-							'& [role="textbox"]': {
-								bgcolor: alpha(theme.palette.grey[500], 0.24),
-								color: theme.palette.text.disabled,
-							},
-						}),
-					};
-				},
-				...(_.isArray(sx) ? sx : [sx]),
-			]}
-		>
-			<MDXEditor markdown={markdown} plugins={plugins} {...other} />
-			{helperText && helperText}
-		</Box>
-	);
-};
+							...(disabled && {
+								pointerEvents: 'none',
+								'& [role="textbox"]': {
+									bgcolor: alpha(theme.palette.grey[500], 0.24),
+									color: theme.palette.text.disabled,
+								},
+							}),
+						};
+					},
+					...(_.isArray(sx) ? sx : [sx]),
+				]}
+			>
+				<MDXEditor ref={ref} markdown={markdown} plugins={plugins} {...other} />
+				{helperText && helperText}
+			</Box>
+		);
+	},
+);
 
 export default MdxEditor;

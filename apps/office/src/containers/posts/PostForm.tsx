@@ -1,5 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
+import type { MDXEditorMethods } from '@mdxeditor/editor';
 import { Chip, Grid, Stack, Typography } from '@mui/material';
 import { type UseFormReturn } from 'react-hook-form';
 
@@ -18,10 +19,11 @@ type Props = {
 	form: UseFormReturn<any>;
 	edit?: boolean;
 	tags?: string[];
+	localeContent?: string;
 };
 
-const PostForm = ({ form, edit = false, tags: _tags = [] }: Props) => {
-	const { t } = useTranslate();
+const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '' }: Props) => {
+	const { t, locale } = useTranslate();
 	const { setValue } = form;
 
 	const handleDrop = useCallback(
@@ -42,6 +44,13 @@ const PostForm = ({ form, edit = false, tags: _tags = [] }: Props) => {
 	const handleRemoveFile = useCallback(() => {
 		setValue('coverFile', null);
 	}, [setValue]);
+
+	const editorRef = useRef<MDXEditorMethods>(null);
+
+	useEffect(() => {
+		// console.log(localeContent);
+		editorRef.current?.setMarkdown(localeContent);
+	}, [locale, localeContent]);
 
 	return (
 		<FormProvider
@@ -100,7 +109,7 @@ const PostForm = ({ form, edit = false, tags: _tags = [] }: Props) => {
 
 				<Stack spacing={1.5}>
 					<Typography variant="subtitle2">{t('content')}</Typography>
-					<RHFMdxEditor name="content" placeholder={t('your-content')} />
+					<RHFMdxEditor ref={editorRef} name="content" placeholder={t('your-content')} />
 				</Stack>
 
 				<Grid display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={{ xs: 0, md: 4 }}>
