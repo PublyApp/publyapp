@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 
 import { IconButton, MenuItem } from '@mui/material';
-// import MenuItem from '@mui/material/MenuItem';
 import { useLocation } from '@remix-run/react';
 import { m } from 'framer-motion';
 
@@ -13,10 +12,6 @@ import CustomPopover from '@/ui-react/components/CustomPopover';
 import Iconify from '@/ui-react/components/Iconify';
 import usePopover from '@/ui-react/hooks/usePopover';
 import useTranslate from '@/ui-react/hooks/useTranslate';
-
-// import CustomPopover, { usePopover } from 'src/components/custom-popover';
-// import Iconify from 'src/components/iconify';
-// import { useLocales, useTranslate } from 'src/locales';
 
 // ----------------------------------------------------------------------
 
@@ -64,8 +59,8 @@ const LanguagePopover = () => {
 							}}
 							// eslint-disable-next-line @typescript-eslint/no-use-before-define
 							href={`/${option.value}/${getPathnameWithoutLocale(location.pathname).substring(1)}`}
+							disableAddLocaleToPath
 							component={RouterLink}
-							// LinkComponent={RouterLink}
 							// LinkComponent="a"
 						>
 							<Iconify icon={option.icon} sx={{ borderRadius: 0.65, width: 28 }} />

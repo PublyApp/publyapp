@@ -7,7 +7,9 @@ import { returnLanguageIfSupported } from '../i18n/i18n';
 import i18next from '../i18n/i18next.server';
 import { initParseOnServer } from '../parse/initParseOnServer';
 
-type InnerLoaderFunction<T> = (args: LoaderFunctionArgs & { parseApi: ParseApi; locale: AppLocale }) => Promise<T>;
+type InnerLoaderFunction<T> = (
+	args: LoaderFunctionArgs & { parseApi: ParseApi; locale: AppLocale; _locale: AppLocale | undefined },
+) => Promise<T>;
 
 type ReturnedLoaderFunction<T> = (args: LoaderFunctionArgs) => Promise<T>;
 
@@ -20,7 +22,7 @@ export const getServerLoader = <T>(innerLoader: InnerLoaderFunction<T>): Returne
 
 		const parseApi = await initParseOnServer({ locale });
 
-		return innerLoader({ ...loaderFunctionArgs, parseApi, locale });
+		return innerLoader({ ...loaderFunctionArgs, parseApi, locale, _locale: lang });
 	};
 
 	return loader;
