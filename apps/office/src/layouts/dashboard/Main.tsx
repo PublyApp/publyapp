@@ -1,7 +1,8 @@
-// @mui
 import Box, { type BoxProps } from '@mui/material/Box';
 
 import { HEADER, NAV } from '@/office/lib/constants';
+import { selectSidebar } from '@/office/lib/zustand/features/settings.slice';
+import { useMainStore } from '@/office/lib/zustand/store';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 
 // components
@@ -18,12 +19,13 @@ const SPACING = 8;
 
 const Main = ({ children, sx, ...other }: BoxProps) => {
 	// const settings = useSettingsContext();
+	const sidebar = useMainStore(selectSidebar);
 
 	const lgUp = useResponsive('up', 'lg');
 
 	// const isNavHorizontal = settings.themeLayout === 'horizontal';
 
-	const isNavMini = false; /* settings.themeLayout === 'mini' */
+	const isNavMini = sidebar === 'mini';
 
 	// if (isNavHorizontal) {
 	// 	return (
