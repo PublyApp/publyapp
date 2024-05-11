@@ -1,5 +1,6 @@
-import { type ReactNode } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 
+import type { MDXEditorMethods } from '@mdxeditor/editor';
 import { FormHelperText } from '@mui/material';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -16,13 +17,15 @@ type Props = Omit<MdxEditorProps, 'id' | 'markdown'> & {
 	markdown?: string;
 };
 
-const RHFMdxEditor = ({ name, helperText, ...other }: Props) => {
+const RHFMdxEditor = forwardRef<MDXEditorMethods, Props>(({ name, helperText, ...other }: Props, ref) => {
+	const form = useFormContext();
+
 	const {
 		control,
 		// watch,
 		// setValue,
 		// formState: { isSubmitSuccessful },
-	} = useFormContext();
+	} = form;
 
 	// const values = watch();
 
@@ -34,6 +37,13 @@ const RHFMdxEditor = ({ name, helperText, ...other }: Props) => {
 	// 	}
 	// }, [isSubmitSuccessful, name, setValue, values]);
 
+	// const handleChange = () => {};
+	// const ref = useRef<MDXEditorMethods>(null);
+
+	// useEffect(() => {
+	// 	ref.current
+	// }, [])
+
 	return (
 		<Controller
 			name={name}
@@ -41,9 +51,13 @@ const RHFMdxEditor = ({ name, helperText, ...other }: Props) => {
 			render={({ field, fieldState: { error } }) => {
 				return (
 					<MdxEditor
+						ref={ref}
 						id={name}
 						markdown={field.value}
-						onChange={field.onChange}
+						onChange={(markdown) => {
+							// ref.current?.setMarkdown(markdown);
+							field.onChange(markdown);
+						}}
 						error={!!error}
 						disabled={field.disabled}
 						helperText={
@@ -59,6 +73,6 @@ const RHFMdxEditor = ({ name, helperText, ...other }: Props) => {
 			}}
 		/>
 	);
-};
+});
 
 export default RHFMdxEditor;
