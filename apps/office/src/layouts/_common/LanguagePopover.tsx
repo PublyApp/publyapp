@@ -11,10 +11,6 @@ import Iconify from '@/ui-react/components/Iconify';
 import usePopover from '@/ui-react/hooks/usePopover';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 
-// import CustomPopover, { usePopover } from 'src/components/custom-popover';
-// import Iconify from 'src/components/iconify';
-// import { useLocales, useTranslate } from 'src/locales';
-
 // ----------------------------------------------------------------------
 
 const LanguagePopover = () => {

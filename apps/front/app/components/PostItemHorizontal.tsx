@@ -86,17 +86,7 @@ const PostItemHorizontal = ({ post }: Props) => {
 						src={author.avatarUrl}
 						sx={{ position: 'absolute', top: 16, left: 16, zIndex: 9 }}
 					/>
-					<Image
-						alt={cover?.alternativeText || post.translation.en?.title}
-						src={cover?.url}
-						sx={{ height: 1, borderRadius: 1.5 }}
-					/>
-					{/* <NcImage
-						alt={cover?.alternativeText || post.translation.en?.title}
-						// src={cover?.url || '/assets/images/marketing/marketing_1.jpg'}
-						src={cover?.url}
-						sx={{ height: 1, borderRadius: 1.5 }}
-					/> */}
+					<Image alt={cover?.alternativeText || post.title} src={cover?.url} sx={{ height: 1, borderRadius: 1.5 }} />
 				</Box>
 
 				<Stack
@@ -128,12 +118,12 @@ const PostItemHorizontal = ({ post }: Props) => {
 							sx={{ width: 'fit-content' }}
 						>
 							<TextMaxLine variant="h4" line={2} sx={{ width: 'fit-content' }}>
-								{post.translation.en?.title}
+								{post.title}
 							</TextMaxLine>
 						</Link>
 
 						<TextMaxLine variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
-							{post.translation.en?.description}
+							{post.description}
 						</TextMaxLine>
 
 						<Stack direction="row" /* maxWidth="80%" */ flexWrap="wrap" gap={1}>

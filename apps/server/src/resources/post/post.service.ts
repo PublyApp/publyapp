@@ -624,6 +624,7 @@ export default class PostService {
 				.select([
 					//
 					`translation.${locale}.title`,
+					'slug',
 
 					'author',
 					'author.firstName',

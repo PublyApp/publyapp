@@ -2,53 +2,71 @@ import { forwardRef } from 'react';
 
 import { Link, useLocation, type LinkProps } from '@remix-run/react';
 
+import { appLocales } from '@/shared/lib/i18n/resources';
+import { urlStartWithProtocol } from '@/shared/utils/any.utils';
 import useResponsive from '@/ui-react/hooks/useResponsive';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 
 // ----------------------------------------------------------------------
 
 interface RouterLinkProps extends Omit<LinkProps, 'to'> {
 	href: string;
 	preserveQuery?: boolean;
+	disableAddLocaleToPath?: boolean;
 }
 
-const RouterLink = forwardRef<HTMLAnchorElement, RouterLinkProps>(({ href, preserveQuery = false, ...other }, ref) => {
-	const { search } = useLocation();
-	const isTabletAndMobile = useResponsive('down', 'md');
+const RouterLink = forwardRef<HTMLAnchorElement, RouterLinkProps>(
+	({ href: _href, preserveQuery = false, disableAddLocaleToPath = false, ...other }, ref) => {
+		const { search, pathname } = useLocation();
+		const isTabletAndMobile = useResponsive('down', 'md');
+		const { locale: clientLocale } = useTranslate();
 
-	return (
-		<Link
-			ref={ref}
-			prefetch={isTabletAndMobile ? 'viewport' : 'intent'}
-			to={href + (preserveQuery ? search : '')}
-			{...other}
-		/>
-	);
+		const isExternal = urlStartWithProtocol(_href);
+		const pathLocale = appLocales.find((iLocale) => {
+			return pathname.startsWith(`/${iLocale}`);
+		});
 
-	// const [searchParams] = useSearchParams();
-	// const search = `?${decodeURIComponent(searchParams.toString())}`;
-	// console.log('###', search);
+		let href = _href;
 
-	// const pathname = usePathname();
+		if (!disableAddLocaleToPath && !isExternal && pathLocale) {
+			href = `/${clientLocale}${_href}`;
+		}
 
-	// const url = useMemo(() => {
-	// 	if (!href.startsWith('http://') || !href.startsWith('https://')) {
-	// 		return new URL(window.location.origin + href);
-	// 	}
+		return (
+			<Link
+				ref={ref}
+				prefetch={isTabletAndMobile ? 'viewport' : 'intent'}
+				to={`${href}${preserveQuery ? search : ''}`}
+				{...other}
+			/>
+		);
 
-	// 	return new URL(href);
-	// }, [href]);
+		// const [searchParams] = useSearchParams();
+		// const search = `?${decodeURIComponent(searchParams.toString())}`;
+		// console.log('###', search);
 
-	// if (url.pathname === pathname) {
-	// 	if (!url.search) {
-	// 		return <Link ref={ref} to={href + search} {...other} />;
-	// 	}
+		// const pathname = usePathname();
 
-	// 	return <Link ref={ref} to={href} {...other} />;
-	// }
+		// const url = useMemo(() => {
+		// 	if (!href.startsWith('http://') || !href.startsWith('https://')) {
+		// 		return new URL(window.location.origin + href);
+		// 	}
 
-	// if (!withQuery) {
-	// 	return <Link ref={ref} to={href} {...other} />;
-	// }
-});
+		// 	return new URL(href);
+		// }, [href]);
+
+		// if (url.pathname === pathname) {
+		// 	if (!url.search) {
+		// 		return <Link ref={ref} to={href + search} {...other} />;
+		// 	}
+
+		// 	return <Link ref={ref} to={href} {...other} />;
+		// }
+
+		// if (!withQuery) {
+		// 	return <Link ref={ref} to={href} {...other} />;
+		// }
+	},
+);
 
 export default RouterLink;
