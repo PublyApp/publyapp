@@ -1,4 +1,4 @@
-import type { LoaderFunction } from '@remix-run/node';
+import { json, type LoaderFunction } from '@remix-run/node';
 import _ from 'lodash';
 
 import MainPostContent from '../containers/postDetails/MainPostContent';
@@ -14,10 +14,17 @@ export const loader = getServerLoader(async ({ params, parseApi }) => {
 
 	const [post, relatedPosts] = await Promise.all([postPromise, relatedPostsPromise]);
 
-	return {
-		post,
-		relatedPosts,
-	};
+	return json(
+		{
+			post,
+			relatedPosts,
+		},
+		{
+			headers: {
+				'Cache-Control': 'max-age=3600, public',
+			},
+		},
+	);
 }) satisfies LoaderFunction;
 
 export type SinglePostLoaderFunction = typeof loader;
