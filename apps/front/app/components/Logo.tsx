@@ -1,7 +1,8 @@
 import { memo } from 'react';
 
 import { Box, Link, useTheme, type BoxProps } from '@mui/material';
-import { Link as RouterLink } from '@remix-run/react';
+
+import RouterLink from './RouterLink';
 
 // ----------------------------------------------------------------------
 
@@ -35,7 +36,7 @@ const Logo = ({ single = false, sx }: LogoProps) => {
 	);
 
 	return (
-		<Link component={RouterLink} to="/" color="inherit" aria-label="go to homepage" sx={{ lineHeight: 0 }}>
+		<Link component={RouterLink} href="/" color="inherit" aria-label="go to homepage" sx={{ lineHeight: 0 }}>
 			<Box
 				sx={{
 					width: single ? 64 : 75,
