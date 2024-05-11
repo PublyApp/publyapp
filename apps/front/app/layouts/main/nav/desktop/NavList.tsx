@@ -5,7 +5,7 @@ import { Box, Fade, Unstable_Grid2 as Grid, Link, Portal, Stack } from '@mui/mat
 import { Link as RouterLink, useLocation } from '@remix-run/react';
 
 import useActiveLink from '@/front/hooks/useActiveLink';
-import Image from '@/ui-react/components/Image';
+import Image from '@/ui-react/components/image/Image';
 import Label from '@/ui-react/components/Label';
 
 import type { NavItemBaseProps, NavListProps } from '../types';
