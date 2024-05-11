@@ -1,8 +1,8 @@
 import { forwardRef } from 'react';
 
 import { Link } from '@mui/material';
-import { Link as RouterLink } from '@remix-run/react';
 
+import RouterLink from '@/front/components/RouterLink';
 import Iconify from '@/ui-react/components/Iconify';
 
 import { type NavItemProps } from '../types';
@@ -39,7 +39,7 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
 
 		// Default
 		return (
-			<Link component={RouterLink} to={path} color="inherit" underline="none">
+			<Link component={RouterLink} href={path} color="inherit" underline="none">
 				{renderContent}
 			</Link>
 		);
