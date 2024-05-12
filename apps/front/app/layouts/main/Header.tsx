@@ -1,6 +1,5 @@
-import { AppBar /* Button, */, Box, Container, Link, Stack, Toolbar, useTheme } from '@mui/material';
+import { AppBar /* Button, */, Box, Container, Stack, Toolbar, useTheme } from '@mui/material';
 
-import Label from '@devist/ui-react/components/Label';
 import useOffsetTop from '@devist/ui-react/hooks/useOffsetTop';
 import useResponsive from '@devist/ui-react/hooks/useResponsive';
 
@@ -59,7 +58,7 @@ const Header = ({ headerOnDark }: Props) => {
 					<Box sx={{ lineHeight: 0, position: 'relative' }}>
 						<Logo />
 
-						<Link href="https://zone-docs.vercel.app/changelog" target="_blank" rel="noopener">
+						{/* <Link href="https://zone-docs.vercel.app/changelog" target="_blank" rel="noopener">
 							<Label
 								color="info"
 								sx={{
@@ -75,7 +74,7 @@ const Header = ({ headerOnDark }: Props) => {
 							>
 								v2.0
 							</Label>
-						</Link>
+						</Link> */}
 					</Box>
 
 					{isMdUp && <NavDesktop data={navConfig} />}
