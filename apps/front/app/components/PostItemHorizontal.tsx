@@ -48,9 +48,11 @@ type IPostItem = TranslatedIPostWithRelations;
 type Props = {
 	// post: IPostItem;
 	post: IPostItem;
+	showCommentCount?: boolean;
+	showViewCount?: boolean;
 };
 
-const PostItemHorizontal = ({ post }: Props) => {
+const PostItemHorizontal = ({ post, showCommentCount, showViewCount }: Props) => {
 	// const popover = usePopover();
 
 	// const router = useRouter();
@@ -161,15 +163,19 @@ const PostItemHorizontal = ({ post }: Props) => {
 								color: 'text.disabled',
 							}}
 						>
-							<Stack direction="row" alignItems="center">
-								<Iconify icon="eva:message-circle-fill" width={16} sx={{ mr: 0.5 }} />
-								{fShortenNumber(post.commentCount || 0)}
-							</Stack>
+							{showCommentCount ? (
+								<Stack direction="row" alignItems="center">
+									<Iconify icon="eva:message-circle-fill" width={16} sx={{ mr: 0.5 }} />
+									{fShortenNumber(post.commentCount || 0)}
+								</Stack>
+							) : null}
 
-							<Stack direction="row" alignItems="center">
-								<Iconify icon="solar:eye-bold" width={16} sx={{ mr: 0.5 }} />
-								{fShortenNumber(post.viewCount)}
-							</Stack>
+							{showViewCount ? (
+								<Stack direction="row" alignItems="center">
+									<Iconify icon="solar:eye-bold" width={16} sx={{ mr: 0.5 }} />
+									{fShortenNumber(post.viewCount)}
+								</Stack>
+							) : null}
 
 							{/* <Stack direction="row" alignItems="center">
 								<Iconify icon="solar:share-bold" width={16} sx={{ mr: 0.5 }} />

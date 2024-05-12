@@ -1,4 +1,4 @@
-import { /* Button, */ Unstable_Grid2 as Grid /* Stack */ } from '@mui/material';
+import { /* Button, */ Box, Unstable_Grid2 as Grid /* Stack */, Typography } from '@mui/material';
 // import Grid from '@mui/material/Unstable_Grid2';
 import { nanoid } from 'nanoid';
 
@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 
 import PostItem from '@/front/components/PostItem';
 import { type TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 
 // import PostItemSkeleton from '@/front/components/PostItemSkeleton';
 
@@ -22,6 +23,7 @@ type Props = {
 };
 
 const MorePostList = ({ posts, /* loading, */ disabledIndex = true }: Props) => {
+	const { t } = useTranslate();
 	// const renderSkeleton = (
 	// 	<>
 	// 		{[...Array(16)].map((_) => {
@@ -47,8 +49,11 @@ const MorePostList = ({ posts, /* loading, */ disabledIndex = true }: Props) => 
 	);
 
 	return (
-		<>
-			<Grid container spacing={3} justifyContent="center">
+		<Box>
+			<Typography variant="h3" mb={3}>
+				{t('read-more')}
+			</Typography>
+			<Grid container spacing={3} /* justifyContent="center" */>
 				{/* {loading ? renderSkeleton : renderList} */}
 				{renderList}
 			</Grid>
@@ -70,7 +75,7 @@ const MorePostList = ({ posts, /* loading, */ disabledIndex = true }: Props) => 
 					</Button>
 				</Stack>
 			)} */}
-		</>
+		</Box>
 	);
 };
 

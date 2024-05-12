@@ -52,6 +52,9 @@ const commonEN = {
 	'insufficient-role': 'Insufficient role',
 	'new-post': 'New post',
 	'user-has-no-email': 'User has no email',
+	'an-error-occurred': 'An error occurred',
+	retry: 'Retry',
+	'read-more': 'Read more',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

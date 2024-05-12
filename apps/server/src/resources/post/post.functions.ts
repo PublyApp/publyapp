@@ -149,20 +149,20 @@ const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getGetPostFunctionFrontDetailsViewSchema(z).parse(params);
 	},
-	action: async ({ user, t, locale, params }) => {
+	action: async ({ user, locale, params }) => {
 		const sessionToken = user?.getSessionToken();
 
 		const postService = new PostService({ sessionToken });
 
 		const post = await postService.getOnePostFront(params.slug, { locale });
 
-		if (!post) {
-			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
-		}
+		// if (!post) {
+		// 	throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+		// }
 
-		if (post === 'TRANSLATION_NOT_FOUND') {
-			throw new Parse.Error(Parse.Error.SCRIPT_FAILED, t('item-not-found', { item: t('translation') }));
-		}
+		// if (post === 'TRANSLATION_NOT_FOUND') {
+		// 	throw new Parse.Error(Parse.Error.SCRIPT_FAILED, t('item-not-found', { item: t('translation') }));
+		// }
 
 		return post;
 	},
