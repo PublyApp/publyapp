@@ -554,12 +554,16 @@ export default class PostService {
 			// // 'cover.url',
 
 			`translation.${locale}`,
+			// 'translation',
 		];
 
 		const post = (await this.getBySlug(slug, { include, select, json: true })) as IPostWithRelations;
 
 		if (!post) {
-			return undefined;
+			return {
+				status: 'E_NOT_FOUND' as const,
+				post: undefined,
+			};
 		}
 
 		const translation = post.translation?.[locale];
@@ -573,12 +577,33 @@ export default class PostService {
 		}
 
 		if (!translation) {
-			return 'TRANSLATION_NOT_FOUND' as const;
+			// return 'TRANSLATION_NOT_FOUND' as const;
+			const fallBackLocale = locale === 'en' ? 'fr' : 'en';
+
+			const fallBackPost = await this.getById(post.objectId, {
+				select: [
+					//
+					`translation.${fallBackLocale}.title`,
+					`translation.${fallBackLocale}.description`,
+				],
+			});
+
+			const jsonFallBackPost = PostService.toJSON(fallBackPost!);
+			_.assign(post, jsonFallBackPost);
+			const fallBackTranslation = PostService.toTranslatedIPost(post, fallBackLocale);
+
+			return {
+				status: 'E_NOT_TRANSLATED' as const,
+				post: fallBackTranslation,
+			};
 		}
 
 		const finalPost = PostService.toTranslatedIPost(post, locale);
 
-		return finalPost;
+		return {
+			status: 'SUCCESS' as const,
+			post: finalPost,
+		};
 	}
 
 	async getOnePostBoEdit(id: string) {

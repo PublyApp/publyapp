@@ -54,6 +54,9 @@ const commonFR = {
 	'insufficient-role': 'Rôle insuffisant',
 	'new-post': 'Nouvel article',
 	'user-has-no-email': 'Utilisateur sans email',
+	'an-error-occurred': "Une erreur s'est produite",
+	retry: 'Ré-essayer',
+	'read-more': 'Lire plus',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
