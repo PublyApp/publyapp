@@ -56,10 +56,11 @@ const MainPostContent = () => {
 			return (
 				<Retry
 					message={message}
-					onRetry={() => {
-						revalidate();
-					}}
-					loading={state === 'loading'}
+					hideRetryButton
+					// onRetry={() => {
+					// 	revalidate();
+					// }}
+					// loading={state === 'loading'}
 				/>
 			);
 		}
@@ -70,11 +71,14 @@ const MainPostContent = () => {
 			return (
 				<Retry
 					message={message}
-					onRetry={() => {
-						revalidate();
-					}}
-					loading={state === 'loading'}
-				/>
+					hideRetryButton
+					// onRetry={() => {
+					// 	revalidate();
+					// }}
+					// loading={state === 'loading'}
+				>
+					<h1>Lol</h1>
+				</Retry>
 			);
 		}
 
