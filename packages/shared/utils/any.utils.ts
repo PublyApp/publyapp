@@ -65,3 +65,18 @@ export const urlStartWithProtocol = (url: string) => {
 		return url.startsWith(protocol);
 	});
 };
+
+export const withResolvers = <T = unknown>() => {
+	let resolve: (value: T) => void;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let reject: (reason: any) => void;
+
+	const promise = new Promise((_resolve, _reject) => {
+		resolve = _resolve;
+		reject = _reject;
+	});
+
+	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+	// @ts-ignore
+	return { promise, resolve, reject };
+};
