@@ -27,6 +27,14 @@ namespace Parse {
 		interface TriggerRequest<T = Object> {
 			query: Query<T> | undefined;
 			context: (Record<string, unknown> & { locale?: unknown }) | undefined;
+			headers: Record<string, any> | undefined;
+		}
+
+		interface JobRequest {
+			headers: Record<string, any> | undefined;
+			ip: string | undefined;
+			jobName: string;
+			jobId: string;
 		}
 
 		function define<T extends Params = Params>(name: string, handler: (request: FunctionRequest<T>) => any): void;
