@@ -22,7 +22,7 @@ import {
 	type GetPostBoEditFormQueryParams,
 	// type FindPostQueryParams,
 	// type GetPostByIdQueryParams,
-} from './post.actions';
+} from './blogPost.actions';
 
 // ---- 1 --------------------------------------------------------------------------------
 

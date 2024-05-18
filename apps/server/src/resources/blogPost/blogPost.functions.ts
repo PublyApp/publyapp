@@ -13,10 +13,10 @@ import {
 	getUpdatePostInputSchema,
 } from '@devist/shared/validations/post/post.validations';
 
-import ParsePost from '@/server/lib/parse/classes/post.class';
+import ParsePost from '@/server/lib/parse/classes/blogPost.class';
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
 import FileService from '@/server/resources/file/file.service';
-import PostService from '@/server/resources/post/post.service';
+import PostService from '@/server/resources/post/blogPost.service';
 import UserService from '@/server/resources/user/user.service';
 // import type { IPost } from '@/shared/types/db/post.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';

@@ -3,7 +3,7 @@ import type {
 	FindPostFunction,
 	GetPostFunction,
 	UpdatePostFunction,
-} from '@/server/resources/post/post.functions';
+} from '@/server/resources/blogPost/blogPost.functions';
 import { functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
@@ -26,7 +26,7 @@ export type UpdatePostFunctionParams = Partial<Omit<CreatePostFunctionParams, 'l
 	published?: boolean;
 };
 
-export default class PostEndPoints extends BaseEndPoints {
+export default class BlogPostEndPoints extends BaseEndPoints {
 	constructor({ parseRestClient, apiPath }: BaseEndPointsProps) {
 		super({ parseRestClient, apiPath });
 

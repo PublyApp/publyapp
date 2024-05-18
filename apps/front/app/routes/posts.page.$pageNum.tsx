@@ -16,7 +16,7 @@ import { safelyRunInLoader } from '../lib/remix/safelyRun';
 // export const loader = (async ({ params }) => {
 // 	const pageNum = Number(params.pageNum);
 
-// 	const posts = await safelyRunInLoader(parseApi.posts.findPost)({ page: pageNum });
+// 	const posts = await safelyRunInLoader(parseApi.blogPosts.findPost)({ page: pageNum });
 
 // 	return {
 // 		posts,
@@ -24,9 +24,9 @@ import { safelyRunInLoader } from '../lib/remix/safelyRun';
 // }) satisfies LoaderFunction;
 
 export const clientLoader = (async ({ /* serverLoader, */ params }) => {
-	const tags = safelyRunInLoader(parseApi.posts.findPostTag)();
+	const tags = safelyRunInLoader(parseApi.blogPosts.findPostTag)();
 	// const { posts } = await serverLoader<Awaited<ReturnType<typeof loader>>>();
-	const posts = safelyRunInLoader(parseApi.posts.findPostFrontList)({ page: Number(params.pageNum) });
+	const posts = safelyRunInLoader(parseApi.blogPosts.findPostFrontList)({ page: Number(params.pageNum) });
 
 	return defer({
 		posts,

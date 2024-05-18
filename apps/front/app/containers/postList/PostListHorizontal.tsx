@@ -8,6 +8,9 @@ import { nanoid } from 'nanoid';
 // import type { IPostItem } from '@devist/ui-react/types/blog';
 
 import { _blogCareerPosts } from '@/front/_mock';
+import Retry from '@/front/components/Retry';
+import useTranslate from '@/front/hooks/useTranslate';
+import { isErrorJSON } from '@/front/lib/remix/safelyRun';
 import type { PostListLoaderFunction } from '@/front/routes/posts.page.$pageNum';
 
 import PostItemHorizontal from '../../components/PostItemHorizontal';
@@ -33,6 +36,7 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 	// const loading = false;
 	const { posts } = useLoaderData<PostListLoaderFunction>();
 	// const { state } = useNavigation();
+	const { t } = useTranslate();
 
 	// if (_.isArray(posts)) {
 	// 	posts[0]
@@ -51,6 +55,10 @@ const PostListHorizontal = (/* { posts, loading }: Props */) => {
 			<Await resolve={posts}>
 				{/* eslint-disable-next-line @typescript-eslint/no-shadow */}
 				{(posts) => {
+					if (isErrorJSON(posts)) {
+						return <Retry message={t('an-error-occurred')} />;
+					}
+
 					return !_.isError(posts) ? (
 						posts.map((post) => {
 							return <PostItemHorizontal key={post.objectId} post={post} />;
