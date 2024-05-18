@@ -23,7 +23,7 @@ import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
 // import AppFileSchema from './resources/appFile/appFile.schema';
-// import PostSchema from './resources/blogPost/blogPost.schema';
+// import BlogPostSchema from './resources/blogPost/blogPost.schema';
 // import PostSeriesSchema from './resources/postSeries/postSeries.schema';
 // import RoleSchema from './resources/role/role.schema';
 // import SessionSchema from './resources/session/session.schema';
@@ -78,7 +78,7 @@ const bootstrap = async () => {
 		// 		RoleSchema,
 		// 		UserSchema,
 		// 		SessionSchema,
-		// 		PostSchema,
+		// 		BlogPostSchema,
 		// 		PostSeriesSchema,
 		// 		AppFileSchema,
 		// 		// WebHostSchema,

@@ -6,7 +6,7 @@ import { nanoid } from 'nanoid';
 
 import PostItem from '@/front/components/PostItem';
 import useTranslate from '@/front/hooks/useTranslate';
-import { type TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
+import { type TranslatedIBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
 
 // import PostItemSkeleton from '@/front/components/PostItemSkeleton';
 
@@ -17,7 +17,7 @@ import { type TranslatedIPostWithRelations } from '@/shared/types/db/post.types'
 // ----------------------------------------------------------------------
 
 type Props = {
-	posts: TranslatedIPostWithRelations[];
+	posts: TranslatedIBlogPostWithRelations[];
 	// loading?: boolean;
 	disabledIndex?: boolean;
 };
