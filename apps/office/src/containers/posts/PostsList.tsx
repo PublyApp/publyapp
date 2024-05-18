@@ -29,7 +29,7 @@ import EmptyContent from '@devist/ui-react/components/EmptyContent';
 import PageHeader from '@/office/components/PageHeader';
 import RouterLink from '@/office/components/RouterLink';
 import { env } from '@/office/lib/env';
-import { selectPosts, selectSetPosts } from '@/office/lib/zustand/features/post.slice';
+import { selectPosts, selectSetPosts } from '@/office/lib/zustand/features/blogPost.slice';
 import { useMainStore } from '@/office/lib/zustand/store';
 import { BO_PATH_NAMES, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 // import Iconify from '@/office/components/iconify';
@@ -43,7 +43,7 @@ import Iconify from '@/ui-react/components/Iconify';
 import useBoolean from '@/ui-react/hooks/useBoolean';
 // import useRouter from '@/ui-react/hooks/useRouter';
 import useTranslate from '@/ui-react/hooks/useTranslate';
-import { useFindPostBoTableQuery } from '@/ui-react/lib/react-query/features/posts/post.hooks';
+import { useFindPostBoTableQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
 import type { IProductTableFilters } from '@/ui-react/types/product';
 
 import ProductTableFiltersResult from './ProductTableFiltersResult';

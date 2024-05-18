@@ -1,11 +1,11 @@
 import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
 
-import type { FindPostFunction, GetPostFunction } from '@/server/resources/blogPost/blogPost.functions';
+import type { FindBlogPostFunction, GetBlogPostFunction } from '@/server/resources/blogPost/blogPost.functions';
 import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 import { type IBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
-import type { CreatePostFunctionParams, UpdatePostFunctionParams } from '@/ui-react/api/parse/blogPost.endpoints';
+import type { CreateBlogPostFunctionParams, UpdatePostFunctionParams } from '@/ui-react/api/parse/blogPost.endpoints';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 import { getImageFileFromUrl } from '@/ui-react/utils/image.utils';
 
@@ -32,7 +32,7 @@ export const getCoverFile = async (post: IBlogPostWithRelations) => {
 };
 
 // == createPost ==================
-export type CreatePostActionParams = CreatePostFunctionParams & {
+export type CreatePostActionParams = CreateBlogPostFunctionParams & {
 	coverFile?: File & { preview?: string; appFileId?: string };
 };
 
@@ -58,16 +58,16 @@ export const createPostAction = async (params: CreatePostActionParams) => {
 };
 
 // === findPost in Bo table =================
-export type FindPostBoTableQueryParams = FindPostFunction.BoTable.Params & { locale?: AppLocale };
+export type FindPostBoTableQueryParams = FindBlogPostFunction.BoTable.Params & { locale?: AppLocale };
 
-const findPostQueryKeyBase = functionName.findPostBoTable;
+const findPostQueryKeyBase = functionName.findBlogPostBoTable;
 
 const findPostBoTableAction = async (
 	context: QueryFunctionContext<readonly [typeof findPostQueryKeyBase, FindPostBoTableQueryParams]>,
 ) => {
 	try {
 		const params = context.queryKey[1];
-		const posts = parseApi.blogPosts.findPostBoTable(params);
+		const posts = parseApi.blogPosts.findBlogPostBoTable(params);
 		return await posts;
 	} catch (error) {
 		console.log('----- findPostBoTableAction error ----------', error);
@@ -83,7 +83,7 @@ export const findPostBoTableQuery = (params?: FindPostBoTableQueryParams) => {
 };
 
 // == getPost in Bo Edition form ===================
-export type GetPostBoEditFormQueryParams = GetPostFunction.BoEdit.Params;
+export type GetPostBoEditFormQueryParams = GetBlogPostFunction.BoEdit.Params;
 
 const getPostQueryKeyBase = functionName.getPostBoEdit;
 

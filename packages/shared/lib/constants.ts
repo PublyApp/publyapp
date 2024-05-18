@@ -153,27 +153,27 @@ export const functionName = {
 	// users
 	getUserAuthData: 'getUserAuthData',
 	//
-	getAITools: 'getAITools',
-	createAITool: 'createAITool',
+	// getAITools: 'getAITools',
+	// createAITool: 'createAITool',
 	// Web hosts
-	saveWebHost: 'saveWebHost',
-	findWebHost: 'findWebHost',
+	// saveWebHost: 'saveWebHost',
+	// findWebHost: 'findWebHost',
 	// Files
 	findAppFile: 'findAppFile',
 	createAppFileFolder: 'createAppFileFolder',
 	// Posts
-	createPost: 'createPost',
-	updatePost: 'updatePost',
+	createBlogPost: 'createBlogPost',
+	updateBlogPost: 'updateBlogPost',
 	// getPost: 'getPost',
-	getPostFrontDetails: 'getPostFrontDetails',
-	getPostFrontDetailsRelatedPosts: 'getPostFrontDetailsRelatedPosts',
+	getBlogPostFrontDetails: 'getBlogPostFrontDetails',
+	getBlogPostFrontDetailsRelatedPosts: 'getBlogPostFrontDetailsRelatedPosts',
 	// ==
-	getPostBoEdit: 'getPostBoEdit',
+	getBlogPostBoEdit: 'getBlogPostBoEdit',
 	// findPost: 'findPost',
-	findPostFrontList: 'findPostFrontList',
-	findPostBoTable: 'findPostBoTable',
-	findPostTag: 'findPostTag',
-	findPostFrontDetailsRelatedPosts: 'findPostFrontDetailsRelatedPosts',
+	findBlogPostFrontList: 'findBlogPostFrontList',
+	findBlogPostBoTable: 'findBlogPostBoTable',
+	findBlogPostTag: 'findBlogPostTag',
+	findBlogPostFrontDetailsRelatedPosts: 'findBlogPostFrontDetailsRelatedPosts',
 	// savePost: 'savePost',
 } as const;
 

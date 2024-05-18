@@ -5,7 +5,7 @@ import Box from '@mui/material/Box';
 import Skeleton from '@mui/material/Skeleton';
 import { nanoid } from 'nanoid';
 
-import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
+import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFile/appFile.hooks';
 
 import type { AppFile } from '@/shared/types/db/appFile.types';
 

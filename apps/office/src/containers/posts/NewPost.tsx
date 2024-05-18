@@ -5,12 +5,12 @@ import { useForm } from 'react-hook-form';
 import {
 	getCreatePostInputSchemaClientSide,
 	type CreatePostInputClientSide,
-} from '@devist/shared/validations/post/post.validations.client';
+} from '@devist/shared/validations/blogPost/blogPost.validations.client';
 
 import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import useTranslate from '@/ui-react/hooks/useTranslate';
-import { useCreatePostMutation } from '@/ui-react/lib/react-query/features/posts/post.hooks';
+import { useCreatePostMutation } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
 import zod from '@/ui-react/lib/zod';
 
 import PostForm from './PostForm';
