@@ -31,6 +31,7 @@ type PostTranslation = {
 export type PostAttributes = {
 	// custom fields
 	slug: string;
+	url?: string;
 	published?: boolean;
 	// cover: Media;
 	// cover: string; // cover is a Pointer to parse AppFile
