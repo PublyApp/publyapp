@@ -1,8 +1,8 @@
 import _ from 'lodash';
 
+import postSlice from './features/blogPost.slice';
 import dummySlice from './features/dummy.slice';
 import fileManagerSlice from './features/fileManager.slice';
-import postSlice from './features/post.slice';
 import settingsSlice from './features/settings.slice';
 import type Slice from './utils/Slice';
 

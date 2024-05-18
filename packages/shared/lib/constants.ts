@@ -58,8 +58,8 @@ export const className = {
 	// === Multi Tenancy ===
 	TENANT: 'Tenant',
 	// === Custom classes ===
-	POST: 'Post',
-	POST_SERIES: 'PostSeries',
+	BLOG_POST: 'Post',
+	BLOG_POST_SERIES: 'PostSeries',
 	APP_FILE: 'AppFile',
 	// ==== not use anymore
 	// WEB_HOST: 'WebHost',

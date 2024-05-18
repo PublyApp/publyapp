@@ -22,12 +22,12 @@ import logger, { consoleTransport } from './lib/logger';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
-import AppFileSchema from './resources/appFile/appFile.schema';
-import PostSchema from './resources/post/post.schema';
-import PostSeriesSchema from './resources/postSeries/postSeries.schema';
-import RoleSchema from './resources/role/role.schema';
-import SessionSchema from './resources/session/session.schema';
-import UserSchema from './resources/user/user.schema';
+// import AppFileSchema from './resources/appFile/appFile.schema';
+// import PostSchema from './resources/blogPost/blogPost.schema';
+// import PostSeriesSchema from './resources/postSeries/postSeries.schema';
+// import RoleSchema from './resources/role/role.schema';
+// import SessionSchema from './resources/session/session.schema';
+// import UserSchema from './resources/user/user.schema';
 import customAPIRouter from './router/customAPIRouter';
 
 const bootstrap = async () => {
@@ -72,18 +72,18 @@ const bootstrap = async () => {
 		// =============================================
 		logLevel: 'silly', // this seem to be not working at all
 		allowClientClassCreation: false,
-		schema: {
-			strict: true,
-			definitions: [
-				RoleSchema,
-				UserSchema,
-				SessionSchema,
-				PostSchema,
-				PostSeriesSchema,
-				// WebHostSchema,
-				AppFileSchema,
-			],
-		},
+		// schema: {
+		// 	strict: false, // ! I set this to false intentionally
+		// 	definitions: [
+		// 		RoleSchema,
+		// 		UserSchema,
+		// 		SessionSchema,
+		// 		PostSchema,
+		// 		PostSeriesSchema,
+		// 		AppFileSchema,
+		// 		// WebHostSchema,
+		// 	],
+		// },
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,

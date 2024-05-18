@@ -3,7 +3,7 @@ import { className } from '@devist/shared/lib/constants';
 import { defineSchema } from '@/server/lib/parse/utils';
 import type { IPostWithRelations } from '@/shared/types/db/post.types';
 
-const PostSchema = defineSchema<IPostWithRelations>(className.POST, {
+const PostSchema = defineSchema<IPostWithRelations>(className.BLOG_POST, {
 	fields: {
 		// title: { type: 'String' },
 		slug: { type: 'String' },
@@ -27,9 +27,9 @@ const PostSchema = defineSchema<IPostWithRelations>(className.POST, {
 		// relations
 		author: { type: 'Pointer', targetClass: className.USER, required: true },
 		cover: { type: 'Pointer', targetClass: className.APP_FILE },
-		postSeries: { type: 'Pointer', targetClass: className.POST_SERIES },
+		postSeries: { type: 'Pointer', targetClass: className.BLOG_POST_SERIES },
 		// postSeriesArray: { type: 'Array' },
-		// postSeries: { type: 'Pointer', targetClass: className.POST_SERIES },
+		// postSeries: { type: 'Pointer', targetClass: className.BLOG_POST_SERIES },
 		relatedPosts: { type: 'Array' },
 	},
 });

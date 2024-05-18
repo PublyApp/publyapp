@@ -2,18 +2,18 @@ import type { Dispatch, SetStateAction } from 'react';
 
 import _ from 'lodash';
 
-import type { IPostWithRelations, TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
+import type { IBlogPostWithRelations, TranslatedIBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
 
 import type { RootState } from '../slices';
 import Slice from '../utils/Slice';
 
 export type PostSliceValues = {
 	// edit post page
-	currentlyEditedPost: IPostWithRelations | undefined;
+	currentlyEditedPost: IBlogPostWithRelations | undefined;
 
 	// posts list (table)
-	posts: TranslatedIPostWithRelations[];
-	selectedPosts: TranslatedIPostWithRelations[];
+	posts: TranslatedIBlogPostWithRelations[];
+	selectedPosts: TranslatedIBlogPostWithRelations[];
 };
 
 export type PostSliceActions = {
