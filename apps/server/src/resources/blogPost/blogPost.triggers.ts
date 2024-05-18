@@ -1,10 +1,10 @@
 // import { logger } from 'parse-server';
 
 // import { multiTenantTrigger, parseTrigger } from '@/server/lib/parse';
-// import ParsePost  from '@/shared/lib/parse/classes/post.class';
+// import ParseBlogPost  from '@/shared/lib/parse/classes/post.class';
 
 // Parse.Cloud.beforeFind(
-// 	ParsePost,
+// 	ParseBlogPost,
 // 	parseTrigger({
 // 		trigger: async ({ req, t, locale }) => {
 // 			// logger.info('beforeFind', req);
@@ -20,7 +20,7 @@
 // );
 
 // Parse.Cloud.beforeSave(
-// 	ParsePost,
+// 	ParseBlogPost,
 // 	// parseTrigger({
 // 	// 	trigger: async ({ req, t, locale }) => {
 // 	// 		logger.info('beforeFind', req);

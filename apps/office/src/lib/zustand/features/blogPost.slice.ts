@@ -7,7 +7,7 @@ import type { IBlogPostWithRelations, TranslatedIBlogPostWithRelations } from '@
 import type { RootState } from '../slices';
 import Slice from '../utils/Slice';
 
-export type PostSliceValues = {
+export type BlogPostSliceValues = {
 	// edit post page
 	currentlyEditedPost: IBlogPostWithRelations | undefined;
 
@@ -17,26 +17,26 @@ export type PostSliceValues = {
 };
 
 export type PostSliceActions = {
-	setCurrentlyEditedPost: Dispatch<SetStateAction<PostSliceValues['currentlyEditedPost']>>;
+	setCurrentlyEditedPost: Dispatch<SetStateAction<BlogPostSliceValues['currentlyEditedPost']>>;
 
-	setPosts: Dispatch<SetStateAction<PostSliceValues['posts']>>;
+	setPosts: Dispatch<SetStateAction<BlogPostSliceValues['posts']>>;
 	// addPost: VoidFunction;
 	// removePost: VoidFunction;
 	// updatePost: VoidFunction;
 };
 
-export type PostSliceState = PostSliceValues & PostSliceActions;
+export type BlogPostSliceState = BlogPostSliceValues & PostSliceActions;
 
-const defaultValues: PostSliceValues = {
+const defaultValues: BlogPostSliceValues = {
 	currentlyEditedPost: undefined,
 
 	posts: [],
 	selectedPosts: [],
 };
 
-const sliceName = 'postSlice' as const;
+const sliceName = 'blogPostSlice' as const;
 
-const postSlice = new Slice<PostSliceState, typeof sliceName>({
+const blogPostSlice = new Slice<BlogPostSliceState, typeof sliceName>({
 	name: sliceName,
 	defaultValues,
 	initializer: (set) => {
@@ -45,48 +45,48 @@ const postSlice = new Slice<PostSliceState, typeof sliceName>({
 
 			setCurrentlyEditedPost: (value) => {
 				set((state) => {
-					let newValue: PostSliceValues['currentlyEditedPost'];
+					let newValue: BlogPostSliceValues['currentlyEditedPost'];
 
 					if (_.isFunction(value)) {
-						newValue = value(state.postSlice.currentlyEditedPost);
+						newValue = value(state.blogPostSlice.currentlyEditedPost);
 					} else {
 						newValue = value;
 					}
 
 					// eslint-disable-next-line no-param-reassign
-					state.postSlice.currentlyEditedPost = newValue;
+					state.blogPostSlice.currentlyEditedPost = newValue;
 				});
 			},
 
 			setPosts: (value) => {
 				set((state) => {
-					let newValue: PostSliceValues['posts'];
+					let newValue: BlogPostSliceValues['posts'];
 
 					if (_.isFunction(value)) {
-						newValue = value(state.postSlice.posts);
+						newValue = value(state.blogPostSlice.posts);
 					} else {
 						newValue = value;
 					}
 
 					// eslint-disable-next-line no-param-reassign
-					state.postSlice.posts = newValue;
+					state.blogPostSlice.posts = newValue;
 				});
 			},
 		};
 	},
 });
 
-export default postSlice;
+export default blogPostSlice;
 
 // ---- selectors ------------------------------------------------------------------------
 export const selectCurrentlyEditedPost = (state: RootState) => {
-	return state.postSlice.currentlyEditedPost;
+	return state.blogPostSlice.currentlyEditedPost;
 };
 
 export const selectPosts = (state: RootState) => {
-	return state.postSlice.posts;
+	return state.blogPostSlice.posts;
 };
 
 export const selectSetPosts = (state: RootState) => {
-	return state.postSlice.setPosts;
+	return state.blogPostSlice.setPosts;
 };

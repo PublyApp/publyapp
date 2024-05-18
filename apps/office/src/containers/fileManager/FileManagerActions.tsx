@@ -20,7 +20,7 @@ import {
 	findAppFileQueryKeyString,
 	useCreateAppFileFolder,
 	useUploadManyFilesMutation,
-} from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
+} from '@devist/ui-react/lib/react-query/features/appFile/appFile.hooks';
 import z from '@devist/ui-react/lib/zod';
 
 // import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';

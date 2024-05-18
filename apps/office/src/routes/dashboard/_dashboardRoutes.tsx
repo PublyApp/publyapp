@@ -12,7 +12,7 @@ import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
-import { getPostBoEditFormQuery } from '@/ui-react/lib/react-query/features/posts/post.actions';
+import { getPostBoEditFormQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.actions';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
 import LoadingScreen from '../../components/LoadingScreen';
