@@ -63,7 +63,7 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 		return post;
 	}
 
-	async getPostBoEditForm(params: GetBlogPostFunction.BoEdit.Params) {
+	async getBlogPostBoEditForm(params: GetBlogPostFunction.BoEdit.Params) {
 		const post = await this.parseRestClient.cloudRun<
 			GetBlogPostFunction.BoEdit.Return,
 			GetBlogPostFunction.BoEdit.Params
