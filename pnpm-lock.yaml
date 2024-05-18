@@ -134,6 +134,9 @@ importers:
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
+      numeral:
+        specifier: ^2.0.6
+        version: 2.0.6
       parse:
         specifier: ^5.0.0
         version: 5.0.0
@@ -177,6 +180,9 @@ importers:
       '@types/lodash':
         specifier: ^4.14.202
         version: 4.17.0
+      '@types/numeral':
+        specifier: ^2.0.5
+        version: 2.0.5
       '@types/parse':
         specifier: ^3.0.9
         version: 3.0.9

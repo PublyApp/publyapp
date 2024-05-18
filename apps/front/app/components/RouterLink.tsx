@@ -5,7 +5,8 @@ import { Link, useLocation, type LinkProps } from '@remix-run/react';
 import { appLocales } from '@/shared/lib/i18n/resources';
 import { urlStartWithProtocol } from '@/shared/utils/any.utils';
 import useResponsive from '@/ui-react/hooks/useResponsive';
-import useTranslate from '@/ui-react/hooks/useTranslate';
+
+import useTranslate from '../hooks/useTranslate';
 
 // ----------------------------------------------------------------------
 

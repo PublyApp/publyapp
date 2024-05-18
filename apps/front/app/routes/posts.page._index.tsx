@@ -8,13 +8,6 @@ export const loader: LoaderFunction = getServerLoader(async ({ _locale }) => {
 	const prefix = _locale ? `/${_locale}` : '';
 	return redirect(prefix + FRONT_PATH_NAMES.posts.page(1), 301);
 });
-// async ({ params }) => {
-// 	const locale = returnLanguageIfSupported(params.locale);
-
-// 	const prefix = locale ? `/${locale}` : '';
-
-// 	return redirect(prefix + FRONT_PATH_NAMES.posts.page(1), 301);
-// };
 
 const Page = () => {
 	return null;

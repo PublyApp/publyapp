@@ -27,13 +27,9 @@ import Error500 from './components/Error500';
 import ClientStyleContext from './contexts/ClientStyleContext';
 import CompactLayout from './layouts/compact/CompactLayout';
 import MainLayout from './layouts/main/MainLayout';
-// import { returnLanguageIfSupported } from './lib/i18n/i18n';
-// import { returnLanguageIfSupported } from './lib/i18n/i18n';
-// import i18next from './lib/i18n/i18next.server';
 import { getServerLoader } from './lib/remix/getServerLoader';
 
 // import { initParse } from './lib/parse/client';
-
 // import { initParse } from './lib/parse/legacy';
 
 interface DocumentProps {
@@ -43,13 +39,6 @@ interface DocumentProps {
 
 // initParse();
 
-// export const loader = async ({ request, params, context }: LoaderFunctionArgs) => {
-// 	const lang = returnLanguageIfSupported(params.lang);
-// 	const locale = lang ?? (await i18next.getLocale(request));
-
-// 	return json({ locale });
-// 	// return { locale };
-// };
 export const loader = getServerLoader(async ({ locale }) => {
 	return json({ locale });
 });
