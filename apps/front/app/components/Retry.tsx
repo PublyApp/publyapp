@@ -9,12 +9,13 @@ import useTranslate from '../hooks/useTranslate';
 
 type Props = {
 	message: string;
+	description?: string;
 	onRetry?: MouseEventHandler;
 	loading?: boolean;
 	hideRetryButton?: boolean;
 } & ContainerProps;
 
-const Retry = ({ message, onRetry, loading, sx, hideRetryButton, children, ...other }: Props) => {
+const Retry = ({ message, description, onRetry, loading, sx, hideRetryButton, children, ...other }: Props) => {
 	const { t } = useTranslate();
 
 	return (
@@ -30,10 +31,10 @@ const Retry = ({ message, onRetry, loading, sx, hideRetryButton, children, ...ot
 			}}
 			{...other}
 		>
-			<Typography variant="h3" mb={3}>
+			<Typography variant="h3" mb={!description ? 3 : 0}>
 				{message}
 			</Typography>
-			{/* <p>{description}</p> */}
+			{description ? <Typography mb={description ? 3 : 0}>{description}</Typography> : null}
 			{!hideRetryButton ? (
 				<LoadingButton
 					size="large"
