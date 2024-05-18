@@ -7,11 +7,11 @@ import { useParams } from 'react-router-dom';
 import {
 	getUpdatePostInputSchemaClientSide,
 	type UpdatePostInputClientSide,
-} from '@devist/shared/validations/post/post.validations.client';
+} from '@devist/shared/validations/blogPost/blogPost.validations.client';
 import {
 	useGetPostByIdSuspenseQuery,
 	useUpdatePostMutation,
-} from '@devist/ui-react/lib/react-query/features/posts/post.hooks';
+} from '@devist/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
 
 import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';

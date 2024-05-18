@@ -1,9 +1,9 @@
 import { className } from '@devist/shared/lib/constants';
 
 import { defineSchema } from '@/server/lib/parse/utils';
-import type { IPostWithRelations } from '@/shared/types/db/post.types';
+import type { IBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
 
-const PostSchema = defineSchema<IPostWithRelations>(className.BLOG_POST, {
+const BlogPostSchema = defineSchema<IBlogPostWithRelations>(className.BLOG_POST, {
 	fields: {
 		// title: { type: 'String' },
 		slug: { type: 'String' },
@@ -34,4 +34,4 @@ const PostSchema = defineSchema<IPostWithRelations>(className.BLOG_POST, {
 	},
 });
 
-export default PostSchema;
+export default BlogPostSchema;

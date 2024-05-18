@@ -19,7 +19,7 @@ import { nanoid } from 'nanoid';
 // import type { IPostItem } from '@devist/ui-react/types/blog';
 // import { nanoid } from 'nanoid';
 
-import type { TranslatedIPostWithRelations } from '@devist/shared/types/db/post.types';
+import type { TranslatedIBlogPostWithRelations } from '@devist/shared/types/db/blogPost.types';
 import { getUserFullName } from '@devist/shared/utils/user.utils';
 import { fDate } from '@devist/ui-react/utils/date.utils';
 import { fShortenNumber } from '@devist/ui-react/utils/number.utils';
@@ -44,7 +44,7 @@ import { pxToRem } from '@/ui-react/utils/css.utils';
 // 	author: IUserWithRelations;
 // 	commentsCount?: number;
 // };
-type IPostItem = TranslatedIPostWithRelations;
+type IPostItem = TranslatedIBlogPostWithRelations;
 
 type Props = {
 	// post: IPostItem;

@@ -2,23 +2,18 @@ import _ from 'lodash';
 
 import { functionName, roleSet } from '@devist/shared/lib/constants';
 import {
-	// findOnePostView,
-	// findPostView,
 	getCreatePostInputSchema,
 	getFindPostFunctionBoTableParamsSchema,
-	// getFindOnePostFunctionParamsSchema,
-	// getFindPostFunctionParamsSchema,
 	getGetPostFunctionBackOfficeEditFormSchema,
 	getGetPostFunctionFrontDetailsViewSchema,
 	getUpdatePostInputSchema,
-} from '@devist/shared/validations/post/post.validations';
+} from '@devist/shared/validations/blogPost/blogPost.validations';
 
 import ParsePost from '@/server/lib/parse/classes/blogPost.class';
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
+import BlogPostService from '@/server/resources/blogPost/blogPost.service';
 import FileService from '@/server/resources/file/file.service';
-import PostService from '@/server/resources/post/blogPost.service';
 import UserService from '@/server/resources/user/user.service';
-// import type { IPost } from '@/shared/types/db/post.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 
 export namespace CreatePostFunction {
@@ -35,7 +30,7 @@ const createPostFunction = parseFunctionEnhanced({
 
 		const sessionToken = user.getSessionToken();
 
-		const postService = new PostService({ sessionToken });
+		const postService = new BlogPostService({ sessionToken });
 		const fileService = new FileService({ sessionToken, uploadAdapter: FileService.defaultUploadAdapter });
 		const userService = new UserService({ sessionToken });
 
@@ -54,7 +49,7 @@ const createPostFunction = parseFunctionEnhanced({
 			cover: await coverPromise,
 		});
 
-		const finalPost = PostService.toJSON(post);
+		const finalPost = BlogPostService.toJSON(post);
 		return finalPost;
 	},
 });
@@ -74,7 +69,7 @@ const updatePostFunction = parseFunctionEnhanced({
 
 		const sessionToken = user.getSessionToken();
 
-		const postService = new PostService({ sessionToken });
+		const postService = new BlogPostService({ sessionToken });
 		const userService = new UserService({ sessionToken });
 		const fileService = new FileService({ sessionToken, uploadAdapter: FileService.defaultUploadAdapter });
 
@@ -94,7 +89,7 @@ const updatePostFunction = parseFunctionEnhanced({
 			cover: await coverPromise,
 		});
 
-		const finalPost = PostService.toJSON(updatedPost);
+		const finalPost = BlogPostService.toJSON(updatedPost);
 		return finalPost;
 	},
 });
@@ -119,7 +114,7 @@ const getPostFunctionBoEditForm = parseFunctionEnhanced({
 	action: async ({ user, t, /* locale, */ params }) => {
 		const sessionToken = user?.getSessionToken();
 
-		const postService = new PostService({ sessionToken });
+		const postService = new BlogPostService({ sessionToken });
 
 		// if (params.view === findOnePostView.frontDetail) {
 		// 	const post = await postService.getOnePostFront(params.slug, { locale });
@@ -128,17 +123,17 @@ const getPostFunctionBoEditForm = parseFunctionEnhanced({
 		// 		throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
 		// 	}
 
-		// 	return PostService.toJSON(post);
+		// 	return BlogPostService.toJSON(post);
 		// }
 
 		// if (params.view === findOnePostView.boEditForm) {
-		const post = await postService.getOnePostBoEdit(params.id);
+		const post = await postService.getOneBlogPostBoEdit(params.id);
 
 		if (!post) {
 			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
 		}
 
-		return PostService.toJSON(post);
+		return BlogPostService.toJSON(post);
 		// }
 
 		// throw new Error(t('item-is-invalid', { item: 'view' }));
@@ -152,9 +147,9 @@ const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
 	action: async ({ user, locale, params }) => {
 		const sessionToken = user?.getSessionToken();
 
-		const postService = new PostService({ sessionToken });
+		const postService = new BlogPostService({ sessionToken });
 
-		const post = await postService.getOnePostFront(params.slug, { locale });
+		const post = await postService.getOneBlogPostFront(params.slug, { locale });
 
 		// if (!post) {
 		// 	throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
@@ -192,7 +187,7 @@ const finPostFrontDetailsRelatedPosts = parseFunctionEnhanced({
 	},
 	action: async ({ locale, params }) => {
 		// return [];
-		const postService = new PostService({});
+		const postService = new BlogPostService({});
 
 		const post = await postService.getBySlug(params.slug, {
 			select: ['relatedPosts', 'tags'],
@@ -200,7 +195,7 @@ const finPostFrontDetailsRelatedPosts = parseFunctionEnhanced({
 			// json: true,
 		});
 
-		const relatedPosts = await postService.findRelatedPostsFrontDetails(post, { locale });
+		const relatedPosts = await postService.findRelatedBlogPostsFrontDetails(post, { locale });
 
 		return relatedPosts;
 	},
@@ -214,7 +209,7 @@ const findPostFunctionBoTable = parseFunctionEnhanced({
 		const { page, pageSize, sorting, ...params } = _params; /* getFindPostFunctionParamsSchema(z).parse(req.params); */
 
 		const sessionToken = user?.getSessionToken();
-		const postService = new PostService({ sessionToken /* , headers: req.headers */ });
+		const postService = new BlogPostService({ sessionToken /* , headers: req.headers */ });
 
 		// if (params.view === findPostView.frontList) {
 		// 	const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
@@ -222,7 +217,7 @@ const findPostFunctionBoTable = parseFunctionEnhanced({
 		// }
 
 		// if (params.view === findPostView.boTable) {
-		const posts = await postService.findPostBoTable({
+		const posts = await postService.findBlogPostBoTable({
 			page,
 			pageSize,
 			sorting,
@@ -245,10 +240,10 @@ const findPostFunctionFrontList = parseFunctionEnhanced({
 			_params; /* getFindPostFunctionParamsSchema(z).parse(req.params); */
 
 		const sessionToken = user?.getSessionToken();
-		const postService = new PostService({ sessionToken /* , headers: req.headers */ });
+		const postService = new BlogPostService({ sessionToken /* , headers: req.headers */ });
 
 		// if (params.view === findPostView.frontList) {
-		const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
+		const posts = await postService.findBlogPostFrontList({ page, pageSize, sorting, locale });
 		return posts;
 		// }
 	},
