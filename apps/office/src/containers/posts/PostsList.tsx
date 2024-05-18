@@ -127,14 +127,18 @@ const ProductListView = () => {
 
 	const canReset = !_.isEqual(defaultFilters, filters);
 
-	const handleFilters = useCallback((name: string, value: IProductTableFilterValue) => {
-		setFilters((prevState) => {
-			return {
-				...prevState,
-				[name]: value,
-			};
-		});
-	}, []);
+	const handleFilters = useCallback(
+		(/* name: string, value: IProductTableFilterValue */) => {
+			// ! do nothing for now
+			// setFilters((prevState) => {
+			// 	return {
+			// 		...prevState,
+			// 		[name]: value,
+			// 	};
+			// });
+		},
+		[],
+	);
 
 	const handleResetFilters = useCallback(() => {
 		setFilters(defaultFilters);
