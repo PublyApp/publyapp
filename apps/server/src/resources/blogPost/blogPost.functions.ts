@@ -2,11 +2,11 @@ import _ from 'lodash';
 
 import { functionName, roleSet } from '@devist/shared/lib/constants';
 import {
-	getCreatePostInputSchema,
-	getFindPostFunctionBoTableParamsSchema,
-	getGetPostFunctionBackOfficeEditFormSchema,
-	getGetPostFunctionFrontDetailsViewSchema,
-	getUpdatePostInputSchema,
+	getCreateBlogPostInputSchema,
+	getFindBlogPostFunctionBoTableParamsSchema,
+	getGetBlogPostFunctionBackOfficeEditFormSchema,
+	getGetBlogPostFunctionFrontDetailsViewSchema,
+	getUpdateBlogPostInputSchema,
 } from '@devist/shared/validations/blogPost/blogPost.validations';
 
 import ParseBlogPost from '@/server/lib/parse/classes/blogPost.class';
@@ -25,7 +25,7 @@ const createBlogPostFunction = parseFunctionEnhanced({
 	requireUser: true,
 	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
 	action: async ({ req, user, z }) => {
-		const createPostInputSchema = getCreatePostInputSchema(z);
+		const createPostInputSchema = getCreateBlogPostInputSchema(z);
 		const { coverId, authorId, ...input } = createPostInputSchema.parse(req.params);
 
 		const sessionToken = user.getSessionToken();
@@ -63,7 +63,7 @@ const updateBlogPostFunction = parseFunctionEnhanced({
 	requireUser: true,
 	// allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
 	action: async ({ req, user, z, t }) => {
-		const updatePostInputSchema = getUpdatePostInputSchema(z);
+		const updatePostInputSchema = getUpdateBlogPostInputSchema(z);
 		const params = updatePostInputSchema.parse(req.params);
 		const { coverId, authorId, objectId, ...input } = params;
 
@@ -109,7 +109,7 @@ export namespace GetBlogPostFunction {
 
 const getBlogPostFunctionBoEditForm = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
-		return getGetPostFunctionBackOfficeEditFormSchema(z).parse(params);
+		return getGetBlogPostFunctionBackOfficeEditFormSchema(z).parse(params);
 	},
 	action: async ({ user, t, /* locale, */ params }) => {
 		const sessionToken = user?.getSessionToken();
@@ -142,7 +142,7 @@ const getBlogPostFunctionBoEditForm = parseFunctionEnhanced({
 
 const getBlogPostFunctionFrontDetailsView = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
-		return getGetPostFunctionFrontDetailsViewSchema(z).parse(params);
+		return getGetBlogPostFunctionFrontDetailsViewSchema(z).parse(params);
 	},
 	action: async ({ user, locale, params }) => {
 		const sessionToken = user?.getSessionToken();
@@ -183,7 +183,7 @@ export namespace FindBlogPostFunction {
 
 const finBlogPostFrontDetailsRelatedPosts = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
-		return getGetPostFunctionFrontDetailsViewSchema(z).parse(params);
+		return getGetBlogPostFunctionFrontDetailsViewSchema(z).parse(params);
 	},
 	action: async ({ locale, params }) => {
 		// return [];
@@ -203,7 +203,7 @@ const finBlogPostFrontDetailsRelatedPosts = parseFunctionEnhanced({
 
 const findPostFunctionBoTable = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
-		return getFindPostFunctionBoTableParamsSchema(z).parse(params);
+		return getFindBlogPostFunctionBoTableParamsSchema(z).parse(params);
 	},
 	action: async ({ /* req, */ user, locale, params: _params }) => {
 		const { page, pageSize, sorting, ...params } = _params; /* getFindPostFunctionParamsSchema(z).parse(req.params); */

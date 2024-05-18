@@ -43,7 +43,7 @@ import Iconify from '@/ui-react/components/Iconify';
 import useBoolean from '@/ui-react/hooks/useBoolean';
 // import useRouter from '@/ui-react/hooks/useRouter';
 import useTranslate from '@/ui-react/hooks/useTranslate';
-import { useFindPostBoTableQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
+import { useFindBlogPostBoTableQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
 import type { IProductTableFilters } from '@/ui-react/types/product';
 
 import ProductTableFiltersResult from './ProductTableFiltersResult';
@@ -98,7 +98,7 @@ const ProductListView = () => {
 	// const { products, productsLoading } = useGetProducts();
 	const {
 		result: { data: findPostData, /* isLoading: isFindPostLoading, */ isFetching: isFindPostFetching },
-	} = useFindPostBoTableQuery({ params: { fromPublic: false } });
+	} = useFindBlogPostBoTableQuery({ params: { fromPublic: false } });
 
 	// const [tableData, setTableData] = useState<IProductItem[]>([]);
 

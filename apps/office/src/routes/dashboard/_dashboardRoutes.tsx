@@ -12,7 +12,7 @@ import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
-import { getPostBoEditFormQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.actions';
+import { getBlogPostBoEditFormQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.actions';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
 import LoadingScreen from '../../components/LoadingScreen';
@@ -150,7 +150,7 @@ export const dashboardRoutes: RouteObject[] = [
 									{
 										path: getLastPath(BO_PATH_NAMES.dashboard.posts.edit(':postId'), 2),
 										loader: getRouteLoader(async ({ params }) => {
-											const getPostByIdQuery = getPostBoEditFormQuery({ id: params.postId ?? '' });
+											const getPostByIdQuery = getBlogPostBoEditFormQuery({ id: params.postId ?? '' });
 
 											const cachedPost = defaultQueryClient.getQueryData(getPostByIdQuery.queryKey);
 

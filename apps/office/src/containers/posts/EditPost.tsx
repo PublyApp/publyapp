@@ -5,12 +5,12 @@ import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 
 import {
-	getUpdatePostInputSchemaClientSide,
-	type UpdatePostInputClientSide,
+	getUpdateBlogPostInputSchemaClientSide,
+	type UpdateBlogPostInputClientSide,
 } from '@devist/shared/validations/blogPost/blogPost.validations.client';
 import {
-	useGetPostByIdSuspenseQuery,
-	useUpdatePostMutation,
+	useGetBlogPostByIdSuspenseQuery,
+	useUpdateBlogPostMutation,
 } from '@devist/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
 
 import PageHeader from '@/office/components/PageHeader';
@@ -26,15 +26,15 @@ const EditPost = () => {
 	const { lang, t } = useTranslate();
 	const params = useParams();
 
-	const savePostInputSchema = getUpdatePostInputSchemaClientSide(zod);
+	const savePostInputSchema = getUpdateBlogPostInputSchemaClientSide(zod);
 
 	const {
 		result: { data: post },
-	} = useGetPostByIdSuspenseQuery({ params: { id: params.postId || '' } });
+	} = useGetBlogPostByIdSuspenseQuery({ params: { id: params.postId || '' } });
 
 	const {
 		result: { mutateAsync: updatePostAsync, isPending: isUpdatePostPending },
-	} = useUpdatePostMutation({
+	} = useUpdateBlogPostMutation({
 		onSuccess: () => {},
 	});
 
@@ -46,7 +46,7 @@ const EditPost = () => {
 	// 	return post.updateDate ? new Date(post.updateDate) : undefined;
 	// }, [post.updateDate]);
 
-	const updatePostForm = useForm<UpdatePostInputClientSide>({
+	const updatePostForm = useForm<UpdateBlogPostInputClientSide>({
 		resolver: zodResolver(savePostInputSchema),
 		values: {
 			objectId: post.objectId,
