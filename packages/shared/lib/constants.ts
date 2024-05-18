@@ -2,6 +2,8 @@ import _ from 'lodash';
 
 import { imageFormatTypes } from '@/shared/types/db/appFile.types';
 
+import type { AppLocale } from './i18n/resources';
+
 // import { checkIsBrowser, checkIsServer } from '../utils/env.utils';
 
 export type IRoleConfig = {
@@ -111,8 +113,8 @@ export const FRONT_PATH_NAMES = {
 		page: (pageNum: number) => {
 			return makePath(RESOURCE.posts, 'page', String(pageNum));
 		},
-		details: (postSlug: string) => {
-			return makePath(RESOURCE.posts, postSlug);
+		details: (postSlug: string, locale?: AppLocale) => {
+			return makePath(locale || '', RESOURCE.posts, postSlug);
 		},
 		preview: (postId: string) => {
 			return makePath(RESOURCE.posts, 'preview', postId);
