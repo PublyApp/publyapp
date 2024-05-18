@@ -12,34 +12,34 @@ import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 
 import {
-	createPostAction,
-	createPostMutationKeyBase,
-	findPostBoTableQuery,
-	getPostBoEditFormQuery,
-	updatePostAction,
-	updatePostMutationKeyBase,
-	type FindPostBoTableQueryParams,
-	type GetPostBoEditFormQueryParams,
-	// type FindPostQueryParams,
-	// type GetPostByIdQueryParams,
+	createBlogPostAction,
+	createBlogPostMutationKeyBase,
+	findBlogPostBoTableQuery,
+	getBlogPostBoEditFormQuery,
+	updateBlogPostAction,
+	updateBlogPostMutationKeyBase,
+	type FindBlogPostBoTableQueryParams,
+	type GetBlogPostBoEditFormQueryParams,
+	// type FindBlogPostQueryParams,
+	// type GetBlogPostByIdQueryParams,
 } from './blogPost.actions';
 
 // ---- 1 --------------------------------------------------------------------------------
 
-export const useCreatePostMutation = () => {
+export const useCreateBlogPostMutation = () => {
 	const { enqueueSnackbar } = useSnackbar();
 	const navigate = useNavigate();
 	// const queryClient = useQueryClient();
 
-	const key = [createPostMutationKeyBase] as const;
+	const key = [createBlogPostMutationKeyBase] as const;
 
 	const result = useMutation({
 		mutationKey: key,
-		mutationFn: createPostAction,
+		mutationFn: createBlogPostAction,
 		onSuccess: async (data /* , variables, context */) => {
 			enqueueSnackbar({ variant: 'success', message: 'New post created' });
-			// queryClient.setQueryData([getPostQueryKeyBase, { id: data.objectId }], data);
-			// queryClient.invalidateQueries({ queryKey: [findPostQueryKeyBase] });
+			// queryClient.setQueryData([getBlogPostQueryKeyBase, { id: data.objectId }], data);
+			// queryClient.invalidateQueries({ queryKey: [findBlogPostQueryKeyBase] });
 			navigate(BO_PATH_NAMES.dashboard.posts.edit(data.objectId));
 		},
 		onError: async (error /* , variables, context */) => {
@@ -61,13 +61,13 @@ export const useCreatePostMutation = () => {
 
 // ---- 2 --------------------------------------------------------------------------------
 
-type UseGetPostByIdSuspenseQueryProps = {
-	params: GetPostBoEditFormQueryParams;
-	options?: Omit<ReturnType<typeof getPostBoEditFormQuery>, 'queryKey' | 'queryFn'>;
+type UseGetBlogPostByIdSuspenseQueryProps = {
+	params: GetBlogPostBoEditFormQueryParams;
+	options?: Omit<ReturnType<typeof getBlogPostBoEditFormQuery>, 'queryKey' | 'queryFn'>;
 };
 
-export const useGetPostByIdSuspenseQuery = (props: UseGetPostByIdSuspenseQueryProps) => {
-	const query = getPostBoEditFormQuery(props.params);
+export const useGetBlogPostByIdSuspenseQuery = (props: UseGetBlogPostByIdSuspenseQueryProps) => {
+	const query = getBlogPostBoEditFormQuery(props.params);
 
 	const result = useSuspenseQuery({
 		...query,
@@ -82,15 +82,15 @@ export const useGetPostByIdSuspenseQuery = (props: UseGetPostByIdSuspenseQueryPr
 
 // ---- 3 --------------------------------------------------------------------------------
 
-type UseFindPostQueryProps = {
-	params: Omit<FindPostBoTableQueryParams, 'locale'>;
-	options?: Omit<ReturnType<typeof findPostBoTableQuery>, 'queryKey' | 'queryFn'>;
+type UseFindBlogPostQueryProps = {
+	params: Omit<FindBlogPostBoTableQueryParams, 'locale'>;
+	options?: Omit<ReturnType<typeof findBlogPostBoTableQuery>, 'queryKey' | 'queryFn'>;
 };
 
-export const useFindPostBoTableSuspenseQuery = (props: UseFindPostQueryProps) => {
+export const useFindBlogPostBoTableSuspenseQuery = (props: UseFindBlogPostQueryProps) => {
 	const { locale } = useTranslate();
 
-	const query = findPostBoTableQuery({ ...props.params, locale });
+	const query = findBlogPostBoTableQuery({ ...props.params, locale });
 
 	const result = useSuspenseQuery({
 		...query,
@@ -103,10 +103,10 @@ export const useFindPostBoTableSuspenseQuery = (props: UseFindPostQueryProps) =>
 	};
 };
 
-export const useFindPostBoTableQuery = (props: UseFindPostQueryProps) => {
+export const useFindBlogPostBoTableQuery = (props: UseFindBlogPostQueryProps) => {
 	const { locale } = useTranslate();
 
-	const query = findPostBoTableQuery({ ...props.params, locale });
+	const query = findBlogPostBoTableQuery({ ...props.params, locale });
 
 	const result = useQuery({
 		...query,
@@ -120,25 +120,29 @@ export const useFindPostBoTableQuery = (props: UseFindPostQueryProps) => {
 };
 
 // ---- 4 --------------------------------------------------------------------------------
-type UseUpdatePostMutationProps = Omit<
-	UseMutationOptions<Awaited<ReturnType<typeof updatePostAction>>, Error, Parameters<typeof updatePostAction>[0]>,
+type UseUpdateBlogPostMutationProps = Omit<
+	UseMutationOptions<
+		Awaited<ReturnType<typeof updateBlogPostAction>>,
+		Error,
+		Parameters<typeof updateBlogPostAction>[0]
+	>,
 	'mutationKey' | 'mutationFn'
 >;
 
-export const useUpdatePostMutation = (props: UseUpdatePostMutationProps = {}) => {
+export const useUpdateBlogPostMutation = (props: UseUpdateBlogPostMutationProps = {}) => {
 	const { onError, onSuccess, ...otherProps } = props;
 	const { enqueueSnackbar } = useSnackbar();
 	const queryClient = useQueryClient();
 
-	const key = [updatePostMutationKeyBase] as const;
+	const key = [updateBlogPostMutationKeyBase] as const;
 
 	const result = useMutation({
 		mutationKey: key,
-		mutationFn: updatePostAction,
+		mutationFn: updateBlogPostAction,
 		onSuccess: (data, variables, context) => {
-			enqueueSnackbar({ variant: 'success', message: 'Post updated' });
-			queryClient.invalidateQueries({ queryKey: getPostBoEditFormQuery({ id: data.objectId }).queryKey });
-			queryClient.invalidateQueries({ queryKey: getPostBoEditFormQuery().queryKey });
+			enqueueSnackbar({ variant: 'success', message: 'BlogPost updated' });
+			queryClient.invalidateQueries({ queryKey: getBlogPostBoEditFormQuery({ id: data.objectId }).queryKey });
+			queryClient.invalidateQueries({ queryKey: getBlogPostBoEditFormQuery().queryKey });
 			onSuccess?.(data, variables, context);
 		},
 		onError: async (error, variables, context) => {

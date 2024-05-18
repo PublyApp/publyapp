@@ -27,7 +27,7 @@ describe('Post endpoints', async () => {
 	// });
 
 	await it('should create a post', async () => {
-		const post = await parseApi.blogPosts.createPost({
+		const post = await parseApi.blogPosts.createBlogPost({
 			content: 'content',
 			description: 'description',
 			locale: 'en',
@@ -47,7 +47,7 @@ describe('Post endpoints', async () => {
 
 	it('should return a post', async () => {
 		// assert.equal(1, 1);
-		const post = await parseApi.blogPosts.getPostBoEditForm({ id: myPostId });
+		const post = await parseApi.blogPosts.getBlogPostBoEditForm({ id: myPostId });
 
 		expect(post).to.be.an('object');
 		expect(post).to.have.property('objectId');

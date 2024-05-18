@@ -5,7 +5,10 @@ import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 import { type IBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
-import type { CreateBlogPostFunctionParams, UpdatePostFunctionParams } from '@/ui-react/api/parse/blogPost.endpoints';
+import type {
+	CreateBlogPostFunctionParams,
+	UpdateBlogPostFunctionParams,
+} from '@/ui-react/api/parse/blogPost.endpoints';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 import { getImageFileFromUrl } from '@/ui-react/utils/image.utils';
 
@@ -31,14 +34,14 @@ export const getCoverFile = async (post: IBlogPostWithRelations) => {
 	return coverFile;
 };
 
-// == createPost ==================
-export type CreatePostActionParams = CreateBlogPostFunctionParams & {
+// == createBlogPost ==================
+export type CreateBlogPostActionParams = CreateBlogPostFunctionParams & {
 	coverFile?: File & { preview?: string; appFileId?: string };
 };
 
-export const createPostMutationKeyBase = functionName.createPost;
+export const createBlogPostMutationKeyBase = functionName.createBlogPost;
 
-export const createPostAction = async (params: CreatePostActionParams) => {
+export const createBlogPostAction = async (params: CreateBlogPostActionParams) => {
 	try {
 		const { coverFile, ...restParams } = params;
 
@@ -49,52 +52,52 @@ export const createPostAction = async (params: CreatePostActionParams) => {
 			// Object.assign(coverFile, { appFileId: uploadResult.objectId });
 		}
 
-		const post = await parseApi.blogPosts.createPost({ ...restParams, coverId: uploadResult?.objectId });
+		const post = await parseApi.blogPosts.createBlogPost({ ...restParams, coverId: uploadResult?.objectId });
 		return post;
 	} catch (error) {
-		console.log('----- createPostAction error ----------', error);
+		console.log('----- createBlogPostAction error ----------', error);
 		return Promise.reject(error);
 	}
 };
 
-// === findPost in Bo table =================
-export type FindPostBoTableQueryParams = FindBlogPostFunction.BoTable.Params & { locale?: AppLocale };
+// === findBlogPost in Bo table =================
+export type FindBlogPostBoTableQueryParams = FindBlogPostFunction.BoTable.Params & { locale?: AppLocale };
 
-const findPostQueryKeyBase = functionName.findBlogPostBoTable;
+const findBlogPostQueryKeyBase = functionName.findBlogPostBoTable;
 
-const findPostBoTableAction = async (
-	context: QueryFunctionContext<readonly [typeof findPostQueryKeyBase, FindPostBoTableQueryParams]>,
+const findBlogPostBoTableAction = async (
+	context: QueryFunctionContext<readonly [typeof findBlogPostQueryKeyBase, FindBlogPostBoTableQueryParams]>,
 ) => {
 	try {
 		const params = context.queryKey[1];
 		const posts = parseApi.blogPosts.findBlogPostBoTable(params);
 		return await posts;
 	} catch (error) {
-		console.log('----- findPostBoTableAction error ----------', error);
+		console.log('----- findBlogPostBoTableAction error ----------', error);
 		return Promise.reject(error);
 	}
 };
 
-export const findPostBoTableQuery = (params?: FindPostBoTableQueryParams) => {
+export const findBlogPostBoTableQuery = (params?: FindBlogPostBoTableQueryParams) => {
 	return queryOptions({
-		queryKey: [findPostQueryKeyBase, params as never] as const,
-		queryFn: findPostBoTableAction,
+		queryKey: [findBlogPostQueryKeyBase, params as never] as const,
+		queryFn: findBlogPostBoTableAction,
 	});
 };
 
-// == getPost in Bo Edition form ===================
-export type GetPostBoEditFormQueryParams = GetBlogPostFunction.BoEdit.Params;
+// == getBlogPost in Bo Edition form ===================
+export type GetBlogPostBoEditFormQueryParams = GetBlogPostFunction.BoEdit.Params;
 
-const getPostQueryKeyBase = functionName.getPostBoEdit;
+const getBlogPostQueryKeyBase = functionName.getBlogPostBoEdit;
 
-const getPostBoEditFormAction = async (
-	context: QueryFunctionContext<readonly [typeof getPostQueryKeyBase, GetPostBoEditFormQueryParams]>,
+const getBlogPostBoEditFormAction = async (
+	context: QueryFunctionContext<readonly [typeof getBlogPostQueryKeyBase, GetBlogPostBoEditFormQueryParams]>,
 ) => {
 	try {
 		const params = context.queryKey[1];
 
-		// const post = await runGetPostById(params);
-		const post = await parseApi.blogPosts.getPostBoEditForm(params);
+		// const post = await runGetBlogPostById(params);
+		const post = await parseApi.blogPosts.getBlogPostBoEditForm(params);
 
 		const coverFile = await getCoverFile(post);
 
@@ -103,26 +106,26 @@ const getPostBoEditFormAction = async (
 			coverFile,
 		};
 	} catch (error) {
-		console.log('----- getPostBoEditFormAction error ----------', error);
+		console.log('----- getBlogPostBoEditFormAction error ----------', error);
 		return Promise.reject(error);
 	}
 };
 
-export const getPostBoEditFormQuery = (params?: GetPostBoEditFormQueryParams) => {
+export const getBlogPostBoEditFormQuery = (params?: GetBlogPostBoEditFormQueryParams) => {
 	return queryOptions({
-		queryKey: [getPostQueryKeyBase, params as never] as const,
-		queryFn: getPostBoEditFormAction,
+		queryKey: [getBlogPostQueryKeyBase, params as never] as const,
+		queryFn: getBlogPostBoEditFormAction,
 	});
 };
 
-// == updatePost ===================
-export type UpdatePostActionParams = UpdatePostFunctionParams & {
+// == updateBlogPost ===================
+export type UpdateBlogPostActionParams = UpdateBlogPostFunctionParams & {
 	coverFile?: File & { preview?: string; appFileId?: string };
 };
 
-export const updatePostMutationKeyBase = functionName.updatePost;
+export const updateBlogPostMutationKeyBase = functionName.updateBlogPost;
 
-export const updatePostAction = async (params: UpdatePostActionParams) => {
+export const updateBlogPostAction = async (params: UpdateBlogPostActionParams) => {
 	try {
 		const { coverFile, ...restParams } = params;
 
@@ -132,10 +135,10 @@ export const updatePostAction = async (params: UpdatePostActionParams) => {
 			uploadResult = await parseApi.appFiles.uploadSingleFile({ file: coverFile });
 		}
 
-		const post = await parseApi.blogPosts.updatePost({ ...restParams, coverId: uploadResult?.objectId });
+		const post = await parseApi.blogPosts.updateBlogPost({ ...restParams, coverId: uploadResult?.objectId });
 		return post;
 	} catch (error) {
-		console.log('----- updatePostAction error ----------', error);
+		console.log('----- updateBlogPostAction error ----------', error);
 		return Promise.reject(error);
 	}
 };
