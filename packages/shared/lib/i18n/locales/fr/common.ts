@@ -57,6 +57,11 @@ const commonFR = {
 	'an-error-occurred': "Une erreur s'est produite",
 	retry: 'Ré-essayer',
 	'read-more': 'Lire plus',
+	'page-not-found': 'Page introuvable',
+	'not-found-sentence':
+		"Désolé, nous n'avons pas trouvé la page que vous recherchez. Peut-être avez-vous mal saisi l'URL? Assurez-vous de vérifier votre orthographe.",
+	'go-to-home': "Aller à l'accueil",
+	'other-posts': 'Autres articles',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
