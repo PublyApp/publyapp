@@ -1,13 +1,13 @@
 import _ from 'lodash';
 
-import postSlice from './features/blogPost.slice';
+import blogPostSlice from './features/blogPost.slice';
 import dummySlice from './features/dummy.slice';
 import fileManagerSlice from './features/fileManager.slice';
 import settingsSlice from './features/settings.slice';
 import type Slice from './utils/Slice';
 
 export const slicesMap = (() => {
-	const slices = [dummySlice, fileManagerSlice, postSlice, settingsSlice];
+	const slices = [dummySlice, fileManagerSlice, blogPostSlice, settingsSlice];
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return new Map<string, Slice<any, any>>(
@@ -19,7 +19,7 @@ export const slicesMap = (() => {
 
 export type RootState = typeof fileManagerSlice.sliceContent &
 	typeof dummySlice.sliceContent &
-	typeof postSlice.sliceContent &
+	typeof blogPostSlice.sliceContent &
 	typeof settingsSlice.sliceContent;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

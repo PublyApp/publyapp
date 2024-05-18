@@ -9,19 +9,19 @@ import {
 	getUpdatePostInputSchema,
 } from '@devist/shared/validations/blogPost/blogPost.validations';
 
-import ParsePost from '@/server/lib/parse/classes/blogPost.class';
+import ParseBlogPost from '@/server/lib/parse/classes/blogPost.class';
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
 import BlogPostService from '@/server/resources/blogPost/blogPost.service';
 import FileService from '@/server/resources/file/file.service';
 import UserService from '@/server/resources/user/user.service';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 
-export namespace CreatePostFunction {
-	export type Params = FunctionReturn<typeof createPostFunction>;
-	export type Return = FunctionReturn<typeof createPostFunction>;
+export namespace CreateBlogPostFunction {
+	export type Params = FunctionReturn<typeof createBlogPostFunction>;
+	export type Return = FunctionReturn<typeof createBlogPostFunction>;
 }
 
-const createPostFunction = parseFunctionEnhanced({
+const createBlogPostFunction = parseFunctionEnhanced({
 	requireUser: true,
 	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
 	action: async ({ req, user, z }) => {
@@ -54,12 +54,12 @@ const createPostFunction = parseFunctionEnhanced({
 	},
 });
 
-export namespace UpdatePostFunction {
-	export type Params = FunctionParams<typeof updatePostFunction>;
-	export type Return = FunctionReturn<typeof updatePostFunction>;
+export namespace UpdateBlogPostFunction {
+	export type Params = FunctionParams<typeof updateBlogPostFunction>;
+	export type Return = FunctionReturn<typeof updateBlogPostFunction>;
 }
 
-const updatePostFunction = parseFunctionEnhanced({
+const updateBlogPostFunction = parseFunctionEnhanced({
 	requireUser: true,
 	// allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
 	action: async ({ req, user, z, t }) => {
@@ -94,20 +94,20 @@ const updatePostFunction = parseFunctionEnhanced({
 	},
 });
 
-export namespace GetPostFunction {
+export namespace GetBlogPostFunction {
 	export namespace FrontView {
-		export type Params = FunctionParams<typeof getPostFunctionFrontDetailsView>;
-		export type Return = FunctionReturn<typeof getPostFunctionFrontDetailsView>;
+		export type Params = FunctionParams<typeof getBlogPostFunctionFrontDetailsView>;
+		export type Return = FunctionReturn<typeof getBlogPostFunctionFrontDetailsView>;
 		// export type Status = 'POST_NOT_FOUND' | 'POST_NOT_TRANSLATED';
 	}
 
 	export namespace BoEdit {
-		export type Params = FunctionParams<typeof getPostFunctionBoEditForm>;
-		export type Return = FunctionReturn<typeof getPostFunctionBoEditForm>;
+		export type Params = FunctionParams<typeof getBlogPostFunctionBoEditForm>;
+		export type Return = FunctionReturn<typeof getBlogPostFunctionBoEditForm>;
 	}
 }
 
-const getPostFunctionBoEditForm = parseFunctionEnhanced({
+const getBlogPostFunctionBoEditForm = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getGetPostFunctionBackOfficeEditFormSchema(z).parse(params);
 	},
@@ -140,7 +140,7 @@ const getPostFunctionBoEditForm = parseFunctionEnhanced({
 	},
 });
 
-const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
+const getBlogPostFunctionFrontDetailsView = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getGetPostFunctionFrontDetailsViewSchema(z).parse(params);
 	},
@@ -164,7 +164,7 @@ const getPostFunctionFrontDetailsView = parseFunctionEnhanced({
 });
 
 // export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
-export namespace FindPostFunction {
+export namespace FindBlogPostFunction {
 	export namespace FrontList {
 		export type Params = FunctionParams<typeof findPostFunctionFrontList>;
 		export type Return = FunctionReturn<typeof findPostFunctionFrontList>;
@@ -176,12 +176,12 @@ export namespace FindPostFunction {
 	}
 
 	export namespace FrontDetailsRelatedPosts {
-		export type Params = FunctionParams<typeof finPostFrontDetailsRelatedPosts>;
-		export type Return = FunctionReturn<typeof finPostFrontDetailsRelatedPosts>;
+		export type Params = FunctionParams<typeof finBlogPostFrontDetailsRelatedPosts>;
+		export type Return = FunctionReturn<typeof finBlogPostFrontDetailsRelatedPosts>;
 	}
 }
 
-const finPostFrontDetailsRelatedPosts = parseFunctionEnhanced({
+const finBlogPostFrontDetailsRelatedPosts = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getGetPostFunctionFrontDetailsViewSchema(z).parse(params);
 	},
@@ -212,7 +212,7 @@ const findPostFunctionBoTable = parseFunctionEnhanced({
 		const postService = new BlogPostService({ sessionToken /* , headers: req.headers */ });
 
 		// if (params.view === findPostView.frontList) {
-		// 	const posts = await postService.findPostFrontList({ page, pageSize, sorting, locale });
+		// 	const posts = await postService.findBlogPostFrontList({ page, pageSize, sorting, locale });
 		// 	return posts;
 		// }
 
@@ -249,7 +249,7 @@ const findPostFunctionFrontList = parseFunctionEnhanced({
 	},
 });
 
-const findPostTag = parseFunctionEnhanced({
+const findBlogPostTag = parseFunctionEnhanced({
 	action: async (/* { locale, req, t, user } */) => {
 		const pipeline: Parse.PipelineStage[] = [
 			{ $unwind: '$tags' },
@@ -257,7 +257,7 @@ const findPostTag = parseFunctionEnhanced({
 			{ $project: { _id: 0, tag: '$_id', postsCount: '$postsCount' } },
 		];
 
-		const query = new Parse.Query(ParsePost);
+		const query = new Parse.Query(ParseBlogPost);
 
 		// { tag: string, postsCount: number }[]
 		const results = await query.aggregate(pipeline);
@@ -265,13 +265,13 @@ const findPostTag = parseFunctionEnhanced({
 	},
 });
 
-Parse.Cloud.define(functionName.createPost, createPostFunction);
-Parse.Cloud.define(functionName.updatePost, updatePostFunction);
-Parse.Cloud.define(functionName.findPostTag, findPostTag);
+Parse.Cloud.define(functionName.createBlogPost, createBlogPostFunction);
+Parse.Cloud.define(functionName.updateBlogPost, updateBlogPostFunction);
+Parse.Cloud.define(functionName.findBlogPostTag, findBlogPostTag);
 
-Parse.Cloud.define(functionName.findPostBoTable, findPostFunctionBoTable);
-Parse.Cloud.define(functionName.findPostFrontList, findPostFunctionFrontList);
-Parse.Cloud.define(functionName.findPostFrontDetailsRelatedPosts, finPostFrontDetailsRelatedPosts);
+Parse.Cloud.define(functionName.findBlogPostBoTable, findPostFunctionBoTable);
+Parse.Cloud.define(functionName.findBlogPostFrontList, findPostFunctionFrontList);
+Parse.Cloud.define(functionName.findBlogPostFrontDetailsRelatedPosts, finBlogPostFrontDetailsRelatedPosts);
 
-Parse.Cloud.define(functionName.getPostFrontDetails, getPostFunctionFrontDetailsView);
-Parse.Cloud.define(functionName.getPostBoEdit, getPostFunctionBoEditForm);
+Parse.Cloud.define(functionName.getBlogPostFrontDetails, getBlogPostFunctionFrontDetailsView);
+Parse.Cloud.define(functionName.getBlogPostBoEdit, getBlogPostFunctionBoEditForm);
