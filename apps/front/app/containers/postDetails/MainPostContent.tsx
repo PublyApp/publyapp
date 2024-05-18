@@ -1,11 +1,13 @@
 import { /* Chip, */ Chip, Container, Stack, Typography } from '@mui/material';
 import { useLoaderData, useRevalidator } from '@remix-run/react';
+import _ from 'lodash';
 
 import Breadcrumbs from '@/front/components/Breadcrumbs';
 import CompactContainer from '@/front/components/CompactContainer';
 import Error404 from '@/front/components/Error404';
 import Error500 from '@/front/components/Error500';
 import Markdown from '@/front/components/Markdown';
+import PostItemHorizontal from '@/front/components/PostItemHorizontal';
 import Retry from '@/front/components/Retry';
 import useTranslate from '@/front/hooks/useTranslate';
 import { isErrorJSON } from '@/front/lib/remix/safelyRun';
@@ -18,7 +20,7 @@ import PostDetailsHero from './components/PostDetailsHero';
 const MainPostContent = () => {
 	const data = useLoaderData<SinglePostLoaderFunction>();
 	const { post, relatedPosts } = data;
-	const { t } = useTranslate();
+	const { t, locale } = useTranslate();
 	const { revalidate, state } = useRevalidator();
 
 	// if (!post) { // improbable + we don't handle this here, bun in the root route error boundary.
@@ -62,11 +64,21 @@ const MainPostContent = () => {
 		}
 
 		if (post.status === 'E_NOT_TRANSLATED') {
-			message = t('item-not-found', { item: t('translation') });
+			message = t('item-not-translated-short', { item: t('post') });
+			const oppositeLocale = locale === 'en' ? 'fr' : 'en';
+			const otherLanguage = (() => {
+				if (oppositeLocale === 'en') {
+					return 'Anglaise';
+				}
+
+				return 'French';
+			})();
+			let description: string = `${t('find-otherLanguage-version-of-item', { item: t('post'), otherLanguage })} ${t('down-here')} 👇`;
+			description = _.capitalize(description).replace('ce article', 'cet article');
 
 			return (
-				<Retry message={message} hideRetryButton>
-					<h1>Lol</h1>
+				<Retry message={message} description={description} hideRetryButton>
+					<PostItemHorizontal post={post.post} />
 				</Retry>
 			);
 		}
