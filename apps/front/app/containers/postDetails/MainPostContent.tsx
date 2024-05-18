@@ -1,5 +1,5 @@
 import { /* Chip, */ Chip, Container, Stack, Typography } from '@mui/material';
-import { useLoaderData, useRevalidator } from '@remix-run/react';
+import { useLoaderData, useParams, useRevalidator } from '@remix-run/react';
 import _ from 'lodash';
 
 import Breadcrumbs from '@/front/components/Breadcrumbs';
@@ -20,8 +20,9 @@ import PostDetailsHero from './components/PostDetailsHero';
 const MainPostContent = () => {
 	const data = useLoaderData<SinglePostLoaderFunction>();
 	const { post, relatedPosts } = data;
-	const { t, locale } = useTranslate();
+	const { t, locale, setLocale } = useTranslate();
 	const { revalidate, state } = useRevalidator();
+	const params = useParams();
 
 	// if (!post) { // improbable + we don't handle this here, bun in the root route error boundary.
 	// 	return <h1>Post does not exist</h1>; // improbable
@@ -76,9 +77,18 @@ const MainPostContent = () => {
 			let description: string = `${t('find-otherLanguage-version-of-item', { item: t('post'), otherLanguage })} ${t('down-here')} 👇`;
 			description = _.capitalize(description).replace('ce article', 'cet article');
 
+			post.post.slug = _.toString(params.slug);
+
 			return (
 				<Retry message={message} description={description} hideRetryButton>
-					<PostItemHorizontal post={post.post} />
+					<PostItemHorizontal
+						post={post.post}
+						disableAddLocaleToPostPath
+						locale={oppositeLocale}
+						onClick={() => {
+							setLocale(oppositeLocale);
+						}}
+					/>
 				</Retry>
 			);
 		}

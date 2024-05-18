@@ -27,6 +27,7 @@ import { fShortenNumber } from '@devist/ui-react/utils/number.utils';
 import RouterLink from '@/front/components/RouterLink';
 // import useRouter from '@/front/hooks/useRouter';
 import { /* BO_PATH_NAMES, */ FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
 // import type { IUserWithRelations } from '@/shared/types/db/user.types';
 import Iconify from '@/ui-react/components/Iconify';
 import Image from '@/ui-react/components/image/Image';
@@ -50,9 +51,19 @@ type Props = {
 	post: IPostItem;
 	showCommentCount?: boolean;
 	showViewCount?: boolean;
+	disableAddLocaleToPostPath?: boolean;
+	locale?: AppLocale;
+	onClick?: () => void;
 };
 
-const PostItemHorizontal = ({ post, showCommentCount, showViewCount }: Props) => {
+const PostItemHorizontal = ({
+	post,
+	showCommentCount,
+	showViewCount,
+	disableAddLocaleToPostPath = false,
+	locale,
+	onClick,
+}: Props) => {
 	// const popover = usePopover();
 
 	// const router = useRouter();
@@ -116,8 +127,10 @@ const PostItemHorizontal = ({ post, showCommentCount, showViewCount }: Props) =>
 						<Link
 							color="inherit"
 							component={RouterLink}
-							href={FRONT_PATH_NAMES.posts.details(post.slug)}
+							href={FRONT_PATH_NAMES.posts.details(post.slug, locale)}
 							sx={{ width: 'fit-content' }}
+							disableAddLocaleToPath={disableAddLocaleToPostPath}
+							onClick={onClick}
 						>
 							<TextMaxLine variant="h4" line={2} sx={{ width: 'fit-content' }}>
 								{post.title}
