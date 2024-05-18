@@ -5,7 +5,7 @@ import Image from '@devist/ui-react/components/image/Image';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { type TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
+import { type TranslatedIBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
 import { getUserFullName } from '@/shared/utils/user.utils';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import { fDate } from '@/ui-react/utils/date.utils';
@@ -25,7 +25,7 @@ import RouterLink from './RouterLink';
 // ----------------------------------------------------------------------
 
 type Props = {
-	post: TranslatedIPostWithRelations;
+	post: TranslatedIBlogPostWithRelations;
 	index?: number;
 };
 

@@ -13,7 +13,7 @@ export const cloud = async () => {
 const functions = async () => {
 	await Promise.all([
 		import('@/server/resources/appFile/appFile.functions'),
-		import('@/server/resources/post/blogPost.functions'),
+		import('@/server/resources/blogPost/blogPost.functions'),
 		import('@/server/resources/user/user.functions'),
 		// 	import('../resources/aiTool/aiTool.functions'),
 		// import('../resources/webHost/webHost.functions'),
@@ -29,5 +29,5 @@ const triggers = async () => {
 };
 
 const jobs = async () => {
-	await Promise.all([import('@/server/resources/post/blogPost.jobs')]);
+	await Promise.all([import('@/server/resources/blogPost/blogPost.jobs')]);
 };
