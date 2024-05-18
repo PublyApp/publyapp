@@ -51,7 +51,7 @@ const MorePostList = ({ posts, /* loading, */ disabledIndex = true }: Props) => 
 	return (
 		<Box>
 			<Typography variant="h3" mb={3}>
-				{t('read-more')}
+				{t('other-posts')}
 			</Typography>
 			<Grid container spacing={3} /* justifyContent="center" */>
 				{/* {loading ? renderSkeleton : renderList} */}

@@ -1,31 +1,40 @@
-import { Button, Typography } from '@mui/material';
-import { Link as RouterLink } from '@remix-run/react';
+import { Box, Button, Typography } from '@mui/material';
 import { m } from 'framer-motion';
 
 import { varBounce } from '@devist/ui-react/components/animate/variants/bounce';
-import Image from '@devist/ui-react/components/image/Image';
 import MotionContainer from '@devist/ui-react/components/MotionContainer';
 
+import useTranslate from '../hooks/useTranslate';
+
+import RouterLink from './RouterLink';
+
 const Error404 = () => {
+	const { t } = useTranslate();
 	return (
 		<MotionContainer>
 			<m.div variants={varBounce().in}>
 				<Typography variant="h3" paragraph>
-					Page Not Found!
+					{t('page-not-found')}
 				</Typography>
 			</m.div>
 
 			<m.div variants={varBounce().in}>
-				<Typography sx={{ color: 'text.secondary' }}>
-					Sorry, we couldn’t find the page you’re looking for. Perhaps you’ve mistyped the URL? Be sure to check your
-					spelling.
-				</Typography>
+				<Typography sx={{ color: 'text.secondary' }}>{t('not-found-sentence')}</Typography>
 			</m.div>
 
 			<m.div variants={varBounce().in}>
-				<Image
+				{/* <Image
 					alt="404"
 					src="/assets/illustrations/illustration_404.svg"
+					sx={{
+						mx: 'auto',
+						maxWidth: 320,
+						my: { xs: 5, sm: 8 },
+					}}
+				/> */}
+				<Box
+					src="/assets/illustrations/illustration_404.svg"
+					component="img"
 					sx={{
 						mx: 'auto',
 						maxWidth: 320,
@@ -34,8 +43,8 @@ const Error404 = () => {
 				/>
 			</m.div>
 
-			<Button component={RouterLink} to="/" size="large" color="inherit" variant="contained">
-				Go to Home
+			<Button component={RouterLink} href="/" size="large" color="inherit" variant="contained">
+				{t('go-to-home')}
 			</Button>
 		</MotionContainer>
 	);

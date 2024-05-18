@@ -2,6 +2,9 @@ import { /* Chip, */ Chip, Container, Stack, Typography } from '@mui/material';
 import { useLoaderData, useRevalidator } from '@remix-run/react';
 
 import Breadcrumbs from '@/front/components/Breadcrumbs';
+import CompactContainer from '@/front/components/CompactContainer';
+import Error404 from '@/front/components/Error404';
+import Error500 from '@/front/components/Error500';
 import Markdown from '@/front/components/Markdown';
 import Retry from '@/front/components/Retry';
 import useTranslate from '@/front/hooks/useTranslate';
@@ -14,7 +17,7 @@ import PostDetailsHero from './components/PostDetailsHero';
 
 const MainPostContent = () => {
 	const data = useLoaderData<SinglePostLoaderFunction>();
-	const { post } = data;
+	const { post, relatedPosts } = data;
 	const { t } = useTranslate();
 	const { revalidate, state } = useRevalidator();
 
@@ -25,17 +28,15 @@ const MainPostContent = () => {
 	if (isErrorJSON(post)) {
 		const error = post;
 		const message = error.message || t('an-error-occurred');
-		// let description = 'Try again later';
 
-		// if (message === t('item-not-found', { item: t('post') })) {
-		// 	// return <h1>{error.message}</h1>;
-		// 	description = 'The post you are looking for does not exist';
-		// }
-
-		// if (message === t('item-not-found', { item: t('translation') })) {
-		// 	// return <h1>{error.message}</h1>;
-		// 	description = t('item-not-translated', { item: _.toLower(t('post')) });
-		// }
+		if (isErrorJSON(relatedPosts)) {
+			console.log(relatedPosts);
+			return (
+				<CompactContainer>
+					<Error500 error={new Error(relatedPosts.message)} />
+				</CompactContainer>
+			);
+		}
 
 		return (
 			<Retry
@@ -54,14 +55,9 @@ const MainPostContent = () => {
 		if (post.status === 'E_NOT_FOUND') {
 			message = t('item-not-found', { item: t('post') });
 			return (
-				<Retry
-					message={message}
-					hideRetryButton
-					// onRetry={() => {
-					// 	revalidate();
-					// }}
-					// loading={state === 'loading'}
-				/>
+				<CompactContainer>
+					<Error404 />
+				</CompactContainer>
 			);
 		}
 
@@ -69,14 +65,7 @@ const MainPostContent = () => {
 			message = t('item-not-found', { item: t('translation') });
 
 			return (
-				<Retry
-					message={message}
-					hideRetryButton
-					// onRetry={() => {
-					// 	revalidate();
-					// }}
-					// loading={state === 'loading'}
-				>
+				<Retry message={message} hideRetryButton>
 					<h1>Lol</h1>
 				</Retry>
 			);
@@ -169,7 +158,7 @@ const MainPostContent = () => {
 						</Stack>
 
 						<Markdown
-							/* children={} */ sx={{
+							sx={{
 								mb: 12,
 							}}
 						>

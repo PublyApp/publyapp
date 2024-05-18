@@ -1,15 +1,22 @@
-import { Button, Typography } from '@mui/material';
-import { Link as RouterLink, useRouteError } from '@remix-run/react';
+import { Box, Button, Typography } from '@mui/material';
+import { useRouteError } from '@remix-run/react';
 import { m } from 'framer-motion';
 
 import { varBounce } from '@devist/ui-react/components/animate/variants/bounce';
-import Image from '@devist/ui-react/components/image/Image';
 import MotionContainer from '@devist/ui-react/components/MotionContainer';
+
+import RouterLink from './RouterLink';
 
 // ----------------------------------------------------------------------
 
-const Error500 = () => {
-	const error = useRouteError() as Error;
+type Props = {
+	error?: Error;
+};
+
+const Error500 = ({ error: _error }: Props) => {
+	let error = _error;
+	const iErr = (useRouteError() as Error | undefined) || Error('unknown error');
+	error = error || iErr;
 
 	return (
 		<MotionContainer>
@@ -25,9 +32,19 @@ const Error500 = () => {
 			</m.div>
 
 			<m.div variants={varBounce().in}>
-				<Image
+				{/* <Image
 					alt="500"
+					// src="/assets/illustrations/illustration_500.svg"
+					src={error500Illustration}
+					sx={{
+						mx: 'auto',
+						maxWidth: 320,
+						my: { xs: 5, sm: 8 },
+					}}
+				/> */}
+				<Box
 					src="/assets/illustrations/illustration_500.svg"
+					component="img"
 					sx={{
 						mx: 'auto',
 						maxWidth: 320,
@@ -36,7 +53,7 @@ const Error500 = () => {
 				/>
 			</m.div>
 
-			<Button component={RouterLink} to="/" size="large" color="inherit" variant="contained">
+			<Button component={RouterLink} href="/" size="large" color="inherit" variant="contained">
 				Go to Home
 			</Button>
 		</MotionContainer>
