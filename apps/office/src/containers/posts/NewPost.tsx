@@ -3,14 +3,14 @@ import { Button, Container } from '@mui/material';
 import { useForm } from 'react-hook-form';
 
 import {
-	getCreatePostInputSchemaClientSide,
-	type CreatePostInputClientSide,
+	getCreateBlogPostInputSchemaClientSide,
+	type CreateBlogPostInputClientSide,
 } from '@devist/shared/validations/blogPost/blogPost.validations.client';
 
 import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import useTranslate from '@/ui-react/hooks/useTranslate';
-import { useCreatePostMutation } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
+import { useCreateBlogPostMutation } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
 import zod from '@/ui-react/lib/zod';
 
 import PostForm from './PostForm';
@@ -18,9 +18,9 @@ import PostForm from './PostForm';
 const NewPost = () => {
 	const { lang, t } = useTranslate();
 
-	const savePostInputSchema = getCreatePostInputSchemaClientSide(zod);
+	const savePostInputSchema = getCreateBlogPostInputSchemaClientSide(zod);
 
-	const createPostForm = useForm<CreatePostInputClientSide>({
+	const createPostForm = useForm<CreateBlogPostInputClientSide>({
 		resolver: zodResolver(savePostInputSchema),
 		values: {
 			locale: lang.value,
@@ -42,7 +42,7 @@ const NewPost = () => {
 
 	const {
 		result: { mutateAsync: createPostAsync },
-	} = useCreatePostMutation();
+	} = useCreateBlogPostMutation();
 
 	const handleCreatePost = createPostForm.handleSubmit(
 		async (input) => {
