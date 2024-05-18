@@ -2,15 +2,15 @@ import _ from 'lodash';
 
 import { env } from '@/server/lib/env';
 import type ParseAppFile from '@/server/lib/parse/classes/appFile.class';
-import ParsePost from '@/server/lib/parse/classes/post.class';
+import ParseBlogPost from '@/server/lib/parse/classes/blogPost.class';
 import type ParseUser from '@/server/lib/parse/classes/user.class';
 import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type {
-	IPostWithParseRelations,
-	IPostWithRelations,
-	TranslatedIPostWithRelations,
-} from '@/shared/types/db/post.types';
+	IBlogPostWithParseRelations,
+	IBlogPostWithRelations,
+	TranslatedIBlogPostWithRelations,
+} from '@/shared/types/db/blogPost.types';
 import { urlStartWithProtocol } from '@/shared/utils/any.utils';
 
 import { applySkipAndLimit, applySorting, toIsoString } from '../../lib/parse/utils';
@@ -20,7 +20,7 @@ type Props = {
 	// headers?: Record<string, unknown>;
 };
 
-// type PostUpdateInput = {
+// type BlogPostUpdateInput = {
 // 	objectId?: string;
 // 	locale: AppLocale;
 // 	title: string;
@@ -31,7 +31,7 @@ type Props = {
 // 	published?: boolean;
 // };
 
-type PostCreateInput = {
+type BlogPostCreateInput = {
 	locale: string;
 	title: string;
 	slug: string;
@@ -45,13 +45,13 @@ type PostCreateInput = {
 	tags?: string[];
 };
 
-type PostUpdateInput = Partial<Omit<PostCreateInput, 'locale'>> & {
+type BlogPostUpdateInput = Partial<Omit<BlogPostCreateInput, 'locale'>> & {
 	locale: string;
 	published?: boolean;
-	// post: ParsePost;
+	// post: ParseBlogPost;
 };
 
-type FindPostInput = {
+type FindBlogPostInput = {
 	page?: number;
 	pageSize?: number;
 	sorting?: { id: string; desc: boolean }[];
@@ -64,10 +64,10 @@ type FindPostInput = {
 	fromPublic?: boolean;
 };
 
-type FindPostFrontListParams = Pick<FindPostInput, 'page' | 'pageSize' | 'sorting' | 'locale'>;
-type FindPostBoTableParams = FindPostFrontListParams & { fromPublic: boolean };
+type FindBlogPostFrontListParams = Pick<FindBlogPostInput, 'page' | 'pageSize' | 'sorting' | 'locale'>;
+type FindBlogPostBoTableParams = FindBlogPostFrontListParams & { fromPublic: boolean };
 
-export default class PostService {
+export default class BlogPostService {
 	sessionToken?: string;
 
 	// headers?: Record<string, unknown>;
@@ -77,10 +77,10 @@ export default class PostService {
 		// this.headers = headers;
 	}
 
-	async create(input: PostCreateInput) {
+	async create(input: BlogPostCreateInput) {
 		const { author, content, description, slug, title, cover, locale, coverUrl, publishDate, tags, updateDate } = input;
 
-		const attributes: DeepPartial<IPostWithParseRelations> = {
+		const attributes: DeepPartial<IBlogPostWithParseRelations> = {
 			slug,
 			translation: {
 				[locale]: {
@@ -95,18 +95,18 @@ export default class PostService {
 			publishDate,
 			tags,
 			updateDate,
-		}; /*  satisfies DeepPartial<IPostWithParseRelations> */
+		}; /*  satisfies DeepPartial<IBlogPostWithParseRelations> */
 
 		// create an mongo unique index and let mongo handle this
-		// const postWithSameSlug = await new Parse.Query(ParsePost)
+		// const postWithSameSlug = await new Parse.Query(ParseBlogPost)
 		// 	.equalTo('slug', slug)
 		// 	.first({ sessionToken: this.sessionToken });
 
 		// if (postWithSameSlug) {
-		// 	throw new Error('A (Post) with the same (slug) already exists');
+		// 	throw new Error('A (BlogPost) with the same (slug) already exists');
 		// }
 
-		const post = new ParsePost(attributes);
+		const post = new ParseBlogPost(attributes);
 
 		// set ACL
 		const acl = new Parse.ACL();
@@ -120,7 +120,7 @@ export default class PostService {
 		return post.save(null, { sessionToken: this.sessionToken });
 	}
 
-	async update(post: ParsePost, input: PostUpdateInput) {
+	async update(post: ParseBlogPost, input: BlogPostUpdateInput) {
 		const {
 			description,
 			locale,
@@ -167,7 +167,7 @@ export default class PostService {
 			}
 		}
 
-		const attributes: DeepPartial<IPostWithParseRelations> = {
+		const attributes: DeepPartial<IBlogPostWithParseRelations> = {
 			slug,
 			published,
 			author,
@@ -199,7 +199,7 @@ export default class PostService {
 	}
 
 	async getById(objectId: string, options: { select?: string[]; include?: string[]; exclude?: string[] } = {}) {
-		const query = new Parse.Query(ParsePost).equalTo('objectId', objectId);
+		const query = new Parse.Query(ParseBlogPost).equalTo('objectId', objectId);
 
 		if (options.exclude) {
 			query.exclude(options.exclude as never);
@@ -219,11 +219,11 @@ export default class PostService {
 	async getBySlug(
 		slug: string,
 		options?: undefined | { select?: string[]; include?: string[]; published?: boolean; json?: false | undefined },
-	): Promise<ParsePost | undefined>;
+	): Promise<ParseBlogPost | undefined>;
 	async getBySlug(
 		slug: string,
 		options: { select?: string[]; include?: string[]; published?: boolean; json: true },
-	): Promise<IPostWithRelations | undefined>;
+	): Promise<IBlogPostWithRelations | undefined>;
 	async getBySlug(
 		slug: string,
 		options: { select?: string[]; include?: string[]; published?: boolean; json?: boolean } = {},
@@ -231,7 +231,7 @@ export default class PostService {
 		// eslint-disable-next-line no-param-reassign
 		options.published = options.published ?? true;
 
-		const query = new Parse.Query(ParsePost).equalTo('slug', slug);
+		const query = new Parse.Query(ParseBlogPost).equalTo('slug', slug);
 
 		if (options.published) {
 			query.equalTo('published', true);
@@ -256,8 +256,8 @@ export default class PostService {
 		return result as never;
 	}
 
-	async find(params: Omit<FindPostInput, 'json'> & { json: true }): Promise<IPostWithRelations[]>;
-	async find(params: Omit<FindPostInput, 'json'> & { json?: false | undefined }): Promise<ParsePost[]>;
+	async find(params: Omit<FindBlogPostInput, 'json'> & { json: true }): Promise<IBlogPostWithRelations[]>;
+	async find(params: Omit<FindBlogPostInput, 'json'> & { json?: false | undefined }): Promise<ParseBlogPost[]>;
 	async find({
 		page = 1,
 		pageSize = DEFAULT_PAGE_SIZE,
@@ -271,8 +271,8 @@ export default class PostService {
 		json = false,
 		fromPublic = true,
 		// sessionToken = this.sessionToken,
-	}: FindPostInput) {
-		const query = new Parse.Query(ParsePost).notEqualTo('deleted' as never, true as never);
+	}: FindBlogPostInput) {
+		const query = new Parse.Query(ParseBlogPost).notEqualTo('deleted' as never, true as never);
 
 		applySkipAndLimit(query, { type: 'page', page, pageSize });
 
@@ -306,11 +306,11 @@ export default class PostService {
 		});
 
 		if (json) {
-			const jsonPosts = posts.map((post) => {
-				return PostService.toJSON(post);
+			const jsonBlogPosts = posts.map((post) => {
+				return BlogPostService.toJSON(post);
 			});
 
-			return jsonPosts;
+			return jsonBlogPosts;
 		}
 
 		return posts;
@@ -344,9 +344,15 @@ export default class PostService {
 		return excludedTranslations;
 	}
 
-	async findPostBoTable({ page, pageSize, sorting, locale = defaultLocale, fromPublic }: FindPostBoTableParams) {
+	async findBlogPostBoTable({
+		page,
+		pageSize,
+		sorting,
+		locale = defaultLocale,
+		fromPublic,
+	}: FindBlogPostBoTableParams) {
 		const include = ['author'];
-		// const exclude = [...PostService.getExcludedTranslations(locale as never), `translation.${locale}.content`];
+		// const exclude = [...BlogPostService.getExcludedTranslations(locale as never), `translation.${locale}.content`];
 		const select = [`translation.${locale}.title`, 'tags', 'viewCount', 'published'];
 
 		const posts = await this.find({
@@ -360,17 +366,17 @@ export default class PostService {
 			fromPublic,
 		});
 
-		const finalPosts = posts.map((_post) => {
-			const post = PostService.toTranslatedIPost(_post, locale);
+		const finalBlogPosts = posts.map((_post) => {
+			const post = BlogPostService.toTranslatedIBlogPost(_post, locale);
 			return post;
 		});
 
-		return finalPosts;
+		return finalBlogPosts;
 	}
 
-	async findPostFrontList({ page, pageSize, sorting, locale = defaultLocale }: FindPostFrontListParams) {
+	async findBlogPostFrontList({ page, pageSize, sorting, locale = defaultLocale }: FindBlogPostFrontListParams) {
 		const include = ['author', 'cover'];
-		// const exclude = PostService.getExcludedTranslations(locale as never);
+		// const exclude = BlogPostService.getExcludedTranslations(locale as never);
 		const select = [
 			'slug',
 			'tags',
@@ -400,8 +406,8 @@ export default class PostService {
 			fromPublic: true,
 		});
 
-		const finalPosts = posts.map((_post) => {
-			const post = PostService.toTranslatedIPost(_post, locale);
+		const finalBlogPosts = posts.map((_post) => {
+			const post = BlogPostService.toTranslatedIBlogPost(_post, locale);
 
 			const coverUrl = _.get(post, 'cover.url');
 
@@ -424,7 +430,7 @@ export default class PostService {
 			return post;
 		});
 
-		return finalPosts;
+		return finalBlogPosts;
 	}
 
 	// I expect this function to be only for public usage (for now)
@@ -457,14 +463,14 @@ export default class PostService {
 			{ $project: { _id: 0, tag: '$tag', viewCount: '$viewCount', postCount: '$postCount' } }, // Remove unnecessary field
 		];
 
-		const query = new Parse.Query(ParsePost);
+		const query = new Parse.Query(ParseBlogPost);
 
 		const results = await query.aggregate(pipeline);
 		return results;
 	}
 
 	async deleteById(objectId: string) {
-		const query = new Parse.Query(ParsePost).equalTo('objectId', objectId);
+		const query = new Parse.Query(ParseBlogPost).equalTo('objectId', objectId);
 		const post = await query.first({ sessionToken: this.sessionToken });
 
 		// todo: add error message if no post was found
@@ -473,8 +479,8 @@ export default class PostService {
 		return post?.save(null, { sessionToken: this.sessionToken });
 	}
 
-	static async searchPostTag(searchQuery: string) {
-		const query = new Parse.Query(ParsePost);
+	static async searchBlogPostTag(searchQuery: string) {
+		const query = new Parse.Query(ParseBlogPost);
 
 		const pipeline: Parse.PipelineStage[] = [
 			{
@@ -528,18 +534,18 @@ export default class PostService {
 		return query.aggregate(pipeline);
 	}
 
-	static toJSON(post: ParsePost) {
-		const finalPost = post.toJSON();
+	static toJSON(post: ParseBlogPost) {
+		const finalBlogPost = post.toJSON();
 
-		_.unset(finalPost, 'author.__type');
-		_.unset(finalPost, 'cover.__type');
-		_.set(finalPost, 'publishDate', toIsoString(finalPost.publishDate));
-		_.set(finalPost, 'updateDate', toIsoString(finalPost.updateDate));
+		_.unset(finalBlogPost, 'author.__type');
+		_.unset(finalBlogPost, 'cover.__type');
+		_.set(finalBlogPost, 'publishDate', toIsoString(finalBlogPost.publishDate));
+		_.set(finalBlogPost, 'updateDate', toIsoString(finalBlogPost.updateDate));
 
-		return finalPost as unknown as IPostWithRelations;
+		return finalBlogPost as unknown as IBlogPostWithRelations;
 	}
 
-	async getOnePostFront(slug: string, { locale }: { locale: AppLocale }) {
+	async getOneBlogPostFront(slug: string, { locale }: { locale: AppLocale }) {
 		// const MORE_POSTS_COUNT = 4;
 		const include = ['author', 'cover'];
 		const select = [
@@ -557,7 +563,7 @@ export default class PostService {
 			// 'translation',
 		];
 
-		const post = (await this.getBySlug(slug, { include, select, json: true })) as IPostWithRelations;
+		const post = (await this.getBySlug(slug, { include, select, json: true })) as IBlogPostWithRelations;
 
 		if (!post) {
 			return {
@@ -580,7 +586,7 @@ export default class PostService {
 			// return 'TRANSLATION_NOT_FOUND' as const;
 			const fallBackLocale = locale === 'en' ? 'fr' : 'en';
 
-			const fallBackPost = await this.getById(post.objectId, {
+			const fallBackBlogPost = await this.getById(post.objectId, {
 				select: [
 					//
 					`translation.${fallBackLocale}.title`,
@@ -588,9 +594,9 @@ export default class PostService {
 				],
 			});
 
-			const jsonFallBackPost = PostService.toJSON(fallBackPost!);
-			_.assign(post, jsonFallBackPost);
-			const fallBackTranslation = PostService.toTranslatedIPost(post, fallBackLocale);
+			const jsonFallBackBlogPost = BlogPostService.toJSON(fallBackBlogPost!);
+			_.assign(post, jsonFallBackBlogPost);
+			const fallBackTranslation = BlogPostService.toTranslatedIBlogPost(post, fallBackLocale);
 
 			return {
 				status: 'E_NOT_TRANSLATED' as const,
@@ -598,15 +604,15 @@ export default class PostService {
 			};
 		}
 
-		const finalPost = PostService.toTranslatedIPost(post, locale);
+		const finalBlogPost = BlogPostService.toTranslatedIBlogPost(post, locale);
 
 		return {
 			status: 'SUCCESS' as const,
-			post: finalPost,
+			post: finalBlogPost,
 		};
 	}
 
-	async getOnePostBoEdit(id: string) {
+	async getOneBlogPostBoEdit(id: string) {
 		const include = ['author', 'cover'];
 		const exclude = ['cover.formats'];
 		// const select = [
@@ -628,15 +634,15 @@ export default class PostService {
 		return post;
 	}
 
-	async findRelatedPostsFrontDetails(
-		post: ParsePost | undefined,
+	async findRelatedBlogPostsFrontDetails(
+		post: ParseBlogPost | undefined,
 		options?: { locale?: AppLocale; fromPublic?: boolean },
 	) {
 		const defaultOptions = { locale: defaultLocale, fromPublic: true };
 		const { fromPublic, locale } = { ...defaultOptions, ...options };
 
-		const relatedPosts = (post?.get('relatedPosts') as ParsePost[] | undefined) ?? [];
-		let remainingPostsCount = 4 - relatedPosts.length;
+		const relatedBlogPosts = (post?.get('relatedPosts') as ParseBlogPost[] | undefined) ?? [];
+		let remainingBlogPostsCount = 4 - relatedBlogPosts.length;
 		const tags = post?.attributes.tags;
 
 		const applyCommonConstraints = (query: Parse.Query) => {
@@ -661,92 +667,95 @@ export default class PostService {
 			// TODO: add select and includes
 		};
 
-		const getLatestPostsQuery = (iPost: typeof post, iRemainingPostsCount: number) => {
-			const query = new Parse.Query(ParsePost).limit(iRemainingPostsCount);
+		const getLatestBlogPostsQuery = (iBlogPost: typeof post, iRemainingBlogPostsCount: number) => {
+			const query = new Parse.Query(ParseBlogPost).limit(iRemainingBlogPostsCount);
 			applyCommonConstraints(query);
 
-			if (iPost) {
-				query.notEqualTo('objectId', iPost.id);
+			if (iBlogPost) {
+				query.notEqualTo('objectId', iBlogPost.id);
 			}
 
 			return query;
 		};
 
-		if (remainingPostsCount > 0) {
+		if (remainingBlogPostsCount > 0) {
 			if (tags && !_.isEmpty(tags)) {
-				const relatedPostsByTagsQuery = new Parse.Query(ParsePost)
+				const relatedBlogPostsByTagsQuery = new Parse.Query(ParseBlogPost)
 					.containedIn('tags', tags as never)
 					.notEqualTo('objectId', post.id);
-				applyCommonConstraints(relatedPostsByTagsQuery);
+				applyCommonConstraints(relatedBlogPostsByTagsQuery);
 
 				// if (post) {
-				// 	relatedPostsByTagsQuery.notEqualTo('objectId', post.id)
+				// 	relatedBlogPostsByTagsQuery.notEqualTo('objectId', post.id)
 				// }
 
-				const relatedPostsByTagsCount = await relatedPostsByTagsQuery.count({
+				const relatedBlogPostsByTagsCount = await relatedBlogPostsByTagsQuery.count({
 					sessionToken: fromPublic ? undefined : this.sessionToken,
 				});
 
 				// TODO: add select and includes
-				const relatedPostsByTagsPromise = relatedPostsByTagsQuery
+				const relatedBlogPostsByTagsPromise = relatedBlogPostsByTagsQuery
 					// .select([
 					// 	//
 					// 	`translation.${locale}`,
 					// ] as never)
-					.limit(remainingPostsCount)
+					.limit(remainingBlogPostsCount)
 					.find({
 						// json: true,
 						sessionToken: fromPublic ? undefined : this.sessionToken,
 					});
 
-				if (relatedPostsByTagsCount < remainingPostsCount) {
+				if (relatedBlogPostsByTagsCount < remainingBlogPostsCount) {
 					// eslint-disable-next-line operator-assignment
-					remainingPostsCount = remainingPostsCount - relatedPostsByTagsCount;
+					remainingBlogPostsCount = remainingBlogPostsCount - relatedBlogPostsByTagsCount;
 
-					const latestPostsQuery = getLatestPostsQuery(post, remainingPostsCount);
-					latestPostsQuery.notContainedIn('tags', tags as never);
+					const latestBlogPostsQuery = getLatestBlogPostsQuery(post, remainingBlogPostsCount);
+					latestBlogPostsQuery.notContainedIn('tags', tags as never);
 
-					const latestPostsPromise = latestPostsQuery.find({
+					const latestBlogPostsPromise = latestBlogPostsQuery.find({
 						// json: true,
 						sessionToken: fromPublic ? undefined : this.sessionToken,
 					});
 
-					const [relatedPostsByTags, latestPosts] = await Promise.all([relatedPostsByTagsPromise, latestPostsPromise]);
+					const [relatedBlogPostsByTags, latestBlogPosts] = await Promise.all([
+						relatedBlogPostsByTagsPromise,
+						latestBlogPostsPromise,
+					]);
 
-					relatedPosts.push(...relatedPostsByTags, ...(latestPosts as []));
+					relatedBlogPosts.push(...relatedBlogPostsByTags, ...(latestBlogPosts as []));
 				}
 			} else {
-				const latestPostsQuery = getLatestPostsQuery(post, remainingPostsCount);
+				const latestBlogPostsQuery = getLatestBlogPostsQuery(post, remainingBlogPostsCount);
 
-				const latestPosts = await latestPostsQuery.find({
+				const latestBlogPosts = await latestBlogPostsQuery.find({
 					// json: true,
 					sessionToken: fromPublic ? undefined : this.sessionToken,
 				});
-				relatedPosts.push(...latestPosts);
+				relatedBlogPosts.push(...latestBlogPosts);
 			}
 		}
 
-		const finalPosts = relatedPosts.map((relatedPost) => {
-			const iPost = PostService.toTranslatedIPost(PostService.toJSON(relatedPost), locale);
-			const coverUrl = _.get(iPost, 'cover.url');
+		const finalBlogPosts = relatedBlogPosts.map((relatedBlogPost) => {
+			const iBlogPost = BlogPostService.toTranslatedIBlogPost(BlogPostService.toJSON(relatedBlogPost), locale);
+			const coverUrl = _.get(iBlogPost, 'cover.url');
 
 			if (coverUrl) {
 				if (!urlStartWithProtocol(coverUrl)) {
-					_.set(iPost, 'cover.url', env.SERVER_URL + coverUrl);
+					_.set(iBlogPost, 'cover.url', env.SERVER_URL + coverUrl);
 				}
 			}
 
-			return iPost;
+			return iBlogPost;
 		});
 
-		return finalPosts;
+		return finalBlogPosts;
 	}
 
-	static toTranslatedIPost(post: IPostWithRelations, locale: AppLocale): TranslatedIPostWithRelations {
+	static toTranslatedIBlogPost(post: IBlogPostWithRelations, locale: AppLocale): TranslatedIBlogPostWithRelations {
 		const translation = post.translation?.[locale] ?? {};
 
-		const finalPost = _.assign({} as TranslatedIPostWithRelations, post, translation, { locale });
+		const finalBlogPost = _.assign({} as TranslatedIBlogPostWithRelations, post, translation, { locale });
 
-		return finalPost;
+		return finalBlogPost;
 	}
 }

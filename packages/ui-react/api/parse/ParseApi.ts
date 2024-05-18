@@ -3,13 +3,13 @@ import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
 import i18n from '@/ui-react/lib/i18n';
 
 import AppFileEndPoints from './appFile.endpoints';
-import PostEndPoints from './post.endpoints';
+import BlogPostEndPoints from './blogPost.endpoints';
 import UserEndPoints from './user.endpoints';
 
 export class ParseApi {
 	private _parseRestClient!: ParseRestClient;
 
-	private _posts!: PostEndPoints;
+	private _blogPosts!: BlogPostEndPoints;
 
 	private _users!: UserEndPoints;
 
@@ -38,7 +38,7 @@ export class ParseApi {
 
 		// endpoints
 		this._users = new UserEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
-		this._posts = new PostEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
+		this._blogPosts = new BlogPostEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
 		this._appFiles = new AppFileEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
 	}
 
@@ -52,9 +52,9 @@ export class ParseApi {
 		return this._users;
 	}
 
-	public get posts() {
+	public get blogPosts() {
 		this.checkClient();
-		return this._posts;
+		return this._blogPosts;
 	}
 
 	public get appFiles() {

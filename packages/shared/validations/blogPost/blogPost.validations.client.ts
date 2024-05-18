@@ -4,7 +4,7 @@ import type CustomZod from '@/shared/lib/zod/CustomZod';
 
 import { getFileSchemaClientSide } from '../file/file.validations.client';
 
-import { getCreatePostInputSchema, getUpdatePostInputSchema } from './post.validations';
+import { getCreatePostInputSchema, getUpdatePostInputSchema } from './blogPost.validations';
 
 export const getUpdatePostInputSchemaClientSide = (z: CustomZod) => {
 	return getUpdatePostInputSchema(z).extend({

@@ -1,15 +1,15 @@
 import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
 
-import type { FindPostFunction, GetPostFunction } from '@/server/resources/post/post.functions';
+import type { FindPostFunction, GetPostFunction } from '@/server/resources/blogPost/blogPost.functions';
 import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { AppFile } from '@/shared/types/db/appFile.types';
-import { type IPostWithRelations } from '@/shared/types/db/post.types';
+import { type IBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
+import type { CreatePostFunctionParams, UpdatePostFunctionParams } from '@/ui-react/api/parse/blogPost.endpoints';
 import parseApi from '@/ui-react/api/parse/ParseApi';
-import type { CreatePostFunctionParams, UpdatePostFunctionParams } from '@/ui-react/api/parse/post.endpoints';
 import { getImageFileFromUrl } from '@/ui-react/utils/image.utils';
 
-export const getCoverFile = async (post: IPostWithRelations) => {
+export const getCoverFile = async (post: IBlogPostWithRelations) => {
 	let coverFile: (File & { preview: string; alreadyUploaded?: boolean }) | undefined;
 
 	if (post.cover && post.cover.url) {
@@ -49,7 +49,7 @@ export const createPostAction = async (params: CreatePostActionParams) => {
 			// Object.assign(coverFile, { appFileId: uploadResult.objectId });
 		}
 
-		const post = await parseApi.posts.createPost({ ...restParams, coverId: uploadResult?.objectId });
+		const post = await parseApi.blogPosts.createPost({ ...restParams, coverId: uploadResult?.objectId });
 		return post;
 	} catch (error) {
 		console.log('----- createPostAction error ----------', error);
@@ -67,7 +67,7 @@ const findPostBoTableAction = async (
 ) => {
 	try {
 		const params = context.queryKey[1];
-		const posts = parseApi.posts.findPostBoTable(params);
+		const posts = parseApi.blogPosts.findPostBoTable(params);
 		return await posts;
 	} catch (error) {
 		console.log('----- findPostBoTableAction error ----------', error);
@@ -94,7 +94,7 @@ const getPostBoEditFormAction = async (
 		const params = context.queryKey[1];
 
 		// const post = await runGetPostById(params);
-		const post = await parseApi.posts.getPostBoEditForm(params);
+		const post = await parseApi.blogPosts.getPostBoEditForm(params);
 
 		const coverFile = await getCoverFile(post);
 
@@ -132,7 +132,7 @@ export const updatePostAction = async (params: UpdatePostActionParams) => {
 			uploadResult = await parseApi.appFiles.uploadSingleFile({ file: coverFile });
 		}
 
-		const post = await parseApi.posts.updatePost({ ...restParams, coverId: uploadResult?.objectId });
+		const post = await parseApi.blogPosts.updatePost({ ...restParams, coverId: uploadResult?.objectId });
 		return post;
 	} catch (error) {
 		console.log('----- updatePostAction error ----------', error);
