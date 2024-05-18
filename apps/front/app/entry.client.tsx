@@ -13,11 +13,16 @@ import createEmotionCache from './lib/emotion/createEmotionCache';
 import { initI18nextOnClient } from './lib/i18n/initI18nextOnClient';
 import { initParseOnClient } from './lib/parse/initParseOnClient';
 
-// import theme from './src/theme';
-
 interface ClientCacheProviderProps {
 	children: React.ReactNode;
 }
+
+// prefetch images
+// window.image404 = new Image();
+// window.image404.src = `${window.location.origin}/assets/illustrations/illustration_404.svg`;
+
+// window.image500 = new Image();
+// window.image500.src = `${window.location.origin}/assets/illustrations/illustration_500.svg`;
 
 const ClientCacheProvider = ({ children }: ClientCacheProviderProps) => {
 	const [cache, setCache] = React.useState(createEmotionCache());
