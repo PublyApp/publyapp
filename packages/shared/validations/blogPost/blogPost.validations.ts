@@ -13,7 +13,7 @@ export const getDateTypeSchema = (z: CustomZod) => {
 		});
 };
 
-export const getCreatePostInputSchema = (z: CustomZod) => {
+export const getCreateBlogPostInputSchema = (z: CustomZod) => {
 	// const TITLE = z.t('title');
 	const SLUG = 'Slug';
 	// const DESCRIPTION = 'Description';
@@ -50,7 +50,7 @@ export const getCreatePostInputSchema = (z: CustomZod) => {
 				// { message: z.t('item-is-required', { item: DESCRIPTION }) }
 			)
 			.max(DESCRIPTION_MAX_LENGTH),
-		// content: getPostContentSchema(t),
+		// content: getBlogPostContentSchema(t),
 		content: z.string().min(
 			1,
 			// { message: z.t('item-is-required', { item: CONTENT }) }
@@ -79,10 +79,10 @@ export const getCreatePostInputSchema = (z: CustomZod) => {
 	});
 };
 
-export const getUpdatePostInputSchema = (z: CustomZod) => {
+export const getUpdateBlogPostInputSchema = (z: CustomZod) => {
 	const ID = 'ObjectId';
 
-	return getCreatePostInputSchema(z)
+	return getCreateBlogPostInputSchema(z)
 		.partial()
 		.required({ locale: true })
 		.extend({
@@ -91,12 +91,12 @@ export const getUpdatePostInputSchema = (z: CustomZod) => {
 		});
 };
 
-// export const findPostView = {
+// export const findBlogPostView = {
 // 	frontList: 'front-list',
 // 	boTable: 'bo-table',
 // } as const;
 
-export const getFindPostFunctionBoTableParamsSchema = (z: CustomZod) => {
+export const getFindBlogPostFunctionBoTableParamsSchema = (z: CustomZod) => {
 	return getListParamsSchema(z).and(
 		z.object({
 			fromPublic: z.boolean().optional().default(false),
@@ -104,24 +104,24 @@ export const getFindPostFunctionBoTableParamsSchema = (z: CustomZod) => {
 	);
 };
 
-// export const findOnePostView = {
+// export const findOneBlogPostView = {
 // 	frontDetail: 'front-post-detail',
 // 	boEditForm: 'bo-edit-form',
 // } as const;
 
-// export const getFindOnePostFunctionParamsSchema = (z: CustomZod) => {
+// export const getFindOneBlogPostFunctionParamsSchema = (z: CustomZod) => {
 // 	return z.discriminatedUnion('view', [
 // 		z.object({
-// 			view: z.literal(findOnePostView.frontDetail),
+// 			view: z.literal(findOneBlogPostView.frontDetail),
 // 			slug: z.string(),
 // 		}),
 // 		z.object({
-// 			view: z.literal(findOnePostView.boEditForm),
+// 			view: z.literal(findOneBlogPostView.boEditForm),
 // 			id: z.string(),
 // 		}),
 // 	]);
 // };
-export const getGetPostFunctionFrontDetailsViewSchema = (z: CustomZod) => {
+export const getGetBlogPostFunctionFrontDetailsViewSchema = (z: CustomZod) => {
 	return z.object({
 		slug: z
 			.string({
@@ -136,7 +136,7 @@ export const getGetPostFunctionFrontDetailsViewSchema = (z: CustomZod) => {
 	});
 };
 
-export const getGetPostFunctionBackOfficeEditFormSchema = (z: CustomZod) => {
+export const getGetBlogPostFunctionBackOfficeEditFormSchema = (z: CustomZod) => {
 	return z.object({
 		id: z
 			.string()
@@ -145,5 +145,5 @@ export const getGetPostFunctionBackOfficeEditFormSchema = (z: CustomZod) => {
 	});
 };
 
-// export type CreatePostInput = zod.infer<ReturnType<typeof getCreatePostInputSchema>>;
-// export type UpdatePostInput = zod.infer<ReturnType<typeof getUpdatePostInputSchema>>;
+// export type CreateBlogPostInput = zod.infer<ReturnType<typeof getCreateBlogPostInputSchema>>;
+// export type UpdateBlogPostInput = zod.infer<ReturnType<typeof getUpdateBlogPostInputSchema>>;
