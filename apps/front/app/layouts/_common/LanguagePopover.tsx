@@ -7,11 +7,11 @@ import { m } from 'framer-motion';
 import { varHover } from '@devist/ui-react/components/animate/variants/actions';
 
 import RouterLink from '@/front/components/RouterLink';
+import useTranslate from '@/front/hooks/useTranslate';
 import { appLocales } from '@/shared/lib/i18n/resources';
 import CustomPopover from '@/ui-react/components/CustomPopover';
 import Iconify from '@/ui-react/components/Iconify';
 import usePopover from '@/ui-react/hooks/usePopover';
-import useTranslate from '@/ui-react/hooks/useTranslate';
 
 // ----------------------------------------------------------------------
 

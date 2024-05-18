@@ -20,7 +20,6 @@ export const initI18nextOnServer = async ({
 	remixContext: EntryContext;
 }) => {
 	const instance = createInstance();
-	// const locale = returnLanguageIfSupported(lang) ?? (await i18next.getLocale(request));
 	const ns = i18next.getRouteNamespaces(remixContext);
 
 	await instance

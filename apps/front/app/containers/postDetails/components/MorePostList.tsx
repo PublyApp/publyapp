@@ -5,8 +5,8 @@ import { nanoid } from 'nanoid';
 // import Iconify from '@devist/ui-react/components/Iconify';
 
 import PostItem from '@/front/components/PostItem';
+import useTranslate from '@/front/hooks/useTranslate';
 import { type TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
-import useTranslate from '@/ui-react/hooks/useTranslate';
 
 // import PostItemSkeleton from '@/front/components/PostItemSkeleton';
 

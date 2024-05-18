@@ -4,9 +4,9 @@ import { useLoaderData, useRevalidator } from '@remix-run/react';
 import Breadcrumbs from '@/front/components/Breadcrumbs';
 import Markdown from '@/front/components/Markdown';
 import Retry from '@/front/components/Retry';
+import useTranslate from '@/front/hooks/useTranslate';
 import { isErrorJSON } from '@/front/lib/remix/safelyRun';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import useTranslate from '@/ui-react/hooks/useTranslate';
 
 import type { SinglePostLoaderFunction } from '../../routes/posts.$slug';
 

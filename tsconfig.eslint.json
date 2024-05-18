@@ -17,7 +17,6 @@
 
 		"apps/office/.eslintrc.js",
 		"apps/front/.eslintrc.cjs",
-		"apps/awsm/.eslintrc.js",
 		"apps/server/.eslintrc.js",
 
 		"apps/server/scripts/**/*.js",
