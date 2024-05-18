@@ -4,7 +4,8 @@ import { LoadingButton } from '@mui/lab';
 import { Container, Typography, type ContainerProps } from '@mui/material';
 
 import Iconify from '@/ui-react/components/Iconify';
-import useTranslate from '@/ui-react/hooks/useTranslate';
+
+import useTranslate from '../hooks/useTranslate';
 
 type Props = {
 	message: string;

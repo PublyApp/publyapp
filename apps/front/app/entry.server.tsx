@@ -25,8 +25,8 @@ const handleRequest = async (
 ) => {
 	const url = new URL(request.url);
 	const { pathname } = url;
-	const localeIUrl: string | undefined = pathname.split('/')[1];
-	const locale = returnLanguageIfSupported(localeIUrl) ?? ((await i18next.getLocale(request)) as AppLocale);
+	const localeInUrl: string | undefined = pathname.split('/')[1];
+	const locale = returnLanguageIfSupported(localeInUrl) ?? ((await i18next.getLocale(request)) as AppLocale);
 
 	const i18nInstance = await initI18nextOnServer({ remixContext, locale });
 
