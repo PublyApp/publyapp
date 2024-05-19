@@ -91,6 +91,7 @@ const bootstrap = async () => {
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
 		directAccess: false, // in parse server 6 this is true by default
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
+		sessionLength: 60 * 24 * 3, // 3 days
 	});
 
 	// setup a better console transport for our logger

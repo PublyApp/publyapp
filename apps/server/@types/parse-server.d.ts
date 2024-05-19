@@ -84,6 +84,7 @@ declare module 'parse-server' {
 		defaultLimit?: number;
 		directAccess?: boolean;
 		middleware?: string | RequestHandler /*  | RequestHandler[] */;
+		sessionLength?: number; // in seconds, defaults to one year
 	} & Record<string, any>;
 
 	type AccountLockoutOptions = {
