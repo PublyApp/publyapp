@@ -94,6 +94,9 @@ const externals = [
 	'parse-server/lib/Routers/UsersRouter',
 	'parse-server/lib/Routers/UsersRouter.js',
 
+	'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection',
+	'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js',
+
 	'parse-server/lib/logger',
 	'parse-server/lib/logger.js',
 

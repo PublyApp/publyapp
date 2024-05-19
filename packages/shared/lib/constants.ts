@@ -54,6 +54,7 @@ export const className = {
 	USER: '_User',
 	ROLE: '_Role',
 	SESSION: '_Session',
+	SCHEMA: '_SCHEMA',
 	// =====================
 	// === Multi Tenancy ===
 	TENANT: 'Tenant',
