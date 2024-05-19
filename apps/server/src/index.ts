@@ -13,21 +13,22 @@ import ParseDashboard from 'parse-dashboard';
 import { LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
 
 import { cloud } from './cloud';
-import { createIndexes, createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
+import { createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
 import { env } from './lib/env';
 import { expressHandler } from './lib/express';
 import logger, { consoleTransport } from './lib/logger';
+import SchemaManager from './lib/parse/SchemaManager';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
-// import AppFileSchema from './resources/appFile/appFile.schema';
-// import BlogPostSchema from './resources/blogPost/blogPost.schema';
-// import PostSeriesSchema from './resources/postSeries/postSeries.schema';
-// import RoleSchema from './resources/role/role.schema';
-// import SessionSchema from './resources/session/session.schema';
-// import UserSchema from './resources/user/user.schema';
+import AppFileSchema from './resources/appFile/appFile.schema';
+import BlogPostSchema from './resources/blogPost/blogPost.schema';
+import BlogPostSeriesSchema from './resources/blogPostSeries/blogPostSeries.schema';
+import RoleSchema from './resources/role/role.schema';
+import SessionSchema from './resources/session/session.schema';
+import UserSchema from './resources/user/user.schema';
 import customAPIRouter from './router/customAPIRouter';
 
 const bootstrap = async () => {
@@ -207,10 +208,15 @@ const bootstrap = async () => {
 		logger.info('================================================================');
 	});
 
-	// Manually create nested keys indexes
-	// ! TODO: must create nested indexes Parse Server's DefineSchema
-	// because they are not supported by Parse server yet
-	createIndexes();
+	// setup schemas in the database + takes care of the index creations
+	SchemaManager.updateSchemas([
+		BlogPostSeriesSchema,
+		AppFileSchema,
+		BlogPostSchema,
+		RoleSchema,
+		SessionSchema,
+		UserSchema,
+	]);
 
 	// create the roles
 	createRolesIfNotExists();

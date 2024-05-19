@@ -1,13 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable max-classes-per-file */
 
 // declare module 'parse-server';
 declare module 'parse-server/lib/Config.js';
 declare module 'parse-server/lib/Config';
+
 declare module 'parse-server/lib/Auth.js';
 declare module 'parse-server/lib/Auth';
+
 declare module 'parse-server/lib/RestWrite.js';
 declare module 'parse-server/lib/RestWrite';
+
+declare module 'parse-server/lib/Routers/UsersRouter';
 declare module 'parse-server/lib/Routers/UsersRouter.js';
+
+// declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection';
+// declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
 
 declare module 'parse-dashboard';
 declare module '@parse/fs-files-adapter';
@@ -202,7 +211,7 @@ declare module 'parse-server' {
 		function makeSchema<T extends Record<string, any> = Record<string, any>>(
 			className: ClassNameType,
 			schema: Schema<T>,
-		): JSONSchema;
+		): JSONSchema<T>;
 	}
 
 	// logger instance
@@ -269,11 +278,28 @@ declare module 'parse-server/lib/Controllers/LoggerController' {
 
 		truncateLogMessage(string: string): string;
 	}
-	/* eslint-enable @typescript-eslint/no-explicit-any */
 }
 
 declare module 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter' {
 	class WinstonLoggerAdapter {
-		addTransport(transport: any); // TODO: idk
+		addTransport(transport: any);
 	}
+}
+
+declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js' {
+	import MongoSchemaCollectionModule from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection';
+
+	export default {
+		default: MongoSchemaCollectionModule.default,
+	};
+}
+
+declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection' {
+	class MongoSchemaCollection {
+		static parseFieldTypeToMongoFieldType(options: { type: string; targetClass?: string }): string;
+	}
+
+	export default {
+		default: MongoSchemaCollection,
+	};
 }
