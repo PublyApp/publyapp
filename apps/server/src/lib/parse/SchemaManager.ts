@@ -3,7 +3,7 @@ import MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/Mongo
 
 import asyncJs from 'async';
 import _ from 'lodash';
-import { CreateIndexesOptions, MongoServerError } from 'mongodb';
+import { MongoServerError, type CreateIndexesOptions } from 'mongodb';
 
 import { className as _className } from '@devist/shared/lib/constants';
 
@@ -20,11 +20,13 @@ export type ManagedIndex = {
 };
 export type ManagedIndexes = Record<string, ManagedIndex>;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SchemaCustom<T extends Record<string, any> = Record<string, any>> = ReturnType<
 	typeof SchemaManager.defineSchema<T>
 >;
 
 export default class SchemaManager {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	static defineSchema<T extends Record<string, any> = Record<string, any>>(
 		className: string,
 		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> & Pick<Schema<T>, 'fields'> & { indexes?: ManagedIndexes },
@@ -39,16 +41,12 @@ export default class SchemaManager {
 			classLevelPermissions,
 			indexes,
 		};
-
-		// return SchemaMigrations.makeSchema(className, {
-		// 	fields,
-		// 	classLevelPermissions,
-		// 	indexes,
-		// });
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	static defineMultiTenantSchema<T extends Record<string, any>>(className: string, schema: SchemaCustom<T>) {
 		const schemaFields = schema.fields || {};
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(schemaFields as Record<string, any>).tenant = {
 			type: 'Pointer',
 			required: true,
@@ -75,6 +73,7 @@ export default class SchemaManager {
 						_metadata: {
 							// class_permissions?: CPLsInterface;
 							// managed_indexes?: Record<string, Omit<CreateIndexesOptions, 'name'>>;
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							fields_options?: Record<string, { defaultValue?: any; required?: boolean }>;
 						};
 					} = { _metadata: {} };
@@ -106,7 +105,7 @@ export default class SchemaManager {
 								});
 							} catch (error) {
 								if (error instanceof MongoServerError) {
-									logger.warn(`warning: ${error.message}`);
+									logger.warn(error.message);
 
 									if (error.message.startsWith('An existing index has the same name as the requested index.')) {
 										await ClassCollection.dropIndex(indexName);
@@ -131,7 +130,6 @@ export default class SchemaManager {
 							}
 
 							_.set(inputSchemaObjectIndexes, `_metadata.managed_indexes.${indexName}`, indexDefinition);
-							return;
 						},
 					);
 
@@ -144,6 +142,7 @@ export default class SchemaManager {
 						if (_.isBoolean(value.required)) {
 							_.set(inputSchemaObjectFieldOptions, `_metadata.fields_options.${fieldName}.required`, value.required);
 						}
+
 						if (!_.isNil(value.defaultValue)) {
 							_.set(
 								inputSchemaObjectFieldOptions,
@@ -181,11 +180,9 @@ export default class SchemaManager {
 					);
 
 					logger.info(`Finished updating schema '${schemaDefinition.className}'`);
-					return;
 				},
 				(error) => {
 					logger.error(`Error while updating schema '${schemaDefinition.className}': \n`, error);
-					return;
 				},
 			);
 
