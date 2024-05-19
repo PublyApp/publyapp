@@ -59,14 +59,10 @@ export const className = {
 	// === Multi Tenancy ===
 	TENANT: 'Tenant',
 	// === Custom classes ===
-	BLOG_POST: 'Post',
-	BLOG_POST_SERIES: 'PostSeries',
+	BLOG_POST: 'BlogPost',
+	BLOG_POST_SERIES: 'BlogPostSeries',
 	APP_FILE: 'AppFile',
-	// ==== not use anymore
-	// WEB_HOST: 'WebHost',
-	// AI_TOOL: 'AITool',
-	// WEB_HOSTING_PROVIDER: 'WebHostingProvider',
-	// AWESOME_LINK: 'AwesomeLink',
+	// ==== not used anymore
 } as const;
 
 export const LOCALE_HEADER_KEY = 'X-Devist-Locale';
@@ -151,37 +147,24 @@ export const BO_PATH_NAMES = {
 } as const;
 
 export const functionName = {
-	// users
+	// Users and auth
 	getUserAuthData: 'getUserAuthData',
-	//
-	// getAITools: 'getAITools',
-	// createAITool: 'createAITool',
-	// Web hosts
-	// saveWebHost: 'saveWebHost',
-	// findWebHost: 'findWebHost',
 	// Files
 	findAppFile: 'findAppFile',
 	createAppFileFolder: 'createAppFileFolder',
 	// Posts
 	createBlogPost: 'createBlogPost',
 	updateBlogPost: 'updateBlogPost',
-	// getPost: 'getPost',
 	getBlogPostFrontDetails: 'getBlogPostFrontDetails',
 	getBlogPostFrontDetailsRelatedPosts: 'getBlogPostFrontDetailsRelatedPosts',
-	// ==
 	getBlogPostBoEdit: 'getBlogPostBoEdit',
-	// findPost: 'findPost',
 	findBlogPostFrontList: 'findBlogPostFrontList',
 	findBlogPostBoTable: 'findBlogPostBoTable',
 	findBlogPostTag: 'findBlogPostTag',
 	findBlogPostFrontDetailsRelatedPosts: 'findBlogPostFrontDetailsRelatedPosts',
-	// savePost: 'savePost',
 } as const;
 
 export const endPoint = {
-	// uploadSingleFile: '/upload-single-file',
-	// uploadManyFiles: '/upload-many-files',
-	// passwordLogin: '/password-login',
 	facebookMessengerBotWebHook: '/facebook-messenger-bot-webhook',
 	// =======
 	parse: (parsePath: string) => {
@@ -204,10 +187,6 @@ export const endPoint = {
 			},
 		} as const;
 	},
-	// auth: {
-	// 	root: ROOTS.AUTH,
-	// 	facebook: makePath(ROOTS.AUTH, 'facebook'),
-	// },
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 25;
