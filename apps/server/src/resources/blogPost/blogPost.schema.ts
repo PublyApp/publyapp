@@ -1,9 +1,9 @@
 import { className } from '@devist/shared/lib/constants';
 
-import { defineSchema } from '@/server/lib/parse/utils';
+import SchemaManager from '@/server/lib/parse/SchemaManager';
 import type { IBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
 
-const BlogPostSchema = defineSchema<IBlogPostWithRelations>(className.BLOG_POST, {
+const BlogPostSchema = SchemaManager.defineSchema<IBlogPostWithRelations>(className.BLOG_POST, {
 	fields: {
 		// title: { type: 'String' },
 		slug: { type: 'String' },
@@ -31,6 +31,12 @@ const BlogPostSchema = defineSchema<IBlogPostWithRelations>(className.BLOG_POST,
 		// postSeriesArray: { type: 'Array' },
 		// postSeries: { type: 'Pointer', targetClass: className.BLOG_POST_SERIES },
 		relatedPosts: { type: 'Array' },
+	},
+	indexes: {
+		uniqueSlug: {
+			keys: { slug: 1 },
+			options: { unique: true },
+		},
 	},
 });
 

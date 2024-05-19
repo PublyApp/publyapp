@@ -2,10 +2,9 @@
 /* eslint-disable no-await-in-loop */
 import { existsSync, promises as fs } from 'fs';
 
-import { className, roleEnum } from '@devist/shared/lib/constants';
+import { roleEnum } from '@devist/shared/lib/constants';
 
 import { FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@/server/lib/constants';
-import { getDatabase } from '@/server/lib/parse/utils';
 
 import logger from '../lib/logger';
 
@@ -68,16 +67,16 @@ export const createRolesIfNotExists = async () => {
 	}
 };
 
-export const createIndexes = async () => {
-	const db = getDatabase();
-	const AppFile = db.collection(className.APP_FILE);
-	const POST = db.collection(className.BLOG_POST);
+// export const createIndexes = async () => {
+// 	// const db = getDatabase();
+// 	// const AppFile = db.collection(className.APP_FILE);
+// 	// const POST = db.collection(className.BLOG_POST);
 
-	// ensure appFile path is unique
-	await AppFile.createIndex({ path: 1 }, { unique: true });
-	// post slugs must be unique
-	await POST.createIndex({ slug: 1 }, { unique: true });
-};
+// 	// ensure appFile path is unique
+// 	// await AppFile.createIndex({ path: 1 }, { unique: true });
+// 	// post slugs must be unique
+// 	// await POST.createIndex({ slug: 1 }, { unique: true });
+// };
 
 export const createUploadDirIfNotExists = async () => {
 	if (existsSync(FILE_UPLOAD_DESTINATION)) {

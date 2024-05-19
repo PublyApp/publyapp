@@ -1,8 +1,8 @@
-import { defineSchema } from '@/server/lib/parse/utils';
+import SchemaManager from '@/server/lib/parse/SchemaManager';
 import { className } from '@/shared/lib/constants';
 import type { IPostSeries } from '@/shared/types/db/postSeries.types';
 
-const PostSeriesSchema = defineSchema<IPostSeries>(className.BLOG_POST_SERIES, {
+const PostSeriesSchema = SchemaManager.defineSchema<IPostSeries>(className.BLOG_POST_SERIES, {
 	fields: {
 		translation: {
 			type: 'Object',
@@ -10,6 +10,11 @@ const PostSeriesSchema = defineSchema<IPostSeries>(className.BLOG_POST_SERIES, {
 		published: {
 			type: 'Boolean',
 		},
+		// test: {
+		// 	type: 'Number',
+		// 	defaultValue: 12,
+		// 	required: true,
+		// },
 		// title: {
 		// 	type: 'String',
 		// 	required: true,
@@ -19,6 +24,16 @@ const PostSeriesSchema = defineSchema<IPostSeries>(className.BLOG_POST_SERIES, {
 		// 	required: true,
 		// },
 	},
+	// indexes: {
+	// 	test: {
+	// 		keys: {
+	// 			'imaginary.nested.test': 1,
+	// 		},
+	// 		options: {
+	// 			unique: true,
+	// 		},
+	// 	},
+	// },
 });
 
 export default PostSeriesSchema;

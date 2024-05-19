@@ -23,4 +23,26 @@ const patchParseServerSelectNestedObjectKeys = async () => {
 	});
 };
 
+// const patchParseServerMongoSchemaCollection = async () => {
+// 	const filePath1 = path.resolve(
+// 		__dirname,
+// 		'../node_modules/parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js',
+// 	);
+// 	const filePath2 = path.resolve(
+// 		__dirname,
+// 		'../../../node_modules/parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js',
+// 	);
+
+// 	const exists1 = fs.existsSync(filePath1);
+
+// 	// const results =
+// 	replace({
+// 		disableGlobs: true,
+// 		files: (await exists1) ? filePath1 : filePath2,
+// 		from: /import Parse from 'parse\/node';/g,
+// 		to: "import Parse from 'parse/node.js'",
+// 	});
+// };
+
 patchParseServerSelectNestedObjectKeys();
+// patchParseServerMongoSchemaCollection();

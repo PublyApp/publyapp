@@ -1,4 +1,3 @@
-import { SchemaMigrations, type Schema } from 'parse-server';
 import Config from 'parse-server/lib/Config.js';
 import RestWrite from 'parse-server/lib/RestWrite.js';
 
@@ -7,20 +6,14 @@ import _ from 'lodash';
 import type { AggregateOptions, Db, MongoClient } from 'mongodb';
 import { ZodError } from 'zod';
 
-import {
-	className as _className,
-	LOCALE_HEADER_KEY,
-	roleSet,
-	TENANT_ID_HEADER_KEY,
-	type IRoleConfig,
-} from '@devist/shared/lib/constants';
+import { LOCALE_HEADER_KEY, roleSet, TENANT_ID_HEADER_KEY, type IRoleConfig } from '@devist/shared/lib/constants';
 import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { pageToSkip } from '@/server/utils/any.utils';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
 import RoleService from '../../resources/role/role.service';
-import { DEFAULT_CLP, USE_MASTER_KEY } from '../constants';
+import { USE_MASTER_KEY } from '../constants';
 import { getCorrectLocale, getT } from '../i18n';
 
 export const getParseFunctionHeader = (
@@ -490,35 +483,6 @@ export const applySorting = (query: Parse.Query, sorting: { id: string; desc: bo
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<ReturnType<T>>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FunctionParams<T extends ParseFunction<any, any>> = Parameters<T>[0]['params'];
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const defineSchema = <T extends Record<string, any> = Record<string, any>>(
-	className: string,
-	schema: Partial<Omit<Schema<T>, 'fields'>> & Pick<Schema<T>, 'fields'>,
-) => {
-	const fields = schema.fields || undefined;
-	const classLevelPermissions = schema.classLevelPermissions || DEFAULT_CLP;
-	const indexes = schema.indexes || {};
-
-	return SchemaMigrations.makeSchema(className, {
-		fields,
-		classLevelPermissions,
-		indexes,
-	});
-};
-
-export const defineMultiTenantSchema = <T extends Record<string, unknown>>(className: string, schema: Schema<T>) => {
-	const schemaFields = schema.fields || {};
-	(schemaFields as Record<string, unknown>).tenant = {
-		type: 'Pointer',
-		required: true,
-		targetClass: _className.TENANT,
-	};
-	// eslint-disable-next-line no-param-reassign
-	schema.fields = schemaFields;
-
-	return defineSchema(className, schema);
-};
 
 // export const checkFromWho = ({ fromPublic, fromStaff, sessionToken, t }: { fromPublic: string | undefined, fromStaff: string | undefined, sessionToken?: string, t: TFunction }) => {
 // 	if (fromPublic) {

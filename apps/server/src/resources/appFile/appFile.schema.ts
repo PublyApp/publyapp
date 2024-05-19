@@ -1,9 +1,9 @@
 import { className } from '@devist/shared/lib/constants';
 import type { AppFileWithRelations } from '@devist/shared/types/db/appFile.types';
 
-import { defineSchema } from '@/server/lib/parse/utils';
+import SchemaManager from '@/server/lib/parse/SchemaManager';
 
-const AppFileSchema = defineSchema<AppFileWithRelations>(className.APP_FILE, {
+const AppFileSchema = SchemaManager.defineSchema<AppFileWithRelations>(className.APP_FILE, {
 	fields: {
 		// ! for now we use the server's Filesystem only
 		path: { type: 'String', required: true },
@@ -21,6 +21,12 @@ const AppFileSchema = defineSchema<AppFileWithRelations>(className.APP_FILE, {
 		height: { type: 'Number' },
 		width: { type: 'Number' },
 		formats: { type: 'Object' },
+	},
+	indexes: {
+		uniquePath: {
+			keys: { path: 1 },
+			options: { unique: true },
+		},
 	},
 });
 

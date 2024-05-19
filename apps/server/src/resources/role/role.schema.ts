@@ -1,10 +1,10 @@
 import { className } from '@devist/shared/lib/constants';
 
 import { AUTHED_READONLY_CLP } from '@/server/lib/constants';
-import { defineSchema } from '@/server/lib/parse/utils';
+import SchemaManager from '@/server/lib/parse/SchemaManager';
 import type { IRole } from '@/shared/types/db/role.types';
 
-const RoleSchema = defineSchema<Omit<IRole, 'name'>>(className.ROLE, {
+const RoleSchema = SchemaManager.defineSchema<Omit<IRole, 'name'>>(className.ROLE, {
 	fields: {
 		code: { type: 'Number' },
 		// verbs permissions
