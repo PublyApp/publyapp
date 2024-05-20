@@ -6,7 +6,7 @@ import type { AppFile } from '@/shared/types/db/appFile.types';
 import type {
 	CreateAppFileFolderFunctionParams,
 	FindAppFileFunctionParams,
-} from '@/ui-react/api/parse/appFile.endpoints';
+} from '@/ui-react/api/parse/features/appFile.endpoints';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 
 // ---- 1 --------------------------------------------------------------------------------
