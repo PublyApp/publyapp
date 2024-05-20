@@ -50,7 +50,6 @@ const commonEN = {
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
-	'must-init-parse-api': 'Must init with a REST client',
 	'invalid-session': 'Invalid session',
 	'user-is-not-staff': 'User is not from internal staff',
 	'insufficient-role': 'Insufficient role',

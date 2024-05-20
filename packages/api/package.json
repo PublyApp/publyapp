@@ -1,0 +1,19 @@
+{
+  "name": "@devist/api",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+	"dependencies": {
+		"@devist/parse-rest-client": "workspace:*",
+		"@devist/shared": "workspace:*",
+		"lodash": "^4.17.21"
+	},
+	"devDependencies": {
+		"chai": "^5.1.0",
+		"@types/chai": "^4.3.14",
+		"@types/lodash": "^4.14.202"
+	}
+}

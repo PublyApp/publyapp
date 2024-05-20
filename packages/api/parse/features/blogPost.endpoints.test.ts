@@ -1,9 +1,9 @@
 import { before, describe, it } from 'node:test';
 
 import { expect } from 'chai';
-import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
 
-import { className } from '@/shared/lib/constants';
+import ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
+import { className } from '@devist/shared/lib/constants';
 
 import { ParseApi } from '../ParseApi';
 

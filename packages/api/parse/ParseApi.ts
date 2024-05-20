@@ -1,7 +1,5 @@
 import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
 
-import i18n from '@/ui-react/lib/i18n';
-
 import AppFileEndPoints from './features/appFile.endpoints';
 import BlogPostEndPoints from './features/blogPost.endpoints';
 import UserEndPoints from './features/user.endpoints';
@@ -29,7 +27,7 @@ export class ParseApi {
 
 	private checkClient() {
 		if (!this._parseRestClient) {
-			throw new Error(i18n.t('must-init-parse-api'));
+			throw new Error('Must init with a REST client');
 		}
 	}
 
