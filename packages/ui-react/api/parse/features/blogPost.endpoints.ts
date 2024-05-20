@@ -7,7 +7,7 @@ import type {
 import { functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
-import BaseEndPoints, { type BaseEndPointsProps } from './_base.endpoints';
+import BaseEndPoints, { type BaseEndPointsProps } from '../BaseEndPoints';
 
 // == create post
 export type CreateBlogPostFunctionParams = {

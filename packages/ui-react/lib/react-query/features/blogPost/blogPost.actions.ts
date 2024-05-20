@@ -8,7 +8,7 @@ import { type IBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
 import type {
 	CreateBlogPostFunctionParams,
 	UpdateBlogPostFunctionParams,
-} from '@/ui-react/api/parse/blogPost.endpoints';
+} from '@/ui-react/api/parse/features/blogPost.endpoints';
 import parseApi from '@/ui-react/api/parse/ParseApi';
 import { getImageFileFromUrl } from '@/ui-react/utils/image.utils';
 

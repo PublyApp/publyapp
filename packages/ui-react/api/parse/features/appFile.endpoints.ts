@@ -6,7 +6,7 @@ import { protectRequest } from '@/shared/lib/axios';
 import { endPoint, functionName } from '@/shared/lib/constants';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 
-import BaseEndPoints from './_base.endpoints';
+import BaseEndPoints from '../BaseEndPoints';
 
 export type FindAppFileFunctionParams = {
 	page?: number;
