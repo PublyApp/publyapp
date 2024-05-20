@@ -18,6 +18,7 @@ import { initCloudinary } from './lib/cloudinary';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
 import { env } from './lib/env';
 import { expressHandler } from './lib/express';
+import { initI18next } from './lib/i18n';
 import logger, { consoleTransport } from './lib/logger';
 import SchemaManager from './lib/parse/SchemaManager';
 import { cors } from './middlewares/cors.middleware';
@@ -218,6 +219,8 @@ const bootstrap = async () => {
 		SessionSchema,
 		UserSchema,
 	]);
+
+	initI18next();
 
 	// create the roles
 	createRolesIfNotExists();
