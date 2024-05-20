@@ -5,7 +5,7 @@ import type { IUser } from '@devist/shared/types/db/user.types';
 import { defaultHttp, protectRequest } from '@/shared/lib/axios';
 import { endPoint, functionName, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
-import BaseEndPoints from './_base.endpoints';
+import BaseEndPoints from '../BaseEndPoints';
 
 export default class UserEndPoints extends BaseEndPoints {
 	// constructor({ parseRestClient, apiPath}: BaseEndPointsProps) {}

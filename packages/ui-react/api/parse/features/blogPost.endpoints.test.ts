@@ -5,7 +5,7 @@ import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
 
 import { className } from '@/shared/lib/constants';
 
-import { ParseApi } from './ParseApi';
+import { ParseApi } from '../ParseApi';
 
 const parseRestClient = new ParseRestClient({
 	applicationId: 'myAppId',
