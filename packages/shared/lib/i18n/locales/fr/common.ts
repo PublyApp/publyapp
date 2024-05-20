@@ -53,7 +53,6 @@ const commonFR = {
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',
 	'invalid-session': 'Session invalide',
-	'must-init-parse-api': 'Doit être initialisé avec un client REST',
 	'user-is-not-staff': "L'utilisateur n'est pas du personnel interne",
 	'insufficient-role': 'Rôle insuffisant',
 	'new-post': 'Nouvel article',

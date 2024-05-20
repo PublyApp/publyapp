@@ -1,11 +1,12 @@
+import { functionName } from '@devist/shared/lib/constants';
+import type { AppLocale } from '@devist/shared/lib/i18n/resources';
+
 import type {
 	CreateBlogPostFunction,
 	FindBlogPostFunction,
 	GetBlogPostFunction,
 	UpdateBlogPostFunction,
 } from '@/server/resources/blogPost/blogPost.functions';
-import { functionName } from '@/shared/lib/constants';
-import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 import BaseEndPoints, { type BaseEndPointsProps } from '../BaseEndPoints';
 

@@ -1,10 +1,11 @@
+import { protectRequest } from '@devist/shared/lib/axios';
+import { endPoint, functionName } from '@devist/shared/lib/constants';
+import type { AppFile } from '@devist/shared/types/db/appFile.types';
+
 import {
 	type CreateAppFileFunctionReturn,
 	type FindAppFileFunctionReturn,
 } from '@/server/resources/appFile/appFile.functions';
-import { protectRequest } from '@/shared/lib/axios';
-import { endPoint, functionName } from '@/shared/lib/constants';
-import type { AppFile } from '@/shared/types/db/appFile.types';
 
 import BaseEndPoints from '../BaseEndPoints';
 
