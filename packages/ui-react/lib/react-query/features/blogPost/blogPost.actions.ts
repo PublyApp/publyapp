@@ -1,15 +1,16 @@
 import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
 
+import type {
+	CreateBlogPostFunctionParams,
+	UpdateBlogPostFunctionParams,
+} from '@devist/api/parse/features/blogPost.endpoints';
+import parseApi from '@devist/api/parse/ParseApi';
+
 import type { FindBlogPostFunction, GetBlogPostFunction } from '@/server/resources/blogPost/blogPost.functions';
 import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 import { type IBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
-import type {
-	CreateBlogPostFunctionParams,
-	UpdateBlogPostFunctionParams,
-} from '@/ui-react/api/parse/features/blogPost.endpoints';
-import parseApi from '@/ui-react/api/parse/ParseApi';
 import { getImageFileFromUrl } from '@/ui-react/utils/image.utils';
 
 export const getCoverFile = async (post: IBlogPostWithRelations) => {

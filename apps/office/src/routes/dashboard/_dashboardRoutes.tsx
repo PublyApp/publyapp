@@ -4,12 +4,13 @@ import loadable from '@loadable/component';
 import { Box, Button } from '@mui/material';
 import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
+import parseApi from '@devist/api/parse/ParseApi';
+
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import Home from '@/office/containers/home/Home';
 import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
 import BlogSettings from '@/office/modules/blog/settings/BlogSettings';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
-import parseApi from '@/ui-react/api/parse/ParseApi';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { getBlogPostBoEditFormQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.actions';
