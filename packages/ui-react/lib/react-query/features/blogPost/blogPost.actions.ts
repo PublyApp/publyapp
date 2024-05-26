@@ -6,7 +6,7 @@ import type {
 } from '@devist/api/parse/features/blogPost.endpoints';
 import parseApi from '@devist/api/parse/ParseApi';
 
-import type { FindBlogPostFunction, GetBlogPostFunction } from '@/server/resources/blogPost/blogPost.functions';
+import type { FindBlogPostFunction, GetBlogPostFunction } from '@/server/resources/blog/blogPost/blogPost.functions';
 import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { AppFile } from '@/shared/types/db/appFile.types';
