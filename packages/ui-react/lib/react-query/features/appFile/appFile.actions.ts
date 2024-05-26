@@ -1,13 +1,13 @@
 import type { QueryFunctionContext } from '@tanstack/react-query';
 
-import { type functionName } from '@devist/shared/lib/constants';
-
-import type { AppFile } from '@/shared/types/db/appFile.types';
 import type {
 	CreateAppFileFolderFunctionParams,
 	FindAppFileFunctionParams,
-} from '@/ui-react/api/parse/features/appFile.endpoints';
-import parseApi from '@/ui-react/api/parse/ParseApi';
+} from '@devist/api/parse/features/appFile.endpoints';
+import parseApi from '@devist/api/parse/ParseApi';
+import { type functionName } from '@devist/shared/lib/constants';
+
+import type { AppFile } from '@/shared/types/db/appFile.types';
 
 // ---- 1 --------------------------------------------------------------------------------
 

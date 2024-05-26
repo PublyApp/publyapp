@@ -5,12 +5,12 @@ import _ from 'lodash';
 import numeral from 'numeral';
 import { useTranslation } from 'react-i18next';
 
+import parseApi from '@devist/api/parse/ParseApi';
 // import { useChangeLanguage, useLocale } from 'remix-i18next/react';
 
 import { LOCALE_HEADER_KEY } from '@devist/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
-import parseApi from '@/ui-react/api/parse/ParseApi';
 import { defaultLangConfig, langConfigsMap } from '@/ui-react/config/lang.config';
 import zod from '@/ui-react/lib/zod';
 

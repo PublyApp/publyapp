@@ -1,7 +1,8 @@
 import type { LoaderFunctionArgs } from '@remix-run/server-runtime';
 
+import type { ParseApi } from '@devist/api/parse/ParseApi';
+
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import type { ParseApi } from '@/ui-react/api/parse/ParseApi';
 
 import { returnLanguageIfSupported } from '../i18n/i18n';
 import i18next from '../i18n/i18next.server';

@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { type RouteObject } from 'react-router-dom';
+import type { LoaderFunction } from 'react-router-dom';
 
 import { initParse } from '../lib/parse/client';
 
@@ -10,7 +10,8 @@ export const getLastPath = (path: string, n = 1) => {
 	return last;
 };
 
-export const getRouteLoader = (loader: RouteObject['loader']): RouteObject['loader'] => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const getRouteLoader = <Context = any>(loader: LoaderFunction<Context>): LoaderFunction<Context> => {
 	return async (args) => {
 		initParse();
 		return loader?.(args);
