@@ -4,8 +4,6 @@ import { imageFormatTypes } from '@/shared/types/db/appFile.types';
 
 import type { AppLocale } from './i18n/resources';
 
-// import { checkIsBrowser, checkIsServer } from '../utils/env.utils';
-
 export type IRoleConfig = {
 	name: string;
 	code: number;

@@ -1,18 +1,17 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-export interface InviewPortType {
+export interface InViewPortType {
 	distanceFromEnd: number;
 	callback: () => boolean;
 	target: HTMLElement;
 }
 
-const checkInViewIntersectionObserver = ({ target, distanceFromEnd, callback }: InviewPortType) => {
-	const _funCallback: IntersectionObserverCallback = (
+export const checkInViewIntersectionObserver = ({ target, distanceFromEnd, callback }: InViewPortType) => {
+	const funCallback: IntersectionObserverCallback = (
 		entries: IntersectionObserverEntry[],
 		observer: IntersectionObserver,
 	) => {
 		entries.map((entry: IntersectionObserverEntry) => {
 			if (entry.isIntersecting) {
-				// NEED CALLBACK WILL RETURN BOOLEAN ---- IF TRUE WE WILL UNOBSERVER AND FALSE IS NO
+				// NEED CALLBACK WILL RETURN BOOLEAN ---- IF TRUE WE WILL UN_OBSERVER AND FALSE IS NO
 				const unobserve = callback();
 
 				if (unobserve) {
@@ -26,7 +25,7 @@ const checkInViewIntersectionObserver = ({ target, distanceFromEnd, callback }: 
 
 	// _checkBrowserSupport-----
 	if (typeof window.IntersectionObserver === 'undefined') {
-		console.error('window.IntersectionObserver === undefined! => Your Browser is Notsupport');
+		console.error('window.IntersectionObserver === undefined! => Your Browser is not supported');
 		return;
 	}
 
@@ -36,11 +35,9 @@ const checkInViewIntersectionObserver = ({ target, distanceFromEnd, callback }: 
 		threshold: 0,
 	};
 
-	const observer = new IntersectionObserver(_funCallback, options);
+	const observer = new IntersectionObserver(funCallback, options);
 
 	if (target) {
 		observer.observe(target);
 	}
 };
-
-export default checkInViewIntersectionObserver;
