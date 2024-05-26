@@ -6,7 +6,7 @@ import type {
 	FindBlogPostFunction,
 	GetBlogPostFunction,
 	UpdateBlogPostFunction,
-} from '@/server/resources/blogPost/blogPost.functions';
+} from '@/server/resources/blog/blogPost/blogPost.functions';
 
 import BaseEndPoints, { type BaseEndPointsProps } from '../BaseEndPoints';
 
