@@ -95,12 +95,14 @@ export const useNavData = () => {
 					// 	icon: ICONS.dashboard,
 					// },
 					{
-						title: `${t('post')}s`,
+						// title: `${t('post')}s`,
+						title: 'Blog',
 						path: BO_PATH_NAMES.dashboard.posts.root,
 						icon: ICONS.blog,
 						children: [
 							{
-								title: t('list'),
+								// title: t('list'),
+								title: `${t('post')}s`,
 								path: BO_PATH_NAMES.dashboard.posts.root,
 							},
 							{
@@ -112,6 +114,21 @@ export const useNavData = () => {
 								path: BO_PATH_NAMES.dashboard.posts.settings,
 							},
 						],
+					},
+					{
+						title: 'file manager (todo)',
+						icon: ICONS.file,
+						path: '#',
+					},
+					{
+						title: 'Social media scheduler (todo)',
+						icon: ICONS.calendar,
+						path: '#',
+					},
+					{
+						title: 'Facebook messenger bot (todo)',
+						icon: ICONS.chat,
+						path: '#',
 					},
 					// {
 					// 	title: 'New Post',
