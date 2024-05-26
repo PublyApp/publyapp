@@ -2,7 +2,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import type { ParsedQs } from 'qs';
 
-import { tryCatchWrapper } from '@devist/shared/utils/tryCatchWrapper';
+import { tryCatchWrapper } from '@devist/shared/utils/tryCatch.utils';
 
 type ParamsDictionary = Record<string, string>;
 

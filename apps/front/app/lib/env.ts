@@ -3,8 +3,6 @@ import z from 'zod';
 
 import { deepFreeze } from '@/shared/utils/any.utils';
 
-// import { checkIsBrowser, checkIsServer } from '@/shared/utils/env.utils';
-
 const envSchema = z.object({
 	VITE_SERVER_URL: z.string(),
 	VITE_REST_API_KEY: z.string(),
@@ -31,13 +29,3 @@ const dotEnv = {
 } satisfies Partial<AppEnv>;
 
 export const env = deepFreeze(envSchema.parse(dotEnv));
-
-// // set env to window or global
-// // i need it to define PARSE_API_PATH in packages/shared/lib/constants.ts
-// if (checkIsBrowser()) {
-// 	_.set(window, 'env', env);
-// }
-
-// if (checkIsServer()) {
-// 	_.set(global, 'env', env);
-// }
