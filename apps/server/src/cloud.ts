@@ -12,9 +12,9 @@ export const cloud = async () => {
 
 const functions = async () => {
 	await Promise.all([
-		import('@/server/resources/appFile/appFile.functions'),
-		import('@/server/resources/blogPost/blogPost.functions'),
-		import('@/server/resources/user/user.functions'),
+		import('@/server/resources/file-manager/appFile/appFile.functions'),
+		import('@/server/resources/blog/blogPost/blogPost.functions'),
+		import('@/server/resources/auth/user/user.functions'),
 		// 	import('../resources/aiTool/aiTool.functions'),
 		// import('../resources/webHost/webHost.functions'),
 	]);
@@ -22,12 +22,12 @@ const functions = async () => {
 
 const triggers = async () => {
 	await Promise.all([
-		import('@/server/resources/user/user.triggers'),
+		import('@/server/resources/auth/user/user.triggers'),
 		// import('@/server/resources/post/post.triggers'),
 		// import('@/server/resources/session/session.triggers'),
 	]);
 };
 
 const jobs = async () => {
-	await Promise.all([import('@/server/resources/blogPost/blogPost.jobs')]);
+	await Promise.all([import('@/server/resources/blog/blogPost/blogPost.jobs')]);
 };
