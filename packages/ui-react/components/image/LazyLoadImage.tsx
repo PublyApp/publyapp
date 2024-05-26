@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FC, type ImgHTMLAttribut
 import { css, cx } from '@emotion/css';
 import { Box } from '@mui/material';
 
-import checkInViewIntersectionObserver from '../../utils/isInViewPortIntersectionObserver';
+import { checkInViewIntersectionObserver } from '../../utils/browser.utils';
 import { PlaceIcon } from '../CustomIcons';
 
 export interface LazyLoadImageProps extends ImgHTMLAttributes<HTMLImageElement> {

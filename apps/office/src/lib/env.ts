@@ -3,8 +3,6 @@ import z from 'zod';
 
 import { deepFreeze } from '@/shared/utils/any.utils';
 
-// import { checkIsBrowser, checkIsServer } from '@/shared/utils/env.utils';
-
 const envSchema = z.object({
 	SERVER_URL: z.string(),
 	REST_API_KEY: z.string(),

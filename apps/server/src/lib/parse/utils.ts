@@ -12,6 +12,8 @@ import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 import { pageToSkip } from '@/server/utils/any.utils';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
+// import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
+
 import RoleService from '../../resources/auth/role/role.service';
 import { USE_MASTER_KEY } from '../constants';
 import { getCorrectLocale, getT } from '../i18n';
@@ -52,6 +54,53 @@ const isTriggerRequest = (
 export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
 	innerFunction: ParseInnerFunction<P, T>,
 ) => {
+	// ! this is overkill i think, just use a simple try catch instead
+	// return async (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest<P>): Promise<T> => {
+	// 	const wrappedFunction = tryCatchWrapper(
+	// 		async () => {
+	// 			const result = await innerFunction(req as never);
+	// 			return result;
+	// 		},
+	// 		async (error) => {
+	// 			const localeInHeader = getCorrectLocale(getParseFunctionHeader(req, LOCALE_HEADER_KEY));
+
+	// 			let t = getT(localeInHeader);
+
+	// 			const isTrigger = isTriggerRequest(req);
+
+	// 			if (isTrigger) {
+	// 				const localeInContext = getCorrectLocale(_.isString(req.context?.locale) ? req.context.locale : undefined);
+
+	// 				if (localeInContext !== localeInHeader) {
+	// 					t = getT(localeInContext);
+	// 				}
+	// 			} else {
+	// 				// do nothing
+	// 			}
+
+	// 			let message: string = t('unknown-error');
+
+	// 			if (_.isString(error)) {
+	// 				message = error;
+	// 			}
+
+	// 			// get zod errors message
+	// 			if (error instanceof ZodError) {
+	// 				message = error.issues[0].message;
+	// 				return Promise.reject(message);
+	// 			}
+
+	// 			if (error instanceof Error) {
+	// 				return Promise.reject(error);
+	// 			}
+
+	// 			return Promise.reject(message);
+	// 		},
+	// 	);
+
+	// 	return wrappedFunction();
+	// };
+
 	return async (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest<P>): Promise<T> => {
 		try {
 			const result = await innerFunction(req as never);
