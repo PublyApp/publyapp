@@ -26,6 +26,7 @@ import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
 import AppFileSchema from './resources/appFile/appFile.schema';
 import BlogPostSchema from './resources/blogPost/blogPost.schema';
+import BlogPostSlugSchema from './resources/blogPost/blogPostSlug.schema';
 import BlogPostSeriesSchema from './resources/blogPostSeries/blogPostSeries.schema';
 import RoleSchema from './resources/role/role.schema';
 import SessionSchema from './resources/session/session.schema';
@@ -215,6 +216,7 @@ const bootstrap = async () => {
 		BlogPostSeriesSchema,
 		AppFileSchema,
 		BlogPostSchema,
+		BlogPostSlugSchema,
 		RoleSchema,
 		SessionSchema,
 		UserSchema,
