@@ -11,7 +11,7 @@ type IBlogPostSlugWithRelations = {
 	post: IBlogPost;
 };
 
-const BlogPostSlugSchema = SchemaManager.defineSchema<IBlogPostSlugWithRelations>(className.BLOG_POST, {
+const BlogPostSlugSchema = SchemaManager.defineSchema<IBlogPostSlugWithRelations>(className.BLOG_POST_SLUG, {
 	fields: {
 		slug: { type: 'String', required: true },
 		// relations
