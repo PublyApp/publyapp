@@ -2,8 +2,14 @@ import i18next from 'i18next';
 
 import { appLocales, defaultLocale, defaultNS, NS, resources, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
+let IS_INITIALIZED = false;
+
 export const initI18next = async () => {
-	i18next.init({
+	if (IS_INITIALIZED) {
+		return;
+	}
+
+	await i18next.init({
 		debug: false,
 		// debug: process.env.NODE_ENV === 'development',
 		resources,
@@ -15,7 +21,12 @@ export const initI18next = async () => {
 			escapeValue: false, // not needed for react as it escapes by default
 		},
 	});
+
+	IS_INITIALIZED = true;
 };
+
+// ! it's important to immediately initialize;
+initI18next();
 
 export const getT = (locale: AppLocale) => {
 	return i18next.getFixedT(locale);
