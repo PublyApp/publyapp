@@ -5,9 +5,12 @@ import { endPoint } from '@/shared/lib/constants';
 import { apiEndPoint } from '../lib/constants';
 import { multerConfig } from '../lib/multer';
 import protectionMiddleware from '../middlewares/protection.middleware';
-import { handleVerification, handleWebHook } from '../resources/facebookMessenger/facebookMessenger.controller';
-import { handleUploadManyFiles, handleUploadSingleFile } from '../resources/file/file.controller';
-import { handlePasswordLogin } from '../resources/user/user.controller';
+import { handlePasswordLogin } from '../resources/auth/user/user.controller';
+import { handleUploadManyFiles, handleUploadSingleFile } from '../resources/file-manager/file/file.controller';
+import {
+	handleVerification,
+	handleWebHook,
+} from '../resources/social-media/facebookMessenger/facebookMessenger.controller';
 
 const customAPIRouter = Router();
 export default customAPIRouter;

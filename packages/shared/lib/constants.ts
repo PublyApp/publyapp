@@ -63,6 +63,7 @@ export const className = {
 	BLOG_POST_SLUG: 'BlogPostSlug',
 	BLOG_POST_SERIES: 'BlogPostSeries',
 	APP_FILE: 'AppFile',
+	SHORT_URL: 'ShortUrl',
 	// ==== not used anymore
 } as const;
 
