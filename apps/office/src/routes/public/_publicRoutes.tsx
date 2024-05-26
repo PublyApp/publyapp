@@ -1,11 +1,12 @@
 import { Box } from '@mui/material';
 import { redirect, useRouteError, type RouteObject } from 'react-router-dom';
 
+import parseApi from '@devist/api/parse/ParseApi';
+
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import Register from '@/office/containers/register/Register';
 import AuthLayout from '@/office/layouts/auth/AuthLayout';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
-import parseApi from '@/ui-react/api/parse/ParseApi';
 
 import LogIn from '../../containers/logIn/LogIn';
 import { getLastPath, getRouteLoader } from '../utils';

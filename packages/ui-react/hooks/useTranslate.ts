@@ -4,10 +4,10 @@ import _ from 'lodash';
 import numeral from 'numeral';
 import { useTranslation } from 'react-i18next';
 
+import parseApi from '@devist/api/parse/ParseApi';
 import { LOCALE_HEADER_KEY } from '@devist/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
-import parseApi from '../api/parse/ParseApi';
 import { defaultLangConfig, langConfigsMap } from '../config/lang.config';
 import zod from '../lib/zod';
 

@@ -12,24 +12,30 @@
     "prepare": "husky install",
     "update-deps": "pnpm up -i -r",
     "prepare:deploy:server": "pnpm ./scripts/deploy/server/index.js",
-		"dev:server": "pnpm --filter server run dev",
-		"dev:front": "pnpm --filter front run dev",
-		"dev:office": "pnpm --filter office run dev"
+    "// run in a specific workspace": "=============================",
+    "// DEV SCRIPTS": "=============================",
+    "dev:server": "pnpm --filter server run dev",
+    "dev:front": "pnpm --filter front run dev",
+    "dev:office": "pnpm --filter office run dev",
+    "// TSC SCRIPTS": "=============================",
+    "tsc:server": "pnpm --filter server run type-check",
+    "tsc:front": "pnpm --filter front run type-check",
+    "tsc:office": "pnpm --filter office run type-check"
   },
   "devDependencies": {
     "@ianvs/prettier-plugin-sort-imports": "^4.1.1",
     "eslint": "^8.56.0",
     "eslint-config-custom-base": "workspace:*",
     "fs-extra": "^11.2.0",
-    "husky": "^8.0.3",
+    "husky": "^9.0.11",
     "lint-staged": "^15.2.0",
     "prettier": "^3.2.2",
     "tsconfig": "workspace:*",
     "turbo": "^1.12.2",
     "typescript": "^5.3.3"
   },
-	"packageManager": "pnpm@8.15.7",
-	"engines": {
+  "packageManager": "pnpm@8.15.7",
+  "engines": {
     "node": ">=20.12.2"
   },
   "trustedDependencies": [

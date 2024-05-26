@@ -25,6 +25,7 @@
 		"typescript": "^5.3.3"
 	},
 	"dependencies": {
+		"@devist/api": "workspace:*",
 		"@devist/parse-rest-client": "workspace:*",
 		"@devist/shared": "workspace:*",
 		"@emotion/css": "^11.11.2",

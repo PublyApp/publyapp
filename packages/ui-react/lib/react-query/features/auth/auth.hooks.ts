@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient, useSuspenseQuery, type MutateOptions } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
+import parseApi from '@devist/api/parse/ParseApi';
 import type { IUser } from '@devist/shared/types/db/user.types';
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
 import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
-import parseApi from '@/ui-react/api/parse/ParseApi';
 import { localStorageSetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
 import { getUserAuthDataQuery, logInAction, logOutAction } from './auth.actions';

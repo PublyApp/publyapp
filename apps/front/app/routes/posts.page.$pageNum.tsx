@@ -2,6 +2,8 @@ import { Container, Unstable_Grid2 as Grid } from '@mui/material';
 // import { type LoaderFunction } from '@remix-run/node';
 import { /* useLoaderData, */ defer, type ClientLoaderFunction } from '@remix-run/react';
 
+import parseApi from '@devist/api/parse/ParseApi';
+
 // import { useTranslation } from 'react-i18next';
 
 // import { t } from 'i18next';
@@ -9,7 +11,6 @@ import { /* useLoaderData, */ defer, type ClientLoaderFunction } from '@remix-ru
 import { _categories, _tags } from '@/front/_mock';
 import PostListHorizontal from '@/front/containers/postList/PostListHorizontal';
 import BlogSidebar from '@/front/containers/postList/sidebar/BlogSidebar';
-import parseApi from '@/ui-react/api/parse/ParseApi';
 
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 

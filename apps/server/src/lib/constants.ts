@@ -60,7 +60,9 @@ export const DEFAULT_CLP: CPLsInterface = {
 	delete: {
 		requiresAuthentication: true,
 	},
-	addField: {},
+	addField: {
+		requiresAuthentication: true,
+	},
 };
 
 export const PUBLIC_READONLY_CLP: CPLsInterface = {

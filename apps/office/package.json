@@ -20,9 +20,12 @@
 		"lint": "eslint src --ext ts,tsx --max-warnings 0",
 		"lint:fix": "pnpm lint --fix",
 		"// =============== DEPLOY COMMANDS =================": "================================",
-		"deploy:prebuilt": "vercel deploy --prebuilt"
+		"deploy:prebuilt": "vercel deploy --prebuilt",
+		"// =================================================": "================================",
+		"type-check": "tsc"
 	},
 	"dependencies": {
+		"@devist/api": "workspace:*",
 		"@devist/parse-rest-client": "workspace:*",
 		"@devist/shared": "workspace:*",
 		"@devist/ui-react": "workspace:*",

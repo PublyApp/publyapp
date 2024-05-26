@@ -1,9 +1,9 @@
 import { queryOptions } from '@tanstack/react-query';
 
+import parseApi from '@devist/api/parse/ParseApi';
 import type { LogInInput } from '@devist/shared/validations/auth.validations';
 
 import { functionName } from '@/shared/lib/constants';
-import parseApi from '@/ui-react/api/parse/ParseApi';
 
 // ---- 1 --------------------------------------------------------------------------------
 

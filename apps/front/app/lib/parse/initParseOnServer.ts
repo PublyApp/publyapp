@@ -1,8 +1,9 @@
 import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
 
+import { ParseApi } from '@devist/api/parse/ParseApi';
+
 import { LOCALE_HEADER_KEY } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import { ParseApi } from '@/ui-react/api/parse/ParseApi';
 
 import { env } from '../env';
 

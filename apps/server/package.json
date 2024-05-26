@@ -30,7 +30,8 @@
 		"// =============== SEED COMMANDS =================": "================================",
 		"seed": "node --enable-source-maps dist/seeding/seed.js",
 		"// =============== TEST COMMANDS =================": "================================",
-		"postinstall": "node scripts/patch.js"
+		"postinstall": "node scripts/patch.js",
+		"type-check": "tsc"
 	},
 	"dependencies": {
 		"@devist/shared": "workspace:*",
