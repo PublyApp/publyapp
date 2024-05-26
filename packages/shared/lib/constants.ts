@@ -60,6 +60,7 @@ export const className = {
 	TENANT: 'Tenant',
 	// === Custom classes ===
 	BLOG_POST: 'BlogPost',
+	BLOG_POST_SLUG: 'BlogPostSlug',
 	BLOG_POST_SERIES: 'BlogPostSeries',
 	APP_FILE: 'AppFile',
 	// ==== not used anymore
