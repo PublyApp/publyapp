@@ -12,7 +12,7 @@ import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 import { pageToSkip } from '@/server/utils/any.utils';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
-import RoleService from '../../resources/role/role.service';
+import RoleService from '../../resources/auth/role/role.service';
 import { USE_MASTER_KEY } from '../constants';
 import { getCorrectLocale, getT } from '../i18n';
 

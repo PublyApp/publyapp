@@ -24,13 +24,13 @@ import SchemaManager from './lib/parse/SchemaManager';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
-import AppFileSchema from './resources/appFile/appFile.schema';
-import BlogPostSchema from './resources/blogPost/blogPost.schema';
-import BlogPostSlugSchema from './resources/blogPost/blogPostSlug.schema';
-import BlogPostSeriesSchema from './resources/blogPostSeries/blogPostSeries.schema';
-import RoleSchema from './resources/role/role.schema';
-import SessionSchema from './resources/session/session.schema';
-import UserSchema from './resources/user/user.schema';
+import RoleSchema from './resources/auth/role/role.schema';
+import SessionSchema from './resources/auth/session/session.schema';
+import UserSchema from './resources/auth/user/user.schema';
+import BlogPostSchema from './resources/blog/blogPost/blogPost.schema';
+import BlogPostSlugSchema from './resources/blog/blogPost/blogPostSlug.schema';
+import BlogPostSeriesSchema from './resources/blog/blogPostSeries/blogPostSeries.schema';
+import AppFileSchema from './resources/file-manager/appFile/appFile.schema';
 import customAPIRouter from './router/customAPIRouter';
 
 const bootstrap = async () => {

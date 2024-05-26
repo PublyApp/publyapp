@@ -11,9 +11,9 @@ import {
 
 import ParseBlogPost from '@/server/lib/parse/classes/blogPost.class';
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
-import BlogPostService from '@/server/resources/blogPost/blogPost.service';
-import FileService from '@/server/resources/file/file.service';
-import UserService from '@/server/resources/user/user.service';
+import UserService from '@/server/resources/auth/user/user.service';
+import BlogPostService from '@/server/resources/blog/blogPost/blogPost.service';
+import FileService from '@/server/resources/file-manager/file/file.service';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 
 export namespace CreateBlogPostFunction {

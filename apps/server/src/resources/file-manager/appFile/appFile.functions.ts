@@ -1,8 +1,8 @@
 import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 
 import { parseFunctionEnhanced, type FunctionReturn } from '@/server/lib/parse/utils';
-import FileService from '@/server/resources/file/file.service';
-import FolderService from '@/server/resources/folder/folder.service';
+import FileService from '@/server/resources/file-manager/file/file.service';
+import FolderService from '@/server/resources/file-manager/folder/folder.service';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 import { getMulterCreateFolderSchema } from '@/shared/validations/file/file.validations.server';
 

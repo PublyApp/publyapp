@@ -2,7 +2,7 @@ import { getMulterFilesArraySchema } from '@devist/shared/validations/file/file.
 
 import { HttpException } from '@/server/exceptions/HttpException';
 import { expressHandler } from '@/server/lib/express';
-import FileService from '@/server/resources/file/file.service';
+import FileService from '@/server/resources/file-manager/file/file.service';
 import { getRequestUtils } from '@/server/utils/request.utils';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 

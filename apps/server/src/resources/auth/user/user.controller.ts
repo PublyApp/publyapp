@@ -12,7 +12,7 @@ import { createSessionServer } from '@/server/lib/parse/utils';
 import { getRequestIp } from '@/server/utils/request.utils';
 import { defaultHttp } from '@/shared/lib/axios';
 
-import { AuthCloudService } from '../auth/auth.cloud.service';
+import { AuthCloudService } from '../auth.cloud.service';
 
 export const handlePasswordLogin = expressHandler(async (req, res) => {
 	const { username, password } = req.body;
