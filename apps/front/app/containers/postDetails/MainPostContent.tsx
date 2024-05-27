@@ -1,5 +1,5 @@
 import { /* Chip, */ Chip, Container, Stack, Typography } from '@mui/material';
-import { useLoaderData, useParams, useRevalidator } from '@remix-run/react';
+import { useLoaderData /* useLocation, useParams, */, useRevalidator } from '@remix-run/react';
 import _ from 'lodash';
 
 import Breadcrumbs from '@/front/components/Breadcrumbs';
@@ -22,7 +22,7 @@ const MainPostContent = () => {
 	const { post, relatedPosts } = data;
 	const { t, locale, setLocale } = useTranslate();
 	const { revalidate, state } = useRevalidator();
-	const params = useParams();
+	// const params = useParams();
 
 	// if (!post) { // improbable + we don't handle this here, bun in the root route error boundary.
 	// 	return <h1>Post does not exist</h1>; // improbable
@@ -33,7 +33,7 @@ const MainPostContent = () => {
 		const message = error.message || t('an-error-occurred');
 
 		if (isErrorJSON(relatedPosts)) {
-			console.log(relatedPosts);
+			console.log(relatedPosts.stack);
 			return (
 				<CompactContainer>
 					<Error500 error={new Error(relatedPosts.message)} />
@@ -77,16 +77,22 @@ const MainPostContent = () => {
 			let description: string = `${t('find-otherLanguage-version-of-item', { item: t('post'), otherLanguage })} ${t('down-here')} 👇`;
 			description = _.capitalize(description).replace('ce article', 'cet article');
 
-			post.post.slug = _.toString(params.slug);
+			// post.post.slug = _.toString(params.slug);
+			// post.post.url = `${window.location.origin}/${oppositeLocale}/${params.slug}`;
+			// post.post.url = window.location.origin + FRONT_PATH_NAMES.posts.details(_.toString(params.slug), oppositeLocale);
 
 			return (
 				<Retry message={message} description={description} hideRetryButton>
 					<PostItemHorizontal
 						post={post.post}
-						disableAddLocaleToPostPath
-						locale={oppositeLocale}
-						onClick={() => {
-							setLocale(oppositeLocale);
+						LinkProps={{
+							disableAddLocaleToPath: true,
+							href: FRONT_PATH_NAMES.posts.details(_.toString(post.post.slug), oppositeLocale),
+							onClick: () => {
+								setTimeout(() => {
+									setLocale(oppositeLocale);
+								}, 250);
+							},
 						}}
 					/>
 				</Retry>
