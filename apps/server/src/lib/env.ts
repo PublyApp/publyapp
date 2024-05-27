@@ -7,9 +7,11 @@ import z from 'zod';
 
 import { getNumericStringSchema } from '@devist/shared/lib/zod/utils';
 
+import { deepFreeze } from '@/shared/utils/any.utils';
+
 import { defaultZod } from './zod';
 
-export const envSchema = z.object({
+const envSchema = z.object({
 	PORT: getNumericStringSchema(defaultZod).default('3000'),
 	SERVER_URL: z.string(),
 	DATABASE_URI: z.string(),
@@ -30,10 +32,10 @@ export const envSchema = z.object({
 	OFFICE_URL: z.string(),
 });
 
-export type AppEnv = z.infer<typeof envSchema>;
-
-// export const env: Readonly<AppEnv> = {} as AppEnv;
-// const env: AppEnv = {} as AppEnv;
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type AppEnv = z.infer<typeof envSchema>;
 
 global.LOCAL = process.env.ONLINE !== 'true';
 global.TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';
@@ -57,10 +59,5 @@ if (global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
 // --------------------------------------------------------------------------------------//
 //                                Type check process.env                                 //
 // --------------------------------------------------------------------------------------//
-const checkedEnv = envSchema.parse(process.env);
 
-const getAppEnv = (newEnv: AppEnv) => {
-	return Object.assign({} as AppEnv, newEnv);
-};
-
-export const env = getAppEnv(checkedEnv);
+export const env = deepFreeze(envSchema.parse(process.env));
