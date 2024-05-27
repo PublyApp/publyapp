@@ -15,7 +15,7 @@ const envSchema = z.object({
 	// ===
 });
 
-export type AppEnv = z.infer<typeof envSchema>;
+type AppEnv = z.infer<typeof envSchema>;
 
 const dotEnv = {
 	VITE_SERVER_URL: import.meta.env.VITE_SERVER_URL,
