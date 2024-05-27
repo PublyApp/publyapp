@@ -5,7 +5,7 @@ import type ParseAppFile from '@/server/lib/parse/classes/appFile.class';
 import ParseBlogPost from '@/server/lib/parse/classes/blogPost.class';
 import type ParseUser from '@/server/lib/parse/classes/user.class';
 import { applySkipAndLimit, applySorting, toIsoString } from '@/server/lib/parse/utils';
-import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
+import { className, DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type {
 	IBlogPostWithParseRelations,
@@ -230,29 +230,58 @@ export default class BlogPostService {
 		// eslint-disable-next-line no-param-reassign
 		options.published = options.published ?? true;
 
-		const query = new Parse.Query(ParseBlogPost).equalTo('slug', slug);
+		const slugQuery = new Parse.Query(className.BLOG_POST_SLUG).equalTo('slug', slug);
+		const postQuery = new Parse.Query(ParseBlogPost);
+
+		slugQuery.include([
+			'post',
+			...(options.include?.map((include) => {
+				return `post.${include}`;
+			}) || []),
+		]);
 
 		if (options.published) {
-			query.equalTo('published', true);
+			postQuery.equalTo('published', true);
 		}
 
 		if (options.select) {
-			query.select(options.select as never);
+			slugQuery.select([
+				'post',
+				...(options.select.map((select) => {
+					return `post.${select}`;
+				}) || []),
+			] as never);
 		}
 
-		if (options.include) {
-			query.include(options.include as never);
-		}
+		// if (options.include) {
+		// 	postQuery.include(options.include as never);
+		// }
 
-		const result = query.first({ sessionToken: this.sessionToken, json: options.json });
+		slugQuery.matchesQuery('post', postQuery);
+
+		// const result = postQuery.first({ sessionToken: this.sessionToken, json: options.json });
+		const result = await slugQuery.first({ sessionToken: this.sessionToken, json: options.json });
 
 		if (options.json) {
+			const post: IBlogPostWithRelations | undefined = _.get(result, 'post');
+
+			if (!_.isNil(post)) {
+				_.assign(post, { slug });
+			}
+
+			return post as never;
 			// return query.first({ sessionToken: this.sessionToken, json: options.json }) as never;
-			return result as never;
 		}
 
 		// return query.first({ sessionToken: this.sessionToken }) as never;
-		return result as never;
+		const post: ParseBlogPost | undefined = result?.get('post');
+
+		if (!_.isNil(post)) {
+			// _.assign(post, { slug });
+			post.set('slug', slug);
+		}
+
+		return post as never;
 	}
 
 	async find(params: Omit<FindBlogPostInput, 'json'> & { json: true }): Promise<IBlogPostWithRelations[]>;
@@ -548,11 +577,11 @@ export default class BlogPostService {
 		// const MORE_POSTS_COUNT = 4;
 		const include = ['author', 'cover'];
 		const select = [
-			'author',
+			// 'author',
 			'author.firstName',
 			'author.lastName',
 
-			'cover',
+			// 'cover',
 			'cover.url',
 
 			'tags',
