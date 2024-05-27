@@ -14,6 +14,8 @@ export const loader = getServerLoader(async ({ params, parseApi }) => {
 
 	const [post, relatedPosts] = await Promise.all([postPromise, relatedPostsPromise]);
 
+	console.log('😵‍💫😵‍💫😵‍💫', post);
+
 	return json(
 		{
 			post,
