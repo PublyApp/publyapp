@@ -10,7 +10,7 @@ import useTranslate from '../hooks/useTranslate';
 
 // ----------------------------------------------------------------------
 
-interface RouterLinkProps extends Omit<LinkProps, 'to'> {
+export interface RouterLinkProps extends Omit<LinkProps, 'to'> {
 	href: string;
 	preserveQuery?: boolean;
 	disableAddLocaleToPath?: boolean;

@@ -1,10 +1,10 @@
 import _ from 'lodash';
 
 export const sleep = <T = unknown>(timeout: number, value?: T) => {
-	return new Promise((resolve) => {
+	return new Promise<T>((resolve) => {
 		// eslint-disable-next-line no-promise-executor-return
 		return setTimeout(() => {
-			resolve(value);
+			resolve(value as never);
 		}, timeout);
 	});
 };
