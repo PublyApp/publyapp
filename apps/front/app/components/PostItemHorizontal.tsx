@@ -1,4 +1,5 @@
-import { Avatar, Box, Card, Link, Stack, useTheme } from '@mui/material';
+import { Avatar, Box, Card, Link, Stack, useTheme, type LinkProps } from '@mui/material';
+import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
 // import CustomPopover from '@devist/ui-react/components/CustomPopover';
@@ -24,10 +25,10 @@ import { getUserFullName } from '@devist/shared/utils/user.utils';
 import { fDate } from '@devist/ui-react/utils/date.utils';
 import { fShortenNumber } from '@devist/ui-react/utils/number.utils';
 
-import RouterLink from '@/front/components/RouterLink';
+import RouterLink, { type RouterLinkProps } from '@/front/components/RouterLink';
 // import useRouter from '@/front/hooks/useRouter';
 import { /* BO_PATH_NAMES, */ FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import type { AppLocale } from '@/shared/lib/i18n/resources';
+// import type { AppLocale } from '@/shared/lib/i18n/resources';
 // import type { IUserWithRelations } from '@/shared/types/db/user.types';
 import Iconify from '@/ui-react/components/Iconify';
 import Image from '@/ui-react/components/image/Image';
@@ -51,18 +52,22 @@ type Props = {
 	post: IPostItem;
 	showCommentCount?: boolean;
 	showViewCount?: boolean;
-	disableAddLocaleToPostPath?: boolean;
-	locale?: AppLocale;
-	onClick?: () => void;
+	// disableAddLocaleToPostPath?: boolean;
+	// locale?: AppLocale;
+	// onClick?: () => void;
+	// isExternal?: boolean;
+	LinkProps?: DeepPartial<LinkProps & RouterLinkProps>;
 };
 
 const PostItemHorizontal = ({
 	post,
 	showCommentCount,
 	showViewCount,
-	disableAddLocaleToPostPath = false,
-	locale,
-	onClick,
+	LinkProps,
+	// disableAddLocaleToPostPath = false,
+	// locale,
+	// onClick,
+	// isExternal,
 }: Props) => {
 	// const popover = usePopover();
 
@@ -127,10 +132,9 @@ const PostItemHorizontal = ({
 						<Link
 							color="inherit"
 							component={RouterLink}
-							href={FRONT_PATH_NAMES.posts.details(post.slug, locale)}
-							sx={{ width: 'fit-content' }}
-							disableAddLocaleToPath={disableAddLocaleToPostPath}
-							onClick={onClick}
+							href={LinkProps?.href ?? FRONT_PATH_NAMES.posts.details(post.slug)}
+							sx={{ width: 'fit-content', ...LinkProps?.sx }}
+							{..._.omit(LinkProps, ['href', 'sx'])}
 						>
 							<TextMaxLine variant="h4" line={2} sx={{ width: 'fit-content' }}>
 								{post.title}

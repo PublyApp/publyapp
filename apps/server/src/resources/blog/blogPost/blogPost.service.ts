@@ -594,7 +594,10 @@ export default class BlogPostService {
 			});
 
 			const jsonFallBackBlogPost = BlogPostService.toJSON(fallBackBlogPost!);
-			_.assign(post, jsonFallBackBlogPost);
+			_.assign(post, jsonFallBackBlogPost, {
+				// url: env.FRONT_URL + FRONT_PATH_NAMES.posts.details(slug, fallBackLocale),
+				slug,
+			});
 			const fallBackTranslation = BlogPostService.toTranslatedIBlogPost(post, fallBackLocale);
 
 			return {
