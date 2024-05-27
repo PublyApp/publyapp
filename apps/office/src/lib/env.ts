@@ -20,7 +20,7 @@ const envSchema = z.object({
 	FRONT_URL: z.string(),
 });
 
-export type AppEnv = z.infer<typeof envSchema>;
+type AppEnv = z.infer<typeof envSchema>;
 
 const dotEnv = {
 	SERVER_URL: process.env.SERVER_URL,
