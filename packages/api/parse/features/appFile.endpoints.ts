@@ -29,7 +29,6 @@ export default class AppFileEndPoints extends BaseEndPoints {
 		return this.parseRestClient.cloudRun<CreateAppFileFunctionReturn>(functionName.createAppFileFolder, { params });
 	}
 
-	// eslint-disable-next-line class-methods-use-this
 	async uploadSingleFile(params: { file: File; parentFolderPath?: string }, options: { restApiKey?: string } = {}) {
 		const formData = new FormData();
 
@@ -49,7 +48,6 @@ export default class AppFileEndPoints extends BaseEndPoints {
 		);
 	}
 
-	// eslint-disable-next-line class-methods-use-this
 	async uploadManyFiles(params: { files: File[]; parentFolderPath?: string }, options: { restApiKey?: string } = {}) {
 		const formData = new FormData();
 

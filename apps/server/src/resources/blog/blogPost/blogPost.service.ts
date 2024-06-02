@@ -217,18 +217,34 @@ export default class BlogPostService {
 
 	async getBySlug(
 		slug: string,
-		options?: undefined | { select?: string[]; include?: string[]; published?: boolean; json?: false | undefined },
+		options?:
+			| undefined
+			| {
+					select?: string[];
+					include?: string[];
+					showPublishedOnly?: boolean;
+					hideDeleted?: boolean;
+					json?: false | undefined;
+			  },
 	): Promise<ParseBlogPost | undefined>;
 	async getBySlug(
 		slug: string,
-		options: { select?: string[]; include?: string[]; published?: boolean; json: true },
+		options: { select?: string[]; include?: string[]; showPublishedOnly?: boolean; hideDeleted?: boolean; json: true },
 	): Promise<IBlogPostWithRelations | undefined>;
 	async getBySlug(
 		slug: string,
-		options: { select?: string[]; include?: string[]; published?: boolean; json?: boolean } = {},
+		options: {
+			select?: string[];
+			include?: string[];
+			showPublishedOnly?: boolean;
+			hideDeleted?: boolean;
+			json?: boolean;
+		} = {},
 	) {
 		// eslint-disable-next-line no-param-reassign
-		options.published = options.published ?? true;
+		options.showPublishedOnly = options.showPublishedOnly ?? true; // by default, only show published articles
+		// eslint-disable-next-line no-param-reassign
+		options.hideDeleted = options.hideDeleted ?? true; // by default, never show deleted articles
 
 		const slugQuery = new Parse.Query(className.BLOG_POST_SLUG).equalTo('slug', slug);
 		const postQuery = new Parse.Query(ParseBlogPost);
@@ -240,8 +256,12 @@ export default class BlogPostService {
 			}) || []),
 		]);
 
-		if (options.published) {
+		if (options.showPublishedOnly) {
 			postQuery.equalTo('published', true);
+		}
+
+		if (options.hideDeleted) {
+			postQuery.notEqualTo('deleted' as never, true as never);
 		}
 
 		if (options.select) {
@@ -325,7 +345,16 @@ export default class BlogPostService {
 			query.exclude(exclude as never);
 		}
 
-		const sessionToken = fromPublic ? undefined : this.sessionToken;
+		let sessionToken;
+
+		if (fromPublic) {
+			// hide non published
+			query.equalTo('published', true);
+			// hide deleted
+			query.notEqualTo('deleted' as never, true as never);
+
+			sessionToken = this.sessionToken;
+		}
 
 		const posts = await query.find({
 			sessionToken,
