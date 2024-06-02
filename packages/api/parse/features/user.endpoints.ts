@@ -38,9 +38,19 @@ export default class UserEndPoints extends BaseEndPoints {
 		);
 	}
 
-	async passwordRegister(input: { email: string; password: string }) {
-		const { email, password } = input;
-		return this.parseRestClient.signUp({ email, password });
+	async passwordSignup(input: { email: string; username?: string; password: string }) {
+		const { email, password, username } = input;
+
+		const headers = _.merge(getProtectionHeaders({}), {
+			'X-Parse-Revocable-Session': '1',
+			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
+		});
+
+		return defaultHttp.post<IUser & { sessionToken?: string }>(
+			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).auth.passwordLogin,
+			{ email, username, password },
+			{ headers },
+		);
 	}
 
 	async logOut() {

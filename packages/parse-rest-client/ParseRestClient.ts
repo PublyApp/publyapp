@@ -153,7 +153,7 @@ export default class ParseRestClient {
 		});
 
 		// https://docs.parseplatform.org/rest/guide/#signing-up
-		return this.http.post<{ createdAt: string; objectId: string; sessionToken: string }>(
+		return this.http.post<IUser & { sessionToken?: string }>(
 			'/users',
 			{ username, password, email: username },
 			{ headers },
