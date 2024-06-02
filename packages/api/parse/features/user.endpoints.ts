@@ -2,7 +2,8 @@ import _ from 'lodash';
 
 import type { IUser } from '@devist/shared/types/db/user.types';
 
-import { defaultHttp, protectRequest } from '@/shared/lib/axios';
+import type { GetUserAuthDataFunction } from '@/server/resources/auth/user/user.functions';
+import { defaultHttp, getProtectionHeaders } from '@/shared/lib/axios';
 import { endPoint, functionName, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 import BaseEndPoints from '../BaseEndPoints';
@@ -11,21 +12,38 @@ export default class UserEndPoints extends BaseEndPoints {
 	// constructor({ parseRestClient, apiPath}: BaseEndPointsProps) {}
 
 	getUserAuthData = async () => {
-		return this.parseRestClient.cloudRun(functionName.getUserAuthData);
+		return this.parseRestClient.cloudRun<GetUserAuthDataFunction.Return, GetUserAuthDataFunction.Params>(
+			functionName.getUserAuthData,
+		);
 	};
 
 	/**
 	 * login with username/email and password
 	 */
-	async passwordLogin(username: string, password: string) {
-		console.log(this.parseRestClient.serverUrl, endPoint.api(this.apiPath).auth.passwordLogin);
+	async passwordLogin(
+		input: ({ username: string; email?: undefined } | { email: string; username?: string }) & { password: string },
+	) {
+		const { password } = input;
+		// const identifier = input.email || input.username;
+
+		const headers = _.merge(getProtectionHeaders({}), {
+			'X-Parse-Revocable-Session': '1',
+			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
+		});
+
 		return defaultHttp.post<IUser & { sessionToken: string }>(
 			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).auth.passwordLogin,
-			{ username, password },
-			_.merge(protectRequest({}), {
-				'X-Parse-Revocable-Session': '1',
-				[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
-			}),
+			{ email: input.email, username: input.username, password },
+			{ headers },
 		);
+	}
+
+	async passwordRegister(input: { email: string; password: string }) {
+		const { email, password } = input;
+		return this.parseRestClient.signUp({ email, password });
+	}
+
+	async logOut() {
+		return this.parseRestClient.logOut();
 	}
 }

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import _ from 'lodash';
 
-import { AxiosHttp, protectRequest } from '@devist/shared/lib/axios';
+import { AxiosHttp, getProtectionHeaders } from '@devist/shared/lib/axios';
 import { PARSE_APPLICATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@devist/shared/lib/constants';
 import type { IUser } from '@devist/shared/types/db/user.types';
 
@@ -106,39 +106,57 @@ export default class ParseRestClient {
 		functionName: string,
 		options: RunOptions<P> = {},
 	) {
-		return this.http.post<R, P>(
-			_.join(['/functions', functionName], '/'),
-			options.params as never,
-			_.merge(protectRequest({ sessionToken: options.sessionToken }), {
-				transformResponse: [
-					...(this.http.axios.defaults.transformResponse as never),
-					(data: unknown) => {
-						if (_.isObject(data) && 'result' in data) {
-							return data.result;
-						}
+		return this.http.post<R, P>(_.join(['/functions', functionName], '/'), options.params as never, {
+			headers: getProtectionHeaders({ sessionToken: options.sessionToken }),
+			transformResponse: [
+				...(this.http.axios.defaults.transformResponse as never),
+				(data: unknown) => {
+					if (_.isObject(data) && 'result' in data) {
+						return data.result;
+					}
 
-						return data;
-					},
-				],
-			}),
-		);
+					return data;
+				},
+			],
+		});
 	}
 
 	/**
 	 * login with username/email and password
 	 */
-	async passwordLogin(username: string, password: string) {
-		return this.http.post<IUser & { sessionToken: string }>(
-			'/login',
-			{ username, password },
-			_.merge(protectRequest({}), {
-				'X-Parse-Revocable-Session': '1',
-				[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
-			}),
-		);
+	async passwordLogin(
+		input: ({ username: string; email?: undefined } | { email: string; username?: string }) & { password: string },
+	) {
+		const { password } = input;
+		const identifier = input.email || input.username;
+
+		const headers = _.merge(getProtectionHeaders({}), {
+			'X-Parse-Revocable-Session': '1',
+			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
+		});
+
+		return this.http.post<IUser & { sessionToken: string }>('/login', { username: identifier, password }, { headers });
 	}
 
 	async logOut() {
-		return this.http.post('/logout', {}, protectRequest({}));
+		return this.http.post('/logout', {}, { headers: getProtectionHeaders({}) });
+	}
+
+	/**
+	 * sign up with username/email and password
+	 */
+	async signUp(input: { email: string; password: string }) {
+		const { email: username, password } = input;
+		const headers = _.merge(getProtectionHeaders({}), {
+			'X-Parse-Revocable-Session': '1',
+			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
+		});
+
+		// https://docs.parseplatform.org/rest/guide/#signing-up
+		return this.http.post<{ createdAt: string; objectId: string; sessionToken: string }>(
+			'/users',
+			{ username, password, email: username },
+			{ headers },
+		);
 	}
 }

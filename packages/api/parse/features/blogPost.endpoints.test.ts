@@ -20,7 +20,7 @@ let myPostId: string;
 describe('Post endpoints', async () => {
 	before(async () => {
 		// login with that user
-		await parseApi.users.passwordLogin('radandevist', 'azerty');
+		await parseApi.users.passwordLogin({ username: 'radandevist', password: 'azerty' });
 	});
 	// after(async () => {
 	// 	// delete the mock user

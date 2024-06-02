@@ -1,4 +1,4 @@
-import { protectRequest } from '@devist/shared/lib/axios';
+import { getProtectionHeaders } from '@devist/shared/lib/axios';
 import { endPoint, functionName } from '@devist/shared/lib/constants';
 import type { AppFile } from '@devist/shared/types/db/appFile.types';
 
@@ -41,10 +41,12 @@ export default class AppFileEndPoints extends BaseEndPoints {
 		return this.parseRestClient.http.post<AppFile>(
 			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).upload.single,
 			formData,
-			protectRequest({
-				hasFile: true,
-				restApiKey: options.restApiKey,
-			}),
+			{
+				headers: getProtectionHeaders({
+					hasFile: true,
+					restApiKey: options.restApiKey,
+				}),
+			},
 		);
 	}
 
@@ -58,7 +60,7 @@ export default class AppFileEndPoints extends BaseEndPoints {
 		return this.parseRestClient.http.post<AppFile[]>(
 			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).upload.many,
 			formData,
-			protectRequest({ hasFile: true, restApiKey: options.restApiKey }),
+			{ headers: getProtectionHeaders({ hasFile: true, restApiKey: options.restApiKey }) },
 		);
 	}
 }
