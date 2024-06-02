@@ -111,22 +111,11 @@ const getBlogPostFunctionBoEditForm = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getGetBlogPostFunctionBackOfficeEditFormSchema(z).parse(params);
 	},
-	action: async ({ user, t, /* locale, */ params }) => {
+	action: async ({ user, t, params }) => {
 		const sessionToken = user?.getSessionToken();
 
 		const postService = new BlogPostService({ sessionToken });
 
-		// if (params.view === findOnePostView.frontDetail) {
-		// 	const post = await postService.getOnePostFront(params.slug, { locale });
-
-		// 	if (!post) {
-		// 		throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
-		// 	}
-
-		// 	return BlogPostService.toJSON(post);
-		// }
-
-		// if (params.view === findOnePostView.boEditForm) {
 		const post = await postService.getOneBlogPostBoEdit(params.id);
 
 		if (!post) {
@@ -134,9 +123,6 @@ const getBlogPostFunctionBoEditForm = parseFunctionEnhanced({
 		}
 
 		return BlogPostService.toJSON(post);
-		// }
-
-		// throw new Error(t('item-is-invalid', { item: 'view' }));
 	},
 });
 
@@ -151,19 +137,10 @@ const getBlogPostFunctionFrontDetailsView = parseFunctionEnhanced({
 
 		const post = await postService.getOneBlogPostFront(params.slug, { locale });
 
-		// if (!post) {
-		// 	throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
-		// }
-
-		// if (post === 'TRANSLATION_NOT_FOUND') {
-		// 	throw new Parse.Error(Parse.Error.SCRIPT_FAILED, t('item-not-found', { item: t('translation') }));
-		// }
-
 		return post;
 	},
 });
 
-// export type FindPostFunctionReturn = FunctionReturn<typeof findPostFunction>;
 export namespace FindBlogPostFunction {
 	export namespace FrontList {
 		export type Params = FunctionParams<typeof findPostFunctionFrontList>;
@@ -186,13 +163,11 @@ const finBlogPostFrontDetailsRelatedPosts = parseFunctionEnhanced({
 		return getGetBlogPostFunctionFrontDetailsViewSchema(z).parse(params);
 	},
 	action: async ({ locale, params }) => {
-		// return [];
 		const postService = new BlogPostService({});
 
 		const post = await postService.getBySlug(params.slug, {
 			select: ['relatedPosts', 'tags'],
 			include: ['relatedPosts'],
-			// json: true,
 		});
 
 		const relatedPosts = await postService.findRelatedBlogPostsFrontDetails(post, { locale });
@@ -205,18 +180,12 @@ const findPostFunctionBoTable = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getFindBlogPostFunctionBoTableParamsSchema(z).parse(params);
 	},
-	action: async ({ /* req, */ user, locale, params: _params }) => {
-		const { page, pageSize, sorting, ...params } = _params; /* getFindPostFunctionParamsSchema(z).parse(req.params); */
+	action: async ({ user, locale, params: _params }) => {
+		const { page, pageSize, sorting, ...params } = _params;
 
 		const sessionToken = user?.getSessionToken();
-		const postService = new BlogPostService({ sessionToken /* , headers: req.headers */ });
+		const postService = new BlogPostService({ sessionToken });
 
-		// if (params.view === findPostView.frontList) {
-		// 	const posts = await postService.findBlogPostFrontList({ page, pageSize, sorting, locale });
-		// 	return posts;
-		// }
-
-		// if (params.view === findPostView.boTable) {
 		const posts = await postService.findBlogPostBoTable({
 			page,
 			pageSize,
@@ -225,9 +194,6 @@ const findPostFunctionBoTable = parseFunctionEnhanced({
 			fromPublic: params.fromPublic,
 		});
 		return posts;
-		// }
-
-		// return [];
 	},
 });
 
@@ -235,14 +201,11 @@ const findPostFunctionFrontList = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getListParamsSchema(z).parse(params);
 	},
-	action: async ({ params: _params, locale, /* req, */ user }) => {
-		const { page, pageSize, sorting /* ...params */ } =
-			_params; /* getFindPostFunctionParamsSchema(z).parse(req.params); */
-
+	action: async ({ params: _params, locale, user }) => {
+		const { page, pageSize, sorting } = _params;
 		const sessionToken = user?.getSessionToken();
-		const postService = new BlogPostService({ sessionToken /* , headers: req.headers */ });
+		const postService = new BlogPostService({ sessionToken });
 
-		// if (params.view === findPostView.frontList) {
 		const posts = await postService.findBlogPostFrontList({ page, pageSize, sorting, locale });
 		return posts;
 		// }
