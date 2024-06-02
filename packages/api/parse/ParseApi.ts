@@ -4,6 +4,10 @@ import AppFileEndPoints from './features/appFile.endpoints';
 import BlogPostEndPoints from './features/blogPost.endpoints';
 import UserEndPoints from './features/user.endpoints';
 
+const defaultProps = {
+	apiPath: '/api',
+};
+
 export class ParseApi {
 	private _parseRestClient!: ParseRestClient;
 
@@ -15,9 +19,10 @@ export class ParseApi {
 
 	public apiPath: string;
 
-	constructor(
-		{ parseRestClient, apiPath }: { parseRestClient?: ParseRestClient; apiPath: string } = { apiPath: '/api' },
-	) {
+	constructor({
+		parseRestClient,
+		apiPath = defaultProps.apiPath,
+	}: { parseRestClient?: ParseRestClient; apiPath?: string } = defaultProps) {
 		if (parseRestClient) {
 			this.setRestClient(parseRestClient);
 		}
