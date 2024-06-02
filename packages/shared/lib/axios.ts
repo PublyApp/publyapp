@@ -42,13 +42,13 @@ export class AxiosHttp {
 	}
 }
 
-export const protectRequest = (options: {
+export const getProtectionHeaders = (options: {
 	sessionToken?: string;
 	applicationId?: string;
 	hasFile?: boolean;
 	restApiKey?: string;
-}): AxiosRequestConfig => {
-	const headers: Record<string, unknown> = {
+}): AxiosRequestConfig['headers'] => {
+	const headers: AxiosRequestConfig['headers'] = {
 		[DEVIST_REST_API_HEADER_KEY]: options.restApiKey,
 		[PARSE_SESSION_TOKEN_HEADER_KEY]: options.sessionToken,
 		[PARSE_APPLICATION_ID_HEADER_KEY]: options.applicationId,
@@ -56,14 +56,16 @@ export const protectRequest = (options: {
 	};
 
 	_.keys(headers).forEach((key) => {
-		if (_.isNil(headers[key])) {
-			delete headers[key];
+		if (_.isNil((headers as never)[key])) {
+			delete (headers as never)[key];
 		}
 	});
 
-	return {
-		headers: headers as never,
-	};
+	return headers;
+
+	// return {
+	// 	headers: headers as never,
+	// };
 };
 
 export const defaultHttp = new AxiosHttp(createInstance());

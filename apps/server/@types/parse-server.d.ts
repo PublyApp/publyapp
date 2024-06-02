@@ -44,6 +44,8 @@ declare module 'parse-server' {
 
 	import type { Application, RequestHandler } from 'express';
 
+	import type MailAdapter from '@/server/lib/parse/interfaces/MailAdapter';
+
 	export type ParseServerOptions = {
 		// Required options
 		appId: string;
@@ -85,6 +87,16 @@ declare module 'parse-server' {
 		directAccess?: boolean;
 		middleware?: string | RequestHandler /*  | RequestHandler[] */;
 		sessionLength?: number; // in seconds, defaults to one year
+		verifyUserEmails?: boolean;
+		preventLoginWithUnverifiedEmail?: boolean;
+		preventSignupWithUnverifiedEmail?: boolean; // ! wtf?
+		emailAdapter?: MailAdapter;
+		emailVerifyTokenReuseIfValid?: boolean;
+		emailVerifyTokenValidityDuration?: number;
+		enableAnonymousUsers?: boolean;
+		enableCollationCaseComparison?: boolean;
+		enableExpressErrorHandler?: boolean;
+		encodeParseObjectInCloudFunction?: boolean;
 	} & Record<string, any>;
 
 	type AccountLockoutOptions = {

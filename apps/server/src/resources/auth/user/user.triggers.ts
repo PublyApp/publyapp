@@ -1,3 +1,5 @@
+// import { nanoid } from 'nanoid';
+
 import { roleEnum } from '@devist/shared/lib/constants';
 
 import { ADMIN_EMAILS, USE_MASTER_KEY } from '@/server/lib/constants';
@@ -5,25 +7,37 @@ import { parseTriggerEnhanced } from '@/server/lib/parse/utils';
 
 import RoleService from '../role/role.service';
 
+const setPublicReadAccessOnUser = (user: Parse.User) => {
+	// const userExists = await user.exists(USE_MASTER_KEY);
+
+	let acl: Parse.ACL | undefined;
+
+	acl = user.getACL();
+
+	if (!acl) {
+		acl = new Parse.ACL();
+	}
+
+	if (acl.getPublicReadAccess()) {
+		// do nothing
+	} else {
+		acl.setPublicReadAccess(true);
+	}
+};
+
+// const setUsernameIfNotSpecified = (user: Parse.User) => {
+// 	if (!user.getUsername()) {
+// 		const username = `${user.getEmail()?.split('@')?.[0]}_${user.setUsername(nanoid(5))}`;
+// 		user.setUsername(username);
+// 	}
+// };
+
 const beforeSaveUser = parseTriggerEnhanced({
 	trigger: async ({ req }) => {
 		const user = req.object as Parse.User;
 
-		// const userExists = await user.exists(USE_MASTER_KEY);
-
-		let acl: Parse.ACL | undefined;
-
-		acl = user.getACL();
-
-		if (!acl) {
-			acl = new Parse.ACL();
-		}
-
-		if (acl.getPublicReadAccess()) {
-			// do nothing
-		} else {
-			acl.setPublicReadAccess(true);
-		}
+		// setUsername(user);
+		setPublicReadAccessOnUser(user);
 	},
 });
 

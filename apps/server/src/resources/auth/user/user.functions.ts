@@ -1,7 +1,12 @@
-import { parseFunctionEnhanced } from '@/server/lib/parse/utils';
+import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
 import { functionName } from '@/shared/lib/constants';
 
 import RoleService from '../role/role.service';
+
+export namespace GetUserAuthDataFunction {
+	export type Params = FunctionParams<typeof getUserAuthDataFunction>;
+	export type Return = FunctionReturn<typeof getUserAuthDataFunction>;
+}
 
 const getUserAuthDataFunction = parseFunctionEnhanced({
 	requireUser: true,

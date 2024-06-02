@@ -15,7 +15,7 @@ import Iconify from '@devist/ui-react/components/Iconify';
 import useBoolean from '@devist/ui-react/hooks/useBoolean';
 // import { endPoint } from '@/shared/lib/constants';
 // import { uploadManyFilesAction } from '@/ui-react/lib/react-query/features/appFiles/appFile.actions';
-// import { protectRequest } from '@/ui-react/lib/axios';
+// import { getProtectionHeaders } from '@/ui-react/lib/axios';
 import {
 	findAppFileQueryKeyString,
 	useCreateAppFileFolder,
@@ -31,7 +31,7 @@ import { env } from '@/office/lib/env';
 
 // import { endPoint } from '@/shared/lib/constants';
 // import { uploadManyFilesAction } from '@/ui-react/lib/react-query/features/appFiles/appFile.actions';
-// import { protectRequest } from '@/ui-react/lib/axios';
+// import { getProtectionHeaders } from '@/ui-react/lib/axios';
 
 import useFileManager from './useFilManager';
 

@@ -1,7 +1,7 @@
 import { createServer } from 'http';
 import path from 'path';
 
-import * as ps from 'parse-server/lib/index.js';
+import { ParseServer } from 'parse-server/lib/index.js';
 
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@remix-run/express';
@@ -20,6 +20,7 @@ import { env } from './lib/env';
 import { expressHandler } from './lib/express';
 import { initI18next } from './lib/i18n';
 import logger, { consoleTransport } from './lib/logger';
+import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
 import SchemaManager from './lib/parse/SchemaManager';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
@@ -31,7 +32,8 @@ import BlogPostSchema from './resources/blog/blogPost/blogPost.schema';
 import BlogPostSlugSchema from './resources/blog/blogPost/blogPostSlug.schema';
 import BlogPostSeriesSchema from './resources/blog/blogPostSeries/blogPostSeries.schema';
 import AppFileSchema from './resources/file-manager/appFile/appFile.schema';
-import customAPIRouter from './router/customAPIRouter';
+import customApiRouter from './router/customApiRouter';
+import duration from './utils/duration';
 
 const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
@@ -62,10 +64,10 @@ const bootstrap = async () => {
 	});
 
 	// initialize parse server
-	const parseServer = new ps.ParseServer({
+	const parseServer = new ParseServer({
+		appName: env.PARSE_APP_ID,
 		appId: env.PARSE_APP_ID,
 		masterKey: env.PARSE_MASTER_KEY,
-		// cloud: path.resolve(dirname, './cloud/_index'),
 		cloud,
 		databaseURI: env.DATABASE_URI,
 		serverURL: env.PARSE_SERVER_URL,
@@ -73,27 +75,21 @@ const bootstrap = async () => {
 		filesAdapter: fsAdapter,
 		// preserveFileName: true,
 		// =============================================
-		logLevel: 'silly', // this seem to be not working at all
+		logLevel: 'silly', // this seems to be not working at all
 		allowClientClassCreation: false,
-		// schema: {
-		// 	strict: false, // ! I set this to false intentionally
-		// 	definitions: [
-		// 		RoleSchema,
-		// 		UserSchema,
-		// 		SessionSchema,
-		// 		BlogPostSchema,
-		// 		PostSeriesSchema,
-		// 		AppFileSchema,
-		// 		// WebHostSchema,
-		// 	],
-		// },
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
-		directAccess: false, // in parse server 6 this is true by default
+		directAccess: false, // the docs is lying, this is true by default
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
-		sessionLength: 60 * 24 * 3, // 3 days
+		sessionLength: duration.toSeconds('3d'), // 3 days
+		// ===
+		verifyUserEmails: true,
+		preventLoginWithUnverifiedEmail: true,
+		// emailVerifyTokenReuseIfValid: true,
+		// emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
+		emailAdapter: new CustomMailAdapter(),
 	});
 
 	// setup a better console transport for our logger
@@ -103,7 +99,7 @@ const bootstrap = async () => {
 	const startParsePromise = parseServer.start();
 
 	// set custom ennPoints routes
-	app.use(customAPIRouter);
+	app.use(customApiRouter);
 
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                           //

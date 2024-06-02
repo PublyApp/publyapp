@@ -15,9 +15,10 @@ import { defaultHttp } from '@/shared/lib/axios';
 import { AuthCloudService } from '../auth.cloud.service';
 
 export const handlePasswordLogin = expressHandler(async (req, res) => {
-	const { username, password } = req.body;
+	const { password } = req.body;
+	const identifier = req.body.email || req.body.username;
 
-	const user = await AuthCloudService.authenticateUserWithPassword({ usernameOrEmail: username, password });
+	const user = await AuthCloudService.authenticateUserWithPassword({ usernameOrEmail: identifier, password });
 
 	const ipAddress = getRequestIp(req) || nanoid();
 
@@ -33,7 +34,25 @@ export const handlePasswordLogin = expressHandler(async (req, res) => {
 	return res.json(user);
 });
 
-// ! wip: facebook login flow
+export const handlePasswordSignup = expressHandler(async (req, res) => {
+	const { email, password } = req.body;
+	// eslint-disable-next-line prefer-destructuring
+	let username = req.body.username;
+
+	if (!email) {
+		throw new HttpException(400, 'Email is required');
+	}
+
+	if (!username) {
+		username = `${email.split('@')?.[0]}_${nanoid(5)}`;
+	}
+
+	const result = await Parse.User.signUp(username, password, { email }, USE_MASTER_KEY);
+
+	return res.json(result.toJSON());
+});
+
+// ! ==================== wip: facebook login flow
 
 const applicationFromURL = {
 	office: env.OFFICE_URL,

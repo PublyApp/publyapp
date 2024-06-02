@@ -11,7 +11,7 @@ export const logInAction = async (input: LogInInput) => {
 	try {
 		const { email, password } = input;
 
-		const user = await parseApi.users.passwordLogin(email, password);
+		const user = await parseApi.users.passwordLogin({ username: email, password });
 
 		return user;
 	} catch (error) {
