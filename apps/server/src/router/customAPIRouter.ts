@@ -5,32 +5,33 @@ import { endPoint } from '@/shared/lib/constants';
 import { apiEndPoint } from '../lib/constants';
 import { multerConfig } from '../lib/multer';
 import protectionMiddleware from '../middlewares/protection.middleware';
-import { handlePasswordLogin } from '../resources/auth/user/user.controller';
+import { handlePasswordLogin, handlePasswordSignup } from '../resources/auth/user/user.controller';
 import { handleUploadManyFiles, handleUploadSingleFile } from '../resources/file-manager/file/file.controller';
 import {
 	handleVerification,
 	handleWebHook,
 } from '../resources/social-media/facebookMessenger/facebookMessenger.controller';
 
-const customAPIRouter = Router();
-export default customAPIRouter;
+const customApiRouter = Router();
+export default customApiRouter;
 
-customAPIRouter.post(
+customApiRouter.post(
 	apiEndPoint.upload.single,
 	protectionMiddleware({ withAuth: true, withKey: false }),
 	multerConfig.single('file'),
 	handleUploadSingleFile,
 );
 
-customAPIRouter.post(
+customApiRouter.post(
 	apiEndPoint.upload.many,
 	protectionMiddleware({ withAuth: true, withKey: false }),
 	multerConfig.array('files'),
 	handleUploadManyFiles,
 );
 
-customAPIRouter.post(apiEndPoint.auth.passwordLogin, handlePasswordLogin);
+customApiRouter.post(apiEndPoint.auth.passwordLogin, handlePasswordLogin);
+customApiRouter.post(apiEndPoint.auth.passwordSignup, handlePasswordSignup);
 
 // ==============
-customAPIRouter.post(endPoint.facebookMessengerBotWebHook, handleWebHook);
-customAPIRouter.get(endPoint.facebookMessengerBotWebHook, handleVerification);
+customApiRouter.post(endPoint.facebookMessengerBotWebHook, handleWebHook);
+customApiRouter.get(endPoint.facebookMessengerBotWebHook, handleVerification);

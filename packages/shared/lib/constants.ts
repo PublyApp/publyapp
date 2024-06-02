@@ -180,6 +180,7 @@ export const endPoint = {
 			auth: {
 				// root: makePath(apiPath, ROOTS.AUTH),
 				passwordLogin: makePath(apiPath, ROOTS.AUTH, 'password-login'),
+				passwordSignup: makePath(apiPath, ROOTS.AUTH, 'password-signup'),
 			},
 			upload: {
 				single: makePath(apiPath, ROOTS.UPLOAD, 'single'),
