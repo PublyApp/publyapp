@@ -21,8 +21,8 @@ interface MailAdapter {
 	// sendVerificationEmail({ link, appName, user }) {}
 	// sendPasswordResetEmail({ link, appName, user }) {}
 
-	sendVerificationEmail({ link, appName, user }: { link: string; appName: string; user: any }): Promise<void>;
-	sendPasswordResetEmail({ link, appName, user }: { link: string; appName: string; user: any }): Promise<void>;
+	sendVerificationEmail({ link, appName, user }: { link: string; appName: string; user: Parse.User }): Promise<void>;
+	sendPasswordResetEmail({ link, appName, user }: { link: string; appName: string; user: Parse.User }): Promise<void>;
 }
 
 export default MailAdapter;

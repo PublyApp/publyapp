@@ -181,6 +181,7 @@ export const endPoint = {
 				// root: makePath(apiPath, ROOTS.AUTH),
 				passwordLogin: makePath(apiPath, ROOTS.AUTH, 'password-login'),
 				passwordSignup: makePath(apiPath, ROOTS.AUTH, 'password-signup'),
+				verifyEmail: makePath(apiPath, ROOTS.AUTH, 'verify-email'),
 			},
 			upload: {
 				single: makePath(apiPath, ROOTS.UPLOAD, 'single'),

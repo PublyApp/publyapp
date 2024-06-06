@@ -69,7 +69,7 @@
 		"numeral": "^2.0.6",
 		"parse": "^5.1.0",
 		"parse-dashboard": "^6.0.0-beta.1",
-		"parse-server": "7.1.0-alpha.8",
+		"parse-server": "7.1.0-alpha.9",
 		"qs": "^6.11.2",
 		"sharp": "^0.33.3",
 		"streamifier": "^0.1.1",

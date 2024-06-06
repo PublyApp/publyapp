@@ -7,10 +7,12 @@ import { HttpException } from '@/server/exceptions/HttpException';
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
 import { expressHandler } from '@/server/lib/express';
+import logger from '@/server/lib/logger';
 import ParseUser from '@/server/lib/parse/classes/user.class';
 import { createSessionServer } from '@/server/lib/parse/utils';
 import { getRequestIp } from '@/server/utils/request.utils';
 import { defaultHttp } from '@/shared/lib/axios';
+import { BO_PATH_NAMES } from '@/shared/lib/constants';
 
 import { AuthCloudService } from '../auth.cloud.service';
 
@@ -36,8 +38,7 @@ export const handlePasswordLogin = expressHandler(async (req, res) => {
 
 export const handlePasswordSignup = expressHandler(async (req, res) => {
 	const { email, password } = req.body;
-	// eslint-disable-next-line prefer-destructuring
-	let username = req.body.username;
+	let { username } = req.body;
 
 	if (!email) {
 		throw new HttpException(400, 'Email is required');
@@ -50,6 +51,33 @@ export const handlePasswordSignup = expressHandler(async (req, res) => {
 	const result = await Parse.User.signUp(username, password, { email }, USE_MASTER_KEY);
 
 	return res.json(result.toJSON());
+});
+
+export const handleVerifyEmail = expressHandler(async (req, res) => {
+	try {
+		const { token, username } = req.query;
+
+		if (!token || !username) {
+			throw new HttpException(400, 'Invalid query');
+		}
+
+		if (!_.isString(token) || !_.isString(username)) {
+			throw new HttpException(400, 'Invalid query');
+		}
+
+		await AuthCloudService.verifyEmail({ username, token });
+
+		// on success redirect to success page
+		const successUrl = new URL(env.OFFICE_URL);
+		successUrl.pathname = BO_PATH_NAMES.auth.login;
+		return res.redirect(successUrl.toString());
+	} catch (error) {
+		logger.error('Error in verifyEmail:', error);
+		// on error redirect to error page
+		const failUrl = new URL(env.OFFICE_URL);
+		failUrl.pathname = BO_PATH_NAMES.auth.register;
+		return res.redirect(failUrl.toString());
+	}
 });
 
 // ! ==================== wip: facebook login flow

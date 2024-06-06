@@ -63,9 +63,12 @@ const bootstrap = async () => {
 		// encryptionKey: 'local-file-encryption-key', // optional, but mandatory if you want to encrypt files
 	});
 
+	// Email adapter for Parse
+	const customMailAdapter = new CustomMailAdapter({ serverUrl: env.SERVER_URL });
+
 	// initialize parse server
 	const parseServer = new ParseServer({
-		appName: env.PARSE_APP_ID,
+		appName: env.PARSE_APP_NAME,
 		appId: env.PARSE_APP_ID,
 		masterKey: env.PARSE_MASTER_KEY,
 		cloud,
@@ -89,7 +92,7 @@ const bootstrap = async () => {
 		preventLoginWithUnverifiedEmail: true,
 		// emailVerifyTokenReuseIfValid: true,
 		// emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
-		emailAdapter: new CustomMailAdapter(),
+		emailAdapter: customMailAdapter,
 	});
 
 	// setup a better console transport for our logger
