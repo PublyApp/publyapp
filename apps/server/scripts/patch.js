@@ -23,6 +23,23 @@ const patchParseServerSelectNestedObjectKeys = async () => {
 	});
 };
 
+const patchParseServerAuthLib = async () => {
+	const filePath1 = path.resolve(__dirname, '../node_modules/parse-server/lib/Auth.js');
+	const filePath2 = path.resolve(__dirname, '../../../node_modules/parse-server/lib/Auth.js');
+
+	const exists1 = fs.existsSync(filePath1);
+
+	// const results =
+	replace({
+		disableGlobs: true,
+		files: (await exists1) ? filePath1 : filePath2,
+		from: /function master\(config\) {/g,
+		to: 'exports.master = master\nfunction master(config) {',
+	});
+};
+
+// function master(config) {
+
 // const patchParseServerMongoSchemaCollection = async () => {
 // 	const filePath1 = path.resolve(
 // 		__dirname,
@@ -45,4 +62,5 @@ const patchParseServerSelectNestedObjectKeys = async () => {
 // };
 
 patchParseServerSelectNestedObjectKeys();
+patchParseServerAuthLib();
 // patchParseServerMongoSchemaCollection();
