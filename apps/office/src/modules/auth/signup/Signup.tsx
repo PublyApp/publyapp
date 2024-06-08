@@ -25,7 +25,7 @@ import useBoolean from '@/ui-react/hooks/useBoolean';
 
 // ----------------------------------------------------------------------
 
-const Register = () => {
+const Signup = () => {
 	const password = useBoolean();
 
 	// const RegisterSchema = Yup.object().shape({
@@ -142,4 +142,4 @@ const Register = () => {
 	);
 };
 
-export default Register;
+export default Signup;

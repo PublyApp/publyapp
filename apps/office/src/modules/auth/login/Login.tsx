@@ -1,13 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import LoadingButton from '@mui/lab/LoadingButton';
-import { Alert, type AlertProps } from '@mui/material';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
+import { Alert, IconButton, InputAdornment, Link, Stack, Typography, type AlertProps } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { useForm, type SubmitHandler } from 'react-hook-form';
@@ -31,14 +26,9 @@ const Login = () => {
 	const password = useBoolean();
 	const { t } = useTranslate();
 	const [alertProps, setAlertProps] = useState<{
-		message: string;
+		message: ReactNode;
 		severity: AlertProps['severity'];
 	}>();
-
-	// const LoginSchema = Yup.object().shape({
-	// 	// email: Yup.string().required('Email is required').email('Email must be a valid email address'),
-	// 	// password: Yup.string().required('Password is required'),
-	// });
 
 	const defaultValues = {
 		email: '',
@@ -86,7 +76,24 @@ const Login = () => {
 					if (error.response?.data.message === t('User email is not verified.')) {
 						// show an alert on top of the login form
 						setAlertProps({
-							message: error.response?.data.message,
+							message: (
+								<div>
+									{error.response?.data.message}
+									<br />
+									<Link
+										component={RouterLink}
+										href={BO_PATH_NAMES.auth.verifyEmail}
+										variant="subtitle2"
+										sx={{
+											color: (theme) => {
+												return theme.palette.error.dark;
+											},
+										}}
+									>
+										{t('verify-my-email')}
+									</Link>
+								</div>
+							),
 							severity: 'error',
 						});
 					}
@@ -109,7 +116,7 @@ const Login = () => {
 			<Stack direction="row" spacing={0.5}>
 				<Typography variant="body2">{t('new-item', { item: t('user') })}?</Typography>
 
-				<Link component={RouterLink} href={BO_PATH_NAMES.auth.register} variant="subtitle2">
+				<Link component={RouterLink} href={BO_PATH_NAMES.auth.signup} variant="subtitle2">
 					{t('create-an-account')}
 				</Link>
 			</Stack>

@@ -84,7 +84,7 @@ export const handleVerifyEmail = expressHandler(async (req, res) => {
 		logger.error('Error in verifyEmail:', error);
 		// on error redirect to error page
 		const failUrl = new URL(env.OFFICE_URL);
-		failUrl.pathname = BO_PATH_NAMES.auth.register;
+		failUrl.pathname = BO_PATH_NAMES.auth.signup;
 		return res.redirect(failUrl.toString());
 	}
 });
