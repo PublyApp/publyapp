@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 import type { IUser } from '@devist/shared/types/db/user.types';
-import type { LoginInput } from '@devist/shared/validations/auth.validations';
+import type { LoginInput, VerifyEmailInput } from '@devist/shared/validations/auth.validations';
 
 import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
 import { localStorageSetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
-import { getUserAuthDataQuery, loginAction, logOutAction } from './auth.actions';
+import { getUserAuthDataQuery, loginAction, logOutAction, verifyEmailAction } from './auth.actions';
 
 // import { getUserAuthDataAction, loginAction, logOutAction } from './auth.actions';
 
@@ -87,6 +87,26 @@ export const useLogOutMutation = ({ onSuccess }: UseLogOutMutationProps = {}) =>
 			navigate(BO_PATH_NAMES.auth.login);
 			onSuccess?.(...args);
 		},
+	});
+
+	return { result, key };
+};
+
+// ---- 4 --------------------------------------------------------------------------------
+
+type UseVerifyEmailMutationProps = {
+	options?: Omit<MutateOptions<unknown, Error, VerifyEmailInput>, 'mutationKey' | 'mutationFn'>;
+	// parseApi: ParseApi; // todo: do some tests in the case we will need a loginAs feature
+	// onSuccess?: MutateOptions<IUser, Error, LoginInput>['onSuccess'];
+};
+
+export const useVerifyEmailMutation = ({ options = {} }: UseVerifyEmailMutationProps = {}) => {
+	const key = ['verifyEmail'] as const;
+
+	const result = useMutation({
+		mutationKey: key,
+		mutationFn: verifyEmailAction,
+		...options,
 	});
 
 	return { result, key };
