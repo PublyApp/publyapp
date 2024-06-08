@@ -12,6 +12,7 @@ import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import FormProvider from '@/ui-react/components/form/FormProvider';
 import RHFTextField from '@/ui-react/components/form/RHFTextField';
 import useTranslate from '@/ui-react/hooks/useTranslate';
+import { useVerifyEmailMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 import zod from '@/ui-react/lib/zod';
 
 // import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
@@ -31,66 +32,62 @@ const VerifyEmail = () => {
 		email: '',
 	};
 
-	const loginForm = useForm({
-		resolver: zodResolver(getVerifyEmailSchema(zod)),
+	const verifyEmailSchema = getVerifyEmailSchema(zod);
+
+	const verifyEmailForm = useForm({
+		resolver: zodResolver(verifyEmailSchema),
 		defaultValues,
 	});
 
 	const {
 		handleSubmit,
 		// formState: { isSubmitting },
-	} = loginForm;
+	} = verifyEmailForm;
 
 	// const queryClient = useQueryClient();
 	// const { revalidate } = useRevalidator();
 	// const navigate = useNavigate();
 	// const location = useLocation();
 
-	// const {
-	// 	result: { mutate: login, isPending },
-	// } = useLoginMutation({
-	// 	options: {
-	// 		onSuccess: async () => {
-	// 			// resetBoundary();
-	// 			// navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
-
-	// 			// const authActions = new AuthActions(parseApi);
-
-	// 			queryClient.invalidateQueries({ queryKey: getUserAuthDataQuery.queryKey });
-
-	// 			// refetchClientAuth();
-
-	// 			// const authData = await getClientAuthAction();
-	// 			// queryClient.setQueryData([getClientAuthQueryKeyBase] as const, authData);
-
-	// 			revalidate();
-
-	// 			navigate(location.state?.from || BO_PATH_NAMES.dashboard.root, { replace: true });
-	// 		},
-	// 		onError: (error /* , variables, context */) => {
-	// 			if (error instanceof AxiosError) {
-	// 				if (error.response?.data.message === t('User email is not verified.')) {
-	// 					// show an alert on top of the login form
-	// 					setAlertProps({
-	// 						message: (
-	// 							<div>
-	// 								{error.response?.data.message}
-	// 								<br />
-	// 								<RouterLink href={BO_PATH_NAMES.auth.verifyEmail}>{t('verify-my-email')}</RouterLink>
-	// 							</div>
-	// 						),
-	// 						severity: 'error',
-	// 					});
-	// 				}
-	// 			}
-	// 		},
-	// 	},
-	// });
+	const {
+		result: { mutate: verifyEmail, isPending },
+	} = useVerifyEmailMutation({
+		options: {
+			onSuccess: async () => {
+				// resetBoundary();
+				// navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
+				// const authActions = new AuthActions(parseApi);
+				// queryClient.invalidateQueries({ queryKey: getUserAuthDataQuery.queryKey });
+				// refetchClientAuth();
+				// const authData = await getClientAuthAction();
+				// queryClient.setQueryData([getClientAuthQueryKeyBase] as const, authData);
+				// revalidate();
+				// navigate(location.state?.from || BO_PATH_NAMES.dashboard.root, { replace: true });
+			},
+			// onError: (error /* , variables, context */) => {
+			// 	if (error instanceof AxiosError) {
+			// 		if (error.response?.data.message === t('User email is not verified.')) {
+			// 			// show an alert on top of the login form
+			// 			setAlertProps({
+			// 				message: (
+			// 					<div>
+			// 						{error.response?.data.message}
+			// 						<br />
+			// 						<RouterLink href={BO_PATH_NAMES.auth.verifyEmail}>{t('verify-my-email')}</RouterLink>
+			// 					</div>
+			// 				),
+			// 				severity: 'error',
+			// 			});
+			// 		}
+			// 	}
+			// },
+		},
+	});
 
 	// const onSubmit = handleSubmit(async (data) => {});
 	const onSubmitHandler: SubmitHandler<VerifyEmailInput> = async (values) => {
-		// login(values);
-		console.log(values);
+		verifyEmail(values);
+		// console.log(values);
 	};
 
 	const onSubmit = handleSubmit(onSubmitHandler);
@@ -147,14 +144,7 @@ const VerifyEmail = () => {
 				{t('forgot-password')}
 			</Link> */}
 
-			<LoadingButton
-				fullWidth
-				color="inherit"
-				size="large"
-				type="submit"
-				variant="contained"
-				loading={/* isPending */ false}
-			>
+			<LoadingButton fullWidth color="inherit" size="large" type="submit" variant="contained" loading={isPending}>
 				{/* Login */}
 				{t('verify-my-email')}
 			</LoadingButton>
@@ -162,7 +152,7 @@ const VerifyEmail = () => {
 	);
 
 	return (
-		<FormProvider form={loginForm} onSubmit={onSubmit}>
+		<FormProvider form={verifyEmailForm} onSubmit={onSubmit}>
 			{renderHead}
 
 			{/* {alertProps ? renderAlert : null} */}
