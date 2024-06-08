@@ -54,6 +54,10 @@ export default class UserEndPoints extends BaseEndPoints {
 		);
 	}
 
+	async verificationEmailRequest(input: { email: string }) {
+		return this.parseRestClient.verificationEmailRequest(input);
+	}
+
 	async logOut() {
 		return this.parseRestClient.logOut();
 	}
