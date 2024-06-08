@@ -16,7 +16,7 @@ const commonFR = {
 	role: 'Rôle',
 	title: 'Titre',
 	translation: 'Traduction',
-	user: 'User',
+	user: 'Utilisateur',
 	number: 'Nombre',
 
 	// ? ...
@@ -65,6 +65,16 @@ const commonFR = {
 		"Désolé, nous n'avons pas trouvé la page que vous recherchez. Peut-être avez-vous mal saisi l'URL? Assurez-vous de vérifier votre orthographe.",
 	'go-to-home': "Aller à l'accueil",
 	'other-posts': 'Autres articles',
+
+	'sign-in': 'Se connecter',
+	'create-an-account': 'Créer un compte',
+	'email-address': 'Adresse email',
+	password: 'Mot de passe',
+	'forgot-password': 'Mot de passe oublié',
+	login: 'Se connecter',
+
+	// auth from parse
+	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

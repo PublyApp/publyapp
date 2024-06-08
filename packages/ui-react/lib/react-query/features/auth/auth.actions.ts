@@ -1,13 +1,13 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import parseApi from '@devist/api/parse/ParseApi';
-import type { LogInInput } from '@devist/shared/validations/auth.validations';
+import type { LoginInput } from '@devist/shared/validations/auth.validations';
 
 import { functionName } from '@/shared/lib/constants';
 
 // ---- 1 --------------------------------------------------------------------------------
 
-export const logInAction = async (input: LogInInput) => {
+export const loginAction = async (input: LoginInput) => {
 	try {
 		const { email, password } = input;
 
@@ -15,7 +15,7 @@ export const logInAction = async (input: LogInInput) => {
 
 		return user;
 	} catch (error) {
-		console.log('----- logInAction error ----------', error);
+		console.log('----- loginAction error ----------', error);
 		return Promise.reject(error);
 	}
 };

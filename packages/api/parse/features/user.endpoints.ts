@@ -4,7 +4,7 @@ import type { IUser } from '@devist/shared/types/db/user.types';
 
 import type { GetUserAuthDataFunction } from '@/server/resources/auth/user/user.functions';
 import { defaultHttp, getProtectionHeaders } from '@/shared/lib/axios';
-import { endPoint, functionName, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import { endPoint, functionName, LOCALE_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 import BaseEndPoints from '../BaseEndPoints';
 
@@ -29,6 +29,7 @@ export default class UserEndPoints extends BaseEndPoints {
 		const headers = _.merge(getProtectionHeaders({}), {
 			'X-Parse-Revocable-Session': '1',
 			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
+			[LOCALE_HEADER_KEY]: this.parseRestClient.getHeader(LOCALE_HEADER_KEY),
 		});
 
 		return defaultHttp.post<IUser & { sessionToken: string }>(

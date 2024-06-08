@@ -10,6 +10,8 @@ import Logo from '@/office/components/Logo';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import { bgGradient } from '@/ui-react/utils/css.utils';
 
+import LanguagePopover from '../_common/LanguagePopover';
+
 // auth
 // import { useAuthContext } from 'src/auth/hooks';
 // // routes
@@ -72,6 +74,21 @@ const AuthLayout = ({ children, image, title }: Props) => {
 				m: { xs: 2, md: 5 },
 			}}
 		/>
+	);
+
+	const renderLanguageSwitcher = (
+		<Box
+			sx={{
+				zIndex: 9,
+				position: 'absolute',
+				right: 0,
+				top: -1,
+				m: { xs: 2, md: 5 },
+				// marginTop: { xs: 3, md: 5 }, marginBottom: 10
+			}}
+		>
+			<LanguagePopover />
+		</Box>
 	);
 
 	const renderContent = (
@@ -153,6 +170,8 @@ const AuthLayout = ({ children, image, title }: Props) => {
 			}}
 		>
 			{renderLogo}
+
+			{renderLanguageSwitcher}
 
 			{mdUp && renderSection}
 

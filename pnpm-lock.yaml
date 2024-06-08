@@ -306,6 +306,9 @@ importers:
       autosuggest-highlight:
         specifier: ^3.3.4
         version: 3.3.4
+      axios:
+        specifier: ^1.6.5
+        version: 1.6.8
       date-fns:
         specifier: ^2.25.0
         version: 2.30.0
@@ -514,9 +517,6 @@ importers:
       '@remix-run/express':
         specifier: ^2.8.0
         version: 2.9.2(express@4.19.2)(typescript@5.4.5)
-      '@types/ms':
-        specifier: ^0.7.34
-        version: 0.7.34
       async:
         specifier: ^3.2.5
         version: 3.2.5
@@ -659,6 +659,9 @@ importers:
       '@types/lodash':
         specifier: ^4.14.202
         version: 4.17.4
+      '@types/ms':
+        specifier: ^0.7.34
+        version: 0.7.34
       '@types/multer':
         specifier: ^1.4.11
         version: 1.4.11

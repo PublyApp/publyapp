@@ -15,7 +15,7 @@ const passwordFieldSchema = z
 	.max(64, 'Password must be 64 chars max')
 	.regex(SPECIAL_CHAR_REGEX, 'At least 8 chars and 1 spacial char');
 
-export const logInSchema = z.object({
+export const loginSchema = z.object({
 	email: emailFieldSchema,
 	password: passwordFieldSchema,
 });
@@ -39,12 +39,12 @@ export const sendEmailUpdateEmailSchema = z.object({
 	newEmail: emailFieldSchema,
 });
 
-export const registerSchema = logInSchema.extend({
+export const registerSchema = loginSchema.extend({
 	firstName: z.string({ required_error: 'First name required' }),
 	lastName: z.string({ required_error: 'Last name required' }),
 });
 
-export type LogInInput = z.infer<typeof logInSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type SendUpdateEmailFormInput = z.infer<typeof sendEmailUpdateEmailSchema>;

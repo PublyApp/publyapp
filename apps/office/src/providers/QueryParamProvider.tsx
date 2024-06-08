@@ -1,11 +1,15 @@
+import type { ReactNode } from 'react';
+
 import qs from 'query-string';
 import { Outlet } from 'react-router-dom';
 import { QueryParamProvider as QueryParamProviderLib } from 'use-query-params';
 import { ReactRouter6Adapter } from 'use-query-params/adapters/react-router-6';
 
-// type Props = {};
+type Props = {
+	children?: ReactNode;
+};
 
-const QueryParamProvider = (/* props: Props */) => {
+const QueryParamProvider = ({ children }: Props) => {
 	return (
 		<QueryParamProviderLib
 			adapter={ReactRouter6Adapter}
@@ -16,7 +20,7 @@ const QueryParamProvider = (/* props: Props */) => {
 				},
 			}}
 		>
-			<Outlet />
+			{children ?? <Outlet />}
 		</QueryParamProviderLib>
 	);
 };

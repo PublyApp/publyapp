@@ -3,32 +3,32 @@ import { useNavigate } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 import type { IUser } from '@devist/shared/types/db/user.types';
-import type { LogInInput } from '@devist/shared/validations/auth.validations';
+import type { LoginInput } from '@devist/shared/validations/auth.validations';
 
 import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
 import { localStorageSetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
-import { getUserAuthDataQuery, logInAction, logOutAction } from './auth.actions';
+import { getUserAuthDataQuery, loginAction, logOutAction } from './auth.actions';
 
-// import { getUserAuthDataAction, logInAction, logOutAction } from './auth.actions';
+// import { getUserAuthDataAction, loginAction, logOutAction } from './auth.actions';
 
 // ---- 1 --------------------------------------------------------------------------------
 
-type UseLogInMutationProps = {
-	options?: Omit<MutateOptions<IUser, Error, LogInInput>, 'mutationKey' | 'mutationFn'>;
+type UseLoginMutationProps = {
+	options?: Omit<MutateOptions<IUser, Error, LoginInput>, 'mutationKey' | 'mutationFn'>;
 	// parseApi: ParseApi; // todo: do some tests in the case we will need a loginAs feature
 
-	// onSuccess?: MutateOptions<IUser, Error, LogInInput>['onSuccess'];
+	// onSuccess?: MutateOptions<IUser, Error, LoginInput>['onSuccess'];
 };
 
-export const useLogInMutation = ({ options = {} }: UseLogInMutationProps = {}) => {
+export const useLoginMutation = ({ options = {} }: UseLoginMutationProps = {}) => {
 	const { onSuccess, ...restOptions } = options;
 
-	const key = ['logIn'] as const;
+	const key = ['login'] as const;
 
 	const result = useMutation({
 		mutationKey: key,
-		mutationFn: logInAction,
+		mutationFn: loginAction,
 		onSuccess: (data, variables, context) => {
 			localStorageSetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY, data.sessionToken);
 			parseApi.parseRestClient.setSessionToken(data.sessionToken);
