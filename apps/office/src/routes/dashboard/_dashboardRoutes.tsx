@@ -113,9 +113,7 @@ export const dashboardRoutes: RouteObject[] = [
 		element: (
 			<Suspense fallback={<SplashScreen />}>
 				<RequireAuth>
-					<DashboardLayout>
-						<Outlet />
-					</DashboardLayout>
+					<DashboardLayout />
 				</RequireAuth>
 			</Suspense>
 		),

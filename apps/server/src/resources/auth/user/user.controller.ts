@@ -10,30 +10,39 @@ import { expressHandler } from '@/server/lib/express';
 import logger from '@/server/lib/logger';
 import ParseUser from '@/server/lib/parse/classes/user.class';
 import { createSessionServer } from '@/server/lib/parse/utils';
-import { getRequestIp } from '@/server/utils/request.utils';
+import { getRequestIp, getRequestUtils } from '@/server/utils/request.utils';
 import { defaultHttp } from '@/shared/lib/axios';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 
 import { AuthCloudService } from '../auth.cloud.service';
 
 export const handlePasswordLogin = expressHandler(async (req, res) => {
-	const { password } = req.body;
-	const identifier = req.body.email || req.body.username;
+	try {
+		const { password } = req.body;
+		const identifier = req.body.email || req.body.username;
 
-	const user = await AuthCloudService.authenticateUserWithPassword({ usernameOrEmail: identifier, password });
+		const user = await AuthCloudService.authenticateUserWithPassword({ usernameOrEmail: identifier, password });
 
-	const ipAddress = getRequestIp(req) || nanoid();
+		const ipAddress = getRequestIp(req) || nanoid();
 
-	const result = await createSessionServer({
-		userId: user.objectId,
-		additionalSessionData: {
-			ipAddress,
-		},
-	});
+		const result = await createSessionServer({
+			userId: user.objectId,
+			additionalSessionData: {
+				ipAddress,
+			},
+		});
 
-	_.set(user, 'sessionToken', result.sessionToken);
+		_.set(user, 'sessionToken', result.sessionToken);
 
-	return res.json(user);
+		return res.json(user);
+	} catch (error) {
+		if (error instanceof Parse.Error) {
+			const { t } = getRequestUtils(req);
+			error.message = t(error.message as never);
+		}
+
+		throw error;
+	}
 });
 
 export const handlePasswordSignup = expressHandler(async (req, res) => {

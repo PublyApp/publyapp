@@ -63,6 +63,16 @@ const commonEN = {
 		"Sorry, we couldn't find the page you're looking for. Perhaps you've mistyped the URL? Be sure to check your spelling.",
 	'go-to-home': 'Go to home',
 	'other-posts': 'Other posts',
+
+	'sign-in': 'Sign in',
+	'create-an-account': 'Create an account',
+	'email-address': 'Email address',
+	password: 'Password',
+	'forgot-password': 'Forgot password',
+	login: 'Login',
+
+	// auth from parse
+	'User email is not verified.': 'User email is not verified.',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;
