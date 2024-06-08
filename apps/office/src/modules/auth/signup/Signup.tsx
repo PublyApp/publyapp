@@ -11,11 +11,12 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import RouterLink from '@/office/components/RouterLink';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { sleep } from '@/shared/utils/any.utils';
-import { registerSchema, type RegisterInput } from '@/shared/validations/auth.validations';
+import { getRegisterSchema, type RegisterInput } from '@/shared/validations/auth.validations';
 import FormProvider from '@/ui-react/components/form/FormProvider';
 import RHFTextField from '@/ui-react/components/form/RHFTextField';
 import Iconify from '@/ui-react/components/Iconify';
 import useBoolean from '@/ui-react/hooks/useBoolean';
+import zod from '@/ui-react/lib/zod';
 
 // import { paths } from 'src/routes/paths';
 // import { RouterLink } from 'src/routes/components';
@@ -43,7 +44,7 @@ const Signup = () => {
 	};
 
 	const registerForm = useForm({
-		resolver: zodResolver(registerSchema),
+		resolver: zodResolver(getRegisterSchema(zod)),
 		defaultValues,
 	});
 

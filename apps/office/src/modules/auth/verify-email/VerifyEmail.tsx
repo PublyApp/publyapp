@@ -5,13 +5,14 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 
-import { verifyEmailSchema, type VerifyEmailInput } from '@devist/shared/validations/auth.validations';
+import { getVerifyEmailSchema, type VerifyEmailInput } from '@devist/shared/validations/auth.validations';
 
 import RouterLink from '@/office/components/RouterLink';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import FormProvider from '@/ui-react/components/form/FormProvider';
 import RHFTextField from '@/ui-react/components/form/RHFTextField';
 import useTranslate from '@/ui-react/hooks/useTranslate';
+import zod from '@/ui-react/lib/zod';
 
 // import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 // import { useLoginMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
@@ -31,7 +32,7 @@ const VerifyEmail = () => {
 	};
 
 	const loginForm = useForm({
-		resolver: zodResolver(verifyEmailSchema),
+		resolver: zodResolver(getVerifyEmailSchema(zod)),
 		defaultValues,
 	});
 
