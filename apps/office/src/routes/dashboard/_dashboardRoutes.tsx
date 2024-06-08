@@ -1,32 +1,45 @@
-import { Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 
-import loadable from '@loadable/component';
 import { Box, Button } from '@mui/material';
 import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 
 import ErrorDisplay from '@/office/components/ErrorDisplay';
-import Home from '@/office/containers/home/Home';
-import DashboardLayout from '@/office/layouts/dashboard/DashBoardLayout';
-import BlogSettings from '@/office/modules/blog/settings/BlogSettings';
+import LoadingScreen from '@/office/components/LoadingScreen';
+import RequireAuth from '@/office/components/RequireAuth';
+import SplashScreen from '@/office/components/SplashScreen';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { getBlogPostBoEditFormQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.actions';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
-import LoadingScreen from '../../components/LoadingScreen';
-import RequireAuth from '../../components/RequireAuth';
-import SplashScreen from '../../components/SplashScreen';
-import FileManager from '../../containers/fileManager/FileManager';
-import NotFound from '../../containers/notFound/NotFound';
-import NewPost from '../../containers/posts/NewPost';
-import PostsList from '../../containers/posts/PostsList';
 import { getLastPath, getRouteLoader } from '../utils';
 
-const EditPost = loadable(() => {
-	return import('../../containers/posts/EditPost');
+const DashboardLayout = lazy(() => {
+	return import('@/office/layouts/dashboard/DashBoardLayout');
+});
+const Home = lazy(() => {
+	return import('@/office/containers/home/Home');
+});
+const BlogSettings = lazy(() => {
+	return import('@/office/modules/blog/settings/BlogSettings');
+});
+const FileManager = lazy(() => {
+	return import('@/office/containers/fileManager/FileManager');
+});
+const NotFound = lazy(() => {
+	return import('@/office/containers/notFound/NotFound');
+});
+const NewPost = lazy(() => {
+	return import('@/office/containers/posts/NewPost');
+});
+const PostsList = lazy(() => {
+	return import('@/office/containers/posts/PostsList');
+});
+const EditPost = lazy(() => {
+	return import('@/office/containers/posts/EditPost');
 });
 
 const DashboardRootError = () => {
