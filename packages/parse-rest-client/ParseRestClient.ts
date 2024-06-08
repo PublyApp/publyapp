@@ -159,4 +159,9 @@ export default class ParseRestClient {
 			{ headers },
 		);
 	}
+
+	// https://docs.parseplatform.org/rest/guide/#verifying-emails
+	async verificationEmailRequest(input: { email: string }) {
+		return this.http.post('/verificationEmailRequest', { email: input.email });
+	}
 }

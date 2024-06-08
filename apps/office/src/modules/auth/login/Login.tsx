@@ -8,7 +8,7 @@ import { AxiosError } from 'axios';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useLocation, useNavigate, useRevalidator } from 'react-router-dom';
 
-import { loginSchema, type LoginInput } from '@devist/shared/validations/auth.validations';
+import { getLoginSchema, type LoginInput } from '@devist/shared/validations/auth.validations';
 
 import RouterLink from '@/office/components/RouterLink';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
@@ -20,6 +20,7 @@ import useTranslate from '@/ui-react/hooks/useTranslate';
 // import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { useLoginMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
+import zod from '@/ui-react/lib/zod';
 import { pxToRem } from '@/ui-react/utils/css.utils';
 
 const Login = () => {
@@ -36,7 +37,7 @@ const Login = () => {
 	};
 
 	const loginForm = useForm({
-		resolver: zodResolver(loginSchema),
+		resolver: zodResolver(getLoginSchema(zod)),
 		defaultValues,
 	});
 
