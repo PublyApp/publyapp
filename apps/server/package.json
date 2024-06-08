@@ -39,7 +39,6 @@
 		"@paralleldrive/cuid2": "^2.2.2",
 		"@parse/fs-files-adapter": "^2.0.1",
 		"@remix-run/express": "^2.8.0",
-		"@types/ms": "^0.7.34",
 		"async": "^3.2.5",
 		"axios": "^1.6.5",
 		"body-parser": "^1.20.2",
@@ -81,6 +80,7 @@
 	},
 	"devDependencies": {
 		"@rsbuild/core": "^0.6.11",
+		"@types/ms": "^0.7.34",
 		"@rspack/cli": "^0.6.3",
 		"@rspack/core": "^0.6.3",
 		"@types/async": "^3.2.24",

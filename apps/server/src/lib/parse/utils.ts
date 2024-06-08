@@ -577,7 +577,7 @@ type CreateSessionResult<AdditionalSessionData extends Record<string, unknown> =
 
 /**
  * creates a session using the masterKey,
- * code taken from Parse.UsersRouter's handleLogIn
+ * code taken from Parse.UsersRouter's handleLogin
  * @param {CreateSessionOptions} options
  * @param {string} options.userId
  * @param {string} options.action can be 'login' or 'signup' or 'masterKey' or whatever, defaults to 'login'

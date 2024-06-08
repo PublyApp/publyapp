@@ -1,16 +1,19 @@
-// import zod from "@/ui-react/lib/zod";
+import { useState } from 'react';
+
 import { zodResolver } from '@hookform/resolvers/zod';
 import LoadingButton from '@mui/lab/LoadingButton';
+import { Alert, type AlertProps } from '@mui/material';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useLocation, useNavigate, useRevalidator } from 'react-router-dom';
 
-import { logInSchema, type LogInInput } from '@devist/shared/validations/auth.validations';
+import { loginSchema, type LoginInput } from '@devist/shared/validations/auth.validations';
 
 import RouterLink from '@/office/components/RouterLink';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
@@ -18,12 +21,19 @@ import FormProvider from '@/ui-react/components/form/FormProvider';
 import RHFTextField from '@/ui-react/components/form/RHFTextField';
 import Iconify from '@/ui-react/components/Iconify';
 import useBoolean from '@/ui-react/hooks/useBoolean';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 // import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
-import { useLogInMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
+import { useLoginMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
+import { pxToRem } from '@/ui-react/utils/css.utils';
 
 const Login = () => {
 	const password = useBoolean();
+	const { t } = useTranslate();
+	const [alertProps, setAlertProps] = useState<{
+		message: string;
+		severity: AlertProps['severity'];
+	}>();
 
 	// const LoginSchema = Yup.object().shape({
 	// 	// email: Yup.string().required('Email is required').email('Email must be a valid email address'),
@@ -36,7 +46,7 @@ const Login = () => {
 	};
 
 	const loginForm = useForm({
-		resolver: zodResolver(logInSchema),
+		resolver: zodResolver(loginSchema),
 		defaultValues,
 	});
 
@@ -51,8 +61,8 @@ const Login = () => {
 	const location = useLocation();
 
 	const {
-		result: { mutate: logIn, isPending },
-	} = useLogInMutation({
+		result: { mutate: login, isPending },
+	} = useLoginMutation({
 		options: {
 			onSuccess: async () => {
 				// resetBoundary();
@@ -71,37 +81,56 @@ const Login = () => {
 
 				navigate(location.state?.from || BO_PATH_NAMES.dashboard.root, { replace: true });
 			},
+			onError: (error /* , variables, context */) => {
+				if (error instanceof AxiosError) {
+					if (error.response?.data.message === t('User email is not verified.')) {
+						// show an alert on top of the login form
+						setAlertProps({
+							message: error.response?.data.message,
+							severity: 'error',
+						});
+					}
+				}
+			},
 		},
 	});
 
 	// const onSubmit = handleSubmit(async (data) => {});
-	const onSubmitHandler: SubmitHandler<LogInInput> = async (values) => {
-		logIn(values);
+	const onSubmitHandler: SubmitHandler<LoginInput> = async (values) => {
+		login(values);
 	};
 
 	const onSubmit = handleSubmit(onSubmitHandler);
 
 	const renderHead = (
 		<Stack spacing={2} sx={{ mb: 5 }}>
-			<Typography variant="h4">Sign in to Minimal</Typography>
+			<Typography variant="h4">{t('sign-in')}</Typography>
 
 			<Stack direction="row" spacing={0.5}>
-				<Typography variant="body2">New user?</Typography>
+				<Typography variant="body2">{t('new-item', { item: t('user') })}?</Typography>
 
 				<Link component={RouterLink} href={BO_PATH_NAMES.auth.register} variant="subtitle2">
-					Create an account
+					{t('create-an-account')}
 				</Link>
 			</Stack>
 		</Stack>
 	);
 
+	const renderAlert = (
+		<Alert severity={alertProps?.severity} onClose={undefined} sx={{ mb: pxToRem(20) }}>
+			{/* This post does not have a translation in the current language */}
+			{/* {t('item-not-translated', { item: t('post') })} */}
+			{alertProps?.message}
+		</Alert>
+	);
+
 	const renderForm = (
 		<Stack spacing={2.5}>
-			<RHFTextField name="email" label="Email address" />
+			<RHFTextField name="email" label={t('email-address')} />
 
 			<RHFTextField
 				name="password"
-				label="Password"
+				label={t('password')}
 				type={password.value ? 'text' : 'password'}
 				InputProps={{
 					endAdornment: (
@@ -122,11 +151,13 @@ const Login = () => {
 				underline="always"
 				sx={{ alignSelf: 'flex-end' }}
 			>
-				Forgot password?
+				{/* Forgot password? */}
+				{t('forgot-password')}
 			</Link>
 
 			<LoadingButton fullWidth color="inherit" size="large" type="submit" variant="contained" loading={isPending}>
-				Login
+				{/* Login */}
+				{t('login')}
 			</LoadingButton>
 		</Stack>
 	);
@@ -134,6 +165,8 @@ const Login = () => {
 	return (
 		<FormProvider form={loginForm} onSubmit={onSubmit}>
 			{renderHead}
+
+			{alertProps ? renderAlert : null}
 
 			{renderForm}
 		</FormProvider>

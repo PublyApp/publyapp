@@ -51,6 +51,7 @@
 		"@tiptap/react": "^2.1.16",
 		"@tiptap/starter-kit": "^2.1.16",
 		"autosuggest-highlight": "^3.3.4",
+		"axios": "^1.6.5",
 		"date-fns": "^2.25.0",
 		"events": "^3.3.0",
 		"framer-motion": "^10.18.0",
