@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import parseApi from '@devist/api/parse/ParseApi';
-import type { LoginInput } from '@devist/shared/validations/auth.validations';
+import type { LoginInput, VerifyEmailInput } from '@devist/shared/validations/auth.validations';
 
 import { functionName } from '@/shared/lib/constants';
 
@@ -44,7 +44,7 @@ export const getUserAuthDataAction = async () => {
 
 		return authData;
 	} catch (error) {
-		console.log('----- getUserAuthData error ----------', error);
+		console.log('----- getUserAuthDataAction error ----------', error);
 
 		// what if invalid sessionToken ?
 		// what if no session token at all ?
@@ -63,3 +63,13 @@ export const getUserAuthDataQuery = queryOptions({
 	queryKey: [getUserAuthDataQueryKeyBase] as const,
 	queryFn: getUserAuthDataAction,
 });
+
+// ---- 4 --------------------------------------------------------------------------------
+export const verifyEmailAction = async ({ email }: VerifyEmailInput) => {
+	try {
+		return await parseApi.users.verificationEmailRequest({ email });
+	} catch (error) {
+		console.log('----- verifyEmailAction error ----------', error);
+		return Promise.reject(error);
+	}
+};
