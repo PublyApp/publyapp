@@ -17,8 +17,11 @@ const AuthLayout = lazy(() => {
 const Login = lazy(() => {
 	return import('@/office/modules/auth/login/Login');
 });
-const Register = lazy(() => {
-	return import('@/office/containers/register/Register');
+const Signup = lazy(() => {
+	return import('@/office/modules/auth/signup/Signup');
+});
+const VerifyEmail = lazy(() => {
+	return import('@/office/modules/auth/verify-email/VerifyEmail');
 });
 
 const PublicRootError = () => {
@@ -72,7 +75,8 @@ export const publicRoutes: RouteObject[] = [
 						element: <Login />,
 						index: true,
 					},
-					{ path: getLastPath(BO_PATH_NAMES.auth.register), element: <Register /> },
+					{ path: getLastPath(BO_PATH_NAMES.auth.signup), element: <Signup /> },
+					{ path: getLastPath(BO_PATH_NAMES.auth.verifyEmail), element: <VerifyEmail /> },
 				],
 			},
 		],

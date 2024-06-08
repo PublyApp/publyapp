@@ -70,6 +70,7 @@ const commonEN = {
 	password: 'Password',
 	'forgot-password': 'Forgot password',
 	login: 'Login',
+	'verify-my-email': 'Verify my email',
 
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',

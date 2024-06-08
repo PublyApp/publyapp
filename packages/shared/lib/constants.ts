@@ -124,7 +124,8 @@ export const BO_PATH_NAMES = {
 	auth: {
 		root: makePath(ROOTS.AUTH),
 		login: makePath(ROOTS.AUTH, 'login'),
-		register: makePath(ROOTS.AUTH, 'register'),
+		signup: makePath(ROOTS.AUTH, 'sign-up'),
+		verifyEmail: makePath(ROOTS.AUTH, 'verify-email'),
 		forgotPassword: makePath(ROOTS.AUTH, 'forgot-password'),
 	},
 	dashboard: {

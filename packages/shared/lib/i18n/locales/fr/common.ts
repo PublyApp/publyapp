@@ -72,6 +72,7 @@ const commonFR = {
 	password: 'Mot de passe',
 	'forgot-password': 'Mot de passe oublié',
 	login: 'Se connecter',
+	'verify-my-email': 'Vérifier mon email',
 
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",

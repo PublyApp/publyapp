@@ -20,6 +20,8 @@ export const loginSchema = z.object({
 	password: passwordFieldSchema,
 });
 
+export const verifyEmailSchema = loginSchema.pick({ email: true });
+
 export const resetPasswordSchema = z
 	.object({
 		password: passwordFieldSchema,
@@ -46,5 +48,6 @@ export const registerSchema = loginSchema.extend({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type SendUpdateEmailFormInput = z.infer<typeof sendEmailUpdateEmailSchema>;
