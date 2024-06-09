@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import type { MDXEditorMethods } from '@mdxeditor/editor';
-import { Chip, Grid, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Grid, Stack, Typography } from '@mui/material';
 import { type UseFormReturn } from 'react-hook-form';
 
 import FormProvider from '@devist/ui-react/components/form/FormProvider';
@@ -11,8 +11,12 @@ import RHFMdxEditor from '@devist/ui-react/components/form/RHFMdxEditor';
 import RHFSwitch from '@devist/ui-react/components/form/RHFSwitch';
 import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
 
+import { selectSetIsOpenSlugDrawer } from '@/office/lib/zustand/features/blogPost.slice';
+import { useMainStore } from '@/office/lib/zustand/store';
 import { RHFUpload } from '@/ui-react/components/form/RHFUpload';
 import useTranslate from '@/ui-react/hooks/useTranslate';
+
+import EditPostSlugDrawer from '../edit-post/EditPostSlugDrawer';
 
 type Props = {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,6 +29,11 @@ type Props = {
 const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '' }: Props) => {
 	const { t, locale } = useTranslate();
 	const { setValue } = form;
+	const setIsOpenSlugDrawer = useMainStore(selectSetIsOpenSlugDrawer);
+
+	const handleOpenSlugDrawer = () => {
+		setIsOpenSlugDrawer(true);
+	};
 
 	const handleDrop = useCallback(
 		(acceptedFiles: File[]) => {
@@ -121,8 +130,21 @@ const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '' }: 
 					</Grid>
 				</Grid>
 
-				<RHFTextField name="slug" label="Slug" />
+				{edit ? (
+					<Stack direction="row" gap={2.1}>
+						<Box sx={{ cursor: 'pointer', flexGrow: 1 }}>
+							<RHFTextField name="slug" label="Slug" disabled />
+						</Box>
+						<Button onClick={handleOpenSlugDrawer} variant="contained">
+							Edit slug
+						</Button>
+					</Stack>
+				) : (
+					<RHFTextField name="slug" label="Slug" />
+				)}
 			</Stack>
+
+			<EditPostSlugDrawer />
 		</FormProvider>
 	);
 };

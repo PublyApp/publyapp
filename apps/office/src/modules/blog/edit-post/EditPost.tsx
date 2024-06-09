@@ -133,6 +133,23 @@ const EditPost = () => {
 		},
 	};
 
+	const renderAlert = (
+		<m.div
+			initial={{
+				opacity: 0,
+				y: -OFFSET_SLIDE,
+				display: 'none',
+			}}
+			variants={variants.alert as never}
+			animate={!post.translation[lang.value] ? 'show' : 'hide'}
+		>
+			<Alert severity="info" onClose={undefined} sx={{ width: 1, mb: pxToRem(24) }}>
+				{/* This post does not have a translation in the current language */}
+				{t('item-not-translated', { item: t('post') })}
+			</Alert>
+		</m.div>
+	);
+
 	return (
 		<Container maxWidth={/* settings.themeStretch ? false :  */ 'lg'}>
 			<PageHeader
@@ -145,34 +162,15 @@ const EditPost = () => {
 				}}
 			/>
 
-			{/* <m.div layout> */}
-			<m.div
-				//
-				initial={{
-					opacity: 0,
-					y: -OFFSET_SLIDE,
-					//
-					display: 'none',
-					// visibility: 'hidden',
-				}}
-				variants={variants.alert as never}
-				animate={!post.translation[lang.value] ? 'show' : 'hide'}
-			>
-				<Alert severity="info" onClose={undefined} sx={{ width: 1, mb: pxToRem(24) }}>
-					{/* This post does not have a translation in the current language */}
-					{t('item-not-translated', { item: t('post') })}
-				</Alert>
-			</m.div>
+			{renderAlert}
 
 			<m.div
-				//
 				initial={{ y: 0 }}
 				variants={variants.form}
 				animate={!post.translation[lang.value] ? 'showAlert' : 'hideAlert'}
 			>
 				<PostForm form={updatePostForm} edit localeContent={post.translation[lang.value]?.content || ''} />
 			</m.div>
-			{/* </m.div> */}
 		</Container>
 	);
 };

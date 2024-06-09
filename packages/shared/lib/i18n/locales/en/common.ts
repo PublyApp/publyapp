@@ -72,6 +72,8 @@ const commonEN = {
 	login: 'Login',
 	'verify-my-email': 'Verify my email',
 
+	'manage-blog-post-slugs': "Manage this blog post's slugs",
+
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',
 } as const;
