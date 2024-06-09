@@ -1,10 +1,10 @@
 import _ from 'lodash';
 
 import { env } from '@/server/lib/env';
-import type ParseAppFile from '@/server/lib/parse/classes/appFile.class';
-import ParseBlogPost from '@/server/lib/parse/classes/blogPost.class';
-import type ParseUser from '@/server/lib/parse/classes/user.class';
 import { applySkipAndLimit, applySorting, toIsoString } from '@/server/lib/parse/utils';
+import type ParseUser from '@/server/resources/auth/user/user.class';
+import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
+import type ParseAppFile from '@/server/resources/file-manager/appFile/appFile.class';
 import { className, DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type {
@@ -817,5 +817,15 @@ export default class BlogPostService {
 		const finalBlogPost = _.assign({} as TranslatedIBlogPostWithRelations, post, translation, { locale });
 
 		return finalBlogPost;
+	}
+
+	// normally we use this only in the BO dashboard
+	async findSlugsForBlogPostById(postId: string) {
+		const postObject = new ParseBlogPost({ objectId: postId });
+		const query = new Parse.Query(className.BLOG_POST_SLUG).equalTo('post', postObject).select('slug');
+
+		const slugs = await query.find({ sessionToken: this.sessionToken });
+
+		return slugs;
 	}
 }

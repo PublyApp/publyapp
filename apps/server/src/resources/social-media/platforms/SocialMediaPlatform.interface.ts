@@ -1,4 +1,4 @@
-import type ParseSocialMediaPost from '@/server/lib/parse/classes/socialMediaPost.class';
+import type ParseSocialMediaPost from '@/server/resources/social-media/socialMediaPost.class';
 
 interface SocialMediaPlatform {
 	publishPost: (params: { post: ParseSocialMediaPost }) => Promise<void>;

@@ -1,7 +1,7 @@
 import { className } from '@devist/shared/lib/constants';
 import type { AppFileWithRelations } from '@devist/shared/types/db/appFile.types';
 
-import SchemaManager from '@/server/lib/parse/SchemaManager';
+import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 
 const AppFileSchema = SchemaManager.defineSchema<AppFileWithRelations>(className.APP_FILE, {
 	fields: {
