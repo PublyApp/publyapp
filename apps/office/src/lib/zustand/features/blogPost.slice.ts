@@ -10,6 +10,7 @@ import Slice from '../utils/Slice';
 export type BlogPostSliceValues = {
 	// edit post page
 	currentlyEditedPost: IBlogPostWithRelations | undefined;
+	isOpenSlugDrawer: boolean;
 
 	// posts list (table)
 	posts: TranslatedIBlogPostWithRelations[];
@@ -18,6 +19,7 @@ export type BlogPostSliceValues = {
 
 export type PostSliceActions = {
 	setCurrentlyEditedPost: Dispatch<SetStateAction<BlogPostSliceValues['currentlyEditedPost']>>;
+	setIsOpenSlugDrawer: Dispatch<SetStateAction<BlogPostSliceValues['isOpenSlugDrawer']>>;
 
 	setPosts: Dispatch<SetStateAction<BlogPostSliceValues['posts']>>;
 	// addPost: VoidFunction;
@@ -29,6 +31,7 @@ export type BlogPostSliceState = BlogPostSliceValues & PostSliceActions;
 
 const defaultValues: BlogPostSliceValues = {
 	currentlyEditedPost: undefined,
+	isOpenSlugDrawer: false,
 
 	posts: [],
 	selectedPosts: [],
@@ -58,6 +61,21 @@ const blogPostSlice = new Slice<BlogPostSliceState, typeof sliceName>({
 				});
 			},
 
+			setIsOpenSlugDrawer: (value) => {
+				set((state) => {
+					let newValue: BlogPostSliceValues['isOpenSlugDrawer'];
+
+					if (_.isFunction(value)) {
+						newValue = value(state.blogPostSlice.isOpenSlugDrawer);
+					} else {
+						newValue = value;
+					}
+
+					// eslint-disable-next-line no-param-reassign
+					state.blogPostSlice.isOpenSlugDrawer = newValue;
+				});
+			},
+
 			setPosts: (value) => {
 				set((state) => {
 					let newValue: BlogPostSliceValues['posts'];
@@ -81,6 +99,18 @@ export default blogPostSlice;
 // ---- selectors ------------------------------------------------------------------------
 export const selectCurrentlyEditedPost = (state: RootState) => {
 	return state.blogPostSlice.currentlyEditedPost;
+};
+
+export const selectSetCurrentlyEditedPost = (state: RootState) => {
+	return state.blogPostSlice.setCurrentlyEditedPost;
+};
+
+export const selectIsOpenSlugDrawer = (state: RootState) => {
+	return state.blogPostSlice.isOpenSlugDrawer;
+};
+
+export const selectSetIsOpenSlugDrawer = (state: RootState) => {
+	return state.blogPostSlice.setIsOpenSlugDrawer;
 };
 
 export const selectPosts = (state: RootState) => {

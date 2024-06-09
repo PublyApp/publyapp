@@ -74,6 +74,8 @@ const commonFR = {
 	login: 'Se connecter',
 	'verify-my-email': 'Vérifier mon email',
 
+	'manage-blog-post-slugs': 'Gérer les slugs de cet article',
+
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
 } as const satisfies LooseCommonNamespace;
