@@ -30,16 +30,16 @@ const FileManager = lazy(() => {
 	return import('@/office/containers/fileManager/FileManager');
 });
 const NotFound = lazy(() => {
-	return import('@/office/containers/notFound/NotFound');
+	return import('@/office/components/NotFound');
 });
 const NewPost = lazy(() => {
-	return import('@/office/containers/posts/NewPost');
+	return import('@/office/modules/blog/new-post/NewPost');
 });
 const PostsList = lazy(() => {
-	return import('@/office/containers/posts/PostsList');
+	return import('@/office/modules/blog/posts-list/PostsList');
 });
 const EditPost = lazy(() => {
-	return import('@/office/containers/posts/EditPost');
+	return import('@/office/modules/blog/edit-post/EditPost');
 });
 
 const DashboardRootError = () => {

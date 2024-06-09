@@ -13,7 +13,7 @@ import useTranslate from '@/ui-react/hooks/useTranslate';
 import { useCreateBlogPostMutation } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
 import zod from '@/ui-react/lib/zod';
 
-import PostForm from './PostForm';
+import PostForm from '../_common/PostForm';
 
 const NewPost = () => {
 	const { lang, t } = useTranslate();
