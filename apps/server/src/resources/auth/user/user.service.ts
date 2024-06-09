@@ -1,4 +1,4 @@
-import ParseUser from '@/server/lib/parse/classes/user.class';
+import ParseUser from '@/server/resources/auth/user/user.class';
 import type { IUser } from '@/shared/types/db/user.types';
 
 type Props = {

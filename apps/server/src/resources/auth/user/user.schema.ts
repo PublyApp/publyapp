@@ -1,7 +1,7 @@
 import { className } from '@devist/shared/lib/constants';
 import type { IUserWithRelations } from '@devist/shared/types/db/user.types';
 
-import SchemaManager from '@/server/lib/parse/SchemaManager';
+import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 
 const UserSchema = SchemaManager.defineSchema<Omit<IUserWithRelations, /* 'email' |  */ 'username' | 'password'>>(
 	className.USER,

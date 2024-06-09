@@ -7,8 +7,8 @@ import { IMAGE_FORMAT_CONFIG } from '@devist/shared/lib/constants';
 import type { ListMeta } from '@devist/shared/types/db/any.types';
 import type { AppFile, ImageFormatData, ImageFormatType } from '@devist/shared/types/db/appFile.types';
 
-import ParseAppFile from '@/server/lib/parse/classes/appFile.class';
 import { applySkipAndLimit } from '@/server/lib/parse/utils';
+import ParseAppFile from '@/server/resources/file-manager/appFile/appFile.class';
 import { addSuffixToFileName } from '@/server/utils/any.utils';
 
 import FolderService from '../folder/folder.service';

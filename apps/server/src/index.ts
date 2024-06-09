@@ -21,7 +21,7 @@ import { expressHandler } from './lib/express';
 import { initI18next } from './lib/i18n';
 import logger, { consoleTransport } from './lib/logger';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
-import SchemaManager from './lib/parse/SchemaManager';
+import SchemaManager from './lib/parse/classes/SchemaManager';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
