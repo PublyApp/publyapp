@@ -1,4 +1,4 @@
-import SchemaManager from '@/server/lib/parse/SchemaManager';
+import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 import { className } from '@/shared/lib/constants';
 import type { IPostSeries } from '@/shared/types/db/postSeries.types';
 

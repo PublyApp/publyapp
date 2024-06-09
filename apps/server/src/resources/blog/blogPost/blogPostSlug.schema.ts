@@ -1,6 +1,6 @@
 import { className } from '@devist/shared/lib/constants';
 
-import SchemaManager from '@/server/lib/parse/SchemaManager';
+import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 import { type IBlogPost } from '@/shared/types/db/blogPost.types';
 
 // import type { IBlogPostWithRelations } from '@/shared/types/db/blogPost.types';

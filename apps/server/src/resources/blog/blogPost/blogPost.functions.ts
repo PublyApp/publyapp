@@ -9,9 +9,9 @@ import {
 	getUpdateBlogPostInputSchema,
 } from '@devist/shared/validations/blogPost/blogPost.validations';
 
-import ParseBlogPost from '@/server/lib/parse/classes/blogPost.class';
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
 import UserService from '@/server/resources/auth/user/user.service';
+import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
 import BlogPostService from '@/server/resources/blog/blogPost/blogPost.service';
 import FileService from '@/server/resources/file-manager/file/file.service';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';

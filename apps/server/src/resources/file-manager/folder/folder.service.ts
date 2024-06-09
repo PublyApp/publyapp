@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import ParseAppFile from '@/server/lib/parse/classes/appFile.class';
+import ParseAppFile from '@/server/resources/file-manager/appFile/appFile.class';
 import { fileProvider } from '@/shared/lib/constants';
 
 type FolderServiceProps = {

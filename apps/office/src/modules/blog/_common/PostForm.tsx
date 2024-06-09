@@ -16,7 +16,7 @@ import { useMainStore } from '@/office/lib/zustand/store';
 import { RHFUpload } from '@/ui-react/components/form/RHFUpload';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 
-import EditPostSlugDrawer from '../edit-post/EditPostSlugDrawer';
+import EditPostSlugDrawer from './EditPostSlugDrawer';
 
 type Props = {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any

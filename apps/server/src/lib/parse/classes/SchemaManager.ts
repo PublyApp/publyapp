@@ -9,10 +9,9 @@ import { className as _className } from '@devist/shared/lib/constants';
 
 import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
 
-import { DEFAULT_CLP } from '../constants';
-import logger from '../logger';
-
-import { getDatabase } from './utils';
+import { DEFAULT_CLP } from '../../constants';
+import logger from '../../logger';
+import { getDatabase } from '../utils';
 
 export type ManagedIndex = {
 	keys: Record<string, 1 | -1>;
