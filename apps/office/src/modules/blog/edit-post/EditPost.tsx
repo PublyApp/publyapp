@@ -19,7 +19,7 @@ import useTranslate from '@/ui-react/hooks/useTranslate';
 import zod from '@/ui-react/lib/zod';
 import { pxToRem } from '@/ui-react/utils/css.utils';
 
-import PostForm from './PostForm';
+import PostForm from '../_common/PostForm';
 
 const EditPost = () => {
 	// const { t } = useTranslation();
