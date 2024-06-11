@@ -2,12 +2,11 @@ import _ from 'lodash';
 
 import { imageFormatTypes } from '@/shared/types/db/appFile.types';
 
+import type { IRole } from '../types/db/role.types';
+
 import type { AppLocale } from './i18n/resources';
 
-export type IRoleConfig = {
-	name: string;
-	code: number;
-};
+export type IRoleConfig = Pick<IRole, 'code' | 'name'>;
 
 export const roleEnum = {
 	STAFF_ADMIN: { name: 'STAFF_ADMIN', code: 23109870572456 } as const,

@@ -350,6 +350,7 @@ export default class FileService {
 	}
 
 	public static get defaultUploadAdapter(): Uploader {
-		return new LocalDiskUploader();
+		// return new LocalDiskUploader();
+		return new CloudinaryUploader();
 	}
 }
