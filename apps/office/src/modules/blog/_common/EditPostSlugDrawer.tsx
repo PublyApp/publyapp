@@ -1,6 +1,16 @@
 // import React from 'react'
 
-import { Divider, Drawer, drawerClasses, IconButton, Stack, Typography, useTheme } from '@mui/material';
+import {
+	Button,
+	Divider,
+	Drawer,
+	drawerClasses,
+	IconButton,
+	Stack,
+	TextField,
+	Typography,
+	useTheme,
+} from '@mui/material';
 
 import { selectIsOpenSlugDrawer, selectSetIsOpenSlugDrawer } from '@/office/lib/zustand/features/blogPost.slice';
 import { useMainStore } from '@/office/lib/zustand/store';
@@ -63,6 +73,10 @@ const EditPostSlugDrawer = (/* props: Props */) => {
 
 			<Scrollbar>
 				<Stack spacing={3} sx={{ p: 3 }}>
+					<Stack direction="row" gap={2.1}>
+						<TextField label="New Slug" sx={{ flexGrow: 1 }} />
+						<Button variant="contained">Add Slug</Button>
+					</Stack>
 					{/* {renderMode}
 
           {renderContrast}

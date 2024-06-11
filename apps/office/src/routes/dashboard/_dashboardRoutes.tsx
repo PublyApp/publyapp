@@ -5,11 +5,11 @@ import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type 
 
 import parseApi from '@devist/api/parse/ParseApi';
 
+import AuthGuard from '@/office/components/AuthGuard';
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import LoadingScreen from '@/office/components/LoadingScreen';
-import RequireAuth from '@/office/components/RequireAuth';
 import SplashScreen from '@/office/components/SplashScreen';
-import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import { BO_PATH_NAMES, roleSet } from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { getBlogPostBoEditFormQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.actions';
@@ -125,9 +125,9 @@ export const dashboardRoutes: RouteObject[] = [
 		}),
 		element: (
 			<Suspense fallback={<SplashScreen />}>
-				<RequireAuth>
+				<AuthGuard allowedRoles={roleSet.ABOVE_STAFF_CONTRIBUTOR}>
 					<DashboardLayout />
-				</RequireAuth>
+				</AuthGuard>
 			</Suspense>
 		),
 		errorElement: <DashboardRootError />,
