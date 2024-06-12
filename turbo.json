@@ -1,45 +1,56 @@
 {
-	"$schema": "https://turbo.build/schema.json",
-	"globalDependencies": ["**/.env.*local"],
-	"globalEnv": [
-		"APP_ID",
-		"ONLINE",
-		"PRODUCTION",
-		"PORT",
-		"DATABASE_URI",
-		"MASTER_KEY",
-		"SERVER_URL",
-		"NODE_ENV",
-		"APP_ENV",
-		"MODE",
-		"REST_API_KEY",
-		"PARSE_SERVER_URL",
-		"PARSE_APP_ID",
-		"OFFICE_ROUTER_BASENAME",
-		"FRONT_URL",
-		"TEST_ONLINE",
-		"VITE_SERVER_URL",
-		"VITE_PARSE_APP_ID",
-		"VITE_PARSE_SERVER_URL",
-		"VITE_REST_API_KEY",
-		"VITE_API_PATH",
-		"VITE_PARSE_PATH",
-		"API_PATH",
-		"PARSE_PATH"
-	],
-	"pipeline": {
-		"build": {
-			"dependsOn": ["^build"],
-			"outputs": [".next/**", "!.next/cache/**", ".svelte-kit", "dist", "build"]
-		},
-		"lint": {
-			"cache": false
-		},
-		"lint:fix": {
-			"cache": false
-		},
-		"dev": {
-			"cache": false
-		}
-	}
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "**/.env.*local"
+  ],
+  "globalEnv": [
+    "APP_ID",
+    "ONLINE",
+    "PRODUCTION",
+    "PORT",
+    "DATABASE_URI",
+    "MASTER_KEY",
+    "SERVER_URL",
+    "NODE_ENV",
+    "APP_ENV",
+    "MODE",
+    "REST_API_KEY",
+    "PARSE_SERVER_URL",
+    "PARSE_APP_ID",
+    "OFFICE_ROUTER_BASENAME",
+    "FRONT_URL",
+    "TEST_ONLINE",
+    "VITE_SERVER_URL",
+    "VITE_PARSE_APP_ID",
+    "VITE_PARSE_SERVER_URL",
+    "VITE_REST_API_KEY",
+    "VITE_API_PATH",
+    "VITE_PARSE_PATH",
+    "API_PATH",
+    "PARSE_PATH"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        ".svelte-kit",
+        "dist",
+        "build"
+      ]
+    },
+    "lint": {
+      "cache": false
+    },
+    "lint:fix": {
+      "cache": false
+    },
+    "dev": {
+			"persistent": true,
+      "cache": false
+    }
+  }
 }
