@@ -79,10 +79,10 @@
 		"zod-i18n-map": "^2.27.0"
 	},
 	"devDependencies": {
-		"@rsbuild/core": "^0.6.11",
+		"@rsbuild/core": "^0.7.6",
 		"@types/ms": "^0.7.34",
-		"@rspack/cli": "^0.6.3",
-		"@rspack/core": "^0.6.3",
+		"@rspack/cli": "^0.7.2",
+		"@rspack/core": "^0.7.2",
 		"@types/async": "^3.2.24",
 		"@types/body-parser": "^1.19.5",
 		"@types/chai": "^4.3.14",
