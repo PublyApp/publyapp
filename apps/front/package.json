@@ -58,7 +58,7 @@
 	},
 	"devDependencies": {
 		"@remix-run/dev": "^2.8.0",
-		"@rsbuild/core": "^0.6.11",
+		"@rsbuild/core": "^0.7.6",
 		"@types/lodash": "^4.14.202",
 		"@types/numeral": "^2.0.5",
 		"@types/parse": "^3.0.9",
