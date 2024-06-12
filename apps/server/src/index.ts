@@ -35,9 +35,10 @@ import AppFileSchema from './resources/file-manager/appFile/appFile.schema';
 import customApiRouter from './router/customApiRouter';
 import duration from './utils/duration';
 
-console.log('🤣🤣', import.meta.url);
-console.log('🤣🤣', import.meta.filename);
-console.log('🤣🤣', import.meta.dirname);
+// ! use the rsbuild metaPlugin I wrote to make these work
+// console.log(import.meta.url);
+// console.log(import.meta.filename);
+// console.log(import.meta.dirname);
 
 const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
