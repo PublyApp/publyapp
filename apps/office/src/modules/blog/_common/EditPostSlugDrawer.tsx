@@ -1,17 +1,22 @@
 // import React from 'react'
 
+import type { Theme } from '@emotion/react';
 import {
+	Box,
 	Button,
 	Divider,
 	Drawer,
 	drawerClasses,
 	IconButton,
+	List,
 	Stack,
 	TextField,
 	Typography,
 	useTheme,
 } from '@mui/material';
+import { nanoid } from 'nanoid';
 
+import { ResultItem } from '@/office/components/ResultItem';
 import { selectIsOpenSlugDrawer, selectSetIsOpenSlugDrawer } from '@/office/lib/zustand/features/blogPost.slice';
 import { useMainStore } from '@/office/lib/zustand/store';
 import Iconify from '@/ui-react/components/Iconify';
@@ -51,6 +56,51 @@ const EditPostSlugDrawer = (/* props: Props */) => {
 		</Stack>
 	);
 
+	const renderInput = (
+		<Stack direction="row" gap={2.1}>
+			<TextField label="New Slug" sx={{ flexGrow: 1 }} />
+			<Button variant="contained">Add Slug</Button>
+		</Stack>
+	);
+
+	const renderItems = () => {
+		return (
+			<List /* key={group || index} */ disablePadding>
+				{Array.from({ length: 8 }, (_) => {
+					return {
+						id: nanoid(),
+						slug: nanoid(),
+					};
+				}).map((e) => {
+					// 	return <Box key={e.id}>
+					// 	<Typography>{e.slug}</Typography>
+					// </Box>
+
+					return (
+						<Box
+							key={e.id}
+							sx={(theme) => {
+								return {
+									'& > .MuiButtonBase-root': {
+										padding: theme.spacing(1.5),
+									},
+								};
+							}}
+						>
+							<ResultItem
+								title={[{ text: e.slug }]}
+								groupLabel={''}
+								onClickItem={() => {
+									console.log(e.slug);
+								}}
+							/>
+						</Box>
+					);
+				})}
+			</List>
+		);
+	};
+
 	return (
 		<Drawer
 			anchor="right"
@@ -73,10 +123,22 @@ const EditPostSlugDrawer = (/* props: Props */) => {
 
 			<Scrollbar>
 				<Stack spacing={3} sx={{ p: 3 }}>
-					<Stack direction="row" gap={2.1}>
-						<TextField label="New Slug" sx={{ flexGrow: 1 }} />
-						<Button variant="contained">Add Slug</Button>
-					</Stack>
+					{renderInput}
+
+					{renderItems()}
+
+					{/* <Stack>
+						{Array.from({ length: 8}, (_) => {
+							return {
+								id: nanoid(),
+								slug: nanoid(),
+							}
+						}).map((e) => {
+							return <Box key={e.id}>
+							<Typography>{e.slug}</Typography>
+						</Box>
+						})}
+					</Stack> */}
 					{/* {renderMode}
 
           {renderContrast}

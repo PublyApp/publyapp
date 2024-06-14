@@ -18,6 +18,7 @@ import { nanoid } from 'nanoid';
 import { flattenArray } from '@devist/shared/utils/array.utils';
 
 import type { NavListProps, NavSectionProps } from '@/office/components/nav-section/types';
+import { ResultItem } from '@/office/components/ResultItem';
 import SearchNotFound from '@/office/components/SearchNotFound';
 import { useNavData } from '@/office/hooks/useNavData';
 import Iconify from '@/ui-react/components/Iconify';
@@ -100,7 +101,7 @@ const SearchBar = () => {
 
 							return (
 								<ResultItem
-									path={partsPath}
+									subTitle={partsPath}
 									title={partsTitle}
 									key={`${title}${path}`}
 									groupLabel={searchQuery && group}
@@ -178,82 +179,6 @@ const SearchBar = () => {
 };
 
 export default memo(SearchBar);
-
-// ----------------------------------------------------------------------
-
-type ResultItemProps = {
-	title: {
-		text: string;
-		highlight: boolean;
-	}[];
-	path: {
-		text: string;
-		highlight: boolean;
-	}[];
-	groupLabel: string;
-	onClickItem: VoidFunction;
-};
-
-const ResultItem = ({ title, path, groupLabel, onClickItem }: ResultItemProps) => {
-	return (
-		<ListItemButton
-			onClick={onClickItem}
-			sx={{
-				borderWidth: 1,
-				borderStyle: 'dashed',
-				borderColor: 'transparent',
-				borderBottomColor: (theme) => {
-					return theme.palette.divider;
-				},
-				'&:hover': {
-					borderRadius: 1,
-					borderColor: (theme) => {
-						return theme.palette.primary.main;
-					},
-					backgroundColor: (theme) => {
-						return alpha(theme.palette.primary.main, theme.palette.action.hoverOpacity);
-					},
-				},
-			}}
-		>
-			<ListItemText
-				primaryTypographyProps={{
-					typography: 'subtitle2',
-					sx: { textTransform: 'capitalize' },
-				}}
-				secondaryTypographyProps={{ typography: 'caption' }}
-				primary={title.map((part) => {
-					return (
-						<Box
-							key={nanoid()}
-							component="span"
-							sx={{
-								color: part.highlight ? 'primary.main' : 'text.primary',
-							}}
-						>
-							{part.text}
-						</Box>
-					);
-				})}
-				secondary={path.map((part) => {
-					return (
-						<Box
-							key={nanoid()}
-							component="span"
-							sx={{
-								color: part.highlight ? 'primary.main' : 'text.secondary',
-							}}
-						>
-							{part.text}
-						</Box>
-					);
-				})}
-			/>
-
-			{groupLabel && <Label color="info">{groupLabel}</Label>}
-		</ListItemButton>
-	);
-};
 
 // ----------------------------------------------------------------------
 
