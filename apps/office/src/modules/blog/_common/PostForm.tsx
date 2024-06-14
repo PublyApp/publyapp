@@ -24,9 +24,10 @@ type Props = {
 	edit?: boolean;
 	tags?: string[];
 	localeContent?: string;
+	disabled?: boolean;
 };
 
-const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '' }: Props) => {
+const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '', disabled }: Props) => {
 	const { t, locale } = useTranslate();
 	const { setValue } = form;
 	const setIsOpenSlugDrawer = useMainStore(selectSetIsOpenSlugDrawer);
@@ -73,6 +74,7 @@ const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '' }: 
 				onDrop={handleDrop}
 				onDelete={handleRemoveFile}
 				sx={{ mb: 3 }}
+				disabled={disabled}
 			/>
 
 			<Stack spacing={3}>
@@ -135,7 +137,7 @@ const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '' }: 
 						<Box sx={{ cursor: 'pointer', flexGrow: 1 }}>
 							<RHFTextField name="slug" label="Slug" disabled />
 						</Box>
-						<Button onClick={handleOpenSlugDrawer} variant="contained">
+						<Button onClick={handleOpenSlugDrawer} variant="contained" disabled={disabled}>
 							Edit slug
 						</Button>
 					</Stack>
