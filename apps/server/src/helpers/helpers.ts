@@ -67,17 +67,6 @@ export const createRolesIfNotExists = async () => {
 	}
 };
 
-// export const createIndexes = async () => {
-// 	// const db = getDatabase();
-// 	// const AppFile = db.collection(className.APP_FILE);
-// 	// const POST = db.collection(className.BLOG_POST);
-
-// 	// ensure appFile path is unique
-// 	// await AppFile.createIndex({ path: 1 }, { unique: true });
-// 	// post slugs must be unique
-// 	// await POST.createIndex({ slug: 1 }, { unique: true });
-// };
-
 export const createUploadDirIfNotExists = async () => {
 	if (existsSync(FILE_UPLOAD_DESTINATION)) {
 		return;

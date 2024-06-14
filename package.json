@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "pnpm turbo build",
-    "dev": "pnpm turbo dev",
+    "build": "turbo build",
+    "dev": "turbo dev",
     "check-format": "prettier --check .",
     "format": "prettier --write .",
     "lint": "turbo lint",
