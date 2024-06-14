@@ -46,6 +46,8 @@ const EditPost = () => {
 	// 	return post.updateDate ? new Date(post.updateDate) : undefined;
 	// }, [post.updateDate]);
 
+	const isFormDisabled = isUpdatePostPending;
+
 	const updatePostForm = useForm<UpdateBlogPostInputClientSide>({
 		resolver: zodResolver(savePostInputSchema),
 		values: {
@@ -65,7 +67,7 @@ const EditPost = () => {
 			coverFile: post.coverFile,
 			tags: post.tags,
 		},
-		disabled: isUpdatePostPending,
+		disabled: isFormDisabled,
 	});
 
 	// updatePostForm.setValue('coverUrl', { preView: post.cover?.url }, { shouldValidate: true });
@@ -169,7 +171,12 @@ const EditPost = () => {
 				variants={variants.form}
 				animate={!post.translation[lang.value] ? 'showAlert' : 'hideAlert'}
 			>
-				<PostForm form={updatePostForm} edit localeContent={post.translation[lang.value]?.content || ''} />
+				<PostForm
+					form={updatePostForm}
+					edit
+					localeContent={post.translation[lang.value]?.content || ''}
+					disabled={isFormDisabled}
+				/>
 			</m.div>
 		</Container>
 	);
