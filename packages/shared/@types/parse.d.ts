@@ -60,6 +60,8 @@ namespace Parse {
 		): Promise<V>;
 
 		comment(comment: string): Query<T>;
+
+		readPreference(readPreference: string, includeReadPreference?: string, subqueryReadPreference?: string): this;
 	}
 
 	namespace Query {
