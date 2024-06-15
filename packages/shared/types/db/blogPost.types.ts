@@ -1,12 +1,14 @@
 import type { BaseAttributes } from 'parse';
 
 import type ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
+import type ParseBlogPostSlug from '@/server/resources/blog/blogPost/blogPostSlug.class';
 import type ParseAppFile from '@/server/resources/file-manager/appFile/appFile.class';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 import type { DateType } from '../date.types';
 
 import { type AppFile } from './appFile.types';
+import type { IBlogPostSlug } from './blogPostSlug.types';
 import type { IPostSeries } from './postSeries.types';
 import type { IUser } from './user.types';
 
@@ -30,7 +32,7 @@ type PostTranslation = {
 
 export type BlogPostAttributes = {
 	// custom fields
-	slug: string;
+	// slug: string;
 	url?: string;
 	published?: boolean;
 	// cover: Media;
@@ -71,6 +73,9 @@ export type IBlogPostWithRelations = IBlogPost & {
 	// }[];
 	// comments?: IComment[];
 	relatedPosts?: IBlogPost[];
+	currentSlug?: IBlogPostSlug;
+	slugs?: IBlogPostSlug[];
+	fetchedSlug?: string;
 };
 
 export type IBlogPostWithParseRelations = IBlogPost & {
@@ -83,6 +88,9 @@ export type IBlogPostWithParseRelations = IBlogPost & {
 	// }[];
 	// comments?: ParseComment[];
 	relatedPosts?: ParseBlogPost[];
+	currentSlug?: ParseBlogPostSlug;
+	slugs?: ParseBlogPostSlug[];
+	fetchedSlug?: string;
 };
 
 export type TranslatedIBlogPostWithRelations = IBlogPostWithRelations & PostTranslation & { locale: AppLocale };
