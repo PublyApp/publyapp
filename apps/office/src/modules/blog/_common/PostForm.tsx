@@ -81,6 +81,20 @@ const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '', di
 				{edit ? <RHFSwitch name="published" label="Publish" color="success" /> : null}
 
 				<RHFTextField name="title" label={t('title')} placeholder={t('your-title')} />
+
+				{edit ? (
+					<Stack direction="row" gap={2.1}>
+						<Box sx={{ cursor: 'pointer', flexGrow: 1 }}>
+							<RHFTextField name="slug" label="Slug" disabled />
+						</Box>
+						<Button onClick={handleOpenSlugDrawer} variant="contained" disabled={disabled}>
+							Edit slug
+						</Button>
+					</Stack>
+				) : (
+					<RHFTextField name="slug" label="Slug" />
+				)}
+
 				<RHFTextField name="description" label="Description" multiline rows={3} placeholder={t('your-description')} />
 
 				<RHFAutocomplete
@@ -131,22 +145,15 @@ const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '', di
 						<RHFDesktopDatePicker name="updateDate" label={t('update-date')} />
 					</Grid>
 				</Grid>
-
-				{edit ? (
-					<Stack direction="row" gap={2.1}>
-						<Box sx={{ cursor: 'pointer', flexGrow: 1 }}>
-							<RHFTextField name="slug" label="Slug" disabled />
-						</Box>
-						<Button onClick={handleOpenSlugDrawer} variant="contained" disabled={disabled}>
-							Edit slug
-						</Button>
-					</Stack>
-				) : (
-					<RHFTextField name="slug" label="Slug" />
-				)}
 			</Stack>
 
-			<EditPostSlugDrawer />
+			{edit ? (
+				<EditPostSlugDrawer
+					postId={form.getValues('objectId')}
+					postTitle={form.getValues('title')}
+					currentSlug={form.getValues('slug')}
+				/>
+			) : null}
 		</FormProvider>
 	);
 };

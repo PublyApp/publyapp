@@ -152,7 +152,7 @@ export const functionName = {
 	// Files
 	findAppFile: 'findAppFile',
 	createAppFileFolder: 'createAppFileFolder',
-	// Posts
+	// Blog Posts
 	createBlogPost: 'createBlogPost',
 	updateBlogPost: 'updateBlogPost',
 	getBlogPostFrontDetails: 'getBlogPostFrontDetails',
@@ -162,6 +162,7 @@ export const functionName = {
 	findBlogPostBoTable: 'findBlogPostBoTable',
 	findBlogPostTag: 'findBlogPostTag',
 	findBlogPostFrontDetailsRelatedPosts: 'findBlogPostFrontDetailsRelatedPosts',
+	findBlogPostSlug: 'findBlogPostSlug',
 } as const;
 
 export const endPoint = {

@@ -2,6 +2,7 @@ import { createServer } from 'http';
 import path from 'path';
 
 import { ParseServer } from 'parse-server/lib/index.js';
+import Parse from 'parse/node.js';
 
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@remix-run/express';
@@ -39,6 +40,8 @@ import duration from './utils/duration';
 // console.log(import.meta.url);
 // console.log(import.meta.filename);
 // console.log(import.meta.dirname);
+
+global.Parse = Parse;
 
 const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//

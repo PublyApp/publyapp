@@ -1,7 +1,10 @@
 // import React from 'react'
 
-import type { Theme } from '@emotion/react';
+import { Suspense, useMemo } from 'react';
+
+import { css, cx } from '@emotion/css';
 import {
+	alpha,
 	Box,
 	Button,
 	Divider,
@@ -14,6 +17,7 @@ import {
 	Typography,
 	useTheme,
 } from '@mui/material';
+import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
 import { ResultItem } from '@/office/components/ResultItem';
@@ -22,11 +26,18 @@ import { useMainStore } from '@/office/lib/zustand/store';
 import Iconify from '@/ui-react/components/Iconify';
 import Scrollbar from '@/ui-react/components/Scrollbar';
 import useTranslate from '@/ui-react/hooks/useTranslate';
+import { useFindBlogPostSlugSuspenseQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
 import { paper } from '@/ui-react/utils/css.utils';
 
-// type Props = {}
+type Props = {
+	postId: string;
+	postTitle: string;
+	currentSlug: string;
+};
 
-const EditPostSlugDrawer = (/* props: Props */) => {
+const EditPostSlugDrawer = ({ currentSlug, postId, postTitle }: Props) => {
+	console.log({ currentSlug, postId, postTitle });
+
 	const { t } = useTranslate();
 	const theme = useTheme();
 	const isOpenSlugDrawer = useMainStore(selectIsOpenSlugDrawer);
@@ -63,43 +74,11 @@ const EditPostSlugDrawer = (/* props: Props */) => {
 		</Stack>
 	);
 
-	const renderItems = () => {
-		return (
-			<List /* key={group || index} */ disablePadding>
-				{Array.from({ length: 8 }, (_) => {
-					return {
-						id: nanoid(),
-						slug: nanoid(),
-					};
-				}).map((e) => {
-					// 	return <Box key={e.id}>
-					// 	<Typography>{e.slug}</Typography>
-					// </Box>
-
-					return (
-						<Box
-							key={e.id}
-							sx={(theme) => {
-								return {
-									'& > .MuiButtonBase-root': {
-										padding: theme.spacing(1.5),
-									},
-								};
-							}}
-						>
-							<ResultItem
-								title={[{ text: e.slug }]}
-								groupLabel={''}
-								onClickItem={() => {
-									console.log(e.slug);
-								}}
-							/>
-						</Box>
-					);
-				})}
-			</List>
-		);
-	};
+	const renderList = (
+		<Suspense fallback={<h1>Loading....</h1>}>
+			<SlugsList postId={postId} currentSlug={currentSlug} />
+		</Suspense>
+	);
 
 	return (
 		<Drawer
@@ -125,7 +104,9 @@ const EditPostSlugDrawer = (/* props: Props */) => {
 				<Stack spacing={3} sx={{ p: 3 }}>
 					{renderInput}
 
-					{renderItems()}
+					{renderList}
+
+					{/* {renderItems()} */}
 
 					{/* <Stack>
 						{Array.from({ length: 8}, (_) => {
@@ -159,3 +140,78 @@ const EditPostSlugDrawer = (/* props: Props */) => {
 };
 
 export default EditPostSlugDrawer;
+
+// --------------------------------
+
+const SlugsList = ({ postId, currentSlug }: { postId: string; currentSlug: string }) => {
+	const {
+		result: { data },
+	} = useFindBlogPostSlugSuspenseQuery({
+		params: { postId /* , searchTerm */ } /* , options: { initialPageParam: 2 } */,
+	});
+
+	const flatData = useMemo(() => {
+		return data.pages.flatMap((e) => {
+			return e.slugs;
+		});
+	}, []);
+
+	const renderItems = (
+		<List /* key={group || index} */ disablePadding>
+			{/* {Array.from({ length: 8 }, (_) => {
+					return {
+						id: nanoid(),
+						slug: nanoid(),
+					};
+				}). */}
+			{flatData.map((e) => {
+				// 	return <Box key={e.id}>
+				// 	<Typography>{e.slug}</Typography>
+				// </Box>
+				const isCurrentSlug = e.slug === currentSlug;
+
+				return (
+					<Box
+						key={e.objectId}
+						sx={(theme) => {
+							return {
+								'& > .MuiButtonBase-root': {
+									padding: theme.spacing(1.8),
+
+									...(isCurrentSlug
+										? {
+												borderRadius: 1,
+												borderColor: (theme) => {
+													return theme.palette.info.main;
+												},
+												backgroundColor: (theme) => {
+													return alpha(theme.palette.info.main, theme.palette.action.hoverOpacity);
+												},
+											}
+										: {}),
+								},
+								'& .MuiTypography-root': {
+									textTransform: 'unset',
+								},
+							};
+						}}
+					>
+						<ResultItem
+							title={[{ text: e.slug }]}
+							groupLabel={''}
+							onClickItem={() => {
+								if (isCurrentSlug) {
+									// do nothing
+									return;
+								}
+								console.log(e.slug);
+							}}
+						/>
+					</Box>
+				);
+			})}
+		</List>
+	);
+
+	return _.isEmpty(flatData) ? <h1>So Empty !!!</h1> : renderItems;
+};

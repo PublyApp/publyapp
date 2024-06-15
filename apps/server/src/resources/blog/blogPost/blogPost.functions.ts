@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { functionName, roleSet } from '@devist/shared/lib/constants';
+import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 import {
 	getCreateBlogPostInputSchema,
 	getFindBlogPostFunctionBoTableParamsSchema,
@@ -228,6 +228,32 @@ const findBlogPostTag = parseFunctionEnhanced({
 	},
 });
 
+export namespace FindBlogPostSlugFunction {
+	export type Params = FunctionParams<typeof findBlogPostSlug>;
+	export type Return = FunctionReturn<typeof findBlogPostSlug>;
+}
+
+const findBlogPostSlug = parseFunctionEnhanced({
+	requireUser: true,
+	allowedRoles: roleSet.ABOVE_STAFF_CONTRIBUTOR,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			postId: z.string(),
+			searchTerm: z.string().optional(),
+			page: z.number().optional(),
+			pageSize: z.number().optional(),
+		});
+
+		return schema.parse(params);
+	},
+	action: async ({ params, user }) => {
+		const { postId, searchTerm, page = 0, pageSize = DEFAULT_PAGE_SIZE } = params;
+		const postService = new BlogPostService({ sessionToken: user?.getSessionToken() });
+		const slugs = await postService.findSlugsForBlogPostById(postId, { json: true, searchTerm, page, pageSize });
+		return slugs;
+	},
+});
+
 Parse.Cloud.define(functionName.createBlogPost, createBlogPostFunction);
 Parse.Cloud.define(functionName.updateBlogPost, updateBlogPostFunction);
 Parse.Cloud.define(functionName.findBlogPostTag, findBlogPostTag);
@@ -238,3 +264,5 @@ Parse.Cloud.define(functionName.findBlogPostFrontDetailsRelatedPosts, finBlogPos
 
 Parse.Cloud.define(functionName.getBlogPostFrontDetails, getBlogPostFunctionFrontDetailsView);
 Parse.Cloud.define(functionName.getBlogPostBoEdit, getBlogPostFunctionBoEditForm);
+
+Parse.Cloud.define(functionName.findBlogPostSlug, findBlogPostSlug);
