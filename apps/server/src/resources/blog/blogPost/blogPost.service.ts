@@ -82,10 +82,11 @@ export default class BlogPostService {
 	}
 
 	async create(input: BlogPostCreateInput) {
-		const { author, content, description, slug, title, cover, locale, coverUrl, publishDate, tags, updateDate } = input;
+		const { author, content, description, /* slug, */ title, cover, locale, coverUrl, publishDate, tags, updateDate } =
+			input;
 
 		const attributes: DeepPartial<IBlogPostWithParseRelations> = {
-			slug,
+			// slug,
 			translation: {
 				[locale]: {
 					title,
@@ -128,7 +129,7 @@ export default class BlogPostService {
 		const {
 			description,
 			locale,
-			slug,
+			// slug,
 			title,
 			content,
 			published,
@@ -172,7 +173,7 @@ export default class BlogPostService {
 		}
 
 		const attributes: DeepPartial<IBlogPostWithParseRelations> = {
-			slug,
+			// slug,
 			published,
 			author,
 			cover,
@@ -303,7 +304,7 @@ export default class BlogPostService {
 
 		if (!_.isNil(post)) {
 			// _.assign(post, { slug });
-			post.set('slug', slug);
+			post.set('fetchedSlug' as never, slug as never);
 		}
 
 		return post as never;
@@ -601,6 +602,7 @@ export default class BlogPostService {
 
 		_.unset(finalBlogPost, 'author.__type');
 		_.unset(finalBlogPost, 'cover.__type');
+		_.unset(finalBlogPost, 'currentSlug.__type');
 		_.set(finalBlogPost, 'publishDate', toIsoString(finalBlogPost.publishDate));
 		_.set(finalBlogPost, 'updateDate', toIsoString(finalBlogPost.updateDate));
 
@@ -896,6 +898,25 @@ export default class BlogPostService {
 		}
 
 		return { slugs, meta };
+	}
+
+	async checkIfSlugExists(slug: string) {
+		const result = new Parse.Query(ParseBlogPostSlug)
+			.equalTo('slug', slug)
+			.select([])
+			.first({ sessionToken: this.sessionToken });
+
+		return !!result;
+	}
+
+	async assignSlugToPost({ slug, post }: { post: ParseBlogPost; slug: ParseBlogPostSlug }) {
+		slug.set('post', post);
+		const savedSlug = await slug.save(null, { sessionToken: this.sessionToken });
+		return savedSlug;
+	}
+
+	static slugToJSON(slug: ParseBlogPostSlug) {
+		return slug.toJSON() as unknown as IBlogPostSlug;
 	}
 }
 

@@ -6,7 +6,7 @@ import type { IBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
 const BlogPostSchema = SchemaManager.defineSchema<IBlogPostWithRelations>(className.BLOG_POST, {
 	fields: {
 		// title: { type: 'String' },
-		slug: { type: 'String' },
+		// slug: { type: 'String' },
 		translation: { type: 'Object' },
 		published: { type: 'Boolean' },
 
