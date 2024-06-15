@@ -2,7 +2,6 @@
 
 import { Suspense, useMemo } from 'react';
 
-import { css, cx } from '@emotion/css';
 import {
 	alpha,
 	Box,
@@ -18,7 +17,6 @@ import {
 	useTheme,
 } from '@mui/material';
 import _ from 'lodash';
-import { nanoid } from 'nanoid';
 
 import { ResultItem } from '@/office/components/ResultItem';
 import { selectIsOpenSlugDrawer, selectSetIsOpenSlugDrawer } from '@/office/lib/zustand/features/blogPost.slice';
@@ -76,6 +74,7 @@ const EditPostSlugDrawer = ({ currentSlug, postId, postTitle }: Props) => {
 
 	const renderList = (
 		<Suspense fallback={<h1>Loading....</h1>}>
+			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 			<SlugsList postId={postId} currentSlug={currentSlug} />
 		</Suspense>
 	);
@@ -154,7 +153,7 @@ const SlugsList = ({ postId, currentSlug }: { postId: string; currentSlug: strin
 		return data.pages.flatMap((e) => {
 			return e.slugs;
 		});
-	}, []);
+	}, [data.pages]);
 
 	const renderItems = (
 		<List /* key={group || index} */ disablePadding>
@@ -173,37 +172,46 @@ const SlugsList = ({ postId, currentSlug }: { postId: string; currentSlug: strin
 				return (
 					<Box
 						key={e.objectId}
-						sx={(theme) => {
-							return {
-								'& > .MuiButtonBase-root': {
-									padding: theme.spacing(1.8),
+						sx={{
+							'& > .MuiButtonBase-root': {
+								padding: (theme) => {
+									return theme.spacing(1.8);
+								},
 
-									...(isCurrentSlug
-										? {
-												borderRadius: 1,
-												borderColor: (theme) => {
-													return theme.palette.info.main;
-												},
-												backgroundColor: (theme) => {
-													return alpha(theme.palette.info.main, theme.palette.action.hoverOpacity);
-												},
-											}
-										: {}),
-								},
-								'& .MuiTypography-root': {
-									textTransform: 'unset',
-								},
-							};
+								...(isCurrentSlug
+									? {
+											borderRadius: 1,
+											borderColor: (theme) => {
+												return theme.palette.info.main;
+											},
+											backgroundColor: (theme) => {
+												return alpha(theme.palette.info.main, theme.palette.action.hoverOpacity);
+											},
+											// '&:hover': {
+											// 	borderColor: (theme) => {
+											// 		return theme.palette.info.main;
+											// 	},
+											// 	backgroundColor: (theme) => {
+											// 		return alpha(theme.palette.info.main, theme.palette.action.hoverOpacity);
+											// 	},
+											// },
+										}
+									: {}),
+							},
+							'& .MuiTypography-root': {
+								textTransform: 'unset',
+							},
 						}}
 					>
 						<ResultItem
 							title={[{ text: e.slug }]}
-							groupLabel={''}
+							groupLabel=""
 							onClickItem={() => {
 								if (isCurrentSlug) {
 									// do nothing
 									return;
 								}
+
 								console.log(e.slug);
 							}}
 						/>

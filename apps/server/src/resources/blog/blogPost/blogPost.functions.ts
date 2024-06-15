@@ -16,6 +16,8 @@ import BlogPostService from '@/server/resources/blog/blogPost/blogPost.service';
 import FileService from '@/server/resources/file-manager/file/file.service';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 
+import ParseBlogPostSlug from './blogPostSlug.class';
+
 export namespace CreateBlogPostFunction {
 	export type Params = FunctionReturn<typeof createBlogPostFunction>;
 	export type Return = FunctionReturn<typeof createBlogPostFunction>;
@@ -24,9 +26,12 @@ export namespace CreateBlogPostFunction {
 const createBlogPostFunction = parseFunctionEnhanced({
 	requireUser: true,
 	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
-	action: async ({ req, user, z }) => {
+	validateParams: ({ params, z }) => {
 		const createPostInputSchema = getCreateBlogPostInputSchema(z);
-		const { coverId, authorId, ...input } = createPostInputSchema.parse(req.params);
+		return createPostInputSchema.parse(params);
+	},
+	action: async ({ user, t, params }) => {
+		const { coverId, authorId, ...input } = params;
 
 		const sessionToken = user.getSessionToken();
 
@@ -37,10 +42,11 @@ const createBlogPostFunction = parseFunctionEnhanced({
 		const coverPromise = fileService.getById(coverId || '', { select: [] });
 		const authorPromise = userService.getById(authorId || '', { select: [] });
 
-		const findPostWithSameSlugPromise = postService.getBySlug(input.slug, { select: [] });
+		// const findPostWithSameSlugPromise = postService.getBySlug(input.slug, { select: [] });
+		const slugExistsPromise = postService.checkIfSlugExists(input.slug);
 
-		if (await findPostWithSameSlugPromise) {
-			throw new Error('A post with the same slug already exists');
+		if (await slugExistsPromise) {
+			throw new Error(t('slug-already-used'));
 		}
 
 		const post = await postService.create({
@@ -48,6 +54,11 @@ const createBlogPostFunction = parseFunctionEnhanced({
 			author: (await authorPromise) || user,
 			cover: await coverPromise,
 		});
+
+		const newSlug = new ParseBlogPostSlug({ slug: input.slug });
+		const slug = await postService.assignSlugToPost({ post, slug: newSlug });
+
+		post.set('currentSlug', slug);
 
 		const finalPost = BlogPostService.toJSON(post);
 		return finalPost;
@@ -266,3 +277,4 @@ Parse.Cloud.define(functionName.getBlogPostFrontDetails, getBlogPostFunctionFron
 Parse.Cloud.define(functionName.getBlogPostBoEdit, getBlogPostFunctionBoEditForm);
 
 Parse.Cloud.define(functionName.findBlogPostSlug, findBlogPostSlug);
+// Parse.Cloud.define(functionName.updateBloPostCurrentSlug, updateBloPostCurrentSlug);
