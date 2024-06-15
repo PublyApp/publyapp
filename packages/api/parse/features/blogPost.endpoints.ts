@@ -4,6 +4,7 @@ import type { AppLocale } from '@devist/shared/lib/i18n/resources';
 import type {
 	CreateBlogPostFunction,
 	FindBlogPostFunction,
+	FindBlogPostSlugFunction,
 	GetBlogPostFunction,
 	UpdateBlogPostFunction,
 } from '@/server/resources/blog/blogPost/blogPost.functions';
@@ -98,5 +99,12 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 			FindBlogPostFunction.FrontDetailsRelatedPosts.Return,
 			FindBlogPostFunction.FrontDetailsRelatedPosts.Params
 		>(functionName.findBlogPostFrontDetailsRelatedPosts, { params });
+	}
+
+	async findBlogPostSlug(params: FindBlogPostSlugFunction.Params) {
+		return this.parseRestClient.cloudRun<FindBlogPostSlugFunction.Return, FindBlogPostSlugFunction.Params>(
+			functionName.findBlogPostSlug,
+			{ params },
+		);
 	}
 }

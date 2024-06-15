@@ -22,6 +22,9 @@ const BlogPostSlugSchema = SchemaManager.defineSchema<IBlogPostSlugWithRelations
 			keys: { slug: 1 },
 			options: { unique: true },
 		},
+		postIndex: {
+			keys: { post: 1 },
+		},
 	},
 });
 

@@ -1,5 +1,7 @@
 import _ from 'lodash';
 
+import { type IBlogPostSlug } from '@devist/shared/types/db/blogPostSlug.types';
+
 import { env } from '@/server/lib/env';
 import { applySkipAndLimit, applySorting, toIsoString } from '@/server/lib/parse/utils';
 import type ParseUser from '@/server/resources/auth/user/user.class';
@@ -7,12 +9,15 @@ import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
 import type ParseAppFile from '@/server/resources/file-manager/appFile/appFile.class';
 import { className, DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
+import { ListMeta, WithMeta } from '@/shared/types/db/any.types';
 import type {
 	IBlogPostWithParseRelations,
 	IBlogPostWithRelations,
 	TranslatedIBlogPostWithRelations,
 } from '@/shared/types/db/blogPost.types';
 import { urlStartWithProtocol } from '@/shared/utils/any.utils';
+
+import ParseBlogPostSlug from './blogPostSlug.class';
 
 type Props = {
 	sessionToken?: string;
@@ -820,12 +825,83 @@ export default class BlogPostService {
 	}
 
 	// normally we use this only in the BO dashboard
-	async findSlugsForBlogPostById(postId: string) {
+
+	findSlugsForBlogPostById(
+		postId: string,
+		options: { json: true; searchTerm?: string; page?: number; pageSize?: number },
+	): Promise<WithMeta<{ slugs: IBlogPostSlug[] }>>;
+	findSlugsForBlogPostById(
+		postId: string,
+		options: { json?: false | undefined; searchTerm?: string; page?: number; pageSize?: number },
+	): Promise<WithMeta<{ slugs: ParseBlogPostSlug[] }>>;
+	async findSlugsForBlogPostById(
+		postId: string,
+		options: { json?: boolean; searchTerm?: string; page?: number; pageSize?: number },
+	) {
 		const postObject = new ParseBlogPost({ objectId: postId });
-		const query = new Parse.Query(className.BLOG_POST_SLUG).equalTo('post', postObject).select('slug');
+		const query = new Parse.Query(ParseBlogPostSlug).equalTo('post' as never, postObject as never).select(['slug']);
 
-		const slugs = await query.find({ sessionToken: this.sessionToken });
+		const page = options.page ?? 0;
+		const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
 
-		return slugs;
+		applySkipAndLimit(query, { type: 'page', page, pageSize });
+
+		if (options.searchTerm) {
+			const pipeline: Parse.PipelineStage[] = [
+				{
+					$search: {
+						index: 'default',
+						autocomplete: {
+							query: options.searchTerm,
+							path: 'slug',
+						},
+					},
+				},
+				{
+					$match: {
+						_p_post: `${className.BLOG_POST}$${postId}`,
+					},
+				},
+				{
+					$project: {
+						_id: 1,
+					},
+				},
+			];
+			const ids = await new Parse.Query(className.BLOG_POST_SLUG).aggregate(pipeline);
+			query.containedIn('objectId', ids);
+		}
+
+		const totalCountPromise = query.count({ sessionToken: this.sessionToken });
+		const slugsPromise = query.find({ sessionToken: this.sessionToken, json: options.json });
+
+		const [totalCount, slugs] = await Promise.all([totalCountPromise, slugsPromise]);
+
+		const count = slugs.length;
+
+		// getMetaFromSkipAndLimit({ results, count, page, pageSize });
+		const meta: ListMeta = {
+			count,
+			page,
+			pageSize,
+			totalCount,
+			totalPages: Math.floor(totalCount / (count || 1)),
+		};
+
+		if (options.json) {
+			const _slugs = slugs as unknown as IBlogPostSlug[];
+
+			return { slugs: _slugs, meta };
+		}
+
+		return { slugs, meta };
 	}
 }
+
+// const getMetaFromSkipAndLimit = ({ results, totalCount, skip, pageSize }: { results: any[]; count: number; page: number; pageSize: number; }): ListMeta => {
+// 	return {
+// 		page,
+// 		pageSize,
+// 		totalCount,
+// 	}
+// }

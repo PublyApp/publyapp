@@ -2,6 +2,7 @@ import {
 	useMutation,
 	useQuery,
 	useQueryClient,
+	useSuspenseInfiniteQuery,
 	useSuspenseQuery,
 	type UseMutationOptions,
 } from '@tanstack/react-query';
@@ -15,10 +16,12 @@ import {
 	createBlogPostAction,
 	createBlogPostMutationKeyBase,
 	findBlogPostBoTableQuery,
+	findBlogPostSlugQuery,
 	getBlogPostBoEditFormQuery,
 	updateBlogPostAction,
 	updateBlogPostMutationKeyBase,
 	type FindBlogPostBoTableQueryParams,
+	type FindBlogPostSlugQueryParams,
 	type GetBlogPostBoEditFormQueryParams,
 	// type FindBlogPostQueryParams,
 	// type GetBlogPostByIdQueryParams,
@@ -160,4 +163,28 @@ export const useUpdateBlogPostMutation = (props: UseUpdateBlogPostMutationProps 
 	});
 
 	return { result, key };
+};
+
+// ---- 5 --------------------------------------------------------------------------------
+type UseFindBlogPostSlugSuspenseQueryProps = {
+	params: FindBlogPostSlugQueryParams;
+	options?: Omit<ReturnType<typeof findBlogPostSlugQuery>, 'queryKey' | 'queryFn'>;
+};
+
+export const useFindBlogPostSlugSuspenseQuery = (props: UseFindBlogPostSlugSuspenseQueryProps) => {
+	const query = findBlogPostSlugQuery(props.params);
+
+	const result = useSuspenseInfiniteQuery({
+		...query,
+		// initialPageParam: Number(0),
+		// getNextPageParam: (_lastPage /* , allPages, lastPageParam, allPageParams */) => {
+		// 	return null;
+		// },
+		// getPreviousPageParam: (_firstPage /* , allPages, firstPageParam, allPageParams */) => {
+		// 	return null;
+		// },
+		...props.options,
+	});
+
+	return { result, key: query.queryKey };
 };

@@ -1,4 +1,4 @@
-import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
+import { infiniteQueryOptions, queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
 
 import type {
 	CreateBlogPostFunctionParams,
@@ -6,7 +6,11 @@ import type {
 } from '@devist/api/parse/features/blogPost.endpoints';
 import parseApi from '@devist/api/parse/ParseApi';
 
-import type { FindBlogPostFunction, GetBlogPostFunction } from '@/server/resources/blog/blogPost/blogPost.functions';
+import type {
+	FindBlogPostFunction,
+	FindBlogPostSlugFunction,
+	GetBlogPostFunction,
+} from '@/server/resources/blog/blogPost/blogPost.functions';
 import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { AppFile } from '@/shared/types/db/appFile.types';
@@ -142,4 +146,52 @@ export const updateBlogPostAction = async (params: UpdateBlogPostActionParams) =
 		console.log('----- updateBlogPostAction error ----------', error);
 		return Promise.reject(error);
 	}
+};
+
+// == findBlogPostSlug ===============
+export type FindBlogPostSlugQueryParams = Omit<FindBlogPostSlugFunction.Params, 'page'>;
+
+const findBlogPostSlugQueryKeyBase = functionName.findBlogPostSlug;
+
+const findBlogPostSlugAction = async (
+	context: QueryFunctionContext<readonly [typeof findBlogPostSlugQueryKeyBase, FindBlogPostSlugQueryParams], number>,
+) => {
+	try {
+		const { pageParam } = context;
+		const params = context.queryKey[1];
+
+		// const post = await runGetBlogPostById(params);
+		const slugs = await parseApi.blogPosts.findBlogPostSlug({ ...params, page: pageParam });
+
+		return slugs;
+	} catch (error) {
+		console.log('----- getBlogPostBoEditFormAction error ----------', error);
+		return Promise.reject(error);
+	}
+};
+
+export const findBlogPostSlugQuery = (params?: FindBlogPostSlugQueryParams) => {
+	return infiniteQueryOptions({
+		queryKey: [findBlogPostSlugQueryKeyBase, params as never] as const,
+		queryFn: findBlogPostSlugAction,
+		initialPageParam: 0,
+		getNextPageParam: (lastPage /* , allPages, lastPageParam, allPageParams */) => {
+			const nextPageCursor = lastPage.meta.page + 1;
+
+			if (nextPageCursor < lastPage.meta.totalPages) {
+				return nextPageCursor;
+			}
+
+			return null;
+		},
+		getPreviousPageParam: (firstPage /* , allPages, firstPageParam, allPageParams */) => {
+			const previousPageCursor = firstPage.meta.page - 1;
+
+			if (previousPageCursor < 0) {
+				return null;
+			}
+
+			return previousPageCursor;
+		},
+	});
 };
