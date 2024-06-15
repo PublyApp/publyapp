@@ -9,7 +9,7 @@ import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
 import type ParseAppFile from '@/server/resources/file-manager/appFile/appFile.class';
 import { className, DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
-import { ListMeta, WithMeta } from '@/shared/types/db/any.types';
+import type { ListMeta, WithMeta } from '@/shared/types/db/any.types';
 import type {
 	IBlogPostWithParseRelations,
 	IBlogPostWithRelations,
@@ -889,6 +889,7 @@ export default class BlogPostService {
 		};
 
 		if (options.json) {
+			// eslint-disable-next-line @typescript-eslint/naming-convention
 			const _slugs = slugs as unknown as IBlogPostSlug[];
 
 			return { slugs: _slugs, meta };
