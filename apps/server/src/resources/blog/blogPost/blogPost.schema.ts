@@ -33,10 +33,10 @@ const BlogPostSchema = SchemaManager.defineSchema<IBlogPostWithRelations>(classN
 		relatedPosts: { type: 'Array' },
 	},
 	indexes: {
-		uniqueSlug: {
-			keys: { slug: 1 },
-			options: { unique: true },
-		},
+		// uniqueSlug: {
+		// 	keys: { slug: 1 },
+		// 	options: { unique: true },
+		// },
 	},
 });
 
