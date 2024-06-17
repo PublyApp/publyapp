@@ -43,9 +43,9 @@ const createBlogPostFunction = parseFunctionEnhanced({
 		const authorPromise = userService.getById(authorId || '', { select: [] });
 
 		// const findPostWithSameSlugPromise = postService.getBySlug(input.slug, { select: [] });
-		const slugExistsPromise = postService.checkIfSlugExists(input.slug);
+		const foundSlug = await postService.getSlugObject(input.slug);
 
-		if (await slugExistsPromise) {
+		if (foundSlug) {
 			throw new Error(t('slug-already-used'));
 		}
 
@@ -72,11 +72,13 @@ export namespace UpdateBlogPostFunction {
 
 const updateBlogPostFunction = parseFunctionEnhanced({
 	requireUser: true,
-	// allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
-	action: async ({ req, user, z, t }) => {
+	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
+	validateParams: ({ params, z }) => {
 		const updatePostInputSchema = getUpdateBlogPostInputSchema(z);
-		const params = updatePostInputSchema.parse(req.params);
-		const { coverId, authorId, objectId, ...input } = params;
+		return updatePostInputSchema.parse(params);
+	},
+	action: async ({ user, t, params }) => {
+		const { coverId, authorId, objectId, slug, ...input } = params;
 
 		const sessionToken = user.getSessionToken();
 
@@ -94,11 +96,30 @@ const updateBlogPostFunction = parseFunctionEnhanced({
 			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
 		}
 
-		const updatedPost = await postService.update(post, {
+		const handleSlug = async () => {
+			if (slug) {
+				const slugObject = await postService.getOrCreateSlugForPost(slug, post);
+
+				if (slugObject === 'E_SLUG_ALREADY_USED') {
+					throw new Error(t('slug-already-used'));
+				}
+
+				return slugObject;
+			}
+
+			return undefined;
+		};
+
+		const slugPromise = handleSlug();
+
+		const updatePostPromise = postService.update(post, {
 			...input,
 			author: await authorPromise,
 			cover: await coverPromise,
 		});
+
+		// eslint-disable-next-line @typescript-eslint/naming-convention
+		const [updatedPost, _slugObject] = await Promise.all([updatePostPromise, slugPromise]);
 
 		const finalPost = BlogPostService.toJSON(updatedPost);
 		return finalPost;
