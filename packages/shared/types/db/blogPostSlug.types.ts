@@ -1,11 +1,12 @@
-import { BaseAttributes } from 'parse';
+import type { BaseAttributes } from 'parse';
 
 import type ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
 
-import { IBlogPost } from './blogPost.types';
+import type { IBlogPost } from './blogPost.types';
 
 export type BlogPostSlugAttributes = {
 	slug: string;
+	isCurrent?: string;
 };
 
 export type IBlogPostSlug = BaseAttributes & BlogPostSlugAttributes;

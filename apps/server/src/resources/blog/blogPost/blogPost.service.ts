@@ -49,7 +49,7 @@ type BlogPostCreateInput = {
 	tags?: string[];
 };
 
-type BlogPostUpdateInput = Partial<Omit<BlogPostCreateInput, 'locale'>> & {
+type BlogPostUpdateInput = Partial<Omit<BlogPostCreateInput, 'locale' | 'slug'>> & {
 	locale: string;
 	published?: boolean;
 	// post: ParseBlogPost;
@@ -900,13 +900,16 @@ export default class BlogPostService {
 		return { slugs, meta };
 	}
 
-	async checkIfSlugExists(slug: string) {
-		const result = new Parse.Query(ParseBlogPostSlug)
-			.equalTo('slug', slug)
-			.select([])
-			.first({ sessionToken: this.sessionToken });
+	async getSlugObject(slug: string, { select = [] }: { select?: string[] } = { select: [] }) {
+		const query = new Parse.Query(ParseBlogPostSlug).equalTo('slug', slug);
 
-		return !!result;
+		if (select) {
+			query.select(select as never);
+		}
+
+		const result = query.first({ sessionToken: this.sessionToken });
+
+		return result;
 	}
 
 	async assignSlugToPost({ slug, post }: { post: ParseBlogPost; slug: ParseBlogPostSlug }) {
@@ -917,6 +920,25 @@ export default class BlogPostService {
 
 	static slugToJSON(slug: ParseBlogPostSlug) {
 		return slug.toJSON() as unknown as IBlogPostSlug;
+	}
+
+	async getOrCreateSlugForPost(slug: string, post: ParseBlogPost) {
+		const foundSlug = await this.getSlugObject(slug, { select: ['post'] });
+
+		if (!foundSlug) {
+			const newSlug = new ParseBlogPostSlug({ slug });
+			const savedSlug = await this.assignSlugToPost({ post, slug: newSlug });
+
+			return savedSlug;
+		}
+
+		const slugPost = foundSlug?.get('post');
+
+		if (slugPost?.id !== post.id) {
+			return 'E_SLUG_ALREADY_USED' as const;
+		} // else, there's nothing to do, this slug is already assigned to the right post
+
+		return foundSlug;
 	}
 }
 
