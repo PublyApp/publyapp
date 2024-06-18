@@ -59,7 +59,7 @@ const EditPost = () => {
 			title: post.translation[lang.value]?.title || '',
 			description: post.translation[lang.value]?.description || '',
 			content: post.translation[lang.value]?.content || '',
-			slug: post.slug,
+			slug: post.currentSlug?.slug,
 			publishDate: post.publishDate ? new Date(post.publishDate) : undefined,
 			updateDate: post.updateDate ? new Date(post.updateDate) : undefined,
 			coverUrl: undefined,
