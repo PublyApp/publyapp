@@ -698,7 +698,24 @@ export default class BlogPostService {
 			return undefined;
 		}
 
-		return post;
+		const currentSlug = await new Parse.Query(ParseBlogPostSlug)
+			.equalTo('post', post)
+			.equalTo('isCurrent', true as never)
+			.select(['slug'])
+			.first({ sessionToken: this.sessionToken });
+
+		const finalPost = BlogPostService.toJSON(post);
+
+		if (currentSlug) {
+			_.set(finalPost, 'currentSlug', BlogPostService.slugToJSON(currentSlug));
+		}
+
+		return finalPost;
+
+		// post.set('currentSlug', currentSlug);
+		// _.set(post.attributes, 'currentSlug', currentSlug); // otherwise the object will be converted into a pointer
+
+		// return post;
 	}
 
 	async findRelatedBlogPostsFrontDetails(
