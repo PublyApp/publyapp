@@ -58,9 +58,13 @@ const createBlogPostFunction = parseFunctionEnhanced({
 		const newSlug = new ParseBlogPostSlug({ slug: input.slug });
 		const slug = await postService.assignSlugToPost({ post, slug: newSlug });
 
-		post.set('currentSlug', slug);
+		// post.set('currentSlug', slug);
+		// _.assign(post.attributes, { currentSlug: slug }); // otherwise the object will be converted into a pointer
 
 		const finalPost = BlogPostService.toJSON(post);
+
+		_.set(finalPost, 'currentSlug', BlogPostService.slugToJSON(slug));
+
 		return finalPost;
 	},
 });
@@ -154,7 +158,7 @@ const getBlogPostFunctionBoEditForm = parseFunctionEnhanced({
 			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
 		}
 
-		return BlogPostService.toJSON(post);
+		return post;
 	},
 });
 
