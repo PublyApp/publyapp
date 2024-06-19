@@ -847,18 +847,21 @@ export default class BlogPostService {
 
 	findSlugsForBlogPostById(
 		postId: string,
-		options: { json: true; searchTerm?: string; page?: number; pageSize?: number },
+		options: { json: true; searchTerm?: string; page?: number; pageSize?: number; select?: string[] },
 	): Promise<WithMeta<{ slugs: IBlogPostSlug[] }>>;
 	findSlugsForBlogPostById(
 		postId: string,
-		options: { json?: false | undefined; searchTerm?: string; page?: number; pageSize?: number },
+		options: { json?: false | undefined; searchTerm?: string; page?: number; pageSize?: number; select?: string[] },
 	): Promise<WithMeta<{ slugs: ParseBlogPostSlug[] }>>;
 	async findSlugsForBlogPostById(
 		postId: string,
-		options: { json?: boolean; searchTerm?: string; page?: number; pageSize?: number },
+		options: { json?: boolean; searchTerm?: string; page?: number; pageSize?: number; select?: string[] },
 	) {
 		const postObject = new ParseBlogPost({ objectId: postId });
-		const query = new Parse.Query(ParseBlogPostSlug).equalTo('post' as never, postObject as never).select(['slug']);
+		const query = new Parse.Query(ParseBlogPostSlug).equalTo('post' as never, postObject as never);
+
+		const select: string[] = options.select || [];
+		query.select(select as never);
 
 		const page = options.page ?? 0;
 		const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
@@ -939,12 +942,34 @@ export default class BlogPostService {
 		return slug.toJSON() as unknown as IBlogPostSlug;
 	}
 
-	async getOrCreateSlugForPost(slug: string, post: ParseBlogPost) {
+	async getOrCreateSlugForPost(slug: string, post: ParseBlogPost, { setIsCurrent }: { setIsCurrent?: boolean }) {
+		let getCurrentSlugPromise = Promise.resolve<ParseBlogPostSlug | undefined>(undefined);
+
+		if (setIsCurrent) {
+			// find the current slug for the post
+			getCurrentSlugPromise = new Parse.Query(ParseBlogPostSlug)
+				.select([])
+				.equalTo('post', post)
+				.equalTo('isCurrent', true)
+				.first({ sessionToken: this.sessionToken });
+		}
+
+		const handleCurrentSlug = async () => {
+			if (setIsCurrent) {
+				const currentSlug = await getCurrentSlugPromise;
+				currentSlug?.set('isCurrent', false);
+				currentSlug?.save(null, { sessionToken: this.sessionToken });
+			}
+		};
+
 		const foundSlug = await this.getSlugObject(slug, { select: ['post'] });
 
 		if (!foundSlug) {
-			const newSlug = new ParseBlogPostSlug({ slug });
-			const savedSlug = await this.assignSlugToPost({ post, slug: newSlug });
+			const newSlug = new ParseBlogPostSlug({ slug, isCurrent: setIsCurrent ? true : undefined });
+
+			const assignSlugTopPostPromise = this.assignSlugToPost({ post, slug: newSlug });
+			const handleCurrentSlugPromise = handleCurrentSlug();
+			const [savedSlug] = await Promise.all([assignSlugTopPostPromise, handleCurrentSlugPromise]);
 
 			return savedSlug;
 		}
@@ -955,7 +980,13 @@ export default class BlogPostService {
 			return 'E_SLUG_ALREADY_USED' as const;
 		} // else, there's nothing to do, this slug is already assigned to the right post
 
-		return foundSlug;
+		foundSlug.set('isCurrent', true);
+		const saveFoundSlugPromise = foundSlug.save(null, { sessionToken: this.sessionToken });
+
+		const handleCurrentSlugPromise = handleCurrentSlug();
+
+		const [savedSlug] = await Promise.all([saveFoundSlugPromise, handleCurrentSlugPromise]);
+		return savedSlug;
 	}
 }
 
