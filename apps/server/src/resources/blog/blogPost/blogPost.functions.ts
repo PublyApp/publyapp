@@ -100,21 +100,13 @@ const updateBlogPostFunction = parseFunctionEnhanced({
 			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
 		}
 
-		const handleSlug = async () => {
-			if (slug) {
-				const slugObject = await postService.getOrCreateSlugForPost(slug, post);
+		if (slug) {
+			const slugObject = await postService.getOrCreateSlugForPost(slug, post, { setIsCurrent: true });
 
-				if (slugObject === 'E_SLUG_ALREADY_USED') {
-					throw new Error(t('slug-already-used'));
-				}
-
-				return slugObject;
+			if (slugObject === 'E_SLUG_ALREADY_USED') {
+				throw new Error(t('slug-already-used'));
 			}
-
-			return undefined;
-		};
-
-		const slugPromise = handleSlug();
+		}
 
 		const updatePostPromise = postService.update(post, {
 			...input,
@@ -123,9 +115,11 @@ const updateBlogPostFunction = parseFunctionEnhanced({
 		});
 
 		// eslint-disable-next-line @typescript-eslint/naming-convention
-		const [updatedPost, _slugObject] = await Promise.all([updatePostPromise, slugPromise]);
+		// const [updatedPost, _slugObject] = await Promise.all([updatePostPromise, slugPromise]);
+		const updatedPost = await updatePostPromise;
 
 		const finalPost = BlogPostService.toJSON(updatedPost);
+
 		return finalPost;
 	},
 });
@@ -285,7 +279,13 @@ const findBlogPostSlug = parseFunctionEnhanced({
 	action: async ({ params, user }) => {
 		const { postId, searchTerm, page = 0, pageSize = DEFAULT_PAGE_SIZE } = params;
 		const postService = new BlogPostService({ sessionToken: user?.getSessionToken() });
-		const slugs = await postService.findSlugsForBlogPostById(postId, { json: true, searchTerm, page, pageSize });
+		const slugs = await postService.findSlugsForBlogPostById(postId, {
+			json: true,
+			searchTerm,
+			page,
+			pageSize,
+			select: ['slug', 'isCurrent'],
+		});
 		return slugs;
 	},
 });

@@ -6,7 +6,7 @@ import type { IBlogPost } from './blogPost.types';
 
 export type BlogPostSlugAttributes = {
 	slug: string;
-	isCurrent?: string;
+	isCurrent?: boolean;
 };
 
 export type IBlogPostSlug = BaseAttributes & BlogPostSlugAttributes;
