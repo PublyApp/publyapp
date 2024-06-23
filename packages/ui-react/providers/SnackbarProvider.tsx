@@ -1,11 +1,12 @@
 import { useRef } from 'react';
 
 import { alpha, Collapse, IconButton, styled } from '@mui/material';
-import * as notistack from 'notistack';
+// import * as notistack from 'notistack';
+import { closeSnackbar, MaterialDesignContent, SnackbarProvider as NotistackProvider } from 'notistack';
 
 import Iconify from '@/ui-react/components/Iconify';
 
-const { closeSnackbar, MaterialDesignContent, SnackbarProvider: NotistackProvider } = notistack;
+// const { closeSnackbar, MaterialDesignContent, SnackbarProvider: NotistackProvider } = notistack;
 
 //
 // import Iconify from '../iconify';

@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 	useSuspenseInfiniteQuery,
 	useSuspenseQuery,
+	type MutationOptions,
 	type UseMutationOptions,
 } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
@@ -13,6 +14,8 @@ import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 
 import {
+	addSlugToBlogPostAction,
+	addSlugToBlogPostMutationKeyBase,
 	createBlogPostAction,
 	createBlogPostMutationKeyBase,
 	findBlogPostBoTableQuery,
@@ -28,8 +31,20 @@ import {
 } from './blogPost.actions';
 
 // ---- 1 --------------------------------------------------------------------------------
+type UseCreateBlogPostMutationProps = Omit<
+	MutationOptions<
+		Awaited<ReturnType<typeof createBlogPostAction>>,
+		unknown,
+		Parameters<typeof createBlogPostAction>[0]
+	>,
+	'mutationKey' | 'mutationFn'
+>;
 
-export const useCreateBlogPostMutation = () => {
+export const useCreateBlogPostMutation = ({
+	onSuccess,
+	onError,
+	...otherProps
+}: UseCreateBlogPostMutationProps = {}) => {
 	const { enqueueSnackbar } = useSnackbar();
 	const navigate = useNavigate();
 	// const queryClient = useQueryClient();
@@ -39,13 +54,17 @@ export const useCreateBlogPostMutation = () => {
 	const result = useMutation({
 		mutationKey: key,
 		mutationFn: createBlogPostAction,
-		onSuccess: async (data /* , variables, context */) => {
+		onSuccess: async (data, variables, context) => {
+			onSuccess?.(data, variables, context);
+
 			enqueueSnackbar({ variant: 'success', message: 'New post created' });
 			// queryClient.setQueryData([getBlogPostQueryKeyBase, { id: data.objectId }], data);
 			// queryClient.invalidateQueries({ queryKey: [findBlogPostQueryKeyBase] });
 			navigate(BO_PATH_NAMES.dashboard.posts.edit(data.objectId));
 		},
-		onError: async (error /* , variables, context */) => {
+		onError: async (error, variables, context) => {
+			onError?.(error, variables, context);
+
 			let message = 'Unknown error';
 
 			if (error instanceof Error) {
@@ -54,6 +73,7 @@ export const useCreateBlogPostMutation = () => {
 
 			enqueueSnackbar({ variant: 'error', message });
 		},
+		...otherProps,
 	});
 
 	return {
@@ -123,6 +143,7 @@ export const useFindBlogPostBoTableQuery = (props: UseFindBlogPostQueryProps) =>
 };
 
 // ---- 4 --------------------------------------------------------------------------------
+
 type UseUpdateBlogPostMutationProps = Omit<
 	UseMutationOptions<
 		Awaited<ReturnType<typeof updateBlogPostAction>>,
@@ -166,6 +187,7 @@ export const useUpdateBlogPostMutation = (props: UseUpdateBlogPostMutationProps 
 };
 
 // ---- 5 --------------------------------------------------------------------------------
+
 type UseFindBlogPostSlugSuspenseQueryProps = {
 	params: FindBlogPostSlugQueryParams;
 	options?: Omit<ReturnType<typeof findBlogPostSlugQuery>, 'queryKey' | 'queryFn'>;
@@ -187,4 +209,60 @@ export const useFindBlogPostSlugSuspenseQuery = (props: UseFindBlogPostSlugSuspe
 	});
 
 	return { result, key: query.queryKey };
+};
+
+// ---- 6 --------------------------------------------------------------------------------
+type UseAddSlugToBlogPostMutationProps = Omit<
+	MutationOptions<
+		Awaited<ReturnType<typeof addSlugToBlogPostAction>>,
+		unknown,
+		Parameters<typeof addSlugToBlogPostAction>[0]
+	>,
+	'mutationKey' | 'mutationFn'
+>;
+
+export const useAddSlugToBlogPostMutation = ({
+	onSuccess,
+	onError,
+	...otherProps
+}: UseAddSlugToBlogPostMutationProps = {}) => {
+	const queryClient = useQueryClient();
+	const { enqueueSnackbar } = useSnackbar();
+	const { t } = useTranslate();
+
+	const key = [addSlugToBlogPostMutationKeyBase] as const;
+
+	const result = useMutation({
+		mutationKey: key,
+		mutationFn: addSlugToBlogPostAction,
+		onSuccess: async (data, variables, context) => {
+			onSuccess?.(data, variables, context);
+
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			const _findBlogPostSlugQuery = findBlogPostSlugQuery();
+
+			queryClient.invalidateQueries({ queryKey: [_findBlogPostSlugQuery.queryKey[0]] });
+			enqueueSnackbar({ variant: 'success', message: t('slug-added-to-post') });
+			// // queryClient.setQueryData([getBlogPostQueryKeyBase, { id: data.objectId }], data);
+			// // queryClient.invalidateQueries({ queryKey: [findBlogPostQueryKeyBase] });
+			// navigate(BO_PATH_NAMES.dashboard.posts.edit(data.objectId));
+		},
+		onError: async (error, variables, context) => {
+			onError?.(error, variables, context);
+
+			let message = 'Unknown error';
+
+			if (error instanceof Error) {
+				message = error.message;
+			}
+
+			enqueueSnackbar({ variant: 'error', message });
+		},
+		...otherProps,
+	});
+
+	return {
+		result,
+		key,
+	};
 };

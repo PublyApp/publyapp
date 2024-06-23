@@ -1,3 +1,4 @@
+import asyncJs from 'async';
 import _ from 'lodash';
 
 import { type IBlogPostSlug } from '@devist/shared/types/db/blogPostSlug.types';
@@ -437,7 +438,12 @@ export default class BlogPostService {
 		return finalBlogPosts;
 	}
 
-	async findBlogPostFrontList({ page, pageSize, sorting, locale = defaultLocale }: FindBlogPostFrontListParams) {
+	async findBlogPostFrontList({
+		page,
+		pageSize = DEFAULT_PAGE_SIZE,
+		sorting,
+		locale = defaultLocale,
+	}: FindBlogPostFrontListParams) {
 		const include = ['author', 'cover'];
 		// const exclude = BlogPostService.getExcludedTranslations(locale as never);
 		const select = [
@@ -465,12 +471,31 @@ export default class BlogPostService {
 			include,
 			// exclude,
 			select,
-			json: true,
+			// json: true,
 			fromPublic: true,
 		});
 
+		const currentSlugsQuery = new Parse.Query(ParseBlogPostSlug)
+			.containedIn('post', posts)
+			.equalTo('isCurrent', true)
+			.select(['slug', 'post']);
+
+		const slugsMapByPostId = new Map<string, ParseBlogPostSlug>();
+
+		await currentSlugsQuery.eachBatch(
+			async (slugs) => {
+				await asyncJs.eachOfLimit(slugs, pageSize, async (slug) => {
+					const postId = slug.get('post')?.id || '';
+					slugsMapByPostId.set(postId, slug);
+				});
+			},
+			{ sessionToken: this.sessionToken, batchSize: pageSize },
+		);
+
 		const finalBlogPosts = posts.map((_post) => {
-			const post = BlogPostService.toTranslatedIBlogPost(_post, locale);
+			const postJson = BlogPostService.toJSON(_post);
+
+			const post = BlogPostService.toTranslatedIBlogPost(postJson, locale);
 
 			const coverUrl = _.get(post, 'cover.url');
 
@@ -481,14 +506,8 @@ export default class BlogPostService {
 				}
 			}
 
-			// if (post.cover) {
-			// 	let fileUrl = post.cover.url;
-
-			// 	if (post.cover.provider === fileProvider.LOCAL_DISK || fileUrl.startsWith('/')) {
-			// 		fileUrl = env.SERVER_URL + fileUrl;
-			// 		_.set(post.cover, 'url', fileUrl);
-			// 	}
-			// }
+			const currentSlug = slugsMapByPostId.get(post.objectId)?.get('slug') || 'no-slug';
+			_.set(post, 'currentSlug', currentSlug);
 
 			return post;
 		});

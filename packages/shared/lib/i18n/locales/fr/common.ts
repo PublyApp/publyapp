@@ -76,6 +76,8 @@ const commonFR = {
 
 	'manage-blog-post-slugs': 'Gérer les slugs de cet article',
 	'slug-already-used': 'Ce slug est déjà utilisé par un autre article',
+	'slugify-current-title': 'Slugger le titre en cours',
+	'add-slug': 'Ajout slug',
 
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
