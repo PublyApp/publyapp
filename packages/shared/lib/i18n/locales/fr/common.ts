@@ -79,6 +79,8 @@ const commonFR = {
 
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
+	'Session token is expired.': 'Session token expiré.',
+	'Invalid username/password.': "Mot de passe/Nom d'utilisateur invalide",
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

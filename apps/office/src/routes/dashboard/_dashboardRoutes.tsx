@@ -1,6 +1,8 @@
+import Parse from 'parse';
 import { lazy, Suspense } from 'react';
 
 import { Box, Button } from '@mui/material';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
@@ -9,11 +11,13 @@ import AuthGuard from '@/office/components/AuthGuard';
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import LoadingScreen from '@/office/components/LoadingScreen';
 import SplashScreen from '@/office/components/SplashScreen';
-import { BO_PATH_NAMES, roleSet } from '@/shared/lib/constants';
+import Login from '@/office/modules/auth/login/Login';
+import { BO_PATH_NAMES, roleSet, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { getBlogPostBoEditFormQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.actions';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
+import { localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
 import { getLastPath, getRouteLoader } from '../utils';
 
@@ -56,15 +60,18 @@ const DashboardRootError = () => {
 		}
 	}
 
-	// if (error instanceof Parse.Error) {
-	// 	if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
-	// 		if (Parse.User.current()) {
-	// 			Parse.User.logOut();
-	// 		}
+	if (error instanceof ParseRestError) {
+		if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
+			localStorageUnsetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY);
 
-	// 		return <Navigate to={BO_PATH_NAMES.auth.login} />;
-	// 	}
-	// }
+			const searchParams = new URLSearchParams({
+				[Login.queryParamKeys.redirectCause]: Login.redirectCause.INVALID_SESSION,
+			});
+
+			return <Navigate to={`${BO_PATH_NAMES.auth.login}?${searchParams.toString()}`} />;
+			// return redirect(BO_PATH_NAMES.auth.login);
+		}
+	}
 
 	return (
 		<Box sx={{ p: 3 }}>
