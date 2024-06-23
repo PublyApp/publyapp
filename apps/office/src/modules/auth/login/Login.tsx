@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useLocation, useNavigate, useRevalidator } from 'react-router-dom';
+import { StringParam, useQueryParam } from 'use-query-params';
 
 import { getLoginSchema, type LoginInput } from '@devist/shared/validations/auth.validations';
 
@@ -23,9 +24,20 @@ import { useLoginMutation } from '@/ui-react/lib/react-query/features/auth/auth.
 import zod from '@/ui-react/lib/zod';
 import { pxToRem } from '@/ui-react/utils/css.utils';
 
+const queryParamPrefix = 'login' as const;
+export const queryParamKeys = {
+	redirectCause: `${queryParamPrefix}:redirect_cause`,
+} as const;
+
+const redirectCause = {
+	INVALID_SESSION: 'invalid_session',
+} as const;
+
 const Login = () => {
+	const [redirectCauseParam] = useQueryParam(queryParamKeys.redirectCause, StringParam);
 	const password = useBoolean();
 	const { t } = useTranslate();
+
 	const [alertProps, setAlertProps] = useState<{
 		message: ReactNode;
 		severity: AlertProps['severity'];
@@ -77,6 +89,7 @@ const Login = () => {
 					if (error.response?.data.message === t('User email is not verified.')) {
 						// show an alert on top of the login form
 						setAlertProps({
+							severity: 'error',
 							message: (
 								<div>
 									{error.response?.data.message}
@@ -95,7 +108,12 @@ const Login = () => {
 									</Link>
 								</div>
 							),
+						});
+					} else {
+						// show an alert on top of the login form
+						setAlertProps({
 							severity: 'error',
+							message: <div>{t(error.response?.data.message)}</div>,
 						});
 					}
 				}
@@ -124,13 +142,15 @@ const Login = () => {
 		</Stack>
 	);
 
-	const renderAlert = (
-		<Alert severity={alertProps?.severity} onClose={undefined} sx={{ mb: pxToRem(20) }}>
-			{/* This post does not have a translation in the current language */}
-			{/* {t('item-not-translated', { item: t('post') })} */}
-			{alertProps?.message}
-		</Alert>
-	);
+	const renderAlert = (_alertProps: typeof alertProps) => {
+		return (
+			<Alert severity={_alertProps?.severity} onClose={undefined} sx={{ mb: pxToRem(20) }}>
+				{/* This post does not have a translation in the current language */}
+				{/* {t('item-not-translated', { item: t('post') })} */}
+				{_alertProps?.message}
+			</Alert>
+		);
+	};
 
 	const renderForm = (
 		<Stack spacing={2.5}>
@@ -174,11 +194,20 @@ const Login = () => {
 		<FormProvider form={loginForm} onSubmit={onSubmit}>
 			{renderHead}
 
-			{alertProps ? renderAlert : null}
+			{/* render alert in function of network calls from form submission */}
+			{alertProps ? renderAlert(alertProps) : null}
+
+			{/* render alert in function of redirect cause */}
+			{!alertProps && redirectCauseParam === redirectCause.INVALID_SESSION
+				? renderAlert({ severity: 'error', message: <div>{t('invalid-session')}</div> })
+				: null}
 
 			{renderForm}
 		</FormProvider>
 	);
 };
+
+Login.queryParamKeys = queryParamKeys;
+Login.redirectCause = redirectCause;
 
 export default Login;

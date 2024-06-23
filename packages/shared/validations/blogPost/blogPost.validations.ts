@@ -13,9 +13,21 @@ export const getDateTypeSchema = (z: CustomZod) => {
 		});
 };
 
+export const getSlugStringSchema = (z: CustomZod) => {
+	const SLUG = 'Slug';
+
+	return z
+		.string()
+		.min(
+			1,
+			// { message: z.t('item-is-required', { item: SLUG }) }
+		)
+		.regex(SLUG_REGEX, z.t('item-is-invalid', { item: SLUG }));
+};
+
 export const getCreateBlogPostInputSchema = (z: CustomZod) => {
 	// const TITLE = z.t('title');
-	const SLUG = 'Slug';
+	// const SLUG = 'Slug';
 	// const DESCRIPTION = 'Description';
 	// const CONTENT = z.t('content');
 	// const AUTHOR_ID = 'authorId';
@@ -36,13 +48,7 @@ export const getCreateBlogPostInputSchema = (z: CustomZod) => {
 			)
 			// .min(1)
 			.max(TITLE_MAX_LENGTH),
-		slug: z
-			.string()
-			.min(
-				1,
-				// { message: z.t('item-is-required', { item: SLUG }) }
-			)
-			.regex(SLUG_REGEX, z.t('item-is-invalid', { item: SLUG })),
+		slug: getSlugStringSchema(z),
 		description: z
 			.string()
 			.min(

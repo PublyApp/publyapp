@@ -6,6 +6,7 @@ import {
 	getFindBlogPostFunctionBoTableParamsSchema,
 	getGetBlogPostFunctionBackOfficeEditFormSchema,
 	getGetBlogPostFunctionFrontDetailsViewSchema,
+	getSlugStringSchema,
 	getUpdateBlogPostInputSchema,
 } from '@devist/shared/validations/blogPost/blogPost.validations';
 
@@ -25,7 +26,7 @@ export namespace CreateBlogPostFunction {
 
 const createBlogPostFunction = parseFunctionEnhanced({
 	requireUser: true,
-	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
+	allowedRoles: roleSet.ABOVE_STAFF_EDITOR,
 	validateParams: ({ params, z }) => {
 		const createPostInputSchema = getCreateBlogPostInputSchema(z);
 		return createPostInputSchema.parse(params);
@@ -76,7 +77,7 @@ export namespace UpdateBlogPostFunction {
 
 const updateBlogPostFunction = parseFunctionEnhanced({
 	requireUser: true,
-	allowedRoles: roleSet.ABOVE_TENANT_EDITOR,
+	allowedRoles: roleSet.ABOVE_STAFF_EDITOR,
 	validateParams: ({ params, z }) => {
 		const updatePostInputSchema = getUpdateBlogPostInputSchema(z);
 		return updatePostInputSchema.parse(params);
@@ -265,7 +266,7 @@ export namespace FindBlogPostSlugFunction {
 
 const findBlogPostSlug = parseFunctionEnhanced({
 	requireUser: true,
-	allowedRoles: roleSet.ABOVE_STAFF_CONTRIBUTOR,
+	allowedRoles: roleSet.ABOVE_STAFF_USER,
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
 			postId: z.string(),
@@ -290,6 +291,22 @@ const findBlogPostSlug = parseFunctionEnhanced({
 	},
 });
 
+const addSlugToBlogPost = parseFunctionEnhanced({
+	requireUser: true,
+	allowedRoles: roleSet.ABOVE_STAFF_EDITOR,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			slug: getSlugStringSchema(z),
+			postId: z.string(),
+		});
+
+		return schema.parse(params);
+	},
+	action: async () => {
+		return null;
+	},
+});
+
 Parse.Cloud.define(functionName.createBlogPost, createBlogPostFunction);
 Parse.Cloud.define(functionName.updateBlogPost, updateBlogPostFunction);
 Parse.Cloud.define(functionName.findBlogPostTag, findBlogPostTag);
@@ -302,4 +319,5 @@ Parse.Cloud.define(functionName.getBlogPostFrontDetails, getBlogPostFunctionFron
 Parse.Cloud.define(functionName.getBlogPostBoEdit, getBlogPostFunctionBoEditForm);
 
 Parse.Cloud.define(functionName.findBlogPostSlug, findBlogPostSlug);
+Parse.Cloud.define(functionName.addSlugToBlogPost, addSlugToBlogPost);
 // Parse.Cloud.define(functionName.updateBloPostCurrentSlug, updateBloPostCurrentSlug);
