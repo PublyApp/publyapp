@@ -163,6 +163,7 @@ export const functionName = {
 	findBlogPostTag: 'findBlogPostTag',
 	findBlogPostFrontDetailsRelatedPosts: 'findBlogPostFrontDetailsRelatedPosts',
 	findBlogPostSlug: 'findBlogPostSlug',
+	addSlugToBlogPost: 'addSlugToBlogPost',
 } as const;
 
 export const endPoint = {
