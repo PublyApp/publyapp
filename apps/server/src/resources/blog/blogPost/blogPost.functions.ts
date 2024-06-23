@@ -2,11 +2,11 @@ import _ from 'lodash';
 
 import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 import {
+	getAddSlugToPostSchema,
 	getCreateBlogPostInputSchema,
 	getFindBlogPostFunctionBoTableParamsSchema,
 	getGetBlogPostFunctionBackOfficeEditFormSchema,
 	getGetBlogPostFunctionFrontDetailsViewSchema,
-	getSlugStringSchema,
 	getUpdateBlogPostInputSchema,
 } from '@devist/shared/validations/blogPost/blogPost.validations';
 
@@ -15,6 +15,7 @@ import UserService from '@/server/resources/auth/user/user.service';
 import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
 import BlogPostService from '@/server/resources/blog/blogPost/blogPost.service';
 import FileService from '@/server/resources/file-manager/file/file.service';
+import type { IBlogPostSlugWithRelations } from '@/shared/types/db/blogPostSlug.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 
 import ParseBlogPostSlug from './blogPostSlug.class';
@@ -291,19 +292,43 @@ const findBlogPostSlug = parseFunctionEnhanced({
 	},
 });
 
+export namespace AddSlugToBlogPostFunction {
+	export type Params = FunctionParams<typeof addSlugToBlogPost>;
+	export type Return = FunctionReturn<typeof addSlugToBlogPost>;
+}
+
 const addSlugToBlogPost = parseFunctionEnhanced({
 	requireUser: true,
 	allowedRoles: roleSet.ABOVE_STAFF_EDITOR,
 	validateParams: ({ params, z }) => {
-		const schema = z.object({
-			slug: getSlugStringSchema(z),
-			postId: z.string(),
-		});
+		const schema = getAddSlugToPostSchema(z);
 
 		return schema.parse(params);
 	},
-	action: async () => {
-		return null;
+	action: async ({ params, user, t }) => {
+		const { slug, postId } = params;
+
+		const sessionToken = user.getSessionToken();
+
+		const postService = new BlogPostService({ sessionToken });
+
+		const slugObject = await postService.getSlugObject(slug);
+
+		if (slugObject) {
+			throw new Error(t('slug-already-used'));
+		}
+
+		const post = await postService.getById(postId, { select: [] });
+
+		if (!post) {
+			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, t('item-not-found', { item: t('post') }));
+		}
+
+		const newSlug = new ParseBlogPostSlug({ slug });
+		const savedSlug = await postService.assignSlugToPost({ post, slug: newSlug });
+
+		const finalSlug = BlogPostService.slugToJSON(savedSlug);
+		return finalSlug as IBlogPostSlugWithRelations;
 	},
 });
 

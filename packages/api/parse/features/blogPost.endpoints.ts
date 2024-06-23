@@ -2,6 +2,7 @@ import { functionName } from '@devist/shared/lib/constants';
 import type { AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import type {
+	AddSlugToBlogPostFunction,
 	CreateBlogPostFunction,
 	FindBlogPostFunction,
 	FindBlogPostSlugFunction,
@@ -104,6 +105,13 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 	async findBlogPostSlug(params: FindBlogPostSlugFunction.Params) {
 		return this.parseRestClient.cloudRun<FindBlogPostSlugFunction.Return, FindBlogPostSlugFunction.Params>(
 			functionName.findBlogPostSlug,
+			{ params },
+		);
+	}
+
+	async addSlugToBlogPost(params: AddSlugToBlogPostFunction.Params) {
+		return this.parseRestClient.cloudRun<AddSlugToBlogPostFunction.Return, AddSlugToBlogPostFunction.Params>(
+			functionName.addSlugToBlogPost,
 			{ params },
 		);
 	}

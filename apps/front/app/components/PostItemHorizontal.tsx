@@ -132,7 +132,7 @@ const PostItemHorizontal = ({
 						<Link
 							color="inherit"
 							component={RouterLink}
-							href={LinkProps?.href ?? FRONT_PATH_NAMES.posts.details(post.slug)}
+							href={LinkProps?.href ?? FRONT_PATH_NAMES.posts.details(_.toString(post.currentSlug))}
 							sx={{ width: 'fit-content', ...LinkProps?.sx }}
 							{..._.omit(LinkProps, ['href', 'sx'])}
 						>

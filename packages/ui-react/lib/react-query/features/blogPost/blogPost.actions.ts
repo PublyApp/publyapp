@@ -7,6 +7,7 @@ import type {
 import parseApi from '@devist/api/parse/ParseApi';
 
 import type {
+	AddSlugToBlogPostFunction,
 	FindBlogPostFunction,
 	FindBlogPostSlugFunction,
 	GetBlogPostFunction,
@@ -194,4 +195,19 @@ export const findBlogPostSlugQuery = (params?: FindBlogPostSlugQueryParams) => {
 			return previousPageCursor;
 		},
 	});
+};
+
+// == addSlugToBlogPost ==================
+export type AddSlugToBlogPostActionParams = AddSlugToBlogPostFunction.Params;
+
+export const addSlugToBlogPostMutationKeyBase = functionName.addSlugToBlogPost;
+
+export const addSlugToBlogPostAction = async (params: AddSlugToBlogPostActionParams) => {
+	try {
+		const post = await parseApi.blogPosts.addSlugToBlogPost(params);
+		return post;
+	} catch (error) {
+		console.log('----- addSlugToBlogPostAction error ----------', error);
+		return Promise.reject(error);
+	}
 };

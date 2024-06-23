@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, Button, Container } from '@mui/material';
 import { m } from 'framer-motion';
+import _ from 'lodash';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 
@@ -75,7 +76,7 @@ const EditPost = () => {
 	const handleUpdatePost = updatePostForm.handleSubmit(
 		async (input) => {
 			console.log('--- handleUpdatePost input ---', input);
-			await updatePostAsync(input);
+			await updatePostAsync(_.omit(input, 'slug'));
 		},
 		(errors) => {
 			console.log('--- handleUpdatePost errors ---', errors);
