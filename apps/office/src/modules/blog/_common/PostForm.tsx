@@ -62,99 +62,106 @@ const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '', di
 		editorRef.current?.setMarkdown(localeContent);
 	}, [locale, localeContent]);
 
+	useEffect(() => {
+		if (edit) {
+			form.watch('title');
+		}
+	}, [edit, form]);
+
 	return (
-		<FormProvider
-			form={form}
-			// onSubmit={handleSavePost}
-		>
-			<RHFUpload
-				name="coverFile"
-				multiple={false}
-				maxSize={3145728}
-				onDrop={handleDrop}
-				onDelete={handleRemoveFile}
-				sx={{ mb: 3 }}
-				disabled={disabled}
-			/>
-
-			<Stack spacing={3}>
-				{edit ? <RHFSwitch name="published" label="Publish" color="success" /> : null}
-
-				<RHFTextField name="title" label={t('title')} placeholder={t('your-title')} />
-
-				{edit ? (
-					<Stack direction="row" gap={2.1}>
-						<Box sx={{ cursor: 'pointer', flexGrow: 1 }}>
-							<RHFTextField name="slug" label="Slug" disabled />
-						</Box>
-						<Button onClick={handleOpenSlugDrawer} variant="contained" disabled={disabled}>
-							Edit slug
-						</Button>
-					</Stack>
-				) : (
-					<RHFTextField name="slug" label="Slug" />
-				)}
-
-				<RHFTextField name="description" label="Description" multiline rows={3} placeholder={t('your-description')} />
-
-				<RHFAutocomplete
-					name="tags"
-					label="Tags"
-					placeholder="+ Tags"
-					multiple
-					freeSolo
-					options={_tags.map((option) => {
-						return option;
-					})}
-					getOptionLabel={(option) => {
-						return option;
-					}}
-					renderOption={(props, option) => {
-						return (
-							<li {...props} key={option}>
-								{option}
-							</li>
-						);
-					}}
-					renderTags={(selected, getTagProps) => {
-						return selected.map((option, index) => {
-							return (
-								<Chip
-									{...getTagProps({ index })}
-									key={option}
-									label={option}
-									size="small"
-									color="info"
-									variant="soft"
-								/>
-							);
-						});
-					}}
+		<>
+			<FormProvider
+				form={form}
+				// onSubmit={handleSavePost}
+			>
+				<RHFUpload
+					name="coverFile"
+					multiple={false}
+					maxSize={3145728}
+					onDrop={handleDrop}
+					onDelete={handleRemoveFile}
+					sx={{ mb: 3 }}
+					disabled={disabled}
 				/>
 
-				<Stack spacing={1.5}>
-					<Typography variant="subtitle2">{t('content')}</Typography>
-					<RHFMdxEditor ref={editorRef} name="content" placeholder={t('your-content')} />
+				<Stack spacing={3}>
+					{edit ? <RHFSwitch name="published" label="Publish" color="success" /> : null}
+
+					<RHFTextField name="title" label={t('title')} placeholder={t('your-title')} />
+
+					{edit ? (
+						<Stack direction="row" gap={2.1}>
+							<Box sx={{ cursor: 'pointer', flexGrow: 1 }}>
+								<RHFTextField name="slug" label="Slug" disabled />
+							</Box>
+							<Button onClick={handleOpenSlugDrawer} variant="contained" disabled={disabled}>
+								Edit slug
+							</Button>
+						</Stack>
+					) : (
+						<RHFTextField name="slug" label="Slug" />
+					)}
+
+					<RHFTextField name="description" label="Description" multiline rows={3} placeholder={t('your-description')} />
+
+					<RHFAutocomplete
+						name="tags"
+						label="Tags"
+						placeholder="+ Tags"
+						multiple
+						freeSolo
+						options={_tags.map((option) => {
+							return option;
+						})}
+						getOptionLabel={(option) => {
+							return option;
+						}}
+						renderOption={(props, option) => {
+							return (
+								<li {...props} key={option}>
+									{option}
+								</li>
+							);
+						}}
+						renderTags={(selected, getTagProps) => {
+							return selected.map((option, index) => {
+								return (
+									<Chip
+										{...getTagProps({ index })}
+										key={option}
+										label={option}
+										size="small"
+										color="info"
+										variant="soft"
+									/>
+								);
+							});
+						}}
+					/>
+
+					<Stack spacing={1.5}>
+						<Typography variant="subtitle2">{t('content')}</Typography>
+						<RHFMdxEditor ref={editorRef} name="content" placeholder={t('your-content')} />
+					</Stack>
+
+					<Grid display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={{ xs: 0, md: 4 }}>
+						<Grid item>
+							<RHFDesktopDatePicker name="publishDate" label={t('publish-date')} />
+						</Grid>
+						<Grid item>
+							<RHFDesktopDatePicker name="updateDate" label={t('update-date')} />
+						</Grid>
+					</Grid>
 				</Stack>
-
-				<Grid display="grid" gridTemplateColumns={{ xs: '1fr', md: '1fr 1fr' }} gap={{ xs: 0, md: 4 }}>
-					<Grid item>
-						<RHFDesktopDatePicker name="publishDate" label={t('publish-date')} />
-					</Grid>
-					<Grid item>
-						<RHFDesktopDatePicker name="updateDate" label={t('update-date')} />
-					</Grid>
-				</Grid>
-			</Stack>
-
+			</FormProvider>
 			{edit ? (
 				<EditPostSlugDrawer
 					postId={form.getValues('objectId')}
 					postTitle={form.getValues('title')}
-					currentSlug={form.getValues('slug')}
+					// currentSlug={form.getValues('slug')}
 				/>
 			) : null}
-		</FormProvider>
+		</>
 	);
 };
 

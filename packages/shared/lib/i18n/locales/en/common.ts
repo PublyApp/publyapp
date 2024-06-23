@@ -74,6 +74,8 @@ const commonEN = {
 
 	'manage-blog-post-slugs': "Manage this blog post's slugs",
 	'slug-already-used': 'Slug already used by another post',
+	'slugify-current-title': 'Slugify current title',
+	'add-slug': 'Add slug',
 
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',

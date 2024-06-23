@@ -2,44 +2,82 @@
 
 import { Suspense, useMemo } from 'react';
 
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
 	alpha,
 	Box,
 	Button,
+	CircularProgress,
 	Divider,
 	Drawer,
 	drawerClasses,
 	IconButton,
 	List,
 	Stack,
-	TextField,
+	Tooltip,
 	Typography,
 	useTheme,
 } from '@mui/material';
 import _ from 'lodash';
+import { useForm } from 'react-hook-form';
+
+import { slugify } from '@devist/shared/utils/string.utils';
 
 import { ResultItem } from '@/office/components/ResultItem';
 import { selectIsOpenSlugDrawer, selectSetIsOpenSlugDrawer } from '@/office/lib/zustand/features/blogPost.slice';
 import { useMainStore } from '@/office/lib/zustand/store';
+import { getAddSlugToPostSchema } from '@/shared/validations/blogPost/blogPost.validations';
+import FormProvider from '@/ui-react/components/form/FormProvider';
+import RHFTextField from '@/ui-react/components/form/RHFTextField';
 import Iconify from '@/ui-react/components/Iconify';
 import Scrollbar from '@/ui-react/components/Scrollbar';
 import useTranslate from '@/ui-react/hooks/useTranslate';
-import { useFindBlogPostSlugSuspenseQuery } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
+import {
+	useAddSlugToBlogPostMutation,
+	useFindBlogPostSlugSuspenseQuery,
+} from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
+import zod from '@/ui-react/lib/zod';
 import { paper } from '@/ui-react/utils/css.utils';
 
 type Props = {
 	postId: string;
 	postTitle: string;
-	currentSlug: string;
 };
 
-const EditPostSlugDrawer = ({ currentSlug, postId, postTitle }: Props) => {
-	console.log({ currentSlug, postId, postTitle });
-
+const EditPostSlugDrawer = ({ postId, postTitle }: Props) => {
 	const { t } = useTranslate();
 	const theme = useTheme();
 	const isOpenSlugDrawer = useMainStore(selectIsOpenSlugDrawer);
 	const setIsOpenSlugDrawer = useMainStore(selectSetIsOpenSlugDrawer);
+
+	const addSlugToPostSchema = getAddSlugToPostSchema(zod).pick({ slug: true });
+
+	const addSlugForm = useForm({
+		resolver: zodResolver(addSlugToPostSchema),
+		values: { slug: '' },
+	});
+
+	const { handleSubmit } = addSlugForm;
+
+	const handleSetSlugifyCurrentTitle = () => {
+		addSlugForm.setValue('slug', slugify(postTitle));
+	};
+
+	// const onSubmitHandler: SubmitHandler<LoginInput> =
+	const {
+		result: { mutate: addSlugToPost, isPending: isAddSlugPending },
+	} = useAddSlugToBlogPostMutation();
+
+	const onSubmitAddSlugToPost = handleSubmit(
+		async (values) => {
+			addSlugToPost({ postId, slug: values.slug });
+			// login(values);
+			// console.log('Data', values);
+		},
+		(errors) => {
+			console.log('--- addSlugForm errors ---', errors);
+		},
+	);
 
 	const handleClose = () => {
 		setIsOpenSlugDrawer(false);
@@ -66,16 +104,40 @@ const EditPostSlugDrawer = ({ currentSlug, postId, postTitle }: Props) => {
 	);
 
 	const renderInput = (
-		<Stack direction="row" gap={2.1}>
-			<TextField label="New Slug" sx={{ flexGrow: 1 }} />
-			<Button variant="contained">Add Slug</Button>
-		</Stack>
+		<FormProvider form={addSlugForm} onSubmit={onSubmitAddSlugToPost} /* css={{ flexGrow: 1, display: 'contents' }} */>
+			<Stack direction="row" gap={2.1}>
+				{/* <TextField label="New Slug" sx={{ flexGrow: 1 }} /> */}
+				<RHFTextField
+					name="slug"
+					placeholder={t('new-item', { item: 'slug' })}
+					// sx={{ alignSelf: 'stretch', justifySelf: 'stretch' }}
+				/>
+
+				<Box>
+					<Tooltip title={t('slugify-current-title')}>
+						<Button variant="contained" onClick={handleSetSlugifyCurrentTitle}>
+							<Iconify icon="gravity-ui:arrow-rotate-right" width={24} />
+						</Button>
+					</Tooltip>
+				</Box>
+
+				<Box>
+					<Button variant="contained" sx={{ whiteSpace: 'nowrap' }} type="submit">
+						{isAddSlugPending ? (
+							<CircularProgress size={24} sx={{ color: theme.palette.common.white }} />
+						) : (
+							t('add-slug')
+						)}
+					</Button>
+				</Box>
+			</Stack>
+		</FormProvider>
 	);
 
 	const renderList = (
 		<Suspense fallback={<h1>Loading....</h1>}>
 			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
-			<SlugsList postId={postId} currentSlug={currentSlug} />
+			<SlugsList postId={postId} /* currentSlug={currentSlug} */ />
 		</Suspense>
 	);
 
@@ -142,7 +204,7 @@ export default EditPostSlugDrawer;
 
 // --------------------------------
 
-const SlugsList = ({ postId, currentSlug }: { postId: string; currentSlug: string }) => {
+const SlugsList = ({ postId }: { postId: string }) => {
 	const {
 		result: { data },
 	} = useFindBlogPostSlugSuspenseQuery({
@@ -167,7 +229,7 @@ const SlugsList = ({ postId, currentSlug }: { postId: string; currentSlug: strin
 				// 	return <Box key={e.id}>
 				// 	<Typography>{e.slug}</Typography>
 				// </Box>
-				const isCurrentSlug = e.slug === currentSlug;
+				// const isCurrentSlug = e.slug === currentSlug;
 
 				return (
 					<Box
@@ -178,7 +240,7 @@ const SlugsList = ({ postId, currentSlug }: { postId: string; currentSlug: strin
 									return theme.spacing(1.8);
 								},
 
-								...(isCurrentSlug
+								...(e.isCurrent
 									? {
 											borderRadius: 1,
 											borderColor: (theme) => {
@@ -207,7 +269,7 @@ const SlugsList = ({ postId, currentSlug }: { postId: string; currentSlug: strin
 							title={[{ text: e.slug }]}
 							groupLabel=""
 							onClickItem={() => {
-								if (isCurrentSlug) {
+								if (e.isCurrent) {
 									// do nothing
 									return;
 								}

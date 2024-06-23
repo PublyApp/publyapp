@@ -5,11 +5,11 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import { Alert, IconButton, InputAdornment, Link, Stack, Typography, type AlertProps } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useForm /* , type SubmitHandler */ } from 'react-hook-form';
 import { useLocation, useNavigate, useRevalidator } from 'react-router-dom';
 import { StringParam, useQueryParam } from 'use-query-params';
 
-import { getLoginSchema, type LoginInput } from '@devist/shared/validations/auth.validations';
+import { getLoginSchema /* , type LoginInput */ } from '@devist/shared/validations/auth.validations';
 
 import RouterLink from '@/office/components/RouterLink';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
@@ -122,11 +122,18 @@ const Login = () => {
 	});
 
 	// const onSubmit = handleSubmit(async (data) => {});
-	const onSubmitHandler: SubmitHandler<LoginInput> = async (values) => {
-		login(values);
-	};
+	// const onSubmitHandler: SubmitHandler<LoginInput> = async (values) => {
+	// 	login(values);
+	// };
 
-	const onSubmit = handleSubmit(onSubmitHandler);
+	const onSubmit = handleSubmit(
+		async (values) => {
+			login(values);
+		},
+		(errors) => {
+			console.log('--- loginForm errors ----', errors);
+		},
+	);
 
 	const renderHead = (
 		<Stack spacing={2} sx={{ mb: 5 }}>

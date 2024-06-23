@@ -151,5 +151,12 @@ export const getGetBlogPostFunctionBackOfficeEditFormSchema = (z: CustomZod) => 
 	});
 };
 
+export const getAddSlugToPostSchema = (z: CustomZod) => {
+	return z.object({
+		slug: getSlugStringSchema(z),
+		postId: z.string(),
+	});
+};
+
 // export type CreateBlogPostInput = zod.infer<ReturnType<typeof getCreateBlogPostInputSchema>>;
 // export type UpdateBlogPostInput = zod.infer<ReturnType<typeof getUpdateBlogPostInputSchema>>;
