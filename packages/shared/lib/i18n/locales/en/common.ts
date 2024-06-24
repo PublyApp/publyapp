@@ -76,6 +76,7 @@ const commonEN = {
 	'slug-already-used': 'Slug already used by another post',
 	'slugify-current-title': 'Slugify current title',
 	'add-slug': 'Add slug',
+	'slug-added-to-post': 'Slug added to post',
 
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',

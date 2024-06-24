@@ -23,4 +23,4 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 	},
 });
 
-Parse.Cloud.define(functionName.getUserAuthData, getUserAuthDataFunction);
+Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);

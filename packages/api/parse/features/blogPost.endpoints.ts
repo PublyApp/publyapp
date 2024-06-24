@@ -8,7 +8,7 @@ import type {
 	FindBlogPostSlugFunction,
 	GetBlogPostFunction,
 	UpdateBlogPostFunction,
-} from '@/server/resources/blog/blogPost/blogPost.functions';
+} from '@/server/resources/blog/blog.functions';
 
 import BaseEndPoints, { type BaseEndPointsProps } from '../BaseEndPoints';
 
@@ -42,7 +42,7 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 
 	async findBlogPostBoTable(params: FindBlogPostFunction.BoTable.Params) {
 		const posts = await this.parseRestClient.cloudRun<FindBlogPostFunction.BoTable.Return>(
-			functionName.findBlogPostBoTable,
+			functionName.blog.findBlogPostBoTable,
 			{
 				params,
 			},
@@ -53,14 +53,14 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 
 	async findBlogPostFrontList(params: FindBlogPostFunction.FrontList.Params) {
 		const posts = await this.parseRestClient.cloudRun<FindBlogPostFunction.FrontList.Return>(
-			functionName.findBlogPostFrontList,
+			functionName.blog.findBlogPostFrontList,
 			{ params },
 		);
 		return posts;
 	}
 
 	async createBlogPost(params: CreateBlogPostFunctionParams) {
-		const post = await this.parseRestClient.cloudRun<CreateBlogPostFunction.Return>(functionName.createBlogPost, {
+		const post = await this.parseRestClient.cloudRun<CreateBlogPostFunction.Return>(functionName.blog.createBlogPost, {
 			params,
 		});
 		return post;
@@ -70,12 +70,12 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 		const post = await this.parseRestClient.cloudRun<
 			GetBlogPostFunction.BoEdit.Return,
 			GetBlogPostFunction.BoEdit.Params
-		>(functionName.getBlogPostBoEdit, { params });
+		>(functionName.blog.getBlogPostBoEdit, { params });
 		return post;
 	}
 
 	async updateBlogPost(params: UpdateBlogPostFunctionParams) {
-		const post = await this.parseRestClient.cloudRun<UpdateBlogPostFunction.Return>(functionName.updateBlogPost, {
+		const post = await this.parseRestClient.cloudRun<UpdateBlogPostFunction.Return>(functionName.blog.updateBlogPost, {
 			params,
 		});
 
@@ -83,14 +83,14 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 	}
 
 	async findBlogPostTag() {
-		const tags = await this.parseRestClient.cloudRun<any>(functionName.findBlogPostTag);
+		const tags = await this.parseRestClient.cloudRun<any>(functionName.blog.findBlogPostTag);
 		return tags;
 	}
 
 	async getBlogPostDetailFront(params: GetBlogPostFunction.FrontView.Params) {
 		// throw new Error('Method not implemented.');
 		return this.parseRestClient.cloudRun<GetBlogPostFunction.FrontView.Return, GetBlogPostFunction.FrontView.Params>(
-			functionName.getBlogPostFrontDetails,
+			functionName.blog.getBlogPostFrontDetails,
 			{ params },
 		);
 	}
@@ -99,19 +99,19 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 		return this.parseRestClient.cloudRun<
 			FindBlogPostFunction.FrontDetailsRelatedPosts.Return,
 			FindBlogPostFunction.FrontDetailsRelatedPosts.Params
-		>(functionName.findBlogPostFrontDetailsRelatedPosts, { params });
+		>(functionName.blog.findBlogPostFrontDetailsRelatedPosts, { params });
 	}
 
 	async findBlogPostSlug(params: FindBlogPostSlugFunction.Params) {
 		return this.parseRestClient.cloudRun<FindBlogPostSlugFunction.Return, FindBlogPostSlugFunction.Params>(
-			functionName.findBlogPostSlug,
+			functionName.blog.findBlogPostSlug,
 			{ params },
 		);
 	}
 
 	async addSlugToBlogPost(params: AddSlugToBlogPostFunction.Params) {
 		return this.parseRestClient.cloudRun<AddSlugToBlogPostFunction.Return, AddSlugToBlogPostFunction.Params>(
-			functionName.addSlugToBlogPost,
+			functionName.blog.addSlugToBlogPost,
 			{ params },
 		);
 	}
