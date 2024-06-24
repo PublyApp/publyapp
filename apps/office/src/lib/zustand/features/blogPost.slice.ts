@@ -51,7 +51,7 @@ const blogPostSlice = new Slice<BlogPostSliceState, typeof sliceName>({
 					let newValue: BlogPostSliceValues['currentlyEditedPost'];
 
 					if (_.isFunction(value)) {
-						newValue = value(state.blogPostSlice.currentlyEditedPost);
+						newValue = value(state.blogPostSlice.currentlyEditedPost as never);
 					} else {
 						newValue = value;
 					}
@@ -81,7 +81,7 @@ const blogPostSlice = new Slice<BlogPostSliceState, typeof sliceName>({
 					let newValue: BlogPostSliceValues['posts'];
 
 					if (_.isFunction(value)) {
-						newValue = value(state.blogPostSlice.posts);
+						newValue = value(state.blogPostSlice.posts as never);
 					} else {
 						newValue = value;
 					}

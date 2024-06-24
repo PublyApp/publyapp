@@ -11,7 +11,7 @@ import type {
 	FindBlogPostFunction,
 	FindBlogPostSlugFunction,
 	GetBlogPostFunction,
-} from '@/server/resources/blog/blogPost/blogPost.functions';
+} from '@/server/resources/blog/blog.functions';
 import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { AppFile } from '@/shared/types/db/appFile.types';
@@ -45,7 +45,7 @@ export type CreateBlogPostActionParams = CreateBlogPostFunctionParams & {
 	coverFile?: File & { preview?: string; appFileId?: string };
 };
 
-export const createBlogPostMutationKeyBase = functionName.createBlogPost;
+export const createBlogPostMutationKeyBase = functionName.blog.createBlogPost;
 
 export const createBlogPostAction = async (params: CreateBlogPostActionParams) => {
 	try {
@@ -69,7 +69,7 @@ export const createBlogPostAction = async (params: CreateBlogPostActionParams) =
 // === findBlogPost in Bo table =================
 export type FindBlogPostBoTableQueryParams = FindBlogPostFunction.BoTable.Params & { locale?: AppLocale };
 
-const findBlogPostQueryKeyBase = functionName.findBlogPostBoTable;
+const findBlogPostQueryKeyBase = functionName.blog.findBlogPostBoTable;
 
 const findBlogPostBoTableAction = async (
 	context: QueryFunctionContext<readonly [typeof findBlogPostQueryKeyBase, FindBlogPostBoTableQueryParams]>,
@@ -94,7 +94,7 @@ export const findBlogPostBoTableQuery = (params?: FindBlogPostBoTableQueryParams
 // == getBlogPost in Bo Edition form ===================
 export type GetBlogPostBoEditFormQueryParams = GetBlogPostFunction.BoEdit.Params;
 
-const getBlogPostQueryKeyBase = functionName.getBlogPostBoEdit;
+const getBlogPostQueryKeyBase = functionName.blog.getBlogPostBoEdit;
 
 const getBlogPostBoEditFormAction = async (
 	context: QueryFunctionContext<readonly [typeof getBlogPostQueryKeyBase, GetBlogPostBoEditFormQueryParams]>,
@@ -129,7 +129,7 @@ export type UpdateBlogPostActionParams = UpdateBlogPostFunctionParams & {
 	coverFile?: File & { preview?: string; appFileId?: string };
 };
 
-export const updateBlogPostMutationKeyBase = functionName.updateBlogPost;
+export const updateBlogPostMutationKeyBase = functionName.blog.updateBlogPost;
 
 export const updateBlogPostAction = async (params: UpdateBlogPostActionParams) => {
 	try {
@@ -152,7 +152,7 @@ export const updateBlogPostAction = async (params: UpdateBlogPostActionParams) =
 // == findBlogPostSlug ===============
 export type FindBlogPostSlugQueryParams = Omit<FindBlogPostSlugFunction.Params, 'page'>;
 
-const findBlogPostSlugQueryKeyBase = functionName.findBlogPostSlug;
+const findBlogPostSlugQueryKeyBase = functionName.blog.findBlogPostSlug;
 
 const findBlogPostSlugAction = async (
 	context: QueryFunctionContext<readonly [typeof findBlogPostSlugQueryKeyBase, FindBlogPostSlugQueryParams], number>,
@@ -200,7 +200,7 @@ export const findBlogPostSlugQuery = (params?: FindBlogPostSlugQueryParams) => {
 // == addSlugToBlogPost ==================
 export type AddSlugToBlogPostActionParams = AddSlugToBlogPostFunction.Params;
 
-export const addSlugToBlogPostMutationKeyBase = functionName.addSlugToBlogPost;
+export const addSlugToBlogPostMutationKeyBase = functionName.blog.addSlugToBlogPost;
 
 export const addSlugToBlogPostAction = async (params: AddSlugToBlogPostActionParams) => {
 	try {

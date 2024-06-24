@@ -36,7 +36,7 @@ export const logOutAction = async (): Promise<void> => {
 };
 
 // ---- 3 --------------------------------------------------------------------------------
-export const getUserAuthDataQueryKeyBase = functionName.getUserAuthData;
+export const getUserAuthDataQueryKeyBase = functionName.auth.getUserAuthData;
 
 export const getUserAuthDataAction = async () => {
 	try {
