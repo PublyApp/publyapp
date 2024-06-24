@@ -893,6 +893,12 @@ importers:
       parse:
         specifier: ^5.1.0
         version: 5.1.0
+      winston:
+        specifier: ^3.11.0
+        version: 3.13.0
+      winston-transport-browserconsole:
+        specifier: ^1.0.5
+        version: 1.0.5
       zod:
         specifier: ^3.22.4
         version: 3.23.8
@@ -20334,6 +20340,13 @@ packages:
       object-hash: 3.0.0
       triple-beam: 1.4.1
       winston: 3.12.0
+      winston-transport: 4.7.0
+    dev: false
+
+  /winston-transport-browserconsole@1.0.5:
+    resolution: {integrity: sha512-BFZDvknATAmsqaRY3WatB2S0eEb0ziwqBYIv+H0Fnu9oe7GnPUVQzEJC1frmLdNsfEkfnyR1PCNDBAFtZE3SuQ==}
+    dependencies:
+      winston: 3.13.0
       winston-transport: 4.7.0
     dev: false
 

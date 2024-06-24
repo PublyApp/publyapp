@@ -30,16 +30,16 @@ import RoleSchema from './resources/auth/role/role.schema';
 import SessionSchema from './resources/auth/session/session.schema';
 import UserSchema from './resources/auth/user/user.schema';
 import BlogPostSchema from './resources/blog/blogPost/blogPost.schema';
-import BlogPostSlugSchema from './resources/blog/blogPost/blogPostSlug.schema';
 import BlogPostSeriesSchema from './resources/blog/blogPostSeries/blogPostSeries.schema';
+import BlogPostSlugSchema from './resources/blog/blogPostSlug/blogPostSlug.schema';
 import AppFileSchema from './resources/file-manager/appFile/appFile.schema';
 import customApiRouter from './router/customApiRouter';
 import duration from './utils/duration';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
-// console.log(import.meta.url);
-// console.log(import.meta.filename);
-// console.log(import.meta.dirname);
+// logger.info(import.meta.url);
+// logger.info(import.meta.filename);
+// logger.log(import.meta.dirname);
 
 global.Parse = Parse;
 
