@@ -1,7 +1,7 @@
 import type { BaseAttributes } from 'parse';
 
 import type ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
-import type ParseBlogPostSlug from '@/server/resources/blog/blogPost/blogPostSlug.class';
+import type ParseBlogPostSlug from '@/server/resources/blog/blogPostSlug/blogPostSlug.class';
 import type ParseAppFile from '@/server/resources/file-manager/appFile/appFile.class';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 

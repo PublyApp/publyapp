@@ -1,5 +1,7 @@
 // import { nanoid } from 'nanoid';
 
+import type { TFunction } from 'i18next';
+
 import { roleEnum } from '@devist/shared/lib/constants';
 
 import { ADMIN_EMAILS, USE_MASTER_KEY } from '@/server/lib/constants';
@@ -41,34 +43,38 @@ const beforeSaveUser = parseTriggerEnhanced({
 	},
 });
 
-const afterSAveUser = parseTriggerEnhanced({
+const autoAssignAdminRole = async ({ user, t }: { user: Parse.User; t: TFunction }) => {
+	const email = user.getEmail();
+
+	if (!email) {
+		// Normally this should never happen because if an user has been successfully saved that means that it must have an email
+		throw new Error(t('user-has-no-email'));
+	}
+
+	const roleService = new RoleService(USE_MASTER_KEY);
+
+	if (ADMIN_EMAILS.includes(email)) {
+		const adminRole = await roleService.findRoleByCode(roleEnum.STAFF_ADMIN.code);
+
+		if (!adminRole) {
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+			throw new Error(t('item-not-found', { item: t('role') })!);
+		}
+
+		await roleService.assignRoleToUser(user, adminRole);
+	}
+};
+
+const afterSaveUser = parseTriggerEnhanced({
 	trigger: async ({ req, t }) => {
 		const user = req.object as Parse.User;
 
 		// --------------------------------------------------------------------------------------//
 		//                                auto assign admin role                                //
 		// --------------------------------------------------------------------------------------//
-		const email = user.getEmail();
-
-		if (!email) {
-			// Normally this should never happen because if an user has been successfully saved that means that it must have an email
-			throw new Error(t('user-has-no-email'));
-		}
-
-		const roleService = new RoleService(USE_MASTER_KEY);
-
-		if (ADMIN_EMAILS.includes(email)) {
-			const adminRole = await roleService.findRoleByCode(roleEnum.STAFF_ADMIN.code);
-
-			if (!adminRole) {
-				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-				throw new Error(t('item-not-found', { item: t('role') })!);
-			}
-
-			await roleService.assignRoleToUser(user, adminRole);
-		}
+		await autoAssignAdminRole({ user, t });
 	},
 });
 
 Parse.Cloud.beforeSave(Parse.User, beforeSaveUser);
-Parse.Cloud.afterSave(Parse.User, afterSAveUser);
+Parse.Cloud.afterSave(Parse.User, afterSaveUser);

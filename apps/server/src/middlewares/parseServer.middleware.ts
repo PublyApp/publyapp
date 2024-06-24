@@ -5,6 +5,7 @@ import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from
 
 import { env } from '../lib/env';
 import { expressHandler } from '../lib/express';
+// import logger from '../lib/logger';
 import { getCurrentInstallationId } from '../lib/parse/utils';
 import { getHeader, getRequestIp } from '../utils/request.utils';
 
@@ -34,9 +35,9 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 
 	const cloudInstallationId = await getCurrentInstallationId();
 
-	// console.log(req.path);
-	// console.log(installationId);
-	// console.log(cloudInstallationId);
+	// logger.info(req.path);
+	// logger.info(installationId);
+	// logger.info(cloudInstallationId);
 
 	// * when directAccess equals to false (see ParseServer options), we need to differentiate between cloud code calls to the API and client calls
 	if (installationId === cloudInstallationId) {

@@ -24,8 +24,6 @@ const MainPostContent = () => {
 	const { revalidate, state } = useRevalidator();
 	// const params = useParams();
 
-	console.log('😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫', post);
-
 	// if (!post) { // improbable + we don't handle this here, bun in the root route error boundary.
 	// 	return <h1>Post does not exist</h1>; // improbable
 	// }
@@ -35,7 +33,6 @@ const MainPostContent = () => {
 		const message = error.message || t('an-error-occurred');
 
 		if (isErrorJSON(relatedPosts)) {
-			console.log(relatedPosts.stack);
 			return (
 				<CompactContainer>
 					<Error500 error={new Error(relatedPosts.message)} />
