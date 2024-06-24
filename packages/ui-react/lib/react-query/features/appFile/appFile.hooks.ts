@@ -13,7 +13,7 @@ import {
 
 // ---- 1 --------------------------------------------------------------------------------
 
-export const findAppFileQueryKeyString = functionName.findAppFile;
+export const findAppFileQueryKeyString = functionName.fileManager.findAppFile;
 
 export const useFindAppFileSuspense = (params: FindAppFileQueryParams) => {
 	const key = [findAppFileQueryKeyString, params] as const;

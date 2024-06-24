@@ -22,11 +22,13 @@ export type CreateAppFileFolderFunctionParams = {
 
 export default class AppFileEndPoints extends BaseEndPoints {
 	async findAppFile(params: FindAppFileFunctionParams) {
-		return this.parseRestClient.cloudRun<FindAppFileFunctionReturn>(functionName.findAppFile, { params });
+		return this.parseRestClient.cloudRun<FindAppFileFunctionReturn>(functionName.fileManager.findAppFile, { params });
 	}
 
 	async createAppFileFolder(params: CreateAppFileFolderFunctionParams) {
-		return this.parseRestClient.cloudRun<CreateAppFileFunctionReturn>(functionName.createAppFileFolder, { params });
+		return this.parseRestClient.cloudRun<CreateAppFileFunctionReturn>(functionName.fileManager.createAppFileFolder, {
+			params,
+		});
 	}
 
 	async uploadSingleFile(params: { file: File; parentFolderPath?: string }, options: { restApiKey?: string } = {}) {

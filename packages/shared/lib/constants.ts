@@ -148,22 +148,28 @@ export const BO_PATH_NAMES = {
 
 export const functionName = {
 	// Users and auth
-	getUserAuthData: 'getUserAuthData',
-	// Files
-	findAppFile: 'findAppFile',
-	createAppFileFolder: 'createAppFileFolder',
+	auth: {
+		getUserAuthData: 'getUserAuthData',
+	},
 	// Blog Posts
-	createBlogPost: 'createBlogPost',
-	updateBlogPost: 'updateBlogPost',
-	getBlogPostFrontDetails: 'getBlogPostFrontDetails',
-	getBlogPostFrontDetailsRelatedPosts: 'getBlogPostFrontDetailsRelatedPosts',
-	getBlogPostBoEdit: 'getBlogPostBoEdit',
-	findBlogPostFrontList: 'findBlogPostFrontList',
-	findBlogPostBoTable: 'findBlogPostBoTable',
-	findBlogPostTag: 'findBlogPostTag',
-	findBlogPostFrontDetailsRelatedPosts: 'findBlogPostFrontDetailsRelatedPosts',
-	findBlogPostSlug: 'findBlogPostSlug',
-	addSlugToBlogPost: 'addSlugToBlogPost',
+	blog: {
+		createBlogPost: 'createBlogPost',
+		updateBlogPost: 'updateBlogPost',
+		getBlogPostFrontDetails: 'getBlogPostFrontDetails',
+		getBlogPostFrontDetailsRelatedPosts: 'getBlogPostFrontDetailsRelatedPosts',
+		getBlogPostBoEdit: 'getBlogPostBoEdit',
+		findBlogPostFrontList: 'findBlogPostFrontList',
+		findBlogPostBoTable: 'findBlogPostBoTable',
+		// findBlogPostTag: 'findBlogPostTag',
+		findBlogPostFrontDetailsRelatedPosts: 'findBlogPostFrontDetailsRelatedPosts',
+		findBlogPostSlug: 'findBlogPostSlug',
+		addSlugToBlogPost: 'addSlugToBlogPost',
+	},
+	fileManager: {
+		// Files
+		findAppFile: 'findAppFile',
+		createAppFileFolder: 'createAppFileFolder',
+	},
 } as const;
 
 export const endPoint = {

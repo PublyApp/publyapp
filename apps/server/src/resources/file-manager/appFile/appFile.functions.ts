@@ -50,5 +50,5 @@ const createAppFileFolderFunction = parseFunctionEnhanced({
 	},
 });
 
-Parse.Cloud.define(functionName.createAppFileFolder, createAppFileFolderFunction);
-Parse.Cloud.define(functionName.findAppFile, findAppFileFunction);
+Parse.Cloud.define(functionName.fileManager.createAppFileFolder, createAppFileFolderFunction);
+Parse.Cloud.define(functionName.fileManager.findAppFile, findAppFileFunction);

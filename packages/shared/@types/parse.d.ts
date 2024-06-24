@@ -1,15 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import type { PipelineStage } from 'mongoose';
+
+import type { AppLocale } from '../lib/i18n/resources';
+import type { DateType } from '../types/date.types';
 
 export {};
 
 declare global {
 	declare namespace Parse {
-		import type { PipelineStage } from 'mongoose';
-
-		import type { AppLocale } from '../lib/i18n/resources';
-		import type { DateType } from '../types/date.types';
-
 		interface BaseAttributes {
 			objectId: string;
 			createdAt?: DateType;

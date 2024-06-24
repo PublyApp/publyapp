@@ -12,7 +12,7 @@ import {
 
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
 import UserService from '@/server/resources/auth/user/user.service';
-import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
+// import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
 import BlogPostService from '@/server/resources/blog/blogPost/blogPost.service';
 import FileService from '@/server/resources/file-manager/file/file.service';
 import type { IBlogPostSlugWithRelations } from '@/shared/types/db/blogPostSlug.types';
@@ -247,21 +247,21 @@ const findPostFunctionFrontList = parseFunctionEnhanced({
 	},
 });
 
-const findBlogPostTag = parseFunctionEnhanced({
-	action: async (/* { locale, req, t, user } */) => {
-		const pipeline: Parse.PipelineStage[] = [
-			{ $unwind: '$tags' },
-			{ $group: { _id: '$tags', postsCount: { $sum: 1 } } },
-			{ $project: { _id: 0, tag: '$_id', postsCount: '$postsCount' } },
-		];
+// const findBlogPostTag = parseFunctionEnhanced({
+// 	action: async (/* { locale, req, t, user } */) => {
+// 		const pipeline: Parse.PipelineStage[] = [
+// 			{ $unwind: '$tags' },
+// 			{ $group: { _id: '$tags', postsCount: { $sum: 1 } } },
+// 			{ $project: { _id: 0, tag: '$_id', postsCount: '$postsCount' } },
+// 		];
 
-		const query = new Parse.Query(ParseBlogPost);
+// 		const query = new Parse.Query(ParseBlogPost);
 
-		// { tag: string, postsCount: number }[]
-		const results = await query.aggregate(pipeline);
-		return results;
-	},
-});
+// 		// { tag: string, postsCount: number }[]
+// 		const results = await query.aggregate(pipeline);
+// 		return results;
+// 	},
+// });
 
 export namespace FindBlogPostSlugFunction {
 	export type Params = FunctionParams<typeof findBlogPostSlug>;
@@ -336,17 +336,17 @@ const addSlugToBlogPost = parseFunctionEnhanced({
 	},
 });
 
-Parse.Cloud.define(functionName.createBlogPost, createBlogPostFunction);
-Parse.Cloud.define(functionName.updateBlogPost, updateBlogPostFunction);
-Parse.Cloud.define(functionName.findBlogPostTag, findBlogPostTag);
+Parse.Cloud.define(functionName.blog.createBlogPost, createBlogPostFunction);
+Parse.Cloud.define(functionName.blog.updateBlogPost, updateBlogPostFunction);
+// Parse.Cloud.define(functionName.blog.findBlogPostTag, findBlogPostTag);
 
-Parse.Cloud.define(functionName.findBlogPostBoTable, findPostFunctionBoTable);
-Parse.Cloud.define(functionName.findBlogPostFrontList, findPostFunctionFrontList);
-Parse.Cloud.define(functionName.findBlogPostFrontDetailsRelatedPosts, finBlogPostFrontDetailsRelatedPosts);
+Parse.Cloud.define(functionName.blog.findBlogPostBoTable, findPostFunctionBoTable);
+Parse.Cloud.define(functionName.blog.findBlogPostFrontList, findPostFunctionFrontList);
+Parse.Cloud.define(functionName.blog.findBlogPostFrontDetailsRelatedPosts, finBlogPostFrontDetailsRelatedPosts);
 
-Parse.Cloud.define(functionName.getBlogPostFrontDetails, getBlogPostFunctionFrontDetailsView);
-Parse.Cloud.define(functionName.getBlogPostBoEdit, getBlogPostFunctionBoEditForm);
+Parse.Cloud.define(functionName.blog.getBlogPostFrontDetails, getBlogPostFunctionFrontDetailsView);
+Parse.Cloud.define(functionName.blog.getBlogPostBoEdit, getBlogPostFunctionBoEditForm);
 
-Parse.Cloud.define(functionName.findBlogPostSlug, findBlogPostSlug);
-Parse.Cloud.define(functionName.addSlugToBlogPost, addSlugToBlogPost);
-// Parse.Cloud.define(functionName.updateBloPostCurrentSlug, updateBloPostCurrentSlug);
+Parse.Cloud.define(functionName.blog.findBlogPostSlug, findBlogPostSlug);
+Parse.Cloud.define(functionName.blog.addSlugToBlogPost, addSlugToBlogPost);
+// Parse.Cloud.define(functionName.blog.updateBloPostCurrentSlug, updateBloPostCurrentSlug);
