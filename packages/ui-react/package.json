@@ -22,7 +22,7 @@
 		"eslint-config-custom-common-react": "workspace:*",
 		"eslint-config-custom-react": "workspace:*",
 		"tsconfig": "workspace:*",
-		"typescript": "^5.3.3"
+		"typescript": "^5.5.2"
 	},
 	"dependencies": {
 		"@devist/api": "workspace:*",
@@ -33,13 +33,13 @@
 		"@emotion/styled": "^11.11.0",
 		"@iconify/react": "^4.1.1",
 		"@mdxeditor/editor": "^3.0.8",
-		"@mui/icons-material": "^5.15.11",
+		"@mui/icons-material": "^5.15.20",
 		"@mui/lab": "5.0.0-alpha.160",
-		"@mui/material": "^5.15.11",
-		"@mui/system": "^5.15.11",
-		"@mui/x-data-grid": "^6.19.6",
-		"@mui/x-date-pickers": "^6.19.6",
-		"@tanstack/react-query": "^5.24.1",
+		"@mui/material": "^5.15.20",
+		"@mui/system": "^5.15.20",
+		"@mui/x-data-grid": "^6.20.1",
+		"@mui/x-date-pickers": "^6.20.2",
+		"@tanstack/react-query": "^5.45.1",
 		"@tanstack/react-table": "^8.13.2",
 		"@types/lodash": "^4.14.202",
 		"@yoopta/editor": "^2.0.1",

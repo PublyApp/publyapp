@@ -12,7 +12,7 @@
 		"eslint-config-airbnb-typescript": "^17.1.0",
 		"eslint-config-custom-base": "workspace:*",
 		"eslint-config-custom-common-react": "workspace:*",
-		"eslint-config-next": "^14.0.4",
+		"eslint-config-next": "^14.2.4",
 		"eslint-plugin-react": "7.33.2"
 	},
 	"dependencies": {
