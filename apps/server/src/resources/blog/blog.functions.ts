@@ -18,7 +18,8 @@ import FileService from '@/server/resources/file-manager/file/file.service';
 import type { IBlogPostSlugWithRelations } from '@/shared/types/db/blogPostSlug.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 
-import ParseBlogPostSlug from './blogPostSlug.class';
+import ParseBlogPostSlug from './blogPostSlug/blogPostSlug.class';
+import BlogPostSlugService from './blogPostSlug/blogPostSlug.service';
 
 export namespace CreateBlogPostFunction {
 	export type Params = FunctionReturn<typeof createBlogPostFunction>;
@@ -38,6 +39,7 @@ const createBlogPostFunction = parseFunctionEnhanced({
 		const sessionToken = user.getSessionToken();
 
 		const postService = new BlogPostService({ sessionToken });
+		const slugService = new BlogPostSlugService({ sessionToken });
 		const fileService = new FileService({ sessionToken, uploadAdapter: FileService.defaultUploadAdapter });
 		const userService = new UserService({ sessionToken });
 
@@ -45,7 +47,7 @@ const createBlogPostFunction = parseFunctionEnhanced({
 		const authorPromise = userService.getById(authorId || '', { select: [] });
 
 		// const findPostWithSameSlugPromise = postService.getBySlug(input.slug, { select: [] });
-		const foundSlug = await postService.getSlugObject(input.slug);
+		const foundSlug = await slugService.getSlugObject(input.slug);
 
 		if (foundSlug) {
 			throw new Error(t('slug-already-used'));
@@ -58,14 +60,14 @@ const createBlogPostFunction = parseFunctionEnhanced({
 		});
 
 		const newSlug = new ParseBlogPostSlug({ slug: input.slug });
-		const slug = await postService.assignSlugToPost({ post, slug: newSlug });
+		const slug = await slugService.assignSlugToPost({ post, slug: newSlug });
 
 		// post.set('currentSlug', slug);
 		// _.assign(post.attributes, { currentSlug: slug }); // otherwise the object will be converted into a pointer
 
 		const finalPost = BlogPostService.toJSON(post);
 
-		_.set(finalPost, 'currentSlug', BlogPostService.slugToJSON(slug));
+		_.set(finalPost, 'currentSlug', BlogPostSlugService.toJSON(slug));
 
 		return finalPost;
 	},
@@ -89,6 +91,7 @@ const updateBlogPostFunction = parseFunctionEnhanced({
 		const sessionToken = user.getSessionToken();
 
 		const postService = new BlogPostService({ sessionToken });
+		const slugService = new BlogPostSlugService({ sessionToken });
 		const userService = new UserService({ sessionToken });
 		const fileService = new FileService({ sessionToken, uploadAdapter: FileService.defaultUploadAdapter });
 
@@ -103,7 +106,7 @@ const updateBlogPostFunction = parseFunctionEnhanced({
 		}
 
 		if (slug) {
-			const slugObject = await postService.getOrCreateSlugForPost(slug, post, { setIsCurrent: true });
+			const slugObject = await slugService.getOrCreateSlugForPost(slug, post, { setIsCurrent: true });
 
 			if (slugObject === 'E_SLUG_ALREADY_USED') {
 				throw new Error(t('slug-already-used'));
@@ -311,8 +314,9 @@ const addSlugToBlogPost = parseFunctionEnhanced({
 		const sessionToken = user.getSessionToken();
 
 		const postService = new BlogPostService({ sessionToken });
+		const slugService = new BlogPostSlugService({ sessionToken });
 
-		const slugObject = await postService.getSlugObject(slug);
+		const slugObject = await slugService.getSlugObject(slug);
 
 		if (slugObject) {
 			throw new Error(t('slug-already-used'));
@@ -325,9 +329,9 @@ const addSlugToBlogPost = parseFunctionEnhanced({
 		}
 
 		const newSlug = new ParseBlogPostSlug({ slug });
-		const savedSlug = await postService.assignSlugToPost({ post, slug: newSlug });
+		const savedSlug = await slugService.assignSlugToPost({ post, slug: newSlug });
 
-		const finalSlug = BlogPostService.slugToJSON(savedSlug);
+		const finalSlug = BlogPostSlugService.toJSON(savedSlug);
 		return finalSlug as IBlogPostSlugWithRelations;
 	},
 });

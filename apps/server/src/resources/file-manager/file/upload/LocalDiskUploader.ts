@@ -3,7 +3,6 @@ import path from 'path';
 import sharp from 'sharp';
 
 import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
-import { env } from '@/server/lib/env';
 import { fileProvider } from '@/shared/lib/constants';
 
 import type Uploader from './Uploader.interface';
@@ -17,9 +16,11 @@ export default class LocalDiskUploader implements Uploader {
 		await sharp(params.buffer).toFile(path.join(FILE_UPLOAD_DESTINATION, params.name));
 
 		return {
-			// TODO: remove express mount path when saving
+			// ! remember to:
 			// form the correct path in the server and not on the client when getting an AppFile
-			url: path.posix.join(env.EXPRESS_FILES_MOUNT_PATH, params.name),
+			// I intentionally removed express mount pth from there
+			// ? To avoid confusion, It is better to use external services like cloudinary instead of using local disk
+			url: path.posix.join('/', params.name),
 		};
 	}
 }
