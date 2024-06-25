@@ -1,8 +1,8 @@
 import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
 
-import AppFileEndPoints from './features/appFile.endpoints';
-import BlogPostEndPoints from './features/blogPost.endpoints';
-import UserEndPoints from './features/user.endpoints';
+import AuthEndPoints from './features/auth/auth.endpoints';
+import BlogEndPoints from './features/blog/blog.endpoints';
+import FileManagerEndPoints from './features/file-manager/fileManager.endpoints';
 
 const defaultProps = {
 	apiPath: '/api',
@@ -11,11 +11,11 @@ const defaultProps = {
 export class ParseApi {
 	private _parseRestClient!: ParseRestClient;
 
-	private _blogPosts!: BlogPostEndPoints;
+	private _blog!: BlogEndPoints;
 
-	private _users!: UserEndPoints;
+	private _auth!: AuthEndPoints;
 
-	private _appFiles!: AppFileEndPoints;
+	private _fileManager!: FileManagerEndPoints;
 
 	public apiPath: string;
 
@@ -40,9 +40,9 @@ export class ParseApi {
 		this._parseRestClient = parseRestClient;
 
 		// endpoints
-		this._users = new UserEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
-		this._blogPosts = new BlogPostEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
-		this._appFiles = new AppFileEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
+		this._auth = new AuthEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
+		this._blog = new BlogEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
+		this._fileManager = new FileManagerEndPoints({ parseRestClient: this._parseRestClient, apiPath: this.apiPath });
 	}
 
 	public get parseRestClient() {
@@ -50,19 +50,19 @@ export class ParseApi {
 		return this._parseRestClient;
 	}
 
-	public get users() {
+	public get auth() {
 		this.checkClient();
-		return this._users;
+		return this._auth;
 	}
 
-	public get blogPosts() {
+	public get blog() {
 		this.checkClient();
-		return this._blogPosts;
+		return this._blog;
 	}
 
-	public get appFiles() {
+	public get fileManager() {
 		this.checkClient();
-		return this._appFiles;
+		return this._fileManager;
 	}
 }
 

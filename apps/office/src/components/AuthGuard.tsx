@@ -1,8 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 
-import { /*  Navigate, */ Outlet /* , useLocation */ } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 
-// import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 import { useGetClientAuthSuspenseQuery } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
 
 import type { IRoleConfig } from '@/shared/lib/constants';
