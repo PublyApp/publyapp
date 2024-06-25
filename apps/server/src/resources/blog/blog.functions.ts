@@ -14,7 +14,7 @@ import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from 
 import UserService from '@/server/resources/auth/user/user.service';
 // import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
 import BlogPostService from '@/server/resources/blog/blogPost/blogPost.service';
-import FileService from '@/server/resources/file-manager/file/file.service';
+import AppFileService from '@/server/resources/file-manager/appFile/appFile.service';
 import type { IBlogPostSlugWithRelations } from '@/shared/types/db/blogPostSlug.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 
@@ -40,7 +40,7 @@ const createBlogPostFunction = parseFunctionEnhanced({
 
 		const postService = new BlogPostService({ sessionToken });
 		const slugService = new BlogPostSlugService({ sessionToken });
-		const fileService = new FileService({ sessionToken, uploadAdapter: FileService.defaultUploadAdapter });
+		const fileService = new AppFileService({ sessionToken, uploadAdapter: AppFileService.defaultUploadAdapter });
 		const userService = new UserService({ sessionToken });
 
 		const coverPromise = fileService.getById(coverId || '', { select: [] });
@@ -93,7 +93,7 @@ const updateBlogPostFunction = parseFunctionEnhanced({
 		const postService = new BlogPostService({ sessionToken });
 		const slugService = new BlogPostSlugService({ sessionToken });
 		const userService = new UserService({ sessionToken });
-		const fileService = new FileService({ sessionToken, uploadAdapter: FileService.defaultUploadAdapter });
+		const fileService = new AppFileService({ sessionToken, uploadAdapter: AppFileService.defaultUploadAdapter });
 
 		const postPromise = postService.getById(objectId, { select: ['author', 'translation'] });
 		const authorPromise = userService.getById(authorId || '', { select: [] });

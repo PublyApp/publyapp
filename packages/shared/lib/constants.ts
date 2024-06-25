@@ -172,6 +172,12 @@ export const functionName = {
 	},
 } as const;
 
+export const jobName = {
+	blog: {
+		collectBlogPostTags: 'collectBlogPostTags',
+	},
+} as const;
+
 export const endPoint = {
 	facebookMessengerBotWebHook: '/facebook-messenger-bot-webhook',
 	// =======

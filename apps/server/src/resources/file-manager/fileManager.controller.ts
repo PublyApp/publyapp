@@ -2,11 +2,11 @@ import { getMulterFilesArraySchema } from '@devist/shared/validations/file/file.
 
 import { HttpException } from '@/server/exceptions/HttpException';
 import { expressHandler } from '@/server/lib/express';
-import FileService from '@/server/resources/file-manager/file/file.service';
+import AppFileService from '@/server/resources/file-manager/appFile/appFile.service';
 import { getRequestUtils } from '@/server/utils/request.utils';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 
-import FolderService from '../folder/folder.service';
+import AppFileFolderService from './appFileFolder/appFileFolder.service';
 
 export const handleUploadSingleFile = expressHandler(async (req, res) => {
 	if (!req.file) {
@@ -18,10 +18,10 @@ export const handleUploadSingleFile = expressHandler(async (req, res) => {
 	// const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
 	const sessionToken = req.user?.getSessionToken();
 
-	const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;
+	const uploadAdapter = AppFileService.uploadAdapterMap.get(provider) || AppFileService.defaultUploadAdapter;
 
-	const folderService = new FolderService({ sessionToken });
-	const fileService = new FileService({ sessionToken, uploadAdapter });
+	const folderService = new AppFileFolderService({ sessionToken });
+	const fileService = new AppFileService({ sessionToken, uploadAdapter });
 
 	const parentFolder = await folderService.getByPath(parentFolderPath);
 
@@ -44,10 +44,10 @@ export const handleUploadManyFiles = expressHandler(async (req, res) => {
 	// const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
 	const sessionToken = req.user?.getSessionToken();
 
-	const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;
+	const uploadAdapter = AppFileService.uploadAdapterMap.get(provider) || AppFileService.defaultUploadAdapter;
 
-	const folderService = new FolderService({ sessionToken });
-	const fileService = new FileService({ sessionToken, uploadAdapter });
+	const folderService = new AppFileFolderService({ sessionToken });
+	const fileService = new AppFileService({ sessionToken, uploadAdapter });
 
 	const parentFolder = await folderService.getByPath(parentFolderPath);
 
