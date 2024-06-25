@@ -3,7 +3,7 @@ import type { QueryFunctionContext } from '@tanstack/react-query';
 import type {
 	CreateAppFileFolderFunctionParams,
 	FindAppFileFunctionParams,
-} from '@devist/api/parse/features/appFile.endpoints';
+} from '@devist/api/parse/features/file-manager/fileManager.endpoints';
 import parseApi from '@devist/api/parse/ParseApi';
 import { type functionName } from '@devist/shared/lib/constants';
 
@@ -14,12 +14,12 @@ import type { AppFile } from '@/shared/types/db/appFile.types';
 export type FindAppFileQueryParams = FindAppFileFunctionParams;
 
 export const findAppFileAction = async (
-	context: QueryFunctionContext<readonly [typeof functionName.findAppFile, FindAppFileQueryParams]>,
+	context: QueryFunctionContext<readonly [typeof functionName.fileManager.findAppFile, FindAppFileQueryParams]>,
 ) => {
 	try {
 		const params = context.queryKey[1];
 
-		const result = await parseApi.appFiles.findAppFile(params);
+		const result = await parseApi.fileManager.findAppFile(params);
 
 		return result;
 	} catch (error) {
@@ -30,7 +30,7 @@ export const findAppFileAction = async (
 
 export const uploadSingleFileAction = async (params: { file: File }) => {
 	try {
-		return await parseApi.appFiles.uploadSingleFile(params);
+		return await parseApi.fileManager.uploadSingleFile(params);
 	} catch (error) {
 		console.log('----- uploadSingleFileAction error ----------', error);
 		return Promise.reject(error);
@@ -47,7 +47,7 @@ export type UploadManyFilesActionParams = {
 
 export const uploadManyFilesAction = async (params: UploadManyFilesActionParams) => {
 	try {
-		const result = parseApi.appFiles.uploadManyFiles(
+		const result = parseApi.fileManager.uploadManyFiles(
 			{ files: params.files || [], parentFolderPath: params.parentFolderPath },
 			{ restApiKey: params.restApiKey },
 		);
@@ -73,7 +73,7 @@ export const createAppFileFolderAction = async ({
 	restApiKey,
 }: CreateAppFileFolderActionParams) => {
 	try {
-		const appFileFolder = await parseApi.appFiles.createAppFileFolder({ folderName, parentFolderPath });
+		const appFileFolder = await parseApi.fileManager.createAppFileFolder({ folderName, parentFolderPath });
 
 		let appFiles: AppFile[] = [];
 

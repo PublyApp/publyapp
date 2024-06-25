@@ -5,7 +5,7 @@ import { expect } from 'chai';
 import ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
 import { className } from '@devist/shared/lib/constants';
 
-import { ParseApi } from '../ParseApi';
+import { ParseApi } from '../../ParseApi';
 
 const parseRestClient = new ParseRestClient({
 	applicationId: 'myAppId',
@@ -20,14 +20,14 @@ let myPostId: string;
 describe('Post endpoints', async () => {
 	before(async () => {
 		// login with that user
-		await parseApi.users.passwordLogin({ username: 'radandevist', password: 'azerty' });
+		await parseApi.auth.passwordLogin({ username: 'radandevist', password: 'azerty' });
 	});
 	// after(async () => {
 	// 	// delete the mock user
 	// });
 
 	await it('should create a post', async () => {
-		const post = await parseApi.blogPosts.createBlogPost({
+		const post = await parseApi.blog.createBlogPost({
 			content: 'content',
 			description: 'description',
 			locale: 'en',
@@ -47,7 +47,7 @@ describe('Post endpoints', async () => {
 
 	it('should return a post', async () => {
 		// assert.equal(1, 1);
-		const post = await parseApi.blogPosts.getBlogPostBoEditForm({ id: myPostId });
+		const post = await parseApi.blog.getBlogPostBoEditForm({ id: myPostId });
 
 		expect(post).to.be.an('object');
 		expect(post).to.have.property('objectId');

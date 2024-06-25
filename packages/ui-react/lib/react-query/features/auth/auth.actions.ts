@@ -11,7 +11,7 @@ export const loginAction = async (input: LoginInput) => {
 	try {
 		const { email, password } = input;
 
-		const user = await parseApi.users.passwordLogin({ username: email, password });
+		const user = await parseApi.auth.passwordLogin({ username: email, password });
 
 		return user;
 	} catch (error) {
@@ -40,7 +40,7 @@ export const getUserAuthDataQueryKeyBase = functionName.auth.getUserAuthData;
 
 export const getUserAuthDataAction = async () => {
 	try {
-		const authData = await parseApi.users.getUserAuthData();
+		const authData = await parseApi.auth.getUserAuthData();
 
 		return authData;
 	} catch (error) {
@@ -67,7 +67,7 @@ export const getUserAuthDataQuery = queryOptions({
 // ---- 4 --------------------------------------------------------------------------------
 export const verifyEmailAction = async ({ email }: VerifyEmailInput) => {
 	try {
-		return await parseApi.users.verificationEmailRequest({ email });
+		return await parseApi.auth.verificationEmailRequest({ email });
 	} catch (error) {
 		console.log('----- verifyEmailAction error ----------', error);
 		return Promise.reject(error);
