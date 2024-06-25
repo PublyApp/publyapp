@@ -65,7 +65,7 @@ const MainPostContent = () => {
 
 		if (post.status === 'E_NOT_TRANSLATED') {
 			message = t('item-not-translated-short', { item: t('post') });
-			const oppositeLocale = locale === 'en' ? 'fr' : 'en';
+			const oppositeLocale = locale === 'en' ? 'fr' : 'en'; // ! opposite locale makes sense for now because we supports only two languages for now
 			const otherLanguage = (() => {
 				if (oppositeLocale === 'en') {
 					return 'Anglaise';

@@ -3,7 +3,7 @@ import { infiniteQueryOptions, queryOptions, type QueryFunctionContext } from '@
 import type {
 	CreateBlogPostFunctionParams,
 	UpdateBlogPostFunctionParams,
-} from '@devist/api/parse/features/blogPost.endpoints';
+} from '@devist/api/parse/features/blog/blog.endpoints';
 import parseApi from '@devist/api/parse/ParseApi';
 
 import type {
@@ -54,11 +54,11 @@ export const createBlogPostAction = async (params: CreateBlogPostActionParams) =
 		let uploadResult: AppFile | undefined;
 
 		if (coverFile && !coverFile.appFileId) {
-			uploadResult = await parseApi.appFiles.uploadSingleFile({ file: coverFile });
+			uploadResult = await parseApi.fileManager.uploadSingleFile({ file: coverFile });
 			// Object.assign(coverFile, { appFileId: uploadResult.objectId });
 		}
 
-		const post = await parseApi.blogPosts.createBlogPost({ ...restParams, coverId: uploadResult?.objectId });
+		const post = await parseApi.blog.createBlogPost({ ...restParams, coverId: uploadResult?.objectId });
 		return post;
 	} catch (error) {
 		console.log('----- createBlogPostAction error ----------', error);
@@ -76,7 +76,7 @@ const findBlogPostBoTableAction = async (
 ) => {
 	try {
 		const params = context.queryKey[1];
-		const posts = parseApi.blogPosts.findBlogPostBoTable(params);
+		const posts = parseApi.blog.findBlogPostBoTable(params);
 		return await posts;
 	} catch (error) {
 		console.log('----- findBlogPostBoTableAction error ----------', error);
@@ -103,7 +103,7 @@ const getBlogPostBoEditFormAction = async (
 		const params = context.queryKey[1];
 
 		// const post = await runGetBlogPostById(params);
-		const post = await parseApi.blogPosts.getBlogPostBoEditForm(params);
+		const post = await parseApi.blog.getBlogPostBoEditForm(params);
 
 		const coverFile = await getCoverFile(post);
 
@@ -138,10 +138,10 @@ export const updateBlogPostAction = async (params: UpdateBlogPostActionParams) =
 		let uploadResult: AppFile | undefined;
 
 		if (coverFile && !coverFile.appFileId) {
-			uploadResult = await parseApi.appFiles.uploadSingleFile({ file: coverFile });
+			uploadResult = await parseApi.fileManager.uploadSingleFile({ file: coverFile });
 		}
 
-		const post = await parseApi.blogPosts.updateBlogPost({ ...restParams, coverId: uploadResult?.objectId });
+		const post = await parseApi.blog.updateBlogPost({ ...restParams, coverId: uploadResult?.objectId });
 		return post;
 	} catch (error) {
 		console.log('----- updateBlogPostAction error ----------', error);
@@ -162,7 +162,7 @@ const findBlogPostSlugAction = async (
 		const params = context.queryKey[1];
 
 		// const post = await runGetBlogPostById(params);
-		const slugs = await parseApi.blogPosts.findBlogPostSlug({ ...params, page: pageParam });
+		const slugs = await parseApi.blog.findBlogPostSlug({ ...params, page: pageParam });
 
 		return slugs;
 	} catch (error) {
@@ -204,7 +204,7 @@ export const addSlugToBlogPostMutationKeyBase = functionName.blog.addSlugToBlogP
 
 export const addSlugToBlogPostAction = async (params: AddSlugToBlogPostActionParams) => {
 	try {
-		const post = await parseApi.blogPosts.addSlugToBlogPost(params);
+		const post = await parseApi.blog.addSlugToBlogPost(params);
 		return post;
 	} catch (error) {
 		console.log('----- addSlugToBlogPostAction error ----------', error);

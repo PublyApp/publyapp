@@ -9,8 +9,8 @@ import { safelyRunInLoader } from '../lib/remix/safelyRun';
 export const loader = getServerLoader(async ({ params, parseApi }) => {
 	const slug = _.toString(params.slug);
 
-	const postPromise = safelyRunInLoader(parseApi.blogPosts.getBlogPostDetailFront)({ slug });
-	const relatedPostsPromise = safelyRunInLoader(parseApi.blogPosts.getRelatedBlogPostsFrontDetails)({ slug });
+	const postPromise = safelyRunInLoader(parseApi.blog.getBlogPostDetailFront)({ slug });
+	const relatedPostsPromise = safelyRunInLoader(parseApi.blog.getRelatedBlogPostsFrontDetails)({ slug });
 
 	const [post, relatedPosts] = await Promise.all([postPromise, relatedPostsPromise]);
 

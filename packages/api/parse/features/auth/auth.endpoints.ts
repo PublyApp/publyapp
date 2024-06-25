@@ -6,9 +6,9 @@ import type { GetUserAuthDataFunction } from '@/server/resources/auth/auth.funct
 import { defaultHttp, getProtectionHeaders } from '@/shared/lib/axios';
 import { endPoint, functionName, LOCALE_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
-import BaseEndPoints from '../BaseEndPoints';
+import BaseEndPoints from '../../BaseEndPoints';
 
-export default class UserEndPoints extends BaseEndPoints {
+export default class AuthEndPoints extends BaseEndPoints {
 	// constructor({ parseRestClient, apiPath}: BaseEndPointsProps) {}
 
 	getUserAuthData = async () => {

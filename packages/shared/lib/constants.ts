@@ -160,7 +160,7 @@ export const functionName = {
 		getBlogPostBoEdit: 'getBlogPostBoEdit',
 		findBlogPostFrontList: 'findBlogPostFrontList',
 		findBlogPostBoTable: 'findBlogPostBoTable',
-		// findBlogPostTag: 'findBlogPostTag',
+		findBlogPostTag: 'findBlogPostTag',
 		findBlogPostFrontDetailsRelatedPosts: 'findBlogPostFrontDetailsRelatedPosts',
 		findBlogPostSlug: 'findBlogPostSlug',
 		addSlugToBlogPost: 'addSlugToBlogPost',

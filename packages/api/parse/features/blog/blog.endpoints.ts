@@ -10,7 +10,7 @@ import type {
 	UpdateBlogPostFunction,
 } from '@/server/resources/blog/blog.functions';
 
-import BaseEndPoints, { type BaseEndPointsProps } from '../BaseEndPoints';
+import BaseEndPoints, { type BaseEndPointsProps } from '../../BaseEndPoints';
 
 // == create post
 export type CreateBlogPostFunctionParams = {
