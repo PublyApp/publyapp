@@ -14,7 +14,7 @@ import { getRequestIp, getRequestUtils } from '@/server/utils/request.utils';
 import { defaultHttp } from '@/shared/lib/axios';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 
-import { AuthCloudService } from '../auth.cloud.service';
+import { AuthCloudService } from './auth.cloud.service';
 
 export const handlePasswordLogin = expressHandler(async (req, res) => {
 	try {

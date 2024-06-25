@@ -1,8 +1,8 @@
 import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 
 import { parseFunctionEnhanced, type FunctionReturn } from '@/server/lib/parse/utils';
-import FileService from '@/server/resources/file-manager/file/file.service';
-import FolderService from '@/server/resources/file-manager/folder/folder.service';
+import AppFileService from '@/server/resources/file-manager/appFile/appFile.service';
+import AppFileFolderService from '@/server/resources/file-manager/appFileFolder/appFileFolder.service';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 import { getMulterCreateFolderSchema } from '@/shared/validations/file/file.validations.server';
 
@@ -14,11 +14,11 @@ const findAppFileFunction = parseFunctionEnhanced({
 
 		const sessionToken = user?.getSessionToken();
 
-		const folderService = new FolderService({ sessionToken });
+		const folderService = new AppFileFolderService({ sessionToken });
 
 		const parentFolder = await folderService.getByPath(folderPath);
 
-		const fileService = new FileService({ sessionToken, uploadAdapter: FileService.defaultUploadAdapter });
+		const fileService = new AppFileService({ sessionToken, uploadAdapter: AppFileService.defaultUploadAdapter });
 
 		return fileService.listFiles({
 			pageSize: pageSize || DEFAULT_PAGE_SIZE,
@@ -39,7 +39,7 @@ const createAppFileFolderFunction = parseFunctionEnhanced({
 
 		const sessionToken = user.getSessionToken();
 
-		const folderService = new FolderService({ sessionToken });
+		const folderService = new AppFileFolderService({ sessionToken });
 
 		const parentFolder = await folderService.getByPath(parentFolderPath);
 
