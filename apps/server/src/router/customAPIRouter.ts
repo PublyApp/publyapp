@@ -5,8 +5,8 @@ import { endPoint } from '@/shared/lib/constants';
 import { apiEndPoint } from '../lib/constants';
 import { multerConfig } from '../lib/multer';
 import protectionMiddleware from '../middlewares/protection.middleware';
-import { handlePasswordLogin, handlePasswordSignup, handleVerifyEmail } from '../resources/auth/user/user.controller';
-import { handleUploadManyFiles, handleUploadSingleFile } from '../resources/file-manager/file/file.controller';
+import { handlePasswordLogin, handlePasswordSignup, handleVerifyEmail } from '../resources/auth/auth.controller';
+import { handleUploadManyFiles, handleUploadSingleFile } from '../resources/file-manager/fileManager.controller';
 import {
 	handleVerification,
 	handleWebHook,

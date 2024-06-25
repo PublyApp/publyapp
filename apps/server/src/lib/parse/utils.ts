@@ -25,14 +25,20 @@ export const getParseFunctionHeader = (
 	return req.headers?.[key] || req.headers?.[_.toLower(key)];
 };
 
-type ParseTrigger<T = unknown> = (req: Parse.Cloud.TriggerRequest) => Promise<T>;
 type ParseFunction<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
 	req: Parse.Cloud.FunctionRequest<P>,
 ) => Promise<T>;
 
+type ParseTrigger<T = unknown> = (req: Parse.Cloud.TriggerRequest) => Promise<T>;
+
+type ParseJob<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
+	req: Parse.Cloud.JobRequest<P>,
+) => Promise<T>;
+
 type ParseInnerFunction<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> =
 	| ParseFunction<P, T>
-	| ParseTrigger<T>;
+	| ParseTrigger<T>
+	| ParseJob<P, T>;
 // interface ParseInnerFunction<T = unknown> {
 // 	(req: Parse.Cloud.TriggerRequest): Promise<T>;
 // 	(req: Parse.Cloud.FunctionRequest): Promise<T>;
@@ -43,6 +49,7 @@ type CloudFunction = {
 		innerFunction: ParseFunction<P, T>,
 	): ParseFunction<P, T>;
 	<T = unknown>(innerFunction: ParseTrigger<T>): ParseTrigger<T>;
+	<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(innerFunction: ParseJob<P, T>): ParseJob<P, T>;
 };
 
 const isTriggerRequest = (
@@ -101,7 +108,9 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 	// 	return wrappedFunction();
 	// };
 
-	return async (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest<P>): Promise<T> => {
+	return async (
+		req: Parse.Cloud.FunctionRequest<P> | Parse.Cloud.TriggerRequest | Parse.Cloud.JobRequest<P>,
+	): Promise<T> => {
 		try {
 			const result = await innerFunction(req as never);
 			return result;
@@ -446,6 +455,12 @@ export const reOrderObjects = <T extends Parse.Object = Parse.Object>(ids: strin
 	});
 
 	return orderedObjects;
+};
+
+export const parseJob = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+	innerFunction: ParseJob<P, T>,
+) => {
+	return cloudFunction<P, T>(innerFunction);
 };
 
 export const getInternalConfig = () => {

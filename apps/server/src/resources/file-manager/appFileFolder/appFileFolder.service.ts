@@ -12,7 +12,7 @@ type CreateFolderInput = {
 	parentFolder?: ParseAppFile;
 };
 
-export default class FolderService {
+export default class AppFileFolderService {
 	sessionToken?: string;
 
 	constructor({ sessionToken }: FolderServiceProps) {
@@ -20,8 +20,8 @@ export default class FolderService {
 	}
 
 	static getPathForFolder(folder: ParseAppFile | undefined): string {
-		if (!FolderService.isFolder(folder)) {
-			throw new Error("[FolderService.getPathForFolder]: folder mimeType must be 'folder'");
+		if (!AppFileFolderService.isFolder(folder)) {
+			throw new Error("[AppFileFolderService.getPathForFolder]: folder mimeType must be 'folder'");
 		}
 
 		return folder?.get('path') ?? '/';
@@ -46,7 +46,7 @@ export default class FolderService {
 	}
 
 	async createOne({ name, parentFolder }: CreateFolderInput) {
-		const parentFolderPath = FolderService.getPathForFolder(parentFolder);
+		const parentFolderPath = AppFileFolderService.getPathForFolder(parentFolder);
 		const path = parentFolderPath === '/' ? parentFolderPath + name : `${parentFolderPath}/${name}`;
 
 		const foundAppFileFolder = await new Parse.Query(ParseAppFile)
