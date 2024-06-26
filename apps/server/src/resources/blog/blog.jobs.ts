@@ -35,7 +35,7 @@ Parse.Cloud.job(
 			}
 		>();
 
-		const tagNamesSet = new Map<string, { exists: boolean }>();
+		const queriedTagNamesMap = new Map<string, { exists: boolean }>();
 		const config = getInternalConfig();
 
 		const q = asyncJs.queue(async ({ tagName }: { tagName: string }, _c) => {
@@ -43,7 +43,7 @@ Parse.Cloud.job(
 
 			let isNewTag = true;
 
-			const queriedTagName = tagNamesSet.get(tagName);
+			const queriedTagName = queriedTagNamesMap.get(tagName);
 
 			if (!queriedTagName) {
 				const foundTagObject = await new Parse.Query(ParseBlogPostTag)
@@ -52,10 +52,10 @@ Parse.Cloud.job(
 					.first(USE_MASTER_KEY);
 
 				if (!foundTagObject) {
-					tagNamesSet.set(tagName, { exists: false });
+					queriedTagNamesMap.set(tagName, { exists: false });
 					isNewTag = true;
 				} else {
-					tagNamesSet.set(tagName, { exists: true });
+					queriedTagNamesMap.set(tagName, { exists: true });
 					isNewTag = false;
 				}
 			} else {
@@ -88,15 +88,55 @@ Parse.Cloud.job(
 		}, 5);
 
 		await query.eachBatch(async (posts) => {
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			const _tagNamesArray: string[] = [];
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			const _tagNamesSet = new Set<string>();
+
 			posts.forEach((post) => {
 				const tags = post.get('tags');
 				tags?.forEach((tagName) => {
-					q.push({ tagName });
+					_tagNamesArray.push(tagName);
+					_tagNamesSet.add(tagName);
 				});
+			});
+
+			const notYetQueriedTagsSet = new Set<string>();
+
+			_tagNamesSet.forEach((_tagName) => {
+				const queried = queriedTagNamesMap.has(_tagName);
+
+				if (!queried) {
+					notYetQueriedTagsSet.add(_tagName);
+				}
+			});
+
+			const foundTags = await new Parse.Query(ParseBlogPostTag)
+				.select(['name'])
+				.containedIn('name', Array.from(notYetQueriedTagsSet))
+				.findAll(USE_MASTER_KEY);
+
+			foundTags.forEach((tag) => {
+				// eslint-disable-next-line @typescript-eslint/naming-convention
+				const _tagName = tag.get('name');
+
+				queriedTagNamesMap.set(_tagName, { exists: true });
+				notYetQueriedTagsSet.delete(_tagName);
+			});
+
+			const notFoundTagsSet = notYetQueriedTagsSet;
+			notFoundTagsSet.forEach((_tagName) => {
+				queriedTagNamesMap.set(_tagName, { exists: false });
+			});
+
+			_tagNamesArray.forEach((tagName) => {
+				q.push({ tagName });
 			});
 		}, USE_MASTER_KEY);
 
-		await q.drain();
+		if (q.length() > 0) {
+			await q.drain();
+		}
 
 		const collection = getDatabase().collection(className.BLOG_POST_TAG);
 		const chunkedOperations = _.chunk(Array.from(tagsOperationsMapByName.values()), 100);
