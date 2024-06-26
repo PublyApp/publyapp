@@ -52,12 +52,14 @@ export const className = {
 	ROLE: '_Role',
 	SESSION: '_Session',
 	SCHEMA: '_SCHEMA',
+	JOB_STATUS: '_JobStatus',
 	// =====================
 	// === Multi Tenancy ===
 	TENANT: 'Tenant',
 	// === Custom classes ===
 	BLOG_POST: 'BlogPost',
 	BLOG_POST_SLUG: 'BlogPostSlug',
+	BLOG_POST_TAG: 'BlogPostTag',
 	BLOG_POST_SERIES: 'BlogPostSeries',
 	APP_FILE: 'AppFile',
 	SHORT_URL: 'ShortUrl',

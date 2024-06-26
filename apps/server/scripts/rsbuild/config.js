@@ -103,6 +103,9 @@ const externals = [
 	'parse-server/lib/logger',
 	'parse-server/lib/logger.js',
 
+	'parse-server/lib/cryptoUtils',
+	'parse-server/lib/cryptoUtils.js',
+
 	'front/build/server/index.js',
 ];
 

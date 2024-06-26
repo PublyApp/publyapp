@@ -32,6 +32,7 @@ import UserSchema from './resources/auth/user/user.schema';
 import BlogPostSchema from './resources/blog/blogPost/blogPost.schema';
 import BlogPostSeriesSchema from './resources/blog/blogPostSeries/blogPostSeries.schema';
 import BlogPostSlugSchema from './resources/blog/blogPostSlug/blogPostSlug.schema';
+import BlogPostTagSchema from './resources/blog/blogPostTag/blogPostTag.schema';
 import AppFileSchema from './resources/file-manager/appFile/appFile.schema';
 import customApiRouter from './router/customApiRouter';
 import duration from './utils/duration';
@@ -220,14 +221,20 @@ const bootstrap = async () => {
 
 	// setup schemas in the database + takes care of the index creations
 	SchemaManager.updateSchemas([
-		BlogPostSeriesSchema,
-		AppFileSchema,
-		BlogPostSchema,
-		BlogPostSlugSchema,
+		// Auth
 		RoleSchema,
 		SessionSchema,
 		UserSchema,
-	]);
+		// Blog
+		BlogPostSchema,
+		BlogPostSeriesSchema,
+		BlogPostSlugSchema,
+		BlogPostTagSchema,
+		// File manager
+		AppFileSchema,
+	]).then(() => {
+		parseServer.start();
+	});
 
 	initI18next();
 
