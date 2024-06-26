@@ -6,9 +6,9 @@ import { type IBlogPostSlugWithRelations } from '@/shared/types/db/blogPostSlug.
 const BlogPostSlugSchema = SchemaManager.defineSchema<IBlogPostSlugWithRelations>(className.BLOG_POST_SLUG, {
 	fields: {
 		slug: { type: 'String', required: true },
+		isCurrent: { type: 'Boolean' },
 		// relations
 		post: { type: 'Pointer', targetClass: className.BLOG_POST },
-		isCurrent: { type: 'Boolean' },
 	},
 	indexes: {
 		uniqueSlug: {

@@ -316,3 +316,17 @@ declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection' {
 		default: MongoSchemaCollection,
 	};
 }
+
+declare module 'parse-server/lib/cryptoUtils.js' {
+	import { md5Hash, newObjectId, newToken, randomHexString, randomString } from 'parse-server/lib/cryptoUtils';
+
+	export { md5Hash, newObjectId, newToken, randomHexString, randomString };
+}
+
+declare module 'parse-server/lib/cryptoUtils' {
+	export function randomHexString(size: number): string;
+	export function randomString(size: number): string;
+	export function newObjectId(size: number = 10): string;
+	export function newToken(): string;
+	export function md5Hash(string: string): string;
+}

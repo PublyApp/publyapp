@@ -6,7 +6,13 @@ import _ from 'lodash';
 import type { AggregateOptions, Db, MongoClient } from 'mongodb';
 import { ZodError } from 'zod';
 
-import { LOCALE_HEADER_KEY, roleSet, TENANT_ID_HEADER_KEY, type IRoleConfig } from '@devist/shared/lib/constants';
+import {
+	className as _className,
+	LOCALE_HEADER_KEY,
+	roleSet,
+	TENANT_ID_HEADER_KEY,
+	type IRoleConfig,
+} from '@devist/shared/lib/constants';
 import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { pageToSkip } from '@/server/utils/any.utils';
@@ -462,6 +468,16 @@ export const parseJob = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = 
 ) => {
 	return cloudFunction<P, T>(innerFunction);
 };
+
+// export const startParseJob = async <P extends Parse.Cloud.Params = Parse.Cloud.Params>(
+// 	name: string,
+// 	func: (request: Parse.Cloud.JobRequest<P>) => Promise<void> | void,
+// ) => {
+// 	// ! Application wide policy: we don't run more than two jobs at the same time
+// 	const query = new Parse.Query(className.JOB_STATUS).equalTo();
+
+// 	return Parse.Cloud.job(name, func as never);
+// };
 
 export const getInternalConfig = () => {
 	return Config.get(Parse.applicationId);
