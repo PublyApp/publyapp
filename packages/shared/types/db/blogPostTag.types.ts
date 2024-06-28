@@ -6,7 +6,7 @@ import type { BaseAttributes } from 'parse';
 
 export type BlogPostTagAttributes = {
 	name: string;
-	postsCount: string;
+	postsCount: number;
 };
 
 export type IBlogPostTag = BaseAttributes & BlogPostTagAttributes;
