@@ -80,6 +80,8 @@ const commonFR = {
 	'add-slug': 'Ajout slug',
 	'slug-added-to-post': "Slug ajouté à l'article",
 
+	'master-key-only-function': 'Fonction master key uniquement',
+
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
 	'Session token is expired.': 'Session token expiré.',
