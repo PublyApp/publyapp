@@ -88,6 +88,8 @@ const commonFR = {
 	'blog-list-meta-description':
 		'Explorez nos derniers articles de blog pour des articles, des conseils et des histoires perspicaces. Restez à jour avec notre blog.',
 
+	'new-signup-disabled': 'Les nouvelles inscriptions sont désactivées',
+
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
 	'Session token is expired.': 'Session token expiré.',

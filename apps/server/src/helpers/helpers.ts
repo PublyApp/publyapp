@@ -2,11 +2,12 @@
 /* eslint-disable no-await-in-loop */
 import { existsSync, promises as fs } from 'fs';
 
-import { roleEnum } from '@devist/shared/lib/constants';
+import { className, roleEnum } from '@devist/shared/lib/constants';
 
-import { FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@/server/lib/constants';
+import { DISABLE_SIGNUP_CONFIG_KEY, FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@/server/lib/constants';
 
 import logger from '../lib/logger';
+import { getDatabase, getGlobalConfig, setGlobalConfig } from '../lib/parse/utils';
 
 export const createRolesIfNotExists = async () => {
 	const roleEntries = Object.values(roleEnum).map((e) => {
@@ -73,4 +74,31 @@ export const createUploadDirIfNotExists = async () => {
 	}
 
 	fs.mkdir(FILE_UPLOAD_DESTINATION, { recursive: true });
+};
+
+export const setUpGlobalConfig = async () => {
+	const globalConfig = await getGlobalConfig();
+
+	await setGlobalConfig({
+		[DISABLE_SIGNUP_CONFIG_KEY]: { value: globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY) ?? true },
+	});
+};
+
+export const updateUserClpForDisabledSignupConfig = async () => {
+	const disabledSignup: boolean = (await getGlobalConfig()).get(DISABLE_SIGNUP_CONFIG_KEY);
+
+	if (!disabledSignup) {
+		return;
+	}
+
+	const SchemaCollection = getDatabase().collection(className.SCHEMA);
+
+	SchemaCollection.updateOne(
+		{ _id: className.USER as never },
+		{
+			$set: {
+				'_metadata.class_permissions.create': {},
+			},
+		},
+	);
 };

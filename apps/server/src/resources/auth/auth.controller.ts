@@ -4,11 +4,11 @@ import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
 import { HttpException } from '@/server/exceptions/HttpException';
-import { USE_MASTER_KEY } from '@/server/lib/constants';
+import { DISABLE_SIGNUP_CONFIG_KEY, USE_MASTER_KEY } from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
 import { expressHandler } from '@/server/lib/express';
 import logger from '@/server/lib/logger';
-import { createSessionServer } from '@/server/lib/parse/utils';
+import { createSessionServer, getGlobalConfig } from '@/server/lib/parse/utils';
 import ParseUser from '@/server/resources/auth/user/user.class';
 import { getRequestIp, getRequestUtils } from '@/server/utils/request.utils';
 import { defaultHttp } from '@/shared/lib/axios';
@@ -46,6 +46,15 @@ export const handlePasswordLogin = expressHandler(async (req, res) => {
 });
 
 export const handlePasswordSignup = expressHandler(async (req, res) => {
+	const { t } = getRequestUtils(req);
+
+	const globalConfig = await getGlobalConfig();
+	const disabledSignup: boolean = globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY);
+
+	if (disabledSignup) {
+		throw new Error(t('new-signup-disabled'));
+	}
+
 	const { email, password } = req.body;
 	let { username } = req.body;
 
