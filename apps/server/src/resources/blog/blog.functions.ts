@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
+import { className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 import {
 	getAddSlugToPostSchema,
 	getCreateBlogPostInputSchema,
@@ -10,7 +10,7 @@ import {
 	getUpdateBlogPostInputSchema,
 } from '@devist/shared/validations/blogPost/blogPost.validations';
 
-import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
+import { getDatabase, parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
 import UserService from '@/server/resources/auth/user/user.service';
 // import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
 import BlogPostService from '@/server/resources/blog/blogPost/blogPost.service';
@@ -336,6 +336,20 @@ const addSlugToBlogPost = parseFunctionEnhanced({
 	},
 });
 
+const removeSeededBlogPosts = parseFunctionEnhanced({
+	action: async ({ req, t }) => {
+		if (!req.master) {
+			throw new Error(t('master-key-only-function'));
+		}
+
+		const BlogPost = getDatabase().collection(className.BLOG_POST);
+
+		const result = await BlogPost.deleteMany({ seeded: true });
+
+		return result;
+	},
+});
+
 Parse.Cloud.define(functionName.blog.createBlogPost, createBlogPostFunction);
 Parse.Cloud.define(functionName.blog.updateBlogPost, updateBlogPostFunction);
 // Parse.Cloud.define(functionName.blog.findBlogPostTag, findBlogPostTag);
@@ -350,3 +364,5 @@ Parse.Cloud.define(functionName.blog.getBlogPostBoEdit, getBlogPostFunctionBoEdi
 Parse.Cloud.define(functionName.blog.findBlogPostSlug, findBlogPostSlug);
 Parse.Cloud.define(functionName.blog.addSlugToBlogPost, addSlugToBlogPost);
 // Parse.Cloud.define(functionName.blog.updateBloPostCurrentSlug, updateBloPostCurrentSlug);
+
+Parse.Cloud.define(functionName.blog.removeSeededBlogPosts, removeSeededBlogPosts);

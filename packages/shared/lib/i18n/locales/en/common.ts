@@ -78,6 +78,8 @@ const commonEN = {
 	'add-slug': 'Add slug',
 	'slug-added-to-post': 'Slug added to post',
 
+	'master-key-only-function': 'Master Key only function',
+
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',
 	'Session token is expired.': 'Session token is expired.',
