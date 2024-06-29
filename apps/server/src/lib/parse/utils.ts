@@ -678,7 +678,7 @@ export const getGlobalConfig = async () => {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Serializable = string | number | Record<string, any> | any[];
+type Serializable = string | number | Record<string, any> | any[] | boolean;
 
 export const setGlobalConfig = async (attributes: Record<string, { value: Serializable; masterKeyOnly?: boolean }>) => {
 	const entries = _.entries(attributes);

@@ -1,11 +1,9 @@
-// import { nanoid } from 'nanoid';
-
 import type { TFunction } from 'i18next';
 
 import { roleEnum } from '@devist/shared/lib/constants';
 
-import { ADMIN_EMAILS, USE_MASTER_KEY } from '@/server/lib/constants';
-import { parseTriggerEnhanced } from '@/server/lib/parse/utils';
+import { ADMIN_EMAILS, DISABLE_SIGNUP_CONFIG_KEY, USE_MASTER_KEY } from '@/server/lib/constants';
+import { getGlobalConfig, parseTriggerEnhanced } from '@/server/lib/parse/utils';
 
 import RoleService from '../role/role.service';
 
@@ -27,6 +25,15 @@ const setPublicReadAccessOnUser = (user: Parse.User) => {
 	}
 };
 
+const handleDisabledSignupConfig = async ({ req, t }: { req: Parse.Cloud.TriggerRequest; t: TFunction }) => {
+	const globalConfig = await getGlobalConfig();
+	const disabledSignup: boolean = globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY);
+
+	if (disabledSignup && !req.master) {
+		throw new Error(t('new-signup-disabled'));
+	}
+};
+
 // const setUsernameIfNotSpecified = (user: Parse.User) => {
 // 	if (!user.getUsername()) {
 // 		const username = `${user.getEmail()?.split('@')?.[0]}_${user.setUsername(nanoid(5))}`;
@@ -35,10 +42,11 @@ const setPublicReadAccessOnUser = (user: Parse.User) => {
 // };
 
 const beforeSaveUser = parseTriggerEnhanced({
-	trigger: async ({ req }) => {
+	trigger: async ({ req, t }) => {
 		const user = req.object as Parse.User;
 
 		// setUsername(user);
+		await handleDisabledSignupConfig({ req, t });
 		setPublicReadAccessOnUser(user);
 	},
 });
@@ -70,8 +78,8 @@ const afterSaveUser = parseTriggerEnhanced({
 		const user = req.object as Parse.User;
 
 		// --------------------------------------------------------------------------------------//
-		//                                auto assign admin role                                //
-		// --------------------------------------------------------------------------------------//
+		//                                auto assign admin role                                 //
+		// ------------------------------------------------------------------------------------- //
 		await autoAssignAdminRole({ user, t });
 	},
 });
