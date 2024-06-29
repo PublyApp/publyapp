@@ -81,6 +81,7 @@ const commonFR = {
 	'slug-added-to-post': "Slug ajouté à l'article",
 
 	'master-key-only-function': 'Fonction master key uniquement',
+	'max-page-size-exceeded': 'Taille de page maximum de {{max}} excédée',
 
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",

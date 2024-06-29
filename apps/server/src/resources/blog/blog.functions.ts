@@ -236,10 +236,15 @@ const findPostFunctionFrontList = parseFunctionEnhanced({
 	validateParams: ({ params, z }) => {
 		return getListParamsSchema(z).parse(params);
 	},
-	action: async ({ params: _params, locale, user }) => {
-		const { page, pageSize, sorting } = _params;
+	action: async ({ params: _params, locale, user, t }) => {
+		const MAX_PAGE_SIZE = 25;
+		const { page, pageSize = MAX_PAGE_SIZE, sorting } = _params;
 		const sessionToken = user?.getSessionToken();
 		const postService = new BlogPostService({ sessionToken });
+
+		if (pageSize > MAX_PAGE_SIZE) {
+			throw new Error(t('max-page-size-exceeded', { max: MAX_PAGE_SIZE }));
+		}
 
 		const posts = await postService.findBlogPostFrontList({ page, pageSize, sorting, locale });
 		return posts;
