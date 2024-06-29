@@ -10,6 +10,7 @@ import {
 	getUpdateBlogPostInputSchema,
 } from '@devist/shared/validations/blogPost/blogPost.validations';
 
+import logger from '@/server/lib/logger';
 import { getDatabase, parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
 import UserService from '@/server/resources/auth/user/user.service';
 // import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
@@ -252,21 +253,12 @@ const findPostFunctionFrontList = parseFunctionEnhanced({
 	},
 });
 
-// const findBlogPostTag = parseFunctionEnhanced({
-// 	action: async (/* { locale, req, t, user } */) => {
-// 		const pipeline: Parse.PipelineStage[] = [
-// 			{ $unwind: '$tags' },
-// 			{ $group: { _id: '$tags', postsCount: { $sum: 1 } } },
-// 			{ $project: { _id: 0, tag: '$_id', postsCount: '$postsCount' } },
-// 		];
-
-// 		const query = new Parse.Query(ParseBlogPost);
-
-// 		// { tag: string, postsCount: number }[]
-// 		const results = await query.aggregate(pipeline);
-// 		return results;
-// 	},
-// });
+const findBlogPostTag = parseFunctionEnhanced({
+	action: async (/* { locale, req, t, user } */) => {
+		logger.warn('TODO: implement this function');
+		return [];
+	},
+});
 
 export namespace FindBlogPostSlugFunction {
 	export type Params = FunctionParams<typeof findBlogPostSlug>;
@@ -357,7 +349,7 @@ const removeSeededBlogPosts = parseFunctionEnhanced({
 
 Parse.Cloud.define(functionName.blog.createBlogPost, createBlogPostFunction);
 Parse.Cloud.define(functionName.blog.updateBlogPost, updateBlogPostFunction);
-// Parse.Cloud.define(functionName.blog.findBlogPostTag, findBlogPostTag);
+Parse.Cloud.define(functionName.blog.findBlogPostTag, findBlogPostTag);
 
 Parse.Cloud.define(functionName.blog.findBlogPostBoTable, findPostFunctionBoTable);
 Parse.Cloud.define(functionName.blog.findBlogPostFrontList, findPostFunctionFrontList);
