@@ -106,6 +106,9 @@ const externals = [
 	'parse-server/lib/cryptoUtils',
 	'parse-server/lib/cryptoUtils.js',
 
+	'parse-server/lib/password',
+	'parse-server/lib/password.js',
+
 	'front/build/server/index.js',
 ];
 
@@ -117,7 +120,7 @@ function createRsbuild() {
 			source: {
 				entry: {
 					index: './src/index.ts',
-					'seeding/seed': './src/seeding/seed.ts',
+					seed: './src/seed.ts',
 				},
 			},
 			output: {

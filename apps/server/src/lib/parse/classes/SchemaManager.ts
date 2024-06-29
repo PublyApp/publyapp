@@ -158,10 +158,10 @@ export default class SchemaManager {
 					const newSchemaObject = _.merge(
 						{},
 						oldSchemaObject || ({} as unknown as typeof oldSchemaObject),
-						inputSchemaObjectFields /* , inputSchemaObjectFieldOptions */,
+						inputSchemaObjectFields,
+						inputSchemaObjectFieldOptions,
 					);
 
-					// newSchemaObject._metadata.managed_indexes = { ...newSchemaObject._metadata.managed_indexes, ...inputSchemaObjectIndexes._metadata.managed_indexes }
 					_.set(newSchemaObject, '_metadata.managed_indexes', {
 						..._.get(newSchemaObject, '_metadata.managed_indexes'),
 						..._.get(inputSchemaObjectIndexes, '_metadata.managed_indexes'),

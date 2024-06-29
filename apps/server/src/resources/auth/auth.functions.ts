@@ -1,5 +1,5 @@
-import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
-import { functionName } from '@/shared/lib/constants';
+import { getDatabase, parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
+import { className, functionName } from '@/shared/lib/constants';
 
 import RoleService from './role/role.service';
 
@@ -24,3 +24,17 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 });
 
 Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);
+
+if (global.LOCAL) {
+	const removeSeededUsers = parseFunctionEnhanced({
+		action: async () => {
+			const User = getDatabase().collection(className.USER);
+
+			const result = await User.deleteMany({ seeded: true });
+
+			return result;
+		},
+	});
+
+	Parse.Cloud.define(functionName.auth.removeSeededUsers, removeSeededUsers);
+}

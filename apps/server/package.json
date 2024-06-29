@@ -28,7 +28,8 @@
 		"lint": "eslint . --ext ts,js",
 		"lint:fix": "pnpm lint --fix",
 		"// =============== SEED COMMANDS =================": "================================",
-		"seed": "node --enable-source-maps dist/seeding/seed.js",
+		"seed": "node --enable-source-maps dist/seed.mjs",
+		"seed:debug": "node --enable-source-maps --inspect-brk dist/seed.mjs",
 		"// =============== TEST COMMANDS =================": "================================",
 		"postinstall": "node scripts/patch.js",
 		"type-check": "tsc"
