@@ -260,8 +260,21 @@ Parse.Cloud.job(
 			}
 		});
 
-		asyncJs.eachLimit(postsSaveChunks, 5, async (chunkSave) => {
+		const q2 = asyncJs.queue(async ({ chunkSave }: { chunkSave: ParseBlogPostTag[] }) => {
 			await Parse.Object.saveAll(chunkSave);
-		});
+		}, 5);
+
+		q2.push(
+			postsSaveChunks.map((chunkSave) => {
+				return { chunkSave };
+			}),
+		);
+
+		if (q.length() > 0) {
+			await q.drain();
+		}
+		// await asyncJs.eachLimit(postsSaveChunks, 5, async (chunkSave) => {
+		// 	await Parse.Object.saveAll(chunkSave);
+		// });
 	}),
 );

@@ -4,7 +4,7 @@
 const { externals } = require('../rsbuild/config');
 
 Bun.build({
-	entrypoints: ['./src/index.ts'],
+	entrypoints: ['./src/index.ts', './src/seed.ts'],
 	outdir: 'dist',
 	target: 'node',
 	naming: '[name].mjs',

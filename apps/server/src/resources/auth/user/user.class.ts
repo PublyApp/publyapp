@@ -1,6 +1,3 @@
-/* eslint-disable global-require */
-// import Parse from 'parse/node';
-
 import { className } from '@/shared/lib/constants';
 import type { UserAttributes } from '@/shared/types/db/user.types';
 

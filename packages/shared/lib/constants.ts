@@ -152,6 +152,7 @@ export const functionName = {
 	// Users and auth
 	auth: {
 		getUserAuthData: 'getUserAuthData',
+		removeSeededUsers: 'removeSeededUsers',
 	},
 	// Blog Posts
 	blog: {
