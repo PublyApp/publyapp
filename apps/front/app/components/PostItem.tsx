@@ -1,6 +1,8 @@
 import { alpha, Avatar, Box, Card, CardContent, Link, Typography, useTheme } from '@mui/material';
+import _ from 'lodash';
 
 // import Iconify from '@devist/ui-react/components/Iconify';
+
 import Image from '@devist/ui-react/components/image/Image';
 import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
 
@@ -34,8 +36,13 @@ const PostItem = ({ post, index }: Props) => {
 
 	const mdUp = useResponsive('up', 'md');
 
-	const { /* coverUrl, */ title, slug, /* title, totalViews, totalComments, totalShares, */ author, createdAt, cover } =
-		post;
+	const {
+		/* coverUrl, */ title,
+		currentSlug,
+		/* title, totalViews, totalComments, totalShares, */ author,
+		createdAt,
+		cover,
+	} = post;
 
 	const latestPost = index === 0 || index === 1 || index === 2;
 
@@ -56,8 +63,8 @@ const PostItem = ({ post, index }: Props) => {
 				{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 				<PostContent
 					title={title}
-					slug={slug}
-					createdAt={createdAt}
+					slug={_.toString(currentSlug) || 'no-slug'}
+					createdAt={fDate(createdAt)}
 					// totalViews={totalViews}
 					// totalShares={totalShares}
 					// totalComments={totalComments}
@@ -108,11 +115,11 @@ const PostItem = ({ post, index }: Props) => {
 			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 			<PostContent
 				title={title}
-				slug={slug}
+				slug={_.toString(currentSlug) || 'no-slug'}
 				// totalViews={totalViews}
 				// totalComments={totalComments}
 				// totalShares={totalShares}
-				createdAt={createdAt}
+				createdAt={fDate(createdAt)}
 			/>
 		</Card>
 	);

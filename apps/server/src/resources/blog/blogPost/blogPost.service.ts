@@ -1,4 +1,3 @@
-import asyncJs from 'async';
 import _ from 'lodash';
 
 import { type IBlogPostSlug } from '@devist/shared/types/db/blogPostSlug.types';
@@ -476,22 +475,7 @@ export default class BlogPostService {
 			fromPublic: true,
 		});
 
-		const currentSlugsQuery = new Parse.Query(ParseBlogPostSlug)
-			.containedIn('post', posts)
-			.equalTo('isCurrent', true)
-			.select(['slug', 'post']);
-
-		const slugsMapByPostId = new Map<string, ParseBlogPostSlug>();
-
-		await currentSlugsQuery.eachBatch(
-			async (slugs) => {
-				await asyncJs.eachOfLimit(slugs, pageSize, async (slug) => {
-					const postId = slug.get('post')?.id || '';
-					slugsMapByPostId.set(postId, slug);
-				});
-			},
-			{ sessionToken: this.sessionToken, batchSize: pageSize },
-		);
+		const slugsMapByPostId = await this.findCurrentSlugsForBlogPosts({ posts });
 
 		const finalBlogPosts = posts.map((_post) => {
 			const postJson = BlogPostService.toJSON(_post);
@@ -516,41 +500,64 @@ export default class BlogPostService {
 		return finalBlogPosts;
 	}
 
-	// I expect this function to be only for public usage (for now)
-	// eslint-disable-next-line class-methods-use-this
-	async findMostViewedTags() {
-		// const pipeline: Parse.PipelineStage[] = [
-		// 	{ $unwind: '$tags' },
-		// 	{ $group: { _id: '$tags', count: { $sum: 1 } } },
-		// 	{ $project: { _id: 0, tag: '$_id', count: '$count' } },
-		// ];
-		const pipeline: Parse.PipelineStage[] = [
-			{
-				$match: {
-					tags: { $exists: true },
-					published: true,
-				},
+	async findCurrentSlugsForBlogPosts({ posts }: { posts: ParseBlogPost[] }) {
+		const currentSlugsQuery = new Parse.Query(ParseBlogPostSlug)
+			.containedIn('post', posts)
+			.equalTo('isCurrent', true)
+			.select(['slug', 'post']);
+
+		const slugsMapByPostId = new Map<string, ParseBlogPostSlug>();
+
+		const BATCH_SIZE = 100;
+
+		await currentSlugsQuery.eachBatch(
+			async (slugs) => {
+				slugs.forEach((slug) => {
+					const postId = slug.get('post')?.id || '';
+					slugsMapByPostId.set(postId, slug);
+				});
 			},
-			{ $unwind: '$tags' },
-			{
-				$group: {
-					_id: '$tags',
-					tag: { $first: '$tags' }, // Get the first tag from the array
-					viewCount: { $sum: '$viewCount' },
-					postCount: { $sum: 1 },
-				},
-			},
+			{ sessionToken: this.sessionToken, batchSize: BATCH_SIZE },
+		);
 
-			{ $sort: { viewCount: -1 } }, // Sort by viewCount in descending order
-
-			{ $project: { _id: 0, tag: '$tag', viewCount: '$viewCount', postCount: '$postCount' } }, // Remove unnecessary field
-		];
-
-		const query = new Parse.Query(ParseBlogPost);
-
-		const results = await query.aggregate(pipeline);
-		return results;
+		return slugsMapByPostId;
 	}
+
+	// // I expect this function to be only for public usage (for now)
+	// // eslint-disable-next-line class-methods-use-this
+	// async findMostViewedTags() {
+	// 	// const pipeline: Parse.PipelineStage[] = [
+	// 	// 	{ $unwind: '$tags' },
+	// 	// 	{ $group: { _id: '$tags', count: { $sum: 1 } } },
+	// 	// 	{ $project: { _id: 0, tag: '$_id', count: '$count' } },
+	// 	// ];
+	// 	const pipeline: Parse.PipelineStage[] = [
+	// 		{
+	// 			$match: {
+	// 				tags: { $exists: true },
+	// 				published: true,
+	// 			},
+	// 		},
+	// 		{ $unwind: '$tags' },
+	// 		{
+	// 			$group: {
+	// 				_id: '$tags',
+	// 				tag: { $first: '$tags' }, // Get the first tag from the array
+	// 				viewCount: { $sum: '$viewCount' },
+	// 				postCount: { $sum: 1 },
+	// 			},
+	// 		},
+
+	// 		{ $sort: { viewCount: -1 } }, // Sort by viewCount in descending order
+
+	// 		{ $project: { _id: 0, tag: '$tag', viewCount: '$viewCount', postCount: '$postCount' } }, // Remove unnecessary field
+	// 	];
+
+	// 	const query = new Parse.Query(ParseBlogPost);
+
+	// 	const results = await query.aggregate(pipeline);
+	// 	return results;
+	// }
 
 	async deleteById(objectId: string) {
 		const query = new Parse.Query(ParseBlogPost).equalTo('objectId', objectId);
@@ -839,6 +846,8 @@ export default class BlogPostService {
 			}
 		}
 
+		const slugsMapByPostId = await this.findCurrentSlugsForBlogPosts({ posts: relatedBlogPosts });
+
 		const finalBlogPosts = relatedBlogPosts.map((relatedBlogPost) => {
 			const iBlogPost = BlogPostService.toTranslatedIBlogPost(BlogPostService.toJSON(relatedBlogPost), locale);
 			const coverUrl = _.get(iBlogPost, 'cover.url');
@@ -848,6 +857,9 @@ export default class BlogPostService {
 					_.set(iBlogPost, 'cover.url', env.SERVER_URL + coverUrl);
 				}
 			}
+
+			const currentSlug = slugsMapByPostId.get(iBlogPost.objectId)?.get('slug') || 'no-slug';
+			_.set(iBlogPost, 'currentSlug', currentSlug);
 
 			return iBlogPost;
 		});
