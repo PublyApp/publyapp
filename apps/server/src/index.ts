@@ -232,9 +232,11 @@ const bootstrap = async () => {
 		BlogPostTagSchema,
 		// File manager
 		AppFileSchema,
-	]).then(() => {
+	]);
+	// ? in case of the updated schemas configurations are not took in consideration by Parse server
+	/* .then(() => {
 		parseServer.start();
-	});
+	}); */
 
 	initI18next();
 

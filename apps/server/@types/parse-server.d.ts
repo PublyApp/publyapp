@@ -318,9 +318,7 @@ declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection' {
 }
 
 declare module 'parse-server/lib/cryptoUtils.js' {
-	import { md5Hash, newObjectId, newToken, randomHexString, randomString } from 'parse-server/lib/cryptoUtils';
-
-	export { md5Hash, newObjectId, newToken, randomHexString, randomString };
+	export * from 'parse-server/lib/cryptoUtils';
 }
 
 declare module 'parse-server/lib/cryptoUtils' {
@@ -329,4 +327,13 @@ declare module 'parse-server/lib/cryptoUtils' {
 	export function newObjectId(size: number = 10): string;
 	export function newToken(): string;
 	export function md5Hash(string: string): string;
+}
+
+declare module 'parse-server/lib/password.js' {
+	export * from 'parse-server/lib/password';
+}
+
+declare module 'parse-server/lib/password' {
+	export function hash(password: string): string;
+	export function compare(password: string, hashedPassword: string): boolean;
 }
