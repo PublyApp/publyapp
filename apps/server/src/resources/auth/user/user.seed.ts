@@ -1,6 +1,7 @@
 import { faker } from '@faker-js/faker';
 import asyncJs from 'async';
 
+import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { functionName } from '@/shared/lib/constants';
 
 import ParseUser from './user.class';
@@ -71,5 +72,5 @@ export const createUsers = async ({ num }: { num: number }) => {
 };
 
 export const cleanUsers = async () => {
-	return Parse.Cloud.run(functionName.auth.removeSeededUsers);
+	return Parse.Cloud.run(functionName.auth.removeSeededUsers, null, USE_MASTER_KEY);
 };
