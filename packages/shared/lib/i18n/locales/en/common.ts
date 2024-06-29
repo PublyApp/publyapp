@@ -79,6 +79,7 @@ const commonEN = {
 	'slug-added-to-post': 'Slug added to post',
 
 	'master-key-only-function': 'Master Key only function',
+	'max-page-size-exceeded': 'Max page size of {{max}} exceeded',
 
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',
