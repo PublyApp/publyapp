@@ -83,7 +83,7 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 	}
 
 	async findBlogPostTag() {
-		const tags = await this.parseRestClient.cloudRun<any>(functionName.blog.findBlogPostTag);
+		const tags = await this.parseRestClient.cloudRun<any[]>(functionName.blog.findBlogPostTag);
 		return tags;
 	}
 

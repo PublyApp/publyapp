@@ -83,6 +83,11 @@ const commonFR = {
 	'master-key-only-function': 'Fonction master key uniquement',
 	'max-page-size-exceeded': 'Taille de page maximum de {{max}} excédée',
 
+	'blog-list-meta-title': 'Découvrez nos derniers articles | Devist Blog',
+	'blog-list-og-title': 'Découvrez nos derniers articles',
+	'blog-list-meta-description':
+		'Explorez nos derniers articles de blog pour des articles, des conseils et des histoires perspicaces. Restez à jour avec notre blog.',
+
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
 	'Session token is expired.': 'Session token expiré.',

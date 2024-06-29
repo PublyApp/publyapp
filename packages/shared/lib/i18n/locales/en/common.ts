@@ -81,6 +81,11 @@ const commonEN = {
 	'master-key-only-function': 'Master Key only function',
 	'max-page-size-exceeded': 'Max page size of {{max}} exceeded',
 
+	'blog-list-meta-title': 'Discover Our Latest Articles | Devist Blog',
+	'blog-list-og-title': 'Discover Our Latest Articles',
+	'blog-list-meta-description':
+		'Explore our latest blog posts for insightful articles, tips, and stories. Stay updated with our blog.',
+
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',
 	'Session token is expired.': 'Session token is expired.',
