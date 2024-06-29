@@ -93,3 +93,6 @@ export const FILE_UPLOAD_DESTINATION = path.join(process.cwd(), 'files/multer-up
 
 export const apiEndPoint = endPoint.api(env.API_PATH);
 export const parseEndPoint = endPoint.parse(env.PARSE_PATH);
+
+// Parse server's global config (saved in the database) utilities
+export const DISABLE_SIGNUP_CONFIG_KEY = 'disableSignup';

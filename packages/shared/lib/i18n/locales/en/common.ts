@@ -86,6 +86,8 @@ const commonEN = {
 	'blog-list-meta-description':
 		'Explore our latest blog posts for insightful articles, tips, and stories. Stay updated with our blog.',
 
+	'new-signup-disabled': 'New signup are disabled',
+
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',
 	'Session token is expired.': 'Session token is expired.',

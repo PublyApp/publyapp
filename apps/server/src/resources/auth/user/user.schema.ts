@@ -1,7 +1,14 @@
+import _ from 'lodash';
+
 import { className } from '@devist/shared/lib/constants';
 import type { IUserWithRelations } from '@devist/shared/types/db/user.types';
 
+import { DEFAULT_CLP } from '@/server/lib/constants';
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
+
+// const classLevelPermissions = _.cloneDeep(DEFAULT_CLP);
+// _.set(classLevelPermissions, 'create', {});
+// console.dir({ ...DEFAULT_CLP, create: {} }, { depth: null });
 
 const UserSchema = SchemaManager.defineSchema<IUserWithRelations>(className.USER, {
 	fields: {
@@ -17,6 +24,7 @@ const UserSchema = SchemaManager.defineSchema<IUserWithRelations>(className.USER
 		// relations
 		avatar: { type: 'Pointer', targetClass: className.APP_FILE },
 	},
+	classLevelPermissions: { ...DEFAULT_CLP, create: {} },
 });
 
 export default UserSchema;

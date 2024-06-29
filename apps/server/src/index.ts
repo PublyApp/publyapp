@@ -8,13 +8,17 @@ import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@remix-run/express';
 import chalk from 'chalk';
 import express from 'express';
-import _ from 'lodash';
 import ParseDashboard from 'parse-dashboard';
 
 import { LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
 
 import { cloud } from './cloud';
-import { createRolesIfNotExists, createUploadDirIfNotExists } from './helpers/helpers';
+import {
+	createRolesIfNotExists,
+	createUploadDirIfNotExists,
+	setUpGlobalConfig,
+	// updateUserClpForDisabledSignupConfig,
+} from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
 import { env } from './lib/env';
@@ -220,6 +224,7 @@ const bootstrap = async () => {
 	});
 
 	// setup schemas in the database + takes care of the index creations
+	/* const updateSchemasPromise =  */
 	SchemaManager.updateSchemas([
 		// Auth
 		RoleSchema,
@@ -233,21 +238,19 @@ const bootstrap = async () => {
 		// File manager
 		AppFileSchema,
 	]);
+	// updateSchemasPromise.then(async () => {
+	// 	updateUserClpForDisabledSignupConfig();
+	// });
 	// ? in case of the updated schemas configurations are not took in consideration by Parse server
 	/* .then(() => {
 		parseServer.start();
 	}); */
 
 	initI18next();
-
-	// create the roles
 	createRolesIfNotExists();
-
-	// create the upload folder
 	createUploadDirIfNotExists();
-
-	// init cloudinary
 	initCloudinary();
+	setUpGlobalConfig();
 };
 
 bootstrap();
