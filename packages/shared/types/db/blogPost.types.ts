@@ -52,10 +52,13 @@ export type BlogPostAttributes = {
 type SEOAttributes = {
 	title?: string;
 	description?: string;
-	robots?: {
-		index?: boolean;
-		follow?: boolean;
-	};
+	canonicalUrl?: string;
+	index?: boolean;
+	follow?: boolean;
+	// robots?: {
+	// 	index?: boolean;
+	// 	follow?: boolean;
+	// };
 };
 
 export type IBlogPost = BaseAttributes &
