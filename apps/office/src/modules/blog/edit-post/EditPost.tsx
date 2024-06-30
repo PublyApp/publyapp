@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { LoadingButton } from '@mui/lab';
 import { Alert, Button, Container } from '@mui/material';
 import { m } from 'framer-motion';
 import _ from 'lodash';
@@ -16,6 +17,7 @@ import {
 
 import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import Iconify from '@/ui-react/components/Iconify';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 import zod from '@/ui-react/lib/zod';
 import { pxToRem } from '@/ui-react/utils/css.utils';
@@ -103,12 +105,22 @@ const EditPost = () => {
 		/>
 	);
 
+	// <Icon icon="material-symbols:save-outline" />
 	const renderHeaderActions = (
 		<>
-			<Button>{t('preview')}</Button>
-			<Button variant="contained" onClick={handleUpdatePost}>
-				{t('save')}
+			<Button size="large" variant="soft" sx={{ mr: 2 }}>
+				{t('preview')}
 			</Button>
+			<LoadingButton
+				variant="contained"
+				size="large"
+				onClick={handleUpdatePost}
+				loading={isUpdatePostPending}
+				// startIcon={<Iconify icon="material-symbols:save-outline" width={24} />}
+				loadingIndicator={<Iconify icon="svg-spinners:12-dots-scale-rotate" width={24} />}
+			>
+				{t('save')}
+			</LoadingButton>
 		</>
 	);
 
