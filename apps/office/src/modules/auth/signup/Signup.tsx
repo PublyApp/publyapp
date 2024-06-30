@@ -7,15 +7,20 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useForm, type SubmitHandler } from 'react-hook-form';
+import { Navigate } from 'react-router-dom';
 
 import RouterLink from '@/office/components/RouterLink';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
-import { sleep } from '@/shared/utils/any.utils';
-import { getRegisterSchema, type RegisterInput } from '@/shared/validations/auth.validations';
+import { getRegisterSchema, type SignupInput } from '@/shared/validations/auth.validations';
 import FormProvider from '@/ui-react/components/form/FormProvider';
 import RHFTextField from '@/ui-react/components/form/RHFTextField';
 import Iconify from '@/ui-react/components/Iconify';
 import useBoolean from '@/ui-react/hooks/useBoolean';
+import useTranslate from '@/ui-react/hooks/useTranslate';
+import {
+	useGetIsDisabledSignupSuspenseQuery,
+	useSignupMutation,
+} from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 import zod from '@/ui-react/lib/zod';
 
 // import { paths } from 'src/routes/paths';
@@ -27,36 +32,35 @@ import zod from '@/ui-react/lib/zod';
 // ----------------------------------------------------------------------
 
 const Signup = () => {
+	const { t } = useTranslate();
 	const password = useBoolean();
 
-	// const RegisterSchema = Yup.object().shape({
-	// 	firstName: Yup.string().required('First name required'),
-	// 	lastName: Yup.string().required('Last name required'),
-	// 	email: Yup.string().required('Email is required').email('Email must be a valid email address'),
-	// 	password: Yup.string().required('Password is required'),
-	// });
+	const {
+		result: { data: signupConfigData },
+	} = useGetIsDisabledSignupSuspenseQuery();
 
-	const defaultValues = {
-		firstName: '',
-		lastName: '',
-		email: '',
-		password: '',
-	};
+	const {
+		result: { mutate: signup, isPending: isPendingSignup },
+	} = useSignupMutation();
 
 	const registerForm = useForm({
 		resolver: zodResolver(getRegisterSchema(zod)),
-		defaultValues,
+		defaultValues: {
+			firstName: '',
+			lastName: '',
+			email: '',
+			password: '',
+		},
 	});
 
 	const {
 		handleSubmit,
-		formState: { isSubmitting },
+		// formState: { isSubmitting },
 	} = registerForm;
 
-	const onSubmitHandler: SubmitHandler<RegisterInput> = async (data) => {
+	const onSubmitHandler: SubmitHandler<SignupInput> = async (data) => {
 		try {
-			await sleep(5000);
-			console.info('DATA', data);
+			signup(data);
 		} catch (error) {
 			console.error(error);
 		}
@@ -66,7 +70,7 @@ const Signup = () => {
 
 	const renderHead = (
 		<Stack spacing={2} sx={{ mb: 5, position: 'relative' }}>
-			<Typography variant="h4">Get started absolutely free</Typography>
+			<Typography variant="h4">{t('sign-up')}</Typography>
 
 			<Stack direction="row" spacing={0.5}>
 				<Typography variant="body2"> Already have an account? </Typography>
@@ -126,11 +130,15 @@ const Signup = () => {
 				}}
 			/>
 
-			<LoadingButton fullWidth color="inherit" size="large" type="submit" variant="contained" loading={isSubmitting}>
+			<LoadingButton fullWidth color="inherit" size="large" type="submit" variant="contained" loading={isPendingSignup}>
 				Create account
 			</LoadingButton>
 		</Stack>
 	);
+
+	if (signupConfigData.disabledSignup) {
+		return <Navigate to={BO_PATH_NAMES.auth.login} />;
+	}
 
 	return (
 		<FormProvider form={registerForm} onSubmit={onSubmit}>

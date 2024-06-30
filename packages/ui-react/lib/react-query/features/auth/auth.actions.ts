@@ -1,12 +1,11 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import parseApi from '@devist/api/parse/ParseApi';
-import type { LoginInput, VerifyEmailInput } from '@devist/shared/validations/auth.validations';
+import type { LoginInput, SignupInput, VerifyEmailInput } from '@devist/shared/validations/auth.validations';
 
 import { functionName } from '@/shared/lib/constants';
 
 // ---- 1 --------------------------------------------------------------------------------
-
 export const loginAction = async (input: LoginInput) => {
 	try {
 		const { email, password } = input;
@@ -21,7 +20,6 @@ export const loginAction = async (input: LoginInput) => {
 };
 
 // ---- 2 --------------------------------------------------------------------------------
-
 export const logOutAction = async (): Promise<void> => {
 	try {
 		await parseApi.parseRestClient.logOut();
@@ -73,3 +71,30 @@ export const verifyEmailAction = async ({ email }: VerifyEmailInput) => {
 		return Promise.reject(error);
 	}
 };
+
+// ---- 5 --------------------------------------------------------------------------------
+export const signupAction = async (input: SignupInput) => {
+	try {
+		return await parseApi.auth.passwordSignup(input);
+	} catch (error) {
+		console.log('----- signupAction error ----------', error);
+		return Promise.reject(error);
+	}
+};
+
+// ---- 5 --------------------------------------------------------------------------------
+export const getIsDisabledSignupAction = async () => {
+	try {
+		return await parseApi.auth.getIsDisabledSignup();
+	} catch (error) {
+		console.log('----- getIsDisabledSignupAction error ----------', error);
+		return Promise.reject(error);
+	}
+};
+
+export const getIsDisabledSignupQueryKeyBase = functionName.auth.getIsDisabledSignup;
+
+export const getIsDisabledSignupQuery = queryOptions({
+	queryKey: [getIsDisabledSignupQueryKeyBase] as const,
+	queryFn: getIsDisabledSignupAction,
+});

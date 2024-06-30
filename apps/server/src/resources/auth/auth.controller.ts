@@ -55,7 +55,7 @@ export const handlePasswordSignup = expressHandler(async (req, res) => {
 		throw new Error(t('new-signup-disabled'));
 	}
 
-	const { email, password } = req.body;
+	const { email, password, firstName, lastName } = req.body;
 	let { username } = req.body;
 
 	if (!email) {
@@ -66,7 +66,7 @@ export const handlePasswordSignup = expressHandler(async (req, res) => {
 		username = `${email.split('@')?.[0]}_${nanoid(5)}`;
 	}
 
-	const result = await Parse.User.signUp(username, password, { email }, USE_MASTER_KEY);
+	const result = await Parse.User.signUp(username, password, { email, firstName, lastName }, USE_MASTER_KEY);
 
 	return res.json(result.toJSON());
 });

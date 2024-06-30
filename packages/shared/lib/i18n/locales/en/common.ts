@@ -65,6 +65,7 @@ const commonEN = {
 	'other-posts': 'Other posts',
 
 	'sign-in': 'Sign in',
+	'sign-up': 'Sign up',
 	'create-an-account': 'Create an account',
 	'email-address': 'Email address',
 	password: 'Password',
