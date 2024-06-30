@@ -153,6 +153,7 @@ export const functionName = {
 	auth: {
 		getUserAuthData: 'getUserAuthData',
 		removeSeededUsers: 'removeSeededUsers',
+		getIsDisabledSignup: 'getIsDisabledSignup',
 	},
 	// Blog Posts
 	blog: {

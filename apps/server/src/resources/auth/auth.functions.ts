@@ -1,4 +1,11 @@
-import { getDatabase, parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
+import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
+import {
+	getDatabase,
+	getGlobalConfig,
+	parseFunctionEnhanced,
+	type FunctionParams,
+	type FunctionReturn,
+} from '@/server/lib/parse/utils';
 import { className, functionName } from '@/shared/lib/constants';
 
 import RoleService from './role/role.service';
@@ -23,6 +30,8 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 	},
 });
 
+Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);
+
 const removeSeededUsers = parseFunctionEnhanced({
 	action: async ({ req, t }) => {
 		if (!req.master) {
@@ -37,6 +46,20 @@ const removeSeededUsers = parseFunctionEnhanced({
 	},
 });
 
-Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);
-
 Parse.Cloud.define(functionName.auth.removeSeededUsers, removeSeededUsers);
+
+export namespace GetIsDisabledSignupFunction {
+	// export type Params = FunctionParams<typeof getIsDisabledSignup>;
+	export type Return = FunctionReturn<typeof getIsDisabledSignup>;
+}
+
+const getIsDisabledSignup = parseFunctionEnhanced({
+	action: async () => {
+		const globalConfig = await getGlobalConfig();
+		const disabledSignup: boolean = globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY);
+
+		return { disabledSignup: Boolean(disabledSignup) };
+	},
+});
+
+Parse.Cloud.define(functionName.auth.getIsDisabledSignup, getIsDisabledSignup);
