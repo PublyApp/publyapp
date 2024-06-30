@@ -88,6 +88,8 @@ const commonEN = {
 
 	'new-signup-disabled': 'New signup are disabled',
 
+	'set-as-current': 'Set as current',
+
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',
 	'Session token is expired.': 'Session token is expired.',

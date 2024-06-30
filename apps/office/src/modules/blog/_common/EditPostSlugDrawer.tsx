@@ -3,11 +3,11 @@
 import { Suspense, useMemo } from 'react';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { LoadingButton } from '@mui/lab';
 import {
 	alpha,
 	Box,
 	Button,
-	CircularProgress,
 	Divider,
 	Drawer,
 	drawerClasses,
@@ -122,13 +122,20 @@ const EditPostSlugDrawer = ({ postId, postTitle }: Props) => {
 				</Box>
 
 				<Box>
-					<Button variant="contained" size="large" sx={{ whiteSpace: 'nowrap' }} type="submit">
-						{isAddSlugPending ? (
+					<LoadingButton
+						variant="contained"
+						size="large"
+						sx={{ whiteSpace: 'nowrap' }}
+						type="submit"
+						loadingIndicator={<Iconify icon="svg-spinners:12-dots-scale-rotate" width={24} />}
+						loading={isAddSlugPending}
+					>
+						{/* {isAddSlugPending ? (
 							<CircularProgress size={24} sx={{ color: theme.palette.common.white }} />
 						) : (
-							t('add-slug')
-						)}
-					</Button>
+						)} */}
+						{t('add-slug')}
+					</LoadingButton>
 				</Box>
 			</Stack>
 		</FormProvider>
@@ -205,6 +212,7 @@ export default EditPostSlugDrawer;
 // --------------------------------
 
 const SlugsList = ({ postId }: { postId: string }) => {
+	const { t } = useTranslate();
 	const {
 		result: { data },
 	} = useFindBlogPostSlugSuspenseQuery({
@@ -271,7 +279,7 @@ const SlugsList = ({ postId }: { postId: string }) => {
 								}}
 							/>
 						</Box>
-						{e.isCurrent ? null : <Button variant="contained">Set a current</Button>}
+						{e.isCurrent ? null : <Button variant="contained">{t('set-as-current')}</Button>}
 					</Stack>
 				);
 			})}

@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button, Container } from '@mui/material';
+import { LoadingButton } from '@mui/lab';
+import { Container } from '@mui/material';
 import { useForm } from 'react-hook-form';
 
 import {
@@ -9,6 +10,7 @@ import {
 
 import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import Iconify from '@/ui-react/components/Iconify';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 import { useCreateBlogPostMutation } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
 import zod from '@/ui-react/lib/zod';
@@ -41,7 +43,7 @@ const NewPost = () => {
 	});
 
 	const {
-		result: { mutateAsync: createPostAsync },
+		result: { mutateAsync: createPostAsync, isPending: isPendingCreatePost },
 	} = useCreateBlogPostMutation();
 
 	const handleCreatePost = createPostForm.handleSubmit(
@@ -77,9 +79,19 @@ const NewPost = () => {
 	const renderHeaderActions = (
 		<>
 			{/* <Button>preview</Button> */}
-			<Button variant="contained" onClick={handleCreatePost}>
+			{/* <Button variant="contained" onClick={handleCreatePost}>
 				{t('save')}
-			</Button>
+			</Button> */}
+			<LoadingButton
+				variant="contained"
+				size="large"
+				onClick={handleCreatePost}
+				loading={isPendingCreatePost}
+				// startIcon={<Iconify icon="material-symbols:save-outline" width={24} />}
+				loadingIndicator={<Iconify icon="svg-spinners:12-dots-scale-rotate" width={24} />}
+			>
+				{t('save')}
+			</LoadingButton>
 		</>
 	);
 

@@ -346,6 +346,7 @@ const ProductListView = () => {
 							component={RouterLink}
 							href={BO_PATH_NAMES.dashboard.posts.create}
 							variant="contained"
+							size="large"
 							startIcon={<Iconify icon="mingcute:add-line" />}
 						>
 							{/* New Post */}
