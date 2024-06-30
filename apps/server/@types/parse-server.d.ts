@@ -38,18 +38,18 @@ declare module 'parse-server/lib/index.js' {
 }
 
 declare module 'parse-server' {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	import Parse from 'parse';
-	import type { /* BaseAttributes, */ OmitBaseAttributes } from 'parse';
+	import type { OmitBaseAttributes } from 'parse';
 
 	import type { Application, RequestHandler } from 'express';
 
 	import type MailAdapter from '@/server/lib/parse/interfaces/MailAdapter';
 
+	export type LogLevelEnum = 'error' | 'warn' | 'info' | 'debug' | 'verbose' | 'silly' | 'silent';
+
 	export type ParseServerOptions = {
 		// Required options
 		appId: string;
-		cloud: string | ((Parse: typeof Parse) => Promise<void>);
+		cloud: string | (() => Promise<void>);
 		databaseURI: string;
 		masterKey: string;
 		publicServerURL: string;
@@ -63,7 +63,17 @@ declare module 'parse-server' {
 		};
 		masterKeyIps?: string[];
 		allowExpiredAuthDataToken?: boolean;
-		logLevel?: string;
+
+		silent?: boolean;
+		logLevel?: LogLevelEnum;
+		logLevels?: {
+			cloudFunctionError: LogLevelEnum;
+			cloudFunctionSuccess: LogLevelEnum;
+			triggerAfter: LogLevelEnum;
+			triggerBeforeError: LogLevelEnum;
+			triggerBeforeSuccess: LogLevelEnum;
+		};
+
 		filesAdapter?: any;
 
 		// Other options
