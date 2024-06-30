@@ -115,14 +115,14 @@ const EditPostSlugDrawer = ({ postId, postTitle }: Props) => {
 
 				<Box>
 					<Tooltip title={t('slugify-current-title')}>
-						<Button variant="contained" onClick={handleSetSlugifyCurrentTitle}>
+						<Button variant="contained" size="large" onClick={handleSetSlugifyCurrentTitle}>
 							<Iconify icon="gravity-ui:arrow-rotate-right" width={24} />
 						</Button>
 					</Tooltip>
 				</Box>
 
 				<Box>
-					<Button variant="contained" sx={{ whiteSpace: 'nowrap' }} type="submit">
+					<Button variant="contained" size="large" sx={{ whiteSpace: 'nowrap' }} type="submit">
 						{isAddSlugPending ? (
 							<CircularProgress size={24} sx={{ color: theme.palette.common.white }} />
 						) : (
@@ -232,52 +232,47 @@ const SlugsList = ({ postId }: { postId: string }) => {
 				// const isCurrentSlug = e.slug === currentSlug;
 
 				return (
-					<Box
-						key={e.objectId}
-						sx={{
-							'& > .MuiButtonBase-root': {
-								padding: (theme) => {
-									return theme.spacing(1.8);
+					<Stack key={e.objectId} direction="row" gap={2} mb={2}>
+						<Box
+							sx={{
+								flexGrow: 1,
+								'& > .MuiButtonBase-root': {
+									padding: (theme) => {
+										return theme.spacing(1.8);
+									},
+
+									...(e.isCurrent
+										? {
+												borderRadius: 1,
+												borderColor: (theme) => {
+													return theme.palette.info.main;
+												},
+												backgroundColor: (theme) => {
+													return alpha(theme.palette.info.main, theme.palette.action.hoverOpacity);
+												},
+											}
+										: {}),
 								},
-
-								...(e.isCurrent
-									? {
-											borderRadius: 1,
-											borderColor: (theme) => {
-												return theme.palette.info.main;
-											},
-											backgroundColor: (theme) => {
-												return alpha(theme.palette.info.main, theme.palette.action.hoverOpacity);
-											},
-											// '&:hover': {
-											// 	borderColor: (theme) => {
-											// 		return theme.palette.info.main;
-											// 	},
-											// 	backgroundColor: (theme) => {
-											// 		return alpha(theme.palette.info.main, theme.palette.action.hoverOpacity);
-											// 	},
-											// },
-										}
-									: {}),
-							},
-							'& .MuiTypography-root': {
-								textTransform: 'unset',
-							},
-						}}
-					>
-						<ResultItem
-							title={[{ text: e.slug }]}
-							groupLabel=""
-							onClickItem={() => {
-								if (e.isCurrent) {
-									// do nothing
-									return;
-								}
-
-								console.log(e.slug);
+								'& .MuiTypography-root': {
+									textTransform: 'unset',
+								},
 							}}
-						/>
-					</Box>
+						>
+							<ResultItem
+								title={[{ text: e.slug }]}
+								groupLabel=""
+								onClickItem={() => {
+									if (e.isCurrent) {
+										// do nothing
+										return;
+									}
+
+									console.log(e.slug);
+								}}
+							/>
+						</Box>
+						{e.isCurrent ? null : <Button variant="contained">Set a current</Button>}
+					</Stack>
 				);
 			})}
 		</List>
