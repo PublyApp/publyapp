@@ -63,13 +63,13 @@ export const getSendEmailUpdateEmailSchema = (z: CustomZod) => {
 
 export const getRegisterSchema = (z: CustomZod) => {
 	return getLoginSchema(z).extend({
-		firstName: z.string(/* { required_error: 'First name required' } */),
-		lastName: z.string(/* { required_error: 'Last name required' } */),
+		firstName: z.string(/* { required_error: 'First name required' } */).min(1),
+		lastName: z.string(/* { required_error: 'Last name required' } */).min(1),
 	});
 };
 
 export type LoginInput = z.infer<ReturnType<typeof getLoginSchema>>;
-export type RegisterInput = z.infer<ReturnType<typeof getRegisterSchema>>;
+export type SignupInput = z.infer<ReturnType<typeof getRegisterSchema>>;
 export type VerifyEmailInput = z.infer<ReturnType<typeof getVerifyEmailSchema>>;
 export type ResetPasswordInput = z.infer<ReturnType<typeof getResetPasswordSchema>>;
 export type SendUpdateEmailFormInput = z.infer<ReturnType<typeof getSendEmailUpdateEmailSchema>>;

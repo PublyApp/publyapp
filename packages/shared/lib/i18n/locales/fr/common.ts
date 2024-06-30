@@ -67,6 +67,7 @@ const commonFR = {
 	'other-posts': 'Autres articles',
 
 	'sign-in': 'Se connecter',
+	'sign-up': "S'inscrire",
 	'create-an-account': 'Créer un compte',
 	'email-address': 'Adresse email',
 	password: 'Mot de passe',

@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import type { IUser } from '@devist/shared/types/db/user.types';
 
-import type { GetUserAuthDataFunction } from '@/server/resources/auth/auth.functions';
+import type { GetIsDisabledSignupFunction, GetUserAuthDataFunction } from '@/server/resources/auth/auth.functions';
 import { defaultHttp, getProtectionHeaders } from '@/shared/lib/axios';
 import { endPoint, functionName, LOCALE_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
@@ -39,8 +39,14 @@ export default class AuthEndPoints extends BaseEndPoints {
 		);
 	}
 
-	async passwordSignup(input: { email: string; username?: string; password: string }) {
-		const { email, password, username } = input;
+	async passwordSignup(input: {
+		email: string;
+		username?: string;
+		password: string;
+		firstName?: string;
+		lastName?: string;
+	}) {
+		const { email, password, username, firstName, lastName } = input;
 
 		const headers = _.merge(getProtectionHeaders({}), {
 			'X-Parse-Revocable-Session': '1',
@@ -48,14 +54,18 @@ export default class AuthEndPoints extends BaseEndPoints {
 		});
 
 		return defaultHttp.post<IUser & { sessionToken?: string }>(
-			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).auth.passwordLogin,
-			{ email, username, password },
+			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).auth.passwordSignup,
+			{ email, username, password, lastName, firstName },
 			{ headers },
 		);
 	}
 
 	async verificationEmailRequest(input: { email: string }) {
 		return this.parseRestClient.verificationEmailRequest(input);
+	}
+
+	async getIsDisabledSignup() {
+		return this.parseRestClient.cloudRun<GetIsDisabledSignupFunction.Return>(functionName.auth.getIsDisabledSignup);
 	}
 
 	async logOut() {

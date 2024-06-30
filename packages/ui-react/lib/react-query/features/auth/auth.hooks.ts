@@ -3,12 +3,19 @@ import { useNavigate } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 import type { IUser } from '@devist/shared/types/db/user.types';
-import type { LoginInput, VerifyEmailInput } from '@devist/shared/validations/auth.validations';
+import type { LoginInput, SignupInput, VerifyEmailInput } from '@devist/shared/validations/auth.validations';
 
 import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
 import { localStorageSetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
-import { getUserAuthDataQuery, loginAction, logOutAction, verifyEmailAction } from './auth.actions';
+import {
+	getIsDisabledSignupQuery,
+	getUserAuthDataQuery,
+	loginAction,
+	logOutAction,
+	signupAction,
+	verifyEmailAction,
+} from './auth.actions';
 
 // import { getUserAuthDataAction, loginAction, logOutAction } from './auth.actions';
 
@@ -41,15 +48,6 @@ export const useLoginMutation = ({ options = {} }: UseLoginMutationProps = {}) =
 };
 
 // ---- 2 --------------------------------------------------------------------------------
-
-// export const getClientAuthQueryKeyBase = 'getClientAuth' as const;
-
-// export const getUserAuthDataQuery = (parseApi: ParseApi) => {
-// 	return queryOptions({
-// 		queryKey: [getClientAuthQueryKeyBase] as const,
-// 		queryFn: getUserAuthDataAction(parseApi),
-// 	});
-// };
 
 type UseGetClientAuthProps = {
 	options?: Omit<typeof getUserAuthDataQuery, 'queryKey' | 'queryFn'>;
@@ -101,7 +99,7 @@ type UseVerifyEmailMutationProps = {
 };
 
 export const useVerifyEmailMutation = ({ options = {} }: UseVerifyEmailMutationProps = {}) => {
-	const key = ['verifyEmail'] as const;
+	const key = ['signUp'] as const;
 
 	const result = useMutation({
 		mutationKey: key,
@@ -110,4 +108,41 @@ export const useVerifyEmailMutation = ({ options = {} }: UseVerifyEmailMutationP
 	});
 
 	return { result, key };
+};
+
+// ---- 5 --------------------------------------------------------------------------------
+
+type UseSignupMutationProps = {
+	options?: Omit<MutateOptions<unknown, Error, SignupInput>, 'mutationKey' | 'mutationFn'>;
+	// parseApi: ParseApi; // todo: do some tests in the case we will need a loginAs feature
+	// onSuccess?: MutateOptions<IUser, Error, LoginInput>['onSuccess'];
+};
+
+export const useSignupMutation = ({ options = {} }: UseSignupMutationProps = {}) => {
+	const key = ['verifyEmail'] as const;
+
+	const result = useMutation({
+		mutationKey: key,
+		mutationFn: signupAction,
+		...options,
+	});
+
+	return { result, key };
+};
+
+// ---- 6 --------------------------------------------------------------------------------
+
+type UseGeIsDisabledSignupProps = {
+	options?: Omit<typeof getIsDisabledSignupQuery, 'queryKey' | 'queryFn'>;
+};
+
+export const useGetIsDisabledSignupSuspenseQuery = ({ options }: UseGeIsDisabledSignupProps = {}) => {
+	const query = getIsDisabledSignupQuery;
+
+	const result = useSuspenseQuery({
+		...query,
+		...options,
+	});
+
+	return { result, key: query.queryKey };
 };

@@ -1,13 +1,15 @@
 import { lazy, Suspense } from 'react';
 
 import { Box } from '@mui/material';
-import { Outlet, redirect, useRouteError, type RouteObject } from 'react-router-dom';
+import { defer, Outlet, redirect, useRouteError, type RouteObject } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import SplashScreen from '@/office/components/SplashScreen';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import { getIsDisabledSignupQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
+import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
 import { getLastPath, getRouteLoader } from '../utils';
 
@@ -75,7 +77,21 @@ export const publicRoutes: RouteObject[] = [
 						element: <Login />,
 						index: true,
 					},
-					{ path: getLastPath(BO_PATH_NAMES.auth.signup), element: <Signup /> },
+					{
+						path: getLastPath(BO_PATH_NAMES.auth.signup),
+						loader: getRouteLoader(async () => {
+							const cachedSignupConfigData = defaultQueryClient.getQueryData(getIsDisabledSignupQuery.queryKey);
+
+							const signupConfigData = cachedSignupConfigData
+								? Promise.resolve(cachedSignupConfigData)
+								: defaultQueryClient.fetchQuery(getIsDisabledSignupQuery);
+
+							return defer({
+								signupConfigData,
+							});
+						}),
+						element: <Signup />,
+					},
 					{ path: getLastPath(BO_PATH_NAMES.auth.verifyEmail), element: <VerifyEmail /> },
 				],
 			},
