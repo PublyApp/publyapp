@@ -88,8 +88,8 @@ const commonEN = {
 		'Explore our latest blog posts for insightful articles, tips, and stories. Stay updated with our blog.',
 
 	'new-signup-disabled': 'New signup are disabled',
-
 	'set-as-current': 'Set as current',
+	'slug-linked-to-another-post': 'Slug to another article',
 
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',
