@@ -169,6 +169,7 @@ export const functionName = {
 		findBlogPostSlug: 'findBlogPostSlug',
 		addSlugToBlogPost: 'addSlugToBlogPost',
 		removeSeededBlogPosts: 'removeSeededBlogPosts',
+		setBloPostCurrentSlug: 'setBloPostCurrentSlug',
 	},
 	fileManager: {
 		// Files

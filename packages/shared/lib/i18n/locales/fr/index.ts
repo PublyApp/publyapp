@@ -6,7 +6,13 @@ import common from './common';
 
 const resourceFR = {
 	common,
-	zod: zodFr,
+	zod: {
+		...zodFr,
+		errors: {
+			...zodFr.errors,
+			invalid_type_with_path: '{{path}} est attendu {{expected}}, reçu {{received}}',
+		},
+	},
 } as const satisfies LooseResource;
 
 export default resourceFR;

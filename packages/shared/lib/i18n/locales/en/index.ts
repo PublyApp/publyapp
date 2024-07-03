@@ -5,7 +5,13 @@ import common from './common';
 
 const resourceEN = {
 	common,
-	zod: zodEn,
+	zod: {
+		...zodEn,
+		errors: {
+			...zodEn.errors,
+			invalid_type_with_path: '{{path}} is expected {{expected}}, received {{received}}',
+		},
+	},
 } as const;
 
 export type Resource = typeof resourceEN;
