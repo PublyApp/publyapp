@@ -91,6 +91,7 @@ const commonFR = {
 
 	'new-signup-disabled': 'Les nouvelles inscriptions sont désactivées',
 	'set-as-current': 'Définir comme actuel',
+	'slug-linked-to-another-post': 'Slug lié à un autre article',
 
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
