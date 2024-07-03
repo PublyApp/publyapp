@@ -347,18 +347,65 @@ const removeSeededBlogPosts = parseFunctionEnhanced({
 	},
 });
 
-const setBloPostCurrentSlug = parseFunctionEnhanced({
-	// requireUser: true,
-	// allowedRoles: roleSet.ABOVE_STAFF_EDITOR,
+const setBlogPostCurrentSlug = parseFunctionEnhanced({
+	requireUser: true,
+	allowedRoles: roleSet.ABOVE_STAFF_EDITOR,
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
-			id: z.string().min(1),
+			slugId: z.string().min(1),
+			postId: z.string().min(1),
 		});
 		return schema.parse(params);
 	},
-	action: async () => {
-		//
-		// TODO: implement this
+	action: async ({ req, params, t }) => {
+		const sessionToken = req.user?.getSessionToken();
+		const { postId, slugId } = params;
+
+		const slugService = new BlogPostSlugService({ sessionToken });
+		const postService = new BlogPostService({ sessionToken });
+
+		const getSlugPromise = slugService.getSlugObject(slugId, { select: ['post', 'isCurrent'] });
+		const getPostPromise = postService.getById(postId, { select: [] });
+
+		const [post, slug] = await Promise.all([getPostPromise, getSlugPromise]);
+
+		if (!post) {
+			throw new Error(t('item-not-found', { item: t('post') }));
+		}
+
+		if (!slug) {
+			throw new Error(t('item-not-found', { item: 'Slug' }));
+		}
+
+		const slugPost = slug.get('post');
+
+		if (!slugPost) {
+			// there should be no problem
+		} else if (post.id !== slugPost.id) {
+			throw new Error(t('slug-linked-to-another-post'));
+		}
+
+		if (slug.get('isCurrent') === true) {
+			return slug;
+		}
+
+		const isCurrentSlugQuery = new Parse.Query(ParseBlogPostSlug)
+			.equalTo('post', post)
+			.equalTo('isCurrent', true)
+			.select([]);
+
+		await isCurrentSlugQuery.each(
+			async (_slug) => {
+				_slug.set('isCurrent', false);
+				await _slug.save(null, { sessionToken });
+			},
+			{ sessionToken },
+		);
+
+		slug.set('isCurrent', true);
+		const savedSlug = await slug.save(null, { sessionToken });
+
+		return savedSlug;
 	},
 });
 
@@ -375,6 +422,6 @@ Parse.Cloud.define(functionName.blog.getBlogPostBoEdit, getBlogPostFunctionBoEdi
 
 Parse.Cloud.define(functionName.blog.findBlogPostSlug, findBlogPostSlug);
 Parse.Cloud.define(functionName.blog.addSlugToBlogPost, addSlugToBlogPost);
-Parse.Cloud.define(functionName.blog.setBloPostCurrentSlug, setBloPostCurrentSlug);
+Parse.Cloud.define(functionName.blog.setBlogPostCurrentSlug, setBlogPostCurrentSlug);
 
 Parse.Cloud.define(functionName.blog.removeSeededBlogPosts, removeSeededBlogPosts);
