@@ -347,6 +347,21 @@ const removeSeededBlogPosts = parseFunctionEnhanced({
 	},
 });
 
+const setBloPostCurrentSlug = parseFunctionEnhanced({
+	// requireUser: true,
+	// allowedRoles: roleSet.ABOVE_STAFF_EDITOR,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			id: z.string().min(1),
+		});
+		return schema.parse(params);
+	},
+	action: async () => {
+		//
+		// TODO: implement this
+	},
+});
+
 Parse.Cloud.define(functionName.blog.createBlogPost, createBlogPostFunction);
 Parse.Cloud.define(functionName.blog.updateBlogPost, updateBlogPostFunction);
 Parse.Cloud.define(functionName.blog.findBlogPostTag, findBlogPostTag);
@@ -360,6 +375,6 @@ Parse.Cloud.define(functionName.blog.getBlogPostBoEdit, getBlogPostFunctionBoEdi
 
 Parse.Cloud.define(functionName.blog.findBlogPostSlug, findBlogPostSlug);
 Parse.Cloud.define(functionName.blog.addSlugToBlogPost, addSlugToBlogPost);
-// Parse.Cloud.define(functionName.blog.updateBloPostCurrentSlug, updateBloPostCurrentSlug);
+Parse.Cloud.define(functionName.blog.setBloPostCurrentSlug, setBloPostCurrentSlug);
 
 Parse.Cloud.define(functionName.blog.removeSeededBlogPosts, removeSeededBlogPosts);
