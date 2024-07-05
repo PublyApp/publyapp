@@ -4,6 +4,7 @@ import { alpha, Avatar, Box, Container, ListItemText, Stack, Typography, useThem
 // import { useResponsive } from 'src/hooks/use-responsive';
 import { bgGradient } from '@devist/ui-react/utils/css.utils';
 
+import type { DateType } from '@/shared/types/date.types';
 import { fDate } from '@/ui-react/utils/date.utils';
 
 // import type { IPostHero } from 'src/types/blog';
@@ -16,7 +17,7 @@ import { fDate } from '@/ui-react/utils/date.utils';
 export type IPostHero = {
 	title: string;
 	coverUrl: string;
-	createdAt?: Date;
+	createdAt?: DateType;
 	author?: {
 		name: string;
 		avatarUrl: string;
