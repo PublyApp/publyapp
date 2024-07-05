@@ -38,7 +38,7 @@ import BlogPostSeriesSchema from './resources/blog/blogPostSeries/blogPostSeries
 import BlogPostSlugSchema from './resources/blog/blogPostSlug/blogPostSlug.schema';
 import BlogPostTagSchema from './resources/blog/blogPostTag/blogPostTag.schema';
 import AppFileSchema from './resources/file-manager/appFile/appFile.schema';
-import customApiRouter from './router/customApiRouter';
+import customApiRouter from './router/api.router';
 import duration from './utils/duration';
 
 // ! use the rsbuild metaPlugin I wrote to make these work

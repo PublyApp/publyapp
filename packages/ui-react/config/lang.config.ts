@@ -1,7 +1,10 @@
 import { enUS as enUSCore, frFR as frFRCore } from '@mui/material/locale';
 import { enUS as enUSDataGrid, frFR as frFRDataGrid } from '@mui/x-data-grid';
 import { enUS as enUSDate, frFR as frFRDate } from '@mui/x-date-pickers';
-import { enUS as enUSAdapter, fr as frFRAdapter } from 'date-fns/locale';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+// eslint-disable-next-line import/extensions
+import { enUS as enUSAdapter, fr as frFRAdapter } from 'date-fns/locale/index.js';
 import merge from 'lodash/merge';
 
 import { type AppLocale } from '@/shared/lib/i18n/resources';
