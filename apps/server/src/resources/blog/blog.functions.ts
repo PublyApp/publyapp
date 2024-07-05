@@ -347,6 +347,11 @@ const removeSeededBlogPosts = parseFunctionEnhanced({
 	},
 });
 
+export namespace SetBlogPostCurrentSlugFunction {
+	export type Params = FunctionParams<typeof setBlogPostCurrentSlug>;
+	export type Return = FunctionReturn<typeof setBlogPostCurrentSlug>;
+}
+
 const setBlogPostCurrentSlug = parseFunctionEnhanced({
 	requireUser: true,
 	allowedRoles: roleSet.ABOVE_STAFF_EDITOR,
@@ -364,7 +369,7 @@ const setBlogPostCurrentSlug = parseFunctionEnhanced({
 		const slugService = new BlogPostSlugService({ sessionToken });
 		const postService = new BlogPostService({ sessionToken });
 
-		const getSlugPromise = slugService.getSlugObject(slugId, { select: ['post', 'isCurrent'] });
+		const getSlugPromise = slugService.getSlugObjectById(slugId, { select: ['post', 'isCurrent'] });
 		const getPostPromise = postService.getById(postId, { select: [] });
 
 		const [post, slug] = await Promise.all([getPostPromise, getSlugPromise]);
@@ -386,21 +391,11 @@ const setBlogPostCurrentSlug = parseFunctionEnhanced({
 		}
 
 		if (slug.get('isCurrent') === true) {
+			await slugService.unsetCurrentSlugsForBlogPost(post, { notContainedIn: [slug.id] });
 			return slug;
 		}
 
-		const isCurrentSlugQuery = new Parse.Query(ParseBlogPostSlug)
-			.equalTo('post', post)
-			.equalTo('isCurrent', true)
-			.select([]);
-
-		await isCurrentSlugQuery.each(
-			async (_slug) => {
-				_slug.set('isCurrent', false);
-				await _slug.save(null, { sessionToken });
-			},
-			{ sessionToken },
-		);
+		await slugService.unsetCurrentSlugsForBlogPost(post);
 
 		slug.set('isCurrent', true);
 		const savedSlug = await slug.save(null, { sessionToken });

@@ -20,12 +20,14 @@ import {
 } from '@mui/material';
 import _ from 'lodash';
 import { useForm } from 'react-hook-form';
+import { useParams } from 'react-router-dom';
 
 import { slugify } from '@devist/shared/utils/string.utils';
 
 import { ResultItem } from '@/office/components/ResultItem';
 import { selectIsOpenSlugDrawer, selectSetIsOpenSlugDrawer } from '@/office/lib/zustand/features/blogPost.slice';
 import { useMainStore } from '@/office/lib/zustand/store';
+import type { IBlogPostSlug } from '@/shared/types/db/blogPostSlug.types';
 import { getAddSlugToPostSchema } from '@/shared/validations/blogPost/blogPost.validations';
 import FormProvider from '@/ui-react/components/form/FormProvider';
 import RHFTextField from '@/ui-react/components/form/RHFTextField';
@@ -35,6 +37,7 @@ import useTranslate from '@/ui-react/hooks/useTranslate';
 import {
 	useAddSlugToBlogPostMutation,
 	useFindBlogPostSlugSuspenseQuery,
+	useSetBlogPostCurrentSlugMutation,
 } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
 import zod from '@/ui-react/lib/zod';
 import { paper } from '@/ui-react/utils/css.utils';
@@ -130,10 +133,6 @@ const EditPostSlugDrawer = ({ postId, postTitle }: Props) => {
 						loadingIndicator={<Iconify icon="svg-spinners:12-dots-scale-rotate" width={24} />}
 						loading={isAddSlugPending}
 					>
-						{/* {isAddSlugPending ? (
-							<CircularProgress size={24} sx={{ color: theme.palette.common.white }} />
-						) : (
-						)} */}
 						{t('add-slug')}
 					</LoadingButton>
 				</Box>
@@ -212,7 +211,6 @@ export default EditPostSlugDrawer;
 // --------------------------------
 
 const SlugsList = ({ postId }: { postId: string }) => {
-	const { t } = useTranslate();
 	const {
 		result: { data },
 	} = useFindBlogPostSlugSuspenseQuery({
@@ -233,58 +231,81 @@ const SlugsList = ({ postId }: { postId: string }) => {
 						slug: nanoid(),
 					};
 				}). */}
-			{flatData.map((e) => {
-				// 	return <Box key={e.id}>
-				// 	<Typography>{e.slug}</Typography>
-				// </Box>
-				// const isCurrentSlug = e.slug === currentSlug;
-
-				return (
-					<Stack key={e.objectId} direction="row" gap={2} mb={2}>
-						<Box
-							sx={{
-								flexGrow: 1,
-								'& > .MuiButtonBase-root': {
-									padding: (theme) => {
-										return theme.spacing(1.8);
-									},
-
-									...(e.isCurrent
-										? {
-												borderRadius: 1,
-												borderColor: (theme) => {
-													return theme.palette.info.main;
-												},
-												backgroundColor: (theme) => {
-													return alpha(theme.palette.info.main, theme.palette.action.hoverOpacity);
-												},
-											}
-										: {}),
-								},
-								'& .MuiTypography-root': {
-									textTransform: 'unset',
-								},
-							}}
-						>
-							<ResultItem
-								title={[{ text: e.slug }]}
-								groupLabel=""
-								onClickItem={() => {
-									if (e.isCurrent) {
-										// do nothing
-										return;
-									}
-
-									console.log(e.slug);
-								}}
-							/>
-						</Box>
-						{e.isCurrent ? null : <Button variant="contained">{t('set-as-current')}</Button>}
-					</Stack>
-				);
+			{flatData.map((slugItem) => {
+				// eslint-disable-next-line @typescript-eslint/no-use-before-define
+				return <SlugResultItem key={slugItem.objectId} slugItem={slugItem} />;
 			})}
 		</List>
 	);
 
 	return _.isEmpty(flatData) ? <h1>So Empty !!!</h1> : renderItems;
+};
+
+const SlugResultItem = ({ slugItem }: { slugItem: IBlogPostSlug }) => {
+	const { t } = useTranslate();
+	const params = useParams();
+
+	const {
+		result: { mutate: setBlogPostCurrentSlug, isPending: isPendingSetCurrentSlug },
+	} = useSetBlogPostCurrentSlugMutation();
+
+	const handleSetCurrentSlug = () => {
+		setBlogPostCurrentSlug({ postId: _.toString(params.postId), slugId: slugItem.objectId });
+	};
+
+	return (
+		<Stack key={slugItem.objectId} direction="row" gap={2} mb={2}>
+			<Box
+				sx={{
+					flexGrow: 1,
+					'& > .MuiButtonBase-root': {
+						padding: (theme) => {
+							return theme.spacing(1.8);
+						},
+
+						...(slugItem.isCurrent
+							? {
+									borderRadius: 1,
+									borderColor: (theme) => {
+										return theme.palette.info.main;
+									},
+									backgroundColor: (theme) => {
+										return alpha(theme.palette.info.main, theme.palette.action.hoverOpacity);
+									},
+								}
+							: {}),
+					},
+					'& .MuiTypography-root': {
+						textTransform: 'unset',
+					},
+				}}
+			>
+				<ResultItem
+					title={[{ text: slugItem.slug }]}
+					groupLabel=""
+					onClickItem={() => {
+						if (slugItem.isCurrent) {
+							// do nothing
+							return;
+						}
+
+						console.log(slugItem.slug);
+					}}
+				/>
+			</Box>
+			{slugItem.isCurrent ? null : (
+				<LoadingButton
+					variant="contained"
+					size="large"
+					sx={{ whiteSpace: 'nowrap' }}
+					type="submit"
+					loadingIndicator={<Iconify icon="svg-spinners:12-dots-scale-rotate" width={24} />}
+					loading={isPendingSetCurrentSlug}
+					onClick={handleSetCurrentSlug}
+				>
+					{t('set-as-current')}
+				</LoadingButton>
+			)}
+		</Stack>
+	);
 };

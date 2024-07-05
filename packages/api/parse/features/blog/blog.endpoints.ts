@@ -7,6 +7,7 @@ import type {
 	FindBlogPostFunction,
 	FindBlogPostSlugFunction,
 	GetBlogPostFunction,
+	SetBlogPostCurrentSlugFunction,
 	UpdateBlogPostFunction,
 } from '@/server/resources/blog/blog.functions';
 
@@ -35,7 +36,7 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 
 		this.findBlogPostBoTable = this.findBlogPostBoTable.bind(this);
 		this.findBlogPostFrontList = this.findBlogPostFrontList.bind(this);
-		this.findBlogPostTag = this.findBlogPostTag.bind(this);
+		// this.findBlogPostTag = this.findBlogPostTag.bind(this);
 		this.getBlogPostDetailFront = this.getBlogPostDetailFront.bind(this);
 		this.getRelatedBlogPostsFrontDetails = this.getRelatedBlogPostsFrontDetails.bind(this);
 	}
@@ -82,10 +83,11 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 		return post;
 	}
 
-	async findBlogPostTag() {
-		const tags = await this.parseRestClient.cloudRun<any[]>(functionName.blog.findBlogPostTag);
-		return tags;
-	}
+	// TODO: properly implement and type
+	// async findBlogPostTag() {
+	// 	const tags = await this.parseRestClient.cloudRun<any[]>(functionName.blog.findBlogPostTag);
+	// 	return tags;
+	// }
 
 	async getBlogPostDetailFront(params: GetBlogPostFunction.FrontView.Params) {
 		// throw new Error('Method not implemented.');
@@ -112,6 +114,13 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 	async addSlugToBlogPost(params: AddSlugToBlogPostFunction.Params) {
 		return this.parseRestClient.cloudRun<AddSlugToBlogPostFunction.Return, AddSlugToBlogPostFunction.Params>(
 			functionName.blog.addSlugToBlogPost,
+			{ params },
+		);
+	}
+
+	async setBlogPostCurrentSlug(params: SetBlogPostCurrentSlugFunction.Params) {
+		return this.parseRestClient.cloudRun<SetBlogPostCurrentSlugFunction.Return, SetBlogPostCurrentSlugFunction.Params>(
+			functionName.blog.setBlogPostCurrentSlug,
 			{ params },
 		);
 	}

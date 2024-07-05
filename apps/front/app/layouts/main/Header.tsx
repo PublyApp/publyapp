@@ -8,7 +8,8 @@ import { HEADER } from '@/front/lib/constants';
 import { bgBlur } from '@/ui-react/utils/css.utils';
 
 import HeaderShadow from '../_common/HeaderShadow';
-import LanguagePopover from '../_common/LanguagePopover';
+
+// import LanguagePopover from '../_common/LanguagePopover';
 
 // import Searchbar from '../common/Searchbar';
 
@@ -81,7 +82,7 @@ const Header = ({ headerOnDark }: Props) => {
 
 					<Stack spacing={2} flexGrow={1} direction="row" alignItems="center" justifyContent="flex-end">
 						<Stack spacing={1} direction="row" alignItems="center">
-							<LanguagePopover />
+							{/* <LanguagePopover /> */}
 							{/* <Searchbar /> */}
 
 							{/* <SettingsDrawer /> */}

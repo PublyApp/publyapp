@@ -1,4 +1,4 @@
-import { Avatar, Box, Card, Link, Stack, useTheme, type LinkProps } from '@mui/material';
+import { /* Avatar, */ Box, Card, Link, Stack, useTheme, type LinkProps } from '@mui/material';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
@@ -21,7 +21,7 @@ import { nanoid } from 'nanoid';
 // import { nanoid } from 'nanoid';
 
 import type { TranslatedIBlogPostWithRelations } from '@devist/shared/types/db/blogPost.types';
-import { getUserFullName } from '@devist/shared/utils/user.utils';
+// import { getUserFullName } from '@devist/shared/utils/user.utils';
 import { fDate } from '@devist/ui-react/utils/date.utils';
 import { fShortenNumber } from '@devist/ui-react/utils/number.utils';
 
@@ -75,7 +75,7 @@ const PostItemHorizontal = ({
 
 	// const mdUp = useResponsive('up', 'md');
 
-	const { author, cover } = post;
+	const { /* author, */ cover } = post;
 	// const { author, slug, translation, cover, viewCount, published, publishDate, createdAt, tags } = post;
 	// const { title, author, publish, coverUrl, createdAt, totalViews, totalShares, totalComments, description } = post;
 
@@ -98,12 +98,12 @@ const PostItemHorizontal = ({
 						},
 					}}
 				>
-					<Avatar
+					{/* <Avatar
 						alt={getUserFullName(author)}
 						// src={author.avatarUrl}
 						src={author.avatarUrl}
 						sx={{ position: 'absolute', top: 16, left: 16, zIndex: 9 }}
-					/>
+					/> */}
 					<Image alt={cover?.alternativeText || post.title} src={cover?.url} sx={{ height: 1, borderRadius: 1.5 }} />
 				</Box>
 
