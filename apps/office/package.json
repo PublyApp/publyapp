@@ -5,7 +5,7 @@
 	"type": "commonjs",
 	"scripts": {
 		"// =============== BUILD COMMANDS =================": "================================",
-		"build": "tsc && pnpm build:prod",
+		"build": "pnpm build:prod",
 		"build:local": "cross-env MODE=local pnpm build:rs",
 		"build:prod": "cross-env MODE=production pnpm build:rs",
 		"build:preprod": "cross-env MODE=preprod pnpm build:rs",
