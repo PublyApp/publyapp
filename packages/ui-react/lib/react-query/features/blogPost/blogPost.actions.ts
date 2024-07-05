@@ -11,6 +11,7 @@ import type {
 	FindBlogPostFunction,
 	FindBlogPostSlugFunction,
 	GetBlogPostFunction,
+	SetBlogPostCurrentSlugFunction,
 } from '@/server/resources/blog/blog.functions';
 import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
@@ -208,6 +209,21 @@ export const addSlugToBlogPostAction = async (params: AddSlugToBlogPostActionPar
 		return post;
 	} catch (error) {
 		console.log('----- addSlugToBlogPostAction error ----------', error);
+		return Promise.reject(error);
+	}
+};
+
+// == setBlogPostCurrentSlug ==================
+export type SetBlogPostCurrentSlugActionParams = SetBlogPostCurrentSlugFunction.Params;
+
+export const setBlogPostCurrentSlugMutationKeyBase = functionName.blog.setBlogPostCurrentSlug;
+
+export const setBlogPostCurrentSlugAction = async (params: SetBlogPostCurrentSlugActionParams) => {
+	try {
+		const post = await parseApi.blog.setBlogPostCurrentSlug(params);
+		return post;
+	} catch (error) {
+		console.log('----- setBlogPostCurrentSlugAction error ----------', error);
 		return Promise.reject(error);
 	}
 };
