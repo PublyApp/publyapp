@@ -37,9 +37,11 @@ const PostItem = ({ post, index }: Props) => {
 	const mdUp = useResponsive('up', 'md');
 
 	const {
-		/* coverUrl, */ title,
+		/* coverUrl, */
+		title,
 		currentSlug,
-		/* title, totalViews, totalComments, totalShares, */ author,
+		/* title, totalViews, totalComments, totalShares, */
+		author,
 		createdAt,
 		cover,
 	} = post;

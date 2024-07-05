@@ -1,3 +1,5 @@
+import _ from 'lodash';
+
 import type { IBlogPostSlug } from '@/shared/types/db/blogPostSlug.types';
 
 import type ParseBlogPost from '../blogPost/blogPost.class';
@@ -26,7 +28,19 @@ export default class BlogPostSlugService {
 			query.select(select as never);
 		}
 
-		const result = query.first({ sessionToken: this.sessionToken });
+		const result = await query.first({ sessionToken: this.sessionToken });
+
+		return result;
+	}
+
+	async getSlugObjectById(slugId: string, { select = [] }: { select?: string[] } = { select: [] }) {
+		const query = new Parse.Query(ParseBlogPostSlug).equalTo('objectId', slugId);
+
+		if (select) {
+			query.select(select as never);
+		}
+
+		const result = await query.first({ sessionToken: this.sessionToken });
 
 		return result;
 	}
@@ -86,5 +100,24 @@ export default class BlogPostSlugService {
 
 		const [savedSlug] = await Promise.all([saveFoundSlugPromise, handleCurrentSlugPromise]);
 		return savedSlug;
+	}
+
+	async unsetCurrentSlugsForBlogPost(post: ParseBlogPost, { notContainedIn = [] }: { notContainedIn?: string[] } = {}) {
+		const isCurrentSlugQuery = new Parse.Query(ParseBlogPostSlug)
+			.equalTo('post', post)
+			.equalTo('isCurrent', true)
+			.select([]);
+
+		if (!_.isEmpty(notContainedIn)) {
+			isCurrentSlugQuery.notContainedIn('objectId', notContainedIn);
+		}
+
+		await isCurrentSlugQuery.each(
+			async (_slug) => {
+				_slug.set('isCurrent', false);
+				await _slug.save(null, { sessionToken: this.sessionToken });
+			},
+			{ sessionToken: this.sessionToken },
+		);
 	}
 }

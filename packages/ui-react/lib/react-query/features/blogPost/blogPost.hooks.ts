@@ -21,6 +21,8 @@ import {
 	findBlogPostBoTableQuery,
 	findBlogPostSlugQuery,
 	getBlogPostBoEditFormQuery,
+	setBlogPostCurrentSlugAction,
+	setBlogPostCurrentSlugMutationKeyBase,
 	updateBlogPostAction,
 	updateBlogPostMutationKeyBase,
 	type FindBlogPostBoTableQueryParams,
@@ -246,6 +248,59 @@ export const useAddSlugToBlogPostMutation = ({
 			// // queryClient.setQueryData([getBlogPostQueryKeyBase, { id: data.objectId }], data);
 			// // queryClient.invalidateQueries({ queryKey: [findBlogPostQueryKeyBase] });
 			// navigate(BO_PATH_NAMES.dashboard.posts.edit(data.objectId));
+		},
+		onError: async (error, variables, context) => {
+			onError?.(error, variables, context);
+
+			let message = 'Unknown error';
+
+			if (error instanceof Error) {
+				message = error.message;
+			}
+
+			enqueueSnackbar({ variant: 'error', message });
+		},
+		...otherProps,
+	});
+
+	return {
+		result,
+		key,
+	};
+};
+
+// ---- 6 --------------------------------------------------------------------------------
+type UseSetToBlogPostCurrentSlugMutationProps = Omit<
+	MutationOptions<
+		Awaited<ReturnType<typeof setBlogPostCurrentSlugAction>>,
+		unknown,
+		Parameters<typeof setBlogPostCurrentSlugAction>[0]
+	>,
+	'mutationKey' | 'mutationFn'
+>;
+
+export const useSetBlogPostCurrentSlugMutation = ({
+	onSuccess,
+	onError,
+	...otherProps
+}: UseSetToBlogPostCurrentSlugMutationProps = {}) => {
+	const queryClient = useQueryClient();
+	const { enqueueSnackbar } = useSnackbar();
+	const { t } = useTranslate();
+
+	const key = [setBlogPostCurrentSlugMutationKeyBase] as const;
+
+	const result = useMutation({
+		mutationKey: key,
+		mutationFn: setBlogPostCurrentSlugAction,
+		onSuccess: async (data, variables, context) => {
+			onSuccess?.(data, variables, context);
+
+			// eslint-disable-next-line @typescript-eslint/naming-convention
+			const _findBlogPostSlugQuery = findBlogPostSlugQuery();
+
+			queryClient.invalidateQueries({ queryKey: [_findBlogPostSlugQuery.queryKey[0]] });
+			enqueueSnackbar({ variant: 'success', message: t('slug-added-to-post') });
 		},
 		onError: async (error, variables, context) => {
 			onError?.(error, variables, context);
