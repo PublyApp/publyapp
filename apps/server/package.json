@@ -3,7 +3,7 @@
 	"version": "0.0.0",
 	"scripts": {
 		"// =============== BUILD COMMANDS =================": "================================",
-		"build": "tsc && pnpm build:prod",
+		"build": "pnpm build:prod",
 		"build:local": "cross-env MODE=local pnpm build:common",
 		"build:prod": "cross-env MODE=production pnpm build:common",
 		"build:preprod": "cross-env MODE=preprod pnpm build:common",

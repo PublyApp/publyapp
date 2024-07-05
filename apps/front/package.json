@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "tsc && vite build && vite build --ssr",
+		"build": "vite build && vite build --ssr",
 		"build:dev": "vite build --mode development && vite build --ssr --mode development",
 		"start": "remix-serve ./build/server/index.js",
 		"type-check": "tsc"
