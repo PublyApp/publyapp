@@ -86,7 +86,7 @@ const MainPostContent = () => {
 						post={post.post}
 						LinkProps={{
 							disableAddLocaleToPath: true,
-							href: FRONT_PATH_NAMES.posts.details(_.toString(post.post.slug), oppositeLocale),
+							href: FRONT_PATH_NAMES.posts.details(_.toString(_.get(post, 'post.slug')), oppositeLocale),
 							onClick: () => {
 								setTimeout(() => {
 									setLocale(oppositeLocale);
