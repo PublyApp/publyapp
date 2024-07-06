@@ -365,6 +365,8 @@ export default class BlogPostService {
 			sessionToken = this.sessionToken;
 		}
 
+		query.descending(['createdAt']);
+
 		const posts = await query.find({
 			sessionToken,
 			// json,

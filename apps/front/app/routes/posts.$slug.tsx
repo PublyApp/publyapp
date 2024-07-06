@@ -1,10 +1,39 @@
 import { json, type LoaderFunction } from '@remix-run/node';
+import type { MetaFunction } from '@remix-run/react';
 import _ from 'lodash';
 
 import MainPostContent from '../containers/postDetails/MainPostContent';
 import RelatedPosts from '../containers/postDetails/RelatedPosts';
 import { getServerLoader } from '../lib/remix/getServerLoader';
-import { safelyRunInLoader } from '../lib/remix/safelyRun';
+import { isErrorJSON, safelyRunInLoader } from '../lib/remix/safelyRun';
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+	if (!data) {
+		return [];
+	}
+
+	if (isErrorJSON(data.post)) {
+		return [
+			{ title: 'Error' },
+			{
+				property: 'og:title',
+				content: 'Error',
+			},
+		];
+	}
+
+	return [
+		{ title: `${_.get(data.post, 'post.title', 'Blog post')} | Devist Blog` },
+		{
+			property: 'og:title',
+			content: `${_.get(data.post, 'post.title', 'Blog post')}`,
+		},
+		{
+			name: 'description',
+			content: `${_.get(data.post, 'post.description', 'No Description')}`,
+		},
+	];
+};
 
 export const loader = getServerLoader(async ({ params, parseApi }) => {
 	const slug = _.toString(params.slug);
