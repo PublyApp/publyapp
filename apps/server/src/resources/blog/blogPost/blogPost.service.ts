@@ -7,7 +7,7 @@ import { applySkipAndLimit, applySorting, toIsoString } from '@/server/lib/parse
 import type ParseUser from '@/server/resources/auth/user/user.class';
 import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
 import type ParseAppFile from '@/server/resources/file-manager/appFile/appFile.class';
-import { className, DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
+import { className, DEFAULT_PAGE_SIZE, roleEnum } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type { ListMeta, WithMeta } from '@/shared/types/db/any.types';
 import type {
@@ -120,6 +120,8 @@ export default class BlogPostService {
 		// author can read and write
 		acl.setReadAccess(author.id, true);
 		acl.setWriteAccess(author.id, true);
+		// admins can read and write
+		acl.setRoleReadAccess(roleEnum.TENANT_ADMIN.name, true);
 
 		post.setACL(acl);
 
@@ -359,7 +361,7 @@ export default class BlogPostService {
 			query.equalTo('published', true);
 			// hide deleted
 			query.notEqualTo('deleted' as never, true as never);
-
+		} else {
 			sessionToken = this.sessionToken;
 		}
 
