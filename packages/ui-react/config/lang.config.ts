@@ -1,13 +1,20 @@
 import { enUS as enUSCore, frFR as frFRCore } from '@mui/material/locale';
 import { enUS as enUSDataGrid, frFR as frFRDataGrid } from '@mui/x-data-grid';
 import { enUS as enUSDate, frFR as frFRDate } from '@mui/x-date-pickers';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 // eslint-disable-next-line import/extensions
-import { enUS as enUSAdapter, fr as frFRAdapter } from 'date-fns/locale/index.js';
+import { enUS as enUSAdapter, fr as frFRAdapter } from 'date-fns/locale/index.js'; // ! important: import of directory not supported error;
 import merge from 'lodash/merge';
 
+// import * as materialLocale from '@mui/material/locale';
+// import * as dataGrid from '@mui/x-data-grid';
+// import * as datePickers from '@mui/x-date-pickers';
+
 import { type AppLocale } from '@/shared/lib/i18n/resources';
+
+// const { enUS: enUSCore, frFR: frFRCore } = materialLocale;
+// const { enUS: enUSDataGrid, frFR: frFRDataGrid } = dataGrid;
+// const { enUS: enUSDate, frFR: frFRDate } = datePickers;
+// const { enUS: enUSAdapter, fr: frFRAdapter } = dateFnLocale;
 
 type SystemValue = typeof enUSDate & typeof enUSDataGrid & typeof enUSCore;
 
