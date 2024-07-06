@@ -42,6 +42,18 @@
         "build"
       ]
     },
+		"build:local": {
+      "dependsOn": [
+        "^build:local"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        ".svelte-kit",
+        "dist",
+        "build"
+      ]
+    },
     "lint": {
       "cache": false
     },

@@ -170,6 +170,10 @@ const bootstrap = async () => {
 		);
 	}
 
+	// wait for the parse server setup to finish, the mount the parse app to the express app
+	await startParsePromise;
+	app.use(env.PARSE_PATH, parseServerMiddleware, parseServer.app);
+
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                   //
 	// ------------------------------------------------------------------------------------ -//
@@ -203,10 +207,6 @@ const bootstrap = async () => {
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		req.socket.remoteAddress; // make express req.ip work in bun
 	});
-
-	// wait for the parse server setup to finish, the mount the parse app to the express app
-	await startParsePromise;
-	app.use(env.PARSE_PATH, parseServerMiddleware, parseServer.app);
 
 	// set error middleware
 	// ! this must be mounted after all routes and all other middlewares

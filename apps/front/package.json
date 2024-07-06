@@ -7,6 +7,7 @@
 		"dev": "vite dev",
 		"build": "vite build && vite build --ssr",
 		"build:dev": "vite build --mode development && vite build --ssr --mode development",
+		"build:local": "pnpm build:dev",
 		"start": "remix-serve ./build/server/index.js",
 		"type-check": "tsc"
 	},
@@ -26,11 +27,12 @@
 		"@mui/system": "^5.15.20",
 		"@mui/utils": "^5.15.20",
 		"@remix-run/css-bundle": "^2.8.0",
-		"@remix-run/node": "^2.8.0",
-		"@remix-run/react": "^2.8.0",
+		"@remix-run/node": "^2.10.0",
+		"@remix-run/react": "^2.10.0",
 		"@remix-run/router": "^1.16.0",
-		"@remix-run/serve": "^2.8.0",
-		"@remix-run/server-runtime": "^2.8.0",
+		"@remix-run/serve": "^2.10.0",
+		"@remix-run/server-runtime": "^2.10.0",
+		"@vercel/remix": "^2.10.0",
 		"date-fns": "^2.25.0",
 		"events": "^3.3.0",
 		"framer-motion": "^10.18.0",
@@ -57,7 +59,7 @@
 		"zod": "^3.22.4"
 	},
 	"devDependencies": {
-		"@remix-run/dev": "^2.8.0",
+		"@remix-run/dev": "^2.10.0",
 		"@rsbuild/core": "^0.7.9",
 		"@types/lodash": "^4.14.202",
 		"@types/numeral": "^2.0.5",
