@@ -121,7 +121,7 @@ export default class BlogPostService {
 		acl.setReadAccess(author.id, true);
 		acl.setWriteAccess(author.id, true);
 		// admins can read and write
-		acl.setRoleReadAccess(roleEnum.TENANT_ADMIN.name, true);
+		acl.setRoleReadAccess(roleEnum.STAFF_ADMIN.name, true);
 
 		post.setACL(acl);
 
