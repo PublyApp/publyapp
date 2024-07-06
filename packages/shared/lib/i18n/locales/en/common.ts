@@ -87,6 +87,11 @@ const commonEN = {
 	'blog-list-meta-description':
 		'Explore our latest blog posts for insightful articles, tips, and stories. Stay updated with our blog.',
 
+	'blog-post-meta-title': '{{title}} | Devist blog',
+	// 'blog-post-og-title': '{{title}}',
+	// 'blog-post-meta-description':
+	// 	'{{description}}',
+
 	'new-signup-disabled': 'New signup are disabled',
 	'set-as-current': 'Set as current',
 	'slug-linked-to-another-post': 'Slug to another article',
