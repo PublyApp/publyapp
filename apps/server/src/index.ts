@@ -176,7 +176,7 @@ const bootstrap = async () => {
 
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                   //
-	// ------------------------------------------------------------------------------------ -//
+	// --------------------------------------------------------------------------------------//
 	if (!global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
 		app.use(express.static(path.resolve(process.cwd(), 'node_modules/front/build/client')));
 
