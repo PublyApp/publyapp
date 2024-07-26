@@ -13,7 +13,7 @@ const path = require('node:path');
  * @example
  * console.log(import.meta.env)
  * // becomes
- * console.log(/'path/of/original/file')
+ * console.log('/path/of/original/file')
  * @param _options {PluginMetaOptions}
  * @returns {RsbuildPlugin}
  */
