@@ -60,7 +60,7 @@ const createBlogPostFunction = parseFunctionEnhanced({
 			cover: await coverPromise,
 		});
 
-		const newSlug = new ParseBlogPostSlug({ slug: input.slug });
+		const newSlug = new ParseBlogPostSlug({ slug: input.slug, isCurrent: true });
 		const slug = await slugService.assignSlugToPost({ post, slug: newSlug });
 
 		// post.set('currentSlug', slug);
