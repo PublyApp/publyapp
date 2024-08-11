@@ -13,6 +13,7 @@ import RHFTextField from '@devist/ui-react/components/form/RHFTextField';
 
 import { selectSetIsOpenSlugDrawer } from '@/office/lib/zustand/features/blogPost.slice';
 import { useMainStore } from '@/office/lib/zustand/store';
+import { slugify } from '@/shared/utils/string.utils';
 import { RHFUpload } from '@/ui-react/components/form/RHFUpload';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 
@@ -31,6 +32,11 @@ const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '', di
 	const { t, locale } = useTranslate();
 	const { setValue } = form;
 	const setIsOpenSlugDrawer = useMainStore(selectSetIsOpenSlugDrawer);
+
+	const handleActualizeSlugInput = () => {
+		const title = form.getValues('title');
+		form.setValue('slug', slugify(title));
+	};
 
 	const handleOpenSlugDrawer = () => {
 		setIsOpenSlugDrawer(true);
@@ -99,7 +105,15 @@ const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '', di
 							</Button>
 						</Stack>
 					) : (
-						<RHFTextField name="slug" label="Slug" />
+						// <RHFTextField name="slug" label="Slug" />
+						<Stack direction="row" gap={2.1}>
+							<Box sx={{ cursor: 'pointer', flexGrow: 1 }}>
+								<RHFTextField name="slug" label="Slug" /* disabled */ />
+							</Box>
+							<Button onClick={handleActualizeSlugInput} variant="contained" disabled={disabled}>
+								Actualize slug
+							</Button>
+						</Stack>
 					)}
 
 					<RHFTextField name="description" label="Description" multiline rows={3} placeholder={t('your-description')} />
