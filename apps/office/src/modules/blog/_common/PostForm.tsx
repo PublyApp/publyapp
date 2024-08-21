@@ -100,7 +100,7 @@ const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '', di
 							<Box sx={{ cursor: 'pointer', flexGrow: 1 }}>
 								<RHFTextField name="slug" label="Slug" disabled />
 							</Box>
-							<Button onClick={handleOpenSlugDrawer} variant="contained" disabled={disabled}>
+							<Button onClick={handleOpenSlugDrawer} variant="contained" disabled={disabled} color="inherit">
 								Edit slug
 							</Button>
 						</Stack>
@@ -110,7 +110,7 @@ const PostForm = ({ form, edit = false, tags: _tags = [], localeContent = '', di
 							<Box sx={{ cursor: 'pointer', flexGrow: 1 }}>
 								<RHFTextField name="slug" label="Slug" /* disabled */ />
 							</Box>
-							<Button onClick={handleActualizeSlugInput} variant="contained" disabled={disabled}>
+							<Button onClick={handleActualizeSlugInput} variant="contained" disabled={disabled} color="inherit">
 								Actualize slug
 							</Button>
 						</Stack>
