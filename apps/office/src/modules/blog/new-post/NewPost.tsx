@@ -89,6 +89,7 @@ const NewPost = () => {
 				loading={isPendingCreatePost}
 				// startIcon={<Iconify icon="material-symbols:save-outline" width={24} />}
 				loadingIndicator={<Iconify icon="svg-spinners:12-dots-scale-rotate" width={24} />}
+				color="inherit"
 			>
 				{t('save')}
 			</LoadingButton>
