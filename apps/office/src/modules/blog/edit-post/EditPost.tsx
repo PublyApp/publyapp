@@ -108,7 +108,7 @@ const EditPost = () => {
 	// <Icon icon="material-symbols:save-outline" />
 	const renderHeaderActions = (
 		<>
-			<Button size="large" variant="soft" sx={{ mr: 2 }}>
+			<Button size="large" variant="soft" sx={{ mr: 2 }} color="inherit">
 				{t('preview')}
 			</Button>
 			<LoadingButton
@@ -118,6 +118,7 @@ const EditPost = () => {
 				loading={isUpdatePostPending}
 				// startIcon={<Iconify icon="material-symbols:save-outline" width={24} />}
 				loadingIndicator={<Iconify icon="svg-spinners:12-dots-scale-rotate" width={24} />}
+				color="inherit"
 			>
 				{t('save')}
 			</LoadingButton>

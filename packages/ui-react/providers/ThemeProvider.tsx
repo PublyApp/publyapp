@@ -20,7 +20,7 @@ const ThemeProvider = ({ children }: Props) => {
 	// const settings = useSettingsContext();
 	const settings = {
 		themeMode: 'light',
-		themeColorPresets: 'purple',
+		themeColorPresets: 'default',
 	} as const;
 
 	const darkModeOption = darkMode(settings.themeMode);
