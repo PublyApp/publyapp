@@ -348,6 +348,7 @@ const ProductListView = () => {
 							variant="contained"
 							size="large"
 							startIcon={<Iconify icon="mingcute:add-line" />}
+							color="inherit"
 						>
 							{/* New Post */}
 							{t('new-post')}
@@ -407,9 +408,7 @@ const ProductListView = () => {
 												stockOptions={PRODUCT_STOCK_OPTIONS}
 												publishOptions={PUBLISH_OPTIONS}
 											/>
-
 											<GridToolbarQuickFilter />
-
 											<Stack spacing={1} flexGrow={1} direction="row" alignItems="center" justifyContent="flex-end">
 												{!!selectedRowIds.length && (
 													<Button
@@ -422,9 +421,9 @@ const ProductListView = () => {
 													</Button>
 												)}
 
-												<GridToolbarColumnsButton />
-												<GridToolbarFilterButton />
-												<GridToolbarExport />
+												<GridToolbarColumnsButton color="inherit" />
+												<GridToolbarFilterButton color="inherit" />
+												<GridToolbarExport color="inherit" />
 											</Stack>
 										</GridToolbarContainer>
 
