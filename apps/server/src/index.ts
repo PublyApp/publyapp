@@ -17,6 +17,7 @@ import {
 	createRolesIfNotExists,
 	createUploadDirIfNotExists,
 	setUpGlobalConfig,
+	updateSchemasOnInit,
 	// updateUserClpForDisabledSignupConfig,
 } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
@@ -26,18 +27,10 @@ import { expressHandler } from './lib/express';
 import { initI18next } from './lib/i18n';
 import logger, { consoleTransport } from './lib/logger';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
-import SchemaManager from './lib/parse/classes/SchemaManager';
+import { setCurrentInstallationId } from './lib/parse/utils';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
-import RoleSchema from './resources/auth/role/role.schema';
-import SessionSchema from './resources/auth/session/session.schema';
-import UserSchema from './resources/auth/user/user.schema';
-import BlogPostSchema from './resources/blog/blogPost/blogPost.schema';
-import BlogPostSeriesSchema from './resources/blog/blogPostSeries/blogPostSeries.schema';
-import BlogPostSlugSchema from './resources/blog/blogPostSlug/blogPostSlug.schema';
-import BlogPostTagSchema from './resources/blog/blogPostTag/blogPostTag.schema';
-import AppFileSchema from './resources/file-manager/appFile/appFile.schema';
 import customApiRouter from './router/api.router';
 import duration from './utils/duration';
 
@@ -97,7 +90,7 @@ const bootstrap = async () => {
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
-		directAccess: true, // the docs is lying, this is true by default
+		directAccess: false, // the docs is lying, this is true by default
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
 		sessionLength: duration.toSeconds('3d'), // 3 days
 		// ===
@@ -223,34 +216,16 @@ const bootstrap = async () => {
 		logger.info('================================================================');
 	});
 
-	// setup schemas in the database + takes care of the index creations
-	/* const updateSchemasPromise =  */
-	SchemaManager.updateSchemas([
-		// Auth
-		RoleSchema,
-		SessionSchema,
-		UserSchema,
-		// Blog
-		BlogPostSchema,
-		BlogPostSeriesSchema,
-		BlogPostSlugSchema,
-		BlogPostTagSchema,
-		// File manager
-		AppFileSchema,
-	]);
-	// updateSchemasPromise.then(async () => {
-	// 	updateUserClpForDisabledSignupConfig();
-	// });
-	// ? in case of the updated schemas configurations are not took in consideration by Parse server
-	/* .then(() => {
-		parseServer.start();
-	}); */
+	await setCurrentInstallationId(); // ! This must be awaited here before any other tasks
 
-	initI18next();
-	createRolesIfNotExists();
-	createUploadDirIfNotExists();
-	initCloudinary();
-	setUpGlobalConfig();
+	await Promise.all([
+		updateSchemasOnInit(), // setup schemas in the database + takes care of the index creations
+		initI18next(),
+		createRolesIfNotExists(),
+		createUploadDirIfNotExists(),
+		initCloudinary(),
+		setUpGlobalConfig(),
+	]);
 };
 
 bootstrap();
