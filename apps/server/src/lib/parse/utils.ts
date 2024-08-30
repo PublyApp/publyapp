@@ -185,11 +185,13 @@ type ParseFunctionEnhancedParams<P extends Parse.Cloud.Params = Parse.Cloud.Para
 			requireUser: true;
 			allowedRoles?: IRoleConfig[] | undefined;
 			action: (ctx: ActionContext1<P>) => Promise<T>;
+			requireMasterKey?: boolean;
 	  }
 	| {
 			requireUser?: false | undefined;
 			allowedRoles?: undefined;
 			action: (ctx: ActionContext2<P>) => Promise<T>;
+			requireMasterKey?: boolean;
 	  }
 ) & {
 	validateParams?: ({ params, z }: { params: Parse.Cloud.Params; z: CustomZod }) => P;
@@ -199,13 +201,18 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 	params: ParseFunctionEnhancedParams<P, T>,
 ) => {
 	const actionBuilder = parseFunction<P, T>(async (req) => {
-		const { requireUser, action, allowedRoles = roleSet.ALL, validateParams } = params;
+		const { requireUser, action, allowedRoles = roleSet.ALL, validateParams, requireMasterKey } = params;
 
 		const { user } = req;
 
 		const localeInHeader = getParseFunctionHeader(req, LOCALE_HEADER_KEY);
 		const locale = getCorrectLocale(localeInHeader);
 		const t = getT(locale);
+
+		if (requireMasterKey && !req.master) {
+			throw new Error(t('master-key-only-function'));
+		}
+
 		const z = new CustomZod(t);
 
 		if (!requireUser) {
