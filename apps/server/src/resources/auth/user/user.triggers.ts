@@ -7,23 +7,23 @@ import { getGlobalConfig, parseTriggerEnhanced } from '@/server/lib/parse/utils'
 
 import RoleService from '../role/role.service';
 
-const setPublicReadAccessOnUser = (user: Parse.User) => {
-	// const userExists = await user.exists(USE_MASTER_KEY);
+// const setPublicReadAccessOnUser = (user: Parse.User) => {
+// 	// const userExists = await user.exists(USE_MASTER_KEY);
 
-	let acl: Parse.ACL | undefined;
+// 	let acl: Parse.ACL | undefined;
 
-	acl = user.getACL();
+// 	acl = user.getACL();
 
-	if (!acl) {
-		acl = new Parse.ACL();
-	}
+// 	if (!acl) {
+// 		acl = new Parse.ACL();
+// 	}
 
-	if (acl.getPublicReadAccess()) {
-		// do nothing
-	} else {
-		acl.setPublicReadAccess(true);
-	}
-};
+// 	if (acl.getPublicReadAccess()) {
+// 		// do nothing
+// 	} else {
+// 		acl.setPublicReadAccess(true);
+// 	}
+// };
 
 const handleDisabledSignupConfig = async ({ req, t }: { req: Parse.Cloud.TriggerRequest; t: TFunction }) => {
 	const globalConfig = await getGlobalConfig();
@@ -47,7 +47,7 @@ const beforeSaveUser = parseTriggerEnhanced({
 
 		// setUsername(user);
 		await handleDisabledSignupConfig({ req, t });
-		setPublicReadAccessOnUser(user);
+		// setPublicReadAccessOnUser(user); // TODO: this seems to no work, we must fix this (idea: direct call to mongodb driver in afterSave)
 	},
 });
 
