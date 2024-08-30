@@ -1,10 +1,6 @@
-// import { WinstonLoggerAdapter } from 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter';
-// import { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
-// import defaults from 'parse-server/lib/defaults';
-
 import { getLogger } from 'parse-server/lib/logger.js';
 
-import { format, transports } from 'winston';
+import { createLogger, format, transports } from 'winston';
 import { consoleFormat } from 'winston-console-format';
 
 export const consoleTransport = new transports.Console({
@@ -28,6 +24,9 @@ export const consoleTransport = new transports.Console({
 const logger = getLogger();
 export default logger;
 
+export const seedingLogger = createLogger({ transports: [consoleTransport] });
+
+// TODO: test again later
 // export const createSillyLogger = (appId: string) => {
 // 	const options = {
 // 		logsFolder: defaults.logsFolder,
