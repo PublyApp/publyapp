@@ -3,6 +3,7 @@ import _ from 'lodash';
 
 import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
+import { USE_MASTER_KEY } from '../lib/constants';
 import { env } from '../lib/env';
 import { expressHandler } from '../lib/express';
 // import logger from '../lib/logger';
@@ -39,7 +40,8 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 	// logger.info(installationId);
 	// logger.info(cloudInstallationId);
 
-	// * when directAccess equals to false (see ParseServer options), we need to differentiate between cloud code calls to the API and client calls
+	// * when directAccess equals to false (see ParseServer options),
+	// * we need to differentiate between cloud code calls to the API and client calls
 	if (installationId === cloudInstallationId) {
 		return;
 	}
@@ -47,7 +49,11 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 	const session = await new Parse.Query(Parse.Session)
 		.equalTo('sessionToken', sessionToken)
 		.select(['ipAddress'])
-		.first({ sessionToken });
+		// .first({ sessionToken }); // ! do not use sessionToken here because:
+		// ! imagine if we have many instances of our application behind a load balancer
+		// ! it will cause an infinite loop !!!!
+		// ! directly use the master key instead
+		.first(USE_MASTER_KEY);
 
 	if (session) {
 		const requestIp = getRequestIp(req);
