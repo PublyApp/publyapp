@@ -7,11 +7,11 @@
 	},
 	"include": [
 		// whatever paths you intend to lint
-		"packages/eslint-config-custom-base",
-		"packages/eslint-config-custom-common-react",
-		"packages/eslint-config-custom-nextjs",
-		"packages/eslint-config-custom-react",
-		"packages/eslint-config-custom-server",
+		"packages/_eslint-config-custom-base",
+		"packages/_eslint-config-custom-common-react",
+		"packages/_eslint-config-custom-nextjs",
+		"packages/_eslint-config-custom-react",
+		"packages/_eslint-config-custom-server",
 
 		"packages/ui-react/.eslintrc.js",
 
