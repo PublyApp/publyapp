@@ -1,22 +1,27 @@
 import './lib/parse/initParse';
 
+import { seedingLogger } from './lib/logger';
 import { cleanUsers, createUsers } from './resources/auth/user/user.seed';
 import { cleanBlogPosts, createBlogPosts } from './resources/blog/blogPost/blogPost.seed';
 
+// --------------------------------------------------------------------------------------//
+//                    IMPORTANT NOTE: The dev server must be running                    //
+// --------------------------------------------------------------------------------------//
+// check if local
 if (!global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
 	throw new Error('Running seed script only allowed in local');
 }
 
 const run = async () => {
 	const results1 = await cleanUsers();
-	console.log('✅✅', results1);
+	seedingLogger.info('✅✅', results1);
 	const results2 = await cleanBlogPosts();
-	console.log('✅✅', results2);
+	seedingLogger.info('✅✅', results2);
 
 	const users = await createUsers({ num: 50 });
-	console.log('users', users.length);
+	seedingLogger.info('users', users.length);
 	const posts = await createBlogPosts({ num: 20_000, users });
-	console.log('posts', posts.length);
+	seedingLogger.info('posts', posts.length);
 };
 
 run();
