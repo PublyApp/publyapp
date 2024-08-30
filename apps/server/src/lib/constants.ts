@@ -2,8 +2,6 @@ import path from 'path';
 
 import type { CPLsInterface } from 'parse-server';
 
-import { nanoid } from 'nanoid';
-
 import { endPoint } from '@/shared/lib/constants';
 
 import { env } from './env';
@@ -99,4 +97,5 @@ export const parseEndPoint = endPoint.parse(env.PARSE_PATH);
 // Parse server's global config (saved in the database) utilities
 export const DISABLE_SIGNUP_CONFIG_KEY = 'disableSignup';
 
+// TODO: move to env vars
 export const CLOUD_INSTALLATION_ID = '7_UTZsD3OTKZFC4ifcvHbGVwthv8yh8GMlTm';
