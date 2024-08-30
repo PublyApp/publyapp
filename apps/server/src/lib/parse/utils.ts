@@ -6,7 +6,13 @@ import _ from 'lodash';
 import type { AggregateOptions, Db, MongoClient } from 'mongodb';
 import { ZodError } from 'zod';
 
-import { LOCALE_HEADER_KEY, roleSet, TENANT_ID_HEADER_KEY, type IRoleConfig } from '@devist/shared/lib/constants';
+import {
+	className as appClassName,
+	LOCALE_HEADER_KEY,
+	roleSet,
+	TENANT_ID_HEADER_KEY,
+	type IRoleConfig,
+} from '@devist/shared/lib/constants';
 import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { pageToSkip } from '@/server/utils/any.utils';
@@ -234,7 +240,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 
 		const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
 		const onlineMatchConditionIp =
-			!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-forwarded-For');
+			!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
 
 		// ! we assume that we will never call cloud functions from server cloud code
 		if (localMatchConditionIp || onlineMatchConditionIp) {
@@ -353,11 +359,9 @@ export const parseTriggerEnhanced = (params: ParseTriggerEnhancedParams) => {
 		const locale = getCorrectLocale(localeInContext || localeInHeaders);
 		const t = getT(locale);
 
-		// ! not a good idea in my opinion after reconsideration
-		// // we are not allowing any operations outside the cloud functions
-		// if (req.installationId !== 'cloud') {
-		// 	throw new Error(t('Operations outside the cloud functions are not allowed'));
-		// }
+		if (req.master) {
+			return trigger({ req, t, locale });
+		}
 
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		const cloudInstallationId = await getCurrentInstallationId();
@@ -368,16 +372,9 @@ export const parseTriggerEnhanced = (params: ParseTriggerEnhancedParams) => {
 		// in other words: verify if the call is not from our cloud code (not from our server itself)
 		// * especially necessary if directAccess is set to false
 		const definitelyNotFromCloud = directAccess && req.installationId !== 'cloud';
-		const fromAClientButMaybeFromAnotherCloud = !directAccess && req.installationId !== cloudInstallationId;
-		// const notFromCloudOrNotFromSameCloud = definitelyNotFromCloud || fromAClientButMaybeFromAnotherCloud;
+		const alsoNotFromCloud = !directAccess && req.installationId !== cloudInstallationId;
 
-		if (definitelyNotFromCloud || fromAClientButMaybeFromAnotherCloud) {
-			// from a cloud environment but bot the same as the current cloud (.i.e another instance of our application)
-			if (_.get(req.context, 'fromCloud')) {
-				// no need to to do any checks
-				return trigger({ req, t, locale });
-			}
-
+		if (definitelyNotFromCloud || alsoNotFromCloud) {
 			if (req.user) {
 				const sessionToken = req.user.getSessionToken();
 
@@ -424,12 +421,16 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 				if (!tenantIdInHeaders) {
 					if (!_.get(req.query?.toJSON(), 'where.tenant')) {
 						throw new Error(
-							'Tenant parameter missing: Please use an instance of TenantQuery class to perform a query in cloud code',
+							'Tenant parameter missing: please use an instance of TenantQuery class to perform a query in cloud code',
 						);
 					}
 
 					return trigger({ locale, req, t });
 				}
+
+				const tenant = new Parse.Object(appClassName.TENANT);
+				tenant.id = tenantIdInHeaders;
+				req.query?.equalTo('tenant', tenant);
 			}
 
 			// const { headers, context } = req;

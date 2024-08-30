@@ -38,7 +38,6 @@
 	"dependencies": {
 		"@devist/shared": "workspace:*",
 		"@faker-js/faker": "^8.3.1",
-		"@paralleldrive/cuid2": "^2.2.2",
 		"@parse/fs-files-adapter": "^2.0.1",
 		"@remix-run/express": "^2.8.0",
 		"async": "^3.2.5",
@@ -70,7 +69,7 @@
 		"numeral": "^2.0.6",
 		"parse": "^5.2.0",
 		"parse-dashboard": "^6.0.0-beta.1",
-		"parse-server": "7.1.0",
+		"parse-server": "7.2.0",
 		"qs": "^6.11.2",
 		"sharp": "^0.33.3",
 		"streamifier": "^0.1.1",

@@ -28,7 +28,7 @@ const run = async () => {
 			startAppProcess = null;
 		}
 
-		startAppProcess = spawn('node', ['--enable-source-maps', 'dist/index.mjs'], {
+		startAppProcess = spawn('node', ['--enable-source-maps', /* '--trace-deprecation', */ 'dist/index.mjs'], {
 			stdio: 'inherit',
 			cwd: path.resolve(__dirname, '../../'),
 			env: {
