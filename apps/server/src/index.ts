@@ -97,7 +97,7 @@ const bootstrap = async () => {
 		allowExpiredAuthDataToken: false,
 		encodeParseObjectInCloudFunction: true,
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
-		directAccess: false, // the docs is lying, this is true by default
+		directAccess: true, // the docs is lying, this is true by default
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
 		sessionLength: duration.toSeconds('3d'), // 3 days
 		// ===

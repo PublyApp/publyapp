@@ -76,6 +76,10 @@ declare global {
 				context?: ContextOptions;
 			}
 
+			interface BatchOptions {
+				context?: ContextOptions;
+			}
+
 			// TODO: add ContextOptions to more operations
 		}
 	}
