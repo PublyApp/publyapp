@@ -7,7 +7,15 @@ import { className, roleEnum } from '@devist/shared/lib/constants';
 import { DISABLE_SIGNUP_CONFIG_KEY, FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@/server/lib/constants';
 
 import logger from '../lib/logger';
+import SchemaManager from '../lib/parse/classes/SchemaManager';
 import { getDatabase, getGlobalConfig, setGlobalConfig } from '../lib/parse/utils';
+import RoleSchema from '../resources/auth/role/role.schema';
+import SessionSchema from '../resources/auth/session/session.schema';
+import UserSchema from '../resources/auth/user/user.schema';
+import BlogPostSchema from '../resources/blog/blogPost/blogPost.schema';
+import BlogPostSlugSchema from '../resources/blog/blogPostSlug/blogPostSlug.schema';
+import BlogPostTagSchema from '../resources/blog/blogPostTag/blogPostTag.schema';
+import AppFileSchema from '../resources/file-manager/appFile/appFile.schema';
 
 export const createRolesIfNotExists = async () => {
 	const roleEntries = Object.values(roleEnum).map((e) => {
@@ -101,4 +109,27 @@ export const updateUserClpForDisabledSignupConfig = async () => {
 			},
 		},
 	);
+};
+
+export const updateSchemasOnInit = async () => {
+	SchemaManager.updateSchemas([
+		// Auth
+		RoleSchema,
+		SessionSchema,
+		UserSchema,
+		// Blog
+		BlogPostSchema,
+		BlogPostSchema,
+		BlogPostSlugSchema,
+		BlogPostTagSchema,
+		// File manager
+		AppFileSchema,
+	]);
+	// updateSchemasPromise.then(async () => {
+	// 	updateUserClpForDisabledSignupConfig();
+	// });
+	// ? in case of the updated schemas configurations are not took in consideration by Parse server
+	/* .then(() => {
+		parseServer.start();
+	}); */
 };
