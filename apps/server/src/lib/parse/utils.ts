@@ -6,13 +6,7 @@ import _ from 'lodash';
 import type { AggregateOptions, Db, MongoClient } from 'mongodb';
 import { ZodError } from 'zod';
 
-import {
-	className as _className,
-	LOCALE_HEADER_KEY,
-	roleSet,
-	TENANT_ID_HEADER_KEY,
-	type IRoleConfig,
-} from '@devist/shared/lib/constants';
+import { LOCALE_HEADER_KEY, roleSet, TENANT_ID_HEADER_KEY, type IRoleConfig } from '@devist/shared/lib/constants';
 import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { pageToSkip } from '@/server/utils/any.utils';
@@ -21,14 +15,15 @@ import CustomZod from '@/shared/lib/zod/CustomZod';
 // import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
 
 import RoleService from '../../resources/auth/role/role.service';
-import { USE_MASTER_KEY } from '../constants';
+import { CLOUD_INSTALLATION_ID, USE_MASTER_KEY } from '../constants';
 import { getCorrectLocale, getT } from '../i18n';
 
 export const getParseFunctionHeader = (
 	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest,
 	key: string,
 ): string | undefined => {
-	return req.headers?.[key] || req.headers?.[_.toLower(key)];
+	// return req.headers?.[key] || req.headers?.[_.toLower(key)];
+	return _.get(req, `req.headers.${key}`) || _.get(req, `req.headers.${_.toLower(key)}`);
 };
 
 type ParseFunction<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
@@ -372,10 +367,17 @@ export const parseTriggerEnhanced = (params: ParseTriggerEnhancedParams) => {
 		// verify ip address if the request is not from the cloud functions and from an user with a session token
 		// in other words: verify if the call is not from our cloud code (not from our server itself)
 		// * especially necessary if directAccess is set to false
-		const notFromCloud =
-			(directAccess && req.installationId !== 'cloud') || (!directAccess && req.installationId !== cloudInstallationId);
+		const definitelyNotFromCloud = directAccess && req.installationId !== 'cloud';
+		const fromAClientButMaybeFromAnotherCloud = !directAccess && req.installationId !== cloudInstallationId;
+		// const notFromCloudOrNotFromSameCloud = definitelyNotFromCloud || fromAClientButMaybeFromAnotherCloud;
 
-		if (notFromCloud) {
+		if (definitelyNotFromCloud || fromAClientButMaybeFromAnotherCloud) {
+			// from a cloud environment but bot the same as the current cloud (.i.e another instance of our application)
+			if (_.get(req.context, 'fromCloud')) {
+				// no need to to do any checks
+				return trigger({ req, t, locale });
+			}
+
 			if (req.user) {
 				const sessionToken = req.user.getSessionToken();
 
@@ -416,37 +418,51 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 		trigger: async ({ locale, req, t }) => {
 			const { trigger } = params;
 
-			const { headers, context } = req;
-			const fromPublic = context?.fromPublic;
-			const fromStaff = context?.fromStaff;
-
-			// eslint-disable-next-line @typescript-eslint/naming-convention
-			let _headers: Record<string, unknown> = {};
-
-			if (_.isObject(headers) && !_.isEmpty(headers)) {
-				_headers = headers as never;
-			} else if (_.isObject(context?.headers) && !_.isEmpty(context.headers)) {
-				_headers = context.headers as never;
-			}
-
-			// eslint-disable-next-line @typescript-eslint/naming-convention
-			const _tenantId = _headers[_.toLower(TENANT_ID_HEADER_KEY)];
-			const tenantId = _.isString(_tenantId) ? _tenantId : undefined;
-
 			if (req.triggerName === 'beforeFind') {
-				if (!tenantId && !req.master && !fromStaff && !fromPublic) {
-					throw new Error(t('item-is-required', { item: 'tenantId' }));
-				}
+				const tenantIdInHeaders = getParseFunctionHeader(req, TENANT_ID_HEADER_KEY);
 
-				// if (isPublic) {
-				// 	return trigger({ locale, req, t });
-				// }
+				if (!tenantIdInHeaders) {
+					if (!_.get(req.query?.toJSON(), 'where.tenant')) {
+						throw new Error(
+							'Tenant parameter missing: Please use an instance of TenantQuery class to perform a query in cloud code',
+						);
+					}
 
-				if (tenantId) {
-					req.query?.equalTo('tenant', tenantId);
-					return trigger({ locale, req, t, tenantId });
+					return trigger({ locale, req, t });
 				}
 			}
+
+			// const { headers, context } = req;
+			// const fromPublic = context?.fromPublic;
+			// const fromStaff = context?.fromStaff;
+
+			// // eslint-disable-next-line @typescript-eslint/naming-convention
+			// let _headers: Record<string, unknown> = {};
+
+			// if (_.isObject(headers) && !_.isEmpty(headers)) {
+			// 	_headers = headers as never;
+			// } else if (_.isObject(context?.headers) && !_.isEmpty(context.headers)) {
+			// 	_headers = context.headers as never;
+			// }
+
+			// // eslint-disable-next-line @typescript-eslint/naming-convention
+			// const _tenantId = _headers[_.toLower(TENANT_ID_HEADER_KEY)];
+			// const tenantId = _.isString(_tenantId) ? _tenantId : undefined;
+
+			// if (req.triggerName === 'beforeFind') {
+			// 	if (!tenantId && !req.master && !fromStaff && !fromPublic) {
+			// 		throw new Error(t('item-is-required', { item: 'tenantId' }));
+			// 	}
+
+			// 	// if (isPublic) {
+			// 	// 	return trigger({ locale, req, t });
+			// 	// }
+
+			// 	if (tenantId) {
+			// 		req.query?.equalTo('tenant', tenantId);
+			// 		return trigger({ locale, req, t, tenantId });
+			// 	}
+			// }
 
 			return trigger({ locale, req, t });
 		},
@@ -505,6 +521,16 @@ export const getDatabase = (): Db => {
 
 export const getCurrentInstallationId = async () => {
 	return Parse.CoreManager.getInstallationController().currentInstallationId();
+};
+
+export const setCurrentInstallationId = async (/* newId: string */) => {
+	const CURRENT_INSTALLATION_KEY = 'currentInstallation';
+
+	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+	// @ts-ignore
+	// return
+	await Parse.Storage.setItemAsync(CURRENT_INSTALLATION_KEY, /* newId */ CLOUD_INSTALLATION_ID);
+	Parse.CoreManager.getInstallationController()._setInstallationIdCache(/* newId */ CLOUD_INSTALLATION_ID);
 };
 
 /**

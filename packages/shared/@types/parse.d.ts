@@ -28,7 +28,7 @@ declare global {
 			// eslint-disable-next-line @typescript-eslint/ban-types
 			interface TriggerRequest<T = Object> {
 				query: Query<T> | undefined;
-				context: (Record<string, unknown> & { locale?: unknown }) | undefined;
+				context: (Record<string, unknown> & { locale?: string; fromCloud?: boolean }) | undefined;
 				headers: Record<string, any> | undefined;
 			}
 
@@ -44,6 +44,7 @@ declare global {
 
 		interface InstallationController {
 			currentInstallationId(): Promise<string>;
+			_setInstallationIdCache(iid: string): void;
 		}
 
 		namespace CoreManager {
