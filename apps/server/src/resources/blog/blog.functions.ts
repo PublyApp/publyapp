@@ -334,11 +334,8 @@ const addSlugToBlogPost = parseFunctionEnhanced({
 });
 
 const removeSeededBlogPosts = parseFunctionEnhanced({
-	action: async ({ req, t }) => {
-		if (!req.master) {
-			throw new Error(t('master-key-only-function'));
-		}
-
+	requireMasterKey: true,
+	action: async () => {
 		const BlogPost = getDatabase().collection(className.BLOG_POST);
 
 		const result = await BlogPost.deleteMany({ seeded: true });

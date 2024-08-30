@@ -33,11 +33,8 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);
 
 const removeSeededUsers = parseFunctionEnhanced({
-	action: async ({ req, t }) => {
-		if (!req.master) {
-			throw new Error(t('master-key-only-function'));
-		}
-
+	requireMasterKey: true,
+	action: async () => {
 		const User = getDatabase().collection(className.USER);
 
 		const result = await User.deleteMany({ seeded: true });
