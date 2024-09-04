@@ -163,6 +163,7 @@ const getBlogPostFunctionBoEditForm = parseFunctionEnhanced({
 });
 
 const getBlogPostFunctionFrontDetailsView = parseFunctionEnhanced({
+	// requireUser: true,
 	validateParams: ({ params, z }) => {
 		return getGetBlogPostFunctionFrontDetailsViewSchema(z).parse(params);
 	},
