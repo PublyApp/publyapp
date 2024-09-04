@@ -9,6 +9,7 @@ import { DISABLE_SIGNUP_CONFIG_KEY, FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } fr
 import logger from '../lib/logger';
 import SchemaManager from '../lib/parse/classes/SchemaManager';
 import { getDatabase, getGlobalConfig, setGlobalConfig } from '../lib/parse/utils';
+import TenantSchema from '../resources/_multi-tenancy/tenant.schema';
 import RoleSchema from '../resources/auth/role/role.schema';
 import SessionSchema from '../resources/auth/session/session.schema';
 import UserSchema from '../resources/auth/user/user.schema';
@@ -117,6 +118,8 @@ export const updateSchemasOnInit = async () => {
 		RoleSchema,
 		SessionSchema,
 		UserSchema,
+		// Multi Tenant
+		TenantSchema,
 		// Blog
 		BlogPostSchema,
 		BlogPostSchema,

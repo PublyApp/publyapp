@@ -43,7 +43,7 @@ const handleDisabledSignupConfig = async ({ req, t }: { req: Parse.Cloud.Trigger
 
 const beforeSaveUser = parseTriggerEnhanced({
 	trigger: async ({ req, t }) => {
-		const user = req.object as Parse.User;
+		// const user = req.object as Parse.User;
 
 		// setUsername(user);
 		await handleDisabledSignupConfig({ req, t });
