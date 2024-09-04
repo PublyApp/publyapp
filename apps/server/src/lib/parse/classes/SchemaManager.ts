@@ -45,12 +45,11 @@ export default class SchemaManager {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	static defineMultiTenantSchema<T extends Record<string, any>>(className: string, schema: SchemaCustom<T>) {
 		const schemaFields = schema.fields || {};
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(schemaFields as Record<string, any>).tenant = {
+		_.set(schemaFields, 'tenant', {
 			type: 'Pointer',
 			required: true,
 			targetClass: _className.TENANT,
-		};
+		});
 		// eslint-disable-next-line no-param-reassign
 		schema.fields = schemaFields;
 
@@ -61,7 +60,7 @@ export default class SchemaManager {
 		const db = getDatabase();
 		const SchemaCollection = db.collection(_className.SCHEMA);
 
-		await asyncJs.eachOfLimit(schemas, 10, async (schemaDefinition /* key , c */) => {
+		await asyncJs.eachOfLimit(schemas, 10, async (schemaDefinition) => {
 			const wrappedFunction = tryCatchWrapper(
 				async () => {
 					logger.info(`started to update schema '${schemaDefinition.className}'`);
