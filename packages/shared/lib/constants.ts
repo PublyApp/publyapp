@@ -56,6 +56,7 @@ export const className = {
 	// =====================
 	// === Multi Tenancy ===
 	TENANT: 'Tenant',
+	TENANT_MODULE: 'TenantModule',
 	// === Custom classes ===
 	BLOG_POST: 'BlogPost',
 	BLOG_POST_SLUG: 'BlogPostSlug',
