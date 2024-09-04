@@ -74,6 +74,7 @@ const RESOURCE = {
 	posts: 'posts',
 	fileManager: 'file-manager',
 	blog: 'blog',
+	tenants: 'tenants',
 } as const;
 
 const makePath = (...params: string[]) => {
@@ -145,6 +146,10 @@ export const BO_PATH_NAMES = {
 		},
 		fileManager: {
 			root: makePath(ROOTS.DASHBOARD, RESOURCE.fileManager),
+		},
+		// ===================
+		tenants: {
+			root: makePath(ROOTS.DASHBOARD, RESOURCE.tenants),
 		},
 	},
 } as const;
