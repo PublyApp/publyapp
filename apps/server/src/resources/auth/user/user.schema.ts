@@ -1,14 +1,12 @@
 import _ from 'lodash';
 
-import { className } from '@devist/shared/lib/constants';
+import { className, roleEnum } from '@devist/shared/lib/constants';
 import type { IUserWithRelations } from '@devist/shared/types/db/user.types';
 
 import { DEFAULT_CLP } from '@/server/lib/constants';
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 
-// const classLevelPermissions = _.cloneDeep(DEFAULT_CLP);
-// _.set(classLevelPermissions, 'create', {});
-// console.dir({ ...DEFAULT_CLP, create: {} }, { depth: null });
+const staffAdmin = `role:${roleEnum.STAFF_ADMIN.name}`;
 
 const UserSchema = SchemaManager.defineSchema<IUserWithRelations>(className.USER, {
 	fields: {
@@ -23,8 +21,31 @@ const UserSchema = SchemaManager.defineSchema<IUserWithRelations>(className.USER
 
 		// relations
 		avatar: { type: 'Pointer', targetClass: className.APP_FILE },
+		tenants: { type: 'Array' },
 	},
-	classLevelPermissions: { ...DEFAULT_CLP, create: {} },
+	classLevelPermissions: {
+		...DEFAULT_CLP,
+		create: {
+			'*': true,
+			[staffAdmin]: true,
+		},
+		update: {
+			requiresAuthentication: true,
+			[staffAdmin]: true,
+		},
+		delete: {
+			requiresAuthentication: true,
+			[staffAdmin]: true,
+		},
+		addField: {
+			requiresAuthentication: true,
+			[staffAdmin]: true,
+		},
+		// protectedFields: {
+		// 	'*': ['emailVerified', 'tenants'],
+		// 	// requiresAuthentication: []
+		// },
+	},
 });
 
 export default UserSchema;

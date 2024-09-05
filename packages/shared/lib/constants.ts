@@ -62,6 +62,9 @@ export const className = {
 	BLOG_POST_SLUG: 'BlogPostSlug',
 	BLOG_POST_TAG: 'BlogPostTag',
 	BLOG_POST_SERIES: 'BlogPostSeries',
+	BLOG_AUTHOR_PROFILE: 'BlogAuthorProfile',
+	// ==============
+	// ==============
 	APP_FILE: 'AppFile',
 	SHORT_URL: 'ShortUrl',
 	// ==== not used anymore
