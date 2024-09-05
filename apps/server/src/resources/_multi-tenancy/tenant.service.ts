@@ -37,7 +37,7 @@ export default class TenantService {
 		const foundUser = await new Parse.Query(ParseUser)
 			.select([])
 			.equalTo('objectId', user.id)
-			.equalTo('tenants', tenant)
+			.equalTo('tenants.tenant', tenant)
 			.first({ sessionToken: this.sessionToken });
 
 		return Boolean(foundUser);

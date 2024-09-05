@@ -250,7 +250,6 @@ const findPostFunctionFrontList = parseFunctionEnhanced({
 
 		const posts = await postService.findBlogPostFrontList({ page, pageSize, sorting, locale });
 		return posts;
-		// }
 	},
 });
 

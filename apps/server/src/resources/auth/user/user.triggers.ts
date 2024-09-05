@@ -1,61 +1,35 @@
 import type { TFunction } from 'i18next';
+import _ from 'lodash';
 
 import { roleEnum } from '@devist/shared/lib/constants';
 
-import { ADMIN_EMAILS, DISABLE_SIGNUP_CONFIG_KEY, USE_MASTER_KEY } from '@/server/lib/constants';
-import { getGlobalConfig, parseTriggerEnhanced } from '@/server/lib/parse/utils';
+import { ADMIN_EMAILS, USE_MASTER_KEY } from '@/server/lib/constants';
+import { parseTriggerEnhanced } from '@/server/lib/parse/utils';
 
 import RoleService from '../role/role.service';
 
-// const setPublicReadAccessOnUser = (user: Parse.User) => {
-// 	// const userExists = await user.exists(USE_MASTER_KEY);
-
-// 	let acl: Parse.ACL | undefined;
-
-// 	acl = user.getACL();
-
-// 	if (!acl) {
-// 		acl = new Parse.ACL();
-// 	}
-
-// 	if (acl.getPublicReadAccess()) {
-// 		// do nothing
-// 	} else {
-// 		acl.setPublicReadAccess(true);
-// 	}
-// };
-
-const handleDisabledSignupConfig = async ({ req, t }: { req: Parse.Cloud.TriggerRequest; t: TFunction }) => {
-	const globalConfig = await getGlobalConfig();
-	const disabledSignup: boolean = globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY);
-
-	if (disabledSignup && !req.master) {
-		throw new Error(t('new-signup-disabled'));
-	}
-};
-
-// const setUsernameIfNotSpecified = (user: Parse.User) => {
-// 	if (!user.getUsername()) {
-// 		const username = `${user.getEmail()?.split('@')?.[0]}_${user.setUsername(nanoid(5))}`;
-// 		user.setUsername(username);
-// 	}
-// };
+// --------------------------------------------------------------------------------------//
+//                                     BEFORE SAVE                                      //
+// --------------------------------------------------------------------------------------//
 
 const beforeSaveUser = parseTriggerEnhanced({
-	trigger: async ({ req, t }) => {
-		// const user = req.object as Parse.User;
-
-		// setUsername(user);
-		await handleDisabledSignupConfig({ req, t });
-		// setPublicReadAccessOnUser(user); // TODO: this seems to no work, we must fix this (idea: direct call to mongodb driver in afterSave)
+	trigger: async (/* { req } */) => {
+		// do nothing for now
 	},
 });
+
+// --------------------------------------------------------------------------------------//
+//                                      AFTER SAVE                                      //
+// --------------------------------------------------------------------------------------//
 
 const autoAssignAdminRole = async ({ user, t }: { user: Parse.User; t: TFunction }) => {
 	const email = user.getEmail();
 
 	if (!email) {
-		// Normally this should never happen because if an user has been successfully saved that means that it must have an email
+		// Normally this should never happen:
+		// if an user has been successfully saved,
+		// that means that it must have an email
+		// it is our login policy (in our code)
 		throw new Error(t('user-has-no-email'));
 	}
 
@@ -75,12 +49,9 @@ const autoAssignAdminRole = async ({ user, t }: { user: Parse.User; t: TFunction
 
 const afterSaveUser = parseTriggerEnhanced({
 	trigger: async ({ req, t }) => {
-		const user = req.object as Parse.User;
+		const userSaved = req.object as Parse.User;
 
-		// --------------------------------------------------------------------------------------//
-		//                                auto assign admin role                                 //
-		// ------------------------------------------------------------------------------------- //
-		await autoAssignAdminRole({ user, t });
+		await autoAssignAdminRole({ user: userSaved, t });
 	},
 });
 

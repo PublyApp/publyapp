@@ -96,24 +96,39 @@ export const setUpGlobalConfig = async () => {
 export const updateUserClpForDisabledSignupConfig = async () => {
 	const disabledSignup: boolean = (await getGlobalConfig()).get(DISABLE_SIGNUP_CONFIG_KEY);
 
+	const SchemaCollection = getDatabase().collection(className.SCHEMA);
+
+	const roleString = `role:${roleEnum.STAFF_ADMIN.name}`;
+
 	if (!disabledSignup) {
+		await SchemaCollection.updateOne(
+			{ _id: className.USER as never },
+			{
+				$set: {
+					'_metadata.class_permissions.create': {
+						'*': true,
+						[roleString]: true,
+					},
+				},
+			},
+		);
 		return;
 	}
 
-	const SchemaCollection = getDatabase().collection(className.SCHEMA);
-
-	SchemaCollection.updateOne(
+	await SchemaCollection.updateOne(
 		{ _id: className.USER as never },
 		{
 			$set: {
-				'_metadata.class_permissions.create': {},
+				'_metadata.class_permissions.create': {
+					[roleString]: true,
+				},
 			},
 		},
 	);
 };
 
 export const updateSchemasOnInit = async () => {
-	SchemaManager.updateSchemas([
+	await SchemaManager.updateSchemas([
 		// Auth
 		RoleSchema,
 		SessionSchema,
@@ -128,6 +143,7 @@ export const updateSchemasOnInit = async () => {
 		// File manager
 		AppFileSchema,
 	]);
+	await updateUserClpForDisabledSignupConfig();
 	// updateSchemasPromise.then(async () => {
 	// 	updateUserClpForDisabledSignupConfig();
 	// });
