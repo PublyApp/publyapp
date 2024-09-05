@@ -6,12 +6,12 @@ import {
 	type FunctionParams,
 	type FunctionReturn,
 } from '@/server/lib/parse/utils';
-import { className, functionName } from '@/shared/lib/constants';
+import { className, functionName, roleEnum, roleSet } from '@/shared/lib/constants';
+import type { ITenant } from '@/shared/types/db/tenant.types';
 
 import TenantService from '../_multi-tenancy/tenant.service';
 
 import RoleService from './role/role.service';
-import ParseUser from './user/user.class';
 
 export namespace GetUserAuthDataFunction {
 	export type Params = FunctionParams<typeof getUserAuthDataFunction>;
@@ -33,24 +33,61 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 		const rolesPromises = new RoleService({ sessionToken }).getUserRoles(user, true);
 		const roles = await rolesPromises;
 
+		let tenant: ITenant | undefined;
+
 		const { tenantId } = params;
 
 		// find out if this user is really member of the given tenant id params
 		if (tenantId) {
 			// multiple case
 			// case A: the user is a staff member
+			// 		1 - The tenant Id is invalid
+			// 		2 - The tenant Id is valid
 			// case B: the user is just a tenant user
+			// 		1 - The tenant Id is invalid
+			// 		2 - The tenant Id is valid
+			// 				a - The use is a member of this tenant
+			// 				a - The user is not member of this tenant
 			// case C: the user is neither from staff or a tenant // yes this is possible in our system actually
+			const STAFF_ROLES = roleSet.ABOVE_STAFF_CONTRIBUTOR;
+			const TENANT_ROLES = [
+				roleEnum.TENANT_ADMIN,
+				roleEnum.TENANT_EDITOR,
+				roleEnum.TENANT_USER,
+				roleEnum.TENANT_CONTRIBUTOR,
+			];
 
-			// case A-1:
-			//
+			const isStaffMember = roles.some((userRole) => {
+				return STAFF_ROLES.some((staffRole) => {
+					return staffRole.code === userRole.code;
+				});
+			});
+			const hasTenantRole = roles.some((userRole) => {
+				return TENANT_ROLES.some((staffRole) => {
+					return staffRole.code === userRole.code;
+				});
+			});
+
 			const tenantService = new TenantService({ sessionToken });
+			const foundTenant = await tenantService.getById(tenantId, { select: [] });
 
-			const tenant = await tenantService.getById(tenantId, { select: [] });
+			// case A:
+			if (isStaffMember) {
+				if (foundTenant) {
+					tenant = foundTenant.toJSON() as unknown as ITenant;
+				}
+			}
 
-			// if (!tenant) throw new Error('TENANT DOES NOT EXIST');
-			if (tenant) {
-				const isMember = tenantService.isUserMemberOfTenant({ user, tenant });
+			// case B:
+			if (!isStaffMember && hasTenantRole) {
+				if (foundTenant) {
+					// verify if user is member of foundTenant
+					const isMember = await tenantService.isUserMemberOfTenant({ user, tenant: foundTenant });
+
+					if (isMember) {
+						tenant = foundTenant.toJSON() as unknown as ITenant;
+					}
+				}
 			}
 		}
 
@@ -58,6 +95,7 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 			user: user.toJSON(),
 			roles,
 			sessionToken,
+			tenant,
 		};
 	},
 });
