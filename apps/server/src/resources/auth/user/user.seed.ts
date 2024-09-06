@@ -17,8 +17,6 @@ export const userSeedFactory = () => {
 	// const _hashed_password = hash(GENERIC_PASSWORD);
 
 	const user = new ParseUser({
-		firstName,
-		lastName,
 		username,
 		email,
 		password: GENERIC_PASSWORD,

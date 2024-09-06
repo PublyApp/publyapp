@@ -1,4 +1,4 @@
-import ParseUser from '../auth/user/user.class';
+import ParseUser from '../user/user.class';
 
 import ParseTenant from './tenant.class';
 

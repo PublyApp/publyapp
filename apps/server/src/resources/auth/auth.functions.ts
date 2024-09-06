@@ -9,9 +9,8 @@ import {
 import { className, functionName, roleEnum, roleSet } from '@/shared/lib/constants';
 import type { ITenant } from '@/shared/types/db/tenant.types';
 
-import TenantService from '../_multi-tenancy/tenant.service';
-
 import RoleService from './role/role.service';
+import TenantService from './tenant/tenant.service';
 
 export namespace GetUserAuthDataFunction {
 	export type Params = FunctionParams<typeof getUserAuthDataFunction>;

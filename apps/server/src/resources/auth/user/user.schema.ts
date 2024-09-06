@@ -1,18 +1,16 @@
-import _ from 'lodash';
-
 import { className, roleEnum } from '@devist/shared/lib/constants';
-import type { IUserWithRelations } from '@devist/shared/types/db/user.types';
+import type { IUserWithParseRelations } from '@devist/shared/types/db/user.types';
 
 import { DEFAULT_CLP } from '@/server/lib/constants';
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 
 const staffAdmin = `role:${roleEnum.STAFF_ADMIN.name}`;
 
-const UserSchema = SchemaManager.defineSchema<IUserWithRelations>(className.USER, {
+const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(className.USER, {
 	fields: {
-		firstName: { type: 'String' },
-		lastName: { type: 'String' },
-		avatarUrl: { type: 'String' },
+		// firstName: { type: 'String' },
+		// lastName: { type: 'String' },
+		// avatarUrl: { type: 'String' },
 
 		// required by default by Parse
 		username: { type: 'String', required: true },
@@ -20,7 +18,7 @@ const UserSchema = SchemaManager.defineSchema<IUserWithRelations>(className.USER
 		password: { type: 'String', required: true },
 
 		// relations
-		avatar: { type: 'Pointer', targetClass: className.APP_FILE },
+		// avatar: { type: 'Pointer', targetClass: className.APP_FILE },
 		tenants: { type: 'Array' },
 	},
 	classLevelPermissions: {
