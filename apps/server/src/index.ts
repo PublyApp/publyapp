@@ -18,7 +18,6 @@ import {
 	createUploadDirIfNotExists,
 	setUpGlobalConfig,
 	updateSchemasOnInit,
-	// updateUserClpForDisabledSignupConfig,
 } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
 import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
@@ -126,13 +125,8 @@ const bootstrap = async () => {
 						appName: 'Devist Express Dash Local',
 					},
 				],
-				// users: [{ user: 'radandevist', pass: 'azerty' }],
 			},
 			{
-				// dev: true,
-				// allowInsecureHTTP: true,
-				// trustProxy: true,
-				// masterKey: env.PARSE_MASTER_KEY,
 				port: env.PORT,
 			},
 		);
@@ -142,22 +136,6 @@ const bootstrap = async () => {
 		app.all(
 			path.posix.join(env.API_PATH, 'test'),
 			expressHandler(async (_req, res) => {
-				// abort a cloud job
-				// const query = new Parse.Query('_JobStatus')
-				// 	.equalTo('jobName', 'testPostJob')
-				// 	.equalTo('status', 'running')
-				// 	.descending(['createdAt']);
-
-				// const job = query.first(USE_MASTER_KEY);
-
-				// if (job) {
-				// 	my
-				// }
-
-				// const con = global.myCon as AbortController;
-
-				// con.abort();
-
 				return res.status(200).json({ ok: 'ok' });
 			}),
 		);

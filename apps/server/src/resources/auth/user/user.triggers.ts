@@ -7,14 +7,18 @@ import { ADMIN_EMAILS, USE_MASTER_KEY } from '@/server/lib/constants';
 import { parseTriggerEnhanced } from '@/server/lib/parse/utils';
 
 import RoleService from '../role/role.service';
+import ParseUserProfile from '../userProfile/userProfile.class';
 
 // --------------------------------------------------------------------------------------//
 //                                     BEFORE SAVE                                      //
 // --------------------------------------------------------------------------------------//
 
 const beforeSaveUser = parseTriggerEnhanced({
-	trigger: async (/* { req } */) => {
-		// do nothing for now
+	trigger: async ({ req }) => {
+		const userToSave = req.object as Parse.User;
+		const isNew = !(await userToSave.exists());
+
+		_.set(req, 'context.isNew', isNew);
 	},
 });
 
@@ -22,8 +26,9 @@ const beforeSaveUser = parseTriggerEnhanced({
 //                                      AFTER SAVE                                      //
 // --------------------------------------------------------------------------------------//
 
-const autoAssignAdminRole = async ({ user, t }: { user: Parse.User; t: TFunction }) => {
-	const email = user.getEmail();
+const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest; t: TFunction }) => {
+	const userSaved = req.object as Parse.User;
+	const email = userSaved.getEmail();
 
 	if (!email) {
 		// Normally this should never happen:
@@ -43,15 +48,34 @@ const autoAssignAdminRole = async ({ user, t }: { user: Parse.User; t: TFunction
 			throw new Error(t('item-not-found', { item: t('role') })!);
 		}
 
-		await roleService.assignRoleToUser(user, adminRole);
+		await roleService.assignRoleToUser(userSaved, adminRole);
 	}
+};
+
+const createUserProfile = async ({ req }: { req: Parse.Cloud.TriggerRequest }) => {
+	const isNew = _.get(req, 'context.isNew');
+
+	if (!_.isBoolean(isNew) || _.isEqual(isNew, false)) {
+		return;
+	}
+
+	const userSaved = req.object as Parse.User;
+
+	const profile = new ParseUserProfile({
+		user: userSaved,
+		username: userSaved.getUsername(),
+	});
+
+	await profile.save(null, {
+		sessionToken: req.user?.getSessionToken(),
+		useMasterKey: req.master,
+	});
 };
 
 const afterSaveUser = parseTriggerEnhanced({
 	trigger: async ({ req, t }) => {
-		const userSaved = req.object as Parse.User;
-
-		await autoAssignAdminRole({ user: userSaved, t });
+		await autoAssignAdminRole({ req, t });
+		await createUserProfile({ req });
 	},
 });
 
