@@ -13,9 +13,9 @@ import ParseUserProfile from '../userProfile/userProfile.class';
 //                                     BEFORE SAVE                                      //
 // --------------------------------------------------------------------------------------//
 
-const beforeSaveUser = parseTriggerEnhanced({
+const beforeSaveUser = parseTriggerEnhanced<Parse.User>({
 	trigger: async ({ req }) => {
-		const userToSave = req.object as Parse.User;
+		const userToSave = req.object;
 		const isNew = !(await userToSave.exists());
 
 		_.set(req, 'context.isNew', isNew);
@@ -26,8 +26,8 @@ const beforeSaveUser = parseTriggerEnhanced({
 //                                      AFTER SAVE                                      //
 // --------------------------------------------------------------------------------------//
 
-const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest; t: TFunction }) => {
-	const userSaved = req.object as Parse.User;
+const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest<Parse.User>; t: TFunction }) => {
+	const userSaved = req.object;
 	const email = userSaved.getEmail();
 
 	if (!email) {
@@ -52,7 +52,7 @@ const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest
 	}
 };
 
-const createUserProfile = async ({ req }: { req: Parse.Cloud.TriggerRequest }) => {
+const createUserProfile = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User> }) => {
 	const isNew = _.get(req, 'context.isNew');
 
 	if (!_.isBoolean(isNew) || _.isEqual(isNew, false)) {
@@ -72,7 +72,7 @@ const createUserProfile = async ({ req }: { req: Parse.Cloud.TriggerRequest }) =
 	});
 };
 
-const afterSaveUser = parseTriggerEnhanced({
+const afterSaveUser = parseTriggerEnhanced<Parse.User>({
 	trigger: async ({ req, t }) => {
 		await autoAssignAdminRole({ req, t });
 		await createUserProfile({ req });
