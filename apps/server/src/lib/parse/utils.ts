@@ -36,26 +36,26 @@ type ParseFunction<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknow
 	req: Parse.Cloud.FunctionRequest<P>,
 ) => Promise<T>;
 
-type ParseTrigger<T = unknown> = (req: Parse.Cloud.TriggerRequest) => Promise<T>;
+type ParseTrigger<P extends Parse.Object = Parse.Object, T = unknown> = (
+	req: Parse.Cloud.TriggerRequest<P>,
+) => Promise<T>;
 
 type ParseJob<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
 	req: Parse.Cloud.JobRequest<P>,
 ) => Promise<T>;
 
-type ParseInnerFunction<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> =
-	| ParseFunction<P, T>
-	| ParseTrigger<T>
-	| ParseJob<P, T>;
-// interface ParseInnerFunction<T = unknown> {
-// 	(req: Parse.Cloud.TriggerRequest): Promise<T>;
-// 	(req: Parse.Cloud.FunctionRequest): Promise<T>;
-// }
+type ParseInnerFunction<
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+	O extends Parse.Object = Parse.Object,
+> = ParseFunction<P, T> | ParseTrigger<O, T> | ParseJob<P, T>;
 
 type CloudFunction = {
+	// eslint-disable-next-line prettier/prettier
 	<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
 		innerFunction: ParseFunction<P, T>,
 	): ParseFunction<P, T>;
-	<T = unknown>(innerFunction: ParseTrigger<T>): ParseTrigger<T>;
+	<P extends Parse.Object = Parse.Object, T = unknown>(innerFunction: ParseTrigger<P, T>): ParseTrigger<P, T>;
 	<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(innerFunction: ParseJob<P, T>): ParseJob<P, T>;
 };
 
@@ -68,53 +68,6 @@ const isTriggerRequest = (
 export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
 	innerFunction: ParseInnerFunction<P, T>,
 ) => {
-	// ! this is overkill i think, just use a simple try catch instead
-	// return async (req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest<P>): Promise<T> => {
-	// 	const wrappedFunction = tryCatchWrapper(
-	// 		async () => {
-	// 			const result = await innerFunction(req as never);
-	// 			return result;
-	// 		},
-	// 		async (error) => {
-	// 			const localeInHeader = getCorrectLocale(getParseFunctionHeader(req, LOCALE_HEADER_KEY));
-
-	// 			let t = getT(localeInHeader);
-
-	// 			const isTrigger = isTriggerRequest(req);
-
-	// 			if (isTrigger) {
-	// 				const localeInContext = getCorrectLocale(_.isString(req.context?.locale) ? req.context.locale : undefined);
-
-	// 				if (localeInContext !== localeInHeader) {
-	// 					t = getT(localeInContext);
-	// 				}
-	// 			} else {
-	// 				// do nothing
-	// 			}
-
-	// 			let message: string = t('unknown-error');
-
-	// 			if (_.isString(error)) {
-	// 				message = error;
-	// 			}
-
-	// 			// get zod errors message
-	// 			if (error instanceof ZodError) {
-	// 				message = error.issues[0].message;
-	// 				return Promise.reject(message);
-	// 			}
-
-	// 			if (error instanceof Error) {
-	// 				return Promise.reject(error);
-	// 			}
-
-	// 			return Promise.reject(message);
-	// 		},
-	// 	);
-
-	// 	return wrappedFunction();
-	// };
-
 	return async (
 		req: Parse.Cloud.FunctionRequest<P> | Parse.Cloud.TriggerRequest | Parse.Cloud.JobRequest<P>,
 	): Promise<T> => {
@@ -335,22 +288,22 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 // 	});
 // };
 
-type TriggerContext = {
-	req: Parse.Cloud.TriggerRequest;
+type TriggerContext<P extends Parse.Object = Parse.Object> = {
+	req: Parse.Cloud.TriggerRequest<P>;
 	t: ReturnType<typeof getT>;
 	locale: AppLocale;
 };
 
-export const parseTrigger = <T = unknown>(innerFunction: ParseTrigger<T>) => {
-	return cloudFunction<T>(innerFunction);
+export const parseTrigger = <P extends Parse.Object = Parse.Object, T = unknown>(innerFunction: ParseTrigger<P, T>) => {
+	return cloudFunction<P, T>(innerFunction);
 };
 
-type ParseTriggerEnhancedParams = {
-	trigger: (ctx: TriggerContext) => Promise<void>;
+type ParseTriggerEnhancedParams<P extends Parse.Object = Parse.Object> = {
+	trigger: (ctx: TriggerContext<P>) => Promise<void>;
 };
 
-export const parseTriggerEnhanced = (params: ParseTriggerEnhancedParams) => {
-	const triggerBuilder = parseTrigger(async (req /* : Parse.Cloud.TriggerRequest */) => {
+export const parseTriggerEnhanced = <P extends Parse.Object = Parse.Object>(params: ParseTriggerEnhancedParams<P>) => {
+	const triggerBuilder = parseTrigger(async (req: Parse.Cloud.TriggerRequest<P>) => {
 		const { trigger } = params;
 
 		const localeInHeaders = getParseFunctionHeader(req, LOCALE_HEADER_KEY);
