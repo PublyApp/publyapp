@@ -24,7 +24,12 @@ export const userSeedFactory = () => {
 
 	user.set('seeded', true);
 
-	return user;
+	const profileData = {
+		firstName,
+		lastName,
+	};
+
+	return { user, profileData };
 };
 
 export const createUsers = async ({ num }: { num: number }) => {
