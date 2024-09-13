@@ -11,7 +11,7 @@ import type { DateType } from '../date.types';
 import { type AppFile } from './appFile.types';
 import type { IBlogPostSlug } from './blogPostSlug.types';
 import type { IPostSeries } from './postSeries.types';
-import type { IUser } from './user.types';
+import type { IUserProfile } from './userProfile.types';
 
 export const postContentTypes = ['mdx', 'other'] as const;
 
@@ -68,7 +68,7 @@ export type IBlogPost = BaseAttributes &
 	};
 
 export type IBlogPostWithRelations = IBlogPost & {
-	author: IUser;
+	author: IUserProfile;
 	cover?: AppFile;
 	postSeries?: IPostSeries;
 	// postSeriesArray?: {

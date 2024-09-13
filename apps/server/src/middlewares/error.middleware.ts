@@ -41,7 +41,6 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 		logger.error(`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message:: ${message}`, error);
 		res.status(status).json({ message, code: parseErrorCode });
 	} catch (_error) {
-		// you can do somme async login to third party services here
 		next(_error);
 	}
 };

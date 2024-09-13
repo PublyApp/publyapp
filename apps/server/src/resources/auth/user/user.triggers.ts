@@ -12,13 +12,22 @@ import ParseUserProfile from '../userProfile/userProfile.class';
 // --------------------------------------------------------------------------------------//
 //                                     BEFORE SAVE                                      //
 // --------------------------------------------------------------------------------------//
+const checkIsNew = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User> }) => {
+	const userToSave = req.object;
+	const isNew = !(await userToSave.exists());
+	_.set(req, 'context.isNew', isNew);
+	return isNew;
+};
+
+// const collectProfileData = ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User>}) => {
+// 	const userToSave = req.object;
+// 	const  firstName = userToSave.get()
+// }
 
 const beforeSaveUser = parseTriggerEnhanced<Parse.User>({
 	trigger: async ({ req }) => {
-		const userToSave = req.object;
-		const isNew = !(await userToSave.exists());
-
-		_.set(req, 'context.isNew', isNew);
+		checkIsNew({ req });
+		// collectProfileData({ req });
 	},
 });
 
@@ -78,6 +87,10 @@ const afterSaveUser = parseTriggerEnhanced<Parse.User>({
 		await createUserProfile({ req });
 	},
 });
+
+// --------------------------------------------------------------------------------------//
+//                                     DEFINITIONS                                      //
+// --------------------------------------------------------------------------------------//
 
 Parse.Cloud.beforeSave(Parse.User, beforeSaveUser);
 Parse.Cloud.afterSave(Parse.User, afterSaveUser);
