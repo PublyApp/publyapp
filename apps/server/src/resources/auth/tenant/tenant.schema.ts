@@ -31,7 +31,6 @@ const TenantSchema = SchemaManager.defineSchema<ITenant>(className.TENANT, {
 			[`role:${roleEnum.STAFF_ADMIN.name}`]: true,
 		},
 	},
-	indexes: {},
 });
 
 export default TenantSchema;
