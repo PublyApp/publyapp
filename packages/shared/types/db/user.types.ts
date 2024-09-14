@@ -1,8 +1,8 @@
 import { type BaseAttributes } from 'parse';
 
-import type ParseTenant from '@/server/resources/auth/tenant/tenant.class';
+// import type ParseTenant from '@/server/resources/auth/tenant/tenant.class';
 
-import type { ITenant } from './tenant.types';
+// import type { ITenant } from './tenant.types';
 
 export type UserAttributes = {
 	// Parse built-ins
@@ -21,14 +21,14 @@ export type IUser = BaseAttributes & UserAttributes;
 
 export type IUserWithRelations = IUser & {
 	// avatar?: AppFile;
-	tenants?: {
-		tenant: ITenant;
-	}[];
+	// tenants?: {
+	// 	tenant: ITenant;
+	// }[];
 };
 
 export type IUserWithParseRelations = IUser & {
 	// avatar?: ParseAppFile;
-	tenants?: {
-		tenant: ParseTenant;
-	}[];
+	// tenants?: {
+	// 	tenant: ParseTenant;
+	// }[];
 };

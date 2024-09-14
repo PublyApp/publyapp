@@ -1,14 +1,14 @@
 import { className, roleEnum } from '@devist/shared/lib/constants';
 
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
+import type { ITenantWithParseRelations } from '@/shared/types/db/tenant.types';
 
-type ITenant = {
-	name: string;
-};
-
-const TenantSchema = SchemaManager.defineSchema<ITenant>(className.TENANT, {
+const TenantSchema = SchemaManager.defineSchema<ITenantWithParseRelations>(className.TENANT, {
 	fields: {
 		name: { type: 'String' },
+
+		// relations
+		users: { type: 'Array' }, // ! it's fine to put an array of users because there will be less of 100 for each tenant anyway.
 		// modules // ???
 	},
 	classLevelPermissions: {

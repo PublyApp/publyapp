@@ -19,7 +19,7 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(className
 
 		// relations
 		// avatar: { type: 'Pointer', targetClass: className.APP_FILE },
-		tenants: { type: 'Array' },
+		// tenants: { type: 'Array' },
 	},
 	classLevelPermissions: {
 		...DEFAULT_CLP,
