@@ -18,6 +18,7 @@ import BlogPostSchema from '../resources/blog/blogPost/blogPost.schema';
 import BlogPostSlugSchema from '../resources/blog/blogPostSlug/blogPostSlug.schema';
 import BlogPostTagSchema from '../resources/blog/blogPostTag/blogPostTag.schema';
 import AppFileSchema from '../resources/file-manager/appFile/appFile.schema';
+import ShortUrlSchema from '../resources/url-shortener/shortUrl/shortUrl.schema';
 
 export const createRolesIfNotExists = async () => {
 	const roleEntries = Object.values(roleEnum).map((e) => {
@@ -144,6 +145,8 @@ export const updateSchemasOnInit = async () => {
 		BlogPostTagSchema,
 		// File manager
 		AppFileSchema,
+		// URL Shortener,
+		ShortUrlSchema,
 	]);
 	await updateUserClpForDisabledSignupConfig();
 	// updateSchemasPromise.then(async () => {

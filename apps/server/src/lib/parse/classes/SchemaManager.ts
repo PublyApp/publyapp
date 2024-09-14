@@ -43,7 +43,10 @@ export default class SchemaManager {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	static defineMultiTenantSchema<T extends Record<string, any>>(className: string, schema: SchemaCustom<T>) {
+	static defineMultiTenantSchema<T extends Record<string, any>>(
+		className: string,
+		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> & Pick<Schema<T>, 'fields'> & { indexes?: ManagedIndexes },
+	) {
 		const schemaFields = schema.fields || {};
 		_.set(schemaFields, 'tenant', {
 			type: 'Pointer',
