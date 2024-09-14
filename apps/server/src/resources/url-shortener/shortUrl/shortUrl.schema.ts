@@ -1,12 +1,14 @@
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 import { className } from '@/shared/lib/constants';
 
-type ShortUrl = {
-	redirectUrl: string;
+type IShortUrl = {
+	originalUrl: string;
 };
 
-SchemaManager.defineSchema<ShortUrl>(className.SHORT_URL, {
+const ShortUrlSchema = SchemaManager.defineMultiTenantSchema<IShortUrl>(className.SHORT_URL, {
 	fields: {
-		redirectUrl: { type: 'String' },
+		originalUrl: { type: 'String', required: true },
 	},
 });
+
+export default ShortUrlSchema;
