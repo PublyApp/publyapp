@@ -1,6 +1,6 @@
 import './lib/parse/initParse';
 
-import { seedingLogger } from './lib/logger';
+import { scriptLogger } from './lib/logger';
 import { cleanUsers, createUsers } from './resources/auth/user/user.seed';
 import { cleanBlogPosts, createBlogPosts } from './resources/blog/blogPost/blogPost.seed';
 
@@ -14,14 +14,14 @@ if (!global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
 
 const run = async () => {
 	const results1 = await cleanUsers();
-	seedingLogger.info('✅✅', results1);
+	scriptLogger.info('✅✅', results1);
 	const results2 = await cleanBlogPosts();
-	seedingLogger.info('✅✅', results2);
+	scriptLogger.info('✅✅', results2);
 
 	const users = await createUsers({ num: 50 });
-	seedingLogger.info('users', users.length);
+	scriptLogger.info('users', users.length);
 	const posts = await createBlogPosts({ num: 20_000, users });
-	seedingLogger.info('posts', posts.length);
+	scriptLogger.info('posts', posts.length);
 };
 
 run();

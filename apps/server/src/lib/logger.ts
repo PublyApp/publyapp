@@ -24,7 +24,7 @@ export const consoleTransport = new transports.Console({
 const logger = getLogger();
 export default logger;
 
-export const seedingLogger = createLogger({ transports: [consoleTransport] });
+export const scriptLogger = createLogger({ transports: [consoleTransport] });
 
 // TODO: test again later
 // export const createSillyLogger = (appId: string) => {

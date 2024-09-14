@@ -20,6 +20,9 @@ const UserProfileSchema = SchemaManager.defineSchema<IUserProfileWithParseRelati
 			keys: { username: 1 },
 			options: { unique: true },
 		},
+		userIndex: {
+			keys: { _p_user: 1 },
+		},
 	},
 	classLevelPermissions: DEFAULT_CLP,
 });
