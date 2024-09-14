@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import type { AnyBulkWriteOperation, Collection } from 'mongodb';
 
 import { className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
 import {
@@ -10,6 +11,7 @@ import {
 	getUpdateBlogPostInputSchema,
 } from '@devist/shared/validations/blogPost/blogPost.validations';
 
+import { USE_MASTER_KEY } from '@/server/lib/constants';
 import logger from '@/server/lib/logger';
 import { getDatabase, parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
 import UserService from '@/server/resources/auth/user/user.service';
@@ -18,6 +20,9 @@ import BlogPostService from '@/server/resources/blog/blogPost/blogPost.service';
 import AppFileService from '@/server/resources/file-manager/appFile/appFile.service';
 import type { IBlogPostSlugWithRelations } from '@/shared/types/db/blogPostSlug.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
+
+import ParseUser from '../auth/user/user.class';
+import ParseUserProfile from '../auth/userProfile/userProfile.class';
 
 import ParseBlogPostSlug from './blogPostSlug/blogPostSlug.class';
 import BlogPostSlugService from './blogPostSlug/blogPostSlug.service';
@@ -401,6 +406,126 @@ const setBlogPostCurrentSlug = parseFunctionEnhanced({
 	},
 });
 
+const fetchData = async (collection: Collection, pageSize: number, nextCursor?: string | null | undefined) => {
+	let query = {};
+
+	if (nextCursor) {
+		query = { _id: { $gt: nextCursor } };
+	}
+
+	const options = {
+		limit: pageSize,
+		sort: { _id: 1 },
+	};
+
+	const data = await collection.find(query, options as never).toArray();
+
+	let newNextCursor = null;
+
+	if (data.length > 0) {
+		newNextCursor = data[data.length - 1]._id.toString();
+	}
+
+	return { data, nextCursor: newNextCursor };
+};
+
+const updateBlogPostAuthorPointers = parseFunctionEnhanced({
+	requireMasterKey: true,
+	action: async () => {
+		const database = getDatabase();
+		const BlogPostCollection = database.collection(className.BLOG_POST);
+		// const UserProfileCollection = database.collection(className.USER_PROFILE);
+
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+		let nextCursor: string | null | undefined;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let data: Record<string, any>[] = [];
+
+		do {
+			// eslint-disable-next-line no-await-in-loop, @typescript-eslint/no-use-before-define
+			const res = await fetchData(BlogPostCollection, 100, nextCursor);
+			nextCursor = res.nextCursor;
+			data = res.data;
+
+			const userIds: string[] = [];
+
+			data.forEach((e) => {
+				// eslint-disable-next-line @typescript-eslint/naming-convention
+				const _p_author = _.get(e, '_p_author');
+
+				if (!_.isString(_p_author)) {
+					return;
+				}
+
+				// eslint-disable-next-line @typescript-eslint/naming-convention
+				const [_className, id] = _p_author.split('$');
+
+				if (!className || !id) {
+					return;
+				}
+
+				if (_className === className.USER) {
+					userIds.push(id);
+				}
+			});
+
+			const userObjects = userIds.map((id) => {
+				const userObject = new ParseUser();
+				userObject.id = id;
+				return userObject;
+			});
+
+			// eslint-disable-next-line no-await-in-loop
+			const profiles = await new Parse.Query(ParseUserProfile).containedIn('user', userObjects).findAll(USE_MASTER_KEY);
+
+			const profilesMapByUserId = new Map<string, ParseUserProfile>();
+			profiles.forEach((p) => {
+				const user = p.get('user');
+
+				if (!user) {
+					return;
+				}
+
+				profilesMapByUserId.set(`${className.USER}$${user.id}`, p);
+			});
+
+			// const postObjects: ParseBlogPost[] = [];
+			const operations: AnyBulkWriteOperation[] = [];
+			data.forEach((d) => {
+				const id = _.get(d, '_id');
+				// eslint-disable-next-line @typescript-eslint/naming-convention
+				const _p_author = _.get(d, '_p_author');
+
+				const profile = profilesMapByUserId.get(_p_author);
+
+				if (!profile) {
+					return;
+				}
+
+				// const obj = new ParseBlogPost({ objectId: id });
+				// obj.set('author', profile);
+
+				operations.push({
+					// filter: { _id: id as never },
+					updateOne: {
+						filter: { _id: id },
+						update: {
+							$set: {
+								_p_author: `${className.USER_PROFILE}$${profile.id}`,
+							},
+						},
+					},
+				});
+			});
+
+			if (!_.isEmpty(operations)) {
+				// eslint-disable-next-line no-await-in-loop
+				await BlogPostCollection.bulkWrite(operations);
+			}
+		} while (!_.isNil(nextCursor));
+	},
+});
+
 Parse.Cloud.define(functionName.blog.createBlogPost, createBlogPostFunction);
 Parse.Cloud.define(functionName.blog.updateBlogPost, updateBlogPostFunction);
 Parse.Cloud.define(functionName.blog.findBlogPostTag, findBlogPostTag);
@@ -417,3 +542,4 @@ Parse.Cloud.define(functionName.blog.addSlugToBlogPost, addSlugToBlogPost);
 Parse.Cloud.define(functionName.blog.setBlogPostCurrentSlug, setBlogPostCurrentSlug);
 
 Parse.Cloud.define(functionName.blog.removeSeededBlogPosts, removeSeededBlogPosts);
+Parse.Cloud.define(functionName.blog.updateBlogPostAuthorPointers, updateBlogPostAuthorPointers);

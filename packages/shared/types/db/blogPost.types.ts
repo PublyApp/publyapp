@@ -1,6 +1,6 @@
 import type { BaseAttributes } from 'parse';
 
-import type ParseUser from '@/server/resources/auth/user/user.class';
+import type ParseUserProfile from '@/server/resources/auth/userProfile/userProfile.class';
 import type ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
 import type ParseBlogPostSlug from '@/server/resources/blog/blogPostSlug/blogPostSlug.class';
 import type ParseAppFile from '@/server/resources/file-manager/appFile/appFile.class';
@@ -83,7 +83,7 @@ export type IBlogPostWithRelations = IBlogPost & {
 };
 
 export type IBlogPostWithParseRelations = IBlogPost & {
-	author: ParseUser;
+	author: ParseUserProfile;
 	cover?: ParseAppFile;
 	// postSeries?: ParsePostSeries;
 	// postSeriesArray?: {
