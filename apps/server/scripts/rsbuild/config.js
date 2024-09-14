@@ -120,7 +120,8 @@ function createRsbuild() {
 			source: {
 				entry: {
 					index: './src/index.ts',
-					seed: './src/seed.ts',
+					seed: './src/_seed.ts',
+					migrations: './src/_migrations.ts',
 				},
 			},
 			output: {

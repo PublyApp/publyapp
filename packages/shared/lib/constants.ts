@@ -53,8 +53,8 @@ export const className = {
 	SESSION: '_Session',
 	SCHEMA: '_SCHEMA',
 	JOB_STATUS: '_JobStatus',
-	USER_PROFILE: '_UserProfile',
 	// =====================
+	USER_PROFILE: 'UserProfile',
 	// === Multi Tenancy ===
 	TENANT: 'Tenant',
 	TENANT_MODULE: 'TenantModule',
@@ -179,6 +179,7 @@ export const functionName = {
 		addSlugToBlogPost: 'addSlugToBlogPost',
 		removeSeededBlogPosts: 'removeSeededBlogPosts',
 		setBlogPostCurrentSlug: 'setBlogPostCurrentSlug',
+		updateBlogPostAuthorPointers: 'updateBlogPostAuthorPointers',
 	},
 	fileManager: {
 		// Files
