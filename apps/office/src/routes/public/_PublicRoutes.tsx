@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react';
 
 import { Box } from '@mui/material';
-import { defer, Navigate, Outlet, redirect, useRouteError, type RouteObject } from 'react-router-dom';
+import { defer, Navigate, Outlet, redirect, useParams, useRouteError, type RouteObject } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 
@@ -43,9 +43,10 @@ const PublicRootError = () => {
 const RootElement = () => {
 	const hasRoles = useHasRoles();
 
+	const storedTenantId = localStorageGetItem(LAST_USED_TENANT_ID_STORAGE_KEY);
 	const {
 		result: { data: authData },
-	} = useGetClientAuthSuspenseQuery();
+	} = useGetClientAuthSuspenseQuery({ params: { tenantId: storedTenantId } });
 
 	const tenantRoles = [
 		roleEnum.TENANT_ADMIN,
