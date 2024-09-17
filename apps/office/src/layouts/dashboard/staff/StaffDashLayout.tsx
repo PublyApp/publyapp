@@ -16,7 +16,7 @@ type Props = {
 const StaffDashLayout = ({ children }: Props) => {
 	const nav = useBoolean();
 
-	const navData = useNavData();
+	const navData = useNavData({ part: 'staff' });
 
 	const renderNavMini = <NavMini navData={navData} />;
 	const renderNavVertical = <NavVertical openNav={nav.value} onCloseNav={nav.setFalse} navData={navData} />;
