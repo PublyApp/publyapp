@@ -16,7 +16,7 @@ type Props = {
 const TenantDashLayout = ({ children }: Props) => {
 	const nav = useBoolean();
 
-	const navData = useNavData();
+	const navData = useNavData({ part: 'tenant' });
 
 	const renderNavMini = <NavMini navData={navData} />;
 	const renderNavVertical = <NavVertical openNav={nav.value} onCloseNav={nav.setFalse} navData={navData} />;

@@ -6,6 +6,7 @@ import { defer, Navigate, Outlet, redirect, useRouteError, type RouteObject } fr
 import parseApi from '@devist/api/parse/ParseApi';
 
 import ErrorDisplay from '@/office/components/ErrorDisplay';
+import NotFound from '@/office/components/NotFound';
 import SplashScreen from '@/office/components/SplashScreen';
 import useHasRoles from '@/office/hooks/useHasRoles';
 import { BO_PATH_NAMES, LAST_USED_TENANT_ID_STORAGE_KEY, roleEnum, roleSet } from '@/shared/lib/constants';
@@ -80,7 +81,7 @@ const RootElement = () => {
 
 	if (!tenantId) {
 		// TODO: create route
-		return <Navigate to="/choose-tenant-to-use-just-like-on-slack" />;
+		return <Navigate to={BO_PATH_NAMES.getTenantPaths().chose} />;
 	}
 
 	return <Navigate to={tenantPaths.root} />;
@@ -166,6 +167,10 @@ export const publicRoutes: RouteObject[] = [
 					{ path: getLastPath(BO_PATH_NAMES.auth.verifyEmail), element: <VerifyEmail /> },
 				],
 			},
+			// {
+			// 	path: '*',
+			// 	element: <NotFound />,
+			// },
 		],
 	},
 ];

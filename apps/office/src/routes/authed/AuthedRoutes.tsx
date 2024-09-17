@@ -15,11 +15,16 @@ import TenantGuard from '@/office/components/TenantGuard';
 import StaffDashLayout from '@/office/layouts/dashboard/staff/StaffDashLayout';
 import TenantDashLayout from '@/office/layouts/dashboard/tenant/TenantDashLayout';
 import Login from '@/office/modules/auth/login/Login';
-import { BO_PATH_NAMES, roleSet, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
+import {
+	BO_PATH_NAMES,
+	LAST_USED_TENANT_ID_STORAGE_KEY,
+	roleSet,
+	SESSION_TOKEN_LOCAL_STORAGE_KEY,
+} from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
-import { localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
+import { localStorageGetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
 import { getLastPath, getRouteLoader } from '../utils';
 
@@ -162,27 +167,63 @@ export const authedRoutes: RouteObject[] = [
 						path: getLastPath(BO_PATH_NAMES.staff.tenants.root),
 						element: <h1>TENANTS LIST HERE</h1>,
 					},
+					{
+						path: '*',
+						element: <NotFound />,
+					},
 				],
 			},
 
 			// tenants routes
 			{
-				path: getLastPath(BO_PATH_NAMES.getTenantPaths(':tenantId').root),
+				path: getLastPath(BO_PATH_NAMES.getTenantPaths().root),
 				element: (
 					<AuthGuard allowedRoles={roleSet.ABOVE_TENANT_CONTRIBUTOR}>
 						{/* <TenantGuard> */}
-						<TenantDashLayout />
+						<Outlet />
 						{/* </TenantGuard> */}
 					</AuthGuard>
 				),
 				children: [
 					{
 						index: true,
-						element: <h1>TENANT DASHBOARD</h1>,
+						loader: getRouteLoader(async () => {
+							const lastUsedTenantId = localStorageGetItem(LAST_USED_TENANT_ID_STORAGE_KEY);
+
+							if (!lastUsedTenantId) {
+								return redirect(BO_PATH_NAMES.getTenantPaths().chose);
+							}
+
+							return redirect(BO_PATH_NAMES.getTenantPaths(lastUsedTenantId).root);
+						}),
+						element: null,
+						// element: <h1>TENANT DASHBOARD WW</h1>,
 					},
+
 					{
-						path: getLastPath(BO_PATH_NAMES.getTenantPaths().shortUrl.root),
-						element: <h1>SHORT URL MODULE</h1>,
+						path: getLastPath(BO_PATH_NAMES.getTenantPaths().chose),
+						element: <h1>Chose a company to use here</h1>,
+					},
+
+					{
+						path: getLastPath(BO_PATH_NAMES.getTenantPaths(':tenantId').root),
+						element: <TenantDashLayout />,
+						children: [
+							{
+								//
+								index: true,
+								element: <h1>TENANT DASHBOARD WW</h1>,
+							},
+							{
+								path: getLastPath(BO_PATH_NAMES.getTenantPaths().shortUrl.root),
+								element: <h1>SHORT URL MODULE</h1>,
+							},
+						],
+					},
+
+					{
+						path: '*',
+						element: <NotFound />,
 					},
 				],
 			},

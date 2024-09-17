@@ -4,7 +4,7 @@ import { env } from '../lib/env';
 import QueryParamProvider from '../providers/QueryParamProvider';
 
 import { authedRoutes } from './authed/AuthedRoutes';
-import { publicRoutes } from './public/publicRoutes';
+import { publicRoutes } from './public/PublicRoutes';
 
 const router = createBrowserRouter(
 	[
