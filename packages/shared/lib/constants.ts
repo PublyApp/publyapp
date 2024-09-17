@@ -77,7 +77,16 @@ const RESOURCE = {
 	posts: 'posts',
 	fileManager: 'file-manager',
 	blog: 'blog',
+	tenant: 'tenant',
 	tenants: 'tenants',
+	shortUrl: 'short-url',
+} as const;
+
+const ROOTS = {
+	AUTH: 'auth',
+	DASHBOARD: 'dashboard',
+	STAFF: 'staff',
+	UPLOAD: 'upload',
 } as const;
 
 const makePath = (...params: string[]) => {
@@ -100,14 +109,6 @@ const makePath = (...params: string[]) => {
 
 	return path;
 };
-
-const ROOTS = {
-	AUTH: 'auth',
-	DASHBOARD: 'dashboard',
-
-	// for endpoints
-	UPLOAD: 'upload',
-} as const; /* satisfies Record<string, `/${string}`> */
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
@@ -134,26 +135,35 @@ export const BO_PATH_NAMES = {
 		verifyEmail: makePath(ROOTS.AUTH, 'verify-email'),
 		forgotPassword: makePath(ROOTS.AUTH, 'forgot-password'),
 	},
-	dashboard: {
-		root: makePath(ROOTS.DASHBOARD),
+	// ===================
+	staff: {
+		root: makePath(ROOTS.STAFF),
 		posts: {
-			root: makePath(ROOTS.DASHBOARD, RESOURCE.posts),
-			create: makePath(ROOTS.DASHBOARD, RESOURCE.posts, 'new'),
+			root: makePath(ROOTS.STAFF, RESOURCE.posts),
+			create: makePath(ROOTS.STAFF, RESOURCE.posts, 'new'),
 			edit: (postId?: string) => {
-				return makePath(ROOTS.DASHBOARD, RESOURCE.posts, 'edit', postId || '');
+				return makePath(ROOTS.STAFF, RESOURCE.posts, 'edit', postId || '');
 			},
 			details: (postId: string) => {
-				return makePath(ROOTS.DASHBOARD, RESOURCE.posts, postId);
+				return makePath(ROOTS.STAFF, RESOURCE.posts, postId);
 			},
-			settings: makePath(ROOTS.DASHBOARD, RESOURCE.posts, 'settings'),
+			settings: makePath(ROOTS.STAFF, RESOURCE.posts, 'settings'),
 		},
-		fileManager: {
-			root: makePath(ROOTS.DASHBOARD, RESOURCE.fileManager),
-		},
-		// ===================
 		tenants: {
-			root: makePath(ROOTS.DASHBOARD, RESOURCE.tenants),
+			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
+			// TODO
 		},
+	},
+	// ===================
+	getTenantPaths: (tenantId: string = '') => {
+		return {
+			root: makePath(RESOURCE.tenant, tenantId),
+			// dashboard: makePath(RESOURCE.tenant, tenantId, ROOTS.DASHBOARD),
+			shortUrl: {
+				root: makePath(RESOURCE.tenant, tenantId, RESOURCE.shortUrl),
+				// CRUD, etc
+			},
+		};
 	},
 } as const;
 

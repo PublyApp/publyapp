@@ -6,36 +6,27 @@ import Stack from '@mui/material/Stack';
 
 import Logo from '@/office/components/Logo';
 import NavSectionVertical from '@/office/components/nav-section/nav-vertical/NavSectionVertical';
-import { useNavData } from '@/office/hooks/useNavData';
 import usePathname from '@/office/hooks/usePathname';
 import { NAV } from '@/office/lib/constants';
 import Scrollbar from '@/ui-react/components/Scrollbar';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 
-import NavToggleButton from '../_common/NavToggleButton';
-
-// import { NavToggleButton /* , NavUpgrade */ } from '../_common';
-
-//
-// import { NAV } from '../config-layout';
-
-// import { useNavData } from './config-navigation';
+import NavToggleButton from '../../_common/NavToggleButton';
 
 // ----------------------------------------------------------------------
 
 type Props = {
 	openNav: boolean;
 	onCloseNav: VoidFunction;
+	navData: any;
 };
 
-const NavVertical = ({ openNav, onCloseNav }: Props) => {
-	// const { user } = useMockedUser();
-
+const NavVertical = ({ openNav, onCloseNav, navData }: Props) => {
 	const pathname = usePathname();
 
 	const lgUp = useResponsive('up', 'lg');
 
-	const navData = useNavData();
+	// const navData = useNavData();
 
 	useEffect(() => {
 		if (openNav) {
@@ -65,8 +56,6 @@ const NavVertical = ({ openNav, onCloseNav }: Props) => {
 			/>
 
 			<Box sx={{ flexGrow: 1 }} />
-
-			{/* <NavUpgrade /> */}
 		</Scrollbar>
 	);
 
@@ -96,7 +85,11 @@ const NavVertical = ({ openNav, onCloseNav }: Props) => {
 			) : (
 				<Drawer
 					open={openNav}
-					onClose={onCloseNav}
+					onClose={
+						onCloseNav /*  () => {
+							console.log('CLICK');
+						} */
+					}
 					PaperProps={{
 						sx: {
 							width: NAV.W_VERTICAL,
