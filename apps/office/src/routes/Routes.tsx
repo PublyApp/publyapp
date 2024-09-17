@@ -3,8 +3,8 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { env } from '../lib/env';
 import QueryParamProvider from '../providers/QueryParamProvider';
 
-import { authedRoutes } from './authed/AuthedRoutes';
-import { publicRoutes } from './public/PublicRoutes';
+import { authedRoutes } from './authed/_AuthedRoutes';
+import { publicRoutes } from './public/_PublicRoutes';
 
 const router = createBrowserRouter(
 	[
