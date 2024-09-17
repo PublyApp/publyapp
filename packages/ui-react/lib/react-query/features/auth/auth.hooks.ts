@@ -15,6 +15,7 @@ import {
 	logOutAction,
 	signupAction,
 	verifyEmailAction,
+	type GetUserAuthDataQueryParams,
 } from './auth.actions';
 
 // import { getUserAuthDataAction, loginAction, logOutAction } from './auth.actions';
@@ -50,11 +51,12 @@ export const useLoginMutation = ({ options = {} }: UseLoginMutationProps = {}) =
 // ---- 2 --------------------------------------------------------------------------------
 
 type UseGetClientAuthProps = {
+	params: GetUserAuthDataQueryParams;
 	options?: Omit<typeof getUserAuthDataQuery, 'queryKey' | 'queryFn'>;
 };
 
-export const useGetClientAuthSuspenseQuery = ({ options }: UseGetClientAuthProps = {}) => {
-	const query = getUserAuthDataQuery;
+export const useGetClientAuthSuspenseQuery = ({ params, options }: UseGetClientAuthProps = { params: {} }) => {
+	const query = getUserAuthDataQuery(params);
 
 	const result = useSuspenseQuery({
 		...query,

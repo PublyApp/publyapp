@@ -82,7 +82,7 @@ const Login = () => {
 
 				revalidate();
 
-				navigate(location.state?.from || BO_PATH_NAMES.staff.root, { replace: true });
+				navigate(location.state?.from || BO_PATH_NAMES.staff.root, { replace: true }); // todo: tenant aware redirection
 			},
 			onError: (error /* , variables, context */) => {
 				if (error instanceof AxiosError) {

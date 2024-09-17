@@ -1,18 +1,23 @@
-import { createElement, useMemo } from 'react';
+import { createElement, useMemo, type ReactNode } from 'react';
 
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 
 import SvgColor from '@/office/components/SvgColor';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 
-// import { paths } from '@/office/utils/paths';
-
-// routes
-// import { paths } from 'src/routes/paths';
-// components
-// import SvgColor from 'src/components/svg-color';
-
 // ----------------------------------------------------------------------
+export type NavData = {
+	subHeader: ReactNode;
+	items?: {
+		title: ReactNode;
+		path: string;
+		icon: ReactNode;
+		children: {
+			title: ReactNode;
+			path: string;
+		}[];
+	}[];
+}[];
 
 const icon = (name: string) => {
 	// return <SvgColor src={`/assets/icons/navbar/${name}.svg`} sx={{ width: 1, height: 1 }} />;
