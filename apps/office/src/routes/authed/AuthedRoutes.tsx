@@ -11,6 +11,7 @@ import AuthGuard from '@/office/components/AuthGuard';
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 // import LoadingScreen from '@/office/components/LoadingScreen';
 import SplashScreen from '@/office/components/SplashScreen';
+import TenantGuard from '@/office/components/TenantGuard';
 import StaffDashLayout from '@/office/layouts/dashboard/staff/StaffDashLayout';
 import Login from '@/office/modules/auth/login/Login';
 import { BO_PATH_NAMES, roleSet, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
@@ -115,21 +116,21 @@ const AuthedRoutesRootError = () => {
 
 export const authedRoutes: RouteObject[] = [
 	{
-		loader: getRouteLoader(async () => {
-			if (!parseApi.parseRestClient.getSessionToken()) {
-				return redirect(BO_PATH_NAMES.auth.login);
-			}
+		// loader: getRouteLoader(async () => {
+		// 	if (!parseApi.parseRestClient.getSessionToken()) {
+		// 		return redirect(BO_PATH_NAMES.auth.login);
+		// 	}
 
-			const cachedAuthData = defaultQueryClient.getQueryData(getUserAuthDataQuery.queryKey);
+		// 	const cachedAuthData = defaultQueryClient.getQueryData(getUserAuthDataQuery.queryKey);
 
-			const authData = cachedAuthData
-				? Promise.resolve(cachedAuthData)
-				: defaultQueryClient.fetchQuery(getUserAuthDataQuery);
+		// 	const authData = cachedAuthData
+		// 		? Promise.resolve(cachedAuthData)
+		// 		: defaultQueryClient.fetchQuery(getUserAuthDataQuery);
 
-			return defer({
-				authData,
-			});
-		}),
+		// 	return defer({
+		// 		authData,
+		// 	});
+		// }),
 		errorElement: <AuthedRoutesRootError />,
 		element: (
 			<Suspense fallback={<SplashScreen />}>
@@ -166,6 +167,13 @@ export const authedRoutes: RouteObject[] = [
 			// tenants routes
 			{
 				path: getLastPath(BO_PATH_NAMES.getTenantPaths(':tenantId').root),
+				element: (
+					<AuthGuard allowedRoles={roleSet.ABOVE_STAFF_CONTRIBUTOR}>
+						<TenantGuard>
+							<StaffDashLayout />
+						</TenantGuard>
+					</AuthGuard>
+				),
 				children: [
 					{
 						index: true,

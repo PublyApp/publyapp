@@ -2,9 +2,9 @@ import { useMemo, type ReactNode } from 'react';
 
 import { Outlet } from 'react-router-dom';
 
-import { useGetClientAuthSuspenseQuery } from '@devist/ui-react/lib/react-query/features/auth/auth.hooks';
-
 import type { IRoleConfig } from '@/shared/lib/constants';
+
+import useHasRoles from '../hooks/useHasRoles';
 
 type Props = {
 	children?: ReactNode;
@@ -12,27 +12,11 @@ type Props = {
 };
 
 const RequireAuth = ({ children, allowedRoles }: Props) => {
-	// const location = useLocation();
-	const {
-		result: { data: authData, error },
-	} = useGetClientAuthSuspenseQuery();
-
-	if (error) {
-		// return null;
-		throw error;
-	}
+	const hasRoles = useHasRoles();
 
 	const hasRequiredRoles = useMemo(() => {
-		if (!allowedRoles) {
-			return true;
-		}
-
-		return authData.roles.some((role) => {
-			return allowedRoles.some((allowedRole) => {
-				return allowedRole.code === role.code;
-			});
-		});
-	}, [allowedRoles, authData.roles]);
+		return hasRoles({ allowedRoles });
+	}, [allowedRoles, hasRoles]);
 
 	if (!hasRequiredRoles) {
 		return <h1>Page 403: not allowed (todo: better look)</h1>;

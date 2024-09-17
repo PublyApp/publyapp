@@ -1,14 +1,16 @@
 import { lazy, Suspense } from 'react';
 
 import { Box } from '@mui/material';
-import { defer, Outlet, redirect, useRouteError, type RouteObject } from 'react-router-dom';
+import { defer, Navigate, Outlet, redirect, useRouteError, type RouteObject } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import SplashScreen from '@/office/components/SplashScreen';
-import { BO_PATH_NAMES } from '@/shared/lib/constants';
-import { getIsDisabledSignupQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
+import useHasRoles from '@/office/hooks/useHasRoles';
+import { BO_PATH_NAMES, roleSet } from '@/shared/lib/constants';
+import { getIsDisabledSignupQuery, getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
+import { useGetClientAuthSuspenseQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 
 import { getLastPath, getRouteLoader } from '../utils';
@@ -36,6 +38,33 @@ const PublicRootError = () => {
 	);
 };
 
+const RootElement = () => {
+	const hasRoles = useHasRoles();
+
+	const isStaffMember = hasRoles({ allowedRoles: roleSet.ABOVE_STAFF_CONTRIBUTOR });
+	const isTenantMember = hasRoles({ allowedRoles: roleSet.ABOVE_TENANT_CONTRIBUTOR });
+
+	// case 0: worst case neither staff of tenant member
+	if (!isStaffMember && !isTenantMember) {
+		// TODO: logout then go to login page
+		return <h1>MEGA FORBIDDEN!!</h1>;
+	}
+
+	if (isStaffMember) {
+		//
+	}
+
+	// console.log(isStaffMember, isTenantMember);
+	// case 1: is staff, and does not use any tenantId currently
+	// if (roleSet.ABOVE_STAFF_CONTRIBUTOR && !authData.tenant?.objectId) {
+	// 	return <Navigate to={BO_PATH_NAMES.staff.root} />
+	// }
+
+	// if (roleSet.ABOVE_STAFF_CONTRIBUTOR && authData.)
+
+	return null;
+};
+
 export const publicRoutes: RouteObject[] = [
 	{
 		element: (
@@ -48,15 +77,24 @@ export const publicRoutes: RouteObject[] = [
 			{
 				path: '/',
 				loader: getRouteLoader(async () => {
-					// if a session token exists, redirect to dashboard. Otherwise redirect to login page
 					const sessionToken = parseApi.parseRestClient.getSessionToken();
 
-					if (sessionToken) {
-						return redirect(BO_PATH_NAMES.staff.root); // todo: idk
+					if (!sessionToken) {
+						return redirect(BO_PATH_NAMES.auth.login);
 					}
 
-					return redirect(BO_PATH_NAMES.auth.login);
+					const authDataQuery = getUserAuthDataQuery();
+					const cachedAuthData = defaultQueryClient.getQueryData(authDataQuery.queryKey);
+
+					const authData = cachedAuthData
+						? Promise.resolve(cachedAuthData)
+						: defaultQueryClient.fetchQuery(authDataQuery);
+
+					return defer({
+						authData,
+					});
 				}),
+				element: <RootElement />,
 			},
 			// auth routes
 			{
@@ -65,7 +103,7 @@ export const publicRoutes: RouteObject[] = [
 					const sessionToken = parseApi.parseRestClient.getSessionToken();
 
 					if (sessionToken) {
-						return redirect(BO_PATH_NAMES.staff.root); // todo: idk
+						return redirect(BO_PATH_NAMES.staff.root); // todo: tenant aware redirection
 					}
 
 					return null;

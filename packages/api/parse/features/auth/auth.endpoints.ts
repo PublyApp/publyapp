@@ -11,9 +11,10 @@ import BaseEndPoints from '../../BaseEndPoints';
 export default class AuthEndPoints extends BaseEndPoints {
 	// constructor({ parseRestClient, apiPath}: BaseEndPointsProps) {}
 
-	getUserAuthData = async () => {
+	getUserAuthData = async ({ tenantId }: { tenantId?: string } = {}) => {
 		return this.parseRestClient.cloudRun<GetUserAuthDataFunction.Return, GetUserAuthDataFunction.Params>(
 			functionName.auth.getUserAuthData,
+			{ params: { tenantId } },
 		);
 	};
 

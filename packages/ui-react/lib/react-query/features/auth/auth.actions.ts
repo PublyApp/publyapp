@@ -1,8 +1,9 @@
-import { queryOptions } from '@tanstack/react-query';
+import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
 
 import parseApi from '@devist/api/parse/ParseApi';
 import type { LoginInput, SignupInput, VerifyEmailInput } from '@devist/shared/validations/auth.validations';
 
+import type { GetUserAuthDataFunction } from '@/server/resources/auth/auth.functions';
 import { functionName } from '@/shared/lib/constants';
 
 // ---- 1 --------------------------------------------------------------------------------
@@ -36,9 +37,15 @@ export const logOutAction = async (): Promise<void> => {
 // ---- 3 --------------------------------------------------------------------------------
 export const getUserAuthDataQueryKeyBase = functionName.auth.getUserAuthData;
 
-export const getUserAuthDataAction = async () => {
+export type GetUserAuthDataQueryParams = GetUserAuthDataFunction.Params;
+
+export const getUserAuthDataAction = async (
+	context: QueryFunctionContext<readonly [typeof getUserAuthDataQueryKeyBase, GetUserAuthDataQueryParams]>,
+) => {
 	try {
-		const authData = await parseApi.auth.getUserAuthData();
+		const params = context.queryKey[1];
+
+		const authData = await parseApi.auth.getUserAuthData(params);
 
 		return authData;
 	} catch (error) {
@@ -57,10 +64,16 @@ export const getUserAuthDataAction = async () => {
 	}
 };
 
-export const getUserAuthDataQuery = queryOptions({
-	queryKey: [getUserAuthDataQueryKeyBase] as const,
-	queryFn: getUserAuthDataAction,
-});
+// export const getUserAuthDataQuery = queryOptions({
+// 	queryKey: [getUserAuthDataQueryKeyBase] as const,
+// 	queryFn: getUserAuthDataAction,
+// });
+export const getUserAuthDataQuery = (params?: GetUserAuthDataQueryParams) => {
+	return queryOptions({
+		queryKey: [getUserAuthDataQueryKeyBase, params as never] as const,
+		queryFn: getUserAuthDataAction,
+	});
+};
 
 // ---- 4 --------------------------------------------------------------------------------
 export const verifyEmailAction = async ({ email }: VerifyEmailInput) => {
