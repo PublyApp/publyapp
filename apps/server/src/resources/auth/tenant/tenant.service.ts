@@ -1,4 +1,4 @@
-import ParseUser from '../user/user.class';
+import type ParseUser from '../user/user.class';
 
 import ParseTenant from './tenant.class';
 
@@ -34,12 +34,17 @@ export default class TenantService {
 	}
 
 	async isUserMemberOfTenant({ user, tenant }: { user: ParseUser; tenant: ParseTenant }) {
-		const foundUser = await new Parse.Query(ParseUser)
+		// const foundUser = await new Parse.Query(ParseUser)
+		// 	.select([])
+		// 	.equalTo('objectId', user.id)
+		// 	.equalTo('tenants.tenant', tenant)
+		// 	.first({ sessionToken: this.sessionToken });
+		const foundTenant = new Parse.Query(ParseTenant)
 			.select([])
-			.equalTo('objectId', user.id)
-			.equalTo('tenants.tenant', tenant)
+			.equalTo('objectId', tenant.id)
+			.equalTo('users.user' as never, user as never)
 			.first({ sessionToken: this.sessionToken });
 
-		return Boolean(foundUser);
+		return Boolean(foundTenant);
 	}
 }

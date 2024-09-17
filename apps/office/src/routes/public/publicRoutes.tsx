@@ -8,10 +8,11 @@ import parseApi from '@devist/api/parse/ParseApi';
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import SplashScreen from '@/office/components/SplashScreen';
 import useHasRoles from '@/office/hooks/useHasRoles';
-import { BO_PATH_NAMES, roleSet } from '@/shared/lib/constants';
+import { BO_PATH_NAMES, LAST_USED_TENANT_ID_STORAGE_KEY, roleEnum, roleSet } from '@/shared/lib/constants';
 import { getIsDisabledSignupQuery, getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { useGetClientAuthSuspenseQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
+import { localStorageGetItem } from '@/ui-react/utils/storage.utils';
 
 import { getLastPath, getRouteLoader } from '../utils';
 
@@ -41,8 +42,19 @@ const PublicRootError = () => {
 const RootElement = () => {
 	const hasRoles = useHasRoles();
 
+	const {
+		result: { data: authData },
+	} = useGetClientAuthSuspenseQuery();
+
+	const tenantRoles = [
+		roleEnum.TENANT_ADMIN,
+		roleEnum.TENANT_EDITOR,
+		roleEnum.TENANT_USER,
+		roleEnum.TENANT_CONTRIBUTOR,
+	];
+
 	const isStaffMember = hasRoles({ allowedRoles: roleSet.ABOVE_STAFF_CONTRIBUTOR });
-	const isTenantMember = hasRoles({ allowedRoles: roleSet.ABOVE_TENANT_CONTRIBUTOR });
+	const isTenantMember = hasRoles({ allowedRoles: tenantRoles });
 
 	// case 0: worst case neither staff of tenant member
 	if (!isStaffMember && !isTenantMember) {
@@ -50,9 +62,28 @@ const RootElement = () => {
 		return <h1>MEGA FORBIDDEN!!</h1>;
 	}
 
+	const tenantId = authData.tenant?.objectId;
+	const tenantPaths = BO_PATH_NAMES.getTenantPaths(tenantId);
+
 	if (isStaffMember) {
 		//
+		if (!isTenantMember) {
+			return <Navigate to={BO_PATH_NAMES.staff.root} />;
+		}
+
+		if (!tenantId) {
+			return <Navigate to={BO_PATH_NAMES.staff.root} />;
+		}
+
+		return <Navigate to={tenantPaths.root} />;
 	}
+
+	if (!tenantId) {
+		// TODO: create route
+		return <Navigate to="/choose-tenant-to-use-just-like-on-slack" />;
+	}
+
+	return <Navigate to={tenantPaths.root} />;
 
 	// console.log(isStaffMember, isTenantMember);
 	// case 1: is staff, and does not use any tenantId currently
@@ -62,7 +93,7 @@ const RootElement = () => {
 
 	// if (roleSet.ABOVE_STAFF_CONTRIBUTOR && authData.)
 
-	return null;
+	// return null;
 };
 
 export const publicRoutes: RouteObject[] = [
@@ -83,7 +114,9 @@ export const publicRoutes: RouteObject[] = [
 						return redirect(BO_PATH_NAMES.auth.login);
 					}
 
-					const authDataQuery = getUserAuthDataQuery();
+					const lastUsedTenantId = localStorageGetItem(LAST_USED_TENANT_ID_STORAGE_KEY);
+
+					const authDataQuery = getUserAuthDataQuery({ tenantId: lastUsedTenantId });
 					const cachedAuthData = defaultQueryClient.getQueryData(authDataQuery.queryKey);
 
 					const authData = cachedAuthData
