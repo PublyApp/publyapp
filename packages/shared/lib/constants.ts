@@ -158,6 +158,7 @@ export const BO_PATH_NAMES = {
 	getTenantPaths: (tenantId: string = '') => {
 		return {
 			root: makePath(RESOURCE.tenant, tenantId),
+			chose: makePath(RESOURCE.tenant, 'chose'),
 			// dashboard: makePath(RESOURCE.tenant, tenantId, ROOTS.DASHBOARD),
 			shortUrl: {
 				root: makePath(RESOURCE.tenant, tenantId, RESOURCE.shortUrl),

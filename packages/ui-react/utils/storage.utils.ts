@@ -12,7 +12,7 @@ export const localStorageAvailable = () => {
 	// }
 };
 
-export const localStorageGetItem = (key: string, defaultValue = '') => {
+export const localStorageGetItem = (key: string, defaultValue?: string) => {
 	const storageAvailable = localStorageAvailable();
 
 	let value;
