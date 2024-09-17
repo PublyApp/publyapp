@@ -17,8 +17,8 @@ import { useMainStore } from '@/office/lib/zustand/store';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import { bgBlur } from '@/ui-react/utils/css.utils';
 
-import LanguagePopover from '../_common/LanguagePopover';
-import SearchBar from '../_common/SearchBar';
+import LanguagePopover from '../../_common/LanguagePopover';
+import SearchBar from '../../_common/SearchBar';
 
 // hooks
 // import { useOffSetTop } from 'src/hooks/use-off-set-top';

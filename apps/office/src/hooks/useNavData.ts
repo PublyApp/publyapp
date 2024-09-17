@@ -63,8 +63,8 @@ export const useNavData = () => {
 			{
 				subheader: 'overview v5.5.0',
 				items: [
-					{ title: 'dashboard', path: BO_PATH_NAMES.dashboard.root, icon: ICONS.dashboard },
-					{ title: 'tenants', path: BO_PATH_NAMES.dashboard.tenants.root, icon: ICONS.dashboard },
+					{ title: 'dashboard', path: BO_PATH_NAMES.staff.root, icon: ICONS.dashboard },
+					{ title: 'tenants', path: BO_PATH_NAMES.staff.tenants.root, icon: ICONS.dashboard },
 					// { title: 'file manager', path: BO_PATH_NAMES.dashboard.fileManager.root, icon: ICONS.dashboard },
 					// { title: 'two', path: paths.dashboard.two, icon: ICONS.ecommerce },
 					// {
@@ -98,21 +98,21 @@ export const useNavData = () => {
 					{
 						// title: `${t('post')}s`,
 						title: 'Blog',
-						path: BO_PATH_NAMES.dashboard.posts.root,
+						path: BO_PATH_NAMES.staff.posts.root,
 						icon: ICONS.blog,
 						children: [
 							{
 								// title: t('list'),
 								title: `${t('post')}s`,
-								path: BO_PATH_NAMES.dashboard.posts.root,
+								path: BO_PATH_NAMES.staff.posts.root,
 							},
 							{
 								title: t('new'),
-								path: BO_PATH_NAMES.dashboard.posts.create,
+								path: BO_PATH_NAMES.staff.posts.create,
 							},
 							{
 								title: t('settings'),
-								path: BO_PATH_NAMES.dashboard.posts.settings,
+								path: BO_PATH_NAMES.staff.posts.settings,
 							},
 						],
 					},

@@ -22,7 +22,7 @@ import { localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 import { getLastPath, getRouteLoader } from '../utils';
 
 const DashboardLayout = lazy(() => {
-	return import('@/office/layouts/dashboard/DashBoardLayout');
+	return import('@/office/layouts/dashboard/_common/DashBoardLayout');
 });
 const Home = lazy(() => {
 	return import('@/office/containers/home/Home');
