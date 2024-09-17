@@ -47,12 +47,12 @@ export const publicRoutes: RouteObject[] = [
 		children: [
 			{
 				path: '/',
-				// if a session token exists, redirect to dashboard, else redirect to login page
 				loader: getRouteLoader(async () => {
+					// if a session token exists, redirect to dashboard. Otherwise redirect to login page
 					const sessionToken = parseApi.parseRestClient.getSessionToken();
 
 					if (sessionToken) {
-						return redirect(BO_PATH_NAMES.dashboard.root);
+						return redirect(BO_PATH_NAMES.staff.root); // todo: idk
 					}
 
 					return redirect(BO_PATH_NAMES.auth.login);
@@ -65,7 +65,7 @@ export const publicRoutes: RouteObject[] = [
 					const sessionToken = parseApi.parseRestClient.getSessionToken();
 
 					if (sessionToken) {
-						return redirect(BO_PATH_NAMES.dashboard.root);
+						return redirect(BO_PATH_NAMES.staff.root); // todo: idk
 					}
 
 					return null;

@@ -3,14 +3,14 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { env } from '../lib/env';
 import QueryParamProvider from '../providers/QueryParamProvider';
 
-import { dashboardRoutes } from './dashboard/_dashboardRoutes';
-import { publicRoutes } from './public/_publicRoutes';
+import { authedRoutes } from './authed/AuthedRoutes';
+import { publicRoutes } from './public/publicRoutes';
 
 const router = createBrowserRouter(
 	[
 		{
 			element: <QueryParamProvider />,
-			children: [...dashboardRoutes, ...publicRoutes],
+			children: [...authedRoutes, ...publicRoutes],
 		},
 	],
 	{

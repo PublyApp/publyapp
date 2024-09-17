@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react';
+
 import Box from '@mui/material/Box';
 import { Outlet } from 'react-router-dom';
 
-import useBoolean from '@devist/ui-react/hooks/useBoolean';
 import useResponsive from '@devist/ui-react/hooks/useResponsive';
 
 import { selectSidebar } from '@/office/lib/zustand/features/settings.slice';
@@ -9,51 +10,35 @@ import { useMainStore } from '@/office/lib/zustand/store';
 
 import Header from './Header';
 import Main from './Main';
-import NavMini from './NavMini';
-import NavVertical from './NavVertical';
+
+// import NavMini from './NavMini';
+// import NavVertical from './NavVertical';
 
 // ----------------------------------------------------------------------
 
 type Props = {
-	children?: React.ReactNode;
+	renderNavVertical?: ReactNode;
+	renderNavMini?: ReactNode;
+	children?: ReactNode;
+	onOpenNav?: VoidFunction;
 };
 
-const DashboardLayout = ({ children }: Props) => {
-	// const [searchParams] = useSearchParams();
+const DashboardLayout = ({ renderNavVertical, renderNavMini, children, onOpenNav }: Props) => {
+	// const nav = useBoolean();
 
-	// const settings = useSettingsContext();
 	const sidebar = useMainStore(selectSidebar);
-
 	const lgUp = useResponsive('up', 'lg');
-
-	const nav = useBoolean();
-
-	// const isHorizontal = settings.themeLayout === 'horizontal';
 
 	const isMini = sidebar === 'mini';
 
-	const renderNavMini = <NavMini />;
+	// const renderNavMini = <NavMini />;
 
-	// const renderHorizontal = <NavHorizontal />;
-
-	const renderNavVertical = <NavVertical openNav={nav.value} onCloseNav={nav.setFalse} />;
-
-	// if (isHorizontal) {
-	// 	return (
-	// 		<>
-	// 			<Header onOpenNav={nav.onTrue} />
-
-	// 			{lgUp ? renderHorizontal : renderNavVertical}
-
-	// 			<Main>{children ?? <Outlet />}</Main>
-	// 		</>
-	// 	);
-	// }
+	// const renderNavVertical = <NavVertical openNav={nav.value} onCloseNav={nav.setFalse} />;
 
 	if (isMini) {
 		return (
 			<>
-				<Header onOpenNav={nav.setTrue} />
+				<Header onOpenNav={/* nav.setTrue */ onOpenNav} />
 
 				<Box
 					sx={{
@@ -72,7 +57,7 @@ const DashboardLayout = ({ children }: Props) => {
 
 	return (
 		<>
-			<Header onOpenNav={nav.setTrue} />
+			<Header onOpenNav={/* nav.setTrue */ onOpenNav} />
 
 			<Box
 				sx={{

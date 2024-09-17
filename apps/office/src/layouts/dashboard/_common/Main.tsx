@@ -18,35 +18,11 @@ import useResponsive from '@/ui-react/hooks/useResponsive';
 const SPACING = 8;
 
 const Main = ({ children, sx, ...other }: BoxProps) => {
-	// const settings = useSettingsContext();
 	const sidebar = useMainStore(selectSidebar);
 
 	const lgUp = useResponsive('up', 'lg');
 
-	// const isNavHorizontal = settings.themeLayout === 'horizontal';
-
 	const isNavMini = sidebar === 'mini';
-
-	// if (isNavHorizontal) {
-	// 	return (
-	// 		<Box
-	// 			component="main"
-	// 			sx={{
-	// 				minHeight: 1,
-	// 				display: 'flex',
-	// 				flexDirection: 'column',
-	// 				pt: `${HEADER.H_MOBILE + 24}px`,
-	// 				pb: 10,
-	// 				...(lgUp && {
-	// 					pt: `${HEADER.H_MOBILE * 2 + 40}px`,
-	// 					pb: 15,
-	// 				}),
-	// 			}}
-	// 		>
-	// 			{children}
-	// 		</Box>
-	// 	);
-	// }
 
 	return (
 		<Box

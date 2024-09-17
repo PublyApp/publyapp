@@ -1,38 +1,20 @@
-// @mui
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 
-// components
-// import Logo from 'src/components/logo';
-// import { NavSectionMini } from 'src/components/nav-section';
-
 import Logo from '@/office/components/Logo';
 import NavSectionMini from '@/office/components/nav-section/nav-mini/NavSectionMini';
-import { useNavData } from '@/office/hooks/useNavData';
 import { NAV } from '@/office/lib/constants';
 import { hideScroll } from '@/ui-react/utils/css.utils';
 
-import NavToggleButton from '../_common/NavToggleButton';
-
-// hooks
-// import { useMockedUser } from 'src/hooks/use-mocked-user';
-// theme
-// import { hideScroll } from 'src/theme/css';
-
-// import { NavToggleButton } from '../_common';
-
-//
-// import { NAV } from '../config-layout';
-
-// import { useNavData } from './config-navigation';
+import NavToggleButton from '../../_common/NavToggleButton';
 
 // ----------------------------------------------------------------------
 
-const NavMini = () => {
-	// const { user } = useMockedUser();
+type Props = {
+	navData: any;
+};
 
-	const navData = useNavData();
-
+const NavMini = ({ navData }: Props) => {
 	return (
 		<Box
 			component="nav"
