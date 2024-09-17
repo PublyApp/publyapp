@@ -3,16 +3,15 @@ import { createElement, useMemo, type ReactNode } from 'react';
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 
 import SvgColor from '@/office/components/SvgColor';
-import useTranslate from '@/ui-react/hooks/useTranslate';
 
 // ----------------------------------------------------------------------
 export type NavData = {
-	subHeader: ReactNode;
+	subheader: ReactNode;
 	items?: {
 		title: ReactNode;
 		path: string;
-		icon: ReactNode;
-		children: {
+		icon: any; // TODO: change
+		children?: {
 			title: ReactNode;
 			path: string;
 		}[];
@@ -59,92 +58,97 @@ const ICONS = {
 // ----------------------------------------------------------------------
 
 export const useNavData = () => {
-	const { t } = useTranslate();
+	// const { t } = useTranslate();
 
-	const data = useMemo(() => {
-		return [
-			// OVERVIEW
-			// ----------------------------------------------------------------------
-			{
-				subheader: 'overview v5.5.0',
-				items: [
-					{ title: 'dashboard', path: BO_PATH_NAMES.staff.root, icon: ICONS.dashboard },
-					{ title: 'tenants', path: BO_PATH_NAMES.staff.tenants.root, icon: ICONS.dashboard },
-					// { title: 'file manager', path: BO_PATH_NAMES.dashboard.fileManager.root, icon: ICONS.dashboard },
-					// { title: 'two', path: paths.dashboard.two, icon: ICONS.ecommerce },
-					// {
-					// 	title: 'three',
-					// 	path: paths.dashboard.three,
-					// 	icon: ICONS.analytics,
-					// },
-				],
-			},
+	const data = useMemo<NavData>(
+		() => {
+			return [
+				// OVERVIEW
+				// ----------------------------------------------------------------------
+				{
+					subheader: 'modules',
+					items: [
+						{ title: 'dashboard', path: BO_PATH_NAMES.staff.root, icon: ICONS.dashboard },
+						{ title: 'tenants', path: BO_PATH_NAMES.staff.tenants.root, icon: ICONS.dashboard },
+						// { title: 'file manager', path: BO_PATH_NAMES.dashboard.fileManager.root, icon: ICONS.dashboard },
+						// { title: 'two', path: paths.dashboard.two, icon: ICONS.ecommerce },
+						// {
+						// 	title: 'three',
+						// 	path: paths.dashboard.three,
+						// 	icon: ICONS.analytics,
+						// },
+					],
+				},
 
-			// MANAGEMENT
-			// ----------------------------------------------------------------------
-			{
-				subheader: 'directory',
-				items: [
-					// {
-					// 	title: 'user',
-					// 	path: paths.dashboard.group.root,
-					// 	icon: ICONS.user,
-					// 	children: [
-					// 		{ title: 'four', path: paths.dashboard.group.root },
-					// 		{ title: 'five', path: paths.dashboard.group.five },
-					// 		{ title: 'six', path: paths.dashboard.group.six },
-					// 	],
-					// },
-					// {
-					// 	title: 'Web hosts',
-					// 	path: BO_PATH_NAMES.dashboard.root,
-					// 	icon: ICONS.dashboard,
-					// },
-					{
-						// title: `${t('post')}s`,
-						title: 'Blog',
-						path: BO_PATH_NAMES.staff.posts.root,
-						icon: ICONS.blog,
-						children: [
-							{
-								// title: t('list'),
-								title: `${t('post')}s`,
-								path: BO_PATH_NAMES.staff.posts.root,
-							},
-							{
-								title: t('new'),
-								path: BO_PATH_NAMES.staff.posts.create,
-							},
-							{
-								title: t('settings'),
-								path: BO_PATH_NAMES.staff.posts.settings,
-							},
-						],
-					},
-					{
-						title: 'file manager (todo)',
-						icon: ICONS.file,
-						path: '#',
-					},
-					{
-						title: 'Social media scheduler (todo)',
-						icon: ICONS.calendar,
-						path: '#',
-					},
-					{
-						title: 'Facebook messenger bot (todo)',
-						icon: ICONS.chat,
-						path: '#',
-					},
-					// {
-					// 	title: 'New Post',
-					// 	path: BO_PATH_NAMES.dashboard.posts.create,
-					// 	icon: ICONS.dashboard,
-					// },
-				],
-			},
-		];
-	}, [t]);
+				// MANAGEMENT
+				// ----------------------------------------------------------------------
+				// {
+				// 	subheader: 'directory',
+				// 	items: [
+				// 		// {
+				// 		// 	title: 'user',
+				// 		// 	path: paths.dashboard.group.root,
+				// 		// 	icon: ICONS.user,
+				// 		// 	children: [
+				// 		// 		{ title: 'four', path: paths.dashboard.group.root },
+				// 		// 		{ title: 'five', path: paths.dashboard.group.five },
+				// 		// 		{ title: 'six', path: paths.dashboard.group.six },
+				// 		// 	],
+				// 		// },
+				// 		// {
+				// 		// 	title: 'Web hosts',
+				// 		// 	path: BO_PATH_NAMES.dashboard.root,
+				// 		// 	icon: ICONS.dashboard,
+				// 		// },
+				// 		{
+				// 			// title: `${t('post')}s`,
+				// 			title: 'Blog',
+				// 			path: BO_PATH_NAMES.staff.posts.root,
+				// 			icon: ICONS.blog,
+				// 			children: [
+				// 				{
+				// 					// title: t('list'),
+				// 					title: `${t('post')}s`,
+				// 					path: BO_PATH_NAMES.staff.posts.root,
+				// 				},
+				// 				{
+				// 					title: t('new'),
+				// 					path: BO_PATH_NAMES.staff.posts.create,
+				// 				},
+				// 				{
+				// 					title: t('settings'),
+				// 					path: BO_PATH_NAMES.staff.posts.settings,
+				// 				},
+				// 			],
+				// 		},
+				// 		{
+				// 			title: 'file manager (todo)',
+				// 			icon: ICONS.file,
+				// 			path: '#',
+				// 		},
+				// 		{
+				// 			title: 'Social media scheduler (todo)',
+				// 			icon: ICONS.calendar,
+				// 			path: '#',
+				// 		},
+				// 		{
+				// 			title: 'Facebook messenger bot (todo)',
+				// 			icon: ICONS.chat,
+				// 			path: '#',
+				// 		},
+				// 		// {
+				// 		// 	title: 'New Post',
+				// 		// 	path: BO_PATH_NAMES.dashboard.posts.create,
+				// 		// 	icon: ICONS.dashboard,
+				// 		// },
+				// 	],
+				// },
+			];
+		},
+		[
+			/* t */
+		],
+	);
 
 	return data;
 };
