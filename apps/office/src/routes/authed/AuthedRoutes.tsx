@@ -13,6 +13,7 @@ import ErrorDisplay from '@/office/components/ErrorDisplay';
 import SplashScreen from '@/office/components/SplashScreen';
 import TenantGuard from '@/office/components/TenantGuard';
 import StaffDashLayout from '@/office/layouts/dashboard/staff/StaffDashLayout';
+import TenantDashLayout from '@/office/layouts/dashboard/tenant/TenantDashLayout';
 import Login from '@/office/modules/auth/login/Login';
 import { BO_PATH_NAMES, roleSet, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
 import { ClientException } from '@/ui-react/exceptions/ClientException';
@@ -168,10 +169,10 @@ export const authedRoutes: RouteObject[] = [
 			{
 				path: getLastPath(BO_PATH_NAMES.getTenantPaths(':tenantId').root),
 				element: (
-					<AuthGuard allowedRoles={roleSet.ABOVE_STAFF_CONTRIBUTOR}>
-						<TenantGuard>
-							<StaffDashLayout />
-						</TenantGuard>
+					<AuthGuard allowedRoles={roleSet.ABOVE_TENANT_CONTRIBUTOR}>
+						{/* <TenantGuard> */}
+						<TenantDashLayout />
+						{/* </TenantGuard> */}
 					</AuthGuard>
 				),
 				children: [

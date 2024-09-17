@@ -264,6 +264,7 @@ export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';
 export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
 export const DEVIST_REST_API_HEADER_KEY = 'X-Devist-Key';
 
-export const SESSION_TOKEN_LOCAL_STORAGE_KEY = 'sessionToken';
+export const SESSION_TOKEN_LOCAL_STORAGE_KEY = 'session_token';
+export const LAST_USED_TENANT_ID_STORAGE_KEY = 'last_used_tenant';
 
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
