@@ -9,6 +9,7 @@ import parseApi from '@devist/api/parse/ParseApi';
 
 import AuthGuard from '@/office/components/AuthGuard';
 import ErrorDisplay from '@/office/components/ErrorDisplay';
+import RevalidateButton from '@/office/components/RevalidateButton';
 // import LoadingScreen from '@/office/components/LoadingScreen';
 import SplashScreen from '@/office/components/SplashScreen';
 import TenantGuard from '@/office/components/TenantGuard';
@@ -55,7 +56,7 @@ const NotFound = lazy(() => {
 
 const AuthedRoutesRootError = () => {
 	const error = useRouteError();
-	const { revalidate, state } = useRevalidator();
+	const { state } = useRevalidator();
 
 	if (state === 'loading') {
 		return <SplashScreen />;
@@ -83,18 +84,7 @@ const AuthedRoutesRootError = () => {
 	return (
 		<Box sx={{ p: 3 }}>
 			<ErrorDisplay error={error as never} title="Something went wrong!! (Authed Routes Root)" />
-			<Button
-				type="button"
-				onClick={() => {
-					revalidate();
-				}}
-				sx={(theme) => {
-					return { margin: '0 auto', background: theme.palette.common.black };
-				}}
-				variant="contained"
-			>
-				retry
-			</Button>
+			<RevalidateButton />
 		</Box>
 	);
 };
