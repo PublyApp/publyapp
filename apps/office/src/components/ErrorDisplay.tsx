@@ -1,9 +1,25 @@
+import _ from 'lodash';
+
+import useTranslate from '@/ui-react/hooks/useTranslate';
+
 type Props = {
-	error: Error;
+	error: unknown;
 	title?: string;
 };
 
 const ErrorDisplay = ({ error, title }: Props) => {
+	const { t } = useTranslate();
+
+	let iError: Error;
+
+	if (_.isError(error)) {
+		iError = error;
+	} else if (_.isString(error)) {
+		iError = new Error(error);
+	} else {
+		iError = new Error(t('unknown-error'), { cause: error });
+	}
+
 	return (
 		<div role="alert">
 			<h1>{title || 'Something went wrong!!'}</h1>
@@ -19,7 +35,7 @@ const ErrorDisplay = ({ error, title }: Props) => {
 					marginBottom: '12px',
 				}}
 			>
-				{JSON.stringify(error, Object.getOwnPropertyNames(error), 2).replaceAll('\\n', '\n\t\t')}
+				{JSON.stringify(iError, Object.getOwnPropertyNames(error), 2).replaceAll('\\n', '\n\t\t')}
 			</pre>
 		</div>
 	);

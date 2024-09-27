@@ -1,19 +1,40 @@
+import Parse from 'parse';
 import { lazy, Suspense } from 'react';
 
 import { Box } from '@mui/material';
-import { defer, Navigate, Outlet, redirect, useParams, useRouteError, type RouteObject } from 'react-router-dom';
+import _ from 'lodash';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+import {
+	defer,
+	Navigate,
+	Outlet,
+	redirect,
+	useParams,
+	useRevalidator,
+	useRouteError,
+	type RouteObject,
+} from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import NotFound from '@/office/components/NotFound';
+import RevalidateButton from '@/office/components/RevalidateButton';
 import SplashScreen from '@/office/components/SplashScreen';
 import useHasRoles from '@/office/hooks/useHasRoles';
-import { BO_PATH_NAMES, LAST_USED_TENANT_ID_STORAGE_KEY, roleEnum, roleSet } from '@/shared/lib/constants';
+import LoginPage from '@/office/modules/auth/login/Login';
+import {
+	BO_PATH_NAMES,
+	LAST_USED_TENANT_ID_STORAGE_KEY,
+	roleEnum,
+	roleSet,
+	SESSION_TOKEN_LOCAL_STORAGE_KEY,
+} from '@/shared/lib/constants';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 import { getIsDisabledSignupQuery, getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { useGetClientAuthSuspenseQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
-import { localStorageGetItem } from '@/ui-react/utils/storage.utils';
+import { localStorageGetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
 import { getLastPath, getRouteLoader } from '../utils';
 
@@ -32,10 +53,28 @@ const VerifyEmail = lazy(() => {
 
 const PublicRootError = () => {
 	const error = useRouteError();
+	const { state } = useRevalidator();
+
+	if (state === 'loading') {
+		return <SplashScreen />;
+	}
+
+	if (error instanceof ParseRestError) {
+		if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
+			localStorageUnsetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY);
+
+			const searchParams = new URLSearchParams({
+				[LoginPage.queryParamKeys.redirectCause]: LoginPage.redirectCause.INVALID_SESSION,
+			});
+
+			return <Navigate to={`${BO_PATH_NAMES.auth.login}?${searchParams.toString()}`} />;
+		}
+	}
 
 	return (
 		<Box sx={{ p: 3 }}>
-			<ErrorDisplay error={error as never} title="Something went wrong!! (Dash)" />
+			<ErrorDisplay error={error} title="Something went wrong!! (PUBLIC)" />
+			<RevalidateButton />
 		</Box>
 	);
 };
