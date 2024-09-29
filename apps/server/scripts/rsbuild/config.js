@@ -14,9 +14,6 @@ const fs = require('fs');
 
 const { createRsbuild: _createRsbuild } = require('@rsbuild/core');
 
-// const pluginMeta = require('./plugin-meta');
-// const rspack = require('@rspack/core');
-
 const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../../../');
 
 const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
@@ -125,13 +122,15 @@ function createRsbuild() {
 				},
 			},
 			output: {
-				targets: ['node'],
+				// targets: ['node'], // this is no longer hos it work from v1
+				// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+				// @ts-ignore
+				target: 'node',
 				distPath: {
 					server: '',
 				},
 				externals,
 			},
-			// plugins: [pluginMeta()],
 			tools: {
 				rspack: {
 					output: {
@@ -140,12 +139,6 @@ function createRsbuild() {
 						chunkFormat: 'module',
 						filename: '[name].mjs',
 					},
-					// plugins: [
-					// 	// new rspack.DefinePlugin({
-					// 	// 	'import.meta.dirname': "eval('import.meta.dirname')",
-					// 	// 	// 'import.meta.filename': 'import.meta.filename',
-					// 	// }),
-					// ],
 				},
 			},
 		},
