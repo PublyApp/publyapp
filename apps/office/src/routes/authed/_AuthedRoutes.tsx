@@ -16,16 +16,18 @@ import SplashScreen from '@/office/components/SplashScreen';
 import StaffDashLayout from '@/office/layouts/dashboard/staff/StaffDashLayout';
 import TenantDashLayout from '@/office/layouts/dashboard/tenant/TenantDashLayout';
 import Login from '@/office/modules/auth/login/Login';
+import PortalPage from '@/office/modules/auth/portal/Portal';
 import {
 	BO_PATH_NAMES,
 	LAST_USED_TENANT_ID_STORAGE_KEY,
 	roleSet,
 	SESSION_TOKEN_LOCAL_STORAGE_KEY,
 } from '@/shared/lib/constants';
-import useTranslate from '@/ui-react/hooks/useTranslate';
 import { localStorageGetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
 import { getLastPath, getRouteLoader } from '../utils';
+
+// import Portal from "@/office/modules/auth/portal/Portal";
 
 // const DashboardLayout = lazy(() => {
 // 	return import('@/office/layouts/dashboard/_common/DashBoardLayout');
@@ -51,6 +53,9 @@ const NotFound = lazy(() => {
 // const EditPost = lazy(() => {
 // 	return import('@/office/modules/blog/edit-post/EditPost');
 // });
+const Portal = lazy(() => {
+	return import('@/office/modules/auth/portal/Portal');
+});
 
 const AuthedRoutesRootError = () => {
 	const error = useRouteError();
@@ -136,6 +141,14 @@ export const authedRoutes: RouteObject[] = [
 			</Suspense>
 		),
 		children: [
+			{
+				path: BO_PATH_NAMES.portal,
+				// loader: getRouteLoader(async () => {
+				// 	return defer({});
+				// }),
+				loader: PortalPage.loader,
+				element: <Portal />,
+			},
 			// staff routes
 			{
 				path: getLastPath(BO_PATH_NAMES.staff.root),
