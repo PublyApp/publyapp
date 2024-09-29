@@ -2,23 +2,12 @@ import Parse from 'parse';
 import { lazy, Suspense } from 'react';
 
 import { Box } from '@mui/material';
-import _ from 'lodash';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import {
-	defer,
-	Navigate,
-	Outlet,
-	redirect,
-	useParams,
-	useRevalidator,
-	useRouteError,
-	type RouteObject,
-} from 'react-router-dom';
+import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 
 import ErrorDisplay from '@/office/components/ErrorDisplay';
-import NotFound from '@/office/components/NotFound';
 import RevalidateButton from '@/office/components/RevalidateButton';
 import SplashScreen from '@/office/components/SplashScreen';
 import useHasRoles from '@/office/hooks/useHasRoles';
@@ -30,7 +19,6 @@ import {
 	roleSet,
 	SESSION_TOKEN_LOCAL_STORAGE_KEY,
 } from '@/shared/lib/constants';
-import useTranslate from '@/ui-react/hooks/useTranslate';
 import { getIsDisabledSignupQuery, getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { useGetClientAuthSuspenseQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
@@ -62,12 +50,13 @@ const PublicRootError = () => {
 	if (error instanceof ParseRestError) {
 		if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
 			localStorageUnsetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY);
+			parseApi.parseRestClient.setSessionToken(undefined);
 
 			const searchParams = new URLSearchParams({
 				[LoginPage.queryParamKeys.redirectCause]: LoginPage.redirectCause.INVALID_SESSION,
 			});
 
-			return <Navigate to={`${BO_PATH_NAMES.auth.login}?${searchParams.toString()}`} />;
+			return <Navigate to={`${BO_PATH_NAMES.auth.login}?${decodeURIComponent(searchParams.toString())}`} />;
 		}
 	}
 
