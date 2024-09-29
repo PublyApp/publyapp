@@ -136,6 +136,8 @@ export const BO_PATH_NAMES = {
 		forgotPassword: makePath(ROOTS.AUTH, 'forgot-password'),
 	},
 	// ===================
+	portal: makePath('portal'),
+	// ===================
 	staff: {
 		root: makePath(ROOTS.STAFF),
 		posts: {

@@ -10,22 +10,18 @@ import parseApi from '@devist/api/parse/ParseApi';
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import RevalidateButton from '@/office/components/RevalidateButton';
 import SplashScreen from '@/office/components/SplashScreen';
-import useHasRoles from '@/office/hooks/useHasRoles';
 import LoginPage from '@/office/modules/auth/login/Login';
-import {
-	BO_PATH_NAMES,
-	LAST_USED_TENANT_ID_STORAGE_KEY,
-	roleEnum,
-	roleSet,
-	SESSION_TOKEN_LOCAL_STORAGE_KEY,
-} from '@/shared/lib/constants';
-import { getIsDisabledSignupQuery, getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
-import { useGetClientAuthSuspenseQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
+import PortalPage from '@/office/modules/auth/portal/Portal';
+import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
+import { getIsDisabledSignupQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
-import { localStorageGetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
+import { localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
 import { getLastPath, getRouteLoader } from '../utils';
 
+const Portal = lazy(() => {
+	return import('@/office/modules/auth/portal/Portal');
+});
 const AuthLayout = lazy(() => {
 	return import('@/office/layouts/auth/AuthLayout');
 });
@@ -69,61 +65,7 @@ const PublicRootError = () => {
 };
 
 const RootElement = () => {
-	const hasRoles = useHasRoles();
-
-	const storedTenantId = localStorageGetItem(LAST_USED_TENANT_ID_STORAGE_KEY);
-	const {
-		result: { data: authData },
-	} = useGetClientAuthSuspenseQuery({ params: { tenantId: storedTenantId } });
-
-	const tenantRoles = [
-		roleEnum.TENANT_ADMIN,
-		roleEnum.TENANT_EDITOR,
-		roleEnum.TENANT_USER,
-		roleEnum.TENANT_CONTRIBUTOR,
-	];
-
-	const isStaffMember = hasRoles({ allowedRoles: roleSet.ABOVE_STAFF_CONTRIBUTOR });
-	const isTenantMember = hasRoles({ allowedRoles: tenantRoles });
-
-	// case 0: worst case neither staff of tenant member
-	if (!isStaffMember && !isTenantMember) {
-		// TODO: logout then go to login page
-		return <h1>MEGA FORBIDDEN!!</h1>;
-	}
-
-	const tenantId = authData.tenant?.objectId;
-	const tenantPaths = BO_PATH_NAMES.getTenantPaths(tenantId);
-
-	if (isStaffMember) {
-		//
-		if (!isTenantMember) {
-			return <Navigate to={BO_PATH_NAMES.staff.root} />;
-		}
-
-		if (!tenantId) {
-			return <Navigate to={BO_PATH_NAMES.staff.root} />;
-		}
-
-		return <Navigate to={tenantPaths.root} />;
-	}
-
-	if (!tenantId) {
-		// TODO: create route
-		return <Navigate to={BO_PATH_NAMES.getTenantPaths().chose} />;
-	}
-
-	return <Navigate to={tenantPaths.root} />;
-
-	// console.log(isStaffMember, isTenantMember);
-	// case 1: is staff, and does not use any tenantId currently
-	// if (roleSet.ABOVE_STAFF_CONTRIBUTOR && !authData.tenant?.objectId) {
-	// 	return <Navigate to={BO_PATH_NAMES.staff.root} />
-	// }
-
-	// if (roleSet.ABOVE_STAFF_CONTRIBUTOR && authData.)
-
-	// return null;
+	return <Portal />;
 };
 
 export const publicRoutes: RouteObject[] = [
@@ -136,27 +78,29 @@ export const publicRoutes: RouteObject[] = [
 		errorElement: <PublicRootError />,
 		children: [
 			{
-				path: '/',
-				loader: getRouteLoader(async () => {
-					const sessionToken = parseApi.parseRestClient.getSessionToken();
+				// path: '/',
+				index: true,
+				loader: PortalPage.loader,
+				// loader: getRouteLoader(async () => {
+				// 	const sessionToken = parseApi.parseRestClient.getSessionToken();
 
-					if (!sessionToken) {
-						return redirect(BO_PATH_NAMES.auth.login);
-					}
+				// 	if (!sessionToken) {
+				// 		return redirect(BO_PATH_NAMES.auth.login);
+				// 	}
 
-					const lastUsedTenantId = localStorageGetItem(LAST_USED_TENANT_ID_STORAGE_KEY);
+				// 	const lastUsedTenantId = localStorageGetItem(LAST_USED_TENANT_ID_STORAGE_KEY);
 
-					const authDataQuery = getUserAuthDataQuery({ tenantId: lastUsedTenantId });
-					const cachedAuthData = defaultQueryClient.getQueryData(authDataQuery.queryKey);
+				// 	const authDataQuery = getUserAuthDataQuery({ tenantId: lastUsedTenantId });
+				// 	const cachedAuthData = defaultQueryClient.getQueryData(authDataQuery.queryKey);
 
-					const authData = cachedAuthData
-						? Promise.resolve(cachedAuthData)
-						: defaultQueryClient.fetchQuery(authDataQuery);
+				// 	const authData = cachedAuthData
+				// 		? Promise.resolve(cachedAuthData)
+				// 		: defaultQueryClient.fetchQuery(authDataQuery);
 
-					return defer({
-						authData,
-					});
-				}),
+				// 	return defer({
+				// 		authData,
+				// 	});
+				// }),
 				element: <RootElement />,
 			},
 			// auth routes

@@ -72,7 +72,7 @@ const Login = () => {
 
 				revalidate();
 
-				navigate(location.state?.from || BO_PATH_NAMES.getTenantPaths().root, { replace: true }); // todo: tenant aware redirection
+				navigate(location.state?.from || BO_PATH_NAMES.portal, { replace: true }); // todo: tenant aware redirection
 			},
 			onError: (error /* , variables, context */) => {
 				if (error instanceof AxiosError) {
