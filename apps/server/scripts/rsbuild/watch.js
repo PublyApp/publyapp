@@ -14,6 +14,10 @@ const path = require('path');
 const { createRsbuild, watch: _watch } = require('./config');
 
 const run = async () => {
+	// set node env to development
+	// otherwise onDevCompileDone API will not be called
+	process.env.NODE_ENV = 'development';
+
 	const rsbuild = await createRsbuild();
 
 	const watch = () => {
