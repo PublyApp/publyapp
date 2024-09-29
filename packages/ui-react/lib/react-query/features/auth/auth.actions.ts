@@ -50,16 +50,6 @@ export const getUserAuthDataAction = async (
 		return authData;
 	} catch (error) {
 		console.log('----- getUserAuthDataAction error ----------', error);
-
-		// what if invalid sessionToken ?
-		// what if no session token at all ?
-
-		// if (error instanceof ClientException) {
-		// 	if (error.code === ClientException.AUTH_REQUIRED) {
-		// 		logOutAction();
-		// 	}
-		// }
-
 		return Promise.reject(error);
 	}
 };
@@ -68,7 +58,7 @@ export const getUserAuthDataAction = async (
 // 	queryKey: [getUserAuthDataQueryKeyBase] as const,
 // 	queryFn: getUserAuthDataAction,
 // });
-export const getUserAuthDataQuery = (params?: GetUserAuthDataQueryParams) => {
+export const getUserAuthDataQuery = (params: GetUserAuthDataQueryParams = {}) => {
 	return queryOptions({
 		queryKey: [getUserAuthDataQueryKeyBase, params as never] as const,
 		queryFn: getUserAuthDataAction,
