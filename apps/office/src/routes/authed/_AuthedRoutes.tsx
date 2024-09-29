@@ -17,6 +17,7 @@ import StaffDashLayout from '@/office/layouts/dashboard/staff/StaffDashLayout';
 import TenantDashLayout from '@/office/layouts/dashboard/tenant/TenantDashLayout';
 import Login from '@/office/modules/auth/login/Login';
 import PortalPage from '@/office/modules/auth/portal/Portal';
+import TenantChoice from '@/office/modules/auth/tenant-choice/TenantChoice';
 import {
 	BO_PATH_NAMES,
 	LAST_USED_TENANT_ID_STORAGE_KEY,
@@ -205,7 +206,7 @@ export const authedRoutes: RouteObject[] = [
 
 					{
 						path: getLastPath(BO_PATH_NAMES.getTenantPaths().chose),
-						element: <h1>Chose a company to use here</h1>,
+						element: <TenantChoice />,
 					},
 
 					{

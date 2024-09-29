@@ -1,3 +1,7 @@
+import { applySkipAndLimit } from '@/server/lib/parse/utils';
+import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
+import type { ITenant } from '@/shared/types/db/tenant.types';
+
 import type ParseUser from '../user/user.class';
 
 import ParseTenant from './tenant.class';
@@ -46,5 +50,34 @@ export default class TenantService {
 			.first({ sessionToken: this.sessionToken });
 
 		return Boolean(foundTenant);
+	}
+
+	async findTenantsForUser(
+		user: ParseUser,
+		options: { page?: number; pageSize?: number; json: true },
+	): Promise<ITenant[]>;
+	async findTenantsForUser(
+		user: ParseUser,
+		options?: { page?: number; pageSize?: number; json?: false | undefined } | undefined,
+	): Promise<ParseTenant[]>;
+	async findTenantsForUser(
+		user: ParseUser,
+		{
+			page = 0,
+			pageSize = DEFAULT_PAGE_SIZE,
+			json = false,
+		}: { page?: number; pageSize?: number; json?: boolean | undefined } | undefined = {},
+	) {
+		const query = new Parse.Query(ParseTenant).select(['name']).equalTo('users.user' as never, user as never);
+
+		applySkipAndLimit(query, { type: 'page', page, pageSize });
+
+		const tenants = await query.find({ sessionToken: this.sessionToken, json });
+
+		if (json) {
+			return tenants as unknown as ITenant[];
+		}
+
+		return tenants;
 	}
 }
