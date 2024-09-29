@@ -68,21 +68,11 @@ const Login = () => {
 	} = useLoginMutation({
 		options: {
 			onSuccess: async () => {
-				// resetBoundary();
-				// navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
-
-				// const authActions = new AuthActions(parseApi);
-
-				queryClient.invalidateQueries({ queryKey: getUserAuthDataQuery.queryKey });
-
-				// refetchClientAuth();
-
-				// const authData = await getClientAuthAction();
-				// queryClient.setQueryData([getClientAuthQueryKeyBase] as const, authData);
+				queryClient.removeQueries({ queryKey: [getUserAuthDataQuery().queryKey[0]] });
 
 				revalidate();
 
-				navigate(location.state?.from || BO_PATH_NAMES.staff.root, { replace: true }); // todo: tenant aware redirection
+				navigate(location.state?.from || BO_PATH_NAMES.getTenantPaths().root, { replace: true }); // todo: tenant aware redirection
 			},
 			onError: (error /* , variables, context */) => {
 				if (error instanceof AxiosError) {

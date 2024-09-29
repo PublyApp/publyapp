@@ -2,7 +2,6 @@ import { useMutation, useQueryClient, useSuspenseQuery, type MutateOptions } fro
 import { useNavigate } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
-import type { IUser } from '@devist/shared/types/db/user.types';
 import type { LoginInput, SignupInput, VerifyEmailInput } from '@devist/shared/validations/auth.validations';
 
 import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
@@ -22,8 +21,10 @@ import {
 
 // ---- 1 --------------------------------------------------------------------------------
 
+type LoginData = Awaited<ReturnType<typeof loginAction>>;
+
 type UseLoginMutationProps = {
-	options?: Omit<MutateOptions<IUser, Error, LoginInput>, 'mutationKey' | 'mutationFn'>;
+	options?: Omit<MutateOptions<LoginData, Error, LoginInput>, 'mutationKey' | 'mutationFn'>;
 	// parseApi: ParseApi; // todo: do some tests in the case we will need a loginAs feature
 
 	// onSuccess?: MutateOptions<IUser, Error, LoginInput>['onSuccess'];

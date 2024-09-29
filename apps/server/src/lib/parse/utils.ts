@@ -175,7 +175,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 		}
 
 		if (!user) {
-			throw new Error(t('item-is-required', { item: t('authentication') }));
+			throw new Parse.Error(Parse.Error.INVALID_SESSION_TOKEN, t('item-is-required', { item: t('authentication') }));
 		}
 
 		// verify the ip address

@@ -1,9 +1,9 @@
 import Parse from 'parse';
 import { lazy, Suspense } from 'react';
 
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { defer, Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
+import { Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 
@@ -12,7 +12,7 @@ import ErrorDisplay from '@/office/components/ErrorDisplay';
 import RevalidateButton from '@/office/components/RevalidateButton';
 // import LoadingScreen from '@/office/components/LoadingScreen';
 import SplashScreen from '@/office/components/SplashScreen';
-import TenantGuard from '@/office/components/TenantGuard';
+// import TenantGuard from '@/office/components/TenantGuard';
 import StaffDashLayout from '@/office/layouts/dashboard/staff/StaffDashLayout';
 import TenantDashLayout from '@/office/layouts/dashboard/tenant/TenantDashLayout';
 import Login from '@/office/modules/auth/login/Login';
@@ -22,9 +22,7 @@ import {
 	roleSet,
 	SESSION_TOKEN_LOCAL_STORAGE_KEY,
 } from '@/shared/lib/constants';
-import { ClientException } from '@/ui-react/exceptions/ClientException';
-import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
-import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 import { localStorageGetItem, localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 
 import { getLastPath, getRouteLoader } from '../utils';
@@ -62,23 +60,25 @@ const AuthedRoutesRootError = () => {
 		return <SplashScreen />;
 	}
 
-	if (error instanceof ClientException) {
-		if (error.code === ClientException.AUTH_REQUIRED) {
-			return <Navigate to={BO_PATH_NAMES.auth.login} />;
-		}
-	}
+	// if (error instanceof ClientException) {
+	// 	if (error.code === ClientException.AUTH_REQUIRED) {
+	// 		return <Navigate to={BO_PATH_NAMES.auth.login} />;
+	// 	}
+	// }
 
 	if (error instanceof ParseRestError) {
 		if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
 			localStorageUnsetItem(SESSION_TOKEN_LOCAL_STORAGE_KEY);
+			parseApi.parseRestClient.setSessionToken(undefined);
 
 			const searchParams = new URLSearchParams({
 				[Login.queryParamKeys.redirectCause]: Login.redirectCause.INVALID_SESSION,
 			});
 
-			return <Navigate to={`${BO_PATH_NAMES.auth.login}?${searchParams.toString()}`} />;
+			return <Navigate to={`${BO_PATH_NAMES.auth.login}?${decodeURIComponent(searchParams.toString())}`} />;
 			// return redirect(BO_PATH_NAMES.auth.login);
 		}
+		// if (error.message === t('Au'))
 	}
 
 	return (
