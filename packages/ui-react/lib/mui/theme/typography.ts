@@ -14,7 +14,6 @@ const defaultTypographyStyles = {
 const titleTypographyStyles = {
 	...defaultTypographyStyles,
 	fontFamily: TITLE_FONT,
-	// color: palette.grey?.[800],
 };
 
 export const typography: TypographyOptions = {
