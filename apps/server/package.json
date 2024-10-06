@@ -70,7 +70,7 @@
 		"numeral": "^2.0.6",
 		"parse": "^5.2.0",
 		"parse-dashboard": "^6.0.0-beta.1",
-		"parse-server": "7.2.0",
+		"parse-server": "7.3.0",
 		"qs": "^6.11.2",
 		"sharp": "^0.33.3",
 		"streamifier": "^0.1.1",
