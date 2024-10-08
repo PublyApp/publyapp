@@ -9,6 +9,14 @@
 
 const { createRsbuild, build } = require('./config');
 
+const toDeploy = ['preprod', 'production'].includes(process.env.MODE || '');
+
+if (toDeploy) {
+	process.env.NODE_ENV = 'production';
+} else {
+	process.env.NODE_ENV = 'development';
+}
+
 const run = async () => {
 	const rsbuild = await createRsbuild();
 
