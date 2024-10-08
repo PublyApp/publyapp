@@ -122,13 +122,7 @@ function createRsbuild() {
 				},
 			},
 			output: {
-				// targets: ['node'], // this is no longer hos it work from v1
-				// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-				// @ts-ignore
 				target: 'node',
-				distPath: {
-					server: '',
-				},
 				externals,
 			},
 			tools: {
@@ -147,15 +141,12 @@ function createRsbuild() {
 
 exports.createRsbuild = createRsbuild;
 
-const toDeploy = ['preprod', 'production'].includes(process.env.MODE || '');
-
 /**
  *
  * @param {import('@rsbuild/core').RsbuildInstance} rsbuild
  */
 function watch(rsbuild) {
 	rsbuild.build({
-		mode: 'development', // watch mode only works in development mode
 		watch: true,
 	});
 }
@@ -167,9 +158,7 @@ exports.watch = watch;
  * @param {import('@rsbuild/core').RsbuildInstance} rsbuild
  */
 function build(rsbuild) {
-	rsbuild.build({
-		mode: toDeploy ? 'production' : 'development',
-	});
+	rsbuild.build();
 }
 
 exports.build = build;
