@@ -5,7 +5,8 @@ import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 
 const AppFileSchema = SchemaManager.defineSchema<AppFileWithRelations>(className.APP_FILE, {
 	fields: {
-		// ! for now we use the server's Filesystem only
+		// ! we use cloudinary: it's more convenient
+		// // ! for now we use the server's Filesystem only
 		path: { type: 'String', required: true },
 		name: { type: 'String', required: true },
 		displayName: { type: 'String', required: true },
