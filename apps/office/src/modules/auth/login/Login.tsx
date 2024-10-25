@@ -176,12 +176,10 @@ const Login = () => {
 				underline="always"
 				sx={{ alignSelf: 'flex-end' }}
 			>
-				{/* Forgot password? */}
 				{t('forgot-password')}
 			</Link>
 
 			<LoadingButton fullWidth color="inherit" size="large" type="submit" variant="contained" loading={isPending}>
-				{/* Login */}
 				{t('login')}
 			</LoadingButton>
 		</Stack>
