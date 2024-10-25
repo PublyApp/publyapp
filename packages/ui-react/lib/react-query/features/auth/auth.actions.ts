@@ -54,10 +54,6 @@ export const getUserAuthDataAction = async (
 	}
 };
 
-// export const getUserAuthDataQuery = queryOptions({
-// 	queryKey: [getUserAuthDataQueryKeyBase] as const,
-// 	queryFn: getUserAuthDataAction,
-// });
 export const getUserAuthDataQuery = (params: GetUserAuthDataQueryParams = {}) => {
 	return queryOptions({
 		queryKey: [getUserAuthDataQueryKeyBase, params as never] as const,

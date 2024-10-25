@@ -1,5 +1,7 @@
-I have a text,
-I want to publish it on several social media at once:
+I have a text, (later images and other medias too)
+1- I want to publish it on several social media at once
+2- I want to schedule posts on several social medias
+
 
 Meta:
 	- Facebook
