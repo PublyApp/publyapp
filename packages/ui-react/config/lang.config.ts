@@ -1,9 +1,10 @@
 import { enUS as enUSCore, frFR as frFRCore } from '@mui/material/locale';
-import { enUS as enUSDataGrid, frFR as frFRDataGrid } from '@mui/x-data-grid';
-import { enUS as enUSDate, frFR as frFRDate } from '@mui/x-date-pickers';
+// TODO: adapt to new versions
+// import { enUS as enUSDataGrid, frFR as frFRDataGrid } from '@mui/x-data-grid';
+// import { enUS as enUSDate, frFR as frFRDate } from '@mui/x-date-pickers';
 // eslint-disable-next-line import/extensions
 import { enUS as enUSAdapter, fr as frFRAdapter } from 'date-fns/locale/index.js'; // ! important: import of directory not supported error;
-import merge from 'lodash/merge';
+import _ from 'lodash';
 
 // import * as materialLocale from '@mui/material/locale';
 // import * as dataGrid from '@mui/x-data-grid';
@@ -16,7 +17,7 @@ import { type AppLocale } from '@/shared/lib/i18n/resources';
 // const { enUS: enUSDate, frFR: frFRDate } = datePickers;
 // const { enUS: enUSAdapter, fr: frFRAdapter } = dateFnLocale;
 
-type SystemValue = typeof enUSDate & typeof enUSDataGrid & typeof enUSCore;
+type SystemValue = /* typeof enUSDate & typeof enUSDataGrid & */ typeof enUSCore;
 
 // PLEASE REMOVE `LOCAL STORAGE` WHEN YOU CHANGE SETTINGS.
 // ----------------------------------------------------------------------
@@ -32,7 +33,7 @@ export type LangConfig = {
 const enLangConfig: LangConfig = {
 	label: 'English',
 	value: 'en',
-	systemValue: merge(enUSDate, enUSDataGrid, enUSCore),
+	systemValue: _.merge({}, /* enUSDate, enUSDataGrid, */ enUSCore),
 	adapterLocale: enUSAdapter,
 	icon: 'flagpack:gb-nir',
 };
@@ -40,7 +41,7 @@ const enLangConfig: LangConfig = {
 const frLangConfig: LangConfig = {
 	label: 'French',
 	value: 'fr',
-	systemValue: merge(frFRDate, frFRDataGrid, frFRCore),
+	systemValue: _.merge({}, /* frFRDate, frFRDataGrid, */ frFRCore),
 	adapterLocale: frFRAdapter,
 	icon: 'flagpack:fr',
 };

@@ -70,7 +70,7 @@ const Header = ({ onOpenNav }: Props) => {
 				</IconButton>
 			)}
 
-			<SearchBar />
+			{/* <SearchBar /> */}
 
 			<Stack flexGrow={1} direction="row" alignItems="center" justifyContent="flex-end" spacing={{ xs: 0.5, sm: 1 }}>
 				<LanguagePopover />
