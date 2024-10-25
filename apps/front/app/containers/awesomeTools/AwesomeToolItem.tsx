@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { Card, Checkbox, Divider, Unstable_Grid2 as Grid, Link, Stack, Typography } from '@mui/material';
+import { Card, Checkbox, Divider, Grid2 as Grid, Link, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from '@remix-run/react';
 
 import { FRONT_PATH_NAMES } from '@devist/shared/lib/constants';
