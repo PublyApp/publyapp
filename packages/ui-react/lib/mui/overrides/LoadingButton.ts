@@ -8,9 +8,9 @@ export const LoadingButton = (/* theme: Theme */) => {
 	return {
 		MuiLoadingButton: {
 			styleOverrides: {
-				root: ({ ownerState }: { ownerState: LoadingButtonProps }) => {
+				root: ({ ownerState }: { ownerState?: LoadingButtonProps }) => {
 					return {
-						...(ownerState.variant === 'soft' && {
+						...(ownerState?.variant === 'soft' && {
 							[`& .${loadingButtonClasses.loadingIndicatorStart}`]: {
 								left: 10,
 							},
