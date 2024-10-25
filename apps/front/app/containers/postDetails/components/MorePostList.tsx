@@ -1,4 +1,4 @@
-import { /* Button, */ Box, Unstable_Grid2 as Grid /* Stack */, Typography } from '@mui/material';
+import { /* Button, */ Box, Grid2 as Grid /* Stack */, Typography } from '@mui/material';
 // import Grid from '@mui/material/Unstable_Grid2';
 import { nanoid } from 'nanoid';
 
