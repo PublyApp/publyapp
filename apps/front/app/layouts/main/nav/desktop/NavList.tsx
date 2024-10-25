@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import { useEffect, useState } from 'react';
 
-import { Box, Fade, Unstable_Grid2 as Grid, Link, Portal, Stack } from '@mui/material';
+import { Box, Fade, Grid2 as Grid, Link, Portal, Stack } from '@mui/material';
 import { Link as RouterLink, useLocation } from '@remix-run/react';
 
 import useActiveLink from '@/front/hooks/useActiveLink';
