@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 
-import { alpha, Box, styled, useTheme, type BoxProps } from '@mui/material';
+import { alpha /* useTheme, */, Box, styled, type BoxProps } from '@mui/material';
 
 // ----------------------------------------------------------------------
 
@@ -19,7 +19,7 @@ export interface LabelProps extends BoxProps {
 
 const Label = forwardRef<HTMLSpanElement, LabelProps>(
 	({ children, color = 'default', variant = 'soft', startIcon, endIcon, sx, ...other }, ref) => {
-		const theme = useTheme();
+		// const theme = useTheme();
 
 		const iconStyle = {
 			width: 16,
@@ -31,14 +31,15 @@ const Label = forwardRef<HTMLSpanElement, LabelProps>(
 			// eslint-disable-next-line @typescript-eslint/no-use-before-define
 			<StyledLabel
 				ref={ref}
-				component="span"
+				// component="span"
+				as="span"
 				ownerState={{ color, variant }}
 				sx={{
 					...(startIcon && { pl: 0.75 }),
 					...(endIcon && { pr: 0.75 }),
 					...sx,
 				}}
-				theme={theme}
+				// theme={theme}
 				{...other}
 			>
 				{startIcon && <Box sx={{ mr: 0.75, ...iconStyle }}> {startIcon} </Box>}
@@ -60,15 +61,7 @@ type OwnerState = {
 	variant: LabelVariant;
 };
 
-export const StyledLabel = styled(Box)<{ ownerState: OwnerState }>((
-	{ theme, ownerState } /* : {
-		theme: Theme;
-		ownerState: {
-			color: LabelColor;
-			variant: LabelVariant;
-		};
-	} */,
-) => {
+export const StyledLabel = styled(Box)<{ ownerState: OwnerState }>(({ theme, ownerState }) => {
 	const isLight = theme.palette.mode === 'light';
 
 	const filledVariant = ownerState.variant === 'filled';
