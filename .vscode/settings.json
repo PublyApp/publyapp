@@ -43,6 +43,7 @@
 		"tanstack",
 		"tiptap",
 		"toastify",
+		"TOGGLABLE",
 		"valueof",
 		"zustand"
 	],

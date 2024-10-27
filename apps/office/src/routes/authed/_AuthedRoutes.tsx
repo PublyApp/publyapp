@@ -15,9 +15,9 @@ import SplashScreen from '@/office/components/SplashScreen';
 // import TenantGuard from '@/office/components/TenantGuard';
 import StaffDashLayout from '@/office/layouts/dashboard/staff/StaffDashLayout';
 import TenantDashLayout from '@/office/layouts/dashboard/tenant/TenantDashLayout';
-import Login from '@/office/modules/auth/login/Login';
-import PortalPage from '@/office/modules/auth/portal/Portal';
-import TenantChoice from '@/office/modules/auth/tenant-choice/TenantChoice';
+import Login from '@/office/modules/common/auth/login/Login';
+import PortalPage from '@/office/modules/common/auth/portal/Portal';
+import TenantChoice from '@/office/modules/common/auth/tenant-choice/TenantChoice';
 import {
 	BO_PATH_NAMES,
 	LAST_USED_TENANT_ID_STORAGE_KEY,
@@ -55,7 +55,7 @@ const NotFound = lazy(() => {
 // 	return import('@/office/modules/blog/edit-post/EditPost');
 // });
 const Portal = lazy(() => {
-	return import('@/office/modules/auth/portal/Portal');
+	return import('@/office/modules/common/auth/portal/Portal');
 });
 
 const AuthedRoutesRootError = () => {

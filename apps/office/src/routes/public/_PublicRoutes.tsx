@@ -10,8 +10,8 @@ import parseApi from '@devist/api/parse/ParseApi';
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import RevalidateButton from '@/office/components/RevalidateButton';
 import SplashScreen from '@/office/components/SplashScreen';
-import LoginPage from '@/office/modules/auth/login/Login';
-import PortalPage from '@/office/modules/auth/portal/Portal';
+import LoginPage from '@/office/modules/common/auth/login/Login';
+import PortalPage from '@/office/modules/common/auth/portal/Portal';
 import { BO_PATH_NAMES, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib/constants';
 import { getIsDisabledSignupQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
@@ -20,19 +20,19 @@ import { localStorageUnsetItem } from '@/ui-react/utils/storage.utils';
 import { getLastPath, getRouteLoader } from '../utils';
 
 const Portal = lazy(() => {
-	return import('@/office/modules/auth/portal/Portal');
+	return import('@/office/modules/common/auth/portal/Portal');
 });
 const AuthLayout = lazy(() => {
 	return import('@/office/layouts/auth/AuthLayout');
 });
 const Login = lazy(() => {
-	return import('@/office/modules/auth/login/Login');
+	return import('@/office/modules/common/auth/login/Login');
 });
 const Signup = lazy(() => {
-	return import('@/office/modules/auth/signup/Signup');
+	return import('@/office/modules/common/auth/signup/Signup');
 });
 const VerifyEmail = lazy(() => {
-	return import('@/office/modules/auth/verify-email/VerifyEmail');
+	return import('@/office/modules/common/auth/verify-email/VerifyEmail');
 });
 
 const PublicRootError = () => {
