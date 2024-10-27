@@ -5,7 +5,9 @@ import Breadcrumbs, { type BreadcrumbsProps } from '@mui/material/Breadcrumbs';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import type { SxProps } from '@mui/material/styles';
-import Typography from '@mui/material/Typography';
+import Typography, { type TypographyProps } from '@mui/material/Typography';
+
+import { mergeSxProps } from '@devist/ui-react/utils/mui.utils';
 
 import RouterLink from './RouterLink';
 
@@ -21,10 +23,10 @@ export interface PageHeaderProps {
 	heading?: ReactNode;
 	moreLink?: string[];
 	// activeLast?: boolean;
-	action?: ReactNode;
+	actions?: ReactNode;
 	// links: BreadcrumbsLinkProps[];
 	sx?: SxProps;
-	breadcrumbs: ReactNode;
+	breadcrumbs?: ReactNode;
 }
 
 // ----------------------------------------------------------------------
@@ -100,7 +102,7 @@ const LinkItem = ({ link, activeLast, disabled }: LinkItemProps) => {
 
 const PageHeader = ({
 	/* links, */
-	action,
+	actions,
 	heading,
 	moreLink,
 	/* activeLast, */
@@ -111,7 +113,7 @@ const PageHeader = ({
 	// const lastLink = links[links.length - 1].name;
 
 	return (
-		<Box sx={{ ...sx }}>
+		<Box sx={mergeSxProps({ mb: 4 }, sx)}>
 			<Stack direction="row" alignItems="center">
 				<Box sx={{ flexGrow: 1 }}>
 					{/* HEADING */}
@@ -140,7 +142,7 @@ const PageHeader = ({
 					)} */}
 				</Box>
 
-				{action && <Box sx={{ flexShrink: 0 }}> {action} </Box>}
+				{actions && <Box sx={{ flexShrink: 0 }}> {actions} </Box>}
 			</Stack>
 
 			{/* MORE LINK */}
@@ -176,14 +178,10 @@ PageHeader.Breadcrumbs = ({ links, activeLast, ...other }: PageHeaderBreadcrumbs
 	);
 };
 
-type PageHeaderHeadingProps = {
-	text: string;
-};
-
-PageHeader.Heading = ({ text }: PageHeaderHeadingProps) => {
+PageHeader.Heading = ({ variant = 'h4', gutterBottom = true, children, ...otherProps }: TypographyProps) => {
 	return (
-		<Typography variant="h4" gutterBottom>
-			{text}
+		<Typography variant={variant} gutterBottom={gutterBottom} {...otherProps}>
+			{children}
 		</Typography>
 	);
 };

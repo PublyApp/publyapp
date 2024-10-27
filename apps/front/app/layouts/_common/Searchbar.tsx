@@ -19,7 +19,7 @@ import { HEADER } from '@/front/lib/constants';
 
 // ----------------------------------------------------------------------
 
-const StyledSearchbar = styled('div')(({ theme }) => {
+const StyledSearchBar = styled('div')(({ theme }) => {
 	return {
 		top: 0,
 		left: 0,
@@ -43,11 +43,11 @@ const StyledSearchbar = styled('div')(({ theme }) => {
 
 // ----------------------------------------------------------------------
 
-type SearchbarProps = {
+type SearchBarProps = {
 	sx?: SxProps<Theme>;
 };
 
-const Searchbar = ({ sx }: SearchbarProps) => {
+const SearchBar = ({ sx }: SearchBarProps) => {
 	const [open, setOpen] = useState(false);
 
 	const handleOpen = () => {
@@ -68,7 +68,7 @@ const Searchbar = ({ sx }: SearchbarProps) => {
 				</IconButton>
 
 				<Slide direction="down" in={open} mountOnEnter unmountOnExit>
-					<StyledSearchbar>
+					<StyledSearchBar>
 						<Input
 							autoFocus
 							fullWidth
@@ -84,11 +84,11 @@ const Searchbar = ({ sx }: SearchbarProps) => {
 						<Button variant="contained" onClick={handleClose}>
 							Search
 						</Button>
-					</StyledSearchbar>
+					</StyledSearchBar>
 				</Slide>
 			</div>
 		</ClickAwayListener>
 	);
 };
 
-export default Searchbar;
+export default SearchBar;
