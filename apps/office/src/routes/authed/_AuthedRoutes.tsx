@@ -18,6 +18,7 @@ import TenantDashLayout from '@/office/layouts/dashboard/tenant/TenantDashLayout
 import Login from '@/office/modules/common/auth/login/Login';
 import PortalPage from '@/office/modules/common/auth/portal/Portal';
 import TenantChoice from '@/office/modules/common/auth/tenant-choice/TenantChoice';
+import TenantsList from '@/office/modules/staff/tenant-manager/tenants-list/TenantsList';
 import {
 	BO_PATH_NAMES,
 	LAST_USED_TENANT_ID_STORAGE_KEY,
@@ -169,7 +170,7 @@ export const authedRoutes: RouteObject[] = [
 					},
 					{
 						path: getLastPath(BO_PATH_NAMES.staff.tenants.root),
-						element: <h1>TENANTS LIST HERE</h1>,
+						element: <TenantsList />,
 					},
 					{
 						path: '*',

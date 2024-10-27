@@ -96,6 +96,8 @@ const commonEN = {
 	'set-as-current': 'Set as current',
 	'slug-linked-to-another-post': 'Slug to another article',
 
+	'list-of-tenants': 'List of tenants',
+
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',
 	'Session token is expired.': 'Session token is expired.',
