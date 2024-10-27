@@ -341,7 +341,7 @@ const ProductListView = () => {
 							/* separator=">" */ /* sx={{ marginBottom: '22px' }} */
 						/>
 					}
-					action={
+					actions={
 						<Button
 							component={RouterLink}
 							href={BO_PATH_NAMES.dashboard.posts.create}

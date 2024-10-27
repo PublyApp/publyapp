@@ -7,6 +7,7 @@ import { alpha, Box, type SxProps, type Theme } from '@mui/material';
 import _ from 'lodash';
 
 import { ALL_PLUGINS } from '../lib/mdxEditor/boilerplate';
+import { mergeSxProps } from '../utils/mui.utils';
 
 export type MdxEditorProps = MDXEditorProps & {
 	id: string;
@@ -33,7 +34,8 @@ const MdxEditor = forwardRef<MDXEditorMethods, MdxEditorProps>(
 		return (
 			<Box
 				id={`#${id}`}
-				sx={[
+				sx={mergeSxProps(
+					//
 					(theme) => {
 						const radius = theme.spacing(1);
 
@@ -65,8 +67,8 @@ const MdxEditor = forwardRef<MDXEditorMethods, MdxEditorProps>(
 							}),
 						};
 					},
-					...(_.isArray(sx) ? sx : [sx]),
-				]}
+					sx,
+				)}
 			>
 				<MDXEditor ref={ref} markdown={markdown} plugins={plugins} {...other} />
 				{helperText && helperText}
