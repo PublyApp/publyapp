@@ -4,8 +4,8 @@ import type { ParseApi } from '@devist/api/parse/ParseApi';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
-import { returnLanguageIfSupported } from '../i18n/i18n';
 import i18next from '../i18n/i18next.server';
+import { returnLanguageIfSupported } from '../i18n/i18nextCommonUtils';
 import { initParseOnServer } from '../parse/initParseOnServer';
 
 type InnerLoaderFunction<T> = (

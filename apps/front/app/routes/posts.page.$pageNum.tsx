@@ -11,7 +11,7 @@ import BlogSidebar from '@/front/containers/postList/sidebar/BlogSidebar';
 // import { getT } from '@/server/lib/i18n';
 import { defaultLocale } from '@/shared/lib/i18n/resources';
 
-import { returnLanguageIfSupported } from '../lib/i18n/i18n';
+import { returnLanguageIfSupported } from '../lib/i18n/i18nextCommonUtils';
 import { safelyRunInLoader } from '../lib/remix/safelyRun';
 
 // export const loader = (async ({ params }) => {

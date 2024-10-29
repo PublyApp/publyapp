@@ -5,8 +5,8 @@ import { initReactI18next } from 'react-i18next';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
-import { i18nRemixCommonConfig } from './i18n';
 import { remixI18NextServer } from './i18next.server';
+import { i18nRemixCommonConfig } from './i18nextCommonUtils';
 
 export const initI18nextOnServer = async ({
 	// lang,

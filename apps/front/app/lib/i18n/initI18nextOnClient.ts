@@ -3,7 +3,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 import { getInitialNamespaces } from 'remix-i18next/client';
 
-import { i18nRemixCommonConfig } from './i18n';
+import { i18nRemixCommonConfig } from './i18nextCommonUtils';
 
 export const initI18nextOnClient = () => {
 	i18next
