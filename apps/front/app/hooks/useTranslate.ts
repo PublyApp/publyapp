@@ -6,28 +6,17 @@ import numeral from 'numeral';
 import { useTranslation } from 'react-i18next';
 
 import parseApi from '@devist/api/parse/ParseApi';
-// import { useChangeLanguage, useLocale } from 'remix-i18next/react';
-
 import { LOCALE_HEADER_KEY } from '@devist/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { defaultLangConfig, langConfigsMap } from '@/ui-react/config/lang.config';
 import zod from '@/ui-react/lib/zod';
 
-// import parseApi from '../api/parse/ParseApi';
-// import { defaultLangConfig, langConfigsMap } from '../config/lang.config';
-// import zod from '../lib/zod';
-
 // ----------------------------------------------------------------------
 
 const useTranslate = () => {
 	const { i18n, t, ready } = useTranslation();
 	const { pathname } = useLocation();
-
-	// const pathLocale =
-	// 	appLocales.find((iLocale) => {
-	// 		return pathname.startsWith(`/${iLocale}`);
-	// 	}) || defaultLocale;
 
 	const allLangs = useMemo(() => {
 		return Array.from(langConfigsMap.values());

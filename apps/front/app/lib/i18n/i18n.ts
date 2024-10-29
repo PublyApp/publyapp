@@ -1,6 +1,6 @@
 import { appLocales, defaultLocale, defaultNS, NS, resources, type AppLocale } from '@/shared/lib/i18n/resources';
 
-export default {
+export const i18nRemixCommonConfig = {
 	supportedLngs: appLocales,
 	debug: false,
 	resources,

@@ -1,4 +1,4 @@
-import i18n from 'i18next';
+import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 
@@ -9,7 +9,7 @@ import { appLocales, defaultLocale, defaultNS, NS, resources, type AppLocale } f
 import { localStorageGetItem } from '../utils/storage.utils';
 
 export const initI18next = () => {
-	i18n
+	i18next
 		.use(LanguageDetector)
 		// .use(HttpBackend)
 		.use(initReactI18next) // passes i18n down to react-i18next
@@ -36,7 +36,7 @@ export const initI18next = () => {
 
 export const getCurrentLocale = (): AppLocale => {
 	const foundLocale = appLocales.find((locale) => {
-		return i18n.languages.indexOf(locale) !== -1;
+		return i18next.languages.indexOf(locale) !== -1;
 	});
 
 	return foundLocale || defaultLocale;
@@ -53,4 +53,4 @@ export const getInitialLocale = (): AppLocale => {
 	return locale as never;
 };
 
-export default i18n;
+export const i18nextClient = i18next;
