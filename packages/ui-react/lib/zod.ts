@@ -1,12 +1,9 @@
-import { defaultLocale } from '@/shared/lib/i18n/resources';
 import CustomZod from '@/shared/lib/zod/CustomZod';
-import i18n, { getInitialLocale } from '@/ui-react/lib/i18n';
+import { getInitialLocale, i18nextClient } from '@/ui-react/lib/i18n';
 
-const zod = new CustomZod(i18n.getFixedT(defaultLocale));
+export const defaultZodClient = new CustomZod({ i18n: i18nextClient });
 
 export const initZod = () => {
 	const locale = getInitialLocale();
-	zod.t = i18n.getFixedT(locale);
+	defaultZodClient.setLocale(locale);
 };
-
-export default zod;
