@@ -19,7 +19,7 @@ import PageHeader from '@/office/components/PageHeader';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import Iconify from '@/ui-react/components/Iconify';
 import useTranslate from '@/ui-react/hooks/useTranslate';
-import zod from '@/ui-react/lib/zod';
+import { defaultZodClient } from '@/ui-react/lib/zod';
 import { pxToRem } from '@/ui-react/utils/css.utils';
 
 import PostForm from '../_common/PostForm';
@@ -29,7 +29,7 @@ const EditPost = () => {
 	const { lang, t } = useTranslate();
 	const params = useParams();
 
-	const savePostInputSchema = getUpdateBlogPostInputSchemaClientSide(zod);
+	const savePostInputSchema = getUpdateBlogPostInputSchemaClientSide(defaultZodClient);
 
 	const {
 		result: { data: post },

@@ -13,7 +13,7 @@ import FormProvider from '@/ui-react/components/form/FormProvider';
 import RHFTextField from '@/ui-react/components/form/RHFTextField';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 import { useVerifyEmailMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
-import zod from '@/ui-react/lib/zod';
+import { defaultZodClient } from '@/ui-react/lib/zod';
 
 // import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 // import { useLoginMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
@@ -32,7 +32,7 @@ const VerifyEmailPage = () => {
 		email: '',
 	};
 
-	const verifyEmailSchema = getVerifyEmailSchema(zod);
+	const verifyEmailSchema = getVerifyEmailSchema(defaultZodClient);
 
 	const verifyEmailForm = useForm({
 		resolver: zodResolver(verifyEmailSchema),

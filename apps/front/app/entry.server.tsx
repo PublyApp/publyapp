@@ -13,7 +13,7 @@ import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 import createEmotionCache from './lib/emotion/createEmotionCache';
-import i18next from './lib/i18n/i18next.server';
+import { remixI18NextServer } from './lib/i18n/i18next.server';
 import { returnLanguageIfSupported } from './lib/i18n/i18nextCommonUtils';
 import { initI18nextOnServer } from './lib/i18n/initI18nextOnServer';
 
@@ -26,7 +26,7 @@ const handleRequest = async (
 	const url = new URL(request.url);
 	const { pathname } = url;
 	const localeInUrl: string | undefined = pathname.split('/')[1];
-	const locale = returnLanguageIfSupported(localeInUrl) ?? ((await i18next.getLocale(request)) as AppLocale);
+	const locale = returnLanguageIfSupported(localeInUrl) ?? ((await remixI18NextServer.getLocale(request)) as AppLocale);
 
 	const i18nInstance = await initI18nextOnServer({ remixContext, locale });
 

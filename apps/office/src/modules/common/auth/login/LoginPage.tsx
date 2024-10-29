@@ -22,7 +22,7 @@ import useBoolean from '@/ui-react/hooks/useBoolean';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { useLoginMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
-import zod from '@/ui-react/lib/zod';
+import { defaultZodClient } from '@/ui-react/lib/zod';
 import { pxToRem } from '@/ui-react/utils/css.utils';
 
 const queryParamPrefix = 'login' as const;
@@ -51,7 +51,7 @@ const Login = () => {
 	};
 
 	const loginForm = useForm({
-		resolver: zodResolver(getLoginSchema(zod)),
+		resolver: zodResolver(getLoginSchema(defaultZodClient)),
 		defaultValues,
 	});
 
