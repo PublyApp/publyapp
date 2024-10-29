@@ -13,8 +13,8 @@ import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 import createEmotionCache from './lib/emotion/createEmotionCache';
-import { returnLanguageIfSupported } from './lib/i18n/i18n';
 import i18next from './lib/i18n/i18next.server';
+import { returnLanguageIfSupported } from './lib/i18n/i18nextCommonUtils';
 import { initI18nextOnServer } from './lib/i18n/initI18nextOnServer';
 
 const handleRequest = async (
