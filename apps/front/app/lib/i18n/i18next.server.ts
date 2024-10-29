@@ -3,17 +3,17 @@
 import Backend from 'i18next-fs-backend';
 import { RemixI18Next } from 'remix-i18next/server';
 
-import i18n from './i18n'; // your i18n configuration file
+import { i18nRemixCommonConfig } from './i18n'; // your i18n configuration file
 
-const i18next = new RemixI18Next({
+export const remixI18NextServer = new RemixI18Next({
 	detection: {
-		supportedLanguages: i18n.supportedLngs as never,
-		fallbackLanguage: i18n.fallbackLng,
+		supportedLanguages: i18nRemixCommonConfig.supportedLngs as never,
+		fallbackLanguage: i18nRemixCommonConfig.fallbackLng,
 	},
 	// This is the configuration for i18next used
 	// when translating messages server-side only
 	i18next: {
-		...i18n,
+		...i18nRemixCommonConfig,
 		// backend: {
 		// 	loadPath: resolve('./public/locales/{{lng}}/{{ns}}.json'),
 		// },
@@ -23,5 +23,3 @@ const i18next = new RemixI18Next({
 	// Tip: You could pass `resources` to the `i18next` configuration and avoid a backend here
 	plugins: [Backend],
 });
-
-export default i18next;

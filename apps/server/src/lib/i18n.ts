@@ -35,3 +35,5 @@ export const getT = (locale: AppLocale) => {
 export const getCorrectLocale = (stringInput: string | undefined): AppLocale => {
 	return appLocales.includes(stringInput as never) ? (stringInput as AppLocale) : defaultLocale;
 };
+
+export const i18nextServer = i18next;

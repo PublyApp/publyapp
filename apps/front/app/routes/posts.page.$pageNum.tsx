@@ -2,13 +2,8 @@ import { Container, Grid2 as Grid } from '@mui/material';
 import type { MetaFunction } from '@remix-run/node';
 // import { type LoaderFunction } from '@remix-run/node';
 import { /* useLoaderData, */ defer, type ClientLoaderFunction } from '@remix-run/react';
-import { getFixedT } from 'i18next';
 
 import parseApi from '@devist/api/parse/ParseApi';
-
-// import { useTranslation } from 'react-i18next';
-
-// import { t } from 'i18next';
 
 import { _categories, _tags } from '@/front/_mock';
 import PostListHorizontal from '@/front/containers/postList/PostListHorizontal';
