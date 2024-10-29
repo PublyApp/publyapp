@@ -7,9 +7,10 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useForm, type SubmitHandler } from 'react-hook-form';
-import { Navigate } from 'react-router-dom';
+import { defer, Navigate } from 'react-router-dom';
 
 import RouterLink from '@/office/components/RouterLink';
+import { getRouteLoader } from '@/office/routes/utils';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import { getRegisterSchema, type SignupInput } from '@/shared/validations/auth.validations';
 import FormProvider from '@/ui-react/components/form/FormProvider';
@@ -17,10 +18,12 @@ import RHFTextField from '@/ui-react/components/form/RHFTextField';
 import Iconify from '@/ui-react/components/Iconify';
 import useBoolean from '@/ui-react/hooks/useBoolean';
 import useTranslate from '@/ui-react/hooks/useTranslate';
+import { getIsDisabledSignupQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import {
 	useGetIsDisabledSignupSuspenseQuery,
 	useSignupMutation,
 } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
+import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 import zod from '@/ui-react/lib/zod';
 
 // import { paths } from 'src/routes/paths';
@@ -31,7 +34,7 @@ import zod from '@/ui-react/lib/zod';
 
 // ----------------------------------------------------------------------
 
-const Signup = () => {
+const SignupPage = () => {
 	const { t } = useTranslate();
 	const password = useBoolean();
 
@@ -151,4 +154,18 @@ const Signup = () => {
 	);
 };
 
-export default Signup;
+export default SignupPage;
+
+export const SignupRoute = {
+	loader: getRouteLoader(async () => {
+		const cachedSignupConfigData = defaultQueryClient.getQueryData(getIsDisabledSignupQuery.queryKey);
+
+		const signupConfigData = cachedSignupConfigData
+			? Promise.resolve(cachedSignupConfigData)
+			: defaultQueryClient.fetchQuery(getIsDisabledSignupQuery);
+
+		return defer({
+			signupConfigData,
+		});
+	}),
+};

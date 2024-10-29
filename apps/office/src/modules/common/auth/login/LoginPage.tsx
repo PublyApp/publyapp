@@ -202,7 +202,9 @@ const Login = () => {
 	);
 };
 
-Login.queryParamKeys = queryParamKeys;
-Login.redirectCause = redirectCause;
-
 export default Login;
+
+export const LoginRoute = {
+	queryParamKeys,
+	redirectCause,
+};
