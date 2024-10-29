@@ -4,7 +4,7 @@ import type { ParseApi } from '@devist/api/parse/ParseApi';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
-import i18next from '../i18n/i18next.server';
+import { remixI18NextServer } from '../i18n/i18next.server';
 import { returnLanguageIfSupported } from '../i18n/i18nextCommonUtils';
 import { initParseOnServer } from '../parse/initParseOnServer';
 
@@ -19,7 +19,7 @@ export const getServerLoader = <T>(innerLoader: InnerLoaderFunction<T>): Returne
 		const { params, request } = loaderFunctionArgs;
 
 		const lang = returnLanguageIfSupported(params.lang);
-		const locale = lang ?? ((await i18next.getLocale(request)) as AppLocale);
+		const locale = lang ?? ((await remixI18NextServer.getLocale(request)) as AppLocale);
 
 		const parseApi = await initParseOnServer({ locale });
 

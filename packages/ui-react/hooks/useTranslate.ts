@@ -9,7 +9,7 @@ import { LOCALE_HEADER_KEY } from '@devist/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import { defaultLangConfig, langConfigsMap } from '../config/lang.config';
-import zod from '../lib/zod';
+import { defaultZodClient } from '../lib/zod';
 
 // ----------------------------------------------------------------------
 
@@ -47,7 +47,7 @@ const useTranslate = () => {
 			numeral.locale(value);
 
 			// set locale for our CustomZod instance
-			zod.t = i18n.getFixedT(value);
+			defaultZodClient.setLocale(value);
 		},
 		[i18n],
 	);

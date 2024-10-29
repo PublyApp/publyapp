@@ -16,7 +16,7 @@ const SPECIAL_CHAR_REGEX = /[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/;
 
 const getPasswordFieldSchema = (z: CustomZod) => {
 	const regexMap: Record<AppLocale, string> = {
-		en: 'At least 8 chars and 1 spacial char',
+		en: 'At least 8 chars and 1 special char',
 		fr: 'Au moins 8 caractères dont 1 caractère spécial',
 	};
 
@@ -24,7 +24,7 @@ const getPasswordFieldSchema = (z: CustomZod) => {
 		.string(/* { required_error: 'Password required' } */)
 		.min(8 /* , 'Password must be 8 chars min' */)
 		.max(64 /* , 'Password must be 64 chars max' */)
-		.regex(SPECIAL_CHAR_REGEX, regexMap.en);
+		.regex(SPECIAL_CHAR_REGEX, regexMap[z.locale]);
 };
 
 export const getLoginSchema = (z: CustomZod) => {
