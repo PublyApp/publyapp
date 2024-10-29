@@ -19,7 +19,7 @@ import zod from '@/ui-react/lib/zod';
 // import { useLoginMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 // import { pxToRem } from '@/ui-react/utils/css.utils';
 
-const VerifyEmail = () => {
+const VerifyEmailPage = () => {
 	// const password = useBoolean();
 	const { t } = useTranslate();
 	// const theme = useTheme();
@@ -51,43 +51,10 @@ const VerifyEmail = () => {
 
 	const {
 		result: { mutate: verifyEmail, isPending },
-	} = useVerifyEmailMutation({
-		options: {
-			onSuccess: async () => {
-				// resetBoundary();
-				// navigate(location.state.from || BO_PATH_NAMES.dashboard.root, { replace: true });
-				// const authActions = new AuthActions(parseApi);
-				// queryClient.invalidateQueries({ queryKey: getUserAuthDataQuery.queryKey });
-				// refetchClientAuth();
-				// const authData = await getClientAuthAction();
-				// queryClient.setQueryData([getClientAuthQueryKeyBase] as const, authData);
-				// revalidate();
-				// navigate(location.state?.from || BO_PATH_NAMES.dashboard.root, { replace: true });
-			},
-			// onError: (error /* , variables, context */) => {
-			// 	if (error instanceof AxiosError) {
-			// 		if (error.response?.data.message === t('User email is not verified.')) {
-			// 			// show an alert on top of the login form
-			// 			setAlertProps({
-			// 				message: (
-			// 					<div>
-			// 						{error.response?.data.message}
-			// 						<br />
-			// 						<RouterLink href={BO_PATH_NAMES.auth.verifyEmail}>{t('verify-my-email')}</RouterLink>
-			// 					</div>
-			// 				),
-			// 				severity: 'error',
-			// 			});
-			// 		}
-			// 	}
-			// },
-		},
-	});
+	} = useVerifyEmailMutation();
 
-	// const onSubmit = handleSubmit(async (data) => {});
 	const onSubmitHandler: SubmitHandler<VerifyEmailInput> = async (values) => {
 		verifyEmail(values);
-		// console.log(values);
 	};
 
 	const onSubmit = handleSubmit(onSubmitHandler);
@@ -162,4 +129,4 @@ const VerifyEmail = () => {
 	);
 };
 
-export default VerifyEmail;
+export default VerifyEmailPage;

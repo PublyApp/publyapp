@@ -9,7 +9,7 @@ import { useGetClientAuthSuspenseQuery } from '@/ui-react/lib/react-query/featur
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
 import { localStorageGetItem } from '@/ui-react/utils/storage.utils';
 
-const Portal = () => {
+const PortalPage = () => {
 	const hasRoles = useHasRoles();
 
 	const storedTenantId = localStorageGetItem(LAST_USED_TENANT_ID_STORAGE_KEY);
@@ -37,7 +37,6 @@ const Portal = () => {
 	const tenantPaths = BO_PATH_NAMES.getTenantPaths(tenantId);
 
 	if (isStaffMember) {
-		//
 		if (!isTenantMember) {
 			return <Navigate to={BO_PATH_NAMES.staff.root} />;
 		}
@@ -55,37 +54,27 @@ const Portal = () => {
 	}
 
 	return <Navigate to={tenantPaths.root} />;
-
-	// console.log(isStaffMember, isTenantMember);
-	// case 1: is staff, and does not use any tenantId currently
-	// if (roleSet.ABOVE_STAFF_CONTRIBUTOR && !authData.tenant?.objectId) {
-	// 	return <Navigate to={BO_PATH_NAMES.staff.root} />
-	// }
-
-	// if (roleSet.ABOVE_STAFF_CONTRIBUTOR && authData.)
-
-	// return null;
-
-	// return <div>Portal</div>;
 };
 
-export default Portal;
+export default PortalPage;
 
-Portal.loader = getRouteLoader(async () => {
-	const sessionToken = parseApi.parseRestClient.getSessionToken();
+export const PortalRoute = {
+	Loader: getRouteLoader(async () => {
+		const sessionToken = parseApi.parseRestClient.getSessionToken();
 
-	if (!sessionToken) {
-		return redirect(BO_PATH_NAMES.auth.login);
-	}
+		if (!sessionToken) {
+			return redirect(BO_PATH_NAMES.auth.login);
+		}
 
-	const lastUsedTenantId = localStorageGetItem(LAST_USED_TENANT_ID_STORAGE_KEY);
+		const lastUsedTenantId = localStorageGetItem(LAST_USED_TENANT_ID_STORAGE_KEY);
 
-	const authDataQuery = getUserAuthDataQuery({ tenantId: lastUsedTenantId });
-	const cachedAuthData = defaultQueryClient.getQueryData(authDataQuery.queryKey);
+		const authDataQuery = getUserAuthDataQuery({ tenantId: lastUsedTenantId });
+		const cachedAuthData = defaultQueryClient.getQueryData(authDataQuery.queryKey);
 
-	const authData = cachedAuthData ? Promise.resolve(cachedAuthData) : defaultQueryClient.fetchQuery(authDataQuery);
+		const authData = cachedAuthData ? Promise.resolve(cachedAuthData) : defaultQueryClient.fetchQuery(authDataQuery);
 
-	return defer({
-		authData,
-	});
-});
+		return defer({
+			authData,
+		});
+	}),
+};
