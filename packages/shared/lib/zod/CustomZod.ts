@@ -1,4 +1,4 @@
-import { type TFunction } from 'i18next';
+import { type i18n as I18n, type TFunction } from 'i18next';
 import _ from 'lodash';
 import z, {
 	defaultErrorMap,
@@ -12,6 +12,8 @@ import z, {
 } from 'zod';
 import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
 
+import { defaultLocale, type AppLocale } from '../i18n/resources';
+
 // type B = Parameters<typeof z.object>[1];
 // type A = Parameters<typeof z.object>[0];
 
@@ -20,10 +22,39 @@ import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
  */
 class CustomZod {
 	// errorMap: z.ZodErrorMap;
-	t: TFunction;
+	protected _i18n: I18n;
 
-	constructor(t: TFunction) {
-		this.t = t;
+	protected _locale: AppLocale;
+
+	protected _t: TFunction;
+
+	public get t(): TFunction {
+		return this._t;
+	}
+
+	public get locale(): AppLocale {
+		return this._locale;
+	}
+
+	public get i18n(): I18n {
+		return this._i18n;
+	}
+
+	constructor({ i18n, locale }: { i18n: I18n; locale?: AppLocale }) {
+		this._i18n = i18n;
+
+		if (!locale) {
+			this._locale = defaultLocale;
+		} else {
+			this._locale = locale;
+		}
+
+		this._t = this._i18n.getFixedT(this._locale);
+	}
+
+	setLocale(locale: AppLocale) {
+		this._locale = locale;
+		this._t = this._i18n.getFixedT(this._locale);
 	}
 
 	getErrorMap(option?: ZodI18nMapOption) {

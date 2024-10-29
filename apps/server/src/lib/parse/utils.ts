@@ -22,7 +22,7 @@ import CustomZod from '@/shared/lib/zod/CustomZod';
 
 import RoleService from '../../resources/auth/role/role.service';
 import { CLOUD_INSTALLATION_ID, USE_MASTER_KEY } from '../constants';
-import { getCorrectLocale, getT } from '../i18n';
+import { getCorrectLocale, getT, i18nextServer } from '../i18n';
 
 export const getParseFunctionHeader = (
 	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest,
@@ -167,7 +167,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 			throw new Error(t('master-key-only-function'));
 		}
 
-		const z = new CustomZod(t);
+		const z = new CustomZod({ i18n: i18nextServer, locale });
 
 		if (!requireUser) {
 			const validatedParams = validateParams?.({ params: req.params, z });
