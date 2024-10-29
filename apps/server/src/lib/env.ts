@@ -9,10 +9,10 @@ import { getNumericStringSchema } from '@devist/shared/lib/zod/utils';
 
 import { deepFreeze } from '@/shared/utils/any.utils';
 
-import { defaultZod } from './zod';
+import { defaultZodServer } from './zod';
 
 const envSchema = z.object({
-	PORT: getNumericStringSchema(defaultZod).default('3000'),
+	PORT: getNumericStringSchema(defaultZodServer).default('3000'),
 	SERVER_URL: z.string(),
 	DATABASE_URI: z.string(),
 	REST_API_KEY: z.string(),
