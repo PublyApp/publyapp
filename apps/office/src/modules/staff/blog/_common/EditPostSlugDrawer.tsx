@@ -39,7 +39,7 @@ import {
 	useFindBlogPostSlugSuspenseQuery,
 	useSetBlogPostCurrentSlugMutation,
 } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
-import zod from '@/ui-react/lib/zod';
+import { defaultZodClient } from '@/ui-react/lib/zod';
 import { paper } from '@/ui-react/utils/css.utils';
 
 type Props = {
@@ -53,7 +53,7 @@ const EditPostSlugDrawer = ({ postId, postTitle }: Props) => {
 	const isOpenSlugDrawer = useMainStore(selectIsOpenSlugDrawer);
 	const setIsOpenSlugDrawer = useMainStore(selectSetIsOpenSlugDrawer);
 
-	const addSlugToPostSchema = getAddSlugToPostSchema(zod).pick({ slug: true });
+	const addSlugToPostSchema = getAddSlugToPostSchema(defaultZodClient).pick({ slug: true });
 
 	const addSlugForm = useForm({
 		resolver: zodResolver(addSlugToPostSchema),

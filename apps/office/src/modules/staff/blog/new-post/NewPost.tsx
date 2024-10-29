@@ -13,14 +13,14 @@ import { BO_PATH_NAMES } from '@/shared/lib/constants';
 import Iconify from '@/ui-react/components/Iconify';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 import { useCreateBlogPostMutation } from '@/ui-react/lib/react-query/features/blogPost/blogPost.hooks';
-import zod from '@/ui-react/lib/zod';
+import { defaultZodClient } from '@/ui-react/lib/zod';
 
 import PostForm from '../_common/PostForm';
 
 const NewPost = () => {
 	const { lang, t } = useTranslate();
 
-	const savePostInputSchema = getCreateBlogPostInputSchemaClientSide(zod);
+	const savePostInputSchema = getCreateBlogPostInputSchemaClientSide(defaultZodClient);
 
 	const createPostForm = useForm<CreateBlogPostInputClientSide>({
 		resolver: zodResolver(savePostInputSchema),

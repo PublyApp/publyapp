@@ -24,7 +24,7 @@ import {
 	useSignupMutation,
 } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 import defaultQueryClient from '@/ui-react/lib/react-query/queryClient';
-import zod from '@/ui-react/lib/zod';
+import { defaultZodClient } from '@/ui-react/lib/zod';
 
 // import { paths } from 'src/routes/paths';
 // import { RouterLink } from 'src/routes/components';
@@ -47,7 +47,7 @@ const SignupPage = () => {
 	} = useSignupMutation();
 
 	const registerForm = useForm({
-		resolver: zodResolver(getRegisterSchema(zod)),
+		resolver: zodResolver(getRegisterSchema(defaultZodClient)),
 		defaultValues: {
 			firstName: '',
 			lastName: '',

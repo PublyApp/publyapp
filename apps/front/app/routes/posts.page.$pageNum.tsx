@@ -2,6 +2,7 @@ import { Container, Grid2 as Grid } from '@mui/material';
 import type { MetaFunction } from '@remix-run/node';
 // import { type LoaderFunction } from '@remix-run/node';
 import { /* useLoaderData, */ defer, type ClientLoaderFunction } from '@remix-run/react';
+import { getFixedT } from 'i18next';
 
 import parseApi from '@devist/api/parse/ParseApi';
 
