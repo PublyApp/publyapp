@@ -3,7 +3,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 import { getInitialNamespaces } from 'remix-i18next/client';
 
-import i18n from './i18n';
+import { i18nRemixCommonConfig } from './i18n';
 
 export const initI18nextOnClient = () => {
 	i18next
@@ -11,7 +11,7 @@ export const initI18nextOnClient = () => {
 		.use(initReactI18next) // Tell i18next to use the react-i18next plugin
 		// .use(Backend) // Setup your backend
 		.init({
-			...i18n, // spread the configuration
+			...i18nRemixCommonConfig, // spread the configuration
 			// This function detects the namespaces your routes rendered while SSR use
 			ns: getInitialNamespaces(),
 			// backend: { loadPath: '/locales/{{lng}}/{{ns}}.json' }, // ! I don't need http-backend for now
