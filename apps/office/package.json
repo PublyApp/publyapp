@@ -65,6 +65,7 @@
 		"notistack": "^3.0.1",
 		"nprogress": "^0.2.0",
 		"numeral": "^2.0.6",
+		"nuqs": "^2.0.4",
 		"parse": "^5.2.0",
 		"qs": "^6.11.2",
 		"query-string": "^8.1.0",

@@ -5,9 +5,11 @@ import LoadingButton from '@mui/lab/LoadingButton';
 import { Alert, IconButton, InputAdornment, Link, Stack, Typography, type AlertProps } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
+import { parseAsString, useQueryState } from 'nuqs';
 import { useForm /* , type SubmitHandler */ } from 'react-hook-form';
 import { useLocation, useNavigate, useRevalidator } from 'react-router-dom';
-import { StringParam, useQueryParam } from 'use-query-params';
+
+// import { StringParam, useQueryParam } from 'use-query-params';
 
 import { getLoginSchema /* , type LoginInput */ } from '@devist/shared/validations/auth.validations';
 
@@ -18,7 +20,6 @@ import RHFTextField from '@/ui-react/components/form/RHFTextField';
 import Iconify from '@/ui-react/components/Iconify';
 import useBoolean from '@/ui-react/hooks/useBoolean';
 import useTranslate from '@/ui-react/hooks/useTranslate';
-// import FormProvider, { RHFTextField } from 'src/components/hook-form';
 import { getUserAuthDataQuery } from '@/ui-react/lib/react-query/features/auth/auth.actions';
 import { useLoginMutation } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 import zod from '@/ui-react/lib/zod';
@@ -34,7 +35,8 @@ const redirectCause = {
 } as const;
 
 const Login = () => {
-	const [redirectCauseParam] = useQueryParam(queryParamKeys.redirectCause, StringParam);
+	// const [redirectCauseParam] = useQueryParam(queryParamKeys.redirectCause, StringParam);
+	const [redirectCauseParam] = useQueryState(queryParamKeys.redirectCause, parseAsString.withDefault(''));
 	const password = useBoolean();
 	const { t } = useTranslate();
 
