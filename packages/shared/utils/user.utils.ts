@@ -1,3 +1,5 @@
+import _ from 'lodash';
+
 type IPerson = {
 	firstName?: string;
 	lastName?: string;
@@ -7,8 +9,8 @@ type IPerson = {
  * get user full name
  */
 export const getUserFullName = (person: IPerson): string => {
-	const lastName = person.lastName || '';
-	const firstName = person.firstName || '';
-	const name = firstName ? `${firstName} ${lastName}` : lastName;
+	const lastName = _.trim(person.lastName || '');
+	const firstName = _.trim(person.firstName || '');
+	const name = _.trim(`${firstName} ${lastName}`);
 	return name;
 };
