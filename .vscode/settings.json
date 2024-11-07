@@ -51,7 +51,8 @@
 	],
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.codeActionsOnSave": {
-		"source.fixAll.eslint": "explicit"
+		"source.fixAll.eslint": "explicit",
+		"source.sortImports": "explicit"
 	},
 	// "editor.formatOnSave": true, // not needed since prettier is integred as an eslint rule
 	"editor.tabSize": 2,
