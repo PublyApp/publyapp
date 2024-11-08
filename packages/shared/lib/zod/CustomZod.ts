@@ -14,14 +14,10 @@ import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
 
 import { defaultLocale, type AppLocale } from '../i18n/resources';
 
-// type B = Parameters<typeof z.object>[1];
-// type A = Parameters<typeof z.object>[0];
-
 /**
- * Customizable by locale (pass i18n t function in constructor) zod
+ * Customizable by locale zod wrapper
  */
 class CustomZod {
-	// errorMap: z.ZodErrorMap;
 	protected _i18n: I18n;
 
 	protected _locale: AppLocale;
@@ -64,7 +60,6 @@ class CustomZod {
 			const defaultNs = 'zod';
 
 			const { t, ns, handlePath } = {
-				// t: i18next.t,
 				t: this.t,
 				ns: defaultNs,
 				...option,
