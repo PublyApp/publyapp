@@ -8,7 +8,7 @@ const TenantSchema = SchemaManager.defineSchema<ITenantWithParseRelations>(class
 		name: { type: 'String' },
 
 		// relations
-		users: { type: 'Array' }, // ! it's fine to put an array of users because there will be less of 100 for each tenant anyway.
+		// users: { type: 'Array' }, // ! it's fine to put an array of users because there will be less of 100 for each tenant anyway.
 		// modules // ???
 	},
 	classLevelPermissions: {
