@@ -63,8 +63,8 @@
 	"editor.trimAutoWhitespace": true,
 	"material-icon-theme.files.associations": {
 		".env.preprod": "tune",
-		"tsconfig.nextjs.json*": "tsconfig",
-		"tsconfig.react-library.json*": "tsconfig"
+		"tsconfig.nextjs.json": "tsconfig",
+		"tsconfig.react-library.json": "tsconfig"
 	},
 	"vscode-color-picker.languages": [
 		"javascript",
