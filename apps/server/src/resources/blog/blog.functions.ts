@@ -406,37 +406,35 @@ const setBlogPostCurrentSlug = parseFunctionEnhanced({
 	},
 });
 
-const fetchData = async (collection: Collection, pageSize: number, nextCursor?: string | null | undefined) => {
-	let query = {};
-
-	if (nextCursor) {
-		query = { _id: { $gt: nextCursor } };
-	}
-
-	const options = {
-		limit: pageSize,
-		sort: { _id: 1 },
-	};
-
-	const data = await collection.find(query, options as never).toArray();
-
-	let newNextCursor = null;
-
-	if (data.length > 0) {
-		newNextCursor = data[data.length - 1]._id.toString();
-	}
-
-	return { data, nextCursor: newNextCursor };
-};
-
 const updateBlogPostAuthorPointers = parseFunctionEnhanced({
 	requireMasterKey: true,
 	action: async () => {
+		const fetchData = async (collection: Collection, pageSize: number, nextCursor?: string | null | undefined) => {
+			let query = {};
+
+			if (nextCursor) {
+				query = { _id: { $gt: nextCursor } };
+			}
+
+			const options = {
+				limit: pageSize,
+				sort: { _id: 1 },
+			};
+
+			const data = await collection.find(query, options as never).toArray();
+
+			let newNextCursor = null;
+
+			if (data.length > 0) {
+				newNextCursor = data[data.length - 1]._id.toString();
+			}
+
+			return { data, nextCursor: newNextCursor };
+		};
+
 		const database = getDatabase();
 		const BlogPostCollection = database.collection(className.BLOG_POST);
-		// const UserProfileCollection = database.collection(className.USER_PROFILE);
 
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		let nextCursor: string | null | undefined;
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let data: Record<string, any>[] = [];
@@ -489,7 +487,6 @@ const updateBlogPostAuthorPointers = parseFunctionEnhanced({
 				profilesMapByUserId.set(`${className.USER}$${user.id}`, p);
 			});
 
-			// const postObjects: ParseBlogPost[] = [];
 			const operations: AnyBulkWriteOperation[] = [];
 			data.forEach((d) => {
 				const id = _.get(d, '_id');
@@ -502,11 +499,7 @@ const updateBlogPostAuthorPointers = parseFunctionEnhanced({
 					return;
 				}
 
-				// const obj = new ParseBlogPost({ objectId: id });
-				// obj.set('author', profile);
-
 				operations.push({
-					// filter: { _id: id as never },
 					updateOne: {
 						filter: { _id: id },
 						update: {
