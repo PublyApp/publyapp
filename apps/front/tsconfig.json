@@ -14,17 +14,6 @@
 
 		"module": "ESNext",
 
-		// "baseUrl": ".",
-		// "paths": {
-		//   "~/*": ["./app/*"]
-		// },
-		// "baseUrl": ".",
-		// "paths": {
-		// 	"@/ui-react/*": ["../../packages/ui-react/*"],
-		// 	"@/shared/*": ["../../packages/shared/*"],
-		// 	"~/*": ["./app/*"]
-		// },
-
 		// Remix takes care of building everything in `remix build`.
 		"noEmit": true,
 
