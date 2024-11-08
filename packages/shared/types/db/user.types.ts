@@ -1,6 +1,6 @@
 import { type BaseAttributes } from 'parse';
 
-// import type ParseTenant from '@/server/resources/auth/tenant/tenant.class';
+// import type ParseTenant from '@/server/modules/auth/tenant/tenant.class';
 
 // import type { ITenant } from './tenant.types';
 

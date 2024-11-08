@@ -12,7 +12,7 @@ import type {
 	FindBlogPostSlugFunction,
 	GetBlogPostFunction,
 	SetBlogPostCurrentSlugFunction,
-} from '@/server/resources/blog/blog.functions';
+} from '@/server/modules/blog/blog.functions';
 import { fileProvider, functionName } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { AppFile } from '@/shared/types/db/appFile.types';

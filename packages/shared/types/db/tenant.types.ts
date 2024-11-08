@@ -1,6 +1,6 @@
 import type { BaseAttributes } from 'parse';
 
-import type ParseUser from '@/server/resources/auth/user/user.class';
+// import type ParseUser from '@/server/modules/auth/user/user.class';
 
 import type { IUser } from './user.types';
 
@@ -17,7 +17,7 @@ export type ITenantWithRelations = ITenant & {
 };
 
 export type ITenantWithParseRelations = ITenant & {
-	users: {
-		user: ParseUser;
-	}[];
+	// users: {
+	// 	user: ParseUser;
+	// }[];
 };
