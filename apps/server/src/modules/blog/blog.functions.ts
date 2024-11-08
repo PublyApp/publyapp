@@ -14,10 +14,10 @@ import {
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import logger from '@/server/lib/logger';
 import { getDatabase, parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
-import UserService from '@/server/resources/auth/user/user.service';
-// import ParseBlogPost from '@/server/resources/blog/blogPost/blogPost.class';
-import BlogPostService from '@/server/resources/blog/blogPost/blogPost.service';
-import AppFileService from '@/server/resources/file-manager/appFile/appFile.service';
+import UserService from '@/server/modules/auth/user/user.service';
+// import ParseBlogPost from '@/server/modules/blog/blogPost/blogPost.class';
+import BlogPostService from '@/server/modules/blog/blogPost/blogPost.service';
+import AppFileService from '@/server/modules/file-manager/appFile/appFile.service';
 import type { IBlogPostSlugWithRelations } from '@/shared/types/db/blogPostSlug.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 

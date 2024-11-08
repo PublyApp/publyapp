@@ -3,7 +3,7 @@ import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
 import parseApi from '@devist/api/parse/ParseApi';
 import type { LoginInput, SignupInput, VerifyEmailInput } from '@devist/shared/validations/auth.validations';
 
-import type { GetUserAuthDataFunction } from '@/server/resources/auth/auth.functions';
+import type { GetUserAuthDataFunction } from '@/server/modules/auth/auth.functions';
 import { functionName } from '@/shared/lib/constants';
 
 // ---- 1 --------------------------------------------------------------------------------

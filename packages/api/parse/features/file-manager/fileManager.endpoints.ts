@@ -5,7 +5,7 @@ import type { AppFile } from '@devist/shared/types/db/appFile.types';
 import {
 	type CreateAppFileFunctionReturn,
 	type FindAppFileFunctionReturn,
-} from '@/server/resources/file-manager/appFile/appFile.functions';
+} from '@/server/modules/file-manager/appFile/appFile.functions';
 
 import BaseEndPoints from '../../BaseEndPoints';
 

@@ -1,7 +1,7 @@
 import type { BaseAttributes } from 'parse';
 
-import type ParseUser from '@/server/resources/auth/user/user.class';
-import type ParseAppFile from '@/server/resources/file-manager/appFile/appFile.class';
+import type ParseUser from '@/server/modules/auth/user/user.class';
+import type ParseAppFile from '@/server/modules/file-manager/appFile/appFile.class';
 
 import type { AppFile } from './appFile.types';
 import type { IUser } from './user.types';
