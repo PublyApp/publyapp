@@ -779,7 +779,6 @@ export default class BlogPostService {
 					'cover',
 					'cover.url',
 				]);
-			// TODO: add select and includes
 		};
 
 		const getLatestBlogPostsQuery = (iBlogPost: typeof post, iRemainingBlogPostsCount: number) => {
