@@ -40,7 +40,7 @@ importers:
         version: 3.2.2
       tsconfig:
         specifier: workspace:*
-        version: link:packages/tsconfig
+        version: link:packages/_tsconfig
       turbo:
         specifier: ^2.0.3
         version: 2.0.12
@@ -498,7 +498,7 @@ importers:
         version: 0.4.9(eslint@8.57.0)
       tsconfig:
         specifier: workspace:*
-        version: link:../../packages/tsconfig
+        version: link:../../packages/_tsconfig
       typescript:
         specifier: ^5.5.2
         version: 5.5.4
@@ -718,7 +718,7 @@ importers:
         version: 10.9.2(@types/node@22.2.0)(typescript@5.5.4)
       tsconfig:
         specifier: workspace:*
-        version: link:../../packages/tsconfig
+        version: link:../../packages/_tsconfig
       typescript:
         specifier: ^5.5.2
         version: 5.5.4
@@ -829,6 +829,8 @@ importers:
         specifier: workspace:*
         version: link:../_eslint-config-custom-base
 
+  packages/_tsconfig: {}
+
   packages/api:
     dependencies:
       '@devist/parse-rest-client':
@@ -932,9 +934,7 @@ importers:
         version: link:../_eslint-config-custom-common-react
       tsconfig:
         specifier: workspace:*
-        version: link:../tsconfig
-
-  packages/tsconfig: {}
+        version: link:../_tsconfig
 
   packages/ui-react:
     dependencies:
@@ -1124,7 +1124,7 @@ importers:
         version: link:../_eslint-config-custom-react
       tsconfig:
         specifier: workspace:*
-        version: link:../tsconfig
+        version: link:../_tsconfig
       typescript:
         specifier: ^5.5.2
         version: 5.5.4
