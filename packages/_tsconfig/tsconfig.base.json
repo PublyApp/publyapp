@@ -19,6 +19,7 @@
 
 		/* Linting */
 		"strict": true,
+		// ! do not remove comment so I can remember later
 		// "noImplicitAny": true,
 		// "noImplicitThis": true,
 		"noUnusedLocals": true,
