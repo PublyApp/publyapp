@@ -1,7 +1,6 @@
 import { memo, useCallback, useState } from 'react';
 
 import Collapse from '@mui/material/Collapse';
-// @mui
 import List from '@mui/material/List';
 import Stack from '@mui/material/Stack';
 

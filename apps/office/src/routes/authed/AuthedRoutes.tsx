@@ -16,7 +16,6 @@ import TenantDashLayout from '@/office/layouts/dashboard/tenant/TenantDashLayout
 import { LoginRoute } from '@/office/modules/common/auth/login/LoginPage';
 import { PortalRoute } from '@/office/modules/common/auth/portal/PortalPage';
 import TenantChoice from '@/office/modules/common/auth/tenant-choice/TenantChoice';
-import TenantsList from '@/office/modules/staff/tenant-manager/tenants-list/TenantsList';
 import {
 	BO_PATH_NAMES,
 	LAST_USED_TENANT_ID_STORAGE_KEY,
@@ -32,6 +31,9 @@ const NotFound = lazy(() => {
 });
 const PortalPage = lazy(() => {
 	return import('@/office/modules/common/auth/portal/PortalPage');
+});
+const TenantsList = lazy(() => {
+	return import('@/office/modules/staff/tenant-manager/tenants-list/TenantsList');
 });
 
 const AuthedRoutesRootError = () => {

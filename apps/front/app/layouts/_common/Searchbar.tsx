@@ -13,9 +13,8 @@ import {
 	type Theme,
 } from '@mui/material';
 
-import Iconify from '@devist/ui-react/components/Iconify';
-
 import { HEADER } from '@/front/lib/constants';
+import Iconify from '@/ui-react/components/Iconify';
 
 // ----------------------------------------------------------------------
 

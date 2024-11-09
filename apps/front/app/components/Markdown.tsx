@@ -6,7 +6,7 @@ import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 
-import Image from '@devist/ui-react/components/image/Image';
+import Image from '@/ui-react/components/image/Image';
 
 import RouterLink from './RouterLink';
 

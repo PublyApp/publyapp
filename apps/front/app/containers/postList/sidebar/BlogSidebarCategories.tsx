@@ -1,6 +1,6 @@
 import { Box, Link, Stack, Typography } from '@mui/material';
 
-import type { IBlogCategoryProps } from '@devist/ui-react/types/blog';
+import type { IBlogCategoryProps } from '@/ui-react/types/blog';
 
 // ----------------------------------------------------------------------
 

@@ -17,10 +17,9 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useChangeLanguage } from 'remix-i18next/react';
 
-import MotionLazyContainer from '@devist/ui-react/components/MotionLazyContainer';
-import SnackbarProvider from '@devist/ui-react/providers/SnackbarProvider';
-
 import { defaultLocale, defaultNS } from '@/shared/lib/i18n/resources';
+import MotionLazyContainer from '@/ui-react/components/MotionLazyContainer';
+import SnackbarProvider from '@/ui-react/providers/SnackbarProvider';
 
 import Error404 from './components/Error404';
 import Error500 from './components/Error500';

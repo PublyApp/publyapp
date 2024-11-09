@@ -1,9 +1,9 @@
 import { Link, Stack } from '@mui/material';
 
-import Image from '@devist/ui-react/components/image/Image';
-import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
-import type { IBlogPostProps } from '@devist/ui-react/types/blog';
-import { fDate } from '@devist/ui-react/utils/date.utils';
+import Image from '@/ui-react/components/image/Image';
+import TextMaxLine from '@/ui-react/components/TextMaxLine';
+import type { IBlogPostProps } from '@/ui-react/types/blog';
+import { fDate } from '@/ui-react/utils/date.utils';
 
 import PostTimeBlock from './PostTimeBlock';
 

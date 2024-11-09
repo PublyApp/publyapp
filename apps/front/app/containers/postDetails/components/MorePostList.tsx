@@ -2,7 +2,7 @@ import { /* Button, */ Box, Grid2 as Grid /* Stack */, Typography } from '@mui/m
 // import Grid from '@mui/material/Unstable_Grid2';
 import { nanoid } from 'nanoid';
 
-// import Iconify from '@devist/ui-react/components/Iconify';
+// import Iconify from '@/ui-react/components/Iconify';
 
 import PostItem from '@/front/components/PostItem';
 import useTranslate from '@/front/hooks/useTranslate';

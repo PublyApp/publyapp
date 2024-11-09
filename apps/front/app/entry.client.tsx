@@ -6,7 +6,7 @@ import i18next from 'i18next';
 import * as ReactDOM from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 
-import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
+import ThemeProvider from '@/ui-react/providers/ThemeProvider';
 
 import ClientStyleContext from './contexts/ClientStyleContext';
 import createEmotionCache from './lib/emotion/createEmotionCache';

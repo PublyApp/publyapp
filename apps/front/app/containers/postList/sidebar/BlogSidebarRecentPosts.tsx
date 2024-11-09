@@ -1,6 +1,6 @@
 import { Stack, Typography } from '@mui/material';
 
-import type { IBlogPostProps } from '@devist/ui-react/types/blog';
+import type { IBlogPostProps } from '@/ui-react/types/blog';
 
 import PostItemMobile from '../../../components/PostItemMobile';
 

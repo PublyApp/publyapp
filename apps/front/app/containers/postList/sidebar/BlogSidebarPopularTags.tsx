@@ -1,6 +1,6 @@
 import { Box, Chip, Typography } from '@mui/material';
 
-import type { IBlogTagsProps } from '@devist/ui-react/types/blog';
+import type { IBlogTagsProps } from '@/ui-react/types/blog';
 
 // ----------------------------------------------------------------------
 

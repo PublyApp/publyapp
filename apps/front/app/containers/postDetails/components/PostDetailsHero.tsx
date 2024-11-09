@@ -1,17 +1,15 @@
-// @mui
 import { alpha, Avatar, Box, Container, ListItemText, Stack, Typography, useTheme } from '@mui/material';
 
-// import { useResponsive } from 'src/hooks/use-responsive';
-import { bgGradient } from '@devist/ui-react/utils/css.utils';
-
 import type { DateType } from '@/shared/types/date.types';
+// import { useResponsive } from 'src/hooks/use-responsive';
+import { bgGradient } from '@/ui-react/utils/css.utils';
 import { fDate } from '@/ui-react/utils/date.utils';
 
 // import type { IPostHero } from 'src/types/blog';
 // import { fDate } from 'src/utils/format-time';
 
 // import { _socials } from 'src/_mock';
-// import Iconify from '@devist/ui-react/components/Iconify';
+// import Iconify from '@/ui-react/components/Iconify';
 
 // ----------------------------------------------------------------------
 export type IPostHero = {
