@@ -1,5 +1,5 @@
 // import { USE_MASTER_KEY } from '@/server/lib/constants';
-import type { IRoleConfig } from '@/shared/lib/constants';
+import type { IRoleConfig, RoleSet } from '@/shared/lib/constants';
 import type { IRole } from '@/shared/types/db/role.types';
 
 type RoleServiceProps = {
@@ -17,7 +17,7 @@ export default class RoleService {
 		this.master = useMasterKey;
 	}
 
-	async hasRole(user: Parse.User, roles: IRoleConfig[]) {
+	async hasRole(user: Parse.User, roles: IRoleConfig[] | RoleSet) {
 		const foundRole = await new Parse.Query(Parse.Role)
 			.equalTo('users', user)
 			.containedIn(

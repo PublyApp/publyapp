@@ -1,8 +1,5 @@
-import { /* MutationCache,  QueryCache, */ QueryClient } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
 
-import { ClientException } from '@/ui-react/exceptions/ClientException';
-
-// const twentyFourHoursInMs = 1000 * 60 * 60 * 24;
 const fiveMinsInMs = 1000 * 60 * 5;
 
 type Options = {
@@ -16,21 +13,9 @@ export const createQueryClient = ({ env = 'development' }: Options = {}) => {
 				refetchOnWindowFocus: false,
 				refetchOnReconnect: false,
 				staleTime: fiveMinsInMs,
-				retry: (failureCount, error) => {
+				retry: (failureCount, _error) => {
 					if (env === 'development') {
 						return false;
-					}
-
-					if (error instanceof ClientException) {
-						if (error.code === ClientException.AUTH_REQUIRED) {
-							return false;
-						}
-					}
-
-					if (error instanceof Parse.Error) {
-						if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
-							return false;
-						}
 					}
 
 					return failureCount <= 2;

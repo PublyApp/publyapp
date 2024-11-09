@@ -9,16 +9,16 @@ import { DISABLE_SIGNUP_CONFIG_KEY, FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } fr
 import logger from '../lib/logger';
 import SchemaManager from '../lib/parse/classes/SchemaManager';
 import { getDatabase, getGlobalConfig, setGlobalConfig } from '../lib/parse/utils';
-import RoleSchema from '../resources/auth/role/role.schema';
-import SessionSchema from '../resources/auth/session/session.schema';
-import TenantSchema from '../resources/auth/tenant/tenant.schema';
-import UserSchema from '../resources/auth/user/user.schema';
-import UserProfileSchema from '../resources/auth/userProfile/userProfile.schema';
-import BlogPostSchema from '../resources/blog/blogPost/blogPost.schema';
-import BlogPostSlugSchema from '../resources/blog/blogPostSlug/blogPostSlug.schema';
-import BlogPostTagSchema from '../resources/blog/blogPostTag/blogPostTag.schema';
-import AppFileSchema from '../resources/file-manager/appFile/appFile.schema';
-import ShortUrlSchema from '../resources/url-shortener/shortUrl/shortUrl.schema';
+import RoleSchema from '../modules/auth/role/role.schema';
+import SessionSchema from '../modules/auth/session/session.schema';
+import TenantSchema from '../modules/auth/tenant/tenant.schema';
+import UserSchema from '../modules/auth/user/user.schema';
+import UserProfileSchema from '../modules/auth/userProfile/userProfile.schema';
+import BlogPostSchema from '../modules/blog/blogPost/blogPost.schema';
+import BlogPostSlugSchema from '../modules/blog/blogPostSlug/blogPostSlug.schema';
+import BlogPostTagSchema from '../modules/blog/blogPostTag/blogPostTag.schema';
+import AppFileSchema from '../modules/file-manager/appFile/appFile.schema';
+import ShortUrlSchema from '../modules/url-shortener/shortUrl/shortUrl.schema';
 
 export const createRolesIfNotExists = async () => {
 	const roleEntries = Object.values(roleEnum).map((e) => {

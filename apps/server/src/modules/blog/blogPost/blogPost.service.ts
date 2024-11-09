@@ -3,7 +3,7 @@ import _ from 'lodash';
 import { type IBlogPostSlug } from '@devist/shared/types/db/blogPostSlug.types';
 
 import { env } from '@/server/lib/env';
-import { applySkipAndLimit, applySorting, toIsoString } from '@/server/lib/parse/utils';
+import { applyQueryOptions, applySkipAndLimit, applySorting, toIsoString } from '@/server/lib/parse/utils';
 import type ParseUser from '@/server/modules/auth/user/user.class';
 import ParseBlogPost from '@/server/modules/blog/blogPost/blogPost.class';
 import type ParseAppFile from '@/server/modules/file-manager/appFile/appFile.class';
@@ -209,17 +209,7 @@ export default class BlogPostService {
 	async getById(objectId: string, options: { select?: string[]; include?: string[]; exclude?: string[] } = {}) {
 		const query = new Parse.Query(ParseBlogPost).equalTo('objectId', objectId);
 
-		if (options.exclude) {
-			query.exclude(options.exclude as never);
-		}
-
-		if (options.select) {
-			query.select(options.select as never);
-		}
-
-		if (options.include) {
-			query.include(options.include as never);
-		}
+		applyQueryOptions(query, options);
 
 		return query.first({ sessionToken: this.sessionToken });
 	}
@@ -319,7 +309,6 @@ export default class BlogPostService {
 		page = 1,
 		pageSize = DEFAULT_PAGE_SIZE,
 		sorting = [],
-		// locale = defaultLocale,
 		locale,
 		select,
 		include,
@@ -327,7 +316,6 @@ export default class BlogPostService {
 		// ===
 		json = false,
 		fromPublic = true,
-		// sessionToken = this.sessionToken,
 	}: FindBlogPostInput) {
 		const query = new Parse.Query(ParseBlogPost).notEqualTo('deleted' as never, true as never);
 
@@ -342,17 +330,7 @@ export default class BlogPostService {
 			query.exists(`translation.${locale}` as never);
 		}
 
-		if (include) {
-			query.include(include as never);
-		}
-
-		if (select) {
-			query.select(select as never);
-		}
-
-		if (exclude) {
-			query.exclude(exclude as never);
-		}
+		applyQueryOptions(query, { exclude, include, select });
 
 		let sessionToken;
 
@@ -895,8 +873,7 @@ export default class BlogPostService {
 		const postObject = new ParseBlogPost({ objectId: postId });
 		const query = new Parse.Query(ParseBlogPostSlug).equalTo('post' as never, postObject as never);
 
-		const select: string[] = options.select || [];
-		query.select(select as never);
+		applyQueryOptions(query, options);
 
 		const page = options.page ?? 0;
 		const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
