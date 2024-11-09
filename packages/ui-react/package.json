@@ -1,9 +1,13 @@
 {
 	"name": "@devist/ui-react",
 	"version": "0.0.0",
-	"main": "./index.tsx",
-	"types": "./index.tsx",
 	"license": "MIT",
+	"exports": {
+    "./*": {
+      "types": ["./*.ts","./*.tsx"],
+      "default": ["./*.ts", "./*.tsx"]
+    }
+  },
 	"scripts": {
 		"lint": "eslint . --ext=ts,tsx,js,jsx",
 		"lint:fix": "pnpm lint --fix"

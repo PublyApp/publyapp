@@ -1,6 +1,12 @@
 {
 	"name": "@devist/shared",
 	"version": "0.0.0",
+	"exports": {
+    "./*": {
+      "types": ["./*.ts"],
+      "default": ["./*.ts"]
+    }
+  },
 	"dependencies": {
 		"axios": "^1.6.5",
 		"date-fns": "^2.25.0",
