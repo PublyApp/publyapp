@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { applyQueryOptions, applySkipAndLimit } from '@/server/lib/parse/utils';
+import { applyQueryOptions, applySkipAndLimit, type QueryOptions } from '@/server/lib/parse/utils';
 import { className, DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import type { ITenant } from '@/shared/types/db/tenant.types';
 
@@ -84,5 +84,14 @@ export default class TenantService {
 		});
 
 		return results;
+	}
+
+	async findTenant(options: QueryOptions) {
+		const query = new Parse.Query(ParseTenant);
+
+		applyQueryOptions(query, options);
+
+		const tenants = await query.find({ sessionToken: this.sessionToken });
+		return tenants;
 	}
 }

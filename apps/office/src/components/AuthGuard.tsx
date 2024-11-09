@@ -2,13 +2,13 @@ import { useMemo, type ReactNode } from 'react';
 
 import { Outlet } from 'react-router-dom';
 
-import type { IRoleConfig } from '@/shared/lib/constants';
+import type { IRoleConfig, RoleSet } from '@/shared/lib/constants';
 
 import useHasRoles from '../hooks/useHasRoles';
 
 type Props = {
 	children?: ReactNode;
-	allowedRoles?: IRoleConfig[];
+	allowedRoles?: IRoleConfig[] | RoleSet;
 };
 
 const RequireAuth = ({ children, allowedRoles }: Props) => {

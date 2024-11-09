@@ -1,4 +1,3 @@
-// @mui
 import { List, Stack } from '@mui/material';
 
 //

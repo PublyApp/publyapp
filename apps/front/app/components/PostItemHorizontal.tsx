@@ -2,8 +2,8 @@ import { /* Avatar, */ Box, Card, Link, Stack, useTheme, type LinkProps } from '
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
-// import CustomPopover from '@devist/ui-react/components/CustomPopover';
-// import usePopover from '@devist/ui-react/hooks/usePopover';
+// import CustomPopover from '@/ui-react/components/CustomPopover';
+// import usePopover from '@/ui-react/hooks/usePopover';
 // import CustomPopover, { usePopover } from 'src/components/custom-popover';
 // import Iconify from 'src/components/iconify';
 // import Image from 'src/components/image/Image';
@@ -17,13 +17,10 @@ import { nanoid } from 'nanoid';
 // routes
 // import { paths } from 'src/routes/paths';
 // types
-// import type { IPostItem } from '@devist/ui-react/types/blog';
+// import type { IPostItem } from '@/ui-react/types/blog';
 // import { nanoid } from 'nanoid';
 
 import type { TranslatedIBlogPostWithRelations } from '@devist/shared/types/db/blogPost.types';
-// import { getUserFullName } from '@devist/shared/utils/user.utils';
-import { fDate } from '@devist/ui-react/utils/date.utils';
-import { fShortenNumber } from '@devist/ui-react/utils/number.utils';
 
 import RouterLink, { type RouterLinkProps } from '@/front/components/RouterLink';
 // import useRouter from '@/front/hooks/useRouter';
@@ -36,6 +33,9 @@ import Image from '@/ui-react/components/image/Image';
 import Label from '@/ui-react/components/Label';
 import TextMaxLine from '@/ui-react/components/TextMaxLine';
 import { pxToRem } from '@/ui-react/utils/css.utils';
+// import { getUserFullName } from '@devist/shared/utils/user.utils';
+import { fDate } from '@/ui-react/utils/date.utils';
+import { fShortenNumber } from '@/ui-react/utils/number.utils';
 
 // import useResponsive from '@/ui-react/hooks/useResponsive';
 

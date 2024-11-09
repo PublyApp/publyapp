@@ -5,7 +5,7 @@ import { Await, useLoaderData } from '@remix-run/react';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
 
-// import type { IPostItem } from '@devist/ui-react/types/blog';
+// import type { IPostItem } from '@/ui-react/types/blog';
 
 import { _blogCareerPosts } from '@/front/_mock';
 import Retry from '@/front/components/Retry';

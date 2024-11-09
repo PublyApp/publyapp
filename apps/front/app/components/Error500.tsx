@@ -2,8 +2,8 @@ import { Box, Button, Typography } from '@mui/material';
 import { useRouteError } from '@remix-run/react';
 import { m } from 'framer-motion';
 
-import { varBounce } from '@devist/ui-react/components/animate/variants/bounce';
-import MotionContainer from '@devist/ui-react/components/MotionContainer';
+import { varBounce } from '@/ui-react/components/animate/variants/bounce';
+import MotionContainer from '@/ui-react/components/MotionContainer';
 
 import RouterLink from './RouterLink';
 

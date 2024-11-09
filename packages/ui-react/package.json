@@ -4,8 +4,8 @@
 	"license": "MIT",
 	"exports": {
     "./*": {
-      "types": ["./*.ts","./*.tsx"],
-      "default": ["./*.ts", "./*.tsx"]
+      "types": ["./*.ts", "./*.tsx"],
+      "default": ["./*.ts", "./*.tsx", "./*.css"]
     }
   },
 	"scripts": {

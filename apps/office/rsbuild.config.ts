@@ -33,10 +33,6 @@ export default defineConfig({
 			index: './src/main.tsx', // the key ('index' in our case here) must match our html's file name
 		},
 		define: getDefinedEnv(env || (process.env as never)),
-		// alias: {
-		// 	// 'react-i18next': require.resolve('react-i18next'),
-		// 	// '@mui/x-date-pickers': require.resolve('../../packages/ui-react/node_modules/@mui/x-date-pickers'),
-		// },
 	},
 	html: {
 		template: 'index.html',
