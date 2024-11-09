@@ -24,7 +24,7 @@ const getPasswordFieldSchema = (z: CustomZod) => {
 		.string(/* { required_error: 'Password required' } */)
 		.min(8 /* , 'Password must be 8 chars min' */)
 		.max(64 /* , 'Password must be 64 chars max' */)
-		.regex(SPECIAL_CHAR_REGEX, regexMap[z.locale]);
+		.regex(new RegExp(SPECIAL_CHAR_REGEX), regexMap[z.locale]);
 };
 
 export const getLoginSchema = (z: CustomZod) => {
