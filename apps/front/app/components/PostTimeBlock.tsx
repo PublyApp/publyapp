@@ -1,6 +1,6 @@
 import { Box, Stack, type StackProps } from '@mui/material';
 
-import { fDate } from '@devist/ui-react/utils/date.utils';
+import { fDate } from '@/ui-react/utils/date.utils';
 
 // ----------------------------------------------------------------------
 

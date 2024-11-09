@@ -1,10 +1,9 @@
 import { AppBar /* Button, */, Box, Container, Stack, Toolbar, useTheme } from '@mui/material';
 
-import useOffsetTop from '@devist/ui-react/hooks/useOffsetTop';
-import useResponsive from '@devist/ui-react/hooks/useResponsive';
-
 import Logo from '@/front/components/Logo';
 import { HEADER } from '@/front/lib/constants';
+import useOffsetTop from '@/ui-react/hooks/useOffsetTop';
+import useResponsive from '@/ui-react/hooks/useResponsive';
 import { bgBlur } from '@/ui-react/utils/css.utils';
 
 import HeaderShadow from '../_common/HeaderShadow';

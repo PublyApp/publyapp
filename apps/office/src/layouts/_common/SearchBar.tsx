@@ -7,21 +7,16 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import InputBase from '@mui/material/InputBase';
 import List from '@mui/material/List';
-// import ListItemButton from '@mui/material/ListItemButton';
-// import ListItemText from '@mui/material/ListItemText';
 import Stack from '@mui/material/Stack';
-import { /* alpha, */ useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import match from 'autosuggest-highlight/match';
 import parse from 'autosuggest-highlight/parse';
-
-// import { nanoid } from 'nanoid';
 
 import { flattenArray } from '@devist/shared/utils/array.utils';
 
 import type { NavListProps, NavSectionProps } from '@/office/components/nav-section/types';
 import { ResultItem } from '@/office/components/ResultItem';
 import SearchNotFound from '@/office/components/SearchNotFound';
-// import { useNavData } from '@/office/hooks/useNavData';
 import Iconify from '@/ui-react/components/Iconify';
 import Label from '@/ui-react/components/Label';
 import Scrollbar from '@/ui-react/components/Scrollbar';

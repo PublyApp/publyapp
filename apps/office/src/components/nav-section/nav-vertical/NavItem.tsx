@@ -1,12 +1,10 @@
-// @mui
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
 import Tooltip from '@mui/material/Tooltip';
 
-import Iconify from '@devist/ui-react/components/Iconify';
-
 import RouterLink from '@/office/components/RouterLink';
+import Iconify from '@/ui-react/components/Iconify';
 
 import type { NavConfigProps, NavItemProps } from '../types';
 

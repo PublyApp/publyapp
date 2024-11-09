@@ -1,4 +1,3 @@
-// @mui
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import { useTheme } from '@mui/material/styles';
 

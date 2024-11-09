@@ -1,14 +1,13 @@
 import { alpha, Avatar, Box, Card, CardContent, Link, Typography, useTheme } from '@mui/material';
 import _ from 'lodash';
 
-// import Iconify from '@devist/ui-react/components/Iconify';
-
-import Image from '@devist/ui-react/components/image/Image';
-import TextMaxLine from '@devist/ui-react/components/TextMaxLine';
-
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { type TranslatedIBlogPostWithRelations } from '@/shared/types/db/blogPost.types';
 import { getUserFullName } from '@/shared/utils/user.utils';
+// import Iconify from '@/ui-react/components/Iconify';
+
+import Image from '@/ui-react/components/image/Image';
+import TextMaxLine from '@/ui-react/components/TextMaxLine';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import { fDate } from '@/ui-react/utils/date.utils';
 

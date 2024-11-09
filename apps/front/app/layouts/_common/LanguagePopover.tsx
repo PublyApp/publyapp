@@ -4,11 +4,10 @@ import { IconButton, MenuItem } from '@mui/material';
 import { useLocation } from '@remix-run/react';
 import { m } from 'framer-motion';
 
-import { varHover } from '@devist/ui-react/components/animate/variants/actions';
-
 import RouterLink from '@/front/components/RouterLink';
 import useTranslate from '@/front/hooks/useTranslate';
 import { appLocales } from '@/shared/lib/i18n/resources';
+import { varHover } from '@/ui-react/components/animate/variants/actions';
 import CustomPopover from '@/ui-react/components/CustomPopover';
 import Iconify from '@/ui-react/components/Iconify';
 import usePopover from '@/ui-react/hooks/usePopover';

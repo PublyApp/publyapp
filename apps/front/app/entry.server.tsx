@@ -8,9 +8,8 @@ import _ from 'lodash';
 import ReactDOMServer from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
 
-import ThemeProvider from '@devist/ui-react/providers/ThemeProvider';
-
 import type { AppLocale } from '@/shared/lib/i18n/resources';
+import ThemeProvider from '@/ui-react/providers/ThemeProvider';
 
 import createEmotionCache from './lib/emotion/createEmotionCache';
 import { remixI18NextServer } from './lib/i18n/i18next.server';

@@ -1,7 +1,7 @@
 import { Container, Stack } from '@mui/material';
 import { Outlet } from '@remix-run/react';
 
-import useOffSetTop from '@devist/ui-react/hooks/useOffsetTop';
+import useOffSetTop from '@/ui-react/hooks/useOffsetTop';
 
 import Header from './Header';
 

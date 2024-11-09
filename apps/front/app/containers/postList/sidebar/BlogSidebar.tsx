@@ -1,8 +1,8 @@
 import { Stack, type StackProps } from '@mui/material';
 
-import useResponsive from '@devist/ui-react/hooks/useResponsive';
-import type { IAuthorProps } from '@devist/ui-react/types/author';
-import type { IBlogCategoryProps /* IBlogPostProps, */, IBlogTagsProps } from '@devist/ui-react/types/blog';
+import useResponsive from '@/ui-react/hooks/useResponsive';
+import type { IAuthorProps } from '@/ui-react/types/author';
+import type { IBlogCategoryProps /* IBlogPostProps, */, IBlogTagsProps } from '@/ui-react/types/blog';
 
 // import type { IAdvertisementProps } from 'src/types/advertisement';
 // import Advertisement from '../../advertisement';

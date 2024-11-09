@@ -1,9 +1,8 @@
 import { Avatar, IconButton, Stack, Typography } from '@mui/material';
 
-import Iconify from '@devist/ui-react/components/Iconify';
-import type { IAuthorProps } from '@devist/ui-react/types/author';
-
 import { _socials } from '@/front/_mock';
+import Iconify from '@/ui-react/components/Iconify';
+import type { IAuthorProps } from '@/ui-react/types/author';
 
 // ----------------------------------------------------------------------
 
