@@ -9,28 +9,74 @@ import type { AppLocale } from './i18n/resources';
 export type IRoleConfig = Pick<IRole, 'code' | 'name'>;
 
 export const roleEnum = {
-	STAFF_ADMIN: { name: 'STAFF_ADMIN', code: 23109870572456 } as const,
-	STAFF_EDITOR: { name: 'STAFF_EDITOR', code: 49360279358027 } as const,
-	STAFF_USER: { name: 'STAFF_USER', code: 3445632345235435 } as const,
-	STAFF_CONTRIBUTOR: { name: 'STAFF_CONTRIBUTOR', code: 8945454534244523 } as const,
+	STAFF_ADMIN: { name: 'STAFF_ADMIN', code: 9_124_562 } as const,
+	STAFF_EDITOR: { name: 'STAFF_EDITOR', code: 8_958_027 } as const,
+	STAFF_USER: { name: 'STAFF_USER', code: 7_445_635 } as const,
+	STAFF_CONTRIBUTOR: { name: 'STAFF_CONTRIBUTOR', code: 6_945_523 } as const,
 	// =======================================================
-	TENANT_ADMIN: { name: 'TENANT_ADMIN', code: 12308120948 } as const,
-	TENANT_EDITOR: { name: 'TENANT_EDITOR', code: 21143141341 } as const,
-	TENANT_USER: { name: 'TENANT_USER', code: 7589243534538 } as const,
-	TENANT_CONTRIBUTOR: { name: 'TENANT_CONTRIBUTOR', code: 934525757347 } as const,
+	TENANT_ADMIN: { name: 'TENANT_ADMIN', code: 5_394_846 } as const,
+	TENANT_EDITOR: { name: 'TENANT_EDITOR', code: 4_141_341 } as const,
+	TENANT_USER: { name: 'TENANT_USER', code: 3_545_384 } as const,
+	TENANT_CONTRIBUTOR: { name: 'TENANT_CONTRIBUTOR', code: 2_347_347 } as const,
 	// =======================================================
-	AUTHED_USER: { name: 'AUTHED_USER', code: 94353424535348 } as const,
+	AUTHED_USER: { name: 'AUTHED_USER', code: 1_374_445 } as const,
 } satisfies Record<string, IRoleConfig>;
 
-const STAFF_ADMIN_ONLY = [roleEnum.STAFF_ADMIN]; /* as const */
-const ABOVE_STAFF_EDITOR = [...STAFF_ADMIN_ONLY, roleEnum.STAFF_EDITOR]; /* as const */
-const ABOVE_STAFF_USER = [...ABOVE_STAFF_EDITOR, roleEnum.STAFF_USER]; /* as const */
-const ABOVE_STAFF_CONTRIBUTOR = [...ABOVE_STAFF_USER, roleEnum.STAFF_CONTRIBUTOR]; /* as const */
-const ABOVE_TENANT_ADMIN = [...ABOVE_STAFF_CONTRIBUTOR, roleEnum.TENANT_ADMIN]; /* as const */
-const ABOVE_TENANT_EDITOR = [...ABOVE_TENANT_ADMIN, roleEnum.TENANT_EDITOR]; /* as const */
-const ABOVE_TENANT_USER = [...ABOVE_TENANT_EDITOR, roleEnum.TENANT_USER]; /* as const */
-const ABOVE_TENANT_CONTRIBUTOR = [...ABOVE_TENANT_USER, roleEnum.TENANT_CONTRIBUTOR]; /* as const */
-const ALL = [...ABOVE_TENANT_CONTRIBUTOR, roleEnum.AUTHED_USER]; /* as const */
+const STAFF_ADMIN_ONLY = [roleEnum.STAFF_ADMIN] as const;
+const ABOVE_STAFF_EDITOR = [STAFF_ADMIN_ONLY[0], roleEnum.STAFF_EDITOR] as const;
+const ABOVE_STAFF_USER = [ABOVE_STAFF_EDITOR[0], ABOVE_STAFF_EDITOR[1], roleEnum.STAFF_USER] as const;
+const ABOVE_STAFF_CONTRIBUTOR = [
+	ABOVE_STAFF_USER[0],
+	ABOVE_STAFF_USER[1],
+	ABOVE_STAFF_USER[2],
+	roleEnum.STAFF_CONTRIBUTOR,
+] as const;
+const ABOVE_TENANT_ADMIN = [
+	ABOVE_STAFF_CONTRIBUTOR[0],
+	ABOVE_STAFF_CONTRIBUTOR[1],
+	ABOVE_STAFF_CONTRIBUTOR[2],
+	ABOVE_STAFF_CONTRIBUTOR[3],
+	roleEnum.TENANT_ADMIN,
+] as const;
+const ABOVE_TENANT_EDITOR = [
+	ABOVE_TENANT_ADMIN[0],
+	ABOVE_TENANT_ADMIN[1],
+	ABOVE_TENANT_ADMIN[2],
+	ABOVE_TENANT_ADMIN[3],
+	ABOVE_TENANT_ADMIN[4],
+	roleEnum.TENANT_EDITOR,
+] as const;
+const ABOVE_TENANT_USER = [
+	ABOVE_TENANT_EDITOR[0],
+	ABOVE_TENANT_EDITOR[1],
+	ABOVE_TENANT_EDITOR[2],
+	ABOVE_TENANT_EDITOR[3],
+	ABOVE_TENANT_EDITOR[4],
+	ABOVE_TENANT_EDITOR[5],
+	roleEnum.TENANT_USER,
+] as const;
+const ABOVE_TENANT_CONTRIBUTOR = [
+	ABOVE_TENANT_USER[0],
+	ABOVE_TENANT_USER[1],
+	ABOVE_TENANT_USER[2],
+	ABOVE_TENANT_USER[3],
+	ABOVE_TENANT_USER[4],
+	ABOVE_TENANT_USER[5],
+	ABOVE_TENANT_USER[6],
+	roleEnum.TENANT_CONTRIBUTOR,
+] as const;
+const ALL = [
+	ABOVE_TENANT_CONTRIBUTOR[7],
+	ABOVE_TENANT_CONTRIBUTOR[0],
+	ABOVE_TENANT_CONTRIBUTOR[1],
+	ABOVE_TENANT_CONTRIBUTOR[2],
+	ABOVE_TENANT_CONTRIBUTOR[3],
+	ABOVE_TENANT_CONTRIBUTOR[4],
+	ABOVE_TENANT_CONTRIBUTOR[5],
+	ABOVE_TENANT_CONTRIBUTOR[6],
+	ABOVE_TENANT_CONTRIBUTOR[7],
+	roleEnum.AUTHED_USER,
+] as const;
 
 export const roleSet = {
 	STAFF_ADMIN_ONLY,
@@ -42,12 +88,14 @@ export const roleSet = {
 	ABOVE_TENANT_USER,
 	ABOVE_TENANT_CONTRIBUTOR,
 	ALL,
-} satisfies Record<string, IRoleConfig[]>;
+};
+
+export type RoleSet = (typeof roleSet)[keyof typeof roleSet];
 
 /**
  * Parse Server class names (collection names)
  */
-export const className = {
+const basicClassName = {
 	USER: '_User',
 	ROLE: '_Role',
 	SESSION: '_Session',
@@ -68,6 +116,30 @@ export const className = {
 	APP_FILE: 'AppFile',
 	SHORT_URL: 'ShortUrl',
 	// ==== not used anymore
+} as const;
+
+const createCustomJoinClassName = <C1 extends string, C2 extends string>(
+	classNameA: C1,
+	classNameB: C2,
+): `$Join:${C1}:${C2}` => {
+	return `$Join:${classNameA}:${classNameB}`;
+};
+
+const createParseJoinClassName = <F extends string, C extends string>(
+	relationFieldName: F,
+	parentClassName: C,
+): `_Join:${F}:${C}` => {
+	return `_Join:${relationFieldName}:${parentClassName}`;
+};
+
+const joinsClassName = {
+	$JOIN_USER_TO_TENANT: createCustomJoinClassName(basicClassName.USER, basicClassName.TENANT),
+	JOIN_USER_TO_ROLE: createParseJoinClassName('users' as const, basicClassName.ROLE),
+};
+
+export const className = {
+	...basicClassName,
+	...joinsClassName,
 } as const;
 
 export const LOCALE_HEADER_KEY = 'X-Devist-Locale';

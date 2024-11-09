@@ -12,15 +12,14 @@ import {
 	roleSet,
 	TENANT_ID_HEADER_KEY,
 	type IRoleConfig,
+	type RoleSet,
 } from '@devist/shared/lib/constants';
 import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 
+import RoleService from '@/server/modules/auth/role/role.service';
 import { pageToSkip } from '@/server/utils/any.utils';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
-// import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
-
-import RoleService from '../../resources/auth/role/role.service';
 import { CLOUD_INSTALLATION_ID, USE_MASTER_KEY } from '../constants';
 import { getCorrectLocale, getT, i18nextServer } from '../i18n';
 
@@ -28,7 +27,6 @@ export const getParseFunctionHeader = (
 	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest,
 	key: string,
 ): string | undefined => {
-	// return req.headers?.[key] || req.headers?.[_.toLower(key)];
 	return _.get(req, `req.headers.${key}`) || _.get(req, `req.headers.${_.toLower(key)}`);
 };
 
@@ -51,7 +49,6 @@ type ParseInnerFunction<
 > = ParseFunction<P, T> | ParseTrigger<O, T> | ParseJob<P, T>;
 
 type CloudFunction = {
-	// eslint-disable-next-line prettier/prettier
 	<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
 		innerFunction: ParseFunction<P, T>,
 	): ParseFunction<P, T>;
@@ -137,7 +134,7 @@ type ActionContext1<P extends Parse.Cloud.Params = Parse.Cloud.Params> = BaseAct
 type ParseFunctionEnhancedParams<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
 	| {
 			requireUser: true;
-			allowedRoles?: IRoleConfig[] | undefined;
+			allowedRoles?: IRoleConfig[] | RoleSet | undefined;
 			action: (ctx: ActionContext1<P>) => Promise<T>;
 			requireMasterKey?: boolean;
 	  }
@@ -514,6 +511,26 @@ export const aggregate = async (className: string, pipeline: Parse.PipelineStage
 	return results;
 };
 
+export type QueryOptions = {
+	select?: string[];
+	include?: string[];
+	exclude?: string[];
+};
+
+export const applyQueryOptions = (query: Parse.Query, options: QueryOptions) => {
+	if (options.exclude) {
+		query.exclude(options.exclude as never);
+	}
+
+	if (options.select) {
+		query.select(options.select as never);
+	}
+
+	if (options.include) {
+		query.include(options.include as never);
+	}
+};
+
 export type LimitAndSkipOptions =
 	| {
 			type: 'limit';
@@ -547,31 +564,10 @@ export const applySorting = (query: Parse.Query, sorting: { id: string; desc: bo
 	}
 };
 
-// export type FunctionReturn<T> = T extends (...args: never[]) => Promise<infer R> ? R : never;
-// export type FunctionParams<T> = T extends (...args: infer P) => Promise<never> ? P : never;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<ReturnType<T>>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FunctionParams<T extends ParseFunction<any, any>> = Parameters<T>[0]['params'];
-
-// export const checkFromWho = ({ fromPublic, fromStaff, sessionToken, t }: { fromPublic: string | undefined, fromStaff: string | undefined, sessionToken?: string, t: TFunction }) => {
-// 	if (fromPublic) {
-// 		sessionToken = undefined;
-// 		fromStaff = false;
-// 	}
-
-// 	if (fromStaff) {
-// 		if (!user) {
-// 			throw new Error(t('User is required'));
-// 		}
-
-// 		const isStaff = await hasRole(user, roleSet.ABOVE_STAFF_CONTRIBUTOR);
-
-// 		if (!isStaff) {
-// 			throw new Error(t('User is not staff'));
-// 		}
-// 	}
-// };
 
 export type CreateSessionOptions<AdditionalSessionData extends Record<string, unknown> = Record<string, unknown>> = {
 	userId: string;

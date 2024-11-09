@@ -1,5 +1,6 @@
 import _ from 'lodash';
 
+import { applyQueryOptions } from '@/server/lib/parse/utils';
 import type { IBlogPostSlug } from '@/shared/types/db/blogPostSlug.types';
 
 import type ParseBlogPost from '../blogPost/blogPost.class';
@@ -24,9 +25,7 @@ export default class BlogPostSlugService {
 	async getSlugObject(slug: string, { select = [] }: { select?: string[] } = { select: [] }) {
 		const query = new Parse.Query(ParseBlogPostSlug).equalTo('slug', slug);
 
-		if (select) {
-			query.select(select as never);
-		}
+		applyQueryOptions(query, { select });
 
 		const result = await query.first({ sessionToken: this.sessionToken });
 
@@ -36,9 +35,7 @@ export default class BlogPostSlugService {
 	async getSlugObjectById(slugId: string, { select = [] }: { select?: string[] } = { select: [] }) {
 		const query = new Parse.Query(ParseBlogPostSlug).equalTo('objectId', slugId);
 
-		if (select) {
-			query.select(select as never);
-		}
+		applyQueryOptions(query, { select });
 
 		const result = await query.first({ sessionToken: this.sessionToken });
 

@@ -44,3 +44,12 @@ type AsyncFunction = (...args: any[]) => Promise<any>;
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type GenericFunction = SyncFunction | AsyncFunction;
+
+/**
+ * A TypeScript type alias called `Prettify`.
+ * It takes a type as its argument and returns a new type that has the same properties as the original type,
+ * but the properties are not intersected. This means that the new type is easier to read and understand.
+ */
+type Prettify<T> = {
+	[K in keyof T]: T[K];
+} & {};

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import type { IRoleConfig } from '@/shared/lib/constants';
+import type { IRoleConfig, RoleSet } from '@/shared/lib/constants';
 import { useGetClientAuthSuspenseQuery } from '@/ui-react/lib/react-query/features/auth/auth.hooks';
 
 const useHasRoles = () => {
@@ -13,7 +13,7 @@ const useHasRoles = () => {
 	}
 
 	const hasRoles = useCallback(
-		({ allowedRoles }: { allowedRoles?: IRoleConfig[] }) => {
+		({ allowedRoles }: { allowedRoles?: IRoleConfig[] | RoleSet }) => {
 			if (!allowedRoles) {
 				return true;
 			}
