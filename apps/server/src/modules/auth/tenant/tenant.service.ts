@@ -10,15 +10,13 @@ import ParseTenant from './tenant.class';
 
 type Props = {
 	sessionToken?: string;
-	// headers?: Record<string, unknown>;
 };
 
 export default class TenantService {
 	sessionToken?: string;
 
-	constructor({ sessionToken /* , headers */ }: Props) {
+	constructor({ sessionToken }: Props) {
 		this.sessionToken = sessionToken;
-		// this.headers = headers;
 	}
 
 	async getById(objectId: string, options: { select?: string[]; include?: string[]; exclude?: string[] } = {}) {
