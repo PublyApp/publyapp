@@ -1,5 +1,7 @@
-import { applySkipAndLimit } from '@/server/lib/parse/utils';
-import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
+import _ from 'lodash';
+
+import { applyQueryOptions, applySkipAndLimit } from '@/server/lib/parse/utils';
+import { className, DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import type { ITenant } from '@/shared/types/db/tenant.types';
 
 import type ParseUser from '../user/user.class';
@@ -22,31 +24,16 @@ export default class TenantService {
 	async getById(objectId: string, options: { select?: string[]; include?: string[]; exclude?: string[] } = {}) {
 		const query = new Parse.Query(ParseTenant).equalTo('objectId', objectId);
 
-		if (options.exclude) {
-			query.exclude(options.exclude as never);
-		}
-
-		if (options.select) {
-			query.select(options.select as never);
-		}
-
-		if (options.include) {
-			query.include(options.include as never);
-		}
+		applyQueryOptions(query, options);
 
 		return query.first({ sessionToken: this.sessionToken });
 	}
 
 	async isUserMemberOfTenant({ user, tenant }: { user: ParseUser; tenant: ParseTenant }) {
-		// const foundUser = await new Parse.Query(ParseUser)
-		// 	.select([])
-		// 	.equalTo('objectId', user.id)
-		// 	.equalTo('tenants.tenant', tenant)
-		// 	.first({ sessionToken: this.sessionToken });
-		const foundTenant = new Parse.Query(ParseTenant)
+		const foundTenant = await new Parse.Query(className.$JOIN_USER_TO_TENANT)
 			.select([])
-			.equalTo('objectId', tenant.id)
-			.equalTo('users.user' as never, user as never)
+			.equalTo('user', user)
+			.equalTo('tenant', tenant)
 			.first({ sessionToken: this.sessionToken });
 
 		return Boolean(foundTenant);
@@ -68,16 +55,36 @@ export default class TenantService {
 			json = false,
 		}: { page?: number; pageSize?: number; json?: boolean | undefined } | undefined = {},
 	) {
-		const query = new Parse.Query(ParseTenant).select(['name']).equalTo('users.user' as never, user as never);
+		const query = new Parse.Query(className.$JOIN_USER_TO_TENANT).select(['tenant']).equalTo('user', user);
 
 		applySkipAndLimit(query, { type: 'page', page, pageSize });
 
-		const tenants = await query.find({ sessionToken: this.sessionToken, json });
+		const relations = await query.find({ sessionToken: this.sessionToken, json });
 
 		if (json) {
-			return tenants as unknown as ITenant[];
+			const results: ITenant[] = [];
+
+			(relations as unknown as { tenant?: ITenant }[]).forEach((relation) => {
+				const tenant = _.get(relation, 'tenant');
+
+				if (tenant) {
+					results.push(tenant);
+				}
+			});
+
+			return results;
 		}
 
-		return tenants;
+		const results: ParseTenant[] = [];
+
+		relations.forEach((relation) => {
+			const tenant = relation.get('tenant');
+
+			if (tenant) {
+				results.push(tenant);
+			}
+		});
+
+		return results;
 	}
 }

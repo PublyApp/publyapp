@@ -1,3 +1,4 @@
+import { applyQueryOptions } from '@/server/lib/parse/utils';
 import ParseUser from '@/server/modules/auth/user/user.class';
 import type { IUser } from '@/shared/types/db/user.types';
 
@@ -20,16 +21,13 @@ export default class UserService {
 		options: { select?: string[]; include?: string[]; json: true },
 	): Promise<IUser | undefined>;
 
-	async getById(userId: string, options: { select?: string[]; include?: string[]; json?: boolean } = {}) {
+	async getById(
+		userId: string,
+		options: { select?: string[]; include?: string[]; exclude?: string[]; json?: boolean } = {},
+	) {
 		const query = new Parse.Query(ParseUser).equalTo('objectId', userId);
 
-		if (options.select) {
-			query.select(options.select);
-		}
-
-		if (options.include) {
-			query.include(options.include);
-		}
+		applyQueryOptions(query, options);
 
 		const user = await query.first({ sessionToken: this.sessionToken });
 
