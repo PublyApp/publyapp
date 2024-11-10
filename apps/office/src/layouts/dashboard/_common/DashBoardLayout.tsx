@@ -31,10 +31,6 @@ const DashboardLayout = ({ renderNavVertical, renderNavMini, children, onOpenNav
 
 	const isMini = sidebar === 'mini';
 
-	// const renderNavMini = <NavMini />;
-
-	// const renderNavVertical = <NavVertical openNav={nav.value} onCloseNav={nav.setFalse} />;
-
 	if (isMini) {
 		return (
 			<>

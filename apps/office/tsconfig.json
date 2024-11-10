@@ -14,5 +14,6 @@
 		"declarationMap": false,
 		"declaration": false
 	},
-	"include": ["src", "@types", "../server/@types"]
+	"include": ["src", "@types", "../server/@types"],
+	"exclude": ["**/node_modules", "**/.*/"]
 }
