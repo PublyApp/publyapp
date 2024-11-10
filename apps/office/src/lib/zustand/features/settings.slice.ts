@@ -16,25 +16,19 @@ export type SettingsSliceValues = {
 	// selectedPosts: TranslatedIPostWithRelations[];
 
 	sideBar: 'mini' | 'large';
+	isOpenNav: boolean;
 };
 
 export type SettingsSliceActions = {
 	setSidebar: Dispatch<SetStateAction<SettingsSliceValues['sideBar']>>;
-
-	// setPosts: Dispatch<SetStateAction<SettingsSliceValues['posts']>>;
-	// addPost: VoidFunction;
-	// removePost: VoidFunction;
-	// updatePost: VoidFunction;
+	setIsOpenNav: Dispatch<SetStateAction<SettingsSliceValues['isOpenNav']>>;
 };
 
 export type SettingsSliceState = SettingsSliceValues & SettingsSliceActions;
 
 const defaultValues: SettingsSliceValues = {
-	// currentlyEditedPost: undefined,
-
-	// posts: [],
-	// selectedPosts: [],
 	sideBar: 'large',
+	isOpenNav: true,
 };
 
 const sliceName = 'settingsSlice' as const;
@@ -60,6 +54,20 @@ const settingsSlice = new Slice<SettingsSliceState, typeof sliceName>({
 					state.settingsSlice.sideBar = newValue;
 				});
 			},
+			setIsOpenNav: (value) => {
+				set((state) => {
+					let newValue: SettingsSliceValues['isOpenNav'];
+
+					if (_.isFunction(value)) {
+						newValue = value(state.settingsSlice.isOpenNav);
+					} else {
+						newValue = value;
+					}
+
+					// eslint-disable-next-line no-param-reassign
+					state.settingsSlice.isOpenNav = newValue;
+				});
+			},
 		};
 	},
 });
@@ -73,4 +81,12 @@ export const selectSidebar = (state: RootState) => {
 
 export const selectSetSidebar = (state: RootState) => {
 	return state.settingsSlice.setSidebar;
+};
+
+export const selectIsOpenNav = (state: RootState) => {
+	return state.settingsSlice.isOpenNav;
+};
+
+export const selectSetIsOpenNav = (state: RootState) => {
+	return state.settingsSlice.setIsOpenNav;
 };

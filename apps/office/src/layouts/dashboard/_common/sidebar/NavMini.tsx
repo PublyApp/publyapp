@@ -6,7 +6,7 @@ import NavSectionMini from '@/office/components/nav-section/nav-mini/NavSectionM
 import { NAV } from '@/office/lib/constants';
 import { hideScroll } from '@/ui-react/utils/css.utils';
 
-import NavToggleButton from '../../_common/NavToggleButton';
+import NavToggleButton from '../../../_common/NavToggleButton';
 
 // ----------------------------------------------------------------------
 
