@@ -9,6 +9,7 @@ import parseApi from '@devist/api/parse/ParseApi';
 
 import AuthGuard from '@/office/components/AuthGuard';
 import ErrorDisplay from '@/office/components/ErrorDisplay';
+import LoadingScreen from '@/office/components/LoadingScreen';
 import RevalidateButton from '@/office/components/RevalidateButton';
 import SplashScreen from '@/office/components/SplashScreen';
 import StaffDashLayout from '@/office/layouts/dashboard/staff/StaffDashLayout';
@@ -88,7 +89,11 @@ export const authedRoutes: RouteObject[] = [
 				path: getLastPath(BO_PATH_NAMES.staff.root),
 				element: (
 					<AuthGuard allowedRoles={roleSet.ABOVE_STAFF_CONTRIBUTOR}>
-						<StaffDashLayout />
+						<StaffDashLayout>
+							<Suspense fallback={<LoadingScreen />}>
+								<Outlet />
+							</Suspense>
+						</StaffDashLayout>
 					</AuthGuard>
 				),
 				children: [
@@ -142,7 +147,13 @@ export const authedRoutes: RouteObject[] = [
 
 					{
 						path: getLastPath(BO_PATH_NAMES.getTenantPaths(':tenantId').root),
-						element: <TenantDashLayout />,
+						element: (
+							<TenantDashLayout>
+								<Suspense fallback={<LoadingScreen />}>
+									<Outlet />
+								</Suspense>
+							</TenantDashLayout>
+						),
 						children: [
 							{
 								//

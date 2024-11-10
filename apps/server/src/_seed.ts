@@ -18,9 +18,9 @@ const run = async () => {
 	const results2 = await cleanBlogPosts();
 	scriptLogger.info('✅✅', results2);
 
-	const users = await createUsers({ num: 50 });
-	scriptLogger.info('users', users.length);
-	const posts = await createBlogPosts({ num: 20_000, users });
+	const { savedUsers, savedProfiles } = await createUsers({ num: 50 });
+	scriptLogger.info('users', { savedUsers: savedUsers.length, savedProfiles: savedProfiles.length });
+	const posts = await createBlogPosts({ num: 20_000, users: savedUsers });
 	scriptLogger.info('posts', posts.length);
 };
 

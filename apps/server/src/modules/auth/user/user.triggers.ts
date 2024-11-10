@@ -10,8 +10,10 @@ import RoleService from '../role/role.service';
 import ParseUserProfile from '../userProfile/userProfile.class';
 
 // --------------------------------------------------------------------------------------//
-//                                     BEFORE SAVE                                      //
+//                                     BEFORE SAVE                                       //
 // --------------------------------------------------------------------------------------//
+
+// check if object ot save is new, set value into request context then returns the value
 const checkIsNew = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User> }) => {
 	const userToSave = req.object;
 	const isNew = !(await userToSave.exists());
@@ -19,15 +21,20 @@ const checkIsNew = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User>
 	return isNew;
 };
 
-// const collectProfileData = ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User>}) => {
-// 	const userToSave = req.object;
-// 	const  firstName = userToSave.get()
-// }
+const setUserACL = ({ req, isNew }: { req: Parse.Cloud.TriggerRequest<Parse.User>; isNew: boolean }) => {
+	if (isNew) {
+		const user = req.object;
+		const acl = new Parse.ACL();
+		acl.setRoleReadAccess(roleEnum.STAFF_USER.name, true);
+		acl.setRoleWriteAccess(roleEnum.STAFF_EDITOR.name, true);
+		user.setACL(acl);
+	}
+};
 
 const beforeSaveUser = parseTriggerEnhanced<Parse.User>({
 	trigger: async ({ req }) => {
-		checkIsNew({ req });
-		// collectProfileData({ req });
+		const isNew = await checkIsNew({ req });
+		setUserACL({ req, isNew });
 	},
 });
 
@@ -53,8 +60,7 @@ const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest
 		const adminRole = await roleService.findRoleByCode(roleEnum.STAFF_ADMIN.code);
 
 		if (!adminRole) {
-			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			throw new Error(t('item-not-found', { item: t('role') })!);
+			throw new Error(t('item-not-found', { item: t('role') }));
 		}
 
 		await roleService.assignRoleToUser(userSaved, adminRole);
@@ -64,7 +70,13 @@ const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest
 const createUserProfile = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User> }) => {
 	const isNew = _.get(req, 'context.isNew');
 
-	if (!_.isBoolean(isNew) || _.isEqual(isNew, false)) {
+	if (!_.isEqual(isNew, true)) {
+		return;
+	}
+
+	const isSeeded = req.object.get('seeded');
+
+	if (isSeeded) {
 		return;
 	}
 
