@@ -146,11 +146,12 @@ export const LOCALE_HEADER_KEY = 'X-Devist-Locale';
 export const TENANT_ID_HEADER_KEY = 'X-Devist-TenantId';
 
 const RESOURCE = {
+	users: 'users',
+	tenant: 'tenant',
+	tenants: 'tenants',
 	posts: 'posts',
 	fileManager: 'file-manager',
 	blog: 'blog',
-	tenant: 'tenant',
-	tenants: 'tenants',
 	shortUrl: 'short-url',
 } as const;
 
@@ -212,6 +213,12 @@ export const BO_PATH_NAMES = {
 	// ===================
 	staff: {
 		root: makePath(ROOTS.STAFF),
+		users: {
+			root: makePath(ROOTS.STAFF, RESOURCE.users),
+		},
+		tenants: {
+			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
+		},
 		posts: {
 			root: makePath(ROOTS.STAFF, RESOURCE.posts),
 			create: makePath(ROOTS.STAFF, RESOURCE.posts, 'new'),
@@ -222,10 +229,6 @@ export const BO_PATH_NAMES = {
 				return makePath(ROOTS.STAFF, RESOURCE.posts, postId);
 			},
 			settings: makePath(ROOTS.STAFF, RESOURCE.posts, 'settings'),
-		},
-		tenants: {
-			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
-			// TODO
 		},
 	},
 	// ===================

@@ -13,6 +13,7 @@ const path = require('path');
 const fs = require('fs');
 
 const { createRsbuild: _createRsbuild } = require('@rsbuild/core');
+const { pluginTypeCheck } = require('@rsbuild/plugin-type-check');
 
 const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../../../');
 
@@ -114,6 +115,7 @@ exports.externals = externals;
 function createRsbuild() {
 	return _createRsbuild({
 		rsbuildConfig: {
+			plugins: [pluginTypeCheck()],
 			source: {
 				entry: {
 					index: './src/index.ts',
