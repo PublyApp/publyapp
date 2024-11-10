@@ -5,6 +5,7 @@ import path from 'path';
 import { defineConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
 import { pluginSvgr } from '@rsbuild/plugin-svgr';
+import { pluginTypeCheck } from '@rsbuild/plugin-type-check';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import _ from 'lodash';
@@ -27,7 +28,7 @@ const getDefinedEnv = (env: Record<string, string>) => {
 };
 
 export default defineConfig({
-	plugins: [pluginReact(), pluginSvgr()],
+	plugins: [pluginReact(), pluginSvgr(), pluginTypeCheck()],
 	source: {
 		entry: {
 			index: './src/main.tsx', // the key ('index' in our case here) must match our html's file name

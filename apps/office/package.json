@@ -92,6 +92,7 @@
 		"@rsbuild/core": "^1.0.0",
 		"@rsbuild/plugin-react": "^1.0.0",
 		"@rsbuild/plugin-svgr": "^1.0.0",
+		"@rsbuild/plugin-type-check": "^1.0.1",
 		"@types/autosuggest-highlight": "^3.2.3",
 		"@types/editorjs__header": "^2.6.3",
 		"@types/loadable__component": "^5.13.8",
