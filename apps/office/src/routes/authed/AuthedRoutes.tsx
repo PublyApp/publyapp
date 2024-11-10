@@ -3,14 +3,13 @@ import { lazy, Suspense } from 'react';
 
 import { Box } from '@mui/material';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
+import { Navigate, Outlet, redirect, useRouteError, type RouteObject } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 
 import AuthGuard from '@/office/components/AuthGuard';
 import ErrorDisplay from '@/office/components/ErrorDisplay';
 import LoadingScreen from '@/office/components/LoadingScreen';
-import RevalidateButton from '@/office/components/RevalidateButton';
 import SplashScreen from '@/office/components/SplashScreen';
 import StaffDashLayout from '@/office/layouts/dashboard/staff/StaffDashLayout';
 import TenantDashLayout from '@/office/layouts/dashboard/tenant/TenantDashLayout';
@@ -39,11 +38,6 @@ const TenantsList = lazy(() => {
 
 const AuthedRoutesRootError = () => {
 	const error = useRouteError();
-	const { state } = useRevalidator();
-
-	if (state === 'loading') {
-		return <SplashScreen />;
-	}
 
 	if (error instanceof ParseRestError) {
 		if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
@@ -61,7 +55,6 @@ const AuthedRoutesRootError = () => {
 	return (
 		<Box sx={{ p: 3 }}>
 			<ErrorDisplay error={error as never} title="Something went wrong!! (Authed Routes Root)" />
-			<RevalidateButton />
 		</Box>
 	);
 };

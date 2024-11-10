@@ -3,6 +3,7 @@ import { createElement, useMemo, type ReactNode } from 'react';
 import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 
 import SvgColor from '@/office/components/SvgColor';
+import useTranslate from '@/ui-react/hooks/useTranslate';
 
 // ----------------------------------------------------------------------
 export type NavData = {
@@ -58,7 +59,7 @@ const ICONS = {
 // ----------------------------------------------------------------------
 
 export const useNavData = ({ part }: { part: 'staff' | 'tenant' }) => {
-	// const { t } = useTranslate();
+	const { t } = useTranslate();
 
 	const data = useMemo<NavData>(() => {
 		return [
@@ -69,6 +70,7 @@ export const useNavData = ({ part }: { part: 'staff' | 'tenant' }) => {
 				items: [
 					{ title: 'dashboard', path: BO_PATH_NAMES.staff.root, icon: ICONS.dashboard },
 					{ title: 'tenants', path: BO_PATH_NAMES.staff.tenants.root, icon: ICONS.dashboard },
+					{ title: `${t('user')}s`, path: BO_PATH_NAMES.staff.users.root, icon: ICONS.dashboard },
 					// { title: 'file manager', path: BO_PATH_NAMES.dashboard.fileManager.root, icon: ICONS.dashboard },
 					// { title: 'two', path: paths.dashboard.two, icon: ICONS.ecommerce },
 					// {
@@ -143,10 +145,7 @@ export const useNavData = ({ part }: { part: 'staff' | 'tenant' }) => {
 			// 	],
 			// },
 		];
-	}, [
-		part,
-		/* t */
-	]);
+	}, [part, t]);
 
 	return data;
 };

@@ -3,12 +3,11 @@ import { lazy, Suspense } from 'react';
 
 import { Box } from '@mui/material';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { Navigate, Outlet, redirect, useRevalidator, useRouteError, type RouteObject } from 'react-router-dom';
+import { Navigate, Outlet, redirect, useRouteError, type RouteObject } from 'react-router-dom';
 
 import parseApi from '@devist/api/parse/ParseApi';
 
 import ErrorDisplay from '@/office/components/ErrorDisplay';
-import RevalidateButton from '@/office/components/RevalidateButton';
 import SplashScreen from '@/office/components/SplashScreen';
 import { LoginRoute } from '@/office/modules/common/auth/login/LoginPage';
 import { PortalRoute } from '@/office/modules/common/auth/portal/PortalPage';
@@ -36,11 +35,6 @@ const VerifyEmailPage = lazy(() => {
 
 const PublicRootError = () => {
 	const error = useRouteError();
-	const { state } = useRevalidator();
-
-	if (state === 'loading') {
-		return <SplashScreen />;
-	}
 
 	if (error instanceof ParseRestError) {
 		if (error.code === Parse.Error.INVALID_SESSION_TOKEN) {
@@ -58,7 +52,6 @@ const PublicRootError = () => {
 	return (
 		<Box sx={{ p: 3 }}>
 			<ErrorDisplay error={error} title="Something went wrong!! (PUBLIC)" />
-			<RevalidateButton />
 		</Box>
 	);
 };
@@ -75,12 +68,12 @@ const authRoutesLoader = getRouteLoader(async () => {
 
 export const publicRoutes: RouteObject[] = [
 	{
+		errorElement: <PublicRootError />,
 		element: (
 			<Suspense fallback={<SplashScreen />}>
 				<Outlet />
 			</Suspense>
 		),
-		errorElement: <PublicRootError />,
 		children: [
 			// Route for determining if there is an authed user or not
 			{
