@@ -11,7 +11,7 @@ import { NAV } from '@/office/lib/constants';
 import Scrollbar from '@/ui-react/components/Scrollbar';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 
-import NavToggleButton from '../../_common/NavToggleButton';
+import NavToggleButton from '../../../_common/NavToggleButton';
 
 // ----------------------------------------------------------------------
 

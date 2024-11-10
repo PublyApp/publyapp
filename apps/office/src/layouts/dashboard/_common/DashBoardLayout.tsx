@@ -3,39 +3,28 @@ import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import { Outlet } from 'react-router-dom';
 
-import useResponsive from '@devist/ui-react/hooks/useResponsive';
-
 import { selectSidebar } from '@/office/lib/zustand/features/settings.slice';
 import { useMainStore } from '@/office/lib/zustand/store';
 
 import Header from './Header';
 import Main from './Main';
 
-// import NavMini from './NavMini';
-// import NavVertical from './NavVertical';
-
 // ----------------------------------------------------------------------
 
 type Props = {
-	renderNavVertical?: ReactNode;
-	renderNavMini?: ReactNode;
+	sidebarSlot?: ReactNode;
 	children?: ReactNode;
-	onOpenNav?: VoidFunction;
 };
 
-const DashboardLayout = ({ renderNavVertical, renderNavMini, children, onOpenNav }: Props) => {
-	// const nav = useBoolean();
-
+const DashboardLayout = ({ sidebarSlot, children }: Props) => {
 	const sidebar = useMainStore(selectSidebar);
-	const lgUp = useResponsive('up', 'lg');
 
 	const isMini = sidebar === 'mini';
 
 	if (isMini) {
 		return (
 			<>
-				<Header onOpenNav={/* nav.setTrue */ onOpenNav} />
-
+				<Header />
 				<Box
 					sx={{
 						minHeight: 1,
@@ -43,7 +32,8 @@ const DashboardLayout = ({ renderNavVertical, renderNavMini, children, onOpenNav
 						flexDirection: { xs: 'column', lg: 'row' },
 					}}
 				>
-					{lgUp ? renderNavMini : renderNavVertical}
+					{/* {lgUp ? renderNavMini : renderNavVertical} */}
+					{sidebarSlot}
 
 					<Main>{children ?? <Outlet />}</Main>
 				</Box>
@@ -53,7 +43,7 @@ const DashboardLayout = ({ renderNavVertical, renderNavMini, children, onOpenNav
 
 	return (
 		<>
-			<Header onOpenNav={/* nav.setTrue */ onOpenNav} />
+			<Header />
 
 			<Box
 				sx={{
@@ -62,7 +52,8 @@ const DashboardLayout = ({ renderNavVertical, renderNavMini, children, onOpenNav
 					flexDirection: { xs: 'column', lg: 'row' },
 				}}
 			>
-				{renderNavVertical}
+				{/* {renderNavVertical} */}
+				{sidebarSlot}
 
 				<Main>{children ?? <Outlet />}</Main>
 			</Box>

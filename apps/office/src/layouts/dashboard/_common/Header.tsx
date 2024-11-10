@@ -4,15 +4,9 @@ import Stack from '@mui/material/Stack';
 import { useTheme } from '@mui/material/styles';
 import Toolbar from '@mui/material/Toolbar';
 
-// import { useTranslation } from 'react-i18next';
-
-// import { useTranslation } from '@devist/ui-react/lib/i18n';
-
-// import Logo from '@/office/components/Logo';
-
 import SvgColor from '@/office/components/SvgColor';
 import { HEADER, NAV } from '@/office/lib/constants';
-import { selectSidebar } from '@/office/lib/zustand/features/settings.slice';
+import { selectSetIsOpenNav, selectSidebar } from '@/office/lib/zustand/features/settings.slice';
 import { useMainStore } from '@/office/lib/zustand/store';
 import useResponsive from '@/ui-react/hooks/useResponsive';
 import { bgBlur } from '@/ui-react/utils/css.utils';
@@ -20,50 +14,21 @@ import { bgBlur } from '@/ui-react/utils/css.utils';
 import LanguagePopover from '../../_common/LanguagePopover';
 import SearchBar from '../../_common/SearchBar';
 
-// hooks
-// import { useOffSetTop } from 'src/hooks/use-off-set-top';
-// import { useResponsive } from 'src/hooks/use-responsive';
-// theme
-// import { bgBlur } from 'src/theme/css';
-
-// import {
-// 	// AccountPopover,
-// 	// ContactsPopover,
-// 	// LanguagePopover,
-// 	// NotificationsPopover,
-// 	// SearchBar,
-// 	// SettingsButton,
-// } from '../_common';
-//
-// import { HEADER, NAV } from '../config-layout';
-
-// ----------------------------------------------------------------------
-
-type Props = {
-	onOpenNav?: VoidFunction;
-};
-
-const Header = ({ onOpenNav }: Props) => {
-	// const { t } = useTranslation();
+const Header = () => {
 	const theme = useTheme();
 	const sidebar = useMainStore(selectSidebar);
+	const setIsOpenNav = useMainStore(selectSetIsOpenNav);
 
-	// const settings = useSettingsContext();
-
-	// const isNavHorizontal = settings.themeLayout === 'horizontal';
+	const onOpenNav = () => {
+		setIsOpenNav(true);
+	};
 
 	const isNavMini = sidebar === 'mini';
 
 	const lgUp = useResponsive('up', 'lg');
 
-	// const offset = useOffSetTop(HEADER.H_DESKTOP);
-
-	// const offsetTop = offset && !isNavHorizontal;
-
 	const renderContent = (
 		<>
-			{/* {lgUp && isNavHorizontal && <Logo sx={{ mr: 2.5 }} />} */}
-
 			{!lgUp && (
 				<IconButton onClick={onOpenNav}>
 					<SvgColor src="/assets/icons/navbar/ic_menu_item.svg" />
