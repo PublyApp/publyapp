@@ -1,3 +1,5 @@
+import _ from 'lodash';
+
 import PageHeader from '@/office/components/PageHeader';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 
@@ -6,7 +8,7 @@ const TenantsListHeader = () => {
 
 	return (
 		<PageHeader
-			heading={<PageHeader.Heading>{t('list-of-items')}</PageHeader.Heading>}
+			heading={<PageHeader.Heading>{t('list-of-items', { items: _.toLower(`${t('user')}s`) })}</PageHeader.Heading>}
 			breadcrumbs={
 				<PageHeader.Breadcrumbs
 					links={[
@@ -15,7 +17,7 @@ const TenantsListHeader = () => {
 							// href: BO_PATH_NAMES.dashboard.root
 						},
 						{
-							name: 'Tenants',
+							name: `${t('user')}s`,
 							// href: BO_PATH_NAMES.dashboard.posts.root,
 						},
 						{ name: t('list') },

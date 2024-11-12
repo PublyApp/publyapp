@@ -95,7 +95,7 @@ const commonFR = {
 	'set-as-current': 'Définir comme actuel',
 	'slug-linked-to-another-post': 'Slug lié à un autre article',
 
-	'list-of-tenants': 'Liste des tenants',
+	'list-of-items': 'Liste des {{items}}',
 
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
