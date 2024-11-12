@@ -5,18 +5,12 @@ import { BO_PATH_NAMES } from '@devist/shared/lib/constants';
 import SvgColor from '@/office/components/SvgColor';
 import useTranslate from '@/ui-react/hooks/useTranslate';
 
+import type { NavListProps } from '../components/nav-section/types';
+
 // ----------------------------------------------------------------------
 export type NavData = {
 	subheader: ReactNode;
-	items?: {
-		title: ReactNode;
-		path: string;
-		icon: any; // TODO: change
-		children?: {
-			title: ReactNode;
-			path: string;
-		}[];
-	}[];
+	items?: NavListProps[];
 }[];
 
 const icon = (name: string) => {
@@ -51,7 +45,7 @@ const ICONS = {
 	disabled: icon('ic_disabled'),
 	external: icon('ic_external'),
 	menuItem: icon('ic_menu_item'),
-	ecommerce: icon('ic_ecommerce'),
+	'e-commerce': icon('ic_ecommerce'),
 	analytics: icon('ic_analytics'),
 	dashboard: icon('ic_dashboard'),
 };
@@ -68,9 +62,9 @@ export const useNavData = ({ part }: { part: 'staff' | 'tenant' }) => {
 			{
 				subheader: `${part} modules`,
 				items: [
-					{ title: 'dashboard', path: BO_PATH_NAMES.staff.root, icon: ICONS.dashboard },
+					// { title: 'dashboard', path: BO_PATH_NAMES.staff.root, icon: ICONS.dashboard },
+					{ title: `${t('user')}s`, path: BO_PATH_NAMES.staff.users.root, icon: ICONS.user },
 					{ title: 'tenants', path: BO_PATH_NAMES.staff.tenants.root, icon: ICONS.dashboard },
-					{ title: `${t('user')}s`, path: BO_PATH_NAMES.staff.users.root, icon: ICONS.dashboard },
 					// { title: 'file manager', path: BO_PATH_NAMES.dashboard.fileManager.root, icon: ICONS.dashboard },
 					// { title: 'two', path: paths.dashboard.two, icon: ICONS.ecommerce },
 					// {

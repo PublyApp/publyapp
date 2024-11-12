@@ -96,7 +96,7 @@ const commonEN = {
 	'set-as-current': 'Set as current',
 	'slug-linked-to-another-post': 'Slug to another article',
 
-	'list-of-tenants': 'List of tenants',
+	'list-of-items': 'List of {{items}}',
 
 	// auth from parse
 	'User email is not verified.': 'User email is not verified.',

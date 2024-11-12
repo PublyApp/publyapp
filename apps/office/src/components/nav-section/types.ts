@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import type { ListItemButtonProps } from '@mui/material/ListItemButton';
 import type { StackProps } from '@mui/material/Stack';
 
@@ -30,13 +32,13 @@ export type NavListProps = {
 	caption?: string;
 	disabled?: boolean;
 	roles?: string[];
-	children?: any;
+	children?: NavListProps[];
 };
 
 export type NavSectionProps = StackProps & {
 	data: {
-		subheader: string;
-		items: NavListProps[];
+		subheader: ReactNode;
+		items?: NavListProps[];
 	}[];
 	config?: NavConfigProps;
 };

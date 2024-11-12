@@ -29,11 +29,17 @@ import { getLastPath, getRouteLoader } from '../utils';
 const NotFound = lazy(() => {
 	return import('@/office/components/NotFound');
 });
+
 const PortalPage = lazy(() => {
 	return import('@/office/modules/common/auth/portal/PortalPage');
 });
-const TenantsList = lazy(() => {
-	return import('@/office/modules/staff/tenant-manager/tenants-list/TenantsList');
+
+const UsersListPage = lazy(() => {
+	return import('@/office/modules/staff/user-manager/users-list/UsersListPage');
+});
+
+const TenantsListPage = lazy(() => {
+	return import('@/office/modules/staff/tenant-manager/tenants-list/TenantsListPage');
 });
 
 const AuthedRoutesRootError = () => {
@@ -95,8 +101,12 @@ export const authedRoutes: RouteObject[] = [
 						element: <h1>STAFF DASHBOARD</h1>,
 					},
 					{
+						path: getLastPath(BO_PATH_NAMES.staff.users.root),
+						element: <UsersListPage />,
+					},
+					{
 						path: getLastPath(BO_PATH_NAMES.staff.tenants.root),
-						element: <TenantsList />,
+						element: <TenantsListPage />,
 					},
 					{
 						path: getLastPath(BO_PATH_NAMES.staff.posts.root),
