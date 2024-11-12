@@ -3,15 +3,14 @@ import Stack from '@mui/material/Stack';
 
 import Logo from '@/office/components/Logo';
 import NavSectionMini from '@/office/components/nav-section/nav-mini/NavSectionMini';
+import type { NavData } from '@/office/hooks/useNavData';
 import { NAV } from '@/office/lib/constants';
 import { hideScroll } from '@/ui-react/utils/css.utils';
 
 import NavToggleButton from '../../../_common/NavToggleButton';
 
-// ----------------------------------------------------------------------
-
 type Props = {
-	navData: any;
+	navData: NavData;
 };
 
 const NavMini = ({ navData }: Props) => {

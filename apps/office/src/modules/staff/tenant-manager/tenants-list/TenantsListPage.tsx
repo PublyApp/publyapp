@@ -3,7 +3,7 @@ import PageContainer from '@/office/components/PageContainer';
 import TenantsListHeader from './parts/TenantsListHeader';
 import TenantsTable from './parts/TenantsTable';
 
-const TenantsList = () => {
+const TenantsListPage = () => {
 	return (
 		<PageContainer>
 			<TenantsListHeader />
@@ -12,4 +12,4 @@ const TenantsList = () => {
 	);
 };
 
-export default TenantsList;
+export default TenantsListPage;
