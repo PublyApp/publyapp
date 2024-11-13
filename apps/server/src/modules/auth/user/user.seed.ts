@@ -4,8 +4,6 @@ import asyncJs from 'async';
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { functionName } from '@/shared/lib/constants';
 
-// import ParseUserProfile from '../userProfile/userProfile.class';
-
 import ParseUser from './user.class';
 
 export const userSeedFactory = () => {
@@ -26,12 +24,7 @@ export const userSeedFactory = () => {
 
 	user.set('seeded', true);
 
-	const profileData = {
-		firstName,
-		lastName,
-	};
-
-	return { user, profileData };
+	return user;
 };
 
 export const createUsers = async ({ num }: { num: number }) => {
@@ -39,63 +32,18 @@ export const createUsers = async ({ num }: { num: number }) => {
 	const chunksNum = Math.floor(num / chunkSize) + 1;
 
 	const savedUsers: ParseUser[] = [];
-	const savedProfiles: ParseUserProfile[] = [];
 
 	const BATCH_SAVE_LIMIT = 100;
-	const q = asyncJs.queue(
-		async ({
-			objects,
-		}: {
-			objects: {
-				user: ParseUser;
-				profileData: {
-					firstName: string;
-					lastName: string;
-				};
-			}[];
-		}) => {
-			if (objects.length > BATCH_SAVE_LIMIT) {
-				throw new Error('BATCH_SAVE_LIMIT exceeded');
-			}
+	const q = asyncJs.queue(async ({ users }: { users: ParseUser[] }) => {
+		if (users.length > BATCH_SAVE_LIMIT) {
+			throw new Error('BATCH_SAVE_LIMIT exceeded');
+		}
 
-			const profilesDataMap = new Map<string, (typeof objects)[0]['profileData']>();
-			const usersToSave: ParseUser[] = [];
-			objects.forEach((e) => {
-				profilesDataMap.set(e.user.getUsername() as never, e.profileData);
-				usersToSave.push(e.user);
-			});
+		const results = await Parse.Object.saveAll(users, { batchSize: BATCH_SAVE_LIMIT, useMasterKey: true });
+		savedUsers.push(...results);
+	}, 5);
 
-			const usersResults = await Parse.Object.saveAll(usersToSave, { batchSize: BATCH_SAVE_LIMIT, useMasterKey: true });
-
-			const profilesToSave: ParseUserProfile[] = [];
-			usersResults.forEach((user) => {
-				const profileData = profilesDataMap.get(user.getUsername() as never);
-
-				const newProfile = new ParseUserProfile({
-					username: user.getUsername(),
-					firstName: profileData?.firstName,
-					lastName: profileData?.lastName,
-					user,
-				});
-
-				newProfile.set('seeded' as never, true as never);
-
-				profilesToSave.push(newProfile);
-				savedUsers.push(user);
-			});
-
-			const profilesResults = await Parse.Object.saveAll(profilesToSave, {
-				batchSize: BATCH_SAVE_LIMIT,
-				useMasterKey: true,
-			});
-
-			profilesResults.forEach((profile) => {
-				savedProfiles.push(profile);
-			});
-		},
-		5,
-	);
-
+	// let dynamicNum = num;
 	Array.from({ length: chunksNum }, (_, index) => {
 		const isLastIndex = index === chunksNum - 1;
 
@@ -109,7 +57,7 @@ export const createUsers = async ({ num }: { num: number }) => {
 			return userSeedFactory();
 		});
 
-		q.push({ objects: usersBatchGroup });
+		q.push({ users: usersBatchGroup });
 
 		return undefined;
 	});
@@ -118,7 +66,7 @@ export const createUsers = async ({ num }: { num: number }) => {
 		await q.drain();
 	}
 
-	return { savedUsers, savedProfiles };
+	return savedUsers;
 };
 
 export const cleanUsers = async () => {
