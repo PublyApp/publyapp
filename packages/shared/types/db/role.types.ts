@@ -4,7 +4,8 @@ type RoleAttributes = {
 	// Parse built-ins
 	name: string;
 	// custom fields
-	code: number;
+	code: string;
+	rank: number;
 	// nothing for now
 };
 

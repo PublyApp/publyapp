@@ -6,23 +6,23 @@ import type { IRole } from '../types/db/role.types';
 
 import type { AppLocale } from './i18n/resources';
 
-export type IRoleConfig = Pick<IRole, 'code' | 'name'>;
+export type IRoleConfig = Pick<IRole, 'code' | 'name' | 'rank'>;
 
 export const roleEnum = {
-	STAFF_ADMIN: { name: 'STAFF_ADMIN', code: 9_124_562 } as const,
-	STAFF_EDITOR: { name: 'STAFF_EDITOR', code: 8_958_027 } as const,
-	STAFF_USER: { name: 'STAFF_USER', code: 7_445_635 } as const,
-	STAFF_CONTRIBUTOR: { name: 'STAFF_CONTRIBUTOR', code: 6_945_523 } as const,
+	STAFF_ADMIN: { name: 'STAFF_ADMIN', code: 'eM3RYjw2yaQ6Gb4BTfnhux', rank: 100 } as const,
+	STAFF_EDITOR: { name: 'STAFF_EDITOR', code: 'r6LN7A3RwmgyhZUB4tv8Mn', rank: 80 } as const,
+	STAFF_USER: { name: 'STAFF_USER', code: 'xPK6yNWkCA5TgGU49p72J3', rank: 70 } as const,
+	STAFF_CONTRIBUTOR: { name: 'STAFF_CONTRIBUTOR', code: 'WqgTy4uxJhpmaFPzZUNjXk', rank: 60 } as const,
 	// =======================================================
 	// ! Role hierarchy by tenants will be hard to implement if using built-in Parse Roles
 	// ! because on user may have different Roles in two or more Tenants
 	// ! It's Better to implement our own Permission checker for the tenants
 	// TENANT_ADMIN: { name: 'TENANT_ADMIN', code: 5_394_846 } as const,
 	// TENANT_EDITOR: { name: 'TENANT_EDITOR', code: 4_141_341 } as const,
-	TENANT_USER: { name: 'TENANT_USER', code: 3_545_384 } as const,
+	TENANT_USER: { name: 'TENANT_USER', code: 't2GwKsZxen3YyLB7QTup4r', rank: 50 } as const,
 	// TENANT_CONTRIBUTOR: { name: 'TENANT_CONTRIBUTOR', code: 2_347_347 } as const,
 	// =======================================================
-	AUTHED_USER: { name: 'AUTHED_USER', code: 1_374_445 } as const,
+	AUTHED_USER: { name: 'AUTHED_USER', code: 'wC5zNLaK6MQjnSe4cGTr3v', rank: 40 } as const,
 } satisfies Record<string, IRoleConfig>;
 
 const STAFF_ADMIN_ONLY = [roleEnum.STAFF_ADMIN] as const;
@@ -102,8 +102,8 @@ const createParseJoinClassName = <F extends string, C extends string>(
 };
 
 const joinsClassName = {
-	$JOIN_USER_TO_TENANT: createCustomJoinClassName(basicClassName.USER, basicClassName.TENANT),
-	JOIN_USER_TO_ROLE: createParseJoinClassName('users' as const, basicClassName.ROLE),
+	_CUSTOM_JOIN_USER_TO_TENANT: createCustomJoinClassName(basicClassName.USER, basicClassName.TENANT),
+	_JOIN_USER_TO_ROLE: createParseJoinClassName('users' as const, basicClassName.ROLE),
 };
 
 export const className = {
@@ -236,7 +236,7 @@ export const functionName = {
 		addSlugToBlogPost: 'addSlugToBlogPost',
 		removeSeededBlogPosts: 'removeSeededBlogPosts',
 		setBlogPostCurrentSlug: 'setBlogPostCurrentSlug',
-		updateBlogPostAuthorPointers: 'updateBlogPostAuthorPointers',
+		// updateBlogPostAuthorPointers: 'updateBlogPostAuthorPointers',
 	},
 	fileManager: {
 		// Files

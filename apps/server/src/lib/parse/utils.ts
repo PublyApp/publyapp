@@ -17,6 +17,7 @@ import {
 import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import RoleService from '@/server/modules/auth/role/role.service';
+import TenantService from '@/server/modules/auth/tenant/tenant.service';
 import { pageToSkip } from '@/server/utils/any.utils';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
@@ -365,17 +366,33 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 		trigger: async ({ locale, req, t }) => {
 			const { trigger } = params;
 
+			if (req.master) {
+				return trigger({ locale, req, t });
+			}
+
 			if (req.triggerName === 'beforeFind') {
 				const tenantIdInHeaders = getParseFunctionHeader(req, TENANT_ID_HEADER_KEY);
 
 				if (!tenantIdInHeaders) {
 					if (!_.get(req.query?.toJSON(), 'where.tenant')) {
-						throw new Error(
-							'Tenant parameter missing: please use an instance of TenantQuery class to perform a query in cloud code',
-						);
+						throw new Error(t('unauthorized'));
+					}
+
+					// TODO: verify if user is member of requested tenant ???
+					const isUserMemberOfTenant = await TenantService.isUserMemberOfTenant({ user: req.user, tenant });
+
+					if (!isUserMemberOfTenant) {
+						throw new Error(t('unauthorized'));
 					}
 
 					return trigger({ locale, req, t });
+				}
+
+				// TODO: verify if user is member of requested tenant ???
+				const isUserMemberOfTenant = await TenantService.isUserMemberOfTenant({ user: req.user, tenant });
+
+				if (!isUserMemberOfTenant) {
+					throw new Error(t('unauthorized'));
 				}
 
 				const tenant = new Parse.Object(appClassName.TENANT);

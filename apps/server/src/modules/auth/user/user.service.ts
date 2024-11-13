@@ -1,5 +1,7 @@
-import { applyQueryOptions } from '@/server/lib/parse/utils';
+import { USE_MASTER_KEY } from '@/server/lib/constants';
+import { applyQueryOptions, getDatabase } from '@/server/lib/parse/utils';
 import ParseUser from '@/server/modules/auth/user/user.class';
+import { className } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
 
 type Props = {
@@ -36,5 +38,71 @@ export default class UserService {
 		}
 
 		return user;
+	}
+
+	async findUsers() {
+		const userQuery = new Parse.Query(ParseUser);
+
+		// pipeline for getting user ids with highest Role for each
+		// example of dos returned
+		// 	{
+		// 		"_id" : "3OBikqa3Jk",
+		// 		"maxRank" : NumberInt(100),
+		// 		"maxRankRoleName" : "STAFF_EDITOR"
+		// }
+		// {
+		// 		"_id" : "V9819SdKdc",
+		// 		"maxRank" : NumberInt(100),
+		// 		"maxRankRoleName" : "STAFF_ADMIN"
+		// }
+		getDatabase()
+			.collection(className._JOIN_USER_TO_ROLE)
+			.aggregate([
+				{
+					$lookup: {
+						from: '_Role', // Join with the Role collection
+						// localField: "owningId", // relatedId points to the Role
+						let: {
+							roleId: '$owningId',
+						},
+						pipeline: [
+							{
+								$match: { $expr: { $eq: ['$_id', '$$roleId'] } },
+							},
+							{
+								$project: { name: 1, rank: 1 },
+							},
+						],
+
+						// foreignField: "_id",    // Match Role's objectId
+						as: 'roleDetails', // Alias for the joined role
+					},
+				},
+
+				{ $unwind: '$roleDetails' },
+
+				{
+					$group: {
+						_id: '$relatedId', // Group by user ID
+						maxRank: { $max: '$roleDetails.rank' }, // Get the highest rank
+						maxRankRoleName: {
+							// Store the role ID associated with the highest rank
+							$first: {
+								$cond: [{ $eq: ['$roleDetails.rank', { $max: '$roleDetails.rank' }] }, '$roleDetails.name', null],
+							},
+						},
+					},
+				},
+
+				{
+					$sort: { maxRank: -1 }, // Sort users by their highest rank (descending)
+				},
+
+				// TODO: skip and limit
+			]);
+
+		const users = userQuery.find(USE_MASTER_KEY);
+
+		return users;
 	}
 }

@@ -1,11 +1,13 @@
 import _ from 'lodash';
 
+import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { applyQueryOptions, applySkipAndLimit, type QueryOptions } from '@/server/lib/parse/utils';
 import { className, DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import type { ITenant } from '@/shared/types/db/tenant.types';
 
 import type ParseUser from '../user/user.class';
 
+import Parse_CustomJoinUserToTenant from './$join-user-to-tenant.class';
 import ParseTenant from './tenant.class';
 
 type Props = {
@@ -27,12 +29,12 @@ export default class TenantService {
 		return query.first({ sessionToken: this.sessionToken });
 	}
 
-	async isUserMemberOfTenant({ user, tenant }: { user: ParseUser; tenant: ParseTenant }) {
-		const foundTenant = await new Parse.Query(className.$JOIN_USER_TO_TENANT)
+	static async isUserMemberOfTenant({ user, tenant }: { user: ParseUser; tenant: ParseTenant }) {
+		const foundTenant = await new Parse.Query(Parse_CustomJoinUserToTenant)
 			.select([])
 			.equalTo('user', user)
 			.equalTo('tenant', tenant)
-			.first({ sessionToken: this.sessionToken });
+			.first(USE_MASTER_KEY);
 
 		return Boolean(foundTenant);
 	}
@@ -53,7 +55,7 @@ export default class TenantService {
 			json = false,
 		}: { page?: number; pageSize?: number; json?: boolean | undefined } | undefined = {},
 	) {
-		const query = new Parse.Query(className.$JOIN_USER_TO_TENANT).select(['tenant']).equalTo('user', user);
+		const query = new Parse.Query(className._CUSTOM_JOIN_USER_TO_TENANT).select(['tenant']).equalTo('user', user);
 
 		applySkipAndLimit(query, { type: 'page', page, pageSize });
 

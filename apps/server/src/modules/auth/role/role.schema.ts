@@ -6,7 +6,8 @@ import type { IRole } from '@/shared/types/db/role.types';
 
 const RoleSchema = SchemaManager.defineSchema<Omit<IRole, 'name'>>(className.ROLE, {
 	fields: {
-		code: { type: 'Number' },
+		code: { type: 'String' },
+		rank: { type: 'Number' },
 		// verbs permissions
 		// canDeletePostOfOtherUsers: { type: 'Boolean' }, // todo: define the behavior
 	},
