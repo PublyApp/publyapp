@@ -17,7 +17,7 @@ import {
 import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 
 import RoleService from '@/server/modules/auth/role/role.service';
-import TenantService from '@/server/modules/auth/tenant/tenant.service';
+// import TenantService from '@/server/modules/auth/tenant/tenant.service';
 import { pageToSkip } from '@/server/utils/any.utils';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
@@ -199,7 +199,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 		}
 
 		if (!userHasRole) {
-			throw new Error(t('insufficient-role'));
+			throw new Error(t('unauthorized'));
 		}
 
 		const validatedParams = validateParams?.({ params: req.params, z });
@@ -378,22 +378,22 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 						throw new Error(t('unauthorized'));
 					}
 
-					// TODO: verify if user is member of requested tenant ???
-					const isUserMemberOfTenant = await TenantService.isUserMemberOfTenant({ user: req.user, tenant });
+					// // TODO: verify if user is member of requested tenant ???
+					// const isUserMemberOfTenant = await TenantService.isUserMemberOfTenant({ user: req.user, tenant });
 
-					if (!isUserMemberOfTenant) {
-						throw new Error(t('unauthorized'));
-					}
+					// if (!isUserMemberOfTenant) {
+					// 	throw new Error(t('unauthorized'));
+					// }
 
 					return trigger({ locale, req, t });
 				}
 
-				// TODO: verify if user is member of requested tenant ???
-				const isUserMemberOfTenant = await TenantService.isUserMemberOfTenant({ user: req.user, tenant });
+				// // TODO: verify if user is member of requested tenant ???
+				// const isUserMemberOfTenant = await TenantService.isUserMemberOfTenant({ user: req.user, tenant });
 
-				if (!isUserMemberOfTenant) {
-					throw new Error(t('unauthorized'));
-				}
+				// if (!isUserMemberOfTenant) {
+				// 	throw new Error(t('unauthorized'));
+				// }
 
 				const tenant = new Parse.Object(appClassName.TENANT);
 				tenant.id = tenantIdInHeaders;

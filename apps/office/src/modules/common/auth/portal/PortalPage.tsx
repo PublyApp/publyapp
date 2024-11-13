@@ -17,12 +17,7 @@ const PortalPage = () => {
 		result: { data: authData },
 	} = useGetClientAuthSuspenseQuery({ params: { tenantId: storedTenantId } });
 
-	const tenantRoles = [
-		roleEnum.TENANT_ADMIN,
-		roleEnum.TENANT_EDITOR,
-		roleEnum.TENANT_USER,
-		roleEnum.TENANT_CONTRIBUTOR,
-	];
+	const tenantRoles = [roleEnum.TENANT_USER];
 
 	const isStaffMember = hasRoles({ allowedRoles: roleSet.ABOVE_STAFF_CONTRIBUTOR });
 	const isTenantMember = hasRoles({ allowedRoles: tenantRoles });
