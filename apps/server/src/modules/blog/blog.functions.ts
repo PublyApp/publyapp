@@ -501,7 +501,7 @@ const setBlogPostCurrentSlug = parseFunctionEnhanced({
 // 						filter: { _id: id },
 // 						update: {
 // 							$set: {
-// 								_p_author: `${className.USER_PROFILE}$${profile.id}`,
+// 								_p_author: `${className.USER}$${profile.id}`,
 // 							},
 // 						},
 // 					},

@@ -49,6 +49,7 @@ export const createBlogPosts = async ({ num, users }: { num: number; users: Pars
 
 	const q = asyncJs.queue(async ({ chunk }: { chunk: ParseBlogPost[] }) => {
 		const savedPostsChunk = await Parse.Object.saveAll(chunk, { batchSize: 100, useMasterKey: true });
+
 		savedPosts.push(...savedPostsChunk);
 	}, 5);
 
@@ -58,7 +59,9 @@ export const createBlogPosts = async ({ num, users }: { num: number; users: Pars
 		}),
 	);
 
-	await q.drain();
+	if (q.length() > 0) {
+		await q.drain();
+	}
 
 	return savedPosts;
 };

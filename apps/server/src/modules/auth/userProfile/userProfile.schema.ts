@@ -3,7 +3,7 @@
 // import { className } from '@/shared/lib/constants';
 // import type { IUserProfileWithParseRelations } from '@/shared/types/db/userProfile.types';
 
-// const UserProfileSchema = SchemaManager.defineSchema<IUserProfileWithParseRelations>(className.USER_PROFILE, {
+// const UserProfileSchema = SchemaManager.defineSchema<IUserProfileWithParseRelations>(className.USER, {
 // 	fields: {
 // 		username: { type: 'String', required: true },
 

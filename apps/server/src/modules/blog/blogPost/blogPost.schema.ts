@@ -25,7 +25,7 @@ const BlogPostSchema = SchemaManager.defineSchema<IBlogPostWithRelations>(classN
 		seo: { type: 'Object' },
 
 		// relations
-		author: { type: 'Pointer', targetClass: className.USER_PROFILE, required: true },
+		author: { type: 'Pointer', targetClass: className.USER, required: true },
 		cover: { type: 'Pointer', targetClass: className.APP_FILE },
 		postSeries: { type: 'Pointer', targetClass: className.BLOG_POST_SERIES },
 		// postSeriesArray: { type: 'Array' },

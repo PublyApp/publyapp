@@ -71,7 +71,7 @@ const basicClassName = {
 	SCHEMA: '_SCHEMA',
 	JOB_STATUS: '_JobStatus',
 	// =====================
-	USER_PROFILE: 'UserProfile',
+	// USER_PROFILE: 'UserProfile',
 	// === Multi Tenancy ===
 	TENANT: 'Tenant',
 	TENANT_MODULE: 'TenantModule',
