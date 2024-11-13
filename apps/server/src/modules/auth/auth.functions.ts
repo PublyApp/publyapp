@@ -105,12 +105,10 @@ const removeSeededUsers = parseFunctionEnhanced({
 	requireMasterKey: true,
 	action: async () => {
 		const User = getDatabase().collection(className.USER);
-		const UserProfile = getDatabase().collection(className.USER_PROFILE);
 
 		const userResult = await User.deleteMany({ seeded: true });
-		const profileResult = await UserProfile.deleteMany({ seeded: true });
 
-		return { userResult, profileResult };
+		return { userResult };
 	},
 });
 
