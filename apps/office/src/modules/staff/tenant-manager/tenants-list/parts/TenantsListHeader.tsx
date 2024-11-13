@@ -6,7 +6,7 @@ const TenantsListHeader = () => {
 
 	return (
 		<PageHeader
-			heading={<PageHeader.Heading>{t('list-of-items')}</PageHeader.Heading>}
+			heading={<PageHeader.Heading>{t('list-of-items', { items: 'tenants' })}</PageHeader.Heading>}
 			breadcrumbs={
 				<PageHeader.Breadcrumbs
 					links={[

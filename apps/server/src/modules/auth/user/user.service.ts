@@ -40,6 +40,7 @@ export default class UserService {
 		return user;
 	}
 
+	// eslint-disable-next-line class-methods-use-this
 	async findUsers() {
 		const userQuery = new Parse.Query(ParseUser);
 

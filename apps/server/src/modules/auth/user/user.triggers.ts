@@ -25,10 +25,9 @@ const checkIsNew = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User>
 const setUserACL = ({ req, isNew }: { req: Parse.Cloud.TriggerRequest<Parse.User>; isNew: boolean }) => {
 	if (isNew) {
 		const user = req.object;
+
 		const acl = new Parse.ACL();
 		acl.setPublicReadAccess(true);
-		// acl.setRoleReadAccess(roleEnum.STAFF_USER.name, true);
-		// acl.setRoleWriteAccess(roleEnum.STAFF_EDITOR.name, true);
 		user.setACL(acl);
 	}
 };
@@ -41,8 +40,37 @@ const beforeSaveUser = parseTriggerEnhanced<Parse.User>({
 });
 
 // --------------------------------------------------------------------------------------//
-//                                      AFTER SAVE                                      //
+//                                      AFTER SAVE                                       //
 // --------------------------------------------------------------------------------------//
+
+const autoAssignDefaultRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest<Parse.User>; t: TFunction }) => {
+	const isNew = _.get(req, 'context.isNew');
+
+	if (!isNew) {
+		return;
+	}
+
+	const userSaved = req.object;
+	const email = userSaved.getEmail();
+
+	if (!email) {
+		// Normally this should never happen:
+		// if an user has been successfully saved,
+		// that means that it must have an email
+		// it is our login policy (in our code)
+		throw new Error(t('user-has-no-email'));
+	}
+
+	const roleService = new RoleService(USE_MASTER_KEY);
+
+	const defaultRole = await roleService.findRoleByCode(roleEnum.AUTHED_USER.code);
+
+	if (!defaultRole) {
+		throw new Error(t('item-not-found', { item: t('role') }));
+	}
+
+	await roleService.assignRoleToUser(userSaved, defaultRole);
+};
 
 const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest<Parse.User>; t: TFunction }) => {
 	const userSaved = req.object;
@@ -97,7 +125,10 @@ const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest
 
 const afterSaveUser = parseTriggerEnhanced<Parse.User>({
 	trigger: async ({ req, t }) => {
-		await autoAssignAdminRole({ req, t });
+		const p1 = autoAssignDefaultRole({ req, t });
+		const p2 = autoAssignAdminRole({ req, t });
+
+		await Promise.all([p1, p2]);
 		// await createUserProfile({ req });
 	},
 });

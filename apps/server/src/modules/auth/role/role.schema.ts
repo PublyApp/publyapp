@@ -13,7 +13,9 @@ const RoleSchema = SchemaManager.defineSchema<Omit<IRole, 'name'>>(className.ROL
 	},
 	classLevelPermissions: AUTHED_READONLY_CLP,
 	// classLevelPermissions: PUBLIC_READONLY_CLP,
-	indexes: {},
+	indexes: {
+		codeIndex: { keys: { code: 1 }, options: { unique: true } },
+	},
 });
 
 export default RoleSchema;

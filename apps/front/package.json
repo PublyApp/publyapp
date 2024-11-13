@@ -70,9 +70,9 @@
 		"esbuild-register": "^3.5.0",
 		"eslint": "^8.56.0",
 		"eslint-config-custom-react": "workspace:*",
-		"remix-development-tools": "^3.7.2",
+		"remix-development-tools": "^4.7.6",
 		"typescript": "^5.5.2",
-		"vite": "^5.3.1",
+		"vite": "^5.4.11",
 		"vite-plugin-cjs-interop": "^2.0.2",
 		"vite-plugin-node-polyfills": "^0.19.0",
 		"vite-tsconfig-paths": "^4.2.3"
