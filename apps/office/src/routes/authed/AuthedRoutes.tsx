@@ -70,7 +70,7 @@ export const authedRoutes: RouteObject[] = [
 		errorElement: <AuthedRoutesRootError />,
 		element: (
 			<Suspense fallback={<SplashScreen />}>
-				<AuthGuard allowedRoles={roleSet.ABOVE_TENANT_CONTRIBUTOR}>
+				<AuthGuard allowedRoles={roleSet.ABOVE_TENANT_USER}>
 					<Outlet />
 				</AuthGuard>
 			</Suspense>
@@ -123,7 +123,7 @@ export const authedRoutes: RouteObject[] = [
 			{
 				path: getLastPath(BO_PATH_NAMES.getTenantPaths().root),
 				element: (
-					<AuthGuard allowedRoles={roleSet.ABOVE_TENANT_CONTRIBUTOR}>
+					<AuthGuard allowedRoles={roleSet.ABOVE_TENANT_USER}>
 						<Outlet />
 					</AuthGuard>
 				),
