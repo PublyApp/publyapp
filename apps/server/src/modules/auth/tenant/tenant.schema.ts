@@ -13,10 +13,10 @@ const TenantSchema = SchemaManager.defineSchema<ITenantWithParseRelations>(class
 	},
 	classLevelPermissions: {
 		find: {
-			[`role:${roleEnum.TENANT_CONTRIBUTOR.name}`]: true,
+			[`role:${roleEnum.TENANT_USER.name}`]: true,
 		},
 		get: {
-			[`role:${roleEnum.TENANT_CONTRIBUTOR.name}`]: true,
+			[`role:${roleEnum.TENANT_USER.name}`]: true,
 		},
 		count: {
 			[`role:${roleEnum.STAFF_CONTRIBUTOR.name}`]: true,

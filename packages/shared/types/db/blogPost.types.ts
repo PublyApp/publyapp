@@ -1,6 +1,6 @@
 import type { BaseAttributes } from 'parse';
 
-import type ParseUserProfile from '@/server/modules/auth/userProfile/userProfile.class';
+import type ParseUser from '@/server/modules/auth/user/user.class';
 import type ParseBlogPost from '@/server/modules/blog/blogPost/blogPost.class';
 import type ParseBlogPostSlug from '@/server/modules/blog/blogPostSlug/blogPostSlug.class';
 import type ParseAppFile from '@/server/modules/file-manager/appFile/appFile.class';
@@ -11,7 +11,9 @@ import type { DateType } from '../date.types';
 import { type AppFile } from './appFile.types';
 import type { IBlogPostSlug } from './blogPostSlug.types';
 import type { IPostSeries } from './postSeries.types';
-import type { IUserProfile } from './userProfile.types';
+import type { IUser } from './user.types';
+
+// import type { IUserProfile } from './userProfile.types';
 
 export const postContentTypes = ['mdx', 'other'] as const;
 
@@ -68,7 +70,7 @@ export type IBlogPost = BaseAttributes &
 	};
 
 export type IBlogPostWithRelations = IBlogPost & {
-	author: IUserProfile;
+	author: IUser;
 	cover?: AppFile;
 	postSeries?: IPostSeries;
 	// postSeriesArray?: {
@@ -83,7 +85,7 @@ export type IBlogPostWithRelations = IBlogPost & {
 };
 
 export type IBlogPostWithParseRelations = IBlogPost & {
-	author: ParseUserProfile;
+	author: ParseUser;
 	cover?: ParseAppFile;
 	// postSeries?: ParsePostSeries;
 	// postSeriesArray?: {

@@ -4,18 +4,23 @@ import type { IUserWithParseRelations } from '@devist/shared/types/db/user.types
 import { DEFAULT_CLP } from '@/server/lib/constants';
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 
-const staffAdmin = `role:${roleEnum.STAFF_ADMIN.name}`;
+const staffAdmin = `role:${roleEnum.STAFF_ADMIN.name}` as const;
+// const staffEditor = `role:${roleEnum.STAFF_EDITOR.name}` as const;
+// const staffUser = `role:${roleEnum.STAFF_USER.name}` as const;
+// const staffContributor = `role:${roleEnum.STAFF_USER.name}` as const;
+// const tenantUser = `role:${roleEnum.TENANT_USER.name}` as const;
 
 const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(className.USER, {
 	fields: {
-		// firstName: { type: 'String' },
-		// lastName: { type: 'String' },
-		// avatarUrl: { type: 'String' },
-
 		// required by default by Parse
 		username: { type: 'String', required: true },
 		email: { type: 'String', required: true },
 		password: { type: 'String', required: true },
+
+		// custom fields added by us
+		firstName: { type: 'String' },
+		lastName: { type: 'String' },
+		avatarUrl: { type: 'String' },
 
 		// relations
 		// avatar: { type: 'Pointer', targetClass: className.APP_FILE },
@@ -40,8 +45,8 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(className
 			[staffAdmin]: true,
 		},
 		// protectedFields: {
-		// 	'*': ['emailVerified', 'tenants'],
-		// 	// requiresAuthentication: []
+		// 	'*': ['email'],
+		// 	[staffAdmin]: [],
 		// },
 	},
 });

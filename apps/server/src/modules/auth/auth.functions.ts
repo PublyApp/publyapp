@@ -50,10 +50,10 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 			// case C: the user is neither from staff or a tenant // yes this is possible in our system actually
 			const STAFF_ROLES = roleSet.ABOVE_STAFF_CONTRIBUTOR;
 			const TENANT_ROLES = [
-				roleEnum.TENANT_ADMIN,
-				roleEnum.TENANT_EDITOR,
+				// roleEnum.TENANT_ADMIN,
+				// roleEnum.TENANT_EDITOR,
 				roleEnum.TENANT_USER,
-				roleEnum.TENANT_CONTRIBUTOR,
+				// roleEnum.TENANT_CONTRIBUTOR,
 			];
 
 			const isStaffMember = roles.some((userRole) => {
@@ -81,7 +81,7 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 			if (!isStaffMember && hasTenantRole) {
 				if (foundTenant) {
 					// verify if user is member of foundTenant
-					const isMember = await tenantService.isUserMemberOfTenant({ user, tenant: foundTenant });
+					const isMember = await TenantService.isUserMemberOfTenant({ user, tenant: foundTenant });
 
 					if (isMember) {
 						tenant = foundTenant.toJSON() as unknown as ITenant;

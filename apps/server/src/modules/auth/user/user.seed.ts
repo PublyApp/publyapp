@@ -4,7 +4,7 @@ import asyncJs from 'async';
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { functionName } from '@/shared/lib/constants';
 
-import ParseUserProfile from '../userProfile/userProfile.class';
+// import ParseUserProfile from '../userProfile/userProfile.class';
 
 import ParseUser from './user.class';
 
