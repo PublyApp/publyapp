@@ -96,6 +96,7 @@ const commonFR = {
 	'slug-linked-to-another-post': 'Slug lié à un autre article',
 
 	'list-of-items': 'Liste des {{items}}',
+	unauthorized: 'Non autorisé',
 
 	// auth from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",

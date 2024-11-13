@@ -1,5 +1,7 @@
 import { type BaseAttributes } from 'parse';
 
+// import { AppFile } from './appFile.types';
+
 // import type ParseTenant from '@/server/modules/auth/tenant/tenant.class';
 
 // import type { ITenant } from './tenant.types';
@@ -10,11 +12,11 @@ export type UserAttributes = {
 	email: string;
 	password?: string;
 	// custom fields
-	// firstName?: string;
-	// lastName?: string;
+	firstName?: string;
+	lastName?: string;
 
 	// ===
-	// avatarUrl?: string;
+	avatarUrl?: string;
 };
 
 export type IUser = BaseAttributes & UserAttributes;

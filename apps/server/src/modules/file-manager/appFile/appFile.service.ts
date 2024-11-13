@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid';
 import sharp from 'sharp';
 
 import { IMAGE_FORMAT_CONFIG } from '@devist/shared/lib/constants';
-import type { ListMeta } from '@devist/shared/types/db/any.types';
+import type { ListMeta } from '@devist/shared/types/any.types';
 import type { AppFile, ImageFormatData, ImageFormatType } from '@devist/shared/types/db/appFile.types';
 
 import { applySkipAndLimit } from '@/server/lib/parse/utils';

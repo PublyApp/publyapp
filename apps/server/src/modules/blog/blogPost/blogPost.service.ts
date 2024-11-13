@@ -9,7 +9,7 @@ import ParseBlogPost from '@/server/modules/blog/blogPost/blogPost.class';
 import type ParseAppFile from '@/server/modules/file-manager/appFile/appFile.class';
 import { className, DEFAULT_PAGE_SIZE, roleEnum } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
-import type { ListMeta, WithMeta } from '@/shared/types/db/any.types';
+import type { ListMeta, WithMeta } from '@/shared/types/any.types';
 import type {
 	IBlogPostWithParseRelations,
 	IBlogPostWithRelations,

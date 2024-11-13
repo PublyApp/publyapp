@@ -1,26 +1,26 @@
-import type { BaseAttributes } from 'parse';
+// import type { BaseAttributes } from 'parse';
 
-import type ParseUser from '@/server/modules/auth/user/user.class';
-import type ParseAppFile from '@/server/modules/file-manager/appFile/appFile.class';
+// import type ParseUser from '@/server/modules/auth/user/user.class';
+// import type ParseAppFile from '@/server/modules/file-manager/appFile/appFile.class';
 
-import type { AppFile } from './appFile.types';
-import type { IUser } from './user.types';
+// import type { AppFile } from './appFile.types';
+// import type { IUser } from './user.types';
 
-export type UserProfileAttributes = {
-	username: string;
-	firstName?: string;
-	lastName?: string;
-	avatarUrl?: string;
-};
+// export type UserProfileAttributes = {
+// 	username: string;
+// 	firstName?: string;
+// 	lastName?: string;
+// 	avatarUrl?: string;
+// };
 
-export type IUserProfile = BaseAttributes & UserProfileAttributes;
+// export type IUserProfile = BaseAttributes & UserProfileAttributes;
 
-export type IUserProfileWithRelations = IUserProfile & {
-	user?: IUser;
-	avatar?: AppFile;
-};
+// export type IUserProfileWithRelations = IUserProfile & {
+// 	user?: IUser;
+// 	avatar?: AppFile;
+// };
 
-export type IUserProfileWithParseRelations = IUserProfile & {
-	user?: ParseUser;
-	avatar?: ParseAppFile;
-};
+// export type IUserProfileWithParseRelations = IUserProfile & {
+// 	user?: ParseUser;
+// 	avatar?: ParseAppFile;
+// };

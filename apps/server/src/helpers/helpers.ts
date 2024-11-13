@@ -14,7 +14,7 @@ import SessionSchema from '../modules/auth/session/session.schema';
 import Parse_CustomJoinUserToTenantSchema from '../modules/auth/tenant/$join-user-to-tenant.schema';
 import TenantSchema from '../modules/auth/tenant/tenant.schema';
 import UserSchema from '../modules/auth/user/user.schema';
-import UserProfileSchema from '../modules/auth/userProfile/userProfile.schema';
+// import UserProfileSchema from '../modules/auth/userProfile/userProfile.schema';
 import BlogPostSchema from '../modules/blog/blogPost/blogPost.schema';
 import BlogPostSlugSchema from '../modules/blog/blogPostSlug/blogPostSlug.schema';
 import BlogPostTagSchema from '../modules/blog/blogPostTag/blogPostTag.schema';
@@ -23,12 +23,12 @@ import ShortUrlSchema from '../modules/url-shortener/shortUrl/shortUrl.schema';
 
 export const createRolesIfNotExists = async () => {
 	const roleEntries = Object.values(roleEnum).map((e) => {
-		return [e.name, e.code] as readonly [string, number];
+		return [e.name, { code: e.code, rank: e.rank }] as readonly [string, { code: string; rank: number }];
 	});
 
 	// eslint-disable-next-line no-restricted-syntax
 	for (const entry of roleEntries) {
-		const [roleName, roleCode] = entry;
+		const [roleName, value] = entry;
 
 		const roleACL = new Parse.ACL();
 		roleACL.setPublicReadAccess(true);
@@ -38,9 +38,14 @@ export const createRolesIfNotExists = async () => {
 		if (foundRole) {
 			logger.info(`role: '${roleName}' already exists, skipping its creation`);
 
-			if (foundRole.get('code') !== roleCode) {
+			if (foundRole.get('code') !== value.code) {
 				logger.info(`changing code for role: '${roleName}'`);
-				foundRole.set('code', roleCode);
+				foundRole.set('code', value.code);
+			}
+
+			if (foundRole.get('rank') !== value.rank) {
+				logger.info(`changing rank for role: '${roleName}'`);
+				foundRole.set('rank', value.rank);
 			}
 
 			const index = roleEntries.indexOf(entry);
@@ -74,7 +79,8 @@ export const createRolesIfNotExists = async () => {
 		}
 
 		const role = new Parse.Role(roleName, roleACL);
-		role.set('code', roleCode);
+		role.set('code', value.code);
+		role.set('rank', value.rank);
 
 		await role.save(null, USE_MASTER_KEY);
 	}
@@ -136,7 +142,7 @@ export const updateSchemasOnInit = async () => {
 		RoleSchema,
 		SessionSchema,
 		UserSchema,
-		UserProfileSchema,
+		// UserProfileSchema,
 		// Multi Tenant
 		TenantSchema,
 		// Blog

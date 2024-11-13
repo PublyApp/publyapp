@@ -30,7 +30,7 @@ export default class RoleService {
 		return !!foundRole;
 	}
 
-	async findRoleByCode(code: number) {
+	async findRoleByCode(code: string) {
 		const roleQuery = new Parse.Query(Parse.Role);
 		return roleQuery.equalTo('code', code).first({ sessionToken: this.sessionToken, useMasterKey: this.master });
 	}

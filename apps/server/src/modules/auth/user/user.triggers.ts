@@ -7,7 +7,8 @@ import { ADMIN_EMAILS, USE_MASTER_KEY } from '@/server/lib/constants';
 import { parseTriggerEnhanced } from '@/server/lib/parse/utils';
 
 import RoleService from '../role/role.service';
-import ParseUserProfile from '../userProfile/userProfile.class';
+
+// import ParseUserProfile from '../userProfile/userProfile.class';
 
 // --------------------------------------------------------------------------------------//
 //                                     BEFORE SAVE                                       //
@@ -25,8 +26,9 @@ const setUserACL = ({ req, isNew }: { req: Parse.Cloud.TriggerRequest<Parse.User
 	if (isNew) {
 		const user = req.object;
 		const acl = new Parse.ACL();
-		acl.setRoleReadAccess(roleEnum.STAFF_USER.name, true);
-		acl.setRoleWriteAccess(roleEnum.STAFF_EDITOR.name, true);
+		acl.setPublicReadAccess(true);
+		// acl.setRoleReadAccess(roleEnum.STAFF_USER.name, true);
+		// acl.setRoleWriteAccess(roleEnum.STAFF_EDITOR.name, true);
 		user.setACL(acl);
 	}
 };
@@ -67,36 +69,36 @@ const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest
 	}
 };
 
-const createUserProfile = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User> }) => {
-	const isNew = _.get(req, 'context.isNew');
+// const createUserProfile = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User> }) => {
+// 	const isNew = _.get(req, 'context.isNew');
 
-	if (!_.isEqual(isNew, true)) {
-		return;
-	}
+// 	if (!_.isEqual(isNew, true)) {
+// 		return;
+// 	}
 
-	const isSeeded = req.object.get('seeded');
+// 	const isSeeded = req.object.get('seeded');
 
-	if (isSeeded) {
-		return;
-	}
+// 	if (isSeeded) {
+// 		return;
+// 	}
 
-	const userSaved = req.object as Parse.User;
+// 	const userSaved = req.object as Parse.User;
 
-	const profile = new ParseUserProfile({
-		user: userSaved,
-		username: userSaved.getUsername(),
-	});
+// 	const profile = new ParseUserProfile({
+// 		user: userSaved,
+// 		username: userSaved.getUsername(),
+// 	});
 
-	await profile.save(null, {
-		sessionToken: req.user?.getSessionToken(),
-		useMasterKey: req.master,
-	});
-};
+// 	await profile.save(null, {
+// 		sessionToken: req.user?.getSessionToken(),
+// 		useMasterKey: req.master,
+// 	});
+// };
 
 const afterSaveUser = parseTriggerEnhanced<Parse.User>({
 	trigger: async ({ req, t }) => {
 		await autoAssignAdminRole({ req, t });
-		await createUserProfile({ req });
+		// await createUserProfile({ req });
 	},
 });
 
