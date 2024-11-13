@@ -11,6 +11,7 @@ import SchemaManager from '../lib/parse/classes/SchemaManager';
 import { getDatabase, getGlobalConfig, setGlobalConfig } from '../lib/parse/utils';
 import RoleSchema from '../modules/auth/role/role.schema';
 import SessionSchema from '../modules/auth/session/session.schema';
+import Parse_CustomJoinUserToTenantSchema from '../modules/auth/tenant/$join-user-to-tenant.schema';
 import TenantSchema from '../modules/auth/tenant/tenant.schema';
 import UserSchema from '../modules/auth/user/user.schema';
 import UserProfileSchema from '../modules/auth/userProfile/userProfile.schema';
@@ -147,6 +148,8 @@ export const updateSchemasOnInit = async () => {
 		AppFileSchema,
 		// URL Shortener,
 		ShortUrlSchema,
+		// Custom Joins
+		Parse_CustomJoinUserToTenantSchema,
 	]);
 	await updateUserClpForDisabledSignupConfig();
 	// updateSchemasPromise.then(async () => {

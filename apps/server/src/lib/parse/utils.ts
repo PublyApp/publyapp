@@ -446,16 +446,6 @@ export const parseJob = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = 
 	return cloudFunction<P, T>(innerFunction);
 };
 
-// export const startParseJob = async <P extends Parse.Cloud.Params = Parse.Cloud.Params>(
-// 	name: string,
-// 	func: (request: Parse.Cloud.JobRequest<P>) => Promise<void> | void,
-// ) => {
-// 	// ! Application wide policy: we don't run more than two jobs at the same time
-// 	const query = new Parse.Query(className.JOB_STATUS).equalTo();
-
-// 	return Parse.Cloud.job(name, func as never);
-// };
-
 export const getInternalConfig = () => {
 	return Config.get(Parse.applicationId);
 };
