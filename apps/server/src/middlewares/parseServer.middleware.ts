@@ -1,7 +1,7 @@
 import type express from 'express';
 import _ from 'lodash';
 
-import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import { makePath, PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 import { USE_MASTER_KEY } from '../lib/constants';
 import { env } from '../lib/env';
@@ -14,13 +14,40 @@ const checkIsMaster = (req: express.Request) => {
 	return req.body._MasterKey === env.PARSE_MASTER_KEY || getHeader(req, 'X-Parse-Master-Key') === env.PARSE_MASTER_KEY;
 };
 
+const disableRestApiForClients = async (req: express.Request, _res: express.Response) => {
+	// eslint-disable-next-line @typescript-eslint/naming-convention
+	const _authorizedPaths = ['/health', '/functions'] satisfies `/${string}`[];
+
+	const authorizedPaths: string[] = [..._authorizedPaths];
+	_authorizedPaths.forEach((path) => {
+		authorizedPaths.push(makePath(env.PARSE_PATH + path));
+	});
+
+	const isAuthorizedPath = authorizedPaths.some((path) => {
+		return req.path.startsWith(path);
+	});
+
+	if (isAuthorizedPath) {
+		return;
+	}
+
+	const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) || req.body._InstallationId;
+	const cloudInstallationId = await getCurrentInstallationId();
+
+	if (installationId === cloudInstallationId) {
+		return;
+	}
+
+	throw new Error('unauthorized');
+};
+
 const handleMatchSessionIp = async (req: express.Request, _res: express.Response) => {
 	// eslint-disable-next-line @typescript-eslint/naming-convention
-	const _sessionPaths = ['/classes/_Session', '/sessions'];
+	const _sessionPaths = ['/classes/_Session', '/sessions'] satisfies `/${string}`[];
 
-	const sessionPaths = [..._sessionPaths];
+	const sessionPaths: string[] = [..._sessionPaths];
 	_sessionPaths.forEach((path) => {
-		sessionPaths.push(env.PARSE_PATH + path);
+		sessionPaths.push(makePath(env.PARSE_PATH + path));
 	});
 
 	const isSessionPath = sessionPaths.some((path) => {
@@ -68,6 +95,7 @@ const parseServerMiddleware = expressHandler(async (req, res, next) => {
 	const isMaster = checkIsMaster(req);
 
 	if (!isMaster) {
+		await disableRestApiForClients(req, res);
 		await handleMatchSessionIp(req, res);
 	}
 

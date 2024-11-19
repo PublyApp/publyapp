@@ -131,7 +131,7 @@ const ROOTS = {
 	UPLOAD: 'upload',
 } as const;
 
-const makePath = (...params: string[]) => {
+export const makePath = (...params: string[]) => {
 	// eslint-disable-next-line @typescript-eslint/naming-convention
 	const _params: string[] = [];
 

@@ -41,8 +41,10 @@ export default class UserService {
 	}
 
 	// eslint-disable-next-line class-methods-use-this
-	async findUsers() {
-		const userQuery = new Parse.Query(ParseUser);
+	async findUsersForStaffAdminTable() {
+		const userQuery = new Parse.Query(ParseUser).select(['avatarUrl', 'username', 'email', 'firstName', 'lastName']);
+
+		userQuery.find({ sessionToken: this.sessionToken });
 
 		// pipeline for getting user ids with highest Role for each
 		// example of dos returned
@@ -62,7 +64,6 @@ export default class UserService {
 				{
 					$lookup: {
 						from: '_Role', // Join with the Role collection
-						// localField: "owningId", // relatedId points to the Role
 						let: {
 							roleId: '$owningId',
 						},
@@ -74,8 +75,6 @@ export default class UserService {
 								$project: { name: 1, rank: 1 },
 							},
 						],
-
-						// foreignField: "_id",    // Match Role's objectId
 						as: 'roleDetails', // Alias for the joined role
 					},
 				},
@@ -95,9 +94,9 @@ export default class UserService {
 					},
 				},
 
-				{
-					$sort: { maxRank: -1 }, // Sort users by their highest rank (descending)
-				},
+				// {
+				// 	$sort: { maxRank: -1 }, // Sort users by their highest rank (descending)
+				// },
 
 				// TODO: skip and limit
 			]);
