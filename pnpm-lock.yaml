@@ -932,6 +932,9 @@ importers:
       '@types/parse':
         specifier: ^3.0.9
         version: 3.0.9
+      eslint:
+        specifier: ^8.56.0
+        version: 8.57.0
       eslint-config-custom-base:
         specifier: workspace:*
         version: link:../_eslint-config-custom-base
