@@ -30,6 +30,7 @@
 		"@types/parse": "^3.0.9",
 		"eslint-config-custom-base": "workspace:*",
 		"eslint-config-custom-common-react": "workspace:*",
-		"tsconfig": "workspace:*"
+		"tsconfig": "workspace:*",
+		"eslint": "^8.56.0"
 	}
 }
