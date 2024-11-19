@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import type { Application, NextFunction, Request, RequestHandler, Response } from 'express';
 import type { ParsedQs } from 'qs';
 
 import { tryCatchWrapper } from '@devist/shared/utils/tryCatch.utils';
@@ -30,4 +30,40 @@ export const expressHandler = (innerHandler: AsyncRequestHandler): RequestHandle
 	};
 
 	return handler;
+};
+
+// copy paste from stack overflow: I don't bother fix eslint issues here
+export const listRoutes = (app: Application) => {
+	// eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions
+	function split(thing: any) {
+		if (typeof thing === 'string') {
+			return thing.split('/');
+		}
+
+		if (thing.fast_slash) {
+			return '';
+		}
+
+		const match = thing
+			.toString()
+			.replace('\\/?', '')
+			.replace('(?=\\/|$)', '$')
+			// eslint-disable-next-line no-useless-escape
+			.match(/^\/\^((?:\\[.*+?^${}()|[\]\\\/]|[^.*+?^${}()|[\]\\\/])*)\$\//);
+		return match ? match[1].replace(/\\(.)/g, '$1').split('/') : `<complex:${thing.toString()}>`;
+	}
+
+	// eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions
+	function print(path: any, layer: any) {
+		if (layer.route) {
+			layer.route.stack.forEach(print.bind(null, path.concat(split(layer.route.path))));
+		} else if (layer.name === 'router' && layer.handle.stack) {
+			layer.handle.stack.forEach(print.bind(null, path.concat(split(layer.regexp))));
+		} else if (layer.method) {
+			// eslint-disable-next-line no-console
+			console.log('%s /%s', layer.method.toUpperCase(), path.concat(split(layer.regexp)).filter(Boolean).join('/'));
+		}
+	}
+
+	app._router.stack.forEach(print.bind(null, []));
 };
