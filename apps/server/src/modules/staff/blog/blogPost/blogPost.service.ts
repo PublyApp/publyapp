@@ -4,9 +4,9 @@ import { type IBlogPostSlug } from '@devist/shared/types/db/blogPostSlug.types';
 
 import { env } from '@/server/lib/env';
 import { applyQueryOptions, applySkipAndLimit, applySorting, toIsoString } from '@/server/lib/parse/utils';
-import type ParseUser from '@/server/modules/auth/user/user.class';
-import ParseBlogPost from '@/server/modules/blog/blogPost/blogPost.class';
-import type ParseAppFile from '@/server/modules/file-manager/appFile/appFile.class';
+import type ParseUser from '@/server/modules/common/auth/user/user.class';
+import ParseBlogPost from '@/server/modules/staff/blog/blogPost/blogPost.class';
+import type ParseAppFile from '@/server/modules/tenant/file-manager/appFile/appFile.class';
 import { className, DEFAULT_PAGE_SIZE, roleEnum } from '@/shared/lib/constants';
 import { appLocales, defaultLocale, type AppLocale } from '@/shared/lib/i18n/resources';
 import type { ListMeta, WithMeta } from '@/shared/types/any.types';
