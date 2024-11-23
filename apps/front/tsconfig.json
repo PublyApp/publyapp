@@ -5,7 +5,7 @@
 		"isolatedModules": true,
 		"esModuleInterop": true,
 		"jsx": "react-jsx",
-		"moduleResolution": "Bundler",
+		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
 		"target": "ES2022",
 		"strict": true,
@@ -21,7 +21,9 @@
 		// The inferred type of AITools cannot be named without a reference to '@/ui-react/node_modules/@types/react/jsx-runtime'. This is likely not portable. A type annotation is necessary.
 		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
 		"declarationMap": false,
-		"declaration": false
+		"declaration": false,
+
+		"typeRoots": ["./node_modules/@types"]
   },
 	"include": ["@types", "app", "../server/@types"],
 	"exclude": ["node_modules", "dist"]
