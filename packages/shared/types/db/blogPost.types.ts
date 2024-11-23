@@ -1,9 +1,9 @@
 import type { BaseAttributes } from 'parse';
 
-import type ParseUser from '@/server/modules/auth/user/user.class';
-import type ParseBlogPost from '@/server/modules/blog/blogPost/blogPost.class';
-import type ParseBlogPostSlug from '@/server/modules/blog/blogPostSlug/blogPostSlug.class';
-import type ParseAppFile from '@/server/modules/file-manager/appFile/appFile.class';
+import type ParseUser from '@/server/modules/common/auth/user/user.class';
+import type ParseBlogPost from '@/server/modules/staff/blog/blogPost/blogPost.class';
+import type ParseBlogPostSlug from '@/server/modules/staff/blog/blogPostSlug/blogPostSlug.class';
+import type ParseAppFile from '@/server/modules/tenant/file-manager/appFile/appFile.class';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 import type { DateType } from '../date.types';

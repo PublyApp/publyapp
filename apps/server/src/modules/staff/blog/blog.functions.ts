@@ -12,14 +12,11 @@ import {
 
 import logger from '@/server/lib/logger';
 import { getDatabase, parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/utils';
-import UserService from '@/server/modules/auth/user/user.service';
-import BlogPostService from '@/server/modules/blog/blogPost/blogPost.service';
-import AppFileService from '@/server/modules/file-manager/appFile/appFile.service';
+import UserService from '@/server/modules/common/auth/user/user.service';
+import BlogPostService from '@/server/modules/staff/blog/blogPost/blogPost.service';
+import AppFileService from '@/server/modules/tenant/file-manager/appFile/appFile.service';
 import type { IBlogPostSlugWithRelations } from '@/shared/types/db/blogPostSlug.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
-
-// import ParseBlogPost from '@/server/modules/blog/blogPost/blogPost.class';
-// import ParseUserProfile from '../auth/userProfile/userProfile.class';
 
 import ParseBlogPostSlug from './blogPostSlug/blogPostSlug.class';
 import BlogPostSlugService from './blogPostSlug/blogPostSlug.service';

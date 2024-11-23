@@ -1,6 +1,6 @@
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { applyQueryOptions, getDatabase } from '@/server/lib/parse/utils';
-import ParseUser from '@/server/modules/auth/user/user.class';
+import ParseUser from '@/server/modules/common/auth/user/user.class';
 import { className } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
 

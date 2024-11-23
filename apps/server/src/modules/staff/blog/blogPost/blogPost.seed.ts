@@ -3,9 +3,8 @@ import asyncJs from 'async';
 import _ from 'lodash';
 
 import { USE_MASTER_KEY } from '@/server/lib/constants';
+import type ParseUser from '@/server/modules/common/auth/user/user.class';
 import { functionName } from '@/shared/lib/constants';
-
-import type ParseUser from '../../auth/user/user.class';
 
 import ParseBlogPost from './blogPost.class';
 

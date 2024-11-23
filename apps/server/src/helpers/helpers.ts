@@ -9,17 +9,17 @@ import { DISABLE_SIGNUP_CONFIG_KEY, FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } fr
 import logger from '../lib/logger';
 import SchemaManager from '../lib/parse/classes/SchemaManager';
 import { getDatabase, getGlobalConfig, setGlobalConfig } from '../lib/parse/utils';
-import RoleSchema from '../modules/auth/role/role.schema';
-import SessionSchema from '../modules/auth/session/session.schema';
-import Parse_CustomJoinUserToTenantSchema from '../modules/auth/tenant/$join-user-to-tenant.schema';
-import TenantSchema from '../modules/auth/tenant/tenant.schema';
-import UserSchema from '../modules/auth/user/user.schema';
-// import UserProfileSchema from '../modules/auth/userProfile/userProfile.schema';
-import BlogPostSchema from '../modules/blog/blogPost/blogPost.schema';
-import BlogPostSlugSchema from '../modules/blog/blogPostSlug/blogPostSlug.schema';
-import BlogPostTagSchema from '../modules/blog/blogPostTag/blogPostTag.schema';
-import AppFileSchema from '../modules/file-manager/appFile/appFile.schema';
-import ShortUrlSchema from '../modules/url-shortener/shortUrl/shortUrl.schema';
+import RoleSchema from '../modules/common/auth/role/role.schema';
+import SessionSchema from '../modules/common/auth/session/session.schema';
+import Parse_CustomJoinUserToTenantSchema from '../modules/common/auth/tenant/$join-user-to-tenant.schema';
+import TenantSchema from '../modules/common/auth/tenant/tenant.schema';
+import UserSchema from '../modules/common/auth/user/user.schema';
+// import UserProfileSchema from '../modules/common/auth/userProfile/userProfile.schema';
+import BlogPostSchema from '../modules/staff/blog/blogPost/blogPost.schema';
+import BlogPostSlugSchema from '../modules/staff/blog/blogPostSlug/blogPostSlug.schema';
+import BlogPostTagSchema from '../modules/staff/blog/blogPostTag/blogPostTag.schema';
+import AppFileSchema from '../modules/tenant/file-manager/appFile/appFile.schema';
+import ShortUrlSchema from '../modules/tenant/url-shortener/shortUrl/shortUrl.schema';
 
 export const createRolesIfNotExists = async () => {
 	const roleEntries = Object.values(roleEnum).map((e) => {
