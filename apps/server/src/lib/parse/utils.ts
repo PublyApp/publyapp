@@ -16,8 +16,8 @@ import {
 } from '@devist/shared/lib/constants';
 import { type AppLocale } from '@devist/shared/lib/i18n/resources';
 
-import RoleService from '@/server/modules/auth/role/role.service';
-// import TenantService from '@/server/modules/auth/tenant/tenant.service';
+import RoleService from '@/server/modules/common/auth/role/role.service';
+// import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
 import { pageToSkip } from '@/server/utils/any.utils';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 

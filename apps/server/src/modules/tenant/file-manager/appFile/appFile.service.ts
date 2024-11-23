@@ -8,7 +8,7 @@ import type { ListMeta } from '@devist/shared/types/any.types';
 import type { AppFile, ImageFormatData, ImageFormatType } from '@devist/shared/types/db/appFile.types';
 
 import { applySkipAndLimit } from '@/server/lib/parse/utils';
-import ParseAppFile from '@/server/modules/file-manager/appFile/appFile.class';
+import ParseAppFile from '@/server/modules/tenant/file-manager/appFile/appFile.class';
 import { addSuffixToFileName } from '@/server/utils/any.utils';
 
 import AppFileFolderService from '../appFileFolder/appFileFolder.service';

@@ -1,8 +1,8 @@
-import ParseTenant from '@/server/modules/auth/tenant/tenant.class';
-import ParseUser from '@/server/modules/auth/user/user.class';
+import type ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
+import type ParseUser from '@/server/modules/common/auth/user/user.class';
 
-import { ITenant } from './tenant.types';
-import { IUser } from './user.types';
+import type { ITenant } from './tenant.types';
+import type { IUser } from './user.types';
 
 export type ICustomJoinUserToTenant = {
 	// === ?

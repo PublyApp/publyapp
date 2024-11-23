@@ -3,9 +3,9 @@ import logger from './lib/logger';
 const functions = async () => {
 	await Promise.all([
 		// =================
-		import('@/server/modules/blog/blog.functions'),
-		import('@/server/modules/file-manager/appFile/appFile.functions'),
-		import('@/server/modules/auth/auth.functions'),
+		import('@/server/modules/staff/blog/blog.functions'),
+		import('@/server/modules/tenant/file-manager/appFile/appFile.functions'),
+		import('@/server/modules/common/auth/auth.functions'),
 		// import('../resources/aiTool/aiTool.functions'),
 		// import('../resources/webHost/webHost.functions'),
 	]);
@@ -14,14 +14,14 @@ const functions = async () => {
 const triggers = async () => {
 	await Promise.all([
 		// =================
-		import('@/server/modules/auth/auth.triggers'),
+		import('@/server/modules/common/auth/auth.triggers'),
 	]);
 };
 
 const jobs = async () => {
 	await Promise.all([
 		// =================
-		import('@/server/modules/blog/blog.jobs'),
+		import('@/server/modules/staff/blog/blog.jobs'),
 	]);
 };
 

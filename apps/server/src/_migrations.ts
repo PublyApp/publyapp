@@ -5,8 +5,8 @@ import _ from 'lodash';
 // import { functionName } from '@/shared/lib/constants';
 
 // import { USE_MASTER_KEY } from './lib/constants';
-// import ParseUser from './modules/auth/user/user.class';
-// import ParseUserProfile from './modules/auth/userProfile/userProfile.class';
+// import ParseUser from './modules/common/auth/user/user.class';
+// import ParseUserProfile from './modules/common/auth/userProfile/userProfile.class';
 
 const run = async () => {
 	// await new Parse.Query(ParseUser).each(async (user) => {

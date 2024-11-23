@@ -2,7 +2,7 @@ import { type BaseAttributes } from 'parse';
 
 // import { AppFile } from './appFile.types';
 
-// import type ParseTenant from '@/server/modules/auth/tenant/tenant.class';
+// import type ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
 
 // import type { ITenant } from './tenant.types';
 

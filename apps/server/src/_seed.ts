@@ -1,8 +1,8 @@
 import './lib/parse/initParse';
 
 import { scriptLogger } from './lib/logger';
-import { cleanUsers, createUsers } from './modules/auth/user/user.seed';
-import { cleanBlogPosts, createBlogPosts } from './modules/blog/blogPost/blogPost.seed';
+import { cleanUsers, createUsers } from './modules/common/auth/user/user.seed';
+import { cleanBlogPosts, createBlogPosts } from './modules/staff/blog/blogPost/blogPost.seed';
 
 // --------------------------------------------------------------------------------------//
 //                    IMPORTANT NOTE: The dev server must be running                    //

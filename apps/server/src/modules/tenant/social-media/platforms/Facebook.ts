@@ -1,5 +1,6 @@
 /* eslint-disable class-methods-use-this */
-import type ParseSocialMediaPost from '@/server/modules/social-media/socialMediaPost.class';
+
+import type ParseSocialMediaPost from '../socialMediaPost.class';
 
 import type SocialMediaPlatform from './SocialMediaPlatform.interface';
 
