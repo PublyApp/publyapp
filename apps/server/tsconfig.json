@@ -3,13 +3,15 @@
 	"compilerOptions": {
 		"target": "ESNext",
 		"module": "ESNext",
-		"moduleResolution": "Bundler",
+		"moduleResolution": "bundler",
 
 		// For fixing the below error
 		// The inferred type of AITools cannot be named without a reference to '@/ui-react/node_modules/@types/react/jsx-runtime'. This is likely not portable. A type annotation is necessary.
 		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
 		"declarationMap": false,
-		"declaration": false
+		"declaration": false,
+
+		"typeRoots": ["./node_modules/@types"]
 	},
 	"include": ["src", "@types"],
 	"exclude": ["dist", "node_modules"]
