@@ -1,11 +1,6 @@
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
-import {
-	getDatabase,
-	getGlobalConfig,
-	parseFunctionEnhanced,
-	type FunctionParams,
-	type FunctionReturn,
-} from '@/server/lib/parse/utils';
+import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/function.utils';
+import { getDatabase, getGlobalConfig } from '@/server/lib/parse/utils';
 import { className, functionName, roleEnum, roleSet } from '@/shared/lib/constants';
 import type { ITenant } from '@/shared/types/db/tenant.types';
 

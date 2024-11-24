@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import { USE_MASTER_KEY } from '@/server/lib/constants';
-import { applyQueryOptions, applySkipAndLimit, type QueryOptions } from '@/server/lib/parse/utils';
+import { applyQueryOptions, applySkipAndLimit, type QueryOptions } from '@/server/lib/parse/query.utils';
 import { className, DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import type { ITenant } from '@/shared/types/db/tenant.types';
 
