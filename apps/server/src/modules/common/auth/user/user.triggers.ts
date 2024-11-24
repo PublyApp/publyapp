@@ -4,7 +4,7 @@ import _ from 'lodash';
 import { roleEnum } from '@devist/shared/lib/constants';
 
 import { ADMIN_EMAILS, USE_MASTER_KEY } from '@/server/lib/constants';
-import { parseTriggerEnhanced } from '@/server/lib/parse/utils';
+import { parseTriggerEnhanced } from '@/server/lib/parse/function.utils';
 
 import RoleService from '../role/role.service';
 
