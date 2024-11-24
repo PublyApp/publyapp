@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { applyQueryOptions } from '@/server/lib/parse/utils';
+import { applyQueryOptions } from '@/server/lib/parse/query.utils';
 import type { IBlogPostSlug } from '@/shared/types/db/blogPostSlug.types';
 
 import type ParseBlogPost from '../blogPost/blogPost.class';

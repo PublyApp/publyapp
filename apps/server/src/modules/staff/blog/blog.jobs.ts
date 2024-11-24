@@ -1,12 +1,9 @@
 import asyncJs from 'async';
 import _ from 'lodash';
 
-// import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
-// import dayjs from 'dayjs';
-// import logger from '@/server/lib/logger';
-
 import { USE_MASTER_KEY } from '@/server/lib/constants';
-import { getDatabase, parseJob } from '@/server/lib/parse/utils';
+import { parseJob } from '@/server/lib/parse/function.utils';
+import { getDatabase } from '@/server/lib/parse/utils';
 import { className, jobName } from '@/shared/lib/constants';
 
 import ParseBlogPost from './blogPost/blogPost.class';
