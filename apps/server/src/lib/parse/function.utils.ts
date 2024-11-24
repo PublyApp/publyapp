@@ -175,6 +175,33 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 			throw new Parse.Error(Parse.Error.INVALID_SESSION_TOKEN, t('item-is-required', { item: t('authentication') }));
 		}
 
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+		const cloudInstallationId = await getCurrentInstallationId();
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+		const { directAccess } = getInternalConfig();
+
+		// verify ip address if the request is not from the cloud functions and from an user with a session token
+		// in other words: verify if the call is not from our cloud code (not from our server itself)
+		// * especially necessary if directAccess is set to false
+		const definitelyNotFromCloud = directAccess && req.installationId !== 'cloud';
+		const alsoNotFromCloud = !directAccess && req.installationId !== cloudInstallationId;
+
+		const fromCloudEnvironment = !(definitelyNotFromCloud || alsoNotFromCloud);
+
+		const userHasRolePromise = new RoleService(USE_MASTER_KEY).hasRole(user, allowedRoles);
+
+		if (fromCloudEnvironment) {
+			const userHasRole = await userHasRolePromise;
+
+			// verify the roles
+			if (!userHasRole) {
+				throw new Error(t('unauthorized'));
+			}
+
+			const validatedParams = validateParams?.({ params: req.params, z });
+			return action({ req, t, user, locale, z, params: validatedParams || req.params });
+		}
+
 		// verify the ip address
 		const sessionToken = user.getSessionToken();
 
@@ -183,16 +210,12 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 			.select(['ipAddress'])
 			.first({ sessionToken });
 
-		// verify the roles
-		const userHasRolePromise = new RoleService(USE_MASTER_KEY).hasRole(user, allowedRoles);
-
 		const [session, userHasRole] = await Promise.all([sessionPromise, userHasRolePromise]);
 
 		const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
 		const onlineMatchConditionIp =
 			!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
 
-		// ! we assume that we will never call cloud functions from server cloud code
 		if (localMatchConditionIp || onlineMatchConditionIp) {
 			throw new Error(t('invalid-session'));
 		}
@@ -247,24 +270,29 @@ export const parseTriggerEnhanced = <P extends Parse.Object = Parse.Object>(para
 		const definitelyNotFromCloud = directAccess && req.installationId !== 'cloud';
 		const alsoNotFromCloud = !directAccess && req.installationId !== cloudInstallationId;
 
-		if (definitelyNotFromCloud || alsoNotFromCloud) {
-			if (req.user) {
-				const sessionToken = req.user.getSessionToken();
+		const fromCloudEnvironment = !(definitelyNotFromCloud || alsoNotFromCloud);
 
-				const session = await new Parse.Query(Parse.Session)
-					.equalTo('sessionToken', sessionToken)
-					.select(['ipAddress'])
-					.first({ sessionToken });
+		if (fromCloudEnvironment) {
+			return trigger({ req, t, locale });
+		}
 
-				const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
-				const onlineMatchConditionIp =
-					!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
+		if (req.user) {
+			// verify the ip address
+			const sessionToken = req.user.getSessionToken();
 
-				if (localMatchConditionIp || onlineMatchConditionIp) {
-					throw new Error(t('invalid-session'));
-				}
+			const session = await new Parse.Query(Parse.Session)
+				.equalTo('sessionToken', sessionToken)
+				.select(['ipAddress'])
+				.first({ sessionToken });
+
+			const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
+			const onlineMatchConditionIp =
+				!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
+
+			if (localMatchConditionIp || onlineMatchConditionIp) {
+				throw new Error(t('invalid-session'));
 			}
-		} // else: if from cloud, no need to check because it is us who perform calls in our server environment
+		}
 
 		return trigger({ req, t, locale });
 	});
