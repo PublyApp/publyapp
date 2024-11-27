@@ -35,6 +35,10 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 
 		if (error instanceof Parse.Error) {
 			parseErrorCode = error.code;
+
+			if (parseErrorCode === Parse.Error.INVALID_SESSION_TOKEN) {
+				// TODO: invalidate session token cache (we are gonna implement a custom permission system: to limit requests to the server we need a cache)
+			}
 			// status = /* res.statusCode || */ 400;
 		}
 
