@@ -3,8 +3,8 @@ import _ from 'lodash';
 import { ZodError } from 'zod';
 
 import { HttpException } from '@/server/exceptions/HttpException';
+import { logger } from '@/shared/lib/winston';
 
-import logger from '../lib/logger';
 import { getRequestUtils } from '../utils/request.utils';
 
 // ! this is only middleware that we should not wrap into expressHandler wrapper function
@@ -42,7 +42,7 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 			// status = /* res.statusCode || */ 400;
 		}
 
-		logger.error(`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message:: ${message}`, error);
+		logger.error(`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message::`, error);
 		res.status(status).json({ message, code: parseErrorCode });
 	} catch (_error) {
 		next(_error);
