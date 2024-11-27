@@ -31,6 +31,7 @@ import { setCurrentInstallationId } from './lib/parse/utils';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
+// import UserManagementServiceForStaff from './modules/staff/user-management/UserManagementServiceForStaff';
 import customApiRouter from './router/api.router';
 import shortURLRouter from './router/shortURL.router';
 import duration from './utils/duration';
@@ -101,6 +102,7 @@ const bootstrap = async () => {
 		// emailVerifyTokenReuseIfValid: true,
 		// emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
 		emailAdapter: customMailAdapter,
+		enableExpressErrorHandler: true,
 	});
 
 	// setup a better console transport for our logger
@@ -207,6 +209,8 @@ const bootstrap = async () => {
 		initCloudinary(),
 		setUpGlobalConfig(),
 	]);
+
+	// UserManagementServiceForStaff.findStaffUsersForStaffAdminTable();
 };
 
 bootstrap();
