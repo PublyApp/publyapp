@@ -42,6 +42,7 @@ declare module 'parse-server' {
 
 	import type { Application, RequestHandler } from 'express';
 
+	import type LoggerAdapter from '@/server/lib/parse/interfaces/LoggerAdapter';
 	import type MailAdapter from '@/server/lib/parse/interfaces/MailAdapter';
 
 	export type LogLevelEnum = 'error' | 'warn' | 'info' | 'debug' | 'verbose' | 'silly' | 'silent';
@@ -74,9 +75,12 @@ declare module 'parse-server' {
 			triggerBeforeSuccess: LogLevelEnum;
 		};
 
-		filesAdapter?: any;
+		emailAdapter?: MailAdapter;
+		loggerAdapter?: LoggerAdapter;
+		enableExpressErrorHandler?: boolean;
 
 		// Other options
+		filesAdapter?: any;
 		accountLockout?: AccountLockoutOptions;
 		allowCustomObjectId?: boolean;
 		allowHeaders?: string[];
@@ -100,12 +104,10 @@ declare module 'parse-server' {
 		verifyUserEmails?: boolean;
 		preventLoginWithUnverifiedEmail?: boolean;
 		preventSignupWithUnverifiedEmail?: boolean; // ! wtf?
-		emailAdapter?: MailAdapter;
 		emailVerifyTokenReuseIfValid?: boolean;
 		emailVerifyTokenValidityDuration?: number;
 		enableAnonymousUsers?: boolean;
 		enableCollationCaseComparison?: boolean;
-		enableExpressErrorHandler?: boolean;
 		encodeParseObjectInCloudFunction?: boolean;
 	} & Record<string, any>;
 
@@ -264,6 +266,13 @@ declare module 'parse-server/lib/defaults' {
 		verbose: boolean;
 		silent: boolean;
 	};
+	export default defaults;
+}
+
+declare module 'parse-server/lib/defaults.js' {
+	export * from 'parse-server/lib/defaults';
+	import defaults from 'parse-server/lib/defaults';
+
 	export default defaults;
 }
 

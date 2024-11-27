@@ -1,0 +1,218 @@
+import fs from 'fs';
+import path from 'path';
+
+import _defaults from 'parse-server/lib/defaults.js';
+
+import _ from 'lodash';
+import ms from 'ms';
+import winston, { format, type Logger } from 'winston';
+import { consoleFormat } from 'winston-console-format';
+import DailyRotateFile from 'winston-daily-rotate-file';
+
+import type LoggerAdapter from '../interfaces/LoggerAdapter';
+
+const defaults = _.get(_defaults, 'default') as unknown as typeof _defaults;
+
+const MILLISECONDS_IN_A_DAY = ms('1d');
+
+/**
+ * @interface Options
+ * @property {Logger} logger
+ * @property {number | null | undefined} maxLogFiles Maximum number of logs to keep. If not set, no logs will be removed. This can be a number of files or number of days. If using days, add 'd' as the suffix. (default: null)
+ */
+
+export default class CustomLoggerAdapter implements LoggerAdapter {
+	readonly logger: Logger;
+
+	maxLogFiles?: number | null | undefined;
+
+	/**
+	 * @param {Options} options
+	 */
+	constructor({ logger, maxLogFiles }: { logger: Logger; maxLogFiles?: number | null | undefined }) {
+		this.logger = logger;
+		this.maxLogFiles = maxLogFiles;
+		this.configureLogger();
+		// setLogger(this.logger);
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	log(level: string, message: string, ...meta: any[]) {
+		return this.logger.log(level, message, ...meta);
+	}
+
+	// eslint-disable-next-line class-methods-use-this
+	private configureLogger() {
+		const { jsonLogs, verbose, silent } = defaults;
+		let { logsFolder } = defaults;
+		let logLevel = winston.level;
+		// const maxLogFiles = 10;
+
+		if (verbose) {
+			logLevel = 'verbose';
+		}
+
+		winston.level = logLevel;
+		const options: Record<string, unknown> = {};
+
+		if (logsFolder) {
+			if (!path.isAbsolute(logsFolder)) {
+				logsFolder = path.resolve(process.cwd(), logsFolder);
+			}
+
+			try {
+				fs.mkdirSync(logsFolder);
+			} catch (e) {
+				/* */
+			}
+		}
+
+		options.dirname = logsFolder;
+		options.level = logLevel;
+		options.silent = silent;
+		options.maxFiles = this.maxLogFiles;
+
+		if (jsonLogs) {
+			options.json = true;
+			options.stringify = true;
+		}
+
+		this.configureTransports(options);
+	}
+
+	// code copied from parse-server source code too
+	private configureTransports(options: Record<string, unknown>) {
+		const transports = [];
+
+		if (options) {
+			const { silent } = options;
+			// eslint-disable-next-line no-param-reassign
+			delete options.silent;
+
+			try {
+				if (!_.isNil(options.dirname)) {
+					const parseServer = new DailyRotateFile({
+						filename: 'parse-server.info',
+						json: true,
+						format: format.combine(format.timestamp(), format.splat(), format.json()),
+						...options,
+					});
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					(parseServer as any).name = 'parse-server';
+					// _.set(parseServer, 'name', 'parse-server');
+					transports.push(parseServer);
+
+					const parseServerError = new DailyRotateFile({
+						filename: 'parse-server.err',
+						json: true,
+						format: format.combine(format.timestamp(), format.splat(), format.json()),
+						...options,
+						level: 'error',
+					});
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					(parseServerError as any).name = 'parse-server-error';
+					// _.set(parseServerError, 'name', 'parse-server-error');
+					transports.push(parseServerError);
+				}
+			} catch (e) {
+				console.log('😊😊😊😊😊😊😊', e);
+				/* */
+			}
+
+			// const consoleFormat = options.json ? format.json() : format.simple();
+			// const consoleOptions = {
+			// 	colorize: true,
+			// 	name: 'console',
+			// 	silent,
+			// 	format: format.combine(format.splat(), consoleFormat),
+			// 	...options,
+			// };
+
+			// * Except for this console transport, the rest of the code is copy pasted from parse-server source code
+			const consoleTransport = new winston.transports.Console({
+				['name' as never]: 'console',
+				silent: silent as never,
+				format: format.combine(
+					format.colorize({ all: true }),
+					format.padLevels(),
+					consoleFormat({
+						showMeta: true,
+						metaStrip: ['timestamp', 'service'],
+						inspectOptions: {
+							depth: Infinity,
+							colors: true,
+							maxArrayLength: Infinity,
+							breakLength: 120,
+							compact: Infinity,
+						},
+					}),
+				),
+				...options,
+			});
+
+			transports.push(/* new winston.transports.Console(consoleOptions as never) */ consoleTransport);
+		}
+
+		// this.logger.configure({
+		// 	transports,
+		// });
+		// this.logger.transports.unshift();
+		this.removeTransport('console');
+		transports.forEach((transport) => {
+			this.logger.add(transport);
+		});
+	}
+
+	private removeTransport(transport: string | winston.transport) {
+		const matchingTransport = this.logger.transports.find((t1) => {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			return typeof transport === 'string' ? (t1 as any).name === transport : t1 === transport;
+		});
+
+		if (matchingTransport) {
+			this.logger.remove(matchingTransport);
+		}
+	}
+
+	// method copy pasted from parse-server source code just for compatibility purpose
+	// custom query as winston is currently limited
+	// eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-explicit-any
+	query(options: any, callback: (...args: any[]) => void = () => {}) {
+		if (!options) {
+			// eslint-disable-next-line no-param-reassign
+			options = {};
+		}
+
+		// defaults to 7 days prior
+		const from = options.from || new Date(Date.now() - 7 * MILLISECONDS_IN_A_DAY);
+		const until = options.until || new Date();
+		const limit = options.size || 10;
+		const order = options.order || 'desc';
+		const level = options.level || 'info';
+
+		const queryOptions = {
+			from,
+			until,
+			limit,
+			order,
+		};
+
+		return new Promise((resolve, reject) => {
+			// eslint-disable-next-line consistent-return
+			this.logger.query(queryOptions as never, (err, res) => {
+				if (err) {
+					callback(err);
+					return reject(err);
+				}
+
+				if (level === 'error') {
+					callback(res['parse-server-error']);
+					resolve(res['parse-server-error']);
+				} else {
+					callback(res['parse-server']);
+					resolve(res['parse-server']);
+				}
+			});
+		});
+	}
+}

@@ -107,6 +107,9 @@ const externals = [
 	'parse-server/lib/password',
 	'parse-server/lib/password.js',
 
+	'parse-server/lib/defaults',
+	'parse-server/lib/defaults.js',
+
 	'front/build/server/index.js',
 ];
 

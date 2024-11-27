@@ -1,4 +1,4 @@
-import logger from './lib/logger';
+import { logger } from '@/shared/lib/winston';
 
 const functions = async () => {
 	await Promise.all([

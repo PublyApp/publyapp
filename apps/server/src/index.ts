@@ -12,6 +12,7 @@ import subdomain from 'express-subdomain';
 import ParseDashboard from 'parse-dashboard';
 
 import { LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/winston';
 
 import { cloud } from './cloud';
 import {
@@ -25,7 +26,8 @@ import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
 import { env } from './lib/env';
 import { expressHandler } from './lib/express';
 import { initI18next } from './lib/i18n';
-import logger, { consoleTransport } from './lib/logger';
+// import logger, { consoleTransport } from './lib/logger';
+import CustomLoggerAdapter from './lib/parse/classes/CustomLoggerAdapter';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
 import { setCurrentInstallationId } from './lib/parse/utils';
 import { cors } from './middlewares/cors.middleware';
@@ -67,16 +69,20 @@ const bootstrap = async () => {
 	app.use(subdomain('link', shortURLRouter));
 
 	// File System adapter for Parse
-	const fsAdapter = new FSFilesAdapter({
+	const filesAdapter = new FSFilesAdapter({
 		filesSubDirectory: 'parse-uploads', // optional, defaults to ./files
 		// encryptionKey: 'local-file-encryption-key', // optional, but mandatory if you want to encrypt files
 	});
 
 	// Email adapter for Parse
-	const customMailAdapter = new CustomMailAdapter({ serverUrl: env.SERVER_URL });
+	const emailAdapter = new CustomMailAdapter({ serverUrl: env.SERVER_URL });
+
+	// Logger adapter for Parse
+	const loggerAdapter = new CustomLoggerAdapter({ logger });
 
 	// initialize parse server
 	const parseServer = new ParseServer({
+		//  === REQUIRED PARAMS =========================
 		appName: env.PARSE_APP_NAME,
 		appId: env.PARSE_APP_ID,
 		masterKey: env.PARSE_MASTER_KEY,
@@ -84,29 +90,32 @@ const bootstrap = async () => {
 		databaseURI: env.DATABASE_URI,
 		serverURL: env.PARSE_SERVER_URL,
 		publicServerURL: env.PARSE_SERVER_URL,
-		filesAdapter: fsAdapter,
-		// preserveFileName: true,
+		// === ADAPTERS ================================
+		filesAdapter,
+		loggerAdapter,
+		emailAdapter,
 		// =============================================
-		logLevel: 'silly', // this seems to be not working at all
-		allowClientClassCreation: false,
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
-		allowExpiredAuthDataToken: false,
-		encodeParseObjectInCloudFunction: true,
-		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
-		directAccess: false, // the docs is lying, this is true by default
-		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
 		sessionLength: duration.toSeconds('3d'), // 3 days
-		// ===
+		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
+		// =============================================
+		directAccess: false, // the docs is lying, this is true by default
 		verifyUserEmails: true,
-		preventLoginWithUnverifiedEmail: true,
-		// emailVerifyTokenReuseIfValid: true,
-		// emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
-		emailAdapter: customMailAdapter,
 		enableExpressErrorHandler: true,
+		allowClientClassCreation: false,
+		allowExpiredAuthDataToken: false,
+		preventLoginWithUnverifiedEmail: true,
+		encodeParseObjectInCloudFunction: true,
+		// =============================================
+		// preserveFileName: true,
+		// emailVerifyTokenReuseIfValid: true,
+		// logLevel: 'silly', // this seems to be not working at all
+		// emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
+		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
 	});
 
 	// setup a better console transport for our logger
-	logger.adapter.addTransport(consoleTransport);
+	// logger.adapter.addTransport(consoleTransport);
 
 	// start the parse server setup in the background
 	const startParsePromise = parseServer.start();
@@ -141,6 +150,7 @@ const bootstrap = async () => {
 		app.all(
 			path.posix.join(env.API_PATH, 'test'),
 			expressHandler(async (_req, res) => {
+				logger.info('test route hit', { lol: 'test', password: 'azerty' });
 				return res.status(200).json({ ok: 'ok' });
 			}),
 		);
