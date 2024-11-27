@@ -2,11 +2,15 @@
 	"name": "@devist/shared",
 	"version": "0.0.0",
 	"exports": {
-    "./*": {
-      "types": ["./*.ts"],
-      "default": ["./*.ts"]
-    }
-  },
+		"./*": {
+			"types": [
+				"./*.ts"
+			],
+			"default": [
+				"./*.ts"
+			]
+		}
+	},
 	"dependencies": {
 		"axios": "^1.6.5",
 		"date-fns": "^2.25.0",
@@ -19,6 +23,7 @@
 		"numeral": "^2.0.6",
 		"parse": "^5.2.0",
 		"winston": "^3.11.0",
+		"winston-console-format": "^1.0.8",
 		"winston-transport-browserconsole": "^1.0.5",
 		"zod": "^3.22.4",
 		"zod-i18n-map": "^2.27.0"
@@ -28,9 +33,9 @@
 		"@types/multer": "^1.4.11",
 		"@types/numeral": "^2.0.5",
 		"@types/parse": "^3.0.9",
+		"eslint": "^8.56.0",
 		"eslint-config-custom-base": "workspace:*",
 		"eslint-config-custom-common-react": "workspace:*",
-		"tsconfig": "workspace:*",
-		"eslint": "^8.56.0"
+		"tsconfig": "workspace:*"
 	}
 }

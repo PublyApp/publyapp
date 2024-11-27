@@ -640,6 +640,12 @@ importers:
       winston-console-format:
         specifier: ^1.0.8
         version: 1.0.8
+      winston-daily-rotate-file:
+        specifier: ^5.0.0
+        version: 5.0.0(winston@3.14.1)
+      winston-transport-browserconsole:
+        specifier: ^1.0.5
+        version: 1.0.5
       zod:
         specifier: ^3.22.4
         version: 3.23.8
@@ -910,6 +916,9 @@ importers:
       winston:
         specifier: ^3.11.0
         version: 3.14.1
+      winston-console-format:
+        specifier: ^1.0.8
+        version: 1.0.8
       winston-transport-browserconsole:
         specifier: ^1.0.5
         version: 1.0.5
@@ -20660,6 +20669,19 @@ packages:
       object-hash: 3.0.0
       triple-beam: 1.4.1
       winston: 3.13.1
+      winston-transport: 4.7.1
+    dev: false
+
+  /winston-daily-rotate-file@5.0.0(winston@3.14.1):
+    resolution: {integrity: sha512-JDjiXXkM5qvwY06733vf09I2wnMXpZEhxEVOSPenZMii+g7pcDcTBt2MRugnoi8BwVSuCT2jfRXBUy+n1Zz/Yw==}
+    engines: {node: '>=8'}
+    peerDependencies:
+      winston: ^3
+    dependencies:
+      file-stream-rotator: 0.6.1
+      object-hash: 3.0.0
+      triple-beam: 1.4.1
+      winston: 3.14.1
       winston-transport: 4.7.1
     dev: false
 

@@ -4,8 +4,8 @@ import { eachOfLimit } from 'async';
 import { AxiosError } from 'axios';
 
 import { expressHandler } from '@/server/lib/express';
-import logger from '@/server/lib/logger';
 import { defaultHttp } from '@/shared/lib/axios';
+import { logger } from '@/shared/lib/winston';
 
 const getCircularReplacer = () => {
 	const seen = new WeakSet();

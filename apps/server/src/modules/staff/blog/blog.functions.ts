@@ -10,12 +10,12 @@ import {
 	getUpdateBlogPostInputSchema,
 } from '@devist/shared/validations/blogPost/blogPost.validations';
 
-import logger from '@/server/lib/logger';
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/function.utils';
 import { getDatabase } from '@/server/lib/parse/utils';
 import UserService from '@/server/modules/common/auth/user/user.service';
 import BlogPostService from '@/server/modules/staff/blog/blogPost/blogPost.service';
 import AppFileService from '@/server/modules/tenant/file-manager/appFile/appFile.service';
+import { logger } from '@/shared/lib/winston';
 import type { IBlogPostSlugWithRelations } from '@/shared/types/db/blogPostSlug.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 

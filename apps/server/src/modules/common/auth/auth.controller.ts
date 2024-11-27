@@ -7,12 +7,12 @@ import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY, USE_MASTER_KEY } from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
 import { expressHandler } from '@/server/lib/express';
-import logger from '@/server/lib/logger';
 import { createSessionServer, getGlobalConfig } from '@/server/lib/parse/utils';
 import ParseUser from '@/server/modules/common/auth/user/user.class';
 import { getRequestIp, getRequestUtils } from '@/server/utils/request.utils';
 import { defaultHttp } from '@/shared/lib/axios';
 import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/winston';
 
 import { AuthCloudService } from './auth.cloud.service';
 
