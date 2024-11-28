@@ -90,6 +90,7 @@ export class MongoAdapter implements DatabaseAdapter {
 		await this.#collection.deleteMany({ key: { $regex: `^${prefix}` } });
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	async set(row: { key: string; value: any; expiresAt: Date | null }): Promise<void> {
 		await this.#collection.updateOne(
 			{ key: row.key },
