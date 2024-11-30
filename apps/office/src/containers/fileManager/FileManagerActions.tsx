@@ -21,7 +21,7 @@ import {
 	useCreateAppFileFolder,
 	useUploadManyFilesMutation,
 } from '@devist/ui-react/lib/react-query/features/appFile/appFile.hooks';
-import z from '@devist/ui-react/lib/zod';
+import { defaultZodClient } from '@devist/ui-react/lib/zod';
 
 // import { useFindAppFileSuspense } from '@devist/ui-react/lib/react-query/features/appFiles/appFile.hooks';
 // import FileManagerNewFolderDialog from '@/office/components/file-manager/FileManagerNewFolderDialog';
@@ -69,7 +69,7 @@ const FileManagerActions = () => {
 	const currentFolderPath = decodeURIComponent(_currentFolderPath);
 
 	const uploadForm = useForm<UploadManyFilesInputClientSide>({
-		resolver: zodResolver(getUploadManyFilesSchemaClientSide(z)),
+		resolver: zodResolver(getUploadManyFilesSchemaClientSide(defaultZodClient)),
 	});
 
 	// const { parentFolderPath, setparentFolderPath } = useFileManager();
@@ -115,7 +115,7 @@ const FileManagerActions = () => {
 
 	// ================
 	const newFolderForm = useForm<CreateFolderInputClientSide>({
-		resolver: zodResolver(getCreateFolderSchemaClientSide(z)),
+		resolver: zodResolver(getCreateFolderSchemaClientSide(defaultZodClient)),
 		defaultValues: {
 			folderName: '',
 		},

@@ -1,13 +1,14 @@
 import { useMemo, type ComponentProps } from 'react';
 
 import PageHeader from '@/office/components/PageHeader';
-import { BO_PATH_NAMES } from '@/shared/lib/constants';
+
+// import { BO_PATH_NAMES } from '@/shared/lib/constants';
 
 import useFileManager from './useFilManager';
 
 const getFileManagerBreadcrumbURL = (folderPath: string) => {
 	const url = new URL(window.location.origin);
-	url.pathname = BO_PATH_NAMES.dashboard.fileManager.root;
+	// url.pathname = BO_PATH_NAMES.dashboard.fileManager.root;
 	const searchParams = new URLSearchParams();
 	searchParams.set('folderPath', folderPath);
 	url.search = decodeURIComponent(searchParams.toString());

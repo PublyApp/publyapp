@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import Collapse from '@mui/material/Collapse';
+import _ from 'lodash';
 
 import useActiveLink from '@/office/hooks/useActiveLink';
 import usePathname from '@/office/hooks/usePathname';
@@ -80,7 +81,7 @@ export default NavList;
 // ----------------------------------------------------------------------
 
 type NavListSubProps = {
-	data: NavListProps[];
+	data?: NavListProps[];
 	depth: number;
 	config: NavConfigProps;
 };
@@ -88,7 +89,7 @@ type NavListSubProps = {
 const NavSubList = ({ data, depth, config }: NavListSubProps) => {
 	return (
 		<>
-			{data.map((list) => {
+			{_.map(data, (list) => {
 				return (
 					<NavList
 						key={list.title + list.path}
