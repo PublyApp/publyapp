@@ -99,14 +99,14 @@ const bootstrap = async () => {
 		sessionLength: duration.toSeconds('3d'), // 3 days
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
 		// =============================================
-		directAccess: false, // the docs is lying, this is true by default
-		verifyUserEmails: true,
+		directAccess: false,
 		enableExpressErrorHandler: true,
 		allowClientClassCreation: false,
 		allowExpiredAuthDataToken: false,
 		preventLoginWithUnverifiedEmail: true,
 		encodeParseObjectInCloudFunction: true,
 		// =============================================
+		// verifyUserEmails: true,
 		// preserveFileName: true,
 		// emailVerifyTokenReuseIfValid: true,
 		// logLevel: 'silly', // this seems to be not working at all

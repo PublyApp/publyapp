@@ -11,6 +11,8 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
+const chokidar = require('chokidar');
+
 const { createRsbuild, watch: _watch } = require('./config');
 
 // set node env to development
@@ -49,6 +51,10 @@ const run = async () => {
 		if (input === 'rs') {
 			watch();
 		}
+	});
+
+	chokidar.watch(path.resolve(__dirname, '../../.env.local')).on('change', () => {
+		watch();
 	});
 
 	watch();
