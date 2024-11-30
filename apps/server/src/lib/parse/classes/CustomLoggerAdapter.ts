@@ -115,7 +115,6 @@ export default class CustomLoggerAdapter implements LoggerAdapter {
 					transports.push(parseServerError);
 				}
 			} catch (e) {
-				console.log('😊😊😊😊😊😊😊', e);
 				/* */
 			}
 
@@ -150,7 +149,8 @@ export default class CustomLoggerAdapter implements LoggerAdapter {
 				...options,
 			});
 
-			transports.push(/* new winston.transports.Console(consoleOptions as never) */ consoleTransport);
+			// transports.push(new winston.transports.Console(consoleOptions as never));
+			transports.push(consoleTransport);
 		}
 
 		// this.logger.configure({
