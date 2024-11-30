@@ -9,7 +9,7 @@ import type {
 	GetBlogPostFunction,
 	SetBlogPostCurrentSlugFunction,
 	UpdateBlogPostFunction,
-} from '@/server/modules/blog/blog.functions';
+} from '@/server/modules/staff/blog/blog.functions';
 
 import BaseEndPoints, { type BaseEndPointsProps } from '../../BaseEndPoints';
 
