@@ -99,6 +99,7 @@
 		"@types/qs": "^6.9.11",
 		"@types/streamifier": "^0.1.2",
 		"chai": "^5.1.0",
+		"chokidar": "^4.0.1",
 		"concurrently": "^8.2.2",
 		"esbuild": "^0.19.11",
 		"esbuild-node-externals": "^1.12.0",
