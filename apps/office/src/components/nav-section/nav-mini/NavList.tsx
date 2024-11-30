@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { appBarClasses } from '@mui/material/AppBar';
 import Popover from '@mui/material/Popover';
 import Stack from '@mui/material/Stack';
+import _ from 'lodash';
 
 import useActiveLink from '@/office/hooks/useActiveLink';
 import usePathname from '@/office/hooks/usePathname';
@@ -117,7 +118,7 @@ export default NavList;
 // ----------------------------------------------------------------------
 
 type NavListSubProps = {
-	data: NavListProps[];
+	data?: NavListProps[];
 	depth: number;
 	config: NavConfigProps;
 };
@@ -125,7 +126,7 @@ type NavListSubProps = {
 const NavSubList = ({ data, depth, config }: NavListSubProps) => {
 	return (
 		<Stack spacing={0.5}>
-			{data.map((list) => {
+			{_.map(data, (list) => {
 				return (
 					<NavList
 						key={list.title + list.path}

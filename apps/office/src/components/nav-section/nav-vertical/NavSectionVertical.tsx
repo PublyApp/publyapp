@@ -1,8 +1,10 @@
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useState, type ReactNode } from 'react';
 
 import Collapse from '@mui/material/Collapse';
 import List from '@mui/material/List';
 import Stack from '@mui/material/Stack';
+import _ from 'lodash';
+import { nanoid } from 'nanoid';
 
 import { navVerticalConfig } from '../config';
 //
@@ -14,8 +16,8 @@ import { StyledSubheader } from './styles';
 // ----------------------------------------------------------------------
 
 type GroupProps = {
-	subheader: string;
-	items: NavListProps[];
+	subheader: ReactNode;
+	items?: NavListProps[];
 	config: NavConfigProps;
 };
 
@@ -28,7 +30,7 @@ const Group = ({ subheader, items, config }: GroupProps) => {
 		});
 	}, []);
 
-	const renderContent = items.map((list) => {
+	const renderContent = _.map(items, (list) => {
 		return <NavList key={list.title + list.path} data={list} depth={1} hasChild={!!list.children} config={config} />;
 	});
 
@@ -54,14 +56,9 @@ const Group = ({ subheader, items, config }: GroupProps) => {
 const NavSectionVertical = ({ data, config, sx, ...other }: NavSectionProps) => {
 	return (
 		<Stack sx={sx} {...other}>
-			{data.map((group, index) => {
+			{data.map((group) => {
 				return (
-					<Group
-						key={group.subheader || index}
-						subheader={group.subheader}
-						items={group.items}
-						config={navVerticalConfig(config)}
-					/>
+					<Group key={nanoid()} subheader={group.subheader} items={group.items} config={navVerticalConfig(config)} />
 				);
 			})}
 		</Stack>

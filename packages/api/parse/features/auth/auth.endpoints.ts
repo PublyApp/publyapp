@@ -2,7 +2,7 @@ import _ from 'lodash';
 
 import type { IUser } from '@devist/shared/types/db/user.types';
 
-import type { GetIsDisabledSignupFunction, GetUserAuthDataFunction } from '@/server/modules/auth/auth.functions';
+import type { GetIsDisabledSignupFunction, GetUserAuthDataFunction } from '@/server/modules/common/auth/auth.functions';
 import { defaultHttp, getProtectionHeaders } from '@/shared/lib/axios';
 import { endPoint, functionName, LOCALE_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
