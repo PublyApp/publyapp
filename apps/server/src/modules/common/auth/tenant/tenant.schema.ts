@@ -28,7 +28,7 @@ const TenantSchema = SchemaManager.defineSchema<ITenantWithParseRelations>(class
 			[`role:${roleEnum.STAFF_EDITOR.name}`]: true,
 		},
 		delete: {
-			[`role:${roleEnum.STAFF_ADMIN.name}`]: true,
+			// [`role:${roleEnum.STAFF_ADMIN.name}`]: true, // ! in fact we don't want to delete anything only do soft delete
 		},
 	},
 });

@@ -1,5 +1,14 @@
+import PageContainer from '@/office/components/PageContainer';
+
+import CreateTenantHeader from './parts/CreateTenantHeader';
+
 const CreateTenantPage = () => {
-	return <div>CreateTenantPage</div>;
+	return (
+		<PageContainer>
+			<CreateTenantHeader />
+			{/*  */}
+		</PageContainer>
+	);
 };
 
 export default CreateTenantPage;
