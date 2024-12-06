@@ -187,6 +187,7 @@ export const BO_PATH_NAMES = {
 		},
 		tenants: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
+			create: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
 		},
 		posts: {
 			root: makePath(ROOTS.STAFF, RESOURCE.posts),
