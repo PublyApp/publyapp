@@ -63,8 +63,8 @@ export const useNavData = ({ part }: { part: 'staff' | 'tenant' }) => {
 				subheader: `${part} modules`,
 				items: [
 					// { title: 'dashboard', path: BO_PATH_NAMES.staff.root, icon: ICONS.dashboard },
-					{ title: `${t('user')}s`, path: BO_PATH_NAMES.staff.users.root, icon: ICONS.user },
 					{ title: 'tenants', path: BO_PATH_NAMES.staff.tenants.root, icon: ICONS.dashboard },
+					{ title: `${t('user')}s`, path: BO_PATH_NAMES.staff.users.root, icon: ICONS.user },
 					// { title: 'file manager', path: BO_PATH_NAMES.dashboard.fileManager.root, icon: ICONS.dashboard },
 					// { title: 'two', path: paths.dashboard.two, icon: ICONS.ecommerce },
 					// {

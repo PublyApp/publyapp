@@ -42,6 +42,10 @@ const TenantsListPage = lazy(() => {
 	return import('@/office/modules/staff/tenant-manager/tenants-list/TenantsListPage');
 });
 
+const CreateTenantPage = lazy(() => {
+	return import('@/office/modules/staff/tenant-manager/create-tenant/CreateTenantPage');
+});
+
 const AuthedRoutesRootError = () => {
 	const error = useRouteError();
 
@@ -106,7 +110,16 @@ export const authedRoutes: RouteObject[] = [
 					},
 					{
 						path: getLastPath(BO_PATH_NAMES.staff.tenants.root),
-						element: <TenantsListPage />,
+						children: [
+							{
+								index: true,
+								element: <TenantsListPage />,
+							},
+							{
+								path: getLastPath(BO_PATH_NAMES.staff.tenants.create),
+								element: <CreateTenantPage />,
+							},
+						],
 					},
 					{
 						path: getLastPath(BO_PATH_NAMES.staff.posts.root),

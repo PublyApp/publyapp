@@ -38,29 +38,21 @@ const patchParseServerAuthLib = async () => {
 	});
 };
 
-// function master(config) {
+const patchParseServerBlockListForBunRuntime = async () => {
+	const filePath1 = path.resolve(__dirname, '../node_modules/parse-server/lib/middlewares.js');
+	const filePath2 = path.resolve(__dirname, '../../../node_modules/parse-server/lib/middlewares.js');
 
-// const patchParseServerMongoSchemaCollection = async () => {
-// 	const filePath1 = path.resolve(
-// 		__dirname,
-// 		'../node_modules/parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js',
-// 	);
-// 	const filePath2 = path.resolve(
-// 		__dirname,
-// 		'../../../node_modules/parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js',
-// 	);
+	const exists1 = fs.existsSync(filePath1);
 
-// 	const exists1 = fs.existsSync(filePath1);
-
-// 	// const results =
-// 	replace({
-// 		disableGlobs: true,
-// 		files: (await exists1) ? filePath1 : filePath2,
-// 		from: /import Parse from 'parse\/node';/g,
-// 		to: "import Parse from 'parse/node.js'",
-// 	});
-// };
+	// const results =
+	replace({
+		disableGlobs: true,
+		files: (await exists1) ? filePath1 : filePath2,
+		from: /blockList.addAddress\(/g,
+		to: 'blockList.addAddress?.(',
+	});
+};
 
 patchParseServerSelectNestedObjectKeys();
 patchParseServerAuthLib();
-// patchParseServerMongoSchemaCollection();
+patchParseServerBlockListForBunRuntime();
