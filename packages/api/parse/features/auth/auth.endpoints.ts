@@ -34,7 +34,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 		});
 
 		return defaultHttp.post<IUser & { sessionToken: string }>(
-			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).auth.passwordLogin,
+			this.parseRestClient.serverUrl + endPoint.api.auth.passwordLogin,
 			{ email: input.email, username: input.username, password },
 			{ headers },
 		);
@@ -55,7 +55,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 		});
 
 		return defaultHttp.post<IUser & { sessionToken?: string }>(
-			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).auth.passwordSignup,
+			this.parseRestClient.serverUrl + endPoint.api.auth.passwordSignup,
 			{ email, username, password, lastName, firstName },
 			{ headers },
 		);

@@ -41,7 +41,7 @@ export default class AppFileEndPoints extends BaseEndPoints {
 		}
 
 		return this.parseRestClient.http.post<AppFile>(
-			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).upload.single,
+			this.parseRestClient.serverUrl + endPoint.api.upload.single,
 			formData,
 			{
 				headers: getProtectionHeaders({
@@ -60,7 +60,7 @@ export default class AppFileEndPoints extends BaseEndPoints {
 		});
 
 		return this.parseRestClient.http.post<AppFile[]>(
-			this.parseRestClient.serverUrl + endPoint.api(this.apiPath).upload.many,
+			this.parseRestClient.serverUrl + endPoint.api.upload.many,
 			formData,
 			{ headers: getProtectionHeaders({ hasFile: true, restApiKey: options.restApiKey }) },
 		);
