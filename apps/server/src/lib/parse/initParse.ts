@@ -1,9 +1,10 @@
 import Parse from 'parse/node.js';
 
+import { PARSE_SERVER_URL } from '../constants';
 import { env } from '../env';
 
 Parse.initialize(env.PARSE_APP_ID, undefined, env.PARSE_MASTER_KEY);
 Parse.masterKey = env.PARSE_MASTER_KEY;
-Parse.serverURL = env.PARSE_SERVER_URL;
+Parse.serverURL = PARSE_SERVER_URL.toString();
 
 global.Parse = Parse;

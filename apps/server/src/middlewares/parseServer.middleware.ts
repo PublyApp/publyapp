@@ -3,7 +3,7 @@ import _ from 'lodash';
 
 import { makePath, PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
-import { USE_MASTER_KEY } from '../lib/constants';
+import { PARSE_SERVER_URL, USE_MASTER_KEY } from '../lib/constants';
 import { env } from '../lib/env';
 import { expressHandler } from '../lib/express';
 // import logger from '../lib/logger';
@@ -20,7 +20,7 @@ const disableRestApiForClients = async (req: express.Request, _res: express.Resp
 
 	const authorizedPaths: string[] = [..._authorizedPaths];
 	_authorizedPaths.forEach((path) => {
-		authorizedPaths.push(makePath(env.PARSE_PATH + path));
+		authorizedPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
 	});
 
 	const isAuthorizedPath = authorizedPaths.some((path) => {
@@ -47,7 +47,7 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 
 	const sessionPaths: string[] = [..._sessionPaths];
 	_sessionPaths.forEach((path) => {
-		sessionPaths.push(makePath(env.PARSE_PATH + path));
+		sessionPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
 	});
 
 	const isSessionPath = sessionPaths.some((path) => {

@@ -11,7 +11,7 @@ import express from 'express';
 import subdomain from 'express-subdomain';
 import ParseDashboard from 'parse-dashboard';
 
-import { LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
+import { endPoint, LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/winston';
 
 import { cloud } from './cloud';
@@ -22,7 +22,7 @@ import {
 	updateSchemasOnInit,
 } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
-import { corsWhiteList, FILE_UPLOAD_DESTINATION } from './lib/constants';
+import { corsWhiteList, FILE_UPLOAD_DESTINATION, PARSE_SERVER_URL } from './lib/constants';
 import { env } from './lib/env';
 import { expressHandler } from './lib/express';
 import { initI18next } from './lib/i18n';
@@ -34,7 +34,7 @@ import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
 // import UserManagementServiceForStaff from './modules/staff/user-management/UserManagementServiceForStaff';
-import customApiRouter from './router/api.router';
+import coreApiRouter from './router/coreApi.router';
 import shortURLRouter from './router/shortURL.router';
 import duration from './utils/duration';
 
@@ -88,8 +88,8 @@ const bootstrap = async () => {
 		masterKey: env.PARSE_MASTER_KEY,
 		cloud,
 		databaseURI: env.DATABASE_URI,
-		serverURL: env.PARSE_SERVER_URL,
-		publicServerURL: env.PARSE_SERVER_URL,
+		serverURL: PARSE_SERVER_URL.toString(),
+		publicServerURL: PARSE_SERVER_URL.toString(),
 		// === ADAPTERS ================================
 		filesAdapter,
 		loggerAdapter,
@@ -121,7 +121,7 @@ const bootstrap = async () => {
 	const startParsePromise = parseServer.start();
 
 	// set custom ennPoints routes
-	app.use(customApiRouter);
+	app.use(coreApiRouter);
 
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                           //
@@ -133,7 +133,7 @@ const bootstrap = async () => {
 			{
 				apps: [
 					{
-						serverURL: env.PARSE_SERVER_URL, // ! localhost only
+						serverURL: PARSE_SERVER_URL, // ! localhost only
 						appId: env.PARSE_APP_ID,
 						masterKey: env.PARSE_MASTER_KEY,
 						appName: 'Devist Express Dash Local',
@@ -144,11 +144,9 @@ const bootstrap = async () => {
 				port: env.PORT,
 			},
 		);
-
 		app.use(PARSE_DASHBOARD_MOUNT_PATH, dashboard);
-
 		app.all(
-			path.posix.join(env.API_PATH, 'test'),
+			path.posix.join(endPoint.api.root, 'test'),
 			expressHandler(async (_req, res) => {
 				logger.info('test route hit', { lol: 'test', password: 'azerty' });
 				return res.status(200).json({ ok: 'ok' });
@@ -158,7 +156,7 @@ const bootstrap = async () => {
 
 	// wait for the parse server setup to finish, the mount the parse app to the express app
 	await startParsePromise;
-	app.use(env.PARSE_PATH, parseServerMiddleware, parseServer.app);
+	app.use(PARSE_SERVER_URL.pathname, parseServerMiddleware, parseServer.app);
 
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                   //
