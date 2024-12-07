@@ -17,12 +17,12 @@ const envSchema = z.object({
 	DATABASE_URI: z.string(),
 	REST_API_KEY: z.string(),
 	EXPRESS_FILES_MOUNT_PATH: z.string(),
-	API_PATH: z.string(),
+	// API_PATH: z.string(),
 	// ===
 	PARSE_APP_NAME: z.string(),
 	PARSE_APP_ID: z.string(),
-	PARSE_PATH: z.string(),
-	PARSE_SERVER_URL: z.string(),
+	// PARSE_PATH: z.string(),
+	// PARSE_SERVER_URL: z.string(),
 	PARSE_MASTER_KEY: z.string(),
 	// ===
 	CLOUDINARY_NAME: z.string(),
