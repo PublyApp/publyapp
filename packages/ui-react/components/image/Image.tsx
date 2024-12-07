@@ -37,7 +37,7 @@ const Image = forwardRef<unknown | undefined, ImageProps>(
 	({ ratio, /* disabledEffect = false, effect = 'blur', */ sx, ...other }, ref) => {
 		const content = (
 			<Box
-				component={LazyLoadImage as never}
+				component={LazyLoadImage}
 				// wrapperClassName="wrapper"
 				containerClassName="wrapper"
 				// effect={disabledEffect ? undefined : effect}

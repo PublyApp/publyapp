@@ -257,7 +257,7 @@ const PARSE_ROOT = 'parse';
 
 export const endPoint = {
 	api: {
-		root: API_ROOT,
+		root: makePath(API_ROOT),
 		auth: {
 			// root: makePath(apiPath, ROOTS.AUTH),
 			passwordLogin: makePath(API_ROOT, ROOTS.AUTH, 'password-login'),

@@ -31,8 +31,8 @@ export type UpdateBlogPostFunctionParams = Partial<Omit<CreateBlogPostFunctionPa
 };
 
 export default class BlogPostEndPoints extends BaseEndPoints {
-	constructor({ parseRestClient, apiPath }: BaseEndPointsProps) {
-		super({ parseRestClient, apiPath });
+	constructor({ parseRestClient }: BaseEndPointsProps) {
+		super({ parseRestClient });
 
 		this.findBlogPostBoTable = this.findBlogPostBoTable.bind(this);
 		this.findBlogPostFrontList = this.findBlogPostFrontList.bind(this);

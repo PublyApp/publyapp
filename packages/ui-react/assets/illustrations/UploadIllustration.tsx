@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type SVGProps } from 'react';
 
 import { Box, useTheme, type BoxProps } from '@mui/material';
 
@@ -7,7 +7,7 @@ import BackgroundShape from './BackgroundShape';
 
 // ----------------------------------------------------------------------
 
-const UploadIllustration = ({ ...other }: BoxProps) => {
+const UploadIllustration = ({ ...other }: BoxProps & SVGProps<Element>) => {
 	const theme = useTheme();
 
 	const PRIMARY_MAIN = theme.palette.primary.main;
