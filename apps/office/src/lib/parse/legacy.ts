@@ -3,6 +3,7 @@ import Parse from 'parse';
 import { LOCALE_HEADER_KEY } from '@/shared/lib/constants';
 import { getInitialLocale } from '@/ui-react/lib/i18n';
 
+import { PARSE_SERVER_URL } from '../constants';
 import { env } from '../env';
 
 export const initParse = () => {
@@ -10,7 +11,7 @@ export const initParse = () => {
 
 	if (!hasInitializedParse) {
 		Parse.initialize(env.PARSE_APP_ID);
-		Parse.serverURL = env.PARSE_SERVER_URL;
+		Parse.serverURL = PARSE_SERVER_URL.toString();
 
 		const locale = getInitialLocale();
 

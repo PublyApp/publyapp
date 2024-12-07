@@ -1,5 +1,6 @@
 // ----------------------------------------------------------------------
 
+import { endPoint } from '@/shared/lib/constants';
 import { getParseCurrentUserLocalStorageKey } from '@/ui-react/lib/constants';
 
 import { env } from './env';
@@ -16,3 +17,6 @@ export const NAV = {
 };
 
 export const PARSE_CURRENT_USER_LOCAL_STORAGE_KEY = getParseCurrentUserLocalStorageKey(env.PARSE_APP_ID);
+
+export const PARSE_SERVER_URL = new URL(env.SERVER_URL);
+PARSE_SERVER_URL.pathname = endPoint.api.parse.root;

@@ -12,9 +12,9 @@ import { useTheme } from '@mui/material/styles';
 import match from 'autosuggest-highlight/match';
 import parse from 'autosuggest-highlight/parse';
 
-import { flattenArray } from '@devist/shared/utils/array.utils';
+// import { flattenArray } from '@devist/shared/utils/array.utils';
 
-import type { NavListProps, NavSectionProps } from '@/office/components/nav-section/types';
+import type { NavListProps /* , NavSectionProps */ } from '@/office/components/nav-section/types';
 import { ResultItem } from '@/office/components/ResultItem';
 import SearchNotFound from '@/office/components/SearchNotFound';
 import Iconify from '@/ui-react/components/Iconify';
@@ -39,7 +39,7 @@ const SearchBar = () => {
 	const [searchQuery, setSearchQuery] = useState('');
 
 	// const navData = useNavData();
-	const navData: any[] = [];
+	// const navData: any[] = [];
 
 	const handleClose = useCallback(() => {
 		search.setFalse();
@@ -73,7 +73,8 @@ const SearchBar = () => {
 	}, []);
 
 	const dataFiltered = applyFilter({
-		inputData: getAllItems({ data: navData }),
+		// inputData: getAllItems({ data: navData }),
+		inputData: [],
 		query: searchQuery,
 	});
 
@@ -185,25 +186,25 @@ type ItemProps = {
 	path: string;
 };
 
-export const getAllItems = ({ data }: NavSectionProps) => {
-	const reduceItems = data
-		.map((list) => {
-			return handleLoop(list.items, list.subheader);
-		})
-		.flat();
+// export const getAllItems = ({ data }: NavSectionProps) => {
+// 	const reduceItems = data
+// 		.map((list) => {
+// 			return handleLoop(list.items, list.subheader);
+// 		})
+// 		.flat();
 
-	const items = flattenArray(reduceItems).map((option) => {
-		const group = splitPath(reduceItems, option.path);
+// 	const items = flattenArray(reduceItems).map((option) => {
+// 		const group = splitPath(reduceItems, option.path);
 
-		return {
-			group: group && group.length > 1 ? group[0] : option.subheader,
-			title: option.title,
-			path: option.path,
-		};
-	});
+// 		return {
+// 			group: group && group.length > 1 ? group[0] : option.subheader,
+// 			title: option.title,
+// 			path: option.path,
+// 		};
+// 	});
 
-	return items;
-};
+// 	return items;
+// };
 
 // ----------------------------------------------------------------------
 

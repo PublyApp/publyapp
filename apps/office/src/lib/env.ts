@@ -25,11 +25,11 @@ type AppEnv = z.infer<typeof envSchema>;
 const dotEnv = {
 	SERVER_URL: process.env.SERVER_URL,
 	REST_API_KEY: process.env.REST_API_KEY,
-	// API_PATH: process.env.API_PATH,
+	// ! API_PATH: process.env.API_PATH,
 
 	PARSE_APP_ID: process.env.PARSE_APP_ID,
-	// PARSE_SERVER_URL: process.env.PARSE_SERVER_URL,
-	// PARSE_PATH: process.env.PARSE_PATH,
+	// ! PARSE_SERVER_URL: process.env.PARSE_SERVER_URL,
+	// ! PARSE_PATH: process.env.PARSE_PATH,
 
 	OFFICE_ROUTER_BASENAME: process.env.OFFICE_ROUTER_BASENAME,
 

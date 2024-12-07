@@ -5,10 +5,11 @@ import { LOCALE_HEADER_KEY, SESSION_TOKEN_LOCAL_STORAGE_KEY } from '@/shared/lib
 import { getInitialLocale } from '@/ui-react/lib/i18n';
 import { localStorageGetItem } from '@/ui-react/utils/storage.utils';
 
+import { PARSE_SERVER_URL } from '../constants';
 import { env } from '../env';
 
 const parseRestClient = new ParseRestClient({
-	parseServerUrl: env.PARSE_SERVER_URL,
+	parseServerUrl: PARSE_SERVER_URL.toString(),
 	applicationId: env.PARSE_APP_ID,
 });
 
@@ -23,5 +24,5 @@ export const initParse = () => {
 	parseRestClient.setSessionToken(storedSessionToken);
 
 	parseApi.setRestClient(parseRestClient);
-	parseApi.apiPath = env.API_PATH;
+	// parseApi.apiPath = endPoint.api.root;
 };
