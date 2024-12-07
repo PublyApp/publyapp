@@ -18,6 +18,7 @@
 		"start:preprod": "cross-env MODE=preprod pnpm start:common",
 		"start:common": "node --enable-source-maps dist/index.mjs",
 		"// =============== DEV COMMANDs =================": "================================",
+		"// === DEBUG=express:router:route ===": "====================",
 		"dev": "pnpm dev:local",
 		"dev:local": "cross-env MODE=local pnpm dev:common",
 		"dev:prod": "cross-env MODE=production pnpm dev:common",

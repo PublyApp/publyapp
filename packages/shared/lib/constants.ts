@@ -252,31 +252,50 @@ export const jobName = {
 	},
 } as const;
 
+const API_ROOT = 'api';
+const PARSE_ROOT = 'parse';
+
 export const endPoint = {
-	facebookMessengerBotWebHook: '/facebook-messenger-bot-webhook',
-	// =======
-	parse: (parsePath: string) => {
-		return {
-			root: parsePath,
-			functions: makePath(parsePath, 'functions'),
-		} as const;
+	api: {
+		root: API_ROOT,
+		auth: {
+			// root: makePath(apiPath, ROOTS.AUTH),
+			passwordLogin: makePath(API_ROOT, ROOTS.AUTH, 'password-login'),
+			passwordSignup: makePath(API_ROOT, ROOTS.AUTH, 'password-signup'),
+			verifyEmail: makePath(API_ROOT, ROOTS.AUTH, 'verify-email'),
+		},
+		upload: {
+			single: makePath(API_ROOT, ROOTS.UPLOAD, 'single'),
+			many: makePath(API_ROOT, ROOTS.UPLOAD, 'many'),
+		},
+		parse: {
+			root: makePath(API_ROOT, PARSE_ROOT),
+			functions: makePath(API_ROOT, PARSE_ROOT, 'functions'),
+		},
 	},
 	// =======
-	api: (apiPath: string) => {
-		return {
-			root: apiPath,
-			auth: {
-				// root: makePath(apiPath, ROOTS.AUTH),
-				passwordLogin: makePath(apiPath, ROOTS.AUTH, 'password-login'),
-				passwordSignup: makePath(apiPath, ROOTS.AUTH, 'password-signup'),
-				verifyEmail: makePath(apiPath, ROOTS.AUTH, 'verify-email'),
-			},
-			upload: {
-				single: makePath(apiPath, ROOTS.UPLOAD, 'single'),
-				many: makePath(apiPath, ROOTS.UPLOAD, 'many'),
-			},
-		} as const;
-	},
+	// parse: (parsePath: string) => {
+	// 	return {
+	// 		root: parsePath,
+	// 		functions: makePath(parsePath, 'functions'),
+	// 	} as const;
+	// },
+	// =======
+	// api: (apiPath: string) => {
+	// 	return {
+	// 		root: apiPath,
+	// 		auth: {
+	// 			// root: makePath(apiPath, ROOTS.AUTH),
+	// 			passwordLogin: makePath(apiPath, ROOTS.AUTH, 'password-login'),
+	// 			passwordSignup: makePath(apiPath, ROOTS.AUTH, 'password-signup'),
+	// 			verifyEmail: makePath(apiPath, ROOTS.AUTH, 'verify-email'),
+	// 		},
+	// 		upload: {
+	// 			single: makePath(apiPath, ROOTS.UPLOAD, 'single'),
+	// 			many: makePath(apiPath, ROOTS.UPLOAD, 'many'),
+	// 		},
+	// 	} as const;
+	// },
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 25;

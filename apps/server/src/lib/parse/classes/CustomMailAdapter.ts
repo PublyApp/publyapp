@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable class-methods-use-this */
+import { endPoint } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/winston';
 
-import { apiEndPoint } from '../../constants';
 import type MailAdapter from '../interfaces/MailAdapter';
 
 type Props = {
@@ -34,7 +34,7 @@ export default class CustomMailAdapter implements MailAdapter {
 
 	getCustomVerificationLink({ token, username }: { token: string; username: string }) {
 		const url = new URL(this.serverUrl);
-		url.pathname = apiEndPoint.auth.verifyEmail;
+		url.pathname = endPoint.api.auth.verifyEmail;
 		url.searchParams.set('token', token);
 		url.searchParams.set('username', username);
 
