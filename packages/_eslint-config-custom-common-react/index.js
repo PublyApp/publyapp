@@ -1,14 +1,7 @@
 module.exports = {
 	env: { browser: true, es2020: true },
-	extends: [
-		// 'airbnb',
-		// 'airbnb/hooks',
-		// 'airbnb-typescript',
-		'plugin:react/jsx-runtime',
-		// 'custom-base',
-	],
+	extends: ['plugin:react/jsx-runtime'],
 	parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
-	// plugins: ['react-refresh'],
 	rules: {
 		// overrides for react
 		'react/function-component-definition': [
