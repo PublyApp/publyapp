@@ -6,7 +6,6 @@ const CreateTenantPage = () => {
 	return (
 		<PageContainer>
 			<CreateTenantHeader />
-			{/*  */}
 		</PageContainer>
 	);
 };
