@@ -6,7 +6,7 @@
  * Allows you to change the logger mechanism
  * Default is WinstonLoggerAdapter.js
  */
-interface LoggerAdapter {
+export interface LoggerAdapter {
 	/**
 	 * log
 	 * @param {string} level
@@ -17,4 +17,4 @@ interface LoggerAdapter {
 	log(level: string, message: string, ...meta: any[]): any;
 }
 
-export default LoggerAdapter;
+// export default LoggerAdapter;

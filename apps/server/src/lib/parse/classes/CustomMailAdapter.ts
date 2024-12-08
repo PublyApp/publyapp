@@ -3,7 +3,7 @@
 import { endPoint } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/winston';
 
-import type MailAdapter from '../interfaces/MailAdapter';
+import { type MailAdapter } from '../interfaces/MailAdapter';
 
 type Props = {
 	serverUrl: string;

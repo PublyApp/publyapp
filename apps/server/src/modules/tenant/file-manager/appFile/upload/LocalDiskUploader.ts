@@ -5,8 +5,7 @@ import sharp from 'sharp';
 import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
 import { fileProvider } from '@/shared/lib/constants';
 
-import type Uploader from './Uploader.interface';
-import type { UploadInput } from './Uploader.interface';
+import { type Uploader, type UploadInput } from './Uploader.interface';
 
 export default class LocalDiskUploader implements Uploader {
 	provider = fileProvider.LOCAL_DISK;

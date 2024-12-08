@@ -1,14 +1,21 @@
 {
   "name": "front",
+	"version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
+		"dev": "react-router dev",
     "build": "react-router build",
-    "dev": "react-router dev",
+		"build:dev": "react-router build --mode development",
+		"build:local": "pnpm build:dev",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc"
+    "type-check": "react-router typegen && tsc"
   },
   "dependencies": {
+		"@devist/api": "workspace:*",
+		"@devist/parse-rest-client": "workspace:*",
+		"@devist/shared": "workspace:*",
+		"@devist/ui-react": "workspace:*",
     "@react-router/node": "^7.0.2",
     "@react-router/serve": "^7.0.2",
     "isbot": "^5.1.17",
@@ -21,6 +28,7 @@
     "@types/node": "^20",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+		"eslint-config-custom-react": "workspace:*",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
     "vite-tsconfig-paths": "^5.1.2"

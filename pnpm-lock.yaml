@@ -50,6 +50,18 @@ importers:
 
   apps/front:
     dependencies:
+      '@devist/api':
+        specifier: workspace:*
+        version: link:../../packages/api
+      '@devist/parse-rest-client':
+        specifier: workspace:*
+        version: link:../../packages/parse-rest-client
+      '@devist/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@devist/ui-react':
+        specifier: workspace:*
+        version: link:../../packages/ui-react
       '@react-router/node':
         specifier: ^7.0.2
         version: 7.0.2(react-router@7.0.2)(typescript@5.7.2)
@@ -81,6 +93,9 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.1
         version: 18.3.2
+      eslint-config-custom-react:
+        specifier: workspace:*
+        version: link:../../packages/_eslint-config-custom-react
       typescript:
         specifier: ^5.6.3
         version: 5.7.2
@@ -113,7 +128,7 @@ importers:
         version: 1.7.3
       bentocache:
         specifier: 1.0.0-beta.9
-        version: 1.0.0-beta.9(tslib@2.6.3)
+        version: 1.0.0-beta.9(tslib@2.8.1)
       body-parser:
         specifier: ^1.20.2
         version: 1.20.2
@@ -555,7 +570,7 @@ importers:
         version: 4.1.1(react@18.3.1)
       '@mdxeditor/editor':
         specifier: ^3.0.8
-        version: 3.20.0(@codemirror/language@6.0.0)(@lezer/common@1.2.1)(@lezer/highlight@1.2.0)(@types/react-dom@18.3.2)(@types/react@18.3.14)(react-dom@18.3.1)(react@18.3.1)(yjs@13.6.20)
+        version: 3.20.0(@codemirror/language@6.10.6)(@lezer/common@1.2.1)(@lezer/highlight@1.2.0)(@types/react-dom@18.3.2)(@types/react@18.3.14)(react-dom@18.3.1)(react@18.3.1)(yjs@13.6.20)
       '@tanstack/react-query':
         specifier: ^5.45.1
         version: 5.62.3(react@18.3.1)
@@ -631,9 +646,6 @@ importers:
       react-lazy-load-image-component:
         specifier: ^1.6.0
         version: 1.6.2(react@18.3.1)
-      react-router-dom:
-        specifier: ^6.28.0
-        version: 6.28.0(react-dom@18.3.1)(react@18.3.1)
       react-toastify:
         specifier: ^10.0.2
         version: 10.0.6(react-dom@18.3.1)(react@18.3.1)
@@ -1794,7 +1806,7 @@ packages:
     requiresBuild: true
     dependencies:
       '@emnapi/wasi-threads': 1.0.1
-      tslib: 2.6.3
+      tslib: 2.8.1
     dev: false
     optional: true
 
@@ -1802,7 +1814,7 @@ packages:
     resolution: {integrity: sha512-bV21/9LQmcQeCPEg3BDFtvwL6cwiTMksYNWQQ4KOxCZikEGalWtenoZ0wCiukJINlGCIi2KXx01g4FoH/LxpzQ==}
     requiresBuild: true
     dependencies:
-      tslib: 2.6.3
+      tslib: 2.8.1
     dev: false
     optional: true
 
@@ -1810,7 +1822,7 @@ packages:
     resolution: {integrity: sha512-iIBu7mwkq4UQGeMEM8bLwNK962nXdhodeScX4slfQnRhEMMzvYivHhutCIk8uojvmASXXPC2WNEjwxFWk72Oqw==}
     requiresBuild: true
     dependencies:
-      tslib: 2.6.3
+      tslib: 2.8.1
     dev: false
     optional: true
 
@@ -2278,7 +2290,7 @@ packages:
     resolution: {integrity: sha512-LcNvxGLLGjBwB0dJUsBGCej2fqAepWyBubs4jt1Tiuns7QLbXHuyObZ4aMeBjZjWx4m8g1LoVI9QFpSaq/k4/g==}
     dependencies:
       '@firebase/util': 1.9.7
-      tslib: 2.6.3
+      tslib: 2.8.1
     dev: false
 
   /@firebase/database-compat@1.0.7:
@@ -2289,7 +2301,7 @@ packages:
       '@firebase/database-types': 1.0.4
       '@firebase/logger': 0.4.2
       '@firebase/util': 1.9.7
-      tslib: 2.6.3
+      tslib: 2.8.1
     dev: false
 
   /@firebase/database-types@1.0.4:
@@ -2308,19 +2320,19 @@ packages:
       '@firebase/logger': 0.4.2
       '@firebase/util': 1.9.7
       faye-websocket: 0.11.4
-      tslib: 2.6.3
+      tslib: 2.8.1
     dev: false
 
   /@firebase/logger@0.4.2:
     resolution: {integrity: sha512-Q1VuA5M1Gjqrwom6I6NUU4lQXdo9IAQieXlujeHZWvRt1b7qQ0KwBaNAjgxG27jgF9/mUwsNmO8ptBCGVYhB0A==}
     dependencies:
-      tslib: 2.6.3
+      tslib: 2.8.1
     dev: false
 
   /@firebase/util@1.9.7:
     resolution: {integrity: sha512-fBVNH/8bRbYjqlbIhZ+lBtdAAS4WqZumx03K06/u7fJSpz1TGjEMm1ImvKD47w+xaFKIP2ori6z8BrbakRfjJA==}
     dependencies:
-      tslib: 2.6.3
+      tslib: 2.8.1
     dev: false
 
   /@floating-ui/core@1.6.8:
@@ -3270,7 +3282,7 @@ packages:
     engines: {node: '>=8'}
     dev: false
 
-  /@mdxeditor/editor@3.20.0(@codemirror/language@6.0.0)(@lezer/common@1.2.1)(@lezer/highlight@1.2.0)(@types/react-dom@18.3.2)(@types/react@18.3.14)(react-dom@18.3.1)(react@18.3.1)(yjs@13.6.20):
+  /@mdxeditor/editor@3.20.0(@codemirror/language@6.10.6)(@lezer/common@1.2.1)(@lezer/highlight@1.2.0)(@types/react-dom@18.3.2)(@types/react@18.3.14)(react-dom@18.3.1)(react@18.3.1)(yjs@13.6.20):
     resolution: {integrity: sha512-vt/2jrse+xjT2Lnx/KT9jbCEg+93GBzDSQNSdBYcyJztz34dOYZjQmT5NDH7tdcMOSL007PvLCKXbO7YQ96R6g==}
     engines: {node: '>=16'}
     peerDependencies:
@@ -3302,7 +3314,7 @@ packages:
       '@radix-ui/react-toolbar': 1.1.0(@types/react-dom@18.3.2)(@types/react@18.3.14)(react-dom@18.3.1)(react@18.3.1)
       '@radix-ui/react-tooltip': 1.1.4(@types/react-dom@18.3.2)(@types/react@18.3.14)(react-dom@18.3.1)(react@18.3.1)
       classnames: 2.5.1
-      cm6-theme-basic-light: 0.2.0(@codemirror/language@6.0.0)(@codemirror/state@6.4.1)(@codemirror/view@6.31.0)(@lezer/highlight@1.2.0)
+      cm6-theme-basic-light: 0.2.0(@codemirror/language@6.10.6)(@codemirror/state@6.4.1)(@codemirror/view@6.31.0)(@lezer/highlight@1.2.0)
       codemirror: 6.0.1(@lezer/common@1.2.1)
       downshift: 7.6.2(react@18.3.1)
       js-yaml: 4.1.0
@@ -4969,11 +4981,6 @@ packages:
     engines: {node: '>=14.0.0'}
     dev: false
 
-  /@remix-run/router@1.21.0:
-    resolution: {integrity: sha512-xfSkCAchbdG5PnbrKqFWwia4Bi61nH+wm8wLEqfHDyp7Y3dZzgqS2itV8i4gAq9pC2HsTpwyBC6Ds8VHZ96JlA==}
-    engines: {node: '>=14.0.0'}
-    dev: false
-
   /@remix-run/server-runtime@2.11.1(typescript@5.5.4):
     resolution: {integrity: sha512-j3AlrZul0javvPR6ZWdN32/l12t1E90sLeZI/k+4HpT0ifjqJVg8uG6alRJ0LLN9ae5BERYEslUebUqdfejSkQ==}
     engines: {node: '>=18.0.0'}
@@ -5396,7 +5403,7 @@ packages:
     resolution: {integrity: sha512-6+7nlbMVX/PVDCwaIQ8nTOPveOcFLSt8GcXdx8hD0bt39uWxYT88uXzqTd4fTvqta7oeUJqudepapKNt2DYJFw==}
     requiresBuild: true
     dependencies:
-      tslib: 2.6.3
+      tslib: 2.8.1
     dev: false
     optional: true
 
@@ -6607,7 +6614,7 @@ packages:
     resolution: {integrity: sha512-V/Hy/X9Vt7f3BbPJEi8BdVFMByHi+jNXrYkW3huaybV/kQ0KJg0Y6PkEMbn+zeT+i+SiKZ/HMqJGIIt4LZDqNQ==}
     dev: false
 
-  /bentocache@1.0.0-beta.9(tslib@2.6.3):
+  /bentocache@1.0.0-beta.9(tslib@2.8.1):
     resolution: {integrity: sha512-KykJ/8q20DO9FHQ7Yhqv8RlgI/jo7kgoE0EJ65w30sziNdaDSsy8gVRCOTf06m+TcoVdBu2luKH9V4xaavBAbA==}
     peerDependencies:
       '@aws-sdk/client-dynamodb': ^3.438.0
@@ -6634,7 +6641,7 @@ packages:
       hexoid: 1.0.0
       lru-cache: 10.4.3
       p-timeout: 6.1.3
-      typescript-log: 2.0.0(tslib@2.6.3)
+      typescript-log: 2.0.0(tslib@2.8.1)
     transitivePeerDependencies:
       - tslib
     dev: false
@@ -7088,7 +7095,7 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: false
 
-  /cm6-theme-basic-light@0.2.0(@codemirror/language@6.0.0)(@codemirror/state@6.4.1)(@codemirror/view@6.31.0)(@lezer/highlight@1.2.0):
+  /cm6-theme-basic-light@0.2.0(@codemirror/language@6.10.6)(@codemirror/state@6.4.1)(@codemirror/view@6.31.0)(@lezer/highlight@1.2.0):
     resolution: {integrity: sha512-1prg2gv44sYfpHscP26uLT/ePrh0mlmVwMSoSd3zYKQ92Ab3jPRLzyCnpyOCQLJbK+YdNs4HvMRqMNYdy4pMhA==}
     peerDependencies:
       '@codemirror/language': ^6.0.0
@@ -7096,7 +7103,7 @@ packages:
       '@codemirror/view': ^6.0.0
       '@lezer/highlight': ^1.0.0
     dependencies:
-      '@codemirror/language': 6.0.0
+      '@codemirror/language': 6.10.6
       '@codemirror/state': 6.4.1
       '@codemirror/view': 6.31.0
       '@lezer/highlight': 1.2.0
@@ -13530,19 +13537,6 @@ packages:
       use-sidecar: 1.1.2(@types/react@18.3.14)(react@18.3.1)
     dev: false
 
-  /react-router-dom@6.28.0(react-dom@18.3.1)(react@18.3.1):
-    resolution: {integrity: sha512-kQ7Unsl5YdyOltsPGl31zOjLrDv+m2VcIEcIHqYYD3Lp0UppLjrzcfJqDJwXxFw3TH/yvapbnUvPlAj7Kx5nbg==}
-    engines: {node: '>=14.0.0'}
-    peerDependencies:
-      react: '>=16.8'
-      react-dom: '>=16.8'
-    dependencies:
-      '@remix-run/router': 1.21.0
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
-      react-router: 6.28.0(react@18.3.1)
-    dev: false
-
   /react-router-dom@6.4.1(react-dom@16.14.0)(react@16.14.0):
     resolution: {integrity: sha512-MY7NJCrGNVJtGp8ODMOBHu20UaIkmwD2V3YsAOUQoCXFk7Ppdwf55RdcGyrSj+ycSL9Uiwrb3gTLYSnzcRoXww==}
     engines: {node: '>=14'}
@@ -13554,16 +13548,6 @@ packages:
       react: 16.14.0
       react-dom: 16.14.0(react@16.14.0)
       react-router: 6.4.1(react@16.14.0)
-    dev: false
-
-  /react-router@6.28.0(react@18.3.1):
-    resolution: {integrity: sha512-HrYdIFqdrnhDw0PqG/AKjAqEqM7AvxCz0DQ4h2W8k6nqmc5uRBYDag0SBxx9iYz5G8gnuNVLzUe13wl9eAsXXg==}
-    engines: {node: '>=14.0.0'}
-    peerDependencies:
-      react: '>=16.8'
-    dependencies:
-      '@remix-run/router': 1.21.0
-      react: 18.3.1
     dev: false
 
   /react-router@6.4.1(react@16.14.0):
@@ -15332,12 +15316,12 @@ packages:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
     dev: false
 
-  /typescript-log@2.0.0(tslib@2.6.3):
+  /typescript-log@2.0.0(tslib@2.8.1):
     resolution: {integrity: sha512-TyW8lmURJSo0yjBovEhESpah3haDYBgsnQRocBF4MQSDJSYs/DOmhjo2cpSrGyvD9OaX++dbbonq9TkIQeA+Bw==}
     peerDependencies:
       tslib: ^2.0.0
     dependencies:
-      tslib: 2.6.3
+      tslib: 2.8.1
     dev: false
 
   /typescript@4.8.3:
