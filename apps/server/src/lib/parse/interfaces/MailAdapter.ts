@@ -5,7 +5,7 @@
  * Mail Adapter prototype
  * A MailAdapter should implement at least sendMail()
  */
-interface MailAdapter {
+export interface MailAdapter {
 	/**
 	 * A method for sending mail
 	 * @param options would have the parameters
@@ -25,4 +25,4 @@ interface MailAdapter {
 	sendPasswordResetEmail({ link, appName, user }: { link: string; appName: string; user: Parse.User }): Promise<void>;
 }
 
-export default MailAdapter;
+// export default MailAdapter;

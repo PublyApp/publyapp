@@ -4,8 +4,7 @@ import streamifier from 'streamifier';
 import cloudinary from '@/server/lib/cloudinary';
 import { fileProvider } from '@/shared/lib/constants';
 
-import type Uploader from './Uploader.interface';
-import type { UploadInput } from './Uploader.interface';
+import { type Uploader, type UploadInput } from './Uploader.interface';
 
 export default class CloudinaryUploader implements Uploader {
 	provider = fileProvider.CLOUDINARY;

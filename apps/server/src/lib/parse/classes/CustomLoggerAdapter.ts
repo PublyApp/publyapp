@@ -9,7 +9,7 @@ import winston, { format, type Logger } from 'winston';
 import { consoleFormat } from 'winston-console-format';
 import DailyRotateFile from 'winston-daily-rotate-file';
 
-import type LoggerAdapter from '../interfaces/LoggerAdapter';
+import { type LoggerAdapter } from '../interfaces/LoggerAdapter';
 
 const defaults = _.get(_defaults, 'default') as unknown as typeof _defaults;
 
