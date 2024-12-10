@@ -59,7 +59,7 @@ export const getParseFunctionHeader = (
 const isTriggerRequest = (
 	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest,
 ): req is Parse.Cloud.TriggerRequest => {
-	return !_.isNil((req as Parse.Cloud.TriggerRequest).triggerName);
+	return !_.isNil(_.get(req, 'triggerName'));
 };
 
 export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
@@ -345,7 +345,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 
 				// ! fetch user's permissions and apply them to the query
 
-				return trigger({ locale, req, t });
+				// return trigger({ locale, req, t });
 			}
 
 			// // TODO: verify if user is member of requested tenant ???
@@ -358,6 +358,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 			// const tenant = new Parse.Object(appClassName.TENANT);
 			// tenant.id = tenantIdInHeaders;
 			// req.query?.equalTo('tenant', tenant);
+			return trigger({ locale, req, t });
 		},
 
 		// const { headers, context } = req;
