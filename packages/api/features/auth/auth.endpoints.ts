@@ -6,11 +6,9 @@ import type { GetIsDisabledSignupFunction, GetUserAuthDataFunction } from '@/ser
 import { defaultHttp, getProtectionHeaders } from '@/shared/lib/axios';
 import { endPoint, functionName, LOCALE_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
-import BaseEndPoints from '../../BaseEndPoints';
+import BaseEndPoints from '../../classes/BaseEndPoints';
 
 export default class AuthEndPoints extends BaseEndPoints {
-	// constructor({ parseRestClient, apiPath}: BaseEndPointsProps) {}
-
 	getUserAuthData = async ({ tenantId }: { tenantId?: string } = {}) => {
 		return this.parseRestClient.cloudRun<GetUserAuthDataFunction.Return, GetUserAuthDataFunction.Params>(
 			functionName.auth.getUserAuthData,
@@ -25,7 +23,6 @@ export default class AuthEndPoints extends BaseEndPoints {
 		input: ({ username: string; email?: undefined } | { email: string; username?: string }) & { password: string },
 	) {
 		const { password } = input;
-		// const identifier = input.email || input.username;
 
 		const headers = _.merge(getProtectionHeaders({}), {
 			'X-Parse-Revocable-Session': '1',
