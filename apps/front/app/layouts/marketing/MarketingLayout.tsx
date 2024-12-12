@@ -1,5 +1,6 @@
-import { AppShell, Box, Burger, Group, UnstyledButton } from '@mantine/core';
+import { AppShell, Box, Burger, Group } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { Link } from 'react-router';
 
 type Props = {
 	children: React.ReactNode;
@@ -20,20 +21,14 @@ const MarketingLayout = ({ children }: Props) => {
 					<Group justify="space-between" style={{ flex: 1 }}>
 						<Box>Logo</Box>
 						<Group ml="xl" gap={0} visibleFrom="sm">
-							<UnstyledButton /* className={classes.control} */>Home</UnstyledButton>
-							<UnstyledButton /* className={classes.control} */>Blog</UnstyledButton>
-							<UnstyledButton /* className={classes.control} */>Contacts</UnstyledButton>
-							<UnstyledButton /* className={classes.control} */>Support</UnstyledButton>
+							<Link to="/login" /* className={classes.control} */>Login</Link>
 						</Group>
 					</Group>
 				</Group>
 			</AppShell.Header>
 
 			<AppShell.Navbar py="md" px={4}>
-				<UnstyledButton /* className={classes.control} */>Home xx</UnstyledButton>
-				<UnstyledButton /* className={classes.control} */>Blog</UnstyledButton>
-				<UnstyledButton /* className={classes.control} */>Contacts</UnstyledButton>
-				<UnstyledButton /* className={classes.control} */>Support</UnstyledButton>
+				<Link to="/login" /* className={classes.control} */>Login</Link>
 			</AppShell.Navbar>
 
 			<AppShell.Main>
