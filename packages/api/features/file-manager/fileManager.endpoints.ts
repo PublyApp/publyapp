@@ -7,7 +7,7 @@ import {
 	type FindAppFileFunctionReturn,
 } from '@/server/modules/tenant/file-manager/appFile/appFile.functions';
 
-import BaseEndPoints from '../../BaseEndPoints';
+import BaseEndPoints from '../../classes/BaseEndPoints';
 
 export type FindAppFileFunctionParams = {
 	page?: number;
