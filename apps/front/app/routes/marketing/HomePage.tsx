@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 
 import { Box, Button } from '@mantine/core';
+import { useLoaderData } from 'react-router';
 
 import { sleep } from '@/shared/utils/any.utils';
 
@@ -40,15 +41,22 @@ const DisplayData = ({ data }: { data: Promise<string> }) => {
 	return <Box>{display}</Box>;
 };
 
-const HomePage = ({ loaderData }: Route.ComponentProps) => {
-	console.log('🚀🚀🚀🚀', loaderData);
+const Composition = () => {
+	const loaderData = useLoaderData<typeof loader>();
+
+	return (
+		<Suspense fallback={<h3>Loading...</h3>}>
+			<DisplayData data={loaderData.p1} />
+		</Suspense>
+	);
+};
+
+const HomePage = ({ loaderData: _ }: Route.ComponentProps) => {
 	return (
 		<div>
 			<h1>Hello!!</h1>
 			<Button variant="primary">Hello</Button>
-			<Suspense fallback={<h3>Loading...</h3>}>
-				<DisplayData data={loaderData.p1} />
-			</Suspense>
+			<Composition />
 		</div>
 	);
 };
