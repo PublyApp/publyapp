@@ -4,10 +4,6 @@ import AuthEndPoints from './features/auth/auth.endpoints';
 import BlogEndPoints from './features/blog/blog.endpoints';
 import FileManagerEndPoints from './features/file-manager/fileManager.endpoints';
 
-// const defaultProps = {
-// 	apiPath: '/api',
-// };
-
 export class ParseApi {
 	private _parseRestClient!: ParseRestClient;
 
@@ -17,17 +13,10 @@ export class ParseApi {
 
 	private _fileManager!: FileManagerEndPoints;
 
-	// public apiPath: string;
-
-	constructor({
-		parseRestClient,
-		// apiPath = defaultProps.apiPath,
-	}: { parseRestClient?: ParseRestClient /* apiPath?: string */ } = {}) {
+	constructor({ parseRestClient }: { parseRestClient?: ParseRestClient } = {}) {
 		if (parseRestClient) {
 			this.setRestClient(parseRestClient);
 		}
-
-		// this.apiPath = apiPath;
 	}
 
 	private checkClient() {
@@ -40,10 +29,10 @@ export class ParseApi {
 		this._parseRestClient = parseRestClient;
 
 		// endpoints
-		this._auth = new AuthEndPoints({ parseRestClient: this._parseRestClient /* , apiPath: this.apiPath  */ });
-		this._blog = new BlogEndPoints({ parseRestClient: this._parseRestClient /* , apiPath: this.apiPath  */ });
+		this._auth = new AuthEndPoints({ parseRestClient: this._parseRestClient });
+		this._blog = new BlogEndPoints({ parseRestClient: this._parseRestClient });
 		this._fileManager = new FileManagerEndPoints({
-			parseRestClient: this._parseRestClient /* , apiPath: this.apiPath  */,
+			parseRestClient: this._parseRestClient,
 		});
 	}
 

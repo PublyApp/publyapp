@@ -5,10 +5,7 @@ export type BaseEndPointsProps = { parseRestClient: ParseRestClient /*  apiPath:
 export default class BaseEndPoints {
 	protected parseRestClient: ParseRestClient;
 
-	// protected apiPath: string;
-
-	constructor({ parseRestClient /* , apiPath  */ }: BaseEndPointsProps) {
-		// this.apiPath = apiPath;
+	constructor({ parseRestClient }: BaseEndPointsProps) {
 		this.parseRestClient = parseRestClient;
 	}
 }
