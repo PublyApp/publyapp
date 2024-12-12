@@ -1,4 +1,9 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import { index, type RouteConfig } from '@react-router/dev/routes';
+import { index, layout, type RouteConfig } from '@react-router/dev/routes';
 
-export default [index('routes/marketing/Home.tsx')] satisfies RouteConfig;
+export default [
+	layout('routes/marketing/MarketingPagesLayout.tsx', [
+		// = =
+		index('routes/marketing/HomePage.tsx'),
+	]),
+] satisfies RouteConfig;

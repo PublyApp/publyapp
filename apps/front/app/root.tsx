@@ -2,11 +2,11 @@
 // All packages except `@mantine/hooks` require styles imports
 import '@mantine/core/styles.css';
 
-import { ColorSchemeScript, MantineProvider } from '@mantine/core';
+import { /* ColorSchemeScript, */ MantineProvider } from '@mantine/core';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 
 import type { Route } from './+types/root';
-import { theme } from './theme';
+import { theme } from './theme/theme';
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -31,7 +31,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<Meta />
 				<Links />
-				<ColorSchemeScript />
+				{/* <ColorSchemeScript /> */}
 			</head>
 			<body>
 				<MantineProvider theme={theme}>{children}</MantineProvider>

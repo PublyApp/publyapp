@@ -1,13 +1,11 @@
-// theme.ts
 import { createTheme } from '@mantine/core';
 import { themeToVars } from '@mantine/vanilla-extract';
 
-// Do not forget to pass theme to MantineProvider
-export const theme = createTheme({
-	// fontFamily: 'serif',
-	// primaryColor: 'cyan',
-});
-// theme.css.ts
+import { themeOptions } from './options';
+
+// import { themeOptions } from './theme';
+
+const theme = createTheme(themeOptions);
 
 // CSS variables object, can be access in *.css.ts files
 export const vars = themeToVars(theme);
