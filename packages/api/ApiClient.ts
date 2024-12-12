@@ -4,7 +4,7 @@ import AuthEndPoints from './features/auth/auth.endpoints';
 import BlogEndPoints from './features/blog/blog.endpoints';
 import FileManagerEndPoints from './features/file-manager/fileManager.endpoints';
 
-export class ParseApi {
+export class ApiClient {
 	private _parseRestClient!: ParseRestClient;
 
 	private _blog!: BlogEndPoints;
@@ -57,6 +57,6 @@ export class ParseApi {
 	}
 }
 
-const parseApi = new ParseApi();
+const apiClient = new ApiClient();
 
-export default parseApi;
+export default apiClient;
