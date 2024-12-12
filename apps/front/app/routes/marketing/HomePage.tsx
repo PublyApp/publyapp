@@ -1,3 +1,5 @@
+import { Button } from '@mantine/core';
+
 import type { Route } from './+types/HomePage';
 
 export const meta = (_: Route.MetaArgs) => {
@@ -5,7 +7,12 @@ export const meta = (_: Route.MetaArgs) => {
 };
 
 const HomePage = () => {
-	return <h1>Hello!!</h1>;
+	return (
+		<div>
+			<h1>Hello!!</h1>
+			<Button variant="primary">Hello</Button>
+		</div>
+	);
 };
 
 export default HomePage;
