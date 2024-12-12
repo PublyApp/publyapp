@@ -22,8 +22,11 @@ interface AsyncRequestHandler<
 
 export const expressHandler = (innerHandler: AsyncRequestHandler): RequestHandler => {
 	const handler: RequestHandler = async (req, res, next) => {
-		const wrappedFunction = tryCatchWrapper(innerHandler, (error) => {
-			return next(error);
+		const wrappedFunction = tryCatchWrapper({
+			handler: innerHandler,
+			onError: (error) => {
+				return next(error);
+			},
 		});
 
 		return wrappedFunction(req, res, next);
