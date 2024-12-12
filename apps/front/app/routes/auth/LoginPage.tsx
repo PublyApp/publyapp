@@ -1,6 +1,8 @@
 import { Box, Button, PasswordInput, TextInput } from '@mantine/core';
 import { data, Form } from 'react-router';
 
+import { ParseApi } from '@devist/api/parse/ParseApi';
+
 import type { Route } from './+types/LoginPage';
 
 export const action = async ({ request }: Route.ActionArgs) => {
@@ -8,6 +10,8 @@ export const action = async ({ request }: Route.ActionArgs) => {
 
 	const email = formData.get('email');
 	const password = formData.get('password');
+
+	const api = new ParseApi();
 
 	console.log('🚀🚀🚀', {
 		email,
