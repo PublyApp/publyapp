@@ -64,8 +64,8 @@ export default class SchemaManager {
 		const SchemaCollection = db.collection(_className.SCHEMA);
 
 		await asyncJs.eachOfLimit(schemas, 10, async (schemaDefinition) => {
-			const wrappedFunction = tryCatchWrapper(
-				async () => {
+			const wrappedFunction = tryCatchWrapper({
+				handler: async () => {
 					logger.info(`started to update schema '${schemaDefinition.className}'`);
 
 					const inputSchemaObjectFields: Record<string, string> = {};
@@ -182,10 +182,10 @@ export default class SchemaManager {
 
 					logger.info(`Finished updating schema '${schemaDefinition.className}'`);
 				},
-				(error) => {
+				onError: (error) => {
 					logger.error(`Error while updating schema '${schemaDefinition.className}': \n`, error);
 				},
-			);
+			});
 
 			return wrappedFunction();
 		});
