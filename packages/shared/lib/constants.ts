@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { imageFormatTypes } from '@/shared/types/db/appFile.types';
 
 import type { IRole } from '../types/db/role.types';
+import { makePath } from '../utils/string.utils';
 
 import type { AppLocale } from './i18n/resources';
 
@@ -130,27 +131,6 @@ const ROOTS = {
 	STAFF: 'staff',
 	UPLOAD: 'upload',
 } as const;
-
-export const makePath = (...params: string[]) => {
-	// eslint-disable-next-line @typescript-eslint/naming-convention
-	const _params: string[] = [];
-
-	params?.forEach((param /* , index */) => {
-		if (param?.length <= 0 || param === '/') {
-			return;
-		}
-
-		_params.push(param);
-	});
-
-	let path = _params.join('/').replace(/\/{2,}/g, '/');
-
-	if (!path.startsWith('/')) {
-		path = `/${path}`;
-	}
-
-	return path;
-};
 
 export const FRONT_PATH_NAMES = {
 	home: '/',

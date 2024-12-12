@@ -1,12 +1,12 @@
 import type express from 'express';
 import _ from 'lodash';
 
-import { makePath, PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import { makePath } from '@/shared/utils/string.utils';
 
 import { PARSE_SERVER_URL, USE_MASTER_KEY } from '../lib/constants';
 import { env } from '../lib/env';
 import { expressHandler } from '../lib/express';
-// import logger from '../lib/logger';
 import { getCurrentInstallationId } from '../lib/parse/utils';
 import { getHeader, getRequestIp } from '../utils/request.utils';
 
