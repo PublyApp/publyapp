@@ -15,7 +15,6 @@
     "@devist/api": "workspace:*",
     "@devist/parse-rest-client": "workspace:*",
     "@devist/shared": "workspace:*",
-    "@devist/ui-react": "workspace:*",
     "@mantine/core": "^7.15.0",
     "@mantine/hooks": "^7.15.0",
     "@mantine/vanilla-extract": "^7.15.0",
