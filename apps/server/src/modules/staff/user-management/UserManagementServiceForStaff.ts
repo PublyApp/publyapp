@@ -1,5 +1,5 @@
 import { USE_MASTER_KEY } from '@/server/lib/constants';
-import { getDatabase } from '@/server/lib/parse/utils';
+import { getDatabase } from '@/server/lib/parse/parse.utils';
 import { className, roleEnum } from '@/shared/lib/constants';
 
 export default class UserManagementServiceForStaff {

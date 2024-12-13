@@ -3,7 +3,7 @@ import _ from 'lodash';
 
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { parseJob } from '@/server/lib/parse/function.utils';
-import { getDatabase } from '@/server/lib/parse/utils';
+import { getDatabase } from '@/server/lib/parse/parse.utils';
 import { className, jobName } from '@/shared/lib/constants';
 
 import ParseBlogPost from './blogPost/blogPost.class';

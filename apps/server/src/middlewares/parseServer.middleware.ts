@@ -7,7 +7,7 @@ import { makePath } from '@/shared/utils/string.utils';
 import { PARSE_SERVER_URL, USE_MASTER_KEY } from '../lib/constants';
 import { env } from '../lib/env';
 import { expressHandler } from '../lib/express';
-import { getCurrentInstallationId } from '../lib/parse/utils';
+import { getCurrentInstallationId } from '../lib/parse/parse.utils';
 import { getHeader, getRequestIp } from '../utils/request.utils';
 
 const checkIsMaster = (req: express.Request) => {
