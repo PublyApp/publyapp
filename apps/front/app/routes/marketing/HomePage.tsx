@@ -12,16 +12,16 @@ export const meta = (_: Route.MetaArgs) => {
 };
 
 const fn1 = async () => {
-	return sleep(3000, 'cool');
+	return sleep(100, 'cool');
 };
 
 const fn2 = async () => {
-	await sleep(3000);
+	await sleep(100);
 	throw new Error('Intentional error');
 };
 
 const fn3 = async () => {
-	return sleep(3000, 'very cool');
+	return sleep(100, 'very cool');
 };
 
 export const loader = async (_: Route.LoaderArgs) => {

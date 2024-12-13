@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
-	plugins: [reactRouter(), tsconfigPaths(), vanillaExtractPlugin()],
+	plugins: [vanillaExtractPlugin(), reactRouter(), tsconfigPaths()],
 	server: {
 		port: 6181,
 	},
