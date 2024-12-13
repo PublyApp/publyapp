@@ -11,7 +11,7 @@ import { logger } from '@/shared/lib/winston';
 import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
 
 import { DEFAULT_CLP } from '../../constants';
-import { getDatabase } from '../utils';
+import { getDatabase } from '../parse.utils';
 
 export type ManagedIndex = {
 	keys: Record<string, 1 | -1>;

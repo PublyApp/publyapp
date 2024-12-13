@@ -17,7 +17,7 @@ import CustomZod from '@/shared/lib/zod/CustomZod';
 import { USE_MASTER_KEY } from '../constants';
 import { getCorrectLocale, getT, i18nextServer } from '../i18n';
 
-import { getCurrentInstallationId, getInternalConfig } from './utils';
+import { getCurrentInstallationId, getInternalConfig } from './parse.utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<ReturnType<T>>;
