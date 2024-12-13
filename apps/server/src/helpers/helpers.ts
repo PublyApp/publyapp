@@ -8,7 +8,7 @@ import { DISABLE_SIGNUP_CONFIG_KEY, FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } fr
 import { logger } from '@/shared/lib/winston';
 
 import SchemaManager from '../lib/parse/classes/SchemaManager';
-import { getDatabase, getGlobalConfig, setGlobalConfig } from '../lib/parse/utils';
+import { getDatabase, getGlobalConfig, setGlobalConfig } from '../lib/parse/parse.utils';
 import RoleSchema from '../modules/common/auth/role/role.schema';
 import SessionSchema from '../modules/common/auth/session/session.schema';
 import Parse_CustomJoinUserToTenantSchema from '../modules/common/auth/tenant/$join-user-to-tenant.schema';

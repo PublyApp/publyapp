@@ -5,7 +5,7 @@ import { Dayjs } from 'dayjs';
 import type { ParsedQs } from 'qs';
 
 import { USE_MASTER_KEY } from '@/server/lib/constants';
-import { getDatabase, getInternalConfig } from '@/server/lib/parse/utils';
+import { getDatabase, getInternalConfig } from '@/server/lib/parse/parse.utils';
 import { className } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
 

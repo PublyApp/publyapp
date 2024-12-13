@@ -29,7 +29,7 @@ import { initI18next } from './lib/i18n';
 // import logger, { consoleTransport } from './lib/logger';
 import CustomLoggerAdapter from './lib/parse/classes/CustomLoggerAdapter';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
-import { setCurrentInstallationId } from './lib/parse/utils';
+import { setCurrentInstallationId } from './lib/parse/parse.utils';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
