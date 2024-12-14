@@ -10,7 +10,7 @@ import { env } from './env';
 export const initApiClientOnServer = ({ locale, sessionToken }: { locale: AppLocale; sessionToken?: string }) => {
 	const parseRestClient = new ParseRestClient({
 		applicationId: env.VITE_PARSE_APP_ID,
-		parseServerUrl: env.VITE_SERVER_URL + endPoint.api.parse,
+		parseServerUrl: env.VITE_SERVER_URL + endPoint.api.parse.root,
 	});
 
 	// set locale header

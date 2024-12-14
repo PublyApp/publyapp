@@ -134,6 +134,7 @@ const ROOTS = {
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
+	login: '/login',
 	posts: {
 		root: makePath(RESOURCE.posts),
 		page: (pageNum: number) => {
