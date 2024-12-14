@@ -3,6 +3,7 @@ import React, { Suspense } from 'react';
 import { Box, Button } from '@mantine/core';
 import { useLoaderData } from 'react-router';
 
+import { getServerLoader } from '@/front/lib/remix';
 import { sleep } from '@/shared/utils/any.utils';
 
 import type { Route } from './+types/HomePage';
@@ -24,17 +25,19 @@ const fn3 = async () => {
 	return sleep(100, 'very cool');
 };
 
-export const loader = async (_: Route.LoaderArgs) => {
-	const p1 = fn1();
-	const p2 = fn2();
-	const p3 = fn3();
+export const loader = getServerLoader({
+	loader: async () => {
+		const p1 = fn1();
+		const p2 = fn2();
+		const p3 = fn3();
 
-	return {
-		p1,
-		p2,
-		p3,
-	};
-};
+		return {
+			p1,
+			p2,
+			p3,
+		};
+	},
+});
 
 const DisplayData = ({ data }: { data: Promise<string> }) => {
 	const display = React.use(data);
@@ -62,3 +65,20 @@ const HomePage = ({ loaderData: _ }: Route.ComponentProps) => {
 };
 
 export default HomePage;
+
+const getFn = <D,>({ action }: { action: () => Promise<D> }) => {
+	const fn = async () => {
+		const data = await action();
+		return data;
+	};
+
+	return fn;
+};
+
+const fn = getFn({
+	action: async () => {
+		return sleep(100, 1000);
+	},
+});
+
+fn();

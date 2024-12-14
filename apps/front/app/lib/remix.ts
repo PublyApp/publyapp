@@ -1,19 +1,41 @@
-import { verify } from 'crypto';
+import type { ApiClient } from 'packages/api/ApiClient';
+import { redirect, type LoaderFunctionArgs } from 'react-router';
 
-import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
-import type { LoaderFunctionArgs } from 'react-router';
-
-import { sleep } from '@/shared/utils/any.utils';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 import { initApiClientOnServer } from './api';
-import { env } from './env';
 
-export const getServerLoader = ({ loader: innerLoader }: { loader: (args: any) => Promise<unknown> }) => {
-	const loader = async (args: LoaderFunctionArgs) => {
-		// if auth is needed
+type GetServerLoaderParam<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> =
+	| {
+			requireUser: true;
+			loader: (
+				args: T & {
+					apiClient: ApiClient;
+					getUserAuthDataPromise: ReturnType<ApiClient['auth']['getUserAuthData']>;
+				},
+			) => Promise<D>;
+	  }
+	| {
+			requireUser?: boolean | undefined;
+			loader: (
+				args: T & {
+					apiClient: ApiClient;
+				},
+			) => Promise<D>;
+	  };
+
+export const getServerLoader = <T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
+	params: GetServerLoaderParam<T, D>,
+) => {
+	const loader = async (args: T) => {
+		if (!params.requireUser) {
+			const apiClient = initApiClientOnServer({ locale: 'en' });
+			return params.loader({ ...args, apiClient });
+		}
+
 		// check if session token cookie is present
 		const cookies = args.request.headers.getSetCookie();
-		const sessionTokenCookie = cookies.find((cookie) => {
+		const sessionTokenCookie = cookies?.find((cookie) => {
 			return cookie.startsWith('session_token=');
 		});
 
@@ -24,22 +46,14 @@ export const getServerLoader = ({ loader: innerLoader }: { loader: (args: any) =
 		}
 
 		if (!sessionToken) {
-			// throw new Error('Unauthorized');
+			return redirect(FRONT_PATH_NAMES.login) as never;
 		}
 
-		// const apiClient = initApiClientOnServer({ locale: 'en', sessionToken });
+		const apiClient = initApiClientOnServer({ locale: 'en', sessionToken });
 
-		const veriFyTokenPromise = /* apiClient.auth.verifyToken() */ sleep(100, false);
+		const getUserAuthDataPromise = apiClient.auth.getUserAuthData();
 
-		// do not await but handle the promise in its own thread
-		veriFyTokenPromise.then(async (isTokenValid) => {
-			if (!isTokenValid) {
-				throw new Error('Unauthorized');
-			}
-			// verify authorizations: todo later
-		});
-
-		return innerLoader({ ...args, veriFyTokenPromise });
+		return params.loader({ ...args, apiClient, getUserAuthDataPromise });
 	};
 
 	return loader;
