@@ -5,7 +5,7 @@ import { isbot } from 'isbot';
 import { renderToPipeableStream, type RenderToPipeableStreamOptions } from 'react-dom/server';
 import { ServerRouter, type AppLoadContext, type EntryContext } from 'react-router';
 
-const ABORT_DELAY = 5_000;
+const ABORT_DELAY = 50_000;
 
 const handleRequest = (
 	request: Request,
