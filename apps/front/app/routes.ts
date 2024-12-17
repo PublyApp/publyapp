@@ -6,5 +6,5 @@ export default [
 		// = =
 		index('routes/marketing/HomePage.tsx'),
 	]),
-	layout('routes/auth/AuthPagesLayout.tsx', [route('login', 'routes/auth/LoginPage.tsx')]),
+	layout('routes/auth/AuthPagesLayout.tsx', [route('login', 'routes/auth/login/LoginPage.tsx')]),
 ] satisfies RouteConfig;
