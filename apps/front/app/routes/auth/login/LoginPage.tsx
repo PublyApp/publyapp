@@ -1,7 +1,9 @@
-import { Box, Button, PasswordInput, TextInput } from '@mantine/core';
-import { data, Form } from 'react-router';
+import { Anchor, Box, Text, Title } from '@mantine/core';
+import { data } from 'react-router';
 
 import type { Route } from './+types/LoginPage';
+import LoginForm from './LoginForm';
+import { classes } from './LoginPage.css';
 
 export const action = async ({ request }: Route.ActionArgs) => {
 	const formData = await request.formData();
@@ -27,14 +29,18 @@ const LoginPage = ({ actionData }: Route.ComponentProps) => {
 	console.log('🙏🙏🙏🙏', actionData);
 
 	return (
-		<Box>
-			<Form method="post">
-				<TextInput label="Email" name="email" />
-				<PasswordInput label="Password" name="password" />
-				<Button type="submit" variant="primary">
-					Log in
-				</Button>
-			</Form>
+		<Box w={420} my={40}>
+			<Title ta="center" className={classes.title}>
+				Welcome back!
+			</Title>
+			<Text c="dimmed" size="sm" ta="center" mt={5}>
+				Do not have an account yet?{' '}
+				<Anchor size="sm" component="button">
+					Create account
+				</Anchor>
+			</Text>
+
+			<LoginForm />
 		</Box>
 	);
 };
