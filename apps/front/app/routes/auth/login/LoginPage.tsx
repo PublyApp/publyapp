@@ -1,15 +1,29 @@
 import { Anchor, Box, Text, Title } from '@mantine/core';
 import { data } from 'react-router';
 
+import { getLoginSchema } from '@/shared/validations/auth.validations';
+
 import type { Route } from './+types/LoginPage';
 import LoginForm from './LoginForm';
 import { classes } from './LoginPage.css';
 
+// TODO: implement geServerAction: it needs to initialize a CustomZod instance
 export const action = async ({ request }: Route.ActionArgs) => {
 	const formData = await request.formData();
 
 	const email = formData.get('email');
 	const password = formData.get('password');
+
+	const result = getLoginSchema().safeParse({
+		email,
+		password,
+	});
+
+	if (!result.success) {
+		return data({
+			error: result.error,
+		});
+	}
 
 	console.log('🚀🚀🚀', {
 		email,

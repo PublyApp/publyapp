@@ -12,7 +12,10 @@ export const resources = {
 } as const;
 
 export const defaultLocale = appLocales[0];
-export const NS = Object.keys(resources[defaultLocale]);
+export const NS = Object.keys(resources[defaultLocale]) as NameSpace[];
 export const defaultNS: keyof (typeof resources)[typeof defaultLocale] = 'common';
 
+export type NameSpace = keyof (typeof resources)[AppLocale];
+export type Namespaces = typeof NS;
 export type DefaultNS = typeof defaultNS;
+export type DefaultLocale = typeof defaultLocale;
