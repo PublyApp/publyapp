@@ -1,5 +1,5 @@
 const commonEN = {
-	hello: 'Hello',
+	hello: 'Hello LOL',
 	userHasNoEmail: 'User has no email',
 
 	// item types

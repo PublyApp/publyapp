@@ -20,6 +20,10 @@ if (toDeploy) {
 const run = async () => {
 	const rsbuild = await createRsbuild();
 
+	rsbuild.onAfterBuild(async () => {
+		// create the i18n resources files in .jsonc format
+	});
+
 	build(rsbuild);
 };
 
