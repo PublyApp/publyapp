@@ -77,6 +77,12 @@ importers:
       '@vanilla-extract/css':
         specifier: ^1.16.1
         version: 1.16.1
+      i18next:
+        specifier: ^23.8.2
+        version: 23.12.2
+      i18next-fs-backend:
+        specifier: ^2.3.1
+        version: 2.3.2
       isbot:
         specifier: ^5.1.17
         version: 5.1.17
@@ -92,6 +98,9 @@ importers:
       react-router:
         specifier: ^7.0.2
         version: 7.0.2(react-dom@19.0.0)(react@19.0.0)
+      remix-i18next:
+        specifier: ^7.0.1
+        version: 7.0.1(i18next@23.12.2)(react-i18next@15.2.0)(react-router@7.0.2)(react@19.0.0)
       zod:
         specifier: ^3.22.4
         version: 3.23.8
@@ -138,6 +147,9 @@ importers:
       '@parse/fs-files-adapter':
         specifier: ^2.0.1
         version: 2.0.1
+      '@react-router/express':
+        specifier: ^7.0.2
+        version: 7.0.2(express@4.19.2)(react-router@7.0.2)(typescript@5.5.4)
       '@remix-run/express':
         specifier: ^2.8.0
         version: 2.11.1(express@4.19.2)(typescript@5.5.4)
@@ -3252,6 +3264,23 @@ packages:
       - terser
     dev: true
 
+  /@react-router/express@7.0.2(express@4.19.2)(react-router@7.0.2)(typescript@5.5.4):
+    resolution: {integrity: sha512-rhKt/bylEdZNHKzOI8NzP6b27fiJ2zjf59b/boWWOwjuDk6ZEdV1iLa2Nvm55qN1mj2zSx3H/9Tx/ZPHgrGEgw==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      express: ^4.17.1
+      react-router: 7.0.2
+      typescript: ^5.1.0
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+    dependencies:
+      '@react-router/node': 7.0.2(react-router@7.0.2)(typescript@5.5.4)
+      express: 4.19.2
+      react-router: 7.0.2(react-dom@16.14.0)(react@16.14.0)
+      typescript: 5.5.4
+    dev: false
+
   /@react-router/express@7.0.2(express@4.21.0)(react-router@7.0.2)(typescript@5.7.2):
     resolution: {integrity: sha512-rhKt/bylEdZNHKzOI8NzP6b27fiJ2zjf59b/boWWOwjuDk6ZEdV1iLa2Nvm55qN1mj2zSx3H/9Tx/ZPHgrGEgw==}
     engines: {node: '>=20.0.0'}
@@ -3267,6 +3296,24 @@ packages:
       express: 4.21.0
       react-router: 7.0.2(react-dom@19.0.0)(react@19.0.0)
       typescript: 5.7.2
+
+  /@react-router/node@7.0.2(react-router@7.0.2)(typescript@5.5.4):
+    resolution: {integrity: sha512-6Of5M2wP9QgYlR+boR0ptPjh3UyfaNvPMKQihowTGjAjUZIoNqz4iBn8ClNsLFbT3KQewcnNTHi2p+Ou7S4ZyQ==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      react-router: 7.0.2
+      typescript: ^5.1.0
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+    dependencies:
+      '@mjackson/node-fetch-server': 0.2.0
+      react-router: 7.0.2(react-dom@16.14.0)(react@16.14.0)
+      source-map-support: 0.5.21
+      stream-slice: 0.1.2
+      typescript: 5.5.4
+      undici: 6.19.7
+    dev: false
 
   /@react-router/node@7.0.2(react-router@7.0.2)(typescript@5.7.2):
     resolution: {integrity: sha512-6Of5M2wP9QgYlR+boR0ptPjh3UyfaNvPMKQihowTGjAjUZIoNqz4iBn8ClNsLFbT3KQewcnNTHi2p+Ou7S4ZyQ==}
@@ -8096,6 +8143,12 @@ packages:
     dev: false
     optional: true
 
+  /html-parse-stringify@3.0.1:
+    resolution: {integrity: sha512-KknJ50kTInJ7qIScF3jeaFRpMpE8/lfiTdzf/twXyPBLAGrLRTmkz3AdTnKeh40X8k9L2fdYwEp/42WGXIRGcg==}
+    dependencies:
+      void-elements: 3.1.0
+    dev: false
+
   /http-cache-semantics@4.1.1:
     resolution: {integrity: sha512-er295DKPVsV82j5kw1Gjt+ADA/XYHsajl82cGNQG2eyoPkvgUhX+nDIyelzhIWbbsXP39EHcI6l5tYs2FYqYXQ==}
     dev: false
@@ -8206,7 +8259,7 @@ packages:
   /i18next@23.12.2:
     resolution: {integrity: sha512-XIeh5V+bi8SJSWGL3jqbTEBW5oD6rbP5L+E7dVQh1MNTxxYef0x15rhJVcRb7oiuq4jLtgy2SD8eFlf6P2cmqg==}
     dependencies:
-      '@babel/runtime': 7.25.0
+      '@babel/runtime': 7.26.0
     dev: false
 
   /iconv-lite@0.4.24:
@@ -10880,6 +10933,26 @@ packages:
       react-side-effect: 2.1.2(react@16.14.0)
     dev: false
 
+  /react-i18next@15.2.0(i18next@23.12.2)(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-iJNc8111EaDtVTVMKigvBtPHyrJV+KblWG73cUxqp+WmJCcwkzhWNFXmkAD5pwP2Z4woeDj/oXDdbjDsb3Gutg==}
+    peerDependencies:
+      i18next: '>= 23.2.3'
+      react: '>= 16.8.0'
+      react-dom: '*'
+      react-native: '*'
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
+      react-native:
+        optional: true
+    dependencies:
+      '@babel/runtime': 7.26.0
+      html-parse-stringify: 3.0.1
+      i18next: 23.12.2
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+    dev: false
+
   /react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
 
@@ -11043,6 +11116,24 @@ packages:
     dependencies:
       '@remix-run/router': 1.0.1
       react: 16.14.0
+    dev: false
+
+  /react-router@7.0.2(react-dom@16.14.0)(react@16.14.0):
+    resolution: {integrity: sha512-m5AcPfTRUcjwmhBzOJGEl6Y7+Crqyju0+TgTQxoS4SO+BkWbhOrcfZNq6wSWdl2BBbJbsAoBUb8ZacOFT+/JlA==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      react: '>=18'
+      react-dom: '>=18'
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
+    dependencies:
+      '@types/cookie': 0.6.0
+      cookie: 1.0.2
+      react: 16.14.0
+      react-dom: 16.14.0(react@16.14.0)
+      set-cookie-parser: 2.7.0
+      turbo-stream: 2.4.0
     dev: false
 
   /react-router@7.0.2(react-dom@19.0.0)(react@19.0.0):
@@ -11265,6 +11356,21 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       rc: 1.2.8
+    dev: false
+
+  /remix-i18next@7.0.1(i18next@23.12.2)(react-i18next@15.2.0)(react-router@7.0.2)(react@19.0.0):
+    resolution: {integrity: sha512-GE10RyBiF6CeYKIgrVJ3nTr/CpySpx4PBN9gJk0U/YtbDr4X0P6PERv+02GrpptUt1N23F2DjE/HELemw/G6cQ==}
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      i18next: ^24.0.0
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+      react-i18next: ^13.0.0 || ^14.0.0 || ^15.0.0
+      react-router: ^7.0.0
+    dependencies:
+      i18next: 23.12.2
+      react: 19.0.0
+      react-i18next: 15.2.0(i18next@23.12.2)(react-dom@19.0.0)(react@19.0.0)
+      react-router: 7.0.2(react-dom@19.0.0)(react@19.0.0)
     dev: false
 
   /replace-in-file@7.2.0:
@@ -13047,6 +13153,11 @@ packages:
     optionalDependencies:
       fsevents: 2.3.3
     dev: true
+
+  /void-elements@3.1.0:
+    resolution: {integrity: sha512-Dhxzh5HZuiHQhbvTW9AMetFfBHDMYpo23Uo9btPXgdYP+3T5S+p+jgNy7spra+veYhBP2dCSgxR/i2Y02h5/6w==}
+    engines: {node: '>=0.10.0'}
+    dev: false
 
   /vscode-languageserver-types@3.17.5:
     resolution: {integrity: sha512-Ld1VelNuX9pdF39h2Hgaeb5hEZM2Z3jUrrMgWQAu82jMtZp7p3vJT3BzToKtZI7NgQssZje5o0zryOrhQvzQAg==}
