@@ -21,6 +21,10 @@ const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
 const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
 const PACKAGE_FILE = 'package.json';
 
+module.exports.MONOREPO_ROOT_DIR = MONOREPO_ROOT_DIR;
+module.exports.APPS_DIR = APPS_DIR;
+module.exports.PACKAGES_DIR = PACKAGES_DIR;
+
 /**
  * list directories of provided folder path
  * @param {string} pth
@@ -122,6 +126,7 @@ function createRsbuild() {
 			source: {
 				entry: {
 					index: './src/index.ts',
+					i18n: './src/_i18n.ts',
 					seed: './src/_seed.ts',
 					migrations: './src/_migrations.ts',
 				},

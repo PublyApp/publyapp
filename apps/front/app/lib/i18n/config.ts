@@ -1,4 +1,4 @@
-import { type DefaultLocale, type DefaultNS, type Namespaces } from '@/shared/lib/i18n/resources';
+import { type DefaultLocale, type DefaultNS, type SupportedLanguages } from '@/shared/lib/i18n/resources';
 
 type Config = {
 	debug: boolean;
@@ -14,6 +14,7 @@ type Config = {
 	// ns: Namespaces;
 	defaultNS: DefaultNS;
 	fallbackLng: DefaultLocale;
+	supportedLngs: SupportedLanguages;
 };
 
 export const config: Config = {
@@ -29,10 +30,10 @@ export const config: Config = {
 
 	defaultNS: 'common',
 	fallbackLng: 'en',
+	supportedLngs: ['en', 'fr'], // set per environment
 	// ns: ['common', 'zod'], // set per environment
 
 	// !!! server only
 	// ns: NS, // load all namespaces on server only
 	// resources, // load all resources on server only
-	// supportedLngs: appLocales, // import appLocales on server only
 };
