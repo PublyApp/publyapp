@@ -1,4 +1,4 @@
-import zodFr from 'zod-i18n-map/locales/fr/zod.json' assert { type: 'json' };
+import zodFr from 'zod-i18n-map/locales/fr/zod.json' with { type: 'json' };
 
 import type { LooseResource } from '../en';
 
