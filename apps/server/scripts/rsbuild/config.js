@@ -11,6 +11,9 @@
 
 const path = require('path');
 const fs = require('fs');
+const { pipeline, Readable } = require('stream');
+const { promisify } = require('util');
+const { createWriteStream } = require('fs');
 
 const { createRsbuild: _createRsbuild } = require('@rsbuild/core');
 const { pluginTypeCheck } = require('@rsbuild/plugin-type-check');
@@ -172,3 +175,26 @@ function build(rsbuild) {
 }
 
 exports.build = build;
+
+async function createI18nResourcesFiles(resources) {
+	const pipelineAsync = promisify(pipeline);
+	await Promise.all(
+		Object.entries(resources).map(async ([lang, namespaces]) => {
+			await Promise.all(
+				Object.entries(namespaces).map(async ([namespace, data]) => {
+					const filePath = path.join(__dirname, `../../dist/resources/${lang}.${namespace}.json`);
+					const dir = path.dirname(filePath);
+
+					if (!fs.existsSync(dir)) {
+						fs.mkdirSync(dir, { recursive: true });
+					}
+
+					const writeStream = createWriteStream(filePath);
+					await pipelineAsync(Readable.from([JSON.stringify(data, null, 2)]), writeStream);
+				}),
+			);
+		}),
+	);
+}
+
+exports.createI18nResourcesFiles = createI18nResourcesFiles;

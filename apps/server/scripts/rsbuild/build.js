@@ -7,7 +7,7 @@
 
 // @ts-check
 
-const { createRsbuild, build } = require('./config');
+const { createRsbuild, build, createI18nResourcesFiles } = require('./config');
 
 const toDeploy = ['preprod', 'production'].includes(process.env.MODE || '');
 
@@ -22,6 +22,8 @@ const run = async () => {
 
 	rsbuild.onAfterBuild(async () => {
 		// create the i18n resources files in .jsonc format
+		const { resources } = await import(`../../dist/i18n.mjs?update=${Date.now()}`); // we want the updated version and not the cached one
+		await createI18nResourcesFiles(resources);
 	});
 
 	build(rsbuild);
