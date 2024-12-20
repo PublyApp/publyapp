@@ -5,7 +5,7 @@ import { ParseServer } from 'parse-server/lib/index.js';
 import Parse from 'parse/node.js';
 
 import FSFilesAdapter from '@parse/fs-files-adapter';
-import { createRequestHandler } from '@remix-run/express';
+import { createRequestHandler } from '@react-router/express';
 import chalk from 'chalk';
 import express from 'express';
 import subdomain from 'express-subdomain';

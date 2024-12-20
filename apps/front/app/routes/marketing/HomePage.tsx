@@ -4,6 +4,8 @@
 // import { useLoaderData } from 'react-router';
 
 // import { getServerLoader } from '@/front/lib/remix';
+import { data } from 'react-router';
+
 import { sleep } from '@/shared/utils/any.utils';
 
 import type { Route } from './+types/HomePage';
@@ -53,6 +55,11 @@ export const meta = (_: Route.MetaArgs) => {
 // 		</Suspense>
 // 	);
 // };
+
+export const loader = async ({ params }: Route.LoaderArgs) => {
+	console.log('😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫', params);
+	return data({});
+};
 
 const HomePage = ({ loaderData: _ }: Route.ComponentProps) => {
 	return (
