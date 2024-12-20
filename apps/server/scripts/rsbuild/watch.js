@@ -10,11 +10,10 @@
 
 const { spawn } = require('child_process');
 const path = require('path');
-const fs = require('fs');
 
 const chokidar = require('chokidar');
 
-const { createRsbuild, watch: _watch } = require('./config');
+const { createRsbuild, watch: _watch, createI18nResourcesFiles } = require('./config');
 
 // set node env to development
 // otherwise onDevCompileDone API will not be called
@@ -32,18 +31,7 @@ const run = async () => {
 	rsbuild.onDevCompileDone(async () => {
 		// create the i18n resources files in .jsonc format
 		const { resources } = await import(`../../dist/i18n.mjs?update=${Date.now()}`); // we want the updated version and not the cached one
-		Object.entries(resources).forEach(([lang, namespaces]) => {
-			Object.entries(namespaces).forEach(([namespace, data]) => {
-				const filePath = path.join(__dirname, `../../dist/resources/${lang}.${namespace}.jsonc`);
-				const dir = path.dirname(filePath);
-
-				if (!fs.existsSync(dir)) {
-					fs.mkdirSync(dir, { recursive: true });
-				}
-
-				fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-			});
-		});
+		await createI18nResourcesFiles(resources);
 
 		// kill previous app process and start a new one
 		if (startAppProcess) {

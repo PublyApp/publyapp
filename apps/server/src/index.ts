@@ -64,6 +64,7 @@ const bootstrap = async () => {
 		}),
 	);
 	app.use(env.EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
+	app.use('/resources', express.static(path.resolve(process.cwd(), 'dist/resources')));
 
 	// apply subdomain routing for our url shortener redirection service
 	app.use(subdomain('link', shortURLRouter));
