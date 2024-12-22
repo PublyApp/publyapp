@@ -80,6 +80,12 @@ importers:
       i18next:
         specifier: ^23.8.2
         version: 23.12.2
+      i18next-browser-languagedetector:
+        specifier: ^7.2.1
+        version: 7.2.2
+      i18next-fetch-backend:
+        specifier: 6.0.0
+        version: 6.0.0
       i18next-fs-backend:
         specifier: ^2.3.1
         version: 2.3.2
@@ -95,12 +101,15 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.0.0(react@19.0.0)
+      react-i18next:
+        specifier: ^14.1.1
+        version: 14.1.3(i18next@23.12.2)(react-dom@19.0.0)(react@19.0.0)
       react-router:
         specifier: ^7.0.2
         version: 7.0.2(react-dom@19.0.0)(react@19.0.0)
       remix-i18next:
         specifier: ^7.0.1
-        version: 7.0.1(i18next@23.12.2)(react-i18next@15.2.0)(react-router@7.0.2)(react@19.0.0)
+        version: 7.0.1(i18next@23.12.2)(react-i18next@14.1.3)(react-router@7.0.2)(react@19.0.0)
       zod:
         specifier: ^3.22.4
         version: 3.23.8
@@ -8252,6 +8261,17 @@ packages:
       mustache: 2.2.0
     dev: false
 
+  /i18next-browser-languagedetector@7.2.2:
+    resolution: {integrity: sha512-6b7r75uIJDWCcCflmbof+sJ94k9UQO4X0YR62oUfqGI/GjCLVzlCwu8TFdRZIqVLzWbzNcmkmhfqKEr4TLz4HQ==}
+    dependencies:
+      '@babel/runtime': 7.26.0
+    dev: false
+
+  /i18next-fetch-backend@6.0.0:
+    resolution: {integrity: sha512-kVqnydqLVMZfVlOuP2nf71cREydlxEKLH43jUXAFdOku/GF+6b9fBg31anoos5XncdhdtiYgL9fheqMrtXRwng==}
+    engines: {node: '>=18'}
+    dev: false
+
   /i18next-fs-backend@2.3.2:
     resolution: {integrity: sha512-LIwUlkqDZnUI8lnUxBnEj8K/FrHQTT/Sc+1rvDm9E8YvvY5YxzoEAASNx+W5M9DfD5s77lI5vSAFWeTp26B/3Q==}
     dev: false
@@ -10933,8 +10953,8 @@ packages:
       react-side-effect: 2.1.2(react@16.14.0)
     dev: false
 
-  /react-i18next@15.2.0(i18next@23.12.2)(react-dom@19.0.0)(react@19.0.0):
-    resolution: {integrity: sha512-iJNc8111EaDtVTVMKigvBtPHyrJV+KblWG73cUxqp+WmJCcwkzhWNFXmkAD5pwP2Z4woeDj/oXDdbjDsb3Gutg==}
+  /react-i18next@14.1.3(i18next@23.12.2)(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-wZnpfunU6UIAiJ+bxwOiTmBOAaB14ha97MjOEnLGac2RJ+h/maIYXZuTHlmyqQVX1UVHmU1YDTQ5vxLmwfXTjw==}
     peerDependencies:
       i18next: '>= 23.2.3'
       react: '>= 16.8.0'
@@ -11358,7 +11378,7 @@ packages:
       rc: 1.2.8
     dev: false
 
-  /remix-i18next@7.0.1(i18next@23.12.2)(react-i18next@15.2.0)(react-router@7.0.2)(react@19.0.0):
+  /remix-i18next@7.0.1(i18next@23.12.2)(react-i18next@14.1.3)(react-router@7.0.2)(react@19.0.0):
     resolution: {integrity: sha512-GE10RyBiF6CeYKIgrVJ3nTr/CpySpx4PBN9gJk0U/YtbDr4X0P6PERv+02GrpptUt1N23F2DjE/HELemw/G6cQ==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
@@ -11369,7 +11389,7 @@ packages:
     dependencies:
       i18next: 23.12.2
       react: 19.0.0
-      react-i18next: 15.2.0(i18next@23.12.2)(react-dom@19.0.0)(react@19.0.0)
+      react-i18next: 14.1.3(i18next@23.12.2)(react-dom@19.0.0)(react@19.0.0)
       react-router: 7.0.2(react-dom@19.0.0)(react@19.0.0)
     dev: false
 
