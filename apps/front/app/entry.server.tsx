@@ -3,17 +3,27 @@ import { PassThrough } from 'node:stream';
 import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
 import { renderToPipeableStream, type RenderToPipeableStreamOptions } from 'react-dom/server';
+import { I18nextProvider } from 'react-i18next';
 import { ServerRouter, type AppLoadContext, type EntryContext } from 'react-router';
+
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+
+import { iniI18nOnServer } from './lib/i18n/init.server';
 
 const ABORT_DELAY = 50_000;
 
-const handleRequest = (
+const handleRequest = async (
 	request: Request,
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	routerContext: EntryContext,
 	_loadContext: AppLoadContext,
 ) => {
+	const url = new URL(request.url);
+	const lng = url.searchParams.get('lng');
+	const locale = getCorrectLocale(lng);
+	const i18nInstance = await iniI18nOnServer({ routerContext, locale });
+
 	return new Promise((resolve, reject) => {
 		let shellRendered = false;
 		const userAgent = request.headers.get('user-agent');
@@ -24,7 +34,9 @@ const handleRequest = (
 			(userAgent && isbot(userAgent)) || routerContext.isSpaMode ? 'onAllReady' : 'onShellReady';
 
 		const { pipe, abort } = renderToPipeableStream(
-			<ServerRouter context={routerContext} url={request.url} abortDelay={ABORT_DELAY} />,
+			<I18nextProvider i18n={i18nInstance}>
+				<ServerRouter context={routerContext} url={request.url} abortDelay={ABORT_DELAY} />
+			</I18nextProvider>,
 			{
 				[readyOption]: () => {
 					shellRendered = true;

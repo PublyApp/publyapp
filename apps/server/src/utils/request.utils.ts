@@ -2,9 +2,10 @@ import type { Request } from 'express';
 import _ from 'lodash';
 
 import { LOCALE_HEADER_KEY } from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
-import { getCorrectLocale, i18nextServer } from '../lib/i18n';
+import { i18nextServer } from '../lib/i18n';
 
 export const getHeader = (req: Request, key: string) => {
 	return req.get(key) || req.get(_.toLower(key));

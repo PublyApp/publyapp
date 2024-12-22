@@ -1,6 +1,8 @@
 import _ from 'lodash';
 import { ZodError } from 'zod';
 
+import { getCorrectLocale } from '@devist/shared/lib/i18n/i18n.utils';
+
 import RoleService from '@/server/modules/common/auth/role/role.service';
 import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
 import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
@@ -15,7 +17,7 @@ import type { AppLocale } from '@/shared/lib/i18n/resources';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
 import { USE_MASTER_KEY } from '../constants';
-import { getCorrectLocale, getT, i18nextServer } from '../i18n';
+import { getT, i18nextServer } from '../i18n';
 
 import { getCurrentInstallationId, getInternalConfig } from './parse.utils';
 
