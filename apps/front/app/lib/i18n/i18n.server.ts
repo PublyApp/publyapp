@@ -1,3 +1,5 @@
+import { resolve } from 'path';
+
 import Backend from 'i18next-fs-backend';
 import { RemixI18Next } from 'remix-i18next/server';
 
@@ -12,9 +14,12 @@ export const remixI18NextServer = new RemixI18Next({
 	// when translating messages server-side only
 	i18next: {
 		...config,
-		// backend: {
-		// 	loadPath: resolve('./public/locales/{{lng}}/{{ns}}.json'),
-		// },
+		backend: {
+			loadPath:
+				import.meta.env.MODE === 'development'
+					? resolve(process.cwd(), '../server/dist/resources/{{lng}}.{{ns}}.json')
+					: resolve(process.cwd(), './dist/resources/{{lng}}.{{ns}}.json'),
+		},
 	},
 	// The i18next plugins you want RemixI18next to use for `i18n.getFixedT` inside loaders and actions.
 	// E.g. The Backend plugin for loading translations from the file system
