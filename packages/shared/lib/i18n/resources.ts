@@ -1,11 +1,13 @@
+// ! WARNING!: never import this file on any client-side/browser code
+// ! because it will be costly in term of loading time/size/performance
+// ! you should only import types from this files on client-side/browser code
+
 // Import here your languages
 import en from './locales/en';
 import fr from './locales/fr';
 
 export const appLocales = ['en', 'fr'] as const;
 
-// ! WARNING!: never import the resources on any client-side/browser code
-// ! because it will be costly in term of loading time/size/performance
 export const resources = {
 	en,
 	fr,

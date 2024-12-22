@@ -3,10 +3,24 @@
 import '@mantine/core/styles.css';
 
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
+import { useChangeLanguage } from 'remix-i18next/react';
+
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 
 import type { Route } from './+types/root';
 import { theme } from './theme/theme';
+
+export const loader = async ({ request }: Route.LoaderArgs) => {
+	// const { lang, clientEnv } = context;
+	// return { lang, clientEnv };
+	const url = new URL(request.url);
+	const lng = url.searchParams.get('lng');
+	const locale = getCorrectLocale(lng);
+
+	return { locale };
+};
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -24,10 +38,12 @@ export const links: Route.LinksFunction = () => {
 };
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
+	const { i18n } = useTranslation();
+
 	return (
 		// add suppressHydrationWarning to avoid mantine hydration error:
 		// https://github.com/mantinedev/mantine/issues/7008#issuecomment-2432733026
-		<html lang="en" suppressHydrationWarning>
+		<html lang={i18n.language} dir={i18n.dir()} suppressHydrationWarning>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -44,7 +60,15 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 	);
 };
 
-const App = () => {
+const App = ({ loaderData }: Route.ComponentProps) => {
+	const { locale } = loaderData;
+
+	// This hook will change the i18n instance language to the current locale
+	// detected by the loader, this way, when we do something to change the
+	// language, this locale will change and i18next will load the correct
+	// translation files
+	useChangeLanguage(locale);
+
 	return <Outlet />;
 };
 

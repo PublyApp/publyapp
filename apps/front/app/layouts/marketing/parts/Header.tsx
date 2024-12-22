@@ -3,6 +3,7 @@ import { Box, Burger, Button, Divider, Drawer, Group, ScrollArea } from '@mantin
 import { useDisclosure } from '@mantine/hooks';
 import { Link } from 'react-router';
 
+import { LanguagePicker } from '@/front/components/LanguagePicker/LanguagePicker';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 import { classes } from './Header.css';
@@ -30,6 +31,7 @@ const Header = () => {
 					</Group>
 
 					<Group visibleFrom="sm">
+						<LanguagePicker />
 						<Button component={Link} variant="default" to={FRONT_PATH_NAMES.login}>
 							Log in
 						</Button>

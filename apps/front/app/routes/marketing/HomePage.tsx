@@ -4,7 +4,9 @@
 // import { useLoaderData } from 'react-router';
 
 // import { getServerLoader } from '@/front/lib/remix';
-import { data } from 'react-router';
+// import { data } from 'react-router';
+
+import { useTranslation } from 'react-i18next';
 
 import { sleep } from '@/shared/utils/any.utils';
 
@@ -56,15 +58,15 @@ export const meta = (_: Route.MetaArgs) => {
 // 	);
 // };
 
-export const loader = async ({ params }: Route.LoaderArgs) => {
-	console.log('😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫😵‍💫', params);
-	return data({});
-};
+// export const loader = async ({ params }: Route.LoaderArgs) => {
+// 	return data({});
+// };
 
 const HomePage = ({ loaderData: _ }: Route.ComponentProps) => {
+	const { t } = useTranslation();
 	return (
 		<div>
-			<h1>Hello!!</h1>
+			<h1>{t('hello')}!!</h1>
 			<h2>The product is coming soon!</h2>
 			{/* <Button variant="primary">Hello</Button> */}
 			{/* <Composition /> */}
