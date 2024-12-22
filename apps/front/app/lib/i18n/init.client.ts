@@ -4,7 +4,12 @@ import Fetch from 'i18next-fetch-backend';
 import { initReactI18next } from 'react-i18next';
 import { getInitialNamespaces } from 'remix-i18next/client';
 
+import { env } from '../env';
+
 import { config } from './config';
+
+const backendUrl = new URL(env.VITE_SERVER_URL);
+backendUrl.pathname = '/resources/{{lng}}.{{ns}}.json';
 
 export const initI18nOnClient = async () => {
 	await i18next
@@ -16,7 +21,7 @@ export const initI18nOnClient = async () => {
 			// This function detects the namespaces your routes rendered while SSR use
 			ns: getInitialNamespaces(),
 			backend: {
-				loadPath: '/resource/locales?lng={{lng}}&ns={{ns}}',
+				loadPath: decodeURIComponent(backendUrl.toString()),
 			},
 			detection: {
 				// Here only enable htmlTag detection, we'll detect the language only
