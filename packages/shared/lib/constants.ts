@@ -254,29 +254,6 @@ export const endPoint = {
 			functions: makePath(API_ROOT, PARSE_ROOT, 'functions'),
 		},
 	},
-	// =======
-	// parse: (parsePath: string) => {
-	// 	return {
-	// 		root: parsePath,
-	// 		functions: makePath(parsePath, 'functions'),
-	// 	} as const;
-	// },
-	// =======
-	// api: (apiPath: string) => {
-	// 	return {
-	// 		root: apiPath,
-	// 		auth: {
-	// 			// root: makePath(apiPath, ROOTS.AUTH),
-	// 			passwordLogin: makePath(apiPath, ROOTS.AUTH, 'password-login'),
-	// 			passwordSignup: makePath(apiPath, ROOTS.AUTH, 'password-signup'),
-	// 			verifyEmail: makePath(apiPath, ROOTS.AUTH, 'verify-email'),
-	// 		},
-	// 		upload: {
-	// 			single: makePath(apiPath, ROOTS.UPLOAD, 'single'),
-	// 			many: makePath(apiPath, ROOTS.UPLOAD, 'many'),
-	// 		},
-	// 	} as const;
-	// },
 } as const;
 
 export const DEFAULT_PAGE_SIZE = 25;
@@ -316,3 +293,7 @@ export const SESSION_TOKEN_LOCAL_STORAGE_KEY = 'session_token';
 export const LAST_USED_TENANT_ID_STORAGE_KEY = 'last_used_tenant';
 
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
+
+export const queryParamKey = {
+	language: 'lng',
+};

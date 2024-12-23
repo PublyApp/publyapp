@@ -1,4 +1,4 @@
-import { type i18n as I18n, type TFunction } from 'i18next';
+import { /* type i18n as I18n, */ type TFunction } from 'i18next';
 import _ from 'lodash';
 import z, {
 	defaultErrorMap,
@@ -14,11 +14,15 @@ import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
 
 import { defaultLocale, type AppLocale } from '../i18n/resources';
 
+type I18nLike = {
+	getFixedT: (locale: AppLocale) => TFunction;
+};
+
 /**
  * Customizable by locale zod wrapper
  */
 class CustomZod {
-	protected _i18n: I18n;
+	protected _i18n: I18nLike;
 
 	protected _locale: AppLocale;
 
@@ -32,11 +36,11 @@ class CustomZod {
 		return this._locale;
 	}
 
-	public get i18n(): I18n {
+	public get i18n(): I18nLike {
 		return this._i18n;
 	}
 
-	constructor({ i18n, locale }: { i18n: I18n; locale?: AppLocale }) {
+	constructor({ i18n, locale }: { i18n: I18nLike; locale?: AppLocale }) {
 		this._i18n = i18n;
 
 		if (!locale) {
