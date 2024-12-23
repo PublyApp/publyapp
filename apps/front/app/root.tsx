@@ -13,8 +13,6 @@ import type { Route } from './+types/root';
 import { theme } from './theme/theme';
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
-	// const { lang, clientEnv } = context;
-	// return { lang, clientEnv };
 	const url = new URL(request.url);
 	const lng = url.searchParams.get('lng');
 	const locale = getCorrectLocale(lng);
@@ -88,11 +86,11 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	}
 
 	return (
-		<main className="pt-16 p-4 container mx-auto">
+		<main>
 			<h1>{message}</h1>
 			<p>{details}</p>
 			{stack && (
-				<pre className="w-full p-4 overflow-x-auto">
+				<pre>
 					<code>{stack}</code>
 				</pre>
 			)}
