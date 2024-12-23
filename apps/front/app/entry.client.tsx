@@ -1,6 +1,8 @@
 import { startTransition, StrictMode } from 'react';
 
+import i18next from 'i18next';
 import { hydrateRoot } from 'react-dom/client';
+import { I18nextProvider } from 'react-i18next';
 import { HydratedRouter } from 'react-router/dom';
 
 import { initI18nOnClient } from './lib/i18n/init.client';
@@ -12,7 +14,9 @@ const hydrate = async () => {
 		hydrateRoot(
 			document,
 			<StrictMode>
-				<HydratedRouter />
+				<I18nextProvider i18n={i18next}>
+					<HydratedRouter />
+				</I18nextProvider>
 			</StrictMode>,
 		);
 	});
