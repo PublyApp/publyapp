@@ -6,6 +6,7 @@ import { renderToPipeableStream, type RenderToPipeableStreamOptions } from 'reac
 import { I18nextProvider } from 'react-i18next';
 import { ServerRouter, type AppLoadContext, type EntryContext } from 'react-router';
 
+import { queryParamKey } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 
 import { iniI18nOnServer } from './lib/i18n/init.server';
@@ -20,8 +21,8 @@ const handleRequest = async (
 	_loadContext: AppLoadContext,
 ) => {
 	const url = new URL(request.url);
-	const lng = url.searchParams.get('lng');
-	const locale = getCorrectLocale(lng);
+	const language = url.searchParams.get(queryParamKey.language);
+	const locale = getCorrectLocale(language);
 	const i18nInstance = await iniI18nOnServer({ routerContext, locale });
 
 	return new Promise((resolve, reject) => {

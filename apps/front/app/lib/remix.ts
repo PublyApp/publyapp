@@ -1,10 +1,12 @@
 import type { ApiClient } from 'packages/api/ApiClient';
 import { redirect, type LoaderFunctionArgs } from 'react-router';
 
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES, queryParamKey } from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
 import { initApiClient } from './api';
+import { remixI18NextServer } from './i18n/i18n.server';
 
 type GetServerLoaderParam<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> =
 	| {
@@ -30,9 +32,14 @@ type GetServerLoaderParam<T extends LoaderFunctionArgs = LoaderFunctionArgs, D =
 export const getServerLoader = <T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
 	params: GetServerLoaderParam<T, D>,
 ) => {
-	const z = new CustomZod({ i18n, locale: 'en' });
-
 	const loader = async (args: T) => {
+		const { request } = args;
+		const url = new URL(request.url);
+		const language = url.searchParams.get(queryParamKey.language);
+		const locale = getCorrectLocale(language);
+
+		const z = new CustomZod({ i18n: remixI18NextServer as never, locale });
+
 		if (!params.requireUser) {
 			const apiClient = initApiClient.onServer({ locale: 'en' });
 			return params.loader({ ...args, apiClient, z });
