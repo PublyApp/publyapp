@@ -3,7 +3,7 @@ import { Box, Burger, Button, Divider, Drawer, Group, ScrollArea } from '@mantin
 import { useDisclosure } from '@mantine/hooks';
 import { Link } from 'react-router';
 
-import { LanguagePicker } from '@/front/components/LanguagePicker/LanguagePicker';
+import { LanguagePicker } from '@/front/components/language-picker/LanguagePicker';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 import { classes } from './Header.css';
