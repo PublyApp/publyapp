@@ -7,18 +7,15 @@ import { useTranslation } from 'react-i18next';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-
 import type { Route } from './+types/root';
+import { getServerLoader } from './lib/react-router/loader.server';
 import { theme } from './theme/theme';
 
-export const loader = async ({ request }: Route.LoaderArgs) => {
-	const url = new URL(request.url);
-	const lng = url.searchParams.get('lng');
-	const locale = getCorrectLocale(lng);
-
-	return { locale };
-};
+export const loader = getServerLoader({
+	loader: async ({ locale }) => {
+		return { locale };
+	},
+});
 
 export const links: Route.LinksFunction = () => {
 	return [
