@@ -6,7 +6,22 @@ const routes = [
 		// ==
 		index('routes/marketing/HomePage.tsx'),
 	]),
-	layout('routes/auth/AuthPagesLayout.tsx', [route('login', 'routes/auth/login/LoginPage.tsx')]),
+	layout('routes/auth/AuthPagesLayout.tsx', [
+		// ==
+		route('login', 'routes/auth/login/LoginPage.tsx'),
+	]),
+	layout('routes/authed/AuthedPagesLayout.tsx', [
+		// ==
+		// route('staff', 'routes/authed/admin/DashboardPage.tsx'),
+		route('staff', 'routes/authed/admin/AdminDashboardPagesLayout.tsx', [
+			index('routes/authed/admin/dashboard/AdminDashBoardPage.tsx'),
+			// route('settings', 'routes/authed/admin/settings/SettingsPage.tsx'),
+		]),
+		// route('client', 'routes/authed/client/TenantDashboardPagesLayout.tsx', [
+		// 	// index('routes/authed/admin/dashboard/AdminDashBoardPage.tsx'),
+		// 	// // route('settings', 'routes/authed/admin/settings/SettingsPage.tsx'),
+		// ]),
+	]),
 ] satisfies RouteConfig;
 
 export default routes;

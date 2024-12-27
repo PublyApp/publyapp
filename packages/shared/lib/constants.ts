@@ -292,6 +292,9 @@ export const DEVIST_REST_API_HEADER_KEY = 'X-Devist-Key';
 export const SESSION_TOKEN_LOCAL_STORAGE_KEY = 'session_token';
 export const LAST_USED_TENANT_ID_STORAGE_KEY = 'last_used_tenant';
 
+export const SESSION_TOKEN_COOKIE_KEY = 'session_token';
+export const LAST_USED_TENANT_ID_COOKIE_KEY = 'last_used_tenant';
+
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
 export const queryParamKey = {

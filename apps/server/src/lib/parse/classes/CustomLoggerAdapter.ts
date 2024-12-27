@@ -4,16 +4,17 @@ import path from 'path';
 import _defaults from 'parse-server/lib/defaults.js';
 
 import _ from 'lodash';
-import ms from 'ms';
 import winston, { format, type Logger } from 'winston';
 import { consoleFormat } from 'winston-console-format';
 import DailyRotateFile from 'winston-daily-rotate-file';
+
+import duration from '@/shared/utils/duration.utils';
 
 import { type LoggerAdapter } from '../interfaces/LoggerAdapter';
 
 const defaults = _.get(_defaults, 'default') as unknown as typeof _defaults;
 
-const MILLISECONDS_IN_A_DAY = ms('1d');
+const MILLISECONDS_IN_A_DAY = duration.toMilliseconds('1d');
 
 /**
  * @interface Options

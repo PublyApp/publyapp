@@ -11,6 +11,8 @@ import express from 'express';
 import subdomain from 'express-subdomain';
 import ParseDashboard from 'parse-dashboard';
 
+import duration from '@devist/shared/utils/duration.utils';
+
 import { endPoint, LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/winston';
 
@@ -26,17 +28,14 @@ import { corsWhiteList, FILE_UPLOAD_DESTINATION, PARSE_SERVER_URL } from './lib/
 import { env } from './lib/env';
 import { expressHandler } from './lib/express';
 import { initI18next } from './lib/i18n';
-// import logger, { consoleTransport } from './lib/logger';
 import CustomLoggerAdapter from './lib/parse/classes/CustomLoggerAdapter';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
 import { setCurrentInstallationId } from './lib/parse/parse.utils';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
-// import UserManagementServiceForStaff from './modules/staff/user-management/UserManagementServiceForStaff';
 import coreApiRouter from './router/coreApi.router';
 import shortURLRouter from './router/shortURL.router';
-import duration from './utils/duration';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
