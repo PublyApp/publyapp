@@ -3,7 +3,7 @@ import { resolve } from 'path';
 import Backend from 'i18next-fs-backend';
 import { RemixI18Next } from 'remix-i18next/server';
 
-import { config } from './config';
+import { config } from './i18n.config';
 
 export const remixI18NextServer = new RemixI18Next({
 	detection: {

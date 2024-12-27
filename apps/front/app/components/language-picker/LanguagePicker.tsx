@@ -5,7 +5,7 @@ import { Group, Menu, UnstyledButton } from '@mantine/core';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 
-import { config } from '@/front/lib/i18n/config';
+import { config } from '@/front/lib/i18n/i18n.config';
 
 import { classes } from './LanguagePicker.css';
 

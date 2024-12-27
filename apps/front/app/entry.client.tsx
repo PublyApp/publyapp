@@ -5,7 +5,7 @@ import { hydrateRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import { HydratedRouter } from 'react-router/dom';
 
-import { initI18nOnClient } from './lib/i18n/init.client';
+import { initI18nOnClient } from './lib/i18n/initI18n.client';
 
 const hydrate = async () => {
 	await initI18nOnClient();
