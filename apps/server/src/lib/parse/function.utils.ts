@@ -37,6 +37,7 @@ type ParseTrigger<P extends Parse.Object = Parse.Object, T = unknown> = (
 type ParseJob<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
 	req: Parse.Cloud.JobRequest<P>,
 ) => Promise<T>;
+
 type CloudFunction = {
 	<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
 		innerFunction: ParseFunction<P, T>,

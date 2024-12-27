@@ -4,7 +4,7 @@ import type { EntryContext } from 'react-router';
 
 import { resources, type AppLocale } from '@/shared/lib/i18n/resources';
 
-import { config } from './config';
+import { config } from './i18n.config';
 import { remixI18NextServer } from './i18n.server';
 
 export const iniI18nOnServer = async ({
