@@ -6,7 +6,7 @@ import { getInitialNamespaces } from 'remix-i18next/client';
 
 import { env } from '../env';
 
-import { config } from './config';
+import { config } from './i18n.config';
 
 const backendUrl = new URL(env.VITE_SERVER_URL);
 backendUrl.pathname = '/resources/{{lng}}.{{ns}}.json';

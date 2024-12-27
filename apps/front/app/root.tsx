@@ -8,7 +8,7 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration }
 import { useChangeLanguage } from 'remix-i18next/react';
 
 import type { Route } from './+types/root';
-import { getServerLoader } from './lib/react-router/loader.server';
+import { getServerLoader } from './lib/react-router/function.server';
 import { theme } from './theme/theme';
 
 export const loader = getServerLoader({
