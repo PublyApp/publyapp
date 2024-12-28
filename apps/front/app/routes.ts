@@ -17,7 +17,7 @@ const routes = [
 			index('routes/authed/admin/dashboard/AdminDashBoardPage.tsx'),
 			// route('settings', 'routes/authed/admin/settings/SettingsPage.tsx'),
 		]),
-		// route('client', 'routes/authed/client/TenantDashboardPagesLayout.tsx', [
+		// route('@\::tenantId', 'routes/authed/client/TenantDashboardPagesLayout.tsx', [
 		// 	// index('routes/authed/admin/dashboard/AdminDashBoardPage.tsx'),
 		// 	// // route('settings', 'routes/authed/admin/settings/SettingsPage.tsx'),
 		// ]),
