@@ -105,6 +105,13 @@ const bootstrap = async () => {
 		allowExpiredAuthDataToken: false,
 		preventLoginWithUnverifiedEmail: true,
 		encodeParseObjectInCloudFunction: true,
+		logLevels: {
+			cloudFunctionError: 'silent',
+			cloudFunctionSuccess: 'silent',
+			triggerAfter: 'silent',
+			triggerBeforeError: 'silent',
+			triggerBeforeSuccess: 'silent',
+		},
 		// =============================================
 		// verifyUserEmails: true,
 		// preserveFileName: true,

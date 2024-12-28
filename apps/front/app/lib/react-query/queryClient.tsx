@@ -27,6 +27,4 @@ export const createQueryClient = ({ env = 'development' }: Options = {}) => {
 	return queryClient;
 };
 
-const defaultQueryClient = createQueryClient();
-
-export default defaultQueryClient;
+export const defaultQueryClient = createQueryClient();

@@ -1,8 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable max-classes-per-file */
 
-// declare module 'parse-server';
 declare module 'parse-server/lib/Config.js';
 declare module 'parse-server/lib/Config';
 
@@ -15,17 +15,8 @@ declare module 'parse-server/lib/RestWrite';
 declare module 'parse-server/lib/Routers/UsersRouter';
 declare module 'parse-server/lib/Routers/UsersRouter.js';
 
-// declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection';
-// declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
-
 declare module 'parse-dashboard';
 declare module '@parse/fs-files-adapter';
-
-// declare module 'parse-server';
-// declare module 'parse-server/lib/logger';
-// declare module 'parse-server/lib/defaults';
-// declare module 'parse-server/lib/Controllers/LoggerController';
-// declare module 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter';
 
 // --------------------------------------------------------------------------------------//
 //                                                                                      //
@@ -67,13 +58,13 @@ declare module 'parse-server' {
 
 		silent?: boolean;
 		logLevel?: LogLevelEnum;
-		logLevels?: {
+		logLevels?: Partial<{
 			cloudFunctionError: LogLevelEnum;
 			cloudFunctionSuccess: LogLevelEnum;
 			triggerAfter: LogLevelEnum;
 			triggerBeforeError: LogLevelEnum;
 			triggerBeforeSuccess: LogLevelEnum;
-		};
+		}>;
 
 		emailAdapter?: MailAdapter;
 		loggerAdapter?: LoggerAdapter;
@@ -287,7 +278,7 @@ declare module 'parse-server/lib/Controllers/LoggerController' {
 
 	// ! I Only typed important methods
 	/* eslint-disable @typescript-eslint/no-explicit-any */
-	export class LoggerController /*  extends AdaptableController */ {
+	export class LoggerController {
 		adapter: WinstonLoggerAdapter;
 
 		log(level: LogLevel, ...args: any[]);
@@ -304,11 +295,11 @@ declare module 'parse-server/lib/Controllers/LoggerController' {
 
 		silly(...args: any[]);
 
-		logRequest(request: LogRequestParams): void;
+		private logRequest(request: LogRequestParams): void;
 
-		logResponse(response: LogResponseParams): void;
+		private logResponse(response: LogResponseParams): void;
 
-		truncateLogMessage(string: string): string;
+		private truncateLogMessage(string: string): string;
 	}
 }
 

@@ -3,11 +3,13 @@
 import '@mantine/core/styles.css';
 
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 
 import type { Route } from './+types/root';
+import { defaultQueryClient } from './lib/react-query/queryClient';
 import { getServerLoader } from './lib/react-router/function.server';
 import { theme } from './theme/theme';
 
@@ -47,8 +49,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<ColorSchemeScript />
 			</head>
 			<body>
-				<MantineProvider theme={theme}>{children}</MantineProvider>
-				<ScrollRestoration />
+				<QueryClientProvider client={defaultQueryClient}>
+					<MantineProvider theme={theme}>{children}</MantineProvider>
+					<ScrollRestoration />
+				</QueryClientProvider>
 				<Scripts />
 			</body>
 		</html>

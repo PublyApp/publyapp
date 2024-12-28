@@ -39,6 +39,11 @@ export default class CustomLoggerAdapter implements LoggerAdapter {
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	log(level: string, message: string, ...meta: any[]) {
+		if (level === 'warn' && message === 'afterSave caught an error') {
+			return;
+		}
+
+		// eslint-disable-next-line consistent-return
 		return this.logger.log(level, message, ...meta);
 	}
 
