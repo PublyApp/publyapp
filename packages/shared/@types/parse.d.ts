@@ -5,8 +5,6 @@ import type { PipelineStage } from 'mongoose';
 import type { AppLocale } from '../lib/i18n/resources';
 import type { DateType } from '../types/date.types';
 
-export {};
-
 declare global {
 	declare namespace Parse {
 		interface BaseAttributes {
@@ -22,7 +20,9 @@ declare global {
 		namespace Cloud {
 			interface FunctionRequest<T extends Params = Params> {
 				headers: Record<string, any> | undefined;
-				ip: string | undefined;
+				ip?: string | undefined;
+				context: Record<string, unknown>;
+				functionName: string;
 			}
 
 			// eslint-disable-next-line @typescript-eslint/ban-types

@@ -1,7 +1,7 @@
 import type { ApiClient } from 'packages/api/ApiClient';
 import { redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router';
 
-import { FRONT_PATH_NAMES, queryParamKey } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES, queryParamKey, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import CustomZod from '@/shared/lib/zod/CustomZod';
@@ -16,32 +16,17 @@ const getRequestLocale = (request: Request) => {
 	return locale;
 };
 
-type GetServerLoaderParam<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> =
-	| {
-			requireUser: true;
-			loader: (
-				args: T & {
-					z: CustomZod;
-					locale: AppLocale;
-					apiClient: ApiClient;
-					getUserAuthDataPromise: ReturnType<ApiClient['auth']['getUserAuthData']>;
-				},
-			) => Promise<D>;
-	  }
-	| {
-			requireUser?: boolean | undefined;
-			loader: (
-				args: T & {
-					z: CustomZod;
-					locale: AppLocale;
-					apiClient: ApiClient;
-				},
-			) => Promise<D>;
-	  };
+const getRequestCookie = (request: Request, cookieName: string) => {
+	const cookies = request.headers.getSetCookie();
+	const value = cookies.find((cookie) => {
+		return cookie.startsWith(`${cookieName}=`);
+	});
+
+	return value;
+};
 
 type GetServerLoaderParamsWhenRequireUser<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> = {
 	requireUser: true;
-	// withAuthDataPromise?: undefined;
 	loader: (
 		args: T & {
 			z: CustomZod;
@@ -77,13 +62,24 @@ type GetServerLoaderParamsWithAuthDataPromise<T extends LoaderFunctionArgs = Loa
 	) => Promise<D>;
 };
 
-type GetServerLoader<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> = {
-	(params: GetServerLoaderParamsWhenRequireUser<T, D>): (args: LoaderFunctionArgs) => Promise<D>;
-	(params: GetServerLoaderParamsWithoutAuthDataPromise<T, D>): (args: LoaderFunctionArgs) => Promise<D>;
-	(params: GetServerLoaderParamsWithAuthDataPromise<T, D>): (args: LoaderFunctionArgs) => Promise<D>;
+type GetServerLoader = {
+	<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
+		params: GetServerLoaderParamsWhenRequireUser<T, D>,
+	): (args: T) => Promise<D>;
+	<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
+		params: GetServerLoaderParamsWithoutAuthDataPromise<T, D>,
+	): (args: T) => Promise<D>;
+	<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
+		params: GetServerLoaderParamsWithAuthDataPromise<T, D>,
+	): (args: T) => Promise<D>;
 };
 
-export const getServerLoader = <T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
+type GetServerLoaderParam<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> =
+	| GetServerLoaderParamsWhenRequireUser<T, D>
+	| GetServerLoaderParamsWithoutAuthDataPromise<T, D>
+	| GetServerLoaderParamsWithAuthDataPromise<T, D>;
+
+export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
 	params: GetServerLoaderParam<T, D>,
 ) => {
 	const loader = async (args: T) => {
@@ -94,14 +90,18 @@ export const getServerLoader = <T extends LoaderFunctionArgs = LoaderFunctionArg
 
 		if (!params.requireUser) {
 			const apiClient = initApiClient.onServer({ locale });
-			return params.loader({ ...args, apiClient, z, locale });
+
+			if (!params.withAuthDataPromise) {
+				return params.loader({ ...args, apiClient, z, locale });
+			}
+
+			const authDataPromise = apiClient.auth.getUserAuthData();
+
+			return params.loader({ ...args, apiClient, z, locale, authDataPromise });
 		}
 
 		// check if session token cookie is present
-		const cookies = args.request.headers.getSetCookie();
-		const sessionTokenCookie = cookies?.find((cookie) => {
-			return cookie.startsWith('session_token=');
-		});
+		const sessionTokenCookie = getRequestCookie(request, SESSION_TOKEN_COOKIE_KEY);
 
 		let sessionToken: string | undefined;
 
@@ -114,26 +114,43 @@ export const getServerLoader = <T extends LoaderFunctionArgs = LoaderFunctionArg
 		}
 
 		const apiClient = initApiClient.onServer({ locale, sessionToken });
+		const authData = await apiClient.auth.getUserAuthData();
 
-		const getUserAuthDataPromise = apiClient.auth.getUserAuthData();
-
-		return params.loader({ ...args, apiClient, getUserAuthDataPromise, z, locale });
+		return params.loader({ ...args, apiClient, z, locale, authData });
 	};
 
 	return loader;
 };
 
-type GetServerActionParams<R> = {
+// type GetServerActionParams<R> = {
+// 	action: (
+// 		args: ActionFunctionArgs & {
+// 			z: CustomZod;
+// 			locale: AppLocale;
+// 			apiClient: ApiClient;
+// 		},
+// 	) => Promise<R>;
+// };
+
+type GetServerActionParamsWhenRequireUser<T extends ActionFunctionArgs = ActionFunctionArgs, D = unknown> = {
+	requireUser: true;
 	action: (
-		args: ActionFunctionArgs & {
+		args: T & {
 			z: CustomZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
+			authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
 		},
-	) => Promise<R>;
+	) => Promise<D>;
 };
 
-export const getServerAction = async <R>(prams: GetServerActionParams<R>) => {
+type GetServerAction = {
+	<T extends ActionFunctionArgs = ActionFunctionArgs, D = unknown>(
+		prams: GetServerActionParamsWhenRequireUser<T, D>,
+	): (args: T) => Promise<D>;
+};
+
+export const getServerAction = async (prams: GetServerActionParams<R>) => {
 	const action = async (args: ActionFunctionArgs) => {
 		const locale = getRequestLocale(args.request);
 		const z = new CustomZod({ i18n: remixI18NextServer as never, locale });

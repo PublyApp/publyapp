@@ -1,3 +1,7 @@
+import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
+import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
+
+import chalk from 'chalk';
 import _ from 'lodash';
 import { ZodError } from 'zod';
 
@@ -53,16 +57,150 @@ type ParseInnerFunction<
 > = ParseFunction<P, T> | ParseTrigger<O, T> | ParseJob<P, T>;
 
 export const getParseFunctionHeader = (
-	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest,
+	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest | Parse.Cloud.JobRequest,
 	key: string,
 ): string | undefined => {
 	return _.get(req, `req.headers.${key}`) || _.get(req, `req.headers.${_.toLower(key)}`);
 };
 
+type FunctionType = 'trigger' | 'function' | 'job';
+
+const getParseFunctionType = (
+	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest | Parse.Cloud.JobRequest,
+): FunctionType => {
+	const hasTriggerName = {
+		type: 'trigger' as const,
+		condition: _.has(req, 'triggerName') && !_.isNil(req.triggerName) && _.isString(req.triggerName),
+	};
+	const hastFunctionName = {
+		type: 'function' as const,
+		condition: _.has(req, 'functionName') && !_.isNil(req.functionName) && _.isString(req.functionName),
+	};
+	const hasJobName = {
+		type: 'job' as const,
+		condition: _.has(req, 'jobName') && !_.isNil(req.jobName) && _.isString(req.jobName),
+	};
+
+	const truthyConditions = [hasTriggerName, hastFunctionName, hasJobName].filter((value) => {
+		return value.condition === true;
+	});
+
+	if (truthyConditions.length > 1) {
+		throw new Error('Multiple function types detected');
+	}
+
+	if (truthyConditions.length <= 0) {
+		throw new Error('Unknown parse function type');
+	}
+
+	return truthyConditions[0].type;
+};
+
 const isTriggerRequest = (
-	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest,
+	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest | Parse.Cloud.JobRequest,
 ): req is Parse.Cloud.TriggerRequest => {
-	return !_.isNil(_.get(req, 'triggerName'));
+	return getParseFunctionType(req) === 'trigger';
+};
+
+const getParseFunctionName = ({
+	req,
+	functionType,
+}: {
+	req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest | Parse.Cloud.JobRequest;
+	functionType: FunctionType;
+}) => {
+	let functionName: string | undefined;
+
+	if (functionType === 'function') {
+		functionName = _.get(req, 'functionName');
+	}
+
+	if (functionType === 'trigger') {
+		functionName = _.get(req, 'triggerName');
+	}
+
+	if (functionType === 'job') {
+		functionName = _.get(req, 'jobName');
+	}
+
+	if (!functionName) {
+		throw new Error('functionName has an incorrect value');
+	}
+
+	return functionName;
+};
+
+const alterLogger = ({
+	req,
+	functionType,
+	functionName,
+}: {
+	req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest | Parse.Cloud.JobRequest;
+	functionType: FunctionType;
+	functionName: string;
+}) => {
+	let highlighted = `${_.capitalize(functionType)} :: ${functionName}`;
+
+	if (functionType === 'function' || functionType === 'trigger') {
+		// _.set(req, 'context.___do_not_use_altered_logger_marker___', true);
+		_.set(req, 'headers.___do_not_use_altered_logger_marker___', true);
+	}
+
+	if (functionType === 'trigger') {
+		if (functionName === 'beforeSave') {
+			const request = req as Parse.Cloud.BeforeSaveRequest;
+			highlighted = `${highlighted} :: ${request.object.className}`;
+		}
+
+		if (functionName === 'afterSave') {
+			const request = req as Parse.Cloud.AfterSaveRequest;
+			highlighted = `${highlighted} :: ${request.object.className}`;
+		}
+
+		if (functionName === 'beforeFind') {
+			const request = req as Parse.Cloud.BeforeFindRequest;
+			highlighted = `${highlighted} :: ${request.query.className}`;
+		}
+
+		if (functionName === 'afterFind') {
+			const request = req as Parse.Cloud.AfterFindRequest;
+			highlighted = `${highlighted} :: ${request.query?.className}`;
+		}
+
+		if (functionName === 'beforeDelete') {
+			const request = req as Parse.Cloud.BeforeDeleteRequest;
+			highlighted = `${highlighted} :: ${request.object.className}`;
+		}
+
+		if (functionName === 'afterDelete') {
+			const request = req as Parse.Cloud.AfterDeleteRequest;
+			highlighted = `${highlighted} :: ${request.object.className}`;
+		}
+	}
+
+	const execId = newObjectId();
+
+	const oldLog: LoggerController = req.log;
+	const newLog = {
+		...oldLog,
+		adapter: oldLog.adapter,
+		info: (...args: unknown[]) => {
+			// eslint-disable-next-line no-param-reassign
+			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
+			oldLog.info(...args);
+		},
+		warn: (...args: unknown[]) => {
+			// eslint-disable-next-line no-param-reassign
+			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
+			oldLog.warn(...args);
+		},
+		error: (...args: unknown[]) => {
+			// eslint-disable-next-line no-param-reassign
+			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[${highlighted}]`)} >> ${args[0]}`;
+			oldLog.error(...args);
+		},
+	} as LoggerController;
+	req.log = newLog;
 };
 
 export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
@@ -71,8 +209,24 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 	return async (
 		req: Parse.Cloud.FunctionRequest<P> | Parse.Cloud.TriggerRequest | Parse.Cloud.JobRequest<P>,
 	): Promise<T> => {
+		const functionType = getParseFunctionType(req);
+		const functionName = getParseFunctionName({ req, functionType });
+		alterLogger({ req, functionName, functionType });
+
+		// eslint-disable-next-line prefer-destructuring
+		const log: LoggerController = req.log;
+
 		try {
+			log.info(`${functionType} started`, {
+				user: _.get(req, 'user', undefined),
+				params: _.get(req, 'params', {}),
+			});
+			const t1 = performance.now();
 			const result = await innerFunction(req as never);
+			const t2 = performance.now();
+			log.info(`${functionType} finished in ${(t2 - t1).toFixed(2)} ms`, {
+				result,
+			});
 			return result;
 		} catch (error: unknown) {
 			const localeInHeader = getCorrectLocale(getParseFunctionHeader(req, LOCALE_HEADER_KEY));
@@ -100,13 +254,18 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 			// get zod errors message
 			if (error instanceof ZodError) {
 				message = error.issues[0].message;
+				log.error(message);
 				return Promise.reject(message);
 			}
 
 			if (error instanceof Error) {
+				// const msg = error.message || t('unknown-error');
+				// const obj = { ...error, message: msg };
+				log.error(!error.message ? String(error.message) : '', error);
 				return Promise.reject(error);
 			}
 
+			log.error(message);
 			return Promise.reject(message);
 		}
 	};

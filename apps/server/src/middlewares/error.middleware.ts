@@ -42,8 +42,23 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 			// status = /* res.statusCode || */ 400;
 		}
 
-		logger.error(`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message::`, error);
-		res.status(status).json({ message, code: parseErrorCode });
+		// const functionLogging = ['/api/parse/functions'].some((e) => {
+		// 	return req.path.startsWith(e);
+		// });
+
+		if (!_.get(req, 'config.headers.___do_not_use_altered_logger_marker___')) {
+			logger.error(
+				`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message:: ${!error.message ? String(error.message) : ''}`,
+				error,
+			);
+		}
+
+		if (error instanceof Parse.Error) {
+			res.status(status).json({ error: String(message), code: parseErrorCode });
+			return;
+		}
+
+		res.status(status).json({ message: String(message), code: parseErrorCode });
 	} catch (_error) {
 		next(_error);
 	}

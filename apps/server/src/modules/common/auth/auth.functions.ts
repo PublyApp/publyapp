@@ -2,6 +2,7 @@ import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/function.utils';
 import { getDatabase, getGlobalConfig } from '@/server/lib/parse/parse.utils';
 import { className, functionName, roleEnum, roleSet } from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/winston';
 import type { ITenant } from '@/shared/types/db/tenant.types';
 
 import RoleService from './role/role.service';
@@ -65,20 +66,28 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 			const tenantService = new TenantService({ sessionToken });
 			const foundTenant = await tenantService.getById(tenantId, { select: [] });
 
-			// case A:
-			if (isStaffMember) {
-				if (foundTenant) {
+			if (!foundTenant) {
+				logger.warn(`Attempt to access tenant ${tenantId} by user ${user.id} but not found`, {
+					tenantId,
+					userId: user.id,
+				});
+			} else {
+				// case A:
+				if (isStaffMember) {
 					tenant = foundTenant.toJSON() as unknown as ITenant;
 				}
-			}
 
-			// case B:
-			if (!isStaffMember && hasTenantRole) {
-				if (foundTenant) {
+				// case B:
+				if (!isStaffMember && hasTenantRole) {
 					// verify if user is member of foundTenant
 					const isMember = await TenantService.isUserMemberOfTenant({ user, tenant: foundTenant });
 
-					if (isMember) {
+					if (!isMember) {
+						logger.warn(`Attempt to access tenant ${tenantId} by user ${user.id} who is not a member`, {
+							tenantId,
+							userId: user.id,
+						});
+					} else {
 						tenant = foundTenant.toJSON() as unknown as ITenant;
 					}
 				}
@@ -94,8 +103,6 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 	},
 });
 
-Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);
-
 const removeSeededUsers = parseFunctionEnhanced({
 	requireMasterKey: true,
 	action: async () => {
@@ -106,8 +113,6 @@ const removeSeededUsers = parseFunctionEnhanced({
 		return { userResult };
 	},
 });
-
-Parse.Cloud.define(functionName.auth.removeSeededUsers, removeSeededUsers);
 
 export namespace GetIsDisabledSignupFunction {
 	// export type Params = FunctionParams<typeof getIsDisabledSignup>;
@@ -123,4 +128,6 @@ const getIsDisabledSignup = parseFunctionEnhanced({
 	},
 });
 
+Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);
+Parse.Cloud.define(functionName.auth.removeSeededUsers, removeSeededUsers);
 Parse.Cloud.define(functionName.auth.getIsDisabledSignup, getIsDisabledSignup);

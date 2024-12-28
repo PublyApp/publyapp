@@ -14,29 +14,29 @@ export const action = async ({ request }: Route.ActionArgs) => {
 	const email = formData.get('email');
 	const password = formData.get('password');
 
-	const result = getLoginSchema().safeParse({
-		email,
-		password,
-	});
+	// const result = getLoginSchema().safeParse({
+	// 	email,
+	// 	password,
+	// });
 
-	if (!result.success) {
-		return data({
-			error: result.error,
-		});
-	}
+	// if (!result.success) {
+	// 	return data({
+	// 		error: result.error,
+	// 	});
+	// }
 
-	console.log('🚀🚀🚀', {
-		email,
-		password,
-	});
+	// console.log('🚀🚀🚀', {
+	// 	email,
+	// 	password,
+	// });
 
-	return data({
-		// test: new Map([
-		// 	['email', _.toString(email)],
-		// 	['password', _.toString(password)],
-		// ]),
-		message: 'hello',
-	});
+	// return data({
+	// 	// test: new Map([
+	// 	// 	['email', _.toString(email)],
+	// 	// 	['password', _.toString(password)],
+	// 	// ]),
+	// 	message: 'hello',
+	// });
 };
 
 const LoginPage = ({ actionData }: Route.ComponentProps) => {
