@@ -177,6 +177,7 @@ function build(rsbuild) {
 exports.build = build;
 
 async function createI18nResourcesFiles(resources) {
+	console.log('\x1b[32m%s\x1b[0m', '-> started creating i18n resources files');
 	const pipelineAsync = promisify(pipeline);
 	await Promise.all(
 		Object.entries(resources).map(async ([lang, namespaces]) => {
@@ -195,6 +196,7 @@ async function createI18nResourcesFiles(resources) {
 			);
 		}),
 	);
+	console.log('\x1b[32m%s\x1b[0m', '-> finished creating i18n resources files');
 }
 
 exports.createI18nResourcesFiles = createI18nResourcesFiles;

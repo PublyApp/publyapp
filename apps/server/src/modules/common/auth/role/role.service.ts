@@ -1,4 +1,3 @@
-// import { USE_MASTER_KEY } from '@/server/lib/constants';
 import type { IRoleConfig, RoleSet } from '@/shared/lib/constants';
 import type { IRole } from '@/shared/types/db/role.types';
 
@@ -43,8 +42,6 @@ export default class RoleService {
 
 	async getUserRoles(user: Parse.User, json?: false): Promise<Parse.Role[]>;
 	async getUserRoles(user: Parse.User, json: true): Promise<IRole[]>;
-
-	// eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions
 	async getUserRoles(user: Parse.User, json?: boolean) {
 		const roleQuery = new Parse.Query(Parse.Role).equalTo('users', user);
 		const roles = await roleQuery.find({ sessionToken: this.sessionToken, useMasterKey: this.master });

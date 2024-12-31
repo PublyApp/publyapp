@@ -41,27 +41,28 @@ export default class TenantService {
 
 	async findTenantsForUser(
 		user: ParseUser,
-		options: { page?: number; pageSize?: number; json: true },
+		options: { page?: number; pageSize?: number; json: true } & QueryOptions,
 	): Promise<ITenant[]>;
 	async findTenantsForUser(
 		user: ParseUser,
-		options?: { page?: number; pageSize?: number; json?: false | undefined } | undefined,
+		options?: ({ page?: number; pageSize?: number; json?: false | undefined } & QueryOptions) | undefined,
 	): Promise<ParseTenant[]>;
 	async findTenantsForUser(
 		user: ParseUser,
-		{
-			page = 0,
-			pageSize = DEFAULT_PAGE_SIZE,
-			json = false,
-		}: { page?: number; pageSize?: number; json?: boolean | undefined } | undefined = {},
+		options: ({ page?: number; pageSize?: number; json?: boolean | undefined } & QueryOptions) | undefined = {},
 	) {
 		const query = new Parse.Query(className._CUSTOM_JOIN_USER_TO_TENANT).select(['tenant']).equalTo('user', user);
 
-		applySkipAndLimit(query, { type: 'page', page, pageSize });
+		applySkipAndLimit(query, {
+			type: 'page',
+			page: options.page ?? 1,
+			pageSize: options.pageSize ?? DEFAULT_PAGE_SIZE,
+		});
+		applyQueryOptions(query, options);
 
-		const relations = await query.find({ sessionToken: this.sessionToken, json });
+		const relations = await query.find({ sessionToken: this.sessionToken, json: options.json });
 
-		if (json) {
+		if (options.json) {
 			const results: ITenant[] = [];
 
 			(relations as unknown as { tenant?: ITenant }[]).forEach((relation) => {
