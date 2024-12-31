@@ -11,7 +11,7 @@ import { createSessionServer, getGlobalConfig } from '@/server/lib/parse/parse.u
 import ParseUser from '@/server/modules/common/auth/user/user.class';
 import { getRequestIp, getRequestUtils } from '@/server/utils/request.utils';
 import { defaultHttp } from '@/shared/lib/axios';
-import { BO_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/winston';
 
 import { AuthCloudService } from './auth.cloud.service';
@@ -87,13 +87,13 @@ export const handleVerifyEmail = expressHandler(async (req, res) => {
 
 		// on success redirect to success page
 		const successUrl = new URL(env.OFFICE_URL);
-		successUrl.pathname = BO_PATH_NAMES.auth.login;
+		successUrl.pathname = FRONT_PATH_NAMES.auth.login;
 		return res.redirect(successUrl.toString());
 	} catch (error) {
 		logger.error('Error in verifyEmail:', error);
 		// on error redirect to error page
 		const failUrl = new URL(env.OFFICE_URL);
-		failUrl.pathname = BO_PATH_NAMES.auth.signup;
+		failUrl.pathname = FRONT_PATH_NAMES.auth.signup;
 		return res.redirect(failUrl.toString());
 	}
 });

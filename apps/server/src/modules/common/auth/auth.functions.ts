@@ -6,6 +6,7 @@ import { logger } from '@/shared/lib/winston';
 import type { ITenant } from '@/shared/types/db/tenant.types';
 
 import RoleService from './role/role.service';
+import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
 
 export namespace GetUserAuthDataFunction {
@@ -45,12 +46,7 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 			// 				a - The user is not member of this tenant
 			// case C: the user is neither from staff or a tenant // yes this is possible in our system actually
 			const STAFF_ROLES = roleSet.ABOVE_STAFF_CONTRIBUTOR;
-			const TENANT_ROLES = [
-				// roleEnum.TENANT_ADMIN,
-				// roleEnum.TENANT_EDITOR,
-				roleEnum.TENANT_USER,
-				// roleEnum.TENANT_CONTRIBUTOR,
-			];
+			const TENANT_ROLES = [roleEnum.TENANT_USER];
 
 			const isStaffMember = roles.some((userRole) => {
 				return STAFF_ROLES.some((staffRole) => {
@@ -128,6 +124,101 @@ const getIsDisabledSignup = parseFunctionEnhanced({
 	},
 });
 
+export namespace GetRedirectCodeFunction {
+	export type Params = FunctionParams<typeof getRedirectCode>;
+	export type Return = FunctionReturn<typeof getRedirectCode>;
+}
+
+const getRedirectCode = parseFunctionEnhanced({
+	requireUser: true,
+	allowedRoles: roleSet.ABOVE_TENANT_USER,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			tenantId: z.string().optional(),
+		});
+
+		return schema.parse(params);
+	},
+	action: async ({ user, params, req }) => {
+		const STAFF_ROLES = roleSet.ABOVE_STAFF_CONTRIBUTOR;
+		// const TENANT_ROLES = [roleEnum.TENANT_USER];
+
+		const sessionToken = user.getSessionToken();
+
+		const tenantService = new TenantService({ sessionToken });
+
+		const fallBackTenantPromise = tenantService.findTenantsForUser(user, { select: [] });
+		let tenantExistsPromise: Promise<ParseTenant | undefined> = Promise.resolve(undefined);
+
+		if (params.tenantId) {
+			tenantExistsPromise = tenantService.getById(params.tenantId, { select: [] });
+		}
+
+		// check user's roles:
+		// case 1: user is a staff member
+		// case 2: user is a tenant user
+		const roles = await new RoleService({ sessionToken }).getUserRoles(user, true);
+
+		const isUserStaffMember = roles.some((role) => {
+			return STAFF_ROLES.some((staffRole) => {
+				return staffRole.code === role.code;
+			});
+		});
+
+		if (isUserStaffMember) {
+			if (params.tenantId) {
+				const tenant = await tenantExistsPromise;
+
+				if (tenant) {
+					return { code: tenant.id };
+				}
+			}
+
+			return { code: 'staff' };
+		}
+
+		// ! no need to check because the allowedRoles is already set to ABOVE_TENANT_USER
+		// const userHasTenantRole = roles.some((role) => {
+		// 	return TENANT_ROLES.some((tenantRole) => {
+		// 		return tenantRole.code === role.code;
+		// 	});
+		// });
+
+		const tenant = await tenantExistsPromise;
+
+		if (tenant) {
+			const isMember = await TenantService.isUserMemberOfTenant({ user, tenant });
+
+			if (isMember) {
+				return { code: tenant.id };
+			}
+
+			req.log.warn(`Attempt to access tenant ${params.tenantId} by user ${user.id} who is not a member`, {
+				tenantId: params.tenantId,
+				userId: user.id,
+			});
+			return { code: 'unauthorized' };
+		}
+
+		const fallBackTenant = (await fallBackTenantPromise)[0];
+
+		if (fallBackTenant) {
+			return { code: fallBackTenant.id };
+		}
+
+		req.log.warn(
+			`Attempt to access nonexisting tenant ${params.tenantId} by user ${user.id} but it had no fallback tenant`,
+			{
+				tenantId: params.tenantId,
+				userId: user.id,
+			},
+		);
+		return { code: 'unauthorized' };
+	},
+});
+// })
+
 Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);
 Parse.Cloud.define(functionName.auth.removeSeededUsers, removeSeededUsers);
 Parse.Cloud.define(functionName.auth.getIsDisabledSignup, getIsDisabledSignup);
+Parse.Cloud.define(functionName.auth.getRedirectCode, getRedirectCode);

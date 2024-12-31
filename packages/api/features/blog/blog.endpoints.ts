@@ -34,11 +34,11 @@ export default class BlogPostEndPoints extends BaseEndPoints {
 	constructor({ parseRestClient }: BaseEndPointsProps) {
 		super({ parseRestClient });
 
-		this.findBlogPostBoTable = this.findBlogPostBoTable.bind(this);
-		this.findBlogPostFrontList = this.findBlogPostFrontList.bind(this);
-		// this.findBlogPostTag = this.findBlogPostTag.bind(this);
-		this.getBlogPostDetailFront = this.getBlogPostDetailFront.bind(this);
-		this.getRelatedBlogPostsFrontDetails = this.getRelatedBlogPostsFrontDetails.bind(this);
+		// this.findBlogPostBoTable = this.findBlogPostBoTable.bind(this);
+		// this.findBlogPostFrontList = this.findBlogPostFrontList.bind(this);
+		// // this.findBlogPostTag = this.findBlogPostTag.bind(this);
+		// this.getBlogPostDetailFront = this.getBlogPostDetailFront.bind(this);
+		// this.getRelatedBlogPostsFrontDetails = this.getRelatedBlogPostsFrontDetails.bind(this);
 	}
 
 	async findBlogPostBoTable(params: FindBlogPostFunction.BoTable.Params) {

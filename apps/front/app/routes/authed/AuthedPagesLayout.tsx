@@ -5,7 +5,7 @@ import { data, Navigate, Outlet, redirect } from 'react-router';
 import { getCheckSessionTokenQueryOptions } from '@/front/lib/react-query/features/auth/auth.actions';
 import { useCheckSessionTokenQuery } from '@/front/lib/react-query/features/auth/auth.hooks';
 import { defaultQueryClient } from '@/front/lib/react-query/queryClient';
-import { getBrowserCookie } from '@/front/utils/browser.utils';
+import { getBrowserCookie } from '@/front/utils/web.utils';
 import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 
 import type { Route } from './+types/AuthedPagesLayout';
