@@ -117,6 +117,8 @@ export const TENANT_ID_HEADER_KEY = 'X-Devist-TenantId';
 
 const RESOURCE = {
 	users: 'users',
+	client: 'client',
+	clients: 'clients',
 	tenant: 'tenant',
 	tenants: 'tenants',
 	posts: 'posts',
@@ -148,53 +150,63 @@ export const FRONT_PATH_NAMES = {
 		},
 	},
 	support: '/support',
-} as const;
-
-export const BO_PATH_NAMES = {
+	// ===================
 	auth: {
-		root: makePath(ROOTS.AUTH),
-		login: makePath(ROOTS.AUTH, 'login'),
-		signup: makePath(ROOTS.AUTH, 'sign-up'),
-		verifyEmail: makePath(ROOTS.AUTH, 'verify-email'),
-		forgotPassword: makePath(ROOTS.AUTH, 'forgot-password'),
+		login: makePath('login'),
+		signup: makePath('sign-up'),
 	},
-	// ===================
-	portal: makePath('portal'),
-	// ===================
-	staff: {
-		root: makePath(ROOTS.STAFF),
-		users: {
-			root: makePath(ROOTS.STAFF, RESOURCE.users),
-		},
-		tenants: {
-			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
-			create: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
-		},
-		posts: {
-			root: makePath(ROOTS.STAFF, RESOURCE.posts),
-			create: makePath(ROOTS.STAFF, RESOURCE.posts, 'new'),
-			edit: (postId?: string) => {
-				return makePath(ROOTS.STAFF, RESOURCE.posts, 'edit', postId || '');
-			},
-			details: (postId: string) => {
-				return makePath(ROOTS.STAFF, RESOURCE.posts, postId);
-			},
-			settings: makePath(ROOTS.STAFF, RESOURCE.posts, 'settings'),
-		},
-	},
-	// ===================
-	getTenantPaths: (tenantId: string = '') => {
+	tenant: (tenantId: string = '') => {
 		return {
 			root: makePath(RESOURCE.tenant, tenantId),
-			chose: makePath(RESOURCE.tenant, 'chose'),
-			// dashboard: makePath(RESOURCE.tenant, tenantId, ROOTS.DASHBOARD),
-			shortUrl: {
-				root: makePath(RESOURCE.tenant, tenantId, RESOURCE.shortUrl),
-				// CRUD, etc
-			},
 		};
 	},
 } as const;
+
+// export const BO_PATH_NAMES = {
+// 	auth: {
+// 		root: makePath(ROOTS.AUTH),
+// 		login: makePath(ROOTS.AUTH, 'login'),
+// 		signup: makePath(ROOTS.AUTH, 'sign-up'),
+// 		verifyEmail: makePath(ROOTS.AUTH, 'verify-email'),
+// 		forgotPassword: makePath(ROOTS.AUTH, 'forgot-password'),
+// 	},
+// 	// ===================
+// 	portal: makePath('portal'),
+// 	// ===================
+// 	staff: {
+// 		root: makePath(ROOTS.STAFF),
+// 		users: {
+// 			root: makePath(ROOTS.STAFF, RESOURCE.users),
+// 		},
+// 		tenants: {
+// 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
+// 			create: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
+// 		},
+// 		posts: {
+// 			root: makePath(ROOTS.STAFF, RESOURCE.posts),
+// 			create: makePath(ROOTS.STAFF, RESOURCE.posts, 'new'),
+// 			edit: (postId?: string) => {
+// 				return makePath(ROOTS.STAFF, RESOURCE.posts, 'edit', postId || '');
+// 			},
+// 			details: (postId: string) => {
+// 				return makePath(ROOTS.STAFF, RESOURCE.posts, postId);
+// 			},
+// 			settings: makePath(ROOTS.STAFF, RESOURCE.posts, 'settings'),
+// 		},
+// 	},
+// 	// ===================
+// 	getTenantPaths: (tenantId: string = '') => {
+// 		return {
+// 			root: makePath(RESOURCE.tenant, tenantId),
+// 			chose: makePath(RESOURCE.tenant, 'chose'),
+// 			// dashboard: makePath(RESOURCE.tenant, tenantId, ROOTS.DASHBOARD),
+// 			shortUrl: {
+// 				root: makePath(RESOURCE.tenant, tenantId, RESOURCE.shortUrl),
+// 				// CRUD, etc
+// 			},
+// 		};
+// 	},
+// } as const;
 
 export const functionName = {
 	// Users and auth
@@ -202,6 +214,7 @@ export const functionName = {
 		getUserAuthData: 'getUserAuthData',
 		removeSeededUsers: 'removeSeededUsers',
 		getIsDisabledSignup: 'getIsDisabledSignup',
+		getRedirectCode: 'getRedirectCode',
 	},
 	// Blog Posts
 	blog: {
@@ -289,8 +302,8 @@ export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';
 export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
 export const DEVIST_REST_API_HEADER_KEY = 'X-Devist-Key';
 
-export const SESSION_TOKEN_LOCAL_STORAGE_KEY = 'session_token';
-export const LAST_USED_TENANT_ID_STORAGE_KEY = 'last_used_tenant';
+// export const SESSION_TOKEN_LOCAL_STORAGE_KEY = 'session_token';
+// export const LAST_USED_TENANT_ID_STORAGE_KEY = 'last_used_tenant';
 
 export const SESSION_TOKEN_COOKIE_KEY = 'session_token';
 export const LAST_USED_TENANT_ID_COOKIE_KEY = 'last_used_tenant';

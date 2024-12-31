@@ -2,19 +2,30 @@ import _ from 'lodash';
 
 import type { IUser } from '@devist/shared/types/db/user.types';
 
-import type { GetIsDisabledSignupFunction, GetUserAuthDataFunction } from '@/server/modules/common/auth/auth.functions';
+import type {
+	GetIsDisabledSignupFunction,
+	GetRedirectCodeFunction,
+	GetUserAuthDataFunction,
+} from '@/server/modules/common/auth/auth.functions';
 import { defaultHttp, getProtectionHeaders } from '@/shared/lib/axios';
 import { endPoint, functionName, LOCALE_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
-import BaseEndPoints from '../../classes/BaseEndPoints';
+import BaseEndPoints, { type BaseEndPointsProps } from '../../classes/BaseEndPoints';
 
 export default class AuthEndPoints extends BaseEndPoints {
-	getUserAuthData = async ({ tenantId }: { tenantId?: string } = {}) => {
+	constructor({ parseRestClient }: BaseEndPointsProps) {
+		super({ parseRestClient });
+
+		this.passwordLogin = this.passwordLogin.bind(this);
+		this.getRedirectCode = this.getRedirectCode.bind(this);
+	}
+
+	async getUserAuthData({ tenantId }: { tenantId?: string } = {}) {
 		return this.parseRestClient.cloudRun<GetUserAuthDataFunction.Return, GetUserAuthDataFunction.Params>(
 			functionName.auth.getUserAuthData,
 			{ params: { tenantId } },
 		);
-	};
+	}
 
 	/**
 	 * login with username/email and password
@@ -37,6 +48,9 @@ export default class AuthEndPoints extends BaseEndPoints {
 		);
 	}
 
+	/**
+	 * sign up with username/email and password
+	 */
 	async passwordSignup(input: {
 		email: string;
 		username?: string;
@@ -68,5 +82,14 @@ export default class AuthEndPoints extends BaseEndPoints {
 
 	async logOut() {
 		return this.parseRestClient.logOut();
+	}
+
+	async getRedirectCode({ tenantId }: { tenantId?: string } = {}) {
+		return this.parseRestClient.cloudRun<GetRedirectCodeFunction.Return, GetRedirectCodeFunction.Params>(
+			functionName.auth.getRedirectCode,
+			{
+				params: { tenantId },
+			},
+		);
 	}
 }
