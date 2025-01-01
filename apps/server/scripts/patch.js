@@ -53,6 +53,22 @@ const patchParseServerBlockListForBunRuntime = async () => {
 	});
 };
 
+patchClassNameRegex = async () => {
+	const filePath1 = path.resolve(__dirname, '../node_modules/parse-server/lib/controllers/SchemaController.js');
+	const filePath2 = path.resolve(__dirname, '../../../node_modules/parse-server/lib/controllers/SchemaController.js');
+
+	const exists1 = fs.existsSync(filePath1);
+
+	// const results =
+	replace({
+		disableGlobs: true,
+		files: (await exists1) ? filePath1 : filePath2,
+		from: /\/\^_Join:\[A-Za-z0-9_\]\+:\[A-Za-z0-9_\]\+\//g,
+		to: '/^(_Join|_CustomJoin):[A-Za-z0-9_]+:[A-Za-z0-9_]+/',
+	});
+};
+
 patchParseServerSelectNestedObjectKeys();
 patchParseServerAuthLib();
 patchParseServerBlockListForBunRuntime();
+patchClassNameRegex();

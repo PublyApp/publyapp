@@ -28,8 +28,6 @@ export const action = getServerAction({
 			});
 		}
 
-		console.log('❤️❤️❤️❤️', loginResult);
-
 		apiClient.parseRestClient.setSessionToken(loginResult.data.sessionToken);
 
 		const tenantId = getRequestCookie(request, LAST_USED_TENANT_ID_COOKIE_KEY);
@@ -51,10 +49,12 @@ export const action = getServerAction({
 		const sessionCookie = await cookies.sessionToken.serialize(loginResult.data.sessionToken);
 		const tenantCookie = await cookies.lastUsedTenant.serialize(tenantId);
 
-		return {
-			lol: 'ok',
-			test: [sessionCookie, tenantCookie].join('; '),
-		};
+		// const res = {
+		// 	lol: 'ok',
+		// 	test: [sessionCookie, tenantCookie].join('; '),
+		// };
+		// console.dir(res, { depth: null });
+		// return res;
 		return redirect(redirectPath, {
 			headers: {
 				'Set-Cookie': [sessionCookie, tenantCookie].join('; '),
