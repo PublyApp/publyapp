@@ -1,11 +1,8 @@
 import _ from 'lodash';
 
-import { imageFormatTypes } from '@/shared/types/db/appFile.types';
-
+import { imageFormatTypes } from '../types/db/appFile.types';
 import type { IRole } from '../types/db/role.types';
 import { makePath } from '../utils/string.utils';
-
-import type { AppLocale } from './i18n/resources';
 
 export type IRoleConfig = Pick<IRole, 'code' | 'name' | 'rank'>;
 
@@ -136,20 +133,20 @@ const ROOTS = {
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
-	login: '/login',
-	posts: {
-		root: makePath(RESOURCE.posts),
-		page: (pageNum: number) => {
-			return makePath(RESOURCE.posts, 'page', String(pageNum));
-		},
-		details: (postSlug: string, locale?: AppLocale) => {
-			return makePath(locale || '', RESOURCE.posts, postSlug);
-		},
-		preview: (postId: string) => {
-			return makePath(RESOURCE.posts, 'preview', postId);
-		},
-	},
-	support: '/support',
+	// login: '/login',
+	// posts: {
+	// 	root: makePath(RESOURCE.posts),
+	// 	page: (pageNum: number) => {
+	// 		return makePath(RESOURCE.posts, 'page', String(pageNum));
+	// 	},
+	// 	details: (postSlug: string, locale?: AppLocale) => {
+	// 		return makePath(locale || '', RESOURCE.posts, postSlug);
+	// 	},
+	// 	preview: (postId: string) => {
+	// 		return makePath(RESOURCE.posts, 'preview', postId);
+	// 	},
+	// },
+	// support: '/support',
 	// ===================
 	auth: {
 		login: makePath('login'),
@@ -159,6 +156,9 @@ export const FRONT_PATH_NAMES = {
 		return {
 			root: makePath(RESOURCE.tenant, tenantId),
 		};
+	},
+	staff: {
+		root: makePath(ROOTS.STAFF),
 	},
 } as const;
 
