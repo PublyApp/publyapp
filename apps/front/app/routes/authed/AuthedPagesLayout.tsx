@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 
 import { Outlet, redirect } from 'react-router';
 
+import { useGetTenantAuthData, useGetUserAuthData } from '@/front/lib/react-query/features/auth/auth.hooks';
 import { getBrowserCookie } from '@/front/utils/web.utils';
 import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 
@@ -38,6 +39,8 @@ const AuthedPagesLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 export default AuthedPagesLayout;
 
 const AuthGuard = () => {
+	const { result: _r1 } = useGetUserAuthData();
+	const { result: _r2 } = useGetTenantAuthData();
 	// const { data: checkData /* , error */ } = useCheckSessionTokenQuery();
 
 	// TODO: verify how this works

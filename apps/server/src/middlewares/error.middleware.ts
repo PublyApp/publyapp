@@ -3,7 +3,7 @@ import _ from 'lodash';
 import { ZodError } from 'zod';
 
 import { HttpException } from '@/server/exceptions/HttpException';
-import { logger } from '@/shared/lib/winston';
+import { logger } from '@/server/lib/winston';
 
 import { getRequestUtils } from '../utils/request.utils';
 

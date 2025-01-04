@@ -5,7 +5,7 @@ import { existsSync, promises as fs } from 'fs';
 import { className, roleEnum } from '@devist/shared/lib/constants';
 
 import { DISABLE_SIGNUP_CONFIG_KEY, FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@/server/lib/constants';
-import { logger } from '@/shared/lib/winston';
+import { logger } from '@/server/lib/winston';
 
 import SchemaManager from '../lib/parse/classes/SchemaManager';
 import { getDatabase, getGlobalConfig, setGlobalConfig } from '../lib/parse/parse.utils';

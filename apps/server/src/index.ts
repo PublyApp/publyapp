@@ -13,8 +13,8 @@ import ParseDashboard from 'parse-dashboard';
 
 import duration from '@devist/shared/utils/duration.utils';
 
+import { logger } from '@/server/lib/winston';
 import { endPoint, LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/winston';
 
 import { cloud } from './cloud';
 import {
@@ -39,7 +39,7 @@ import shortURLRouter from './router/shortURL.router';
 
 // eslint-disable-next-line no-console
 console.log = () => {
-	logger.info('[server] console.log is disabled');
+	logger.warn('[server] console.log is disabled');
 };
 
 // ! use the rsbuild metaPlugin I wrote to make these work

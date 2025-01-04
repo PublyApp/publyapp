@@ -1,4 +1,4 @@
-import { logger } from '@/shared/lib/winston';
+import { logger } from '@/server/lib/winston';
 
 import './lib/parse/initParse';
 

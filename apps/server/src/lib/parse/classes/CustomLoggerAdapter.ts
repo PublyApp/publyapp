@@ -34,7 +34,6 @@ export default class CustomLoggerAdapter implements LoggerAdapter {
 		this.logger = logger;
 		this.maxLogFiles = maxLogFiles;
 		this.configureLogger();
-		// setLogger(this.logger);
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
