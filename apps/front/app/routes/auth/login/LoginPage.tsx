@@ -1,9 +1,9 @@
 import { Anchor, Box, Text, Title } from '@mantine/core';
-import { createCookie, data, redirect } from 'react-router';
+import { data, redirect } from 'react-router';
 
+import { CookieManager } from '@/front/lib/cookie-manager';
 import { getServerAction } from '@/front/lib/react-router/function.server';
 import { safeRun } from '@/front/lib/react-router/safeRun';
-import { getRequestCookie } from '@/front/utils/web.utils';
 import { FRONT_PATH_NAMES, LAST_USED_TENANT_ID_COOKIE_KEY, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
@@ -27,11 +27,14 @@ export const action = getServerAction({
 			});
 		}
 
+		const cookieManager = new CookieManager(request.headers.get('cookie') || '');
+
 		apiClient.parseRestClient.setSessionToken(loginResult.data.sessionToken);
 
-		const tenantId = getRequestCookie(request, LAST_USED_TENANT_ID_COOKIE_KEY);
+		cookieManager.set(SESSION_TOKEN_COOKIE_KEY, loginResult.data.sessionToken);
 
-		// const getRedirectCode = safeRun(apiClient.auth.getRedirectCode);
+		const tenantId = cookieManager.get(LAST_USED_TENANT_ID_COOKIE_KEY);
+
 		const { code } = await apiClient.auth.getRedirectCode({ tenantId });
 
 		let redirectPath = makePath(code);
@@ -40,17 +43,9 @@ export const action = getServerAction({
 			redirectPath = FRONT_PATH_NAMES.tenant(code).root;
 		}
 
-		const cookies = {
-			lastUsedTenant: createCookie(LAST_USED_TENANT_ID_COOKIE_KEY),
-			sessionToken: createCookie(SESSION_TOKEN_COOKIE_KEY),
-		};
-
-		const sessionCookie = await cookies.sessionToken.serialize(loginResult.data.sessionToken);
-		const tenantCookie = await cookies.lastUsedTenant.serialize(tenantId);
-
 		return redirect(redirectPath, {
 			headers: {
-				'Set-Cookie': [sessionCookie, tenantCookie].join('; '),
+				'Set-Cookie': cookieManager.serialize(),
 			},
 		}) as never;
 	},
