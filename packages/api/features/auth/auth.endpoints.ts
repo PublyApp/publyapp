@@ -5,6 +5,7 @@ import type { IUser } from '@devist/shared/types/db/user.types';
 import type {
 	GetIsDisabledSignupFunction,
 	GetRedirectCodeFunction,
+	GetTenantAuthDataFunction,
 	GetUserAuthDataFunction,
 } from '@/server/modules/common/auth/auth.functions';
 import { defaultHttp, getProtectionHeaders } from '@/shared/lib/axios';
@@ -20,10 +21,16 @@ export default class AuthEndPoints extends BaseEndPoints {
 		this.getRedirectCode = this.getRedirectCode.bind(this);
 	}
 
-	async getUserAuthData({ tenantId }: { tenantId?: string } = {}) {
-		return this.parseRestClient.cloudRun<GetUserAuthDataFunction.Return, GetUserAuthDataFunction.Params>(
-			functionName.auth.getUserAuthData,
-			{ params: { tenantId } },
+	async getUserAuthData() {
+		return this.parseRestClient.cloudRun<GetUserAuthDataFunction.Return>(functionName.auth.getUserAuthData);
+	}
+
+	async getTenantAuthData(params: GetTenantAuthDataFunction.Params) {
+		return this.parseRestClient.cloudRun<GetTenantAuthDataFunction.Return, GetTenantAuthDataFunction.Params>(
+			functionName.auth.getTenantAuthData,
+			{
+				params,
+			},
 		);
 	}
 
