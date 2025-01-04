@@ -4,6 +4,8 @@ import type { ParsedQs } from 'qs';
 
 import { tryCatchWrapper } from '@devist/shared/utils/tryCatch.utils';
 
+import { logger } from '@/server/lib/winston';
+
 type ParamsDictionary = Record<string, string>;
 
 interface AsyncRequestHandler<
@@ -63,8 +65,7 @@ export const listRoutes = (app: Application) => {
 		} else if (layer.name === 'router' && layer.handle.stack) {
 			layer.handle.stack.forEach(print.bind(null, path.concat(split(layer.regexp))));
 		} else if (layer.method) {
-			// eslint-disable-next-line no-console
-			console.log('%s /%s', layer.method.toUpperCase(), path.concat(split(layer.regexp)).filter(Boolean).join('/'));
+			logger.info('%s /%s', layer.method.toUpperCase(), path.concat(split(layer.regexp)).filter(Boolean).join('/'));
 		}
 	}
 

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable class-methods-use-this */
+import { logger } from '@/server/lib/winston';
 import { endPoint } from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/winston';
 
 import { type MailAdapter } from '../interfaces/MailAdapter';
 

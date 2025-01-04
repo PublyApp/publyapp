@@ -7,6 +7,7 @@ import z from 'zod';
 
 import { getNumericStringSchema } from '@devist/shared/lib/zod/utils';
 
+import { logger } from '@/server/lib/winston';
 import { deepFreeze } from '@/shared/utils/any.utils';
 
 import { defaultZodServer } from './zod';
@@ -42,10 +43,8 @@ global.LOCAL = process.env.ONLINE !== 'true';
 global.TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';
 global.MODE = process.env.MODE || 'local';
 
-// eslint-disable-next-line no-console
-console.log('global.LOCAL:', global.LOCAL);
-// eslint-disable-next-line no-console
-console.log('global.MODE:', global.MODE);
+logger.info(`global.LOCAL: ${global.LOCAL}`);
+logger.info(`global.MODE: ${global.MODE}`);
 
 // --------------------------------------------------------------------------------------//
 //                    override process.env with values in .env file                      //

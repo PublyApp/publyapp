@@ -12,10 +12,10 @@ import {
 
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/function.utils';
 import { getDatabase } from '@/server/lib/parse/parse.utils';
+import { logger } from '@/server/lib/winston';
 import UserService from '@/server/modules/common/auth/user/user.service';
 import BlogPostService from '@/server/modules/staff/blog/blogPost/blogPost.service';
 import AppFileService from '@/server/modules/tenant/file-manager/appFile/appFile.service';
-import { logger } from '@/shared/lib/winston';
 import type { IBlogPostSlugWithRelations } from '@/shared/types/db/blogPostSlug.types';
 import { getListParamsSchema } from '@/shared/utils/validation.utils';
 

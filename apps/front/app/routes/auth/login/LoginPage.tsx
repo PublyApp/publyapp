@@ -11,7 +11,6 @@ import type { Route } from './+types/LoginPage';
 import LoginForm from './LoginForm';
 import { classes } from './LoginPage.css';
 
-// TODO: implement geServerAction: it needs to initialize a CustomZod instance
 export const action = getServerAction({
 	action: async ({ request, apiClient }) => {
 		const formData = await request.formData();
@@ -49,23 +48,16 @@ export const action = getServerAction({
 		const sessionCookie = await cookies.sessionToken.serialize(loginResult.data.sessionToken);
 		const tenantCookie = await cookies.lastUsedTenant.serialize(tenantId);
 
-		// const res = {
-		// 	lol: 'ok',
-		// 	test: [sessionCookie, tenantCookie].join('; '),
-		// };
-		// console.dir(res, { depth: null });
-		// return res;
 		return redirect(redirectPath, {
 			headers: {
 				'Set-Cookie': [sessionCookie, tenantCookie].join('; '),
 			},
 		}) as never;
-		// const result = getLoginSchema(z).safeParse({});
 	},
 });
 
 const LoginPage = ({ actionData }: Route.ComponentProps) => {
-	console.log('🙏🙏🙏🙏', actionData);
+	console.info('🙏🙏🙏🙏', actionData);
 
 	return (
 		<Box w={420} my={40}>
