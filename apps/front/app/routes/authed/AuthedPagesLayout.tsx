@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 
+import { defaultApiClient } from 'packages/api/ApiClient';
 import { Outlet, redirect } from 'react-router';
 
 import { useGetTenantAuthData, useGetUserAuthData } from '@/front/lib/react-query/features/auth/auth.hooks';
@@ -14,6 +15,8 @@ export const clientLoader = async () => {
 	if (!sessionToken) {
 		return redirect('/login') as never; // redirect to login
 	}
+
+	defaultApiClient.parseRestClient.setSessionToken(sessionToken);
 
 	// const checkSessionTokenQuery = getCheckSessionTokenQueryOptions();
 
