@@ -8,8 +8,13 @@ import { ServerRouter, type AppLoadContext, type EntryContext } from 'react-rout
 
 import { queryParamKey } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import { logger } from '@/shared/lib/winston';
 
 import { iniI18nOnServer } from './lib/i18n/initI18n.server';
+
+console.log = () => {
+	logger.info('[server] console.log is disabled');
+};
 
 const ABORT_DELAY = 50_000;
 

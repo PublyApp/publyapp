@@ -55,6 +55,9 @@ export const roleSet = {
 	ABOVE_STAFF_CONTRIBUTOR,
 	ABOVE_TENANT_USER,
 	ALL,
+	// ===
+	STAFF_MEMBER: ABOVE_STAFF_CONTRIBUTOR,
+	TENANT_MEMBER: [roleEnum.TENANT_USER],
 };
 
 export type RoleSet = (typeof roleSet)[keyof typeof roleSet];
@@ -212,9 +215,11 @@ export const functionName = {
 	// Users and auth
 	auth: {
 		getUserAuthData: 'getUserAuthData',
-		removeSeededUsers: 'removeSeededUsers',
+		getTenantAuthData: 'getTenantAuthData',
 		getIsDisabledSignup: 'getIsDisabledSignup',
 		getRedirectCode: 'getRedirectCode',
+		// ===
+		removeSeededUsers: 'removeSeededUsers',
 	},
 	// Blog Posts
 	blog: {
