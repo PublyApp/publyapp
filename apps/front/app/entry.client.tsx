@@ -5,10 +5,12 @@ import { hydrateRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import { HydratedRouter } from 'react-router/dom';
 
+import { initApiClient } from './lib/api';
 import { initI18nOnClient } from './lib/i18n/initI18n.client';
 
 const hydrate = async () => {
 	await initI18nOnClient();
+	initApiClient.onClient();
 
 	startTransition(() => {
 		hydrateRoot(
