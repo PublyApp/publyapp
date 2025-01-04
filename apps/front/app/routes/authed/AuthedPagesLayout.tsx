@@ -28,6 +28,12 @@ export const clientLoader = async () => {
 
 const AuthedPagesLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 	// useCheckSessionTokenQuery();
+	// return (
+	// 	<div>
+	// 		<h1>AuthedPagesLayout</h1>
+	// 		<Outlet />
+	// 	</div>
+	// );
 	return (
 		<Suspense fallback={<div>Loading check session...</div>}>
 			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
@@ -39,8 +45,8 @@ const AuthedPagesLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 export default AuthedPagesLayout;
 
 const AuthGuard = () => {
-	const { result: _r1 } = useGetUserAuthData();
-	const { result: _r2 } = useGetTenantAuthData();
+	/* const { result: _r1 } = */ useGetUserAuthData();
+	/* const { result: _r2 } = */ useGetTenantAuthData();
 	// const { data: checkData /* , error */ } = useCheckSessionTokenQuery();
 
 	// TODO: verify how this works
