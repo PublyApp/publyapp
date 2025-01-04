@@ -17,7 +17,7 @@ const routes = [
 		// ==
 		// route('staff', 'routes/authed/admin/DashboardPage.tsx'),
 		route(getLastPath(FRONT_PATH_NAMES.staff.root), 'routes/authed/admin/AdminDashboardPagesLayout.tsx', [
-			index('routes/authed/admin/dashboard/AdminDashBoardPage.tsx'),
+			index('routes/authed/admin/dashboard/AdminDashboardPage.tsx'),
 			// route('settings', 'routes/authed/admin/settings/SettingsPage.tsx'),
 		]),
 		// route('@\::tenantId', 'routes/authed/client/TenantDashboardPagesLayout.tsx', [
