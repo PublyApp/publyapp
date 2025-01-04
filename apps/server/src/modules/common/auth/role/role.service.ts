@@ -1,4 +1,4 @@
-import type { IRoleConfig, RoleSet } from '@/shared/lib/constants';
+import { roleSet, type IRoleConfig, type RoleSet } from '@/shared/lib/constants';
 import type { IRole } from '@/shared/types/db/role.types';
 
 type RoleServiceProps = {
@@ -52,5 +52,9 @@ export default class RoleService {
 			return role.toJSON() as unknown as IRole;
 		});
 		return rolesJSON;
+	}
+
+	async isUserStaffMember(user: Parse.User) {
+		return this.hasRole(user, roleSet.STAFF_MEMBER);
 	}
 }

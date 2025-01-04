@@ -5,7 +5,13 @@ import { hydrateRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import { HydratedRouter } from 'react-router/dom';
 
+import { logger } from '@/shared/lib/winston';
+
 import { initI18nOnClient } from './lib/i18n/initI18n.client';
+
+console.log = () => {
+	logger.info('[browser] console.log is disabled');
+};
 
 const hydrate = async () => {
 	await initI18nOnClient();
