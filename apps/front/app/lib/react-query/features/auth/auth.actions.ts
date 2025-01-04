@@ -3,7 +3,7 @@ import apiClient from 'packages/api/ApiClient';
 
 import type { GetTenantAuthDataFunction, GetUserAuthDataFunction } from '@/server/modules/common/auth/auth.functions';
 import { functionName } from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/winston';
+import { sleep } from '@/shared/utils/any.utils';
 
 // ---- 1 --------------------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ export const getUserAuthDataAction = async () => {
 
 		return authData;
 	} catch (error) {
-		logger.error('----- getUserAuthDataAction error ----------', error);
+		console.error('----- getUserAuthDataAction error ----------', error);
 		return Promise.reject(error);
 	}
 };
@@ -41,11 +41,13 @@ export const getTenantAuthDataAction = async (
 	try {
 		const params = context.queryKey[1];
 
+		await sleep(5000);
+
 		const authData = await apiClient.auth.getTenantAuthData(params);
 
 		return authData;
 	} catch (error) {
-		logger.error('----- getTenantAuthDataAction error ----------', error);
+		console.error('----- getTenantAuthDataAction error ----------', error);
 		return Promise.reject(error);
 	}
 };

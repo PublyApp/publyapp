@@ -27,6 +27,5 @@ export const makePath = (...params: string[]) => {
 
 export const getLastPath = (path: string, n = 1) => {
 	const last = _.takeRight(path.split('/'), n).join('/');
-	console.log('🔴🔴🔴', last);
 	return last;
 };

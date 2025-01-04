@@ -32,7 +32,14 @@ const Header = () => {
 
 					<Group visibleFrom="sm">
 						<LanguagePicker />
-						<Button component={Link} variant="default" to={FRONT_PATH_NAMES.login}>
+						<Button
+							// onClick={(e) => {
+							// 	e.preventDefault();
+							// }}
+							component={Link}
+							variant="default"
+							to={FRONT_PATH_NAMES.auth.login}
+						>
 							Log in
 						</Button>
 						<Button disabled>Sign up</Button>

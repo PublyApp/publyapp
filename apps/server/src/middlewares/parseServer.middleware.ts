@@ -92,10 +92,6 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 };
 
 const parseServerMiddleware = expressHandler(async (req, res, next) => {
-	if (req.path.includes('startJob')) {
-		console.log('❤️❤️❤️❤️❤️❤️❤️❤️❤️❤️');
-	}
-
 	const isMaster = checkIsMaster(req);
 
 	if (!isMaster) {

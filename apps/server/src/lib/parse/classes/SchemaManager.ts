@@ -7,7 +7,7 @@ import { MongoServerError, type CreateIndexesOptions } from 'mongodb';
 
 import { className as _className } from '@devist/shared/lib/constants';
 
-import { logger } from '@/shared/lib/winston';
+import { logger } from '@/server/lib/winston';
 import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
 
 import { DEFAULT_CLP } from '../../constants';
