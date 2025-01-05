@@ -44,10 +44,16 @@ export const action = getServerAction({
 			redirectPath = FRONT_PATH_NAMES.tenant(code).root;
 		}
 
+		const headers = new Headers();
+		cookieManager
+			.parse()
+			.entries()
+			.forEach((e) => {
+				headers.append('Set-Cookie', `${e[0]}=${e[1]}`);
+			});
+
 		return redirect(redirectPath, {
-			headers: {
-				'Set-Cookie': cookieManager.serialize(),
-			},
+			headers,
 		}) as never;
 	},
 });
