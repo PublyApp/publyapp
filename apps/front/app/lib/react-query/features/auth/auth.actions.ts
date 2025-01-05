@@ -3,7 +3,6 @@ import { defaultApiClient } from 'packages/api/ApiClient';
 
 import type { GetTenantAuthDataFunction, GetUserAuthDataFunction } from '@/server/modules/common/auth/auth.functions';
 import { functionName } from '@/shared/lib/constants';
-import { sleep } from '@/shared/utils/any.utils';
 
 // ---- 1 --------------------------------------------------------------------------------
 
@@ -40,8 +39,6 @@ export const getTenantAuthDataAction = async (
 ) => {
 	try {
 		const params = context.queryKey[1];
-
-		await sleep(5000);
 
 		const authData = await defaultApiClient.auth.getTenantAuthData(params);
 
