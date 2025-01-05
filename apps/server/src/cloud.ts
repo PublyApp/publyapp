@@ -15,6 +15,7 @@ const triggers = async () => {
 	await Promise.all([
 		// =================
 		import('@/server/modules/common/auth/auth.triggers'),
+		import('@/server/modules/common/auth/role/role.triggers'),
 	]);
 };
 

@@ -157,7 +157,7 @@ export const FRONT_PATH_NAMES = {
 	},
 	tenant: (tenantId: string = '') => {
 		return {
-			root: makePath(RESOURCE.tenant, tenantId),
+			root: makePath(RESOURCE.client, tenantId),
 		};
 	},
 	staff: {

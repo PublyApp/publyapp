@@ -1,3 +1,4 @@
+import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/function.utils';
 import { getDatabase, getGlobalConfig, parseFields, removeParseFields } from '@/server/lib/parse/parse.utils';
@@ -174,7 +175,7 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 			req.log.warn(`Attempt to access staff auth data by user ${user.id} who is not a staff member`, {
 				userId: user.id,
 			});
-			throw new Error(t('unauthorized'));
+			throw new HttpException(403, t('unauthorized'));
 		}
 
 		// check if tenant exists
@@ -182,7 +183,7 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 		const tenant = await tenantService.getById(params.tenantId, { select: [] });
 
 		if (!tenant) {
-			throw new Error(t('item-not-found', { item: 'Tenant' }));
+			throw new HttpException(404, t('item-not-found', { item: 'Tenant' }));
 		}
 
 		// check if user is staff member
@@ -205,7 +206,7 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 					tenantId: params.tenantId,
 				},
 			);
-			throw new Error(t('unauthorized'));
+			throw new HttpException(403, t('unauthorized'));
 		}
 
 		// TODO: fetch the user's permissions in this particular tenant
