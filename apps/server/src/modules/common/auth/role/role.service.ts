@@ -1,3 +1,4 @@
+import { applyQueryOptions, type QueryOptions } from '@/server/lib/parse/query.utils';
 import { roleSet, type IRoleConfig, type RoleSet } from '@/shared/lib/constants';
 import type { IRole } from '@/shared/types/db/role.types';
 
@@ -40,13 +41,16 @@ export default class RoleService {
 		return role.save(null, { sessionToken: this.sessionToken, useMasterKey: this.master });
 	}
 
-	async getUserRoles(user: Parse.User, json?: false): Promise<Parse.Role[]>;
-	async getUserRoles(user: Parse.User, json: true): Promise<IRole[]>;
-	async getUserRoles(user: Parse.User, json?: boolean) {
+	async getUserRoles(user: Parse.User, options?: ({ json?: false } & QueryOptions) | undefined): Promise<Parse.Role[]>;
+	async getUserRoles(user: Parse.User, options: { json: true } & QueryOptions): Promise<IRole[]>;
+	async getUserRoles(user: Parse.User, options: { json?: boolean } & QueryOptions = {}) {
 		const roleQuery = new Parse.Query(Parse.Role).equalTo('users', user);
+
+		applyQueryOptions(roleQuery, options);
+
 		const roles = await roleQuery.find({ sessionToken: this.sessionToken, useMasterKey: this.master });
 
-		if (!json) return roles;
+		if (!options.json) return roles;
 
 		const rolesJSON = roles.map((role) => {
 			return role.toJSON() as unknown as IRole;

@@ -152,10 +152,6 @@ type EncodedDateType =
 	| undefined;
 
 export const toIsoString = (value: EncodedDateType) => {
-	// if (_.isNil(value)) {
-	// 	return undefined;
-	// }
-
 	if (_.isString(value)) {
 		return dayjs(value).toISOString();
 	}
@@ -195,4 +191,22 @@ export const setGlobalConfig = async (attributes: Record<string, { value: Serial
 
 	const config = await Parse.Config.save(param1, param2);
 	return config;
+};
+
+export const parseFields = [
+	'_hashed_password',
+	'_perishable_token',
+	'_email_verify_token',
+	'_session_token',
+	'ACL',
+	'createdAt',
+	'updatedAt',
+] as const;
+
+type ParseFields = (typeof parseFields)[number][];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const removeParseFields = (obj: Record<string, any>, omitFields?: ParseFields) => {
+	const newObj = _.omit(obj, omitFields || parseFields);
+	return newObj;
 };
