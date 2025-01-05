@@ -5,10 +5,10 @@ export class CookieManager {
 
 	constructor(rawCookies: string) {
 		this.__internalMap = new Map<string, string>();
-		this.parse(rawCookies);
+		this._parse(rawCookies);
 	}
 
-	private parse(rawCookies: string) {
+	private _parse(rawCookies: string) {
 		const cookieParts = rawCookies.split(';').filter(Boolean);
 
 		cookieParts.forEach((part) => {
@@ -22,6 +22,11 @@ export class CookieManager {
 		return cookieManager.__internalMap;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-dupe-class-members
+	parse() {
+		return this.__internalMap;
+	}
+
 	set(key: string, value: string) {
 		this.__internalMap.set(key, value);
 	}
@@ -31,10 +36,11 @@ export class CookieManager {
 	}
 
 	serialize() {
-		return Array.from(this.__internalMap.entries())
+		const str = Array.from(this.__internalMap.entries())
 			.map(([key, value]) => {
 				return `${key}=${value}`;
 			})
 			.join('; ');
+		return str;
 	}
 }
