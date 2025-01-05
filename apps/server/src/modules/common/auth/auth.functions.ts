@@ -1,7 +1,8 @@
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/function.utils';
-import { getDatabase, getGlobalConfig } from '@/server/lib/parse/parse.utils';
+import { getDatabase, getGlobalConfig, parseFields, removeParseFields } from '@/server/lib/parse/parse.utils';
 import { className, functionName, roleSet } from '@/shared/lib/constants';
+import type { IUser } from '@/shared/types/db/user.types';
 
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
@@ -14,85 +15,29 @@ export namespace GetUserAuthDataFunction {
 
 const getUserAuthDataFunction = parseFunctionEnhanced({
 	requireUser: true,
-	// validateParams: ({ params, z }) => {
-	// 	const schema = z.object({
-	// 		tenantId: z.string({}).optional(),
-	// 	});
-
-	// 	return schema.parse(params);
-	// },
 	action: async ({ user }) => {
 		const sessionToken = user.getSessionToken();
 
-		const rolesPromises = new RoleService({ sessionToken }).getUserRoles(user, true);
-		const roles = await rolesPromises;
+		const rolesPromises = new RoleService({ sessionToken }).getUserRoles(user, {
+			json: true,
+			exclude: ['rank'],
+		});
 
-		// let tenant: ITenant | undefined;
+		let roles = await rolesPromises;
+		roles = roles.map((role) => {
+			return removeParseFields(role, [...parseFields, 'users', 'roles'] as never) as never;
+		});
 
-		// const { tenantId } = params;
-
-		// // find out if this user is really member of the given tenant id params
-		// if (tenantId) {
-		// 	// multiple case
-		// 	// case A: the user is a staff member
-		// 	// 		1 - The tenant Id is invalid
-		// 	// 		2 - The tenant Id is valid
-		// 	// case B: the user is just a tenant user
-		// 	// 		1 - The tenant Id is invalid
-		// 	// 		2 - The tenant Id is valid
-		// 	// 				a - The use is a member of this tenant
-		// 	// 				a - The user is not member of this tenant
-		// 	// case C: the user is neither from staff or a tenant // yes this is possible in our system actually
-		// 	const STAFF_ROLES = roleSet.ABOVE_STAFF_CONTRIBUTOR;
-		// 	const TENANT_ROLES = [roleEnum.TENANT_USER];
-
-		// 	const isStaffMember = roles.some((userRole) => {
-		// 		return STAFF_ROLES.some((staffRole) => {
-		// 			return staffRole.code === userRole.code;
-		// 		});
-		// 	});
-		// 	const hasTenantRole = roles.some((userRole) => {
-		// 		return TENANT_ROLES.some((staffRole) => {
-		// 			return staffRole.code === userRole.code;
-		// 		});
-		// 	});
-
-		// 	const tenantService = new TenantService({ sessionToken });
-		// 	const foundTenant = await tenantService.getById(tenantId, { select: [] });
-
-		// 	if (!foundTenant) {
-		// 		logger.warn(`Attempt to access tenant ${tenantId} by user ${user.id} but not found`, {
-		// 			tenantId,
-		// 			userId: user.id,
-		// 		});
-		// 	} else {
-		// 		// case A:
-		// 		if (isStaffMember) {
-		// 			tenant = foundTenant.toJSON() as unknown as ITenant;
-		// 		}
-
-		// 		// case B:
-		// 		if (!isStaffMember && hasTenantRole) {
-		// 			// verify if user is member of foundTenant
-		// 			const isMember = await TenantService.isUserMemberOfTenant({ user, tenant: foundTenant });
-
-		// 			if (!isMember) {
-		// 				logger.warn(`Attempt to access tenant ${tenantId} by user ${user.id} who is not a member`, {
-		// 					tenantId,
-		// 					userId: user.id,
-		// 				});
-		// 			} else {
-		// 				tenant = foundTenant.toJSON() as unknown as ITenant;
-		// 			}
-		// 		}
-		// 	}
-		// }
+		let userJson: IUser = user.toJSON() as never;
+		userJson = removeParseFields(
+			userJson as never,
+			[...parseFields, 'sessionToken', 'emailVerified'] as never,
+		) as never;
 
 		return {
-			user: user.toJSON(),
+			user: userJson,
 			roles,
 			sessionToken,
-			// tenant,
 		};
 	},
 });
