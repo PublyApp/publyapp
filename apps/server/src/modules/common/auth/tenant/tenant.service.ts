@@ -30,14 +30,23 @@ export default class TenantService {
 	}
 
 	static async isUserMemberOfTenant({ user, tenant }: { user: ParseUser; tenant: ParseTenant }) {
-		const foundTenant = await new Parse.Query(Parse_CustomJoinUserToTenant)
+		const foundRelation = await new Parse.Query(Parse_CustomJoinUserToTenant)
 			.select([])
 			.equalTo('user', user)
 			.equalTo('tenant', tenant)
 			.first(USE_MASTER_KEY);
 
-		return Boolean(foundTenant);
+		return Boolean(foundRelation);
 	}
+
+	// static async isUserMemberOfAnyTenant(user: ParseUser) {
+	// 	const foundRelation = await new Parse.Query(Parse_CustomJoinUserToTenant)
+	// 		.select([])
+	// 		.equalTo('user', user)
+	// 		.first(USE_MASTER_KEY);
+
+	// 	return Boolean(foundRelation);
+	// }
 
 	async findTenantsForUser(
 		user: ParseUser,

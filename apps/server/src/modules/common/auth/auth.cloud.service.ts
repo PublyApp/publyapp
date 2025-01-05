@@ -11,7 +11,6 @@ import type { IUser } from '@/shared/types/db/user.types';
 
 type AuthCloudServiceProps = {
 	sessionToken: string | ParsedQs | string[] | ParsedQs[];
-	// user?: Parse.User;
 };
 
 export class AuthCloudService {
@@ -20,10 +19,7 @@ export class AuthCloudService {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private auth: any;
 
-	private constructor({
-		sessionToken,
-	}: // user,
-	AuthCloudServiceProps) {
+	private constructor({ sessionToken }: AuthCloudServiceProps) {
 		this.sessionToken = sessionToken;
 	}
 
@@ -40,8 +36,6 @@ export class AuthCloudService {
 
 	/**
 	 * get user by session token
-	 * @param {*} sessionToken
-	 * @returns
 	 */
 	async getUserForSessionToken(): Promise<Parse.User> {
 		return this.auth.user;
@@ -93,8 +87,6 @@ export class AuthCloudService {
 	}
 
 	static async verifyEmail({ username, token }: { username: string; token: string }) {
-		// const config = getInternalConfig();
-
 		const findUserForEmailVerification = async () => {
 			const query = new Parse.Query(className.USER).equalTo('_email_verify_token', token).equalTo('username', username);
 			const toSelect = ['emailVerified', '_email_verify_token', '_email_verify_token_expires_at'];
@@ -117,7 +109,6 @@ export class AuthCloudService {
 		// eslint-disable-next-line @typescript-eslint/naming-convention
 		const _email_verify_token_expires_at = user.get('_email_verify_token_expires_at');
 
-		// if (config.emailVerifyTokenValidityDuration) {
 		if (_email_verify_token_expires_at) {
 			const expirationTime = new Dayjs(_email_verify_token_expires_at);
 
@@ -126,8 +117,6 @@ export class AuthCloudService {
 			}
 		}
 
-		// user.set('emailVerified', true);
-		// await user.save(null, USE_MASTER_KEY);
 		await getDatabase()
 			.collection(className.USER)
 			.updateOne(
@@ -140,7 +129,5 @@ export class AuthCloudService {
 					},
 				},
 			);
-		// user.unset('_email_verify_token');
-		// user.unset('_email_verify_token_expires_at');
 	}
 }

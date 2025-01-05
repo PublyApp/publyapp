@@ -97,44 +97,17 @@ const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest
 	}
 };
 
-// const createUserProfile = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User> }) => {
-// 	const isNew = _.get(req, 'context.isNew');
-
-// 	if (!_.isEqual(isNew, true)) {
-// 		return;
-// 	}
-
-// 	const isSeeded = req.object.get('seeded');
-
-// 	if (isSeeded) {
-// 		return;
-// 	}
-
-// 	const userSaved = req.object as Parse.User;
-
-// 	const profile = new ParseUserProfile({
-// 		user: userSaved,
-// 		username: userSaved.getUsername(),
-// 	});
-
-// 	await profile.save(null, {
-// 		sessionToken: req.user?.getSessionToken(),
-// 		useMasterKey: req.master,
-// 	});
-// };
-
 const afterSaveUser = parseTriggerEnhanced<Parse.User>({
 	trigger: async ({ req, t }) => {
 		const p1 = autoAssignDefaultRole({ req, t });
 		const p2 = autoAssignAdminRole({ req, t });
 
 		await Promise.all([p1, p2]);
-		// await createUserProfile({ req });
 	},
 });
 
 // --------------------------------------------------------------------------------------//
-//                                     DEFINITIONS                                      //
+//                                     DEFINITIONS                                       //
 // --------------------------------------------------------------------------------------//
 
 Parse.Cloud.beforeSave(Parse.User, beforeSaveUser);

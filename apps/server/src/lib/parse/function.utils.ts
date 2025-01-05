@@ -7,6 +7,7 @@ import { ZodError } from 'zod';
 
 import { getCorrectLocale } from '@devist/shared/lib/i18n/i18n.utils';
 
+import { HttpException } from '@/server/exceptions/HttpException';
 import RoleService from '@/server/modules/common/auth/role/role.service';
 import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
 import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
@@ -203,6 +204,15 @@ const alterLogger = ({
 	req.log = newLog;
 };
 
+export class CloudFunctionHttpException extends Parse.Error {
+	status: number;
+
+	constructor(status: number, message: string) {
+		super(Parse.Error.SCRIPT_FAILED, message);
+		this.status = status;
+	}
+}
+
 export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
 	innerFunction: ParseInnerFunction<P, T>,
 ) => {
@@ -259,9 +269,18 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 			}
 
 			if (error instanceof Error) {
-				// const msg = error.message || t('unknown-error');
-				// const obj = { ...error, message: msg };
-				log.error(!error.message ? String(error.message) : '', error);
+				if (!error.message) {
+					message = !String(error.message) ? message : String(error.message);
+				} else {
+					message = error.message;
+				}
+
+				log.error(message, error);
+
+				if (error instanceof HttpException) {
+					return Promise.reject(new CloudFunctionHttpException(error.status, message));
+				}
+
 				return Promise.reject(error);
 			}
 
@@ -323,7 +342,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 		const t = getT(locale);
 
 		if (requireMasterKey && !req.master) {
-			throw new Error(t('master-key-only-function'));
+			throw new HttpException(403, t('master-key-only-function'));
 		}
 
 		const z = new CustomZod({ i18n: i18nextServer, locale });
@@ -334,7 +353,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 		}
 
 		if (!user) {
-			throw new Parse.Error(Parse.Error.INVALID_SESSION_TOKEN, t('item-is-required', { item: t('authentication') }));
+			throw new HttpException(401, t('item-is-required', { item: t('authentication') }));
 		}
 
 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -357,7 +376,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 
 			// verify the roles
 			if (!userHasRole) {
-				throw new Error(t('unauthorized'));
+				throw new HttpException(403, t('unauthorized'));
 			}
 
 			const validatedParams = validateParams?.({ params: req.params, z });
@@ -383,7 +402,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 		}
 
 		if (!userHasRole) {
-			throw new Error(t('unauthorized'));
+			throw new HttpException(403, t('unauthorized'));
 		}
 
 		const validatedParams = validateParams?.({ params: req.params, z });

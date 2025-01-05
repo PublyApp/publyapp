@@ -5,6 +5,7 @@ import { ZodError } from 'zod';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { logger } from '@/server/lib/winston';
 
+import { CloudFunctionHttpException } from '../lib/parse/function.utils';
 import { getRequestUtils } from '../utils/request.utils';
 
 // ! this is only middleware that we should not wrap into expressHandler wrapper function
@@ -23,7 +24,7 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 			message = error.message;
 		}
 
-		if (error instanceof HttpException) {
+		if (error instanceof HttpException || error instanceof CloudFunctionHttpException) {
 			status = error.status;
 		}
 
@@ -47,18 +48,16 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 		// });
 
 		if (!_.get(req, 'config.headers.___do_not_use_altered_logger_marker___')) {
-			logger.error(
-				`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message:: ${!error.message ? String(error.message) : ''}`,
-				error,
-			);
+			if (!error.message) {
+				message = !String(error.message) ? message : String(error.message);
+			} else {
+				message = error.message;
+			}
+
+			logger.error(`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message:: ${message}`, error);
 		}
 
-		if (error instanceof Parse.Error) {
-			res.status(status).json({ error: String(message), code: parseErrorCode });
-			return;
-		}
-
-		res.status(status).json({ message: String(message), code: parseErrorCode });
+		res.status(status).json({ error: String(message), code: parseErrorCode });
 	} catch (_error) {
 		next(_error);
 	}
