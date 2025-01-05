@@ -25,14 +25,11 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 
 		let roles = await rolesPromises;
 		roles = roles.map((role) => {
-			return removeParseFields(role, [...parseFields, 'users', 'roles'] as never) as never;
+			return removeParseFields(role, [...parseFields, 'users', 'roles']) as never;
 		});
 
 		let userJson: IUser = user.toJSON() as never;
-		userJson = removeParseFields(
-			userJson as never,
-			[...parseFields, 'sessionToken', 'emailVerified'] as never,
-		) as never;
+		userJson = removeParseFields(userJson, [...parseFields, 'sessionToken', 'emailVerified']) as never;
 
 		return {
 			user: userJson,
