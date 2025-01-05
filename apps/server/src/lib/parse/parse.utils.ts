@@ -203,10 +203,10 @@ export const parseFields = [
 	'updatedAt',
 ] as const;
 
-type ParseFields = (typeof parseFields)[number][];
+// type ParseFields = (typeof parseFields)[number][];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const removeParseFields = (obj: Record<string, any>, omitFields?: ParseFields) => {
+export const removeParseFields = (obj: Record<string, any>, omitFields?: string[]) => {
 	const newObj = _.omit(obj, omitFields || parseFields);
 	return newObj;
 };
