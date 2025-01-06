@@ -33,13 +33,14 @@ type UseGetTenantAuthDataProps = {
 export const useGetTenantAuthData = ({ options }: UseGetTenantAuthDataProps = {}) => {
 	const location = useLocation();
 	const isStaffRoute = location.pathname.startsWith(makePath(getLastPath(FRONT_PATH_NAMES.staff.root)));
+	const isTenantRoute = location.pathname.startsWith(makePath(getLastPath(FRONT_PATH_NAMES.tenant().root)));
 	const params = useParams();
 
 	let tenantId = '';
 
 	if (isStaffRoute) {
 		tenantId = 'staff';
-	} else {
+	} else if (isTenantRoute) {
 		const tenantIdPathParam = _.get(params, 'tenantId');
 
 		if (tenantIdPathParam) {

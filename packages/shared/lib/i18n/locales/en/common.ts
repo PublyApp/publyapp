@@ -99,10 +99,11 @@ const commonEN = {
 	'list-of-items': 'List of {{items}}',
 	unauthorized: 'Unauthorized',
 
-	// auth from parse
+	// messages from parse
 	'User email is not verified.': 'User email is not verified.',
 	'Session token is expired.': 'Session token is expired.',
 	'Invalid username/password.': 'Invalid username/password.',
+	'Invalid session token': 'Invalid session token',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

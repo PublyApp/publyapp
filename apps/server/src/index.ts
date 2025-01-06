@@ -37,11 +37,6 @@ import parseServerMiddleware from './middlewares/parseServer.middleware';
 import coreApiRouter from './router/coreApi.router';
 import shortURLRouter from './router/shortURL.router';
 
-// eslint-disable-next-line no-console
-console.log = () => {
-	logger.warn('[server] console.log is disabled');
-};
-
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
 // logger.info(import.meta.filename);
