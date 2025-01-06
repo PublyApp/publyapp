@@ -40,23 +40,27 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 			if (parseErrorCode === Parse.Error.INVALID_SESSION_TOKEN) {
 				// TODO: invalidate session token cache (we are gonna implement a custom permission system: to limit requests to the server we need a cache)
 			}
-			// status = /* res.statusCode || */ 400;
 		}
 
-		// const functionLogging = ['/api/parse/functions'].some((e) => {
-		// 	return req.path.startsWith(e);
-		// });
-
 		if (!_.get(req, 'config.headers.___do_not_use_altered_logger_marker___')) {
+			let hasMessage: boolean;
+
 			if (!error.message) {
+				hasMessage = false;
 				message = !String(error.message) ? message : String(error.message);
 			} else {
+				hasMessage = true;
 				message = error.message;
 			}
 
-			logger.error(`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message:: ${message}`, error);
+			message = t(message as never);
+			logger.error(
+				`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message:: ${hasMessage ? '' : message}`,
+				error,
+			);
 		}
 
+		message = t(message as never);
 		res.status(status).json({ error: String(message), code: parseErrorCode });
 	} catch (_error) {
 		next(_error);

@@ -61,7 +61,7 @@ export const getParseFunctionHeader = (
 	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest | Parse.Cloud.JobRequest,
 	key: string,
 ): string | undefined => {
-	return _.get(req, `req.headers.${key}`) || _.get(req, `req.headers.${_.toLower(key)}`);
+	return _.get(req, `headers.${key}`) || _.get(req, `headers.${_.toLower(key)}`);
 };
 
 type FunctionType = 'trigger' | 'function' | 'job';
@@ -269,13 +269,17 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 			}
 
 			if (error instanceof Error) {
+				let hasMessage: boolean;
+
 				if (!error.message) {
+					hasMessage = false;
 					message = !String(error.message) ? message : String(error.message);
 				} else {
+					hasMessage = true;
 					message = error.message;
 				}
 
-				log.error(message, error);
+				log.error(hasMessage ? '' : message, error);
 
 				if (error instanceof HttpException) {
 					return Promise.reject(new CloudFunctionHttpException(error.status, message));
