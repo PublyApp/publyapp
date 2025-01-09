@@ -14,7 +14,6 @@ import SessionSchema from '../modules/common/auth/session/session.schema';
 import Parse_CustomJoinUserToTenantSchema from '../modules/common/auth/tenant/$join-user-to-tenant.schema';
 import TenantSchema from '../modules/common/auth/tenant/tenant.schema';
 import UserSchema from '../modules/common/auth/user/user.schema';
-// import UserProfileSchema from '../modules/common/auth/userProfile/userProfile.schema';
 import BlogPostSchema from '../modules/staff/blog/blogPost/blogPost.schema';
 import BlogPostSlugSchema from '../modules/staff/blog/blogPostSlug/blogPostSlug.schema';
 import BlogPostTagSchema from '../modules/staff/blog/blogPostTag/blogPostTag.schema';
@@ -138,23 +137,22 @@ export const updateUserClpForDisabledSignupConfig = async () => {
 
 export const updateSchemasOnInit = async () => {
 	await SchemaManager.updateSchemas([
-		// Auth
+		// === Auth
 		RoleSchema,
 		SessionSchema,
 		UserSchema,
-		// UserProfileSchema,
-		// Multi Tenant
+		// === Multi Tenant
 		TenantSchema,
-		// Blog
+		// === Blog
 		BlogPostSchema,
 		BlogPostSchema,
 		BlogPostSlugSchema,
 		BlogPostTagSchema,
-		// File manager
+		// === File manager
 		AppFileSchema,
-		// URL Shortener,
+		// === URL Shortener,
 		ShortUrlSchema,
-		// Custom Joins
+		// === Custom Joins
 		Parse_CustomJoinUserToTenantSchema,
 	]);
 	await updateUserClpForDisabledSignupConfig();
@@ -193,7 +191,7 @@ export const overrideConsole = () => {
 	const originalConsoleLog = console.log;
 
 	console.log = (...args: unknown[]) => {
-		logger.warn('DO NOT USE console.log, use logger.log instead');
+		logger.warn('DO NOT USE console.log, use logger.log/logger.info instead');
 		originalConsoleLog(...args);
 	};
 	/* eslint-enable no-console */
