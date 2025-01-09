@@ -62,9 +62,12 @@ export default class ParseRestClient {
 
 				if (axios.isAxiosError(error)) {
 					const statusCode = _.toNumber(error.response?.status);
-					const { code, error: errorMessage } = error.response?.data ?? {};
+					const { code: errorCode, error: errorMessage, xCode } = error.response?.data ?? {};
+					const parseCode = _.isNil(errorCode) ? -1 : errorCode;
+					const message = errorMessage ?? error.message ?? 'Unknown Error';
+					const code = xCode ?? error.code ?? 'ERR_UNKNOWN';
 
-					throw new ParseRestError({ code: _.isNil(code) ? -1 : code, message: errorMessage, statusCode });
+					throw new ParseRestError({ statusCode, parseCode, message, code });
 				}
 
 				if (_.isError(error)) {

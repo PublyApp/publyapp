@@ -166,3 +166,35 @@ export const updateSchemasOnInit = async () => {
 		parseServer.start();
 	}); */
 };
+
+export const overrideConsole = () => {
+	/* eslint-disable no-console */
+	const originalConsoleError = console.error;
+
+	console.error = (...args: unknown[]) => {
+		logger.warn('DO NOT USE console.error, use logger.error instead');
+		originalConsoleError(...args);
+	};
+
+	const originalConsoleWarn = console.warn;
+
+	console.warn = (...args: unknown[]) => {
+		logger.warn('DO NOT USE console.warn, use logger.warn instead');
+		originalConsoleWarn(...args);
+	};
+
+	const originalConsoleInfo = console.info;
+
+	console.info = (...args: unknown[]) => {
+		logger.warn('DO NOT USE console.info, use logger.info instead');
+		originalConsoleInfo(...args);
+	};
+
+	const originalConsoleLog = console.log;
+
+	console.log = (...args: unknown[]) => {
+		logger.warn('DO NOT USE console.log, use logger.log instead');
+		originalConsoleLog(...args);
+	};
+	/* eslint-enable no-console */
+};

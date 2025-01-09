@@ -20,6 +20,7 @@ import { cloud } from './cloud';
 import {
 	createRolesIfNotExists,
 	createUploadDirIfNotExists,
+	overrideConsole,
 	setUpGlobalConfig,
 	updateSchemasOnInit,
 } from './helpers/helpers';
@@ -41,6 +42,8 @@ import shortURLRouter from './router/shortURL.router';
 // logger.info(import.meta.url);
 // logger.info(import.meta.filename);
 // logger.log(import.meta.dirname);
+
+overrideConsole();
 
 global.Parse = Parse;
 

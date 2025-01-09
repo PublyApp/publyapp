@@ -12,7 +12,7 @@ import { getRequestUtils } from '../utils/request.utils';
 const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 	try {
 		const { t } = getRequestUtils(req);
-		let status = /* res.statusCode || */ 500;
+		let httpStatusCode = 500;
 		let message: string = t('unknown-error');
 		let parseErrorCode: typeof Parse.Error.prototype.code | undefined;
 
@@ -25,17 +25,33 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 		}
 
 		if (error instanceof HttpException || error instanceof CloudFunctionHttpException) {
-			status = error.status;
+			httpStatusCode = error.status;
 		}
 
 		// get zod errors message
 		if (error instanceof ZodError) {
 			message = error.issues[0].message;
-			status = /* res.statusCode || */ 400;
+			httpStatusCode = 400;
 		}
 
 		if (error instanceof Parse.Error) {
 			parseErrorCode = error.code;
+
+			if (!(error instanceof CloudFunctionHttpException)) {
+				// [switch] copied from Parse Server source code
+				// TODO: fill out this mapping
+				switch (error.code) {
+					case Parse.Error.INTERNAL_SERVER_ERROR:
+						httpStatusCode = 500;
+						break;
+					case Parse.Error.OBJECT_NOT_FOUND:
+						httpStatusCode = 404;
+						break;
+					default:
+						httpStatusCode = 400;
+				}
+				// switch] end of copy
+			}
 
 			if (parseErrorCode === Parse.Error.INVALID_SESSION_TOKEN) {
 				// TODO: invalidate session token cache (we are gonna implement a custom permission system: to limit requests to the server we need a cache)
@@ -55,13 +71,13 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 
 			message = t(message as never);
 			logger.error(
-				`[${req.method}] ${req.path} >> StatusCode:: ${status}, Message:: ${hasMessage ? '' : message}`,
+				`[${req.method}] ${req.path} >> StatusCode:: ${httpStatusCode}, Message:: ${hasMessage ? '' : message}`,
 				error,
 			);
 		}
 
 		message = t(message as never);
-		res.status(status).json({ error: String(message), code: parseErrorCode });
+		res.status(httpStatusCode).json({ error: String(message), code: parseErrorCode });
 	} catch (_error) {
 		next(_error);
 	}
