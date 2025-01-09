@@ -52,9 +52,12 @@ export default class ParseRestClient {
 				return response;
 			},
 			(error: unknown) => {
-				// return error;
 				// !!! do not reject Promises here, throw errors instead !!!!
-				// This error interceptor is very specific to the case of we are exclusively using Parse Server cloud functions via the REST API only
+				// * This error interceptor can be used to handle errors globally
+				// * Ensure that the error responses from your API is of the following type:
+				// * { code: number; error: string; xcode?: string }
+				// * in this application, on the server side, our error responses are of this type
+				// * thanks to the generalized error handling middleware
 
 				if (_.isString(error)) {
 					throw new Error(error);
