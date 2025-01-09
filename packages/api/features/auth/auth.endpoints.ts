@@ -8,7 +8,7 @@ import type {
 	GetTenantAuthDataFunction,
 	GetUserAuthDataFunction,
 } from '@/server/modules/common/auth/auth.functions';
-import { defaultHttp, getProtectionHeaders } from '@/shared/lib/axios';
+import { getProtectionHeaders } from '@/shared/lib/axios';
 import { endPoint, functionName, LOCALE_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 import BaseEndPoints, { type BaseEndPointsProps } from '../../classes/BaseEndPoints';
@@ -48,7 +48,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 			[LOCALE_HEADER_KEY]: this.parseRestClient.getHeader(LOCALE_HEADER_KEY),
 		});
 
-		return defaultHttp.post<IUser & { sessionToken: string }>(
+		return this.parseRestClient.http.post<IUser & { sessionToken: string }>(
 			this.parseRestClient.serverUrl + endPoint.api.auth.passwordLogin,
 			{ email: input.email, username: input.username, password },
 			{ headers },
@@ -72,7 +72,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
 		});
 
-		return defaultHttp.post<IUser & { sessionToken?: string }>(
+		return this.parseRestClient.http.post<IUser & { sessionToken?: string }>(
 			this.parseRestClient.serverUrl + endPoint.api.auth.passwordSignup,
 			{ email, username, password, lastName, firstName },
 			{ headers },
