@@ -1,17 +1,17 @@
 export default class ParseRestError extends Error {
 	parseCode: number;
 
-	statusCode: number;
+	httpStatusCode: number;
 
 	code: string;
 
 	constructor({
-		statusCode,
+		httpStatusCode,
 		parseCode,
 		message,
 		code,
 	}: {
-		statusCode: number;
+		httpStatusCode: number;
 		parseCode: number;
 		message: string;
 		code: string;
@@ -19,7 +19,7 @@ export default class ParseRestError extends Error {
 		super(message);
 		this.name = 'ParseRestError';
 		this.parseCode = parseCode;
-		this.statusCode = statusCode;
+		this.httpStatusCode = httpStatusCode;
 		this.message = message;
 		this.code = code;
 	}

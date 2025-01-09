@@ -204,14 +204,22 @@ const alterLogger = ({
 	req.log = newLog;
 };
 
-export class CloudFunctionHttpException extends Parse.Error {
+// ! Do not use this class directly outside this module/file
+class CloudFunctionHttpException extends Parse.Error {
 	status: number;
 
-	constructor(status: number, message: string) {
+	xcode?: string;
+
+	constructor(status: number, message: string, xcode?: string) {
 		super(Parse.Error.SCRIPT_FAILED, message);
 		this.status = status;
+		this.xcode = xcode;
 	}
 }
+
+export const isCloudHttpException = (error: unknown): error is CloudFunctionHttpException => {
+	return error instanceof CloudFunctionHttpException;
+};
 
 export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
 	innerFunction: ParseInnerFunction<P, T>,

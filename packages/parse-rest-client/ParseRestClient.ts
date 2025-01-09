@@ -61,13 +61,23 @@ export default class ParseRestClient {
 				}
 
 				if (axios.isAxiosError(error)) {
-					const statusCode = _.toNumber(error.response?.status);
-					const { code: errorCode, error: errorMessage, xCode } = error.response?.data ?? {};
-					const parseCode = _.isNil(errorCode) ? -1 : errorCode;
-					const message = errorMessage ?? error.message ?? 'Unknown Error';
-					const code = xCode ?? error.code ?? 'ERR_UNKNOWN';
+					const httpStatusCode = error.response?.status || error.status || -1;
+					const {
+						code: errorCode,
+						error: errorMessage,
+						xcode,
+					} = (error.response?.data as
+						| Partial<{
+								code: number;
+								error: string;
+								xcode: string;
+						  }>
+						| undefined) || {};
+					const parseCode: number = errorCode || -1;
+					const message: string = errorMessage || error.message || 'Unknown Error';
+					const code: string = xcode || error.code || 'ERR_UNKNOWN';
 
-					throw new ParseRestError({ statusCode, parseCode, message, code });
+					throw new ParseRestError({ httpStatusCode, parseCode, message, code });
 				}
 
 				if (_.isError(error)) {

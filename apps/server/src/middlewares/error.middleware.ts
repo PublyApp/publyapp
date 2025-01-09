@@ -5,13 +5,14 @@ import { ZodError } from 'zod';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { logger } from '@/server/lib/winston';
 
-import { CloudFunctionHttpException } from '../lib/parse/function.utils';
+import { isCloudHttpException } from '../lib/parse/function.utils';
 import { getRequestUtils } from '../utils/request.utils';
 
-// ! this is only middleware that we should not wrap into expressHandler wrapper function
+// ! this is the only middleware that we should not wrap into expressHandler wrapper function
 const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 	try {
 		const { t } = getRequestUtils(req);
+		let xcode: string | undefined;
 		let httpStatusCode = 500;
 		let message: string = t('unknown-error');
 		let parseErrorCode: typeof Parse.Error.prototype.code | undefined;
@@ -24,8 +25,9 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 			message = error.message;
 		}
 
-		if (error instanceof HttpException || error instanceof CloudFunctionHttpException) {
+		if (error instanceof HttpException) {
 			httpStatusCode = error.status;
+			xcode = error.xcode;
 		}
 
 		// get zod errors message
@@ -37,7 +39,10 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 		if (error instanceof Parse.Error) {
 			parseErrorCode = error.code;
 
-			if (!(error instanceof CloudFunctionHttpException)) {
+			if (isCloudHttpException(error)) {
+				httpStatusCode = error.status;
+				xcode = error.xcode;
+			} else {
 				// [switch] copied from Parse Server source code
 				// TODO: fill out this mapping
 				switch (error.code) {
@@ -77,7 +82,7 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 		}
 
 		message = t(message as never);
-		res.status(httpStatusCode).json({ error: String(message), code: parseErrorCode });
+		res.status(httpStatusCode).json({ error: String(message), code: parseErrorCode, xcode }); // conform to Parse Server error response
 	} catch (_error) {
 		next(_error);
 	}
