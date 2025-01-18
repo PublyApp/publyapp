@@ -11,6 +11,12 @@ const Parse_CustomJoinUserToTenantSchema = SchemaManager.defineSchema(Parse_Cust
 		user: { type: 'Pointer', targetClass: ParseUser.className },
 		tenant: { type: 'Pointer', targetClass: ParseTenant.className },
 	},
+	indexes: {
+		uniqueRelation: {
+			keys: { ['_p_user' as never]: 1, ['_p_tenant' as never]: 1 },
+			options: { unique: true },
+		},
+	},
 });
 
 export default Parse_CustomJoinUserToTenantSchema;
