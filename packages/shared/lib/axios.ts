@@ -62,10 +62,6 @@ export const getProtectionHeaders = (options: {
 	});
 
 	return headers;
-
-	// return {
-	// 	headers: headers as never,
-	// };
 };
 
 export const defaultHttp = new AxiosHttp(createInstance());
