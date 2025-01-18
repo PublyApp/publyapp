@@ -7,7 +7,7 @@ import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
-import { initApiClient } from '../api';
+import { initApiClientOnServer } from '../api';
 import { remixI18NextServer } from '../i18n/i18n.server';
 
 const getRequestLocale = (request: Request) => {
@@ -80,7 +80,7 @@ export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = 
 		const z = new CustomZod({ i18n: remixI18NextServer as never, locale });
 
 		if (!params.requireUser) {
-			const apiClient = initApiClient.onServer({ locale });
+			const apiClient = initApiClientOnServer({ locale });
 
 			if (!params.withAuthDataPromise) {
 				return params.loader({ ...args, apiClient, z, locale });
@@ -98,10 +98,10 @@ export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = 
 		// const sessionToken = await sessionTokenCookie.parse(rawCookies);
 
 		if (!sessionToken) {
-			return redirect(FRONT_PATH_NAMES.login) as never;
+			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		const apiClient = initApiClient.onServer({ locale, sessionToken });
+		const apiClient = initApiClientOnServer({ locale, sessionToken });
 		const authData = await apiClient.auth.getUserAuthData();
 
 		return params.loader({ ...args, apiClient, z, locale, authData });
@@ -154,17 +154,17 @@ export const getServerAction: GetServerAction = <T extends ActionFunctionArgs = 
 		const z = new CustomZod({ i18n: remixI18NextServer as never, locale });
 
 		if (!params.requireUser) {
-			const apiClient = initApiClient.onServer({ locale });
+			const apiClient = initApiClientOnServer({ locale });
 			return params.action({ ...args, apiClient, z, locale });
 		}
 
 		const sessionToken = getRequestCookie(args.request, SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
-			return redirect(FRONT_PATH_NAMES.login) as never;
+			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		const apiClient = initApiClient.onServer({ locale, sessionToken });
+		const apiClient = initApiClientOnServer({ locale, sessionToken });
 
 		const authData = await apiClient.auth.getUserAuthData();
 
