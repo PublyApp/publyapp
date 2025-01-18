@@ -10,7 +10,6 @@
 		"paths": {
 			"@/server/*": ["./apps/server/src/*"],
 			"@/front/*": ["./apps/front/app/*"],
-			"@/office/*": ["./apps/office/src/*"],
 
 			"@/shared/*": ["./packages/shared/*"],
 			"@/ui-react/*": ["./packages/ui-react/*"],

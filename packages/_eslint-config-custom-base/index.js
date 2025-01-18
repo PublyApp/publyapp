@@ -99,7 +99,7 @@ module.exports = {
 						position: 'after',
 					},
 					{
-						pattern: '@/{shared,ui-react,front,server,office}/**',
+						pattern: '@/{shared,ui-react,front,server}/**',
 						group: 'external',
 						position: 'after',
 					},
