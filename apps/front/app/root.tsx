@@ -1,6 +1,7 @@
 // Import styles of packages that you've installed.
 // All packages except `@mantine/hooks` require styles imports
 import '@mantine/core/styles.css';
+import './styles/mantine-hub.css';
 
 import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -11,6 +12,7 @@ import { useChangeLanguage } from 'remix-i18next/react';
 import type { Route } from './+types/root';
 import { defaultQueryClient } from './lib/react-query/queryClient';
 import { getServerLoader } from './lib/react-router/function.server';
+import { cssVariableResolver } from './theme/cssVariablesResolver';
 import { theme } from './theme/theme';
 
 export const loader = getServerLoader({
@@ -29,7 +31,7 @@ export const links: Route.LinksFunction = () => {
 		},
 		{
 			rel: 'stylesheet',
-			href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap',
+			href: 'https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap',
 		},
 	];
 };
@@ -50,7 +52,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 			</head>
 			<body>
 				<QueryClientProvider client={defaultQueryClient}>
-					<MantineProvider theme={theme}>{children}</MantineProvider>
+					<MantineProvider theme={theme} cssVariablesResolver={cssVariableResolver}>
+						{children}
+					</MantineProvider>
 					<ScrollRestoration />
 				</QueryClientProvider>
 				<Scripts />
