@@ -86,13 +86,13 @@ export const handleVerifyEmail = expressHandler(async (req, res) => {
 		await AuthCloudService.verifyEmail({ username, token });
 
 		// on success redirect to success page
-		const successUrl = new URL(env.OFFICE_URL);
+		const successUrl = new URL(/* env.OFFICE_URL */ '');
 		successUrl.pathname = FRONT_PATH_NAMES.auth.login;
 		return res.redirect(successUrl.toString());
 	} catch (error) {
 		logger.error('Error in verifyEmail:', error);
 		// on error redirect to error page
-		const failUrl = new URL(env.OFFICE_URL);
+		const failUrl = new URL(/* env.OFFICE_URL */ '');
 		failUrl.pathname = FRONT_PATH_NAMES.auth.signup;
 		return res.redirect(failUrl.toString());
 	}
@@ -101,7 +101,7 @@ export const handleVerifyEmail = expressHandler(async (req, res) => {
 // ! ==================== wip: facebook login flow
 
 const applicationFromURL = {
-	office: env.OFFICE_URL,
+	office: /* env.OFFICE_URL */ '',
 	front: env.FRONT_URL,
 } as const;
 

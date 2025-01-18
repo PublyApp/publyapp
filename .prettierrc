@@ -23,7 +23,7 @@
 		"",
 		"^@devist/(.*)$",
 		"",
-		"^@/shared|@/ui-react|@/front|@/server|@/office/(.*)$",
+		"^@/shared|@/ui-react|@/front|@/server/(.*)$",
 		"",
 		"^../",
 		"",
