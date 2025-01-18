@@ -5,5 +5,5 @@ import { themeOptions } from './options';
 
 const theme = createTheme(themeOptions);
 
-// CSS variables object, can be access in *.css.ts files
+// CSS variables object, can be accessed in *.css.ts files
 export const vars = themeToVars(theme);
