@@ -31,7 +31,6 @@ const envSchema = z.object({
 	CLOUDINARY_API_SECRET: z.string(),
 	// ===
 	FRONT_URL: z.string(),
-	OFFICE_URL: z.string(),
 });
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment

@@ -15,7 +15,6 @@
 
 		"packages/ui-react/.eslintrc.js",
 
-		"apps/office/.eslintrc.js",
 		"apps/front/.eslintrc.cjs",
 		"apps/server/.eslintrc.js",
 

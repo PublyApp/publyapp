@@ -45,7 +45,6 @@ const zipEnvFiles = (envPaths, outputZipPath) => {
 const envPaths = [
 	path.resolve(__dirname, '../apps/server/.env.production'),
 	path.resolve(__dirname, '../apps/front/.env.production'),
-	path.resolve(__dirname, '../apps/office/.env.production'),
 ];
 const outputZipPath = path.resolve(__dirname, '../.env.production.zip');
 
