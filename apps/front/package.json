@@ -22,6 +22,7 @@
     "@react-router/serve": "^7.0.2",
     "@tanstack/react-query": "^5.62.10",
     "@vanilla-extract/css": "^1.16.1",
+		"@hookform/resolvers": "^3.3.4",
     "i18next": "^23.8.2",
     "i18next-browser-languagedetector": "^7.2.1",
     "i18next-fetch-backend": "6.0.0",

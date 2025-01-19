@@ -66,7 +66,6 @@ export class AuthCloudService {
 		// mimic auth object
 		// eslint-disable-next-line @typescript-eslint/naming-convention
 		const _auth = { isMaster: true };
-		// new auth.Auth({});
 
 		const config = getInternalConfig();
 
