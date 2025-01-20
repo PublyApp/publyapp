@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Anchor, Button, Group, Paper, PasswordInput } from '@mantine/core';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { useFetcher } from 'react-router';
 
 import { RHFForm } from '@/front/components/react-hook-form/RHFForm';
@@ -9,6 +10,9 @@ import { defaultZodClient } from '@/front/lib/zod';
 import { getLoginSchema } from '@/shared/validations/auth.validations';
 
 const LoginForm = () => {
+	const { i18n } = useTranslation();
+	i18n.loadNamespaces(['zod']);
+
 	const fetcher = useFetcher<{
 		email: string;
 		password: string;
