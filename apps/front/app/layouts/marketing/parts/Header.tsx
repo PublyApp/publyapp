@@ -1,15 +1,16 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { Box, Burger, Button, Divider, Drawer, Group, ScrollArea } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 
 import { LanguagePicker } from '@/front/components/language-picker/LanguagePicker';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES, queryParamKey } from '@/shared/lib/constants';
 
 import { classes } from './Header.css';
 
 const Header = () => {
 	const [drawerOpened, { toggle: toggleDrawer, close: closeDrawer }] = useDisclosure(false);
+	const [search] = useSearchParams();
 
 	return (
 		<Box>
@@ -38,7 +39,12 @@ const Header = () => {
 							// }}
 							component={Link}
 							variant="default"
-							to={FRONT_PATH_NAMES.auth.login}
+							to={{
+								pathname: FRONT_PATH_NAMES.auth.login,
+								search: search.get(queryParamKey.language)
+									? `?${queryParamKey.language}=${search.get(queryParamKey.language)}`
+									: '',
+							}}
 						>
 							Log in
 						</Button>
