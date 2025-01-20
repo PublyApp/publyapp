@@ -47,7 +47,7 @@ export const initI18nOnClient = async () => {
 		// // se locale of numeral.js (number formatting)
 		// numeral.locale(value);
 
-		// // set locale for our CustomZod instance
+		// set locale for our CustomZod instance
 		defaultZodClient.setLocale(getCorrectLocale(language));
 	});
 

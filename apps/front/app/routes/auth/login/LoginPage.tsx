@@ -1,4 +1,5 @@
 import { Anchor, Box, Text, Title } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { data, redirect } from 'react-router';
 
 import { CookieManager } from '@/front/lib/cookie-manager';
@@ -59,12 +60,13 @@ export const action = getServerAction({
 });
 
 const LoginPage = ({ actionData }: Route.ComponentProps) => {
+	const { t } = useTranslation();
 	console.info('🙏🙏🙏🙏', actionData);
 
 	return (
 		<Box w={420} my={40}>
 			<Title ta="center" className={classes.title}>
-				Welcome back!
+				{t('hello')} Welcome back!
 			</Title>
 			<Text c="dimmed" size="sm" ta="center" mt={5}>
 				Do not have an account yet?{' '}
