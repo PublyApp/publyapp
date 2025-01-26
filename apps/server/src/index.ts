@@ -29,8 +29,8 @@ import { corsWhiteList, FILE_UPLOAD_DESTINATION, PARSE_SERVER_URL } from './lib/
 import { env } from './lib/env';
 import { expressHandler } from './lib/express';
 import { initI18next } from './lib/i18n';
-import CustomLoggerAdapter from './lib/parse/classes/CustomLoggerAdapter';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
+import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
 import { setCurrentInstallationId } from './lib/parse/parse.utils';
 import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
@@ -82,7 +82,7 @@ const bootstrap = async () => {
 	const emailAdapter = new CustomMailAdapter({ serverUrl: env.SERVER_URL });
 
 	// Logger adapter for Parse
-	const loggerAdapter = new CustomLoggerAdapter({ logger });
+	const loggerAdapter = new WinstonLoggerAdapter({ logger });
 
 	// initialize parse server
 	const parseServer = new ParseServer({

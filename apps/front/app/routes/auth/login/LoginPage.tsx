@@ -1,4 +1,5 @@
 import { Anchor, Box, Text, Title } from '@mantine/core';
+import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { data, redirect } from 'react-router';
 
@@ -58,6 +59,11 @@ export const action = getServerAction({
 		}) as never;
 	},
 });
+
+export const clientLoader = async (_: Route.ClientLoaderArgs) => {
+	i18next.loadNamespaces(['zod']);
+	return data({});
+};
 
 const LoginPage = ({ actionData }: Route.ComponentProps) => {
 	const { t } = useTranslation();
