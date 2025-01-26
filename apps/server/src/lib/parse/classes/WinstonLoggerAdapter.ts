@@ -22,7 +22,7 @@ const MILLISECONDS_IN_A_DAY = duration.toMilliseconds('1d');
  * @property {number | null | undefined} maxLogFiles Maximum number of logs to keep. If not set, no logs will be removed. This can be a number of files or number of days. If using days, add 'd' as the suffix. (default: null)
  */
 
-export default class CustomLoggerAdapter implements LoggerAdapter {
+export default class WinstonLoggerAdapter implements LoggerAdapter {
 	readonly logger: Logger;
 
 	maxLogFiles?: number | null | undefined;
@@ -38,9 +38,9 @@ export default class CustomLoggerAdapter implements LoggerAdapter {
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	log(level: string, message: string, ...meta: any[]) {
-		if (level === 'warn' && message === 'afterSave caught an error') {
-			return;
-		}
+		// if (level === 'warn' && message === 'afterSave caught an error') {
+		// 	return;
+		// }
 
 		// eslint-disable-next-line consistent-return
 		return this.logger.log(level, message, ...meta);
@@ -102,9 +102,7 @@ export default class CustomLoggerAdapter implements LoggerAdapter {
 						format: format.combine(format.timestamp(), format.splat(), format.json()),
 						...options,
 					});
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(parseServer as any).name = 'parse-server';
-					// _.set(parseServer, 'name', 'parse-server');
+					_.set(parseServer, 'name', 'parse-server');
 					transports.push(parseServer);
 
 					const parseServerError = new DailyRotateFile({
@@ -114,23 +112,12 @@ export default class CustomLoggerAdapter implements LoggerAdapter {
 						...options,
 						level: 'error',
 					});
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(parseServerError as any).name = 'parse-server-error';
-					// _.set(parseServerError, 'name', 'parse-server-error');
+					_.set(parseServerError, 'name', 'parse-server-error');
 					transports.push(parseServerError);
 				}
 			} catch (e) {
 				/* */
 			}
-
-			// const consoleFormat = options.json ? format.json() : format.simple();
-			// const consoleOptions = {
-			// 	colorize: true,
-			// 	name: 'console',
-			// 	silent,
-			// 	format: format.combine(format.splat(), consoleFormat),
-			// 	...options,
-			// };
 
 			// * Except for this console transport, the rest of the code is copy pasted from parse-server source code
 			const consoleTransport = new winston.transports.Console({
@@ -154,15 +141,11 @@ export default class CustomLoggerAdapter implements LoggerAdapter {
 				...options,
 			});
 
-			// transports.push(new winston.transports.Console(consoleOptions as never));
 			transports.push(consoleTransport);
 		}
 
-		// this.logger.configure({
-		// 	transports,
-		// });
-		// this.logger.transports.unshift();
-		this.removeTransport('console');
+		this.removeTransport('console'); // remove default console transport (there will be two stacked console transports otherwise)
+
 		transports.forEach((transport) => {
 			this.logger.add(transport);
 		});
@@ -170,8 +153,7 @@ export default class CustomLoggerAdapter implements LoggerAdapter {
 
 	private removeTransport(transport: string | winston.transport) {
 		const matchingTransport = this.logger.transports.find((t1) => {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			return typeof transport === 'string' ? (t1 as any).name === transport : t1 === transport;
+			return typeof transport === 'string' ? _.get(t1, 'name') === transport : t1 === transport;
 		});
 
 		if (matchingTransport) {

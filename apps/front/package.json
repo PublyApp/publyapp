@@ -29,6 +29,7 @@
     "i18next-fs-backend": "^2.3.1",
     "isbot": "^5.1.17",
     "lodash": "^4.17.21",
+		"nanoid": "^5.0.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
