@@ -11,7 +11,7 @@
 		"@google-cloud/storage": "^7.15.0",
 		"mongodb": "^5.9.0",
 		"playwright": "^1.50.0",
-		"uuid": "^11.0.5",
+		"nanoid": "^5.0.4",
 		"zod": "^3.22.4",
 		"lodash": "^4.17.21"
 	},

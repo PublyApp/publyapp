@@ -5,11 +5,12 @@ import { convertHTMLToPDF } from './html-to-pdf';
 
 const genericMessage = {
 	BAD_PARAM: 'Bad parameter',
-	GENERIC_ERROR: 'An Error occurred',
+	GENERIC_ERROR: 'An error occurred',
 };
 
 const jobType = {
 	CONVERT_HTML_TO_PDF: 'CONVERT_HTML_TO_PDF',
+	// Later we may add other jobs, like deleting unused pdf from storage and from DB for example
 } as const;
 
 const jobTypeMap = new Map<string, AsyncFunction>([
@@ -29,8 +30,12 @@ const main = async () => {
 
 		await executorFunction(_.get(jobInput, 'params'));
 	} catch (error) {
+		// since this is a job, we must always throw in each edges of this catch block.
+		// and don't use try catch anywhere else but let the leaf functions throw too.
+
 		// report the details of the error to our chosen log system for use internally
-		// to not disclose sensitive informations to end users
+		// to not disclose sensitive informations from end users
+
 		if (error instanceof ZodError) {
 			throw new Error(genericMessage.BAD_PARAM);
 		}
