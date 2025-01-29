@@ -1,10 +1,14 @@
+/* eslint-disable no-await-in-loop */
 /* eslint-disable prefer-arrow/prefer-arrow-functions */
 /* eslint-disable func-style */
 import { Storage } from '@google-cloud/storage';
+import _ from 'lodash';
 import { MongoClient } from 'mongodb';
+import { nanoid } from 'nanoid';
 import { chromium } from 'playwright';
-import { v4 as uuIdV4 } from 'uuid';
 import { z } from 'zod';
+
+import { sleep } from '@/shared/utils/any.utils';
 
 import { getJobTypeFunction } from './utils';
 
@@ -37,7 +41,7 @@ async function generatePdf(input: HtmlToPdfInput): Promise<{ buffer: Buffer; fil
 		await page.setContent(input.value, { waitUntil: 'networkidle' });
 	}
 
-	const fileName = `${input.tenantId}/${uuIdV4()}.pdf`;
+	const fileName = `${input.tenantId}/${nanoid()}.pdf`;
 	const buffer = await page.pdf({ format: 'A4' });
 
 	await browser.close();
@@ -59,34 +63,17 @@ async function uploadToGCS(buffer: Buffer, fileName: string): Promise<string> {
 	return fileName;
 }
 
-async function generateSignedUrl(fileName: string, expiresInSeconds: number = 3600): Promise<string> {
-	const [url] = await storage
-		.bucket(BUCKET_NAME)
-		.file(fileName)
-		.getSignedUrl({
-			action: 'read',
-			expires: Date.now() + expiresInSeconds * 1000,
-		});
-	return url;
-}
-
 async function saveMetadataToMongo(fileName: string, tenantId: string): Promise<void> {
-	const signedUrl = await generateSignedUrl(fileName);
 	const db = mongoClient.db(DATABASE_NAME);
 	const collection = db.collection(COLLECTION_NAME);
 	await collection.insertOne({
 		tenantId,
 		fileName,
-		signedUrl,
 		createdAt: new Date(),
 	});
 }
 
-// export async function getSignedUrlFromMetadata(fileName: string, expiresInSeconds: number = 3600): Promise<string> {
-// 	return generateSignedUrl(fileName, expiresInSeconds);
-// }
-
-async function convertHTMLToPDFHandler(input: HtmlToPdfInput) {
+const handler1 = async (input: HtmlToPdfInput) => {
 	await mongoClient.connect();
 
 	const { buffer, fileName } = await generatePdf(input);
@@ -94,6 +81,64 @@ async function convertHTMLToPDFHandler(input: HtmlToPdfInput) {
 	await saveMetadataToMongo(fileName, input.tenantId);
 
 	console.log(`PDF generated and stored: ${fileName}`);
+};
+
+const handler2 = getJobTypeFunction({ schema: convertSchema, handler: handler1 });
+
+const getHasEnoughCredits = async (timeOut: number) => {
+	await sleep(timeOut);
+	return _.get([false, false, false, true], _.toInteger(_.random(0, 3)), false);
+};
+
+const controllerCode = {
+	ERR_EXPIRED_CREDITS: 'ERR_EXPIRED_CREDITS',
+	ERR_ASYNC_LOOP: 'ERR_ASYNC_LOOP',
+	MAIN_FUNC_SUCCESS: 'MAIN_FUNC_SUCCESS',
+} as const;
+
+type ControllerCode = ValueOf<typeof controllerCode>;
+
+export class AbortError extends Error {
+	code: ControllerCode;
+
+	constructor(message: string, code: ControllerCode) {
+		super(message);
+		this.code = code;
+	}
 }
 
-export const convertHTMLToPDF = getJobTypeFunction({ schema: convertSchema, handler: convertHTMLToPDFHandler });
+const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
+	return async (params: unknown) => {
+		const controller = new AbortController();
+
+		controller.signal.onabort = (_e) => {
+			if ([controllerCode.ERR_EXPIRED_CREDITS, controllerCode.ERR_ASYNC_LOOP].includes(controller.signal.reason)) {
+				throw new AbortError('Function aborted', controller.signal.reason as never);
+			}
+		};
+
+		const asyncLoop = async (intervalTime = 5000) => {
+			let hasEnoughCredits;
+
+			do {
+				hasEnoughCredits = await getHasEnoughCredits(intervalTime);
+			} while (!controller.signal.aborted && hasEnoughCredits);
+
+			if (!hasEnoughCredits) {
+				controller.abort(controllerCode.ERR_EXPIRED_CREDITS);
+			}
+		};
+
+		asyncLoop(5000).catch((error) => {
+			console.log('Error in async loop: ', error);
+			controller.abort(controllerCode.ERR_ASYNC_LOOP);
+		});
+
+		// main thread intensive task
+		await handler(params);
+
+		controller.abort(controllerCode.MAIN_FUNC_SUCCESS);
+	};
+};
+
+export const convertHTMLToPDF = getControlledFunction({ handler: handler2 });
