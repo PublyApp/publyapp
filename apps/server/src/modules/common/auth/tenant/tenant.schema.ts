@@ -6,10 +6,11 @@ import type { ITenantWithParseRelations } from '@/shared/types/db/tenant.types';
 const TenantSchema = SchemaManager.defineSchema<ITenantWithParseRelations>(className.TENANT, {
 	fields: {
 		name: { type: 'String' },
+		logoUrl: { type: 'String' },
+		maxUsers: { type: 'Number' },
+		usersCount: { type: 'Number' },
 
 		// relations
-		// users: { type: 'Array' }, // ! it's fine to put an array of users because there will be less of 100 for each tenant anyway.
-		// modules // ???
 	},
 	classLevelPermissions: {
 		find: {
@@ -28,7 +29,7 @@ const TenantSchema = SchemaManager.defineSchema<ITenantWithParseRelations>(class
 			[`role:${roleEnum.STAFF_EDITOR.name}`]: true,
 		},
 		delete: {
-			// [`role:${roleEnum.STAFF_ADMIN.name}`]: true, // ! in fact we don't want to delete anything only do soft delete
+			// [`role:${roleEnum.STAFF_ADMIN.name}`]: true, // ! in fact we don't want to delete anything, only do soft delete
 		},
 	},
 });

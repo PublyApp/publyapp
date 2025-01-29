@@ -27,7 +27,8 @@
     "VITE_PARSE_PATH",
     "API_PATH",
     "PARSE_PATH",
-		"DEV"
+		"DEV",
+		"JOB_INPUT"
   ],
   "tasks": {
     "build": {
