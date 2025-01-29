@@ -62,7 +62,7 @@ export const DEFAULT_CLP: CPLsInterface = {
 		requiresAuthentication: true,
 	},
 	delete: {
-		requiresAuthentication: true,
+		// requiresAuthentication: true, // ! in fact we don't want to delete anything, only do soft delete
 	},
 	addField: {
 		requiresAuthentication: true,

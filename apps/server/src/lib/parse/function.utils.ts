@@ -236,7 +236,7 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 
 		try {
 			log.info(`${functionType} started`, {
-				user: _.get(req, 'user', undefined),
+				user: _.get(req, 'user.id', undefined),
 				params: _.get(req, 'params', {}),
 			});
 			const t1 = performance.now();

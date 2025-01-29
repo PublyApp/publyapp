@@ -1,0 +1,20 @@
+{
+	"extends": "../tsconfig.paths.json",
+	"compilerOptions": {
+		"verbatimModuleSyntax": true,
+
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+
+		// For fixing the below error
+		// The inferred type of XXX cannot be named without a reference to '@/ui-react/node_modules/@types/react/jsx-runtime'. This is likely not portable. A type annotation is necessary.
+		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
+		"declarationMap": false,
+		"declaration": false,
+
+		"typeRoots": ["./node_modules/@types"]
+	},
+	"include": ["src", "@types"],
+	"exclude": ["dist", "node_modules"]
+}
