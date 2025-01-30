@@ -8,6 +8,7 @@ import { nanoid } from 'nanoid';
 import { chromium } from 'playwright';
 import { z } from 'zod';
 
+import { className } from '@/shared/lib/constants';
 import { sleep } from '@/shared/utils/any.utils';
 
 import { getJobTypeFunction } from './utils';
@@ -48,7 +49,7 @@ async function generatePdf(input: HtmlToPdfInput): Promise<{ buffer: Buffer; fil
 	return { buffer, fileName };
 }
 
-async function uploadToGCS(buffer: Buffer, fileName: string): Promise<string> {
+async function uploadToGCS(buffer: Buffer, fileName: string) {
 	const bucket = storage.bucket(BUCKET_NAME);
 	const file = bucket.file(fileName);
 
@@ -60,35 +61,101 @@ async function uploadToGCS(buffer: Buffer, fileName: string): Promise<string> {
 	});
 
 	await file.makePrivate(); // Ensure the file is not public
-	return fileName;
+	const [metadata] = await file.getMetadata();
+
+	return Number(metadata.size) / 1024 / 1024;
 }
 
-async function saveMetadataToMongo(fileName: string, tenantId: string): Promise<void> {
+// async function saveMetadataToMongo(fileName: string, tenantId: string): Promise<void> {
+// 	const db = mongoClient.db(DATABASE_NAME);
+// 	const collection = db.collection(COLLECTION_NAME);
+// 	await collection.insertOne({
+// 		tenantId,
+// 		fileName,
+// 		createdAt: new Date(),
+// 	});
+// }
+async function saveMetadataToMongo(
+	fileName: string,
+	tenantId: string,
+	cpuTime: number,
+	ramUsage: number,
+	fileSizeMB: number,
+): Promise<void> {
+	const creditsUsed = cpuTime * 0.5 + ramUsage * 0.2 + fileSizeMB * 0.1;
 	const db = mongoClient.db(DATABASE_NAME);
 	const collection = db.collection(COLLECTION_NAME);
 	await collection.insertOne({
 		tenantId,
 		fileName,
+		cpuTime,
+		ramUsage,
+		fileSizeMB,
+		creditsUsed,
 		createdAt: new Date(),
 	});
 }
+
+function getResourceUsage() {
+	const cpuUsage = process.cpuUsage().user / 1e6; // Convert microseconds to milliseconds
+	const ramUsage = process.memoryUsage().heapUsed / 1024 / 1024; // Convert bytes to MB
+	return { cpuUsage, ramUsage };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, prefer-const
+let RESOURCE_USAGE_CHECKPOINT: ReturnType<typeof getResourceUsage> = {
+	cpuUsage: 0,
+	ramUsage: 0,
+};
+
+async function updateAndCheckCredits(
+	tenantId: string,
+	options: {
+		cpuUsage: number;
+		ramUsage: number;
+		fileSizeMB: number;
+	},
+): Promise<boolean> {
+	const db = mongoClient.db(DATABASE_NAME);
+	const tenantsCollection = db.collection(className.TENANT);
+
+	const { cpuUsage, fileSizeMB, ramUsage } = options;
+
+	const creditCost = cpuUsage * 0.5 + ramUsage * 0.2 + fileSizeMB * 0.1;
+	const result = await tenantsCollection.findOneAndUpdate(
+		{ tenantId },
+		{ $inc: { credits: -creditCost } },
+		{ returnDocument: 'after' },
+	);
+
+	return result?.value?.credits > 0;
+}
+
+const getResourceUsageInterval: typeof getResourceUsage = () => {
+	const lastCheckPoint = _.assign({}, RESOURCE_USAGE_CHECKPOINT);
+	const usageNow = getResourceUsage();
+
+	RESOURCE_USAGE_CHECKPOINT = usageNow;
+
+	return {
+		cpuUsage: usageNow.cpuUsage - lastCheckPoint.cpuUsage,
+		ramUsage: usageNow.ramUsage - lastCheckPoint.ramUsage,
+	};
+};
 
 const handler1 = async (input: HtmlToPdfInput) => {
 	await mongoClient.connect();
 
 	const { buffer, fileName } = await generatePdf(input);
-	await uploadToGCS(buffer, fileName);
-	await saveMetadataToMongo(fileName, input.tenantId);
+	const fileSizeMB = await uploadToGCS(buffer, fileName);
+	const { cpuUsage, ramUsage } = getResourceUsageInterval();
+	await saveMetadataToMongo(fileName, input.tenantId, cpuUsage, ramUsage, fileSizeMB);
+	await updateAndCheckCredits(input.tenantId, { cpuUsage, ramUsage, fileSizeMB });
 
 	console.log(`PDF generated and stored: ${fileName}`);
 };
 
 const handler2 = getJobTypeFunction({ schema: convertSchema, handler: handler1 });
-
-const getHasEnoughCredits = async (timeOut: number) => {
-	await sleep(timeOut);
-	return _.get([false, false, false, true], _.toInteger(_.random(0, 3)), false);
-};
 
 const controllerCode = {
 	ERR_EXPIRED_CREDITS: 'ERR_EXPIRED_CREDITS',
@@ -109,35 +176,62 @@ export class AbortError extends Error {
 
 const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 	return async (params: unknown) => {
-		const controller = new AbortController();
+		try {
+			const controller = new AbortController();
 
-		controller.signal.onabort = (_e) => {
-			if ([controllerCode.ERR_EXPIRED_CREDITS, controllerCode.ERR_ASYNC_LOOP].includes(controller.signal.reason)) {
-				throw new AbortError('Function aborted', controller.signal.reason as never);
-			}
-		};
+			controller.signal.onabort = (_e) => {
+				if ([controllerCode.ERR_EXPIRED_CREDITS, controllerCode.ERR_ASYNC_LOOP].includes(controller.signal.reason)) {
+					throw new AbortError('Function aborted', controller.signal.reason as never);
+				}
+			};
 
-		const asyncLoop = async (intervalTime = 5000) => {
-			let hasEnoughCredits;
+			const asyncLoop = async (intervalTime = 5000) => {
+				let hasEnoughCredits;
 
-			do {
-				hasEnoughCredits = await getHasEnoughCredits(intervalTime);
-			} while (!controller.signal.aborted && hasEnoughCredits);
+				let elapsedTime = 0;
+				let iterationIndex = 0;
 
-			if (!hasEnoughCredits) {
-				controller.abort(controllerCode.ERR_EXPIRED_CREDITS);
-			}
-		};
+				do {
+					if (iterationIndex > 0) {
+						await sleep(intervalTime - elapsedTime);
+					}
 
-		asyncLoop(5000).catch((error) => {
-			console.log('Error in async loop: ', error);
-			controller.abort(controllerCode.ERR_ASYNC_LOOP);
-		});
+					const t1 = Date.now();
+					const { cpuUsage, ramUsage } = getResourceUsageInterval();
+					hasEnoughCredits = await updateAndCheckCredits(_.get(params, 'tenantId', ''), {
+						cpuUsage,
+						ramUsage,
+						fileSizeMB: 0,
+					}); // Small periodic deductions
+					const t2 = Date.now();
+					elapsedTime = t2 - t1;
 
-		// main thread intensive task
-		await handler(params);
+					iterationIndex += 1;
+				} while (!controller.signal.aborted && hasEnoughCredits);
 
-		controller.abort(controllerCode.MAIN_FUNC_SUCCESS);
+				if (!hasEnoughCredits) {
+					controller.abort(controllerCode.ERR_EXPIRED_CREDITS);
+				}
+			};
+
+			asyncLoop(5000).catch((error) => {
+				console.log('Error in async loop: ', error);
+				controller.abort(controllerCode.ERR_ASYNC_LOOP);
+			});
+
+			// main thread intensive task
+			await handler(params);
+
+			controller.abort(controllerCode.MAIN_FUNC_SUCCESS);
+		} catch (error) {
+			const { cpuUsage, ramUsage } = getResourceUsageInterval();
+			await updateAndCheckCredits(_.get(params, 'tenantId', ''), {
+				cpuUsage,
+				ramUsage,
+				fileSizeMB: 0,
+			});
+			throw error;
+		}
 	};
 };
 
