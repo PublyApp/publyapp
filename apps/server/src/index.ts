@@ -8,7 +8,6 @@ import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
 import chalk from 'chalk';
 import express from 'express';
-import subdomain from 'express-subdomain';
 import ParseDashboard from 'parse-dashboard';
 
 import duration from '@devist/shared/utils/duration.utils';
@@ -36,7 +35,6 @@ import { cors } from './middlewares/cors.middleware';
 import errorMiddleware from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
 import coreApiRouter from './router/coreApi.router';
-import shortURLRouter from './router/shortURL.router';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -68,9 +66,6 @@ const bootstrap = async () => {
 	app.use(env.EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 	// serve i18n resources files under express static middleware (remark: these files are generated at build time)
 	app.use('/resources', express.static(path.resolve(process.cwd(), 'dist/resources')));
-
-	// apply subdomain routing for our url shortener redirection service
-	app.use(subdomain('link', shortURLRouter));
 
 	// File System adapter for Parse
 	const filesAdapter = new FSFilesAdapter({

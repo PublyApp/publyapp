@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { className } from '@/shared/lib/constants';
 import { sleep } from '@/shared/utils/any.utils';
 
-import { getJobTypeFunction } from './utils';
+import { getJobTypeFunction } from '../utils/utils';
 
 const convertSchema = z.object({
 	type: z.union([z.literal('url'), z.literal('html')]),
@@ -19,10 +19,7 @@ const convertSchema = z.object({
 	tenantId: z.string(),
 });
 
-// Define discriminated union for input
 type HtmlToPdfInput = z.infer<typeof convertSchema>;
-// 	| { type: 'url'; value: string; tenantId: string }
-// 	| { type: 'html'; value: string; tenantId: string };
 
 const BUCKET_NAME = 'your-bucket-name';
 const MONGO_URI = 'your-mongodb-uri';
@@ -66,15 +63,6 @@ async function uploadToGCS(buffer: Buffer, fileName: string) {
 	return Number(metadata.size) / 1024 / 1024;
 }
 
-// async function saveMetadataToMongo(fileName: string, tenantId: string): Promise<void> {
-// 	const db = mongoClient.db(DATABASE_NAME);
-// 	const collection = db.collection(COLLECTION_NAME);
-// 	await collection.insertOne({
-// 		tenantId,
-// 		fileName,
-// 		createdAt: new Date(),
-// 	});
-// }
 async function saveMetadataToMongo(
 	fileName: string,
 	tenantId: string,
@@ -102,7 +90,6 @@ function getResourceUsage() {
 	return { cpuUsage, ramUsage };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, prefer-const
 let RESOURCE_USAGE_CHECKPOINT: ReturnType<typeof getResourceUsage> = {
 	cpuUsage: 0,
 	ramUsage: 0,
@@ -211,6 +198,15 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 
 				if (!hasEnoughCredits) {
 					controller.abort(controllerCode.ERR_EXPIRED_CREDITS);
+				} else {
+					// if controller has been aborted
+					// the reason is likely == controllerCode.MAIN_FUNC_SUCCESS
+					const { cpuUsage, ramUsage } = getResourceUsageInterval();
+					hasEnoughCredits = await updateAndCheckCredits(_.get(params, 'tenantId', ''), {
+						cpuUsage,
+						ramUsage,
+						fileSizeMB: 0,
+					});
 				}
 			};
 
