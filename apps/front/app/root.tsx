@@ -3,7 +3,6 @@
 import '@mantine/core/styles.css';
 import './styles/mantine-hub.css';
 
-import { ColorSchemeScript, MantineProvider } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
@@ -12,8 +11,6 @@ import { useChangeLanguage } from 'remix-i18next/react';
 import type { Route } from './+types/root';
 import { defaultQueryClient } from './lib/react-query/queryClient';
 import { getServerLoader } from './lib/react-router/function.server';
-import { cssVariableResolver } from './theme/cssVariablesResolver';
-import { theme } from './theme/theme';
 
 export const loader = getServerLoader({
 	loader: async ({ locale }) => {
@@ -48,13 +45,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<Meta />
 				<Links />
-				<ColorSchemeScript />
 			</head>
 			<body>
 				<QueryClientProvider client={defaultQueryClient}>
-					<MantineProvider theme={theme} cssVariablesResolver={cssVariableResolver}>
-						{children}
-					</MantineProvider>
+					{children}
 					<ScrollRestoration />
 				</QueryClientProvider>
 				<Scripts />
