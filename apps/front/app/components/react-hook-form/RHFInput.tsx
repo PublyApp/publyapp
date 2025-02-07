@@ -1,7 +1,8 @@
-import { TextInput, type TextInputProps } from '@mantine/core';
 import { Controller, useFormContext } from 'react-hook-form';
 
-type Props = TextInputProps & { name: NonNullable<string> } /* {} */;
+import { Input, type InputProps } from '../tremor/Input';
+
+type Props = InputProps & { name: NonNullable<string> };
 
 export const RHFTextInput = ({ name, type, ...props }: Props) => {
 	const { control } = useFormContext();
@@ -12,9 +13,9 @@ export const RHFTextInput = ({ name, type, ...props }: Props) => {
 			control={control}
 			render={({ field, fieldState: { error } }) => {
 				return (
-					<TextInput
+					<Input
 						{...field}
-						error={error?.message}
+						hasError={!!error}
 						{...props}
 						type={type}
 						// value={undefined} // ! If you want an uncontrolled field
