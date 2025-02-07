@@ -2,7 +2,7 @@ import { type DefaultLocale, type DefaultNS, type SupportedLanguages } from '@/s
 
 type Config = {
 	debug: boolean;
-	compatibilityJSON: 'v3';
+	compatibilityJSON: 'v4';
 	interpolation: {
 		escapeValue: boolean;
 	};
@@ -19,7 +19,7 @@ type Config = {
 
 export const config: Config = {
 	debug: false,
-	compatibilityJSON: 'v3' as const,
+	compatibilityJSON: 'v4' as const,
 	interpolation: {
 		escapeValue: false, // not needed for react as it escapes by default
 	},
