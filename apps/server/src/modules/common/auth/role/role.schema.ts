@@ -12,7 +12,6 @@ const RoleSchema = SchemaManager.defineSchema<Omit<IRole, 'name'>>(className.ROL
 		// canDeletePostOfOtherUsers: { type: 'Boolean' }, // todo: define the behavior
 	},
 	classLevelPermissions: AUTHED_READONLY_CLP,
-	// classLevelPermissions: PUBLIC_READONLY_CLP,
 	indexes: {
 		codeIndex: { keys: { code: 1 }, options: { unique: true } },
 	},
