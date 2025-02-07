@@ -323,32 +323,3 @@ export const jobType = {
 	CONVERT_HTML_TO_PDF: 'CONVERT_HTML_TO_PDF',
 	// Later we may add other jobs, like deleting unused pdf from storage and from DB for example
 } as const;
-
-// TODO: expand later
-export type Permission = DeepPartial<{
-	staff: {
-		class: {
-			_User: {
-				create: boolean;
-				update: boolean;
-				delete: boolean;
-			};
-		};
-		verb: {
-			canDeleteStuff: boolean;
-		};
-	};
-	tenant: {
-		class: {
-			Task: {
-				create: boolean;
-				update: boolean;
-				delete: boolean;
-				publish: boolean;
-			};
-		};
-		verb: {
-			canDeleteStuff: boolean;
-		};
-	};
-}>;
