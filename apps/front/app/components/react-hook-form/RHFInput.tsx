@@ -4,7 +4,7 @@ import { Input, type InputProps } from '../tremor/Input';
 
 type Props = InputProps & { name: NonNullable<string> };
 
-export const RHFTextInput = ({ name, type, ...props }: Props) => {
+export const RHFInput = ({ name, type, ...props }: Props) => {
 	const { control } = useFormContext();
 
 	return (
