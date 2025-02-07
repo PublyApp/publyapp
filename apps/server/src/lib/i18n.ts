@@ -13,7 +13,7 @@ export const initI18next = async () => {
 		debug: false,
 		// debug: process.env.NODE_ENV === 'development',
 		resources,
-		compatibilityJSON: 'v3',
+		compatibilityJSON: 'v4',
 		fallbackLng: defaultLocale,
 		ns: NS,
 		defaultNS,

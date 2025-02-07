@@ -1,4 +1,5 @@
-import { /* type i18n as I18n, */ type TFunction } from 'i18next';
+// import type i18next from 'i18next';
+import { type TFunction } from 'i18next';
 import _ from 'lodash';
 import z, {
 	defaultErrorMap,
@@ -15,7 +16,9 @@ import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
 import { defaultLocale, type AppLocale } from '../i18n/resources';
 
 type I18nLike = {
-	getFixedT: (locale: AppLocale) => TFunction;
+	// getFixedT: (locale: AppLocale) => TFunction;
+	// getFixedT: typeof i18next.getFixedT;
+	getFixedT: SyncFunction;
 };
 
 /**
