@@ -1,6 +1,4 @@
-import { Anchor, Box, Text, Title } from '@mantine/core';
 import i18next from 'i18next';
-import { useTranslation } from 'react-i18next';
 import { data, redirect } from 'react-router';
 
 import { CookieManager } from '@/front/lib/cookie-manager';
@@ -11,7 +9,6 @@ import { makePath } from '@/shared/utils/string.utils';
 
 import type { Route } from './+types/LoginPage';
 import LoginForm from './LoginForm';
-import { classes } from './LoginPage.css';
 
 export const action = getServerAction({
 	action: async ({ request, apiClient }) => {
@@ -65,25 +62,8 @@ export const clientLoader = async (_: Route.ClientLoaderArgs) => {
 	return data({});
 };
 
-const LoginPage = ({ actionData }: Route.ComponentProps) => {
-	const { t } = useTranslation();
-	console.info('🙏🙏🙏🙏', actionData);
-
-	return (
-		<Box w={420} my={40}>
-			<Title ta="center" className={classes.title}>
-				{t('hello')} Welcome back!
-			</Title>
-			<Text c="dimmed" size="sm" ta="center" mt={5}>
-				Do not have an account yet?{' '}
-				<Anchor size="sm" component="button">
-					Create account
-				</Anchor>
-			</Text>
-
-			<LoginForm />
-		</Box>
-	);
+const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
+	return <LoginForm />;
 };
 
 export default LoginPage;
