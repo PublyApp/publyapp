@@ -58,8 +58,25 @@ export const permissionSelector: PermissionSelectorType = (() => {
 	const selectors: Record<string, unknown> = {};
 	const perms = permissionDefinition;
 	_.forEach(_.entries(perms), (entry) => {
-		const [key, value] = entry;
+		const [key, values] = entry;
 		const nestedPerms = {};
+
+		_.forEach(values.classes as string[], (className) => {
+			const prefix = `${key}.class`;
+			_.set(nestedPerms, `class.${className}`, {
+				create: `${prefix}.${className}.create`,
+				read: `${prefix}.${className}.read`,
+				update: `${prefix}.${className}.update`,
+				delete: `${prefix}.${className}.delete`,
+				publish: `${prefix}.${className}.publish`,
+			});
+		});
+
+		_.forEach(values.verbs as string[], (verb) => {
+			const prefix = `${key}.verb`;
+			_.set(nestedPerms, `verb.${verb}`, `${prefix}.${verb}`);
+		});
+
 		_.set(selectors, key, nestedPerms);
 	});
 	return selectors as never;
