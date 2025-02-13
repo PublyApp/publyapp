@@ -4,7 +4,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 
 type Props = {
 	queryResult: UseQueryResult<any, any>;
-	loadingStrategy?: 'loading' | 'pending' | 'fetching';
+	loadingStrategy?: 'loading' | 'pending' | 'fetching'; // defaults to 'pending'
 	loadingElement?: ReactNode;
 	errorElement?: ReactNode;
 	children?: ReactNode;

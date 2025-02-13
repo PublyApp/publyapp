@@ -1,11 +1,16 @@
-import { Outlet } from 'react-router';
+import type { ReactNode } from 'react';
 
 import { SidebarProvider, SidebarTrigger } from '@/front/components/tremor/Sidebar';
 import { AppSidebar } from '@/front/components/ui/navigation/AppSidebar';
 import { Breadcrumbs } from '@/front/components/ui/navigation/Breadcrumbs';
 
-const AdminDashboardPagesLayout = () => {
+type Props = {
+	children?: ReactNode;
+};
+
+const DashboardLayout = ({ children }: Props) => {
 	const defaultOpen = true;
+
 	return (
 		<SidebarProvider defaultOpen={defaultOpen}>
 			<AppSidebar />
@@ -15,12 +20,10 @@ const AdminDashboardPagesLayout = () => {
 					<div className="mr-2 h-4 w-px bg-gray-200 dark:bg-gray-800" />
 					<Breadcrumbs />
 				</header>
-				<main>
-					<Outlet />
-				</main>
+				<main>{children}</main>
 			</div>
 		</SidebarProvider>
 	);
 };
 
-export default AdminDashboardPagesLayout;
+export default DashboardLayout;
