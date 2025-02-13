@@ -1,13 +1,13 @@
 import type { ApiClient } from 'packages/api/ApiClient';
 import { redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router';
 
-import { getRequestCookie } from '@/front/utils/web.utils';
 import { FRONT_PATH_NAMES, queryParamKey, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import CustomZod from '@/shared/lib/zod/CustomZod';
 
 import { initApiClientOnServer } from '../api';
+import { CookieManager } from '../cookie-manager';
 import { remixI18NextServer } from '../i18n/i18n.server';
 
 const getRequestLocale = (request: Request) => {
@@ -92,10 +92,8 @@ export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = 
 		}
 
 		// check if session token cookie is present
-		const sessionToken = getRequestCookie(request, SESSION_TOKEN_COOKIE_KEY);
-		// const rawCookies = request.headers.get('Cookie');
-		// const sessionTokenCookie = createCookie(SESSION_TOKEN_COOKIE_KEY);
-		// const sessionToken = await sessionTokenCookie.parse(rawCookies);
+		const reqCookies = new CookieManager(request.headers);
+		const sessionToken = reqCookies.get(SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
@@ -158,7 +156,8 @@ export const getServerAction: GetServerAction = <T extends ActionFunctionArgs = 
 			return params.action({ ...args, apiClient, z, locale });
 		}
 
-		const sessionToken = getRequestCookie(args.request, SESSION_TOKEN_COOKIE_KEY);
+		const reqCookies = new CookieManager(args.request.headers);
+		const sessionToken = reqCookies.get(SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;

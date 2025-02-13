@@ -44,6 +44,7 @@
     "@tanstack/react-table": "^8.20.6",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+		"dayjs": "^1.11.10",
     "i18next": "^24.2.2",
     "i18next-browser-languagedetector": "^7.2.1",
     "i18next-fetch-backend": "6.0.0",
