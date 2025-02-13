@@ -7,16 +7,17 @@ import { Outlet, redirect } from 'react-router';
 
 import QueryBoundary from '@/front/components/QueryBoundary';
 import { Button } from '@/front/components/tremor/Button';
-import DashboardLayout from '@/front/components/ui/layout/dashboardLayout';
+import DashboardLayout from '@/front/components/ui/layout/DashboardLayout';
 import { useTenantParam } from '@/front/hooks/useTenantParam';
+import { CookieManager } from '@/front/lib/cookie-manager';
 import { getTenantAuthDataQuery, getUserAuthDataQuery } from '@/front/lib/react-query/features/auth/auth.actions';
-import { getBrowserCookie } from '@/front/utils/web.utils';
 import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 
 import type { Route } from './+types/AuthedPagesLayout';
 
 export const clientLoader = async () => {
-	const sessionToken = getBrowserCookie(SESSION_TOKEN_COOKIE_KEY);
+	const browserCookies = new CookieManager();
+	const sessionToken = browserCookies.get(SESSION_TOKEN_COOKIE_KEY);
 
 	if (!sessionToken) {
 		return redirect('/login') as never; // redirect to login
