@@ -49,10 +49,12 @@ export class CookieManager {
 	set(
 		name: string,
 		value: string,
-		options?: { expires?: Date; maxAge?: number; secure?: boolean; sameSite?: 'Strict' | 'Lax' | 'None' } & Record<
-			string,
-			any
-		>,
+		options?: Record<string, any> & {
+			expires?: Date;
+			maxAge?: number;
+			secure?: boolean;
+			sameSite?: 'Strict' | 'Lax' | 'None';
+		},
 	) {
 		let cookie = `${name}=${value}`;
 
