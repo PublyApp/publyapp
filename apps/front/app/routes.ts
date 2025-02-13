@@ -15,7 +15,7 @@ const routes = [
 	]),
 	layout('routes/authed/AuthedPagesLayout.tsx', [
 		// ==
-		route(getLastPath(FRONT_PATH_NAMES.staff.root), 'routes/authed/admin/AdminDashboardPagesLayout.tsx', [
+		route(getLastPath(FRONT_PATH_NAMES.staff.root), 'routes/authed/admin/AdminPagesLayout.tsx', [
 			index('routes/authed/admin/dashboard/AdminDashboardPage.tsx'),
 			// route('settings', 'routes/authed/admin/settings/SettingsPage.tsx'),
 		]),
