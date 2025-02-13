@@ -1,5 +1,8 @@
+import dayjs from 'dayjs';
 import i18next from 'i18next';
 import { data, redirect } from 'react-router';
+
+import duration from '@devist/shared/utils/duration.utils';
 
 import { CookieManager } from '@/front/lib/cookie-manager';
 import { getServerAction } from '@/front/lib/react-router/function.server';
@@ -26,33 +29,33 @@ export const action = getServerAction({
 			});
 		}
 
-		const cookieManager = new CookieManager(request.headers.get('cookie') || '');
+		const reqCookies = new CookieManager(request.headers);
+
+		const resHeaders = new Headers();
+		const resCookies = new CookieManager(resHeaders);
 
 		apiClient.parseRestClient.setSessionToken(loginResult.data.sessionToken);
 
-		cookieManager.set(SESSION_TOKEN_COOKIE_KEY, loginResult.data.sessionToken);
+		resCookies.set(SESSION_TOKEN_COOKIE_KEY, loginResult.data.sessionToken, {
+			maxAge: duration.toSeconds('3d'),
+		});
 
-		const tenantId = cookieManager.get(LAST_USED_TENANT_ID_COOKIE_KEY);
+		const tenantId = reqCookies.get(LAST_USED_TENANT_ID_COOKIE_KEY);
 
 		const { code } = await apiClient.auth.getRedirectCode({ tenantId });
 
 		let redirectPath = makePath(code);
 
 		if (code !== 'staff' && code !== 'unauthorized') {
-			cookieManager.set(LAST_USED_TENANT_ID_COOKIE_KEY, code);
+			resCookies.set(LAST_USED_TENANT_ID_COOKIE_KEY, code, {
+				expires: dayjs().add(3, 'day').toDate(),
+				maxAge: duration.toSeconds('3d'),
+			});
 			redirectPath = FRONT_PATH_NAMES.tenant(code).root;
 		}
 
-		const headers = new Headers();
-		cookieManager
-			.parse()
-			.entries()
-			.forEach((e) => {
-				headers.append('Set-Cookie', `${e[0]}=${e[1]}`);
-			});
-
 		return redirect(redirectPath, {
-			headers,
+			headers: resHeaders,
 		}) as never;
 	},
 });

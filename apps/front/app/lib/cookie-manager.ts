@@ -1,46 +1,91 @@
+import { isServer } from '@tanstack/react-query';
 import _ from 'lodash';
 
 export class CookieManager {
-	private __internalMap: Map<string, string>;
+	source?: Headers;
 
-	constructor(rawCookies: string) {
-		this.__internalMap = new Map<string, string>();
-		this._parse(rawCookies);
+	private useBrowserCookies: boolean;
+
+	constructor(source?: Headers) {
+		this.source = source;
+
+		if (isServer && !this.source) {
+			this.source = new Headers();
+		}
+
+		this.useBrowserCookies = !isServer && !this.source;
 	}
 
-	private _parse(rawCookies: string) {
-		const cookieParts = rawCookies.split(';').filter(Boolean);
+	get(name: string) {
+		let strCookie: string | null;
 
-		cookieParts.forEach((part) => {
-			const [key, value] = _.trim(part).split('=');
-			this.set(key, value);
-		});
+		if (this.useBrowserCookies) {
+			strCookie = document.cookie;
+		} else {
+			if (!this.source) {
+				this.source = new Headers();
+			}
+
+			strCookie = this.source.get('Set-Cookie');
+		}
+
+		const cookies = strCookie?.split(';') ?? [];
+
+		// Loop through the cookies to find the one with the specified name
+		for (const cookie of cookies) {
+			// Trim any leading or trailing whitespace
+			const [cookieName, cookieValue] = cookie.trim().split('=');
+
+			// If the cookie name matches, return its value
+			if (cookieName === name) {
+				return decodeURIComponent(cookieValue);
+			}
+		}
+
+		// Return null if the cookie is not found
+		return undefined;
 	}
 
-	static parse(rawCookies: string) {
-		const cookieManager = new CookieManager(rawCookies);
-		return cookieManager.__internalMap;
+	set(
+		name: string,
+		value: string,
+		options?: { expires?: Date; maxAge?: number; secure?: boolean; sameSite?: 'Strict' | 'Lax' | 'None' } & Record<
+			string,
+			any
+		>,
+	) {
+		let cookie = `${name}=${value}`;
+
+		// Add optional attributes
+		if (options?.path) cookie += `; path=${options.path}`;
+		if (options?.domain) cookie += `; domain=${options.domain}`;
+		if (options?.expires) cookie += `; expires=${options.expires}`;
+		if (options?.maxAge) cookie += `; max-age=${options.maxAge}`;
+		if (options?.secure !== false) cookie += '; secure';
+		if (options?.sameSite) cookie += `; samesite=${options.sameSite}`;
+
+		if (this.useBrowserCookies) {
+			document.cookie = cookie;
+		} else {
+			if (!this.source) {
+				this.source = new Headers();
+			}
+
+			this.source.append('Set-Cookie', cookie);
+		}
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-dupe-class-members
-	parse() {
-		return this.__internalMap;
-	}
+	delete(name: string) {
+		const cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
 
-	set(key: string, value: string) {
-		this.__internalMap.set(key, value);
-	}
+		if (this.useBrowserCookies) {
+			document.cookie = cookie;
+		} else {
+			if (!this.source) {
+				this.source = new Headers();
+			}
 
-	get(key: string) {
-		return this.__internalMap.get(key);
-	}
-
-	serialize() {
-		const str = Array.from(this.__internalMap.entries())
-			.map(([key, value]) => {
-				return `${key}=${value}`;
-			})
-			.join('; ');
-		return str;
+			this.source.append('Set-Cookie', cookie);
+		}
 	}
 }

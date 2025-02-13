@@ -6,8 +6,7 @@ import { ApiClient, defaultApiClient } from '@devist/api/ApiClient';
 import { endPoint, LOCALE_HEADER_KEY, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
-import { getBrowserCookie } from '../utils/web.utils';
-
+import { CookieManager } from './cookie-manager';
 import { env } from './env';
 
 const parseRestClient = new ParseRestClient({
@@ -18,7 +17,8 @@ const parseRestClient = new ParseRestClient({
 export const initApiClientOnClient = (i18n: I18n) => {
 	defaultApiClient.setRestClient(parseRestClient);
 
-	const sessionToken = getBrowserCookie(SESSION_TOKEN_COOKIE_KEY);
+	const browserCookies = new CookieManager();
+	const sessionToken = browserCookies.get(SESSION_TOKEN_COOKIE_KEY);
 
 	defaultApiClient.parseRestClient.setSessionToken(sessionToken);
 	defaultApiClient.parseRestClient.setHeader(LOCALE_HEADER_KEY, i18n.language);
