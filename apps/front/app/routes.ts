@@ -23,6 +23,7 @@ const routes = [
 			index('routes/authed/client/dashboard/TenantDashboardPage.tsx'),
 			// // route('settings', 'routes/authed/admin/settings/SettingsPage.tsx'),
 		]),
+		route('*', 'routes/authed/errors/AuthedNotFoundPage.tsx'),
 	]),
 ] satisfies RouteConfig;
 

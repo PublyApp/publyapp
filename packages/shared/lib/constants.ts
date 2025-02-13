@@ -136,21 +136,6 @@ const ROOTS = {
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
-	// login: '/login',
-	// posts: {
-	// 	root: makePath(RESOURCE.posts),
-	// 	page: (pageNum: number) => {
-	// 		return makePath(RESOURCE.posts, 'page', String(pageNum));
-	// 	},
-	// 	details: (postSlug: string, locale?: AppLocale) => {
-	// 		return makePath(locale || '', RESOURCE.posts, postSlug);
-	// 	},
-	// 	preview: (postId: string) => {
-	// 		return makePath(RESOURCE.posts, 'preview', postId);
-	// 	},
-	// },
-	// support: '/support',
-	// ===================
 	auth: {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
@@ -162,54 +147,26 @@ export const FRONT_PATH_NAMES = {
 	},
 	staff: {
 		root: makePath(ROOTS.STAFF),
+		tenants: {
+			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
+			details: (tenantId: string = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.tenants, tenantId);
+			},
+		},
+		tenantUsers: {
+			root: makePath(ROOTS.STAFF, 'tenant-users'),
+			details: (userId: string = '') => {
+				return makePath(ROOTS.STAFF, 'tenant-users', userId);
+			},
+		},
+		staffMembers: {
+			root: makePath(ROOTS.STAFF, 'staff-members'),
+			details: (userId: string = '') => {
+				return makePath(ROOTS.STAFF, 'staff-members', userId);
+			},
+		},
 	},
 } as const;
-
-// export const BO_PATH_NAMES = {
-// 	auth: {
-// 		root: makePath(ROOTS.AUTH),
-// 		login: makePath(ROOTS.AUTH, 'login'),
-// 		signup: makePath(ROOTS.AUTH, 'sign-up'),
-// 		verifyEmail: makePath(ROOTS.AUTH, 'verify-email'),
-// 		forgotPassword: makePath(ROOTS.AUTH, 'forgot-password'),
-// 	},
-// 	// ===================
-// 	portal: makePath('portal'),
-// 	// ===================
-// 	staff: {
-// 		root: makePath(ROOTS.STAFF),
-// 		users: {
-// 			root: makePath(ROOTS.STAFF, RESOURCE.users),
-// 		},
-// 		tenants: {
-// 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
-// 			create: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
-// 		},
-// 		posts: {
-// 			root: makePath(ROOTS.STAFF, RESOURCE.posts),
-// 			create: makePath(ROOTS.STAFF, RESOURCE.posts, 'new'),
-// 			edit: (postId?: string) => {
-// 				return makePath(ROOTS.STAFF, RESOURCE.posts, 'edit', postId || '');
-// 			},
-// 			details: (postId: string) => {
-// 				return makePath(ROOTS.STAFF, RESOURCE.posts, postId);
-// 			},
-// 			settings: makePath(ROOTS.STAFF, RESOURCE.posts, 'settings'),
-// 		},
-// 	},
-// 	// ===================
-// 	getTenantPaths: (tenantId: string = '') => {
-// 		return {
-// 			root: makePath(RESOURCE.tenant, tenantId),
-// 			chose: makePath(RESOURCE.tenant, 'chose'),
-// 			// dashboard: makePath(RESOURCE.tenant, tenantId, ROOTS.DASHBOARD),
-// 			shortUrl: {
-// 				root: makePath(RESOURCE.tenant, tenantId, RESOURCE.shortUrl),
-// 				// CRUD, etc
-// 			},
-// 		};
-// 	},
-// } as const;
 
 export const functionName = {
 	// Users and auth
