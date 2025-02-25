@@ -62,6 +62,26 @@ export const roleSet = {
 
 export type RoleSet = (typeof roleSet)[keyof typeof roleSet];
 
+export const tenantSubRoleEnum = {
+	ADMIN: 'ADMIN',
+	EDITOR: 'EDITOR',
+	USER: 'USER',
+	CONTRIBUTOR: 'CONTRIBUTOR',
+} as const;
+
+// const tenantRoleSet = _.pick(roleSet, [
+// 	'STAFF_ADMIN_ONLY',
+// 	'ABOVE_STAFF_EDITOR',
+// 	'ABOVE_STAFF_USER',
+// 	'ABOVE_STAFF_CONTRIBUTOR',
+// 	'ABOVE_TENANT_USER',
+// ]);
+
+// type TenantRoleSet = (typeof tenantRoleSet)[keyof typeof tenantRoleSet];
+// type TenantRoleCon
+
+// const
+
 /**
  * Parse Server class names (collection names)
  */

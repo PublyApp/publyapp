@@ -5,7 +5,7 @@ import type { ITenant } from './tenant.types';
 import type { IUser } from './user.types';
 
 export type ICustomJoinUserToTenant = {
-	// === ?
+	subRoles: string[];
 };
 export type ICustomJoinUserToTenantWithRelations = ICustomJoinUserToTenant & {
 	tenant: ITenant;
