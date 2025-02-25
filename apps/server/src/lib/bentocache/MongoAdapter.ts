@@ -61,9 +61,10 @@ export class MongoAdapter implements DatabaseAdapter {
 		await this.#collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index for automatic expiration
 	}
 
-	async get(key: string): Promise<{ value: string; expiresAt: number | null } | undefined> {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	async get(key: string): Promise<{ value: any; expiresAt: number | null } | undefined> {
 		const result = await this.#collection.findOne({ key });
-		if (!result) return { value: '', expiresAt: null };
+		if (!result) return undefined;
 		return { value: result.value, expiresAt: result.expiresAt || null };
 	}
 

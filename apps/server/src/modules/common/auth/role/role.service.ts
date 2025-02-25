@@ -17,6 +17,9 @@ export default class RoleService {
 		this.master = useMasterKey;
 	}
 
+	/**
+	 * check if a user has at least one of the given roles
+	 */
 	async hasRole(user: Parse.User, roles: IRoleConfig[] | RoleSet) {
 		const foundRole = await new Parse.Query(Parse.Role)
 			.equalTo('users', user)
