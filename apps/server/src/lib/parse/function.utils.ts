@@ -436,8 +436,6 @@ const isNotValidIp = async ({
 	return localMatchConditionIp || onlineMatchConditionIp;
 };
 
-// TODO: what if group === 'staff' but allowedRoles does not include staff Roles
-// The same goes the other way: group === 'tenant' but allowedRoles not includes => quick answer: if user is staff we allow every actions (on tenant etc) because of precedence/inheritance
 export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
 	params: ParseFunctionEnhancedParams<P, T>,
 ) => {
@@ -500,7 +498,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 			}
 
 			if (await isNotValidIp({ sessionToken, req })) {
-				throw new Error(t('invalid-session'));
+				throw new HttpException(401, t('invalid-session'));
 			}
 
 			if (!(await userHasRolePromise)) {
@@ -663,7 +661,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 		}
 
 		if (await isNotValidIp({ sessionToken, req })) {
-			throw new Error(t('invalid-session'));
+			throw new HttpException(401, t('invalid-session'));
 		}
 
 		if (!(await userHasRolePromise)) {
@@ -750,7 +748,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 			}
 
 			if (!req.user) {
-				throw new Error(t('item-is-required', { item: t('authentication') }));
+				throw new HttpException(401, t('item-is-required', { item: t('authentication') }));
 			}
 
 			const sessionToken = req.user.getSessionToken();
@@ -762,7 +760,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 				const tenantId = tenantIdInHeaders || tenantIdInQuery;
 
 				if (!tenantId) {
-					throw new Error(t('unauthorized'));
+					throw new HttpException(401, t('item-is-required', { item: 'tenantId' }));
 				}
 
 				const tenantObject = new ParseTenant();
@@ -772,7 +770,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 				const isUserMemberOfTenant = await tenantService.isUserMemberOfTenant({ user: req.user, tenant: tenantObject });
 
 				if (!isUserMemberOfTenant) {
-					throw new Error(t('unauthorized'));
+					throw new HttpException(403, t('unauthorized'));
 				}
 				// return trigger({ locale, req, t });
 			}
