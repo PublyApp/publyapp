@@ -69,7 +69,7 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 
 		return schema.parse(params);
 	},
-	action: async ({ user, params, req }) => {
+	action: async ({ user, params, log }) => {
 		const sessionToken = user.getSessionToken();
 
 		const tenantService = new TenantService({ sessionToken });
@@ -115,13 +115,10 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 				return { code: tenant.id };
 			}
 
-			req.log.warn(
-				`Attempt to access tenant ${params.tenantId} by user ${user.id} who is not a member of said tenant`,
-				{
-					tenantId: params.tenantId,
-					userId: user.id,
-				},
-			);
+			log.warn(`Attempt to access tenant ${params.tenantId} by user ${user.id} who is not a member of said tenant`, {
+				tenantId: params.tenantId,
+				userId: user.id,
+			});
 			return { code: 'unauthorized' };
 		}
 
@@ -131,7 +128,7 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 			return { code: fallBackTenant.id };
 		}
 
-		req.log.warn(
+		log.warn(
 			`Attempt to access nonexisting tenant ${params.tenantId} by user ${user.id} but it had no fallback tenant`,
 			{
 				tenantId: params.tenantId,
@@ -156,7 +153,7 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 
 		return schema.parse(params);
 	},
-	action: async ({ req, user, params, t }) => {
+	action: async ({ user, params, t, log }) => {
 		const sessionToken = user.getSessionToken();
 
 		const roleService = new RoleService({ sessionToken });
@@ -168,11 +165,11 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 
 			if (isUserStaffMember) {
 				return {
-					permissions: ['*'],
+					// permissions: ['*'],
 				};
 			}
 
-			req.log.warn(`Attempt to access staff auth data by user ${user.id} who is not a staff member`, {
+			log.warn(`Attempt to access staff auth data by user ${user.id} who is not a staff member`, {
 				userId: user.id,
 			});
 			throw new HttpException(403, t('unauthorized'));
@@ -191,7 +188,7 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 
 		if (isUserStaffMember) {
 			return {
-				permissions: ['*'],
+				// permissions: ['*'],
 			};
 		}
 
@@ -199,7 +196,7 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 		const isMember = await tenantService.isUserMemberOfTenant({ user, tenant });
 
 		if (!isMember) {
-			req.log.warn(
+			log.warn(
 				`Attempt to access tenant auth data ${params.tenantId} by user ${user.id} who is not member of said tenant`,
 				{
 					userId: user.id,
@@ -209,9 +206,8 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 			throw new HttpException(403, t('unauthorized'));
 		}
 
-		// TODO: fetch the user's permissions in this particular tenant
 		return {
-			permissions: ['*'],
+			// permissions: ['*'],
 		};
 	},
 });
