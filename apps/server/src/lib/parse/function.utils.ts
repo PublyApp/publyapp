@@ -17,8 +17,11 @@ import {
 	LOCALE_HEADER_KEY,
 	roleSet,
 	TENANT_ID_HEADER_KEY,
-	type IRoleConfig,
+	tenantSubRoleSet,
+	userGroup,
 	type RoleSet,
+	type StaffRoleSet,
+	type TenantSubRoleSet,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import CustomZod from '@/shared/lib/zod/CustomZod';
@@ -311,21 +314,50 @@ export const parseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	return cloudFunction<P, T>(innerFunction);
 };
 
+/**
+ * @param log alias for req.log
+ */
 type BaseActionContext<P extends Parse.Cloud.Params = Parse.Cloud.Params> = {
-	req: Parse.Cloud.FunctionRequest /* <P> */;
+	req: Parse.Cloud.FunctionRequest;
 	t: ReturnType<typeof getT>;
 	locale: AppLocale;
 	z: CustomZod;
 	params: P;
-};
-
-type ActionContext2<P extends Parse.Cloud.Params = Parse.Cloud.Params> = BaseActionContext<P> & {
-	user?: Parse.User;
+	log: LoggerController;
 };
 
 type ActionContext1<P extends Parse.Cloud.Params = Parse.Cloud.Params> = BaseActionContext<P> & {
-	user: Parse.User;
+	user?: Parse.User;
+	// isStaffMember?: never;
 };
+
+type ActionContext2<P extends Parse.Cloud.Params = Parse.Cloud.Params> = BaseActionContext<P> & {
+	user: Parse.User;
+	// isStaffMember?: never;
+};
+
+type ActionContext3<P extends Parse.Cloud.Params = Parse.Cloud.Params> = BaseActionContext<P> & {
+	user: Parse.User;
+	isStaffMember: boolean;
+};
+
+type ActionType1<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
+	ctx: ActionContext1<P>,
+) => Promise<T>;
+type ActionType2<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
+	ctx: ActionContext2<P>,
+) => Promise<T>;
+type ActionType3<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
+	ctx: ActionContext3<P>,
+) => Promise<T>;
+
+type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
+	params,
+	z,
+}: {
+	params: Parse.Cloud.Params;
+	z: CustomZod;
+}) => P;
 
 type ParseFunctionEnhancedParams<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> =
 	// --------------------------------------------------------------------------------------//
@@ -336,61 +368,62 @@ type ParseFunctionEnhancedParams<P extends Parse.Cloud.Params = Parse.Cloud.Para
 				requireUser?: false | undefined; // which means public access
 				group?: undefined;
 				allowedRoles?: undefined;
-				neededPermissions?: undefined;
-				action: (ctx: ActionContext2<P>) => Promise<T>;
-				requireMasterKey?: boolean;
+				allowedTenantSubRoles?: undefined;
+				action: ActionType1<P, T>;
 		  }
 		// --------------------------------------------------------------------------------------//
 		//                                  case B auth needed                                   //
 		// --------------------------------------------------------------------------------------//
+		// * case B - 0: request can be from any authenticated user
 		| {
 				requireUser: true;
-				group?: 'tenant' | 'staff';
-				allowedRoles?: IRoleConfig[] | RoleSet | undefined;
-				neededPermissions?: string[];
-				action: (ctx: ActionContext1<P>) => Promise<T>;
-				requireMasterKey?: boolean;
+				group?: typeof userGroup.ANY | undefined;
+				allowedRoles?: RoleSet | undefined;
+				allowedTenantSubRoles?: undefined;
+				action: ActionType2<P, T>;
 		  }
+		// * case B - 1: request must be from a tenant member
+		// * implicitly, that means also: if the user is a staff member allow the function to run
 		| {
 				requireUser: true;
-				group?: 'tenant';
-				allowedRoles?: IRoleConfig[] | RoleSet | undefined;
-				neededPermissions?: string[];
-				action: (ctx: ActionContext1<P>) => Promise<T>;
-				requireMasterKey?: boolean;
+				group: typeof userGroup.TENANT;
+				allowedRoles?: undefined;
+				allowedTenantSubRoles?: TenantSubRoleSet | undefined;
+				action: ActionType3<P, T>;
 		  }
+		// * case B - 1: request must be from a staff member
 		| {
 				requireUser: true;
-				group?: 'all';
-				allowedRoles?: IRoleConfig[] | RoleSet | undefined;
-				neededPermissions?: string[];
-				action: (ctx: ActionContext1<P>) => Promise<T>;
-				requireMasterKey?: boolean;
+				group: typeof userGroup.STAFF;
+				allowedRoles?: StaffRoleSet | undefined;
+				allowedTenantSubRoles?: undefined;
+				action: ActionType2<P, T>;
 		  }
 	) & {
-		validateParams?: ({ params, z }: { params: Parse.Cloud.Params; z: CustomZod }) => P;
+		requireMasterKey?: boolean;
+		validateParams?: ParamsValidator<P>;
 	};
 
-const userGroup = {
-	ALL: 'all',
-	TENANT: 'tenant',
-	STAFF: 'staff',
-} as const;
-
-const isFromCloudEnvironment = async (req: Parse.Cloud.FunctionRequest) => {
+// * allow us to verify ip address if the request is not from the cloud functions and from an user with a session token
+// * in other words: verify if the call is not from our cloud code (not from our server itself)
+// * especially necessary if directAccess is set to false
+const isFromCloudEnvironment = async (req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest) => {
 	const cloudInstallationId = await getCurrentInstallationId();
 	const { directAccess } = getInternalConfig();
 
-	// verify ip address if the request is not from the cloud functions and from an user with a session token
-	// in other words: verify if the call is not from our cloud code (not from our server itself)
-	// * especially necessary if directAccess is set to false
 	const definitelyNotFromCloud = directAccess && req.installationId !== 'cloud';
 	const alsoNotFromCloud = !directAccess && req.installationId !== cloudInstallationId;
 
 	return !(definitelyNotFromCloud || alsoNotFromCloud);
 };
 
-const isNotValidIp = async ({ req, sessionToken }: { req: Parse.Cloud.FunctionRequest; sessionToken: string }) => {
+const isNotValidIp = async ({
+	req,
+	sessionToken,
+}: {
+	req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest;
+	sessionToken: string;
+}) => {
 	const session = await new Parse.Query(Parse.Session)
 		.equalTo('sessionToken', sessionToken)
 		.select(['ipAddress'])
@@ -408,55 +441,24 @@ const isNotValidIp = async ({ req, sessionToken }: { req: Parse.Cloud.FunctionRe
 export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
 	params: ParseFunctionEnhancedParams<P, T>,
 ) => {
-	const {
-		requireUser,
-		action,
-		allowedRoles = roleSet.ALL,
-		validateParams,
-		requireMasterKey,
-		group = userGroup.ALL,
-	} = params;
-
-	if (group === userGroup.STAFF) {
-		const ok = allowedRoles.some((role) => {
-			return roleSet.ABOVE_STAFF_CONTRIBUTOR.some((cRole) => {
-				return cRole.code === role.code;
-			});
-		});
-
-		if (!ok) {
-			throw new Error('Allowed roles must contains at least one staff role');
-		}
-	}
-
-	if (group === userGroup.TENANT) {
-		const ok = allowedRoles.some((role) => {
-			return roleSet.ABOVE_TENANT_USER.some((cRole) => {
-				return cRole.code === role.code;
-			});
-		});
-
-		if (!ok) {
-			throw new Error('Allowed roles must contains at least tenant role or one staff role');
-		}
-	}
+	const { requireUser, validateParams, requireMasterKey, group = userGroup.ANY } = params;
 
 	const actionBuilder = parseFunction<P, T>(async (req) => {
-		const { user } = req;
+		const { user, log } = req;
 
 		const localeInHeader = getParseFunctionHeader(req, LOCALE_HEADER_KEY);
 		const locale = getCorrectLocale(localeInHeader);
 		const t = getT(locale);
 
 		if (requireMasterKey && !req.master) {
-			throw new HttpException(403, t('master-key-only-function'));
+			throw new HttpException(403, t('item-is-required', { item: 'Master key' }));
 		}
 
 		const z = new CustomZod({ i18n: i18nextServer, locale });
 
 		if (!requireUser) {
 			const validatedParams = validateParams?.({ params: req.params, z });
-			return action({ req, t, user, locale, z, params: validatedParams || req.params });
+			return params.action({ req, t, user, locale, z, params: validatedParams || req.params, log });
 		}
 
 		if (!user) {
@@ -464,98 +466,220 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 		}
 
 		const sessionToken = user.getSessionToken();
+
 		const roleService = new RoleService(USE_MASTER_KEY);
+		const tenantService = new TenantService(USE_MASTER_KEY);
 
-		const tenantIdInHeaders = getParseFunctionHeader(req, TENANT_ID_HEADER_KEY);
-		const isUserStaffMemberPromise = roleService.isUserStaffMember(user);
+		const isFromCloudEnvironmentPromise = isFromCloudEnvironment(req);
 
-		const userHasRolePromise = roleService.hasRole(user, allowedRoles);
+		// --------------------------------------------------------------------------------------//
+		//                            any authed user is authorized                              //
+		// --------------------------------------------------------------------------------------//
+		if (group === userGroup.ANY) {
+			const { allowedRoles = roleSet.ALL } = params;
 
-		// const checkPermissions = async () => {
-		// 	if (!neededPermissions) {
-		// 		// ? should I issue a warning?
-		// 		return true;
-		// 	}
+			const userHasRolePromise = roleService.hasRole(user, allowedRoles);
 
-		// 	const groupedSelectors = PermissionService.groupSelectors(neededPermissions);
-		// 	// const tenantIdInHeaders = getParseFunctionHeader(req, TENANT_ID_HEADER_KEY);
+			if (await isFromCloudEnvironmentPromise) {
+				// then we don't need to check ip address
 
-		// 	if (!tenantIdInHeaders) {
-		// 		// check if is staff member
-		// 	}
-
-		// 	if (tenantIdInHeaders) {
-		// 		if (_.isEmpty(groupedSelectors.tenant)) {
-		// 			throw new HttpException(500, 'Permissions check failed');
-		// 		}
-
-		// 		// const roleService = new RoleService({ sessionToken });
-		// 		// const isUserStaffMember = await roleService.isUserStaffMember(user);
-
-		// 		if (await isUserStaffMemberPromise) {
-		// 			// do nothing because when a user is staff member he is automatically authorized to perform all actions on all existing tenants
-		// 			return true;
-		// 		}
-
-		// 		// use associated tenant permissions
-		// 		const tenantObject = new ParseTenant({ objectId: tenantIdInHeaders });
-
-		// 		const permQuery = new Parse.Query(Parse_CustomJoinUserToTenant)
-		// 			.equalTo('user', user)
-		// 			.equalTo('tenant', tenantObject)
-		// 			.select([]);
-
-		// 		_.forEach(groupedSelectors.tenant, (permissionSelector) => {
-		// 			permQuery.equalTo(permissionSelector as never, true as never);
-		// 		});
-
-		// 		const hasPermissions = !!(await permQuery.first({ sessionToken }));
-
-		// 		return hasPermissions;
-		// 	}
-		// };
-
-		if (await isFromCloudEnvironment(req)) {
-			// then we don't need to check ip address
-
-			// check user group here
-			if (group === userGroup.STAFF) {
-				if (!(await isUserStaffMemberPromise)) {
+				if (!(await userHasRolePromise)) {
 					throw new HttpException(403, t('unauthorized'));
 				}
-			} else if (group === userGroup.TENANT) {
-				if (!tenantIdInHeaders) {
-					throw new HttpException(400, t('item-is-required', { item: 'tenantId' }));
-				}
-			} else {
-				throw new HttpException(500, 'Bad group definition');
+
+				const validatedParams = validateParams?.({ params: req.params, z });
+				return (params.action as ActionType2<P, T>)({
+					req,
+					t,
+					user,
+					locale,
+					z,
+					params: validatedParams || req.params,
+					log,
+				});
+			}
+
+			if (await isNotValidIp({ sessionToken, req })) {
+				throw new Error(t('invalid-session'));
 			}
 
 			if (!(await userHasRolePromise)) {
 				throw new HttpException(403, t('unauthorized'));
 			}
 
-			// check permissions here
+			const validatedParams = validateParams?.({ params: req.params, z });
+			return (params.action as ActionType2<P, T>)({
+				req,
+				t,
+				user,
+				locale,
+				z,
+				params: validatedParams || req.params,
+				log,
+			});
+		}
+
+		// --------------------------------------------------------------------------------------//
+		//       only members of a tenant are authorized (implicitly, staff members too)         //
+		// --------------------------------------------------------------------------------------//
+		if (group === userGroup.TENANT) {
+			// check if tenantId is present in the request
+			const tenantIdInHeaders = getParseFunctionHeader(req, TENANT_ID_HEADER_KEY);
+
+			if (!tenantIdInHeaders) {
+				throw new HttpException(400, t('item-is-required', { item: 'tenantId' }));
+			}
+
+			const { allowedTenantSubRoles = tenantSubRoleSet.ALL } = params;
+
+			const userHasRolePromise = roleService.hasRole(user, roleSet.ABOVE_TENANT_USER);
+			const isUserStaffMemberPromise = roleService.isUserStaffMember(user);
+
+			const tenant = new ParseTenant({ objectId: tenantIdInHeaders });
+			const userIsMemberOfTenantPromise = tenantService.isUserMemberOfTenant({ user, tenant });
+			const userHasRoleInTenantPromise = tenantService.userHasRoleInTenant({
+				user,
+				tenant,
+				tenantSubRoles: allowedTenantSubRoles,
+			});
+
+			if (await isFromCloudEnvironmentPromise) {
+				// then we don't need to check ip address
+
+				if (!(await userHasRolePromise)) {
+					throw new HttpException(403, t('unauthorized'));
+				}
+
+				// is the user a staff member ?
+				if (await isUserStaffMemberPromise) {
+					// no need to check tenant membership and sub roles
+					const validatedParams = validateParams?.({ params: req.params, z });
+					return params.action({
+						req,
+						t,
+						user,
+						locale,
+						z,
+						params: validatedParams || req.params,
+						log,
+						isStaffMember: true,
+					});
+				}
+
+				// check if user is member of the requested tenant (tenantId header)
+				if (!(await userIsMemberOfTenantPromise)) {
+					throw new HttpException(403, t('unauthorized'));
+				}
+
+				// check if user has the required sub roles
+				if (!(await userHasRoleInTenantPromise)) {
+					throw new HttpException(403, t('unauthorized'));
+				}
+
+				const validatedParams = validateParams?.({ params: req.params, z });
+				return params.action({
+					req,
+					t,
+					user,
+					locale,
+					z,
+					params: validatedParams || req.params,
+					log,
+					isStaffMember: false,
+				});
+			}
+
+			if (await isNotValidIp({ sessionToken, req })) {
+				throw new HttpException(401, t('invalid-session'));
+			}
+
+			if (!(await userHasRolePromise)) {
+				throw new HttpException(403, t('unauthorized'));
+			}
+
+			// is the user a staff member ?
+			if (await isUserStaffMemberPromise) {
+				// no need to check tenant membership and sub roles
+				const validatedParams = validateParams?.({ params: req.params, z });
+				return params.action({
+					req,
+					t,
+					user,
+					locale,
+					z,
+					params: validatedParams || req.params,
+					log,
+					isStaffMember: true,
+				});
+			}
+
+			// check if user is member of the requested tenant (tenantId header)
+			if (!(await userIsMemberOfTenantPromise)) {
+				throw new HttpException(403, t('unauthorized'));
+			}
+
+			// check if user has the required sub roles
+			if (!(await userHasRoleInTenantPromise)) {
+				throw new HttpException(403, t('unauthorized'));
+			}
 
 			const validatedParams = validateParams?.({ params: req.params, z });
-			return action({ req, t, user, locale, z, params: validatedParams || req.params });
+			return params.action({
+				req,
+				t,
+				user,
+				locale,
+				z,
+				params: validatedParams || req.params,
+				log,
+				isStaffMember: false,
+			});
+		}
+
+		// --------------------------------------------------------------------------------------//
+		//                           only staff member are authorized                           //
+		// --------------------------------------------------------------------------------------//
+		const { allowedRoles = roleSet.STAFF_MEMBER } = params;
+
+		const userHasRolePromise = roleService.hasRole(user, allowedRoles);
+
+		if (await isFromCloudEnvironmentPromise) {
+			// then we don't need to check ip address
+
+			if (!(await userHasRolePromise)) {
+				throw new HttpException(403, t('unauthorized'));
+			}
+
+			const validatedParams = validateParams?.({ params: req.params, z });
+			return (params.action as ActionType2<P, T>)({
+				req,
+				t,
+				user,
+				locale,
+				z,
+				params: validatedParams || req.params,
+				log,
+			});
 		}
 
 		if (await isNotValidIp({ sessionToken, req })) {
 			throw new Error(t('invalid-session'));
 		}
 
-		// check user group here
-		// const checkGroupResult = await checkGroupParam({ group, req, roleService, t, user });
-
 		if (!(await userHasRolePromise)) {
 			throw new HttpException(403, t('unauthorized'));
 		}
 
-		// check permissions here too
-
 		const validatedParams = validateParams?.({ params: req.params, z });
-		return action({ req, user, t, locale, z, params: validatedParams || req.params });
+		return (params.action as ActionType2<P, T>)({
+			req,
+			user,
+			t,
+			locale,
+			z,
+			params: validatedParams || req.params,
+			log,
+		});
 	});
 
 	return actionBuilder;
@@ -589,36 +713,13 @@ export const parseTriggerEnhanced = <P extends Parse.Object = Parse.Object>(para
 			return trigger({ req, t, locale });
 		}
 
-		const cloudInstallationId = await getCurrentInstallationId();
-		const { directAccess } = getInternalConfig();
-
-		// verify ip address if the request is not from the cloud functions and from an user with a session token
-		// in other words: verify if the call is not from our cloud code (not from our server itself)
-		// * especially necessary if directAccess is set to false
-		const definitelyNotFromCloud = directAccess && req.installationId !== 'cloud';
-		const alsoNotFromCloud = !directAccess && req.installationId !== cloudInstallationId;
-
-		const fromCloudEnvironment = !(definitelyNotFromCloud || alsoNotFromCloud);
-
-		if (fromCloudEnvironment) {
+		if (await isFromCloudEnvironment(req)) {
 			return trigger({ req, t, locale });
 		}
 
 		if (req.user) {
-			// verify the ip address
-			const sessionToken = req.user.getSessionToken();
-
-			const session = await new Parse.Query(Parse.Session)
-				.equalTo('sessionToken', sessionToken)
-				.select(['ipAddress'])
-				.first({ sessionToken });
-
-			const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
-			const onlineMatchConditionIp =
-				!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
-
-			if (localMatchConditionIp || onlineMatchConditionIp) {
-				throw new Error(t('invalid-session'));
+			if (await isNotValidIp({ sessionToken: req.user.getSessionToken(), req })) {
+				throw new HttpException(401, t('invalid-session'));
 			}
 		}
 
@@ -652,6 +753,8 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 				throw new Error(t('item-is-required', { item: t('authentication') }));
 			}
 
+			const sessionToken = req.user.getSessionToken();
+
 			if (req.triggerName === 'beforeFind') {
 				const tenantIdInHeaders = getParseFunctionHeader(req, TENANT_ID_HEADER_KEY);
 				const tenantIdInQuery: string | undefined = _.get(req.query?.toJSON(), 'where.tenant.objectId');
@@ -665,14 +768,12 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 				const tenantObject = new ParseTenant();
 				tenantObject.id = tenantId;
 
-				const isUserMemberOfTenant = await TenantService.isUserMemberOfTenant({ user: req.user, tenant: tenantObject });
+				const tenantService = new TenantService({ sessionToken });
+				const isUserMemberOfTenant = await tenantService.isUserMemberOfTenant({ user: req.user, tenant: tenantObject });
 
 				if (!isUserMemberOfTenant) {
 					throw new Error(t('unauthorized'));
 				}
-
-				// ! fetch user's permissions and apply them to the query
-
 				// return trigger({ locale, req, t });
 			}
 
@@ -732,79 +833,70 @@ export const parseJob = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = 
 	return cloudFunction<P, T>(innerFunction);
 };
 
-// ! There is no need for a multi-tenant parseFunction wrapper at least for now
-// ! If you want to apply tenant queries better to validate tenants in the triggers instead
-// type MultiTenantActionContext2<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ActionContext2<P> & {
-// 	fromPublic: boolean;
-// 	fromStaff: boolean;
-// 	fromTenantMember: boolean;
-// };
+export const fromPublicParseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>({
+	action,
+	validateParams,
+}: {
+	action: ActionType1<P, T>;
+	validateParams?: ParamsValidator<P>;
+}) => {
+	return parseFunctionEnhanced({
+		requireUser: false,
+		action,
+		validateParams,
+	});
+};
 
-// type MultiTenantActionContext1<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ActionContext1<P>;
+export const fromAuthedUserParseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>({
+	action,
+	validateParams,
+	allowedRoles,
+}: {
+	action: ActionType2<P, T>;
+	validateParams?: ParamsValidator<P>;
+	allowedRoles?: RoleSet;
+}) => {
+	return parseFunctionEnhanced({
+		requireUser: true,
+		group: userGroup.ANY,
+		action,
+		validateParams,
+		allowedRoles,
+	});
+};
 
-// type MultiTenantParseFunctionEnhancedParams<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
-// 	| {
-// 			requireUser: true;
-// 			allowedRoles: IRoleConfig[];
-// 			action: (ctx: MultiTenantActionContext1<P>) => Promise<T>;
-// 	  }
-// 	| {
-// 			requireUser: false;
-// 			action: (ctx: MultiTenantActionContext2<P>) => Promise<T>;
-// 			allowedRoles?: undefined;
-// 	  }
-// ) & {
-// 	validateParams: ({ params, z }: { params: Parse.Cloud.Params; z: CustomZod }) => P;
-// };
+export const fromTenantMemberParseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>({
+	action,
+	validateParams,
+	allowedTenantSubRoles,
+}: {
+	action: ActionType3<P, T>;
+	validateParams?: ParamsValidator<P>;
+	allowedTenantSubRoles?: TenantSubRoleSet;
+}) => {
+	return parseFunctionEnhanced({
+		requireUser: true,
+		group: userGroup.TENANT,
+		action,
+		validateParams,
+		allowedTenantSubRoles,
+	});
+};
 
-// export const multiTenantParseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
-// 	params: MultiTenantParseFunctionEnhancedParams<P, T>,
-// ) => {
-// 	const { action, requireUser, allowedRoles, validateParams } = params;
-
-// 	if (!requireUser) {
-// 		return parseFunctionEnhanced<P, T>({
-// 			requireUser,
-// 			allowedRoles,
-// 			validateParams,
-// 			action: async ({ locale, req, t, user, z }) => {
-// 				// eslint-disable-next-line @typescript-eslint/naming-convention
-// 				const { fromPublic, fromStaff: _fromStaff } = req.params;
-
-// 				const fromTenantMember = !fromPublic && !_fromStaff;
-
-// 				let fromStaff = _fromStaff;
-
-// 				if (fromPublic) {
-// 					if (user) {
-// 						user.set('sessionToken', '');
-// 					}
-
-// 					fromStaff = false;
-// 				}
-
-// 				if (fromStaff) {
-// 					if (!user) {
-// 						throw new Error(t('item-is-required', { item: t('authentication') }));
-// 					}
-
-// 					const isStaff = await new RoleService(USE_MASTER_KEY).hasRole(user, roleSet.ABOVE_STAFF_CONTRIBUTOR);
-
-// 					if (!isStaff) {
-// 						throw new Error(t('user-is-not-staff'));
-// 					}
-// 				}
-
-// 				const validatedParams = validateParams({ params: req.params, z });
-// 				return action({ req, user, t, locale, fromPublic, fromStaff, fromTenantMember, z, params: validatedParams });
-// 			},
-// 		});
-// 	}
-
-// 	return parseFunctionEnhanced<P, T>({
-// 		requireUser,
-// 		allowedRoles,
-// 		validateParams,
-// 		action,
-// 	});
-// };
+export const fromStaffMemberParseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>({
+	action,
+	validateParams,
+	allowedRoles,
+}: {
+	action: ActionType2<P, T>;
+	validateParams?: ParamsValidator<P>;
+	allowedRoles?: StaffRoleSet;
+}) => {
+	return parseFunctionEnhanced({
+		requireUser: true,
+		group: userGroup.STAFF,
+		action,
+		validateParams,
+		allowedRoles,
+	});
+};
