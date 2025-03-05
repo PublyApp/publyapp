@@ -109,7 +109,7 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 		const tenant = await tenantExistsPromise;
 
 		if (tenant) {
-			const isMember = await TenantService.isUserMemberOfTenant({ user, tenant });
+			const isMember = await tenantService.isUserMemberOfTenant({ user, tenant });
 
 			if (isMember) {
 				return { code: tenant.id };
@@ -196,7 +196,7 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 		}
 
 		// check if user is member of the tenant
-		const isMember = await TenantService.isUserMemberOfTenant({ user, tenant });
+		const isMember = await tenantService.isUserMemberOfTenant({ user, tenant });
 
 		if (!isMember) {
 			req.log.warn(

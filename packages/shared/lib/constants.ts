@@ -6,7 +6,14 @@ import { makePath } from '../utils/string.utils';
 
 export type IRoleConfig = Pick<IRole, 'code' | 'name' | 'rank'>;
 
+export const userGroup = {
+	ANY: 'any',
+	TENANT: 'tenant',
+	STAFF: 'staff',
+} as const;
+
 export const roleEnum = {
+	// cspell:ignore fnhux Rwmgyh Jhpma
 	STAFF_ADMIN: { name: 'STAFF_ADMIN', code: 'eM3RYjw2yaQ6Gb4BTfnhux', rank: 100 } as const,
 	STAFF_EDITOR: { name: 'STAFF_EDITOR', code: 'r6LN7A3RwmgyhZUB4tv8Mn', rank: 80 } as const,
 	STAFF_USER: { name: 'STAFF_USER', code: 'xPK6yNWkCA5TgGU49p72J3', rank: 70 } as const,
@@ -53,6 +60,7 @@ export const roleSet = {
 	ABOVE_STAFF_EDITOR,
 	ABOVE_STAFF_USER,
 	ABOVE_STAFF_CONTRIBUTOR,
+	// ===
 	ABOVE_TENANT_USER,
 	ALL,
 	// ===
@@ -60,7 +68,17 @@ export const roleSet = {
 	TENANT_MEMBER: [roleEnum.TENANT_USER],
 };
 
-export type RoleSet = (typeof roleSet)[keyof typeof roleSet];
+export type RoleSet = ValueOf<typeof roleSet>;
+
+export const staffRoleSet = _.pick(roleSet, [
+	'STAFF_ADMIN_ONLY',
+	'ABOVE_STAFF_EDITOR',
+	'ABOVE_STAFF_USER',
+	'ABOVE_STAFF_CONTRIBUTOR',
+	'STAFF_MEMBER',
+]);
+
+export type StaffRoleSet = ValueOf<typeof staffRoleSet>;
 
 export const tenantSubRoleEnum = {
 	ADMIN: 'ADMIN',
@@ -69,18 +87,28 @@ export const tenantSubRoleEnum = {
 	CONTRIBUTOR: 'CONTRIBUTOR',
 } as const;
 
-// const tenantRoleSet = _.pick(roleSet, [
-// 	'STAFF_ADMIN_ONLY',
-// 	'ABOVE_STAFF_EDITOR',
-// 	'ABOVE_STAFF_USER',
-// 	'ABOVE_STAFF_CONTRIBUTOR',
-// 	'ABOVE_TENANT_USER',
-// ]);
+export type TenantSubRole = ValueOf<typeof tenantSubRoleEnum>;
 
-// type TenantRoleSet = (typeof tenantRoleSet)[keyof typeof tenantRoleSet];
-// type TenantRoleCon
+export const tenantSubRoleRank = {
+	[tenantSubRoleEnum.ADMIN]: 100,
+	[tenantSubRoleEnum.EDITOR]: 80,
+	[tenantSubRoleEnum.USER]: 70,
+	[tenantSubRoleEnum.CONTRIBUTOR]: 60,
+};
 
-// const
+export const tenantSubRoleSet = {
+	ADMIN_ONLY: [tenantSubRoleEnum.ADMIN] as const,
+	ABOVE_EDITOR: [tenantSubRoleEnum.ADMIN, tenantSubRoleEnum.EDITOR] as const,
+	ABOVE_USER: [tenantSubRoleEnum.ADMIN, tenantSubRoleEnum.EDITOR, tenantSubRoleEnum.USER] as const,
+	ALL: [
+		tenantSubRoleEnum.ADMIN,
+		tenantSubRoleEnum.EDITOR,
+		tenantSubRoleEnum.USER,
+		tenantSubRoleEnum.CONTRIBUTOR,
+	] as const,
+};
+
+export type TenantSubRoleSet = ValueOf<typeof tenantSubRoleSet>;
 
 /**
  * Parse Server class names (collection names)
