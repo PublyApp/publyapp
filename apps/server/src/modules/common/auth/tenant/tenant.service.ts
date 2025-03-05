@@ -1,8 +1,8 @@
 import _ from 'lodash';
 
-import { USE_MASTER_KEY } from '@/server/lib/constants';
+// import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { applyQueryOptions, applySkipAndLimit, type QueryOptions } from '@/server/lib/parse/query.utils';
-import { className, DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
+import { className, DEFAULT_PAGE_SIZE, type TenantSubRoleSet } from '@/shared/lib/constants';
 import type { ITenant } from '@/shared/types/db/tenant.types';
 
 import type ParseUser from '../user/user.class';
@@ -12,13 +12,17 @@ import ParseTenant from './tenant.class';
 
 type Props = {
 	sessionToken?: string;
+	useMasterKey?: boolean;
 };
 
 export default class TenantService {
 	sessionToken?: string;
 
-	constructor({ sessionToken }: Props) {
+	useMasterKey?: boolean;
+
+	constructor({ sessionToken, useMasterKey }: Props) {
 		this.sessionToken = sessionToken;
+		this.useMasterKey = useMasterKey;
 	}
 
 	async getById(objectId: string, options: { select?: string[]; include?: string[]; exclude?: string[] } = {}) {
@@ -26,27 +30,18 @@ export default class TenantService {
 
 		applyQueryOptions(query, options);
 
-		return query.first({ sessionToken: this.sessionToken });
+		return query.first({ sessionToken: this.sessionToken, useMasterKey: this.useMasterKey });
 	}
 
-	static async isUserMemberOfTenant({ user, tenant }: { user: ParseUser; tenant: ParseTenant }) {
+	async isUserMemberOfTenant({ user, tenant }: { user: ParseUser; tenant: ParseTenant }) {
 		const foundRelation = await new Parse.Query(Parse_CustomJoinUserToTenant)
 			.select([])
 			.equalTo('user', user)
 			.equalTo('tenant', tenant)
-			.first(USE_MASTER_KEY);
+			.first({ sessionToken: this.sessionToken, useMasterKey: this.useMasterKey });
 
 		return Boolean(foundRelation);
 	}
-
-	// static async isUserMemberOfAnyTenant(user: ParseUser) {
-	// 	const foundRelation = await new Parse.Query(Parse_CustomJoinUserToTenant)
-	// 		.select([])
-	// 		.equalTo('user', user)
-	// 		.first(USE_MASTER_KEY);
-
-	// 	return Boolean(foundRelation);
-	// }
 
 	async findTenantsForUser(
 		user: ParseUser,
@@ -69,7 +64,11 @@ export default class TenantService {
 		});
 		applyQueryOptions(query, options);
 
-		const relations = await query.find({ sessionToken: this.sessionToken, json: options.json });
+		const relations = await query.find({
+			sessionToken: this.sessionToken,
+			useMasterKey: this.useMasterKey,
+			json: options.json,
+		});
 
 		if (options.json) {
 			const results: ITenant[] = [];
@@ -103,7 +102,26 @@ export default class TenantService {
 
 		applyQueryOptions(query, options);
 
-		const tenants = await query.find({ sessionToken: this.sessionToken });
+		const tenants = await query.find({ sessionToken: this.sessionToken, useMasterKey: this.useMasterKey });
 		return tenants;
+	}
+
+	async userHasRoleInTenant({
+		tenant,
+		tenantSubRoles,
+		user,
+	}: {
+		user: ParseUser;
+		tenant: ParseTenant;
+		tenantSubRoles: TenantSubRoleSet;
+	}) {
+		const result = new Parse.Query(Parse_CustomJoinUserToTenant)
+			.equalTo('tenant', tenant as never)
+			.equalTo('user', user as never)
+			.containedIn('subRoles', tenantSubRoles as never)
+			.select([])
+			.first({ sessionToken: this.sessionToken, useMasterKey: this.useMasterKey });
+
+		return !!result;
 	}
 }
