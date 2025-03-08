@@ -181,7 +181,7 @@ const bootstrap = async () => {
 				// getLoadContext(req, res) {
 				// 	return {};
 				// },
-			}),
+			}) as never, // TODO: fix type issue (due to express 5)
 		);
 	}
 
