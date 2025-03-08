@@ -21,7 +21,7 @@
 		"mongoose": "^8.0.4",
 		"multer": "1.4.5-lts.1",
 		"numeral": "^2.0.6",
-		"parse": "^5.2.0",
+		"parse": "6.0.0",
 		"winston": "^3.11.0",
 		"winston-console-format": "^1.0.8",
 		"winston-transport-browserconsole": "^1.0.5",
