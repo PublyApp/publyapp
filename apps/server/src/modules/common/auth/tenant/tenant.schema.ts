@@ -1,4 +1,4 @@
-import { className, roleEnum } from '@devist/shared/lib/constants';
+import { className, roleEnum } from '@org/shared/lib/constants';
 
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 import type { ITenantWithParseRelations } from '@/shared/types/db/tenant.types';

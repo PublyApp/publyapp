@@ -1,4 +1,4 @@
-import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
+import { DEFAULT_PAGE_SIZE, functionName, roleSet } from '@org/shared/lib/constants';
 
 import { parseFunctionEnhanced, type FunctionReturn } from '@/server/lib/parse/function.utils';
 import AppFileService from '@/server/modules/tenant/file-manager/appFile/appFile.service';

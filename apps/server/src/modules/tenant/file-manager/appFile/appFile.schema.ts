@@ -1,5 +1,5 @@
-import { className } from '@devist/shared/lib/constants';
-import type { AppFileWithRelations } from '@devist/shared/types/db/appFile.types';
+import { className } from '@org/shared/lib/constants';
+import type { AppFileWithRelations } from '@org/shared/types/db/appFile.types';
 
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 

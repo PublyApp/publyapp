@@ -1,4 +1,4 @@
-import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
+import type ParseRestClient from '@org/parse-rest-client/ParseRestClient';
 
 export type BaseEndPointsProps = { parseRestClient: ParseRestClient /*  apiPath: string */ };
 

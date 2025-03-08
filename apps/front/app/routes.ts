@@ -1,8 +1,8 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { index, layout, route, type RouteConfig } from '@react-router/dev/routes';
 
-import { FRONT_PATH_NAMES } from '@devist/shared/lib/constants';
-import { getLastPath } from '@devist/shared/utils/string.utils';
+import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
+import { getLastPath } from '@org/shared/utils/string.utils';
 
 const routes = [
 	layout('routes/marketing/MarketingPagesLayout.tsx', [

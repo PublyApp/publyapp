@@ -21,7 +21,7 @@
 		"",
 		"<THIRD_PARTY_MODULES>",
 		"",
-		"^@devist/(.*)$",
+		"^@org/(.*)$",
 		"",
 		"^@/shared|@/ui-react|@/front|@/server/(.*)$",
 		"",

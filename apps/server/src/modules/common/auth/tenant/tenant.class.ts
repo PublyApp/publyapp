@@ -1,4 +1,4 @@
-import type { ITenantWithParseRelations } from '@devist/shared/types/db/tenant.types';
+import type { ITenantWithParseRelations } from '@org/shared/types/db/tenant.types';
 
 import { className } from '@/shared/lib/constants';
 

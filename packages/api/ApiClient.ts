@@ -1,4 +1,4 @@
-import type ParseRestClient from '@devist/parse-rest-client/ParseRestClient';
+import type ParseRestClient from '@org/parse-rest-client/ParseRestClient';
 
 import AuthEndPoints from './features/auth/auth.endpoints';
 import BlogEndPoints from './features/blog/blog.endpoints';

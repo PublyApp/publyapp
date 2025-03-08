@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { type IBlogPostSlug } from '@devist/shared/types/db/blogPostSlug.types';
+import { type IBlogPostSlug } from '@org/shared/types/db/blogPostSlug.types';
 
 import { env } from '@/server/lib/env';
 import { toIsoString } from '@/server/lib/parse/parse.utils';

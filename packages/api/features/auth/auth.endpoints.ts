@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import type { IUser } from '@devist/shared/types/db/user.types';
+import type { IUser } from '@org/shared/types/db/user.types';
 
 import type {
 	GetIsDisabledSignupFunction,

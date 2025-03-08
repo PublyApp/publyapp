@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import i18next from 'i18next';
 import { data, redirect } from 'react-router';
 
-import duration from '@devist/shared/utils/duration.utils';
+import duration from '@org/shared/utils/duration.utils';
 
 import { CookieManager } from '@/front/lib/cookie-manager';
 import { getServerAction } from '@/front/lib/react-router/function.server';

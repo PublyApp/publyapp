@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import _ from 'lodash';
 import { ZodError } from 'zod';
 
-import { getCorrectLocale } from '@devist/shared/lib/i18n/i18n.utils';
+import { getCorrectLocale } from '@org/shared/lib/i18n/i18n.utils';
 
 import { HttpException } from '@/server/exceptions/HttpException';
 // import PermissionService from '@/server/modules/common/auth/permission/permission.service';
