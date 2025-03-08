@@ -10,6 +10,7 @@ const Parse_CustomJoinUserToTenantSchema = SchemaManager.defineSchema(Parse_Cust
 	fields: {
 		user: { type: 'Pointer', targetClass: ParseUser.className },
 		tenant: { type: 'Pointer', targetClass: ParseTenant.className },
+		subRoles: { type: 'Array' },
 	},
 	indexes: {
 		uniqueRelation: {
