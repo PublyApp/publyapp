@@ -11,7 +11,10 @@ import { getCurrentInstallationId } from '../lib/parse/parse.utils';
 import { getHeader, getRequestIp } from '../utils/request.utils';
 
 const checkIsMaster = (req: express.Request) => {
-	return req.body._MasterKey === env.PARSE_MASTER_KEY || getHeader(req, 'X-Parse-Master-Key') === env.PARSE_MASTER_KEY;
+	return (
+		_.get(req, 'body._MasterKey') === env.PARSE_MASTER_KEY ||
+		getHeader(req, 'X-Parse-Master-Key') === env.PARSE_MASTER_KEY
+	);
 };
 
 const disableRestApiForClients = async (req: express.Request, _res: express.Response) => {

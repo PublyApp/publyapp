@@ -150,8 +150,8 @@ const bootstrap = async () => {
 		app.use(PARSE_DASHBOARD_MOUNT_PATH, dashboard);
 		app.all(
 			path.posix.join(endPoint.api.root, 'test'),
-			expressHandler(async (_req, res) => {
-				logger.info('test route hit', { lol: 'test', password: 'azerty' });
+			expressHandler(async (req, res) => {
+				logger.info('test route hit', { lol: 'test', password: 'azerty', body: req.body });
 				return res.status(200).json({ ok: 'ok' });
 			}),
 		);
