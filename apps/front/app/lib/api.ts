@@ -1,7 +1,7 @@
 import { type i18n as I18n } from 'i18next';
 import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
 
-import { ApiClient, defaultApiClient } from '@devist/api/ApiClient';
+import { ApiClient, defaultApiClient } from '@org/api/ApiClient';
 
 import { endPoint, LOCALE_HEADER_KEY, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';

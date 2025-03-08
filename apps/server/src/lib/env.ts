@@ -5,7 +5,7 @@ import dotenvExpand from 'dotenv-expand';
 import _ from 'lodash';
 import z from 'zod';
 
-import { getNumericStringSchema } from '@devist/shared/lib/zod/utils';
+import { getNumericStringSchema } from '@org/shared/lib/zod/utils';
 
 import { logger } from '@/server/lib/winston';
 import { deepFreeze } from '@/shared/utils/any.utils';

@@ -1,6 +1,6 @@
-import { getProtectionHeaders } from '@devist/shared/lib/axios';
-import { endPoint, functionName } from '@devist/shared/lib/constants';
-import type { AppFile } from '@devist/shared/types/db/appFile.types';
+import { getProtectionHeaders } from '@org/shared/lib/axios';
+import { endPoint, functionName } from '@org/shared/lib/constants';
+import type { AppFile } from '@org/shared/types/db/appFile.types';
 
 import {
 	type CreateAppFileFunctionReturn,

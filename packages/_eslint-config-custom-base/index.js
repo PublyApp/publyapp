@@ -94,7 +94,7 @@ module.exports = {
 						position: 'after',
 					},
 					{
-						pattern: '@devist/**',
+						pattern: '@org/**',
 						group: 'external',
 						position: 'after',
 					},

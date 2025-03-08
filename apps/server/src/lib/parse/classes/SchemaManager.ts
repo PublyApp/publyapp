@@ -5,7 +5,7 @@ import asyncJs from 'async';
 import _ from 'lodash';
 import { MongoServerError, type CreateIndexesOptions } from 'mongodb';
 
-import { className as _className } from '@devist/shared/lib/constants';
+import { className as _className } from '@org/shared/lib/constants';
 
 import { logger } from '@/server/lib/winston';
 import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';

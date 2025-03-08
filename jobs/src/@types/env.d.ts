@@ -1,1 +1,1 @@
-/// <reference types="@devist/shared/@types/index" />
+/// <reference types="@org/shared/@types/index" />

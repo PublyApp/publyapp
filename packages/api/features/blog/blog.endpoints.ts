@@ -1,5 +1,5 @@
-import { functionName } from '@devist/shared/lib/constants';
-import type { AppLocale } from '@devist/shared/lib/i18n/resources';
+import { functionName } from '@org/shared/lib/constants';
+import type { AppLocale } from '@org/shared/lib/i18n/resources';
 
 import type {
 	AddSlugToBlogPostFunction,

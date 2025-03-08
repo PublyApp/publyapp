@@ -1,4 +1,4 @@
-import { className } from '@devist/shared/lib/constants';
+import { className } from '@org/shared/lib/constants';
 
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 import type { IBlogPostWithRelations } from '@/shared/types/db/blogPost.types';

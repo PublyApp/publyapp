@@ -1,9 +1,9 @@
 import axios from 'axios';
 import _ from 'lodash';
 
-import { AxiosHttp, getProtectionHeaders } from '@devist/shared/lib/axios';
-import { PARSE_APPLICATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@devist/shared/lib/constants';
-import type { IUser } from '@devist/shared/types/db/user.types';
+import { AxiosHttp, getProtectionHeaders } from '@org/shared/lib/axios';
+import { PARSE_APPLICATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@org/shared/lib/constants';
+import type { IUser } from '@org/shared/types/db/user.types';
 
 import ParseRestError from './ParseRestError';
 

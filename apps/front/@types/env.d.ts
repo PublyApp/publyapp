@@ -3,4 +3,4 @@
 // ! I verified this one: it is needed for vite
 /// <reference types="vite/client" />
 
-/// <reference types="@devist/shared/@types/index" />
+/// <reference types="@org/shared/@types/index" />

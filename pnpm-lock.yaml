@@ -65,13 +65,13 @@ importers:
       '@atlaskit/pragmatic-drag-and-drop-react-drop-indicator':
         specifier: ^1.1.4
         version: 1.2.0(@types/react@18.2.0)(react@18.2.0)
-      '@devist/api':
+      '@org/api':
         specifier: workspace:*
         version: link:../../packages/api
-      '@devist/parse-rest-client':
+      '@org/parse-rest-client':
         specifier: workspace:*
         version: link:../../packages/parse-rest-client
-      '@devist/shared':
+      '@org/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@hookform/resolvers':
@@ -261,7 +261,7 @@ importers:
 
   apps/server:
     dependencies:
-      '@devist/shared':
+      '@org/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@faker-js/faker':
@@ -487,7 +487,7 @@ importers:
 
   jobs:
     dependencies:
-      '@devist/shared':
+      '@org/shared':
         specifier: workspace:*
         version: link:../packages/shared
       '@google-cloud/storage':
@@ -632,10 +632,10 @@ importers:
 
   packages/api:
     dependencies:
-      '@devist/parse-rest-client':
+      '@org/parse-rest-client':
         specifier: workspace:*
         version: link:../parse-rest-client
-      '@devist/shared':
+      '@org/shared':
         specifier: workspace:*
         version: link:../shared
       lodash:
@@ -654,7 +654,7 @@ importers:
 
   packages/parse-rest-client:
     dependencies:
-      '@devist/shared':
+      '@org/shared':
         specifier: workspace:*
         version: link:../shared
       axios:

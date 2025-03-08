@@ -2,7 +2,7 @@
 import type { Application, NextFunction, Request, RequestHandler, Response } from 'express';
 import type { ParsedQs } from 'qs';
 
-import { tryCatchWrapper } from '@devist/shared/utils/tryCatch.utils';
+import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
 
 import { logger } from '@/server/lib/winston';
 
