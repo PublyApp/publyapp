@@ -120,9 +120,6 @@ const bootstrap = async () => {
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
 	});
 
-	// setup a better console transport for our logger
-	// logger.adapter.addTransport(consoleTransport);
-
 	// start the parse server setup in the background
 	const startParsePromise = parseServer.start();
 
