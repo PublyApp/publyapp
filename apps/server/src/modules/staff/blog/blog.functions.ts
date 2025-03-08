@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@devist/shared/lib/constants';
+import { className, DEFAULT_PAGE_SIZE, functionName, roleSet } from '@org/shared/lib/constants';
 import {
 	getAddSlugToPostSchema,
 	getCreateBlogPostInputSchema,
@@ -8,7 +8,7 @@ import {
 	getGetBlogPostFunctionBackOfficeEditFormSchema,
 	getGetBlogPostFunctionFrontDetailsViewSchema,
 	getUpdateBlogPostInputSchema,
-} from '@devist/shared/validations/blogPost/blogPost.validations';
+} from '@org/shared/validations/blogPost/blogPost.validations';
 
 import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/function.utils';
 import { getDatabase } from '@/server/lib/parse/parse.utils';

@@ -10,7 +10,7 @@ import chalk from 'chalk';
 import express from 'express';
 import ParseDashboard from 'parse-dashboard';
 
-import duration from '@devist/shared/utils/duration.utils';
+import duration from '@org/shared/utils/duration.utils';
 
 import { logger } from '@/server/lib/winston';
 import { endPoint, LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';

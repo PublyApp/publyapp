@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 
-import { defaultLocale, defaultNS, NS, resources, type AppLocale } from '@devist/shared/lib/i18n/resources';
+import { defaultLocale, defaultNS, NS, resources, type AppLocale } from '@org/shared/lib/i18n/resources';
 
 let IS_INITIALIZED = false;
 

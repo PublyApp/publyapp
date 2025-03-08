@@ -2,7 +2,7 @@
 /* eslint-disable no-await-in-loop */
 import { existsSync, promises as fs } from 'fs';
 
-import { className, roleEnum } from '@devist/shared/lib/constants';
+import { className, roleEnum } from '@org/shared/lib/constants';
 
 import { DISABLE_SIGNUP_CONFIG_KEY, FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@/server/lib/constants';
 import { logger } from '@/server/lib/winston';

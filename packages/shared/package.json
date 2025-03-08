@@ -1,5 +1,5 @@
 {
-	"name": "@devist/shared",
+	"name": "@org/shared",
 	"version": "0.0.0",
 	"exports": {
 		"./*": {

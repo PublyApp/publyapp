@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { tryCatchWrapper } from '@devist/shared/utils/tryCatch.utils';
+import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
 
 type SafeRunFunction<F extends GenericFunction> = (
 	...args: Parameters<F>

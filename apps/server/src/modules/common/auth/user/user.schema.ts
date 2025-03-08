@@ -1,5 +1,5 @@
-import { className, roleEnum } from '@devist/shared/lib/constants';
-import type { IUserWithParseRelations } from '@devist/shared/types/db/user.types';
+import { className, roleEnum } from '@org/shared/lib/constants';
+import type { IUserWithParseRelations } from '@org/shared/types/db/user.types';
 
 import { DEFAULT_CLP } from '@/server/lib/constants';
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
