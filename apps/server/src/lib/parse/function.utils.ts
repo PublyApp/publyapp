@@ -8,9 +8,7 @@ import { ZodError } from 'zod';
 import { getCorrectLocale } from '@org/shared/lib/i18n/i18n.utils';
 
 import { HttpException } from '@/server/exceptions/HttpException';
-// import PermissionService from '@/server/modules/common/auth/permission/permission.service';
 import RoleService from '@/server/modules/common/auth/role/role.service';
-// import Parse_CustomJoinUserToTenant from '@/server/modules/common/auth/tenant/$join-user-to-tenant.class';
 import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
 import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
 import {
