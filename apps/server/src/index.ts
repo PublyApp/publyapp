@@ -8,6 +8,7 @@ import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
 import chalk from 'chalk';
 import express from 'express';
+import helmet from 'helmet';
 import ParseDashboard from 'parse-dashboard';
 
 import duration from '@org/shared/utils/duration.utils';
@@ -52,6 +53,7 @@ const bootstrap = async () => {
 	const app = express();
 
 	// setup middlewares
+	app.use(helmet());
 	app.use(cors({ whiteList: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
 	app.use(express.urlencoded({ extended: false }));
 	app.use(
