@@ -11,7 +11,7 @@ import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 
 import { iniI18nOnServer } from './lib/i18n/initI18n.server';
 
-const ABORT_DELAY = 50_000;
+export const streamTimeout = 50_000;
 
 const handleRequest = async (
 	request: Request,
@@ -36,7 +36,7 @@ const handleRequest = async (
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
-				<ServerRouter context={routerContext} url={request.url} abortDelay={ABORT_DELAY} />
+				<ServerRouter context={routerContext} url={request.url} />
 			</I18nextProvider>,
 			{
 				[readyOption]: () => {
@@ -72,7 +72,9 @@ const handleRequest = async (
 			},
 		);
 
-		setTimeout(abort, ABORT_DELAY);
+		// Abort the streaming render pass after 11 seconds to allow the rejected
+		// boundaries to be flushed
+		setTimeout(abort, streamTimeout + 1000);
 	});
 };
 
