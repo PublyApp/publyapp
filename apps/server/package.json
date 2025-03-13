@@ -37,8 +37,8 @@
 		"type-check": "tsc"
 	},
 	"dependencies": {
-		"@org/shared": "workspace:*",
 		"@faker-js/faker": "^8.3.1",
+		"@org/shared": "workspace:*",
 		"@parse/fs-files-adapter": "^2.0.1",
 		"@react-router/express": "^7.3.0",
 		"async": "^3.2.5",
@@ -59,6 +59,7 @@
 		"express-subdomain": "^1.0.6",
 		"front": "workspace:*",
 		"glob": "^10.3.12",
+		"helmet": "^8.0.0",
 		"i18n-node": "^2.1.5",
 		"i18next": "^24.2.2",
 		"i18next-fs-backend": "^2.3.1",
