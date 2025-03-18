@@ -5,8 +5,8 @@ import { ZodError } from 'zod';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { logger } from '@/server/lib/winston';
 
+import { getRequestUtils } from '../lib/express';
 import { isCloudHttpException } from '../lib/parse/function.utils';
-import { getRequestUtils } from '../utils/request.utils';
 
 // ! this is the only middleware that we should not wrap into expressHandler wrapper function
 const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
