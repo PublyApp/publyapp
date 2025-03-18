@@ -1,9 +1,9 @@
 import { SLUG_REGEX } from '../../lib/constants';
-import type CustomZod from '../../lib/zod/CustomZod';
+import type InterZod from '../../lib/zod/InterZod';
 import { getListParamsSchema } from '../../utils/validation.utils';
 import { getLocaleSchema } from '../locale.validation';
 
-export const getDateTypeSchema = (z: CustomZod) => {
+export const getDateTypeSchema = (z: InterZod) => {
 	return z
 		.date()
 		.or(z.string())
@@ -13,7 +13,7 @@ export const getDateTypeSchema = (z: CustomZod) => {
 		});
 };
 
-export const getSlugStringSchema = (z: CustomZod) => {
+export const getSlugStringSchema = (z: InterZod) => {
 	const SLUG = 'Slug';
 
 	return z
@@ -25,7 +25,7 @@ export const getSlugStringSchema = (z: CustomZod) => {
 		.regex(SLUG_REGEX, z.t('item-is-invalid', { item: SLUG }));
 };
 
-export const getCreateBlogPostInputSchema = (z: CustomZod) => {
+export const getCreateBlogPostInputSchema = (z: InterZod) => {
 	// const TITLE = z.t('title');
 	// const SLUG = 'Slug';
 	// const DESCRIPTION = 'Description';
@@ -85,7 +85,7 @@ export const getCreateBlogPostInputSchema = (z: CustomZod) => {
 	});
 };
 
-export const getUpdateBlogPostInputSchema = (z: CustomZod) => {
+export const getUpdateBlogPostInputSchema = (z: InterZod) => {
 	const ID = 'ObjectId';
 
 	return getCreateBlogPostInputSchema(z)
@@ -102,7 +102,7 @@ export const getUpdateBlogPostInputSchema = (z: CustomZod) => {
 // 	boTable: 'bo-table',
 // } as const;
 
-export const getFindBlogPostFunctionBoTableParamsSchema = (z: CustomZod) => {
+export const getFindBlogPostFunctionBoTableParamsSchema = (z: InterZod) => {
 	return getListParamsSchema(z).and(
 		z.object({
 			fromPublic: z.boolean().optional().default(false),
@@ -115,7 +115,7 @@ export const getFindBlogPostFunctionBoTableParamsSchema = (z: CustomZod) => {
 // 	boEditForm: 'bo-edit-form',
 // } as const;
 
-// export const getFindOneBlogPostFunctionParamsSchema = (z: CustomZod) => {
+// export const getFindOneBlogPostFunctionParamsSchema = (z: InterZod) => {
 // 	return z.discriminatedUnion('view', [
 // 		z.object({
 // 			view: z.literal(findOneBlogPostView.frontDetail),
@@ -127,7 +127,7 @@ export const getFindBlogPostFunctionBoTableParamsSchema = (z: CustomZod) => {
 // 		}),
 // 	]);
 // };
-export const getGetBlogPostFunctionFrontDetailsViewSchema = (z: CustomZod) => {
+export const getGetBlogPostFunctionFrontDetailsViewSchema = (z: InterZod) => {
 	return z.object({
 		slug: z
 			.string({
@@ -142,7 +142,7 @@ export const getGetBlogPostFunctionFrontDetailsViewSchema = (z: CustomZod) => {
 	});
 };
 
-export const getGetBlogPostFunctionBackOfficeEditFormSchema = (z: CustomZod) => {
+export const getGetBlogPostFunctionBackOfficeEditFormSchema = (z: InterZod) => {
 	return z.object({
 		id: z
 			.string()
@@ -151,7 +151,7 @@ export const getGetBlogPostFunctionBackOfficeEditFormSchema = (z: CustomZod) => 
 	});
 };
 
-export const getAddSlugToPostSchema = (z: CustomZod) => {
+export const getAddSlugToPostSchema = (z: InterZod) => {
 	return z.object({
 		slug: getSlugStringSchema(z),
 		postId: z.string(),
