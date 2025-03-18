@@ -9,8 +9,7 @@ import {
 	PARSE_SESSION_TOKEN_HEADER_KEY,
 } from '@/shared/lib/constants';
 
-import { expressHandler } from '../lib/express';
-import { getHeader } from '../utils/request.utils';
+import { expressHandler, getHeader } from '../lib/express';
 
 type Input = {
 	withKey?: boolean;

@@ -1,9 +1,8 @@
 import { getMulterFilesArraySchema } from '@org/shared/validations/file/file.validations.server';
 
 import { HttpException } from '@/server/exceptions/HttpException';
-import { expressHandler } from '@/server/lib/express';
+import { expressHandler, getRequestUtils } from '@/server/lib/express';
 import AppFileService from '@/server/modules/tenant/file-manager/appFile/appFile.service';
-import { getRequestUtils } from '@/server/utils/request.utils';
 import type { AppFile } from '@/shared/types/db/appFile.types';
 
 import AppFileFolderService from './appFileFolder/appFileFolder.service';
