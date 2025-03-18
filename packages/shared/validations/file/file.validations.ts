@@ -1,6 +1,6 @@
-import type CustomZod from '@/shared/lib/zod/CustomZod';
+import type InterZod from '@/shared/lib/zod/InterZod';
 
-export const getFolderNameSchema = (z: CustomZod) => {
+export const getFolderNameSchema = (z: InterZod) => {
 	return z
 		.string()
 		.min(1)

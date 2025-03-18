@@ -1,6 +1,6 @@
-import type CustomZod from './CustomZod';
+import type InterZod from './InterZod';
 
-export const getNumericStringSchema = (z: CustomZod) => {
+export const getNumericStringSchema = (z: InterZod) => {
 	return z
 		.string()
 		.refine(

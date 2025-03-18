@@ -22,7 +22,7 @@ import {
 	type TenantSubRoleSet,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import CustomZod from '@/shared/lib/zod/CustomZod';
+import InterZod from '@/shared/lib/zod/InterZod';
 
 import { USE_MASTER_KEY } from '../constants';
 import { getT, i18nextServer } from '../i18n';
@@ -319,7 +319,7 @@ type BaseActionContext<P extends Parse.Cloud.Params = Parse.Cloud.Params> = {
 	req: Parse.Cloud.FunctionRequest;
 	t: ReturnType<typeof getT>;
 	locale: AppLocale;
-	z: CustomZod;
+	z: InterZod;
 	params: P;
 	log: LoggerController;
 };
@@ -354,7 +354,7 @@ type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
 	z,
 }: {
 	params: Parse.Cloud.Params;
-	z: CustomZod;
+	z: InterZod;
 }) => P;
 
 type ParseFunctionEnhancedParams<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> =
@@ -450,7 +450,7 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 			throw new HttpException(403, t('item-is-required', { item: 'Master key' }));
 		}
 
-		const z = new CustomZod({ i18n: i18nextServer, locale });
+		const z = new InterZod({ i18n: i18nextServer, locale });
 
 		if (!requireUser) {
 			const validatedParams = validateParams?.({ params: req.params, z });

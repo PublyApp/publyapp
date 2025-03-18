@@ -1,10 +1,10 @@
 import type zod from 'zod';
 
-import type CustomZod from '@/shared/lib/zod/CustomZod';
+import type InterZod from '@/shared/lib/zod/InterZod';
 
 import { getFolderNameSchema } from './file.validations';
 
-export const getFileSchemaClientSide = (z: CustomZod) => {
+export const getFileSchemaClientSide = (z: InterZod) => {
 	const field = z.t('field');
 	const type = z.t('file');
 
@@ -24,18 +24,18 @@ export const getFileSchemaClientSide = (z: CustomZod) => {
 	);
 };
 
-export const getFilesArraySchemaClientSide = (z: CustomZod) => {
+export const getFilesArraySchemaClientSide = (z: InterZod) => {
 	return z.array(getFileSchemaClientSide(z)).min(1);
 };
 
-export const getUploadManyFilesSchemaClientSide = (z: CustomZod) => {
+export const getUploadManyFilesSchemaClientSide = (z: InterZod) => {
 	return z.object({
 		files: getFilesArraySchemaClientSide(z),
 		parentFolderPath: getFolderNameSchema(z).optional(),
 	});
 };
 
-export const getCreateFolderSchemaClientSide = (z: CustomZod) => {
+export const getCreateFolderSchemaClientSide = (z: InterZod) => {
 	return z.object({
 		folderName: getFolderNameSchema(z),
 		parentFolderPath: getFolderNameSchema(z).optional(),

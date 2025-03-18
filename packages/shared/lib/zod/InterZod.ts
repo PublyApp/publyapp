@@ -24,7 +24,7 @@ type I18nLike = {
 /**
  * Customizable by locale zod wrapper
  */
-class CustomZod {
+class InterZod {
 	protected _i18n: I18nLike;
 
 	protected _locale: AppLocale;
@@ -184,4 +184,4 @@ class CustomZod {
 	}
 }
 
-export default CustomZod;
+export default InterZod;
