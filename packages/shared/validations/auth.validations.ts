@@ -1,9 +1,9 @@
 import type { z } from 'zod';
 
 import type { AppLocale } from '../lib/i18n/resources';
-import type CustomZod from '../lib/zod/CustomZod';
+import type InterZod from '../lib/zod/InterZod';
 
-const getEmailFieldSchema = (z: CustomZod) => {
+const getEmailFieldSchema = (z: InterZod) => {
 	return z
 		.string(/* { required_error: 'Email required' } */)
 		.min(1 /* , 'Email required' */)
@@ -14,7 +14,7 @@ const getEmailFieldSchema = (z: CustomZod) => {
 
 const SPECIAL_CHAR_REGEX = /[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/;
 
-const getPasswordFieldSchema = (z: CustomZod) => {
+const getPasswordFieldSchema = (z: InterZod) => {
 	const regexMap: Record<AppLocale, string> = {
 		en: 'At least 8 chars and 1 special char',
 		fr: 'Au moins 8 caractères dont 1 caractère spécial',
@@ -27,18 +27,18 @@ const getPasswordFieldSchema = (z: CustomZod) => {
 		.regex(new RegExp(SPECIAL_CHAR_REGEX), regexMap[z.locale]);
 };
 
-export const getLoginSchema = (z: CustomZod) => {
+export const getLoginSchema = (z: InterZod) => {
 	return z.object({
 		email: getEmailFieldSchema(z),
 		password: getPasswordFieldSchema(z),
 	});
 };
 
-export const getVerifyEmailSchema = (z: CustomZod) => {
+export const getVerifyEmailSchema = (z: InterZod) => {
 	return getLoginSchema(z).pick({ email: true });
 };
 
-export const getResetPasswordSchema = (z: CustomZod) => {
+export const getResetPasswordSchema = (z: InterZod) => {
 	return z
 		.object({
 			password: getPasswordFieldSchema(z),
@@ -55,13 +55,13 @@ export const getResetPasswordSchema = (z: CustomZod) => {
 		);
 };
 
-export const getSendEmailUpdateEmailSchema = (z: CustomZod) => {
+export const getSendEmailUpdateEmailSchema = (z: InterZod) => {
 	return z.object({
 		newEmail: getEmailFieldSchema(z),
 	});
 };
 
-export const getRegisterSchema = (z: CustomZod) => {
+export const getRegisterSchema = (z: InterZod) => {
 	return getLoginSchema(z).extend({
 		firstName: z.string(/* { required_error: 'First name required' } */).min(1),
 		lastName: z.string(/* { required_error: 'Last name required' } */).min(1),

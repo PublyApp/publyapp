@@ -4,7 +4,7 @@ import { redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from 'reac
 import { FRONT_PATH_NAMES, queryParamKey, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import CustomZod from '@/shared/lib/zod/CustomZod';
+import InterZod from '@/shared/lib/zod/InterZod';
 
 import { initApiClientOnServer } from '../api';
 import { CookieManager } from '../cookie-manager';
@@ -21,7 +21,7 @@ type GetServerLoaderParamsWhenRequireUser<T extends LoaderFunctionArgs = LoaderF
 	requireUser: true;
 	loader: (
 		args: T & {
-			z: CustomZod;
+			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
 			authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
@@ -34,7 +34,7 @@ type GetServerLoaderParamsWithoutAuthDataPromise<T extends LoaderFunctionArgs = 
 	withAuthDataPromise?: false | undefined;
 	loader: (
 		args: T & {
-			z: CustomZod;
+			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
 		},
@@ -46,7 +46,7 @@ type GetServerLoaderParamsWithAuthDataPromise<T extends LoaderFunctionArgs = Loa
 	withAuthDataPromise: true;
 	loader: (
 		args: T & {
-			z: CustomZod;
+			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
 			authDataPromise: ReturnType<ApiClient['auth']['getUserAuthData']>;
@@ -77,7 +77,7 @@ export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = 
 	const loader = async (args: T) => {
 		const { request } = args;
 		const locale = getRequestLocale(request);
-		const z = new CustomZod({ i18n: remixI18NextServer as never, locale });
+		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale });
@@ -112,7 +112,7 @@ type GetServerActionParamsWhenRequireUser<T extends ActionFunctionArgs = ActionF
 	requireUser: true;
 	action: (
 		args: T & {
-			z: CustomZod;
+			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
 			authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
@@ -124,7 +124,7 @@ type GetServerActionParamsWhenWhenUserNotRequired<T extends ActionFunctionArgs =
 	requireUser?: false | undefined;
 	action: (
 		args: T & {
-			z: CustomZod;
+			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
 		},
@@ -149,7 +149,7 @@ export const getServerAction: GetServerAction = <T extends ActionFunctionArgs = 
 ) => {
 	const action = async (args: T) => {
 		const locale = getRequestLocale(args.request);
-		const z = new CustomZod({ i18n: remixI18NextServer as never, locale });
+		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale });
