@@ -11,32 +11,13 @@ export const ADMIN_EMAILS = ['radandevist@gmail.com'];
 // Cors white lists
 export const corsWhiteList = {
 	LOCAL: [
-		'http://localhost:6180',
-		'http://localhost:6181',
-		'http://localhost:6182',
-		'http://localhost:6183',
-		'http://localhost:6184',
-		'http://localhost:6185',
-		'http://localhost:5173',
-		'http://localhost:4040',
-		'http://localhost:3000',
-		'http://devist.test',
-		'http://link.devist.test',
-		'http://front.devist.test',
-		'http://app.devist.test',
+		'http://localhost:6180', // server domain
+		'http://localhost:6181', // front domain
 	],
 	ONLINE: [
-		'https://devist.xyz',
-		'https://www.devist.xyz',
-		'https://app.devist.xyz',
-		'https://bo.devist.xyz',
-		'https://engine.devist.xyz',
-		'https://engine2.devist.xyz',
-		'https://awesome.devist.xyz',
-		'https://amazing.devist.xyz',
-		'http://localhost:4040',
-		// test online
-		'http://localhost:6180',
+		// Since the client builds arse served by the same server, the front and server domains are the same
+		new URL(env.SERVER_URL).origin,
+		'http://localhost:6180', // test online (for emulating online environment from local)
 	], // ? We're gonna see over time
 };
 
