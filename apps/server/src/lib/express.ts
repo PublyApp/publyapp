@@ -1,5 +1,6 @@
-import type { Application, NextFunction, Request, RequestHandler, Response } from 'express';
 import _ from 'lodash';
+
+import { type Application, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import type { ParsedQs } from 'qs';
 
 import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
@@ -31,8 +32,19 @@ interface AsyncRequestHandler<
 	): Promise<any>;
 }
 
-export const expressHandler = (innerHandler: AsyncRequestHandler): RequestHandler => {
-	const handler: RequestHandler = async (req, res, next) => {
+export const expressHandler = <
+	P = ParamsDictionary,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	ResBody = any,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	ReqBody = any,
+	ReqQuery = ParsedQs,
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	Locals extends Record<string, any> = Record<string, any>,
+>(
+	innerHandler: AsyncRequestHandler<P, ResBody, ReqBody, ReqQuery, Locals>,
+) => {
+	const handler: RequestHandler<P, ResBody, ReqBody, ReqQuery, Locals> = async (req, res, next) => {
 		const wrappedFunction = tryCatchWrapper({
 			handler: innerHandler,
 			onError: (error) => {

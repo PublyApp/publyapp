@@ -89,7 +89,7 @@ module.exports = {
 				pathGroupsExcludedImportTypes: ['react', 'parse', 'parse-server'],
 				pathGroups: [
 					{
-						pattern: '{react,parse,parse/*,parse-server,parse-server/*,parse-server/**/*}',
+						pattern: '{lodash,react,parse,parse/*,parse-server,parse-server/*,parse-server/**/*}',
 						group: 'builtin',
 						position: 'after',
 					},
@@ -103,11 +103,6 @@ module.exports = {
 						group: 'external',
 						position: 'after',
 					},
-					// {
-					// 	pattern: 'react',
-					// 	group: 'builtin',
-					// 	position: 'before',
-					// },
 				],
 				distinctGroup: true,
 			},
