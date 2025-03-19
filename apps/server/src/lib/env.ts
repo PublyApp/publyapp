@@ -1,8 +1,9 @@
 import path from 'path';
 
+import _ from 'lodash';
+
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
-import _ from 'lodash';
 import z from 'zod';
 
 import { getNumericStringSchema } from '@org/shared/lib/zod/utils';
