@@ -1,5 +1,6 @@
-import type { ErrorRequestHandler } from 'express';
 import _ from 'lodash';
+
+import type { ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
 
 import { HttpException } from '@/server/exceptions/HttpException';
@@ -9,7 +10,7 @@ import { getRequestUtils } from '../lib/express';
 import { isCloudHttpException } from '../lib/parse/function.utils';
 
 // ! this is the only middleware that we should not wrap into expressHandler wrapper function
-const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
+export const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 	try {
 		const { t } = getRequestUtils(req);
 		let xcode: string | undefined;
@@ -55,11 +56,7 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 					default:
 						httpStatusCode = 400;
 				}
-				// switch] end of copy
-			}
-
-			if (parseErrorCode === Parse.Error.INVALID_SESSION_TOKEN) {
-				// TODO: invalidate session token cache (we are gonna implement a custom permission system: to limit requests to the server we need a cache)
+				// [switch] end of copy
 			}
 		}
 
@@ -87,5 +84,3 @@ const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
 		next(_error);
 	}
 };
-
-export default errorMiddleware;

@@ -17,7 +17,7 @@
 	"importOrder": [
 		"<BUILTIN_MODULES>",
 		"",
-		"^(react|parse|parse/(?:.*)|parse-server|parse-server/(?:.*))$",
+		"^(lodash|react|parse|parse/(?:.*)|parse-server|parse-server/(?:.*))$",
 		"",
 		"<THIRD_PARTY_MODULES>",
 		"",
