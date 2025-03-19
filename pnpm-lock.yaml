@@ -300,9 +300,6 @@ importers:
       express:
         specifier: ^5.0.1
         version: 5.0.1
-      express-subdomain:
-        specifier: ^1.0.6
-        version: 1.0.6
       front:
         specifier: workspace:*
         version: link:../front
@@ -8552,10 +8549,6 @@ packages:
       express: ^4.11 || 5 || ^5.0.0-beta.1
     dependencies:
       express: 5.0.1
-    dev: false
-
-  /express-subdomain@1.0.6:
-    resolution: {integrity: sha512-A51MvQhk5L3aDV4s5XcKrn5I0bCFOk95xikJjlDWNUrtiAaCjy44RjvBz4uLRH0nCvt8Y3SKt1EvxUUmGJ5QRQ==}
     dev: false
 
   /express@4.21.0:

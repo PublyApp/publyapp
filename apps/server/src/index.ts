@@ -32,8 +32,8 @@ import { initI18next } from './lib/i18n';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
 import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
 import { setCurrentInstallationId } from './lib/parse/parse.utils';
-import { cors } from './middlewares/cors.middleware';
-import errorMiddleware from './middlewares/error.middleware';
+import { corsMiddleware } from './middlewares/cors.middleware';
+import { errorMiddleware } from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
 import coreApiRouter from './router/coreApi.router';
 
@@ -54,7 +54,7 @@ const bootstrap = async () => {
 
 	// setup middlewares
 	app.use(helmet());
-	app.use(cors({ whiteList: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
+	app.use(corsMiddleware({ whiteList: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
 	app.use(express.urlencoded({ extended: false }));
 	app.use(
 		express.json({
@@ -99,6 +99,7 @@ const bootstrap = async () => {
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		sessionLength: duration.toSeconds('3d'), // 3 days
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
+		allowOrigin: [PARSE_SERVER_URL.origin, 'localhost'],
 		// =============================================
 		directAccess: false,
 		enableExpressErrorHandler: true,
@@ -121,6 +122,7 @@ const bootstrap = async () => {
 		// emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
 	});
+	// parseServer.app.use(helmetMiddleWare);
 
 	// start the parse server setup in the background
 	const startParsePromise = parseServer.start();
@@ -138,7 +140,7 @@ const bootstrap = async () => {
 			{
 				apps: [
 					{
-						serverURL: PARSE_SERVER_URL, // ! localhost only
+						serverURL: PARSE_SERVER_URL.toString(), // ! localhost only
 						appId: env.PARSE_APP_ID,
 						masterKey: env.PARSE_MASTER_KEY,
 						appName: 'Devist Express Dash Local',
@@ -161,6 +163,9 @@ const bootstrap = async () => {
 
 	// wait for the parse server setup to finish, the mount the parse app to the express app
 	await startParsePromise;
+
+	parseServer.app.disable('x-powered-by');
+
 	app.use(PARSE_SERVER_URL.pathname, parseServerMiddleware, parseServer.app);
 
 	// --------------------------------------------------------------------------------------//
