@@ -8,7 +8,7 @@ export const makePath = (...params: string[]) => {
 	// eslint-disable-next-line @typescript-eslint/naming-convention
 	const _params: string[] = [];
 
-	params?.forEach((param /* , index */) => {
+	params?.forEach((param) => {
 		if (param?.length <= 0 || param === '/') {
 			return;
 		}

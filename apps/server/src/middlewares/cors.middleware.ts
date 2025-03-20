@@ -1,5 +1,7 @@
 import cors from 'cors';
 
+import { HttpException } from '../exceptions/HttpException';
+
 type CorsOptions = { whiteList: string[] };
 
 /**
@@ -19,7 +21,7 @@ export const corsMiddleware = (options?: CorsOptions) => {
 			if (!origin || whiteList.indexOf(origin) !== -1) {
 				callback(null, true);
 			} else {
-				callback(new Error('Not allowed by CORS'));
+				callback(new HttpException(400, 'Not allowed by CORS'));
 			}
 		},
 	});
