@@ -82,14 +82,12 @@ export const AUTHED_READONLY_CLP: CPLsInterface = {
 
 export const FILE_UPLOAD_DESTINATION = path.join(process.cwd(), 'files/multer-uploads');
 
-// export const apiEndPoint = endPoint.api(env.API_PATH);
-// export const parseEndPoint = endPoint.parse(env.PARSE_PATH);
-
 // Parse server's global config (saved in the database) utilities
 export const DISABLE_SIGNUP_CONFIG_KEY = 'disableSignup';
 
-// TODO: move to env vars
 export const CLOUD_INSTALLATION_ID = '7_UTZsD3OTKZFC4ifcvHbGVwthv8yh8GMlTm';
+
+export const EXPRESS_FILES_MOUNT_PATH = '/app/files';
 
 export const PARSE_SERVER_URL = new URL(env.SERVER_URL);
 PARSE_SERVER_URL.pathname = endPoint.api.parse.root;
