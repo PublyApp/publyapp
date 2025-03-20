@@ -55,8 +55,9 @@ const FallbackComponent: ErrorBoundaryProps['FallbackComponent'] = ({ error, res
 	);
 };
 
+const suspenseFallback = <h1>Auth loading, please wait....</h1>;
+
 const AuthedPagesLayout = ({ loaderData: _l }: Route.ComponentProps) => {
-	const suspenseFallback = <h1>Auth loading, please wait....</h1>;
 	return (
 		<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
 			<AuthQueriesGuard>
