@@ -4,7 +4,6 @@
     "**/.env.*local"
   ],
   "globalEnv": [
-    "APP_ID",
     "ONLINE",
     "PRODUCTION",
     "PORT",
@@ -16,11 +15,9 @@
     "MODE",
     "REST_API_KEY",
     "PARSE_SERVER_URL",
-    "PARSE_APP_ID",
     "FRONT_URL",
     "TEST_ONLINE",
     "VITE_SERVER_URL",
-    "VITE_PARSE_APP_ID",
     "VITE_PARSE_SERVER_URL",
     "VITE_REST_API_KEY",
     "VITE_API_PATH",

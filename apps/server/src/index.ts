@@ -14,7 +14,7 @@ import ParseDashboard from 'parse-dashboard';
 import duration from '@org/shared/utils/duration.utils';
 
 import { logger } from '@/server/lib/winston';
-import { endPoint, LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
+import { APP_ID, APP_NAME, endPoint, LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
 
 import { cloud } from './cloud';
 import {
@@ -25,7 +25,7 @@ import {
 	updateSchemasOnInit,
 } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
-import { corsWhiteList, FILE_UPLOAD_DESTINATION, PARSE_SERVER_URL } from './lib/constants';
+import { corsWhiteList, EXPRESS_FILES_MOUNT_PATH, FILE_UPLOAD_DESTINATION, PARSE_SERVER_URL } from './lib/constants';
 import { env } from './lib/env';
 import { expressHandler } from './lib/express';
 import { initI18next } from './lib/i18n';
@@ -65,7 +65,7 @@ const bootstrap = async () => {
 			},
 		}),
 	);
-	app.use(env.EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
+	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 	// serve i18n resources files under express static middleware (remark: these files are generated at build time)
 	app.use('/resources', express.static(path.resolve(process.cwd(), 'dist/resources')));
 
@@ -84,8 +84,8 @@ const bootstrap = async () => {
 	// initialize parse server
 	const parseServer = new ParseServer({
 		//  === REQUIRED PARAMS =========================
-		appName: env.PARSE_APP_NAME,
-		appId: env.PARSE_APP_ID,
+		appName: APP_NAME,
+		appId: APP_ID,
 		masterKey: env.PARSE_MASTER_KEY,
 		cloud,
 		databaseURI: env.DATABASE_URI,
@@ -141,7 +141,7 @@ const bootstrap = async () => {
 				apps: [
 					{
 						serverURL: PARSE_SERVER_URL.toString(), // ! localhost only
-						appId: env.PARSE_APP_ID,
+						appId: APP_ID,
 						masterKey: env.PARSE_MASTER_KEY,
 						appName: 'Devist Express Dash Local',
 					},
