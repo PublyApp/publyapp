@@ -7,6 +7,7 @@ import React from 'react';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { RiCloseLine } from '@remixicon/react';
 import { PanelLeft } from 'lucide-react';
+import { Link, type To } from 'react-router';
 
 import { useIsMobile } from '@/front/hooks/useIsMobile';
 
@@ -226,11 +227,12 @@ const SidebarLink = React.forwardRef<
 		icon?: React.ElementType;
 		isActive?: boolean;
 		notifications?: number | boolean;
+		href: To;
 	}
 >(({ children, isActive, icon, notifications, className, ...props }, ref) => {
 	const Icon = icon;
 	return (
-		<a
+		<Link
 			ref={ref}
 			aria-current={isActive ? 'page' : undefined}
 			data-active={isActive}
@@ -241,6 +243,7 @@ const SidebarLink = React.forwardRef<
 				focusRing,
 			)}
 			{...props}
+			to={props.href}
 		>
 			<span className="flex items-center gap-x-2.5">
 				{Icon && <Icon className="size-[18px] shrink-0" aria-hidden="true" />}
@@ -251,7 +254,7 @@ const SidebarLink = React.forwardRef<
 					{notifications}
 				</span>
 			)}
-		</a>
+		</Link>
 	);
 });
 SidebarLink.displayName = 'SidebarLink';
