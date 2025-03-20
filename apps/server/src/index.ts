@@ -99,7 +99,7 @@ const bootstrap = async () => {
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		sessionLength: duration.toSeconds('3d'), // 3 days
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
-		allowOrigin: [PARSE_SERVER_URL.origin, 'localhost'],
+		allowOrigin: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		// =============================================
 		directAccess: false,
 		enableExpressErrorHandler: true,
@@ -211,7 +211,9 @@ const bootstrap = async () => {
 		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
 
 		if (global.LOCAL) {
-			logger.info(`    access the dashboard at ${chalk.cyan(`${env.SERVER_URL}${PARSE_DASHBOARD_MOUNT_PATH}`)}    `);
+			const dashUrl = new URL(env.SERVER_URL);
+			dashUrl.pathname = PARSE_DASHBOARD_MOUNT_PATH;
+			logger.info(`    access the dashboard at ${chalk.cyan(dashUrl.toString())}    `);
 		}
 
 		logger.info('================================================================');
