@@ -2,6 +2,7 @@ import { logger } from '@/server/lib/winston';
 
 import './lib/parse/initParse';
 
+import { env } from './lib/env';
 import { cleanUsers, createUsers } from './modules/common/auth/user/user.seed';
 import { cleanBlogPosts, createBlogPosts } from './modules/staff/blog/blogPost/blogPost.seed';
 
@@ -9,7 +10,7 @@ import { cleanBlogPosts, createBlogPosts } from './modules/staff/blog/blogPost/b
 //                    IMPORTANT NOTE: The dev server must be running                    //
 // --------------------------------------------------------------------------------------//
 // check if local
-if (!global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
+if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
 	throw new Error('Running seed script only allowed in local');
 }
 

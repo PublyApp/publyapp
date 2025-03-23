@@ -3,6 +3,7 @@
 import { logger } from '@/server/lib/winston';
 import { endPoint } from '@/shared/lib/constants';
 
+import { env } from '../../env';
 import { type MailAdapter } from '../interfaces/MailAdapter';
 
 type Props = {
@@ -61,7 +62,7 @@ export default class CustomMailAdapter implements MailAdapter {
 			username: username || '',
 		});
 
-		if (global.LOCAL) {
+		if (env.LOCAL) {
 			logger.warn('sendVerificationEmail', {
 				recipient: user.getEmail(),
 				subject: `Email Verification Link for ${appName} account`,
