@@ -229,7 +229,7 @@ const SidebarLink = React.forwardRef<
 		notifications?: number | boolean;
 		href: To;
 	}
->(({ children, isActive, icon, notifications, className, ...props }, ref) => {
+>(({ children, isActive, icon, notifications, className, href, ...props }, ref) => {
 	const Icon = icon;
 	return (
 		<Link
@@ -242,8 +242,8 @@ const SidebarLink = React.forwardRef<
 				'data-[active=true]:text-blue-600 dark:data-[active=true]:text-blue-500',
 				focusRing,
 			)}
+			to={href}
 			{...props}
-			to={props.href}
 		>
 			<span className="flex items-center gap-x-2.5">
 				{Icon && <Icon className="size-[18px] shrink-0" aria-hidden="true" />}

@@ -32,19 +32,19 @@ const envSchema = z.object({
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type AppEnv = z.infer<typeof envSchema>;
 
-global.LOCAL = process.env.ONLINE !== 'true';
-global.TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';
-global.MODE = process.env.MODE || 'local';
+const LOCAL = process.env.ONLINE !== 'true';
+const TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';
+const MODE: 'local' | 'development' | 'production' | 'test' | string = process.env.MODE || 'local';
 
-logger.info(`global.LOCAL: ${global.LOCAL}`);
-logger.info(`global.MODE: ${global.MODE}`);
+logger.info(`==== LOCAL: ${LOCAL} ====`);
+logger.info(`==== MODE: ${MODE} ====`);
 
 // --------------------------------------------------------------------------------------//
 //                    override process.env with values in .env file                      //
 // --------------------------------------------------------------------------------------//
 
-if (global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
-	const envFileName = `.env.${global.MODE}`;
+if (LOCAL || TEST_ONLINE_IN_LOCAL) {
+	const envFileName = `.env.${MODE}`;
 	const envConfig = dotenv.config({ path: path.resolve(process.cwd(), envFileName) });
 	dotenvExpand.expand(envConfig);
 }
@@ -53,4 +53,13 @@ if (global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
 //                                Type check process.env                                 //
 // --------------------------------------------------------------------------------------//
 
-export const env = deepFreeze(envSchema.parse(process.env));
+export const env = deepFreeze(
+	_.assign(
+		{
+			MODE,
+			LOCAL,
+			TEST_ONLINE_IN_LOCAL,
+		},
+		envSchema.parse(process.env),
+	),
+);
