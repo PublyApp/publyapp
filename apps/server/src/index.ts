@@ -53,7 +53,14 @@ const bootstrap = async () => {
 	const app = express();
 
 	// setup middlewares
-	app.use(helmet());
+	app.use(
+		helmet({
+			contentSecurityPolicy: {
+				useDefaults: true,
+				reportOnly: true,
+			},
+		}),
+	);
 	app.use(corsMiddleware({ whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
 	app.use(express.urlencoded({ extended: false }));
 	app.use(
@@ -122,7 +129,6 @@ const bootstrap = async () => {
 		// emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
 		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
 	});
-	// parseServer.app.use(helmetMiddleWare);
 
 	// start the parse server setup in the background
 	const startParsePromise = parseServer.start();
