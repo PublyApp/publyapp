@@ -44,7 +44,12 @@ const run = async () => {
 			cwd: path.resolve(__dirname, '../../'),
 			env: {
 				...process.env,
-				// NODE_ENV: 'development',
+				// even during development, set NODE_ENV to production
+				// so that we can have production-like behavior
+				// (e.g. the app will not crash on missing env variables + better performance)
+				// To differentiate between development and production, use process.env.MODE instead of process.env.NODE_ENV
+				// (MODE is set by the user in the .env.local file or at node command line launch)
+				NODE_ENV: 'PRODUCTION',
 			},
 		});
 		// startAppProcess = spawn('npm.cmd', ['start'], { stdio: 'inherit', cwd: __dirname }); // ! subprocesses of subprocess are not killed
