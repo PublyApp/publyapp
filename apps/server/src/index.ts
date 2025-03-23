@@ -54,7 +54,7 @@ const bootstrap = async () => {
 
 	// setup middlewares
 	app.use(helmet());
-	app.use(corsMiddleware({ whiteList: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
+	app.use(corsMiddleware({ whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
 	app.use(express.urlencoded({ extended: false }));
 	app.use(
 		express.json({
@@ -99,7 +99,7 @@ const bootstrap = async () => {
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		sessionLength: duration.toSeconds('3d'), // 3 days
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
-		allowOrigin: global.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
+		allowOrigin: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		// =============================================
 		directAccess: false,
 		enableExpressErrorHandler: true,
@@ -135,7 +135,7 @@ const bootstrap = async () => {
 	// ------------------------------------------------------------------------------------- //
 	const PARSE_DASHBOARD_MOUNT_PATH = '/pdash';
 
-	if (global.LOCAL) {
+	if (env.LOCAL) {
 		const dashboard = new ParseDashboard(
 			{
 				apps: [
@@ -171,7 +171,7 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                   //
 	// --------------------------------------------------------------------------------------//
-	if (!global.LOCAL || global.TEST_ONLINE_IN_LOCAL) {
+	if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
 		app.use(express.static(path.resolve(process.cwd(), 'node_modules/front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
@@ -206,11 +206,11 @@ const bootstrap = async () => {
 	// ! this must be mounted after all routes and all other middlewares
 	app.use(errorMiddleware);
 
-	server.listen(env.PORT, global.LOCAL ? 'localhost' : '0.0.0.0', () => {
+	server.listen(env.PORT, env.LOCAL ? 'localhost' : '0.0.0.0', () => {
 		logger.info('================================================================');
 		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
 
-		if (global.LOCAL) {
+		if (env.LOCAL) {
 			const dashUrl = new URL(env.SERVER_URL);
 			dashUrl.pathname = PARSE_DASHBOARD_MOUNT_PATH;
 			logger.info(`    access the dashboard at ${chalk.cyan(dashUrl.toString())}    `);

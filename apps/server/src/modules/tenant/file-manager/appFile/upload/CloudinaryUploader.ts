@@ -2,6 +2,7 @@ import { type UploadApiResponse } from 'cloudinary';
 import streamifier from 'streamifier';
 
 import cloudinary from '@/server/lib/cloudinary';
+import { env } from '@/server/lib/env';
 import { fileProvider } from '@/shared/lib/constants';
 
 import { type Uploader, type UploadInput } from './Uploader.interface';
@@ -14,7 +15,7 @@ export default class CloudinaryUploader implements Uploader {
 		// eslint-disable-next-line no-new
 		const uploadPromise = new Promise<UploadApiResponse | undefined>((resolve, reject) => {
 			const cloudinaryUploadStream = cloudinary.uploader.upload_stream(
-				{ folder: global.MODE === 'production' ? 'devist-files' : 'devist-dev-files', filename_override: params.name },
+				{ folder: env.MODE === 'production' ? 'devist-files' : 'devist-dev-files', filename_override: params.name },
 				(error, result) => {
 					if (error) {
 						return reject(error);

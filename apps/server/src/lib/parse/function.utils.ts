@@ -1,8 +1,8 @@
+import _ from 'lodash';
 import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 
 import chalk from 'chalk';
-import _ from 'lodash';
 import { ZodError } from 'zod';
 
 import { getCorrectLocale } from '@org/shared/lib/i18n/i18n.utils';
@@ -25,6 +25,7 @@ import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
 
 import { USE_MASTER_KEY } from '../constants';
+import { env } from '../env';
 import { getT, i18nextServer } from '../i18n';
 
 import { getCurrentInstallationId, getInternalConfig } from './parse.utils';
@@ -427,9 +428,9 @@ const isNotValidIp = async ({
 		.select(['ipAddress'])
 		.first({ sessionToken });
 
-	const localMatchConditionIp = global.LOCAL && session?.get('ipAddress') !== req.ip;
+	const localMatchConditionIp = env.LOCAL && session?.get('ipAddress') !== req.ip;
 	const onlineMatchConditionIp =
-		!global.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
+		!env.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
 
 	return localMatchConditionIp || onlineMatchConditionIp;
 };
