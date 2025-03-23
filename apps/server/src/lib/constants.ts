@@ -15,10 +15,12 @@ export const corsWhiteList = {
 		'http://localhost:6180',
 		'http://127.0.0.1:6180',
 		'http://127.0.0.0:6180',
+		'http://[::1]:6180',
 		// front domain
 		'http://localhost:6181',
 		'http://127.0.0.1:6181',
 		'http://127.0.0.0:6181',
+		'http://[::1]:6181',
 	],
 	ONLINE: [
 		// Since the client builds arse served by the same server, the front and server domains are the same
