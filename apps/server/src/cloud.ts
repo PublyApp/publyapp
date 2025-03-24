@@ -3,11 +3,8 @@ import { logger } from '@/server/lib/winston';
 const functions = async () => {
 	await Promise.all([
 		// =================
-		import('@/server/modules/staff/blog/blog.functions'),
 		import('@/server/modules/tenant/file-manager/appFile/appFile.functions'),
 		import('@/server/modules/common/auth/auth.functions'),
-		// import('../resources/aiTool/aiTool.functions'),
-		// import('../resources/webHost/webHost.functions'),
 	]);
 };
 
@@ -22,7 +19,6 @@ const triggers = async () => {
 const jobs = async () => {
 	await Promise.all([
 		// =================
-		import('@/server/modules/staff/blog/blog.jobs'),
 	]);
 };
 

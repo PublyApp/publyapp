@@ -9,7 +9,7 @@ export type FileServiceProps = {
 	uploadAdapter: Uploader;
 };
 
-export default class AppFileService {
+export default class FileService {
 	sessionToken?: string;
 
 	uploadAdapter: Uploader;
