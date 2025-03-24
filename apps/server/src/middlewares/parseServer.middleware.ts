@@ -1,13 +1,16 @@
-import type express from 'express';
 import _ from 'lodash';
+
+import type express from 'express';
 
 import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
+import { HttpException } from '../exceptions/HttpException';
 import { PARSE_SERVER_URL, USE_MASTER_KEY } from '../lib/constants';
 import { env } from '../lib/env';
 import { expressHandler, getHeader, getRequestIp } from '../lib/express';
 import { getCurrentInstallationId } from '../lib/parse/parse.utils';
+import { logger } from '../lib/winston';
 
 const checkIsMaster = (req: express.Request) => {
 	return (
@@ -18,60 +21,61 @@ const checkIsMaster = (req: express.Request) => {
 
 const disableRestApiForClients = async (req: express.Request, _res: express.Response) => {
 	// eslint-disable-next-line @typescript-eslint/naming-convention
-	const _authorizedPaths = ['/health', '/functions'] satisfies `/${string}`[];
+	const _allowedPaths = ['/health', '/functions'] satisfies `/${string}`[];
 
-	const authorizedPaths: string[] = [..._authorizedPaths];
-	_authorizedPaths.forEach((path) => {
+	const authorizedPaths: string[] = [..._allowedPaths];
+	_allowedPaths.forEach((path) => {
 		authorizedPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
 	});
 
-	const isAuthorizedPath = authorizedPaths.some((path) => {
+	const isAllowedPath = authorizedPaths.some((path) => {
 		return req.path.startsWith(path);
 	});
 
-	if (isAuthorizedPath) {
+	if (isAllowedPath) {
 		return;
 	}
 
-	const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) || req.body._InstallationId;
+	const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) || _.get(req, 'body._InstallationId');
 	const cloudInstallationId = await getCurrentInstallationId();
 
 	if (installationId === cloudInstallationId) {
 		return;
 	}
 
-	throw new Error('unauthorized');
+	throw new HttpException(401, 'unauthorized');
 };
 
 const handleMatchSessionIp = async (req: express.Request, _res: express.Response) => {
 	// eslint-disable-next-line @typescript-eslint/naming-convention
-	const _sessionPaths = ['/classes/_Session', '/sessions'] satisfies `/${string}`[];
+	const _allowedPaths = ['/health'] satisfies `/${string}`[];
 
-	const sessionPaths: string[] = [..._sessionPaths];
-	_sessionPaths.forEach((path) => {
-		sessionPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
+	const allowedPaths: string[] = [..._allowedPaths];
+	_allowedPaths.forEach((path) => {
+		allowedPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
 	});
 
-	const isSessionPath = sessionPaths.some((path) => {
+	const isAllowedPath = allowedPaths.some((path) => {
 		return req.path.startsWith(path);
 	});
 
-	if (!isSessionPath) {
+	if (isAllowedPath) {
 		return;
 	}
 
-	const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) || req.body._InstallationId;
-	const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) || req.body._SessionToken;
+	const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) || _.get(req, 'body._InstallationId');
+	const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) || _.get(req, 'body._SessionToken');
 
 	const cloudInstallationId = await getCurrentInstallationId();
-
-	// logger.info(req.path);
-	// logger.info(installationId);
-	// logger.info(cloudInstallationId);
 
 	// * when directAccess equals to false (see ParseServer options),
 	// * we need to differentiate between cloud code calls to the API and client calls
 	if (installationId === cloudInstallationId) {
+		return;
+	}
+
+	// * no check to do if there is no session token
+	if (!sessionToken) {
 		return;
 	}
 
@@ -84,22 +88,36 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 		// ! directly use the master key instead
 		.first(USE_MASTER_KEY);
 
-	if (session) {
-		const requestIp = getRequestIp(req);
+	if (!session) {
+		logger.warn('Session token not found', { sessionToken });
+		throw new HttpException(401, 'Invalid session token');
+	}
 
-		if (session.get('ipAddress') !== requestIp) {
-			throw new Error('Invalid session token');
-		}
+	const requestIp = getRequestIp(req);
+
+	const sessionIp = session.get('ipAddress');
+
+	// * no check to do if there is no ip address in the session
+	// * we assume all ip are allowed for it
+	if (!sessionIp) {
+		return;
+	}
+
+	if (sessionIp !== requestIp) {
+		logger.warn('Ip address does not match', { sessionToken, requestIp, sessionIp });
+		throw new HttpException(401, 'Invalid session token');
 	}
 };
 
 const parseServerMiddleware = expressHandler(async (req, res, next) => {
 	const isMaster = checkIsMaster(req);
 
-	if (!isMaster) {
-		await disableRestApiForClients(req, res);
-		await handleMatchSessionIp(req, res);
+	if (isMaster) {
+		return next();
 	}
+
+	await disableRestApiForClients(req, res);
+	await handleMatchSessionIp(req, res);
 
 	return next();
 });
