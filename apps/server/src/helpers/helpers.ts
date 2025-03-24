@@ -14,11 +14,6 @@ import SessionSchema from '../modules/common/auth/session/session.schema';
 import Parse_CustomJoinUserToTenantSchema from '../modules/common/auth/tenant/$join-user-to-tenant.schema';
 import TenantSchema from '../modules/common/auth/tenant/tenant.schema';
 import UserSchema from '../modules/common/auth/user/user.schema';
-import BlogPostSchema from '../modules/staff/blog/blogPost/blogPost.schema';
-import BlogPostSlugSchema from '../modules/staff/blog/blogPostSlug/blogPostSlug.schema';
-import BlogPostTagSchema from '../modules/staff/blog/blogPostTag/blogPostTag.schema';
-import AppFileSchema from '../modules/tenant/file-manager/appFile/appFile.schema';
-import ShortUrlSchema from '../modules/tenant/url-shortener/shortUrl/shortUrl.schema';
 
 export const createRolesIfNotExists = async () => {
 	const roleEntries = Object.values(roleEnum).map((e) => {
@@ -143,15 +138,6 @@ export const updateSchemasOnInit = async () => {
 		UserSchema,
 		// === Multi Tenant
 		TenantSchema,
-		// === Blog
-		BlogPostSchema,
-		BlogPostSchema,
-		BlogPostSlugSchema,
-		BlogPostTagSchema,
-		// === File manager
-		AppFileSchema,
-		// === URL Shortener,
-		ShortUrlSchema,
 		// === Custom Joins
 		Parse_CustomJoinUserToTenantSchema,
 	]);
