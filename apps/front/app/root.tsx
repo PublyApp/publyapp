@@ -7,7 +7,7 @@ import { useChangeLanguage } from 'remix-i18next/react';
 
 import type { Route } from './+types/root';
 import { defaultQueryClient } from './lib/react-query/queryClient';
-import { getServerLoader } from './lib/react-router/function.server';
+import { getServerLoader } from './lib/react-router/server.data';
 
 export const loader = getServerLoader({
 	loader: async ({ locale }) => {

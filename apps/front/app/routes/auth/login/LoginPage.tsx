@@ -5,8 +5,8 @@ import { data, redirect } from 'react-router';
 import duration from '@org/shared/utils/duration.utils';
 
 import { CookieManager } from '@/front/lib/cookie-manager';
-import { getServerAction } from '@/front/lib/react-router/function.server';
 import { safeRun } from '@/front/lib/react-router/safeRun';
+import { getServerAction } from '@/front/lib/react-router/server.data';
 import { FRONT_PATH_NAMES, LAST_USED_TENANT_ID_COOKIE_KEY, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
