@@ -10,6 +10,7 @@ import { PanelLeft } from 'lucide-react';
 import { Link, type To } from 'react-router';
 
 import { useIsMobile } from '@/front/hooks/useIsMobile';
+import { APP_ID } from '@/shared/lib/constants';
 
 import { Button } from './Button';
 import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from './Drawer';
@@ -17,7 +18,7 @@ import { cx, focusRing } from './tremor.utils';
 
 // This component is based on shadcn's sidebar component
 
-const SIDEBAR_COOKIE_NAME = 'sidebar:state';
+export const SIDEBAR_COOKIE_NAME = `${APP_ID}:sidebar_state`;
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = '16rem';
 

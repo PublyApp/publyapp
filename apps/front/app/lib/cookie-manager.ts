@@ -1,5 +1,6 @@
-import { isServer } from '@tanstack/react-query';
 import _ from 'lodash';
+
+import { isServer } from '@tanstack/react-query';
 
 export class CookieManager {
 	source?: Headers;
@@ -49,6 +50,7 @@ export class CookieManager {
 	set(
 		name: string,
 		value: string,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		options?: Record<string, any> & {
 			expires?: Date;
 			maxAge?: number;

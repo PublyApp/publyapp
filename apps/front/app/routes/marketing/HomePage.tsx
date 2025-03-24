@@ -18,6 +18,10 @@ const HomePage = ({ loaderData: _ }: Route.ComponentProps) => {
 			<Link to={{ pathname: FRONT_PATH_NAMES.auth.login }} className="text-blue-500 underline">
 				Log in
 			</Link>
+			<br />
+			<Link to={{ pathname: FRONT_PATH_NAMES.staff.root }} className="text-blue-500 underline">
+				Go to staff dashboard
+			</Link>
 		</div>
 	);
 };
