@@ -11,6 +11,8 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
+const _ = require('lodash');
+
 const chokidar = require('chokidar');
 
 const { createRsbuild, watch: _watch, createI18nResourcesFiles } = require('./config');
@@ -39,20 +41,36 @@ const run = async () => {
 			startAppProcess = null;
 		}
 
-		startAppProcess = spawn('node', ['--enable-source-maps', /* '--trace-deprecation', */ 'dist/index.mjs'], {
+		const startCommand = ['node', '--enable-source-maps', 'dist/index.mjs'];
+
+		// eslint-disable-next-line arrow-body-style
+		console.log(
+			'\x1b[32m%s\x1b[0m',
+			'====>',
+			startCommand
+				.map((arg) => {
+					return arg.includes(' ') ? `"${arg}"` : arg;
+				})
+				.join(' '),
+		);
+
+		const [node, ...args] = startCommand;
+
+		startAppProcess = spawn(node, args, {
 			stdio: 'inherit',
 			cwd: path.resolve(__dirname, '../../'),
-			env: {
-				...process.env,
+			env: _.assign({}, process.env, {
 				// even during development, set NODE_ENV to production
 				// so that we can have production-like behavior
 				// (e.g. the app will not crash on missing env variables + better performance)
 				// To differentiate between development and production, use process.env.MODE instead of process.env.NODE_ENV
 				// (MODE is set by the user in the .env.local file or at node command line launch)
-				NODE_ENV: 'PRODUCTION',
-			},
+				NODE_ENV: 'production',
+			}),
 		});
-		// startAppProcess = spawn('npm.cmd', ['start'], { stdio: 'inherit', cwd: __dirname }); // ! subprocesses of subprocess are not killed
+
+		// ! subprocesses of subprocess are not killed
+		// startAppProcess = spawn('npm.cmd', ['start'], { stdio: 'inherit', cwd: __dirname });
 	});
 
 	process.stdin.on('data', (data) => {

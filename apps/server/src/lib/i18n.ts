@@ -11,7 +11,6 @@ export const initI18next = async () => {
 
 	await i18next.init({
 		debug: false,
-		// debug: process.env.NODE_ENV === 'development',
 		resources,
 		compatibilityJSON: 'v4',
 		fallbackLng: defaultLocale,
