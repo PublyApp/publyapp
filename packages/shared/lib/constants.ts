@@ -1,6 +1,5 @@
 import _ from 'lodash';
 
-import { imageFormatTypes } from '../types/db/appFile.types';
 import type { IRole } from '../types/db/role.types';
 import { makePath } from '../utils/string.utils';
 
@@ -282,25 +281,6 @@ export const endPoint = {
 export const DEFAULT_PAGE_SIZE = 25;
 
 export const isServer = typeof window === 'undefined';
-
-export const IMAGE_FORMAT_CONFIG = {
-	[imageFormatTypes[0]]: {
-		width: 100,
-		height: 100,
-	},
-	[imageFormatTypes[1]]: {
-		width: 200,
-		height: 200,
-	},
-	[imageFormatTypes[2]]: {
-		width: 300,
-		height: 300,
-	},
-	[imageFormatTypes[3]]: {
-		width: 400,
-		height: 400,
-	},
-};
 
 export const fileProvider = {
 	LOCAL_DISK: 'localDisk',
