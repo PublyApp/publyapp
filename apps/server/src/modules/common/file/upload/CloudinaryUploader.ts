@@ -3,19 +3,24 @@ import streamifier from 'streamifier';
 
 import cloudinary from '@/server/lib/cloudinary';
 import { env } from '@/server/lib/env';
-import { fileProvider } from '@/shared/lib/constants';
+import { APP_ID, fileProvider } from '@/shared/lib/constants';
+import { makePath } from '@/shared/utils/string.utils';
 
 import { type Uploader, type UploadInput } from './Uploader.interface';
 
-export default class CloudinaryUploader implements Uploader {
+export default class CloudinaryUploader implements Uploader<UploadApiResponse> {
 	provider = fileProvider.CLOUDINARY;
 
-	// eslint-disable-next-line class-methods-use-this
 	async upload(params: UploadInput) {
-		// eslint-disable-next-line no-new
 		const uploadPromise = new Promise<UploadApiResponse | undefined>((resolve, reject) => {
 			const cloudinaryUploadStream = cloudinary.uploader.upload_stream(
-				{ folder: env.MODE === 'production' ? 'devist-files' : 'devist-dev-files', filename_override: params.name },
+				{
+					folder:
+						env.MODE === 'production'
+							? makePath(`${APP_ID}-prod-files`, params.folderPath || '')
+							: makePath(`${APP_ID}-dev-files`, params.folderPath || ''),
+					filename_override: params.name,
+				},
 				(error, result) => {
 					if (error) {
 						return reject(error);
@@ -38,6 +43,8 @@ export default class CloudinaryUploader implements Uploader {
 
 		return {
 			url: result.url,
+			provider: this.provider,
+			meta: result,
 		};
 	}
 }
