@@ -238,8 +238,6 @@ const bootstrap = async () => {
 		initCloudinary(),
 		setUpGlobalConfig(),
 	]);
-
-	// UserManagementServiceForStaff.findStaffUsersForStaffAdminTable();
 };
 
 bootstrap();
