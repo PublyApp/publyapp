@@ -1,5 +1,6 @@
-import async from 'async';
 import _ from 'lodash';
+
+import async from 'async';
 import { nanoid } from 'nanoid';
 import sharp from 'sharp';
 
