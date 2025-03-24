@@ -5,7 +5,6 @@
   ],
   "globalEnv": [
     "ONLINE",
-    "PRODUCTION",
     "PORT",
     "DATABASE_URI",
     "MASTER_KEY",

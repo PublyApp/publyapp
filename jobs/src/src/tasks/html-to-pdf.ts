@@ -1,8 +1,9 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable prefer-arrow/prefer-arrow-functions */
 /* eslint-disable func-style */
-import { Storage } from '@google-cloud/storage';
 import _ from 'lodash';
+
+import { Storage } from '@google-cloud/storage';
 import { MongoClient } from 'mongodb';
 import { nanoid } from 'nanoid';
 import { chromium } from 'playwright';
