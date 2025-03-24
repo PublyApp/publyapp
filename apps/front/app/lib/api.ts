@@ -23,6 +23,8 @@ export const initApiClientOnClient = (i18n: I18n) => {
 	defaultApiClient.parseRestClient.setSessionToken(sessionToken);
 	defaultApiClient.parseRestClient.setHeader(LOCALE_HEADER_KEY, i18n.language);
 	// TODO: set last used tenant id header too
+
+	return defaultApiClient;
 };
 
 export const initApiClientOnServer = ({ locale, sessionToken }: { locale: AppLocale; sessionToken?: string }) => {

@@ -1,8 +1,7 @@
 import type { ApiClient } from 'packages/api/ApiClient';
 import { redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router';
 
-import { FRONT_PATH_NAMES, queryParamKey, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import { FRONT_PATH_NAMES, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
 
@@ -10,12 +9,7 @@ import { initApiClientOnServer } from '../api';
 import { CookieManager } from '../cookie-manager';
 import { remixI18NextServer } from '../i18n/i18n.server';
 
-const getRequestLocale = (request: Request) => {
-	const url = new URL(request.url);
-	const language = url.searchParams.get(queryParamKey.language);
-	const locale = getCorrectLocale(language);
-	return locale;
-};
+import { getRequestLocale } from './data.utils';
 
 type GetServerLoaderParamsWhenRequireUser<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> = {
 	requireUser: true;
@@ -66,13 +60,13 @@ type GetServerLoader = {
 	): (args: T) => Promise<D>;
 };
 
-type GetServerLoaderParam<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> =
+type GetServerLoaderParams<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> =
 	| GetServerLoaderParamsWhenRequireUser<T, D>
 	| GetServerLoaderParamsWithoutAuthDataPromise<T, D>
 	| GetServerLoaderParamsWithAuthDataPromise<T, D>;
 
 export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
-	params: GetServerLoaderParam<T, D>,
+	params: GetServerLoaderParams<T, D>,
 ) => {
 	const loader = async (args: T) => {
 		const { request } = args;

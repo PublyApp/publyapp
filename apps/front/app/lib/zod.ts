@@ -10,4 +10,5 @@ export const defaultZodClient = new InterZod({ i18n: i18next });
 export const initZodOnClient = (i18n: I18n) => {
 	const locale = getCorrectLocale(i18n.language);
 	defaultZodClient.setLocale(locale);
+	return defaultZodClient;
 };
