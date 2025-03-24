@@ -1,5 +1,6 @@
-import type { TFunction } from 'i18next';
 import _ from 'lodash';
+
+import type { TFunction } from 'i18next';
 
 import { roleEnum } from '@org/shared/lib/constants';
 
@@ -8,34 +9,34 @@ import { parseTriggerEnhanced } from '@/server/lib/parse/function.utils';
 
 import RoleService from '../role/role.service';
 
-// import ParseUserProfile from '../userProfile/userProfile.class';
-
 // --------------------------------------------------------------------------------------//
 //                                     BEFORE SAVE                                       //
 // --------------------------------------------------------------------------------------//
 
 // check if object ot save is new, set value into request context then returns the value
-const checkIsNew = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User> }) => {
-	const userToSave = req.object;
-	const isNew = !(await userToSave.exists());
-	_.set(req, 'context.isNew', isNew);
-	return isNew;
-};
+// const checkIsNew = async ({ req }: { req: Parse.Cloud.TriggerRequest<Parse.User> }) => {
+// 	const userToSave = req.object;
+// 	const isNew = !(await userToSave.exists());
+// 	_.set(req, 'context.isNew', isNew);
+// 	return isNew;
+// };
 
-const setUserACL = ({ req, isNew }: { req: Parse.Cloud.TriggerRequest<Parse.User>; isNew: boolean }) => {
-	if (isNew) {
-		const user = req.object;
+// ! this only made sense because I wanted to implement built-in blog module
+// ! After consideration, We will rey on some headless CMS solution instead for our blog
+// const setUserACL = ({ req, isNew }: { req: Parse.Cloud.TriggerRequest<Parse.User>; isNew: boolean }) => {
+// 	if (isNew) {
+// 		const user = req.object;
 
-		const acl = new Parse.ACL();
-		acl.setPublicReadAccess(true);
-		user.setACL(acl);
-	}
-};
+// 		const acl = new Parse.ACL();
+// 		acl.setPublicReadAccess(true);
+// 		user.setACL(acl);
+// 	}
+// };
 
 const beforeSaveUser = parseTriggerEnhanced<Parse.User>({
-	trigger: async ({ req }) => {
-		const isNew = await checkIsNew({ req });
-		setUserACL({ req, isNew });
+	trigger: async ({ req: _req }) => {
+		// const isNew = await checkIsNew({ req });
+		// setUserACL({ req, isNew });
 	},
 });
 
