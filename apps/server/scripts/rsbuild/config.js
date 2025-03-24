@@ -133,6 +133,14 @@ function createRsbuild() {
 					seed: './src/_seed.ts',
 					migrations: './src/_migrations.ts',
 				},
+				define: {
+					// even during development, set NODE_ENV to production
+					// so that we can have production-like behavior
+					// (e.g. the app will not crash on missing env variables + better performance)
+					// To differentiate between development and production, use process.env.MODE instead of process.env.NODE_ENV
+					// (MODE is set by the user in the .env.local file or at node command line launch)
+					'process.env.NODE_ENV': JSON.stringify('production'),
+				},
 			},
 			output: {
 				target: 'node',
@@ -177,7 +185,7 @@ function build(rsbuild) {
 exports.build = build;
 
 async function createI18nResourcesFiles(resources) {
-	console.log('\x1b[32m%s\x1b[0m', '-> started creating i18n resources files');
+	console.log('\x1b[32m%s\x1b[0m', '====> started creating i18n resources files');
 	const pipelineAsync = promisify(pipeline);
 	await Promise.all(
 		Object.entries(resources).map(async ([lang, namespaces]) => {
@@ -196,7 +204,7 @@ async function createI18nResourcesFiles(resources) {
 			);
 		}),
 	);
-	console.log('\x1b[32m%s\x1b[0m', '-> finished creating i18n resources files');
+	console.log('\x1b[32m%s\x1b[0m', '====> finished creating i18n resources files');
 }
 
 exports.createI18nResourcesFiles = createI18nResourcesFiles;

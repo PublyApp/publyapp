@@ -100,6 +100,10 @@ declare module 'parse-server' {
 		enableAnonymousUsers?: boolean;
 		enableCollationCaseComparison?: boolean;
 		encodeParseObjectInCloudFunction?: boolean;
+
+		pages?: {
+			enableRouter?: boolean;
+		};
 	} & Record<string, any>;
 
 	type AccountLockoutOptions = {

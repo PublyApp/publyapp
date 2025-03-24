@@ -121,6 +121,9 @@ const bootstrap = async () => {
 			triggerBeforeError: 'silent',
 			triggerBeforeSuccess: 'silent',
 		},
+		pages: {
+			enableRouter: true,
+		},
 		// =============================================
 		// verifyUserEmails: true,
 		// preserveFileName: true,
