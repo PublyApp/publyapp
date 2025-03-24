@@ -3,7 +3,6 @@ import { logger } from '@/server/lib/winston';
 const functions = async () => {
 	await Promise.all([
 		// =================
-		import('@/server/modules/tenant/file-manager/appFile/appFile.functions'),
 		import('@/server/modules/common/auth/auth.functions'),
 	]);
 };
