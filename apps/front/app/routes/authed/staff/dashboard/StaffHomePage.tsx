@@ -8,8 +8,8 @@ export const loader = () => {
 	return redirect(FRONT_PATH_NAMES.staff.tenants.root);
 };
 
-const AdminDashboardPage = () => {
-	return <DashboardContainer>AdminDashboardPage</DashboardContainer>;
+const StaffHomePage = () => {
+	return <DashboardContainer>StaffHomePage</DashboardContainer>;
 };
 
-export default AdminDashboardPage;
+export default StaffHomePage;

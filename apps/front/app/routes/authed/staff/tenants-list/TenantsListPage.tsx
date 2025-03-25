@@ -1,13 +1,13 @@
-import Table from '@/front/components/Table';
+import BasicTable from '@/front/components/BasicTable';
 import DashboardContainer from '@/front/components/ui/layout/DashboardContainer';
 
-const AdminTenantsListPage = () => {
+const TenantsListPage = () => {
 	return (
 		<DashboardContainer>
 			<h1>Admin: Tenants List Page</h1>
-			<Table />
+			<BasicTable />
 		</DashboardContainer>
 	);
 };
 
-export default AdminTenantsListPage;
+export default TenantsListPage;
