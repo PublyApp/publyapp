@@ -1,12 +1,12 @@
 import { Outlet } from 'react-router';
 
-import type { Route } from './+types/AdminPagesLayout';
+import type { Route } from './+types/StaffLayout';
 
-const AdminPagesLayout = () => {
+const StaffLayout = () => {
 	return <Outlet />;
 };
 
-export default AdminPagesLayout;
+export default StaffLayout;
 
 // eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions, react/function-component-definition
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

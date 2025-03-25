@@ -24,7 +24,7 @@ const data: Person[] = [
 	},
 ];
 
-const Table = () => {
+const BasicTable = () => {
 	// column definitions - strongly typed if you are using TypeScript (optional, but recommended)
 	const columns = useMemo<MRT_ColumnDef<Person>[]>(() => {
 		return [
@@ -57,4 +57,4 @@ const Table = () => {
 	return <MantineReactTable table={table} />;
 };
 
-export default Table;
+export default BasicTable;
