@@ -2,7 +2,9 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 import { useMemo } from 'react';
 
+import { Button } from '@mantine/core';
 import {
+	MRT_EditActionButtons,
 	useMantineReactTable, // if using TypeScript (optional, but recommended)
 	type MRT_ColumnDef,
 } from 'mantine-react-table';
@@ -100,6 +102,7 @@ const TenantsTable = () => {
 		enableRowSelection: true, // enable some features
 		enableColumnOrdering: true, // enable a feature for all columns
 		enableGlobalFilter: false, // turn off a feature
+		enableDensityToggle: false,
 		enableRowActions: true, // enable a feature for all rows
 		positionActionsColumn: 'last',
 		renderRowActions: () => {
@@ -120,6 +123,35 @@ const TenantsTable = () => {
 						Delete
 					</div>
 				</>
+			);
+		},
+		createDisplayMode: 'modal',
+		renderCreateRowModalContent: ({ table: t, row, internalEditComponents }) => (
+			// eslint-disable-next-line arrow-body-style
+			<div>
+				<div /* order={3} */>Create New User</div>
+				{internalEditComponents}
+				<div /* justify="flex-end" mt="xl" */>
+					{/* eslint-disable-next-line react/jsx-pascal-case */}
+					<MRT_EditActionButtons variant="text" table={t} row={row} />
+				</div>
+			</div>
+		),
+		renderTopToolbarCustomActions: () => {
+			return (
+				<Button
+					onClick={() => {
+						table.setCreatingRow(true); // simplest way to open the create row modal with no default values
+						// or you can pass in a row object to set default values with the `createRow` helper function
+						// table.setCreatingRow(
+						//   createRow(table, {
+						//     //optionally pass in default values for the new row, useful for nested data or other complex scenarios
+						//   }),
+						// );
+					}}
+				>
+					Create New User
+				</Button>
 			);
 		},
 	});
