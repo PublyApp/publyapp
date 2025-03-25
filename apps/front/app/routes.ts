@@ -6,19 +6,19 @@ import { getLastPath } from '@org/shared/utils/string.utils';
 
 const routes = [
 	layout('routes/marketing/MarketingPagesLayout.tsx', [
-		// ==
+		// ====
 		index('routes/marketing/HomePage.tsx'),
 	]),
 	layout('routes/auth/AuthPagesLayout.tsx', [
 		route(getLastPath(FRONT_PATH_NAMES.auth.login), 'routes/auth/login/LoginPage.tsx'),
 	]),
 	layout('routes/authed/AuthedPagesLayout.tsx', [
-		route(getLastPath(FRONT_PATH_NAMES.staff.root), 'routes/authed/admin/AdminPagesLayout.tsx', [
-			index('routes/authed/admin/dashboard/AdminDashboardPage.tsx'),
-			route(getLastPath(FRONT_PATH_NAMES.staff.tenants.root), 'routes/authed/admin/tenants/AdminTenantsListPage.tsx'),
+		route(getLastPath(FRONT_PATH_NAMES.staff.root), 'routes/authed/staff/StaffLayout.tsx', [
+			index('routes/authed/staff/dashboard/StaffHomePage.tsx'),
+			route(getLastPath(FRONT_PATH_NAMES.staff.tenants.root), 'routes/authed/staff/tenants-list/TenantsListPage.tsx'),
 		]),
-		route(getLastPath(FRONT_PATH_NAMES.tenant(':tenantId').root, 2), 'routes/authed/client/TenantPagesLayout.tsx', [
-			index('routes/authed/client/dashboard/TenantDashboardPage.tsx'),
+		route(getLastPath(FRONT_PATH_NAMES.tenant(':tenantId').root, 2), 'routes/authed/tenant/TenantLayout.tsx', [
+			index('routes/authed/tenant/dashboard/TenantHomePage.tsx'),
 		]),
 		route('*', 'routes/authed/errors/AuthedNotFoundPage.tsx'),
 	]),
