@@ -1,11 +1,12 @@
-import BasicTable from '@/front/components/BasicTable';
 import DashboardContainer from '@/front/components/ui/layout/DashboardContainer';
+
+import TenantsTable from './parts/TenantsTable';
 
 const TenantsListPage = () => {
 	return (
 		<DashboardContainer>
 			<h1>Admin: Tenants List Page</h1>
-			<BasicTable />
+			<TenantsTable />
 		</DashboardContainer>
 	);
 };
