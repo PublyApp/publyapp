@@ -8,10 +8,11 @@
     "build": "react-router build",
     "build:dev": "react-router build --mode development",
     "build:local": "pnpm build:dev",
-    "start": "react-router-serve ./build/server/index.js",
+    "start": "cross-env PORT=6181 react-router-serve ./build/server/index.js",
     "type-check": "react-router typegen && tsc"
   },
   "dependencies": {
+		"cross-env": "^7.0.3",
     "@hookform/resolvers": "^3.3.4",
     "@internationalized/date": "^3.6.0",
     "@mantine/core": "^7.17.2",
