@@ -10,4 +10,7 @@ export default defineConfig({
 	server: {
 		port: 6181,
 	},
+	ssr: {
+		noExternal: ['mantine-react-table'],
+	},
 });

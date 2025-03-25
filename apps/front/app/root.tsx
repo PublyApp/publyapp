@@ -1,3 +1,6 @@
+import '@mantine/core/styles.css'; // import Mantine V7 styles needed by MRT
+import '@mantine/dates/styles.css'; // if using mantine date picker features
+import 'mantine-react-table/styles.css'; // import MRT styles
 import './styles/main.css';
 
 import { QueryClientProvider } from '@tanstack/react-query';
