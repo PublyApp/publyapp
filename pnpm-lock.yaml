@@ -56,6 +56,15 @@ importers:
       '@internationalized/date':
         specifier: ^3.6.0
         version: 3.7.0
+      '@mantine/core':
+        specifier: ^7.17.2
+        version: 7.17.2(@mantine/hooks@7.17.2)(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0)
+      '@mantine/dates':
+        specifier: ^7.17.2
+        version: 7.17.2(@mantine/core@7.17.2)(@mantine/hooks@7.17.2)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0)
+      '@mantine/hooks':
+        specifier: ^7.17.2
+        version: 7.17.2(react@19.0.0)
       '@org/api':
         specifier: workspace:*
         version: link:../../packages/api
@@ -116,6 +125,9 @@ importers:
       '@remixicon/react':
         specifier: ^4.6.0
         version: 4.6.0(react@19.0.0)
+      '@tabler/icons-react':
+        specifier: 3.11.0
+        version: 3.11.0(react@19.0.0)
       '@tailwindcss/vite':
         specifier: ^4.0.4
         version: 4.0.4(vite@5.4.14)
@@ -132,7 +144,7 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
       dayjs:
-        specifier: ^1.11.10
+        specifier: ^1.11.12
         version: 1.11.12
       i18next:
         specifier: ^24.2.2
@@ -155,6 +167,9 @@ importers:
       lucide-react:
         specifier: ^0.473.0
         version: 0.473.0(react@19.0.0)
+      mantine-react-table:
+        specifier: 2.0.0-beta.9
+        version: 2.0.0-beta.9(@mantine/core@7.17.2)(@mantine/dates@7.17.2)(@mantine/hooks@7.17.2)(@tabler/icons-react@3.11.0)(clsx@2.1.1)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0)
       nanoid:
         specifier: ^5.0.4
         version: 5.0.7
@@ -1973,6 +1988,19 @@ packages:
       react-dom: 19.0.0(react@19.0.0)
     dev: false
 
+  /@floating-ui/react@0.26.28(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-yORQuuAtVpiRjpMhdc0wJj06b9JFjrYF4qp96j++v2NBpbi6SEGF7donUJ3TMieerQ6qVkAv1tgr7L4r5roTqw==}
+    peerDependencies:
+      react: '>=16.8.0'
+      react-dom: '>=16.8.0'
+    dependencies:
+      '@floating-ui/react-dom': 2.1.2(react-dom@19.0.0)(react@19.0.0)
+      '@floating-ui/utils': 0.2.9
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+      tabbable: 6.2.0
+    dev: false
+
   /@floating-ui/utils@0.2.9:
     resolution: {integrity: sha512-MDWhGtE+eHw5JW7lq4qhc5yRLS11ERl1c7Z6Xd0a58DozHES6EnNNwUWbMiG4J9Cgj053Bhk8zvlhFYKVhULwg==}
     dev: false
@@ -2641,6 +2669,51 @@ packages:
   /@lukeed/ms@2.0.2:
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
     engines: {node: '>=8'}
+    dev: false
+
+  /@mantine/core@7.17.2(@mantine/hooks@7.17.2)(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-R6MYhitJ0JEgrhadd31Nw9FhRaQwDHjXUs5YIlitKH/fTOz9gKSxKjzmNng3bEBQCcbEDOkZj3FRcBgTUh/F0Q==}
+    peerDependencies:
+      '@mantine/hooks': 7.17.2
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
+    dependencies:
+      '@floating-ui/react': 0.26.28(react-dom@19.0.0)(react@19.0.0)
+      '@mantine/hooks': 7.17.2(react@19.0.0)
+      clsx: 2.1.1
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+      react-number-format: 5.4.3(react-dom@19.0.0)(react@19.0.0)
+      react-remove-scroll: 2.6.3(@types/react@19.0.0)(react@19.0.0)
+      react-textarea-autosize: 8.5.6(@types/react@19.0.0)(react@19.0.0)
+      type-fest: 4.30.0
+    transitivePeerDependencies:
+      - '@types/react'
+    dev: false
+
+  /@mantine/dates@7.17.2(@mantine/core@7.17.2)(@mantine/hooks@7.17.2)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-7bB992j8f+uEi280jab0/8i5yfsN/3oSrMDFwatZ+7XSDUwiP0YFib/FVX0pNSSqdFpbXhUmsZEECX71QtHw+Q==}
+    peerDependencies:
+      '@mantine/core': 7.17.2
+      '@mantine/hooks': 7.17.2
+      dayjs: '>=1.0.0'
+      react: ^18.x || ^19.x
+      react-dom: ^18.x || ^19.x
+    dependencies:
+      '@mantine/core': 7.17.2(@mantine/hooks@7.17.2)(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0)
+      '@mantine/hooks': 7.17.2(react@19.0.0)
+      clsx: 2.1.1
+      dayjs: 1.11.12
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+    dev: false
+
+  /@mantine/hooks@7.17.2(react@19.0.0):
+    resolution: {integrity: sha512-tbErVcGZu0E4dSmE6N0k6Tv1y9R3SQmmQgwqorcc+guEgKMdamc36lucZGlJnSGUmGj+WLUgELkEQ0asdfYBDA==}
+    peerDependencies:
+      react: ^18.x || ^19.x
+    dependencies:
+      react: 19.0.0
     dev: false
 
   /@mjackson/node-fetch-server@0.2.0:
@@ -4892,6 +4965,19 @@ packages:
       defer-to-connect: 2.0.1
     dev: false
 
+  /@tabler/icons-react@3.11.0(react@19.0.0):
+    resolution: {integrity: sha512-xHNBi9mns1slvqos+7LkP3ube4CjWrANMbxMaorzwzO9J/+y1sAEG/sN8CV8FmtpYW/9/gDR+OWCjjLLg0RmAw==}
+    peerDependencies:
+      react: '>= 16'
+    dependencies:
+      '@tabler/icons': 3.11.0
+      react: 19.0.0
+    dev: false
+
+  /@tabler/icons@3.11.0:
+    resolution: {integrity: sha512-/vZinJNvCYhdAB+RUsyCpanSPuOEKHHIZi4Uu0Bw7ilewHnQhCWUPrT704uHCRli2ROl7spADPmWzAqOganA5A==}
+    dev: false
+
   /@tailwindcss/node@4.0.4:
     resolution: {integrity: sha512-VLFq80IyoV1hsHPcCm1mmlyPyUT6NlovQLoO2y7PGm84mW94ZrNJ7ax5H6K4M7Aj/fdMfem5IX7Ka+LXWZpDGg==}
     dependencies:
@@ -5028,6 +5114,13 @@ packages:
       vite: 5.4.14(@types/node@20.14.15)
     dev: false
 
+  /@tanstack/match-sorter-utils@8.19.4:
+    resolution: {integrity: sha512-Wo1iKt2b9OT7d+YGhvEPD3DXvPv2etTusIMhMUoG7fbhmxcXCtIjJDEygy91Y2JFlwGyjqiBPRozme7UD8hoqg==}
+    engines: {node: '>=12'}
+    dependencies:
+      remove-accents: 0.5.0
+    dev: false
+
   /@tanstack/query-core@5.62.9:
     resolution: {integrity: sha512-lwePd8hNYhyQ4nM/iRQ+Wz2cDtspGeZZHFZmCzHJ7mfKXt+9S301fULiY2IR2byJYY6Z03T427E5PoVfMexHjw==}
     dev: false
@@ -5039,6 +5132,18 @@ packages:
     dependencies:
       '@tanstack/query-core': 5.62.9
       react: 19.0.0
+    dev: false
+
+  /@tanstack/react-table@8.20.5(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-WEHopKw3znbUZ61s9i0+i9g8drmDo6asTWbrQh8Us63DAk/M0FkmIqERew6P71HI75ksZ2Pxyuf4vvKh9rAkiA==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      react: '>=16.8'
+      react-dom: '>=16.8'
+    dependencies:
+      '@tanstack/table-core': 8.20.5
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
     dev: false
 
   /@tanstack/react-table@8.20.6(react-dom@19.0.0)(react@19.0.0):
@@ -5053,9 +5158,24 @@ packages:
       react-dom: 19.0.0(react@19.0.0)
     dev: false
 
+  /@tanstack/react-virtual@3.11.2(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-OuFzMXPF4+xZgx8UzJha0AieuMihhhaWG0tCqpp6tDzlFwOmNBPYMuLOtMJ1Tr4pXLHmgjcWhG6RlknY2oNTdQ==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    dependencies:
+      '@tanstack/virtual-core': 3.11.2
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+    dev: false
+
   /@tanstack/table-core@8.20.5:
     resolution: {integrity: sha512-P9dF7XbibHph2PFRz8gfBKEXEY/HJPOhym8CHmjF8y3q5mWpKx9xtZapXQUWCgkqvsK0R46Azuz+VaxD4Xl+Tg==}
     engines: {node: '>=12'}
+    dev: false
+
+  /@tanstack/virtual-core@3.11.2:
+    resolution: {integrity: sha512-vTtpNt7mKCiZ1pwU9hfKPhpdVO2sVzFQsxoVBGtOSHxlrRRzYr8iQ2TlwbAcRYCcEiZ9ECAM8kBzH0v2+VzfKw==}
     dev: false
 
   /@tootallnate/once@2.0.0:
@@ -10824,6 +10944,32 @@ packages:
     resolution: {integrity: sha512-s8UhlNe7vPKomQhC1qFelMokr/Sc3AgNbso3n74mVPA5LTZwkB9NlXf4XPamLxJE8h0gh73rM94xvwRT2CVInw==}
     dev: true
 
+  /mantine-react-table@2.0.0-beta.9(@mantine/core@7.17.2)(@mantine/dates@7.17.2)(@mantine/hooks@7.17.2)(@tabler/icons-react@3.11.0)(clsx@2.1.1)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-ZdfcwebWaPERoDvAuk43VYcBCzamohARVclnbuepT0PHZ0wRcDPMBR+zgaocL+pFy8EXUGwvWTOKNh25ITpjNQ==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      '@mantine/core': ^7.9
+      '@mantine/dates': ^7.9
+      '@mantine/hooks': ^7.9
+      '@tabler/icons-react': '>=2.23.0'
+      clsx: '>=2'
+      dayjs: '>=1.11'
+      react: '>=18.0'
+      react-dom: '>=18.0'
+    dependencies:
+      '@mantine/core': 7.17.2(@mantine/hooks@7.17.2)(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0)
+      '@mantine/dates': 7.17.2(@mantine/core@7.17.2)(@mantine/hooks@7.17.2)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0)
+      '@mantine/hooks': 7.17.2(react@19.0.0)
+      '@tabler/icons-react': 3.11.0(react@19.0.0)
+      '@tanstack/match-sorter-utils': 8.19.4
+      '@tanstack/react-table': 8.20.5(react-dom@19.0.0)(react@19.0.0)
+      '@tanstack/react-virtual': 3.11.2(react-dom@19.0.0)(react@19.0.0)
+      clsx: 2.1.1
+      dayjs: 1.11.12
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+    dev: false
+
   /markdown-it@12.3.2:
     resolution: {integrity: sha512-TchMembfxfNVpHkbtriWltGWc+m3xszaRD0CZup7GFFhzIgQqxIfn3eGj1yZpfuflzPvfkt611B2Q/Bsk1YnGg==}
     hasBin: true
@@ -12643,6 +12789,16 @@ packages:
     resolution: {integrity: sha512-FNbLuG/HAdapQoybeZSoes1PWdOj0w242gb+e1R0hicf3Gyj/Mf8M9NaED2AnXVOX01b2FXomwUiw1xP1K+8sA==}
     dev: false
 
+  /react-number-format@5.4.3(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-VCY5hFg/soBighAoGcdE+GagkJq0230qN6jcS5sp8wQX1qy1fYN/RX7/BXkrs0oyzzwqR8/+eSUrqXbGeywdUQ==}
+    peerDependencies:
+      react: ^0.14 || ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^0.14 || ^15.0.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    dependencies:
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+    dev: false
+
   /react-popper-tooltip@4.4.2(react-dom@16.14.0)(react@16.14.0):
     resolution: {integrity: sha512-y48r0mpzysRTZAIh8m2kpZ8S1YPNqGtQPDrlXYSGvDS1c1GpG/NUXbsbIdfbhXfmSaRJuTcaT6N1q3CKuHRVbg==}
     peerDependencies:
@@ -12879,6 +13035,20 @@ packages:
       - '@types/react'
     dev: false
 
+  /react-textarea-autosize@8.5.6(@types/react@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-aT3ioKXMa8f6zHYGebhbdMD2L00tKeRX1zuVuDx9YQK/JLLRSaSxq3ugECEmUB9z2kvk6bFSIoRHLkkUv0RJiw==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    dependencies:
+      '@babel/runtime': 7.26.0
+      react: 19.0.0
+      use-composed-ref: 1.3.0(react@19.0.0)
+      use-latest: 1.2.1(@types/react@19.0.0)(react@19.0.0)
+    transitivePeerDependencies:
+      - '@types/react'
+    dev: false
+
   /react-transition-group@4.4.5(react-dom@19.0.0)(react@19.0.0):
     resolution: {integrity: sha512-pZcd1MCJoiKiBR2NRxeCRg13uCXbydPnmB4EOeRrY7480qNWO8IIgQG6zlDkm6uRMsURXPuKq0GWtiM59a5Q6g==}
     peerDependencies:
@@ -13100,6 +13270,10 @@ packages:
       react-router: 7.3.0(react-dom@19.0.0)(react@19.0.0)
       type-fest: 4.30.0
       zod: 3.23.8
+    dev: false
+
+  /remove-accents@0.5.0:
+    resolution: {integrity: sha512-8g3/Otx1eJaVD12e31UbJj1YzdtVvzH85HV7t+9MJYk/u3XmkOUJ5Ys9wQrf9PCPK8+xn4ymzqYCiZl6QWKn+A==}
     dev: false
 
   /replace-in-file@7.2.0:
@@ -14082,6 +14256,10 @@ packages:
     resolution: {integrity: sha512-H1XoH1URcBOa/rZZWxLxHCtOdVUEev+9vo5YdYhC9tCY4wnybX+VQrCYuy9ubkg69fCBxCONJOSLGfw0DWMffQ==}
     dev: false
 
+  /tabbable@6.2.0:
+    resolution: {integrity: sha512-Cat63mxsVJlzYvN51JmVXIgNoUokrIaT2zLclCXjRd8boZ0004U4KCs/sToJ75C6sdlByWxpYnb5Boif1VSFew==}
+    dev: false
+
   /tailwind-merge@2.5.4:
     resolution: {integrity: sha512-0q8cfZHMu9nuYP/b5Shb7Y7Sh1B7Nnl5GqNr1U+n2p6+mybvRtayrQ+0042Z5byvTA8ihjlP8Odo8/VnHbZu4Q==}
     dev: false
@@ -14670,12 +14848,33 @@ packages:
       react: 16.14.0
     dev: false
 
+  /use-composed-ref@1.3.0(react@19.0.0):
+    resolution: {integrity: sha512-GLMG0Jc/jiKov/3Ulid1wbv3r54K9HlMW29IWcDFPEqFkSO2nS0MuefWgMJpeHQ9YJeXDL3ZUF+P3jdXlZX/cQ==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+    dependencies:
+      react: 19.0.0
+    dev: false
+
   /use-debounce@10.0.4(react@19.0.0):
     resolution: {integrity: sha512-6Cf7Yr7Wk7Kdv77nnJMf6de4HuDE4dTxKij+RqE9rufDsI6zsbjyAxcH5y2ueJCQAnfgKbzXbZHYlkFwmBlWkw==}
     engines: {node: '>= 16.0.0'}
     peerDependencies:
       react: '*'
     dependencies:
+      react: 19.0.0
+    dev: false
+
+  /use-isomorphic-layout-effect@1.1.2(@types/react@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-49L8yCO3iGT/ZF9QttjwLF/ZD9Iwto5LnH5LmEdk/6cFmXddqi2ulF0edxTwjj+7mqvpVVGQWvbXZdn32wRSHA==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+    dependencies:
+      '@types/react': 19.0.0
       react: 19.0.0
     dev: false
 
@@ -14689,6 +14888,20 @@ packages:
         optional: true
     dependencies:
       react: 16.14.0
+    dev: false
+
+  /use-latest@1.2.1(@types/react@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-xA+AVm/Wlg3e2P/JiItTziwS7FK92LWrDB0p+hgXloIMuVCeJJ8v6f0eeHyPZaJrM+usM1FkFfbNCrJGs8A/zw==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+    dependencies:
+      '@types/react': 19.0.0
+      react: 19.0.0
+      use-isomorphic-layout-effect: 1.1.2(@types/react@19.0.0)(react@19.0.0)
     dev: false
 
   /use-latest@1.2.1(react@16.14.0):

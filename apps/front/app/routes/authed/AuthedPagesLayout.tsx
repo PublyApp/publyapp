@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { createTheme, MantineProvider } from '@mantine/core';
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { defaultApiClient } from 'packages/api/ApiClient';
 import type { ErrorBoundaryProps } from 'react-error-boundary';
@@ -17,6 +18,8 @@ import { getClientLoader } from '@/front/lib/react-router/client.data';
 import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 
 import type { Route } from './+types/AuthedPagesLayout';
+
+const theme = createTheme({});
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
@@ -72,9 +75,11 @@ const AuthedPagesLayout = ({ loaderData }: Route.ComponentProps) => {
 				return (
 					<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
 						<AuthQueriesGuard>
-							<DashboardLayout defaultOpenSideBar={loaderData.defaultOpenSideBar}>
-								<Outlet />
-							</DashboardLayout>
+							<MantineProvider theme={theme}>
+								<DashboardLayout defaultOpenSideBar={loaderData.defaultOpenSideBar}>
+									<Outlet />
+								</DashboardLayout>
+							</MantineProvider>
 						</AuthQueriesGuard>
 					</QueryBoundary>
 				);
