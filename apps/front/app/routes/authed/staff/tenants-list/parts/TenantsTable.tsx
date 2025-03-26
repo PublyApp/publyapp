@@ -2,14 +2,15 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 import { useMemo } from 'react';
 
-import { Button } from '@mantine/core';
 import {
-	MRT_EditActionButtons,
-	useMantineReactTable, // if using TypeScript (optional, but recommended)
+	// if using TypeScript (optional, but recommended)
+	useMantineReactTable,
 	type MRT_ColumnDef,
 } from 'mantine-react-table';
 
 import BasicTable from '@/front/components/BasicTable';
+
+import AddTenantModal from './AddTenantModal';
 
 // If using TypeScript, define the shape of your data (optional, but recommended)
 interface Person {
@@ -125,33 +126,34 @@ const TenantsTable = () => {
 				</>
 			);
 		},
-		createDisplayMode: 'modal',
-		renderCreateRowModalContent: ({ table: t, row, internalEditComponents }) => (
-			// eslint-disable-next-line arrow-body-style
-			<div>
-				<div /* order={3} */>Create New User</div>
-				{internalEditComponents}
-				<div /* justify="flex-end" mt="xl" */>
-					{/* eslint-disable-next-line react/jsx-pascal-case */}
-					<MRT_EditActionButtons variant="text" table={t} row={row} />
-				</div>
-			</div>
-		),
+		// createDisplayMode: 'modal',
+		// renderCreateRowModalContent: ({ table: t, row, internalEditComponents }) => (
+		// 	// eslint-disable-next-line arrow-body-style
+		// 	<div>
+		// 		<div /* order={3} */>Create New User</div>
+		// 		{internalEditComponents}
+		// 		<div /* justify="flex-end" mt="xl" */>
+		// 			{/* eslint-disable-next-line react/jsx-pascal-case */}
+		// 			<MRT_EditActionButtons variant="text" table={t} row={row} />
+		// 		</div>
+		// 	</div>
+		// ),
 		renderTopToolbarCustomActions: () => {
 			return (
-				<Button
-					onClick={() => {
-						table.setCreatingRow(true); // simplest way to open the create row modal with no default values
-						// or you can pass in a row object to set default values with the `createRow` helper function
-						// table.setCreatingRow(
-						//   createRow(table, {
-						//     //optionally pass in default values for the new row, useful for nested data or other complex scenarios
-						//   }),
-						// );
-					}}
-				>
-					Create New User
-				</Button>
+				<AddTenantModal />
+				// <Button
+				// 	onClick={() => {
+				// 		// table.setCreatingRow(true); // simplest way to open the create row modal with no default values
+				// 		// or you can pass in a row object to set default values with the `createRow` helper function
+				// 		// table.setCreatingRow(
+				// 		//   createRow(table, {
+				// 		//     //optionally pass in default values for the new row, useful for nested data or other complex scenarios
+				// 		//   }),
+				// 		// );
+				// 	}}
+				// >
+				// 	Create New User
+				// </Button>
 			);
 		},
 	});
