@@ -1,124 +1,32 @@
-# Directus App
+# PFV Vite App
 
-A custom Directus application built with modern web technologies.
+An API for converting HTML to PDF.
 
-## Overview
+## Requirements
 
-This project is a customized implementation of Directus, an open-source headless CMS. It includes enhanced features for multi-tenancy, role-based access control, and custom modules.
+- Node.js 22 | recommended: install node with a version manager:
+  - [fnm](https://github.com/Schniz/fnm) (cross-platform)
+  - [nvm](https://github.com/nvm-sh/nvm) (mac/Linux only)
+  - [nvm-windows](https://github.com/coreybutler/nvm-windows) (available for windows)
+- pnpm:
+- mongodb:
 
-## Features
+## Installation
 
-- Multi-tenant architecture
-- Role-based access control (RBAC)
-- Custom blog management system
-- File management with multiple storage providers
-- Short URL management
-- Customizable user profiles
-- API endpoints for authentication and data management
-
-## Tech Stack
-
-- TypeScript
-- Parse Server
-- React
-- Lodash
-- Custom API implementations
-
-## Project Structure
-
-```plaintext
-packages/
-├── shared/           # Shared utilities and types
-│   ├── lib/         # Constants and shared libraries
-│   ├── types/       # TypeScript type definitions
-│   └── utils/       # Utility functions
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- Git
-
-### Installation
-
-1. Clone the repository:
 ```bash
-git clone [repository-url]
+pnpm install
 ```
 
-2. Install dependencies:
+## Usage
+
+open two terminals, and run each command in a separate terminal:
+
 ```bash
-npm install
+# run in the first terminal
+pnpm dev:server
+
+# run in the second terminal
+pnpm dev:front
 ```
 
-3. Set up environment variables:
-- Copy `.env.example` to `.env`
-- Update the variables with your configuration
-
-4. Start the development server:
-```bash
-npm run dev
-```
-
-## Configuration
-
-### Environment Variables
-
-- `PARSE_APPLICATION_ID`: Your Parse application ID
-- `PARSE_SERVER_URL`: Parse server URL
-- Additional environment variables as needed
-
-### Role Configuration
-
-The system includes several predefined roles:
-- STAFF_ADMIN
-- STAFF_EDITOR
-- STAFF_USER
-- STAFF_CONTRIBUTOR
-- TENANT_USER
-- AUTHED_USER
-
-## API Endpoints
-
-### Authentication
-- `/api/auth/password-login`
-- `/api/auth/password-signup`
-- `/api/auth/verify-email`
-
-### File Management
-- `/api/upload/single`
-- `/api/upload/many`
-
-## Development
-
-### Available Scripts
-
-- `npm run dev`: Start development server
-- `npm run build`: Build for production
-- `npm run test`: Run tests
-- `npm run lint`: Run linting
-
-### Coding Standards
-
-- Follow TypeScript best practices
-- Use ESLint for code linting
-- Follow the existing project structure
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For support, please open an issue in the repository or contact the development team.
+Now open your browser and go to `http://localhost:6181` to see the app.
