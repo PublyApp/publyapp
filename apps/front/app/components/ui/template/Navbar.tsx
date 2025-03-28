@@ -3,6 +3,8 @@ import React from 'react';
 import { RiCloseLine, RiMenuLine } from '@remixicon/react';
 import { Link } from 'react-router';
 
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+
 import useScroll from '../../../lib/use-scroll';
 import { cx } from '../../../lib/utils';
 import { Button } from '../../Button';
@@ -55,8 +57,12 @@ export function Navigation() {
 						</div>
 					</nav>
 					<div className="hidden md:flex gap-2">
-						<Button className="hidden h-10 font-semibold md:flex">Login</Button>
-						<Button className="hidden h-10 font-semibold md:flex">Dashboard</Button>
+						<Link to={{ pathname: FRONT_PATH_NAMES.staff.root }}>
+							<Button className="hidden h-10 font-semibold md:flex">Dashboard</Button>
+						</Link>
+						<Link to={{ pathname: FRONT_PATH_NAMES.auth.login }}>
+							<Button className="hidden h-10 font-semibold md:flex">Login</Button>
+						</Link>
 					</div>
 					<div className="flex gap-x-2 md:hidden">
 						<Button>Login</Button>
