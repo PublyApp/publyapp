@@ -11,6 +11,7 @@ export const meta = (_: Route.MetaArgs) => {
 
 const HomePage = ({ loaderData: _ }: Route.ComponentProps) => {
 	const { t } = useTranslation();
+
 	return (
 		<div>
 			<h1>{t('hello')}!!</h1>
