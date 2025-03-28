@@ -2,6 +2,8 @@ import '@mantine/core/styles.css'; // import Mantine V7 styles needed by MRT
 import '@mantine/dates/styles.css'; // if using mantine date picker features
 import 'mantine-react-table/styles.css'; // import MRT styles
 import './styles/main.css';
+import './styles/mantine.css';
+import './styles/tailwind.css';
 
 import { Button, MantineProvider } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -12,7 +14,8 @@ import { useChangeLanguage } from 'remix-i18next/react';
 
 import type { Route } from './+types/root';
 import QueryBoundary from './components/QueryBoundary';
-import { theme } from './lib/mantine';
+import { shadcnCssVariableResolver } from './lib/mantine/css-vars-reslover';
+import { shadcnTheme } from './lib/mantine/theme';
 import { defaultQueryClient } from './lib/react-query/queryClient';
 import { getServerLoader } from './lib/react-router/server.data';
 
@@ -70,7 +73,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 			</head>
 			<body>
 				<QueryClientProvider client={defaultQueryClient}>
-					<MantineProvider theme={theme}>
+					<MantineProvider theme={shadcnTheme} cssVariablesResolver={shadcnCssVariableResolver}>
 						<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
 							{children}
 						</QueryBoundary>
