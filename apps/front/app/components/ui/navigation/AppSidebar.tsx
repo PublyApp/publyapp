@@ -14,7 +14,7 @@ import {
 	SidebarLink,
 	SidebarMenu,
 	SidebarMenuItem,
-} from '../../tremor/Sidebar';
+} from '../sidebar/Sidebar';
 
 import { UserProfile } from './UserProfile';
 
