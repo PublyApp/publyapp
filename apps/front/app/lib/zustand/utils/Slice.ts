@@ -1,36 +1,32 @@
-import type { StateCreator } from 'zustand';
+import { type StateCreator } from 'zustand';
 
-type AppSliceProps<Name extends string, Values, Actions> = {
-	name: Name;
-	defaultValues: Values;
-	initializer: (set: Set<Name, Values, Actions>) => Values & Actions;
+type AppSliceProps<T, N extends string, D = ExcludeFunctionPropertyNames<T>> = {
+	name: N;
+	defaultValues: D;
+	// initializer: (set:any) => StateCreator<T, [['zustand/immer', never]], []>;
+	initializer: (set: Set<T, N, D>) => T;
+	// persistedFields: Paths<D>[];
 };
 
-type SliceIgniter<Name extends string, Values, Actions> = Slice<
-	Name,
-	Values,
-	Actions
->['initializer'];
-type Set<Name extends string, Values, Actions> = Parameters<
-	SliceIgniter<Name, Values, Actions>
->[0];
+type SliceIgniter<T, N extends string, D> = Slice<T, N, D>['initializer'];
+type Set<T, N extends string, D> = Parameters<SliceIgniter<T, N, D>>[0];
 
-export default class Slice<Name extends string, Values, Actions> {
-	name: StringLiteral<Name>;
+export default class Slice<T, N extends string, D = ExcludeFunctionPropertyNames<T>> {
+	name: StringLiteral<N>;
 
-	defaultValues: Record<StringLiteral<Name>, Values & Actions>;
+	defaultValues: Record<StringLiteral<N>, D>;
 
-	initializer: StateCreator<
-		Record<StringLiteral<Name>, Values & Actions>,
-		[['zustand/immer', never]],
-		[]
-	>;
+	// initializer: AppSliceProps<T, N>['initializer'];
+	initializer: StateCreator<Record<StringLiteral<N>, T>, [['zustand/immer', never]], []>;
 
-	get sliceContent(): Record<StringLiteral<Name>, Values & Actions> {
+	// persistedFields: string[];
+
+	// eslint-disable-next-line class-methods-use-this
+	get sliceContent(): Record<StringLiteral<N>, T> {
 		throw new Error('Slice.sliceContent is only for typing, do not access it!');
 	}
 
-	constructor(props: AppSliceProps<Name, Values, Actions>) {
+	constructor(props: AppSliceProps<T, N, D>) {
 		this.name = props.name as never;
 
 		this.defaultValues = {
@@ -42,5 +38,9 @@ export default class Slice<Name extends string, Values, Actions> {
 				[this.name]: props.initializer(set),
 			} as never;
 		};
+
+		// this.persistedFields = props.persistedFields.map((field) => {
+		// 	return `${this.name}.${field}`;
+		// });
 	}
 }

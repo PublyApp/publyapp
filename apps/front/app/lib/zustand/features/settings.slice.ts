@@ -1,82 +1,70 @@
 import _ from 'lodash';
+import type { Dispatch, SetStateAction } from 'react';
 
-import { defaultSettings } from '@/front/components/settings/settings-config';
-import type { SettingsState } from '@/front/components/settings/types';
+// import type { IPostWithRelations, TranslatedIPostWithRelations } from '@/shared/types/db/post.types';
 
+import type { RootState } from '../slices';
 import Slice from '../utils/Slice';
 
 export type SettingsSliceValues = {
-	openDrawer: boolean;
-	state: SettingsState;
-	canReset: boolean;
+	// edit post page
+	// currentlyEditedPost: IPostWithRelations | undefined;
+
+	// posts list (table)
+	// posts: TranslatedIPostWithRelations[];
+	// selectedPosts: TranslatedIPostWithRelations[];
+
+	sideBar: 'mini' | 'large';
+	isOpenNav: boolean;
 };
 
 export type SettingsSliceActions = {
-	onToggleDrawer: () => void;
-	onCloseDrawer: () => void;
-	onReset: () => void;
-	setState: (updateState: SettingsState | Partial<SettingsState>) => void;
-
-	// biome-ignore lint/suspicious/noExplicitAny: use any for now
-	setField: (path: string, value: any) => void;
+	setSidebar: Dispatch<SetStateAction<SettingsSliceValues['sideBar']>>;
+	setIsOpenNav: Dispatch<SetStateAction<SettingsSliceValues['isOpenNav']>>;
 };
 
 export type SettingsSliceState = SettingsSliceValues & SettingsSliceActions;
 
 const defaultValues: SettingsSliceValues = {
-	openDrawer: false,
-	state: defaultSettings,
-	canReset: true,
+	sideBar: 'large',
+	isOpenNav: true,
 };
 
 const sliceName = 'settingsSlice' as const;
 
-const customizer = (objValue: unknown, srcValue: unknown) => {
-	if (_.isArray(objValue)) {
-		return objValue.concat(srcValue);
-	}
-
-	return undefined;
-};
-
-const settingsSlice = new Slice<
-	typeof sliceName,
-	SettingsSliceValues,
-	SettingsSliceActions
->({
+const settingsSlice = new Slice<SettingsSliceState, typeof sliceName>({
 	name: sliceName,
 	defaultValues,
 	initializer: (set) => {
 		return {
 			...defaultValues,
 
-			onToggleDrawer: () => {
+			setSidebar: (value) => {
 				set((state) => {
-					state.settingsSlice.openDrawer = !state.settingsSlice.openDrawer;
+					let newValue: SettingsSliceValues['sideBar'];
+
+					if (_.isFunction(value)) {
+						newValue = value(state.settingsSlice.sideBar);
+					} else {
+						newValue = value;
+					}
+
+					// eslint-disable-next-line no-param-reassign
+					state.settingsSlice.sideBar = newValue;
 				});
 			},
-			onCloseDrawer: () => {
+			setIsOpenNav: (value) => {
 				set((state) => {
-					state.settingsSlice.openDrawer = false;
-				});
-			},
-			onReset: () => {
-				set((state) => {
-					state.settingsSlice.state = defaultSettings;
-				});
-			},
-			setState: (updateState) => {
-				set((state) => {
-					state.settingsSlice.state = _.mergeWith(
-						state.settingsSlice.state,
-						updateState,
-						customizer,
-					);
-				});
-			},
-			setField: (path, value) => {
-				set((state) => {
-					_.set(state.settingsSlice.state, path, value);
+					let newValue: SettingsSliceValues['isOpenNav'];
+
+					if (_.isFunction(value)) {
+						newValue = value(state.settingsSlice.isOpenNav);
+					} else {
+						newValue = value;
+					}
+
+					// eslint-disable-next-line no-param-reassign
+					state.settingsSlice.isOpenNav = newValue;
 				});
 			},
 		};
@@ -86,15 +74,18 @@ const settingsSlice = new Slice<
 export default settingsSlice;
 
 // ---- selectors ------------------------------------------------------------------------
+export const selectSidebar = (state: RootState) => {
+	return state.settingsSlice.sideBar;
+};
 
-// export const selectSidebarState = (state: RootState) => {
-// 	return state.settingsSlice.sidebar.state;
-// };
+export const selectSetSidebar = (state: RootState) => {
+	return state.settingsSlice.setSidebar;
+};
 
-// export const selectToggleSidebar = (state: RootState) => {
-// 	return state.settingsSlice.sidebarActions.toggleSidebar;
-// };
+export const selectIsOpenNav = (state: RootState) => {
+	return state.settingsSlice.isOpenNav;
+};
 
-// export const selectSetSidebarState = (state: RootState) => {
-// 	return state.settingsSlice.sidebarActions.setSideBarState;
-// };
+export const selectSetIsOpenNav = (state: RootState) => {
+	return state.settingsSlice.setIsOpenNav;
+};
