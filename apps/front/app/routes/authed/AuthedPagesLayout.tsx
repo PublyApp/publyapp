@@ -5,8 +5,8 @@ import { defaultApiClient } from 'packages/api/ApiClient';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
-import { SIDEBAR_COOKIE_NAME } from '@/front/components/tremor/Sidebar';
 import DashboardLayout from '@/front/components/ui/layout/DashboardLayout';
+import { SIDEBAR_COOKIE_NAME } from '@/front/components/ui/sidebar/Sidebar';
 import { useTenantParam } from '@/front/hooks/useTenantParam';
 import { CookieManager } from '@/front/lib/cookie-manager';
 import { getTenantAuthDataQuery, getUserAuthDataQuery } from '@/front/lib/react-query/features/auth/auth.actions';

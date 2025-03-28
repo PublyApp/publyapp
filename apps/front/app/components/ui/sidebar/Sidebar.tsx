@@ -12,9 +12,9 @@ import { Link, type To } from 'react-router';
 import { useIsMobile } from '@/front/hooks/useIsMobile';
 import { APP_ID } from '@/shared/lib/constants';
 
-import { Button } from './Button';
-import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from './Drawer';
-import { cx, focusRing } from './tremor.utils';
+import { Button } from '../../tremor/Button';
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from '../../tremor/Drawer';
+import { cx, focusRing } from '../../tremor/tremor.utils';
 
 // This component is based on shadcn's sidebar component
 
