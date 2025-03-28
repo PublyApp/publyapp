@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
-import { SidebarProvider, SidebarTrigger, useSidebar } from '@/front/components/tremor/Sidebar';
 import { AppSidebar } from '@/front/components/ui/navigation/AppSidebar';
 import { Breadcrumbs } from '@/front/components/ui/navigation/Breadcrumbs';
+import { SidebarProvider, SidebarTrigger, useSidebar } from '@/front/components/ui/sidebar/Sidebar';
 
 import { cx } from '../../tremor/tremor.utils';
 
