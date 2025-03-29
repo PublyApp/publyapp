@@ -1,7 +1,7 @@
 import { RiPlayCircleFill } from '@remixicon/react';
 import { Link } from 'react-router';
 
-import { Button } from '../../Button';
+import { Button } from '../../_tri/Button';
 
 export default function Hero() {
 	return (

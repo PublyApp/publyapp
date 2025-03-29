@@ -46,7 +46,7 @@ export default async function Code({
 			<div
 				className="text-sm [&>pre]:overflow-x-auto [&>pre]:bg-gray-950! [&>pre]:py-6 [&>pre]:pl-4 [&>pre]:pr-5 [&>pre]:leading-snug dark:[&>pre]:bg-gray-950! [&_code]:block [&_code]:w-fit [&_code]:min-w-full"
 				dangerouslySetInnerHTML={{ __html: html }}
-			></div>
+			/>
 		</div>
 	);
 }
