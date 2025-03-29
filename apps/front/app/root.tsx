@@ -1,6 +1,9 @@
 import '@mantine/core/styles.css'; // import Mantine V7 styles needed by MRT
 import '@mantine/dates/styles.css'; // if using mantine date picker features
+import '@pigment-css/react/styles.css'; // import Pigment CSS styles/variables
+
 import 'mantine-react-table/styles.css'; // import MRT styles
+
 import './styles/main.css';
 import './styles/mantine.css';
 import './styles/tailwind.css';
