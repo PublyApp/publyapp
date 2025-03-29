@@ -2,7 +2,7 @@
 /* eslint-disable react/button-has-type */
 /* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable @typescript-eslint/naming-convention */
-import React from 'react';
+import React, { useCallback } from 'react';
 
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { RiCloseLine } from '@remixicon/react';
@@ -10,6 +10,8 @@ import { PanelLeft } from 'lucide-react';
 import { Link, type To } from 'react-router';
 
 import { useIsMobile } from '@/front/hooks/useIsMobile';
+import { selectSidebarState, selectToggleSidebar } from '@/front/lib/zustand/features/settings.slice';
+import { useMainStore } from '@/front/lib/zustand/store';
 import { APP_ID } from '@/shared/lib/constants';
 
 import { Button } from '../../tremor/Button';
@@ -117,68 +119,75 @@ const SidebarProvider = React.forwardRef<
 });
 SidebarProvider.displayName = 'SidebarProvider';
 
-const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
-	({ className, children, ...props }, ref) => {
-		const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+// const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
+// 	({ className, children, ...props }, ref) => {
+// 		const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
-		if (isMobile) {
-			return (
-				<Drawer open={openMobile} onOpenChange={setOpenMobile} {...props}>
-					<DrawerContent
-						// data-sidebar="sidebar"
-						// data-mobile="true"
-						className="bg-gray-50 p-0 text-gray-900"
-					>
-						<VisuallyHidden.Root>
-							<DrawerTitle>Sidebar</DrawerTitle>
-						</VisuallyHidden.Root>
-						<div className="relative flex h-full w-full flex-col">
-							<DrawerClose className="absolute right-4 top-4" asChild>
-								<Button
-									variant="ghost"
-									className="p-2! text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-50"
-								>
-									<RiCloseLine className="size-5 shrink-0" aria-hidden="true" />
-								</Button>
-							</DrawerClose>
-							{children}
-						</div>
-					</DrawerContent>
-				</Drawer>
-			);
-		}
+// 		// if (isMobile) {
+// 		// 	return (
+// 		// 		<Drawer open={openMobile} onOpenChange={setOpenMobile} {...props}>
+// 		// 			<DrawerContent
+// 		// 				// data-sidebar="sidebar"
+// 		// 				// data-mobile="true"
+// 		// 				className="bg-gray-50 p-0 text-gray-900"
+// 		// 			>
+// 		// 				<VisuallyHidden.Root>
+// 		// 					<DrawerTitle>Sidebar</DrawerTitle>
+// 		// 				</VisuallyHidden.Root>
+// 		// 				<div className="relative flex h-full w-full flex-col">
+// 		// 					<DrawerClose className="absolute right-4 top-4" asChild>
+// 		// 						<Button
+// 		// 							variant="ghost"
+// 		// 							className="p-2! text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-gray-50"
+// 		// 						>
+// 		// 							<RiCloseLine className="size-5 shrink-0" aria-hidden="true" />
+// 		// 						</Button>
+// 		// 					</DrawerClose>
+// 		// 					{children}
+// 		// 				</div>
+// 		// 			</DrawerContent>
+// 		// 		</Drawer>
+// 		// 	);
+// 		// }
 
-		return (
-			<div ref={ref} className="group peer hidden md:block" data-state={state} data-collapsible={state === 'collapsed'}>
-				{/* This is what handles the sidebar gap on desktop */}
-				<div
-					className={cx(
-						'relative h-svh w-(--sidebar-width) bg-transparent transition-[width] duration-150 ease-in-out will-change-transform',
-						'group-data-[collapsible=true]:w-0',
-					)}
-				/>
-				<div
-					className={cx(
-						'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-150 ease-in-out will-change-transform md:flex',
-						'left-0 group-data-[collapsible=true]:left-[calc(var(--sidebar-width)*-1)]',
-						'border-r border-gray-200 dark:border-gray-800',
-						className,
-					)}
-					{...props}
-				>
-					<div data-sidebar="sidebar" className="bg-sidebar flex h-full w-full flex-col">
-						{children}
-					</div>
-				</div>
-			</div>
-		);
-	},
-);
-Sidebar.displayName = 'Sidebar';
+// 		return (
+// 			<div ref={ref} className="group peer hidden md:block" data-state={state} data-collapsible={state === 'collapsed'}>
+// 				{/* This is what handles the sidebar gap on desktop */}
+// 				<div
+// 					className={cx(
+// 						'relative h-svh w-(--sidebar-width) bg-transparent transition-[width] duration-150 ease-in-out will-change-transform',
+// 						'group-data-[collapsible=true]:w-0',
+// 					)}
+// 				/>
+// 				<div
+// 					className={cx(
+// 						'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-150 ease-in-out will-change-transform md:flex',
+// 						'left-0 group-data-[collapsible=true]:left-[calc(var(--sidebar-width)*-1)]',
+// 						'border-r border-gray-200 dark:border-gray-800',
+// 						className,
+// 					)}
+// 					{...props}
+// 				>
+// 					<div data-sidebar="sidebar" className="bg-sidebar flex h-full w-full flex-col">
+// 						{children}
+// 					</div>
+// 				</div>
+// 			</div>
+// 		);
+// 	},
+// );
+// Sidebar.displayName = 'Sidebar';
 
 const SidebarTrigger = React.forwardRef<React.ComponentRef<'button'>, React.ComponentPropsWithRef<'button'>>(
 	({ className, onClick, ...props }, ref) => {
-		const { toggleSidebar } = useSidebar();
+		// const { toggleSidebar } = useSidebar();
+		const toggleSidebar = useMainStore(selectToggleSidebar);
+
+		// const toggleSidebar = useCallback(() => {
+		// 	setIsOpenNav((open) => {
+		// 		return !open;
+		// 	});
+		// }, [setIsOpenNav]);
 
 		return (
 			<button
@@ -186,7 +195,7 @@ const SidebarTrigger = React.forwardRef<React.ComponentRef<'button'>, React.Comp
 				data-sidebar="trigger"
 				className={cx('group inline-flex rounded-md p-1.5 hover:bg-gray-200/50 dark:hover:bg-gray-900', focusRing)}
 				onClick={(event) => {
-					onClick?.(event);
+					// onClick?.(event);
 					toggleSidebar();
 				}}
 				{...props}
@@ -338,7 +347,7 @@ const SidebarMenuSub = React.forwardRef<HTMLUListElement, React.ComponentProps<'
 SidebarMenuSub.displayName = 'SidebarMenuSub';
 
 export {
-	Sidebar,
+	// Sidebar,
 	SidebarContent,
 	SidebarFooter,
 	SidebarGroup,
