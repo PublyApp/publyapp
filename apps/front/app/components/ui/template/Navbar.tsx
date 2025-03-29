@@ -5,9 +5,9 @@ import { Link } from 'react-router';
 
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
+import { Button } from '../../_tri/Button';
 import useScroll from '../../../lib/use-scroll';
 import { cx } from '../../../lib/utils';
-import { Button } from '../../Button';
 
 export function Navigation() {
 	const scrolled = useScroll(15);
