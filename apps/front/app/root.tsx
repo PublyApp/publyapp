@@ -1,32 +1,32 @@
-import './styles/main.css';
+import '@mantine/core/styles.css'; // import Mantine V7 styles needed by MRT
+import '@mantine/dates/styles.css'; // if using mantine date picker features
+import '@pigment-css/react/styles.css'; // import Pigment CSS styles/variables
 
-import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
+import 'mantine-react-table/styles.css'; // import MRT styles
+
+import './styles/main.css';
+import './styles/mantine.css';
+import './styles/tailwind.css';
+
+import { Button, MantineProvider } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
-import _ from 'lodash';
-import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
+import type { ErrorBoundaryProps } from 'react-error-boundary';
 import { useTranslation } from 'react-i18next';
-import {
-	isRouteErrorResponse,
-	Links,
-	Meta,
-	Outlet,
-	Scripts,
-	ScrollRestoration,
-} from 'react-router';
+import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
-import { NotFoundView, View403, View500 } from '@/front/components/error';
-import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
-import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
-import { APP_NAME } from '@/shared/lib/constants';
+
 import type { Route } from './+types/root';
-import { MotionLazy } from './components/animate/motion-lazy';
-import View400 from './components/error/400-view';
-import { ProgressBar } from './components/progress-bar';
-import { Snackbar } from './components/snackbar/snackbar';
-import { useNonce } from './hooks/use-nonce';
-import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
-import { defaultQueryClient } from './lib/react-query/query-client';
-import { getServerLoader } from './lib/react-router/server-data.server';
+import QueryBoundary from './components/QueryBoundary';
+import { shadcnCssVariableResolver } from './lib/mantine/css-vars-reslover';
+import { shadcnTheme } from './lib/mantine/theme';
+import { defaultQueryClient } from './lib/react-query/queryClient';
+import { getServerLoader } from './lib/react-router/server.data';
+
+export const loader = getServerLoader({
+	loader: async ({ locale }) => {
+		return { locale };
+	},
+});
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -38,57 +38,52 @@ export const links: Route.LinksFunction = () => {
 		},
 		{
 			rel: 'stylesheet',
-			href: 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap',
+			href: 'https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap',
 		},
 	];
 };
 
-export const meta: Route.MetaFunction = () => {
-	// const isDevelopment = import.meta.env.DEV;
-
-	return [
-		{ title: APP_NAME },
-		{ name: 'description', content: 'PDF Vite Application' },
-	];
+const FallbackComponent: ErrorBoundaryProps['FallbackComponent'] = ({ error, resetErrorBoundary }) => {
+	console.log('❌❌', error);
+	return (
+		<div>
+			<h1>Oops! Something went wrong</h1>
+			<Button
+				onClick={() => {
+					resetErrorBoundary();
+				}}
+			>
+				retry
+			</Button>
+		</div>
+	);
 };
 
-export const loader = getServerLoader({
-	loader: async ({ locale }) => {
-		return { locale };
-	},
-});
+const suspenseFallback = <h1>Auth loading, please wait....</h1>;
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
-	const nonce = useNonce();
 
 	return (
+		// add suppressHydrationWarning to avoid mantine hydration error:
+		// https://github.com/mantinedev/mantine/issues/7008#issuecomment-2432733026
 		<html lang={i18n.language} dir={i18n.dir()} suppressHydrationWarning>
 			<head>
-				{/* <script src="https://unpkg.com/react-scan/dist/auto.global.js" /> */}
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
-				<meta name="csp-nonce" content={nonce} />
 				<Meta />
 				<Links />
 			</head>
 			<body>
-				<InitColorSchemeScript
-					attribute="[data-color-scheme='%s']"
-					nonce={nonce}
-				/>
 				<QueryClientProvider client={defaultQueryClient}>
-					<MuiThemeProvider>
-						<MotionLazy>
-							<Snackbar />
-							<ProgressBar />
-							<SettingsDrawer defaultSettings={defaultSettings} />
+					<MantineProvider theme={shadcnTheme} cssVariablesResolver={shadcnCssVariableResolver}>
+						<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
 							{children}
-						</MotionLazy>
-					</MuiThemeProvider>
+						</QueryBoundary>
+					</MantineProvider>
 				</QueryClientProvider>
-				<ScrollRestoration nonce={nonce} />
-				<Scripts nonce={nonce} />
+				<ScrollRestoration />
+				<Scripts />
 			</body>
 		</html>
 	);
@@ -103,36 +98,33 @@ const App = ({ loaderData }: Route.ComponentProps) => {
 	// translation files
 	useChangeLanguage(locale);
 
-	return (
-		<NuqsAdapter>
-			<Outlet />
-		</NuqsAdapter>
-	);
+	return <Outlet />;
 };
 
 export default App;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+	let message = 'Oops!';
+	let details = 'An unexpected error occurred.';
+	let stack: string | undefined;
+
 	if (isRouteErrorResponse(error)) {
-		if (error.status === 400) {
-			return (
-				<View400
-					title={_.get(error.data, 'title')}
-					description={_.get(error.data, 'description')}
-				/>
-			);
-		}
-		if (error.status === 403) {
-			return <View403 />;
-		}
-		if (error.status === 404) {
-			return <NotFoundView />;
-		}
+		message = error.status === 404 ? '404' : 'Error';
+		details = error.status === 404 ? 'The requested page could not be found.' : error.statusText || details;
+	} else if (import.meta.env.DEV && error && error instanceof Error) {
+		details = error.message;
+		stack = error.stack;
 	}
 
-	if (import.meta.env.PROD) {
-		return <View500 />;
-	}
-
-	return <TemplateErrorBoundary error={error} />;
+	return (
+		<main>
+			<h1>{message}</h1>
+			<p>{details}</p>
+			{stack && (
+				<pre>
+					<code>{stack}</code>
+				</pre>
+			)}
+		</main>
+	);
 };

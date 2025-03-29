@@ -17,12 +17,11 @@ const defaultValues: DummySliceValues = {
 
 const sliceName = 'dummySlice' as const;
 
-const dummySlice = new Slice<DummySliceState, typeof sliceName>({
+const dummySlice = new Slice<typeof sliceName, DummySliceValues, DummySliceActions>({
 	name: sliceName,
 	defaultValues,
 	initializer: (set) => {
 		return {
-			// dummySlice: {
 			...defaultValues,
 			addBear: () => {
 				set((state) => {
@@ -39,10 +38,6 @@ const dummySlice = new Slice<DummySliceState, typeof sliceName>({
 			},
 		};
 	},
-	// persistedFields: [
-	// 	//
-	// 	// 'bear',
-	// ],
 });
 
 export default dummySlice;
