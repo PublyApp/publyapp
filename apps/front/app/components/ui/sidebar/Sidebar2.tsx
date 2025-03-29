@@ -40,21 +40,21 @@ export const Sidebar = forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
 		return (
 			<div
 				ref={ref}
-				className="group peer hidden md:block"
+				className={cx('group peer')}
 				data-state={sidebarState}
-				data-collapsible={sidebarState === 'collapsed'}
+				data-collapsed={sidebarState === 'collapsed'}
 			>
 				{/* This is what handles the sidebar gap on desktop */}
 				<div
 					className={cx(
 						'relative h-svh w-(--sidebar-width) bg-transparent transition-[width] duration-150 ease-in-out will-change-transform',
-						'group-data-[collapsible=true]:w-0',
+						'group-data-[collapsed=true]:w-0',
 					)}
 				/>
 				<div
 					className={cx(
 						'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-150 ease-in-out will-change-transform md:flex',
-						'left-0 group-data-[collapsible=true]:left-[calc(var(--sidebar-width)*-1)]',
+						'left-0 group-data-[collapsed=true]:left-[calc(var(--sidebar-width)*-1)]',
 						'border-r border-gray-200 dark:border-gray-800',
 						className,
 					)}
