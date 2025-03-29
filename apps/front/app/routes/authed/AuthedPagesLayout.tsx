@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import type { ReactNode } from 'react';
 
 import { useSuspenseQueries } from '@tanstack/react-query';
@@ -6,11 +7,12 @@ import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
 import DashboardLayout from '@/front/components/ui/layout/DashboardLayout';
-import { SIDEBAR_COOKIE_NAME } from '@/front/components/ui/sidebar/Sidebar';
 import { useTenantParam } from '@/front/hooks/useTenantParam';
+import { SIDEBAR_COOKIE_NAME } from '@/front/lib/constants';
 import { CookieManager } from '@/front/lib/cookie-manager';
 import { getTenantAuthDataQuery, getUserAuthDataQuery } from '@/front/lib/react-query/features/auth/auth.actions';
 import { getClientLoader } from '@/front/lib/react-router/client.data';
+import { useMainStore } from '@/front/lib/zustand/store';
 import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 
 import type { Route } from './+types/AuthedPagesLayout';
@@ -29,7 +31,23 @@ export const clientLoader = getClientLoader({
 		const cookies = new CookieManager();
 		const sideBarOpenCookie = cookies.get(SIDEBAR_COOKIE_NAME);
 
-		return { defaultOpenSideBar: sideBarOpenCookie === 'true' };
+		// set zustand state
+		useMainStore.setState((root) => {
+			const allowedStates = ['expanded', 'collapsed'];
+
+			let state = _.toString(sideBarOpenCookie);
+
+			if (!allowedStates.includes(state)) {
+				// eslint-disable-next-line prefer-destructuring
+				state = allowedStates[0];
+				cookies.set(SIDEBAR_COOKIE_NAME, state);
+			}
+
+			// eslint-disable-next-line no-param-reassign
+			root.settingsSlice.sidebar.state = state as never;
+		});
+
+		return {};
 	},
 });
 
@@ -44,13 +62,13 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	return <>{children}</>;
 };
 
-const AuthedPagesLayout = ({ loaderData }: Route.ComponentProps) => {
+const AuthedPagesLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 	return (
 		<ClientOnly>
 			{() => {
 				return (
 					<AuthQueriesGuard>
-						<DashboardLayout defaultOpenSideBar={loaderData.defaultOpenSideBar}>
+						<DashboardLayout>
 							<Outlet />
 						</DashboardLayout>
 					</AuthQueriesGuard>
