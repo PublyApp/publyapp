@@ -20,9 +20,9 @@ import { cx, focusRing } from '../../tremor/tremor.utils';
 
 // This component is based on shadcn's sidebar component
 
-export const SIDEBAR_COOKIE_NAME = `${APP_ID}:sidebar_state`;
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = '16rem';
+// export const SIDEBAR_COOKIE_NAME = `${APP_ID}:sidebar_state`;
+// const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+// const SIDEBAR_WIDTH = '16rem';
 
 type SidebarContext = {
 	state: 'expanded' | 'collapsed';
@@ -47,77 +47,77 @@ const useSidebar = () => {
 	return context;
 };
 
-const SidebarProvider = React.forwardRef<
-	HTMLDivElement,
-	React.ComponentProps<'div'> & {
-		defaultOpen?: boolean;
-		open?: boolean;
-		onOpenChange?: (open: boolean) => void;
-	}
->(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
-	const isMobile = useIsMobile();
-	const [openMobile, setOpenMobile] = React.useState(false);
+// const SidebarProvider = React.forwardRef<
+// 	HTMLDivElement,
+// 	React.ComponentProps<'div'> & {
+// 		defaultOpen?: boolean;
+// 		open?: boolean;
+// 		onOpenChange?: (open: boolean) => void;
+// 	}
+// >(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
+// 	const isMobile = useIsMobile();
+// 	const [openMobile, setOpenMobile] = React.useState(false);
 
-	const [_open, _setOpen] = React.useState(defaultOpen);
-	const open = openProp ?? _open;
-	const setOpen = React.useCallback(
-		(value: boolean | ((value: boolean) => boolean)) => {
-			const openState = typeof value === 'function' ? value(open) : value;
+// 	const [_open, _setOpen] = React.useState(defaultOpen);
+// 	const open = openProp ?? _open;
+// 	const setOpen = React.useCallback(
+// 		(value: boolean | ((value: boolean) => boolean)) => {
+// 			const openState = typeof value === 'function' ? value(open) : value;
 
-			if (setOpenProp) {
-				setOpenProp(openState);
-			} else {
-				_setOpen(openState);
-			}
+// 			if (setOpenProp) {
+// 				setOpenProp(openState);
+// 			} else {
+// 				_setOpen(openState);
+// 			}
 
-			document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
-		},
-		[setOpenProp, open],
-	);
+// 			document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+// 		},
+// 		[setOpenProp, open],
+// 	);
 
-	const toggleSidebar = React.useCallback(() => {
-		return isMobile
-			? setOpenMobile((open) => {
-					return !open;
-				})
-			: setOpen((open) => {
-					return !open;
-				});
-	}, [isMobile, setOpen, setOpenMobile]);
+// 	const toggleSidebar = React.useCallback(() => {
+// 		return isMobile
+// 			? setOpenMobile((open) => {
+// 					return !open;
+// 				})
+// 			: setOpen((open) => {
+// 					return !open;
+// 				});
+// 	}, [isMobile, setOpen, setOpenMobile]);
 
-	const state = open ? 'expanded' : 'collapsed';
+// 	const state = open ? 'expanded' : 'collapsed';
 
-	const contextValue = React.useMemo<SidebarContext>(() => {
-		return {
-			state,
-			open,
-			setOpen,
-			isMobile,
-			openMobile,
-			setOpenMobile,
-			toggleSidebar,
-		};
-	}, [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]);
+// 	const contextValue = React.useMemo<SidebarContext>(() => {
+// 		return {
+// 			state,
+// 			open,
+// 			setOpen,
+// 			isMobile,
+// 			openMobile,
+// 			setOpenMobile,
+// 			toggleSidebar,
+// 		};
+// 	}, [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]);
 
-	return (
-		<SidebarContext.Provider value={contextValue}>
-			<div
-				style={
-					{
-						'--sidebar-width': SIDEBAR_WIDTH,
-						...style,
-					} as React.CSSProperties
-				}
-				className={cx('flex min-h-svh w-full', className)}
-				ref={ref}
-				{...props}
-			>
-				{children}
-			</div>
-		</SidebarContext.Provider>
-	);
-});
-SidebarProvider.displayName = 'SidebarProvider';
+// 	return (
+// 		<SidebarContext.Provider value={contextValue}>
+// 			<div
+// 				style={
+// 					{
+// 						'--sidebar-width': SIDEBAR_WIDTH,
+// 						...style,
+// 					} as React.CSSProperties
+// 				}
+// 				className={cx('flex min-h-svh w-full', className)}
+// 				ref={ref}
+// 				{...props}
+// 			>
+// 				{children}
+// 			</div>
+// 		</SidebarContext.Provider>
+// 	);
+// });
+// SidebarProvider.displayName = 'SidebarProvider';
 
 // const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
 // 	({ className, children, ...props }, ref) => {
@@ -357,7 +357,7 @@ export {
 	SidebarMenu,
 	SidebarMenuItem,
 	SidebarMenuSub,
-	SidebarProvider,
+	// SidebarProvider,
 	SidebarSubLink,
 	SidebarTrigger,
 	useSidebar,

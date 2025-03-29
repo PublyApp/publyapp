@@ -38,19 +38,7 @@ export type NavData = (NavDataBase & {
 })[];
 
 export const AppSidebar = ({ ...props }: React.ComponentProps<typeof Sidebar>) => {
-	// const isOpenNav = useMainStore();
-	// const setIsOpenNav = useMainStore();
-
 	const navData = useNavData();
-
-	// return (
-	// 	<Drawer
-	// 		opened={isOpenNav}
-	// 		onClose={() => {
-	// 			setIsOpenNav(false);
-	// 		}}
-	// 	/>
-	// );
 
 	return (
 		<Sidebar {...props} className="bg-gray-50 dark:bg-gray-925">
