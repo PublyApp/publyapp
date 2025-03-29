@@ -8,7 +8,7 @@ export const slicesMap = (() => {
 	const slices = [dummySlice, settingsSlice];
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	return new Map<string, Slice<any, any>>(
+	return new Map<string, Slice<any, any, any>>(
 		slices.map((slice) => {
 			return [slice.name, slice];
 		}),
