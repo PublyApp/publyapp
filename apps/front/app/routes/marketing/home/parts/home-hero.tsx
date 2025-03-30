@@ -87,29 +87,31 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 					<Box component="span" sx={{ width: 1, opacity: 0.24 }}>
 						Boost your building
 					</Box>
-					process with
-					<Box
-						component={m.span}
-						animate={{ backgroundPosition: '200% center' }}
-						transition={{
-							duration: 20,
-							ease: 'linear',
-							repeat: Infinity,
-							repeatType: 'reverse',
-						}}
-						sx={[
-							(theme) => {
-								return {
-									...theme.mixins.textGradient(
-										`300deg, ${theme.vars.palette.primary.main} 0%, ${theme.vars.palette.warning.main} 25%, ${theme.vars.palette.primary.main} 50%, ${theme.vars.palette.warning.main} 75%, ${theme.vars.palette.primary.main} 100%`,
-									),
-									backgroundSize: '400%',
-									ml: { xs: 0.75, md: 1, xl: 1.5 },
-								};
-							},
-						]}
-					>
-						Minimal
+					<Box>
+						process with
+						<Box
+							component={m.span}
+							animate={{ backgroundPosition: '200% center' }}
+							transition={{
+								duration: 20,
+								ease: 'linear',
+								repeat: Infinity,
+								repeatType: 'reverse',
+							}}
+							sx={[
+								(theme) => {
+									return {
+										...theme.mixins.textGradient(
+											`300deg, ${theme.vars.palette.primary.main} 0%, ${theme.vars.palette.warning.main} 25%, ${theme.vars.palette.primary.main} 50%, ${theme.vars.palette.warning.main} 75%, ${theme.vars.palette.primary.main} 100%`,
+										),
+										backgroundSize: '400%',
+										ml: { xs: 0.75, md: 1, xl: 1.5 },
+									};
+								},
+							]}
+						>
+							Minimal
+						</Box>
 					</Box>
 				</Box>
 			</m.div>

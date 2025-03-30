@@ -19,7 +19,7 @@ const cacheRtl = createCache({
 	stylisPlugins: [rtlPlugin],
 });
 
-export function Rtl({ children, direction }: RtlProps) {
+export const Rtl = ({ children, direction }: RtlProps) => {
 	useEffect(() => {
 		document.dir = direction;
 	}, [direction]);
@@ -28,5 +28,6 @@ export function Rtl({ children, direction }: RtlProps) {
 		return <CacheProvider value={cacheRtl}>{children}</CacheProvider>;
 	}
 
+	// eslint-disable-next-line react/jsx-no-useless-fragment
 	return <>{children}</>;
-}
+};
