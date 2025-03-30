@@ -6,7 +6,6 @@ import { defaultApiClient } from 'packages/api/ApiClient';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
-import DashboardLayout from '@/front/components/ui/layout/DashboardLayout';
 import { useTenantParam } from '@/front/hooks/useTenantParam';
 import { SIDEBAR_COOKIE_NAME } from '@/front/lib/constants';
 import { CookieManager } from '@/front/lib/cookie-manager';
@@ -68,9 +67,7 @@ const AuthedPagesLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 			{() => {
 				return (
 					<AuthQueriesGuard>
-						<DashboardLayout>
-							<Outlet />
-						</DashboardLayout>
+						<Outlet />
 					</AuthQueriesGuard>
 				);
 			}}
