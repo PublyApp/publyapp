@@ -22,6 +22,8 @@ export const meta = (_: Route.MetaArgs) => {
 	return [{ title: `Log in - ${APP_NAME}` }];
 };
 
+export type LoginActionResult = Awaited<ReturnType<typeof action>>['data'];
+
 export const action = getServerAction({
 	action: async ({ request, apiClient }) => {
 		const formData = await request.formData();
