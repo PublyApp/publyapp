@@ -1,25 +1,20 @@
+import _ from 'lodash';
 import type { ReactNode } from 'react';
 
-import { createTheme, MantineProvider } from '@mantine/core';
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { defaultApiClient } from 'packages/api/ApiClient';
-import type { ErrorBoundaryProps } from 'react-error-boundary';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
-import QueryBoundary from '@/front/components/QueryBoundary';
-import { Button } from '@/front/components/tremor/Button';
-import { SIDEBAR_COOKIE_NAME } from '@/front/components/tremor/Sidebar';
-import DashboardLayout from '@/front/components/ui/layout/DashboardLayout';
-import { useTenantParam } from '@/front/hooks/useTenantParam';
+import { useTenantParam } from '@/front/hooks/use-tenant-param';
+import { SIDEBAR_COOKIE_NAME } from '@/front/lib/constants';
 import { CookieManager } from '@/front/lib/cookie-manager';
 import { getTenantAuthDataQuery, getUserAuthDataQuery } from '@/front/lib/react-query/features/auth/auth.actions';
 import { getClientLoader } from '@/front/lib/react-router/client.data';
+import { useMainStore } from '@/front/lib/zustand/store';
 import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 
 import type { Route } from './+types/AuthedPagesLayout';
-
-const theme = createTheme({});
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
@@ -35,7 +30,23 @@ export const clientLoader = getClientLoader({
 		const cookies = new CookieManager();
 		const sideBarOpenCookie = cookies.get(SIDEBAR_COOKIE_NAME);
 
-		return { defaultOpenSideBar: sideBarOpenCookie === 'true' };
+		// set zustand state
+		useMainStore.setState((root) => {
+			const allowedStates = ['expanded', 'collapsed'];
+
+			let state = _.toString(sideBarOpenCookie);
+
+			if (!allowedStates.includes(state)) {
+				// eslint-disable-next-line prefer-destructuring
+				state = allowedStates[0];
+				cookies.set(SIDEBAR_COOKIE_NAME, state);
+			}
+
+			// eslint-disable-next-line no-param-reassign
+			root.settingsSlice.sidebar.state = state as never;
+		});
+
+		return {};
 	},
 });
 
@@ -50,38 +61,14 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	return <>{children}</>;
 };
 
-const FallbackComponent: ErrorBoundaryProps['FallbackComponent'] = ({ error, resetErrorBoundary }) => {
-	console.log('❌❌', error);
-	return (
-		<div>
-			<h1>Oops! Something went wrong</h1>
-			<Button
-				onClick={() => {
-					resetErrorBoundary();
-				}}
-			>
-				retry
-			</Button>
-		</div>
-	);
-};
-
-const suspenseFallback = <h1>Auth loading, please wait....</h1>;
-
-const AuthedPagesLayout = ({ loaderData }: Route.ComponentProps) => {
+const AuthedPagesLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 	return (
 		<ClientOnly>
 			{() => {
 				return (
-					<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
-						<AuthQueriesGuard>
-							<MantineProvider theme={theme}>
-								<DashboardLayout defaultOpenSideBar={loaderData.defaultOpenSideBar}>
-									<Outlet />
-								</DashboardLayout>
-							</MantineProvider>
-						</AuthQueriesGuard>
-					</QueryBoundary>
+					<AuthQueriesGuard>
+						<Outlet />
+					</AuthQueriesGuard>
 				);
 			}}
 		</ClientOnly>
