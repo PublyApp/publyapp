@@ -5,10 +5,6 @@ import { useScrollProgress } from '@/front/components/animate/scroll-progress/us
 import type { Route } from './+types/HomePage';
 import { HomeHero } from './parts/home-hero';
 
-export const meta = (_: Route.MetaArgs) => {
-	return [{ title: 'New React Router App' }, { name: 'description', content: 'Welcome to React Router!' }];
-};
-
 const HomePage = ({ loaderData: _ }: Route.ComponentProps) => {
 	const pageProgress = useScrollProgress();
 

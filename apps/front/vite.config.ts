@@ -26,7 +26,9 @@ export default defineConfig({
 						'@mui/x-tree-view',
 						'@mui/x-internals',
 						'@mui/styled-engine',
+						// ====
+						'mui-one-time-password-input',
 					]
-				: [],
+				: ['mui-one-time-password-input'],
 	},
 });

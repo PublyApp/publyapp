@@ -8,6 +8,8 @@ import { useTranslation } from 'react-i18next';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 
+import { APP_NAME } from '@/shared/lib/constants';
+
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
 import QueryBoundary from './components/QueryBoundary';
@@ -16,12 +18,6 @@ import { defaultSettings } from './components/settings/settings-config';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/queryClient';
 import { getServerLoader } from './lib/react-router/server.data';
-
-export const loader = getServerLoader({
-	loader: async ({ locale }) => {
-		return { locale };
-	},
-});
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -37,6 +33,19 @@ export const links: Route.LinksFunction = () => {
 		},
 	];
 };
+
+export const meta = (_: Route.MetaArgs) => {
+	return [
+		{ title: `${APP_NAME}: The PDF API` },
+		{ name: 'description', content: 'The API for converting your HTML into PDF that just works!!' },
+	];
+};
+
+export const loader = getServerLoader({
+	loader: async ({ locale }) => {
+		return { locale };
+	},
+});
 
 const FallbackComponent: ErrorBoundaryProps['FallbackComponent'] = ({ error, resetErrorBoundary }) => {
 	console.log('❌❌', error);
