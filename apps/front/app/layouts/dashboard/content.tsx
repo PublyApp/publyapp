@@ -1,7 +1,8 @@
 import Container, { type ContainerProps } from '@mui/material/Container';
 import { styled, type Breakpoint } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
-import { useSettingsContext } from 'src/components/settings';
+
+import { useSettingsContext } from '@/front/hooks/use-settings-context';
 
 import { layoutClasses } from '../core/classes';
 
@@ -12,7 +13,7 @@ export type DashboardContentProps = ContainerProps & {
 	disablePadding?: boolean;
 };
 
-export function DashboardContent({
+export const DashboardContent = ({
 	sx,
 	children,
 	className,
@@ -20,7 +21,7 @@ export function DashboardContent({
 	maxWidth = 'lg',
 	layoutQuery = 'lg',
 	...other
-}: DashboardContentProps) {
+}: DashboardContentProps) => {
 	const settings = useSettingsContext();
 
 	const isNavHorizontal = settings.state.navLayout === 'horizontal';
@@ -30,26 +31,28 @@ export function DashboardContent({
 			className={mergeClasses([layoutClasses.content, className])}
 			maxWidth={settings.state.compactLayout ? maxWidth : false}
 			sx={[
-				(theme) => ({
-					display: 'flex',
-					flex: '1 1 auto',
-					flexDirection: 'column',
-					pt: 'var(--layout-dashboard-content-pt)',
-					pb: 'var(--layout-dashboard-content-pb)',
-					[theme.breakpoints.up(layoutQuery)]: {
-						px: 'var(--layout-dashboard-content-px)',
-						...(isNavHorizontal && { '--layout-dashboard-content-pt': '40px' }),
-					},
-					...(disablePadding && {
-						p: {
-							xs: 0,
-							sm: 0,
-							md: 0,
-							lg: 0,
-							xl: 0,
+				(theme) => {
+					return {
+						display: 'flex',
+						flex: '1 1 auto',
+						flexDirection: 'column',
+						pt: 'var(--layout-dashboard-content-pt)',
+						pb: 'var(--layout-dashboard-content-pb)',
+						[theme.breakpoints.up(layoutQuery)]: {
+							px: 'var(--layout-dashboard-content-px)',
+							...(isNavHorizontal && { '--layout-dashboard-content-pt': '40px' }),
 						},
-					}),
-				}),
+						...(disablePadding && {
+							p: {
+								xs: 0,
+								sm: 0,
+								md: 0,
+								lg: 0,
+								xl: 0,
+							},
+						}),
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -57,31 +60,33 @@ export function DashboardContent({
 			{children}
 		</Container>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-export const VerticalDivider = styled('span')(({ theme }) => ({
-	width: 1,
-	height: 10,
-	flexShrink: 0,
-	display: 'none',
-	position: 'relative',
-	alignItems: 'center',
-	flexDirection: 'column',
-	marginLeft: theme.spacing(2.5),
-	marginRight: theme.spacing(2.5),
-	backgroundColor: 'currentColor',
-	color: theme.vars.palette.divider,
-	'&::before, &::after': {
-		top: -5,
-		width: 3,
-		height: 3,
-		content: '""',
+export const VerticalDivider = styled('span')(({ theme }) => {
+	return {
+		width: 1,
+		height: 10,
 		flexShrink: 0,
-		borderRadius: '50%',
-		position: 'absolute',
+		display: 'none',
+		position: 'relative',
+		alignItems: 'center',
+		flexDirection: 'column',
+		marginLeft: theme.spacing(2.5),
+		marginRight: theme.spacing(2.5),
 		backgroundColor: 'currentColor',
-	},
-	'&::after': { bottom: -5, top: 'auto' },
-}));
+		color: theme.vars.palette.divider,
+		'&::before, &::after': {
+			top: -5,
+			width: 3,
+			height: 3,
+			content: '""',
+			flexShrink: 0,
+			borderRadius: '50%',
+			position: 'absolute',
+			backgroundColor: 'currentColor',
+		},
+		'&::after': { bottom: -5, top: 'auto' },
+	};
+});

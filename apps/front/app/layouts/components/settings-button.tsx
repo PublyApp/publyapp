@@ -5,11 +5,12 @@ import SvgIcon from '@mui/material/SvgIcon';
 import { m } from 'framer-motion';
 
 import { transitionTap, varHover, varTap } from '@/front/components/animate';
+import { useSettingsContext } from '@/front/hooks/use-settings-context';
 
 // ----------------------------------------------------------------------
 
 export const SettingsButton = ({ sx, ...other }: IconButtonProps) => {
-	// const settings = useSettingsContext();
+	const settings = useSettingsContext();
 
 	return (
 		<IconButton
@@ -19,9 +20,10 @@ export const SettingsButton = ({ sx, ...other }: IconButtonProps) => {
 			transition={transitionTap()}
 			aria-label="Settings button"
 			onClick={
-				/* settings.onToggleDrawer */ () => {
-					console.log('drawer toggled');
-				}
+				settings.onToggleDrawer
+				// () => {
+				// 	console.log('drawer toggled');
+				// }
 			}
 			sx={[{ p: 0, width: 40, height: 40 }, ...(Array.isArray(sx) ? sx : [sx])]}
 			{...other}
