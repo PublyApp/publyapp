@@ -14,12 +14,11 @@ import { themeConfig } from '@/front/lib/mui/theme/theme-config';
 import type { ThemeColorScheme } from '@/front/lib/mui/theme/types';
 import { primaryColorPresets } from '@/front/lib/mui/theme/with-settings';
 
-import { Iconify } from '../../iconify/iconify';
 // import { themeConfig } from 'src/theme/theme-config';
 // import type { ThemeColorScheme } from 'src/theme/types';
-
+import { useSettingsContext } from '../../../hooks/use-settings-context';
+import { Iconify } from '../../iconify/iconify';
 import { Scrollbar } from '../../scrollbar';
-import { useSettingsContext } from '../context/use-settings-context';
 import type { SettingsDrawerProps, SettingsState } from '../types';
 
 import { BaseOption } from './base-option';
