@@ -97,7 +97,6 @@ export const MainLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'md
 						<Button
 							variant="contained"
 							rel="noopener"
-							target="_blank"
 							href="#"
 							// href={paths.minimalStore}
 							sx={(theme) => {
