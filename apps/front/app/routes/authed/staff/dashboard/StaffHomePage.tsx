@@ -1,6 +1,5 @@
 import { redirect } from 'react-router';
 
-import DashboardContainer from '@/front/components/ui/layout/DashboardContainer';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 // * I don't se what to show on ana eventual dashboard home page, so for now, we redirect this to the tenants lis page
@@ -9,7 +8,7 @@ export const loader = () => {
 };
 
 const StaffHomePage = () => {
-	return <DashboardContainer>StaffHomePage</DashboardContainer>;
+	return <h1>StaffHomePage</h1>;
 };
 
 export default StaffHomePage;

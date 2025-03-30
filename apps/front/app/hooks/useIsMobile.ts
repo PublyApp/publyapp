@@ -1,4 +1,4 @@
-import { useMediaQuery } from '@mantine/hooks';
+// import { useMediaQuery } from '@mantine/hooks';
 
 // TODO: use mantine theme value
 const MOBILE_BREAKPOINT = 768;

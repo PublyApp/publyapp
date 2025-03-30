@@ -3,6 +3,7 @@ import { isValidElement, type ReactNode } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
 
 type Props = {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	queryResult: UseQueryResult<any, any>;
 	loadingStrategy?: 'loading' | 'pending' | 'fetching'; // defaults to 'pending'
 	loadingElement?: ReactNode;
