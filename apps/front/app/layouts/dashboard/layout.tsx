@@ -8,8 +8,9 @@ import { _contacts, _notifications } from 'src/_mock';
 import { useMockedUser } from 'src/auth/hooks';
 import { Logo } from 'src/components/logo';
 import type { NavItemProps, NavSectionProps } from 'src/components/nav-section';
-import { useSettingsContext } from 'src/components/settings';
 import { allLangs } from 'src/locales';
+
+import { useSettingsContext } from '@/front/hooks/use-settings-context';
 
 import { AccountDrawer } from '../components/account-drawer';
 import { ContactsPopover } from '../components/contacts-popover';
@@ -48,7 +49,7 @@ export type DashboardLayoutProps = LayoutBaseProps & {
 	};
 };
 
-export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery = 'lg' }: DashboardLayoutProps) {
+export const DashboardLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'lg' }: DashboardLayoutProps) => {
 	const theme = useTheme();
 
 	const { user } = useMockedUser();
@@ -65,8 +66,9 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 	const isNavHorizontal = settings.state.navLayout === 'horizontal';
 	const isNavVertical = isNavMini || settings.state.navLayout === 'vertical';
 
-	const canDisplayItemByRole = (allowedRoles: NavItemProps['allowedRoles']): boolean =>
-		!allowedRoles?.includes(user?.role);
+	const canDisplayItemByRole = (allowedRoles: NavItemProps['allowedRoles']): boolean => {
+		return !allowedRoles?.includes(user?.role);
+	};
 
 	const renderHeader = () => {
 		const headerSlotProps: HeaderSectionProps['slotProps'] = {
@@ -167,20 +169,28 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 		);
 	};
 
-	const renderSidebar = () => (
-		<NavVertical
-			data={navData}
-			isNavMini={isNavMini}
-			layoutQuery={layoutQuery}
-			cssVars={navVars.section}
-			checkPermissions={canDisplayItemByRole}
-			onToggleNav={() => settings.setField('navLayout', settings.state.navLayout === 'vertical' ? 'mini' : 'vertical')}
-		/>
-	);
+	const renderSidebar = () => {
+		return (
+			<NavVertical
+				data={navData}
+				isNavMini={isNavMini}
+				layoutQuery={layoutQuery}
+				cssVars={navVars.section}
+				checkPermissions={canDisplayItemByRole}
+				onToggleNav={() => {
+					return settings.setField('navLayout', settings.state.navLayout === 'vertical' ? 'mini' : 'vertical');
+				}}
+			/>
+		);
+	};
 
-	const renderFooter = () => null;
+	const renderFooter = () => {
+		return null;
+	};
 
-	const renderMain = () => <MainSection {...slotProps?.main}>{children}</MainSection>;
+	const renderMain = () => {
+		return <MainSection {...slotProps?.main}>{children}</MainSection>;
+	};
 
 	return (
 		<LayoutSection
@@ -218,4 +228,4 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
 			{renderMain()}
 		</LayoutSection>
 	);
-}
+};
