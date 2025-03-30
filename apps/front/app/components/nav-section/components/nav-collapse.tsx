@@ -6,9 +6,7 @@ import { navSectionClasses } from '../styles';
 // ----------------------------------------------------------------------
 
 export const NavCollapse = styled(Collapse, {
-	shouldForwardProp: (prop: string) => {
-		return !['depth', 'sx'].includes(prop);
-	},
+	shouldForwardProp: (prop: string) => !['depth', 'sx'].includes(prop),
 })<{ depth?: number }>(({ depth, theme }) => {
 	const verticalLineStyles: CSSObject = {
 		top: 0,
@@ -17,8 +15,7 @@ export const NavCollapse = styled(Collapse, {
 		content: '""',
 		position: 'absolute',
 		backgroundColor: 'var(--nav-bullet-light-color)',
-		bottom:
-			'calc(var(--nav-item-sub-height) - 2px - var(--nav-bullet-size) / 2)',
+		bottom: 'calc(var(--nav-item-sub-height) - 2px - var(--nav-bullet-size) / 2)',
 		...theme.applyStyles('dark', {
 			backgroundColor: 'var(--nav-bullet-dark-color)',
 		}),

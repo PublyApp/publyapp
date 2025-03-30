@@ -7,22 +7,13 @@ import { layoutClasses } from './classes';
 
 export type MainSectionProps = React.ComponentProps<typeof MainRoot>;
 
-export const MainSection = ({
-	children,
-	className,
-	sx,
-	...other
-}: MainSectionProps) => {
+export function MainSection({ children, className, sx, ...other }: MainSectionProps) {
 	return (
-		<MainRoot
-			className={mergeClasses([layoutClasses.main, className])}
-			sx={sx}
-			{...other}
-		>
+		<MainRoot className={mergeClasses([layoutClasses.main, className])} sx={sx} {...other}>
 			{children}
 		</MainRoot>
 	);
-};
+}
 
 // ----------------------------------------------------------------------
 

@@ -1,14 +1,14 @@
+import { useEffect } from 'react';
+
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { mergeClasses } from 'minimal-shared/utils';
-import { useEffect } from 'react';
-import { Logo } from '@/front/components/logo';
-import {
-	type NavSectionProps,
-	NavSectionVertical,
-} from '@/front/components/nav-section';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { usePathname } from '@/front/hooks/use-pathname';
+import { Logo } from 'src/components/logo';
+import { NavSectionVertical, type NavSectionProps } from 'src/components/nav-section';
+import { Scrollbar } from 'src/components/scrollbar';
+import { usePathname } from 'src/routes/hooks';
+
+import { NavUpgrade } from '../components/nav-upgrade';
 import { layoutClasses } from '../core/classes';
 
 // ----------------------------------------------------------------------
@@ -22,23 +22,14 @@ type NavMobileProps = NavSectionProps & {
 	};
 };
 
-export const NavMobile = ({
-	sx,
-	data,
-	open,
-	slots,
-	onClose,
-	className,
-	checkPermissions,
-	...other
-}: NavMobileProps) => {
+export function NavMobile({ sx, data, open, slots, onClose, className, checkPermissions, ...other }: NavMobileProps) {
 	const pathname = usePathname();
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (open) {
 			onClose();
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	return (
@@ -47,11 +38,7 @@ export const NavMobile = ({
 			onClose={onClose}
 			slotProps={{
 				paper: {
-					className: mergeClasses([
-						layoutClasses.nav.root,
-						layoutClasses.nav.vertical,
-						className,
-					]),
+					className: mergeClasses([layoutClasses.nav.root, layoutClasses.nav.vertical, className]),
 					sx: [
 						{
 							overflow: 'unset',
@@ -76,10 +63,10 @@ export const NavMobile = ({
 					sx={{ px: 2, flex: '1 1 auto' }}
 					{...other}
 				/>
-				{/* <NavUpgrade /> */}
+				<NavUpgrade />
 			</Scrollbar>
 
 			{slots?.bottomArea}
 		</Drawer>
 	);
-};
+}

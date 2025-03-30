@@ -1,37 +1,41 @@
-import {
-	createMutation,
-	createQuery,
-	createSuspenseQuery,
-} from 'react-query-kit';
-import { defaultApiClient } from '@/parse-api-client/ApiClient';
-import { functionName } from '@/shared/lib/constants';
+import { useSuspenseQuery } from '@tanstack/react-query';
 
-export const useGetUserAuthData = createSuspenseQuery({
-	queryKey: [functionName.auth.getUserAuthData] as const,
-	fetcher: async () => {
-		return defaultApiClient.auth.getUserAuthData();
-	},
-});
+import { useTenantParam } from '@/front/hooks/use-tenant-param';
 
-export const useGetTenantAuthData = createSuspenseQuery({
-	queryKey: [functionName.auth.getTenantAuthData] as const,
-	fetcher: async ({ tenantId }: { tenantId: string }) => {
-		return defaultApiClient.auth.getTenantAuthData({ tenantId });
-	},
-});
+import { getTenantAuthDataQuery, getUserAuthDataQuery } from './auth.actions';
 
-export const useGetVerificationLink = createQuery({
-	queryKey: [functionName.auth.getVerificationLink] as const,
-	fetcher: async ({ userId }: { userId: string }) => {
-		return defaultApiClient.auth.getVerificationLink({ userId });
-	},
-});
+// ---- 1 --------------------------------------------------------------------------------
 
-export const useSendEmailVerificationReminder = createMutation({
-	mutationKey: [
-		`${functionName.auth.requestEmailVerification}-reminder`,
-	] as const,
-	mutationFn: async ({ email }: { email: string }) => {
-		return defaultApiClient.auth.requestEmailVerification({ email });
-	},
-});
+type UseGetUserAuthDataProps = {
+	options?: Omit<ReturnType<typeof getUserAuthDataQuery>, 'queryKey' | 'queryFn'>;
+};
+
+export const useGetUserAuthData = ({ options }: UseGetUserAuthDataProps = {}) => {
+	const query = getUserAuthDataQuery();
+
+	const result = useSuspenseQuery({
+		...query,
+		...options,
+	});
+
+	return { result, key: query.queryKey };
+};
+
+// ---- 2 --------------------------------------------------------------------------------
+
+type UseGetTenantAuthDataProps = {
+	options?: Omit<ReturnType<typeof getTenantAuthDataQuery>, 'queryKey' | 'queryFn'>;
+};
+
+export const useGetTenantAuthData = ({ options }: UseGetTenantAuthDataProps = {}) => {
+	const tenantId = useTenantParam();
+
+	const query = getTenantAuthDataQuery({ tenantId });
+
+	const result = useSuspenseQuery({
+		...query,
+		...options,
+	});
+
+	return { result, key: query.queryKey };
+};

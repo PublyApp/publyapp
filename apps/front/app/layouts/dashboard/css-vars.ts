@@ -1,12 +1,11 @@
 import type { CSSObject, Theme } from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
-
-import { bulletColor } from '@/front/components/nav-section';
-import type { SettingsState } from '@/front/components/settings';
+import { bulletColor } from 'src/components/nav-section';
+import type { SettingsState } from 'src/components/settings';
 
 // ----------------------------------------------------------------------
 
-export const dashboardLayoutVars = (theme: Theme) => {
+export function dashboardLayoutVars(theme: Theme) {
 	return {
 		'--layout-transition-easing': 'linear',
 		'--layout-transition-duration': '120ms',
@@ -17,15 +16,15 @@ export const dashboardLayoutVars = (theme: Theme) => {
 		'--layout-dashboard-content-pb': theme.spacing(8),
 		'--layout-dashboard-content-px': theme.spacing(5),
 	};
-};
+}
 
 // ----------------------------------------------------------------------
 
-export const dashboardNavColorVars = (
+export function dashboardNavColorVars(
 	theme: Theme,
 	navColor: SettingsState['navColor'] = 'integrate',
 	navLayout: SettingsState['navLayout'] = 'vertical',
-): Record<'layout' | 'section', CSSObject | undefined> => {
+): Record<'layout' | 'section', CSSObject | undefined> {
 	const {
 		vars: { palette },
 	} = theme;
@@ -35,26 +34,14 @@ export const dashboardNavColorVars = (
 			return {
 				layout: {
 					'--layout-nav-bg': palette.background.default,
-					'--layout-nav-horizontal-bg': varAlpha(
-						palette.background.defaultChannel,
-						0.8,
-					),
-					'--layout-nav-border-color': varAlpha(
-						palette.grey['500Channel'],
-						0.12,
-					),
+					'--layout-nav-horizontal-bg': varAlpha(palette.background.defaultChannel, 0.8),
+					'--layout-nav-border-color': varAlpha(palette.grey['500Channel'], 0.12),
 					'--layout-nav-text-primary-color': palette.text.primary,
 					'--layout-nav-text-secondary-color': palette.text.secondary,
 					'--layout-nav-text-disabled-color': palette.text.disabled,
 					...theme.applyStyles('dark', {
-						'--layout-nav-border-color': varAlpha(
-							palette.grey['500Channel'],
-							0.08,
-						),
-						'--layout-nav-horizontal-bg': varAlpha(
-							palette.background.defaultChannel,
-							0.96,
-						),
+						'--layout-nav-border-color': varAlpha(palette.grey['500Channel'], 0.08),
+						'--layout-nav-horizontal-bg': varAlpha(palette.background.defaultChannel, 0.96),
 					}),
 				},
 				section: undefined,
@@ -63,20 +50,14 @@ export const dashboardNavColorVars = (
 			return {
 				layout: {
 					'--layout-nav-bg': palette.grey[900],
-					'--layout-nav-horizontal-bg': varAlpha(
-						palette.grey['900Channel'],
-						0.96,
-					),
+					'--layout-nav-horizontal-bg': varAlpha(palette.grey['900Channel'], 0.96),
 					'--layout-nav-border-color': 'transparent',
 					'--layout-nav-text-primary-color': palette.common.white,
 					'--layout-nav-text-secondary-color': palette.grey[500],
 					'--layout-nav-text-disabled-color': palette.grey[600],
 					...theme.applyStyles('dark', {
 						'--layout-nav-bg': palette.grey[800],
-						'--layout-nav-horizontal-bg': varAlpha(
-							palette.grey['800Channel'],
-							0.8,
-						),
+						'--layout-nav-horizontal-bg': varAlpha(palette.grey['800Channel'], 0.8),
 					}),
 				},
 				section: {
@@ -101,4 +82,4 @@ export const dashboardNavColorVars = (
 		default:
 			throw new Error(`Invalid color: ${navColor}`);
 	}
-};
+}

@@ -1,20 +1,14 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useEffect, useMemo, useRef } from 'react';
 
 import { styled, type SxProps, type Theme } from '@mui/material/styles';
 import Typography, { type TypographyProps } from '@mui/material/Typography';
-import {
-	m,
-	useAnimation,
-	useInView,
-	type UseInViewOptions,
-	type Variants,
-} from 'framer-motion';
+import { m, useAnimation, useInView, type UseInViewOptions, type Variants } from 'framer-motion';
 import { mergeClasses } from 'minimal-shared/utils';
 
 import { createClasses } from '@/front/lib/mui/theme/create-classes';
 
 import { varContainer, varFade } from './variants';
-import { nanoid } from 'nanoid';
 
 // ----------------------------------------------------------------------
 
@@ -126,18 +120,19 @@ export const AnimateText = ({
 				{textArray?.map((line, lineIndex) => {
 					return (
 						<TextLine
-							key={`${line}-${nanoid()}`}
+							// eslint-disable-next-line react/no-array-index-key
+							key={`${line}-${lineIndex}`}
 							data-index={lineIndex}
 							className={animateTextClasses.line}
 							sx={{ display: 'block' }}
 						>
 							{line.split(' ').map((word, wordIndex) => {
-								const lastWordInline =
-									line.split(' ')[line.split(' ').length - 1];
+								const lastWordInline = line.split(' ')[line.split(' ').length - 1];
 
 								return (
 									<TextWord
-										key={`${word}-${nanoid()}`}
+										// eslint-disable-next-line react/no-array-index-key
+										key={`${word}-${wordIndex}`}
 										data-index={wordIndex}
 										className={animateTextClasses.word}
 										sx={{ display: 'inline-block' }}
@@ -145,7 +140,8 @@ export const AnimateText = ({
 										{word.split('').map((char, charIndex) => {
 											return (
 												<AnimatedTextChar
-													key={`${char}-${nanoid()}`}
+													// eslint-disable-next-line react/no-array-index-key
+													key={`${char}-${charIndex}`}
 													variants={variants ?? varFade('in')}
 													data-index={charIndex}
 													className={animateTextClasses.char}
@@ -157,10 +153,7 @@ export const AnimateText = ({
 										})}
 
 										{lastWordInline !== word && (
-											<TextWord
-												className={animateTextClasses.space}
-												sx={{ display: 'inline-block' }}
-											>
+											<TextWord className={animateTextClasses.space} sx={{ display: 'inline-block' }}>
 												&nbsp;
 											</TextWord>
 										)}

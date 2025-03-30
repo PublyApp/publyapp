@@ -4,31 +4,18 @@ import { transitionEnter, transitionExit } from './transition';
 
 // ----------------------------------------------------------------------
 
-type Direction =
-	| 'in'
-	| 'inUp'
-	| 'inDown'
-	| 'inLeft'
-	| 'inRight'
-	| 'out'
-	| 'outUp'
-	| 'outDown'
-	| 'outLeft'
-	| 'outRight';
+type Direction = 'in' | 'inUp' | 'inDown' | 'inLeft' | 'inRight' | 'out' | 'outUp' | 'outDown' | 'outLeft' | 'outRight';
 
 type Options = {
 	distance?: number;
 	transition?: Transition;
 };
 
-export const varBounce = (
-	direction: Direction,
-	options?: Options,
-): Variants => {
+export const varBounce = (direction: Direction, options?: Options): Variants => {
 	const distance = options?.distance || 720;
 
 	const variants: Record<Direction, Variants> = {
-		/** ** In *** */
+		/**** In ****/
 		in: {
 			initial: {},
 			animate: {
@@ -73,7 +60,7 @@ export const varBounce = (
 				transition: transitionEnter(options?.transition),
 			},
 		},
-		/** ** Out *** */
+		/**** Out ****/
 		out: {
 			animate: {
 				scale: [0.9, 1.1, 0.3],

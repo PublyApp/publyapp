@@ -10,11 +10,10 @@ import MenuList from '@mui/material/MenuList';
 import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
-
-import { CustomPopover } from '@/front/components/custom-popover';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import { Scrollbar } from '@/front/components/scrollbar';
+import { CustomPopover } from 'src/components/custom-popover';
+import { Iconify } from 'src/components/iconify';
+import { Label } from 'src/components/label';
+import { Scrollbar } from 'src/components/scrollbar';
 
 // ----------------------------------------------------------------------
 
@@ -27,11 +26,7 @@ export type WorkspacesPopoverProps = ButtonBaseProps & {
 	}[];
 };
 
-export const WorkspacesPopover = ({
-	data = [],
-	sx,
-	...other
-}: WorkspacesPopoverProps) => {
+export function WorkspacesPopover({ data = [], sx, ...other }: WorkspacesPopoverProps) {
 	const mediaQuery = 'sm';
 
 	const { open, anchorEl, onClose, onOpen } = usePopover();
@@ -56,144 +51,114 @@ export const WorkspacesPopover = ({
 		visibility: 'hidden',
 		bgcolor: 'action.hover',
 		width: 'calc(100% + 8px)',
-		transition: (theme) => {
-			return theme.transitions.create(['opacity', 'visibility'], {
+		transition: (theme) =>
+			theme.transitions.create(['opacity', 'visibility'], {
 				easing: theme.transitions.easing.sharp,
 				duration: theme.transitions.duration.shorter,
-			});
-		},
+			}),
 		...(open && {
 			opacity: 1,
 			visibility: 'visible',
 		}),
 	};
 
-	const renderButton = () => {
-		return (
-			<ButtonBase
-				disableRipple
-				onClick={onOpen}
-				sx={[
-					{
-						py: 0.5,
-						gap: { xs: 0.5, [mediaQuery]: 1 },
-						'&::before': buttonBg,
-					},
-					...(Array.isArray(sx) ? sx : [sx]),
-				]}
-				{...other}
-			>
-				<Box
-					component="img"
-					alt={workspace?.name}
-					src={workspace?.logo}
-					sx={{ width: 24, height: 24, borderRadius: '50%' }}
-				/>
+	const renderButton = () => (
+		<ButtonBase
+			disableRipple
+			onClick={onOpen}
+			sx={[
+				{
+					py: 0.5,
+					gap: { xs: 0.5, [mediaQuery]: 1 },
+					'&::before': buttonBg,
+				},
+				...(Array.isArray(sx) ? sx : [sx]),
+			]}
+			{...other}
+		>
+			<Box
+				component="img"
+				alt={workspace?.name}
+				src={workspace?.logo}
+				sx={{ width: 24, height: 24, borderRadius: '50%' }}
+			/>
 
-				<Box
-					component="span"
-					sx={{
-						typography: 'subtitle2',
-						display: { xs: 'none', [mediaQuery]: 'inline-flex' },
-					}}
-				>
-					{workspace?.name}
-				</Box>
+			<Box component="span" sx={{ typography: 'subtitle2', display: { xs: 'none', [mediaQuery]: 'inline-flex' } }}>
+				{workspace?.name}
+			</Box>
 
-				<Label
-					color={workspace?.plan === 'Free' ? 'default' : 'info'}
-					sx={{
-						height: 22,
-						cursor: 'inherit',
-						display: { xs: 'none', [mediaQuery]: 'inline-flex' },
-					}}
-				>
-					{workspace?.plan}
-				</Label>
-
-				<Iconify
-					width={16}
-					icon="carbon:chevron-sort"
-					sx={{ color: 'text.disabled' }}
-				/>
-			</ButtonBase>
-		);
-	};
-
-	const renderMenuList = () => {
-		return (
-			<CustomPopover
-				open={open}
-				anchorEl={anchorEl}
-				onClose={onClose}
-				slotProps={{
-					arrow: { placement: 'top-left' },
-					paper: { sx: { mt: 0.5, ml: -1.55, width: 240 } },
+			<Label
+				color={workspace?.plan === 'Free' ? 'default' : 'info'}
+				sx={{
+					height: 22,
+					cursor: 'inherit',
+					display: { xs: 'none', [mediaQuery]: 'inline-flex' },
 				}}
 			>
-				<Scrollbar sx={{ maxHeight: 240 }}>
-					<MenuList>
-						{data.map((option) => {
-							return (
-								<MenuItem
-									key={option.id}
-									selected={option.id === workspace?.id}
-									onClick={() => {
-										return handleChangeWorkspace(option);
-									}}
-									sx={{ height: 48 }}
-								>
-									<Avatar
-										alt={option.name}
-										src={option.logo}
-										sx={{ width: 24, height: 24 }}
-									/>
+				{workspace?.plan}
+			</Label>
 
-									<Typography
-										noWrap
-										component="span"
-										variant="body2"
-										sx={{ flexGrow: 1, fontWeight: 'fontWeightMedium' }}
-									>
-										{option.name}
-									</Typography>
+			<Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />
+		</ButtonBase>
+	);
 
-									<Label color={option.plan === 'Free' ? 'default' : 'info'}>
-										{option.plan}
-									</Label>
-								</MenuItem>
-							);
-						})}
-					</MenuList>
-				</Scrollbar>
+	const renderMenuList = () => (
+		<CustomPopover
+			open={open}
+			anchorEl={anchorEl}
+			onClose={onClose}
+			slotProps={{
+				arrow: { placement: 'top-left' },
+				paper: { sx: { mt: 0.5, ml: -1.55, width: 240 } },
+			}}
+		>
+			<Scrollbar sx={{ maxHeight: 240 }}>
+				<MenuList>
+					{data.map((option) => (
+						<MenuItem
+							key={option.id}
+							selected={option.id === workspace?.id}
+							onClick={() => handleChangeWorkspace(option)}
+							sx={{ height: 48 }}
+						>
+							<Avatar alt={option.name} src={option.logo} sx={{ width: 24, height: 24 }} />
 
-				<Divider sx={{ my: 0.5, borderStyle: 'dashed' }} />
+							<Typography noWrap component="span" variant="body2" sx={{ flexGrow: 1, fontWeight: 'fontWeightMedium' }}>
+								{option.name}
+							</Typography>
 
-				<Button
-					fullWidth
-					startIcon={<Iconify width={18} icon="mingcute:add-line" />}
-					onClick={() => {
-						onClose();
-					}}
-					sx={{
-						gap: 2,
-						justifyContent: 'flex-start',
-						fontWeight: 'fontWeightMedium',
-						[`& .${buttonClasses.startIcon}`]: {
-							m: 0,
-							width: 24,
-							height: 24,
-							display: 'flex',
-							alignItems: 'center',
-							justifyContent: 'center',
-						},
-					}}
-				>
-					Create workspace
-				</Button>
-			</CustomPopover>
-		);
-	};
+							<Label color={option.plan === 'Free' ? 'default' : 'info'}>{option.plan}</Label>
+						</MenuItem>
+					))}
+				</MenuList>
+			</Scrollbar>
+
+			<Divider sx={{ my: 0.5, borderStyle: 'dashed' }} />
+
+			<Button
+				fullWidth
+				startIcon={<Iconify width={18} icon="mingcute:add-line" />}
+				onClick={() => {
+					onClose();
+				}}
+				sx={{
+					gap: 2,
+					justifyContent: 'flex-start',
+					fontWeight: 'fontWeightMedium',
+					[`& .${buttonClasses.startIcon}`]: {
+						m: 0,
+						width: 24,
+						height: 24,
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+					},
+				}}
+			>
+				Create workspace
+			</Button>
+		</CustomPopover>
+	);
 
 	return (
 		<>
@@ -201,4 +166,4 @@ export const WorkspacesPopover = ({
 			{renderMenuList()}
 		</>
 	);
-};
+}

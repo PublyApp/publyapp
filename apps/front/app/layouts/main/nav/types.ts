@@ -27,10 +27,7 @@ export type NavItemDataProps = {
 	}[];
 };
 
-export type NavItemProps = ButtonBaseProps &
-	NavItemDataProps &
-	NavItemStateProps &
-	NavItemOptionsProps;
+export type NavItemProps = ButtonBaseProps & NavItemDataProps & NavItemStateProps & NavItemOptionsProps;
 
 /**
  * List

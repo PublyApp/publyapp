@@ -1,14 +1,12 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
+import { useId } from 'react';
+
 import { Icon, type IconProps } from '@iconify/react';
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
-import { useId } from 'react';
 
 import { iconifyClasses } from './classes';
-import {
-	allIconNames,
-	type IconifyName,
-	registerIcons,
-} from './register-icons';
+import { allIconNames, registerIcons, type IconifyName } from './register-icons';
 
 // ----------------------------------------------------------------------
 
@@ -17,14 +15,7 @@ export type IconifyProps = React.ComponentProps<typeof IconRoot> &
 		icon: IconifyName;
 	};
 
-export const Iconify = ({
-	className,
-	icon,
-	width = 20,
-	height,
-	sx,
-	...other
-}: IconifyProps) => {
+export const Iconify = ({ className, icon, width = 20, height, sx, ...other }: IconifyProps) => {
 	const id = useId();
 
 	if (!allIconNames.includes(icon)) {

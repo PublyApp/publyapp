@@ -1,13 +1,9 @@
 import Box from '@mui/material/Box';
-import ListItemButton, {
-	type ListItemButtonProps,
-} from '@mui/material/ListItemButton';
+import ListItemButton, { type ListItemButtonProps } from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import { isExternalLink, varAlpha } from 'minimal-shared/utils';
-import { nanoid } from 'nanoid';
-
-import { Label } from '@/front/components/label';
-import { RouterLink } from '@/front/components/router-link';
+import { Label } from 'src/components/label';
+import { RouterLink } from 'src/routes/components';
 
 // ----------------------------------------------------------------------
 
@@ -18,14 +14,7 @@ type Props = Omit<ListItemButtonProps, 'title'> & {
 	path: { text: string; highlight: boolean }[];
 };
 
-export const ResultItem = ({
-	title,
-	path,
-	labels,
-	href,
-	sx,
-	...other
-}: Props) => {
+export function ResultItem({ title, path, labels, href, sx, ...other }: Props) {
 	const linkProps = isExternalLink(href)
 		? { target: '_blank', rel: 'noopener noreferrer', href, component: 'a' }
 		: { component: RouterLink, href };
@@ -35,49 +24,32 @@ export const ResultItem = ({
 			{...linkProps}
 			disableRipple
 			sx={[
-				(theme) => {
-					return {
-						borderWidth: 1,
-						borderStyle: 'dashed',
-						borderColor: 'transparent',
-						borderBottomColor: theme.vars.palette.divider,
-						'&:hover': {
-							borderRadius: 1,
-							borderColor: theme.vars.palette.primary.main,
-							backgroundColor: varAlpha(
-								theme.vars.palette.primary.mainChannel,
-								theme.vars.palette.action.hoverOpacity,
-							),
-						},
-					};
-				},
+				(theme) => ({
+					borderWidth: 1,
+					borderStyle: 'dashed',
+					borderColor: 'transparent',
+					borderBottomColor: theme.vars.palette.divider,
+					'&:hover': {
+						borderRadius: 1,
+						borderColor: theme.vars.palette.primary.main,
+						backgroundColor: varAlpha(theme.vars.palette.primary.mainChannel, theme.vars.palette.action.hoverOpacity),
+					},
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
 		>
 			<ListItemText
-				primary={title.map((part) => {
-					return (
-						<Box
-							key={nanoid()}
-							component="span"
-							sx={{ color: part.highlight ? 'primary.main' : 'text.primary' }}
-						>
-							{part.text}
-						</Box>
-					);
-				})}
-				secondary={path.map((part) => {
-					return (
-						<Box
-							key={nanoid()}
-							component="span"
-							sx={{ color: part.highlight ? 'primary.main' : 'text.secondary' }}
-						>
-							{part.text}
-						</Box>
-					);
-				})}
+				primary={title.map((part, index) => (
+					<Box key={index} component="span" sx={{ color: part.highlight ? 'primary.main' : 'text.primary' }}>
+						{part.text}
+					</Box>
+				))}
+				secondary={path.map((part, index) => (
+					<Box key={index} component="span" sx={{ color: part.highlight ? 'primary.main' : 'text.secondary' }}>
+						{part.text}
+					</Box>
+				))}
 				slotProps={{
 					secondary: {
 						noWrap: true,
@@ -87,14 +59,12 @@ export const ResultItem = ({
 			/>
 
 			<Box sx={{ gap: 0.75, display: 'flex' }}>
-				{[...labels].reverse().map((label) => {
-					return (
-						<Label key={label} color="default">
-							{label}
-						</Label>
-					);
-				})}
+				{[...labels].reverse().map((label) => (
+					<Label key={label} color="default">
+						{label}
+					</Label>
+				))}
 			</Box>
 		</ListItemButton>
 	);
-};
+}

@@ -4,15 +4,7 @@ import { transitionEnter, transitionExit } from './transition';
 
 // ----------------------------------------------------------------------
 
-type Direction =
-	| 'inUp'
-	| 'inDown'
-	| 'inLeft'
-	| 'inRight'
-	| 'outUp'
-	| 'outDown'
-	| 'outLeft'
-	| 'outRight';
+type Direction = 'inUp' | 'inDown' | 'inLeft' | 'inRight' | 'outUp' | 'outDown' | 'outLeft' | 'outRight';
 
 type Options = {
 	distance?: number;
@@ -26,7 +18,7 @@ export const varSlide = (direction: Direction, options?: Options): Variants => {
 	const transitionOut = options?.transitionOut;
 
 	const variants: Record<Direction, Variants> = {
-		/** ** In *** */
+		/**** In ****/
 		inUp: {
 			initial: { y: distance },
 			animate: { y: 0, transition: transitionEnter(transitionIn) },
@@ -47,7 +39,7 @@ export const varSlide = (direction: Direction, options?: Options): Variants => {
 			animate: { x: 0, transition: transitionEnter(transitionIn) },
 			exit: { x: distance, transition: transitionExit(transitionOut) },
 		},
-		/** ** Out *** */
+		/**** Out ****/
 		outUp: {
 			initial: { y: 0 },
 			animate: { y: -distance, transition: transitionEnter(transitionIn) },

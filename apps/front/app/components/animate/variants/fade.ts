@@ -4,17 +4,7 @@ import { transitionEnter, transitionExit } from './transition';
 
 // ----------------------------------------------------------------------
 
-type Direction =
-	| 'in'
-	| 'inUp'
-	| 'inDown'
-	| 'inLeft'
-	| 'inRight'
-	| 'out'
-	| 'outUp'
-	| 'outDown'
-	| 'outLeft'
-	| 'outRight';
+type Direction = 'in' | 'inUp' | 'inDown' | 'inLeft' | 'inRight' | 'out' | 'outUp' | 'outDown' | 'outLeft' | 'outRight';
 
 type Options = {
 	distance?: number;
@@ -28,49 +18,33 @@ export const varFade = (direction: Direction, options?: Options): Variants => {
 	const transitionOut = options?.transitionOut;
 
 	const variants: Record<Direction, Variants> = {
-		/** ** In *** */
+		/**** In ****/
 		in: {
 			initial: { opacity: 0 },
-			animate: { opacity: 1, transition: transitionEnter() },
-			exit: { opacity: 0, transition: transitionExit() },
+			animate: { opacity: 1, transition: transitionEnter },
+			exit: { opacity: 0, transition: transitionExit },
 		},
 		inUp: {
 			initial: { y: distance, opacity: 0 },
 			animate: { y: 0, opacity: 1, transition: transitionEnter(transitionIn) },
-			exit: {
-				y: distance,
-				opacity: 0,
-				transition: transitionExit(transitionOut),
-			},
+			exit: { y: distance, opacity: 0, transition: transitionExit(transitionOut) },
 		},
 		inDown: {
 			initial: { y: -distance, opacity: 0 },
 			animate: { y: 0, opacity: 1, transition: transitionEnter(transitionIn) },
-			exit: {
-				y: -distance,
-				opacity: 0,
-				transition: transitionExit(transitionOut),
-			},
+			exit: { y: -distance, opacity: 0, transition: transitionExit(transitionOut) },
 		},
 		inLeft: {
 			initial: { x: -distance, opacity: 0 },
 			animate: { x: 0, opacity: 1, transition: transitionEnter(transitionIn) },
-			exit: {
-				x: -distance,
-				opacity: 0,
-				transition: transitionExit(transitionOut),
-			},
+			exit: { x: -distance, opacity: 0, transition: transitionExit(transitionOut) },
 		},
 		inRight: {
 			initial: { x: distance, opacity: 0 },
 			animate: { x: 0, opacity: 1, transition: transitionEnter(transitionIn) },
-			exit: {
-				x: distance,
-				opacity: 0,
-				transition: transitionExit(transitionOut),
-			},
+			exit: { x: distance, opacity: 0, transition: transitionExit(transitionOut) },
 		},
-		/** ** Out *** */
+		/**** Out ****/
 		out: {
 			initial: { opacity: 1 },
 			animate: { opacity: 0, transition: transitionEnter(transitionIn) },

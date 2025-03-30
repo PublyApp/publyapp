@@ -12,11 +12,7 @@ type NavItemDashboardProps = BoxProps & {
 	path: string;
 };
 
-export const NavItemDashboard = ({
-	path,
-	sx,
-	...other
-}: NavItemDashboardProps) => {
+export const NavItemDashboard = ({ path, sx, ...other }: NavItemDashboardProps) => {
 	return (
 		<Link component={RouterLink} href={path}>
 			<Box
@@ -50,7 +46,7 @@ export const NavItemDashboard = ({
 					whileHover={varHover(1.02)}
 					transition={transitionTap()}
 					alt="Dashboard illustration"
-					src="/assets/illustrations/illustration-dashboard.webp"
+					src={`${/* CONFIG.assetsDir */ ''}/assets/illustrations/illustration-dashboard.webp`}
 					sx={{ width: 640, objectFit: 'cover', aspectRatio: '4/3' }}
 				/>
 			</Box>

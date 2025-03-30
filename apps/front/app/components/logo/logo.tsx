@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
+import { useId } from 'react';
+
 import Link, { type LinkProps } from '@mui/material/Link';
 import { styled, useTheme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
-import { useId } from 'react';
-import { useHomePath } from '@/front/hooks/use-home-path';
-import { APP_NAME } from '@/shared/lib/constants';
+
 import { RouterLink } from '../router-link';
+
 import { logoClasses } from './classes';
 
 // ----------------------------------------------------------------------
@@ -14,26 +16,15 @@ export type LogoProps = LinkProps & {
 	disabled?: boolean;
 };
 
-export const Logo = ({
-	sx,
-	disabled,
-	className,
-	href: hrefProp,
-	isSingle = true,
-	...other
-}: LogoProps) => {
-	const homePath = useHomePath();
+export const Logo = ({ sx, disabled, className, href = '/', isSingle = true, ...other }: LogoProps) => {
 	const theme = useTheme();
+
 	const gradientId = useId();
+
 	const TEXT_PRIMARY = theme.vars.palette.text.primary;
 	const PRIMARY_LIGHT = theme.vars.palette.primary.light;
 	const PRIMARY_MAIN = theme.vars.palette.primary.main;
 	const PRIMARY_DARKER = theme.vars.palette.primary.dark;
-
-	let href = hrefProp;
-	if (!href) {
-		href = homePath;
-	}
 
 	/*
     * OR using local (public folder)
@@ -41,7 +32,7 @@ export const Logo = ({
     const singleLogo = (
       <img
         alt="Single logo"
-        src={`/logo/logo-single.svg`}
+        src={`${CONFIG.assetsDir}/logo/logo-single.svg`}
         width="100%"
         height="100%"
       />
@@ -50,7 +41,7 @@ export const Logo = ({
     const fullLogo = (
       <img
         alt="Full logo"
-        src={`/logo/logo-full.svg`}
+        src={`${CONFIG.assetsDir}/logo/logo-full.svg`}
         width="100%"
         height="100%"
       />
@@ -59,15 +50,7 @@ export const Logo = ({
     */
 
 	const singleLogo = (
-		<svg
-			width="100%"
-			height="100%"
-			viewBox="0 0 512 512"
-			fill="none"
-			xmlns="http://www.w3.org/2000/svg"
-			role="img"
-			aria-label={`${APP_NAME} logo`}
-		>
+		<svg width="100%" height="100%" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
 			<defs>
 				<linearGradient
 					id={`${gradientId}-1`}
@@ -80,25 +63,11 @@ export const Logo = ({
 					<stop stopColor={PRIMARY_DARKER} />
 					<stop offset="1" stopColor={PRIMARY_MAIN} />
 				</linearGradient>
-				<linearGradient
-					id={`${gradientId}-2`}
-					x1="86"
-					y1="128"
-					x2="86"
-					y2="384"
-					gradientUnits="userSpaceOnUse"
-				>
+				<linearGradient id={`${gradientId}-2`} x1="86" y1="128" x2="86" y2="384" gradientUnits="userSpaceOnUse">
 					<stop stopColor={PRIMARY_LIGHT} />
 					<stop offset="1" stopColor={PRIMARY_MAIN} />
 				</linearGradient>
-				<linearGradient
-					id={`${gradientId}-3`}
-					x1="402"
-					y1="288"
-					x2="402"
-					y2="384"
-					gradientUnits="userSpaceOnUse"
-				>
+				<linearGradient id={`${gradientId}-3`} x1="402" y1="288" x2="402" y2="384" gradientUnits="userSpaceOnUse">
 					<stop stopColor={PRIMARY_LIGHT} />
 					<stop offset="1" stopColor={PRIMARY_MAIN} />
 				</linearGradient>
@@ -123,15 +92,7 @@ export const Logo = ({
 	);
 
 	const fullLogo = (
-		<svg
-			width="100%"
-			height="100%"
-			viewBox="0 0 360 128"
-			fill="none"
-			xmlns="http://www.w3.org/2000/svg"
-			role="img"
-			aria-label={`${APP_NAME} logo`}
-		>
+		<svg width="100%" height="100%" viewBox="0 0 360 128" fill="none" xmlns="http://www.w3.org/2000/svg">
 			<defs>
 				<linearGradient
 					id={`${gradientId}-1`}
@@ -144,25 +105,11 @@ export const Logo = ({
 					<stop stopColor={PRIMARY_DARKER} />
 					<stop offset="1" stopColor={PRIMARY_MAIN} />
 				</linearGradient>
-				<linearGradient
-					id={`${gradientId}-2`}
-					x1="21.5"
-					y1="32"
-					x2="21.5"
-					y2="96"
-					gradientUnits="userSpaceOnUse"
-				>
+				<linearGradient id={`${gradientId}-2`} x1="21.5" y1="32" x2="21.5" y2="96" gradientUnits="userSpaceOnUse">
 					<stop stopColor={PRIMARY_LIGHT} />
 					<stop offset="1" stopColor={PRIMARY_MAIN} />
 				</linearGradient>
-				<linearGradient
-					id={`${gradientId}-3`}
-					x1="100.5"
-					y1="72"
-					x2="100.5"
-					y2="96"
-					gradientUnits="userSpaceOnUse"
-				>
+				<linearGradient id={`${gradientId}-3`} x1="100.5" y1="72" x2="100.5" y2="96" gradientUnits="userSpaceOnUse">
 					<stop stopColor={PRIMARY_LIGHT} />
 					<stop offset="1" stopColor={PRIMARY_MAIN} />
 				</linearGradient>

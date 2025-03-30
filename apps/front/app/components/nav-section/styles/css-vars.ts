@@ -1,15 +1,11 @@
 import type { Theme } from '@mui/material/styles';
-import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
 export const bulletColor = { dark: '#282F37', light: '#EDEFF2' };
 
-const colorVars = (
-	theme: Theme,
-	variant?: 'vertical' | 'mini' | 'horizontal',
-) => {
+function colorVars(theme: Theme, variant?: 'vertical' | 'mini' | 'horizontal') {
 	const {
 		vars: { palette },
 	} = theme;
@@ -22,10 +18,7 @@ const colorVars = (
 		'--nav-item-root-active-color': palette.primary.main,
 		'--nav-item-root-active-color-on-dark': palette.primary.light,
 		'--nav-item-root-active-bg': varAlpha(palette.primary.mainChannel, 0.08),
-		'--nav-item-root-active-hover-bg': varAlpha(
-			palette.primary.mainChannel,
-			0.16,
-		),
+		'--nav-item-root-active-hover-bg': varAlpha(palette.primary.mainChannel, 0.16),
 		'--nav-item-root-open-color': palette.text.primary,
 		'--nav-item-root-open-bg': palette.action.hover,
 		// sub
@@ -39,11 +32,11 @@ const colorVars = (
 			'--nav-subheader-hover-color': palette.text.primary,
 		}),
 	};
-};
+}
 
 // ----------------------------------------------------------------------
 
-const verticalVars = (theme: Theme) => {
+function verticalVars(theme: Theme) {
 	const { shape } = theme;
 
 	return {
@@ -66,11 +59,11 @@ const verticalVars = (theme: Theme) => {
 		'--nav-bullet-light-color': bulletColor.light,
 		'--nav-bullet-dark-color': bulletColor.dark,
 	};
-};
+}
 
 // ----------------------------------------------------------------------
 
-const miniVars = (theme: Theme) => {
+function miniVars(theme: Theme) {
 	const { shape } = theme;
 
 	return {
@@ -88,18 +81,18 @@ const miniVars = (theme: Theme) => {
 		'--nav-icon-root-margin': '0 0 6px 0',
 		'--nav-icon-sub-margin': '0 8px 0 0',
 	};
-};
+}
 
 // ----------------------------------------------------------------------
 
-const horizontalVars = (theme: Theme) => {
+function horizontalVars(theme: Theme) {
 	const { shape } = theme;
 
 	return {
 		...colorVars(theme, 'horizontal'),
 		'--nav-item-gap': '6px',
 		'--nav-height': '56px',
-		'--nav-item-radius': `${_.toNumber(shape.borderRadius) * 0.75}px`,
+		'--nav-item-radius': `${shape.borderRadius * 0.75}px`,
 		// root
 		'--nav-item-root-height': '32px',
 		'--nav-item-root-padding': '0 6px',
@@ -111,7 +104,7 @@ const horizontalVars = (theme: Theme) => {
 		'--nav-icon-sub-margin': '0 8px 0 0',
 		'--nav-icon-root-margin': '0 8px 0 0',
 	};
-};
+}
 
 // ----------------------------------------------------------------------
 

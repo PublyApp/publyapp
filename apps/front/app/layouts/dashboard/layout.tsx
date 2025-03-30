@@ -1,41 +1,37 @@
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import { iconButtonClasses } from '@mui/material/IconButton';
-import { type Breakpoint, useTheme } from '@mui/material/styles';
-import _ from 'lodash';
+import { useTheme, type Breakpoint } from '@mui/material/styles';
+import { merge } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
-import { Logo } from '@/front/components/logo';
-import type {
-	NavItemProps,
-	NavSectionProps,
-} from '@/front/components/nav-section';
-import { useMockedUser } from '@/front/hooks/use-mocked-user';
-import { useSettingsContext } from '@/front/hooks/use-settings-context';
-import { allLangs } from '@/front/lib/locales/all-langs';
+import { _contacts, _notifications } from 'src/_mock';
+import { useMockedUser } from 'src/auth/hooks';
+import { Logo } from 'src/components/logo';
+import type { NavItemProps, NavSectionProps } from 'src/components/nav-section';
+import { useSettingsContext } from 'src/components/settings';
+import { allLangs } from 'src/locales';
+
 import { AccountDrawer } from '../components/account-drawer';
-import { ColorSchemePopover } from '../components/colorscheme-popover';
+import { ContactsPopover } from '../components/contacts-popover';
 import { LanguagePopover } from '../components/language-popover';
 import { MenuButton } from '../components/menu-button';
+import { NotificationsDrawer } from '../components/notifications-drawer';
+import { Searchbar } from '../components/searchbar';
+import { SettingsButton } from '../components/settings-button';
 import { WorkspacesPopover } from '../components/workspaces-popover';
 import { layoutClasses } from '../core/classes';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
-// import { _contacts, _notifications } from '@/front/_mock';
 import { _account } from '../nav-config-account';
 import { navData as dashboardNavData } from '../nav-config-dashboard';
 import { _workspaces } from '../nav-config-workspace';
+
 import { VerticalDivider } from './content';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 import { NavHorizontal } from './nav-horizontal';
 import { NavMobile } from './nav-mobile';
 import { NavVertical } from './nav-vertical';
-
-// import { AccountDrawer } from '../components/account-drawer';
-// import { ContactsPopover } from '../components/contacts-popover';
-// import { NotificationsDrawer } from '../components/notifications-drawer';
-// import { Searchbar } from '../components/searchbar';
-// import { SettingsButton } from '../components/settings-button';
 
 // ----------------------------------------------------------------------
 
@@ -52,24 +48,14 @@ export type DashboardLayoutProps = LayoutBaseProps & {
 	};
 };
 
-export const DashboardLayout = ({
-	sx,
-	cssVars,
-	children,
-	slotProps,
-	layoutQuery = 'lg',
-}: DashboardLayoutProps) => {
+export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery = 'lg' }: DashboardLayoutProps) {
 	const theme = useTheme();
 
 	const { user } = useMockedUser();
 
 	const settings = useSettingsContext();
 
-	const navVars = dashboardNavColorVars(
-		theme,
-		settings.state.navColor,
-		settings.state.navLayout,
-	);
+	const navVars = dashboardNavColorVars(theme, settings.state.navColor, settings.state.navLayout);
 
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
@@ -79,11 +65,8 @@ export const DashboardLayout = ({
 	const isNavHorizontal = settings.state.navLayout === 'horizontal';
 	const isNavVertical = isNavMini || settings.state.navLayout === 'vertical';
 
-	const canDisplayItemByRole = (
-		allowedRoles: NavItemProps['allowedRoles'],
-	): boolean => {
-		return !allowedRoles?.includes(user?.role);
-	};
+	const canDisplayItemByRole = (allowedRoles: NavItemProps['allowedRoles']): boolean =>
+		!allowedRoles?.includes(user?.role);
 
 	const renderHeader = () => {
 		const headerSlotProps: HeaderSectionProps['slotProps'] = {
@@ -94,9 +77,7 @@ export const DashboardLayout = ({
 					...(isNavHorizontal && {
 						bgcolor: 'var(--layout-nav-bg)',
 						height: { [layoutQuery]: 'var(--layout-nav-horizontal-height)' },
-						[`& .${iconButtonClasses.root}`]: {
-							color: 'var(--layout-nav-text-secondary-color)',
-						},
+						[`& .${iconButtonClasses.root}`]: { color: 'var(--layout-nav-text-secondary-color)' },
 					}),
 				},
 			},
@@ -121,11 +102,7 @@ export const DashboardLayout = ({
 					{/** @slot Nav mobile */}
 					<MenuButton
 						onClick={onOpen}
-						sx={{
-							mr: 1,
-							ml: -1,
-							[theme.breakpoints.up(layoutQuery)]: { display: 'none' },
-						}}
+						sx={{ mr: 1, ml: -1, [theme.breakpoints.up(layoutQuery)]: { display: 'none' } }}
 					/>
 					<NavMobile
 						data={navData}
@@ -146,48 +123,31 @@ export const DashboardLayout = ({
 					)}
 
 					{/** @slot Divider */}
-					{isNavHorizontal && (
-						<VerticalDivider
-							sx={{ [theme.breakpoints.up(layoutQuery)]: { display: 'flex' } }}
-						/>
-					)}
+					{isNavHorizontal && <VerticalDivider sx={{ [theme.breakpoints.up(layoutQuery)]: { display: 'flex' } }} />}
 
 					{/** @slot Workspace popover */}
 					<WorkspacesPopover
 						data={_workspaces}
-						sx={{
-							...(isNavHorizontal && {
-								color: 'var(--layout-nav-text-primary-color)',
-							}),
-						}}
+						sx={{ ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }) }}
 					/>
 				</>
 			),
 			rightArea: (
-				<Box
-					sx={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: { xs: 0, sm: 0.75 },
-					}}
-				>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 } }}>
 					{/** @slot Searchbar */}
-					{/* <Searchbar data={navData} /> */}
-
-					{/** @slot Settings button */}
-					<ColorSchemePopover />
+					<Searchbar data={navData} />
 
 					{/** @slot Language popover */}
 					<LanguagePopover data={allLangs} />
 
 					{/** @slot Notifications popover */}
-					{/* <NotificationsDrawer data={_notifications} /> */}
+					<NotificationsDrawer data={_notifications} />
 
 					{/** @slot Contacts popover */}
-					{/* <ContactsPopover data={_contacts} /> */}
+					<ContactsPopover data={_contacts} />
 
 					{/** @slot Settings button */}
-					{/* <SettingsButton /> */}
+					<SettingsButton />
 
 					{/** @slot Account drawer */}
 					<AccountDrawer data={_account} />
@@ -201,37 +161,26 @@ export const DashboardLayout = ({
 				disableElevation={isNavVertical}
 				{...slotProps?.header}
 				slots={{ ...headerSlots, ...slotProps?.header?.slots }}
-				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
+				slotProps={merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
 				sx={slotProps?.header?.sx}
 			/>
 		);
 	};
 
-	const renderSidebar = () => {
-		return (
-			<NavVertical
-				data={navData}
-				isNavMini={isNavMini}
-				layoutQuery={layoutQuery}
-				cssVars={navVars.section}
-				checkPermissions={canDisplayItemByRole}
-				onToggleNav={() => {
-					return settings.setField(
-						'navLayout',
-						settings.state.navLayout === 'vertical' ? 'mini' : 'vertical',
-					);
-				}}
-			/>
-		);
-	};
+	const renderSidebar = () => (
+		<NavVertical
+			data={navData}
+			isNavMini={isNavMini}
+			layoutQuery={layoutQuery}
+			cssVars={navVars.section}
+			checkPermissions={canDisplayItemByRole}
+			onToggleNav={() => settings.setField('navLayout', settings.state.navLayout === 'vertical' ? 'mini' : 'vertical')}
+		/>
+	);
 
-	const renderFooter = () => {
-		return null;
-	};
+	const renderFooter = () => null;
 
-	const renderMain = () => {
-		return <MainSection {...slotProps?.main}>{children}</MainSection>;
-	};
+	const renderMain = () => <MainSection {...slotProps?.main}>{children}</MainSection>;
 
 	return (
 		<LayoutSection
@@ -255,9 +204,7 @@ export const DashboardLayout = ({
 				{
 					[`& .${layoutClasses.sidebarContainer}`]: {
 						[theme.breakpoints.up(layoutQuery)]: {
-							pl: isNavMini
-								? 'var(--layout-nav-mini-width)'
-								: 'var(--layout-nav-vertical-width)',
+							pl: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
 							transition: theme.transitions.create(['padding-left'], {
 								easing: 'var(--layout-transition-easing)',
 								duration: 'var(--layout-transition-duration)',
@@ -271,4 +218,4 @@ export const DashboardLayout = ({
 			{renderMain()}
 		</LayoutSection>
 	);
-};
+}

@@ -11,7 +11,7 @@ import { NavList } from './nav-list';
 
 // ----------------------------------------------------------------------
 
-export const NavSectionVertical = ({
+export function NavSectionVertical({
 	sx,
 	data,
 	render,
@@ -21,7 +21,7 @@ export const NavSectionVertical = ({
 	enabledRootRedirect,
 	cssVars: overridesVars,
 	...other
-}: NavSectionProps) => {
+}: NavSectionProps) {
 	const theme = useTheme();
 
 	const cssVars = { ...navSectionCssVars.vertical(theme), ...overridesVars };
@@ -33,55 +33,42 @@ export const NavSectionVertical = ({
 			{...other}
 		>
 			<NavUl sx={{ flex: '1 1 auto', gap: 'var(--nav-item-gap)' }}>
-				{data.map((group) => {
-					return (
-						<Group
-							key={group.subheader ?? group.items[0].title}
-							subheader={group.subheader}
-							items={group.items}
-							render={render}
-							slotProps={slotProps}
-							checkPermissions={checkPermissions}
-							enabledRootRedirect={enabledRootRedirect}
-						/>
-					);
-				})}
+				{data.map((group) => (
+					<Group
+						key={group.subheader ?? group.items[0].title}
+						subheader={group.subheader}
+						items={group.items}
+						render={render}
+						slotProps={slotProps}
+						checkPermissions={checkPermissions}
+						enabledRootRedirect={enabledRootRedirect}
+					/>
+				))}
 			</NavUl>
 		</Nav>
 	);
-};
+}
 
 // ----------------------------------------------------------------------
 
-const Group = ({
-	items,
-	render,
-	subheader,
-	slotProps,
-	checkPermissions,
-	enabledRootRedirect,
-}: NavGroupProps) => {
+function Group({ items, render, subheader, slotProps, checkPermissions, enabledRootRedirect }: NavGroupProps) {
 	const groupOpen = useBoolean(true);
 
-	const renderContent = () => {
-		return (
-			<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
-				{items.map((list) => {
-					return (
-						<NavList
-							key={list.title}
-							data={list}
-							render={render}
-							depth={1}
-							slotProps={slotProps}
-							checkPermissions={checkPermissions}
-							enabledRootRedirect={enabledRootRedirect}
-						/>
-					);
-				})}
-			</NavUl>
-		);
-	};
+	const renderContent = () => (
+		<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
+			{items.map((list) => (
+				<NavList
+					key={list.title}
+					data={list}
+					render={render}
+					depth={1}
+					slotProps={slotProps}
+					checkPermissions={checkPermissions}
+					enabledRootRedirect={enabledRootRedirect}
+				/>
+			))}
+		</NavUl>
+	);
 
 	return (
 		<NavLi>
@@ -103,4 +90,4 @@ const Group = ({
 			)}
 		</NavLi>
 	);
-};
+}
