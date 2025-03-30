@@ -1,6 +1,7 @@
 import Link, { type LinkProps } from '@mui/material/Link';
-import { Iconify } from 'src/components/iconify';
-import { RouterLink } from 'src/routes/components';
+
+import { Iconify } from '../iconify/iconify';
+import { RouterLink } from '../router-link';
 
 // ----------------------------------------------------------------------
 
@@ -10,7 +11,7 @@ type FormReturnLinkProps = LinkProps & {
 	label?: React.ReactNode;
 };
 
-export function FormReturnLink({ sx, href, label, icon, children, ...other }: FormReturnLinkProps) {
+export const FormReturnLink = ({ sx, href, label, icon, children, ...other }: FormReturnLinkProps) => {
 	return (
 		<Link
 			component={RouterLink}
@@ -34,4 +35,4 @@ export function FormReturnLink({ sx, href, label, icon, children, ...other }: Fo
 			{children}
 		</Link>
 	);
-}
+};

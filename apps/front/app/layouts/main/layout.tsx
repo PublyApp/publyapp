@@ -5,7 +5,9 @@ import type { Breakpoint } from '@mui/material/styles';
 import { useBoolean } from 'minimal-shared/hooks';
 
 import { Logo } from '@/front/components/logo/logo';
+import { RouterLink } from '@/front/components/router-link';
 import { usePathname } from '@/front/hooks/use-pathname';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 import { MenuButton } from '../components/menu-button';
 import { SettingsButton } from '../components/settings-button';
@@ -95,10 +97,10 @@ export const MainLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'md
 
 						{/** @slot Purchase button */}
 						<Button
+							component={RouterLink}
 							variant="contained"
 							rel="noopener"
-							href="#"
-							// href={paths.minimalStore}
+							href={FRONT_PATH_NAMES.staff.root}
 							sx={(theme) => {
 								return {
 									display: 'none',
@@ -106,7 +108,7 @@ export const MainLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'md
 								};
 							}}
 						>
-							Purchase
+							Dashboard
 						</Button>
 					</Box>
 				</>
