@@ -9,29 +9,20 @@ type FormResendCodeProps = BoxProps & {
 	onResendCode?: () => void;
 };
 
-export const FormResendCode = ({
-	value,
-	disabled,
-	onResendCode,
-	sx,
-	...other
-}: FormResendCodeProps) => {
+export function FormResendCode({ value, disabled, onResendCode, sx, ...other }: FormResendCodeProps) {
 	return (
 		<Box
 			sx={[
-				() => {
-					return {
-						mt: 3,
-						typography: 'body2',
-						alignSelf: 'center',
-					};
-				},
+				() => ({
+					mt: 3,
+					typography: 'body2',
+					alignSelf: 'center',
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
 		>
-			{"Don't have a code? "}
-
+			{`Don’t have a code? `}
 			<Link
 				variant="subtitle2"
 				onClick={onResendCode}
@@ -44,4 +35,4 @@ export const FormResendCode = ({
 			</Link>
 		</Box>
 	);
-};
+}

@@ -28,7 +28,7 @@ export const AuthSplitSection = ({
 	methods,
 	layoutQuery = 'md',
 	title = 'Manage the job',
-	imgUrl = '/assets/illustrations/illustration-dashboard.webp',
+	imgUrl = `${/* CONFIG.assetsDir */ ''}/assets/illustrations/illustration-dashboard.webp`,
 	subtitle = 'More effectively with optimized workflows.',
 	...other
 }: AuthSplitSectionProps) => {
@@ -40,7 +40,7 @@ export const AuthSplitSection = ({
 						...theme.mixins.bgGradient({
 							images: [
 								`linear-gradient(0deg, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.92)}, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.92)})`,
-								'url(/assets/background/background-3-blur.webp)',
+								`url(${/* CONFIG.assetsDir */ ''}/assets/background/background-3-blur.webp)`,
 							],
 						}),
 						px: 3,
@@ -68,13 +68,7 @@ export const AuthSplitSection = ({
 					{title}
 				</Typography>
 
-				{subtitle && (
-					<Typography
-						sx={{ color: 'text.secondary', textAlign: 'center', mt: 2 }}
-					>
-						{subtitle}
-					</Typography>
-				)}
+				{subtitle && <Typography sx={{ color: 'text.secondary', textAlign: 'center', mt: 2 }}>{subtitle}</Typography>}
 			</div>
 
 			<Box
@@ -101,17 +95,8 @@ export const AuthSplitSection = ({
 								}}
 							>
 								<Tooltip title={option.label} placement="top">
-									<Link
-										component={RouterLink}
-										href={option.path}
-										sx={{ ...(!selected && { pointerEvents: 'none' }) }}
-									>
-										<Box
-											component="img"
-											alt={option.label}
-											src={option.icon}
-											sx={{ width: 32, height: 32 }}
-										/>
+									<Link component={RouterLink} href={option.path} sx={{ ...(!selected && { pointerEvents: 'none' }) }}>
+										<Box component="img" alt={option.label} src={option.icon} sx={{ width: 32, height: 32 }} />
 									</Link>
 								</Tooltip>
 							</Box>

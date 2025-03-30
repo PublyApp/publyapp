@@ -1,6 +1,7 @@
 import { memo } from 'react';
 
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import { CONFIG } from 'src/global-config';
 
 import { BackgroundShape } from './background-shape';
 
@@ -8,39 +9,31 @@ import { BackgroundShape } from './background-shape';
 
 type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
-const PageNotFoundIllustration = ({
-	hideBackground,
-	sx,
-	...other
-}: SvgProps) => {
-	const renderCharacterImage = () => {
-		return (
-			<image
-				href="/assets/illustrations/characters/character-question.webp"
-				height="280"
-				x="220"
-				y="40"
-			/>
-		);
-	};
+function PageNotFoundIllustration({ hideBackground, sx, ...other }: SvgProps) {
+	const renderCharacterImage = () => (
+		<image
+			href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-question.webp`}
+			height="280"
+			x="220"
+			y="40"
+		/>
+	);
 
 	return (
 		<SvgIcon
 			viewBox="0 0 480 360"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => {
-					return {
-						'--primary-light': theme.vars.palette.primary.light,
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
-						width: 320,
-						maxWidth: 1,
-						flexShrink: 0,
-						height: 'auto',
-					};
-				},
+				(theme) => ({
+					'--primary-light': theme.vars.palette.primary.light,
+					'--primary-main': theme.vars.palette.primary.main,
+					'--primary-dark': theme.vars.palette.primary.dark,
+					'--primary-darker': theme.vars.palette.primary.darker,
+					width: 320,
+					maxWidth: 1,
+					flexShrink: 0,
+					height: 'auto',
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -49,16 +42,9 @@ const PageNotFoundIllustration = ({
 
 			{renderCharacterImage()}
 
-			<path
-				fill="#FFAB00"
-				d="M111.1 141.2c58.7-1 58.6-88.3 0-89.2-58.6 1-58.6 88.3 0 89.2z"
-				opacity="0.12"
-			/>
+			<path fill="#FFAB00" d="M111.1 141.2c58.7-1 58.6-88.3 0-89.2-58.6 1-58.6 88.3 0 89.2z" opacity="0.12" />
 
-			<path
-				fill="#FFD666"
-				d="M111.1 120c30.8-.5 30.8-46.3 0-46.8-30.8.5-30.8 46.3 0 46.8z"
-			/>
+			<path fill="#FFD666" d="M111.1 120c30.8-.5 30.8-46.3 0-46.8-30.8.5-30.8 46.3 0 46.8z" />
 			<path
 				fill="var(--primary-darker)"
 				d="M244.9 182.5c82.3 1.4 82.2 123.8 0 125.2-82.3-1.5-82.3-123.8 0-125.2zm0 23.1c-51.8.9-51.8 77.9 0 78.8 51.8-.9 51.7-77.9 0-78.8z"
@@ -90,6 +76,6 @@ const PageNotFoundIllustration = ({
 			</defs>
 		</SvgIcon>
 	);
-};
+}
 
 export default memo(PageNotFoundIllustration);

@@ -13,34 +13,22 @@ export const schemaHelper = {
 	 * Phone number
 	 * Apply for phone number input.
 	 */
-	phoneNumber: (props?: {
-		message?: MessageMapProps;
-		isValid?: (text: string) => boolean;
-	}) => {
-		return zod
+	phoneNumber: (props?: { message?: MessageMapProps; isValid?: (text: string) => boolean }) =>
+		zod
 			.string({
 				required_error: props?.message?.required ?? 'Phone number is required!',
-				invalid_type_error:
-					props?.message?.invalid_type ?? 'Invalid phone number!',
+				invalid_type_error: props?.message?.invalid_type ?? 'Invalid phone number!',
 			})
-			.min(1, {
-				message: props?.message?.required ?? 'Phone number is required!',
-			})
-			.refine(
-				(data) => {
-					return props?.isValid?.(data);
-				},
-				{
-					message: props?.message?.invalid_type ?? 'Invalid phone number!',
-				},
-			);
-	},
+			.min(1, { message: props?.message?.required ?? 'Phone number is required!' })
+			.refine((data) => props?.isValid?.(data), {
+				message: props?.message?.invalid_type ?? 'Invalid phone number!',
+			}),
 	/**
 	 * Date
 	 * Apply for date pickers.
 	 */
-	date: (props?: { message?: MessageMapProps }) => {
-		return zod.coerce
+	date: (props?: { message?: MessageMapProps }) =>
+		zod.coerce
 			.date()
 			.nullable()
 			.transform((dateString, ctx) => {
@@ -65,27 +53,19 @@ export const schemaHelper = {
 
 				return date;
 			})
-			.pipe(zod.union([zod.number(), zod.string(), zod.date(), zod.null()]));
-	},
+			.pipe(zod.union([zod.number(), zod.string(), zod.date(), zod.null()])),
 	/**
 	 * Editor
 	 * defaultValue === '' | <p></p>
 	 * Apply for editor
 	 */
-	editor: (props?: { message: string }) => {
-		return zod
-			.string()
-			.min(8, { message: props?.message ?? 'Content is required!' });
-	},
+	editor: (props?: { message: string }) => zod.string().min(8, { message: props?.message ?? 'Content is required!' }),
 	/**
 	 * Nullable Input
 	 * Apply for input, select... with null value.
 	 */
-	nullableInput: <T extends ZodTypeAny>(
-		schema: T,
-		options?: { message?: string },
-	) => {
-		return schema.nullable().transform((val, ctx) => {
+	nullableInput: <T extends ZodTypeAny>(schema: T, options?: { message?: string }) =>
+		schema.nullable().transform((val, ctx) => {
 			if (val === null || val === undefined) {
 				ctx.addIssue({
 					code: zod.ZodIssueCode.custom,
@@ -93,51 +73,34 @@ export const schemaHelper = {
 				});
 				return val;
 			}
-
 			return val;
-		});
-	},
+		}),
 	/**
 	 * Boolean
 	 * Apply for checkbox, switch...
 	 */
-	boolean: (props?: { message: string }) => {
-		return zod.boolean({ coerce: true }).refine(
-			(val) => {
-				return val === true;
-			},
-			{
-				message: props?.message ?? 'Field is required!',
-			},
-		);
-	},
+	boolean: (props?: { message: string }) =>
+		zod.boolean({ coerce: true }).refine((val) => val === true, {
+			message: props?.message ?? 'Field is required!',
+		}),
 	/**
 	 * Slider
 	 * Apply for slider with range [min, max].
 	 */
-	sliderRange: (props: { message?: string; min: number; max: number }) => {
-		return zod
+	sliderRange: (props: { message?: string; min: number; max: number }) =>
+		zod
 			.number()
 			.array()
-			.refine(
-				(data) => {
-					return data[0] >= props?.min && data[1] <= props?.max;
-				},
-				{
-					message:
-						props.message ??
-						`Range must be between ${props?.min} and ${props?.max}`,
-				},
-			);
-	},
+			.refine((data) => data[0] >= props?.min && data[1] <= props?.max, {
+				message: props.message ?? `Range must be between ${props?.min} and ${props?.max}`,
+			}),
 	/**
 	 * File
 	 * Apply for upload single file.
 	 */
-	file: (props?: { message: string }) => {
-		return zod.custom<File | string | null>().transform((data, ctx) => {
-			const hasFile =
-				data instanceof File || (typeof data === 'string' && !!data.length);
+	file: (props?: { message: string }) =>
+		zod.custom<File | string | null>().transform((data, ctx) => {
+			const hasFile = data instanceof File || (typeof data === 'string' && !!data.length);
 
 			if (!hasFile) {
 				ctx.addIssue({
@@ -148,14 +111,13 @@ export const schemaHelper = {
 			}
 
 			return data;
-		});
-	},
+		}),
 	/**
 	 * Files
 	 * Apply for upload multiple files.
 	 */
-	files: (props?: { message: string; minFiles?: number }) => {
-		return zod.array(zod.custom<File | string>()).transform((data, ctx) => {
+	files: (props?: { message: string; minFiles?: number }) =>
+		zod.array(zod.custom<File | string>()).transform((data, ctx) => {
 			const minFiles = props?.minFiles ?? 2;
 
 			if (!data.length) {
@@ -171,6 +133,5 @@ export const schemaHelper = {
 			}
 
 			return data;
-		});
-	},
+		}),
 };

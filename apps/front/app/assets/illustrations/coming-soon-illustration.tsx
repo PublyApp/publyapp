@@ -1,6 +1,7 @@
 import { memo } from 'react';
 
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import { CONFIG } from 'src/global-config';
 
 import { BackgroundShape } from './background-shape';
 
@@ -8,35 +9,31 @@ import { BackgroundShape } from './background-shape';
 
 type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
-const ComingSoonIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
-	const renderCharacterImage = () => {
-		return (
-			<image
-				href="/assets/illustrations/characters/character-notification.webp"
-				height="280"
-				x="290"
-				y="40"
-			/>
-		);
-	};
+function ComingSoonIllustration({ hideBackground, sx, ...other }: SvgProps) {
+	const renderCharacterImage = () => (
+		<image
+			href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-notification.webp`}
+			height="280"
+			x="290"
+			y="40"
+		/>
+	);
 
 	return (
 		<SvgIcon
 			viewBox="0 0 480 360"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => {
-					return {
-						'--primary-light': theme.vars.palette.primary.light,
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
-						width: 320,
-						maxWidth: 1,
-						flexShrink: 0,
-						height: 'auto',
-					};
-				},
+				(theme) => ({
+					'--primary-light': theme.vars.palette.primary.light,
+					'--primary-main': theme.vars.palette.primary.main,
+					'--primary-dark': theme.vars.palette.primary.dark,
+					'--primary-darker': theme.vars.palette.primary.darker,
+					width: 320,
+					maxWidth: 1,
+					flexShrink: 0,
+					height: 'auto',
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -54,21 +51,14 @@ const ComingSoonIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 				opacity="0.24"
 			/>
 
-			<path
-				fill="var(--primary-dark)"
-				d="M58.778 79.4l14.6-6 80.2 7.5v7.6l-94.8.3v-9.4z"
-			/>
+			<path fill="var(--primary-dark)" d="M58.778 79.4l14.6-6 80.2 7.5v7.6l-94.8.3v-9.4z" />
 			<path fill="var(--primary-main)" d="M85.279 71h-14.4v199.5h14.4V71z" />
 			<path
 				fill="#fff"
 				d="M182.079 239.7h-5.1c-.6 0-1 .4-1 1V289c0 .6.4 1 1 1h5.2c.6 0 1-.4 1-1v-48.3c-.1-.5-.5-1-1.1-1zM130.978 239.7h-5.2c-.6 0-1 .4-1 1v46.7c0 .6.4 1 1 1h5.2c.6 0 1-.4 1-1v-46.6c0-.6-.4-1.1-1-1.1z"
 			/>
 
-			<path
-				fill="#C4CDD5"
-				d="M175.779 266h7.2v-24.7h-7.4l.2 24.7zm-50.9 0h7.2v-24.7h-7.4l.2 24.7z"
-				opacity="0.5"
-			/>
+			<path fill="#C4CDD5" d="M175.779 266h7.2v-24.7h-7.4l.2 24.7zm-50.9 0h7.2v-24.7h-7.4l.2 24.7z" opacity="0.5" />
 
 			<path
 				fill="var(--primary-light)"
@@ -130,6 +120,6 @@ const ComingSoonIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 			{renderCharacterImage()}
 		</SvgIcon>
 	);
-};
+}
 
 export default memo(ComingSoonIllustration);

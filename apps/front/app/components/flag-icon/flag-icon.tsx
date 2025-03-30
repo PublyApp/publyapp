@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
@@ -15,15 +16,12 @@ export const FlagIcon = ({ code, className, sx, ...other }: FlagIconProps) => {
 	}
 
 	return (
-		<FlagRoot
-			className={mergeClasses([flagIconClasses.root, className])}
-			sx={sx}
-			{...other}
-		>
+		<FlagRoot className={mergeClasses([flagIconClasses.root, className])} sx={sx} {...other}>
 			<FlagImg
 				loading="lazy"
 				alt={code}
-				src={`https://purecatamphetamine.github.io/country-flag-icons/3x2/${code?.toUpperCase()}.svg`}
+				// eslint-disable-next-line no-useless-concat
+				src={`https://purecatamphetamine.github.io/country-flag-icons/3x2/${code?.toUpperCase()}` + '.svg'}
 				className={flagIconClasses.img}
 			/>
 		</FlagRoot>

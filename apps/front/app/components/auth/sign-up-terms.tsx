@@ -1,38 +1,33 @@
-import { useTranslate } from '@/front/hooks/use-translate';
 import Box, { type BoxProps } from '@mui/material/Box';
 import Link from '@mui/material/Link';
 
 // ----------------------------------------------------------------------
 
-export const SignUpTerms = ({ sx, ...other }: BoxProps) => {
-	const { t } = useTranslate();
-
+export function SignUpTerms({ sx, ...other }: BoxProps) {
 	return (
 		<Box
 			component="span"
 			sx={[
-				() => {
-					return {
-						mt: 3,
-						display: 'block',
-						textAlign: 'center',
-						typography: 'caption',
-						color: 'text.secondary',
-					};
-				},
+				() => ({
+					mt: 3,
+					display: 'block',
+					textAlign: 'center',
+					typography: 'caption',
+					color: 'text.secondary',
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
 		>
-			{t('by-signing-up-agree')}{' '}
+			{'By signing up, I agree to '}
 			<Link underline="always" color="text.primary">
-				{t('terms-of-service')}
-			</Link>{' '}
-			{t('and')}{' '}
+				Terms of service
+			</Link>
+			{' and '}
 			<Link underline="always" color="text.primary">
-				{t('privacy-policy')}
+				Privacy policy
 			</Link>
 			.
 		</Box>
 	);
-};
+}

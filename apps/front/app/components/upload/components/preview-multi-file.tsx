@@ -2,17 +2,16 @@ import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 import { styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
-
-import { fData } from '@/front/utils/format-number';
+import { fData } from 'src/utils/format-number';
 
 import { fileData, FileThumbnail } from '../../file-thumbnail';
-import { Iconify } from '../../iconify/iconify';
+import { Iconify } from '../../iconify';
 import { uploadClasses } from '../classes';
 import type { MultiFilePreviewProps } from '../types';
 
 // ----------------------------------------------------------------------
 
-export const MultiFilePreview = ({
+export function MultiFilePreview({
 	sx,
 	onRemove,
 	lastNode,
@@ -22,7 +21,7 @@ export const MultiFilePreview = ({
 	files = [],
 	className,
 	...other
-}: MultiFilePreviewProps) => {
+}: MultiFilePreviewProps) {
 	return (
 		<ListRoot
 			thumbnail={thumbnail}
@@ -42,17 +41,13 @@ export const MultiFilePreview = ({
 								tooltip
 								imageView
 								file={file}
-								onRemove={() => {
-									return onRemove?.(file);
-								}}
+								onRemove={() => onRemove?.(file)}
 								sx={[
-									(theme) => {
-										return {
-											width: 80,
-											height: 80,
-											border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.16)}`,
-										};
-									},
+									(theme) => ({
+										width: 80,
+										height: 80,
+										border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.16)}`,
+									}),
 								]}
 								slotProps={{ icon: { sx: { width: 36, height: 36 } } }}
 								{...slotProps?.thumbnail}
@@ -74,12 +69,7 @@ export const MultiFilePreview = ({
 						/>
 
 						{onRemove && (
-							<IconButton
-								size="small"
-								onClick={() => {
-									return onRemove(file);
-								}}
-							>
+							<IconButton size="small" onClick={() => onRemove(file)}>
 								<Iconify width={16} icon="mingcute:close-line" />
 							</IconButton>
 						)}
@@ -90,44 +80,32 @@ export const MultiFilePreview = ({
 			{lastNode && <ItemNode thumbnail={thumbnail}>{lastNode}</ItemNode>}
 		</ListRoot>
 	);
-};
+}
 
 // ----------------------------------------------------------------------
 
 const ListRoot = styled('ul', {
-	shouldForwardProp: (prop: string) => {
-		return !['thumbnail', 'sx'].includes(prop);
-	},
-})<Pick<MultiFilePreviewProps, 'thumbnail'>>(({ thumbnail, theme }) => {
-	return {
-		display: 'flex',
-		gap: theme.spacing(1),
-		flexDirection: 'column',
-		...(thumbnail && { flexWrap: 'wrap', flexDirection: 'row' }),
-	};
-});
+	shouldForwardProp: (prop: string) => !['thumbnail', 'sx'].includes(prop),
+})<Pick<MultiFilePreviewProps, 'thumbnail'>>(({ thumbnail, theme }) => ({
+	display: 'flex',
+	gap: theme.spacing(1),
+	flexDirection: 'column',
+	...(thumbnail && { flexWrap: 'wrap', flexDirection: 'row' }),
+}));
 
-const ItemThumbnail = styled('li')(() => {
-	return { display: 'inline-flex' };
-});
+const ItemThumbnail = styled('li')(() => ({ display: 'inline-flex' }));
 
-const ItemRow = styled('li')(({ theme }) => {
-	return {
-		display: 'flex',
-		alignItems: 'center',
-		gap: theme.spacing(1.5),
-		padding: theme.spacing(1, 1, 1, 1.5),
-		borderRadius: theme.shape.borderRadius,
-		border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.16)}`,
-	};
-});
+const ItemRow = styled('li')(({ theme }) => ({
+	display: 'flex',
+	alignItems: 'center',
+	gap: theme.spacing(1.5),
+	padding: theme.spacing(1, 1, 1, 1.5),
+	borderRadius: theme.shape.borderRadius,
+	border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.16)}`,
+}));
 
 const ItemNode = styled('li', {
-	shouldForwardProp: (prop: string) => {
-		return !['thumbnail', 'sx'].includes(prop);
-	},
-})<Pick<MultiFilePreviewProps, 'thumbnail'>>(({ thumbnail }) => {
-	return {
-		...(thumbnail && { width: 'auto', display: 'inline-flex' }),
-	};
-});
+	shouldForwardProp: (prop: string) => !['thumbnail', 'sx'].includes(prop),
+})<Pick<MultiFilePreviewProps, 'thumbnail'>>(({ thumbnail }) => ({
+	...(thumbnail && { width: 'auto', display: 'inline-flex' }),
+}));

@@ -1,3 +1,5 @@
+import { CONFIG } from 'src/global-config';
+
 import type { ExtendFile } from './types';
 
 // ----------------------------------------------------------------------
@@ -15,14 +17,12 @@ const FORMAT_AUDIO = ['wav', 'aif', 'mp3', 'aac'];
 const FORMAT_IMG = ['jpg', 'jpeg', 'gif', 'bmp', 'png', 'svg', 'webp'];
 const FORMAT_VIDEO = ['m4v', 'avi', 'mpg', 'mp4', 'webm'];
 
-const iconUrl = (icon: string) => {
-	return `/assets/icons/files/${icon}.svg`;
-};
+const iconUrl = (icon: string) => `${CONFIG.assetsDir}/assets/icons/files/${icon}.svg`;
 
 // ----------------------------------------------------------------------
 
-export const fileFormat = (fileUrl: string) => {
-	let format: string;
+export function fileFormat(fileUrl: string) {
+	let format;
 
 	const fileByUrl = fileTypeByUrl(fileUrl);
 
@@ -65,12 +65,12 @@ export const fileFormat = (fileUrl: string) => {
 	}
 
 	return format;
-};
+}
 
 // ----------------------------------------------------------------------
 
-export const fileThumb = (fileUrl: string) => {
-	let thumb: string;
+export function fileThumb(fileUrl: string) {
+	let thumb;
 
 	switch (fileFormat(fileUrl)) {
 		case 'folder':
@@ -112,25 +112,24 @@ export const fileThumb = (fileUrl: string) => {
 		default:
 			thumb = iconUrl('ic-file');
 	}
-
 	return thumb;
-};
+}
 
 // ----------------------------------------------------------------------
 
-export const fileTypeByUrl = (fileUrl: string) => {
-	return fileUrl?.split('.').pop() || '';
-};
+export function fileTypeByUrl(fileUrl: string) {
+	return (fileUrl && fileUrl.split('.').pop()) || '';
+}
 
 // ----------------------------------------------------------------------
 
-export const fileNameByUrl = (fileUrl: string) => {
+export function fileNameByUrl(fileUrl: string) {
 	return fileUrl.split('/').pop();
-};
+}
 
 // ----------------------------------------------------------------------
 
-export const fileData = (file: File | string) => {
+export function fileData(file: File | string) {
 	// From url
 	if (typeof file === 'string') {
 		return {
@@ -154,4 +153,4 @@ export const fileData = (file: File | string) => {
 		lastModified: file.lastModified,
 		lastModifiedDate: (file as ExtendFile).lastModifiedDate,
 	};
-};
+}

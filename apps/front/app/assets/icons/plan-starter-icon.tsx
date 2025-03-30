@@ -4,22 +4,20 @@ import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 
 // ----------------------------------------------------------------------
 
-const PlanStarterIcon = ({ sx, ...other }: SvgIconProps) => {
+function PlanStarterIcon({ sx, ...other }: SvgIconProps) {
 	return (
 		<SvgIcon
 			viewBox="0 0 80 80"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => {
-					return {
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
-						width: 48,
-						flexShrink: 0,
-						height: 'auto',
-					};
-				},
+				(theme) => ({
+					'--primary-main': theme.vars.palette.primary.main,
+					'--primary-dark': theme.vars.palette.primary.dark,
+					'--primary-darker': theme.vars.palette.primary.darker,
+					width: 48,
+					flexShrink: 0,
+					height: 'auto',
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -27,10 +25,7 @@ const PlanStarterIcon = ({ sx, ...other }: SvgIconProps) => {
 			<g transform="translate(0 -5)">
 				<g transform="translate(0 9.15)">
 					<g transform="translate(9.167 19.963)">
-						<path
-							fill="var(--primary-dark)"
-							d="M53.333 17.467H61.666V24.953H53.333z"
-						/>
+						<path fill="var(--primary-dark)" d="M53.333 17.467H61.666V24.953H53.333z" />
 
 						<path
 							fill="var(--primary-darker)"
@@ -51,10 +46,7 @@ const PlanStarterIcon = ({ sx, ...other }: SvgIconProps) => {
 				</g>
 
 				<g transform="translate(9.167 19.963)">
-					<path
-						fill="var(--primary-dark)"
-						d="M53.333 17.467H61.666V24.953H53.333z"
-					/>
+					<path fill="var(--primary-dark)" d="M53.333 17.467H61.666V24.953H53.333z" />
 
 					<path
 						fill="var(--primary-darker)"
@@ -75,6 +67,6 @@ const PlanStarterIcon = ({ sx, ...other }: SvgIconProps) => {
 			</g>
 		</SvgIcon>
 	);
-};
+}
 
 export default memo(PlanStarterIcon);

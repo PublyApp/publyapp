@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import type { ReactNode } from 'react';
 
 import { useSuspenseQueries } from '@tanstack/react-query';
@@ -7,14 +6,12 @@ import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
-import { SIDEBAR_COOKIE_NAME } from '@/front/lib/constants';
 import { CookieManager } from '@/front/lib/cookie-manager';
 import { getTenantAuthDataQuery, getUserAuthDataQuery } from '@/front/lib/react-query/features/auth/auth.actions';
 import { getClientLoader } from '@/front/lib/react-router/client.data';
-import { useMainStore } from '@/front/lib/zustand/store';
-import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 
-import type { Route } from './+types/AuthedPagesLayout';
+import type { Route } from './+types/AuthedLayout';
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
@@ -22,29 +19,29 @@ export const clientLoader = getClientLoader({
 		const sessionToken = browserCookies.get(SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
-			throw redirect('/login'); // redirect to login
+			throw redirect(FRONT_PATH_NAMES.auth.login); // redirect to login
 		}
 
 		defaultApiClient.parseRestClient.setSessionToken(sessionToken);
 
-		const cookies = new CookieManager();
-		const sideBarOpenCookie = cookies.get(SIDEBAR_COOKIE_NAME);
+		// const cookies = new CookieManager();
+		// const sideBarOpenCookie = cookies.get(SIDEBAR_COOKIE_NAME);
 
 		// set zustand state
-		useMainStore.setState((root) => {
-			const allowedStates = ['expanded', 'collapsed'];
+		// useMainStore.setState((root) => {
+		// 	const allowedStates = ['expanded', 'collapsed'];
 
-			let state = _.toString(sideBarOpenCookie);
+		// 	let state = _.toString(sideBarOpenCookie);
 
-			if (!allowedStates.includes(state)) {
-				// eslint-disable-next-line prefer-destructuring
-				state = allowedStates[0];
-				cookies.set(SIDEBAR_COOKIE_NAME, state);
-			}
+		// 	if (!allowedStates.includes(state)) {
+		// 		// eslint-disable-next-line prefer-destructuring
+		// 		state = allowedStates[0];
+		// 		cookies.set(SIDEBAR_COOKIE_NAME, state);
+		// 	}
 
-			// eslint-disable-next-line no-param-reassign
-			root.settingsSlice.sidebar.state = state as never;
-		});
+		// 	// eslint-disable-next-line no-param-reassign
+		// 	root.settingsSlice.sidebar.state = state as never;
+		// });
 
 		return {};
 	},
@@ -61,7 +58,7 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	return <>{children}</>;
 };
 
-const AuthedPagesLayout = ({ loaderData: _l }: Route.ComponentProps) => {
+const AuthedLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 	return (
 		<ClientOnly>
 			{() => {
@@ -75,4 +72,4 @@ const AuthedPagesLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 	);
 };
 
-export default AuthedPagesLayout;
+export default AuthedLayout;

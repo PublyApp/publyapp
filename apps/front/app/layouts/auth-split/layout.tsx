@@ -1,15 +1,20 @@
 import _ from 'lodash';
+
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import type { Breakpoint } from '@mui/material/styles';
+
 import { Logo } from '@/front/components/logo/logo';
+import { RouterLink } from '@/front/components/router-link';
+
+import { SettingsButton } from '../components/settings-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
+
 import { AuthSplitContent, type AuthSplitContentProps } from './content';
 import { AuthSplitSection, type AuthSplitSectionProps } from './section';
-import { allLangs } from '@/front/lib/locales/all-langs';
-import { LanguagePopover } from '../components/language-popover';
 
 // ----------------------------------------------------------------------
 
@@ -25,13 +30,7 @@ export type AuthSplitLayoutProps = LayoutBaseProps & {
 	};
 };
 
-export const AuthSplitLayout = ({
-	sx,
-	cssVars,
-	children,
-	slotProps,
-	layoutQuery = 'md',
-}: AuthSplitLayoutProps) => {
+export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'md' }: AuthSplitLayoutProps) => {
 	const renderHeader = () => {
 		const headerSlotProps: HeaderSectionProps['slotProps'] = {
 			container: { maxWidth: false },
@@ -50,28 +49,15 @@ export const AuthSplitLayout = ({
 				</>
 			),
 			rightArea: (
-				<Box
-					sx={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: { xs: 1, sm: 1.5 },
-					}}
-				>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
 					{/** @slot Help link */}
-					{/* <Link
-						href={FRONT_PATH_NAMES.home}
-						component={RouterLink}
-						color="inherit"
-						sx={{ typography: 'subtitle2' }}
-					>
+					{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+					<Link href={/* paths.faqs */ '#'} component={RouterLink} color="inherit" sx={{ typography: 'subtitle2' }}>
 						Need help?
-					</Link> */}
+					</Link>
 
 					{/** @slot Settings button */}
-					{/* <SettingsButton /> */}
-
-					{/** @slot Language popover */}
-					<LanguagePopover data={allLangs} />
+					<SettingsButton />
 				</Box>
 			),
 		};
@@ -85,9 +71,7 @@ export const AuthSplitLayout = ({
 				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
 				sx={[
 					{ position: { [layoutQuery]: 'fixed' } },
-					...(Array.isArray(slotProps?.header?.sx)
-						? (slotProps?.header?.sx ?? [])
-						: [slotProps?.header?.sx]),
+					...(Array.isArray(slotProps?.header?.sx) ? slotProps?.header?.sx ?? [] : [slotProps?.header?.sx]),
 				]}
 			/>
 		);
@@ -103,46 +87,47 @@ export const AuthSplitLayout = ({
 				{...slotProps?.main}
 				sx={[
 					(theme) => {
-						return {
-							[theme.breakpoints.up(layoutQuery)]: { flexDirection: 'row' },
-						};
+						return { [theme.breakpoints.up(layoutQuery)]: { flexDirection: 'row' } };
 					},
-					...(Array.isArray(slotProps?.main?.sx)
-						? (slotProps?.main?.sx ?? [])
-						: [slotProps?.main?.sx]),
+					...(Array.isArray(slotProps?.main?.sx) ? slotProps?.main?.sx ?? [] : [slotProps?.main?.sx]),
 				]}
 			>
 				<AuthSplitSection
 					layoutQuery={layoutQuery}
-					// method={'jwt'}
+					method={/* CONFIG.auth.method */ 'jwt'}
 					{...slotProps?.section}
-					// methods={[
-					// 	{
-					// 		label: 'Jwt',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-jwt.svg',
-					// 	},
-					// 	{
-					// 		label: 'Firebase',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-firebase.svg',
-					// 	},
-					// 	{
-					// 		label: 'Amplify',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-amplify.svg',
-					// 	},
-					// 	{
-					// 		label: 'Auth0',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-auth0.svg',
-					// 	},
-					// 	{
-					// 		label: 'Supabase',
-					// 		path: '#',
-					// 		icon: '/assets/icons/platforms/ic-supabase.svg',
-					// 	},
-					// ]}
+					methods={[
+						{
+							label: 'Jwt',
+							path: '#',
+							// eslint-disable-next-line no-useless-concat
+							icon: `${/* CONFIG.assetsDir */ ''}/assets/icons/platforms/ic-jwt` + '.svg',
+						},
+						{
+							label: 'Firebase',
+							path: '#',
+							// eslint-disable-next-line no-useless-concat
+							icon: `${/* CONFIG.assetsDir */ ''}/assets/icons/platforms/ic-firebase` + '.svg',
+						},
+						{
+							label: 'Amplify',
+							path: '#',
+							// eslint-disable-next-line no-useless-concat
+							icon: `${/* CONFIG.assetsDir */ ''}/assets/icons/platforms/ic-amplify` + '.svg',
+						},
+						{
+							label: 'Auth0',
+							path: '#',
+							// eslint-disable-next-line no-useless-concat
+							icon: `${/* CONFIG.assetsDir */ ''}/assets/icons/platforms/ic-auth0` + '.svg',
+						},
+						{
+							label: 'Supabase',
+							path: '#',
+							// eslint-disable-next-line no-useless-concat
+							icon: `${/* CONFIG.assetsDir */ ''}/assets/icons/platforms/ic-supabase` + '.svg',
+						},
+					]}
 				/>
 				<AuthSplitContent layoutQuery={layoutQuery} {...slotProps?.content}>
 					{children}

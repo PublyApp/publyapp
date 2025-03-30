@@ -16,46 +16,26 @@ export type RHFRatingProps = RatingProps & {
 	};
 };
 
-export const RHFRating = ({
-	name,
-	helperText,
-	slotProps,
-	...other
-}: RHFRatingProps) => {
+export function RHFRating({ name, helperText, slotProps, ...other }: RHFRatingProps) {
 	const { control } = useFormContext();
 
 	return (
 		<Controller
 			name={name}
 			control={control}
-			render={({ field, fieldState: { error } }) => {
-				return (
-					<Box
-						{...slotProps?.wrapper}
-						sx={[
-							{ display: 'flex', flexDirection: 'column' },
-							...(Array.isArray(slotProps?.wrapper?.sx)
-								? (slotProps?.wrapper?.sx ?? [])
-								: [slotProps?.wrapper?.sx]),
-						]}
-					>
-						<Rating
-							{...field}
-							onChange={(_event, newValue) => {
-								return field.onChange(Number(newValue));
-							}}
-							{...other}
-						/>
+			render={({ field, fieldState: { error } }) => (
+				<Box
+					{...slotProps?.wrapper}
+					sx={[
+						{ display: 'flex', flexDirection: 'column' },
+						...(Array.isArray(slotProps?.wrapper?.sx) ? slotProps?.wrapper?.sx ?? [] : [slotProps?.wrapper?.sx]),
+					]}
+				>
+					<Rating {...field} onChange={(event, newValue) => field.onChange(Number(newValue))} {...other} />
 
-						<HelperText
-							{...slotProps?.helperText}
-							disableGutters
-							errorMessage={error?.message}
-							helperText={helperText}
-						/>
-					</Box>
-				);
-			}}
+					<HelperText {...slotProps?.helperText} disableGutters errorMessage={error?.message} helperText={helperText} />
+				</Box>
+			)}
 		/>
 	);
-};
+}

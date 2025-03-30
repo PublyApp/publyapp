@@ -1,6 +1,7 @@
 import { memo } from 'react';
 
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import { CONFIG } from 'src/global-config';
 
 import { BackgroundShape } from './background-shape';
 
@@ -8,34 +9,30 @@ import { BackgroundShape } from './background-shape';
 
 type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
-const MotivationIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
-	const renderCharacterImage = () => {
-		return (
-			<image
-				href="/assets/illustrations/characters/character-fly.webp"
-				height="280"
-				x="260"
-				y="40"
-			/>
-		);
-	};
+function MotivationIllustration({ hideBackground, sx, ...other }: SvgProps) {
+	const renderCharacterImage = () => (
+		<image
+			href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-fly.webp`}
+			height="280"
+			x="260"
+			y="40"
+		/>
+	);
 
 	return (
 		<SvgIcon
 			viewBox="0 0 480 360"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => {
-					return {
-						'--primary-lighter': theme.vars.palette.primary.lighter,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
-						width: 320,
-						maxWidth: 1,
-						flexShrink: 0,
-						height: 'auto',
-					};
-				},
+				(theme) => ({
+					'--primary-lighter': theme.vars.palette.primary.lighter,
+					'--primary-dark': theme.vars.palette.primary.dark,
+					'--primary-darker': theme.vars.palette.primary.darker,
+					width: 320,
+					maxWidth: 1,
+					flexShrink: 0,
+					height: 'auto',
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -64,14 +61,7 @@ const MotivationIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 			/>
 
 			<defs>
-				<linearGradient
-					id="paint0_linear_1_43"
-					x1="140"
-					x2="276.5"
-					y1="98"
-					y2="312.5"
-					gradientUnits="userSpaceOnUse"
-				>
+				<linearGradient id="paint0_linear_1_43" x1="140" x2="276.5" y1="98" y2="312.5" gradientUnits="userSpaceOnUse">
 					<stop stopColor="var(--primary-lighter)" />
 					<stop offset="1" stopColor="var(--primary-dark)" />
 				</linearGradient>
@@ -80,6 +70,6 @@ const MotivationIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 			{renderCharacterImage()}
 		</SvgIcon>
 	);
-};
+}
 
 export default memo(MotivationIllustration);

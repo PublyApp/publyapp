@@ -14,11 +14,7 @@ export type RHFUploadProps = UploadProps & {
 	};
 };
 
-export const RHFUploadAvatar = ({
-	name,
-	slotProps,
-	...other
-}: RHFUploadProps) => {
+export function RHFUploadAvatar({ name, slotProps, ...other }: RHFUploadProps) {
 	const { control, setValue } = useFormContext();
 
 	return (
@@ -34,48 +30,33 @@ export const RHFUploadAvatar = ({
 
 				return (
 					<Box {...slotProps?.wrapper}>
-						<UploadAvatar
-							value={field.value}
-							error={!!error}
-							onDrop={onDrop}
-							{...other}
-						/>
+						<UploadAvatar value={field.value} error={!!error} onDrop={onDrop} {...other} />
 
-						<HelperText
-							errorMessage={error?.message}
-							sx={{ textAlign: 'center' }}
-						/>
+						<HelperText errorMessage={error?.message} sx={{ textAlign: 'center' }} />
 					</Box>
 				);
 			}}
 		/>
 	);
-};
+}
 
 // ----------------------------------------------------------------------
 
-export const RHFUploadBox = ({ name, ...other }: RHFUploadProps) => {
+export function RHFUploadBox({ name, ...other }: RHFUploadProps) {
 	const { control } = useFormContext();
 
 	return (
 		<Controller
 			name={name}
 			control={control}
-			render={({ field, fieldState: { error } }) => {
-				return <UploadBox value={field.value} error={!!error} {...other} />;
-			}}
+			render={({ field, fieldState: { error } }) => <UploadBox value={field.value} error={!!error} {...other} />}
 		/>
 	);
-};
+}
 
 // ----------------------------------------------------------------------
 
-export const RHFUpload = ({
-	name,
-	multiple,
-	helperText,
-	...other
-}: RHFUploadProps) => {
+export function RHFUpload({ name, multiple, helperText, ...other }: RHFUploadProps) {
 	const { control, setValue } = useFormContext();
 
 	return (
@@ -91,22 +72,13 @@ export const RHFUpload = ({
 				};
 
 				const onDrop = (acceptedFiles: File[]) => {
-					const value = multiple
-						? [...field.value, ...acceptedFiles]
-						: acceptedFiles[0];
+					const value = multiple ? [...field.value, ...acceptedFiles] : acceptedFiles[0];
 
 					setValue(name, value, { shouldValidate: true });
 				};
 
-				return (
-					<Upload
-						{...uploadProps}
-						value={field.value}
-						onDrop={onDrop}
-						{...other}
-					/>
-				);
+				return <Upload {...uploadProps} value={field.value} onDrop={onDrop} {...other} />;
 			}}
 		/>
 	);
-};
+}

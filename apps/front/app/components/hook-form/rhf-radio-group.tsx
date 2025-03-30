@@ -23,15 +23,7 @@ export type RHFRadioGroupProps = RadioGroupProps & {
 	};
 };
 
-export const RHFRadioGroup = ({
-	sx,
-	name,
-	label,
-	options,
-	helperText,
-	slotProps,
-	...other
-}: RHFRadioGroupProps) => {
+export function RHFRadioGroup({ sx, name, label, options, helperText, slotProps, ...other }: RHFRadioGroupProps) {
 	const { control } = useFormContext();
 
 	const labelledby = `${name}-radios`;
@@ -40,66 +32,50 @@ export const RHFRadioGroup = ({
 		<Controller
 			name={name}
 			control={control}
-			render={({ field, fieldState: { error } }) => {
-				return (
-					<FormControl component="fieldset" {...slotProps?.wrapper}>
-						{label && (
-							<FormLabel
-								id={labelledby}
-								component="legend"
-								{...slotProps?.formLabel}
-								sx={[
-									{ mb: 1, typography: 'body2' },
-									...(Array.isArray(slotProps?.formLabel?.sx)
-										? (slotProps?.formLabel?.sx ?? [])
-										: [slotProps?.formLabel?.sx]),
-								]}
-							>
-								{label}
-							</FormLabel>
-						)}
-
-						<RadioGroup
-							{...field}
-							aria-labelledby={labelledby}
-							sx={sx}
-							{...other}
+			render={({ field, fieldState: { error } }) => (
+				<FormControl component="fieldset" {...slotProps?.wrapper}>
+					{label && (
+						<FormLabel
+							id={labelledby}
+							component="legend"
+							{...slotProps?.formLabel}
+							sx={[
+								{ mb: 1, typography: 'body2' },
+								...(Array.isArray(slotProps?.formLabel?.sx)
+									? slotProps?.formLabel?.sx ?? []
+									: [slotProps?.formLabel?.sx]),
+							]}
 						>
-							{options.map((option) => {
-								return (
-									<FormControlLabel
-										key={option.value}
-										value={option.value}
-										control={
-											<Radio
-												{...slotProps?.radio}
-												slotProps={{
-													...slotProps?.radio?.slotProps,
-													input: {
-														id: `${option.label}-radio`,
-														...(!option.label && {
-															'aria-label': `${option.label} radio`,
-														}),
-														...slotProps?.radio?.slotProps?.input,
-													},
-												}}
-											/>
-										}
-										label={option.label}
-									/>
-								);
-							})}
-						</RadioGroup>
+							{label}
+						</FormLabel>
+					)}
 
-						<HelperText
-							{...slotProps?.helperText}
-							disableGutters
-							errorMessage={error?.message}
-							helperText={helperText}
-						/>
-					</FormControl>
-				);
-			}}
+					<RadioGroup {...field} aria-labelledby={labelledby} sx={sx} {...other}>
+						{options.map((option) => (
+							<FormControlLabel
+								key={option.value}
+								value={option.value}
+								control={
+									<Radio
+										{...slotProps?.radio}
+										slotProps={{
+											...slotProps?.radio?.slotProps,
+											input: {
+												id: `${option.label}-radio`,
+												...(!option.label && { 'aria-label': `${option.label} radio` }),
+												...slotProps?.radio?.slotProps?.input,
+											},
+										}}
+									/>
+								}
+								label={option.label}
+							/>
+						))}
+					</RadioGroup>
+
+					<HelperText {...slotProps?.helperText} disableGutters errorMessage={error?.message} helperText={helperText} />
+				</FormControl>
+			)}
 		/>
 	);
-};
+}

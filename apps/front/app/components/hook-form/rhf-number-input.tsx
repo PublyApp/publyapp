@@ -8,11 +8,7 @@ export type RHFNumberInputProps = NumberInputProps & {
 	name: string;
 };
 
-export const RHFNumberInput = ({
-	name,
-	helperText,
-	...other
-}: RHFNumberInputProps) => {
+export const RHFNumberInput = ({ name, helperText, ...other }: RHFNumberInputProps) => {
 	const { control } = useFormContext();
 
 	return (

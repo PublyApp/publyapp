@@ -4,25 +4,23 @@ import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 
 // ----------------------------------------------------------------------
 
-const CheckInIllustration = ({ sx, ...other }: SvgIconProps) => {
+function CheckInIllustration({ sx, ...other }: SvgIconProps) {
 	return (
 		<SvgIcon
 			viewBox="0 0 200 200"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => {
-					return {
-						'--primary-lighter': theme.vars.palette.primary.lighter,
-						'--primary-light': theme.vars.palette.primary.light,
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
-						width: 120,
-						maxWidth: 1,
-						flexShrink: 0,
-						height: 'auto',
-					};
-				},
+				(theme) => ({
+					'--primary-lighter': theme.vars.palette.primary.lighter,
+					'--primary-light': theme.vars.palette.primary.light,
+					'--primary-main': theme.vars.palette.primary.main,
+					'--primary-dark': theme.vars.palette.primary.dark,
+					'--primary-darker': theme.vars.palette.primary.darker,
+					width: 120,
+					maxWidth: 1,
+					flexShrink: 0,
+					height: 'auto',
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -65,32 +63,18 @@ const CheckInIllustration = ({ sx, ...other }: SvgIconProps) => {
 			/>
 
 			<defs>
-				<linearGradient
-					id="a"
-					x1="64.751"
-					x2="64.751"
-					y1="99.643"
-					y2="186.617"
-					gradientUnits="userSpaceOnUse"
-				>
+				<linearGradient id="a" x1="64.751" x2="64.751" y1="99.643" y2="186.617" gradientUnits="userSpaceOnUse">
 					<stop stopColor="var(--primary-light)" />
 					<stop offset="1" stopColor="var(--primary-dark)" />
 				</linearGradient>
 
-				<linearGradient
-					id="b"
-					x1="95.286"
-					x2="95.286"
-					y1="280.421"
-					y2="185.693"
-					gradientUnits="userSpaceOnUse"
-				>
+				<linearGradient id="b" x1="95.286" x2="95.286" y1="280.421" y2="185.693" gradientUnits="userSpaceOnUse">
 					<stop stopColor="var(--primary-light)" />
 					<stop offset="1" stopColor="var(--primary-dark)" />
 				</linearGradient>
 			</defs>
 		</SvgIcon>
 	);
-};
+}
 
 export default memo(CheckInIllustration);

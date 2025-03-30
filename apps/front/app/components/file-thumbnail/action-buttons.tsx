@@ -55,9 +55,7 @@ export const RemoveButton = ({ sx, ...other }: IconButtonProps) => {
 						position: 'absolute',
 						color: 'common.white',
 						bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.48),
-						'&:hover': {
-							bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.72),
-						},
+						'&:hover': { bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.72) },
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),

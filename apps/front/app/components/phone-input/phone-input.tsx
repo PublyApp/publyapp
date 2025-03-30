@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { startTransition, useCallback, useEffect, useState } from 'react';
 
 import Box from '@mui/material/Box';
@@ -6,10 +7,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { inputBaseClasses } from '@mui/material/InputBase';
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
 import { parsePhoneNumber } from 'react-phone-number-input';
-import PhoneNumberInput, {
-	type Country,
-	type Value,
-} from 'react-phone-number-input/input';
+import PhoneNumberInput, { type Country, type Value } from 'react-phone-number-input/input';
 
 import { countries } from '@/front/assets/data/countries';
 
@@ -17,7 +15,6 @@ import { Iconify } from '../iconify/iconify';
 
 import { CountryListPopover } from './list-popover';
 import type { PhoneInputProps } from './types';
-import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -40,7 +37,7 @@ export const PhoneInput = ({
 
 	const hasLabel = !!label;
 
-	const cleanValue = _.replace(value, /[\s-]+/g, '');
+	const cleanValue = value.replace(/[\s-]+/g, '');
 
 	const handleClear = useCallback(() => {
 		onChange('' as Value);
@@ -90,13 +87,11 @@ export const PhoneInput = ({
 					onSearchCountry={handleSearchCountry}
 					sx={{
 						pl: variant === 'standard' ? 0 : 1.5,
-						...(variant === 'standard' &&
-							hasLabel && { mt: size === 'small' ? '16px' : '20px' }),
+						...(variant === 'standard' && hasLabel && { mt: size === 'small' ? '16px' : '20px' }),
 						...((variant === 'filled' || variant === 'outlined') && {
 							mt: size === 'small' ? '8px' : '16px',
 						}),
-						...(variant === 'filled' &&
-							hasLabel && { mt: size === 'small' ? '21px' : '25px' }),
+						...(variant === 'filled' && hasLabel && { mt: size === 'small' ? '21px' : '25px' }),
 					}}
 				/>
 			)}

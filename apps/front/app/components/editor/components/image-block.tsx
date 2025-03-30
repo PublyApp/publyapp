@@ -13,7 +13,7 @@ import { ToolbarItem } from './toolbar-item';
 
 // ----------------------------------------------------------------------
 
-export const ImageBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
+export function ImageBlock({ editor }: Pick<EditorToolbarProps, 'editor'>) {
 	const [url, setUrl] = useState('');
 
 	const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -26,7 +26,6 @@ export const ImageBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
 		setAnchorEl(null);
 	};
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	const handleUpdateUrl = useCallback(() => {
 		handleClosePopover();
 
@@ -78,4 +77,4 @@ export const ImageBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
 			</Popover>
 		</>
 	);
-};
+}

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useMemo } from 'react';
 
 import Box from '@mui/material/Box';
@@ -82,10 +83,7 @@ export const CountryListPopover = ({
 					}}
 				/>
 
-				<Iconify
-					icon="eva:chevron-down-fill"
-					sx={{ ml: 0.25, flexShrink: 0, color: 'text.disabled' }}
-				/>
+				<Iconify icon="eva:chevron-down-fill" sx={{ ml: 0.25, flexShrink: 0, color: 'text.disabled' }} />
 
 				<Box
 					component="span"
@@ -117,10 +115,7 @@ export const CountryListPopover = ({
 								onClickCountry(country.code as Country);
 							}}
 						>
-							<FlagIcon
-								code={country.code}
-								sx={{ mr: 1, width: 22, height: 22, borderRadius: '50%' }}
-							/>
+							<FlagIcon code={country.code} sx={{ mr: 1, width: 22, height: 22, borderRadius: '50%' }} />
 
 							<ListItemText
 								primary={country.label}
@@ -177,10 +172,7 @@ export const CountryListPopover = ({
 							input: {
 								startAdornment: (
 									<InputAdornment position="start">
-										<Iconify
-											icon="eva:search-fill"
-											sx={{ color: 'text.disabled' }}
-										/>
+										<Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
 									</InputAdornment>
 								),
 								endAdornment: searchCountry && (
@@ -202,11 +194,7 @@ export const CountryListPopover = ({
 				</Box>
 
 				<Box sx={{ flex: '1 1 auto', overflowX: 'hidden' }}>
-					{notFound ? (
-						<SearchNotFound query={searchCountry} sx={{ px: 2, pt: 5 }} />
-					) : (
-						renderList()
-					)}
+					{notFound ? <SearchNotFound query={searchCountry} sx={{ px: 2, pt: 5 }} /> : renderList()}
 				</Box>
 			</Popover>
 		</>

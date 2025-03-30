@@ -13,12 +13,7 @@ type SearchNotFoundProps = BoxProps & {
 	};
 };
 
-export const SearchNotFound = ({
-	query,
-	sx,
-	slotProps,
-	...other
-}: SearchNotFoundProps) => {
+export function SearchNotFound({ query, sx, slotProps, ...other }: SearchNotFoundProps) {
 	if (!query) {
 		return (
 			<Typography variant="body2" {...slotProps?.description}>
@@ -46,9 +41,7 @@ export const SearchNotFound = ({
 				{...slotProps?.title}
 				sx={[
 					{ color: 'text.primary' },
-					...(Array.isArray(slotProps?.title?.sx)
-						? (slotProps?.title?.sx ?? [])
-						: [slotProps?.title?.sx]),
+					...(Array.isArray(slotProps?.title?.sx) ? slotProps?.title?.sx ?? [] : [slotProps?.title?.sx]),
 				]}
 			>
 				Not found
@@ -62,4 +55,4 @@ export const SearchNotFound = ({
 			</Typography>
 		</Box>
 	);
-};
+}

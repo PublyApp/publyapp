@@ -1,6 +1,7 @@
 import { memo } from 'react';
 
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import { CONFIG } from 'src/global-config';
 
 import { BackgroundShape } from './background-shape';
 
@@ -8,39 +9,31 @@ import { BackgroundShape } from './background-shape';
 
 type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
-const MaintenanceIllustration = ({
-	hideBackground,
-	sx,
-	...other
-}: SvgProps) => {
-	const renderCharacterImage = () => {
-		return (
-			<image
-				href="/assets/illustrations/characters/character-maintenance.webp"
-				height="280"
-				x="290"
-				y="40"
-			/>
-		);
-	};
+function MaintenanceIllustration({ hideBackground, sx, ...other }: SvgProps) {
+	const renderCharacterImage = () => (
+		<image
+			href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-maintenance.webp`}
+			height="280"
+			x="290"
+			y="40"
+		/>
+	);
 
 	return (
 		<SvgIcon
 			viewBox="0 0 480 360"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => {
-					return {
-						'--primary-light': theme.vars.palette.primary.light,
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
-						width: 320,
-						maxWidth: 1,
-						flexShrink: 0,
-						height: 'auto',
-					};
-				},
+				(theme) => ({
+					'--primary-light': theme.vars.palette.primary.light,
+					'--primary-main': theme.vars.palette.primary.main,
+					'--primary-dark': theme.vars.palette.primary.dark,
+					'--primary-darker': theme.vars.palette.primary.darker,
+					width: 320,
+					maxWidth: 1,
+					flexShrink: 0,
+					height: 'auto',
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -131,20 +124,11 @@ const MaintenanceIllustration = ({
 				opacity="0.2"
 			/>
 
-			<path
-				fill="#FF5630"
-				d="M118.108 103.182a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"
-			/>
+			<path fill="#FF5630" d="M118.108 103.182a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
 
-			<path
-				fill="#FFAB00"
-				d="M126.108 103.182a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"
-			/>
+			<path fill="#FFAB00" d="M126.108 103.182a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
 
-			<path
-				fill="#36B37E"
-				d="M134.108 103.182a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"
-			/>
+			<path fill="#36B37E" d="M134.108 103.182a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
 
 			<defs>
 				<linearGradient
@@ -237,6 +221,6 @@ const MaintenanceIllustration = ({
 			{renderCharacterImage()}
 		</SvgIcon>
 	);
-};
+}
 
 export default memo(MaintenanceIllustration);

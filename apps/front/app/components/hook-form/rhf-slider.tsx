@@ -16,32 +16,20 @@ export type RHFSliderProps = SliderProps & {
 	};
 };
 
-export const RHFSlider = ({
-	name,
-	helperText,
-	slotProps,
-	...other
-}: RHFSliderProps) => {
+export function RHFSlider({ name, helperText, slotProps, ...other }: RHFSliderProps) {
 	const { control } = useFormContext();
 
 	return (
 		<Controller
 			name={name}
 			control={control}
-			render={({ field, fieldState: { error } }) => {
-				return (
-					<Box {...slotProps?.wrapper}>
-						<Slider {...field} valueLabelDisplay="auto" {...other} />
+			render={({ field, fieldState: { error } }) => (
+				<Box {...slotProps?.wrapper}>
+					<Slider {...field} valueLabelDisplay="auto" {...other} />
 
-						<HelperText
-							{...slotProps?.helperText}
-							disableGutters
-							errorMessage={error?.message}
-							helperText={helperText}
-						/>
-					</Box>
-				);
-			}}
+					<HelperText {...slotProps?.helperText} disableGutters errorMessage={error?.message} helperText={helperText} />
+				</Box>
+			)}
 		/>
 	);
-};
+}

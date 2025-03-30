@@ -1,6 +1,7 @@
 import { memo } from 'react';
 
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import { CONFIG } from 'src/global-config';
 
 import { BackgroundShape } from './background-shape';
 
@@ -8,35 +9,31 @@ import { BackgroundShape } from './background-shape';
 
 type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
-const ForbiddenIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
-	const renderCharacterImage = () => {
-		return (
-			<image
-				href="/assets/illustrations/characters/character-reject.webp"
-				height="280"
-				x="220"
-				y="40"
-			/>
-		);
-	};
+function ForbiddenIllustration({ hideBackground, sx, ...other }: SvgProps) {
+	const renderCharacterImage = () => (
+		<image
+			href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-reject.webp`}
+			height="280"
+			x="220"
+			y="40"
+		/>
+	);
 
 	return (
 		<SvgIcon
 			viewBox="0 0 480 360"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => {
-					return {
-						'--primary-light': theme.vars.palette.primary.light,
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
-						width: 320,
-						maxWidth: 1,
-						flexShrink: 0,
-						height: 'auto',
-					};
-				},
+				(theme) => ({
+					'--primary-light': theme.vars.palette.primary.light,
+					'--primary-main': theme.vars.palette.primary.main,
+					'--primary-dark': theme.vars.palette.primary.dark,
+					'--primary-darker': theme.vars.palette.primary.darker,
+					width: 320,
+					maxWidth: 1,
+					flexShrink: 0,
+					height: 'auto',
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -51,16 +48,9 @@ const ForbiddenIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 				opacity="0.08"
 			/>
 
-			<path
-				fill="#FFAB00"
-				d="M111.045 142.2c58.7-1 58.6-88.3 0-89.2-58.6 1-58.6 88.3 0 89.2z"
-				opacity="0.12"
-			/>
+			<path fill="#FFAB00" d="M111.045 142.2c58.7-1 58.6-88.3 0-89.2-58.6 1-58.6 88.3 0 89.2z" opacity="0.12" />
 
-			<path
-				fill="#FFD666"
-				d="M111.045 121c30.8-.5 30.8-46.3 0-46.8-30.8.5-30.8 46.3 0 46.8z"
-			/>
+			<path fill="#FFD666" d="M111.045 121c30.8-.5 30.8-46.3 0-46.8-30.8.5-30.8 46.3 0 46.8z" />
 
 			<path
 				fill="#FBCDBE"
@@ -100,6 +90,6 @@ const ForbiddenIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 			</defs>
 		</SvgIcon>
 	);
-};
+}
 
 export default memo(ForbiddenIllustration);
