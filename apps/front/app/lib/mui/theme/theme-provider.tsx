@@ -8,14 +8,8 @@ import { useSettingsContext } from '@/front/hooks/use-settings-context';
 
 import { useTranslate } from '../../../hooks/use-translate';
 
-// import { useSettingsContext } from 'src/components/settings';
-// import { useTranslate } from 'src/locales';
-
 import { createTheme } from './create-theme';
 import type { ThemeOptions } from './types';
-
-// import { Rtl } from './with-settings/right-to-left';
-// import type { } from './extend-theme-types';
 
 // ----------------------------------------------------------------------
 
@@ -37,7 +31,6 @@ export const MuiThemeProvider = ({ themeOverrides, children, ...other }: ThemePr
 	return (
 		<ThemeVarsProvider disableTransitionOnChange theme={theme} {...other}>
 			<CssBaseline />
-			{/* <Rtl direction={settings.state.direction!}>{children}</Rtl> */}
 			{children}
 		</ThemeVarsProvider>
 	);
