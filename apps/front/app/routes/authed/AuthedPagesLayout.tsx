@@ -6,7 +6,7 @@ import { defaultApiClient } from 'packages/api/ApiClient';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
-import { useTenantParam } from '@/front/hooks/useTenantParam';
+import { useTenantParam } from '@/front/hooks/use-tenant-param';
 import { SIDEBAR_COOKIE_NAME } from '@/front/lib/constants';
 import { CookieManager } from '@/front/lib/cookie-manager';
 import { getTenantAuthDataQuery, getUserAuthDataQuery } from '@/front/lib/react-query/features/auth/auth.actions';
