@@ -1,10 +1,9 @@
 import Box, { type BoxProps } from '@mui/material/Box';
 import type { SxProps, Theme } from '@mui/material/styles';
-import { type MotionProps, m } from 'framer-motion';
+import { m, type MotionProps } from 'framer-motion';
 
 import { varFade } from '@/front/components/animate';
 import type { PaletteColorKey } from '@/front/lib/mui/theme/core';
-import { nanoid } from 'nanoid';
 
 // ----------------------------------------------------------------------
 
@@ -19,7 +18,7 @@ export const Lines = ({ strokeCount }: { strokeCount: number }) => {
 					strokeOpacity: 1,
 					transition: {
 						strokeOpacity: { delay, duration: 0.01 },
-						x2: { delay, bounce: 0, duration: 1.5, type: 'spring' as const },
+						x2: { delay, bounce: 0, duration: 1.5, type: 'spring' },
 					},
 				};
 			},
@@ -33,7 +32,7 @@ export const Lines = ({ strokeCount }: { strokeCount: number }) => {
 					strokeOpacity: 1,
 					transition: {
 						strokeOpacity: { delay, duration: 0.01 },
-						y2: { delay, bounce: 0, duration: 1.5, type: 'spring' as const },
+						y2: { delay, bounce: 0, duration: 1.5, type: 'spring' },
 					},
 				};
 			},
@@ -51,7 +50,7 @@ export const Lines = ({ strokeCount }: { strokeCount: number }) => {
 			{Array.from({ length: strokeCount }, (_, index) => {
 				return (
 					<m.line
-						key={nanoid()}
+						key={index}
 						x1="0"
 						x2="100%"
 						y1="50%"
@@ -80,7 +79,7 @@ export const Lines = ({ strokeCount }: { strokeCount: number }) => {
 			{Array.from({ length: strokeCount }, (_, index) => {
 				return (
 					<m.line
-						key={nanoid()}
+						key={index}
 						x1="50%"
 						x2="50%"
 						y1="0%"
@@ -165,12 +164,7 @@ export const PlusIcon = () => {
 				pathLength: 1,
 				transition: {
 					opacity: { delay, duration: 0.01 },
-					pathLength: {
-						delay,
-						bounce: 0,
-						duration: 1.5,
-						type: 'spring' as const,
-					},
+					pathLength: { delay, bounce: 0, duration: 1.5, type: 'spring' },
 				},
 			};
 		},
@@ -242,11 +236,7 @@ export const Texts = ({ sx, ...other }: BoxProps & MotionProps) => {
 					y="12px"
 					dominantBaseline="hanging"
 					animate={{ x: ['0%', '-50%'] }}
-					transition={{
-						duration: 64,
-						ease: 'linear',
-						repeat: Number.POSITIVE_INFINITY,
-					}}
+					transition={{ duration: 64, ease: 'linear', repeat: Infinity }}
 				>
 					Minimal Design System Minimal Design System
 				</m.text>
@@ -262,22 +252,13 @@ type DotProps = Pick<MotionProps, 'animate' | 'transition'> & {
 	color?: PaletteColorKey;
 };
 
-const Dot = ({
-	color = 'primary',
-	animate,
-	transition,
-	sx,
-	...other
-}: DotProps) => {
+const Dot = ({ color = 'primary', animate, transition, sx, ...other }: DotProps) => {
 	return (
 		<Box
 			component={m.div}
 			variants={{
 				initial: { opacity: 0 },
-				animate: {
-					opacity: 1,
-					transition: { duration: 0.64, ease: [0.43, 0.13, 0.23, 0.96] },
-				},
+				animate: { opacity: 1, transition: { duration: 0.64, ease: [0.43, 0.13, 0.23, 0.96] } },
 			}}
 			sx={[
 				() => {
@@ -300,7 +281,7 @@ const Dot = ({
 					transition ?? {
 						duration: 6,
 						ease: 'linear',
-						repeat: Number.POSITIVE_INFINITY,
+						repeat: Infinity,
 						repeatType: 'reverse',
 					}
 				}
@@ -330,11 +311,7 @@ export const Dots = () => {
 			<Dot
 				color="error"
 				animate={{ x: [0, 24] }}
-				sx={{
-					width: 14,
-					height: 14,
-					transform: 'translate(calc(50% - 457px), calc(50% - 259px))',
-				}}
+				sx={{ width: 14, height: 14, transform: 'translate(calc(50% - 457px), calc(50% - 259px))' }}
 			/>
 
 			<Dot

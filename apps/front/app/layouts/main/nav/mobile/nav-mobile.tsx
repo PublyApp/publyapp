@@ -93,7 +93,7 @@ export const NavMobile = ({ data, open, onClose, slots, sx }: NavMobileProps) =>
 				>
 					<SignInButton fullWidth />
 
-					<Button fullWidth variant="contained" rel="noopener" target="_blank" href="#">
+					<Button fullWidth variant="contained" rel="noopener" href="#">
 						Purchase
 					</Button>
 				</Box>
