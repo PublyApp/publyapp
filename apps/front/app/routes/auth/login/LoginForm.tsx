@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 import { zodResolver } from '@hookform/resolvers/zod';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -16,11 +14,12 @@ import { FormHead } from '@/front/components/auth/form-head';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
-import { useRouter } from '@/front/hooks/use-router';
 import { defaultZodClient } from '@/front/lib/zod';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import { getLoginSchema } from '@/shared/validations/auth.validations';
+
+import type { LoginActionResult } from './LoginPage';
 
 // ----------------------------------------------------------------------
 
@@ -31,16 +30,16 @@ export const SignInSchema = getLoginSchema(defaultZodClient);
 // ----------------------------------------------------------------------
 
 const LoginForm = () => {
-	const router = useRouter();
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	// const router = useRouter();
+	// const isLoading = fetcher.state === 'loading';
 	const showPassword = useBoolean();
 
-	const fetcher = useFetcher<{
-		email: string;
-		password: string;
-	}>();
+	const fetcher = useFetcher<LoginActionResult>();
 
-	const isLoading = fetcher.state === 'loading';
+	const errorFetcher = fetcher.data?.error;
+	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
+
+	// const [errorMessage, setErrorMessage] = useState<string | null>(errorFetcher ? getErrorMessage(errorFetcher) : null);
 
 	const methods = useForm({
 		resolver: zodResolver(getLoginSchema(defaultZodClient)),
@@ -55,17 +54,9 @@ const LoginForm = () => {
 	} = methods;
 
 	const handleLogin = methods.handleSubmit(async (data) => {
-		try {
-			await fetcher.submit(data, {
-				method: 'post',
-			});
-
-			router.refresh();
-		} catch (error) {
-			console.error(error);
-			const feedbackMessage = getErrorMessage(error);
-			setErrorMessage(feedbackMessage);
-		}
+		await fetcher.submit(data, {
+			method: 'post',
+		});
 	});
 
 	const renderForm = () => (
