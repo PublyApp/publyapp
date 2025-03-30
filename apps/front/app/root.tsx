@@ -8,7 +8,6 @@ import './styles/main.css';
 import './styles/mantine.css';
 import './styles/tailwind.css';
 
-import { Button, MantineProvider } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import type { ErrorBoundaryProps } from 'react-error-boundary';
 import { useTranslation } from 'react-i18next';
@@ -17,8 +16,6 @@ import { useChangeLanguage } from 'remix-i18next/react';
 
 import type { Route } from './+types/root';
 import QueryBoundary from './components/QueryBoundary';
-import { shadcnCssVariableResolver } from './lib/mantine/css-vars-reslover';
-import { shadcnTheme } from './lib/mantine/theme';
 import { defaultQueryClient } from './lib/react-query/queryClient';
 import { getServerLoader } from './lib/react-router/server.data';
 
@@ -48,13 +45,14 @@ const FallbackComponent: ErrorBoundaryProps['FallbackComponent'] = ({ error, res
 	return (
 		<div>
 			<h1>Oops! Something went wrong</h1>
-			<Button
+			<button
+				type="button"
 				onClick={() => {
 					resetErrorBoundary();
 				}}
 			>
 				retry
-			</Button>
+			</button>
 		</div>
 	);
 };
@@ -76,11 +74,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 			</head>
 			<body>
 				<QueryClientProvider client={defaultQueryClient}>
-					<MantineProvider theme={shadcnTheme} cssVariablesResolver={shadcnCssVariableResolver}>
-						<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
-							{children}
-						</QueryBoundary>
-					</MantineProvider>
+					{/* <MUIProvider theme={} > */}
+					<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
+						{children}
+					</QueryBoundary>
+					{/* </MUIProvider> */}
 				</QueryClientProvider>
 				<ScrollRestoration />
 				<Scripts />

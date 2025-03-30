@@ -1,6 +1,3 @@
-import Hero from '../../components/ui/template/Hero';
-import { Navigation } from '../../components/ui/template/Navbar';
-
 import type { Route } from './+types/HomePage';
 
 export const meta = (_: Route.MetaArgs) => {
@@ -10,8 +7,7 @@ export const meta = (_: Route.MetaArgs) => {
 const HomePage = ({ loaderData: _ }: Route.ComponentProps) => {
 	return (
 		<div>
-			<Navigation />
-			<Hero />
+			<h1>🏠🏠🏠 Home page</h1>
 		</div>
 	);
 };
