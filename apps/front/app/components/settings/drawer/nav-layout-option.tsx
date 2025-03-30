@@ -16,13 +16,7 @@ export type NavLayoutOptionProps = BoxProps & {
 	onChangeOption: (newOption: SettingsState['navLayout']) => void;
 };
 
-export const NavLayoutOptions = ({
-	sx,
-	value,
-	options,
-	onChangeOption,
-	...other
-}: NavLayoutOptionProps) => {
+export function NavLayoutOptions({ sx, value, options, onChangeOption, ...other }: NavLayoutOptionProps) {
 	return (
 		<Box
 			sx={[
@@ -42,16 +36,12 @@ export const NavLayoutOptions = ({
 					<OptionButton
 						key={option.value}
 						selected={selected}
-						onClick={() => {
-							return onChangeOption(option.value);
-						}}
+						onClick={() => onChangeOption(option.value)}
 						sx={[
-							(theme) => {
-								return {
-									height: 64,
-									border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
-								};
-							},
+							(theme) => ({
+								height: 64,
+								border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+							}),
 						]}
 					>
 						{option.icon}
@@ -60,7 +50,7 @@ export const NavLayoutOptions = ({
 			})}
 		</Box>
 	);
-};
+}
 
 // ----------------------------------------------------------------------
 
@@ -74,13 +64,7 @@ export type NavColorOptionProps = BoxProps & {
 	onChangeOption: (newOption: SettingsState['navColor']) => void;
 };
 
-export const NavColorOptions = ({
-	sx,
-	value,
-	options,
-	onChangeOption,
-	...other
-}: NavColorOptionProps) => {
+export function NavColorOptions({ sx, value, options, onChangeOption, ...other }: NavColorOptionProps) {
 	return (
 		<Box
 			sx={[
@@ -100,9 +84,7 @@ export const NavColorOptions = ({
 					<OptionButton
 						key={option.value}
 						selected={selected}
-						onClick={() => {
-							return onChangeOption(option.value);
-						}}
+						onClick={() => onChangeOption(option.value)}
 						sx={{ gap: 1.5, height: 56 }}
 					>
 						{option.icon}
@@ -112,4 +94,4 @@ export const NavColorOptions = ({
 			})}
 		</Box>
 	);
-};
+}

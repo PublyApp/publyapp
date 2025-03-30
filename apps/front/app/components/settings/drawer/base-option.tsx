@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import ButtonBase, { type ButtonBaseProps } from '@mui/material/ButtonBase';
 import { styled } from '@mui/material/styles';
 import Switch from '@mui/material/Switch';
@@ -5,7 +6,6 @@ import Tooltip from '@mui/material/Tooltip';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { Iconify } from '../../iconify/iconify';
-import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -17,48 +17,20 @@ export type BaseOptionProps = ButtonBaseProps & {
 	onChangeOption: () => void;
 };
 
-export const BaseOption = ({
-	sx,
-	icon,
-	label,
-	tooltip,
-	selected,
-	onChangeOption,
-	...other
-}: BaseOptionProps) => {
+export const BaseOption = ({ sx, icon, label, tooltip, selected, onChangeOption, ...other }: BaseOptionProps) => {
 	return (
-		<ItemRoot
-			disableRipple
-			selected={selected}
-			onClick={onChangeOption}
-			sx={sx}
-			{...other}
-		>
+		<ItemRoot disableRipple selected={selected} onClick={onChangeOption} sx={sx} {...other}>
 			<TopContainer>
 				{icon}
-				<Switch
-					name={label}
-					size="small"
-					color="default"
-					checked={selected}
-					sx={{ mr: -0.75 }}
-				/>
+				<Switch name={label} size="small" color="default" checked={selected} sx={{ mr: -0.75 }} />
 			</TopContainer>
 
 			<BottomContainer>
 				<ItemLabel>{label}</ItemLabel>
 
 				{tooltip && (
-					<Tooltip
-						arrow
-						title={tooltip}
-						slotProps={{ tooltip: { sx: { maxWidth: 240, mr: 0.5 } } }}
-					>
-						<Iconify
-							width={16}
-							icon="eva:info-outline"
-							sx={{ cursor: 'pointer', color: 'text.disabled' }}
-						/>
+					<Tooltip arrow title={tooltip} slotProps={{ tooltip: { sx: { maxWidth: 240, mr: 0.5 } } }}>
+						<Iconify width={16} icon="eva:info-outline" sx={{ cursor: 'pointer', color: 'text.disabled' }} />
 					</Tooltip>
 				)}
 			</BottomContainer>
@@ -78,7 +50,7 @@ const ItemRoot = styled(ButtonBase, {
 		flexDirection: 'column',
 		alignItems: 'flex-start',
 		padding: theme.spacing(2, 2.5),
-		borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
+		borderRadius: theme.shape.borderRadius * 2,
 		border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
 		'&:hover': {
 			backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),

@@ -14,14 +14,7 @@ export type PresetsOptionsProps = BoxProps & {
 	onChangeOption: (newOption: SettingsState['primaryColor']) => void;
 };
 
-export const PresetsOptions = ({
-	sx,
-	icon,
-	value,
-	options,
-	onChangeOption,
-	...other
-}: PresetsOptionsProps) => {
+export function PresetsOptions({ sx, icon, value, options, onChangeOption, ...other }: PresetsOptionsProps) {
 	return (
 		<Box
 			sx={[
@@ -40,9 +33,7 @@ export const PresetsOptions = ({
 				return (
 					<OptionButton
 						key={option.name}
-						onClick={() => {
-							return onChangeOption(option.name);
-						}}
+						onClick={() => onChangeOption(option.name)}
 						sx={{
 							height: 64,
 							color: option.value,
@@ -57,4 +48,4 @@ export const PresetsOptions = ({
 			})}
 		</Box>
 	);
-};
+}

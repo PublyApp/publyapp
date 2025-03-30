@@ -10,6 +10,8 @@ import { useChangeLanguage } from 'remix-i18next/react';
 
 import type { Route } from './+types/root';
 import QueryBoundary from './components/QueryBoundary';
+import { SettingsDrawer } from './components/settings/drawer';
+import { defaultSettings } from './components/settings/settings-config';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/queryClient';
 import { getServerLoader } from './lib/react-router/server.data';
@@ -71,6 +73,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<QueryClientProvider client={defaultQueryClient}>
 					<MuiThemeProvider>
 						<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
+							<SettingsDrawer defaultSettings={defaultSettings} />
 							{children}
 						</QueryBoundary>
 					</MuiThemeProvider>

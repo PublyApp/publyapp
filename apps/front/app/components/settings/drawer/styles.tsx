@@ -4,7 +4,6 @@ import Tooltip from '@mui/material/Tooltip';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { Iconify } from '../../iconify/iconify';
-import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -21,7 +20,7 @@ const LargeBlockRoot = styled('div')(({ theme }) => {
 		position: 'relative',
 		flexDirection: 'column',
 		padding: theme.spacing(4, 2, 2, 2),
-		borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
+		borderRadius: theme.shape.borderRadius * 2,
 		border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
 	};
 });
@@ -45,39 +44,19 @@ const LargeLabel = styled('span')(({ theme }) => {
 	};
 });
 
-export const LargeBlock = ({
-	sx,
-	title,
-	tooltip,
-	children,
-	canReset,
-	onReset,
-	...other
-}: LargeBlockProps) => {
+export const LargeBlock = ({ sx, title, tooltip, children, canReset, onReset, ...other }: LargeBlockProps) => {
 	return (
 		<LargeBlockRoot sx={sx} {...other}>
 			<LargeLabel>
 				{canReset && (
-					<ButtonBase
-						disableRipple
-						onClick={onReset}
-						sx={{ ml: -0.5, mr: 0.5 }}
-					>
-						<Iconify
-							width={14}
-							icon="solar:restart-bold"
-							sx={{ opacity: 0.64 }}
-						/>
+					<ButtonBase disableRipple onClick={onReset} sx={{ ml: -0.5, mr: 0.5 }}>
+						<Iconify width={14} icon="solar:restart-bold" sx={{ opacity: 0.64 }} />
 					</ButtonBase>
 				)}
 				{title}
 				{tooltip && (
 					<Tooltip title={tooltip} placement="right" arrow>
-						<Iconify
-							width={14}
-							icon="eva:info-outline"
-							sx={{ ml: 0.5, mr: -0.5, opacity: 0.48, cursor: 'pointer' }}
-						/>
+						<Iconify width={14} icon="eva:info-outline" sx={{ ml: 0.5, mr: -0.5, opacity: 0.48, cursor: 'pointer' }} />
 					</Tooltip>
 				)}
 			</LargeLabel>
@@ -135,21 +114,10 @@ const SmallLabel = styled(ButtonBase, {
 	};
 });
 
-export const SmallBlock = ({
-	label,
-	canReset,
-	onReset,
-	sx,
-	children,
-	...other
-}: SmallBlockProps) => {
+export const SmallBlock = ({ label, canReset, onReset, sx, children, ...other }: SmallBlockProps) => {
 	return (
 		<SmallBlockRoot sx={sx} {...other}>
-			<SmallLabel
-				disableRipple
-				canReset={canReset}
-				onClick={canReset ? onReset : undefined}
-			>
+			<SmallLabel disableRipple canReset={canReset} onClick={canReset ? onReset : undefined}>
 				{canReset && <Iconify width={14} icon="solar:restart-bold" />}
 				{label}
 			</SmallLabel>
@@ -164,12 +132,7 @@ export type OptionButtonProps = ButtonBaseProps & {
 	selected?: boolean;
 };
 
-export const OptionButton = ({
-	selected,
-	sx,
-	children,
-	...other
-}: OptionButtonProps) => {
+export const OptionButton = ({ selected, sx, children, ...other }: OptionButtonProps) => {
 	return (
 		<ButtonBase
 			disableRipple
@@ -186,10 +149,7 @@ export const OptionButton = ({
 						...(selected && {
 							color: 'text.primary',
 							bgcolor: 'background.paper',
-							borderColor: varAlpha(
-								theme.vars.palette.grey['500Channel'],
-								0.08,
-							),
+							borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
 							boxShadow: `-8px 8px 20px -4px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
 							...theme.applyStyles('dark', {
 								boxShadow: `-8px 8px 20px -4px ${varAlpha(theme.vars.palette.common.blackChannel, 0.12)}`,

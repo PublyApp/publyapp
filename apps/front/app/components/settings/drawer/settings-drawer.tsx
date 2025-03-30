@@ -1,20 +1,27 @@
+import { useCallback, useEffect } from 'react';
+
 import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
-import SvgIcon from '@mui/material/SvgIcon';
 import { useColorScheme } from '@mui/material/styles';
+import SvgIcon from '@mui/material/SvgIcon';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { hasKeys, varAlpha } from 'minimal-shared/utils';
-import { useCallback, useEffect } from 'react';
+
 import { themeConfig } from '@/front/lib/mui/theme/theme-config';
 import type { ThemeColorScheme } from '@/front/lib/mui/theme/types';
 import { primaryColorPresets } from '@/front/lib/mui/theme/with-settings';
-import { useSettingsContext } from '../../../hooks/use-settings-context';
+
 import { Iconify } from '../../iconify/iconify';
+// import { themeConfig } from 'src/theme/theme-config';
+// import type { ThemeColorScheme } from 'src/theme/types';
+
 import { Scrollbar } from '../../scrollbar';
+import { useSettingsContext } from '../context/use-settings-context';
 import type { SettingsDrawerProps, SettingsState } from '../types';
+
 import { BaseOption } from './base-option';
 import { FontFamilyOptions, FontSizeOptions } from './font-options';
 import { FullScreenButton } from './fullscreen-button';
@@ -25,19 +32,16 @@ import { LargeBlock, SmallBlock } from './styles';
 
 // ----------------------------------------------------------------------
 
-export const SettingsDrawer = ({
-	sx,
-	defaultSettings,
-}: SettingsDrawerProps) => {
+export const SettingsDrawer = ({ sx, defaultSettings }: SettingsDrawerProps) => {
 	const settings = useSettingsContext();
 
 	const { mode, setMode, systemMode } = useColorScheme();
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (mode === 'system' && systemMode) {
 			settings.setState({ colorScheme: systemMode });
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [mode, systemMode]);
 
 	// Visible options by default settings
@@ -98,9 +102,7 @@ export const SettingsDrawer = ({
 				icon={<SvgIcon>{settingIcons.moon}</SvgIcon>}
 				onChangeOption={() => {
 					setMode(mode === 'light' ? 'dark' : 'light');
-					settings.setState({
-						colorScheme: mode === 'light' ? 'dark' : 'light',
-					});
+					settings.setState({ colorScheme: mode === 'light' ? 'dark' : 'light' });
 				}}
 			/>
 		);
@@ -114,8 +116,7 @@ export const SettingsDrawer = ({
 				icon={<SvgIcon>{settingIcons.contrast}</SvgIcon>}
 				onChangeOption={() => {
 					return settings.setState({
-						contrast:
-							settings.state.contrast === 'default' ? 'hight' : 'default',
+						contrast: settings.state.contrast === 'default' ? 'hight' : 'default',
 					});
 				}}
 			/>
@@ -129,9 +130,7 @@ export const SettingsDrawer = ({
 				selected={settings.state.direction === 'rtl'}
 				icon={<SvgIcon>{settingIcons.alignRight}</SvgIcon>}
 				onChangeOption={() => {
-					return settings.setState({
-						direction: settings.state.direction === 'ltr' ? 'rtl' : 'ltr',
-					});
+					return settings.setState({ direction: settings.state.direction === 'ltr' ? 'rtl' : 'ltr' });
 				}}
 			/>
 		);
@@ -145,9 +144,7 @@ export const SettingsDrawer = ({
 				selected={!!settings.state.compactLayout}
 				icon={<SvgIcon>{settingIcons.autofitWidth}</SvgIcon>}
 				onChangeOption={() => {
-					return settings.setState({
-						compactLayout: !settings.state.compactLayout,
-					});
+					return settings.setState({ compactLayout: !settings.state.compactLayout });
 				}}
 			/>
 		);
@@ -159,17 +156,11 @@ export const SettingsDrawer = ({
 				title="Presets"
 				canReset={settings.state.primaryColor !== defaultSettings.primaryColor}
 				onReset={() => {
-					return settings.setState({
-						primaryColor: defaultSettings.primaryColor,
-					});
+					return settings.setState({ primaryColor: defaultSettings.primaryColor });
 				}}
 			>
 				<PresetsOptions
-					icon={
-						<SvgIcon sx={{ width: 28, height: 28 }}>
-							{settingIcons.siderbarDuotone}
-						</SvgIcon>
-					}
+					icon={<SvgIcon sx={{ width: 28, height: 28 }}>{settingIcons.siderbarDuotone}</SvgIcon>}
 					options={
 						Object.keys(primaryColorPresets).map((key) => {
 							return {
@@ -195,9 +186,7 @@ export const SettingsDrawer = ({
 						label="Layout"
 						canReset={settings.state.navLayout !== defaultSettings.navLayout}
 						onReset={() => {
-							return settings.setState({
-								navLayout: defaultSettings.navLayout,
-							});
+							return settings.setState({ navLayout: defaultSettings.navLayout });
 						}}
 					>
 						<NavLayoutOptions
@@ -208,27 +197,15 @@ export const SettingsDrawer = ({
 							options={[
 								{
 									value: 'vertical',
-									icon: (
-										<SvgIcon sx={{ width: 1, height: 'auto' }}>
-											{settingIcons.navVertical}
-										</SvgIcon>
-									),
+									icon: <SvgIcon sx={{ width: 1, height: 'auto' }}>{settingIcons.navVertical}</SvgIcon>,
 								},
 								{
 									value: 'horizontal',
-									icon: (
-										<SvgIcon sx={{ width: 1, height: 'auto' }}>
-											{settingIcons.navHorizontal}
-										</SvgIcon>
-									),
+									icon: <SvgIcon sx={{ width: 1, height: 'auto' }}>{settingIcons.navHorizontal}</SvgIcon>,
 								},
 								{
 									value: 'mini',
-									icon: (
-										<SvgIcon sx={{ width: 1, height: 'auto' }}>
-											{settingIcons.navMini}
-										</SvgIcon>
-									),
+									icon: <SvgIcon sx={{ width: 1, height: 'auto' }}>{settingIcons.navMini}</SvgIcon>,
 								},
 							]}
 						/>
@@ -274,9 +251,7 @@ export const SettingsDrawer = ({
 						label="Family"
 						canReset={settings.state.fontFamily !== defaultSettings.fontFamily}
 						onReset={() => {
-							return settings.setState({
-								fontFamily: defaultSettings.fontFamily,
-							});
+							return settings.setState({ fontFamily: defaultSettings.fontFamily });
 						}}
 					>
 						<FontFamilyOptions
@@ -284,17 +259,8 @@ export const SettingsDrawer = ({
 							onChangeOption={(newOption) => {
 								return settings.setState({ fontFamily: newOption });
 							}}
-							options={[
-								themeConfig.fontFamily.primary,
-								'Inter Variable',
-								'DM Sans Variable',
-								'Nunito Sans Variable',
-							]}
-							icon={
-								<SvgIcon sx={{ width: 28, height: 28 }}>
-									{settingIcons.font}
-								</SvgIcon>
-							}
+							options={[themeConfig.fontFamily.primary, 'Inter Variable', 'DM Sans Variable', 'Nunito Sans Variable']}
+							icon={<SvgIcon sx={{ width: 28, height: 28 }}>{settingIcons.font}</SvgIcon>}
 						/>
 					</SmallBlock>
 				)}
@@ -332,10 +298,7 @@ export const SettingsDrawer = ({
 						(theme) => {
 							return {
 								...theme.mixins.paperStyles(theme, {
-									color: varAlpha(
-										theme.vars.palette.background.defaultChannel,
-										0.9,
-									),
+									color: varAlpha(theme.vars.palette.background.defaultChannel, 0.9),
 								}),
 								width: 360,
 							};
@@ -357,13 +320,7 @@ export const SettingsDrawer = ({
 						flexDirection: 'column',
 					}}
 				>
-					<Box
-						sx={{
-							gap: 2,
-							display: 'grid',
-							gridTemplateColumns: 'repeat(2, 1fr)',
-						}}
-					>
+					<Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
 						{isColorSchemeVisible && renderMode()}
 						{isContrastVisible && renderContrast()}
 						{isDirectionVisible && renderRtl()}
