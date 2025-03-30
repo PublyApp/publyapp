@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { styled } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import { mergeClasses } from 'minimal-shared/utils';
@@ -9,7 +10,7 @@ import { fileData, fileFormat, fileThumb } from './utils';
 
 // ----------------------------------------------------------------------
 
-export function FileThumbnail({
+export const FileThumbnail = ({
 	sx,
 	file,
 	tooltip,
@@ -19,7 +20,7 @@ export function FileThumbnail({
 	onDownload,
 	className,
 	...other
-}: FileThumbnailProps) {
+}: FileThumbnailProps) => {
 	const { icon, removeBtn, downloadBtn, tooltip: tooltipProps } = slotProps ?? {};
 
 	const { name, path } = fileData(file);
@@ -28,21 +29,23 @@ export function FileThumbnail({
 
 	const format = fileFormat(path ?? previewUrl);
 
-	const renderItem = () => (
-		<ItemRoot className={mergeClasses([fileThumbnailClasses.root, className])} sx={sx} {...other}>
-			{format === 'image' && imageView ? (
-				<ItemImg src={previewUrl} className={fileThumbnailClasses.img} {...slotProps?.img} />
-			) : (
-				<ItemIcon src={fileThumb(format)} className={fileThumbnailClasses.icon} {...icon} />
-			)}
+	const renderItem = () => {
+		return (
+			<ItemRoot className={mergeClasses([fileThumbnailClasses.root, className])} sx={sx} {...other}>
+				{format === 'image' && imageView ? (
+					<ItemImg src={previewUrl} className={fileThumbnailClasses.img} {...slotProps?.img} />
+				) : (
+					<ItemIcon src={fileThumb(format)} className={fileThumbnailClasses.icon} {...icon} />
+				)}
 
-			{onRemove && <RemoveButton onClick={onRemove} className={fileThumbnailClasses.removeBtn} {...removeBtn} />}
+				{onRemove && <RemoveButton onClick={onRemove} className={fileThumbnailClasses.removeBtn} {...removeBtn} />}
 
-			{onDownload && (
-				<DownloadButton onClick={onDownload} className={fileThumbnailClasses.downloadBtn} {...downloadBtn} />
-			)}
-		</ItemRoot>
-	);
+				{onDownload && (
+					<DownloadButton onClick={onDownload} className={fileThumbnailClasses.downloadBtn} {...downloadBtn} />
+				)}
+			</ItemRoot>
+		);
+	};
 
 	if (tooltip) {
 		return (
@@ -69,29 +72,35 @@ export function FileThumbnail({
 	}
 
 	return renderItem();
-}
+};
 
 // ----------------------------------------------------------------------
 
-const ItemRoot = styled('span')(({ theme }) => ({
-	width: 36,
-	height: 36,
-	flexShrink: 0,
-	alignItems: 'center',
-	position: 'relative',
-	display: 'inline-flex',
-	justifyContent: 'center',
-	borderRadius: theme.shape.borderRadius * 1.25,
-}));
+const ItemRoot = styled('span')(({ theme }) => {
+	return {
+		width: 36,
+		height: 36,
+		flexShrink: 0,
+		alignItems: 'center',
+		position: 'relative',
+		display: 'inline-flex',
+		justifyContent: 'center',
+		borderRadius: theme.shape.borderRadius * 1.25,
+	};
+});
 
-const ItemIcon = styled('img')(() => ({
-	width: '100%',
-	height: '100%',
-}));
+const ItemIcon = styled('img')(() => {
+	return {
+		width: '100%',
+		height: '100%',
+	};
+});
 
-const ItemImg = styled('img')(() => ({
-	width: '100%',
-	height: '100%',
-	objectFit: 'cover',
-	borderRadius: 'inherit',
-}));
+const ItemImg = styled('img')(() => {
+	return {
+		width: '100%',
+		height: '100%',
+		objectFit: 'cover',
+		borderRadius: 'inherit',
+	};
+});

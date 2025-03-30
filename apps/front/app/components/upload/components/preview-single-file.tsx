@@ -1,14 +1,15 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import { styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
-import { Iconify } from '../../iconify';
+import { Iconify } from '../../iconify/iconify';
 import { uploadClasses } from '../classes';
 import type { SingleFilePreviewProps } from '../types';
 
 // ----------------------------------------------------------------------
 
-export function SingleFilePreview({ file, sx, className, ...other }: SingleFilePreviewProps) {
+export const SingleFilePreview = ({ file, sx, className, ...other }: SingleFilePreviewProps) => {
 	const fileName = typeof file === 'string' ? file : file.name;
 
 	const previewUrl = typeof file === 'string' ? file : URL.createObjectURL(file);
@@ -18,41 +19,45 @@ export function SingleFilePreview({ file, sx, className, ...other }: SingleFileP
 			<img alt={fileName} src={previewUrl} />
 		</PreviewRoot>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-const PreviewRoot = styled('div')(({ theme }) => ({
-	top: 0,
-	left: 0,
-	width: '100%',
-	height: '100%',
-	position: 'absolute',
-	padding: theme.spacing(1),
-	'& > img': {
+const PreviewRoot = styled('div')(({ theme }) => {
+	return {
+		top: 0,
+		left: 0,
 		width: '100%',
 		height: '100%',
-		objectFit: 'cover',
-		borderRadius: theme.shape.borderRadius,
-	},
-}));
+		position: 'absolute',
+		padding: theme.spacing(1),
+		'& > img': {
+			width: '100%',
+			height: '100%',
+			objectFit: 'cover',
+			borderRadius: theme.shape.borderRadius,
+		},
+	};
+});
 
 // ----------------------------------------------------------------------
 
-export function DeleteButton({ sx, ...other }: IconButtonProps) {
+export const DeleteButton = ({ sx, ...other }: IconButtonProps) => {
 	return (
 		<IconButton
 			size="small"
 			sx={[
-				(theme) => ({
-					top: 16,
-					right: 16,
-					zIndex: 9,
-					position: 'absolute',
-					color: varAlpha(theme.vars.palette.common.whiteChannel, 0.8),
-					bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.72),
-					'&:hover': { bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.48) },
-				}),
+				(theme) => {
+					return {
+						top: 16,
+						right: 16,
+						zIndex: 9,
+						position: 'absolute',
+						color: varAlpha(theme.vars.palette.common.whiteChannel, 0.8),
+						bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.72),
+						'&:hover': { bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.48) },
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -60,4 +65,4 @@ export function DeleteButton({ sx, ...other }: IconButtonProps) {
 			<Iconify icon="mingcute:close-line" width={18} />
 		</IconButton>
 	);
-}
+};
