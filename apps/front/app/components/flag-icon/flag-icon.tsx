@@ -1,0 +1,54 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
+import { styled } from '@mui/material/styles';
+import { mergeClasses } from 'minimal-shared/utils';
+
+import { flagIconClasses } from './classes';
+
+// ----------------------------------------------------------------------
+
+export type FlagIconProps = React.ComponentProps<typeof FlagRoot> & {
+	code?: string;
+};
+
+export const FlagIcon = ({ code, className, sx, ...other }: FlagIconProps) => {
+	if (!code) {
+		return null;
+	}
+
+	return (
+		<FlagRoot className={mergeClasses([flagIconClasses.root, className])} sx={sx} {...other}>
+			<FlagImg
+				loading="lazy"
+				alt={code}
+				// eslint-disable-next-line no-useless-concat
+				src={`https://purecatamphetamine.github.io/country-flag-icons/3x2/${code?.toUpperCase()}` + '.svg'}
+				className={flagIconClasses.img}
+			/>
+		</FlagRoot>
+	);
+};
+
+// ----------------------------------------------------------------------
+
+const FlagRoot = styled('span')(({ theme }) => {
+	return {
+		width: 26,
+		height: 20,
+		flexShrink: 0,
+		overflow: 'hidden',
+		borderRadius: '5px',
+		alignItems: 'center',
+		display: 'inline-flex',
+		justifyContent: 'center',
+		backgroundColor: theme.vars.palette.background.neutral,
+	};
+});
+
+const FlagImg = styled('img')(() => {
+	return {
+		width: '100%',
+		height: '100%',
+		maxWidth: 'unset',
+		objectFit: 'cover',
+	};
+});
