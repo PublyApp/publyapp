@@ -1,11 +1,7 @@
 import type { CommonColors } from '@mui/material/styles';
 
 import type { PaletteColorNoChannels } from './core/palette';
-import type {
-	ThemeColorScheme,
-	ThemeCssVariables,
-	ThemeDirection,
-} from './types';
+import type { ThemeColorScheme, ThemeCssVariables, ThemeDirection } from './types';
 
 // ----------------------------------------------------------------------
 
@@ -17,24 +13,9 @@ type ThemeConfig = {
 	defaultMode: ThemeColorScheme;
 	cssVariables: ThemeCssVariables;
 	fontFamily: Record<'primary' | 'secondary', string>;
-	palette: Record<
-		'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error',
-		PaletteColorNoChannels
-	> & {
+	palette: Record<'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error', PaletteColorNoChannels> & {
 		common: Pick<CommonColors, 'black' | 'white'>;
-		grey: Record<
-			| '50'
-			| '100'
-			| '200'
-			| '300'
-			| '400'
-			| '500'
-			| '600'
-			| '700'
-			| '800'
-			| '900',
-			string
-		>;
+		grey: Record<'50' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900', string>;
 	};
 };
 

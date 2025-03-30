@@ -1,9 +1,5 @@
 import { paginationItemClasses } from '@mui/material/PaginationItem';
-import type {
-	Components,
-	ComponentsVariants,
-	Theme,
-} from '@mui/material/styles';
+import type { Components, ComponentsVariants, Theme } from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -26,80 +22,40 @@ export type PaginationExtendColor = {
 
 // ----------------------------------------------------------------------
 
-const COLORS = [
-	'primary',
-	'secondary',
-	'info',
-	'success',
-	'warning',
-	'error',
-] as const;
+const COLORS = ['primary', 'secondary', 'info', 'success', 'warning', 'error'] as const;
 
-const softVariant: Record<string, ComponentsVariants<Theme>['MuiPagination']> =
-	{
-		colors: COLORS.map((color) => {
-			return {
-				props: ({ ownerState }) => {
-					return (
-						!ownerState.disabled &&
-						ownerState.variant === 'soft' &&
-						ownerState.color === color
-					);
-				},
-				style: ({ theme }) => {
-					return {
-						[`& .${paginationItemClasses.root}`]: {
-							[`&.${paginationItemClasses.selected}`]: {
-								fontWeight: theme.typography.fontWeightSemiBold,
-								color: theme.vars.palette[color].dark,
-								backgroundColor: varAlpha(
-									theme.vars.palette[color].mainChannel,
-									0.08,
-								),
-								'&:hover': {
-									backgroundColor: varAlpha(
-										theme.vars.palette[color].mainChannel,
-										0.16,
-									),
-								},
-								...theme.applyStyles('dark', {
-									color: theme.vars.palette[color].light,
-								}),
-							},
-						},
-					};
-				},
-			};
-		}),
-		standardColor: [
-			{
-				props: ({ ownerState }) => {
-					return (
-						ownerState.variant === 'soft' && ownerState.color === 'standard'
-					);
-				},
-				style: ({ theme }) => {
-					return {
-						[`& .${paginationItemClasses.root}`]: {
-							[`&.${paginationItemClasses.selected}`]: {
-								fontWeight: theme.typography.fontWeightSemiBold,
-								backgroundColor: varAlpha(
-									theme.vars.palette.grey['500Channel'],
-									0.08,
-								),
-								'&:hover': {
-									backgroundColor: varAlpha(
-										theme.vars.palette.grey['500Channel'],
-										0.16,
-									),
-								},
-							},
-						},
-					};
+const softVariant: Record<string, ComponentsVariants<Theme>['MuiPagination']> = {
+	colors: COLORS.map((color) => ({
+		props: ({ ownerState }) => !ownerState.disabled && ownerState.variant === 'soft' && ownerState.color === color,
+		style: ({ theme }) => ({
+			[`& .${paginationItemClasses.root}`]: {
+				[`&.${paginationItemClasses.selected}`]: {
+					fontWeight: theme.typography.fontWeightSemiBold,
+					color: theme.vars.palette[color].dark,
+					backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.08),
+					'&:hover': { backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.16) },
+					...theme.applyStyles('dark', {
+						color: theme.vars.palette[color].light,
+					}),
 				},
 			},
-		],
-	};
+		}),
+	})),
+	standardColor: [
+		{
+			props: ({ ownerState }) => ownerState.variant === 'soft' && ownerState.color === 'standard',
+			style: ({ theme }) => ({
+				[`& .${paginationItemClasses.root}`]: {
+					[`&.${paginationItemClasses.selected}`]: {
+						fontWeight: theme.typography.fontWeightSemiBold,
+						backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+						'&:hover': { backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16) },
+					},
+				},
+			}),
+		},
+	],
+};
 
 // ----------------------------------------------------------------------
 
@@ -115,49 +71,42 @@ const MuiPagination: Components<Theme>['MuiPagination'] = {
 				 */
 				softVariant.standardColor,
 				softVariant.colors,
-			].flat() as never,
+			].flat(),
 		},
 		/**
 		 * @variant text
 		 */
-		text: ({ ownerState, theme }) => {
-			return {
-				[`& .${paginationItemClasses.root}`]: {
-					[`&.${paginationItemClasses.selected}`]: {
-						fontWeight: theme.typography.fontWeightSemiBold,
-						...(ownerState.color === 'standard' && {
-							color: theme.vars.palette.common.white,
-							backgroundColor: theme.vars.palette.text.primary,
-							'&:hover': { backgroundColor: theme.vars.palette.grey[700] },
-							...theme.applyStyles('dark', {
-								color: theme.vars.palette.grey[800],
-								'&:hover': { backgroundColor: theme.vars.palette.grey[100] },
-							}),
+		text: ({ ownerState, theme }) => ({
+			[`& .${paginationItemClasses.root}`]: {
+				[`&.${paginationItemClasses.selected}`]: {
+					fontWeight: theme.typography.fontWeightSemiBold,
+					...(ownerState.color === 'standard' && {
+						color: theme.vars.palette.common.white,
+						backgroundColor: theme.vars.palette.text.primary,
+						'&:hover': { backgroundColor: theme.vars.palette.grey[700] },
+						...theme.applyStyles('dark', {
+							color: theme.vars.palette.grey[800],
+							'&:hover': { backgroundColor: theme.vars.palette.grey[100] },
 						}),
-					},
+					}),
 				},
-			};
-		},
+			},
+		}),
 		/**
 		 * @variant outlined
 		 */
-		outlined: ({ ownerState, theme }) => {
-			return {
-				[`& .${paginationItemClasses.root}`]: {
-					borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24),
-					[`&.${paginationItemClasses.selected}`]: {
-						borderColor: 'currentColor',
-						fontWeight: theme.typography.fontWeightSemiBold,
-						...(ownerState.color === 'standard' && {
-							backgroundColor: varAlpha(
-								theme.vars.palette.grey['500Channel'],
-								0.08,
-							),
-						}),
-					},
+		outlined: ({ ownerState, theme }) => ({
+			[`& .${paginationItemClasses.root}`]: {
+				borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24),
+				[`&.${paginationItemClasses.selected}`]: {
+					borderColor: 'currentColor',
+					fontWeight: theme.typography.fontWeightSemiBold,
+					...(ownerState.color === 'standard' && {
+						backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+					}),
 				},
-			};
-		},
+			},
+		}),
 	},
 };
 

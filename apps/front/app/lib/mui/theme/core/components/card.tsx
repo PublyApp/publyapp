@@ -1,5 +1,4 @@
 import type { Components, Theme } from '@mui/material/styles';
-import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -8,14 +7,12 @@ const MuiCard: Components<Theme>['MuiCard'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: ({ theme }) => {
-			return {
-				position: 'relative',
-				boxShadow: theme.vars.customShadows.card,
-				borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
-				zIndex: 0, // Fix Safari overflow: hidden with border radius
-			};
-		},
+		root: ({ theme }) => ({
+			position: 'relative',
+			boxShadow: theme.vars.customShadows.card,
+			borderRadius: theme.shape.borderRadius * 2,
+			zIndex: 0, // Fix Safari overflow: hidden with border radius
+		}),
 	},
 };
 
@@ -33,11 +30,7 @@ const MuiCardHeader: Components<Theme>['MuiCardHeader'] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
-	styleOverrides: {
-		root: ({ theme }) => {
-			return { padding: theme.spacing(3, 3, 0) };
-		},
-	},
+	styleOverrides: { root: ({ theme }) => ({ padding: theme.spacing(3, 3, 0) }) },
 };
 
 // ----------------------------------------------------------------------
@@ -46,11 +39,7 @@ const MuiCardContent: Components<Theme>['MuiCardContent'] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
-	styleOverrides: {
-		root: ({ theme }) => {
-			return { padding: theme.spacing(3) };
-		},
-	},
+	styleOverrides: { root: ({ theme }) => ({ padding: theme.spacing(3) }) },
 };
 
 // ----------------------------------------------------------------------

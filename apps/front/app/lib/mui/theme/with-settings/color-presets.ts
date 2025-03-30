@@ -52,14 +52,6 @@ export const primaryColorPresets: Record<string, PaletteColorNoChannels> = {
 		darker: '#7A0930',
 		contrastText: '#FFFFFF',
 	},
-	preset6: {
-		lighter: '#FFF0E6',
-		light: '#FF8A50',
-		main: '#FF5722', // Vibrant orange-red
-		dark: '#E64A19',
-		darker: '#BF360C',
-		contrastText: '#FFFFFF',
-	},
 };
 
 export const secondaryColorPresets: Record<string, PaletteColorNoChannels> = {
@@ -109,14 +101,6 @@ export const secondaryColorPresets: Record<string, PaletteColorNoChannels> = {
 		main: '#C87941',
 		dark: '#904220',
 		darker: '#601B0C',
-		contrastText: '#FFFFFF',
-	},
-	preset6: {
-		lighter: '#E3F2FD',
-		light: '#40C4FF',
-		main: '#00B0FF', // Electric blue
-		dark: '#0091EA',
-		darker: '#0277BD',
 		contrastText: '#FFFFFF',
 	},
 };

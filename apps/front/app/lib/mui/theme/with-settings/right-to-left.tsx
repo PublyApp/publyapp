@@ -19,7 +19,7 @@ const cacheRtl = createCache({
 	stylisPlugins: [rtlPlugin],
 });
 
-export const Rtl = ({ children, direction }: RtlProps) => {
+export function Rtl({ children, direction }: RtlProps) {
 	useEffect(() => {
 		document.dir = direction;
 	}, [direction]);
@@ -29,4 +29,4 @@ export const Rtl = ({ children, direction }: RtlProps) => {
 	}
 
 	return <>{children}</>;
-};
+}

@@ -29,19 +29,14 @@ export type BgGradientProps = {
 	repeats?: string[];
 };
 
-export const bgGradient = ({
-	sizes,
-	repeats,
-	images,
-	positions,
-}: BgGradientProps): CSSObject => {
+export function bgGradient({ sizes, repeats, images, positions }: BgGradientProps): CSSObject {
 	return {
 		backgroundImage: images?.join(', '),
 		backgroundSize: sizes?.join(', ') ?? 'cover',
 		backgroundRepeat: repeats?.join(', ') ?? 'no-repeat',
 		backgroundPosition: positions?.join(', ') ?? 'center',
 	};
-};
+}
 
 // ----------------------------------------------------------------------
 
@@ -67,7 +62,7 @@ export type BgBlurProps = {
 	imgUrl?: string;
 };
 
-export const bgBlur = ({ color, blur = 6, imgUrl }: BgBlurProps): CSSObject => {
+export function bgBlur({ color, blur = 6, imgUrl }: BgBlurProps): CSSObject {
 	if (imgUrl) {
 		return {
 			position: 'relative',
@@ -89,10 +84,9 @@ export const bgBlur = ({ color, blur = 6, imgUrl }: BgBlurProps): CSSObject => {
 			},
 		};
 	}
-
 	return {
 		backdropFilter: `blur(${blur}px)`,
 		WebkitBackdropFilter: `blur(${blur}px)`,
 		backgroundColor: color,
 	};
-};
+}

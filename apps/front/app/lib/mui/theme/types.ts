@@ -22,10 +22,7 @@ export type ThemeColorScheme = SupportedColorScheme;
 export type ThemeDirection = Direction;
 export type ThemeCssVariables = Pick<
 	CssVarsThemeOptions,
-	| 'colorSchemeSelector'
-	| 'disableCssColorScheme'
-	| 'cssVarPrefix'
-	| 'shouldSkipGeneratingVar'
+	'colorSchemeSelector' | 'disableCssColorScheme' | 'cssVarPrefix' | 'shouldSkipGeneratingVar'
 >;
 
 type ColorSchemeOptionsExtended = ColorSystemOptions & {

@@ -7,12 +7,8 @@ const MuiBreadcrumbs: Components<Theme>['MuiBreadcrumbs'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		ol: ({ theme }) => {
-			return { rowGap: theme.spacing(0.5), columnGap: theme.spacing(2) };
-		},
-		li: ({ theme }) => {
-			return { display: 'inline-flex', '& > *': { ...theme.typography.body2 } };
-		},
+		ol: ({ theme }) => ({ rowGap: theme.spacing(0.5), columnGap: theme.spacing(2) }),
+		li: ({ theme }) => ({ display: 'inline-flex', '& > *': { ...theme.typography.body2 } }),
 		separator: { margin: 0 },
 	},
 };

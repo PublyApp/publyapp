@@ -1,7 +1,7 @@
 import {
+	createTheme as getTheme,
 	type Breakpoint,
 	type CSSObject,
-	createTheme as getTheme,
 	type TypographyVariantsOptions,
 } from '@mui/material/styles';
 import { pxToRem, setFont } from 'minimal-shared/utils';
@@ -24,9 +24,7 @@ export type ResponsiveFontSizesResult = Record<string, { fontSize: string }>;
 
 const defaultMuiTheme = getTheme();
 
-const responsiveFontSizes = (
-	obj: ResponsiveFontSizesInput,
-): ResponsiveFontSizesResult => {
+function responsiveFontSizes(obj: ResponsiveFontSizesInput): ResponsiveFontSizesResult {
 	const breakpoints: Breakpoint[] = defaultMuiTheme.breakpoints.keys;
 
 	return breakpoints.reduce((acc, breakpoint) => {
@@ -40,7 +38,7 @@ const responsiveFontSizes = (
 
 		return acc;
 	}, {} as ResponsiveFontSizesResult);
-};
+}
 
 // ----------------------------------------------------------------------
 

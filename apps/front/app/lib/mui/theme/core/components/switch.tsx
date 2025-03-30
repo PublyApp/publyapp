@@ -10,46 +10,40 @@ const MuiSwitch: Components<Theme>['MuiSwitch'] = {
 	 *************************************** */
 	styleOverrides: {
 		root: { alignItems: 'center' },
-		switchBase: ({ ownerState, theme }) => {
-			return {
-				top: 'unset',
-				transform: 'translateX(6px)',
-				[`&.${switchClasses.checked}`]: {
-					[`& .${switchClasses.thumb}`]: {
-						...(ownerState.color === 'default' && {
-							...theme.applyStyles('dark', {
-								color: theme.vars.palette.grey[800],
-							}),
-						}),
-					},
-					[`&+.${switchClasses.track}`]: {
-						opacity: 1,
-						...(ownerState.color === 'default' && {
-							backgroundColor: theme.vars.palette.text.primary,
-						}),
-					},
-				},
-				[`&.${switchClasses.disabled}`]: {
-					[`& .${switchClasses.thumb}`]: {
-						opacity: 1,
+		switchBase: ({ ownerState, theme }) => ({
+			top: 'unset',
+			transform: 'translateX(6px)',
+			[`&.${switchClasses.checked}`]: {
+				[`& .${switchClasses.thumb}`]: {
+					...(ownerState.color === 'default' && {
 						...theme.applyStyles('dark', {
-							opacity: 0.48,
+							color: theme.vars.palette.grey[800],
 						}),
-					},
-					[`&+.${switchClasses.track}`]: { opacity: 0.48 },
+					}),
 				},
-			};
-		},
-		track: ({ theme }) => {
-			return {
-				opacity: 1,
-				borderRadius: 10,
-				backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.48),
-			};
-		},
-		thumb: ({ theme }) => {
-			return { color: theme.vars.palette.common.white };
-		},
+				[`&+.${switchClasses.track}`]: {
+					opacity: 1,
+					...(ownerState.color === 'default' && {
+						backgroundColor: theme.vars.palette.text.primary,
+					}),
+				},
+			},
+			[`&.${switchClasses.disabled}`]: {
+				[`& .${switchClasses.thumb}`]: {
+					opacity: 1,
+					...theme.applyStyles('dark', {
+						opacity: 0.48,
+					}),
+				},
+				[`&+.${switchClasses.track}`]: { opacity: 0.48 },
+			},
+		}),
+		track: ({ theme }) => ({
+			opacity: 1,
+			borderRadius: 10,
+			backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.48),
+		}),
+		thumb: ({ theme }) => ({ color: theme.vars.palette.common.white }),
 		sizeMedium: {
 			[`& .${switchClasses.track}`]: { height: 20 },
 			[`& .${switchClasses.thumb}`]: { width: 14, height: 14 },
