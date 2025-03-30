@@ -1,8 +1,8 @@
-import { use } from 'react';
+// import { use } from 'react';
 
 import { useMainStore } from '@/front/lib/zustand/store';
 
-import { SettingsContext } from './settings-context';
+// import { SettingsContext } from './settings-context';
 
 // ----------------------------------------------------------------------
 

@@ -4,7 +4,9 @@ import {
 	type ThemeProviderProps as MuiThemeProviderProps,
 } from '@mui/material/styles';
 
-import { useTranslate } from '../../locales/use-translate';
+import { useSettingsContext } from '@/front/hooks/use-settings-context';
+
+import { useTranslate } from '../../../hooks/use-translate';
 
 // import { useSettingsContext } from 'src/components/settings';
 // import { useTranslate } from 'src/locales';
@@ -24,10 +26,10 @@ export type ThemeProviderProps = Partial<MuiThemeProviderProps> & {
 export const MuiThemeProvider = ({ themeOverrides, children, ...other }: ThemeProviderProps) => {
 	const { currentLang } = useTranslate();
 
-	// const settings = useSettingsContext();
+	const settings = useSettingsContext();
 
 	const theme = createTheme({
-		// settingsState: settings.state,
+		settingsState: settings.state,
 		localeComponents: currentLang?.systemValue,
 		themeOverrides,
 	});
