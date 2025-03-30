@@ -9,6 +9,7 @@ import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration }
 import { useChangeLanguage } from 'remix-i18next/react';
 
 import type { Route } from './+types/root';
+import { MotionLazy } from './components/animate/motion-lazy';
 import QueryBoundary from './components/QueryBoundary';
 import { SettingsDrawer } from './components/settings/drawer';
 import { defaultSettings } from './components/settings/settings-config';
@@ -73,8 +74,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<QueryClientProvider client={defaultQueryClient}>
 					<MuiThemeProvider>
 						<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
-							<SettingsDrawer defaultSettings={defaultSettings} />
-							{children}
+							<MotionLazy>
+								<SettingsDrawer defaultSettings={defaultSettings} />
+								{children}
+							</MotionLazy>
 						</QueryBoundary>
 					</MuiThemeProvider>
 				</QueryClientProvider>
