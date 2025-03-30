@@ -5,7 +5,7 @@ import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
 import { getLastPath } from '@org/shared/utils/string.utils';
 
 const routes = [
-	layout('routes/marketing/MarketingLayout.tsx', [
+	layout('routes/marketing/layout/MarketingLayout.tsx', [
 		// ====
 		index('routes/marketing/home/HomePage.tsx'),
 	]),

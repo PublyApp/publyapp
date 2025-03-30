@@ -3,7 +3,7 @@ import { Store, UserCog, Users } from 'lucide-react';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
-import useMatchPath from './useMatchPath';
+import useMatchPath from './use-match-path';
 
 export const useNavData = (): NavData => {
 	const matchPath = useMatchPath();
