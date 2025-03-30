@@ -7,11 +7,20 @@ import duration from '@org/shared/utils/duration.utils';
 import { CookieManager } from '@/front/lib/cookie-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerAction } from '@/front/lib/react-router/server.data';
-import { FRONT_PATH_NAMES, LAST_USED_TENANT_ID_COOKIE_KEY, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	LAST_USED_TENANT_ID_COOKIE_KEY,
+	SESSION_TOKEN_COOKIE_KEY,
+} from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
 import type { Route } from './+types/LoginPage';
 import LoginForm from './LoginForm';
+
+export const meta = (_: Route.MetaArgs) => {
+	return [{ title: `Log in - ${APP_NAME}` }];
+};
 
 export const action = getServerAction({
 	action: async ({ request, apiClient }) => {
