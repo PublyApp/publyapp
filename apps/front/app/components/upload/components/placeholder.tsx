@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { styled, type SxProps, type Theme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
-import { UploadIllustration } from 'src/assets/illustrations';
-import { createClasses } from 'src/theme/create-classes';
+
+import UploadIllustration from '@/front/assets/illustrations/upload-illustration';
+import { createClasses } from '@/front/lib/mui/theme/create-classes';
 
 // ----------------------------------------------------------------------
 
@@ -16,7 +18,7 @@ const uploadPlaceholderClasses = {
 	description: createClasses('upload__placeholder__description'),
 };
 
-export function UploadPlaceholder({ sx, className, ...other }: UploadPlaceholderProps) {
+export const UploadPlaceholder = ({ sx, className, ...other }: UploadPlaceholderProps) => {
 	return (
 		<PlaceholderRoot className={mergeClasses([uploadPlaceholderClasses.root, className])} sx={sx} {...other}>
 			<UploadIllustration hideBackground sx={{ width: 200 }} />
@@ -30,30 +32,34 @@ export function UploadPlaceholder({ sx, className, ...other }: UploadPlaceholder
 			</PlaceholderContent>
 		</PlaceholderRoot>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-const PlaceholderRoot = styled('div')(() => ({
-	display: 'flex',
-	alignItems: 'center',
-	flexDirection: 'column',
-	justifyContent: 'center',
-}));
+const PlaceholderRoot = styled('div')(() => {
+	return {
+		display: 'flex',
+		alignItems: 'center',
+		flexDirection: 'column',
+		justifyContent: 'center',
+	};
+});
 
-const PlaceholderContent = styled('div')(({ theme }) => ({
-	display: 'flex',
-	textAlign: 'center',
-	gap: theme.spacing(1),
-	flexDirection: 'column',
-	[`& .${uploadPlaceholderClasses.title}`]: { ...theme.typography.h6 },
-	[`& .${uploadPlaceholderClasses.description}`]: {
-		...theme.typography.body2,
-		color: theme.vars.palette.text.secondary,
-		'& span': {
-			textDecoration: 'underline',
-			margin: theme.spacing(0, 0.5),
-			color: theme.vars.palette.primary.main,
+const PlaceholderContent = styled('div')(({ theme }) => {
+	return {
+		display: 'flex',
+		textAlign: 'center',
+		gap: theme.spacing(1),
+		flexDirection: 'column',
+		[`& .${uploadPlaceholderClasses.title}`]: { ...theme.typography.h6 },
+		[`& .${uploadPlaceholderClasses.description}`]: {
+			...theme.typography.body2,
+			color: theme.vars.palette.text.secondary,
+			'& span': {
+				textDecoration: 'underline',
+				margin: theme.spacing(0, 0.5),
+				color: theme.vars.palette.primary.main,
+			},
 		},
-	},
-}));
+	};
+});

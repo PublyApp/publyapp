@@ -74,10 +74,7 @@ export const fPercent = (inputValue: InputNumberValue, options?: Options) => {
 
 // ----------------------------------------------------------------------
 
-export const fShortenNumber = (
-	inputValue: InputNumberValue,
-	options?: Options,
-) => {
+export const fShortenNumber = (inputValue: InputNumberValue, options?: Options) => {
 	const locale = formatNumberLocale() || DEFAULT_LOCALE;
 
 	const number = processInput(inputValue);
@@ -105,7 +102,7 @@ export const fData = (inputValue: InputNumberValue) => {
 	const baseValue = 1024;
 
 	const index = Math.floor(Math.log(number) / Math.log(baseValue));
-	const fm = `${Number.parseFloat((number / baseValue ** index).toFixed(decimal))} ${units[index]}`;
+	const fm = `${parseFloat((number / baseValue ** index).toFixed(decimal))} ${units[index]}`;
 
 	return fm;
 };

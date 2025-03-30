@@ -5,8 +5,8 @@ import { useTranslation } from 'react-i18next';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
-import { allLangs } from '../lib/all-langs';
 import { config } from '../lib/i18n/i18n.config';
+import { allLangs } from '../lib/locales/all-langs';
 
 // ----------------------------------------------------------------------
 

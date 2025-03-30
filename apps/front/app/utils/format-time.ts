@@ -31,13 +31,7 @@ dayjs.extend(relativeTime);
 
 // ----------------------------------------------------------------------
 
-export type DatePickerFormat =
-	| Dayjs
-	| Date
-	| string
-	| number
-	| null
-	| undefined;
+export type DatePickerFormat = Dayjs | Date | string | number | null | undefined;
 
 export const formatPatterns = {
 	dateTime: 'DD MMM YYYY h:mm a', // 17 Apr 2022 12:00 am
@@ -53,99 +47,90 @@ export const formatPatterns = {
 	},
 };
 
-const isValidDate = (date: DatePickerFormat) => {
-	return date !== null && date !== undefined && dayjs(date).isValid();
-};
+const isValidDate = (date: DatePickerFormat) => date !== null && date !== undefined && dayjs(date).isValid();
 
 // ----------------------------------------------------------------------
 
-export const today = (template?: string): string => {
+export function today(template?: string): string {
 	return dayjs(new Date()).startOf('day').format(template);
-};
+}
 
 // ----------------------------------------------------------------------
 
 /**
  * @output 17 Apr 2022 12:00 am
  */
-export const fDateTime = (
-	date: DatePickerFormat,
-	template?: string,
-): string => {
+export function fDateTime(date: DatePickerFormat, template?: string): string {
 	if (!isValidDate(date)) {
 		return 'Invalid date';
 	}
 
 	return dayjs(date).format(template ?? formatPatterns.dateTime);
-};
+}
 
 // ----------------------------------------------------------------------
 
 /**
  * @output 17 Apr 2022
  */
-export const fDate = (date: DatePickerFormat, template?: string): string => {
+export function fDate(date: DatePickerFormat, template?: string): string {
 	if (!isValidDate(date)) {
 		return 'Invalid date';
 	}
 
 	return dayjs(date).format(template ?? formatPatterns.date);
-};
+}
 
 // ----------------------------------------------------------------------
 
 /**
  * @output 12:00 am
  */
-export const fTime = (date: DatePickerFormat, template?: string): string => {
+export function fTime(date: DatePickerFormat, template?: string): string {
 	if (!isValidDate(date)) {
 		return 'Invalid date';
 	}
 
 	return dayjs(date).format(template ?? formatPatterns.time);
-};
+}
 
 // ----------------------------------------------------------------------
 
 /**
  * @output 1713250100
  */
-export const fTimestamp = (date: DatePickerFormat): number | 'Invalid date' => {
+export function fTimestamp(date: DatePickerFormat): number | 'Invalid date' {
 	if (!isValidDate(date)) {
 		return 'Invalid date';
 	}
 
 	return dayjs(date).valueOf();
-};
+}
 
 // ----------------------------------------------------------------------
 
 /**
  * @output a few seconds, 2 years
  */
-export const fToNow = (date: DatePickerFormat): string => {
+export function fToNow(date: DatePickerFormat): string {
 	if (!isValidDate(date)) {
 		return 'Invalid date';
 	}
 
 	return dayjs(date).toNow(true);
-};
+}
 
 // ----------------------------------------------------------------------
 
 /**
  * @output boolean
  */
-export const fIsBetween = (
+export function fIsBetween(
 	inputDate: DatePickerFormat,
 	startDate: DatePickerFormat,
 	endDate: DatePickerFormat,
-): boolean => {
-	if (
-		!isValidDate(inputDate) ||
-		!isValidDate(startDate) ||
-		!isValidDate(endDate)
-	) {
+): boolean {
+	if (!isValidDate(inputDate) || !isValidDate(startDate) || !isValidDate(endDate)) {
 		return false;
 	}
 
@@ -161,44 +146,34 @@ export const fIsBetween = (
 		return false;
 	}
 
-	return (
-		formattedInputDate >= formattedStartDate &&
-		formattedInputDate <= formattedEndDate
-	);
-};
+	return formattedInputDate >= formattedStartDate && formattedInputDate <= formattedEndDate;
+}
 
 // ----------------------------------------------------------------------
 
 /**
  * @output boolean
  */
-export const fIsAfter = (
-	startDate: DatePickerFormat,
-	endDate: DatePickerFormat,
-): boolean => {
+export function fIsAfter(startDate: DatePickerFormat, endDate: DatePickerFormat): boolean {
 	if (!isValidDate(startDate) || !isValidDate(endDate)) {
 		return false;
 	}
 
 	return dayjs(startDate).isAfter(endDate);
-};
+}
 
 // ----------------------------------------------------------------------
 
 /**
  * @output boolean
  */
-export const fIsSame = (
-	startDate: DatePickerFormat,
-	endDate: DatePickerFormat,
-	unitToCompare?: OpUnitType,
-): boolean => {
+export function fIsSame(startDate: DatePickerFormat, endDate: DatePickerFormat, unitToCompare?: OpUnitType): boolean {
 	if (!isValidDate(startDate) || !isValidDate(endDate)) {
 		return false;
 	}
 
 	return dayjs(startDate).isSame(endDate, unitToCompare ?? 'year');
-};
+}
 
 /**
  * @output
@@ -207,16 +182,12 @@ export const fIsSame = (
  * Same month: 25 - 26 Apr 2024
  * Same year: 25 Apr - 26 May 2024
  */
-export const fDateRangeShortLabel = (
+export function fDateRangeShortLabel(
 	startDate: DatePickerFormat,
 	endDate: DatePickerFormat,
 	initial?: boolean,
-): string => {
-	if (
-		!isValidDate(startDate) ||
-		!isValidDate(endDate) ||
-		fIsAfter(startDate, endDate)
-	) {
+): string {
+	if (!isValidDate(startDate) || !isValidDate(endDate) || fIsAfter(startDate, endDate)) {
 		return 'Invalid date';
 	}
 
@@ -239,7 +210,7 @@ export const fDateRangeShortLabel = (
 	}
 
 	return label;
-};
+}
 
 // ----------------------------------------------------------------------
 
@@ -256,7 +227,7 @@ export type DurationProps = {
 	milliseconds?: number;
 };
 
-export const fAdd = ({
+export function fAdd({
 	years = 0,
 	months = 0,
 	days = 0,
@@ -264,7 +235,7 @@ export const fAdd = ({
 	minutes = 0,
 	seconds = 0,
 	milliseconds = 0,
-}: DurationProps) => {
+}: DurationProps) {
 	const result = dayjs()
 		.add(
 			dayjs.duration({
@@ -280,12 +251,12 @@ export const fAdd = ({
 		.format();
 
 	return result;
-};
+}
 
 /**
  * @output 2024-05-28T05:55:31+00:00
  */
-export const fSub = ({
+export function fSub({
 	years = 0,
 	months = 0,
 	days = 0,
@@ -293,7 +264,7 @@ export const fSub = ({
 	minutes = 0,
 	seconds = 0,
 	milliseconds = 0,
-}: DurationProps) => {
+}: DurationProps) {
 	const result = dayjs()
 		.subtract(
 			dayjs.duration({
@@ -309,4 +280,4 @@ export const fSub = ({
 		.format();
 
 	return result;
-};
+}
