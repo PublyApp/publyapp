@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
 
-import { useTenantParam } from '@/front/hooks/useTenantParam';
+import { useTenantParam } from '@/front/hooks/use-tenant-param';
 
 import { getTenantAuthDataQuery, getUserAuthDataQuery } from './auth.actions';
 

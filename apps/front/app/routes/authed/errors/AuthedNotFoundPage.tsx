@@ -1,7 +1,5 @@
-import DashboardContainer from '@/front/components/ui/layout/DashboardContainer';
-
 const AuthedNotFoundPage = () => {
-	return <DashboardContainer>AuthedNotFoundPage</DashboardContainer>;
+	return <div>AuthedNotFoundPage</div>;
 };
 
 export default AuthedNotFoundPage;
