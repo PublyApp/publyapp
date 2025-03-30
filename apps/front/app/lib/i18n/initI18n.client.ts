@@ -43,9 +43,7 @@ export const initI18nOnClient = async () => {
 		defaultApiClient.parseRestClient.setHeader(LOCALE_HEADER_KEY, language);
 
 		// TODO: set locale for other libraries
-		// // set locale of dayjs (date formatting)
-		// // se locale of numeral.js (number formatting)
-		// numeral.locale(value);
+		// set locale of dayjs (date formatting)
 
 		// set locale for our InterZod instance
 		defaultZodClient.setLocale(getCorrectLocale(language));

@@ -10,6 +10,7 @@ import { useChangeLanguage } from 'remix-i18next/react';
 
 import type { Route } from './+types/root';
 import QueryBoundary from './components/QueryBoundary';
+import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/queryClient';
 import { getServerLoader } from './lib/react-router/server.data';
 
@@ -68,11 +69,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 			</head>
 			<body>
 				<QueryClientProvider client={defaultQueryClient}>
-					{/* <MUIProvider theme={} > */}
-					<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
-						{children}
-					</QueryBoundary>
-					{/* </MUIProvider> */}
+					<MuiThemeProvider>
+						<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
+							{children}
+						</QueryBoundary>
+					</MuiThemeProvider>
 				</QueryClientProvider>
 				<ScrollRestoration />
 				<Scripts />
