@@ -1,14 +1,19 @@
-import '@mantine/core/styles.css'; // import Mantine V7 styles needed by MRT
-import '@mantine/dates/styles.css'; // if using mantine date picker features
-import 'mantine-react-table/styles.css'; // import MRT styles
+import '@pigment-css/react/styles.css'; // import Pigment CSS styles/variables
+
 import './styles/main.css';
 
 import { QueryClientProvider } from '@tanstack/react-query';
+import type { ErrorBoundaryProps } from 'react-error-boundary';
 import { useTranslation } from 'react-i18next';
 import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 
 import type { Route } from './+types/root';
+import { MotionLazy } from './components/animate/motion-lazy';
+import QueryBoundary from './components/QueryBoundary';
+import { SettingsDrawer } from './components/settings/drawer';
+import { defaultSettings } from './components/settings/settings-config';
+import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/queryClient';
 import { getServerLoader } from './lib/react-router/server.data';
 
@@ -28,10 +33,29 @@ export const links: Route.LinksFunction = () => {
 		},
 		{
 			rel: 'stylesheet',
-			href: 'https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap',
+			href: 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap',
 		},
 	];
 };
+
+const FallbackComponent: ErrorBoundaryProps['FallbackComponent'] = ({ error, resetErrorBoundary }) => {
+	console.log('❌❌', error);
+	return (
+		<div>
+			<h1>Oops! Something went wrong</h1>
+			<button
+				type="button"
+				onClick={() => {
+					resetErrorBoundary();
+				}}
+			>
+				retry
+			</button>
+		</div>
+	);
+};
+
+const suspenseFallback = <h1>Auth loading, please wait....</h1>;
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
@@ -48,9 +72,16 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 			</head>
 			<body>
 				<QueryClientProvider client={defaultQueryClient}>
-					{children}
-					<ScrollRestoration />
+					<MuiThemeProvider>
+						<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
+							<MotionLazy>
+								<SettingsDrawer defaultSettings={defaultSettings} />
+								{children}
+							</MotionLazy>
+						</QueryBoundary>
+					</MuiThemeProvider>
 				</QueryClientProvider>
+				<ScrollRestoration />
 				<Scripts />
 			</body>
 		</html>
