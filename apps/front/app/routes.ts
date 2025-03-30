@@ -9,10 +9,10 @@ const routes = [
 		// ====
 		index('routes/marketing/home/HomePage.tsx'),
 	]),
-	layout('routes/auth/AuthPagesLayout.tsx', [
+	layout('routes/auth/layout/AuthLayout.tsx', [
 		route(getLastPath(FRONT_PATH_NAMES.auth.login), 'routes/auth/login/LoginPage.tsx'),
 	]),
-	layout('routes/authed/AuthedPagesLayout.tsx', [
+	layout('routes/authed/AuthedLayout.tsx', [
 		route(getLastPath(FRONT_PATH_NAMES.staff.root), 'routes/authed/staff/StaffLayout.tsx', [
 			index('routes/authed/staff/dashboard/StaffHomePage.tsx'),
 			route(getLastPath(FRONT_PATH_NAMES.staff.tenants.root), 'routes/authed/staff/tenants-list/TenantsListPage.tsx'),
