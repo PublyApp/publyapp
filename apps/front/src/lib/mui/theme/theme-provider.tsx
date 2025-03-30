@@ -4,11 +4,16 @@ import {
 	type ThemeProviderProps as MuiThemeProviderProps,
 } from '@mui/material/styles';
 
-import { useSettingsContext } from '@/front/hooks/use-settings-context';
+import { useTranslate } from '../../locales/use-translate';
 
-import { useTranslate } from '../../../hooks/use-translate';
+// import { useSettingsContext } from 'src/components/settings';
+// import { useTranslate } from 'src/locales';
+
 import { createTheme } from './create-theme';
 import type { ThemeOptions } from './types';
+
+// import { Rtl } from './with-settings/right-to-left';
+// import type { } from './extend-theme-types';
 
 // ----------------------------------------------------------------------
 
@@ -16,17 +21,13 @@ export type ThemeProviderProps = Partial<MuiThemeProviderProps> & {
 	themeOverrides?: ThemeOptions;
 };
 
-export const MuiThemeProvider = ({
-	themeOverrides,
-	children,
-	...other
-}: ThemeProviderProps) => {
+export const MuiThemeProvider = ({ themeOverrides, children, ...other }: ThemeProviderProps) => {
 	const { currentLang } = useTranslate();
 
-	const settings = useSettingsContext();
+	// const settings = useSettingsContext();
 
 	const theme = createTheme({
-		settingsState: settings.state,
+		// settingsState: settings.state,
 		localeComponents: currentLang?.systemValue,
 		themeOverrides,
 	});
@@ -34,6 +35,7 @@ export const MuiThemeProvider = ({
 	return (
 		<ThemeVarsProvider disableTransitionOnChange theme={theme} {...other}>
 			<CssBaseline />
+			{/* <Rtl direction={settings.state.direction!}>{children}</Rtl> */}
 			{children}
 		</ThemeVarsProvider>
 	);
