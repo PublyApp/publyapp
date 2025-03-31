@@ -15,7 +15,7 @@ export type FontFamilyOptionsProps = BoxProps & {
 	onChangeOption: (newOption: string) => void;
 };
 
-export function FontFamilyOptions({ sx, icon, value, options, onChangeOption, ...other }: FontFamilyOptionsProps) {
+export const FontFamilyOptions = ({ sx, icon, value, options, onChangeOption, ...other }: FontFamilyOptionsProps) => {
 	return (
 		<Box
 			sx={[
@@ -35,14 +35,18 @@ export function FontFamilyOptions({ sx, icon, value, options, onChangeOption, ..
 					<OptionButton
 						key={option}
 						selected={selected}
-						onClick={() => onChangeOption(option)}
-						sx={(theme) => ({
-							py: 2,
-							gap: 0.75,
-							flexDirection: 'column',
-							fontFamily: setFont(option),
-							fontSize: theme.typography.pxToRem(12),
-						})}
+						onClick={() => {
+							return onChangeOption(option);
+						}}
+						sx={(theme) => {
+							return {
+								py: 2,
+								gap: 0.75,
+								flexDirection: 'column',
+								fontFamily: setFont(option),
+								fontSize: theme.typography.pxToRem(12),
+							};
+						}}
 					>
 						{icon}
 						{option.endsWith('Variable') ? option.replace(' Variable', '') : option}
@@ -51,7 +55,7 @@ export function FontFamilyOptions({ sx, icon, value, options, onChangeOption, ..
 			})}
 		</Box>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
@@ -61,7 +65,7 @@ export type FontSizeOptionsProps = SliderProps & {
 	onChangeOption: (newOption: number) => void;
 };
 
-export function FontSizeOptions({ sx, value, options, onChangeOption, ...other }: FontSizeOptionsProps) {
+export const FontSizeOptions = ({ sx, value, options, onChangeOption, ...other }: FontSizeOptionsProps) => {
 	return (
 		<Slider
 			marks
@@ -69,24 +73,30 @@ export function FontSizeOptions({ sx, value, options, onChangeOption, ...other }
 			size="small"
 			valueLabelDisplay="on"
 			aria-label="Change font size"
-			valueLabelFormat={(val) => `${val}px`}
+			valueLabelFormat={(val) => {
+				return `${val}px`;
+			}}
 			value={value}
 			min={options[0]}
 			max={options[1]}
-			onChange={(event: Event, newOption: number | number[]) => onChangeOption(newOption as number)}
+			onChange={(event: Event, newOption: number | number[]) => {
+				return onChangeOption(newOption as number);
+			}}
 			sx={[
-				(theme) => ({
-					[`& .${sliderClasses.rail}`]: {
-						height: 12,
-					},
-					[`& .${sliderClasses.track}`]: {
-						height: 12,
-						background: `linear-gradient(135deg, ${theme.vars.palette.primary.light}, ${theme.vars.palette.primary.dark})`,
-					},
-				}),
+				(theme) => {
+					return {
+						[`& .${sliderClasses.rail}`]: {
+							height: 12,
+						},
+						[`& .${sliderClasses.track}`]: {
+							height: 12,
+							background: `linear-gradient(135deg, ${theme.vars.palette.primary.light}, ${theme.vars.palette.primary.dark})`,
+						},
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
 		/>
 	);
-}
+};

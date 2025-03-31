@@ -1,7 +1,8 @@
 import Avatar from '@mui/material/Avatar';
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import { m } from 'framer-motion';
-import { AnimateBorder, transitionTap, varHover, varTap } from 'src/components/animate';
+
+import { AnimateBorder, transitionTap, varHover, varTap } from '@/front/components/animate';
 
 // ----------------------------------------------------------------------
 
@@ -10,7 +11,7 @@ export type AccountButtonProps = IconButtonProps & {
 	displayName: string;
 };
 
-export function AccountButton({ photoURL, displayName, sx, ...other }: AccountButtonProps) {
+export const AccountButton = ({ photoURL, displayName, sx, ...other }: AccountButtonProps) => {
 	return (
 		<IconButton
 			component={m.button}
@@ -34,4 +35,4 @@ export function AccountButton({ photoURL, displayName, sx, ...other }: AccountBu
 			</AnimateBorder>
 		</IconButton>
 	);
-}
+};
