@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import Box, { type BoxProps } from '@mui/material/Box';
 import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { m, type MotionProps } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
-import { varFade } from 'src/components/animate';
+
+import { varFade } from '@/front/components/animate/variants/fade';
 
 // ----------------------------------------------------------------------
 
@@ -25,7 +27,15 @@ type SectionTitleProps = BoxProps & {
 	};
 };
 
-export function SectionTitle({ sx, title, caption, slotProps, txtGradient, description, ...other }: SectionTitleProps) {
+export const SectionTitle = ({
+	sx,
+	title,
+	caption,
+	slotProps,
+	txtGradient,
+	description,
+	...other
+}: SectionTitleProps) => {
 	return (
 		<Box
 			sx={[
@@ -51,13 +61,15 @@ export function SectionTitle({ sx, title, caption, slotProps, txtGradient, descr
 				{`${title} `}
 				<Box
 					component="span"
-					sx={(theme) => ({
-						opacity: 0.4,
-						display: 'inline-block',
-						...theme.mixins.textGradient(
-							`to right, ${theme.vars.palette.text.primary}, ${varAlpha(theme.vars.palette.text.primaryChannel, 0.2)}`,
-						),
-					})}
+					sx={(theme) => {
+						return {
+							opacity: 0.4,
+							display: 'inline-block',
+							...theme.mixins.textGradient(
+								`to right, ${theme.vars.palette.text.primary}, ${varAlpha(theme.vars.palette.text.primaryChannel, 0.2)}`,
+							),
+						};
+					}}
 				>
 					{txtGradient}
 				</Box>
@@ -79,19 +91,24 @@ export function SectionTitle({ sx, title, caption, slotProps, txtGradient, descr
 			)}
 		</Box>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function SectionCaption({ title, variants, sx, ...other }: TextProps) {
+export const SectionCaption = ({ title, variants, sx, ...other }: TextProps) => {
 	return (
 		<Box
 			component={m.span}
 			variants={variants ?? varFade('inUp', { distance: 24 })}
-			sx={[() => ({ typography: 'overline', color: 'text.disabled' }), ...(Array.isArray(sx) ? sx : [sx])]}
+			sx={[
+				() => {
+					return { typography: 'overline', color: 'text.disabled' };
+				},
+				...(Array.isArray(sx) ? sx : [sx]),
+			]}
 			{...other}
 		>
 			{title}
 		</Box>
 	);
-}
+};

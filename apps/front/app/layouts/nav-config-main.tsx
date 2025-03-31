@@ -1,6 +1,6 @@
 // import { '#' from 'src/routes/'#'
 
-// import { CONFIG } from 'src/global-config';
+//
 
 // import { Iconify } from 'src/components/iconify';
 

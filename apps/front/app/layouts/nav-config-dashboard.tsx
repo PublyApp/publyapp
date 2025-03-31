@@ -2,12 +2,11 @@ import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import type { NavSectionProps } from 'src/components/nav-section';
 import { SvgColor } from 'src/components/svg-color';
-import { CONFIG } from 'src/global-config';
 import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
-const icon = (name: string) => <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/${name}.svg`} />;
+const icon = (name: string) => <SvgColor src={`/assets/icons/navbar/${name}.svg`} />;
 
 const ICONS = {
 	job: icon('ic-job'),
