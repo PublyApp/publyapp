@@ -3,7 +3,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 
-// import { CONFIG } from 'src/global-config';
+//
 
 import { MotionContainer } from '@/front/components/animate';
 
@@ -107,7 +107,7 @@ export const HeroBackground = ({ sx, ...other }: BoxProps) => {
 								...theme.mixins.bgGradient({
 									images: [
 										`linear-gradient(180deg, ${theme.vars.palette.background.default} 12%, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.92)} 50%, ${theme.vars.palette.background.default} 88%)`,
-										`url(${/* CONFIG.assetsDir */ ''}/assets/background/background-3.webp)`,
+										`url(/assets/background/background-3.webp)`,
 									],
 								}),
 								top: 0,
@@ -119,9 +119,9 @@ export const HeroBackground = ({ sx, ...other }: BoxProps) => {
 								...theme.applyStyles('dark', {
 									...theme.mixins.bgGradient({
 										images: [
-											`url(${/* CONFIG.assetsDir */ ''}/assets/images/home/hero-blur.webp)`,
+											`url(/assets/images/home/hero-blur.webp)`,
 											`linear-gradient(180deg, ${theme.vars.palette.background.default} 12%, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.96)} 50%, ${theme.vars.palette.background.default} 88%)`,
-											`url(${/* CONFIG.assetsDir */ ''}/assets/background/background-3.webp)`,
+											`url(/assets/background/background-3.webp)`,
 										],
 									}),
 								}),

@@ -1,7 +1,6 @@
 import { memo } from 'react';
 
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
-import { CONFIG } from 'src/global-config';
 
 import { BackgroundShape } from './background-shape';
 
@@ -11,12 +10,7 @@ type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
 function OrderCompleteIllustration({ hideBackground, sx, ...other }: SvgProps) {
 	const renderCharacterImage = () => (
-		<image
-			href={`${CONFIG.assetsDir}/assets/illustrations/characters/character-happy-jump.webp`}
-			height="280"
-			x="270"
-			y="40"
-		/>
+		<image href={`/assets/illustrations/characters/character-happy-jump.webp`} height="280" x="270" y="40" />
 	);
 
 	return (

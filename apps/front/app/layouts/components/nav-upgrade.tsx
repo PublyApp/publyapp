@@ -6,7 +6,6 @@ import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 import { useMockedUser } from 'src/auth/hooks';
 import { Label } from 'src/components/label';
-import { CONFIG } from 'src/global-config';
 import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
@@ -66,7 +65,7 @@ export function UpgradeBlock({ sx, ...other }: BoxProps) {
 					...theme.mixins.bgGradient({
 						images: [
 							`linear-gradient(135deg, ${varAlpha(theme.vars.palette.error.lightChannel, 0.92)}, ${varAlpha(theme.vars.palette.secondary.darkChannel, 0.92)})`,
-							`url(${CONFIG.assetsDir}/assets/background/background-7.webp)`,
+							`url(/assets/background/background-7.webp)`,
 						],
 					}),
 					px: 3,
@@ -100,7 +99,7 @@ export function UpgradeBlock({ sx, ...other }: BoxProps) {
 					repeatDelay: 0,
 				}}
 				alt="Small Rocket"
-				src={`${CONFIG.assetsDir}/assets/illustrations/illustration-rocket-small.webp`}
+				src={`/assets/illustrations/illustration-rocket-small.webp`}
 				sx={{
 					right: 0,
 					width: 112,

@@ -1,6 +1,7 @@
 import Box, { type BoxProps } from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
-import { Iconify } from 'src/components/iconify';
+
+import { Iconify } from '../iconify/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -10,7 +11,13 @@ type FormSocialsProps = BoxProps & {
 	signInWithTwitter?: () => void;
 };
 
-export function FormSocials({ sx, signInWithGoogle, singInWithGithub, signInWithTwitter, ...other }: FormSocialsProps) {
+export const FormSocials = ({
+	sx,
+	signInWithGoogle,
+	singInWithGithub,
+	signInWithTwitter,
+	...other
+}: FormSocialsProps) => {
 	return (
 		<Box
 			sx={[
@@ -34,4 +41,4 @@ export function FormSocials({ sx, signInWithGoogle, singInWithGithub, signInWith
 			</IconButton>
 		</Box>
 	);
-}
+};
