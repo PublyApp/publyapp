@@ -17,7 +17,7 @@ const FORMAT_IMG = ['jpg', 'jpeg', 'gif', 'bmp', 'png', 'svg', 'webp'];
 const FORMAT_VIDEO = ['m4v', 'avi', 'mpg', 'mp4', 'webm'];
 
 const iconUrl = (icon: string) => {
-	return `${/* CONFIG.assetsDir */ ''}/assets/icons/files/${icon}.svg`;
+	return `/assets/icons/files/${icon}.svg`;
 };
 
 // ----------------------------------------------------------------------
