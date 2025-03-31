@@ -1,5 +1,4 @@
 import type { Theme } from '@mui/material/styles';
-import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -20,7 +19,7 @@ const desktopVars = (theme: Theme) => {
 		'--nav-item-root-padding': '0',
 		'--nav-item-root-active-color': palette.primary.main,
 		// sub
-		'--nav-item-sub-radius': `${_.toNumber(shape.borderRadius) * 0.75}px`,
+		'--nav-item-sub-radius': `${shape.borderRadius * 0.75}px`,
 		'--nav-item-sub-padding': '6px 8px 6px 8px',
 		'--nav-item-sub-color': palette.text.secondary,
 		'--nav-item-sub-hover-color': palette.text.primary,
@@ -58,10 +57,7 @@ const mobileVars = (theme: Theme) => {
 		'--nav-item-root-active-color': palette.primary.main,
 		'--nav-item-root-active-color-on-dark': palette.primary.light,
 		'--nav-item-root-active-bg': varAlpha(palette.primary.mainChannel, 0.08),
-		'--nav-item-root-active-hover-bg': varAlpha(
-			palette.primary.mainChannel,
-			0.16,
-		),
+		'--nav-item-root-active-hover-bg': varAlpha(palette.primary.mainChannel, 0.16),
 		'--nav-item-root-open-color': palette.text.primary,
 		'--nav-item-root-open-bg': palette.action.hover,
 		// sub

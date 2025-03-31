@@ -4,6 +4,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 // ----------------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AutocompleteBaseProps = Omit<AutocompleteProps<any, boolean, boolean, boolean>, 'renderInput'>;
 
 export type RHFAutocompleteProps = AutocompleteBaseProps & {
@@ -16,7 +17,14 @@ export type RHFAutocompleteProps = AutocompleteBaseProps & {
 	};
 };
 
-export function RHFAutocomplete({ name, label, slotProps, helperText, placeholder, ...other }: RHFAutocompleteProps) {
+export const RHFAutocomplete = ({
+	name,
+	label,
+	slotProps,
+	helperText,
+	placeholder,
+	...other
+}: RHFAutocompleteProps) => {
 	const { control, setValue } = useFormContext();
 
 	const { textfield, ...otherSlotProps } = slotProps ?? {};
@@ -25,33 +33,39 @@ export function RHFAutocomplete({ name, label, slotProps, helperText, placeholde
 		<Controller
 			name={name}
 			control={control}
-			render={({ field, fieldState: { error } }) => (
-				<Autocomplete
-					{...field}
-					id={`rhf-autocomplete-${name}`}
-					onChange={(event, newValue) => setValue(name, newValue, { shouldValidate: true })}
-					renderInput={(params) => (
-						<TextField
-							{...params}
-							{...textfield}
-							label={label}
-							placeholder={placeholder}
-							error={!!error}
-							helperText={error?.message ?? helperText}
-							slotProps={{
-								...textfield?.slotProps,
-								htmlInput: {
-									...params.inputProps,
-									autoComplete: 'new-password',
-									...textfield?.slotProps?.htmlInput,
-								},
-							}}
-						/>
-					)}
-					{...other}
-					{...otherSlotProps}
-				/>
-			)}
+			render={({ field, fieldState: { error } }) => {
+				return (
+					<Autocomplete
+						{...field}
+						id={`rhf-autocomplete-${name}`}
+						onChange={(_event, newValue) => {
+							return setValue(name, newValue, { shouldValidate: true });
+						}}
+						renderInput={(params) => {
+							return (
+								<TextField
+									{...params}
+									{...textfield}
+									label={label}
+									placeholder={placeholder}
+									error={!!error}
+									helperText={error?.message ?? helperText}
+									slotProps={{
+										...textfield?.slotProps,
+										htmlInput: {
+											...params.inputProps,
+											autoComplete: 'new-password',
+											...textfield?.slotProps?.htmlInput,
+										},
+									}}
+								/>
+							);
+						}}
+						{...other}
+						{...otherSlotProps}
+					/>
+				);
+			}}
 		/>
 	);
-}
+};

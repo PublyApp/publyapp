@@ -8,7 +8,7 @@ import { NavList } from './nav-list';
 
 // ----------------------------------------------------------------------
 
-export const NavBasicDesktop = ({
+export function NavBasicDesktop({
 	sx,
 	data,
 	render,
@@ -16,32 +16,26 @@ export const NavBasicDesktop = ({
 	enabledRootRedirect,
 	cssVars: overridesVars,
 	...other
-}: NavBasicProps) => {
+}: NavBasicProps) {
 	const theme = useTheme();
 
 	const cssVars = { ...navBasicVars.desktop(theme), ...overridesVars };
 
 	return (
-		<Nav
-			className={navBasicClasses.desktop}
-			sx={[{ ...cssVars }, ...(Array.isArray(sx) ? sx : [sx])]}
-			{...other}
-		>
+		<Nav className={navBasicClasses.desktop} sx={[{ ...cssVars }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
 			<NavUl sx={{ flexDirection: 'row', gap: 'var(--nav-item-gap)' }}>
-				{data.map((list) => {
-					return (
-						<NavList
-							key={list.title}
-							depth={1}
-							data={list}
-							render={render}
-							cssVars={cssVars}
-							slotProps={slotProps}
-							enabledRootRedirect={enabledRootRedirect}
-						/>
-					);
-				})}
+				{data.map((list) => (
+					<NavList
+						key={list.title}
+						depth={1}
+						data={list}
+						render={render}
+						cssVars={cssVars}
+						slotProps={slotProps}
+						enabledRootRedirect={enabledRootRedirect}
+					/>
+				))}
 			</NavUl>
 		</Nav>
 	);
-};
+}

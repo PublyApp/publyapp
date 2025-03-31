@@ -1,13 +1,13 @@
 import Portal from '@mui/material/Portal';
 
-import { Iconify } from '../iconify';
+import { Iconify } from '../iconify/iconify';
 
 import { snackbarClasses } from './classes';
 import { SnackbarRoot } from './styles';
 
 // ----------------------------------------------------------------------
 
-export function Snackbar() {
+export const Snackbar = () => {
 	return (
 		<Portal>
 			<SnackbarRoot
@@ -49,4 +49,4 @@ export function Snackbar() {
 			/>
 		</Portal>
 	);
-}
+};

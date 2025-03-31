@@ -9,14 +9,13 @@ type CreateNavItemReturn = {
 	subItem: boolean;
 	rootItem: boolean;
 	subDeepItem: boolean;
-	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	baseProps: Record<string, any>;
 	renderIcon: React.ReactNode;
 	renderInfo: React.ReactNode;
 };
 
-type CreateNavItemProps = Pick<NavItemDataProps, 'path' | 'icon' | 'info'> &
-	Omit<NavItemOptionsProps, 'slotProps'>;
+type CreateNavItemProps = Pick<NavItemDataProps, 'path' | 'icon' | 'info'> & Omit<NavItemOptionsProps, 'slotProps'>;
 
 export const createNavItem = ({
 	path,
@@ -36,8 +35,7 @@ export const createNavItem = ({
 		? { href: path, target: '_blank', rel: 'noopener' }
 		: { component: RouterLink, href: path };
 
-	const baseProps =
-		hasChild && !enabledRootRedirect ? { component: 'div' } : linkProps;
+	const baseProps = hasChild && !enabledRootRedirect ? { component: 'div' } : linkProps;
 
 	/**
 	 * Render @icon

@@ -53,18 +53,12 @@ export type NavItemDataProps = Pick<NavItemStateProps, 'disabled'> & {
 	info?: string[] | React.ReactNode;
 };
 
-export type NavItemProps = ButtonBaseProps &
-	NavItemDataProps &
-	NavItemStateProps &
-	NavItemOptionsProps;
+export type NavItemProps = ButtonBaseProps & NavItemDataProps & NavItemStateProps & NavItemOptionsProps;
 
 /**
  * List
  */
-export type NavListProps = Pick<
-	NavItemProps,
-	'render' | 'depth' | 'enabledRootRedirect'
-> & {
+export type NavListProps = Pick<NavItemProps, 'render' | 'depth' | 'enabledRootRedirect'> & {
 	cssVars?: CSSObject;
 	data: NavItemDataProps;
 	slotProps?: NavSlotProps;
