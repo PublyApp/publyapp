@@ -32,7 +32,7 @@ export const Logo = ({ sx, disabled, className, href = '/', isSingle = true, ...
     const singleLogo = (
       <img
         alt="Single logo"
-        src={`${CONFIG.assetsDir}/logo/logo-single.svg`}
+        src={`/logo/logo-single.svg`}
         width="100%"
         height="100%"
       />
@@ -41,7 +41,7 @@ export const Logo = ({ sx, disabled, className, href = '/', isSingle = true, ...
     const fullLogo = (
       <img
         alt="Full logo"
-        src={`${CONFIG.assetsDir}/logo/logo-full.svg`}
+        src={`/logo/logo-full.svg`}
         width="100%"
         height="100%"
       />

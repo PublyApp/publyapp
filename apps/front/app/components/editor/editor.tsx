@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import Backdrop from '@mui/material/Backdrop';
 import Box from '@mui/material/Box';
+import FormHelperText from '@mui/material/FormHelperText';
 import Portal from '@mui/material/Portal';
+import CodeBlockLowlightExtension from '@tiptap/extension-code-block-lowlight';
 import ImageExtension from '@tiptap/extension-image';
 import LinkExtension from '@tiptap/extension-link';
 import PlaceholderExtension from '@tiptap/extension-placeholder';
@@ -74,12 +77,12 @@ export const Editor = ({
 				HTMLAttributes: { class: editorClasses.content.link },
 			}),
 			CodeBlockLowlightExtension.extend({
-				addNodeView() {
+				addNodeView: () => {
 					return ReactNodeViewRenderer(CodeHighlightBlock);
 				},
 			}).configure({ lowlight, HTMLAttributes: { class: editorClasses.content.codeBlock } }),
 		],
-		onUpdate({ editor: _editor }) {
+		onUpdate: ({ editor: _editor }) => {
 			const html = _editor.getHTML();
 			onChange?.(html);
 		},
