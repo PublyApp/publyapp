@@ -25,6 +25,8 @@ export const corsWhiteList = {
 	ONLINE: [
 		// Since the client builds arse served by the same server, the front and server domains are the same
 		new URL(env.SERVER_URL).origin,
+		'https://pdfvite.com',
+		'https://www.pdfvite.com',
 		'http://localhost:6180', // test online (for emulating online environment from local)
 	], // ? We're gonna see over time
 };
