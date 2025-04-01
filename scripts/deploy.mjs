@@ -17,7 +17,7 @@ const APPS_DIR_SRC = path.join(MONOREPO_ROOT_DIR, APPS_DIRNAME);
 const PACKAGES_DIR_SRC = path.join(MONOREPO_ROOT_DIR, PACKAGES_DIRNAME);
 
 const onWindows = /^win/.test(process.platform);
-// const npxCommand = onWindows ? 'npx.cmd' : 'npx';
+const npxCommand = onWindows ? 'npx.cmd' : 'npx';
 const pnpmCommand = onWindows ? 'pnpm.cmd' : 'pnpm';
 
 const DEPLOY_ROOT_DIR = path.join(MONOREPO_ROOT_DIR, 'scripts', 'build');
@@ -78,16 +78,23 @@ fse.mkdirpSync(SERVER_APP_DIR_DEST);
 fse.copyFileSync(serverAppPackageJsonSrc, serverAppPackageJsonDest);
 
 // --------------------------------------------------------------------------------------//
-//                                   build the server                                    //
+//                                  Build using turbo                                   //
 // --------------------------------------------------------------------------------------//
-const buildArgsServer = ['build', `--filter=${SERVER_APP_NAME}`];
-spawnSync(pnpmCommand, buildArgsServer, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+const buildArgs = ['turbo', 'run', 'build', `--filter=${SERVER_APP_NAME}`];
+spawnSync(npxCommand, buildArgs, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
 
-// --------------------------------------------------------------------------------------//
-//                                   build the front                                    //
-// -------------------------------------------------------------------------------------//
-const buildArgsFront = ['build', `--filter=${FRONT_APP_NAME}`];
-spawnSync(pnpmCommand, buildArgsFront, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+// ! if not using turbo build
+// // --------------------------------------------------------------------------------------//
+// //                                   build the server                                    //
+// // --------------------------------------------------------------------------------------//
+// const buildArgsServer = ['build', `--filter=${SERVER_APP_NAME}`];
+// spawnSync(pnpmCommand, buildArgsServer, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+
+// // --------------------------------------------------------------------------------------//
+// //                                   build the front                                    //
+// // -------------------------------------------------------------------------------------//
+// const buildArgsFront = ['build', `--filter=${FRONT_APP_NAME}`];
+// spawnSync(pnpmCommand, buildArgsFront, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
 
 // --------------------------------------------------------------------------------------//
 //                                   copy the builds                                     //
