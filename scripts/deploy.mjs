@@ -77,6 +77,13 @@ const serverAppPackageJsonDest = path.join(SERVER_APP_DIR_DEST, packageJsonFileN
 fse.mkdirpSync(SERVER_APP_DIR_DEST);
 fse.copyFileSync(serverAppPackageJsonSrc, serverAppPackageJsonDest);
 
+// copy patch file (server)
+const patchFileName = 'patch.js';
+const patchFileSrc = path.join(SERVER_APP_DIR_SRC, 'scripts', patchFileName);
+const patchFileDest = path.join(SERVER_APP_DIR_DEST, 'scripts', patchFileName);
+fse.mkdirpSync(path.join(SERVER_APP_DIR_DEST, 'scripts'));
+fse.copyFileSync(patchFileSrc, patchFileDest);
+
 // --------------------------------------------------------------------------------------//
 //                                  Build using turbo                                   //
 // --------------------------------------------------------------------------------------//
