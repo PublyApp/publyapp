@@ -185,7 +185,7 @@ const bootstrap = async () => {
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
-			'*',
+			/(.*)/,
 			createRequestHandler({
 				// `remix build` and `remix dev` output files to a build directory, you need
 				// to pass that build to the request handler
