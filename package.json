@@ -28,7 +28,7 @@
     "prepare": "husky install",
     "update-deps": "pnpm up -i -r",
     "check-format": "prettier --check .",
-    "prepare:deploy:server": "pnpm ./scripts/deploy/server/index.js"
+    "build:deploy": "node ./scripts/deploy.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
