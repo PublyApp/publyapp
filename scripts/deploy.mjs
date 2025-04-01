@@ -147,3 +147,11 @@ spawnSync(pnpmCommand, args, {
 	stdio: 'inherit',
 	shell: true,
 });
+
+// unset build command
+const argsUnset = ['pkg', 'delete', 'scripts.build'];
+spawnSync(pnpmCommand, argsUnset, {
+	cwd: path.join(DEPLOY_ROOT_DIR),
+	stdio: 'inherit',
+	shell: true,
+});
