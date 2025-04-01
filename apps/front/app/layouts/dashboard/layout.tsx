@@ -1,16 +1,17 @@
+import _ from 'lodash';
+
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import { iconButtonClasses } from '@mui/material/IconButton';
 import { useTheme, type Breakpoint } from '@mui/material/styles';
-import { merge } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
-import { _contacts, _notifications } from 'src/_mock';
-import { useMockedUser } from 'src/auth/hooks';
-import { allLangs } from 'src/locales';
 
+import { _contacts, _notifications } from '@/front/_mock';
 import { Logo } from '@/front/components/logo';
 import type { NavItemProps, NavSectionProps } from '@/front/components/nav-section';
+import { useMockedUser } from '@/front/hooks/use-mocked-user';
 import { useSettingsContext } from '@/front/hooks/use-settings-context';
+import { allLangs } from '@/front/lib/locales/all-langs';
 
 import { AccountDrawer } from '../components/account-drawer';
 import { ContactsPopover } from '../components/contacts-popover';
@@ -163,7 +164,7 @@ export const DashboardLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 				disableElevation={isNavVertical}
 				{...slotProps?.header}
 				slots={{ ...headerSlots, ...slotProps?.header?.slots }}
-				slotProps={merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
+				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
 				sx={slotProps?.header?.sx}
 			/>
 		);
