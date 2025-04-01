@@ -70,9 +70,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
 
 	return (
-		// add suppressHydrationWarning to avoid mantine hydration error:
-		// https://github.com/mantinedev/mantine/issues/7008#issuecomment-2432733026
-		<html lang={i18n.language} dir={i18n.dir()} suppressHydrationWarning>
+		<html lang={i18n.language} dir={i18n.dir()}>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
