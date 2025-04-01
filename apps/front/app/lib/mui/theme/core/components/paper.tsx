@@ -14,9 +14,11 @@ const MuiPaper: Components<Theme>['MuiPaper'] = {
 	 *************************************** */
 	styleOverrides: {
 		root: { backgroundImage: 'none' },
-		outlined: ({ theme }) => ({
-			borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
-		}),
+		outlined: ({ theme }) => {
+			return {
+				borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+			};
+		},
 	},
 };
 

@@ -1,6 +1,7 @@
 import type { ColorSystem } from '@mui/material/styles';
 import { createPaletteChannel, hexToRgbChannel, setFont } from 'minimal-shared/utils';
-import type { SettingsState } from 'src/components/settings';
+
+import type { SettingsState } from '@/front/components/settings';
 
 import { createShadowColor } from '../core/custom-shadows';
 import type { ThemeColorScheme, ThemeOptions } from '../types';
@@ -15,7 +16,7 @@ import { primaryColorPresets } from './color-presets';
  * @primaryColor
  */
 
-export function updateCoreWithSettings(theme: ThemeOptions, settingsState?: SettingsState): ThemeOptions {
+export const updateCoreWithSettings = (theme: ThemeOptions, settingsState?: SettingsState): ThemeOptions => {
 	const { direction, fontFamily, contrast = 'default', primaryColor = 'default' } = settingsState ?? {};
 
 	const isDefaultContrast = contrast === 'default';
@@ -73,4 +74,4 @@ export function updateCoreWithSettings(theme: ThemeOptions, settingsState?: Sett
 			fontFamily: setFont(fontFamily),
 		},
 	};
-}
+};

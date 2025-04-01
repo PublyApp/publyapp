@@ -1,8 +1,8 @@
 // import { '#' from 'src/routes/'#'
 
-// import { CONFIG } from 'src/global-config';
+//
 
-// import { Iconify } from 'src/components/iconify';
+// import { Iconify } from '@/front/components/iconify';
 
 import { Iconify } from '../components/iconify/iconify';
 

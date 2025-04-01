@@ -6,7 +6,11 @@ const MuiMenuItem: Components<Theme>['MuiMenuItem'] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
-	styleOverrides: { root: ({ theme }) => ({ ...theme.mixins.menuItemStyles(theme) }) },
+	styleOverrides: {
+		root: ({ theme }) => {
+			return { ...theme.mixins.menuItemStyles(theme) };
+		},
+	},
 };
 
 // ----------------------------------------------------------------------

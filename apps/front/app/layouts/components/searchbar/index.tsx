@@ -9,15 +9,16 @@ import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import { useTheme, type Breakpoint } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import match from 'autosuggest-highlight/match';
-import parse from 'autosuggest-highlight/parse';
+// import match from 'autosuggest-highlight/match';
+// import parse from 'autosuggest-highlight/parse';
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
-import { Iconify } from 'src/components/iconify';
-import { Label } from 'src/components/label';
-import type { NavSectionProps } from 'src/components/nav-section';
-import { Scrollbar } from 'src/components/scrollbar';
-import { SearchNotFound } from 'src/components/search-not-found';
+
+import { Iconify } from '@/front/components/iconify/iconify';
+import { Label } from '@/front/components/label';
+import type { NavSectionProps } from '@/front/components/nav-section';
+import { Scrollbar } from '@/front/components/scrollbar';
+import { SearchNotFound } from '@/front/components/search-not-found';
 
 import { ResultItem } from './result-item';
 import { applyFilter, flattenNavSections } from './utils';
@@ -30,7 +31,7 @@ export type SearchbarProps = BoxProps & {
 
 const breakpoint: Breakpoint = 'sm';
 
-export function Searchbar({ data: navItems = [], sx, ...other }: SearchbarProps) {
+export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps) => {
 	const theme = useTheme();
 	const smUp = useMediaQuery(theme.breakpoints.up(breakpoint));
 
@@ -73,88 +74,92 @@ export function Searchbar({ data: navItems = [], sx, ...other }: SearchbarProps)
 
 	const notFound = searchQuery && !dataFiltered.length;
 
-	const renderButton = () => (
-		<Box
-			onClick={onOpen}
-			sx={[
-				{
-					display: 'flex',
-					alignItems: 'center',
-					[theme.breakpoints.up(breakpoint)]: {
-						pr: 1,
-						borderRadius: 1.5,
-						cursor: 'pointer',
-						bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-						transition: theme.transitions.create('background-color', {
-							easing: theme.transitions.easing.easeInOut,
-							duration: theme.transitions.duration.shortest,
-						}),
-						'&:hover': {
-							bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+	const renderButton = () => {
+		return (
+			<Box
+				onClick={onOpen}
+				sx={[
+					{
+						display: 'flex',
+						alignItems: 'center',
+						[theme.breakpoints.up(breakpoint)]: {
+							pr: 1,
+							borderRadius: 1.5,
+							cursor: 'pointer',
+							bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+							transition: theme.transitions.create('background-color', {
+								easing: theme.transitions.easing.easeInOut,
+								duration: theme.transitions.duration.shortest,
+							}),
+							'&:hover': {
+								bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+							},
 						},
 					},
-				},
-				...(Array.isArray(sx) ? sx : [sx]),
-			]}
-			{...other}
-		>
-			<Box
-				component={smUp ? 'span' : IconButton}
+					...(Array.isArray(sx) ? sx : [sx]),
+				]}
+				{...other}
+			>
+				<Box
+					component={smUp ? 'span' : IconButton}
+					sx={{
+						[theme.breakpoints.up(breakpoint)]: {
+							p: 1,
+							display: 'inline-flex',
+							color: 'action.active',
+						},
+					}}
+				>
+					<Iconify icon="eva:search-fill" />
+				</Box>
+
+				<Label
+					sx={{
+						color: 'grey.800',
+						cursor: 'inherit',
+						bgcolor: 'common.white',
+						fontSize: theme.typography.pxToRem(12),
+						boxShadow: theme.vars.customShadows.z1,
+						display: { xs: 'none', [breakpoint]: 'inline-flex' },
+					}}
+				>
+					⌘K
+				</Label>
+			</Box>
+		);
+	};
+
+	const renderList = () => {
+		return (
+			<MenuList
+				disablePadding
 				sx={{
-					[theme.breakpoints.up(breakpoint)]: {
-						p: 1,
-						display: 'inline-flex',
-						color: 'action.active',
+					[`& .${menuItemClasses.root}`]: {
+						p: 0,
+						mb: 0,
+						'&:hover': { bgcolor: 'transparent' },
 					},
 				}}
 			>
-				<Iconify icon="eva:search-fill" />
-			</Box>
+				{dataFiltered.map((item) => {
+					// const partsTitle = parse(item.title, match(item.title, searchQuery));
+					// const partsPath = parse(item.path, match(item.path, searchQuery));
 
-			<Label
-				sx={{
-					color: 'grey.800',
-					cursor: 'inherit',
-					bgcolor: 'common.white',
-					fontSize: theme.typography.pxToRem(12),
-					boxShadow: theme.vars.customShadows.z1,
-					display: { xs: 'none', [breakpoint]: 'inline-flex' },
-				}}
-			>
-				⌘K
-			</Label>
-		</Box>
-	);
-
-	const renderList = () => (
-		<MenuList
-			disablePadding
-			sx={{
-				[`& .${menuItemClasses.root}`]: {
-					p: 0,
-					mb: 0,
-					'&:hover': { bgcolor: 'transparent' },
-				},
-			}}
-		>
-			{dataFiltered.map((item) => {
-				const partsTitle = parse(item.title, match(item.title, searchQuery));
-				const partsPath = parse(item.path, match(item.path, searchQuery));
-
-				return (
-					<MenuItem disableRipple key={`${item.title}${item.path}`}>
-						<ResultItem
-							path={partsPath}
-							title={partsTitle}
-							href={item.path}
-							labels={item.group.split('.')}
-							onClick={handleClose}
-						/>
-					</MenuItem>
-				);
-			})}
-		</MenuList>
-	);
+					return (
+						<MenuItem disableRipple key={`${item.title}${item.path}`}>
+							<ResultItem
+								path={/* partsPath */ []}
+								title={/* partsTitle */ []}
+								href={item.path}
+								labels={item.group.split('.')}
+								onClick={handleClose}
+							/>
+						</MenuItem>
+					);
+				})}
+			</MenuList>
+		);
+	};
 
 	return (
 		<>
@@ -202,4 +207,4 @@ export function Searchbar({ data: navItems = [], sx, ...other }: SearchbarProps)
 			</Dialog>
 		</>
 	);
-}
+};

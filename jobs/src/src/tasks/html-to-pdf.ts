@@ -29,7 +29,7 @@ const COLLECTION_NAME = 'pdf_files';
 const storage = new Storage();
 const mongoClient = new MongoClient(MONGO_URI);
 
-async function generatePdf(input: HtmlToPdfInput): Promise<{ buffer: Buffer; fileName: string }> {
+const generatePdf = async (input: HtmlToPdfInput): Promise<{ buffer: Buffer; fileName: string }> => {
 	const browser = await chromium.launch();
 	const context = await browser.newContext();
 	const page = await context.newPage();
@@ -45,9 +45,9 @@ async function generatePdf(input: HtmlToPdfInput): Promise<{ buffer: Buffer; fil
 
 	await browser.close();
 	return { buffer, fileName };
-}
+};
 
-async function uploadToGCS(buffer: Buffer, fileName: string) {
+const uploadToGCS = async (buffer: Buffer, fileName: string) => {
 	const bucket = storage.bucket(BUCKET_NAME);
 	const file = bucket.file(fileName);
 
@@ -62,15 +62,15 @@ async function uploadToGCS(buffer: Buffer, fileName: string) {
 	const [metadata] = await file.getMetadata();
 
 	return Number(metadata.size) / 1024 / 1024;
-}
+};
 
-async function saveMetadataToMongo(
+const saveMetadataToMongo = async (
 	fileName: string,
 	tenantId: string,
 	cpuTime: number,
 	ramUsage: number,
 	fileSizeMB: number,
-): Promise<void> {
+): Promise<void> => {
 	const creditsUsed = cpuTime * 0.5 + ramUsage * 0.2 + fileSizeMB * 0.1;
 	const db = mongoClient.db(DATABASE_NAME);
 	const collection = db.collection(COLLECTION_NAME);
@@ -83,27 +83,27 @@ async function saveMetadataToMongo(
 		creditsUsed,
 		createdAt: new Date(),
 	});
-}
+};
 
-function getResourceUsage() {
+const getResourceUsage = () => {
 	const cpuUsage = process.cpuUsage().user / 1e6; // Convert microseconds to milliseconds
 	const ramUsage = process.memoryUsage().heapUsed / 1024 / 1024; // Convert bytes to MB
 	return { cpuUsage, ramUsage };
-}
+};
 
 let RESOURCE_USAGE_CHECKPOINT: ReturnType<typeof getResourceUsage> = {
 	cpuUsage: 0,
 	ramUsage: 0,
 };
 
-async function updateAndCheckCredits(
+const updateAndCheckCredits = async (
 	tenantId: string,
 	options: {
 		cpuUsage: number;
 		ramUsage: number;
 		fileSizeMB: number;
 	},
-): Promise<boolean> {
+): Promise<boolean> => {
 	const db = mongoClient.db(DATABASE_NAME);
 	const tenantsCollection = db.collection(className.TENANT);
 
@@ -117,7 +117,7 @@ async function updateAndCheckCredits(
 	);
 
 	return result?.value?.credits > 0;
-}
+};
 
 const getResourceUsageInterval: typeof getResourceUsage = () => {
 	const lastCheckPoint = _.assign({}, RESOURCE_USAGE_CHECKPOINT);

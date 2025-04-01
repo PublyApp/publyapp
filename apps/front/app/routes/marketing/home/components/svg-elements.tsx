@@ -3,19 +3,22 @@ import { useId } from 'react';
 import Box, { type BoxProps } from '@mui/material/Box';
 import { styled, type SxProps, type Theme } from '@mui/material/styles';
 import { m, type MotionProps, type Transition } from 'framer-motion';
-import { varFade } from 'src/components/animate';
+
+import { varFade } from '@/front/components/animate/variants/fade';
 
 // ----------------------------------------------------------------------
 
-const baseStyles = (theme: Theme): SxProps<Theme> => ({
-	zIndex: 2,
-	display: 'none',
-	color: 'grey.500',
-	position: 'absolute',
-	'& line': { strokeDasharray: 3, stroke: 'currentColor' },
-	'& path': { fill: 'currentColor', stroke: 'currentColor' },
-	[theme.breakpoints.up(1440)]: { display: 'block' },
-});
+const baseStyles = (theme: Theme): SxProps<Theme> => {
+	return {
+		zIndex: 2,
+		display: 'none',
+		color: 'grey.500',
+		position: 'absolute',
+		'& line': { strokeDasharray: 3, stroke: 'currentColor' },
+		'& path': { fill: 'currentColor', stroke: 'currentColor' },
+		[theme.breakpoints.up(1440)]: { display: 'block' },
+	};
+};
 
 const transition: Transition = {
 	duration: 0.64,
@@ -28,18 +31,20 @@ const SvgRoot = styled(m.svg)``;
 
 // ----------------------------------------------------------------------
 
-export function FloatLine({ sx, vertical, ...other }: SvgRootProps & { vertical?: boolean }) {
+export const FloatLine = ({ sx, vertical, ...other }: SvgRootProps & { vertical?: boolean }) => {
 	return (
 		<SvgRoot
 			sx={[
-				(theme) => ({
-					...baseStyles(theme),
-					width: 1,
-					zIndex: 1,
-					height: '1px',
-					opacity: 0.24,
-					...(vertical && { width: '1px', height: 1 }),
-				}),
+				(theme) => {
+					return {
+						...baseStyles(theme),
+						width: 1,
+						zIndex: 1,
+						height: '1px',
+						opacity: 0.24,
+						...(vertical && { width: '1px', height: 1 }),
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -69,11 +74,11 @@ export function FloatLine({ sx, vertical, ...other }: SvgRootProps & { vertical?
 			)}
 		</SvgRoot>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function FloatPlusIcon({ sx, ...other }: SvgRootProps) {
+export const FloatPlusIcon = ({ sx, ...other }: SvgRootProps) => {
 	return (
 		<SvgRoot
 			variants={{
@@ -86,11 +91,13 @@ export function FloatPlusIcon({ sx, ...other }: SvgRootProps) {
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => ({
-					...baseStyles(theme),
-					width: 16,
-					height: 16,
-				}),
+				(theme) => {
+					return {
+						...baseStyles(theme),
+						width: 16,
+						height: 16,
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -98,11 +105,11 @@ export function FloatPlusIcon({ sx, ...other }: SvgRootProps) {
 			<path d="M8 0V16M16 8.08889H0" />
 		</SvgRoot>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function FloatXIcon({ sx, ...other }: SvgRootProps) {
+export const FloatXIcon = ({ sx, ...other }: SvgRootProps) => {
 	return (
 		<SvgRoot
 			variants={{
@@ -115,11 +122,13 @@ export function FloatXIcon({ sx, ...other }: SvgRootProps) {
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => ({
-					...baseStyles(theme),
-					width: 16,
-					height: 16,
-				}),
+				(theme) => {
+					return {
+						...baseStyles(theme),
+						width: 16,
+						height: 16,
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -127,11 +136,11 @@ export function FloatXIcon({ sx, ...other }: SvgRootProps) {
 			<path d="M14 2L7.96685 8.03315M7.96685 8.03315L2.0663 13.9337M7.96685 8.03315L13.9337 14M7.96685 8.03315L2 2.0663" />
 		</SvgRoot>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function FloatTriangleLeftIcon({ sx, ...other }: SvgRootProps) {
+export const FloatTriangleLeftIcon = ({ sx, ...other }: SvgRootProps) => {
 	return (
 		<SvgRoot
 			variants={{
@@ -144,11 +153,13 @@ export function FloatTriangleLeftIcon({ sx, ...other }: SvgRootProps) {
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => ({
-					...baseStyles(theme),
-					width: 10,
-					height: 20,
-				}),
+				(theme) => {
+					return {
+						...baseStyles(theme),
+						width: 10,
+						height: 20,
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -156,9 +167,9 @@ export function FloatTriangleLeftIcon({ sx, ...other }: SvgRootProps) {
 			<path d="M10 10L8.74228e-07 20L0 0L10 10Z" />
 		</SvgRoot>
 	);
-}
+};
 
-export function FloatTriangleDownIcon({ sx, ...other }: SvgRootProps) {
+export const FloatTriangleDownIcon = ({ sx, ...other }: SvgRootProps) => {
 	return (
 		<SvgRoot
 			variants={{
@@ -171,11 +182,13 @@ export function FloatTriangleDownIcon({ sx, ...other }: SvgRootProps) {
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => ({
-					...baseStyles(theme),
-					width: 20,
-					height: 10,
-				}),
+				(theme) => {
+					return {
+						...baseStyles(theme),
+						width: 20,
+						height: 10,
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -183,11 +196,11 @@ export function FloatTriangleDownIcon({ sx, ...other }: SvgRootProps) {
 			<path d="M10 10L0 0H20L10 10Z" />
 		</SvgRoot>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function CircleSvg({ sx, variants }: SvgRootProps) {
+export const CircleSvg = ({ sx, variants }: SvgRootProps) => {
 	const maskId = useId();
 	const clipPathId = useId();
 	const gradientId = useId();
@@ -201,17 +214,19 @@ export function CircleSvg({ sx, variants }: SvgRootProps) {
 			fill="none"
 			variants={variants ?? varFade('in')}
 			sx={[
-				() => ({
-					top: 0,
-					left: 0,
-					right: 0,
-					bottom: 0,
-					m: 'auto',
-					width: 560,
-					height: 560,
-					color: 'grey.500',
-					position: 'absolute',
-				}),
+				() => {
+					return {
+						top: 0,
+						left: 0,
+						right: 0,
+						bottom: 0,
+						m: 'auto',
+						width: 560,
+						height: 560,
+						color: 'grey.500',
+						position: 'absolute',
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 		>
@@ -246,11 +261,11 @@ export function CircleSvg({ sx, variants }: SvgRootProps) {
 			</g>
 		</SvgRoot>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function FloatDotIcon({ sx, ...other }: BoxProps<'span'> & MotionProps) {
+export const FloatDotIcon = ({ sx, ...other }: BoxProps<'span'> & MotionProps) => {
 	return (
 		<Box
 			component={m.span}
@@ -259,16 +274,18 @@ export function FloatDotIcon({ sx, ...other }: BoxProps<'span'> & MotionProps) {
 				animate: { scale: 1, transition },
 			}}
 			sx={[
-				(theme) => ({
-					...baseStyles(theme),
-					width: 12,
-					height: 12,
-					borderRadius: '50%',
-					bgcolor: 'currentColor',
-				}),
+				(theme) => {
+					return {
+						...baseStyles(theme),
+						width: 12,
+						height: 12,
+						borderRadius: '50%',
+						bgcolor: 'currentColor',
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
 		/>
 	);
-}
+};

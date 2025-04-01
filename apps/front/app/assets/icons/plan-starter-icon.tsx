@@ -4,20 +4,22 @@ import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 
 // ----------------------------------------------------------------------
 
-function PlanStarterIcon({ sx, ...other }: SvgIconProps) {
+const PlanStarterIcon = ({ sx, ...other }: SvgIconProps) => {
 	return (
 		<SvgIcon
 			viewBox="0 0 80 80"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => ({
-					'--primary-main': theme.vars.palette.primary.main,
-					'--primary-dark': theme.vars.palette.primary.dark,
-					'--primary-darker': theme.vars.palette.primary.darker,
-					width: 48,
-					flexShrink: 0,
-					height: 'auto',
-				}),
+				(theme) => {
+					return {
+						'--primary-main': theme.vars.palette.primary.main,
+						'--primary-dark': theme.vars.palette.primary.dark,
+						'--primary-darker': theme.vars.palette.primary.darker,
+						width: 48,
+						flexShrink: 0,
+						height: 'auto',
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -67,6 +69,6 @@ function PlanStarterIcon({ sx, ...other }: SvgIconProps) {
 			</g>
 		</SvgIcon>
 	);
-}
+};
 
 export default memo(PlanStarterIcon);

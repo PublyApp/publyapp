@@ -216,6 +216,9 @@ importers:
       i18next-fs-backend:
         specifier: ^2.3.1
         version: 2.3.2
+      immer:
+        specifier: ^10.1.1
+        version: 10.1.1
       isbot:
         specifier: ^5.1.17
         version: 5.1.17
@@ -273,6 +276,9 @@ importers:
       simplebar-react:
         specifier: ^3.3.0
         version: 3.3.0(react@19.0.0)
+      sonner:
+        specifier: ^2.0.2
+        version: 2.0.2(react-dom@19.0.0)(react@19.0.0)
       stylis:
         specifier: ^4.3.6
         version: 4.3.6
@@ -284,7 +290,7 @@ importers:
         version: 3.23.8
       zustand:
         specifier: ^4.4.7
-        version: 4.5.6(@types/react@19.0.0)(react@19.0.0)
+        version: 4.5.6(@types/react@19.0.0)(immer@10.1.1)(react@19.0.0)
     devDependencies:
       '@esbuild-plugins/node-globals-polyfill':
         specifier: ^0.2.3
@@ -3413,7 +3419,7 @@ packages:
       '@babel/preset-env': 7.26.9(@babel/core@7.26.10)
       '@babel/preset-react': 7.26.3(@babel/core@7.26.10)
       '@babel/preset-typescript': 7.27.0(@babel/core@7.26.10)
-      '@babel/runtime': 7.26.0
+      '@babel/runtime': 7.27.0
       '@babel/runtime-corejs3': 7.26.9
       '@babel/traverse': 7.27.0
       '@docusaurus/logger': 3.7.0
@@ -14402,6 +14408,10 @@ packages:
       queue: 6.0.2
     dev: false
 
+  /immer@10.1.1:
+    resolution: {integrity: sha512-s2MPrmjovJcoMaHtx6K11Ra7oD05NT97w1IC5zpMkT6Atjr7H8LjaDd81iIxUYpMKSRRNMJE703M1Fhr/TctHw==}
+    dev: false
+
   /immer@9.0.21:
     resolution: {integrity: sha512-bc4NBHqOqSfRW7POMkHd51LvClaeMXpm8dx0e8oE2GORbq5aRK7Bxl4FyzVLdGtLmvLKL7BTDBG5ACQm4HWjTA==}
     dev: false
@@ -19360,7 +19370,7 @@ packages:
       react-loadable: '*'
       webpack: '>=4.41.1 || 5.x'
     dependencies:
-      '@babel/runtime': 7.26.0
+      '@babel/runtime': 7.27.0
       react-loadable: /@docusaurus/react-loadable@6.0.0(react@19.0.0)
       webpack: 5.96.1
     dev: false
@@ -19390,7 +19400,7 @@ packages:
       react: '>=16.6.0'
       react-dom: '>=16.6.0'
     dependencies:
-      '@babel/runtime': 7.26.0
+      '@babel/runtime': 7.27.0
       '@popperjs/core': 2.11.8
       react: 16.14.0
       react-dom: 16.14.0(react@16.14.0)
@@ -19467,7 +19477,7 @@ packages:
       react: '>=15'
       react-router: '>=5'
     dependencies:
-      '@babel/runtime': 7.26.0
+      '@babel/runtime': 7.27.0
       react: 19.0.0
       react-router: 5.3.4(react@19.0.0)
     dev: false
@@ -19477,7 +19487,7 @@ packages:
     peerDependencies:
       react: '>=15'
     dependencies:
-      '@babel/runtime': 7.26.0
+      '@babel/runtime': 7.27.0
       history: 4.10.1
       loose-envify: 1.4.0
       prop-types: 15.8.1
@@ -19505,7 +19515,7 @@ packages:
     peerDependencies:
       react: '>=15'
     dependencies:
-      '@babel/runtime': 7.26.0
+      '@babel/runtime': 7.27.0
       history: 4.10.1
       hoist-non-react-statics: 3.3.2
       loose-envify: 1.4.0
@@ -20876,6 +20886,16 @@ packages:
     dependencies:
       ip-address: 9.0.5
       smart-buffer: 4.2.0
+    dev: false
+
+  /sonner@2.0.2(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-xOeXErZ4blqQd11ZnlDmoRmg+ctUJBkTU8H+HVh9rnWi9Ke28xiL39r4iCTeDX31ODTe/s1MaiaY333dUzLCtA==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+    dependencies:
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
     dev: false
 
   /sort-css-media-queries@2.2.0:
@@ -23228,7 +23248,7 @@ packages:
     resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
     dev: false
 
-  /zustand@4.5.6(@types/react@19.0.0)(react@19.0.0):
+  /zustand@4.5.6(@types/react@19.0.0)(immer@10.1.1)(react@19.0.0):
     resolution: {integrity: sha512-ibr/n1hBzLLj5Y+yUcU7dYw8p6WnIVzdJbnX+1YpaScvZVF2ziugqHs+LAmHw4lWO9c/zRj+K1ncgWDQuthEdQ==}
     engines: {node: '>=12.7.0'}
     peerDependencies:
@@ -23244,6 +23264,7 @@ packages:
         optional: true
     dependencies:
       '@types/react': 19.0.0
+      immer: 10.1.1
       react: 19.0.0
       use-sync-external-store: 1.4.0(react@19.0.0)
     dev: false

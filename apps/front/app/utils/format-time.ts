@@ -47,89 +47,91 @@ export const formatPatterns = {
 	},
 };
 
-const isValidDate = (date: DatePickerFormat) => date !== null && date !== undefined && dayjs(date).isValid();
+const isValidDate = (date: DatePickerFormat) => {
+	return date !== null && date !== undefined && dayjs(date).isValid();
+};
 
 // ----------------------------------------------------------------------
 
-export function today(template?: string): string {
+export const today = (template?: string): string => {
 	return dayjs(new Date()).startOf('day').format(template);
-}
+};
 
 // ----------------------------------------------------------------------
 
 /**
  * @output 17 Apr 2022 12:00 am
  */
-export function fDateTime(date: DatePickerFormat, template?: string): string {
+export const fDateTime = (date: DatePickerFormat, template?: string): string => {
 	if (!isValidDate(date)) {
 		return 'Invalid date';
 	}
 
 	return dayjs(date).format(template ?? formatPatterns.dateTime);
-}
+};
 
 // ----------------------------------------------------------------------
 
 /**
  * @output 17 Apr 2022
  */
-export function fDate(date: DatePickerFormat, template?: string): string {
+export const fDate = (date: DatePickerFormat, template?: string): string => {
 	if (!isValidDate(date)) {
 		return 'Invalid date';
 	}
 
 	return dayjs(date).format(template ?? formatPatterns.date);
-}
+};
 
 // ----------------------------------------------------------------------
 
 /**
  * @output 12:00 am
  */
-export function fTime(date: DatePickerFormat, template?: string): string {
+export const fTime = (date: DatePickerFormat, template?: string): string => {
 	if (!isValidDate(date)) {
 		return 'Invalid date';
 	}
 
 	return dayjs(date).format(template ?? formatPatterns.time);
-}
+};
 
 // ----------------------------------------------------------------------
 
 /**
  * @output 1713250100
  */
-export function fTimestamp(date: DatePickerFormat): number | 'Invalid date' {
+export const fTimestamp = (date: DatePickerFormat): number | 'Invalid date' => {
 	if (!isValidDate(date)) {
 		return 'Invalid date';
 	}
 
 	return dayjs(date).valueOf();
-}
+};
 
 // ----------------------------------------------------------------------
 
 /**
  * @output a few seconds, 2 years
  */
-export function fToNow(date: DatePickerFormat): string {
+export const fToNow = (date: DatePickerFormat): string => {
 	if (!isValidDate(date)) {
 		return 'Invalid date';
 	}
 
 	return dayjs(date).toNow(true);
-}
+};
 
 // ----------------------------------------------------------------------
 
 /**
  * @output boolean
  */
-export function fIsBetween(
+export const fIsBetween = (
 	inputDate: DatePickerFormat,
 	startDate: DatePickerFormat,
 	endDate: DatePickerFormat,
-): boolean {
+): boolean => {
 	if (!isValidDate(inputDate) || !isValidDate(startDate) || !isValidDate(endDate)) {
 		return false;
 	}
@@ -147,33 +149,37 @@ export function fIsBetween(
 	}
 
 	return formattedInputDate >= formattedStartDate && formattedInputDate <= formattedEndDate;
-}
+};
 
 // ----------------------------------------------------------------------
 
 /**
  * @output boolean
  */
-export function fIsAfter(startDate: DatePickerFormat, endDate: DatePickerFormat): boolean {
+export const fIsAfter = (startDate: DatePickerFormat, endDate: DatePickerFormat): boolean => {
 	if (!isValidDate(startDate) || !isValidDate(endDate)) {
 		return false;
 	}
 
 	return dayjs(startDate).isAfter(endDate);
-}
+};
 
 // ----------------------------------------------------------------------
 
 /**
  * @output boolean
  */
-export function fIsSame(startDate: DatePickerFormat, endDate: DatePickerFormat, unitToCompare?: OpUnitType): boolean {
+export const fIsSame = (
+	startDate: DatePickerFormat,
+	endDate: DatePickerFormat,
+	unitToCompare?: OpUnitType,
+): boolean => {
 	if (!isValidDate(startDate) || !isValidDate(endDate)) {
 		return false;
 	}
 
 	return dayjs(startDate).isSame(endDate, unitToCompare ?? 'year');
-}
+};
 
 /**
  * @output
@@ -182,11 +188,11 @@ export function fIsSame(startDate: DatePickerFormat, endDate: DatePickerFormat, 
  * Same month: 25 - 26 Apr 2024
  * Same year: 25 Apr - 26 May 2024
  */
-export function fDateRangeShortLabel(
+export const fDateRangeShortLabel = (
 	startDate: DatePickerFormat,
 	endDate: DatePickerFormat,
 	initial?: boolean,
-): string {
+): string => {
 	if (!isValidDate(startDate) || !isValidDate(endDate) || fIsAfter(startDate, endDate)) {
 		return 'Invalid date';
 	}
@@ -210,7 +216,7 @@ export function fDateRangeShortLabel(
 	}
 
 	return label;
-}
+};
 
 // ----------------------------------------------------------------------
 
@@ -227,7 +233,7 @@ export type DurationProps = {
 	milliseconds?: number;
 };
 
-export function fAdd({
+export const fAdd = ({
 	years = 0,
 	months = 0,
 	days = 0,
@@ -235,7 +241,7 @@ export function fAdd({
 	minutes = 0,
 	seconds = 0,
 	milliseconds = 0,
-}: DurationProps) {
+}: DurationProps) => {
 	const result = dayjs()
 		.add(
 			dayjs.duration({
@@ -251,12 +257,12 @@ export function fAdd({
 		.format();
 
 	return result;
-}
+};
 
 /**
  * @output 2024-05-28T05:55:31+00:00
  */
-export function fSub({
+export const fSub = ({
 	years = 0,
 	months = 0,
 	days = 0,
@@ -264,7 +270,7 @@ export function fSub({
 	minutes = 0,
 	seconds = 0,
 	milliseconds = 0,
-}: DurationProps) {
+}: DurationProps) => {
 	const result = dayjs()
 		.subtract(
 			dayjs.duration({
@@ -280,4 +286,4 @@ export function fSub({
 		.format();
 
 	return result;
-}
+};

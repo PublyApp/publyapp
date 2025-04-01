@@ -6,10 +6,10 @@ export type MotionLazyProps = {
 	children: React.ReactNode;
 };
 
-export function MotionLazy({ children }: MotionLazyProps) {
+export const MotionLazy = ({ children }: MotionLazyProps) => {
 	return (
 		<LazyMotion strict features={domMax}>
 			{children}
 		</LazyMotion>
 	);
-}
+};
