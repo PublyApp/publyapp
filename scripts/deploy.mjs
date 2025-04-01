@@ -37,6 +37,11 @@ const FRONT_APP_DIR_DEST = path.join(APPS_DIR_DEST, FRONT_APP_NAME);
 fse.removeSync(DEPLOY_ROOT_DIR);
 fse.mkdirSync(DEPLOY_ROOT_DIR);
 
+// copy DockerFile
+const dockerFileSrc = path.join(MONOREPO_ROOT_DIR, 'Dockerfile');
+const dockerFileDest = path.join(DEPLOY_ROOT_DIR, 'Dockerfile');
+fse.copyFileSync(dockerFileSrc, dockerFileDest);
+
 // --------------------------------------------------------------------------------------//
 //                              copy package.json on root                                //
 // --------------------------------------------------------------------------------------//
@@ -72,10 +77,17 @@ fse.copyFileSync(npmrcFileSrc, npmrcFileDest);
 // --------------------------------------------------------------------------------------//
 //                              copy the app's package.json                              //
 // --------------------------------------------------------------------------------------//
+// server
 const serverAppPackageJsonSrc = path.join(SERVER_APP_DIR_SRC, packageJsonFileName);
 const serverAppPackageJsonDest = path.join(SERVER_APP_DIR_DEST, packageJsonFileName);
 fse.mkdirpSync(SERVER_APP_DIR_DEST);
 fse.copyFileSync(serverAppPackageJsonSrc, serverAppPackageJsonDest);
+
+// front
+const frontAppPackageJsonSrc = path.join(FRONT_APP_DIR_SRC, packageJsonFileName);
+const frontAppPackageJsonDest = path.join(FRONT_APP_DIR_DEST, packageJsonFileName);
+fse.mkdirpSync(FRONT_APP_DIR_DEST);
+fse.copyFileSync(frontAppPackageJsonSrc, frontAppPackageJsonDest);
 
 // copy patch file (server)
 const patchFileName = 'patch.js';
