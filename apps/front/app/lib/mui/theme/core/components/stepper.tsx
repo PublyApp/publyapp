@@ -6,7 +6,11 @@ const MuiStepConnector: Components<Theme>['MuiStepConnector'] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
-	styleOverrides: { line: ({ theme }) => ({ borderColor: theme.vars.palette.divider }) },
+	styleOverrides: {
+		line: ({ theme }) => {
+			return { borderColor: theme.vars.palette.divider };
+		},
+	},
 };
 
 // ----------------------------------------------------------------------

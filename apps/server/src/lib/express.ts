@@ -60,8 +60,8 @@ export const expressHandler = <
 
 // copy paste from stack overflow: I don't bother fix eslint issues here
 export const listRoutes = (app: Application) => {
-	// eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions, @typescript-eslint/no-explicit-any
-	function split(thing: any) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const split = (thing: any) => {
 		if (typeof thing === 'string') {
 			return thing.split('/');
 		}
@@ -77,10 +77,10 @@ export const listRoutes = (app: Application) => {
 			// eslint-disable-next-line no-useless-escape
 			.match(/^\/\^((?:\\[.*+?^${}()|[\]\\\/]|[^.*+?^${}()|[\]\\\/])*)\$\//);
 		return match ? match[1].replace(/\\(.)/g, '$1').split('/') : `<complex:${thing.toString()}>`;
-	}
+	};
 
-	// eslint-disable-next-line func-style, prefer-arrow/prefer-arrow-functions, @typescript-eslint/no-explicit-any
-	function print(path: any, layer: any) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const print = (path: any, layer: any) => {
 		if (layer.route) {
 			layer.route.stack.forEach(print.bind(null, path.concat(split(layer.route.path))));
 		} else if (layer.name === 'router' && layer.handle.stack) {
@@ -88,7 +88,7 @@ export const listRoutes = (app: Application) => {
 		} else if (layer.method) {
 			logger.info('%s /%s', layer.method.toUpperCase(), path.concat(split(layer.regexp)).filter(Boolean).join('/'));
 		}
-	}
+	};
 
 	app._router.stack.forEach(print.bind(null, []));
 };

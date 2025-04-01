@@ -15,7 +15,7 @@ export type AnimateCountUpProps = TypographyProps & {
 	amount?: UseInViewOptions['amount'];
 };
 
-export function AnimateCountUp({
+export const AnimateCountUp = ({
 	to,
 	sx,
 	from = 0,
@@ -26,9 +26,10 @@ export function AnimateCountUp({
 	unit: unitProp,
 	component = 'p',
 	...other
-}: AnimateCountUpProps) {
+}: AnimateCountUpProps) => {
 	const countRef = useRef(null);
 
+	// eslint-disable-next-line @typescript-eslint/no-use-before-define
 	const shortNumber = shortenNumber(to);
 
 	const startCount = useMotionValue<number>(from);
@@ -38,7 +39,10 @@ export function AnimateCountUp({
 
 	const inView = useInView(countRef, { once, amount });
 
-	const rounded = useTransform(startCount, (latest) => latest.toFixed(isFloat(latest) ? toFixed : 0));
+	const rounded = useTransform(startCount, (latest) => {
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+		return latest.toFixed(isFloat(latest) ? toFixed : 0);
+	});
 
 	useEffect(() => {
 		if (inView) {
@@ -63,23 +67,26 @@ export function AnimateCountUp({
 			{unit}
 		</Typography>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-function isFloat(n: number | string) {
+const isFloat = (n: number | string) => {
 	return typeof n === 'number' && !Number.isInteger(n);
-}
+};
 
-function shortenNumber(value: number): { unit: string; value: number } | undefined {
+const shortenNumber = (value: number): { unit: string; value: number } | undefined => {
 	if (value >= 1e9) {
 		return { unit: 'b', value: value / 1e9 };
 	}
+
 	if (value >= 1e6) {
 		return { unit: 'm', value: value / 1e6 };
 	}
+
 	if (value >= 1e3) {
 		return { unit: 'k', value: value / 1e3 };
 	}
+
 	return undefined;
-}
+};

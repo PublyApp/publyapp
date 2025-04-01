@@ -1,5 +1,4 @@
-import { CONFIG } from 'src/global-config';
-import { fSub } from 'src/utils/format-time';
+import { fSub } from '@/front/utils/format-time';
 
 import {
 	_ages,
@@ -34,50 +33,123 @@ import {
 
 // ----------------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _mock = {
-	id: (index: number) => _id[index],
-	time: (index: number) => fSub({ days: index, hours: index }),
-	boolean: (index: number) => _booleans[index],
-	role: (index: number) => _roles[index],
+	id: (index: number) => {
+		return _id[index];
+	},
+	time: (index: number) => {
+		return fSub({ days: index, hours: index });
+	},
+	boolean: (index: number) => {
+		return _booleans[index];
+	},
+	role: (index: number) => {
+		return _roles[index];
+	},
 	// Text
-	courseNames: (index: number) => _courseNames[index],
-	fileNames: (index: number) => _fileNames[index],
-	eventNames: (index: number) => _eventNames[index],
-	taskNames: (index: number) => _taskNames[index],
-	postTitle: (index: number) => _postTitles[index],
-	jobTitle: (index: number) => _jobTitles[index],
-	tourName: (index: number) => _tourNames[index],
-	productName: (index: number) => _productNames[index],
-	sentence: (index: number) => _sentences[index],
-	description: (index: number) => _descriptions[index],
+	courseNames: (index: number) => {
+		return _courseNames[index];
+	},
+	fileNames: (index: number) => {
+		return _fileNames[index];
+	},
+	eventNames: (index: number) => {
+		return _eventNames[index];
+	},
+	taskNames: (index: number) => {
+		return _taskNames[index];
+	},
+	postTitle: (index: number) => {
+		return _postTitles[index];
+	},
+	jobTitle: (index: number) => {
+		return _jobTitles[index];
+	},
+	tourName: (index: number) => {
+		return _tourNames[index];
+	},
+	productName: (index: number) => {
+		return _productNames[index];
+	},
+	sentence: (index: number) => {
+		return _sentences[index];
+	},
+	description: (index: number) => {
+		return _descriptions[index];
+	},
 	// Contact
-	email: (index: number) => _emails[index],
-	phoneNumber: (index: number) => _phoneNumbers[index],
-	fullAddress: (index: number) => _fullAddress[index],
+	email: (index: number) => {
+		return _emails[index];
+	},
+	phoneNumber: (index: number) => {
+		return _phoneNumbers[index];
+	},
+	fullAddress: (index: number) => {
+		return _fullAddress[index];
+	},
 	// Name
-	firstName: (index: number) => _firstNames[index],
-	lastName: (index: number) => _lastNames[index],
-	fullName: (index: number) => _fullNames[index],
-	companyNames: (index: number) => _companyNames[index],
-	countryNames: (index: number) => _countryNames[index],
+	firstName: (index: number) => {
+		return _firstNames[index];
+	},
+	lastName: (index: number) => {
+		return _lastNames[index];
+	},
+	fullName: (index: number) => {
+		return _fullNames[index];
+	},
+	companyNames: (index: number) => {
+		return _companyNames[index];
+	},
+	countryNames: (index: number) => {
+		return _countryNames[index];
+	},
 	// Number
 	number: {
-		percent: (index: number) => _percents[index],
-		rating: (index: number) => _ratings[index],
-		age: (index: number) => _ages[index],
-		price: (index: number) => _prices[index],
-		nativeS: (index: number) => _nativeS[index],
-		nativeM: (index: number) => _nativeM[index],
-		nativeL: (index: number) => _nativeL[index],
+		percent: (index: number) => {
+			return _percents[index];
+		},
+		rating: (index: number) => {
+			return _ratings[index];
+		},
+		age: (index: number) => {
+			return _ages[index];
+		},
+		price: (index: number) => {
+			return _prices[index];
+		},
+		nativeS: (index: number) => {
+			return _nativeS[index];
+		},
+		nativeM: (index: number) => {
+			return _nativeM[index];
+		},
+		nativeL: (index: number) => {
+			return _nativeL[index];
+		},
 	},
 	// Image
 	image: {
-		cover: (index: number) => `${CONFIG.assetsDir}/assets/images/mock/cover/cover-${index + 1}.webp`,
-		avatar: (index: number) => `${CONFIG.assetsDir}/assets/images/mock/avatar/avatar-${index + 1}.webp`,
-		travel: (index: number) => `${CONFIG.assetsDir}/assets/images/mock/travel/travel-${index + 1}.webp`,
-		course: (index: number) => `${CONFIG.assetsDir}/assets/images/mock/course/course-${index + 1}.webp`,
-		company: (index: number) => `${CONFIG.assetsDir}/assets/images/mock/company/company-${index + 1}.webp`,
-		product: (index: number) => `${CONFIG.assetsDir}/assets/images/mock/m-product/product-${index + 1}.webp`,
-		portrait: (index: number) => `${CONFIG.assetsDir}/assets/images/mock/portrait/portrait-${index + 1}.webp`,
+		cover: (index: number) => {
+			return `/assets/images/mock/cover/cover-${index + 1}.webp`;
+		},
+		avatar: (index: number) => {
+			return `/assets/images/mock/avatar/avatar-${index + 1}.webp`;
+		},
+		travel: (index: number) => {
+			return `/assets/images/mock/travel/travel-${index + 1}.webp`;
+		},
+		course: (index: number) => {
+			return `/assets/images/mock/course/course-${index + 1}.webp`;
+		},
+		company: (index: number) => {
+			return `/assets/images/mock/company/company-${index + 1}.webp`;
+		},
+		product: (index: number) => {
+			return `/assets/images/mock/m-product/product-${index + 1}.webp`;
+		},
+		portrait: (index: number) => {
+			return `/assets/images/mock/portrait/portrait-${index + 1}.webp`;
+		},
 	},
 };

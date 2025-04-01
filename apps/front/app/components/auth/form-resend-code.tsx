@@ -9,20 +9,23 @@ type FormResendCodeProps = BoxProps & {
 	onResendCode?: () => void;
 };
 
-export function FormResendCode({ value, disabled, onResendCode, sx, ...other }: FormResendCodeProps) {
+export const FormResendCode = ({ value, disabled, onResendCode, sx, ...other }: FormResendCodeProps) => {
 	return (
 		<Box
 			sx={[
-				() => ({
-					mt: 3,
-					typography: 'body2',
-					alignSelf: 'center',
-				}),
+				() => {
+					return {
+						mt: 3,
+						typography: 'body2',
+						alignSelf: 'center',
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
 		>
-			{`Don’t have a code? `}
+			{'Don’t have a code? '}
+			{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
 			<Link
 				variant="subtitle2"
 				onClick={onResendCode}
@@ -35,4 +38,4 @@ export function FormResendCode({ value, disabled, onResendCode, sx, ...other }: 
 			</Link>
 		</Box>
 	);
-}
+};

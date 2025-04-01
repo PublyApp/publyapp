@@ -4,19 +4,21 @@ import type { TargetAndTransition, Transition, Variants } from 'framer-motion';
 
 type Direction = 'top' | 'bottom' | 'left' | 'right';
 
-export const varBgColor = (colors: string[], options?: TargetAndTransition): Variants => ({
-	animate: {
-		background: colors,
-		...options,
-		transition: {
-			duration: 5,
-			ease: 'linear',
-			repeat: Infinity,
-			repeatType: 'reverse',
-			...options?.transition,
+export const varBgColor = (colors: string[], options?: TargetAndTransition): Variants => {
+	return {
+		animate: {
+			background: colors,
+			...options,
+			transition: {
+				duration: 5,
+				ease: 'linear',
+				repeat: Infinity,
+				repeatType: 'reverse',
+				...options?.transition,
+			},
 		},
-	},
-});
+	};
+};
 
 // ----------------------------------------------------------------------
 
@@ -74,7 +76,9 @@ export const varBgKenburns = (direction: Direction, options?: TargetAndTransitio
 // ----------------------------------------------------------------------
 
 export const varBgPan = (direction: Direction, colors: string[], options?: TargetAndTransition): Variants => {
-	const gradient = (deg: number) => `linear-gradient(${deg}deg, ${colors.join(', ')})`;
+	const gradient = (deg: number) => {
+		return `linear-gradient(${deg}deg, ${colors.join(', ')})`;
+	};
 
 	const transition: Transition = {
 		duration: 5,

@@ -2,24 +2,24 @@ import ButtonBase from '@mui/material/ButtonBase';
 import { styled, type CSSObject } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
-import { Iconify } from '../../iconify';
+import { Iconify } from '../../iconify/iconify';
 import { navBasicClasses, navItemStyles } from '../styles';
 import type { NavItemProps } from '../types';
 import { createNavItem } from '../utils';
 
 // ----------------------------------------------------------------------
 
-export function NavItem({
+export const NavItem = ({
 	path,
 	icon,
 	info,
 	title,
 	caption,
-	/********/
+	/** ***** */
 	open,
 	active,
 	disabled,
-	/********/
+	/** ***** */
 	depth,
 	render,
 	hasChild,
@@ -28,7 +28,7 @@ export function NavItem({
 	externalLink,
 	enabledRootRedirect,
 	...other
-}: NavItemProps) {
+}: NavItemProps) => {
 	const navItem = createNavItem({
 		path,
 		icon,
@@ -48,6 +48,7 @@ export function NavItem({
 	};
 
 	return (
+		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		<ItemRoot
 			aria-label={title}
 			{...ownerState}
@@ -62,18 +63,22 @@ export function NavItem({
 			{...other}
 		>
 			{icon && (
+				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				<ItemIcon {...ownerState} className={navBasicClasses.item.icon} sx={slotProps?.icon}>
 					{navItem.renderIcon}
 				</ItemIcon>
 			)}
 
 			{title && (
+				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				<ItemTexts {...ownerState} className={navBasicClasses.item.texts} sx={slotProps?.texts}>
+					{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 					<ItemTitle {...ownerState} className={navBasicClasses.item.title} sx={slotProps?.title}>
 						{title}
 					</ItemTitle>
 
 					{caption && navItem.subItem && (
+						// eslint-disable-next-line @typescript-eslint/no-use-before-define
 						<ItemCaptionText {...ownerState} className={navBasicClasses.item.caption} sx={slotProps?.caption}>
 							{caption}
 						</ItemCaptionText>
@@ -82,12 +87,14 @@ export function NavItem({
 			)}
 
 			{info && (
+				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				<ItemInfo {...ownerState} className={navBasicClasses.item.info} sx={slotProps?.info}>
 					{navItem.renderInfo}
 				</ItemInfo>
 			)}
 
 			{hasChild && (
+				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				<ItemArrow
 					{...ownerState}
 					icon={navItem.subItem ? 'eva:arrow-ios-forward-fill' : 'eva:arrow-ios-downward-fill'}
@@ -97,7 +104,7 @@ export function NavItem({
 			)}
 		</ItemRoot>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
@@ -105,7 +112,9 @@ type StyledState = Pick<NavItemProps, 'open' | 'active' | 'disabled'> & {
 	variant: 'rootItem' | 'subItem';
 };
 
-const shouldForwardProp = (prop: string) => !['open', 'active', 'disabled', 'variant', 'sx'].includes(prop);
+const shouldForwardProp = (prop: string) => {
+	return !['open', 'active', 'disabled', 'variant', 'sx'].includes(prop);
+};
 
 /**
  * @slot root
@@ -151,49 +160,61 @@ const ItemRoot = styled(ButtonBase, { shouldForwardProp })<StyledState>(({ activ
 /**
  * @slot icon
  */
-const ItemIcon = styled('span', { shouldForwardProp })<StyledState>(() => ({
-	...navItemStyles.icon,
-	width: 'var(--nav-icon-size)',
-	height: 'var(--nav-icon-size)',
-	margin: 'var(--nav-icon-margin)',
-}));
+const ItemIcon = styled('span', { shouldForwardProp })<StyledState>(() => {
+	return {
+		...navItemStyles.icon,
+		width: 'var(--nav-icon-size)',
+		height: 'var(--nav-icon-size)',
+		margin: 'var(--nav-icon-margin)',
+	};
+});
 
 /**
  * @slot texts
  */
-const ItemTexts = styled('span', { shouldForwardProp })<StyledState>(() => ({
-	...navItemStyles.texts,
-}));
+const ItemTexts = styled('span', { shouldForwardProp })<StyledState>(() => {
+	return {
+		...navItemStyles.texts,
+	};
+});
 
 /**
  * @slot title
  */
-const ItemTitle = styled('span', { shouldForwardProp })<StyledState>(({ theme }) => ({
-	...navItemStyles.title(theme),
-	...theme.typography.body2,
-	fontWeight: theme.typography.fontWeightMedium,
-	variants: [{ props: { active: true }, style: { fontWeight: theme.typography.fontWeightSemiBold } }],
-}));
+const ItemTitle = styled('span', { shouldForwardProp })<StyledState>(({ theme }) => {
+	return {
+		...navItemStyles.title(theme),
+		...theme.typography.body2,
+		fontWeight: theme.typography.fontWeightMedium,
+		variants: [{ props: { active: true }, style: { fontWeight: theme.typography.fontWeightSemiBold } }],
+	};
+});
 
 /**
  * @slot caption text
  */
-const ItemCaptionText = styled('span', { shouldForwardProp })<StyledState>(({ theme }) => ({
-	...navItemStyles.captionText(theme),
-	color: 'var(--nav-item-caption-color)',
-}));
+const ItemCaptionText = styled('span', { shouldForwardProp })<StyledState>(({ theme }) => {
+	return {
+		...navItemStyles.captionText(theme),
+		color: 'var(--nav-item-caption-color)',
+	};
+});
 
 /**
  * @slot info
  */
-const ItemInfo = styled('span', { shouldForwardProp })<StyledState>(() => ({
-	...navItemStyles.info,
-}));
+const ItemInfo = styled('span', { shouldForwardProp })<StyledState>(() => {
+	return {
+		...navItemStyles.info,
+	};
+});
 
 /**
  * @slot arrow
  */
-const ItemArrow = styled(Iconify, { shouldForwardProp })<StyledState>(({ theme }) => ({
-	...navItemStyles.arrow(theme),
-	variants: [{ props: { variant: 'subItem' }, style: { marginRight: theme.spacing(-0.5) } }],
-}));
+const ItemArrow = styled(Iconify, { shouldForwardProp })<StyledState>(({ theme }) => {
+	return {
+		...navItemStyles.arrow(theme),
+		variants: [{ props: { variant: 'subItem' }, style: { marginRight: theme.spacing(-0.5) } }],
+	};
+});

@@ -8,7 +8,7 @@ import { NavList } from './nav-list';
 
 // ----------------------------------------------------------------------
 
-export function NavBasicMobile({
+export const NavBasicMobile = ({
 	sx,
 	data,
 	render,
@@ -16,7 +16,7 @@ export function NavBasicMobile({
 	enabledRootRedirect,
 	cssVars: overridesVars,
 	...other
-}: NavBasicProps) {
+}: NavBasicProps) => {
 	const theme = useTheme();
 
 	const cssVars = { ...navBasicVars.mobile(theme), ...overridesVars };
@@ -24,17 +24,19 @@ export function NavBasicMobile({
 	return (
 		<Nav className={navBasicClasses.mobile} sx={[{ ...cssVars }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
 			<NavUl sx={{ flex: '1 1 auto', gap: 'var(--nav-item-gap)' }}>
-				{data.map((list) => (
-					<NavList
-						key={list.title}
-						depth={1}
-						data={list}
-						render={render}
-						slotProps={slotProps}
-						enabledRootRedirect={enabledRootRedirect}
-					/>
-				))}
+				{data.map((list) => {
+					return (
+						<NavList
+							key={list.title}
+							depth={1}
+							data={list}
+							render={render}
+							slotProps={slotProps}
+							enabledRootRedirect={enabledRootRedirect}
+						/>
+					);
+				})}
 			</NavUl>
 		</Nav>
 	);
-}
+};

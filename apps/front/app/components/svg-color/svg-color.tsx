@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
@@ -6,7 +7,7 @@ import type { SvgColorProps } from './types';
 
 // ----------------------------------------------------------------------
 
-export function SvgColor({ src, className, sx, ...other }: SvgColorProps) {
+export const SvgColor = ({ src, className, sx, ...other }: SvgColorProps) => {
 	return (
 		<SvgRoot
 			className={mergeClasses([svgColorClasses.root, className])}
@@ -20,14 +21,16 @@ export function SvgColor({ src, className, sx, ...other }: SvgColorProps) {
 			{...other}
 		/>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-const SvgRoot = styled('span')(() => ({
-	width: 24,
-	height: 24,
-	flexShrink: 0,
-	display: 'inline-flex',
-	backgroundColor: 'currentColor',
-}));
+const SvgRoot = styled('span')(() => {
+	return {
+		width: 24,
+		height: 24,
+		flexShrink: 0,
+		display: 'inline-flex',
+		backgroundColor: 'currentColor',
+	};
+});

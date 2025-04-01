@@ -4,22 +4,24 @@ import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 
 // ----------------------------------------------------------------------
 
-function CheckoutIllustration({ sx, ...other }: SvgIconProps) {
+const CheckoutIllustration = ({ sx, ...other }: SvgIconProps) => {
 	return (
 		<SvgIcon
 			viewBox="0 0 200 200"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => ({
-					'--primary-light': theme.vars.palette.primary.light,
-					'--primary-main': theme.vars.palette.primary.main,
-					'--primary-dark': theme.vars.palette.primary.dark,
-					'--primary-darker': theme.vars.palette.primary.darker,
-					width: 120,
-					maxWidth: 1,
-					flexShrink: 0,
-					height: 'auto',
-				}),
+				(theme) => {
+					return {
+						'--primary-light': theme.vars.palette.primary.light,
+						'--primary-main': theme.vars.palette.primary.main,
+						'--primary-dark': theme.vars.palette.primary.dark,
+						'--primary-darker': theme.vars.palette.primary.darker,
+						width: 120,
+						maxWidth: 1,
+						flexShrink: 0,
+						height: 'auto',
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -56,6 +58,6 @@ function CheckoutIllustration({ sx, ...other }: SvgIconProps) {
 			</defs>
 		</SvgIcon>
 	);
-}
+};
 
 export default memo(CheckoutIllustration);

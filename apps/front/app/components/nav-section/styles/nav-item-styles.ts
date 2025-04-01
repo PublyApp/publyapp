@@ -29,10 +29,12 @@ export const navItemStyles: NavItemStyles = {
 		},
 	},
 	texts: { flex: '1 1 auto', display: 'inline-flex', flexDirection: 'column' },
-	title: (theme: Theme) => ({
-		...theme.mixins.maxLine({ line: 1 }),
-		flex: '1 1 auto',
-	}),
+	title: (theme: Theme) => {
+		return {
+			...theme.mixins.maxLine({ line: 1 }),
+			flex: '1 1 auto',
+		};
+	},
 	info: {
 		fontSize: 12,
 		flexShrink: 0,
@@ -41,18 +43,22 @@ export const navItemStyles: NavItemStyles = {
 		lineHeight: 18 / 12,
 		display: 'inline-flex',
 	},
-	arrow: (theme: Theme) => ({
-		width: 16,
-		height: 16,
-		flexShrink: 0,
-		marginLeft: '6px',
-		display: 'inline-flex',
-		...(theme.direction === 'rtl' && { transform: 'scaleX(-1)' }),
-	}),
+	arrow: (theme: Theme) => {
+		return {
+			width: 16,
+			height: 16,
+			flexShrink: 0,
+			marginLeft: '6px',
+			display: 'inline-flex',
+			...(theme.direction === 'rtl' && { transform: 'scaleX(-1)' }),
+		};
+	},
 	captionIcon: { width: 16, height: 16 },
-	captionText: (theme: Theme) => ({
-		...theme.mixins.maxLine({ line: 1 }),
-		...theme.typography.caption,
-	}),
+	captionText: (theme: Theme) => {
+		return {
+			...theme.mixins.maxLine({ line: 1 }),
+			...theme.typography.caption,
+		};
+	},
 	disabled: { opacity: 0.48, pointerEvents: 'none' },
 };
