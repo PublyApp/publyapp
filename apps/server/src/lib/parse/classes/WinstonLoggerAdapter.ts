@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
+import _ from 'lodash';
 import _defaults from 'parse-server/lib/defaults.js';
 
-import _ from 'lodash';
 import winston, { format, type Logger } from 'winston';
 import { consoleFormat } from 'winston-console-format';
 import DailyRotateFile from 'winston-daily-rotate-file';

@@ -33,7 +33,7 @@ module.exports.PACKAGES_DIR = PACKAGES_DIR;
  * @param {string} pth
  * @returns {string[]}
  */
-function listDirectories(pth) {
+const listDirectories = (pth) => {
 	const directories = fs
 		.readdirSync(pth, { withFileTypes: true })
 		.filter((dirent) => {
@@ -44,11 +44,11 @@ function listDirectories(pth) {
 		});
 
 	return directories;
-}
+};
 
 exports.listDirectories = listDirectories;
 
-function findExternals() {
+const findExternals = () => {
 	// read all apps package.json
 	const appDirs = listDirectories(APPS_DIR);
 	const packagesDirs = listDirectories(PACKAGES_DIR);
@@ -79,7 +79,7 @@ function findExternals() {
 	});
 
 	return [...externalsSet];
-}
+};
 
 exports.findExternals = findExternals;
 
@@ -122,7 +122,7 @@ const externals = [
 
 exports.externals = externals;
 
-function createRsbuild() {
+const createRsbuild = () => {
 	return _createRsbuild({
 		rsbuildConfig: {
 			plugins: [pluginTypeCheck()],
@@ -158,7 +158,7 @@ function createRsbuild() {
 			},
 		},
 	});
-}
+};
 
 exports.createRsbuild = createRsbuild;
 
@@ -166,11 +166,11 @@ exports.createRsbuild = createRsbuild;
  *
  * @param {import('@rsbuild/core').RsbuildInstance} rsbuild
  */
-function watch(rsbuild) {
+const watch = (rsbuild) => {
 	rsbuild.build({
 		watch: true,
 	});
-}
+};
 
 exports.watch = watch;
 
@@ -178,13 +178,13 @@ exports.watch = watch;
  *
  * @param {import('@rsbuild/core').RsbuildInstance} rsbuild
  */
-function build(rsbuild) {
+const build = (rsbuild) => {
 	rsbuild.build();
-}
+};
 
 exports.build = build;
 
-async function createI18nResourcesFiles(resources) {
+const createI18nResourcesFiles = async (resources) => {
 	console.log('\x1b[32m%s\x1b[0m', '====> started creating i18n resources files');
 	const pipelineAsync = promisify(pipeline);
 	await Promise.all(
@@ -205,6 +205,6 @@ async function createI18nResourcesFiles(resources) {
 		}),
 	);
 	console.log('\x1b[32m%s\x1b[0m', '====> finished creating i18n resources files');
-}
+};
 
 exports.createI18nResourcesFiles = createI18nResourcesFiles;

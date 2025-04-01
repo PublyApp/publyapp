@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import GlobalStyles from '@mui/material/GlobalStyles';
 import { styled, type CSSObject, type SxProps, type Theme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
@@ -16,7 +17,7 @@ export type LayoutSectionProps = React.ComponentProps<'div'> & {
 	sidebarSection?: React.ReactNode;
 };
 
-export function LayoutSection({
+export const LayoutSection = ({
 	sx,
 	cssVars,
 	children,
@@ -25,9 +26,13 @@ export function LayoutSection({
 	sidebarSection,
 	className,
 	...other
-}: LayoutSectionProps) {
+}: LayoutSectionProps) => {
 	const inputGlobalStyles = (
-		<GlobalStyles styles={(theme) => ({ body: { ...layoutSectionVars(theme), ...cssVars } })} />
+		<GlobalStyles
+			styles={(theme) => {
+				return { body: { ...layoutSectionVars(theme), ...cssVars } };
+			}}
+		/>
 	);
 
 	return (
@@ -54,14 +59,16 @@ export function LayoutSection({
 			</LayoutRoot>
 		</>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
 const LayoutRoot = styled('div')``;
 
-const LayoutSidebarContainer = styled('div')(() => ({
-	display: 'flex',
-	flex: '1 1 auto',
-	flexDirection: 'column',
-}));
+const LayoutSidebarContainer = styled('div')(() => {
+	return {
+		display: 'flex',
+		flex: '1 1 auto',
+		flexDirection: 'column',
+	};
+});

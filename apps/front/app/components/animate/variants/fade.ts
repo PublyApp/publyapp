@@ -18,7 +18,7 @@ export const varFade = (direction: Direction, options?: Options): Variants => {
 	const transitionOut = options?.transitionOut;
 
 	const variants: Record<Direction, Variants> = {
-		/**** In ****/
+		/** ** In *** */
 		in: {
 			initial: { opacity: 0 },
 			animate: { opacity: 1, transition: transitionEnter },
@@ -44,7 +44,7 @@ export const varFade = (direction: Direction, options?: Options): Variants => {
 			animate: { x: 0, opacity: 1, transition: transitionEnter(transitionIn) },
 			exit: { x: distance, opacity: 0, transition: transitionExit(transitionOut) },
 		},
-		/**** Out ****/
+		/** ** Out *** */
 		out: {
 			initial: { opacity: 1 },
 			animate: { opacity: 0, transition: transitionEnter(transitionIn) },

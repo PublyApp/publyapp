@@ -5,7 +5,7 @@ import { varAlpha } from 'minimal-shared/utils';
 
 export const bulletColor = { dark: '#282F37', light: '#EDEFF2' };
 
-function colorVars(theme: Theme, variant?: 'vertical' | 'mini' | 'horizontal') {
+const colorVars = (theme: Theme, variant?: 'vertical' | 'mini' | 'horizontal') => {
 	const {
 		vars: { palette },
 	} = theme;
@@ -32,11 +32,11 @@ function colorVars(theme: Theme, variant?: 'vertical' | 'mini' | 'horizontal') {
 			'--nav-subheader-hover-color': palette.text.primary,
 		}),
 	};
-}
+};
 
 // ----------------------------------------------------------------------
 
-function verticalVars(theme: Theme) {
+const verticalVars = (theme: Theme) => {
 	const { shape } = theme;
 
 	return {
@@ -59,11 +59,11 @@ function verticalVars(theme: Theme) {
 		'--nav-bullet-light-color': bulletColor.light,
 		'--nav-bullet-dark-color': bulletColor.dark,
 	};
-}
+};
 
 // ----------------------------------------------------------------------
 
-function miniVars(theme: Theme) {
+const miniVars = (theme: Theme) => {
 	const { shape } = theme;
 
 	return {
@@ -81,11 +81,11 @@ function miniVars(theme: Theme) {
 		'--nav-icon-root-margin': '0 0 6px 0',
 		'--nav-icon-sub-margin': '0 8px 0 0',
 	};
-}
+};
 
 // ----------------------------------------------------------------------
 
-function horizontalVars(theme: Theme) {
+const horizontalVars = (theme: Theme) => {
 	const { shape } = theme;
 
 	return {
@@ -104,7 +104,7 @@ function horizontalVars(theme: Theme) {
 		'--nav-icon-sub-margin': '0 8px 0 0',
 		'--nav-icon-root-margin': '0 8px 0 0',
 	};
-}
+};
 
 // ----------------------------------------------------------------------
 

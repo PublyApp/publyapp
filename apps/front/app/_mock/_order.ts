@@ -9,15 +9,18 @@ export const ORDER_STATUS_OPTIONS = [
 	{ value: 'refunded', label: 'Refunded' },
 ];
 
-const ITEMS = Array.from({ length: 3 }, (_, index) => ({
-	id: _mock.id(index),
-	sku: `16H9UR${index}`,
-	quantity: index + 1,
-	name: _mock.productName(index),
-	coverUrl: _mock.image.product(index),
-	price: _mock.number.price(index),
-}));
+const ITEMS = Array.from({ length: 3 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		sku: `16H9UR${index}`,
+		quantity: index + 1,
+		name: _mock.productName(index),
+		coverUrl: _mock.image.product(index),
+		price: _mock.number.price(index),
+	};
+});
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _orders = Array.from({ length: 20 }, (_, index) => {
 	const shipping = 10;
 
@@ -27,9 +30,13 @@ export const _orders = Array.from({ length: 20 }, (_, index) => {
 
 	const items = (index % 2 && ITEMS.slice(0, 1)) || (index % 3 && ITEMS.slice(1, 3)) || ITEMS;
 
-	const totalQuantity = items.reduce((accumulator, item) => accumulator + item.quantity, 0);
+	const totalQuantity = items.reduce((accumulator, item) => {
+		return accumulator + item.quantity;
+	}, 0);
 
-	const subtotal = items.reduce((accumulator, item) => accumulator + item.price * item.quantity, 0);
+	const subtotal = items.reduce((accumulator, item) => {
+		return accumulator + item.price * item.quantity;
+	}, 0);
 
 	const totalAmount = subtotal - shipping - discount + taxes;
 

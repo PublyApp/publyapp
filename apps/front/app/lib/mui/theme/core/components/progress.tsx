@@ -10,16 +10,18 @@ type PaletteColor = (typeof COLORS)[number];
 
 // ----------------------------------------------------------------------
 
-function styleColors(ownerState: LinearProgressProps, styles: (val: PaletteColor) => CSSObject) {
+const styleColors = (ownerState: LinearProgressProps, styles: (val: PaletteColor) => CSSObject) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (ownerState.color === color) {
+			// eslint-disable-next-line no-param-reassign
 			acc = styles(color);
 		}
+
 		return acc;
 	}, {});
 
 	return outputStyle;
-}
+};
 
 const MuiLinearProgress: Components<Theme>['MuiLinearProgress'] = {
 	/** **************************************
@@ -28,9 +30,11 @@ const MuiLinearProgress: Components<Theme>['MuiLinearProgress'] = {
 	styleOverrides: {
 		root: ({ theme, ownerState }) => {
 			const styled = {
-				colors: styleColors(ownerState, (color) => ({
-					backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.24),
-				})),
+				colors: styleColors(ownerState, (color) => {
+					return {
+						backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.24),
+					};
+				}),
 				inheritColor: {
 					...(ownerState.color === 'inherit' && {
 						'&::before': { display: 'none' },

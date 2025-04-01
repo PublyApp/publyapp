@@ -4,7 +4,7 @@ import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 
 // ----------------------------------------------------------------------
 
-function AvatarShape({ sx, ...other }: SvgIconProps) {
+const AvatarShape = ({ sx, ...other }: SvgIconProps) => {
 	return (
 		<SvgIcon
 			fill="none"
@@ -27,6 +27,6 @@ function AvatarShape({ sx, ...other }: SvgIconProps) {
 			/>
 		</SvgIcon>
 	);
-}
+};
 
 export default memo(AvatarShape);

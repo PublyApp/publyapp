@@ -6,7 +6,9 @@ import type { LabelProps } from './types';
 // ----------------------------------------------------------------------
 
 export const LabelRoot = styled('span', {
-	shouldForwardProp: (prop: string) => !['color', 'variant', 'disabled', 'sx'].includes(prop),
+	shouldForwardProp: (prop: string) => {
+		return !['color', 'variant', 'disabled', 'sx'].includes(prop);
+	},
 })<LabelProps>(({ color, variant, disabled, theme }) => {
 	const defaultStyles: CSSObject = {
 		...(color === 'default' && {

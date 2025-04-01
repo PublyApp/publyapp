@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useCallback, useEffect, useRef } from 'react';
 
 import { useBoolean } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
-import { usePathname } from 'src/routes/hooks';
+
+import { usePathname } from '@/front/hooks/use-pathname';
 
 import { NavCollapse, NavLi, NavUl } from '../components';
 import { navBasicClasses } from '../styles';
@@ -12,7 +14,7 @@ import { NavItem } from './nav-item';
 
 // ----------------------------------------------------------------------
 
-export function NavList({ data, depth, render, slotProps, enabledRootRedirect }: NavListProps) {
+export const NavList = ({ data, depth, render, slotProps, enabledRootRedirect }: NavListProps) => {
 	const pathname = usePathname();
 	const navItemRef = useRef<HTMLButtonElement>(null);
 
@@ -32,44 +34,49 @@ export function NavList({ data, depth, render, slotProps, enabledRootRedirect }:
 		}
 	}, [data.children, onToggle]);
 
-	const renderNavItem = () => (
-		<NavItem
-			ref={navItemRef}
-			// slots
-			path={data.path}
-			icon={data.icon}
-			title={data.title}
-			info={data.info}
-			caption={data.caption}
-			// state
-			open={open}
-			active={isActive}
-			disabled={data.disabled}
-			// options
-			depth={depth}
-			render={render}
-			hasChild={!!data.children}
-			externalLink={isExternalLink(data.path)}
-			enabledRootRedirect={enabledRootRedirect}
-			// styles
-			slotProps={depth === 1 ? slotProps?.rootItem : slotProps?.subItem}
-			// actions
-			onClick={handleToggleMenu}
-		/>
-	);
-
-	const renderCollapse = () =>
-		!!data.children && (
-			<NavCollapse mountOnEnter unmountOnExit depth={depth} in={open} data-group={data.title}>
-				<NavSubList
-					data={data.children}
-					depth={depth}
-					render={render}
-					slotProps={slotProps}
-					enabledRootRedirect={enabledRootRedirect}
-				/>
-			</NavCollapse>
+	const renderNavItem = () => {
+		return (
+			<NavItem
+				ref={navItemRef}
+				// slots
+				path={data.path}
+				icon={data.icon}
+				title={data.title}
+				info={data.info}
+				caption={data.caption}
+				// state
+				open={open}
+				active={isActive}
+				disabled={data.disabled}
+				// options
+				depth={depth}
+				render={render}
+				hasChild={!!data.children}
+				externalLink={isExternalLink(data.path)}
+				enabledRootRedirect={enabledRootRedirect}
+				// styles
+				slotProps={depth === 1 ? slotProps?.rootItem : slotProps?.subItem}
+				// actions
+				onClick={handleToggleMenu}
+			/>
 		);
+	};
+
+	const renderCollapse = () => {
+		return (
+			!!data.children && (
+				<NavCollapse mountOnEnter unmountOnExit depth={depth} in={open} data-group={data.title}>
+					<NavSubList
+						data={data.children}
+						depth={depth}
+						render={render}
+						slotProps={slotProps}
+						enabledRootRedirect={enabledRootRedirect}
+					/>
+				</NavCollapse>
+			)
+		);
+	};
 
 	return (
 		<NavLi
@@ -84,23 +91,25 @@ export function NavList({ data, depth, render, slotProps, enabledRootRedirect }:
 			{renderCollapse()}
 		</NavLi>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-function NavSubList({ data, render, depth = 0, slotProps, enabledRootRedirect }: NavSubListProps) {
+const NavSubList = ({ data, render, depth = 0, slotProps, enabledRootRedirect }: NavSubListProps) => {
 	return (
 		<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
-			{data.map((list) => (
-				<NavList
-					key={list.title}
-					data={list}
-					depth={depth + 1}
-					render={render}
-					slotProps={slotProps}
-					enabledRootRedirect={enabledRootRedirect}
-				/>
-			))}
+			{data.map((list) => {
+				return (
+					<NavList
+						key={list.title}
+						data={list}
+						depth={depth + 1}
+						render={render}
+						slotProps={slotProps}
+						enabledRootRedirect={enabledRootRedirect}
+					/>
+				);
+			})}
 		</NavUl>
 	);
-}
+};
