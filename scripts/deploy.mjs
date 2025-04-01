@@ -1,83 +1,120 @@
-#!/usr/bin/env node
-// @ts-check
-import { spawn } from 'node:child_process';
-import path from 'node:path';
-import process from 'node:process';
-import { fileURLToPath } from 'node:url';
+/* eslint-disable import/no-extraneous-dependencies */
+import { spawnSync } from 'child_process';
+import path from 'path';
 
-import { upload as dokployUpload } from 'dokploy-from-source';
 import fse from 'fs-extra';
-import { color, Listr } from 'listr2';
 
-/** @typedef {import('listr2').ListrRendererValue} ListrRendererValue */
-/** @typedef {import('listr2').ListrTaskWrapper<any, any, any>} ListrTaskWrapper */
+// @ts-check
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
-const isWindows = process.platform === 'win32';
+const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../');
 
-async function main() {
-	process.chdir(repoRoot);
+const PACKAGES_DIRNAME = 'packages';
+const APPS_DIRNAME = 'apps';
+const SERVER_APP_NAME = 'server';
+const FRONT_APP_NAME = 'front';
 
-	const args = parseArgs(process.argv.slice(2));
-	const listrOptions = createListrOptions(args);
+const APPS_DIR_SRC = path.join(MONOREPO_ROOT_DIR, APPS_DIRNAME);
+const PACKAGES_DIR_SRC = path.join(MONOREPO_ROOT_DIR, PACKAGES_DIRNAME);
 
-	if (args.skipBuild && args.target !== 'front') {
-		throw new Error(
-			'--skip-build is supported for front only (API publish is required).',
-		);
-	}
+const onWindows = /^win/.test(process.platform);
+// const npxCommand = onWindows ? 'npx.cmd' : 'npx';
+const pnpmCommand = onWindows ? 'pnpm.cmd' : 'pnpm';
 
-	const release =
-		args.release || (await tryGetGitSha()) || getTimestampRelease();
-	const releaseRoot = path.join(repoRoot, '.dump', 'deploy-artifacts', release);
+const DEPLOY_ROOT_DIR = path.join(MONOREPO_ROOT_DIR, 'scripts', 'build');
 
-	const frontPort = process.env.DEPLOY_FRONT_PORT
-		? Number.parseInt(process.env.DEPLOY_FRONT_PORT, 10)
-		: 5050;
-	if (Number.isNaN(frontPort) || frontPort <= 0) {
-		throw new Error('DEPLOY_FRONT_PORT must be a valid port number');
-	}
+const APPS_DIR_DEST = path.join(DEPLOY_ROOT_DIR, APPS_DIRNAME);
+const PACKAGES_DIR_DEST = path.join(DEPLOY_ROOT_DIR, PACKAGES_DIRNAME);
 
-	/** @type {{release: string, releaseRoot: string, frontPort: number, frontArtifactDir: string, apiArtifactDir: string}} */
-	const ctx = {
-		release,
-		releaseRoot,
-		frontPort,
-		frontArtifactDir: '',
-		apiArtifactDir: '',
-	};
+const SERVER_APP_DIR_SRC = path.join(APPS_DIR_SRC, SERVER_APP_NAME);
+const SERVER_APP_DIR_DEST = path.join(APPS_DIR_DEST, SERVER_APP_NAME);
 
-	const topLevelTasks = createTopLevelTasks({
-		args,
-		release,
-		releaseRoot,
-		frontPort,
-		listrOptions,
-	});
+const FRONT_APP_DIR_SRC = path.join(APPS_DIR_SRC, FRONT_APP_NAME);
+const FRONT_APP_DIR_DEST = path.join(APPS_DIR_DEST, FRONT_APP_NAME);
 
-	const tasks = new Listr(
-		withStepTitles(topLevelTasks, { level: 0 }),
-		listrOptions,
-	);
+// --------------------------------------------------------------------------------------//
+//                             clean the destination folder                              //
+// --------------------------------------------------------------------------------------//
+fse.removeSync(DEPLOY_ROOT_DIR);
+fse.mkdirSync(DEPLOY_ROOT_DIR);
 
-	await tasks.run(ctx);
+// --------------------------------------------------------------------------------------//
+//                              copy package.json on root                                //
+// --------------------------------------------------------------------------------------//
+const packageJsonFileName = 'package.json';
+const rootPackageJsonSrc = path.join(MONOREPO_ROOT_DIR, packageJsonFileName);
+const rootPackageJsonDest = path.join(DEPLOY_ROOT_DIR, packageJsonFileName);
+fse.copyFileSync(rootPackageJsonSrc, rootPackageJsonDest);
 
-	console.log('');
-	console.log('Done.');
-	console.log(`Artifacts: ${releaseRoot}`);
-	if (ctx.frontArtifactDir) {
-		console.log(`Front: ${ctx.frontArtifactDir}`);
-	}
-	if (ctx.apiArtifactDir) {
-		console.log(`API: ${ctx.apiArtifactDir}`);
-	}
-}
+// --------------------------------------------------------------------------------------//
+//                                 copy lock file on root                                //
+// --------------------------------------------------------------------------------------//
+const lockFileName = 'pnpm-lock.yaml';
+const rootLockFileSrc = path.join(MONOREPO_ROOT_DIR, lockFileName);
+const rootLockFileDest = path.join(DEPLOY_ROOT_DIR, lockFileName);
+fse.copyFileSync(rootLockFileSrc, rootLockFileDest);
 
-main().catch((err) => {
-	console.error(err?.stack || err);
-	process.exit(1);
+// --------------------------------------------------------------------------------------//
+//                                copy pnpm-workspace file on root                       //
+// --------------------------------------------------------------------------------------//
+const workspaceFileName = 'pnpm-workspace.yaml';
+const workspaceFileSrc = path.join(MONOREPO_ROOT_DIR, workspaceFileName);
+const workspaceFileDest = path.join(DEPLOY_ROOT_DIR, workspaceFileName);
+fse.copyFileSync(workspaceFileSrc, workspaceFileDest);
+
+// --------------------------------------------------------------------------------------//
+//                                   copy .npmrc file on root                            //
+// --------------------------------------------------------------------------------------//
+const npmrcFileName = '.npmrc';
+const npmrcFileSrc = path.join(MONOREPO_ROOT_DIR, npmrcFileName);
+const npmrcFileDest = path.join(DEPLOY_ROOT_DIR, npmrcFileName);
+fse.copyFileSync(npmrcFileSrc, npmrcFileDest);
+
+// --------------------------------------------------------------------------------------//
+//                              copy the app's package.json                              //
+// --------------------------------------------------------------------------------------//
+const serverAppPackageJsonSrc = path.join(SERVER_APP_DIR_SRC, packageJsonFileName);
+const serverAppPackageJsonDest = path.join(SERVER_APP_DIR_DEST, packageJsonFileName);
+fse.mkdirpSync(SERVER_APP_DIR_DEST);
+fse.copyFileSync(serverAppPackageJsonSrc, serverAppPackageJsonDest);
+
+// --------------------------------------------------------------------------------------//
+//                                   build the server                                    //
+// --------------------------------------------------------------------------------------//
+// const buildArgs = ['turbo', 'run', 'build', `--filter=${SERVER_APP_NAME}`];
+// spawnSync(npxCommand, buildArgs, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+const buildArgs = ['run', 'build', `--filter=${SERVER_APP_NAME}`];
+spawnSync(npmCommand, buildArgs, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+
+// --------------------------------------------------------------------------------------//
+//                                   copy the builds                                     //
+// --------------------------------------------------------------------------------------//
+// copy the server build
+const serverBuildDirName = 'dist';
+const serverBuildSrc = path.join(SERVER_APP_DIR_SRC, serverBuildDirName);
+const serverBuildDest = path.join(SERVER_APP_DIR_DEST, serverBuildDirName);
+fse.copySync(serverBuildSrc, serverBuildDest);
+
+// copy the front builds
+const frontBuildDirName = 'build';
+const frontBuildSrc = path.join(FRONT_APP_DIR_SRC, frontBuildDirName);
+const frontBuildDest = path.join(FRONT_APP_DIR_DEST, frontBuildDirName);
+fse.copySync(frontBuildSrc, frontBuildDest);
+
+// --------------------------------------------------------------------------------------//
+//                                    copy packages                                      //
+// --------------------------------------------------------------------------------------//
+// copy only the package.json of each packages
+// list the contents of the packages directory
+const files = fse.readdirSync(path.join(PACKAGES_DIR_SRC));
+// Filter out non-directories
+const subdirectories = files.filter((file) => {
+	return fse.statSync(path.join(PACKAGES_DIR_SRC, file)).isDirectory();
+});
+// Copy each subdirectory with only package.json to dist directory
+subdirectories.forEach((subdirectory) => {
+	const sourcePath = path.join(PACKAGES_DIR_SRC, subdirectory, 'package.json');
+	const destPath = path.join(PACKAGES_DIR_DEST, subdirectory, 'package.json');
+	fse.copySync(sourcePath, destPath);
 });
 
 function styleTaskTitle(title, level) {
