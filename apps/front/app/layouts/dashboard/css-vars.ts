@@ -1,11 +1,12 @@
 import type { CSSObject, Theme } from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
-import { bulletColor } from 'src/components/nav-section';
-import type { SettingsState } from 'src/components/settings';
+
+import { bulletColor } from '@/front/components/nav-section';
+import type { SettingsState } from '@/front/components/settings';
 
 // ----------------------------------------------------------------------
 
-export function dashboardLayoutVars(theme: Theme) {
+export const dashboardLayoutVars = (theme: Theme) => {
 	return {
 		'--layout-transition-easing': 'linear',
 		'--layout-transition-duration': '120ms',
@@ -16,15 +17,15 @@ export function dashboardLayoutVars(theme: Theme) {
 		'--layout-dashboard-content-pb': theme.spacing(8),
 		'--layout-dashboard-content-px': theme.spacing(5),
 	};
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function dashboardNavColorVars(
+export const dashboardNavColorVars = (
 	theme: Theme,
 	navColor: SettingsState['navColor'] = 'integrate',
 	navLayout: SettingsState['navLayout'] = 'vertical',
-): Record<'layout' | 'section', CSSObject | undefined> {
+): Record<'layout' | 'section', CSSObject | undefined> => {
 	const {
 		vars: { palette },
 	} = theme;
@@ -82,4 +83,4 @@ export function dashboardNavColorVars(
 		default:
 			throw new Error(`Invalid color: ${navColor}`);
 	}
-}
+};

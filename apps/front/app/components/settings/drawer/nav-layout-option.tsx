@@ -16,7 +16,7 @@ export type NavLayoutOptionProps = BoxProps & {
 	onChangeOption: (newOption: SettingsState['navLayout']) => void;
 };
 
-export function NavLayoutOptions({ sx, value, options, onChangeOption, ...other }: NavLayoutOptionProps) {
+export const NavLayoutOptions = ({ sx, value, options, onChangeOption, ...other }: NavLayoutOptionProps) => {
 	return (
 		<Box
 			sx={[
@@ -36,12 +36,16 @@ export function NavLayoutOptions({ sx, value, options, onChangeOption, ...other 
 					<OptionButton
 						key={option.value}
 						selected={selected}
-						onClick={() => onChangeOption(option.value)}
+						onClick={() => {
+							return onChangeOption(option.value);
+						}}
 						sx={[
-							(theme) => ({
-								height: 64,
-								border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
-							}),
+							(theme) => {
+								return {
+									height: 64,
+									border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+								};
+							},
 						]}
 					>
 						{option.icon}
@@ -50,7 +54,7 @@ export function NavLayoutOptions({ sx, value, options, onChangeOption, ...other 
 			})}
 		</Box>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
@@ -64,7 +68,7 @@ export type NavColorOptionProps = BoxProps & {
 	onChangeOption: (newOption: SettingsState['navColor']) => void;
 };
 
-export function NavColorOptions({ sx, value, options, onChangeOption, ...other }: NavColorOptionProps) {
+export const NavColorOptions = ({ sx, value, options, onChangeOption, ...other }: NavColorOptionProps) => {
 	return (
 		<Box
 			sx={[
@@ -84,7 +88,9 @@ export function NavColorOptions({ sx, value, options, onChangeOption, ...other }
 					<OptionButton
 						key={option.value}
 						selected={selected}
-						onClick={() => onChangeOption(option.value)}
+						onClick={() => {
+							return onChangeOption(option.value);
+						}}
 						sx={{ gap: 1.5, height: 56 }}
 					>
 						{option.icon}
@@ -94,4 +100,4 @@ export function NavColorOptions({ sx, value, options, onChangeOption, ...other }
 			})}
 		</Box>
 	);
-}
+};

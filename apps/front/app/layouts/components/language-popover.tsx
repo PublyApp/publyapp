@@ -5,10 +5,12 @@ import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import { m } from 'framer-motion';
 import { usePopover } from 'minimal-shared/hooks';
-import { transitionTap, varHover, varTap } from 'src/components/animate';
-import { CustomPopover } from 'src/components/custom-popover';
-import { FlagIcon } from 'src/components/flag-icon';
-import { useTranslate, type LanguageValue } from 'src/locales';
+
+import { transitionTap, varHover, varTap } from '@/front/components/animate';
+import { CustomPopover } from '@/front/components/custom-popover';
+import { FlagIcon } from '@/front/components/flag-icon';
+import { useTranslate } from '@/front/hooks/use-translate';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 // ----------------------------------------------------------------------
 
@@ -20,35 +22,41 @@ export type LanguagePopoverProps = IconButtonProps & {
 	}[];
 };
 
-export function LanguagePopover({ data = [], sx, ...other }: LanguagePopoverProps) {
+export const LanguagePopover = ({ data = [], sx, ...other }: LanguagePopoverProps) => {
 	const { open, anchorEl, onClose, onOpen } = usePopover();
 
 	const { onChangeLang, currentLang } = useTranslate();
 
 	const handleChangeLang = useCallback(
-		(newLang: LanguageValue) => {
+		(newLang: AppLocale) => {
 			onChangeLang(newLang);
 			onClose();
 		},
 		[onChangeLang, onClose],
 	);
 
-	const renderMenuList = () => (
-		<CustomPopover open={open} anchorEl={anchorEl} onClose={onClose}>
-			<MenuList sx={{ width: 160, minHeight: 72 }}>
-				{data?.map((option) => (
-					<MenuItem
-						key={option.value}
-						selected={option.value === currentLang.value}
-						onClick={() => handleChangeLang(option.value as LanguageValue)}
-					>
-						<FlagIcon code={option.countryCode} />
-						{option.label}
-					</MenuItem>
-				))}
-			</MenuList>
-		</CustomPopover>
-	);
+	const renderMenuList = () => {
+		return (
+			<CustomPopover open={open} anchorEl={anchorEl} onClose={onClose}>
+				<MenuList sx={{ width: 160, minHeight: 72 }}>
+					{data?.map((option) => {
+						return (
+							<MenuItem
+								key={option.value}
+								selected={option.value === currentLang.value}
+								onClick={() => {
+									return handleChangeLang(option.value as AppLocale);
+								}}
+							>
+								<FlagIcon code={option.countryCode} />
+								{option.label}
+							</MenuItem>
+						);
+					})}
+				</MenuList>
+			</CustomPopover>
+		);
+	};
 
 	return (
 		<>
@@ -60,12 +68,14 @@ export function LanguagePopover({ data = [], sx, ...other }: LanguagePopoverProp
 				aria-label="Languages button"
 				onClick={onOpen}
 				sx={[
-					(theme) => ({
-						p: 0,
-						width: 40,
-						height: 40,
-						...(open && { bgcolor: theme.vars.palette.action.selected }),
-					}),
+					(theme) => {
+						return {
+							p: 0,
+							width: 40,
+							height: 40,
+							...(open && { bgcolor: theme.vars.palette.action.selected }),
+						};
+					},
 					...(Array.isArray(sx) ? sx : [sx]),
 				]}
 				{...other}
@@ -76,4 +86,4 @@ export function LanguagePopover({ data = [], sx, ...other }: LanguagePopoverProp
 			{renderMenuList()}
 		</>
 	);
-}
+};

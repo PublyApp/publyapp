@@ -2,8 +2,6 @@ import { v2 as cloudinary } from 'cloudinary';
 
 import { env } from '@/server/lib/env';
 
-// const { CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, CLOUDINARY_NAME } = env;
-
 export const initCloudinary = async () => {
 	cloudinary.config({
 		cloud_name: env.CLOUDINARY_NAME,

@@ -108,7 +108,7 @@ const bootstrap = async () => {
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
 		allowOrigin: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		// =============================================
-		directAccess: false,
+		directAccess: true,
 		enableExpressErrorHandler: true,
 		allowClientClassCreation: false,
 		allowExpiredAuthDataToken: false,
@@ -181,11 +181,11 @@ const bootstrap = async () => {
 	//                  mount remix build when in a deployment environment                   //
 	// --------------------------------------------------------------------------------------//
 	if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
-		app.use(express.static(path.resolve(process.cwd(), 'node_modules/front/build/client')));
+		app.use(express.static(path.resolve(__dirname, '../../front/build/client')));
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
-			'*',
+			/(.*)/,
 			createRequestHandler({
 				// `remix build` and `remix dev` output files to a build directory, you need
 				// to pass that build to the request handler
@@ -197,7 +197,7 @@ const bootstrap = async () => {
 				// getLoadContext(req, res) {
 				// 	return {};
 				// },
-			}) as never, // TODO: fix type issue (due to express 5)
+			}),
 		);
 	}
 

@@ -1,9 +1,10 @@
-import { Iconify } from 'src/components/iconify';
+import { Iconify } from '@/front/components/iconify/iconify';
 
 import type { AccountDrawerProps } from './components/account-drawer';
 
 // ----------------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _account: AccountDrawerProps['data'] = [
 	{ label: 'Home', href: '/', icon: <Iconify icon="solar:home-angle-bold-duotone" /> },
 	{
