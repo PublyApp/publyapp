@@ -14,7 +14,7 @@ export type RHFUploadProps = UploadProps & {
 	};
 };
 
-export function RHFUploadAvatar({ name, slotProps, ...other }: RHFUploadProps) {
+export const RHFUploadAvatar = ({ name, slotProps, ...other }: RHFUploadProps) => {
 	const { control, setValue } = useFormContext();
 
 	return (
@@ -38,25 +38,27 @@ export function RHFUploadAvatar({ name, slotProps, ...other }: RHFUploadProps) {
 			}}
 		/>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function RHFUploadBox({ name, ...other }: RHFUploadProps) {
+export const RHFUploadBox = ({ name, ...other }: RHFUploadProps) => {
 	const { control } = useFormContext();
 
 	return (
 		<Controller
 			name={name}
 			control={control}
-			render={({ field, fieldState: { error } }) => <UploadBox value={field.value} error={!!error} {...other} />}
+			render={({ field, fieldState: { error } }) => {
+				return <UploadBox value={field.value} error={!!error} {...other} />;
+			}}
 		/>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function RHFUpload({ name, multiple, helperText, ...other }: RHFUploadProps) {
+export const RHFUpload = ({ name, multiple, helperText, ...other }: RHFUploadProps) => {
 	const { control, setValue } = useFormContext();
 
 	return (
@@ -81,4 +83,4 @@ export function RHFUpload({ name, multiple, helperText, ...other }: RHFUploadPro
 			}}
 		/>
 	);
-}
+};

@@ -14,17 +14,27 @@ type NavLiProps = React.ComponentProps<'li'> & {
 };
 
 export const NavLi = styled(
-	(props: NavLiProps) => <li {...props} className={mergeClasses([navSectionClasses.li, props.className])} />,
-	{ shouldForwardProp: (prop: string) => !['disabled', 'sx'].includes(prop) },
-)(() => ({
-	display: 'inline-block',
-	variants: [{ props: { disabled: true }, style: { cursor: 'not-allowed' } }],
-}));
+	(props: NavLiProps) => {
+		return <li {...props} className={mergeClasses([navSectionClasses.li, props.className])} />;
+	},
+	{
+		shouldForwardProp: (prop: string) => {
+			return !['disabled', 'sx'].includes(prop);
+		},
+	},
+)(() => {
+	return {
+		display: 'inline-block',
+		variants: [{ props: { disabled: true }, style: { cursor: 'not-allowed' } }],
+	};
+});
 
 // ----------------------------------------------------------------------
 
 type NavUlProps = React.ComponentProps<'ul'>;
 
-export const NavUl = styled((props: NavUlProps) => (
-	<ul {...props} className={mergeClasses([navSectionClasses.ul, props.className])} />
-))(() => ({ display: 'flex', flexDirection: 'column' }));
+export const NavUl = styled((props: NavUlProps) => {
+	return <ul {...props} className={mergeClasses([navSectionClasses.ul, props.className])} />;
+})(() => {
+	return { display: 'flex', flexDirection: 'column' };
+});

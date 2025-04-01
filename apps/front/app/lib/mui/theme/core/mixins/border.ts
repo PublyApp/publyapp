@@ -18,7 +18,7 @@ export type BorderGradientProps = {
 	padding?: string;
 };
 
-export function borderGradient(props?: BorderGradientProps): CSSObject {
+export const borderGradient = (props?: BorderGradientProps): CSSObject => {
 	const { color, padding = '2px' } = props ?? {};
 
 	return {
@@ -30,7 +30,7 @@ export function borderGradient(props?: BorderGradientProps): CSSObject {
 		margin: 'auto',
 		position: 'absolute',
 		borderRadius: 'inherit',
-		/********/
+		/** ***** */
 		mask: 'linear-gradient(#FFF 0 0) content-box, linear-gradient(#FFF 0 0)',
 		WebkitMask: 'linear-gradient(#FFF 0 0) content-box, linear-gradient(#FFF 0 0)',
 		maskComposite: 'exclude',
@@ -39,4 +39,4 @@ export function borderGradient(props?: BorderGradientProps): CSSObject {
 			background: color,
 		}),
 	};
-}
+};

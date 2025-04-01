@@ -12,17 +12,16 @@ export type UseScrollProgressReturn = {
 
 export type UseScrollProgress = 'document' | 'container';
 
-export function useScrollProgress(target: UseScrollProgress = 'document'): UseScrollProgressReturn {
+export const useScrollProgress = (target: UseScrollProgress = 'document'): UseScrollProgressReturn => {
 	const elementRef = useRef<HTMLDivElement>(null);
 
 	const options = { container: elementRef };
 
 	const { scrollYProgress, scrollXProgress } = useScroll(target === 'container' ? options : undefined);
 
-	const memoizedValue = useMemo(
-		() => ({ elementRef, scrollXProgress, scrollYProgress }),
-		[elementRef, scrollXProgress, scrollYProgress],
-	);
+	const memoizedValue = useMemo(() => {
+		return { elementRef, scrollXProgress, scrollYProgress };
+	}, [elementRef, scrollXProgress, scrollYProgress]);
 
 	return memoizedValue;
-}
+};

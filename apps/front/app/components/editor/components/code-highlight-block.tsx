@@ -6,29 +6,33 @@ import { editorClasses } from '../classes';
 
 // ----------------------------------------------------------------------
 
-export function CodeHighlightBlock({
+export const CodeHighlightBlock = ({
 	node: {
 		attrs: { language: defaultLanguage },
 	},
 	extension,
 	updateAttributes,
-}: NodeViewProps) {
+}: NodeViewProps) => {
 	return (
 		<NodeViewWrapper className={editorClasses.content.codeBlock}>
 			<select
 				name="language"
 				contentEditable={false}
 				defaultValue={defaultLanguage}
-				onChange={(event) => updateAttributes({ language: event.target.value })}
+				onChange={(event) => {
+					return updateAttributes({ language: event.target.value });
+				}}
 				className={editorClasses.content.langSelect}
 			>
 				<option value="null">auto</option>
 				<option disabled>—</option>
-				{extension.options.lowlight.listLanguages().map((lang: string) => (
-					<option key={lang} value={lang}>
-						{lang}
-					</option>
-				))}
+				{extension.options.lowlight.listLanguages().map((lang: string) => {
+					return (
+						<option key={lang} value={lang}>
+							{lang}
+						</option>
+					);
+				})}
 			</select>
 
 			<pre>
@@ -36,4 +40,4 @@ export function CodeHighlightBlock({
 			</pre>
 		</NodeViewWrapper>
 	);
-}
+};

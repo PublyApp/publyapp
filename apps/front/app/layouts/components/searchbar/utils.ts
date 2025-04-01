@@ -1,4 +1,4 @@
-import type { NavSectionProps } from 'src/components/nav-section';
+import type { NavSectionProps } from '@/front/components/nav-section';
 
 // ----------------------------------------------------------------------
 
@@ -34,9 +34,11 @@ const flattenNavItems = (navItems: NavItem[], parentGroup?: string): OutputItem[
 	return flattenedItems;
 };
 
-export function flattenNavSections(navSections: NavSectionProps['data']): OutputItem[] {
-	return navSections.flatMap((navSection) => flattenNavItems(navSection.items, navSection.subheader));
-}
+export const flattenNavSections = (navSections: NavSectionProps['data']): OutputItem[] => {
+	return navSections.flatMap((navSection) => {
+		return flattenNavItems(navSection.items, navSection.subheader);
+	});
+};
 
 // ----------------------------------------------------------------------
 
@@ -45,10 +47,12 @@ type ApplyFilterProps = {
 	inputData: OutputItem[];
 };
 
-export function applyFilter({ inputData, query }: ApplyFilterProps): OutputItem[] {
+export const applyFilter = ({ inputData, query }: ApplyFilterProps): OutputItem[] => {
 	if (!query) return inputData;
 
-	return inputData.filter(({ title, path, group }) =>
-		[title, path, group].some((field) => field?.toLowerCase().includes(query.toLowerCase())),
-	);
-}
+	return inputData.filter(({ title, path, group }) => {
+		return [title, path, group].some((field) => {
+			return field?.toLowerCase().includes(query.toLowerCase());
+		});
+	});
+};

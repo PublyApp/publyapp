@@ -1,5 +1,6 @@
 import type { Components, ComponentsOverrides, ComponentsPropsList, CSSObject, Theme } from '@mui/material/styles';
-import type { SettingsState } from 'src/components/settings';
+
+import type { SettingsState } from '@/front/components/settings';
 
 import type { ThemeOptions } from '../types';
 
@@ -10,21 +11,24 @@ type ComponentSlot<
 	Slot extends keyof NonNullable<ComponentsOverrides<Theme>[Name]>,
 > = NonNullable<ComponentsOverrides<Theme>[Name]>[Slot];
 
-function getSlotStyles<
+const getSlotStyles = <
 	Name extends keyof ComponentsOverrides<Theme>,
 	Slot extends keyof NonNullable<ComponentsOverrides<Theme>[Name]>,
->(slot: ComponentSlot<Name, Slot>, props?: ComponentsPropsList[Name]): CSSObject {
+>(
+	slot: ComponentSlot<Name, Slot>,
+	props?: ComponentsPropsList[Name],
+): CSSObject => {
 	const slotStyles = typeof slot === 'function' && props ? slot(props) : slot ?? {};
 
 	return slotStyles;
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function updateComponentsWithSettings(
+export const updateComponentsWithSettings = (
 	components?: Components<Theme>,
 	settingsState?: SettingsState,
-): Pick<ThemeOptions, 'components'> {
+): Pick<ThemeOptions, 'components'> => {
 	const MuiCard: Components<Theme>['MuiCard'] = {
 		styleOverrides: {
 			root: (props) => {
@@ -56,4 +60,4 @@ export function updateComponentsWithSettings(
 			MuiCssBaseline,
 		},
 	};
-}
+};

@@ -1,5 +1,5 @@
 {
-  "name": "devist-platform",
+  "name": "pdf-vite",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -28,8 +28,7 @@
     "prepare": "husky install",
     "update-deps": "pnpm up -i -r",
     "check-format": "prettier --check .",
-    "prepare:deploy:server": "pnpm ./scripts/deploy/server/index.js",
-    "merge-env": "node ./scripts/merge-dotenv.js && node ./scripts/zip-dotenv.js"
+    "build:deploy": "node ./scripts/deploy.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.3",

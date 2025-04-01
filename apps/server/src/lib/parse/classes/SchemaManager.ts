@@ -1,8 +1,8 @@
+import _ from 'lodash';
 import { type Schema } from 'parse-server';
 import MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
 
 import asyncJs from 'async';
-import _ from 'lodash';
 import { MongoServerError, type CreateIndexesOptions } from 'mongodb';
 
 import { className as _className } from '@org/shared/lib/constants';

@@ -5,13 +5,15 @@ import { NavList } from './nav-desktop-list';
 
 // ----------------------------------------------------------------------
 
-export function NavDesktop({ data, sx, ...other }: NavMainProps) {
+export const NavDesktop = ({ data, sx, ...other }: NavMainProps) => {
 	return (
 		<Nav
 			sx={[
-				() => ({
-					/* Put styles */
-				}),
+				() => {
+					return {
+						/* Put styles */
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -24,10 +26,10 @@ export function NavDesktop({ data, sx, ...other }: NavMainProps) {
 					alignItems: 'center',
 				}}
 			>
-				{data.map((list) => (
-					<NavList key={list.title} data={list} />
-				))}
+				{data.map((list) => {
+					return <NavList key={list.title} data={list} />;
+				})}
 			</NavUl>
 		</Nav>
 	);
-}
+};

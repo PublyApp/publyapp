@@ -11,13 +11,23 @@ export type MotionContainerProps = BoxProps &
 		action?: boolean;
 	};
 
-export function MotionContainer({ sx, animate, children, action = false, ...other }: MotionContainerProps) {
+export const MotionContainer = ({ sx, animate, children, action = false, ...other }: MotionContainerProps) => {
+	let animateProp: string;
+
+	if (animate && action) {
+		animateProp = 'animate';
+	} else if (action) {
+		animateProp = 'exit';
+	} else {
+		animateProp = 'animate';
+	}
+
 	return (
 		<Box
 			component={m.div}
 			variants={varContainer()}
 			initial={action ? false : 'initial'}
-			animate={action ? (animate ? 'animate' : 'exit') : 'animate'}
+			animate={animateProp}
 			exit={action ? undefined : 'exit'}
 			sx={sx}
 			{...other}
@@ -25,4 +35,4 @@ export function MotionContainer({ sx, animate, children, action = false, ...othe
 			{children}
 		</Box>
 	);
-}
+};

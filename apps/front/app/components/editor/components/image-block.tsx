@@ -13,7 +13,7 @@ import { ToolbarItem } from './toolbar-item';
 
 // ----------------------------------------------------------------------
 
-export function ImageBlock({ editor }: Pick<EditorToolbarProps, 'editor'>) {
+export const ImageBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
 	const [url, setUrl] = useState('');
 
 	const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -77,4 +77,4 @@ export function ImageBlock({ editor }: Pick<EditorToolbarProps, 'editor'>) {
 			</Popover>
 		</>
 	);
-}
+};
