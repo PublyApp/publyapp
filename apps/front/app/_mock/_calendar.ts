@@ -1,11 +1,4 @@
-import {
-	error,
-	info,
-	primary,
-	secondary,
-	success,
-	warning,
-} from '../lib/mui/theme/core';
+import { error, info, primary, secondary, success, warning } from 'src/theme/core';
 
 // ----------------------------------------------------------------------
 

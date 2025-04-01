@@ -1,4 +1,4 @@
-import { fAdd, fSub } from '@/front/utils/format-time';
+import { fAdd, fSub } from 'src/utils/format-time';
 
 import { _mock } from './_mock';
 import { _addressBooks } from './_others';
@@ -13,17 +13,14 @@ export const INVOICE_STATUS_OPTIONS = [
 	{ value: 'draft', label: 'Draft' },
 ];
 
-export const INVOICE_SERVICE_OPTIONS = Array.from({ length: 8 }, (_, index) => {
-	return {
-		id: _mock.id(index),
-		name: _tags[index],
-		price: _mock.number.price(index),
-	};
-});
+export const INVOICE_SERVICE_OPTIONS = Array.from({ length: 8 }, (_, index) => ({
+	id: _mock.id(index),
+	name: _tags[index],
+	price: _mock.number.price(index),
+}));
 
 const ITEMS = Array.from({ length: 3 }, (__, index) => {
-	const total =
-		INVOICE_SERVICE_OPTIONS[index].price * _mock.number.nativeS(index);
+	const total = INVOICE_SERVICE_OPTIONS[index].price * _mock.number.nativeS(index);
 
 	return {
 		id: _mock.id(index),
@@ -43,17 +40,11 @@ export const _invoices = Array.from({ length: 20 }, (_, index) => {
 
 	const shipping = _mock.number.price(index + 3);
 
-	const subtotal = ITEMS.reduce((accumulator, item) => {
-		return accumulator + item.price * item.quantity;
-	}, 0);
+	const subtotal = ITEMS.reduce((accumulator, item) => accumulator + item.price * item.quantity, 0);
 
 	const totalAmount = subtotal - shipping - discount + taxes;
 
-	const status =
-		(index % 2 && 'paid') ||
-		(index % 3 && 'pending') ||
-		(index % 4 && 'overdue') ||
-		'draft';
+	const status = (index % 2 && 'paid') || (index % 3 && 'pending') || (index % 4 && 'overdue') || 'draft';
 
 	return {
 		id: _mock.id(index),

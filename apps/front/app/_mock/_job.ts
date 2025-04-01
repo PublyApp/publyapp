@@ -27,11 +27,7 @@ export const JOB_SKILL_OPTIONS = [
 	'Problem Diagnosis',
 ];
 
-export const JOB_WORKING_SCHEDULE_OPTIONS = [
-	'Monday to Friday',
-	'Weekend availability',
-	'Day shift',
-];
+export const JOB_WORKING_SCHEDULE_OPTIONS = ['Monday to Friday', 'Weekend availability', 'Day shift'];
 
 export const JOB_EMPLOYMENT_TYPE_OPTIONS = [
 	{ label: 'Full-time', value: 'Full-time' },
@@ -71,14 +67,12 @@ export const JOB_SORT_OPTIONS = [
 	{ label: 'Oldest', value: 'oldest' },
 ];
 
-const CANDIDATES = Array.from({ length: 12 }, (_, index) => {
-	return {
-		id: _mock.id(index),
-		role: _mock.role(index),
-		name: _mock.fullName(index),
-		avatarUrl: _mock.image.avatar(index),
-	};
-});
+const CANDIDATES = Array.from({ length: 12 }, (_, index) => ({
+	id: _mock.id(index),
+	role: _mock.role(index),
+	name: _mock.fullName(index),
+	avatarUrl: _mock.image.avatar(index),
+}));
 
 const CONTENT = `
 <h6>Job description</h6>
@@ -119,14 +113,9 @@ export const _jobs = Array.from({ length: 12 }, (_, index) => {
 		negotiable: _mock.boolean(index),
 	};
 
-	const benefits = JOB_BENEFIT_OPTIONS.slice(0, 3).map((option) => {
-		return option.label;
-	});
+	const benefits = JOB_BENEFIT_OPTIONS.slice(0, 3).map((option) => option.label);
 
-	const experience =
-		JOB_EXPERIENCE_OPTIONS.map((option) => {
-			return option.label;
-		})[index] || JOB_EXPERIENCE_OPTIONS[1].label;
+	const experience = JOB_EXPERIENCE_OPTIONS.map((option) => option.label)[index] || JOB_EXPERIENCE_OPTIONS[1].label;
 
 	const employmentTypes = (index % 2 && ['Part-time']) ||
 		(index % 3 && ['On demand']) ||

@@ -3,11 +3,11 @@ import { useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { mergeClasses } from 'minimal-shared/utils';
-import { usePathname } from 'src/routes/hooks';
 
 import { Logo } from '@/front/components/logo';
 import { NavSectionVertical, type NavSectionProps } from '@/front/components/nav-section';
 import { Scrollbar } from '@/front/components/scrollbar';
+import { usePathname } from '@/front/hooks/use-pathname';
 
 import { NavUpgrade } from '../components/nav-upgrade';
 import { layoutClasses } from '../core/classes';
@@ -23,7 +23,16 @@ type NavMobileProps = NavSectionProps & {
 	};
 };
 
-export function NavMobile({ sx, data, open, slots, onClose, className, checkPermissions, ...other }: NavMobileProps) {
+export const NavMobile = ({
+	sx,
+	data,
+	open,
+	slots,
+	onClose,
+	className,
+	checkPermissions,
+	...other
+}: NavMobileProps) => {
 	const pathname = usePathname();
 
 	useEffect(() => {
@@ -70,4 +79,4 @@ export function NavMobile({ sx, data, open, slots, onClose, className, checkPerm
 			{slots?.bottomArea}
 		</Drawer>
 	);
-}
+};
