@@ -21,16 +21,18 @@ type PaletteColor = (typeof COLORS)[number];
 
 // ----------------------------------------------------------------------
 
-function styleColors(ownerState: ButtonProps, styles: (val: PaletteColor) => CSSObject) {
+const styleColors = (ownerState: ButtonProps, styles: (val: PaletteColor) => CSSObject) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (!ownerState.disabled && ownerState.color === color) {
+			// eslint-disable-next-line no-param-reassign
 			acc = styles(color);
 		}
+
 		return acc;
 	}, {});
 
 	return outputStyle;
-}
+};
 
 // ----------------------------------------------------------------------
 
@@ -38,33 +40,47 @@ const MuiButtonBase: Components<Theme>['MuiButtonBase'] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
-	styleOverrides: { root: ({ theme }) => ({ fontFamily: theme.typography.fontFamily }) },
+	styleOverrides: {
+		root: ({ theme }) => {
+			return { fontFamily: theme.typography.fontFamily };
+		},
+	},
 };
 
 // ----------------------------------------------------------------------
 
 const softVariant: Record<string, ComponentsVariants<Theme>['MuiButton']> = {
-	colors: COLORS.map((color) => ({
-		props: ({ ownerState }) => !ownerState.disabled && ownerState.variant === 'soft' && ownerState.color === color,
-		style: ({ theme }) => ({
-			color: theme.vars.palette[color].dark,
-			backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.16),
-			'&:hover': { backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.32) },
-			...theme.applyStyles('dark', {
-				color: theme.vars.palette[color].light,
-			}),
-		}),
-	})),
+	colors: COLORS.map((color) => {
+		return {
+			props: ({ ownerState }) => {
+				return !ownerState.disabled && ownerState.variant === 'soft' && ownerState.color === color;
+			},
+			style: ({ theme }) => {
+				return {
+					color: theme.vars.palette[color].dark,
+					backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.16),
+					'&:hover': { backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.32) },
+					...theme.applyStyles('dark', {
+						color: theme.vars.palette[color].light,
+					}),
+				};
+			},
+		};
+	}),
 	base: [
 		{
-			props: ({ ownerState }) => ownerState.variant === 'soft',
-			style: ({ theme }) => ({
-				backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-				'&:hover': { backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24) },
-				[`&.${buttonClasses.disabled}`]: {
-					backgroundColor: theme.vars.palette.action.disabledBackground,
-				},
-			}),
+			props: ({ ownerState }) => {
+				return ownerState.variant === 'soft';
+			},
+			style: ({ theme }) => {
+				return {
+					backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+					'&:hover': { backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24) },
+					[`&.${buttonClasses.disabled}`]: {
+						backgroundColor: theme.vars.palette.action.disabledBackground,
+					},
+				};
+			},
 		},
 	],
 };
@@ -85,9 +101,11 @@ const MuiButton: Components<Theme>['MuiButton'] = {
 		 */
 		contained: ({ theme, ownerState }) => {
 			const styled = {
-				colors: styleColors(ownerState, (color) => ({
-					'&:hover': { boxShadow: theme.vars.customShadows[color] },
-				})),
+				colors: styleColors(ownerState, (color) => {
+					return {
+						'&:hover': { boxShadow: theme.vars.customShadows[color] },
+					};
+				}),
 				inheritColor: {
 					...(ownerState.color === 'inherit' &&
 						!ownerState.disabled && {
@@ -112,9 +130,11 @@ const MuiButton: Components<Theme>['MuiButton'] = {
 		 */
 		outlined: ({ theme, ownerState }) => {
 			const styled = {
-				colors: styleColors(ownerState, (color) => ({
-					borderColor: varAlpha(theme.vars.palette[color].mainChannel, 0.48),
-				})),
+				colors: styleColors(ownerState, (color) => {
+					return {
+						borderColor: varAlpha(theme.vars.palette[color].mainChannel, 0.48),
+					};
+				}),
 				inheritColor: {
 					...(ownerState.color === 'inherit' &&
 						!ownerState.disabled && {
@@ -145,23 +165,29 @@ const MuiButton: Components<Theme>['MuiButton'] = {
 		/**
 		 * @sizes
 		 */
-		sizeSmall: ({ ownerState }) => ({
-			height: 30,
-			...(ownerState.variant === 'text'
-				? { paddingLeft: '4px', paddingRight: '4px' }
-				: { paddingLeft: '8px', paddingRight: '8px' }),
-		}),
-		sizeMedium: ({ ownerState }) => ({
-			...(ownerState.variant === 'text'
-				? { paddingLeft: '8px', paddingRight: '8px' }
-				: { paddingLeft: '12px', paddingRight: '12px' }),
-		}),
-		sizeLarge: ({ ownerState }) => ({
-			height: 48,
-			...(ownerState.variant === 'text'
-				? { paddingLeft: '10px', paddingRight: '10px' }
-				: { paddingLeft: '16px', paddingRight: '16px' }),
-		}),
+		sizeSmall: ({ ownerState }) => {
+			return {
+				height: 30,
+				...(ownerState.variant === 'text'
+					? { paddingLeft: '4px', paddingRight: '4px' }
+					: { paddingLeft: '8px', paddingRight: '8px' }),
+			};
+		},
+		sizeMedium: ({ ownerState }) => {
+			return {
+				...(ownerState.variant === 'text'
+					? { paddingLeft: '8px', paddingRight: '8px' }
+					: { paddingLeft: '12px', paddingRight: '12px' }),
+			};
+		},
+		sizeLarge: ({ ownerState }) => {
+			return {
+				height: 48,
+				...(ownerState.variant === 'text'
+					? { paddingLeft: '10px', paddingRight: '10px' }
+					: { paddingLeft: '16px', paddingRight: '16px' }),
+			};
+		},
 	},
 };
 

@@ -1,32 +1,39 @@
-import fs, { createWriteStream } from 'node:fs';
-import path from 'node:path';
-import { Readable, pipeline } from 'node:stream';
-import { promisify } from 'node:util';
+/* eslint-disable global-require */
+/* eslint-disable no-console */
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable no-param-reassign */
+/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable import/no-extraneous-dependencies */
+/* eslint-disable prefer-arrow/prefer-arrow-functions */
+/* eslint-disable func-style */
+
 // @ts-check
-import { createRsbuild as _createRsbuild } from '@rsbuild/core';
-import { pluginTypeCheck } from '@rsbuild/plugin-type-check';
-import _ from 'lodash';
 
-export const MONOREPO_ROOT_DIR = path.resolve(
-	import.meta.dirname,
-	'../../../../',
-);
+const path = require('path');
+const fs = require('fs');
+const { pipeline, Readable } = require('stream');
+const { promisify } = require('util');
+const { createWriteStream } = require('fs');
 
-export const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
-export const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
+const { createRsbuild: _createRsbuild } = require('@rsbuild/core');
+const { pluginTypeCheck } = require('@rsbuild/plugin-type-check');
 
+const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../../../');
+
+const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
+const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
 const PACKAGE_FILE = 'package.json';
 
-// module.exports.MONOREPO_ROOT_DIR = MONOREPO_ROOT_DIR;
-// module.exports.APPS_DIR = APPS_DIR;
-// module.exports.PACKAGES_DIR = PACKAGES_DIR;
+module.exports.MONOREPO_ROOT_DIR = MONOREPO_ROOT_DIR;
+module.exports.APPS_DIR = APPS_DIR;
+module.exports.PACKAGES_DIR = PACKAGES_DIR;
 
 /**
  * list directories of provided folder path
  * @param {string} pth
  * @returns {string[]}
  */
-export const listDirectories = (pth) => {
+const listDirectories = (pth) => {
 	const directories = fs
 		.readdirSync(pth, { withFileTypes: true })
 		.filter((dirent) => {
@@ -39,7 +46,9 @@ export const listDirectories = (pth) => {
 	return directories;
 };
 
-export const findExternals = () => {
+exports.listDirectories = listDirectories;
+
+const findExternals = () => {
 	// read all apps package.json
 	const appDirs = listDirectories(APPS_DIR);
 	const packagesDirs = listDirectories(PACKAGES_DIR);
@@ -47,24 +56,22 @@ export const findExternals = () => {
 	/** @type {Set<string>} */
 	const externalsSet = new Set();
 
-	_.forEach([...appDirs, ...packagesDirs], (dirName) => {
+	[...appDirs, ...packagesDirs].forEach((dirName) => {
 		const filePath = path.join(dirName, PACKAGE_FILE);
 
 		if (!fs.existsSync(filePath)) return;
 
-		const packageFile = JSON.parse(
-			fs.readFileSync(filePath, { encoding: 'utf-8' }),
-		);
+		const packageFile = JSON.parse(fs.readFileSync(filePath, { encoding: 'utf-8' }));
 
 		if (packageFile.dependencies) {
-			_.forEach(_.entries(packageFile.dependencies), ([key, value]) => {
+			Object.entries(packageFile.dependencies).forEach(([key, value]) => {
 				if (value === 'workspace:*') return;
 				externalsSet.add(key);
 			});
 		}
 
 		if (packageFile.devDependencies) {
-			_.forEach(_.entries(packageFile.devDependencies), ([key, value]) => {
+			Object.entries(packageFile.devDependencies).forEach(([key, value]) => {
 				if (value === 'workspace:*') return;
 				externalsSet.add(key);
 			});
@@ -74,8 +81,9 @@ export const findExternals = () => {
 	return [...externalsSet];
 };
 
-export const externals = [
-	// ..._.filter(findExternals(), (k) => { return k !== 'cloudinary' }),
+exports.findExternals = findExternals;
+
+const externals = [
 	...findExternals(),
 	'parse-server/lib/index.js',
 
@@ -112,7 +120,9 @@ export const externals = [
 	'front/build/server/index.js',
 ];
 
-export const createRsbuild = () => {
+exports.externals = externals;
+
+const createRsbuild = () => {
 	return _createRsbuild({
 		rsbuildConfig: {
 			plugins: [pluginTypeCheck()],
@@ -135,7 +145,6 @@ export const createRsbuild = () => {
 			output: {
 				target: 'node',
 				externals,
-				sourceMap: true,
 			},
 			tools: {
 				rspack: {
@@ -151,44 +160,38 @@ export const createRsbuild = () => {
 	});
 };
 
-// exports.createRsbuild = createRsbuild;
+exports.createRsbuild = createRsbuild;
 
 /**
  *
  * @param {import('@rsbuild/core').RsbuildInstance} rsbuild
  */
-export const watch = (rsbuild) => {
+const watch = (rsbuild) => {
 	rsbuild.build({
 		watch: true,
 	});
 };
 
-// exports.watch = watch;
+exports.watch = watch;
 
 /**
  *
  * @param {import('@rsbuild/core').RsbuildInstance} rsbuild
  */
-export const build = (rsbuild) => {
+const build = (rsbuild) => {
 	rsbuild.build();
 };
 
-// exports.build = build;
+exports.build = build;
 
-export const createI18nResourcesFiles = async (resources) => {
-	console.log(
-		'\x1b[32m%s\x1b[0m',
-		'====> started creating i18n resources files',
-	);
+const createI18nResourcesFiles = async (resources) => {
+	console.log('\x1b[32m%s\x1b[0m', '====> started creating i18n resources files');
 	const pipelineAsync = promisify(pipeline);
 	await Promise.all(
 		Object.entries(resources).map(async ([lang, namespaces]) => {
 			await Promise.all(
 				Object.entries(namespaces).map(async ([namespace, data]) => {
-					const filePath = path.join(
-						import.meta.dirname,
-						`../../dist/resources/${lang}.${namespace}.json`,
-					);
+					const filePath = path.join(__dirname, `../../dist/resources/${lang}.${namespace}.json`);
 					const dir = path.dirname(filePath);
 
 					if (!fs.existsSync(dir)) {
@@ -196,18 +199,12 @@ export const createI18nResourcesFiles = async (resources) => {
 					}
 
 					const writeStream = createWriteStream(filePath);
-					await pipelineAsync(
-						Readable.from([JSON.stringify(data, null, 2)]),
-						writeStream,
-					);
+					await pipelineAsync(Readable.from([JSON.stringify(data, null, 2)]), writeStream);
 				}),
 			);
 		}),
 	);
-	console.log(
-		'\x1b[32m%s\x1b[0m',
-		'====> finished creating i18n resources files',
-	);
+	console.log('\x1b[32m%s\x1b[0m', '====> finished creating i18n resources files');
 };
 
-// exports.createI18nResourcesFiles = createI18nResourcesFiles;
+exports.createI18nResourcesFiles = createI18nResourcesFiles;

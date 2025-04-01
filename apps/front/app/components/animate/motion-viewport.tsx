@@ -11,8 +11,10 @@ export type MotionViewportProps = BoxProps &
 		disableAnimate?: boolean;
 	};
 
-export function MotionViewport({ children, viewport, disableAnimate = true, ...other }: MotionViewportProps) {
-	const smDown = useMediaQuery((theme) => theme.breakpoints.down('sm'));
+export const MotionViewport = ({ children, viewport, disableAnimate = true, ...other }: MotionViewportProps) => {
+	const smDown = useMediaQuery((theme) => {
+		return theme.breakpoints.down('sm');
+	});
 
 	const disabled = smDown && disableAnimate;
 
@@ -31,4 +33,4 @@ export function MotionViewport({ children, viewport, disableAnimate = true, ...o
 			{children}
 		</Box>
 	);
-}
+};

@@ -34,13 +34,15 @@ const URLS = [
 	'https://www.cloud.com/s/c218bo6kjuqyv66/xl_david-blaine_component_tanzania_books.pdf',
 ];
 
-const SHARED_PERSONS = Array.from({ length: 20 }, (_, index) => ({
-	id: _mock.id(index),
-	name: _mock.fullName(index),
-	email: _mock.email(index),
-	avatarUrl: _mock.image.avatar(index),
-	permission: index % 2 ? 'view' : 'edit',
-}));
+const SHARED_PERSONS = Array.from({ length: 20 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		name: _mock.fullName(index),
+		email: _mock.email(index),
+		avatarUrl: _mock.image.avatar(index),
+		permission: index % 2 ? 'view' : 'edit',
+	};
+});
 
 export const FILE_TYPE_OPTIONS = [
 	'folder',
@@ -59,38 +61,48 @@ export const FILE_TYPE_OPTIONS = [
 
 // ----------------------------------------------------------------------
 
-const shared = (index: number) =>
-	(index === 0 && SHARED_PERSONS.slice(0, 5)) ||
-	(index === 1 && SHARED_PERSONS.slice(5, 9)) ||
-	(index === 2 && SHARED_PERSONS.slice(9, 11)) ||
-	(index === 3 && SHARED_PERSONS.slice(11, 12)) ||
-	[];
+const shared = (index: number) => {
+	return (
+		(index === 0 && SHARED_PERSONS.slice(0, 5)) ||
+		(index === 1 && SHARED_PERSONS.slice(5, 9)) ||
+		(index === 2 && SHARED_PERSONS.slice(9, 11)) ||
+		(index === 3 && SHARED_PERSONS.slice(11, 12)) ||
+		[]
+	);
+};
 
-export const _folders = FOLDERS.map((name, index) => ({
-	id: `${_mock.id(index)}_folder`,
-	name,
-	type: 'folder',
-	url: URLS[index],
-	shared: shared(index),
-	tags: _tags.slice(0, 5),
-	size: GB / ((index + 1) * 10),
-	totalFiles: (index + 1) * 100,
-	createdAt: _mock.time(index),
-	modifiedAt: _mock.time(index),
-	isFavorited: _mock.boolean(index + 1),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _folders = FOLDERS.map((name, index) => {
+	return {
+		id: `${_mock.id(index)}_folder`,
+		name,
+		type: 'folder',
+		url: URLS[index],
+		shared: shared(index),
+		tags: _tags.slice(0, 5),
+		size: GB / ((index + 1) * 10),
+		totalFiles: (index + 1) * 100,
+		createdAt: _mock.time(index),
+		modifiedAt: _mock.time(index),
+		isFavorited: _mock.boolean(index + 1),
+	};
+});
 
-export const _files = _fileNames.map((name, index) => ({
-	id: `${_mock.id(index)}_file`,
-	name,
-	url: URLS[index],
-	shared: shared(index),
-	tags: _tags.slice(0, 5),
-	size: GB / ((index + 1) * 500),
-	createdAt: _mock.time(index),
-	modifiedAt: _mock.time(index),
-	type: `${name.split('.').pop()}`,
-	isFavorited: _mock.boolean(index + 1),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _files = _fileNames.map((name, index) => {
+	return {
+		id: `${_mock.id(index)}_file`,
+		name,
+		url: URLS[index],
+		shared: shared(index),
+		tags: _tags.slice(0, 5),
+		size: GB / ((index + 1) * 500),
+		createdAt: _mock.time(index),
+		modifiedAt: _mock.time(index),
+		type: `${name.split('.').pop()}`,
+		isFavorited: _mock.boolean(index + 1),
+	};
+});
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _allFiles = [..._folders, ..._files];

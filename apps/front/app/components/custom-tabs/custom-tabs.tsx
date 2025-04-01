@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { styled, type SxProps, type Theme } from '@mui/material/styles';
 import { tabClasses } from '@mui/material/Tab';
 import Tabs, { type TabsProps } from '@mui/material/Tabs';
@@ -38,12 +39,7 @@ const customTabsStyles: Record<string, SxProps<Theme>> = {
 	},
 };
 
-export const CustomTabs = ({
-	children,
-	slotProps,
-	sx,
-	...other
-}: CustomTabsProps) => {
+export const CustomTabs = ({ children, slotProps, sx, ...other }: CustomTabsProps) => {
 	const isClient = useIsClient();
 
 	return (
@@ -62,23 +58,17 @@ export const CustomTabs = ({
 				...slotProps,
 				indicator: {
 					...slotProps?.indicator,
-					children: isClient && (
-						<IndicatorContent sx={slotProps?.indicatorContent?.sx} />
-					),
+					children: isClient && <IndicatorContent sx={slotProps?.indicatorContent?.sx} />,
 					sx: [
 						customTabsStyles.indicator,
-						...(Array.isArray(slotProps?.indicator?.sx)
-							? slotProps.indicator.sx
-							: [slotProps?.indicator?.sx]),
+						...(Array.isArray(slotProps?.indicator?.sx) ? slotProps.indicator.sx : [slotProps?.indicator?.sx]),
 					],
 				},
 				list: {
 					...slotProps?.list,
 					sx: [
 						customTabsStyles.list,
-						...(Array.isArray(slotProps?.list?.sx)
-							? slotProps.list.sx
-							: [slotProps?.list?.sx]),
+						...(Array.isArray(slotProps?.list?.sx) ? slotProps.list.sx : [slotProps?.list?.sx]),
 					],
 				},
 			}}

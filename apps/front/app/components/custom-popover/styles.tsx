@@ -10,24 +10,15 @@ const centerStyles: Record<string, CSSObject> = {
 	vCenter: { top: 0, bottom: 0, margin: 'auto' },
 };
 
-const getRtlPosition = (
-	position: 'left' | 'right',
-	isRtl: boolean,
-	value: number,
-): CSSObject => {
+const getRtlPosition = (position: 'left' | 'right', isRtl: boolean, value: number): CSSObject => {
 	return {
 		[position]: isRtl ? 'auto' : value,
 		[position === 'left' ? 'right' : 'left']: isRtl ? value : 'auto',
 	};
 };
 
-const createBackgroundStyles = (
-	theme: Theme,
-	color: 'cyan' | 'red',
-	size: number,
-): CSSObject => {
-	const colorChannel =
-		theme.vars.palette[color === 'cyan' ? 'info' : 'error'].mainChannel;
+const createBackgroundStyles = (theme: Theme, color: 'cyan' | 'red', size: number): CSSObject => {
+	const colorChannel = theme.vars.palette[color === 'cyan' ? 'info' : 'error'].mainChannel;
 
 	return {
 		backgroundRepeat: 'no-repeat',
@@ -88,10 +79,7 @@ export const Arrow = styled('span', {
 			},
 			{
 				props: { placement: 'top-right' },
-				style: {
-					...getRtlPosition('right', isRtl, offset),
-					...cyanBackgroundStyles,
-				},
+				style: { ...getRtlPosition('right', isRtl, offset), ...cyanBackgroundStyles },
 			},
 			/**
 			 * @position bottom*
@@ -104,10 +92,7 @@ export const Arrow = styled('span', {
 			},
 			{
 				props: { placement: 'bottom-left' },
-				style: {
-					...getRtlPosition('left', isRtl, offset),
-					...redBackgroundStyles,
-				},
+				style: { ...getRtlPosition('left', isRtl, offset), ...redBackgroundStyles },
 			},
 			{
 				props: { placement: 'bottom-center' },
@@ -145,10 +130,7 @@ export const Arrow = styled('span', {
 				props: ({ placement }) => {
 					return placement?.startsWith('right-');
 				},
-				style: {
-					...getRtlPosition('right', isRtl, 0),
-					...arrowDirection.right,
-				},
+				style: { ...getRtlPosition('right', isRtl, 0), ...arrowDirection.right },
 			},
 			{
 				props: { placement: 'right-top' },

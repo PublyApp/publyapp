@@ -9,7 +9,7 @@ type FormHeadProps = BoxProps & {
 	description?: React.ReactNode;
 };
 
-export function FormHead({ sx, icon, title, description, ...other }: FormHeadProps) {
+export const FormHead = ({ sx, icon, title, description, ...other }: FormHeadProps) => {
 	return (
 		<>
 			{icon && (
@@ -20,14 +20,16 @@ export function FormHead({ sx, icon, title, description, ...other }: FormHeadPro
 
 			<Box
 				sx={[
-					() => ({
-						mb: 5,
-						gap: 1.5,
-						display: 'flex',
-						textAlign: 'center',
-						whiteSpace: 'pre-line',
-						flexDirection: 'column',
-					}),
+					() => {
+						return {
+							mb: 5,
+							gap: 1.5,
+							display: 'flex',
+							textAlign: 'center',
+							whiteSpace: 'pre-line',
+							flexDirection: 'column',
+						};
+					},
 					...(Array.isArray(sx) ? sx : [sx]),
 				]}
 				{...other}
@@ -42,4 +44,4 @@ export function FormHead({ sx, icon, title, description, ...other }: FormHeadPro
 			</Box>
 		</>
 	);
-}
+};

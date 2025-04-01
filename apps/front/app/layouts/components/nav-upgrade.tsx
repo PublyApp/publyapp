@@ -4,14 +4,13 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
-import { useMockedUser } from 'src/auth/hooks';
-import { paths } from 'src/routes/paths';
 
 import { Label } from '@/front/components/label';
+import { useMockedUser } from '@/front/hooks/use-mocked-user';
 
 // ----------------------------------------------------------------------
 
-export function NavUpgrade({ sx, ...other }: BoxProps) {
+export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
 	const { user } = useMockedUser();
 
 	return (
@@ -48,46 +47,50 @@ export function NavUpgrade({ sx, ...other }: BoxProps) {
 					</Typography>
 				</Box>
 
-				<Button variant="contained" href={paths.minimalStore} target="_blank" rel="noopener">
+				<Button variant="contained" href="paths.minimalStore" target="_blank" rel="noopener">
 					Upgrade to Pro
 				</Button>
 			</Box>
 		</Box>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-export function UpgradeBlock({ sx, ...other }: BoxProps) {
+export const UpgradeBlock = ({ sx, ...other }: BoxProps) => {
 	return (
 		<Box
 			sx={[
-				(theme) => ({
-					...theme.mixins.bgGradient({
-						images: [
-							`linear-gradient(135deg, ${varAlpha(theme.vars.palette.error.lightChannel, 0.92)}, ${varAlpha(theme.vars.palette.secondary.darkChannel, 0.92)})`,
-							`url(/assets/background/background-7.webp)`,
-						],
-					}),
-					px: 3,
-					py: 4,
-					borderRadius: 2,
-					position: 'relative',
-				}),
+				(theme) => {
+					return {
+						...theme.mixins.bgGradient({
+							images: [
+								`linear-gradient(135deg, ${varAlpha(theme.vars.palette.error.lightChannel, 0.92)}, ${varAlpha(theme.vars.palette.secondary.darkChannel, 0.92)})`,
+								'url(/assets/background/background-7.webp)',
+							],
+						}),
+						px: 3,
+						py: 4,
+						borderRadius: 2,
+						position: 'relative',
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
 		>
 			<Box
-				sx={(theme) => ({
-					top: 0,
-					left: 0,
-					width: 1,
-					height: 1,
-					borderRadius: 2,
-					position: 'absolute',
-					border: `solid 3px ${varAlpha(theme.vars.palette.common.whiteChannel, 0.16)}`,
-				})}
+				sx={(theme) => {
+					return {
+						top: 0,
+						left: 0,
+						width: 1,
+						height: 1,
+						borderRadius: 2,
+						position: 'absolute',
+						border: `solid 3px ${varAlpha(theme.vars.palette.common.whiteChannel, 0.16)}`,
+					};
+				}}
 			/>
 
 			<Box
@@ -100,7 +103,7 @@ export function UpgradeBlock({ sx, ...other }: BoxProps) {
 					repeatDelay: 0,
 				}}
 				alt="Small Rocket"
-				src={`/assets/illustrations/illustration-rocket-small.webp`}
+				src="/assets/illustrations/illustration-rocket-small.webp"
 				sx={{
 					right: 0,
 					width: 112,
@@ -139,4 +142,4 @@ export function UpgradeBlock({ sx, ...other }: BoxProps) {
 			</Box>
 		</Box>
 	);
-}
+};

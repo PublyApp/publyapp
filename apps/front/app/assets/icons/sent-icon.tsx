@@ -4,20 +4,22 @@ import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 
 // ----------------------------------------------------------------------
 
-function SentIcon({ sx, ...other }: SvgIconProps) {
+const SentIcon = ({ sx, ...other }: SvgIconProps) => {
 	return (
 		<SvgIcon
 			fill="none"
 			viewBox="0 0 96 96"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => ({
-					'--primary-main': theme.vars.palette.primary.main,
-					'--primary-dark': theme.vars.palette.primary.dark,
-					width: 96,
-					flexShrink: 0,
-					height: 'auto',
-				}),
+				(theme) => {
+					return {
+						'--primary-main': theme.vars.palette.primary.main,
+						'--primary-dark': theme.vars.palette.primary.dark,
+						width: 96,
+						flexShrink: 0,
+						height: 'auto',
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -59,6 +61,6 @@ function SentIcon({ sx, ...other }: SvgIconProps) {
 			</defs>
 		</SvgIcon>
 	);
-}
+};
 
 export default memo(SentIcon);

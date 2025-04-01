@@ -1,4 +1,4 @@
-import { createClasses } from 'src/theme/create-classes';
+import { createClasses } from '@/front/lib/mui/theme/create-classes';
 
 // ----------------------------------------------------------------------
 

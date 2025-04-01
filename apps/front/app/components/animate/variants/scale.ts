@@ -16,7 +16,7 @@ export const varScale = (direction: Direction, options?: Options): Variants => {
 	const transitionOut = options?.transitionOut;
 
 	const variants: Record<Direction, Variants> = {
-		/**** In ****/
+		/** ** In *** */
 		in: {
 			initial: { scale: 0, opacity: 0 },
 			animate: { scale: 1, opacity: 1, transition: transitionEnter(transitionIn) },
@@ -32,7 +32,7 @@ export const varScale = (direction: Direction, options?: Options): Variants => {
 			animate: { scaleY: 1, opacity: 1, transition: transitionEnter(transitionIn) },
 			exit: { scaleY: 0, opacity: 0, transition: transitionExit(transitionOut) },
 		},
-		/**** Out ****/
+		/** ** Out *** */
 		out: {
 			initial: { scale: 1, opacity: 1 },
 			animate: { scale: 0, opacity: 0, transition: transitionEnter(transitionIn) },

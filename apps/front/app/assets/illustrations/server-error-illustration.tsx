@@ -8,27 +8,29 @@ import { BackgroundShape } from './background-shape';
 
 type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
-function ServerErrorIllustration({ hideBackground, sx, ...other }: SvgProps) {
-	const renderCharacterImage = () => (
-		<image href={`/assets/illustrations/characters/character-study.webp`} height="240" x="320" y="60" />
-	);
+const ServerErrorIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
+	const renderCharacterImage = () => {
+		return <image href="/assets/illustrations/characters/character-study.webp" height="240" x="320" y="60" />;
+	};
 
 	return (
 		<SvgIcon
 			viewBox="0 0 480 360"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => ({
-					'--primary-lighter': theme.vars.palette.primary.lighter,
-					'--primary-light': theme.vars.palette.primary.light,
-					'--primary-main': theme.vars.palette.primary.main,
-					'--primary-dark': theme.vars.palette.primary.dark,
-					'--primary-darker': theme.vars.palette.primary.darker,
-					width: 320,
-					maxWidth: 1,
-					flexShrink: 0,
-					height: 'auto',
-				}),
+				(theme) => {
+					return {
+						'--primary-lighter': theme.vars.palette.primary.lighter,
+						'--primary-light': theme.vars.palette.primary.light,
+						'--primary-main': theme.vars.palette.primary.main,
+						'--primary-dark': theme.vars.palette.primary.dark,
+						'--primary-darker': theme.vars.palette.primary.darker,
+						width: 320,
+						maxWidth: 1,
+						flexShrink: 0,
+						height: 'auto',
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -140,6 +142,6 @@ function ServerErrorIllustration({ hideBackground, sx, ...other }: SvgProps) {
 			{renderCharacterImage()}
 		</SvgIcon>
 	);
-}
+};
 
 export default memo(ServerErrorIllustration);

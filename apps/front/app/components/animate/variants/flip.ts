@@ -17,7 +17,7 @@ export const varFlip = (direction: Direction, options?: Options): Variants => {
 	const transitionOut = options?.transitionOut;
 
 	const variants: Record<Direction, Variants> = {
-		/**** In ****/
+		/** ** In *** */
 		inX: {
 			initial: { rotateX: -180, opacity: 0 },
 			animate: { rotateX: 0, opacity: 1, transition: transitionEnter(transitionIn) },
@@ -28,7 +28,7 @@ export const varFlip = (direction: Direction, options?: Options): Variants => {
 			animate: { rotateY: 0, opacity: 1, transition: transitionEnter(transitionIn) },
 			exit: { rotateY: -180, opacity: 0, transition: transitionExit(transitionOut) },
 		},
-		/**** Out ****/
+		/** ** Out *** */
 		outX: {
 			initial: { rotateX: 0, opacity: 1 },
 			animate: { rotateX: 70, opacity: 0, transition: transitionExit(transitionOut) },

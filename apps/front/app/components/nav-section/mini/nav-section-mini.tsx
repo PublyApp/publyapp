@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useTheme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
@@ -9,7 +10,7 @@ import { NavList } from './nav-list';
 
 // ----------------------------------------------------------------------
 
-export function NavSectionMini({
+export const NavSectionMini = ({
 	sx,
 	data,
 	render,
@@ -19,7 +20,7 @@ export function NavSectionMini({
 	enabledRootRedirect,
 	cssVars: overridesVars,
 	...other
-}: NavSectionProps) {
+}: NavSectionProps) => {
 	const theme = useTheme();
 
 	const cssVars = { ...navSectionCssVars.mini(theme), ...overridesVars };
@@ -31,41 +32,45 @@ export function NavSectionMini({
 			{...other}
 		>
 			<NavUl sx={{ flex: '1 1 auto', gap: 'var(--nav-item-gap)' }}>
-				{data.map((group) => (
-					<Group
-						key={group.subheader ?? group.items[0].title}
-						render={render}
-						cssVars={cssVars}
-						items={group.items}
-						slotProps={slotProps}
-						checkPermissions={checkPermissions}
-						enabledRootRedirect={enabledRootRedirect}
-					/>
-				))}
+				{data.map((group) => {
+					return (
+						<Group
+							key={group.subheader ?? group.items[0].title}
+							render={render}
+							cssVars={cssVars}
+							items={group.items}
+							slotProps={slotProps}
+							checkPermissions={checkPermissions}
+							enabledRootRedirect={enabledRootRedirect}
+						/>
+					);
+				})}
 			</NavUl>
 		</Nav>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-function Group({ items, render, cssVars, slotProps, checkPermissions, enabledRootRedirect }: NavGroupProps) {
+const Group = ({ items, render, cssVars, slotProps, checkPermissions, enabledRootRedirect }: NavGroupProps) => {
 	return (
 		<NavLi>
 			<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
-				{items.map((list) => (
-					<NavList
-						key={list.title}
-						depth={1}
-						data={list}
-						render={render}
-						cssVars={cssVars}
-						slotProps={slotProps}
-						checkPermissions={checkPermissions}
-						enabledRootRedirect={enabledRootRedirect}
-					/>
-				))}
+				{items.map((list) => {
+					return (
+						<NavList
+							key={list.title}
+							depth={1}
+							data={list}
+							render={render}
+							cssVars={cssVars}
+							slotProps={slotProps}
+							checkPermissions={checkPermissions}
+							enabledRootRedirect={enabledRootRedirect}
+						/>
+					);
+				})}
 			</NavUl>
 		</NavLi>
 	);
-}
+};

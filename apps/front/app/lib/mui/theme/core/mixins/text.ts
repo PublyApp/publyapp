@@ -13,7 +13,7 @@ const defaultMuiTheme = getTheme();
  * @usage
  * ...theme.mixins.textGradient(`to right, ${theme.vars.palette.text.primary}, ${alpha(theme.vars.palette.text.primary, 0.2)}`
  */
-export function textGradient(color?: string): CSSObject {
+export const textGradient = (color?: string): CSSObject => {
 	return {
 		background: `linear-gradient(${color})`,
 		WebkitBackgroundClip: 'text',
@@ -22,7 +22,7 @@ export function textGradient(color?: string): CSSObject {
 		textFillColor: 'transparent',
 		color: 'transparent',
 	};
-}
+};
 
 // ----------------------------------------------------------------------
 
@@ -41,23 +41,23 @@ export type MaxLineProps = {
 	persistent?: Partial<React.CSSProperties>;
 };
 
-function getFontSize(fontSize: React.CSSProperties['fontSize']) {
+const getFontSize = (fontSize: React.CSSProperties['fontSize']) => {
 	return typeof fontSize === 'string' ? remToPx(fontSize) : fontSize;
-}
+};
 
-function getLineHeight(lineHeight: React.CSSProperties['lineHeight'], fontSize?: number) {
+const getLineHeight = (lineHeight: React.CSSProperties['lineHeight'], fontSize?: number) => {
 	if (typeof lineHeight === 'string') {
 		return fontSize ? remToPx(lineHeight) / fontSize : 1;
 	}
 
 	return lineHeight;
-}
+};
 
-function calculateHeight(fontSize: number, lineHeight: number, line: number): number {
+const calculateHeight = (fontSize: number, lineHeight: number, line: number): number => {
 	return fontSize * lineHeight * line;
-}
+};
 
-export function maxLine({ line, persistent }: MaxLineProps): CSSObject {
+export const maxLine = ({ line, persistent }: MaxLineProps): CSSObject => {
 	const breakpoints: Breakpoint[] = defaultMuiTheme.breakpoints.keys;
 
 	const baseStyles: CSSObject = {
@@ -96,4 +96,4 @@ export function maxLine({ line, persistent }: MaxLineProps): CSSObject {
 		height: calculateHeight(fontSizeBase, lineHeight, line),
 		...responsiveStyles,
 	};
-}
+};
