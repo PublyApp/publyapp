@@ -80,14 +80,10 @@ fse.copyFileSync(serverAppPackageJsonSrc, serverAppPackageJsonDest);
 // --------------------------------------------------------------------------------------//
 //                                   build the server                                    //
 // --------------------------------------------------------------------------------------//
-const buildArgsServer = ['build', `--filter=${SERVER_APP_NAME}`];
-spawnSync(pnpmCommand, buildArgsServer, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
-
-// --------------------------------------------------------------------------------------//
-//                                   build the front                                    //
-// -------------------------------------------------------------------------------------//
-const buildArgsFront = ['build', `--filter=${FRONT_APP_NAME}`];
-spawnSync(pnpmCommand, buildArgsFront, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+// const buildArgs = ['turbo', 'run', 'build', `--filter=${SERVER_APP_NAME}`];
+// spawnSync(npxCommand, buildArgs, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+const buildArgs = ['run', 'build', `--filter=${SERVER_APP_NAME}`];
+spawnSync(npmCommand, buildArgs, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
 
 // --------------------------------------------------------------------------------------//
 //                                   copy the builds                                     //
@@ -124,7 +120,8 @@ subdirectories.forEach((subdirectory) => {
 // --------------------------------------------------------------------------------------//
 //                                  set start command                                    //
 // --------------------------------------------------------------------------------------//
-const mainFile = path.relative(MONOREPO_ROOT_DIR, path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'));
+const mainFile = path.relative(MONOREPO_ROOT_DIR, path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.js'));
+// const mainFile = path.relative(MONOREPO_ROOT_DIR, path.join(MONOREPO_ROOT_DIR, appJsFileName));
 // console.log(mainFile);
 const START_SCRIPT = `node ./${mainFile.replace(/\\/g, '/')}`;
 const args = ['pnpm', 'pkg', 'set', `scripts.start="${START_SCRIPT}"`];
