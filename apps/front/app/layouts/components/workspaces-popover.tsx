@@ -10,10 +10,11 @@ import MenuList from '@mui/material/MenuList';
 import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
-import { CustomPopover } from 'src/components/custom-popover';
-import { Iconify } from 'src/components/iconify';
-import { Label } from 'src/components/label';
-import { Scrollbar } from 'src/components/scrollbar';
+
+import { CustomPopover } from '@/front/components/custom-popover';
+import { Iconify } from '@/front/components/iconify';
+import { Label } from '@/front/components/label';
+import { Scrollbar } from '@/front/components/scrollbar';
 
 // ----------------------------------------------------------------------
 

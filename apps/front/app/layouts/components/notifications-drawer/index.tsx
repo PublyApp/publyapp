@@ -10,11 +10,12 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { useBoolean } from 'minimal-shared/hooks';
-import { transitionTap, varHover, varTap } from 'src/components/animate';
-import { CustomTabs } from 'src/components/custom-tabs';
-import { Iconify } from 'src/components/iconify';
-import { Label } from 'src/components/label';
-import { Scrollbar } from 'src/components/scrollbar';
+
+import { transitionTap, varHover, varTap } from '@/front/components/animate';
+import { CustomTabs } from '@/front/components/custom-tabs';
+import { Iconify } from '@/front/components/iconify';
+import { Label } from '@/front/components/label';
+import { Scrollbar } from '@/front/components/scrollbar';
 
 import { NotificationItem, type NotificationItemProps } from './notification-item';
 

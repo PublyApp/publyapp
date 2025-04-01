@@ -5,8 +5,9 @@ import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 import { useMockedUser } from 'src/auth/hooks';
-import { Label } from 'src/components/label';
 import { paths } from 'src/routes/paths';
+
+import { Label } from '@/front/components/label';
 
 // ----------------------------------------------------------------------
 

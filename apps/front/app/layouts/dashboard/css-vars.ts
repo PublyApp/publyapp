@@ -1,7 +1,8 @@
 import type { CSSObject, Theme } from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
-import { bulletColor } from 'src/components/nav-section';
-import type { SettingsState } from 'src/components/settings';
+
+import { bulletColor } from '@/front/components/nav-section';
+import type { SettingsState } from '@/front/components/settings';
 
 // ----------------------------------------------------------------------
 

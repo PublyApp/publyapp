@@ -7,8 +7,8 @@ import Link from '@mui/material/Link';
 import { styled, type Breakpoint } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
-// import { Iconify } from 'src/components/iconify';
-// import { Logo } from 'src/components/logo';
+// import { Iconify } from '@/front/components/iconify';
+// import { Logo } from '@/front/components/logo';
 // import { RouterLink } from 'src/routes/components';
 // import { paths } from 'src/routes/paths';
 
