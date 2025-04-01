@@ -54,8 +54,8 @@ const patchParseServerBlockListForBunRuntime = async () => {
 };
 
 patchClassNameRegex = async () => {
-	const filePath1 = path.resolve(__dirname, '../node_modules/parse-server/lib/controllers/SchemaController.js');
-	const filePath2 = path.resolve(__dirname, '../../../node_modules/parse-server/lib/controllers/SchemaController.js');
+	const filePath1 = path.resolve(__dirname, '../node_modules/parse-server/lib/Controllers/SchemaController.js');
+	const filePath2 = path.resolve(__dirname, '../../../node_modules/parse-server/lib/Controllers/SchemaController.js');
 
 	const exists1 = fs.existsSync(filePath1);
 
