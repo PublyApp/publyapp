@@ -1,75 +1,55 @@
 {
-	"name": "pdf-vite",
-	"version": "0.0.0",
-	"private": true,
-	"scripts": {
-		"// =============== BUILD SCRIPTS ===============": "=============================",
-		"build": "turbo build",
-		"build:local": "turbo build:local",
-		"build:deploy": "node ./scripts/deploy.mjs",
-		"// =============== START SCRIPTS ===============": "=============================",
-		"start:test-online": "pnpm run --filter server start:test-online",
-		"// =============== DEV SCRIPTS ===============": "=============================",
-		"dev": "turbo dev",
-		"dev:server": "pnpm run dev:server:pnpm",
-		"dev:front": "pnpm run dev:front:pnpm",
-		"dev:server:bun": "bun run --filter server --elide-lines 0 dev",
-		"dev:front:bun": "bun run --filter front --elide-lines 0 dev",
-		"dev:server:pnpm": "pnpm run --filter server dev",
-		"dev:front:pnpm": "pnpm run --filter front dev",
-		"// =============== TSC SCRIPTS ===============": "=============================",
-		"tsc:server": "pnpm run tsc:server:pnpm",
-		"tsc:front": "pnpm run tsc:front:pnpm",
-		"tsc:server:bun": "bun run --filter server type-check",
-		"tsc:front:bun": "bun run --filter front type-check",
-		"tsc:server:pnpm": "pnpm run --filter server type-check",
-		"tsc:front:pnpm": "pnpm run --filter front type-check",
+  "name": "devist-platform",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "// =============== BUILD SCRIPTS ===============": "=============================",
+    "build": "turbo build",
+    "build:local": "turbo build:local",
+    "build:railway": "turbo build --filter server --force",
+    "build:local:railway": "turbo build:local --filter server --force",
+    "// =============== START SCRIPTS ===============": "=============================",
+    "start:railway": "pnpm --filter server run start",
+    "start:test-online": "pnpm --filter server run start:test-online",
+    "// =============== DEV SCRIPTS ===============": "=============================",
+    "dev": "turbo dev",
+    "dev:server": "pnpm --filter server run dev",
+    "dev:front": "pnpm --filter front run dev",
+    "// =============== TSC SCRIPTS ===============": "=============================",
+    "tsc:server": "pnpm --filter server run type-check",
+    "tsc:front": "pnpm --filter front run type-check",
 		"// =============== SEED COMMANDS =================": "================================",
-		"seed": "bun run --filter server seed",
-		"seed:debug": "bun run --filter server seed:debug",
-		"// =============== LINTING ===============": "================================",
-		"format:check": "biome format .",
-		"format:write": "biome format --write .",
-		"lint:check": "biome lint",
-		"lint:write": "biome lint --write .",
-		"// =============== MISC ===============": "================================",
-		"knip": "knip",
-		"prepare": "husky",
-		"update-deps": "pnpm up -r"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^2.1.1",
-		"@types/node": "^20.19.7",
-		"archiver": "^6.0.2",
-		"dotenv": "^17.2.0",
-		"fs-extra": "^11.2.0",
-		"husky": "^9.0.11",
-		"json": "^11.0.0",
-		"knip": "^5.46.4",
-		"lint-staged": "^15.5.2",
-		"lodash": "^4.17.21",
-		"tsconfig": "workspace:*",
-		"turbo": "^2.0.3",
-		"typescript": "^5.8.3"
-	},
-	"packageManager": "pnpm@10.13.1",
-	"engines": {
-		"node": ">=v24.x",
-		"bun": ">=1.2.17"
-	},
-	"trustedDependencies": [
-		"sharp"
-	],
-	"workspaces": {
-		"packages": [
-			"apps/*",
-			"packages/*"
-		]
-	},
-	"dependencies": {
-		"cookie": "^1.0.2",
-		"isbot": "^5.1.28",
-		"nprogress": "^0.2.0",
-		"serialize-error": "^12.0.0"
-	}
+		"seed": "pnpm --filter server run seed",
+		"seed:debug": "pnpm --filter server run seed:debug",
+    "// =============== MISC ===============": "================================",
+    "format": "prettier --write .",
+    "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
+    "prepare": "husky install",
+    "update-deps": "pnpm up -i -r",
+    "check-format": "prettier --check .",
+    "prepare:deploy:server": "pnpm ./scripts/deploy/server/index.js"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.8.3",
+    "@ianvs/prettier-plugin-sort-imports": "^4.1.1",
+    "archiver": "^7.0.1",
+    "dotenv": "^16.3.1",
+    "eslint": "^8.56.0",
+    "eslint-config-custom-base": "workspace:*",
+    "fs-extra": "^11.2.0",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.2",
+    "tsconfig": "workspace:*",
+    "turbo": "^2.0.3",
+    "typescript": "^5.5.2"
+  },
+  "packageManager": "pnpm@8.15.7",
+  "engines": {
+    "node": ">=20.12.2"
+  },
+  "trustedDependencies": [
+    "sharp"
+  ]
 }
