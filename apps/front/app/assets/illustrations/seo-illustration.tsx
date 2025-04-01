@@ -8,24 +8,26 @@ import { BackgroundShape } from './background-shape';
 
 type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
-function SeoIllustration({ hideBackground, sx, ...other }: SvgProps) {
-	const renderCharacterImage = () => (
-		<image href={`/assets/illustrations/characters/character-present.webp`} height="280" x="320" y="40" />
-	);
+const SeoIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
+	const renderCharacterImage = () => {
+		return <image href="/assets/illustrations/characters/character-present.webp" height="280" x="320" y="40" />;
+	};
 
 	return (
 		<SvgIcon
 			viewBox="0 0 480 360"
 			xmlns="http://www.w3.org/2000/svg"
 			sx={[
-				(theme) => ({
-					'--primary-light': theme.vars.palette.primary.light,
-					'--primary-dark': theme.vars.palette.primary.dark,
-					width: 320,
-					maxWidth: 1,
-					flexShrink: 0,
-					height: 'auto',
-				}),
+				(theme) => {
+					return {
+						'--primary-light': theme.vars.palette.primary.light,
+						'--primary-dark': theme.vars.palette.primary.dark,
+						width: 320,
+						maxWidth: 1,
+						flexShrink: 0,
+						height: 'auto',
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -227,6 +229,6 @@ function SeoIllustration({ hideBackground, sx, ...other }: SvgProps) {
 			{renderCharacterImage()}
 		</SvgIcon>
 	);
-}
+};
 
 export default memo(SeoIllustration);

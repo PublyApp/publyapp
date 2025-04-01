@@ -1,40 +1,49 @@
-import { CONFIG } from 'src/global-config';
-import { today } from 'src/utils/format-time';
+import { today } from '@/front/utils/format-time';
 
 import { _mock } from './_mock';
 
 // APP
 // ----------------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _appRelated = ['Microsoft office 365', 'Opera', 'Adobe acrobat reader DC', 'Joplin', 'Topaz photo AI'].map(
-	(name, index) => ({
-		id: _mock.id(index),
-		name,
-		downloaded: _mock.number.nativeL(index),
-		ratingNumber: _mock.number.rating(index),
-		size: _mock.number.nativeL(index) * 1024,
-		totalReviews: _mock.number.nativeL(index),
-		shortcut: `${CONFIG.assetsDir}/assets/icons/apps/ic-app-${index + 1}.webp`,
-		price: [2, 4].includes(index) ? _mock.number.price(index) : 0,
-	}),
+	(name, index) => {
+		return {
+			id: _mock.id(index),
+			name,
+			downloaded: _mock.number.nativeL(index),
+			ratingNumber: _mock.number.rating(index),
+			size: _mock.number.nativeL(index) * 1024,
+			totalReviews: _mock.number.nativeL(index),
+			shortcut: `/assets/icons/apps/ic-app-${index + 1}.webp`,
+			price: [2, 4].includes(index) ? _mock.number.price(index) : 0,
+		};
+	},
 );
 
-export const _appInstalled = ['Germany', 'England', 'France', 'Korean', 'USA'].map((country, index) => ({
-	id: _mock.id(index),
-	countryName: country,
-	android: _mock.number.nativeL(index),
-	windows: _mock.number.nativeL(index + 1),
-	apple: _mock.number.nativeL(index + 2),
-	countryCode: ['de', 'gb', 'fr', 'kr', 'us'][index],
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _appInstalled = ['Germany', 'England', 'France', 'Korean', 'USA'].map((country, index) => {
+	return {
+		id: _mock.id(index),
+		countryName: country,
+		android: _mock.number.nativeL(index),
+		windows: _mock.number.nativeL(index + 1),
+		apple: _mock.number.nativeL(index + 2),
+		countryCode: ['de', 'gb', 'fr', 'kr', 'us'][index],
+	};
+});
 
-export const _appAuthors = Array.from({ length: 3 }, (_, index) => ({
-	id: _mock.id(index),
-	name: _mock.fullName(index),
-	avatarUrl: _mock.image.avatar(index),
-	totalFavorites: _mock.number.nativeL(index),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _appAuthors = Array.from({ length: 3 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		name: _mock.fullName(index),
+		avatarUrl: _mock.image.avatar(index),
+		totalFavorites: _mock.number.nativeL(index),
+	};
+});
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _appInvoices = Array.from({ length: 5 }, (_, index) => {
 	const category = ['Android', 'Mac', 'Windows', 'Android', 'Mac'][index];
 
@@ -49,29 +58,39 @@ export const _appInvoices = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
-export const _appFeatured = Array.from({ length: 3 }, (_, index) => ({
-	id: _mock.id(index + 3),
-	title: _mock.postTitle(index + 3),
-	description: _mock.sentence(index + 3),
-	coverUrl: _mock.image.cover(index + 3),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _appFeatured = Array.from({ length: 3 }, (_, index) => {
+	return {
+		id: _mock.id(index + 3),
+		title: _mock.postTitle(index + 3),
+		description: _mock.sentence(index + 3),
+		coverUrl: _mock.image.cover(index + 3),
+	};
+});
 
 // ANALYTIC
 // ----------------------------------------------------------------------
 
-export const _analyticTasks = Array.from({ length: 5 }, (_, index) => ({
-	id: _mock.id(index),
-	name: _mock.taskNames(index),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _analyticTasks = Array.from({ length: 5 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		name: _mock.taskNames(index),
+	};
+});
 
-export const _analyticPosts = Array.from({ length: 5 }, (_, index) => ({
-	id: _mock.id(index),
-	postedAt: _mock.time(index),
-	title: _mock.postTitle(index),
-	coverUrl: _mock.image.cover(index),
-	description: _mock.sentence(index),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _analyticPosts = Array.from({ length: 5 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		postedAt: _mock.time(index),
+		title: _mock.postTitle(index),
+		coverUrl: _mock.image.cover(index),
+		description: _mock.sentence(index),
+	};
+});
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _analyticOrderTimeline = Array.from({ length: 5 }, (_, index) => {
 	const title = [
 		'1983, orders, $4220',
@@ -89,6 +108,7 @@ export const _analyticOrderTimeline = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _analyticTraffic = [
 	{
 		value: 'facebook',
@@ -115,12 +135,16 @@ export const _analyticTraffic = [
 // ECOMMERCE
 // ----------------------------------------------------------------------
 
-export const _ecommerceSalesOverview = ['Total profit', 'Total income', 'Total expenses'].map((label, index) => ({
-	label,
-	totalAmount: _mock.number.price(index) * 100,
-	value: _mock.number.percent(index),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _ecommerceSalesOverview = ['Total profit', 'Total income', 'Total expenses'].map((label, index) => {
+	return {
+		label,
+		totalAmount: _mock.number.price(index) * 100,
+		value: _mock.number.percent(index),
+	};
+});
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _ecommerceBestSalesman = Array.from({ length: 5 }, (_, index) => {
 	const category = ['CAP', 'Branded shoes', 'Headphone', 'Cell phone', 'Earings'][index];
 
@@ -136,6 +160,7 @@ export const _ecommerceBestSalesman = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _ecommerceLatestProducts = Array.from({ length: 5 }, (_, index) => {
 	const colors = (index === 0 && ['#2EC4B6', '#E71D36', '#FF9F1C', '#011627']) ||
 		(index === 1 && ['#92140C', '#FFCF99']) ||
@@ -152,22 +177,29 @@ export const _ecommerceLatestProducts = Array.from({ length: 5 }, (_, index) => 
 	};
 });
 
-export const _ecommerceNewProducts = Array.from({ length: 4 }, (_, index) => ({
-	id: _mock.id(index),
-	name: _mock.productName(index),
-	coverUrl: _mock.image.product(index),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _ecommerceNewProducts = Array.from({ length: 4 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		name: _mock.productName(index),
+		coverUrl: _mock.image.product(index),
+	};
+});
 
 // BANKING
 // ----------------------------------------------------------------------
 
-export const _bankingContacts = Array.from({ length: 12 }, (_, index) => ({
-	id: _mock.id(index),
-	name: _mock.fullName(index),
-	email: _mock.email(index),
-	avatarUrl: _mock.image.avatar(index),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _bankingContacts = Array.from({ length: 12 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		name: _mock.fullName(index),
+		email: _mock.email(index),
+		avatarUrl: _mock.image.avatar(index),
+	};
+});
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _bankingCreditCard = [
 	{
 		id: _mock.id(2),
@@ -195,6 +227,7 @@ export const _bankingCreditCard = [
 	},
 ];
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _bankingRecentTransitions = [
 	{
 		id: _mock.id(2),
@@ -256,6 +289,7 @@ export const _bankingRecentTransitions = [
 // BOOKING
 // ----------------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _bookings = Array.from({ length: 5 }, (_, index) => {
 	const status = ['Paid', 'Paid', 'Pending', 'Cancelled', 'Paid'][index];
 
@@ -265,10 +299,12 @@ export const _bookings = Array.from({ length: 5 }, (_, index) => {
 		phoneNumber: _mock.phoneNumber(index),
 	};
 
-	const destination = Array.from({ length: 5 }, (__, _index) => ({
-		name: _mock.tourName(_index + 1),
-		coverUrl: _mock.image.travel(_index + 1),
-	}))[index];
+	const destination = Array.from({ length: 5 }, (__, _index) => {
+		return {
+			name: _mock.tourName(_index + 1),
+			coverUrl: _mock.image.travel(_index + 1),
+		};
+	})[index];
 
 	return {
 		id: _mock.id(index),
@@ -280,58 +316,76 @@ export const _bookings = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
-export const _bookingsOverview = Array.from({ length: 3 }, (_, index) => ({
-	status: ['Pending', 'Canceled', 'Sold'][index],
-	quantity: _mock.number.nativeL(index),
-	value: _mock.number.percent(index + 5),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _bookingsOverview = Array.from({ length: 3 }, (_, index) => {
+	return {
+		status: ['Pending', 'Canceled', 'Sold'][index],
+		quantity: _mock.number.nativeL(index),
+		value: _mock.number.percent(index + 5),
+	};
+});
 
-export const _bookingReview = Array.from({ length: 5 }, (_, index) => ({
-	id: _mock.id(index),
-	name: _mock.fullName(index),
-	postedAt: _mock.time(index),
-	rating: _mock.number.rating(index),
-	avatarUrl: _mock.image.avatar(index),
-	description: _mock.description(index),
-	tags: ['Great sevice', 'Recommended', 'Best price'],
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _bookingReview = Array.from({ length: 5 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		name: _mock.fullName(index),
+		postedAt: _mock.time(index),
+		rating: _mock.number.rating(index),
+		avatarUrl: _mock.image.avatar(index),
+		description: _mock.description(index),
+		tags: ['Great sevice', 'Recommended', 'Best price'],
+	};
+});
 
-export const _bookingNew = Array.from({ length: 8 }, (_, index) => ({
-	guests: '3-5',
-	id: _mock.id(index),
-	bookedAt: _mock.time(index),
-	duration: '3 days 2 nights',
-	isHot: _mock.boolean(index),
-	name: _mock.fullName(index),
-	price: _mock.number.price(index),
-	avatarUrl: _mock.image.avatar(index),
-	coverUrl: _mock.image.travel(index),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _bookingNew = Array.from({ length: 8 }, (_, index) => {
+	return {
+		guests: '3-5',
+		id: _mock.id(index),
+		bookedAt: _mock.time(index),
+		duration: '3 days 2 nights',
+		isHot: _mock.boolean(index),
+		name: _mock.fullName(index),
+		price: _mock.number.price(index),
+		avatarUrl: _mock.image.avatar(index),
+		coverUrl: _mock.image.travel(index),
+	};
+});
 
 // COURSE
 // ----------------------------------------------------------------------
 
-export const _coursesContinue = Array.from({ length: 4 }, (_, index) => ({
-	id: _mock.id(index),
-	title: _mock.courseNames(index),
-	coverUrl: _mock.image.course(index),
-	totalLesson: 12,
-	currentLesson: index + 7,
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _coursesContinue = Array.from({ length: 4 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		title: _mock.courseNames(index),
+		coverUrl: _mock.image.course(index),
+		totalLesson: 12,
+		currentLesson: index + 7,
+	};
+});
 
-export const _coursesFeatured = Array.from({ length: 6 }, (_, index) => ({
-	id: _mock.id(index),
-	title: _mock.courseNames(index),
-	coverUrl: _mock.image.course(index + 6),
-	totalDuration: 220,
-	totalStudents: _mock.number.nativeM(index),
-	price: _mock.number.price(index),
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _coursesFeatured = Array.from({ length: 6 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		title: _mock.courseNames(index),
+		coverUrl: _mock.image.course(index + 6),
+		totalDuration: 220,
+		totalStudents: _mock.number.nativeM(index),
+		price: _mock.number.price(index),
+	};
+});
 
-export const _coursesReminder = Array.from({ length: 4 }, (_, index) => ({
-	id: _mock.id(index),
-	title: _mock.courseNames(index),
-	totalLesson: 12,
-	reminderAt: today(),
-	currentLesson: index + 7,
-}));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const _coursesReminder = Array.from({ length: 4 }, (_, index) => {
+	return {
+		id: _mock.id(index),
+		title: _mock.courseNames(index),
+		totalLesson: 12,
+		reminderAt: today(),
+		currentLesson: index + 7,
+	};
+});

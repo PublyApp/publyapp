@@ -2,7 +2,7 @@ import { useId } from 'react';
 
 // ----------------------------------------------------------------------
 
-export function BackgroundShape() {
+export const BackgroundShape = () => {
 	const gradientId = useId();
 
 	return (
@@ -22,4 +22,4 @@ export function BackgroundShape() {
 			/>
 		</>
 	);
-}
+};
