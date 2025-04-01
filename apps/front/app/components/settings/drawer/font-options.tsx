@@ -79,7 +79,7 @@ export const FontSizeOptions = ({ sx, value, options, onChangeOption, ...other }
 			value={value}
 			min={options[0]}
 			max={options[1]}
-			onChange={(event: Event, newOption: number | number[]) => {
+			onChange={(_event: Event, newOption: number | number[]) => {
 				return onChangeOption(newOption as number);
 			}}
 			sx={[
