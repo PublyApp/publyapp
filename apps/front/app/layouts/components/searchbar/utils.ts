@@ -1,4 +1,4 @@
-import type { NavSectionProps } from 'src/components/nav-section';
+import type { NavSectionProps } from '@/front/components/nav-section';
 
 // ----------------------------------------------------------------------
 

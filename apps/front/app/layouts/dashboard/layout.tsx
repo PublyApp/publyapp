@@ -6,10 +6,10 @@ import { merge } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
 import { _contacts, _notifications } from 'src/_mock';
 import { useMockedUser } from 'src/auth/hooks';
-import { Logo } from 'src/components/logo';
-import type { NavItemProps, NavSectionProps } from 'src/components/nav-section';
 import { allLangs } from 'src/locales';
 
+import { Logo } from '@/front/components/logo';
+import type { NavItemProps, NavSectionProps } from '@/front/components/nav-section';
 import { useSettingsContext } from '@/front/hooks/use-settings-context';
 
 import { AccountDrawer } from '../components/account-drawer';

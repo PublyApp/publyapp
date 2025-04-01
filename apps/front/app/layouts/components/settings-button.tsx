@@ -1,4 +1,4 @@
-// import { useSettingsContext } from 'src/components/settings';
+// import { useSettingsContext } from '@/front/components/settings';
 import Badge from '@mui/material/Badge';
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import SvgIcon from '@mui/material/SvgIcon';

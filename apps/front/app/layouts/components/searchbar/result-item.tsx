@@ -2,8 +2,9 @@ import Box from '@mui/material/Box';
 import ListItemButton, { type ListItemButtonProps } from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import { isExternalLink, varAlpha } from 'minimal-shared/utils';
-import { Label } from 'src/components/label';
 import { RouterLink } from 'src/routes/components';
+
+import { Label } from '@/front/components/label';
 
 // ----------------------------------------------------------------------
 
