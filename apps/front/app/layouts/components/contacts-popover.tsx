@@ -7,11 +7,12 @@ import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 import { usePopover } from 'minimal-shared/hooks';
-import { transitionTap, varHover, varTap } from 'src/components/animate';
-import { CustomPopover } from 'src/components/custom-popover';
-import { Iconify } from 'src/components/iconify';
-import { Scrollbar } from 'src/components/scrollbar';
 import { fToNow } from 'src/utils/format-time';
+
+import { transitionTap, varHover, varTap } from '@/front/components/animate';
+import { CustomPopover } from '@/front/components/custom-popover';
+import { Iconify } from '@/front/components/iconify';
+import { Scrollbar } from '@/front/components/scrollbar';
 
 // ----------------------------------------------------------------------
 

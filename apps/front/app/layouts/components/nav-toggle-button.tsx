@@ -1,6 +1,7 @@
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import { varAlpha } from 'minimal-shared/utils';
-import { Iconify } from 'src/components/iconify';
+
+import { Iconify } from '@/front/components/iconify';
 
 // ----------------------------------------------------------------------
 
