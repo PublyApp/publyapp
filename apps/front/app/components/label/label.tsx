@@ -1,4 +1,5 @@
-import { upperFirst } from 'es-toolkit';
+import _ from 'lodash';
+
 import { mergeClasses } from 'minimal-shared/utils';
 
 import { labelClasses } from './classes';
@@ -7,7 +8,7 @@ import type { LabelProps } from './types';
 
 // ----------------------------------------------------------------------
 
-export function Label({
+export const Label = ({
 	sx,
 	endIcon,
 	children,
@@ -17,7 +18,7 @@ export function Label({
 	variant = 'soft',
 	color = 'default',
 	...other
-}: LabelProps) {
+}: LabelProps) => {
 	return (
 		<LabelRoot
 			color={color}
@@ -29,9 +30,9 @@ export function Label({
 		>
 			{startIcon && <LabelIcon className={labelClasses.icon}>{startIcon}</LabelIcon>}
 
-			{typeof children === 'string' ? upperFirst(children) : children}
+			{typeof children === 'string' ? _.upperFirst(children) : children}
 
 			{endIcon && <LabelIcon className={labelClasses.icon}>{endIcon}</LabelIcon>}
 		</LabelRoot>
 	);
-}
+};
