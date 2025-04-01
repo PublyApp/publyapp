@@ -1,4 +1,4 @@
-import { Iconify } from 'src/components/iconify';
+import { Iconify } from '@/front/components/iconify';
 
 import type { AccountDrawerProps } from './components/account-drawer';
 

@@ -2,7 +2,8 @@ import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
 import type { Breakpoint } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
-import { NavSectionHorizontal, type NavSectionProps } from 'src/components/nav-section';
+
+import { NavSectionHorizontal, type NavSectionProps } from '@/front/components/nav-section';
 
 import { layoutClasses } from '../core/classes';
 

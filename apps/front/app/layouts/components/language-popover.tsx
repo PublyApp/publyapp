@@ -5,10 +5,11 @@ import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import { m } from 'framer-motion';
 import { usePopover } from 'minimal-shared/hooks';
-import { transitionTap, varHover, varTap } from 'src/components/animate';
-import { CustomPopover } from 'src/components/custom-popover';
-import { FlagIcon } from 'src/components/flag-icon';
 import { useTranslate, type LanguageValue } from 'src/locales';
+
+import { transitionTap, varHover, varTap } from '@/front/components/animate';
+import { CustomPopover } from '@/front/components/custom-popover';
+import { FlagIcon } from '@/front/components/flag-icon';
 
 // ----------------------------------------------------------------------
 

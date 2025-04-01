@@ -11,13 +11,14 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
 import { _mock } from 'src/_mock';
 import { useMockedUser } from 'src/auth/hooks';
-import { AnimateBorder } from 'src/components/animate';
-import { Iconify } from 'src/components/iconify';
-import { Label } from 'src/components/label';
-import { Scrollbar } from 'src/components/scrollbar';
 import { RouterLink } from 'src/routes/components';
 import { usePathname } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
+
+import { AnimateBorder } from '@/front/components/animate';
+import { Iconify } from '@/front/components/iconify';
+import { Label } from '@/front/components/label';
+import { Scrollbar } from '@/front/components/scrollbar';
 
 import { AccountButton } from './account-button';
 import { UpgradeBlock } from './nav-upgrade';

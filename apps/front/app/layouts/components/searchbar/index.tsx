@@ -13,11 +13,12 @@ import match from 'autosuggest-highlight/match';
 import parse from 'autosuggest-highlight/parse';
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
-import { Iconify } from 'src/components/iconify';
-import { Label } from 'src/components/label';
-import type { NavSectionProps } from 'src/components/nav-section';
-import { Scrollbar } from 'src/components/scrollbar';
-import { SearchNotFound } from 'src/components/search-not-found';
+
+import { Iconify } from '@/front/components/iconify';
+import { Label } from '@/front/components/label';
+import type { NavSectionProps } from '@/front/components/nav-section';
+import { Scrollbar } from '@/front/components/scrollbar';
+import { SearchNotFound } from '@/front/components/search-not-found';
 
 import { ResultItem } from './result-item';
 import { applyFilter, flattenNavSections } from './utils';
