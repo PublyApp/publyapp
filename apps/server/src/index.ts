@@ -65,11 +65,12 @@ const bootstrap = async () => {
 	app.use(express.urlencoded({ extended: false }));
 	app.use(
 		express.json({
-			type: (req) => {
-				return ['application/json', 'application/json; charset=UTF-8', 'text/plain'].includes(
-					req.headers['content-type'] || '',
-				);
-			},
+			// type: (req) => {
+			// 	return ['application/json', 'application/json; charset=UTF-8', 'text/plain'].includes(
+			// 		req.headers['content-type'] || '',
+			// 	);
+			// },
+			type: ['application/json', 'application/json; charset=UTF-8', 'text/plain'],
 		}),
 	);
 	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
