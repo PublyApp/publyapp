@@ -167,3 +167,11 @@ spawnSync(pnpmCommand, argsUnset, {
 	stdio: 'inherit',
 	shell: true,
 });
+
+// unset husky prepare command
+const argsUnset2 = ['pkg', 'delete', 'scripts.prepare'];
+spawnSync(pnpmCommand, argsUnset2, {
+	cwd: path.join(DEPLOY_ROOT_DIR),
+	stdio: 'inherit',
+	shell: true,
+});
