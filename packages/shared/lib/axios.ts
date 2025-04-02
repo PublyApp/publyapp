@@ -1,11 +1,8 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import _ from 'lodash';
 
-import {
-	DEVIST_REST_API_HEADER_KEY,
-	PARSE_APPLICATION_ID_HEADER_KEY,
-	PARSE_SESSION_TOKEN_HEADER_KEY,
-} from './constants';
+import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
+
+import { PARSE_APPLICATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY, REST_API_HEADER_KEY } from './constants';
 
 export const createInstance = (baseURL?: string) => {
 	return axios.create({
@@ -49,7 +46,7 @@ export const getProtectionHeaders = (options: {
 	restApiKey?: string;
 }): AxiosRequestConfig['headers'] => {
 	const headers: AxiosRequestConfig['headers'] = {
-		[DEVIST_REST_API_HEADER_KEY]: options.restApiKey,
+		[REST_API_HEADER_KEY]: options.restApiKey,
 		[PARSE_SESSION_TOKEN_HEADER_KEY]: options.sessionToken,
 		[PARSE_APPLICATION_ID_HEADER_KEY]: options.applicationId,
 		'Content-Type': options.hasFile ? 'multipart/form-data' : 'application/json',

@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import type { IRole } from '../types/db/role.types';
-import { makePath } from '../utils/string.utils';
+import { makePath, slugify } from '../utils/string.utils';
 
 export type IRoleConfig = Pick<IRole, 'code' | 'name' | 'rank'>;
 
@@ -287,13 +287,13 @@ export const fileProvider = {
 	CLOUDINARY: 'cloudinary',
 } as const;
 
+export const APP_ID = 'pdf_vite_app';
+export const APP_NAME = 'PDF Vite';
+
 export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
 export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';
 export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
-export const DEVIST_REST_API_HEADER_KEY = 'X-Devist-Key';
-
-export const APP_ID = 'pdf_vite_app';
-export const APP_NAME = 'PDF Vite';
+export const REST_API_HEADER_KEY = `X-${slugify(APP_ID)}-Key`;
 
 export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}:session_token`;
 export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}:last_used_tenant`;

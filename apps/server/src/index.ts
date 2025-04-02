@@ -86,7 +86,7 @@ const bootstrap = async () => {
 	const emailAdapter = new CustomMailAdapter({ serverUrl: env.SERVER_URL });
 
 	// Logger adapter for Parse
-	const loggerAdapter = new WinstonLoggerAdapter({ logger });
+	const loggerAdapter = new WinstonLoggerAdapter({ logger, maxLogFiles: 5 });
 
 	// initialize parse server
 	const parseServer = new ParseServer({
@@ -152,7 +152,7 @@ const bootstrap = async () => {
 						serverURL: PARSE_SERVER_URL.toString(), // ! localhost only
 						appId: APP_ID,
 						masterKey: env.PARSE_MASTER_KEY,
-						appName: 'Devist Express Dash Local',
+						appName: APP_NAME,
 					},
 				],
 			},
