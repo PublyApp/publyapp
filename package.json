@@ -25,7 +25,7 @@
     "format": "prettier --write .",
     "lint": "turbo lint",
     "lint:fix": "turbo lint:fix",
-    "prepare": "husky install",
+    "prepare": "husky",
     "update-deps": "pnpm up -i -r",
     "check-format": "prettier --check .",
     "build:deploy": "node ./scripts/deploy.mjs",
