@@ -9,7 +9,7 @@ export const toPascalCase = (str: string) => {
 
 	return (
 		str
-			?.trim()
+			.trim()
 			// Add space before capital letters (for camelCase)
 			.replace(/([A-Z])/g, ' $1')
 			// Split into words by non-alphanumeric characters
@@ -25,9 +25,10 @@ export const toPascalCase = (str: string) => {
 };
 
 export const makePath = (...params: string[]) => {
+	// eslint-disable-next-line @typescript-eslint/naming-convention
 	const _params: string[] = [];
 
-	_.forEach(params, (param) => {
+	params?.forEach((param) => {
 		if (param?.length <= 0 || param === '/') {
 			return;
 		}
