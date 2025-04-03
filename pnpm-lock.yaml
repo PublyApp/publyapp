@@ -279,6 +279,9 @@ importers:
       remix-utils:
         specifier: ^8.0.0
         version: 8.0.0(react-router@7.3.0)(react@19.0.0)(zod@3.23.8)
+      serialize-error:
+        specifier: ^12.0.0
+        version: 12.0.0
       simplebar-react:
         specifier: ^3.3.0
         version: 3.3.0(react@19.0.0)
@@ -20626,6 +20629,13 @@ packages:
       - supports-color
     dev: false
 
+  /serialize-error@12.0.0:
+    resolution: {integrity: sha512-ZYkZLAvKTKQXWuh5XpBw7CdbSzagarX39WyZ2H07CDLC5/KfsRGlIXV8d4+tfqX1M7916mRqR1QfNHSij+c9Pw==}
+    engines: {node: '>=18'}
+    dependencies:
+      type-fest: 4.39.1
+    dev: false
+
   /serialize-javascript@6.0.2:
     resolution: {integrity: sha512-Saa1xPByTTq2gdeFZYLLo+RFE35NHZkAbqZeWNd3BpzppeVisAqpDjcp8dyf6uIvEqJRd46jemmyA4iFIeVk8g==}
     dependencies:
@@ -21990,6 +22000,11 @@ packages:
 
   /type-fest@4.30.0:
     resolution: {integrity: sha512-G6zXWS1dLj6eagy6sVhOMQiLtJdxQBHIA9Z6HFUNLOlr6MFOgzV8wvmidtPONfPtEUv0uZsy77XJNzTAfwPDaA==}
+    engines: {node: '>=16'}
+    dev: false
+
+  /type-fest@4.39.1:
+    resolution: {integrity: sha512-uW9qzd66uyHYxwyVBYiwS4Oi0qZyUqwjU+Oevr6ZogYiXt99EOYtwvzMSLw1c3lYo2HzJsep/NB23iEVEgjG/w==}
     engines: {node: '>=16'}
     dev: false
 
