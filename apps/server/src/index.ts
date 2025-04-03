@@ -58,6 +58,10 @@ const bootstrap = async () => {
 			contentSecurityPolicy: {
 				useDefaults: true,
 				reportOnly: true,
+				directives: {
+					'connect-src': ["'self'", 'https://www.pdfvite.com'],
+					'script-src': ["'self'", 'https://www.pdfvite.com'],
+				},
 			},
 		}),
 	);
