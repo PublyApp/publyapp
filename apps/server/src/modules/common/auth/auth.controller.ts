@@ -33,7 +33,7 @@ export const handlePasswordLogin = expressHandler(async (req, res) => {
 
 	_.set(user, 'sessionToken', result.sessionToken);
 
-	return res.json(user);
+	return res.status(201).json(user);
 });
 
 export const handlePasswordSignup = expressHandler(async (req, res) => {

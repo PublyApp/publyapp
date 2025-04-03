@@ -153,7 +153,7 @@ subdirectories.forEach((subdirectory) => {
 // --------------------------------------------------------------------------------------//
 const mainFile = path.relative(MONOREPO_ROOT_DIR, path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'));
 // console.log(mainFile);
-const START_SCRIPT = `node ./${mainFile.replace(/\\/g, '/')}`;
+const START_SCRIPT = `node --enable-source-maps ./${mainFile.replace(/\\/g, '/')}`;
 const args = ['pnpm', 'pkg', 'set', `scripts.start="${START_SCRIPT}"`];
 spawnSync(pnpmCommand, args, {
 	cwd: path.join(DEPLOY_ROOT_DIR),

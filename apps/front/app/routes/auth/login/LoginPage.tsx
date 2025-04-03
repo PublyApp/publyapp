@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import i18next from 'i18next';
 import { data, redirect } from 'react-router';
+import { serializeError } from 'serialize-error';
 
 import duration from '@org/shared/utils/duration.utils';
 
@@ -36,7 +37,7 @@ export const action = getServerAction({
 
 		if (loginResult.status === 'error') {
 			return data({
-				error: loginResult.error,
+				error: serializeError(loginResult.error),
 			});
 		}
 
