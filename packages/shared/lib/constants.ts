@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import type { IRole } from '../types/db/role.types';
-import { makePath } from '../utils/string.utils';
+import { makePath, toPascalCase } from '../utils/string.utils';
 
 export type IRoleConfig = Pick<IRole, 'code' | 'name' | 'rank'>;
 
@@ -159,8 +159,13 @@ export const className = {
 	...joinsClassName,
 } as const;
 
-export const LOCALE_HEADER_KEY = 'X-Devist-Locale';
-export const TENANT_ID_HEADER_KEY = 'X-Devist-TenantId';
+export const APP_ID = 'pdf_vite_app';
+export const APP_NAME = 'PDF Vite';
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
+
+export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
+export const TENANT_ID_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-TenantId`;
 
 const RESOURCE = {
 	users: 'users',
@@ -290,10 +295,7 @@ export const fileProvider = {
 export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
 export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';
 export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
-export const DEVIST_REST_API_HEADER_KEY = 'X-Devist-Key';
-
-export const APP_ID = 'pdf_vite_app';
-export const APP_NAME = 'PDF Vite';
+export const REST_API_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Key`;
 
 export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}:session_token`;
 export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}:last_used_tenant`;
