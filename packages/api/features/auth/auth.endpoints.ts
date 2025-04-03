@@ -10,6 +10,7 @@ import type {
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
 import { endPoint, functionName, LOCALE_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import { makePath } from '@/shared/utils/string.utils';
 
 import BaseEndPoints, { type BaseEndPointsProps } from '../../classes/BaseEndPoints';
 
@@ -48,8 +49,14 @@ export default class AuthEndPoints extends BaseEndPoints {
 			[LOCALE_HEADER_KEY]: this.parseRestClient.getHeader(LOCALE_HEADER_KEY),
 		});
 
+		const url = new URL(this.parseRestClient.serverUrl);
+		// eslint-disable-next-line prefer-destructuring
+		let pathname = url.pathname;
+		pathname = makePath(pathname, endPoint.api.auth.passwordLogin);
+		url.pathname = pathname;
+
 		return this.parseRestClient.http.post<IUser & { sessionToken: string }>(
-			this.parseRestClient.serverUrl + endPoint.api.auth.passwordLogin,
+			url.toString(),
 			{ email: input.email, username: input.username, password },
 			{ headers },
 		);
