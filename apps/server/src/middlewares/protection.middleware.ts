@@ -4,9 +4,9 @@ import { nanoid } from 'nanoid';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { AuthCloudService } from '@/server/modules/common/auth/auth.cloud.service';
 import {
-	DEVIST_REST_API_HEADER_KEY,
 	PARSE_INSTALLATION_ID_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
+	REST_API_HEADER_KEY,
 } from '@/shared/lib/constants';
 
 import { expressHandler, getHeader } from '../lib/express';
@@ -21,15 +21,15 @@ const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallatio
 	return expressHandler(async (req, _res, next) => {
 		// should have a header key
 		if (withKey) {
-			const apiKey = getHeader(req, DEVIST_REST_API_HEADER_KEY);
+			const apiKey = getHeader(req, REST_API_HEADER_KEY);
 
 			// if the key exists, go to next
 			if (!apiKey) {
-				return next(new HttpException(400, `Missing ${DEVIST_REST_API_HEADER_KEY} param`));
+				return next(new HttpException(400, `Missing ${REST_API_HEADER_KEY} param`));
 			}
 
 			if (apiKey && apiKey !== /* env.REST_API_KEY */ nanoid()) {
-				return next(new HttpException(400, `Invalid ${DEVIST_REST_API_HEADER_KEY} param`));
+				return next(new HttpException(400, `Invalid ${REST_API_HEADER_KEY} param`));
 			}
 		}
 

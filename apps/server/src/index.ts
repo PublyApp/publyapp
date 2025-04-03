@@ -62,16 +62,22 @@ const bootstrap = async () => {
 		}),
 	);
 	app.use(corsMiddleware({ whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
-	app.use(express.urlencoded({ extended: false }));
+	app.use((req, _res, next) => {
+		// The parse API end the custom API are both under this root path
+		// use only urlencoded there because Remix (React Router 7) will not
+		// populate action's formData correctly
+		if (req.path.startsWith(endPoint.api.root)) {
+			express.urlencoded({ extended: false });
+		}
+
+		next();
+	});
 	app.use(
 		express.json({
-			type: (req) => {
-				return ['application/json', 'application/json; charset=UTF-8', 'text/plain'].includes(
-					req.headers['content-type'] || '',
-				);
-			},
+			type: ['application/json', 'application/json; charset=UTF-8', 'text/plain'],
 		}),
 	);
+	// server uploaded files under express static middleware
 	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 	// serve i18n resources files under express static middleware (remark: these files are generated at build time)
 	app.use('/resources', express.static(path.resolve(process.cwd(), 'dist/resources')));
@@ -86,7 +92,7 @@ const bootstrap = async () => {
 	const emailAdapter = new CustomMailAdapter({ serverUrl: env.SERVER_URL });
 
 	// Logger adapter for Parse
-	const loggerAdapter = new WinstonLoggerAdapter({ logger });
+	const loggerAdapter = new WinstonLoggerAdapter({ logger, maxLogFiles: 5 });
 
 	// initialize parse server
 	const parseServer = new ParseServer({
@@ -152,7 +158,7 @@ const bootstrap = async () => {
 						serverURL: PARSE_SERVER_URL.toString(), // ! localhost only
 						appId: APP_ID,
 						masterKey: env.PARSE_MASTER_KEY,
-						appName: 'Devist Express Dash Local',
+						appName: APP_NAME,
 					},
 				],
 			},

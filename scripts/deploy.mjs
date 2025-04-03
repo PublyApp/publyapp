@@ -37,10 +37,11 @@ const FRONT_APP_DIR_DEST = path.join(APPS_DIR_DEST, FRONT_APP_NAME);
 fse.removeSync(DEPLOY_ROOT_DIR);
 fse.mkdirSync(DEPLOY_ROOT_DIR);
 
-// copy DockerFile
-const dockerFileSrc = path.join(MONOREPO_ROOT_DIR, 'Dockerfile');
-const dockerFileDest = path.join(DEPLOY_ROOT_DIR, 'Dockerfile');
-fse.copyFileSync(dockerFileSrc, dockerFileDest);
+// ! I don't need a dockerfile, use default nixpacks system
+// // copy DockerFile
+// const dockerFileSrc = path.join(MONOREPO_ROOT_DIR, 'Dockerfile');
+// const dockerFileDest = path.join(DEPLOY_ROOT_DIR, 'Dockerfile');
+// fse.copyFileSync(dockerFileSrc, dockerFileDest);
 
 // --------------------------------------------------------------------------------------//
 //                              copy package.json on root                                //
@@ -163,6 +164,14 @@ spawnSync(pnpmCommand, args, {
 // unset build command
 const argsUnset = ['pkg', 'delete', 'scripts.build'];
 spawnSync(pnpmCommand, argsUnset, {
+	cwd: path.join(DEPLOY_ROOT_DIR),
+	stdio: 'inherit',
+	shell: true,
+});
+
+// unset husky prepare command
+const argsUnset2 = ['pkg', 'delete', 'scripts.prepare'];
+spawnSync(pnpmCommand, argsUnset2, {
 	cwd: path.join(DEPLOY_ROOT_DIR),
 	stdio: 'inherit',
 	shell: true,
