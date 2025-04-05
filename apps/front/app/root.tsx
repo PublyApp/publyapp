@@ -3,16 +3,16 @@ import '@pigment-css/react/styles.css'; // import Pigment CSS styles/variables
 import './styles/main.css';
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import type { ErrorBoundaryProps } from 'react-error-boundary';
 import { useTranslation } from 'react-i18next';
-import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 
+import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
 import { APP_NAME } from '@/shared/lib/constants';
 
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
-import QueryBoundary from './components/QueryBoundary';
+import { View500 } from './components/error/500-view';
 import { SettingsDrawer } from './components/settings/drawer';
 import { defaultSettings } from './components/settings/settings-config';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
@@ -47,25 +47,6 @@ export const loader = getServerLoader({
 	},
 });
 
-const FallbackComponent: ErrorBoundaryProps['FallbackComponent'] = ({ error, resetErrorBoundary }) => {
-	console.log('❌❌', error);
-	return (
-		<div>
-			<h1>Oops! Something went wrong</h1>
-			<button
-				type="button"
-				onClick={() => {
-					resetErrorBoundary();
-				}}
-			>
-				retry
-			</button>
-		</div>
-	);
-};
-
-const suspenseFallback = <h1>Auth loading, please wait....</h1>;
-
 export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
 
@@ -80,12 +61,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 			<body>
 				<QueryClientProvider client={defaultQueryClient}>
 					<MuiThemeProvider>
-						<QueryBoundary FallbackComponent={FallbackComponent} suspenseFallback={suspenseFallback}>
-							<MotionLazy>
-								<SettingsDrawer defaultSettings={defaultSettings} />
-								{children}
-							</MotionLazy>
-						</QueryBoundary>
+						<MotionLazy>
+							<SettingsDrawer defaultSettings={defaultSettings} />
+							{children}
+						</MotionLazy>
 					</MuiThemeProvider>
 				</QueryClientProvider>
 				<ScrollRestoration />
@@ -110,27 +89,36 @@ const App = ({ loaderData }: Route.ComponentProps) => {
 export default App;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	let message = 'Oops!';
-	let details = 'An unexpected error occurred.';
-	let stack: string | undefined;
+	// return <View500 />;
 
-	if (isRouteErrorResponse(error)) {
-		message = error.status === 404 ? '404' : 'Error';
-		details = error.status === 404 ? 'The requested page could not be found.' : error.statusText || details;
-	} else if (import.meta.env.DEV && error && error instanceof Error) {
-		details = error.message;
-		stack = error.stack;
+	// eslint-disable-next-line turbo/no-undeclared-env-vars
+	if (import.meta.env.PROD) {
+		return <View500 />;
 	}
 
-	return (
-		<main>
-			<h1>{message}</h1>
-			<p>{details}</p>
-			{stack && (
-				<pre>
-					<code>{stack}</code>
-				</pre>
-			)}
-		</main>
-	);
+	return <TemplateErrorBoundary error={error} />;
+
+	// let message = 'Oops!';
+	// let details = 'An unexpected error occurred.';
+	// let stack: string | undefined;
+
+	// if (isRouteErrorResponse(error)) {
+	// 	message = error.status === 404 ? '404' : 'Error';
+	// 	details = error.status === 404 ? 'The requested page could not be found.' : error.statusText || details;
+	// } else if (import.meta.env.DEV && error && error instanceof Error) {
+	// 	details = error.message;
+	// 	stack = error.stack;
+	// }
+
+	// return (
+	// 	<main>
+	// 		<h1>{message}</h1>
+	// 		<p>{details}</p>
+	// 		{stack && (
+	// 			<pre>
+	// 				<code>{stack}</code>
+	// 			</pre>
+	// 		)}
+	// 	</main>
+	// );
 };

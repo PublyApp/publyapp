@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { Fragment } from 'react';
 
 import Portal from '@mui/material/Portal';
@@ -15,12 +16,7 @@ export type SplashScreenProps = React.ComponentProps<'div'> & {
 	};
 };
 
-export const SplashScreen = ({
-	portal = true,
-	slotProps,
-	sx,
-	...other
-}: SplashScreenProps) => {
+export const SplashScreen = ({ portal = true, slotProps, sx, ...other }: SplashScreenProps) => {
 	const PortalWrapper = portal ? Portal : Fragment;
 
 	return (

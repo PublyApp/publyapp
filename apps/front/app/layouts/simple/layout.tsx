@@ -8,15 +8,12 @@ import type { Breakpoint } from '@mui/material/styles';
 import { Logo } from '@/front/components/logo/logo';
 import { RouterLink } from '@/front/components/router-link';
 
-// import { SettingsButton } from '../components/settings-button';
+import { SettingsButton } from '../components/settings-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
 
-import {
-	SimpleCompactContent,
-	type SimpleCompactContentProps,
-} from './content';
+import { SimpleCompactContent, type SimpleCompactContentProps } from './content';
 
 // ----------------------------------------------------------------------
 
@@ -31,17 +28,9 @@ export type SimpleLayoutProps = LayoutBaseProps & {
 	};
 };
 
-export const SimpleLayout = ({
-	sx,
-	cssVars,
-	children,
-	slotProps,
-	layoutQuery = 'md',
-}: SimpleLayoutProps) => {
+export const SimpleLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'md' }: SimpleLayoutProps) => {
 	const renderHeader = () => {
-		const headerSlotProps: HeaderSectionProps['slotProps'] = {
-			container: { maxWidth: false },
-		};
+		const headerSlotProps: HeaderSectionProps['slotProps'] = { container: { maxWidth: false } };
 
 		const headerSlots: HeaderSectionProps['slots'] = {
 			topArea: (
@@ -51,26 +40,15 @@ export const SimpleLayout = ({
 			),
 			leftArea: <Logo />,
 			rightArea: (
-				<Box
-					sx={{
-						display: 'flex',
-						alignItems: 'center',
-						gap: { xs: 1, sm: 1.5 },
-					}}
-				>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
 					{/** @slot Help link */}
-
-					<Link
-						href="#"
-						component={RouterLink}
-						color="inherit"
-						sx={{ typography: 'subtitle2' }}
-					>
+					{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+					<Link href="#" component={RouterLink} color="inherit" sx={{ typography: 'subtitle2' }}>
 						Need help?
 					</Link>
 
 					{/** @slot Settings button */}
-					{/* <SettingsButton /> */}
+					<SettingsButton />
 				</Box>
 			),
 		};

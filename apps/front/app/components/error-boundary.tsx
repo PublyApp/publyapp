@@ -1,21 +1,23 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import GlobalStyles from '@mui/material/GlobalStyles';
 import type { CSSObject, Theme } from '@mui/material/styles';
 import { isRouteErrorResponse } from 'react-router';
 
 // ----------------------------------------------------------------------
 type ErrorBoundaryProps = {
-	error: unknown;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	error: any;
 };
 
 export const ErrorBoundary = ({ error }: ErrorBoundaryProps) => {
+	// const error = useRouteError();
+
 	return (
 		<>
 			{inputGlobalStyles()}
 
 			<div className={errorBoundaryClasses.root}>
-				<div className={errorBoundaryClasses.container}>
-					{renderErrorMessage(error)}
-				</div>
+				<div className={errorBoundaryClasses.container}>{renderErrorMessage(error)}</div>
 			</div>
 		</>
 	);
@@ -35,7 +37,8 @@ const parseStackTrace = (stack?: string) => {
 	};
 };
 
-const renderErrorMessage = (error: unknown) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const renderErrorMessage = (error: any) => {
 	if (isRouteErrorResponse(error)) {
 		return (
 			<>
@@ -52,9 +55,7 @@ const renderErrorMessage = (error: unknown) => {
 
 		return (
 			<>
-				<h1 className={errorBoundaryClasses.title}>
-					Unexpected Application Error!
-				</h1>
+				<h1 className={errorBoundaryClasses.title}>Unexpected Application Error!</h1>
 				<p className={errorBoundaryClasses.message}>
 					{error.name}: {error.message}
 				</p>
@@ -90,8 +91,7 @@ const cssVars: CSSObject = {
 	'--details-background': '#111111',
 	'--root-background': '#2c2c2e',
 	'--container-background': '#1c1c1e',
-	'--font-stack-monospace':
-		'"SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace',
+	'--font-stack-monospace': '"SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace',
 	'--font-stack-sans':
 		'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',
 };
