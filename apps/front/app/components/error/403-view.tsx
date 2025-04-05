@@ -28,7 +28,7 @@ export const View403 = () => {
 
 				<m.div variants={varBounce('in')}>
 					<Typography sx={{ color: 'text.secondary' }}>
-						The page you’re trying to access has restricted access. Please refer to your system administrator.
+						The page you're trying to access has restricted access. Please refer to your system administrator.
 					</Typography>
 				</m.div>
 
