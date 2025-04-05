@@ -1,14 +1,23 @@
+import type { ErrorBoundaryProps } from 'react-error-boundary';
 import { Outlet } from 'react-router';
 
-import type { Route } from './+types/StaffLayout';
+import { View500 } from '@/front/components/error/500-view';
+import { LoadingScreen } from '@/front/components/loading-screen';
+import QuerySuspenseBoundary from '@/front/components/QuerySuspenseBoundary';
+import { DashboardLayout } from '@/front/layouts/dashboard/layout';
+
+const ErrorBoundary: ErrorBoundaryProps['FallbackComponent'] = () => {
+	return <View500 withLayout={false} />;
+};
 
 const StaffLayout = () => {
-	return <Outlet />;
+	return (
+		<DashboardLayout>
+			<QuerySuspenseBoundary suspenseFallback={<LoadingScreen />} FallbackComponent={ErrorBoundary}>
+				<Outlet />
+			</QuerySuspenseBoundary>
+		</DashboardLayout>
+	);
 };
 
 export default StaffLayout;
-
-export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	console.log('❌❌❌', error);
-	return <h1>ErrorBoundary Error Boundary</h1>;
-};
