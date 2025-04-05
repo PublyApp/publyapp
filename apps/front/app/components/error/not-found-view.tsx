@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
 
 import PageNotFoundIllustration from '@/front/assets/illustrations/page-not-found-illustration';
+import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
 
 import { MotionContainer } from '../animate/motion-container';
@@ -12,13 +13,13 @@ import { RouterLink } from '../router-link';
 
 // ----------------------------------------------------------------------
 
-export const NotFoundView = () => {
-	return (
-		<SimpleLayout
-			slotProps={{
-				content: { compact: true },
-			}}
-		>
+type NotFoundViewProps = {
+	withLayout?: boolean;
+};
+
+export const NotFoundView = ({ withLayout = true }: NotFoundViewProps) => {
+	const renderContent = () => {
+		return (
 			<Container component={MotionContainer}>
 				<m.div variants={varBounce('in')}>
 					<Typography variant="h3" sx={{ mb: 2 }}>
@@ -28,7 +29,7 @@ export const NotFoundView = () => {
 
 				<m.div variants={varBounce('in')}>
 					<Typography sx={{ color: 'text.secondary' }}>
-						Sorry, we couldn’t find the page you’re looking for. Perhaps you’ve mistyped the URL? Be sure to check your
+						Sorry, we couldn't find the page you're looking for. Perhaps you've mistyped the URL? Be sure to check your
 						spelling.
 					</Typography>
 				</m.div>
@@ -41,6 +42,20 @@ export const NotFoundView = () => {
 					Go to home
 				</Button>
 			</Container>
+		);
+	};
+
+	if (!withLayout) {
+		return <SimpleCompactContent layoutQuery="md">{renderContent()}</SimpleCompactContent>;
+	}
+
+	return (
+		<SimpleLayout
+			slotProps={{
+				content: { compact: true },
+			}}
+		>
+			{renderContent()}
 		</SimpleLayout>
 	);
 };

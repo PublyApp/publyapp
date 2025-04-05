@@ -16,11 +16,12 @@ const routes = [
 		route(getLastPath(FRONT_PATH_NAMES.staff.root), 'routes/authed/staff/_layout/StaffLayout.tsx', [
 			index('routes/authed/staff/dashboard/StaffHomePage.tsx'),
 			route(getLastPath(FRONT_PATH_NAMES.staff.tenants.root), 'routes/authed/staff/tenants-list/TenantsListPage.tsx'),
+			route('*', 'routes/authed/staff/_errors/StaffNotFoundPage.tsx'),
 		]),
 		route(getLastPath(FRONT_PATH_NAMES.tenant(':tenantId').root, 2), 'routes/authed/tenant/_layout/TenantLayout.tsx', [
 			index('routes/authed/tenant/dashboard/TenantHomePage.tsx'),
+			route('*', 'routes/authed/tenant/_errors/TenantNotFoundPage.tsx'),
 		]),
-		route('*', 'routes/authed/errors/AuthedNotFoundPage.tsx'),
 	]),
 ] satisfies RouteConfig;
 
