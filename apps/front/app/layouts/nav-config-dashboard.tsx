@@ -56,12 +56,12 @@ export const navData: NavSectionProps['data'] = [
 		items: [
 			{
 				title: 'One',
-				path: '#',
+				path: 'lol',
 				icon: ICONS.dashboard,
 				info: <Label>v0</Label>,
 			},
-			{ title: 'Two', path: '#', icon: ICONS.ecommerce },
-			{ title: 'Three', path: '#', icon: ICONS.analytics },
+			{ title: 'Two', path: 'bob', icon: ICONS.ecommerce },
+			{ title: 'Three', path: 'fof', icon: ICONS.analytics },
 		],
 	},
 	/**

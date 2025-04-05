@@ -24,7 +24,7 @@ export const FormResendCode = ({ value, disabled, onResendCode, sx, ...other }: 
 			]}
 			{...other}
 		>
-			{'Don’t have a code? '}
+			{"Don't have a code? "}
 			{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
 			<Link
 				variant="subtitle2"
