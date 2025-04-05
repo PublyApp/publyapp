@@ -72,9 +72,10 @@ export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = 
 		const { request } = args;
 		const locale = getRequestLocale(request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
+		const requestIp = args.request.headers.get('x-forwarded-for') || args.request.headers.get('x-real-ip');
 
 		if (!params.requireUser) {
-			const apiClient = initApiClientOnServer({ locale });
+			const apiClient = initApiClientOnServer({ locale, requestIp });
 
 			if (!params.withAuthDataPromise) {
 				return params.loader({ ...args, apiClient, z, locale });
@@ -93,7 +94,7 @@ export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = 
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		const apiClient = initApiClientOnServer({ locale, sessionToken });
+		const apiClient = initApiClientOnServer({ locale, sessionToken, requestIp });
 		const authData = await apiClient.auth.getUserAuthData();
 
 		return params.loader({ ...args, apiClient, z, locale, authData });
@@ -144,9 +145,10 @@ export const getServerAction: GetServerAction = <T extends ActionFunctionArgs = 
 	const action = async (args: T) => {
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
+		const requestIp = args.request.headers.get('x-forwarded-for') || args.request.headers.get('x-real-ip');
 
 		if (!params.requireUser) {
-			const apiClient = initApiClientOnServer({ locale });
+			const apiClient = initApiClientOnServer({ locale, requestIp });
 			return params.action({ ...args, apiClient, z, locale });
 		}
 
@@ -157,7 +159,7 @@ export const getServerAction: GetServerAction = <T extends ActionFunctionArgs = 
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		const apiClient = initApiClientOnServer({ locale, sessionToken });
+		const apiClient = initApiClientOnServer({ locale, sessionToken, requestIp });
 
 		const authData = await apiClient.auth.getUserAuthData();
 
