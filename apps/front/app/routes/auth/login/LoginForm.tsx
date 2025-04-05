@@ -110,7 +110,7 @@ const LoginForm = () => {
 				title="Sign in to your account"
 				description={
 					<>
-						{'Don’t have an account? '}
+						{"Don't have an account? "}
 						<Link component={RouterLink} href={FRONT_PATH_NAMES.auth.signup} variant="subtitle2">
 							Get started
 						</Link>
