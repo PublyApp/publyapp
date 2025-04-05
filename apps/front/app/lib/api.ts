@@ -1,16 +1,18 @@
-import * as cookie from 'cookie';
-import type { i18n as I18n } from 'i18next';
-import _ from 'lodash';
+import { type i18n as I18n } from 'i18next';
 import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
-import { ApiClient, defaultApiClient } from '@/parse-api-client/ApiClient';
+
+import { ApiClient, defaultApiClient } from '@org/api/ApiClient';
+
 import {
 	APP_ID,
 	endPoint,
 	LOCALE_HEADER_KEY,
-	REMIX_CLIENT_IP_HEADER_KEY,
+	REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
+
+import { CookieManager } from './cookie-manager';
 import { env } from './env';
 
 const parseRestClient = new ParseRestClient({
@@ -21,10 +23,8 @@ const parseRestClient = new ParseRestClient({
 export const initApiClientOnClient = (i18n: I18n) => {
 	defaultApiClient.setRestClient(parseRestClient);
 
-	const browserCookies = cookie.parse(document.cookie);
-	const sessionToken = decodeURIComponent(
-		_.get(browserCookies, SESSION_TOKEN_COOKIE_KEY) || '',
-	);
+	const browserCookies = new CookieManager();
+	const sessionToken = browserCookies.get(SESSION_TOKEN_COOKIE_KEY);
 
 	defaultApiClient.parseRestClient.setSessionToken(sessionToken);
 	defaultApiClient.parseRestClient.setHeader(LOCALE_HEADER_KEY, i18n.language);
@@ -50,11 +50,11 @@ export const initApiClientOnServer = ({
 	});
 
 	if (sessionToken) {
-		apiClient.parseRestClient.setSessionToken(decodeURIComponent(sessionToken));
+		apiClient.parseRestClient.setSessionToken(sessionToken);
 	}
 
 	if (requestIp) {
-		apiClient.parseRestClient.setHeader(REMIX_CLIENT_IP_HEADER_KEY, requestIp);
+		apiClient.parseRestClient.setHeader(REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY, requestIp);
 	}
 
 	return apiClient;

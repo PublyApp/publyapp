@@ -166,6 +166,7 @@ export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
 export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
 export const TENANT_ID_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-TenantId`;
+export const REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY = 'X-React-Router-Server-Forward-Ip';
 
 const RESOURCE = {
 	users: 'users',

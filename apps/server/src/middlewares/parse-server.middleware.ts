@@ -5,24 +5,16 @@ import type express from 'express';
 import {
 	PARSE_INSTALLATION_ID_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
+	REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
-import { logger } from '@org/shared/lib/winston.server';
 import { HttpException } from '../exceptions/HttpException';
-import {
-	CONFIG_ENABLE_CHECK_SESSION_IP,
-	PARSE_SERVER_URL,
-	USE_MASTER_KEY,
-} from '../lib/constants';
+import { PARSE_SERVER_URL, USE_MASTER_KEY } from '../lib/constants';
 import { env } from '../lib/env';
-import {
-	expressHandler,
-	getHeader,
-	getRequestIp,
-	getRequestUtils,
-} from '../lib/express';
+import { expressHandler, getHeader, getRequestIp } from '../lib/express';
 import { getCurrentInstallationId } from '../lib/parse/parse.utils';
+import { logger } from '../lib/winston';
 
 const checkIsMaster = (req: express.Request) => {
 	return (
@@ -31,18 +23,12 @@ const checkIsMaster = (req: express.Request) => {
 	);
 };
 
-const disableRestApiForClients = async (
-	req: express.Request,
-	_res: express.Response,
-) => {
-	const _allowedPaths = [
-		'/health',
-		'/functions',
-		// '/verificationEmailRequest', // Parse built-in email-verification endpoint
-	] satisfies `/${string}`[];
+const disableRestApiForClients = async (req: express.Request, _res: express.Response) => {
+	// eslint-disable-next-line @typescript-eslint/naming-convention
+	const _allowedPaths = ['/health', '/functions'] satisfies `/${string}`[];
 
 	const authorizedPaths: string[] = [..._allowedPaths];
-	_.forEach(_allowedPaths, (path) => {
+	_allowedPaths.forEach((path) => {
 		authorizedPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
 	});
 
@@ -54,36 +40,22 @@ const disableRestApiForClients = async (
 		return;
 	}
 
-	const installationId =
-		getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) ||
-		_.get(req, 'body._InstallationId');
+	const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) || _.get(req, 'body._InstallationId');
 	const cloudInstallationId = await getCurrentInstallationId();
 
 	if (installationId === cloudInstallationId) {
 		return;
 	}
 
-	const { t } = getRequestUtils(req);
-
-	throw new HttpException(401, t('unauthorized'), {
-		meta: {
-			reason: `Parse Rest API call outside ot the server are disabled except for: ${_.join(authorizedPaths, ', ')}`,
-		},
-	});
+	throw new HttpException(401, 'unauthorized');
 };
 
-const handleMatchSessionIp = async (
-	req: express.Request,
-	_res: express.Response,
-) => {
-	if (!CONFIG_ENABLE_CHECK_SESSION_IP) {
-		return;
-	}
-
+const handleMatchSessionIp = async (req: express.Request, _res: express.Response) => {
+	// eslint-disable-next-line @typescript-eslint/naming-convention
 	const _allowedPaths = ['/health'] satisfies `/${string}`[];
 
 	const allowedPaths: string[] = [..._allowedPaths];
-	_.forEach(_allowedPaths, (path) => {
+	_allowedPaths.forEach((path) => {
 		allowedPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
 	});
 
@@ -95,12 +67,8 @@ const handleMatchSessionIp = async (
 		return;
 	}
 
-	const installationId =
-		getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) ||
-		_.get(req, 'body._InstallationId');
-	const sessionToken =
-		getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) ||
-		_.get(req, 'body._SessionToken');
+	const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) || _.get(req, 'body._InstallationId');
+	const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) || _.get(req, 'body._SessionToken');
 
 	const cloudInstallationId = await getCurrentInstallationId();
 
@@ -124,14 +92,12 @@ const handleMatchSessionIp = async (
 		// ! directly use the master key instead
 		.first(USE_MASTER_KEY);
 
-	const { t } = getRequestUtils(req);
-
 	if (!session) {
 		logger.warn('Session token not found', { sessionToken });
-		throw new HttpException(401, t('Invalid session token'));
+		throw new HttpException(401, 'Invalid session token');
 	}
 
-	const requestIp = getRequestIp(req);
+	const requestIp = getHeader(req, REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY) || getRequestIp(req);
 
 	const sessionIp = session.get('ipAddress');
 
@@ -142,12 +108,8 @@ const handleMatchSessionIp = async (
 	}
 
 	if (sessionIp !== requestIp) {
-		logger.warn('Ip address does not match', {
-			sessionToken,
-			requestIp,
-			sessionIp,
-		});
-		throw new HttpException(401, t('Invalid session token'));
+		logger.warn('Ip address does not match', { sessionToken, requestIp, sessionIp });
+		throw new HttpException(401, 'Invalid session token');
 	}
 };
 

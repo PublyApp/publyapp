@@ -14,7 +14,14 @@ import ParseDashboard from 'parse-dashboard';
 import duration from '@org/shared/utils/duration.utils';
 
 import { logger } from '@/server/lib/winston';
-import { APP_ID, APP_NAME, endPoint, LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY } from '@/shared/lib/constants';
+import {
+	APP_ID,
+	APP_NAME,
+	endPoint,
+	LOCALE_HEADER_KEY,
+	REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY,
+	TENANT_ID_HEADER_KEY,
+} from '@/shared/lib/constants';
 
 import { cloud } from './cloud';
 import {
@@ -115,7 +122,7 @@ const bootstrap = async () => {
 		// =============================================
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		sessionLength: duration.toSeconds('3d'), // 3 days
-		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY],
+		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY, REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY],
 		allowOrigin: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		// =============================================
 		directAccess: true,
