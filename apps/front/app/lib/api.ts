@@ -3,7 +3,13 @@ import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
 
 import { ApiClient, defaultApiClient } from '@org/api/ApiClient';
 
-import { APP_ID, endPoint, LOCALE_HEADER_KEY, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
+import {
+	APP_ID,
+	endPoint,
+	LOCALE_HEADER_KEY,
+	REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY,
+	SESSION_TOKEN_COOKIE_KEY,
+} from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 import { CookieManager } from './cookie-manager';
@@ -27,7 +33,15 @@ export const initApiClientOnClient = (i18n: I18n) => {
 	return defaultApiClient;
 };
 
-export const initApiClientOnServer = ({ locale, sessionToken }: { locale: AppLocale; sessionToken?: string }) => {
+export const initApiClientOnServer = ({
+	locale,
+	sessionToken,
+	requestIp,
+}: {
+	locale: AppLocale;
+	sessionToken?: string;
+	requestIp?: string | null;
+}) => {
 	// set locale header
 	parseRestClient.setHeader(LOCALE_HEADER_KEY, locale);
 
@@ -37,6 +51,10 @@ export const initApiClientOnServer = ({ locale, sessionToken }: { locale: AppLoc
 
 	if (sessionToken) {
 		apiClient.parseRestClient.setSessionToken(sessionToken);
+	}
+
+	if (requestIp) {
+		apiClient.parseRestClient.setHeader(REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY, requestIp);
 	}
 
 	return apiClient;
