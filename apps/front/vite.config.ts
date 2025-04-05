@@ -28,7 +28,8 @@ export default defineConfig({
 						'@mui/styled-engine',
 						// ====
 						'mui-one-time-password-input',
+						'@tiptap/extension-code-block-lowlight',
 					]
-				: ['mui-one-time-password-input'],
+				: ['mui-one-time-password-input', '@tiptap/extension-code-block-lowlight'],
 	},
 });
