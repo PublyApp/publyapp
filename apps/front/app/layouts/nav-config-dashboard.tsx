@@ -2,6 +2,8 @@
 // import type { NavSectionProps } from 'src/components/nav-section';
 // import { SvgColor } from 'src/components/svg-color';
 
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+
 import { Label } from '../components/label/label';
 import type { NavSectionProps } from '../components/nav-section/types';
 import { SvgColor } from '../components/svg-color/svg-color';
@@ -56,12 +58,12 @@ export const navData: NavSectionProps['data'] = [
 		items: [
 			{
 				title: 'One',
-				path: '#',
+				path: FRONT_PATH_NAMES.staff.root,
 				icon: ICONS.dashboard,
 				info: <Label>v0</Label>,
 			},
-			{ title: 'Two', path: '#', icon: ICONS.ecommerce },
-			{ title: 'Three', path: '#', icon: ICONS.analytics },
+			{ title: 'Two', path: 'bob', icon: ICONS.ecommerce },
+			{ title: 'Three', path: 'fof', icon: ICONS.analytics },
 		],
 	},
 	/**
