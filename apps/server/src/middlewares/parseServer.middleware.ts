@@ -2,7 +2,11 @@ import _ from 'lodash';
 
 import type express from 'express';
 
-import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import {
+	PARSE_INSTALLATION_ID_HEADER_KEY,
+	PARSE_SESSION_TOKEN_HEADER_KEY,
+	REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY,
+} from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
 import { HttpException } from '../exceptions/HttpException';
@@ -93,7 +97,7 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 		throw new HttpException(401, 'Invalid session token');
 	}
 
-	const requestIp = getRequestIp(req);
+	const requestIp = getHeader(req, REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY) || getRequestIp(req);
 
 	const sessionIp = session.get('ipAddress');
 
