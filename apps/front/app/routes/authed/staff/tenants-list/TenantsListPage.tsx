@@ -25,8 +25,6 @@ const TenantsListPage = () => {
 		);
 	};
 
-	throw new Error('Not implemented');
-
 	return (
 		<DashboardContent maxWidth="xl">
 			<Typography variant="h4">Tenants</Typography>
