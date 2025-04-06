@@ -19,15 +19,15 @@ import {
 	APP_NAME,
 	endPoint,
 	LOCALE_HEADER_KEY,
-	REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY,
 	TENANT_ID_HEADER_KEY,
+	// X_FORWARDED_FOR_HEADER_KEY,
+	X_REMIX_CLIENT_IP,
 } from '@/shared/lib/constants';
 
 import { cloud } from './cloud';
 import {
 	createRolesIfNotExists,
 	createUploadDirIfNotExists,
-	overrideConsole,
 	setUpGlobalConfig,
 	updateSchemasOnInit,
 } from './helpers/helpers';
@@ -49,7 +49,7 @@ import coreApiRouter from './router/coreApi.router';
 // logger.info(import.meta.filename);
 // logger.log(import.meta.dirname);
 
-overrideConsole();
+// overrideConsole();
 
 global.Parse = Parse;
 
@@ -85,13 +85,14 @@ const bootstrap = async () => {
 	});
 	app.use(
 		express.json({
-			type: ['application/json', 'application/json; charset=UTF-8', 'text/plain'],
+			// ! if tex/plain is not specified, request body in Parse API endpoint will not work
+			type: ['application/json', 'text/plain'],
 		}),
 	);
 	// server uploaded files under express static middleware
 	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 	// serve i18n resources files under express static middleware (remark: these files are generated at build time)
-	app.use('/resources', express.static(path.resolve(process.cwd(), 'dist/resources')));
+	app.use('/resources', express.static(path.resolve(__dirname, './resources')));
 
 	// File System adapter for Parse
 	const filesAdapter = new FSFilesAdapter({
@@ -122,7 +123,7 @@ const bootstrap = async () => {
 		// =============================================
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		sessionLength: duration.toSeconds('3d'), // 3 days
-		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY, REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY],
+		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY, X_REMIX_CLIENT_IP],
 		allowOrigin: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		// =============================================
 		directAccess: true,
@@ -211,8 +212,10 @@ const bootstrap = async () => {
 				// return anything you want here to be available as `context` in your
 				// loaders and actions. This is where you can bridge the gap between Remix
 				// and your server
-				// getLoadContext(req, res) {
-				// 	return {};
+				// getLoadContext: (_req, _res) => {
+				// 	return {
+				// 		logger,
+				// 	};
 				// },
 			}),
 		);
