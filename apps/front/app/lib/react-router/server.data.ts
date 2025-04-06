@@ -1,7 +1,9 @@
+import _ from 'lodash';
+
 import type { ApiClient } from 'packages/api/ApiClient';
 import { redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router';
 
-import { FRONT_PATH_NAMES, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES, SESSION_TOKEN_COOKIE_KEY, X_FORWARDED_FOR_HEADER_KEY } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
 
@@ -10,6 +12,12 @@ import { CookieManager } from '../cookie-manager';
 import { remixI18NextServer } from '../i18n/i18n.server';
 
 import { getRequestLocale } from './data.utils';
+
+// declare module 'react-router' {
+// 	interface AppLoadContext {
+// 		logger?: typeof console;
+// 	}
+// }
 
 type GetServerLoaderParamsWhenRequireUser<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> = {
 	requireUser: true;
@@ -69,10 +77,9 @@ export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = 
 	params: GetServerLoaderParams<T, D>,
 ) => {
 	const loader = async (args: T) => {
-		const { request } = args;
-		const locale = getRequestLocale(request);
+		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
-		const requestIp = args.request.headers.get('x-forwarded-for') || args.request.headers.get('x-real-ip');
+		const requestIp = args.request.headers.get(_.toLower(X_FORWARDED_FOR_HEADER_KEY)); // || args.request.headers.get('x-real-ip');
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale, requestIp });
@@ -87,7 +94,7 @@ export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = 
 		}
 
 		// check if session token cookie is present
-		const reqCookies = new CookieManager(request.headers);
+		const reqCookies = new CookieManager(args.request.headers);
 		const sessionToken = reqCookies.get(SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
@@ -145,7 +152,7 @@ export const getServerAction: GetServerAction = <T extends ActionFunctionArgs = 
 	const action = async (args: T) => {
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
-		const requestIp = args.request.headers.get('x-forwarded-for') || args.request.headers.get('x-real-ip');
+		const requestIp = args.request.headers.get(_.toLower(X_FORWARDED_FOR_HEADER_KEY)); // || args.request.headers.get('x-real-ip');
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale, requestIp });
