@@ -7,8 +7,9 @@ import {
 	APP_ID,
 	endPoint,
 	LOCALE_HEADER_KEY,
-	REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY,
 	SESSION_TOKEN_COOKIE_KEY,
+	// X_FORWARDED_FOR_HEADER_KEY,
+	X_REMIX_CLIENT_IP,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
@@ -54,7 +55,8 @@ export const initApiClientOnServer = ({
 	}
 
 	if (requestIp) {
-		apiClient.parseRestClient.setHeader(REACT_ROUTER_SERVER_FORWARD_IP_HEADER_KEY, requestIp);
+		// apiClient.parseRestClient.setHeader(X_FORWARDED_FOR_HEADER_KEY, requestIp);
+		apiClient.parseRestClient.setHeader(X_REMIX_CLIENT_IP, requestIp);
 	}
 
 	return apiClient;

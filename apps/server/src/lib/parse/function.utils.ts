@@ -17,6 +17,8 @@ import {
 	TENANT_ID_HEADER_KEY,
 	tenantSubRoleSet,
 	userGroup,
+	X_FORWARDED_FOR_HEADER_KEY,
+	X_REMIX_CLIENT_IP,
 	type RoleSet,
 	type StaffRoleSet,
 	type TenantSubRoleSet,
@@ -428,9 +430,11 @@ const isNotValidIp = async ({
 		.select(['ipAddress'])
 		.first({ sessionToken });
 
+	const requestIp =
+		getParseFunctionHeader(req, X_REMIX_CLIENT_IP) || getParseFunctionHeader(req, X_FORWARDED_FOR_HEADER_KEY);
+
 	const localMatchConditionIp = env.LOCAL && session?.get('ipAddress') !== req.ip;
-	const onlineMatchConditionIp =
-		!env.LOCAL && session?.get('ipAddress') !== getParseFunctionHeader(req, 'X-Forwarded-For');
+	const onlineMatchConditionIp = !env.LOCAL && session?.get('ipAddress') !== requestIp;
 
 	return localMatchConditionIp || onlineMatchConditionIp;
 };
