@@ -6,7 +6,7 @@ import type { ParsedQs } from 'qs';
 import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
 
 import { logger } from '@/server/lib/winston';
-import { LOCALE_HEADER_KEY } from '@/shared/lib/constants';
+import { LOCALE_HEADER_KEY, X_FORWARDED_FOR_HEADER_KEY, X_REMIX_CLIENT_IP } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import InterZod from '@/shared/lib/zod/InterZod';
 
@@ -111,5 +111,5 @@ export const getRequestUtils = (req: Request) => {
 };
 
 export const getRequestIp = (req: Request) => {
-	return getHeader(req, 'X-Forwarded-For') || req.socket.remoteAddress;
+	return getHeader(req, X_REMIX_CLIENT_IP) || getHeader(req, X_FORWARDED_FOR_HEADER_KEY) || req.socket.remoteAddress;
 };
