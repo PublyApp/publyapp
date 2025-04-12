@@ -13,13 +13,13 @@ export const reOrderObjects = <T extends Parse.Object = Parse.Object>(
 ) => {
 	const objectsMap = new Map<string, T>();
 
-	objects.forEach((iWebHost) => {
+	_.forEach(objects, (iWebHost) => {
 		objectsMap.set(iWebHost.id, iWebHost);
 	});
 
 	const orderedObjects: T[] = [];
 
-	ids.forEach((id) => {
+	_.forEach(ids, (id) => {
 		const inMap = objectsMap.get(id);
 
 		if (inMap) {
@@ -205,6 +205,7 @@ export const getGlobalConfig = async () => {
 	return config;
 };
 
+// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 type Serializable = string | number | Record<string, any> | any[] | boolean;
 
 export const setGlobalConfig = async (
@@ -215,7 +216,7 @@ export const setGlobalConfig = async (
 	const param1: Record<string, Serializable> = {};
 	const param2: Record<string, boolean> = {};
 
-	entries.forEach(([key, { value, masterKeyOnly }]) => {
+	_.forEach(entries, ([key, { value, masterKeyOnly }]) => {
 		param1[key] = value;
 
 		if (!_.isNil(masterKeyOnly)) {
@@ -238,6 +239,7 @@ export const parseFields = [
 ] as const;
 
 export const removeParseFields = (
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	obj: Record<string, any>,
 	omitFields?: string[],
 ) => {

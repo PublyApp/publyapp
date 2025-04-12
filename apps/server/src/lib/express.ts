@@ -26,21 +26,28 @@ type ParamsDictionary = Record<string, string>;
 
 type AsyncRequestHandler<
 	P = ParamsDictionary,
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	ResBody = any,
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	ReqBody = any,
 	ReqQuery = ParsedQs,
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	LocalsObj extends Record<string, any> = Record<string, any>,
 > = (
 	req: Request<P, ResBody, ReqBody, ReqQuery, LocalsObj>,
 	res: Response<ResBody, LocalsObj>,
 	next: NextFunction,
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 ) => Promise<any>;
 
 export const expressHandler = <
 	P = ParamsDictionary,
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	ResBody = any,
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	ReqBody = any,
 	ReqQuery = ParsedQs,
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	Locals extends Record<string, any> = Record<string, any>,
 >(
 	innerHandler: AsyncRequestHandler<P, ResBody, ReqBody, ReqQuery, Locals>,
@@ -65,6 +72,7 @@ export const expressHandler = <
 
 // copy paste from stack overflow: I don't bother fix eslint issues here
 export const listRoutes = (app: Application) => {
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const split = (thing: any) => {
 		if (typeof thing === 'string') {
 			return thing.split('/');
@@ -85,6 +93,7 @@ export const listRoutes = (app: Application) => {
 			: `<complex:${thing.toString()}>`;
 	};
 
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const print = (path: any, layer: any) => {
 		if (layer.route) {
 			layer.route.stack.forEach(

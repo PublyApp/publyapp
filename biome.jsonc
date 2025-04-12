@@ -7,7 +7,14 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": ["node_modules", "build", "dist", ".turbo", ".husky/_"]
+		"ignore": [
+			"node_modules",
+			"build",
+			"dist",
+			".turbo",
+			".husky/_",
+			".react-router"
+		]
 	},
 	"formatter": {
 		"enabled": true,
@@ -19,7 +26,10 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"complexity": {
+				"noForEach": "off"
+			}
 		}
 	},
 	"javascript": {
