@@ -8,6 +8,7 @@ import { mergeClasses } from 'minimal-shared/utils';
 import { RouterLink } from '../router-link';
 
 import { logoClasses } from './classes';
+import { APP_NAME } from '@/shared/lib/constants';
 
 // ----------------------------------------------------------------------
 
@@ -63,6 +64,8 @@ export const Logo = ({
 			viewBox="0 0 512 512"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label={`${APP_NAME} logo`}
 		>
 			<defs>
 				<linearGradient
@@ -125,6 +128,8 @@ export const Logo = ({
 			viewBox="0 0 360 128"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label={`${APP_NAME} logo`}
 		>
 			<defs>
 				<linearGradient

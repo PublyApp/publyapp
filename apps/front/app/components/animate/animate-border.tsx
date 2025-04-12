@@ -247,6 +247,8 @@ const MovingBorder = ({
 				height="100%"
 				className={animateBorderClasses.svgWrapper}
 				style={{ position: 'absolute' }}
+				role="img"
+				aria-label="Moving border animation"
 			>
 				<rect
 					ref={svgRectRef}

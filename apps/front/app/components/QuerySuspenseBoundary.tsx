@@ -29,11 +29,11 @@ const getFallBackComponent = ({
 	errorLocation: ReturnType<typeof useLocation>;
 }): ErrorBoundaryPropsWithComponent['FallbackComponent'] => {
 	return ({ error, resetErrorBoundary }) => {
+		// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 		useEffect(() => {
 			if (location.pathname !== errorLocation.pathname) {
 				resetErrorBoundary();
 			}
-			// eslint-disable-next-line react-hooks/exhaustive-deps
 		}, [location.pathname]);
 
 		if (!FallbackComponent) {
