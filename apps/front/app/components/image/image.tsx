@@ -1,32 +1,32 @@
-import { startTransition, useCallback, useRef, useState } from "react";
+import { startTransition, useCallback, useRef, useState } from 'react';
 
-import type { Breakpoint } from "@mui/material/styles";
-import { useInView, type UseInViewOptions } from "framer-motion";
-import { mergeClasses, mergeRefs } from "minimal-shared/utils";
+import type { Breakpoint } from '@mui/material/styles';
+import { useInView, type UseInViewOptions } from 'framer-motion';
+import { mergeClasses, mergeRefs } from 'minimal-shared/utils';
 
-import { imageClasses } from "./classes";
+import { imageClasses } from './classes';
 import {
 	ImageImg,
 	ImageOverlay,
 	ImagePlaceholder,
 	ImageRoot,
 	type EffectsType,
-} from "./styles";
+} from './styles';
 
 // ----------------------------------------------------------------------
 
 type AspectRatioType =
-	| "2/3"
-	| "3/2"
-	| "4/3"
-	| "3/4"
-	| "6/4"
-	| "4/6"
-	| "16/9"
-	| "9/16"
-	| "21/9"
-	| "9/21"
-	| "1/1"
+	| '2/3'
+	| '3/2'
+	| '4/3'
+	| '3/4'
+	| '6/4'
+	| '4/6'
+	| '16/9'
+	| '9/16'
+	| '21/9'
+	| '9/21'
+	| '1/1'
 	| string;
 
 export type ImageProps = React.ComponentProps<typeof ImageRoot> & {
@@ -40,7 +40,7 @@ export type ImageProps = React.ComponentProps<typeof ImageRoot> & {
 	viewportOptions?: UseInViewOptions;
 	ratio?: AspectRatioType | Partial<Record<Breakpoint, AspectRatioType>>;
 	slotProps?: {
-		img?: Omit<React.ComponentProps<typeof ImageImg>, "src" | "alt">;
+		img?: Omit<React.ComponentProps<typeof ImageImg>, 'src' | 'alt'>;
 		overlay?: React.ComponentProps<typeof ImageOverlay>;
 		placeholder?: React.ComponentProps<typeof ImagePlaceholder>;
 	};
@@ -48,7 +48,7 @@ export type ImageProps = React.ComponentProps<typeof ImageRoot> & {
 
 const DEFAULT_DELAY = 0;
 const DEFAULT_EFFECT: EffectsType = {
-	style: "blur",
+	style: 'blur',
 	duration: 300,
 	disabled: false,
 };
@@ -60,7 +60,7 @@ export const Image = ({
 	ratio,
 	onLoad,
 	effect,
-	alt = "",
+	alt = '',
 	slotProps,
 	className,
 	viewportOptions,
@@ -146,7 +146,7 @@ export const Image = ({
 			})}
 			sx={[
 				{
-					"--aspect-ratio": ratio,
+					'--aspect-ratio': ratio,
 					...(!!ratio && { width: 1 }),
 				},
 				...(Array.isArray(sx) ? sx : [sx]),

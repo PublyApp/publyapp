@@ -1,33 +1,33 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect } from 'react';
 
-import Badge from "@mui/material/Badge";
-import Box from "@mui/material/Box";
-import Drawer from "@mui/material/Drawer";
-import IconButton from "@mui/material/IconButton";
-import { useColorScheme } from "@mui/material/styles";
-import SvgIcon from "@mui/material/SvgIcon";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
-import { hasKeys, varAlpha } from "minimal-shared/utils";
+import Badge from '@mui/material/Badge';
+import Box from '@mui/material/Box';
+import Drawer from '@mui/material/Drawer';
+import IconButton from '@mui/material/IconButton';
+import { useColorScheme } from '@mui/material/styles';
+import SvgIcon from '@mui/material/SvgIcon';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import { hasKeys, varAlpha } from 'minimal-shared/utils';
 
-import { themeConfig } from "@/front/lib/mui/theme/theme-config";
-import type { ThemeColorScheme } from "@/front/lib/mui/theme/types";
-import { primaryColorPresets } from "@/front/lib/mui/theme/with-settings";
+import { themeConfig } from '@/front/lib/mui/theme/theme-config';
+import type { ThemeColorScheme } from '@/front/lib/mui/theme/types';
+import { primaryColorPresets } from '@/front/lib/mui/theme/with-settings';
 
 // import { themeConfig } from 'src/theme/theme-config';
 // import type { ThemeColorScheme } from 'src/theme/types';
-import { useSettingsContext } from "../../../hooks/use-settings-context";
-import { Iconify } from "../../iconify/iconify";
-import { Scrollbar } from "../../scrollbar";
-import type { SettingsDrawerProps, SettingsState } from "../types";
+import { useSettingsContext } from '../../../hooks/use-settings-context';
+import { Iconify } from '../../iconify/iconify';
+import { Scrollbar } from '../../scrollbar';
+import type { SettingsDrawerProps, SettingsState } from '../types';
 
-import { BaseOption } from "./base-option";
-import { FontFamilyOptions, FontSizeOptions } from "./font-options";
-import { FullScreenButton } from "./fullscreen-button";
-import { settingIcons } from "./icons";
-import { NavColorOptions, NavLayoutOptions } from "./nav-layout-option";
-import { PresetsOptions } from "./presets-options";
-import { LargeBlock, SmallBlock } from "./styles";
+import { BaseOption } from './base-option';
+import { FontFamilyOptions, FontSizeOptions } from './font-options';
+import { FullScreenButton } from './fullscreen-button';
+import { settingIcons } from './icons';
+import { NavColorOptions, NavLayoutOptions } from './nav-layout-option';
+import { PresetsOptions } from './presets-options';
+import { LargeBlock, SmallBlock } from './styles';
 
 // ----------------------------------------------------------------------
 
@@ -40,22 +40,22 @@ export const SettingsDrawer = ({
 	const { mode, setMode, systemMode } = useColorScheme();
 
 	useEffect(() => {
-		if (mode === "system" && systemMode) {
+		if (mode === 'system' && systemMode) {
 			settings.setState({ colorScheme: systemMode });
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [mode, systemMode]);
 
 	// Visible options by default settings
-	const isFontFamilyVisible = hasKeys(defaultSettings, ["fontFamily"]);
-	const isCompactLayoutVisible = hasKeys(defaultSettings, ["compactLayout"]);
-	const isDirectionVisible = hasKeys(defaultSettings, ["direction"]);
-	const isColorSchemeVisible = hasKeys(defaultSettings, ["colorScheme"]);
-	const isContrastVisible = hasKeys(defaultSettings, ["contrast"]);
-	const isNavColorVisible = hasKeys(defaultSettings, ["navColor"]);
-	const isNavLayoutVisible = hasKeys(defaultSettings, ["navLayout"]);
-	const isPrimaryColorVisible = hasKeys(defaultSettings, ["primaryColor"]);
-	const isFontSizeVisible = hasKeys(defaultSettings, ["fontSize"]);
+	const isFontFamilyVisible = hasKeys(defaultSettings, ['fontFamily']);
+	const isCompactLayoutVisible = hasKeys(defaultSettings, ['compactLayout']);
+	const isDirectionVisible = hasKeys(defaultSettings, ['direction']);
+	const isColorSchemeVisible = hasKeys(defaultSettings, ['colorScheme']);
+	const isContrastVisible = hasKeys(defaultSettings, ['contrast']);
+	const isNavColorVisible = hasKeys(defaultSettings, ['navColor']);
+	const isNavLayoutVisible = hasKeys(defaultSettings, ['navLayout']);
+	const isPrimaryColorVisible = hasKeys(defaultSettings, ['primaryColor']);
+	const isFontSizeVisible = hasKeys(defaultSettings, ['fontSize']);
 
 	const handleReset = useCallback(() => {
 		settings.onReset();
@@ -69,8 +69,8 @@ export const SettingsDrawer = ({
 					py: 2,
 					pr: 1,
 					pl: 2.5,
-					display: "flex",
-					alignItems: "center",
+					display: 'flex',
+					alignItems: 'center',
 				}}
 			>
 				<Typography variant="h6" sx={{ flexGrow: 1 }}>
@@ -100,12 +100,12 @@ export const SettingsDrawer = ({
 		return (
 			<BaseOption
 				label="Dark mode"
-				selected={settings.state.colorScheme === "dark"}
+				selected={settings.state.colorScheme === 'dark'}
 				icon={<SvgIcon>{settingIcons.moon}</SvgIcon>}
 				onChangeOption={() => {
-					setMode(mode === "light" ? "dark" : "light");
+					setMode(mode === 'light' ? 'dark' : 'light');
 					settings.setState({
-						colorScheme: mode === "light" ? "dark" : "light",
+						colorScheme: mode === 'light' ? 'dark' : 'light',
 					});
 				}}
 			/>
@@ -116,12 +116,12 @@ export const SettingsDrawer = ({
 		return (
 			<BaseOption
 				label="Contrast"
-				selected={settings.state.contrast === "hight"}
+				selected={settings.state.contrast === 'hight'}
 				icon={<SvgIcon>{settingIcons.contrast}</SvgIcon>}
 				onChangeOption={() => {
 					return settings.setState({
 						contrast:
-							settings.state.contrast === "default" ? "hight" : "default",
+							settings.state.contrast === 'default' ? 'hight' : 'default',
 					});
 				}}
 			/>
@@ -132,11 +132,11 @@ export const SettingsDrawer = ({
 		return (
 			<BaseOption
 				label="Right to left"
-				selected={settings.state.direction === "rtl"}
+				selected={settings.state.direction === 'rtl'}
 				icon={<SvgIcon>{settingIcons.alignRight}</SvgIcon>}
 				onChangeOption={() => {
 					return settings.setState({
-						direction: settings.state.direction === "ltr" ? "rtl" : "ltr",
+						direction: settings.state.direction === 'ltr' ? 'rtl' : 'ltr',
 					});
 				}}
 			/>
@@ -182,7 +182,7 @@ export const SettingsDrawer = ({
 								name: key,
 								value: primaryColorPresets[key].main,
 							};
-						}) as { name: SettingsState["primaryColor"]; value: string }[]
+						}) as { name: SettingsState['primaryColor']; value: string }[]
 					}
 					value={settings.state.primaryColor}
 					onChangeOption={(newOption) => {
@@ -213,25 +213,25 @@ export const SettingsDrawer = ({
 							}}
 							options={[
 								{
-									value: "vertical",
+									value: 'vertical',
 									icon: (
-										<SvgIcon sx={{ width: 1, height: "auto" }}>
+										<SvgIcon sx={{ width: 1, height: 'auto' }}>
 											{settingIcons.navVertical}
 										</SvgIcon>
 									),
 								},
 								{
-									value: "horizontal",
+									value: 'horizontal',
 									icon: (
-										<SvgIcon sx={{ width: 1, height: "auto" }}>
+										<SvgIcon sx={{ width: 1, height: 'auto' }}>
 											{settingIcons.navHorizontal}
 										</SvgIcon>
 									),
 								},
 								{
-									value: "mini",
+									value: 'mini',
 									icon: (
-										<SvgIcon sx={{ width: 1, height: "auto" }}>
+										<SvgIcon sx={{ width: 1, height: 'auto' }}>
 											{settingIcons.navMini}
 										</SvgIcon>
 									),
@@ -255,13 +255,13 @@ export const SettingsDrawer = ({
 							}}
 							options={[
 								{
-									label: "Integrate",
-									value: "integrate",
+									label: 'Integrate',
+									value: 'integrate',
 									icon: <SvgIcon>{settingIcons.sidebarOutline}</SvgIcon>,
 								},
 								{
-									label: "Apparent",
-									value: "apparent",
+									label: 'Apparent',
+									value: 'apparent',
 									icon: <SvgIcon>{settingIcons.sidebarFill}</SvgIcon>,
 								},
 							]}
@@ -292,9 +292,9 @@ export const SettingsDrawer = ({
 							}}
 							options={[
 								themeConfig.fontFamily.primary,
-								"Inter Variable",
-								"DM Sans Variable",
-								"Nunito Sans Variable",
+								'Inter Variable',
+								'DM Sans Variable',
+								'Nunito Sans Variable',
 							]}
 							icon={
 								<SvgIcon sx={{ width: 28, height: 28 }}>
@@ -359,15 +359,15 @@ export const SettingsDrawer = ({
 						pb: 5,
 						gap: 6,
 						px: 2.5,
-						display: "flex",
-						flexDirection: "column",
+						display: 'flex',
+						flexDirection: 'column',
 					}}
 				>
 					<Box
 						sx={{
 							gap: 2,
-							display: "grid",
-							gridTemplateColumns: "repeat(2, 1fr)",
+							display: 'grid',
+							gridTemplateColumns: 'repeat(2, 1fr)',
 						}}
 					>
 						{isColorSchemeVisible && renderMode()}

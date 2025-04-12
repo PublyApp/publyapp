@@ -1,25 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 
-import Backdrop from "@mui/material/Backdrop";
-import Box from "@mui/material/Box";
-import FormHelperText from "@mui/material/FormHelperText";
-import Portal from "@mui/material/Portal";
-import CodeBlockLowlightExtension from "@tiptap/extension-code-block-lowlight";
-import ImageExtension from "@tiptap/extension-image";
-import LinkExtension from "@tiptap/extension-link";
-import PlaceholderExtension from "@tiptap/extension-placeholder";
-import TextAlignExtension from "@tiptap/extension-text-align";
-import Underline from "@tiptap/extension-underline";
-import { EditorContent, ReactNodeViewRenderer, useEditor } from "@tiptap/react";
-import StarterKitExtension from "@tiptap/starter-kit";
-import { common, createLowlight } from "lowlight";
-import { mergeClasses } from "minimal-shared/utils";
+import Backdrop from '@mui/material/Backdrop';
+import Box from '@mui/material/Box';
+import FormHelperText from '@mui/material/FormHelperText';
+import Portal from '@mui/material/Portal';
+import CodeBlockLowlightExtension from '@tiptap/extension-code-block-lowlight';
+import ImageExtension from '@tiptap/extension-image';
+import LinkExtension from '@tiptap/extension-link';
+import PlaceholderExtension from '@tiptap/extension-placeholder';
+import TextAlignExtension from '@tiptap/extension-text-align';
+import Underline from '@tiptap/extension-underline';
+import { EditorContent, ReactNodeViewRenderer, useEditor } from '@tiptap/react';
+import StarterKitExtension from '@tiptap/starter-kit';
+import { common, createLowlight } from 'lowlight';
+import { mergeClasses } from 'minimal-shared/utils';
 
-import { editorClasses } from "./classes";
-import { CodeHighlightBlock } from "./components/code-highlight-block";
-import { EditorRoot } from "./styles";
-import { Toolbar } from "./toolbar";
-import type { EditorProps } from "./types";
+import { editorClasses } from './classes';
+import { CodeHighlightBlock } from './components/code-highlight-block';
+import { EditorRoot } from './styles';
+import { Toolbar } from './toolbar';
+import type { EditorProps } from './types';
 
 // ----------------------------------------------------------------------
 
@@ -34,8 +34,8 @@ export const Editor = ({
 	className,
 	editable = true,
 	fullItem = false,
-	value: content = "",
-	placeholder = "Write something awesome...",
+	value: content = '',
+	placeholder = 'Write something awesome...',
 	...other
 }: EditorProps) => {
 	const [fullScreen, setFullScreen] = useState(false);
@@ -78,7 +78,7 @@ export const Editor = ({
 			ImageExtension.configure({
 				HTMLAttributes: { class: editorClasses.content.image },
 			}),
-			TextAlignExtension.configure({ types: ["heading", "paragraph"] }),
+			TextAlignExtension.configure({ types: ['heading', 'paragraph'] }),
 			LinkExtension.configure({
 				autolink: true,
 				openOnClick: false,
@@ -102,7 +102,7 @@ export const Editor = ({
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
-			if (editor?.isEmpty && content !== "<p></p>") {
+			if (editor?.isEmpty && content !== '<p></p>') {
 				editor.commands.setContent(content);
 			}
 		}, 100);
@@ -121,9 +121,9 @@ export const Editor = ({
 
 	useEffect(() => {
 		if (fullScreen) {
-			document.body.style.overflow = "hidden";
+			document.body.style.overflow = 'hidden';
 		} else {
-			document.body.style.overflow = "";
+			document.body.style.overflow = '';
 		}
 	}, [fullScreen]);
 
@@ -145,13 +145,13 @@ export const Editor = ({
 				sx={[
 					() => {
 						return {
-							display: "flex",
-							flexDirection: "column",
-							...(!editable && { cursor: "not-allowed" }),
+							display: 'flex',
+							flexDirection: 'column',
+							...(!editable && { cursor: 'not-allowed' }),
 						};
 					},
 					...(Array.isArray(slotProps?.wrapper?.sx)
-						? slotProps?.wrapper?.sx ?? []
+						? (slotProps?.wrapper?.sx ?? [])
 						: [slotProps?.wrapper?.sx]),
 				]}
 			>

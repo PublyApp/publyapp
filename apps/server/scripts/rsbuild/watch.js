@@ -8,22 +8,22 @@
 
 // @ts-check
 
-const { spawn } = require("child_process");
-const path = require("path");
+const { spawn } = require('child_process');
+const path = require('path');
 
-const _ = require("lodash");
+const _ = require('lodash');
 
-const chokidar = require("chokidar");
+const chokidar = require('chokidar');
 
 const {
 	createRsbuild,
 	watch: _watch,
 	createI18nResourcesFiles,
-} = require("./config");
+} = require('./config');
 
 // set node env to development
 // otherwise onDevCompileDone API will not be called
-process.env.NODE_ENV = "development";
+process.env.NODE_ENV = 'development';
 
 const run = async () => {
 	const rsbuild = await createRsbuild();
@@ -43,35 +43,35 @@ const run = async () => {
 
 		// kill previous app process and start a new one
 		if (startAppProcess) {
-			startAppProcess.kill("SIGINT");
+			startAppProcess.kill('SIGINT');
 			startAppProcess = null;
 		}
 
-		const startCommand = ["node", "--enable-source-maps", "dist/index.mjs"];
+		const startCommand = ['node', '--enable-source-maps', 'dist/index.mjs'];
 
 		// eslint-disable-next-line arrow-body-style
 		console.log(
-			"\x1b[32m%s\x1b[0m",
-			"====>",
+			'\x1b[32m%s\x1b[0m',
+			'====>',
 			startCommand
 				.map((arg) => {
-					return arg.includes(" ") ? `"${arg}"` : arg;
+					return arg.includes(' ') ? `"${arg}"` : arg;
 				})
-				.join(" "),
+				.join(' '),
 		);
 
 		const [node, ...args] = startCommand;
 
 		startAppProcess = spawn(node, args, {
-			stdio: "inherit",
-			cwd: path.resolve(__dirname, "../../"),
+			stdio: 'inherit',
+			cwd: path.resolve(__dirname, '../../'),
 			env: _.assign({}, process.env, {
 				// even during development, set NODE_ENV to production
 				// so that we can have production-like behavior
 				// (e.g. the app will not crash on missing env variables + better performance)
 				// To differentiate between development and production, use process.env.MODE instead of process.env.NODE_ENV
 				// (MODE is set by the user in the .env.local file or at node command line launch)
-				NODE_ENV: "production",
+				NODE_ENV: 'production',
 			}),
 		});
 
@@ -79,17 +79,17 @@ const run = async () => {
 		// startAppProcess = spawn('npm.cmd', ['start'], { stdio: 'inherit', cwd: __dirname });
 	});
 
-	process.stdin.on("data", (data) => {
+	process.stdin.on('data', (data) => {
 		const input = data.toString().trim();
 
-		if (input === "rs") {
+		if (input === 'rs') {
 			watch();
 		}
 	});
 
 	chokidar
-		.watch(path.resolve(__dirname, "../../.env.local"))
-		.on("change", () => {
+		.watch(path.resolve(__dirname, '../../.env.local'))
+		.on('change', () => {
 			watch();
 		});
 

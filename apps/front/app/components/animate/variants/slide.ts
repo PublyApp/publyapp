@@ -1,18 +1,18 @@
-import type { Transition, Variants } from "framer-motion";
+import type { Transition, Variants } from 'framer-motion';
 
-import { transitionEnter, transitionExit } from "./transition";
+import { transitionEnter, transitionExit } from './transition';
 
 // ----------------------------------------------------------------------
 
 type Direction =
-	| "inUp"
-	| "inDown"
-	| "inLeft"
-	| "inRight"
-	| "outUp"
-	| "outDown"
-	| "outLeft"
-	| "outRight";
+	| 'inUp'
+	| 'inDown'
+	| 'inLeft'
+	| 'inRight'
+	| 'outUp'
+	| 'outDown'
+	| 'outLeft'
+	| 'outRight';
 
 type Options = {
 	distance?: number;

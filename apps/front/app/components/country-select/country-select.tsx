@@ -1,19 +1,19 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo } from 'react';
 
 import Autocomplete, {
 	type AutocompleteProps,
 	type AutocompleteRenderGetTagProps,
 	type AutocompleteRenderInputParams,
-} from "@mui/material/Autocomplete";
-import Chip from "@mui/material/Chip";
-import { filledInputClasses } from "@mui/material/FilledInput";
-import InputAdornment from "@mui/material/InputAdornment";
-import { outlinedInputClasses } from "@mui/material/OutlinedInput";
-import TextField, { type TextFieldProps } from "@mui/material/TextField";
+} from '@mui/material/Autocomplete';
+import Chip from '@mui/material/Chip';
+import { filledInputClasses } from '@mui/material/FilledInput';
+import InputAdornment from '@mui/material/InputAdornment';
+import { outlinedInputClasses } from '@mui/material/OutlinedInput';
+import TextField, { type TextFieldProps } from '@mui/material/TextField';
 
-import { countries } from "@/front/assets/data/countries";
+import { countries } from '@/front/assets/data/countries';
 
-import { FlagIcon, flagIconClasses } from "../flag-icon";
+import { FlagIcon, flagIconClasses } from '../flag-icon';
 
 // ----------------------------------------------------------------------
 
@@ -21,7 +21,7 @@ type Value = string;
 
 export type AutocompleteBaseProps = Omit<
 	AutocompleteProps<any, boolean, boolean, boolean>,
-	"options" | "renderOption" | "renderInput" | "renderTags" | "getOptionLabel"
+	'options' | 'renderOption' | 'renderInput' | 'renderTags' | 'getOptionLabel'
 >;
 
 export type CountrySelectProps = AutocompleteBaseProps & {
@@ -29,9 +29,9 @@ export type CountrySelectProps = AutocompleteBaseProps & {
 	error?: boolean;
 	placeholder?: string;
 	hiddenLabel?: boolean;
-	getValue?: "label" | "code";
+	getValue?: 'label' | 'code';
 	helperText?: React.ReactNode;
-	variant?: TextFieldProps["variant"];
+	variant?: TextFieldProps['variant'];
 };
 
 export const CountrySelect = ({
@@ -43,12 +43,12 @@ export const CountrySelect = ({
 	helperText,
 	hiddenLabel,
 	placeholder,
-	getValue = "label",
+	getValue = 'label',
 	...other
 }: CountrySelectProps) => {
 	const options = useMemo(() => {
 		return countries.map((country) => {
-			return getValue === "label" ? country.label : country.code;
+			return getValue === 'label' ? country.label : country.code;
 		});
 	}, [getValue]);
 
@@ -61,9 +61,9 @@ export const CountrySelect = ({
 			);
 		});
 		return {
-			code: country?.code || "",
-			label: country?.label || "",
-			phone: country?.phone || "",
+			code: country?.code || '',
+			label: country?.label || '',
+			phone: country?.phone || '',
 		};
 	}, []);
 
@@ -80,7 +80,7 @@ export const CountrySelect = ({
 							mr: 1,
 							width: 22,
 							height: 22,
-							borderRadius: "50%",
+							borderRadius: '50%',
 						}}
 					/>
 					{country.label} ({country.code}) +{country.phone}
@@ -102,7 +102,7 @@ export const CountrySelect = ({
 				helperText,
 				hiddenLabel,
 				error: !!error,
-				inputProps: { ...params.inputProps, autoComplete: "new-password" },
+				inputProps: { ...params.inputProps, autoComplete: 'new-password' },
 			};
 
 			if (multiple) {
@@ -118,12 +118,12 @@ export const CountrySelect = ({
 							startAdornment: (
 								<InputAdornment
 									position="start"
-									sx={{ ...(!country.code && { display: "none" }) }}
+									sx={{ ...(!country.code && { display: 'none' }) }}
 								>
 									<FlagIcon
 										key={country.label}
 										code={country.code}
-										sx={{ width: 22, height: 22, borderRadius: "50%" }}
+										sx={{ width: 22, height: 22, borderRadius: '50%' }}
 									/>
 								</InputAdornment>
 							),
@@ -172,7 +172,7 @@ export const CountrySelect = ({
 							<FlagIcon
 								key={country.label}
 								code={country.code}
-								sx={{ width: 16, height: 16, borderRadius: "50%" }}
+								sx={{ width: 16, height: 16, borderRadius: '50%' }}
 							/>
 						}
 					/>
@@ -184,11 +184,11 @@ export const CountrySelect = ({
 
 	const getOptionLabel = useCallback(
 		(option: Value) => {
-			if (getValue === "code") {
+			if (getValue === 'code') {
 				const country = countries.find((op) => {
 					return op.code === option;
 				});
-				return country?.label ?? "";
+				return country?.label ?? '';
 			}
 
 			return option;

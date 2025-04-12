@@ -1,12 +1,12 @@
-import FormControl, { type FormControlProps } from "@mui/material/FormControl";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import type { FormHelperTextProps } from "@mui/material/FormHelperText";
-import FormLabel, { type FormLabelProps } from "@mui/material/FormLabel";
-import Radio, { type RadioProps } from "@mui/material/Radio";
-import RadioGroup, { type RadioGroupProps } from "@mui/material/RadioGroup";
-import { Controller, useFormContext } from "react-hook-form";
+import FormControl, { type FormControlProps } from '@mui/material/FormControl';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import type { FormHelperTextProps } from '@mui/material/FormHelperText';
+import FormLabel, { type FormLabelProps } from '@mui/material/FormLabel';
+import Radio, { type RadioProps } from '@mui/material/Radio';
+import RadioGroup, { type RadioGroupProps } from '@mui/material/RadioGroup';
+import { Controller, useFormContext } from 'react-hook-form';
 
-import { HelperText } from "./help-text";
+import { HelperText } from './help-text';
 
 // ----------------------------------------------------------------------
 
@@ -49,9 +49,9 @@ export const RHFRadioGroup = ({
 								component="legend"
 								{...slotProps?.formLabel}
 								sx={[
-									{ mb: 1, typography: "body2" },
+									{ mb: 1, typography: 'body2' },
 									...(Array.isArray(slotProps?.formLabel?.sx)
-										? slotProps?.formLabel?.sx ?? []
+										? (slotProps?.formLabel?.sx ?? [])
 										: [slotProps?.formLabel?.sx]),
 								]}
 							>
@@ -78,7 +78,7 @@ export const RHFRadioGroup = ({
 													input: {
 														id: `${option.label}-radio`,
 														...(!option.label && {
-															"aria-label": `${option.label} radio`,
+															'aria-label': `${option.label} radio`,
 														}),
 														...slotProps?.radio?.slotProps?.input,
 													},

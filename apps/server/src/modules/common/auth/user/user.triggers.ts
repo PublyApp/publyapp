@@ -1,13 +1,13 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import type { TFunction } from "i18next";
+import type { TFunction } from 'i18next';
 
-import { roleEnum } from "@org/shared/lib/constants";
+import { roleEnum } from '@org/shared/lib/constants';
 
-import { ADMIN_EMAILS, USE_MASTER_KEY } from "@/server/lib/constants";
-import { parseTriggerEnhanced } from "@/server/lib/parse/function.utils";
+import { ADMIN_EMAILS, USE_MASTER_KEY } from '@/server/lib/constants';
+import { parseTriggerEnhanced } from '@/server/lib/parse/function.utils';
 
-import RoleService from "../role/role.service";
+import RoleService from '../role/role.service';
 
 // --------------------------------------------------------------------------------------//
 //                                     BEFORE SAVE                                       //
@@ -51,7 +51,7 @@ const autoAssignDefaultRole = async ({
 	req: Parse.Cloud.TriggerRequest<Parse.User>;
 	t: TFunction;
 }) => {
-	const isNew = _.get(req, "context.isNew");
+	const isNew = _.get(req, 'context.isNew');
 
 	if (!isNew) {
 		return;
@@ -65,7 +65,7 @@ const autoAssignDefaultRole = async ({
 		// if an user has been successfully saved,
 		// that means that it must have an email
 		// it is our login policy (in our code)
-		throw new Error(t("user-has-no-email"));
+		throw new Error(t('user-has-no-email'));
 	}
 
 	const roleService = new RoleService(USE_MASTER_KEY);
@@ -75,7 +75,7 @@ const autoAssignDefaultRole = async ({
 	);
 
 	if (!defaultRole) {
-		throw new Error(t("item-not-found", { item: t("role") }));
+		throw new Error(t('item-not-found', { item: t('role') }));
 	}
 
 	await roleService.assignRoleToUser(userSaved, defaultRole);
@@ -96,7 +96,7 @@ const autoAssignAdminRole = async ({
 		// if an user has been successfully saved,
 		// that means that it must have an email
 		// it is our login policy (in our code)
-		throw new Error(t("user-has-no-email"));
+		throw new Error(t('user-has-no-email'));
 	}
 
 	const roleService = new RoleService(USE_MASTER_KEY);
@@ -107,7 +107,7 @@ const autoAssignAdminRole = async ({
 		);
 
 		if (!adminRole) {
-			throw new Error(t("item-not-found", { item: t("role") }));
+			throw new Error(t('item-not-found', { item: t('role') }));
 		}
 
 		await roleService.assignRoleToUser(userSaved, adminRole);

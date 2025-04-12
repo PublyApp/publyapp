@@ -1,8 +1,8 @@
-import { memo } from "react";
+import { memo } from 'react';
 
-import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
+import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 
-import { BackgroundShape } from "./background-shape";
+import { BackgroundShape } from './background-shape';
 
 // ----------------------------------------------------------------------
 
@@ -31,15 +31,15 @@ const ServerErrorIllustration = ({
 			sx={[
 				(theme) => {
 					return {
-						"--primary-lighter": theme.vars.palette.primary.lighter,
-						"--primary-light": theme.vars.palette.primary.light,
-						"--primary-main": theme.vars.palette.primary.main,
-						"--primary-dark": theme.vars.palette.primary.dark,
-						"--primary-darker": theme.vars.palette.primary.darker,
+						'--primary-lighter': theme.vars.palette.primary.lighter,
+						'--primary-light': theme.vars.palette.primary.light,
+						'--primary-main': theme.vars.palette.primary.main,
+						'--primary-dark': theme.vars.palette.primary.dark,
+						'--primary-darker': theme.vars.palette.primary.darker,
 						width: 320,
 						maxWidth: 1,
 						flexShrink: 0,
-						height: "auto",
+						height: 'auto',
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),

@@ -1,7 +1,7 @@
-import { alertClasses, type AlertProps } from "@mui/material/Alert";
-import type { Components, CSSObject, Theme } from "@mui/material/styles";
-import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
-import { varAlpha } from "minimal-shared/utils";
+import { alertClasses, type AlertProps } from '@mui/material/Alert';
+import type { Components, CSSObject, Theme } from '@mui/material/styles';
+import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
@@ -66,7 +66,7 @@ const AlertErrorIcon = (props: SvgIconProps) => {
 
 // ----------------------------------------------------------------------
 
-const COLORS = ["info", "success", "warning", "error"] as const;
+const COLORS = ['info', 'success', 'warning', 'error'] as const;
 
 type PaletteColor = (typeof COLORS)[number];
 
@@ -88,7 +88,7 @@ const styleColors = (
 
 // ----------------------------------------------------------------------
 
-const MuiAlert: Components<Theme>["MuiAlert"] = {
+const MuiAlert: Components<Theme>['MuiAlert'] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
@@ -115,13 +115,13 @@ const MuiAlert: Components<Theme>["MuiAlert"] = {
 					return {
 						color: theme.vars.palette[color].darker,
 						backgroundColor: theme.vars.palette[color].lighter,
-						...theme.applyStyles("dark", {
+						...theme.applyStyles('dark', {
 							color: theme.vars.palette[color].lighter,
 							backgroundColor: theme.vars.palette[color].darker,
 						}),
 						[`& .${alertClasses.icon}`]: {
 							color: theme.vars.palette[color].main,
-							...theme.applyStyles("dark", {
+							...theme.applyStyles('dark', {
 								color: theme.vars.palette[color].light,
 							}),
 						},
@@ -158,7 +158,7 @@ const MuiAlert: Components<Theme>["MuiAlert"] = {
 						),
 						color: theme.vars.palette[color].dark,
 						border: `solid 1px ${varAlpha(theme.vars.palette[color].mainChannel, 0.16)}`,
-						...theme.applyStyles("dark", {
+						...theme.applyStyles('dark', {
 							color: theme.vars.palette[color].light,
 						}),
 						[`& .${alertClasses.icon}`]: {
@@ -175,7 +175,7 @@ const MuiAlert: Components<Theme>["MuiAlert"] = {
 
 // ----------------------------------------------------------------------
 
-const MuiAlertTitle: Components<Theme>["MuiAlertTitle"] = {
+const MuiAlertTitle: Components<Theme>['MuiAlertTitle'] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */

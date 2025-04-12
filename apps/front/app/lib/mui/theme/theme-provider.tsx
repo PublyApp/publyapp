@@ -1,15 +1,15 @@
-import CssBaseline from "@mui/material/CssBaseline";
+import CssBaseline from '@mui/material/CssBaseline';
 import {
 	ThemeProvider as ThemeVarsProvider,
 	type ThemeProviderProps as MuiThemeProviderProps,
-} from "@mui/material/styles";
+} from '@mui/material/styles';
 
-import { useSettingsContext } from "@/front/hooks/use-settings-context";
+import { useSettingsContext } from '@/front/hooks/use-settings-context';
 
-import { useTranslate } from "../../../hooks/use-translate";
+import { useTranslate } from '../../../hooks/use-translate';
 
-import { createTheme } from "./create-theme";
-import type { ThemeOptions } from "./types";
+import { createTheme } from './create-theme';
+import type { ThemeOptions } from './types';
 
 // ----------------------------------------------------------------------
 

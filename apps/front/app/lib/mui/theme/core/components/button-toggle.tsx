@@ -1,19 +1,19 @@
-import type { Components, CSSObject, Theme } from "@mui/material/styles";
+import type { Components, CSSObject, Theme } from '@mui/material/styles';
 import {
 	toggleButtonClasses,
 	type ToggleButtonProps,
-} from "@mui/material/ToggleButton";
-import { varAlpha } from "minimal-shared/utils";
+} from '@mui/material/ToggleButton';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
 const COLORS = [
-	"primary",
-	"secondary",
-	"info",
-	"success",
-	"warning",
-	"error",
+	'primary',
+	'secondary',
+	'info',
+	'success',
+	'warning',
+	'error',
 ] as const;
 
 type PaletteColor = (typeof COLORS)[number];
@@ -38,7 +38,7 @@ const styleColors = (
 
 // ----------------------------------------------------------------------
 
-const MuiToggleButton: Components<Theme>["MuiToggleButton"] = {
+const MuiToggleButton: Components<Theme>['MuiToggleButton'] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
@@ -47,7 +47,7 @@ const MuiToggleButton: Components<Theme>["MuiToggleButton"] = {
 			const styled = {
 				colors: styleColors(ownerState, (color) => {
 					return {
-						"&:hover": {
+						'&:hover': {
 							borderColor: varAlpha(
 								theme.vars.palette[color].mainChannel,
 								0.48,
@@ -61,8 +61,8 @@ const MuiToggleButton: Components<Theme>["MuiToggleButton"] = {
 				}),
 				selected: {
 					[`&.${toggleButtonClasses.selected}`]: {
-						borderColor: "currentColor",
-						boxShadow: "0 0 0 0.75px currentColor",
+						borderColor: 'currentColor',
+						boxShadow: '0 0 0 0.75px currentColor',
 					},
 				},
 				disabled: {
@@ -88,7 +88,7 @@ const MuiToggleButton: Components<Theme>["MuiToggleButton"] = {
 
 // ----------------------------------------------------------------------
 
-const MuiToggleButtonGroup: Components<Theme>["MuiToggleButtonGroup"] = {
+const MuiToggleButtonGroup: Components<Theme>['MuiToggleButtonGroup'] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
@@ -97,15 +97,15 @@ const MuiToggleButtonGroup: Components<Theme>["MuiToggleButtonGroup"] = {
 			return {
 				gap: 4,
 				padding: 4,
-				border: `solid 1px ${varAlpha(theme.vars.palette.grey["500Channel"], 0.08)}`,
+				border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
 			};
 		},
 		grouped: {
 			[`&.${toggleButtonClasses.root}`]: {
-				border: "none",
-				borderRadius: "inherit",
+				border: 'none',
+				borderRadius: 'inherit',
 			},
-			[`&.${toggleButtonClasses.selected}`]: { boxShadow: "none" },
+			[`&.${toggleButtonClasses.selected}`]: { boxShadow: 'none' },
 		},
 	},
 };

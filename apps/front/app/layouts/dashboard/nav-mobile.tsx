@@ -1,19 +1,19 @@
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
-import Box from "@mui/material/Box";
-import Drawer from "@mui/material/Drawer";
-import { mergeClasses } from "minimal-shared/utils";
+import Box from '@mui/material/Box';
+import Drawer from '@mui/material/Drawer';
+import { mergeClasses } from 'minimal-shared/utils';
 
-import { Logo } from "@/front/components/logo";
+import { Logo } from '@/front/components/logo';
 import {
 	NavSectionVertical,
 	type NavSectionProps,
-} from "@/front/components/nav-section";
-import { Scrollbar } from "@/front/components/scrollbar";
-import { usePathname } from "@/front/hooks/use-pathname";
+} from '@/front/components/nav-section';
+import { Scrollbar } from '@/front/components/scrollbar';
+import { usePathname } from '@/front/hooks/use-pathname';
 
-import { NavUpgrade } from "../components/nav-upgrade";
-import { layoutClasses } from "../core/classes";
+import { NavUpgrade } from '../components/nav-upgrade';
+import { layoutClasses } from '../core/classes';
 
 // ----------------------------------------------------------------------
 
@@ -58,9 +58,9 @@ export const NavMobile = ({
 					]),
 					sx: [
 						{
-							overflow: "unset",
-							bgcolor: "var(--layout-nav-bg)",
-							width: "var(--layout-nav-mobile-width)",
+							overflow: 'unset',
+							bgcolor: 'var(--layout-nav-bg)',
+							width: 'var(--layout-nav-mobile-width)',
 						},
 						...(Array.isArray(sx) ? sx : [sx]),
 					],
@@ -77,7 +77,7 @@ export const NavMobile = ({
 				<NavSectionVertical
 					data={data}
 					checkPermissions={checkPermissions}
-					sx={{ px: 2, flex: "1 1 auto" }}
+					sx={{ px: 2, flex: '1 1 auto' }}
 					{...other}
 				/>
 				<NavUpgrade />

@@ -1,10 +1,10 @@
-import type { Transition, Variants } from "framer-motion";
+import type { Transition, Variants } from 'framer-motion';
 
-import { transitionEnter, transitionExit } from "./transition";
+import { transitionEnter, transitionExit } from './transition';
 
 // ----------------------------------------------------------------------
 
-type Direction = "in" | "out";
+type Direction = 'in' | 'out';
 
 type Options = {
 	deg?: number;

@@ -1,15 +1,15 @@
-import type { RequestHandler } from "express";
-import { nanoid } from "nanoid";
+import type { RequestHandler } from 'express';
+import { nanoid } from 'nanoid';
 
-import { HttpException } from "@/server/exceptions/HttpException";
-import { AuthCloudService } from "@/server/modules/common/auth/auth.cloud.service";
+import { HttpException } from '@/server/exceptions/HttpException';
+import { AuthCloudService } from '@/server/modules/common/auth/auth.cloud.service';
 import {
 	PARSE_INSTALLATION_ID_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
 	REST_API_HEADER_KEY,
-} from "@/shared/lib/constants";
+} from '@/shared/lib/constants';
 
-import { expressHandler, getHeader } from "../lib/express";
+import { expressHandler, getHeader } from '../lib/express';
 
 type Input = {
 	withKey?: boolean;
@@ -62,7 +62,7 @@ const protectionMiddleware = ({
 
 			// if user exists, go to next
 			if (!(await user)) {
-				return next(new HttpException(400, "User not found"));
+				return next(new HttpException(400, 'User not found'));
 			}
 
 			req.user = await user;

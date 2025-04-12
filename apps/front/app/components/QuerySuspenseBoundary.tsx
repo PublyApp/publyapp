@@ -4,18 +4,18 @@ import {
 	useRef,
 	type ReactNode,
 	type SuspenseProps,
-} from "react";
+} from 'react';
 
-import { useQueryErrorResetBoundary } from "@tanstack/react-query";
+import { useQueryErrorResetBoundary } from '@tanstack/react-query';
 import {
 	ErrorBoundary,
 	type ErrorBoundaryPropsWithComponent,
-} from "react-error-boundary";
-import { useLocation } from "react-router";
+} from 'react-error-boundary';
+import { useLocation } from 'react-router';
 
 type Props = {
 	children?: ReactNode;
-	suspenseFallback?: SuspenseProps["fallback"];
+	suspenseFallback?: SuspenseProps['fallback'];
 } & ErrorBoundaryPropsWithComponent;
 
 // https://stackoverflow.com/a/71877172/15003148
@@ -24,10 +24,10 @@ const getFallBackComponent = ({
 	location,
 	errorLocation,
 }: {
-	FallbackComponent: ErrorBoundaryPropsWithComponent["FallbackComponent"];
+	FallbackComponent: ErrorBoundaryPropsWithComponent['FallbackComponent'];
 	location: ReturnType<typeof useLocation>;
 	errorLocation: ReturnType<typeof useLocation>;
-}): ErrorBoundaryPropsWithComponent["FallbackComponent"] => {
+}): ErrorBoundaryPropsWithComponent['FallbackComponent'] => {
 	return ({ error, resetErrorBoundary }) => {
 		useEffect(() => {
 			if (location.pathname !== errorLocation.pathname) {

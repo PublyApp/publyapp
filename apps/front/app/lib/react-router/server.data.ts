@@ -1,25 +1,25 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import type { ApiClient } from "packages/api/ApiClient";
+import type { ApiClient } from 'packages/api/ApiClient';
 import {
 	redirect,
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
-} from "react-router";
+} from 'react-router';
 
 import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
 	X_FORWARDED_FOR_HEADER_KEY,
-} from "@/shared/lib/constants";
-import type { AppLocale } from "@/shared/lib/i18n/resources";
-import InterZod from "@/shared/lib/zod/InterZod";
+} from '@/shared/lib/constants';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
+import InterZod from '@/shared/lib/zod/InterZod';
 
-import { initApiClientOnServer } from "../api";
-import { CookieManager } from "../cookie-manager";
-import { remixI18NextServer } from "../i18n/i18n.server";
+import { initApiClientOnServer } from '../api';
+import { CookieManager } from '../cookie-manager';
+import { remixI18NextServer } from '../i18n/i18n.server';
 
-import { getRequestLocale } from "./data.utils";
+import { getRequestLocale } from './data.utils';
 
 // declare module 'react-router' {
 // 	interface AppLoadContext {
@@ -37,7 +37,7 @@ type GetServerLoaderParamsWhenRequireUser<
 			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
-			authData: Awaited<ReturnType<ApiClient["auth"]["getUserAuthData"]>>;
+			authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
 		},
 	) => Promise<D>;
 };
@@ -68,7 +68,7 @@ type GetServerLoaderParamsWithAuthDataPromise<
 			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
-			authDataPromise: ReturnType<ApiClient["auth"]["getUserAuthData"]>;
+			authDataPromise: ReturnType<ApiClient['auth']['getUserAuthData']>;
 		},
 	) => Promise<D>;
 };
@@ -149,7 +149,7 @@ type GetServerActionParamsWhenRequireUser<
 			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
-			authData: Awaited<ReturnType<ApiClient["auth"]["getUserAuthData"]>>;
+			authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
 		},
 	) => Promise<D>;
 };

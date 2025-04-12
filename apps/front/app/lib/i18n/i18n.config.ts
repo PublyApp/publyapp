@@ -2,11 +2,11 @@ import {
 	type DefaultLocale,
 	type DefaultNS,
 	type SupportedLanguages,
-} from "@/shared/lib/i18n/resources";
+} from '@/shared/lib/i18n/resources';
 
 type Config = {
 	debug: boolean;
-	compatibilityJSON: "v4";
+	compatibilityJSON: 'v4';
 	interpolation: {
 		escapeValue: boolean;
 	};
@@ -23,7 +23,7 @@ type Config = {
 
 export const config: Config = {
 	debug: false,
-	compatibilityJSON: "v4" as const,
+	compatibilityJSON: 'v4' as const,
 	interpolation: {
 		escapeValue: false, // not needed for react as it escapes by default
 	},
@@ -32,9 +32,9 @@ export const config: Config = {
 		transSupportBasicHtmlNodes: false,
 	},
 
-	defaultNS: "common",
-	fallbackLng: "en",
-	supportedLngs: ["en", "fr"], // set per environment
+	defaultNS: 'common',
+	fallbackLng: 'en',
+	supportedLngs: ['en', 'fr'], // set per environment
 	// ns: ['common', 'zod'], // set per environment
 
 	// !!! server only

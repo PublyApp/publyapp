@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useTheme } from "@mui/material/styles";
-import { mergeClasses } from "minimal-shared/utils";
+import { useTheme } from '@mui/material/styles';
+import { mergeClasses } from 'minimal-shared/utils';
 
-import { Scrollbar } from "../../scrollbar/scrollbar";
-import { Nav, NavLi, NavUl } from "../components";
-import { navSectionClasses, navSectionCssVars } from "../styles";
-import type { NavGroupProps, NavSectionProps } from "../types";
+import { Scrollbar } from '../../scrollbar/scrollbar';
+import { Nav, NavLi, NavUl } from '../components';
+import { navSectionClasses, navSectionCssVars } from '../styles';
+import type { NavGroupProps, NavSectionProps } from '../types';
 
-import { NavList } from "./nav-list";
+import { NavList } from './nav-list';
 
 // ----------------------------------------------------------------------
 
@@ -30,7 +30,7 @@ export const NavSectionHorizontal = ({
 		<Scrollbar
 			sx={{ height: 1 }}
 			slotProps={{
-				contentSx: { height: 1, display: "flex", alignItems: "center" },
+				contentSx: { height: 1, display: 'flex', alignItems: 'center' },
 			}}
 		>
 			<Nav
@@ -40,17 +40,17 @@ export const NavSectionHorizontal = ({
 						return {
 							...cssVars,
 							height: 1,
-							mx: "auto",
-							display: "flex",
-							alignItems: "center",
-							minHeight: "var(--nav-height)",
+							mx: 'auto',
+							display: 'flex',
+							alignItems: 'center',
+							minHeight: 'var(--nav-height)',
 						};
 					},
 					...(Array.isArray(sx) ? sx : [sx]),
 				]}
 				{...other}
 			>
-				<NavUl sx={{ flexDirection: "row", gap: "var(--nav-item-gap)" }}>
+				<NavUl sx={{ flexDirection: 'row', gap: 'var(--nav-item-gap)' }}>
 					{data.map((group) => {
 						return (
 							<Group
@@ -82,7 +82,7 @@ const Group = ({
 }: NavGroupProps) => {
 	return (
 		<NavLi>
-			<NavUl sx={{ flexDirection: "row", gap: "var(--nav-item-gap)" }}>
+			<NavUl sx={{ flexDirection: 'row', gap: 'var(--nav-item-gap)' }}>
 				{items.map((list) => {
 					return (
 						<NavList

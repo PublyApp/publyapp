@@ -1,14 +1,14 @@
-import type { ApiClient } from "packages/api/ApiClient";
-import type { LoaderFunctionArgs } from "react-router";
+import type { ApiClient } from 'packages/api/ApiClient';
+import type { LoaderFunctionArgs } from 'react-router';
 
-import type { AppLocale } from "@/shared/lib/i18n/resources";
-import type InterZod from "@/shared/lib/zod/InterZod";
+import type { AppLocale } from '@/shared/lib/i18n/resources';
+import type InterZod from '@/shared/lib/zod/InterZod';
 
-import { initApiClientOnClient } from "../api";
-import { initI18nOnClient } from "../i18n/initI18n.client";
-import { initZodOnClient } from "../zod";
+import { initApiClientOnClient } from '../api';
+import { initI18nOnClient } from '../i18n/initI18n.client';
+import { initZodOnClient } from '../zod';
 
-import { getRequestLocale } from "./data.utils";
+import { getRequestLocale } from './data.utils';
 
 type GetCLientLoaderParams<
 	T extends LoaderFunctionArgs = LoaderFunctionArgs,

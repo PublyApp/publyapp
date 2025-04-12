@@ -1,21 +1,21 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { styled, type SxProps, type Theme } from "@mui/material/styles";
-import { mergeClasses } from "minimal-shared/utils";
+import { styled, type SxProps, type Theme } from '@mui/material/styles';
+import { mergeClasses } from 'minimal-shared/utils';
 
-import UploadIllustration from "@/front/assets/illustrations/upload-illustration";
-import { createClasses } from "@/front/lib/mui/theme/create-classes";
+import UploadIllustration from '@/front/assets/illustrations/upload-illustration';
+import { createClasses } from '@/front/lib/mui/theme/create-classes';
 
 // ----------------------------------------------------------------------
 
-export type UploadPlaceholderProps = React.ComponentProps<"div"> & {
+export type UploadPlaceholderProps = React.ComponentProps<'div'> & {
 	sx?: SxProps<Theme>;
 };
 
 const uploadPlaceholderClasses = {
-	root: createClasses("upload__placeholder__root"),
-	content: createClasses("upload__placeholder__content"),
-	title: createClasses("upload__placeholder__title"),
-	description: createClasses("upload__placeholder__description"),
+	root: createClasses('upload__placeholder__root'),
+	content: createClasses('upload__placeholder__content'),
+	title: createClasses('upload__placeholder__title'),
+	description: createClasses('upload__placeholder__description'),
 };
 
 export const UploadPlaceholder = ({
@@ -46,27 +46,27 @@ export const UploadPlaceholder = ({
 
 // ----------------------------------------------------------------------
 
-const PlaceholderRoot = styled("div")(() => {
+const PlaceholderRoot = styled('div')(() => {
 	return {
-		display: "flex",
-		alignItems: "center",
-		flexDirection: "column",
-		justifyContent: "center",
+		display: 'flex',
+		alignItems: 'center',
+		flexDirection: 'column',
+		justifyContent: 'center',
 	};
 });
 
-const PlaceholderContent = styled("div")(({ theme }) => {
+const PlaceholderContent = styled('div')(({ theme }) => {
 	return {
-		display: "flex",
-		textAlign: "center",
+		display: 'flex',
+		textAlign: 'center',
 		gap: theme.spacing(1),
-		flexDirection: "column",
+		flexDirection: 'column',
 		[`& .${uploadPlaceholderClasses.title}`]: { ...theme.typography.h6 },
 		[`& .${uploadPlaceholderClasses.description}`]: {
 			...theme.typography.body2,
 			color: theme.vars.palette.text.secondary,
-			"& span": {
-				textDecoration: "underline",
+			'& span': {
+				textDecoration: 'underline',
 				margin: theme.spacing(0, 0.5),
 				color: theme.vars.palette.primary.main,
 			},

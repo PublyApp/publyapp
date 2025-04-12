@@ -1,13 +1,13 @@
-import auth from "parse-server/lib/Auth.js";
-import { UsersRouter } from "parse-server/lib/Routers/UsersRouter.js";
+import auth from 'parse-server/lib/Auth.js';
+import { UsersRouter } from 'parse-server/lib/Routers/UsersRouter.js';
 
-import { Dayjs } from "dayjs";
-import type { ParsedQs } from "qs";
+import { Dayjs } from 'dayjs';
+import type { ParsedQs } from 'qs';
 
-import { USE_MASTER_KEY } from "@/server/lib/constants";
-import { getDatabase, getInternalConfig } from "@/server/lib/parse/parse.utils";
-import { className } from "@/shared/lib/constants";
-import type { IUser } from "@/shared/types/db/user.types";
+import { USE_MASTER_KEY } from '@/server/lib/constants';
+import { getDatabase, getInternalConfig } from '@/server/lib/parse/parse.utils';
+import { className } from '@/shared/lib/constants';
+import type { IUser } from '@/shared/types/db/user.types';
 
 type AuthCloudServiceProps = {
 	sessionToken: string | ParsedQs | string[] | ParsedQs[];
@@ -97,12 +97,12 @@ export class AuthCloudService {
 	}) {
 		const findUserForEmailVerification = async () => {
 			const query = new Parse.Query(className.USER)
-				.equalTo("_email_verify_token", token)
-				.equalTo("username", username);
+				.equalTo('_email_verify_token', token)
+				.equalTo('username', username);
 			const toSelect = [
-				"emailVerified",
-				"_email_verify_token",
-				"_email_verify_token_expires_at",
+				'emailVerified',
+				'_email_verify_token',
+				'_email_verify_token_expires_at',
 			];
 			query.select(toSelect);
 			return query.first(USE_MASTER_KEY);
@@ -113,11 +113,11 @@ export class AuthCloudService {
 		if (!user) {
 			throw new Parse.Error(
 				Parse.Error.OBJECT_NOT_FOUND,
-				"Invalid token or username",
+				'Invalid token or username',
 			);
 		}
 
-		const emailVerified = user.get("emailVerified");
+		const emailVerified = user.get('emailVerified');
 
 		if (emailVerified) {
 			return;
@@ -125,14 +125,14 @@ export class AuthCloudService {
 
 		// eslint-disable-next-line @typescript-eslint/naming-convention
 		const _email_verify_token_expires_at = user.get(
-			"_email_verify_token_expires_at",
+			'_email_verify_token_expires_at',
 		);
 
 		if (_email_verify_token_expires_at) {
 			const expirationTime = new Dayjs(_email_verify_token_expires_at);
 
 			if (expirationTime.diff() <= 0) {
-				throw new Parse.Error(Parse.Error.VALIDATION_ERROR, "Token expired");
+				throw new Parse.Error(Parse.Error.VALIDATION_ERROR, 'Token expired');
 			}
 		}
 

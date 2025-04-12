@@ -1,10 +1,10 @@
-import { ratingClasses } from "@mui/material/Rating";
-import type { Components, Theme } from "@mui/material/styles";
+import { ratingClasses } from '@mui/material/Rating';
+import type { Components, Theme } from '@mui/material/styles';
 import SvgIcon, {
 	svgIconClasses,
 	type SvgIconProps,
-} from "@mui/material/SvgIcon";
-import { varAlpha } from "minimal-shared/utils";
+} from '@mui/material/SvgIcon';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
@@ -21,7 +21,7 @@ const RatingIcon = (props: SvgIconProps) => {
 
 // ----------------------------------------------------------------------
 
-const MuiRating: Components<Theme>["MuiRating"] = {
+const MuiRating: Components<Theme>['MuiRating'] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
@@ -33,7 +33,7 @@ const MuiRating: Components<Theme>["MuiRating"] = {
 	styleOverrides: {
 		root: { [`&.${ratingClasses.disabled}`]: { opacity: 0.48 } },
 		iconEmpty: ({ theme }) => {
-			return { color: varAlpha(theme.vars.palette.grey["500Channel"], 0.48) };
+			return { color: varAlpha(theme.vars.palette.grey['500Channel'], 0.48) };
 		},
 		sizeSmall: { [`& .${svgIconClasses.root}`]: { width: 20, height: 20 } },
 		sizeMedium: { [`& .${svgIconClasses.root}`]: { width: 24, height: 24 } },

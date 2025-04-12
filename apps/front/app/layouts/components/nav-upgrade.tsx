@@ -1,12 +1,12 @@
-import Avatar from "@mui/material/Avatar";
-import Box, { type BoxProps } from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
-import { m } from "framer-motion";
-import { varAlpha } from "minimal-shared/utils";
+import Avatar from '@mui/material/Avatar';
+import Box, { type BoxProps } from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import { m } from 'framer-motion';
+import { varAlpha } from 'minimal-shared/utils';
 
-import { Label } from "@/front/components/label";
-import { useMockedUser } from "@/front/hooks/use-mocked-user";
+import { Label } from '@/front/components/label';
+import { useMockedUser } from '@/front/hooks/use-mocked-user';
 
 // ----------------------------------------------------------------------
 
@@ -16,15 +16,15 @@ export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
 	return (
 		<Box
 			sx={[
-				{ px: 2, py: 5, textAlign: "center" },
+				{ px: 2, py: 5, textAlign: 'center' },
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
 		>
 			<Box
-				sx={{ display: "flex", alignItems: "center", flexDirection: "column" }}
+				sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column' }}
 			>
-				<Box sx={{ position: "relative" }}>
+				<Box sx={{ position: 'relative' }}>
 					<Avatar
 						src={user?.photoURL}
 						alt={user?.displayName}
@@ -41,7 +41,7 @@ export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
 							px: 0.5,
 							left: 40,
 							height: 20,
-							position: "absolute",
+							position: 'absolute',
 							borderBottomLeftRadius: 2,
 						}}
 					>
@@ -53,7 +53,7 @@ export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
 					<Typography
 						variant="subtitle2"
 						noWrap
-						sx={{ mb: 1, color: "var(--layout-nav-text-primary-color)" }}
+						sx={{ mb: 1, color: 'var(--layout-nav-text-primary-color)' }}
 					>
 						{user?.displayName}
 					</Typography>
@@ -61,7 +61,7 @@ export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
 					<Typography
 						variant="body2"
 						noWrap
-						sx={{ color: "var(--layout-nav-text-disabled-color)" }}
+						sx={{ color: 'var(--layout-nav-text-disabled-color)' }}
 					>
 						{user?.email}
 					</Typography>
@@ -91,13 +91,13 @@ export const UpgradeBlock = ({ sx, ...other }: BoxProps) => {
 						...theme.mixins.bgGradient({
 							images: [
 								`linear-gradient(135deg, ${varAlpha(theme.vars.palette.error.lightChannel, 0.92)}, ${varAlpha(theme.vars.palette.secondary.darkChannel, 0.92)})`,
-								"url(/assets/background/background-7.webp)",
+								'url(/assets/background/background-7.webp)',
 							],
 						}),
 						px: 3,
 						py: 4,
 						borderRadius: 2,
-						position: "relative",
+						position: 'relative',
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -112,7 +112,7 @@ export const UpgradeBlock = ({ sx, ...other }: BoxProps) => {
 						width: 1,
 						height: 1,
 						borderRadius: 2,
-						position: "absolute",
+						position: 'absolute',
 						border: `solid 3px ${varAlpha(theme.vars.palette.common.whiteChannel, 0.16)}`,
 					};
 				}}
@@ -123,7 +123,7 @@ export const UpgradeBlock = ({ sx, ...other }: BoxProps) => {
 				animate={{ y: [12, -12, 12] }}
 				transition={{
 					duration: 8,
-					ease: "linear",
+					ease: 'linear',
 					repeat: Infinity,
 					repeatDelay: 0,
 				}}
@@ -133,19 +133,19 @@ export const UpgradeBlock = ({ sx, ...other }: BoxProps) => {
 					right: 0,
 					width: 112,
 					height: 112,
-					position: "absolute",
+					position: 'absolute',
 				}}
 			/>
 
 			<Box
 				sx={{
-					display: "flex",
-					position: "relative",
-					flexDirection: "column",
-					alignItems: "flex-start",
+					display: 'flex',
+					position: 'relative',
+					flexDirection: 'column',
+					alignItems: 'flex-start',
 				}}
 			>
-				<Box component="span" sx={{ typography: "h5", color: "common.white" }}>
+				<Box component="span" sx={{ typography: 'h5', color: 'common.white' }}>
 					35% OFF
 				</Box>
 
@@ -154,8 +154,8 @@ export const UpgradeBlock = ({ sx, ...other }: BoxProps) => {
 					sx={{
 						mb: 2,
 						mt: 0.5,
-						color: "common.white",
-						typography: "subtitle2",
+						color: 'common.white',
+						typography: 'subtitle2',
 					}}
 				>
 					Power up Productivity!

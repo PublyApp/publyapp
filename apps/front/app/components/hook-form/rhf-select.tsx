@@ -1,17 +1,17 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import Box from "@mui/material/Box";
-import Checkbox, { type CheckboxProps } from "@mui/material/Checkbox";
-import Chip, { type ChipProps } from "@mui/material/Chip";
-import FormControl, { type FormControlProps } from "@mui/material/FormControl";
-import type { FormHelperTextProps } from "@mui/material/FormHelperText";
-import InputLabel, { type InputLabelProps } from "@mui/material/InputLabel";
-import MenuItem from "@mui/material/MenuItem";
-import Select, { type SelectProps } from "@mui/material/Select";
-import TextField, { type TextFieldProps } from "@mui/material/TextField";
-import { Controller, useFormContext } from "react-hook-form";
+import Box from '@mui/material/Box';
+import Checkbox, { type CheckboxProps } from '@mui/material/Checkbox';
+import Chip, { type ChipProps } from '@mui/material/Chip';
+import FormControl, { type FormControlProps } from '@mui/material/FormControl';
+import type { FormHelperTextProps } from '@mui/material/FormHelperText';
+import InputLabel, { type InputLabelProps } from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Select, { type SelectProps } from '@mui/material/Select';
+import TextField, { type TextFieldProps } from '@mui/material/TextField';
+import { Controller, useFormContext } from 'react-hook-form';
 
-import { HelperText } from "./help-text";
+import { HelperText } from './help-text';
 
 // ----------------------------------------------------------------------
 
@@ -31,9 +31,9 @@ export const RHFSelect = ({
 
 	const labelId = `${name}-select`;
 
-	const baseSlotProps: TextFieldProps["slotProps"] = {
+	const baseSlotProps: TextFieldProps['slotProps'] = {
 		select: {
-			sx: { textTransform: "capitalize" },
+			sx: { textTransform: 'capitalize' },
 			MenuProps: {
 				slotProps: {
 					paper: {
@@ -151,13 +151,13 @@ export const RHFMultiSelect = ({
 
 								if (!selectedItems.length && placeholder) {
 									return (
-										<Box sx={{ color: "text.disabled" }}>{placeholder}</Box>
+										<Box sx={{ color: 'text.disabled' }}>{placeholder}</Box>
 									);
 								}
 
 								if (chip) {
 									return (
-										<Box sx={{ gap: 0.5, display: "flex", flexWrap: "wrap" }}>
+										<Box sx={{ gap: 0.5, display: 'flex', flexWrap: 'wrap' }}>
 											{selectedItems.map((item) => {
 												return (
 													<Chip
@@ -177,7 +177,7 @@ export const RHFMultiSelect = ({
 									.map((item) => {
 										return item.label;
 									})
-									.join(", ");
+									.join(', ');
 							}}
 							{...slotProps?.select}
 							inputProps={{

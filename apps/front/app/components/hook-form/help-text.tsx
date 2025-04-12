@@ -1,6 +1,6 @@
 import FormHelperText, {
 	type FormHelperTextProps,
-} from "@mui/material/FormHelperText";
+} from '@mui/material/FormHelperText';
 
 // ----------------------------------------------------------------------
 

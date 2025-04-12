@@ -1,37 +1,37 @@
-import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import type { Breakpoint } from "@mui/material/styles";
-import { useBoolean } from "minimal-shared/hooks";
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import type { Breakpoint } from '@mui/material/styles';
+import { useBoolean } from 'minimal-shared/hooks';
 
-import { Logo } from "@/front/components/logo/logo";
-import { RouterLink } from "@/front/components/router-link";
-import { usePathname } from "@/front/hooks/use-pathname";
-import { FRONT_PATH_NAMES } from "@/shared/lib/constants";
+import { Logo } from '@/front/components/logo/logo';
+import { RouterLink } from '@/front/components/router-link';
+import { usePathname } from '@/front/hooks/use-pathname';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
-import { MenuButton } from "../components/menu-button";
-import { SettingsButton } from "../components/settings-button";
-import { SignInButton } from "../components/sign-in-button";
-import { HeaderSection, type HeaderSectionProps } from "../core/header-section";
-import { LayoutSection, type LayoutSectionProps } from "../core/layout-section";
-import { MainSection, type MainSectionProps } from "../core/main-section";
-import { navData as mainNavData } from "../nav-config-main";
+import { MenuButton } from '../components/menu-button';
+import { SettingsButton } from '../components/settings-button';
+import { SignInButton } from '../components/sign-in-button';
+import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
+import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
+import { MainSection, type MainSectionProps } from '../core/main-section';
+import { navData as mainNavData } from '../nav-config-main';
 
-import { Footer, HomeFooter, type FooterProps } from "./footer";
-import { NavDesktop } from "./nav/desktop";
-import { NavMobile } from "./nav/mobile";
-import type { NavMainProps } from "./nav/types";
+import { Footer, HomeFooter, type FooterProps } from './footer';
+import { NavDesktop } from './nav/desktop';
+import { NavMobile } from './nav/mobile';
+import type { NavMainProps } from './nav/types';
 
 // ----------------------------------------------------------------------
 
-type LayoutBaseProps = Pick<LayoutSectionProps, "sx" | "children" | "cssVars">;
+type LayoutBaseProps = Pick<LayoutSectionProps, 'sx' | 'children' | 'cssVars'>;
 
 export type MainLayoutProps = LayoutBaseProps & {
 	layoutQuery?: Breakpoint;
 	slotProps?: {
 		header?: HeaderSectionProps;
 		nav?: {
-			data?: NavMainProps["data"];
+			data?: NavMainProps['data'];
 		};
 		main?: MainSectionProps;
 		footer?: FooterProps;
@@ -45,20 +45,20 @@ export const MainLayout = ({
 	cssVars,
 	children,
 	slotProps,
-	layoutQuery = "md",
+	layoutQuery = 'md',
 }: MainLayoutProps) => {
 	const pathname = usePathname();
 
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-	const isHomePage = pathname === "/";
+	const isHomePage = pathname === '/';
 
 	const navData = slotProps?.nav?.data ?? mainNavData;
 
 	const renderHeader = () => {
-		const headerSlots: HeaderSectionProps["slots"] = {
+		const headerSlots: HeaderSectionProps['slots'] = {
 			topArea: (
-				<Alert severity="info" sx={{ display: "none", borderRadius: 0 }}>
+				<Alert severity="info" sx={{ display: 'none', borderRadius: 0 }}>
 					This is an info Alert.
 				</Alert>
 			),
@@ -71,7 +71,7 @@ export const MainLayout = ({
 							return {
 								mr: 1,
 								ml: -1,
-								[theme.breakpoints.up(layoutQuery)]: { display: "none" },
+								[theme.breakpoints.up(layoutQuery)]: { display: 'none' },
 							};
 						}}
 					/>
@@ -88,10 +88,10 @@ export const MainLayout = ({
 						data={navData}
 						sx={(theme) => {
 							return {
-								display: "none",
+								display: 'none',
 								[theme.breakpoints.up(layoutQuery)]: {
 									mr: 2.5,
-									display: "flex",
+									display: 'flex',
 								},
 							};
 						}}
@@ -99,8 +99,8 @@ export const MainLayout = ({
 
 					<Box
 						sx={{
-							display: "flex",
-							alignItems: "center",
+							display: 'flex',
+							alignItems: 'center',
 							gap: { xs: 1, sm: 1.5 },
 						}}
 					>
@@ -118,9 +118,9 @@ export const MainLayout = ({
 							href={FRONT_PATH_NAMES.staff.root}
 							sx={(theme) => {
 								return {
-									display: "none",
+									display: 'none',
 									[theme.breakpoints.up(layoutQuery)]: {
-										display: "inline-flex",
+										display: 'inline-flex',
 									},
 								};
 							}}

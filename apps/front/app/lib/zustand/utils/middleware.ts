@@ -1,15 +1,15 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import { type StateCreator } from "zustand";
+import { type StateCreator } from 'zustand';
 import {
 	createJSONStorage,
 	devtools,
 	persist,
 	type StateStorage,
-} from "zustand/middleware";
-import { immer } from "zustand/middleware/immer";
+} from 'zustand/middleware';
+import { immer } from 'zustand/middleware/immer';
 
-import { getUrlSearch } from "./utils";
+import { getUrlSearch } from './utils';
 
 const getStorage = (): StateStorage => {
 	return {
@@ -52,12 +52,12 @@ const getStorage = (): StateStorage => {
 };
 
 export const combinedMiddlewaresWithPersist = <T>(
-	initializer: StateCreator<T, [["zustand/immer", never]], []>,
+	initializer: StateCreator<T, [['zustand/immer', never]], []>,
 	selectedFields: string[],
 ) => {
 	return devtools(
 		persist(immer<T>(initializer), {
-			name: "store",
+			name: 'store',
 			storage: createJSONStorage<T>(() => {
 				return getStorage();
 			}) as never,
@@ -73,10 +73,10 @@ export const combinedMiddlewaresWithPersist = <T>(
 };
 
 export const combinedMiddlewares = <T>(
-	initializer: StateCreator<T, [["zustand/immer", never]], []>,
+	initializer: StateCreator<T, [['zustand/immer', never]], []>,
 ) => {
 	return devtools(immer<T>(initializer), {
-		name: "store",
+		name: 'store',
 		storage: createJSONStorage<T>(() => {
 			return getStorage();
 		}) as never,

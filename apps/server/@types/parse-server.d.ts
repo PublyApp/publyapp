@@ -3,20 +3,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable max-classes-per-file */
 
-declare module "parse-server/lib/Config.js";
-declare module "parse-server/lib/Config";
+declare module 'parse-server/lib/Config.js';
+declare module 'parse-server/lib/Config';
 
-declare module "parse-server/lib/Auth.js";
-declare module "parse-server/lib/Auth";
+declare module 'parse-server/lib/Auth.js';
+declare module 'parse-server/lib/Auth';
 
-declare module "parse-server/lib/RestWrite.js";
-declare module "parse-server/lib/RestWrite";
+declare module 'parse-server/lib/RestWrite.js';
+declare module 'parse-server/lib/RestWrite';
 
-declare module "parse-server/lib/Routers/UsersRouter";
-declare module "parse-server/lib/Routers/UsersRouter.js";
+declare module 'parse-server/lib/Routers/UsersRouter';
+declare module 'parse-server/lib/Routers/UsersRouter.js';
 
-declare module "parse-dashboard";
-declare module "@parse/fs-files-adapter";
+declare module 'parse-dashboard';
+declare module '@parse/fs-files-adapter';
 
 // --------------------------------------------------------------------------------------//
 //                                                                                      //
@@ -24,26 +24,26 @@ declare module "@parse/fs-files-adapter";
 //                                                                                      //
 // --------------------------------------------------------------------------------------//
 
-declare module "parse-server/lib/index.js" {
-	export * from "parse-server";
+declare module 'parse-server/lib/index.js' {
+	export * from 'parse-server';
 }
 
-declare module "parse-server" {
-	import type { OmitBaseAttributes } from "parse";
+declare module 'parse-server' {
+	import type { OmitBaseAttributes } from 'parse';
 
-	import type { Application, RequestHandler } from "express";
+	import type { Application, RequestHandler } from 'express';
 
-	import type LoggerAdapter from "@/server/lib/parse/interfaces/LoggerAdapter";
-	import type MailAdapter from "@/server/lib/parse/interfaces/MailAdapter";
+	import type LoggerAdapter from '@/server/lib/parse/interfaces/LoggerAdapter';
+	import type MailAdapter from '@/server/lib/parse/interfaces/MailAdapter';
 
 	export type LogLevelEnum =
-		| "error"
-		| "warn"
-		| "info"
-		| "debug"
-		| "verbose"
-		| "silly"
-		| "silent";
+		| 'error'
+		| 'warn'
+		| 'info'
+		| 'debug'
+		| 'verbose'
+		| 'silly'
+		| 'silent';
 
 	export type ParseServerOptions = {
 		// Required options
@@ -149,17 +149,17 @@ declare module "parse-server" {
 	//                                types from goplan-app                                  //
 	// --------------------------------------------------------------------------------------//
 	export type FieldValueType =
-		| "String"
-		| "Boolean"
-		| "File"
-		| "Number"
-		| "Relation"
-		| "Pointer"
-		| "Date"
-		| "GeoPoint"
-		| "Polygon"
-		| "Array"
-		| "Object";
+		| 'String'
+		| 'Boolean'
+		| 'File'
+		| 'Number'
+		| 'Relation'
+		| 'Pointer'
+		| 'Date'
+		| 'GeoPoint'
+		| 'Polygon'
+		| 'Array'
+		| 'Object';
 
 	interface FieldInterface {
 		type: FieldValueType;
@@ -168,7 +168,7 @@ declare module "parse-server" {
 		defaultValue?: number | string | unknown;
 	}
 
-	type ClassNameType = "_User" | "_Role" | string;
+	type ClassNameType = '_User' | '_Role' | string;
 
 	export interface ProtectedFieldsInterface {
 		[key: string]: string[];
@@ -190,15 +190,15 @@ declare module "parse-server" {
 	}
 
 	export type CLPOperation =
-		| "find"
-		| "count"
-		| "get"
-		| "update"
-		| "create"
-		| "delete";
+		| 'find'
+		| 'count'
+		| 'get'
+		| 'update'
+		| 'create'
+		| 'delete';
 	type CLPPermission =
-		| "requiresAuthentication"
-		| "*"
+		| 'requiresAuthentication'
+		| '*'
 		// @Typescript 4.1+
 		| `user:${string}`
 		| `role:${string}`;
@@ -236,7 +236,7 @@ declare module "parse-server" {
 		recreateModifiedFields: boolean;
 	}
 
-	export type Schema<T> = Omit<JSONSchema<T>, "className">;
+	export type Schema<T> = Omit<JSONSchema<T>, 'className'>;
 
 	export namespace SchemaMigrations {
 		class CLP {
@@ -254,13 +254,13 @@ declare module "parse-server" {
 	// export { logger } from 'parse-server/lib/logger';
 }
 
-declare module "parse-server/lib/logger.js" {
-	export * from "parse-server/lib/logger";
+declare module 'parse-server/lib/logger.js' {
+	export * from 'parse-server/lib/logger';
 }
 
-declare module "parse-server/lib/logger" {
+declare module 'parse-server/lib/logger' {
 	// eslint-disable-next-line import/no-unresolved
-	import type { LoggerController } from "parse-server/lib/Controllers/LoggerController";
+	import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 
 	// export const logger: LoggerController;
 
@@ -269,7 +269,7 @@ declare module "parse-server/lib/logger" {
 	export function getLogger(): LoggerController;
 }
 
-declare module "parse-server/lib/defaults" {
+declare module 'parse-server/lib/defaults' {
 	const defaults: {
 		logsFolder: string;
 		jsonLogs: string;
@@ -279,24 +279,24 @@ declare module "parse-server/lib/defaults" {
 	export default defaults;
 }
 
-declare module "parse-server/lib/defaults.js" {
-	export * from "parse-server/lib/defaults";
-	import defaults from "parse-server/lib/defaults";
+declare module 'parse-server/lib/defaults.js' {
+	export * from 'parse-server/lib/defaults';
+	import defaults from 'parse-server/lib/defaults';
 
 	export default defaults;
 }
 
-declare module "parse-server/lib/Controllers/LoggerController" {
+declare module 'parse-server/lib/Controllers/LoggerController' {
 	// eslint-disable-next-line import/no-unresolved
-	import type { WinstonLoggerAdapter } from "parse-server/lib/Adapters/Logger/WinstonLoggerAdapter";
+	import type { WinstonLoggerAdapter } from 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter';
 
 	export type LogLevel =
-		| "info"
-		| "error"
-		| "warn"
-		| "verbose"
-		| "debug"
-		| "silly";
+		| 'info'
+		| 'error'
+		| 'warn'
+		| 'verbose'
+		| 'debug'
+		| 'silly';
 
 	type LogRequestParams = {
 		method: string;
@@ -333,21 +333,21 @@ declare module "parse-server/lib/Controllers/LoggerController" {
 	}
 }
 
-declare module "parse-server/lib/Adapters/Logger/WinstonLoggerAdapter" {
+declare module 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter' {
 	class WinstonLoggerAdapter {
 		addTransport(transport: any);
 	}
 }
 
-declare module "parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js" {
-	import MongoSchemaCollectionModule from "parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection";
+declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js' {
+	import MongoSchemaCollectionModule from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection';
 
 	export default {
 		default: MongoSchemaCollectionModule.default,
 	};
 }
 
-declare module "parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection" {
+declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection' {
 	class MongoSchemaCollection {
 		static parseFieldTypeToMongoFieldType(options: {
 			type: string;
@@ -360,11 +360,11 @@ declare module "parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection" {
 	};
 }
 
-declare module "parse-server/lib/cryptoUtils.js" {
-	export * from "parse-server/lib/cryptoUtils";
+declare module 'parse-server/lib/cryptoUtils.js' {
+	export * from 'parse-server/lib/cryptoUtils';
 }
 
-declare module "parse-server/lib/cryptoUtils" {
+declare module 'parse-server/lib/cryptoUtils' {
 	export function randomHexString(size: number): string;
 	export function randomString(size: number): string;
 	export function newObjectId(size: number = 10): string;
@@ -372,11 +372,11 @@ declare module "parse-server/lib/cryptoUtils" {
 	export function md5Hash(string: string): string;
 }
 
-declare module "parse-server/lib/password.js" {
-	export * from "parse-server/lib/password";
+declare module 'parse-server/lib/password.js' {
+	export * from 'parse-server/lib/password';
 }
 
-declare module "parse-server/lib/password" {
+declare module 'parse-server/lib/password' {
 	export function hash(password: string): string;
 	export function compare(password: string, hashedPassword: string): boolean;
 }

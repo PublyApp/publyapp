@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useCallback, useId } from "react";
+import { useCallback, useId } from 'react';
 
-import Box, { type BoxProps } from "@mui/material/Box";
-import type { ButtonBaseProps } from "@mui/material/ButtonBase";
-import type { FormHelperTextProps } from "@mui/material/FormHelperText";
-import type { InputBaseProps } from "@mui/material/InputBase";
-import { varAlpha } from "minimal-shared/utils";
+import Box, { type BoxProps } from '@mui/material/Box';
+import type { ButtonBaseProps } from '@mui/material/ButtonBase';
+import type { FormHelperTextProps } from '@mui/material/FormHelperText';
+import type { InputBaseProps } from '@mui/material/InputBase';
+import { varAlpha } from 'minimal-shared/utils';
 
-import { Iconify } from "../iconify/iconify";
+import { Iconify } from '../iconify/iconify';
 
 import {
 	CaptionText,
@@ -16,7 +16,7 @@ import {
 	HelperText,
 	InputContainer,
 	NumberInputRoot,
-} from "./styles";
+} from './styles';
 
 // ----------------------------------------------------------------------
 
@@ -35,7 +35,7 @@ type EventHandler =
 
 export type NumberInputProps = Omit<
 	React.ComponentProps<typeof NumberInputRoot>,
-	"onChange"
+	'onChange'
 > & {
 	min?: number;
 	max?: number;
@@ -109,17 +109,17 @@ export const NumberInput = ({
 				sx={[
 					(theme) => {
 						return {
-							"--border-color": varAlpha(
-								theme.vars.palette.grey["500Channel"],
+							'--border-color': varAlpha(
+								theme.vars.palette.grey['500Channel'],
 								0.2,
 							),
-							"--vertical-divider-color": hideDivider
-								? "transparent"
-								: varAlpha(theme.vars.palette.grey["500Channel"], 0.2),
-							"--input-background":
+							'--vertical-divider-color': hideDivider
+								? 'transparent'
+								: varAlpha(theme.vars.palette.grey['500Channel'], 0.2),
+							'--input-background':
 								!disabled && error
 									? varAlpha(theme.vars.palette.error.mainChannel, 0.08)
-									: varAlpha(theme.vars.palette.grey["500Channel"], 0.08),
+									: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
 						};
 					},
 					...(Array.isArray(sx) ? sx : [sx]),
@@ -178,7 +178,7 @@ export const transformNumberOnChange = (
 ): number => {
 	const { min = 0, max = 9999 } = options ?? {};
 
-	if (!value || value.trim() === "") {
+	if (!value || value.trim() === '') {
 		return 0;
 	}
 

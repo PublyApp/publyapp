@@ -1,10 +1,10 @@
-import type { Readable } from "node:stream";
+import type { Readable } from 'node:stream';
 
-import type zod from "zod";
+import type zod from 'zod';
 
-import type InterZod from "@/shared/lib/zod/InterZod";
+import type InterZod from '@/shared/lib/zod/InterZod';
 
-import { getFolderNameSchema } from "./file.validations";
+import { getFolderNameSchema } from './file.validations';
 
 export const getMulterFileSchema = (
 	z: InterZod,

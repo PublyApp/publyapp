@@ -1,9 +1,9 @@
-import { Controller, useFormContext } from "react-hook-form";
+import { Controller, useFormContext } from 'react-hook-form';
 
 import {
 	CountrySelect,
 	type CountrySelectProps,
-} from "../country-select/country-select";
+} from '../country-select/country-select';
 
 // ----------------------------------------------------------------------
 
