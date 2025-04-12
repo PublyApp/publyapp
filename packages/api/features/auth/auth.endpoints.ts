@@ -1,25 +1,25 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import type { IUser } from "@org/shared/types/db/user.types";
+import type { IUser } from '@org/shared/types/db/user.types';
 
 import type {
 	GetIsDisabledSignupFunction,
 	GetRedirectCodeFunction,
 	GetTenantAuthDataFunction,
 	GetUserAuthDataFunction,
-} from "@/server/modules/common/auth/auth.functions";
-import { getProtectionHeaders } from "@/shared/lib/axios";
+} from '@/server/modules/common/auth/auth.functions';
+import { getProtectionHeaders } from '@/shared/lib/axios';
 import {
 	endPoint,
 	functionName,
 	LOCALE_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
-} from "@/shared/lib/constants";
-import { makePath } from "@/shared/utils/string.utils";
+} from '@/shared/lib/constants';
+import { makePath } from '@/shared/utils/string.utils';
 
 import BaseEndPoints, {
 	type BaseEndPointsProps,
-} from "../../classes/BaseEndPoints";
+} from '../../classes/BaseEndPoints';
 
 export default class AuthEndPoints extends BaseEndPoints {
 	constructor({ parseRestClient }: BaseEndPointsProps) {
@@ -56,7 +56,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 		const { password } = input;
 
 		const headers = _.merge(getProtectionHeaders({}), {
-			"X-Parse-Revocable-Session": "1",
+			'X-Parse-Revocable-Session': '1',
 			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
 			[LOCALE_HEADER_KEY]: this.parseRestClient.getHeader(LOCALE_HEADER_KEY),
 		});
@@ -87,7 +87,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 		const { email, password, username, firstName, lastName } = input;
 
 		const headers = _.merge(getProtectionHeaders({}), {
-			"X-Parse-Revocable-Session": "1",
+			'X-Parse-Revocable-Session': '1',
 			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
 		});
 

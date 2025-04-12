@@ -1,16 +1,16 @@
-import _ from "lodash";
-import type { LoggerController } from "parse-server/lib/Controllers/LoggerController";
-import { newObjectId } from "parse-server/lib/cryptoUtils.js";
+import _ from 'lodash';
+import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
+import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 
-import chalk from "chalk";
-import { ZodError } from "zod";
+import chalk from 'chalk';
+import { ZodError } from 'zod';
 
-import { getCorrectLocale } from "@org/shared/lib/i18n/i18n.utils";
+import { getCorrectLocale } from '@org/shared/lib/i18n/i18n.utils';
 
-import { HttpException } from "@/server/exceptions/HttpException";
-import RoleService from "@/server/modules/common/auth/role/role.service";
-import ParseTenant from "@/server/modules/common/auth/tenant/tenant.class";
-import TenantService from "@/server/modules/common/auth/tenant/tenant.service";
+import { HttpException } from '@/server/exceptions/HttpException';
+import RoleService from '@/server/modules/common/auth/role/role.service';
+import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
+import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
 import {
 	LOCALE_HEADER_KEY,
 	roleSet,
@@ -22,15 +22,15 @@ import {
 	type RoleSet,
 	type StaffRoleSet,
 	type TenantSubRoleSet,
-} from "@/shared/lib/constants";
-import type { AppLocale } from "@/shared/lib/i18n/resources";
-import InterZod from "@/shared/lib/zod/InterZod";
+} from '@/shared/lib/constants';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
+import InterZod from '@/shared/lib/zod/InterZod';
 
-import { USE_MASTER_KEY } from "../constants";
-import { env } from "../env";
-import { getT, i18nextServer } from "../i18n";
+import { USE_MASTER_KEY } from '../constants';
+import { env } from '../env';
+import { getT, i18nextServer } from '../i18n';
 
-import { getCurrentInstallationId, getInternalConfig } from "./parse.utils";
+import { getCurrentInstallationId, getInternalConfig } from './parse.utils';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
@@ -38,7 +38,7 @@ export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
 >;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FunctionParams<T extends ParseFunction<any, any>> =
-	Parameters<T>[0]["params"];
+	Parameters<T>[0]['params'];
 
 type ParseFunction<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
@@ -84,7 +84,7 @@ export const getParseFunctionHeader = (
 	);
 };
 
-type FunctionType = "trigger" | "function" | "job";
+type FunctionType = 'trigger' | 'function' | 'job';
 
 const getParseFunctionType = (
 	req:
@@ -93,23 +93,23 @@ const getParseFunctionType = (
 		| Parse.Cloud.JobRequest,
 ): FunctionType => {
 	const hasTriggerName = {
-		type: "trigger" as const,
+		type: 'trigger' as const,
 		condition:
-			_.has(req, "triggerName") &&
+			_.has(req, 'triggerName') &&
 			!_.isNil(req.triggerName) &&
 			_.isString(req.triggerName),
 	};
 	const hastFunctionName = {
-		type: "function" as const,
+		type: 'function' as const,
 		condition:
-			_.has(req, "functionName") &&
+			_.has(req, 'functionName') &&
 			!_.isNil(req.functionName) &&
 			_.isString(req.functionName),
 	};
 	const hasJobName = {
-		type: "job" as const,
+		type: 'job' as const,
 		condition:
-			_.has(req, "jobName") && !_.isNil(req.jobName) && _.isString(req.jobName),
+			_.has(req, 'jobName') && !_.isNil(req.jobName) && _.isString(req.jobName),
 	};
 
 	const truthyConditions = [
@@ -121,11 +121,11 @@ const getParseFunctionType = (
 	});
 
 	if (truthyConditions.length > 1) {
-		throw new Error("Multiple function types detected");
+		throw new Error('Multiple function types detected');
 	}
 
 	if (truthyConditions.length <= 0) {
-		throw new Error("Unknown parse function type");
+		throw new Error('Unknown parse function type');
 	}
 
 	return truthyConditions[0].type;
@@ -137,7 +137,7 @@ const isTriggerRequest = (
 		| Parse.Cloud.FunctionRequest
 		| Parse.Cloud.JobRequest,
 ): req is Parse.Cloud.TriggerRequest => {
-	return getParseFunctionType(req) === "trigger";
+	return getParseFunctionType(req) === 'trigger';
 };
 
 const getParseFunctionName = ({
@@ -152,20 +152,20 @@ const getParseFunctionName = ({
 }) => {
 	let functionName: string | undefined;
 
-	if (functionType === "function") {
-		functionName = _.get(req, "functionName");
+	if (functionType === 'function') {
+		functionName = _.get(req, 'functionName');
 	}
 
-	if (functionType === "trigger") {
-		functionName = _.get(req, "triggerName");
+	if (functionType === 'trigger') {
+		functionName = _.get(req, 'triggerName');
 	}
 
-	if (functionType === "job") {
-		functionName = _.get(req, "jobName");
+	if (functionType === 'job') {
+		functionName = _.get(req, 'jobName');
 	}
 
 	if (!functionName) {
-		throw new Error("functionName has an incorrect value");
+		throw new Error('functionName has an incorrect value');
 	}
 
 	return functionName;
@@ -185,38 +185,38 @@ const alterLogger = ({
 }) => {
 	let highlighted = `${_.capitalize(functionType)} :: ${functionName}`;
 
-	if (functionType === "function" || functionType === "trigger") {
+	if (functionType === 'function' || functionType === 'trigger') {
 		// _.set(req, 'context.___do_not_use_altered_logger_marker___', true);
-		_.set(req, "headers.___do_not_use_altered_logger_marker___", true);
+		_.set(req, 'headers.___do_not_use_altered_logger_marker___', true);
 	}
 
-	if (functionType === "trigger") {
-		if (functionName === "beforeSave") {
+	if (functionType === 'trigger') {
+		if (functionName === 'beforeSave') {
 			const request = req as Parse.Cloud.BeforeSaveRequest;
 			highlighted = `${highlighted} :: ${request.object.className}`;
 		}
 
-		if (functionName === "afterSave") {
+		if (functionName === 'afterSave') {
 			const request = req as Parse.Cloud.AfterSaveRequest;
 			highlighted = `${highlighted} :: ${request.object.className}`;
 		}
 
-		if (functionName === "beforeFind") {
+		if (functionName === 'beforeFind') {
 			const request = req as Parse.Cloud.BeforeFindRequest;
 			highlighted = `${highlighted} :: ${request.query.className}`;
 		}
 
-		if (functionName === "afterFind") {
+		if (functionName === 'afterFind') {
 			const request = req as Parse.Cloud.AfterFindRequest;
 			highlighted = `${highlighted} :: ${request.query?.className}`;
 		}
 
-		if (functionName === "beforeDelete") {
+		if (functionName === 'beforeDelete') {
 			const request = req as Parse.Cloud.BeforeDeleteRequest;
 			highlighted = `${highlighted} :: ${request.object.className}`;
 		}
 
-		if (functionName === "afterDelete") {
+		if (functionName === 'afterDelete') {
 			const request = req as Parse.Cloud.AfterDeleteRequest;
 			highlighted = `${highlighted} :: ${request.object.className}`;
 		}
@@ -288,8 +288,8 @@ export const cloudFunction: CloudFunction = <
 
 		try {
 			log.info(`${functionType} started`, {
-				user: _.get(req, "user.id", undefined),
-				params: _.get(req, "params", {}),
+				user: _.get(req, 'user.id', undefined),
+				params: _.get(req, 'params', {}),
 			});
 			const t1 = performance.now();
 			const result = await innerFunction(req as never);
@@ -319,7 +319,7 @@ export const cloudFunction: CloudFunction = <
 				// do nothing
 			}
 
-			let message: string = t("unknown-error");
+			let message: string = t('unknown-error');
 
 			if (_.isString(error)) {
 				message = error;
@@ -343,7 +343,7 @@ export const cloudFunction: CloudFunction = <
 					message = error.message;
 				}
 
-				log.error(hasMessage ? "" : message, error);
+				log.error(hasMessage ? '' : message, error);
 
 				if (error instanceof HttpException) {
 					return Promise.reject(
@@ -423,8 +423,8 @@ type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
 type ParseFunctionEnhancedParams<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
-> = // --------------------------------------------------------------------------------------// //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
-(| {
+> = ( // --------------------------------------------------------------------------------------// //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
+	| {
 			requireUser?: false | undefined; // which means public access
 			group?: undefined;
 			allowedRoles?: undefined;
@@ -473,7 +473,7 @@ const isFromCloudEnvironment = async (
 	const cloudInstallationId = await getCurrentInstallationId();
 	const { directAccess } = getInternalConfig();
 
-	const definitelyNotFromCloud = directAccess && req.installationId !== "cloud";
+	const definitelyNotFromCloud = directAccess && req.installationId !== 'cloud';
 	const alsoNotFromCloud =
 		!directAccess && req.installationId !== cloudInstallationId;
 
@@ -488,8 +488,8 @@ const isNotValidIp = async ({
 	sessionToken: string;
 }) => {
 	const session = await new Parse.Query(Parse.Session)
-		.equalTo("sessionToken", sessionToken)
-		.select(["ipAddress"])
+		.equalTo('sessionToken', sessionToken)
+		.select(['ipAddress'])
 		.first({ sessionToken });
 
 	const requestIp =
@@ -497,9 +497,9 @@ const isNotValidIp = async ({
 		getParseFunctionHeader(req, X_FORWARDED_FOR_HEADER_KEY);
 
 	const localMatchConditionIp =
-		env.LOCAL && session?.get("ipAddress") !== req.ip;
+		env.LOCAL && session?.get('ipAddress') !== req.ip;
 	const onlineMatchConditionIp =
-		!env.LOCAL && session?.get("ipAddress") !== requestIp;
+		!env.LOCAL && session?.get('ipAddress') !== requestIp;
 
 	return localMatchConditionIp || onlineMatchConditionIp;
 };
@@ -527,7 +527,7 @@ export const parseFunctionEnhanced = <
 		if (requireMasterKey && !req.master) {
 			throw new HttpException(
 				403,
-				t("item-is-required", { item: "Master key" }),
+				t('item-is-required', { item: 'Master key' }),
 			);
 		}
 
@@ -549,7 +549,7 @@ export const parseFunctionEnhanced = <
 		if (!user) {
 			throw new HttpException(
 				401,
-				t("item-is-required", { item: t("authentication") }),
+				t('item-is-required', { item: t('authentication') }),
 			);
 		}
 
@@ -572,7 +572,7 @@ export const parseFunctionEnhanced = <
 				// then we don't need to check ip address
 
 				if (!(await userHasRolePromise)) {
-					throw new HttpException(403, t("unauthorized"));
+					throw new HttpException(403, t('unauthorized'));
 				}
 
 				const validatedParams = validateParams?.({ params: req.params, z });
@@ -588,11 +588,11 @@ export const parseFunctionEnhanced = <
 			}
 
 			if (await isNotValidIp({ sessionToken, req })) {
-				throw new HttpException(401, t("invalid-session"));
+				throw new HttpException(401, t('invalid-session'));
 			}
 
 			if (!(await userHasRolePromise)) {
-				throw new HttpException(403, t("unauthorized"));
+				throw new HttpException(403, t('unauthorized'));
 			}
 
 			const validatedParams = validateParams?.({ params: req.params, z });
@@ -620,7 +620,7 @@ export const parseFunctionEnhanced = <
 			if (!tenantIdInHeaders) {
 				throw new HttpException(
 					400,
-					t("item-is-required", { item: "tenantId" }),
+					t('item-is-required', { item: 'tenantId' }),
 				);
 			}
 
@@ -647,7 +647,7 @@ export const parseFunctionEnhanced = <
 				// then we don't need to check ip address
 
 				if (!(await userHasRolePromise)) {
-					throw new HttpException(403, t("unauthorized"));
+					throw new HttpException(403, t('unauthorized'));
 				}
 
 				// is the user a staff member ?
@@ -668,12 +668,12 @@ export const parseFunctionEnhanced = <
 
 				// check if user is member of the requested tenant (tenantId header)
 				if (!(await userIsMemberOfTenantPromise)) {
-					throw new HttpException(403, t("unauthorized"));
+					throw new HttpException(403, t('unauthorized'));
 				}
 
 				// check if user has the required sub roles
 				if (!(await userHasRoleInTenantPromise)) {
-					throw new HttpException(403, t("unauthorized"));
+					throw new HttpException(403, t('unauthorized'));
 				}
 
 				const validatedParams = validateParams?.({ params: req.params, z });
@@ -690,11 +690,11 @@ export const parseFunctionEnhanced = <
 			}
 
 			if (await isNotValidIp({ sessionToken, req })) {
-				throw new HttpException(401, t("invalid-session"));
+				throw new HttpException(401, t('invalid-session'));
 			}
 
 			if (!(await userHasRolePromise)) {
-				throw new HttpException(403, t("unauthorized"));
+				throw new HttpException(403, t('unauthorized'));
 			}
 
 			// is the user a staff member ?
@@ -715,12 +715,12 @@ export const parseFunctionEnhanced = <
 
 			// check if user is member of the requested tenant (tenantId header)
 			if (!(await userIsMemberOfTenantPromise)) {
-				throw new HttpException(403, t("unauthorized"));
+				throw new HttpException(403, t('unauthorized'));
 			}
 
 			// check if user has the required sub roles
 			if (!(await userHasRoleInTenantPromise)) {
-				throw new HttpException(403, t("unauthorized"));
+				throw new HttpException(403, t('unauthorized'));
 			}
 
 			const validatedParams = validateParams?.({ params: req.params, z });
@@ -747,7 +747,7 @@ export const parseFunctionEnhanced = <
 			// then we don't need to check ip address
 
 			if (!(await userHasRolePromise)) {
-				throw new HttpException(403, t("unauthorized"));
+				throw new HttpException(403, t('unauthorized'));
 			}
 
 			const validatedParams = validateParams?.({ params: req.params, z });
@@ -763,11 +763,11 @@ export const parseFunctionEnhanced = <
 		}
 
 		if (await isNotValidIp({ sessionToken, req })) {
-			throw new HttpException(401, t("invalid-session"));
+			throw new HttpException(401, t('invalid-session'));
 		}
 
 		if (!(await userHasRolePromise)) {
-			throw new HttpException(403, t("unauthorized"));
+			throw new HttpException(403, t('unauthorized'));
 		}
 
 		const validatedParams = validateParams?.({ params: req.params, z });
@@ -831,7 +831,7 @@ export const parseTriggerEnhanced = <P extends Parse.Object = Parse.Object>(
 				if (
 					await isNotValidIp({ sessionToken: req.user.getSessionToken(), req })
 				) {
-					throw new HttpException(401, t("invalid-session"));
+					throw new HttpException(401, t('invalid-session'));
 				}
 			}
 
@@ -865,20 +865,20 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 			if (!req.user) {
 				throw new HttpException(
 					401,
-					t("item-is-required", { item: t("authentication") }),
+					t('item-is-required', { item: t('authentication') }),
 				);
 			}
 
 			const sessionToken = req.user.getSessionToken();
 
-			if (req.triggerName === "beforeFind") {
+			if (req.triggerName === 'beforeFind') {
 				const tenantIdInHeaders = getParseFunctionHeader(
 					req,
 					TENANT_ID_HEADER_KEY,
 				);
 				const tenantIdInQuery: string | undefined = _.get(
 					req.query?.toJSON(),
-					"where.tenant.objectId",
+					'where.tenant.objectId',
 				);
 
 				const tenantId = tenantIdInHeaders || tenantIdInQuery;
@@ -886,7 +886,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 				if (!tenantId) {
 					throw new HttpException(
 						401,
-						t("item-is-required", { item: "tenantId" }),
+						t('item-is-required', { item: 'tenantId' }),
 					);
 				}
 
@@ -900,7 +900,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 				});
 
 				if (!isUserMemberOfTenant) {
-					throw new HttpException(403, t("unauthorized"));
+					throw new HttpException(403, t('unauthorized'));
 				}
 				// return trigger({ locale, req, t });
 			}

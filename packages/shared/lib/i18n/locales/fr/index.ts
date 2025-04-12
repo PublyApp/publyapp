@@ -1,8 +1,8 @@
-import zodFr from "zod-i18n-map/locales/fr/zod.json" with { type: "json" };
+import zodFr from 'zod-i18n-map/locales/fr/zod.json' with { type: 'json' };
 
-import type { LooseResource } from "../en";
+import type { LooseResource } from '../en';
 
-import common from "./common";
+import common from './common';
 
 const resourceFR = {
 	common,
@@ -11,7 +11,7 @@ const resourceFR = {
 		errors: {
 			...zodFr.errors,
 			invalid_type_with_path:
-				"{{path}} est attendu {{expected}}, reçu {{received}}",
+				'{{path}} est attendu {{expected}}, reçu {{received}}',
 		},
 	},
 } as const satisfies LooseResource;

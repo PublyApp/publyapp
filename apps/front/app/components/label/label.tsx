@@ -1,10 +1,10 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import { mergeClasses } from "minimal-shared/utils";
+import { mergeClasses } from 'minimal-shared/utils';
 
-import { labelClasses } from "./classes";
-import { LabelIcon, LabelRoot } from "./styles";
-import type { LabelProps } from "./types";
+import { labelClasses } from './classes';
+import { LabelIcon, LabelRoot } from './styles';
+import type { LabelProps } from './types';
 
 // ----------------------------------------------------------------------
 
@@ -15,8 +15,8 @@ export const Label = ({
 	startIcon,
 	className,
 	disabled,
-	variant = "soft",
-	color = "default",
+	variant = 'soft',
+	color = 'default',
 	...other
 }: LabelProps) => {
 	return (
@@ -32,7 +32,7 @@ export const Label = ({
 				<LabelIcon className={labelClasses.icon}>{startIcon}</LabelIcon>
 			)}
 
-			{typeof children === "string" ? _.upperFirst(children) : children}
+			{typeof children === 'string' ? _.upperFirst(children) : children}
 
 			{endIcon && (
 				<LabelIcon className={labelClasses.icon}>{endIcon}</LabelIcon>

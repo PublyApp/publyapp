@@ -1,7 +1,7 @@
-import type { z } from "zod";
+import type { z } from 'zod';
 
-import type { AppLocale } from "../lib/i18n/resources";
-import type InterZod from "../lib/zod/InterZod";
+import type { AppLocale } from '../lib/i18n/resources';
+import type InterZod from '../lib/zod/InterZod';
 
 const getEmailFieldSchema = (z: InterZod) => {
 	return z
@@ -16,8 +16,8 @@ const SPECIAL_CHAR_REGEX = /[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/;
 
 const getPasswordFieldSchema = (z: InterZod) => {
 	const regexMap: Record<AppLocale, string> = {
-		en: "At least 8 chars and 1 special char",
-		fr: "Au moins 8 caractères dont 1 caractère spécial",
+		en: 'At least 8 chars and 1 special char',
+		fr: 'Au moins 8 caractères dont 1 caractère spécial',
 	};
 
 	return z
@@ -49,8 +49,8 @@ export const getResetPasswordSchema = (z: InterZod) => {
 				return data.confirmPassword === data.password;
 			},
 			{
-				message: "Passwords are not the same",
-				path: ["confirmPassword"],
+				message: 'Passwords are not the same',
+				path: ['confirmPassword'],
 			},
 		);
 };

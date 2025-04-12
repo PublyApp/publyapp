@@ -1,20 +1,20 @@
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import FormHelperText from "@mui/material/FormHelperText";
-import { mergeClasses, varAlpha } from "minimal-shared/utils";
-import { useDropzone } from "react-dropzone";
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import FormHelperText from '@mui/material/FormHelperText';
+import { mergeClasses, varAlpha } from 'minimal-shared/utils';
+import { useDropzone } from 'react-dropzone';
 
-import { Iconify } from "../iconify/iconify";
+import { Iconify } from '../iconify/iconify';
 
-import { uploadClasses } from "./classes";
-import { UploadPlaceholder } from "./components/placeholder";
-import { MultiFilePreview } from "./components/preview-multi-file";
+import { uploadClasses } from './classes';
+import { UploadPlaceholder } from './components/placeholder';
+import { MultiFilePreview } from './components/preview-multi-file';
 import {
 	DeleteButton,
 	SingleFilePreview,
-} from "./components/preview-single-file";
-import { RejectionFiles } from "./components/rejection-files";
-import type { UploadProps } from "./types";
+} from './components/preview-single-file';
+import { RejectionFiles } from './components/rejection-files';
+import type { UploadProps } from './types';
 
 // ----------------------------------------------------------------------
 
@@ -64,7 +64,7 @@ export const Upload = ({
 					/>
 
 					{(onRemoveAll || onUpload) && (
-						<Box sx={{ gap: 1.5, display: "flex", justifyContent: "flex-end" }}>
+						<Box sx={{ gap: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
 							{onRemoveAll && (
 								<Button
 									color="inherit"
@@ -97,7 +97,7 @@ export const Upload = ({
 		<Box
 			className={mergeClasses([uploadClasses.upload, className])}
 			sx={[
-				{ width: 1, position: "relative" },
+				{ width: 1, position: 'relative' },
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 		>
@@ -107,23 +107,23 @@ export const Upload = ({
 					(theme) => {
 						return {
 							p: 5,
-							outline: "none",
+							outline: 'none',
 							borderRadius: 1,
-							cursor: "pointer",
-							overflow: "hidden",
-							position: "relative",
-							bgcolor: varAlpha(theme.vars.palette.grey["500Channel"], 0.08),
-							border: `1px dashed ${varAlpha(theme.vars.palette.grey["500Channel"], 0.2)}`,
-							transition: theme.transitions.create(["opacity", "padding"]),
-							"&:hover": { opacity: 0.72 },
+							cursor: 'pointer',
+							overflow: 'hidden',
+							position: 'relative',
+							bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+							border: `1px dashed ${varAlpha(theme.vars.palette.grey['500Channel'], 0.2)}`,
+							transition: theme.transitions.create(['opacity', 'padding']),
+							'&:hover': { opacity: 0.72 },
 							...(isDragActive && { opacity: 0.72 }),
-							...(disabled && { opacity: 0.48, pointerEvents: "none" }),
+							...(disabled && { opacity: 0.48, pointerEvents: 'none' }),
 							...(hasError && {
-								color: "error.main",
-								borderColor: "error.main",
+								color: 'error.main',
+								borderColor: 'error.main',
 								bgcolor: varAlpha(theme.vars.palette.error.mainChannel, 0.08),
 							}),
-							...(hasFile && { padding: "28% 0" }),
+							...(hasFile && { padding: '28% 0' }),
 						};
 					},
 				]}

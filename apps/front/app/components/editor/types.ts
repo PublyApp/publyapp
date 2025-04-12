@@ -1,7 +1,7 @@
-import type { BoxProps } from "@mui/material/Box";
-import type { ButtonBaseProps } from "@mui/material/ButtonBase";
-import type { SxProps, Theme } from "@mui/material/styles";
-import type { Editor, EditorOptions } from "@tiptap/react";
+import type { BoxProps } from '@mui/material/Box';
+import type { ButtonBaseProps } from '@mui/material/ButtonBase';
+import type { SxProps, Theme } from '@mui/material/styles';
+import type { Editor, EditorOptions } from '@tiptap/react';
 
 // ----------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ export type EditorToolbarProps = {
 	fullScreen: boolean;
 	editor: Editor | null;
 	onToggleFullScreen: () => void;
-	fullItem?: EditorProps["fullItem"];
+	fullItem?: EditorProps['fullItem'];
 };
 
 export type EditorToolbarItemProps = ButtonBaseProps & {

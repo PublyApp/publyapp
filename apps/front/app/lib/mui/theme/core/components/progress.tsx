@@ -1,16 +1,16 @@
-import type { LinearProgressProps } from "@mui/material/LinearProgress";
-import type { Components, CSSObject, Theme } from "@mui/material/styles";
-import { varAlpha } from "minimal-shared/utils";
+import type { LinearProgressProps } from '@mui/material/LinearProgress';
+import type { Components, CSSObject, Theme } from '@mui/material/styles';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
 const COLORS = [
-	"primary",
-	"secondary",
-	"info",
-	"success",
-	"warning",
-	"error",
+	'primary',
+	'secondary',
+	'info',
+	'success',
+	'warning',
+	'error',
 ] as const;
 
 type PaletteColor = (typeof COLORS)[number];
@@ -33,7 +33,7 @@ const styleColors = (
 	return outputStyle;
 };
 
-const MuiLinearProgress: Components<Theme>["MuiLinearProgress"] = {
+const MuiLinearProgress: Components<Theme>['MuiLinearProgress'] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
@@ -49,8 +49,8 @@ const MuiLinearProgress: Components<Theme>["MuiLinearProgress"] = {
 					};
 				}),
 				inheritColor: {
-					...(ownerState.color === "inherit" && {
-						"&::before": { display: "none" },
+					...(ownerState.color === 'inherit' && {
+						'&::before': { display: 'none' },
 						backgroundColor: varAlpha(
 							theme.vars.palette.text.primaryChannel,
 							0.24,
@@ -60,13 +60,13 @@ const MuiLinearProgress: Components<Theme>["MuiLinearProgress"] = {
 			};
 			return {
 				borderRadius: 4,
-				...(ownerState.variant !== "buffer" && {
+				...(ownerState.variant !== 'buffer' && {
 					...styled.inheritColor,
 					...styled.colors,
 				}),
 			};
 		},
-		bar: { borderRadius: "inherit" },
+		bar: { borderRadius: 'inherit' },
 	},
 };
 

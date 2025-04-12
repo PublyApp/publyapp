@@ -1,11 +1,11 @@
-import _ from "lodash";
-import Config from "parse-server/lib/Config.js";
-import RestWrite from "parse-server/lib/RestWrite.js";
+import _ from 'lodash';
+import Config from 'parse-server/lib/Config.js';
+import RestWrite from 'parse-server/lib/RestWrite.js';
 
-import dayjs from "dayjs";
-import type { AggregateOptions, Db, MongoClient } from "mongodb";
+import dayjs from 'dayjs';
+import type { AggregateOptions, Db, MongoClient } from 'mongodb';
 
-import { CLOUD_INSTALLATION_ID, USE_MASTER_KEY } from "../constants";
+import { CLOUD_INSTALLATION_ID, USE_MASTER_KEY } from '../constants';
 
 export const reOrderObjects = <T extends Parse.Object = Parse.Object>(
 	ids: string[],
@@ -49,7 +49,7 @@ export const getCurrentInstallationId = async () => {
 };
 
 export const setCurrentInstallationId = async (/* newId: string */) => {
-	const CURRENT_INSTALLATION_KEY = "currentInstallation";
+	const CURRENT_INSTALLATION_KEY = 'currentInstallation';
 
 	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 	// @ts-ignore
@@ -82,7 +82,7 @@ export const aggregate = async (
 	const aggregationOptions = _.merge(
 		{
 			collation: {
-				locale: "en_US",
+				locale: 'en_US',
 				strength: 2,
 			},
 		},
@@ -150,8 +150,8 @@ export const createSessionServer = async <
 ): Promise<CreateSessionResult<AdditionalSessionData>> => {
 	const {
 		userId,
-		action = "login",
-		authProvider = "password",
+		action = 'login',
+		authProvider = 'password',
 		installationId,
 		additionalSessionData,
 	} = options;
@@ -178,7 +178,7 @@ type EncodedDateType =
 	| string
 	| number
 	| {
-			__type: "Date";
+			__type: 'Date';
 			iso: string;
 	  }
 	| null
@@ -229,13 +229,13 @@ export const setGlobalConfig = async (
 };
 
 export const parseFields = [
-	"_hashed_password",
-	"_perishable_token",
-	"_email_verify_token",
-	"_session_token",
-	"ACL",
-	"createdAt",
-	"updatedAt",
+	'_hashed_password',
+	'_perishable_token',
+	'_email_verify_token',
+	'_session_token',
+	'ACL',
+	'createdAt',
+	'updatedAt',
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,4 +1,4 @@
-import type { NavSectionProps } from "@/front/components/nav-section";
+import type { NavSectionProps } from '@/front/components/nav-section';
 
 // ----------------------------------------------------------------------
 
@@ -24,7 +24,7 @@ const flattenNavItems = (
 		const currentGroup = parentGroup
 			? `${parentGroup}-${navItem.title}`
 			: navItem.title;
-		const groupArray = currentGroup.split("-");
+		const groupArray = currentGroup.split('-');
 
 		flattenedItems.push({
 			title: navItem.title,
@@ -45,7 +45,7 @@ const flattenNavItems = (
 };
 
 export const flattenNavSections = (
-	navSections: NavSectionProps["data"],
+	navSections: NavSectionProps['data'],
 ): OutputItem[] => {
 	return navSections.flatMap((navSection) => {
 		return flattenNavItems(navSection.items, navSection.subheader);

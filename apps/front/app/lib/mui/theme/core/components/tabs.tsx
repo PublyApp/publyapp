@@ -1,15 +1,15 @@
-import type { Components, Theme } from "@mui/material/styles";
-import { tabClasses } from "@mui/material/Tab";
+import type { Components, Theme } from '@mui/material/styles';
+import { tabClasses } from '@mui/material/Tab';
 
 // ----------------------------------------------------------------------
 
-const MuiTabs: Components<Theme>["MuiTabs"] = {
+const MuiTabs: Components<Theme>['MuiTabs'] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
 	defaultProps: {
-		textColor: "inherit",
-		variant: "scrollable",
+		textColor: 'inherit',
+		variant: 'scrollable',
 		allowScrollButtonsMobile: true,
 	},
 
@@ -19,23 +19,23 @@ const MuiTabs: Components<Theme>["MuiTabs"] = {
 	styleOverrides: {
 		list: ({ ownerState, theme }) => {
 			return {
-				...(ownerState.variant !== "fullWidth" && {
-					gap: "24px",
-					[theme.breakpoints.up("sm")]: { gap: "40px" },
+				...(ownerState.variant !== 'fullWidth' && {
+					gap: '24px',
+					[theme.breakpoints.up('sm')]: { gap: '40px' },
 				}),
 			};
 		},
-		indicator: { backgroundColor: "currentColor" },
+		indicator: { backgroundColor: 'currentColor' },
 	},
 };
 
 // ----------------------------------------------------------------------
 
-const MuiTab: Components<Theme>["MuiTab"] = {
+const MuiTab: Components<Theme>['MuiTab'] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
-	defaultProps: { disableRipple: true, iconPosition: "start" },
+	defaultProps: { disableRipple: true, iconPosition: 'start' },
 
 	/** **************************************
 	 * STYLE

@@ -1,8 +1,8 @@
-import ButtonBase, { type ButtonBaseProps } from "@mui/material/ButtonBase";
-import IconButton, { type IconButtonProps } from "@mui/material/IconButton";
-import { varAlpha } from "minimal-shared/utils";
+import ButtonBase, { type ButtonBaseProps } from '@mui/material/ButtonBase';
+import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
+import { varAlpha } from 'minimal-shared/utils';
 
-import { Iconify } from "../iconify/iconify";
+import { Iconify } from '../iconify/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -19,13 +19,13 @@ export const DownloadButton = ({ sx, ...other }: ButtonBaseProps) => {
 						height: 1,
 						zIndex: 9,
 						opacity: 0,
-						position: "absolute",
-						color: "common.white",
-						borderRadius: "inherit",
-						transition: theme.transitions.create(["opacity"]),
-						"&:hover": {
+						position: 'absolute',
+						color: 'common.white',
+						borderRadius: 'inherit',
+						transition: theme.transitions.create(['opacity']),
+						'&:hover': {
 							...theme.mixins.bgBlur({
-								color: varAlpha(theme.vars.palette.grey["900Channel"], 0.64),
+								color: varAlpha(theme.vars.palette.grey['900Channel'], 0.64),
 							}),
 							opacity: 1,
 						},
@@ -52,11 +52,11 @@ export const RemoveButton = ({ sx, ...other }: IconButtonProps) => {
 						p: 0.35,
 						top: 4,
 						right: 4,
-						position: "absolute",
-						color: "common.white",
-						bgcolor: varAlpha(theme.vars.palette.grey["900Channel"], 0.48),
-						"&:hover": {
-							bgcolor: varAlpha(theme.vars.palette.grey["900Channel"], 0.72),
+						position: 'absolute',
+						color: 'common.white',
+						bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.48),
+						'&:hover': {
+							bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.72),
 						},
 					};
 				},

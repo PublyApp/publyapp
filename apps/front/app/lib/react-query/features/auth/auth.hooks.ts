@@ -1,15 +1,15 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from '@tanstack/react-query';
 
-import { useTenantParam } from "@/front/hooks/use-tenant-param";
+import { useTenantParam } from '@/front/hooks/use-tenant-param';
 
-import { getTenantAuthDataQuery, getUserAuthDataQuery } from "./auth.actions";
+import { getTenantAuthDataQuery, getUserAuthDataQuery } from './auth.actions';
 
 // ---- 1 --------------------------------------------------------------------------------
 
 type UseGetUserAuthDataProps = {
 	options?: Omit<
 		ReturnType<typeof getUserAuthDataQuery>,
-		"queryKey" | "queryFn"
+		'queryKey' | 'queryFn'
 	>;
 };
 
@@ -31,7 +31,7 @@ export const useGetUserAuthData = ({
 type UseGetTenantAuthDataProps = {
 	options?: Omit<
 		ReturnType<typeof getTenantAuthDataQuery>,
-		"queryKey" | "queryFn"
+		'queryKey' | 'queryFn'
 	>;
 };
 

@@ -1,8 +1,8 @@
-import { className, roleEnum } from "@org/shared/lib/constants";
-import type { IUserWithParseRelations } from "@org/shared/types/db/user.types";
+import { className, roleEnum } from '@org/shared/lib/constants';
+import type { IUserWithParseRelations } from '@org/shared/types/db/user.types';
 
-import { DEFAULT_CLP } from "@/server/lib/constants";
-import SchemaManager from "@/server/lib/parse/classes/SchemaManager";
+import { DEFAULT_CLP } from '@/server/lib/constants';
+import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 
 const staffAdmin = `role:${roleEnum.STAFF_ADMIN.name}` as const;
 // const staffEditor = `role:${roleEnum.STAFF_EDITOR.name}` as const;
@@ -15,14 +15,14 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
 	{
 		fields: {
 			// required by default by Parse
-			username: { type: "String", required: true },
-			email: { type: "String", required: true },
-			password: { type: "String", required: true },
+			username: { type: 'String', required: true },
+			email: { type: 'String', required: true },
+			password: { type: 'String', required: true },
 
 			// custom fields added by us
-			firstName: { type: "String" },
-			lastName: { type: "String" },
-			avatarUrl: { type: "String" },
+			firstName: { type: 'String' },
+			lastName: { type: 'String' },
+			avatarUrl: { type: 'String' },
 
 			// relations
 			// avatar: { type: 'Pointer', targetClass: className.APP_FILE },
@@ -31,7 +31,7 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
 		classLevelPermissions: {
 			...DEFAULT_CLP,
 			create: {
-				"*": true,
+				'*': true,
 				[staffAdmin]: true,
 			},
 			update: {

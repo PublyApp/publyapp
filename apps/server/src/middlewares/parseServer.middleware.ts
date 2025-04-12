@@ -1,24 +1,24 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import type express from "express";
+import type express from 'express';
 
 import {
 	PARSE_INSTALLATION_ID_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
-} from "@/shared/lib/constants";
-import { makePath } from "@/shared/utils/string.utils";
+} from '@/shared/lib/constants';
+import { makePath } from '@/shared/utils/string.utils';
 
-import { HttpException } from "../exceptions/HttpException";
-import { PARSE_SERVER_URL, USE_MASTER_KEY } from "../lib/constants";
-import { env } from "../lib/env";
-import { expressHandler, getHeader, getRequestIp } from "../lib/express";
-import { getCurrentInstallationId } from "../lib/parse/parse.utils";
-import { logger } from "../lib/winston";
+import { HttpException } from '../exceptions/HttpException';
+import { PARSE_SERVER_URL, USE_MASTER_KEY } from '../lib/constants';
+import { env } from '../lib/env';
+import { expressHandler, getHeader, getRequestIp } from '../lib/express';
+import { getCurrentInstallationId } from '../lib/parse/parse.utils';
+import { logger } from '../lib/winston';
 
 const checkIsMaster = (req: express.Request) => {
 	return (
-		_.get(req, "body._MasterKey") === env.PARSE_MASTER_KEY ||
-		getHeader(req, "X-Parse-Master-Key") === env.PARSE_MASTER_KEY
+		_.get(req, 'body._MasterKey') === env.PARSE_MASTER_KEY ||
+		getHeader(req, 'X-Parse-Master-Key') === env.PARSE_MASTER_KEY
 	);
 };
 
@@ -27,7 +27,7 @@ const disableRestApiForClients = async (
 	_res: express.Response,
 ) => {
 	// eslint-disable-next-line @typescript-eslint/naming-convention
-	const _allowedPaths = ["/health", "/functions"] satisfies `/${string}`[];
+	const _allowedPaths = ['/health', '/functions'] satisfies `/${string}`[];
 
 	const authorizedPaths: string[] = [..._allowedPaths];
 	_allowedPaths.forEach((path) => {
@@ -44,14 +44,14 @@ const disableRestApiForClients = async (
 
 	const installationId =
 		getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) ||
-		_.get(req, "body._InstallationId");
+		_.get(req, 'body._InstallationId');
 	const cloudInstallationId = await getCurrentInstallationId();
 
 	if (installationId === cloudInstallationId) {
 		return;
 	}
 
-	throw new HttpException(401, "unauthorized");
+	throw new HttpException(401, 'unauthorized');
 };
 
 const handleMatchSessionIp = async (
@@ -59,7 +59,7 @@ const handleMatchSessionIp = async (
 	_res: express.Response,
 ) => {
 	// eslint-disable-next-line @typescript-eslint/naming-convention
-	const _allowedPaths = ["/health"] satisfies `/${string}`[];
+	const _allowedPaths = ['/health'] satisfies `/${string}`[];
 
 	const allowedPaths: string[] = [..._allowedPaths];
 	_allowedPaths.forEach((path) => {
@@ -76,10 +76,10 @@ const handleMatchSessionIp = async (
 
 	const installationId =
 		getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) ||
-		_.get(req, "body._InstallationId");
+		_.get(req, 'body._InstallationId');
 	const sessionToken =
 		getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) ||
-		_.get(req, "body._SessionToken");
+		_.get(req, 'body._SessionToken');
 
 	const cloudInstallationId = await getCurrentInstallationId();
 
@@ -95,8 +95,8 @@ const handleMatchSessionIp = async (
 	}
 
 	const session = await new Parse.Query(Parse.Session)
-		.equalTo("sessionToken", sessionToken)
-		.select(["ipAddress"])
+		.equalTo('sessionToken', sessionToken)
+		.select(['ipAddress'])
 		// .first({ sessionToken }); // ! do not use sessionToken here because:
 		// ! imagine if we have many instances of our application behind a load balancer
 		// ! it will cause an infinite loop !!!!
@@ -104,13 +104,13 @@ const handleMatchSessionIp = async (
 		.first(USE_MASTER_KEY);
 
 	if (!session) {
-		logger.warn("Session token not found", { sessionToken });
-		throw new HttpException(401, "Invalid session token");
+		logger.warn('Session token not found', { sessionToken });
+		throw new HttpException(401, 'Invalid session token');
 	}
 
 	const requestIp = getRequestIp(req);
 
-	const sessionIp = session.get("ipAddress");
+	const sessionIp = session.get('ipAddress');
 
 	// * no check to do if there is no ip address in the session
 	// * we assume all ip are allowed for it
@@ -119,12 +119,12 @@ const handleMatchSessionIp = async (
 	}
 
 	if (sessionIp !== requestIp) {
-		logger.warn("Ip address does not match", {
+		logger.warn('Ip address does not match', {
 			sessionToken,
 			requestIp,
 			sessionIp,
 		});
-		throw new HttpException(401, "Invalid session token");
+		throw new HttpException(401, 'Invalid session token');
 	}
 };
 

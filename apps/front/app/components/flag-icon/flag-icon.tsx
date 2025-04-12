@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { styled } from "@mui/material/styles";
-import { mergeClasses } from "minimal-shared/utils";
+import { styled } from '@mui/material/styles';
+import { mergeClasses } from 'minimal-shared/utils';
 
-import { flagIconClasses } from "./classes";
+import { flagIconClasses } from './classes';
 
 // ----------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ export const FlagIcon = ({ code, className, sx, ...other }: FlagIconProps) => {
 				// eslint-disable-next-line no-useless-concat
 				src={
 					`https://purecatamphetamine.github.io/country-flag-icons/3x2/${code?.toUpperCase()}` +
-					".svg"
+					'.svg'
 				}
 				className={flagIconClasses.img}
 			/>
@@ -37,25 +37,25 @@ export const FlagIcon = ({ code, className, sx, ...other }: FlagIconProps) => {
 
 // ----------------------------------------------------------------------
 
-const FlagRoot = styled("span")(({ theme }) => {
+const FlagRoot = styled('span')(({ theme }) => {
 	return {
 		width: 26,
 		height: 20,
 		flexShrink: 0,
-		overflow: "hidden",
-		borderRadius: "5px",
-		alignItems: "center",
-		display: "inline-flex",
-		justifyContent: "center",
+		overflow: 'hidden',
+		borderRadius: '5px',
+		alignItems: 'center',
+		display: 'inline-flex',
+		justifyContent: 'center',
 		backgroundColor: theme.vars.palette.background.neutral,
 	};
 });
 
-const FlagImg = styled("img")(() => {
+const FlagImg = styled('img')(() => {
 	return {
-		width: "100%",
-		height: "100%",
-		maxWidth: "unset",
-		objectFit: "cover",
+		width: '100%',
+		height: '100%',
+		maxWidth: 'unset',
+		objectFit: 'cover',
 	};
 });

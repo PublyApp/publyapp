@@ -1,15 +1,15 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import axios from "axios";
+import axios from 'axios';
 
-import { AxiosHttp, getProtectionHeaders } from "@org/shared/lib/axios";
+import { AxiosHttp, getProtectionHeaders } from '@org/shared/lib/axios';
 import {
 	PARSE_APPLICATION_ID_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
-} from "@org/shared/lib/constants";
-import type { IUser } from "@org/shared/types/db/user.types";
+} from '@org/shared/lib/constants';
+import type { IUser } from '@org/shared/types/db/user.types';
 
-import ParseRestError from "./ParseRestError";
+import ParseRestError from './ParseRestError';
 
 type Props = {
 	parseServerUrl: string;
@@ -83,8 +83,8 @@ export default class ParseRestClient {
 						| undefined) || {};
 					const parseCode: number = errorCode || -1;
 					const message: string =
-						errorMessage || error.message || "Unknown Error";
-					const code: string = xcode || error.code || "ERR_UNKNOWN";
+						errorMessage || error.message || 'Unknown Error';
+					const code: string = xcode || error.code || 'ERR_UNKNOWN';
 
 					throw new ParseRestError({
 						httpStatusCode,
@@ -98,7 +98,7 @@ export default class ParseRestClient {
 					throw error;
 				}
 
-				throw new Error("Unknown error");
+				throw new Error('Unknown error');
 			},
 		);
 
@@ -108,7 +108,7 @@ export default class ParseRestClient {
 
 	setHeader(key: string, value: string) {
 		if (_.toLower(key) === _.toLower(PARSE_APPLICATION_ID_HEADER_KEY)) {
-			throw new Error("You cannot set X-Parse-Application-Id header");
+			throw new Error('You cannot set X-Parse-Application-Id header');
 		}
 
 		this.http.axios.defaults.headers.common[key] = value;
@@ -136,14 +136,14 @@ export default class ParseRestClient {
 		P extends Record<string, unknown> = Record<string, unknown>,
 	>(functionName: string, options: RunOptions<P> = {}) {
 		return this.http.post<R, P>(
-			_.join(["/functions", functionName], "/"),
+			_.join(['/functions', functionName], '/'),
 			options.params as never,
 			{
 				headers: getProtectionHeaders({ sessionToken: options.sessionToken }),
 				transformResponse: [
 					...(this.http.axios.defaults.transformResponse as never),
 					(data: unknown) => {
-						if (_.isObject(data) && "result" in data) {
+						if (_.isObject(data) && 'result' in data) {
 							return data.result;
 						}
 
@@ -167,19 +167,19 @@ export default class ParseRestClient {
 		const identifier = input.email || input.username;
 
 		const headers = _.merge(getProtectionHeaders({}), {
-			"X-Parse-Revocable-Session": "1",
+			'X-Parse-Revocable-Session': '1',
 			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
 		});
 
 		return this.http.post<IUser & { sessionToken: string }>(
-			"/login",
+			'/login',
 			{ username: identifier, password },
 			{ headers },
 		);
 	}
 
 	async logOut() {
-		return this.http.post("/logout", {}, { headers: getProtectionHeaders({}) });
+		return this.http.post('/logout', {}, { headers: getProtectionHeaders({}) });
 	}
 
 	/**
@@ -188,13 +188,13 @@ export default class ParseRestClient {
 	async signUp(input: { email: string; password: string }) {
 		const { email: username, password } = input;
 		const headers = _.merge(getProtectionHeaders({}), {
-			"X-Parse-Revocable-Session": "1",
+			'X-Parse-Revocable-Session': '1',
 			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
 		});
 
 		// https://docs.parseplatform.org/rest/guide/#signing-up
 		return this.http.post<IUser & { sessionToken?: string }>(
-			"/users",
+			'/users',
 			{ username, password, email: username },
 			{ headers },
 		);
@@ -202,6 +202,6 @@ export default class ParseRestClient {
 
 	// https://docs.parseplatform.org/rest/guide/#verifying-emails
 	async verificationEmailRequest(input: { email: string }) {
-		return this.http.post("/verificationEmailRequest", { email: input.email });
+		return this.http.post('/verificationEmailRequest', { email: input.email });
 	}
 }

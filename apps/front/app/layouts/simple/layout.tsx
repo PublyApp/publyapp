@@ -1,26 +1,26 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
-import Link from "@mui/material/Link";
-import type { Breakpoint } from "@mui/material/styles";
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
+import type { Breakpoint } from '@mui/material/styles';
 
-import { Logo } from "@/front/components/logo/logo";
-import { RouterLink } from "@/front/components/router-link";
+import { Logo } from '@/front/components/logo/logo';
+import { RouterLink } from '@/front/components/router-link';
 
-import { SettingsButton } from "../components/settings-button";
-import { HeaderSection, type HeaderSectionProps } from "../core/header-section";
-import { LayoutSection, type LayoutSectionProps } from "../core/layout-section";
-import { MainSection, type MainSectionProps } from "../core/main-section";
+import { SettingsButton } from '../components/settings-button';
+import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
+import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
+import { MainSection, type MainSectionProps } from '../core/main-section';
 
 import {
 	SimpleCompactContent,
 	type SimpleCompactContentProps,
-} from "./content";
+} from './content';
 
 // ----------------------------------------------------------------------
 
-type LayoutBaseProps = Pick<LayoutSectionProps, "sx" | "children" | "cssVars">;
+type LayoutBaseProps = Pick<LayoutSectionProps, 'sx' | 'children' | 'cssVars'>;
 
 export type SimpleLayoutProps = LayoutBaseProps & {
 	layoutQuery?: Breakpoint;
@@ -36,16 +36,16 @@ export const SimpleLayout = ({
 	cssVars,
 	children,
 	slotProps,
-	layoutQuery = "md",
+	layoutQuery = 'md',
 }: SimpleLayoutProps) => {
 	const renderHeader = () => {
-		const headerSlotProps: HeaderSectionProps["slotProps"] = {
+		const headerSlotProps: HeaderSectionProps['slotProps'] = {
 			container: { maxWidth: false },
 		};
 
-		const headerSlots: HeaderSectionProps["slots"] = {
+		const headerSlots: HeaderSectionProps['slots'] = {
 			topArea: (
-				<Alert severity="info" sx={{ display: "none", borderRadius: 0 }}>
+				<Alert severity="info" sx={{ display: 'none', borderRadius: 0 }}>
 					This is an info Alert.
 				</Alert>
 			),
@@ -53,8 +53,8 @@ export const SimpleLayout = ({
 			rightArea: (
 				<Box
 					sx={{
-						display: "flex",
-						alignItems: "center",
+						display: 'flex',
+						alignItems: 'center',
 						gap: { xs: 1, sm: 1.5 },
 					}}
 				>
@@ -64,7 +64,7 @@ export const SimpleLayout = ({
 						href="#"
 						component={RouterLink}
 						color="inherit"
-						sx={{ typography: "subtitle2" }}
+						sx={{ typography: 'subtitle2' }}
 					>
 						Need help?
 					</Link>
@@ -119,7 +119,7 @@ export const SimpleLayout = ({
 			/** **************************************
 			 * @Styles
 			 *************************************** */
-			cssVars={{ "--layout-simple-content-compact-width": "448px", ...cssVars }}
+			cssVars={{ '--layout-simple-content-compact-width': '448px', ...cssVars }}
 			sx={sx}
 		>
 			{renderMain()}

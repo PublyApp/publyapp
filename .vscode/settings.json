@@ -82,10 +82,10 @@
 	"editor.codeActionsOnSave": {
 		// "source.fixAll.eslint": "explicit",
 		// "source.sortImports": "explicit",
-		"source.fixAll.biome": "explicit",
-		"source.organizeImports.biome": "explicit"
+		"source.fixAll.biome": "explicit"
+		// "source.organizeImports.biome": "explicit"
 	},
-	"editor.formatOnSave": true,
+	"editor.formatOnSave": true, // intensinnally set to false
 	"editor.tabSize": 2,
 	"editor.insertSpaces": false,
 	"editor.renderWhitespace": "all",

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import GlobalStyles from "@mui/material/GlobalStyles";
-import type { CSSObject, Theme } from "@mui/material/styles";
-import { isRouteErrorResponse } from "react-router";
+import GlobalStyles from '@mui/material/GlobalStyles';
+import type { CSSObject, Theme } from '@mui/material/styles';
+import { isRouteErrorResponse } from 'react-router';
 
 // ----------------------------------------------------------------------
 type ErrorBoundaryProps = {
@@ -79,36 +79,36 @@ const renderErrorMessage = (error: any) => {
 // ----------------------------------------------------------------------
 
 const errorBoundaryClasses = {
-	root: "error-boundary-root",
-	container: "error-boundary-container",
-	title: "error-boundary-title",
-	details: "error-boundary-details",
-	message: "error-boundary-message",
-	filePath: "error-boundary-file-path",
+	root: 'error-boundary-root',
+	container: 'error-boundary-container',
+	title: 'error-boundary-title',
+	details: 'error-boundary-details',
+	message: 'error-boundary-message',
+	filePath: 'error-boundary-file-path',
 };
 
 const cssVars: CSSObject = {
-	"--info-color": "#2dd9da",
-	"--warning-color": "#e2aa53",
-	"--error-color": "#ff5555",
-	"--error-background": "#2a1e1e",
-	"--details-background": "#111111",
-	"--root-background": "#2c2c2e",
-	"--container-background": "#1c1c1e",
-	"--font-stack-monospace":
+	'--info-color': '#2dd9da',
+	'--warning-color': '#e2aa53',
+	'--error-color': '#ff5555',
+	'--error-background': '#2a1e1e',
+	'--details-background': '#111111',
+	'--root-background': '#2c2c2e',
+	'--container-background': '#1c1c1e',
+	'--font-stack-monospace':
 		'"SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace',
-	"--font-stack-sans":
+	'--font-stack-sans':
 		'-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"',
 };
 
 const rootStyles = (): CSSObject => {
 	return {
-		display: "flex",
-		flex: "1 1 auto",
-		alignItems: "center",
-		padding: "10vh 15px 0",
-		flexDirection: "column",
-		fontFamily: "var(--font-stack-sans)",
+		display: 'flex',
+		flex: '1 1 auto',
+		alignItems: 'center',
+		padding: '10vh 15px 0',
+		flexDirection: 'column',
+		fontFamily: 'var(--font-stack-sans)',
 	};
 };
 
@@ -116,12 +116,12 @@ const contentStyles = (): CSSObject => {
 	return {
 		gap: 24,
 		padding: 20,
-		width: "100%",
+		width: '100%',
 		maxWidth: 960,
-		display: "flex",
+		display: 'flex',
 		borderRadius: 8,
-		flexDirection: "column",
-		backgroundColor: "var(--container-background)",
+		flexDirection: 'column',
+		backgroundColor: 'var(--container-background)',
 	};
 };
 
@@ -138,13 +138,13 @@ const messageStyles = (theme: Theme): CSSObject => {
 	return {
 		margin: 0,
 		lineHeight: 1.5,
-		padding: "12px 16px",
-		whiteSpace: "pre-wrap",
-		color: "var(--error-color)",
+		padding: '12px 16px',
+		whiteSpace: 'pre-wrap',
+		color: 'var(--error-color)',
 		fontSize: theme.typography.pxToRem(14),
-		fontFamily: "var(--font-stack-monospace)",
-		backgroundColor: "var(--error-background)",
-		borderLeft: "2px solid var(--error-color)",
+		fontFamily: 'var(--font-stack-monospace)',
+		backgroundColor: 'var(--error-background)',
+		borderLeft: '2px solid var(--error-color)',
 		fontWeight: theme.typography.fontWeightBold,
 	};
 };
@@ -154,17 +154,17 @@ const detailsStyles = (): CSSObject => {
 		margin: 0,
 		padding: 16,
 		lineHeight: 1.5,
-		overflow: "auto",
-		borderRadius: "inherit",
-		color: "var(--warning-color)",
-		backgroundColor: "var(--details-background)",
+		overflow: 'auto',
+		borderRadius: 'inherit',
+		color: 'var(--warning-color)',
+		backgroundColor: 'var(--details-background)',
 	};
 };
 
 const filePathStyles = (): CSSObject => {
 	return {
 		marginTop: 0,
-		color: "var(--info-color)",
+		color: 'var(--info-color)',
 	};
 };
 
@@ -176,8 +176,8 @@ const inputGlobalStyles = () => {
 					body: {
 						...cssVars,
 						margin: 0,
-						color: "white",
-						backgroundColor: "var(--root-background)",
+						color: 'white',
+						backgroundColor: 'var(--root-background)',
 						[`& .${errorBoundaryClasses.root}`]: rootStyles(),
 						[`& .${errorBoundaryClasses.container}`]: contentStyles(),
 						[`& .${errorBoundaryClasses.title}`]: titleStyles(theme),

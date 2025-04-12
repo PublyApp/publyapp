@@ -1,10 +1,10 @@
-import { listClasses } from "@mui/material/List";
-import { menuItemClasses } from "@mui/material/MenuItem";
-import Popover from "@mui/material/Popover";
+import { listClasses } from '@mui/material/List';
+import { menuItemClasses } from '@mui/material/MenuItem';
+import Popover from '@mui/material/Popover';
 
-import { Arrow } from "./styles";
-import type { CustomPopoverProps } from "./types";
-import { calculateAnchorOrigin } from "./utils";
+import { Arrow } from './styles';
+import type { CustomPopoverProps } from './types';
+import { calculateAnchorOrigin } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -24,7 +24,7 @@ export const CustomPopover = ({
 
 	const arrowSize = arrowProps?.size ?? 14;
 	const arrowOffset = arrowProps?.offset ?? 17;
-	const arrowPlacement = arrowProps?.placement ?? "top-right";
+	const arrowPlacement = arrowProps?.placement ?? 'top-right';
 
 	const { paperStyles, anchorOrigin, transformOrigin } =
 		calculateAnchorOrigin(arrowPlacement);
@@ -43,12 +43,12 @@ export const CustomPopover = ({
 					sx: [
 						paperStyles,
 						{
-							overflow: "inherit",
+							overflow: 'inherit',
 							[`& .${listClasses.root}`]: { minWidth: 140 },
 							[`& .${menuItemClasses.root}`]: { gap: 2 },
 						},
 						...(Array.isArray(paperProps?.sx)
-							? paperProps?.sx ?? []
+							? (paperProps?.sx ?? [])
 							: [paperProps?.sx]),
 					],
 				},

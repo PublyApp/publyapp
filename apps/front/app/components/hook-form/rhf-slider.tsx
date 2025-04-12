@@ -1,9 +1,9 @@
-import Box, { type BoxProps } from "@mui/material/Box";
-import type { FormHelperTextProps } from "@mui/material/FormHelperText";
-import Slider, { type SliderProps } from "@mui/material/Slider";
-import { Controller, useFormContext } from "react-hook-form";
+import Box, { type BoxProps } from '@mui/material/Box';
+import type { FormHelperTextProps } from '@mui/material/FormHelperText';
+import Slider, { type SliderProps } from '@mui/material/Slider';
+import { Controller, useFormContext } from 'react-hook-form';
 
-import { HelperText } from "./help-text";
+import { HelperText } from './help-text';
 
 // ----------------------------------------------------------------------
 

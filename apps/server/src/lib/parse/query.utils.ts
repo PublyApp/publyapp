@@ -1,4 +1,4 @@
-import { pageToSkip } from "@/server/utils/any.utils";
+import { pageToSkip } from '@/server/utils/any.utils';
 
 export type QueryOptions = {
 	select?: string[];
@@ -25,12 +25,12 @@ export const applyQueryOptions = (
 
 export type LimitAndSkipOptions =
 	| {
-			type: "limit";
+			type: 'limit';
 			limit: number;
 			skip: number;
 	  }
 	| {
-			type: "page";
+			type: 'page';
 			page: number;
 			pageSize: number;
 	  };
@@ -39,11 +39,11 @@ export const applySkipAndLimit = (
 	query: Parse.Query,
 	options: LimitAndSkipOptions,
 ) => {
-	if (options.type === "limit") {
+	if (options.type === 'limit') {
 		query.skip(options.skip).limit(options.limit);
 	}
 
-	if (options.type === "page") {
+	if (options.type === 'page') {
 		const skip = pageToSkip(options.page);
 		query.skip(skip).limit(options.pageSize);
 	}

@@ -1,9 +1,9 @@
-import Box, { type BoxProps } from "@mui/material/Box";
-import type { FormHelperTextProps } from "@mui/material/FormHelperText";
-import Rating, { type RatingProps } from "@mui/material/Rating";
-import { Controller, useFormContext } from "react-hook-form";
+import Box, { type BoxProps } from '@mui/material/Box';
+import type { FormHelperTextProps } from '@mui/material/FormHelperText';
+import Rating, { type RatingProps } from '@mui/material/Rating';
+import { Controller, useFormContext } from 'react-hook-form';
 
-import { HelperText } from "./help-text";
+import { HelperText } from './help-text';
 
 // ----------------------------------------------------------------------
 
@@ -33,9 +33,9 @@ export const RHFRating = ({
 					<Box
 						{...slotProps?.wrapper}
 						sx={[
-							{ display: "flex", flexDirection: "column" },
+							{ display: 'flex', flexDirection: 'column' },
 							...(Array.isArray(slotProps?.wrapper?.sx)
-								? slotProps?.wrapper?.sx ?? []
+								? (slotProps?.wrapper?.sx ?? [])
 								: [slotProps?.wrapper?.sx]),
 						]}
 					>

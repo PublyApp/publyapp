@@ -1,6 +1,6 @@
-import Box, { type BoxProps } from "@mui/material/Box";
-import type { SxProps, Theme } from "@mui/material/styles";
-import Typography, { type TypographyProps } from "@mui/material/Typography";
+import Box, { type BoxProps } from '@mui/material/Box';
+import type { SxProps, Theme } from '@mui/material/styles';
+import Typography, { type TypographyProps } from '@mui/material/Typography';
 
 // ----------------------------------------------------------------------
 
@@ -32,10 +32,10 @@ export const SearchNotFound = ({
 			sx={[
 				{
 					gap: 1,
-					display: "flex",
+					display: 'flex',
 					borderRadius: 1.5,
-					textAlign: "center",
-					flexDirection: "column",
+					textAlign: 'center',
+					flexDirection: 'column',
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
@@ -45,9 +45,9 @@ export const SearchNotFound = ({
 				variant="h6"
 				{...slotProps?.title}
 				sx={[
-					{ color: "text.primary" },
+					{ color: 'text.primary' },
 					...(Array.isArray(slotProps?.title?.sx)
-						? slotProps?.title?.sx ?? []
+						? (slotProps?.title?.sx ?? [])
 						: [slotProps?.title?.sx]),
 				]}
 			>
