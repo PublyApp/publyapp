@@ -4,6 +4,7 @@ import { m, type MotionProps } from 'framer-motion';
 
 import { varFade } from '@/front/components/animate';
 import type { PaletteColorKey } from '@/front/lib/mui/theme/core';
+import { nanoid } from 'nanoid';
 
 // ----------------------------------------------------------------------
 
@@ -50,7 +51,7 @@ export const Lines = ({ strokeCount }: { strokeCount: number }) => {
 			{Array.from({ length: strokeCount }, (_, index) => {
 				return (
 					<m.line
-						key={index}
+						key={nanoid()}
 						x1="0"
 						x2="100%"
 						y1="50%"
@@ -79,7 +80,7 @@ export const Lines = ({ strokeCount }: { strokeCount: number }) => {
 			{Array.from({ length: strokeCount }, (_, index) => {
 				return (
 					<m.line
-						key={index}
+						key={nanoid()}
 						x1="50%"
 						x2="50%"
 						y1="0%"
@@ -236,7 +237,11 @@ export const Texts = ({ sx, ...other }: BoxProps & MotionProps) => {
 					y="12px"
 					dominantBaseline="hanging"
 					animate={{ x: ['0%', '-50%'] }}
-					transition={{ duration: 64, ease: 'linear', repeat: Infinity }}
+					transition={{
+						duration: 64,
+						ease: 'linear',
+						repeat: Number.POSITIVE_INFINITY,
+					}}
 				>
 					Minimal Design System Minimal Design System
 				</m.text>
@@ -290,7 +295,7 @@ const Dot = ({
 					transition ?? {
 						duration: 6,
 						ease: 'linear',
-						repeat: Infinity,
+						repeat: Number.POSITIVE_INFINITY,
 						repeatType: 'reverse',
 					}
 				}

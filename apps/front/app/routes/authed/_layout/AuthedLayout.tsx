@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { defaultApiClient } from 'packages/api/ApiClient';

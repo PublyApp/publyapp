@@ -154,7 +154,10 @@ class InterZod {
 		params?: RawCreateParams,
 	): ZodEnum<T>;
 
-	enum(values: any, params?: any) {
+	enum<U extends string, T extends [U, ...U[]]>(
+		values: T,
+		params?: RawCreateParams,
+	): ZodEnum<T> {
 		return z.enum(values, { errorMap: this.getErrorMap(), ...params });
 	}
 

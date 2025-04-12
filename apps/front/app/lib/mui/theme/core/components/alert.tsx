@@ -76,7 +76,7 @@ const styleColors = (
 ) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (ownerState.severity === color) {
-			// eslint-disable-next-line no-param-reassign
+			// biome-ignore lint/style/noParameterAssign: code from template leave as is for now:
 			acc = styles(color);
 		}
 

@@ -44,6 +44,7 @@ export const baseTheme: ThemeOptions = {
 // ----------------------------------------------------------------------
 
 type CreateThemeProps = {
+	// biome-ignore lint/suspicious/noExplicitAny: fix later
 	settingsState?: any; // SettingsState; // TODO: fix type later
 	themeOverrides?: ThemeOptions;
 	localeComponents?: { components?: Components<Theme> };

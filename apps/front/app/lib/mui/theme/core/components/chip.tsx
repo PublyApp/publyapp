@@ -6,6 +6,7 @@ import type {
 	Theme,
 } from '@mui/material/styles';
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -57,7 +58,7 @@ const styleColors = (
 ) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (!ownerState.disabled && ownerState.color === color) {
-			// eslint-disable-next-line no-param-reassign
+			// biome-ignore lint/style/noParameterAssign: code from template leave as is for now
 			acc = styles(color);
 		}
 
@@ -153,7 +154,7 @@ const MuiChip: Components<Theme>['MuiChip'] = {
 							color: theme.vars.palette.action.disabled,
 							borderColor: theme.vars.palette.action.disabledBackground,
 						}),
-						...(['filled', 'soft'].includes(ownerState.variant!) && {
+						...(['filled', 'soft'].includes(_.toString(ownerState.variant)) && {
 							color: theme.vars.palette.action.disabled,
 							backgroundColor: theme.vars.palette.action.disabledBackground,
 						}),
