@@ -10,7 +10,7 @@ import DailyRotateFile from 'winston-daily-rotate-file';
 
 import duration from '@/shared/utils/duration.utils';
 
-import { type LoggerAdapter } from '../interfaces/LoggerAdapter';
+import type { LoggerAdapter } from '../interfaces/LoggerAdapter';
 
 const defaults = _.get(_defaults, 'default') as unknown as typeof _defaults;
 
@@ -42,7 +42,6 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 		this.configureLogger();
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	log(level: string, message: string, ...meta: any[]) {
 		// if (level === 'warn' && message === 'afterSave caught an error') {
 		// 	return;
@@ -144,11 +143,11 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 						showMeta: true,
 						metaStrip: ['timestamp', 'service'],
 						inspectOptions: {
-							depth: Infinity,
+							depth: Number.POSITIVE_INFINITY,
 							colors: true,
-							maxArrayLength: Infinity,
+							maxArrayLength: Number.POSITIVE_INFINITY,
 							breakLength: 120,
-							compact: Infinity,
+							compact: Number.POSITIVE_INFINITY,
 						},
 					}),
 				),

@@ -29,7 +29,7 @@ export const ImageRoot = styled('span', {
 		display: 'inline-block',
 		verticalAlign: 'bottom',
 		aspectRatio: 'var(--aspect-ratio)',
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+
 		...(effect && getEffectStyles(effect)),
 	};
 });

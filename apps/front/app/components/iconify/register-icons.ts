@@ -1,6 +1,7 @@
 import { addCollection, type IconifyJSON } from '@iconify/react';
 
 import allIcons from './icon-sets';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -37,7 +38,7 @@ export const registerIcons = () => {
 		return;
 	}
 
-	iconSets.forEach((iconSet) => {
+	_.forEach(iconSets, (iconSet) => {
 		const iconSetConfig = {
 			...iconSet,
 			width: (iconSet.prefix === 'carbon' && 32) || 24,

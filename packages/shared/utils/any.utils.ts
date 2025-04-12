@@ -4,14 +4,13 @@ export const sleep = <T = unknown>(timeout: number, value?: T) => {
 	const newLocal = 'sleep function invoked';
 	console.warn(`%c${newLocal}`, 'color: yellow');
 	return new Promise<T>((resolve) => {
-		// eslint-disable-next-line no-promise-executor-return
 		return setTimeout(() => {
 			resolve(value as never);
 		}, timeout);
 	});
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: any is the only way to do this
 type Asyncfunction = (...args: any[]) => Promise<any>;
 
 export const isAsyncFunction = (
@@ -21,8 +20,7 @@ export const isAsyncFunction = (
 };
 
 // https://github.com/browserify/node-util/blob/ef984721db7150f651800e051de4314c9517d42c/support/types.js#L50-L63
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const isPromise = (input: unknown): input is Promise<any> => {
+export const isPromise = (input: unknown): input is Promise<unknown> => {
 	return (
 		(typeof Promise !== 'undefined' && input instanceof Promise) ||
 		(input !== null &&
@@ -32,7 +30,7 @@ export const isPromise = (input: unknown): input is Promise<any> => {
 	);
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: any is the only way to do this
 type DeepReadonly<T> = T extends (...args: any) => any
 	? T
 	: { readonly [P in keyof T]: DeepReadonly<T[P]> };
@@ -47,22 +45,18 @@ export const deepFreeze = <T>(o: T): DeepReadonly<T> => {
 	const oIsFunction = typeof o === 'function';
 	const hasOwnProp = Object.prototype.hasOwnProperty;
 
-	Object.getOwnPropertyNames(o).forEach((prop) => {
+	_.forEach(Object.getOwnPropertyNames(o), (prop) => {
 		if (
 			hasOwnProp.call(o, prop) &&
 			(oIsFunction
 				? prop !== 'caller' && prop !== 'callee' && prop !== 'arguments'
 				: true) &&
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(o as any)[prop] !== null &&
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(typeof (o as any)[prop] === 'object' ||
-				typeof (o as any)[prop] === 'function') &&
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			!Object.isFrozen((o as any)[prop])
+			_.get(o, prop) !== null &&
+			(typeof _.get(o, prop) === 'object' ||
+				typeof _.get(o, prop) === 'function') &&
+			!Object.isFrozen(_.get(o, prop))
 		) {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			deepFreeze((o as any)[prop]);
+			deepFreeze(_.get(o, prop));
 		}
 	});
 
@@ -77,7 +71,8 @@ export const urlStartWithProtocol = (url: string) => {
 
 export const withResolvers = <T = unknown>() => {
 	let resolve: (value: T) => void;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+	// biome-ignore lint/suspicious/noExplicitAny: any is the only way to do this
 	let reject: (reason: any) => void;
 
 	const promise = new Promise((_resolve, _reject) => {
@@ -85,7 +80,6 @@ export const withResolvers = <T = unknown>() => {
 		reject = _reject;
 	});
 
-	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 	// @ts-ignore
 	return { promise, resolve, reject };
 };

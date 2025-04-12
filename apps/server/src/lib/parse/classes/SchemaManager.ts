@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { type Schema } from 'parse-server';
+import type { Schema } from 'parse-server';
 import MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
 
 import asyncJs from 'async';
@@ -19,12 +19,10 @@ export type ManagedIndex = {
 };
 export type ManagedIndexes = Record<string, ManagedIndex>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SchemaCustom<T extends Record<string, any> = Record<string, any>> =
 	ReturnType<typeof SchemaManager.defineSchema<T>>;
 
 export default class SchemaManager {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	static defineSchema<T extends Record<string, any> = Record<string, any>>(
 		className: string,
 		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> &
@@ -42,7 +40,6 @@ export default class SchemaManager {
 		};
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	static defineMultiTenantSchema<T extends Record<string, any>>(
 		className: string,
 		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> &
@@ -77,7 +74,7 @@ export default class SchemaManager {
 						_metadata: {
 							// class_permissions?: CPLsInterface;
 							// managed_indexes?: Record<string, Omit<CreateIndexesOptions, 'name'>>;
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 							fields_options?: Record<
 								string,
 								{ defaultValue?: any; required?: boolean }

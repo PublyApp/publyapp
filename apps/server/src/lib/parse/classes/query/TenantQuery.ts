@@ -9,7 +9,6 @@ export default class TenantQuery<
 		className,
 		tenantId,
 	}: {
-		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 		className: string | (new (...args: any[]) => T | Parse.Object<T>);
 		tenantId: string;
 	}) {
