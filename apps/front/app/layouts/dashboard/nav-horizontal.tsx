@@ -3,7 +3,10 @@ import Divider from '@mui/material/Divider';
 import type { Breakpoint } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
-import { NavSectionHorizontal, type NavSectionProps } from '@/front/components/nav-section';
+import {
+	NavSectionHorizontal,
+	type NavSectionProps,
+} from '@/front/components/nav-section';
 
 import { layoutClasses } from '../core/classes';
 
@@ -23,7 +26,11 @@ export const NavHorizontal = ({
 }: NavHorizontalProps) => {
 	return (
 		<Box
-			className={mergeClasses([layoutClasses.nav.root, layoutClasses.nav.horizontal, className])}
+			className={mergeClasses([
+				layoutClasses.nav.root,
+				layoutClasses.nav.horizontal,
+				className,
+			])}
 			sx={[
 				(theme) => {
 					return {
@@ -57,7 +64,11 @@ export const NavHorizontal = ({
 					WebkitBackdropFilter: 'blur(var(--layout-header-blur))',
 				}}
 			>
-				<NavSectionHorizontal data={data} checkPermissions={checkPermissions} {...other} />
+				<NavSectionHorizontal
+					data={data}
+					checkPermissions={checkPermissions}
+					{...other}
+				/>
 			</Box>
 		</Box>
 	);

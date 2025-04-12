@@ -40,7 +40,13 @@ export type MainLayoutProps = LayoutBaseProps & {
 
 // const paths = FRONT_PATH_NAMES;
 
-export const MainLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'md' }: MainLayoutProps) => {
+export const MainLayout = ({
+	sx,
+	cssVars,
+	children,
+	slotProps,
+	layoutQuery = 'md',
+}: MainLayoutProps) => {
 	const pathname = usePathname();
 
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
@@ -83,12 +89,21 @@ export const MainLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'md
 						sx={(theme) => {
 							return {
 								display: 'none',
-								[theme.breakpoints.up(layoutQuery)]: { mr: 2.5, display: 'flex' },
+								[theme.breakpoints.up(layoutQuery)]: {
+									mr: 2.5,
+									display: 'flex',
+								},
 							};
 						}}
 					/>
 
-					<Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+					<Box
+						sx={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: { xs: 1, sm: 1.5 },
+						}}
+					>
 						{/** @slot Settings button */}
 						<SettingsButton />
 
@@ -104,7 +119,9 @@ export const MainLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'md
 							sx={(theme) => {
 								return {
 									display: 'none',
-									[theme.breakpoints.up(layoutQuery)]: { display: 'inline-flex' },
+									[theme.breakpoints.up(layoutQuery)]: {
+										display: 'inline-flex',
+									},
 								};
 							}}
 						>

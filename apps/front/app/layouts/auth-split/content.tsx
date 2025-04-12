@@ -8,7 +8,13 @@ import { layoutClasses } from '../core/classes';
 
 export type AuthSplitContentProps = BoxProps & { layoutQuery?: Breakpoint };
 
-export const AuthSplitContent = ({ sx, children, className, layoutQuery = 'md', ...other }: AuthSplitContentProps) => {
+export const AuthSplitContent = ({
+	sx,
+	children,
+	className,
+	layoutQuery = 'md',
+	...other
+}: AuthSplitContentProps) => {
 	return (
 		<Box
 			className={mergeClasses([layoutClasses.content, className])}

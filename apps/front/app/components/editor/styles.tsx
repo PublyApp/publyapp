@@ -71,10 +71,16 @@ export const EditorRoot = styled('div', {
 			borderBottomLeftRadius: 'inherit',
 			borderBottomRightRadius: 'inherit',
 			backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-			...(error && { backgroundColor: varAlpha(theme.vars.palette.error.mainChannel, 0.08) }),
+			...(error && {
+				backgroundColor: varAlpha(theme.vars.palette.error.mainChannel, 0.08),
+			}),
 			'& .tiptap': {
 				'> * + *': { marginTop: 0, marginBottom: MARGIN },
-				'&.ProseMirror': { flex: '1 1 auto', outline: 'none', padding: theme.spacing(0, 2) },
+				'&.ProseMirror': {
+					flex: '1 1 auto',
+					outline: 'none',
+					padding: theme.spacing(0, 2),
+				},
 				/**
 				 * Heading & Paragraph
 				 */
@@ -89,7 +95,9 @@ export const EditorRoot = styled('div', {
 				/**
 				 * Link
 				 */
-				[`& .${editorClasses.content.link}`]: { color: theme.vars.palette.primary.main },
+				[`& .${editorClasses.content.link}`]: {
+					color: theme.vars.palette.primary.main,
+				},
 				/**
 				 * Hr Divider
 				 */
@@ -113,9 +121,15 @@ export const EditorRoot = styled('div', {
 				},
 				/**
 				 * List
-				 */ [`& .${editorClasses.content.bulletList}`]: { paddingLeft: 16, listStyleType: 'disc' },
+				 */ [`& .${editorClasses.content.bulletList}`]: {
+					paddingLeft: 16,
+					listStyleType: 'disc',
+				},
 				[`& .${editorClasses.content.orderedList}`]: { paddingLeft: 16 },
-				[`& .${editorClasses.content.listItem}`]: { lineHeight: 2, '& > p': { margin: 0 } },
+				[`& .${editorClasses.content.listItem}`]: {
+					lineHeight: 2,
+					'& > p': { margin: 0 },
+				},
 				/**
 				 * Blockquote
 				 */
@@ -175,7 +189,10 @@ export const EditorRoot = styled('div', {
 						color: theme.vars.palette.common.white,
 						fontWeight: theme.typography.fontWeightMedium,
 						borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-						backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+						backgroundColor: varAlpha(
+							theme.vars.palette.grey['500Channel'],
+							0.08,
+						),
 					},
 				},
 			},

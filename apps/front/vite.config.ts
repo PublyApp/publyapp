@@ -1,4 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
 import { reactRouter } from '@react-router/dev/vite';
 import { defineConfig } from 'vite';
 import checker from 'vite-plugin-checker';
@@ -30,6 +29,9 @@ export default defineConfig({
 						'mui-one-time-password-input',
 						'@tiptap/extension-code-block-lowlight',
 					]
-				: ['mui-one-time-password-input', '@tiptap/extension-code-block-lowlight'],
+				: [
+						'mui-one-time-password-input',
+						'@tiptap/extension-code-block-lowlight',
+					],
 	},
 });

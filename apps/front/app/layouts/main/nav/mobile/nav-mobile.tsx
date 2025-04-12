@@ -25,14 +25,20 @@ export type NavMobileProps = NavMainProps & {
 	};
 };
 
-export const NavMobile = ({ data, open, onClose, slots, sx }: NavMobileProps) => {
+export const NavMobile = ({
+	data,
+	open,
+	onClose,
+	slots,
+	sx,
+}: NavMobileProps) => {
 	const pathname = usePathname();
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (open) {
 			onClose();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	return (

@@ -29,7 +29,12 @@ export type BgGradientProps = {
 	repeats?: string[];
 };
 
-export const bgGradient = ({ sizes, repeats, images, positions }: BgGradientProps): CSSObject => {
+export const bgGradient = ({
+	sizes,
+	repeats,
+	images,
+	positions,
+}: BgGradientProps): CSSObject => {
 	return {
 		backgroundImage: images?.join(', '),
 		backgroundSize: sizes?.join(', ') ?? 'cover',

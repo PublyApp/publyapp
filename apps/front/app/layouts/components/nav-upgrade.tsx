@@ -14,10 +14,22 @@ export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
 	const { user } = useMockedUser();
 
 	return (
-		<Box sx={[{ px: 2, py: 5, textAlign: 'center' }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
-			<Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column' }}>
+		<Box
+			sx={[
+				{ px: 2, py: 5, textAlign: 'center' },
+				...(Array.isArray(sx) ? sx : [sx]),
+			]}
+			{...other}
+		>
+			<Box
+				sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column' }}
+			>
 				<Box sx={{ position: 'relative' }}>
-					<Avatar src={user?.photoURL} alt={user?.displayName} sx={{ width: 48, height: 48 }}>
+					<Avatar
+						src={user?.photoURL}
+						alt={user?.displayName}
+						sx={{ width: 48, height: 48 }}
+					>
 						{user?.displayName?.charAt(0).toUpperCase()}
 					</Avatar>
 
@@ -38,16 +50,29 @@ export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
 				</Box>
 
 				<Box sx={{ mb: 2, mt: 1.5, width: 1 }}>
-					<Typography variant="subtitle2" noWrap sx={{ mb: 1, color: 'var(--layout-nav-text-primary-color)' }}>
+					<Typography
+						variant="subtitle2"
+						noWrap
+						sx={{ mb: 1, color: 'var(--layout-nav-text-primary-color)' }}
+					>
 						{user?.displayName}
 					</Typography>
 
-					<Typography variant="body2" noWrap sx={{ color: 'var(--layout-nav-text-disabled-color)' }}>
+					<Typography
+						variant="body2"
+						noWrap
+						sx={{ color: 'var(--layout-nav-text-disabled-color)' }}
+					>
 						{user?.email}
 					</Typography>
 				</Box>
 
-				<Button variant="contained" href="paths.minimalStore" target="_blank" rel="noopener">
+				<Button
+					variant="contained"
+					href="paths.minimalStore"
+					target="_blank"
+					rel="noopener"
+				>
 					Upgrade to Pro
 				</Button>
 			</Box>
@@ -99,7 +124,7 @@ export const UpgradeBlock = ({ sx, ...other }: BoxProps) => {
 				transition={{
 					duration: 8,
 					ease: 'linear',
-					repeat: Infinity,
+					repeat: Number.POSITIVE_INFINITY,
 					repeatDelay: 0,
 				}}
 				alt="Small Rocket"

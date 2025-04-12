@@ -43,10 +43,20 @@ const MuiTableRow: Components<Theme>['MuiTableRow'] = {
 		root: ({ theme }) => {
 			return {
 				[`&.${tableRowClasses.selected}`]: {
-					backgroundColor: varAlpha(theme.vars.palette.primary.darkChannel, 0.04),
-					'&:hover': { backgroundColor: varAlpha(theme.vars.palette.primary.darkChannel, 0.08) },
+					backgroundColor: varAlpha(
+						theme.vars.palette.primary.darkChannel,
+						0.04,
+					),
+					'&:hover': {
+						backgroundColor: varAlpha(
+							theme.vars.palette.primary.darkChannel,
+							0.08,
+						),
+					},
 				},
-				'&:last-of-type': { [`& .${tableCellClasses.root}`]: { borderColor: 'transparent' } },
+				'&:last-of-type': {
+					[`& .${tableCellClasses.root}`]: { borderColor: 'transparent' },
+				},
 			};
 		},
 	},

@@ -25,10 +25,9 @@ export const toPascalCase = (str: string) => {
 };
 
 export const makePath = (...params: string[]) => {
-	// eslint-disable-next-line @typescript-eslint/naming-convention
 	const _params: string[] = [];
 
-	params?.forEach((param) => {
+	_.forEach(params, (param) => {
 		if (param?.length <= 0 || param === '/') {
 			return;
 		}

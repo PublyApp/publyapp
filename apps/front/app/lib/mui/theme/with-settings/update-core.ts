@@ -1,5 +1,9 @@
 import type { ColorSystem } from '@mui/material/styles';
-import { createPaletteChannel, hexToRgbChannel, setFont } from 'minimal-shared/utils';
+import {
+	createPaletteChannel,
+	hexToRgbChannel,
+	setFont,
+} from 'minimal-shared/utils';
 
 import type { SettingsState } from '@/front/components/settings';
 
@@ -16,15 +20,26 @@ import { primaryColorPresets } from './color-presets';
  * @primaryColor
  */
 
-export const updateCoreWithSettings = (theme: ThemeOptions, settingsState?: SettingsState): ThemeOptions => {
-	const { direction, fontFamily, contrast = 'default', primaryColor = 'default' } = settingsState ?? {};
+export const updateCoreWithSettings = (
+	theme: ThemeOptions,
+	settingsState?: SettingsState,
+): ThemeOptions => {
+	const {
+		direction,
+		fontFamily,
+		contrast = 'default',
+		primaryColor = 'default',
+	} = settingsState ?? {};
 
 	const isDefaultContrast = contrast === 'default';
 	const isDefaultPrimaryColor = primaryColor === 'default';
 
-	const lightPalette = theme.colorSchemes?.light.palette as ColorSystem['palette'];
+	const lightPalette = theme.colorSchemes?.light
+		.palette as ColorSystem['palette'];
 
-	const updatedPrimaryColor = createPaletteChannel(primaryColorPresets[primaryColor]);
+	const updatedPrimaryColor = createPaletteChannel(
+		primaryColorPresets[primaryColor],
+	);
 	// const updatedSecondaryColor = createPaletteChannel(SECONDARY_COLORS[primaryColor!]);
 
 	const updateColorScheme = (scheme: ThemeColorScheme) => {

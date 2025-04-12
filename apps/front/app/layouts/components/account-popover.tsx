@@ -32,7 +32,11 @@ export type AccountPopoverProps = IconButtonProps & {
 	}[];
 };
 
-export const AccountPopover = ({ data = [], sx, ...other }: AccountPopoverProps) => {
+export const AccountPopover = ({
+	data = [],
+	sx,
+	...other
+}: AccountPopoverProps) => {
 	const pathname = usePathname();
 
 	const { open, anchorEl, onClose, onOpen } = usePopover();
@@ -45,7 +49,10 @@ export const AccountPopover = ({ data = [], sx, ...other }: AccountPopoverProps)
 				open={open}
 				anchorEl={anchorEl}
 				onClose={onClose}
-				slotProps={{ paper: { sx: { p: 0, width: 200 } }, arrow: { offset: 20 } }}
+				slotProps={{
+					paper: { sx: { p: 0, width: 200 } },
+					arrow: { offset: 20 },
+				}}
 			>
 				<Box sx={{ p: 2, pb: 1.5 }}>
 					<Typography variant="subtitle2" noWrap>
@@ -61,7 +68,9 @@ export const AccountPopover = ({ data = [], sx, ...other }: AccountPopoverProps)
 
 				<MenuList sx={{ p: 1, my: 1, '& li': { p: 0 } }}>
 					{data.map((option) => {
-						const rootLabel = pathname.includes('/dashboard') ? 'Home' : 'Dashboard';
+						const rootLabel = pathname.includes('/dashboard')
+							? 'Home'
+							: 'Dashboard';
 						const rootHref = pathname.includes('/dashboard') ? '/' : '#';
 
 						return (
@@ -104,7 +113,12 @@ export const AccountPopover = ({ data = [], sx, ...other }: AccountPopoverProps)
 				<Divider sx={{ borderStyle: 'dashed' }} />
 
 				<Box sx={{ p: 1 }}>
-					<SignOutButton size="medium" variant="text" onClose={onClose} sx={{ display: 'block', textAlign: 'left' }} />
+					<SignOutButton
+						size="medium"
+						variant="text"
+						onClose={onClose}
+						sx={{ display: 'block', textAlign: 'left' }}
+					/>
 				</Box>
 			</CustomPopover>
 		);
@@ -112,7 +126,13 @@ export const AccountPopover = ({ data = [], sx, ...other }: AccountPopoverProps)
 
 	return (
 		<>
-			<AccountButton onClick={onOpen} photoURL={user?.photoURL} displayName={user?.displayName} sx={sx} {...other} />
+			<AccountButton
+				onClick={onOpen}
+				photoURL={user?.photoURL}
+				displayName={user?.displayName}
+				sx={sx}
+				{...other}
+			/>
 
 			{renderMenuActions()}
 		</>

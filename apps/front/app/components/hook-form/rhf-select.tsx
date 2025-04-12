@@ -20,7 +20,13 @@ type RHFSelectProps = TextFieldProps & {
 	children: React.ReactNode;
 };
 
-export const RHFSelect = ({ name, children, helperText, slotProps = {}, ...other }: RHFSelectProps) => {
+export const RHFSelect = ({
+	name,
+	children,
+	helperText,
+	slotProps = {},
+	...other
+}: RHFSelectProps) => {
 	const { control } = useFormContext();
 
 	const labelId = `${name}-select`;
@@ -144,7 +150,9 @@ export const RHFMultiSelect = ({
 								});
 
 								if (!selectedItems.length && placeholder) {
-									return <Box sx={{ color: 'text.disabled' }}>{placeholder}</Box>;
+									return (
+										<Box sx={{ color: 'text.disabled' }}>{placeholder}</Box>
+									);
 								}
 
 								if (chip) {
@@ -152,7 +160,13 @@ export const RHFMultiSelect = ({
 										<Box sx={{ gap: 0.5, display: 'flex', flexWrap: 'wrap' }}>
 											{selectedItems.map((item) => {
 												return (
-													<Chip key={item.value} size="small" variant="soft" label={item.label} {...slotProps?.chip} />
+													<Chip
+														key={item.value}
+														size="small"
+														variant="soft"
+														label={item.label}
+														{...slotProps?.chip}
+													/>
 												);
 											})}
 										</Box>
@@ -174,7 +188,11 @@ export const RHFMultiSelect = ({
 							{renderOptions()}
 						</Select>
 
-						<HelperText {...slotProps?.helperText} errorMessage={error?.message} helperText={helperText} />
+						<HelperText
+							{...slotProps?.helperText}
+							errorMessage={error?.message}
+							helperText={helperText}
+						/>
 					</FormControl>
 				);
 			}}

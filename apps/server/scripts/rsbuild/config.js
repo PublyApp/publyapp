@@ -1,22 +1,14 @@
-/* eslint-disable global-require */
-/* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable no-param-reassign */
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable import/no-extraneous-dependencies */
-/* eslint-disable prefer-arrow/prefer-arrow-functions */
-/* eslint-disable func-style */
-
 // @ts-check
 
-const path = require('path');
-const fs = require('fs');
-const { pipeline, Readable } = require('stream');
-const { promisify } = require('util');
-const { createWriteStream } = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
+const { pipeline, Readable } = require('node:stream');
+const { promisify } = require('node:util');
+const { createWriteStream } = require('node:fs');
 
 const { createRsbuild: _createRsbuild } = require('@rsbuild/core');
 const { pluginTypeCheck } = require('@rsbuild/plugin-type-check');
+const { default: _ } = require('lodash');
 
 const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../../../');
 
@@ -56,22 +48,24 @@ const findExternals = () => {
 	/** @type {Set<string>} */
 	const externalsSet = new Set();
 
-	[...appDirs, ...packagesDirs].forEach((dirName) => {
+	_.forEach([...appDirs, ...packagesDirs], (dirName) => {
 		const filePath = path.join(dirName, PACKAGE_FILE);
 
 		if (!fs.existsSync(filePath)) return;
 
-		const packageFile = JSON.parse(fs.readFileSync(filePath, { encoding: 'utf-8' }));
+		const packageFile = JSON.parse(
+			fs.readFileSync(filePath, { encoding: 'utf-8' }),
+		);
 
 		if (packageFile.dependencies) {
-			Object.entries(packageFile.dependencies).forEach(([key, value]) => {
+			_.forEach(_.entries(packageFile.dependencies), ([key, value]) => {
 				if (value === 'workspace:*') return;
 				externalsSet.add(key);
 			});
 		}
 
 		if (packageFile.devDependencies) {
-			Object.entries(packageFile.devDependencies).forEach(([key, value]) => {
+			_.forEach(_.entries(packageFile.devDependencies), ([key, value]) => {
 				if (value === 'workspace:*') return;
 				externalsSet.add(key);
 			});
@@ -185,13 +179,19 @@ const build = (rsbuild) => {
 exports.build = build;
 
 const createI18nResourcesFiles = async (resources) => {
-	console.log('\x1b[32m%s\x1b[0m', '====> started creating i18n resources files');
+	console.log(
+		'\x1b[32m%s\x1b[0m',
+		'====> started creating i18n resources files',
+	);
 	const pipelineAsync = promisify(pipeline);
 	await Promise.all(
 		Object.entries(resources).map(async ([lang, namespaces]) => {
 			await Promise.all(
 				Object.entries(namespaces).map(async ([namespace, data]) => {
-					const filePath = path.join(__dirname, `../../dist/resources/${lang}.${namespace}.json`);
+					const filePath = path.join(
+						__dirname,
+						`../../dist/resources/${lang}.${namespace}.json`,
+					);
 					const dir = path.dirname(filePath);
 
 					if (!fs.existsSync(dir)) {
@@ -199,12 +199,18 @@ const createI18nResourcesFiles = async (resources) => {
 					}
 
 					const writeStream = createWriteStream(filePath);
-					await pipelineAsync(Readable.from([JSON.stringify(data, null, 2)]), writeStream);
+					await pipelineAsync(
+						Readable.from([JSON.stringify(data, null, 2)]),
+						writeStream,
+					);
 				}),
 			);
 		}),
 	);
-	console.log('\x1b[32m%s\x1b[0m', '====> finished creating i18n resources files');
+	console.log(
+		'\x1b[32m%s\x1b[0m',
+		'====> finished creating i18n resources files',
+	);
 };
 
 exports.createI18nResourcesFiles = createI18nResourcesFiles;

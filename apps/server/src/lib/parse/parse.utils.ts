@@ -7,16 +7,19 @@ import type { AggregateOptions, Db, MongoClient } from 'mongodb';
 
 import { CLOUD_INSTALLATION_ID, USE_MASTER_KEY } from '../constants';
 
-export const reOrderObjects = <T extends Parse.Object = Parse.Object>(ids: string[], objects: T[]) => {
+export const reOrderObjects = <T extends Parse.Object = Parse.Object>(
+	ids: string[],
+	objects: T[],
+) => {
 	const objectsMap = new Map<string, T>();
 
-	objects.forEach((iWebHost) => {
+	_.forEach(objects, (iWebHost) => {
 		objectsMap.set(iWebHost.id, iWebHost);
 	});
 
 	const orderedObjects: T[] = [];
 
-	ids.forEach((id) => {
+	_.forEach(ids, (id) => {
 		const inMap = objectsMap.get(id);
 
 		if (inMap) {
@@ -48,11 +51,14 @@ export const getCurrentInstallationId = async () => {
 export const setCurrentInstallationId = async (/* newId: string */) => {
 	const CURRENT_INSTALLATION_KEY = 'currentInstallation';
 
-	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 	// @ts-ignore
-	// return
-	await Parse.Storage.setItemAsync(CURRENT_INSTALLATION_KEY, /* newId */ CLOUD_INSTALLATION_ID);
-	Parse.CoreManager.getInstallationController()._setInstallationIdCache(/* newId */ CLOUD_INSTALLATION_ID);
+	await Parse.Storage.setItemAsync(
+		CURRENT_INSTALLATION_KEY,
+		/* newId */ CLOUD_INSTALLATION_ID,
+	);
+	Parse.CoreManager.getInstallationController()._setInstallationIdCache(
+		/* newId */ CLOUD_INSTALLATION_ID,
+	);
 };
 
 /**
@@ -64,7 +70,11 @@ export const setCurrentInstallationId = async (/* newId: string */) => {
  * @param options aggregation options
  * @returns a promise containing the documents
  */
-export const aggregate = async (className: string, pipeline: Parse.PipelineStage[], options: AggregateOptions = {}) => {
+export const aggregate = async (
+	className: string,
+	pipeline: Parse.PipelineStage[],
+	options: AggregateOptions = {},
+) => {
 	const collection = getDatabase().collection(className);
 
 	const aggregationOptions = _.merge(
@@ -77,12 +87,19 @@ export const aggregate = async (className: string, pipeline: Parse.PipelineStage
 		options,
 	);
 
-	const results = await collection.aggregate(pipeline, aggregationOptions).toArray();
+	const results = await collection
+		.aggregate(pipeline, aggregationOptions)
+		.toArray();
 
 	return results;
 };
 
-export type CreateSessionOptions<AdditionalSessionData extends Record<string, unknown> = Record<string, unknown>> = {
+export type CreateSessionOptions<
+	AdditionalSessionData extends Record<string, unknown> = Record<
+		string,
+		unknown
+	>,
+> = {
 	userId: string;
 	action?: string;
 	authProvider?: string;
@@ -91,7 +108,12 @@ export type CreateSessionOptions<AdditionalSessionData extends Record<string, un
 	sessionToken?: string;
 };
 
-type CreateSessionResult<AdditionalSessionData extends Record<string, unknown> = Record<string, unknown>> = {
+type CreateSessionResult<
+	AdditionalSessionData extends Record<string, unknown> = Record<
+		string,
+		unknown
+	>,
+> = {
 	sessionToken: string;
 	user: {
 		__type: string;
@@ -117,11 +139,20 @@ type CreateSessionResult<AdditionalSessionData extends Record<string, unknown> =
  *
  */
 export const createSessionServer = async <
-	AdditionalSessionData extends Record<string, unknown> = Record<string, unknown>,
+	AdditionalSessionData extends Record<string, unknown> = Record<
+		string,
+		unknown
+	>,
 >(
 	options: CreateSessionOptions<AdditionalSessionData>,
 ): Promise<CreateSessionResult<AdditionalSessionData>> => {
-	const { userId, action = 'login', authProvider = 'password', installationId, additionalSessionData } = options;
+	const {
+		userId,
+		action = 'login',
+		authProvider = 'password',
+		installationId,
+		additionalSessionData,
+	} = options;
 	const config = getInternalConfig();
 
 	const result = RestWrite.createSession(config, {
@@ -172,16 +203,18 @@ export const getGlobalConfig = async () => {
 	return config;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 type Serializable = string | number | Record<string, any> | any[] | boolean;
 
-export const setGlobalConfig = async (attributes: Record<string, { value: Serializable; masterKeyOnly?: boolean }>) => {
+export const setGlobalConfig = async (
+	attributes: Record<string, { value: Serializable; masterKeyOnly?: boolean }>,
+) => {
 	const entries = _.entries(attributes);
 
 	const param1: Record<string, Serializable> = {};
 	const param2: Record<string, boolean> = {};
 
-	entries.forEach(([key, { value, masterKeyOnly }]) => {
+	_.forEach(entries, ([key, { value, masterKeyOnly }]) => {
 		param1[key] = value;
 
 		if (!_.isNil(masterKeyOnly)) {
@@ -203,8 +236,11 @@ export const parseFields = [
 	'updatedAt',
 ] as const;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const removeParseFields = (obj: Record<string, any>, omitFields?: string[]) => {
+export const removeParseFields = (
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
+	obj: Record<string, any>,
+	omitFields?: string[],
+) => {
 	const newObj = _.omit(obj, omitFields || parseFields);
 	return newObj;
 };

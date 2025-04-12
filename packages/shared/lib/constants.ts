@@ -13,25 +13,56 @@ export const userGroup = {
 
 export const roleEnum = {
 	// cspell:ignore fnhux Rwmgyh Jhpma
-	STAFF_ADMIN: { name: 'STAFF_ADMIN', code: 'eM3RYjw2yaQ6Gb4BTfnhux', rank: 100 } as const,
-	STAFF_EDITOR: { name: 'STAFF_EDITOR', code: 'r6LN7A3RwmgyhZUB4tv8Mn', rank: 80 } as const,
-	STAFF_USER: { name: 'STAFF_USER', code: 'xPK6yNWkCA5TgGU49p72J3', rank: 70 } as const,
-	STAFF_CONTRIBUTOR: { name: 'STAFF_CONTRIBUTOR', code: 'WqgTy4uxJhpmaFPzZUNjXk', rank: 60 } as const,
+	STAFF_ADMIN: {
+		name: 'STAFF_ADMIN',
+		code: 'eM3RYjw2yaQ6Gb4BTfnhux',
+		rank: 100,
+	} as const,
+	STAFF_EDITOR: {
+		name: 'STAFF_EDITOR',
+		code: 'r6LN7A3RwmgyhZUB4tv8Mn',
+		rank: 80,
+	} as const,
+	STAFF_USER: {
+		name: 'STAFF_USER',
+		code: 'xPK6yNWkCA5TgGU49p72J3',
+		rank: 70,
+	} as const,
+	STAFF_CONTRIBUTOR: {
+		name: 'STAFF_CONTRIBUTOR',
+		code: 'WqgTy4uxJhpmaFPzZUNjXk',
+		rank: 60,
+	} as const,
 	// =======================================================
 	// ! Role hierarchy by tenants will be hard to implement if using built-in Parse Roles
 	// ! because on user may have different Roles in two or more Tenants
 	// ! It's Better to implement our own Permission checker for the tenants
 	// TENANT_ADMIN: { name: 'TENANT_ADMIN', code: 5_394_846 } as const,
 	// TENANT_EDITOR: { name: 'TENANT_EDITOR', code: 4_141_341 } as const,
-	TENANT_USER: { name: 'TENANT_USER', code: 't2GwKsZxen3YyLB7QTup4r', rank: 50 } as const,
+	TENANT_USER: {
+		name: 'TENANT_USER',
+		code: 't2GwKsZxen3YyLB7QTup4r',
+		rank: 50,
+	} as const,
 	// TENANT_CONTRIBUTOR: { name: 'TENANT_CONTRIBUTOR', code: 2_347_347 } as const,
 	// =======================================================
-	AUTHED_USER: { name: 'AUTHED_USER', code: 'wC5zNLaK6MQjnSe4cGTr3v', rank: 40 } as const,
+	AUTHED_USER: {
+		name: 'AUTHED_USER',
+		code: 'wC5zNLaK6MQjnSe4cGTr3v',
+		rank: 40,
+	} as const,
 } satisfies Record<string, IRoleConfig>;
 
 const STAFF_ADMIN_ONLY = [roleEnum.STAFF_ADMIN] as const;
-const ABOVE_STAFF_EDITOR = [STAFF_ADMIN_ONLY[0], roleEnum.STAFF_EDITOR] as const;
-const ABOVE_STAFF_USER = [ABOVE_STAFF_EDITOR[0], ABOVE_STAFF_EDITOR[1], roleEnum.STAFF_USER] as const;
+const ABOVE_STAFF_EDITOR = [
+	STAFF_ADMIN_ONLY[0],
+	roleEnum.STAFF_EDITOR,
+] as const;
+const ABOVE_STAFF_USER = [
+	ABOVE_STAFF_EDITOR[0],
+	ABOVE_STAFF_EDITOR[1],
+	roleEnum.STAFF_USER,
+] as const;
 const ABOVE_STAFF_CONTRIBUTOR = [
 	ABOVE_STAFF_USER[0],
 	ABOVE_STAFF_USER[1],
@@ -98,7 +129,11 @@ export const tenantSubRoleRank = {
 export const tenantSubRoleSet = {
 	ADMIN_ONLY: [tenantSubRoleEnum.ADMIN] as const,
 	ABOVE_EDITOR: [tenantSubRoleEnum.ADMIN, tenantSubRoleEnum.EDITOR] as const,
-	ABOVE_USER: [tenantSubRoleEnum.ADMIN, tenantSubRoleEnum.EDITOR, tenantSubRoleEnum.USER] as const,
+	ABOVE_USER: [
+		tenantSubRoleEnum.ADMIN,
+		tenantSubRoleEnum.EDITOR,
+		tenantSubRoleEnum.USER,
+	] as const,
 	ALL: [
 		tenantSubRoleEnum.ADMIN,
 		tenantSubRoleEnum.EDITOR,
@@ -150,8 +185,14 @@ const createParseJoinClassName = <F extends string, C extends string>(
 };
 
 const joinsClassName = {
-	_CUSTOM_JOIN_USER_TO_TENANT: createCustomJoinClassName(basicClassName.USER, basicClassName.TENANT),
-	_JOIN_USER_TO_ROLE: createParseJoinClassName('users' as const, basicClassName.ROLE),
+	_CUSTOM_JOIN_USER_TO_TENANT: createCustomJoinClassName(
+		basicClassName.USER,
+		basicClassName.TENANT,
+	),
+	_JOIN_USER_TO_ROLE: createParseJoinClassName(
+		'users' as const,
+		basicClassName.ROLE,
+	),
 };
 
 export const className = {
@@ -161,7 +202,7 @@ export const className = {
 
 export const APP_ID = 'pdf_vite_app';
 export const APP_NAME = 'PDF Vite';
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
 export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
@@ -194,7 +235,7 @@ export const FRONT_PATH_NAMES = {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
 	},
-	tenant: (tenantId: string = '') => {
+	tenant: (tenantId = '') => {
 		return {
 			root: makePath(RESOURCE.client, tenantId),
 		};
@@ -203,19 +244,19 @@ export const FRONT_PATH_NAMES = {
 		root: makePath(ROOTS.STAFF),
 		tenants: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
-			details: (tenantId: string = '') => {
+			details: (tenantId = '') => {
 				return makePath(ROOTS.STAFF, RESOURCE.tenants, tenantId);
 			},
 		},
 		tenantUsers: {
 			root: makePath(ROOTS.STAFF, 'tenant-users'),
-			details: (userId: string = '') => {
+			details: (userId = '') => {
 				return makePath(ROOTS.STAFF, 'tenant-users', userId);
 			},
 		},
 		staffMembers: {
 			root: makePath(ROOTS.STAFF, 'staff-members'),
-			details: (userId: string = '') => {
+			details: (userId = '') => {
 				return makePath(ROOTS.STAFF, 'staff-members', userId);
 			},
 		},
@@ -242,7 +283,8 @@ export const functionName = {
 		findBlogPostFrontList: 'findBlogPostFrontList',
 		findBlogPostBoTable: 'findBlogPostBoTable',
 		findBlogPostTag: 'findBlogPostTag',
-		findBlogPostFrontDetailsRelatedPosts: 'findBlogPostFrontDetailsRelatedPosts',
+		findBlogPostFrontDetailsRelatedPosts:
+			'findBlogPostFrontDetailsRelatedPosts',
 		findBlogPostSlug: 'findBlogPostSlug',
 		addSlugToBlogPost: 'addSlugToBlogPost',
 		removeSeededBlogPosts: 'removeSeededBlogPosts',

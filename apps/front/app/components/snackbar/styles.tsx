@@ -97,7 +97,10 @@ export const SnackbarRoot = styled(Toaster)(({ theme }) => {
 			backgroundColor: 'transparent',
 			transform: 'translate(-6px, 6px)',
 			border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.16)}`,
-			transition: theme.transitions.create(['background-color', 'border-color']),
+			transition: theme.transitions.create([
+				'background-color',
+				'border-color',
+			]),
 			'&:hover': {
 				borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24),
 				backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),

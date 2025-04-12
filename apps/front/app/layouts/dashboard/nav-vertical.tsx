@@ -4,7 +4,11 @@ import { styled, type Breakpoint } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
 import { Logo } from '@/front/components/logo';
-import { NavSectionMini, NavSectionVertical, type NavSectionProps } from '@/front/components/nav-section';
+import {
+	NavSectionMini,
+	NavSectionVertical,
+	type NavSectionProps,
+} from '@/front/components/nav-section';
 import { Scrollbar } from '@/front/components/scrollbar';
 
 import { NavToggleButton } from '../components/nav-toggle-button';
@@ -94,7 +98,11 @@ export const NavVertical = ({
 		<NavRoot
 			isNavMini={isNavMini}
 			layoutQuery={layoutQuery}
-			className={mergeClasses([layoutClasses.nav.root, layoutClasses.nav.vertical, className])}
+			className={mergeClasses([
+				layoutClasses.nav.root,
+				layoutClasses.nav.vertical,
+				className,
+			])}
 			sx={sx}
 			{...other}
 		>
@@ -121,22 +129,26 @@ const NavRoot = styled('div', {
 	shouldForwardProp: (prop: string) => {
 		return !['isNavMini', 'layoutQuery', 'sx'].includes(prop);
 	},
-})<Pick<NavVerticalProps, 'isNavMini' | 'layoutQuery'>>(({ isNavMini, layoutQuery = 'md', theme }) => {
-	return {
-		top: 0,
-		left: 0,
-		height: '100%',
-		display: 'none',
-		position: 'fixed',
-		flexDirection: 'column',
-		zIndex: 'var(--layout-nav-zIndex)',
-		backgroundColor: 'var(--layout-nav-bg)',
-		width: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
-		borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)})`,
-		transition: theme.transitions.create(['width'], {
-			easing: 'var(--layout-transition-easing)',
-			duration: 'var(--layout-transition-duration)',
-		}),
-		[theme.breakpoints.up(layoutQuery)]: { display: 'flex' },
-	};
-});
+})<Pick<NavVerticalProps, 'isNavMini' | 'layoutQuery'>>(
+	({ isNavMini, layoutQuery = 'md', theme }) => {
+		return {
+			top: 0,
+			left: 0,
+			height: '100%',
+			display: 'none',
+			position: 'fixed',
+			flexDirection: 'column',
+			zIndex: 'var(--layout-nav-zIndex)',
+			backgroundColor: 'var(--layout-nav-bg)',
+			width: isNavMini
+				? 'var(--layout-nav-mini-width)'
+				: 'var(--layout-nav-vertical-width)',
+			borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)})`,
+			transition: theme.transitions.create(['width'], {
+				easing: 'var(--layout-transition-easing)',
+				duration: 'var(--layout-transition-duration)',
+			}),
+			[theme.breakpoints.up(layoutQuery)]: { display: 'flex' },
+		};
+	},
+);

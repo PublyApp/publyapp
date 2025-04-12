@@ -28,14 +28,21 @@ export const View500 = ({ withLayout = true }: View500Props) => {
 				</m.div>
 
 				<m.div variants={varBounce('in')}>
-					<Typography sx={{ color: 'text.secondary' }}>There was an error, please try again later.</Typography>
+					<Typography sx={{ color: 'text.secondary' }}>
+						There was an error, please try again later.
+					</Typography>
 				</m.div>
 
 				<m.div variants={varBounce('in')}>
 					<ServerErrorIllustration sx={{ my: { xs: 5, sm: 10 } }} />
 				</m.div>
 
-				<Button component={RouterLink} href="/" size="large" variant="contained">
+				<Button
+					component={RouterLink}
+					href="/"
+					size="large"
+					variant="contained"
+				>
 					Go to home
 				</Button>
 			</Container>
@@ -43,7 +50,11 @@ export const View500 = ({ withLayout = true }: View500Props) => {
 	};
 
 	if (!withLayout) {
-		return <SimpleCompactContent layoutQuery="md">{renderContent()}</SimpleCompactContent>;
+		return (
+			<SimpleCompactContent layoutQuery="md">
+				{renderContent()}
+			</SimpleCompactContent>
+		);
 	}
 
 	return (

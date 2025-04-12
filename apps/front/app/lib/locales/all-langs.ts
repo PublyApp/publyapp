@@ -1,10 +1,15 @@
-/* eslint-disable prettier/prettier */
 // core (MUI)
 import { frFR as frFRCore } from '@mui/material/locale';
 // data grid (MUI)
-import { enUS as enUSDataGrid, frFR as frFRDataGrid } from '@mui/x-data-grid/locales';
+import {
+	enUS as enUSDataGrid,
+	frFR as frFRDataGrid,
+} from '@mui/x-data-grid/locales';
 // date pickers (MUI)
-import { enUS as enUSDate, frFR as frFRDate } from '@mui/x-date-pickers/locales';
+import {
+	enUS as enUSDate,
+	frFR as frFRDate,
+} from '@mui/x-date-pickers/locales';
 
 // ----------------------------------------------------------------------
 
@@ -26,7 +31,11 @@ export const allLangs = [
 		adapterLocale: 'fr',
 		numberFormat: { code: 'fr-Fr', currency: 'EUR' },
 		systemValue: {
-			components: { ...frFRCore.components, ...frFRDate.components, ...frFRDataGrid.components },
+			components: {
+				...frFRCore.components,
+				...frFRDate.components,
+				...frFRDataGrid.components,
+			},
 		},
 	},
 	// {

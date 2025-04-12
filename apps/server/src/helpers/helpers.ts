@@ -1,14 +1,22 @@
 /* eslint-disable no-continue */
 /* eslint-disable no-await-in-loop */
-import { existsSync, promises as fs } from 'fs';
+import { existsSync, promises as fs } from 'node:fs';
 
 import { className, roleEnum } from '@org/shared/lib/constants';
 
-import { DISABLE_SIGNUP_CONFIG_KEY, FILE_UPLOAD_DESTINATION, USE_MASTER_KEY } from '@/server/lib/constants';
+import {
+	DISABLE_SIGNUP_CONFIG_KEY,
+	FILE_UPLOAD_DESTINATION,
+	USE_MASTER_KEY,
+} from '@/server/lib/constants';
 import { logger } from '@/server/lib/winston';
 
 import SchemaManager from '../lib/parse/classes/SchemaManager';
-import { getDatabase, getGlobalConfig, setGlobalConfig } from '../lib/parse/parse.utils';
+import {
+	getDatabase,
+	getGlobalConfig,
+	setGlobalConfig,
+} from '../lib/parse/parse.utils';
 import RoleSchema from '../modules/common/auth/role/role.schema';
 import SessionSchema from '../modules/common/auth/session/session.schema';
 import Parse_CustomJoinUserToTenantSchema from '../modules/common/auth/tenant/$join-user-to-tenant.schema';
@@ -17,17 +25,21 @@ import UserSchema from '../modules/common/auth/user/user.schema';
 
 export const createRolesIfNotExists = async () => {
 	const roleEntries = Object.values(roleEnum).map((e) => {
-		return [e.name, { code: e.code, rank: e.rank }] as readonly [string, { code: string; rank: number }];
+		return [e.name, { code: e.code, rank: e.rank }] as readonly [
+			string,
+			{ code: string; rank: number },
+		];
 	});
 
-	// eslint-disable-next-line no-restricted-syntax
 	for (const entry of roleEntries) {
 		const [roleName, value] = entry;
 
 		const roleACL = new Parse.ACL();
 		roleACL.setPublicReadAccess(true);
 
-		const foundRole = await new Parse.Query(Parse.Role).equalTo('name', roleName).first(USE_MASTER_KEY);
+		const foundRole = await new Parse.Query(Parse.Role)
+			.equalTo('name', roleName)
+			.first(USE_MASTER_KEY);
 
 		if (foundRole) {
 			logger.info(`role: '${roleName}' already exists, skipping its creation`);
@@ -45,7 +57,10 @@ export const createRolesIfNotExists = async () => {
 			const index = roleEntries.indexOf(entry);
 
 			if (index > 0) {
-				const childRoles = await foundRole.getRoles().query().find(USE_MASTER_KEY);
+				const childRoles = await foundRole
+					.getRoles()
+					.query()
+					.find(USE_MASTER_KEY);
 				const directChildRole = await new Parse.Query(Parse.Role)
 					.equalTo('name', roleEntries[index - 1][0])
 					.first(USE_MASTER_KEY);
@@ -92,12 +107,16 @@ export const setUpGlobalConfig = async () => {
 	const globalConfig = await getGlobalConfig();
 
 	await setGlobalConfig({
-		[DISABLE_SIGNUP_CONFIG_KEY]: { value: globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY) ?? true },
+		[DISABLE_SIGNUP_CONFIG_KEY]: {
+			value: globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY) ?? true,
+		},
 	});
 };
 
 export const updateUserClpForDisabledSignupConfig = async () => {
-	const disabledSignup: boolean = (await getGlobalConfig()).get(DISABLE_SIGNUP_CONFIG_KEY);
+	const disabledSignup: boolean = (await getGlobalConfig()).get(
+		DISABLE_SIGNUP_CONFIG_KEY,
+	);
 
 	const SchemaCollection = getDatabase().collection(className.SCHEMA);
 

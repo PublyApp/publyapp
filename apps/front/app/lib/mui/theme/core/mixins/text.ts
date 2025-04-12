@@ -1,4 +1,8 @@
-import { createTheme as getTheme, type Breakpoint, type CSSObject } from '@mui/material/styles';
+import {
+	createTheme as getTheme,
+	type Breakpoint,
+	type CSSObject,
+} from '@mui/material/styles';
 import { remToPx } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -45,7 +49,10 @@ const getFontSize = (fontSize: React.CSSProperties['fontSize']) => {
 	return typeof fontSize === 'string' ? remToPx(fontSize) : fontSize;
 };
 
-const getLineHeight = (lineHeight: React.CSSProperties['lineHeight'], fontSize?: number) => {
+const getLineHeight = (
+	lineHeight: React.CSSProperties['lineHeight'],
+	fontSize?: number,
+) => {
 	if (typeof lineHeight === 'string') {
 		return fontSize ? remToPx(lineHeight) / fontSize : 1;
 	}
@@ -53,7 +60,11 @@ const getLineHeight = (lineHeight: React.CSSProperties['lineHeight'], fontSize?:
 	return lineHeight;
 };
 
-const calculateHeight = (fontSize: number, lineHeight: number, line: number): number => {
+const calculateHeight = (
+	fontSize: number,
+	lineHeight: number,
+	line: number,
+): number => {
 	return fontSize * lineHeight * line;
 };
 
@@ -80,7 +91,10 @@ export const maxLine = ({ line, persistent }: MaxLineProps): CSSObject => {
 	}
 
 	const responsiveStyles = breakpoints.reduce((acc, breakpoint) => {
-		const fontSize = getFontSize((persistent as MediaFontSize)[defaultMuiTheme.breakpoints.up(breakpoint)]?.fontSize);
+		const fontSize = getFontSize(
+			(persistent as MediaFontSize)[defaultMuiTheme.breakpoints.up(breakpoint)]
+				?.fontSize,
+		);
 
 		if (fontSize) {
 			acc[defaultMuiTheme.breakpoints.up(breakpoint)] = {

@@ -17,7 +17,11 @@ export default class UserService {
 
 	async getById(
 		userId: string,
-		options: { select?: string[]; include?: string[]; json?: false | undefined },
+		options: {
+			select?: string[];
+			include?: string[];
+			json?: false | undefined;
+		},
 	): Promise<ParseUser | undefined>;
 	async getById(
 		userId: string,
@@ -26,7 +30,12 @@ export default class UserService {
 
 	async getById(
 		userId: string,
-		options: { select?: string[]; include?: string[]; exclude?: string[]; json?: boolean } = {},
+		options: {
+			select?: string[];
+			include?: string[];
+			exclude?: string[];
+			json?: boolean;
+		} = {},
 	) {
 		const query = new Parse.Query(ParseUser).equalTo('objectId', userId);
 
@@ -41,9 +50,14 @@ export default class UserService {
 		return user;
 	}
 
-	// eslint-disable-next-line class-methods-use-this
 	async findUsersForStaffAdminTable() {
-		const userQuery = new Parse.Query(ParseUser).select(['avatarUrl', 'username', 'email', 'firstName', 'lastName']);
+		const userQuery = new Parse.Query(ParseUser).select([
+			'avatarUrl',
+			'username',
+			'email',
+			'firstName',
+			'lastName',
+		]);
 
 		userQuery.find({ sessionToken: this.sessionToken });
 
@@ -89,7 +103,11 @@ export default class UserService {
 						maxRankRoleName: {
 							// Store the role ID associated with the highest rank
 							$first: {
-								$cond: [{ $eq: ['$roleDetails.rank', { $max: '$roleDetails.rank' }] }, '$roleDetails.name', null],
+								$cond: [
+									{ $eq: ['$roleDetails.rank', { $max: '$roleDetails.rank' }] },
+									'$roleDetails.name',
+									null,
+								],
 							},
 						},
 					},

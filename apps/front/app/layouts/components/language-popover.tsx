@@ -22,7 +22,11 @@ export type LanguagePopoverProps = IconButtonProps & {
 	}[];
 };
 
-export const LanguagePopover = ({ data = [], sx, ...other }: LanguagePopoverProps) => {
+export const LanguagePopover = ({
+	data = [],
+	sx,
+	...other
+}: LanguagePopoverProps) => {
 	const { open, anchorEl, onClose, onOpen } = usePopover();
 
 	const { onChangeLang, currentLang } = useTranslate();

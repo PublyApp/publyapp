@@ -31,11 +31,20 @@ export type SearchbarProps = BoxProps & {
 
 const breakpoint: Breakpoint = 'sm';
 
-export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps) => {
+export const Searchbar = ({
+	data: navItems = [],
+	sx,
+	...other
+}: SearchbarProps) => {
 	const theme = useTheme();
 	const smUp = useMediaQuery(theme.breakpoints.up(breakpoint));
 
-	const { value: open, onFalse: onClose, onTrue: onOpen, onToggle } = useBoolean();
+	const {
+		value: open,
+		onFalse: onClose,
+		onTrue: onOpen,
+		onToggle,
+	} = useBoolean();
 	const [searchQuery, setSearchQuery] = useState('');
 
 	const handleClose = useCallback(() => {
@@ -61,9 +70,12 @@ export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps)
 		};
 	}, [handleKeyDown]);
 
-	const handleSearch = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
-		setSearchQuery(event.target.value);
-	}, []);
+	const handleSearch = useCallback(
+		(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+			setSearchQuery(event.target.value);
+		},
+		[],
+	);
 
 	const formattedNavItems = flattenNavSections(navItems);
 
@@ -171,7 +183,10 @@ export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps)
 				maxWidth="sm"
 				open={open}
 				onClose={handleClose}
-				transitionDuration={{ enter: theme.transitions.duration.shortest, exit: 100 }}
+				transitionDuration={{
+					enter: theme.transitions.duration.shortest,
+					exit: 100,
+				}}
 				sx={[
 					{
 						[`& .${dialogClasses.paper}`]: { mt: 15, overflow: 'unset' },
@@ -187,10 +202,18 @@ export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps)
 					onChange={handleSearch}
 					startAdornment={
 						<InputAdornment position="start">
-							<Iconify icon="eva:search-fill" width={24} sx={{ color: 'text.disabled' }} />
+							<Iconify
+								icon="eva:search-fill"
+								width={24}
+								sx={{ color: 'text.disabled' }}
+							/>
 						</InputAdornment>
 					}
-					endAdornment={<Label sx={{ letterSpacing: 1, color: 'text.secondary' }}>esc</Label>}
+					endAdornment={
+						<Label sx={{ letterSpacing: 1, color: 'text.secondary' }}>
+							esc
+						</Label>
+					}
 					inputProps={{ id: 'search-input' }}
 					sx={{
 						p: 3,

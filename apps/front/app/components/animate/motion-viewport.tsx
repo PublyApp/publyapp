@@ -11,7 +11,12 @@ export type MotionViewportProps = BoxProps &
 		disableAnimate?: boolean;
 	};
 
-export const MotionViewport = ({ children, viewport, disableAnimate = true, ...other }: MotionViewportProps) => {
+export const MotionViewport = ({
+	children,
+	viewport,
+	disableAnimate = true,
+	...other
+}: MotionViewportProps) => {
 	const smDown = useMediaQuery((theme) => {
 		return theme.breakpoints.down('sm');
 	});

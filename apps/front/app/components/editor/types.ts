@@ -18,7 +18,9 @@ export type EditorProps = Partial<EditorOptions> & {
 	slotProps?: {
 		wrapper?: BoxProps;
 	};
-	ref?: React.RefObject<HTMLDivElement | null> | React.RefCallback<HTMLDivElement | null>;
+	ref?:
+		| React.RefObject<HTMLDivElement | null>
+		| React.RefCallback<HTMLDivElement | null>;
 };
 
 export type EditorToolbarProps = {

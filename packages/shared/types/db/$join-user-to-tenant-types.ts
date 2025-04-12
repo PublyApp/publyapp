@@ -11,7 +11,8 @@ export type ICustomJoinUserToTenantWithRelations = ICustomJoinUserToTenant & {
 	tenant: ITenant;
 	user: IUser;
 };
-export type ICustomJoinUserToTenantWithParseRelations = ICustomJoinUserToTenant & {
-	tenant: ParseTenant;
-	user: ParseUser;
-};
+export type ICustomJoinUserToTenantWithParseRelations =
+	ICustomJoinUserToTenant & {
+		tenant: ParseTenant;
+		user: ParseUser;
+	};

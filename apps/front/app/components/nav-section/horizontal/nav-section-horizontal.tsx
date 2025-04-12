@@ -27,7 +27,12 @@ export const NavSectionHorizontal = ({
 	const cssVars = { ...navSectionCssVars.horizontal(theme), ...overridesVars };
 
 	return (
-		<Scrollbar sx={{ height: 1 }} slotProps={{ contentSx: { height: 1, display: 'flex', alignItems: 'center' } }}>
+		<Scrollbar
+			sx={{ height: 1 }}
+			slotProps={{
+				contentSx: { height: 1, display: 'flex', alignItems: 'center' },
+			}}
+		>
 			<Nav
 				className={mergeClasses([navSectionClasses.horizontal, className])}
 				sx={[
@@ -67,7 +72,14 @@ export const NavSectionHorizontal = ({
 
 // ----------------------------------------------------------------------
 
-const Group = ({ items, render, cssVars, slotProps, checkPermissions, enabledRootRedirect }: NavGroupProps) => {
+const Group = ({
+	items,
+	render,
+	cssVars,
+	slotProps,
+	checkPermissions,
+	enabledRootRedirect,
+}: NavGroupProps) => {
 	return (
 		<NavLi>
 			<NavUl sx={{ flexDirection: 'row', gap: 'var(--nav-item-gap)' }}>

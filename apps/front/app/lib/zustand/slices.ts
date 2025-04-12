@@ -7,7 +7,7 @@ import type Slice from './utils/Slice';
 export const slicesMap = (() => {
 	const slices = [dummySlice, settingsSlice];
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	return new Map<string, Slice<any, any, any>>(
 		slices.map((slice) => {
 			return [slice.name, slice];
@@ -15,11 +15,12 @@ export const slicesMap = (() => {
 	);
 })();
 
-export type RootState = typeof settingsSlice.sliceContent & typeof dummySlice.sliceContent;
+export type RootState = typeof settingsSlice.sliceContent &
+	typeof dummySlice.sliceContent;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 export const getInitialStore = (...a: any[]) => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	const store: Record<string, any> = {};
 
 	slicesMap.forEach((slice) => {

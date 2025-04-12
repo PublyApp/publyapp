@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import _ from 'lodash';
 import _defaults from 'parse-server/lib/defaults.js';
@@ -10,7 +10,7 @@ import DailyRotateFile from 'winston-daily-rotate-file';
 
 import duration from '@/shared/utils/duration.utils';
 
-import { type LoggerAdapter } from '../interfaces/LoggerAdapter';
+import type { LoggerAdapter } from '../interfaces/LoggerAdapter';
 
 const defaults = _.get(_defaults, 'default') as unknown as typeof _defaults;
 
@@ -30,23 +30,27 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 	/**
 	 * @param {Options} options
 	 */
-	constructor({ logger, maxLogFiles }: { logger: Logger; maxLogFiles?: number | null | undefined }) {
+	constructor({
+		logger,
+		maxLogFiles,
+	}: {
+		logger: Logger;
+		maxLogFiles?: number | null | undefined;
+	}) {
 		this.logger = logger;
 		this.maxLogFiles = maxLogFiles;
 		this.configureLogger();
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	log(level: string, message: string, ...meta: any[]) {
 		// if (level === 'warn' && message === 'afterSave caught an error') {
 		// 	return;
 		// }
 
-		// eslint-disable-next-line consistent-return
 		return this.logger.log(level, message, ...meta);
 	}
 
-	// eslint-disable-next-line class-methods-use-this
 	private configureLogger() {
 		const { jsonLogs, verbose, silent } = defaults;
 		let { logsFolder } = defaults;
@@ -91,15 +95,18 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 
 		if (options) {
 			const { silent } = options;
-			// eslint-disable-next-line no-param-reassign
-			delete options.silent;
+			options.silent = undefined;
 
 			try {
 				if (!_.isNil(options.dirname)) {
 					const parseServer = new DailyRotateFile({
 						filename: 'parse-server.info',
 						json: true,
-						format: format.combine(format.timestamp(), format.splat(), format.json()),
+						format: format.combine(
+							format.timestamp(),
+							format.splat(),
+							format.json(),
+						),
 						...options,
 					});
 					_.set(parseServer, 'name', 'parse-server');
@@ -108,7 +115,11 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 					const parseServerError = new DailyRotateFile({
 						filename: 'parse-server.err',
 						json: true,
-						format: format.combine(format.timestamp(), format.splat(), format.json()),
+						format: format.combine(
+							format.timestamp(),
+							format.splat(),
+							format.json(),
+						),
 						...options,
 						level: 'error',
 					});
@@ -130,11 +141,11 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 						showMeta: true,
 						metaStrip: ['timestamp', 'service'],
 						inspectOptions: {
-							depth: Infinity,
+							depth: Number.POSITIVE_INFINITY,
 							colors: true,
-							maxArrayLength: Infinity,
+							maxArrayLength: Number.POSITIVE_INFINITY,
 							breakLength: 120,
-							compact: Infinity,
+							compact: Number.POSITIVE_INFINITY,
 						},
 					}),
 				),
@@ -153,7 +164,9 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 
 	private removeTransport(transport: string | winston.transport) {
 		const matchingTransport = this.logger.transports.find((t1) => {
-			return typeof transport === 'string' ? _.get(t1, 'name') === transport : t1 === transport;
+			return typeof transport === 'string'
+				? _.get(t1, 'name') === transport
+				: t1 === transport;
 		});
 
 		if (matchingTransport) {
@@ -163,15 +176,16 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 
 	// method copy pasted from parse-server source code just for compatibility purpose
 	// custom query as winston is currently limited
-	// eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	query(options: any, callback: (...args: any[]) => void = () => {}) {
 		if (!options) {
-			// eslint-disable-next-line no-param-reassign
+			// biome-ignore lint/style/noParameterAssign: code from parse-server leave as is for now
 			options = {};
 		}
 
 		// defaults to 7 days prior
-		const from = options.from || new Date(Date.now() - 7 * MILLISECONDS_IN_A_DAY);
+		const from =
+			options.from || new Date(Date.now() - 7 * MILLISECONDS_IN_A_DAY);
 		const until = options.until || new Date();
 		const limit = options.size || 10;
 		const order = options.order || 'desc';
@@ -185,7 +199,6 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 		};
 
 		return new Promise((resolve, reject) => {
-			// eslint-disable-next-line consistent-return
 			this.logger.query(queryOptions as never, (err, res) => {
 				if (err) {
 					callback(err);

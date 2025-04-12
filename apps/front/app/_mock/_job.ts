@@ -27,7 +27,11 @@ export const JOB_SKILL_OPTIONS = [
 	'Problem Diagnosis',
 ];
 
-export const JOB_WORKING_SCHEDULE_OPTIONS = ['Monday to Friday', 'Weekend availability', 'Day shift'];
+export const JOB_WORKING_SCHEDULE_OPTIONS = [
+	'Monday to Friday',
+	'Weekend availability',
+	'Day shift',
+];
 
 export const JOB_EMPLOYMENT_TYPE_OPTIONS = [
 	{ label: 'Full-time', value: 'Full-time' },
@@ -106,7 +110,6 @@ const CONTENT = `
 </ul>
 `;
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _jobs = Array.from({ length: 12 }, (_, index) => {
 	const publish = index % 3 ? 'published' : 'draft';
 

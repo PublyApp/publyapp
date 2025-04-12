@@ -92,7 +92,9 @@ export const getUpdateBlogPostInputSchema = (z: InterZod) => {
 		.partial()
 		.required({ locale: true })
 		.extend({
-			objectId: z.string().min(1, { message: z.t('item-is-required', { item: ID }) }),
+			objectId: z
+				.string()
+				.min(1, { message: z.t('item-is-required', { item: ID }) }),
 			published: z.boolean().optional(),
 		});
 };

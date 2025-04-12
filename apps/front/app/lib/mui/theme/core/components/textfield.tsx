@@ -13,7 +13,9 @@ const MuiInputBase: Components<Theme>['MuiInputBase'] = {
 	styleOverrides: {
 		root: ({ theme }) => {
 			return {
-				[`&.${inputBaseClasses.disabled}`]: { '& svg': { color: theme.vars.palette.text.disabled } },
+				[`&.${inputBaseClasses.disabled}`]: {
+					'& svg': { color: theme.vars.palette.text.disabled },
+				},
 				[`& .${inputBaseClasses.input}:focus`]: { borderRadius: 'inherit' },
 			};
 		},
@@ -24,7 +26,10 @@ const MuiInputBase: Components<Theme>['MuiInputBase'] = {
 					// This will prevent zoom in Safari min font size ~ 16px
 					fontSize: theme.typography.pxToRem(16),
 				},
-				'&::placeholder': { opacity: 1, color: theme.vars.palette.text.disabled },
+				'&::placeholder': {
+					opacity: 1,
+					color: theme.vars.palette.text.disabled,
+				},
 			};
 		},
 	},
@@ -39,7 +44,12 @@ const MuiInput: Components<Theme>['MuiInput'] = {
 	styleOverrides: {
 		underline: ({ theme }) => {
 			return {
-				'&::before': { borderBottomColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.32) },
+				'&::before': {
+					borderBottomColor: varAlpha(
+						theme.vars.palette.grey['500Channel'],
+						0.32,
+					),
+				},
 				'&::after': { borderBottomColor: theme.vars.palette.text.primary },
 			};
 		},
@@ -99,14 +109,25 @@ const MuiFilledInput: Components<Theme>['MuiFilledInput'] = {
 			return {
 				borderRadius: theme.shape.borderRadius,
 				backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-				'&:hover': { backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16) },
+				'&:hover': {
+					backgroundColor: varAlpha(
+						theme.vars.palette.grey['500Channel'],
+						0.16,
+					),
+				},
 				[`&.${filledInputClasses.focused}`]: {
-					backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+					backgroundColor: varAlpha(
+						theme.vars.palette.grey['500Channel'],
+						0.16,
+					),
 				},
 				[`&.${filledInputClasses.error}`]: {
 					backgroundColor: varAlpha(theme.vars.palette.error.mainChannel, 0.08),
 					[`&.${filledInputClasses.focused}`]: {
-						backgroundColor: varAlpha(theme.vars.palette.error.mainChannel, 0.16),
+						backgroundColor: varAlpha(
+							theme.vars.palette.error.mainChannel,
+							0.16,
+						),
 					},
 				},
 				[`&.${filledInputClasses.disabled}`]: {

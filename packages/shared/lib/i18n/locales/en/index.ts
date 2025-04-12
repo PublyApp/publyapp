@@ -9,7 +9,8 @@ const resourceEN = {
 		...zodEn,
 		errors: {
 			...zodEn.errors,
-			invalid_type_with_path: '{{path}} is expected {{expected}}, received {{received}}',
+			invalid_type_with_path:
+				'{{path}} is expected {{expected}}, received {{received}}',
 		},
 	},
 } as const;

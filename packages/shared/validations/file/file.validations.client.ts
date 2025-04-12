@@ -43,5 +43,9 @@ export const getCreateFolderSchemaClientSide = (z: InterZod) => {
 	});
 };
 
-export type UploadManyFilesInputClientSide = zod.infer<ReturnType<typeof getUploadManyFilesSchemaClientSide>>;
-export type CreateFolderInputClientSide = zod.infer<ReturnType<typeof getCreateFolderSchemaClientSide>>;
+export type UploadManyFilesInputClientSide = zod.infer<
+	ReturnType<typeof getUploadManyFilesSchemaClientSide>
+>;
+export type CreateFolderInputClientSide = zod.infer<
+	ReturnType<typeof getCreateFolderSchemaClientSide>
+>;

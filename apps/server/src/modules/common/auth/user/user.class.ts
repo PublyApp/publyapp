@@ -4,7 +4,7 @@ import type { UserAttributes } from '@/shared/types/db/user.types';
 export default class ParseUser extends Parse.User {
 	static className = className.USER;
 
-	// eslint-disable-next-line @typescript-eslint/no-useless-constructor
+	// biome-ignore lint/complexity/noUselessConstructor: <explanation>
 	constructor(attributes?: UserAttributes) {
 		super(attributes);
 	}

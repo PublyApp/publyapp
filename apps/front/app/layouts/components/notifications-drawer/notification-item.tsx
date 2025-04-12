@@ -29,6 +29,7 @@ export type NotificationItemProps = {
 const readerContent = (data: string) => {
 	return (
 		<Box
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: code from template, leave as is for now
 			dangerouslySetInnerHTML={{ __html: data }}
 			sx={{
 				'& p': { m: 0, typography: 'body2' },
@@ -53,7 +54,10 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 		return (
 			<ListItemAvatar>
 				{notification.avatarUrl ? (
-					<Avatar src={notification.avatarUrl} sx={{ bgcolor: 'background.neutral' }} />
+					<Avatar
+						src={notification.avatarUrl}
+						sx={{ bgcolor: 'background.neutral' }}
+					/>
 				) : (
 					<Box
 						sx={{
@@ -66,7 +70,9 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 							bgcolor: 'background.neutral',
 						}}
 					>
-						<SvgIcon sx={{ width: 24, height: 24 }}>{renderIcon(notification.type)}</SvgIcon>
+						<SvgIcon sx={{ width: 24, height: 24 }}>
+							{renderIcon(notification.type)}
+						</SvgIcon>
 					</Box>
 				)}
 			</ListItemAvatar>
@@ -80,7 +86,15 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 				secondary={
 					<>
 						{fToNow(notification.createdAt)}
-						<Box component="span" sx={{ width: 2, height: 2, borderRadius: '50%', bgcolor: 'currentColor' }} />
+						<Box
+							component="span"
+							sx={{
+								width: 2,
+								height: 2,
+								borderRadius: '50%',
+								bgcolor: 'currentColor',
+							}}
+						/>
 						{notification.category}
 					</>
 				}
@@ -150,7 +164,11 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 					)}
 				</Box>
 
-				<Button size="small" variant="contained" sx={{ alignSelf: 'flex-start' }}>
+				<Button
+					size="small"
+					variant="contained"
+					sx={{ alignSelf: 'flex-start' }}
+				>
 					Reply
 				</Button>
 			</>

@@ -18,7 +18,6 @@ import { RouterLink } from '@/front/components/router-link';
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 const _socials = [
 	{
 		value: 'facebook',
@@ -58,7 +57,10 @@ const LINKS = [
 			{ name: 'Privacy policy', href: '#' },
 		],
 	},
-	{ headline: 'Contact', children: [{ name: 'support@minimals.cc', href: '#' }] },
+	{
+		headline: 'Contact',
+		children: [{ name: 'support@minimals.cc', href: '#' }],
+	},
 ];
 
 // ----------------------------------------------------------------------
@@ -72,7 +74,11 @@ const FooterRoot = styled('footer')(({ theme }) => {
 
 export type FooterProps = React.ComponentProps<typeof FooterRoot>;
 
-export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { layoutQuery?: Breakpoint }) => {
+export const Footer = ({
+	sx,
+	layoutQuery = 'md',
+	...other
+}: FooterProps & { layoutQuery?: Breakpoint }) => {
 	return (
 		<FooterRoot sx={sx} {...other}>
 			<Divider />
@@ -96,7 +102,9 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 							return {
 								mt: 3,
 								justifyContent: 'center',
-								[theme.breakpoints.up(layoutQuery)]: { justifyContent: 'space-between' },
+								[theme.breakpoints.up(layoutQuery)]: {
+									justifyContent: 'space-between',
+								},
 							};
 						},
 					]}
@@ -112,8 +120,9 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 								};
 							}}
 						>
-							The starting point for your next project with Minimal UI Kit, built on the newest version of Material-UI
-							©, ready to be customized to your style.
+							The starting point for your next project with Minimal UI Kit,
+							built on the newest version of Material-UI ©, ready to be
+							customized to your style.
 						</Typography>
 
 						<Box
@@ -123,17 +132,28 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 									mb: 5,
 									display: 'flex',
 									justifyContent: 'center',
-									[theme.breakpoints.up(layoutQuery)]: { mb: 0, justifyContent: 'flex-start' },
+									[theme.breakpoints.up(layoutQuery)]: {
+										mb: 0,
+										justifyContent: 'flex-start',
+									},
 								};
 							}}
 						>
 							{_socials.map((social) => {
 								return (
 									<IconButton key={social.label}>
-										{social.value === 'twitter' && <Iconify icon="socials:twitter" />}
-										{social.value === 'facebook' && <Iconify icon="socials:facebook" />}
-										{social.value === 'instagram' && <Iconify icon="socials:instagram" />}
-										{social.value === 'linkedin' && <Iconify icon="socials:linkedin" />}
+										{social.value === 'twitter' && (
+											<Iconify icon="socials:twitter" />
+										)}
+										{social.value === 'facebook' && (
+											<Iconify icon="socials:facebook" />
+										)}
+										{social.value === 'instagram' && (
+											<Iconify icon="socials:instagram" />
+										)}
+										{social.value === 'linkedin' && (
+											<Iconify icon="socials:linkedin" />
+										)}
 									</IconButton>
 								);
 							})}
@@ -162,7 +182,9 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 												display: 'flex',
 												alignItems: 'center',
 												flexDirection: 'column',
-												[theme.breakpoints.up(layoutQuery)]: { alignItems: 'flex-start' },
+												[theme.breakpoints.up(layoutQuery)]: {
+													alignItems: 'flex-start',
+												},
 											};
 										}}
 									>
@@ -172,7 +194,13 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 
 										{list.children.map((link) => {
 											return (
-												<Link key={link.name} component={RouterLink} href={link.href} color="inherit" variant="body2">
+												<Link
+													key={link.name}
+													component={RouterLink}
+													href={link.href}
+													color="inherit"
+													variant="body2"
+												>
 													{link.name}
 												</Link>
 											);

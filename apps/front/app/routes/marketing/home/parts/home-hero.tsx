@@ -95,7 +95,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 							transition={{
 								duration: 20,
 								ease: 'linear',
-								repeat: Infinity,
+								repeat: Number.POSITIVE_INFINITY,
 								repeatType: 'reverse',
 							}}
 							sx={[
@@ -128,7 +128,10 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 							return {
 								mx: 'auto',
 								[theme.breakpoints.up(smKey)]: { whiteSpace: 'pre' },
-								[theme.breakpoints.up(lgKey)]: { fontSize: 20, lineHeight: '36px' },
+								[theme.breakpoints.up(lgKey)]: {
+									fontSize: 20,
+									lineHeight: '36px',
+								},
 							};
 						},
 					]}
@@ -154,7 +157,9 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 						justifyContent: 'center',
 					}}
 				>
-					<AvatarGroup sx={{ [`& .${avatarClasses.root}`]: { width: 32, height: 32 } }}>
+					<AvatarGroup
+						sx={{ [`& .${avatarClasses.root}`]: { width: 32, height: 32 } }}
+					>
 						{Array.from({ length: 3 }, (_, _index) => {
 							return (
 								<Avatar
@@ -257,8 +262,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 
 				<Box sx={{ gap: 2.5, display: 'flex' }}>
 					{['js', 'ts', 'nextjs', 'vite', 'figma'].map((platform) => {
-						// eslint-disable-next-line no-useless-concat
-						const src = `/assets/icons/platforms/ic-${platform}` + '.svg';
+						const src = `/assets/icons/platforms/ic-${platform}.svg`;
 						return (
 							<m.div {...motionProps} key={platform}>
 								<Box

@@ -8,7 +8,11 @@ const MuiListItemIcon: Components<Theme>['MuiListItemIcon'] = {
 	 *************************************** */
 	styleOverrides: {
 		root: ({ theme }) => {
-			return { color: 'inherit', minWidth: 'auto', marginRight: theme.spacing(2) };
+			return {
+				color: 'inherit',
+				minWidth: 'auto',
+				marginRight: theme.spacing(2),
+			};
 		},
 	},
 };

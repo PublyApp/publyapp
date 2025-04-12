@@ -10,7 +10,8 @@ const resourceFR = {
 		...zodFr,
 		errors: {
 			...zodFr.errors,
-			invalid_type_with_path: '{{path}} est attendu {{expected}}, reçu {{received}}',
+			invalid_type_with_path:
+				'{{path}} est attendu {{expected}}, reçu {{received}}',
 		},
 	},
 } as const satisfies LooseResource;

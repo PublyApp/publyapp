@@ -60,13 +60,22 @@ const LoginForm = () => {
 	});
 
 	const renderForm = () => (
-		// eslint-disable-next-line arrow-body-style
 		<Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-			<Field.Text name="email" label="Email address" slotProps={{ inputLabel: { shrink: true } }} />
+			<Field.Text
+				name="email"
+				label="Email address"
+				slotProps={{ inputLabel: { shrink: true } }}
+			/>
 
 			<Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>
 				{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-				<Link component={RouterLink} href="#" variant="body2" color="inherit" sx={{ alignSelf: 'flex-end' }}>
+				<Link
+					component={RouterLink}
+					href="#"
+					variant="body2"
+					color="inherit"
+					sx={{ alignSelf: 'flex-end' }}
+				>
 					Forgot password?
 				</Link>
 
@@ -81,7 +90,13 @@ const LoginForm = () => {
 							endAdornment: (
 								<InputAdornment position="end">
 									<IconButton onClick={showPassword.onToggle} edge="end">
-										<Iconify icon={showPassword.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'} />
+										<Iconify
+											icon={
+												showPassword.value
+													? 'solar:eye-bold'
+													: 'solar:eye-closed-bold'
+											}
+										/>
 									</IconButton>
 								</InputAdornment>
 							),
@@ -111,7 +126,11 @@ const LoginForm = () => {
 				description={
 					<>
 						{"Don't have an account? "}
-						<Link component={RouterLink} href={FRONT_PATH_NAMES.auth.signup} variant="subtitle2">
+						<Link
+							component={RouterLink}
+							href={FRONT_PATH_NAMES.auth.signup}
+							variant="subtitle2"
+						>
 							Get started
 						</Link>
 					</>

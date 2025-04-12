@@ -20,17 +20,19 @@ const path = require('node:path');
 const pluginMeta = (_options) /* : RsbuildPlugin */ => {
 	return {
 		name: 'plugin-meta',
-		// eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 		setup(api) {
-			api.transform({ test: /\.(ts|tsx|js|jsx)$/ }, ({ code, resourcePath }) => {
-				const posixPath = resourcePath.replace(/\\/g, '/');
+			api.transform(
+				{ test: /\.(ts|tsx|js|jsx)$/ },
+				({ code, resourcePath }) => {
+					const posixPath = resourcePath.replace(/\\/g, '/');
 
-				const newCode = code
-					.replace(/import.meta.filename/g, `'${posixPath}'`)
-					.replace(/import.meta.dirname/g, `'${path.dirname(posixPath)}'`);
+					const newCode = code
+						.replace(/import.meta.filename/g, `'${posixPath}'`)
+						.replace(/import.meta.dirname/g, `'${path.dirname(posixPath)}'`);
 
-				return newCode;
-			});
+					return newCode;
+				},
+			);
 		},
 	};
 };

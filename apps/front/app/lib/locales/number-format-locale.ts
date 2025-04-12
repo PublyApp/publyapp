@@ -13,5 +13,8 @@ export const formatNumberLocale = () => {
 		return lang.value === lng;
 	});
 
-	return { code: currentLang?.numberFormat.code, currency: currentLang?.numberFormat.currency };
+	return {
+		code: currentLang?.numberFormat.code,
+		currency: currentLang?.numberFormat.currency,
+	};
 };

@@ -1,5 +1,10 @@
 import { buttonClasses, type ButtonProps } from '@mui/material/Button';
-import type { Components, ComponentsVariants, CSSObject, Theme } from '@mui/material/styles';
+import type {
+	Components,
+	ComponentsVariants,
+	CSSObject,
+	Theme,
+} from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -15,16 +20,26 @@ export type ButtonExtendVariant = {
 
 // ----------------------------------------------------------------------
 
-const COLORS = ['primary', 'secondary', 'info', 'success', 'warning', 'error'] as const;
+const COLORS = [
+	'primary',
+	'secondary',
+	'info',
+	'success',
+	'warning',
+	'error',
+] as const;
 
 type PaletteColor = (typeof COLORS)[number];
 
 // ----------------------------------------------------------------------
 
-const styleColors = (ownerState: ButtonProps, styles: (val: PaletteColor) => CSSObject) => {
+const styleColors = (
+	ownerState: ButtonProps,
+	styles: (val: PaletteColor) => CSSObject,
+) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (!ownerState.disabled && ownerState.color === color) {
-			// eslint-disable-next-line no-param-reassign
+			// biome-ignore lint/style/noParameterAssign: code from template leave as is for now
 			acc = styles(color);
 		}
 
@@ -53,13 +68,25 @@ const softVariant: Record<string, ComponentsVariants<Theme>['MuiButton']> = {
 	colors: COLORS.map((color) => {
 		return {
 			props: ({ ownerState }) => {
-				return !ownerState.disabled && ownerState.variant === 'soft' && ownerState.color === color;
+				return (
+					!ownerState.disabled &&
+					ownerState.variant === 'soft' &&
+					ownerState.color === color
+				);
 			},
 			style: ({ theme }) => {
 				return {
 					color: theme.vars.palette[color].dark,
-					backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.16),
-					'&:hover': { backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.32) },
+					backgroundColor: varAlpha(
+						theme.vars.palette[color].mainChannel,
+						0.16,
+					),
+					'&:hover': {
+						backgroundColor: varAlpha(
+							theme.vars.palette[color].mainChannel,
+							0.32,
+						),
+					},
 					...theme.applyStyles('dark', {
 						color: theme.vars.palette[color].light,
 					}),
@@ -74,8 +101,16 @@ const softVariant: Record<string, ComponentsVariants<Theme>['MuiButton']> = {
 			},
 			style: ({ theme }) => {
 				return {
-					backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-					'&:hover': { backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24) },
+					backgroundColor: varAlpha(
+						theme.vars.palette.grey['500Channel'],
+						0.08,
+					),
+					'&:hover': {
+						backgroundColor: varAlpha(
+							theme.vars.palette.grey['500Channel'],
+							0.24,
+						),
+					},
 					[`&.${buttonClasses.disabled}`]: {
 						backgroundColor: theme.vars.palette.action.disabledBackground,
 					},
@@ -138,12 +173,18 @@ const MuiButton: Components<Theme>['MuiButton'] = {
 				inheritColor: {
 					...(ownerState.color === 'inherit' &&
 						!ownerState.disabled && {
-							borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.32),
+							borderColor: varAlpha(
+								theme.vars.palette.grey['500Channel'],
+								0.32,
+							),
 							'&:hover': { backgroundColor: theme.vars.palette.action.hover },
 						}),
 				},
 				base: {
-					'&:hover': { borderColor: 'currentColor', boxShadow: '0 0 0 0.75px currentColor' },
+					'&:hover': {
+						borderColor: 'currentColor',
+						boxShadow: '0 0 0 0.75px currentColor',
+					},
 				},
 			};
 			return { ...styled.base, ...styled.inheritColor, ...styled.colors };

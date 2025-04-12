@@ -28,11 +28,15 @@ export const Label = ({
 			sx={sx}
 			{...other}
 		>
-			{startIcon && <LabelIcon className={labelClasses.icon}>{startIcon}</LabelIcon>}
+			{startIcon && (
+				<LabelIcon className={labelClasses.icon}>{startIcon}</LabelIcon>
+			)}
 
 			{typeof children === 'string' ? _.upperFirst(children) : children}
 
-			{endIcon && <LabelIcon className={labelClasses.icon}>{endIcon}</LabelIcon>}
+			{endIcon && (
+				<LabelIcon className={labelClasses.icon}>{endIcon}</LabelIcon>
+			)}
 		</LabelRoot>
 	);
 };

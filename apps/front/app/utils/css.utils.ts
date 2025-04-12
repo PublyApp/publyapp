@@ -1,10 +1,18 @@
-type ClassValue = ClassArray | ClassDictionary | string | number | bigint | null | boolean | undefined;
+type ClassValue =
+	| ClassArray
+	| ClassDictionary
+	| string
+	| number
+	| bigint
+	| null
+	| boolean
+	| undefined;
 type ClassDictionary = Record<string, boolean>;
 type ClassArray = ClassValue[];
 
 const toVal = (mix: unknown) => {
-	let k;
-	let y;
+	let k: string | number;
+	let y: string | number;
 	let str = '';
 
 	if (typeof mix === 'string' || typeof mix === 'number') {
@@ -25,7 +33,12 @@ const toVal = (mix: unknown) => {
 			}
 		} else {
 			for (y in mix) {
-				if (mix && typeof mix === 'object' && !Array.isArray(mix) && (mix as Record<string, unknown>)[y]) {
+				if (
+					mix &&
+					typeof mix === 'object' &&
+					!Array.isArray(mix) &&
+					(mix as Record<string, unknown>)[y]
+				) {
 					if (str) str += ' ';
 					str += y;
 				}
@@ -42,8 +55,8 @@ const toVal = (mix: unknown) => {
  */
 export const cn = (...args: ClassValue[]): string => {
 	let i = 0;
-	let tmp;
-	let x;
+	let tmp: ClassValue;
+	let x: string | number;
 	let str = '';
 	const len = args.length;
 

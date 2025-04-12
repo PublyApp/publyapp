@@ -1,6 +1,11 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import GlobalStyles from '@mui/material/GlobalStyles';
-import { styled, type CSSObject, type SxProps, type Theme } from '@mui/material/styles';
+import {
+	styled,
+	type CSSObject,
+	type SxProps,
+	type Theme,
+} from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
 import { layoutClasses } from './classes';
@@ -39,7 +44,12 @@ export const LayoutSection = ({
 		<>
 			{inputGlobalStyles}
 
-			<LayoutRoot id="root__layout" className={mergeClasses([layoutClasses.root, className])} sx={sx} {...other}>
+			<LayoutRoot
+				id="root__layout"
+				className={mergeClasses([layoutClasses.root, className])}
+				sx={sx}
+				{...other}
+			>
 				{sidebarSection ? (
 					<>
 						{sidebarSection}

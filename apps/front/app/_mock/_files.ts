@@ -71,7 +71,6 @@ const shared = (index: number) => {
 	);
 };
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _folders = FOLDERS.map((name, index) => {
 	return {
 		id: `${_mock.id(index)}_folder`,
@@ -88,7 +87,6 @@ export const _folders = FOLDERS.map((name, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _files = _fileNames.map((name, index) => {
 	return {
 		id: `${_mock.id(index)}_file`,
@@ -104,5 +102,4 @@ export const _files = _fileNames.map((name, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _allFiles = [..._folders, ..._files];

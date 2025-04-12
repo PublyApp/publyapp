@@ -16,7 +16,8 @@ export type SettingsSliceActions = {
 	onCloseDrawer: () => void;
 	onReset: () => void;
 	setState: (updateState: SettingsState | Partial<SettingsState>) => void;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+	// biome-ignore lint/suspicious/noExplicitAny: use any for now
 	setField: (path: string, value: any) => void;
 };
 
@@ -38,7 +39,11 @@ const customizer = (objValue: unknown, srcValue: unknown) => {
 	return undefined;
 };
 
-const settingsSlice = new Slice<typeof sliceName, SettingsSliceValues, SettingsSliceActions>({
+const settingsSlice = new Slice<
+	typeof sliceName,
+	SettingsSliceValues,
+	SettingsSliceActions
+>({
 	name: sliceName,
 	defaultValues,
 	initializer: (set) => {
@@ -47,26 +52,26 @@ const settingsSlice = new Slice<typeof sliceName, SettingsSliceValues, SettingsS
 
 			onToggleDrawer: () => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.settingsSlice.openDrawer = !state.settingsSlice.openDrawer;
 				});
 			},
 			onCloseDrawer: () => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.settingsSlice.openDrawer = false;
 				});
 			},
 			onReset: () => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.settingsSlice.state = defaultSettings;
 				});
 			},
 			setState: (updateState) => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
-					state.settingsSlice.state = _.mergeWith(state.settingsSlice.state, updateState, customizer);
+					state.settingsSlice.state = _.mergeWith(
+						state.settingsSlice.state,
+						updateState,
+						customizer,
+					);
 				});
 			},
 			setField: (path, value) => {
@@ -82,7 +87,7 @@ const settingsSlice = new Slice<typeof sliceName, SettingsSliceValues, SettingsS
 			// 			const cookies = new CookieManager();
 			// 			cookies.set(SIDEBAR_COOKIE_NAME, newValue);
 
-			// 			// eslint-disable-next-line no-param-reassign
+			//
 			// 			state.settingsSlice.sidebar.state = newValue;
 			// 		});
 			// 	},
@@ -99,7 +104,7 @@ const settingsSlice = new Slice<typeof sliceName, SettingsSliceValues, SettingsS
 			// 			const cookies = new CookieManager();
 			// 			cookies.set(SIDEBAR_COOKIE_NAME, newValue);
 
-			// 			// eslint-disable-next-line no-param-reassign
+			//
 			// 			state.settingsSlice.sidebar.state = newValue;
 			// 		});
 			// 	},

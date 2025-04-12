@@ -1,4 +1,10 @@
-import type { Components, ComponentsOverrides, ComponentsPropsList, CSSObject, Theme } from '@mui/material/styles';
+import type {
+	Components,
+	ComponentsOverrides,
+	ComponentsPropsList,
+	CSSObject,
+	Theme,
+} from '@mui/material/styles';
 
 import type { SettingsState } from '@/front/components/settings';
 
@@ -18,7 +24,8 @@ const getSlotStyles = <
 	slot: ComponentSlot<Name, Slot>,
 	props?: ComponentsPropsList[Name],
 ): CSSObject => {
-	const slotStyles = typeof slot === 'function' && props ? slot(props) : slot ?? {};
+	const slotStyles =
+		typeof slot === 'function' && props ? slot(props) : (slot ?? {});
 
 	return slotStyles;
 };
@@ -34,7 +41,10 @@ export const updateComponentsWithSettings = (
 			root: (props) => {
 				const { theme } = props;
 
-				const rootStyles = getSlotStyles<'MuiCard', 'root'>(components?.MuiCard?.styleOverrides?.root, props);
+				const rootStyles = getSlotStyles<'MuiCard', 'root'>(
+					components?.MuiCard?.styleOverrides?.root,
+					props,
+				);
 
 				return {
 					...rootStyles,

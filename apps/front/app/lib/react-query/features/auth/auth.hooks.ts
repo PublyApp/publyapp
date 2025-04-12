@@ -7,10 +7,15 @@ import { getTenantAuthDataQuery, getUserAuthDataQuery } from './auth.actions';
 // ---- 1 --------------------------------------------------------------------------------
 
 type UseGetUserAuthDataProps = {
-	options?: Omit<ReturnType<typeof getUserAuthDataQuery>, 'queryKey' | 'queryFn'>;
+	options?: Omit<
+		ReturnType<typeof getUserAuthDataQuery>,
+		'queryKey' | 'queryFn'
+	>;
 };
 
-export const useGetUserAuthData = ({ options }: UseGetUserAuthDataProps = {}) => {
+export const useGetUserAuthData = ({
+	options,
+}: UseGetUserAuthDataProps = {}) => {
 	const query = getUserAuthDataQuery();
 
 	const result = useSuspenseQuery({
@@ -24,10 +29,15 @@ export const useGetUserAuthData = ({ options }: UseGetUserAuthDataProps = {}) =>
 // ---- 2 --------------------------------------------------------------------------------
 
 type UseGetTenantAuthDataProps = {
-	options?: Omit<ReturnType<typeof getTenantAuthDataQuery>, 'queryKey' | 'queryFn'>;
+	options?: Omit<
+		ReturnType<typeof getTenantAuthDataQuery>,
+		'queryKey' | 'queryFn'
+	>;
 };
 
-export const useGetTenantAuthData = ({ options }: UseGetTenantAuthDataProps = {}) => {
+export const useGetTenantAuthData = ({
+	options,
+}: UseGetTenantAuthDataProps = {}) => {
 	const tenantId = useTenantParam();
 
 	const query = getTenantAuthDataQuery({ tenantId });

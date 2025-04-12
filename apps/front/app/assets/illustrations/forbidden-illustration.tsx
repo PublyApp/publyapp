@@ -10,7 +10,14 @@ type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
 const ForbiddenIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 	const renderCharacterImage = () => {
-		return <image href="/assets/illustrations/characters/character-reject.webp" height="280" x="220" y="40" />;
+		return (
+			<image
+				href="/assets/illustrations/characters/character-reject.webp"
+				height="280"
+				x="220"
+				y="40"
+			/>
+		);
 	};
 
 	return (
@@ -44,9 +51,16 @@ const ForbiddenIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 				opacity="0.08"
 			/>
 
-			<path fill="#FFAB00" d="M111.045 142.2c58.7-1 58.6-88.3 0-89.2-58.6 1-58.6 88.3 0 89.2z" opacity="0.12" />
+			<path
+				fill="#FFAB00"
+				d="M111.045 142.2c58.7-1 58.6-88.3 0-89.2-58.6 1-58.6 88.3 0 89.2z"
+				opacity="0.12"
+			/>
 
-			<path fill="#FFD666" d="M111.045 121c30.8-.5 30.8-46.3 0-46.8-30.8.5-30.8 46.3 0 46.8z" />
+			<path
+				fill="#FFD666"
+				d="M111.045 121c30.8-.5 30.8-46.3 0-46.8-30.8.5-30.8 46.3 0 46.8z"
+			/>
 
 			<path
 				fill="#FBCDBE"

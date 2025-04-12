@@ -71,5 +71,9 @@ export const getRegisterSchema = (z: InterZod) => {
 export type LoginInput = z.infer<ReturnType<typeof getLoginSchema>>;
 export type SignupInput = z.infer<ReturnType<typeof getRegisterSchema>>;
 export type VerifyEmailInput = z.infer<ReturnType<typeof getVerifyEmailSchema>>;
-export type ResetPasswordInput = z.infer<ReturnType<typeof getResetPasswordSchema>>;
-export type SendUpdateEmailFormInput = z.infer<ReturnType<typeof getSendEmailUpdateEmailSchema>>;
+export type ResetPasswordInput = z.infer<
+	ReturnType<typeof getResetPasswordSchema>
+>;
+export type SendUpdateEmailFormInput = z.infer<
+	ReturnType<typeof getSendEmailUpdateEmailSchema>
+>;

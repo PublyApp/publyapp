@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 
 import type { CPLsInterface } from 'parse-server';
 
@@ -84,7 +84,10 @@ export const AUTHED_READONLY_CLP: CPLsInterface = {
 	},
 };
 
-export const FILE_UPLOAD_DESTINATION = path.join(process.cwd(), 'files/multer-uploads');
+export const FILE_UPLOAD_DESTINATION = path.join(
+	process.cwd(),
+	'files/multer-uploads',
+);
 
 // Parse server's global config (saved in the database) utilities
 export const DISABLE_SIGNUP_CONFIG_KEY = 'disableSignup';

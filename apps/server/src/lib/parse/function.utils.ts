@@ -32,29 +32,39 @@ import { getT, i18nextServer } from '../i18n';
 
 import { getCurrentInstallationId, getInternalConfig } from './parse.utils';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<ReturnType<T>>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type FunctionParams<T extends ParseFunction<any, any>> = Parameters<T>[0]['params'];
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
+	ReturnType<T>
+>;
 
-type ParseFunction<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
-	req: Parse.Cloud.FunctionRequest<P>,
-) => Promise<T>;
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+export type FunctionParams<T extends ParseFunction<any, any>> =
+	Parameters<T>[0]['params'];
+
+type ParseFunction<
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+> = (req: Parse.Cloud.FunctionRequest<P>) => Promise<T>;
 
 type ParseTrigger<P extends Parse.Object = Parse.Object, T = unknown> = (
 	req: Parse.Cloud.TriggerRequest<P>,
 ) => Promise<T>;
 
-type ParseJob<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
-	req: Parse.Cloud.JobRequest<P>,
-) => Promise<T>;
+type ParseJob<
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+> = (req: Parse.Cloud.JobRequest<P>) => Promise<T>;
 
 type CloudFunction = {
 	<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
 		innerFunction: ParseFunction<P, T>,
 	): ParseFunction<P, T>;
-	<P extends Parse.Object = Parse.Object, T = unknown>(innerFunction: ParseTrigger<P, T>): ParseTrigger<P, T>;
-	<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(innerFunction: ParseJob<P, T>): ParseJob<P, T>;
+	<P extends Parse.Object = Parse.Object, T = unknown>(
+		innerFunction: ParseTrigger<P, T>,
+	): ParseTrigger<P, T>;
+	<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+		innerFunction: ParseJob<P, T>,
+	): ParseJob<P, T>;
 };
 
 type ParseInnerFunction<
@@ -64,31 +74,50 @@ type ParseInnerFunction<
 > = ParseFunction<P, T> | ParseTrigger<O, T> | ParseJob<P, T>;
 
 export const getParseFunctionHeader = (
-	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest | Parse.Cloud.JobRequest,
+	req:
+		| Parse.Cloud.TriggerRequest
+		| Parse.Cloud.FunctionRequest
+		| Parse.Cloud.JobRequest,
 	key: string,
 ): string | undefined => {
-	return _.get(req, `headers.${key}`) || _.get(req, `headers.${_.toLower(key)}`);
+	return (
+		_.get(req, `headers.${key}`) || _.get(req, `headers.${_.toLower(key)}`)
+	);
 };
 
 type FunctionType = 'trigger' | 'function' | 'job';
 
 const getParseFunctionType = (
-	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest | Parse.Cloud.JobRequest,
+	req:
+		| Parse.Cloud.TriggerRequest
+		| Parse.Cloud.FunctionRequest
+		| Parse.Cloud.JobRequest,
 ): FunctionType => {
 	const hasTriggerName = {
 		type: 'trigger' as const,
-		condition: _.has(req, 'triggerName') && !_.isNil(req.triggerName) && _.isString(req.triggerName),
+		condition:
+			_.has(req, 'triggerName') &&
+			!_.isNil(req.triggerName) &&
+			_.isString(req.triggerName),
 	};
 	const hastFunctionName = {
 		type: 'function' as const,
-		condition: _.has(req, 'functionName') && !_.isNil(req.functionName) && _.isString(req.functionName),
+		condition:
+			_.has(req, 'functionName') &&
+			!_.isNil(req.functionName) &&
+			_.isString(req.functionName),
 	};
 	const hasJobName = {
 		type: 'job' as const,
-		condition: _.has(req, 'jobName') && !_.isNil(req.jobName) && _.isString(req.jobName),
+		condition:
+			_.has(req, 'jobName') && !_.isNil(req.jobName) && _.isString(req.jobName),
 	};
 
-	const truthyConditions = [hasTriggerName, hastFunctionName, hasJobName].filter((value) => {
+	const truthyConditions = [
+		hasTriggerName,
+		hastFunctionName,
+		hasJobName,
+	].filter((value) => {
 		return value.condition === true;
 	});
 
@@ -104,7 +133,10 @@ const getParseFunctionType = (
 };
 
 const isTriggerRequest = (
-	req: Parse.Cloud.TriggerRequest | Parse.Cloud.FunctionRequest | Parse.Cloud.JobRequest,
+	req:
+		| Parse.Cloud.TriggerRequest
+		| Parse.Cloud.FunctionRequest
+		| Parse.Cloud.JobRequest,
 ): req is Parse.Cloud.TriggerRequest => {
 	return getParseFunctionType(req) === 'trigger';
 };
@@ -113,7 +145,10 @@ const getParseFunctionName = ({
 	req,
 	functionType,
 }: {
-	req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest | Parse.Cloud.JobRequest;
+	req:
+		| Parse.Cloud.FunctionRequest
+		| Parse.Cloud.TriggerRequest
+		| Parse.Cloud.JobRequest;
 	functionType: FunctionType;
 }) => {
 	let functionName: string | undefined;
@@ -142,7 +177,10 @@ const alterLogger = ({
 	functionType,
 	functionName,
 }: {
-	req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest | Parse.Cloud.JobRequest;
+	req:
+		| Parse.Cloud.FunctionRequest
+		| Parse.Cloud.TriggerRequest
+		| Parse.Cloud.JobRequest;
 	functionType: FunctionType;
 	functionName: string;
 }) => {
@@ -192,17 +230,14 @@ const alterLogger = ({
 		...oldLog,
 		adapter: oldLog.adapter,
 		info: (...args: unknown[]) => {
-			// eslint-disable-next-line no-param-reassign
 			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
 			oldLog.info(...args);
 		},
 		warn: (...args: unknown[]) => {
-			// eslint-disable-next-line no-param-reassign
 			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
 			oldLog.warn(...args);
 		},
 		error: (...args: unknown[]) => {
-			// eslint-disable-next-line no-param-reassign
 			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[${highlighted}]`)} >> ${args[0]}`;
 			oldLog.error(...args);
 		},
@@ -224,21 +259,28 @@ class CloudFunctionHttpException extends Parse.Error {
 	}
 }
 
-export const isCloudHttpException = (error: unknown): error is CloudFunctionHttpException => {
+export const isCloudHttpException = (
+	error: unknown,
+): error is CloudFunctionHttpException => {
 	return error instanceof CloudFunctionHttpException;
 };
 
-export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+export const cloudFunction: CloudFunction = <
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+>(
 	innerFunction: ParseInnerFunction<P, T>,
 ) => {
 	return async (
-		req: Parse.Cloud.FunctionRequest<P> | Parse.Cloud.TriggerRequest | Parse.Cloud.JobRequest<P>,
+		req:
+			| Parse.Cloud.FunctionRequest<P>
+			| Parse.Cloud.TriggerRequest
+			| Parse.Cloud.JobRequest<P>,
 	): Promise<T> => {
 		const functionType = getParseFunctionType(req);
 		const functionName = getParseFunctionName({ req, functionType });
 		alterLogger({ req, functionName, functionType });
 
-		// eslint-disable-next-line prefer-destructuring
 		const log: LoggerController = req.log;
 
 		try {
@@ -254,14 +296,18 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 			});
 			return result;
 		} catch (error: unknown) {
-			const localeInHeader = getCorrectLocale(getParseFunctionHeader(req, LOCALE_HEADER_KEY));
+			const localeInHeader = getCorrectLocale(
+				getParseFunctionHeader(req, LOCALE_HEADER_KEY),
+			);
 
 			let t = getT(localeInHeader);
 
 			const isTrigger = isTriggerRequest(req);
 
 			if (isTrigger) {
-				const localeInContext = getCorrectLocale(_.isString(req.context?.locale) ? req.context.locale : undefined);
+				const localeInContext = getCorrectLocale(
+					_.isString(req.context?.locale) ? req.context.locale : undefined,
+				);
 
 				if (localeInContext !== localeInHeader) {
 					t = getT(localeInContext);
@@ -297,7 +343,9 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 				log.error(hasMessage ? '' : message, error);
 
 				if (error instanceof HttpException) {
-					return Promise.reject(new CloudFunctionHttpException(error.status, message));
+					return Promise.reject(
+						new CloudFunctionHttpException(error.status, message),
+					);
 				}
 
 				return Promise.reject(error);
@@ -309,7 +357,10 @@ export const cloudFunction: CloudFunction = <P extends Parse.Cloud.Params = Pars
 	};
 };
 
-export const parseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+export const parseFunction = <
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+>(
 	innerFunction: ParseFunction<P, T>,
 ) => {
 	return cloudFunction<P, T>(innerFunction);
@@ -327,30 +378,36 @@ type BaseActionContext<P extends Parse.Cloud.Params = Parse.Cloud.Params> = {
 	log: LoggerController;
 };
 
-type ActionContext1<P extends Parse.Cloud.Params = Parse.Cloud.Params> = BaseActionContext<P> & {
-	user?: Parse.User;
-	// isStaffMember?: never;
-};
+type ActionContext1<P extends Parse.Cloud.Params = Parse.Cloud.Params> =
+	BaseActionContext<P> & {
+		user?: Parse.User;
+		// isStaffMember?: never;
+	};
 
-type ActionContext2<P extends Parse.Cloud.Params = Parse.Cloud.Params> = BaseActionContext<P> & {
-	user: Parse.User;
-	// isStaffMember?: never;
-};
+type ActionContext2<P extends Parse.Cloud.Params = Parse.Cloud.Params> =
+	BaseActionContext<P> & {
+		user: Parse.User;
+		// isStaffMember?: never;
+	};
 
-type ActionContext3<P extends Parse.Cloud.Params = Parse.Cloud.Params> = BaseActionContext<P> & {
-	user: Parse.User;
-	isStaffMember: boolean;
-};
+type ActionContext3<P extends Parse.Cloud.Params = Parse.Cloud.Params> =
+	BaseActionContext<P> & {
+		user: Parse.User;
+		isStaffMember: boolean;
+	};
 
-type ActionType1<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
-	ctx: ActionContext1<P>,
-) => Promise<T>;
-type ActionType2<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
-	ctx: ActionContext2<P>,
-) => Promise<T>;
-type ActionType3<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> = (
-	ctx: ActionContext3<P>,
-) => Promise<T>;
+type ActionType1<
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+> = (ctx: ActionContext1<P>) => Promise<T>;
+type ActionType2<
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+> = (ctx: ActionContext2<P>) => Promise<T>;
+type ActionType3<
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+> = (ctx: ActionContext3<P>) => Promise<T>;
 
 type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
 	params,
@@ -360,60 +417,62 @@ type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
 	z: InterZod;
 }) => P;
 
-type ParseFunctionEnhancedParams<P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown> =
+type ParseFunctionEnhancedParams<
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+> = ( // --------------------------------------------------------------------------------------// //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
+	| {
+			requireUser?: false | undefined; // which means public access
+			group?: undefined;
+			allowedRoles?: undefined;
+			allowedTenantSubRoles?: undefined;
+			action: ActionType1<P, T>;
+	  }
 	// --------------------------------------------------------------------------------------//
-	//                                  case A: no auth needed                               //
+	//                                  case B auth needed                                   //
 	// --------------------------------------------------------------------------------------//
-	(
-		| {
-				requireUser?: false | undefined; // which means public access
-				group?: undefined;
-				allowedRoles?: undefined;
-				allowedTenantSubRoles?: undefined;
-				action: ActionType1<P, T>;
-		  }
-		// --------------------------------------------------------------------------------------//
-		//                                  case B auth needed                                   //
-		// --------------------------------------------------------------------------------------//
-		// * case B - 0: request can be from any authenticated user
-		| {
-				requireUser: true;
-				group?: typeof userGroup.ANY | undefined;
-				allowedRoles?: RoleSet | undefined;
-				allowedTenantSubRoles?: undefined;
-				action: ActionType2<P, T>;
-		  }
-		// * case B - 1: request must be from a tenant member
-		// * implicitly, that means also: if the user is a staff member allow the function to run
-		| {
-				requireUser: true;
-				group: typeof userGroup.TENANT;
-				allowedRoles?: undefined;
-				allowedTenantSubRoles?: TenantSubRoleSet | undefined;
-				action: ActionType3<P, T>;
-		  }
-		// * case B - 1: request must be from a staff member
-		| {
-				requireUser: true;
-				group: typeof userGroup.STAFF;
-				allowedRoles?: StaffRoleSet | undefined;
-				allowedTenantSubRoles?: undefined;
-				action: ActionType2<P, T>;
-		  }
-	) & {
-		requireMasterKey?: boolean;
-		validateParams?: ParamsValidator<P>;
-	};
+	// * case B - 0: request can be from any authenticated user
+	| {
+			requireUser: true;
+			group?: typeof userGroup.ANY | undefined;
+			allowedRoles?: RoleSet | undefined;
+			allowedTenantSubRoles?: undefined;
+			action: ActionType2<P, T>;
+	  }
+	// * case B - 1: request must be from a tenant member
+	// * implicitly, that means also: if the user is a staff member allow the function to run
+	| {
+			requireUser: true;
+			group: typeof userGroup.TENANT;
+			allowedRoles?: undefined;
+			allowedTenantSubRoles?: TenantSubRoleSet | undefined;
+			action: ActionType3<P, T>;
+	  }
+	// * case B - 1: request must be from a staff member
+	| {
+			requireUser: true;
+			group: typeof userGroup.STAFF;
+			allowedRoles?: StaffRoleSet | undefined;
+			allowedTenantSubRoles?: undefined;
+			action: ActionType2<P, T>;
+	  }
+) & {
+	requireMasterKey?: boolean;
+	validateParams?: ParamsValidator<P>;
+};
 
 // * allow us to verify ip address if the request is not from the cloud functions and from an user with a session token
 // * in other words: verify if the call is not from our cloud code (not from our server itself)
 // * especially necessary if directAccess is set to false
-const isFromCloudEnvironment = async (req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest) => {
+const isFromCloudEnvironment = async (
+	req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest,
+) => {
 	const cloudInstallationId = await getCurrentInstallationId();
 	const { directAccess } = getInternalConfig();
 
 	const definitelyNotFromCloud = directAccess && req.installationId !== 'cloud';
-	const alsoNotFromCloud = !directAccess && req.installationId !== cloudInstallationId;
+	const alsoNotFromCloud =
+		!directAccess && req.installationId !== cloudInstallationId;
 
 	return !(definitelyNotFromCloud || alsoNotFromCloud);
 };
@@ -431,18 +490,29 @@ const isNotValidIp = async ({
 		.first({ sessionToken });
 
 	const requestIp =
-		getParseFunctionHeader(req, X_REMIX_CLIENT_IP) || getParseFunctionHeader(req, X_FORWARDED_FOR_HEADER_KEY);
+		getParseFunctionHeader(req, X_REMIX_CLIENT_IP) ||
+		getParseFunctionHeader(req, X_FORWARDED_FOR_HEADER_KEY);
 
-	const localMatchConditionIp = env.LOCAL && session?.get('ipAddress') !== req.ip;
-	const onlineMatchConditionIp = !env.LOCAL && session?.get('ipAddress') !== requestIp;
+	const localMatchConditionIp =
+		env.LOCAL && session?.get('ipAddress') !== req.ip;
+	const onlineMatchConditionIp =
+		!env.LOCAL && session?.get('ipAddress') !== requestIp;
 
 	return localMatchConditionIp || onlineMatchConditionIp;
 };
 
-export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+export const parseFunctionEnhanced = <
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+>(
 	params: ParseFunctionEnhancedParams<P, T>,
 ) => {
-	const { requireUser, validateParams, requireMasterKey, group = userGroup.ANY } = params;
+	const {
+		requireUser,
+		validateParams,
+		requireMasterKey,
+		group = userGroup.ANY,
+	} = params;
 
 	const actionBuilder = parseFunction<P, T>(async (req) => {
 		const { user, log } = req;
@@ -452,18 +522,32 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 		const t = getT(locale);
 
 		if (requireMasterKey && !req.master) {
-			throw new HttpException(403, t('item-is-required', { item: 'Master key' }));
+			throw new HttpException(
+				403,
+				t('item-is-required', { item: 'Master key' }),
+			);
 		}
 
 		const z = new InterZod({ i18n: i18nextServer, locale });
 
 		if (!requireUser) {
 			const validatedParams = validateParams?.({ params: req.params, z });
-			return params.action({ req, t, user, locale, z, params: validatedParams || req.params, log });
+			return params.action({
+				req,
+				t,
+				user,
+				locale,
+				z,
+				params: validatedParams || req.params,
+				log,
+			});
 		}
 
 		if (!user) {
-			throw new HttpException(401, t('item-is-required', { item: t('authentication') }));
+			throw new HttpException(
+				401,
+				t('item-is-required', { item: t('authentication') }),
+			);
 		}
 
 		const sessionToken = user.getSessionToken();
@@ -525,19 +609,31 @@ export const parseFunctionEnhanced = <P extends Parse.Cloud.Params = Parse.Cloud
 		// --------------------------------------------------------------------------------------//
 		if (group === userGroup.TENANT) {
 			// check if tenantId is present in the request
-			const tenantIdInHeaders = getParseFunctionHeader(req, TENANT_ID_HEADER_KEY);
+			const tenantIdInHeaders = getParseFunctionHeader(
+				req,
+				TENANT_ID_HEADER_KEY,
+			);
 
 			if (!tenantIdInHeaders) {
-				throw new HttpException(400, t('item-is-required', { item: 'tenantId' }));
+				throw new HttpException(
+					400,
+					t('item-is-required', { item: 'tenantId' }),
+				);
 			}
 
 			const { allowedTenantSubRoles = tenantSubRoleSet.ALL } = params;
 
-			const userHasRolePromise = roleService.hasRole(user, roleSet.ABOVE_TENANT_USER);
+			const userHasRolePromise = roleService.hasRole(
+				user,
+				roleSet.ABOVE_TENANT_USER,
+			);
 			const isUserStaffMemberPromise = roleService.isUserStaffMember(user);
 
 			const tenant = new ParseTenant({ objectId: tenantIdInHeaders });
-			const userIsMemberOfTenantPromise = tenantService.isUserMemberOfTenant({ user, tenant });
+			const userIsMemberOfTenantPromise = tenantService.isUserMemberOfTenant({
+				user,
+				tenant,
+			});
 			const userHasRoleInTenantPromise = tenantService.userHasRoleInTenant({
 				user,
 				tenant,
@@ -692,7 +788,12 @@ type TriggerContext<P extends Parse.Object = Parse.Object> = {
 	locale: AppLocale;
 };
 
-export const parseTrigger = <P extends Parse.Object = Parse.Object, T = unknown>(innerFunction: ParseTrigger<P, T>) => {
+export const parseTrigger = <
+	P extends Parse.Object = Parse.Object,
+	T = unknown,
+>(
+	innerFunction: ParseTrigger<P, T>,
+) => {
 	return cloudFunction<P, T>(innerFunction);
 };
 
@@ -700,32 +801,40 @@ type ParseTriggerEnhancedParams<P extends Parse.Object = Parse.Object> = {
 	trigger: (ctx: TriggerContext<P>) => Promise<void>;
 };
 
-export const parseTriggerEnhanced = <P extends Parse.Object = Parse.Object>(params: ParseTriggerEnhancedParams<P>) => {
-	const triggerBuilder = parseTrigger(async (req: Parse.Cloud.TriggerRequest<P>) => {
-		const { trigger } = params;
+export const parseTriggerEnhanced = <P extends Parse.Object = Parse.Object>(
+	params: ParseTriggerEnhancedParams<P>,
+) => {
+	const triggerBuilder = parseTrigger(
+		async (req: Parse.Cloud.TriggerRequest<P>) => {
+			const { trigger } = params;
 
-		const localeInHeaders = getParseFunctionHeader(req, LOCALE_HEADER_KEY);
-		const localeInContext = _.isString(req.context?.locale) ? req.context.locale : undefined;
+			const localeInHeaders = getParseFunctionHeader(req, LOCALE_HEADER_KEY);
+			const localeInContext = _.isString(req.context?.locale)
+				? req.context.locale
+				: undefined;
 
-		const locale = getCorrectLocale(localeInContext || localeInHeaders);
-		const t = getT(locale);
+			const locale = getCorrectLocale(localeInContext || localeInHeaders);
+			const t = getT(locale);
 
-		if (req.master) {
-			return trigger({ req, t, locale });
-		}
-
-		if (await isFromCloudEnvironment(req)) {
-			return trigger({ req, t, locale });
-		}
-
-		if (req.user) {
-			if (await isNotValidIp({ sessionToken: req.user.getSessionToken(), req })) {
-				throw new HttpException(401, t('invalid-session'));
+			if (req.master) {
+				return trigger({ req, t, locale });
 			}
-		}
 
-		return trigger({ req, t, locale });
-	});
+			if (await isFromCloudEnvironment(req)) {
+				return trigger({ req, t, locale });
+			}
+
+			if (req.user) {
+				if (
+					await isNotValidIp({ sessionToken: req.user.getSessionToken(), req })
+				) {
+					throw new HttpException(401, t('invalid-session'));
+				}
+			}
+
+			return trigger({ req, t, locale });
+		},
+	);
 
 	return triggerBuilder;
 };
@@ -751,26 +860,41 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 			}
 
 			if (!req.user) {
-				throw new HttpException(401, t('item-is-required', { item: t('authentication') }));
+				throw new HttpException(
+					401,
+					t('item-is-required', { item: t('authentication') }),
+				);
 			}
 
 			const sessionToken = req.user.getSessionToken();
 
 			if (req.triggerName === 'beforeFind') {
-				const tenantIdInHeaders = getParseFunctionHeader(req, TENANT_ID_HEADER_KEY);
-				const tenantIdInQuery: string | undefined = _.get(req.query?.toJSON(), 'where.tenant.objectId');
+				const tenantIdInHeaders = getParseFunctionHeader(
+					req,
+					TENANT_ID_HEADER_KEY,
+				);
+				const tenantIdInQuery: string | undefined = _.get(
+					req.query?.toJSON(),
+					'where.tenant.objectId',
+				);
 
 				const tenantId = tenantIdInHeaders || tenantIdInQuery;
 
 				if (!tenantId) {
-					throw new HttpException(401, t('item-is-required', { item: 'tenantId' }));
+					throw new HttpException(
+						401,
+						t('item-is-required', { item: 'tenantId' }),
+					);
 				}
 
 				const tenantObject = new ParseTenant();
 				tenantObject.id = tenantId;
 
 				const tenantService = new TenantService({ sessionToken });
-				const isUserMemberOfTenant = await tenantService.isUserMemberOfTenant({ user: req.user, tenant: tenantObject });
+				const isUserMemberOfTenant = await tenantService.isUserMemberOfTenant({
+					user: req.user,
+					tenant: tenantObject,
+				});
 
 				if (!isUserMemberOfTenant) {
 					throw new HttpException(403, t('unauthorized'));
@@ -795,7 +919,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 		// const fromPublic = context?.fromPublic;
 		// const fromStaff = context?.fromStaff;
 
-		// // eslint-disable-next-line @typescript-eslint/naming-convention
+		//
 		// let _headers: Record<string, unknown> = {};
 
 		// if (_.isObject(headers) && !_.isEmpty(headers)) {
@@ -804,7 +928,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 		// 	_headers = context.headers as never;
 		// }
 
-		// // eslint-disable-next-line @typescript-eslint/naming-convention
+		//
 		// const _tenantId = _headers[_.toLower(TENANT_ID_HEADER_KEY)];
 		// const tenantId = _.isString(_tenantId) ? _tenantId : undefined;
 
@@ -828,13 +952,19 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 	});
 };
 
-export const parseJob = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>(
+export const parseJob = <
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+>(
 	innerFunction: ParseJob<P, T>,
 ) => {
 	return cloudFunction<P, T>(innerFunction);
 };
 
-export const fromPublicParseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>({
+export const fromPublicParseFunction = <
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+>({
 	action,
 	validateParams,
 }: {
@@ -848,7 +978,10 @@ export const fromPublicParseFunction = <P extends Parse.Cloud.Params = Parse.Clo
 	});
 };
 
-export const fromAuthedUserParseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>({
+export const fromAuthedUserParseFunction = <
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+>({
 	action,
 	validateParams,
 	allowedRoles,
@@ -866,7 +999,10 @@ export const fromAuthedUserParseFunction = <P extends Parse.Cloud.Params = Parse
 	});
 };
 
-export const fromTenantMemberParseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>({
+export const fromTenantMemberParseFunction = <
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+>({
 	action,
 	validateParams,
 	allowedTenantSubRoles,
@@ -884,7 +1020,10 @@ export const fromTenantMemberParseFunction = <P extends Parse.Cloud.Params = Par
 	});
 };
 
-export const fromStaffMemberParseFunction = <P extends Parse.Cloud.Params = Parse.Cloud.Params, T = unknown>({
+export const fromStaffMemberParseFunction = <
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+>({
 	action,
 	validateParams,
 	allowedRoles,

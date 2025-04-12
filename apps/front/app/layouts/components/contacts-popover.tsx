@@ -30,12 +30,21 @@ export type ContactsPopoverProps = IconButtonProps & {
 	}[];
 };
 
-export const ContactsPopover = ({ data = [], sx, ...other }: ContactsPopoverProps) => {
+export const ContactsPopover = ({
+	data = [],
+	sx,
+	...other
+}: ContactsPopoverProps) => {
 	const { open, anchorEl, onClose, onOpen } = usePopover();
 
 	const renderMenuList = () => {
 		return (
-			<CustomPopover open={open} anchorEl={anchorEl} onClose={onClose} slotProps={{ arrow: { offset: 20 } }}>
+			<CustomPopover
+				open={open}
+				anchorEl={anchorEl}
+				onClose={onClose}
+				slotProps={{ arrow: { offset: 20 } }}
+			>
 				<Typography variant="h6" sx={{ p: 1.5 }}>
 					Contacts <span>({data.length})</span>
 				</Typography>
@@ -45,13 +54,20 @@ export const ContactsPopover = ({ data = [], sx, ...other }: ContactsPopoverProp
 						{data.map((contact) => {
 							return (
 								<MenuItem key={contact.id} sx={{ p: 1 }}>
-									<Badge variant={contact.status as BadgeProps['variant']} badgeContent="">
+									<Badge
+										variant={contact.status as BadgeProps['variant']}
+										badgeContent=""
+									>
 										<Avatar alt={contact.name} src={contact.avatarUrl} />
 									</Badge>
 
 									<ListItemText
 										primary={contact.name}
-										secondary={contact.status === 'offline' ? fToNow(contact.lastActivity) : ''}
+										secondary={
+											contact.status === 'offline'
+												? fToNow(contact.lastActivity)
+												: ''
+										}
 										slotProps={{
 											secondary: {
 												sx: { typography: 'caption', color: 'text.disabled' },
@@ -78,7 +94,9 @@ export const ContactsPopover = ({ data = [], sx, ...other }: ContactsPopoverProp
 				onClick={onOpen}
 				sx={[
 					(theme) => {
-						return { ...(open && { bgcolor: theme.vars.palette.action.selected }) };
+						return {
+							...(open && { bgcolor: theme.vars.palette.action.selected }),
+						};
 					},
 					...(Array.isArray(sx) ? sx : [sx]),
 				]}

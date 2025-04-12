@@ -39,7 +39,11 @@ export type AccountDrawerProps = IconButtonProps & {
 	}[];
 };
 
-export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) => {
+export const AccountDrawer = ({
+	data = [],
+	sx,
+	...other
+}: AccountDrawerProps) => {
 	const pathname = usePathname();
 
 	const { user } = useMockedUser();
@@ -54,7 +58,11 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 					primaryBorder: { size: 120, sx: { color: 'primary.main' } },
 				}}
 			>
-				<Avatar src={user?.photoURL} alt={user?.displayName} sx={{ width: 1, height: 1 }}>
+				<Avatar
+					src={user?.photoURL}
+					alt={user?.displayName}
+					sx={{ width: 1, height: 1 }}
+				>
 					{user?.displayName?.charAt(0).toUpperCase()}
 				</Avatar>
 			</AnimateBorder>
@@ -78,7 +86,9 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 				]}
 			>
 				{data.map((option) => {
-					const rootLabel = pathname.includes('/dashboard') ? 'Home' : 'Dashboard';
+					const rootLabel = pathname.includes('/dashboard')
+						? 'Home'
+						: 'Dashboard';
 					const rootHref = pathname.includes('/dashboard') ? '/' : '#';
 
 					return (
@@ -121,7 +131,13 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 
 	return (
 		<>
-			<AccountButton onClick={onOpen} photoURL={user?.photoURL} displayName={user?.displayName} sx={sx} {...other} />
+			<AccountButton
+				onClick={onOpen}
+				photoURL={user?.photoURL}
+				displayName={user?.displayName}
+				sx={sx}
+				{...other}
+			/>
 
 			<Drawer
 				open={open}
@@ -159,7 +175,11 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 							{user?.displayName}
 						</Typography>
 
-						<Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
+						<Typography
+							variant="body2"
+							sx={{ color: 'text.secondary', mt: 0.5 }}
+							noWrap
+						>
 							{user?.email}
 						</Typography>
 					</Box>
@@ -175,8 +195,15 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 					>
 						{Array.from({ length: 3 }, (_, index) => {
 							return (
-								<Tooltip key={_mock.fullName(index + 1)} title={`Switch to: ${_mock.fullName(index + 1)}`}>
-									<Avatar alt={_mock.fullName(index + 1)} src={_mock.image.avatar(index + 1)} onClick={() => {}} />
+								<Tooltip
+									key={_mock.fullName(index + 1)}
+									title={`Switch to: ${_mock.fullName(index + 1)}`}
+								>
+									<Avatar
+										alt={_mock.fullName(index + 1)}
+										src={_mock.image.avatar(index + 1)}
+										onClick={() => {}}
+									/>
 								</Tooltip>
 							);
 						})}
@@ -186,7 +213,10 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 								sx={[
 									(theme) => {
 										return {
-											bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+											bgcolor: varAlpha(
+												theme.vars.palette.grey['500Channel'],
+												0.08,
+											),
 											border: `dashed 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.32)}`,
 										};
 									},

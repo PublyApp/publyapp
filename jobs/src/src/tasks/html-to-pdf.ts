@@ -29,7 +29,9 @@ const COLLECTION_NAME = 'pdf_files';
 const storage = new Storage();
 const mongoClient = new MongoClient(MONGO_URI);
 
-const generatePdf = async (input: HtmlToPdfInput): Promise<{ buffer: Buffer; fileName: string }> => {
+const generatePdf = async (
+	input: HtmlToPdfInput,
+): Promise<{ buffer: Buffer; fileName: string }> => {
 	const browser = await chromium.launch();
 	const context = await browser.newContext();
 	const page = await context.newPage();
@@ -137,13 +139,26 @@ const handler1 = async (input: HtmlToPdfInput) => {
 	const { buffer, fileName } = await generatePdf(input);
 	const fileSizeMB = await uploadToGCS(buffer, fileName);
 	const { cpuUsage, ramUsage } = getResourceUsageInterval();
-	await saveMetadataToMongo(fileName, input.tenantId, cpuUsage, ramUsage, fileSizeMB);
-	await updateAndCheckCredits(input.tenantId, { cpuUsage, ramUsage, fileSizeMB });
+	await saveMetadataToMongo(
+		fileName,
+		input.tenantId,
+		cpuUsage,
+		ramUsage,
+		fileSizeMB,
+	);
+	await updateAndCheckCredits(input.tenantId, {
+		cpuUsage,
+		ramUsage,
+		fileSizeMB,
+	});
 
 	console.log(`PDF generated and stored: ${fileName}`);
 };
 
-const handler2 = getJobTypeFunction({ schema: convertSchema, handler: handler1 });
+const handler2 = getJobTypeFunction({
+	schema: convertSchema,
+	handler: handler1,
+});
 
 const controllerCode = {
 	ERR_EXPIRED_CREDITS: 'ERR_EXPIRED_CREDITS',
@@ -168,13 +183,21 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 			const controller = new AbortController();
 
 			controller.signal.onabort = (_e) => {
-				if ([controllerCode.ERR_EXPIRED_CREDITS, controllerCode.ERR_ASYNC_LOOP].includes(controller.signal.reason)) {
-					throw new AbortError('Function aborted', controller.signal.reason as never);
+				if (
+					[
+						controllerCode.ERR_EXPIRED_CREDITS,
+						controllerCode.ERR_ASYNC_LOOP,
+					].includes(controller.signal.reason)
+				) {
+					throw new AbortError(
+						'Function aborted',
+						controller.signal.reason as never,
+					);
 				}
 			};
 
 			const asyncLoop = async (intervalTime = 5000) => {
-				let hasEnoughCredits;
+				let hasEnoughCredits: boolean;
 
 				let elapsedTime = 0;
 				let iterationIndex = 0;
@@ -186,11 +209,14 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 
 					const t1 = Date.now();
 					const { cpuUsage, ramUsage } = getResourceUsageInterval();
-					hasEnoughCredits = await updateAndCheckCredits(_.get(params, 'tenantId', ''), {
-						cpuUsage,
-						ramUsage,
-						fileSizeMB: 0,
-					}); // Small periodic deductions
+					hasEnoughCredits = await updateAndCheckCredits(
+						_.get(params, 'tenantId', ''),
+						{
+							cpuUsage,
+							ramUsage,
+							fileSizeMB: 0,
+						},
+					); // Small periodic deductions
 					const t2 = Date.now();
 					elapsedTime = t2 - t1;
 
@@ -203,11 +229,14 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 					// if controller has been aborted
 					// the reason is likely == controllerCode.MAIN_FUNC_SUCCESS
 					const { cpuUsage, ramUsage } = getResourceUsageInterval();
-					hasEnoughCredits = await updateAndCheckCredits(_.get(params, 'tenantId', ''), {
-						cpuUsage,
-						ramUsage,
-						fileSizeMB: 0,
-					});
+					hasEnoughCredits = await updateAndCheckCredits(
+						_.get(params, 'tenantId', ''),
+						{
+							cpuUsage,
+							ramUsage,
+							fileSizeMB: 0,
+						},
+					);
 				}
 			};
 
