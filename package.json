@@ -22,18 +22,15 @@
 		"seed": "pnpm --filter server run seed",
 		"seed:debug": "pnpm --filter server run seed:debug",
 		"// =============== MISC ===============": "================================",
-		"format": "prettier --write .",
-		"lint": "turbo lint",
-		"lint:fix": "turbo lint:fix",
+		"knip": "knip",
 		"prepare": "husky",
 		"update-deps": "pnpm up -i -r",
-		"check-format": "prettier --check .",
-		"build:deploy": "node ./scripts/deploy.mjs",
-		"knip": "knip"
+		"check": "biome format .",
+		"format": "biome format --write .",
+		"build:deploy": "node ./scripts/deploy.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
-		"@ianvs/prettier-plugin-sort-imports": "^4.1.1",
 		"@types/node": "^20.14.15",
 		"archiver": "^7.0.1",
 		"dotenv": "^16.3.1",
