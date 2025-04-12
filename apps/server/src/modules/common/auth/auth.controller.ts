@@ -1,30 +1,30 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import _ from "lodash";
+import _ from 'lodash';
 
-import dayjs from "dayjs";
-import { nanoid } from "nanoid";
+import dayjs from 'dayjs';
+import { nanoid } from 'nanoid';
 
-import { HttpException } from "@/server/exceptions/HttpException";
+import { HttpException } from '@/server/exceptions/HttpException';
 import {
 	DISABLE_SIGNUP_CONFIG_KEY,
 	USE_MASTER_KEY,
-} from "@/server/lib/constants";
-import { env } from "@/server/lib/env";
+} from '@/server/lib/constants';
+import { env } from '@/server/lib/env';
 import {
 	expressHandler,
 	getRequestIp,
 	getRequestUtils,
-} from "@/server/lib/express";
+} from '@/server/lib/express';
 import {
 	createSessionServer,
 	getGlobalConfig,
-} from "@/server/lib/parse/parse.utils";
-import { logger } from "@/server/lib/winston";
-import ParseUser from "@/server/modules/common/auth/user/user.class";
-import { defaultHttp } from "@/shared/lib/axios";
-import { FRONT_PATH_NAMES } from "@/shared/lib/constants";
+} from '@/server/lib/parse/parse.utils';
+import { logger } from '@/server/lib/winston';
+import ParseUser from '@/server/modules/common/auth/user/user.class';
+import { defaultHttp } from '@/shared/lib/axios';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
-import { AuthCloudService } from "./auth.cloud.service";
+import { AuthCloudService } from './auth.cloud.service';
 
 export const handlePasswordLogin = expressHandler(async (req, res) => {
 	const { password } = req.body;
@@ -44,7 +44,7 @@ export const handlePasswordLogin = expressHandler(async (req, res) => {
 		},
 	});
 
-	_.set(user, "sessionToken", result.sessionToken);
+	_.set(user, 'sessionToken', result.sessionToken);
 
 	return res.status(201).json(user);
 });
@@ -56,18 +56,18 @@ export const handlePasswordSignup = expressHandler(async (req, res) => {
 	const disabledSignup: boolean = globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY);
 
 	if (disabledSignup) {
-		throw new Error(t("new-signup-disabled"));
+		throw new Error(t('new-signup-disabled'));
 	}
 
 	const { email, password, firstName, lastName } = req.body;
 	let { username } = req.body;
 
 	if (!email) {
-		throw new HttpException(400, "Email is required");
+		throw new HttpException(400, 'Email is required');
 	}
 
 	if (!username) {
-		username = `${email.split("@")?.[0]}_${nanoid(5)}`;
+		username = `${email.split('@')?.[0]}_${nanoid(5)}`;
 	}
 
 	const result = await Parse.User.signUp(
@@ -85,23 +85,23 @@ export const handleVerifyEmail = expressHandler(async (req, res) => {
 		const { token, username } = req.query;
 
 		if (!token || !username) {
-			throw new HttpException(400, "Invalid query");
+			throw new HttpException(400, 'Invalid query');
 		}
 
 		if (!_.isString(token) || !_.isString(username)) {
-			throw new HttpException(400, "Invalid query");
+			throw new HttpException(400, 'Invalid query');
 		}
 
 		await AuthCloudService.verifyEmail({ username, token });
 
 		// on success redirect to success page
-		const successUrl = new URL(/* env.OFFICE_URL */ "");
+		const successUrl = new URL(/* env.OFFICE_URL */ '');
 		successUrl.pathname = FRONT_PATH_NAMES.auth.login;
 		return res.redirect(successUrl.toString());
 	} catch (error) {
-		logger.error("Error in verifyEmail:", error);
+		logger.error('Error in verifyEmail:', error);
 		// on error redirect to error page
-		const failUrl = new URL(/* env.OFFICE_URL */ "");
+		const failUrl = new URL(/* env.OFFICE_URL */ '');
 		failUrl.pathname = FRONT_PATH_NAMES.auth.signup;
 		return res.redirect(failUrl.toString());
 	}
@@ -110,14 +110,14 @@ export const handleVerifyEmail = expressHandler(async (req, res) => {
 // ! ==================== wip: facebook login flow
 
 const applicationFromURL = {
-	office: /* env.OFFICE_URL */ "",
+	office: /* env.OFFICE_URL */ '',
 	front: env.FRONT_URL,
 } as const;
 
 const getFacebookRedirectURL = (
 	applicationFrom?: keyof typeof applicationFromURL,
 ) => {
-	return `${applicationFromURL[applicationFrom || "office"]}/facebook-auth/loading`;
+	return `${applicationFromURL[applicationFrom || 'office']}/facebook-auth/loading`;
 };
 
 // GET: /facebook-auth/dialog-url body: { applicationFrom: 'office' | 'front' }
@@ -126,18 +126,18 @@ export const handleGetFacebookLoginDialogURL = expressHandler(
 		try {
 			const { applicationFrom, isLinkingUser } = req.body;
 
-			const url = new URL("https://www.facebook.com/v19.0/dialog/oauth");
+			const url = new URL('https://www.facebook.com/v19.0/dialog/oauth');
 			// eslint-disable-next-line turbo/no-undeclared-env-vars
-			url.searchParams.append("client_id", process.env.FACEBOOK_APP_ID || "");
+			url.searchParams.append('client_id', process.env.FACEBOOK_APP_ID || '');
 			// eslint-disable-next-line turbo/no-undeclared-env-vars
 			url.searchParams.append(
-				"redirect_uri",
+				'redirect_uri',
 				getFacebookRedirectURL(applicationFrom),
 			);
 			// eslint-disable-next-line turbo/no-undeclared-env-vars
 			url.searchParams.append(
-				"state",
-				`"{${isLinkingUser ? "isLinkingUser=true" : ""}}"`,
+				'state',
+				`"{${isLinkingUser ? 'isLinkingUser=true' : ''}}"`,
 			);
 
 			return res.status(200).json({ url: url.toString() });
@@ -154,8 +154,8 @@ export const handleFacebookLoginDialogResponse = expressHandler(
 		const { code, error, error_reason, error_description } = req.query;
 
 		if (error) {
-			if (error_reason === "user_denied") {
-				throw new HttpException(403, "User denied Facebook login");
+			if (error_reason === 'user_denied') {
+				throw new HttpException(403, 'User denied Facebook login');
 			}
 
 			throw new HttpException(
@@ -165,17 +165,17 @@ export const handleFacebookLoginDialogResponse = expressHandler(
 		}
 
 		if (!code) {
-			throw new HttpException(400, "No code provided");
+			throw new HttpException(400, 'No code provided');
 		}
 
-		const url = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
-		url.searchParams.append("client_id", "");
+		const url = new URL('https://graph.facebook.com/v19.0/oauth/access_token');
+		url.searchParams.append('client_id', '');
 		url.searchParams.append(
-			"redirect_uri",
+			'redirect_uri',
 			getFacebookRedirectURL(applicationFrom),
 		);
-		url.searchParams.append("client_secret", "");
-		url.searchParams.append("code", code.toString());
+		url.searchParams.append('client_secret', '');
+		url.searchParams.append('code', code.toString());
 
 		const {
 			access_token,
@@ -184,16 +184,16 @@ export const handleFacebookLoginDialogResponse = expressHandler(
 		} = await defaultHttp.get<Record<string, unknown>>(url.toString());
 
 		// https://graph.facebook.com/me?fields=id&access_token="xxxxx"
-		const meUrl = new URL("https://graph.facebook.com/me");
-		meUrl.searchParams.append("fields", "id");
-		meUrl.searchParams.append("access_token", _.toString(access_token));
+		const meUrl = new URL('https://graph.facebook.com/me');
+		meUrl.searchParams.append('fields', 'id');
+		meUrl.searchParams.append('access_token', _.toString(access_token));
 
 		const { user_id } = await defaultHttp.get<Record<string, unknown>>(
 			url.toString(),
 		);
 
 		const expiration_date = dayjs()
-			.add(_.toNumber(expires_in), "second")
+			.add(_.toNumber(expires_in), 'second')
 			.toISOString();
 
 		const authData = {
@@ -217,7 +217,7 @@ export const handleFacebookLoginDialogResponse = expressHandler(
 				.get(userId, USE_MASTER_KEY);
 
 			const user = await _user.linkWith(
-				"facebook",
+				'facebook',
 				{ authData },
 				USE_MASTER_KEY,
 			);
@@ -226,7 +226,7 @@ export const handleFacebookLoginDialogResponse = expressHandler(
 		}
 
 		const user = await Parse.User.logInWith(
-			"facebook",
+			'facebook',
 			{ authData },
 			USE_MASTER_KEY,
 		);

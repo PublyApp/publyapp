@@ -1,4 +1,4 @@
-import _ from "lodash";
+import _ from 'lodash';
 
 import {
 	type Application,
@@ -6,21 +6,21 @@ import {
 	type Request,
 	type RequestHandler,
 	type Response,
-} from "express";
-import type { ParsedQs } from "qs";
+} from 'express';
+import type { ParsedQs } from 'qs';
 
-import { tryCatchWrapper } from "@org/shared/utils/tryCatch.utils";
+import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
 
-import { logger } from "@/server/lib/winston";
+import { logger } from '@/server/lib/winston';
 import {
 	LOCALE_HEADER_KEY,
 	X_FORWARDED_FOR_HEADER_KEY,
 	X_REMIX_CLIENT_IP,
-} from "@/shared/lib/constants";
-import { getCorrectLocale } from "@/shared/lib/i18n/i18n.utils";
-import InterZod from "@/shared/lib/zod/InterZod";
+} from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import InterZod from '@/shared/lib/zod/InterZod';
 
-import { i18nextServer } from "./i18n";
+import { i18nextServer } from './i18n';
 
 type ParamsDictionary = Record<string, string>;
 
@@ -76,22 +76,22 @@ export const expressHandler = <
 export const listRoutes = (app: Application) => {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const split = (thing: any) => {
-		if (typeof thing === "string") {
-			return thing.split("/");
+		if (typeof thing === 'string') {
+			return thing.split('/');
 		}
 
 		if (thing.fast_slash) {
-			return "";
+			return '';
 		}
 
 		const match = thing
 			.toString()
-			.replace("\\/?", "")
-			.replace("(?=\\/|$)", "$")
+			.replace('\\/?', '')
+			.replace('(?=\\/|$)', '$')
 			// eslint-disable-next-line no-useless-escape
 			.match(/^\/\^((?:\\[.*+?^${}()|[\]\\\/]|[^.*+?^${}()|[\]\\\/])*)\$\//);
 		return match
-			? match[1].replace(/\\(.)/g, "$1").split("/")
+			? match[1].replace(/\\(.)/g, '$1').split('/')
 			: `<complex:${thing.toString()}>`;
 	};
 
@@ -101,15 +101,15 @@ export const listRoutes = (app: Application) => {
 			layer.route.stack.forEach(
 				print.bind(null, path.concat(split(layer.route.path))),
 			);
-		} else if (layer.name === "router" && layer.handle.stack) {
+		} else if (layer.name === 'router' && layer.handle.stack) {
 			layer.handle.stack.forEach(
 				print.bind(null, path.concat(split(layer.regexp))),
 			);
 		} else if (layer.method) {
 			logger.info(
-				"%s /%s",
+				'%s /%s',
 				layer.method.toUpperCase(),
-				path.concat(split(layer.regexp)).filter(Boolean).join("/"),
+				path.concat(split(layer.regexp)).filter(Boolean).join('/'),
 			);
 		}
 	};

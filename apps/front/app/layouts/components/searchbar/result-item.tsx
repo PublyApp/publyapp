@@ -1,17 +1,17 @@
-import Box from "@mui/material/Box";
+import Box from '@mui/material/Box';
 import ListItemButton, {
 	type ListItemButtonProps,
-} from "@mui/material/ListItemButton";
-import ListItemText from "@mui/material/ListItemText";
-import { isExternalLink, varAlpha } from "minimal-shared/utils";
-import { nanoid } from "nanoid";
+} from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import { isExternalLink, varAlpha } from 'minimal-shared/utils';
+import { nanoid } from 'nanoid';
 
-import { Label } from "@/front/components/label";
-import { RouterLink } from "@/front/components/router-link";
+import { Label } from '@/front/components/label';
+import { RouterLink } from '@/front/components/router-link';
 
 // ----------------------------------------------------------------------
 
-type Props = Omit<ListItemButtonProps, "title"> & {
+type Props = Omit<ListItemButtonProps, 'title'> & {
 	href: string;
 	labels: string[];
 	title: { text: string; highlight: boolean }[];
@@ -27,7 +27,7 @@ export const ResultItem = ({
 	...other
 }: Props) => {
 	const linkProps = isExternalLink(href)
-		? { target: "_blank", rel: "noopener noreferrer", href, component: "a" }
+		? { target: '_blank', rel: 'noopener noreferrer', href, component: 'a' }
 		: { component: RouterLink, href };
 
 	return (
@@ -38,10 +38,10 @@ export const ResultItem = ({
 				(theme) => {
 					return {
 						borderWidth: 1,
-						borderStyle: "dashed",
-						borderColor: "transparent",
+						borderStyle: 'dashed',
+						borderColor: 'transparent',
 						borderBottomColor: theme.vars.palette.divider,
-						"&:hover": {
+						'&:hover': {
 							borderRadius: 1,
 							borderColor: theme.vars.palette.primary.main,
 							backgroundColor: varAlpha(
@@ -61,7 +61,7 @@ export const ResultItem = ({
 						<Box
 							key={nanoid()}
 							component="span"
-							sx={{ color: part.highlight ? "primary.main" : "text.primary" }}
+							sx={{ color: part.highlight ? 'primary.main' : 'text.primary' }}
 						>
 							{part.text}
 						</Box>
@@ -72,7 +72,7 @@ export const ResultItem = ({
 						<Box
 							key={nanoid()}
 							component="span"
-							sx={{ color: part.highlight ? "primary.main" : "text.secondary" }}
+							sx={{ color: part.highlight ? 'primary.main' : 'text.secondary' }}
 						>
 							{part.text}
 						</Box>
@@ -81,12 +81,12 @@ export const ResultItem = ({
 				slotProps={{
 					secondary: {
 						noWrap: true,
-						sx: { typography: "caption" },
+						sx: { typography: 'caption' },
 					},
 				}}
 			/>
 
-			<Box sx={{ gap: 0.75, display: "flex" }}>
+			<Box sx={{ gap: 0.75, display: 'flex' }}>
 				{[...labels].reverse().map((label) => {
 					return (
 						<Label key={label} color="default">

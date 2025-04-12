@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from 'react';
 
-import { useBoolean } from "minimal-shared/hooks";
+import { useBoolean } from 'minimal-shared/hooks';
 import {
 	isActiveLink,
 	isEqualPath,
 	isExternalLink,
-} from "minimal-shared/utils";
+} from 'minimal-shared/utils';
 
-import { usePathname } from "@/front/hooks/use-pathname";
+import { usePathname } from '@/front/hooks/use-pathname';
 
-import { Nav, NavDropdown, NavLi, NavUl } from "../components";
-import type { NavListProps, NavSubListProps } from "../types";
+import { Nav, NavDropdown, NavLi, NavUl } from '../components';
+import type { NavListProps, NavSubListProps } from '../types';
 
-import { NavItem } from "./nav-desktop-item";
-import { NavItemDashboard } from "./nav-desktop-item-dashboard";
+import { NavItem } from './nav-desktop-item';
+import { NavItemDashboard } from './nav-desktop-item-dashboard';
 
 // ----------------------------------------------------------------------
 
@@ -67,7 +67,7 @@ export const NavList = ({ data, sx, ...other }: NavListProps) => {
 					onMouseLeave={onClose}
 				>
 					<Nav>
-						<NavUl sx={{ gap: 3, flexDirection: "row" }}>
+						<NavUl sx={{ gap: 3, flexDirection: 'row' }}>
 							{data.children.map((list) => {
 								return (
 									<NavSubList
@@ -97,7 +97,7 @@ export const NavList = ({ data, sx, ...other }: NavListProps) => {
 const NavSubList = ({ data, subheader, sx, ...other }: NavSubListProps) => {
 	const pathname = usePathname();
 
-	const isDashboard = subheader === "Dashboard";
+	const isDashboard = subheader === 'Dashboard';
 
 	return (
 		<NavLi
@@ -105,7 +105,7 @@ const NavSubList = ({ data, subheader, sx, ...other }: NavSubListProps) => {
 				() => {
 					return {
 						flexGrow: 1,
-						flexBasis: "auto",
+						flexBasis: 'auto',
 						flexShrink: isDashboard ? 1 : 0,
 						...(isDashboard && { maxWidth: 560 }),
 					};
@@ -119,7 +119,7 @@ const NavSubList = ({ data, subheader, sx, ...other }: NavSubListProps) => {
 					sx={(theme) => {
 						return {
 							mb: 0.75,
-							typography: "overline",
+							typography: 'overline',
 							fontSize: theme.typography.pxToRem(11),
 						};
 					}}

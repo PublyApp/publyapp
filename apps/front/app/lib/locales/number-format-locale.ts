@@ -1,8 +1,8 @@
-import i18next from "i18next";
+import i18next from 'i18next';
 
-import { config } from "../i18n/i18n.config";
+import { config } from '../i18n/i18n.config';
 
-import { allLangs } from "./all-langs";
+import { allLangs } from './all-langs';
 
 // ----------------------------------------------------------------------
 

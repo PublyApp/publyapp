@@ -1,5 +1,5 @@
-import type { ButtonBaseProps } from "@mui/material/ButtonBase";
-import type { SxProps, Theme } from "@mui/material/styles";
+import type { ButtonBaseProps } from '@mui/material/ButtonBase';
+import type { SxProps, Theme } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 
@@ -35,12 +35,12 @@ export type NavItemProps = ButtonBaseProps &
 /**
  * List
  */
-export type NavListProps = React.ComponentProps<"li"> & {
+export type NavListProps = React.ComponentProps<'li'> & {
 	sx?: SxProps<Theme>;
 	data: NavItemDataProps;
 };
 
-export type NavSubListProps = React.ComponentProps<"li"> & {
+export type NavSubListProps = React.ComponentProps<'li'> & {
 	sx?: SxProps<Theme>;
 	subheader: string;
 	data: NavItemDataProps[];

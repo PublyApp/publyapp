@@ -1,12 +1,12 @@
-import type { ErrorBoundaryProps } from "react-error-boundary";
-import { Outlet } from "react-router";
+import type { ErrorBoundaryProps } from 'react-error-boundary';
+import { Outlet } from 'react-router';
 
-import { View500 } from "@/front/components/error/500-view";
-import { LoadingScreen } from "@/front/components/loading-screen";
-import QuerySuspenseBoundary from "@/front/components/QuerySuspenseBoundary";
-import { DashboardLayout } from "@/front/layouts/dashboard/layout";
+import { View500 } from '@/front/components/error/500-view';
+import { LoadingScreen } from '@/front/components/loading-screen';
+import QuerySuspenseBoundary from '@/front/components/QuerySuspenseBoundary';
+import { DashboardLayout } from '@/front/layouts/dashboard/layout';
 
-const ErrorBoundary: ErrorBoundaryProps["FallbackComponent"] = () => {
+const ErrorBoundary: ErrorBoundaryProps['FallbackComponent'] = () => {
 	return <View500 withLayout={false} />;
 };
 

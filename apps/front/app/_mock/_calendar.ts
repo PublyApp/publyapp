@@ -5,7 +5,7 @@ import {
 	secondary,
 	success,
 	warning,
-} from "../lib/mui/theme/core";
+} from '../lib/mui/theme/core';
 
 // ----------------------------------------------------------------------
 

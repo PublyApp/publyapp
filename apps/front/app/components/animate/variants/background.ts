@@ -1,8 +1,8 @@
-import type { TargetAndTransition, Transition, Variants } from "framer-motion";
+import type { TargetAndTransition, Transition, Variants } from 'framer-motion';
 
 // ----------------------------------------------------------------------
 
-type Direction = "top" | "bottom" | "left" | "right";
+type Direction = 'top' | 'bottom' | 'left' | 'right';
 
 export const varBgColor = (
 	colors: string[],
@@ -14,9 +14,9 @@ export const varBgColor = (
 			...options,
 			transition: {
 				duration: 5,
-				ease: "linear",
+				ease: 'linear',
 				repeat: Infinity,
-				repeatType: "reverse",
+				repeatType: 'reverse',
 				...options?.transition,
 			},
 		},
@@ -31,7 +31,7 @@ export const varBgKenburns = (
 ): Variants => {
 	const transition: Transition = {
 		duration: 5,
-		ease: "easeOut",
+		ease: 'easeOut',
 		...options?.transition,
 	};
 
@@ -40,7 +40,7 @@ export const varBgKenburns = (
 			animate: {
 				scale: [1, 1.25],
 				y: [0, -15],
-				transformOrigin: ["50% 16%", "50% top"],
+				transformOrigin: ['50% 16%', '50% top'],
 				...options,
 				transition,
 			},
@@ -49,7 +49,7 @@ export const varBgKenburns = (
 			animate: {
 				scale: [1, 1.25],
 				y: [0, 15],
-				transformOrigin: ["50% 84%", "50% bottom"],
+				transformOrigin: ['50% 84%', '50% bottom'],
 				...options,
 				transition,
 			},
@@ -59,7 +59,7 @@ export const varBgKenburns = (
 				scale: [1, 1.25],
 				x: [0, 20],
 				y: [0, 15],
-				transformOrigin: ["16% 50%", "0% left"],
+				transformOrigin: ['16% 50%', '0% left'],
 				...options,
 				transition,
 			},
@@ -69,7 +69,7 @@ export const varBgKenburns = (
 				scale: [1, 1.25],
 				x: [0, -20],
 				y: [0, -15],
-				transformOrigin: ["84% 50%", "0% right"],
+				transformOrigin: ['84% 50%', '0% right'],
 				...options,
 				transition,
 			},
@@ -87,14 +87,14 @@ export const varBgPan = (
 	options?: TargetAndTransition,
 ): Variants => {
 	const gradient = (deg: number) => {
-		return `linear-gradient(${deg}deg, ${colors.join(", ")})`;
+		return `linear-gradient(${deg}deg, ${colors.join(', ')})`;
 	};
 
 	const transition: Transition = {
 		duration: 5,
-		ease: "linear",
+		ease: 'linear',
 		repeat: Infinity,
-		repeatType: "reverse",
+		repeatType: 'reverse',
 		...options?.transition,
 	};
 
@@ -102,8 +102,8 @@ export const varBgPan = (
 		top: {
 			animate: {
 				backgroundImage: [gradient(0), gradient(0)],
-				backgroundPosition: ["center 99%", "center 1%"],
-				backgroundSize: ["100% 600%", "100% 600%"],
+				backgroundPosition: ['center 99%', 'center 1%'],
+				backgroundSize: ['100% 600%', '100% 600%'],
 				...options,
 				transition,
 			},
@@ -111,8 +111,8 @@ export const varBgPan = (
 		right: {
 			animate: {
 				backgroundImage: [gradient(270), gradient(270)],
-				backgroundPosition: ["1% center", "99% center"],
-				backgroundSize: ["600% 100%", "600% 100%"],
+				backgroundPosition: ['1% center', '99% center'],
+				backgroundSize: ['600% 100%', '600% 100%'],
 				...options,
 				transition,
 			},
@@ -120,17 +120,17 @@ export const varBgPan = (
 		bottom: {
 			animate: {
 				backgroundImage: [gradient(0), gradient(0)],
-				backgroundPosition: ["center 1%", "center 99%"],
-				backgroundSize: ["100% 600%", "100% 600%"],
+				backgroundPosition: ['center 1%', 'center 99%'],
+				backgroundSize: ['100% 600%', '100% 600%'],
 				...options,
 				transition,
 			},
 		},
 		left: {
 			animate: {
-				backgroundPosition: ["99% center", "1% center"],
+				backgroundPosition: ['99% center', '1% center'],
 				backgroundImage: [gradient(270), gradient(270)],
-				backgroundSize: ["600% 100%", "600% 100%"],
+				backgroundSize: ['600% 100%', '600% 100%'],
 				...options,
 				transition,
 			},

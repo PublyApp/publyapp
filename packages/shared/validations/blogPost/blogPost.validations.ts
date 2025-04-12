@@ -1,7 +1,7 @@
-import { SLUG_REGEX } from "../../lib/constants";
-import type InterZod from "../../lib/zod/InterZod";
-import { getListParamsSchema } from "../../utils/validation.utils";
-import { getLocaleSchema } from "../locale.validation";
+import { SLUG_REGEX } from '../../lib/constants';
+import type InterZod from '../../lib/zod/InterZod';
+import { getListParamsSchema } from '../../utils/validation.utils';
+import { getLocaleSchema } from '../locale.validation';
 
 export const getDateTypeSchema = (z: InterZod) => {
 	return z
@@ -14,7 +14,7 @@ export const getDateTypeSchema = (z: InterZod) => {
 };
 
 export const getSlugStringSchema = (z: InterZod) => {
-	const SLUG = "Slug";
+	const SLUG = 'Slug';
 
 	return z
 		.string()
@@ -22,7 +22,7 @@ export const getSlugStringSchema = (z: InterZod) => {
 			1,
 			// { message: z.t('item-is-required', { item: SLUG }) }
 		)
-		.regex(SLUG_REGEX, z.t("item-is-invalid", { item: SLUG }));
+		.regex(SLUG_REGEX, z.t('item-is-invalid', { item: SLUG }));
 };
 
 export const getCreateBlogPostInputSchema = (z: InterZod) => {
@@ -86,7 +86,7 @@ export const getCreateBlogPostInputSchema = (z: InterZod) => {
 };
 
 export const getUpdateBlogPostInputSchema = (z: InterZod) => {
-	const ID = "ObjectId";
+	const ID = 'ObjectId';
 
 	return getCreateBlogPostInputSchema(z)
 		.partial()
@@ -94,7 +94,7 @@ export const getUpdateBlogPostInputSchema = (z: InterZod) => {
 		.extend({
 			objectId: z
 				.string()
-				.min(1, { message: z.t("item-is-required", { item: ID }) }),
+				.min(1, { message: z.t('item-is-required', { item: ID }) }),
 			published: z.boolean().optional(),
 		});
 };

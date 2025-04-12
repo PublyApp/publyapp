@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { styled, type SxProps, type Theme } from "@mui/material/styles";
-import { tabClasses } from "@mui/material/Tab";
-import Tabs, { type TabsProps } from "@mui/material/Tabs";
-import { useIsClient } from "minimal-shared/hooks";
+import { styled, type SxProps, type Theme } from '@mui/material/styles';
+import { tabClasses } from '@mui/material/Tab';
+import Tabs, { type TabsProps } from '@mui/material/Tabs';
+import { useIsClient } from 'minimal-shared/hooks';
 
 // ----------------------------------------------------------------------
 
-type CustomTabsSlotProps = TabsProps["slotProps"] & {
+type CustomTabsSlotProps = TabsProps['slotProps'] & {
 	tab?: { sx?: SxProps<Theme> };
 	list?: { sx?: SxProps<Theme> };
 	indicator?: { sx?: SxProps<Theme> };
@@ -20,7 +20,7 @@ export type CustomTabsProps = TabsProps & {
 const customTabsStyles: Record<string, SxProps<Theme>> = {
 	root: {
 		flexShrink: 0,
-		bgcolor: "background.neutral",
+		bgcolor: 'background.neutral',
 	},
 	list: {
 		p: 1,
@@ -30,12 +30,12 @@ const customTabsStyles: Record<string, SxProps<Theme>> = {
 	indicator: {
 		py: 1,
 		height: 1,
-		bgcolor: "transparent",
+		bgcolor: 'transparent',
 	},
 	tabItem: {
 		px: 2,
 		zIndex: 1,
-		minHeight: "auto",
+		minHeight: 'auto',
 	},
 };
 
@@ -92,17 +92,17 @@ export const CustomTabs = ({
 
 // ----------------------------------------------------------------------
 
-const IndicatorContent = styled("span")(({ theme }) => {
+const IndicatorContent = styled('span')(({ theme }) => {
 	return {
 		zIndex: 1,
-		width: "100%",
-		height: "100%",
-		display: "block",
+		width: '100%',
+		height: '100%',
+		display: 'block',
 		borderRadius: theme.shape.borderRadius,
 		boxShadow: theme.vars.customShadows.z1,
 		backgroundColor: theme.vars.palette.common.white,
-		...theme.applyStyles("dark", {
-			backgroundColor: theme.vars.palette.grey["900"],
+		...theme.applyStyles('dark', {
+			backgroundColor: theme.vars.palette.grey['900'],
 		}),
 	};
 });

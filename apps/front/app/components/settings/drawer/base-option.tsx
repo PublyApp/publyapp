@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import ButtonBase, { type ButtonBaseProps } from "@mui/material/ButtonBase";
-import { styled } from "@mui/material/styles";
-import Switch from "@mui/material/Switch";
-import Tooltip from "@mui/material/Tooltip";
-import { varAlpha } from "minimal-shared/utils";
+import ButtonBase, { type ButtonBaseProps } from '@mui/material/ButtonBase';
+import { styled } from '@mui/material/styles';
+import Switch from '@mui/material/Switch';
+import Tooltip from '@mui/material/Tooltip';
+import { varAlpha } from 'minimal-shared/utils';
 
-import { Iconify } from "../../iconify/iconify";
+import { Iconify } from '../../iconify/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -57,7 +57,7 @@ export const BaseOption = ({
 						<Iconify
 							width={16}
 							icon="eva:info-outline"
-							sx={{ cursor: "pointer", color: "text.disabled" }}
+							sx={{ cursor: 'pointer', color: 'text.disabled' }}
 						/>
 					</Tooltip>
 				)}
@@ -70,47 +70,47 @@ export const BaseOption = ({
 
 const ItemRoot = styled(ButtonBase, {
 	shouldForwardProp: (prop: string) => {
-		return !["selected", "sx"].includes(prop);
+		return !['selected', 'sx'].includes(prop);
 	},
 })<{ selected: boolean }>(({ selected, theme }) => {
 	return {
-		cursor: "pointer",
-		flexDirection: "column",
-		alignItems: "flex-start",
+		cursor: 'pointer',
+		flexDirection: 'column',
+		alignItems: 'flex-start',
 		padding: theme.spacing(2, 2.5),
 		borderRadius: theme.shape.borderRadius * 2,
-		border: `solid 1px ${varAlpha(theme.vars.palette.grey["500Channel"], 0.12)}`,
-		"&:hover": {
-			backgroundColor: varAlpha(theme.vars.palette.grey["500Channel"], 0.08),
+		border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
+		'&:hover': {
+			backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
 		},
 		...(selected && {
-			backgroundColor: varAlpha(theme.vars.palette.grey["500Channel"], 0.08),
+			backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
 		}),
 	};
 });
 
-const TopContainer = styled("div")(({ theme }) => {
+const TopContainer = styled('div')(({ theme }) => {
 	return {
-		width: "100%",
-		display: "flex",
-		alignItems: "center",
+		width: '100%',
+		display: 'flex',
+		alignItems: 'center',
 		marginBottom: theme.spacing(3),
-		justifyContent: "space-between",
+		justifyContent: 'space-between',
 	};
 });
 
-const BottomContainer = styled("div")(({ theme: _t }) => {
+const BottomContainer = styled('div')(({ theme: _t }) => {
 	return {
-		width: "100%",
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "space-between",
+		width: '100%',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'space-between',
 	};
 });
 
-const ItemLabel = styled("span")(({ theme }) => {
+const ItemLabel = styled('span')(({ theme }) => {
 	return {
-		lineHeight: "18px",
+		lineHeight: '18px',
 		fontSize: theme.typography.pxToRem(13),
 		fontWeight: theme.typography.fontWeightSemiBold,
 	};

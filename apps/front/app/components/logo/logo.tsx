@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useId } from "react";
+import { useId } from 'react';
 
-import Link, { type LinkProps } from "@mui/material/Link";
-import { styled, useTheme } from "@mui/material/styles";
-import { mergeClasses } from "minimal-shared/utils";
+import Link, { type LinkProps } from '@mui/material/Link';
+import { styled, useTheme } from '@mui/material/styles';
+import { mergeClasses } from 'minimal-shared/utils';
 
-import { RouterLink } from "../router-link";
+import { RouterLink } from '../router-link';
 
-import { logoClasses } from "./classes";
+import { logoClasses } from './classes';
 
 // ----------------------------------------------------------------------
 
@@ -20,7 +20,7 @@ export const Logo = ({
 	sx,
 	disabled,
 	className,
-	href = "/",
+	href = '/',
 	isSingle = true,
 	...other
 }: LogoProps) => {
@@ -198,7 +198,7 @@ export const Logo = ({
 					width: 40,
 					height: 40,
 					...(!isSingle && { width: 102, height: 36 }),
-					...(disabled && { pointerEvents: "none" }),
+					...(disabled && { pointerEvents: 'none' }),
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
@@ -214,8 +214,8 @@ export const Logo = ({
 const LogoRoot = styled(Link)(() => {
 	return {
 		flexShrink: 0,
-		color: "transparent",
-		display: "inline-flex",
-		verticalAlign: "middle",
+		color: 'transparent',
+		display: 'inline-flex',
+		verticalAlign: 'middle',
 	};
 });

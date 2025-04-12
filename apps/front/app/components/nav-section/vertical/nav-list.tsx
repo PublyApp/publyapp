@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from 'react';
 
-import { useBoolean } from "minimal-shared/hooks";
-import { isActiveLink, isExternalLink } from "minimal-shared/utils";
+import { useBoolean } from 'minimal-shared/hooks';
+import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
 
-import { usePathname } from "@/front/hooks/use-pathname";
+import { usePathname } from '@/front/hooks/use-pathname';
 
-import { NavCollapse, NavLi, NavUl } from "../components";
-import { navSectionClasses } from "../styles";
-import type { NavListProps, NavSubListProps } from "../types";
+import { NavCollapse, NavLi, NavUl } from '../components';
+import { navSectionClasses } from '../styles';
+import type { NavListProps, NavSubListProps } from '../types';
 
-import { NavItem } from "./nav-item";
+import { NavItem } from './nav-item';
 
 // ----------------------------------------------------------------------
 
@@ -108,7 +108,7 @@ export const NavList = ({
 			sx={{
 				...(!!data.children && {
 					[`& .${navSectionClasses.li}`]: {
-						"&:first-of-type": { mt: "var(--nav-item-gap)" },
+						'&:first-of-type': { mt: 'var(--nav-item-gap)' },
 					},
 				}),
 			}}
@@ -130,7 +130,7 @@ const NavSubList = ({
 	enabledRootRedirect,
 }: NavSubListProps) => {
 	return (
-		<NavUl sx={{ gap: "var(--nav-item-gap)" }}>
+		<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
 			{data.map((list) => {
 				return (
 					<NavList

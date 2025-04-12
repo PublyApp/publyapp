@@ -1,11 +1,11 @@
-import { isValidElement, type ReactNode } from "react";
+import { isValidElement, type ReactNode } from 'react';
 
-import type { UseQueryResult } from "@tanstack/react-query";
+import type { UseQueryResult } from '@tanstack/react-query';
 
 type Props = {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	queryResult: UseQueryResult<any, any>;
-	loadingStrategy?: "loading" | "pending" | "fetching"; // defaults to 'pending'
+	loadingStrategy?: 'loading' | 'pending' | 'fetching'; // defaults to 'pending'
 	loadingElement?: ReactNode;
 	errorElement?: ReactNode;
 	children?: ReactNode;
@@ -24,12 +24,12 @@ const QueryDisplay = ({
 	let showLoading: boolean;
 
 	switch (loadingStrategy) {
-		case "loading": {
+		case 'loading': {
 			showLoading = queryResult.isLoading;
 			break;
 		}
 
-		case "fetching": {
+		case 'fetching': {
 			showLoading = queryResult.isFetching;
 			break;
 		}

@@ -1,13 +1,13 @@
 import ListSubheader, {
 	type ListSubheaderProps,
-} from "@mui/material/ListSubheader";
-import { styled } from "@mui/material/styles";
-import { mergeClasses } from "minimal-shared/utils";
+} from '@mui/material/ListSubheader';
+import { styled } from '@mui/material/styles';
+import { mergeClasses } from 'minimal-shared/utils';
 
-import { Iconify } from "@/front/components/iconify/iconify";
+import { Iconify } from '@/front/components/iconify/iconify';
 
-import { iconifyClasses } from "../../iconify/classes";
-import { navSectionClasses } from "../styles";
+import { iconifyClasses } from '../../iconify/classes';
+import { navSectionClasses } from '../styles';
 
 // ----------------------------------------------------------------------
 
@@ -25,7 +25,7 @@ export const NavSubheader = styled(
 				<Iconify
 					width={16}
 					icon={
-						open ? "eva:arrow-ios-downward-fill" : "eva:arrow-ios-forward-fill"
+						open ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'
 					}
 				/>
 				{children}
@@ -35,29 +35,29 @@ export const NavSubheader = styled(
 )(({ theme }) => {
 	return {
 		...theme.typography.overline,
-		cursor: "pointer",
-		alignItems: "center",
-		position: "relative",
+		cursor: 'pointer',
+		alignItems: 'center',
+		position: 'relative',
 		gap: theme.spacing(1),
-		display: "inline-flex",
-		alignSelf: "flex-start",
-		color: "var(--nav-subheader-color)",
+		display: 'inline-flex',
+		alignSelf: 'flex-start',
+		color: 'var(--nav-subheader-color)',
 		padding: theme.spacing(2, 1, 1, 1.5),
 		fontSize: theme.typography.pxToRem(11),
-		transition: theme.transitions.create(["color", "padding-left"], {
+		transition: theme.transitions.create(['color', 'padding-left'], {
 			duration: theme.transitions.duration.standard,
 		}),
 		[`& .${iconifyClasses.root}`]: {
 			left: -4,
 			opacity: 0,
-			position: "absolute",
-			transition: theme.transitions.create(["opacity"], {
+			position: 'absolute',
+			transition: theme.transitions.create(['opacity'], {
 				duration: theme.transitions.duration.standard,
 			}),
 		},
-		"&:hover": {
+		'&:hover': {
 			paddingLeft: theme.spacing(2),
-			color: "var(--nav-subheader-hover-color)",
+			color: 'var(--nav-subheader-hover-color)',
 			[`& .${iconifyClasses.root}`]: { opacity: 1 },
 		},
 	};

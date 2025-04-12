@@ -1,4 +1,4 @@
-import { type StateCreator } from "zustand";
+import { type StateCreator } from 'zustand';
 
 type AppSliceProps<Name extends string, Values, Actions> = {
 	name: Name;
@@ -10,7 +10,7 @@ type SliceIgniter<Name extends string, Values, Actions> = Slice<
 	Name,
 	Values,
 	Actions
->["initializer"];
+>['initializer'];
 type Set<Name extends string, Values, Actions> = Parameters<
 	SliceIgniter<Name, Values, Actions>
 >[0];
@@ -22,13 +22,13 @@ export default class Slice<Name extends string, Values, Actions> {
 
 	initializer: StateCreator<
 		Record<StringLiteral<Name>, Values & Actions>,
-		[["zustand/immer", never]],
+		[['zustand/immer', never]],
 		[]
 	>;
 
 	// eslint-disable-next-line class-methods-use-this
 	get sliceContent(): Record<StringLiteral<Name>, Values & Actions> {
-		throw new Error("Slice.sliceContent is only for typing, do not access it!");
+		throw new Error('Slice.sliceContent is only for typing, do not access it!');
 	}
 
 	constructor(props: AppSliceProps<Name, Values, Actions>) {

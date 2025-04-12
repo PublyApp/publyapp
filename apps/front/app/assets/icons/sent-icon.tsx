@@ -1,6 +1,6 @@
-import { memo } from "react";
+import { memo } from 'react';
 
-import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
+import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 
 // ----------------------------------------------------------------------
 
@@ -13,11 +13,11 @@ const SentIcon = ({ sx, ...other }: SvgIconProps) => {
 			sx={[
 				(theme) => {
 					return {
-						"--primary-main": theme.vars.palette.primary.main,
-						"--primary-dark": theme.vars.palette.primary.dark,
+						'--primary-main': theme.vars.palette.primary.main,
+						'--primary-dark': theme.vars.palette.primary.dark,
 						width: 96,
 						flexShrink: 0,
-						height: "auto",
+						height: 'auto',
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -35,7 +35,7 @@ const SentIcon = ({ sx, ...other }: SvgIconProps) => {
 			/>
 
 			<g
-				style={{ mixBlendMode: "overlay" }}
+				style={{ mixBlendMode: 'overlay' }}
 				fill="#fff"
 				fillOpacity="0.04"
 				filter="url(#filter0_i_1870_134242)"

@@ -1,6 +1,6 @@
-import { memo } from "react";
+import { memo } from 'react';
 
-import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
+import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 
 // ----------------------------------------------------------------------
 
@@ -13,11 +13,11 @@ const PasswordIcon = ({ sx, ...other }: SvgIconProps) => {
 			sx={[
 				(theme) => {
 					return {
-						"--primary-main": theme.vars.palette.primary.main,
-						"--warning-light": theme.vars.palette.warning.light,
+						'--primary-main': theme.vars.palette.primary.main,
+						'--warning-light': theme.vars.palette.warning.light,
 						width: 96,
 						flexShrink: 0,
-						height: "auto",
+						height: 'auto',
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -29,7 +29,7 @@ const PasswordIcon = ({ sx, ...other }: SvgIconProps) => {
 				d="M36.324 29.4v7.76a4.803 4.803 0 11-9.606 0V29.4c0-11.677 9.405-21.198 21.037-21.388l.353-.002c11.678 0 21.199 9.405 21.388 21.037l.003.353v7.76a4.803 4.803 0 11-9.606 0V29.4c0-6.433-5.181-11.678-11.59-11.783l-.194-.001c-6.499 0-11.785 5.286-11.785 11.784z"
 			/>
 			<g
-				style={{ mixBlendMode: "overlay" }}
+				style={{ mixBlendMode: 'overlay' }}
 				filter="url(#filter0_i_1870_135517)"
 			>
 				<path
@@ -45,7 +45,7 @@ const PasswordIcon = ({ sx, ...other }: SvgIconProps) => {
 				clipRule="evenodd"
 			/>
 			<g
-				style={{ mixBlendMode: "overlay" }}
+				style={{ mixBlendMode: 'overlay' }}
 				filter="url(#filter1_i_1870_135517)"
 			>
 				<path

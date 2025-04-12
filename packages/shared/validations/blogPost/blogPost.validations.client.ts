@@ -1,13 +1,13 @@
-import type zod from "zod";
+import type zod from 'zod';
 
-import type InterZod from "@/shared/lib/zod/InterZod";
+import type InterZod from '@/shared/lib/zod/InterZod';
 
-import { getFileSchemaClientSide } from "../file/file.validations.client";
+import { getFileSchemaClientSide } from '../file/file.validations.client';
 
 import {
 	getCreateBlogPostInputSchema,
 	getUpdateBlogPostInputSchema,
-} from "./blogPost.validations";
+} from './blogPost.validations';
 
 export const getUpdateBlogPostInputSchemaClientSide = (z: InterZod) => {
 	return getUpdateBlogPostInputSchema(z).extend({

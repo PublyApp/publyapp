@@ -1,9 +1,9 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import { useLocation, useParams } from "react-router";
+import { useLocation, useParams } from 'react-router';
 
-import { FRONT_PATH_NAMES } from "@/shared/lib/constants";
-import { getLastPath, makePath } from "@/shared/utils/string.utils";
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { getLastPath, makePath } from '@/shared/utils/string.utils';
 
 export const useTenantParam = () => {
 	const location = useLocation();
@@ -15,12 +15,12 @@ export const useTenantParam = () => {
 	);
 	const params = useParams();
 
-	let tenantId = "";
+	let tenantId = '';
 
 	if (isStaffRoute) {
-		tenantId = "staff";
+		tenantId = 'staff';
 	} else if (isTenantRoute) {
-		const tenantIdPathParam = _.get(params, "tenantId");
+		const tenantIdPathParam = _.get(params, 'tenantId');
 
 		if (tenantIdPathParam) {
 			tenantId = tenantIdPathParam;

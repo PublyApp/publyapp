@@ -1,18 +1,18 @@
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Drawer from "@mui/material/Drawer";
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Drawer from '@mui/material/Drawer';
 
-import { Logo } from "@/front/components/logo/logo";
-import { Scrollbar } from "@/front/components/scrollbar/scrollbar";
-import { usePathname } from "@/front/hooks/use-pathname";
+import { Logo } from '@/front/components/logo/logo';
+import { Scrollbar } from '@/front/components/scrollbar/scrollbar';
+import { usePathname } from '@/front/hooks/use-pathname';
 
-import { SignInButton } from "../../../components/sign-in-button";
-import { Nav, NavUl } from "../components";
-import type { NavMainProps } from "../types";
+import { SignInButton } from '../../../components/sign-in-button';
+import { Nav, NavUl } from '../components';
+import type { NavMainProps } from '../types';
 
-import { NavList } from "./nav-mobile-list";
+import { NavList } from './nav-mobile-list';
 
 // ----------------------------------------------------------------------
 
@@ -49,9 +49,9 @@ export const NavMobile = ({
 				paper: {
 					sx: [
 						{
-							display: "flex",
-							flexDirection: "column",
-							width: "var(--layout-nav-mobile-width)",
+							display: 'flex',
+							flexDirection: 'column',
+							width: 'var(--layout-nav-mobile-width)',
 						},
 						...(Array.isArray(sx) ? sx : [sx]),
 					],
@@ -64,7 +64,7 @@ export const NavMobile = ({
 						pt: 3,
 						pb: 2,
 						pl: 2.5,
-						display: "flex",
+						display: 'flex',
 					}}
 				>
 					<Logo />
@@ -75,9 +75,9 @@ export const NavMobile = ({
 				<Nav
 					sx={{
 						pb: 3,
-						display: "flex",
-						flex: "1 1 auto",
-						flexDirection: "column",
+						display: 'flex',
+						flex: '1 1 auto',
+						flexDirection: 'column',
 					}}
 				>
 					<NavUl>
@@ -94,7 +94,7 @@ export const NavMobile = ({
 						py: 3,
 						px: 2.5,
 						gap: 1.5,
-						display: "flex",
+						display: 'flex',
 					}}
 				>
 					<SignInButton fullWidth />

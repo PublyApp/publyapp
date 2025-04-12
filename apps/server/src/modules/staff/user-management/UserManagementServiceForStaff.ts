@@ -1,6 +1,6 @@
-import { USE_MASTER_KEY } from "@/server/lib/constants";
-import { getDatabase } from "@/server/lib/parse/parse.utils";
-import { className, roleEnum } from "@/shared/lib/constants";
+import { USE_MASTER_KEY } from '@/server/lib/constants';
+import { getDatabase } from '@/server/lib/parse/parse.utils';
+import { className, roleEnum } from '@/shared/lib/constants';
 
 export default class UserManagementServiceForStaff {
 	sessionToken?: string;
@@ -11,7 +11,7 @@ export default class UserManagementServiceForStaff {
 
 	static async findStaffUsersForStaffAdminTable() {
 		const roleQuery = new Parse.Query(Parse.Role)
-			.containedIn("name", [
+			.containedIn('name', [
 				roleEnum.STAFF_ADMIN.name,
 				roleEnum.STAFF_EDITOR.name,
 				roleEnum.STAFF_USER.name,
@@ -41,33 +41,33 @@ export default class UserManagementServiceForStaff {
 
 			{
 				$lookup: {
-					from: "_Role", // Join with the Role collection
+					from: '_Role', // Join with the Role collection
 					let: {
-						roleId: "$owningId",
+						roleId: '$owningId',
 					},
 					pipeline: [
 						{
-							$match: { $expr: { $eq: ["$_id", "$$roleId"] } },
+							$match: { $expr: { $eq: ['$_id', '$$roleId'] } },
 						},
 						{
 							$project: { name: 1, rank: 1 },
 						},
 					],
-					as: "roleDetails", // Alias for the joined role
+					as: 'roleDetails', // Alias for the joined role
 				},
 			},
 
-			{ $unwind: "$roleDetails" },
+			{ $unwind: '$roleDetails' },
 
 			{
 				$group: {
-					_id: "$relatedId", // Group by user ID
-					maxRank: { $max: "$roleDetails.rank" }, // Get the highest rank
+					_id: '$relatedId', // Group by user ID
+					maxRank: { $max: '$roleDetails.rank' }, // Get the highest rank
 					roles: {
 						$addToSet: {
-							name: "$roleDetails.name",
-							id: "$roleDetails._id",
-							rank: "$roleDetails.rank",
+							name: '$roleDetails.name',
+							id: '$roleDetails._id',
+							rank: '$roleDetails.rank',
 						},
 					},
 				},

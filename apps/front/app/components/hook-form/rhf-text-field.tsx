@@ -1,10 +1,10 @@
-import TextField, { type TextFieldProps } from "@mui/material/TextField";
+import TextField, { type TextFieldProps } from '@mui/material/TextField';
 import {
 	transformValue,
 	transformValueOnBlur,
 	transformValueOnChange,
-} from "minimal-shared/utils";
-import { Controller, useFormContext } from "react-hook-form";
+} from 'minimal-shared/utils';
+import { Controller, useFormContext } from 'react-hook-form';
 
 // ----------------------------------------------------------------------
 
@@ -16,12 +16,12 @@ export const RHFTextField = ({
 	name,
 	helperText,
 	slotProps,
-	type = "text",
+	type = 'text',
 	...other
 }: RHFTextFieldProps) => {
 	const { control } = useFormContext();
 
-	const isNumberType = type === "number";
+	const isNumberType = type === 'number';
 
 	return (
 		<Controller
@@ -47,17 +47,17 @@ export const RHFTextField = ({
 
 							field.onChange(transformedValue);
 						}}
-						type={isNumberType ? "text" : type}
+						type={isNumberType ? 'text' : type}
 						error={!!error}
 						helperText={error?.message ?? helperText}
 						slotProps={{
 							...slotProps,
 							htmlInput: {
-								autoComplete: "off",
+								autoComplete: 'off',
 								...slotProps?.htmlInput,
 								...(isNumberType && {
-									inputMode: "decimal",
-									pattern: "[0-9]*\\.?[0-9]*",
+									inputMode: 'decimal',
+									pattern: '[0-9]*\\.?[0-9]*',
 								}),
 							},
 						}}

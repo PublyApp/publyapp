@@ -1,4 +1,4 @@
-import { type AnyZodObject } from "zod";
+import { type AnyZodObject } from 'zod';
 
 export const getJobTypeFunction = ({
 	schema,

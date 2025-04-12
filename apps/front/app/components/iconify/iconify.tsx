@@ -1,21 +1,21 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useId } from "react";
+import { useId } from 'react';
 
-import { Icon, type IconProps } from "@iconify/react";
-import { styled } from "@mui/material/styles";
-import { mergeClasses } from "minimal-shared/utils";
+import { Icon, type IconProps } from '@iconify/react';
+import { styled } from '@mui/material/styles';
+import { mergeClasses } from 'minimal-shared/utils';
 
-import { iconifyClasses } from "./classes";
+import { iconifyClasses } from './classes';
 import {
 	allIconNames,
 	registerIcons,
 	type IconifyName,
-} from "./register-icons";
+} from './register-icons';
 
 // ----------------------------------------------------------------------
 
 export type IconifyProps = React.ComponentProps<typeof IconRoot> &
-	Omit<IconProps, "icon"> & {
+	Omit<IconProps, 'icon'> & {
 		icon: IconifyName;
 	};
 
@@ -33,9 +33,9 @@ export const Iconify = ({
 		console.warn(
 			[
 				`Icon "${icon}" is currently loaded online, which may cause flickering effects.`,
-				"To ensure a smoother experience, please register your icon collection for offline use.",
-				"More information is available at: https://docs.minimals.cc/icons/",
-			].join("\n"),
+				'To ensure a smoother experience, please register your icon collection for offline use.',
+				'More information is available at: https://docs.minimals.cc/icons/',
+			].join('\n'),
 		);
 	}
 
@@ -52,7 +52,7 @@ export const Iconify = ({
 					width,
 					flexShrink: 0,
 					height: height ?? width,
-					display: "inline-flex",
+					display: 'inline-flex',
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}

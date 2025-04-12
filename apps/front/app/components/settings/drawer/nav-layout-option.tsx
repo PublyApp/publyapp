@@ -1,19 +1,19 @@
-import Box, { type BoxProps } from "@mui/material/Box";
-import { varAlpha } from "minimal-shared/utils";
+import Box, { type BoxProps } from '@mui/material/Box';
+import { varAlpha } from 'minimal-shared/utils';
 
-import type { SettingsState } from "../types";
+import type { SettingsState } from '../types';
 
-import { OptionButton } from "./styles";
+import { OptionButton } from './styles';
 
 // ----------------------------------------------------------------------
 
 export type NavLayoutOptionProps = BoxProps & {
-	value: SettingsState["navLayout"];
+	value: SettingsState['navLayout'];
 	options: {
-		value: SettingsState["navLayout"];
+		value: SettingsState['navLayout'];
 		icon: React.ReactNode;
 	}[];
-	onChangeOption: (newOption: SettingsState["navLayout"]) => void;
+	onChangeOption: (newOption: SettingsState['navLayout']) => void;
 };
 
 export const NavLayoutOptions = ({
@@ -28,8 +28,8 @@ export const NavLayoutOptions = ({
 			sx={[
 				{
 					gap: 1.5,
-					display: "grid",
-					gridTemplateColumns: "repeat(3, 1fr)",
+					display: 'grid',
+					gridTemplateColumns: 'repeat(3, 1fr)',
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
@@ -49,7 +49,7 @@ export const NavLayoutOptions = ({
 							(theme) => {
 								return {
 									height: 64,
-									border: `solid 1px ${varAlpha(theme.vars.palette.grey["500Channel"], 0.08)}`,
+									border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
 								};
 							},
 						]}
@@ -65,13 +65,13 @@ export const NavLayoutOptions = ({
 // ----------------------------------------------------------------------
 
 export type NavColorOptionProps = BoxProps & {
-	value: SettingsState["navColor"];
+	value: SettingsState['navColor'];
 	options: {
 		label: string;
-		value: SettingsState["navColor"];
+		value: SettingsState['navColor'];
 		icon: React.ReactNode;
 	}[];
-	onChangeOption: (newOption: SettingsState["navColor"]) => void;
+	onChangeOption: (newOption: SettingsState['navColor']) => void;
 };
 
 export const NavColorOptions = ({
@@ -86,8 +86,8 @@ export const NavColorOptions = ({
 			sx={[
 				{
 					gap: 1.5,
-					display: "grid",
-					gridTemplateColumns: "repeat(2, 1fr)",
+					display: 'grid',
+					gridTemplateColumns: 'repeat(2, 1fr)',
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}

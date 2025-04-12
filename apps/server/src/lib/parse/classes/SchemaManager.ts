@@ -1,21 +1,21 @@
-import _ from "lodash";
-import { type Schema } from "parse-server";
-import MongoSchemaCollection from "parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js";
+import _ from 'lodash';
+import { type Schema } from 'parse-server';
+import MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
 
-import asyncJs from "async";
-import { MongoServerError, type CreateIndexesOptions } from "mongodb";
+import asyncJs from 'async';
+import { MongoServerError, type CreateIndexesOptions } from 'mongodb';
 
-import { className as _className } from "@org/shared/lib/constants";
+import { className as _className } from '@org/shared/lib/constants';
 
-import { logger } from "@/server/lib/winston";
-import { tryCatchWrapper } from "@/shared/utils/tryCatch.utils";
+import { logger } from '@/server/lib/winston';
+import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
 
-import { DEFAULT_CLP } from "../../constants";
-import { getDatabase } from "../parse.utils";
+import { DEFAULT_CLP } from '../../constants';
+import { getDatabase } from '../parse.utils';
 
 export type ManagedIndex = {
 	keys: Record<string, 1 | -1>;
-	options?: Omit<CreateIndexesOptions, "name">;
+	options?: Omit<CreateIndexesOptions, 'name'>;
 };
 export type ManagedIndexes = Record<string, ManagedIndex>;
 
@@ -27,8 +27,8 @@ export default class SchemaManager {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	static defineSchema<T extends Record<string, any> = Record<string, any>>(
 		className: string,
-		schema: Partial<Omit<Schema<T>, "fields" | "indexes">> &
-			Pick<Schema<T>, "fields"> & { indexes?: ManagedIndexes },
+		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> &
+			Pick<Schema<T>, 'fields'> & { indexes?: ManagedIndexes },
 	) {
 		const fields = schema.fields || undefined;
 		const classLevelPermissions = schema.classLevelPermissions || DEFAULT_CLP;
@@ -45,12 +45,12 @@ export default class SchemaManager {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	static defineMultiTenantSchema<T extends Record<string, any>>(
 		className: string,
-		schema: Partial<Omit<Schema<T>, "fields" | "indexes">> &
-			Pick<Schema<T>, "fields"> & { indexes?: ManagedIndexes },
+		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> &
+			Pick<Schema<T>, 'fields'> & { indexes?: ManagedIndexes },
 	) {
 		const schemaFields = schema.fields || {};
-		_.set(schemaFields, "tenant", {
-			type: "Pointer",
+		_.set(schemaFields, 'tenant', {
+			type: 'Pointer',
 			required: true,
 			targetClass: _className.TENANT,
 		});
@@ -116,7 +116,7 @@ export default class SchemaManager {
 
 									if (
 										error.message.startsWith(
-											"An existing index has the same name as the requested index.",
+											'An existing index has the same name as the requested index.',
 										)
 									) {
 										await ClassCollection.dropIndex(indexName);
@@ -127,12 +127,12 @@ export default class SchemaManager {
 										});
 									} else if (
 										error.message.startsWith(
-											"Index already exists with a different name: ",
+											'Index already exists with a different name: ',
 										)
 									) {
 										const oldIndexName = error.message.replace(
-											"Index already exists with a different name: ",
-											"",
+											'Index already exists with a different name: ',
+											'',
 										);
 
 										await ClassCollection.dropIndex(oldIndexName);
@@ -192,13 +192,13 @@ export default class SchemaManager {
 						inputSchemaObjectFieldOptions,
 					);
 
-					_.set(newSchemaObject, "_metadata.managed_indexes", {
-						..._.get(newSchemaObject, "_metadata.managed_indexes"),
-						..._.get(inputSchemaObjectIndexes, "_metadata.managed_indexes"),
+					_.set(newSchemaObject, '_metadata.managed_indexes', {
+						..._.get(newSchemaObject, '_metadata.managed_indexes'),
+						..._.get(inputSchemaObjectIndexes, '_metadata.managed_indexes'),
 					});
 					_.set(
 						newSchemaObject,
-						"_metadata.class_permissions",
+						'_metadata.class_permissions',
 						schemaDefinition.classLevelPermissions,
 					);
 

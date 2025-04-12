@@ -1,10 +1,10 @@
-import { faker } from "@faker-js/faker";
-import asyncJs from "async";
+import { faker } from '@faker-js/faker';
+import asyncJs from 'async';
 
-import { USE_MASTER_KEY } from "@/server/lib/constants";
-import { functionName } from "@/shared/lib/constants";
+import { USE_MASTER_KEY } from '@/server/lib/constants';
+import { functionName } from '@/shared/lib/constants';
 
-import ParseUser from "./user.class";
+import ParseUser from './user.class';
 
 export const userSeedFactory = () => {
 	const firstName = faker.person.firstName();
@@ -12,7 +12,7 @@ export const userSeedFactory = () => {
 	const username = faker.internet.userName({ firstName, lastName });
 	const email = faker.internet.email({ firstName, lastName });
 
-	const GENERIC_PASSWORD = "123456789@";
+	const GENERIC_PASSWORD = '123456789@';
 	// eslint-disable-next-line @typescript-eslint/naming-convention
 	// const _hashed_password = hash(GENERIC_PASSWORD);
 
@@ -22,7 +22,7 @@ export const userSeedFactory = () => {
 		password: GENERIC_PASSWORD,
 	});
 
-	user.set("seeded", true);
+	user.set('seeded', true);
 
 	return user;
 };
@@ -36,7 +36,7 @@ export const createUsers = async ({ num }: { num: number }) => {
 	const BATCH_SAVE_LIMIT = 100;
 	const q = asyncJs.queue(async ({ users }: { users: ParseUser[] }) => {
 		if (users.length > BATCH_SAVE_LIMIT) {
-			throw new Error("BATCH_SAVE_LIMIT exceeded");
+			throw new Error('BATCH_SAVE_LIMIT exceeded');
 		}
 
 		const results = await Parse.Object.saveAll(users, {

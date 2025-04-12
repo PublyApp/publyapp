@@ -1,11 +1,11 @@
-import path from "path";
+import path from 'path';
 
-import sharp from "sharp";
+import sharp from 'sharp';
 
-import { FILE_UPLOAD_DESTINATION } from "@/server/lib/constants";
-import { fileProvider } from "@/shared/lib/constants";
+import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
+import { fileProvider } from '@/shared/lib/constants';
 
-import { type Uploader, type UploadInput } from "./Uploader.interface";
+import { type Uploader, type UploadInput } from './Uploader.interface';
 
 export default class LocalDiskUploader implements Uploader {
 	provider = fileProvider.LOCAL_DISK;
@@ -21,7 +21,7 @@ export default class LocalDiskUploader implements Uploader {
 			// form the correct path in the server and not on the client when getting an AppFile
 			// I intentionally removed express mount pth from there
 			// ? To avoid confusion, It is better to use external services like cloudinary instead of using local disk
-			url: path.posix.join("/", params.name),
+			url: path.posix.join('/', params.name),
 		};
 	}
 }

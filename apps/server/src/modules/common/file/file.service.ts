@@ -1,8 +1,8 @@
-import async from "async";
+import async from 'async';
 
-import CloudinaryUploader from "./upload/CloudinaryUploader";
-import LocalDiskUploader from "./upload/LocalDiskUploader";
-import { type Uploader } from "./upload/Uploader.interface";
+import CloudinaryUploader from './upload/CloudinaryUploader';
+import LocalDiskUploader from './upload/LocalDiskUploader';
+import { type Uploader } from './upload/Uploader.interface';
 
 export type FileServiceProps = {
 	sessionToken: string | undefined;
@@ -20,11 +20,11 @@ export default class FileService {
 	}
 
 	static isImage(file: Express.Multer.File | string) {
-		if (typeof file === "string") {
-			return file.startsWith("image/");
+		if (typeof file === 'string') {
+			return file.startsWith('image/');
 		}
 
-		return file.mimetype.startsWith("image/");
+		return file.mimetype.startsWith('image/');
 	}
 
 	async uploadOne({

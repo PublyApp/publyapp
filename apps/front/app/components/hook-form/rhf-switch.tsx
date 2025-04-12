@@ -1,19 +1,19 @@
-import Box, { type BoxProps } from "@mui/material/Box";
-import FormControl, { type FormControlProps } from "@mui/material/FormControl";
+import Box, { type BoxProps } from '@mui/material/Box';
+import FormControl, { type FormControlProps } from '@mui/material/FormControl';
 import FormControlLabel, {
 	type FormControlLabelProps,
-} from "@mui/material/FormControlLabel";
-import FormGroup, { type FormGroupProps } from "@mui/material/FormGroup";
-import type { FormHelperTextProps } from "@mui/material/FormHelperText";
-import FormLabel, { type FormLabelProps } from "@mui/material/FormLabel";
-import Switch, { type SwitchProps } from "@mui/material/Switch";
-import { Controller, useFormContext } from "react-hook-form";
+} from '@mui/material/FormControlLabel';
+import FormGroup, { type FormGroupProps } from '@mui/material/FormGroup';
+import type { FormHelperTextProps } from '@mui/material/FormHelperText';
+import FormLabel, { type FormLabelProps } from '@mui/material/FormLabel';
+import Switch, { type SwitchProps } from '@mui/material/Switch';
+import { Controller, useFormContext } from 'react-hook-form';
 
-import { HelperText } from "./help-text";
+import { HelperText } from './help-text';
 
 // ----------------------------------------------------------------------
 
-export type RHFSwitchProps = Omit<FormControlLabelProps, "control"> & {
+export type RHFSwitchProps = Omit<FormControlLabelProps, 'control'> & {
 	name: string;
 	helperText?: React.ReactNode;
 	slotProps?: {
@@ -51,13 +51,13 @@ export const RHFSwitch = ({
 										...slotProps?.switch?.slotProps,
 										input: {
 											id: `${name}-switch`,
-											...(!label && { "aria-label": `${name} switch` }),
+											...(!label && { 'aria-label': `${name} switch` }),
 											...slotProps?.switch?.slotProps?.input,
 										},
 									}}
 								/>
 							}
-							sx={[{ mx: 0 }, ...(Array.isArray(sx) ? sx ?? [] : [sx])]}
+							sx={[{ mx: 0 }, ...(Array.isArray(sx) ? (sx ?? []) : [sx])]}
 							{...other}
 						/>
 
@@ -121,9 +121,9 @@ export const RHFMultiSwitch = ({
 								component="legend"
 								{...slotProps?.formLabel}
 								sx={[
-									{ mb: 1, typography: "body2" },
+									{ mb: 1, typography: 'body2' },
 									...(Array.isArray(slotProps?.formLabel?.sx)
-										? slotProps?.formLabel?.sx ?? []
+										? (slotProps?.formLabel?.sx ?? [])
 										: [slotProps?.formLabel?.sx]),
 								]}
 							>
@@ -150,7 +150,7 @@ export const RHFMultiSwitch = ({
 													input: {
 														id: `${option.label}-switch`,
 														...(!option.label && {
-															"aria-label": `${option.label} switch`,
+															'aria-label': `${option.label} switch`,
 														}),
 														...slotProps?.switch?.slotProps?.input,
 													},

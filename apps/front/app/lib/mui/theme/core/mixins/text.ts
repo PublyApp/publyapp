@@ -2,8 +2,8 @@ import {
 	createTheme as getTheme,
 	type Breakpoint,
 	type CSSObject,
-} from "@mui/material/styles";
-import { remToPx } from "minimal-shared/utils";
+} from '@mui/material/styles';
+import { remToPx } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
@@ -20,11 +20,11 @@ const defaultMuiTheme = getTheme();
 export const textGradient = (color?: string): CSSObject => {
 	return {
 		background: `linear-gradient(${color})`,
-		WebkitBackgroundClip: "text",
-		WebkitTextFillColor: "transparent",
-		backgroundClip: "text",
-		textFillColor: "transparent",
-		color: "transparent",
+		WebkitBackgroundClip: 'text',
+		WebkitTextFillColor: 'transparent',
+		backgroundClip: 'text',
+		textFillColor: 'transparent',
+		color: 'transparent',
 	};
 };
 
@@ -36,7 +36,7 @@ export const textGradient = (color?: string): CSSObject => {
  */
 export type MediaFontSize = {
 	[key: string]: {
-		fontSize: React.CSSProperties["fontSize"];
+		fontSize: React.CSSProperties['fontSize'];
 	};
 };
 
@@ -45,15 +45,15 @@ export type MaxLineProps = {
 	persistent?: Partial<React.CSSProperties>;
 };
 
-const getFontSize = (fontSize: React.CSSProperties["fontSize"]) => {
-	return typeof fontSize === "string" ? remToPx(fontSize) : fontSize;
+const getFontSize = (fontSize: React.CSSProperties['fontSize']) => {
+	return typeof fontSize === 'string' ? remToPx(fontSize) : fontSize;
 };
 
 const getLineHeight = (
-	lineHeight: React.CSSProperties["lineHeight"],
+	lineHeight: React.CSSProperties['lineHeight'],
 	fontSize?: number,
 ) => {
-	if (typeof lineHeight === "string") {
+	if (typeof lineHeight === 'string') {
 		return fontSize ? remToPx(lineHeight) / fontSize : 1;
 	}
 
@@ -72,11 +72,11 @@ export const maxLine = ({ line, persistent }: MaxLineProps): CSSObject => {
 	const breakpoints: Breakpoint[] = defaultMuiTheme.breakpoints.keys;
 
 	const baseStyles: CSSObject = {
-		overflow: "hidden",
-		display: "-webkit-box",
-		textOverflow: "ellipsis",
+		overflow: 'hidden',
+		display: '-webkit-box',
+		textOverflow: 'ellipsis',
 		WebkitLineClamp: line,
-		WebkitBoxOrient: "vertical",
+		WebkitBoxOrient: 'vertical',
 	};
 
 	if (!persistent) {
