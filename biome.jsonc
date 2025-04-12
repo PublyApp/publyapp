@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": []
+		"ignore": ["node_modules", "build", "dist", ".turbo", ".husky/_"]
 	},
 	"formatter": {
 		"enabled": true,
@@ -29,7 +29,7 @@
 	},
 	"overrides": [
 		{
-			"include": ["tsconfig.*.json", "**/**/tsconfig.json"],
+			"include": ["tsconfig.*.json", "**/**/tsconfig.json", ".vscode/*.json"],
 			"json": {
 				"parser": {
 					"allowComments": true,
