@@ -4,7 +4,7 @@ import { logger } from '@/server/lib/winston';
 import { endPoint } from '@/shared/lib/constants';
 
 import { env } from '../../env';
-import { type MailAdapter } from '../interfaces/MailAdapter';
+import type { MailAdapter } from '../interfaces/MailAdapter';
 
 type Props = {
 	serverUrl: string;

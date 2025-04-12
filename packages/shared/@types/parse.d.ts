@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { PipelineStage } from 'mongoose';
 
 import type { AppLocale } from '../lib/i18n/resources';
@@ -19,22 +17,25 @@ declare global {
 
 		namespace Cloud {
 			interface FunctionRequest<T extends Params = Params> {
+				// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 				headers: Record<string, any> | undefined;
 				ip?: string | undefined;
 				context: Record<string, unknown>;
 				functionName: string;
 			}
 
-			// eslint-disable-next-line @typescript-eslint/ban-types
+			// biome-ignore lint/complexity/noBannedTypes: safe to use Object type here
 			interface TriggerRequest<T = Object> {
 				query: Query<T> | undefined;
 				context:
 					| (Record<string, unknown> & { locale?: string; fromCloud?: boolean })
 					| undefined;
+				// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 				headers: Record<string, any> | undefined;
 			}
 
 			interface JobRequest {
+				// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 				headers: Record<string, any> | undefined;
 				ip: string | undefined;
 				jobName: string;
@@ -43,6 +44,7 @@ declare global {
 
 			function define<T extends Params = Params>(
 				name: string,
+				// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 				handler: (request: FunctionRequest<T>) => any,
 			): void;
 		}
@@ -53,16 +55,16 @@ declare global {
 		}
 
 		namespace CoreManager {
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 			function set(key: string, value: any): void;
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			function get(key: string): void;
 
 			function getInstallationController(): InstallationController;
 		}
 
-		// eslint-disable-next-line @typescript-eslint/ban-types
+		// biome-ignore lint/complexity/noBannedTypes: safe to use Object type here
 		interface Query<T extends Object = Object> /* extends Parse.Query */ {
+			// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 			aggregate<V = any>(
 				pipeline: /* Query.AggregationOptions | Query.AggregationOptions[] */ PipelineStage[],
 			): Promise<V>;

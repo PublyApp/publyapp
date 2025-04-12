@@ -1,4 +1,4 @@
-import { type ICustomJoinUserToTenantWithParseRelations } from '@org/shared/types/db/$join-user-to-tenant-types';
+import type { ICustomJoinUserToTenantWithParseRelations } from '@org/shared/types/db/$join-user-to-tenant-types';
 
 import { className } from '@/shared/lib/constants';
 

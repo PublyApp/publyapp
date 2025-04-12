@@ -95,7 +95,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 							transition={{
 								duration: 20,
 								ease: 'linear',
-								repeat: Infinity,
+								repeat: Number.POSITIVE_INFINITY,
 								repeatType: 'reverse',
 							}}
 							sx={[
@@ -262,8 +262,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 
 				<Box sx={{ gap: 2.5, display: 'flex' }}>
 					{['js', 'ts', 'nextjs', 'vite', 'figma'].map((platform) => {
-						// eslint-disable-next-line no-useless-concat
-						const src = `/assets/icons/platforms/ic-${platform}` + '.svg';
+						const src = `/assets/icons/platforms/ic-${platform}.svg`;
 						return (
 							<m.div {...motionProps} key={platform}>
 								<Box
