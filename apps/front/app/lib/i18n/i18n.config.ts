@@ -1,7 +1,7 @@
-import {
-	type DefaultLocale,
-	type DefaultNS,
-	type SupportedLanguages,
+import type {
+	DefaultLocale,
+	DefaultNS,
+	SupportedLanguages,
 } from '@/shared/lib/i18n/resources';
 
 type Config = {

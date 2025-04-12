@@ -235,7 +235,7 @@ export const FRONT_PATH_NAMES = {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
 	},
-	tenant: (tenantId: string = '') => {
+	tenant: (tenantId = '') => {
 		return {
 			root: makePath(RESOURCE.client, tenantId),
 		};
@@ -244,19 +244,19 @@ export const FRONT_PATH_NAMES = {
 		root: makePath(ROOTS.STAFF),
 		tenants: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
-			details: (tenantId: string = '') => {
+			details: (tenantId = '') => {
 				return makePath(ROOTS.STAFF, RESOURCE.tenants, tenantId);
 			},
 		},
 		tenantUsers: {
 			root: makePath(ROOTS.STAFF, 'tenant-users'),
-			details: (userId: string = '') => {
+			details: (userId = '') => {
 				return makePath(ROOTS.STAFF, 'tenant-users', userId);
 			},
 		},
 		staffMembers: {
 			root: makePath(ROOTS.STAFF, 'staff-members'),
-			details: (userId: string = '') => {
+			details: (userId = '') => {
 				return makePath(ROOTS.STAFF, 'staff-members', userId);
 			},
 		},

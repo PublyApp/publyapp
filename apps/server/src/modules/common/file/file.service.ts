@@ -2,7 +2,7 @@ import async from 'async';
 
 import CloudinaryUploader from './upload/CloudinaryUploader';
 import LocalDiskUploader from './upload/LocalDiskUploader';
-import { type Uploader } from './upload/Uploader.interface';
+import type { Uploader } from './upload/Uploader.interface';
 
 export type FileServiceProps = {
 	sessionToken: string | undefined;

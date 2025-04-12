@@ -1,4 +1,4 @@
-import { type UploadApiResponse } from 'cloudinary';
+import type { UploadApiResponse } from 'cloudinary';
 import streamifier from 'streamifier';
 
 import cloudinary from '@/server/lib/cloudinary';
@@ -6,7 +6,7 @@ import { env } from '@/server/lib/env';
 import { APP_ID, fileProvider } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
-import { type Uploader, type UploadInput } from './Uploader.interface';
+import type { Uploader, UploadInput } from './Uploader.interface';
 
 export default class CloudinaryUploader implements Uploader<UploadApiResponse> {
 	provider = fileProvider.CLOUDINARY;
