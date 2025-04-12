@@ -6,6 +6,8 @@ export const notificationIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Order"
 		>
 			<g id="icons/notification/ic_package">
 				<g id="stack">
@@ -155,6 +157,8 @@ export const notificationIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Chat"
 		>
 			<g id="icons/notification/ic_chat">
 				<g id="stack">
@@ -241,6 +245,8 @@ export const notificationIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Mail"
 		>
 			<g id="icons/notification/ic_mail">
 				<path
@@ -291,6 +297,8 @@ export const notificationIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Delivery"
 		>
 			<g id="icons/notification/ic_shipping">
 				<g id="stack">
