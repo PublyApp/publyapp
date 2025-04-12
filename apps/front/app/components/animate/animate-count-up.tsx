@@ -1,7 +1,14 @@
 import { useEffect, useRef } from 'react';
 
 import Typography, { type TypographyProps } from '@mui/material/Typography';
-import { animate, m, useInView, useMotionValue, useTransform, type UseInViewOptions } from 'framer-motion';
+import {
+	animate,
+	m,
+	useInView,
+	useMotionValue,
+	useTransform,
+	type UseInViewOptions,
+} from 'framer-motion';
 
 // ----------------------------------------------------------------------
 
@@ -29,7 +36,6 @@ export const AnimateCountUp = ({
 }: AnimateCountUpProps) => {
 	const countRef = useRef(null);
 
-	// eslint-disable-next-line @typescript-eslint/no-use-before-define
 	const shortNumber = shortenNumber(to);
 
 	const startCount = useMotionValue<number>(from);
@@ -40,7 +46,6 @@ export const AnimateCountUp = ({
 	const inView = useInView(countRef, { once, amount });
 
 	const rounded = useTransform(startCount, (latest) => {
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		return latest.toFixed(isFloat(latest) ? toFixed : 0);
 	});
 
@@ -75,7 +80,9 @@ const isFloat = (n: number | string) => {
 	return typeof n === 'number' && !Number.isInteger(n);
 };
 
-const shortenNumber = (value: number): { unit: string; value: number } | undefined => {
+const shortenNumber = (
+	value: number,
+): { unit: string; value: number } | undefined => {
 	if (value >= 1e9) {
 		return { unit: 'b', value: value / 1e9 };
 	}

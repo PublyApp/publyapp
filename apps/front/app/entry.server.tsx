@@ -2,9 +2,16 @@ import { PassThrough } from 'node:stream';
 
 import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
-import { renderToPipeableStream, type RenderToPipeableStreamOptions } from 'react-dom/server';
+import {
+	type RenderToPipeableStreamOptions,
+	renderToPipeableStream,
+} from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
-import { ServerRouter, type AppLoadContext, type EntryContext } from 'react-router';
+import {
+	type AppLoadContext,
+	type EntryContext,
+	ServerRouter,
+} from 'react-router';
 
 import { queryParamKey } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
@@ -32,7 +39,9 @@ const handleRequest = async (
 		// Ensure requests from bots and SPA Mode renders wait for all content to load before responding
 		// https://react.dev/reference/react-dom/server/renderToPipeableStream#waiting-for-all-content-to-load-for-crawlers-and-static-generation
 		const readyOption: keyof RenderToPipeableStreamOptions =
-			(userAgent && isbot(userAgent)) || routerContext.isSpaMode ? 'onAllReady' : 'onShellReady';
+			(userAgent && isbot(userAgent)) || routerContext.isSpaMode
+				? 'onAllReady'
+				: 'onShellReady';
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
@@ -59,7 +68,7 @@ const handleRequest = async (
 					reject(error);
 				},
 				onError: (error: unknown) => {
-					// eslint-disable-next-line no-param-reassign
+					// biome-ignore lint/style/noParameterAssign: boilerplate from react-router framework scaffolding, just left as is
 					responseStatusCode = 500;
 
 					// Log streaming rendering errors from inside the shell.  Don't log

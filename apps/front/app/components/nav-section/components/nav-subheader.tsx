@@ -1,4 +1,6 @@
-import ListSubheader, { type ListSubheaderProps } from '@mui/material/ListSubheader';
+import ListSubheader, {
+	type ListSubheaderProps,
+} from '@mui/material/ListSubheader';
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
@@ -11,19 +13,26 @@ import { navSectionClasses } from '../styles';
 
 export type NavSubheaderProps = ListSubheaderProps & { open?: boolean };
 
-export const NavSubheader = styled(({ open, children, className, ...other }: NavSubheaderProps) => {
-	return (
-		<ListSubheader
-			disableSticky
-			component="div"
-			{...other}
-			className={mergeClasses([navSectionClasses.subheader, className])}
-		>
-			<Iconify width={16} icon={open ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'} />
-			{children}
-		</ListSubheader>
-	);
-})(({ theme }) => {
+export const NavSubheader = styled(
+	({ open, children, className, ...other }: NavSubheaderProps) => {
+		return (
+			<ListSubheader
+				disableSticky
+				component="div"
+				{...other}
+				className={mergeClasses([navSectionClasses.subheader, className])}
+			>
+				<Iconify
+					width={16}
+					icon={
+						open ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'
+					}
+				/>
+				{children}
+			</ListSubheader>
+		);
+	},
+)(({ theme }) => {
 	return {
 		...theme.typography.overline,
 		cursor: 'pointer',

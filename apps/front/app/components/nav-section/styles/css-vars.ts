@@ -5,7 +5,10 @@ import { varAlpha } from 'minimal-shared/utils';
 
 export const bulletColor = { dark: '#282F37', light: '#EDEFF2' };
 
-const colorVars = (theme: Theme, variant?: 'vertical' | 'mini' | 'horizontal') => {
+const colorVars = (
+	theme: Theme,
+	variant?: 'vertical' | 'mini' | 'horizontal',
+) => {
 	const {
 		vars: { palette },
 	} = theme;
@@ -18,7 +21,10 @@ const colorVars = (theme: Theme, variant?: 'vertical' | 'mini' | 'horizontal') =
 		'--nav-item-root-active-color': palette.primary.main,
 		'--nav-item-root-active-color-on-dark': palette.primary.light,
 		'--nav-item-root-active-bg': varAlpha(palette.primary.mainChannel, 0.08),
-		'--nav-item-root-active-hover-bg': varAlpha(palette.primary.mainChannel, 0.16),
+		'--nav-item-root-active-hover-bg': varAlpha(
+			palette.primary.mainChannel,
+			0.16,
+		),
 		'--nav-item-root-open-color': palette.text.primary,
 		'--nav-item-root-open-bg': palette.action.hover,
 		// sub

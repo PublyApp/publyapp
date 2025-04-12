@@ -5,7 +5,13 @@ import { useInView, type UseInViewOptions } from 'framer-motion';
 import { mergeClasses, mergeRefs } from 'minimal-shared/utils';
 
 import { imageClasses } from './classes';
-import { ImageImg, ImageOverlay, ImagePlaceholder, ImageRoot, type EffectsType } from './styles';
+import {
+	ImageImg,
+	ImageOverlay,
+	ImagePlaceholder,
+	ImageRoot,
+	type EffectsType,
+} from './styles';
 
 // ----------------------------------------------------------------------
 
@@ -93,24 +99,47 @@ export const Image = ({
 	const showPlaceholder = !visibleByDefault && !isLoaded && !disablePlaceholder;
 
 	const renderComponents = {
-		// eslint-disable-next-line react/no-unstable-nested-components
 		overlay: () => {
-			return slotProps?.overlay && <ImageOverlay className={imageClasses.overlay} {...slotProps.overlay} />;
+			return (
+				slotProps?.overlay && (
+					<ImageOverlay
+						className={imageClasses.overlay}
+						{...slotProps.overlay}
+					/>
+				)
+			);
 		},
-		// eslint-disable-next-line react/no-unstable-nested-components
+
 		placeholder: () => {
-			return showPlaceholder && <ImagePlaceholder className={imageClasses.placeholder} {...slotProps?.placeholder} />;
+			return (
+				showPlaceholder && (
+					<ImagePlaceholder
+						className={imageClasses.placeholder}
+						{...slotProps?.placeholder}
+					/>
+				)
+			);
 		},
-		// eslint-disable-next-line react/no-unstable-nested-components
+
 		image: () => {
-			return <ImageImg src={src} alt={alt} onLoad={handleImageLoad} className={imageClasses.img} {...slotProps?.img} />;
+			return (
+				<ImageImg
+					src={src}
+					alt={alt}
+					onLoad={handleImageLoad}
+					className={imageClasses.img}
+					{...slotProps?.img}
+				/>
+			);
 		},
 	};
 
 	return (
 		<ImageRoot
 			ref={mergeRefs([localRef, ref])}
-			effect={visibleByDefault || finalEffect.disabled ? undefined : finalEffect}
+			effect={
+				visibleByDefault || finalEffect.disabled ? undefined : finalEffect
+			}
 			className={mergeClasses([imageClasses.root, className], {
 				[imageClasses.state.loaded]: !visibleByDefault && isLoaded,
 			})}

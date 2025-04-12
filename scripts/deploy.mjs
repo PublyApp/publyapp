@@ -1,7 +1,7 @@
-/* eslint-disable import/no-extraneous-dependencies */
-import { spawnSync } from 'child_process';
-import path from 'path';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 
+import _ from 'lodash';
 import fse from 'fs-extra';
 
 // @ts-check
@@ -79,14 +79,26 @@ fse.copyFileSync(npmrcFileSrc, npmrcFileDest);
 //                              copy the app's package.json                              //
 // --------------------------------------------------------------------------------------//
 // server
-const serverAppPackageJsonSrc = path.join(SERVER_APP_DIR_SRC, packageJsonFileName);
-const serverAppPackageJsonDest = path.join(SERVER_APP_DIR_DEST, packageJsonFileName);
+const serverAppPackageJsonSrc = path.join(
+	SERVER_APP_DIR_SRC,
+	packageJsonFileName,
+);
+const serverAppPackageJsonDest = path.join(
+	SERVER_APP_DIR_DEST,
+	packageJsonFileName,
+);
 fse.mkdirpSync(SERVER_APP_DIR_DEST);
 fse.copyFileSync(serverAppPackageJsonSrc, serverAppPackageJsonDest);
 
 // front
-const frontAppPackageJsonSrc = path.join(FRONT_APP_DIR_SRC, packageJsonFileName);
-const frontAppPackageJsonDest = path.join(FRONT_APP_DIR_DEST, packageJsonFileName);
+const frontAppPackageJsonSrc = path.join(
+	FRONT_APP_DIR_SRC,
+	packageJsonFileName,
+);
+const frontAppPackageJsonDest = path.join(
+	FRONT_APP_DIR_DEST,
+	packageJsonFileName,
+);
 fse.mkdirpSync(FRONT_APP_DIR_DEST);
 fse.copyFileSync(frontAppPackageJsonSrc, frontAppPackageJsonDest);
 
@@ -101,7 +113,11 @@ fse.copyFileSync(patchFileSrc, patchFileDest);
 //                                  Build using turbo                                   //
 // --------------------------------------------------------------------------------------//
 const buildArgs = ['turbo', 'run', 'build', `--filter=${SERVER_APP_NAME}`];
-spawnSync(npxCommand, buildArgs, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+spawnSync(npxCommand, buildArgs, {
+	cwd: MONOREPO_ROOT_DIR,
+	stdio: 'inherit',
+	shell: true,
+});
 
 // ! if not using turbo build
 // // --------------------------------------------------------------------------------------//
@@ -141,8 +157,9 @@ const files = fse.readdirSync(path.join(PACKAGES_DIR_SRC));
 const subdirectories = files.filter((file) => {
 	return fse.statSync(path.join(PACKAGES_DIR_SRC, file)).isDirectory();
 });
+
 // Copy each subdirectory with only package.json to dist directory
-subdirectories.forEach((subdirectory) => {
+_.forEach(subdirectories, (subdirectory) => {
 	const sourcePath = path.join(PACKAGES_DIR_SRC, subdirectory, 'package.json');
 	const destPath = path.join(PACKAGES_DIR_DEST, subdirectory, 'package.json');
 	fse.copySync(sourcePath, destPath);
@@ -151,7 +168,10 @@ subdirectories.forEach((subdirectory) => {
 // --------------------------------------------------------------------------------------//
 //                                  set start command                                    //
 // --------------------------------------------------------------------------------------//
-const mainFile = path.relative(MONOREPO_ROOT_DIR, path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'));
+const mainFile = path.relative(
+	MONOREPO_ROOT_DIR,
+	path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'),
+);
 // console.log(mainFile);
 const START_SCRIPT = `node --enable-source-maps ./${mainFile.replace(/\\/g, '/')}`;
 const args = ['pnpm', 'pkg', 'set', `scripts.start="${START_SCRIPT}"`];

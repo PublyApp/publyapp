@@ -15,7 +15,14 @@ export type FontFamilyOptionsProps = BoxProps & {
 	onChangeOption: (newOption: string) => void;
 };
 
-export const FontFamilyOptions = ({ sx, icon, value, options, onChangeOption, ...other }: FontFamilyOptionsProps) => {
+export const FontFamilyOptions = ({
+	sx,
+	icon,
+	value,
+	options,
+	onChangeOption,
+	...other
+}: FontFamilyOptionsProps) => {
 	return (
 		<Box
 			sx={[
@@ -49,7 +56,9 @@ export const FontFamilyOptions = ({ sx, icon, value, options, onChangeOption, ..
 						}}
 					>
 						{icon}
-						{option.endsWith('Variable') ? option.replace(' Variable', '') : option}
+						{option.endsWith('Variable')
+							? option.replace(' Variable', '')
+							: option}
 					</OptionButton>
 				);
 			})}
@@ -65,7 +74,13 @@ export type FontSizeOptionsProps = SliderProps & {
 	onChangeOption: (newOption: number) => void;
 };
 
-export const FontSizeOptions = ({ sx, value, options, onChangeOption, ...other }: FontSizeOptionsProps) => {
+export const FontSizeOptions = ({
+	sx,
+	value,
+	options,
+	onChangeOption,
+	...other
+}: FontSizeOptionsProps) => {
 	return (
 		<Slider
 			marks

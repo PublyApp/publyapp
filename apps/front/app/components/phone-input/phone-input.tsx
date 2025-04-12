@@ -7,7 +7,10 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { inputBaseClasses } from '@mui/material/InputBase';
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
 import { parsePhoneNumber } from 'react-phone-number-input';
-import PhoneNumberInput, { type Country, type Value } from 'react-phone-number-input/input';
+import PhoneNumberInput, {
+	type Country,
+	type Value,
+} from 'react-phone-number-input/input';
 
 import { countries } from '@/front/assets/data/countries';
 
@@ -87,11 +90,13 @@ export const PhoneInput = ({
 					onSearchCountry={handleSearchCountry}
 					sx={{
 						pl: variant === 'standard' ? 0 : 1.5,
-						...(variant === 'standard' && hasLabel && { mt: size === 'small' ? '16px' : '20px' }),
+						...(variant === 'standard' &&
+							hasLabel && { mt: size === 'small' ? '16px' : '20px' }),
 						...((variant === 'filled' || variant === 'outlined') && {
 							mt: size === 'small' ? '8px' : '16px',
 						}),
-						...(variant === 'filled' && hasLabel && { mt: size === 'small' ? '21px' : '25px' }),
+						...(variant === 'filled' &&
+							hasLabel && { mt: size === 'small' ? '21px' : '25px' }),
 					}}
 				/>
 			)}

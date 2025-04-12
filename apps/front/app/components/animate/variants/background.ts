@@ -4,7 +4,10 @@ import type { TargetAndTransition, Transition, Variants } from 'framer-motion';
 
 type Direction = 'top' | 'bottom' | 'left' | 'right';
 
-export const varBgColor = (colors: string[], options?: TargetAndTransition): Variants => {
+export const varBgColor = (
+	colors: string[],
+	options?: TargetAndTransition,
+): Variants => {
 	return {
 		animate: {
 			background: colors,
@@ -12,7 +15,7 @@ export const varBgColor = (colors: string[], options?: TargetAndTransition): Var
 			transition: {
 				duration: 5,
 				ease: 'linear',
-				repeat: Infinity,
+				repeat: Number.POSITIVE_INFINITY,
 				repeatType: 'reverse',
 				...options?.transition,
 			},
@@ -22,7 +25,10 @@ export const varBgColor = (colors: string[], options?: TargetAndTransition): Var
 
 // ----------------------------------------------------------------------
 
-export const varBgKenburns = (direction: Direction, options?: TargetAndTransition): Variants => {
+export const varBgKenburns = (
+	direction: Direction,
+	options?: TargetAndTransition,
+): Variants => {
 	const transition: Transition = {
 		duration: 5,
 		ease: 'easeOut',
@@ -75,7 +81,11 @@ export const varBgKenburns = (direction: Direction, options?: TargetAndTransitio
 
 // ----------------------------------------------------------------------
 
-export const varBgPan = (direction: Direction, colors: string[], options?: TargetAndTransition): Variants => {
+export const varBgPan = (
+	direction: Direction,
+	colors: string[],
+	options?: TargetAndTransition,
+): Variants => {
 	const gradient = (deg: number) => {
 		return `linear-gradient(${deg}deg, ${colors.join(', ')})`;
 	};
@@ -83,7 +93,7 @@ export const varBgPan = (direction: Direction, colors: string[], options?: Targe
 	const transition: Transition = {
 		duration: 5,
 		ease: 'linear',
-		repeat: Infinity,
+		repeat: Number.POSITIVE_INFINITY,
 		repeatType: 'reverse',
 		...options?.transition,
 	};

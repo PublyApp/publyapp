@@ -54,7 +54,14 @@ export const NavSectionVertical = ({
 
 // ----------------------------------------------------------------------
 
-const Group = ({ items, render, subheader, slotProps, checkPermissions, enabledRootRedirect }: NavGroupProps) => {
+const Group = ({
+	items,
+	render,
+	subheader,
+	slotProps,
+	checkPermissions,
+	enabledRootRedirect,
+}: NavGroupProps) => {
 	const groupOpen = useBoolean(true);
 
 	const renderContent = () => {

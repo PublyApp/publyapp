@@ -11,7 +11,13 @@ export type MotionContainerProps = BoxProps &
 		action?: boolean;
 	};
 
-export const MotionContainer = ({ sx, animate, children, action = false, ...other }: MotionContainerProps) => {
+export const MotionContainer = ({
+	sx,
+	animate,
+	children,
+	action = false,
+	...other
+}: MotionContainerProps) => {
 	let animateProp: string;
 
 	if (animate && action) {

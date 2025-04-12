@@ -3,7 +3,7 @@ import { isValidElement, type ReactNode } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
 
 type Props = {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	queryResult: UseQueryResult<any, any>;
 	loadingStrategy?: 'loading' | 'pending' | 'fetching'; // defaults to 'pending'
 	loadingElement?: ReactNode;
@@ -14,7 +14,13 @@ type Props = {
 const defaultLoadingElement = <div>Loading...</div>;
 const defaultErrorElement = <div>Error...</div>;
 
-const QueryDisplay = ({ queryResult, loadingElement, errorElement, loadingStrategy, children }: Props) => {
+const QueryDisplay = ({
+	queryResult,
+	loadingElement,
+	errorElement,
+	loadingStrategy,
+	children,
+}: Props) => {
 	let showLoading: boolean;
 
 	switch (loadingStrategy) {

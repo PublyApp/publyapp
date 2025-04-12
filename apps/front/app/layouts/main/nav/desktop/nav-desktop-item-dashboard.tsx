@@ -12,7 +12,11 @@ type NavItemDashboardProps = BoxProps & {
 	path: string;
 };
 
-export const NavItemDashboard = ({ path, sx, ...other }: NavItemDashboardProps) => {
+export const NavItemDashboard = ({
+	path,
+	sx,
+	...other
+}: NavItemDashboardProps) => {
 	return (
 		<Link component={RouterLink} href={path}>
 			<Box

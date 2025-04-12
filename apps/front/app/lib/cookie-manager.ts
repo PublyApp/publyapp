@@ -50,7 +50,7 @@ export class CookieManager {
 	set(
 		name: string,
 		value: string,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		options?: Record<string, any> & {
 			expires?: Date;
 			maxAge?: number;

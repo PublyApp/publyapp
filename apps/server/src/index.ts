@@ -1,5 +1,5 @@
-import { createServer } from 'http';
-import path from 'path';
+import { createServer } from 'node:http';
+import path from 'node:path';
 
 import { ParseServer } from 'parse-server/lib/index.js';
 import Parse from 'parse/node.js';
@@ -32,7 +32,12 @@ import {
 	updateSchemasOnInit,
 } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
-import { corsWhiteList, EXPRESS_FILES_MOUNT_PATH, FILE_UPLOAD_DESTINATION, PARSE_SERVER_URL } from './lib/constants';
+import {
+	corsWhiteList,
+	EXPRESS_FILES_MOUNT_PATH,
+	FILE_UPLOAD_DESTINATION,
+	PARSE_SERVER_URL,
+} from './lib/constants';
 import { env } from './lib/env';
 import { expressHandler } from './lib/express';
 import { initI18next } from './lib/i18n';
@@ -72,7 +77,11 @@ const bootstrap = async () => {
 			},
 		}),
 	);
-	app.use(corsMiddleware({ whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE }));
+	app.use(
+		corsMiddleware({
+			whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
+		}),
+	);
 	app.use((req, _res, next) => {
 		// The parse API end the custom API are both under this root path
 		// use only urlencoded there because Remix (React Router 7) will not
@@ -182,7 +191,11 @@ const bootstrap = async () => {
 		app.all(
 			path.posix.join(endPoint.api.root, 'test'),
 			expressHandler(async (req, res) => {
-				logger.info('test route hit', { lol: 'test', password: 'azerty', body: req.body });
+				logger.info('test route hit', {
+					lol: 'test',
+					password: 'azerty',
+					body: req.body,
+				});
 				return res.status(200).json({ ok: 'ok' });
 			}),
 		);
@@ -199,7 +212,9 @@ const bootstrap = async () => {
 	//                  mount remix build when in a deployment environment                   //
 	// --------------------------------------------------------------------------------------//
 	if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
-		app.use(express.static(path.resolve(__dirname, '../../front/build/client')));
+		app.use(
+			express.static(path.resolve(__dirname, '../../front/build/client')),
+		);
 
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
@@ -207,7 +222,9 @@ const bootstrap = async () => {
 			createRequestHandler({
 				// `remix build` and `remix dev` output files to a build directory, you need
 				// to pass that build to the request handler
-				build: await import(/* webpackIgnore: true */ 'front/build/server/index.js'), // ! the '.js' extension is important
+				build: await import(
+					/* webpackIgnore: true */ 'front/build/server/index.js'
+				), // ! the '.js' extension is important
 
 				// return anything you want here to be available as `context` in your
 				// loaders and actions. This is where you can bridge the gap between Remix
@@ -227,7 +244,6 @@ const bootstrap = async () => {
 	const server = createServer(app);
 
 	server.on('request', (req, _res) => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		req.socket.remoteAddress; // make express req.ip work in bun
 	});
 
@@ -236,16 +252,22 @@ const bootstrap = async () => {
 	app.use(errorMiddleware);
 
 	server.listen(env.PORT, env.LOCAL ? 'localhost' : '0.0.0.0', () => {
-		logger.info('================================================================');
+		logger.info(
+			'================================================================',
+		);
 		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
 
 		if (env.LOCAL) {
 			const dashUrl = new URL(env.SERVER_URL);
 			dashUrl.pathname = PARSE_DASHBOARD_MOUNT_PATH;
-			logger.info(`    access the dashboard at ${chalk.cyan(dashUrl.toString())}    `);
+			logger.info(
+				`    access the dashboard at ${chalk.cyan(dashUrl.toString())}    `,
+			);
 		}
 
-		logger.info('================================================================');
+		logger.info(
+			'================================================================',
+		);
 	});
 
 	await setCurrentInstallationId(); // ! This must be awaited here before any other tasks

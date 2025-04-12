@@ -1,5 +1,4 @@
-// import type i18next from 'i18next';
-import { type TFunction } from 'i18next';
+import type { TFunction } from 'i18next';
 import _ from 'lodash';
 import z, {
 	defaultErrorMap,
@@ -88,10 +87,15 @@ class InterZod {
 				issue.path.length > 0 && !!handlePath
 					? {
 							context: handlePath.context,
-							path: (t as GenericFunction)([handlePath.keyPrefix, issue.path.join('.')].filter(Boolean).join('.'), {
-								ns: handlePath.ns,
-								defaultValue: issue.path.join('.'),
-							} as never),
+							path: (t as GenericFunction)(
+								[handlePath.keyPrefix, issue.path.join('.')]
+									.filter(Boolean)
+									.join('.'),
+								{
+									ns: handlePath.ns,
+									defaultValue: issue.path.join('.'),
+								} as never,
+							),
 						}
 					: {};
 
@@ -123,7 +127,6 @@ class InterZod {
 				}
 
 				default: {
-					// eslint-disable-next-line @typescript-eslint/naming-convention
 					const { message: _message } = errorMap1(issue, ctx);
 					message = _message;
 					break;
@@ -140,14 +143,26 @@ class InterZod {
 		return z.string({ errorMap: this.getErrorMap(), ...params });
 	}
 
-	enum<U extends string, T extends Readonly<[U, ...U[]]>>(values: T, params?: RawCreateParams): ZodEnum<Writeable<T>>;
-	enum<U extends string, T extends [U, ...U[]]>(values: T, params?: RawCreateParams): ZodEnum<T>;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	enum(values: any, params?: any) {
+	enum<U extends string, T extends Readonly<[U, ...U[]]>>(
+		values: T,
+		params?: RawCreateParams,
+	): ZodEnum<Writeable<T>>;
+	enum<U extends string, T extends [U, ...U[]]>(
+		values: T,
+		params?: RawCreateParams,
+	): ZodEnum<T>;
+
+	enum<U extends string, T extends [U, ...U[]]>(
+		values: T,
+		params?: RawCreateParams,
+	): ZodEnum<T> {
 		return z.enum(values, { errorMap: this.getErrorMap(), ...params });
 	}
 
-	object<T extends Parameters<typeof z.object>[0]>(schema: T, params?: Parameters<typeof z.object>[1]) {
+	object<T extends Parameters<typeof z.object>[0]>(
+		schema: T,
+		params?: Parameters<typeof z.object>[1],
+	) {
 		return z.object(schema, { errorMap: this.getErrorMap(), ...params });
 	}
 
@@ -159,7 +174,10 @@ class InterZod {
 		return z.number({ errorMap: this.getErrorMap(), ...params });
 	}
 
-	array(schema: Parameters<typeof z.array>[0], params?: Parameters<typeof z.array>[1]) {
+	array(
+		schema: Parameters<typeof z.array>[0],
+		params?: Parameters<typeof z.array>[1],
+	) {
 		return z.array(schema, { errorMap: this.getErrorMap(), ...params });
 	}
 
@@ -169,17 +187,25 @@ class InterZod {
 
 	discriminatedUnion<
 		Discriminator extends string,
-		Types extends [ZodDiscriminatedUnionOption<Discriminator>, ...ZodDiscriminatedUnionOption<Discriminator>[]],
+		Types extends [
+			ZodDiscriminatedUnionOption<Discriminator>,
+			...ZodDiscriminatedUnionOption<Discriminator>[],
+		],
 	>(discriminator: Discriminator, options: Types, params?: RawCreateParams) {
-		return z.discriminatedUnion(discriminator, options, { errorMap: this.getErrorMap(), ...params });
+		return z.discriminatedUnion(discriminator, options, {
+			errorMap: this.getErrorMap(),
+			...params,
+		});
 	}
 
 	literal<T extends Primitive>(value: T, params?: RawCreateParams) {
 		return z.literal(value, { errorMap: this.getErrorMap(), ...params });
 	}
 
-	// eslint-disable-next-line class-methods-use-this
-	custom<T>(check?: Parameters<typeof z.custom>[0], params?: Parameters<typeof z.custom>[1]) {
+	custom<T>(
+		check?: Parameters<typeof z.custom>[0],
+		params?: Parameters<typeof z.custom>[1],
+	) {
 		return z.custom<T>(check, params);
 	}
 }

@@ -13,13 +13,19 @@ export const schemaHelper = {
 	 * Phone number
 	 * Apply for phone number input.
 	 */
-	phoneNumber: (props?: { message?: MessageMapProps; isValid?: (text: string) => boolean }) => {
+	phoneNumber: (props?: {
+		message?: MessageMapProps;
+		isValid?: (text: string) => boolean;
+	}) => {
 		return zod
 			.string({
 				required_error: props?.message?.required ?? 'Phone number is required!',
-				invalid_type_error: props?.message?.invalid_type ?? 'Invalid phone number!',
+				invalid_type_error:
+					props?.message?.invalid_type ?? 'Invalid phone number!',
 			})
-			.min(1, { message: props?.message?.required ?? 'Phone number is required!' })
+			.min(1, {
+				message: props?.message?.required ?? 'Phone number is required!',
+			})
 			.refine(
 				(data) => {
 					return props?.isValid?.(data);
@@ -67,13 +73,18 @@ export const schemaHelper = {
 	 * Apply for editor
 	 */
 	editor: (props?: { message: string }) => {
-		return zod.string().min(8, { message: props?.message ?? 'Content is required!' });
+		return zod
+			.string()
+			.min(8, { message: props?.message ?? 'Content is required!' });
 	},
 	/**
 	 * Nullable Input
 	 * Apply for input, select... with null value.
 	 */
-	nullableInput: <T extends ZodTypeAny>(schema: T, options?: { message?: string }) => {
+	nullableInput: <T extends ZodTypeAny>(
+		schema: T,
+		options?: { message?: string },
+	) => {
 		return schema.nullable().transform((val, ctx) => {
 			if (val === null || val === undefined) {
 				ctx.addIssue({
@@ -113,7 +124,9 @@ export const schemaHelper = {
 					return data[0] >= props?.min && data[1] <= props?.max;
 				},
 				{
-					message: props.message ?? `Range must be between ${props?.min} and ${props?.max}`,
+					message:
+						props.message ??
+						`Range must be between ${props?.min} and ${props?.max}`,
 				},
 			);
 	},
@@ -123,7 +136,8 @@ export const schemaHelper = {
 	 */
 	file: (props?: { message: string }) => {
 		return zod.custom<File | string | null>().transform((data, ctx) => {
-			const hasFile = data instanceof File || (typeof data === 'string' && !!data.length);
+			const hasFile =
+				data instanceof File || (typeof data === 'string' && !!data.length);
 
 			if (!hasFile) {
 				ctx.addIssue({

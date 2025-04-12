@@ -8,7 +8,10 @@ import { listClasses } from '@mui/material/List';
 import { listItemIconClasses } from '@mui/material/ListItemIcon';
 import { paperClasses } from '@mui/material/Paper';
 import type { Components, Theme } from '@mui/material/styles';
-import SvgIcon, { svgIconClasses, type SvgIconProps } from '@mui/material/SvgIcon';
+import SvgIcon, {
+	svgIconClasses,
+	type SvgIconProps,
+} from '@mui/material/SvgIcon';
 import { textFieldClasses } from '@mui/material/TextField';
 import { varAlpha } from 'minimal-shared/utils';
 
@@ -22,14 +25,22 @@ const MuiDataGrid: Components<Theme>['MuiDataGrid'] = {
 		slots: {
 			/* Column */
 			columnSortedAscendingIcon: (props: SvgIconProps) => {
-				return <DataGridArrowUpIcon sx={{ color: 'text.primary' }} {...props} />;
+				return (
+					<DataGridArrowUpIcon sx={{ color: 'text.primary' }} {...props} />
+				);
 			},
 			columnSortedDescendingIcon: (props: SvgIconProps) => {
-				return <DataGridArrowDownIcon sx={{ color: 'text.primary' }} {...props} />;
+				return (
+					<DataGridArrowDownIcon sx={{ color: 'text.primary' }} {...props} />
+				);
 			},
 			columnUnsortedIcon: (props: SvgIconProps) => {
 				return (
-					<DataGridArrowUpIcon fontSize={props.fontSize} className={props.className} sx={{ color: 'text.disabled' }} />
+					<DataGridArrowUpIcon
+						fontSize={props.fontSize}
+						className={props.className}
+						sx={{ color: 'text.disabled' }}
+					/>
 				);
 			},
 			columnMenuIcon: (props: SvgIconProps) => {
@@ -61,7 +72,12 @@ const MuiDataGrid: Components<Theme>['MuiDataGrid'] = {
 				return <DataGridFilterIcon {...props} />;
 			},
 			columnFilteredIcon: (props: SvgIconProps) => {
-				return <DataGridFilterIcon sx={{ width: 16, color: 'text.primary' }} {...props} />;
+				return (
+					<DataGridFilterIcon
+						sx={{ width: 16, color: 'text.primary' }}
+						{...props}
+					/>
+				);
 			},
 			/* Density */
 			densityCompactIcon: (props: SvgIconProps) => {
@@ -79,7 +95,12 @@ const MuiDataGrid: Components<Theme>['MuiDataGrid'] = {
 			},
 			/*  Quick Filter */
 			quickFilterIcon: (props: SvgIconProps) => {
-				return <DataGridSearchIcon sx={{ width: 24, height: 24, color: 'text.secondary' }} {...props} />;
+				return (
+					<DataGridSearchIcon
+						sx={{ width: 24, height: 24, color: 'text.secondary' }}
+						{...props}
+					/>
+				);
 			},
 			quickFilterClearIcon: (props: SvgIconProps) => {
 				return <DataGridCloseIcon {...props} />;
@@ -132,10 +153,12 @@ const MuiDataGrid: Components<Theme>['MuiDataGrid'] = {
 				'& .MuiDataGrid-virtualScrollerContent': {
 					'& .MuiDataGrid-row': {
 						'&:hover': {
-							'& .MuiDataGrid-cell--pinnedLeft, & .MuiDataGrid-cell--pinnedRight': styles.pinnedCell.common,
+							'& .MuiDataGrid-cell--pinnedLeft, & .MuiDataGrid-cell--pinnedRight':
+								styles.pinnedCell.common,
 						},
 						'&.Mui-selected': {
-							'& .MuiDataGrid-cell--pinnedLeft, & .MuiDataGrid-cell--pinnedRight': styles.pinnedCell.selected,
+							'& .MuiDataGrid-cell--pinnedLeft, & .MuiDataGrid-cell--pinnedRight':
+								styles.pinnedCell.selected,
 							'&:hover .MuiDataGrid-cell--pinnedLeft, &:hover .MuiDataGrid-cell--pinnedRight':
 								styles.pinnedCell.selected,
 						},
@@ -163,7 +186,10 @@ const MuiDataGrid: Components<Theme>['MuiDataGrid'] = {
 				borderTopStyle: 'dashed',
 				'&--editing': {
 					boxShadow: 'none',
-					backgroundColor: varAlpha(theme.vars.palette.primary.mainChannel, 0.08),
+					backgroundColor: varAlpha(
+						theme.vars.palette.primary.mainChannel,
+						0.08,
+					),
 				},
 				'&--pinnedLeft, &--pinnedRight': {
 					'&::after': {
@@ -200,7 +226,10 @@ const MuiDataGrid: Components<Theme>['MuiDataGrid'] = {
 		 * Paper
 		 */
 		paper: ({ theme }) => {
-			return { ...theme.mixins.paperStyles(theme, { dropdown: true }), padding: 0 };
+			return {
+				...theme.mixins.paperStyles(theme, { dropdown: true }),
+				padding: 0,
+			};
 		},
 		menu: ({ theme }) => {
 			return {
@@ -210,7 +239,10 @@ const MuiDataGrid: Components<Theme>['MuiDataGrid'] = {
 				},
 				[`& .${listClasses.root}`]: {
 					padding: 0,
-					[`& .${listItemIconClasses.root}`]: { minWidth: 0, marginRight: theme.spacing(2) },
+					[`& .${listItemIconClasses.root}`]: {
+						minWidth: 0,
+						marginRight: theme.spacing(2),
+					},
 				},
 			};
 		},
@@ -240,7 +272,9 @@ const MuiDataGrid: Components<Theme>['MuiDataGrid'] = {
 		selectedRowCount: { display: 'none', whiteSpace: 'nowrap' },
 		overlay: ({ theme }) => {
 			return {
-				[`& .${circularProgressClasses.root}`]: { color: theme.vars.palette.text.primary },
+				[`& .${circularProgressClasses.root}`]: {
+					color: theme.vars.palette.text.primary,
+				},
 			};
 		},
 		/**
@@ -278,14 +312,19 @@ const MuiDataGrid: Components<Theme>['MuiDataGrid'] = {
 				gap: theme.spacing(1.5),
 				padding: theme.spacing(2),
 				/* Fix label with input variant === 'outlined' */
-				[`& .${inputLabelClasses.shrink}`]: { transform: 'translate(14px, -9px) scale(0.75)' },
+				[`& .${inputLabelClasses.shrink}`]: {
+					transform: 'translate(14px, -9px) scale(0.75)',
+				},
 			};
 		},
 		filterFormDeleteIcon: ({ theme }) => {
 			return {
 				[`& .${iconButtonClasses.root}`]: {
 					padding: theme.spacing(0.25),
-					backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+					backgroundColor: varAlpha(
+						theme.vars.palette.grey['500Channel'],
+						0.16,
+					),
 					[`& .${svgIconClasses.root}`]: { width: 16, height: 16 },
 				},
 			};
@@ -300,7 +339,10 @@ export const dataGrid = { MuiDataGrid };
 const svgIconProps = (props: SvgIconProps) => {
 	return {
 		...props,
-		sx: [{ width: 20, height: 20 }, ...(Array.isArray(props?.sx) ? props?.sx ?? [] : [props?.sx])],
+		sx: [
+			{ width: 20, height: 20 },
+			...(Array.isArray(props?.sx) ? (props?.sx ?? []) : [props?.sx]),
+		],
 	};
 };
 
@@ -315,7 +357,11 @@ const DataGridArrowUpIcon = (props: SvgIconProps) => {
 				fill="currentColor"
 				d="m8.303 11.596l3.327-3.431a.499.499 0 0 1 .74 0l6.43 6.63c.401.414.158 1.205-.37 1.205h-5.723z"
 			/>
-			<path fill="currentColor" d="M11.293 16H5.57c-.528 0-.771-.791-.37-1.205l2.406-2.482z" opacity="0.5" />
+			<path
+				fill="currentColor"
+				d="M11.293 16H5.57c-.528 0-.771-.791-.37-1.205l2.406-2.482z"
+				opacity="0.5"
+			/>
 		</SvgIcon>
 	);
 };
@@ -328,7 +374,11 @@ const DataGridArrowDownIcon = (props: SvgIconProps) => {
 				fill="currentColor"
 				d="m8.303 12.404l3.327 3.431c.213.22.527.22.74 0l6.43-6.63C19.201 8.79 18.958 8 18.43 8h-5.723z"
 			/>
-			<path fill="currentColor" d="M11.293 8H5.57c-.528 0-.771.79-.37 1.205l2.406 2.481z" opacity="0.5" />
+			<path
+				fill="currentColor"
+				d="M11.293 8H5.57c-.528 0-.771.79-.37 1.205l2.406 2.481z"
+				opacity="0.5"
+			/>
 		</SvgIcon>
 	);
 };
@@ -367,7 +417,10 @@ const DataGridExportIcon = (props: SvgIconProps) => {
 const DataGridEyeIcon = (props: SvgIconProps) => {
 	return (
 		<SvgIcon {...svgIconProps(props)}>
-			<path fill="currentColor" d="M9.75 12a2.25 2.25 0 1 1 4.5 0a2.25 2.25 0 0 1-4.5 0" />
+			<path
+				fill="currentColor"
+				d="M9.75 12a2.25 2.25 0 1 1 4.5 0a2.25 2.25 0 0 1-4.5 0"
+			/>
 			<path
 				fill="currentColor"
 				fillRule="evenodd"

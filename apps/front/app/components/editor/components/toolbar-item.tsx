@@ -6,9 +6,15 @@ import type { EditorToolbarItemProps } from '../types';
 
 // ----------------------------------------------------------------------
 
-export const ToolbarItem = ({ sx, icon, label, active, disabled, ...other }: EditorToolbarItemProps) => {
+export const ToolbarItem = ({
+	sx,
+	icon,
+	label,
+	active,
+	disabled,
+	...other
+}: EditorToolbarItemProps) => {
 	return (
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		<ItemRoot active={active} disabled={disabled} sx={sx} {...other}>
 			{icon && <SvgIcon sx={{ fontSize: 18 }}>{icon}</SvgIcon>}
 			{label && label}

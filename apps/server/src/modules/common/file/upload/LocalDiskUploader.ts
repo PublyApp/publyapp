@@ -1,18 +1,19 @@
-import path from 'path';
+import path from 'node:path';
 
 import sharp from 'sharp';
 
 import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
 import { fileProvider } from '@/shared/lib/constants';
 
-import { type Uploader, type UploadInput } from './Uploader.interface';
+import type { Uploader, UploadInput } from './Uploader.interface';
 
 export default class LocalDiskUploader implements Uploader {
 	provider = fileProvider.LOCAL_DISK;
 
-	// eslint-disable-next-line class-methods-use-this
 	async upload(params: UploadInput) {
-		await sharp(params.buffer).toFile(path.join(FILE_UPLOAD_DESTINATION, params.name));
+		await sharp(params.buffer).toFile(
+			path.join(FILE_UPLOAD_DESTINATION, params.name),
+		);
 
 		return {
 			// ! remember to:

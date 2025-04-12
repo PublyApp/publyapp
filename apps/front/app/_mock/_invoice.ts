@@ -22,7 +22,8 @@ export const INVOICE_SERVICE_OPTIONS = Array.from({ length: 8 }, (_, index) => {
 });
 
 const ITEMS = Array.from({ length: 3 }, (__, index) => {
-	const total = INVOICE_SERVICE_OPTIONS[index].price * _mock.number.nativeS(index);
+	const total =
+		INVOICE_SERVICE_OPTIONS[index].price * _mock.number.nativeS(index);
 
 	return {
 		id: _mock.id(index),
@@ -35,7 +36,6 @@ const ITEMS = Array.from({ length: 3 }, (__, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _invoices = Array.from({ length: 20 }, (_, index) => {
 	const taxes = _mock.number.price(index + 1);
 
@@ -49,7 +49,11 @@ export const _invoices = Array.from({ length: 20 }, (_, index) => {
 
 	const totalAmount = subtotal - shipping - discount + taxes;
 
-	const status = (index % 2 && 'paid') || (index % 3 && 'pending') || (index % 4 && 'overdue') || 'draft';
+	const status =
+		(index % 2 && 'paid') ||
+		(index % 3 && 'pending') ||
+		(index % 4 && 'overdue') ||
+		'draft';
 
 	return {
 		id: _mock.id(index),

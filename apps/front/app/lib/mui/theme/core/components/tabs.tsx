@@ -7,7 +7,11 @@ const MuiTabs: Components<Theme>['MuiTabs'] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
-	defaultProps: { textColor: 'inherit', variant: 'scrollable', allowScrollButtonsMobile: true },
+	defaultProps: {
+		textColor: 'inherit',
+		variant: 'scrollable',
+		allowScrollButtonsMobile: true,
+	},
 
 	/** **************************************
 	 * STYLE

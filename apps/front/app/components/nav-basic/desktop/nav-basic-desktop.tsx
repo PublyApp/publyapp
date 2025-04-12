@@ -22,7 +22,11 @@ export const NavBasicDesktop = ({
 	const cssVars = { ...navBasicVars.desktop(theme), ...overridesVars };
 
 	return (
-		<Nav className={navBasicClasses.desktop} sx={[{ ...cssVars }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
+		<Nav
+			className={navBasicClasses.desktop}
+			sx={[{ ...cssVars }, ...(Array.isArray(sx) ? sx : [sx])]}
+			{...other}
+		>
 			<NavUl sx={{ flexDirection: 'row', gap: 'var(--nav-item-gap)' }}>
 				{data.map((list) => {
 					return (

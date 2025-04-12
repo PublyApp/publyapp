@@ -14,8 +14,22 @@ import type { UploadProps } from './types';
 
 // ----------------------------------------------------------------------
 
-export const UploadAvatar = ({ sx, error, value, disabled, helperText, className, ...other }: UploadProps) => {
-	const { getRootProps, getInputProps, isDragActive, isDragReject, fileRejections } = useDropzone({
+export const UploadAvatar = ({
+	sx,
+	error,
+	value,
+	disabled,
+	helperText,
+	className,
+	...other
+}: UploadProps) => {
+	const {
+		getRootProps,
+		getInputProps,
+		isDragActive,
+		isDragReject,
+		fileRejections,
+	} = useDropzone({
 		multiple: false,
 		disabled,
 		accept: { 'image/*': [] },
@@ -37,7 +51,15 @@ export const UploadAvatar = ({ sx, error, value, disabled, helperText, className
 	}, [value]);
 
 	const renderPreview = () => {
-		return hasFile && <Image alt="Avatar" src={preview} sx={{ width: 1, height: 1, borderRadius: '50%' }} />;
+		return (
+			hasFile && (
+				<Image
+					alt="Avatar"
+					src={preview}
+					sx={{ width: 1, height: 1, borderRadius: '50%' }}
+				/>
+			)
+		);
 	};
 
 	const renderPlaceholder = () => {
@@ -79,7 +101,9 @@ export const UploadAvatar = ({ sx, error, value, disabled, helperText, className
 			>
 				<Iconify icon="solar:camera-add-bold" width={32} />
 
-				<Typography variant="caption">{hasFile ? 'Update photo' : 'Upload photo'}</Typography>
+				<Typography variant="caption">
+					{hasFile ? 'Update photo' : 'Upload photo'}
+				</Typography>
 			</Box>
 		);
 	};
@@ -121,7 +145,9 @@ export const UploadAvatar = ({ sx, error, value, disabled, helperText, className
 							...(disabled && { opacity: 0.48, pointerEvents: 'none' }),
 							...(hasError && { borderColor: 'error.main' }),
 							...(hasFile && {
-								...(hasError && { bgcolor: varAlpha(theme.vars.palette.error.mainChannel, 0.08) }),
+								...(hasError && {
+									bgcolor: varAlpha(theme.vars.palette.error.mainChannel, 0.08),
+								}),
 								'&:hover .upload-placeholder': { opacity: 1 },
 							}),
 						};

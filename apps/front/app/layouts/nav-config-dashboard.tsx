@@ -14,8 +14,7 @@ import { SvgColor } from '../components/svg-color/svg-color';
 // ----------------------------------------------------------------------
 
 const icon = (name: string) => {
-	// eslint-disable-next-line no-useless-concat
-	return <SvgColor src={`/assets/icons/navbar/${name}` + '.svg'} />;
+	return <SvgColor src={`/assets/icons/navbar/${name}.svg`} />;
 };
 
 const ICONS = {

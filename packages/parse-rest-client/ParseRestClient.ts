@@ -3,7 +3,10 @@ import _ from 'lodash';
 import axios from 'axios';
 
 import { AxiosHttp, getProtectionHeaders } from '@org/shared/lib/axios';
-import { PARSE_APPLICATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@org/shared/lib/constants';
+import {
+	PARSE_APPLICATION_ID_HEADER_KEY,
+	PARSE_SESSION_TOKEN_HEADER_KEY,
+} from '@org/shared/lib/constants';
 import type { IUser } from '@org/shared/types/db/user.types';
 
 import ParseRestError from './ParseRestError';
@@ -37,7 +40,6 @@ export default class ParseRestClient {
 
 		this.serverUrl = url.origin;
 
-		// eslint-disable-next-line prefer-destructuring
 		this.parsePath = url.pathname[1];
 
 		const axiosInstance = axios.create({
@@ -45,7 +47,8 @@ export default class ParseRestClient {
 		});
 
 		// set default headers
-		axiosInstance.defaults.headers.common[PARSE_APPLICATION_ID_HEADER_KEY] = applicationId;
+		axiosInstance.defaults.headers.common[PARSE_APPLICATION_ID_HEADER_KEY] =
+			applicationId;
 
 		// interceptors
 		axiosInstance.interceptors.response.use(
@@ -78,10 +81,16 @@ export default class ParseRestClient {
 						  }>
 						| undefined) || {};
 					const parseCode: number = errorCode || -1;
-					const message: string = errorMessage || error.message || 'Unknown Error';
+					const message: string =
+						errorMessage || error.message || 'Unknown Error';
 					const code: string = xcode || error.code || 'ERR_UNKNOWN';
 
-					throw new ParseRestError({ httpStatusCode, parseCode, message, code });
+					throw new ParseRestError({
+						httpStatusCode,
+						parseCode,
+						message,
+						code,
+					});
 				}
 
 				if (_.isError(error)) {
@@ -113,36 +122,45 @@ export default class ParseRestClient {
 	}
 
 	getSessionToken() {
-		return this.http.axios.defaults.headers.common[PARSE_SESSION_TOKEN_HEADER_KEY];
+		return this.http.axios.defaults.headers.common[
+			PARSE_SESSION_TOKEN_HEADER_KEY
+		];
 	}
 
 	/**
 	 * run cloud function
 	 */
-	async cloudRun<R, P extends Record<string, unknown> = Record<string, unknown>>(
-		functionName: string,
-		options: RunOptions<P> = {},
-	) {
-		return this.http.post<R, P>(_.join(['/functions', functionName], '/'), options.params as never, {
-			headers: getProtectionHeaders({ sessionToken: options.sessionToken }),
-			transformResponse: [
-				...(this.http.axios.defaults.transformResponse as never),
-				(data: unknown) => {
-					if (_.isObject(data) && 'result' in data) {
-						return data.result;
-					}
+	async cloudRun<
+		R,
+		P extends Record<string, unknown> = Record<string, unknown>,
+	>(functionName: string, options: RunOptions<P> = {}) {
+		return this.http.post<R, P>(
+			_.join(['/functions', functionName], '/'),
+			options.params as never,
+			{
+				headers: getProtectionHeaders({ sessionToken: options.sessionToken }),
+				transformResponse: [
+					...(this.http.axios.defaults.transformResponse as never),
+					(data: unknown) => {
+						if (_.isObject(data) && 'result' in data) {
+							return data.result;
+						}
 
-					return data;
-				},
-			],
-		});
+						return data;
+					},
+				],
+			},
+		);
 	}
 
 	/**
 	 * login with username/email and password
 	 */
 	async passwordLogin(
-		input: ({ username: string; email?: undefined } | { email: string; username?: string }) & { password: string },
+		input: (
+			| { username: string; email?: undefined }
+			| { email: string; username?: string }
+		) & { password: string },
 	) {
 		const { password } = input;
 		const identifier = input.email || input.username;
@@ -152,7 +170,11 @@ export default class ParseRestClient {
 			[PARSE_SESSION_TOKEN_HEADER_KEY]: undefined,
 		});
 
-		return this.http.post<IUser & { sessionToken: string }>('/login', { username: identifier, password }, { headers });
+		return this.http.post<IUser & { sessionToken: string }>(
+			'/login',
+			{ username: identifier, password },
+			{ headers },
+		);
 	}
 
 	async logOut() {

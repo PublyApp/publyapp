@@ -13,7 +13,7 @@ export const userSeedFactory = () => {
 	const email = faker.internet.email({ firstName, lastName });
 
 	const GENERIC_PASSWORD = '123456789@';
-	// eslint-disable-next-line @typescript-eslint/naming-convention
+
 	// const _hashed_password = hash(GENERIC_PASSWORD);
 
 	const user = new ParseUser({
@@ -39,7 +39,10 @@ export const createUsers = async ({ num }: { num: number }) => {
 			throw new Error('BATCH_SAVE_LIMIT exceeded');
 		}
 
-		const results = await Parse.Object.saveAll(users, { batchSize: BATCH_SAVE_LIMIT, useMasterKey: true });
+		const results = await Parse.Object.saveAll(users, {
+			batchSize: BATCH_SAVE_LIMIT,
+			useMasterKey: true,
+		});
 		savedUsers.push(...results);
 	}, 5);
 
@@ -70,5 +73,9 @@ export const createUsers = async ({ num }: { num: number }) => {
 };
 
 export const cleanUsers = async () => {
-	return Parse.Cloud.run(functionName.auth.removeSeededUsers, null, USE_MASTER_KEY);
+	return Parse.Cloud.run(
+		functionName.auth.removeSeededUsers,
+		null,
+		USE_MASTER_KEY,
+	);
 };

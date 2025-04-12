@@ -15,24 +15,37 @@ import { NavItem } from './nav-item';
 
 // ----------------------------------------------------------------------
 
-export const NavList = ({ data, depth, render, cssVars, slotProps, enabledRootRedirect }: NavListProps) => {
+export const NavList = ({
+	data,
+	depth,
+	render,
+	cssVars,
+	slotProps,
+	enabledRootRedirect,
+}: NavListProps) => {
 	const theme = useTheme();
 
 	const pathname = usePathname();
 
 	const isActive = isActiveLink(pathname, data.path, !!data.children);
 
-	const { open, onOpen, onClose, anchorEl, elementRef: navItemRef } = usePopoverHover<HTMLButtonElement>();
+	const {
+		open,
+		onOpen,
+		onClose,
+		anchorEl,
+		elementRef: navItemRef,
+	} = usePopoverHover<HTMLButtonElement>();
 
 	const isRtl = theme.direction === 'rtl';
 	const id = open ? `${data.title}-popover` : undefined;
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		// If the pathname changes, close the menu
 		if (open) {
 			onClose();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	const handleOpenMenu = useCallback(() => {
@@ -98,10 +111,15 @@ export const NavList = ({ data, depth, render, cssVars, slotProps, enabledRootRe
 					}}
 					sx={{
 						...cssVars,
-						[`& .${popoverClasses.paper}`]: { ...(depth === 1 && { pt: 1, ml: -0.75 }) },
+						[`& .${popoverClasses.paper}`]: {
+							...(depth === 1 && { pt: 1, ml: -0.75 }),
+						},
 					}}
 				>
-					<NavDropdownPaper className={navBasicClasses.dropdown.paper} sx={slotProps?.dropdown?.paper}>
+					<NavDropdownPaper
+						className={navBasicClasses.dropdown.paper}
+						sx={slotProps?.dropdown?.paper}
+					>
 						{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 						<NavSubList
 							data={data.children}
@@ -134,7 +152,14 @@ export const NavList = ({ data, depth, render, cssVars, slotProps, enabledRootRe
 
 // ----------------------------------------------------------------------
 
-const NavSubList = ({ data, render, cssVars, depth = 0, slotProps, enabledRootRedirect }: NavSubListProps) => {
+const NavSubList = ({
+	data,
+	render,
+	cssVars,
+	depth = 0,
+	slotProps,
+	enabledRootRedirect,
+}: NavSubListProps) => {
 	return (
 		<NavUl sx={{ gap: 0.5 }}>
 			{data.map((list) => {

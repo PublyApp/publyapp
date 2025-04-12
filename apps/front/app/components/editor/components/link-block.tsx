@@ -34,13 +34,19 @@ export const LinkBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
 		setAnchorEl(null);
 	};
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	const handleUpdateUrl = useCallback(() => {
 		handleClosePopover();
 
 		if (!url) {
 			editor?.chain().focus().extendMarkRange('link').unsetLink().run();
 		} else {
-			editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+			editor
+				?.chain()
+				.focus()
+				.extendMarkRange('link')
+				.setLink({ href: url })
+				.run();
 		}
 	}, [editor, url]);
 

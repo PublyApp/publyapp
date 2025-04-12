@@ -16,7 +16,12 @@ export type RHFRatingProps = RatingProps & {
 	};
 };
 
-export const RHFRating = ({ name, helperText, slotProps, ...other }: RHFRatingProps) => {
+export const RHFRating = ({
+	name,
+	helperText,
+	slotProps,
+	...other
+}: RHFRatingProps) => {
 	const { control } = useFormContext();
 
 	return (
@@ -29,7 +34,9 @@ export const RHFRating = ({ name, helperText, slotProps, ...other }: RHFRatingPr
 						{...slotProps?.wrapper}
 						sx={[
 							{ display: 'flex', flexDirection: 'column' },
-							...(Array.isArray(slotProps?.wrapper?.sx) ? slotProps?.wrapper?.sx ?? [] : [slotProps?.wrapper?.sx]),
+							...(Array.isArray(slotProps?.wrapper?.sx)
+								? (slotProps?.wrapper?.sx ?? [])
+								: [slotProps?.wrapper?.sx]),
 						]}
 					>
 						<Rating

@@ -63,20 +63,36 @@ export const NavItem = ({
 			{...other}
 		>
 			{icon && (
-				<ItemIcon {...ownerState} className={navBasicClasses.item.icon} sx={slotProps?.icon}>
+				<ItemIcon
+					{...ownerState}
+					className={navBasicClasses.item.icon}
+					sx={slotProps?.icon}
+				>
 					{navItem.renderIcon}
 				</ItemIcon>
 			)}
 
 			{title && (
-				<ItemTexts {...ownerState} className={navBasicClasses.item.texts} sx={slotProps?.texts}>
-					<ItemTitle {...ownerState} className={navBasicClasses.item.title} sx={slotProps?.title}>
+				<ItemTexts
+					{...ownerState}
+					className={navBasicClasses.item.texts}
+					sx={slotProps?.texts}
+				>
+					<ItemTitle
+						{...ownerState}
+						className={navBasicClasses.item.title}
+						sx={slotProps?.title}
+					>
 						{title}
 					</ItemTitle>
 
 					{caption && (
 						<Tooltip title={caption} placement="top-start">
-							<ItemCaptionText {...ownerState} className={navBasicClasses.item.caption} sx={slotProps?.caption}>
+							<ItemCaptionText
+								{...ownerState}
+								className={navBasicClasses.item.caption}
+								sx={slotProps?.caption}
+							>
 								{caption}
 							</ItemCaptionText>
 						</Tooltip>
@@ -85,7 +101,11 @@ export const NavItem = ({
 			)}
 
 			{info && (
-				<ItemInfo {...ownerState} className={navBasicClasses.item.info} sx={slotProps?.info}>
+				<ItemInfo
+					{...ownerState}
+					className={navBasicClasses.item.info}
+					sx={slotProps?.info}
+				>
 					{navItem.renderInfo}
 				</ItemInfo>
 			)}
@@ -93,7 +113,9 @@ export const NavItem = ({
 			{hasChild && (
 				<ItemArrow
 					{...ownerState}
-					icon={open ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'}
+					icon={
+						open ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'
+					}
 					className={navBasicClasses.item.arrow}
 					sx={slotProps?.arrow}
 				/>
@@ -115,66 +137,68 @@ const shouldForwardProp = (prop: string) => {
 /**
  * @slot root
  */
-const ItemRoot = styled(ButtonBase, { shouldForwardProp })<StyledState>(({ open, theme, active }) => {
-	const dotStyles: CSSObject = {
-		width: 3,
-		left: -13,
-		height: 16,
-		content: '""',
-		borderRadius: 3,
-		position: 'absolute',
-		backgroundColor: 'currentColor',
-		transform: active ? 'scale(1)' : 'scale(0)',
-		transition: theme.transitions.create(['transform'], {
-			duration: theme.transitions.duration.short,
-		}),
-	};
-
-	const rootItemStyles: CSSObject = {
-		minHeight: 'var(--nav-item-root-height)',
-		...(open && {
-			color: 'var(--nav-item-root-open-color)',
-			backgroundColor: 'var(--nav-item-root-open-bg)',
-		}),
-		...(active && {
-			color: 'var(--nav-item-root-active-color)',
-			backgroundColor: 'var(--nav-item-root-active-bg)',
-			'&:hover': { backgroundColor: 'var(--nav-item-root-active-hover-bg)' },
-			...theme.applyStyles('dark', {
-				color: 'var(--nav-item-root-active-color-on-dark)',
+const ItemRoot = styled(ButtonBase, { shouldForwardProp })<StyledState>(
+	({ open, theme, active }) => {
+		const dotStyles: CSSObject = {
+			width: 3,
+			left: -13,
+			height: 16,
+			content: '""',
+			borderRadius: 3,
+			position: 'absolute',
+			backgroundColor: 'currentColor',
+			transform: active ? 'scale(1)' : 'scale(0)',
+			transition: theme.transitions.create(['transform'], {
+				duration: theme.transitions.duration.short,
 			}),
-		}),
-	};
+		};
 
-	const subItemStyles: CSSObject = {
-		minHeight: 'var(--nav-item-sub-height)',
-		'&::before': dotStyles,
-		...(open && {
-			color: 'var(--nav-item-sub-open-color)',
-			backgroundColor: 'var(--nav-item-sub-open-bg)',
-		}),
-		...(active && {
-			color: 'var(--nav-item-sub-active-color)',
-			backgroundColor: 'var(--nav-item-sub-active-bg)',
-		}),
-	};
+		const rootItemStyles: CSSObject = {
+			minHeight: 'var(--nav-item-root-height)',
+			...(open && {
+				color: 'var(--nav-item-root-open-color)',
+				backgroundColor: 'var(--nav-item-root-open-bg)',
+			}),
+			...(active && {
+				color: 'var(--nav-item-root-active-color)',
+				backgroundColor: 'var(--nav-item-root-active-bg)',
+				'&:hover': { backgroundColor: 'var(--nav-item-root-active-hover-bg)' },
+				...theme.applyStyles('dark', {
+					color: 'var(--nav-item-root-active-color-on-dark)',
+				}),
+			}),
+		};
 
-	return {
-		width: '100%',
-		color: 'var(--nav-item-color)',
-		borderRadius: 'var(--nav-item-radius)',
-		paddingTop: 'var(--nav-item-pt)',
-		paddingLeft: 'var(--nav-item-pl)',
-		paddingRight: 'var(--nav-item-pr)',
-		paddingBottom: 'var(--nav-item-pb)',
-		'&:hover': { backgroundColor: 'var(--nav-item-hover-color)' },
-		variants: [
-			{ props: { variant: 'rootItem' }, style: rootItemStyles },
-			{ props: { variant: 'subItem' }, style: subItemStyles },
-			{ props: { disabled: true }, style: navItemStyles.disabled },
-		],
-	};
-});
+		const subItemStyles: CSSObject = {
+			minHeight: 'var(--nav-item-sub-height)',
+			'&::before': dotStyles,
+			...(open && {
+				color: 'var(--nav-item-sub-open-color)',
+				backgroundColor: 'var(--nav-item-sub-open-bg)',
+			}),
+			...(active && {
+				color: 'var(--nav-item-sub-active-color)',
+				backgroundColor: 'var(--nav-item-sub-active-bg)',
+			}),
+		};
+
+		return {
+			width: '100%',
+			color: 'var(--nav-item-color)',
+			borderRadius: 'var(--nav-item-radius)',
+			paddingTop: 'var(--nav-item-pt)',
+			paddingLeft: 'var(--nav-item-pl)',
+			paddingRight: 'var(--nav-item-pr)',
+			paddingBottom: 'var(--nav-item-pb)',
+			'&:hover': { backgroundColor: 'var(--nav-item-hover-color)' },
+			variants: [
+				{ props: { variant: 'rootItem' }, style: rootItemStyles },
+				{ props: { variant: 'subItem' }, style: subItemStyles },
+				{ props: { disabled: true }, style: navItemStyles.disabled },
+			],
+		};
+	},
+);
 
 /**
  * @slot icon
@@ -200,24 +224,33 @@ const ItemTexts = styled('span', { shouldForwardProp })<StyledState>(() => {
 /**
  * @slot title
  */
-const ItemTitle = styled('span', { shouldForwardProp })<StyledState>(({ theme }) => {
-	return {
-		...navItemStyles.title(theme),
-		...theme.typography.body2,
-		fontWeight: theme.typography.fontWeightMedium,
-		variants: [{ props: { active: true }, style: { fontWeight: theme.typography.fontWeightSemiBold } }],
-	};
-});
+const ItemTitle = styled('span', { shouldForwardProp })<StyledState>(
+	({ theme }) => {
+		return {
+			...navItemStyles.title(theme),
+			...theme.typography.body2,
+			fontWeight: theme.typography.fontWeightMedium,
+			variants: [
+				{
+					props: { active: true },
+					style: { fontWeight: theme.typography.fontWeightSemiBold },
+				},
+			],
+		};
+	},
+);
 
 /**
  * @slot caption text
  */
-const ItemCaptionText = styled('span', { shouldForwardProp })<StyledState>(({ theme }) => {
-	return {
-		...navItemStyles.captionText(theme),
-		color: 'var(--nav-item-caption-color)',
-	};
-});
+const ItemCaptionText = styled('span', { shouldForwardProp })<StyledState>(
+	({ theme }) => {
+		return {
+			...navItemStyles.captionText(theme),
+			color: 'var(--nav-item-caption-color)',
+		};
+	},
+);
 
 /**
  * @slot info
@@ -231,8 +264,10 @@ const ItemInfo = styled('span', { shouldForwardProp })<StyledState>(() => {
 /**
  * @slot arrow
  */
-const ItemArrow = styled(Iconify, { shouldForwardProp })<StyledState>(({ theme }) => {
-	return {
-		...navItemStyles.arrow(theme),
-	};
-});
+const ItemArrow = styled(Iconify, { shouldForwardProp })<StyledState>(
+	({ theme }) => {
+		return {
+			...navItemStyles.arrow(theme),
+		};
+	},
+);

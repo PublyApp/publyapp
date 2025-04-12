@@ -4,16 +4,26 @@ import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
-const COLORS = ['primary', 'secondary', 'info', 'success', 'warning', 'error'] as const;
+const COLORS = [
+	'primary',
+	'secondary',
+	'info',
+	'success',
+	'warning',
+	'error',
+] as const;
 
 type PaletteColor = (typeof COLORS)[number];
 
 // ----------------------------------------------------------------------
 
-const styleColors = (ownerState: LinearProgressProps, styles: (val: PaletteColor) => CSSObject) => {
+const styleColors = (
+	ownerState: LinearProgressProps,
+	styles: (val: PaletteColor) => CSSObject,
+) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (ownerState.color === color) {
-			// eslint-disable-next-line no-param-reassign
+			// biome-ignore lint/style/noParameterAssign: code from template leave as is for now
 			acc = styles(color);
 		}
 
@@ -32,19 +42,28 @@ const MuiLinearProgress: Components<Theme>['MuiLinearProgress'] = {
 			const styled = {
 				colors: styleColors(ownerState, (color) => {
 					return {
-						backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.24),
+						backgroundColor: varAlpha(
+							theme.vars.palette[color].mainChannel,
+							0.24,
+						),
 					};
 				}),
 				inheritColor: {
 					...(ownerState.color === 'inherit' && {
 						'&::before': { display: 'none' },
-						backgroundColor: varAlpha(theme.vars.palette.text.primaryChannel, 0.24),
+						backgroundColor: varAlpha(
+							theme.vars.palette.text.primaryChannel,
+							0.24,
+						),
 					}),
 				},
 			};
 			return {
 				borderRadius: 4,
-				...(ownerState.variant !== 'buffer' && { ...styled.inheritColor, ...styled.colors }),
+				...(ownerState.variant !== 'buffer' && {
+					...styled.inheritColor,
+					...styled.colors,
+				}),
 			};
 		},
 		bar: { borderRadius: 'inherit' },

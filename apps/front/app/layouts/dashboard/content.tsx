@@ -40,7 +40,9 @@ export const DashboardContent = ({
 						pb: 'var(--layout-dashboard-content-pb)',
 						[theme.breakpoints.up(layoutQuery)]: {
 							px: 'var(--layout-dashboard-content-px)',
-							...(isNavHorizontal && { '--layout-dashboard-content-pt': '40px' }),
+							...(isNavHorizontal && {
+								'--layout-dashboard-content-pt': '40px',
+							}),
 						},
 						...(disablePadding && {
 							p: {

@@ -45,8 +45,10 @@ const commonFR = {
 	'new-item': 'Nouveau {{item}}',
 	'item-is-not-instance-of-type': "{{item}} n'est pas une instance de {{type}}",
 	'item-not-translated-short': '{{item}} non traduit',
-	'item-not-translated': "Cet {{item}} n'est pas encore traduit dans le language actuel",
-	'find-otherLanguage-version-of-item': 'Retrouvez la version {{otherLanguage}} de ce {{item}}',
+	'item-not-translated':
+		"Cet {{item}} n'est pas encore traduit dans le language actuel",
+	'find-otherLanguage-version-of-item':
+		'Retrouvez la version {{otherLanguage}} de ce {{item}}',
 	here: 'Ici',
 	'down-here': 'Ici bas',
 

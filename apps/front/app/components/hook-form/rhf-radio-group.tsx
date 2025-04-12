@@ -23,7 +23,15 @@ export type RHFRadioGroupProps = RadioGroupProps & {
 	};
 };
 
-export const RHFRadioGroup = ({ sx, name, label, options, helperText, slotProps, ...other }: RHFRadioGroupProps) => {
+export const RHFRadioGroup = ({
+	sx,
+	name,
+	label,
+	options,
+	helperText,
+	slotProps,
+	...other
+}: RHFRadioGroupProps) => {
 	const { control } = useFormContext();
 
 	const labelledby = `${name}-radios`;
@@ -43,7 +51,7 @@ export const RHFRadioGroup = ({ sx, name, label, options, helperText, slotProps,
 								sx={[
 									{ mb: 1, typography: 'body2' },
 									...(Array.isArray(slotProps?.formLabel?.sx)
-										? slotProps?.formLabel?.sx ?? []
+										? (slotProps?.formLabel?.sx ?? [])
 										: [slotProps?.formLabel?.sx]),
 								]}
 							>
@@ -51,7 +59,12 @@ export const RHFRadioGroup = ({ sx, name, label, options, helperText, slotProps,
 							</FormLabel>
 						)}
 
-						<RadioGroup {...field} aria-labelledby={labelledby} sx={sx} {...other}>
+						<RadioGroup
+							{...field}
+							aria-labelledby={labelledby}
+							sx={sx}
+							{...other}
+						>
 							{options.map((option) => {
 								return (
 									<FormControlLabel
@@ -64,7 +77,9 @@ export const RHFRadioGroup = ({ sx, name, label, options, helperText, slotProps,
 													...slotProps?.radio?.slotProps,
 													input: {
 														id: `${option.label}-radio`,
-														...(!option.label && { 'aria-label': `${option.label} radio` }),
+														...(!option.label && {
+															'aria-label': `${option.label} radio`,
+														}),
 														...slotProps?.radio?.slotProps?.input,
 													},
 												}}

@@ -24,7 +24,9 @@ export type ResponsiveFontSizesResult = Record<string, { fontSize: string }>;
 
 const defaultMuiTheme = getTheme();
 
-const responsiveFontSizes = (obj: ResponsiveFontSizesInput): ResponsiveFontSizesResult => {
+const responsiveFontSizes = (
+	obj: ResponsiveFontSizesInput,
+): ResponsiveFontSizesResult => {
 	const breakpoints: Breakpoint[] = defaultMuiTheme.breakpoints.keys;
 
 	return breakpoints.reduce((acc, breakpoint) => {

@@ -9,7 +9,10 @@ import { Iconify } from '../iconify/iconify';
 import { uploadClasses } from './classes';
 import { UploadPlaceholder } from './components/placeholder';
 import { MultiFilePreview } from './components/preview-multi-file';
-import { DeleteButton, SingleFilePreview } from './components/preview-single-file';
+import {
+	DeleteButton,
+	SingleFilePreview,
+} from './components/preview-single-file';
 import { RejectionFiles } from './components/rejection-files';
 import type { UploadProps } from './types';
 
@@ -30,7 +33,13 @@ export const Upload = ({
 	multiple = false,
 	...other
 }: UploadProps) => {
-	const { getRootProps, getInputProps, isDragActive, isDragReject, fileRejections } = useDropzone({
+	const {
+		getRootProps,
+		getInputProps,
+		isDragActive,
+		isDragReject,
+		fileRejections,
+	} = useDropzone({
 		multiple,
 		disabled,
 		...other,
@@ -47,12 +56,22 @@ export const Upload = ({
 		return (
 			hasFiles && (
 				<>
-					<MultiFilePreview files={value} thumbnail={thumbnail} onRemove={onRemove} sx={{ my: 3 }} />
+					<MultiFilePreview
+						files={value}
+						thumbnail={thumbnail}
+						onRemove={onRemove}
+						sx={{ my: 3 }}
+					/>
 
 					{(onRemoveAll || onUpload) && (
 						<Box sx={{ gap: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
 							{onRemoveAll && (
-								<Button color="inherit" variant="outlined" size="small" onClick={onRemoveAll}>
+								<Button
+									color="inherit"
+									variant="outlined"
+									size="small"
+									onClick={onRemoveAll}
+								>
 									Remove all
 								</Button>
 							)}
@@ -77,7 +96,10 @@ export const Upload = ({
 	return (
 		<Box
 			className={mergeClasses([uploadClasses.upload, className])}
-			sx={[{ width: 1, position: 'relative' }, ...(Array.isArray(sx) ? sx : [sx])]}
+			sx={[
+				{ width: 1, position: 'relative' },
+				...(Array.isArray(sx) ? sx : [sx]),
+			]}
 		>
 			<Box
 				{...getRootProps()}
@@ -109,7 +131,11 @@ export const Upload = ({
 				<input {...getInputProps()} />
 
 				{/* Single file */}
-				{hasFile ? <SingleFilePreview file={value as File} /> : <UploadPlaceholder />}
+				{hasFile ? (
+					<SingleFilePreview file={value as File} />
+				) : (
+					<UploadPlaceholder />
+				)}
 			</Box>
 
 			{/* Single file */}

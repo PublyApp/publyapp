@@ -1,21 +1,17 @@
-/* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable no-param-reassign */
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable import/no-extraneous-dependencies */
-/* eslint-disable prefer-arrow/prefer-arrow-functions */
-/* eslint-disable func-style */
-
 // @ts-check
 
-const { spawn } = require('child_process');
-const path = require('path');
+const { spawn } = require('node:child_process');
+const path = require('node:path');
 
 const _ = require('lodash');
 
 const chokidar = require('chokidar');
 
-const { createRsbuild, watch: _watch, createI18nResourcesFiles } = require('./config');
+const {
+	createRsbuild,
+	watch: _watch,
+	createI18nResourcesFiles,
+} = require('./config');
 
 // set node env to development
 // otherwise onDevCompileDone API will not be called
@@ -32,7 +28,9 @@ const run = async () => {
 
 	rsbuild.onDevCompileDone(async () => {
 		// create the i18n resources files in .jsonc format
-		const { resources } = await import(`../../dist/i18n.mjs?update=${Date.now()}`); // we want the updated version and not the cached one
+		const { resources } = await import(
+			`../../dist/i18n.mjs?update=${Date.now()}`
+		); // we want the updated version and not the cached one
 		await createI18nResourcesFiles(resources);
 
 		// kill previous app process and start a new one
@@ -43,7 +41,6 @@ const run = async () => {
 
 		const startCommand = ['node', '--enable-source-maps', 'dist/index.mjs'];
 
-		// eslint-disable-next-line arrow-body-style
 		console.log(
 			'\x1b[32m%s\x1b[0m',
 			'====>',
@@ -81,9 +78,11 @@ const run = async () => {
 		}
 	});
 
-	chokidar.watch(path.resolve(__dirname, '../../.env.local')).on('change', () => {
-		watch();
-	});
+	chokidar
+		.watch(path.resolve(__dirname, '../../.env.local'))
+		.on('change', () => {
+			watch();
+		});
 
 	watch();
 };

@@ -1,11 +1,16 @@
-import Autocomplete, { type AutocompleteProps } from '@mui/material/Autocomplete';
+import Autocomplete, {
+	type AutocompleteProps,
+} from '@mui/material/Autocomplete';
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
 import { Controller, useFormContext } from 'react-hook-form';
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AutocompleteBaseProps = Omit<AutocompleteProps<any, boolean, boolean, boolean>, 'renderInput'>;
+export type AutocompleteBaseProps = Omit<
+	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
+	AutocompleteProps<any, boolean, boolean, boolean>,
+	'renderInput'
+>;
 
 export type RHFAutocompleteProps = AutocompleteBaseProps & {
 	name: string;

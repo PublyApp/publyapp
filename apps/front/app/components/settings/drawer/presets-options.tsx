@@ -14,7 +14,14 @@ export type PresetsOptionsProps = BoxProps & {
 	onChangeOption: (newOption: SettingsState['primaryColor']) => void;
 };
 
-export const PresetsOptions = ({ sx, icon, value, options, onChangeOption, ...other }: PresetsOptionsProps) => {
+export const PresetsOptions = ({
+	sx,
+	icon,
+	value,
+	options,
+	onChangeOption,
+	...other
+}: PresetsOptionsProps) => {
 	return (
 		<Box
 			sx={[

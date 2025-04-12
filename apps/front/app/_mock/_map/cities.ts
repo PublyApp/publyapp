@@ -2,7 +2,8 @@ export const cities = [
 	{
 		city: 'New York',
 		population: '8,175,133',
-		photoUrl: 'http://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Above_Gotham.jpg/240px-Above_Gotham.jpg',
+		photoUrl:
+			'http://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Above_Gotham.jpg/240px-Above_Gotham.jpg',
 		state: 'New York',
 		latitude: 40.6643,
 		longitude: -73.9385,
@@ -46,7 +47,8 @@ export const cities = [
 	{
 		city: 'Philadelphia',
 		population: '1,526,006',
-		photoUrl: 'http://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Philly_skyline.jpg/240px-Philly_skyline.jpg',
+		photoUrl:
+			'http://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Philly_skyline.jpg/240px-Philly_skyline.jpg',
 		state: 'Pennsylvania',
 		latitude: 40.0094,
 		longitude: -75.1333,
@@ -162,7 +164,8 @@ export const cities = [
 	{
 		city: 'Denver',
 		population: '600,158',
-		photoUrl: 'http://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/DenverCP.JPG/240px-DenverCP.JPG',
+		photoUrl:
+			'http://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/DenverCP.JPG/240px-DenverCP.JPG',
 		state: 'Colorado',
 		latitude: 39.7618,
 		longitude: -104.8806,

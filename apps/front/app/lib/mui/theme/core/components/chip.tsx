@@ -1,6 +1,12 @@
 import { chipClasses, type ChipProps } from '@mui/material/Chip';
-import type { Components, ComponentsVariants, CSSObject, Theme } from '@mui/material/styles';
+import type {
+	Components,
+	ComponentsVariants,
+	CSSObject,
+	Theme,
+} from '@mui/material/styles';
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -35,14 +41,24 @@ const ChipDeleteIcon = (props: SvgIconProps) => {
 
 // ----------------------------------------------------------------------
 
-const COLORS = ['primary', 'secondary', 'info', 'success', 'warning', 'error'] as const;
+const COLORS = [
+	'primary',
+	'secondary',
+	'info',
+	'success',
+	'warning',
+	'error',
+] as const;
 
 type PaletteColor = (typeof COLORS)[number];
 
-const styleColors = (ownerState: ChipProps, styles: (val: PaletteColor) => CSSObject) => {
+const styleColors = (
+	ownerState: ChipProps,
+	styles: (val: PaletteColor) => CSSObject,
+) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (!ownerState.disabled && ownerState.color === color) {
-			// eslint-disable-next-line no-param-reassign
+			// biome-ignore lint/style/noParameterAssign: code from template leave as is for now
 			acc = styles(color);
 		}
 
@@ -56,13 +72,25 @@ const softVariant: Record<string, ComponentsVariants<Theme>['MuiChip']> = {
 	colors: COLORS.map((color) => {
 		return {
 			props: ({ ownerState }) => {
-				return !ownerState.disabled && ownerState.variant === 'soft' && ownerState.color === color;
+				return (
+					!ownerState.disabled &&
+					ownerState.variant === 'soft' &&
+					ownerState.color === color
+				);
 			},
 			style: ({ theme }) => {
 				return {
 					color: theme.vars.palette[color].dark,
-					backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.16),
-					'&:hover': { backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.32) },
+					backgroundColor: varAlpha(
+						theme.vars.palette[color].mainChannel,
+						0.16,
+					),
+					'&:hover': {
+						backgroundColor: varAlpha(
+							theme.vars.palette[color].mainChannel,
+							0.32,
+						),
+					},
 					...theme.applyStyles('dark', {
 						color: theme.vars.palette[color].light,
 					}),
@@ -77,8 +105,16 @@ const softVariant: Record<string, ComponentsVariants<Theme>['MuiChip']> = {
 			},
 			style: ({ theme }) => {
 				return {
-					backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
-					'&:hover': { backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.32) },
+					backgroundColor: varAlpha(
+						theme.vars.palette.grey['500Channel'],
+						0.16,
+					),
+					'&:hover': {
+						backgroundColor: varAlpha(
+							theme.vars.palette.grey['500Channel'],
+							0.32,
+						),
+					},
 				};
 			},
 		},
@@ -118,7 +154,7 @@ const MuiChip: Components<Theme>['MuiChip'] = {
 							color: theme.vars.palette.action.disabled,
 							borderColor: theme.vars.palette.action.disabledBackground,
 						}),
-						...(['filled', 'soft'].includes(ownerState.variant!) && {
+						...(['filled', 'soft'].includes(_.toString(ownerState.variant)) && {
 							color: theme.vars.palette.action.disabled,
 							backgroundColor: theme.vars.palette.action.disabledBackground,
 						}),
@@ -166,7 +202,9 @@ const MuiChip: Components<Theme>['MuiChip'] = {
 						ownerState.color === 'default' && {
 							color: theme.vars.palette.common.white,
 							backgroundColor: theme.vars.palette.text.primary,
-							[`& .${chipClasses.avatar}`]: { color: theme.vars.palette.text.primary },
+							[`& .${chipClasses.avatar}`]: {
+								color: theme.vars.palette.text.primary,
+							},
 							'&:hover': { backgroundColor: theme.vars.palette.grey[700] },
 							...theme.applyStyles('dark', {
 								color: theme.vars.palette.grey[800],
@@ -185,7 +223,10 @@ const MuiChip: Components<Theme>['MuiChip'] = {
 				defaultColor: {
 					...(!ownerState.disabled &&
 						ownerState.color === 'default' && {
-							borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.32),
+							borderColor: varAlpha(
+								theme.vars.palette.grey['500Channel'],
+								0.32,
+							),
 						}),
 				},
 			};

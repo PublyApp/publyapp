@@ -2,7 +2,10 @@ import _ from 'lodash';
 
 import type express from 'express';
 
-import { PARSE_INSTALLATION_ID_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import {
+	PARSE_INSTALLATION_ID_HEADER_KEY,
+	PARSE_SESSION_TOKEN_HEADER_KEY,
+} from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
 import { HttpException } from '../exceptions/HttpException';
@@ -19,12 +22,14 @@ const checkIsMaster = (req: express.Request) => {
 	);
 };
 
-const disableRestApiForClients = async (req: express.Request, _res: express.Response) => {
-	// eslint-disable-next-line @typescript-eslint/naming-convention
+const disableRestApiForClients = async (
+	req: express.Request,
+	_res: express.Response,
+) => {
 	const _allowedPaths = ['/health', '/functions'] satisfies `/${string}`[];
 
 	const authorizedPaths: string[] = [..._allowedPaths];
-	_allowedPaths.forEach((path) => {
+	_.forEach(_allowedPaths, (path) => {
 		authorizedPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
 	});
 
@@ -36,7 +41,9 @@ const disableRestApiForClients = async (req: express.Request, _res: express.Resp
 		return;
 	}
 
-	const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) || _.get(req, 'body._InstallationId');
+	const installationId =
+		getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) ||
+		_.get(req, 'body._InstallationId');
 	const cloudInstallationId = await getCurrentInstallationId();
 
 	if (installationId === cloudInstallationId) {
@@ -46,12 +53,14 @@ const disableRestApiForClients = async (req: express.Request, _res: express.Resp
 	throw new HttpException(401, 'unauthorized');
 };
 
-const handleMatchSessionIp = async (req: express.Request, _res: express.Response) => {
-	// eslint-disable-next-line @typescript-eslint/naming-convention
+const handleMatchSessionIp = async (
+	req: express.Request,
+	_res: express.Response,
+) => {
 	const _allowedPaths = ['/health'] satisfies `/${string}`[];
 
 	const allowedPaths: string[] = [..._allowedPaths];
-	_allowedPaths.forEach((path) => {
+	_.forEach(_allowedPaths, (path) => {
 		allowedPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
 	});
 
@@ -63,8 +72,12 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 		return;
 	}
 
-	const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) || _.get(req, 'body._InstallationId');
-	const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) || _.get(req, 'body._SessionToken');
+	const installationId =
+		getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) ||
+		_.get(req, 'body._InstallationId');
+	const sessionToken =
+		getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) ||
+		_.get(req, 'body._SessionToken');
 
 	const cloudInstallationId = await getCurrentInstallationId();
 
@@ -104,7 +117,11 @@ const handleMatchSessionIp = async (req: express.Request, _res: express.Response
 	}
 
 	if (sessionIp !== requestIp) {
-		logger.warn('Ip address does not match', { sessionToken, requestIp, sessionIp });
+		logger.warn('Ip address does not match', {
+			sessionToken,
+			requestIp,
+			sessionIp,
+		});
 		throw new HttpException(401, 'Invalid session token');
 	}
 };

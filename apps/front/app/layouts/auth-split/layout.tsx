@@ -30,7 +30,13 @@ export type AuthSplitLayoutProps = LayoutBaseProps & {
 	};
 };
 
-export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'md' }: AuthSplitLayoutProps) => {
+export const AuthSplitLayout = ({
+	sx,
+	cssVars,
+	children,
+	slotProps,
+	layoutQuery = 'md',
+}: AuthSplitLayoutProps) => {
 	const renderHeader = () => {
 		const headerSlotProps: HeaderSectionProps['slotProps'] = {
 			container: { maxWidth: false },
@@ -49,10 +55,21 @@ export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 				</>
 			),
 			rightArea: (
-				<Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+				<Box
+					sx={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: { xs: 1, sm: 1.5 },
+					}}
+				>
 					{/** @slot Help link */}
 					{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-					<Link href={/* paths.faqs */ '#'} component={RouterLink} color="inherit" sx={{ typography: 'subtitle2' }}>
+					<Link
+						href={/* paths.faqs */ '#'}
+						component={RouterLink}
+						color="inherit"
+						sx={{ typography: 'subtitle2' }}
+					>
 						Need help?
 					</Link>
 
@@ -71,7 +88,9 @@ export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
 				sx={[
 					{ position: { [layoutQuery]: 'fixed' } },
-					...(Array.isArray(slotProps?.header?.sx) ? slotProps?.header?.sx ?? [] : [slotProps?.header?.sx]),
+					...(Array.isArray(slotProps?.header?.sx)
+						? (slotProps?.header?.sx ?? [])
+						: [slotProps?.header?.sx]),
 				]}
 			/>
 		);
@@ -87,9 +106,13 @@ export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 				{...slotProps?.main}
 				sx={[
 					(theme) => {
-						return { [theme.breakpoints.up(layoutQuery)]: { flexDirection: 'row' } };
+						return {
+							[theme.breakpoints.up(layoutQuery)]: { flexDirection: 'row' },
+						};
 					},
-					...(Array.isArray(slotProps?.main?.sx) ? slotProps?.main?.sx ?? [] : [slotProps?.main?.sx]),
+					...(Array.isArray(slotProps?.main?.sx)
+						? (slotProps?.main?.sx ?? [])
+						: [slotProps?.main?.sx]),
 				]}
 			>
 				<AuthSplitSection
@@ -100,32 +123,27 @@ export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 						{
 							label: 'Jwt',
 							path: '#',
-							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-jwt' + '.svg',
+							icon: '/assets/icons/platforms/ic-jwt.svg',
 						},
 						{
 							label: 'Firebase',
 							path: '#',
-							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-firebase' + '.svg',
+							icon: '/assets/icons/platforms/ic-firebase.svg',
 						},
 						{
 							label: 'Amplify',
 							path: '#',
-							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-amplify' + '.svg',
+							icon: '/assets/icons/platforms/ic-amplify.svg',
 						},
 						{
 							label: 'Auth0',
 							path: '#',
-							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-auth0' + '.svg',
+							icon: '/assets/icons/platforms/ic-auth0.svg',
 						},
 						{
 							label: 'Supabase',
 							path: '#',
-							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-supabase' + '.svg',
+							icon: '/assets/icons/platforms/ic-supabase.svg',
 						},
 					]}
 				/>

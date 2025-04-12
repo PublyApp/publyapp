@@ -1,4 +1,4 @@
-import { type BaseAttributes } from 'parse';
+import type { BaseAttributes } from 'parse';
 
 // import { AppFile } from './appFile.types';
 

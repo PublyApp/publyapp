@@ -13,7 +13,10 @@ const ErrorBoundary: ErrorBoundaryProps['FallbackComponent'] = () => {
 const StaffLayout = () => {
 	return (
 		<DashboardLayout>
-			<QuerySuspenseBoundary suspenseFallback={<LoadingScreen />} FallbackComponent={ErrorBoundary}>
+			<QuerySuspenseBoundary
+				suspenseFallback={<LoadingScreen />}
+				FallbackComponent={ErrorBoundary}
+			>
 				<Outlet />
 			</QuerySuspenseBoundary>
 		</DashboardLayout>

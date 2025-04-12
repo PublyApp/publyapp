@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import AppBar, { type AppBarProps } from '@mui/material/AppBar';
 import Container, { type ContainerProps } from '@mui/material/Container';
-import { styled, type Breakpoint, type CSSObject, type SxProps, type Theme } from '@mui/material/styles';
+import {
+	styled,
+	type Breakpoint,
+	type CSSObject,
+	type SxProps,
+	type Theme,
+} from '@mui/material/styles';
 import { useScrollOffsetTop } from 'minimal-shared/hooks';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
@@ -63,7 +69,9 @@ export const HeaderSection = ({
 			<HeaderContainer layoutQuery={layoutQuery} {...slotProps?.container}>
 				{slots?.leftArea}
 
-				<HeaderCenterArea {...slotProps?.centerArea}>{slots?.centerArea}</HeaderCenterArea>
+				<HeaderCenterArea {...slotProps?.centerArea}>
+					{slots?.centerArea}
+				</HeaderCenterArea>
 
 				{slots?.rightArea}
 			</HeaderContainer>
@@ -75,13 +83,18 @@ export const HeaderSection = ({
 
 // ----------------------------------------------------------------------
 
-type HeaderRootProps = Pick<HeaderSectionProps, 'disableOffset' | 'disableElevation'> & {
+type HeaderRootProps = Pick<
+	HeaderSectionProps,
+	'disableOffset' | 'disableElevation'
+> & {
 	isOffset: boolean;
 };
 
 const HeaderRoot = styled(AppBar, {
 	shouldForwardProp: (prop: string) => {
-		return !['isOffset', 'disableOffset', 'disableElevation', 'sx'].includes(prop);
+		return !['isOffset', 'disableOffset', 'disableElevation', 'sx'].includes(
+			prop,
+		);
 	},
 })<HeaderRootProps>(({ isOffset, disableOffset, disableElevation, theme }) => {
 	const pauseZindex = { top: -1, bottom: -2 };
@@ -141,7 +154,9 @@ const HeaderContainer = styled(Container, {
 		alignItems: 'center',
 		color: 'var(--color)',
 		height: 'var(--layout-header-mobile-height)',
-		[theme.breakpoints.up(layoutQuery)]: { height: 'var(--layout-header-desktop-height)' },
+		[theme.breakpoints.up(layoutQuery)]: {
+			height: 'var(--layout-header-desktop-height)',
+		},
 	};
 });
 

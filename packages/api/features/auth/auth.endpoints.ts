@@ -9,10 +9,17 @@ import type {
 	GetUserAuthDataFunction,
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
-import { endPoint, functionName, LOCALE_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import {
+	endPoint,
+	functionName,
+	LOCALE_HEADER_KEY,
+	PARSE_SESSION_TOKEN_HEADER_KEY,
+} from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
-import BaseEndPoints, { type BaseEndPointsProps } from '../../classes/BaseEndPoints';
+import BaseEndPoints, {
+	type BaseEndPointsProps,
+} from '../../classes/BaseEndPoints';
 
 export default class AuthEndPoints extends BaseEndPoints {
 	constructor({ parseRestClient }: BaseEndPointsProps) {
@@ -23,23 +30,28 @@ export default class AuthEndPoints extends BaseEndPoints {
 	}
 
 	async getUserAuthData() {
-		return this.parseRestClient.cloudRun<GetUserAuthDataFunction.Return>(functionName.auth.getUserAuthData);
+		return this.parseRestClient.cloudRun<GetUserAuthDataFunction.Return>(
+			functionName.auth.getUserAuthData,
+		);
 	}
 
 	async getTenantAuthData(params: GetTenantAuthDataFunction.Params) {
-		return this.parseRestClient.cloudRun<GetTenantAuthDataFunction.Return, GetTenantAuthDataFunction.Params>(
-			functionName.auth.getTenantAuthData,
-			{
-				params,
-			},
-		);
+		return this.parseRestClient.cloudRun<
+			GetTenantAuthDataFunction.Return,
+			GetTenantAuthDataFunction.Params
+		>(functionName.auth.getTenantAuthData, {
+			params,
+		});
 	}
 
 	/**
 	 * login with username/email and password
 	 */
 	async passwordLogin(
-		input: ({ username: string; email?: undefined } | { email: string; username?: string }) & { password: string },
+		input: (
+			| { username: string; email?: undefined }
+			| { email: string; username?: string }
+		) & { password: string },
 	) {
 		const { password } = input;
 
@@ -50,7 +62,6 @@ export default class AuthEndPoints extends BaseEndPoints {
 		});
 
 		const url = new URL(this.parseRestClient.serverUrl);
-		// eslint-disable-next-line prefer-destructuring
 		let pathname = url.pathname;
 		pathname = makePath(pathname, endPoint.api.auth.passwordLogin);
 		url.pathname = pathname;
@@ -91,7 +102,9 @@ export default class AuthEndPoints extends BaseEndPoints {
 	}
 
 	async getIsDisabledSignup() {
-		return this.parseRestClient.cloudRun<GetIsDisabledSignupFunction.Return>(functionName.auth.getIsDisabledSignup);
+		return this.parseRestClient.cloudRun<GetIsDisabledSignupFunction.Return>(
+			functionName.auth.getIsDisabledSignup,
+		);
 	}
 
 	async logOut() {
@@ -99,11 +112,11 @@ export default class AuthEndPoints extends BaseEndPoints {
 	}
 
 	async getRedirectCode({ tenantId }: { tenantId?: string } = {}) {
-		return this.parseRestClient.cloudRun<GetRedirectCodeFunction.Return, GetRedirectCodeFunction.Params>(
-			functionName.auth.getRedirectCode,
-			{
-				params: { tenantId },
-			},
-		);
+		return this.parseRestClient.cloudRun<
+			GetRedirectCodeFunction.Return,
+			GetRedirectCodeFunction.Params
+		>(functionName.auth.getRedirectCode, {
+			params: { tenantId },
+		});
 	}
 }

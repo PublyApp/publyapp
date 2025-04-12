@@ -29,7 +29,7 @@ export const ImageRoot = styled('span', {
 		display: 'inline-block',
 		verticalAlign: 'bottom',
 		aspectRatio: 'var(--aspect-ratio)',
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+
 		...(effect && getEffectStyles(effect)),
 	};
 });
@@ -69,19 +69,27 @@ const getEffectStyles = (effect?: EffectsType) => {
 	const { style, duration } = effect ?? {};
 
 	const transition =
-		style === 'opacity' ? `opacity ${duration}ms` : `opacity ${Number(duration) / 2}ms, filter ${duration}ms`;
+		style === 'opacity'
+			? `opacity ${duration}ms`
+			: `opacity ${Number(duration) / 2}ms, filter ${duration}ms`;
 
 	return {
 		[`& .${imageClasses.img}`]: {
 			transition,
 			...(style === 'opacity' && { opacity: 0 }),
 			...(style === 'blur' && { filter: 'blur(12px)', opacity: 0 }),
-			...(style === 'black-and-white' && { filter: 'grayscale(1)', opacity: 0 }),
+			...(style === 'black-and-white' && {
+				filter: 'grayscale(1)',
+				opacity: 0,
+			}),
 		},
 		[`&.${imageClasses.state.loaded} .${imageClasses.img}`]: {
 			...(style === 'opacity' && { opacity: 1 }),
 			...(style === 'blur' && { filter: 'blur(0)', opacity: 1 }),
-			...(style === 'black-and-white' && { filter: 'grayscale(0)', opacity: 1 }),
+			...(style === 'black-and-white' && {
+				filter: 'grayscale(0)',
+				opacity: 1,
+			}),
 		},
 	};
 };

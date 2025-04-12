@@ -1,19 +1,32 @@
 import type { Components, CSSObject, Theme } from '@mui/material/styles';
-import { toggleButtonClasses, type ToggleButtonProps } from '@mui/material/ToggleButton';
+import {
+	toggleButtonClasses,
+	type ToggleButtonProps,
+} from '@mui/material/ToggleButton';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
-const COLORS = ['primary', 'secondary', 'info', 'success', 'warning', 'error'] as const;
+const COLORS = [
+	'primary',
+	'secondary',
+	'info',
+	'success',
+	'warning',
+	'error',
+] as const;
 
 type PaletteColor = (typeof COLORS)[number];
 
 // ----------------------------------------------------------------------
 
-const styleColors = (ownerState: ToggleButtonProps, styles: (val: PaletteColor) => CSSObject) => {
+const styleColors = (
+	ownerState: ToggleButtonProps,
+	styles: (val: PaletteColor) => CSSObject,
+) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (!ownerState.disabled && ownerState.color === color) {
-			// eslint-disable-next-line no-param-reassign
+			// biome-ignore lint/style/noParameterAssign: code from template leave as is for now:
 			acc = styles(color);
 		}
 
@@ -35,8 +48,14 @@ const MuiToggleButton: Components<Theme>['MuiToggleButton'] = {
 				colors: styleColors(ownerState, (color) => {
 					return {
 						'&:hover': {
-							borderColor: varAlpha(theme.vars.palette[color].mainChannel, 0.48),
-							backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, theme.vars.palette.action.hoverOpacity),
+							borderColor: varAlpha(
+								theme.vars.palette[color].mainChannel,
+								0.48,
+							),
+							backgroundColor: varAlpha(
+								theme.vars.palette[color].mainChannel,
+								theme.vars.palette.action.hoverOpacity,
+							),
 						},
 					};
 				}),
@@ -82,7 +101,10 @@ const MuiToggleButtonGroup: Components<Theme>['MuiToggleButtonGroup'] = {
 			};
 		},
 		grouped: {
-			[`&.${toggleButtonClasses.root}`]: { border: 'none', borderRadius: 'inherit' },
+			[`&.${toggleButtonClasses.root}`]: {
+				border: 'none',
+				borderRadius: 'inherit',
+			},
 			[`&.${toggleButtonClasses.selected}`]: { boxShadow: 'none' },
 		},
 	},
