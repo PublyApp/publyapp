@@ -1,4 +1,3 @@
-// import type i18next from 'i18next';
 import type { TFunction } from 'i18next';
 import _ from 'lodash';
 import z, {
@@ -128,7 +127,6 @@ class InterZod {
 				}
 
 				default: {
-					// eslint-disable-next-line @typescript-eslint/naming-convention
 					const { message: _message } = errorMap1(issue, ctx);
 					message = _message;
 					break;
@@ -204,7 +202,6 @@ class InterZod {
 		return z.literal(value, { errorMap: this.getErrorMap(), ...params });
 	}
 
-	// eslint-disable-next-line class-methods-use-this
 	custom<T>(
 		check?: Parameters<typeof z.custom>[0],
 		params?: Parameters<typeof z.custom>[1],

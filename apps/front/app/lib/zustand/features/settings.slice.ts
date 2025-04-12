@@ -52,25 +52,21 @@ const settingsSlice = new Slice<
 
 			onToggleDrawer: () => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.settingsSlice.openDrawer = !state.settingsSlice.openDrawer;
 				});
 			},
 			onCloseDrawer: () => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.settingsSlice.openDrawer = false;
 				});
 			},
 			onReset: () => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.settingsSlice.state = defaultSettings;
 				});
 			},
 			setState: (updateState) => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.settingsSlice.state = _.mergeWith(
 						state.settingsSlice.state,
 						updateState,
@@ -91,7 +87,7 @@ const settingsSlice = new Slice<
 			// 			const cookies = new CookieManager();
 			// 			cookies.set(SIDEBAR_COOKIE_NAME, newValue);
 
-			// 			// eslint-disable-next-line no-param-reassign
+			//
 			// 			state.settingsSlice.sidebar.state = newValue;
 			// 		});
 			// 	},
@@ -108,7 +104,7 @@ const settingsSlice = new Slice<
 			// 			const cookies = new CookieManager();
 			// 			cookies.set(SIDEBAR_COOKIE_NAME, newValue);
 
-			// 			// eslint-disable-next-line no-param-reassign
+			//
 			// 			state.settingsSlice.sidebar.state = newValue;
 			// 		});
 			// 	},

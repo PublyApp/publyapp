@@ -230,17 +230,14 @@ const alterLogger = ({
 		...oldLog,
 		adapter: oldLog.adapter,
 		info: (...args: unknown[]) => {
-			// eslint-disable-next-line no-param-reassign
 			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
 			oldLog.info(...args);
 		},
 		warn: (...args: unknown[]) => {
-			// eslint-disable-next-line no-param-reassign
 			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
 			oldLog.warn(...args);
 		},
 		error: (...args: unknown[]) => {
-			// eslint-disable-next-line no-param-reassign
 			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[${highlighted}]`)} >> ${args[0]}`;
 			oldLog.error(...args);
 		},
@@ -284,7 +281,6 @@ export const cloudFunction: CloudFunction = <
 		const functionName = getParseFunctionName({ req, functionType });
 		alterLogger({ req, functionName, functionType });
 
-		// eslint-disable-next-line prefer-destructuring
 		const log: LoggerController = req.log;
 
 		try {
@@ -923,7 +919,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 		// const fromPublic = context?.fromPublic;
 		// const fromStaff = context?.fromStaff;
 
-		// // eslint-disable-next-line @typescript-eslint/naming-convention
+		//
 		// let _headers: Record<string, unknown> = {};
 
 		// if (_.isObject(headers) && !_.isEmpty(headers)) {
@@ -932,7 +928,7 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 		// 	_headers = context.headers as never;
 		// }
 
-		// // eslint-disable-next-line @typescript-eslint/naming-convention
+		//
 		// const _tenantId = _headers[_.toLower(TENANT_ID_HEADER_KEY)];
 		// const tenantId = _.isString(_tenantId) ? _tenantId : undefined;
 

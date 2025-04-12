@@ -86,7 +86,6 @@ export const listRoutes = (app: Application) => {
 			.toString()
 			.replace('\\/?', '')
 			.replace('(?=\\/|$)', '$')
-			// eslint-disable-next-line no-useless-escape
 			.match(/^\/\^((?:\\[.*+?^${}()|[\]\\\/]|[^.*+?^${}()|[\]\\\/])*)\$\//);
 		return match
 			? match[1].replace(/\\(.)/g, '$1').split('/')

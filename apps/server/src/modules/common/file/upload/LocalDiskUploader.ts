@@ -10,7 +10,6 @@ import type { Uploader, UploadInput } from './Uploader.interface';
 export default class LocalDiskUploader implements Uploader {
 	provider = fileProvider.LOCAL_DISK;
 
-	// eslint-disable-next-line class-methods-use-this
 	async upload(params: UploadInput) {
 		await sharp(params.buffer).toFile(
 			path.join(FILE_UPLOAD_DESTINATION, params.name),

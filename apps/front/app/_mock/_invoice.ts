@@ -36,7 +36,6 @@ const ITEMS = Array.from({ length: 3 }, (__, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _invoices = Array.from({ length: 20 }, (_, index) => {
 	const taxes = _mock.number.price(index + 1);
 

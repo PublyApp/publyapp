@@ -26,7 +26,6 @@ export default class Slice<Name extends string, Values, Actions> {
 		[]
 	>;
 
-	// eslint-disable-next-line class-methods-use-this
 	get sliceContent(): Record<StringLiteral<Name>, Values & Actions> {
 		throw new Error('Slice.sliceContent is only for typing, do not access it!');
 	}

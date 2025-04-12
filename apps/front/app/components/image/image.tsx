@@ -99,7 +99,6 @@ export const Image = ({
 	const showPlaceholder = !visibleByDefault && !isLoaded && !disablePlaceholder;
 
 	const renderComponents = {
-		// eslint-disable-next-line react/no-unstable-nested-components
 		overlay: () => {
 			return (
 				slotProps?.overlay && (
@@ -110,7 +109,7 @@ export const Image = ({
 				)
 			);
 		},
-		// eslint-disable-next-line react/no-unstable-nested-components
+
 		placeholder: () => {
 			return (
 				showPlaceholder && (
@@ -121,7 +120,7 @@ export const Image = ({
 				)
 			);
 		},
-		// eslint-disable-next-line react/no-unstable-nested-components
+
 		image: () => {
 			return (
 				<ImageImg

@@ -26,7 +26,6 @@ const disableRestApiForClients = async (
 	req: express.Request,
 	_res: express.Response,
 ) => {
-	// eslint-disable-next-line @typescript-eslint/naming-convention
 	const _allowedPaths = ['/health', '/functions'] satisfies `/${string}`[];
 
 	const authorizedPaths: string[] = [..._allowedPaths];
@@ -58,7 +57,6 @@ const handleMatchSessionIp = async (
 	req: express.Request,
 	_res: express.Response,
 ) => {
-	// eslint-disable-next-line @typescript-eslint/naming-convention
 	const _allowedPaths = ['/health'] satisfies `/${string}`[];
 
 	const allowedPaths: string[] = [..._allowedPaths];

@@ -255,7 +255,6 @@ declare module 'parse-server' {
 	}
 
 	// logger instance
-	// eslint-disable-next-line import/no-unresolved
 	// export { logger } from 'parse-server/lib/logger';
 }
 
@@ -264,7 +263,6 @@ declare module 'parse-server/lib/logger.js' {
 }
 
 declare module 'parse-server/lib/logger' {
-	// eslint-disable-next-line import/no-unresolved
 	import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 
 	// export const logger: LoggerController;
@@ -292,7 +290,6 @@ declare module 'parse-server/lib/defaults.js' {
 }
 
 declare module 'parse-server/lib/Controllers/LoggerController' {
-	// eslint-disable-next-line import/no-unresolved
 	import type { WinstonLoggerAdapter } from 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter';
 
 	export type LogLevel =

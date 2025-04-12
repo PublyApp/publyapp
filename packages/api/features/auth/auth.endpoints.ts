@@ -62,7 +62,6 @@ export default class AuthEndPoints extends BaseEndPoints {
 		});
 
 		const url = new URL(this.parseRestClient.serverUrl);
-		// eslint-disable-next-line prefer-destructuring
 		let pathname = url.pathname;
 		pathname = makePath(pathname, endPoint.api.auth.passwordLogin);
 		url.pathname = pathname;

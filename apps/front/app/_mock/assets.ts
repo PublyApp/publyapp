@@ -1,13 +1,11 @@
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _id = Array.from({ length: 40 }, (_, index) => {
 	return `e99f09a7-dd88-49d5-b1c8-1daf80c2d7b${index + 1}`;
 });
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _booleans = [
 	true,
 	true,
@@ -37,50 +35,42 @@ export const _booleans = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _prices = [
 	83.74, 97.14, 68.71, 85.21, 52.17, 25.18, 43.84, 60.98, 98.42, 53.37, 72.75,
 	56.61, 64.55, 77.32, 60.62, 79.81, 93.68, 47.44, 76.24, 92.87, 72.91, 20.54,
 	94.25, 37.51,
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _ratings = [
 	4.2, 3.7, 4.5, 3.5, 0.5, 3.0, 2.5, 2.8, 4.9, 3.6, 2.5, 1.7, 3.9, 2.8, 4.1,
 	4.5, 2.2, 3.2, 0.6, 1.3, 3.8, 3.8, 3.8, 2.0,
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _ages = [
 	30, 26, 59, 47, 29, 46, 18, 56, 39, 19, 45, 18, 46, 56, 38, 41, 44, 48, 32,
 	45, 42, 60, 33, 57,
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _percents = [
 	10.1, 13.6, 28.2, 42.1, 37.2, 18.5, 40.1, 94.8, 91.4, 53.0, 25.4, 62.9, 86.6,
 	62.4, 35.4, 17.6, 52.0, 6.8, 95.3, 26.6, 69.9, 92.1, 46.2, 85.6,
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _nativeS = [
 	11, 10, 7, 10, 12, 5, 10, 1, 8, 8, 10, 11, 12, 8, 4, 11, 8, 9, 4, 9, 2, 6, 3,
 	7,
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _nativeM = [
 	497, 763, 684, 451, 433, 463, 951, 194, 425, 435, 807, 521, 538, 839, 394,
 	269, 453, 821, 364, 849, 804, 776, 263, 239,
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _nativeL = [
 	9911, 1947, 9124, 6984, 8488, 2034, 3364, 8401, 8996, 5271, 8478, 1139, 8061,
 	3035, 6733, 3952, 2405, 3127, 6843, 4672, 6995, 6053, 5192, 9686,
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _fullAddress = [
 	'19034 Verna Unions Apt. 164 - Honolulu, RI / 87535',
 	'1147 Rohan Drive Suite 819 - Burlington, VT / 82021',
@@ -110,7 +100,6 @@ export const _fullAddress = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _emails = [
 	'nannie.abernathy70@yahoo.com',
 	'ashlynn.ohara62@gmail.com',
@@ -140,7 +129,6 @@ export const _emails = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _fullNames = [
 	'Jayvion Simon',
 	'Lucian Obrien',
@@ -168,7 +156,6 @@ export const _fullNames = [
 	'Mireya Conner',
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _firstNames = [
 	'Mossie',
 	'David',
@@ -196,7 +183,6 @@ export const _firstNames = [
 	'Whitney',
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _lastNames = [
 	'Carroll',
 	'Simonis',
@@ -226,7 +212,6 @@ export const _lastNames = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _phoneNumbers = [
 	'+1 202-555-0143',
 	'+1 416-555-0198',
@@ -272,7 +257,6 @@ export const _phoneNumbers = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _countryNames = [
 	'United States',
 	'Canada',
@@ -318,7 +302,6 @@ export const _countryNames = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _roles = [
 	'CEO',
 	'CTO',
@@ -348,7 +331,6 @@ export const _roles = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _postTitles = [
 	'The Future of Renewable Energy: Innovations and Challenges Ahead',
 	'Exploring the Impact of Artificial Intelligence on Modern Healthcare',
@@ -378,7 +360,6 @@ export const _postTitles = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _productNames = [
 	'Urban Explorer Sneakers',
 	'Classic Leather Loafers',
@@ -408,7 +389,6 @@ export const _productNames = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _tourNames = [
 	'Majestic Mountain Adventures',
 	'Island Hopping Extravaganza',
@@ -438,7 +418,6 @@ export const _tourNames = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _jobTitles = [
 	'Software Engineer',
 	'Marketing Manager',
@@ -468,7 +447,6 @@ export const _jobTitles = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _companyNames = [
 	'Lueilwitz and Sons',
 	'Gleichner, Mueller and Tromp',
@@ -498,7 +476,6 @@ export const _companyNames = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _tags = [
 	'Technology',
 	'Health and Wellness',
@@ -528,7 +505,6 @@ export const _tags = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _taskNames = [
 	'Prepare Monthly Financial Report',
 	'Design New Marketing Campaign',
@@ -558,7 +534,6 @@ export const _taskNames = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _courseNames = [
 	'Introduction to Python Programming',
 	'Digital Marketing Fundamentals',
@@ -588,7 +563,6 @@ export const _courseNames = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _fileNames = [
 	'cover-2.jpg',
 	'design-suriname-2015.mp3',
@@ -616,7 +590,6 @@ export const _fileNames = [
 	'xl-david-blaine-component-tanzania-books.pdf',
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _eventNames = [
 	'Annual General Meeting',
 	'Summer Music Festival',
@@ -646,7 +619,6 @@ export const _eventNames = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _sentences = [
 	'The sun slowly set over the horizon, painting the sky in vibrant hues of orange and pink.',
 	'She eagerly opened the gift, her eyes sparkling with excitement.',
@@ -676,7 +648,6 @@ export const _sentences = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _descriptions = [
 	'Occaecati est et illo quibusdam accusamus qui. Incidunt aut et molestiae ut facere aut. Est quidem iusto praesentium excepturi harum nihil tenetur facilis. Ut omnis voluptates nihil accusantium doloribus eaque debitis.',
 	'Atque eaque ducimus minima distinctio velit. Laborum et veniam officiis. Delectus ex saepe hic id laboriosam officia. Odit nostrum qui illum saepe debitis ullam. Laudantium beatae modi fugit ut. Dolores consequatur beatae nihil voluptates rem maiores.',

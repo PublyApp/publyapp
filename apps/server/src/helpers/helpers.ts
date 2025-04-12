@@ -31,7 +31,6 @@ export const createRolesIfNotExists = async () => {
 		];
 	});
 
-	// eslint-disable-next-line no-restricted-syntax
 	for (const entry of roleEntries) {
 		const [roleName, value] = entry;
 

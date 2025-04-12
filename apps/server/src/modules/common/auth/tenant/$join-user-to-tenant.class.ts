@@ -2,7 +2,6 @@ import type { ICustomJoinUserToTenantWithParseRelations } from '@org/shared/type
 
 import { className } from '@/shared/lib/constants';
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export default class Parse_CustomJoinUserToTenant extends Parse.Object<ICustomJoinUserToTenantWithParseRelations> {
 	static className = className._CUSTOM_JOIN_USER_TO_TENANT;
 

@@ -27,10 +27,7 @@ const envSchema = z.object({
 	FRONT_URL: z.string(),
 });
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type AppEnv = z.infer<typeof envSchema>;
+export type AppEnv = z.infer<typeof envSchema>;
 
 const LOCAL = process.env.ONLINE !== 'true';
 const TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';

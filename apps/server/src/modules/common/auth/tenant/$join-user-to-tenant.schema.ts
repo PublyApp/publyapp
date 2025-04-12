@@ -5,7 +5,6 @@ import ParseUser from '../user/user.class';
 import Parse_CustomJoinUserToTenant from './$join-user-to-tenant.class';
 import ParseTenant from './tenant.class';
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 const Parse_CustomJoinUserToTenantSchema = SchemaManager.defineSchema(
 	Parse_CustomJoinUserToTenant.className,
 	{
