@@ -50,7 +50,7 @@ export class CookieManager {
 	set(
 		name: string,
 		value: string,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 		options?: Record<string, any> & {
 			expires?: Date;
 			maxAge?: number;

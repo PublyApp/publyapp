@@ -6,7 +6,6 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AutocompleteBaseProps = Omit<
 	AutocompleteProps<any, boolean, boolean, boolean>,
 	'renderInput'

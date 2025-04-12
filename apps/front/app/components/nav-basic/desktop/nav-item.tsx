@@ -48,7 +48,6 @@ export const NavItem = ({
 	};
 
 	return (
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		<ItemRoot
 			aria-label={title}
 			{...ownerState}
@@ -63,7 +62,6 @@ export const NavItem = ({
 			{...other}
 		>
 			{icon && (
-				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				<ItemIcon
 					{...ownerState}
 					className={navBasicClasses.item.icon}
@@ -74,7 +72,6 @@ export const NavItem = ({
 			)}
 
 			{title && (
-				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				<ItemTexts
 					{...ownerState}
 					className={navBasicClasses.item.texts}
@@ -90,7 +87,6 @@ export const NavItem = ({
 					</ItemTitle>
 
 					{caption && navItem.subItem && (
-						// eslint-disable-next-line @typescript-eslint/no-use-before-define
 						<ItemCaptionText
 							{...ownerState}
 							className={navBasicClasses.item.caption}
@@ -103,7 +99,6 @@ export const NavItem = ({
 			)}
 
 			{info && (
-				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				<ItemInfo
 					{...ownerState}
 					className={navBasicClasses.item.info}
@@ -114,7 +109,6 @@ export const NavItem = ({
 			)}
 
 			{hasChild && (
-				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				<ItemArrow
 					{...ownerState}
 					icon={

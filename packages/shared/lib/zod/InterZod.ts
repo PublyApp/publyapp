@@ -1,5 +1,5 @@
 // import type i18next from 'i18next';
-import { type TFunction } from 'i18next';
+import type { TFunction } from 'i18next';
 import _ from 'lodash';
 import z, {
 	defaultErrorMap,
@@ -153,7 +153,7 @@ class InterZod {
 		values: T,
 		params?: RawCreateParams,
 	): ZodEnum<T>;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 	enum(values: any, params?: any) {
 		return z.enum(values, { errorMap: this.getErrorMap(), ...params });
 	}
