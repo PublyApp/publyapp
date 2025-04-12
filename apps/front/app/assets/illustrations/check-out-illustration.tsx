@@ -1,6 +1,6 @@
-import { memo } from 'react';
+import { memo } from "react";
 
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
 
 // ----------------------------------------------------------------------
 
@@ -12,14 +12,14 @@ const CheckoutIllustration = ({ sx, ...other }: SvgIconProps) => {
 			sx={[
 				(theme) => {
 					return {
-						'--primary-light': theme.vars.palette.primary.light,
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
+						"--primary-light": theme.vars.palette.primary.light,
+						"--primary-main": theme.vars.palette.primary.main,
+						"--primary-dark": theme.vars.palette.primary.dark,
+						"--primary-darker": theme.vars.palette.primary.darker,
 						width: 120,
 						maxWidth: 1,
 						flexShrink: 0,
-						height: 'auto',
+						height: "auto",
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -51,7 +51,14 @@ const CheckoutIllustration = ({ sx, ...other }: SvgIconProps) => {
 				d="M154.9 181.2l6.2-.4-.2 5.8h-6v-5.4zM99 177.3l5.2 3.3 4.6-5.5-5.8-4.1-4 6.3zM80.7 92.9l.9-1.6-5.2 6.4c-10 9.6 11.4 15.2 7.6 2.1l3.8-4-7.1-2.9zm95.5 4.9c-1-2.3-6.9-7.5-8.4-9.7l1.4 2.2-6.9 3.1 4 3.9c-3.5 9.4 12.5 10.2 9.9.5zm-52.9-80.6l-.7 2h-.7c0 3.9 1.9 7.5 3.1 10.3 5-.6 8.7-5.2 8.4-10.3h-10l-.1-2z"
 			/>
 			<defs>
-				<linearGradient id="a" x1="25.9" x2="25.9" y1="122.338" y2="192.465" gradientUnits="userSpaceOnUse">
+				<linearGradient
+					id="a"
+					x1="25.9"
+					x2="25.9"
+					y1="122.338"
+					y2="192.465"
+					gradientUnits="userSpaceOnUse"
+				>
 					<stop stopColor="var(--primary-light)" />
 					<stop offset="1" stopColor="var(--primary-dark)" />
 				</linearGradient>

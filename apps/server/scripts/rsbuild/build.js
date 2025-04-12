@@ -7,14 +7,14 @@
 
 // @ts-check
 
-const { createRsbuild, build, createI18nResourcesFiles } = require('./config');
+const { createRsbuild, build, createI18nResourcesFiles } = require("./config");
 
-const toDeploy = ['preprod', 'production'].includes(process.env.MODE || '');
+const toDeploy = ["preprod", "production"].includes(process.env.MODE || "");
 
 if (toDeploy) {
-	process.env.NODE_ENV = 'production';
+	process.env.NODE_ENV = "production";
 } else {
-	process.env.NODE_ENV = 'development';
+	process.env.NODE_ENV = "development";
 }
 
 const run = async () => {
@@ -22,7 +22,9 @@ const run = async () => {
 
 	rsbuild.onAfterBuild(async () => {
 		// create the i18n resources files in .jsonc format
-		const { resources } = await import(`../../dist/i18n.mjs?update=${Date.now()}`); // we want the updated version and not the cached one
+		const { resources } = await import(
+			`../../dist/i18n.mjs?update=${Date.now()}`
+		); // we want the updated version and not the cached one
 		await createI18nResourcesFiles(resources);
 	});
 

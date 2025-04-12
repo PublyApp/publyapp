@@ -1,46 +1,56 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState } from "react";
 
-import Badge from '@mui/material/Badge';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Drawer from '@mui/material/Drawer';
-import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
-import Tab from '@mui/material/Tab';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import { m } from 'framer-motion';
-import { useBoolean } from 'minimal-shared/hooks';
+import Badge from "@mui/material/Badge";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Drawer from "@mui/material/Drawer";
+import IconButton, { type IconButtonProps } from "@mui/material/IconButton";
+import Tab from "@mui/material/Tab";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { m } from "framer-motion";
+import { useBoolean } from "minimal-shared/hooks";
 
-import { transitionTap, varHover, varTap } from '@/front/components/animate';
-import { CustomTabs } from '@/front/components/custom-tabs';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import { Scrollbar } from '@/front/components/scrollbar';
+import { transitionTap, varHover, varTap } from "@/front/components/animate";
+import { CustomTabs } from "@/front/components/custom-tabs";
+import { Iconify } from "@/front/components/iconify/iconify";
+import { Label } from "@/front/components/label";
+import { Scrollbar } from "@/front/components/scrollbar";
 
-import { NotificationItem, type NotificationItemProps } from './notification-item';
+import {
+	NotificationItem,
+	type NotificationItemProps,
+} from "./notification-item";
 
 // ----------------------------------------------------------------------
 
 const TABS = [
-	{ value: 'all', label: 'All', count: 22 },
-	{ value: 'unread', label: 'Unread', count: 12 },
-	{ value: 'archived', label: 'Archived', count: 10 },
+	{ value: "all", label: "All", count: 22 },
+	{ value: "unread", label: "Unread", count: 12 },
+	{ value: "archived", label: "Archived", count: 10 },
 ];
 
 // ----------------------------------------------------------------------
 
 export type NotificationsDrawerProps = IconButtonProps & {
-	data?: NotificationItemProps['notification'][];
+	data?: NotificationItemProps["notification"][];
 };
 
-export const NotificationsDrawer = ({ data = [], sx, ...other }: NotificationsDrawerProps) => {
+export const NotificationsDrawer = ({
+	data = [],
+	sx,
+	...other
+}: NotificationsDrawerProps) => {
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-	const [currentTab, setCurrentTab] = useState('all');
+	const [currentTab, setCurrentTab] = useState("all");
 
-	const handleChangeTab = useCallback((_event: React.SyntheticEvent, newValue: string) => {
-		setCurrentTab(newValue);
-	}, []);
+	const handleChangeTab = useCallback(
+		(_event: React.SyntheticEvent, newValue: string) => {
+			setCurrentTab(newValue);
+		},
+		[],
+	);
 
 	const [notifications, setNotifications] = useState(data);
 
@@ -64,8 +74,8 @@ export const NotificationsDrawer = ({ data = [], sx, ...other }: NotificationsDr
 					pr: 1,
 					pl: 2.5,
 					minHeight: 68,
-					display: 'flex',
-					alignItems: 'center',
+					display: "flex",
+					alignItems: "center",
 				}}
 			>
 				<Typography variant="h6" sx={{ flexGrow: 1 }}>
@@ -80,7 +90,10 @@ export const NotificationsDrawer = ({ data = [], sx, ...other }: NotificationsDr
 					</Tooltip>
 				)}
 
-				<IconButton onClick={onClose} sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>
+				<IconButton
+					onClick={onClose}
+					sx={{ display: { xs: "inline-flex", sm: "none" } }}
+				>
 					<Iconify icon="mingcute:close-line" />
 				</IconButton>
 
@@ -93,7 +106,11 @@ export const NotificationsDrawer = ({ data = [], sx, ...other }: NotificationsDr
 
 	const renderTabs = () => {
 		return (
-			<CustomTabs variant="fullWidth" value={currentTab} onChange={handleChangeTab}>
+			<CustomTabs
+				variant="fullWidth"
+				value={currentTab}
+				onChange={handleChangeTab}
+			>
 				{TABS.map((tab) => {
 					return (
 						<Tab
@@ -103,8 +120,16 @@ export const NotificationsDrawer = ({ data = [], sx, ...other }: NotificationsDr
 							label={tab.label}
 							icon={
 								<Label
-									variant={((tab.value === 'all' || tab.value === currentTab) && 'filled') || 'soft'}
-									color={(tab.value === 'unread' && 'info') || (tab.value === 'archived' && 'success') || 'default'}
+									variant={
+										((tab.value === "all" || tab.value === currentTab) &&
+											"filled") ||
+										"soft"
+									}
+									color={
+										(tab.value === "unread" && "info") ||
+										(tab.value === "archived" && "success") ||
+										"default"
+									}
 								>
 									{tab.count}
 								</Label>
@@ -122,7 +147,11 @@ export const NotificationsDrawer = ({ data = [], sx, ...other }: NotificationsDr
 				<Box component="ul">
 					{notifications?.map((notification) => {
 						return (
-							<Box component="li" key={notification.id} sx={{ display: 'flex' }}>
+							<Box
+								component="li"
+								key={notification.id}
+								sx={{ display: "flex" }}
+							>
 								<NotificationItem notification={notification} />
 							</Box>
 						);

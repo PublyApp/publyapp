@@ -1,4 +1,4 @@
-import Slice from '../utils/Slice';
+import Slice from "../utils/Slice";
 
 export type DummySliceValues = {
 	bear: number;
@@ -15,9 +15,13 @@ const defaultValues: DummySliceValues = {
 	bear: 0,
 };
 
-const sliceName = 'dummySlice' as const;
+const sliceName = "dummySlice" as const;
 
-const dummySlice = new Slice<typeof sliceName, DummySliceValues, DummySliceActions>({
+const dummySlice = new Slice<
+	typeof sliceName,
+	DummySliceValues,
+	DummySliceActions
+>({
 	name: sliceName,
 	defaultValues,
 	initializer: (set) => {

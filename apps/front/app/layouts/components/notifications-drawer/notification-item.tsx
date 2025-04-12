@@ -1,16 +1,16 @@
-import { SvgIcon } from '@mui/material';
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import ListItemAvatar from '@mui/material/ListItemAvatar';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
+import { SvgIcon } from "@mui/material";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import ListItemAvatar from "@mui/material/ListItemAvatar";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemText from "@mui/material/ListItemText";
 
-import { FileThumbnail } from '@/front/components/file-thumbnail';
-import { Label } from '@/front/components/label';
-import { fToNow } from '@/front/utils/format-time';
+import { FileThumbnail } from "@/front/components/file-thumbnail";
+import { Label } from "@/front/components/label";
+import { fToNow } from "@/front/utils/format-time";
 
-import { notificationIcons } from './icons';
+import { notificationIcons } from "./icons";
 
 // ----------------------------------------------------------------------
 
@@ -31,9 +31,9 @@ const readerContent = (data: string) => {
 		<Box
 			dangerouslySetInnerHTML={{ __html: data }}
 			sx={{
-				'& p': { m: 0, typography: 'body2' },
-				'& a': { color: 'inherit', textDecoration: 'none' },
-				'& strong': { typography: 'subtitle2' },
+				"& p": { m: 0, typography: "body2" },
+				"& a": { color: "inherit", textDecoration: "none" },
+				"& strong": { typography: "subtitle2" },
 			}}
 		/>
 	);
@@ -53,20 +53,25 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 		return (
 			<ListItemAvatar>
 				{notification.avatarUrl ? (
-					<Avatar src={notification.avatarUrl} sx={{ bgcolor: 'background.neutral' }} />
+					<Avatar
+						src={notification.avatarUrl}
+						sx={{ bgcolor: "background.neutral" }}
+					/>
 				) : (
 					<Box
 						sx={{
 							width: 40,
 							height: 40,
-							display: 'flex',
-							borderRadius: '50%',
-							alignItems: 'center',
-							justifyContent: 'center',
-							bgcolor: 'background.neutral',
+							display: "flex",
+							borderRadius: "50%",
+							alignItems: "center",
+							justifyContent: "center",
+							bgcolor: "background.neutral",
 						}}
 					>
-						<SvgIcon sx={{ width: 24, height: 24 }}>{renderIcon(notification.type)}</SvgIcon>
+						<SvgIcon sx={{ width: 24, height: 24 }}>
+							{renderIcon(notification.type)}
+						</SvgIcon>
 					</Box>
 				)}
 			</ListItemAvatar>
@@ -80,7 +85,15 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 				secondary={
 					<>
 						{fToNow(notification.createdAt)}
-						<Box component="span" sx={{ width: 2, height: 2, borderRadius: '50%', bgcolor: 'currentColor' }} />
+						<Box
+							component="span"
+							sx={{
+								width: 2,
+								height: 2,
+								borderRadius: "50%",
+								bgcolor: "currentColor",
+							}}
+						/>
 						{notification.category}
 					</>
 				}
@@ -91,10 +104,10 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 					secondary: {
 						sx: {
 							gap: 0.5,
-							display: 'flex',
-							alignItems: 'center',
-							typography: 'caption',
-							color: 'text.disabled',
+							display: "flex",
+							alignItems: "center",
+							typography: "caption",
+							color: "text.disabled",
 						},
 					},
 				}}
@@ -111,9 +124,9 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 						width: 8,
 						height: 8,
 						right: 20,
-						borderRadius: '50%',
-						bgcolor: 'info.main',
-						position: 'absolute',
+						borderRadius: "50%",
+						bgcolor: "info.main",
+						position: "absolute",
 					}}
 				/>
 			)
@@ -122,7 +135,7 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 
 	const renderFriendAction = () => {
 		return (
-			<Box sx={{ gap: 1, mt: 1.5, display: 'flex' }}>
+			<Box sx={{ gap: 1, mt: 1.5, display: "flex" }}>
 				<Button size="small" variant="contained">
 					Accept
 				</Button>
@@ -141,16 +154,20 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 						p: 1.5,
 						my: 1.5,
 						borderRadius: 1.5,
-						color: 'text.secondary',
-						bgcolor: 'background.neutral',
+						color: "text.secondary",
+						bgcolor: "background.neutral",
 					}}
 				>
 					{readerContent(
-						'<p><strong>@Jaydon Frankie</strong> feedback by asking questions or just leave a note of appreciation.</p>',
+						"<p><strong>@Jaydon Frankie</strong> feedback by asking questions or just leave a note of appreciation.</p>",
 					)}
 				</Box>
 
-				<Button size="small" variant="contained" sx={{ alignSelf: 'flex-start' }}>
+				<Button
+					size="small"
+					variant="contained"
+					sx={{ alignSelf: "flex-start" }}
+				>
 					Reply
 				</Button>
 			</>
@@ -165,9 +182,9 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 						p: theme.spacing(1.5, 1.5, 1.5, 1),
 						gap: 1,
 						mt: 1.5,
-						display: 'flex',
+						display: "flex",
 						borderRadius: 1.5,
-						bgcolor: 'background.neutral',
+						bgcolor: "background.neutral",
 					};
 				}}
 			>
@@ -181,7 +198,7 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 							noWrap: true,
 							sx: (theme) => {
 								return {
-									color: 'text.secondary',
+									color: "text.secondary",
 									fontSize: theme.typography.pxToRem(13),
 								};
 							},
@@ -189,8 +206,8 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 						secondary: {
 							sx: {
 								mt: 0.25,
-								typography: 'caption',
-								color: 'text.disabled',
+								typography: "caption",
+								color: "text.disabled",
 							},
 						},
 					}}
@@ -209,8 +226,8 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 				sx={{
 					mt: 1.5,
 					gap: 0.75,
-					display: 'flex',
-					flexWrap: 'wrap',
+					display: "flex",
+					flexWrap: "wrap",
 				}}
 			>
 				<Label variant="outlined" color="info">
@@ -226,7 +243,7 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 
 	const renderPaymentAction = () => {
 		return (
-			<Box sx={{ gap: 1, mt: 1.5, display: 'flex' }}>
+			<Box sx={{ gap: 1, mt: 1.5, display: "flex" }}>
 				<Button size="small" variant="contained">
 					Pay
 				</Button>
@@ -244,7 +261,7 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 				(theme) => {
 					return {
 						p: 2.5,
-						alignItems: 'flex-start',
+						alignItems: "flex-start",
 						borderBottom: `dashed 1px ${theme.vars.palette.divider}`,
 					};
 				},
@@ -253,13 +270,13 @@ export const NotificationItem = ({ notification }: NotificationItemProps) => {
 			{renderUnReadBadge()}
 			{renderAvatar()}
 
-			<Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
+			<Box sx={{ minWidth: 0, flex: "1 1 auto" }}>
 				{renderText()}
-				{notification.type === 'friend' && renderFriendAction()}
-				{notification.type === 'project' && renderProjectAction()}
-				{notification.type === 'file' && renderFileAction()}
-				{notification.type === 'tags' && renderTagsAction()}
-				{notification.type === 'payment' && renderPaymentAction()}
+				{notification.type === "friend" && renderFriendAction()}
+				{notification.type === "project" && renderProjectAction()}
+				{notification.type === "file" && renderFileAction()}
+				{notification.type === "tags" && renderTagsAction()}
+				{notification.type === "payment" && renderPaymentAction()}
 			</Box>
 		</ListItemButton>
 	);

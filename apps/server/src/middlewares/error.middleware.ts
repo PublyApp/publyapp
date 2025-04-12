@@ -1,21 +1,26 @@
-import _ from 'lodash';
+import _ from "lodash";
 
-import type { ErrorRequestHandler } from 'express';
-import { ZodError } from 'zod';
+import type { ErrorRequestHandler } from "express";
+import { ZodError } from "zod";
 
-import { HttpException } from '@/server/exceptions/HttpException';
-import { logger } from '@/server/lib/winston';
+import { HttpException } from "@/server/exceptions/HttpException";
+import { logger } from "@/server/lib/winston";
 
-import { getRequestUtils } from '../lib/express';
-import { isCloudHttpException } from '../lib/parse/function.utils';
+import { getRequestUtils } from "../lib/express";
+import { isCloudHttpException } from "../lib/parse/function.utils";
 
 // ! this is the only middleware that we should not wrap into expressHandler wrapper function
-export const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
+export const errorMiddleware: ErrorRequestHandler = async (
+	error,
+	req,
+	res,
+	next,
+) => {
 	try {
 		const { t } = getRequestUtils(req);
 		let xcode: string | undefined;
 		let httpStatusCode = 500;
-		let message: string = t('unknown-error');
+		let message: string = t("unknown-error");
 		let parseErrorCode: typeof Parse.Error.prototype.code | undefined;
 
 		if (_.isString(error)) {
@@ -60,7 +65,7 @@ export const errorMiddleware: ErrorRequestHandler = async (error, req, res, next
 			}
 		}
 
-		if (!_.get(req, 'config.headers.___do_not_use_altered_logger_marker___')) {
+		if (!_.get(req, "config.headers.___do_not_use_altered_logger_marker___")) {
 			let hasMessage: boolean;
 
 			if (!error.message) {
@@ -73,13 +78,15 @@ export const errorMiddleware: ErrorRequestHandler = async (error, req, res, next
 
 			message = t(message as never);
 			logger.error(
-				`[${req.method}] ${req.path} >> StatusCode:: ${httpStatusCode}, Message:: ${hasMessage ? '' : message}`,
+				`[${req.method}] ${req.path} >> StatusCode:: ${httpStatusCode}, Message:: ${hasMessage ? "" : message}`,
 				error,
 			);
 		}
 
 		message = t(message as never);
-		res.status(httpStatusCode).json({ error: String(message), code: parseErrorCode, xcode }); // conform to Parse Server error response
+		res
+			.status(httpStatusCode)
+			.json({ error: String(message), code: parseErrorCode, xcode }); // conform to Parse Server error response
 	} catch (_error) {
 		next(_error);
 	}

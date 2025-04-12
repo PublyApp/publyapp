@@ -1,14 +1,21 @@
-import { createTheme as createMuiTheme, type Components, type Theme } from '@mui/material/styles';
+import {
+	createTheme as createMuiTheme,
+	type Components,
+	type Theme,
+} from "@mui/material/styles";
 
-import { components } from './core/components';
-import { customShadows } from './core/custom-shadows';
-import { mixins } from './core/mixins';
-import { palette } from './core/palette';
-import { shadows } from './core/shadows';
-import { typography } from './core/typography';
-import { themeConfig } from './theme-config';
-import type { ThemeOptions } from './types';
-import { updateComponentsWithSettings, updateCoreWithSettings } from './with-settings';
+import { components } from "./core/components";
+import { customShadows } from "./core/custom-shadows";
+import { mixins } from "./core/mixins";
+import { palette } from "./core/palette";
+import { shadows } from "./core/shadows";
+import { typography } from "./core/typography";
+import { themeConfig } from "./theme-config";
+import type { ThemeOptions } from "./types";
+import {
+	updateComponentsWithSettings,
+	updateCoreWithSettings,
+} from "./with-settings";
 
 // ----------------------------------------------------------------------
 
@@ -48,13 +55,22 @@ export const createTheme = ({
 	localeComponents = {},
 }: CreateThemeProps = {}): Theme => {
 	// Update core theme settings
-	const updatedCore = settingsState ? updateCoreWithSettings(baseTheme, settingsState) : baseTheme;
+	const updatedCore = settingsState
+		? updateCoreWithSettings(baseTheme, settingsState)
+		: baseTheme;
 
 	// Update component settings
-	const updatedComponents = settingsState ? updateComponentsWithSettings(components, settingsState) : {};
+	const updatedComponents = settingsState
+		? updateComponentsWithSettings(components, settingsState)
+		: {};
 
 	// Create and return the final theme
-	const theme = createMuiTheme(updatedCore, updatedComponents, localeComponents, themeOverrides);
+	const theme = createMuiTheme(
+		updatedCore,
+		updatedComponents,
+		localeComponents,
+		themeOverrides,
+	);
 
 	return theme;
 };

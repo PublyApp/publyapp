@@ -79,14 +79,26 @@ fse.copyFileSync(npmrcFileSrc, npmrcFileDest);
 //                              copy the app's package.json                              //
 // --------------------------------------------------------------------------------------//
 // server
-const serverAppPackageJsonSrc = path.join(SERVER_APP_DIR_SRC, packageJsonFileName);
-const serverAppPackageJsonDest = path.join(SERVER_APP_DIR_DEST, packageJsonFileName);
+const serverAppPackageJsonSrc = path.join(
+	SERVER_APP_DIR_SRC,
+	packageJsonFileName,
+);
+const serverAppPackageJsonDest = path.join(
+	SERVER_APP_DIR_DEST,
+	packageJsonFileName,
+);
 fse.mkdirpSync(SERVER_APP_DIR_DEST);
 fse.copyFileSync(serverAppPackageJsonSrc, serverAppPackageJsonDest);
 
 // front
-const frontAppPackageJsonSrc = path.join(FRONT_APP_DIR_SRC, packageJsonFileName);
-const frontAppPackageJsonDest = path.join(FRONT_APP_DIR_DEST, packageJsonFileName);
+const frontAppPackageJsonSrc = path.join(
+	FRONT_APP_DIR_SRC,
+	packageJsonFileName,
+);
+const frontAppPackageJsonDest = path.join(
+	FRONT_APP_DIR_DEST,
+	packageJsonFileName,
+);
 fse.mkdirpSync(FRONT_APP_DIR_DEST);
 fse.copyFileSync(frontAppPackageJsonSrc, frontAppPackageJsonDest);
 
@@ -101,7 +113,11 @@ fse.copyFileSync(patchFileSrc, patchFileDest);
 //                                  Build using turbo                                   //
 // --------------------------------------------------------------------------------------//
 const buildArgs = ['turbo', 'run', 'build', `--filter=${SERVER_APP_NAME}`];
-spawnSync(npxCommand, buildArgs, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+spawnSync(npxCommand, buildArgs, {
+	cwd: MONOREPO_ROOT_DIR,
+	stdio: 'inherit',
+	shell: true,
+});
 
 // ! if not using turbo build
 // // --------------------------------------------------------------------------------------//
@@ -151,7 +167,10 @@ subdirectories.forEach((subdirectory) => {
 // --------------------------------------------------------------------------------------//
 //                                  set start command                                    //
 // --------------------------------------------------------------------------------------//
-const mainFile = path.relative(MONOREPO_ROOT_DIR, path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'));
+const mainFile = path.relative(
+	MONOREPO_ROOT_DIR,
+	path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'),
+);
 // console.log(mainFile);
 const START_SCRIPT = `node --enable-source-maps ./${mainFile.replace(/\\/g, '/')}`;
 const args = ['pnpm', 'pkg', 'set', `scripts.start="${START_SCRIPT}"`];

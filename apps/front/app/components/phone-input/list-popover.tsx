@@ -1,27 +1,27 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
-import Box from '@mui/material/Box';
-import ButtonBase from '@mui/material/ButtonBase';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import ListItemText from '@mui/material/ListItemText';
-import MenuItem from '@mui/material/MenuItem';
-import MenuList from '@mui/material/MenuList';
-import Popover from '@mui/material/Popover';
-import TextField from '@mui/material/TextField';
-import { usePopover } from 'minimal-shared/hooks';
-import type { Country } from 'react-phone-number-input/input';
+import Box from "@mui/material/Box";
+import ButtonBase from "@mui/material/ButtonBase";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import ListItemText from "@mui/material/ListItemText";
+import MenuItem from "@mui/material/MenuItem";
+import MenuList from "@mui/material/MenuList";
+import Popover from "@mui/material/Popover";
+import TextField from "@mui/material/TextField";
+import { usePopover } from "minimal-shared/hooks";
+import type { Country } from "react-phone-number-input/input";
 
 // import { Iconify } from '../iconify';
 // import { FlagIcon } from '../flag-icon';
 // import { SearchNotFound } from '../search-not-found';
 
-import { FlagIcon } from '../flag-icon/flag-icon';
-import { Iconify } from '../iconify/iconify';
-import { SearchNotFound } from '../search-not-found/search-not-found';
+import { FlagIcon } from "../flag-icon/flag-icon";
+import { Iconify } from "../iconify/iconify";
+import { SearchNotFound } from "../search-not-found/search-not-found";
 
-import type { CountryListProps } from './types';
+import type { CountryListProps } from "./types";
 
 // ----------------------------------------------------------------------
 
@@ -50,8 +50,8 @@ export const CountryListPopover = ({
 
 	const notFound = dataFiltered.length === 0 && !!searchCountry;
 
-	const btnId = 'country-list-button';
-	const menuId = 'country-list-menu';
+	const btnId = "country-list-button";
+	const menuId = "country-list-menu";
 
 	const renderButton = () => {
 		return (
@@ -60,16 +60,16 @@ export const CountryListPopover = ({
 				id={btnId}
 				aria-haspopup="true"
 				aria-controls={open ? menuId : undefined}
-				aria-expanded={open ? 'true' : undefined}
+				aria-expanded={open ? "true" : undefined}
 				onClick={onOpen}
 				sx={[
 					{
 						zIndex: 9,
-						display: 'flex',
-						position: 'absolute',
-						justifyContent: 'flex-start',
-						width: 'var(--popover-button-width)',
-						height: 'var(--popover-button-height)',
+						display: "flex",
+						position: "absolute",
+						justifyContent: "flex-start",
+						width: "var(--popover-button-width)",
+						height: "var(--popover-button-height)",
 					},
 					...(Array.isArray(sx) ? sx : [sx]),
 				]}
@@ -77,21 +77,24 @@ export const CountryListPopover = ({
 				<FlagIcon
 					code={selectedCountry?.code}
 					sx={{
-						borderRadius: '50%',
-						width: 'var(--popover-button-height)',
-						height: 'var(--popover-button-height)',
+						borderRadius: "50%",
+						width: "var(--popover-button-height)",
+						height: "var(--popover-button-height)",
 					}}
 				/>
 
-				<Iconify icon="eva:chevron-down-fill" sx={{ ml: 0.25, flexShrink: 0, color: 'text.disabled' }} />
+				<Iconify
+					icon="eva:chevron-down-fill"
+					sx={{ ml: 0.25, flexShrink: 0, color: "text.disabled" }}
+				/>
 
 				<Box
 					component="span"
 					sx={(theme) => {
 						return {
 							height: 20,
-							ml: 'auto',
-							width: '1px',
+							ml: "auto",
+							width: "1px",
 							bgcolor: theme.vars.palette.divider,
 						};
 					}}
@@ -111,18 +114,21 @@ export const CountryListPopover = ({
 							autoFocus={open && countryCode === country.code}
 							onClick={() => {
 								onClose();
-								onSearchCountry('');
+								onSearchCountry("");
 								onClickCountry(country.code as Country);
 							}}
 						>
-							<FlagIcon code={country.code} sx={{ mr: 1, width: 22, height: 22, borderRadius: '50%' }} />
+							<FlagIcon
+								code={country.code}
+								sx={{ mr: 1, width: 22, height: 22, borderRadius: "50%" }}
+							/>
 
 							<ListItemText
 								primary={country.label}
 								secondary={`${country.code} (+${country.phone})`}
 								slotProps={{
-									primary: { noWrap: true, sx: { typography: 'body2' } },
-									secondary: { sx: { typography: 'caption' } },
+									primary: { noWrap: true, sx: { typography: "body2" } },
+									secondary: { sx: { typography: "caption" } },
 								}}
 							/>
 						</MenuItem>
@@ -143,18 +149,18 @@ export const CountryListPopover = ({
 				anchorEl={anchorEl}
 				onClose={() => {
 					onClose();
-					onSearchCountry('');
+					onSearchCountry("");
 				}}
-				anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-				transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+				anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+				transformOrigin={{ vertical: "top", horizontal: "left" }}
 				slotProps={{
 					paper: {
 						sx: {
 							width: 1,
 							height: 320,
 							maxWidth: 320,
-							display: 'flex',
-							flexDirection: 'column',
+							display: "flex",
+							flexDirection: "column",
 						},
 					},
 				}}
@@ -172,7 +178,10 @@ export const CountryListPopover = ({
 							input: {
 								startAdornment: (
 									<InputAdornment position="start">
-										<Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+										<Iconify
+											icon="eva:search-fill"
+											sx={{ color: "text.disabled" }}
+										/>
 									</InputAdornment>
 								),
 								endAdornment: searchCountry && (
@@ -181,7 +190,7 @@ export const CountryListPopover = ({
 											size="small"
 											edge="end"
 											onClick={() => {
-												return onSearchCountry('');
+												return onSearchCountry("");
 											}}
 										>
 											<Iconify width={16} icon="mingcute:close-line" />
@@ -193,8 +202,12 @@ export const CountryListPopover = ({
 					/>
 				</Box>
 
-				<Box sx={{ flex: '1 1 auto', overflowX: 'hidden' }}>
-					{notFound ? <SearchNotFound query={searchCountry} sx={{ px: 2, pt: 5 }} /> : renderList()}
+				<Box sx={{ flex: "1 1 auto", overflowX: "hidden" }}>
+					{notFound ? (
+						<SearchNotFound query={searchCountry} sx={{ px: 2, pt: 5 }} />
+					) : (
+						renderList()
+					)}
 				</Box>
 			</Popover>
 		</>
@@ -205,7 +218,7 @@ export const CountryListPopover = ({
 
 type ApplyFilterProps = {
 	query: string;
-	inputData: CountryListProps['countries'];
+	inputData: CountryListProps["countries"];
 };
 
 const applyFilter = ({ inputData, query }: ApplyFilterProps) => {

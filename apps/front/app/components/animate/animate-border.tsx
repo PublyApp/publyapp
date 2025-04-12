@@ -1,21 +1,32 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
-import Box, { type BoxProps } from '@mui/material/Box';
-import { useTheme, type CSSObject, type SxProps, type Theme } from '@mui/material/styles';
-import { m, useAnimationFrame, useMotionTemplate, useMotionValue, useTransform } from 'framer-motion';
-import { mergeClasses } from 'minimal-shared/utils';
+import Box, { type BoxProps } from "@mui/material/Box";
+import {
+	useTheme,
+	type CSSObject,
+	type SxProps,
+	type Theme,
+} from "@mui/material/styles";
+import {
+	m,
+	useAnimationFrame,
+	useMotionTemplate,
+	useMotionValue,
+	useTransform,
+} from "framer-motion";
+import { mergeClasses } from "minimal-shared/utils";
 
-import { createClasses } from '@/front/lib/mui/theme/create-classes';
+import { createClasses } from "@/front/lib/mui/theme/create-classes";
 
 // ----------------------------------------------------------------------
 
 const animateBorderClasses = {
-	root: createClasses('border__animation__root'),
-	primaryBorder: createClasses('border__animation__primary'),
-	secondaryBorder: createClasses('border__animation__secondary'),
-	svgWrapper: createClasses('border__animation__svg__wrapper'),
-	movingShape: createClasses('border__animation__moving__shape'),
+	root: createClasses("border__animation__root"),
+	primaryBorder: createClasses("border__animation__primary"),
+	secondaryBorder: createClasses("border__animation__secondary"),
+	svgWrapper: createClasses("border__animation__svg__wrapper"),
+	movingShape: createClasses("border__animation__moving__shape"),
 };
 
 type BorderStyleProps = {
@@ -37,7 +48,14 @@ type AnimateBorderProps = BoxProps & {
 	};
 };
 
-export const AnimateBorder = ({ sx, children, duration, slotProps, className, ...other }: AnimateBorderProps) => {
+export const AnimateBorder = ({
+	sx,
+	children,
+	duration,
+	slotProps,
+	className,
+	...other
+}: AnimateBorderProps) => {
 	const theme = useTheme();
 
 	const rootRef = useRef<HTMLDivElement>(null);
@@ -46,27 +64,32 @@ export const AnimateBorder = ({ sx, children, duration, slotProps, className, ..
 
 	const [isHidden, setIsHidden] = useState(false);
 
-	const secondaryBorderStyles = useComputedElementStyles(theme, primaryBorderRef);
+	const secondaryBorderStyles = useComputedElementStyles(
+		theme,
+		primaryBorderRef,
+	);
 
 	useEffect(() => {
 		const handleVisibility = () => {
 			if (rootRef.current) {
 				const displayStyle = getComputedStyle(rootRef.current).display;
-				setIsHidden(displayStyle === 'none');
+				setIsHidden(displayStyle === "none");
 			}
 		};
 
 		handleVisibility();
 
-		window.addEventListener('resize', handleVisibility);
+		window.addEventListener("resize", handleVisibility);
 
 		return () => {
-			window.removeEventListener('resize', handleVisibility);
+			window.removeEventListener("resize", handleVisibility);
 		};
 	}, []);
 
 	const outlineColor =
-		typeof slotProps?.outlineColor === 'function' ? slotProps?.outlineColor(theme) : slotProps?.outlineColor;
+		typeof slotProps?.outlineColor === "function"
+			? slotProps?.outlineColor(theme)
+			: slotProps?.outlineColor;
 
 	const borderProps = {
 		duration,
@@ -83,7 +106,9 @@ export const AnimateBorder = ({ sx, children, duration, slotProps, className, ..
 				size={slotProps?.primaryBorder?.size}
 				sx={[
 					{
-						...theme.mixins.borderGradient({ padding: slotProps?.primaryBorder?.width }),
+						...theme.mixins.borderGradient({
+							padding: slotProps?.primaryBorder?.width,
+						}),
 					},
 					...(Array.isArray(slotProps?.primaryBorder?.sx)
 						? slotProps?.primaryBorder?.sx ?? []
@@ -98,14 +123,18 @@ export const AnimateBorder = ({ sx, children, duration, slotProps, className, ..
 			slotProps?.secondaryBorder && (
 				<MovingBorder
 					{...borderProps}
-					size={slotProps?.secondaryBorder?.size ?? slotProps?.primaryBorder?.size}
+					size={
+						slotProps?.secondaryBorder?.size ?? slotProps?.primaryBorder?.size
+					}
 					sx={[
 						{
 							...theme.mixins.borderGradient({
-								padding: slotProps?.secondaryBorder?.width ?? secondaryBorderStyles.padding,
+								padding:
+									slotProps?.secondaryBorder?.width ??
+									secondaryBorderStyles.padding,
 							}),
 							borderRadius: secondaryBorderStyles.borderRadius,
-							transform: 'scale(-1, -1)',
+							transform: "scale(-1, -1)",
 						},
 						...(Array.isArray(slotProps?.secondaryBorder?.sx)
 							? slotProps?.secondaryBorder?.sx ?? []
@@ -125,16 +154,16 @@ export const AnimateBorder = ({ sx, children, duration, slotProps, className, ..
 				{
 					minWidth: 40,
 					minHeight: 40,
-					overflow: 'hidden',
-					position: 'relative',
-					width: 'fit-content',
-					'&::before': theme.mixins.borderGradient({
+					overflow: "hidden",
+					position: "relative",
+					width: "fit-content",
+					"&::before": theme.mixins.borderGradient({
 						color: outlineColor,
 						padding: slotProps?.primaryBorder?.width,
 					}),
 					...(!!children && {
-						minWidth: 'unset',
-						minHeight: 'unset',
+						minWidth: "unset",
+						minHeight: "unset",
 					}),
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -150,15 +179,23 @@ export const AnimateBorder = ({ sx, children, duration, slotProps, className, ..
 
 // ----------------------------------------------------------------------
 
-type MovingBorderProps = BoxProps<'span'> & {
+type MovingBorderProps = BoxProps<"span"> & {
 	rx?: string;
 	ry?: string;
 	duration?: number;
 	isHidden?: boolean;
-	size?: BorderStyleProps['size'];
+	size?: BorderStyleProps["size"];
 };
 
-const MovingBorder = ({ sx, size, isHidden, rx = '30%', ry = '30%', duration = 8, ...other }: MovingBorderProps) => {
+const MovingBorder = ({
+	sx,
+	size,
+	isHidden,
+	rx = "30%",
+	ry = "30%",
+	duration = 8,
+	...other
+}: MovingBorderProps) => {
 	const svgRectRef = useRef<SVGRectElement>(null);
 	const progress = useMotionValue<number>(0);
 
@@ -198,16 +235,27 @@ const MovingBorder = ({ sx, size, isHidden, rx = '30%', ry = '30%', duration = 8
 	const transform = useMotionTemplate`translateX(${x}px) translateY(${y}px) translateX(-50%) translateY(-50%)`;
 
 	return (
-		<Box component="span" sx={[{ textAlign: 'initial' }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
+		<Box
+			component="span"
+			sx={[{ textAlign: "initial" }, ...(Array.isArray(sx) ? sx : [sx])]}
+			{...other}
+		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
 				preserveAspectRatio="none"
 				width="100%"
 				height="100%"
 				className={animateBorderClasses.svgWrapper}
-				style={{ position: 'absolute' }}
+				style={{ position: "absolute" }}
 			>
-				<rect ref={svgRectRef} fill="none" width="100%" height="100%" rx={rx} ry={ry} />
+				<rect
+					ref={svgRectRef}
+					fill="none"
+					width="100%"
+					height="100%"
+					rx={rx}
+					ry={ry}
+				/>
 			</svg>
 
 			<Box
@@ -217,9 +265,9 @@ const MovingBorder = ({ sx, size, isHidden, rx = '30%', ry = '30%', duration = 8
 				sx={{
 					width: size,
 					height: size,
-					filter: 'blur(8px)',
-					position: 'absolute',
-					background: 'radial-gradient(currentColor 40%, transparent 80%)',
+					filter: "blur(8px)",
+					position: "absolute",
+					background: "radial-gradient(currentColor 40%, transparent 80%)",
 				}}
 			/>
 		</Box>
@@ -228,10 +276,13 @@ const MovingBorder = ({ sx, size, isHidden, rx = '30%', ry = '30%', duration = 8
 
 // ----------------------------------------------------------------------
 
-const useComputedElementStyles = (theme: Theme, ref: React.RefObject<HTMLSpanElement | null>) => {
+const useComputedElementStyles = (
+	theme: Theme,
+	ref: React.RefObject<HTMLSpanElement | null>,
+) => {
 	const [computedStyles, setComputedStyles] = useState<CSSObject | null>(null);
 
-	const isRtl = theme.direction === 'rtl';
+	const isRtl = theme.direction === "rtl";
 
 	useEffect(() => {
 		if (ref.current) {
@@ -241,10 +292,18 @@ const useComputedElementStyles = (theme: Theme, ref: React.RefObject<HTMLSpanEle
 				paddingBottom: style.paddingTop,
 				paddingLeft: isRtl ? style.paddingLeft : style.paddingRight,
 				paddingRight: isRtl ? style.paddingRight : style.paddingLeft,
-				borderTopLeftRadius: isRtl ? style.borderBottomLeftRadius : style.borderBottomRightRadius,
-				borderTopRightRadius: isRtl ? style.borderBottomRightRadius : style.borderBottomLeftRadius,
-				borderBottomLeftRadius: isRtl ? style.borderTopLeftRadius : style.borderTopRightRadius,
-				borderBottomRightRadius: isRtl ? style.borderTopRightRadius : style.borderTopLeftRadius,
+				borderTopLeftRadius: isRtl
+					? style.borderBottomLeftRadius
+					: style.borderBottomRightRadius,
+				borderTopRightRadius: isRtl
+					? style.borderBottomRightRadius
+					: style.borderBottomLeftRadius,
+				borderBottomLeftRadius: isRtl
+					? style.borderTopLeftRadius
+					: style.borderTopRightRadius,
+				borderBottomRightRadius: isRtl
+					? style.borderTopRightRadius
+					: style.borderTopLeftRadius,
 			});
 		}
 	}, [ref, isRtl]);

@@ -1,6 +1,12 @@
 export const notificationIcons = {
 	order: (
-		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<svg
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+		>
 			<g id="icons/notification/ic_package">
 				<g id="stack">
 					<path
@@ -143,7 +149,13 @@ export const notificationIcons = {
 		</svg>
 	),
 	chat: (
-		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<svg
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+		>
 			<g id="icons/notification/ic_chat">
 				<g id="stack">
 					<path
@@ -223,7 +235,13 @@ export const notificationIcons = {
 		</svg>
 	),
 	mail: (
-		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<svg
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+		>
 			<g id="icons/notification/ic_mail">
 				<path
 					id="Vector"
@@ -252,7 +270,14 @@ export const notificationIcons = {
 				/>
 			</g>
 			<defs>
-				<linearGradient id="paint0_linear_0_8835" x1="0" y1="9" x2="13.4831" y2="30.573" gradientUnits="userSpaceOnUse">
+				<linearGradient
+					id="paint0_linear_0_8835"
+					x1="0"
+					y1="9"
+					x2="13.4831"
+					y2="30.573"
+					gradientUnits="userSpaceOnUse"
+				>
 					<stop stopColor="#FFAC82" />
 					<stop offset="1" stopColor="#FF5630" />
 				</linearGradient>
@@ -260,7 +285,13 @@ export const notificationIcons = {
 		</svg>
 	),
 	delivery: (
-		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<svg
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+		>
 			<g id="icons/notification/ic_shipping">
 				<g id="stack">
 					<path

@@ -1,6 +1,6 @@
-import dayjs, { type Dayjs, type OpUnitType } from 'dayjs';
-import duration from 'dayjs/plugin/duration';
-import relativeTime from 'dayjs/plugin/relativeTime';
+import dayjs, { type Dayjs, type OpUnitType } from "dayjs";
+import duration from "dayjs/plugin/duration";
+import relativeTime from "dayjs/plugin/relativeTime";
 
 // ----------------------------------------------------------------------
 
@@ -31,19 +31,25 @@ dayjs.extend(relativeTime);
 
 // ----------------------------------------------------------------------
 
-export type DatePickerFormat = Dayjs | Date | string | number | null | undefined;
+export type DatePickerFormat =
+	| Dayjs
+	| Date
+	| string
+	| number
+	| null
+	| undefined;
 
 export const formatPatterns = {
-	dateTime: 'DD MMM YYYY h:mm a', // 17 Apr 2022 12:00 am
-	date: 'DD MMM YYYY', // 17 Apr 2022
-	time: 'h:mm a', // 12:00 am
+	dateTime: "DD MMM YYYY h:mm a", // 17 Apr 2022 12:00 am
+	date: "DD MMM YYYY", // 17 Apr 2022
+	time: "h:mm a", // 12:00 am
 	split: {
-		dateTime: 'DD/MM/YYYY h:mm a', // 17/04/2022 12:00 am
-		date: 'DD/MM/YYYY', // 17/04/2022
+		dateTime: "DD/MM/YYYY h:mm a", // 17/04/2022 12:00 am
+		date: "DD/MM/YYYY", // 17/04/2022
 	},
 	paramCase: {
-		dateTime: 'DD-MM-YYYY h:mm a', // 17-04-2022 12:00 am
-		date: 'DD-MM-YYYY', // 17-04-2022
+		dateTime: "DD-MM-YYYY h:mm a", // 17-04-2022 12:00 am
+		date: "DD-MM-YYYY", // 17-04-2022
 	},
 };
 
@@ -54,7 +60,7 @@ const isValidDate = (date: DatePickerFormat) => {
 // ----------------------------------------------------------------------
 
 export const today = (template?: string): string => {
-	return dayjs(new Date()).startOf('day').format(template);
+	return dayjs(new Date()).startOf("day").format(template);
 };
 
 // ----------------------------------------------------------------------
@@ -62,9 +68,12 @@ export const today = (template?: string): string => {
 /**
  * @output 17 Apr 2022 12:00 am
  */
-export const fDateTime = (date: DatePickerFormat, template?: string): string => {
+export const fDateTime = (
+	date: DatePickerFormat,
+	template?: string,
+): string => {
 	if (!isValidDate(date)) {
-		return 'Invalid date';
+		return "Invalid date";
 	}
 
 	return dayjs(date).format(template ?? formatPatterns.dateTime);
@@ -77,7 +86,7 @@ export const fDateTime = (date: DatePickerFormat, template?: string): string => 
  */
 export const fDate = (date: DatePickerFormat, template?: string): string => {
 	if (!isValidDate(date)) {
-		return 'Invalid date';
+		return "Invalid date";
 	}
 
 	return dayjs(date).format(template ?? formatPatterns.date);
@@ -90,7 +99,7 @@ export const fDate = (date: DatePickerFormat, template?: string): string => {
  */
 export const fTime = (date: DatePickerFormat, template?: string): string => {
 	if (!isValidDate(date)) {
-		return 'Invalid date';
+		return "Invalid date";
 	}
 
 	return dayjs(date).format(template ?? formatPatterns.time);
@@ -101,9 +110,9 @@ export const fTime = (date: DatePickerFormat, template?: string): string => {
 /**
  * @output 1713250100
  */
-export const fTimestamp = (date: DatePickerFormat): number | 'Invalid date' => {
+export const fTimestamp = (date: DatePickerFormat): number | "Invalid date" => {
 	if (!isValidDate(date)) {
-		return 'Invalid date';
+		return "Invalid date";
 	}
 
 	return dayjs(date).valueOf();
@@ -116,7 +125,7 @@ export const fTimestamp = (date: DatePickerFormat): number | 'Invalid date' => {
  */
 export const fToNow = (date: DatePickerFormat): string => {
 	if (!isValidDate(date)) {
-		return 'Invalid date';
+		return "Invalid date";
 	}
 
 	return dayjs(date).toNow(true);
@@ -132,7 +141,11 @@ export const fIsBetween = (
 	startDate: DatePickerFormat,
 	endDate: DatePickerFormat,
 ): boolean => {
-	if (!isValidDate(inputDate) || !isValidDate(startDate) || !isValidDate(endDate)) {
+	if (
+		!isValidDate(inputDate) ||
+		!isValidDate(startDate) ||
+		!isValidDate(endDate)
+	) {
 		return false;
 	}
 
@@ -141,14 +154,17 @@ export const fIsBetween = (
 	const formattedEndDate = fTimestamp(endDate);
 
 	if (
-		formattedInputDate === 'Invalid date' ||
-		formattedStartDate === 'Invalid date' ||
-		formattedEndDate === 'Invalid date'
+		formattedInputDate === "Invalid date" ||
+		formattedStartDate === "Invalid date" ||
+		formattedEndDate === "Invalid date"
 	) {
 		return false;
 	}
 
-	return formattedInputDate >= formattedStartDate && formattedInputDate <= formattedEndDate;
+	return (
+		formattedInputDate >= formattedStartDate &&
+		formattedInputDate <= formattedEndDate
+	);
 };
 
 // ----------------------------------------------------------------------
@@ -156,7 +172,10 @@ export const fIsBetween = (
 /**
  * @output boolean
  */
-export const fIsAfter = (startDate: DatePickerFormat, endDate: DatePickerFormat): boolean => {
+export const fIsAfter = (
+	startDate: DatePickerFormat,
+	endDate: DatePickerFormat,
+): boolean => {
 	if (!isValidDate(startDate) || !isValidDate(endDate)) {
 		return false;
 	}
@@ -178,7 +197,7 @@ export const fIsSame = (
 		return false;
 	}
 
-	return dayjs(startDate).isSame(endDate, unitToCompare ?? 'year');
+	return dayjs(startDate).isSame(endDate, unitToCompare ?? "year");
 };
 
 /**
@@ -193,8 +212,12 @@ export const fDateRangeShortLabel = (
 	endDate: DatePickerFormat,
 	initial?: boolean,
 ): string => {
-	if (!isValidDate(startDate) || !isValidDate(endDate) || fIsAfter(startDate, endDate)) {
-		return 'Invalid date';
+	if (
+		!isValidDate(startDate) ||
+		!isValidDate(endDate) ||
+		fIsAfter(startDate, endDate)
+	) {
+		return "Invalid date";
 	}
 
 	let label = `${fDate(startDate)} - ${fDate(endDate)}`;
@@ -203,14 +226,14 @@ export const fDateRangeShortLabel = (
 		return label;
 	}
 
-	const isSameYear = fIsSame(startDate, endDate, 'year');
-	const isSameMonth = fIsSame(startDate, endDate, 'month');
-	const isSameDay = fIsSame(startDate, endDate, 'day');
+	const isSameYear = fIsSame(startDate, endDate, "year");
+	const isSameMonth = fIsSame(startDate, endDate, "month");
+	const isSameDay = fIsSame(startDate, endDate, "day");
 
 	if (isSameYear && !isSameMonth) {
-		label = `${fDate(startDate, 'DD MMM')} - ${fDate(endDate)}`;
+		label = `${fDate(startDate, "DD MMM")} - ${fDate(endDate)}`;
 	} else if (isSameYear && isSameMonth && !isSameDay) {
-		label = `${fDate(startDate, 'DD')} - ${fDate(endDate)}`;
+		label = `${fDate(startDate, "DD")} - ${fDate(endDate)}`;
 	} else if (isSameYear && isSameMonth && isSameDay) {
 		label = `${fDate(endDate)}`;
 	}

@@ -1,6 +1,13 @@
-import { applyQueryOptions, type QueryOptions } from '@/server/lib/parse/query.utils';
-import { roleSet, type IRoleConfig, type RoleSet } from '@/shared/lib/constants';
-import type { IRole } from '@/shared/types/db/role.types';
+import {
+	applyQueryOptions,
+	type QueryOptions,
+} from "@/server/lib/parse/query.utils";
+import {
+	roleSet,
+	type IRoleConfig,
+	type RoleSet,
+} from "@/shared/lib/constants";
+import type { IRole } from "@/shared/types/db/role.types";
 
 type RoleServiceProps = {
 	sessionToken?: string;
@@ -22,9 +29,9 @@ export default class RoleService {
 	 */
 	async hasRole(user: Parse.User, roles: IRoleConfig[] | RoleSet) {
 		const foundRole = await new Parse.Query(Parse.Role)
-			.equalTo('users', user)
+			.equalTo("users", user)
 			.containedIn(
-				'code',
+				"code",
 				roles.map((config) => {
 					return config.code;
 				}),
@@ -35,23 +42,40 @@ export default class RoleService {
 
 	async findRoleByCode(code: string) {
 		const roleQuery = new Parse.Query(Parse.Role);
-		return roleQuery.equalTo('code', code).first({ sessionToken: this.sessionToken, useMasterKey: this.master });
+		return roleQuery
+			.equalTo("code", code)
+			.first({ sessionToken: this.sessionToken, useMasterKey: this.master });
 	}
 
 	async assignRoleToUser(user: Parse.User, role: Parse.Role) {
 		const relation = role.getUsers();
 		relation.add(user);
-		return role.save(null, { sessionToken: this.sessionToken, useMasterKey: this.master });
+		return role.save(null, {
+			sessionToken: this.sessionToken,
+			useMasterKey: this.master,
+		});
 	}
 
-	async getUserRoles(user: Parse.User, options?: ({ json?: false } & QueryOptions) | undefined): Promise<Parse.Role[]>;
-	async getUserRoles(user: Parse.User, options: { json: true } & QueryOptions): Promise<IRole[]>;
-	async getUserRoles(user: Parse.User, options: { json?: boolean } & QueryOptions = {}) {
-		const roleQuery = new Parse.Query(Parse.Role).equalTo('users', user);
+	async getUserRoles(
+		user: Parse.User,
+		options?: ({ json?: false } & QueryOptions) | undefined,
+	): Promise<Parse.Role[]>;
+	async getUserRoles(
+		user: Parse.User,
+		options: { json: true } & QueryOptions,
+	): Promise<IRole[]>;
+	async getUserRoles(
+		user: Parse.User,
+		options: { json?: boolean } & QueryOptions = {},
+	) {
+		const roleQuery = new Parse.Query(Parse.Role).equalTo("users", user);
 
 		applyQueryOptions(roleQuery, options);
 
-		const roles = await roleQuery.find({ sessionToken: this.sessionToken, useMasterKey: this.master });
+		const roles = await roleQuery.find({
+			sessionToken: this.sessionToken,
+			useMasterKey: this.master,
+		});
 
 		if (!options.json) return roles;
 

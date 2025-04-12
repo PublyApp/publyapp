@@ -1,8 +1,8 @@
-import { memo } from 'react';
+import { memo } from "react";
 
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
 
-import { BackgroundShape } from './background-shape';
+import { BackgroundShape } from "./background-shape";
 
 // ----------------------------------------------------------------------
 
@@ -10,7 +10,14 @@ type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
 const MotivationIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 	const renderCharacterImage = () => {
-		return <image href="/assets/illustrations/characters/character-fly.webp" height="280" x="260" y="40" />;
+		return (
+			<image
+				href="/assets/illustrations/characters/character-fly.webp"
+				height="280"
+				x="260"
+				y="40"
+			/>
+		);
 	};
 
 	return (
@@ -20,13 +27,13 @@ const MotivationIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 			sx={[
 				(theme) => {
 					return {
-						'--primary-lighter': theme.vars.palette.primary.lighter,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
+						"--primary-lighter": theme.vars.palette.primary.lighter,
+						"--primary-dark": theme.vars.palette.primary.dark,
+						"--primary-darker": theme.vars.palette.primary.darker,
 						width: 320,
 						maxWidth: 1,
 						flexShrink: 0,
-						height: 'auto',
+						height: "auto",
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -57,7 +64,14 @@ const MotivationIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 			/>
 
 			<defs>
-				<linearGradient id="paint0_linear_1_43" x1="140" x2="276.5" y1="98" y2="312.5" gradientUnits="userSpaceOnUse">
+				<linearGradient
+					id="paint0_linear_1_43"
+					x1="140"
+					x2="276.5"
+					y1="98"
+					y2="312.5"
+					gradientUnits="userSpaceOnUse"
+				>
 					<stop stopColor="var(--primary-lighter)" />
 					<stop offset="1" stopColor="var(--primary-dark)" />
 				</linearGradient>

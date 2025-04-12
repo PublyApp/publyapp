@@ -1,19 +1,23 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import Box from '@mui/material/Box';
-import { styled, type Breakpoint } from '@mui/material/styles';
-import { mergeClasses, varAlpha } from 'minimal-shared/utils';
+import Box from "@mui/material/Box";
+import { styled, type Breakpoint } from "@mui/material/styles";
+import { mergeClasses, varAlpha } from "minimal-shared/utils";
 
-import { Logo } from '@/front/components/logo';
-import { NavSectionMini, NavSectionVertical, type NavSectionProps } from '@/front/components/nav-section';
-import { Scrollbar } from '@/front/components/scrollbar';
+import { Logo } from "@/front/components/logo";
+import {
+	NavSectionMini,
+	NavSectionVertical,
+	type NavSectionProps,
+} from "@/front/components/nav-section";
+import { Scrollbar } from "@/front/components/scrollbar";
 
-import { NavToggleButton } from '../components/nav-toggle-button';
-import { NavUpgrade } from '../components/nav-upgrade';
-import { layoutClasses } from '../core/classes';
+import { NavToggleButton } from "../components/nav-toggle-button";
+import { NavUpgrade } from "../components/nav-upgrade";
+import { layoutClasses } from "../core/classes";
 
 // ----------------------------------------------------------------------
 
-export type NavVerticalProps = React.ComponentProps<'div'> &
+export type NavVerticalProps = React.ComponentProps<"div"> &
 	NavSectionProps & {
 		isNavMini: boolean;
 		layoutQuery?: Breakpoint;
@@ -33,7 +37,7 @@ export const NavVertical = ({
 	isNavMini,
 	onToggleNav,
 	checkPermissions,
-	layoutQuery = 'md',
+	layoutQuery = "md",
 	...other
 }: NavVerticalProps) => {
 	const renderNavVertical = () => {
@@ -50,7 +54,7 @@ export const NavVertical = ({
 						data={data}
 						cssVars={cssVars}
 						checkPermissions={checkPermissions}
-						sx={{ px: 2, flex: '1 1 auto' }}
+						sx={{ px: 2, flex: "1 1 auto" }}
 					/>
 
 					{slots?.bottomArea ?? <NavUpgrade />}
@@ -63,7 +67,7 @@ export const NavVertical = ({
 		return (
 			<>
 				{slots?.topArea ?? (
-					<Box sx={{ display: 'flex', justifyContent: 'center', py: 2.5 }}>
+					<Box sx={{ display: "flex", justifyContent: "center", py: 2.5 }}>
 						<Logo />
 					</Box>
 				)}
@@ -78,8 +82,8 @@ export const NavVertical = ({
 								...theme.mixins.hideScrollY,
 								pb: 2,
 								px: 0.5,
-								flex: '1 1 auto',
-								overflowY: 'auto',
+								flex: "1 1 auto",
+								overflowY: "auto",
 							};
 						},
 					]}
@@ -94,7 +98,11 @@ export const NavVertical = ({
 		<NavRoot
 			isNavMini={isNavMini}
 			layoutQuery={layoutQuery}
-			className={mergeClasses([layoutClasses.nav.root, layoutClasses.nav.vertical, className])}
+			className={mergeClasses([
+				layoutClasses.nav.root,
+				layoutClasses.nav.vertical,
+				className,
+			])}
 			sx={sx}
 			{...other}
 		>
@@ -104,8 +112,8 @@ export const NavVertical = ({
 				sx={[
 					(theme) => {
 						return {
-							display: 'none',
-							[theme.breakpoints.up(layoutQuery)]: { display: 'inline-flex' },
+							display: "none",
+							[theme.breakpoints.up(layoutQuery)]: { display: "inline-flex" },
 						};
 					},
 				]}
@@ -117,26 +125,32 @@ export const NavVertical = ({
 
 // ----------------------------------------------------------------------
 
-const NavRoot = styled('div', {
+const NavRoot = styled("div", {
 	shouldForwardProp: (prop: string) => {
-		return !['isNavMini', 'layoutQuery', 'sx'].includes(prop);
+		return !["isNavMini", "layoutQuery", "sx"].includes(prop);
 	},
-})<Pick<NavVerticalProps, 'isNavMini' | 'layoutQuery'>>(({ isNavMini, layoutQuery = 'md', theme }) => {
+})<Pick<NavVerticalProps, "isNavMini" | "layoutQuery">>(({
+	isNavMini,
+	layoutQuery = "md",
+	theme,
+}) => {
 	return {
 		top: 0,
 		left: 0,
-		height: '100%',
-		display: 'none',
-		position: 'fixed',
-		flexDirection: 'column',
-		zIndex: 'var(--layout-nav-zIndex)',
-		backgroundColor: 'var(--layout-nav-bg)',
-		width: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
-		borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)})`,
-		transition: theme.transitions.create(['width'], {
-			easing: 'var(--layout-transition-easing)',
-			duration: 'var(--layout-transition-duration)',
+		height: "100%",
+		display: "none",
+		position: "fixed",
+		flexDirection: "column",
+		zIndex: "var(--layout-nav-zIndex)",
+		backgroundColor: "var(--layout-nav-bg)",
+		width: isNavMini
+			? "var(--layout-nav-mini-width)"
+			: "var(--layout-nav-vertical-width)",
+		borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey["500Channel"], 0.12)})`,
+		transition: theme.transitions.create(["width"], {
+			easing: "var(--layout-transition-easing)",
+			duration: "var(--layout-transition-duration)",
 		}),
-		[theme.breakpoints.up(layoutQuery)]: { display: 'flex' },
+		[theme.breakpoints.up(layoutQuery)]: { display: "flex" },
 	};
 });

@@ -1,78 +1,85 @@
-import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
-import Divider from '@mui/material/Divider';
-import Grid from '@mui/material/Grid';
-import IconButton from '@mui/material/IconButton';
-import Link from '@mui/material/Link';
-import { styled, type Breakpoint } from '@mui/material/styles';
-import Typography from '@mui/material/Typography';
+import Box from "@mui/material/Box";
+import Container from "@mui/material/Container";
+import Divider from "@mui/material/Divider";
+import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import { styled, type Breakpoint } from "@mui/material/styles";
+import Typography from "@mui/material/Typography";
 
 // import { Iconify } from '@/front/components/iconify';
 // import { Logo } from '@/front/components/logo';
 // import { RouterLink } from 'src/routes/components';
 // import { paths } from 'src/routes/paths';
 
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Logo } from '@/front/components/logo/logo';
-import { RouterLink } from '@/front/components/router-link';
+import { Iconify } from "@/front/components/iconify/iconify";
+import { Logo } from "@/front/components/logo/logo";
+import { RouterLink } from "@/front/components/router-link";
 
 // ----------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const _socials = [
 	{
-		value: 'facebook',
-		label: 'Facebook',
-		path: 'https://www.facebook.com/caitlyn.kerluke',
+		value: "facebook",
+		label: "Facebook",
+		path: "https://www.facebook.com/caitlyn.kerluke",
 	},
 	{
-		value: 'instagram',
-		label: 'Instagram',
-		path: 'https://www.instagram.com/caitlyn.kerluke',
+		value: "instagram",
+		label: "Instagram",
+		path: "https://www.instagram.com/caitlyn.kerluke",
 	},
 	{
-		value: 'linkedin',
-		label: 'Linkedin',
-		path: 'https://www.linkedin.com/caitlyn.kerluke',
+		value: "linkedin",
+		label: "Linkedin",
+		path: "https://www.linkedin.com/caitlyn.kerluke",
 	},
 	{
-		value: 'twitter',
-		label: 'Twitter',
-		path: 'https://www.twitter.com/caitlyn.kerluke',
+		value: "twitter",
+		label: "Twitter",
+		path: "https://www.twitter.com/caitlyn.kerluke",
 	},
 ];
 
 const LINKS = [
 	{
-		headline: 'Minimal',
+		headline: "Minimal",
 		children: [
-			{ name: 'About us', href: '#' },
-			{ name: 'Contact us', href: '#' },
-			{ name: 'FAQs', href: '#' },
+			{ name: "About us", href: "#" },
+			{ name: "Contact us", href: "#" },
+			{ name: "FAQs", href: "#" },
 		],
 	},
 	{
-		headline: 'Legal',
+		headline: "Legal",
 		children: [
-			{ name: 'Terms and condition', href: '#' },
-			{ name: 'Privacy policy', href: '#' },
+			{ name: "Terms and condition", href: "#" },
+			{ name: "Privacy policy", href: "#" },
 		],
 	},
-	{ headline: 'Contact', children: [{ name: 'support@minimals.cc', href: '#' }] },
+	{
+		headline: "Contact",
+		children: [{ name: "support@minimals.cc", href: "#" }],
+	},
 ];
 
 // ----------------------------------------------------------------------
 
-const FooterRoot = styled('footer')(({ theme }) => {
+const FooterRoot = styled("footer")(({ theme }) => {
 	return {
-		position: 'relative',
+		position: "relative",
 		backgroundColor: theme.vars.palette.background.default,
 	};
 });
 
 export type FooterProps = React.ComponentProps<typeof FooterRoot>;
 
-export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { layoutQuery?: Breakpoint }) => {
+export const Footer = ({
+	sx,
+	layoutQuery = "md",
+	...other
+}: FooterProps & { layoutQuery?: Breakpoint }) => {
 	return (
 		<FooterRoot sx={sx} {...other}>
 			<Divider />
@@ -82,8 +89,8 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 					return {
 						pb: 5,
 						pt: 10,
-						textAlign: 'center',
-						[theme.breakpoints.up(layoutQuery)]: { textAlign: 'unset' },
+						textAlign: "center",
+						[theme.breakpoints.up(layoutQuery)]: { textAlign: "unset" },
 					};
 				}}
 			>
@@ -95,8 +102,10 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 						(theme) => {
 							return {
 								mt: 3,
-								justifyContent: 'center',
-								[theme.breakpoints.up(layoutQuery)]: { justifyContent: 'space-between' },
+								justifyContent: "center",
+								[theme.breakpoints.up(layoutQuery)]: {
+									justifyContent: "space-between",
+								},
 							};
 						},
 					]}
@@ -106,14 +115,15 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 							variant="body2"
 							sx={(theme) => {
 								return {
-									mx: 'auto',
+									mx: "auto",
 									maxWidth: 280,
-									[theme.breakpoints.up(layoutQuery)]: { mx: 'unset' },
+									[theme.breakpoints.up(layoutQuery)]: { mx: "unset" },
 								};
 							}}
 						>
-							The starting point for your next project with Minimal UI Kit, built on the newest version of Material-UI
-							©, ready to be customized to your style.
+							The starting point for your next project with Minimal UI Kit,
+							built on the newest version of Material-UI ©, ready to be
+							customized to your style.
 						</Typography>
 
 						<Box
@@ -121,19 +131,30 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 								return {
 									mt: 3,
 									mb: 5,
-									display: 'flex',
-									justifyContent: 'center',
-									[theme.breakpoints.up(layoutQuery)]: { mb: 0, justifyContent: 'flex-start' },
+									display: "flex",
+									justifyContent: "center",
+									[theme.breakpoints.up(layoutQuery)]: {
+										mb: 0,
+										justifyContent: "flex-start",
+									},
 								};
 							}}
 						>
 							{_socials.map((social) => {
 								return (
 									<IconButton key={social.label}>
-										{social.value === 'twitter' && <Iconify icon="socials:twitter" />}
-										{social.value === 'facebook' && <Iconify icon="socials:facebook" />}
-										{social.value === 'instagram' && <Iconify icon="socials:instagram" />}
-										{social.value === 'linkedin' && <Iconify icon="socials:linkedin" />}
+										{social.value === "twitter" && (
+											<Iconify icon="socials:twitter" />
+										)}
+										{social.value === "facebook" && (
+											<Iconify icon="socials:facebook" />
+										)}
+										{social.value === "instagram" && (
+											<Iconify icon="socials:instagram" />
+										)}
+										{social.value === "linkedin" && (
+											<Iconify icon="socials:linkedin" />
+										)}
 									</IconButton>
 								);
 							})}
@@ -145,9 +166,9 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 							sx={(theme) => {
 								return {
 									gap: 5,
-									display: 'flex',
-									flexDirection: 'column',
-									[theme.breakpoints.up(layoutQuery)]: { flexDirection: 'row' },
+									display: "flex",
+									flexDirection: "column",
+									[theme.breakpoints.up(layoutQuery)]: { flexDirection: "row" },
 								};
 							}}
 						>
@@ -159,10 +180,12 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 											return {
 												gap: 2,
 												width: 1,
-												display: 'flex',
-												alignItems: 'center',
-												flexDirection: 'column',
-												[theme.breakpoints.up(layoutQuery)]: { alignItems: 'flex-start' },
+												display: "flex",
+												alignItems: "center",
+												flexDirection: "column",
+												[theme.breakpoints.up(layoutQuery)]: {
+													alignItems: "flex-start",
+												},
 											};
 										}}
 									>
@@ -172,7 +195,13 @@ export const Footer = ({ sx, layoutQuery = 'md', ...other }: FooterProps & { lay
 
 										{list.children.map((link) => {
 											return (
-												<Link key={link.name} component={RouterLink} href={link.href} color="inherit" variant="body2">
+												<Link
+													key={link.name}
+													component={RouterLink}
+													href={link.href}
+													color="inherit"
+													variant="body2"
+												>
 													{link.name}
 												</Link>
 											);
@@ -200,7 +229,7 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 			sx={[
 				{
 					py: 5,
-					textAlign: 'center',
+					textAlign: "center",
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
@@ -208,7 +237,7 @@ export const HomeFooter = ({ sx, ...other }: FooterProps) => {
 		>
 			<Container>
 				<Logo />
-				<Box sx={{ mt: 1, typography: 'caption' }}>
+				<Box sx={{ mt: 1, typography: "caption" }}>
 					© All rights reserved.
 					{/* <br /> made by */}
 					{/* <Link href="https://minimals.cc/"> minimals.cc </Link> */}

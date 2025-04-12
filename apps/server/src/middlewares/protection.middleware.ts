@@ -1,15 +1,15 @@
-import type { RequestHandler } from 'express';
-import { nanoid } from 'nanoid';
+import type { RequestHandler } from "express";
+import { nanoid } from "nanoid";
 
-import { HttpException } from '@/server/exceptions/HttpException';
-import { AuthCloudService } from '@/server/modules/common/auth/auth.cloud.service';
+import { HttpException } from "@/server/exceptions/HttpException";
+import { AuthCloudService } from "@/server/modules/common/auth/auth.cloud.service";
 import {
 	PARSE_INSTALLATION_ID_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
 	REST_API_HEADER_KEY,
-} from '@/shared/lib/constants';
+} from "@/shared/lib/constants";
 
-import { expressHandler, getHeader } from '../lib/express';
+import { expressHandler, getHeader } from "../lib/express";
 
 type Input = {
 	withKey?: boolean;
@@ -17,7 +17,11 @@ type Input = {
 	withInstallation?: boolean;
 };
 
-const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallation = false }: Input): RequestHandler => {
+const protectionMiddleware = ({
+	withKey = true,
+	withAuth = true,
+	withInstallation = false,
+}: Input): RequestHandler => {
 	return expressHandler(async (req, _res, next) => {
 		// should have a header key
 		if (withKey) {
@@ -25,11 +29,15 @@ const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallatio
 
 			// if the key exists, go to next
 			if (!apiKey) {
-				return next(new HttpException(400, `Missing ${REST_API_HEADER_KEY} param`));
+				return next(
+					new HttpException(400, `Missing ${REST_API_HEADER_KEY} param`),
+				);
 			}
 
 			if (apiKey && apiKey !== /* env.REST_API_KEY */ nanoid()) {
-				return next(new HttpException(400, `Invalid ${REST_API_HEADER_KEY} param`));
+				return next(
+					new HttpException(400, `Invalid ${REST_API_HEADER_KEY} param`),
+				);
 			}
 		}
 
@@ -38,16 +46,23 @@ const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallatio
 			const sessionToken = getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY);
 
 			if (!sessionToken) {
-				return next(new HttpException(400, `Missing ${PARSE_SESSION_TOKEN_HEADER_KEY} param`));
+				return next(
+					new HttpException(
+						400,
+						`Missing ${PARSE_SESSION_TOKEN_HEADER_KEY} param`,
+					),
+				);
 			}
 
-			const authService = await AuthCloudService.createAuthCloudService({ sessionToken });
+			const authService = await AuthCloudService.createAuthCloudService({
+				sessionToken,
+			});
 
 			const user = authService.getUserForSessionToken();
 
 			// if user exists, go to next
 			if (!(await user)) {
-				return next(new HttpException(400, 'User not found'));
+				return next(new HttpException(400, "User not found"));
 			}
 
 			req.user = await user;
@@ -57,7 +72,12 @@ const protectionMiddleware = ({ withKey = true, withAuth = true, withInstallatio
 			const installationId = getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY);
 
 			if (!installationId) {
-				return next(new HttpException(400, `Missing ${PARSE_INSTALLATION_ID_HEADER_KEY} param`));
+				return next(
+					new HttpException(
+						400,
+						`Missing ${PARSE_INSTALLATION_ID_HEADER_KEY} param`,
+					),
+				);
 			}
 
 			req.installationId = installationId;

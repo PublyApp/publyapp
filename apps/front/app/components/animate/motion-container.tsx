@@ -1,7 +1,7 @@
-import Box, { type BoxProps } from '@mui/material/Box';
-import { m, type MotionProps } from 'framer-motion';
+import Box, { type BoxProps } from "@mui/material/Box";
+import { m, type MotionProps } from "framer-motion";
 
-import { varContainer } from './variants';
+import { varContainer } from "./variants";
 
 // ----------------------------------------------------------------------
 
@@ -11,24 +11,30 @@ export type MotionContainerProps = BoxProps &
 		action?: boolean;
 	};
 
-export const MotionContainer = ({ sx, animate, children, action = false, ...other }: MotionContainerProps) => {
+export const MotionContainer = ({
+	sx,
+	animate,
+	children,
+	action = false,
+	...other
+}: MotionContainerProps) => {
 	let animateProp: string;
 
 	if (animate && action) {
-		animateProp = 'animate';
+		animateProp = "animate";
 	} else if (action) {
-		animateProp = 'exit';
+		animateProp = "exit";
 	} else {
-		animateProp = 'animate';
+		animateProp = "animate";
 	}
 
 	return (
 		<Box
 			component={m.div}
 			variants={varContainer()}
-			initial={action ? false : 'initial'}
+			initial={action ? false : "initial"}
 			animate={animateProp}
-			exit={action ? undefined : 'exit'}
+			exit={action ? undefined : "exit"}
 			sx={sx}
 			{...other}
 		>

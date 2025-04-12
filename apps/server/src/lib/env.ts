@@ -1,20 +1,20 @@
-import path from 'path';
+import path from "path";
 
-import _ from 'lodash';
+import _ from "lodash";
 
-import dotenv from 'dotenv';
-import dotenvExpand from 'dotenv-expand';
-import z from 'zod';
+import dotenv from "dotenv";
+import dotenvExpand from "dotenv-expand";
+import z from "zod";
 
-import { getNumericStringSchema } from '@org/shared/lib/zod/utils';
+import { getNumericStringSchema } from "@org/shared/lib/zod/utils";
 
-import { logger } from '@/server/lib/winston';
-import { deepFreeze } from '@/shared/utils/any.utils';
+import { logger } from "@/server/lib/winston";
+import { deepFreeze } from "@/shared/utils/any.utils";
 
-import { defaultZodServer } from './zod';
+import { defaultZodServer } from "./zod";
 
 const envSchema = z.object({
-	PORT: getNumericStringSchema(defaultZodServer).default('3000'),
+	PORT: getNumericStringSchema(defaultZodServer).default("3000"),
 	SERVER_URL: z.string(),
 	DATABASE_URI: z.string(),
 	// ===
@@ -32,9 +32,10 @@ const envSchema = z.object({
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type AppEnv = z.infer<typeof envSchema>;
 
-const LOCAL = process.env.ONLINE !== 'true';
-const TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';
-const MODE: 'local' | 'development' | 'production' | 'test' | string = process.env.MODE || 'local';
+const LOCAL = process.env.ONLINE !== "true";
+const TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === "true";
+const MODE: "local" | "development" | "production" | "test" | string =
+	process.env.MODE || "local";
 
 logger.info(`==== LOCAL: ${LOCAL} ====`);
 logger.info(`==== MODE: ${MODE} ====`);
@@ -45,7 +46,9 @@ logger.info(`==== MODE: ${MODE} ====`);
 
 if (LOCAL || TEST_ONLINE_IN_LOCAL) {
 	const envFileName = `.env.${MODE}`;
-	const envConfig = dotenv.config({ path: path.resolve(process.cwd(), envFileName) });
+	const envConfig = dotenv.config({
+		path: path.resolve(process.cwd(), envFileName),
+	});
 	dotenvExpand.expand(envConfig);
 }
 

@@ -1,8 +1,11 @@
-import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
-import { defaultApiClient } from 'packages/api/ApiClient';
+import { queryOptions, type QueryFunctionContext } from "@tanstack/react-query";
+import { defaultApiClient } from "packages/api/ApiClient";
 
-import type { GetTenantAuthDataFunction, GetUserAuthDataFunction } from '@/server/modules/common/auth/auth.functions';
-import { functionName } from '@/shared/lib/constants';
+import type {
+	GetTenantAuthDataFunction,
+	GetUserAuthDataFunction,
+} from "@/server/modules/common/auth/auth.functions";
+import { functionName } from "@/shared/lib/constants";
 
 // ---- 1 --------------------------------------------------------------------------------
 
@@ -16,7 +19,7 @@ export const getUserAuthDataAction = async () => {
 
 		return authData;
 	} catch (error) {
-		console.error('----- getUserAuthDataAction error ----------', error);
+		console.error("----- getUserAuthDataAction error ----------", error);
 		return Promise.reject(error);
 	}
 };
@@ -30,12 +33,18 @@ export const getUserAuthDataQuery = () => {
 
 // ---- 2 --------------------------------------------------------------------------------
 
-export const getTenantAuthDataQueryKeyBase = functionName.auth.getTenantAuthData;
+export const getTenantAuthDataQueryKeyBase =
+	functionName.auth.getTenantAuthData;
 
 export type GetTenantAuthDataQueryParams = GetTenantAuthDataFunction.Params;
 
 export const getTenantAuthDataAction = async (
-	context: QueryFunctionContext<readonly [typeof getTenantAuthDataQueryKeyBase, GetTenantAuthDataQueryParams]>,
+	context: QueryFunctionContext<
+		readonly [
+			typeof getTenantAuthDataQueryKeyBase,
+			GetTenantAuthDataQueryParams,
+		]
+	>,
 ) => {
 	try {
 		const params = context.queryKey[1];
@@ -44,12 +53,14 @@ export const getTenantAuthDataAction = async (
 
 		return authData;
 	} catch (error) {
-		console.error('----- getTenantAuthDataAction error ----------', error);
+		console.error("----- getTenantAuthDataAction error ----------", error);
 		return Promise.reject(error);
 	}
 };
 
-export const getTenantAuthDataQuery = (params: GetTenantAuthDataQueryParams) => {
+export const getTenantAuthDataQuery = (
+	params: GetTenantAuthDataQueryParams,
+) => {
 	return queryOptions({
 		queryKey: [getTenantAuthDataQueryKeyBase, params] as const,
 		queryFn: getTenantAuthDataAction,

@@ -1,14 +1,19 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import GlobalStyles from '@mui/material/GlobalStyles';
-import { styled, type CSSObject, type SxProps, type Theme } from '@mui/material/styles';
-import { mergeClasses } from 'minimal-shared/utils';
+import GlobalStyles from "@mui/material/GlobalStyles";
+import {
+	styled,
+	type CSSObject,
+	type SxProps,
+	type Theme,
+} from "@mui/material/styles";
+import { mergeClasses } from "minimal-shared/utils";
 
-import { layoutClasses } from './classes';
-import { layoutSectionVars } from './css-vars';
+import { layoutClasses } from "./classes";
+import { layoutSectionVars } from "./css-vars";
 
 // ----------------------------------------------------------------------
 
-export type LayoutSectionProps = React.ComponentProps<'div'> & {
+export type LayoutSectionProps = React.ComponentProps<"div"> & {
 	sx?: SxProps<Theme>;
 	cssVars?: CSSObject;
 	children?: React.ReactNode;
@@ -39,7 +44,12 @@ export const LayoutSection = ({
 		<>
 			{inputGlobalStyles}
 
-			<LayoutRoot id="root__layout" className={mergeClasses([layoutClasses.root, className])} sx={sx} {...other}>
+			<LayoutRoot
+				id="root__layout"
+				className={mergeClasses([layoutClasses.root, className])}
+				sx={sx}
+				{...other}
+			>
 				{sidebarSection ? (
 					<>
 						{sidebarSection}
@@ -63,12 +73,12 @@ export const LayoutSection = ({
 
 // ----------------------------------------------------------------------
 
-const LayoutRoot = styled('div')``;
+const LayoutRoot = styled("div")``;
 
-const LayoutSidebarContainer = styled('div')(() => {
+const LayoutSidebarContainer = styled("div")(() => {
 	return {
-		display: 'flex',
-		flex: '1 1 auto',
-		flexDirection: 'column',
+		display: "flex",
+		flex: "1 1 auto",
+		flexDirection: "column",
 	};
 });

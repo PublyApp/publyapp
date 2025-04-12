@@ -1,6 +1,6 @@
 // import type i18next from 'i18next';
-import { type TFunction } from 'i18next';
-import _ from 'lodash';
+import { type TFunction } from "i18next";
+import _ from "lodash";
 import z, {
 	defaultErrorMap,
 	ZodIssueCode,
@@ -10,10 +10,10 @@ import z, {
 	type ZodDiscriminatedUnionOption,
 	type ZodEnum,
 	type ZodErrorMap,
-} from 'zod';
-import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
+} from "zod";
+import { makeZodI18nMap, type ZodI18nMapOption } from "zod-i18n-map";
 
-import { defaultLocale, type AppLocale } from '../i18n/resources';
+import { defaultLocale, type AppLocale } from "../i18n/resources";
 
 type I18nLike = {
 	// getFixedT: (locale: AppLocale) => TFunction;
@@ -64,7 +64,7 @@ class InterZod {
 		const errorMap1 = makeZodI18nMap({ t: this.t as never });
 
 		const errorMap2: ZodErrorMap = (issue, ctx) => {
-			const defaultNs = 'zod';
+			const defaultNs = "zod";
 
 			const { t, ns, handlePath } = {
 				t: this.t,
@@ -73,7 +73,7 @@ class InterZod {
 				handlePath:
 					option?.handlePath !== false
 						? {
-								context: 'with_path',
+								context: "with_path",
 								ns: option?.ns ?? defaultNs,
 								keyPrefix: undefined,
 								...option?.handlePath,
@@ -88,17 +88,22 @@ class InterZod {
 				issue.path.length > 0 && !!handlePath
 					? {
 							context: handlePath.context,
-							path: (t as GenericFunction)([handlePath.keyPrefix, issue.path.join('.')].filter(Boolean).join('.'), {
-								ns: handlePath.ns,
-								defaultValue: issue.path.join('.'),
-							} as never),
+							path: (t as GenericFunction)(
+								[handlePath.keyPrefix, issue.path.join(".")]
+									.filter(Boolean)
+									.join("."),
+								{
+									ns: handlePath.ns,
+									defaultValue: issue.path.join("."),
+								} as never,
+							),
 						}
 					: {};
 
 			switch (issue.code) {
 				case ZodIssueCode.invalid_type: {
 					message = (t as GenericFunction)(
-						'errors.invalid_type' as never,
+						"errors.invalid_type" as never,
 						{
 							expected: (t as GenericFunction)(
 								`types.${issue.expected}` as never,
@@ -140,14 +145,23 @@ class InterZod {
 		return z.string({ errorMap: this.getErrorMap(), ...params });
 	}
 
-	enum<U extends string, T extends Readonly<[U, ...U[]]>>(values: T, params?: RawCreateParams): ZodEnum<Writeable<T>>;
-	enum<U extends string, T extends [U, ...U[]]>(values: T, params?: RawCreateParams): ZodEnum<T>;
+	enum<U extends string, T extends Readonly<[U, ...U[]]>>(
+		values: T,
+		params?: RawCreateParams,
+	): ZodEnum<Writeable<T>>;
+	enum<U extends string, T extends [U, ...U[]]>(
+		values: T,
+		params?: RawCreateParams,
+	): ZodEnum<T>;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	enum(values: any, params?: any) {
 		return z.enum(values, { errorMap: this.getErrorMap(), ...params });
 	}
 
-	object<T extends Parameters<typeof z.object>[0]>(schema: T, params?: Parameters<typeof z.object>[1]) {
+	object<T extends Parameters<typeof z.object>[0]>(
+		schema: T,
+		params?: Parameters<typeof z.object>[1],
+	) {
 		return z.object(schema, { errorMap: this.getErrorMap(), ...params });
 	}
 
@@ -159,7 +173,10 @@ class InterZod {
 		return z.number({ errorMap: this.getErrorMap(), ...params });
 	}
 
-	array(schema: Parameters<typeof z.array>[0], params?: Parameters<typeof z.array>[1]) {
+	array(
+		schema: Parameters<typeof z.array>[0],
+		params?: Parameters<typeof z.array>[1],
+	) {
 		return z.array(schema, { errorMap: this.getErrorMap(), ...params });
 	}
 
@@ -169,9 +186,15 @@ class InterZod {
 
 	discriminatedUnion<
 		Discriminator extends string,
-		Types extends [ZodDiscriminatedUnionOption<Discriminator>, ...ZodDiscriminatedUnionOption<Discriminator>[]],
+		Types extends [
+			ZodDiscriminatedUnionOption<Discriminator>,
+			...ZodDiscriminatedUnionOption<Discriminator>[],
+		],
 	>(discriminator: Discriminator, options: Types, params?: RawCreateParams) {
-		return z.discriminatedUnion(discriminator, options, { errorMap: this.getErrorMap(), ...params });
+		return z.discriminatedUnion(discriminator, options, {
+			errorMap: this.getErrorMap(),
+			...params,
+		});
 	}
 
 	literal<T extends Primitive>(value: T, params?: RawCreateParams) {
@@ -179,7 +202,10 @@ class InterZod {
 	}
 
 	// eslint-disable-next-line class-methods-use-this
-	custom<T>(check?: Parameters<typeof z.custom>[0], params?: Parameters<typeof z.custom>[1]) {
+	custom<T>(
+		check?: Parameters<typeof z.custom>[0],
+		params?: Parameters<typeof z.custom>[1],
+	) {
 		return z.custom<T>(check, params);
 	}
 }

@@ -5,9 +5,9 @@ import type {
 	ThemeOptions as MuiThemeOptions,
 	Shadows,
 	SupportedColorScheme,
-} from '@mui/material/styles';
+} from "@mui/material/styles";
 
-import type { CustomShadows } from './core/custom-shadows';
+import type { CustomShadows } from "./core/custom-shadows";
 
 // ----------------------------------------------------------------------
 
@@ -22,7 +22,10 @@ export type ThemeColorScheme = SupportedColorScheme;
 export type ThemeDirection = Direction;
 export type ThemeCssVariables = Pick<
 	CssVarsThemeOptions,
-	'colorSchemeSelector' | 'disableCssColorScheme' | 'cssVarPrefix' | 'shouldSkipGeneratingVar'
+	| "colorSchemeSelector"
+	| "disableCssColorScheme"
+	| "cssVarPrefix"
+	| "shouldSkipGeneratingVar"
 >;
 
 type ColorSchemeOptionsExtended = ColorSystemOptions & {
@@ -30,8 +33,8 @@ type ColorSchemeOptionsExtended = ColorSystemOptions & {
 	customShadows?: CustomShadows;
 };
 
-export type ThemeOptions = Omit<MuiThemeOptions, 'components'> &
-	Pick<CssVarsThemeOptions, 'defaultColorScheme' | 'components'> & {
+export type ThemeOptions = Omit<MuiThemeOptions, "components"> &
+	Pick<CssVarsThemeOptions, "defaultColorScheme" | "components"> & {
 		colorSchemes?: Record<ThemeColorScheme, ColorSchemeOptionsExtended>;
 		cssVariables?: ThemeCssVariables;
 	};

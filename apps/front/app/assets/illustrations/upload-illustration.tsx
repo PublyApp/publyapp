@@ -1,8 +1,8 @@
-import { memo } from 'react';
+import { memo } from "react";
 
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
 
-import { BackgroundShape } from './background-shape';
+import { BackgroundShape } from "./background-shape";
 
 // ----------------------------------------------------------------------
 
@@ -16,13 +16,13 @@ const UploadIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 			sx={[
 				(theme) => {
 					return {
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
+						"--primary-main": theme.vars.palette.primary.main,
+						"--primary-dark": theme.vars.palette.primary.dark,
+						"--primary-darker": theme.vars.palette.primary.darker,
 						width: 320,
 						maxWidth: 1,
 						flexShrink: 0,
-						height: 'auto',
+						height: "auto",
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -32,7 +32,13 @@ const UploadIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 			{!hideBackground && <BackgroundShape />}
 
 			<defs>
-				<linearGradient id="linearGradient-2" x1="30.113%" x2="30.113%" y1="0%" y2="100%">
+				<linearGradient
+					id="linearGradient-2"
+					x1="30.113%"
+					x2="30.113%"
+					y1="0%"
+					y2="100%"
+				>
 					<stop offset="0%" stopOpacity="0" />
 					<stop offset="100%" />
 				</linearGradient>
@@ -283,7 +289,14 @@ const UploadIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 				transform="rotate(-71.99 329.44 114.867)"
 			/>
 
-			<circle cx="303.613" cy="103.507" r="9.376" fill="var(--primary-main)" fillRule="nonzero" opacity="0.2" />
+			<circle
+				cx="303.613"
+				cy="103.507"
+				r="9.376"
+				fill="var(--primary-main)"
+				fillRule="nonzero"
+				opacity="0.2"
+			/>
 
 			<path
 				fill="var(--primary-main)"
@@ -422,7 +435,15 @@ const UploadIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 				ry="1"
 			/>
 
-			<ellipse cx="101.03" cy="260.545" fill="var(--primary-main)" fillRule="nonzero" opacity="0.1" rx="4.846" ry="1" />
+			<ellipse
+				cx="101.03"
+				cy="260.545"
+				fill="var(--primary-main)"
+				fillRule="nonzero"
+				opacity="0.1"
+				rx="4.846"
+				ry="1"
+			/>
 
 			<ellipse
 				cx="108.459"
@@ -434,7 +455,15 @@ const UploadIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 				ry="1"
 			/>
 
-			<ellipse cx="89.193" cy="265.433" fill="var(--primary-main)" fillRule="nonzero" opacity="0.1" rx="3.444" ry="1" />
+			<ellipse
+				cx="89.193"
+				cy="265.433"
+				fill="var(--primary-main)"
+				fillRule="nonzero"
+				opacity="0.1"
+				rx="3.444"
+				ry="1"
+			/>
 
 			<path
 				fill="var(--primary-main)"
@@ -462,13 +491,33 @@ const UploadIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 				d="M91.113 247.808s8.353 12.115 9.968 12.647"
 			/>
 
-			<path stroke="var(--primary-darker)" strokeLinecap="round" strokeWidth="0.5" d="M90.344 249.701L92.293 249.701" />
+			<path
+				stroke="var(--primary-darker)"
+				strokeLinecap="round"
+				strokeWidth="0.5"
+				d="M90.344 249.701L92.293 249.701"
+			/>
 
-			<path stroke="var(--primary-darker)" strokeLinecap="round" strokeWidth="0.5" d="M92.68 254.132L95.738 254.263" />
+			<path
+				stroke="var(--primary-darker)"
+				strokeLinecap="round"
+				strokeWidth="0.5"
+				d="M92.68 254.132L95.738 254.263"
+			/>
 
-			<path stroke="var(--primary-darker)" strokeLinecap="round" strokeWidth="0.5" d="M94.542 250.586L94.21 252.179" />
+			<path
+				stroke="var(--primary-darker)"
+				strokeLinecap="round"
+				strokeWidth="0.5"
+				d="M94.542 250.586L94.21 252.179"
+			/>
 
-			<path stroke="var(--primary-darker)" strokeLinecap="round" strokeWidth="0.5" d="M97.792 255.432L97.732 256.879" />
+			<path
+				stroke="var(--primary-darker)"
+				strokeLinecap="round"
+				strokeWidth="0.5"
+				d="M97.792 255.432L97.732 256.879"
+			/>
 
 			<path
 				fill="var(--primary-main)"
@@ -517,13 +566,41 @@ const UploadIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
 				d="M87.295 264.357a1.375 1.375 0 01-.452-.685.599.599 0 01.317-.697c.3-.11.598.09.837.299.24.21.512.431.81.38a1.237 1.237 0 01-.382-1.16.47.47 0 01.105-.236c.161-.174.454-.099.648.039.598.43.787 1.264.79 2.018.03-.277.03-.555 0-.831a.853.853 0 01.334-.727.938.938 0 01.476-.114.988.988 0 01.774.222.767.767 0 01-.03.947c-.229.257-.5.474-.801.64a1.805 1.805 0 00-.571.547.399.399 0 00-.042.096h-1.74a4.826 4.826 0 01-1.073-.738zM117.626 257.833a1.355 1.355 0 01-.452-.682.599.599 0 01.314-.696c.299-.111.598.089.837.299.239.209.509.436.817.391a1.236 1.236 0 01-.386-1.157.472.472 0 01.107-.236c.162-.173.455-.099.649.036.613.433.787 1.268.79 2.021a4.008 4.008 0 000-.834.852.852 0 01.299-.736.955.955 0 01.475-.11.998.998 0 01.774.218.768.768 0 01-.033.951 2.996 2.996 0 01-.798.64 1.767 1.767 0 00-.571.544.499.499 0 00-.042.098h-1.701a4.78 4.78 0 01-1.079-.747zM107.518 264.357a1.406 1.406 0 01-.455-.685.6.6 0 01.317-.697c.299-.11.598.09.837.299.239.21.505.437.816.395a1.247 1.247 0 01-.385-1.16.472.472 0 01.107-.236c.162-.174.455-.099.649.039.613.43.783 1.264.789 2.018.03-.277.03-.555 0-.832a.855.855 0 01.314-.735.93.93 0 01.476-.114.988.988 0 01.774.222.764.764 0 01-.033.947 3.028 3.028 0 01-.798.64 1.798 1.798 0 00-.571.547.411.411 0 00-.042.096h-1.734c-.385-.2-.742-.45-1.061-.744z"
 			/>
 
-			<circle cx="84.467" cy="87.003" r="6.467" fill="var(--primary-main)" fillRule="nonzero" opacity="0.1" />
+			<circle
+				cx="84.467"
+				cy="87.003"
+				r="6.467"
+				fill="var(--primary-main)"
+				fillRule="nonzero"
+				opacity="0.1"
+			/>
 
-			<circle cx="395.425" cy="138.681" r="6.467" fill="var(--primary-main)" fillRule="nonzero" opacity="0.1" />
+			<circle
+				cx="395.425"
+				cy="138.681"
+				r="6.467"
+				fill="var(--primary-main)"
+				fillRule="nonzero"
+				opacity="0.1"
+			/>
 
-			<circle cx="279.178" cy="66.467" r="6.467" fill="var(--primary-main)" fillRule="nonzero" opacity="0.1" />
+			<circle
+				cx="279.178"
+				cy="66.467"
+				r="6.467"
+				fill="var(--primary-main)"
+				fillRule="nonzero"
+				opacity="0.1"
+			/>
 
-			<circle cx="97.4" cy="122.68" r="10.838" fill="var(--primary-main)" fillRule="nonzero" opacity="0.1" />
+			<circle
+				cx="97.4"
+				cy="122.68"
+				r="10.838"
+				fill="var(--primary-main)"
+				fillRule="nonzero"
+				opacity="0.1"
+			/>
 
 			<path
 				fill="var(--primary-dark)"

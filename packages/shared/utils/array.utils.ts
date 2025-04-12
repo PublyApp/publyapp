@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 
-export const flattenArray = <T>(list: T[], key = 'children'): T[] => {
+export const flattenArray = <T>(list: T[], key = "children"): T[] => {
 	let children: T[] = [];
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,5 +12,7 @@ export const flattenArray = <T>(list: T[], key = 'children'): T[] => {
 		return item;
 	});
 
-	return flatten?.concat(children.length ? flattenArray(children, key) : children);
+	return flatten?.concat(
+		children.length ? flattenArray(children, key) : children,
+	);
 };

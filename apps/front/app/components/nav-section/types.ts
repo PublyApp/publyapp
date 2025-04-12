@@ -1,5 +1,5 @@
-import type { ButtonBaseProps } from '@mui/material/ButtonBase';
-import type { CSSObject, SxProps, Theme } from '@mui/material/styles';
+import type { ButtonBaseProps } from "@mui/material/ButtonBase";
+import type { CSSObject, SxProps, Theme } from "@mui/material/styles";
 
 // ----------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ export type NavItemOptionsProps = {
 	slotProps?: NavItemSlotProps;
 };
 
-export type NavItemDataProps = Pick<NavItemStateProps, 'disabled'> & {
+export type NavItemDataProps = Pick<NavItemStateProps, "disabled"> & {
 	path: string;
 	title: string;
 	icon?: string | React.ReactNode;
@@ -55,23 +55,29 @@ export type NavItemDataProps = Pick<NavItemStateProps, 'disabled'> & {
 	children?: NavItemDataProps[];
 };
 
-export type NavItemProps = ButtonBaseProps & NavItemDataProps & NavItemStateProps & NavItemOptionsProps;
+export type NavItemProps = ButtonBaseProps &
+	NavItemDataProps &
+	NavItemStateProps &
+	NavItemOptionsProps;
 
 /**
  * List
  */
-export type NavListProps = Pick<NavItemProps, 'render' | 'depth' | 'enabledRootRedirect'> & {
+export type NavListProps = Pick<
+	NavItemProps,
+	"render" | "depth" | "enabledRootRedirect"
+> & {
 	cssVars?: CSSObject;
 	data: NavItemDataProps;
 	slotProps?: NavSlotProps;
-	checkPermissions?: (allowedRoles?: NavItemProps['allowedRoles']) => boolean;
+	checkPermissions?: (allowedRoles?: NavItemProps["allowedRoles"]) => boolean;
 };
 
-export type NavSubListProps = Omit<NavListProps, 'data'> & {
+export type NavSubListProps = Omit<NavListProps, "data"> & {
 	data: NavItemDataProps[];
 };
 
-export type NavGroupProps = Omit<NavListProps, 'data' | 'depth'> & {
+export type NavGroupProps = Omit<NavListProps, "data" | "depth"> & {
 	subheader?: string;
 	items: NavItemDataProps[];
 };
@@ -79,8 +85,8 @@ export type NavGroupProps = Omit<NavListProps, 'data' | 'depth'> & {
 /**
  * Main
  */
-export type NavSectionProps = React.ComponentProps<'nav'> &
-	Omit<NavListProps, 'data' | 'depth'> & {
+export type NavSectionProps = React.ComponentProps<"nav"> &
+	Omit<NavListProps, "data" | "depth"> & {
 		sx?: SxProps<Theme>;
 		data: {
 			subheader?: string;

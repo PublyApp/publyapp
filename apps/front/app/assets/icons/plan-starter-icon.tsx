@@ -1,6 +1,6 @@
-import { memo } from 'react';
+import { memo } from "react";
 
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
 
 // ----------------------------------------------------------------------
 
@@ -12,12 +12,12 @@ const PlanStarterIcon = ({ sx, ...other }: SvgIconProps) => {
 			sx={[
 				(theme) => {
 					return {
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
+						"--primary-main": theme.vars.palette.primary.main,
+						"--primary-dark": theme.vars.palette.primary.dark,
+						"--primary-darker": theme.vars.palette.primary.darker,
 						width: 48,
 						flexShrink: 0,
-						height: 'auto',
+						height: "auto",
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -27,7 +27,10 @@ const PlanStarterIcon = ({ sx, ...other }: SvgIconProps) => {
 			<g transform="translate(0 -5)">
 				<g transform="translate(0 9.15)">
 					<g transform="translate(9.167 19.963)">
-						<path fill="var(--primary-dark)" d="M53.333 17.467H61.666V24.953H53.333z" />
+						<path
+							fill="var(--primary-dark)"
+							d="M53.333 17.467H61.666V24.953H53.333z"
+						/>
 
 						<path
 							fill="var(--primary-darker)"
@@ -48,7 +51,10 @@ const PlanStarterIcon = ({ sx, ...other }: SvgIconProps) => {
 				</g>
 
 				<g transform="translate(9.167 19.963)">
-					<path fill="var(--primary-dark)" d="M53.333 17.467H61.666V24.953H53.333z" />
+					<path
+						fill="var(--primary-dark)"
+						d="M53.333 17.467H61.666V24.953H53.333z"
+					/>
 
 					<path
 						fill="var(--primary-darker)"
