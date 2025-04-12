@@ -78,14 +78,14 @@
 		"yoopta",
 		"zustand"
 	],
-	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.defaultFormatter": "biomejs.biome",
 	"editor.codeActionsOnSave": {
 		// "source.fixAll.eslint": "explicit",
 		// "source.sortImports": "explicit",
 		"source.fixAll.biome": "explicit",
 		"source.organizeImports.biome": "explicit"
 	},
-	// "editor.formatOnSave": true, // not needed since prettier is integred as an eslint rule
+	"editor.formatOnSave": true,
 	"editor.tabSize": 2,
 	"editor.insertSpaces": false,
 	"editor.renderWhitespace": "all",

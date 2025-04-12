@@ -9,9 +9,7 @@
 		"build:dev": "react-router build --mode development",
 		"build:local": "pnpm build:dev",
 		"start": "cross-env PORT=6181 react-router-serve ./build/server/index.js",
-		"type-check": "react-router typegen && tsc",
-		"lint": "eslint --ext .ts,.tsx,.js,.jsx .",
-		"lint:fix": "pnpm lint --fix"
+		"type-check": "react-router typegen && tsc"
 	},
 	"dependencies": {
 		"@emotion/cache": "^11.14.0",
