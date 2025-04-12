@@ -1,31 +1,31 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable prefer-arrow/prefer-arrow-functions */
 /* eslint-disable func-style */
-import _ from "lodash";
+import _ from 'lodash';
 
-import { Storage } from "@google-cloud/storage";
-import { MongoClient } from "mongodb";
-import { nanoid } from "nanoid";
-import { chromium } from "playwright";
-import { z } from "zod";
+import { Storage } from '@google-cloud/storage';
+import { MongoClient } from 'mongodb';
+import { nanoid } from 'nanoid';
+import { chromium } from 'playwright';
+import { z } from 'zod';
 
-import { className } from "@/shared/lib/constants";
-import { sleep } from "@/shared/utils/any.utils";
+import { className } from '@/shared/lib/constants';
+import { sleep } from '@/shared/utils/any.utils';
 
-import { getJobTypeFunction } from "../utils/utils";
+import { getJobTypeFunction } from '../utils/utils';
 
 const convertSchema = z.object({
-	type: z.union([z.literal("url"), z.literal("html")]),
+	type: z.union([z.literal('url'), z.literal('html')]),
 	value: z.string(),
 	tenantId: z.string(),
 });
 
 type HtmlToPdfInput = z.infer<typeof convertSchema>;
 
-const BUCKET_NAME = "your-bucket-name";
-const MONGO_URI = "your-mongodb-uri";
-const DATABASE_NAME = "your-database";
-const COLLECTION_NAME = "pdf_files";
+const BUCKET_NAME = 'your-bucket-name';
+const MONGO_URI = 'your-mongodb-uri';
+const DATABASE_NAME = 'your-database';
+const COLLECTION_NAME = 'pdf_files';
 const storage = new Storage();
 const mongoClient = new MongoClient(MONGO_URI);
 
@@ -36,14 +36,14 @@ const generatePdf = async (
 	const context = await browser.newContext();
 	const page = await context.newPage();
 
-	if (input.type === "url") {
-		await page.goto(input.value, { waitUntil: "networkidle" });
+	if (input.type === 'url') {
+		await page.goto(input.value, { waitUntil: 'networkidle' });
 	} else {
-		await page.setContent(input.value, { waitUntil: "networkidle" });
+		await page.setContent(input.value, { waitUntil: 'networkidle' });
 	}
 
 	const fileName = `${input.tenantId}/${nanoid()}.pdf`;
-	const buffer = await page.pdf({ format: "A4" });
+	const buffer = await page.pdf({ format: 'A4' });
 
 	await browser.close();
 	return { buffer, fileName };
@@ -56,8 +56,8 @@ const uploadToGCS = async (buffer: Buffer, fileName: string) => {
 	const stream = file.createWriteStream({ resumable: false });
 	stream.end(buffer);
 	await new Promise((resolve, reject) => {
-		stream.on("finish", resolve);
-		stream.on("error", reject);
+		stream.on('finish', resolve);
+		stream.on('error', reject);
 	});
 
 	await file.makePrivate(); // Ensure the file is not public
@@ -115,7 +115,7 @@ const updateAndCheckCredits = async (
 	const result = await tenantsCollection.findOneAndUpdate(
 		{ tenantId },
 		{ $inc: { credits: -creditCost } },
-		{ returnDocument: "after" },
+		{ returnDocument: 'after' },
 	);
 
 	return result?.value?.credits > 0;
@@ -161,9 +161,9 @@ const handler2 = getJobTypeFunction({
 });
 
 const controllerCode = {
-	ERR_EXPIRED_CREDITS: "ERR_EXPIRED_CREDITS",
-	ERR_ASYNC_LOOP: "ERR_ASYNC_LOOP",
-	MAIN_FUNC_SUCCESS: "MAIN_FUNC_SUCCESS",
+	ERR_EXPIRED_CREDITS: 'ERR_EXPIRED_CREDITS',
+	ERR_ASYNC_LOOP: 'ERR_ASYNC_LOOP',
+	MAIN_FUNC_SUCCESS: 'MAIN_FUNC_SUCCESS',
 } as const;
 
 type ControllerCode = ValueOf<typeof controllerCode>;
@@ -190,7 +190,7 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 					].includes(controller.signal.reason)
 				) {
 					throw new AbortError(
-						"Function aborted",
+						'Function aborted',
 						controller.signal.reason as never,
 					);
 				}
@@ -210,7 +210,7 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 					const t1 = Date.now();
 					const { cpuUsage, ramUsage } = getResourceUsageInterval();
 					hasEnoughCredits = await updateAndCheckCredits(
-						_.get(params, "tenantId", ""),
+						_.get(params, 'tenantId', ''),
 						{
 							cpuUsage,
 							ramUsage,
@@ -230,7 +230,7 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 					// the reason is likely == controllerCode.MAIN_FUNC_SUCCESS
 					const { cpuUsage, ramUsage } = getResourceUsageInterval();
 					hasEnoughCredits = await updateAndCheckCredits(
-						_.get(params, "tenantId", ""),
+						_.get(params, 'tenantId', ''),
 						{
 							cpuUsage,
 							ramUsage,
@@ -241,7 +241,7 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 			};
 
 			asyncLoop(5000).catch((error) => {
-				console.log("Error in async loop: ", error);
+				console.log('Error in async loop: ', error);
 				controller.abort(controllerCode.ERR_ASYNC_LOOP);
 			});
 
@@ -251,7 +251,7 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 			controller.abort(controllerCode.MAIN_FUNC_SUCCESS);
 		} catch (error) {
 			const { cpuUsage, ramUsage } = getResourceUsageInterval();
-			await updateAndCheckCredits(_.get(params, "tenantId", ""), {
+			await updateAndCheckCredits(_.get(params, 'tenantId', ''), {
 				cpuUsage,
 				ramUsage,
 				fileSizeMB: 0,

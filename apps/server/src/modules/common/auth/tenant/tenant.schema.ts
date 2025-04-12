@@ -1,16 +1,16 @@
-import { className, roleEnum } from "@org/shared/lib/constants";
+import { className, roleEnum } from '@org/shared/lib/constants';
 
-import SchemaManager from "@/server/lib/parse/classes/SchemaManager";
-import type { ITenantWithParseRelations } from "@/shared/types/db/tenant.types";
+import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
+import type { ITenantWithParseRelations } from '@/shared/types/db/tenant.types';
 
 const TenantSchema = SchemaManager.defineSchema<ITenantWithParseRelations>(
 	className.TENANT,
 	{
 		fields: {
-			name: { type: "String" },
-			logoUrl: { type: "String" },
-			maxUsers: { type: "Number" },
-			usersCount: { type: "Number" },
+			name: { type: 'String' },
+			logoUrl: { type: 'String' },
+			maxUsers: { type: 'Number' },
+			usersCount: { type: 'Number' },
 
 			// relations
 		},

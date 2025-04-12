@@ -1,18 +1,18 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect } from 'react';
 
-import { popoverClasses } from "@mui/material/Popover";
-import { useTheme } from "@mui/material/styles";
-import { usePopoverHover } from "minimal-shared/hooks";
-import { isActiveLink, isExternalLink } from "minimal-shared/utils";
+import { popoverClasses } from '@mui/material/Popover';
+import { useTheme } from '@mui/material/styles';
+import { usePopoverHover } from 'minimal-shared/hooks';
+import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
 
-import { usePathname } from "@/front/hooks/use-pathname";
+import { usePathname } from '@/front/hooks/use-pathname';
 
-import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from "../components";
-import { navSectionClasses } from "../styles";
-import type { NavListProps, NavSubListProps } from "../types";
+import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from '../components';
+import { navSectionClasses } from '../styles';
+import type { NavListProps, NavSubListProps } from '../types';
 
-import { NavItem } from "./nav-item";
+import { NavItem } from './nav-item';
 
 // ----------------------------------------------------------------------
 
@@ -39,7 +39,7 @@ export const NavList = ({
 		elementRef: navItemRef,
 	} = usePopoverHover<HTMLButtonElement>();
 
-	const isRtl = theme.direction === "rtl";
+	const isRtl = theme.direction === 'rtl';
 	const id = open ? `${data.title}-popover` : undefined;
 
 	useEffect(() => {
@@ -96,13 +96,13 @@ export const NavList = ({
 					anchorEl={anchorEl}
 					anchorOrigin={
 						depth === 1
-							? { vertical: "bottom", horizontal: isRtl ? "right" : "left" }
-							: { vertical: "center", horizontal: isRtl ? "left" : "right" }
+							? { vertical: 'bottom', horizontal: isRtl ? 'right' : 'left' }
+							: { vertical: 'center', horizontal: isRtl ? 'left' : 'right' }
 					}
 					transformOrigin={
 						depth === 1
-							? { vertical: "top", horizontal: isRtl ? "right" : "left" }
-							: { vertical: "center", horizontal: isRtl ? "right" : "left" }
+							? { vertical: 'top', horizontal: isRtl ? 'right' : 'left' }
+							: { vertical: 'center', horizontal: isRtl ? 'right' : 'left' }
 					}
 					slotProps={{
 						paper: {

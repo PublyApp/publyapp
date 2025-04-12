@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import Collapse from "@mui/material/Collapse";
-import { useTheme } from "@mui/material/styles";
-import { useBoolean } from "minimal-shared/hooks";
-import { mergeClasses } from "minimal-shared/utils";
+import Collapse from '@mui/material/Collapse';
+import { useTheme } from '@mui/material/styles';
+import { useBoolean } from 'minimal-shared/hooks';
+import { mergeClasses } from 'minimal-shared/utils';
 
-import { Nav, NavLi, NavSubheader, NavUl } from "../components";
-import { navSectionClasses, navSectionCssVars } from "../styles";
-import type { NavGroupProps, NavSectionProps } from "../types";
+import { Nav, NavLi, NavSubheader, NavUl } from '../components';
+import { navSectionClasses, navSectionCssVars } from '../styles';
+import type { NavGroupProps, NavSectionProps } from '../types';
 
-import { NavList } from "./nav-list";
+import { NavList } from './nav-list';
 
 // ----------------------------------------------------------------------
 
@@ -33,7 +33,7 @@ export const NavSectionVertical = ({
 			sx={[{ ...cssVars }, ...(Array.isArray(sx) ? sx : [sx])]}
 			{...other}
 		>
-			<NavUl sx={{ flex: "1 1 auto", gap: "var(--nav-item-gap)" }}>
+			<NavUl sx={{ flex: '1 1 auto', gap: 'var(--nav-item-gap)' }}>
 				{data.map((group) => {
 					return (
 						<Group
@@ -66,7 +66,7 @@ const Group = ({
 
 	const renderContent = () => {
 		return (
-			<NavUl sx={{ gap: "var(--nav-item-gap)" }}>
+			<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
 				{items.map((list) => {
 					return (
 						<NavList

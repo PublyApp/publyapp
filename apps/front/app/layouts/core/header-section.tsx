@@ -1,17 +1,17 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import AppBar, { type AppBarProps } from "@mui/material/AppBar";
-import Container, { type ContainerProps } from "@mui/material/Container";
+import AppBar, { type AppBarProps } from '@mui/material/AppBar';
+import Container, { type ContainerProps } from '@mui/material/Container';
 import {
 	styled,
 	type Breakpoint,
 	type CSSObject,
 	type SxProps,
 	type Theme,
-} from "@mui/material/styles";
-import { useScrollOffsetTop } from "minimal-shared/hooks";
-import { mergeClasses, varAlpha } from "minimal-shared/utils";
+} from '@mui/material/styles';
+import { useScrollOffsetTop } from 'minimal-shared/hooks';
+import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
-import { layoutClasses } from "./classes";
+import { layoutClasses } from './classes';
 
 // ----------------------------------------------------------------------
 
@@ -28,7 +28,7 @@ export type HeaderSectionProps = AppBarProps & {
 	};
 	slotProps?: {
 		container?: ContainerProps;
-		centerArea?: React.ComponentProps<"div"> & { sx?: SxProps<Theme> };
+		centerArea?: React.ComponentProps<'div'> & { sx?: SxProps<Theme> };
 	};
 };
 
@@ -39,7 +39,7 @@ export const HeaderSection = ({
 	className,
 	disableOffset,
 	disableElevation,
-	layoutQuery = "md",
+	layoutQuery = 'md',
 	...other
 }: HeaderSectionProps) => {
 	const { offsetTop: isOffset } = useScrollOffsetTop();
@@ -56,7 +56,7 @@ export const HeaderSection = ({
 				(theme) => {
 					return {
 						...(isOffset && {
-							"--color": `var(--offset-color, ${theme.vars.palette.text.primary})`,
+							'--color': `var(--offset-color, ${theme.vars.palette.text.primary})`,
 						}),
 					};
 				},
@@ -85,14 +85,14 @@ export const HeaderSection = ({
 
 type HeaderRootProps = Pick<
 	HeaderSectionProps,
-	"disableOffset" | "disableElevation"
+	'disableOffset' | 'disableElevation'
 > & {
 	isOffset: boolean;
 };
 
 const HeaderRoot = styled(AppBar, {
 	shouldForwardProp: (prop: string) => {
-		return !["isOffset", "disableOffset", "disableElevation", "sx"].includes(
+		return !['isOffset', 'disableOffset', 'disableElevation', 'sx'].includes(
 			prop,
 		);
 	},
@@ -102,9 +102,9 @@ const HeaderRoot = styled(AppBar, {
 	const pauseStyles: CSSObject = {
 		opacity: 0,
 		content: '""',
-		visibility: "hidden",
-		position: "absolute",
-		transition: theme.transitions.create(["opacity", "visibility"], {
+		visibility: 'hidden',
+		position: 'absolute',
+		transition: theme.transitions.create(['opacity', 'visibility'], {
 			easing: theme.transitions.easing.easeInOut,
 			duration: theme.transitions.duration.shorter,
 		}),
@@ -117,10 +117,10 @@ const HeaderRoot = styled(AppBar, {
 		...pauseStyles,
 		top: 0,
 		left: 0,
-		width: "100%",
-		height: "100%",
+		width: '100%',
+		height: '100%',
 		zIndex: pauseZindex.top,
-		...(isOffset && { opacity: 1, visibility: "visible" }),
+		...(isOffset && { opacity: 1, visibility: 'visible' }),
 	};
 
 	const shadowStyles: CSSObject = {
@@ -129,41 +129,41 @@ const HeaderRoot = styled(AppBar, {
 		right: 0,
 		bottom: 0,
 		height: 24,
-		margin: "auto",
-		borderRadius: "50%",
-		width: "calc(100% - 48px)",
+		margin: 'auto',
+		borderRadius: '50%',
+		width: 'calc(100% - 48px)',
 		zIndex: pauseZindex.bottom,
 		boxShadow: theme.vars.customShadows.z8,
-		...(isOffset && { opacity: 0.48, visibility: "visible" }),
+		...(isOffset && { opacity: 0.48, visibility: 'visible' }),
 	};
 
 	return {
-		zIndex: "var(--layout-header-zIndex)",
-		...(!disableOffset && { "&::before": bgStyles }),
-		...(!disableElevation && { "&::after": shadowStyles }),
+		zIndex: 'var(--layout-header-zIndex)',
+		...(!disableOffset && { '&::before': bgStyles }),
+		...(!disableElevation && { '&::after': shadowStyles }),
 	};
 });
 
 const HeaderContainer = styled(Container, {
 	shouldForwardProp: (prop: string) => {
-		return !["layoutQuery", "sx"].includes(prop);
+		return !['layoutQuery', 'sx'].includes(prop);
 	},
-})<Pick<HeaderSectionProps, "layoutQuery">>(({ layoutQuery = "md", theme }) => {
+})<Pick<HeaderSectionProps, 'layoutQuery'>>(({ layoutQuery = 'md', theme }) => {
 	return {
-		display: "flex",
-		alignItems: "center",
-		color: "var(--color)",
-		height: "var(--layout-header-mobile-height)",
+		display: 'flex',
+		alignItems: 'center',
+		color: 'var(--color)',
+		height: 'var(--layout-header-mobile-height)',
 		[theme.breakpoints.up(layoutQuery)]: {
-			height: "var(--layout-header-desktop-height)",
+			height: 'var(--layout-header-desktop-height)',
 		},
 	};
 });
 
-const HeaderCenterArea = styled("div")(() => {
+const HeaderCenterArea = styled('div')(() => {
 	return {
-		display: "flex",
-		flex: "1 1 auto",
-		justifyContent: "center",
+		display: 'flex',
+		flex: '1 1 auto',
+		justifyContent: 'center',
 	};
 });

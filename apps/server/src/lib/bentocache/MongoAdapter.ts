@@ -1,15 +1,15 @@
-import { DatabaseDriver } from "bentocache/drivers/database";
+import { DatabaseDriver } from 'bentocache/drivers/database';
 import type {
 	CreateDriverResult,
 	DatabaseAdapter,
 	DatabaseConfig,
-} from "bentocache/types";
+} from 'bentocache/types';
 import {
 	MongoClient,
 	type Collection,
 	type Db,
 	type MongoClientOptions,
-} from "mongodb";
+} from 'mongodb';
 
 interface MongoConfig extends DatabaseConfig, MongoClientOptions {
 	uri: string;
@@ -60,7 +60,7 @@ export class MongoAdapter implements DatabaseAdapter {
 		// This is used for index setup.
 
 		if (!this.#collectionName) {
-			throw new Error("Collection name is not set. Call setTableName first.");
+			throw new Error('Collection name is not set. Call setTableName first.');
 		}
 
 		await this.#client.connect(); // Always ensure the client is connected

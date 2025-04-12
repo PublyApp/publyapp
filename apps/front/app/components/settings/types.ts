@@ -1,9 +1,9 @@
-import type { SxProps, Theme } from "@mui/material/styles";
+import type { SxProps, Theme } from '@mui/material/styles';
 
 import type {
 	ThemeColorScheme,
 	ThemeDirection,
-} from "@/front/lib/mui/theme/types";
+} from '@/front/lib/mui/theme/types';
 
 // ----------------------------------------------------------------------
 
@@ -14,16 +14,16 @@ export type SettingsState = {
 	compactLayout?: boolean;
 	direction?: ThemeDirection;
 	colorScheme?: ThemeColorScheme;
-	contrast?: "default" | "hight";
-	navColor?: "integrate" | "apparent";
-	navLayout?: "vertical" | "horizontal" | "mini";
+	contrast?: 'default' | 'hight';
+	navColor?: 'integrate' | 'apparent';
+	navLayout?: 'vertical' | 'horizontal' | 'mini';
 	primaryColor?:
-		| "default"
-		| "preset1"
-		| "preset2"
-		| "preset3"
-		| "preset4"
-		| "preset5";
+		| 'default'
+		| 'preset1'
+		| 'preset2'
+		| 'preset3'
+		| 'preset4'
+		| 'preset5';
 };
 
 export type SettingsContextValue = {

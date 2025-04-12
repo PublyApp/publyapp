@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { Fragment } from "react";
+import { Fragment } from 'react';
 
-import Portal from "@mui/material/Portal";
-import { styled, type SxProps, type Theme } from "@mui/material/styles";
+import Portal from '@mui/material/Portal';
+import { styled, type SxProps, type Theme } from '@mui/material/styles';
 
-import { AnimateLogoZoom } from "../animate";
+import { AnimateLogoZoom } from '../animate';
 
 // ----------------------------------------------------------------------
 
-export type SplashScreenProps = React.ComponentProps<"div"> & {
+export type SplashScreenProps = React.ComponentProps<'div'> & {
 	portal?: boolean;
 	sx?: SxProps<Theme>;
 	slotProps?: {
@@ -37,24 +37,24 @@ export const SplashScreen = ({
 
 // ----------------------------------------------------------------------
 
-const LoadingWrapper = styled("div")({
+const LoadingWrapper = styled('div')({
 	flexGrow: 1,
-	display: "flex",
-	flexDirection: "column",
+	display: 'flex',
+	flexDirection: 'column',
 });
 
-const LoadingContent = styled("div")(({ theme }) => {
+const LoadingContent = styled('div')(({ theme }) => {
 	return {
 		right: 0,
 		bottom: 0,
 		zIndex: 9998,
 		flexGrow: 1,
-		width: "100%",
-		height: "100%",
-		display: "flex",
-		position: "fixed",
-		alignItems: "center",
-		justifyContent: "center",
+		width: '100%',
+		height: '100%',
+		display: 'flex',
+		position: 'fixed',
+		alignItems: 'center',
+		justifyContent: 'center',
 		backgroundColor: theme.vars.palette.background.default,
 	};
 });

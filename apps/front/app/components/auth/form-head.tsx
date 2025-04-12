@@ -1,5 +1,5 @@
-import Box, { type BoxProps } from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
+import Box, { type BoxProps } from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 
 // ----------------------------------------------------------------------
 
@@ -21,7 +21,7 @@ export const FormHead = ({
 			{icon && (
 				<Box
 					component="span"
-					sx={{ mb: 3, mx: "auto", display: "inline-flex" }}
+					sx={{ mb: 3, mx: 'auto', display: 'inline-flex' }}
 				>
 					{icon}
 				</Box>
@@ -33,10 +33,10 @@ export const FormHead = ({
 						return {
 							mb: 5,
 							gap: 1.5,
-							display: "flex",
-							textAlign: "center",
-							whiteSpace: "pre-line",
-							flexDirection: "column",
+							display: 'flex',
+							textAlign: 'center',
+							whiteSpace: 'pre-line',
+							flexDirection: 'column',
 						};
 					},
 					...(Array.isArray(sx) ? sx : [sx]),
@@ -46,7 +46,7 @@ export const FormHead = ({
 				<Typography variant="h5">{title}</Typography>
 
 				{description && (
-					<Typography variant="body2" sx={{ color: "text.secondary" }}>
+					<Typography variant="body2" sx={{ color: 'text.secondary' }}>
 						{description}
 					</Typography>
 				)}

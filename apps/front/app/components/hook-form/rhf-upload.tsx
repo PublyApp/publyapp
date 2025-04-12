@@ -1,9 +1,9 @@
-import Box, { type BoxProps } from "@mui/material/Box";
-import { Controller, useFormContext } from "react-hook-form";
+import Box, { type BoxProps } from '@mui/material/Box';
+import { Controller, useFormContext } from 'react-hook-form';
 
-import { Upload, UploadAvatar, UploadBox, type UploadProps } from "../upload";
+import { Upload, UploadAvatar, UploadBox, type UploadProps } from '../upload';
 
-import { HelperText } from "./help-text";
+import { HelperText } from './help-text';
 
 // ----------------------------------------------------------------------
 
@@ -43,7 +43,7 @@ export const RHFUploadAvatar = ({
 
 						<HelperText
 							errorMessage={error?.message}
-							sx={{ textAlign: "center" }}
+							sx={{ textAlign: 'center' }}
 						/>
 					</Box>
 				);
@@ -85,7 +85,7 @@ export const RHFUpload = ({
 			render={({ field, fieldState: { error } }) => {
 				const uploadProps = {
 					multiple,
-					accept: { "image/*": [] },
+					accept: { 'image/*': [] },
 					error: !!error,
 					helperText: error?.message ?? helperText,
 				};

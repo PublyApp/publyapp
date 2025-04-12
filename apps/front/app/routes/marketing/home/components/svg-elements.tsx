@@ -1,22 +1,22 @@
-import { useId } from "react";
+import { useId } from 'react';
 
-import Box, { type BoxProps } from "@mui/material/Box";
-import { styled, type SxProps, type Theme } from "@mui/material/styles";
-import { m, type MotionProps, type Transition } from "framer-motion";
+import Box, { type BoxProps } from '@mui/material/Box';
+import { styled, type SxProps, type Theme } from '@mui/material/styles';
+import { m, type MotionProps, type Transition } from 'framer-motion';
 
-import { varFade } from "@/front/components/animate/variants/fade";
+import { varFade } from '@/front/components/animate/variants/fade';
 
 // ----------------------------------------------------------------------
 
 const baseStyles = (theme: Theme): SxProps<Theme> => {
 	return {
 		zIndex: 2,
-		display: "none",
-		color: "grey.500",
-		position: "absolute",
-		"& line": { strokeDasharray: 3, stroke: "currentColor" },
-		"& path": { fill: "currentColor", stroke: "currentColor" },
-		[theme.breakpoints.up(1440)]: { display: "block" },
+		display: 'none',
+		color: 'grey.500',
+		position: 'absolute',
+		'& line': { strokeDasharray: 3, stroke: 'currentColor' },
+		'& path': { fill: 'currentColor', stroke: 'currentColor' },
+		[theme.breakpoints.up(1440)]: { display: 'block' },
 	};
 };
 
@@ -44,9 +44,9 @@ export const FloatLine = ({
 						...baseStyles(theme),
 						width: 1,
 						zIndex: 1,
-						height: "1px",
+						height: '1px',
 						opacity: 0.24,
-						...(vertical && { width: "1px", height: 1 }),
+						...(vertical && { width: '1px', height: 1 }),
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -60,8 +60,8 @@ export const FloatLine = ({
 					y1="0"
 					y2="100%"
 					variants={{
-						initial: { y2: "0%" },
-						animate: { y2: "100%", transition },
+						initial: { y2: '0%' },
+						animate: { y2: '100%', transition },
 					}}
 				/>
 			) : (
@@ -71,8 +71,8 @@ export const FloatLine = ({
 					y1="0.5"
 					y2="0.5"
 					variants={{
-						initial: { x2: "0%" },
-						animate: { x2: "100%", transition },
+						initial: { x2: '0%' },
+						animate: { x2: '100%', transition },
 					}}
 				/>
 			)}
@@ -216,7 +216,7 @@ export const CircleSvg = ({ sx, variants }: SvgRootProps) => {
 			viewBox="0 0 560 560"
 			xmlns="http://www.w3.org/2000/svg"
 			fill="none"
-			variants={variants ?? varFade("in")}
+			variants={variants ?? varFade('in')}
 			sx={[
 				() => {
 					return {
@@ -224,11 +224,11 @@ export const CircleSvg = ({ sx, variants }: SvgRootProps) => {
 						left: 0,
 						right: 0,
 						bottom: 0,
-						m: "auto",
+						m: 'auto',
 						width: 560,
 						height: 560,
-						color: "grey.500",
-						position: "absolute",
+						color: 'grey.500',
+						position: 'absolute',
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -255,7 +255,7 @@ export const CircleSvg = ({ sx, variants }: SvgRootProps) => {
 			<g clipPath={`url(#${clipPathId})`}>
 				<mask
 					id={maskId}
-					style={{ maskType: "alpha" }}
+					style={{ maskType: 'alpha' }}
 					width="560"
 					height="560"
 					x="0"
@@ -285,7 +285,7 @@ export const CircleSvg = ({ sx, variants }: SvgRootProps) => {
 export const FloatDotIcon = ({
 	sx,
 	...other
-}: BoxProps<"span"> & MotionProps) => {
+}: BoxProps<'span'> & MotionProps) => {
 	return (
 		<Box
 			component={m.span}
@@ -299,8 +299,8 @@ export const FloatDotIcon = ({
 						...baseStyles(theme),
 						width: 12,
 						height: 12,
-						borderRadius: "50%",
-						bgcolor: "currentColor",
+						borderRadius: '50%',
+						bgcolor: 'currentColor',
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),

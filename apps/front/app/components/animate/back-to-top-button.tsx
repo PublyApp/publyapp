@@ -1,9 +1,9 @@
-import { cloneElement } from "react";
+import { cloneElement } from 'react';
 
-import Fab, { type FabProps } from "@mui/material/Fab";
-import { useBackToTop } from "minimal-shared/hooks";
+import Fab, { type FabProps } from '@mui/material/Fab';
+import { useBackToTop } from 'minimal-shared/hooks';
 
-import { Iconify } from "../iconify/iconify";
+import { Iconify } from '../iconify/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ export const BackToTopButton = ({
 	sx,
 	isDebounce,
 	renderButton,
-	scrollThreshold = "90%",
+	scrollThreshold = '90%',
 	...other
 }: BackToTopProps) => {
 	const { onBackToTop, isVisible } = useBackToTop(scrollThreshold, isDebounce);
@@ -40,13 +40,13 @@ export const BackToTopButton = ({
 					return {
 						width: 48,
 						height: 48,
-						position: "fixed",
-						transform: "scale(0)",
+						position: 'fixed',
+						transform: 'scale(0)',
 						right: { xs: 24, md: 32 },
 						bottom: { xs: 24, md: 32 },
 						zIndex: theme.zIndex.speedDial,
-						transition: theme.transitions.create(["transform"]),
-						...(isVisible && { transform: "scale(1)" }),
+						transition: theme.transitions.create(['transform']),
+						...(isVisible && { transform: 'scale(1)' }),
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),

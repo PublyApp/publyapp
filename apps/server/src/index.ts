@@ -1,19 +1,19 @@
-import { createServer } from "http";
-import path from "path";
+import { createServer } from 'http';
+import path from 'path';
 
-import { ParseServer } from "parse-server/lib/index.js";
-import Parse from "parse/node.js";
+import { ParseServer } from 'parse-server/lib/index.js';
+import Parse from 'parse/node.js';
 
-import FSFilesAdapter from "@parse/fs-files-adapter";
-import { createRequestHandler } from "@react-router/express";
-import chalk from "chalk";
-import express from "express";
-import helmet from "helmet";
-import ParseDashboard from "parse-dashboard";
+import FSFilesAdapter from '@parse/fs-files-adapter';
+import { createRequestHandler } from '@react-router/express';
+import chalk from 'chalk';
+import express from 'express';
+import helmet from 'helmet';
+import ParseDashboard from 'parse-dashboard';
 
-import duration from "@org/shared/utils/duration.utils";
+import duration from '@org/shared/utils/duration.utils';
 
-import { logger } from "@/server/lib/winston";
+import { logger } from '@/server/lib/winston';
 import {
 	APP_ID,
 	APP_NAME,
@@ -22,32 +22,32 @@ import {
 	TENANT_ID_HEADER_KEY,
 	// X_FORWARDED_FOR_HEADER_KEY,
 	X_REMIX_CLIENT_IP,
-} from "@/shared/lib/constants";
+} from '@/shared/lib/constants';
 
-import { cloud } from "./cloud";
+import { cloud } from './cloud';
 import {
 	createRolesIfNotExists,
 	createUploadDirIfNotExists,
 	setUpGlobalConfig,
 	updateSchemasOnInit,
-} from "./helpers/helpers";
-import { initCloudinary } from "./lib/cloudinary";
+} from './helpers/helpers';
+import { initCloudinary } from './lib/cloudinary';
 import {
 	corsWhiteList,
 	EXPRESS_FILES_MOUNT_PATH,
 	FILE_UPLOAD_DESTINATION,
 	PARSE_SERVER_URL,
-} from "./lib/constants";
-import { env } from "./lib/env";
-import { expressHandler } from "./lib/express";
-import { initI18next } from "./lib/i18n";
-import CustomMailAdapter from "./lib/parse/classes/CustomMailAdapter";
-import WinstonLoggerAdapter from "./lib/parse/classes/WinstonLoggerAdapter";
-import { setCurrentInstallationId } from "./lib/parse/parse.utils";
-import { corsMiddleware } from "./middlewares/cors.middleware";
-import { errorMiddleware } from "./middlewares/error.middleware";
-import parseServerMiddleware from "./middlewares/parseServer.middleware";
-import coreApiRouter from "./router/coreApi.router";
+} from './lib/constants';
+import { env } from './lib/env';
+import { expressHandler } from './lib/express';
+import { initI18next } from './lib/i18n';
+import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
+import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
+import { setCurrentInstallationId } from './lib/parse/parse.utils';
+import { corsMiddleware } from './middlewares/cors.middleware';
+import { errorMiddleware } from './middlewares/error.middleware';
+import parseServerMiddleware from './middlewares/parseServer.middleware';
+import coreApiRouter from './router/coreApi.router';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -71,8 +71,8 @@ const bootstrap = async () => {
 				useDefaults: true,
 				reportOnly: true,
 				directives: {
-					"connect-src": ["'self'", "https://www.pdfvite.com"],
-					"script-src": ["'self'", "https://www.pdfvite.com"],
+					'connect-src': ["'self'", 'https://www.pdfvite.com'],
+					'script-src': ["'self'", 'https://www.pdfvite.com'],
 				},
 			},
 		}),
@@ -95,17 +95,17 @@ const bootstrap = async () => {
 	app.use(
 		express.json({
 			// ! if tex/plain is not specified, request body in Parse API endpoint will not work
-			type: ["application/json", "text/plain"],
+			type: ['application/json', 'text/plain'],
 		}),
 	);
 	// server uploaded files under express static middleware
 	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 	// serve i18n resources files under express static middleware (remark: these files are generated at build time)
-	app.use("/resources", express.static(path.resolve(__dirname, "./resources")));
+	app.use('/resources', express.static(path.resolve(__dirname, './resources')));
 
 	// File System adapter for Parse
 	const filesAdapter = new FSFilesAdapter({
-		filesSubDirectory: "parse-uploads", // optional, defaults to ./files
+		filesSubDirectory: 'parse-uploads', // optional, defaults to ./files
 		// encryptionKey: 'local-file-encryption-key', // optional, but mandatory if you want to encrypt files
 	});
 
@@ -130,8 +130,8 @@ const bootstrap = async () => {
 		loggerAdapter,
 		emailAdapter,
 		// =============================================
-		masterKeyIps: ["0.0.0.0/0", "::1"], // ! Allowing all ips is dangerous
-		sessionLength: duration.toSeconds("3d"), // 3 days
+		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
+		sessionLength: duration.toSeconds('3d'), // 3 days
 		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY, X_REMIX_CLIENT_IP],
 		allowOrigin: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		// =============================================
@@ -142,11 +142,11 @@ const bootstrap = async () => {
 		preventLoginWithUnverifiedEmail: true,
 		encodeParseObjectInCloudFunction: true,
 		logLevels: {
-			cloudFunctionError: "silent",
-			cloudFunctionSuccess: "silent",
-			triggerAfter: "silent",
-			triggerBeforeError: "silent",
-			triggerBeforeSuccess: "silent",
+			cloudFunctionError: 'silent',
+			cloudFunctionSuccess: 'silent',
+			triggerAfter: 'silent',
+			triggerBeforeError: 'silent',
+			triggerBeforeSuccess: 'silent',
 		},
 		pages: {
 			enableRouter: true,
@@ -169,7 +169,7 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                           //
 	// ------------------------------------------------------------------------------------- //
-	const PARSE_DASHBOARD_MOUNT_PATH = "/pdash";
+	const PARSE_DASHBOARD_MOUNT_PATH = '/pdash';
 
 	if (env.LOCAL) {
 		const dashboard = new ParseDashboard(
@@ -189,14 +189,14 @@ const bootstrap = async () => {
 		);
 		app.use(PARSE_DASHBOARD_MOUNT_PATH, dashboard);
 		app.all(
-			path.posix.join(endPoint.api.root, "test"),
+			path.posix.join(endPoint.api.root, 'test'),
 			expressHandler(async (req, res) => {
-				logger.info("test route hit", {
-					lol: "test",
-					password: "azerty",
+				logger.info('test route hit', {
+					lol: 'test',
+					password: 'azerty',
 					body: req.body,
 				});
-				return res.status(200).json({ ok: "ok" });
+				return res.status(200).json({ ok: 'ok' });
 			}),
 		);
 	}
@@ -204,7 +204,7 @@ const bootstrap = async () => {
 	// wait for the parse server setup to finish, the mount the parse app to the express app
 	await startParsePromise;
 
-	parseServer.app.disable("x-powered-by");
+	parseServer.app.disable('x-powered-by');
 
 	app.use(PARSE_SERVER_URL.pathname, parseServerMiddleware, parseServer.app);
 
@@ -213,7 +213,7 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
 		app.use(
-			express.static(path.resolve(__dirname, "../../front/build/client")),
+			express.static(path.resolve(__dirname, '../../front/build/client')),
 		);
 
 		// needs to handle all verbs (GET, POST, etc.)
@@ -223,7 +223,7 @@ const bootstrap = async () => {
 				// `remix build` and `remix dev` output files to a build directory, you need
 				// to pass that build to the request handler
 				build: await import(
-					/* webpackIgnore: true */ "front/build/server/index.js"
+					/* webpackIgnore: true */ 'front/build/server/index.js'
 				), // ! the '.js' extension is important
 
 				// return anything you want here to be available as `context` in your
@@ -243,7 +243,7 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	const server = createServer(app);
 
-	server.on("request", (req, _res) => {
+	server.on('request', (req, _res) => {
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		req.socket.remoteAddress; // make express req.ip work in bun
 	});
@@ -252,9 +252,9 @@ const bootstrap = async () => {
 	// ! this must be mounted after all routes and all other middlewares
 	app.use(errorMiddleware);
 
-	server.listen(env.PORT, env.LOCAL ? "localhost" : "0.0.0.0", () => {
+	server.listen(env.PORT, env.LOCAL ? 'localhost' : '0.0.0.0', () => {
 		logger.info(
-			"================================================================",
+			'================================================================',
 		);
 		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
 
@@ -267,7 +267,7 @@ const bootstrap = async () => {
 		}
 
 		logger.info(
-			"================================================================",
+			'================================================================',
 		);
 	});
 

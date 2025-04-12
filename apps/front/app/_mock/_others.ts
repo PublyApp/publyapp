@@ -1,4 +1,4 @@
-import { _mock } from "./_mock";
+import { _mock } from './_mock';
 
 // ----------------------------------------------------------------------
 
@@ -36,7 +36,7 @@ export const _addressBooks = Array.from({ length: 24 }, (_, index) => {
 		fullAddress: _mock.fullAddress(index),
 		phoneNumber: _mock.phoneNumber(index),
 		company: _mock.companyNames(index + 1),
-		addressType: index === 0 ? "Home" : "Office",
+		addressType: index === 0 ? 'Home' : 'Office',
 	};
 });
 
@@ -45,10 +45,10 @@ export const _addressBooks = Array.from({ length: 24 }, (_, index) => {
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const _contacts = Array.from({ length: 20 }, (_, index) => {
 	const status =
-		(index % 2 && "online") ||
-		(index % 3 && "offline") ||
-		(index % 4 && "always") ||
-		"busy";
+		(index % 2 && 'online') ||
+		(index % 3 && 'offline') ||
+		(index % 4 && 'always') ||
+		'busy';
 
 	return {
 		id: _mock.id(index),
@@ -82,32 +82,32 @@ export const _notifications = Array.from({ length: 9 }, (_, index) => {
 			null,
 		][index],
 		type: [
-			"friend",
-			"project",
-			"file",
-			"tags",
-			"payment",
-			"order",
-			"delivery",
-			"chat",
-			"mail",
+			'friend',
+			'project',
+			'file',
+			'tags',
+			'payment',
+			'order',
+			'delivery',
+			'chat',
+			'mail',
 		][index],
 		category: [
-			"Communication",
-			"Project UI",
-			"File manager",
-			"File manager",
-			"File manager",
-			"Order",
-			"Order",
-			"Communication",
-			"Communication",
+			'Communication',
+			'Project UI',
+			'File manager',
+			'File manager',
+			'File manager',
+			'Order',
+			'Order',
+			'Communication',
+			'Communication',
 		][index],
 		isUnRead: _mock.boolean(index),
 		createdAt: _mock.time(index),
 		title:
 			(index === 0 &&
-				"<p><strong>Deja Brady</strong> sent you a friend request</p>") ||
+				'<p><strong>Deja Brady</strong> sent you a friend request</p>') ||
 			(index === 1 &&
 				"<p><strong>Jayvon Hull</strong> mentioned you in <strong><a href='#'>Minimal UI</a></strong></p>") ||
 			(index === 2 &&
@@ -115,13 +115,13 @@ export const _notifications = Array.from({ length: 9 }, (_, index) => {
 			(index === 3 &&
 				"<p><strong>Angelique Morse</strong> added new tags to <strong><a href='#'>File manager<a/></strong></p>") ||
 			(index === 4 &&
-				"<p><strong>Giana Brandt</strong> request a payment of <strong>$200</strong></p>") ||
-			(index === 5 && "<p>Your order is placed waiting for shipping</p>") ||
+				'<p><strong>Giana Brandt</strong> request a payment of <strong>$200</strong></p>') ||
+			(index === 5 && '<p>Your order is placed waiting for shipping</p>') ||
 			(index === 6 &&
-				"<p>Delivery processing your order is being shipped</p>") ||
-			(index === 7 && "<p>You have new message 5 unread messages</p>") ||
-			(index === 8 && "<p>You have new mail") ||
-			"",
+				'<p>Delivery processing your order is being shipped</p>') ||
+			(index === 7 && '<p>You have new message 5 unread messages</p>') ||
+			(index === 8 && '<p>You have new mail') ||
+			'',
 	};
 });
 
@@ -146,24 +146,24 @@ export const _mapContact = [
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const _socials = [
 	{
-		value: "facebook",
-		label: "Facebook",
-		path: "https://www.facebook.com/caitlyn.kerluke",
+		value: 'facebook',
+		label: 'Facebook',
+		path: 'https://www.facebook.com/caitlyn.kerluke',
 	},
 	{
-		value: "instagram",
-		label: "Instagram",
-		path: "https://www.instagram.com/caitlyn.kerluke",
+		value: 'instagram',
+		label: 'Instagram',
+		path: 'https://www.instagram.com/caitlyn.kerluke',
 	},
 	{
-		value: "linkedin",
-		label: "Linkedin",
-		path: "https://www.linkedin.com/caitlyn.kerluke",
+		value: 'linkedin',
+		label: 'Linkedin',
+		path: 'https://www.linkedin.com/caitlyn.kerluke',
 	},
 	{
-		value: "twitter",
-		label: "Twitter",
-		path: "https://www.twitter.com/caitlyn.kerluke",
+		value: 'twitter',
+		label: 'Twitter',
+		path: 'https://www.twitter.com/caitlyn.kerluke',
 	},
 ];
 
@@ -172,39 +172,39 @@ export const _socials = [
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const _pricingPlans = [
 	{
-		subscription: "basic",
+		subscription: 'basic',
 		price: 0,
-		caption: "Forever",
-		lists: ["3 prototypes", "3 boards", "Up to 5 team members"],
-		labelAction: "Current plan",
+		caption: 'Forever',
+		lists: ['3 prototypes', '3 boards', 'Up to 5 team members'],
+		labelAction: 'Current plan',
 	},
 	{
-		subscription: "starter",
+		subscription: 'starter',
 		price: 4.99,
-		caption: "Saving $24 a year",
+		caption: 'Saving $24 a year',
 		lists: [
-			"3 prototypes",
-			"3 boards",
-			"Up to 5 team members",
-			"Advanced security",
-			"Issue escalation",
+			'3 prototypes',
+			'3 boards',
+			'Up to 5 team members',
+			'Advanced security',
+			'Issue escalation',
 		],
-		labelAction: "Choose starter",
+		labelAction: 'Choose starter',
 	},
 	{
-		subscription: "premium",
+		subscription: 'premium',
 		price: 9.99,
-		caption: "Saving $124 a year",
+		caption: 'Saving $124 a year',
 		lists: [
-			"3 prototypes",
-			"3 boards",
-			"Up to 5 team members",
-			"Advanced security",
-			"Issue escalation",
-			"Issue development license",
-			"Permissions & workflows",
+			'3 prototypes',
+			'3 boards',
+			'Up to 5 team members',
+			'Advanced security',
+			'Issue escalation',
+			'Issue development license',
+			'Permissions & workflows',
 		],
-		labelAction: "Choose premium",
+		labelAction: 'Choose premium',
 	},
 ];
 
@@ -217,7 +217,7 @@ export const _testimonials = [
 		postedDate: _mock.time(1),
 		ratingNumber: _mock.number.rating(1),
 		avatarUrl: _mock.image.avatar(1),
-		content: "Excellent Work! Thanks a lot!",
+		content: 'Excellent Work! Thanks a lot!',
 	},
 	{
 		name: _mock.fullName(2),
@@ -233,7 +233,7 @@ export const _testimonials = [
 		ratingNumber: _mock.number.rating(3),
 		avatarUrl: _mock.image.avatar(3),
 		content:
-			"Customer support is realy fast and helpful the desgin of this theme is looks amazing also the code is very clean and readble realy good job !",
+			'Customer support is realy fast and helpful the desgin of this theme is looks amazing also the code is very clean and readble realy good job !',
 	},
 	{
 		name: _mock.fullName(4),
@@ -241,7 +241,7 @@ export const _testimonials = [
 		ratingNumber: _mock.number.rating(4),
 		avatarUrl: _mock.image.avatar(4),
 		content:
-			"Amazing, really good code quality and gives you a lot of examples for implementations.",
+			'Amazing, really good code quality and gives you a lot of examples for implementations.',
 	},
 	{
 		name: _mock.fullName(5),
@@ -249,7 +249,7 @@ export const _testimonials = [
 		ratingNumber: _mock.number.rating(5),
 		avatarUrl: _mock.image.avatar(5),
 		content:
-			"Got a few questions after purchasing the product. The owner responded very fast and very helpfull. Overall the code is excellent and works very good. 5/5 stars!",
+			'Got a few questions after purchasing the product. The owner responded very fast and very helpfull. Overall the code is excellent and works very good. 5/5 stars!',
 	},
 	{
 		name: _mock.fullName(6),

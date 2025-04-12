@@ -1,10 +1,10 @@
-import type { Transition, Variants } from "framer-motion";
+import type { Transition, Variants } from 'framer-motion';
 
-import { transitionEnter, transitionExit } from "./transition";
+import { transitionEnter, transitionExit } from './transition';
 
 // ----------------------------------------------------------------------
 
-type Direction = "inX" | "inY" | "outX" | "outY";
+type Direction = 'inX' | 'inY' | 'outX' | 'outY';
 
 type Options = {
 	distance?: number;

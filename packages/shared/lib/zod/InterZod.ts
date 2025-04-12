@@ -1,6 +1,6 @@
 // import type i18next from 'i18next';
-import { type TFunction } from "i18next";
-import _ from "lodash";
+import { type TFunction } from 'i18next';
+import _ from 'lodash';
 import z, {
 	defaultErrorMap,
 	ZodIssueCode,
@@ -10,10 +10,10 @@ import z, {
 	type ZodDiscriminatedUnionOption,
 	type ZodEnum,
 	type ZodErrorMap,
-} from "zod";
-import { makeZodI18nMap, type ZodI18nMapOption } from "zod-i18n-map";
+} from 'zod';
+import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
 
-import { defaultLocale, type AppLocale } from "../i18n/resources";
+import { defaultLocale, type AppLocale } from '../i18n/resources';
 
 type I18nLike = {
 	// getFixedT: (locale: AppLocale) => TFunction;
@@ -64,7 +64,7 @@ class InterZod {
 		const errorMap1 = makeZodI18nMap({ t: this.t as never });
 
 		const errorMap2: ZodErrorMap = (issue, ctx) => {
-			const defaultNs = "zod";
+			const defaultNs = 'zod';
 
 			const { t, ns, handlePath } = {
 				t: this.t,
@@ -73,7 +73,7 @@ class InterZod {
 				handlePath:
 					option?.handlePath !== false
 						? {
-								context: "with_path",
+								context: 'with_path',
 								ns: option?.ns ?? defaultNs,
 								keyPrefix: undefined,
 								...option?.handlePath,
@@ -89,12 +89,12 @@ class InterZod {
 					? {
 							context: handlePath.context,
 							path: (t as GenericFunction)(
-								[handlePath.keyPrefix, issue.path.join(".")]
+								[handlePath.keyPrefix, issue.path.join('.')]
 									.filter(Boolean)
-									.join("."),
+									.join('.'),
 								{
 									ns: handlePath.ns,
-									defaultValue: issue.path.join("."),
+									defaultValue: issue.path.join('.'),
 								} as never,
 							),
 						}
@@ -103,7 +103,7 @@ class InterZod {
 			switch (issue.code) {
 				case ZodIssueCode.invalid_type: {
 					message = (t as GenericFunction)(
-						"errors.invalid_type" as never,
+						'errors.invalid_type' as never,
 						{
 							expected: (t as GenericFunction)(
 								`types.${issue.expected}` as never,

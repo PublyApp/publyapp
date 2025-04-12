@@ -1,10 +1,10 @@
-import { useTheme } from "@mui/material/styles";
+import { useTheme } from '@mui/material/styles';
 
-import { Nav, NavUl } from "../components";
-import { navBasicClasses, navBasicVars } from "../styles";
-import type { NavBasicProps } from "../types";
+import { Nav, NavUl } from '../components';
+import { navBasicClasses, navBasicVars } from '../styles';
+import type { NavBasicProps } from '../types';
 
-import { NavList } from "./nav-list";
+import { NavList } from './nav-list';
 
 // ----------------------------------------------------------------------
 
@@ -27,7 +27,7 @@ export const NavBasicMobile = ({
 			sx={[{ ...cssVars }, ...(Array.isArray(sx) ? sx : [sx])]}
 			{...other}
 		>
-			<NavUl sx={{ flex: "1 1 auto", gap: "var(--nav-item-gap)" }}>
+			<NavUl sx={{ flex: '1 1 auto', gap: 'var(--nav-item-gap)' }}>
 				{data.map((list) => {
 					return (
 						<NavList

@@ -1,10 +1,10 @@
-import { avatarGroupClasses } from "@mui/material/AvatarGroup";
+import { avatarGroupClasses } from '@mui/material/AvatarGroup';
 import type {
 	Components,
 	ComponentsVariants,
 	Theme,
-} from "@mui/material/styles";
-import { varAlpha } from "minimal-shared/utils";
+} from '@mui/material/styles';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
@@ -20,32 +20,32 @@ export type AvatarGroupExtendVariant = {
 // ----------------------------------------------------------------------
 
 const COLORS = [
-	"primary",
-	"secondary",
-	"info",
-	"success",
-	"warning",
-	"error",
+	'primary',
+	'secondary',
+	'info',
+	'success',
+	'warning',
+	'error',
 ] as const;
 
-type PaletteColor = (typeof COLORS)[number] | "default";
+type PaletteColor = (typeof COLORS)[number] | 'default';
 
 const colorByName = (name?: string): PaletteColor => {
 	const charAt = name?.charAt(0).toLowerCase();
 
-	if (["a", "c", "f"].includes(charAt!)) return "primary";
-	if (["e", "d", "h"].includes(charAt!)) return "secondary";
-	if (["i", "k", "l"].includes(charAt!)) return "info";
-	if (["m", "n", "p"].includes(charAt!)) return "success";
-	if (["q", "s", "t"].includes(charAt!)) return "warning";
-	if (["v", "x", "y"].includes(charAt!)) return "error";
+	if (['a', 'c', 'f'].includes(charAt!)) return 'primary';
+	if (['e', 'd', 'h'].includes(charAt!)) return 'secondary';
+	if (['i', 'k', 'l'].includes(charAt!)) return 'info';
+	if (['m', 'n', 'p'].includes(charAt!)) return 'success';
+	if (['q', 's', 't'].includes(charAt!)) return 'warning';
+	if (['v', 'x', 'y'].includes(charAt!)) return 'error';
 
-	return "default";
+	return 'default';
 };
 
 // ----------------------------------------------------------------------
 
-const avatarColors: Record<string, ComponentsVariants<Theme>["MuiAvatar"]> = {
+const avatarColors: Record<string, ComponentsVariants<Theme>['MuiAvatar']> = {
 	colors: COLORS.map((color) => {
 		return {
 			props: ({ ownerState }) => {
@@ -62,13 +62,13 @@ const avatarColors: Record<string, ComponentsVariants<Theme>["MuiAvatar"]> = {
 	defaultColor: [
 		{
 			props: ({ ownerState }) => {
-				return ownerState.color === "default";
+				return ownerState.color === 'default';
 			},
 			style: ({ theme }) => {
 				return {
 					color: theme.vars.palette.text.secondary,
 					backgroundColor: varAlpha(
-						theme.vars.palette.grey["500Channel"],
+						theme.vars.palette.grey['500Channel'],
 						0.24,
 					),
 				};
@@ -77,7 +77,7 @@ const avatarColors: Record<string, ComponentsVariants<Theme>["MuiAvatar"]> = {
 	],
 };
 
-const MuiAvatar: Components<Theme>["MuiAvatar"] = {
+const MuiAvatar: Components<Theme>['MuiAvatar'] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
@@ -91,7 +91,7 @@ const MuiAvatar: Components<Theme>["MuiAvatar"] = {
 
 			return {
 				...(!!ownerState.alt && {
-					...(color !== "default"
+					...(color !== 'default'
 						? {
 								color: theme.vars.palette[color].contrastText,
 								backgroundColor: theme.vars.palette[color].main,
@@ -99,7 +99,7 @@ const MuiAvatar: Components<Theme>["MuiAvatar"] = {
 						: {
 								color: theme.vars.palette.text.secondary,
 								backgroundColor: varAlpha(
-									theme.vars.palette.grey["500Channel"],
+									theme.vars.palette.grey['500Channel'],
 									0.24,
 								),
 							}),
@@ -111,7 +111,7 @@ const MuiAvatar: Components<Theme>["MuiAvatar"] = {
 
 // ----------------------------------------------------------------------
 
-const MuiAvatarGroup: Components<Theme>["MuiAvatarGroup"] = {
+const MuiAvatarGroup: Components<Theme>['MuiAvatarGroup'] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
@@ -123,18 +123,18 @@ const MuiAvatarGroup: Components<Theme>["MuiAvatarGroup"] = {
 	styleOverrides: {
 		root: ({ ownerState }) => {
 			return {
-				justifyContent: "flex-end",
-				...(ownerState.variant === "compact" && {
+				justifyContent: 'flex-end',
+				...(ownerState.variant === 'compact' && {
 					width: 40,
 					height: 40,
-					position: "relative",
+					position: 'relative',
 					[`& .${avatarGroupClasses.avatar}`]: {
 						margin: 0,
 						width: 28,
 						height: 28,
-						position: "absolute",
-						"&:first-of-type": { left: 0, bottom: 0, zIndex: 9 },
-						"&:last-of-type": { top: 0, right: 0 },
+						position: 'absolute',
+						'&:first-of-type': { left: 0, bottom: 0, zIndex: 9 },
+						'&:last-of-type': { top: 0, right: 0 },
 					},
 				}),
 			};
@@ -143,7 +143,7 @@ const MuiAvatarGroup: Components<Theme>["MuiAvatarGroup"] = {
 			return {
 				fontSize: 16,
 				fontWeight: theme.typography.fontWeightSemiBold,
-				"&:first-of-type": {
+				'&:first-of-type': {
 					fontSize: 12,
 					color: theme.vars.palette.primary.dark,
 					backgroundColor: theme.vars.palette.primary.lighter,

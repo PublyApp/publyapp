@@ -1,6 +1,6 @@
-import _ from "lodash";
+import _ from 'lodash';
 
-import { tryCatchWrapper } from "@org/shared/utils/tryCatch.utils";
+import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
 
 type SafeRunFunction<F extends GenericFunction> = (
 	...args: Parameters<F>
@@ -8,20 +8,20 @@ type SafeRunFunction<F extends GenericFunction> = (
 ) => ReturnType<F> extends PromiseLike<any>
 	?
 			| Promise<{
-					status: "success";
+					status: 'success';
 					data: Awaited<ReturnType<F>>;
 			  }>
 			| Promise<{
-					status: "error";
+					status: 'error';
 					error: Error;
 			  }>
 	:
 			| {
-					status: "success";
+					status: 'success';
 					data: ReturnType<F>;
 			  }
 			| {
-					status: "error";
+					status: 'error';
 					error: Error;
 			  };
 
@@ -31,10 +31,10 @@ export const safeRun = <F extends GenericFunction>(
 	const wrappedFunction = tryCatchWrapper({
 		handler: async (...args: Parameters<F>) => {
 			const result = await func(...args);
-			return { status: "success", data: result };
+			return { status: 'success', data: result };
 		},
 		onError: (err) => {
-			let error: Error = new Error("Unknown error");
+			let error: Error = new Error('Unknown error');
 
 			if (!error) {
 				// do nothing
@@ -46,7 +46,7 @@ export const safeRun = <F extends GenericFunction>(
 				error = new Error(String(err));
 			}
 
-			return { status: "error", error };
+			return { status: 'error', error };
 		},
 	});
 

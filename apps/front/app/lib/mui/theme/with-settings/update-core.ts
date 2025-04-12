@@ -1,16 +1,16 @@
-import type { ColorSystem } from "@mui/material/styles";
+import type { ColorSystem } from '@mui/material/styles';
 import {
 	createPaletteChannel,
 	hexToRgbChannel,
 	setFont,
-} from "minimal-shared/utils";
+} from 'minimal-shared/utils';
 
-import type { SettingsState } from "@/front/components/settings";
+import type { SettingsState } from '@/front/components/settings';
 
-import { createShadowColor } from "../core/custom-shadows";
-import type { ThemeColorScheme, ThemeOptions } from "../types";
+import { createShadowColor } from '../core/custom-shadows';
+import type { ThemeColorScheme, ThemeOptions } from '../types';
 
-import { primaryColorPresets } from "./color-presets";
+import { primaryColorPresets } from './color-presets';
 
 // ----------------------------------------------------------------------
 
@@ -27,15 +27,15 @@ export const updateCoreWithSettings = (
 	const {
 		direction,
 		fontFamily,
-		contrast = "default",
-		primaryColor = "default",
+		contrast = 'default',
+		primaryColor = 'default',
 	} = settingsState ?? {};
 
-	const isDefaultContrast = contrast === "default";
-	const isDefaultPrimaryColor = primaryColor === "default";
+	const isDefaultContrast = contrast === 'default';
+	const isDefaultPrimaryColor = primaryColor === 'default';
 
 	const lightPalette = theme.colorSchemes?.light
-		.palette as ColorSystem["palette"];
+		.palette as ColorSystem['palette'];
 
 	const updatedPrimaryColor = createPaletteChannel(
 		primaryColorPresets[primaryColor],
@@ -51,7 +51,7 @@ export const updateCoreWithSettings = (
 				primary: updatedPrimaryColor,
 				// secondary: updatedSecondaryColor,
 			}),
-			...(scheme === "light" && {
+			...(scheme === 'light' && {
 				background: {
 					...lightPalette?.background,
 					...(!isDefaultContrast && {
@@ -81,8 +81,8 @@ export const updateCoreWithSettings = (
 		...theme,
 		direction,
 		colorSchemes: {
-			light: updateColorScheme("light"),
-			dark: updateColorScheme("dark"),
+			light: updateColorScheme('light'),
+			dark: updateColorScheme('dark'),
 		},
 		typography: {
 			...theme.typography,

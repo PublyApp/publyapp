@@ -1,32 +1,32 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState } from 'react';
 
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Popover from "@mui/material/Popover";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Popover from '@mui/material/Popover';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 
-import { editorClasses } from "../classes";
-import type { EditorToolbarProps } from "../types";
+import { editorClasses } from '../classes';
+import type { EditorToolbarProps } from '../types';
 
-import { ToolbarItem } from "./toolbar-item";
+import { ToolbarItem } from './toolbar-item';
 
 // ----------------------------------------------------------------------
 
-export const LinkBlock = ({ editor }: Pick<EditorToolbarProps, "editor">) => {
-	const [url, setUrl] = useState("");
+export const LinkBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
+	const [url, setUrl] = useState('');
 
 	const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
 
 	const handleOpenPopover = (event: React.MouseEvent<HTMLButtonElement>) => {
-		const previousUrl = editor?.getAttributes("link").href;
+		const previousUrl = editor?.getAttributes('link').href;
 
 		setAnchorEl(event.currentTarget);
 
 		if (previousUrl) {
 			setUrl(previousUrl);
 		} else {
-			setUrl("");
+			setUrl('');
 		}
 	};
 
@@ -38,12 +38,12 @@ export const LinkBlock = ({ editor }: Pick<EditorToolbarProps, "editor">) => {
 		handleClosePopover();
 
 		if (!url) {
-			editor?.chain().focus().extendMarkRange("link").unsetLink().run();
+			editor?.chain().focus().extendMarkRange('link').unsetLink().run();
 		} else {
 			editor
 				?.chain()
 				.focus()
-				.extendMarkRange("link")
+				.extendMarkRange('link')
 				.setLink({ href: url })
 				.run();
 		}
@@ -57,7 +57,7 @@ export const LinkBlock = ({ editor }: Pick<EditorToolbarProps, "editor">) => {
 		<>
 			<ToolbarItem
 				aria-label="Link"
-				active={editor.isActive("link")}
+				active={editor.isActive('link')}
 				className={editorClasses.toolbar.link}
 				onClick={handleOpenPopover}
 				icon={
@@ -67,7 +67,7 @@ export const LinkBlock = ({ editor }: Pick<EditorToolbarProps, "editor">) => {
 
 			<ToolbarItem
 				aria-label="Unset link"
-				disabled={!editor.isActive("link")}
+				disabled={!editor.isActive('link')}
 				className={editorClasses.toolbar.unsetlink}
 				onClick={() => {
 					return editor.chain().focus().unsetLink().run();
@@ -78,18 +78,18 @@ export const LinkBlock = ({ editor }: Pick<EditorToolbarProps, "editor">) => {
 			/>
 
 			<Popover
-				id={anchorEl ? "simple-popover" : undefined}
+				id={anchorEl ? 'simple-popover' : undefined}
 				open={!!anchorEl}
 				anchorEl={anchorEl}
 				onClose={handleClosePopover}
-				anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+				anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
 				slotProps={{ paper: { sx: { p: 2.5 } } }}
 			>
 				<Typography variant="subtitle2" sx={{ mb: 1 }}>
 					URL
 				</Typography>
 
-				<Box sx={{ gap: 1, display: "flex", alignItems: "center" }}>
+				<Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
 					<TextField
 						size="small"
 						placeholder="Enter URL here..."

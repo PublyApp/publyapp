@@ -1,13 +1,13 @@
-import Avatar from "@mui/material/Avatar";
-import IconButton, { type IconButtonProps } from "@mui/material/IconButton";
-import { m } from "framer-motion";
+import Avatar from '@mui/material/Avatar';
+import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
+import { m } from 'framer-motion';
 
 import {
 	AnimateBorder,
 	transitionTap,
 	varHover,
 	varTap,
-} from "@/front/components/animate";
+} from '@/front/components/animate';
 
 // ----------------------------------------------------------------------
 
@@ -33,14 +33,14 @@ export const AccountButton = ({
 			{...other}
 		>
 			<AnimateBorder
-				sx={{ p: "3px", borderRadius: "50%", width: 40, height: 40 }}
+				sx={{ p: '3px', borderRadius: '50%', width: 40, height: 40 }}
 				slotProps={{
 					primaryBorder: {
 						size: 60,
-						width: "1px",
-						sx: { color: "primary.main" },
+						width: '1px',
+						sx: { color: 'primary.main' },
 					},
-					secondaryBorder: { sx: { color: "warning.main" } },
+					secondaryBorder: { sx: { color: 'warning.main' } },
 				}}
 			>
 				<Avatar src={photoURL} alt={displayName} sx={{ width: 1, height: 1 }}>

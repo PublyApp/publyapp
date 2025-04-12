@@ -9,20 +9,20 @@
 
 // @ts-check
 
-const path = require("path");
-const fs = require("fs");
-const { pipeline, Readable } = require("stream");
-const { promisify } = require("util");
-const { createWriteStream } = require("fs");
+const path = require('path');
+const fs = require('fs');
+const { pipeline, Readable } = require('stream');
+const { promisify } = require('util');
+const { createWriteStream } = require('fs');
 
-const { createRsbuild: _createRsbuild } = require("@rsbuild/core");
-const { pluginTypeCheck } = require("@rsbuild/plugin-type-check");
+const { createRsbuild: _createRsbuild } = require('@rsbuild/core');
+const { pluginTypeCheck } = require('@rsbuild/plugin-type-check');
 
-const MONOREPO_ROOT_DIR = path.resolve(__dirname, "../../../../");
+const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../../../');
 
-const APPS_DIR = path.join(MONOREPO_ROOT_DIR, "apps");
-const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, "packages");
-const PACKAGE_FILE = "package.json";
+const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
+const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
+const PACKAGE_FILE = 'package.json';
 
 module.exports.MONOREPO_ROOT_DIR = MONOREPO_ROOT_DIR;
 module.exports.APPS_DIR = APPS_DIR;
@@ -62,19 +62,19 @@ const findExternals = () => {
 		if (!fs.existsSync(filePath)) return;
 
 		const packageFile = JSON.parse(
-			fs.readFileSync(filePath, { encoding: "utf-8" }),
+			fs.readFileSync(filePath, { encoding: 'utf-8' }),
 		);
 
 		if (packageFile.dependencies) {
 			Object.entries(packageFile.dependencies).forEach(([key, value]) => {
-				if (value === "workspace:*") return;
+				if (value === 'workspace:*') return;
 				externalsSet.add(key);
 			});
 		}
 
 		if (packageFile.devDependencies) {
 			Object.entries(packageFile.devDependencies).forEach(([key, value]) => {
-				if (value === "workspace:*") return;
+				if (value === 'workspace:*') return;
 				externalsSet.add(key);
 			});
 		}
@@ -87,39 +87,39 @@ exports.findExternals = findExternals;
 
 const externals = [
 	...findExternals(),
-	"parse-server/lib/index.js",
+	'parse-server/lib/index.js',
 
-	"parse/node",
-	"parse/node.js",
+	'parse/node',
+	'parse/node.js',
 
-	"parse-server/lib/Auth",
-	"parse-server/lib/Auth.js",
+	'parse-server/lib/Auth',
+	'parse-server/lib/Auth.js',
 
-	"parse-server/lib/Config.js",
-	"parse-server/lib/Config",
+	'parse-server/lib/Config.js',
+	'parse-server/lib/Config',
 
-	"parse-server/lib/RestWrite",
-	"parse-server/lib/RestWrite.js",
+	'parse-server/lib/RestWrite',
+	'parse-server/lib/RestWrite.js',
 
-	"parse-server/lib/Routers/UsersRouter",
-	"parse-server/lib/Routers/UsersRouter.js",
+	'parse-server/lib/Routers/UsersRouter',
+	'parse-server/lib/Routers/UsersRouter.js',
 
-	"parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection",
-	"parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js",
+	'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection',
+	'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js',
 
-	"parse-server/lib/logger",
-	"parse-server/lib/logger.js",
+	'parse-server/lib/logger',
+	'parse-server/lib/logger.js',
 
-	"parse-server/lib/cryptoUtils",
-	"parse-server/lib/cryptoUtils.js",
+	'parse-server/lib/cryptoUtils',
+	'parse-server/lib/cryptoUtils.js',
 
-	"parse-server/lib/password",
-	"parse-server/lib/password.js",
+	'parse-server/lib/password',
+	'parse-server/lib/password.js',
 
-	"parse-server/lib/defaults",
-	"parse-server/lib/defaults.js",
+	'parse-server/lib/defaults',
+	'parse-server/lib/defaults.js',
 
-	"front/build/server/index.js",
+	'front/build/server/index.js',
 ];
 
 exports.externals = externals;
@@ -130,10 +130,10 @@ const createRsbuild = () => {
 			plugins: [pluginTypeCheck()],
 			source: {
 				entry: {
-					index: "./src/index.ts",
-					i18n: "./src/_i18n.ts",
-					seed: "./src/_seed.ts",
-					migrations: "./src/_migrations.ts",
+					index: './src/index.ts',
+					i18n: './src/_i18n.ts',
+					seed: './src/_seed.ts',
+					migrations: './src/_migrations.ts',
 				},
 				define: {
 					// even during development, set NODE_ENV to production
@@ -141,20 +141,20 @@ const createRsbuild = () => {
 					// (e.g. the app will not crash on missing env variables + better performance)
 					// To differentiate between development and production, use process.env.MODE instead of process.env.NODE_ENV
 					// (MODE is set by the user in the .env.local file or at node command line launch)
-					"process.env.NODE_ENV": JSON.stringify("production"),
+					'process.env.NODE_ENV': JSON.stringify('production'),
 				},
 			},
 			output: {
-				target: "node",
+				target: 'node',
 				externals,
 			},
 			tools: {
 				rspack: {
 					output: {
-						libraryTarget: "module",
+						libraryTarget: 'module',
 						module: true,
-						chunkFormat: "module",
-						filename: "[name].mjs",
+						chunkFormat: 'module',
+						filename: '[name].mjs',
 					},
 				},
 			},
@@ -188,8 +188,8 @@ exports.build = build;
 
 const createI18nResourcesFiles = async (resources) => {
 	console.log(
-		"\x1b[32m%s\x1b[0m",
-		"====> started creating i18n resources files",
+		'\x1b[32m%s\x1b[0m',
+		'====> started creating i18n resources files',
 	);
 	const pipelineAsync = promisify(pipeline);
 	await Promise.all(
@@ -216,8 +216,8 @@ const createI18nResourcesFiles = async (resources) => {
 		}),
 	);
 	console.log(
-		"\x1b[32m%s\x1b[0m",
-		"====> finished creating i18n resources files",
+		'\x1b[32m%s\x1b[0m',
+		'====> finished creating i18n resources files',
 	);
 };
 

@@ -1,12 +1,12 @@
-import type zod from "zod";
+import type zod from 'zod';
 
-import type InterZod from "@/shared/lib/zod/InterZod";
+import type InterZod from '@/shared/lib/zod/InterZod';
 
-import { getFolderNameSchema } from "./file.validations";
+import { getFolderNameSchema } from './file.validations';
 
 export const getFileSchemaClientSide = (z: InterZod) => {
-	const field = z.t("field");
-	const type = z.t("file");
+	const field = z.t('field');
+	const type = z.t('file');
 
 	return z.custom<
 		File & {
@@ -18,7 +18,7 @@ export const getFileSchemaClientSide = (z: InterZod) => {
 			return data instanceof File;
 		},
 		{
-			message: z.t("item-is-not-instance-of-type", { item: field, type }),
+			message: z.t('item-is-not-instance-of-type', { item: field, type }),
 		},
 	);
 };
