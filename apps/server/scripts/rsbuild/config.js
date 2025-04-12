@@ -6,9 +6,9 @@ const { pipeline, Readable } = require('node:stream');
 const { promisify } = require('node:util');
 const { createWriteStream } = require('node:fs');
 
+const _ = require('lodash');
 const { createRsbuild: _createRsbuild } = require('@rsbuild/core');
 const { pluginTypeCheck } = require('@rsbuild/plugin-type-check');
-const { default: _ } = require('lodash');
 
 const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../../../');
 
