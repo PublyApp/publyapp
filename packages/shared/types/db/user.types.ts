@@ -1,37 +1,27 @@
 import type { BaseAttributes } from 'parse';
-import type ParseUser from '@/server/modules/common/auth/user/user.class';
 
-export type UserStatus = 'active' | 'pending' | 'banned';
+// import { AppFile } from './appFile.types';
+
+// import type ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
+
+// import type { ITenant } from './tenant.types';
 
 export type UserAttributes = {
 	// Parse built-ins
 	username: string;
 	email: string;
 	password?: string;
-
 	// custom fields
 	firstName?: string;
 	lastName?: string;
-	isStaffMember?: boolean;
-	roleData?: {
-		role: string;
-		rank: number;
-	};
 
-	status?: UserStatus;
-
-	// ====
-	isBanned?: boolean;
-	isDeleted?: boolean;
-
-	// ====
+	// ===
 	avatarUrl?: string;
 };
 
 export type IUser = BaseAttributes & UserAttributes;
 
 export type IUserWithRelations = IUser & {
-	createdBy?: IUser;
 	// avatar?: AppFile;
 	// tenants?: {
 	// 	tenant: ITenant;
@@ -39,7 +29,6 @@ export type IUserWithRelations = IUser & {
 };
 
 export type IUserWithParseRelations = IUser & {
-	createdBy?: ParseUser;
 	// avatar?: ParseAppFile;
 	// tenants?: {
 	// 	tenant: ParseTenant;

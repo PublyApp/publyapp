@@ -1,7 +1,7 @@
-/* eslint-disable import/no-extraneous-dependencies */
-import { spawnSync } from 'child_process';
-import path from 'path';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 
+import _ from 'lodash';
 import fse from 'fs-extra';
 
 // @ts-check
@@ -157,8 +157,9 @@ const files = fse.readdirSync(path.join(PACKAGES_DIR_SRC));
 const subdirectories = files.filter((file) => {
 	return fse.statSync(path.join(PACKAGES_DIR_SRC, file)).isDirectory();
 });
+
 // Copy each subdirectory with only package.json to dist directory
-subdirectories.forEach((subdirectory) => {
+_.forEach(subdirectories, (subdirectory) => {
 	const sourcePath = path.join(PACKAGES_DIR_SRC, subdirectory, 'package.json');
 	const destPath = path.join(PACKAGES_DIR_DEST, subdirectory, 'package.json');
 	fse.copySync(sourcePath, destPath);

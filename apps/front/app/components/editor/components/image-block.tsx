@@ -26,6 +26,7 @@ export const ImageBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
 		setAnchorEl(null);
 	};
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	const handleUpdateUrl = useCallback(() => {
 		handleClosePopover();
 

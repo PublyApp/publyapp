@@ -27,11 +27,11 @@ export const NavList = ({
 	const isActive = isActiveLink(pathname, data.path, !!data.children);
 	const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (!isActive) {
 			onClose();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	const handleToggleMenu = useCallback(() => {

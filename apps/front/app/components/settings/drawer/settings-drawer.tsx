@@ -39,11 +39,11 @@ export const SettingsDrawer = ({
 
 	const { mode, setMode, systemMode } = useColorScheme();
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (mode === 'system' && systemMode) {
 			settings.setState({ colorScheme: systemMode });
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [mode, systemMode]);
 
 	// Visible options by default settings

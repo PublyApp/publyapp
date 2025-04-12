@@ -7,6 +7,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 // ----------------------------------------------------------------------
 
 export type AutocompleteBaseProps = Omit<
+	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
 	AutocompleteProps<any, boolean, boolean, boolean>,
 	'renderInput'
 >;
