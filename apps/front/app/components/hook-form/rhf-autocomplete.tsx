@@ -1,18 +1,23 @@
-import Autocomplete, { type AutocompleteProps } from '@mui/material/Autocomplete';
-import TextField, { type TextFieldProps } from '@mui/material/TextField';
-import { Controller, useFormContext } from 'react-hook-form';
+import Autocomplete, {
+	type AutocompleteProps,
+} from "@mui/material/Autocomplete";
+import TextField, { type TextFieldProps } from "@mui/material/TextField";
+import { Controller, useFormContext } from "react-hook-form";
 
 // ----------------------------------------------------------------------
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AutocompleteBaseProps = Omit<AutocompleteProps<any, boolean, boolean, boolean>, 'renderInput'>;
+export type AutocompleteBaseProps = Omit<
+	AutocompleteProps<any, boolean, boolean, boolean>,
+	"renderInput"
+>;
 
 export type RHFAutocompleteProps = AutocompleteBaseProps & {
 	name: string;
 	label?: string;
 	placeholder?: string;
 	helperText?: React.ReactNode;
-	slotProps?: AutocompleteBaseProps['slotProps'] & {
+	slotProps?: AutocompleteBaseProps["slotProps"] & {
 		textfield?: TextFieldProps;
 	};
 };
@@ -54,7 +59,7 @@ export const RHFAutocomplete = ({
 										...textfield?.slotProps,
 										htmlInput: {
 											...params.inputProps,
-											autoComplete: 'new-password',
+											autoComplete: "new-password",
 											...textfield?.slotProps?.htmlInput,
 										},
 									}}

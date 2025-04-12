@@ -1,3 +1,4 @@
+/* eslint no-unused-vars: "off" */
 /**
  * @interface
  * @memberof module:Adapters
@@ -18,6 +19,12 @@ export interface MailAdapter {
 		subject: string;
 	}): Promise<void>;
 
+	/* You can implement those methods if you want
+	 * to provide HTML templates etc...
+	 */
+	// sendVerificationEmail({ link, appName, user }) {}
+	// sendPasswordResetEmail({ link, appName, user }) {}
+
 	sendVerificationEmail({
 		link,
 		appName,
@@ -27,7 +34,6 @@ export interface MailAdapter {
 		appName: string;
 		user: Parse.User;
 	}): Promise<void>;
-
 	sendPasswordResetEmail({
 		link,
 		appName,

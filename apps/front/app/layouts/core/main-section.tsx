@@ -1,16 +1,25 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { styled } from '@mui/material/styles';
-import { mergeClasses } from 'minimal-shared/utils';
+import { styled } from "@mui/material/styles";
+import { mergeClasses } from "minimal-shared/utils";
 
-import { layoutClasses } from './classes';
+import { layoutClasses } from "./classes";
 
 // ----------------------------------------------------------------------
 
 export type MainSectionProps = React.ComponentProps<typeof MainRoot>;
 
-export const MainSection = ({ children, className, sx, ...other }: MainSectionProps) => {
+export const MainSection = ({
+	children,
+	className,
+	sx,
+	...other
+}: MainSectionProps) => {
 	return (
-		<MainRoot className={mergeClasses([layoutClasses.main, className])} sx={sx} {...other}>
+		<MainRoot
+			className={mergeClasses([layoutClasses.main, className])}
+			sx={sx}
+			{...other}
+		>
 			{children}
 		</MainRoot>
 	);
@@ -18,8 +27,8 @@ export const MainSection = ({ children, className, sx, ...other }: MainSectionPr
 
 // ----------------------------------------------------------------------
 
-const MainRoot = styled('main')({
-	display: 'flex',
-	flex: '1 1 auto',
-	flexDirection: 'column',
+const MainRoot = styled("main")({
+	display: "flex",
+	flex: "1 1 auto",
+	flexDirection: "column",
 });

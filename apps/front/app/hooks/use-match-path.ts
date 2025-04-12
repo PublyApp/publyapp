@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback } from "react";
 
-import { matchPath as routerMatchPath, useLocation } from 'react-router';
+import { matchPath as routerMatchPath, useLocation } from "react-router";
 
 // ----------------------------------------------------------------------
 
@@ -24,7 +24,7 @@ const useMatchPath = () => {
 
 			return {
 				active: deep ? deepActive : normalActive,
-				isExternalLink: path.includes('http'),
+				isExternalLink: path.includes("http"),
 			};
 		},
 		[pathname],

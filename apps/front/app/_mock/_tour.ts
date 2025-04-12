@@ -1,35 +1,38 @@
-import { _mock } from './_mock';
-import { _tags } from './assets';
+import { _mock } from "./_mock";
+import { _tags } from "./assets";
 
 // ----------------------------------------------------------------------
 
 export const TOUR_DETAILS_TABS = [
-	{ label: 'Tour content', value: 'content' },
-	{ label: 'Booker', value: 'bookers' },
+	{ label: "Tour content", value: "content" },
+	{ label: "Booker", value: "bookers" },
 ];
 
 export const TOUR_SORT_OPTIONS = [
-	{ label: 'Latest', value: 'latest' },
-	{ label: 'Popular', value: 'popular' },
-	{ label: 'Oldest', value: 'oldest' },
+	{ label: "Latest", value: "latest" },
+	{ label: "Popular", value: "popular" },
+	{ label: "Oldest", value: "oldest" },
 ];
 
 export const TOUR_PUBLISH_OPTIONS = [
-	{ label: 'Published', value: 'published' },
-	{ label: 'Draft', value: 'draft' },
+	{ label: "Published", value: "published" },
+	{ label: "Draft", value: "draft" },
 ];
 
 export const TOUR_SERVICE_OPTIONS = [
-	{ label: 'Audio guide', value: 'Audio guide' },
-	{ label: 'Food and drinks', value: 'Food and drinks' },
-	{ label: 'Lunch', value: 'Lunch' },
-	{ label: 'Private tour', value: 'Private tour' },
-	{ label: 'Special activities', value: 'Special activities' },
-	{ label: 'Entrance fees', value: 'Entrance fees' },
-	{ label: 'Gratuities', value: 'Gratuities' },
-	{ label: 'Pick-up and drop off', value: 'Pick-up and drop off' },
-	{ label: 'Professional guide', value: 'Professional guide' },
-	{ label: 'Transport by air-conditioned', value: 'Transport by air-conditioned' },
+	{ label: "Audio guide", value: "Audio guide" },
+	{ label: "Food and drinks", value: "Food and drinks" },
+	{ label: "Lunch", value: "Lunch" },
+	{ label: "Private tour", value: "Private tour" },
+	{ label: "Special activities", value: "Special activities" },
+	{ label: "Entrance fees", value: "Entrance fees" },
+	{ label: "Gratuities", value: "Gratuities" },
+	{ label: "Pick-up and drop off", value: "Pick-up and drop off" },
+	{ label: "Professional guide", value: "Professional guide" },
+	{
+		label: "Transport by air-conditioned",
+		value: "Transport by air-conditioned",
+	},
 ];
 
 const CONTENT = `
@@ -92,17 +95,20 @@ export const TRAVEL_IMAGES = Array.from({ length: 16 }, (_, index) => {
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const _tours = Array.from({ length: 12 }, (_, index) => {
-	const available = { startDate: _mock.time(index + 1), endDate: _mock.time(index) };
+	const available = {
+		startDate: _mock.time(index + 1),
+		endDate: _mock.time(index),
+	};
 
-	const publish = index % 3 ? 'published' : 'draft';
+	const publish = index % 3 ? "published" : "draft";
 
-	const services = (index % 2 && ['Audio guide', 'Food and drinks']) ||
-		(index % 3 && ['Lunch', 'Private tour']) ||
-		(index % 4 && ['Special activities', 'Entrance fees']) || [
-			'Gratuities',
-			'Pick-up and drop off',
-			'Professional guide',
-			'Transport by air-conditioned',
+	const services = (index % 2 && ["Audio guide", "Food and drinks"]) ||
+		(index % 3 && ["Lunch", "Private tour"]) ||
+		(index % 4 && ["Special activities", "Entrance fees"]) || [
+			"Gratuities",
+			"Pick-up and drop off",
+			"Professional guide",
+			"Transport by air-conditioned",
 		];
 
 	const tourGuides =
@@ -126,7 +132,7 @@ export const _tours = Array.from({ length: 12 }, (_, index) => {
 		tags: _tags.slice(0, 5),
 		name: _mock.tourName(index),
 		createdAt: _mock.time(index),
-		durations: '4 days 3 nights',
+		durations: "4 days 3 nights",
 		price: _mock.number.price(index),
 		destination: _mock.countryNames(index),
 		priceSale: _mock.number.price(index),

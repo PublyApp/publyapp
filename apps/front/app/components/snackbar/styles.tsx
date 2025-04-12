@@ -1,8 +1,8 @@
-import { styled, type CSSObject } from '@mui/material/styles';
-import { varAlpha } from 'minimal-shared/utils';
-import { Toaster } from 'sonner';
+import { styled, type CSSObject } from "@mui/material/styles";
+import { varAlpha } from "minimal-shared/utils";
+import { Toaster } from "sonner";
 
-import { snackbarClasses } from './classes';
+import { snackbarClasses } from "./classes";
 
 // ----------------------------------------------------------------------
 
@@ -31,42 +31,42 @@ export const SnackbarRoot = styled(Toaster)(({ theme }) => {
 	const loadingStyles: CSSObject = {
 		top: 0,
 		left: 0,
-		width: '100%',
-		height: '100%',
-		display: 'none',
-		transform: 'none',
-		overflow: 'hidden',
-		alignItems: 'center',
-		position: 'relative',
-		borderRadius: 'inherit',
-		justifyContent: 'center',
+		width: "100%",
+		height: "100%",
+		display: "none",
+		transform: "none",
+		overflow: "hidden",
+		alignItems: "center",
+		position: "relative",
+		borderRadius: "inherit",
+		justifyContent: "center",
 		background: theme.vars.palette.background.neutral,
 		[`& .${snackbarClasses.loadingIcon}`]: {
 			zIndex: 9,
 			width: 24,
 			height: 24,
-			borderRadius: '50%',
-			animation: 'rotate 3s infinite linear',
+			borderRadius: "50%",
+			animation: "rotate 3s infinite linear",
 			background: `conic-gradient(transparent, ${varAlpha(theme.vars.palette.text.disabledChannel, 0.64)})`,
 		},
-		[snackbarClasses.loaderVisible]: { display: 'flex' },
+		[snackbarClasses.loaderVisible]: { display: "flex" },
 	};
 
 	return {
 		width: 300,
 		[`& .${snackbarClasses.toast}`]: {
 			gap: 12,
-			width: '100%',
+			width: "100%",
 			minHeight: 52,
-			display: 'flex',
+			display: "flex",
 			borderRadius: 12,
-			alignItems: 'center',
+			alignItems: "center",
 		},
 		/**
 		 * Content
 		 */
 		[`& .${snackbarClasses.content}`]: {
-			flex: '1 1 auto',
+			flex: "1 1 auto",
 		},
 		[`& .${snackbarClasses.title}`]: {
 			fontSize: theme.typography.body2.fontSize,
@@ -87,22 +87,25 @@ export const SnackbarRoot = styled(Toaster)(({ theme }) => {
 			width: 20,
 			height: 20,
 			padding: 0,
-			display: 'flex',
-			cursor: 'pointer',
-			borderRadius: '50%',
-			alignItems: 'center',
-			position: 'absolute',
-			color: 'currentColor',
-			justifyContent: 'center',
-			backgroundColor: 'transparent',
-			transform: 'translate(-6px, 6px)',
-			border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.16)}`,
-			transition: theme.transitions.create(['background-color', 'border-color']),
-			'&:hover': {
-				borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24),
-				backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+			display: "flex",
+			cursor: "pointer",
+			borderRadius: "50%",
+			alignItems: "center",
+			position: "absolute",
+			color: "currentColor",
+			justifyContent: "center",
+			backgroundColor: "transparent",
+			transform: "translate(-6px, 6px)",
+			border: `solid 1px ${varAlpha(theme.vars.palette.grey["500Channel"], 0.16)}`,
+			transition: theme.transitions.create([
+				"background-color",
+				"border-color",
+			]),
+			"&:hover": {
+				borderColor: varAlpha(theme.vars.palette.grey["500Channel"], 0.24),
+				backgroundColor: varAlpha(theme.vars.palette.grey["500Channel"], 0.08),
 			},
-			'& > svg': { width: 14, height: 14 },
+			"& > svg": { width: 14, height: 14 },
 		},
 
 		/**
@@ -112,18 +115,18 @@ export const SnackbarRoot = styled(Toaster)(({ theme }) => {
 			width: 48,
 			height: 48,
 			flexShrink: 0,
-			display: 'flex',
-			alignItems: 'center',
-			alignSelf: 'flex-start',
-			borderRadius: 'inherit',
-			justifyContent: 'center',
+			display: "flex",
+			alignItems: "center",
+			alignSelf: "flex-start",
+			borderRadius: "inherit",
+			justifyContent: "center",
 			[`& .${snackbarClasses.iconSvg}`]: {
 				width: 24,
 				height: 24,
 			},
 		},
 
-		'@keyframes rotate': { to: { transform: 'rotate(1turn)' } },
+		"@keyframes rotate": { to: { transform: "rotate(1turn)" } },
 
 		/**
 		 * @variant default

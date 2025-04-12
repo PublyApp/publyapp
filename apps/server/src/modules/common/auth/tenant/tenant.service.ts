@@ -1,22 +1,22 @@
-import _ from 'lodash';
+import _ from "lodash";
 
 // import { USE_MASTER_KEY } from '@/server/lib/constants';
 import {
 	applyQueryOptions,
 	applySkipAndLimit,
 	type QueryOptions,
-} from '@/server/lib/parse/query.utils';
+} from "@/server/lib/parse/query.utils";
 import {
 	className,
 	DEFAULT_PAGE_SIZE,
 	type TenantSubRoleSet,
-} from '@/shared/lib/constants';
-import type { ITenant } from '@/shared/types/db/tenant.types';
+} from "@/shared/lib/constants";
+import type { ITenant } from "@/shared/types/db/tenant.types";
 
-import type ParseUser from '../user/user.class';
+import type ParseUser from "../user/user.class";
 
-import Parse_CustomJoinUserToTenant from './$join-user-to-tenant.class';
-import ParseTenant from './tenant.class';
+import Parse_CustomJoinUserToTenant from "./$join-user-to-tenant.class";
+import ParseTenant from "./tenant.class";
 
 type Props = {
 	sessionToken?: string;
@@ -37,7 +37,7 @@ export default class TenantService {
 		objectId: string,
 		options: { select?: string[]; include?: string[]; exclude?: string[] } = {},
 	) {
-		const query = new Parse.Query(ParseTenant).equalTo('objectId', objectId);
+		const query = new Parse.Query(ParseTenant).equalTo("objectId", objectId);
 
 		applyQueryOptions(query, options);
 
@@ -56,8 +56,8 @@ export default class TenantService {
 	}) {
 		const foundRelation = await new Parse.Query(Parse_CustomJoinUserToTenant)
 			.select([])
-			.equalTo('user', user)
-			.equalTo('tenant', tenant)
+			.equalTo("user", user)
+			.equalTo("tenant", tenant)
 			.first({
 				sessionToken: this.sessionToken,
 				useMasterKey: this.useMasterKey,
@@ -91,11 +91,11 @@ export default class TenantService {
 			| undefined = {},
 	) {
 		const query = new Parse.Query(className._CUSTOM_JOIN_USER_TO_TENANT)
-			.select(['tenant'])
-			.equalTo('user', user);
+			.select(["tenant"])
+			.equalTo("user", user);
 
 		applySkipAndLimit(query, {
-			type: 'page',
+			type: "page",
 			page: options.page ?? 1,
 			pageSize: options.pageSize ?? DEFAULT_PAGE_SIZE,
 		});
@@ -111,7 +111,7 @@ export default class TenantService {
 			const results: ITenant[] = [];
 
 			(relations as unknown as { tenant?: ITenant }[]).forEach((relation) => {
-				const tenant = _.get(relation, 'tenant');
+				const tenant = _.get(relation, "tenant");
 
 				if (tenant) {
 					results.push(tenant);
@@ -124,7 +124,7 @@ export default class TenantService {
 		const results: ParseTenant[] = [];
 
 		relations.forEach((relation) => {
-			const tenant = relation.get('tenant');
+			const tenant = relation.get("tenant");
 
 			if (tenant) {
 				results.push(tenant);
@@ -156,9 +156,9 @@ export default class TenantService {
 		tenantSubRoles: TenantSubRoleSet;
 	}) {
 		const result = new Parse.Query(Parse_CustomJoinUserToTenant)
-			.equalTo('tenant', tenant as never)
-			.equalTo('user', user as never)
-			.containedIn('subRoles', tenantSubRoles as never)
+			.equalTo("tenant", tenant as never)
+			.equalTo("user", user as never)
+			.containedIn("subRoles", tenantSubRoles as never)
 			.select([])
 			.first({
 				sessionToken: this.sessionToken,

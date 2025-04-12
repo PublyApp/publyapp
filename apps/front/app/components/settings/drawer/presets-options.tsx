@@ -1,27 +1,34 @@
-import Box, { type BoxProps } from '@mui/material/Box';
-import { alpha as hexAlpha } from '@mui/material/styles';
+import Box, { type BoxProps } from "@mui/material/Box";
+import { alpha as hexAlpha } from "@mui/material/styles";
 
-import type { SettingsState } from '../types';
+import type { SettingsState } from "../types";
 
-import { OptionButton } from './styles';
+import { OptionButton } from "./styles";
 
 // ----------------------------------------------------------------------
 
 export type PresetsOptionsProps = BoxProps & {
 	icon: React.ReactNode;
-	value: SettingsState['primaryColor'];
-	options: { name: SettingsState['primaryColor']; value: string }[];
-	onChangeOption: (newOption: SettingsState['primaryColor']) => void;
+	value: SettingsState["primaryColor"];
+	options: { name: SettingsState["primaryColor"]; value: string }[];
+	onChangeOption: (newOption: SettingsState["primaryColor"]) => void;
 };
 
-export const PresetsOptions = ({ sx, icon, value, options, onChangeOption, ...other }: PresetsOptionsProps) => {
+export const PresetsOptions = ({
+	sx,
+	icon,
+	value,
+	options,
+	onChangeOption,
+	...other
+}: PresetsOptionsProps) => {
 	return (
 		<Box
 			sx={[
 				{
 					gap: 1.5,
-					display: 'grid',
-					gridTemplateColumns: 'repeat(3, 1fr)',
+					display: "grid",
+					gridTemplateColumns: "repeat(3, 1fr)",
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}

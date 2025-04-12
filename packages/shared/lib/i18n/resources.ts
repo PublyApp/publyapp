@@ -3,22 +3,23 @@
 // ! you should only import types from this files on client-side/browser code
 
 // Import here your languages
-import en from './locales/en';
-import fr from './locales/fr';
+import en from "./locales/en";
+import fr from "./locales/fr";
 
-export const appLocales = ['en', 'fr'] as const;
+export const appLocales = ["en", "fr"] as const;
 
 export const resources = {
 	en,
 	fr,
 } as const;
 
-const _ns = ['common', 'zod'] as const satisfies NameSpace[];
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const _ns = ["common", "zod"] as const satisfies NameSpace[];
 export const NS = _ns;
 
 export const defaultLocale = appLocales[0];
 export const defaultNS: keyof (typeof resources)[typeof defaultLocale] =
-	'common';
+	"common";
 
 export type AppLocale = (typeof appLocales)[number];
 export type NameSpace = keyof (typeof resources)[AppLocale];

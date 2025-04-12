@@ -1,13 +1,13 @@
-import { className, roleEnum } from '@org/shared/lib/constants';
-import type { IUserWithParseRelations } from '@org/shared/types/db/user.types';
+import { className, roleEnum } from "@org/shared/lib/constants";
+import type { IUserWithParseRelations } from "@org/shared/types/db/user.types";
 
-import { DEFAULT_CLP } from '@/server/lib/constants';
-import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
+import { DEFAULT_CLP } from "@/server/lib/constants";
+import SchemaManager from "@/server/lib/parse/classes/SchemaManager";
 
 const staffAdmin = `role:${roleEnum.STAFF_ADMIN.name}` as const;
-const staffEditor = `role:${roleEnum.STAFF_EDITOR.name}` as const;
-const staffUser = `role:${roleEnum.STAFF_USER.name}` as const;
-const staffContributor = `role:${roleEnum.STAFF_CONTRIBUTOR.name}` as const;
+// const staffEditor = `role:${roleEnum.STAFF_EDITOR.name}` as const;
+// const staffUser = `role:${roleEnum.STAFF_USER.name}` as const;
+// const staffContributor = `role:${roleEnum.STAFF_USER.name}` as const;
 // const tenantUser = `role:${roleEnum.TENANT_USER.name}` as const;
 
 const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
@@ -15,29 +15,23 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
 	{
 		fields: {
 			// required by default by Parse
-			username: { type: 'String', required: true },
-			email: { type: 'String', required: true },
-			password: { type: 'String', required: true },
+			username: { type: "String", required: true },
+			email: { type: "String", required: true },
+			password: { type: "String", required: true },
 
 			// custom fields added by us
-			firstName: { type: 'String' },
-			lastName: { type: 'String' },
-			avatarUrl: { type: 'String' },
-			isStaffMember: { type: 'Boolean' },
-			roleData: { type: 'Object' },
+			firstName: { type: "String" },
+			lastName: { type: "String" },
+			avatarUrl: { type: "String" },
 
 			// relations
-			createdBy: {
-				type: 'Pointer',
-				targetClass: className.USER,
-			},
 			// avatar: { type: 'Pointer', targetClass: className.APP_FILE },
 			// tenants: { type: 'Array' },
 		},
 		classLevelPermissions: {
 			...DEFAULT_CLP,
 			create: {
-				'*': true,
+				"*": true,
 				[staffAdmin]: true,
 			},
 			update: {
@@ -52,13 +46,10 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
 				requiresAuthentication: true,
 				[staffAdmin]: true,
 			},
-			protectedFields: {
-				'*': ['isStaffMember', 'roleData'],
-				[staffAdmin]: [],
-				[staffEditor]: [],
-				[staffUser]: [],
-				[staffContributor]: [],
-			},
+			// protectedFields: {
+			// 	'*': ['email'],
+			// 	[staffAdmin]: [],
+			// },
 		},
 	},
 );

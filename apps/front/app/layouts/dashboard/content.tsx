@@ -1,10 +1,10 @@
-import Container, { type ContainerProps } from '@mui/material/Container';
-import { styled, type Breakpoint } from '@mui/material/styles';
-import { mergeClasses } from 'minimal-shared/utils';
+import Container, { type ContainerProps } from "@mui/material/Container";
+import { styled, type Breakpoint } from "@mui/material/styles";
+import { mergeClasses } from "minimal-shared/utils";
 
-import { useSettingsContext } from '@/front/hooks/use-settings-context';
+import { useSettingsContext } from "@/front/hooks/use-settings-context";
 
-import { layoutClasses } from '../core/classes';
+import { layoutClasses } from "../core/classes";
 
 // ----------------------------------------------------------------------
 
@@ -18,13 +18,13 @@ export const DashboardContent = ({
 	children,
 	className,
 	disablePadding,
-	maxWidth = 'lg',
-	layoutQuery = 'lg',
+	maxWidth = "lg",
+	layoutQuery = "lg",
 	...other
 }: DashboardContentProps) => {
 	const settings = useSettingsContext();
 
-	const isNavHorizontal = settings.state.navLayout === 'horizontal';
+	const isNavHorizontal = settings.state.navLayout === "horizontal";
 
 	return (
 		<Container
@@ -33,14 +33,16 @@ export const DashboardContent = ({
 			sx={[
 				(theme) => {
 					return {
-						display: 'flex',
-						flex: '1 1 auto',
-						flexDirection: 'column',
-						pt: 'var(--layout-dashboard-content-pt)',
-						pb: 'var(--layout-dashboard-content-pb)',
+						display: "flex",
+						flex: "1 1 auto",
+						flexDirection: "column",
+						pt: "var(--layout-dashboard-content-pt)",
+						pb: "var(--layout-dashboard-content-pb)",
 						[theme.breakpoints.up(layoutQuery)]: {
-							px: 'var(--layout-dashboard-content-px)',
-							...(isNavHorizontal && { '--layout-dashboard-content-pt': '40px' }),
+							px: "var(--layout-dashboard-content-px)",
+							...(isNavHorizontal && {
+								"--layout-dashboard-content-pt": "40px",
+							}),
 						},
 						...(disablePadding && {
 							p: {
@@ -64,29 +66,29 @@ export const DashboardContent = ({
 
 // ----------------------------------------------------------------------
 
-export const VerticalDivider = styled('span')(({ theme }) => {
+export const VerticalDivider = styled("span")(({ theme }) => {
 	return {
 		width: 1,
 		height: 10,
 		flexShrink: 0,
-		display: 'none',
-		position: 'relative',
-		alignItems: 'center',
-		flexDirection: 'column',
+		display: "none",
+		position: "relative",
+		alignItems: "center",
+		flexDirection: "column",
 		marginLeft: theme.spacing(2.5),
 		marginRight: theme.spacing(2.5),
-		backgroundColor: 'currentColor',
+		backgroundColor: "currentColor",
 		color: theme.vars.palette.divider,
-		'&::before, &::after': {
+		"&::before, &::after": {
 			top: -5,
 			width: 3,
 			height: 3,
 			content: '""',
 			flexShrink: 0,
-			borderRadius: '50%',
-			position: 'absolute',
-			backgroundColor: 'currentColor',
+			borderRadius: "50%",
+			position: "absolute",
+			backgroundColor: "currentColor",
 		},
-		'&::after': { bottom: -5, top: 'auto' },
+		"&::after": { bottom: -5, top: "auto" },
 	};
 });

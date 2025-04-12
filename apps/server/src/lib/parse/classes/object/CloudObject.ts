@@ -1,4 +1,4 @@
-import type { Attributes } from 'parse';
+import type { Attributes } from "parse";
 
 // import { className as appClassName } from '@/shared/lib/constants';
 

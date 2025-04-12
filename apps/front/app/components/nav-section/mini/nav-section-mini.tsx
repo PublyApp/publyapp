@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useTheme } from '@mui/material/styles';
-import { mergeClasses } from 'minimal-shared/utils';
+import { useTheme } from "@mui/material/styles";
+import { mergeClasses } from "minimal-shared/utils";
 
-import { Nav, NavLi, NavUl } from '../components';
-import { navSectionClasses, navSectionCssVars } from '../styles';
-import type { NavGroupProps, NavSectionProps } from '../types';
+import { Nav, NavLi, NavUl } from "../components";
+import { navSectionClasses, navSectionCssVars } from "../styles";
+import type { NavGroupProps, NavSectionProps } from "../types";
 
-import { NavList } from './nav-list';
+import { NavList } from "./nav-list";
 
 // ----------------------------------------------------------------------
 
@@ -31,7 +31,7 @@ export const NavSectionMini = ({
 			sx={[{ ...cssVars }, ...(Array.isArray(sx) ? sx : [sx])]}
 			{...other}
 		>
-			<NavUl sx={{ flex: '1 1 auto', gap: 'var(--nav-item-gap)' }}>
+			<NavUl sx={{ flex: "1 1 auto", gap: "var(--nav-item-gap)" }}>
 				{data.map((group) => {
 					return (
 						<Group
@@ -52,10 +52,17 @@ export const NavSectionMini = ({
 
 // ----------------------------------------------------------------------
 
-const Group = ({ items, render, cssVars, slotProps, checkPermissions, enabledRootRedirect }: NavGroupProps) => {
+const Group = ({
+	items,
+	render,
+	cssVars,
+	slotProps,
+	checkPermissions,
+	enabledRootRedirect,
+}: NavGroupProps) => {
 	return (
 		<NavLi>
-			<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
+			<NavUl sx={{ gap: "var(--nav-item-gap)" }}>
 				{items.map((list) => {
 					return (
 						<NavList

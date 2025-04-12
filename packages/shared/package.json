@@ -3,12 +3,8 @@
 	"version": "0.0.0",
 	"exports": {
 		"./*": {
-			"types": [
-				"./*.ts"
-			],
-			"default": [
-				"./*.ts"
-			]
+			"types": ["./*.ts"],
+			"default": ["./*.ts"]
 		}
 	},
 	"dependencies": {

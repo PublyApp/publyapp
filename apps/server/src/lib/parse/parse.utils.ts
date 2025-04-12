@@ -1,11 +1,11 @@
-import _ from 'lodash';
-import Config from 'parse-server/lib/Config.js';
-import RestWrite from 'parse-server/lib/RestWrite.js';
+import _ from "lodash";
+import Config from "parse-server/lib/Config.js";
+import RestWrite from "parse-server/lib/RestWrite.js";
 
-import dayjs from 'dayjs';
-import type { AggregateOptions, Db, MongoClient } from 'mongodb';
+import dayjs from "dayjs";
+import type { AggregateOptions, Db, MongoClient } from "mongodb";
 
-import { CLOUD_INSTALLATION_ID, USE_MASTER_KEY } from '../constants';
+import { CLOUD_INSTALLATION_ID, USE_MASTER_KEY } from "../constants";
 
 export const reOrderObjects = <T extends Parse.Object = Parse.Object>(
 	ids: string[],
@@ -13,13 +13,13 @@ export const reOrderObjects = <T extends Parse.Object = Parse.Object>(
 ) => {
 	const objectsMap = new Map<string, T>();
 
-	_.forEach(objects, (iWebHost) => {
+	objects.forEach((iWebHost) => {
 		objectsMap.set(iWebHost.id, iWebHost);
 	});
 
 	const orderedObjects: T[] = [];
 
-	_.forEach(ids, (id) => {
+	ids.forEach((id) => {
 		const inMap = objectsMap.get(id);
 
 		if (inMap) {
@@ -49,9 +49,11 @@ export const getCurrentInstallationId = async () => {
 };
 
 export const setCurrentInstallationId = async (/* newId: string */) => {
-	const CURRENT_INSTALLATION_KEY = 'currentInstallation';
+	const CURRENT_INSTALLATION_KEY = "currentInstallation";
 
+	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 	// @ts-ignore
+	// return
 	await Parse.Storage.setItemAsync(
 		CURRENT_INSTALLATION_KEY,
 		/* newId */ CLOUD_INSTALLATION_ID,
@@ -80,7 +82,7 @@ export const aggregate = async (
 	const aggregationOptions = _.merge(
 		{
 			collation: {
-				locale: 'en_US',
+				locale: "en_US",
 				strength: 2,
 			},
 		},
@@ -148,8 +150,8 @@ export const createSessionServer = async <
 ): Promise<CreateSessionResult<AdditionalSessionData>> => {
 	const {
 		userId,
-		action = 'login',
-		authProvider = 'password',
+		action = "login",
+		authProvider = "password",
 		installationId,
 		additionalSessionData,
 	} = options;
@@ -176,7 +178,7 @@ type EncodedDateType =
 	| string
 	| number
 	| {
-			__type: 'Date';
+			__type: "Date";
 			iso: string;
 	  }
 	| null
@@ -203,7 +205,7 @@ export const getGlobalConfig = async () => {
 	return config;
 };
 
-// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Serializable = string | number | Record<string, any> | any[] | boolean;
 
 export const setGlobalConfig = async (
@@ -214,7 +216,7 @@ export const setGlobalConfig = async (
 	const param1: Record<string, Serializable> = {};
 	const param2: Record<string, boolean> = {};
 
-	_.forEach(entries, ([key, { value, masterKeyOnly }]) => {
+	entries.forEach(([key, { value, masterKeyOnly }]) => {
 		param1[key] = value;
 
 		if (!_.isNil(masterKeyOnly)) {
@@ -227,17 +229,17 @@ export const setGlobalConfig = async (
 };
 
 export const parseFields = [
-	'_hashed_password',
-	'_perishable_token',
-	'_email_verify_token',
-	'_session_token',
-	'ACL',
-	'createdAt',
-	'updatedAt',
+	"_hashed_password",
+	"_perishable_token",
+	"_email_verify_token",
+	"_session_token",
+	"ACL",
+	"createdAt",
+	"updatedAt",
 ] as const;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const removeParseFields = (
-	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	obj: Record<string, any>,
 	omitFields?: string[],
 ) => {

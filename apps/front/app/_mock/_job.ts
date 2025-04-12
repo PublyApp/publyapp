@@ -1,70 +1,74 @@
-import { _mock } from './_mock';
+import { _mock } from "./_mock";
 
 // ----------------------------------------------------------------------
 
 export const JOB_DETAILS_TABS = [
-	{ label: 'Job content', value: 'content' },
-	{ label: 'Candidates', value: 'candidates' },
+	{ label: "Job content", value: "content" },
+	{ label: "Candidates", value: "candidates" },
 ];
 
 export const JOB_SKILL_OPTIONS = [
-	'UI',
-	'UX',
-	'Html',
-	'JavaScript',
-	'TypeScript',
-	'Communication',
-	'Problem Solving',
-	'Leadership',
-	'Time Management',
-	'Adaptability',
-	'Collaboration',
-	'Creativity',
-	'Critical Thinking',
-	'Technical Skills',
-	'Customer Service',
-	'Project Management',
-	'Problem Diagnosis',
+	"UI",
+	"UX",
+	"Html",
+	"JavaScript",
+	"TypeScript",
+	"Communication",
+	"Problem Solving",
+	"Leadership",
+	"Time Management",
+	"Adaptability",
+	"Collaboration",
+	"Creativity",
+	"Critical Thinking",
+	"Technical Skills",
+	"Customer Service",
+	"Project Management",
+	"Problem Diagnosis",
 ];
 
-export const JOB_WORKING_SCHEDULE_OPTIONS = ['Monday to Friday', 'Weekend availability', 'Day shift'];
+export const JOB_WORKING_SCHEDULE_OPTIONS = [
+	"Monday to Friday",
+	"Weekend availability",
+	"Day shift",
+];
 
 export const JOB_EMPLOYMENT_TYPE_OPTIONS = [
-	{ label: 'Full-time', value: 'Full-time' },
-	{ label: 'Part-time', value: 'Part-time' },
-	{ label: 'On demand', value: 'On demand' },
-	{ label: 'Negotiable', value: 'Negotiable' },
+	{ label: "Full-time", value: "Full-time" },
+	{ label: "Part-time", value: "Part-time" },
+	{ label: "On demand", value: "On demand" },
+	{ label: "Negotiable", value: "Negotiable" },
 ];
 
 export const JOB_EXPERIENCE_OPTIONS = [
-	{ label: 'No experience', value: 'No experience' },
-	{ label: '1 year exp', value: '1 year exp' },
-	{ label: '2 year exp', value: '2 year exp' },
-	{ label: '> 3 year exp', value: '> 3 year exp' },
+	{ label: "No experience", value: "No experience" },
+	{ label: "1 year exp", value: "1 year exp" },
+	{ label: "2 year exp", value: "2 year exp" },
+	{ label: "> 3 year exp", value: "> 3 year exp" },
 ];
 
 export const JOB_BENEFIT_OPTIONS = [
-	{ label: 'Free parking', value: 'Free parking' },
-	{ label: 'Bonus commission', value: 'Bonus commission' },
-	{ label: 'Travel', value: 'Travel' },
-	{ label: 'Device support', value: 'Device support' },
-	{ label: 'Health care', value: 'Health care' },
-	{ label: 'Training', value: 'Training' },
-	{ label: 'Health insurance', value: 'Health insurance' },
-	{ label: 'Retirement plans', value: 'Retirement plans' },
-	{ label: 'Paid time off', value: 'Paid time off' },
-	{ label: 'Flexible work schedule', value: 'Flexible work schedule' },
+	{ label: "Free parking", value: "Free parking" },
+	{ label: "Bonus commission", value: "Bonus commission" },
+	{ label: "Travel", value: "Travel" },
+	{ label: "Device support", value: "Device support" },
+	{ label: "Health care", value: "Health care" },
+	{ label: "Training", value: "Training" },
+	{ label: "Health insurance", value: "Health insurance" },
+	{ label: "Retirement plans", value: "Retirement plans" },
+	{ label: "Paid time off", value: "Paid time off" },
+	{ label: "Flexible work schedule", value: "Flexible work schedule" },
 ];
 
 export const JOB_PUBLISH_OPTIONS = [
-	{ label: 'Published', value: 'published' },
-	{ label: 'Draft', value: 'draft' },
+	{ label: "Published", value: "published" },
+	{ label: "Draft", value: "draft" },
 ];
 
 export const JOB_SORT_OPTIONS = [
-	{ label: 'Latest', value: 'latest' },
-	{ label: 'Popular', value: 'popular' },
-	{ label: 'Oldest', value: 'oldest' },
+	{ label: "Latest", value: "latest" },
+	{ label: "Popular", value: "popular" },
+	{ label: "Oldest", value: "oldest" },
 ];
 
 const CANDIDATES = Array.from({ length: 12 }, (_, index) => {
@@ -108,10 +112,10 @@ const CONTENT = `
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const _jobs = Array.from({ length: 12 }, (_, index) => {
-	const publish = index % 3 ? 'published' : 'draft';
+	const publish = index % 3 ? "published" : "draft";
 
 	const salary = {
-		type: (index % 5 && 'Custom') || 'Hourly',
+		type: (index % 5 && "Custom") || "Hourly",
 		price: _mock.number.price(index),
 		negotiable: _mock.boolean(index),
 	};
@@ -125,9 +129,9 @@ export const _jobs = Array.from({ length: 12 }, (_, index) => {
 			return option.label;
 		})[index] || JOB_EXPERIENCE_OPTIONS[1].label;
 
-	const employmentTypes = (index % 2 && ['Part-time']) ||
-		(index % 3 && ['On demand']) ||
-		(index % 4 && ['Negotiable']) || ['Full-time'];
+	const employmentTypes = (index % 2 && ["Part-time"]) ||
+		(index % 3 && ["On demand"]) ||
+		(index % 4 && ["Negotiable"]) || ["Full-time"];
 
 	const company = {
 		name: _mock.companyNames(index),

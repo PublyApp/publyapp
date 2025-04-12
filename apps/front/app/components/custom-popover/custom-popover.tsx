@@ -1,21 +1,33 @@
-import { listClasses } from '@mui/material/List';
-import { menuItemClasses } from '@mui/material/MenuItem';
-import Popover from '@mui/material/Popover';
+import { listClasses } from "@mui/material/List";
+import { menuItemClasses } from "@mui/material/MenuItem";
+import Popover from "@mui/material/Popover";
 
-import { Arrow } from './styles';
-import type { CustomPopoverProps } from './types';
-import { calculateAnchorOrigin } from './utils';
+import { Arrow } from "./styles";
+import type { CustomPopoverProps } from "./types";
+import { calculateAnchorOrigin } from "./utils";
 
 // ----------------------------------------------------------------------
 
-export const CustomPopover = ({ open, onClose, children, anchorEl, slotProps, ...other }: CustomPopoverProps) => {
-	const { arrow: arrowProps, paper: paperProps, ...otherSlotProps } = slotProps ?? {};
+export const CustomPopover = ({
+	open,
+	onClose,
+	children,
+	anchorEl,
+	slotProps,
+	...other
+}: CustomPopoverProps) => {
+	const {
+		arrow: arrowProps,
+		paper: paperProps,
+		...otherSlotProps
+	} = slotProps ?? {};
 
 	const arrowSize = arrowProps?.size ?? 14;
 	const arrowOffset = arrowProps?.offset ?? 17;
-	const arrowPlacement = arrowProps?.placement ?? 'top-right';
+	const arrowPlacement = arrowProps?.placement ?? "top-right";
 
-	const { paperStyles, anchorOrigin, transformOrigin } = calculateAnchorOrigin(arrowPlacement);
+	const { paperStyles, anchorOrigin, transformOrigin } =
+		calculateAnchorOrigin(arrowPlacement);
 
 	return (
 		<Popover
@@ -31,18 +43,25 @@ export const CustomPopover = ({ open, onClose, children, anchorEl, slotProps, ..
 					sx: [
 						paperStyles,
 						{
-							overflow: 'inherit',
+							overflow: "inherit",
 							[`& .${listClasses.root}`]: { minWidth: 140 },
 							[`& .${menuItemClasses.root}`]: { gap: 2 },
 						},
-						...(Array.isArray(paperProps?.sx) ? paperProps?.sx ?? [] : [paperProps?.sx]),
+						...(Array.isArray(paperProps?.sx)
+							? paperProps?.sx ?? []
+							: [paperProps?.sx]),
 					],
 				},
 			}}
 			{...other}
 		>
 			{!arrowProps?.hide && (
-				<Arrow size={arrowSize} offset={arrowOffset} placement={arrowPlacement} sx={arrowProps?.sx} />
+				<Arrow
+					size={arrowSize}
+					offset={arrowOffset}
+					placement={arrowPlacement}
+					sx={arrowProps?.sx}
+				/>
 			)}
 
 			{children}

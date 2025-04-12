@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { styled, type SxProps, type Theme } from '@mui/material/styles';
-import { tabClasses } from '@mui/material/Tab';
-import Tabs, { type TabsProps } from '@mui/material/Tabs';
-import { useIsClient } from 'minimal-shared/hooks';
+import { styled, type SxProps, type Theme } from "@mui/material/styles";
+import { tabClasses } from "@mui/material/Tab";
+import Tabs, { type TabsProps } from "@mui/material/Tabs";
+import { useIsClient } from "minimal-shared/hooks";
 
 // ----------------------------------------------------------------------
 
-type CustomTabsSlotProps = TabsProps['slotProps'] & {
+type CustomTabsSlotProps = TabsProps["slotProps"] & {
 	tab?: { sx?: SxProps<Theme> };
 	list?: { sx?: SxProps<Theme> };
 	indicator?: { sx?: SxProps<Theme> };
@@ -20,7 +20,7 @@ export type CustomTabsProps = TabsProps & {
 const customTabsStyles: Record<string, SxProps<Theme>> = {
 	root: {
 		flexShrink: 0,
-		bgcolor: 'background.neutral',
+		bgcolor: "background.neutral",
 	},
 	list: {
 		p: 1,
@@ -30,16 +30,21 @@ const customTabsStyles: Record<string, SxProps<Theme>> = {
 	indicator: {
 		py: 1,
 		height: 1,
-		bgcolor: 'transparent',
+		bgcolor: "transparent",
 	},
 	tabItem: {
 		px: 2,
 		zIndex: 1,
-		minHeight: 'auto',
+		minHeight: "auto",
 	},
 };
 
-export const CustomTabs = ({ children, slotProps, sx, ...other }: CustomTabsProps) => {
+export const CustomTabs = ({
+	children,
+	slotProps,
+	sx,
+	...other
+}: CustomTabsProps) => {
 	const isClient = useIsClient();
 
 	return (
@@ -58,17 +63,23 @@ export const CustomTabs = ({ children, slotProps, sx, ...other }: CustomTabsProp
 				...slotProps,
 				indicator: {
 					...slotProps?.indicator,
-					children: isClient && <IndicatorContent sx={slotProps?.indicatorContent?.sx} />,
+					children: isClient && (
+						<IndicatorContent sx={slotProps?.indicatorContent?.sx} />
+					),
 					sx: [
 						customTabsStyles.indicator,
-						...(Array.isArray(slotProps?.indicator?.sx) ? slotProps.indicator.sx : [slotProps?.indicator?.sx]),
+						...(Array.isArray(slotProps?.indicator?.sx)
+							? slotProps.indicator.sx
+							: [slotProps?.indicator?.sx]),
 					],
 				},
 				list: {
 					...slotProps?.list,
 					sx: [
 						customTabsStyles.list,
-						...(Array.isArray(slotProps?.list?.sx) ? slotProps.list.sx : [slotProps?.list?.sx]),
+						...(Array.isArray(slotProps?.list?.sx)
+							? slotProps.list.sx
+							: [slotProps?.list?.sx]),
 					],
 				},
 			}}
@@ -81,17 +92,17 @@ export const CustomTabs = ({ children, slotProps, sx, ...other }: CustomTabsProp
 
 // ----------------------------------------------------------------------
 
-const IndicatorContent = styled('span')(({ theme }) => {
+const IndicatorContent = styled("span")(({ theme }) => {
 	return {
 		zIndex: 1,
-		width: '100%',
-		height: '100%',
-		display: 'block',
+		width: "100%",
+		height: "100%",
+		display: "block",
 		borderRadius: theme.shape.borderRadius,
 		boxShadow: theme.vars.customShadows.z1,
 		backgroundColor: theme.vars.palette.common.white,
-		...theme.applyStyles('dark', {
-			backgroundColor: theme.vars.palette.grey['900'],
+		...theme.applyStyles("dark", {
+			backgroundColor: theme.vars.palette.grey["900"],
 		}),
 	};
 });

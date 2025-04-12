@@ -1,14 +1,12 @@
 // ----------------------------------------------------------------------
 
-import _ from 'lodash';
-
-export const flattenArray = <T>(list: T[], key = 'children'): T[] => {
+export const flattenArray = <T>(list: T[], key = "children"): T[] => {
 	let children: T[] = [];
 
-	const flatten = _.map(list, (item) => {
-		const property = _.get(item, key);
-		if (_.isArray(property) && !_.isEmpty(property)) {
-			children = [...children, ...property];
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const flatten = list?.map((item: any) => {
+		if (item[key] && item[key].length) {
+			children = [...children, ...item[key]];
 		}
 
 		return item;

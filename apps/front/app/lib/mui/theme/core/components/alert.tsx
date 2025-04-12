@@ -1,7 +1,7 @@
-import { alertClasses, type AlertProps } from '@mui/material/Alert';
-import type { Components, CSSObject, Theme } from '@mui/material/styles';
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
-import { varAlpha } from 'minimal-shared/utils';
+import { alertClasses, type AlertProps } from "@mui/material/Alert";
+import type { Components, CSSObject, Theme } from "@mui/material/styles";
+import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
+import { varAlpha } from "minimal-shared/utils";
 
 // ----------------------------------------------------------------------
 
@@ -66,11 +66,14 @@ const AlertErrorIcon = (props: SvgIconProps) => {
 
 // ----------------------------------------------------------------------
 
-const COLORS = ['info', 'success', 'warning', 'error'] as const;
+const COLORS = ["info", "success", "warning", "error"] as const;
 
 type PaletteColor = (typeof COLORS)[number];
 
-const styleColors = (ownerState: AlertProps, styles: (val: PaletteColor) => CSSObject) => {
+const styleColors = (
+	ownerState: AlertProps,
+	styles: (val: PaletteColor) => CSSObject,
+) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (ownerState.severity === color) {
 			// eslint-disable-next-line no-param-reassign
@@ -85,7 +88,7 @@ const styleColors = (ownerState: AlertProps, styles: (val: PaletteColor) => CSSO
 
 // ----------------------------------------------------------------------
 
-const MuiAlert: Components<Theme>['MuiAlert'] = {
+const MuiAlert: Components<Theme>["MuiAlert"] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
@@ -112,13 +115,13 @@ const MuiAlert: Components<Theme>['MuiAlert'] = {
 					return {
 						color: theme.vars.palette[color].darker,
 						backgroundColor: theme.vars.palette[color].lighter,
-						...theme.applyStyles('dark', {
+						...theme.applyStyles("dark", {
 							color: theme.vars.palette[color].lighter,
 							backgroundColor: theme.vars.palette[color].darker,
 						}),
 						[`& .${alertClasses.icon}`]: {
 							color: theme.vars.palette[color].main,
-							...theme.applyStyles('dark', {
+							...theme.applyStyles("dark", {
 								color: theme.vars.palette[color].light,
 							}),
 						},
@@ -149,13 +152,18 @@ const MuiAlert: Components<Theme>['MuiAlert'] = {
 			const styled = {
 				colors: styleColors(ownerState, (color) => {
 					return {
-						backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.08),
+						backgroundColor: varAlpha(
+							theme.vars.palette[color].mainChannel,
+							0.08,
+						),
 						color: theme.vars.palette[color].dark,
 						border: `solid 1px ${varAlpha(theme.vars.palette[color].mainChannel, 0.16)}`,
-						...theme.applyStyles('dark', {
+						...theme.applyStyles("dark", {
 							color: theme.vars.palette[color].light,
 						}),
-						[`& .${alertClasses.icon}`]: { color: theme.vars.palette[color].main },
+						[`& .${alertClasses.icon}`]: {
+							color: theme.vars.palette[color].main,
+						},
 					};
 				}),
 			};
@@ -167,7 +175,7 @@ const MuiAlert: Components<Theme>['MuiAlert'] = {
 
 // ----------------------------------------------------------------------
 
-const MuiAlertTitle: Components<Theme>['MuiAlertTitle'] = {
+const MuiAlertTitle: Components<Theme>["MuiAlertTitle"] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */

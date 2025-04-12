@@ -1,9 +1,9 @@
-import _ from 'lodash';
+import _ from "lodash";
 
-import { defaultSettings } from '@/front/components/settings/settings-config';
-import type { SettingsState } from '@/front/components/settings/types';
+import { defaultSettings } from "@/front/components/settings/settings-config";
+import type { SettingsState } from "@/front/components/settings/types";
 
-import Slice from '../utils/Slice';
+import Slice from "../utils/Slice";
 
 export type SettingsSliceValues = {
 	openDrawer: boolean;
@@ -28,7 +28,7 @@ const defaultValues: SettingsSliceValues = {
 	canReset: true,
 };
 
-const sliceName = 'settingsSlice' as const;
+const sliceName = "settingsSlice" as const;
 
 const customizer = (objValue: unknown, srcValue: unknown) => {
 	if (_.isArray(objValue)) {
@@ -38,7 +38,11 @@ const customizer = (objValue: unknown, srcValue: unknown) => {
 	return undefined;
 };
 
-const settingsSlice = new Slice<typeof sliceName, SettingsSliceValues, SettingsSliceActions>({
+const settingsSlice = new Slice<
+	typeof sliceName,
+	SettingsSliceValues,
+	SettingsSliceActions
+>({
 	name: sliceName,
 	defaultValues,
 	initializer: (set) => {
@@ -66,7 +70,11 @@ const settingsSlice = new Slice<typeof sliceName, SettingsSliceValues, SettingsS
 			setState: (updateState) => {
 				set((state) => {
 					// eslint-disable-next-line no-param-reassign
-					state.settingsSlice.state = _.mergeWith(state.settingsSlice.state, updateState, customizer);
+					state.settingsSlice.state = _.mergeWith(
+						state.settingsSlice.state,
+						updateState,
+						customizer,
+					);
 				});
 			},
 			setField: (path, value) => {

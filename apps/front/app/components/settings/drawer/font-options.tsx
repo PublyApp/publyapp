@@ -1,28 +1,35 @@
-import Box, { type BoxProps } from '@mui/material/Box';
-import Slider, { sliderClasses, type SliderProps } from '@mui/material/Slider';
-import { setFont } from 'minimal-shared/utils';
+import Box, { type BoxProps } from "@mui/material/Box";
+import Slider, { sliderClasses, type SliderProps } from "@mui/material/Slider";
+import { setFont } from "minimal-shared/utils";
 
-import type { SettingsState } from '../types';
+import type { SettingsState } from "../types";
 
-import { OptionButton } from './styles';
+import { OptionButton } from "./styles";
 
 // ----------------------------------------------------------------------
 
 export type FontFamilyOptionsProps = BoxProps & {
 	options: string[];
 	icon: React.ReactNode;
-	value: SettingsState['fontFamily'];
+	value: SettingsState["fontFamily"];
 	onChangeOption: (newOption: string) => void;
 };
 
-export const FontFamilyOptions = ({ sx, icon, value, options, onChangeOption, ...other }: FontFamilyOptionsProps) => {
+export const FontFamilyOptions = ({
+	sx,
+	icon,
+	value,
+	options,
+	onChangeOption,
+	...other
+}: FontFamilyOptionsProps) => {
 	return (
 		<Box
 			sx={[
 				{
 					gap: 1.5,
-					display: 'grid',
-					gridTemplateColumns: 'repeat(2, 1fr)',
+					display: "grid",
+					gridTemplateColumns: "repeat(2, 1fr)",
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
@@ -42,14 +49,16 @@ export const FontFamilyOptions = ({ sx, icon, value, options, onChangeOption, ..
 							return {
 								py: 2,
 								gap: 0.75,
-								flexDirection: 'column',
+								flexDirection: "column",
 								fontFamily: setFont(option),
 								fontSize: theme.typography.pxToRem(12),
 							};
 						}}
 					>
 						{icon}
-						{option.endsWith('Variable') ? option.replace(' Variable', '') : option}
+						{option.endsWith("Variable")
+							? option.replace(" Variable", "")
+							: option}
 					</OptionButton>
 				);
 			})}
@@ -61,11 +70,17 @@ export const FontFamilyOptions = ({ sx, icon, value, options, onChangeOption, ..
 
 export type FontSizeOptionsProps = SliderProps & {
 	options: [number, number];
-	value: SettingsState['fontSize'];
+	value: SettingsState["fontSize"];
 	onChangeOption: (newOption: number) => void;
 };
 
-export const FontSizeOptions = ({ sx, value, options, onChangeOption, ...other }: FontSizeOptionsProps) => {
+export const FontSizeOptions = ({
+	sx,
+	value,
+	options,
+	onChangeOption,
+	...other
+}: FontSizeOptionsProps) => {
 	return (
 		<Slider
 			marks

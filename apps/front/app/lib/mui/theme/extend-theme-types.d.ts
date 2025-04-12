@@ -1,27 +1,30 @@
-import type {} from '@mui/lab/themeAugmentation';
-import type {} from '@mui/x-tree-view/themeAugmentation';
-import type {} from '@mui/x-data-grid/themeAugmentation';
-import type {} from '@mui/x-date-pickers/themeAugmentation';
-import type {} from '@mui/material/themeCssVarsAugmentation';
+import type {} from "@mui/lab/themeAugmentation";
+import type {} from "@mui/x-tree-view/themeAugmentation";
+import type {} from "@mui/x-data-grid/themeAugmentation";
+import type {} from "@mui/x-date-pickers/themeAugmentation";
+import type {} from "@mui/material/themeCssVarsAugmentation";
 
-import type { AvatarGroupExtendVariant } from './core/components/avatar';
-import type { BadgeExtendVariant } from './core/components/badge';
-import type { ButtonExtendVariant } from './core/components/button';
-import type { FabExtendVariant } from './core/components/button-fab';
-import type { ButtonGroupExtendVariant } from './core/components/button-group';
-import type { ChipExtendVariant } from './core/components/chip';
-import type { PaginationExtendColor, PaginationExtendVariant } from './core/components/pagination';
-import type { SliderExtendColor } from './core/components/slider';
-import type { CustomShadows } from './core/custom-shadows';
-import type { MixinsExtend } from './core/mixins';
+import type { AvatarGroupExtendVariant } from "./core/components/avatar";
+import type { BadgeExtendVariant } from "./core/components/badge";
+import type { ButtonExtendVariant } from "./core/components/button";
+import type { FabExtendVariant } from "./core/components/button-fab";
+import type { ButtonGroupExtendVariant } from "./core/components/button-group";
+import type { ChipExtendVariant } from "./core/components/chip";
+import type {
+	PaginationExtendColor,
+	PaginationExtendVariant,
+} from "./core/components/pagination";
+import type { SliderExtendColor } from "./core/components/slider";
+import type { CustomShadows } from "./core/custom-shadows";
+import type { MixinsExtend } from "./core/mixins";
 import type {
 	CommonColorsExtend,
 	GreyExtend,
 	PaletteColorExtend,
 	TypeBackgroundExtend,
 	TypeTextExtend,
-} from './core/palette';
-import type { FontStyleExtend } from './core/typography';
+} from "./core/palette";
+import type { FontStyleExtend } from "./core/typography";
 
 // ----------------------------------------------------------------------
 
@@ -35,7 +38,7 @@ import type { FontStyleExtend } from './core/typography';
  * https://mui.com/customization/palette/
  * @from {@link file://./core/palette.ts}
  */
-declare module '@mui/material/styles' {
+declare module "@mui/material/styles" {
 	// grey
 	interface Color extends GreyExtend {}
 	// text
@@ -54,12 +57,12 @@ declare module '@mui/material/styles' {
  * https://mui.com/customization/typography/
  * @from {@link file://./core/typography.ts}
  */
-declare module '@mui/material/styles' {
+declare module "@mui/material/styles" {
 	interface TypographyVariants extends FontStyleExtend {}
 	interface TypographyVariantsOptions extends Partial<FontStyleExtend> {}
 }
 
-declare module '@mui/material/styles' {
+declare module "@mui/material/styles" {
 	/**
 	 * Custom shadows
 	 * @from {@link file://./core/custom-shadows.ts}
@@ -72,8 +75,8 @@ declare module '@mui/material/styles' {
 	}
 	interface ThemeVars {
 		customShadows: CustomShadows;
-		typography: Theme['typography'];
-		transitions: Theme['transitions'];
+		typography: Theme["typography"];
+		transitions: Theme["transitions"];
 	}
 }
 
@@ -86,7 +89,7 @@ declare module '@mui/material/styles' {
  * https://mui.com/components/avatars/
  * @from {@link file://./core/components/avatar.tsx}
  */
-declare module '@mui/material/AvatarGroup' {
+declare module "@mui/material/AvatarGroup" {
 	interface AvatarGroupPropsVariantOverrides extends AvatarGroupExtendVariant {}
 }
 
@@ -95,7 +98,7 @@ declare module '@mui/material/AvatarGroup' {
  * https://mui.com/components/badges/
  * @from {@link file://./core/components/badge.tsx}
  */
-declare module '@mui/material/Badge' {
+declare module "@mui/material/Badge" {
 	interface BadgePropsVariantOverrides extends BadgeExtendVariant {}
 }
 
@@ -104,7 +107,7 @@ declare module '@mui/material/Badge' {
  * https://mui.com/components/buttons/
  * @from {@link file://./core/components/button.tsx}
  */
-declare module '@mui/material/Button' {
+declare module "@mui/material/Button" {
 	interface ButtonPropsVariantOverrides extends ButtonExtendVariant {}
 }
 
@@ -113,7 +116,7 @@ declare module '@mui/material/Button' {
  * https://mui.com/components/button-group/
  * @from {@link file://./core/components/button-group.tsx}
  */
-declare module '@mui/material/ButtonGroup' {
+declare module "@mui/material/ButtonGroup" {
 	interface ButtonGroupPropsVariantOverrides extends ButtonGroupExtendVariant {}
 }
 
@@ -122,7 +125,7 @@ declare module '@mui/material/ButtonGroup' {
  * https://mui.com/components/floating-action-button/
  * @from {@link file://./core/components/button-fab.tsx}
  */
-declare module '@mui/material/Fab' {
+declare module "@mui/material/Fab" {
 	interface FabPropsVariantOverrides extends FabExtendVariant {}
 }
 
@@ -131,7 +134,7 @@ declare module '@mui/material/Fab' {
  * https://mui.com/components/chips/
  * @from {@link file://./core/components/chip.tsx}
  */
-declare module '@mui/material/Chip' {
+declare module "@mui/material/Chip" {
 	interface ChipPropsVariantOverrides extends ChipExtendVariant {}
 }
 
@@ -140,7 +143,7 @@ declare module '@mui/material/Chip' {
  * https://mui.com/components/pagination/
  * @from {@link file://./core/components/pagination.tsx}
  */
-declare module '@mui/material/Pagination' {
+declare module "@mui/material/Pagination" {
 	interface PaginationPropsVariantOverrides extends PaginationExtendVariant {}
 	interface PaginationPropsColorOverrides extends PaginationExtendColor {}
 }
@@ -150,7 +153,7 @@ declare module '@mui/material/Pagination' {
  * https://mui.com/components/slider/
  * @from {@link file://./core/components/slider.tsx}
  */
-declare module '@mui/material/Slider' {
+declare module "@mui/material/Slider" {
 	interface SliderPropsColorOverrides extends SliderExtendColor {}
 }
 
@@ -160,7 +163,7 @@ declare module '@mui/material/Slider' {
 /**
  * @from {@link file://./core/mixins.ts}
  */
-declare module '@mui/material/styles' {
+declare module "@mui/material/styles" {
 	interface Mixins extends MixinsExtend {}
 	interface MixinsOptions extends Partial<MixinsExtend> {}
 }

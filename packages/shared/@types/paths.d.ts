@@ -19,7 +19,7 @@ type Join<
 	TKey extends number | string = string,
 > = Key extends TKey
 	? Previous extends TKey
-		? `${Key}${'' extends Previous ? '' : '.'}${Previous}`
+		? `${Key}${"" extends Previous ? "" : "."}${Previous}`
 		: never
 	: never;
 
@@ -37,4 +37,4 @@ type Paths<
 					? `${Key}` | Join<Key, Paths<TEntity[Key], Previous[TDepth]>>
 					: never;
 			}[keyof TEntity]
-		: '';
+		: "";

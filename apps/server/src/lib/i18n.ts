@@ -1,4 +1,4 @@
-import i18next from 'i18next';
+import i18next from "i18next";
 
 import {
 	defaultLocale,
@@ -6,7 +6,7 @@ import {
 	NS,
 	resources,
 	type AppLocale,
-} from '@org/shared/lib/i18n/resources';
+} from "@org/shared/lib/i18n/resources";
 
 let IS_INITIALIZED = false;
 
@@ -18,7 +18,7 @@ export const initI18next = async () => {
 	await i18next.init({
 		debug: false,
 		resources,
-		compatibilityJSON: 'v4',
+		compatibilityJSON: "v4",
 		fallbackLng: defaultLocale,
 		ns: NS,
 		defaultNS,

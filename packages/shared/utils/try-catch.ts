@@ -1,16 +1,13 @@
-import { isAsyncFunction, isPromise } from './any.utils';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { isAsyncFunction, isPromise } from "./any.utils";
 
-// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
 type Handler = (error: unknown) => any;
-// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
 type AsyncHandler = (error: unknown) => Promise<any>;
-// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
 type ErrorHandler<T extends GenericFunction = () => any> =
-	// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
 	ReturnType<T> extends PromiseLike<any> ? Handler | AsyncHandler : Handler;
 
 const defaultErrorHandler: ErrorHandler = (error) => {
-	console.warn('You may want to define a custom error handler');
+	console.warn("You may want to define a custom error handler");
 	console.error(error);
 	console.trace(error);
 };
@@ -29,11 +26,11 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 	onError?: ErrorHandler<F>;
 }): F => {
 	if (!onError) {
+		// eslint-disable-next-line no-param-reassign
 		onError = defaultErrorHandler as never;
 	}
 
 	if (isAsyncFunction(handler)) {
-		// biome-ignore lint/suspicious/noExplicitAny: forwarding any arguments from the original function
 		const wrappedFunctionAsync = async (...args: any[]) => {
 			try {
 				const result = await handler(...args);
@@ -53,11 +50,10 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 
 	if (isAsyncFunction(onError)) {
 		throw new Error(
-			'Cannot have an async error handler if the main function not async',
+			"Cannot have an async error handler if the main function not async",
 		);
 	}
 
-	// biome-ignore lint/suspicious/noExplicitAny: forwarding any arguments from the original function
 	const wrappedFunctionSync = (...args: any[]) => {
 		try {
 			const result = handler(...args);

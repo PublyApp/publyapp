@@ -1,6 +1,8 @@
-import type { AppLocale, DefaultLocale, SupportedLanguages } from './resources';
+import _ from "lodash";
 
-const appLocales: SupportedLanguages = ['en', 'fr'] as const;
+import type { AppLocale, DefaultLocale, SupportedLanguages } from "./resources";
+
+const appLocales: SupportedLanguages = ["en", "fr"] as const;
 const defaultLocale: DefaultLocale = appLocales[0];
 
 export const getCorrectLocale = (

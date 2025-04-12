@@ -1,8 +1,8 @@
-import type ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
-import type ParseUser from '@/server/modules/common/auth/user/user.class';
+import type ParseTenant from "@/server/modules/common/auth/tenant/tenant.class";
+import type ParseUser from "@/server/modules/common/auth/user/user.class";
 
-import type { ITenant } from './tenant.types';
-import type { IUser } from './user.types';
+import type { ITenant } from "./tenant.types";
+import type { IUser } from "./user.types";
 
 export type ICustomJoinUserToTenant = {
 	subRoles: string[];

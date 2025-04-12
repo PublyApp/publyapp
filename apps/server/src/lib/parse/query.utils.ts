@@ -1,4 +1,4 @@
-import { pageToSkip } from '@/server/utils/any.utils';
+import { pageToSkip } from "@/server/utils/any.utils";
 
 export type QueryOptions = {
 	select?: string[];
@@ -25,12 +25,12 @@ export const applyQueryOptions = (
 
 export type LimitAndSkipOptions =
 	| {
-			type: 'limit';
+			type: "limit";
 			limit: number;
 			skip: number;
 	  }
 	| {
-			type: 'page';
+			type: "page";
 			page: number;
 			pageSize: number;
 	  };
@@ -39,39 +39,25 @@ export const applySkipAndLimit = (
 	query: Parse.Query,
 	options: LimitAndSkipOptions,
 ) => {
-	if (options.type === 'limit') {
+	if (options.type === "limit") {
 		query.skip(options.skip).limit(options.limit);
 	}
 
-	if (options.type === 'page') {
-		const skip = pageToSkip(options.page, options.pageSize);
+	if (options.type === "page") {
+		const skip = pageToSkip(options.page);
 		query.skip(skip).limit(options.pageSize);
 	}
 };
 
-export const applyPagination = (
-	query: Parse.Query,
-	options: {
-		page: number;
-		size: number;
-	},
-) => {
-	applySkipAndLimit(query, {
-		type: 'page',
-		page: options.page,
-		pageSize: options.size,
-	});
-};
-
 export const applySorting = (
 	query: Parse.Query,
-	sorting: { id: string; order: 'asc' | 'desc' }[],
+	sorting: { id: string; desc: boolean }[],
 ) => {
 	for (const element of sorting) {
-		if (element.order === 'asc') {
-			query.addAscending(element.id as never);
-		} else {
+		if (element.desc) {
 			query.addDescending(element.id as never);
+		} else {
+			query.addAscending(element.id as never);
 		}
 	}
 };

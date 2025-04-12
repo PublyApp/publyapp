@@ -1,13 +1,13 @@
 import {
-	type QueryOptions,
 	applyQueryOptions,
-} from '@/server/lib/parse/query.utils';
+	type QueryOptions,
+} from "@/server/lib/parse/query.utils";
 import {
+	roleSet,
 	type IRoleConfig,
 	type RoleSet,
-	roleSet,
-} from '@/shared/lib/constants';
-import type { IRole } from '@/shared/types/db/role.types';
+} from "@/shared/lib/constants";
+import type { IRole } from "@/shared/types/db/role.types";
 
 type RoleServiceProps = {
 	sessionToken?: string;
@@ -29,9 +29,9 @@ export default class RoleService {
 	 */
 	async hasRole(user: Parse.User, roles: IRoleConfig[] | RoleSet) {
 		const foundRole = await new Parse.Query(Parse.Role)
-			.equalTo('users', user)
+			.equalTo("users", user)
 			.containedIn(
-				'code',
+				"code",
 				roles.map((config) => {
 					return config.code;
 				}),
@@ -43,20 +43,13 @@ export default class RoleService {
 	async findRoleByCode(code: string) {
 		const roleQuery = new Parse.Query(Parse.Role);
 		return roleQuery
-			.equalTo('code', code)
+			.equalTo("code", code)
 			.first({ sessionToken: this.sessionToken, useMasterKey: this.master });
 	}
 
-	async findRoleByName(code: string) {
-		const roleQuery = new Parse.Query(Parse.Role);
-		return roleQuery
-			.equalTo('name', code)
-			.first({ sessionToken: this.sessionToken, useMasterKey: this.master });
-	}
-
-	async assignRoleToUsers(role: Parse.Role, users: Parse.User[]) {
+	async assignRoleToUser(user: Parse.User, role: Parse.Role) {
 		const relation = role.getUsers();
-		relation.add(users);
+		relation.add(user);
 		return role.save(null, {
 			sessionToken: this.sessionToken,
 			useMasterKey: this.master,
@@ -75,7 +68,7 @@ export default class RoleService {
 		user: Parse.User,
 		options: { json?: boolean } & QueryOptions = {},
 	) {
-		const roleQuery = new Parse.Query(Parse.Role).equalTo('users', user);
+		const roleQuery = new Parse.Query(Parse.Role).equalTo("users", user);
 
 		applyQueryOptions(roleQuery, options);
 

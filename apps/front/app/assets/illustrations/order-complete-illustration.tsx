@@ -1,16 +1,27 @@
-import { memo } from 'react';
+import { memo } from "react";
 
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
 
-import { BackgroundShape } from './background-shape';
+import { BackgroundShape } from "./background-shape";
 
 // ----------------------------------------------------------------------
 
 type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
-const OrderCompleteIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
+const OrderCompleteIllustration = ({
+	hideBackground,
+	sx,
+	...other
+}: SvgProps) => {
 	const renderCharacterImage = () => {
-		return <image href="/assets/illustrations/characters/character-happy-jump.webp" height="280" x="270" y="40" />;
+		return (
+			<image
+				href="/assets/illustrations/characters/character-happy-jump.webp"
+				height="280"
+				x="270"
+				y="40"
+			/>
+		);
 	};
 
 	return (
@@ -20,14 +31,14 @@ const OrderCompleteIllustration = ({ hideBackground, sx, ...other }: SvgProps) =
 			sx={[
 				(theme) => {
 					return {
-						'--primary-light': theme.vars.palette.primary.light,
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
+						"--primary-light": theme.vars.palette.primary.light,
+						"--primary-main": theme.vars.palette.primary.main,
+						"--primary-dark": theme.vars.palette.primary.dark,
+						"--primary-darker": theme.vars.palette.primary.darker,
 						width: 320,
 						maxWidth: 1,
 						flexShrink: 0,
-						height: 'auto',
+						height: "auto",
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),

@@ -1,6 +1,7 @@
 {
 	"recommendations": [
 		"biomejs.biome",
+		"esbenp.prettier-vscode",
 		"usernamehw.errorlens",
 		"aaron-bond.better-comments",
 		"streetsidesoftware.code-spell-checker",
@@ -14,6 +15,7 @@
 		"philsinatra.nested-comments",
 		"PKief.material-icon-theme",
 		"wix.vscode-import-cost",
+		"dbaeumer.vscode-eslint",
 		"dsznajder.es7-react-js-snippets",
 		"mikestead.dotenv",
 		"formulahendry.auto-close-tag",
@@ -29,10 +31,11 @@
 		"EQuimper.react-native-react-redux",
 		"infeng.vscode-react-typescript",
 		"planbcoding.vscode-react-refactor",
+		"drKnoxy.eslint-disable-snippets",
 		"codezombiech.gitignore",
 		"jasonnutter.search-node-modules",
 		"jock.svg",
 		"MarkosTh09.color-picker",
-		"ms-dotnettools.csdevkit"
+		// "pmneo.tsimporter"
 	]
 }

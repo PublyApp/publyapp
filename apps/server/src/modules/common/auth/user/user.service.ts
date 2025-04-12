@@ -1,9 +1,9 @@
-import { USE_MASTER_KEY } from '@/server/lib/constants';
-import { getDatabase } from '@/server/lib/parse/parse.utils';
-import { applyQueryOptions } from '@/server/lib/parse/query.utils';
-import ParseUser from '@/server/modules/common/auth/user/user.class';
-import { className } from '@/shared/lib/constants';
-import type { IUser } from '@/shared/types/db/user.types';
+import { USE_MASTER_KEY } from "@/server/lib/constants";
+import { getDatabase } from "@/server/lib/parse/parse.utils";
+import { applyQueryOptions } from "@/server/lib/parse/query.utils";
+import ParseUser from "@/server/modules/common/auth/user/user.class";
+import { className } from "@/shared/lib/constants";
+import type { IUser } from "@/shared/types/db/user.types";
 
 type Props = {
 	sessionToken: string | undefined;
@@ -37,7 +37,7 @@ export default class UserService {
 			json?: boolean;
 		} = {},
 	) {
-		const query = new Parse.Query(ParseUser).equalTo('objectId', userId);
+		const query = new Parse.Query(ParseUser).equalTo("objectId", userId);
 
 		applyQueryOptions(query, options);
 
@@ -50,14 +50,14 @@ export default class UserService {
 		return user;
 	}
 
-	// TODO: re evaluate this
+	// eslint-disable-next-line class-methods-use-this
 	async findUsersForStaffAdminTable() {
 		const userQuery = new Parse.Query(ParseUser).select([
-			'avatarUrl',
-			'username',
-			'email',
-			'firstName',
-			'lastName',
+			"avatarUrl",
+			"username",
+			"email",
+			"firstName",
+			"lastName",
 		]);
 
 		userQuery.find({ sessionToken: this.sessionToken });
@@ -79,34 +79,34 @@ export default class UserService {
 			.aggregate([
 				{
 					$lookup: {
-						from: '_Role', // Join with the Role collection
+						from: "_Role", // Join with the Role collection
 						let: {
-							roleId: '$owningId',
+							roleId: "$owningId",
 						},
 						pipeline: [
 							{
-								$match: { $expr: { $eq: ['$_id', '$$roleId'] } },
+								$match: { $expr: { $eq: ["$_id", "$$roleId"] } },
 							},
 							{
 								$project: { name: 1, rank: 1 },
 							},
 						],
-						as: 'roleDetails', // Alias for the joined role
+						as: "roleDetails", // Alias for the joined role
 					},
 				},
 
-				{ $unwind: '$roleDetails' },
+				{ $unwind: "$roleDetails" },
 
 				{
 					$group: {
-						_id: '$relatedId', // Group by user ID
-						maxRank: { $max: '$roleDetails.rank' }, // Get the highest rank
+						_id: "$relatedId", // Group by user ID
+						maxRank: { $max: "$roleDetails.rank" }, // Get the highest rank
 						maxRankRoleName: {
 							// Store the role ID associated with the highest rank
 							$first: {
 								$cond: [
-									{ $eq: ['$roleDetails.rank', { $max: '$roleDetails.rank' }] },
-									'$roleDetails.name',
+									{ $eq: ["$roleDetails.rank", { $max: "$roleDetails.rank" }] },
+									"$roleDetails.name",
 									null,
 								],
 							},
