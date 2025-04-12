@@ -3,14 +3,14 @@ import { PassThrough } from "node:stream";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import {
-	renderToPipeableStream,
 	type RenderToPipeableStreamOptions,
+	renderToPipeableStream,
 } from "react-dom/server";
 import { I18nextProvider } from "react-i18next";
 import {
-	ServerRouter,
 	type AppLoadContext,
 	type EntryContext,
+	ServerRouter,
 } from "react-router";
 
 import { queryParamKey } from "@/shared/lib/constants";
@@ -68,7 +68,7 @@ const handleRequest = async (
 					reject(error);
 				},
 				onError: (error: unknown) => {
-					// eslint-disable-next-line no-param-reassign
+					// biome-ignore lint/style/noParameterAssign: boilerplate from react-router framework scaffolding, just left as is
 					responseStatusCode = 500;
 
 					// Log streaming rendering errors from inside the shell.  Don't log
