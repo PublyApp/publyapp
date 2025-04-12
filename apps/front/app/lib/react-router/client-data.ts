@@ -23,11 +23,12 @@ type GetCLientLoaderParams<
 	) => Promise<D>;
 };
 
-type GetCLientLoader = {
-	<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
-		params: GetCLientLoaderParams<T, D>,
-	): (args: T) => Promise<D>;
-};
+type GetCLientLoader = <
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	D = unknown,
+>(
+	params: GetCLientLoaderParams<T, D>,
+) => (args: T) => Promise<D>;
 
 export const getClientLoader: GetCLientLoader = <
 	T extends LoaderFunctionArgs = LoaderFunctionArgs,

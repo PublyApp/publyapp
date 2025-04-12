@@ -1,4 +1,4 @@
-import { type StateCreator } from 'zustand';
+import type { StateCreator } from 'zustand';
 
 type AppSliceProps<Name extends string, Values, Actions> = {
 	name: Name;

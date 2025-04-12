@@ -367,7 +367,7 @@ declare module 'parse-server/lib/cryptoUtils.js' {
 declare module 'parse-server/lib/cryptoUtils' {
 	export function randomHexString(size: number): string;
 	export function randomString(size: number): string;
-	export function newObjectId(size: number = 10): string;
+	export function newObjectId(size = 10): string;
 	export function newToken(): string;
 	export function md5Hash(string: string): string;
 }

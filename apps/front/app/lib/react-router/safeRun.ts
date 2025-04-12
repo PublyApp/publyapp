@@ -4,6 +4,7 @@ import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
 
 type SafeRunFunction<F extends GenericFunction> = (
 	...args: Parameters<F>
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 ) => ReturnType<F> extends PromiseLike<any>
 	?
 			| Promise<{

@@ -123,32 +123,27 @@ export const AuthSplitLayout = ({
 						{
 							label: 'Jwt',
 							path: '#',
-							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-jwt' + '.svg',
+							icon: '/assets/icons/platforms/ic-jwt.svg',
 						},
 						{
 							label: 'Firebase',
 							path: '#',
-							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-firebase' + '.svg',
+							icon: '/assets/icons/platforms/ic-firebase.svg',
 						},
 						{
 							label: 'Amplify',
 							path: '#',
-							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-amplify' + '.svg',
+							icon: '/assets/icons/platforms/ic-amplify.svg',
 						},
 						{
 							label: 'Auth0',
 							path: '#',
-							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-auth0' + '.svg',
+							icon: '/assets/icons/platforms/ic-auth0.svg',
 						},
 						{
 							label: 'Supabase',
 							path: '#',
-							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-supabase' + '.svg',
+							icon: '/assets/icons/platforms/ic-supabase.svg',
 						},
 					]}
 				/>
