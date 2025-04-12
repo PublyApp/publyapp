@@ -44,12 +44,11 @@ export const clientLoader = getClientLoader({
 		// 	let state = _.toString(sideBarOpenCookie);
 
 		// 	if (!allowedStates.includes(state)) {
-		// 		// eslint-disable-next-line prefer-destructuring
 		// 		state = allowedStates[0];
 		// 		cookies.set(SIDEBAR_COOKIE_NAME, state);
 		// 	}
 
-		// 	// eslint-disable-next-line no-param-reassign
+		//
 		// 	root.settingsSlice.sidebar.state = state as never;
 		// });
 
@@ -65,7 +64,6 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 		queries: [getUserAuthDataQuery(), getTenantAuthDataQuery({ tenantId })],
 	});
 
-	// eslint-disable-next-line react/jsx-no-useless-fragment
 	return <>{children}</>;
 };
 

@@ -29,7 +29,6 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 	onError?: ErrorHandler<F>;
 }): F => {
 	if (!onError) {
-		// eslint-disable-next-line no-param-reassign
 		onError = defaultErrorHandler as never;
 	}
 

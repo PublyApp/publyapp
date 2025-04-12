@@ -79,7 +79,6 @@ const BOOKER = Array.from({ length: 12 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _tourGuides = Array.from({ length: 12 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -93,7 +92,6 @@ export const TRAVEL_IMAGES = Array.from({ length: 16 }, (_, index) => {
 	return _mock.image.travel(index);
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _tours = Array.from({ length: 12 }, (_, index) => {
 	const available = {
 		startDate: _mock.time(index + 1),

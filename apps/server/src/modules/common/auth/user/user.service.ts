@@ -50,7 +50,6 @@ export default class UserService {
 		return user;
 	}
 
-	// eslint-disable-next-line class-methods-use-this
 	async findUsersForStaffAdminTable() {
 		const userQuery = new Parse.Query(ParseUser).select([
 			'avatarUrl',

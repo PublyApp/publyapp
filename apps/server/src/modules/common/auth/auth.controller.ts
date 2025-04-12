@@ -127,14 +127,11 @@ export const handleGetFacebookLoginDialogURL = expressHandler(
 			const { applicationFrom, isLinkingUser } = req.body;
 
 			const url = new URL('https://www.facebook.com/v19.0/dialog/oauth');
-			// eslint-disable-next-line turbo/no-undeclared-env-vars
 			url.searchParams.append('client_id', process.env.FACEBOOK_APP_ID || '');
-			// eslint-disable-next-line turbo/no-undeclared-env-vars
 			url.searchParams.append(
 				'redirect_uri',
 				getFacebookRedirectURL(applicationFrom),
 			);
-			// eslint-disable-next-line turbo/no-undeclared-env-vars
 			url.searchParams.append(
 				'state',
 				`"{${isLinkingUser ? 'isLinkingUser=true' : ''}}"`,

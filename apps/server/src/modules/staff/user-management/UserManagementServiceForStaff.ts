@@ -82,7 +82,6 @@ export default class UserManagementServiceForStaff {
 
 		const result = await cursor.toArray();
 
-		// eslint-disable-next-line no-console
 		console.dir(
 			// users.map((user) => {
 			// 	return user.toJSON();

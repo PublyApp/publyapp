@@ -92,9 +92,6 @@ const App = ({ loaderData }: Route.ComponentProps) => {
 export default App;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	// return <View500 />;
-
-	// eslint-disable-next-line turbo/no-undeclared-env-vars
 	if (import.meta.env.PROD) {
 		return <View500 />;
 	}

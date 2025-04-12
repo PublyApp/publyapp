@@ -9,7 +9,6 @@ export const USER_STATUS_OPTIONS = [
 	{ value: 'rejected', label: 'Rejected' },
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userAbout = {
 	id: _mock.id(1),
 	role: _mock.role(1),
@@ -30,7 +29,6 @@ export const _userAbout = {
 	},
 };
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userFollowers = Array.from({ length: 18 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -40,7 +38,6 @@ export const _userFollowers = Array.from({ length: 18 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userFriends = Array.from({ length: 18 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -50,7 +47,6 @@ export const _userFriends = Array.from({ length: 18 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userGallery = Array.from({ length: 12 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -60,7 +56,6 @@ export const _userGallery = Array.from({ length: 12 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userFeeds = Array.from({ length: 3 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -99,7 +94,6 @@ export const _userFeeds = Array.from({ length: 3 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userCards = Array.from({ length: 21 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -113,7 +107,6 @@ export const _userCards = Array.from({ length: 21 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userPayment = Array.from({ length: 3 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -127,7 +120,6 @@ export const _userPayment = Array.from({ length: 3 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userAddressBook = Array.from({ length: 4 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -139,7 +131,6 @@ export const _userAddressBook = Array.from({ length: 4 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userInvoices = Array.from({ length: 10 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -149,14 +140,12 @@ export const _userInvoices = Array.from({ length: 10 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userPlans = [
 	{ subscription: 'basic', price: 0, primary: false },
 	{ subscription: 'starter', price: 4.99, primary: true },
 	{ subscription: 'premium', price: 9.99, primary: false },
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _userList = Array.from({ length: 20 }, (_, index) => {
 	return {
 		id: _mock.id(index),
