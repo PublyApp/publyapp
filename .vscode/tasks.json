@@ -7,10 +7,10 @@
 			"path": "apps/server",
 			"problemMatcher": [],
 			"label": "npm: dev - apps/server",
-			"detail": "pnpm dev:local",
+			"detail": "pnpm dev:local"
 			// "runOptions": {
 			// 	"runOn": "folderOpen"
 			// }
-		},
+		}
 	]
 }
