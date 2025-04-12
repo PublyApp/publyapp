@@ -38,11 +38,11 @@ export const NavMobile = ({
 }: NavMobileProps) => {
 	const pathname = usePathname();
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (open) {
 			onClose();
 		}
-		// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	}, [pathname]);
 
 	return (

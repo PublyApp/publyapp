@@ -29,6 +29,7 @@ export type NotificationItemProps = {
 const readerContent = (data: string) => {
 	return (
 		<Box
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: code from template, leave as is for now
 			dangerouslySetInnerHTML={{ __html: data }}
 			sx={{
 				'& p': { m: 0, typography: 'body2' },

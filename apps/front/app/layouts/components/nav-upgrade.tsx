@@ -124,7 +124,7 @@ export const UpgradeBlock = ({ sx, ...other }: BoxProps) => {
 				transition={{
 					duration: 8,
 					ease: 'linear',
-					repeat: Infinity,
+					repeat: Number.POSITIVE_INFINITY,
 					repeatDelay: 0,
 				}}
 				alt="Small Rocket"
