@@ -110,7 +110,6 @@ const CONTENT = `
 </ul>
 `;
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _jobs = Array.from({ length: 12 }, (_, index) => {
 	const publish = index % 3 ? 'published' : 'draft';
 

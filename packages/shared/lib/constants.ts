@@ -202,7 +202,7 @@ export const className = {
 
 export const APP_ID = 'pdf_vite_app';
 export const APP_NAME = 'PDF Vite';
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
 export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;

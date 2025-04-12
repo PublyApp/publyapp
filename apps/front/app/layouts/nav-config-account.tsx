@@ -4,7 +4,6 @@ import type { AccountDrawerProps } from './components/account-drawer';
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _account: AccountDrawerProps['data'] = [
 	{
 		label: 'Home',

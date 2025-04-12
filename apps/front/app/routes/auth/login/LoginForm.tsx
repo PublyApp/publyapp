@@ -60,7 +60,6 @@ const LoginForm = () => {
 	});
 
 	const renderForm = () => (
-		// eslint-disable-next-line arrow-body-style
 		<Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
 			<Field.Text
 				name="email"

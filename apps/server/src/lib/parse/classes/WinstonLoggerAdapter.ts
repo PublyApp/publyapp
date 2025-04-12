@@ -48,11 +48,9 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 		// 	return;
 		// }
 
-		// eslint-disable-next-line consistent-return
 		return this.logger.log(level, message, ...meta);
 	}
 
-	// eslint-disable-next-line class-methods-use-this
 	private configureLogger() {
 		const { jsonLogs, verbose, silent } = defaults;
 		let { logsFolder } = defaults;
@@ -201,7 +199,6 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 		};
 
 		return new Promise((resolve, reject) => {
-			// eslint-disable-next-line consistent-return
 			this.logger.query(queryOptions as never, (err, res) => {
 				if (err) {
 					callback(err);

@@ -33,7 +33,6 @@ import {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _mock = {
 	id: (index: number) => {
 		return _id[index];

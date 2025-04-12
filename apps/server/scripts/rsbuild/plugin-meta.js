@@ -20,7 +20,6 @@ const path = require('node:path');
 const pluginMeta = (_options) /* : RsbuildPlugin */ => {
 	return {
 		name: 'plugin-meta',
-		// eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 		setup(api) {
 			api.transform(
 				{ test: /\.(ts|tsx|js|jsx)$/ },

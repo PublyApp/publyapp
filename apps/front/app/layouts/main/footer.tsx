@@ -18,7 +18,6 @@ import { RouterLink } from '@/front/components/router-link';
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 const _socials = [
 	{
 		value: 'facebook',

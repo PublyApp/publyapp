@@ -40,7 +40,6 @@ export default class ParseRestClient {
 
 		this.serverUrl = url.origin;
 
-		// eslint-disable-next-line prefer-destructuring
 		this.parsePath = url.pathname[1];
 
 		const axiosInstance = axios.create({

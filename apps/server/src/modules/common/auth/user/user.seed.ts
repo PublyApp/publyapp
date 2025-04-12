@@ -13,7 +13,7 @@ export const userSeedFactory = () => {
 	const email = faker.internet.email({ firstName, lastName });
 
 	const GENERIC_PASSWORD = '123456789@';
-	// eslint-disable-next-line @typescript-eslint/naming-convention
+
 	// const _hashed_password = hash(GENERIC_PASSWORD);
 
 	const user = new ParseUser({

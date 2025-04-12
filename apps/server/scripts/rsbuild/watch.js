@@ -41,7 +41,6 @@ const run = async () => {
 
 		const startCommand = ['node', '--enable-source-maps', 'dist/index.mjs'];
 
-		// eslint-disable-next-line arrow-body-style
 		console.log(
 			'\x1b[32m%s\x1b[0m',
 			'====>',

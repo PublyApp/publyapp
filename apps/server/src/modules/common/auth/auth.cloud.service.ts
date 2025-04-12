@@ -67,7 +67,7 @@ export class AuthCloudService {
 		password: string;
 	}) {
 		// mimic auth object
-		// eslint-disable-next-line @typescript-eslint/naming-convention
+
 		const _auth = { isMaster: true };
 
 		const config = getInternalConfig();
@@ -123,7 +123,6 @@ export class AuthCloudService {
 			return;
 		}
 
-		// eslint-disable-next-line @typescript-eslint/naming-convention
 		const _email_verify_token_expires_at = user.get(
 			'_email_verify_token_expires_at',
 		);

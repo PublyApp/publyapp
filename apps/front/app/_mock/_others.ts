@@ -2,7 +2,6 @@ import { _mock } from './_mock';
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _carouselsMembers = Array.from({ length: 6 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -14,7 +13,6 @@ export const _carouselsMembers = Array.from({ length: 6 }, (_, index) => {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _faqs = Array.from({ length: 8 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -26,7 +24,6 @@ export const _faqs = Array.from({ length: 8 }, (_, index) => {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _addressBooks = Array.from({ length: 24 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -42,7 +39,6 @@ export const _addressBooks = Array.from({ length: 24 }, (_, index) => {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _contacts = Array.from({ length: 20 }, (_, index) => {
 	const status =
 		(index % 2 && 'online') ||
@@ -65,7 +61,6 @@ export const _contacts = Array.from({ length: 20 }, (_, index) => {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _notifications = Array.from({ length: 9 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -127,7 +122,6 @@ export const _notifications = Array.from({ length: 9 }, (_, index) => {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _mapContact = [
 	{
 		latlng: [33, 65],
@@ -143,7 +137,6 @@ export const _mapContact = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _socials = [
 	{
 		value: 'facebook',
@@ -169,7 +162,6 @@ export const _socials = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _pricingPlans = [
 	{
 		subscription: 'basic',
@@ -210,7 +202,6 @@ export const _pricingPlans = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _testimonials = [
 	{
 		name: _mock.fullName(1),
