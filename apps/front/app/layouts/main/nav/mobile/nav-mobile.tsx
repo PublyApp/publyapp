@@ -38,7 +38,7 @@ export const NavMobile = ({
 		if (open) {
 			onClose();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	}, [pathname]);
 
 	return (

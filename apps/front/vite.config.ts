@@ -1,4 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
 import { reactRouter } from '@react-router/dev/vite';
 import { defineConfig } from 'vite';
 import checker from 'vite-plugin-checker';
