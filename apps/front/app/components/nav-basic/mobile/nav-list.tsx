@@ -14,18 +14,24 @@ import { NavItem } from './nav-item';
 
 // ----------------------------------------------------------------------
 
-export const NavList = ({ data, depth, render, slotProps, enabledRootRedirect }: NavListProps) => {
+export const NavList = ({
+	data,
+	depth,
+	render,
+	slotProps,
+	enabledRootRedirect,
+}: NavListProps) => {
 	const pathname = usePathname();
 	const navItemRef = useRef<HTMLButtonElement>(null);
 
 	const isActive = isActiveLink(pathname, data.path, !!data.children);
 	const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (!isActive) {
 			onClose();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	const handleToggleMenu = useCallback(() => {
@@ -65,7 +71,13 @@ export const NavList = ({ data, depth, render, slotProps, enabledRootRedirect }:
 	const renderCollapse = () => {
 		return (
 			!!data.children && (
-				<NavCollapse mountOnEnter unmountOnExit depth={depth} in={open} data-group={data.title}>
+				<NavCollapse
+					mountOnEnter
+					unmountOnExit
+					depth={depth}
+					in={open}
+					data-group={data.title}
+				>
 					<NavSubList
 						data={data.children}
 						depth={depth}
@@ -83,7 +95,9 @@ export const NavList = ({ data, depth, render, slotProps, enabledRootRedirect }:
 			disabled={data.disabled}
 			sx={{
 				...(!!data.children && {
-					[`& .${navBasicClasses.li}`]: { '&:first-of-type': { mt: 'var(--nav-item-gap)' } },
+					[`& .${navBasicClasses.li}`]: {
+						'&:first-of-type': { mt: 'var(--nav-item-gap)' },
+					},
 				}),
 			}}
 		>
@@ -95,7 +109,13 @@ export const NavList = ({ data, depth, render, slotProps, enabledRootRedirect }:
 
 // ----------------------------------------------------------------------
 
-const NavSubList = ({ data, render, depth = 0, slotProps, enabledRootRedirect }: NavSubListProps) => {
+const NavSubList = ({
+	data,
+	render,
+	depth = 0,
+	slotProps,
+	enabledRootRedirect,
+}: NavSubListProps) => {
 	return (
 		<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
 			{data.map((list) => {

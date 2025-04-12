@@ -2,7 +2,6 @@ import type { WorkspacesPopoverProps } from './components/workspaces-popover';
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _workspaces: WorkspacesPopoverProps['data'] = [
 	{
 		id: 'team-1',

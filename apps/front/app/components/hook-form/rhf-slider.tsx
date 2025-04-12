@@ -16,7 +16,12 @@ export type RHFSliderProps = SliderProps & {
 	};
 };
 
-export const RHFSlider = ({ name, helperText, slotProps, ...other }: RHFSliderProps) => {
+export const RHFSlider = ({
+	name,
+	helperText,
+	slotProps,
+	...other
+}: RHFSliderProps) => {
 	const { control } = useFormContext();
 
 	return (

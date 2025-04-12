@@ -5,24 +5,32 @@ import { _mock } from './_mock';
 // APP
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export const _appRelated = ['Microsoft office 365', 'Opera', 'Adobe acrobat reader DC', 'Joplin', 'Topaz photo AI'].map(
-	(name, index) => {
-		return {
-			id: _mock.id(index),
-			name,
-			downloaded: _mock.number.nativeL(index),
-			ratingNumber: _mock.number.rating(index),
-			size: _mock.number.nativeL(index) * 1024,
-			totalReviews: _mock.number.nativeL(index),
-			shortcut: `/assets/icons/apps/ic-app-${index + 1}.webp`,
-			price: [2, 4].includes(index) ? _mock.number.price(index) : 0,
-		};
-	},
-);
+export const _appRelated = [
+	'Microsoft office 365',
+	'Opera',
+	'Adobe acrobat reader DC',
+	'Joplin',
+	'Topaz photo AI',
+].map((name, index) => {
+	return {
+		id: _mock.id(index),
+		name,
+		downloaded: _mock.number.nativeL(index),
+		ratingNumber: _mock.number.rating(index),
+		size: _mock.number.nativeL(index) * 1024,
+		totalReviews: _mock.number.nativeL(index),
+		shortcut: `/assets/icons/apps/ic-app-${index + 1}.webp`,
+		price: [2, 4].includes(index) ? _mock.number.price(index) : 0,
+	};
+});
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export const _appInstalled = ['Germany', 'England', 'France', 'Korean', 'USA'].map((country, index) => {
+export const _appInstalled = [
+	'Germany',
+	'England',
+	'France',
+	'Korean',
+	'USA',
+].map((country, index) => {
 	return {
 		id: _mock.id(index),
 		countryName: country,
@@ -33,7 +41,6 @@ export const _appInstalled = ['Germany', 'England', 'France', 'Korean', 'USA'].m
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _appAuthors = Array.from({ length: 3 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -43,7 +50,6 @@ export const _appAuthors = Array.from({ length: 3 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _appInvoices = Array.from({ length: 5 }, (_, index) => {
 	const category = ['Android', 'Mac', 'Windows', 'Android', 'Mac'][index];
 
@@ -58,7 +64,6 @@ export const _appInvoices = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _appFeatured = Array.from({ length: 3 }, (_, index) => {
 	return {
 		id: _mock.id(index + 3),
@@ -71,7 +76,6 @@ export const _appFeatured = Array.from({ length: 3 }, (_, index) => {
 // ANALYTIC
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _analyticTasks = Array.from({ length: 5 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -79,7 +83,6 @@ export const _analyticTasks = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _analyticPosts = Array.from({ length: 5 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -90,7 +93,6 @@ export const _analyticPosts = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _analyticOrderTimeline = Array.from({ length: 5 }, (_, index) => {
 	const title = [
 		'1983, orders, $4220',
@@ -108,7 +110,6 @@ export const _analyticOrderTimeline = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _analyticTraffic = [
 	{
 		value: 'facebook',
@@ -135,8 +136,11 @@ export const _analyticTraffic = [
 // ECOMMERCE
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export const _ecommerceSalesOverview = ['Total profit', 'Total income', 'Total expenses'].map((label, index) => {
+export const _ecommerceSalesOverview = [
+	'Total profit',
+	'Total income',
+	'Total expenses',
+].map((label, index) => {
 	return {
 		label,
 		totalAmount: _mock.number.price(index) * 100,
@@ -144,9 +148,14 @@ export const _ecommerceSalesOverview = ['Total profit', 'Total income', 'Total e
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _ecommerceBestSalesman = Array.from({ length: 5 }, (_, index) => {
-	const category = ['CAP', 'Branded shoes', 'Headphone', 'Cell phone', 'Earings'][index];
+	const category = [
+		'CAP',
+		'Branded shoes',
+		'Headphone',
+		'Cell phone',
+		'Earings',
+	][index];
 
 	return {
 		id: _mock.id(index),
@@ -160,24 +169,37 @@ export const _ecommerceBestSalesman = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export const _ecommerceLatestProducts = Array.from({ length: 5 }, (_, index) => {
-	const colors = (index === 0 && ['#2EC4B6', '#E71D36', '#FF9F1C', '#011627']) ||
-		(index === 1 && ['#92140C', '#FFCF99']) ||
-		(index === 2 && ['#0CECDD', '#FFF338', '#FF67E7', '#C400FF', '#52006A', '#046582']) ||
-		(index === 3 && ['#845EC2', '#E4007C', '#2A1A5E']) || ['#090088'];
+export const _ecommerceLatestProducts = Array.from(
+	{ length: 5 },
+	(_, index) => {
+		const colors = (index === 0 && [
+			'#2EC4B6',
+			'#E71D36',
+			'#FF9F1C',
+			'#011627',
+		]) ||
+			(index === 1 && ['#92140C', '#FFCF99']) ||
+			(index === 2 && [
+				'#0CECDD',
+				'#FFF338',
+				'#FF67E7',
+				'#C400FF',
+				'#52006A',
+				'#046582',
+			]) ||
+			(index === 3 && ['#845EC2', '#E4007C', '#2A1A5E']) || ['#090088'];
 
-	return {
-		id: _mock.id(index),
-		colors,
-		name: _mock.productName(index),
-		price: _mock.number.price(index),
-		coverUrl: _mock.image.product(index),
-		priceSale: [1, 3].includes(index) ? _mock.number.price(index) : 0,
-	};
-});
+		return {
+			id: _mock.id(index),
+			colors,
+			name: _mock.productName(index),
+			price: _mock.number.price(index),
+			coverUrl: _mock.image.product(index),
+			priceSale: [1, 3].includes(index) ? _mock.number.price(index) : 0,
+		};
+	},
+);
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _ecommerceNewProducts = Array.from({ length: 4 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -189,7 +211,6 @@ export const _ecommerceNewProducts = Array.from({ length: 4 }, (_, index) => {
 // BANKING
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _bankingContacts = Array.from({ length: 12 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -199,7 +220,6 @@ export const _bankingContacts = Array.from({ length: 12 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _bankingCreditCard = [
 	{
 		id: _mock.id(2),
@@ -227,7 +247,6 @@ export const _bankingCreditCard = [
 	},
 ];
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _bankingRecentTransitions = [
 	{
 		id: _mock.id(2),
@@ -289,7 +308,6 @@ export const _bankingRecentTransitions = [
 // BOOKING
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _bookings = Array.from({ length: 5 }, (_, index) => {
 	const status = ['Paid', 'Paid', 'Pending', 'Cancelled', 'Paid'][index];
 
@@ -316,7 +334,6 @@ export const _bookings = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _bookingsOverview = Array.from({ length: 3 }, (_, index) => {
 	return {
 		status: ['Pending', 'Canceled', 'Sold'][index],
@@ -325,7 +342,6 @@ export const _bookingsOverview = Array.from({ length: 3 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _bookingReview = Array.from({ length: 5 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -338,7 +354,6 @@ export const _bookingReview = Array.from({ length: 5 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _bookingNew = Array.from({ length: 8 }, (_, index) => {
 	return {
 		guests: '3-5',
@@ -356,7 +371,6 @@ export const _bookingNew = Array.from({ length: 8 }, (_, index) => {
 // COURSE
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _coursesContinue = Array.from({ length: 4 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -367,7 +381,6 @@ export const _coursesContinue = Array.from({ length: 4 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _coursesFeatured = Array.from({ length: 6 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -379,7 +392,6 @@ export const _coursesFeatured = Array.from({ length: 6 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _coursesReminder = Array.from({ length: 4 }, (_, index) => {
 	return {
 		id: _mock.id(index),

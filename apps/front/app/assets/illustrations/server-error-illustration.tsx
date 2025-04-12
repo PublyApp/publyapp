@@ -8,9 +8,20 @@ import { BackgroundShape } from './background-shape';
 
 type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
-const ServerErrorIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
+const ServerErrorIllustration = ({
+	hideBackground,
+	sx,
+	...other
+}: SvgProps) => {
 	const renderCharacterImage = () => {
-		return <image href="/assets/illustrations/characters/character-study.webp" height="240" x="320" y="60" />;
+		return (
+			<image
+				href="/assets/illustrations/characters/character-study.webp"
+				height="240"
+				x="320"
+				y="60"
+			/>
+		);
 	};
 
 	return (
@@ -133,7 +144,14 @@ const ServerErrorIllustration = ({ hideBackground, sx, ...other }: SvgProps) => 
 					<stop offset="1" stopColor="var(--primary-dark)" />
 				</linearGradient>
 
-				<linearGradient id="paint1_linear_1_140" x1="138" x2="138" y1="164" y2="287.9" gradientUnits="userSpaceOnUse">
+				<linearGradient
+					id="paint1_linear_1_140"
+					x1="138"
+					x2="138"
+					y1="164"
+					y2="287.9"
+					gradientUnits="userSpaceOnUse"
+				>
 					<stop stopColor="var(--primary-light)" />
 					<stop offset="1" stopColor="var(--primary-dark)" />
 				</linearGradient>

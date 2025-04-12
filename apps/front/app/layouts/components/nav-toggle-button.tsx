@@ -9,7 +9,11 @@ export type NavToggleButtonProps = IconButtonProps & {
 	isNavMini: boolean;
 };
 
-export const NavToggleButton = ({ isNavMini, sx, ...other }: NavToggleButtonProps) => {
+export const NavToggleButton = ({
+	isNavMini,
+	sx,
+	...other
+}: NavToggleButtonProps) => {
 	return (
 		<IconButton
 			size="small"
@@ -23,7 +27,9 @@ export const NavToggleButton = ({ isNavMini, sx, ...other }: NavToggleButtonProp
 						transform: 'translate(-50%, -50%)',
 						zIndex: 'var(--layout-nav-zIndex)',
 						top: 'calc(var(--layout-header-desktop-height) / 2)',
-						left: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
+						left: isNavMini
+							? 'var(--layout-nav-mini-width)'
+							: 'var(--layout-nav-vertical-width)',
 						border: `1px solid ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
 						transition: theme.transitions.create(['left'], {
 							easing: 'var(--layout-transition-easing)',
@@ -41,7 +47,9 @@ export const NavToggleButton = ({ isNavMini, sx, ...other }: NavToggleButtonProp
 		>
 			<Iconify
 				width={16}
-				icon={isNavMini ? 'eva:arrow-ios-forward-fill' : 'eva:arrow-ios-back-fill'}
+				icon={
+					isNavMini ? 'eva:arrow-ios-forward-fill' : 'eva:arrow-ios-back-fill'
+				}
 				sx={(theme) => {
 					return {
 						...(theme.direction === 'rtl' && { transform: 'scaleX(-1)' }),

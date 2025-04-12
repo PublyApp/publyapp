@@ -10,7 +10,10 @@ import { initZodOnClient } from '../zod';
 
 import { getRequestLocale } from './data.utils';
 
-type GetCLientLoaderParams<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> = {
+type GetCLientLoaderParams<
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	D = unknown,
+> = {
 	loader: (
 		args: T & {
 			z: InterZod;
@@ -20,13 +23,17 @@ type GetCLientLoaderParams<T extends LoaderFunctionArgs = LoaderFunctionArgs, D 
 	) => Promise<D>;
 };
 
-type GetCLientLoader = {
-	<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
-		params: GetCLientLoaderParams<T, D>,
-	): (args: T) => Promise<D>;
-};
+type GetCLientLoader = <
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	D = unknown,
+>(
+	params: GetCLientLoaderParams<T, D>,
+) => (args: T) => Promise<D>;
 
-export const getClientLoader: GetCLientLoader = <T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
+export const getClientLoader: GetCLientLoader = <
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	D = unknown,
+>(
 	params: GetCLientLoaderParams<T, D>,
 ) => {
 	const loader = async (args: T) => {

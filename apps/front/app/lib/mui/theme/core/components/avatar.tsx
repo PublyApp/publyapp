@@ -1,5 +1,9 @@
 import { avatarGroupClasses } from '@mui/material/AvatarGroup';
-import type { Components, ComponentsVariants, Theme } from '@mui/material/styles';
+import type {
+	Components,
+	ComponentsVariants,
+	Theme,
+} from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -15,19 +19,26 @@ export type AvatarGroupExtendVariant = {
 
 // ----------------------------------------------------------------------
 
-const COLORS = ['primary', 'secondary', 'info', 'success', 'warning', 'error'] as const;
+const COLORS = [
+	'primary',
+	'secondary',
+	'info',
+	'success',
+	'warning',
+	'error',
+] as const;
 
 type PaletteColor = (typeof COLORS)[number] | 'default';
 
 const colorByName = (name?: string): PaletteColor => {
-	const charAt = name?.charAt(0).toLowerCase();
+	const charAt = name?.charAt(0).toLowerCase() || '';
 
-	if (['a', 'c', 'f'].includes(charAt!)) return 'primary';
-	if (['e', 'd', 'h'].includes(charAt!)) return 'secondary';
-	if (['i', 'k', 'l'].includes(charAt!)) return 'info';
-	if (['m', 'n', 'p'].includes(charAt!)) return 'success';
-	if (['q', 's', 't'].includes(charAt!)) return 'warning';
-	if (['v', 'x', 'y'].includes(charAt!)) return 'error';
+	if (['a', 'c', 'f'].includes(charAt)) return 'primary';
+	if (['e', 'd', 'h'].includes(charAt)) return 'secondary';
+	if (['i', 'k', 'l'].includes(charAt)) return 'info';
+	if (['m', 'n', 'p'].includes(charAt)) return 'success';
+	if (['q', 's', 't'].includes(charAt)) return 'warning';
+	if (['v', 'x', 'y'].includes(charAt)) return 'error';
 
 	return 'default';
 };
@@ -56,7 +67,10 @@ const avatarColors: Record<string, ComponentsVariants<Theme>['MuiAvatar']> = {
 			style: ({ theme }) => {
 				return {
 					color: theme.vars.palette.text.secondary,
-					backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24),
+					backgroundColor: varAlpha(
+						theme.vars.palette.grey['500Channel'],
+						0.24,
+					),
 				};
 			},
 		},
@@ -84,7 +98,10 @@ const MuiAvatar: Components<Theme>['MuiAvatar'] = {
 							}
 						: {
 								color: theme.vars.palette.text.secondary,
-								backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24),
+								backgroundColor: varAlpha(
+									theme.vars.palette.grey['500Channel'],
+									0.24,
+								),
 							}),
 				}),
 			};

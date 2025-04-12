@@ -17,7 +17,11 @@ const defaultValues: DummySliceValues = {
 
 const sliceName = 'dummySlice' as const;
 
-const dummySlice = new Slice<typeof sliceName, DummySliceValues, DummySliceActions>({
+const dummySlice = new Slice<
+	typeof sliceName,
+	DummySliceValues,
+	DummySliceActions
+>({
 	name: sliceName,
 	defaultValues,
 	initializer: (set) => {
@@ -25,16 +29,13 @@ const dummySlice = new Slice<typeof sliceName, DummySliceValues, DummySliceActio
 			...defaultValues,
 			addBear: () => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.dummySlice.bear += 1;
 				});
 			},
 			removeBear: () => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.dummySlice.bear -= 1;
 				});
-				// },
 			},
 		};
 	},

@@ -61,15 +61,23 @@ export const Editor = ({
 				heading: { HTMLAttributes: { class: editorClasses.content.heading } },
 				horizontalRule: { HTMLAttributes: { class: editorClasses.content.hr } },
 				listItem: { HTMLAttributes: { class: editorClasses.content.listItem } },
-				blockquote: { HTMLAttributes: { class: editorClasses.content.blockquote } },
-				bulletList: { HTMLAttributes: { class: editorClasses.content.bulletList } },
-				orderedList: { HTMLAttributes: { class: editorClasses.content.orderedList } },
+				blockquote: {
+					HTMLAttributes: { class: editorClasses.content.blockquote },
+				},
+				bulletList: {
+					HTMLAttributes: { class: editorClasses.content.bulletList },
+				},
+				orderedList: {
+					HTMLAttributes: { class: editorClasses.content.orderedList },
+				},
 			}),
 			PlaceholderExtension.configure({
 				placeholder,
 				emptyEditorClass: editorClasses.content.placeholder,
 			}),
-			ImageExtension.configure({ HTMLAttributes: { class: editorClasses.content.image } }),
+			ImageExtension.configure({
+				HTMLAttributes: { class: editorClasses.content.image },
+			}),
 			TextAlignExtension.configure({ types: ['heading', 'paragraph'] }),
 			LinkExtension.configure({
 				autolink: true,
@@ -80,7 +88,10 @@ export const Editor = ({
 				addNodeView: () => {
 					return ReactNodeViewRenderer(CodeHighlightBlock);
 				},
-			}).configure({ lowlight, HTMLAttributes: { class: editorClasses.content.codeBlock } }),
+			}).configure({
+				lowlight,
+				HTMLAttributes: { class: editorClasses.content.codeBlock },
+			}),
 		],
 		onUpdate: ({ editor: _editor }) => {
 			const html = _editor.getHTML();
@@ -101,11 +112,11 @@ export const Editor = ({
 		};
 	}, [content, editor]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (resetValue && !content) {
 			editor?.commands.clearContent();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [content]);
 
 	useEffect(() => {
@@ -139,7 +150,9 @@ export const Editor = ({
 							...(!editable && { cursor: 'not-allowed' }),
 						};
 					},
-					...(Array.isArray(slotProps?.wrapper?.sx) ? slotProps?.wrapper?.sx ?? [] : [slotProps?.wrapper?.sx]),
+					...(Array.isArray(slotProps?.wrapper?.sx)
+						? (slotProps?.wrapper?.sx ?? [])
+						: [slotProps?.wrapper?.sx]),
 				]}
 			>
 				<EditorRoot

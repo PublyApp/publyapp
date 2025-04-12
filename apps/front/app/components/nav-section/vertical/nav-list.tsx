@@ -14,7 +14,14 @@ import { NavItem } from './nav-item';
 
 // ----------------------------------------------------------------------
 
-export const NavList = ({ data, depth, render, slotProps, checkPermissions, enabledRootRedirect }: NavListProps) => {
+export const NavList = ({
+	data,
+	depth,
+	render,
+	slotProps,
+	checkPermissions,
+	enabledRootRedirect,
+}: NavListProps) => {
 	const pathname = usePathname();
 	const navItemRef = useRef<HTMLButtonElement>(null);
 
@@ -22,11 +29,11 @@ export const NavList = ({ data, depth, render, slotProps, checkPermissions, enab
 
 	const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (!isActive) {
 			onClose();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	const handleToggleMenu = useCallback(() => {
@@ -66,7 +73,13 @@ export const NavList = ({ data, depth, render, slotProps, checkPermissions, enab
 	const renderCollapse = () => {
 		return (
 			!!data.children && (
-				<NavCollapse mountOnEnter unmountOnExit depth={depth} in={open} data-group={data.title}>
+				<NavCollapse
+					mountOnEnter
+					unmountOnExit
+					depth={depth}
+					in={open}
+					data-group={data.title}
+				>
 					<NavSubList
 						data={data.children}
 						render={render}
@@ -81,7 +94,11 @@ export const NavList = ({ data, depth, render, slotProps, checkPermissions, enab
 	};
 
 	// Hidden item by role
-	if (data.allowedRoles && checkPermissions && checkPermissions(data.allowedRoles)) {
+	if (
+		data.allowedRoles &&
+		checkPermissions &&
+		checkPermissions(data.allowedRoles)
+	) {
 		return null;
 	}
 
@@ -90,7 +107,9 @@ export const NavList = ({ data, depth, render, slotProps, checkPermissions, enab
 			disabled={data.disabled}
 			sx={{
 				...(!!data.children && {
-					[`& .${navSectionClasses.li}`]: { '&:first-of-type': { mt: 'var(--nav-item-gap)' } },
+					[`& .${navSectionClasses.li}`]: {
+						'&:first-of-type': { mt: 'var(--nav-item-gap)' },
+					},
 				}),
 			}}
 		>
@@ -102,7 +121,14 @@ export const NavList = ({ data, depth, render, slotProps, checkPermissions, enab
 
 // ----------------------------------------------------------------------
 
-const NavSubList = ({ data, render, depth = 0, slotProps, checkPermissions, enabledRootRedirect }: NavSubListProps) => {
+const NavSubList = ({
+	data,
+	render,
+	depth = 0,
+	slotProps,
+	checkPermissions,
+	enabledRootRedirect,
+}: NavSubListProps) => {
 	return (
 		<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>
 			{data.map((list) => {

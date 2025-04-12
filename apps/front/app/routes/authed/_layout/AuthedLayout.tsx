@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { defaultApiClient } from 'packages/api/ApiClient';
@@ -11,9 +11,15 @@ import { SplashScreen } from '@/front/components/loading-screen';
 import QuerySuspenseBoundary from '@/front/components/QuerySuspenseBoundary';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
 import { CookieManager } from '@/front/lib/cookie-manager';
-import { getTenantAuthDataQuery, getUserAuthDataQuery } from '@/front/lib/react-query/features/auth/auth.actions';
+import {
+	getTenantAuthDataQuery,
+	getUserAuthDataQuery,
+} from '@/front/lib/react-query/features/auth/auth.actions';
 import { getClientLoader } from '@/front/lib/react-router/client.data';
-import { FRONT_PATH_NAMES, SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
+import {
+	FRONT_PATH_NAMES,
+	SESSION_TOKEN_COOKIE_KEY,
+} from '@/shared/lib/constants';
 
 import type { Route } from './+types/AuthedLayout';
 
@@ -38,12 +44,11 @@ export const clientLoader = getClientLoader({
 		// 	let state = _.toString(sideBarOpenCookie);
 
 		// 	if (!allowedStates.includes(state)) {
-		// 		// eslint-disable-next-line prefer-destructuring
 		// 		state = allowedStates[0];
 		// 		cookies.set(SIDEBAR_COOKIE_NAME, state);
 		// 	}
 
-		// 	// eslint-disable-next-line no-param-reassign
+		//
 		// 	root.settingsSlice.sidebar.state = state as never;
 		// });
 
@@ -59,7 +64,6 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 		queries: [getUserAuthDataQuery(), getTenantAuthDataQuery({ tenantId })],
 	});
 
-	// eslint-disable-next-line react/jsx-no-useless-fragment
 	return <>{children}</>;
 };
 
@@ -72,7 +76,10 @@ const AuthedLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 		<ClientOnly>
 			{() => {
 				return (
-					<QuerySuspenseBoundary suspenseFallback={<SplashScreen />} FallbackComponent={ErrorBoundary}>
+					<QuerySuspenseBoundary
+						suspenseFallback={<SplashScreen />}
+						FallbackComponent={ErrorBoundary}
+					>
 						<AuthQueriesGuard>
 							<Outlet />
 						</AuthQueriesGuard>

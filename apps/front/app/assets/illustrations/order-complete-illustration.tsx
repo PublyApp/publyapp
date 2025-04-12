@@ -8,9 +8,20 @@ import { BackgroundShape } from './background-shape';
 
 type SvgProps = SvgIconProps & { hideBackground?: boolean };
 
-const OrderCompleteIllustration = ({ hideBackground, sx, ...other }: SvgProps) => {
+const OrderCompleteIllustration = ({
+	hideBackground,
+	sx,
+	...other
+}: SvgProps) => {
 	const renderCharacterImage = () => {
-		return <image href="/assets/illustrations/characters/character-happy-jump.webp" height="280" x="270" y="40" />;
+		return (
+			<image
+				href="/assets/illustrations/characters/character-happy-jump.webp"
+				height="280"
+				x="270"
+				y="40"
+			/>
+		);
 	};
 
 	return (

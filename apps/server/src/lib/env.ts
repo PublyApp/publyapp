@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 
 import _ from 'lodash';
 
@@ -27,14 +27,12 @@ const envSchema = z.object({
 	FRONT_URL: z.string(),
 });
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type AppEnv = z.infer<typeof envSchema>;
+export type AppEnv = z.infer<typeof envSchema>;
 
 const LOCAL = process.env.ONLINE !== 'true';
 const TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';
-const MODE: 'local' | 'development' | 'production' | 'test' | string = process.env.MODE || 'local';
+const MODE: 'local' | 'development' | 'production' | 'test' | string =
+	process.env.MODE || 'local';
 
 logger.info(`==== LOCAL: ${LOCAL} ====`);
 logger.info(`==== MODE: ${MODE} ====`);
@@ -45,7 +43,9 @@ logger.info(`==== MODE: ${MODE} ====`);
 
 if (LOCAL || TEST_ONLINE_IN_LOCAL) {
 	const envFileName = `.env.${MODE}`;
-	const envConfig = dotenv.config({ path: path.resolve(process.cwd(), envFileName) });
+	const envConfig = dotenv.config({
+		path: path.resolve(process.cwd(), envFileName),
+	});
 	dotenvExpand.expand(envConfig);
 }
 

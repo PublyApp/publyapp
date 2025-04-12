@@ -36,7 +36,15 @@ export const SignOutButton = ({ onClose, sx, ...other }: Props) => {
 	}, [onClose, router]);
 
 	return (
-		<Button fullWidth variant="soft" size="large" color="error" onClick={handleLogout} sx={sx} {...other}>
+		<Button
+			fullWidth
+			variant="soft"
+			size="large"
+			color="error"
+			onClick={handleLogout}
+			sx={sx}
+			{...other}
+		>
 			Logout
 		</Button>
 	);

@@ -9,11 +9,20 @@ type FormHeadProps = BoxProps & {
 	description?: React.ReactNode;
 };
 
-export const FormHead = ({ sx, icon, title, description, ...other }: FormHeadProps) => {
+export const FormHead = ({
+	sx,
+	icon,
+	title,
+	description,
+	...other
+}: FormHeadProps) => {
 	return (
 		<>
 			{icon && (
-				<Box component="span" sx={{ mb: 3, mx: 'auto', display: 'inline-flex' }}>
+				<Box
+					component="span"
+					sx={{ mb: 3, mx: 'auto', display: 'inline-flex' }}
+				>
 					{icon}
 				</Box>
 			)}

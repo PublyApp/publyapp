@@ -1,5 +1,7 @@
 import Box from '@mui/material/Box';
-import ListItemButton, { type ListItemButtonProps } from '@mui/material/ListItemButton';
+import ListItemButton, {
+	type ListItemButtonProps,
+} from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import { isExternalLink, varAlpha } from 'minimal-shared/utils';
 import { nanoid } from 'nanoid';
@@ -16,7 +18,14 @@ type Props = Omit<ListItemButtonProps, 'title'> & {
 	path: { text: string; highlight: boolean }[];
 };
 
-export const ResultItem = ({ title, path, labels, href, sx, ...other }: Props) => {
+export const ResultItem = ({
+	title,
+	path,
+	labels,
+	href,
+	sx,
+	...other
+}: Props) => {
 	const linkProps = isExternalLink(href)
 		? { target: '_blank', rel: 'noopener noreferrer', href, component: 'a' }
 		: { component: RouterLink, href };
@@ -35,7 +44,10 @@ export const ResultItem = ({ title, path, labels, href, sx, ...other }: Props) =
 						'&:hover': {
 							borderRadius: 1,
 							borderColor: theme.vars.palette.primary.main,
-							backgroundColor: varAlpha(theme.vars.palette.primary.mainChannel, theme.vars.palette.action.hoverOpacity),
+							backgroundColor: varAlpha(
+								theme.vars.palette.primary.mainChannel,
+								theme.vars.palette.action.hoverOpacity,
+							),
 						},
 					};
 				},
@@ -46,14 +58,22 @@ export const ResultItem = ({ title, path, labels, href, sx, ...other }: Props) =
 			<ListItemText
 				primary={title.map((part) => {
 					return (
-						<Box key={nanoid()} component="span" sx={{ color: part.highlight ? 'primary.main' : 'text.primary' }}>
+						<Box
+							key={nanoid()}
+							component="span"
+							sx={{ color: part.highlight ? 'primary.main' : 'text.primary' }}
+						>
 							{part.text}
 						</Box>
 					);
 				})}
 				secondary={path.map((part) => {
 					return (
-						<Box key={nanoid()} component="span" sx={{ color: part.highlight ? 'primary.main' : 'text.secondary' }}>
+						<Box
+							key={nanoid()}
+							component="span"
+							sx={{ color: part.highlight ? 'primary.main' : 'text.secondary' }}
+						>
 							{part.text}
 						</Box>
 					);

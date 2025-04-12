@@ -52,7 +52,14 @@ export const NavSectionMini = ({
 
 // ----------------------------------------------------------------------
 
-const Group = ({ items, render, cssVars, slotProps, checkPermissions, enabledRootRedirect }: NavGroupProps) => {
+const Group = ({
+	items,
+	render,
+	cssVars,
+	slotProps,
+	checkPermissions,
+	enabledRootRedirect,
+}: NavGroupProps) => {
 	return (
 		<NavLi>
 			<NavUl sx={{ gap: 'var(--nav-item-gap)' }}>

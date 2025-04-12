@@ -1,4 +1,4 @@
-import { type i18n as I18n } from 'i18next';
+import type { i18n as I18n } from 'i18next';
 import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
 
 import { ApiClient, defaultApiClient } from '@org/api/ApiClient';

@@ -2,7 +2,7 @@ import async from 'async';
 
 import CloudinaryUploader from './upload/CloudinaryUploader';
 import LocalDiskUploader from './upload/LocalDiskUploader';
-import { type Uploader } from './upload/Uploader.interface';
+import type { Uploader } from './upload/Uploader.interface';
 
 export type FileServiceProps = {
 	sessionToken: string | undefined;
@@ -27,7 +27,13 @@ export default class FileService {
 		return file.mimetype.startsWith('image/');
 	}
 
-	async uploadOne({ file, folderPath }: { file: Express.Multer.File; folderPath?: string }) {
+	async uploadOne({
+		file,
+		folderPath,
+	}: {
+		file: Express.Multer.File;
+		folderPath?: string;
+	}) {
 		const filename = file.originalname;
 
 		// upload the file here
@@ -40,11 +46,20 @@ export default class FileService {
 		return result;
 	}
 
-	async uploadMany({ files, folderPath }: { files: Express.Multer.File[]; folderPath?: string }) {
-		const results = await async.map(files, async (file: Express.Multer.File) => {
-			const savedFile = await this.uploadOne({ file, folderPath });
-			return savedFile;
-		});
+	async uploadMany({
+		files,
+		folderPath,
+	}: {
+		files: Express.Multer.File[];
+		folderPath?: string;
+	}) {
+		const results = await async.map(
+			files,
+			async (file: Express.Multer.File) => {
+				const savedFile = await this.uploadOne({ file, folderPath });
+				return savedFile;
+			},
+		);
 
 		return results;
 	}

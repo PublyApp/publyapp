@@ -14,7 +14,9 @@ export const handleUploadSingleFile = expressHandler(async (req, res) => {
 
 	const sessionToken = req.user?.getSessionToken();
 
-	const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;
+	const uploadAdapter =
+		FileService.uploadAdapterMap.get(provider) ||
+		FileService.defaultUploadAdapter;
 
 	const fileService = new FileService({ sessionToken, uploadAdapter });
 
@@ -34,7 +36,9 @@ export const handleUploadManyFiles = expressHandler(async (req, res) => {
 
 	const sessionToken = req.user?.getSessionToken();
 
-	const uploadAdapter = FileService.uploadAdapterMap.get(provider) || FileService.defaultUploadAdapter;
+	const uploadAdapter =
+		FileService.uploadAdapterMap.get(provider) ||
+		FileService.defaultUploadAdapter;
 
 	const fileService = new FileService({ sessionToken, uploadAdapter });
 

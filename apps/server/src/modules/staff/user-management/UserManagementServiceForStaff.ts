@@ -26,7 +26,9 @@ export default class UserManagementServiceForStaff {
 			return role.id;
 		});
 
-		const joinCollection = getDatabase().collection(className._JOIN_USER_TO_ROLE);
+		const joinCollection = getDatabase().collection(
+			className._JOIN_USER_TO_ROLE,
+		);
 
 		const cursor = joinCollection.aggregate([
 			{
@@ -80,7 +82,6 @@ export default class UserManagementServiceForStaff {
 
 		const result = await cursor.toArray();
 
-		// eslint-disable-next-line no-console
 		console.dir(
 			// users.map((user) => {
 			// 	return user.toJSON();

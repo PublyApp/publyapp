@@ -49,13 +49,19 @@ export const SectionTitle = ({
 			{...other}
 		>
 			{caption && (
-				<SectionCaption title={caption} variants={slotProps?.caption?.variants} sx={slotProps?.caption?.sx} />
+				<SectionCaption
+					title={caption}
+					variants={slotProps?.caption?.variants}
+					sx={slotProps?.caption?.sx}
+				/>
 			)}
 
 			<Typography
 				component={m.h2}
 				variant="h2"
-				variants={slotProps?.title?.variants ?? varFade('inUp', { distance: 24 })}
+				variants={
+					slotProps?.title?.variants ?? varFade('inUp', { distance: 24 })
+				}
 				sx={slotProps?.title?.sx}
 			>
 				{`${title} `}
@@ -78,11 +84,14 @@ export const SectionTitle = ({
 			{description && (
 				<Typography
 					component={m.p}
-					variants={slotProps?.description?.variants ?? varFade('inUp', { distance: 24 })}
+					variants={
+						slotProps?.description?.variants ??
+						varFade('inUp', { distance: 24 })
+					}
 					sx={[
 						{ color: 'text.secondary' },
 						...(Array.isArray(slotProps?.description?.sx)
-							? slotProps?.description?.sx ?? []
+							? (slotProps?.description?.sx ?? [])
 							: [slotProps?.description?.sx]),
 					]}
 				>
@@ -95,7 +104,12 @@ export const SectionTitle = ({
 
 // ----------------------------------------------------------------------
 
-export const SectionCaption = ({ title, variants, sx, ...other }: TextProps) => {
+export const SectionCaption = ({
+	title,
+	variants,
+	sx,
+	...other
+}: TextProps) => {
 	return (
 		<Box
 			component={m.span}

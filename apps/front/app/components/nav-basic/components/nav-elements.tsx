@@ -13,7 +13,12 @@ type NavLiProps = React.ComponentProps<'li'> & { disabled?: boolean };
 
 export const NavLi = styled(
 	(props: NavLiProps) => {
-		return <li {...props} className={mergeClasses([navBasicClasses.li, props.className])} />;
+		return (
+			<li
+				{...props}
+				className={mergeClasses([navBasicClasses.li, props.className])}
+			/>
+		);
 	},
 	{
 		shouldForwardProp: (prop: string) => {
@@ -37,7 +42,12 @@ export const NavLi = styled(
 type NavUlProps = React.ComponentProps<'ul'>;
 
 export const NavUl = styled((props: NavUlProps) => {
-	return <ul {...props} className={mergeClasses([navBasicClasses.ul, props.className])} />;
+	return (
+		<ul
+			{...props}
+			className={mergeClasses([navBasicClasses.ul, props.className])}
+		/>
+	);
 })(() => {
 	return { display: 'flex', flexDirection: 'column' };
 });

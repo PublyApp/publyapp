@@ -1,6 +1,8 @@
 import Box, { type BoxProps } from '@mui/material/Box';
 import FormControl, { type FormControlProps } from '@mui/material/FormControl';
-import FormControlLabel, { type FormControlLabelProps } from '@mui/material/FormControlLabel';
+import FormControlLabel, {
+	type FormControlLabelProps,
+} from '@mui/material/FormControlLabel';
 import FormGroup, { type FormGroupProps } from '@mui/material/FormGroup';
 import type { FormHelperTextProps } from '@mui/material/FormHelperText';
 import FormLabel, { type FormLabelProps } from '@mui/material/FormLabel';
@@ -21,7 +23,14 @@ export type RHFSwitchProps = Omit<FormControlLabelProps, 'control'> & {
 	};
 };
 
-export const RHFSwitch = ({ name, helperText, label, slotProps, sx, ...other }: RHFSwitchProps) => {
+export const RHFSwitch = ({
+	name,
+	helperText,
+	label,
+	slotProps,
+	sx,
+	...other
+}: RHFSwitchProps) => {
 	const { control } = useFormContext();
 
 	return (
@@ -48,11 +57,15 @@ export const RHFSwitch = ({ name, helperText, label, slotProps, sx, ...other }: 
 									}}
 								/>
 							}
-							sx={[{ mx: 0 }, ...(Array.isArray(sx) ? sx ?? [] : [sx])]}
+							sx={[{ mx: 0 }, ...(Array.isArray(sx) ? (sx ?? []) : [sx])]}
 							{...other}
 						/>
 
-						<HelperText {...slotProps?.helperText} errorMessage={error?.message} helperText={helperText} />
+						<HelperText
+							{...slotProps?.helperText}
+							errorMessage={error?.message}
+							helperText={helperText}
+						/>
 					</Box>
 				);
 			}}
@@ -78,7 +91,14 @@ type RHFMultiSwitchProps = FormGroupProps & {
 	};
 };
 
-export const RHFMultiSwitch = ({ name, label, options, helperText, slotProps, ...other }: RHFMultiSwitchProps) => {
+export const RHFMultiSwitch = ({
+	name,
+	label,
+	options,
+	helperText,
+	slotProps,
+	...other
+}: RHFMultiSwitchProps) => {
 	const { control } = useFormContext();
 
 	const getSelected = (selectedItems: string[], item: string) => {
@@ -103,7 +123,7 @@ export const RHFMultiSwitch = ({ name, label, options, helperText, slotProps, ..
 								sx={[
 									{ mb: 1, typography: 'body2' },
 									...(Array.isArray(slotProps?.formLabel?.sx)
-										? slotProps?.formLabel?.sx ?? []
+										? (slotProps?.formLabel?.sx ?? [])
 										: [slotProps?.formLabel?.sx]),
 								]}
 							>
@@ -120,14 +140,18 @@ export const RHFMultiSwitch = ({ name, label, options, helperText, slotProps, ..
 											<Switch
 												checked={field.value.includes(option.value)}
 												onChange={() => {
-													return field.onChange(getSelected(field.value, option.value));
+													return field.onChange(
+														getSelected(field.value, option.value),
+													);
 												}}
 												{...slotProps?.switch}
 												slotProps={{
 													...slotProps?.switch?.slotProps,
 													input: {
 														id: `${option.label}-switch`,
-														...(!option.label && { 'aria-label': `${option.label} switch` }),
+														...(!option.label && {
+															'aria-label': `${option.label} switch`,
+														}),
 														...slotProps?.switch?.slotProps?.input,
 													},
 												}}

@@ -22,7 +22,9 @@ const run = async () => {
 
 	rsbuild.onAfterBuild(async () => {
 		// create the i18n resources files in .jsonc format
-		const { resources } = await import(`../../dist/i18n.mjs?update=${Date.now()}`); // we want the updated version and not the cached one
+		const { resources } = await import(
+			`../../dist/i18n.mjs?update=${Date.now()}`
+		); // we want the updated version and not the cached one
 		await createI18nResourcesFiles(resources);
 	});
 

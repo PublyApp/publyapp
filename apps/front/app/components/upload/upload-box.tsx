@@ -9,11 +9,19 @@ import type { UploadProps } from './types';
 
 // ----------------------------------------------------------------------
 
-export const UploadBox = ({ placeholder, error, disabled, className, sx, ...other }: UploadProps) => {
-	const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
-		disabled,
-		...other,
-	});
+export const UploadBox = ({
+	placeholder,
+	error,
+	disabled,
+	className,
+	sx,
+	...other
+}: UploadProps) => {
+	const { getRootProps, getInputProps, isDragActive, isDragReject } =
+		useDropzone({
+			disabled,
+			...other,
+		});
 
 	const hasError = isDragReject || error;
 

@@ -20,6 +20,7 @@ import { FlagIcon, flagIconClasses } from '../flag-icon';
 type Value = string;
 
 export type AutocompleteBaseProps = Omit<
+	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
 	AutocompleteProps<any, boolean, boolean, boolean>,
 	'options' | 'renderOption' | 'renderInput' | 'renderTags' | 'getOptionLabel'
 >;
@@ -54,7 +55,11 @@ export const CountrySelect = ({
 
 	const getCountry = useCallback((inputValue: string) => {
 		const country = countries.find((op) => {
-			return op.label === inputValue || op.code === inputValue || op.phone === inputValue;
+			return (
+				op.label === inputValue ||
+				op.code === inputValue ||
+				op.phone === inputValue
+			);
 		});
 		return {
 			code: country?.code || '',
@@ -112,7 +117,10 @@ export const CountrySelect = ({
 						input: {
 							...params.InputProps,
 							startAdornment: (
-								<InputAdornment position="start" sx={{ ...(!country.code && { display: 'none' }) }}>
+								<InputAdornment
+									position="start"
+									sx={{ ...(!country.code && { display: 'none' }) }}
+								>
 									<FlagIcon
 										key={country.label}
 										code={country.code}
@@ -127,13 +135,26 @@ export const CountrySelect = ({
 							[`& .${flagIconClasses.root}`]: { ml: 0.5, mr: -0.5 },
 						},
 						[`& .${filledInputClasses.root}`]: {
-							[`& .${flagIconClasses.root}`]: { ml: 0.5, mr: -0.5, mt: hiddenLabel ? 0 : -2 },
+							[`& .${flagIconClasses.root}`]: {
+								ml: 0.5,
+								mr: -0.5,
+								mt: hiddenLabel ? 0 : -2,
+							},
 						},
 					}}
 				/>
 			);
 		},
-		[getCountry, label, variant, placeholder, helperText, hiddenLabel, error, multiple],
+		[
+			getCountry,
+			label,
+			variant,
+			placeholder,
+			helperText,
+			hiddenLabel,
+			error,
+			multiple,
+		],
 	);
 
 	const renderTags = useCallback(
@@ -149,7 +170,11 @@ export const CountrySelect = ({
 						size="small"
 						variant="soft"
 						icon={
-							<FlagIcon key={country.label} code={country.code} sx={{ width: 16, height: 16, borderRadius: '50%' }} />
+							<FlagIcon
+								key={country.label}
+								code={country.code}
+								sx={{ width: 16, height: 16, borderRadius: '50%' }}
+							/>
 						}
 					/>
 				);

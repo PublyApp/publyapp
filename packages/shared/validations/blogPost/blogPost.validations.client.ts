@@ -4,7 +4,10 @@ import type InterZod from '@/shared/lib/zod/InterZod';
 
 import { getFileSchemaClientSide } from '../file/file.validations.client';
 
-import { getCreateBlogPostInputSchema, getUpdateBlogPostInputSchema } from './blogPost.validations';
+import {
+	getCreateBlogPostInputSchema,
+	getUpdateBlogPostInputSchema,
+} from './blogPost.validations';
 
 export const getUpdateBlogPostInputSchemaClientSide = (z: InterZod) => {
 	return getUpdateBlogPostInputSchema(z).extend({
@@ -18,5 +21,9 @@ export const getCreateBlogPostInputSchemaClientSide = (z: InterZod) => {
 	});
 };
 
-export type UpdateBlogPostInputClientSide = zod.infer<ReturnType<typeof getUpdateBlogPostInputSchemaClientSide>>;
-export type CreateBlogPostInputClientSide = zod.infer<ReturnType<typeof getCreateBlogPostInputSchemaClientSide>>;
+export type UpdateBlogPostInputClientSide = zod.infer<
+	ReturnType<typeof getUpdateBlogPostInputSchemaClientSide>
+>;
+export type CreateBlogPostInputClientSide = zod.infer<
+	ReturnType<typeof getCreateBlogPostInputSchemaClientSide>
+>;

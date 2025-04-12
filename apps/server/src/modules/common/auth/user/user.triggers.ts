@@ -44,7 +44,13 @@ const beforeSaveUser = parseTriggerEnhanced<Parse.User>({
 //                                      AFTER SAVE                                       //
 // --------------------------------------------------------------------------------------//
 
-const autoAssignDefaultRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest<Parse.User>; t: TFunction }) => {
+const autoAssignDefaultRole = async ({
+	req,
+	t,
+}: {
+	req: Parse.Cloud.TriggerRequest<Parse.User>;
+	t: TFunction;
+}) => {
 	const isNew = _.get(req, 'context.isNew');
 
 	if (!isNew) {
@@ -64,7 +70,9 @@ const autoAssignDefaultRole = async ({ req, t }: { req: Parse.Cloud.TriggerReque
 
 	const roleService = new RoleService(USE_MASTER_KEY);
 
-	const defaultRole = await roleService.findRoleByCode(roleEnum.AUTHED_USER.code);
+	const defaultRole = await roleService.findRoleByCode(
+		roleEnum.AUTHED_USER.code,
+	);
 
 	if (!defaultRole) {
 		throw new Error(t('item-not-found', { item: t('role') }));
@@ -73,7 +81,13 @@ const autoAssignDefaultRole = async ({ req, t }: { req: Parse.Cloud.TriggerReque
 	await roleService.assignRoleToUser(userSaved, defaultRole);
 };
 
-const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest<Parse.User>; t: TFunction }) => {
+const autoAssignAdminRole = async ({
+	req,
+	t,
+}: {
+	req: Parse.Cloud.TriggerRequest<Parse.User>;
+	t: TFunction;
+}) => {
 	const userSaved = req.object;
 	const email = userSaved.getEmail();
 
@@ -88,7 +102,9 @@ const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest
 	const roleService = new RoleService(USE_MASTER_KEY);
 
 	if (ADMIN_EMAILS.includes(email)) {
-		const adminRole = await roleService.findRoleByCode(roleEnum.STAFF_ADMIN.code);
+		const adminRole = await roleService.findRoleByCode(
+			roleEnum.STAFF_ADMIN.code,
+		);
 
 		if (!adminRole) {
 			throw new Error(t('item-not-found', { item: t('role') }));

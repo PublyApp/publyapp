@@ -1,9 +1,17 @@
 import _ from 'lodash';
 
 import type { ApiClient } from 'packages/api/ApiClient';
-import { redirect, type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router';
+import {
+	redirect,
+	type ActionFunctionArgs,
+	type LoaderFunctionArgs,
+} from 'react-router';
 
-import { FRONT_PATH_NAMES, SESSION_TOKEN_COOKIE_KEY, X_FORWARDED_FOR_HEADER_KEY } from '@/shared/lib/constants';
+import {
+	FRONT_PATH_NAMES,
+	SESSION_TOKEN_COOKIE_KEY,
+	X_FORWARDED_FOR_HEADER_KEY,
+} from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
 
@@ -19,7 +27,10 @@ import { getRequestLocale } from './data.utils';
 // 	}
 // }
 
-type GetServerLoaderParamsWhenRequireUser<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> = {
+type GetServerLoaderParamsWhenRequireUser<
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	D = unknown,
+> = {
 	requireUser: true;
 	loader: (
 		args: T & {
@@ -31,7 +42,10 @@ type GetServerLoaderParamsWhenRequireUser<T extends LoaderFunctionArgs = LoaderF
 	) => Promise<D>;
 };
 
-type GetServerLoaderParamsWithoutAuthDataPromise<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> = {
+type GetServerLoaderParamsWithoutAuthDataPromise<
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	D = unknown,
+> = {
 	requireUser?: false | undefined;
 	withAuthDataPromise?: false | undefined;
 	loader: (
@@ -43,7 +57,10 @@ type GetServerLoaderParamsWithoutAuthDataPromise<T extends LoaderFunctionArgs = 
 	) => Promise<D>;
 };
 
-type GetServerLoaderParamsWithAuthDataPromise<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> = {
+type GetServerLoaderParamsWithAuthDataPromise<
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	D = unknown,
+> = {
 	requireUser?: false | undefined;
 	withAuthDataPromise: true;
 	loader: (
@@ -68,18 +85,26 @@ type GetServerLoader = {
 	): (args: T) => Promise<D>;
 };
 
-type GetServerLoaderParams<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown> =
+type GetServerLoaderParams<
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	D = unknown,
+> =
 	| GetServerLoaderParamsWhenRequireUser<T, D>
 	| GetServerLoaderParamsWithoutAuthDataPromise<T, D>
 	| GetServerLoaderParamsWithAuthDataPromise<T, D>;
 
-export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
+export const getServerLoader: GetServerLoader = <
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	D = unknown,
+>(
 	params: GetServerLoaderParams<T, D>,
 ) => {
 	const loader = async (args: T) => {
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
-		const requestIp = args.request.headers.get(_.toLower(X_FORWARDED_FOR_HEADER_KEY)); // || args.request.headers.get('x-real-ip');
+		const requestIp = args.request.headers.get(
+			_.toLower(X_FORWARDED_FOR_HEADER_KEY),
+		); // || args.request.headers.get('x-real-ip');
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale, requestIp });
@@ -101,7 +126,11 @@ export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = 
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		const apiClient = initApiClientOnServer({ locale, sessionToken, requestIp });
+		const apiClient = initApiClientOnServer({
+			locale,
+			sessionToken,
+			requestIp,
+		});
 		const authData = await apiClient.auth.getUserAuthData();
 
 		return params.loader({ ...args, apiClient, z, locale, authData });
@@ -110,7 +139,10 @@ export const getServerLoader: GetServerLoader = <T extends LoaderFunctionArgs = 
 	return loader;
 };
 
-type GetServerActionParamsWhenRequireUser<T extends ActionFunctionArgs = ActionFunctionArgs, D = unknown> = {
+type GetServerActionParamsWhenRequireUser<
+	T extends ActionFunctionArgs = ActionFunctionArgs,
+	D = unknown,
+> = {
 	requireUser: true;
 	action: (
 		args: T & {
@@ -122,7 +154,10 @@ type GetServerActionParamsWhenRequireUser<T extends ActionFunctionArgs = ActionF
 	) => Promise<D>;
 };
 
-type GetServerActionParamsWhenWhenUserNotRequired<T extends ActionFunctionArgs = ActionFunctionArgs, D = unknown> = {
+type GetServerActionParamsWhenWhenUserNotRequired<
+	T extends ActionFunctionArgs = ActionFunctionArgs,
+	D = unknown,
+> = {
 	requireUser?: false | undefined;
 	action: (
 		args: T & {
@@ -142,17 +177,25 @@ type GetServerAction = {
 	): (args: T) => Promise<D>;
 };
 
-type GetServerActionParams<T extends ActionFunctionArgs = ActionFunctionArgs, D = unknown> =
+type GetServerActionParams<
+	T extends ActionFunctionArgs = ActionFunctionArgs,
+	D = unknown,
+> =
 	| GetServerActionParamsWhenRequireUser<T, D>
 	| GetServerActionParamsWhenWhenUserNotRequired<T, D>;
 
-export const getServerAction: GetServerAction = <T extends ActionFunctionArgs = ActionFunctionArgs, D = unknown>(
+export const getServerAction: GetServerAction = <
+	T extends ActionFunctionArgs = ActionFunctionArgs,
+	D = unknown,
+>(
 	params: GetServerActionParams<T, D>,
 ) => {
 	const action = async (args: T) => {
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
-		const requestIp = args.request.headers.get(_.toLower(X_FORWARDED_FOR_HEADER_KEY)); // || args.request.headers.get('x-real-ip');
+		const requestIp = args.request.headers.get(
+			_.toLower(X_FORWARDED_FOR_HEADER_KEY),
+		); // || args.request.headers.get('x-real-ip');
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale, requestIp });
@@ -166,7 +209,11 @@ export const getServerAction: GetServerAction = <T extends ActionFunctionArgs = 
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		const apiClient = initApiClientOnServer({ locale, sessionToken, requestIp });
+		const apiClient = initApiClientOnServer({
+			locale,
+			sessionToken,
+			requestIp,
+		});
 
 		const authData = await apiClient.auth.getUserAuthData();
 

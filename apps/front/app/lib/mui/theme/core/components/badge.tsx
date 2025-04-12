@@ -57,8 +57,16 @@ const MuiBadge: Components<Theme>['MuiBadge'] = {
 				...(ownerState.variant === 'always' && {
 					...dotBaseStyles(theme),
 					backgroundColor: theme.vars.palette.warning.main,
-					'&::before': { width: 2, height: 4, transform: 'translate(1px, -1px)' },
-					'&::after': { width: 2, height: 4, transform: 'translate(0, 1px) rotate(125deg)' },
+					'&::before': {
+						width: 2,
+						height: 4,
+						transform: 'translate(1px, -1px)',
+					},
+					'&::after': {
+						width: 2,
+						height: 4,
+						transform: 'translate(0, 1px) rotate(125deg)',
+					},
 				}),
 				/**
 				 * @variant busy

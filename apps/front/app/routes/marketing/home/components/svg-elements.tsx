@@ -31,7 +31,11 @@ const SvgRoot = styled(m.svg)``;
 
 // ----------------------------------------------------------------------
 
-export const FloatLine = ({ sx, vertical, ...other }: SvgRootProps & { vertical?: boolean }) => {
+export const FloatLine = ({
+	sx,
+	vertical,
+	...other
+}: SvgRootProps & { vertical?: boolean }) => {
 	return (
 		<SvgRoot
 			sx={[
@@ -249,11 +253,24 @@ export const CircleSvg = ({ sx, variants }: SvgRootProps) => {
 			</defs>
 
 			<g clipPath={`url(#${clipPathId})`}>
-				<mask id={maskId} style={{ maskType: 'alpha' }} width="560" height="560" x="0" y="0" maskUnits="userSpaceOnUse">
+				<mask
+					id={maskId}
+					style={{ maskType: 'alpha' }}
+					width="560"
+					height="560"
+					x="0"
+					y="0"
+					maskUnits="userSpaceOnUse"
+				>
 					<path fill={`url(#${gradientId})`} d="M0 0H560V560H0z" />
 				</mask>
 
-				<g stroke="currentColor" strokeDasharray={3} mask={`url(#${maskId})`} opacity={0.4}>
+				<g
+					stroke="currentColor"
+					strokeDasharray={3}
+					mask={`url(#${maskId})`}
+					opacity={0.4}
+				>
 					<circle cx="280" cy="280" r="90" />
 					<circle cx="280" cy="280" r="180" />
 					<path d="M0 0l560 560M560 0L0 560" />
@@ -265,7 +282,10 @@ export const CircleSvg = ({ sx, variants }: SvgRootProps) => {
 
 // ----------------------------------------------------------------------
 
-export const FloatDotIcon = ({ sx, ...other }: BoxProps<'span'> & MotionProps) => {
+export const FloatDotIcon = ({
+	sx,
+	...other
+}: BoxProps<'span'> & MotionProps) => {
 	return (
 		<Box
 			component={m.span}

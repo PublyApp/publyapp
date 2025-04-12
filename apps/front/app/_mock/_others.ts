@@ -2,7 +2,6 @@ import { _mock } from './_mock';
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _carouselsMembers = Array.from({ length: 6 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -14,7 +13,6 @@ export const _carouselsMembers = Array.from({ length: 6 }, (_, index) => {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _faqs = Array.from({ length: 8 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -26,7 +24,6 @@ export const _faqs = Array.from({ length: 8 }, (_, index) => {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _addressBooks = Array.from({ length: 24 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -42,9 +39,12 @@ export const _addressBooks = Array.from({ length: 24 }, (_, index) => {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _contacts = Array.from({ length: 20 }, (_, index) => {
-	const status = (index % 2 && 'online') || (index % 3 && 'offline') || (index % 4 && 'always') || 'busy';
+	const status =
+		(index % 2 && 'online') ||
+		(index % 3 && 'offline') ||
+		(index % 4 && 'always') ||
+		'busy';
 
 	return {
 		id: _mock.id(index),
@@ -61,7 +61,6 @@ export const _contacts = Array.from({ length: 20 }, (_, index) => {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _notifications = Array.from({ length: 9 }, (_, index) => {
 	return {
 		id: _mock.id(index),
@@ -77,7 +76,17 @@ export const _notifications = Array.from({ length: 9 }, (_, index) => {
 			null,
 			null,
 		][index],
-		type: ['friend', 'project', 'file', 'tags', 'payment', 'order', 'delivery', 'chat', 'mail'][index],
+		type: [
+			'friend',
+			'project',
+			'file',
+			'tags',
+			'payment',
+			'order',
+			'delivery',
+			'chat',
+			'mail',
+		][index],
 		category: [
 			'Communication',
 			'Project UI',
@@ -92,16 +101,19 @@ export const _notifications = Array.from({ length: 9 }, (_, index) => {
 		isUnRead: _mock.boolean(index),
 		createdAt: _mock.time(index),
 		title:
-			(index === 0 && '<p><strong>Deja Brady</strong> sent you a friend request</p>') ||
+			(index === 0 &&
+				'<p><strong>Deja Brady</strong> sent you a friend request</p>') ||
 			(index === 1 &&
 				"<p><strong>Jayvon Hull</strong> mentioned you in <strong><a href='#'>Minimal UI</a></strong></p>") ||
 			(index === 2 &&
 				"<p><strong>Lainey Davidson</strong> added file to <strong><a href='#'>File manager</a></strong></p>") ||
 			(index === 3 &&
 				"<p><strong>Angelique Morse</strong> added new tags to <strong><a href='#'>File manager<a/></strong></p>") ||
-			(index === 4 && '<p><strong>Giana Brandt</strong> request a payment of <strong>$200</strong></p>') ||
+			(index === 4 &&
+				'<p><strong>Giana Brandt</strong> request a payment of <strong>$200</strong></p>') ||
 			(index === 5 && '<p>Your order is placed waiting for shipping</p>') ||
-			(index === 6 && '<p>Delivery processing your order is being shipped</p>') ||
+			(index === 6 &&
+				'<p>Delivery processing your order is being shipped</p>') ||
 			(index === 7 && '<p>You have new message 5 unread messages</p>') ||
 			(index === 8 && '<p>You have new mail') ||
 			'',
@@ -110,15 +122,21 @@ export const _notifications = Array.from({ length: 9 }, (_, index) => {
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _mapContact = [
-	{ latlng: [33, 65], address: _mock.fullAddress(1), phoneNumber: _mock.phoneNumber(1) },
-	{ latlng: [-12.5, 18.5], address: _mock.fullAddress(2), phoneNumber: _mock.phoneNumber(2) },
+	{
+		latlng: [33, 65],
+		address: _mock.fullAddress(1),
+		phoneNumber: _mock.phoneNumber(1),
+	},
+	{
+		latlng: [-12.5, 18.5],
+		address: _mock.fullAddress(2),
+		phoneNumber: _mock.phoneNumber(2),
+	},
 ];
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _socials = [
 	{
 		value: 'facebook',
@@ -144,7 +162,6 @@ export const _socials = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _pricingPlans = [
 	{
 		subscription: 'basic',
@@ -157,7 +174,13 @@ export const _pricingPlans = [
 		subscription: 'starter',
 		price: 4.99,
 		caption: 'Saving $24 a year',
-		lists: ['3 prototypes', '3 boards', 'Up to 5 team members', 'Advanced security', 'Issue escalation'],
+		lists: [
+			'3 prototypes',
+			'3 boards',
+			'Up to 5 team members',
+			'Advanced security',
+			'Issue escalation',
+		],
 		labelAction: 'Choose starter',
 	},
 	{
@@ -179,7 +202,6 @@ export const _pricingPlans = [
 
 // ----------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _testimonials = [
 	{
 		name: _mock.fullName(1),
@@ -209,7 +231,8 @@ export const _testimonials = [
 		postedDate: _mock.time(4),
 		ratingNumber: _mock.number.rating(4),
 		avatarUrl: _mock.image.avatar(4),
-		content: 'Amazing, really good code quality and gives you a lot of examples for implementations.',
+		content:
+			'Amazing, really good code quality and gives you a lot of examples for implementations.',
 	},
 	{
 		name: _mock.fullName(5),

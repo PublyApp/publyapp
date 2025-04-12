@@ -70,7 +70,10 @@ export const LabelRoot = styled('span', {
 				 */
 				...(variant === 'soft' && {
 					color: theme.vars.palette[color].dark,
-					backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, 0.16),
+					backgroundColor: varAlpha(
+						theme.vars.palette[color].mainChannel,
+						0.16,
+					),
 					...theme.applyStyles('dark', {
 						color: theme.vars.palette[color].light,
 					}),
@@ -100,7 +103,9 @@ export const LabelRoot = styled('span', {
 		fontSize: theme.typography.pxToRem(12),
 		fontWeight: theme.typography.fontWeightBold,
 		borderRadius: theme.shape.borderRadius * 0.75,
-		transition: theme.transitions.create(['all'], { duration: theme.transitions.duration.shorter }),
+		transition: theme.transitions.create(['all'], {
+			duration: theme.transitions.duration.shorter,
+		}),
 		...defaultStyles,
 		...colorStyles,
 		...(disabled && { opacity: 0.48, pointerEvents: 'none' }),

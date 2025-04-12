@@ -1,12 +1,22 @@
 import _ from 'lodash';
 
-import { type Application, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
+import type {
+	Application,
+	NextFunction,
+	Request,
+	RequestHandler,
+	Response,
+} from 'express';
 import type { ParsedQs } from 'qs';
 
 import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
 
 import { logger } from '@/server/lib/winston';
-import { LOCALE_HEADER_KEY, X_FORWARDED_FOR_HEADER_KEY, X_REMIX_CLIENT_IP } from '@/shared/lib/constants';
+import {
+	LOCALE_HEADER_KEY,
+	X_FORWARDED_FOR_HEADER_KEY,
+	X_REMIX_CLIENT_IP,
+} from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import InterZod from '@/shared/lib/zod/InterZod';
 
@@ -14,37 +24,39 @@ import { i18nextServer } from './i18n';
 
 type ParamsDictionary = Record<string, string>;
 
-interface AsyncRequestHandler<
+type AsyncRequestHandler<
 	P = ParamsDictionary,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	ResBody = any,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	ReqBody = any,
 	ReqQuery = ParsedQs,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	LocalsObj extends Record<string, any> = Record<string, any>,
-> {
-	(
-		req: Request<P, ResBody, ReqBody, ReqQuery, LocalsObj>,
-		res: Response<ResBody, LocalsObj>,
-		next: NextFunction,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	): Promise<any>;
-}
+> = (
+	req: Request<P, ResBody, ReqBody, ReqQuery, LocalsObj>,
+	res: Response<ResBody, LocalsObj>,
+	next: NextFunction,
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+) => Promise<any>;
 
 export const expressHandler = <
 	P = ParamsDictionary,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	ResBody = any,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	ReqBody = any,
 	ReqQuery = ParsedQs,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	Locals extends Record<string, any> = Record<string, any>,
 >(
 	innerHandler: AsyncRequestHandler<P, ResBody, ReqBody, ReqQuery, Locals>,
 ) => {
-	const handler: RequestHandler<P, ResBody, ReqBody, ReqQuery, Locals> = async (req, res, next) => {
+	const handler: RequestHandler<P, ResBody, ReqBody, ReqQuery, Locals> = async (
+		req,
+		res,
+		next,
+	) => {
 		const wrappedFunction = tryCatchWrapper({
 			handler: innerHandler,
 			onError: (error) => {
@@ -60,7 +72,7 @@ export const expressHandler = <
 
 // copy paste from stack overflow: I don't bother fix eslint issues here
 export const listRoutes = (app: Application) => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const split = (thing: any) => {
 		if (typeof thing === 'string') {
 			return thing.split('/');
@@ -74,19 +86,28 @@ export const listRoutes = (app: Application) => {
 			.toString()
 			.replace('\\/?', '')
 			.replace('(?=\\/|$)', '$')
-			// eslint-disable-next-line no-useless-escape
 			.match(/^\/\^((?:\\[.*+?^${}()|[\]\\\/]|[^.*+?^${}()|[\]\\\/])*)\$\//);
-		return match ? match[1].replace(/\\(.)/g, '$1').split('/') : `<complex:${thing.toString()}>`;
+		return match
+			? match[1].replace(/\\(.)/g, '$1').split('/')
+			: `<complex:${thing.toString()}>`;
 	};
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const print = (path: any, layer: any) => {
 		if (layer.route) {
-			layer.route.stack.forEach(print.bind(null, path.concat(split(layer.route.path))));
+			layer.route.stack.forEach(
+				print.bind(null, path.concat(split(layer.route.path))),
+			);
 		} else if (layer.name === 'router' && layer.handle.stack) {
-			layer.handle.stack.forEach(print.bind(null, path.concat(split(layer.regexp))));
+			layer.handle.stack.forEach(
+				print.bind(null, path.concat(split(layer.regexp))),
+			);
 		} else if (layer.method) {
-			logger.info('%s /%s', layer.method.toUpperCase(), path.concat(split(layer.regexp)).filter(Boolean).join('/'));
+			logger.info(
+				'%s /%s',
+				layer.method.toUpperCase(),
+				path.concat(split(layer.regexp)).filter(Boolean).join('/'),
+			);
 		}
 	};
 
@@ -111,5 +132,9 @@ export const getRequestUtils = (req: Request) => {
 };
 
 export const getRequestIp = (req: Request) => {
-	return getHeader(req, X_REMIX_CLIENT_IP) || getHeader(req, X_FORWARDED_FOR_HEADER_KEY) || req.socket.remoteAddress;
+	return (
+		getHeader(req, X_REMIX_CLIENT_IP) ||
+		getHeader(req, X_FORWARDED_FOR_HEADER_KEY) ||
+		req.socket.remoteAddress
+	);
 };

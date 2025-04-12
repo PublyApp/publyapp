@@ -44,7 +44,7 @@
 // 	verb: Record<ClassLiteral<'staff', 'verbs'>, T>;
 // };
 
-// // eslint-disable-next-line @typescript-eslint/naming-convention
+//
 // type _PermissionType<T> = {
 // 	tenant: TenantPermission<T>;
 // 	staff: StaffPermission<T>;

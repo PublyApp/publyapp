@@ -14,9 +14,18 @@ import { ToolbarItem } from './toolbar-item';
 
 export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
-const HEADING_OPTIONS = ['Heading 1', 'Heading 2', 'Heading 3', 'Heading 4', 'Heading 5', 'Heading 6'];
+const HEADING_OPTIONS = [
+	'Heading 1',
+	'Heading 2',
+	'Heading 3',
+	'Heading 4',
+	'Heading 5',
+	'Heading 6',
+];
 
-export const HeadingBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => {
+export const HeadingBlock = ({
+	editor,
+}: Pick<EditorToolbarProps, 'editor'>) => {
 	const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
 	const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -60,7 +69,14 @@ export const HeadingBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => 
 					(editor.isActive('heading', { level: 6 }) && 'Heading 6') ||
 					'Paragraph'}
 
-				<Iconify width={16} icon={anchorEl ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'} />
+				<Iconify
+					width={16}
+					icon={
+						anchorEl
+							? 'eva:arrow-ios-upward-fill'
+							: 'eva:arrow-ios-downward-fill'
+					}
+				/>
 			</ButtonBase>
 
 			<Menu
@@ -73,7 +89,11 @@ export const HeadingBlock = ({ editor }: Pick<EditorToolbarProps, 'editor'>) => 
 					paper: {
 						sx: {
 							width: 120,
-							[`& .${listClasses.root}`]: { gap: 0.5, display: 'flex', flexDirection: 'column' },
+							[`& .${listClasses.root}`]: {
+								gap: 0.5,
+								display: 'flex',
+								flexDirection: 'column',
+							},
 							[`& .${buttonBaseClasses.root}`]: {
 								px: 1,
 								width: 1,

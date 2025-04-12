@@ -17,7 +17,11 @@ export type ThemeProviderProps = Partial<MuiThemeProviderProps> & {
 	themeOverrides?: ThemeOptions;
 };
 
-export const MuiThemeProvider = ({ themeOverrides, children, ...other }: ThemeProviderProps) => {
+export const MuiThemeProvider = ({
+	themeOverrides,
+	children,
+	...other
+}: ThemeProviderProps) => {
 	const { currentLang } = useTranslate();
 
 	const settings = useSettingsContext();

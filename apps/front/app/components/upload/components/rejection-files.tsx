@@ -14,9 +14,18 @@ type RejectionFilesProps = React.ComponentProps<typeof ListRoot> & {
 	files?: readonly FileRejection[];
 };
 
-export const RejectionFiles = ({ files, sx, className, ...other }: RejectionFilesProps) => {
+export const RejectionFiles = ({
+	files,
+	sx,
+	className,
+	...other
+}: RejectionFilesProps) => {
 	return (
-		<ListRoot className={mergeClasses([uploadClasses.uploadRejectionFiles, className])} sx={sx} {...other}>
+		<ListRoot
+			className={mergeClasses([uploadClasses.uploadRejectionFiles, className])}
+			sx={sx}
+			{...other}
+		>
 			{files?.map(({ file, errors }) => {
 				const { path, size } = fileData(file);
 
@@ -27,7 +36,9 @@ export const RejectionFiles = ({ files, sx, className, ...other }: RejectionFile
 						</ItemTitle>
 
 						{errors.map((error) => {
-							return <ItemCaption key={error.code}>- {error.message}</ItemCaption>;
+							return (
+								<ItemCaption key={error.code}>- {error.message}</ItemCaption>
+							);
 						})}
 					</ListItem>
 				);

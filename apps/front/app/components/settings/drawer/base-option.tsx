@@ -17,20 +17,48 @@ export type BaseOptionProps = ButtonBaseProps & {
 	onChangeOption: () => void;
 };
 
-export const BaseOption = ({ sx, icon, label, tooltip, selected, onChangeOption, ...other }: BaseOptionProps) => {
+export const BaseOption = ({
+	sx,
+	icon,
+	label,
+	tooltip,
+	selected,
+	onChangeOption,
+	...other
+}: BaseOptionProps) => {
 	return (
-		<ItemRoot disableRipple selected={selected} onClick={onChangeOption} sx={sx} {...other}>
+		<ItemRoot
+			disableRipple
+			selected={selected}
+			onClick={onChangeOption}
+			sx={sx}
+			{...other}
+		>
 			<TopContainer>
 				{icon}
-				<Switch name={label} size="small" color="default" checked={selected} sx={{ mr: -0.75 }} />
+				<Switch
+					name={label}
+					size="small"
+					color="default"
+					checked={selected}
+					sx={{ mr: -0.75 }}
+				/>
 			</TopContainer>
 
 			<BottomContainer>
 				<ItemLabel>{label}</ItemLabel>
 
 				{tooltip && (
-					<Tooltip arrow title={tooltip} slotProps={{ tooltip: { sx: { maxWidth: 240, mr: 0.5 } } }}>
-						<Iconify width={16} icon="eva:info-outline" sx={{ cursor: 'pointer', color: 'text.disabled' }} />
+					<Tooltip
+						arrow
+						title={tooltip}
+						slotProps={{ tooltip: { sx: { maxWidth: 240, mr: 0.5 } } }}
+					>
+						<Iconify
+							width={16}
+							icon="eva:info-outline"
+							sx={{ cursor: 'pointer', color: 'text.disabled' }}
+						/>
 					</Tooltip>
 				)}
 			</BottomContainer>

@@ -9,7 +9,13 @@ type FormResendCodeProps = BoxProps & {
 	onResendCode?: () => void;
 };
 
-export const FormResendCode = ({ value, disabled, onResendCode, sx, ...other }: FormResendCodeProps) => {
+export const FormResendCode = ({
+	value,
+	disabled,
+	onResendCode,
+	sx,
+	...other
+}: FormResendCodeProps) => {
 	return (
 		<Box
 			sx={[

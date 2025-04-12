@@ -3,12 +3,8 @@
 	"version": "0.0.0",
 	"exports": {
 		"./*": {
-			"types": [
-				"./*.ts"
-			],
-			"default": [
-				"./*.ts"
-			]
+			"types": ["./*.ts"],
+			"default": ["./*.ts"]
 		}
 	},
 	"dependencies": {
@@ -35,9 +31,6 @@
 		"@types/ms": "^0.7.34",
 		"@types/numeral": "^2.0.5",
 		"@types/parse": "^3.0.9",
-		"eslint": "^8.56.0",
-		"eslint-config-custom-base": "workspace:*",
-		"eslint-config-custom-common-react": "workspace:*",
 		"tsconfig": "workspace:*"
 	}
 }

@@ -20,15 +20,17 @@ type NavDropdownProps = React.ComponentProps<'div'> & {
 	open: FadeProps['in'];
 };
 
-export const NavDropdown = styled(({ open, children, ...other }: NavDropdownProps) => {
-	return (
-		<Fade in={open}>
-			<div {...other}>
-				<NavDropdownPaper>{children}</NavDropdownPaper>
-			</div>
-		</Fade>
-	);
-})(({ theme }) => {
+export const NavDropdown = styled(
+	({ open, children, ...other }: NavDropdownProps) => {
+		return (
+			<Fade in={open}>
+				<div {...other}>
+					<NavDropdownPaper>{children}</NavDropdownPaper>
+				</div>
+			</Fade>
+		);
+	},
+)(({ theme }) => {
 	return {
 		left: 0,
 		right: 0,

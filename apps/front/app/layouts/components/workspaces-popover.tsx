@@ -27,7 +27,11 @@ export type WorkspacesPopoverProps = ButtonBaseProps & {
 	}[];
 };
 
-export const WorkspacesPopover = ({ data = [], sx, ...other }: WorkspacesPopoverProps) => {
+export const WorkspacesPopover = ({
+	data = [],
+	sx,
+	...other
+}: WorkspacesPopoverProps) => {
 	const mediaQuery = 'sm';
 
 	const { open, anchorEl, onClose, onOpen } = usePopover();
@@ -86,7 +90,13 @@ export const WorkspacesPopover = ({ data = [], sx, ...other }: WorkspacesPopover
 					sx={{ width: 24, height: 24, borderRadius: '50%' }}
 				/>
 
-				<Box component="span" sx={{ typography: 'subtitle2', display: { xs: 'none', [mediaQuery]: 'inline-flex' } }}>
+				<Box
+					component="span"
+					sx={{
+						typography: 'subtitle2',
+						display: { xs: 'none', [mediaQuery]: 'inline-flex' },
+					}}
+				>
 					{workspace?.name}
 				</Box>
 
@@ -101,7 +111,11 @@ export const WorkspacesPopover = ({ data = [], sx, ...other }: WorkspacesPopover
 					{workspace?.plan}
 				</Label>
 
-				<Iconify width={16} icon="carbon:chevron-sort" sx={{ color: 'text.disabled' }} />
+				<Iconify
+					width={16}
+					icon="carbon:chevron-sort"
+					sx={{ color: 'text.disabled' }}
+				/>
 			</ButtonBase>
 		);
 	};
@@ -129,7 +143,11 @@ export const WorkspacesPopover = ({ data = [], sx, ...other }: WorkspacesPopover
 									}}
 									sx={{ height: 48 }}
 								>
-									<Avatar alt={option.name} src={option.logo} sx={{ width: 24, height: 24 }} />
+									<Avatar
+										alt={option.name}
+										src={option.logo}
+										sx={{ width: 24, height: 24 }}
+									/>
 
 									<Typography
 										noWrap
@@ -140,7 +158,9 @@ export const WorkspacesPopover = ({ data = [], sx, ...other }: WorkspacesPopover
 										{option.name}
 									</Typography>
 
-									<Label color={option.plan === 'Free' ? 'default' : 'info'}>{option.plan}</Label>
+									<Label color={option.plan === 'Free' ? 'default' : 'info'}>
+										{option.plan}
+									</Label>
 								</MenuItem>
 							);
 						})}

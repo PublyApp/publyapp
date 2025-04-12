@@ -1,7 +1,12 @@
 import _ from 'lodash';
 
-import { type StateCreator } from 'zustand';
-import { createJSONStorage, devtools, persist, type StateStorage } from 'zustand/middleware';
+import type { StateCreator } from 'zustand';
+import {
+	createJSONStorage,
+	devtools,
+	persist,
+	type StateStorage,
+} from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 
 import { getUrlSearch } from './utils';
@@ -21,13 +26,16 @@ const getStorage = (): StateStorage => {
 			searchParams.set(key, newValue);
 
 			if (newValue !== oldValue) {
-				// eslint-disable-next-line @typescript-eslint/no-use-before-define
-				window.history.pushState(null, null as never, `?${decodeURIComponent(searchParams.toString())}`);
+				window.history.pushState(
+					null,
+					null as never,
+					`?${decodeURIComponent(searchParams.toString())}`,
+				);
 			}
 
 			// if (!isPopstateEvent) {
 			// 	if (newValue !== oldValue) {
-			// 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+			//
 			// 		window.history.pushState(null, null as never, `?${decodeURIComponent(searchParams.toString())}`);
 			// 	}
 			// } else {
@@ -63,7 +71,9 @@ export const combinedMiddlewaresWithPersist = <T>(
 	);
 };
 
-export const combinedMiddlewares = <T>(initializer: StateCreator<T, [['zustand/immer', never]], []>) => {
+export const combinedMiddlewares = <T>(
+	initializer: StateCreator<T, [['zustand/immer', never]], []>,
+) => {
 	return devtools(immer<T>(initializer), {
 		name: 'store',
 		storage: createJSONStorage<T>(() => {

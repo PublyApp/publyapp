@@ -4,8 +4,15 @@ import { endPoint } from '@/shared/lib/constants';
 
 import { multerConfig } from '../lib/multer';
 import protectionMiddleware from '../middlewares/protection.middleware';
-import { handlePasswordLogin, handlePasswordSignup, handleVerifyEmail } from '../modules/common/auth/auth.controller';
-import { handleUploadManyFiles, handleUploadSingleFile } from '../modules/common/file/file.controller';
+import {
+	handlePasswordLogin,
+	handlePasswordSignup,
+	handleVerifyEmail,
+} from '../modules/common/auth/auth.controller';
+import {
+	handleUploadManyFiles,
+	handleUploadSingleFile,
+} from '../modules/common/file/file.controller';
 
 const coreApiRouter = Router();
 export default coreApiRouter;

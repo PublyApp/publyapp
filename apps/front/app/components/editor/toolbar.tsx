@@ -38,7 +38,13 @@ export const Toolbar = ({
 	return (
 		<Stack
 			className={editorClasses.toolbar.root}
-			divider={<Divider orientation="vertical" flexItem sx={{ height: 16, my: 'auto' }} />}
+			divider={
+				<Divider
+					orientation="vertical"
+					flexItem
+					sx={{ height: 16, my: 'auto' }}
+				/>
+			}
 			sx={[
 				(theme) => {
 					return {
@@ -79,7 +85,9 @@ export const Toolbar = ({
 					onClick={() => {
 						return editor.chain().focus().toggleItalic().run();
 					}}
-					icon={<path d="M15 20H7V18H9.92661L12.0425 6H9V4H17V6H14.0734L11.9575 18H15V20Z" />}
+					icon={
+						<path d="M15 20H7V18H9.92661L12.0425 6H9V4H17V6H14.0734L11.9575 18H15V20Z" />
+					}
 				/>
 				<ToolbarItem
 					aria-label="Underline"
@@ -140,7 +148,9 @@ export const Toolbar = ({
 					onClick={() => {
 						return editor.chain().focus().setTextAlign('left').run();
 					}}
-					icon={<path d="M3 4H21V6H3V4ZM3 19H17V21H3V19ZM3 14H21V16H3V14ZM3 9H17V11H3V9Z" />}
+					icon={
+						<path d="M3 4H21V6H3V4ZM3 19H17V21H3V19ZM3 14H21V16H3V14ZM3 9H17V11H3V9Z" />
+					}
 				/>
 				<ToolbarItem
 					aria-label="Align center"
@@ -149,7 +159,9 @@ export const Toolbar = ({
 					onClick={() => {
 						return editor.chain().focus().setTextAlign('center').run();
 					}}
-					icon={<path d="M3 4H21V6H3V4ZM5 19H19V21H5V19ZM3 14H21V16H3V14ZM5 9H19V11H5V9Z" />}
+					icon={
+						<path d="M3 4H21V6H3V4ZM5 19H19V21H5V19ZM3 14H21V16H3V14ZM5 9H19V11H5V9Z" />
+					}
 				/>
 				<ToolbarItem
 					aria-label="Align right"
@@ -158,7 +170,9 @@ export const Toolbar = ({
 					onClick={() => {
 						return editor.chain().focus().setTextAlign('right').run();
 					}}
-					icon={<path d="M3 4H21V6H3V4ZM7 19H21V21H7V19ZM3 14H21V16H3V14ZM7 9H21V11H7V9Z" />}
+					icon={
+						<path d="M3 4H21V6H3V4ZM7 19H21V21H7V19ZM3 14H21V16H3V14ZM7 9H21V11H7V9Z" />
+					}
 				/>
 				<ToolbarItem
 					aria-label="Align justify"
@@ -167,7 +181,9 @@ export const Toolbar = ({
 					onClick={() => {
 						return editor.chain().focus().setTextAlign('justify').run();
 					}}
-					icon={<path d="M3 4H21V6H3V4ZM3 19H21V21H3V19ZM3 14H21V16H3V14ZM3 9H21V11H3V9Z" />}
+					icon={
+						<path d="M3 4H21V6H3V4ZM3 19H21V21H3V19ZM3 14H21V16H3V14ZM3 9H21V11H3V9Z" />
+					}
 				/>
 			</Box>
 
@@ -219,7 +235,9 @@ export const Toolbar = ({
 						onClick={() => {
 							return editor.chain().focus().setHorizontalRule().run();
 						}}
-						icon={<path d="M2 11H4V13H2V11ZM6 11H18V13H6V11ZM20 11H22V13H20V11Z" />}
+						icon={
+							<path d="M2 11H4V13H2V11ZM6 11H18V13H6V11ZM20 11H22V13H20V11Z" />
+						}
 					/>
 				</Box>
 			)}

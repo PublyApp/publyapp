@@ -1,7 +1,10 @@
 import { queryOptions, type QueryFunctionContext } from '@tanstack/react-query';
 import { defaultApiClient } from 'packages/api/ApiClient';
 
-import type { GetTenantAuthDataFunction, GetUserAuthDataFunction } from '@/server/modules/common/auth/auth.functions';
+import type {
+	GetTenantAuthDataFunction,
+	GetUserAuthDataFunction,
+} from '@/server/modules/common/auth/auth.functions';
 import { functionName } from '@/shared/lib/constants';
 
 // ---- 1 --------------------------------------------------------------------------------
@@ -30,12 +33,18 @@ export const getUserAuthDataQuery = () => {
 
 // ---- 2 --------------------------------------------------------------------------------
 
-export const getTenantAuthDataQueryKeyBase = functionName.auth.getTenantAuthData;
+export const getTenantAuthDataQueryKeyBase =
+	functionName.auth.getTenantAuthData;
 
 export type GetTenantAuthDataQueryParams = GetTenantAuthDataFunction.Params;
 
 export const getTenantAuthDataAction = async (
-	context: QueryFunctionContext<readonly [typeof getTenantAuthDataQueryKeyBase, GetTenantAuthDataQueryParams]>,
+	context: QueryFunctionContext<
+		readonly [
+			typeof getTenantAuthDataQueryKeyBase,
+			GetTenantAuthDataQueryParams,
+		]
+	>,
 ) => {
 	try {
 		const params = context.queryKey[1];
@@ -49,7 +58,9 @@ export const getTenantAuthDataAction = async (
 	}
 };
 
-export const getTenantAuthDataQuery = (params: GetTenantAuthDataQueryParams) => {
+export const getTenantAuthDataQuery = (
+	params: GetTenantAuthDataQueryParams,
+) => {
 	return queryOptions({
 		queryKey: [getTenantAuthDataQueryKeyBase, params] as const,
 		queryFn: getTenantAuthDataAction,

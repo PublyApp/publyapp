@@ -10,7 +10,12 @@ import { getRequestUtils } from '../lib/express';
 import { isCloudHttpException } from '../lib/parse/function.utils';
 
 // ! this is the only middleware that we should not wrap into expressHandler wrapper function
-export const errorMiddleware: ErrorRequestHandler = async (error, req, res, next) => {
+export const errorMiddleware: ErrorRequestHandler = async (
+	error,
+	req,
+	res,
+	next,
+) => {
 	try {
 		const { t } = getRequestUtils(req);
 		let xcode: string | undefined;
@@ -79,7 +84,9 @@ export const errorMiddleware: ErrorRequestHandler = async (error, req, res, next
 		}
 
 		message = t(message as never);
-		res.status(httpStatusCode).json({ error: String(message), code: parseErrorCode, xcode }); // conform to Parse Server error response
+		res
+			.status(httpStatusCode)
+			.json({ error: String(message), code: parseErrorCode, xcode }); // conform to Parse Server error response
 	} catch (_error) {
 		next(_error);
 	}

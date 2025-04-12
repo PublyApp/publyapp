@@ -4,7 +4,7 @@ import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
 
 type SafeRunFunction<F extends GenericFunction> = (
 	...args: Parameters<F>
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 ) => ReturnType<F> extends PromiseLike<any>
 	?
 			| Promise<{
@@ -25,7 +25,9 @@ type SafeRunFunction<F extends GenericFunction> = (
 					error: Error;
 			  };
 
-export const safeRun = <F extends GenericFunction>(func: F): SafeRunFunction<F> => {
+export const safeRun = <F extends GenericFunction>(
+	func: F,
+): SafeRunFunction<F> => {
 	const wrappedFunction = tryCatchWrapper({
 		handler: async (...args: Parameters<F>) => {
 			const result = await func(...args);

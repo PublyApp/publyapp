@@ -8,7 +8,10 @@ import { useBoolean } from 'minimal-shared/hooks';
 
 import { _contacts, _notifications } from '@/front/_mock';
 import { Logo } from '@/front/components/logo';
-import type { NavItemProps, NavSectionProps } from '@/front/components/nav-section';
+import type {
+	NavItemProps,
+	NavSectionProps,
+} from '@/front/components/nav-section';
 import { useMockedUser } from '@/front/hooks/use-mocked-user';
 import { useSettingsContext } from '@/front/hooks/use-settings-context';
 import { allLangs } from '@/front/lib/locales/all-langs';
@@ -50,14 +53,24 @@ export type DashboardLayoutProps = LayoutBaseProps & {
 	};
 };
 
-export const DashboardLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'lg' }: DashboardLayoutProps) => {
+export const DashboardLayout = ({
+	sx,
+	cssVars,
+	children,
+	slotProps,
+	layoutQuery = 'lg',
+}: DashboardLayoutProps) => {
 	const theme = useTheme();
 
 	const { user } = useMockedUser();
 
 	const settings = useSettingsContext();
 
-	const navVars = dashboardNavColorVars(theme, settings.state.navColor, settings.state.navLayout);
+	const navVars = dashboardNavColorVars(
+		theme,
+		settings.state.navColor,
+		settings.state.navLayout,
+	);
 
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
@@ -67,7 +80,9 @@ export const DashboardLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 	const isNavHorizontal = settings.state.navLayout === 'horizontal';
 	const isNavVertical = isNavMini || settings.state.navLayout === 'vertical';
 
-	const canDisplayItemByRole = (allowedRoles: NavItemProps['allowedRoles']): boolean => {
+	const canDisplayItemByRole = (
+		allowedRoles: NavItemProps['allowedRoles'],
+	): boolean => {
 		return !allowedRoles?.includes(user?.role);
 	};
 
@@ -80,7 +95,9 @@ export const DashboardLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 					...(isNavHorizontal && {
 						bgcolor: 'var(--layout-nav-bg)',
 						height: { [layoutQuery]: 'var(--layout-nav-horizontal-height)' },
-						[`& .${iconButtonClasses.root}`]: { color: 'var(--layout-nav-text-secondary-color)' },
+						[`& .${iconButtonClasses.root}`]: {
+							color: 'var(--layout-nav-text-secondary-color)',
+						},
 					}),
 				},
 			},
@@ -105,7 +122,11 @@ export const DashboardLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 					{/** @slot Nav mobile */}
 					<MenuButton
 						onClick={onOpen}
-						sx={{ mr: 1, ml: -1, [theme.breakpoints.up(layoutQuery)]: { display: 'none' } }}
+						sx={{
+							mr: 1,
+							ml: -1,
+							[theme.breakpoints.up(layoutQuery)]: { display: 'none' },
+						}}
 					/>
 					<NavMobile
 						data={navData}
@@ -126,17 +147,31 @@ export const DashboardLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 					)}
 
 					{/** @slot Divider */}
-					{isNavHorizontal && <VerticalDivider sx={{ [theme.breakpoints.up(layoutQuery)]: { display: 'flex' } }} />}
+					{isNavHorizontal && (
+						<VerticalDivider
+							sx={{ [theme.breakpoints.up(layoutQuery)]: { display: 'flex' } }}
+						/>
+					)}
 
 					{/** @slot Workspace popover */}
 					<WorkspacesPopover
 						data={_workspaces}
-						sx={{ ...(isNavHorizontal && { color: 'var(--layout-nav-text-primary-color)' }) }}
+						sx={{
+							...(isNavHorizontal && {
+								color: 'var(--layout-nav-text-primary-color)',
+							}),
+						}}
 					/>
 				</>
 			),
 			rightArea: (
-				<Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 } }}>
+				<Box
+					sx={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: { xs: 0, sm: 0.75 },
+					}}
+				>
 					{/** @slot Searchbar */}
 					<Searchbar data={navData} />
 
@@ -179,7 +214,10 @@ export const DashboardLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 				cssVars={navVars.section}
 				checkPermissions={canDisplayItemByRole}
 				onToggleNav={() => {
-					return settings.setField('navLayout', settings.state.navLayout === 'vertical' ? 'mini' : 'vertical');
+					return settings.setField(
+						'navLayout',
+						settings.state.navLayout === 'vertical' ? 'mini' : 'vertical',
+					);
 				}}
 			/>
 		);
@@ -215,7 +253,9 @@ export const DashboardLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 				{
 					[`& .${layoutClasses.sidebarContainer}`]: {
 						[theme.breakpoints.up(layoutQuery)]: {
-							pl: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
+							pl: isNavMini
+								? 'var(--layout-nav-mini-width)'
+								: 'var(--layout-nav-vertical-width)',
 							transition: theme.transitions.create(['padding-left'], {
 								easing: 'var(--layout-transition-easing)',
 								duration: 'var(--layout-transition-duration)',

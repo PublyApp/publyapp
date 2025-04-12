@@ -68,7 +68,13 @@ export const AuthSplitSection = ({
 					{title}
 				</Typography>
 
-				{subtitle && <Typography sx={{ color: 'text.secondary', textAlign: 'center', mt: 2 }}>{subtitle}</Typography>}
+				{subtitle && (
+					<Typography
+						sx={{ color: 'text.secondary', textAlign: 'center', mt: 2 }}
+					>
+						{subtitle}
+					</Typography>
+				)}
 			</div>
 
 			<Box
@@ -95,8 +101,17 @@ export const AuthSplitSection = ({
 								}}
 							>
 								<Tooltip title={option.label} placement="top">
-									<Link component={RouterLink} href={option.path} sx={{ ...(!selected && { pointerEvents: 'none' }) }}>
-										<Box component="img" alt={option.label} src={option.icon} sx={{ width: 32, height: 32 }} />
+									<Link
+										component={RouterLink}
+										href={option.path}
+										sx={{ ...(!selected && { pointerEvents: 'none' }) }}
+									>
+										<Box
+											component="img"
+											alt={option.label}
+											src={option.icon}
+											sx={{ width: 32, height: 32 }}
+										/>
 									</Link>
 								</Tooltip>
 							</Box>
