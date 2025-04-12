@@ -15,7 +15,7 @@ export const varBgColor = (
 			transition: {
 				duration: 5,
 				ease: 'linear',
-				repeat: Infinity,
+				repeat: Number.POSITIVE_INFINITY,
 				repeatType: 'reverse',
 				...options?.transition,
 			},
@@ -93,7 +93,7 @@ export const varBgPan = (
 	const transition: Transition = {
 		duration: 5,
 		ease: 'linear',
-		repeat: Infinity,
+		repeat: Number.POSITIVE_INFINITY,
 		repeatType: 'reverse',
 		...options?.transition,
 	};

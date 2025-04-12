@@ -6,6 +6,8 @@ export const settingIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Moon"
 		>
 			<path
 				opacity="0.4"
@@ -25,6 +27,8 @@ export const settingIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Contrast"
 		>
 			<path
 				fillRule="evenodd"
@@ -51,6 +55,8 @@ export const settingIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Align right"
 		>
 			<g opacity="0.4">
 				<path
@@ -75,6 +81,8 @@ export const settingIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Autofit width"
 		>
 			<path
 				opacity="0.4"
@@ -94,6 +102,8 @@ export const settingIcons = {
 			viewBox="0 0 86 64"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Nav vertical"
 		>
 			<g clipPath="url(#clip0_1153_603)">
 				<mask id="path-2-inside-1_1153_603" fill="white">
@@ -151,6 +161,8 @@ export const settingIcons = {
 			viewBox="0 0 86 64"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Nav horizontal"
 		>
 			<g clipPath="url(#clip0_1153_596)">
 				<mask id="path-2-inside-1_1153_596" fill="white">
@@ -208,6 +220,8 @@ export const settingIcons = {
 			viewBox="0 0 86 64"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Nav mini"
 		>
 			<g clipPath="url(#clip0_1153_589)">
 				<mask id="path-2-inside-1_1153_589" fill="white">
@@ -265,6 +279,8 @@ export const settingIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Outline"
 		>
 			<path
 				fillRule="evenodd"
@@ -293,6 +309,8 @@ export const settingIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Fill"
 		>
 			<path
 				fillRule="evenodd"
@@ -309,6 +327,8 @@ export const settingIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="DuoTone"
 		>
 			<path
 				opacity="0.4"
@@ -330,6 +350,8 @@ export const settingIcons = {
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
+			role="img"
+			aria-label="Font"
 		>
 			<path
 				opacity="0.4"

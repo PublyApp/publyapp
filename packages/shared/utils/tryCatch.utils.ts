@@ -1,9 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { isAsyncFunction, isPromise } from './any.utils';
 
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 type Handler = (error: unknown) => any;
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 type AsyncHandler = (error: unknown) => Promise<any>;
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 type ErrorHandler<T extends GenericFunction = () => any> =
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	ReturnType<T> extends PromiseLike<any> ? Handler | AsyncHandler : Handler;
 
 const defaultErrorHandler: ErrorHandler = (error) => {
@@ -31,6 +34,7 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 	}
 
 	if (isAsyncFunction(handler)) {
+		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 		const wrappedFunctionAsync = async (...args: any[]) => {
 			try {
 				const result = await handler(...args);
@@ -54,6 +58,7 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 		);
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const wrappedFunctionSync = (...args: any[]) => {
 		try {
 			const result = handler(...args);
