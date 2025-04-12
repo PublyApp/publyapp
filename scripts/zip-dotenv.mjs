@@ -1,9 +1,7 @@
-/* eslint-disable import/no-extraneous-dependencies */
-/* eslint-disable @typescript-eslint/no-var-requires */
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
-const archiver = require('archiver');
+import archiver from 'archiver';
 
 /**
  * Create a zip file with the given .env files
@@ -32,7 +30,7 @@ const zipEnvFiles = (envPaths, outputZipPath) => {
 	archive.pipe(output);
 
 	// Append .env files to the archive
-	envPaths.forEach((envPath) => {
+	_.forEach(envPaths, (envPath) => {
 		const fileName = path.basename(envPath);
 		archive.file(envPath, { name: fileName });
 	});

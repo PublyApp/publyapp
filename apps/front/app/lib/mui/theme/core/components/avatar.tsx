@@ -31,14 +31,14 @@ const COLORS = [
 type PaletteColor = (typeof COLORS)[number] | 'default';
 
 const colorByName = (name?: string): PaletteColor => {
-	const charAt = name?.charAt(0).toLowerCase();
+	const charAt = name?.charAt(0).toLowerCase() || '';
 
-	if (['a', 'c', 'f'].includes(charAt!)) return 'primary';
-	if (['e', 'd', 'h'].includes(charAt!)) return 'secondary';
-	if (['i', 'k', 'l'].includes(charAt!)) return 'info';
-	if (['m', 'n', 'p'].includes(charAt!)) return 'success';
-	if (['q', 's', 't'].includes(charAt!)) return 'warning';
-	if (['v', 'x', 'y'].includes(charAt!)) return 'error';
+	if (['a', 'c', 'f'].includes(charAt)) return 'primary';
+	if (['e', 'd', 'h'].includes(charAt)) return 'secondary';
+	if (['i', 'k', 'l'].includes(charAt)) return 'info';
+	if (['m', 'n', 'p'].includes(charAt)) return 'success';
+	if (['q', 's', 't'].includes(charAt)) return 'warning';
+	if (['v', 'x', 'y'].includes(charAt)) return 'error';
 
 	return 'default';
 };
