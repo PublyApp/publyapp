@@ -20,7 +20,6 @@ const ITEMS = Array.from({ length: 3 }, (_, index) => {
 	};
 });
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const _orders = Array.from({ length: 20 }, (_, index) => {
 	const shipping = 10;
 

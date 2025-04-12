@@ -28,6 +28,5 @@ export const Rtl = ({ children, direction }: RtlProps) => {
 		return <CacheProvider value={cacheRtl}>{children}</CacheProvider>;
 	}
 
-	// eslint-disable-next-line react/jsx-no-useless-fragment
 	return <>{children}</>;
 };

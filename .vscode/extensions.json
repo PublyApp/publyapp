@@ -29,11 +29,9 @@
 		"EQuimper.react-native-react-redux",
 		"infeng.vscode-react-typescript",
 		"planbcoding.vscode-react-refactor",
-		"drKnoxy.eslint-disable-snippets",
 		"codezombiech.gitignore",
 		"jasonnutter.search-node-modules",
 		"jock.svg",
 		"MarkosTh09.color-picker"
-		// "pmneo.tsimporter"
 	]
 }

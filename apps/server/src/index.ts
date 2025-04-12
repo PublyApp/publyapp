@@ -244,7 +244,6 @@ const bootstrap = async () => {
 	const server = createServer(app);
 
 	server.on('request', (req, _res) => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		req.socket.remoteAddress; // make express req.ip work in bun
 	});
 

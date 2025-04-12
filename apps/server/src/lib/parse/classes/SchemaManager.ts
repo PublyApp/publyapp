@@ -55,7 +55,7 @@ export default class SchemaManager {
 			required: true,
 			targetClass: _className.TENANT,
 		});
-		// eslint-disable-next-line no-param-reassign
+
 		schema.fields = schemaFields;
 
 		return SchemaManager.defineSchema(className, schema);

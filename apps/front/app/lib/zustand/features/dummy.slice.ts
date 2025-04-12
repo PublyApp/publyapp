@@ -29,16 +29,13 @@ const dummySlice = new Slice<
 			...defaultValues,
 			addBear: () => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.dummySlice.bear += 1;
 				});
 			},
 			removeBear: () => {
 				set((state) => {
-					// eslint-disable-next-line no-param-reassign
 					state.dummySlice.bear -= 1;
 				});
-				// },
 			},
 		};
 	},

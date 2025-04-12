@@ -51,9 +51,7 @@ export const getCurrentInstallationId = async () => {
 export const setCurrentInstallationId = async (/* newId: string */) => {
 	const CURRENT_INSTALLATION_KEY = 'currentInstallation';
 
-	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 	// @ts-ignore
-	// return
 	await Parse.Storage.setItemAsync(
 		CURRENT_INSTALLATION_KEY,
 		/* newId */ CLOUD_INSTALLATION_ID,
