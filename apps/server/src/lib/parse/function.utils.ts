@@ -32,10 +32,12 @@ import { getT, i18nextServer } from '../i18n';
 
 import { getCurrentInstallationId, getInternalConfig } from './parse.utils';
 
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
 	ReturnType<T>
 >;
 
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type FunctionParams<T extends ParseFunction<any, any>> =
 	Parameters<T>[0]['params'];
 

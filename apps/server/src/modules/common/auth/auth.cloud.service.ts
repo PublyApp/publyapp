@@ -16,6 +16,7 @@ type AuthCloudServiceProps = {
 export class AuthCloudService {
 	readonly sessionToken: string | ParsedQs | string[] | ParsedQs[];
 
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	private auth: any;
 
 	private constructor({ sessionToken }: AuthCloudServiceProps) {

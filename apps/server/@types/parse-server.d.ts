@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable max-classes-per-file */
-
 declare module 'parse-server/lib/Config.js';
 declare module 'parse-server/lib/Config';
 
@@ -78,14 +73,18 @@ declare module 'parse-server' {
 		enableExpressErrorHandler?: boolean;
 
 		// Other options
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		filesAdapter?: any;
 		accountLockout?: AccountLockoutOptions;
 		allowCustomObjectId?: boolean;
 		allowHeaders?: string[];
 		allowOrigin?: string | string[];
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		analyticsAdapter?: any;
 		appName?: string;
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		auth?: Record<string, any>;
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		cacheAdapter?: any;
 		cacheMaxSize?: number;
 		cacheTTL?: number;
@@ -93,6 +92,7 @@ declare module 'parse-server' {
 		cluster?: number | boolean;
 		collectionPrefix?: string;
 		customPages?: CustomPagesOptions;
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		databaseAdapter?: any;
 		databaseOptions?: DatabaseOptions;
 		defaultLimit?: number;
@@ -111,6 +111,7 @@ declare module 'parse-server' {
 		pages?: {
 			enableRouter?: boolean;
 		};
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	} & Record<string, any>;
 
 	type AccountLockoutOptions = {
@@ -174,6 +175,7 @@ declare module 'parse-server' {
 		[key: string]: string[];
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	type FieldsInterface<T extends Record<string, any> = Record<string, any>> = {
 		[P in keyof OmitBaseAttributes<T>]: FieldInterface;
 	};
@@ -221,6 +223,7 @@ declare module 'parse-server' {
 	}
 
 	export interface JSONSchema<
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		T extends Record<string, any> = Record<string, any>,
 	> {
 		fields: FieldsInterface<T>;
@@ -239,10 +242,12 @@ declare module 'parse-server' {
 	export type Schema<T> = Omit<JSONSchema<T>, 'className'>;
 
 	export namespace SchemaMigrations {
+		// biome-ignore lint/complexity/noStaticOnlyClass: we only type existing class here
 		class CLP {
 			static allow(perms: CLPData): CLPInterface;
 		}
 
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		function makeSchema<T extends Record<string, any> = Record<string, any>>(
 			className: ClassNameType,
 			schema: Schema<T>,
@@ -301,9 +306,12 @@ declare module 'parse-server/lib/Controllers/LoggerController' {
 	type LogRequestParams = {
 		method: string;
 		url: string;
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		headers: any;
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		body: any;
 	};
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	type LogResponseParams = { method: string; url: string; result: any };
 
 	// ! I Only typed important methods
@@ -311,18 +319,25 @@ declare module 'parse-server/lib/Controllers/LoggerController' {
 	export class LoggerController {
 		adapter: WinstonLoggerAdapter;
 
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		log(level: LogLevel, ...args: any[]);
 
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		info(...args: any[]): void;
 
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		error(...args: any[]): void;
 
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		warn(...args: any[]);
 
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		verbose(...args: any[]);
 
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		debug(...args: any[]);
 
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		silly(...args: any[]);
 
 		private logRequest(request: LogRequestParams): void;
@@ -335,6 +350,7 @@ declare module 'parse-server/lib/Controllers/LoggerController' {
 
 declare module 'parse-server/lib/Adapters/Logger/WinstonLoggerAdapter' {
 	class WinstonLoggerAdapter {
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		addTransport(transport: any);
 	}
 }
@@ -348,6 +364,7 @@ declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js
 }
 
 declare module 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection' {
+	// biome-ignore lint/complexity/noStaticOnlyClass: We are just typing an existing class here
 	class MongoSchemaCollection {
 		static parseFieldTypeToMongoFieldType(options: {
 			type: string;

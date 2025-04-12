@@ -14,7 +14,6 @@ export interface LoggerAdapter {
 	 * @param {...any[]} meta
 	 */
 
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	log(level: string, message: string, ...meta: any[]): any;
 }
-
-// export default LoggerAdapter;

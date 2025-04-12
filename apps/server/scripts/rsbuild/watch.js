@@ -1,15 +1,7 @@
-/* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable no-param-reassign */
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable import/no-extraneous-dependencies */
-/* eslint-disable prefer-arrow/prefer-arrow-functions */
-/* eslint-disable func-style */
-
 // @ts-check
 
-const { spawn } = require('child_process');
-const path = require('path');
+const { spawn } = require('node:child_process');
+const path = require('node:path');
 
 const _ = require('lodash');
 
