@@ -16,7 +16,6 @@ type AuthCloudServiceProps = {
 export class AuthCloudService {
 	readonly sessionToken: string | ParsedQs | string[] | ParsedQs[];
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	private auth: any;
 
 	private constructor({ sessionToken }: AuthCloudServiceProps) {

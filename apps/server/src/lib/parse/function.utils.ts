@@ -32,11 +32,10 @@ import { getT, i18nextServer } from '../i18n';
 
 import { getCurrentInstallationId, getInternalConfig } from './parse.utils';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
 	ReturnType<T>
 >;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export type FunctionParams<T extends ParseFunction<any, any>> =
 	Parameters<T>[0]['params'];
 

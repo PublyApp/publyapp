@@ -25,8 +25,10 @@
 		"knip": "knip",
 		"prepare": "husky",
 		"update-deps": "pnpm up -i -r",
-		"check": "biome format .",
-		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"format:write": "biome format --write .",
+		"lint:check": "biome lint",
+		"lint:write": "biome lint --write .",
 		"build:deploy": "node ./scripts/deploy.mjs"
 	},
 	"devDependencies": {

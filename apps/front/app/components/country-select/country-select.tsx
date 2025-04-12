@@ -20,6 +20,7 @@ import { FlagIcon, flagIconClasses } from '../flag-icon';
 type Value = string;
 
 export type AutocompleteBaseProps = Omit<
+	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
 	AutocompleteProps<any, boolean, boolean, boolean>,
 	'options' | 'renderOption' | 'renderInput' | 'renderTags' | 'getOptionLabel'
 >;

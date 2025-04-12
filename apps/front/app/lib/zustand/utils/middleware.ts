@@ -1,6 +1,6 @@
 import _ from 'lodash';
 
-import { type StateCreator } from 'zustand';
+import type { StateCreator } from 'zustand';
 import {
 	createJSONStorage,
 	devtools,
@@ -26,7 +26,6 @@ const getStorage = (): StateStorage => {
 			searchParams.set(key, newValue);
 
 			if (newValue !== oldValue) {
-				// eslint-disable-next-line @typescript-eslint/no-use-before-define
 				window.history.pushState(
 					null,
 					null as never,
@@ -36,7 +35,7 @@ const getStorage = (): StateStorage => {
 
 			// if (!isPopstateEvent) {
 			// 	if (newValue !== oldValue) {
-			// 		// eslint-disable-next-line @typescript-eslint/no-use-before-define
+			//
 			// 		window.history.pushState(null, null as never, `?${decodeURIComponent(searchParams.toString())}`);
 			// 	}
 			// } else {

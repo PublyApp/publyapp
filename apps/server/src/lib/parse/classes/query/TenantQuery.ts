@@ -9,7 +9,6 @@ export default class TenantQuery<
 		className,
 		tenantId,
 	}: {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		className: string | (new (...args: any[]) => T | Parse.Object<T>);
 		tenantId: string;
 	}) {

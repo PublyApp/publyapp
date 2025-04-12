@@ -36,7 +36,6 @@ export const AnimateCountUp = ({
 }: AnimateCountUpProps) => {
 	const countRef = useRef(null);
 
-	// eslint-disable-next-line @typescript-eslint/no-use-before-define
 	const shortNumber = shortenNumber(to);
 
 	const startCount = useMotionValue<number>(from);
@@ -47,7 +46,6 @@ export const AnimateCountUp = ({
 	const inView = useInView(countRef, { once, amount });
 
 	const rounded = useTransform(startCount, (latest) => {
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		return latest.toFixed(isFloat(latest) ? toFixed : 0);
 	});
 

@@ -112,11 +112,11 @@ export const Editor = ({
 		};
 	}, [content, editor]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (resetValue && !content) {
 			editor?.commands.clearContent();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [content]);
 
 	useEffect(() => {

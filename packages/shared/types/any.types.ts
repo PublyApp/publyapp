@@ -6,5 +6,4 @@ export type ListMeta = {
 	totalPages: number;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type WithMeta<T extends Record<string, any>> = T & { meta: ListMeta };

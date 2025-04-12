@@ -4,7 +4,6 @@ import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
 
 type SafeRunFunction<F extends GenericFunction> = (
 	...args: Parameters<F>
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => ReturnType<F> extends PromiseLike<any>
 	?
 			| Promise<{
