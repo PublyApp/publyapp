@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import _ from 'lodash';
 import _defaults from 'parse-server/lib/defaults.js';
@@ -42,6 +42,7 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 		this.configureLogger();
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	log(level: string, message: string, ...meta: any[]) {
 		// if (level === 'warn' && message === 'afterSave caught an error') {
 		// 	return;
@@ -96,8 +97,7 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 
 		if (options) {
 			const { silent } = options;
-			// eslint-disable-next-line no-param-reassign
-			delete options.silent;
+			options.silent = undefined;
 
 			try {
 				if (!_.isNil(options.dirname)) {
@@ -178,10 +178,10 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 
 	// method copy pasted from parse-server source code just for compatibility purpose
 	// custom query as winston is currently limited
-	// eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	query(options: any, callback: (...args: any[]) => void = () => {}) {
 		if (!options) {
-			// eslint-disable-next-line no-param-reassign
+			// biome-ignore lint/style/noParameterAssign: code from parse-server leave as is for now
 			options = {};
 		}
 

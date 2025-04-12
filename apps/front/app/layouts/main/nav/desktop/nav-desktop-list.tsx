@@ -25,11 +25,11 @@ export const NavList = ({ data, sx, ...other }: NavListProps) => {
 	const isActive = isActiveLink(pathname, data.path, !!data.children);
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (open) {
 			onClose();
 		}
-		// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	}, [pathname]);
 
 	const handleOpenMenu = useCallback(() => {

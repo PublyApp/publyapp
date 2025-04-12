@@ -1,8 +1,9 @@
 export default class CloudQuery<
 	T extends Parse.Object = Parse.Object<Parse.Attributes>,
 > extends Parse.Query<T> {
-	// eslint-disable-next-line @typescript-eslint/no-useless-constructor, @typescript-eslint/no-explicit-any
+	// biome-ignore lint/complexity/noUselessConstructor: safe to use constructor here
 	constructor(
+		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 		className: string | (new (...args: any[]) => T | Parse.Object<T>),
 	) {
 		super(className);

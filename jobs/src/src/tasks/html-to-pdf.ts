@@ -197,7 +197,7 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 			};
 
 			const asyncLoop = async (intervalTime = 5000) => {
-				let hasEnoughCredits;
+				let hasEnoughCredits: boolean;
 
 				let elapsedTime = 0;
 				let iterationIndex = 0;

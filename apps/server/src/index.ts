@@ -1,5 +1,5 @@
-import { createServer } from 'http';
-import path from 'path';
+import { createServer } from 'node:http';
+import path from 'node:path';
 
 import { ParseServer } from 'parse-server/lib/index.js';
 import Parse from 'parse/node.js';
