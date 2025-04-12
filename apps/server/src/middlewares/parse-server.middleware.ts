@@ -30,7 +30,7 @@ const disableRestApiForClients = async (
 	const _allowedPaths = ['/health', '/functions'] satisfies `/${string}`[];
 
 	const authorizedPaths: string[] = [..._allowedPaths];
-	_allowedPaths.forEach((path) => {
+	_.forEach(_allowedPaths, (path) => {
 		authorizedPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
 	});
 
@@ -62,7 +62,7 @@ const handleMatchSessionIp = async (
 	const _allowedPaths = ['/health'] satisfies `/${string}`[];
 
 	const allowedPaths: string[] = [..._allowedPaths];
-	_allowedPaths.forEach((path) => {
+	_.forEach(_allowedPaths, (path) => {
 		allowedPaths.push(makePath(PARSE_SERVER_URL.pathname, path));
 	});
 

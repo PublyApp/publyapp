@@ -23,7 +23,6 @@ export const getInitialStore = (...a: any[]) => {
 	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	const store: Record<string, any> = {};
 
-	// biome-ignore lint/complexity/noForEach: forEach is fine here
 	slicesMap.forEach((slice) => {
 		_.assign(store, slice.initializer(...(a as [never, never, never])));
 	});

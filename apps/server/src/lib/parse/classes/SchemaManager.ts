@@ -19,10 +19,13 @@ export type ManagedIndex = {
 };
 export type ManagedIndexes = Record<string, ManagedIndex>;
 
+// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 export type SchemaCustom<T extends Record<string, any> = Record<string, any>> =
 	ReturnType<typeof SchemaManager.defineSchema<T>>;
 
+// biome-ignore lint/complexity/noStaticOnlyClass: no
 export default class SchemaManager {
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	static defineSchema<T extends Record<string, any> = Record<string, any>>(
 		className: string,
 		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> &
@@ -40,6 +43,7 @@ export default class SchemaManager {
 		};
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	static defineMultiTenantSchema<T extends Record<string, any>>(
 		className: string,
 		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> &
@@ -77,6 +81,7 @@ export default class SchemaManager {
 
 							fields_options?: Record<
 								string,
+								// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 								{ defaultValue?: any; required?: boolean }
 							>;
 						};
@@ -152,29 +157,32 @@ export default class SchemaManager {
 						},
 					);
 
-					_.entries(schemaDefinition.fields).forEach(([fieldName, value]) => {
-						inputSchemaObjectFields[fieldName] =
-							MongoSchemaCollection.default.parseFieldTypeToMongoFieldType({
-								type: value.type,
-								targetClass: value.targetClass,
-							});
+					_.forEach(
+						_.entries(schemaDefinition.fields),
+						([fieldName, value]) => {
+							inputSchemaObjectFields[fieldName] =
+								MongoSchemaCollection.default.parseFieldTypeToMongoFieldType({
+									type: value.type,
+									targetClass: value.targetClass,
+								});
 
-						if (_.isBoolean(value.required)) {
-							_.set(
-								inputSchemaObjectFieldOptions,
-								`_metadata.fields_options.${fieldName}.required`,
-								value.required,
-							);
-						}
+							if (_.isBoolean(value.required)) {
+								_.set(
+									inputSchemaObjectFieldOptions,
+									`_metadata.fields_options.${fieldName}.required`,
+									value.required,
+								);
+							}
 
-						if (!_.isNil(value.defaultValue)) {
-							_.set(
-								inputSchemaObjectFieldOptions,
-								`_metadata.fields_options.${fieldName}.defaultValue`,
-								value.defaultValue,
-							);
-						}
-					});
+							if (!_.isNil(value.defaultValue)) {
+								_.set(
+									inputSchemaObjectFieldOptions,
+									`_metadata.fields_options.${fieldName}.defaultValue`,
+									value.defaultValue,
+								);
+							}
+						},
+					);
 
 					const oldSchemaObject = await SchemaCollection.findOne({
 						_id: schemaDefinition.className as never,

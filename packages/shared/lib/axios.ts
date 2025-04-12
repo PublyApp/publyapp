@@ -66,7 +66,7 @@ export const getProtectionHeaders = (options: {
 			: 'application/json',
 	};
 
-	_.keys(headers).forEach((key) => {
+	_.forEach(_.keys(headers), (key) => {
 		if (_.isNil((headers as never)[key])) {
 			delete (headers as never)[key];
 		}
