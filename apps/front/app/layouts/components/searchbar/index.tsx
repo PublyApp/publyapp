@@ -1,69 +1,81 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 
-import Box, { type BoxProps } from '@mui/material/Box';
-import Dialog, { dialogClasses } from '@mui/material/Dialog';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import InputBase, { inputBaseClasses } from '@mui/material/InputBase';
-import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
-import MenuList from '@mui/material/MenuList';
-import { useTheme, type Breakpoint } from '@mui/material/styles';
-import useMediaQuery from '@mui/material/useMediaQuery';
+import Box, { type BoxProps } from "@mui/material/Box";
+import Dialog, { dialogClasses } from "@mui/material/Dialog";
+import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import InputBase, { inputBaseClasses } from "@mui/material/InputBase";
+import MenuItem, { menuItemClasses } from "@mui/material/MenuItem";
+import MenuList from "@mui/material/MenuList";
+import { useTheme, type Breakpoint } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
 // import match from 'autosuggest-highlight/match';
 // import parse from 'autosuggest-highlight/parse';
-import { useBoolean } from 'minimal-shared/hooks';
-import { varAlpha } from 'minimal-shared/utils';
+import { useBoolean } from "minimal-shared/hooks";
+import { varAlpha } from "minimal-shared/utils";
 
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import type { NavSectionProps } from '@/front/components/nav-section';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { SearchNotFound } from '@/front/components/search-not-found';
+import { Iconify } from "@/front/components/iconify/iconify";
+import { Label } from "@/front/components/label";
+import type { NavSectionProps } from "@/front/components/nav-section";
+import { Scrollbar } from "@/front/components/scrollbar";
+import { SearchNotFound } from "@/front/components/search-not-found";
 
-import { ResultItem } from './result-item';
-import { applyFilter, flattenNavSections } from './utils';
+import { ResultItem } from "./result-item";
+import { applyFilter, flattenNavSections } from "./utils";
 
 // ----------------------------------------------------------------------
 
 export type SearchbarProps = BoxProps & {
-	data?: NavSectionProps['data'];
+	data?: NavSectionProps["data"];
 };
 
-const breakpoint: Breakpoint = 'sm';
+const breakpoint: Breakpoint = "sm";
 
-export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps) => {
+export const Searchbar = ({
+	data: navItems = [],
+	sx,
+	...other
+}: SearchbarProps) => {
 	const theme = useTheme();
 	const smUp = useMediaQuery(theme.breakpoints.up(breakpoint));
 
-	const { value: open, onFalse: onClose, onTrue: onOpen, onToggle } = useBoolean();
-	const [searchQuery, setSearchQuery] = useState('');
+	const {
+		value: open,
+		onFalse: onClose,
+		onTrue: onOpen,
+		onToggle,
+	} = useBoolean();
+	const [searchQuery, setSearchQuery] = useState("");
 
 	const handleClose = useCallback(() => {
 		onClose();
-		setSearchQuery('');
+		setSearchQuery("");
 	}, [onClose]);
 
 	const handleKeyDown = useCallback(
 		(event: KeyboardEvent) => {
-			if (event.metaKey && event.key.toLowerCase() === 'k') {
+			if (event.metaKey && event.key.toLowerCase() === "k") {
 				onToggle();
-				setSearchQuery('');
+				setSearchQuery("");
 			}
 		},
 		[onToggle],
 	);
 
 	useEffect(() => {
-		window.addEventListener('keydown', handleKeyDown);
+		window.addEventListener("keydown", handleKeyDown);
 
 		return () => {
-			window.removeEventListener('keydown', handleKeyDown);
+			window.removeEventListener("keydown", handleKeyDown);
 		};
 	}, [handleKeyDown]);
 
-	const handleSearch = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
-		setSearchQuery(event.target.value);
-	}, []);
+	const handleSearch = useCallback(
+		(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+			setSearchQuery(event.target.value);
+		},
+		[],
+	);
 
 	const formattedNavItems = flattenNavSections(navItems);
 
@@ -80,19 +92,19 @@ export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps)
 				onClick={onOpen}
 				sx={[
 					{
-						display: 'flex',
-						alignItems: 'center',
+						display: "flex",
+						alignItems: "center",
 						[theme.breakpoints.up(breakpoint)]: {
 							pr: 1,
 							borderRadius: 1.5,
-							cursor: 'pointer',
-							bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-							transition: theme.transitions.create('background-color', {
+							cursor: "pointer",
+							bgcolor: varAlpha(theme.vars.palette.grey["500Channel"], 0.08),
+							transition: theme.transitions.create("background-color", {
 								easing: theme.transitions.easing.easeInOut,
 								duration: theme.transitions.duration.shortest,
 							}),
-							'&:hover': {
-								bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+							"&:hover": {
+								bgcolor: varAlpha(theme.vars.palette.grey["500Channel"], 0.16),
 							},
 						},
 					},
@@ -101,12 +113,12 @@ export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps)
 				{...other}
 			>
 				<Box
-					component={smUp ? 'span' : IconButton}
+					component={smUp ? "span" : IconButton}
 					sx={{
 						[theme.breakpoints.up(breakpoint)]: {
 							p: 1,
-							display: 'inline-flex',
-							color: 'action.active',
+							display: "inline-flex",
+							color: "action.active",
 						},
 					}}
 				>
@@ -115,12 +127,12 @@ export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps)
 
 				<Label
 					sx={{
-						color: 'grey.800',
-						cursor: 'inherit',
-						bgcolor: 'common.white',
+						color: "grey.800",
+						cursor: "inherit",
+						bgcolor: "common.white",
 						fontSize: theme.typography.pxToRem(12),
 						boxShadow: theme.vars.customShadows.z1,
-						display: { xs: 'none', [breakpoint]: 'inline-flex' },
+						display: { xs: "none", [breakpoint]: "inline-flex" },
 					}}
 				>
 					⌘K
@@ -137,7 +149,7 @@ export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps)
 					[`& .${menuItemClasses.root}`]: {
 						p: 0,
 						mb: 0,
-						'&:hover': { bgcolor: 'transparent' },
+						"&:hover": { bgcolor: "transparent" },
 					},
 				}}
 			>
@@ -151,7 +163,7 @@ export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps)
 								path={/* partsPath */ []}
 								title={/* partsTitle */ []}
 								href={item.path}
-								labels={item.group.split('.')}
+								labels={item.group.split(".")}
 								onClick={handleClose}
 							/>
 						</MenuItem>
@@ -171,11 +183,14 @@ export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps)
 				maxWidth="sm"
 				open={open}
 				onClose={handleClose}
-				transitionDuration={{ enter: theme.transitions.duration.shortest, exit: 100 }}
+				transitionDuration={{
+					enter: theme.transitions.duration.shortest,
+					exit: 100,
+				}}
 				sx={[
 					{
-						[`& .${dialogClasses.paper}`]: { mt: 15, overflow: 'unset' },
-						[`& .${dialogClasses.container}`]: { alignItems: 'flex-start' },
+						[`& .${dialogClasses.paper}`]: { mt: 15, overflow: "unset" },
+						[`& .${dialogClasses.container}`]: { alignItems: "flex-start" },
 					},
 				]}
 			>
@@ -187,15 +202,23 @@ export const Searchbar = ({ data: navItems = [], sx, ...other }: SearchbarProps)
 					onChange={handleSearch}
 					startAdornment={
 						<InputAdornment position="start">
-							<Iconify icon="eva:search-fill" width={24} sx={{ color: 'text.disabled' }} />
+							<Iconify
+								icon="eva:search-fill"
+								width={24}
+								sx={{ color: "text.disabled" }}
+							/>
 						</InputAdornment>
 					}
-					endAdornment={<Label sx={{ letterSpacing: 1, color: 'text.secondary' }}>esc</Label>}
-					inputProps={{ id: 'search-input' }}
+					endAdornment={
+						<Label sx={{ letterSpacing: 1, color: "text.secondary" }}>
+							esc
+						</Label>
+					}
+					inputProps={{ id: "search-input" }}
 					sx={{
 						p: 3,
 						borderBottom: `solid 1px ${theme.vars.palette.divider}`,
-						[`& .${inputBaseClasses.input}`]: { typography: 'h6' },
+						[`& .${inputBaseClasses.input}`]: { typography: "h6" },
 					}}
 				/>
 

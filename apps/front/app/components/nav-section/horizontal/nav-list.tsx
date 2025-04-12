@@ -1,18 +1,18 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from "react";
 
-import { popoverClasses } from '@mui/material/Popover';
-import { useTheme } from '@mui/material/styles';
-import { usePopoverHover } from 'minimal-shared/hooks';
-import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
+import { popoverClasses } from "@mui/material/Popover";
+import { useTheme } from "@mui/material/styles";
+import { usePopoverHover } from "minimal-shared/hooks";
+import { isActiveLink, isExternalLink } from "minimal-shared/utils";
 
-import { usePathname } from '@/front/hooks/use-pathname';
+import { usePathname } from "@/front/hooks/use-pathname";
 
-import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from '../components';
-import { navSectionClasses } from '../styles';
-import type { NavListProps, NavSubListProps } from '../types';
+import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from "../components";
+import { navSectionClasses } from "../styles";
+import type { NavListProps, NavSubListProps } from "../types";
 
-import { NavItem } from './nav-item';
+import { NavItem } from "./nav-item";
 
 // ----------------------------------------------------------------------
 
@@ -31,9 +31,15 @@ export const NavList = ({
 
 	const isActive = isActiveLink(pathname, data.path, !!data.children);
 
-	const { open, onOpen, onClose, anchorEl, elementRef: navItemRef } = usePopoverHover<HTMLButtonElement>();
+	const {
+		open,
+		onOpen,
+		onClose,
+		anchorEl,
+		elementRef: navItemRef,
+	} = usePopoverHover<HTMLButtonElement>();
 
-	const isRtl = theme.direction === 'rtl';
+	const isRtl = theme.direction === "rtl";
 	const id = open ? `${data.title}-popover` : undefined;
 
 	useEffect(() => {
@@ -90,13 +96,13 @@ export const NavList = ({
 					anchorEl={anchorEl}
 					anchorOrigin={
 						depth === 1
-							? { vertical: 'bottom', horizontal: isRtl ? 'right' : 'left' }
-							: { vertical: 'center', horizontal: isRtl ? 'left' : 'right' }
+							? { vertical: "bottom", horizontal: isRtl ? "right" : "left" }
+							: { vertical: "center", horizontal: isRtl ? "left" : "right" }
 					}
 					transformOrigin={
 						depth === 1
-							? { vertical: 'top', horizontal: isRtl ? 'right' : 'left' }
-							: { vertical: 'center', horizontal: isRtl ? 'right' : 'left' }
+							? { vertical: "top", horizontal: isRtl ? "right" : "left" }
+							: { vertical: "center", horizontal: isRtl ? "right" : "left" }
 					}
 					slotProps={{
 						paper: {
@@ -107,10 +113,15 @@ export const NavList = ({
 					}}
 					sx={{
 						...cssVars,
-						[`& .${popoverClasses.paper}`]: { ...(depth === 1 && { pt: 1, ml: -0.75 }) },
+						[`& .${popoverClasses.paper}`]: {
+							...(depth === 1 && { pt: 1, ml: -0.75 }),
+						},
 					}}
 				>
-					<NavDropdownPaper className={navSectionClasses.dropdown.paper} sx={slotProps?.dropdown?.paper}>
+					<NavDropdownPaper
+						className={navSectionClasses.dropdown.paper}
+						sx={slotProps?.dropdown?.paper}
+					>
 						<NavSubList
 							data={data.children}
 							depth={depth}
@@ -127,7 +138,11 @@ export const NavList = ({
 	};
 
 	// Hidden item by role
-	if (data.allowedRoles && checkPermissions && checkPermissions(data.allowedRoles)) {
+	if (
+		data.allowedRoles &&
+		checkPermissions &&
+		checkPermissions(data.allowedRoles)
+	) {
 		return null;
 	}
 

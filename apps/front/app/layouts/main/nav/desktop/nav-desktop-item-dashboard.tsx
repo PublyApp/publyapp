@@ -1,10 +1,10 @@
-import Box, { type BoxProps } from '@mui/material/Box';
-import Link from '@mui/material/Link';
-import { m } from 'framer-motion';
-import { varAlpha } from 'minimal-shared/utils';
+import Box, { type BoxProps } from "@mui/material/Box";
+import Link from "@mui/material/Link";
+import { m } from "framer-motion";
+import { varAlpha } from "minimal-shared/utils";
 
-import { transitionTap, varHover, varTap } from '@/front/components/animate';
-import { RouterLink } from '@/front/components/router-link';
+import { transitionTap, varHover, varTap } from "@/front/components/animate";
+import { RouterLink } from "@/front/components/router-link";
 
 // ----------------------------------------------------------------------
 
@@ -12,7 +12,11 @@ type NavItemDashboardProps = BoxProps & {
 	path: string;
 };
 
-export const NavItemDashboard = ({ path, sx, ...other }: NavItemDashboardProps) => {
+export const NavItemDashboard = ({
+	path,
+	sx,
+	...other
+}: NavItemDashboardProps) => {
 	return (
 		<Link component={RouterLink} href={path}>
 			<Box
@@ -20,19 +24,19 @@ export const NavItemDashboard = ({ path, sx, ...other }: NavItemDashboardProps) 
 					(theme) => {
 						return {
 							height: 360,
-							display: 'flex',
+							display: "flex",
 							borderRadius: 1.5,
-							alignItems: 'center',
-							color: 'text.disabled',
-							justifyContent: 'center',
-							bgcolor: 'background.neutral',
+							alignItems: "center",
+							color: "text.disabled",
+							justifyContent: "center",
+							bgcolor: "background.neutral",
 							px: { md: 3, lg: 10 },
-							transition: theme.transitions.create('background-color', {
+							transition: theme.transitions.create("background-color", {
 								duration: theme.transitions.duration.shortest,
 								easing: theme.transitions.easing.sharp,
 							}),
-							'&:hover': {
-								bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.12),
+							"&:hover": {
+								bgcolor: varAlpha(theme.vars.palette.grey["500Channel"], 0.12),
 							},
 						};
 					},
@@ -47,7 +51,7 @@ export const NavItemDashboard = ({ path, sx, ...other }: NavItemDashboardProps) 
 					transition={transitionTap()}
 					alt="Dashboard illustration"
 					src="/assets/illustrations/illustration-dashboard.webp"
-					sx={{ width: 640, objectFit: 'cover', aspectRatio: '4/3' }}
+					sx={{ width: 640, objectFit: "cover", aspectRatio: "4/3" }}
 				/>
 			</Box>
 		</Link>

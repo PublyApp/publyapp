@@ -1,5 +1,5 @@
-import type { ButtonBaseProps } from '@mui/material/ButtonBase';
-import type { CSSObject, SxProps, Theme } from '@mui/material/styles';
+import type { ButtonBaseProps } from "@mui/material/ButtonBase";
+import type { CSSObject, SxProps, Theme } from "@mui/material/styles";
 
 // ----------------------------------------------------------------------
 
@@ -44,7 +44,7 @@ export type NavItemOptionsProps = {
 	slotProps?: NavItemSlotProps;
 };
 
-export type NavItemDataProps = Pick<NavItemStateProps, 'disabled'> & {
+export type NavItemDataProps = Pick<NavItemStateProps, "disabled"> & {
 	path: string;
 	title: string;
 	caption?: string;
@@ -53,26 +53,32 @@ export type NavItemDataProps = Pick<NavItemStateProps, 'disabled'> & {
 	info?: string[] | React.ReactNode;
 };
 
-export type NavItemProps = ButtonBaseProps & NavItemDataProps & NavItemStateProps & NavItemOptionsProps;
+export type NavItemProps = ButtonBaseProps &
+	NavItemDataProps &
+	NavItemStateProps &
+	NavItemOptionsProps;
 
 /**
  * List
  */
-export type NavListProps = Pick<NavItemProps, 'render' | 'depth' | 'enabledRootRedirect'> & {
+export type NavListProps = Pick<
+	NavItemProps,
+	"render" | "depth" | "enabledRootRedirect"
+> & {
 	cssVars?: CSSObject;
 	data: NavItemDataProps;
 	slotProps?: NavSlotProps;
 };
 
-export type NavSubListProps = Omit<NavListProps, 'data'> & {
+export type NavSubListProps = Omit<NavListProps, "data"> & {
 	data: NavItemDataProps[];
 };
 
 /**
  * Main
  */
-export type NavBasicProps = React.ComponentProps<'nav'> &
-	Omit<NavListProps, 'data' | 'depth'> & {
+export type NavBasicProps = React.ComponentProps<"nav"> &
+	Omit<NavListProps, "data" | "depth"> & {
 		sx?: SxProps<Theme>;
 		data: NavItemDataProps[];
 	};

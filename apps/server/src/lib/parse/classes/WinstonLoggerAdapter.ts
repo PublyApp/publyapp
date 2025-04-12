@@ -1,20 +1,20 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-import _ from 'lodash';
-import _defaults from 'parse-server/lib/defaults.js';
+import _ from "lodash";
+import _defaults from "parse-server/lib/defaults.js";
 
-import winston, { format, type Logger } from 'winston';
-import { consoleFormat } from 'winston-console-format';
-import DailyRotateFile from 'winston-daily-rotate-file';
+import winston, { format, type Logger } from "winston";
+import { consoleFormat } from "winston-console-format";
+import DailyRotateFile from "winston-daily-rotate-file";
 
-import duration from '@/shared/utils/duration.utils';
+import duration from "@/shared/utils/duration.utils";
 
-import { type LoggerAdapter } from '../interfaces/LoggerAdapter';
+import { type LoggerAdapter } from "../interfaces/LoggerAdapter";
 
-const defaults = _.get(_defaults, 'default') as unknown as typeof _defaults;
+const defaults = _.get(_defaults, "default") as unknown as typeof _defaults;
 
-const MILLISECONDS_IN_A_DAY = duration.toMilliseconds('1d');
+const MILLISECONDS_IN_A_DAY = duration.toMilliseconds("1d");
 
 /**
  * @interface Options
@@ -30,7 +30,13 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 	/**
 	 * @param {Options} options
 	 */
-	constructor({ logger, maxLogFiles }: { logger: Logger; maxLogFiles?: number | null | undefined }) {
+	constructor({
+		logger,
+		maxLogFiles,
+	}: {
+		logger: Logger;
+		maxLogFiles?: number | null | undefined;
+	}) {
 		this.logger = logger;
 		this.maxLogFiles = maxLogFiles;
 		this.configureLogger();
@@ -54,7 +60,7 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 		// const maxLogFiles = 10;
 
 		if (verbose) {
-			logLevel = 'verbose';
+			logLevel = "verbose";
 		}
 
 		winston.level = logLevel;
@@ -97,22 +103,30 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 			try {
 				if (!_.isNil(options.dirname)) {
 					const parseServer = new DailyRotateFile({
-						filename: 'parse-server.info',
+						filename: "parse-server.info",
 						json: true,
-						format: format.combine(format.timestamp(), format.splat(), format.json()),
+						format: format.combine(
+							format.timestamp(),
+							format.splat(),
+							format.json(),
+						),
 						...options,
 					});
-					_.set(parseServer, 'name', 'parse-server');
+					_.set(parseServer, "name", "parse-server");
 					transports.push(parseServer);
 
 					const parseServerError = new DailyRotateFile({
-						filename: 'parse-server.err',
+						filename: "parse-server.err",
 						json: true,
-						format: format.combine(format.timestamp(), format.splat(), format.json()),
+						format: format.combine(
+							format.timestamp(),
+							format.splat(),
+							format.json(),
+						),
 						...options,
-						level: 'error',
+						level: "error",
 					});
-					_.set(parseServerError, 'name', 'parse-server-error');
+					_.set(parseServerError, "name", "parse-server-error");
 					transports.push(parseServerError);
 				}
 			} catch (e) {
@@ -121,14 +135,14 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 
 			// * Except for this console transport, the rest of the code is copy pasted from parse-server source code
 			const consoleTransport = new winston.transports.Console({
-				['name' as never]: 'console',
+				["name" as never]: "console",
 				silent: silent as never,
 				format: format.combine(
 					format.colorize({ all: true }),
 					format.padLevels(),
 					consoleFormat({
 						showMeta: true,
-						metaStrip: ['timestamp', 'service'],
+						metaStrip: ["timestamp", "service"],
 						inspectOptions: {
 							depth: Infinity,
 							colors: true,
@@ -144,7 +158,7 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 			transports.push(consoleTransport);
 		}
 
-		this.removeTransport('console'); // remove default console transport (there will be two stacked console transports otherwise)
+		this.removeTransport("console"); // remove default console transport (there will be two stacked console transports otherwise)
 
 		transports.forEach((transport) => {
 			this.logger.add(transport);
@@ -153,7 +167,9 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 
 	private removeTransport(transport: string | winston.transport) {
 		const matchingTransport = this.logger.transports.find((t1) => {
-			return typeof transport === 'string' ? _.get(t1, 'name') === transport : t1 === transport;
+			return typeof transport === "string"
+				? _.get(t1, "name") === transport
+				: t1 === transport;
 		});
 
 		if (matchingTransport) {
@@ -171,11 +187,12 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 		}
 
 		// defaults to 7 days prior
-		const from = options.from || new Date(Date.now() - 7 * MILLISECONDS_IN_A_DAY);
+		const from =
+			options.from || new Date(Date.now() - 7 * MILLISECONDS_IN_A_DAY);
 		const until = options.until || new Date();
 		const limit = options.size || 10;
-		const order = options.order || 'desc';
-		const level = options.level || 'info';
+		const order = options.order || "desc";
+		const level = options.level || "info";
 
 		const queryOptions = {
 			from,
@@ -192,12 +209,12 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 					return reject(err);
 				}
 
-				if (level === 'error') {
-					callback(res['parse-server-error']);
-					resolve(res['parse-server-error']);
+				if (level === "error") {
+					callback(res["parse-server-error"]);
+					resolve(res["parse-server-error"]);
 				} else {
-					callback(res['parse-server']);
-					resolve(res['parse-server']);
+					callback(res["parse-server"]);
+					resolve(res["parse-server"]);
 				}
 			});
 		});

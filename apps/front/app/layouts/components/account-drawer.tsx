@@ -1,32 +1,32 @@
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Drawer from '@mui/material/Drawer';
-import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
-import Link from '@mui/material/Link';
-import MenuItem from '@mui/material/MenuItem';
-import MenuList from '@mui/material/MenuList';
-import Tooltip from '@mui/material/Tooltip';
-import Typography from '@mui/material/Typography';
-import { useBoolean } from 'minimal-shared/hooks';
-import { varAlpha } from 'minimal-shared/utils';
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Drawer from "@mui/material/Drawer";
+import IconButton, { type IconButtonProps } from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import MenuItem from "@mui/material/MenuItem";
+import MenuList from "@mui/material/MenuList";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { useBoolean } from "minimal-shared/hooks";
+import { varAlpha } from "minimal-shared/utils";
 
-import { _mock } from '@/front/_mock';
+import { _mock } from "@/front/_mock";
 // import { useMockedUser } from 'src/auth/hooks';
 // import { RouterLink } from 'src/routes/components';
 // import { usePathname } from 'src/routes/hooks';
 // import { paths } from 'src/routes/paths';
 
-import { AnimateBorder } from '@/front/components/animate';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import { RouterLink } from '@/front/components/router-link';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { useMockedUser } from '@/front/hooks/use-mocked-user';
-import { usePathname } from '@/front/hooks/use-pathname';
+import { AnimateBorder } from "@/front/components/animate";
+import { Iconify } from "@/front/components/iconify/iconify";
+import { Label } from "@/front/components/label";
+import { RouterLink } from "@/front/components/router-link";
+import { Scrollbar } from "@/front/components/scrollbar";
+import { useMockedUser } from "@/front/hooks/use-mocked-user";
+import { usePathname } from "@/front/hooks/use-pathname";
 
-import { AccountButton } from './account-button';
-import { UpgradeBlock } from './nav-upgrade';
-import { SignOutButton } from './sign-out-button';
+import { AccountButton } from "./account-button";
+import { UpgradeBlock } from "./nav-upgrade";
+import { SignOutButton } from "./sign-out-button";
 
 // ----------------------------------------------------------------------
 
@@ -39,7 +39,11 @@ export type AccountDrawerProps = IconButtonProps & {
 	}[];
 };
 
-export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) => {
+export const AccountDrawer = ({
+	data = [],
+	sx,
+	...other
+}: AccountDrawerProps) => {
 	const pathname = usePathname();
 
 	const { user } = useMockedUser();
@@ -49,12 +53,16 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 	const renderAvatar = () => {
 		return (
 			<AnimateBorder
-				sx={{ mb: 2, p: '6px', width: 96, height: 96, borderRadius: '50%' }}
+				sx={{ mb: 2, p: "6px", width: 96, height: 96, borderRadius: "50%" }}
 				slotProps={{
-					primaryBorder: { size: 120, sx: { color: 'primary.main' } },
+					primaryBorder: { size: 120, sx: { color: "primary.main" } },
 				}}
 			>
-				<Avatar src={user?.photoURL} alt={user?.displayName} sx={{ width: 1, height: 1 }}>
+				<Avatar
+					src={user?.photoURL}
+					alt={user?.displayName}
+					sx={{ width: 1, height: 1 }}
+				>
 					{user?.displayName?.charAt(0).toUpperCase()}
 				</Avatar>
 			</AnimateBorder>
@@ -72,38 +80,40 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 							px: 2.5,
 							borderTop: `dashed 1px ${theme.vars.palette.divider}`,
 							borderBottom: `dashed 1px ${theme.vars.palette.divider}`,
-							'& li': { p: 0 },
+							"& li": { p: 0 },
 						};
 					},
 				]}
 			>
 				{data.map((option) => {
-					const rootLabel = pathname.includes('/dashboard') ? 'Home' : 'Dashboard';
-					const rootHref = pathname.includes('/dashboard') ? '/' : '#';
+					const rootLabel = pathname.includes("/dashboard")
+						? "Home"
+						: "Dashboard";
+					const rootHref = pathname.includes("/dashboard") ? "/" : "#";
 
 					return (
 						<MenuItem key={option.label}>
 							<Link
 								component={RouterLink}
-								href={option.label === 'Home' ? rootHref : option.href}
+								href={option.label === "Home" ? rootHref : option.href}
 								color="inherit"
 								underline="none"
 								onClick={onClose}
 								sx={{
 									p: 1,
 									width: 1,
-									display: 'flex',
-									typography: 'body2',
-									alignItems: 'center',
-									color: 'text.secondary',
-									'& svg': { width: 24, height: 24 },
-									'&:hover': { color: 'text.primary' },
+									display: "flex",
+									typography: "body2",
+									alignItems: "center",
+									color: "text.secondary",
+									"& svg": { width: 24, height: 24 },
+									"&:hover": { color: "text.primary" },
 								}}
 							>
 								{option.icon}
 
 								<Box component="span" sx={{ ml: 2 }}>
-									{option.label === 'Home' ? rootLabel : option.label}
+									{option.label === "Home" ? rootLabel : option.label}
 								</Box>
 
 								{option.info && (
@@ -121,7 +131,13 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 
 	return (
 		<>
-			<AccountButton onClick={onOpen} photoURL={user?.photoURL} displayName={user?.displayName} sx={sx} {...other} />
+			<AccountButton
+				onClick={onOpen}
+				photoURL={user?.photoURL}
+				displayName={user?.displayName}
+				sx={sx}
+				{...other}
+			/>
 
 			<Drawer
 				open={open}
@@ -138,7 +154,7 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 						top: 12,
 						left: 12,
 						zIndex: 9,
-						position: 'absolute',
+						position: "absolute",
 					}}
 				>
 					<Iconify icon="mingcute:close-line" />
@@ -148,9 +164,9 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 					<Box
 						sx={{
 							pt: 8,
-							display: 'flex',
-							alignItems: 'center',
-							flexDirection: 'column',
+							display: "flex",
+							alignItems: "center",
+							flexDirection: "column",
 						}}
 					>
 						{renderAvatar()}
@@ -159,7 +175,11 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 							{user?.displayName}
 						</Typography>
 
-						<Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
+						<Typography
+							variant="body2"
+							sx={{ color: "text.secondary", mt: 0.5 }}
+							noWrap
+						>
 							{user?.email}
 						</Typography>
 					</Box>
@@ -168,15 +188,22 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 						sx={{
 							p: 3,
 							gap: 1,
-							flexWrap: 'wrap',
-							display: 'flex',
-							justifyContent: 'center',
+							flexWrap: "wrap",
+							display: "flex",
+							justifyContent: "center",
 						}}
 					>
 						{Array.from({ length: 3 }, (_, index) => {
 							return (
-								<Tooltip key={_mock.fullName(index + 1)} title={`Switch to: ${_mock.fullName(index + 1)}`}>
-									<Avatar alt={_mock.fullName(index + 1)} src={_mock.image.avatar(index + 1)} onClick={() => {}} />
+								<Tooltip
+									key={_mock.fullName(index + 1)}
+									title={`Switch to: ${_mock.fullName(index + 1)}`}
+								>
+									<Avatar
+										alt={_mock.fullName(index + 1)}
+										src={_mock.image.avatar(index + 1)}
+										onClick={() => {}}
+									/>
 								</Tooltip>
 							);
 						})}
@@ -186,8 +213,11 @@ export const AccountDrawer = ({ data = [], sx, ...other }: AccountDrawerProps) =
 								sx={[
 									(theme) => {
 										return {
-											bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-											border: `dashed 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.32)}`,
+											bgcolor: varAlpha(
+												theme.vars.palette.grey["500Channel"],
+												0.08,
+											),
+											border: `dashed 1px ${varAlpha(theme.vars.palette.grey["500Channel"], 0.32)}`,
 										};
 									},
 								]}

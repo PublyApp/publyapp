@@ -1,8 +1,14 @@
-import type { Components, ComponentsOverrides, ComponentsPropsList, CSSObject, Theme } from '@mui/material/styles';
+import type {
+	Components,
+	ComponentsOverrides,
+	ComponentsPropsList,
+	CSSObject,
+	Theme,
+} from "@mui/material/styles";
 
-import type { SettingsState } from '@/front/components/settings';
+import type { SettingsState } from "@/front/components/settings";
 
-import type { ThemeOptions } from '../types';
+import type { ThemeOptions } from "../types";
 
 // ----------------------------------------------------------------------
 
@@ -18,7 +24,8 @@ const getSlotStyles = <
 	slot: ComponentSlot<Name, Slot>,
 	props?: ComponentsPropsList[Name],
 ): CSSObject => {
-	const slotStyles = typeof slot === 'function' && props ? slot(props) : slot ?? {};
+	const slotStyles =
+		typeof slot === "function" && props ? slot(props) : slot ?? {};
 
 	return slotStyles;
 };
@@ -28,17 +35,20 @@ const getSlotStyles = <
 export const updateComponentsWithSettings = (
 	components?: Components<Theme>,
 	settingsState?: SettingsState,
-): Pick<ThemeOptions, 'components'> => {
-	const MuiCard: Components<Theme>['MuiCard'] = {
+): Pick<ThemeOptions, "components"> => {
+	const MuiCard: Components<Theme>["MuiCard"] = {
 		styleOverrides: {
 			root: (props) => {
 				const { theme } = props;
 
-				const rootStyles = getSlotStyles<'MuiCard', 'root'>(components?.MuiCard?.styleOverrides?.root, props);
+				const rootStyles = getSlotStyles<"MuiCard", "root">(
+					components?.MuiCard?.styleOverrides?.root,
+					props,
+				);
 
 				return {
 					...rootStyles,
-					...(settingsState?.contrast === 'hight' && {
+					...(settingsState?.contrast === "hight" && {
 						boxShadow: theme.vars.customShadows.z1,
 					}),
 				};
@@ -46,7 +56,7 @@ export const updateComponentsWithSettings = (
 		},
 	};
 
-	const MuiCssBaseline: Components<Theme>['MuiCssBaseline'] = {
+	const MuiCssBaseline: Components<Theme>["MuiCssBaseline"] = {
 		styleOverrides: {
 			html: {
 				fontSize: settingsState?.fontSize,

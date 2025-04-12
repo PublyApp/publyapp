@@ -1,6 +1,15 @@
-import { DatabaseDriver } from 'bentocache/drivers/database';
-import type { CreateDriverResult, DatabaseAdapter, DatabaseConfig } from 'bentocache/types';
-import { MongoClient, type Collection, type Db, type MongoClientOptions } from 'mongodb';
+import { DatabaseDriver } from "bentocache/drivers/database";
+import type {
+	CreateDriverResult,
+	DatabaseAdapter,
+	DatabaseConfig,
+} from "bentocache/types";
+import {
+	MongoClient,
+	type Collection,
+	type Db,
+	type MongoClientOptions,
+} from "mongodb";
 
 interface MongoConfig extends DatabaseConfig, MongoClientOptions {
 	uri: string;
@@ -10,7 +19,9 @@ interface MongoConfig extends DatabaseConfig, MongoClientOptions {
  * Create a MongoDB driver
  * You will need to install the MongoDB package (`npm install mongodb`)
  */
-export const mongoDriver = (options: MongoConfig): CreateDriverResult<DatabaseDriver> => {
+export const mongoDriver = (
+	options: MongoConfig,
+): CreateDriverResult<DatabaseDriver> => {
 	return {
 		options,
 		factory: (config: MongoConfig) => {
@@ -49,7 +60,7 @@ export class MongoAdapter implements DatabaseAdapter {
 		// This is used for index setup.
 
 		if (!this.#collectionName) {
-			throw new Error('Collection name is not set. Call setTableName first.');
+			throw new Error("Collection name is not set. Call setTableName first.");
 		}
 
 		await this.#client.connect(); // Always ensure the client is connected
@@ -58,11 +69,16 @@ export class MongoAdapter implements DatabaseAdapter {
 
 		// Setup indexes
 		await this.#collection.createIndex({ key: 1 }, { unique: true }); // Unique index for the key
-		await this.#collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL index for automatic expiration
+		await this.#collection.createIndex(
+			{ expiresAt: 1 },
+			{ expireAfterSeconds: 0 },
+		); // TTL index for automatic expiration
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	async get(key: string): Promise<{ value: any; expiresAt: number | null } | undefined> {
+	async get(
+		key: string,
+	): Promise<{ value: any; expiresAt: number | null } | undefined> {
 		const result = await this.#collection.findOne({ key });
 		if (!result) return undefined;
 		return { value: result.value, expiresAt: result.expiresAt || null };
@@ -92,7 +108,11 @@ export class MongoAdapter implements DatabaseAdapter {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	async set(row: { key: string; value: any; expiresAt: Date | null }): Promise<void> {
+	async set(row: {
+		key: string;
+		value: any;
+		expiresAt: Date | null;
+	}): Promise<void> {
 		await this.#collection.updateOne(
 			{ key: row.key },
 			{ $set: { value: row.value, expiresAt: row.expiresAt } },

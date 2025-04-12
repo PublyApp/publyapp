@@ -1,30 +1,43 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from "react";
 
-import { popoverClasses } from '@mui/material/Popover';
-import { useTheme } from '@mui/material/styles';
-import { usePopoverHover } from 'minimal-shared/hooks';
-import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
+import { popoverClasses } from "@mui/material/Popover";
+import { useTheme } from "@mui/material/styles";
+import { usePopoverHover } from "minimal-shared/hooks";
+import { isActiveLink, isExternalLink } from "minimal-shared/utils";
 
-import { usePathname } from '@/front/hooks/use-pathname';
+import { usePathname } from "@/front/hooks/use-pathname";
 
-import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from '../components';
-import { navBasicClasses } from '../styles';
-import type { NavListProps, NavSubListProps } from '../types';
+import { NavDropdown, NavDropdownPaper, NavLi, NavUl } from "../components";
+import { navBasicClasses } from "../styles";
+import type { NavListProps, NavSubListProps } from "../types";
 
-import { NavItem } from './nav-item';
+import { NavItem } from "./nav-item";
 
 // ----------------------------------------------------------------------
 
-export const NavList = ({ data, depth, render, cssVars, slotProps, enabledRootRedirect }: NavListProps) => {
+export const NavList = ({
+	data,
+	depth,
+	render,
+	cssVars,
+	slotProps,
+	enabledRootRedirect,
+}: NavListProps) => {
 	const theme = useTheme();
 
 	const pathname = usePathname();
 
 	const isActive = isActiveLink(pathname, data.path, !!data.children);
 
-	const { open, onOpen, onClose, anchorEl, elementRef: navItemRef } = usePopoverHover<HTMLButtonElement>();
+	const {
+		open,
+		onOpen,
+		onClose,
+		anchorEl,
+		elementRef: navItemRef,
+	} = usePopoverHover<HTMLButtonElement>();
 
-	const isRtl = theme.direction === 'rtl';
+	const isRtl = theme.direction === "rtl";
 	const id = open ? `${data.title}-popover` : undefined;
 
 	useEffect(() => {
@@ -81,13 +94,13 @@ export const NavList = ({ data, depth, render, cssVars, slotProps, enabledRootRe
 					anchorEl={anchorEl}
 					anchorOrigin={
 						depth === 1
-							? { vertical: 'bottom', horizontal: isRtl ? 'right' : 'left' }
-							: { vertical: 'center', horizontal: isRtl ? 'left' : 'right' }
+							? { vertical: "bottom", horizontal: isRtl ? "right" : "left" }
+							: { vertical: "center", horizontal: isRtl ? "left" : "right" }
 					}
 					transformOrigin={
 						depth === 1
-							? { vertical: 'top', horizontal: isRtl ? 'right' : 'left' }
-							: { vertical: 'center', horizontal: isRtl ? 'right' : 'left' }
+							? { vertical: "top", horizontal: isRtl ? "right" : "left" }
+							: { vertical: "center", horizontal: isRtl ? "right" : "left" }
 					}
 					slotProps={{
 						paper: {
@@ -98,10 +111,15 @@ export const NavList = ({ data, depth, render, cssVars, slotProps, enabledRootRe
 					}}
 					sx={{
 						...cssVars,
-						[`& .${popoverClasses.paper}`]: { ...(depth === 1 && { pt: 1, ml: -0.75 }) },
+						[`& .${popoverClasses.paper}`]: {
+							...(depth === 1 && { pt: 1, ml: -0.75 }),
+						},
 					}}
 				>
-					<NavDropdownPaper className={navBasicClasses.dropdown.paper} sx={slotProps?.dropdown?.paper}>
+					<NavDropdownPaper
+						className={navBasicClasses.dropdown.paper}
+						sx={slotProps?.dropdown?.paper}
+					>
 						{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 						<NavSubList
 							data={data.children}
@@ -134,7 +152,14 @@ export const NavList = ({ data, depth, render, cssVars, slotProps, enabledRootRe
 
 // ----------------------------------------------------------------------
 
-const NavSubList = ({ data, render, cssVars, depth = 0, slotProps, enabledRootRedirect }: NavSubListProps) => {
+const NavSubList = ({
+	data,
+	render,
+	cssVars,
+	depth = 0,
+	slotProps,
+	enabledRootRedirect,
+}: NavSubListProps) => {
 	return (
 		<NavUl sx={{ gap: 0.5 }}>
 			{data.map((list) => {

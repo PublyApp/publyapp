@@ -1,7 +1,7 @@
-import Link, { type LinkProps } from '@mui/material/Link';
+import Link, { type LinkProps } from "@mui/material/Link";
 
-import { Iconify } from '../iconify/iconify';
-import { RouterLink } from '../router-link';
+import { Iconify } from "../iconify/iconify";
+import { RouterLink } from "../router-link";
 
 // ----------------------------------------------------------------------
 
@@ -11,7 +11,14 @@ type FormReturnLinkProps = LinkProps & {
 	label?: React.ReactNode;
 };
 
-export const FormReturnLink = ({ sx, href, label, icon, children, ...other }: FormReturnLinkProps) => {
+export const FormReturnLink = ({
+	sx,
+	href,
+	label,
+	icon,
+	children,
+	...other
+}: FormReturnLinkProps) => {
 	return (
 		<Link
 			component={RouterLink}
@@ -22,16 +29,16 @@ export const FormReturnLink = ({ sx, href, label, icon, children, ...other }: Fo
 				{
 					mt: 3,
 					gap: 0.5,
-					mx: 'auto',
-					alignItems: 'center',
-					display: 'inline-flex',
+					mx: "auto",
+					alignItems: "center",
+					display: "inline-flex",
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
 		>
 			{icon || <Iconify width={16} icon="eva:arrow-ios-back-fill" />}
-			{label || 'Return to sign in'}
+			{label || "Return to sign in"}
 			{children}
 		</Link>
 	);

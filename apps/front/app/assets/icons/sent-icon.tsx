@@ -1,6 +1,6 @@
-import { memo } from 'react';
+import { memo } from "react";
 
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
 
 // ----------------------------------------------------------------------
 
@@ -13,11 +13,11 @@ const SentIcon = ({ sx, ...other }: SvgIconProps) => {
 			sx={[
 				(theme) => {
 					return {
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
+						"--primary-main": theme.vars.palette.primary.main,
+						"--primary-dark": theme.vars.palette.primary.dark,
 						width: 96,
 						flexShrink: 0,
-						height: 'auto',
+						height: "auto",
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -34,7 +34,12 @@ const SentIcon = ({ sx, ...other }: SvgIconProps) => {
 				d="M11.167 39.109c-2.51 1.716-2.606 4.943-.319 6.946 3.06 2.68 8.372 7.018 17.359 13.62v-.013c3.724-7.82 50.269-45.652 52.269-43.652 1.977 1.977-25.4 38.484-37.097 53.826-.273.36-.47.736-.613 1.163-1.082 3.227-6.071 17.672-9.03 18.699 6.326-1.22 12.623-6.279 18.458-13.265 7.403 4.887 12.643 8.034 15.829 9.86 2.228 1.279 4.962.804 6.134-1.482 6.764-13.202 14.387-52.323 15.821-72.819.231-3.305-2.447-5.951-5.707-5.355-20.295 3.714-59.214 22.977-73.104 32.472zM33.417 89.755z"
 			/>
 
-			<g style={{ mixBlendMode: 'overlay' }} fill="#fff" fillOpacity="0.04" filter="url(#filter0_i_1870_134242)">
+			<g
+				style={{ mixBlendMode: "overlay" }}
+				fill="#fff"
+				fillOpacity="0.04"
+				filter="url(#filter0_i_1870_134242)"
+			>
 				<path d="M11.167 39.109c-2.51 1.716-2.606 4.943-.319 6.946 3.06 2.68 8.372 7.018 17.359 13.62v-.013c3.724-7.82 50.269-45.652 52.269-43.652 1.977 1.977-25.4 38.484-37.097 53.826-.273.36-.47.736-.613 1.163-1.082 3.227-6.071 17.672-9.03 18.699 6.326-1.22 12.623-6.279 18.458-13.265 7.403 4.887 12.643 8.034 15.829 9.86 2.228 1.279 4.962.804 6.134-1.482 6.764-13.202 14.387-52.323 15.821-72.819.231-3.305-2.447-5.951-5.707-5.355-20.295 3.714-59.214 22.977-73.104 32.472zM33.417 89.755z" />
 			</g>
 
@@ -50,7 +55,11 @@ const SentIcon = ({ sx, ...other }: SvgIconProps) => {
 				>
 					<feFlood floodOpacity="0" result="BackgroundImageFix" />
 					<feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
-					<feColorMatrix in="SourceAlpha" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" />
+					<feColorMatrix
+						in="SourceAlpha"
+						result="hardAlpha"
+						values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+					/>
 
 					<feOffset dx="-2" dy="-2" />
 					<feGaussianBlur stdDeviation="2" />

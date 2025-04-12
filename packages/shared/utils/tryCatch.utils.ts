@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { isAsyncFunction, isPromise } from './any.utils';
+import { isAsyncFunction, isPromise } from "./any.utils";
 
 type Handler = (error: unknown) => any;
 type AsyncHandler = (error: unknown) => Promise<any>;
@@ -7,7 +7,7 @@ type ErrorHandler<T extends GenericFunction = () => any> =
 	ReturnType<T> extends PromiseLike<any> ? Handler | AsyncHandler : Handler;
 
 const defaultErrorHandler: ErrorHandler = (error) => {
-	console.warn('You may want to define a custom error handler');
+	console.warn("You may want to define a custom error handler");
 	console.error(error);
 	console.trace(error);
 };
@@ -49,7 +49,9 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 	}
 
 	if (isAsyncFunction(onError)) {
-		throw new Error('Cannot have an async error handler if the main function not async');
+		throw new Error(
+			"Cannot have an async error handler if the main function not async",
+		);
 	}
 
 	const wrappedFunctionSync = (...args: any[]) => {

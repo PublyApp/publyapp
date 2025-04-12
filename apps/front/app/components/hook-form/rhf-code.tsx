@@ -1,14 +1,17 @@
-import Box, { type BoxProps } from '@mui/material/Box';
-import type { FormHelperTextProps } from '@mui/material/FormHelperText';
-import { inputBaseClasses } from '@mui/material/InputBase';
-import { MuiOtpInput, type MuiOtpInputProps } from 'mui-one-time-password-input';
-import { Controller, useFormContext } from 'react-hook-form';
+import Box, { type BoxProps } from "@mui/material/Box";
+import type { FormHelperTextProps } from "@mui/material/FormHelperText";
+import { inputBaseClasses } from "@mui/material/InputBase";
+import {
+	MuiOtpInput,
+	type MuiOtpInputProps,
+} from "mui-one-time-password-input";
+import { Controller, useFormContext } from "react-hook-form";
 
-import { HelperText } from './help-text';
+import { HelperText } from "./help-text";
 
 // ----------------------------------------------------------------------
 
-export interface RHFCodesProps extends Omit<MuiOtpInputProps, 'sx'> {
+export interface RHFCodesProps extends Omit<MuiOtpInputProps, "sx"> {
 	name: string;
 	maxSize?: number;
 	placeholder?: string;
@@ -16,11 +19,18 @@ export interface RHFCodesProps extends Omit<MuiOtpInputProps, 'sx'> {
 	slotProps?: {
 		wrapper?: BoxProps;
 		helperText?: FormHelperTextProps;
-		textfield?: MuiOtpInputProps['TextFieldsProps'];
+		textfield?: MuiOtpInputProps["TextFieldsProps"];
 	};
 }
 
-export const RHFCode = ({ name, slotProps, helperText, maxSize = 56, placeholder = '-', ...other }: RHFCodesProps) => {
+export const RHFCode = ({
+	name,
+	slotProps,
+	helperText,
+	maxSize = 56,
+	placeholder = "-",
+	...other
+}: RHFCodesProps) => {
 	const { control } = useFormContext();
 
 	return (
@@ -35,12 +45,14 @@ export const RHFCode = ({ name, slotProps, helperText, maxSize = 56, placeholder
 							{
 								[`& .${inputBaseClasses.input}`]: {
 									p: 0,
-									height: 'auto',
-									aspectRatio: '1/1',
+									height: "auto",
+									aspectRatio: "1/1",
 									maxWidth: maxSize,
 								},
 							},
-							...(Array.isArray(slotProps?.wrapper?.sx) ? slotProps?.wrapper?.sx ?? [] : [slotProps?.wrapper?.sx]),
+							...(Array.isArray(slotProps?.wrapper?.sx)
+								? slotProps?.wrapper?.sx ?? []
+								: [slotProps?.wrapper?.sx]),
 						]}
 					>
 						<MuiOtpInput
@@ -56,7 +68,11 @@ export const RHFCode = ({ name, slotProps, helperText, maxSize = 56, placeholder
 							{...other}
 						/>
 
-						<HelperText {...slotProps?.helperText} errorMessage={error?.message} helperText={helperText} />
+						<HelperText
+							{...slotProps?.helperText}
+							errorMessage={error?.message}
+							helperText={helperText}
+						/>
 					</Box>
 				);
 			}}

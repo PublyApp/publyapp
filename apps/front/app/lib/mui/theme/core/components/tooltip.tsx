@@ -1,9 +1,9 @@
-import type { Components, Theme } from '@mui/material/styles';
-import { tooltipClasses } from '@mui/material/Tooltip';
+import type { Components, Theme } from "@mui/material/styles";
+import { tooltipClasses } from "@mui/material/Tooltip";
 
 // ----------------------------------------------------------------------
 
-const MuiTooltip: Components<Theme>['MuiTooltip'] = {
+const MuiTooltip: Components<Theme>["MuiTooltip"] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
@@ -11,7 +11,7 @@ const MuiTooltip: Components<Theme>['MuiTooltip'] = {
 		tooltip: ({ theme }) => {
 			return {
 				backgroundColor: theme.vars.palette.grey[800],
-				...theme.applyStyles('dark', {
+				...theme.applyStyles("dark", {
 					backgroundColor: theme.vars.palette.grey[700],
 				}),
 			};
@@ -19,24 +19,28 @@ const MuiTooltip: Components<Theme>['MuiTooltip'] = {
 		arrow: ({ theme }) => {
 			return {
 				color: theme.vars.palette.grey[800],
-				...theme.applyStyles('dark', {
+				...theme.applyStyles("dark", {
 					color: theme.vars.palette.grey[700],
 				}),
 			};
 		},
 		popper: {
-			[`&.${tooltipClasses.popper}[data-popper-placement*="bottom"] .${tooltipClasses.tooltip}`]: {
-				marginTop: 12,
-			},
-			[`&.${tooltipClasses.popper}[data-popper-placement*="top"] .${tooltipClasses.tooltip}`]: {
-				marginBottom: 12,
-			},
-			[`&.${tooltipClasses.popper}[data-popper-placement*="right"] .${tooltipClasses.tooltip}`]: {
-				marginLeft: 12,
-			},
-			[`&.${tooltipClasses.popper}[data-popper-placement*="left"] .${tooltipClasses.tooltip}`]: {
-				marginRight: 12,
-			},
+			[`&.${tooltipClasses.popper}[data-popper-placement*="bottom"] .${tooltipClasses.tooltip}`]:
+				{
+					marginTop: 12,
+				},
+			[`&.${tooltipClasses.popper}[data-popper-placement*="top"] .${tooltipClasses.tooltip}`]:
+				{
+					marginBottom: 12,
+				},
+			[`&.${tooltipClasses.popper}[data-popper-placement*="right"] .${tooltipClasses.tooltip}`]:
+				{
+					marginLeft: 12,
+				},
+			[`&.${tooltipClasses.popper}[data-popper-placement*="left"] .${tooltipClasses.tooltip}`]:
+				{
+					marginRight: 12,
+				},
 		},
 	},
 };

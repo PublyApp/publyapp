@@ -1,5 +1,5 @@
-import Box, { type BoxProps } from '@mui/material/Box';
-import Link from '@mui/material/Link';
+import Box, { type BoxProps } from "@mui/material/Box";
+import Link from "@mui/material/Link";
 
 // ----------------------------------------------------------------------
 
@@ -9,15 +9,21 @@ type FormResendCodeProps = BoxProps & {
 	onResendCode?: () => void;
 };
 
-export const FormResendCode = ({ value, disabled, onResendCode, sx, ...other }: FormResendCodeProps) => {
+export const FormResendCode = ({
+	value,
+	disabled,
+	onResendCode,
+	sx,
+	...other
+}: FormResendCodeProps) => {
 	return (
 		<Box
 			sx={[
 				() => {
 					return {
 						mt: 3,
-						typography: 'body2',
-						alignSelf: 'center',
+						typography: "body2",
+						alignSelf: "center",
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -30,8 +36,8 @@ export const FormResendCode = ({ value, disabled, onResendCode, sx, ...other }: 
 				variant="subtitle2"
 				onClick={onResendCode}
 				sx={{
-					cursor: 'pointer',
-					...(disabled && { color: 'text.disabled', pointerEvents: 'none' }),
+					cursor: "pointer",
+					...(disabled && { color: "text.disabled", pointerEvents: "none" }),
 				}}
 			>
 				Resend {disabled && value && value > 0 && `(${value}s)`}

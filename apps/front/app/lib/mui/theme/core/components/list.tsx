@@ -1,41 +1,45 @@
-import type { Components, Theme } from '@mui/material/styles';
+import type { Components, Theme } from "@mui/material/styles";
 
 // ----------------------------------------------------------------------
 
-const MuiListItemIcon: Components<Theme>['MuiListItemIcon'] = {
+const MuiListItemIcon: Components<Theme>["MuiListItemIcon"] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
 		root: ({ theme }) => {
-			return { color: 'inherit', minWidth: 'auto', marginRight: theme.spacing(2) };
+			return {
+				color: "inherit",
+				minWidth: "auto",
+				marginRight: theme.spacing(2),
+			};
 		},
 	},
 };
 
 // ----------------------------------------------------------------------
 
-const MuiListItemAvatar: Components<Theme>['MuiListItemAvatar'] = {
+const MuiListItemAvatar: Components<Theme>["MuiListItemAvatar"] = {
 	/** **************************************
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
 		root: ({ theme }) => {
-			return { minWidth: 'auto', marginRight: theme.spacing(2) };
+			return { minWidth: "auto", marginRight: theme.spacing(2) };
 		},
 	},
 };
 
 // ----------------------------------------------------------------------
 
-const MuiListItemText: Components<Theme>['MuiListItemText'] = {
+const MuiListItemText: Components<Theme>["MuiListItemText"] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
 	defaultProps: {
 		slotProps: {
-			primary: { typography: 'subtitle2' },
-			secondary: { component: 'span' },
+			primary: { typography: "subtitle2" },
+			secondary: { component: "span" },
 		},
 	},
 

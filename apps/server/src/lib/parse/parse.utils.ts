@@ -1,13 +1,16 @@
-import _ from 'lodash';
-import Config from 'parse-server/lib/Config.js';
-import RestWrite from 'parse-server/lib/RestWrite.js';
+import _ from "lodash";
+import Config from "parse-server/lib/Config.js";
+import RestWrite from "parse-server/lib/RestWrite.js";
 
-import dayjs from 'dayjs';
-import type { AggregateOptions, Db, MongoClient } from 'mongodb';
+import dayjs from "dayjs";
+import type { AggregateOptions, Db, MongoClient } from "mongodb";
 
-import { CLOUD_INSTALLATION_ID, USE_MASTER_KEY } from '../constants';
+import { CLOUD_INSTALLATION_ID, USE_MASTER_KEY } from "../constants";
 
-export const reOrderObjects = <T extends Parse.Object = Parse.Object>(ids: string[], objects: T[]) => {
+export const reOrderObjects = <T extends Parse.Object = Parse.Object>(
+	ids: string[],
+	objects: T[],
+) => {
 	const objectsMap = new Map<string, T>();
 
 	objects.forEach((iWebHost) => {
@@ -46,13 +49,18 @@ export const getCurrentInstallationId = async () => {
 };
 
 export const setCurrentInstallationId = async (/* newId: string */) => {
-	const CURRENT_INSTALLATION_KEY = 'currentInstallation';
+	const CURRENT_INSTALLATION_KEY = "currentInstallation";
 
 	// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 	// @ts-ignore
 	// return
-	await Parse.Storage.setItemAsync(CURRENT_INSTALLATION_KEY, /* newId */ CLOUD_INSTALLATION_ID);
-	Parse.CoreManager.getInstallationController()._setInstallationIdCache(/* newId */ CLOUD_INSTALLATION_ID);
+	await Parse.Storage.setItemAsync(
+		CURRENT_INSTALLATION_KEY,
+		/* newId */ CLOUD_INSTALLATION_ID,
+	);
+	Parse.CoreManager.getInstallationController()._setInstallationIdCache(
+		/* newId */ CLOUD_INSTALLATION_ID,
+	);
 };
 
 /**
@@ -64,25 +72,36 @@ export const setCurrentInstallationId = async (/* newId: string */) => {
  * @param options aggregation options
  * @returns a promise containing the documents
  */
-export const aggregate = async (className: string, pipeline: Parse.PipelineStage[], options: AggregateOptions = {}) => {
+export const aggregate = async (
+	className: string,
+	pipeline: Parse.PipelineStage[],
+	options: AggregateOptions = {},
+) => {
 	const collection = getDatabase().collection(className);
 
 	const aggregationOptions = _.merge(
 		{
 			collation: {
-				locale: 'en_US',
+				locale: "en_US",
 				strength: 2,
 			},
 		},
 		options,
 	);
 
-	const results = await collection.aggregate(pipeline, aggregationOptions).toArray();
+	const results = await collection
+		.aggregate(pipeline, aggregationOptions)
+		.toArray();
 
 	return results;
 };
 
-export type CreateSessionOptions<AdditionalSessionData extends Record<string, unknown> = Record<string, unknown>> = {
+export type CreateSessionOptions<
+	AdditionalSessionData extends Record<string, unknown> = Record<
+		string,
+		unknown
+	>,
+> = {
 	userId: string;
 	action?: string;
 	authProvider?: string;
@@ -91,7 +110,12 @@ export type CreateSessionOptions<AdditionalSessionData extends Record<string, un
 	sessionToken?: string;
 };
 
-type CreateSessionResult<AdditionalSessionData extends Record<string, unknown> = Record<string, unknown>> = {
+type CreateSessionResult<
+	AdditionalSessionData extends Record<string, unknown> = Record<
+		string,
+		unknown
+	>,
+> = {
 	sessionToken: string;
 	user: {
 		__type: string;
@@ -117,11 +141,20 @@ type CreateSessionResult<AdditionalSessionData extends Record<string, unknown> =
  *
  */
 export const createSessionServer = async <
-	AdditionalSessionData extends Record<string, unknown> = Record<string, unknown>,
+	AdditionalSessionData extends Record<string, unknown> = Record<
+		string,
+		unknown
+	>,
 >(
 	options: CreateSessionOptions<AdditionalSessionData>,
 ): Promise<CreateSessionResult<AdditionalSessionData>> => {
-	const { userId, action = 'login', authProvider = 'password', installationId, additionalSessionData } = options;
+	const {
+		userId,
+		action = "login",
+		authProvider = "password",
+		installationId,
+		additionalSessionData,
+	} = options;
 	const config = getInternalConfig();
 
 	const result = RestWrite.createSession(config, {
@@ -145,7 +178,7 @@ type EncodedDateType =
 	| string
 	| number
 	| {
-			__type: 'Date';
+			__type: "Date";
 			iso: string;
 	  }
 	| null
@@ -175,7 +208,9 @@ export const getGlobalConfig = async () => {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Serializable = string | number | Record<string, any> | any[] | boolean;
 
-export const setGlobalConfig = async (attributes: Record<string, { value: Serializable; masterKeyOnly?: boolean }>) => {
+export const setGlobalConfig = async (
+	attributes: Record<string, { value: Serializable; masterKeyOnly?: boolean }>,
+) => {
 	const entries = _.entries(attributes);
 
 	const param1: Record<string, Serializable> = {};
@@ -194,17 +229,20 @@ export const setGlobalConfig = async (attributes: Record<string, { value: Serial
 };
 
 export const parseFields = [
-	'_hashed_password',
-	'_perishable_token',
-	'_email_verify_token',
-	'_session_token',
-	'ACL',
-	'createdAt',
-	'updatedAt',
+	"_hashed_password",
+	"_perishable_token",
+	"_email_verify_token",
+	"_session_token",
+	"ACL",
+	"createdAt",
+	"updatedAt",
 ] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const removeParseFields = (obj: Record<string, any>, omitFields?: string[]) => {
+export const removeParseFields = (
+	obj: Record<string, any>,
+	omitFields?: string[],
+) => {
 	const newObj = _.omit(obj, omitFields || parseFields);
 	return newObj;
 };

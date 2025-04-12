@@ -1,7 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
-import Typography, { type TypographyProps } from '@mui/material/Typography';
-import { animate, m, useInView, useMotionValue, useTransform, type UseInViewOptions } from 'framer-motion';
+import Typography, { type TypographyProps } from "@mui/material/Typography";
+import {
+	animate,
+	m,
+	useInView,
+	useMotionValue,
+	useTransform,
+	type UseInViewOptions,
+} from "framer-motion";
 
 // ----------------------------------------------------------------------
 
@@ -10,9 +17,9 @@ export type AnimateCountUpProps = TypographyProps & {
 	from?: number;
 	toFixed?: number;
 	duration?: number;
-	unit?: 'k' | 'm' | 'b' | string;
-	once?: UseInViewOptions['once'];
-	amount?: UseInViewOptions['amount'];
+	unit?: "k" | "m" | "b" | string;
+	once?: UseInViewOptions["once"];
+	amount?: UseInViewOptions["amount"];
 };
 
 export const AnimateCountUp = ({
@@ -24,7 +31,7 @@ export const AnimateCountUp = ({
 	duration = 2,
 	amount = 0.5,
 	unit: unitProp,
-	component = 'p',
+	component = "p",
 	...other
 }: AnimateCountUpProps) => {
 	const countRef = useRef(null);
@@ -57,7 +64,7 @@ export const AnimateCountUp = ({
 				{
 					p: 0,
 					m: 0,
-					display: 'inline-flex',
+					display: "inline-flex",
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
@@ -72,20 +79,22 @@ export const AnimateCountUp = ({
 // ----------------------------------------------------------------------
 
 const isFloat = (n: number | string) => {
-	return typeof n === 'number' && !Number.isInteger(n);
+	return typeof n === "number" && !Number.isInteger(n);
 };
 
-const shortenNumber = (value: number): { unit: string; value: number } | undefined => {
+const shortenNumber = (
+	value: number,
+): { unit: string; value: number } | undefined => {
 	if (value >= 1e9) {
-		return { unit: 'b', value: value / 1e9 };
+		return { unit: "b", value: value / 1e9 };
 	}
 
 	if (value >= 1e6) {
-		return { unit: 'm', value: value / 1e6 };
+		return { unit: "m", value: value / 1e6 };
 	}
 
 	if (value >= 1e3) {
-		return { unit: 'k', value: value / 1e3 };
+		return { unit: "k", value: value / 1e3 };
 	}
 
 	return undefined;

@@ -1,24 +1,24 @@
-import _ from 'lodash';
+import _ from "lodash";
 
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
-import type { Breakpoint } from '@mui/material/styles';
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Link from "@mui/material/Link";
+import type { Breakpoint } from "@mui/material/styles";
 
-import { Logo } from '@/front/components/logo/logo';
-import { RouterLink } from '@/front/components/router-link';
+import { Logo } from "@/front/components/logo/logo";
+import { RouterLink } from "@/front/components/router-link";
 
-import { SettingsButton } from '../components/settings-button';
-import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
-import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
-import { MainSection, type MainSectionProps } from '../core/main-section';
+import { SettingsButton } from "../components/settings-button";
+import { HeaderSection, type HeaderSectionProps } from "../core/header-section";
+import { LayoutSection, type LayoutSectionProps } from "../core/layout-section";
+import { MainSection, type MainSectionProps } from "../core/main-section";
 
-import { AuthSplitContent, type AuthSplitContentProps } from './content';
-import { AuthSplitSection, type AuthSplitSectionProps } from './section';
+import { AuthSplitContent, type AuthSplitContentProps } from "./content";
+import { AuthSplitSection, type AuthSplitSectionProps } from "./section";
 
 // ----------------------------------------------------------------------
 
-type LayoutBaseProps = Pick<LayoutSectionProps, 'sx' | 'children' | 'cssVars'>;
+type LayoutBaseProps = Pick<LayoutSectionProps, "sx" | "children" | "cssVars">;
 
 export type AuthSplitLayoutProps = LayoutBaseProps & {
 	layoutQuery?: Breakpoint;
@@ -30,15 +30,21 @@ export type AuthSplitLayoutProps = LayoutBaseProps & {
 	};
 };
 
-export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery = 'md' }: AuthSplitLayoutProps) => {
+export const AuthSplitLayout = ({
+	sx,
+	cssVars,
+	children,
+	slotProps,
+	layoutQuery = "md",
+}: AuthSplitLayoutProps) => {
 	const renderHeader = () => {
-		const headerSlotProps: HeaderSectionProps['slotProps'] = {
+		const headerSlotProps: HeaderSectionProps["slotProps"] = {
 			container: { maxWidth: false },
 		};
 
-		const headerSlots: HeaderSectionProps['slots'] = {
+		const headerSlots: HeaderSectionProps["slots"] = {
 			topArea: (
-				<Alert severity="info" sx={{ display: 'none', borderRadius: 0 }}>
+				<Alert severity="info" sx={{ display: "none", borderRadius: 0 }}>
 					This is an info Alert.
 				</Alert>
 			),
@@ -49,10 +55,21 @@ export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 				</>
 			),
 			rightArea: (
-				<Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 } }}>
+				<Box
+					sx={{
+						display: "flex",
+						alignItems: "center",
+						gap: { xs: 1, sm: 1.5 },
+					}}
+				>
 					{/** @slot Help link */}
 					{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-					<Link href={/* paths.faqs */ '#'} component={RouterLink} color="inherit" sx={{ typography: 'subtitle2' }}>
+					<Link
+						href={/* paths.faqs */ "#"}
+						component={RouterLink}
+						color="inherit"
+						sx={{ typography: "subtitle2" }}
+					>
 						Need help?
 					</Link>
 
@@ -70,8 +87,10 @@ export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 				slots={{ ...headerSlots, ...slotProps?.header?.slots }}
 				slotProps={_.merge(headerSlotProps, slotProps?.header?.slotProps ?? {})}
 				sx={[
-					{ position: { [layoutQuery]: 'fixed' } },
-					...(Array.isArray(slotProps?.header?.sx) ? slotProps?.header?.sx ?? [] : [slotProps?.header?.sx]),
+					{ position: { [layoutQuery]: "fixed" } },
+					...(Array.isArray(slotProps?.header?.sx)
+						? slotProps?.header?.sx ?? []
+						: [slotProps?.header?.sx]),
 				]}
 			/>
 		);
@@ -87,45 +106,49 @@ export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 				{...slotProps?.main}
 				sx={[
 					(theme) => {
-						return { [theme.breakpoints.up(layoutQuery)]: { flexDirection: 'row' } };
+						return {
+							[theme.breakpoints.up(layoutQuery)]: { flexDirection: "row" },
+						};
 					},
-					...(Array.isArray(slotProps?.main?.sx) ? slotProps?.main?.sx ?? [] : [slotProps?.main?.sx]),
+					...(Array.isArray(slotProps?.main?.sx)
+						? slotProps?.main?.sx ?? []
+						: [slotProps?.main?.sx]),
 				]}
 			>
 				<AuthSplitSection
 					layoutQuery={layoutQuery}
-					method={/* CONFIG.auth.method */ 'jwt'}
+					method={/* CONFIG.auth.method */ "jwt"}
 					{...slotProps?.section}
 					methods={[
 						{
-							label: 'Jwt',
-							path: '#',
+							label: "Jwt",
+							path: "#",
 							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-jwt' + '.svg',
+							icon: "/assets/icons/platforms/ic-jwt" + ".svg",
 						},
 						{
-							label: 'Firebase',
-							path: '#',
+							label: "Firebase",
+							path: "#",
 							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-firebase' + '.svg',
+							icon: "/assets/icons/platforms/ic-firebase" + ".svg",
 						},
 						{
-							label: 'Amplify',
-							path: '#',
+							label: "Amplify",
+							path: "#",
 							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-amplify' + '.svg',
+							icon: "/assets/icons/platforms/ic-amplify" + ".svg",
 						},
 						{
-							label: 'Auth0',
-							path: '#',
+							label: "Auth0",
+							path: "#",
 							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-auth0' + '.svg',
+							icon: "/assets/icons/platforms/ic-auth0" + ".svg",
 						},
 						{
-							label: 'Supabase',
-							path: '#',
+							label: "Supabase",
+							path: "#",
 							// eslint-disable-next-line no-useless-concat
-							icon: '/assets/icons/platforms/ic-supabase' + '.svg',
+							icon: "/assets/icons/platforms/ic-supabase" + ".svg",
 						},
 					]}
 				/>
@@ -149,7 +172,7 @@ export const AuthSplitLayout = ({ sx, cssVars, children, slotProps, layoutQuery 
 			/** **************************************
 			 * @Styles
 			 *************************************** */
-			cssVars={{ '--layout-auth-content-width': '420px', ...cssVars }}
+			cssVars={{ "--layout-auth-content-width": "420px", ...cssVars }}
 			sx={sx}
 		>
 			{renderMain()}

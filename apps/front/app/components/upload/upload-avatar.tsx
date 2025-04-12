@@ -1,24 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import { mergeClasses, varAlpha } from 'minimal-shared/utils';
-import { useDropzone } from 'react-dropzone';
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import { mergeClasses, varAlpha } from "minimal-shared/utils";
+import { useDropzone } from "react-dropzone";
 
-import { Iconify } from '../iconify/iconify';
-import { Image } from '../image/image';
+import { Iconify } from "../iconify/iconify";
+import { Image } from "../image/image";
 
-import { uploadClasses } from './classes';
-import { RejectionFiles } from './components/rejection-files';
-import type { UploadProps } from './types';
+import { uploadClasses } from "./classes";
+import { RejectionFiles } from "./components/rejection-files";
+import type { UploadProps } from "./types";
 
 // ----------------------------------------------------------------------
 
-export const UploadAvatar = ({ sx, error, value, disabled, helperText, className, ...other }: UploadProps) => {
-	const { getRootProps, getInputProps, isDragActive, isDragReject, fileRejections } = useDropzone({
+export const UploadAvatar = ({
+	sx,
+	error,
+	value,
+	disabled,
+	helperText,
+	className,
+	...other
+}: UploadProps) => {
+	const {
+		getRootProps,
+		getInputProps,
+		isDragActive,
+		isDragReject,
+		fileRejections,
+	} = useDropzone({
 		multiple: false,
 		disabled,
-		accept: { 'image/*': [] },
+		accept: { "image/*": [] },
 		...other,
 	});
 
@@ -26,10 +40,10 @@ export const UploadAvatar = ({ sx, error, value, disabled, helperText, className
 
 	const hasError = isDragReject || !!error;
 
-	const [preview, setPreview] = useState('');
+	const [preview, setPreview] = useState("");
 
 	useEffect(() => {
-		if (typeof value === 'string') {
+		if (typeof value === "string") {
 			setPreview(value);
 		} else if (value instanceof File) {
 			setPreview(URL.createObjectURL(value));
@@ -37,7 +51,15 @@ export const UploadAvatar = ({ sx, error, value, disabled, helperText, className
 	}, [value]);
 
 	const renderPreview = () => {
-		return hasFile && <Image alt="Avatar" src={preview} sx={{ width: 1, height: 1, borderRadius: '50%' }} />;
+		return (
+			hasFile && (
+				<Image
+					alt="Avatar"
+					src={preview}
+					sx={{ width: 1, height: 1, borderRadius: "50%" }}
+				/>
+			)
+		);
 	};
 
 	const renderPlaceholder = () => {
@@ -52,34 +74,36 @@ export const UploadAvatar = ({ sx, error, value, disabled, helperText, className
 						width: 1,
 						height: 1,
 						zIndex: 9,
-						display: 'flex',
-						borderRadius: '50%',
-						position: 'absolute',
-						alignItems: 'center',
-						color: 'text.disabled',
-						flexDirection: 'column',
-						justifyContent: 'center',
-						bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-						transition: theme.transitions.create(['opacity'], {
+						display: "flex",
+						borderRadius: "50%",
+						position: "absolute",
+						alignItems: "center",
+						color: "text.disabled",
+						flexDirection: "column",
+						justifyContent: "center",
+						bgcolor: varAlpha(theme.vars.palette.grey["500Channel"], 0.08),
+						transition: theme.transitions.create(["opacity"], {
 							duration: theme.transitions.duration.shorter,
 						}),
-						'&:hover': { opacity: 0.72 },
+						"&:hover": { opacity: 0.72 },
 						...(hasError && {
-							color: 'error.main',
+							color: "error.main",
 							bgcolor: varAlpha(theme.vars.palette.error.mainChannel, 0.08),
 						}),
 						...(hasFile && {
 							zIndex: 9,
 							opacity: 0,
-							color: 'common.white',
-							bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.64),
+							color: "common.white",
+							bgcolor: varAlpha(theme.vars.palette.grey["900Channel"], 0.64),
 						}),
 					};
 				}}
 			>
 				<Iconify icon="solar:camera-add-bold" width={32} />
 
-				<Typography variant="caption">{hasFile ? 'Update photo' : 'Upload photo'}</Typography>
+				<Typography variant="caption">
+					{hasFile ? "Update photo" : "Upload photo"}
+				</Typography>
 			</Box>
 		);
 	};
@@ -90,9 +114,9 @@ export const UploadAvatar = ({ sx, error, value, disabled, helperText, className
 				sx={{
 					width: 1,
 					height: 1,
-					overflow: 'hidden',
-					borderRadius: '50%',
-					position: 'relative',
+					overflow: "hidden",
+					borderRadius: "50%",
+					position: "relative",
 				}}
 			>
 				{renderPreview()}
@@ -110,19 +134,21 @@ export const UploadAvatar = ({ sx, error, value, disabled, helperText, className
 					(theme) => {
 						return {
 							p: 1,
-							m: 'auto',
+							m: "auto",
 							width: 144,
 							height: 144,
-							cursor: 'pointer',
-							overflow: 'hidden',
-							borderRadius: '50%',
-							border: `1px dashed ${varAlpha(theme.vars.palette.grey['500Channel'], 0.2)}`,
+							cursor: "pointer",
+							overflow: "hidden",
+							borderRadius: "50%",
+							border: `1px dashed ${varAlpha(theme.vars.palette.grey["500Channel"], 0.2)}`,
 							...(isDragActive && { opacity: 0.72 }),
-							...(disabled && { opacity: 0.48, pointerEvents: 'none' }),
-							...(hasError && { borderColor: 'error.main' }),
+							...(disabled && { opacity: 0.48, pointerEvents: "none" }),
+							...(hasError && { borderColor: "error.main" }),
 							...(hasFile && {
-								...(hasError && { bgcolor: varAlpha(theme.vars.palette.error.mainChannel, 0.08) }),
-								'&:hover .upload-placeholder': { opacity: 1 },
+								...(hasError && {
+									bgcolor: varAlpha(theme.vars.palette.error.mainChannel, 0.08),
+								}),
+								"&:hover .upload-placeholder": { opacity: 1 },
 							}),
 						};
 					},

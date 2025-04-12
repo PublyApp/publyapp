@@ -1,8 +1,8 @@
-import Box, { type BoxProps } from '@mui/material/Box';
-import useMediaQuery from '@mui/material/useMediaQuery';
-import { m, type MotionProps } from 'framer-motion';
+import Box, { type BoxProps } from "@mui/material/Box";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { m, type MotionProps } from "framer-motion";
 
-import { varContainer } from './variants';
+import { varContainer } from "./variants";
 
 // ----------------------------------------------------------------------
 
@@ -11,9 +11,14 @@ export type MotionViewportProps = BoxProps &
 		disableAnimate?: boolean;
 	};
 
-export const MotionViewport = ({ children, viewport, disableAnimate = true, ...other }: MotionViewportProps) => {
+export const MotionViewport = ({
+	children,
+	viewport,
+	disableAnimate = true,
+	...other
+}: MotionViewportProps) => {
 	const smDown = useMediaQuery((theme) => {
-		return theme.breakpoints.down('sm');
+		return theme.breakpoints.down("sm");
 	});
 
 	const disabled = smDown && disableAnimate;
@@ -22,8 +27,8 @@ export const MotionViewport = ({ children, viewport, disableAnimate = true, ...o
 		? {}
 		: {
 				component: m.div,
-				initial: 'initial',
-				whileInView: 'animate',
+				initial: "initial",
+				whileInView: "animate",
 				variants: varContainer(),
 				viewport: { once: true, amount: 0.3, ...viewport },
 			};
