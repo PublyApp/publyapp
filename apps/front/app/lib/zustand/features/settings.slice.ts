@@ -16,7 +16,7 @@ export type SettingsSliceActions = {
 	onCloseDrawer: () => void;
 	onReset: () => void;
 	setState: (updateState: SettingsState | Partial<SettingsState>) => void;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 	setField: (path: string, value: any) => void;
 };
 

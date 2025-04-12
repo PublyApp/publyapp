@@ -23,7 +23,7 @@ const iconUrl = (icon: string) => {
 // ----------------------------------------------------------------------
 
 export const fileFormat = (fileUrl: string) => {
-	let format;
+	let format: string;
 
 	const fileByUrl = fileTypeByUrl(fileUrl);
 
@@ -71,7 +71,7 @@ export const fileFormat = (fileUrl: string) => {
 // ----------------------------------------------------------------------
 
 export const fileThumb = (fileUrl: string) => {
-	let thumb;
+	let thumb: string;
 
 	switch (fileFormat(fileUrl)) {
 		case 'folder':
@@ -120,7 +120,7 @@ export const fileThumb = (fileUrl: string) => {
 // ----------------------------------------------------------------------
 
 export const fileTypeByUrl = (fileUrl: string) => {
-	return (fileUrl && fileUrl.split('.').pop()) || '';
+	return fileUrl?.split('.').pop() || '';
 };
 
 // ----------------------------------------------------------------------

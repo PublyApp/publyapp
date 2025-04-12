@@ -13,7 +13,7 @@ export interface LoggerAdapter {
 	 * @param {string} message
 	 * @param {...any[]} meta
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 	log(level: string, message: string, ...meta: any[]): any;
 }
 

@@ -21,14 +21,13 @@ export const AnimateLogoZoom = ({
 	...other
 }: AnimateLogoProps) => {
 	return (
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		<LogoZoomRoot sx={sx} {...other}>
 			<m.span
 				animate={{ scale: [1, 0.9, 0.9, 1, 1], opacity: [1, 0.48, 0.48, 1, 1] }}
 				transition={{
 					duration: 2,
 					repeatDelay: 1,
-					repeat: Infinity,
+					repeat: Number.POSITIVE_INFINITY,
 					ease: 'easeInOut',
 				}}
 			>
@@ -54,7 +53,11 @@ export const AnimateLogoZoom = ({
 					opacity: [0.25, 1, 1, 1, 0.25],
 					borderRadius: ['25%', '25%', '50%', '50%', '25%'],
 				}}
-				transition={{ ease: 'linear', duration: 3.2, repeat: Infinity }}
+				transition={{
+					ease: 'linear',
+					duration: 3.2,
+					repeat: Number.POSITIVE_INFINITY,
+				}}
 			/>
 
 			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
@@ -65,7 +68,11 @@ export const AnimateLogoZoom = ({
 					opacity: [1, 0.25, 0.25, 0.25, 1],
 					borderRadius: ['25%', '25%', '50%', '50%', '25%'],
 				}}
-				transition={{ ease: 'linear', duration: 3.2, repeat: Infinity }}
+				transition={{
+					ease: 'linear',
+					duration: 3.2,
+					repeat: Number.POSITIVE_INFINITY,
+				}}
 			/>
 		</LogoZoomRoot>
 	);
@@ -109,7 +116,6 @@ export const AnimateLogoRotate = ({
 	...other
 }: AnimateLogoProps) => {
 	return (
-		// eslint-disable-next-line @typescript-eslint/no-use-before-define
 		<LogoRotateRoot sx={sx} {...other}>
 			{logo ?? (
 				<Logo
@@ -126,7 +132,11 @@ export const AnimateLogoRotate = ({
 			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 			<LogoRotateBackground
 				animate={{ rotate: 360 }}
-				transition={{ duration: 10, ease: 'linear', repeat: Infinity }}
+				transition={{
+					duration: 10,
+					ease: 'linear',
+					repeat: Number.POSITIVE_INFINITY,
+				}}
 			/>
 		</LogoRotateRoot>
 	);

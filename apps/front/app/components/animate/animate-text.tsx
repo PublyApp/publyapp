@@ -15,6 +15,7 @@ import { mergeClasses } from 'minimal-shared/utils';
 import { createClasses } from '@/front/lib/mui/theme/create-classes';
 
 import { varContainer, varFade } from './variants';
+import { nanoid } from 'nanoid';
 
 // ----------------------------------------------------------------------
 
@@ -126,8 +127,7 @@ export const AnimateText = ({
 				{textArray?.map((line, lineIndex) => {
 					return (
 						<TextLine
-							// eslint-disable-next-line react/no-array-index-key
-							key={`${line}-${lineIndex}`}
+							key={`${line}-${nanoid()}`}
 							data-index={lineIndex}
 							className={animateTextClasses.line}
 							sx={{ display: 'block' }}
@@ -138,8 +138,7 @@ export const AnimateText = ({
 
 								return (
 									<TextWord
-										// eslint-disable-next-line react/no-array-index-key
-										key={`${word}-${wordIndex}`}
+										key={`${word}-${nanoid()}`}
 										data-index={wordIndex}
 										className={animateTextClasses.word}
 										sx={{ display: 'inline-block' }}
@@ -147,8 +146,7 @@ export const AnimateText = ({
 										{word.split('').map((char, charIndex) => {
 											return (
 												<AnimatedTextChar
-													// eslint-disable-next-line react/no-array-index-key
-													key={`${char}-${charIndex}`}
+													key={`${char}-${nanoid()}`}
 													variants={variants ?? varFade('in')}
 													data-index={charIndex}
 													className={animateTextClasses.char}

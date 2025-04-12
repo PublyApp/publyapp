@@ -5,8 +5,7 @@ import { isRouteErrorResponse } from 'react-router';
 
 // ----------------------------------------------------------------------
 type ErrorBoundaryProps = {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	error: any;
+	error: unknown;
 };
 
 export const ErrorBoundary = ({ error }: ErrorBoundaryProps) => {
@@ -39,8 +38,7 @@ const parseStackTrace = (stack?: string) => {
 	};
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const renderErrorMessage = (error: any) => {
+const renderErrorMessage = (error: unknown) => {
 	if (isRouteErrorResponse(error)) {
 		return (
 			<>

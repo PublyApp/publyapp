@@ -24,11 +24,7 @@ export const FlagIcon = ({ code, className, sx, ...other }: FlagIconProps) => {
 			<FlagImg
 				loading="lazy"
 				alt={code}
-				// eslint-disable-next-line no-useless-concat
-				src={
-					`https://purecatamphetamine.github.io/country-flag-icons/3x2/${code?.toUpperCase()}` +
-					'.svg'
-				}
+				src={`https://purecatamphetamine.github.io/country-flag-icons/3x2/${code?.toUpperCase()}.svg`}
 				className={flagIconClasses.img}
 			/>
 		</FlagRoot>

@@ -1,11 +1,11 @@
 import _ from 'lodash';
 
-import {
-	type Application,
-	type NextFunction,
-	type Request,
-	type RequestHandler,
-	type Response,
+import type {
+	Application,
+	NextFunction,
+	Request,
+	RequestHandler,
+	Response,
 } from 'express';
 import type { ParsedQs } from 'qs';
 
@@ -24,32 +24,23 @@ import { i18nextServer } from './i18n';
 
 type ParamsDictionary = Record<string, string>;
 
-interface AsyncRequestHandler<
+type AsyncRequestHandler<
 	P = ParamsDictionary,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	ResBody = any,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	ReqBody = any,
 	ReqQuery = ParsedQs,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	LocalsObj extends Record<string, any> = Record<string, any>,
-> {
-	(
-		req: Request<P, ResBody, ReqBody, ReqQuery, LocalsObj>,
-		res: Response<ResBody, LocalsObj>,
-		next: NextFunction,
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	): Promise<any>;
-}
+> = (
+	req: Request<P, ResBody, ReqBody, ReqQuery, LocalsObj>,
+	res: Response<ResBody, LocalsObj>,
+	next: NextFunction,
+) => Promise<any>;
 
 export const expressHandler = <
 	P = ParamsDictionary,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	ResBody = any,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	ReqBody = any,
 	ReqQuery = ParsedQs,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	Locals extends Record<string, any> = Record<string, any>,
 >(
 	innerHandler: AsyncRequestHandler<P, ResBody, ReqBody, ReqQuery, Locals>,
@@ -74,7 +65,6 @@ export const expressHandler = <
 
 // copy paste from stack overflow: I don't bother fix eslint issues here
 export const listRoutes = (app: Application) => {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const split = (thing: any) => {
 		if (typeof thing === 'string') {
 			return thing.split('/');
@@ -95,7 +85,6 @@ export const listRoutes = (app: Application) => {
 			: `<complex:${thing.toString()}>`;
 	};
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const print = (path: any, layer: any) => {
 		if (layer.route) {
 			layer.route.stack.forEach(

@@ -6,6 +6,7 @@ type DeepPartial<T> = {
 type ExcludeFunctionPropertyNames<T> = Pick<
 	T,
 	{
+		// biome-ignore lint/complexity/noBannedTypes: Utility type definition is safe to use Function type here. Until prover the contrary
 		[K in keyof T]: T[K] extends Function ? never : K;
 	}[keyof T]
 >;
@@ -34,15 +35,16 @@ type ToPrimitive<T> = T extends string
 									[K in keyof T]: ToPrimitive<T[K]>;
 								};
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: Safe to use any here.
 type SyncFunction = (...args: any[]) => any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any,
+
+// biome-ignore lint/suspicious/noExplicitAny: Safe to use any here.
 type AsyncFunction = (...args: any[]) => Promise<any>;
 
 /**
  * Generic function that accepts any number of parameters.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 type GenericFunction = SyncFunction | AsyncFunction;
 
 /**

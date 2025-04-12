@@ -205,7 +205,6 @@ export const getGlobalConfig = async () => {
 	return config;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Serializable = string | number | Record<string, any> | any[] | boolean;
 
 export const setGlobalConfig = async (
@@ -238,7 +237,6 @@ export const parseFields = [
 	'updatedAt',
 ] as const;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const removeParseFields = (
 	obj: Record<string, any>,
 	omitFields?: string[],
