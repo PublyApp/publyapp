@@ -1,13 +1,22 @@
-import { HttpException } from '@/server/exceptions/HttpException';
-import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
-import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/function.utils';
-import { getDatabase, getGlobalConfig, parseFields, removeParseFields } from '@/server/lib/parse/parse.utils';
-import { className, functionName, roleSet } from '@/shared/lib/constants';
-import type { IUser } from '@/shared/types/db/user.types';
+import { HttpException } from "@/server/exceptions/HttpException";
+import { DISABLE_SIGNUP_CONFIG_KEY } from "@/server/lib/constants";
+import {
+	parseFunctionEnhanced,
+	type FunctionParams,
+	type FunctionReturn,
+} from "@/server/lib/parse/function.utils";
+import {
+	getDatabase,
+	getGlobalConfig,
+	parseFields,
+	removeParseFields,
+} from "@/server/lib/parse/parse.utils";
+import { className, functionName, roleSet } from "@/shared/lib/constants";
+import type { IUser } from "@/shared/types/db/user.types";
 
-import RoleService from './role/role.service';
-import type ParseTenant from './tenant/tenant.class';
-import TenantService from './tenant/tenant.service';
+import RoleService from "./role/role.service";
+import type ParseTenant from "./tenant/tenant.class";
+import TenantService from "./tenant/tenant.service";
 
 export namespace GetUserAuthDataFunction {
 	export type Params = FunctionParams<typeof getUserAuthDataFunction>;
@@ -21,16 +30,24 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 
 		const rolesPromises = new RoleService({ sessionToken }).getUserRoles(user, {
 			json: true,
-			exclude: ['rank'],
+			exclude: ["rank"],
 		});
 
 		let roles = await rolesPromises;
 		roles = roles.map((role) => {
-			return removeParseFields(role, [...parseFields, 'users', 'roles']) as never;
+			return removeParseFields(role, [
+				...parseFields,
+				"users",
+				"roles",
+			]) as never;
 		});
 
 		let userJson: IUser = user.toJSON() as never;
-		userJson = removeParseFields(userJson, [...parseFields, 'sessionToken', 'emailVerified']) as never;
+		userJson = removeParseFields(userJson, [
+			...parseFields,
+			"sessionToken",
+			"emailVerified",
+		]) as never;
 
 		return {
 			user: userJson,
@@ -74,11 +91,16 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 
 		const tenantService = new TenantService({ sessionToken });
 
-		const fallBackTenantPromise = tenantService.findTenantsForUser(user, { select: [] });
-		let tenantExistsPromise: Promise<ParseTenant | undefined> = Promise.resolve(undefined);
+		const fallBackTenantPromise = tenantService.findTenantsForUser(user, {
+			select: [],
+		});
+		let tenantExistsPromise: Promise<ParseTenant | undefined> =
+			Promise.resolve(undefined);
 
 		if (params.tenantId) {
-			tenantExistsPromise = tenantService.getById(params.tenantId, { select: [] });
+			tenantExistsPromise = tenantService.getById(params.tenantId, {
+				select: [],
+			});
 		}
 
 		// check user's roles:
@@ -96,7 +118,7 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 				}
 			}
 
-			return { code: 'staff' };
+			return { code: "staff" };
 		}
 
 		// ! no need to check because the allowedRoles is already set to ABOVE_TENANT_USER
@@ -109,17 +131,23 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 		const tenant = await tenantExistsPromise;
 
 		if (tenant) {
-			const isMember = await tenantService.isUserMemberOfTenant({ user, tenant });
+			const isMember = await tenantService.isUserMemberOfTenant({
+				user,
+				tenant,
+			});
 
 			if (isMember) {
 				return { code: tenant.id };
 			}
 
-			log.warn(`Attempt to access tenant ${params.tenantId} by user ${user.id} who is not a member of said tenant`, {
-				tenantId: params.tenantId,
-				userId: user.id,
-			});
-			return { code: 'unauthorized' };
+			log.warn(
+				`Attempt to access tenant ${params.tenantId} by user ${user.id} who is not a member of said tenant`,
+				{
+					tenantId: params.tenantId,
+					userId: user.id,
+				},
+			);
+			return { code: "unauthorized" };
 		}
 
 		const fallBackTenant = (await fallBackTenantPromise)[0];
@@ -135,7 +163,7 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 				userId: user.id,
 			},
 		);
-		return { code: 'unauthorized' };
+		return { code: "unauthorized" };
 	},
 });
 
@@ -160,7 +188,7 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 		const getIsUserStaffMemberPromise = roleService.isUserStaffMember(user);
 
 		// case 1: tenant id === 'staff'
-		if (params.tenantId === 'staff') {
+		if (params.tenantId === "staff") {
 			const isUserStaffMember = await getIsUserStaffMemberPromise;
 
 			if (isUserStaffMember) {
@@ -169,10 +197,13 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 				};
 			}
 
-			log.warn(`Attempt to access staff auth data by user ${user.id} who is not a staff member`, {
-				userId: user.id,
-			});
-			throw new HttpException(403, t('unauthorized'));
+			log.warn(
+				`Attempt to access staff auth data by user ${user.id} who is not a staff member`,
+				{
+					userId: user.id,
+				},
+			);
+			throw new HttpException(403, t("unauthorized"));
 		}
 
 		// check if tenant exists
@@ -180,7 +211,7 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 		const tenant = await tenantService.getById(params.tenantId, { select: [] });
 
 		if (!tenant) {
-			throw new HttpException(404, t('item-not-found', { item: 'Tenant' }));
+			throw new HttpException(404, t("item-not-found", { item: "Tenant" }));
 		}
 
 		// check if user is staff member
@@ -203,7 +234,7 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 					tenantId: params.tenantId,
 				},
 			);
-			throw new HttpException(403, t('unauthorized'));
+			throw new HttpException(403, t("unauthorized"));
 		}
 
 		return {
@@ -213,8 +244,14 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 });
 
 Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);
-Parse.Cloud.define(functionName.auth.getTenantAuthData, getTenantAuthDataFunction);
-Parse.Cloud.define(functionName.auth.getIsDisabledSignup, getIsDisabledSignupFunction);
+Parse.Cloud.define(
+	functionName.auth.getTenantAuthData,
+	getTenantAuthDataFunction,
+);
+Parse.Cloud.define(
+	functionName.auth.getIsDisabledSignup,
+	getIsDisabledSignupFunction,
+);
 Parse.Cloud.define(functionName.auth.getRedirectCode, getRedirectCodeFunction);
 
 // --------------------------------------------------------------------------------------//
@@ -232,4 +269,7 @@ const removeSeededUsersFunction = parseFunctionEnhanced({
 	},
 });
 
-Parse.Cloud.define(functionName.auth.removeSeededUsers, removeSeededUsersFunction);
+Parse.Cloud.define(
+	functionName.auth.removeSeededUsers,
+	removeSeededUsersFunction,
+);

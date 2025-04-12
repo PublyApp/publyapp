@@ -1,4 +1,6 @@
-import FormHelperText, { type FormHelperTextProps } from '@mui/material/FormHelperText';
+import FormHelperText, {
+	type FormHelperTextProps,
+} from "@mui/material/FormHelperText";
 
 // ----------------------------------------------------------------------
 
@@ -8,7 +10,13 @@ export type HelperTextProps = FormHelperTextProps & {
 	helperText?: React.ReactNode;
 };
 
-export const HelperText = ({ sx, helperText, errorMessage, disableGutters, ...other }: HelperTextProps) => {
+export const HelperText = ({
+	sx,
+	helperText,
+	errorMessage,
+	disableGutters,
+	...other
+}: HelperTextProps) => {
 	if (errorMessage || helperText) {
 		return (
 			<FormHelperText

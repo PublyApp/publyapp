@@ -1,13 +1,13 @@
-import _ from 'lodash';
+import _ from "lodash";
 
-import type { TFunction } from 'i18next';
+import type { TFunction } from "i18next";
 
-import { roleEnum } from '@org/shared/lib/constants';
+import { roleEnum } from "@org/shared/lib/constants";
 
-import { ADMIN_EMAILS, USE_MASTER_KEY } from '@/server/lib/constants';
-import { parseTriggerEnhanced } from '@/server/lib/parse/function.utils';
+import { ADMIN_EMAILS, USE_MASTER_KEY } from "@/server/lib/constants";
+import { parseTriggerEnhanced } from "@/server/lib/parse/function.utils";
 
-import RoleService from '../role/role.service';
+import RoleService from "../role/role.service";
 
 // --------------------------------------------------------------------------------------//
 //                                     BEFORE SAVE                                       //
@@ -44,8 +44,14 @@ const beforeSaveUser = parseTriggerEnhanced<Parse.User>({
 //                                      AFTER SAVE                                       //
 // --------------------------------------------------------------------------------------//
 
-const autoAssignDefaultRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest<Parse.User>; t: TFunction }) => {
-	const isNew = _.get(req, 'context.isNew');
+const autoAssignDefaultRole = async ({
+	req,
+	t,
+}: {
+	req: Parse.Cloud.TriggerRequest<Parse.User>;
+	t: TFunction;
+}) => {
+	const isNew = _.get(req, "context.isNew");
 
 	if (!isNew) {
 		return;
@@ -59,21 +65,29 @@ const autoAssignDefaultRole = async ({ req, t }: { req: Parse.Cloud.TriggerReque
 		// if an user has been successfully saved,
 		// that means that it must have an email
 		// it is our login policy (in our code)
-		throw new Error(t('user-has-no-email'));
+		throw new Error(t("user-has-no-email"));
 	}
 
 	const roleService = new RoleService(USE_MASTER_KEY);
 
-	const defaultRole = await roleService.findRoleByCode(roleEnum.AUTHED_USER.code);
+	const defaultRole = await roleService.findRoleByCode(
+		roleEnum.AUTHED_USER.code,
+	);
 
 	if (!defaultRole) {
-		throw new Error(t('item-not-found', { item: t('role') }));
+		throw new Error(t("item-not-found", { item: t("role") }));
 	}
 
 	await roleService.assignRoleToUser(userSaved, defaultRole);
 };
 
-const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest<Parse.User>; t: TFunction }) => {
+const autoAssignAdminRole = async ({
+	req,
+	t,
+}: {
+	req: Parse.Cloud.TriggerRequest<Parse.User>;
+	t: TFunction;
+}) => {
 	const userSaved = req.object;
 	const email = userSaved.getEmail();
 
@@ -82,16 +96,18 @@ const autoAssignAdminRole = async ({ req, t }: { req: Parse.Cloud.TriggerRequest
 		// if an user has been successfully saved,
 		// that means that it must have an email
 		// it is our login policy (in our code)
-		throw new Error(t('user-has-no-email'));
+		throw new Error(t("user-has-no-email"));
 	}
 
 	const roleService = new RoleService(USE_MASTER_KEY);
 
 	if (ADMIN_EMAILS.includes(email)) {
-		const adminRole = await roleService.findRoleByCode(roleEnum.STAFF_ADMIN.code);
+		const adminRole = await roleService.findRoleByCode(
+			roleEnum.STAFF_ADMIN.code,
+		);
 
 		if (!adminRole) {
-			throw new Error(t('item-not-found', { item: t('role') }));
+			throw new Error(t("item-not-found", { item: t("role") }));
 		}
 
 		await roleService.assignRoleToUser(userSaved, adminRole);

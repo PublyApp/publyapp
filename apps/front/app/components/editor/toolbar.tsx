@@ -1,15 +1,15 @@
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import Stack, { type StackProps } from '@mui/material/Stack';
-import type { SxProps, Theme } from '@mui/material/styles';
-import { varAlpha } from 'minimal-shared/utils';
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
+import Stack, { type StackProps } from "@mui/material/Stack";
+import type { SxProps, Theme } from "@mui/material/styles";
+import { varAlpha } from "minimal-shared/utils";
 
-import { editorClasses } from './classes';
-import { HeadingBlock } from './components/heading-block';
-import { ImageBlock } from './components/image-block';
-import { LinkBlock } from './components/link-block';
-import { ToolbarItem } from './components/toolbar-item';
-import type { EditorToolbarProps } from './types';
+import { editorClasses } from "./classes";
+import { HeadingBlock } from "./components/heading-block";
+import { ImageBlock } from "./components/image-block";
+import { LinkBlock } from "./components/link-block";
+import { ToolbarItem } from "./components/toolbar-item";
+import type { EditorToolbarProps } from "./types";
 
 // ----------------------------------------------------------------------
 
@@ -32,25 +32,31 @@ export const Toolbar = ({
 
 	const boxStyles: SxProps<Theme> = {
 		gap: 0.5,
-		display: 'flex',
+		display: "flex",
 	};
 
 	return (
 		<Stack
 			className={editorClasses.toolbar.root}
-			divider={<Divider orientation="vertical" flexItem sx={{ height: 16, my: 'auto' }} />}
+			divider={
+				<Divider
+					orientation="vertical"
+					flexItem
+					sx={{ height: 16, my: "auto" }}
+				/>
+			}
 			sx={[
 				(theme) => {
 					return {
 						gap: 1,
 						p: 1.25,
-						flexWrap: 'wrap',
-						flexDirection: 'row',
-						alignItems: 'center',
-						bgcolor: 'background.paper',
-						borderTopLeftRadius: 'inherit',
-						borderTopRightRadius: 'inherit',
-						borderBottom: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.2)}`,
+						flexWrap: "wrap",
+						flexDirection: "row",
+						alignItems: "center",
+						bgcolor: "background.paper",
+						borderTopLeftRadius: "inherit",
+						borderTopRightRadius: "inherit",
+						borderBottom: `solid 1px ${varAlpha(theme.vars.palette.grey["500Channel"], 0.2)}`,
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -63,7 +69,7 @@ export const Toolbar = ({
 			<Box sx={{ ...boxStyles }}>
 				<ToolbarItem
 					aria-label="Bold"
-					active={editor.isActive('bold')}
+					active={editor.isActive("bold")}
 					className={editorClasses.toolbar.bold}
 					onClick={() => {
 						return editor.chain().focus().toggleBold().run();
@@ -74,16 +80,18 @@ export const Toolbar = ({
 				/>
 				<ToolbarItem
 					aria-label="Italic"
-					active={editor.isActive('italic')}
+					active={editor.isActive("italic")}
 					className={editorClasses.toolbar.italic}
 					onClick={() => {
 						return editor.chain().focus().toggleItalic().run();
 					}}
-					icon={<path d="M15 20H7V18H9.92661L12.0425 6H9V4H17V6H14.0734L11.9575 18H15V20Z" />}
+					icon={
+						<path d="M15 20H7V18H9.92661L12.0425 6H9V4H17V6H14.0734L11.9575 18H15V20Z" />
+					}
 				/>
 				<ToolbarItem
 					aria-label="Underline"
-					active={editor.isActive('underline')}
+					active={editor.isActive("underline")}
 					className={editorClasses.toolbar.underline}
 					onClick={() => {
 						return editor.chain().focus().toggleUnderline().run();
@@ -94,7 +102,7 @@ export const Toolbar = ({
 				/>
 				<ToolbarItem
 					aria-label="Strike"
-					active={editor.isActive('strike')}
+					active={editor.isActive("strike")}
 					className={editorClasses.toolbar.italic}
 					onClick={() => {
 						return editor.chain().focus().toggleStrike().run();
@@ -109,7 +117,7 @@ export const Toolbar = ({
 			<Box sx={{ ...boxStyles }}>
 				<ToolbarItem
 					aria-label="Bullet list"
-					active={editor.isActive('bulletList')}
+					active={editor.isActive("bulletList")}
 					className={editorClasses.toolbar.bulletList}
 					onClick={() => {
 						return editor.chain().focus().toggleBulletList().run();
@@ -120,7 +128,7 @@ export const Toolbar = ({
 				/>
 				<ToolbarItem
 					aria-label="Ordered list"
-					active={editor.isActive('orderedList')}
+					active={editor.isActive("orderedList")}
 					className={editorClasses.toolbar.orderedList}
 					onClick={() => {
 						return editor.chain().focus().toggleOrderedList().run();
@@ -135,39 +143,47 @@ export const Toolbar = ({
 			<Box sx={{ ...boxStyles }}>
 				<ToolbarItem
 					aria-label="Align left"
-					active={editor.isActive({ textAlign: 'left' })}
+					active={editor.isActive({ textAlign: "left" })}
 					className={editorClasses.toolbar.alignLeft}
 					onClick={() => {
-						return editor.chain().focus().setTextAlign('left').run();
+						return editor.chain().focus().setTextAlign("left").run();
 					}}
-					icon={<path d="M3 4H21V6H3V4ZM3 19H17V21H3V19ZM3 14H21V16H3V14ZM3 9H17V11H3V9Z" />}
+					icon={
+						<path d="M3 4H21V6H3V4ZM3 19H17V21H3V19ZM3 14H21V16H3V14ZM3 9H17V11H3V9Z" />
+					}
 				/>
 				<ToolbarItem
 					aria-label="Align center"
-					active={editor.isActive({ textAlign: 'center' })}
+					active={editor.isActive({ textAlign: "center" })}
 					className={editorClasses.toolbar.alignCenter}
 					onClick={() => {
-						return editor.chain().focus().setTextAlign('center').run();
+						return editor.chain().focus().setTextAlign("center").run();
 					}}
-					icon={<path d="M3 4H21V6H3V4ZM5 19H19V21H5V19ZM3 14H21V16H3V14ZM5 9H19V11H5V9Z" />}
+					icon={
+						<path d="M3 4H21V6H3V4ZM5 19H19V21H5V19ZM3 14H21V16H3V14ZM5 9H19V11H5V9Z" />
+					}
 				/>
 				<ToolbarItem
 					aria-label="Align right"
-					active={editor.isActive({ textAlign: 'right' })}
+					active={editor.isActive({ textAlign: "right" })}
 					className={editorClasses.toolbar.alignRight}
 					onClick={() => {
-						return editor.chain().focus().setTextAlign('right').run();
+						return editor.chain().focus().setTextAlign("right").run();
 					}}
-					icon={<path d="M3 4H21V6H3V4ZM7 19H21V21H7V19ZM3 14H21V16H3V14ZM7 9H21V11H7V9Z" />}
+					icon={
+						<path d="M3 4H21V6H3V4ZM7 19H21V21H7V19ZM3 14H21V16H3V14ZM7 9H21V11H7V9Z" />
+					}
 				/>
 				<ToolbarItem
 					aria-label="Align justify"
-					active={editor.isActive({ textAlign: 'justify' })}
+					active={editor.isActive({ textAlign: "justify" })}
 					className={editorClasses.toolbar.alignJustify}
 					onClick={() => {
-						return editor.chain().focus().setTextAlign('justify').run();
+						return editor.chain().focus().setTextAlign("justify").run();
 					}}
-					icon={<path d="M3 4H21V6H3V4ZM3 19H21V21H3V19ZM3 14H21V16H3V14ZM3 9H21V11H3V9Z" />}
+					icon={
+						<path d="M3 4H21V6H3V4ZM3 19H21V21H3V19ZM3 14H21V16H3V14ZM3 9H21V11H3V9Z" />
+					}
 				/>
 			</Box>
 
@@ -176,7 +192,7 @@ export const Toolbar = ({
 				<Box sx={{ ...boxStyles }}>
 					<ToolbarItem
 						aria-label="Align justify"
-						active={editor.isActive('code')}
+						active={editor.isActive("code")}
 						className={editorClasses.toolbar.code}
 						onClick={() => {
 							return editor.chain().focus().toggleCode().run();
@@ -187,7 +203,7 @@ export const Toolbar = ({
 					/>
 					<ToolbarItem
 						aria-label="Align justify"
-						active={editor.isActive('codeBlock')}
+						active={editor.isActive("codeBlock")}
 						className={editorClasses.toolbar.codeBlock}
 						onClick={() => {
 							return editor.chain().focus().toggleCodeBlock().run();
@@ -204,7 +220,7 @@ export const Toolbar = ({
 				<Box sx={{ ...boxStyles }}>
 					<ToolbarItem
 						aria-label="Blockquote"
-						active={editor.isActive('blockquote')}
+						active={editor.isActive("blockquote")}
 						className={editorClasses.toolbar.blockquote}
 						onClick={() => {
 							return editor.chain().focus().toggleBlockquote().run();
@@ -219,7 +235,9 @@ export const Toolbar = ({
 						onClick={() => {
 							return editor.chain().focus().setHorizontalRule().run();
 						}}
-						icon={<path d="M2 11H4V13H2V11ZM6 11H18V13H6V11ZM20 11H22V13H20V11Z" />}
+						icon={
+							<path d="M2 11H4V13H2V11ZM6 11H18V13H6V11ZM20 11H22V13H20V11Z" />
+						}
 					/>
 				</Box>
 			)}

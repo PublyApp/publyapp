@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { styled } from '@mui/material/styles';
-import Tooltip from '@mui/material/Tooltip';
-import { mergeClasses } from 'minimal-shared/utils';
+import { styled } from "@mui/material/styles";
+import Tooltip from "@mui/material/Tooltip";
+import { mergeClasses } from "minimal-shared/utils";
 
-import { DownloadButton, RemoveButton } from './action-buttons';
-import { fileThumbnailClasses } from './classes';
-import type { FileThumbnailProps } from './types';
-import { fileData, fileFormat, fileThumb } from './utils';
+import { DownloadButton, RemoveButton } from "./action-buttons";
+import { fileThumbnailClasses } from "./classes";
+import type { FileThumbnailProps } from "./types";
+import { fileData, fileFormat, fileThumb } from "./utils";
 
 // ----------------------------------------------------------------------
 
@@ -21,27 +21,55 @@ export const FileThumbnail = ({
 	className,
 	...other
 }: FileThumbnailProps) => {
-	const { icon, removeBtn, downloadBtn, tooltip: tooltipProps } = slotProps ?? {};
+	const {
+		icon,
+		removeBtn,
+		downloadBtn,
+		tooltip: tooltipProps,
+	} = slotProps ?? {};
 
 	const { name, path } = fileData(file);
 
-	const previewUrl = typeof file === 'string' ? file : URL.createObjectURL(file);
+	const previewUrl =
+		typeof file === "string" ? file : URL.createObjectURL(file);
 
 	const format = fileFormat(path ?? previewUrl);
 
 	const renderItem = () => {
 		return (
-			<ItemRoot className={mergeClasses([fileThumbnailClasses.root, className])} sx={sx} {...other}>
-				{format === 'image' && imageView ? (
-					<ItemImg src={previewUrl} className={fileThumbnailClasses.img} {...slotProps?.img} />
+			<ItemRoot
+				className={mergeClasses([fileThumbnailClasses.root, className])}
+				sx={sx}
+				{...other}
+			>
+				{format === "image" && imageView ? (
+					<ItemImg
+						src={previewUrl}
+						className={fileThumbnailClasses.img}
+						{...slotProps?.img}
+					/>
 				) : (
-					<ItemIcon src={fileThumb(format)} className={fileThumbnailClasses.icon} {...icon} />
+					<ItemIcon
+						src={fileThumb(format)}
+						className={fileThumbnailClasses.icon}
+						{...icon}
+					/>
 				)}
 
-				{onRemove && <RemoveButton onClick={onRemove} className={fileThumbnailClasses.removeBtn} {...removeBtn} />}
+				{onRemove && (
+					<RemoveButton
+						onClick={onRemove}
+						className={fileThumbnailClasses.removeBtn}
+						{...removeBtn}
+					/>
+				)}
 
 				{onDownload && (
-					<DownloadButton onClick={onDownload} className={fileThumbnailClasses.downloadBtn} {...downloadBtn} />
+					<DownloadButton
+						onClick={onDownload}
+						className={fileThumbnailClasses.downloadBtn}
+						{...downloadBtn}
+					/>
 				)}
 			</ItemRoot>
 		);
@@ -58,7 +86,7 @@ export const FileThumbnail = ({
 					popper: {
 						modifiers: [
 							{
-								name: 'offset',
+								name: "offset",
 								options: { offset: [0, -12] },
 							},
 						],
@@ -76,31 +104,31 @@ export const FileThumbnail = ({
 
 // ----------------------------------------------------------------------
 
-const ItemRoot = styled('span')(({ theme }) => {
+const ItemRoot = styled("span")(({ theme }) => {
 	return {
 		width: 36,
 		height: 36,
 		flexShrink: 0,
-		alignItems: 'center',
-		position: 'relative',
-		display: 'inline-flex',
-		justifyContent: 'center',
+		alignItems: "center",
+		position: "relative",
+		display: "inline-flex",
+		justifyContent: "center",
 		borderRadius: theme.shape.borderRadius * 1.25,
 	};
 });
 
-const ItemIcon = styled('img')(() => {
+const ItemIcon = styled("img")(() => {
 	return {
-		width: '100%',
-		height: '100%',
+		width: "100%",
+		height: "100%",
 	};
 });
 
-const ItemImg = styled('img')(() => {
+const ItemImg = styled("img")(() => {
 	return {
-		width: '100%',
-		height: '100%',
-		objectFit: 'cover',
-		borderRadius: 'inherit',
+		width: "100%",
+		height: "100%",
+		objectFit: "cover",
+		borderRadius: "inherit",
 	};
 });

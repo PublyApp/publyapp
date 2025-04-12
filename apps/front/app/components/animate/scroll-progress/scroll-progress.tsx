@@ -1,32 +1,52 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { Fragment } from 'react';
+import { Fragment } from "react";
 
-import Box, { type BoxProps } from '@mui/material/Box';
-import Portal from '@mui/material/Portal';
-import { styled, useTheme, type SxProps, type Theme } from '@mui/material/styles';
-import { m, useSpring, useTransform, type MotionProps, type MotionValue } from 'framer-motion';
-import { mergeClasses } from 'minimal-shared/utils';
+import Box, { type BoxProps } from "@mui/material/Box";
+import Portal from "@mui/material/Portal";
+import {
+	styled,
+	useTheme,
+	type SxProps,
+	type Theme,
+} from "@mui/material/styles";
+import {
+	m,
+	useSpring,
+	useTransform,
+	type MotionProps,
+	type MotionValue,
+} from "framer-motion";
+import { mergeClasses } from "minimal-shared/utils";
 
-import { createClasses } from '@/front/lib/mui/theme/create-classes';
+import { createClasses } from "@/front/lib/mui/theme/create-classes";
 
 // ----------------------------------------------------------------------
 
 export const scrollProgressClasses = {
-	circular: createClasses('scroll__progress__circular'),
-	linear: createClasses('scroll__progress__linear'),
+	circular: createClasses("scroll__progress__circular"),
+	linear: createClasses("scroll__progress__linear"),
 };
 
-type BaseProps = MotionProps & React.ComponentProps<'svg'> & React.ComponentProps<'div'>;
+type BaseProps = MotionProps &
+	React.ComponentProps<"svg"> &
+	React.ComponentProps<"div">;
 
 export interface ScrollProgressProps extends BaseProps {
 	size?: number;
 	portal?: boolean;
 	thickness?: number;
 	sx?: SxProps<Theme>;
-	whenScroll?: 'x' | 'y';
+	whenScroll?: "x" | "y";
 	progress: MotionValue<number>;
-	variant: 'linear' | 'circular';
-	color?: 'inherit' | 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error';
+	variant: "linear" | "circular";
+	color?:
+		| "inherit"
+		| "primary"
+		| "secondary"
+		| "info"
+		| "success"
+		| "warning"
+		| "error";
 	slotProps?: {
 		wrapper?: BoxProps;
 	};
@@ -40,22 +60,27 @@ export const ScrollProgress = ({
 	slotProps,
 	className,
 	thickness = 3.6,
-	whenScroll = 'y',
-	color = 'primary',
+	whenScroll = "y",
+	color = "primary",
 	progress: progressProps,
 	...other
 }: ScrollProgressProps) => {
 	const theme = useTheme();
 
-	const isRtl = theme.direction === 'rtl';
+	const isRtl = theme.direction === "rtl";
 
 	const transformProgress = useTransform(progressProps, [0, -1], [0, 1]);
 
-	const progress = isRtl && whenScroll === 'x' ? transformProgress : progressProps;
+	const progress =
+		isRtl && whenScroll === "x" ? transformProgress : progressProps;
 
-	const scaleX = useSpring(progress, { stiffness: 100, damping: 30, restDelta: 0.001 });
+	const scaleX = useSpring(progress, {
+		stiffness: 100,
+		damping: 30,
+		restDelta: 0.001,
+	});
 
-	const progressSize = variant === 'circular' ? size ?? 64 : size ?? 3;
+	const progressSize = variant === "circular" ? size ?? 64 : size ?? 3;
 
 	const renderCircular = () => {
 		return (
@@ -67,7 +92,9 @@ export const ScrollProgress = ({
 					{
 						width: progressSize,
 						height: progressSize,
-						...(color !== 'inherit' && { color: theme.vars.palette[color].main }),
+						...(color !== "inherit" && {
+							color: theme.vars.palette[color].main,
+						}),
 					},
 					...(Array.isArray(sx) ? sx : [sx]),
 				]}
@@ -99,7 +126,7 @@ export const ScrollProgress = ({
 				sx={[
 					{
 						height: progressSize,
-						...(color !== 'inherit' && {
+						...(color !== "inherit" && {
 							background: `linear-gradient(135deg, ${theme.vars.palette[color].light}, ${theme.vars.palette[color].main})`,
 						}),
 					},
@@ -115,7 +142,9 @@ export const ScrollProgress = ({
 
 	return (
 		<PortalWrapper>
-			<Box {...slotProps?.wrapper}>{variant === 'circular' ? renderCircular() : renderLinear()}</Box>
+			<Box {...slotProps?.wrapper}>
+				{variant === "circular" ? renderCircular() : renderLinear()}
+			</Box>
 		</PortalWrapper>
 	);
 };
@@ -124,9 +153,9 @@ export const ScrollProgress = ({
 
 const CircularRoot = styled(m.svg)(({ theme }) => {
 	return {
-		transform: 'rotate(-90deg)',
+		transform: "rotate(-90deg)",
 		color: theme.vars.palette.text.primary,
-		circle: { fill: 'none', strokeDashoffset: 0, stroke: 'currentColor' },
+		circle: { fill: "none", strokeDashoffset: 0, stroke: "currentColor" },
 	};
 });
 
@@ -135,7 +164,7 @@ const LinearRoot = styled(m.div)(({ theme }) => {
 		top: 0,
 		left: 0,
 		right: 0,
-		transformOrigin: '0%',
+		transformOrigin: "0%",
 		backgroundColor: theme.vars.palette.text.primary,
 	};
 });

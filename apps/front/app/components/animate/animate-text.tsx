@@ -1,45 +1,51 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from "react";
 
-import { styled, type SxProps, type Theme } from '@mui/material/styles';
-import Typography, { type TypographyProps } from '@mui/material/Typography';
-import { m, useAnimation, useInView, type UseInViewOptions, type Variants } from 'framer-motion';
-import { mergeClasses } from 'minimal-shared/utils';
+import { styled, type SxProps, type Theme } from "@mui/material/styles";
+import Typography, { type TypographyProps } from "@mui/material/Typography";
+import {
+	m,
+	useAnimation,
+	useInView,
+	type UseInViewOptions,
+	type Variants,
+} from "framer-motion";
+import { mergeClasses } from "minimal-shared/utils";
 
-import { createClasses } from '@/front/lib/mui/theme/create-classes';
+import { createClasses } from "@/front/lib/mui/theme/create-classes";
 
-import { varContainer, varFade } from './variants';
+import { varContainer, varFade } from "./variants";
 
 // ----------------------------------------------------------------------
 
 export const animateTextClasses = {
-	root: createClasses('animate__text__root'),
-	lines: createClasses('animate__text__lines'),
-	line: createClasses('animate__text__line'),
-	word: createClasses('animate__text__word'),
-	char: createClasses('animate__text__char'),
-	space: createClasses('animate__text__space'),
-	srOnly: 'sr-only',
+	root: createClasses("animate__text__root"),
+	lines: createClasses("animate__text__lines"),
+	line: createClasses("animate__text__line"),
+	word: createClasses("animate__text__word"),
+	char: createClasses("animate__text__char"),
+	space: createClasses("animate__text__space"),
+	srOnly: "sr-only",
 };
 
 const srOnlyStyles: SxProps<Theme> = {
 	p: 0,
-	width: '1px',
-	height: '1px',
-	margin: '-1px',
+	width: "1px",
+	height: "1px",
+	margin: "-1px",
 	borderWidth: 0,
-	overflow: 'hidden',
-	position: 'absolute',
-	whiteSpace: 'nowrap',
-	clip: 'rect(0, 0, 0, 0)',
+	overflow: "hidden",
+	position: "absolute",
+	whiteSpace: "nowrap",
+	clip: "rect(0, 0, 0, 0)",
 };
 
 export type AnimateTextProps = TypographyProps & {
 	variants?: Variants;
 	repeatDelayMs?: number;
 	textContent: string | string[];
-	once?: UseInViewOptions['once'];
-	amount?: UseInViewOptions['amount'];
+	once?: UseInViewOptions["once"];
+	amount?: UseInViewOptions["amount"];
 };
 
 export const AnimateText = ({
@@ -49,7 +55,7 @@ export const AnimateText = ({
 	textContent,
 	once = true,
 	amount = 1 / 3,
-	component = 'p',
+	component = "p",
 	repeatDelayMs = 100, // 1000 = 1s
 	...other
 }: AnimateTextProps) => {
@@ -69,18 +75,18 @@ export const AnimateText = ({
 		const triggerAnimation = () => {
 			if (repeatDelayMs) {
 				timeout = setTimeout(async () => {
-					await animationControls.start('initial');
-					animationControls.start('animate');
+					await animationControls.start("initial");
+					animationControls.start("animate");
 				}, repeatDelayMs);
 			} else {
-				animationControls.start('animate');
+				animationControls.start("animate");
 			}
 		};
 
 		if (isInView) {
 			triggerAnimation();
 		} else {
-			animationControls.start('initial');
+			animationControls.start("initial");
 		}
 
 		return () => {
@@ -106,7 +112,7 @@ export const AnimateText = ({
 			]}
 			{...other}
 		>
-			<span className={animateTextClasses.srOnly}>{textArray.join(' ')}</span>
+			<span className={animateTextClasses.srOnly}>{textArray.join(" ")}</span>
 
 			<AnimatedTextContainer
 				ref={textRef}
@@ -124,10 +130,11 @@ export const AnimateText = ({
 							key={`${line}-${lineIndex}`}
 							data-index={lineIndex}
 							className={animateTextClasses.line}
-							sx={{ display: 'block' }}
+							sx={{ display: "block" }}
 						>
-							{line.split(' ').map((word, wordIndex) => {
-								const lastWordInline = line.split(' ')[line.split(' ').length - 1];
+							{line.split(" ").map((word, wordIndex) => {
+								const lastWordInline =
+									line.split(" ")[line.split(" ").length - 1];
 
 								return (
 									<TextWord
@@ -135,17 +142,17 @@ export const AnimateText = ({
 										key={`${word}-${wordIndex}`}
 										data-index={wordIndex}
 										className={animateTextClasses.word}
-										sx={{ display: 'inline-block' }}
+										sx={{ display: "inline-block" }}
 									>
-										{word.split('').map((char, charIndex) => {
+										{word.split("").map((char, charIndex) => {
 											return (
 												<AnimatedTextChar
 													// eslint-disable-next-line react/no-array-index-key
 													key={`${char}-${charIndex}`}
-													variants={variants ?? varFade('in')}
+													variants={variants ?? varFade("in")}
 													data-index={charIndex}
 													className={animateTextClasses.char}
-													sx={{ display: 'inline-block' }}
+													sx={{ display: "inline-block" }}
 												>
 													{char}
 												</AnimatedTextChar>
@@ -153,7 +160,10 @@ export const AnimateText = ({
 										})}
 
 										{lastWordInline !== word && (
-											<TextWord className={animateTextClasses.space} sx={{ display: 'inline-block' }}>
+											<TextWord
+												className={animateTextClasses.space}
+												sx={{ display: "inline-block" }}
+											>
 												&nbsp;
 											</TextWord>
 										)}
@@ -170,9 +180,9 @@ export const AnimateText = ({
 
 // ----------------------------------------------------------------------
 
-const TextLine = styled('span')``;
+const TextLine = styled("span")``;
 
-const TextWord = styled('span')``;
+const TextWord = styled("span")``;
 
 const AnimatedTextContainer = styled(m.span)``;
 

@@ -1,16 +1,16 @@
-import { fAdd, fSub } from '@/front/utils/format-time';
+import { fAdd, fSub } from "@/front/utils/format-time";
 
-import { _mock } from './_mock';
-import { _addressBooks } from './_others';
-import { _tags } from './assets';
+import { _mock } from "./_mock";
+import { _addressBooks } from "./_others";
+import { _tags } from "./assets";
 
 // ----------------------------------------------------------------------
 
 export const INVOICE_STATUS_OPTIONS = [
-	{ value: 'paid', label: 'Paid' },
-	{ value: 'pending', label: 'Pending' },
-	{ value: 'overdue', label: 'Overdue' },
-	{ value: 'draft', label: 'Draft' },
+	{ value: "paid", label: "Paid" },
+	{ value: "pending", label: "Pending" },
+	{ value: "overdue", label: "Overdue" },
+	{ value: "draft", label: "Draft" },
 ];
 
 export const INVOICE_SERVICE_OPTIONS = Array.from({ length: 8 }, (_, index) => {
@@ -22,7 +22,8 @@ export const INVOICE_SERVICE_OPTIONS = Array.from({ length: 8 }, (_, index) => {
 });
 
 const ITEMS = Array.from({ length: 3 }, (__, index) => {
-	const total = INVOICE_SERVICE_OPTIONS[index].price * _mock.number.nativeS(index);
+	const total =
+		INVOICE_SERVICE_OPTIONS[index].price * _mock.number.nativeS(index);
 
 	return {
 		id: _mock.id(index),
@@ -49,7 +50,11 @@ export const _invoices = Array.from({ length: 20 }, (_, index) => {
 
 	const totalAmount = subtotal - shipping - discount + taxes;
 
-	const status = (index % 2 && 'paid') || (index % 3 && 'pending') || (index % 4 && 'overdue') || 'draft';
+	const status =
+		(index % 2 && "paid") ||
+		(index % 3 && "pending") ||
+		(index % 4 && "overdue") ||
+		"draft";
 
 	return {
 		id: _mock.id(index),

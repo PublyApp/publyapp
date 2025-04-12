@@ -1,16 +1,16 @@
-import { useCallback } from 'react';
+import { useCallback } from "react";
 
-import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
-import MenuItem from '@mui/material/MenuItem';
-import MenuList from '@mui/material/MenuList';
-import { m } from 'framer-motion';
-import { usePopover } from 'minimal-shared/hooks';
+import IconButton, { type IconButtonProps } from "@mui/material/IconButton";
+import MenuItem from "@mui/material/MenuItem";
+import MenuList from "@mui/material/MenuList";
+import { m } from "framer-motion";
+import { usePopover } from "minimal-shared/hooks";
 
-import { transitionTap, varHover, varTap } from '@/front/components/animate';
-import { CustomPopover } from '@/front/components/custom-popover';
-import { FlagIcon } from '@/front/components/flag-icon';
-import { useTranslate } from '@/front/hooks/use-translate';
-import type { AppLocale } from '@/shared/lib/i18n/resources';
+import { transitionTap, varHover, varTap } from "@/front/components/animate";
+import { CustomPopover } from "@/front/components/custom-popover";
+import { FlagIcon } from "@/front/components/flag-icon";
+import { useTranslate } from "@/front/hooks/use-translate";
+import type { AppLocale } from "@/shared/lib/i18n/resources";
 
 // ----------------------------------------------------------------------
 
@@ -22,7 +22,11 @@ export type LanguagePopoverProps = IconButtonProps & {
 	}[];
 };
 
-export const LanguagePopover = ({ data = [], sx, ...other }: LanguagePopoverProps) => {
+export const LanguagePopover = ({
+	data = [],
+	sx,
+	...other
+}: LanguagePopoverProps) => {
 	const { open, anchorEl, onClose, onOpen } = usePopover();
 
 	const { onChangeLang, currentLang } = useTranslate();

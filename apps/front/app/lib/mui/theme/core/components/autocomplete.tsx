@@ -1,7 +1,10 @@
-import { autocompleteClasses } from '@mui/material/Autocomplete';
-import type { Components, Theme } from '@mui/material/styles';
-import SvgIcon, { svgIconClasses, type SvgIconProps } from '@mui/material/SvgIcon';
-import { varAlpha } from 'minimal-shared/utils';
+import { autocompleteClasses } from "@mui/material/Autocomplete";
+import type { Components, Theme } from "@mui/material/styles";
+import SvgIcon, {
+	svgIconClasses,
+	type SvgIconProps,
+} from "@mui/material/SvgIcon";
+import { varAlpha } from "minimal-shared/utils";
 
 // ----------------------------------------------------------------------
 
@@ -22,7 +25,7 @@ const ArrowDownIcon = (props: SvgIconProps) => {
 
 // ----------------------------------------------------------------------
 
-const MuiAutocomplete: Components<Theme>['MuiAutocomplete'] = {
+const MuiAutocomplete: Components<Theme>["MuiAutocomplete"] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
@@ -38,12 +41,15 @@ const MuiAutocomplete: Components<Theme>['MuiAutocomplete'] = {
 					...theme.typography.subtitle2,
 					height: 24,
 					minWidth: 24,
-					lineHeight: '24px',
-					textAlign: 'center',
+					lineHeight: "24px",
+					textAlign: "center",
 					padding: theme.spacing(0, 0.75),
 					color: theme.vars.palette.text.secondary,
 					borderRadius: theme.shape.borderRadius,
-					backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+					backgroundColor: varAlpha(
+						theme.vars.palette.grey["500Channel"],
+						0.16,
+					),
 				},
 			};
 		},
@@ -53,7 +59,9 @@ const MuiAutocomplete: Components<Theme>['MuiAutocomplete'] = {
 		listbox: ({ theme }) => {
 			return {
 				padding: 0,
-				[`& .${autocompleteClasses.option}`]: { ...theme.mixins.menuItemStyles(theme) },
+				[`& .${autocompleteClasses.option}`]: {
+					...theme.mixins.menuItemStyles(theme),
+				},
 			};
 		},
 		endAdornment: { [`& .${svgIconClasses.root}`]: { width: 18, height: 18 } },

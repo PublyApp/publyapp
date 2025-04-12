@@ -1,35 +1,35 @@
-import '@pigment-css/react/styles.css'; // import Pigment CSS styles/variables
+import "@pigment-css/react/styles.css"; // import Pigment CSS styles/variables
 
-import './styles/main.css';
+import "./styles/main.css";
 
-import { QueryClientProvider } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
-import { useChangeLanguage } from 'remix-i18next/react';
+import { QueryClientProvider } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { useChangeLanguage } from "remix-i18next/react";
 
-import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
-import { APP_NAME } from '@/shared/lib/constants';
+import { ErrorBoundary as TemplateErrorBoundary } from "@/front/components/error-boundary";
+import { APP_NAME } from "@/shared/lib/constants";
 
-import type { Route } from './+types/root';
-import { MotionLazy } from './components/animate/motion-lazy';
-import { View500 } from './components/error/500-view';
-import { SettingsDrawer } from './components/settings/drawer';
-import { defaultSettings } from './components/settings/settings-config';
-import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
-import { defaultQueryClient } from './lib/react-query/queryClient';
-import { getServerLoader } from './lib/react-router/server.data';
+import type { Route } from "./+types/root";
+import { MotionLazy } from "./components/animate/motion-lazy";
+import { View500 } from "./components/error/500-view";
+import { SettingsDrawer } from "./components/settings/drawer";
+import { defaultSettings } from "./components/settings/settings-config";
+import { MuiThemeProvider } from "./lib/mui/theme/theme-provider";
+import { defaultQueryClient } from "./lib/react-query/queryClient";
+import { getServerLoader } from "./lib/react-router/server.data";
 
 export const links: Route.LinksFunction = () => {
 	return [
-		{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+		{ rel: "preconnect", href: "https://fonts.googleapis.com" },
 		{
-			rel: 'preconnect',
-			href: 'https://fonts.gstatic.com',
-			crossOrigin: 'anonymous',
+			rel: "preconnect",
+			href: "https://fonts.gstatic.com",
+			crossOrigin: "anonymous",
 		},
 		{
-			rel: 'stylesheet',
-			href: 'https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap',
+			rel: "stylesheet",
+			href: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap",
 		},
 	];
 };
@@ -37,7 +37,10 @@ export const links: Route.LinksFunction = () => {
 export const meta = (_: Route.MetaArgs) => {
 	return [
 		{ title: `${APP_NAME}: The PDF API` },
-		{ name: 'description', content: 'The API for converting your HTML into PDF that just works!!' },
+		{
+			name: "description",
+			content: "The API for converting your HTML into PDF that just works!!",
+		},
 	];
 };
 

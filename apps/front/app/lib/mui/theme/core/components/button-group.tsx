@@ -1,6 +1,14 @@
-import { buttonGroupClasses, type ButtonGroupProps } from '@mui/material/ButtonGroup';
-import type { Components, ComponentsVariants, CSSObject, Theme } from '@mui/material/styles';
-import { varAlpha } from 'minimal-shared/utils';
+import {
+	buttonGroupClasses,
+	type ButtonGroupProps,
+} from "@mui/material/ButtonGroup";
+import type {
+	Components,
+	ComponentsVariants,
+	CSSObject,
+	Theme,
+} from "@mui/material/styles";
+import { varAlpha } from "minimal-shared/utils";
 
 // ----------------------------------------------------------------------
 
@@ -15,13 +23,23 @@ export type ButtonGroupExtendVariant = {
 
 // ----------------------------------------------------------------------
 
-const COLORS = ['primary', 'secondary', 'info', 'success', 'warning', 'error'] as const;
+const COLORS = [
+	"primary",
+	"secondary",
+	"info",
+	"success",
+	"warning",
+	"error",
+] as const;
 
 type PaletteColor = (typeof COLORS)[number];
 
 // ----------------------------------------------------------------------
 
-const styleColors = (ownerState: ButtonGroupProps, styles: (val: PaletteColor) => CSSObject) => {
+const styleColors = (
+	ownerState: ButtonGroupProps,
+	styles: (val: PaletteColor) => CSSObject,
+) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (!ownerState.disabled && ownerState.color === color) {
 			// eslint-disable-next-line no-param-reassign
@@ -36,63 +54,80 @@ const styleColors = (ownerState: ButtonGroupProps, styles: (val: PaletteColor) =
 
 const buttonClasses = `& .${buttonGroupClasses.firstButton}, & .${buttonGroupClasses.middleButton}`;
 
-const softVariant: Record<string, ComponentsVariants<Theme>['MuiButtonGroup']> = {
-	colors: COLORS.map((color) => {
-		return {
-			props: ({ ownerState }) => {
-				return !ownerState.disabled && ownerState.variant === 'soft' && ownerState.color === color;
-			},
-			style: ({ theme }) => {
-				return {
-					[buttonClasses]: {
-						borderColor: varAlpha(theme.vars.palette[color].darkChannel, 0.24),
-						...theme.applyStyles('dark', {
-							borderColor: varAlpha(theme.vars.palette[color].lightChannel, 0.24),
-						}),
-					},
-					[`&.${buttonGroupClasses.vertical}`]: {
+const softVariant: Record<string, ComponentsVariants<Theme>["MuiButtonGroup"]> =
+	{
+		colors: COLORS.map((color) => {
+			return {
+				props: ({ ownerState }) => {
+					return (
+						!ownerState.disabled &&
+						ownerState.variant === "soft" &&
+						ownerState.color === color
+					);
+				},
+				style: ({ theme }) => {
+					return {
 						[buttonClasses]: {
-							borderColor: varAlpha(theme.vars.palette[color].darkChannel, 0.24),
-							...theme.applyStyles('dark', {
-								borderColor: varAlpha(theme.vars.palette[color].lightChannel, 0.24),
+							borderColor: varAlpha(
+								theme.vars.palette[color].darkChannel,
+								0.24,
+							),
+							...theme.applyStyles("dark", {
+								borderColor: varAlpha(
+									theme.vars.palette[color].lightChannel,
+									0.24,
+								),
 							}),
 						},
-					},
-				};
-			},
-		};
-	}),
-	base: [
-		{
-			props: ({ ownerState }) => {
-				return ownerState.variant === 'soft';
-			},
-			style: ({ theme }) => {
-				return {
-					[buttonClasses]: {
-						borderRight: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.32)}`,
-						[`&.${buttonGroupClasses.disabled}`]: {
-							borderColor: theme.vars.palette.action.disabledBackground,
+						[`&.${buttonGroupClasses.vertical}`]: {
+							[buttonClasses]: {
+								borderColor: varAlpha(
+									theme.vars.palette[color].darkChannel,
+									0.24,
+								),
+								...theme.applyStyles("dark", {
+									borderColor: varAlpha(
+										theme.vars.palette[color].lightChannel,
+										0.24,
+									),
+								}),
+							},
 						},
-					},
-					[`&.${buttonGroupClasses.vertical}`]: {
+					};
+				},
+			};
+		}),
+		base: [
+			{
+				props: ({ ownerState }) => {
+					return ownerState.variant === "soft";
+				},
+				style: ({ theme }) => {
+					return {
 						[buttonClasses]: {
-							borderRight: 'none',
-							borderBottom: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.32)}`,
+							borderRight: `solid 1px ${varAlpha(theme.vars.palette.grey["500Channel"], 0.32)}`,
 							[`&.${buttonGroupClasses.disabled}`]: {
 								borderColor: theme.vars.palette.action.disabledBackground,
 							},
 						},
-					},
-				};
+						[`&.${buttonGroupClasses.vertical}`]: {
+							[buttonClasses]: {
+								borderRight: "none",
+								borderBottom: `solid 1px ${varAlpha(theme.vars.palette.grey["500Channel"], 0.32)}`,
+								[`&.${buttonGroupClasses.disabled}`]: {
+									borderColor: theme.vars.palette.action.disabledBackground,
+								},
+							},
+						},
+					};
+				},
 			},
-		},
-	],
-};
+		],
+	};
 
 // ----------------------------------------------------------------------
 
-const MuiButtonGroup: Components<Theme>['MuiButtonGroup'] = {
+const MuiButtonGroup: Components<Theme>["MuiButtonGroup"] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
@@ -118,12 +153,22 @@ const MuiButtonGroup: Components<Theme>['MuiButtonGroup'] = {
 			const styled = {
 				colors: styleColors(ownerState, (color) => {
 					return {
-						[buttonClasses]: { borderColor: varAlpha(theme.vars.palette[color].darkChannel, 0.48) },
+						[buttonClasses]: {
+							borderColor: varAlpha(
+								theme.vars.palette[color].darkChannel,
+								0.48,
+							),
+						},
 					};
 				}),
 				inheritColor: {
-					...(ownerState.color === 'inherit' && {
-						[buttonClasses]: { borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.32) },
+					...(ownerState.color === "inherit" && {
+						[buttonClasses]: {
+							borderColor: varAlpha(
+								theme.vars.palette.grey["500Channel"],
+								0.32,
+							),
+						},
 					}),
 				},
 				disabled: {
@@ -145,9 +190,9 @@ const MuiButtonGroup: Components<Theme>['MuiButtonGroup'] = {
 		outlined: ({ theme, ownerState }) => {
 			const styled = {
 				inheritColor: {
-					...(ownerState.color === 'inherit' && {
+					...(ownerState.color === "inherit" && {
 						[`& .${buttonGroupClasses.grouped}`]: {
-							'&:hover': { borderColor: theme.vars.palette.text.primary },
+							"&:hover": { borderColor: theme.vars.palette.text.primary },
 						},
 					}),
 				},
@@ -162,12 +207,22 @@ const MuiButtonGroup: Components<Theme>['MuiButtonGroup'] = {
 			const styled = {
 				colors: styleColors(ownerState, (color) => {
 					return {
-						[buttonClasses]: { borderColor: varAlpha(theme.vars.palette[color].mainChannel, 0.48) },
+						[buttonClasses]: {
+							borderColor: varAlpha(
+								theme.vars.palette[color].mainChannel,
+								0.48,
+							),
+						},
 					};
 				}),
 				inheritColor: {
-					...(ownerState.color === 'inherit' && {
-						[buttonClasses]: { borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.32) },
+					...(ownerState.color === "inherit" && {
+						[buttonClasses]: {
+							borderColor: varAlpha(
+								theme.vars.palette.grey["500Channel"],
+								0.32,
+							),
+						},
 					}),
 				},
 				disabled: {

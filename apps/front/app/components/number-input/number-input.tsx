@@ -1,15 +1,22 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { useCallback, useId } from 'react';
+import { useCallback, useId } from "react";
 
-import Box, { type BoxProps } from '@mui/material/Box';
-import type { ButtonBaseProps } from '@mui/material/ButtonBase';
-import type { FormHelperTextProps } from '@mui/material/FormHelperText';
-import type { InputBaseProps } from '@mui/material/InputBase';
-import { varAlpha } from 'minimal-shared/utils';
+import Box, { type BoxProps } from "@mui/material/Box";
+import type { ButtonBaseProps } from "@mui/material/ButtonBase";
+import type { FormHelperTextProps } from "@mui/material/FormHelperText";
+import type { InputBaseProps } from "@mui/material/InputBase";
+import { varAlpha } from "minimal-shared/utils";
 
-import { Iconify } from '../iconify/iconify';
+import { Iconify } from "../iconify/iconify";
 
-import { CaptionText, CenteredInput, CounterButton, HelperText, InputContainer, NumberInputRoot } from './styles';
+import {
+	CaptionText,
+	CenteredInput,
+	CounterButton,
+	HelperText,
+	InputContainer,
+	NumberInputRoot,
+} from "./styles";
 
 // ----------------------------------------------------------------------
 
@@ -22,9 +29,14 @@ type NumberInputSlotProps = {
 	helperText?: FormHelperTextProps;
 };
 
-type EventHandler = React.MouseEvent<HTMLButtonElement, MouseEvent> | React.ChangeEvent<HTMLInputElement>;
+type EventHandler =
+	| React.MouseEvent<HTMLButtonElement, MouseEvent>
+	| React.ChangeEvent<HTMLInputElement>;
 
-export type NumberInputProps = Omit<React.ComponentProps<typeof NumberInputRoot>, 'onChange'> & {
+export type NumberInputProps = Omit<
+	React.ComponentProps<typeof NumberInputRoot>,
+	"onChange"
+> & {
 	min?: number;
 	max?: number;
 	error?: boolean;
@@ -82,7 +94,10 @@ export const NumberInput = ({
 
 	const handleChange = useCallback(
 		(event: React.ChangeEvent<HTMLInputElement>) => {
-			const transformedValue = transformNumberOnChange(event.target.value, { min, max });
+			const transformedValue = transformNumberOnChange(event.target.value, {
+				min,
+				max,
+			});
 			onChange?.(event, transformedValue);
 		},
 		[max, min, onChange],
@@ -94,14 +109,17 @@ export const NumberInput = ({
 				sx={[
 					(theme) => {
 						return {
-							'--border-color': varAlpha(theme.vars.palette.grey['500Channel'], 0.2),
-							'--vertical-divider-color': hideDivider
-								? 'transparent'
-								: varAlpha(theme.vars.palette.grey['500Channel'], 0.2),
-							'--input-background':
+							"--border-color": varAlpha(
+								theme.vars.palette.grey["500Channel"],
+								0.2,
+							),
+							"--vertical-divider-color": hideDivider
+								? "transparent"
+								: varAlpha(theme.vars.palette.grey["500Channel"], 0.2),
+							"--input-background":
 								!disabled && error
 									? varAlpha(theme.vars.palette.error.mainChannel, 0.08)
-									: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+									: varAlpha(theme.vars.palette.grey["500Channel"], 0.08),
 						};
 					},
 					...(Array.isArray(sx) ? sx : [sx]),
@@ -109,7 +127,11 @@ export const NumberInput = ({
 				{...other}
 			>
 				{!hideButtons && (
-					<CounterButton disabled={isDecrementDisabled} onClick={handleDecrement} {...slotProps?.button}>
+					<CounterButton
+						disabled={isDecrementDisabled}
+						onClick={handleDecrement}
+						{...slotProps?.button}
+					>
 						<Iconify width={16} icon="mingcute:minimize-line" />
 					</CounterButton>
 				)}
@@ -123,11 +145,17 @@ export const NumberInput = ({
 						{...slotProps?.input}
 					/>
 
-					{captionText && <CaptionText {...slotProps?.captionText}>{captionText}</CaptionText>}
+					{captionText && (
+						<CaptionText {...slotProps?.captionText}>{captionText}</CaptionText>
+					)}
 				</InputContainer>
 
 				{!hideButtons && (
-					<CounterButton disabled={isIncrementDisabled} onClick={handleIncrement} {...slotProps?.button}>
+					<CounterButton
+						disabled={isIncrementDisabled}
+						onClick={handleIncrement}
+						{...slotProps?.button}
+					>
 						<Iconify width={16} icon="mingcute:add-line" />
 					</CounterButton>
 				)}
@@ -144,10 +172,13 @@ export const NumberInput = ({
 
 // ----------------------------------------------------------------------
 
-export const transformNumberOnChange = (value: string, options?: { min?: number; max?: number }): number => {
+export const transformNumberOnChange = (
+	value: string,
+	options?: { min?: number; max?: number },
+): number => {
 	const { min = 0, max = 9999 } = options ?? {};
 
-	if (!value || value.trim() === '') {
+	if (!value || value.trim() === "") {
 		return 0;
 	}
 

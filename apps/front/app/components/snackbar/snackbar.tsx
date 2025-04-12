@@ -1,9 +1,9 @@
-import Portal from '@mui/material/Portal';
+import Portal from "@mui/material/Portal";
 
-import { Iconify } from '../iconify/iconify';
+import { Iconify } from "../iconify/iconify";
 
-import { snackbarClasses } from './classes';
-import { SnackbarRoot } from './styles';
+import { snackbarClasses } from "./classes";
+import { SnackbarRoot } from "./styles";
 
 // ----------------------------------------------------------------------
 
@@ -41,10 +41,30 @@ export const Snackbar = () => {
 				}}
 				icons={{
 					loading: <span className={snackbarClasses.loadingIcon} />,
-					info: <Iconify className={snackbarClasses.iconSvg} icon="solar:info-circle-bold" />,
-					success: <Iconify className={snackbarClasses.iconSvg} icon="solar:check-circle-bold" />,
-					warning: <Iconify className={snackbarClasses.iconSvg} icon="solar:danger-triangle-bold" />,
-					error: <Iconify className={snackbarClasses.iconSvg} icon="solar:danger-bold" />,
+					info: (
+						<Iconify
+							className={snackbarClasses.iconSvg}
+							icon="solar:info-circle-bold"
+						/>
+					),
+					success: (
+						<Iconify
+							className={snackbarClasses.iconSvg}
+							icon="solar:check-circle-bold"
+						/>
+					),
+					warning: (
+						<Iconify
+							className={snackbarClasses.iconSvg}
+							icon="solar:danger-triangle-bold"
+						/>
+					),
+					error: (
+						<Iconify
+							className={snackbarClasses.iconSvg}
+							icon="solar:danger-bold"
+						/>
+					),
 				}}
 			/>
 		</Portal>

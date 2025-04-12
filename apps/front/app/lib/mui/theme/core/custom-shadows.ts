@@ -1,8 +1,17 @@
-import { varAlpha } from 'minimal-shared/utils';
+import { varAlpha } from "minimal-shared/utils";
 
-import type { ThemeColorScheme } from '../types';
+import type { ThemeColorScheme } from "../types";
 
-import { common, error, grey, info, primary, secondary, success, warning } from './palette';
+import {
+	common,
+	error,
+	grey,
+	info,
+	primary,
+	secondary,
+	success,
+	warning,
+} from "./palette";
 
 // ----------------------------------------------------------------------
 
@@ -60,6 +69,6 @@ const createCustomShadows = (colorChannel: string): CustomShadows => {
 };
 
 export const customShadows: Record<ThemeColorScheme, CustomShadows> = {
-	light: createCustomShadows(grey['500Channel']),
+	light: createCustomShadows(grey["500Channel"]),
 	dark: createCustomShadows(common.blackChannel),
 };

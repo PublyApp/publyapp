@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import type { PipelineStage } from 'mongoose';
+import type { PipelineStage } from "mongoose";
 
-import type { AppLocale } from '../lib/i18n/resources';
-import type { DateType } from '../types/date.types';
+import type { AppLocale } from "../lib/i18n/resources";
+import type { DateType } from "../types/date.types";
 
 declare global {
 	declare namespace Parse {
@@ -28,7 +28,9 @@ declare global {
 			// eslint-disable-next-line @typescript-eslint/ban-types
 			interface TriggerRequest<T = Object> {
 				query: Query<T> | undefined;
-				context: (Record<string, unknown> & { locale?: string; fromCloud?: boolean }) | undefined;
+				context:
+					| (Record<string, unknown> & { locale?: string; fromCloud?: boolean })
+					| undefined;
 				headers: Record<string, any> | undefined;
 			}
 
@@ -39,7 +41,10 @@ declare global {
 				jobId: string;
 			}
 
-			function define<T extends Params = Params>(name: string, handler: (request: FunctionRequest<T>) => any): void;
+			function define<T extends Params = Params>(
+				name: string,
+				handler: (request: FunctionRequest<T>) => any,
+			): void;
 		}
 
 		interface InstallationController {
@@ -64,7 +69,11 @@ declare global {
 
 			comment(comment: string): Query<T>;
 
-			readPreference(readPreference: string, includeReadPreference?: string, subqueryReadPreference?: string): this;
+			readPreference(
+				readPreference: string,
+				includeReadPreference?: string,
+				subqueryReadPreference?: string,
+			): this;
 		}
 
 		namespace Query {

@@ -1,6 +1,6 @@
-import { memo } from 'react';
+import { memo } from "react";
 
-import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import SvgIcon, { type SvgIconProps } from "@mui/material/SvgIcon";
 
 // ----------------------------------------------------------------------
 
@@ -12,12 +12,12 @@ const PlanPremiumIcon = ({ sx, ...other }: SvgIconProps) => {
 			sx={[
 				(theme) => {
 					return {
-						'--primary-main': theme.vars.palette.primary.main,
-						'--primary-dark': theme.vars.palette.primary.dark,
-						'--primary-darker': theme.vars.palette.primary.darker,
+						"--primary-main": theme.vars.palette.primary.main,
+						"--primary-dark": theme.vars.palette.primary.dark,
+						"--primary-darker": theme.vars.palette.primary.darker,
 						width: 48,
 						flexShrink: 0,
-						height: 'auto',
+						height: "auto",
 					};
 				},
 				...(Array.isArray(sx) ? sx : [sx]),
@@ -27,7 +27,10 @@ const PlanPremiumIcon = ({ sx, ...other }: SvgIconProps) => {
 			<g transform="translate(0 -9)">
 				<g transform="translate(0 18.271)">
 					<g transform="translate(9.167 19.932)">
-						<path fill="var(--primary-dark)" d="M53.333 17.441H61.666V24.915999999999997H53.333z" />
+						<path
+							fill="var(--primary-dark)"
+							d="M53.333 17.441H61.666V24.915999999999997H53.333z"
+						/>
 						<path
 							fill="var(--primary-darker)"
 							d="M.935 20.42L25.963 8.001a5.059 5.059 0 014.52.012L60.74 23.228a1.68 1.68 0 01.015 2.996L35.417 39.301a5.059 5.059 0 01-4.694-.029L.893 23.41a1.68 1.68 0 01.042-2.99z"
@@ -46,7 +49,10 @@ const PlanPremiumIcon = ({ sx, ...other }: SvgIconProps) => {
 
 				<g transform="translate(0 9.136)">
 					<g transform="translate(9.167 19.932)">
-						<path fill="var(--primary-dark)" d="M53.333 17.441H61.666V24.915999999999997H53.333z" />
+						<path
+							fill="var(--primary-dark)"
+							d="M53.333 17.441H61.666V24.915999999999997H53.333z"
+						/>
 						<path
 							fill="var(--primary-darker)"
 							d="M.935 20.42L25.963 8.001a5.059 5.059 0 014.52.012L60.74 23.228a1.68 1.68 0 01.015 2.996L35.417 39.301a5.059 5.059 0 01-4.694-.029L.893 23.41a1.68 1.68 0 01.042-2.99z"
@@ -64,7 +70,10 @@ const PlanPremiumIcon = ({ sx, ...other }: SvgIconProps) => {
 				</g>
 
 				<g transform="translate(9.167 19.932)">
-					<path fill="var(--primary-dark)" d="M53.333 17.441H61.666V24.915999999999997H53.333z" />
+					<path
+						fill="var(--primary-dark)"
+						d="M53.333 17.441H61.666V24.915999999999997H53.333z"
+					/>
 					<path
 						fill="var(--primary-darker)"
 						d="M.935 20.42L25.963 8.001a5.059 5.059 0 014.52.012L60.74 23.228a1.68 1.68 0 01.015 2.996L35.417 39.301a5.059 5.059 0 01-4.694-.029L.893 23.41a1.68 1.68 0 01.042-2.99z"
