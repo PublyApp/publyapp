@@ -423,48 +423,46 @@ type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
 type ParseFunctionEnhancedParams<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
-> = //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
+> = ( // --------------------------------------------------------------------------------------// //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
+	| {
+			requireUser?: false | undefined; // which means public access
+			group?: undefined;
+			allowedRoles?: undefined;
+			allowedTenantSubRoles?: undefined;
+			action: ActionType1<P, T>;
+	  }
 	// --------------------------------------------------------------------------------------//
-	(
-		| {
-				requireUser?: false | undefined; // which means public access
-				group?: undefined;
-				allowedRoles?: undefined;
-				allowedTenantSubRoles?: undefined;
-				action: ActionType1<P, T>;
-		  }
-		// --------------------------------------------------------------------------------------//
-		//                                  case B auth needed                                   //
-		// --------------------------------------------------------------------------------------//
-		// * case B - 0: request can be from any authenticated user
-		| {
-				requireUser: true;
-				group?: typeof userGroup.ANY | undefined;
-				allowedRoles?: RoleSet | undefined;
-				allowedTenantSubRoles?: undefined;
-				action: ActionType2<P, T>;
-		  }
-		// * case B - 1: request must be from a tenant member
-		// * implicitly, that means also: if the user is a staff member allow the function to run
-		| {
-				requireUser: true;
-				group: typeof userGroup.TENANT;
-				allowedRoles?: undefined;
-				allowedTenantSubRoles?: TenantSubRoleSet | undefined;
-				action: ActionType3<P, T>;
-		  }
-		// * case B - 1: request must be from a staff member
-		| {
-				requireUser: true;
-				group: typeof userGroup.STAFF;
-				allowedRoles?: StaffRoleSet | undefined;
-				allowedTenantSubRoles?: undefined;
-				action: ActionType2<P, T>;
-		  }
-	) & {
-		requireMasterKey?: boolean;
-		validateParams?: ParamsValidator<P>;
-	};
+	//                                  case B auth needed                                   //
+	// --------------------------------------------------------------------------------------//
+	// * case B - 0: request can be from any authenticated user
+	| {
+			requireUser: true;
+			group?: typeof userGroup.ANY | undefined;
+			allowedRoles?: RoleSet | undefined;
+			allowedTenantSubRoles?: undefined;
+			action: ActionType2<P, T>;
+	  }
+	// * case B - 1: request must be from a tenant member
+	// * implicitly, that means also: if the user is a staff member allow the function to run
+	| {
+			requireUser: true;
+			group: typeof userGroup.TENANT;
+			allowedRoles?: undefined;
+			allowedTenantSubRoles?: TenantSubRoleSet | undefined;
+			action: ActionType3<P, T>;
+	  }
+	// * case B - 1: request must be from a staff member
+	| {
+			requireUser: true;
+			group: typeof userGroup.STAFF;
+			allowedRoles?: StaffRoleSet | undefined;
+			allowedTenantSubRoles?: undefined;
+			action: ActionType2<P, T>;
+	  }
+) & {
+	requireMasterKey?: boolean;
+	validateParams?: ParamsValidator<P>;
+};
 
 // * allow us to verify ip address if the request is not from the cloud functions and from an user with a session token
 // * in other words: verify if the call is not from our cloud code (not from our server itself)

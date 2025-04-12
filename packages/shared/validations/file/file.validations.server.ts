@@ -16,11 +16,6 @@ export const getMulterFileSchema = (
 		mimetype: z.string(),
 		size: z.number(),
 		stream: z.custom<Readable>(),
-		// TODO: test
-		// (data) => {
-		// 	return data instanceof Readable;
-		// },
-		// stream: z.custom<any>(), // cast to any just to avoid client-side compilation errors
 		destination: z.string(),
 		filename: z.string(),
 		path: z.string(),
