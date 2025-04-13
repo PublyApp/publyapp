@@ -9,8 +9,6 @@ type ErrorBoundaryProps = {
 };
 
 export const ErrorBoundary = ({ error }: ErrorBoundaryProps) => {
-	// const error = useRouteError();
-
 	return (
 		<>
 			{inputGlobalStyles()}

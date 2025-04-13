@@ -12,15 +12,19 @@ import { varBounce } from '../animate/variants/bounce';
 import { RouterLink } from '../router-link';
 import _ from 'lodash';
 import type { MouseEventHandler } from 'react';
+import { useRouteError } from 'react-router';
+import { useRouter } from '@/front/hooks/use-router';
 
 // ----------------------------------------------------------------------
 
 type View500Props = {
 	withLayout?: boolean;
-	onRetry?: MouseEventHandler<HTMLButtonElement>;
 };
 
-export const View500 = ({ withLayout = true, onRetry }: View500Props) => {
+export const View500 = ({ withLayout = true }: View500Props) => {
+	// const error = useRouteError(); // TODO: report error to sentry or another service
+	const router = useRouter();
+
 	const renderContent = () => {
 		return (
 			<Container component={MotionContainer}>
@@ -40,25 +44,26 @@ export const View500 = ({ withLayout = true, onRetry }: View500Props) => {
 					<ServerErrorIllustration sx={{ my: { xs: 5, sm: 10 } }} />
 				</m.div>
 
-				<Button
+				{/*
+				 * an error boundary means something crashed
+				 * so the most correct solution is to actually trigger a full page reload
+				 * or navigate the user somewhere else
+				 */}
+				{/* <Button
 					component={RouterLink}
 					href="/"
 					size="large"
 					variant="contained"
 				>
 					Go to home
+				</Button> */}
+				<Button
+					size="large"
+					variant="contained"
+					onClick={() => router.refresh()}
+				>
+					Reload page
 				</Button>
-				{_.isFunction(onRetry) ? (
-					<Button
-						// component={RouterLink}
-						// href="/"
-						size="large"
-						variant="contained"
-						onClick={onRetry}
-					>
-						Retry
-					</Button>
-				) : null}
 			</Container>
 		);
 	};
