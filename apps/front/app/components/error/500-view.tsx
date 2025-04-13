@@ -9,10 +9,6 @@ import { SimpleLayout } from '@/front/layouts/simple/layout';
 
 import { MotionContainer } from '../animate/motion-container';
 import { varBounce } from '../animate/variants/bounce';
-import { RouterLink } from '../router-link';
-import _ from 'lodash';
-import type { MouseEventHandler } from 'react';
-import { useRouteError } from 'react-router';
 import { useRouter } from '@/front/hooks/use-router';
 
 // ----------------------------------------------------------------------
