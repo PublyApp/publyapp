@@ -1,23 +1,21 @@
-import duration from '@org/shared/utils/duration.utils';
-import * as cookie from 'cookie';
 import dayjs from 'dayjs';
-import _ from 'lodash';
-import { useEffect, useRef } from 'react';
-import { data, redirect, useSearchParams } from 'react-router';
+import i18next from 'i18next';
+import { data, redirect } from 'react-router';
 import { serializeError } from 'serialize-error';
-import { toast } from '@/front/components/snackbar';
-import { useTranslate } from '@/front/hooks/use-translate';
+
+import duration from '@org/shared/utils/duration.utils';
+
+import { CookieManager } from '@/front/lib/cookie-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
-import { getServerAction } from '@/front/lib/react-router/server-data.server';
+import { getServerAction } from '@/front/lib/react-router/server.data';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
 	LAST_USED_TENANT_ID_COOKIE_KEY,
-	queryParamKey,
-	queryParamValue,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
+
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';
 
@@ -43,37 +41,28 @@ export const action = getServerAction({
 			});
 		}
 
-		const resHeaders = new Headers();
+		const reqCookies = new CookieManager(request.headers);
 
-		const sessionTokenCookie = cookie.serialize(
-			SESSION_TOKEN_COOKIE_KEY,
-			loginResult.data.sessionToken,
-			{
-				expires: dayjs().add(3, 'day').toDate(),
-				maxAge: duration.toSeconds('3d'),
-			},
-		);
-		resHeaders.append('Set-Cookie', sessionTokenCookie);
+		const resHeaders = new Headers();
+		const resCookies = new CookieManager(resHeaders);
 
 		apiClient.parseRestClient.setSessionToken(loginResult.data.sessionToken);
 
-		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
-		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
+		resCookies.set(SESSION_TOKEN_COOKIE_KEY, loginResult.data.sessionToken, {
+			maxAge: duration.toSeconds('3d'),
+		});
+
+		const tenantId = reqCookies.get(LAST_USED_TENANT_ID_COOKIE_KEY);
 
 		const { code } = await apiClient.auth.getRedirectCode({ tenantId });
 
 		let redirectPath = makePath(code);
 
 		if (code !== 'staff' && code !== 'unauthorized') {
-			const lastUsedTenantIdCookie = cookie.serialize(
-				LAST_USED_TENANT_ID_COOKIE_KEY,
-				code,
-				{
-					expires: dayjs().add(3, 'day').toDate(),
-					maxAge: duration.toSeconds('3d'),
-				},
-			);
-			resHeaders.append('Set-Cookie', lastUsedTenantIdCookie);
+			resCookies.set(LAST_USED_TENANT_ID_COOKIE_KEY, code, {
+				expires: dayjs().add(3, 'day').toDate(),
+				maxAge: duration.toSeconds('3d'),
+			});
 			redirectPath = FRONT_PATH_NAMES.tenant(code).root;
 		}
 
@@ -83,34 +72,12 @@ export const action = getServerAction({
 	},
 });
 
+export const clientLoader = async (_: Route.ClientLoaderArgs) => {
+	i18next.loadNamespaces(['zod']);
+	return data({});
+};
+
 const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
-	const { t } = useTranslate();
-	const [searchParams] = useSearchParams();
-	const redirect_cause = searchParams.get(
-		queryParamKey.login_page.redirect_cause,
-	);
-	const hasShownToast = useRef(false);
-
-	useEffect(() => {
-		if (!hasShownToast.current) {
-			if (
-				redirect_cause ===
-				queryParamValue.login_page.redirect_cause.invalid_session
-			) {
-				toast.error(t('session-expired'));
-			}
-
-			if (
-				redirect_cause ===
-				queryParamValue.login_page.redirect_cause.password_reset_success
-			) {
-				toast.success(t('password-reset-success'));
-			}
-
-			hasShownToast.current = true;
-		}
-	}, [redirect_cause, t]);
-
 	return <LoginForm />;
 };
 

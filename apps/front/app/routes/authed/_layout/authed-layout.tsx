@@ -1,124 +1,75 @@
-import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
-import * as cookie from 'cookie';
-import _ from 'lodash';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { type ReactNode, Suspense } from 'react';
+import { Suspense, type ReactNode } from 'react';
+
 import {
-	Navigate,
-	Outlet,
-	redirect,
-	useRouteError,
-	useSearchParams,
-} from 'react-router';
+	useQueryErrorResetBoundary,
+	useSuspenseQueries,
+} from '@tanstack/react-query';
+import { defaultApiClient } from 'packages/api/ApiClient';
+import type { ErrorBoundaryProps } from 'react-error-boundary';
+import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
+
 import { View500 } from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
-import type { SettingsState } from '@/front/components/settings';
+import QuerySuspenseBoundary from '@/front/components/QuerySuspenseBoundary';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
+import { CookieManager } from '@/front/lib/cookie-manager';
 import {
-	SIDEBAR_COOKIE_MAX_AGE,
-	SIDEBAR_COOKIE_NAME,
-} from '@/front/lib/constants';
-import {
-	useGetTenantAuthData,
-	useGetUserAuthData,
-} from '@/front/lib/react-query/features/auth/auth.hooks';
-import { getClientLoader } from '@/front/lib/react-router/client-data';
-import { useMainStore } from '@/front/lib/zustand/store';
-import { defaultApiClient } from '@/parse-api-client/ApiClient';
+	getTenantAuthDataQuery,
+	getUserAuthDataQuery,
+} from '@/front/lib/react-query/features/auth/auth.actions';
+import { getClientLoader } from '@/front/lib/react-router/client.data';
 import {
 	FRONT_PATH_NAMES,
-	queryParamKey,
-	queryParamValue,
 	SESSION_TOKEN_COOKIE_KEY,
-	X_CODE,
 } from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+
 import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
-		const browserCookies = cookie.parse(document.cookie);
-
-		let sessionToken = _.get(browserCookies, SESSION_TOKEN_COOKIE_KEY);
+		const browserCookies = new CookieManager();
+		const sessionToken = browserCookies.get(SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			throw redirect(FRONT_PATH_NAMES.auth.login); // redirect to login
 		}
 
-		sessionToken = decodeURIComponent(sessionToken);
-
 		defaultApiClient.parseRestClient.setSessionToken(sessionToken);
 
-		const sideBarCookie = _.get(browserCookies, SIDEBAR_COOKIE_NAME);
+		// const cookies = new CookieManager();
+		// const sideBarOpenCookie = cookies.get(SIDEBAR_COOKIE_NAME);
 
 		// set zustand state
-		useMainStore.setState((root) => {
-			const allowedStates: Exclude<SettingsState['navLayout'], undefined>[] = [
-				'vertical',
-				'mini',
-				'horizontal',
-			];
+		// useMainStore.setState((root) => {
+		// 	const allowedStates = ['expanded', 'collapsed'];
 
-			let state = _.toString(sideBarCookie);
+		// 	let state = _.toString(sideBarOpenCookie);
 
-			if (!allowedStates.includes(state as never)) {
-				state = allowedStates[0];
-				const newCookie = cookie.serialize(SIDEBAR_COOKIE_NAME, state, {
-					path: '/',
-					maxAge: SIDEBAR_COOKIE_MAX_AGE,
-				});
-				document.cookie = newCookie;
-			}
+		// 	if (!allowedStates.includes(state)) {
+		// 		state = allowedStates[0];
+		// 		cookies.set(SIDEBAR_COOKIE_NAME, state);
+		// 	}
 
-			root.settingsSlice.state.navLayout = state as never;
-		});
+		//
+		// 	root.settingsSlice.sidebar.state = state as never;
+		// });
 
 		return {};
 	},
 });
 
-export const ErrorBoundary = (_: Route.ErrorBoundaryProps) => {
-	const [searchParams] = useSearchParams();
-	const queryClient = useQueryClient();
-
-	// check response error.body.code
-	// if invalid session token, redirect to login
-	// with a query param: redirectCause=invalid_session
-	// don't forget to remove session token cookie
-	// clear react-query cache too
-	const error = useRouteError();
-
-	if (error instanceof ParseRestError) {
-		if (error.code === X_CODE.INVALID_SESSION) {
-			// clear react-query cache too
-			queryClient.removeQueries();
-
-			// remove session token cookie
-			document.cookie = cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', {
-				path: '/',
-				maxAge: 0,
-			});
-
-			// redirect to login page with a query param as redirect cause
-			const url = new URL(window.location.origin);
-			url.pathname = FRONT_PATH_NAMES.auth.login;
-			url.searchParams.set(
-				queryParamKey.login_page.redirect_cause,
-				queryParamValue.login_page.redirect_cause.invalid_session,
-			);
-			url.searchParams.set(
-				queryParamKey.language,
-				getCorrectLocale(searchParams.get(queryParamKey.language)),
-			);
-
-			// navigate(`${url.pathname}${url.search}`);
-			return <Navigate to={`${url.pathname}${url.search}`} />;
-		}
-	}
-
-	// else, show the error page
-	return <View500 />;
+export const ErrorBoundary /* : ErrorBoundaryProps['FallbackComponent'] */ = (
+	_: Route.ErrorBoundaryProps,
+) => {
+	const { reset } = useQueryErrorResetBoundary();
+	return (
+		<View500
+		// onRetry={() => {
+		// 	reset();
+		// }}
+		/>
+	);
 };
 
 const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
@@ -126,10 +77,7 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 
 	// trigger the queries in parallel
 	useSuspenseQueries({
-		queries: [
-			useGetUserAuthData.getOptions(),
-			useGetTenantAuthData.getOptions({ tenantId }),
-		],
+		queries: [getUserAuthDataQuery(), getTenantAuthDataQuery({ tenantId })],
 	});
 
 	return <>{children}</>;
@@ -140,11 +88,16 @@ const AuthedLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 		<ClientOnly>
 			{() => {
 				return (
+					// <QuerySuspenseBoundary
+					// 	suspenseFallback={<SplashScreen />}
+					// 	FallbackComponent={ErrorBoundary}
+					// >
 					<Suspense fallback={<SplashScreen />}>
 						<AuthQueriesGuard>
 							<Outlet />
 						</AuthQueriesGuard>
 					</Suspense>
+					// </QuerySuspenseBoundary>
 				);
 			}}
 		</ClientOnly>
@@ -152,7 +105,3 @@ const AuthedLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 };
 
 export default AuthedLayout;
-
-export const HydrateFallback = () => {
-	return <SplashScreen />;
-};

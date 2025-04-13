@@ -1,19 +1,14 @@
-import { EmptyContent } from '@/front/components/empty-content';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { redirect } from 'react-router';
+
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+
+// * I don't se what to show on ana eventual dashboard home page, so for now, we redirect this to the tenants lis page
+export const loader = () => {
+	return redirect(FRONT_PATH_NAMES.staff.tenants.root);
+};
 
 const StaffHomePage = () => {
-	const { t } = useTranslate();
-
-	return (
-		<DashboardContent
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-			compact
-			maxWidth="lg"
-		>
-			<EmptyContent title={t('no-data')} />
-		</DashboardContent>
-	);
+	return <h1>StaffHomePage</h1>;
 };
 
 export default StaffHomePage;

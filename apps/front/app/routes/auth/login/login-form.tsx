@@ -8,31 +8,41 @@ import Link from '@mui/material/Link';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import { useFetcher } from 'react-router';
+import type { z } from 'zod';
+
 import { FormHead } from '@/front/components/auth/form-head';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { defaultZodClient } from '@/front/lib/zod';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { getErrorMessage } from '@/shared/utils/error.utils';
+import { getErrorMessage } from '@/shared/utils/error-message';
 import { getLoginSchema } from '@/shared/validations/auth.validations';
+
 import type { LoginActionResult } from './login-page';
 
+// ----------------------------------------------------------------------
+
+export type SignInSchemaType = z.infer<typeof SignInSchema>;
+
+export const SignInSchema = getLoginSchema(defaultZodClient);
+
+// ----------------------------------------------------------------------
+
 const LoginForm = () => {
-	const { t, i18n } = useTranslate();
+	// const router = useRouter();
+	// const isLoading = fetcher.state === 'loading';
 	const showPassword = useBoolean();
+
 	const fetcher = useFetcher<LoginActionResult>();
 
 	const errorFetcher = fetcher.data?.error;
 	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
 
-	const loginSchema = getLoginSchema(defaultZodClient);
-	const loginResolver = zodResolver(loginSchema);
+	// const [errorMessage, setErrorMessage] = useState<string | null>(errorFetcher ? getErrorMessage(errorFetcher) : null);
 
 	const methods = useForm({
-		resolver: loginResolver,
+		resolver: zodResolver(getLoginSchema(defaultZodClient)),
 		defaultValues: {
 			email: '',
 			password: '',
@@ -42,8 +52,6 @@ const LoginForm = () => {
 	const {
 		formState: { isSubmitting },
 	} = methods;
-
-	useSyncFormToLang(i18n.language, methods);
 
 	const handleLogin = methods.handleSubmit(async (data) => {
 		await fetcher.submit(data, {
@@ -55,11 +63,12 @@ const LoginForm = () => {
 		<Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
 			<Field.Text
 				name="email"
-				label={t('email-address')}
+				label="Email address"
 				slotProps={{ inputLabel: { shrink: true } }}
 			/>
 
 			<Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>
+				{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
 				<Link
 					component={RouterLink}
 					href="#"
@@ -67,13 +76,13 @@ const LoginForm = () => {
 					color="inherit"
 					sx={{ alignSelf: 'flex-end' }}
 				>
-					{t('forgot-password')}?
+					Forgot password?
 				</Link>
 
 				<Field.Text
 					name="password"
-					label={t('password')}
-					placeholder={t('n+ characters', { characters: '8' })}
+					label="Password"
+					placeholder="6+ characters"
 					type={showPassword.value ? 'text' : 'password'}
 					slotProps={{
 						inputLabel: { shrink: true },
@@ -103,8 +112,9 @@ const LoginForm = () => {
 				type="submit"
 				variant="contained"
 				loading={isSubmitting}
+				loadingIndicator="Sign in..."
 			>
-				{t('sign-in')}
+				Sign in
 			</Button>
 		</Box>
 	);
@@ -112,16 +122,16 @@ const LoginForm = () => {
 	return (
 		<>
 			<FormHead
-				title={t('sign-in')}
+				title="Sign in to your account"
 				description={
 					<>
-						{t('no-account-yet')}{' '}
+						{"Don't have an account? "}
 						<Link
 							component={RouterLink}
 							href={FRONT_PATH_NAMES.auth.signup}
 							variant="subtitle2"
 						>
-							{t('create-an-account')}
+							Get started
 						</Link>
 					</>
 				}
