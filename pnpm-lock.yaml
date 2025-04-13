@@ -159,8 +159,8 @@ importers:
         specifier: ^1.11.12
         version: 1.11.12
       framer-motion:
-        specifier: ^12.6.1
-        version: 12.6.2(react-dom@19.0.0)(react@19.0.0)
+        specifier: 12.6.1
+        version: 12.6.1(react-dom@19.0.0)(react@19.0.0)
       i18next:
         specifier: ^24.2.2
         version: 24.2.2(typescript@5.7.2)
@@ -7991,8 +7991,8 @@ packages:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
 
-  /framer-motion@12.6.2(react-dom@19.0.0)(react@19.0.0):
-    resolution: {integrity: sha512-7LgPRlPs5aG8UxeZiMCMZz8firC53+2+9TnWV22tuSi38D3IFRxHRUqOREKckAkt6ztX+Dn6weLcatQilJTMcg==}
+  /framer-motion@12.6.1(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-8Atpj4x1foL6JnvUg+IxA/PZk2LjIEETIsFIGD1It6WUY3rZ7jUDzeumASJptz35io+eMnLvHgzgSvtqd7O6Cw==}
     peerDependencies:
       '@emotion/is-prop-valid': '*'
       react: ^18.0.0 || ^19.0.0

@@ -10,14 +10,17 @@ import { SimpleLayout } from '@/front/layouts/simple/layout';
 import { MotionContainer } from '../animate/motion-container';
 import { varBounce } from '../animate/variants/bounce';
 import { RouterLink } from '../router-link';
+import _ from 'lodash';
+import type { MouseEventHandler } from 'react';
 
 // ----------------------------------------------------------------------
 
 type View500Props = {
 	withLayout?: boolean;
+	onRetry?: MouseEventHandler<HTMLButtonElement>;
 };
 
-export const View500 = ({ withLayout = true }: View500Props) => {
+export const View500 = ({ withLayout = true, onRetry }: View500Props) => {
 	const renderContent = () => {
 		return (
 			<Container component={MotionContainer}>
@@ -45,6 +48,17 @@ export const View500 = ({ withLayout = true }: View500Props) => {
 				>
 					Go to home
 				</Button>
+				{_.isFunction(onRetry) ? (
+					<Button
+						// component={RouterLink}
+						// href="/"
+						size="large"
+						variant="contained"
+						onClick={onRetry}
+					>
+						Retry
+					</Button>
+				) : null}
 			</Container>
 		);
 	};

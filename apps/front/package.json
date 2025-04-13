@@ -50,7 +50,7 @@
 		"cross-env": "^7.0.3",
 		"date-fns": "^3.6.0",
 		"dayjs": "^1.11.12",
-		"framer-motion": "^12.6.1",
+		"framer-motion": "12.6.1",
 		"i18next": "^24.2.2",
 		"i18next-browser-languagedetector": "^7.2.1",
 		"i18next-fetch-backend": "6.0.0",

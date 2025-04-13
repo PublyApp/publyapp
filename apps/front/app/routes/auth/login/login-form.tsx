@@ -19,7 +19,7 @@ import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import { getLoginSchema } from '@/shared/validations/auth.validations';
 
-import type { LoginActionResult } from './LoginPage';
+import type { LoginActionResult } from './login-page';
 
 // ----------------------------------------------------------------------
 

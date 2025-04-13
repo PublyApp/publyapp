@@ -1,8 +1,8 @@
 import _ from 'lodash';
 
 export const sleep = <T = unknown>(timeout: number, value?: T) => {
-	const newLocal = 'sleep function invoked';
-	console.warn(`%c${newLocal}`, 'color: yellow');
+	const warningMessage = 'sleep function invoked';
+	console.warn(`%c${warningMessage}`, 'color: yellow');
 	return new Promise<T>((resolve) => {
 		return setTimeout(() => {
 			resolve(value as never);

@@ -3,8 +3,23 @@ import Typography from '@mui/material/Typography';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { useQuery } from '@tanstack/react-query';
+import { sleep } from '@/shared/utils/any.utils';
+import { t } from 'i18next';
 
 const TenantsListPage = () => {
+	// throw new Error('Not implemented');
+	// useQuery({
+	// 	queryKey: ['tenants-qqq'],
+	// 	queryFn: async () => {
+	// 		try {
+	// 			sleep(3000);
+	// 			throw new Error('Not implemented');
+	// 		} catch (error) {
+	// 			return Promise.reject(error);
+	// 		}
+	// 	},
+	// });
 	const renderContent = () => {
 		return (
 			<Box
