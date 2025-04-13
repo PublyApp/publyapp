@@ -3,23 +3,28 @@ import Typography from '@mui/material/Typography';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { useQuery } from '@tanstack/react-query';
-import { sleep } from '@/shared/utils/any.utils';
-import { t } from 'i18next';
+import { useTranslate } from '@/front/hooks/use-translate';
+import _ from 'lodash';
 
 const TenantsListPage = () => {
+	const { t } = useTranslate();
 	// throw new Error('Not implemented');
-	// useQuery({
+	// const { data } = useSuspenseQuery({
 	// 	queryKey: ['tenants-qqq'],
 	// 	queryFn: async () => {
 	// 		try {
-	// 			sleep(3000);
-	// 			throw new Error('Not implemented');
+	// 			await sleep(3000);
+	// 			const val = _.sample([true, false]);
+	// 			if (true) {
+	// 				throw new Error('Not implemented');
+	// 			}
+	// 			return Promise.resolve(500);
 	// 		} catch (error) {
 	// 			return Promise.reject(error);
 	// 		}
 	// 	},
 	// });
+
 	const renderContent = () => {
 		return (
 			<Box
@@ -36,7 +41,10 @@ const TenantsListPage = () => {
 					},
 					// ...(Array.isArray(sx) ? sx : [sx]),
 				]}
-			/>
+			>
+				{t('hello')}
+				{/*  ++ {data} */}
+			</Box>
 		);
 	};
 
