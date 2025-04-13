@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 
-import { useSuspenseQueries } from '@tanstack/react-query';
+import {
+	useQueryErrorResetBoundary,
+	useSuspenseQueries,
+} from '@tanstack/react-query';
 import { defaultApiClient } from 'packages/api/ApiClient';
 import type { ErrorBoundaryProps } from 'react-error-boundary';
 import { Outlet, redirect } from 'react-router';
@@ -21,7 +24,7 @@ import {
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 
-import type { Route } from './+types/AuthedLayout';
+import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
@@ -56,6 +59,19 @@ export const clientLoader = getClientLoader({
 	},
 });
 
+export const ErrorBoundary /* : ErrorBoundaryProps['FallbackComponent'] */ = (
+	_: Route.ErrorBoundaryProps,
+) => {
+	const { reset } = useQueryErrorResetBoundary();
+	return (
+		<View500
+		// onRetry={() => {
+		// 	reset();
+		// }}
+		/>
+	);
+};
+
 const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	const tenantId = useTenantParam();
 
@@ -67,23 +83,21 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	return <>{children}</>;
 };
 
-const ErrorBoundary: ErrorBoundaryProps['FallbackComponent'] = () => {
-	return <View500 />;
-};
-
 const AuthedLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 	return (
 		<ClientOnly>
 			{() => {
 				return (
-					<QuerySuspenseBoundary
-						suspenseFallback={<SplashScreen />}
-						FallbackComponent={ErrorBoundary}
-					>
+					// <QuerySuspenseBoundary
+					// 	suspenseFallback={<SplashScreen />}
+					// 	FallbackComponent={ErrorBoundary}
+					// >
+					<Suspense fallback={<SplashScreen />}>
 						<AuthQueriesGuard>
 							<Outlet />
 						</AuthQueriesGuard>
-					</QuerySuspenseBoundary>
+					</Suspense>
+					// </QuerySuspenseBoundary>
 				);
 			}}
 		</ClientOnly>
