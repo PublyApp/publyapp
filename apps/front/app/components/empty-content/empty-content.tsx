@@ -1,11 +1,12 @@
 import type { BoxProps } from '@mui/material/Box';
-import Box from '@mui/material/Box';
-import type { SxProps, Theme } from '@mui/material/styles';
-import { styled } from '@mui/material/styles';
+import type { Theme, SxProps } from '@mui/material/styles';
 import type { TypographyProps } from '@mui/material/Typography';
-import Typography from '@mui/material/Typography';
-import _ from 'lodash';
+
 import { varAlpha } from 'minimal-shared/utils';
+
+import Box from '@mui/material/Box';
+import { styled } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 
 // ----------------------------------------------------------------------
 
@@ -23,7 +24,7 @@ export type EmptyContentProps = React.ComponentProps<'div'> & {
 	};
 };
 
-export const EmptyContent = ({
+export function EmptyContent({
 	sx,
 	imgUrl,
 	action,
@@ -32,7 +33,7 @@ export const EmptyContent = ({
 	description,
 	title = 'No data',
 	...other
-}: EmptyContentProps) => {
+}: EmptyContentProps) {
 	return (
 		<ContentRoot filled={filled} sx={sx} {...other}>
 			<Box
@@ -92,7 +93,8 @@ export const EmptyContent = ({
 			{action && action}
 		</ContentRoot>
 	);
-};
+}
+
 // ----------------------------------------------------------------------
 
 const ContentRoot = styled('div', {
@@ -106,7 +108,7 @@ const ContentRoot = styled('div', {
 	justifyContent: 'center',
 	padding: theme.spacing(0, 3),
 	...(filled && {
-		borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
+		borderRadius: theme.shape.borderRadius * 2,
 		backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.04),
 		border: `dashed 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
 	}),
