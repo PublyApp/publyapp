@@ -32,6 +32,9 @@ importers:
       lint-staged:
         specifier: ^15.2.0
         version: 15.2.8
+      lodash:
+        specifier: ^4.17.21
+        version: 4.17.21
       tsconfig:
         specifier: workspace:*
         version: link:packages/_tsconfig
