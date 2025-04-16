@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useEffect, useMemo, useRef } from 'react';
 
 import { styled, type SxProps, type Theme } from '@mui/material/styles';

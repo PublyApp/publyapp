@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { styled, type SxProps, type Theme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 

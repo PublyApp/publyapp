@@ -77,7 +77,6 @@ export const NavItem = ({
 					className={navBasicClasses.item.texts}
 					sx={slotProps?.texts}
 				>
-					{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 					<ItemTitle
 						{...ownerState}
 						className={navBasicClasses.item.title}

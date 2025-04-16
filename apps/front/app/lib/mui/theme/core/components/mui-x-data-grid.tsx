@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { circularProgressClasses } from '@mui/material/CircularProgress';
 import { formControlLabelClasses } from '@mui/material/FormControlLabel';
 import { iconButtonClasses } from '@mui/material/IconButton';

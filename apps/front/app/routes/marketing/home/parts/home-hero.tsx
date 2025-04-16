@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useRef, useState } from 'react';
 
 import Avatar, { avatarClasses } from '@mui/material/Avatar';
@@ -217,7 +216,6 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 							</span>
 						</Button>
 
-						{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
 						<Link
 							color="inherit"
 							variant="body2"
