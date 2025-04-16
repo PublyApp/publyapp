@@ -1,10 +1,9 @@
+// @ts-check
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 import _ from 'lodash';
 import fse from 'fs-extra';
-
-// @ts-check
 
 const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../');
 
