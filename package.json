@@ -41,7 +41,7 @@
 		"lint-staged": "^15.2.0",
 		"tsconfig": "workspace:*",
 		"turbo": "^2.0.3",
-		"typescript": "^5.5.4",
+		"typescript": "^5.8.3",
 		"lodash": "^4.17.21"
 	},
 	"packageManager": "pnpm@8.15.7",
