@@ -59,7 +59,7 @@ export const SimpleLayout = ({
 					}}
 				>
 					{/** @slot Help link */}
-					{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+
 					<Link
 						href="#"
 						component={RouterLink}

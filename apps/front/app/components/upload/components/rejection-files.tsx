@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 import type { FileRejection } from 'react-dropzone';

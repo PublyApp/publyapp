@@ -312,7 +312,6 @@ declare module 'parse-server/lib/Controllers/LoggerController' {
 	type LogResponseParams = { method: string; url: string; result: any };
 
 	// ! I Only typed important methods
-	/* eslint-disable @typescript-eslint/no-explicit-any */
 	export class LoggerController {
 		adapter: WinstonLoggerAdapter;
 
