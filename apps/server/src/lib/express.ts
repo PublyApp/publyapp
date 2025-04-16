@@ -70,7 +70,7 @@ export const expressHandler = <
 	return handler;
 };
 
-// copy paste from stack overflow: I don't bother fix eslint issues here
+// copy paste from stack overflow: I don't bother fix lint issues here
 export const listRoutes = (app: Application) => {
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	const split = (thing: any) => {
