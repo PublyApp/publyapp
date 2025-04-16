@@ -1,4 +1,3 @@
-/* eslint no-unused-vars: "off" */
 /**
  * @interface
  * @memberof module:Adapters

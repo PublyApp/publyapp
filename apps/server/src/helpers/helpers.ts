@@ -196,5 +196,4 @@ export const overrideConsole = () => {
 		logger.warn('DO NOT USE console.log, use logger.log/logger.info instead');
 		originalConsoleLog(...args);
 	};
-	/* eslint-enable no-console */
 };
