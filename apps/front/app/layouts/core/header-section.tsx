@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import AppBar, { type AppBarProps } from '@mui/material/AppBar';
 import Container, { type ContainerProps } from '@mui/material/Container';
 import {

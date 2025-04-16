@@ -63,7 +63,7 @@ export const AuthSplitLayout = ({
 					}}
 				>
 					{/** @slot Help link */}
-					{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+
 					<Link
 						href={/* paths.faqs */ '#'}
 						component={RouterLink}

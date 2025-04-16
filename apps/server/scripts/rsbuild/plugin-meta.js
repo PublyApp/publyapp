@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-const path = require('node:path');
-
 // @ts-check
+
+const path = require('node:path');
 
 /**
  * @typedef {Record<string, any> | undefined} PluginMetaOptions

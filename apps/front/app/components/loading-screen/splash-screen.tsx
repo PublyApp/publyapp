@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { Fragment } from 'react';
 
 import Portal from '@mui/material/Portal';
