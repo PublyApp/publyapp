@@ -1,6 +1,3 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable prefer-arrow/prefer-arrow-functions */
-/* eslint-disable func-style */
 import _ from 'lodash';
 
 import { Storage } from '@google-cloud/storage';

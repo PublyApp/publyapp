@@ -68,7 +68,6 @@ const LoginForm = () => {
 			/>
 
 			<Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>
-				{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
 				<Link
 					component={RouterLink}
 					href="#"

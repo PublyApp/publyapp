@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 
 declare global {

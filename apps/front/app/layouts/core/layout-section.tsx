@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import GlobalStyles from '@mui/material/GlobalStyles';
 import {
 	styled,

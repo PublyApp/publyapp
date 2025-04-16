@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useCallback, useEffect } from 'react';
 
 import { useTheme } from '@mui/material/styles';
