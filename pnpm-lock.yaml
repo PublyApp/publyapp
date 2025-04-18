@@ -91,7 +91,7 @@ importers:
         version: 7.28.2(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/material@7.0.1)(@mui/system@7.0.1)(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0)
       '@mui/x-date-pickers':
         specifier: ^7.28.2
-        version: 7.28.2(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/material@7.0.1)(@mui/system@7.0.1)(@types/react@19.0.0)(date-fns@3.6.0)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0)
+        version: 7.28.2(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/material@7.0.1)(@mui/system@7.0.1)(@types/react@19.0.0)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0)
       '@mui/x-tree-view':
         specifier: ^7.28.1
         version: 7.28.1(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/material@7.0.1)(@mui/system@7.0.1)(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0)
@@ -152,15 +152,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^2.11.6
         version: 2.11.7
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
-      date-fns:
-        specifier: ^3.6.0
-        version: 3.6.0
       dayjs:
         specifier: ^1.11.12
         version: 1.11.12
@@ -339,9 +333,6 @@ importers:
       datauri:
         specifier: ^4.1.0
         version: 4.1.0
-      date-fns:
-        specifier: ^2.25.0
-        version: 2.30.0
       dayjs:
         specifier: ^1.11.10
         version: 1.11.12
@@ -585,9 +576,6 @@ importers:
       axios:
         specifier: ^1.6.5
         version: 1.7.3
-      date-fns:
-        specifier: ^2.25.0
-        version: 2.30.0
       dayjs:
         specifier: ^1.11.10
         version: 1.11.12
@@ -1166,6 +1154,7 @@ packages:
     engines: {node: '>=6.9.0'}
     dependencies:
       regenerator-runtime: 0.14.1
+    dev: true
 
   /@babel/runtime@7.26.0:
     resolution: {integrity: sha512-FDSOghenHTiToteC/QRlv2q3DhPZ/oOXTBoirfWNx1Cx3TMVcGWQtMMmQcSvb/JjpNeGzx8Pq/b4fKEJuWm1sw==}
@@ -3010,7 +2999,7 @@ packages:
       - '@types/react'
     dev: false
 
-  /@mui/x-date-pickers@7.28.2(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/material@7.0.1)(@mui/system@7.0.1)(@types/react@19.0.0)(date-fns@3.6.0)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0):
+  /@mui/x-date-pickers@7.28.2(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/material@7.0.1)(@mui/system@7.0.1)(@types/react@19.0.0)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0):
     resolution: {integrity: sha512-py8u0iOShM8m/Ocs/giS8MwTNFn+iRFG6m5L6YJ/JmKzNfQfkVJOjpbdSIWxdCJ8plJn95oar1nKUhDdwn88HA==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
@@ -3056,7 +3045,6 @@ packages:
       '@mui/x-internals': 7.28.0(@types/react@19.0.0)(react@19.0.0)
       '@types/react-transition-group': 4.4.12(@types/react@19.0.0)
       clsx: 2.1.1
-      date-fns: 3.6.0
       dayjs: 1.11.12
       prop-types: 15.8.1
       react: 19.0.0
@@ -6515,10 +6503,7 @@ packages:
     engines: {node: '>=0.11'}
     dependencies:
       '@babel/runtime': 7.25.0
-
-  /date-fns@3.6.0:
-    resolution: {integrity: sha512-fRHTG8g/Gif+kSh50gaGEdToemgfj74aRX3swtiouboip5JDLAyDE9F11nHMIcvOaXeOC6D7SpNhi7uFyB7Uww==}
-    dev: false
+    dev: true
 
   /dayjs@1.11.12:
     resolution: {integrity: sha512-Rt2g+nTbLlDWZTwwrIXjy9MeiZmSDI375FvZs72ngxx8PDC6YXOeR3q5LAuPzjZQxhiWdRKac7RKV+YyQYfYIg==}
@@ -9355,7 +9340,7 @@ packages:
       '@emotion/styled': 11.14.0(@emotion/react@11.14.0)(@types/react@19.0.0)(react@19.0.0)
       '@mui/icons-material': 7.0.2(@mui/material@7.0.1)(@types/react@19.0.0)(react@19.0.0)
       '@mui/material': 7.0.1(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0)
-      '@mui/x-date-pickers': 7.28.2(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/material@7.0.1)(@mui/system@7.0.1)(@types/react@19.0.0)(date-fns@3.6.0)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0)
+      '@mui/x-date-pickers': 7.28.2(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/material@7.0.1)(@mui/system@7.0.1)(@types/react@19.0.0)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0)
       '@tanstack/match-sorter-utils': 8.19.4
       '@tanstack/react-table': 8.20.6(react-dom@19.0.0)(react@19.0.0)
       '@tanstack/react-virtual': 3.11.2(react-dom@19.0.0)(react@19.0.0)
