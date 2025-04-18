@@ -34,6 +34,15 @@ export const getLoginSchema = (z: InterZod) => {
 	});
 };
 
+export const getSignUpSchema = (z: InterZod) => {
+	return z.object({
+		firstName: z.string().min(1, { message: 'First name is required!' }),
+		lastName: z.string().min(1, { message: 'Last name is required!' }),
+		email: getEmailFieldSchema(z),
+		password: getPasswordFieldSchema(z),
+	});
+};
+
 export const getVerifyEmailSchema = (z: InterZod) => {
 	return getLoginSchema(z).pick({ email: true });
 };
