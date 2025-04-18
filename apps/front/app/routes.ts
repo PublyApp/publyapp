@@ -19,6 +19,10 @@ const routes = [
 			getLastPath(FRONT_PATH_NAMES.auth.login),
 			'routes/auth/login/LoginPage.tsx',
 		),
+		route(
+			getLastPath(FRONT_PATH_NAMES.auth.signup),
+			'routes/auth/signup/SignUpPage.tsx',
+		),
 	]),
 	layout('routes/authed/_layout/AuthedLayout.tsx', [
 		route(
