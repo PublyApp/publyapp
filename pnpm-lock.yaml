@@ -104,9 +104,6 @@ importers:
       '@org/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@pigment-css/react':
-        specifier: ^0.0.30
-        version: 0.0.30(@types/react@19.0.0)(react@19.0.0)(typescript@5.8.3)
       '@react-router/node':
         specifier: ^7.5.2
         version: 7.5.3(react-router@7.5.3)(typescript@5.8.3)
@@ -968,6 +965,7 @@ packages:
   /@babel/helper-plugin-utils@7.26.5:
     resolution: {integrity: sha512-RS+jZcRdZdRFzMyr+wcsaqOmld1/EqTghfaBGQQd/WnRdzdlvSZ//kF7U8VQTxf1ynZ4cjUcYgjVGx13ewNPMg==}
     engines: {node: '>=6.9.0'}
+    dev: true
 
   /@babel/helper-replace-supers@7.26.5(@babel/core@7.26.10):
     resolution: {integrity: sha512-bJ6iIVdYX1YooY2X7w1q6VITt+LnUILtNk7zT78ykuwStx8BauCzxvFqFaHjOpW1bVnSUM1PN1f0p5P21wHxvg==}
@@ -1070,6 +1068,7 @@ packages:
       '@babel/helper-plugin-utils': 7.26.5
     transitivePeerDependencies:
       - supports-color
+    dev: true
 
   /@babel/plugin-transform-typescript@7.27.0(@babel/core@7.26.10):
     resolution: {integrity: sha512-fRGGjO2UEGPjvEcyAZXRXAS8AfdaQoq7HnxAbJoAoW10B9xOKesmmndJv+Sym2a+9FHWZ9KbyyLCe9s0Sn5jtg==}
@@ -1403,6 +1402,7 @@ packages:
       '@emotion/utils': 1.4.2
     transitivePeerDependencies:
       - supports-color
+    dev: true
 
   /@emotion/hash@0.9.2:
     resolution: {integrity: sha512-MyqliTZGuOm3+5ZRSaaBGP3USLw6+EGykkwZns2EPC5g8jJ4z9OrdZY9apkl3+UP9+sdz76YYkwCKP5gh8iY3g==}
@@ -2781,6 +2781,7 @@ packages:
       '@types/react': 19.0.0
       prop-types: 15.8.1
       react: 19.0.0
+    dev: true
 
   /@mui/private-theming@7.0.1(@types/react@19.0.0)(react@19.0.0):
     resolution: {integrity: sha512-1kQ7REYjjzDukuMfTbAjm3pLEhD7gUMC2bWhg9VD6f6sHzyokKzX0XHzlr3IdzNWBjPytGkzHpPIRQrUOoPLCQ==}
@@ -2821,6 +2822,7 @@ packages:
       csstype: 3.1.3
       prop-types: 15.8.1
       react: 19.0.0
+    dev: true
 
   /@mui/styled-engine@7.0.1(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(react@19.0.0):
     resolution: {integrity: sha512-BeGe4xZmF7tESKhmctYrL54Kl25kGHPKVdZYM5qj5Xz76WM/poY+d8EmAqUesT6k2rbJWPp2gtOAXXinNCGunQ==}
@@ -2874,6 +2876,7 @@ packages:
       csstype: 3.1.3
       prop-types: 15.8.1
       react: 19.0.0
+    dev: true
 
   /@mui/system@7.0.1(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@types/react@19.0.0)(react@19.0.0):
     resolution: {integrity: sha512-pK+puz0hRPHEKGlcPd80mKYD3jpyi0uVIwWffox1WZgPTQMw2dCKLcD+9ndMDJADnrKzmKlpoH756PPFh2UvWA==}
@@ -3451,6 +3454,7 @@ packages:
       - '@types/react'
       - supports-color
       - typescript
+    dev: true
 
   /@pigment-css/vite-plugin@0.0.30(@types/react@19.0.0)(react@19.0.0)(typescript@5.8.3)(vite@5.4.18):
     resolution: {integrity: sha512-er9AB2fU5FP2LP50coP93penNKPAvJoaF/pXo07z9ApueasUEHjiQOg+p3DClbaosCTlF8mYUMMe+Pf3lQamVw==}
@@ -5152,6 +5156,7 @@ packages:
       '@wyw-in-js/shared': 0.5.5
     transitivePeerDependencies:
       - supports-color
+    dev: true
 
   /@wyw-in-js/shared@0.5.5:
     resolution: {integrity: sha512-Wnvp3RGfynHk81lrp/0fA+Yv5yuIr2Ej13N3lawQeqbK4KlMag3P9npyIljGrEiwK2Bv4byHuXsJFgLI0Fo8bw==}
@@ -5162,6 +5167,7 @@ packages:
       minimatch: 9.0.5
     transitivePeerDependencies:
       - supports-color
+    dev: true
 
   /@wyw-in-js/transform@0.5.5(typescript@5.8.3):
     resolution: {integrity: sha512-XMZjhS8poHpxfPg41rkc6eh3Mr2BZAFM7OzYN4jPZUicpJKv7uQAU2dLEqnyDcDllo04LbZIryb2fXwpr+pqPw==}
@@ -5185,6 +5191,7 @@ packages:
     transitivePeerDependencies:
       - supports-color
       - typescript
+    dev: true
 
   /@xobotyi/scrollbar-width@1.9.5:
     resolution: {integrity: sha512-N8tkAACJx2ww8vFMneJmaAgmjAG1tnVBZJRLRcx061tmsLRZHSEZSLuGWnwPtunsSLvSqXQ2wfp7Mgqg1I+2dQ==}
@@ -5514,6 +5521,7 @@ packages:
       '@babel/core': 7.26.10
       deepmerge: 2.2.1
       object.omit: 3.0.0
+    dev: true
 
   /babel-plugin-define-var@0.1.0:
     resolution: {integrity: sha512-WcK43U4uz+9G35Wvdnyri4Tcg8Ux9/hSbQC4ckpfrHFQp8Cuz1BIQK5NswuGxT3T8cc3d4e55wDeSO4dViOugg==}
@@ -6359,6 +6367,7 @@ packages:
       parse-json: 5.2.0
       path-type: 4.0.0
       typescript: 5.8.3
+    dev: true
 
   /country-flag-icons@1.5.18:
     resolution: {integrity: sha512-z+Uzesi8u8IdkViqqbzzbkf3+a7WJpcET5B7sPwTg7GXqPYpVEgNlZ/FC3l8KO4mEf+mNkmzKLppKTN4PlCJEQ==}
@@ -6456,6 +6465,7 @@ packages:
     resolution: {integrity: sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==}
     engines: {node: '>=4'}
     hasBin: true
+    dev: true
 
   /cssjanus@2.3.0:
     resolution: {integrity: sha512-ZZXXn51SnxRxAZ6fdY7mBDPmA4OZd83q/J9Gdqz3YmE9TUq+9tZl+tdOnCi7PpNygI6PEkehj9rgifv5+W8a5A==}
@@ -6613,6 +6623,7 @@ packages:
   /deepmerge@2.2.1:
     resolution: {integrity: sha512-R9hc1Xa/NOBi9WRVUWg19rl1UB7Tt4kuPd+thNJgFZoxXsTz7ncaPaeIm+40oSGuP33DfMb4sZt1QIGiJzC4EA==}
     engines: {node: '>=0.10.0'}
+    dev: true
 
   /deepmerge@4.3.1:
     resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
@@ -8233,6 +8244,7 @@ packages:
       entities: 4.5.0
       webidl-conversions: 7.0.0
       whatwg-mimetype: 3.0.0
+    dev: true
 
   /har-schema@2.0.0:
     resolution: {integrity: sha512-Oqluz6zhGX8cyRaTQlFMPw80bSJVG2x/cFb8ZPhUILGgHka9SsokCCOQgpveePerqidZOrT14ipqfJb7ILcW5Q==}
@@ -8635,6 +8647,7 @@ packages:
     engines: {node: '>=0.10.0'}
     dependencies:
       is-plain-object: 2.0.4
+    dev: true
 
   /is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
@@ -10034,6 +10047,7 @@ packages:
     engines: {node: '>=0.10.0'}
     dependencies:
       is-extendable: 1.0.1
+    dev: true
 
   /on-finished@2.3.0:
     resolution: {integrity: sha512-ikqdkGAAyf/X/gPhXGvfgAytDZtDbr+bkNUJ0N9h5MI/dmdgCs3l6hoHrcUv41sRKew3jIwrp4qQDXiK99Utww==}
@@ -12332,6 +12346,7 @@ packages:
   /source-map@0.7.4:
     resolution: {integrity: sha512-l3BikUxvPOcn5E74dZiq5BGsTb5yEwhaTSzccU6t4sDOH8NWJCstKO5QT2CvtFoK6F0saL7p9xHAqHOlCPJygA==}
     engines: {node: '>= 8'}
+    dev: true
 
   /sourcemap-codec@1.4.8:
     resolution: {integrity: sha512-9NykojV5Uih4lgo5So5dtw+f0JgJX30KCNI8gwhz2J9A15wD0Ml6tjHKwf6fTSa6fAdVBdZeNOs9eJ71qCk8vA==}
@@ -12853,6 +12868,7 @@ packages:
     engines: {node: '>=8'}
     dependencies:
       tslib: 2.8.1
+    dev: true
 
   /ts-node@10.9.2(@types/node@20.14.15)(typescript@5.8.3):
     resolution: {integrity: sha512-f0FFpIdcHgn8zcPSbf1dRevwt047YMnaiJM3u2w2RewrB+fob/zePZcrOyQoLMMO7aBIddLcQIEK5dYjkLnGrQ==}
