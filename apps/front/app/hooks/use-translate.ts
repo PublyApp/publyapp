@@ -10,7 +10,9 @@ import { allLangs } from '../lib/locales/all-langs';
 
 // ----------------------------------------------------------------------
 
-export const useTranslate = (ns?: string) => {
+type Ns = Parameters<typeof useTranslation>[0];
+
+export const useTranslate = (ns?: Ns) => {
 	const { t, i18n } = useTranslation(ns);
 
 	const fallback = allLangs.filter((lang) => {
