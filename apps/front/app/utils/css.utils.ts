@@ -48,33 +48,3 @@ const toVal = (mix: unknown) => {
 
 	return str;
 };
-
-/**
- * Class merging utility
- * Exactly the same as clsx: https://www.npmjs.com/package/clsx
- */
-export const cn = (...args: ClassValue[]): string => {
-	let i = 0;
-	let tmp: ClassValue;
-	let x: string | number;
-	let str = '';
-	const len = args.length;
-
-	for (; i < len; i += 1) {
-		tmp = args[i];
-
-		if (tmp) {
-			x = toVal(tmp);
-
-			if (x) {
-				if (str) {
-					str += ' ';
-				}
-
-				str += x;
-			}
-		}
-	}
-
-	return str;
-};
