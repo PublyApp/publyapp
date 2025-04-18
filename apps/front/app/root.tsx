@@ -1,5 +1,3 @@
-import '@pigment-css/react/styles.css'; // import Pigment CSS styles/variables
-
 import './styles/main.css';
 
 import { QueryClientProvider } from '@tanstack/react-query';
