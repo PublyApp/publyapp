@@ -18,6 +18,7 @@ const commonFR = {
 	translation: 'Traduction',
 	user: 'Utilisateur',
 	number: 'Nombre',
+	tenants: 'Tenants',
 
 	// ? ...
 	'created-at': 'Créé le',
