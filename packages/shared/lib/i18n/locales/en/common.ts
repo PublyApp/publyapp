@@ -36,6 +36,9 @@ const commonEN = {
 	edit: 'Edit',
 	list: 'List',
 	settings: 'Settings',
+	overview: 'Overview',
+	'staff-member': 'Staff member',
+	'staff-members': 'Staff members',
 
 	// ???
 	'item-is-required': '{{item}} is required',
