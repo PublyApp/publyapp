@@ -38,6 +38,9 @@ const commonFR = {
 	'your-content': 'Votre contenu',
 	list: 'Liste',
 	settings: 'Paramètres',
+	overview: 'Aperçu',
+	'staff-member': 'Membre du staff',
+	'staff-members': 'Membres du staff',
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',

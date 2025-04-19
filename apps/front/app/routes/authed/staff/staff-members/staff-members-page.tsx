@@ -1,13 +1,13 @@
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import _ from 'lodash';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { useTranslate } from '@/front/hooks/use-translate';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { RouterLink } from '@/front/components/router-link';
-import Button from '@mui/material/Button';
 import { Iconify } from '@/front/components/iconify/iconify';
+import { RouterLink } from '@/front/components/router-link';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import Button from '@mui/material/Button';
+import _ from 'lodash';
 
-const TenantsListPage = () => {
+const StaffMembersPage = () => {
 	const { t } = useTranslate();
 
 	return (
@@ -16,12 +16,11 @@ const TenantsListPage = () => {
 			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
 		>
 			<CustomBreadcrumbs
-				heading={t('list-of-items', { items: t('tenants') })}
+				heading={t('list-of-items', { items: _.toLower(t('staff-members')) })}
 				links={[
-					// { name: 'Dashboard', href: paths.dashboard.root },
 					{
-						name: _.capitalize(t('tenants')),
-						href: FRONT_PATH_NAMES.staff.tenants.root,
+						name: _.capitalize(t('staff-members')),
+						href: FRONT_PATH_NAMES.staff.staffMembers.root,
 					},
 					{ name: _.capitalize(t('list')) },
 				]}
@@ -32,7 +31,7 @@ const TenantsListPage = () => {
 						variant="contained"
 						startIcon={<Iconify icon="mingcute:add-line" />}
 					>
-						New product
+						{t('new-item', { item: _.toLower(t('staff-member')) })}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}
@@ -41,4 +40,4 @@ const TenantsListPage = () => {
 	);
 };
 
-export default TenantsListPage;
+export default StaffMembersPage;
