@@ -30,6 +30,10 @@ const routes = [
 						getLastPath(FRONT_PATH_NAMES.staff.tenants.root),
 						'routes/authed/staff/tenants-list/tenants-list-page.tsx',
 					),
+					route(
+						getLastPath(FRONT_PATH_NAMES.staff.staffMembers.root),
+						'routes/authed/staff/staff-members/staff-members-page.tsx',
+					),
 				]),
 				route('*', 'routes/authed/staff/_errors/staff-not-found-page.tsx'),
 			],
