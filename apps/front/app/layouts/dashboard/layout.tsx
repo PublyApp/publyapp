@@ -16,13 +16,13 @@ import { useMockedUser } from '@/front/hooks/use-mocked-user';
 import { useSettingsContext } from '@/front/hooks/use-settings-context';
 import { allLangs } from '@/front/lib/locales/all-langs';
 
-import { AccountDrawer } from '../components/account-drawer';
-import { ContactsPopover } from '../components/contacts-popover';
+// import { AccountDrawer } from '../components/account-drawer';
+// import { ContactsPopover } from '../components/contacts-popover';
 import { LanguagePopover } from '../components/language-popover';
 import { MenuButton } from '../components/menu-button';
-import { NotificationsDrawer } from '../components/notifications-drawer';
-import { Searchbar } from '../components/searchbar';
-import { SettingsButton } from '../components/settings-button';
+// import { NotificationsDrawer } from '../components/notifications-drawer';
+// import { Searchbar } from '../components/searchbar';
+// import { SettingsButton } from '../components/settings-button';
 import { WorkspacesPopover } from '../components/workspaces-popover';
 import { layoutClasses } from '../core/classes';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
@@ -173,22 +173,22 @@ export const DashboardLayout = ({
 					}}
 				>
 					{/** @slot Searchbar */}
-					<Searchbar data={navData} />
+					{/* <Searchbar data={navData} /> */}
 
 					{/** @slot Language popover */}
 					<LanguagePopover data={allLangs} />
 
 					{/** @slot Notifications popover */}
-					<NotificationsDrawer data={_notifications} />
+					{/* <NotificationsDrawer data={_notifications} /> */}
 
 					{/** @slot Contacts popover */}
-					<ContactsPopover data={_contacts} />
+					{/* <ContactsPopover data={_contacts} /> */}
 
 					{/** @slot Settings button */}
-					<SettingsButton />
+					{/* <SettingsButton /> */}
 
 					{/** @slot Account drawer */}
-					<AccountDrawer data={_account} />
+					{/* <AccountDrawer data={_account} /> */}
 				</Box>
 			),
 		};

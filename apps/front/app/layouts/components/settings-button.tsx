@@ -19,20 +19,11 @@ export const SettingsButton = ({ sx, ...other }: IconButtonProps) => {
 			whileHover={varHover(1.04)}
 			transition={transitionTap()}
 			aria-label="Settings button"
-			onClick={
-				settings.onToggleDrawer
-				// () => {
-				// 	console.log('drawer toggled');
-				// }
-			}
+			onClick={settings.onToggleDrawer}
 			sx={[{ p: 0, width: 40, height: 40 }, ...(Array.isArray(sx) ? sx : [sx])]}
 			{...other}
 		>
-			<Badge
-				color="error"
-				variant="dot"
-				invisible={/* !settings.canReset */ false}
-			>
+			<Badge color="error" variant="dot" invisible={!settings.canReset}>
 				<SvgIcon>
 					{/** https://icon-sets.iconify.design/solar/settings-bold-duotone/ */}
 					<m.path
