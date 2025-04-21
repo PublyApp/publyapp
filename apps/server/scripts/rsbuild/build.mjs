@@ -1,6 +1,6 @@
 // @ts-check
 
-const { createRsbuild, build, createI18nResourcesFiles } = require('./config');
+import { createRsbuild, build, createI18nResourcesFiles } from './config.mjs';
 
 const toDeploy = ['preprod', 'production'].includes(process.env.MODE || '');
 
