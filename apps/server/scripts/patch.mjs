@@ -17,10 +17,10 @@ const patchParseServerSelectNestedObjectKeys = async () => {
 	const exists1 = fs.existsSync(filePath1);
 
 	// const results =
-	await replace({
+	replace({
 		disableGlobs: true,
-		files: exists1 ? filePath1 : filePath2,
-		from: /return key.split\('.'\)\[0];/g,
+		files: (await exists1) ? filePath1 : filePath2,
+		from: /return key.split\('.'\)\[0\];/g,
 		to: 'return key;',
 	});
 };
@@ -38,11 +38,32 @@ const patchParseServerAuthLib = async () => {
 	const exists1 = fs.existsSync(filePath1);
 
 	// const results =
-	await replace({
+	replace({
 		disableGlobs: true,
-		files: exists1 ? filePath1 : filePath2,
+		files: (await exists1) ? filePath1 : filePath2,
 		from: /function master\(config\) {/g,
 		to: 'exports.master = master\nfunction master(config) {',
+	});
+};
+
+const patchParseServerBlockListForBunRuntime = async () => {
+	const filePath1 = path.resolve(
+		import.meta.dirname,
+		'../node_modules/parse-server/lib/middlewares.js',
+	);
+	const filePath2 = path.resolve(
+		import.meta.dirname,
+		'../../../node_modules/parse-server/lib/middlewares.js',
+	);
+
+	const exists1 = fs.existsSync(filePath1);
+
+	// const results =
+	replace({
+		disableGlobs: true,
+		files: (await exists1) ? filePath1 : filePath2,
+		from: /blockList.addAddress\(/g,
+		to: 'blockList.addAddress?.(',
 	});
 };
 
@@ -59,58 +80,15 @@ const patchClassNameRegex = async () => {
 	const exists1 = fs.existsSync(filePath1);
 
 	// const results =
-	await replace({
+	replace({
 		disableGlobs: true,
-		files: exists1 ? filePath1 : filePath2,
-		from: /\/\^_Join:\[A-Za-z0-9_]\+:\[A-Za-z0-9_]\+\//g,
+		files: (await exists1) ? filePath1 : filePath2,
+		from: /\/\^_Join:\[A-Za-z0-9_\]\+:\[A-Za-z0-9_\]\+\//g,
 		to: '/^(_Join|_CustomJoin):[A-Za-z0-9_]+:[A-Za-z0-9_]+/',
 	});
 };
 
-const patchParseMiddlewares_1 = async () => {
-	const filePath1 = path.resolve(
-		import.meta.dirname,
-		'../node_modules/parse-server/lib/middlewares.js',
-	);
-	const filePath2 = path.resolve(
-		import.meta.dirname,
-		'../../../node_modules/parse-server/lib/middlewares.js',
-	);
-
-	const exists1 = fs.existsSync(filePath1);
-
-	await replace({
-		disableGlobs: true,
-		files: exists1 ? filePath1 : filePath2,
-		from: `function invalidRequest(req, res) {\n\tres.status(401);\n\tres.end('{"error":"unauthorized"}');\n}`,
-		to: `function invalidRequest(req, res) {\n\tconst message = req.requestUtils?.t?.('unauthorized') || 'unauthorized';\n\tres.status(401);\n\tres.end('{"error":"' + message + '"}');\n}`,
-	});
-};
-
-const patchParseMiddlewares_2 = async () => {
-	const filePath1 = path.resolve(
-		import.meta.dirname,
-		'../node_modules/parse-server/lib/middlewares.js',
-	);
-	const filePath2 = path.resolve(
-		import.meta.dirname,
-		'../../../node_modules/parse-server/lib/middlewares.js',
-	);
-
-	const exists1 = fs.existsSync(filePath1);
-
-	await replace({
-		disableGlobs: true,
-		files: exists1 ? filePath1 : filePath2,
-		from: "error: 'Invalid object for context.'",
-		to: "error: req.requestUtils?.t?.('Invalid object for context.') || 'Invalid object for context.'",
-	});
-};
-
-await Promise.all([
-	patchParseServerSelectNestedObjectKeys(),
-	patchParseServerAuthLib(),
-	patchClassNameRegex(),
-	patchParseMiddlewares_1(),
-	patchParseMiddlewares_2(),
-]);
+patchParseServerSelectNestedObjectKeys();
+patchParseServerAuthLib();
+patchParseServerBlockListForBunRuntime();
+patchClassNameRegex();
