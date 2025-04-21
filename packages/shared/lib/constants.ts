@@ -270,31 +270,8 @@ export const functionName = {
 		getTenantAuthData: 'getTenantAuthData',
 		getIsDisabledSignup: 'getIsDisabledSignup',
 		getRedirectCode: 'getRedirectCode',
-		// ===
+		// ====
 		removeSeededUsers: 'removeSeededUsers',
-	},
-	// Blog Posts
-	blog: {
-		createBlogPost: 'createBlogPost',
-		updateBlogPost: 'updateBlogPost',
-		getBlogPostFrontDetails: 'getBlogPostFrontDetails',
-		getBlogPostFrontDetailsRelatedPosts: 'getBlogPostFrontDetailsRelatedPosts',
-		getBlogPostBoEdit: 'getBlogPostBoEdit',
-		findBlogPostFrontList: 'findBlogPostFrontList',
-		findBlogPostBoTable: 'findBlogPostBoTable',
-		findBlogPostTag: 'findBlogPostTag',
-		findBlogPostFrontDetailsRelatedPosts:
-			'findBlogPostFrontDetailsRelatedPosts',
-		findBlogPostSlug: 'findBlogPostSlug',
-		addSlugToBlogPost: 'addSlugToBlogPost',
-		removeSeededBlogPosts: 'removeSeededBlogPosts',
-		setBlogPostCurrentSlug: 'setBlogPostCurrentSlug',
-		// updateBlogPostAuthorPointers: 'updateBlogPostAuthorPointers',
-	},
-	fileManager: {
-		// Files
-		findAppFile: 'findAppFile',
-		createAppFileFolder: 'createAppFileFolder',
 	},
 } as const;
 
