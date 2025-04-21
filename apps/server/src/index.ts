@@ -20,7 +20,6 @@ import {
 	endPoint,
 	LOCALE_HEADER_KEY,
 	TENANT_ID_HEADER_KEY,
-	// X_FORWARDED_FOR_HEADER_KEY,
 	X_REMIX_CLIENT_IP,
 } from '@/shared/lib/constants';
 
