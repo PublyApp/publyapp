@@ -28,7 +28,7 @@
 		"seed": "node --enable-source-maps dist/seed.mjs",
 		"seed:debug": "node --enable-source-maps --inspect-brk dist/seed.mjs",
 		"// =============== TEST COMMANDS =================": "================================",
-		"postinstall": "node scripts/patch.js",
+		"postinstall": "node scripts/patch.mjs",
 		"type-check": "tsc"
 	},
 	"dependencies": {

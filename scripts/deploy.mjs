@@ -102,7 +102,7 @@ fse.mkdirpSync(FRONT_APP_DIR_DEST);
 fse.copyFileSync(frontAppPackageJsonSrc, frontAppPackageJsonDest);
 
 // copy patch file (server)
-const patchFileName = 'patch.js';
+const patchFileName = 'patch.mjs';
 const patchFileSrc = path.join(SERVER_APP_DIR_SRC, 'scripts', patchFileName);
 const patchFileDest = path.join(SERVER_APP_DIR_DEST, 'scripts', patchFileName);
 fse.mkdirpSync(path.join(SERVER_APP_DIR_DEST, 'scripts'));
