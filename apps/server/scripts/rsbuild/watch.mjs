@@ -1,17 +1,15 @@
 // @ts-check
 
-const { spawn } = require('node:child_process');
-const path = require('node:path');
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import _ from 'lodash';
+import chokidar from 'chokidar';
 
-const _ = require('lodash');
-
-const chokidar = require('chokidar');
-
-const {
+import {
 	createRsbuild,
-	watch: _watch,
+	watch as _watch,
 	createI18nResourcesFiles,
-} = require('./config');
+} from './config.mjs';
 
 // set node env to development
 // otherwise onDevCompileDone API will not be called
@@ -55,7 +53,7 @@ const run = async () => {
 
 		startAppProcess = spawn(node, args, {
 			stdio: 'inherit',
-			cwd: path.resolve(__dirname, '../../'),
+			cwd: path.resolve(import.meta.dirname, '../../'),
 			env: _.assign({}, process.env, {
 				// even during development, set NODE_ENV to production
 				// so that we can have production-like behavior
@@ -67,7 +65,7 @@ const run = async () => {
 		});
 
 		// ! subprocesses of subprocess are not killed
-		// startAppProcess = spawn('npm.cmd', ['start'], { stdio: 'inherit', cwd: __dirname });
+		// startAppProcess = spawn('npm.cmd', ['start'], { stdio: 'inherit', cwd: import.meta.dirname });
 	});
 
 	process.stdin.on('data', (data) => {
@@ -79,7 +77,7 @@ const run = async () => {
 	});
 
 	chokidar
-		.watch(path.resolve(__dirname, '../../.env.local'))
+		.watch(path.resolve(import.meta.dirname, '../../.env.local'))
 		.on('change', () => {
 			watch();
 		});
