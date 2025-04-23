@@ -188,6 +188,9 @@ importers:
       lucide-react:
         specifier: ^0.473.0
         version: 0.473.0(react@19.0.0)
+      material-react-table:
+        specifier: ^3.2.1
+        version: 3.2.1(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/icons-material@7.0.2)(@mui/material@7.0.1)(@mui/x-date-pickers@7.28.2)(react-dom@19.0.0)(react@19.0.0)
       minimal-shared:
         specifier: ^1.0.7
         version: 1.0.7(react@19.0.0)
@@ -2945,6 +2948,23 @@ packages:
     resolution: {integrity: sha512-T5DNVnSD9pMbj4Jk/Uphz+yvj9dfpl2+EqsOuJtG12HxEihNG5pd3qzX5yM1Id4dDwKRvM3dPVcxyzavTFhJeA==}
     dev: false
 
+  /@mui/icons-material@7.0.2(@mui/material@7.0.1)(@types/react@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-Bo57PFLOqXOqPNrXjd8AhzH5s6TCsNUQbvnQ0VKZ8D+lIlteqKnrk/O1luMJUc/BXONK7BfIdTdc7qOnXYbMdw==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      '@mui/material': ^7.0.2
+      '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
+      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+    dependencies:
+      '@babel/runtime': 7.27.0
+      '@mui/material': 7.0.1(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0)
+      '@types/react': 19.0.0
+      react: 19.0.0
+    dev: false
+
   /@mui/lab@7.0.0-beta.10(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/material@7.0.1)(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0):
     resolution: {integrity: sha512-ide9oABYRAvJAFtxjc+bAaeAR74yVZ4avV7Ffj/D5CbbgSp/d5ns9SQtuWIZ7oJ3S7l1fcR06dj8EZuPRTmo8A==}
     engines: {node: '>=14.0.0'}
@@ -4559,6 +4579,13 @@ packages:
       defer-to-connect: 2.0.1
     dev: false
 
+  /@tanstack/match-sorter-utils@8.19.4:
+    resolution: {integrity: sha512-Wo1iKt2b9OT7d+YGhvEPD3DXvPv2etTusIMhMUoG7fbhmxcXCtIjJDEygy91Y2JFlwGyjqiBPRozme7UD8hoqg==}
+    engines: {node: '>=12'}
+    dependencies:
+      remove-accents: 0.5.0
+    dev: false
+
   /@tanstack/query-core@5.62.9:
     resolution: {integrity: sha512-lwePd8hNYhyQ4nM/iRQ+Wz2cDtspGeZZHFZmCzHJ7mfKXt+9S301fULiY2IR2byJYY6Z03T427E5PoVfMexHjw==}
     dev: false
@@ -4584,9 +4611,24 @@ packages:
       react-dom: 19.0.0(react@19.0.0)
     dev: false
 
+  /@tanstack/react-virtual@3.11.2(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-OuFzMXPF4+xZgx8UzJha0AieuMihhhaWG0tCqpp6tDzlFwOmNBPYMuLOtMJ1Tr4pXLHmgjcWhG6RlknY2oNTdQ==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    dependencies:
+      '@tanstack/virtual-core': 3.11.2
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+    dev: false
+
   /@tanstack/table-core@8.20.5:
     resolution: {integrity: sha512-P9dF7XbibHph2PFRz8gfBKEXEY/HJPOhym8CHmjF8y3q5mWpKx9xtZapXQUWCgkqvsK0R46Azuz+VaxD4Xl+Tg==}
     engines: {node: '>=12'}
+    dev: false
+
+  /@tanstack/virtual-core@3.11.2:
+    resolution: {integrity: sha512-vTtpNt7mKCiZ1pwU9hfKPhpdVO2sVzFQsxoVBGtOSHxlrRRzYr8iQ2TlwbAcRYCcEiZ9ECAM8kBzH0v2+VzfKw==}
     dev: false
 
   /@tiptap/core@2.11.7(@tiptap/pm@2.11.7):
@@ -8525,6 +8567,11 @@ packages:
     resolution: {integrity: sha512-QFLV0taWQOZtvIRIAdBChesmogZrtuXvVWsFHZTk2SU+anspqZ2vMnoLg7IE1+Uk16N19APic1BuF8bC8c2m5g==}
     engines: {node: '>=8'}
 
+  /highlight-words@2.0.0:
+    resolution: {integrity: sha512-If5n+IhSBRXTScE7wl16VPmd+44Vy7kof24EdqhjsZsDuHikpv1OCagVcJFpB4fS4UPUniedlWqrjIO8vWOsIQ==}
+    engines: {node: '>= 20', npm: '>= 9'}
+    dev: false
+
   /highlight.js@11.11.1:
     resolution: {integrity: sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w==}
     engines: {node: '>=12.0.0'}
@@ -9562,6 +9609,31 @@ packages:
       mdurl: 2.0.0
       punycode.js: 2.3.1
       uc.micro: 2.1.0
+    dev: false
+
+  /material-react-table@3.2.1(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/icons-material@7.0.2)(@mui/material@7.0.1)(@mui/x-date-pickers@7.28.2)(react-dom@19.0.0)(react@19.0.0):
+    resolution: {integrity: sha512-sQtTf7bETpkPN2Hm5BVtz89wrfXCVQguz6XlwMChSnfKFO5QCKAJJC5aSIKnUc3S0AvTz/k/ILi00FnnY1Gixw==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      '@emotion/react': '>=11.13'
+      '@emotion/styled': '>=11.13'
+      '@mui/icons-material': '>=6'
+      '@mui/material': '>=6'
+      '@mui/x-date-pickers': '>=7.15'
+      react: '>=18.0'
+      react-dom: '>=18.0'
+    dependencies:
+      '@emotion/react': 11.14.0(@types/react@19.0.0)(react@19.0.0)
+      '@emotion/styled': 11.14.0(@emotion/react@11.14.0)(@types/react@19.0.0)(react@19.0.0)
+      '@mui/icons-material': 7.0.2(@mui/material@7.0.1)(@types/react@19.0.0)(react@19.0.0)
+      '@mui/material': 7.0.1(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0)
+      '@mui/x-date-pickers': 7.28.2(@emotion/react@11.14.0)(@emotion/styled@11.14.0)(@mui/material@7.0.1)(@mui/system@7.0.1)(@types/react@19.0.0)(date-fns@3.6.0)(dayjs@1.11.12)(react-dom@19.0.0)(react@19.0.0)
+      '@tanstack/match-sorter-utils': 8.19.4
+      '@tanstack/react-table': 8.20.6(react-dom@19.0.0)(react@19.0.0)
+      '@tanstack/react-virtual': 3.11.2(react-dom@19.0.0)(react@19.0.0)
+      highlight-words: 2.0.0
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
     dev: false
 
   /math-intrinsics@1.1.0:
@@ -11861,6 +11933,10 @@ packages:
       react-router: 7.3.0(react-dom@19.0.0)(react@19.0.0)
       type-fest: 4.30.0
       zod: 3.23.8
+    dev: false
+
+  /remove-accents@0.5.0:
+    resolution: {integrity: sha512-8g3/Otx1eJaVD12e31UbJj1YzdtVvzH85HV7t+9MJYk/u3XmkOUJ5Ys9wQrf9PCPK8+xn4ymzqYCiZl6QWKn+A==}
     dev: false
 
   /replace-in-file@7.2.0:
