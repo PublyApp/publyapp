@@ -18,6 +18,7 @@ const commonFR = {
 	translation: 'Traduction',
 	user: 'Utilisateur',
 	number: 'Nombre',
+	tenants: 'Tenants',
 
 	// ? ...
 	'created-at': 'Créé le',
@@ -37,6 +38,9 @@ const commonFR = {
 	'your-content': 'Votre contenu',
 	list: 'Liste',
 	settings: 'Paramètres',
+	overview: 'Aperçu',
+	'staff-member': 'Membre du staff',
+	'staff-members': 'Membres du staff',
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',

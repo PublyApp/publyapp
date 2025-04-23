@@ -16,8 +16,8 @@ import {
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
-import type { Route } from './+types/LoginPage';
-import LoginForm from './LoginForm';
+import type { Route } from './+types/login-page';
+import LoginForm from './login-form';
 
 export const meta = (_: Route.MetaArgs) => {
 	return [{ title: `Log in - ${APP_NAME}` }];

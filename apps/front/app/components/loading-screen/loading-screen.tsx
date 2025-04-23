@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { Fragment } from 'react';
 
 import LinearProgress from '@mui/material/LinearProgress';

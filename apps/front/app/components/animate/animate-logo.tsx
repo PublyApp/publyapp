@@ -45,7 +45,6 @@ export const AnimateLogoZoom = ({
 				)}
 			</m.span>
 
-			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 			<LogoZoomPrimaryOutline
 				animate={{
 					scale: [1.6, 1, 1, 1.6, 1.6],
@@ -60,7 +59,6 @@ export const AnimateLogoZoom = ({
 				}}
 			/>
 
-			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 			<LogoZoomSecondaryOutline
 				animate={{
 					scale: [1, 1.2, 1.2, 1, 1],
@@ -129,7 +127,6 @@ export const AnimateLogoRotate = ({
 				/>
 			)}
 
-			{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 			<LogoRotateBackground
 				animate={{ rotate: 360 }}
 				transition={{

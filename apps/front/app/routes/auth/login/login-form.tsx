@@ -19,7 +19,7 @@ import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import { getLoginSchema } from '@/shared/validations/auth.validations';
 
-import type { LoginActionResult } from './LoginPage';
+import type { LoginActionResult } from './login-page';
 
 // ----------------------------------------------------------------------
 
@@ -68,7 +68,6 @@ const LoginForm = () => {
 			/>
 
 			<Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>
-				{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
 				<Link
 					component={RouterLink}
 					href="#"

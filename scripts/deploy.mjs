@@ -1,10 +1,9 @@
+// @ts-check
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 import _ from 'lodash';
 import fse from 'fs-extra';
-
-// @ts-check
 
 const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../');
 
@@ -103,7 +102,7 @@ fse.mkdirpSync(FRONT_APP_DIR_DEST);
 fse.copyFileSync(frontAppPackageJsonSrc, frontAppPackageJsonDest);
 
 // copy patch file (server)
-const patchFileName = 'patch.js';
+const patchFileName = 'patch.mjs';
 const patchFileSrc = path.join(SERVER_APP_DIR_SRC, 'scripts', patchFileName);
 const patchFileDest = path.join(SERVER_APP_DIR_DEST, 'scripts', patchFileName);
 fse.mkdirpSync(path.join(SERVER_APP_DIR_DEST, 'scripts'));

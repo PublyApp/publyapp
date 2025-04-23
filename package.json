@@ -6,8 +6,7 @@
 		"// =============== BUILD SCRIPTS ===============": "=============================",
 		"build": "turbo build",
 		"build:local": "turbo build:local",
-		"build:railway": "turbo build --filter server --force",
-		"build:local:railway": "turbo build:local --filter server --force",
+		"build:deploy": "node ./scripts/deploy.mjs",
 		"// =============== START SCRIPTS ===============": "=============================",
 		"start:railway": "pnpm --filter server run start",
 		"start:test-online": "pnpm --filter server run start:test-online",
@@ -21,15 +20,15 @@
 		"// =============== SEED COMMANDS =================": "================================",
 		"seed": "pnpm --filter server run seed",
 		"seed:debug": "pnpm --filter server run seed:debug",
-		"// =============== MISC ===============": "================================",
-		"knip": "knip",
-		"prepare": "husky",
-		"update-deps": "pnpm up -i -r",
+		"// =============== LINTING ===============": "================================",
 		"format:check": "biome format .",
 		"format:write": "biome format --write .",
 		"lint:check": "biome lint",
 		"lint:write": "biome lint --write .",
-		"build:deploy": "node ./scripts/deploy.mjs"
+		"// =============== MISC ===============": "================================",
+		"knip": "knip",
+		"prepare": "husky",
+		"update-deps": "pnpm up -i -r"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
@@ -42,11 +41,12 @@
 		"lint-staged": "^15.2.0",
 		"tsconfig": "workspace:*",
 		"turbo": "^2.0.3",
-		"typescript": "^5.5.4"
+		"typescript": "^5.8.3",
+		"lodash": "^4.17.21"
 	},
 	"packageManager": "pnpm@8.15.7",
 	"engines": {
-		"node": ">=20.12.2"
+		"node": ">=v22.x"
 	},
 	"trustedDependencies": ["sharp"]
 }

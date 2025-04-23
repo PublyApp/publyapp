@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 import SimpleBar from 'simplebar-react';

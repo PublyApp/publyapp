@@ -1,13 +1,6 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable no-param-reassign */
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable import/no-extraneous-dependencies */
-/* eslint-disable prefer-arrow/prefer-arrow-functions */
-/* eslint-disable func-style */
-
 // @ts-check
 
-const { createRsbuild, build, createI18nResourcesFiles } = require('./config');
+import { createRsbuild, build, createI18nResourcesFiles } from './config.mjs';
 
 const toDeploy = ['preprod', 'production'].includes(process.env.MODE || '');
 

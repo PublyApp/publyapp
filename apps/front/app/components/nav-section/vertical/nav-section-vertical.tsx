@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import Collapse from '@mui/material/Collapse';
 import { useTheme } from '@mui/material/styles';
 import { useBoolean } from 'minimal-shared/hooks';

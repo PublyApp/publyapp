@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import Box from '@mui/material/Box';
 import { styled, type Breakpoint } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';

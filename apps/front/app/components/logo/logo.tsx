@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useId } from 'react';
 
 import Link, { type LinkProps } from '@mui/material/Link';
