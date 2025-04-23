@@ -30,3 +30,12 @@ pnpm dev:front
 ```
 
 Now open your browser and go to `http://localhost:6181` to see the app.
+
+## Hosting
+
+At the time of writing, we host on Hostinger VPS with a dokploy installation.
+
+We may consider the following hosting options once hostinger plans are terminated:
+
+- [Netcup](https://www.netcup.com/en/server/vps)
+- Google Cloud Run

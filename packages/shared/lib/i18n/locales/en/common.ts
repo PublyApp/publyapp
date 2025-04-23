@@ -16,6 +16,7 @@ const commonEN = {
 	translation: 'Translation',
 	user: 'User',
 	number: 'Number',
+	tenants: 'Tenants',
 
 	// ? ...
 	views: 'Views',
@@ -35,6 +36,9 @@ const commonEN = {
 	edit: 'Edit',
 	list: 'List',
 	settings: 'Settings',
+	overview: 'Overview',
+	'staff-member': 'Staff member',
+	'staff-members': 'Staff members',
 
 	// ???
 	'item-is-required': '{{item}} is required',

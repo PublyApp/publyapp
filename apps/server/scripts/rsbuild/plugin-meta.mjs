@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-const path = require('node:path');
-
 // @ts-check
+
+import path from 'node:path';
 
 /**
  * @typedef {Record<string, any> | undefined} PluginMetaOptions
@@ -17,7 +16,7 @@ const path = require('node:path');
  * @param _options {PluginMetaOptions}
  * @returns {RsbuildPlugin}
  */
-const pluginMeta = (_options) /* : RsbuildPlugin */ => {
+export const pluginMeta = (_options) /* : RsbuildPlugin */ => {
 	return {
 		name: 'plugin-meta',
 		setup(api) {
@@ -37,4 +36,4 @@ const pluginMeta = (_options) /* : RsbuildPlugin */ => {
 	};
 };
 
-module.exports = pluginMeta;
+// module.exports = pluginMeta;

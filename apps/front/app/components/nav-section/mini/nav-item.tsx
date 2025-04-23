@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import ButtonBase from '@mui/material/ButtonBase';
 import { styled, type CSSObject } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';

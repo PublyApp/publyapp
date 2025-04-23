@@ -8,7 +8,7 @@ import type { Breakpoint } from '@mui/material/styles';
 import { Logo } from '@/front/components/logo/logo';
 import { RouterLink } from '@/front/components/router-link';
 
-import { SettingsButton } from '../components/settings-button';
+// import { SettingsButton } from '../components/settings-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
@@ -59,7 +59,7 @@ export const SimpleLayout = ({
 					}}
 				>
 					{/** @slot Help link */}
-					{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+
 					<Link
 						href="#"
 						component={RouterLink}
@@ -70,7 +70,7 @@ export const SimpleLayout = ({
 					</Link>
 
 					{/** @slot Settings button */}
-					<SettingsButton />
+					{/* <SettingsButton /> */}
 				</Box>
 			),
 		};

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useTheme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 

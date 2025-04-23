@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import _ from 'lodash';
 
 import dayjs from 'dayjs';

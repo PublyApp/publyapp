@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import GlobalStyles from '@mui/material/GlobalStyles';
 import type { CSSObject, Theme } from '@mui/material/styles';
 import { isRouteErrorResponse } from 'react-router';
@@ -9,8 +8,6 @@ type ErrorBoundaryProps = {
 };
 
 export const ErrorBoundary = ({ error }: ErrorBoundaryProps) => {
-	// const error = useRouteError();
-
 	return (
 		<>
 			{inputGlobalStyles()}

@@ -1,5 +1,3 @@
-/* eslint-disable no-continue */
-/* eslint-disable no-await-in-loop */
 import { existsSync, promises as fs } from 'node:fs';
 
 import { className, roleEnum } from '@org/shared/lib/constants';
@@ -171,7 +169,6 @@ export const updateSchemasOnInit = async () => {
 };
 
 export const overrideConsole = () => {
-	/* eslint-disable no-console */
 	const originalConsoleError = console.error;
 
 	console.error = (...args: unknown[]) => {
@@ -199,5 +196,4 @@ export const overrideConsole = () => {
 		logger.warn('DO NOT USE console.log, use logger.log/logger.info instead');
 		originalConsoleLog(...args);
 	};
-	/* eslint-enable no-console */
 };
