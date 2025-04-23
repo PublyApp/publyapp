@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { startTransition, useCallback, useEffect, useState } from 'react';
 
 import Box from '@mui/material/Box';

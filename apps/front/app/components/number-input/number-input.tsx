@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useCallback, useId } from 'react';
 
 import Box, { type BoxProps } from '@mui/material/Box';

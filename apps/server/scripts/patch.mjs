@@ -1,17 +1,16 @@
-const fs = require('node:fs');
-const path = require('node:path');
-
-const replace = require('replace-in-file');
+import fs from 'node:fs';
+import path from 'node:path';
+import replace from 'replace-in-file';
 
 console.log('==================> postInstall <=================');
 
 const patchParseServerSelectNestedObjectKeys = async () => {
 	const filePath1 = path.resolve(
-		__dirname,
+		import.meta.dirname,
 		'../node_modules/parse-server/lib/RestQuery.js',
 	);
 	const filePath2 = path.resolve(
-		__dirname,
+		import.meta.dirname,
 		'../../../node_modules/parse-server/lib/RestQuery.js',
 	);
 
@@ -28,11 +27,11 @@ const patchParseServerSelectNestedObjectKeys = async () => {
 
 const patchParseServerAuthLib = async () => {
 	const filePath1 = path.resolve(
-		__dirname,
+		import.meta.dirname,
 		'../node_modules/parse-server/lib/Auth.js',
 	);
 	const filePath2 = path.resolve(
-		__dirname,
+		import.meta.dirname,
 		'../../../node_modules/parse-server/lib/Auth.js',
 	);
 
@@ -49,11 +48,11 @@ const patchParseServerAuthLib = async () => {
 
 const patchParseServerBlockListForBunRuntime = async () => {
 	const filePath1 = path.resolve(
-		__dirname,
+		import.meta.dirname,
 		'../node_modules/parse-server/lib/middlewares.js',
 	);
 	const filePath2 = path.resolve(
-		__dirname,
+		import.meta.dirname,
 		'../../../node_modules/parse-server/lib/middlewares.js',
 	);
 
@@ -68,13 +67,13 @@ const patchParseServerBlockListForBunRuntime = async () => {
 	});
 };
 
-patchClassNameRegex = async () => {
+const patchClassNameRegex = async () => {
 	const filePath1 = path.resolve(
-		__dirname,
+		import.meta.dirname,
 		'../node_modules/parse-server/lib/Controllers/SchemaController.js',
 	);
 	const filePath2 = path.resolve(
-		__dirname,
+		import.meta.dirname,
 		'../../../node_modules/parse-server/lib/Controllers/SchemaController.js',
 	);
 

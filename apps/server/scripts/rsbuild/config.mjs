@@ -1,31 +1,31 @@
 // @ts-check
 
-const path = require('node:path');
-const fs = require('node:fs');
-const { pipeline, Readable } = require('node:stream');
-const { promisify } = require('node:util');
-const { createWriteStream } = require('node:fs');
+import path from 'node:path';
+import fs, { createWriteStream } from 'node:fs';
+import { pipeline, Readable } from 'node:stream';
+import { promisify } from 'node:util';
 
-const _ = require('lodash');
-const { createRsbuild: _createRsbuild } = require('@rsbuild/core');
-const { pluginTypeCheck } = require('@rsbuild/plugin-type-check');
+import _ from 'lodash';
+import { createRsbuild as _createRsbuild } from '@rsbuild/core';
+import { pluginTypeCheck } from '@rsbuild/plugin-type-check';
 
-const MONOREPO_ROOT_DIR = path.resolve(__dirname, '../../../../');
+export const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../../../../');
 
-const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
-const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
+export const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
+export const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
+
 const PACKAGE_FILE = 'package.json';
 
-module.exports.MONOREPO_ROOT_DIR = MONOREPO_ROOT_DIR;
-module.exports.APPS_DIR = APPS_DIR;
-module.exports.PACKAGES_DIR = PACKAGES_DIR;
+// module.exports.MONOREPO_ROOT_DIR = MONOREPO_ROOT_DIR;
+// module.exports.APPS_DIR = APPS_DIR;
+// module.exports.PACKAGES_DIR = PACKAGES_DIR;
 
 /**
  * list directories of provided folder path
  * @param {string} pth
  * @returns {string[]}
  */
-const listDirectories = (pth) => {
+export const listDirectories = (pth) => {
 	const directories = fs
 		.readdirSync(pth, { withFileTypes: true })
 		.filter((dirent) => {
@@ -38,9 +38,9 @@ const listDirectories = (pth) => {
 	return directories;
 };
 
-exports.listDirectories = listDirectories;
+// exports.listDirectories = listDirectories;
 
-const findExternals = () => {
+export const findExternals = () => {
 	// read all apps package.json
 	const appDirs = listDirectories(APPS_DIR);
 	const packagesDirs = listDirectories(PACKAGES_DIR);
@@ -75,9 +75,9 @@ const findExternals = () => {
 	return [...externalsSet];
 };
 
-exports.findExternals = findExternals;
+// exports.findExternals = findExternals;
 
-const externals = [
+export const externals = [
 	...findExternals(),
 	'parse-server/lib/index.js',
 
@@ -114,9 +114,9 @@ const externals = [
 	'front/build/server/index.js',
 ];
 
-exports.externals = externals;
+// exports.externals = externals;
 
-const createRsbuild = () => {
+export const createRsbuild = () => {
 	return _createRsbuild({
 		rsbuildConfig: {
 			plugins: [pluginTypeCheck()],
@@ -154,31 +154,31 @@ const createRsbuild = () => {
 	});
 };
 
-exports.createRsbuild = createRsbuild;
+// exports.createRsbuild = createRsbuild;
 
 /**
  *
  * @param {import('@rsbuild/core').RsbuildInstance} rsbuild
  */
-const watch = (rsbuild) => {
+export const watch = (rsbuild) => {
 	rsbuild.build({
 		watch: true,
 	});
 };
 
-exports.watch = watch;
+// exports.watch = watch;
 
 /**
  *
  * @param {import('@rsbuild/core').RsbuildInstance} rsbuild
  */
-const build = (rsbuild) => {
+export const build = (rsbuild) => {
 	rsbuild.build();
 };
 
-exports.build = build;
+// exports.build = build;
 
-const createI18nResourcesFiles = async (resources) => {
+export const createI18nResourcesFiles = async (resources) => {
 	console.log(
 		'\x1b[32m%s\x1b[0m',
 		'====> started creating i18n resources files',
@@ -189,7 +189,7 @@ const createI18nResourcesFiles = async (resources) => {
 			await Promise.all(
 				Object.entries(namespaces).map(async ([namespace, data]) => {
 					const filePath = path.join(
-						__dirname,
+						import.meta.dirname,
 						`../../dist/resources/${lang}.${namespace}.json`,
 					);
 					const dir = path.dirname(filePath);
@@ -213,4 +213,4 @@ const createI18nResourcesFiles = async (resources) => {
 	);
 };
 
-exports.createI18nResourcesFiles = createI18nResourcesFiles;
+// exports.createI18nResourcesFiles = createI18nResourcesFiles;

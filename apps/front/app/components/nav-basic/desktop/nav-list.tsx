@@ -120,7 +120,6 @@ export const NavList = ({
 						className={navBasicClasses.dropdown.paper}
 						sx={slotProps?.dropdown?.paper}
 					>
-						{/* eslint-disable-next-line @typescript-eslint/no-use-before-define */}
 						<NavSubList
 							data={data.children}
 							depth={depth}

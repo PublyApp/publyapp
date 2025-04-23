@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useId } from 'react';
 
 import { Icon, type IconProps } from '@iconify/react';

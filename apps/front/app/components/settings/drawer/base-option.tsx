@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import ButtonBase, { type ButtonBaseProps } from '@mui/material/ButtonBase';
 import { styled } from '@mui/material/styles';
 import Switch from '@mui/material/Switch';
