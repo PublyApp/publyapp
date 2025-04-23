@@ -60,6 +60,7 @@
 		"lodash": "^4.17.21",
 		"lowlight": "^3.3.0",
 		"lucide-react": "^0.473.0",
+		"material-react-table": "^3.2.1",
 		"minimal-shared": "^1.0.7",
 		"mui-one-time-password-input": "^4.0.1",
 		"nanoid": "^5.0.4",
