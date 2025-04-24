@@ -18,6 +18,7 @@ import {
 } from 'material-react-table';
 import { nanoid } from 'nanoid';
 import { useEffect, useMemo } from 'react';
+import { varAlpha } from 'minimal-shared/utils';
 
 type StaffMemberRowData = {
 	id: string;
@@ -311,6 +312,7 @@ const StaffMembersListPage = () => {
 		enableColumnActions: false,
 		enableHiding: false,
 		enableGlobalFilter: false,
+		enableColumnResizing: true,
 		muiTablePaperProps: {
 			sx: {
 				minHeight: 640,
@@ -319,6 +321,15 @@ const StaffMembersListPage = () => {
 				flexDirection: { md: 'column' },
 				height: { xs: 800, md: '1px' },
 			},
+		},
+		muiTableContainerProps: {
+			sx: {
+				scrollbarWidth: 'unset',
+			},
+		},
+		muiPaginationProps: {
+			showFirstButton: false,
+			showLastButton: false,
 		},
 	});
 
