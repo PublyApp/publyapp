@@ -10,7 +10,6 @@ import { getLastPath } from '@org/shared/utils/string.utils';
 
 const routes = [
 	layout('routes/marketing/_layout/marketing-layout.tsx', [
-		// ====
 		index('routes/marketing/home/home-page.tsx'),
 	]),
 	layout('routes/auth/_layout/auth-layout.tsx', [
