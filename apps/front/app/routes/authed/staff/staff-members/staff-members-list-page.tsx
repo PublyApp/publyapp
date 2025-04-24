@@ -7,7 +7,7 @@ import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import Button from '@mui/material/Button';
 import _ from 'lodash';
 
-const StaffMembersPage = () => {
+const StaffMembersListPage = () => {
 	const { t } = useTranslate();
 
 	return (
@@ -40,4 +40,4 @@ const StaffMembersPage = () => {
 	);
 };
 
-export default StaffMembersPage;
+export default StaffMembersListPage;
