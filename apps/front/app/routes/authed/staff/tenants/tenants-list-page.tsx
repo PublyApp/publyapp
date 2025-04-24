@@ -1,16 +1,19 @@
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
-import { varAlpha } from 'minimal-shared/utils';
+import _ from 'lodash';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
+import { RouterLink } from '@/front/components/router-link';
+import Button from '@mui/material/Button';
+import { Iconify } from '@/front/components/iconify/iconify';
 import {
+	createMRTColumnHelper,
 	MaterialReactTable,
 	useMaterialReactTable,
-	createMRTColumnHelper,
 } from 'material-react-table';
+import Box from '@mui/material/Box';
+import { varAlpha } from 'minimal-shared/utils';
 
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import Button from '@mui/material/Button';
-
-//if you are using TypeScript, create a type based on the shape of your data that you can use in your column definitions
 export type Tenant = {
 	avatar: string;
 	firstName: string;
@@ -102,6 +105,8 @@ const data: Tenant[] = [
 ];
 
 const TenantsListPage = () => {
+	const { t } = useTranslate();
+
 	const columns = [
 		columnHelper.accessor('avatar', {
 			header: 'Avatar',
@@ -137,7 +142,7 @@ const TenantsListPage = () => {
 					<Button
 						variant="outlined"
 						color="primary"
-						onClick={() => console.log('Send email to' + row.original.email)}
+						onClick={() => console.log(`Send email to ${row.original.email}`)}
 						className="secondary"
 					>
 						Send email
@@ -145,7 +150,7 @@ const TenantsListPage = () => {
 					<Button
 						variant="contained"
 						color="error"
-						onClick={() => console.log('Delete tenant' + row.original.email)}
+						onClick={() => console.log(`Delete tenant ${row.original.email}`)}
 						classes="danger"
 					>
 						Delete
@@ -183,8 +188,32 @@ const TenantsListPage = () => {
 	};
 
 	return (
-		<DashboardContent maxWidth="xl">
-			<Typography variant="h4">Tenants</Typography>
+		<DashboardContent
+			/* maxWidth="xl" */
+			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+		>
+			<CustomBreadcrumbs
+				heading={t('list-of-items', { items: t('tenants') })}
+				links={[
+					// { name: 'Dashboard', href: paths.dashboard.root },
+					{
+						name: _.capitalize(t('tenants')),
+						href: FRONT_PATH_NAMES.staff.tenants.root,
+					},
+					{ name: _.capitalize(t('list')) },
+				]}
+				action={
+					<Button
+						component={RouterLink}
+						href="#"
+						variant="contained"
+						startIcon={<Iconify icon="mingcute:add-line" />}
+					>
+						New product
+					</Button>
+				}
+				// sx={{ mb: { xs: 3, md: 5 } }}
+			/>
 			{renderContent()}
 		</DashboardContent>
 	);
