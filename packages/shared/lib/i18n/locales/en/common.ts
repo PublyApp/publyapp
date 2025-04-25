@@ -9,7 +9,7 @@ const commonEN = {
 	field: 'Field',
 	file: 'File',
 	locale: 'Locale',
-	name: 'name',
+	name: 'Name',
 	post: 'Post',
 	role: 'Role',
 	title: 'Title',
