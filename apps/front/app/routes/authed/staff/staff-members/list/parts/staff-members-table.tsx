@@ -1,46 +1,28 @@
-import Avatar from '@mui/material/Avatar';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
+import { useTranslate } from '@/front/hooks/use-translate';
 import Card from '@mui/material/Card';
-import IconButton from '@mui/material/IconButton';
-import Link from '@mui/material/Link';
-import MenuItem from '@mui/material/MenuItem';
-import MenuList from '@mui/material/MenuList';
-import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
-import _ from 'lodash';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
-	type MRT_ColumnDef,
-	type MRT_SortingState,
+	type MRT_PaginationState,
 } from 'material-react-table';
-import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { useMemo } from 'react';
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { LabelColor } from '@/front/components/label';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { toast } from '@/front/components/snackbar';
+import { nanoid } from 'nanoid';
+import { useMemo, useState } from 'react';
+// import { GridToolbarContainer } from '@mui/x-data-grid';
+import Box from '@mui/material/Box';
+import Avatar from '@mui/material/Avatar';
+import Stack from '@mui/material/Stack';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
-import {
-	useGetVerificationLink,
-	useSendEmailVerificationReminder,
-} from '@/front/lib/react-query/features/auth/auth.hooks';
-import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
-import {
-	DEFAULT_PAGE_SIZE,
-	FRONT_PATH_NAMES,
-	roleEnum,
-} from '@/shared/lib/constants';
+import { Label } from '@/front/components/label/label';
+import Link from '@mui/material/Link';
+import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
+import _ from 'lodash';
 import { getUserFullName } from '@/shared/utils/user.utils';
+import { RouterLink } from '@/front/components/router-link';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { Iconify } from '@/front/components/iconify/iconify';
 
-export type StaffMemberRowData = {
+type StaffMemberRowData = {
 	id: string;
 	avatarUrl: string;
 	firstName: string;
@@ -50,26 +32,132 @@ export type StaffMemberRowData = {
 	email: string;
 };
 
+// const data: StaffMemberRowData[] = [];
+const data: StaffMemberRowData[] = [
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_1.jpg',
+		firstName: 'Alex',
+		lastName: 'Hunter',
+		role: 'Admin',
+		status: 'active',
+		email: 'alex.hunter@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_2.jpg',
+		firstName: 'Sarah',
+		lastName: 'Connor',
+		role: 'Manager',
+		status: 'active',
+		email: 'sarah.connor@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_3.jpg',
+		firstName: 'James',
+		lastName: 'Wilson',
+		role: 'Staff',
+		status: 'inactive',
+		email: 'james.wilson@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_4.jpg',
+		firstName: 'Emma',
+		lastName: 'Davis',
+		role: 'Admin',
+		status: 'active',
+		email: 'emma.davis@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_5.jpg',
+		firstName: 'Michael',
+		lastName: 'Brown',
+		role: 'Staff',
+		status: 'active',
+		email: 'michael.brown@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_2.jpg',
+		firstName: 'Sarah',
+		lastName: 'Connor',
+		role: 'Manager',
+		status: 'active',
+		email: 'sarah.connor@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_3.jpg',
+		firstName: 'James',
+		lastName: 'Wilson',
+		role: 'Staff',
+		status: 'inactive',
+		email: 'james.wilson@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_4.jpg',
+		firstName: 'Emma',
+		lastName: 'Davis',
+		role: 'Admin',
+		status: 'active',
+		email: 'emma.davis@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_5.jpg',
+		firstName: 'Michael',
+		lastName: 'Brown',
+		role: 'Staff',
+		status: 'active',
+		email: 'michael.brown@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_2.jpg',
+		firstName: 'Sarah',
+		lastName: 'Connor',
+		role: 'Manager',
+		status: 'active',
+		email: 'sarah.connor@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_3.jpg',
+		firstName: 'James',
+		lastName: 'Wilson',
+		role: 'Staff',
+		status: 'inactive',
+		email: 'james.wilson@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_4.jpg',
+		firstName: 'Emma',
+		lastName: 'Davis',
+		role: 'Admin',
+		status: 'active',
+		email: 'emma.davis@example.com',
+	},
+	{
+		id: nanoid(),
+		avatarUrl: '/static/images/avatars/avatar_5.jpg',
+		firstName: 'Michael',
+		lastName: 'Brown',
+		role: 'Staff',
+		status: 'active',
+		email: 'michael.brown@example.com',
+	},
+];
+// data.length = 0;
+
 const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
 
-const defaultSorting: MRT_SortingState[number] = {
-	desc: true,
-	id: 'createdAt',
-};
-
-const StaffMembersTable = () => {
+const staffMembersTable = () => {
 	const { t } = useTranslate();
-
-	// Use the custom table state hook
-	const {
-		handlePaginationChange,
-		handleSortingChange,
-		apiVariables,
-		tableState,
-	} = useTableState({
-		defaultSorting,
-		defaultPageSize: DEFAULT_PAGE_SIZE,
-	});
 
 	const columns = useMemo(() => {
 		return [
@@ -80,88 +168,83 @@ const StaffMembersTable = () => {
 				{
 					id: 'fullName',
 					header: t('name'),
-					Cell: UserCell,
+					Cell: (props) => (
+						<UserCell
+							userId={props.row.original.id}
+							fullName={props.cell.getValue()}
+							avatarUrl={props.row.original.avatarUrl}
+							email={props.row.original.email}
+						/>
+					),
 					// grow: 1,
 					size: 300,
-					enableSorting: false,
 				},
 			),
 			columnHelper.accessor('role', {
 				header: t('role'),
-				Cell: RoleCell,
+				Cell(props) {
+					return props.cell.getValue();
+				},
 				size: 70,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
-				Cell: StatusCell,
+				Cell(props) {
+					return <StatusCell status={props.cell.getValue()} />;
+				},
 				size: 70,
-				enableSorting: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',
-				Cell: UserActionsCell,
-				size: 5,
+				Cell: (props) => {
+					return <UserActionsCell userId={props.row.original.id} />;
+				},
+				size: 70,
 			}),
 		];
 	}, [t]);
 
-	const { data, isPending } = useFindStaffMember({
-		variables: apiVariables,
+	const [pagination, setPagination] = useState<MRT_PaginationState>({
+		pageIndex: 0,
+		pageSize: 20, //customize the default page size
 	});
 
-	const rows: StaffMemberRowData[] = useMemo(() => {
-		if (!data?.rows) return [];
-
-		return _.map(data.rows, (staffMember) => {
-			return {
-				id: staffMember.objectId,
-				avatarUrl: staffMember.avatarUrl || '',
-				firstName: staffMember.firstName || '',
-				lastName: staffMember.lastName || '',
-				role: staffMember.roleData?.role || '',
-				status: staffMember.status || '',
-				email: staffMember.email || '',
-			};
-		});
-	}, [data]);
+	const slicedData = useMemo(() => {
+		const startIndex = pagination.pageIndex * pagination.pageSize;
+		const endIndex = startIndex + pagination.pageSize;
+		return _.slice(data, startIndex, endIndex);
+	}, [pagination]);
 
 	const table = useMRTTable('default', {
 		columns,
-		data: rows,
-		rowCount: data?.count || 0,
+		data: slicedData,
 		manualPagination: true,
-		onPaginationChange: handlePaginationChange,
-		manualSorting: true,
-		onSortingChange: handleSortingChange,
+		rowCount: data.length,
+		onPaginationChange: setPagination,
 		state: {
-			...tableState,
+			pagination,
 			density: 'comfortable',
-			isLoading: isPending,
-		},
-		muiTablePaperProps: {
-			sx: {
-				flexGrow: 1,
-			},
 		},
 	});
-
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Card>
 			<MaterialReactTable table={table} />
 		</Card>
 	);
 };
 
-export default StaffMembersTable;
+export default staffMembersTable;
 
 // ----------------------------------------------------------------------
 
-const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
-	const userId = props.row.original.id;
-	const fullName = props.cell.getValue();
-	const avatarUrl = props.row.original.avatarUrl;
-	const email = props.row.original.email;
+type UserCellProps = {
+	fullName: string;
+	avatarUrl: string;
+	email: string;
+	userId: string;
+};
 
+const UserCell = ({ fullName, avatarUrl, email, userId }: UserCellProps) => {
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
 			<Avatar alt={fullName} src={avatarUrl} />
@@ -185,254 +268,63 @@ const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	);
 };
 
-const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
-	props,
-) => {
+const StatusCell = ({ status }: { status: string }) => {
 	const { t } = useTranslate();
-
-	const status = props.cell.getValue();
-
-	let t_message: string = t('unknown-item', { item: 'status' });
-	let color: LabelColor = 'default';
-
-	if (status === 'active') {
-		t_message = t('active');
-		color = 'success';
-	} else if (status === 'pending') {
-		t_message = t('pending');
-		color = 'warning';
-	} else if (status === 'banned') {
-		t_message = t('banned');
-		color = 'error';
-	}
 
 	return (
-		<Label variant="soft" color={color}>
-			{t_message}
-		</Label>
-	);
-};
-
-const RoleCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
-	const { t } = useTranslate();
-
-	const role = props.cell.getValue();
-
-	let t_message: string = t('unknown-item', { item: 'role' });
-	let color: LabelColor = 'default';
-
-	if (role === roleEnum.STAFF_ADMIN.name) {
-		t_message = t('admin');
-		color = 'success';
-	} else if (role === roleEnum.STAFF_EDITOR.name) {
-		t_message = t('editor');
-		color = 'info';
-	} else if (role === roleEnum.STAFF_USER.name) {
-		t_message = t('user');
-		color = 'warning';
-	} else if (role === roleEnum.STAFF_CONTRIBUTOR.name) {
-		t_message = t('contributor');
-		color = 'error';
-	}
-
-	return (
-		<Label variant="soft" color={color}>
-			{t_message}
-		</Label>
-	);
-};
-
-const ALLOW_COPY_LINK = false;
-
-const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
-	const userId = props.row.original.id;
-	const isUserPending = props.row.original.status === 'pending';
-
-	const menuActions = usePopover();
-	const confirmDialog = useBoolean();
-	const { t } = useTranslate();
-
-	const onConfirmDeleteRow = () => {
-		menuActions.onClose();
-		toast.warning(`onDelete: ${userId}`);
-	};
-
-	const renderMenuActions = () => (
-		<CustomPopover
-			open={menuActions.open}
-			anchorEl={menuActions.anchorEl}
-			onClose={
-				/* isLoadingGetVerificationLink ? undefined :  */ menuActions.onClose
+		<Label
+			variant="soft"
+			color={
+				(status === 'active' && 'success') ||
+				(status === 'pending' && 'warning') ||
+				(status === 'banned' && 'error') ||
+				'default'
 			}
-			slotProps={{ arrow: { placement: 'right-top' } }}
 		>
-			<MenuList>
-				<CopyLinkButton
-					isUserPending={isUserPending}
-					userId={userId}
-					onClose={menuActions.onClose}
-				/>
+			{status || _.toLower(t('unknown-item', { item: 'status' }))}
+		</Label>
+	);
+};
 
-				<FollowUpButton
-					isUserPending={isUserPending}
-					email={props.row.original.email}
-					onClose={menuActions.onClose}
-				/>
-
-				<MenuItem
-					component={RouterLink}
+const UserActionsCell = ({ userId }: { userId: string }) => {
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<Tooltip title="View details" placement="top" arrow>
+				<IconButton
+					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
+					// onClick={/* quickEditForm.onTrue */ () => {}}
+					LinkComponent={RouterLink}
 					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
-					onClick={() => menuActions.onClose()}
+				>
+					<Iconify icon="solar:eye-bold" />
+				</IconButton>
+			</Tooltip>
+
+			<Tooltip title="Quick Edit" placement="top" arrow>
+				<IconButton
+					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
+					onClick={/* quickEditForm.onTrue */ () => {}}
 				>
 					<Iconify icon="solar:pen-bold" />
-					{t('edit')}
-				</MenuItem>
-				<MenuItem
-					onClick={() => {
-						confirmDialog.onTrue();
-						menuActions.onClose();
-					}}
+				</IconButton>
+			</Tooltip>
+
+			<Tooltip title="Delete" placement="top" arrow>
+				<IconButton
+					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
+					onClick={/* quickEditForm.onTrue */ () => {}}
 					sx={{ color: 'error.main' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" />
-					{t('delete')}
-				</MenuItem>
-			</MenuList>
-		</CustomPopover>
-	);
+				</IconButton>
+			</Tooltip>
 
-	const renderConfirmDialog = () => (
-		<ConfirmDialog
-			open={confirmDialog.value}
-			onClose={confirmDialog.onFalse}
-			title={t('delete-item', { item: t('staff-member') })}
-			content={t('confirm-delete-dialog-text')}
-			action={
-				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
-					{t('delete')}
-				</Button>
-			}
-		/>
-	);
-
-	return (
-		<Box
-			className="is-actions-column"
-			sx={{ display: 'flex', alignItems: 'center' }}
-		>
-			<IconButton
-				color={menuActions.open ? 'inherit' : 'default'}
-				onClick={menuActions.onOpen}
-			>
-				<Iconify icon="eva:more-vertical-fill" />
-			</IconButton>
-
-			{renderMenuActions()}
-			{renderConfirmDialog()}
+			{/* <IconButton
+              color={menuActions.open ? 'inherit' : 'default'}
+              onClick={menuActions.onOpen}
+            >
+              <Iconify icon="eva:more-vertical-fill" />
+            </IconButton> */}
 		</Box>
 	);
-};
-
-const CopyLinkButton = ({
-	isUserPending,
-	userId,
-	onClose,
-}: {
-	isUserPending: boolean;
-	userId: string;
-	onClose?: () => void;
-}) => {
-	const { t } = useTranslate();
-
-	const {
-		data: linkData,
-		refetch: fetchVerificationLink,
-		isLoading: isLoadingGetVerificationLink,
-	} = useGetVerificationLink({
-		variables: { userId },
-		enabled: false,
-	});
-
-	return isUserPending && ALLOW_COPY_LINK ? (
-		<Tooltip
-			title={_.capitalize(t('copy-item', { item: t('verification-link') }))}
-			placement="top"
-		>
-			<MenuItem
-				component={Button}
-				loading={isLoadingGetVerificationLink}
-				fullWidth
-				onClick={async () => {
-					let link = linkData?.link || 'unable to get verification link';
-					if (!linkData) {
-						const result = await fetchVerificationLink();
-						if (result.error) {
-							console.error(result.error);
-							toast.error(t('copy-to-clipboard-error'));
-							return;
-						}
-						if (result.data) {
-							link = result.data.link || link;
-						}
-					}
-					navigator.clipboard.writeText(link);
-					toast.success(t('copy-to-clipboard-success'));
-					onClose?.();
-				}}
-			>
-				<Iconify icon="solar:copy-bold-duotone" />
-				{t('copy-link')}
-			</MenuItem>
-		</Tooltip>
-	) : null;
-};
-
-const FollowUpButton = ({
-	isUserPending,
-	email,
-	onClose,
-}: {
-	isUserPending: boolean;
-	email: string;
-	onClose?: () => void;
-}) => {
-	const { t } = useTranslate();
-
-	const {
-		mutateAsync: sendEmailVerificationReminder,
-		isPending: isPendingSendEmailVerificationReminder,
-	} = useSendEmailVerificationReminder({
-		onSuccess: () => {
-			toast.success(t('email-verification-follow-up-success'));
-			onClose?.();
-		},
-		onError: (error) => {
-			if (error instanceof ParseRestError) {
-				toast.error(error.message);
-				return;
-			}
-			toast.error(t('email-verification-follow-up-error'));
-			onClose?.();
-		},
-	});
-
-	return isUserPending ? (
-		<Tooltip
-			title={_.capitalize(t('send-email-verification-follow-up'))}
-			placement="top"
-		>
-			<MenuItem
-				component={Button}
-				loading={isPendingSendEmailVerificationReminder}
-				fullWidth
-				onClick={async () => {
-					await sendEmailVerificationReminder({ email });
-					onClose?.();
-				}}
-			>
-				<Iconify icon="custom:send-fill" />
-				{t('follow-up')}
-			</MenuItem>
-		</Tooltip>
-	) : null;
 };
