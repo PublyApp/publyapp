@@ -200,8 +200,8 @@ const StaffMembersListPage = () => {
 			}),
 			columnHelper.display({
 				header: 'Actions',
-				Cell: () => {
-					return <UserActionsCell />;
+				Cell: (props) => {
+					return <UserActionsCell userId={props.row.original.id} />;
 				},
 				size: 70,
 			}),
@@ -229,15 +229,6 @@ const StaffMembersListPage = () => {
 			pagination,
 			density: 'comfortable',
 		},
-		muiTableProps: {
-			// sx: {
-			// 	'& tr>th:last-of-type>.Mui-TableHeadCell-Content': {
-			// 		// background: 'red',
-			// 		justifyContent: 'center',
-			// 		alignItems: 'center',
-			// 	},
-			// },
-		},
 	});
 
 	return (
@@ -256,7 +247,7 @@ const StaffMembersListPage = () => {
 				action={
 					<Button
 						component={RouterLink}
-						href="#"
+						href={FRONT_PATH_NAMES.staff.staffMembers.new}
 						variant="contained"
 						startIcon={<Iconify icon="mingcute:add-line" />}
 					>
@@ -325,7 +316,7 @@ const StatusCell = ({ status }: { status: string }) => {
 	);
 };
 
-const UserActionsCell = () => {
+const UserActionsCell = ({ userId }: { userId: string }) => {
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center' }}>
 			<Tooltip title="View details" placement="top" arrow>
@@ -333,7 +324,7 @@ const UserActionsCell = () => {
 					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
 					// onClick={/* quickEditForm.onTrue */ () => {}}
 					LinkComponent={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(nanoid())}
+					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
 				>
 					<Iconify icon="solar:eye-bold" />
 				</IconButton>

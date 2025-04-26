@@ -1,6 +1,7 @@
 import {
 	index,
 	layout,
+	prefix,
 	route,
 	type RouteConfig,
 } from '@react-router/dev/routes';
@@ -33,10 +34,15 @@ const routes = [
 						getLastPath(FRONT_PATH_NAMES.staff.tenants.root),
 						'routes/authed/staff/tenants/tenants-list-page.tsx',
 					),
-					route(
-						getLastPath(FRONT_PATH_NAMES.staff.staffMembers.root),
-						'routes/authed/staff/staff-members/staff-members-list-page.tsx',
-					),
+					...prefix(getLastPath(FRONT_PATH_NAMES.staff.staffMembers.root), [
+						index(
+							'routes/authed/staff/staff-members/list/staff-members-list-page.tsx',
+						),
+						route(
+							getLastPath(FRONT_PATH_NAMES.staff.staffMembers.new),
+							'routes/authed/staff/staff-members/new/new-staff-member-page.tsx',
+						),
+					]),
 				]),
 				route('*', 'routes/authed/staff/_errors/staff-not-found-page.tsx'),
 			],
