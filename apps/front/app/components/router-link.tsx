@@ -1,7 +1,8 @@
 import _ from 'lodash';
 import { Link, type LinkProps, type To } from 'react-router';
 import { useTranslate } from '../hooks/use-translate';
-import { queryParamKey } from '@/shared/lib/constants';
+import { isServer, queryParamKey } from '@/shared/lib/constants';
+import { env } from '../lib/env';
 
 // ----------------------------------------------------------------------
 
@@ -10,27 +11,28 @@ interface RouterLinkProps extends Omit<LinkProps, 'to'> {
 	ref?: React.RefObject<HTMLAnchorElement | null>;
 }
 
+const viteUrl = new URL(env.VITE_SERVER_URL);
+if (import.meta.env.DEV) {
+	viteUrl.port = '6181';
+}
+const viteOrigin = viteUrl.origin;
+
 const checkIsExternalUrl = (to: To): to is string => {
 	if (_.isObject(to)) {
 		return false;
 	}
 
-	// let hasProtocol = false;
 	let url: URL | undefined;
 
 	try {
 		url = new URL(to);
-		// hasProtocol = true;
 	} catch (e) {}
-	// const hasProtocol = ['http://', 'https://'].some((protocol) => {
-	// 	return _.startsWith(to, protocol);
-	// });
 
 	if (!url) {
 		return false;
 	}
 
-	if (window.location.origin === url.origin) {
+	if ((isServer ? viteOrigin : window.location.origin) === url.origin) {
 		return true;
 	}
 
@@ -49,10 +51,20 @@ export const RouterLink = ({ href, ref, ...other }: RouterLinkProps) => {
 		if (!_.isString(href)) {
 			const searchParams = new URLSearchParams(href.search);
 			searchParams.set(queryParamKey.language, currentLang.value);
+
+			let _pathname = href.pathname
+				? decodeURIComponent(href.pathname)
+				: href.pathname;
+
+			if (_pathname?.includes('#') /*  === '/#' */) {
+				// _pathname = undefined;
+				_pathname = _pathname?.replaceAll('#', '');
+			}
+
 			to = {
-				pathname: href.pathname,
+				pathname: _pathname,
 				hash: href.hash,
-				search: searchParams.toString(),
+				search: decodeURIComponent(searchParams.toString()),
 			};
 		} else {
 			let url: URL | undefined;
@@ -63,16 +75,25 @@ export const RouterLink = ({ href, ref, ...other }: RouterLinkProps) => {
 
 			if (!url) {
 				const [pathname, search] = _.split(href, '?');
-				url = new URL(window.location.origin);
+				url = new URL(isServer ? viteOrigin : window.location.origin);
 				url.pathname = pathname;
 				url.search = search || '';
 			}
 
 			url.searchParams.set(queryParamKey.language, currentLang.value);
 
+			let _pathname: string | undefined = url.pathname
+				? decodeURIComponent(url.pathname)
+				: url.pathname;
+
+			if (_pathname?.includes('#') /*  === '/#' */) {
+				// _pathname = undefined;
+				_pathname = _pathname?.replaceAll('#', '');
+			}
+
 			to = {
-				pathname: url.pathname,
-				search: url.search,
+				pathname: _pathname,
+				search: decodeURIComponent(url.search),
 			};
 		}
 	}
