@@ -18,11 +18,15 @@ const StaffLayout = () => {
 					title: t('tenants'),
 					path: FRONT_PATH_NAMES.staff.tenants.root,
 					icon: ICONS.banking,
+					deepActiveMatch: true,
+					// children: [],
 				},
 				{
 					title: t('staff-members'),
 					path: FRONT_PATH_NAMES.staff.staffMembers.root,
 					icon: ICONS.user,
+					deepActiveMatch: true,
+					// children: [],
 				},
 				{
 					title: t('settings'),
