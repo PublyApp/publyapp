@@ -21,9 +21,11 @@ import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
-import { Link } from '@mui/material';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { Label } from '@/front/components/label/label';
+import Link from '@mui/material/Link';
+import Tooltip from '@mui/material/Tooltip';
+import IconButton from '@mui/material/IconButton';
 
 type StaffMemberRowData = {
 	id: string;
@@ -178,6 +180,8 @@ const StaffMembersListPage = () => {
 							email={props.row.original.email}
 						/>
 					),
+					// grow: 1,
+					size: 300,
 				},
 			),
 			columnHelper.accessor('role', {
@@ -185,18 +189,21 @@ const StaffMembersListPage = () => {
 				Cell(props) {
 					return props.cell.getValue();
 				},
+				size: 70,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell(props) {
 					return <StatusCell status={props.cell.getValue()} />;
 				},
+				size: 70,
 			}),
 			columnHelper.display({
 				header: 'Actions',
-				Cell() {
-					return <div>LOL</div>;
+				Cell: () => {
+					return <UserActionsCell />;
 				},
+				size: 70,
 			}),
 		];
 	}, [t]);
@@ -221,6 +228,15 @@ const StaffMembersListPage = () => {
 		state: {
 			pagination,
 			density: 'comfortable',
+		},
+		muiTableProps: {
+			// sx: {
+			// 	'& tr>th:last-of-type>.Mui-TableHeadCell-Content': {
+			// 		// background: 'red',
+			// 		justifyContent: 'center',
+			// 		alignItems: 'center',
+			// 	},
+			// },
 		},
 	});
 
@@ -306,5 +322,48 @@ const StatusCell = ({ status }: { status: string }) => {
 		>
 			{status || _.toLower(t('unknown-item', { item: 'status' }))}
 		</Label>
+	);
+};
+
+const UserActionsCell = () => {
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<Tooltip title="View details" placement="top" arrow>
+				<IconButton
+					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
+					// onClick={/* quickEditForm.onTrue */ () => {}}
+					LinkComponent={RouterLink}
+					href={FRONT_PATH_NAMES.staff.staffMembers.details(nanoid())}
+				>
+					<Iconify icon="solar:eye-bold" />
+				</IconButton>
+			</Tooltip>
+
+			<Tooltip title="Quick Edit" placement="top" arrow>
+				<IconButton
+					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
+					onClick={/* quickEditForm.onTrue */ () => {}}
+				>
+					<Iconify icon="solar:pen-bold" />
+				</IconButton>
+			</Tooltip>
+
+			<Tooltip title="Delete" placement="top" arrow>
+				<IconButton
+					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
+					onClick={/* quickEditForm.onTrue */ () => {}}
+					sx={{ color: 'error.main' }}
+				>
+					<Iconify icon="solar:trash-bin-trash-bold" />
+				</IconButton>
+			</Tooltip>
+
+			{/* <IconButton
+              color={menuActions.open ? 'inherit' : 'default'}
+              onClick={menuActions.onOpen}
+            >
+              <Iconify icon="eva:more-vertical-fill" />
+            </IconButton> */}
+		</Box>
 	);
 };
