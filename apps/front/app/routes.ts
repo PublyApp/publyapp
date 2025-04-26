@@ -10,7 +10,6 @@ import { getLastPath } from '@org/shared/utils/string.utils';
 
 const routes = [
 	layout('routes/marketing/_layout/marketing-layout.tsx', [
-		// ====
 		index('routes/marketing/home/home-page.tsx'),
 	]),
 	layout('routes/auth/_layout/auth-layout.tsx', [
@@ -32,11 +31,11 @@ const routes = [
 					index('routes/authed/staff/dashboard/staff-home-page.tsx'),
 					route(
 						getLastPath(FRONT_PATH_NAMES.staff.tenants.root),
-						'routes/authed/staff/tenants-list/tenants-list-page.tsx',
+						'routes/authed/staff/tenants/tenants-list-page.tsx',
 					),
 					route(
 						getLastPath(FRONT_PATH_NAMES.staff.staffMembers.root),
-						'routes/authed/staff/staff-members/staff-members-page.tsx',
+						'routes/authed/staff/staff-members/staff-members-list-page.tsx',
 					),
 				]),
 				route('*', 'routes/authed/staff/_errors/staff-not-found-page.tsx'),

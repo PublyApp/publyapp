@@ -9,7 +9,7 @@ const commonEN = {
 	field: 'Field',
 	file: 'File',
 	locale: 'Locale',
-	name: 'name',
+	name: 'Name',
 	post: 'Post',
 	role: 'Role',
 	title: 'Title',
@@ -17,6 +17,7 @@ const commonEN = {
 	user: 'User',
 	number: 'Number',
 	tenants: 'Tenants',
+	status: 'Status',
 
 	// ? ...
 	views: 'Views',
@@ -53,6 +54,7 @@ const commonEN = {
 		'Find the {{otherLanguage}} version of this {{item}}',
 	here: 'Here',
 	'down-here': 'Down here',
+	'unknown-item': 'Unknown {{item}}',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
