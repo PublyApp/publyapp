@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import dayjs from 'dayjs';
+// import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
@@ -39,14 +39,15 @@ export const useTranslate = (ns?: Ns) => {
 				// 	error: currentMessages.error,
 				// });
 
-				if (currentLang) {
-					dayjs.locale(currentLang.adapterLocale);
-				}
+				// * already handled in initI18n.client.ts
+				// if (currentLang) {
+				// 	dayjs.locale(currentLang.adapterLocale);
+				// }
 			} catch (error) {
 				console.error(error);
 			}
 		},
-		[currentLang, i18n],
+		[/* currentLang, */ i18n],
 	);
 
 	return {

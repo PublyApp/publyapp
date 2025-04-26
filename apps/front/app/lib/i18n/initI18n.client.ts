@@ -5,13 +5,14 @@ import { defaultApiClient } from 'packages/api/ApiClient';
 import { initReactI18next } from 'react-i18next';
 import { getInitialNamespaces } from 'remix-i18next/client';
 
-import { LOCALE_HEADER_KEY } from '@/shared/lib/constants';
+import { LOCALE_HEADER_KEY, queryParamKey } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 
 import { env } from '../env';
 import { defaultZodClient } from '../zod';
 
 import { config } from './i18n.config';
+import dayjs from 'dayjs';
 
 const backendUrl = new URL(env.VITE_SERVER_URL);
 backendUrl.pathname = '/resources/{{lng}}.{{ns}}.json';
@@ -40,13 +41,25 @@ export const initI18nOnClient = async () => {
 		});
 
 	i18next.on('languageChanged', (language) => {
-		defaultApiClient.parseRestClient.setHeader(LOCALE_HEADER_KEY, language);
+		const correctLocale = getCorrectLocale(language);
+
+		defaultApiClient.parseRestClient.setHeader(
+			LOCALE_HEADER_KEY,
+			correctLocale,
+		);
+
+		// set locale of dayjs (date formatting)
+		dayjs.locale(correctLocale);
+		// set locale for our InterZod instance
+		defaultZodClient.setLocale(correctLocale);
+
+		// set the locale search param in the url
+		const url = new URL(window.location.href);
+		url.searchParams.set(queryParamKey.language, correctLocale);
+		window.history.pushState({}, '', url);
 
 		// TODO: set locale for other libraries
-		// set locale of dayjs (date formatting)
-
-		// set locale for our InterZod instance
-		defaultZodClient.setLocale(getCorrectLocale(language));
+		// ???
 	});
 
 	return i18next;
