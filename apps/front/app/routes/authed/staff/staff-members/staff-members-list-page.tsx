@@ -13,237 +13,149 @@ import Card from '@mui/material/Card';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
-	MRT_GlobalFilterTextField,
-	useMaterialReactTable,
-	type MRT_TableInstance,
+	type MRT_PaginationState,
 } from 'material-react-table';
 import { nanoid } from 'nanoid';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 // import { GridToolbarContainer } from '@mui/x-data-grid';
 import Box from '@mui/material/Box';
-import { textFieldClasses } from '@mui/material/TextField';
-import { inputBaseClasses } from '@mui/material/InputBase';
+import Avatar from '@mui/material/Avatar';
+import Stack from '@mui/material/Stack';
+import { Link } from '@mui/material';
+import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { Label } from '@/front/components/label/label';
 
 type StaffMemberRowData = {
 	id: string;
-	avatar: string;
+	avatarUrl: string;
 	firstName: string;
 	lastName: string;
 	role: string;
+	status: string;
+	email: string;
 };
 
+// const data: StaffMemberRowData[] = [];
 const data: StaffMemberRowData[] = [
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
+		avatarUrl: '/static/images/avatars/avatar_1.jpg',
 		firstName: 'Alex',
 		lastName: 'Hunter',
 		role: 'Admin',
+		status: 'active',
+		email: 'alex.hunter@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
+		avatarUrl: '/static/images/avatars/avatar_2.jpg',
+		firstName: 'Sarah',
+		lastName: 'Connor',
+		role: 'Manager',
+		status: 'active',
+		email: 'sarah.connor@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
+		avatarUrl: '/static/images/avatars/avatar_3.jpg',
+		firstName: 'James',
+		lastName: 'Wilson',
+		role: 'Staff',
+		status: 'inactive',
+		email: 'james.wilson@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
+		avatarUrl: '/static/images/avatars/avatar_4.jpg',
+		firstName: 'Emma',
+		lastName: 'Davis',
 		role: 'Admin',
+		status: 'active',
+		email: 'emma.davis@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
+		avatarUrl: '/static/images/avatars/avatar_5.jpg',
+		firstName: 'Michael',
+		lastName: 'Brown',
+		role: 'Staff',
+		status: 'active',
+		email: 'michael.brown@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
+		avatarUrl: '/static/images/avatars/avatar_2.jpg',
+		firstName: 'Sarah',
+		lastName: 'Connor',
+		role: 'Manager',
+		status: 'active',
+		email: 'sarah.connor@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
+		avatarUrl: '/static/images/avatars/avatar_3.jpg',
+		firstName: 'James',
+		lastName: 'Wilson',
+		role: 'Staff',
+		status: 'inactive',
+		email: 'james.wilson@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
+		avatarUrl: '/static/images/avatars/avatar_4.jpg',
+		firstName: 'Emma',
+		lastName: 'Davis',
 		role: 'Admin',
+		status: 'active',
+		email: 'emma.davis@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
+		avatarUrl: '/static/images/avatars/avatar_5.jpg',
+		firstName: 'Michael',
+		lastName: 'Brown',
+		role: 'Staff',
+		status: 'active',
+		email: 'michael.brown@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
+		avatarUrl: '/static/images/avatars/avatar_2.jpg',
+		firstName: 'Sarah',
+		lastName: 'Connor',
+		role: 'Manager',
+		status: 'active',
+		email: 'sarah.connor@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
+		avatarUrl: '/static/images/avatars/avatar_3.jpg',
+		firstName: 'James',
+		lastName: 'Wilson',
+		role: 'Staff',
+		status: 'inactive',
+		email: 'james.wilson@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
+		avatarUrl: '/static/images/avatars/avatar_4.jpg',
+		firstName: 'Emma',
+		lastName: 'Davis',
 		role: 'Admin',
+		status: 'active',
+		email: 'emma.davis@example.com',
 	},
 	{
 		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
-	},
-	{
-		id: nanoid(),
-		avatar: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'John',
-		lastName: 'Doe',
-		role: 'Admin',
+		avatarUrl: '/static/images/avatars/avatar_5.jpg',
+		firstName: 'Michael',
+		lastName: 'Brown',
+		role: 'Staff',
+		status: 'active',
+		email: 'michael.brown@example.com',
 	},
 ];
+// data.length = 0;
 
 const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
 
@@ -259,18 +171,25 @@ const StaffMembersListPage = () => {
 				{
 					id: 'fullName',
 					header: t('name'),
-					Cell(props) {
-						return getUserFullName({
-							firstName: props.row.original.firstName,
-							lastName: props.row.original.lastName,
-						});
-					},
+					Cell: (props) => (
+						<UserCell
+							fullName={props.cell.getValue()}
+							avatarUrl={props.row.original.avatarUrl}
+							email={props.row.original.email}
+						/>
+					),
 				},
 			),
 			columnHelper.accessor('role', {
 				header: t('role'),
 				Cell(props) {
 					return props.cell.getValue();
+				},
+			}),
+			columnHelper.accessor('status', {
+				header: t('status'),
+				Cell(props) {
+					return <StatusCell status={props.cell.getValue()} />;
 				},
 			}),
 			columnHelper.display({
@@ -282,55 +201,28 @@ const StaffMembersListPage = () => {
 		];
 	}, [t]);
 
-	const table = useMaterialReactTable({
-		columns,
-		data,
-		enableStickyHeader: true,
-		enableRowSelection: true,
-		// enableColumnFilters: false,
-		// enableDensityToggle: false,
-		// enableFullScreenToggle: false,
-		// enableColumnActions: false,
-		// enableHiding: false,
-		// enableGlobalFilter: true,
-		// enableColumnResizing: true,
-		// enableTopToolbar: true,
-		renderTopToolbar: (props) => {
-			return (
-				<CustomToolbar
-					table={props.table}
-					onOpenConfirmDeleteRows={(): void => {
-						throw new Error('Function not implemented.');
-					}}
-				/>
-			);
-		},
-		state: {
-			showGlobalFilter: true,
-		},
-		muiTablePaperProps: {
-			sx: {
-				minHeight: 640,
-				flexGrow: { md: 1 },
-				display: { md: 'flex' },
-				flexDirection: { md: 'column' },
-				height: { xs: 800, md: '1px' },
-			},
-		},
-		muiTableContainerProps: {
-			sx: {
-				scrollbarWidth: 'unset',
-			},
-		},
-		muiPaginationProps: {
-			showFirstButton: false,
-			showLastButton: false,
-		},
+	const [pagination, setPagination] = useState<MRT_PaginationState>({
+		pageIndex: 0,
+		pageSize: 20, //customize the default page size
 	});
 
-	// const selectedIds = table.getSelectedRowModel().rows.map((row) => {
-	// 	return row.original.id;
-	// });
+	const slicedData = useMemo(() => {
+		const startIndex = pagination.pageIndex * pagination.pageSize;
+		const endIndex = startIndex + pagination.pageSize;
+		return _.slice(data, startIndex, endIndex);
+	}, [pagination]);
+
+	const table = useMRTTable('default', {
+		columns,
+		data: slicedData,
+		manualPagination: true,
+		rowCount: data.length,
+		onPaginationChange: setPagination,
+		state: {
+			pagination,
+			density: 'comfortable',
+		},
+	});
 
 	return (
 		<DashboardContent
@@ -369,96 +261,50 @@ export default StaffMembersListPage;
 
 // ----------------------------------------------------------------------
 
-// declare module '@mui/x-data-grid' {
-//   interface ToolbarPropsOverrides {
-//     setFilterButtonEl: React.Dispatch<React.SetStateAction<HTMLButtonElement | null>>;
-//   }
-// }
-
-type CustomToolbarProps = /* GridSlotProps['toolbar'] & */ {
-	// canReset: boolean;
-	// filteredResults: number;
-	// selectedRowIds: string[] /* GridRowSelectionModel */;
-	// filters: UseSetStateReturn<IProductTableFilters>;
-
-	onOpenConfirmDeleteRows: () => void;
-
-	table: MRT_TableInstance<any>;
+type UserCellProps = {
+	fullName: string;
+	avatarUrl: string;
+	email: string;
 };
 
-function CustomToolbar({
-	// filters,
-	// canReset,
-	// selectedRowIds,
-	// filteredResults,
-	// setFilterButtonEl,
-	onOpenConfirmDeleteRows,
-	table,
-}: CustomToolbarProps) {
-	const selectedRowIds = table.getSelectedRowModel().rows.map((row) => {
-		return row.original.id;
-	});
-
+const UserCell = ({ fullName, avatarUrl, email }: UserCellProps) => {
 	return (
-		<Box
-			sx={(theme) => {
-				return {
-					display: 'flex',
-					gap: theme.spacing(2),
-					padding: theme.spacing(2),
-					[`& .${textFieldClasses.root}`]: {
-						padding: 0,
-						width: '100%',
-						[`& .${inputBaseClasses.input}`]: {
-							paddingTop: theme.spacing(2),
-							paddingBottom: theme.spacing(2),
-						},
-						[theme.breakpoints.up('md')]: { width: 'unset' },
-					},
-				};
-			}}
-		>
-			{/* <GridToolbarContainer> */}
-			{/* <ProductTableToolbar
-          filters={filters}
-          options={{ stocks: PRODUCT_STOCK_OPTIONS, publishs: PUBLISH_OPTIONS }}
-        /> */}
+		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+			<Avatar alt={fullName} src={avatarUrl} />
 
-			{/* <GridToolbarQuickFilter /> */}
-			<MRT_GlobalFilterTextField table={table} />
-
-			<Box
-				sx={{
-					gap: 1,
-					flexGrow: 1,
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'flex-end',
-				}}
+			<Stack
+				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
 			>
-				{!!selectedRowIds.length && (
-					<Button
-						size="small"
-						color="error"
-						startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-						onClick={onOpenConfirmDeleteRows}
-					>
-						Delete ({selectedRowIds.length})
-					</Button>
-				)}
-
-				{/* <GridToolbarColumnsButton /> */}
-				{/* <GridToolbarFilterButton ref={setFilterButtonEl} /> */}
-				{/* <GridToolbarExport /> */}
-			</Box>
-			{/* </GridToolbarContainer> */}
-			{/* {canReset && (
-				<ProductTableFiltersResult
-					filters={filters}
-					totalResults={filteredResults}
-					sx={{ p: 2.5, pt: 0 }}
-				/>
-			)} */}
+				<Link
+					component={RouterLink}
+					href="#" /* {editHref} */
+					color="inherit"
+					sx={{ cursor: 'pointer' }}
+				>
+					{fullName}
+				</Link>
+				<Box component="span" sx={{ color: 'text.disabled' }}>
+					{email}
+				</Box>
+			</Stack>
 		</Box>
 	);
-}
+};
+
+const StatusCell = ({ status }: { status: string }) => {
+	const { t } = useTranslate();
+
+	return (
+		<Label
+			variant="soft"
+			color={
+				(status === 'active' && 'success') ||
+				(status === 'pending' && 'warning') ||
+				(status === 'banned' && 'error') ||
+				'default'
+			}
+		>
+			{status || _.toLower(t('unknown-item', { item: 'status' }))}
+		</Label>
+	);
+};
