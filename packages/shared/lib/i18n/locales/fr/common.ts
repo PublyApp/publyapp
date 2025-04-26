@@ -19,6 +19,7 @@ const commonFR = {
 	user: 'Utilisateur',
 	number: 'Nombre',
 	tenants: 'Tenants',
+	status: 'Statut',
 
 	// ? ...
 	'created-at': 'Créé le',
@@ -41,6 +42,7 @@ const commonFR = {
 	overview: 'Aperçu',
 	'staff-member': 'Membre du staff',
 	'staff-members': 'Membres du staff',
+	'unknown-item': '{{item}} inconnu',
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',

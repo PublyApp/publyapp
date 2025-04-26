@@ -1,5 +1,5 @@
-import { DashboardContent } from '@/front/layouts/dashboard/content';
 import _ from 'lodash';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
@@ -14,7 +14,6 @@ import {
 import Box from '@mui/material/Box';
 import { varAlpha } from 'minimal-shared/utils';
 
-//if you are using TypeScript, create a type based on the shape of your data that you can use in your column definitions
 export type Tenant = {
 	avatar: string;
 	firstName: string;
@@ -213,7 +212,7 @@ const TenantsListPage = () => {
 						New product
 					</Button>
 				}
-				sx={{ mb: { xs: 3, md: 5 } }}
+				// sx={{ mb: { xs: 3, md: 5 } }}
 			/>
 			{renderContent()}
 		</DashboardContent>
