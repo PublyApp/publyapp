@@ -2,10 +2,11 @@ import { reactRouter } from '@react-router/dev/vite';
 import { defineConfig } from 'vite';
 import checker from 'vite-plugin-checker';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import { reactRouterDevTools } from 'react-router-devtools';
 
 export default defineConfig({
 	plugins: [
-		// ====
+		reactRouterDevTools(),
 		reactRouter(),
 		tsconfigPaths(),
 		checker({ typescript: true }),
