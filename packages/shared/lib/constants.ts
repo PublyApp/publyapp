@@ -220,6 +220,7 @@ const RESOURCE = {
 	fileManager: 'file-manager',
 	blog: 'blog',
 	shortUrl: 'short-url',
+	staffMembers: 'staff-members',
 } as const;
 
 const ROOTS = {
@@ -255,9 +256,10 @@ export const FRONT_PATH_NAMES = {
 			},
 		},
 		staffMembers: {
-			root: makePath(ROOTS.STAFF, 'staff-members'),
+			root: makePath(ROOTS.STAFF, RESOURCE.staffMembers),
+			new: makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, 'staff-members', userId);
+				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, userId);
 			},
 		},
 	},

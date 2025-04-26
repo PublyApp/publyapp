@@ -1,75 +1,17 @@
-import type { TFunction } from 'i18next';
-import i18next from 'i18next';
-import _ from 'lodash';
-import { data } from 'react-router';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
-import { UserNewEditForm } from '../components/user-new-edit-form';
-import type { Route } from './+types/new-staff-member-page';
-
-const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(
-		t('new-item', { item: _.toLower(t('staff-member')) }),
-	);
-
-	if (seo) {
-		str = `${str} | Staff Dashboard - ${APP_NAME}`;
-	}
-
-	return str;
-};
-
-export const meta = (args: Route.MetaArgs) => {
-	if (isServer) {
-		return _.get(args.data, 'meta', []);
-	}
-
-	const t: TFunction = i18next.t;
-
-	return [
-		{
-			title: getPageTitle(t, true),
-		},
-	];
-};
-
-export const loader = getServerLoader({
-	loader: async ({ z }) => {
-		const t = z.t;
-
-		return data({
-			meta: [
-				{
-					title: getPageTitle(t, true),
-				},
-			],
-		});
-	},
-});
-
-export const clientLoader = async ({
-	serverLoader,
-}: Route.ClientLoaderArgs) => {
-	i18next.loadNamespaces(['zod']);
-	const serverData = await serverLoader();
-	return data(serverData);
-};
-clientLoader.hydrate = true as const;
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import _ from 'lodash';
 
 const NewStaffMemberPage = () => {
 	const { t } = useTranslate();
-
 	return (
 		<DashboardContent
 			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
-			compact
-			maxWidth="lg"
 		>
 			<CustomBreadcrumbs
-				heading={getPageTitle(t as never)}
+				heading={t('new-item', { item: _.toLower(t('staff-member')) })}
 				links={[
 					{
 						name: _.capitalize(t('staff-members')),
@@ -79,8 +21,6 @@ const NewStaffMemberPage = () => {
 				]}
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
-
-			<UserNewEditForm />
 		</DashboardContent>
 	);
 };
