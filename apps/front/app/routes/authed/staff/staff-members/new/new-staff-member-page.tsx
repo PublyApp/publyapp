@@ -6,6 +6,7 @@ import _ from 'lodash';
 
 const NewStaffMemberPage = () => {
 	const { t } = useTranslate();
+
 	return (
 		<DashboardContent
 			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
