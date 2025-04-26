@@ -246,20 +246,20 @@ export const FRONT_PATH_NAMES = {
 		tenants: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
 			details: (tenantId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.tenants, tenantId);
+				return makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId);
 			},
 		},
 		tenantUsers: {
 			root: makePath(ROOTS.STAFF, 'tenant-users'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, 'tenant-users', userId);
+				return makePath(ROOTS.STAFF, 'tenant-users', 'details', userId);
 			},
 		},
 		staffMembers: {
 			root: makePath(ROOTS.STAFF, RESOURCE.staffMembers),
 			new: makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, userId);
+				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'details', userId);
 			},
 		},
 	},
