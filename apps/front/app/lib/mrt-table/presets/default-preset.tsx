@@ -14,9 +14,11 @@ import { Iconify } from '@/front/components/iconify/iconify';
 export const defaultTablePreset: TablePreset = {
 	// columns,
 	// data,
+	layoutMode: 'grid',
 	enableStickyHeader: true,
 	enableRowSelection: true,
 	enableColumnActions: false,
+	sortDescFirst: true,
 	// enableColumnFilters: false,
 	// enableDensityToggle: false,
 	// enableFullScreenToggle: false,
