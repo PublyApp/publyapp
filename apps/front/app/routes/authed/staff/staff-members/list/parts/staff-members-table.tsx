@@ -3,11 +3,10 @@ import Card from '@mui/material/Card';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
+	type MRT_ColumnDef,
 	type MRT_PaginationState,
 } from 'material-react-table';
-import { nanoid } from 'nanoid';
 import { useMemo, useState } from 'react';
-// import { GridToolbarContainer } from '@mui/x-data-grid';
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
 import Stack from '@mui/material/Stack';
@@ -19,10 +18,11 @@ import IconButton from '@mui/material/IconButton';
 import _ from 'lodash';
 import { getUserFullName } from '@/shared/utils/user.utils';
 import { RouterLink } from '@/front/components/router-link';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { Iconify } from '@/front/components/iconify/iconify';
+import { mockDataStaffMembers } from './mock-data-staff-members';
 
-type StaffMemberRowData = {
+export type StaffMemberRowData = {
 	id: string;
 	avatarUrl: string;
 	firstName: string;
@@ -32,126 +32,7 @@ type StaffMemberRowData = {
 	email: string;
 };
 
-// const data: StaffMemberRowData[] = [];
-const data: StaffMemberRowData[] = [
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_1.jpg',
-		firstName: 'Alex',
-		lastName: 'Hunter',
-		role: 'Admin',
-		status: 'active',
-		email: 'alex.hunter@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_2.jpg',
-		firstName: 'Sarah',
-		lastName: 'Connor',
-		role: 'Manager',
-		status: 'active',
-		email: 'sarah.connor@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_3.jpg',
-		firstName: 'James',
-		lastName: 'Wilson',
-		role: 'Staff',
-		status: 'inactive',
-		email: 'james.wilson@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_4.jpg',
-		firstName: 'Emma',
-		lastName: 'Davis',
-		role: 'Admin',
-		status: 'active',
-		email: 'emma.davis@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_5.jpg',
-		firstName: 'Michael',
-		lastName: 'Brown',
-		role: 'Staff',
-		status: 'active',
-		email: 'michael.brown@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_2.jpg',
-		firstName: 'Sarah',
-		lastName: 'Connor',
-		role: 'Manager',
-		status: 'active',
-		email: 'sarah.connor@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_3.jpg',
-		firstName: 'James',
-		lastName: 'Wilson',
-		role: 'Staff',
-		status: 'inactive',
-		email: 'james.wilson@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_4.jpg',
-		firstName: 'Emma',
-		lastName: 'Davis',
-		role: 'Admin',
-		status: 'active',
-		email: 'emma.davis@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_5.jpg',
-		firstName: 'Michael',
-		lastName: 'Brown',
-		role: 'Staff',
-		status: 'active',
-		email: 'michael.brown@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_2.jpg',
-		firstName: 'Sarah',
-		lastName: 'Connor',
-		role: 'Manager',
-		status: 'active',
-		email: 'sarah.connor@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_3.jpg',
-		firstName: 'James',
-		lastName: 'Wilson',
-		role: 'Staff',
-		status: 'inactive',
-		email: 'james.wilson@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_4.jpg',
-		firstName: 'Emma',
-		lastName: 'Davis',
-		role: 'Admin',
-		status: 'active',
-		email: 'emma.davis@example.com',
-	},
-	{
-		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_5.jpg',
-		firstName: 'Michael',
-		lastName: 'Brown',
-		role: 'Staff',
-		status: 'active',
-		email: 'michael.brown@example.com',
-	},
-];
+const data = mockDataStaffMembers;
 // data.length = 0;
 
 const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
@@ -168,37 +49,26 @@ const staffMembersTable = () => {
 				{
 					id: 'fullName',
 					header: t('name'),
-					Cell: (props) => (
-						<UserCell
-							userId={props.row.original.id}
-							fullName={props.cell.getValue()}
-							avatarUrl={props.row.original.avatarUrl}
-							email={props.row.original.email}
-						/>
-					),
+					Cell: UserCell,
 					// grow: 1,
 					size: 300,
 				},
 			),
 			columnHelper.accessor('role', {
 				header: t('role'),
-				Cell(props) {
+				Cell: (props) => {
 					return props.cell.getValue();
 				},
 				size: 70,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
-				Cell(props) {
-					return <StatusCell status={props.cell.getValue()} />;
-				},
+				Cell: StatusCell,
 				size: 70,
 			}),
 			columnHelper.display({
 				header: 'Actions',
-				Cell: (props) => {
-					return <UserActionsCell userId={props.row.original.id} />;
-				},
+				Cell: UserActionsCell,
 				size: 70,
 			}),
 		];
@@ -206,7 +76,7 @@ const staffMembersTable = () => {
 
 	const [pagination, setPagination] = useState<MRT_PaginationState>({
 		pageIndex: 0,
-		pageSize: 20, //customize the default page size
+		pageSize: DEFAULT_PAGE_SIZE, //customize the default page size
 	});
 
 	const slicedData = useMemo(() => {
@@ -226,6 +96,7 @@ const staffMembersTable = () => {
 			density: 'comfortable',
 		},
 	});
+
 	return (
 		<Card>
 			<MaterialReactTable table={table} />
@@ -237,14 +108,12 @@ export default staffMembersTable;
 
 // ----------------------------------------------------------------------
 
-type UserCellProps = {
-	fullName: string;
-	avatarUrl: string;
-	email: string;
-	userId: string;
-};
+const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
+	const userId = props.row.original.id;
+	const fullName = props.cell.getValue();
+	const avatarUrl = props.row.original.avatarUrl;
+	const email = props.row.original.email;
 
-const UserCell = ({ fullName, avatarUrl, email, userId }: UserCellProps) => {
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
 			<Avatar alt={fullName} src={avatarUrl} />
@@ -268,8 +137,12 @@ const UserCell = ({ fullName, avatarUrl, email, userId }: UserCellProps) => {
 	);
 };
 
-const StatusCell = ({ status }: { status: string }) => {
+const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
+	props,
+) => {
 	const { t } = useTranslate();
+
+	const status = props.cell.getValue();
 
 	return (
 		<Label
@@ -286,7 +159,9 @@ const StatusCell = ({ status }: { status: string }) => {
 	);
 };
 
-const UserActionsCell = ({ userId }: { userId: string }) => {
+const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
+	const userId = props.row.original.id;
+
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center' }}>
 			<Tooltip title="View details" placement="top" arrow>

@@ -1,3 +1,9 @@
+import { Iconify } from '@/front/components/iconify/iconify';
+import { Label } from '@/front/components/label/label';
+import { RouterLink } from '@/front/components/router-link';
+import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -13,12 +19,6 @@ import {
 	type MRT_PaginationState,
 } from 'material-react-table';
 import { useMemo, useState } from 'react';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { mockDataTenants } from './mock-data-tenants';
 
 export type TenantRowData = {
@@ -44,12 +44,12 @@ const TenantsTable = () => {
 		return [
 			columnHelper.accessor('name', {
 				header: t('name'),
-				Cell: TenantCell,
+				Cell: ProductCell,
 				// grow: 1,
 				size: 300,
 			}),
 			columnHelper.accessor('users.count', {
-				header: t('users'),
+				header: t('role'),
 				Cell: (props) => {
 					return (
 						<>
@@ -98,17 +98,12 @@ const TenantsTable = () => {
 		onPaginationChange: setPagination,
 		state: {
 			pagination,
-			density: 'compact',
-		},
-		muiTablePaperProps: {
-			sx: {
-				flexGrow: 1,
-			},
+			density: 'comfortable',
 		},
 	});
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Card>
 			<MaterialReactTable table={table} />
 		</Card>
 	);
@@ -118,17 +113,15 @@ export default TenantsTable;
 
 // ----------------------------------------------------------------------
 
-const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
+const ProductCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	const logoUrl = props.row.original.logoUrl;
 	const name = props.row.original.name;
-	const href = FRONT_PATH_NAMES.staff.tenants.details(
-		props.row.original.id,
-	).root;
+	const href = FRONT_PATH_NAMES.staff.tenants.details(props.row.original.id);
 
 	return (
 		<Box
 			sx={{
-				py: 1,
+				py: 2,
 				gap: 2,
 				width: 1,
 				display: 'flex',
@@ -139,7 +132,7 @@ const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 				alt={name}
 				src={logoUrl}
 				variant="rounded"
-				sx={{ width: 46, height: 46 }}
+				sx={{ width: 64, height: 64 }}
 			/>
 
 			<ListItemText
@@ -148,7 +141,7 @@ const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 						{name}
 					</Link>
 				}
-				secondary={props.row.original.id}
+				// secondary={params.row.category}
 				slotProps={{
 					primary: { noWrap: true },
 					secondary: { sx: { color: 'text.disabled' } },
@@ -187,7 +180,7 @@ const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
 					// onClick={/* quickEditForm.onTrue */ () => {}}
 					LinkComponent={RouterLink}
-					href={FRONT_PATH_NAMES.staff.tenants.details(tenantId).root}
+					href={FRONT_PATH_NAMES.staff.tenants.details(tenantId)}
 				>
 					<Iconify icon="solar:eye-bold" />
 				</IconButton>

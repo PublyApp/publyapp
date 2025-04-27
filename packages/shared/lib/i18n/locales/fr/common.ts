@@ -43,6 +43,7 @@ const commonFR = {
 	'staff-member': 'Membre du staff',
 	'staff-members': 'Membres du staff',
 	'unknown-item': '{{item}} inconnu',
+	'pricing-plan': 'Plan tarifaire',
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',
