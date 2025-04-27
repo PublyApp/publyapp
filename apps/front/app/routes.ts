@@ -30,10 +30,13 @@ const routes = [
 			[
 				layout('routes/authed/staff/_layout/page-layout.tsx', [
 					index('routes/authed/staff/dashboard/staff-home-page.tsx'),
-					route(
-						getLastPath(FRONT_PATH_NAMES.staff.tenants.root),
-						'routes/authed/staff/tenants/tenants-list-page.tsx',
-					),
+					...prefix(getLastPath(FRONT_PATH_NAMES.staff.tenants.root), [
+						index('routes/authed/staff/tenants/list/tenants-list-page.tsx'),
+						route(
+							getLastPath(FRONT_PATH_NAMES.staff.tenants.new),
+							'routes/authed/staff/tenants/new/new-tenant-page.tsx',
+						),
+					]),
 					...prefix(getLastPath(FRONT_PATH_NAMES.staff.staffMembers.root), [
 						index(
 							'routes/authed/staff/staff-members/list/staff-members-list-page.tsx',
