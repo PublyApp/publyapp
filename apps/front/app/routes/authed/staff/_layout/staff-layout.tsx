@@ -30,6 +30,7 @@ const StaffLayout = () => {
 				},
 				{
 					title: t('settings'),
+					// path: FRONT_PATH_NAMES.staff.settings.root,
 					path: 'settings',
 					icon: ICONS.settings,
 				},

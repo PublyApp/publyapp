@@ -13,7 +13,7 @@ interface RouterLinkProps extends Omit<LinkProps, 'to'> {
 
 const viteUrl = new URL(env.VITE_SERVER_URL);
 if (import.meta.env.DEV) {
-	viteUrl.port = '6181';
+	viteUrl.port = '6181'; // ! vite port: remember to change if you change port in vite.config.ts
 }
 const viteOrigin = viteUrl.origin;
 
@@ -52,19 +52,10 @@ export const RouterLink = ({ href, ref, ...other }: RouterLinkProps) => {
 			const searchParams = new URLSearchParams(href.search);
 			searchParams.set(queryParamKey.language, currentLang.value);
 
-			let _pathname = href.pathname
-				? decodeURIComponent(href.pathname)
-				: href.pathname;
-
-			if (_pathname?.includes('#') /*  === '/#' */) {
-				// _pathname = undefined;
-				_pathname = _pathname?.replaceAll('#', '');
-			}
-
 			to = {
-				pathname: _pathname,
-				hash: href.hash,
+				pathname: href.pathname,
 				search: decodeURIComponent(searchParams.toString()),
+				hash: href.hash,
 			};
 		} else {
 			let url: URL | undefined;
@@ -75,26 +66,14 @@ export const RouterLink = ({ href, ref, ...other }: RouterLinkProps) => {
 
 			if (!url) {
 				const [pathname, search] = _.split(href, '?');
-				url = new URL(isServer ? viteOrigin : window.location.origin);
-				url.pathname = pathname;
-				url.search = search || '';
+				const searchParams = new URLSearchParams(search);
+				searchParams.set(queryParamKey.language, currentLang.value);
+				const searchString = searchParams.toString();
+				to = pathname + (searchString ? `?${searchString}` : '');
+			} else {
+				url.searchParams.set(queryParamKey.language, currentLang.value);
+				to = decodeURIComponent(url.toString());
 			}
-
-			url.searchParams.set(queryParamKey.language, currentLang.value);
-
-			let _pathname: string | undefined = url.pathname
-				? decodeURIComponent(url.pathname)
-				: url.pathname;
-
-			if (_pathname?.includes('#') /*  === '/#' */) {
-				// _pathname = undefined;
-				_pathname = _pathname?.replaceAll('#', '');
-			}
-
-			to = {
-				pathname: _pathname,
-				search: decodeURIComponent(url.search),
-			};
 		}
 	}
 
