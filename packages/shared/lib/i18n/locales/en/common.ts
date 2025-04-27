@@ -15,7 +15,9 @@ const commonEN = {
 	title: 'Title',
 	translation: 'Translation',
 	user: 'User',
+	users: 'Users',
 	number: 'Number',
+	tenant: 'Tenant',
 	tenants: 'Tenants',
 	status: 'Status',
 
@@ -55,6 +57,7 @@ const commonEN = {
 	here: 'Here',
 	'down-here': 'Down here',
 	'unknown-item': 'Unknown {{item}}',
+	'pricing-plan': 'Pricing plan',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
