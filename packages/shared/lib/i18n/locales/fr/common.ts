@@ -18,6 +18,7 @@ const commonFR = {
 	translation: 'Traduction',
 	user: 'Utilisateur',
 	number: 'Nombre',
+	tenant: 'Tenant',
 	tenants: 'Tenants',
 	status: 'Statut',
 

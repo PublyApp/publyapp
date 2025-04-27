@@ -4,7 +4,7 @@ import type { StaffMemberRowData } from './staff-members-table';
 export const mockDataStaffMembers: StaffMemberRowData[] = [
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_1.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-1.webp',
 		firstName: 'Alex',
 		lastName: 'Hunter',
 		role: 'Admin',
@@ -13,7 +13,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_2.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-2.webp',
 		firstName: 'Sarah',
 		lastName: 'Connor',
 		role: 'Manager',
@@ -22,7 +22,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_3.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-3.webp',
 		firstName: 'James',
 		lastName: 'Wilson',
 		role: 'Staff',
@@ -31,7 +31,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_4.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-4.webp',
 		firstName: 'Emma',
 		lastName: 'Davis',
 		role: 'Admin',
@@ -40,7 +40,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_5.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-5.webp',
 		firstName: 'Michael',
 		lastName: 'Brown',
 		role: 'Staff',
@@ -49,7 +49,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_2.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-6.webp',
 		firstName: 'Sarah',
 		lastName: 'Connor',
 		role: 'Manager',
@@ -58,7 +58,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_3.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-7.webp',
 		firstName: 'James',
 		lastName: 'Wilson',
 		role: 'Staff',
@@ -67,7 +67,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_4.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-8.webp',
 		firstName: 'Emma',
 		lastName: 'Davis',
 		role: 'Admin',
@@ -76,7 +76,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_5.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-9.webp',
 		firstName: 'Michael',
 		lastName: 'Brown',
 		role: 'Staff',
@@ -85,7 +85,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_2.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-10.webp',
 		firstName: 'Sarah',
 		lastName: 'Connor',
 		role: 'Manager',
@@ -94,7 +94,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_3.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-11.webp',
 		firstName: 'James',
 		lastName: 'Wilson',
 		role: 'Staff',
@@ -103,7 +103,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_4.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-12.webp',
 		firstName: 'Emma',
 		lastName: 'Davis',
 		role: 'Admin',
@@ -112,7 +112,7 @@ export const mockDataStaffMembers: StaffMemberRowData[] = [
 	},
 	{
 		id: nanoid(),
-		avatarUrl: '/static/images/avatars/avatar_5.jpg',
+		avatarUrl: '/assets/images/mock/avatar/avatar-13.webp',
 		firstName: 'Michael',
 		lastName: 'Brown',
 		role: 'Staff',
