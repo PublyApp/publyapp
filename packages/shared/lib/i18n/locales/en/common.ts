@@ -15,6 +15,7 @@ const commonEN = {
 	title: 'Title',
 	translation: 'Translation',
 	user: 'User',
+	users: 'Users',
 	number: 'Number',
 	tenant: 'Tenant',
 	tenants: 'Tenants',
