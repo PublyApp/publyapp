@@ -16,8 +16,10 @@ const commonFR = {
 	role: 'Rôle',
 	title: 'Titre',
 	translation: 'Traduction',
+	users: 'Utilisateurs',
 	user: 'Utilisateur',
 	number: 'Nombre',
+	tenant: 'Tenant',
 	tenants: 'Tenants',
 	status: 'Statut',
 
@@ -43,6 +45,7 @@ const commonFR = {
 	'staff-member': 'Membre du staff',
 	'staff-members': 'Membres du staff',
 	'unknown-item': '{{item}} inconnu',
+	'pricing-plan': 'Plan tarifaire',
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',
