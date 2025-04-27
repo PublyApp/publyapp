@@ -21,6 +21,7 @@ import { Footer, HomeFooter, type FooterProps } from './footer';
 import { NavDesktop } from './nav/desktop';
 import { NavMobile } from './nav/mobile';
 import type { NavMainProps } from './nav/types';
+import { makePath } from '@/shared/utils/string.utils';
 
 // ----------------------------------------------------------------------
 
@@ -37,8 +38,6 @@ export type MainLayoutProps = LayoutBaseProps & {
 		footer?: FooterProps;
 	};
 };
-
-// const paths = FRONT_PATH_NAMES;
 
 export const MainLayout = ({
 	sx,
@@ -115,7 +114,7 @@ export const MainLayout = ({
 							component={RouterLink}
 							variant="contained"
 							rel="noopener"
-							href={FRONT_PATH_NAMES.staff.root}
+							href={makePath(FRONT_PATH_NAMES.staff.tenants.root)}
 							sx={(theme) => {
 								return {
 									display: 'none',
