@@ -262,6 +262,9 @@ export const FRONT_PATH_NAMES = {
 				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'details', userId);
 			},
 		},
+		settings: {
+			root: makePath(ROOTS.STAFF, 'settings'),
+		},
 	},
 } as const;
 
