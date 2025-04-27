@@ -1,5 +1,17 @@
+import { Iconify } from '@/front/components/iconify/iconify';
+import { Label } from '@/front/components/label/label';
+import { RouterLink } from '@/front/components/router-link';
+import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import IconButton from '@mui/material/IconButton';
+import Link from '@mui/material/Link';
+import ListItemText from '@mui/material/ListItemText';
+import Tooltip from '@mui/material/Tooltip';
+import _ from 'lodash';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
@@ -7,55 +19,48 @@ import {
 	type MRT_PaginationState,
 } from 'material-react-table';
 import { useMemo, useState } from 'react';
-import Box from '@mui/material/Box';
-import Avatar from '@mui/material/Avatar';
-import Stack from '@mui/material/Stack';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { Label } from '@/front/components/label/label';
-import Link from '@mui/material/Link';
-import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
-import _ from 'lodash';
-import { getUserFullName } from '@/shared/utils/user.utils';
-import { RouterLink } from '@/front/components/router-link';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { mockDataStaffMembers } from './mock-data-staff-members';
+import { mockDataTenants } from './mock-data-tenants';
 
-export type StaffMemberRowData = {
+export type TenantRowData = {
 	id: string;
-	avatarUrl: string;
-	firstName: string;
-	lastName: string;
-	role: string;
-	status: string;
-	email: string;
+	name: string;
+	logoUrl: string;
+	users: {
+		count: number;
+		maxAllowed: number;
+	};
+	status: string; // 'active' | 'archived';
+	pricingPlan: string; // 'free' | 'bronze' | 'silver '| 'gold' | 'platinum'; //TODO: add plan enum
 };
 
-const data = mockDataStaffMembers;
-// data.length = 0;
+const data = mockDataTenants;
 
-const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
+const columnHelper = createMRTColumnHelper<TenantRowData>();
 
-const staffMembersTable = () => {
+const TenantsTable = () => {
 	const { t } = useTranslate();
 
 	const columns = useMemo(() => {
 		return [
-			columnHelper.accessor(
-				(row) => {
-					return getUserFullName(_.pick(row, ['firstName', 'lastName']));
-				},
-				{
-					id: 'fullName',
-					header: t('name'),
-					Cell: UserCell,
-					// grow: 1,
-					size: 300,
-				},
-			),
-			columnHelper.accessor('role', {
+			columnHelper.accessor('name', {
+				header: t('name'),
+				Cell: ProductCell,
+				// grow: 1,
+				size: 300,
+			}),
+			columnHelper.accessor('users.count', {
 				header: t('role'),
+				Cell: (props) => {
+					return (
+						<>
+							{props.cell.getValue()} / {props.row.original.users.maxAllowed}
+						</>
+					);
+				},
+				size: 70,
+			}),
+			columnHelper.accessor('pricingPlan', {
+				header: t('pricing-plan'),
 				Cell: (props) => {
 					return props.cell.getValue();
 				},
@@ -68,7 +73,7 @@ const staffMembersTable = () => {
 			}),
 			columnHelper.display({
 				header: 'Actions',
-				Cell: UserActionsCell,
+				Cell: TenantActionsCell,
 				size: 70,
 			}),
 		];
@@ -104,42 +109,49 @@ const staffMembersTable = () => {
 	);
 };
 
-export default staffMembersTable;
+export default TenantsTable;
 
 // ----------------------------------------------------------------------
 
-const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
-	const userId = props.row.original.id;
-	const fullName = props.cell.getValue();
-	const avatarUrl = props.row.original.avatarUrl;
-	const email = props.row.original.email;
+const ProductCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
+	const logoUrl = props.row.original.logoUrl;
+	const name = props.row.original.name;
+	const href = FRONT_PATH_NAMES.staff.tenants.details(props.row.original.id);
 
 	return (
-		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-			<Avatar alt={fullName} src={avatarUrl} />
+		<Box
+			sx={{
+				py: 2,
+				gap: 2,
+				width: 1,
+				display: 'flex',
+				alignItems: 'center',
+			}}
+		>
+			<Avatar
+				alt={name}
+				src={logoUrl}
+				variant="rounded"
+				sx={{ width: 64, height: 64 }}
+			/>
 
-			<Stack
-				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
-			>
-				<Link
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
-					color="inherit"
-					sx={{ cursor: 'pointer' }}
-				>
-					{fullName}
-				</Link>
-				<Box component="span" sx={{ color: 'text.disabled' }}>
-					{email}
-				</Box>
-			</Stack>
+			<ListItemText
+				primary={
+					<Link component={RouterLink} href={href} color="inherit">
+						{name}
+					</Link>
+				}
+				// secondary={params.row.category}
+				slotProps={{
+					primary: { noWrap: true },
+					secondary: { sx: { color: 'text.disabled' } },
+				}}
+			/>
 		</Box>
 	);
 };
 
-const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
-	props,
-) => {
+const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	const { t } = useTranslate();
 
 	const status = props.cell.getValue();
@@ -149,8 +161,7 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 			variant="soft"
 			color={
 				(status === 'active' && 'success') ||
-				(status === 'pending' && 'warning') ||
-				(status === 'banned' && 'error') ||
+				(status === 'archived' && 'warning') ||
 				'default'
 			}
 		>
@@ -159,8 +170,8 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	);
 };
 
-const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
-	const userId = props.row.original.id;
+const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
+	const tenantId = props.row.original.id;
 
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -169,7 +180,7 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
 					// onClick={/* quickEditForm.onTrue */ () => {}}
 					LinkComponent={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
+					href={FRONT_PATH_NAMES.staff.tenants.details(tenantId)}
 				>
 					<Iconify icon="solar:eye-bold" />
 				</IconButton>
