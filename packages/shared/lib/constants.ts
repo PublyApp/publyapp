@@ -221,6 +221,7 @@ const RESOURCE = {
 	blog: 'blog',
 	shortUrl: 'short-url',
 	staffMembers: 'staff-members',
+	tenantUSers: 'tenant-users',
 } as const;
 
 const ROOTS = {
@@ -245,14 +246,16 @@ export const FRONT_PATH_NAMES = {
 		root: makePath(ROOTS.STAFF),
 		tenants: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
+			new: makePath(ROOTS.STAFF, RESOURCE.tenant, 'new'),
 			details: (tenantId = '') => {
 				return makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId);
 			},
 		},
 		tenantUsers: {
-			root: makePath(ROOTS.STAFF, 'tenant-users'),
+			root: makePath(ROOTS.STAFF, RESOURCE.tenantUSers),
+			new: makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, 'tenant-users', 'details', userId);
+				return makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'details', userId);
 			},
 		},
 		staffMembers: {

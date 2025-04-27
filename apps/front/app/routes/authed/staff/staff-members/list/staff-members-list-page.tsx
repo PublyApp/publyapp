@@ -13,6 +13,10 @@ import { getServerLoader } from '@/front/lib/react-router/server.data';
 import { data } from 'react-router';
 import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
 
+const getPageTitle = (t: TFunction) => {
+	return t('list-of-items', { items: _.toLower(t('staff-members')) });
+};
+
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
 		return _.get(args.data, 'meta', []);
@@ -22,7 +26,7 @@ export const meta = (args: Route.MetaArgs) => {
 
 	return [
 		{
-			title: `${_.capitalize(t('list-of-items', { items: t('staff-members') }))} | Staff Dashboard - ${APP_NAME}`,
+			title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
 		},
 	];
 };
@@ -34,7 +38,7 @@ export const loader = getServerLoader({
 		return data({
 			meta: [
 				{
-					title: `${_.capitalize(t('list-of-items', { items: t('staff-members') }))} | Staff Dashboard - ${APP_NAME}`,
+					title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
 				},
 			],
 		});
@@ -49,7 +53,7 @@ const StaffMembersListPage = () => {
 			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
 		>
 			<CustomBreadcrumbs
-				heading={t('list-of-items', { items: _.toLower(t('staff-members')) })}
+				heading={getPageTitle(t as never)}
 				links={[
 					{
 						name: _.capitalize(t('staff-members')),

@@ -55,6 +55,7 @@ const commonEN = {
 	here: 'Here',
 	'down-here': 'Down here',
 	'unknown-item': 'Unknown {{item}}',
+	'pricing-plan': 'Pricing plan',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
