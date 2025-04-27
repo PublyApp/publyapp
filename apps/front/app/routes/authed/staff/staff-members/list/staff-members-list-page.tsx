@@ -14,7 +14,9 @@ import { data } from 'react-router';
 import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
 
 const getPageTitle = (t: TFunction) => {
-	return t('list-of-items', { items: _.toLower(t('staff-members')) });
+	return _.capitalize(
+		t('list-of-items', { items: _.toLower(t('staff-members')) }),
+	);
 };
 
 export const meta = (args: Route.MetaArgs) => {

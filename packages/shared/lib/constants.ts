@@ -246,7 +246,7 @@ export const FRONT_PATH_NAMES = {
 		root: makePath(ROOTS.STAFF),
 		tenants: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
-			new: makePath(ROOTS.STAFF, RESOURCE.tenant, 'new'),
+			new: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
 			details: (tenantId = '') => {
 				return makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId);
 			},
