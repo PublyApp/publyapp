@@ -49,7 +49,7 @@ const TenantsTable = () => {
 				size: 300,
 			}),
 			columnHelper.accessor('users.count', {
-				header: t('role'),
+				header: t('users'),
 				Cell: (props) => {
 					return (
 						<>
