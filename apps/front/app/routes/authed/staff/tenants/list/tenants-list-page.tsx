@@ -28,11 +28,11 @@ const TenantsListPage = () => {
 				action={
 					<Button
 						component={RouterLink}
-						href="#"
+						href={FRONT_PATH_NAMES.staff.tenants.new}
 						variant="contained"
 						startIcon={<Iconify icon="mingcute:add-line" />}
 					>
-						New product
+						{_.capitalize(t('new-item', { item: t('tenant') }))}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}

@@ -98,7 +98,7 @@ const TenantsTable = () => {
 		onPaginationChange: setPagination,
 		state: {
 			pagination,
-			density: 'comfortable',
+			density: 'compact',
 		},
 	});
 
