@@ -1,12 +1,50 @@
 import _ from 'lodash';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { RouterLink } from '@/front/components/router-link';
 import Button from '@mui/material/Button';
 import { Iconify } from '@/front/components/iconify/iconify';
 import TenantsTable from './parts/tenants-table';
+import type { TFunction } from 'i18next';
+import type { Route } from './+types/tenants-list-page';
+import i18next from 'i18next';
+import { getServerLoader } from '@/front/lib/react-router/server.data';
+import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
+import { data } from 'react-router';
+
+const getPageTitle = (t: TFunction) => {
+	return _.capitalize(t('list-of-items', { items: t('tenants') }));
+};
+
+export const meta = (args: Route.MetaArgs) => {
+	if (isServer) {
+		return _.get(args.data, 'meta', []);
+	}
+
+	const t: TFunction = i18next.t;
+
+	return [
+		{
+			title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+		},
+	];
+};
+
+export const loader = getServerLoader({
+	loader: async ({ locale }) => {
+		const t = await remixI18NextServer.getFixedT(locale);
+
+		return data({
+			meta: [
+				{
+					title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+				},
+			],
+		});
+	},
+});
 
 const TenantsListPage = () => {
 	const { t } = useTranslate();
@@ -16,7 +54,7 @@ const TenantsListPage = () => {
 			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
 		>
 			<CustomBreadcrumbs
-				heading={t('list-of-items', { items: t('tenants') })}
+				heading={getPageTitle(t as never)}
 				links={[
 					// { name: 'Dashboard', href: paths.dashboard.root },
 					{

@@ -16,6 +16,7 @@ const commonFR = {
 	role: 'Rôle',
 	title: 'Titre',
 	translation: 'Traduction',
+	users: 'Utilisateurs',
 	user: 'Utilisateur',
 	number: 'Nombre',
 	tenant: 'Tenant',
