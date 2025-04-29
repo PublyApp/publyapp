@@ -20,6 +20,7 @@ import { CookieManager } from '../cookie-manager';
 import { remixI18NextServer } from '../i18n/i18n.server';
 
 import { getRequestLocale } from './data.utils';
+import { isPromise } from '@/shared/utils/any.utils';
 
 // declare module 'react-router' {
 // 	interface AppLoadContext {
@@ -102,6 +103,11 @@ export const getServerLoader: GetServerLoader = <
 	const loader = async (args: T) => {
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
+		const t = z.t;
+		if (isPromise(t)) {
+			// @ts-ignore
+			z._t = await t;
+		}
 		const requestIp = args.request.headers.get(
 			_.toLower(FORWARDED_FOR_HEADER_KEY),
 		); // || args.request.headers.get('x-real-ip');

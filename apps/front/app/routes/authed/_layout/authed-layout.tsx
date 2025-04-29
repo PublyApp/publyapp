@@ -13,7 +13,7 @@ import {
 	getTenantAuthDataQuery,
 	getUserAuthDataQuery,
 } from '@/front/lib/react-query/features/auth/auth.actions';
-import { getClientLoader } from '@/front/lib/react-router/client.data';
+import { getClientLoader } from '@/front/lib/react-router/client-data';
 import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
