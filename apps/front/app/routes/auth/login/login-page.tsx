@@ -7,7 +7,7 @@ import duration from '@org/shared/utils/duration.utils';
 
 import { CookieManager } from '@/front/lib/cookie-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
-import { getServerAction } from '@/front/lib/react-router/server.data';
+import { getServerAction } from '@/front/lib/react-router/server-data.server';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
