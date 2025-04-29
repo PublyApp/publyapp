@@ -35,7 +35,7 @@
 		"@faker-js/faker": "^8.3.1",
 		"@org/shared": "workspace:*",
 		"@parse/fs-files-adapter": "^2.0.1",
-		"@react-router/express": "^7.3.0",
+		"@react-router/express": "^7.5.2",
 		"async": "^3.2.5",
 		"axios": "^1.6.5",
 		"bentocache": "1.2.2",
