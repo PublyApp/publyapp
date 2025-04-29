@@ -220,6 +220,8 @@ const RESOURCE = {
 	fileManager: 'file-manager',
 	blog: 'blog',
 	shortUrl: 'short-url',
+	staffMembers: 'staff-members',
+	tenantUSers: 'tenant-users',
 } as const;
 
 const ROOTS = {
@@ -244,21 +246,27 @@ export const FRONT_PATH_NAMES = {
 		root: makePath(ROOTS.STAFF),
 		tenants: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
+			new: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
 			details: (tenantId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.tenants, tenantId);
+				return makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId);
 			},
 		},
 		tenantUsers: {
-			root: makePath(ROOTS.STAFF, 'tenant-users'),
+			root: makePath(ROOTS.STAFF, RESOURCE.tenantUSers),
+			new: makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, 'tenant-users', userId);
+				return makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'details', userId);
 			},
 		},
 		staffMembers: {
-			root: makePath(ROOTS.STAFF, 'staff-members'),
+			root: makePath(ROOTS.STAFF, RESOURCE.staffMembers),
+			new: makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, 'staff-members', userId);
+				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'details', userId);
 			},
+		},
+		settings: {
+			root: makePath(ROOTS.STAFF, 'settings'),
 		},
 	},
 } as const;
@@ -270,31 +278,8 @@ export const functionName = {
 		getTenantAuthData: 'getTenantAuthData',
 		getIsDisabledSignup: 'getIsDisabledSignup',
 		getRedirectCode: 'getRedirectCode',
-		// ===
+		// ====
 		removeSeededUsers: 'removeSeededUsers',
-	},
-	// Blog Posts
-	blog: {
-		createBlogPost: 'createBlogPost',
-		updateBlogPost: 'updateBlogPost',
-		getBlogPostFrontDetails: 'getBlogPostFrontDetails',
-		getBlogPostFrontDetailsRelatedPosts: 'getBlogPostFrontDetailsRelatedPosts',
-		getBlogPostBoEdit: 'getBlogPostBoEdit',
-		findBlogPostFrontList: 'findBlogPostFrontList',
-		findBlogPostBoTable: 'findBlogPostBoTable',
-		findBlogPostTag: 'findBlogPostTag',
-		findBlogPostFrontDetailsRelatedPosts:
-			'findBlogPostFrontDetailsRelatedPosts',
-		findBlogPostSlug: 'findBlogPostSlug',
-		addSlugToBlogPost: 'addSlugToBlogPost',
-		removeSeededBlogPosts: 'removeSeededBlogPosts',
-		setBlogPostCurrentSlug: 'setBlogPostCurrentSlug',
-		// updateBlogPostAuthorPointers: 'updateBlogPostAuthorPointers',
-	},
-	fileManager: {
-		// Files
-		findAppFile: 'findAppFile',
-		createAppFileFolder: 'createAppFileFolder',
 	},
 } as const;
 

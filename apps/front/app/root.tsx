@@ -1,11 +1,10 @@
-import '@pigment-css/react/styles.css'; // import Pigment CSS styles/variables
-
 import './styles/main.css';
 
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
+import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
 
 import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
 import { APP_NAME } from '@/shared/lib/constants';
@@ -56,6 +55,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 	return (
 		<html lang={i18n.language} dir={i18n.dir()}>
 			<head>
+				{/* <script src="https://unpkg.com/react-scan/dist/auto.global.js" /> */}
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<Meta />
@@ -86,7 +86,11 @@ const App = ({ loaderData }: Route.ComponentProps) => {
 	// translation files
 	useChangeLanguage(locale);
 
-	return <Outlet />;
+	return (
+		<NuqsAdapter>
+			<Outlet />
+		</NuqsAdapter>
+	);
 };
 
 export default App;

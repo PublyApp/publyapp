@@ -7,6 +7,7 @@ import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { Label } from '../components/label/label';
 import type { NavSectionProps } from '../components/nav-section/types';
 import { SvgColor } from '../components/svg-color/svg-color';
+import { Iconify } from '../components/iconify/iconify';
 
 // import { CONFIG } from 'src/global-config';
 // import { paths } from 'src/routes/paths';
@@ -17,7 +18,7 @@ const icon = (name: string) => {
 	return <SvgColor src={`/assets/icons/navbar/${name}.svg`} />;
 };
 
-const ICONS = {
+export const ICONS = {
 	job: icon('ic-job'),
 	blog: icon('ic-blog'),
 	chat: icon('ic-chat'),
@@ -44,11 +45,14 @@ const ICONS = {
 	analytics: icon('ic-analytics'),
 	dashboard: icon('ic-dashboard'),
 	parameter: icon('ic-parameter'),
+	settings: <Iconify icon="solar:settings-bold-duotone" />,
 };
 
 // ----------------------------------------------------------------------
 
-export const navData: NavSectionProps['data'] = [
+export type NavDataType = NavSectionProps['data'];
+
+export const navData: NavDataType = [
 	/**
 	 * Overview
 	 */
