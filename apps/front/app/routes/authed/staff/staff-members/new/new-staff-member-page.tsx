@@ -6,7 +6,7 @@ import type { TFunction } from 'i18next';
 import _ from 'lodash';
 import type { Route } from './+types/new-staff-member-page';
 import i18next from 'i18next';
-import { getServerLoader } from '@/front/lib/react-router/server.data';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
 import { data } from 'react-router';
 

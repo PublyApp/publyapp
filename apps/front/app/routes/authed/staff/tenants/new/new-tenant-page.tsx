@@ -3,7 +3,7 @@ import _ from 'lodash';
 import type { Route } from './+types/new-tenant-page';
 import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 import i18next from 'i18next';
-import { getServerLoader } from '@/front/lib/react-router/server.data';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
 import { data } from 'react-router';
 import { useTranslate } from '@/front/hooks/use-translate';

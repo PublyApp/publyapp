@@ -16,7 +16,7 @@ import { SettingsDrawer } from '@/front/components/settings';
 import { defaultSettings } from '@/front/components/settings';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/queryClient';
-import { getServerLoader } from './lib/react-router/server.data';
+import { getServerLoader } from './lib/react-router/server-data.server';
 
 export const links: Route.LinksFunction = () => {
 	return [

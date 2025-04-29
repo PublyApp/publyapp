@@ -5,7 +5,7 @@ import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type InterZod from '@/shared/lib/zod/InterZod';
 
 import { initApiClientOnClient } from '../api';
-import { initI18nOnClient } from '../i18n/initI18n.client';
+import { initI18nOnClient } from '../i18n/init-i18n.client';
 import { initZodOnClient } from '../zod';
 
 import { getRequestLocale } from './data.utils';

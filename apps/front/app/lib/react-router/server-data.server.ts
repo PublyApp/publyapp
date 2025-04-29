@@ -1,29 +1,35 @@
-import type { ApiClient } from '@/parse-api-client/ApiClient';
+import _ from 'lodash';
+
+import type { ApiClient } from 'packages/api/ApiClient';
 import {
-	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	FORWARDED_FOR_HEADER_KEY,
+	redirect,
+	type ActionFunctionArgs,
+	type LoaderFunctionArgs,
+} from 'react-router';
+
+import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
+	FORWARDED_FOR_HEADER_KEY,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
-import { isPromise } from '@/shared/utils/any.utils';
-import * as cookie from 'cookie';
-import _ from 'lodash';
-import {
-	type ActionFunctionArgs,
-	type AppLoadContext,
-	type LoaderFunctionArgs,
-	redirect,
-} from 'react-router';
+
 import { initApiClientOnServer } from '../api';
+import { CookieManager } from '../cookie-manager';
 import { remixI18NextServer } from '../i18n/i18n.server';
+
 import { getRequestLocale } from './data.utils';
-import { getDevContext } from './get-dev-context.server';
+import { isPromise } from '@/shared/utils/any.utils';
+
+// declare module 'react-router' {
+// 	interface AppLoadContext {
+// 		logger?: typeof console;
+// 	}
+// }
 
 type GetServerLoaderParamsWhenRequireUser<
-	T extends
-		LoaderFunctionArgs<AppLoadContext> = LoaderFunctionArgs<AppLoadContext>,
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
 	D = unknown,
 > = {
 	requireUser: true;
@@ -38,8 +44,7 @@ type GetServerLoaderParamsWhenRequireUser<
 };
 
 type GetServerLoaderParamsWithoutAuthDataPromise<
-	T extends
-		LoaderFunctionArgs<AppLoadContext> = LoaderFunctionArgs<AppLoadContext>,
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
 	D = unknown,
 > = {
 	requireUser?: false | undefined;
@@ -54,8 +59,7 @@ type GetServerLoaderParamsWithoutAuthDataPromise<
 };
 
 type GetServerLoaderParamsWithAuthDataPromise<
-	T extends
-		LoaderFunctionArgs<AppLoadContext> = LoaderFunctionArgs<AppLoadContext>,
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
 	D = unknown,
 > = {
 	requireUser?: false | undefined;
@@ -71,32 +75,19 @@ type GetServerLoaderParamsWithAuthDataPromise<
 };
 
 type GetServerLoader = {
-	<
-		T extends
-			LoaderFunctionArgs<AppLoadContext> = LoaderFunctionArgs<AppLoadContext>,
-		D = unknown,
-	>(
+	<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
 		params: GetServerLoaderParamsWhenRequireUser<T, D>,
 	): (args: T) => Promise<D>;
-	<
-		T extends
-			LoaderFunctionArgs<AppLoadContext> = LoaderFunctionArgs<AppLoadContext>,
-		D = unknown,
-	>(
+	<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
 		params: GetServerLoaderParamsWithoutAuthDataPromise<T, D>,
 	): (args: T) => Promise<D>;
-	<
-		T extends
-			LoaderFunctionArgs<AppLoadContext> = LoaderFunctionArgs<AppLoadContext>,
-		D = unknown,
-	>(
+	<T extends LoaderFunctionArgs = LoaderFunctionArgs, D = unknown>(
 		params: GetServerLoaderParamsWithAuthDataPromise<T, D>,
 	): (args: T) => Promise<D>;
 };
 
 type GetServerLoaderParams<
-	T extends
-		LoaderFunctionArgs<AppLoadContext> = LoaderFunctionArgs<AppLoadContext>,
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
 	D = unknown,
 > =
 	| GetServerLoaderParamsWhenRequireUser<T, D>
@@ -104,8 +95,7 @@ type GetServerLoaderParams<
 	| GetServerLoaderParamsWithAuthDataPromise<T, D>;
 
 export const getServerLoader: GetServerLoader = <
-	T extends
-		LoaderFunctionArgs<AppLoadContext> = LoaderFunctionArgs<AppLoadContext>,
+	T extends LoaderFunctionArgs = LoaderFunctionArgs,
 	D = unknown,
 >(
 	params: GetServerLoaderParams<T, D>,
@@ -113,50 +103,30 @@ export const getServerLoader: GetServerLoader = <
 	const loader = async (args: T) => {
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
-
-		if (isPromise(z.t)) {
-			// @ts-expect-error - t is a promise
-			z._t = await z.t;
+		const t = z.t;
+		if (isPromise(t)) {
+			// @ts-ignore
+			z._t = await t;
 		}
-
-		const finalLoadContext = getDevContext(args.context);
-
-		const requestIp =
-			args.request.headers.get(
-				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
-			) || // ✅ Cloudflare real IP
-			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
+		const requestIp = args.request.headers.get(
+			_.toLower(FORWARDED_FOR_HEADER_KEY),
+		); // || args.request.headers.get('x-real-ip');
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale, requestIp });
 
 			if (!params.withAuthDataPromise) {
-				return params.loader({
-					...args,
-					context: finalLoadContext,
-					apiClient,
-					z,
-					locale,
-				});
+				return params.loader({ ...args, apiClient, z, locale });
 			}
 
 			const authDataPromise = apiClient.auth.getUserAuthData();
 
-			return params.loader({
-				...args,
-				context: finalLoadContext,
-				apiClient,
-				z,
-				locale,
-				authDataPromise,
-			});
+			return params.loader({ ...args, apiClient, z, locale, authDataPromise });
 		}
 
 		// check if session token cookie is present
-		const reqCookies = cookie.parse(
-			args.request.headers.get('Set-Cookie') || '',
-		);
-		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
+		const reqCookies = new CookieManager(args.request.headers);
+		const sessionToken = reqCookies.get(SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
@@ -169,14 +139,7 @@ export const getServerLoader: GetServerLoader = <
 		});
 		const authData = await apiClient.auth.getUserAuthData();
 
-		return params.loader({
-			...args,
-			context: finalLoadContext,
-			apiClient,
-			z,
-			locale,
-			authData,
-		});
+		return params.loader({ ...args, apiClient, z, locale, authData });
 	};
 
 	return loader;
@@ -212,33 +175,23 @@ type GetServerActionParamsWhenWhenUserNotRequired<
 };
 
 type GetServerAction = {
-	<
-		T extends
-			ActionFunctionArgs<AppLoadContext> = ActionFunctionArgs<AppLoadContext>,
-		D = unknown,
-	>(
+	<T extends ActionFunctionArgs = ActionFunctionArgs, D = unknown>(
 		params: GetServerActionParamsWhenRequireUser<T, D>,
 	): (args: T) => Promise<D>;
-	<
-		T extends
-			ActionFunctionArgs<AppLoadContext> = ActionFunctionArgs<AppLoadContext>,
-		D = unknown,
-	>(
+	<T extends ActionFunctionArgs = ActionFunctionArgs, D = unknown>(
 		params: GetServerActionParamsWhenWhenUserNotRequired<T, D>,
 	): (args: T) => Promise<D>;
 };
 
 type GetServerActionParams<
-	T extends
-		ActionFunctionArgs<AppLoadContext> = ActionFunctionArgs<AppLoadContext>,
+	T extends ActionFunctionArgs = ActionFunctionArgs,
 	D = unknown,
 > =
 	| GetServerActionParamsWhenRequireUser<T, D>
 	| GetServerActionParamsWhenWhenUserNotRequired<T, D>;
 
 export const getServerAction: GetServerAction = <
-	T extends
-		ActionFunctionArgs<AppLoadContext> = ActionFunctionArgs<AppLoadContext>,
+	T extends ActionFunctionArgs = ActionFunctionArgs,
 	D = unknown,
 >(
 	params: GetServerActionParams<T, D>,
@@ -246,35 +199,17 @@ export const getServerAction: GetServerAction = <
 	const action = async (args: T) => {
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
-
-		if (isPromise(z.t)) {
-			// @ts-expect-error - z.t is a promise
-			z._t = await z.t;
-		}
-
-		const finalLoadContext = getDevContext(args.context);
-
-		const requestIp =
-			args.request.headers.get(
-				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
-			) || // ✅ Cloudflare real IP
-			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
+		const requestIp = args.request.headers.get(
+			_.toLower(FORWARDED_FOR_HEADER_KEY),
+		); // || args.request.headers.get('x-real-ip');
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale, requestIp });
-			return params.action({
-				...args,
-				context: finalLoadContext,
-				apiClient,
-				z,
-				locale,
-			});
+			return params.action({ ...args, apiClient, z, locale });
 		}
 
-		const reqCookies = cookie.parse(
-			args.request.headers.get('Set-Cookie') || '',
-		);
-		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
+		const reqCookies = new CookieManager(args.request.headers);
+		const sessionToken = reqCookies.get(SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
@@ -288,14 +223,7 @@ export const getServerAction: GetServerAction = <
 
 		const authData = await apiClient.auth.getUserAuthData();
 
-		return params.action({
-			...args,
-			context: finalLoadContext,
-			apiClient,
-			z,
-			locale,
-			authData,
-		});
+		return params.action({ ...args, apiClient, z, locale, authData });
 	};
 
 	return action;
