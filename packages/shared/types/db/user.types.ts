@@ -6,6 +6,8 @@ import type { BaseAttributes } from 'parse';
 
 // import type { ITenant } from './tenant.types';
 
+export type UserStatus = 'active' | 'pending' | 'banned';
+
 export type UserAttributes = {
 	// Parse built-ins
 	username: string;
@@ -14,6 +16,8 @@ export type UserAttributes = {
 	// custom fields
 	firstName?: string;
 	lastName?: string;
+
+	status?: UserStatus;
 
 	// ===
 	avatarUrl?: string;

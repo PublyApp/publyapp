@@ -194,7 +194,7 @@ const MuiPickersLayout: Components<Theme>['MuiPickersLayout'] = {
 	},
 };
 
-const MuiPickersPopper: Components<Theme>['MuiPickersPopper'] = {
+const MuiPickerPopper: Components<Theme>['MuiPickerPopper'] = {
 	/** **************************************
 	 * DEFAULT PROPS
 	 *************************************** */
@@ -211,7 +211,7 @@ const MuiPickersPopper: Components<Theme>['MuiPickersPopper'] = {
 // ----------------------------------------------------------------------
 
 export const datePicker = {
-	MuiPickersPopper,
+	MuiPickerPopper,
 	MuiPickersLayout,
 	// Date
 	MuiDatePicker,

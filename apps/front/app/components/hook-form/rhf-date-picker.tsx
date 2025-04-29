@@ -7,14 +7,14 @@ import {
 	MobileDateTimePicker,
 	type MobileDateTimePickerProps,
 } from '@mui/x-date-pickers/MobileDateTimePicker';
-import dayjs, { type Dayjs } from 'dayjs';
+import dayjs /* , { type Dayjs } */ from 'dayjs';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { formatPatterns } from '@/front/utils/format-time';
 
 // ----------------------------------------------------------------------
 
-type RHFDatePickerProps = DatePickerProps<Dayjs> & {
+type RHFDatePickerProps = DatePickerProps /* <Dayjs> */ & {
 	name: string;
 };
 
@@ -59,7 +59,7 @@ export const RHFDatePicker = ({
 
 // ----------------------------------------------------------------------
 
-type RHFMobileDateTimePickerProps = MobileDateTimePickerProps<Dayjs> & {
+type RHFMobileDateTimePickerProps = MobileDateTimePickerProps /* <Dayjs> */ & {
 	name: string;
 };
 

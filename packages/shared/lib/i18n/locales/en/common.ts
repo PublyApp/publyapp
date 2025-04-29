@@ -9,13 +9,17 @@ const commonEN = {
 	field: 'Field',
 	file: 'File',
 	locale: 'Locale',
-	name: 'name',
+	name: 'Name',
 	post: 'Post',
 	role: 'Role',
 	title: 'Title',
 	translation: 'Translation',
 	user: 'User',
+	users: 'Users',
 	number: 'Number',
+	tenant: 'Tenant',
+	tenants: 'Tenants',
+	status: 'Status',
 
 	// ? ...
 	views: 'Views',
@@ -35,6 +39,9 @@ const commonEN = {
 	edit: 'Edit',
 	list: 'List',
 	settings: 'Settings',
+	overview: 'Overview',
+	'staff-member': 'Staff member',
+	'staff-members': 'Staff members',
 
 	// ???
 	'item-is-required': '{{item}} is required',
@@ -49,6 +56,8 @@ const commonEN = {
 		'Find the {{otherLanguage}} version of this {{item}}',
 	here: 'Here',
 	'down-here': 'Down here',
+	'unknown-item': 'Unknown {{item}}',
+	'pricing-plan': 'Pricing plan',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',

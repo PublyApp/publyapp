@@ -10,7 +10,7 @@ import { usePathname } from '@/front/hooks/use-pathname';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 import { MenuButton } from '../components/menu-button';
-import { SettingsButton } from '../components/settings-button';
+// import { SettingsButton } from '../components/settings-button';
 import { SignInButton } from '../components/sign-in-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
@@ -21,6 +21,7 @@ import { Footer, HomeFooter, type FooterProps } from './footer';
 import { NavDesktop } from './nav/desktop';
 import { NavMobile } from './nav/mobile';
 import type { NavMainProps } from './nav/types';
+import { makePath } from '@/shared/utils/string.utils';
 
 // ----------------------------------------------------------------------
 
@@ -37,8 +38,6 @@ export type MainLayoutProps = LayoutBaseProps & {
 		footer?: FooterProps;
 	};
 };
-
-// const paths = FRONT_PATH_NAMES;
 
 export const MainLayout = ({
 	sx,
@@ -105,7 +104,7 @@ export const MainLayout = ({
 						}}
 					>
 						{/** @slot Settings button */}
-						<SettingsButton />
+						{/* <SettingsButton /> */}
 
 						{/** @slot Sign in button */}
 						<SignInButton />
@@ -115,7 +114,7 @@ export const MainLayout = ({
 							component={RouterLink}
 							variant="contained"
 							rel="noopener"
-							href={FRONT_PATH_NAMES.staff.root}
+							href={makePath(FRONT_PATH_NAMES.staff.tenants.root)}
 							sx={(theme) => {
 								return {
 									display: 'none',
