@@ -14,8 +14,8 @@ import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
 import { logger } from '@/server/lib/winston';
 import {
 	LOCALE_HEADER_KEY,
-	X_FORWARDED_FOR_HEADER_KEY,
-	X_REMIX_CLIENT_IP,
+	FORWARDED_FOR_HEADER_KEY,
+	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import InterZod from '@/shared/lib/zod/InterZod';
@@ -133,8 +133,8 @@ export const getRequestUtils = (req: Request) => {
 
 export const getRequestIp = (req: Request) => {
 	return (
-		getHeader(req, X_REMIX_CLIENT_IP) ||
-		getHeader(req, X_FORWARDED_FOR_HEADER_KEY) ||
+		getHeader(req, REMIX_CLIENT_IP_HEADER_KEY) ||
+		getHeader(req, FORWARDED_FOR_HEADER_KEY) ||
 		req.socket.remoteAddress
 	);
 };

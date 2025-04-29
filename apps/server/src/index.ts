@@ -21,7 +21,7 @@ import {
 	LOCALE_HEADER_KEY,
 	TENANT_ID_HEADER_KEY,
 	// X_FORWARDED_FOR_HEADER_KEY,
-	X_REMIX_CLIENT_IP,
+	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
 
 import { cloud } from './cloud';
@@ -132,7 +132,11 @@ const bootstrap = async () => {
 		// =============================================
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		sessionLength: duration.toSeconds('3d'), // 3 days
-		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY, X_REMIX_CLIENT_IP],
+		allowHeaders: [
+			LOCALE_HEADER_KEY,
+			TENANT_ID_HEADER_KEY,
+			REMIX_CLIENT_IP_HEADER_KEY,
+		],
 		allowOrigin: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		// =============================================
 		directAccess: true,

@@ -10,7 +10,7 @@ import {
 import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
-	X_FORWARDED_FOR_HEADER_KEY,
+	FORWARDED_FOR_HEADER_KEY,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
@@ -103,7 +103,7 @@ export const getServerLoader: GetServerLoader = <
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
 		const requestIp = args.request.headers.get(
-			_.toLower(X_FORWARDED_FOR_HEADER_KEY),
+			_.toLower(FORWARDED_FOR_HEADER_KEY),
 		); // || args.request.headers.get('x-real-ip');
 
 		if (!params.requireUser) {
@@ -194,7 +194,7 @@ export const getServerAction: GetServerAction = <
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
 		const requestIp = args.request.headers.get(
-			_.toLower(X_FORWARDED_FOR_HEADER_KEY),
+			_.toLower(FORWARDED_FOR_HEADER_KEY),
 		); // || args.request.headers.get('x-real-ip');
 
 		if (!params.requireUser) {
