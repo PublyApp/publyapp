@@ -12,9 +12,9 @@ import { APP_NAME } from '@/shared/lib/constants';
 
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
-import { View500 } from './components/error/500-view';
-import { SettingsDrawer } from './components/settings/drawer';
-import { defaultSettings } from './components/settings/settings-config';
+import { View500 } from '@/front/components/error';
+import { SettingsDrawer } from '@/front/components/settings';
+import { defaultSettings } from '@/front/components/settings';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/queryClient';
 import { getServerLoader } from './lib/react-router/server.data';
