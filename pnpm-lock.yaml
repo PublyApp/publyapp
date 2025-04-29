@@ -202,7 +202,7 @@ importers:
         version: 5.0.7
       nuqs:
         specifier: 2.4.3
-        version: 2.4.3(react-router@7.3.0)(react@19.0.0)
+        version: 2.4.3(react-router@7.5.3)(react@19.0.0)
       react:
         specifier: 19.0.0
         version: 19.0.0
@@ -284,7 +284,7 @@ importers:
         version: 19.0.0
       react-router-devtools:
         specifier: ^1.1.10
-        version: 1.1.10(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.0.0)(react-router@7.3.0)(react@19.0.0)(vite@5.4.18)
+        version: 1.1.10(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.0.0)(react-router@7.5.3)(react@19.0.0)(vite@5.4.18)
       typescript:
         specifier: ^5.8.3
         version: 5.8.3
@@ -1303,9 +1303,9 @@ packages:
       warning: 3.0.0
     dev: true
 
-  /@boringnode/bus@0.6.0:
-    resolution: {integrity: sha512-i6AKHvFqRUC5KZTX7WXYcWIV8Wfnem6t5Li1Bn5oU+YXAq0zw1y09bZk9HxB2smugfcFlDgzRwpXuwC9fLTE9g==}
-    engines: {node: '>=20.11.1'}
+  /@boringnode/bus@0.7.1:
+    resolution: {integrity: sha512-F74H1XxpX0MSP2xfDv5cTuP9OgC4HHG+K2w8kNRj/k104D/aBMC7mcEcntgIZMX8QgcRQsREToP5kPH5kZOO/Q==}
+    engines: {node: '>=20.6'}
     peerDependencies:
       ioredis: ^5.0.0
     peerDependenciesMeta:
@@ -4474,7 +4474,7 @@ packages:
         optional: true
     dependencies:
       '@mjackson/node-fetch-server': 0.2.0
-      react-router: 7.5.3(react-dom@19.0.0)(react@19.0.0)
+      react-router: 7.5.3(react-dom@16.14.0)(react@16.14.0)
       source-map-support: 0.5.21
       stream-slice: 0.1.2
       typescript: 5.8.3
@@ -6189,8 +6189,8 @@ packages:
       js-beautify: 1.14.10
     dev: true
 
-  /bentocache@1.0.0-beta.9(tslib@2.8.1):
-    resolution: {integrity: sha512-KykJ/8q20DO9FHQ7Yhqv8RlgI/jo7kgoE0EJ65w30sziNdaDSsy8gVRCOTf06m+TcoVdBu2luKH9V4xaavBAbA==}
+  /bentocache@1.2.2:
+    resolution: {integrity: sha512-6ZUKVHvu2D7LSQpq11GVTFAfTKyrincZpS4pLCukPz1Ra9Ig3lPzVbj+E1wGI9TpRuV1uX93UMX5knPXOq30Dw==}
     peerDependencies:
       '@aws-sdk/client-dynamodb': ^3.438.0
       ioredis: ^5.3.2
@@ -10710,7 +10710,7 @@ packages:
     resolution: {integrity: sha512-qaKRmtYPZ5qdw4jWJD6bxEf1FJEqllJrwxCLIm0sQU/A7v2/czigzOb+C2uSiFsa9lBUzeH7M1oK+Q+OLxL3kA==}
     dev: false
 
-  /nuqs@2.4.3(react-router@7.3.0)(react@19.0.0):
+  /nuqs@2.4.3(react-router@7.5.3)(react@19.0.0):
     resolution: {integrity: sha512-BgtlYpvRwLYiJuWzxt34q2bXu/AIS66sLU1QePIMr2LWkb+XH0vKXdbLSgn9t6p7QKzwI7f38rX3Wl9llTXQ8Q==}
     peerDependencies:
       '@remix-run/react': '>=2'
@@ -10730,7 +10730,7 @@ packages:
     dependencies:
       mitt: 3.0.1
       react: 19.0.0
-      react-router: 7.3.0(react-dom@19.0.0)(react@19.0.0)
+      react-router: 7.5.3(react-dom@19.0.0)(react@19.0.0)
     dev: false
 
   /oauth-sign@0.9.0:
@@ -11894,7 +11894,6 @@ packages:
       prop-types: 15.8.1
       react: 16.14.0
       scheduler: 0.19.1
-    dev: false
 
   /react-dom@19.0.0(react@19.0.0):
     resolution: {integrity: sha512-4GV5sHFG0e/0AD4X+ySy6UJd3jVl1iNsNHdpad0qhABJ11twS3TTBnseqsKurKcsNqCEFeGL3uLpVChpIO3QfQ==}
@@ -12175,7 +12174,7 @@ packages:
       - react-dom
     dev: false
 
-  /react-router-devtools@1.1.10(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.0.0)(react-router@7.3.0)(react@19.0.0)(vite@5.4.18):
+  /react-router-devtools@1.1.10(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.0.0)(react-router@7.5.3)(react@19.0.0)(vite@5.4.18):
     resolution: {integrity: sha512-/Lg0doiVq/Bv547SU4ZWE2UPUaNToGQ0Rnao0tWrZVvPfgGLMQJi4TLv3CxLrXFCo5QeZh0omJ1SCGXOZmpUUw==}
     peerDependencies:
       react: '>=17'
@@ -12201,7 +12200,7 @@ packages:
       react-diff-viewer-continued: 4.0.5(@types/react@19.0.0)(react-dom@19.0.0)(react@19.0.0)
       react-dom: 19.0.0(react@19.0.0)
       react-hotkeys-hook: 4.6.2(react-dom@19.0.0)(react@19.0.0)
-      react-router: 7.3.0(react-dom@19.0.0)(react@19.0.0)
+      react-router: 7.5.3(react-dom@19.0.0)(react@19.0.0)
       react-tooltip: 5.28.1(react-dom@19.0.0)(react@19.0.0)
       vite: 5.4.18(@types/node@20.14.15)
     optionalDependencies:
@@ -12253,7 +12252,6 @@ packages:
       react-dom: 16.14.0(react@16.14.0)
       set-cookie-parser: 2.7.0
       turbo-stream: 2.4.0
-    dev: false
 
   /react-router@7.5.3(react-dom@19.0.0)(react@19.0.0):
     resolution: {integrity: sha512-3iUDM4/fZCQ89SXlDa+Ph3MevBrozBAI655OAfWQlTm9nBR0IKlrmNwFow5lPHttbwvITZfkeeeZFP6zt3F7pw==}
@@ -12391,7 +12389,6 @@ packages:
       loose-envify: 1.4.0
       object-assign: 4.1.1
       prop-types: 15.8.1
-    dev: false
 
   /react@19.0.0:
     resolution: {integrity: sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ==}
@@ -12813,7 +12810,6 @@ packages:
     dependencies:
       loose-envify: 1.4.0
       object-assign: 4.1.1
-    dev: false
 
   /scheduler@0.25.0:
     resolution: {integrity: sha512-xFVuu11jh+xcO7JOAGJNOXld8/TcEHK/4CituBUeUb5hqxJLj9YuemAEuvm9gQ/+pgXYfbQuqAkiYu+u7YEsNA==}
