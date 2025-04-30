@@ -1,4 +1,4 @@
 # makes sure fnm will make npx work
-eval "$(fnm env --use-on-cd)"
+# eval "$(fnm env --use-on-cd)"
 
-npx lint-staged
+pnpm lint-staged
