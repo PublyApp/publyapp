@@ -250,7 +250,7 @@ const bootstrap = async () => {
 	// ! this must be mounted after all routes and all other middlewares
 	app.use(errorMiddleware);
 
-	server.listen(env.PORT, env.LOCAL ? 'localhost' : '0.0.0.0', () => {
+	server.listen(env.PORT, '0.0.0.0', () => {
 		logger.info(
 			'================================================================',
 		);
