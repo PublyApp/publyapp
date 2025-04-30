@@ -1,28 +1,29 @@
+import { isValidElement, type ReactNode } from 'react';
+
 import type { UseQueryResult } from '@tanstack/react-query';
 import _ from 'lodash';
-import { type FC, isValidElement, type ReactNode } from 'react';
-import { checkIfEmptyQueryData } from '../lib/react-query/query-utils';
 
-type Props<TData = unknown, TError = Error> = {
-	query: UseQueryResult<TData, TError>;
+type Props = {
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	query: UseQueryResult<any, any>;
 	loadingStrategy?: 'loading' | 'pending' | 'fetching'; // defaults to 'pending'
-	LoadingSlot?: ReactNode | FC;
-	ErrorSlot?: ReactNode | FC<{ error: unknown }>;
-	EmptySlot?: ReactNode | FC;
-	children?: ReactNode | FC<{ data: TData }>;
+	LoadingSlot?: ReactNode | (() => React.ReactElement);
+	ErrorSlot?: ReactNode | ((error: unknown) => React.ReactElement);
+	EmptySlot?: ReactNode | (() => React.ReactElement);
+	children?: ReactNode;
 };
 
 const defaultLoadingElement = <div>Loading...</div>;
 const defaultErrorElement = <div>Error...</div>;
 
-const QueryDisplay = <TData = unknown, TError = Error>({
+const QueryDisplay = ({
 	query,
 	LoadingSlot,
 	ErrorSlot,
 	EmptySlot,
 	loadingStrategy,
 	children,
-}: Props<TData, TError>) => {
+}: Props) => {
 	let showLoading: boolean;
 
 	switch (loadingStrategy) {
@@ -44,7 +45,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 
 	if (showLoading) {
 		if (_.isFunction(LoadingSlot)) {
-			return <LoadingSlot />;
+			return LoadingSlot();
 		}
 
 		if (isValidElement(LoadingSlot) && !_.isNil(LoadingSlot)) {
@@ -56,7 +57,7 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 
 	if (query.isError) {
 		if (_.isFunction(ErrorSlot)) {
-			return <ErrorSlot error={query.error} />;
+			return ErrorSlot(query.error);
 		}
 
 		if (isValidElement(ErrorSlot) && !_.isNil(ErrorSlot)) {
@@ -66,23 +67,16 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 		return defaultErrorElement;
 	}
 
-	const isEmpty = checkIfEmptyQueryData(query);
+	const isEmpty =
+		query.data === undefined ||
+		query.data === null ||
+		(Array.isArray(query.data) && query.data.length === 0);
 
-	if (isEmpty) {
-		if (_.isFunction(EmptySlot)) {
-			return <EmptySlot />;
-		}
-
-		if (isValidElement(EmptySlot) && !_.isNil(LoadingSlot)) {
-			return EmptySlot;
-		}
+	if (isEmpty && isValidElement(EmptySlot) && !_.isNil(LoadingSlot)) {
+		return EmptySlot;
 	}
 
-	// if query is successful, handle children
-	if (_.isFunction(children)) {
-		return children({ data: query.data as TData });
-	}
-
+	// if query is successful, return children
 	return children;
 };
 
