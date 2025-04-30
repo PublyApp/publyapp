@@ -2,6 +2,7 @@ import {
 	Suspense,
 	useEffect,
 	useRef,
+	type ComponentType,
 	type ReactNode,
 	type SuspenseProps,
 } from 'react';
@@ -10,6 +11,7 @@ import { useQueryErrorResetBoundary } from '@tanstack/react-query';
 import {
 	ErrorBoundary,
 	type ErrorBoundaryPropsWithComponent,
+	type FallbackProps,
 } from 'react-error-boundary';
 import { useLocation } from 'react-router';
 
@@ -27,8 +29,8 @@ const getFallBackComponent = ({
 	FallbackComponent: ErrorBoundaryPropsWithComponent['FallbackComponent'];
 	location: ReturnType<typeof useLocation>;
 	errorLocation: ReturnType<typeof useLocation>;
-}): ErrorBoundaryPropsWithComponent['FallbackComponent'] => {
-	return ({ error, resetErrorBoundary }) => {
+}): ComponentType<FallbackProps> => {
+	return ({ error, resetErrorBoundary }: FallbackProps) => {
 		// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 		useEffect(() => {
 			if (location.pathname !== errorLocation.pathname) {
