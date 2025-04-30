@@ -48,3 +48,5 @@ packages/*/dist
 
 # .env.preprod
 # .env.production
+
+.pnpm-store/
