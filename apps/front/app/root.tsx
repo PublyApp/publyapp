@@ -15,7 +15,7 @@ import { View500 } from '@/front/components/error';
 import { SettingsDrawer } from '@/front/components/settings';
 import { defaultSettings } from '@/front/components/settings';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
-import { defaultQueryClient } from './lib/react-query/queryClient';
+import { defaultQueryClient } from './lib/react-query/query-client';
 import { getServerLoader } from './lib/react-router/server-data.server';
 
 export const links: Route.LinksFunction = () => {

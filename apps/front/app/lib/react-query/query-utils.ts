@@ -1,8 +1,6 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 
-export const checkIfEmptyQueryData = <TData = unknown, TError = Error>(
-	query: UseQueryResult<TData, TError>,
-) => {
+export const checkIfEmptyQueryData = (query: UseQueryResult) => {
 	const isEmpty =
 		query.data === undefined ||
 		query.data === null ||
