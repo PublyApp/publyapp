@@ -12,12 +12,7 @@ export default defineConfig({
 		checker({ typescript: true }),
 	],
 	server: {
-		host: '0.0.0.0',
 		port: 6181,
-		hmr: {
-			host: 'localhost',
-			port: 6181,
-		},
 	},
 	ssr: {
 		noExternal:
