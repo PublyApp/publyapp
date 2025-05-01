@@ -1,15 +1,16 @@
-import { isValidElement, type ReactNode } from 'react';
+import { isValidElement, type FC, type ReactNode } from 'react';
 
 import type { UseQueryResult } from '@tanstack/react-query';
 import _ from 'lodash';
+import { checkIfEmptyQueryData } from '../lib/react-query/query-utils';
 
 type Props = {
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	query: UseQueryResult<any, any>;
 	loadingStrategy?: 'loading' | 'pending' | 'fetching'; // defaults to 'pending'
-	LoadingSlot?: ReactNode | (() => React.ReactElement);
-	ErrorSlot?: ReactNode | ((error: unknown) => React.ReactElement);
-	EmptySlot?: ReactNode | (() => React.ReactElement);
+	LoadingSlot?: ReactNode | FC;
+	ErrorSlot?: ReactNode | FC<{ error: unknown }>;
+	EmptySlot?: ReactNode | FC;
 	children?: ReactNode;
 };
 
@@ -45,7 +46,7 @@ const QueryDisplay = ({
 
 	if (showLoading) {
 		if (_.isFunction(LoadingSlot)) {
-			return LoadingSlot();
+			return <LoadingSlot />;
 		}
 
 		if (isValidElement(LoadingSlot) && !_.isNil(LoadingSlot)) {
@@ -57,7 +58,7 @@ const QueryDisplay = ({
 
 	if (query.isError) {
 		if (_.isFunction(ErrorSlot)) {
-			return ErrorSlot(query.error);
+			return <ErrorSlot error={query.error} />;
 		}
 
 		if (isValidElement(ErrorSlot) && !_.isNil(ErrorSlot)) {
@@ -67,13 +68,16 @@ const QueryDisplay = ({
 		return defaultErrorElement;
 	}
 
-	const isEmpty =
-		query.data === undefined ||
-		query.data === null ||
-		(Array.isArray(query.data) && query.data.length === 0);
+	const isEmpty = checkIfEmptyQueryData(query);
 
-	if (isEmpty && isValidElement(EmptySlot) && !_.isNil(LoadingSlot)) {
-		return EmptySlot;
+	if (isEmpty) {
+		if (_.isFunction(EmptySlot)) {
+			return <EmptySlot />;
+		}
+
+		if (isValidElement(EmptySlot) && !_.isNil(LoadingSlot)) {
+			return EmptySlot;
+		}
 	}
 
 	// if query is successful, return children
