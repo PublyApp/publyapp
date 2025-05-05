@@ -107,12 +107,25 @@ declare module 'parse-server' {
 		enableAnonymousUsers?: boolean;
 		enableCollationCaseComparison?: boolean;
 		encodeParseObjectInCloudFunction?: boolean;
-
 		pages?: {
 			enableRouter?: boolean;
 		};
+		rateLimit?: RateLimitOptions[];
 		// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	} & Record<string, any>;
+
+	// @link https://parseplatform.org/parse-server/api/8.1.0/RateLimitOptions.html
+	type RateLimitOptions = {
+		errorResponseMessage?: string;
+		includeInternalRequests?: boolean;
+		includeMasterKey?: boolean;
+		redisUrl?: string;
+		requestCount?: number;
+		requestMethods?: string[];
+		requestPath?: string | RegExp;
+		requestTimeWindow?: number;
+		// zone?: ????
+	};
 
 	type AccountLockoutOptions = {
 		duration?: number;
