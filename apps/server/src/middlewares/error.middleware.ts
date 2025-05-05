@@ -8,6 +8,7 @@ import { logger } from '@/server/lib/winston';
 
 import { getRequestUtils } from '../lib/express';
 import { isCloudHttpException } from '../lib/parse/function.utils';
+import { posthogClient } from '../lib/posthog';
 
 // ! this is the only middleware that we should not wrap into expressHandler wrapper function
 export const errorMiddleware: ErrorRequestHandler = async (
@@ -16,6 +17,12 @@ export const errorMiddleware: ErrorRequestHandler = async (
 	res,
 	next,
 ) => {
+	posthogClient.captureException(error, req.user?.id, {
+		ip: req.ip,
+		path: req.path,
+		method: req.method,
+	});
+
 	try {
 		const { t } = getRequestUtils(req);
 		let xcode: string | undefined;
