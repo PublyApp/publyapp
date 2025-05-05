@@ -24,18 +24,18 @@ const commonFR = {
 	status: 'Statut',
 
 	// ? ...
+	views: 'Vues',
 	'created-at': 'Créé le',
 	draft: 'Brouillon',
-	'edit-post': "Éditer l'article",
 	edit: 'Éditer',
+	'edit-post': "Éditer l'article",
+	published: 'Publié',
 	'invalid-number': 'Nombre invalide',
 	new: 'Nouveau',
 	preview: 'Aperçu',
 	'publish-date': 'Date de publication',
-	published: 'Publié',
 	save: 'Sauvegarder',
 	'update-date': 'Date de mise à jour',
-	views: 'Vues',
 	'your-description': 'Votre description',
 	'your-title': 'Votre titre',
 	'your-content': 'Votre contenu',
@@ -44,8 +44,6 @@ const commonFR = {
 	overview: 'Aperçu',
 	'staff-member': 'Membre du staff',
 	'staff-members': 'Membres du staff',
-	'unknown-item': '{{item}} inconnu',
-	'pricing-plan': 'Plan tarifaire',
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',
@@ -60,6 +58,9 @@ const commonFR = {
 		'Retrouvez la version {{otherLanguage}} de ce {{item}}',
 	here: 'Ici',
 	'down-here': 'Ici bas',
+	'unknown-item': '{{item}} inconnu',
+	'pricing-plan': 'Plan tarifaire',
+	'auth-welcome-title': 'Bienvenu(e) à nouveau',
 
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',
@@ -78,6 +79,7 @@ const commonFR = {
 	'other-posts': 'Autres articles',
 
 	'sign-in': 'Se connecter',
+	'no-account-yet': 'Pas encore de compte?',
 	'sign-up': "S'inscrire",
 	'create-an-account': 'Créer un compte',
 	'email-address': 'Adresse email',
