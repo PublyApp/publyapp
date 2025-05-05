@@ -48,9 +48,10 @@ import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
 import { setCurrentInstallationId } from './lib/parse/parse.utils';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
-import parseServerMiddleware from './middlewares/parseServer.middleware';
+import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/coreApi.router';
 import { posthogClient } from './lib/posthog';
+import { rateLimiterMiddleware } from './middlewares/rate-limit.middleware';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -85,6 +86,7 @@ const bootstrap = async () => {
 			whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		}),
 	);
+	app.use(rateLimiterMiddleware);
 	app.use((req, _res, next) => {
 		// The parse API end the custom API are both under this root path
 		// use only urlencoded there because Remix (React Router 7) will not
