@@ -3,12 +3,14 @@ import rateLimit from 'express-rate-limit';
 import { getHeader } from '../lib/express';
 import { PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 import duration from '@/shared/utils/duration.utils';
+import _ from 'lodash';
 
 const getRateLimitKey = (req: Request) => {
 	// Retrieve the session token: 'x-parse-session-token' is used for Postman,
 	// '_SessionToken' is used for the application
 	const sessionToken =
-		getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) || req.body._SessionToken;
+		getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) ||
+		_.get(req.body, '_SessionToken');
 
 	// use the IP address if no session token is provided
 	if (!sessionToken) {
