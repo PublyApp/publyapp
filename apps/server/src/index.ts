@@ -5,7 +5,10 @@ import { ParseServer } from 'parse-server/lib/index.js';
 import Parse from 'parse/node.js';
 
 import FSFilesAdapter from '@parse/fs-files-adapter';
-import { createRequestHandler } from '@react-router/express';
+import {
+	createRequestHandler,
+	type RequestHandler,
+} from '@react-router/express';
 import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
@@ -47,6 +50,7 @@ import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parseServer.middleware';
 import coreApiRouter from './router/coreApi.router';
+import { posthogClient } from './lib/posthog';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -219,10 +223,8 @@ const bootstrap = async () => {
 			express.static(path.resolve(__dirname, '../../front/build/client')),
 		);
 
-		// needs to handle all verbs (GET, POST, etc.)
-		app.all(
-			/(.*)/,
-			createRequestHandler({
+		const remixHandler: RequestHandler = async (req, res, next) => {
+			const innerHandler = createRequestHandler({
 				// `remix build` and `remix dev` output files to a build directory, you need
 				// to pass that build to the request handler
 				build: await import(
@@ -237,7 +239,43 @@ const bootstrap = async () => {
 				// 		logger,
 				// 	};
 				// },
-			}),
+			});
+
+			return innerHandler(req, res, (...args) => {
+				// in case of error
+				// i.e. args[0] is the error
+				if (args[0] !== undefined) {
+					// do some reporting here
+					posthogClient.captureException(args[0], undefined, {
+						ip: req.ip,
+						path: req.path,
+						method: req.method,
+					});
+				}
+				return next(...args);
+			});
+		};
+
+		// needs to handle all verbs (GET, POST, etc.)
+		app.all(
+			/(.*)/,
+			remixHandler,
+			// createRequestHandler({
+			// 	// `remix build` and `remix dev` output files to a build directory, you need
+			// 	// to pass that build to the request handler
+			// 	build: await import(
+			// 		/* webpackIgnore: true */ 'front/build/server/index.js'
+			// 	), // ! the '.js' extension is important
+
+			// 	// return anything you want here to be available as `context` in your
+			// 	// loaders and actions. This is where you can bridge the gap between Remix
+			// 	// and your server
+			// 	// getLoadContext: (_req, _res) => {
+			// 	// 	return {
+			// 	// 		logger,
+			// 	// 	};
+			// 	// },
+			// }),
 		);
 	}
 
