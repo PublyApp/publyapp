@@ -1,13 +1,25 @@
-import { SilentPostHog } from '@org/shared/lib/posthog/silent-posthog';
 import { PostHog } from 'posthog-node';
 import { env } from './env';
 
-/**
- * PostHog client that sends data to PostHog.
- * It is used when in production.
- */
+type SimplePostHog = Pick<PostHog, 'capture' | 'identify' | 'captureException'>;
 
-export const postHogServer = (() => {
+/**
+ * SilentPostHog is a PostHog client that does not send any data.
+ * It is used when in local.
+ */
+class SilentPostHog implements SimplePostHog {
+	capture() {
+		/* do nothing */
+	}
+	identify() {
+		/* do nothing */
+	}
+	captureException() {
+		/* do nothing */
+	}
+}
+
+export const posthogClient = (() => {
 	if (env.LOCAL) {
 		return new SilentPostHog();
 	}

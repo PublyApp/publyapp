@@ -65,6 +65,7 @@
 		"parse": "6.0.0",
 		"parse-dashboard": "7.0.0",
 		"parse-server": "8.0.0",
+		"posthog-node": "^4.17.1",
 		"qs": "^6.11.2",
 		"sharp": "^0.33.3",
 		"streamifier": "^0.1.1",
