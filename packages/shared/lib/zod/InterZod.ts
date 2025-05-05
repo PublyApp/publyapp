@@ -18,6 +18,7 @@ type I18nLike = {
 	// getFixedT: (locale: AppLocale) => TFunction;
 	// getFixedT: typeof i18next.getFixedT;
 	getFixedT: SyncFunction;
+	t?: TFunction;
 };
 
 /**
@@ -30,7 +31,7 @@ class InterZod {
 
 	protected _t: TFunction;
 
-	public get t(): TFunction {
+	public get t() {
 		return this._t;
 	}
 
