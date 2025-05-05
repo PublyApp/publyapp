@@ -1,3 +1,5 @@
+// ====
+
 const commonEN = {
 	hello: 'Hello',
 	userHasNoEmail: 'User has no email',
@@ -24,8 +26,10 @@ const commonEN = {
 	// ? ...
 	views: 'Views',
 	'created-at': 'Created at',
-	published: 'Published',
+	'edit-post': 'Edit post',
 	draft: 'Draft',
+	edit: 'Edit',
+	published: 'Published',
 	'invalid-number': 'Invalid number',
 	new: 'New',
 	'your-description': 'Your description',
@@ -35,8 +39,6 @@ const commonEN = {
 	'update-date': 'Update Date',
 	save: 'Save',
 	preview: 'Preview',
-	'edit-post': 'Edit post',
-	edit: 'Edit',
 	list: 'List',
 	settings: 'Settings',
 	overview: 'Overview',
@@ -58,6 +60,7 @@ const commonEN = {
 	'down-here': 'Down here',
 	'unknown-item': 'Unknown {{item}}',
 	'pricing-plan': 'Pricing plan',
+	'auth-welcome-title': 'Welcome back',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
@@ -77,6 +80,7 @@ const commonEN = {
 
 	'sign-in': 'Sign in',
 	'sign-up': 'Sign up',
+	'no-account-yet': 'No account yet?',
 	'create-an-account': 'Create an account',
 	'email-address': 'Email address',
 	password: 'Password',

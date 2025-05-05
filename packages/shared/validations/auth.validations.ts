@@ -3,8 +3,12 @@ import type { z } from 'zod';
 import type { AppLocale } from '../lib/i18n/resources';
 import type InterZod from '../lib/zod/InterZod';
 
-export const getEmailFieldSchema = (z: InterZod) => {
-	return z.string().min(1).email().max(120);
+const getEmailFieldSchema = (z: InterZod) => {
+	return z
+		.string()
+		.min(1 /* z.i18n.t?.('Invalid session token') */)
+		.email()
+		.max(120);
 };
 
 const SPECIAL_CHAR_REGEX = /[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/;
@@ -45,12 +49,12 @@ export const getVerifyEmailSchema = (z: InterZod) => {
 export const getResetPasswordSchema = (z: InterZod) => {
 	return z
 		.object({
-			newPassword: getPasswordFieldSchema(z),
-			confirmPassword: getPasswordFieldSchema(z),
+			password: getPasswordFieldSchema(z),
+			confirmPassword: z.string(),
 		})
 		.refine(
 			(data) => {
-				return data.confirmPassword === data.newPassword;
+				return data.confirmPassword === data.password;
 			},
 			{
 				message: 'Passwords are not the same',
@@ -67,31 +71,10 @@ export const getSendEmailUpdateEmailSchema = (z: InterZod) => {
 
 export const getRegisterSchema = (z: InterZod) => {
 	return getLoginSchema(z).extend({
-		firstName: z.string().optional(),
-		lastName: z.string().min(1),
+		firstName: z.string(/* { required_error: 'First name required' } */).min(1),
+		lastName: z.string(/* { required_error: 'Last name required' } */).min(1),
 	});
 };
-
-export const getEmailFormSchema = (z: InterZod) => {
-	return z.object({
-		email: getEmailFieldSchema(z),
-	});
-};
-
-export const getRequestEmailVerificationSchema = (z: InterZod) => {
-	return getEmailFormSchema(z);
-};
-
-// use server-side only
-export const getCheckEmailVerificationTokenSchema = (z: InterZod) => {
-	return z.object({
-		token: z.string().min(1),
-		id: z.string().min(1),
-	});
-};
-
-export const getCheckResetPasswordTokenSchema =
-	getCheckEmailVerificationTokenSchema;
 
 export type LoginInput = z.infer<ReturnType<typeof getLoginSchema>>;
 export type SignupInput = z.infer<ReturnType<typeof getRegisterSchema>>;

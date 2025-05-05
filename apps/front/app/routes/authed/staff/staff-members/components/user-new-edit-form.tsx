@@ -1,55 +1,83 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import Grid from '@mui/material/Grid';
-import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
-import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
-import { useBoolean } from 'minimal-shared/hooks';
-import { useForm } from 'react-hook-form';
-import type zod from 'zod';
-import { Field } from '@/front/components/hook-form/fields';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import {
-	useCreateStaffMember,
-	useFindStaffMember,
-} from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { fData } from '@/front/utils/format-number';
-import {
-	FRONT_PATH_NAMES,
-	type RoleName,
-	roleEnum,
-} from '@/shared/lib/constants';
-import { mbToBytes } from '@/shared/utils/any.utils';
+// import type { IUserItem } from 'src/types/user';
 
-type IUserItem = {
+import { z as zod } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, Controller } from 'react-hook-form';
+
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Switch from '@mui/material/Switch';
+import Typography from '@mui/material/Typography';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import { useRouter } from '@/front/hooks/use-router';
+import { toast } from '@/front/components/snackbar';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { Form } from '@/front/components/hook-form/form-provider';
+import { Label } from '@/front/components/label/label';
+import { schemaHelper } from '@/front/components/hook-form/schema-helper';
+import { Field } from '@/front/components/hook-form/fields';
+import { fData } from '@/front/utils/format-number';
+
+export type IUserItem = {
 	id: string;
-	firstName?: string;
+	firstName: string;
 	lastName: string;
-	role: RoleName;
+	role: string;
 	email: string;
 	status: string;
-	avatar?: string;
+	avatarUrl: string;
+	// city: string;
+	// state: string;
+	// address: string;
+	// country: string;
+	// zipCode: string;
+	// company: string;
+	// phoneNumber: string;
+	// isVerified: boolean;
 };
+
+// import { paths } from 'src/routes/paths';
+// import { useRouter } from 'src/routes/hooks';
+
+// import { fData } from 'src/utils/format-number';
+
+// import { Label } from 'src/components/label';
+// import { toast } from 'src/components/snackbar';
+// import { Form, Field, schemaHelper } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
-type NewUserSchemaType = Prettify<
-	zod.infer<ReturnType<typeof getNewStaffMemberSchemaClientSide>>
->;
+export type NewUserSchemaType = zod.infer<typeof NewUserSchema>;
+
+export const NewUserSchema = zod.object({
+	avatarUrl: schemaHelper.file({ message: 'Avatar is required!' }),
+	firstName: zod.string().min(1, { message: 'Name is required!' }),
+	lastName: zod.string().min(1, { message: 'Name is required!' }),
+	email: zod
+		.string()
+		.min(1, { message: 'Email is required!' })
+		.email({ message: 'Email must be a valid email address!' }),
+	// phoneNumber: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
+	// country: schemaHelper.nullableInput(
+	// 	zod.string().min(1, { message: 'Country is required!' }),
+	// 	{
+	// 		// message for null value
+	// 		message: 'Country is required!',
+	// 	},
+	// ),
+	// address: zod.string().min(1, { message: 'Address is required!' }),
+	// company: zod.string().min(1, { message: 'Company is required!' }),
+	// state: zod.string().min(1, { message: 'State is required!' }),
+	// city: zod.string().min(1, { message: 'City is required!' }),
+	// zipCode: zod.string().min(1, { message: 'Zip code is required!' }),
+	role: zod.string().min(1, { message: 'Role is required!' }),
+	// Not required
+	status: zod.string(),
+	// isVerified: zod.boolean(),
+});
 
 // ----------------------------------------------------------------------
 
@@ -57,112 +85,61 @@ type Props = {
 	currentUser?: IUserItem;
 };
 
-const ROLE_OPTIONS = _.chain(roleEnum)
-	.pickBy((value) => {
-		return _.startsWith(value.name, 'STAFF_');
-	})
-	.map((value) => {
-		return {
-			value: value.name,
-			label: value.name,
-		};
-	})
-	.value();
-
-const defaultValues: NewUserSchemaType = {
-	avatar: undefined,
-	firstName: '',
-	lastName: '',
-	email: '',
-	role: roleEnum.STAFF_CONTRIBUTOR.name,
-};
-
 export const UserNewEditForm = ({ currentUser }: Props) => {
-	const { t, i18n } = useTranslate();
 	const router = useRouter();
-	const openDialog = useBoolean();
 
-	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
+	const defaultValues: NewUserSchemaType = {
+		status: '',
+		avatarUrl: null,
+		// isVerified: true,
+		firstName: '',
+		lastName: '',
+		email: '',
+		// phoneNumber: '',
+		// country: '',
+		// state: '',
+		// city: '',
+		// address: '',
+		// zipCode: '',
+		// company: '',
+		role: '',
+	};
 
 	const methods = useForm<NewUserSchemaType>({
 		mode: 'onSubmit',
 		resolver: zodResolver(NewUserSchema),
 		defaultValues,
-		values: currentUser
-			? {
-					...currentUser,
-					avatar: currentUser.avatar,
-				}
-			: undefined,
+		values: currentUser,
 	});
 
 	const {
 		reset,
+		watch,
+		control,
 		handleSubmit,
 		formState: { isSubmitting },
 	} = methods;
 
-	useSyncFormToLang(i18n.language, methods);
+	const values = watch();
 
-	const handleCloseDialog = openDialog.onFalse;
-
-	const handleOpenDialog = handleSubmit(async () => {
-		openDialog.onTrue();
-	});
-
-	const queryClient = useQueryClient();
-
-	const { mutate: createStaffMember, isPending } = useCreateStaffMember({
-		onSuccess: () => {
+	const onSubmit = handleSubmit(async (data) => {
+		try {
+			await new Promise((resolve) => setTimeout(resolve, 500));
 			reset();
-			toast.success(
-				currentUser
-					? 'Update success!'
-					: _.capitalize(
-							t('item-creation-success-message', { item: t('staff-member') }),
-						),
-			);
-			queryClient.invalidateQueries({ queryKey: useFindStaffMember.getKey() });
+			toast.success(currentUser ? 'Update success!' : 'Create success!');
 			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
-		},
-		onError: (error) => {
-			toast.error(error.message);
-		},
+			console.info('DATA', data);
+		} catch (error) {
+			console.error(error);
+		}
 	});
-
-	const handleConfirmDialog = handleSubmit(async (data) => {
-		createStaffMember(data);
-	});
-
-	const confirmValues = _.chain(methods.getValues())
-		.entries()
-		.map((value) => {
-			const [key, fieldValue] = value;
-			let finalValue = '';
-			if (_.isNil(fieldValue) || _.isEmpty(fieldValue)) {
-				finalValue = 'N/A';
-			} else {
-				finalValue = _.isString(fieldValue)
-					? fieldValue
-					: JSON.stringify(fieldValue);
-			}
-			if (fieldValue instanceof File) {
-				finalValue = fieldValue.name;
-			}
-			return {
-				name: _.capitalize(t(_.toLower(key) as never)),
-				value: finalValue,
-			};
-		})
-		.value();
 
 	return (
-		<>
-			<Form methods={methods} onSubmit={handleOpenDialog}>
-				<Grid container spacing={3}>
-					<Grid size={{ xs: 12, md: 4 }}>
-						<Card sx={{ pt: 10, pb: 5, px: 3 }}>
-							{/* {currentUser && (
+		<Form methods={methods} onSubmit={onSubmit}>
+			<Grid container spacing={3}>
+				<Grid size={{ xs: 12, md: 4 }}>
+					<Card sx={{ pt: 10, pb: 5, px: 3 }}>
+						{currentUser && (
 							<Label
 								color={
 									(values.status === 'active' && 'success') ||
@@ -173,31 +150,31 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 							>
 								{values.status}
 							</Label>
-						)} */}
+						)}
 
-							<Box sx={{ mb: 5 }}>
-								<Field.UploadAvatar
-									name="avatar"
-									maxSize={3145728}
-									helperText={
-										<Typography
-											variant="caption"
-											sx={{
-												mt: 3,
-												mx: 'auto',
-												display: 'block',
-												textAlign: 'center',
-												color: 'text.disabled',
-											}}
-										>
-											Allowed *.jpeg, *.jpg, *.png, *.gif
-											<br /> max size of {fData(mbToBytes(3))}
-										</Typography>
-									}
-								/>
-							</Box>
+						<Box sx={{ mb: 5 }}>
+							<Field.UploadAvatar
+								name="avatarUrl"
+								maxSize={3145728}
+								helperText={
+									<Typography
+										variant="caption"
+										sx={{
+											mt: 3,
+											mx: 'auto',
+											display: 'block',
+											textAlign: 'center',
+											color: 'text.disabled',
+										}}
+									>
+										Allowed *.jpeg, *.jpg, *.png, *.gif
+										<br /> max size of {fData(3145728)}
+									</Typography>
+								}
+							/>
+						</Box>
 
-							{/* {currentUser && (
+						{currentUser && (
 							<FormControlLabel
 								labelPlacement="start"
 								control={
@@ -237,26 +214,26 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 									justifyContent: 'space-between',
 								}}
 							/>
-						)} */}
+						)}
 
-							{/*<Field.Switch*/}
-							{/*	name="isVerified"*/}
-							{/*	labelPlacement="start"*/}
-							{/*	label={*/}
-							{/*		<>*/}
-							{/*			<Typography variant="subtitle2" sx={{ mb: 0.5 }}>*/}
-							{/*				Email verified*/}
-							{/*			</Typography>*/}
-							{/*			<Typography variant="body2" sx={{ color: 'text.secondary' }}>*/}
-							{/*				Disabling this will automatically send the user a*/}
-							{/*				verification email*/}
-							{/*			</Typography>*/}
-							{/*		</>*/}
-							{/*	}*/}
-							{/*	sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}*/}
-							{/*/>*/}
+						<Field.Switch
+							name="isVerified"
+							labelPlacement="start"
+							label={
+								<>
+									<Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+										Email verified
+									</Typography>
+									<Typography variant="body2" sx={{ color: 'text.secondary' }}>
+										Disabling this will automatically send the user a
+										verification email
+									</Typography>
+								</>
+							}
+							sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
+						/>
 
-							{/* {currentUser && (
+						{currentUser && (
 							<Stack
 								sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}
 							>
@@ -264,111 +241,54 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 									Delete user
 								</Button>
 							</Stack>
-						)} */}
-						</Card>
-					</Grid>
+						)}
+					</Card>
+				</Grid>
 
-					<Grid size={{ xs: 12, md: 8 }}>
-						<Card sx={{ p: 3 }}>
-							<Box
-								sx={{
-									rowGap: 3,
-									columnGap: 2,
-									display: 'grid',
-									gridTemplateColumns: {
-										xs: 'repeat(1, 1fr)',
-										sm: 'repeat(2, 1fr)',
-									},
-								}}
-							>
-								<Field.Text name="lastName" label={t('lastname')} required />
-								<Field.Text name="firstName" label={t('firstname')} />
-								<Field.Text name="email" label={t('email-address')} required />
-								<br />
-								<Field.Select name="role" label={t('role')} required>
-									{ROLE_OPTIONS.map((option) => (
-										<MenuItem key={option.value} value={option.label}>
-											{option.label}
-										</MenuItem>
-									))}
-								</Field.Select>
-								{/* <Field.Phone
+				<Grid size={{ xs: 12, md: 8 }}>
+					<Card sx={{ p: 3 }}>
+						<Box
+							sx={{
+								rowGap: 3,
+								columnGap: 2,
+								display: 'grid',
+								gridTemplateColumns: {
+									xs: 'repeat(1, 1fr)',
+									sm: 'repeat(2, 1fr)',
+								},
+							}}
+						>
+							<Field.Text name="name" label="Full name" />
+							<Field.Text name="email" label="Email address" />
+							<Field.Phone
 								name="phoneNumber"
 								label="Phone number"
 								country={!currentUser ? 'DE' : undefined}
-							/> */}
+							/>
 
-								{/* <Field.CountrySelect
+							<Field.CountrySelect
 								fullWidth
 								name="country"
 								label="Country"
 								placeholder="Choose a country"
-							/> */}
+							/>
 
-								{/* <Field.Text name="state" label="State/region" /> */}
-								{/* <Field.Text name="city" label="City" /> */}
-								{/* <Field.Text name="address" label="Address" /> */}
-								{/* <Field.Text name="zipCode" label="Zip/code" /> */}
-								{/* <Field.Text name="company" label="Company" /> */}
-							</Box>
+							<Field.Text name="state" label="State/region" />
+							<Field.Text name="city" label="City" />
+							<Field.Text name="address" label="Address" />
+							<Field.Text name="zipCode" label="Zip/code" />
+							<Field.Text name="company" label="Company" />
+							<Field.Text name="role" label="Role" />
+						</Box>
 
-							<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-								<Button
-									type="submit"
-									variant="contained"
-									loading={isSubmitting || isPending}
-								>
-									{!currentUser ? t('create-user') : t('save-changes')}
-								</Button>
-							</Stack>
-						</Card>
-					</Grid>
+						<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+							<Button type="submit" variant="contained" loading={isSubmitting}>
+								{!currentUser ? 'Create user' : 'Save changes'}
+							</Button>
+						</Stack>
+					</Card>
 				</Grid>
-			</Form>
-
-			<Dialog open={openDialog.value} onClose={handleCloseDialog}>
-				<DialogTitle>
-					{_.capitalize(
-						t('save-item-confirmation-title', { item: t('staff-member') }),
-					)}
-				</DialogTitle>
-
-				<DialogContent sx={{ color: 'text.secondary' }}>
-					<Typography sx={{ mb: 2 }}>
-						{_.capitalize(
-							t('save-item-confirmation-message', { item: t('staff-member') }),
-						)}
-					</Typography>
-					{confirmValues.map((value) => {
-						return (
-							<Typography key={value.name} sx={{ mb: 1 }}>
-								<Box component="span" sx={{ fontWeight: 'bold' }}>
-									{value.name}
-								</Box>
-								: {value.value}
-							</Typography>
-						);
-					})}
-				</DialogContent>
-
-				<DialogActions>
-					<Button
-						variant="outlined"
-						onClick={handleCloseDialog}
-						disabled={isSubmitting || isPending}
-					>
-						{t('cancel')}
-					</Button>
-					<Button
-						variant="contained"
-						onClick={handleConfirmDialog}
-						autoFocus
-						loading={isSubmitting || isPending}
-					>
-						{t('confirm')}
-					</Button>
-				</DialogActions>
-			</Dialog>
-		</>
+			</Grid>
+		</Form>
 	);
 };
