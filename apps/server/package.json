@@ -49,6 +49,7 @@
 		"dotenv-expand": "^10.0.0",
 		"esbuild-register": "^3.5.0",
 		"express": "^5.1.0",
+		"express-rate-limit": "^7.5.0",
 		"front": "workspace:*",
 		"glob": "^10.3.12",
 		"helmet": "^8.0.0",
