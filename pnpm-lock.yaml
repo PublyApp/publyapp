@@ -354,6 +354,9 @@ importers:
       express:
         specifier: ^5.1.0
         version: 5.1.0
+      express-rate-limit:
+        specifier: ^7.5.0
+        version: 7.5.0(express@5.1.0)
       front:
         specifier: workspace:*
         version: link:../front
@@ -4477,7 +4480,7 @@ packages:
         optional: true
     dependencies:
       '@mjackson/node-fetch-server': 0.2.0
-      react-router: 7.5.3(react-dom@19.0.0)(react@19.0.0)
+      react-router: 7.5.3(react-dom@16.14.0)(react@16.14.0)
       source-map-support: 0.5.21
       stream-slice: 0.1.2
       typescript: 5.8.3
@@ -7970,6 +7973,15 @@ packages:
       - encoding
     dev: false
 
+  /express-rate-limit@7.5.0(express@5.0.1):
+    resolution: {integrity: sha512-eB5zbQh5h+VenMPM3fh+nw1YExi5nMr6HUCR62ELSP11huvxm/Uir1H1QEyTkk5QX6A58pX6NmaTMceKZ0Eodg==}
+    engines: {node: '>= 16'}
+    peerDependencies:
+      express: ^4.11 || 5 || ^5.0.0-beta.1
+    dependencies:
+      express: 5.0.1
+    dev: false
+
   /express-rate-limit@7.5.0(express@5.1.0):
     resolution: {integrity: sha512-eB5zbQh5h+VenMPM3fh+nw1YExi5nMr6HUCR62ELSP11huvxm/Uir1H1QEyTkk5QX6A58pX6NmaTMceKZ0Eodg==}
     engines: {node: '>= 16'}
@@ -11028,7 +11040,7 @@ packages:
       cors: 2.8.5
       deepcopy: 2.1.0
       express: 5.0.1
-      express-rate-limit: 7.5.0(express@5.1.0)
+      express-rate-limit: 7.5.0(express@5.0.1)
       follow-redirects: 1.15.9
       graphql: 16.9.0
       graphql-list-fields: 2.0.4
@@ -11783,7 +11795,7 @@ packages:
     peerDependencies:
       express-rate-limit: '>= 6'
     dependencies:
-      express-rate-limit: 7.5.0(express@5.1.0)
+      express-rate-limit: 7.5.0(express@5.0.1)
     dev: false
 
   /raw-body@2.5.2:
@@ -11916,7 +11928,6 @@ packages:
       prop-types: 15.8.1
       react: 16.14.0
       scheduler: 0.19.1
-    dev: false
 
   /react-dom@19.0.0(react@19.0.0):
     resolution: {integrity: sha512-4GV5sHFG0e/0AD4X+ySy6UJd3jVl1iNsNHdpad0qhABJ11twS3TTBnseqsKurKcsNqCEFeGL3uLpVChpIO3QfQ==}
@@ -12275,7 +12286,6 @@ packages:
       react-dom: 16.14.0(react@16.14.0)
       set-cookie-parser: 2.7.0
       turbo-stream: 2.4.0
-    dev: false
 
   /react-router@7.5.3(react-dom@19.0.0)(react@19.0.0):
     resolution: {integrity: sha512-3iUDM4/fZCQ89SXlDa+Ph3MevBrozBAI655OAfWQlTm9nBR0IKlrmNwFow5lPHttbwvITZfkeeeZFP6zt3F7pw==}
@@ -12413,7 +12423,6 @@ packages:
       loose-envify: 1.4.0
       object-assign: 4.1.1
       prop-types: 15.8.1
-    dev: false
 
   /react@19.0.0:
     resolution: {integrity: sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ==}
@@ -12835,7 +12844,6 @@ packages:
     dependencies:
       loose-envify: 1.4.0
       object-assign: 4.1.1
-    dev: false
 
   /scheduler@0.25.0:
     resolution: {integrity: sha512-xFVuu11jh+xcO7JOAGJNOXld8/TcEHK/4CituBUeUb5hqxJLj9YuemAEuvm9gQ/+pgXYfbQuqAkiYu+u7YEsNA==}
