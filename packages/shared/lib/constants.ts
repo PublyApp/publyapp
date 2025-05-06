@@ -296,7 +296,6 @@ export const endPoint = {
 	api: {
 		root: makePath(API_ROOT),
 		auth: {
-			// root: makePath(apiPath, ROOTS.AUTH),
 			passwordLogin: makePath(API_ROOT, ROOTS.AUTH, 'password-login'),
 			passwordSignup: makePath(API_ROOT, ROOTS.AUTH, 'password-signup'),
 			verifyEmail: makePath(API_ROOT, ROOTS.AUTH, 'verify-email'),
