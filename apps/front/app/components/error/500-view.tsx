@@ -8,7 +8,6 @@ import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
 
 import { MotionContainer } from '../animate/motion-container';
-import { varBounce } from '../animate/variants/bounce';
 import { useRouter } from '@/front/hooks/use-router';
 
 // ----------------------------------------------------------------------
@@ -18,25 +17,25 @@ type View500Props = {
 };
 
 export const View500 = ({ withLayout = true }: View500Props) => {
-	// const error = useRouteError(); // TODO: report error to sentry or another service
+	// const error = useRouteError(); // TODO: report error to posthog
 	const router = useRouter();
 
 	const renderContent = () => {
 		return (
 			<Container component={MotionContainer}>
-				<m.div variants={varBounce('in')}>
+				<m.div /* variants={varBounce('in')} */>
 					<Typography variant="h3" sx={{ mb: 2 }}>
 						500 Internal server error
 					</Typography>
 				</m.div>
 
-				<m.div variants={varBounce('in')}>
+				<m.div /* variants={varBounce('in')} */>
 					<Typography sx={{ color: 'text.secondary' }}>
 						There was an error, please try again later.
 					</Typography>
 				</m.div>
 
-				<m.div variants={varBounce('in')}>
+				<m.div /* variants={varBounce('in')} */>
 					<ServerErrorIllustration sx={{ my: { xs: 5, sm: 10 } }} />
 				</m.div>
 
