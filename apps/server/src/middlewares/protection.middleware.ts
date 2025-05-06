@@ -9,7 +9,7 @@ import {
 	REST_API_HEADER_KEY,
 } from '@/shared/lib/constants';
 
-import { expressHandler, getHeader } from '../lib/express';
+import { expressHandler, getHeader, getRequestUtils } from '../lib/express';
 
 type Input = {
 	withKey?: boolean;
@@ -23,6 +23,7 @@ const protectionMiddleware = ({
 	withInstallation = false,
 }: Input): RequestHandler => {
 	return expressHandler(async (req, _res, next) => {
+		const { t } = getRequestUtils(req);
 		// should have a header key
 		if (withKey) {
 			const apiKey = getHeader(req, REST_API_HEADER_KEY);
@@ -30,13 +31,15 @@ const protectionMiddleware = ({
 			// if the key exists, go to next
 			if (!apiKey) {
 				return next(
-					new HttpException(400, `Missing ${REST_API_HEADER_KEY} param`),
+					// `Missing ${REST_API_HEADER_KEY} param`
+					new HttpException(401, t('unauthorized')),
 				);
 			}
 
 			if (apiKey && apiKey !== /* env.REST_API_KEY */ nanoid()) {
 				return next(
-					new HttpException(400, `Invalid ${REST_API_HEADER_KEY} param`),
+					// `Invalid ${REST_API_HEADER_KEY} param`
+					new HttpException(401, t('unauthorized')),
 				);
 			}
 		}
@@ -47,10 +50,8 @@ const protectionMiddleware = ({
 
 			if (!sessionToken) {
 				return next(
-					new HttpException(
-						400,
-						`Missing ${PARSE_SESSION_TOKEN_HEADER_KEY} param`,
-					),
+					// `Missing ${PARSE_SESSION_TOKEN_HEADER_KEY} param`
+					new HttpException(401, t('unauthorized')),
 				);
 			}
 
@@ -73,10 +74,8 @@ const protectionMiddleware = ({
 
 			if (!installationId) {
 				return next(
-					new HttpException(
-						400,
-						`Missing ${PARSE_INSTALLATION_ID_HEADER_KEY} param`,
-					),
+					// `Missing ${PARSE_INSTALLATION_ID_HEADER_KEY} param`,
+					new HttpException(401, t('unauthorized')),
 				);
 			}
 
