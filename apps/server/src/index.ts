@@ -46,8 +46,7 @@ import { setCurrentInstallationId } from './lib/parse/parse.utils';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parse-server.middleware';
-import coreApiRouter from './router/coreApi.router';
-import { rateLimiterMiddleware } from './middlewares/rate-limit.middleware';
+import coreApiRouter from './router/core-api.router';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -82,7 +81,6 @@ const bootstrap = async () => {
 			whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		}),
 	);
-	app.use(rateLimiterMiddleware);
 	app.use((req, _res, next) => {
 		// The parse API end the custom API are both under this root path
 		// use only urlencoded there because Remix (React Router 7) will not
@@ -224,8 +222,8 @@ const bootstrap = async () => {
 				// `remix build` and `remix dev` output files to a build directory, you need
 				// to pass that build to the request handler
 				build: await import(
-					/* webpackIgnore: true */ 'front/build/server/index.js'
-				), // ! the '.js' extension is important
+					/* webpackIgnore: true */ 'front/build/server/index.js' // ! the '.js' extension is important
+				),
 
 				// return anything you want here to be available as `context` in your
 				// loaders and actions. This is where you can bridge the gap between Remix
