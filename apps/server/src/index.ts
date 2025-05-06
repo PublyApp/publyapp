@@ -221,43 +221,9 @@ const bootstrap = async () => {
 			express.static(path.resolve(__dirname, '../../front/build/client')),
 		);
 
-		// const remixHandler: RequestHandler = async (req, res, next) => {
-		// 	const innerHandler = createRequestHandler({
-		// 		// `remix build` and `remix dev` output files to a build directory, you need
-		// 		// to pass that build to the request handler
-		// 		build: await import(
-		// 			/* webpackIgnore: true */ 'front/build/server/index.js'
-		// 		), // ! the '.js' extension is important
-
-		// 		// return anything you want here to be available as `context` in your
-		// 		// loaders and actions. This is where you can bridge the gap between Remix
-		// 		// and your server
-		// 		// getLoadContext: (_req, _res) => {
-		// 		// 	return {
-		// 		// 		logger,
-		// 		// 	};
-		// 		// },
-		// 	});
-
-		// 	return innerHandler(req, res, (...args) => {
-		// 		// in case of error
-		// 		// i.e. args[0] is the error
-		// 		if (args[0] !== undefined) {
-		// 			// do some reporting here
-		// 			posthogClient.captureException(args[0], undefined, {
-		// 				ip: req.ip,
-		// 				path: req.path,
-		// 				method: req.method,
-		// 			});
-		// 		}
-		// 		return next(...args);
-		// 	});
-		// };
-
 		// needs to handle all verbs (GET, POST, etc.)
 		app.all(
 			/(.*)/,
-			// remixHandler,
 			createRequestHandler({
 				// `remix build` and `remix dev` output files to a build directory, you need
 				// to pass that build to the request handler
