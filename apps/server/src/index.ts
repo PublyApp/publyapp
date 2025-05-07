@@ -90,7 +90,7 @@ const bootstrap = async () => {
 			const ip = getRequestIp(req) || nanoid();
 
 			posthogClient.capture({
-				event: 'unsuccessful_request',
+				event: 'malicious_request',
 				distinctId: ip,
 				properties: {
 					status: res.statusCode,
@@ -103,8 +103,9 @@ const bootstrap = async () => {
 		},
 	});
 
+	app.set('trust proxy', 1);
+
 	// Apply to all routes
-	app.use(notFoundLimiter);
 	app.use(
 		helmet({
 			contentSecurityPolicy: {
@@ -117,6 +118,7 @@ const bootstrap = async () => {
 			},
 		}),
 	);
+	app.use(notFoundLimiter);
 	app.use(
 		corsMiddleware({
 			whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
