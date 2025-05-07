@@ -110,6 +110,7 @@ const commonFR = {
 
 	'list-of-items': 'Liste des {{items}}',
 	unauthorized: 'Non autorisé',
+	'too-many-invalid-requests': 'Trop de requêtes invalides',
 
 	// messages from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
