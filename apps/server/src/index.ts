@@ -73,39 +73,8 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	const app = express();
 
-	// setup middlewares// Track 404s per IP
-	const notFoundLimiter = rateLimit({
-		windowMs: 15 * 60 * 1000, // 15 minutes
-		max: 20, // Max 20 bad requests per IP
-		skipSuccessfulRequests: true, // Only count 404s
-		skip: (req) => {
-			// Skip rate-limiting if the request has a valid session token
-			return (
-				!!getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) ||
-				!!_.get(req, 'body._SessionToken')
-			);
-		},
-		handler: (req, res) => {
-			const { t } = getRequestUtils(req);
-			const ip = getRequestIp(req) || nanoid();
-
-			posthogClient.capture({
-				event: 'malicious_request',
-				distinctId: ip,
-				properties: {
-					status: res.statusCode,
-					path: req.path,
-					ip,
-					userAgent: req.headers['user-agent'],
-				},
-			});
-			res.status(429).send(t('too-many-invalid-requests'));
-		},
-	});
-
 	app.set('trust proxy', 1);
 
-	// Apply to all routes
 	app.use(
 		helmet({
 			contentSecurityPolicy: {
@@ -118,7 +87,6 @@ const bootstrap = async () => {
 			},
 		}),
 	);
-	app.use(notFoundLimiter);
 	app.use(
 		corsMiddleware({
 			whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
