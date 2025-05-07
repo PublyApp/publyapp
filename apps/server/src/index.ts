@@ -21,6 +21,7 @@ import {
 	LOCALE_HEADER_KEY,
 	TENANT_ID_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
+	PARSE_SESSION_TOKEN_HEADER_KEY,
 } from '@/shared/lib/constants';
 
 import { cloud } from './cloud';
@@ -38,7 +39,12 @@ import {
 	PARSE_SERVER_URL,
 } from './lib/constants';
 import { env } from './lib/env';
-import { expressHandler } from './lib/express';
+import {
+	expressHandler,
+	getHeader,
+	getRequestIp,
+	getRequestUtils,
+} from './lib/express';
 import { initI18next } from './lib/i18n';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
 import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
@@ -47,6 +53,10 @@ import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
+import rateLimit from 'express-rate-limit';
+import { posthogClient } from './lib/posthog';
+import { nanoid } from 'nanoid';
+import _ from 'lodash';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -63,7 +73,38 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	const app = express();
 
-	// setup middlewares
+	// setup middlewares// Track 404s per IP
+	const notFoundLimiter = rateLimit({
+		windowMs: 15 * 60 * 1000, // 15 minutes
+		max: 20, // Max 20 bad requests per IP
+		skipSuccessfulRequests: true, // Only count 404s
+		skip: (req) => {
+			// Skip rate-limiting if the request has a valid session token
+			return (
+				!!getHeader(req, PARSE_SESSION_TOKEN_HEADER_KEY) ||
+				!!_.get(req, 'body._SessionToken')
+			);
+		},
+		handler: (req, res) => {
+			const { t } = getRequestUtils(req);
+			const ip = getRequestIp(req) || nanoid();
+
+			posthogClient.capture({
+				event: 'unsuccessful_request',
+				distinctId: ip,
+				properties: {
+					status: res.statusCode,
+					path: req.path,
+					ip,
+					userAgent: req.headers['user-agent'],
+				},
+			});
+			res.status(429).send(t('too-many-invalid-requests'));
+		},
+	});
+
+	// Apply to all routes
+	app.use(notFoundLimiter);
 	app.use(
 		helmet({
 			contentSecurityPolicy: {
