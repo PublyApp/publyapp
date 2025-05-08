@@ -8,7 +8,7 @@
 		"build:prod": "cross-env MODE=production pnpm build:common",
 		"build:preprod": "cross-env MODE=preprod pnpm build:common",
 		"build:common": "pnpm build:rs",
-		"build:rs": "node scripts/rsbuild/build.mjs",
+		"build:rs": "bun scripts/rsbuild/build.mjs",
 		"// =============== START COMMANDs =================": "================================",
 		"start": "pnpm start:prod",
 		"start:test-online": "cross-env TEST_ONLINE=true MODE=local NODE_ENV=production pnpm start:common",
