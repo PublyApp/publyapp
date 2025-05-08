@@ -451,6 +451,9 @@ importers:
       '@types/body-parser':
         specifier: ^1.19.5
         version: 1.19.5
+      '@types/bun':
+        specifier: ^1.2.12
+        version: 1.2.12
       '@types/cors':
         specifier: ^2.8.17
         version: 2.8.17
@@ -631,6 +634,9 @@ importers:
         specifier: ^2.27.0
         version: 2.27.0(i18next@24.2.2)(zod@3.23.8)
     devDependencies:
+      '@types/bun':
+        specifier: ^1.2.12
+        version: 1.2.12
       '@types/lodash':
         specifier: ^4.14.202
         version: 4.17.7
@@ -4480,7 +4486,7 @@ packages:
         optional: true
     dependencies:
       '@mjackson/node-fetch-server': 0.2.0
-      react-router: 7.5.3(react-dom@16.14.0)(react@16.14.0)
+      react-router: 7.5.3(react-dom@19.0.0)(react@19.0.0)
       source-map-support: 0.5.21
       stream-slice: 0.1.2
       typescript: 5.8.3
@@ -5301,6 +5307,12 @@ packages:
     dependencies:
       '@types/connect': 3.4.38
       '@types/node': 20.14.15
+
+  /@types/bun@1.2.12:
+    resolution: {integrity: sha512-lY/GQTXDGsolT/TiH72p1tuyUORuRrdV7VwOTOjDOt8uTBJQOJc5zz3ufwwDl0VBaoxotSk4LdP0hhjLJ6ypIQ==}
+    dependencies:
+      bun-types: 1.2.12
+    dev: true
 
   /@types/busboy@1.5.4:
     resolution: {integrity: sha512-kG7WrUuAKK0NoyxfQHsVE6j1m01s6kMma64E+OZenQABMQyTJop1DumUWcLwAQ2JzpefU7PDYoRDKl8uZosFjw==}
@@ -6391,6 +6403,12 @@ packages:
     dependencies:
       base64-js: 1.5.1
       ieee754: 1.2.1
+    dev: true
+
+  /bun-types@1.2.12:
+    resolution: {integrity: sha512-tvWMx5vPqbRXgE8WUZI94iS1xAYs8bkqESR9cxBB1Wi+urvfTrF1uzuDgBHFAdO0+d2lmsbG3HmeKMvUyj6pWA==}
+    dependencies:
+      '@types/node': 20.14.15
     dev: true
 
   /busboy@1.6.0:
@@ -11928,6 +11946,7 @@ packages:
       prop-types: 15.8.1
       react: 16.14.0
       scheduler: 0.19.1
+    dev: false
 
   /react-dom@19.0.0(react@19.0.0):
     resolution: {integrity: sha512-4GV5sHFG0e/0AD4X+ySy6UJd3jVl1iNsNHdpad0qhABJ11twS3TTBnseqsKurKcsNqCEFeGL3uLpVChpIO3QfQ==}
@@ -12286,6 +12305,7 @@ packages:
       react-dom: 16.14.0(react@16.14.0)
       set-cookie-parser: 2.7.0
       turbo-stream: 2.4.0
+    dev: false
 
   /react-router@7.5.3(react-dom@19.0.0)(react@19.0.0):
     resolution: {integrity: sha512-3iUDM4/fZCQ89SXlDa+Ph3MevBrozBAI655OAfWQlTm9nBR0IKlrmNwFow5lPHttbwvITZfkeeeZFP6zt3F7pw==}
@@ -12423,6 +12443,7 @@ packages:
       loose-envify: 1.4.0
       object-assign: 4.1.1
       prop-types: 15.8.1
+    dev: false
 
   /react@19.0.0:
     resolution: {integrity: sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ==}
@@ -12844,6 +12865,7 @@ packages:
     dependencies:
       loose-envify: 1.4.0
       object-assign: 4.1.1
+    dev: false
 
   /scheduler@0.25.0:
     resolution: {integrity: sha512-xFVuu11jh+xcO7JOAGJNOXld8/TcEHK/4CituBUeUb5hqxJLj9YuemAEuvm9gQ/+pgXYfbQuqAkiYu+u7YEsNA==}
