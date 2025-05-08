@@ -4,7 +4,6 @@ import type { Route } from './+types/new-tenant-page';
 import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 import i18next from 'i18next';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
 import { data } from 'react-router';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
@@ -29,8 +28,8 @@ export const meta = (args: Route.MetaArgs) => {
 };
 
 export const loader = getServerLoader({
-	loader: async ({ locale }) => {
-		const t = await remixI18NextServer.getFixedT(locale);
+	loader: async ({ z }) => {
+		const t = z.t;
 
 		return data({
 			meta: [
