@@ -1,9 +1,6 @@
 import _ from 'lodash';
-
 import { ZodError } from 'zod';
-
 import { jobType } from '@/shared/lib/constants';
-
 import { convertHTMLToPDF } from './tasks/html-to-pdf';
 
 const genericMessage = {
