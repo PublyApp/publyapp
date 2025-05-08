@@ -260,24 +260,24 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 						>
 							<Field.Text name="name" label="Full name" />
 							<Field.Text name="email" label="Email address" />
-							<Field.Phone
+							{/* <Field.Phone
 								name="phoneNumber"
 								label="Phone number"
 								country={!currentUser ? 'DE' : undefined}
-							/>
+							/> */}
 
-							<Field.CountrySelect
+							{/* <Field.CountrySelect
 								fullWidth
 								name="country"
 								label="Country"
 								placeholder="Choose a country"
-							/>
+							/> */}
 
-							<Field.Text name="state" label="State/region" />
-							<Field.Text name="city" label="City" />
-							<Field.Text name="address" label="Address" />
-							<Field.Text name="zipCode" label="Zip/code" />
-							<Field.Text name="company" label="Company" />
+							{/* <Field.Text name="state" label="State/region" /> */}
+							{/* <Field.Text name="city" label="City" /> */}
+							{/* <Field.Text name="address" label="Address" /> */}
+							{/* <Field.Text name="zipCode" label="Zip/code" /> */}
+							{/* <Field.Text name="company" label="Company" /> */}
 							<Field.Text name="role" label="Role" />
 						</Box>
 
