@@ -15,19 +15,19 @@
 		"start:local": "cross-env MODE=local NODE_ENV=production pnpm start:common",
 		"start:prod": "cross-env MODE=production NODE_ENV=production pnpm start:common",
 		"start:preprod": "cross-env MODE=preprod NODE_ENV=production pnpm start:common",
-		"start:common": "node --enable-source-maps dist/index.mjs",
+		"start:common": "bun --enable-source-maps dist/index.mjs",
 		"// =============== DEV COMMANDS =================": "================================",
 		"dev": "pnpm dev:local",
 		"dev:local": "cross-env MODE=local pnpm dev:common",
 		"dev:prod": "cross-env MODE=production pnpm dev:common",
 		"dev:preprod": "cross-env MODE=preprod pnpm dev:common",
 		"dev:common": "pnpm dev:rs",
-		"dev:rs": "node scripts/rsbuild/watch.mjs",
+		"dev:rs": "bun scripts/rsbuild/watch.mjs",
 		"// =============== SEED COMMANDS =================": "================================",
-		"seed": "node --enable-source-maps dist/seed.mjs",
-		"seed:debug": "node --enable-source-maps --inspect-brk dist/seed.mjs",
+		"seed": "bun --enable-source-maps dist/seed.mjs",
+		"seed:debug": "bun --enable-source-maps --inspect-brk dist/seed.mjs",
 		"// =============== TEST COMMANDS =================": "================================",
-		"postinstall": "node scripts/patch.mjs",
+		"postinstall": "bun scripts/patch.mjs",
 		"type-check": "tsc"
 	},
 	"dependencies": {
@@ -79,6 +79,7 @@
 		"zod-i18n-map": "^2.27.0"
 	},
 	"devDependencies": {
+		"@types/bun": "^1.2.12",
 		"@rsbuild/core": "^1.0.0",
 		"@rsbuild/plugin-type-check": "^1.0.1",
 		"@types/async": "^3.2.24",
