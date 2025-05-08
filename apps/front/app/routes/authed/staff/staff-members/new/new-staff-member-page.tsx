@@ -7,7 +7,6 @@ import _ from 'lodash';
 import type { Route } from './+types/new-staff-member-page';
 import i18next from 'i18next';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
 import { data } from 'react-router';
 import { UserNewEditForm } from '../components/user-new-edit-form';
 
@@ -30,8 +29,8 @@ export const meta = (args: Route.MetaArgs) => {
 };
 
 export const loader = getServerLoader({
-	loader: async ({ locale }) => {
-		const t = await remixI18NextServer.getFixedT(locale);
+	loader: async ({ z }) => {
+		const t = z.t;
 
 		return data({
 			meta: [

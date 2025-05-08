@@ -11,7 +11,6 @@ import type { Route } from './+types/staff-members-list-page';
 import i18next, { type TFunction } from 'i18next';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { data } from 'react-router';
-// import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
 
 const getPageTitle = (t: TFunction, seo: boolean) => {
 	let str = _.capitalize(
