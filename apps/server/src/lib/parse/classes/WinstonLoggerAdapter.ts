@@ -11,8 +11,13 @@ import DailyRotateFile from 'winston-daily-rotate-file';
 import duration from '@/shared/utils/duration.utils';
 
 import type { LoggerAdapter } from '../interfaces/LoggerAdapter';
+import { isBun } from 'node:process';
 
-const defaults = _.get(_defaults, 'default') as unknown as typeof _defaults;
+let defaults = _.get(_defaults, 'default') as unknown as typeof _defaults;
+
+if (isBun) {
+	defaults = _defaults;
+}
 
 const MILLISECONDS_IN_A_DAY = duration.toMilliseconds('1d');
 

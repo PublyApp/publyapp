@@ -6,7 +6,7 @@
 		"// =============== BUILD SCRIPTS ===============": "=============================",
 		"build": "turbo build",
 		"build:local": "turbo build:local",
-		"build:deploy": "node ./scripts/deploy.mjs",
+		"build:deploy": "bun ./scripts/deploy.mjs",
 		"// =============== START SCRIPTS ===============": "=============================",
 		"start:railway": "pnpm --filter server run start",
 		"start:test-online": "pnpm --filter server run start:test-online",
