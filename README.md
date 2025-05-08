@@ -9,6 +9,7 @@ An API for converting HTML to PDF.
   - [nvm](https://github.com/nvm-sh/nvm) (mac/Linux only)
   - [nvm-windows](https://github.com/coreybutler/nvm-windows) (available for windows)
 - pnpm: once node is installed, run: `npm install -g pnpm`
+- bun: install bun as npm package globally: `npm install -g bun`
 - mongodb: [Install MongoDB Community Edition](https://www.mongodb.com/docs/manual/administration/install-community/)
 
 ## Installation
