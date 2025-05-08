@@ -38,7 +38,8 @@ const run = async () => {
 		}
 
 		// const startCommand = ['node', '--enable-source-maps', 'dist/index.mjs'];
-		const startCommand = ['bun', '--enable-source-maps', 'dist/index.mjs'];
+		const onWindows = /^win/.test(process.platform);
+		const startCommand = [onWindows ? 'bun.cmd' : 'bun', '--enable-source-maps', 'dist/index.mjs'];
 
 		console.log(
 			'\x1b[32m%s\x1b[0m',
