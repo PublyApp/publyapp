@@ -17,6 +17,7 @@ import { Iconify } from '../iconify/iconify';
 
 import { CountryListPopover } from './list-popover';
 import type { PhoneInputProps } from './types';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -39,7 +40,7 @@ export const PhoneInput = ({
 
 	const hasLabel = !!label;
 
-	const cleanValue = value.replace(/[\s-]+/g, '');
+	const cleanValue = _.replace(value, /[\s-]+/g, '');
 
 	const handleClear = useCallback(() => {
 		onChange('' as Value);
