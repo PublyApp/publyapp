@@ -46,7 +46,8 @@
 	},
 	"packageManager": "pnpm@8.15.7",
 	"engines": {
-		"node": ">=v22.x"
+		"node": ">=v22.x",
+		"bun": ">=1.2.12"
 	},
 	"trustedDependencies": ["sharp"]
 }
