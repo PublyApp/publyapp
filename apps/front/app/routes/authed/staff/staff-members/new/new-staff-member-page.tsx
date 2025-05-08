@@ -9,6 +9,7 @@ import i18next from 'i18next';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
 import { data } from 'react-router';
+import { UserNewEditForm } from '../components/user-new-edit-form';
 
 const getPageTitle = (t: TFunction) => {
 	return _.capitalize(t('new-item', { item: _.toLower(t('staff-member')) }));
@@ -60,6 +61,8 @@ const NewStaffMemberPage = () => {
 				]}
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
+
+			<UserNewEditForm />
 		</DashboardContent>
 	);
 };
