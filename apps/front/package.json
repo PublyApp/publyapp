@@ -4,12 +4,12 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "react-router dev",
+		"dev": "bun run --bun react-router dev",
 		"build": "react-router build",
 		"build:dev": "react-router build --mode development",
 		"build:local": "pnpm build:dev",
-		"start": "cross-env PORT=6181 react-router-serve ./build/server/index.js",
-		"type-check": "react-router typegen && tsc"
+		"start": "bun run --bun cross-env PORT=6181 react-router-serve ./build/server/index.js",
+		"type-check": "bun run --bun react-router typegen && tsc"
 	},
 	"dependencies": {
 		"@emotion/cache": "^11.14.0",
@@ -84,6 +84,7 @@
 		"nuqs": "2.4.3"
 	},
 	"devDependencies": {
+		"@types/bun": "^1.2.12",
 		"@esbuild-plugins/node-globals-polyfill": "^0.2.3",
 		"@esbuild-plugins/node-modules-polyfill": "^0.2.2",
 		"@pigment-css/vite-plugin": "^0.0.30",
