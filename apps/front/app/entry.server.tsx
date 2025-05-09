@@ -18,6 +18,7 @@ import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
 import _ from 'lodash';
+import { nanoid } from 'nanoid';
 
 export const streamTimeout = 5_000;
 
@@ -30,13 +31,24 @@ const handleRequest = async (
 ) => {
 	if (loadContext.postHogServer) {
 		if (!_.toString(responseStatusCode).startsWith('2')) {
+			const ipAddress =
+				request.headers.get('x-forwarded-for') ??
+				request.headers.get('cf-connecting-ip') ??
+				request.headers.get('x-real-ip') ??
+				request.headers.get('x-client-ip') ??
+				request.headers.get('x-forwarded') ??
+				request.headers.get('forwarded-for') ??
+				request.headers.get('forwarded') ??
+				nanoid();
+
 			loadContext.postHogServer.capture({
 				event: 'bad_request',
+				distinctId: ipAddress,
 				properties: {
 					path: request.url,
+					ipAddress: ipAddress,
 					method: request.method,
 					host: request.headers.get('host'),
-					ipAddress: request.headers.get('x-forwarded-for'),
 					userAgent: request.headers.get('user-agent'),
 				},
 			});
