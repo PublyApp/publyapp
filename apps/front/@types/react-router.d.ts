@@ -1,10 +1,8 @@
-// export { };
-import type { SimplePostHog } from '@org/shared/lib/posthog/posthog.types';
-import type { logger } from '@org/shared/lib/winston.server';
+import type { SimplePostHog } from '@/shared/lib/posthog/posthog.types';
 
 declare module 'react-router' {
 	interface AppLoadContext {
-		logger: typeof logger;
-		postHogServer: SimplePostHog;
+		logger?: (...args: unknown[]) => void;
+		postHogServer?: typeof SimplePostHog;
 	}
 }

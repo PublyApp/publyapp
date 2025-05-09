@@ -1,7 +1,11 @@
 import { PostHog } from 'posthog-node';
 import { env } from './env';
+import type { SimplePostHog } from '@org/shared/lib/posthog/posthog.types';
 
-type SimplePostHog = Pick<PostHog, 'capture' | 'identify' | 'captureException'>;
+/**
+ * PostHog client that sends data to PostHog.
+ * It is used when in production.
+ */
 
 /**
  * SilentPostHog is a PostHog client that does not send any data.

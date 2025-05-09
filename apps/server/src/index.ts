@@ -1,18 +1,14 @@
 import { createServer } from 'node:http';
 import path from 'node:path';
-
 import { ParseServer } from 'parse-server/lib/index.js';
 import Parse from 'parse/node.js';
-
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
 import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
 import ParseDashboard from 'parse-dashboard';
-
 import duration from '@org/shared/utils/duration.utils';
-
 import { logger } from '@/server/lib/winston';
 import {
 	APP_ID,
@@ -22,7 +18,6 @@ import {
 	TENANT_ID_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
-
 import { cloud } from './cloud';
 import {
 	createRolesIfNotExists,
@@ -47,6 +42,7 @@ import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
+import { posthogClient } from './lib/posthog';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -233,11 +229,12 @@ const bootstrap = async () => {
 				// return anything you want here to be available as `context` in your
 				// loaders and actions. This is where you can bridge the gap between Remix
 				// and your server
-				// getLoadContext: (_req, _res) => {
-				// 	return {
-				// 		logger,
-				// 	};
-				// },
+				getLoadContext: (_req, _res) => {
+					return {
+						logger,
+						postHogServer: posthogClient,
+					};
+				},
 			}),
 		);
 	}
