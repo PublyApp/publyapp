@@ -1,7 +1,6 @@
 // @ts-check
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-
 import _ from 'lodash';
 import fse from 'fs-extra';
 
@@ -16,8 +15,8 @@ const APPS_DIR_SRC = path.join(MONOREPO_ROOT_DIR, APPS_DIRNAME);
 const PACKAGES_DIR_SRC = path.join(MONOREPO_ROOT_DIR, PACKAGES_DIRNAME);
 
 const onWindows = /^win/.test(process.platform);
-const npxCommand = onWindows ? 'npx.cmd' : 'npx';
-const pnpmCommand = onWindows ? 'pnpm.cmd' : 'pnpm';
+const npxCommand = onWindows ? 'bunx.cmd' : 'bunx';
+const bunCommand = onWindows ? 'bun.cmd' : 'bun';
 
 const DEPLOY_ROOT_DIR = path.join(MONOREPO_ROOT_DIR, 'scripts', 'build');
 
@@ -38,7 +37,7 @@ fse.mkdirSync(DEPLOY_ROOT_DIR);
 
 // // ! I don't need a dockerfile, use default nixpacks system
 // copy DockerFile
-const dockerFileSrc = path.join(MONOREPO_ROOT_DIR, 'Dockerfile-Node');
+const dockerFileSrc = path.join(MONOREPO_ROOT_DIR, 'Dockerfile-Bun');
 const dockerFileDest = path.join(DEPLOY_ROOT_DIR, 'Dockerfile');
 fse.copyFileSync(dockerFileSrc, dockerFileDest);
 
@@ -53,18 +52,10 @@ fse.copyFileSync(rootPackageJsonSrc, rootPackageJsonDest);
 // --------------------------------------------------------------------------------------//
 //                                 copy lock file on root                                //
 // --------------------------------------------------------------------------------------//
-const lockFileName = 'pnpm-lock.yaml';
+const lockFileName = 'bun.lock';
 const rootLockFileSrc = path.join(MONOREPO_ROOT_DIR, lockFileName);
 const rootLockFileDest = path.join(DEPLOY_ROOT_DIR, lockFileName);
 fse.copyFileSync(rootLockFileSrc, rootLockFileDest);
-
-// --------------------------------------------------------------------------------------//
-//                                copy pnpm-workspace file on root                       //
-// --------------------------------------------------------------------------------------//
-const workspaceFileName = 'pnpm-workspace.yaml';
-const workspaceFileSrc = path.join(MONOREPO_ROOT_DIR, workspaceFileName);
-const workspaceFileDest = path.join(DEPLOY_ROOT_DIR, workspaceFileName);
-fse.copyFileSync(workspaceFileSrc, workspaceFileDest);
 
 // --------------------------------------------------------------------------------------//
 //                                   copy .npmrc file on root                            //
@@ -123,13 +114,13 @@ spawnSync(npxCommand, buildArgs, {
 // //                                   build the server                                    //
 // // --------------------------------------------------------------------------------------//
 // const buildArgsServer = ['build', `--filter=${SERVER_APP_NAME}`];
-// spawnSync(pnpmCommand, buildArgsServer, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+// spawnSync(bunCommand, buildArgsServer, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
 
 // // --------------------------------------------------------------------------------------//
 // //                                   build the front                                    //
 // // -------------------------------------------------------------------------------------//
 // const buildArgsFront = ['build', `--filter=${FRONT_APP_NAME}`];
-// spawnSync(pnpmCommand, buildArgsFront, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+// spawnSync(bunCommand, buildArgsFront, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
 
 // --------------------------------------------------------------------------------------//
 //                                   copy the builds                                     //
@@ -173,8 +164,8 @@ const mainFile = path.relative(
 );
 // console.log(mainFile);
 const START_SCRIPT = `bun --enable-source-maps ./${mainFile.replace(/\\/g, '/')}`;
-const args = ['pnpm', 'pkg', 'set', `scripts.start="${START_SCRIPT}"`];
-spawnSync(pnpmCommand, args, {
+const args = ['pkg', 'set', `scripts.start="${START_SCRIPT}"`];
+spawnSync(bunCommand, args, {
 	cwd: path.join(DEPLOY_ROOT_DIR),
 	stdio: 'inherit',
 	shell: true,
@@ -182,7 +173,7 @@ spawnSync(pnpmCommand, args, {
 
 // unset build command
 const argsUnset = ['pkg', 'delete', 'scripts.build'];
-spawnSync(pnpmCommand, argsUnset, {
+spawnSync(bunCommand, argsUnset, {
 	cwd: path.join(DEPLOY_ROOT_DIR),
 	stdio: 'inherit',
 	shell: true,
@@ -190,7 +181,7 @@ spawnSync(pnpmCommand, argsUnset, {
 
 // unset husky prepare command
 const argsUnset2 = ['pkg', 'delete', 'scripts.prepare'];
-spawnSync(pnpmCommand, argsUnset2, {
+spawnSync(bunCommand, argsUnset2, {
 	cwd: path.join(DEPLOY_ROOT_DIR),
 	stdio: 'inherit',
 	shell: true,
