@@ -876,6 +876,9 @@ importers:
       parse:
         specifier: 6.0.0
         version: 6.0.0
+      posthog-node:
+        specifier: ^4.17.1
+        version: 4.17.1
       winston:
         specifier: ^3.11.0
         version: 3.14.1
@@ -25170,6 +25173,7 @@ snapshots:
       loose-envify: 1.4.0
       object-assign: 4.1.1
       prop-types: 15.8.1
+    dev: false
 
   /react@19.0.0:
     resolution: {integrity: sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ==}
