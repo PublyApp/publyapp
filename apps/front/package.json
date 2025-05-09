@@ -7,7 +7,7 @@
 		"dev": "react-router dev",
 		"build": "react-router build",
 		"build:dev": "react-router build --mode development",
-		"build:local": "pnpm build:dev",
+		"build:local": "bun run build:dev",
 		"start": "cross-env PORT=6181 react-router-serve ./build/server/index.js",
 		"type-check": "react-router typegen && tsc"
 	},

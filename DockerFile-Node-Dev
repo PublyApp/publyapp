@@ -1,7 +1,0 @@
-FROM mcr.microsoft.com/devcontainers/javascript-node:22
-
-# Enable Corepack (respects packageManager in package.json)
-RUN corepack enable
-
-# Set workdir
-WORKDIR /workspaces/${LOCAL_WORKSPACE_FOLDER_NAME}
