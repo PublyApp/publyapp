@@ -43,7 +43,7 @@ const handleRequest = async (
 
 			loadContext.postHogServer.capture({
 				event: 'bad_request',
-				distinctId: ipAddress,
+				distinctId: nanoid(),
 				properties: {
 					path: request.url,
 					ipAddress: ipAddress,
