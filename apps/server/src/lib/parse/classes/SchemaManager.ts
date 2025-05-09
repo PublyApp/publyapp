@@ -3,12 +3,11 @@ import type { Schema } from 'parse-server';
 import _MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
 import asyncJs from 'async';
 import { MongoServerError, type CreateIndexesOptions } from 'mongodb';
-import { className as _className } from '@org/shared/lib/constants';
+import { className as _className, isBun } from '@org/shared/lib/constants';
 import { logger } from '@/server/lib/winston';
 import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
 import { DEFAULT_CLP } from '../../constants';
 import { getDatabase } from '../parse.utils';
-import { isBun } from 'node:process';
 
 let MongoSchemaCollection = _MongoSchemaCollection.default;
 
