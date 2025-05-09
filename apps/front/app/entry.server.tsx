@@ -17,16 +17,32 @@ import { queryParamKey } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
+import _ from 'lodash';
 
-export const streamTimeout = 50_000;
+export const streamTimeout = 5_000;
 
 const handleRequest = async (
 	request: Request,
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	routerContext: EntryContext,
-	_loadContext: AppLoadContext,
+	loadContext: AppLoadContext,
 ) => {
+	if (loadContext.postHogServer) {
+		if (!_.toString(responseStatusCode).startsWith('2')) {
+			loadContext.postHogServer.capture({
+				event: 'bad_request',
+				properties: {
+					path: request.url,
+					method: request.method,
+					host: request.headers.get('host'),
+					ipAddress: request.headers.get('x-forwarded-for'),
+					userAgent: request.headers.get('user-agent'),
+				},
+			});
+		}
+	}
+
 	const url = new URL(request.url);
 	const language = url.searchParams.get(queryParamKey.language);
 	const locale = getCorrectLocale(language);

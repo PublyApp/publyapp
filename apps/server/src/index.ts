@@ -47,6 +47,7 @@ import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
+import { posthogClient } from './lib/posthog';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -233,11 +234,12 @@ const bootstrap = async () => {
 				// return anything you want here to be available as `context` in your
 				// loaders and actions. This is where you can bridge the gap between Remix
 				// and your server
-				// getLoadContext: (_req, _res) => {
-				// 	return {
-				// 		logger,
-				// 	};
-				// },
+				getLoadContext: (_req, _res) => {
+					return {
+						logger,
+						postHogServer: posthogClient,
+					};
+				},
 			}),
 		);
 	}
