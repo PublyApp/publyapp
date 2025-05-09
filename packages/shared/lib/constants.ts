@@ -315,6 +315,8 @@ export const DEFAULT_PAGE_SIZE = 25;
 
 export const isServer = typeof window === 'undefined';
 
+export const isBun = typeof Bun !== 'undefined';
+
 export const fileProvider = {
 	LOCAL_DISK: 'localDisk',
 	CLOUDINARY: 'cloudinary',
