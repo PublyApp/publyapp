@@ -30,7 +30,6 @@ async function getOutputSources(output/* : BuildOutput */) {
 // 	watch?: string;
 // 	onBuild?: (output: BuildOutput) => void;
 // };
-//  * @property {Parameters<typeof Bun.build>[0]} buildOptions - The build options for Bun.build
 
 /**
  * @param {Parameters<typeof Bun.build>[0] & { watch?: string; onBuild: (output: BuildOutput) => Promise<void>}} config - The build configuration

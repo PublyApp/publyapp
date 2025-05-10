@@ -97,7 +97,10 @@ const bootstrap = async () => {
 	// server uploaded files under express static middleware
 	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 	// serve i18n resources files under express static middleware (remark: these files are generated at build time)
-	app.use('/resources', express.static(path.resolve(__dirname, './resources')));
+	app.use(
+		'/resources',
+		express.static(path.resolve(import.meta.dirname, './resources')),
+	);
 
 	// File System adapter for Parse
 	const filesAdapter = new FSFilesAdapter({
@@ -213,7 +216,9 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
 		app.use(
-			express.static(path.resolve(__dirname, '../../front/build/client')),
+			express.static(
+				path.resolve(import.meta.dirname, '../../front/build/client'),
+			),
 		);
 
 		// needs to handle all verbs (GET, POST, etc.)
