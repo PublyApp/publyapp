@@ -13,7 +13,7 @@ import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { data } from 'react-router';
 
 const getPageTitle = (t: TFunction, seo: boolean) => {
-	let str = _.capitalize(
+	let str: string = _.capitalize(
 		t('list-of-items', { items: _.toLower(t('staff-members')) }),
 	);
 
