@@ -1,4 +1,4 @@
 # makes sure fnm will make npx work
 # eval "$(fnm env --use-on-cd)"
 
-# bun run lint-staged
+bun run lint-staged
