@@ -1,40 +1,37 @@
 // @ts-check
-import { spawn } from 'node:child_process';
-import path from 'node:path';
-import _ from 'lodash';
-import chokidar from 'chokidar';
-import {
-	createRsbuild,
-	watch as _watch,
-	createI18nResourcesFiles,
-} from './config.mjs';
+import { spawn } from "node:child_process";
+import { createI18nResourcesFiles } from '../rsbuild/config.mjs';
+import { bunBuild } from "./_bun-build.mjs";
+import path from "node:path";
+import _ from "lodash";
+import { isBun } from "node:process";
+import { buildOptions } from "./config.mjs";
+import { rm } from "node:fs/promises";
 
-// set node env to development
-// otherwise onDevCompileDone API will not be called
-process.env.NODE_ENV = 'development';
+const deleteDist = async () => {
+	const distPath = path.resolve(import.meta.dirname, '../../dist');
+	await rm(distPath, { recursive: true, force: true });
+}
 
-const isBun = typeof Bun !== 'undefined';
+let startAppProcess = null;
+await deleteDist();
 
-const run = async () => {
-	const rsbuild = await createRsbuild();
-
-	const watch = () => {
-		_watch(rsbuild);
-	};
-
-	let startAppProcess = null;
-
-	rsbuild.onDevCompileDone(async () => {
+bunBuild({
+	...buildOptions,
+	watch: './src',
+	onBuild: async () => {
 		// create the i18n resources files in .jsonc format
 		const { resources } = await import(
-			`../../dist/i18n.mjs?update=${Date.now()}`
+			`../../dist/_i18n.mjs?update=${Date.now()}`
 		); // we want the updated version and not the cached one
 		await createI18nResourcesFiles(resources);
+
 
 		// kill previous app process and start a new one
 		if (startAppProcess) {
 			startAppProcess.kill('SIGINT');
 			startAppProcess = null;
+			await rm("../../dist", { recursive: true, force: true });
 		}
 
 		// const startCommand = ['node', '--enable-source-maps', 'dist/index.mjs'];
@@ -84,23 +81,5 @@ const run = async () => {
 
 		// ! subprocesses of subprocess are not killed
 		// startAppProcess = spawn('npm.cmd', ['start'], { stdio: 'inherit', cwd: import.meta.dirname });
-	});
-
-	process.stdin.on('data', (data) => {
-		const input = data.toString().trim();
-
-		if (input === 'rs') {
-			watch();
-		}
-	});
-
-	chokidar
-		.watch(path.resolve(import.meta.dirname, '../../.env.local'))
-		.on('change', () => {
-			watch();
-		});
-
-	watch();
-};
-
-run();
+	},
+});
