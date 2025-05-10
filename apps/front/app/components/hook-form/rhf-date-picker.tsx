@@ -7,7 +7,7 @@ import {
 	MobileDateTimePicker,
 	type MobileDateTimePickerProps,
 } from '@mui/x-date-pickers/MobileDateTimePicker';
-import dayjs /* , { type Dayjs } */ from 'dayjs';
+import dayjs from 'dayjs';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { formatPatterns } from '@/front/utils/format-time';
