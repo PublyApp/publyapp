@@ -1,9 +1,7 @@
 import auth from 'parse-server/lib/Auth.js';
 import { UsersRouter } from 'parse-server/lib/Routers/UsersRouter.js';
-
-import { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import type { ParsedQs } from 'qs';
-
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { getDatabase, getInternalConfig } from '@/server/lib/parse/parse.utils';
 import { className } from '@/shared/lib/constants';
@@ -128,7 +126,7 @@ export class AuthCloudService {
 		);
 
 		if (_email_verify_token_expires_at) {
-			const expirationTime = new Dayjs(_email_verify_token_expires_at);
+			const expirationTime = new dayjs.Dayjs(_email_verify_token_expires_at);
 
 			if (expirationTime.diff() <= 0) {
 				throw new Parse.Error(Parse.Error.VALIDATION_ERROR, 'Token expired');
