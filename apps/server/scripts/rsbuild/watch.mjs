@@ -54,7 +54,6 @@ const run = async () => {
 		const [node, ...args] = startCommand;
 
 		if (isBun) {
-			console.log('🎯🎯🎯');
 			startAppProcess = Bun.spawn({
 				cmd: [node, ...args],
 				stdio: ["inherit", "inherit", "inherit"],
