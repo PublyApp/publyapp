@@ -82,7 +82,12 @@ const MuiAvatar: Components<Theme>['MuiAvatar'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: { variants: [avatarColors.defaultColor, avatarColors.colors].flat() },
+		root: {
+			variants: [
+				avatarColors.defaultColor,
+				avatarColors.colors,
+			].flat() as never,
+		},
 		rounded: ({ theme }) => {
 			return { borderRadius: theme.shape.borderRadius * 1.5 };
 		},
