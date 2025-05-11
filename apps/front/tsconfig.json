@@ -1,19 +1,9 @@
 {
-	"extends": [
-		"../../tsconfig.paths.json"
-	],
+	"extends": ["../../tsconfig.paths.json"],
 	"compilerOptions": {
 		"verbatimModuleSyntax": true,
-		"rootDirs": [
-			".",
-			"./.react-router/types"
-		],
-		"lib": [
-			"DOM",
-			"DOM.Iterable",
-			"ES2022",
-			"ESNext"
-		],
+		"rootDirs": [".", "./.react-router/types"],
+		"lib": ["DOM", "DOM.Iterable", "ES2022", "ESNext"],
 		"isolatedModules": true,
 		"esModuleInterop": true,
 		"jsx": "react-jsx",
@@ -30,7 +20,7 @@
 		// The inferred type of XXX cannot be named without a reference to '@/ui-react/node_modules/@types/react/jsx-runtime'. This is likely not portable. A type annotation is necessary.
 		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
 		"declarationMap": false,
-		"declaration": false,
+		"declaration": false
 		// ! we are not using pnpm anymore: careful with relative paths here
 		// "typeRoots": ["./node_modules/@types"],
 	},
@@ -39,15 +29,12 @@
 		"**/.server/**/*",
 		"**/.client/**/*",
 		".react-router/types/**/*",
-		// ===
+		// ====
 		"@types",
 		"app",
-		"../server/@types"
+		"../server/@types",
+		// ====
+		"../../node_modules/simplebar-react/dist/index.d.ts"
 	],
-	"exclude": [
-		"node_modules",
-		"dist",
-		"build",
-		"public"
-	]
+	"exclude": ["node_modules", "dist", "build", "public"]
 }
