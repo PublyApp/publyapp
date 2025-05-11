@@ -61,7 +61,7 @@
 		"material-react-table": "^3.2.1",
 		"merge-sx": "^3.4.0",
 		"minimal-shared": "^1.0.7",
-		"mui-one-time-password-input": "^4.0.1",
+		"mui-one-time-password-input": "^5.0.0",
 		"nanoid": "^5.0.4",
 		"nuqs": "2.4.3",
 		"react": "19.0.0",
