@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,30 +14,20 @@ import { RouterLink } from '@/front/components/router-link';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Field, Form } from '@/front/components/hook-form';
 
-// import { getErrorMessage } from '@/shared/utils/error-message';
 import { getSignUpSchema } from '@/shared/validations/auth.validations';
 import { FormHead } from '@/front/components/auth/form-head';
 import { SignUpTerms } from '@/front/components/auth/sign-up-terms';
-import { defaultZodClient } from '@/front/lib/zod';
-// import { useFetcher } from 'react-router';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 // ----------------------------------------------------------------------
 
-export type SignUpSchemaType = z.infer<typeof SignUpSchema>;
-export const SignUpSchema = getSignUpSchema(defaultZodClient);
+export type SignUpSchemaType = z.infer<ReturnType<typeof getSignUpSchema>>;
 
 // ----------------------------------------------------------------------
 
 const SignupForm = () => {
 	const showPassword = useBoolean();
-
-	// const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-	/* const errorFetcher = fetcher.data?.error;
-    const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
-
-    const fetcher = useFetcher<SignUpActionResult>(); */
 
 	const methods = useForm({
 		resolver: zodResolver(getSignUpSchema(defaultZodClient)),
@@ -52,12 +42,6 @@ const SignupForm = () => {
 	const {
 		formState: { isSubmitting },
 	} = methods;
-
-	/* const handleSignUp = methods.handleSubmit(async (data) => {
-        await fetcher.submit(data, {
-            method: 'post',
-        });
-    }); */
 
 	const renderForm = () => (
 		<Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
@@ -131,7 +115,7 @@ const SignupForm = () => {
 				title="Get started absolutely free"
 				description={
 					<>
-						{`Already have an account? `}
+						{'Already have an account? '}
 						<Link
 							component={RouterLink}
 							href={FRONT_PATH_NAMES.auth.login}
@@ -144,15 +128,7 @@ const SignupForm = () => {
 				sx={{ textAlign: { xs: 'center', md: 'left' } }}
 			/>
 
-			{/* {!!errorMessage && (
-                <Alert severity="error" sx={{ mb: 3 }}>
-                    {errorMessage}
-                </Alert>
-            )} */}
-
-			<Form methods={methods} /* onSubmit={handleSignUp} */>
-				{renderForm()}
-			</Form>
+			<Form methods={methods}>{renderForm()}</Form>
 
 			<SignUpTerms />
 		</>

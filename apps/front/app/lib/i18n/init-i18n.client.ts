@@ -9,7 +9,7 @@ import { LOCALE_HEADER_KEY, queryParamKey } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 
 import { env } from '../env';
-import { defaultZodClient } from '../zod';
+import { defaultZodClient } from '../zod/zod.client';
 
 import { config } from './i18n.config';
 import dayjs from 'dayjs';
