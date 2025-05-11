@@ -1,25 +1,20 @@
-// import type { IUserItem } from 'src/types/user';
-
-import { z as zod } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller } from 'react-hook-form';
-
+import { useForm } from 'react-hook-form';
+import type zod from 'zod';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import { useRouter } from '@/front/hooks/use-router';
 import { toast } from '@/front/components/snackbar';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { Form } from '@/front/components/hook-form/form-provider';
-import { Label } from '@/front/components/label/label';
-import { schemaHelper } from '@/front/components/hook-form/schema-helper';
 import { Field } from '@/front/components/hook-form/fields';
 import { fData } from '@/front/utils/format-number';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
 
 export type IUserItem = {
 	id: string;
@@ -50,34 +45,20 @@ export type IUserItem = {
 
 // ----------------------------------------------------------------------
 
-export type NewUserSchemaType = zod.infer<typeof NewUserSchema>;
+export type NewUserSchemaType = zod.infer<
+	ReturnType<typeof getNewStaffMemberSchemaClientSide>
+>;
 
-export const NewUserSchema = zod.object({
-	avatarUrl: schemaHelper.file({ message: 'Avatar is required!' }),
-	firstName: zod.string().min(1, { message: 'Name is required!' }),
-	lastName: zod.string().min(1, { message: 'Name is required!' }),
-	email: zod
-		.string()
-		.min(1, { message: 'Email is required!' })
-		.email({ message: 'Email must be a valid email address!' }),
-	// phoneNumber: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
-	// country: schemaHelper.nullableInput(
-	// 	zod.string().min(1, { message: 'Country is required!' }),
-	// 	{
-	// 		// message for null value
-	// 		message: 'Country is required!',
-	// 	},
-	// ),
-	// address: zod.string().min(1, { message: 'Address is required!' }),
-	// company: zod.string().min(1, { message: 'Company is required!' }),
-	// state: zod.string().min(1, { message: 'State is required!' }),
-	// city: zod.string().min(1, { message: 'City is required!' }),
-	// zipCode: zod.string().min(1, { message: 'Zip code is required!' }),
-	role: zod.string().min(1, { message: 'Role is required!' }),
-	// Not required
-	status: zod.string(),
-	// isVerified: zod.boolean(),
-});
+// zod.object({
+// 	avatarUrl: schemaHelper.file({ message: 'Avatar is required!' }),
+// 	firstName: zod.string().min(1, { message: 'Name is required!' }),
+// 	lastName: zod.string().min(1, { message: 'Name is required!' }),
+// 	email: zod
+// 		.string()
+// 		.min(1, { message: 'Email is required!' })
+// 		.email({ message: 'Email must be a valid email address!' }),
+// 	role: zod.string().min(1, { message: 'Role is required!' }),
+// });
 
 // ----------------------------------------------------------------------
 
@@ -88,13 +69,17 @@ type Props = {
 export const UserNewEditForm = ({ currentUser }: Props) => {
 	const router = useRouter();
 
+	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
+
 	const defaultValues: NewUserSchemaType = {
-		status: '',
-		avatarUrl: null,
-		// isVerified: true,
+		avatar: undefined,
 		firstName: '',
 		lastName: '',
 		email: '',
+		role: '',
+		// status: '',
+		// avatarUrl: undefined,
+		// isVerified: true,
 		// phoneNumber: '',
 		// country: '',
 		// state: '',
@@ -102,7 +87,6 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		// address: '',
 		// zipCode: '',
 		// company: '',
-		role: '',
 	};
 
 	const methods = useForm<NewUserSchemaType>({
@@ -114,13 +98,13 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 
 	const {
 		reset,
-		watch,
-		control,
+		// watch,
+		// control,
 		handleSubmit,
 		formState: { isSubmitting },
 	} = methods;
 
-	const values = watch();
+	// const values = watch();
 
 	const onSubmit = handleSubmit(async (data) => {
 		try {
@@ -139,7 +123,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 			<Grid container spacing={3}>
 				<Grid size={{ xs: 12, md: 4 }}>
 					<Card sx={{ pt: 10, pb: 5, px: 3 }}>
-						{currentUser && (
+						{/* {currentUser && (
 							<Label
 								color={
 									(values.status === 'active' && 'success') ||
@@ -150,7 +134,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 							>
 								{values.status}
 							</Label>
-						)}
+						)} */}
 
 						<Box sx={{ mb: 5 }}>
 							<Field.UploadAvatar
@@ -174,7 +158,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 							/>
 						</Box>
 
-						{currentUser && (
+						{/* {currentUser && (
 							<FormControlLabel
 								labelPlacement="start"
 								control={
@@ -214,7 +198,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 									justifyContent: 'space-between',
 								}}
 							/>
-						)}
+						)} */}
 
 						<Field.Switch
 							name="isVerified"

@@ -1,4 +1,4 @@
-import { getMulterFilesArraySchema } from '@org/shared/validations/file/file.validations.server';
+import { getMulterFilesArraySchema } from '@org/shared/validations/file/file-server.validations';
 
 import { HttpException } from '@/server/exceptions/HttpException';
 import { expressHandler, getRequestUtils } from '@/server/lib/express';

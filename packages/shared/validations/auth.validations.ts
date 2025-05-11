@@ -3,12 +3,8 @@ import type { z } from 'zod';
 import type { AppLocale } from '../lib/i18n/resources';
 import type InterZod from '../lib/zod/InterZod';
 
-const getEmailFieldSchema = (z: InterZod) => {
-	return z
-		.string()
-		.min(1 /* z.i18n.t?.('Invalid session token') */)
-		.email()
-		.max(120);
+export const getEmailFieldSchema = (z: InterZod) => {
+	return z.string().min(1).email().max(120);
 };
 
 const SPECIAL_CHAR_REGEX = /[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/;
@@ -35,8 +31,8 @@ export const getLoginSchema = (z: InterZod) => {
 
 export const getSignUpSchema = (z: InterZod) => {
 	return z.object({
-		firstName: z.string().min(1, { message: 'First name is required!' }),
-		lastName: z.string().min(1, { message: 'Last name is required!' }),
+		firstName: z.string().min(1),
+		lastName: z.string().min(1),
 		email: getEmailFieldSchema(z),
 		password: getPasswordFieldSchema(z),
 	});
@@ -71,8 +67,8 @@ export const getSendEmailUpdateEmailSchema = (z: InterZod) => {
 
 export const getRegisterSchema = (z: InterZod) => {
 	return getLoginSchema(z).extend({
-		firstName: z.string(/* { required_error: 'First name required' } */).min(1),
-		lastName: z.string(/* { required_error: 'Last name required' } */).min(1),
+		firstName: z.string().min(1),
+		lastName: z.string().min(1),
 	});
 };
 

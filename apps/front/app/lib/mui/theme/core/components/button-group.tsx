@@ -144,7 +144,7 @@ const MuiButtonGroup: Components<Theme>['MuiButtonGroup'] = {
 				 */
 				softVariant.base,
 				softVariant.colors,
-			].flat(),
+			].flat() as never,
 		},
 		/**
 		 * @variant contained

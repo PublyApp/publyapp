@@ -169,7 +169,7 @@ const MuiChip: Components<Theme>['MuiChip'] = {
 					 */
 					softVariant.inheritColor,
 					softVariant.colors,
-				].flat(),
+				].flat() as never,
 				...styled.colors,
 				...styled.disabled,
 			};
