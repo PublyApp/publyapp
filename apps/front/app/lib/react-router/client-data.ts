@@ -6,7 +6,7 @@ import type InterZod from '@/shared/lib/zod/InterZod';
 
 import { initApiClientOnClient } from '../api';
 import { initI18nOnClient } from '../i18n/init-i18n.client';
-import { initZodOnClient } from '../zod';
+import { initZodOnClient } from '../zod/zod.client';
 
 import { getRequestLocale } from './data.utils';
 

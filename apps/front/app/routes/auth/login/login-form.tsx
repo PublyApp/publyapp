@@ -12,7 +12,7 @@ import { FormHead } from '@/front/components/auth/form-head';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
-import { defaultZodClient } from '@/front/lib/zod';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import { getLoginSchema } from '@/shared/validations/auth.validations';
@@ -27,8 +27,11 @@ const LoginForm = () => {
 	const errorFetcher = fetcher.data?.error;
 	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
 
+	const loginSchema = getLoginSchema(defaultZodClient);
+	const loginResolver = zodResolver(loginSchema);
+
 	const methods = useForm({
-		resolver: zodResolver(getLoginSchema(defaultZodClient)),
+		resolver: loginResolver,
 		defaultValues: {
 			email: '',
 			password: '',
