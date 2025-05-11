@@ -16,7 +16,7 @@ import { fData } from '@/front/utils/format-number';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
 
-export type IUserItem = {
+type IUserItem = {
 	id: string;
 	firstName: string;
 	lastName: string;
@@ -24,41 +24,13 @@ export type IUserItem = {
 	email: string;
 	status: string;
 	avatarUrl: string;
-	// city: string;
-	// state: string;
-	// address: string;
-	// country: string;
-	// zipCode: string;
-	// company: string;
-	// phoneNumber: string;
-	// isVerified: boolean;
 };
-
-// import { paths } from 'src/routes/paths';
-// import { useRouter } from 'src/routes/hooks';
-
-// import { fData } from 'src/utils/format-number';
-
-// import { Label } from 'src/components/label';
-// import { toast } from 'src/components/snackbar';
-// import { Form, Field, schemaHelper } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
-export type NewUserSchemaType = zod.infer<
+type NewUserSchemaType = zod.infer<
 	ReturnType<typeof getNewStaffMemberSchemaClientSide>
 >;
-
-// zod.object({
-// 	avatarUrl: schemaHelper.file({ message: 'Avatar is required!' }),
-// 	firstName: zod.string().min(1, { message: 'Name is required!' }),
-// 	lastName: zod.string().min(1, { message: 'Name is required!' }),
-// 	email: zod
-// 		.string()
-// 		.min(1, { message: 'Email is required!' })
-// 		.email({ message: 'Email must be a valid email address!' }),
-// 	role: zod.string().min(1, { message: 'Role is required!' }),
-// });
 
 // ----------------------------------------------------------------------
 
