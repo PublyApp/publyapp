@@ -61,8 +61,8 @@ const commonFR = {
 	'unknown-item': '{{item}} inconnu',
 	'pricing-plan': 'Plan tarifaire',
 	'auth-welcome-title': 'Bienvenu(e) à nouveau',
-	cancel: 'Cancel',
-	confirm: 'Confirm',
+	cancel: 'Annuler',
+	confirm: 'Confirmer',
 
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',

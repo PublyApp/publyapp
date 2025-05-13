@@ -112,6 +112,12 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 
 	const handleConfirmDialog = handleSubmit(async (data) => {
 		try {
+			const formData = new FormData();
+			_.entries(data).forEach((value) => {
+				const [key, fieldValue] = value;
+				formData.append(key, fieldValue);
+			});
+			// ====
 			await new Promise((resolve) => setTimeout(resolve, 3000));
 			reset();
 			toast.success(currentUser ? 'Update success!' : 'Create success!');
@@ -134,6 +140,9 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 				finalValue = _.isString(fieldValue)
 					? fieldValue
 					: JSON.stringify(fieldValue);
+			}
+			if (fieldValue instanceof File) {
+				finalValue = fieldValue.name;
 			}
 			return {
 				name: _.capitalize(t(_.toLower(key) as never)),
