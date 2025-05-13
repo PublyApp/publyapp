@@ -115,6 +115,9 @@ const commonEN = {
 	unauthorized: 'Unauthorized',
 	'too-many-invalid-requests': 'Too many invalid requests',
 
+	firstname: 'Firstname',
+	lastname: 'Name',
+
 	// messages from parse
 	'User email is not verified.': 'User email is not verified.',
 	'Session token is expired.': 'Session token is expired.',

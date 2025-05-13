@@ -112,6 +112,9 @@ const commonFR = {
 	unauthorized: 'Non autorisé',
 	'too-many-invalid-requests': 'Trop de requêtes invalides',
 
+	firstname: 'Prénom',
+	lastname: 'Nom',
+
 	// messages from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
 	'Session token is expired.': 'Session token expiré.',

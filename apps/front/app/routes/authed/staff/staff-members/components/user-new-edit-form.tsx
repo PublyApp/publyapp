@@ -9,12 +9,27 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useRouter } from '@/front/hooks/use-router';
 import { toast } from '@/front/components/snackbar';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES, roleEnum } from '@/shared/lib/constants';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Field } from '@/front/components/hook-form/fields';
 import { fData } from '@/front/utils/format-number';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
+import { useTranslate } from '@/front/hooks/use-translate';
+import MenuItem from '@mui/material/MenuItem';
+import _ from 'lodash';
+
+const ROLE_OPTIONS = _.chain(roleEnum)
+	.pickBy((value) => {
+		return _.startsWith(value.name, 'STAFF_');
+	})
+	.map((value) => {
+		return {
+			value: value.name,
+			label: value.name,
+		};
+	})
+	.value();
 
 type IUserItem = {
 	id: string;
@@ -39,13 +54,14 @@ type Props = {
 };
 
 export const UserNewEditForm = ({ currentUser }: Props) => {
+	const { t } = useTranslate();
 	const router = useRouter();
 
 	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
 
 	const defaultValues: NewUserSchemaType = {
 		avatar: undefined,
-		firstName: '',
+		firstName: undefined,
 		lastName: '',
 		email: '',
 		role: '',
@@ -172,22 +188,22 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 							/>
 						)} */}
 
-						<Field.Switch
-							name="isVerified"
-							labelPlacement="start"
-							label={
-								<>
-									<Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-										Email verified
-									</Typography>
-									<Typography variant="body2" sx={{ color: 'text.secondary' }}>
-										Disabling this will automatically send the user a
-										verification email
-									</Typography>
-								</>
-							}
-							sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
-						/>
+						{/*<Field.Switch*/}
+						{/*	name="isVerified"*/}
+						{/*	labelPlacement="start"*/}
+						{/*	label={*/}
+						{/*		<>*/}
+						{/*			<Typography variant="subtitle2" sx={{ mb: 0.5 }}>*/}
+						{/*				Email verified*/}
+						{/*			</Typography>*/}
+						{/*			<Typography variant="body2" sx={{ color: 'text.secondary' }}>*/}
+						{/*				Disabling this will automatically send the user a*/}
+						{/*				verification email*/}
+						{/*			</Typography>*/}
+						{/*		</>*/}
+						{/*	}*/}
+						{/*	sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}*/}
+						{/*/>*/}
 
 						{currentUser && (
 							<Stack
@@ -214,8 +230,17 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 								},
 							}}
 						>
-							<Field.Text name="name" label="Full name" />
-							<Field.Text name="email" label="Email address" />
+							<Field.Text name="lastName" label={t('lastname')} required />
+							<Field.Text name="firstName" label={t('firstname')} />
+							<Field.Text name="email" label={t('email-address')} required />
+							<br />
+							<Field.Select name="role" label={t('role')} required>
+								{ROLE_OPTIONS.map((option) => (
+									<MenuItem key={option.value} value={option.label}>
+										{option.label}
+									</MenuItem>
+								))}
+							</Field.Select>
 							{/* <Field.Phone
 								name="phoneNumber"
 								label="Phone number"
@@ -234,7 +259,6 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 							{/* <Field.Text name="address" label="Address" /> */}
 							{/* <Field.Text name="zipCode" label="Zip/code" /> */}
 							{/* <Field.Text name="company" label="Company" /> */}
-							<Field.Text name="role" label="Role" />
 						</Box>
 
 						<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
