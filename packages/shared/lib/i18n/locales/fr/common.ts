@@ -61,6 +61,8 @@ const commonFR = {
 	'unknown-item': '{{item}} inconnu',
 	'pricing-plan': 'Plan tarifaire',
 	'auth-welcome-title': 'Bienvenu(e) à nouveau',
+	cancel: 'Cancel',
+	confirm: 'Confirm',
 
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',
@@ -109,7 +111,7 @@ const commonFR = {
 	lastname: 'Nom',
 	'save-item-confirmation-title': 'Sauvegarder {{item}}?',
 	'save-item-confirmation-message':
-		'{{item}} sera sauvegardé avec les valeurs suivantes. Confirmez.',
+		'{{item}} sera sauvegardé avec les informations suivantes. Veuillez Confirmer.',
 
 	// messages from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
