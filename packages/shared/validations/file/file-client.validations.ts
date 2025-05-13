@@ -11,7 +11,6 @@ export const getFileSchemaClientSide = (z: InterZod) => {
 	return z.custom<
 		File & {
 			preview?: string;
-			// alreadyUploaded?: boolean
 			appFileId?: string;
 		}
 	>(
