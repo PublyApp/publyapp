@@ -7,7 +7,7 @@ export const getNewStaffMemberSchemaClientSide = (z: InterZod) => {
 
 	return z.object({
 		avatar: getFileSchemaClientSide(z).optional(),
-		firstName: z.string().min(1).optional(),
+		firstName: z.string().optional(),
 		lastName: z.string().min(1),
 		email: getEmailFieldSchema(z),
 		role: z.string().min(1),

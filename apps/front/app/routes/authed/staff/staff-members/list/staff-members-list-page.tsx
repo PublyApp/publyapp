@@ -12,7 +12,7 @@ import i18next, { type TFunction } from 'i18next';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { data } from 'react-router';
 
-const getPageTitle = (t: TFunction, seo: boolean) => {
+const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(
 		t('list-of-items', { items: _.toLower(t('staff-members')) }),
 	);
@@ -60,7 +60,7 @@ const StaffMembersListPage = () => {
 			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
 		>
 			<CustomBreadcrumbs
-				heading={getPageTitle(t as never, false)}
+				heading={getPageTitle(t as never)}
 				links={[
 					{
 						name: _.capitalize(t('staff-members')),
