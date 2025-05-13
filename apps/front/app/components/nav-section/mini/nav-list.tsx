@@ -11,6 +11,7 @@ import { navSectionClasses } from '../styles';
 import type { NavListProps, NavSubListProps } from '../types';
 
 import { NavItem } from './nav-item';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -27,7 +28,11 @@ export const NavList = ({
 
 	const pathname = usePathname();
 
-	const isActive = isActiveLink(pathname, data.path, !!data.children);
+	const isActive = isActiveLink(
+		pathname,
+		data.path,
+		_.isBoolean(data.deepActiveMatch) ? data.deepActiveMatch : !!data.children,
+	);
 
 	const {
 		open,
