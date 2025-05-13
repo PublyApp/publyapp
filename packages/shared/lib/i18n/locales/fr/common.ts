@@ -97,13 +97,6 @@ const commonFR = {
 	'master-key-only-function': 'Fonction master key uniquement',
 	'max-page-size-exceeded': 'Taille de page maximum de {{max}} excédée',
 
-	'blog-list-meta-title': 'Découvrez nos derniers articles | Devist Blog',
-	'blog-list-og-title': 'Découvrez nos derniers articles',
-	'blog-list-meta-description':
-		'Explorez nos derniers articles de blog pour des articles, des conseils et des histoires perspicaces. Restez à jour avec notre blog.',
-
-	'blog-post-meta-title': '{{title}} | Devist blog',
-
 	'new-signup-disabled': 'Les nouvelles inscriptions sont désactivées',
 	'set-as-current': 'Définir comme actuel',
 	'slug-linked-to-another-post': 'Slug lié à un autre article',
@@ -114,6 +107,9 @@ const commonFR = {
 
 	firstname: 'Prénom',
 	lastname: 'Nom',
+	'save-item-confirmation-title': 'Sauvegarder {{item}}?',
+	'save-item-confirmation-message':
+		'{{item}} sera sauvegardé avec les valeurs suivantes. Confirmez.',
 
 	// messages from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
