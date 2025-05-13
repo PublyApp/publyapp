@@ -90,10 +90,10 @@ export const roleSet = {
 	ABOVE_STAFF_EDITOR,
 	ABOVE_STAFF_USER,
 	ABOVE_STAFF_CONTRIBUTOR,
-	// ===
+	// ====
 	ABOVE_TENANT_USER,
 	ALL,
-	// ===
+	// ====
 	STAFF_MEMBER: ABOVE_STAFF_CONTRIBUTOR,
 	TENANT_MEMBER: [roleEnum.TENANT_USER],
 };
