@@ -10,8 +10,16 @@ import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { data } from 'react-router';
 import { UserNewEditForm } from '../components/user-new-edit-form';
 
-const getPageTitle = (t: TFunction) => {
-	return _.capitalize(t('new-item', { item: _.toLower(t('staff-member')) }));
+const getPageTitle = (t: TFunction, seo?: boolean) => {
+	let str: string = _.capitalize(
+		t('new-item', { item: _.toLower(t('staff-member')) }),
+	);
+
+	if (seo) {
+		str = `${str} | Staff Dashboard - ${APP_NAME}`;
+	}
+
+	return str;
 };
 
 export const meta = (args: Route.MetaArgs) => {
@@ -23,7 +31,7 @@ export const meta = (args: Route.MetaArgs) => {
 
 	return [
 		{
-			title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+			title: getPageTitle(t, true),
 		},
 	];
 };
@@ -35,7 +43,7 @@ export const loader = getServerLoader({
 		return data({
 			meta: [
 				{
-					title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+					title: getPageTitle(t, true),
 				},
 			],
 		});
