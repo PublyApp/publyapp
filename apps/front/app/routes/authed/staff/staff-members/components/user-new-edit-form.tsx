@@ -67,10 +67,10 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 
 	const defaultValues: NewUserSchemaType = {
 		avatar: undefined,
-		firstName: undefined,
+		firstName: '',
 		lastName: '',
 		email: '',
-		role: '',
+		role: roleEnum.STAFF_CONTRIBUTOR.name,
 		// status: '',
 		// avatarUrl: undefined,
 		// isVerified: true,
@@ -123,13 +123,21 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		}
 	});
 
-	const values = _.chain(methods.getValues())
+	const confirmValues = _.chain(methods.getValues())
 		.entries()
 		.map((value) => {
 			const [key, fieldValue] = value;
+			let finalValue = '';
+			if (_.isNil(fieldValue) || _.isEmpty(fieldValue)) {
+				finalValue = 'N/A';
+			} else {
+				finalValue = _.isString(fieldValue)
+					? fieldValue
+					: JSON.stringify(fieldValue);
+			}
 			return {
-				name: _.startCase(key),
-				value: _.isString(value) ? value : JSON.stringify(fieldValue),
+				name: _.capitalize(t(_.toLower(key) as never)),
+				value: finalValue,
 			};
 		})
 		.value();
@@ -155,7 +163,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 
 							<Box sx={{ mb: 5 }}>
 								<Field.UploadAvatar
-									name="avatarUrl"
+									name="avatar"
 									maxSize={3145728}
 									helperText={
 										<Typography
@@ -306,26 +314,40 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 
 			<Dialog open={openDialog.value} onClose={handleCloseDialog}>
 				<DialogTitle>
-					{t('save-item-confirmation-title', { item: t('staff-member') })}
+					{_.capitalize(
+						t('save-item-confirmation-title', { item: t('staff-member') }),
+					)}
 				</DialogTitle>
 
 				<DialogContent sx={{ color: 'text.secondary' }}>
 					<Typography sx={{ mb: 2 }}>
-						{t('save-item-confirmation-message', { item: t('staff-member') })}
+						{_.capitalize(
+							t('save-item-confirmation-message', { item: t('staff-member') }),
+						)}
 					</Typography>
-					{values.map((value) => (
-						<Typography key={value.name} sx={{ mb: 1 }}>
-							{value.name}: {value.value}
-						</Typography>
-					))}
+					{confirmValues.map((value) => {
+						return (
+							<Typography key={value.name} sx={{ mb: 1 }}>
+								<Box component="span" sx={{ fontWeight: 'bold' }}>
+									{value.name}
+								</Box>
+								: {value.value}
+							</Typography>
+						);
+					})}
 				</DialogContent>
 
 				<DialogActions>
 					<Button variant="outlined" onClick={handleCloseDialog}>
-						Disagree
+						{t('cancel')}
 					</Button>
-					<Button variant="contained" onClick={handleConfirmDialog} autoFocus>
-						Agree
+					<Button
+						variant="contained"
+						onClick={handleConfirmDialog}
+						autoFocus
+						loading={isSubmitting}
+					>
+						{t('confirm')}
 					</Button>
 				</DialogActions>
 			</Dialog>

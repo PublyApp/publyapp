@@ -61,6 +61,8 @@ const commonEN = {
 	'unknown-item': 'Unknown {{item}}',
 	'pricing-plan': 'Pricing plan',
 	'auth-welcome-title': 'Welcome back',
+	cancel: 'Cancel',
+	confirm: 'Confirm',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
@@ -109,7 +111,7 @@ const commonEN = {
 	lastname: 'Name',
 	'save-item-confirmation-title': 'Save {{item}}?',
 	'save-item-confirmation-message':
-		'{{item}} will be saved with the following values. Please confirm.',
+		'{{item}} will be saved with the following informations. Please confirm.',
 
 	// messages from parse
 	'User email is not verified.': 'User email is not verified.',
