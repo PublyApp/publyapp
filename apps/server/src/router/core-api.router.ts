@@ -18,7 +18,7 @@ const coreApiRouter = Router();
 export default coreApiRouter;
 
 // --------------------------------------------------------------------------------------//
-//                                     File uploads                                     //
+//                                     File uploads                                      //
 // --------------------------------------------------------------------------------------//
 coreApiRouter.post(
 	endPoint.api.upload.single,
