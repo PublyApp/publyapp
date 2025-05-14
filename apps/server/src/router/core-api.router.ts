@@ -1,8 +1,5 @@
 import { Router } from 'express';
-
 import { endPoint } from '@/shared/lib/constants';
-
-import { multerConfig } from '../lib/multer';
 import protectionMiddleware from '../middlewares/protection.middleware';
 import {
 	handlePasswordLogin,
@@ -13,6 +10,8 @@ import {
 	handleUploadManyFiles,
 	handleUploadSingleFile,
 } from '../modules/common/file/file.controller';
+import multer from 'multer';
+import { mbToBytes } from '@/shared/utils/any.utils';
 
 const coreApiRouter = Router();
 export default coreApiRouter;
@@ -23,14 +22,20 @@ export default coreApiRouter;
 coreApiRouter.post(
 	endPoint.api.upload.single,
 	protectionMiddleware({ withAuth: true, withKey: false }),
-	multerConfig.single('file'),
+	multer({
+		storage: multer.memoryStorage(),
+		limits: { fileSize: mbToBytes(16) },
+	}).single('file'),
 	handleUploadSingleFile,
 );
 
 coreApiRouter.post(
 	endPoint.api.upload.many,
 	protectionMiddleware({ withAuth: true, withKey: false }),
-	multerConfig.array('files'),
+	multer({
+		storage: multer.memoryStorage(),
+		limits: { fileSize: mbToBytes(16) },
+	}).array('files'),
 	handleUploadManyFiles,
 );
 

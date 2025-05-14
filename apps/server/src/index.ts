@@ -18,6 +18,7 @@ import {
 	TENANT_ID_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
 	functionName,
+	roleSet,
 } from '@/shared/lib/constants';
 import { cloud } from './cloud';
 import {
@@ -45,8 +46,10 @@ import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
 import { posthogClient } from './lib/posthog';
 import { makePath } from '@/shared/utils/string.utils';
-import { multerConfig } from './lib/multer';
 import _ from 'lodash';
+import { mbToBytes } from '@/shared/utils/any.utils';
+import multer from 'multer';
+import protectionMiddleware from './middlewares/protection.middleware';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -217,11 +220,14 @@ const bootstrap = async () => {
 	// those are exceptional functions
 	app.use(
 		makePath(
-			endPoint.api.parse
-				.functions /* , functionName.staff.staffMember.create */,
-			'hello',
+			endPoint.api.parse.functions,
+			functionName.staff.staffMember.create,
 		),
-		multerConfig.single('avatar'),
+		protectionMiddleware({ withAuth: true, roles: roleSet.STAFF_ADMIN_ONLY }),
+		multer({
+			storage: multer.memoryStorage(),
+			limits: { fileSize: mbToBytes(3) },
+		}).single('avatar'),
 		async (req, _res, next) => {
 			_.set(req, 'headers.__avatar__', req.file);
 			next();
