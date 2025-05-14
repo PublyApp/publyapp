@@ -90,3 +90,7 @@ export const withResolvers = <T = unknown>() => {
 export const nonNullable = <T>(value: T): value is NonNullable<T> => {
 	return value !== null && value !== undefined;
 };
+
+export const mbToBytes = (mb: number) => {
+	return mb * 1024 * 1024;
+};
