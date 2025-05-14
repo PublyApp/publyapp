@@ -187,7 +187,7 @@ const alterLogger = ({
 	let highlighted = `${_.capitalize(functionType)} :: ${functionName}`;
 
 	if (functionType === 'function' || functionType === 'trigger') {
-		// _.set(req, 'context.___do_not_use_altered_logger_marker___', true);
+		// _.set(req, 'context.___do_not_use_altered_logger_marker___', true); // impossible to set context outside of cloud function or triggers
 		_.set(req, 'headers.___do_not_use_altered_logger_marker___', true);
 	}
 

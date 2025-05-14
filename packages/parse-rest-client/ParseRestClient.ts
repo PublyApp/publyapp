@@ -16,7 +16,7 @@ type Props = {
 	applicationId: string;
 };
 
-type RunOptions<P extends Record<string, unknown>> = {
+type RunOptions<P extends Record<string, unknown> | FormData> = {
 	params?: P;
 	sessionToken?: string;
 	headers?: Record<string, unknown>;
@@ -132,13 +132,16 @@ export default class ParseRestClient {
 	 */
 	async cloudRun<
 		R,
-		P extends Record<string, unknown> = Record<string, unknown>,
+		P extends Record<string, unknown> | FormData = Record<string, unknown>,
 	>(functionName: string, options: RunOptions<P> = {}) {
 		return this.http.post<R, P>(
 			_.join(['/functions', functionName], '/'),
 			options.params as never,
 			{
-				headers: getProtectionHeaders({ sessionToken: options.sessionToken }),
+				headers: _.merge(
+					getProtectionHeaders({ sessionToken: options.sessionToken }),
+					options.headers || {},
+				),
 				transformResponse: [
 					...(this.http.axios.defaults.transformResponse as never),
 					(data: unknown) => {
