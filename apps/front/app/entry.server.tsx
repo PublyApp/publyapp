@@ -19,7 +19,7 @@ import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
 import _ from 'lodash';
 
-export const streamTimeout = 5_000;
+export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
 const handleRequest = async (
 	request: Request,
