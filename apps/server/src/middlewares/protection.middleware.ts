@@ -74,6 +74,7 @@ const protectionMiddleware = ({
 			}
 
 			req.user = await user;
+			_.set(req, 'headers.__passed_auth_protection_middleware__', true);
 		}
 
 		// should have a header key
@@ -90,6 +91,8 @@ const protectionMiddleware = ({
 			if (apiKey && apiKey !== kyeFromDb) {
 				return next(new HttpException(401, t('unauthorized')));
 			}
+
+			_.set(req, 'headers.__passed_apiKey_protection_middleware__', true);
 		}
 
 		// should have a header installation id
@@ -103,6 +106,12 @@ const protectionMiddleware = ({
 			}
 
 			req.installationId = installationId;
+
+			_.set(
+				req,
+				'headers.__passed_installationId_protection_middleware__',
+				true,
+			);
 		}
 
 		return next();
