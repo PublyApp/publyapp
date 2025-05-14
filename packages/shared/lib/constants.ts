@@ -304,6 +304,9 @@ export const endPoint = {
 			single: makePath(API_ROOT, ROOTS.UPLOAD, 'single'),
 			many: makePath(API_ROOT, ROOTS.UPLOAD, 'many'),
 		},
+		staffMember: {
+			create: makePath(API_ROOT, RESOURCE.staffMembers, 'create'),
+		},
 		parse: {
 			root: makePath(API_ROOT, PARSE_ROOT),
 			functions: makePath(API_ROOT, PARSE_ROOT, 'functions'),
