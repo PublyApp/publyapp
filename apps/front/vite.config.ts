@@ -3,9 +3,11 @@ import { defineConfig } from 'vite';
 import checker from 'vite-plugin-checker';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { reactRouterDevTools } from 'react-router-devtools';
+import devtoolsJson from 'vite-plugin-devtools-json';
 
 export default defineConfig({
 	plugins: [
+		devtoolsJson(),
 		reactRouterDevTools(),
 		reactRouter(),
 		tsconfigPaths(),
