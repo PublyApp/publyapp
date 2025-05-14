@@ -4,21 +4,17 @@ import { parseFunction } from './lib/parse/function.utils';
 const functions = async () => {
 	Parse.Cloud.define(
 		'hello',
-		parseFunction(async (req) => {
-			req.log.info('hello function hit 💀💀💀💀💀', {
-				// type: req.params.avatar instanceof File,
-				// file: req.file,
-				// req,
-				context: req.context,
-				header: req.headers,
-			});
+		parseFunction(async (_req) => {
 			return 'Hello world!';
 		}),
 	);
 
 	await Promise.all([
-		// =================
+		// ====== common modules ======
 		import('@/server/modules/common/auth/auth.functions'),
+		// ====== staff modules =======
+		import('@/server/modules/staff/staff-member/staff-member.functions'),
+		// ====== tenant modules ======
 	]);
 };
 
