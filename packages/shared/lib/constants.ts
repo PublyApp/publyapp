@@ -281,6 +281,11 @@ export const functionName = {
 		// ====
 		removeSeededUsers: 'removeSeededUsers',
 	},
+	staff: {
+		staffMember: {
+			create: 'create-staff-member',
+		},
+	},
 } as const;
 
 export const jobName = {
