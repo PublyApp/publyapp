@@ -18,7 +18,6 @@ import {
 	TENANT_ID_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
 	functionName,
-	roleSet,
 } from '@/shared/lib/constants';
 import { cloud } from './cloud';
 import {
@@ -49,7 +48,6 @@ import { makePath } from '@/shared/utils/string.utils';
 import _ from 'lodash';
 import { mbToBytes } from '@/shared/utils/any.utils';
 import multer from 'multer';
-import protectionMiddleware from './middlewares/protection.middleware';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -218,12 +216,16 @@ const bootstrap = async () => {
 
 	// some middlewares to some functions
 	// those are exceptional functions
+
+	// For small files, use memory storage
+	// For larger files, use disk storage
+	// It is okay to not pass authentication before multer middleware
+	// Rely on the cloud function's security, to ensure only authorized users can access this function
 	app.use(
 		makePath(
 			endPoint.api.parse.functions,
 			functionName.staff.staffMember.create,
 		),
-		protectionMiddleware({ withAuth: true, roles: roleSet.STAFF_ADMIN_ONLY }),
 		multer({
 			storage: multer.memoryStorage(),
 			limits: { fileSize: mbToBytes(3) },

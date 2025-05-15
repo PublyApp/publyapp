@@ -47,6 +47,9 @@ const createStaffMember = fromStaffMemberParseFunction({
 			});
 
 			avatarUrl = result.url;
+
+			// free up memory usage by discarding the file blob
+			file.destroy(); // multer
 		}
 
 		// create new user
