@@ -155,6 +155,7 @@
         "qs": "^6.11.2",
         "sharp": "^0.33.3",
         "streamifier": "^0.1.1",
+        "unique-username-generator": "^1.4.0",
         "vhost": "^3.0.2",
         "winston": "^3.11.0",
         "winston-console-format": "^1.0.8",
@@ -3025,6 +3026,8 @@
     "undici-types": ["undici-types@6.19.8", "", {}, "sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw=="],
 
     "unicorn-magic": ["unicorn-magic@0.3.0", "", {}, "sha512-+QBBXBCvifc56fsbuxZQ6Sic3wqqc3WWaqxs58gvJrcOuN83HGTCwz3oS5phzU9LthRNE9VrJCFCLUgHeeFnfA=="],
+
+    "unique-username-generator": ["unique-username-generator@1.4.0", "", {}, "sha512-Y6CY5vLPeixB5V4t6b/y7KkOPWpbANCIln4O6MRzz2uPIxzDm6KshWxJKMeAxLU2EPyCK+ptw/YeZMkZPFv2bw=="],
 
     "universalify": ["universalify@2.0.1", "", {}, "sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw=="],
 

@@ -4,7 +4,11 @@ import { parseFunction } from './lib/parse/function.utils';
 const functions = async () => {
 	Parse.Cloud.define(
 		'hello',
-		parseFunction(async (_req) => {
+		parseFunction(async (req) => {
+			req.log.info('Hello world!', {
+				headers: req.headers,
+				params: req.params,
+			});
 			return 'Hello world!';
 		}),
 	);
