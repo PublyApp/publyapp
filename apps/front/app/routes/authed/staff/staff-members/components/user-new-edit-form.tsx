@@ -7,7 +7,7 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
-import { roleEnum } from '@/shared/lib/constants';
+import { functionName, roleEnum } from '@/shared/lib/constants';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Field } from '@/front/components/hook-form/fields';
 import { fData } from '@/front/utils/format-number';
@@ -118,13 +118,16 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 				formData.append(key, fieldValue);
 			});
 			// console.log('***********', defaultApiClient.parseRestClient.getSessionToken());
-			await defaultApiClient.parseRestClient.cloudRun('hello', {
-				params: formData,
-				headers: {
-					'Content-Type': 'multipart/form-data',
-					// 'Authorization': `Bearer ${defaultApiClient.parseRestClient.getSessionToken()}`,
+			await defaultApiClient.parseRestClient.cloudRun(
+				functionName.staff.staffMember.create,
+				{
+					params: formData,
+					headers: {
+						'Content-Type': 'multipart/form-data',
+						// 'Authorization': `Bearer ${defaultApiClient.parseRestClient.getSessionToken()}`,
+					},
 				},
-			});
+			);
 			// ====
 			await new Promise((resolve) => setTimeout(resolve, 3000));
 			// reset();
