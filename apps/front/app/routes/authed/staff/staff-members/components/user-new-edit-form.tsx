@@ -7,7 +7,11 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
-import { functionName, roleEnum } from '@/shared/lib/constants';
+import {
+	FRONT_PATH_NAMES,
+	functionName,
+	roleEnum,
+} from '@/shared/lib/constants';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Field } from '@/front/components/hook-form/fields';
 import { fData } from '@/front/utils/format-number';
@@ -23,6 +27,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import { toast } from '@/front/components/snackbar';
 import { defaultApiClient } from 'packages/api/ApiClient';
+import { useRouter } from '@/front/hooks/use-router';
 
 const ROLE_OPTIONS = _.chain(roleEnum)
 	.pickBy((value) => {
@@ -60,7 +65,7 @@ type Props = {
 
 export const UserNewEditForm = ({ currentUser }: Props) => {
 	const { t } = useTranslate();
-	// const router = useRouter();
+	const router = useRouter();
 	const openDialog = useBoolean();
 
 	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
@@ -91,7 +96,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 	});
 
 	const {
-		// reset,
+		reset,
 		// watch,
 		// control,
 		handleSubmit,
@@ -128,13 +133,10 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 					},
 				},
 			);
-			// ====
-			await new Promise((resolve) => setTimeout(resolve, 3000));
-			// reset();
+
+			reset();
 			toast.success(currentUser ? 'Update success!' : 'Create success!');
-			// router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
-			console.info('DATA', data);
-			handleCloseDialog();
+			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
 		} catch (error) {
 			console.error(error);
 		}
