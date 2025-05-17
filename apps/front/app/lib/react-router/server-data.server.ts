@@ -12,6 +12,7 @@ import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
 	FORWARDED_FOR_HEADER_KEY,
+	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
@@ -118,9 +119,11 @@ export const getServerLoader: GetServerLoader = <
 			// @ts-ignore
 			z._t = await t;
 		}
-		const requestIp = args.request.headers.get(
-			_.toLower(FORWARDED_FOR_HEADER_KEY),
-		); // || args.request.headers.get('x-real-ip');
+		const requestIp =
+			args.request.headers.get(
+				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+			) || // ✅ Cloudflare real IP
+			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale, requestIp });
@@ -209,9 +212,11 @@ export const getServerAction: GetServerAction = <
 	const action = async (args: T) => {
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
-		const requestIp = args.request.headers.get(
-			_.toLower(FORWARDED_FOR_HEADER_KEY),
-		); // || args.request.headers.get('x-real-ip');
+		const requestIp =
+			args.request.headers.get(
+				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+			) || // ✅ Cloudflare real IP
+			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale, requestIp });
