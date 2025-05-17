@@ -5,7 +5,7 @@ import asyncJs from 'async';
 import { MongoServerError, type CreateIndexesOptions } from 'mongodb';
 import { className as _className, isBun } from '@org/shared/lib/constants';
 import { logger } from '@/server/lib/winston';
-import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
+import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
 import { DEFAULT_CLP } from '../../constants';
 import { getDatabase } from '../parse.utils';
 

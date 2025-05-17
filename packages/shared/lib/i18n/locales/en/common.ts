@@ -113,6 +113,8 @@ const commonEN = {
 	'save-item-confirmation-message':
 		'{{item}} will be saved with the following informations. Please confirm.',
 
+	'Error while uploading file': 'Error while uploading file',
+
 	// messages from parse
 	'User email is not verified.': 'User email is not verified.',
 	'Session token is expired.': 'Session token is expired.',

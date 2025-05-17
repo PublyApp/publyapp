@@ -24,6 +24,7 @@ import { defaultSettings } from '@/front/components/settings';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/query-client';
 import { getServerLoader } from './lib/react-router/server-data.server';
+import { Snackbar } from './components/snackbar/snackbar';
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -72,6 +73,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<QueryClientProvider client={defaultQueryClient}>
 					<MuiThemeProvider>
 						<MotionLazy>
+							<Snackbar />
 							<SettingsDrawer defaultSettings={defaultSettings} />
 							{children}
 						</MotionLazy>
