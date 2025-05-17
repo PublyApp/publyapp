@@ -9,7 +9,7 @@ import type {
 } from 'express';
 import type { ParsedQs } from 'qs';
 
-import { tryCatchWrapper } from '@org/shared/utils/tryCatch.utils';
+import { tryCatchWrapper } from '@org/shared/utils/try-catch.utils';
 
 import { logger } from '@/server/lib/winston';
 import {

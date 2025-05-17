@@ -6,30 +6,41 @@ import type InterZod from '@/shared/lib/zod/InterZod';
 
 import { getFolderNameSchema } from './file.validations';
 
-export const getMulterFileSchema = (
+export type MulterMemoryFile = Pick<
+	Express.Multer.File,
+	'fieldname' | 'originalname' | 'encoding' | 'mimetype' | 'buffer' | 'size'
+>;
+export type MulterDiskFile = Pick<
+	Express.Multer.File,
+	'fieldname' | 'originalname' | 'encoding' | 'mimetype' | 'buffer' | 'size'
+>;
+
+export const getMulterMemoryFileSchema = (
 	z: InterZod,
-): zod.ZodType<Express.Multer.File> => {
+): zod.ZodType<MulterMemoryFile> => {
 	return z.object({
 		fieldname: z.string(),
 		originalname: z.string(),
 		encoding: z.string(),
 		mimetype: z.string(),
-		size: z.number(),
-		stream: z.custom<Readable>(),
-		destination: z.string(),
-		filename: z.string(),
-		path: z.string(),
 		buffer: z.custom<Buffer>(),
+		size: z.number(),
+		// ====
+		stream: z.custom<Readable>().optional(),
+		destination: z.string().optional(),
+		filename: z.string().optional(),
+		path: z.string().optional(),
 	});
+	//  as zod.ZodType<Express.Multer.File>;
 };
 
-export const getMulterFilesArraySchema = (z: InterZod) => {
-	return z.array(getMulterFileSchema(z)).min(1);
+export const getMulterMemoryFilesArraySchema = (z: InterZod) => {
+	return z.array(getMulterMemoryFileSchema(z)).min(1);
 };
 
 export const getMulterUploadManyFilesSchema = (z: InterZod) => {
 	return z.object({
-		files: getMulterFilesArraySchema(z),
+		files: getMulterMemoryFilesArraySchema(z),
 		parentFolderPath: getFolderNameSchema(z).optional(),
 	});
 };
@@ -42,7 +53,7 @@ export const getMulterCreateFolderSchema = (z: InterZod) => {
 	return z.object({
 		folderName: getFolderNameSchema(z),
 		parentFolderPath: getFolderNameSchema(z).optional(),
-		files: getMulterFilesArraySchema(z).optional(),
+		files: getMulterMemoryFilesArraySchema(z).optional(),
 	});
 };
 

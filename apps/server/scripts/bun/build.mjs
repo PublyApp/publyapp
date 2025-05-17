@@ -1,6 +1,7 @@
 // @ts-check
-import { bunBuild } from './_bun-build.mjs';
-import { buildOptions, createI18nResourcesFiles } from './config.mjs';
+import { createI18nResourcesFiles } from '../rsbuild/config.mjs';
+import { bunBuild } from "./_bun-build.mjs";
+import { buildOptions } from "./config.mjs";
 
 bunBuild({
 	...buildOptions,

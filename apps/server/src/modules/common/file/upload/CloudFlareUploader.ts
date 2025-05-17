@@ -1,11 +1,10 @@
-import path from 'node:path';
-import { env } from '@/server/lib/env';
-import { appendHashToFilename } from '@/server/utils/any.utils';
 import { fileProvider } from '@/shared/lib/constants';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import type { UploadInput, Uploader } from './Uploader.interface';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
-// TODO: move to env
+import type { Uploader, UploadInput } from './Uploader.interface';
+import path from 'node:path';
+import { appendHashToFilename } from '@/server/utils/any.utils';
+
 const CLOUDFLARE_ACCOUNT_ID = '0cbb7862c10ee3b215e7c9e2745695b6';
 const CLOUDFLARE_ACCESS_KEY_ID = '923014d9d938f0c8728bf6ac54aecb31';
 const CLOUDFLARE_SECRET_ACCESS_KEY =
@@ -34,7 +33,6 @@ export default class CloudFlareUploader
 		}
 
 		let key = path.posix.join(
-			env.MODE !== 'production' ? '__dev__' : '',
 			'uploads',
 			params.folderPath || '',
 			params.file.originalname,
@@ -46,6 +44,7 @@ export default class CloudFlareUploader
 			Key: key,
 			Body: params.file.buffer,
 			ContentType: params.file.mimetype,
+			// ACL: 'public-read', // Optional: remove for private buckets
 		});
 
 		const command_output = await r2.send(command);
