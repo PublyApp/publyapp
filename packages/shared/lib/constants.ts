@@ -11,25 +11,34 @@ export const userGroup = {
 	STAFF: 'staff',
 } as const;
 
+export const roleNames = [
+	'STAFF_ADMIN',
+	'STAFF_EDITOR',
+	'STAFF_USER',
+	'STAFF_CONTRIBUTOR',
+	'TENANT_USER',
+	'AUTHED_USER',
+] as const;
+
 export const roleEnum = {
 	// cspell:ignore fnhux Rwmgyh Jhpma
 	STAFF_ADMIN: {
-		name: 'STAFF_ADMIN',
+		name: roleNames[0],
 		code: 'eM3RYjw2yaQ6Gb4BTfnhux',
 		rank: 100,
 	} as const,
 	STAFF_EDITOR: {
-		name: 'STAFF_EDITOR',
+		name: roleNames[1],
 		code: 'r6LN7A3RwmgyhZUB4tv8Mn',
 		rank: 80,
 	} as const,
 	STAFF_USER: {
-		name: 'STAFF_USER',
+		name: roleNames[2],
 		code: 'xPK6yNWkCA5TgGU49p72J3',
 		rank: 70,
 	} as const,
 	STAFF_CONTRIBUTOR: {
-		name: 'STAFF_CONTRIBUTOR',
+		name: roleNames[3],
 		code: 'WqgTy4uxJhpmaFPzZUNjXk',
 		rank: 60,
 	} as const,
@@ -40,14 +49,14 @@ export const roleEnum = {
 	// TENANT_ADMIN: { name: 'TENANT_ADMIN', code: 5_394_846 } as const,
 	// TENANT_EDITOR: { name: 'TENANT_EDITOR', code: 4_141_341 } as const,
 	TENANT_USER: {
-		name: 'TENANT_USER',
+		name: roleNames[4],
 		code: 't2GwKsZxen3YyLB7QTup4r',
 		rank: 50,
 	} as const,
 	// TENANT_CONTRIBUTOR: { name: 'TENANT_CONTRIBUTOR', code: 2_347_347 } as const,
 	// =======================================================
 	AUTHED_USER: {
-		name: 'AUTHED_USER',
+		name: 'AUTHED_USER' as const,
 		code: 'wC5zNLaK6MQjnSe4cGTr3v',
 		rank: 40,
 	} as const,
