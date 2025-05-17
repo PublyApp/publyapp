@@ -328,6 +328,7 @@ export const isBun = typeof Bun !== 'undefined';
 export const fileProvider = {
 	LOCAL_DISK: 'localDisk',
 	CLOUDINARY: 'cloudinary',
+	CLOUDFLARE: 'cloudflare',
 } as const;
 
 export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';

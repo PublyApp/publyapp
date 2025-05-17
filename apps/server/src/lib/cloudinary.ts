@@ -9,6 +9,20 @@ export const initCloudinary = async () => {
 		api_secret: env.CLOUDINARY_API_SECRET,
 		secure: true,
 	});
+	return cloudinary;
 };
+
+// export async function createImageUpload() {
+// 	const timestamp = new Date().getTime()
+// 	const signature = await cloudinary.utils.api_sign_request(
+// 		{
+// 			timestamp,
+// 		},
+// 		env.CLOUDINARY_API_SECRET
+// 	)
+// 	return { timestamp, signature }
+// }
+
+// export const { signature, timestamp } = await createImageUpload()
 
 export default cloudinary;
