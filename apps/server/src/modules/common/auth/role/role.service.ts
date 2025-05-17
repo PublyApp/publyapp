@@ -47,6 +47,13 @@ export default class RoleService {
 			.first({ sessionToken: this.sessionToken, useMasterKey: this.master });
 	}
 
+	async findRoleByName(code: string) {
+		const roleQuery = new Parse.Query(Parse.Role);
+		return roleQuery
+			.equalTo('name', code)
+			.first({ sessionToken: this.sessionToken, useMasterKey: this.master });
+	}
+
 	async assignRoleToUser(user: Parse.User, role: Parse.Role) {
 		const relation = role.getUsers();
 		relation.add(user);

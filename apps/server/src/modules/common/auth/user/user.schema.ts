@@ -25,6 +25,10 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
 			avatarUrl: { type: 'String' },
 
 			// relations
+			createdBy: {
+				type: 'Pointer',
+				targetClass: className.USER,
+			},
 			// avatar: { type: 'Pointer', targetClass: className.APP_FILE },
 			// tenants: { type: 'Array' },
 		},

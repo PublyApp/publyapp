@@ -2,7 +2,12 @@ import {
 	fromStaffMemberParseFunction,
 	getParseFunctionHeader,
 } from '@/server/lib/parse/function.utils';
-import { fileProvider, functionName, roleSet } from '@/shared/lib/constants';
+import {
+	fileProvider,
+	functionName,
+	roleNames,
+	roleSet,
+} from '@/shared/lib/constants';
 import FileService from '../../common/file/file.service';
 import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
 import _ from 'lodash';
@@ -10,6 +15,10 @@ import { generateUsername } from 'unique-username-generator';
 import { makePath } from '@/shared/utils/string.utils';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { nanoid } from 'nanoid';
+import ParseUser from '../../common/auth/user/user.class';
+import RoleService from '../../common/auth/role/role.service';
+import type { IUser } from '@/shared/types/db/user.types';
+import { USE_MASTER_KEY } from '@/server/lib/constants';
 
 const createStaffMember = fromStaffMemberParseFunction({
 	allowedRoles: roleSet.STAFF_ADMIN_ONLY,
@@ -19,17 +28,19 @@ const createStaffMember = fromStaffMemberParseFunction({
 				firstName: z.string(),
 				lastName: z.string(),
 				email: z.string().email(),
-				role: z.enum([
-					'STAFF_ADMIN',
-					'STAFF_EDITOR',
-					'STAFF_USER',
-					'STAFF_CONTRIBUTOR',
-				]),
+				role: z.enum(roleNames),
 			})
 			.parse(params);
 	},
 	action: async ({ params, user, req, z, t }) => {
 		const sessionToken = user?.getSessionToken();
+		const roleService = new RoleService(USE_MASTER_KEY);
+
+		const role = await roleService.findRoleByName(params.role);
+
+		if (!role) {
+			throw new HttpException(400, t('item-is-invalid', { item: t('role') }));
+		}
 
 		// upload avatar file
 		const file = getParseFunctionHeader(req, '__avatar__') as unknown;
@@ -62,19 +73,38 @@ const createStaffMember = fromStaffMemberParseFunction({
 		}
 
 		// create new user
-		const savedUser = await new Parse.User(
+		const savedUser = await new ParseUser(
 			_.omitBy(
 				{
 					...params,
 					avatarUrl,
 					username: generateUsername(),
 					password: nanoid(),
+					createdBy: user,
 				},
-				_.isNil,
-			),
+				(value, key) => _.isNil(value) || key === 'role',
+			) as never,
 		).save(null, { sessionToken: user.getSessionToken() });
 
-		return savedUser;
+		await roleService.assignRoleToUser(savedUser, role);
+
+		const json = savedUser.toJSON();
+
+		const returnedJson = _.pick(json, [
+			'firstName',
+			'lastName',
+			'email',
+			'avatarUrl',
+			'username',
+			'createdAt',
+			'updatedAt',
+			'objectId',
+		]) as unknown as IUser;
+
+		_.set(returnedJson, 'role', params.role);
+		_.set(returnedJson, 'createdBy', user.id);
+
+		return returnedJson;
 	},
 });
 
