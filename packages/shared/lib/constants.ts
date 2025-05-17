@@ -218,6 +218,7 @@ export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
 export const TENANT_ID_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-TenantId`;
 export const FORWARDED_FOR_HEADER_KEY = 'X-Forwarded-For';
 export const REMIX_CLIENT_IP_HEADER_KEY = 'X-Remix-Client-IP';
+export const CLOUDFLARE_CONNECTING_IP_HEADER_KEY = 'CF-Connecting-IP';
 
 const RESOURCE = {
 	users: 'users',
