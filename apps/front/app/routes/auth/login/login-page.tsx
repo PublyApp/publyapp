@@ -1,5 +1,4 @@
 import dayjs from 'dayjs';
-import i18next from 'i18next';
 import { data, redirect } from 'react-router';
 import { serializeError } from 'serialize-error';
 
@@ -71,11 +70,6 @@ export const action = getServerAction({
 		}) as never;
 	},
 });
-
-export const clientLoader = async (_: Route.ClientLoaderArgs) => {
-	i18next.loadNamespaces(['zod']);
-	return data({});
-};
 
 const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
 	return <LoginForm />;

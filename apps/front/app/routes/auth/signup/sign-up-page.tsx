@@ -1,6 +1,6 @@
 import i18next from 'i18next';
-import SignUpForm from './SignUpForm';
-import type { Route } from './+types/SignUpPage';
+import SignUpForm from './sign-up-form';
+import type { Route } from './+types/sign-up-page';
 import { data } from 'react-router';
 
 export const clientLoader = async (_: Route.ClientLoaderArgs) => {
@@ -15,4 +15,5 @@ const SignUpPage = () => {
 		</>
 	);
 };
+
 export default SignUpPage;
