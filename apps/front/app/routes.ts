@@ -20,7 +20,7 @@ const routes = [
 		),
 		route(
 			getLastPath(FRONT_PATH_NAMES.auth.signup),
-			'routes/auth/signup/SignUpPage.tsx',
+			'routes/auth/signup/sign-up-page.tsx',
 		),
 	]),
 	layout('routes/authed/_layout/authed-layout.tsx', [
