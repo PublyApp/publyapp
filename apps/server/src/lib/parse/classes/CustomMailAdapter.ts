@@ -1,18 +1,21 @@
 import { logger } from '@/server/lib/winston';
-import { endPoint } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 import { env } from '../../env';
 import type { MailAdapter } from '../interfaces/MailAdapter';
 
 type Props = {
 	serverUrl: string;
+	enableSendVerificationEmail: boolean;
 };
 
 export default class CustomMailAdapter implements MailAdapter {
 	serverUrl: string;
+	enableSendVerificationEmail: boolean;
 
-	constructor({ serverUrl }: Props) {
+	constructor({ serverUrl, enableSendVerificationEmail }: Props) {
 		this.serverUrl = serverUrl;
+		this.enableSendVerificationEmail = enableSendVerificationEmail;
 	}
 
 	async sendMail(options: {
@@ -37,15 +40,13 @@ export default class CustomMailAdapter implements MailAdapter {
 
 	getCustomVerificationLink({
 		token,
-		username,
 	}: {
 		token: string;
-		username: string;
 	}) {
 		const url = new URL(this.serverUrl);
-		url.pathname = endPoint.api.auth.verifyEmail;
+		// url.pathname = endPoint.api.auth.verifyEmail; // do not use a server endpoint
+		url.pathname = FRONT_PATH_NAMES.auth.verifyEmail; // use a front-end pathname instead
 		url.searchParams.set('token', token);
-		url.searchParams.set('username', username);
 
 		return url.toString();
 	}
@@ -59,15 +60,15 @@ export default class CustomMailAdapter implements MailAdapter {
 		appName: string;
 		user: Parse.User;
 	}): Promise<void> {
-		// logger.warn('sendVerificationEmail', { link, appName, user });
+		if (!this.enableSendVerificationEmail) {
+			return;
+		}
 
 		const verificationUrl = new URL(link);
 		const verificationToken = verificationUrl.searchParams.get('token');
-		const username = verificationUrl.searchParams.get('username');
 
 		const customLink = this.getCustomVerificationLink({
 			token: verificationToken || '',
-			username: username || '',
 		});
 
 		if (env.LOCAL) {
@@ -76,9 +77,17 @@ export default class CustomMailAdapter implements MailAdapter {
 				subject: `Email Verification Link for ${appName} account`,
 				link: customLink,
 			});
-			// return;
+			return;
 		}
 
-		// this._sendMail()
+		this.sendMail({
+			to: user.getEmail() || '',
+			text: `
+				<h1>Email Verification</h1>
+				<p>Please click the link below to verify your email:</p>
+				<a href="${customLink}">${customLink}</a>
+			`,
+			subject: `Email Verification Link for ${appName} account`,
+		});
 	}
 }

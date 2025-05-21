@@ -114,7 +114,13 @@ const bootstrap = async () => {
 	});
 
 	// Email adapter for Parse
-	const emailAdapter = new CustomMailAdapter({ serverUrl: env.SERVER_URL });
+	// * combined with ParseServerOptions.verifyUserEmails set to true,
+	// * we ensure that verification token is created by Parse whenever a user is created
+	// * but we don't want Parse to send the email to the user by setting CustomMailAdapter.enableSendVerificationEmail to false
+	const emailAdapter = new CustomMailAdapter({
+		serverUrl: env.SERVER_URL,
+		enableSendVerificationEmail: false,
+	});
 
 	// Logger adapter for Parse
 	const loggerAdapter = new WinstonLoggerAdapter({ logger, maxLogFiles: 5 });
@@ -132,7 +138,6 @@ const bootstrap = async () => {
 		// === ADAPTERS ================================
 		filesAdapter,
 		loggerAdapter,
-		emailAdapter,
 		// =============================================
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		sessionLength: duration.toSeconds('3d'), // 3 days
@@ -159,13 +164,14 @@ const bootstrap = async () => {
 		pages: {
 			enableRouter: true,
 		},
+		emailAdapter,
+		verifyUserEmails: true, // automatically sends an email to newly created users
+		emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
+		emailVerifyTokenReuseIfValid: true,
 		// =============================================
-		// verifyUserEmails: true,
 		// preserveFileName: true,
-		// emailVerifyTokenReuseIfValid: true,
 		// logLevel: 'silly', // this seems to be not working at all
-		// emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
-		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
+		// middleware: parseServerMiddleware, // this is being mounted only if with use the startApp method
 	});
 
 	// start the parse server setup in the background
