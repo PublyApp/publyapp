@@ -120,6 +120,8 @@ const commonFR = {
 	'Session token is expired.': 'Session token expiré.',
 	'Invalid username/password.': "Mot de passe/Nom d'utilisateur invalide",
 	'Invalid session token': 'Session token invalide',
+	'Invalid token': 'Token invalide',
+	'Token expired': 'Token expiré',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
