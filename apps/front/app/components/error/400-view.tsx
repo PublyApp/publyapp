@@ -2,9 +2,11 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
-import { useTranslate } from '@/front/hooks/use-translate';
+
+// import PageNotFoundIllustration from '@/front/assets/illustrations/page-not-found-illustration';
 import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
+
 import { MotionContainer } from '../animate/motion-container';
 import { RouterLink } from '../router-link';
 
@@ -17,8 +19,6 @@ type View400Props = {
 };
 
 const View400 = ({ withLayout = true, title, description }: View400Props) => {
-	const { t } = useTranslate();
-
 	const renderContent = () => {
 		return (
 			<Container component={MotionContainer}>
@@ -54,7 +54,7 @@ const View400 = ({ withLayout = true, title, description }: View400Props) => {
 					size="large"
 					variant="contained"
 				>
-					{t('go-to-home')}
+					Go to home
 				</Button>
 			</Container>
 		);

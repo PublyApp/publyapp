@@ -1,37 +1,36 @@
+import type { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert } from '@mui/material';
+
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
+// import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
-import Link from '@mui/material/Link';
-import { useBoolean } from 'minimal-shared/hooks';
-import { useForm } from 'react-hook-form';
-import type { z } from 'zod';
+
+import { RouterLink } from '@/front/components/router-link';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { Field, Form } from '@/front/components/hook-form';
+
+import { getSignUpSchema } from '@/shared/validations/auth.validations';
 import { FormHead } from '@/front/components/auth/form-head';
 import { SignUpTerms } from '@/front/components/auth/sign-up-terms';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { getRegisterSchema } from '@/shared/validations/auth.validations';
 
 // ----------------------------------------------------------------------
 
-export type SignUpSchemaType = z.infer<ReturnType<typeof getRegisterSchema>>;
+export type SignUpSchemaType = z.infer<ReturnType<typeof getSignUpSchema>>;
 
 // ----------------------------------------------------------------------
 
 const SignupForm = () => {
-	const { t, i18n } = useTranslate();
 	const showPassword = useBoolean();
 
 	const methods = useForm({
-		disabled: true,
-		resolver: zodResolver(getRegisterSchema(defaultZodClient)),
+		resolver: zodResolver(getSignUpSchema(defaultZodClient)),
 		defaultValues: {
 			firstName: '',
 			lastName: '',
@@ -44,8 +43,6 @@ const SignupForm = () => {
 		formState: { isSubmitting },
 	} = methods;
 
-	useSyncFormToLang(i18n.language, methods);
-
 	const renderForm = () => (
 		<Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
 			<Box
@@ -57,26 +54,26 @@ const SignupForm = () => {
 			>
 				<Field.Text
 					name="firstName"
-					label={t('firstname')}
+					label="First name"
 					slotProps={{ inputLabel: { shrink: true } }}
 				/>
 				<Field.Text
 					name="lastName"
-					label={t('lastname')}
+					label="Last name"
 					slotProps={{ inputLabel: { shrink: true } }}
 				/>
 			</Box>
 
 			<Field.Text
 				name="email"
-				label={t('email-address')}
+				label="Email address"
 				slotProps={{ inputLabel: { shrink: true } }}
 			/>
 
 			<Field.Text
 				name="password"
-				label={t('password')}
-				placeholder={t('n+ characters', { characters: '8' })}
+				label="Password"
+				placeholder="6+ characters"
 				type={showPassword.value ? 'text' : 'password'}
 				slotProps={{
 					inputLabel: { shrink: true },
@@ -105,29 +102,26 @@ const SignupForm = () => {
 				type="submit"
 				variant="contained"
 				loading={isSubmitting}
-				disabled
+				loadingIndicator="Create account..."
 			>
-				{t('create-account')}
+				Create account
 			</Button>
 		</Box>
 	);
 
 	return (
 		<>
-			<Alert severity="info" sx={{ mb: 2 }}>
-				{t('signup-are-disabled')}
-			</Alert>
 			<FormHead
-				title={t('signup-title')}
+				title="Get started absolutely free"
 				description={
 					<>
-						{t('already-have-account-question')}{' '}
+						{'Already have an account? '}
 						<Link
 							component={RouterLink}
 							href={FRONT_PATH_NAMES.auth.login}
 							variant="subtitle2"
 						>
-							{t('login')}
+							Get started
 						</Link>
 					</>
 				}
