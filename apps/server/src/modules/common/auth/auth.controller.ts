@@ -24,6 +24,7 @@ import { defaultHttp } from '@/shared/lib/axios';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 import { AuthCloudService } from './auth.cloud.service';
+import { generateUsername } from 'unique-username-generator';
 
 export const handlePasswordLogin = expressHandler(async (req, res) => {
 	const { password } = req.body;
@@ -66,7 +67,8 @@ export const handlePasswordSignup = expressHandler(async (req, res) => {
 	}
 
 	if (!username) {
-		username = `${email.split('@')?.[0]}_${nanoid(5)}`;
+		// username = `${email.split('@')?.[0]}_${nanoid(5)}`;
+		username = generateUsername();
 	}
 
 	const result = await Parse.User.signUp(
@@ -80,27 +82,24 @@ export const handlePasswordSignup = expressHandler(async (req, res) => {
 });
 
 export const handleVerifyEmail = expressHandler(async (req, res) => {
+	const { t } = getRequestUtils(req);
 	try {
-		const { token, username } = req.query;
+		const { token } = req.query;
 
-		if (!token || !username) {
-			throw new HttpException(400, 'Invalid query');
+		if (!token || !_.isString(token)) {
+			throw new HttpException(400, t('item-is-invalid', { item: 'token' }));
 		}
 
-		if (!_.isString(token) || !_.isString(username)) {
-			throw new HttpException(400, 'Invalid query');
-		}
-
-		await AuthCloudService.verifyEmail({ username, token });
+		await AuthCloudService.verifyEmailByToken({ /* username, */ token });
 
 		// on success redirect to success page
-		const successUrl = new URL(/* env.OFFICE_URL */ '');
+		const successUrl = new URL(env.FRONT_URL);
 		successUrl.pathname = FRONT_PATH_NAMES.auth.login;
 		return res.redirect(successUrl.toString());
 	} catch (error) {
 		logger.error('Error in verifyEmail:', error);
-		// on error redirect to error page
-		const failUrl = new URL(/* env.OFFICE_URL */ '');
+		// on error, redirect to error page
+		const failUrl = new URL(env.FRONT_URL);
 		failUrl.pathname = FRONT_PATH_NAMES.auth.signup;
 		return res.redirect(failUrl.toString());
 	}

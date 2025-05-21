@@ -246,6 +246,8 @@ export const FRONT_PATH_NAMES = {
 	auth: {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
+		verifyEmail: makePath('verify-email'),
+		invite: makePath('invite'),
 	},
 	tenant: (tenantId = '') => {
 		return {

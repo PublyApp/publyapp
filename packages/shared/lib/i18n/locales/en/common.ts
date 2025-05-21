@@ -120,6 +120,8 @@ const commonEN = {
 	'Session token is expired.': 'Session token is expired.',
 	'Invalid username/password.': 'Invalid username/password.',
 	'Invalid session token': 'Invalid session token',
+	'Invalid token': 'Invalid token',
+	'Token expired': 'Token expired',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;
