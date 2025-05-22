@@ -25,6 +25,8 @@ import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/query-client';
 import { getServerLoader } from './lib/react-router/server-data.server';
 import { Snackbar } from './components/snackbar/snackbar';
+import View400 from './components/error/400-view';
+import _ from 'lodash';
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -106,11 +108,19 @@ export default App;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	if (isRouteErrorResponse(error)) {
-		if (error.status === 404) {
-			return <NotFoundView />;
+		if (error.status === 400) {
+			return (
+				<View400
+					title={_.get(error.data, 'title')}
+					description={_.get(error.data, 'description')}
+				/>
+			);
 		}
 		if (error.status === 403) {
 			return <View403 />;
+		}
+		if (error.status === 404) {
+			return <NotFoundView />;
 		}
 	}
 
