@@ -44,11 +44,13 @@ const commonFR = {
 	overview: 'Aperçu',
 	'staff-member': 'Membre du staff',
 	'staff-members': 'Membres du staff',
+	link: 'Lien',
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',
 	'item-not-found': '{{item}} non trouvé',
 	'item-is-invalid': '{{item}} est invalide',
+	'invalid-item': '{{item}} invalide',
 	'new-item': 'Nouveau {{item}}',
 	'item-is-not-instance-of-type': "{{item}} n'est pas une instance de {{type}}",
 	'item-not-translated-short': '{{item}} non traduit',
@@ -112,6 +114,9 @@ const commonFR = {
 	'save-item-confirmation-title': 'Sauvegarder {{item}}?',
 	'save-item-confirmation-message':
 		'{{item}} sera sauvegardé avec les informations suivantes. Veuillez Confirmer.',
+
+	'invalid-email-verification-link-description':
+		'Le lien de vérification que vous avez fourni est invalide ou expiré. Contactez votre administrateur pour obtenir un nouveau lien.',
 
 	'Error while uploading file': 'Error while uploading file',
 

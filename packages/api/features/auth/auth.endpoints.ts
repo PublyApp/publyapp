@@ -119,4 +119,13 @@ export default class AuthEndPoints extends BaseEndPoints {
 			params: { tenantId },
 		});
 	}
+
+	async checkEmailVerificationToken({ token }: { token: string }) {
+		return this.parseRestClient.cloudRun(
+			functionName.auth.checkEmailVerificationToken,
+			{
+				params: { token },
+			},
+		);
+	}
 }

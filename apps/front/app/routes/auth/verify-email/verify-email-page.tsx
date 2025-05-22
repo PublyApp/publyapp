@@ -1,297 +1,51 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, type Theme } from '@mui/material';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { useForm } from 'react-hook-form';
-import { redirect, useFetcher } from 'react-router';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { safeRun } from '@/front/lib/react-router/safeRun';
-import {
-	getServerAction,
-	getServerLoader,
-} from '@/front/lib/react-router/server-data.server';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import {
-	FRONT_PATH_NAMES,
-	queryParamKey,
-	queryParamValue,
-	X_CODE,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { getErrorMessage } from '@/shared/utils/error.utils';
-import {
-	getCheckEmailVerificationTokenSchema,
-	getEmailFormSchema,
-	getRequestEmailVerificationSchema,
-} from '@/shared/validations/auth.validations';
-import InvalidLinkView from '../components/invalid-link-view';
+import { getClientLoader } from '@/front/lib/react-router/client-data';
+import { queryParamKey } from '@/shared/lib/constants';
+import { data } from 'react-router';
 import type { Route } from './+types/verify-email-page';
+import type { i18n } from 'i18next';
 
-const actionIntent = {
-	REQUEST_EMAIL_VERIFICATION: 'REQUEST_EMAIL_VERIFICATION',
-	// CHALLENGE_EMAIL_FOR_TOKEN: 'CHALLENGE_EMAIL_FOR_TOKEN',
-} as const;
+export const clientLoader = getClientLoader({
+	loader: async ({ request, z }) => {
+		await (z.i18n as i18n).loadNamespaces(['common']);
+		const t = z.t;
+		const url = new URL(request.url);
+		const searchParams = url.searchParams;
 
-export const action = getServerAction({
-	action: async ({ request, apiClient, context, z }) => {
-		const formData = await request.formData();
-		const intent = formData.get('intent');
-
-		const email = formData.get('email');
-		// const searchParams = new URL(request.url).searchParams;
-		// const token = searchParams.get(queryParamKey.token);
-
-		switch (intent) {
-			case actionIntent.REQUEST_EMAIL_VERIFICATION: {
-				const schema = getRequestEmailVerificationSchema(z);
-
-				const parsed = schema.safeParse({ email });
-
-				if (!parsed.success) {
-					return {
-						status: 'error',
-						error: parsed.error.errors[0].message,
-					} as const;
-				}
-
-				const requestEmailVerification = safeRun(
-					apiClient.auth.requestEmailVerification,
-				);
-
-				// we intentionally don't return the actual outcome of the request
-				requestEmailVerification({ email: parsed.data.email }).then(
-					(result) => {
-						if (result.status === 'error') {
-							context.logger.error(
-								'Error when requesting email verification',
-								result.error,
-							);
-						}
-					},
-				);
-
-				return {
-					status: 'success',
-				} as const;
-			}
-
-			default: {
-				return {
-					status: 'error',
-					error: 'Invalid action intent',
-				} as const;
-			}
-		}
-	},
-});
-
-export const loader = getServerLoader({
-	loader: async ({ request, apiClient, z }) => {
-		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
-		const encodedEmail = searchParams.get(
-			queryParamKey.reset_password_page.encoded_email,
-		);
 
-		// if no token, we just return success
-		if (!token && !encodedEmail) {
-			return {
-				code: 'NO_TOKEN_AND_ID',
-			} as const;
+		if (!token) {
+			throw data(
+				{
+					title: t('invalid-item', { item: t('link') }),
+					description: t('invalid-email-verification-link-description'),
+				},
+				{
+					status: 400,
+				},
+			);
 		}
 
-		if (!token || !encodedEmail) {
-			return {
-				code: 'INVALID_LINK',
-			} as const;
-		}
-
-		const checkEmailVerificationToken = safeRun(
-			apiClient.auth.checkEmailVerificationToken,
-		);
-
-		const schema = getCheckEmailVerificationTokenSchema(z);
-		const parsed = schema.safeParse({ id: encodedEmail, token });
-
-		// we don't tell what went wrong here
-		// because we don't want to leak information
-		// to potential attackers
-		if (!parsed.success) {
-			return {
-				code: 'INVALID_LINK',
-			} as const;
-		}
-
-		const result = await checkEmailVerificationToken({
-			id: encodedEmail,
-			token: parsed.data.token,
+		return data({
+			token,
 		});
-
-		if (result.status === 'error') {
-			if (result.error instanceof ParseRestError) {
-				if (
-					result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID
-				) {
-					return {
-						code: 'INVALID_LINK',
-					} as const;
-				}
-
-				throw new Response(result.error.message, {
-					status: result.error.httpStatusCode,
-				});
-			}
-
-			throw result.error;
-		}
-
-		const redirectUrl = new URL(result.data.resetPasswordLink);
-		redirectUrl.searchParams.set(
-			queryParamKey.language,
-			getCorrectLocale(searchParams.get(queryParamKey.language)),
-		);
-		redirectUrl.searchParams.set(
-			queryParamKey.reset_password_page.redirect_cause,
-			queryParamValue.reset_password_page.redirect_cause.email_verification,
-		);
-		return redirect(redirectUrl.toString());
 	},
 });
-
-const boxStyles = (theme: Theme) => {
-	return {
-		[theme.breakpoints.up('md')]: {
-			mt: `-${theme.typography.pxToRem(300)}`,
-		},
-	};
-};
 
 const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
-	if (loaderData.code === 'INVALID_LINK') {
-		return (
-			<Box sx={boxStyles}>
-				<InvalidLinkView forceIsInvalid />
-			</Box>
-		);
-	}
+	const token = loaderData.token;
 
-	return (
-		<Box sx={boxStyles}>
-			<EmailForForm intent={actionIntent.REQUEST_EMAIL_VERIFICATION} />
-		</Box>
-	);
+	// const {} = useCheckEmailVerificationToken({ variables: { token } });
+
+	// if (!token) {
+	// 	return (
+	// 		<View400
+	// 			title="Invalid link"
+	// 			description="The verification link you issued is invalid or expired. Contact your administrator to get a new link."
+	// 		/>
+	// 	);
+	// }
+
+	return <div>VerifyEmailPage</div>;
 };
 
 export default VerifyEmailPage;
-
-const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
-	const { t, i18n } = useTranslate();
-
-	const schema = getEmailFormSchema(defaultZodClient);
-
-	const formText = {
-		[actionIntent.REQUEST_EMAIL_VERIFICATION]: {
-			title: t('verify-email'),
-			description: t('verify-email-description-1'),
-		},
-		// [actionIntent.CHALLENGE_EMAIL_FOR_TOKEN]: {
-		// 	title: t('verify-email'),
-		// 	description: t('verify-email-description-2'),
-		// },
-	};
-
-	const form = useForm({
-		resolver: zodResolver(schema),
-		defaultValues: {
-			email: '',
-		},
-	});
-
-	const {
-		formState: { isSubmitting },
-	} = form;
-
-	useSyncFormToLang(i18n.language, form);
-
-	const fetcher = useFetcher<typeof action>();
-
-	const errorFetcher = fetcher.data?.error;
-	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
-
-	const handleSubmit = form.handleSubmit(async (data) => {
-		await fetcher.submit(
-			{
-				...data,
-				intent,
-			},
-			{
-				method: 'post',
-			},
-		);
-	});
-
-	if (fetcher.data?.status === 'success') {
-		return (
-			<Box>
-				<Typography variant="h5" color="text.primary" sx={{ mb: 2 }}>
-					{t('verify-email-request-sent')}
-				</Typography>
-				<Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-					{t('verify-email-request-sent-description-part1')}
-					<Typography component="span" sx={{ fontWeight: 'bold' }}>
-						{form.getValues().email}
-					</Typography>
-					{t('verify-email-request-sent-description-part2')}
-				</Typography>
-				<Button
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.home}
-					variant="text"
-					color="primary"
-					endIcon={<Iconify icon="eva:arrow-forward-fill" />}
-				>
-					{t('go-to-home')}
-				</Button>
-			</Box>
-		);
-	}
-
-	return (
-		<>
-			{!!errorMessage && (
-				<Alert severity="error" sx={{ mb: 3 }}>
-					{errorMessage}
-				</Alert>
-			)}
-			<Form methods={form} onSubmit={handleSubmit}>
-				<Typography variant="h5" color="text.primary" sx={{ mb: 2 }}>
-					{formText[intent].title}
-				</Typography>
-				<Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-					{formText[intent].description}
-				</Typography>
-				<Field.Text
-					name="email"
-					label={t('email-address')}
-					slotProps={{ inputLabel: { shrink: true } }}
-				/>
-				<Button
-					fullWidth
-					size="large"
-					type="submit"
-					variant="contained"
-					sx={{ mt: 3 }}
-					loading={isSubmitting}
-				>
-					{t('verify-email')}
-				</Button>
-			</Form>
-		</>
-	);
-};
