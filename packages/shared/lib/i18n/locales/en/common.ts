@@ -22,6 +22,7 @@ const commonEN = {
 	tenant: 'Tenant',
 	tenants: 'Tenants',
 	status: 'Status',
+	link: 'Link',
 
 	// ? ...
 	views: 'Views',
@@ -49,6 +50,7 @@ const commonEN = {
 	'item-is-required': '{{item}} is required',
 	'item-not-found': '{{item}} not found',
 	'item-is-invalid': '{{item}} is invalid',
+	'invalid-item': 'Invalid {{item}}',
 	'new-item': 'New {{item}}',
 	'item-is-not-instance-of-type': '{{item}} is not instance of {{type}}',
 	'item-not-translated-short': '{{item}} not translated',
@@ -112,6 +114,9 @@ const commonEN = {
 	'save-item-confirmation-title': 'Save {{item}}?',
 	'save-item-confirmation-message':
 		'{{item}} will be saved with the following informations. Please confirm.',
+
+	'invalid-email-verification-link-description':
+		'The verification link you issued is invalid or expired. Contact your administrator to get a new link.',
 
 	'Error while uploading file': 'Error while uploading file',
 

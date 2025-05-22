@@ -289,6 +289,7 @@ export const functionName = {
 		getTenantAuthData: 'getTenantAuthData',
 		getIsDisabledSignup: 'getIsDisabledSignup',
 		getRedirectCode: 'getRedirectCode',
+		checkEmailVerificationToken: 'checkEmailVerificationToken',
 		// ====
 		removeSeededUsers: 'removeSeededUsers',
 	},
@@ -354,6 +355,7 @@ export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
 export const queryParamKey = {
 	language: 'lng',
+	token: 'token',
 };
 
 export const jobType = {
