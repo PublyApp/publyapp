@@ -22,6 +22,10 @@ const routes = [
 			getLastPath(FRONT_PATH_NAMES.auth.signup),
 			'routes/auth/signup/sign-up-page.tsx',
 		),
+		route(
+			getLastPath(FRONT_PATH_NAMES.auth.verifyEmail),
+			'routes/auth/verify-email/verify-email-page.tsx',
+		),
 	]),
 	layout('routes/authed/_layout/authed-layout.tsx', [
 		route(
