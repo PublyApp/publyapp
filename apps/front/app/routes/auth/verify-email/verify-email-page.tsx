@@ -2,11 +2,10 @@ import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { queryParamKey } from '@/shared/lib/constants';
 import { data } from 'react-router';
 import type { Route } from './+types/verify-email-page';
-import type { i18n } from 'i18next';
+import { useCheckEmailVerificationToken } from '@/front/lib/react-query/features/auth/auth.hooks';
 
 export const clientLoader = getClientLoader({
 	loader: async ({ request, z }) => {
-		await (z.i18n as i18n).loadNamespaces(['common']);
 		const t = z.t;
 		const url = new URL(request.url);
 		const searchParams = url.searchParams;
@@ -34,7 +33,7 @@ export const clientLoader = getClientLoader({
 const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
 	const token = loaderData.token;
 
-	// const {} = useCheckEmailVerificationToken({ variables: { token } });
+	const { data } = useCheckEmailVerificationToken({ variables: { token } });
 
 	// if (!token) {
 	// 	return (
