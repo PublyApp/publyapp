@@ -62,7 +62,7 @@ const commonFR = {
 	'down-here': 'Ici bas',
 	'unknown-item': '{{item}} inconnu',
 	'pricing-plan': 'Plan tarifaire',
-	'auth-welcome-title': 'Bienvenu(e) à nouveau',
+	'auth-welcome-title': 'Re-bienvenu(e)',
 	cancel: 'Annuler',
 	confirm: 'Confirmer',
 
