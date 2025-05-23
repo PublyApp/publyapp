@@ -17,7 +17,12 @@ import dayjs from 'dayjs';
 const backendUrl = new URL(env.VITE_SERVER_URL);
 backendUrl.pathname = '/resources/{{lng}}.{{ns}}.json';
 
+let INITIALIZED = false;
+
 export const initI18nOnClient = async () => {
+	if (INITIALIZED) {
+		return i18next;
+	}
 	await i18next
 		.use(initReactI18next) // Tell i18next to use the react-i18next plugin
 		.use(LanguageDetector) // Setup a client-side language detector
@@ -39,6 +44,8 @@ export const initI18nOnClient = async () => {
 				caches: [],
 			},
 		});
+
+	INITIALIZED = true;
 
 	i18next.on('languageChanged', (language) => {
 		const correctLocale = getCorrectLocale(language);
