@@ -13,7 +13,10 @@ import {
 	ServerRouter,
 } from 'react-router';
 
-import { queryParamKey } from '@/shared/lib/constants';
+import {
+	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	queryParamKey,
+} from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
@@ -36,7 +39,11 @@ const handleRequest = async (
 					path: request.url,
 					method: request.method,
 					host: request.headers.get('host'),
-					ipAddress: request.headers.get('x-forwarded-for'),
+					'x-forwarded-for': request.headers.get('x-forwarded-for'),
+					'x-real-ip': request.headers.get('x-real-ip'),
+					[CLOUDFLARE_CONNECTING_IP_HEADER_KEY]: request.headers.get(
+						CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+					),
 					userAgent: request.headers.get('user-agent'),
 				},
 			});

@@ -3,7 +3,6 @@ import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
 import {
 	fromAuthedUserParseFunction,
 	fromPublicParseFunction,
-	fromTenantMemberParseFunction,
 	parseFunctionEnhanced,
 	type FunctionParams,
 	type FunctionReturn,
@@ -14,11 +13,7 @@ import {
 	parseFields,
 	removeParseFields,
 } from '@/server/lib/parse/parse.utils';
-import {
-	className,
-	functionName,
-	tenantSubRoleSet,
-} from '@/shared/lib/constants';
+import { className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
 
 import RoleService from './role/role.service';
