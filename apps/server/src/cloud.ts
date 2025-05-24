@@ -1,5 +1,5 @@
 import { logger } from '@/server/lib/winston';
-import { parseFunction } from './lib/parse/function.utils';
+import { parseFunction } from './lib/parse/cloud/function';
 
 const functions = async () => {
 	Parse.Cloud.define(
