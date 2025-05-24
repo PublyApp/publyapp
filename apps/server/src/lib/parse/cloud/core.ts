@@ -1,19 +1,18 @@
+import _ from 'lodash';
+import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
+import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
+import chalk from 'chalk';
+import { ZodError } from 'zod';
+import { getCorrectLocale } from '@org/shared/lib/i18n/i18n.utils';
 import { HttpException } from '@/server/exceptions/HttpException';
 import {
 	FORWARDED_FOR_HEADER_KEY,
 	LOCALE_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
-import { getCorrectLocale } from '@org/shared/lib/i18n/i18n.utils';
-import chalk from 'chalk';
-import _ from 'lodash';
-import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
-import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
-import { ZodError } from 'zod';
-import { CONFIG_ENABLE_CHECK_SESSION_IP } from '../../constants';
-import { env } from '../../env';
 import { getT } from '../../i18n';
 import { getCurrentInstallationId, getInternalConfig } from '../parse.utils';
+import { env } from '../../env';
 
 export type ParseFunction<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
@@ -116,7 +115,7 @@ const getParseFunctionName = ({
 	return functionName;
 };
 
-export const alterLogger = ({
+const alterLogger = ({
 	req,
 	functionType,
 	functionName,
@@ -173,10 +172,6 @@ export const alterLogger = ({
 	const newLog = {
 		...oldLog,
 		adapter: oldLog.adapter,
-		debug: (...args: unknown[]) => {
-			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
-			oldLog.debug(...args);
-		},
 		info: (...args: unknown[]) => {
 			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
 			oldLog.info(...args);
@@ -230,17 +225,16 @@ export const cloudFunction: CloudFunction = <
 		const log: LoggerController = req.log;
 
 		try {
-			log.debug(`${functionType} started`, {
+			log.info(`${functionType} started`, {
 				user: _.get(req, 'user.id', undefined),
 				params: _.get(req, 'params', {}),
 			});
 			const t1 = performance.now();
 			const result = await innerFunction(req as never);
 			const t2 = performance.now();
-			log.debug(`${functionType} finished in ${(t2 - t1).toFixed(2)} ms`, {
+			log.info(`${functionType} finished in ${(t2 - t1).toFixed(2)} ms`, {
 				result,
 			});
-
 			return result;
 		} catch (error: unknown) {
 			const localeInHeader = getCorrectLocale(
@@ -291,11 +285,7 @@ export const cloudFunction: CloudFunction = <
 
 				if (error instanceof HttpException) {
 					return Promise.reject(
-						new CloudFunctionHttpException(error.status, message, {
-							xcode: error.xcode,
-							body: error.body,
-							meta: error.meta,
-						}),
+						new CloudFunctionHttpException(error.status, message),
 					);
 				}
 
@@ -324,24 +314,13 @@ export const getParseFunctionHeader = (
 // ! only use the isCloudHttpException utility below
 class CloudFunctionHttpException extends Parse.Error {
 	status: number;
-	xcode?: string;
-	body?: Record<string, unknown>;
-	meta?: Record<string, unknown>;
 
-	constructor(
-		status: number,
-		message: string,
-		options?: {
-			xcode?: string;
-			body?: Record<string, unknown>;
-			meta?: Record<string, unknown>;
-		},
-	) {
+	xcode?: string;
+
+	constructor(status: number, message: string, xcode?: string) {
 		super(Parse.Error.SCRIPT_FAILED, message);
 		this.status = status;
-		this.xcode = options?.xcode;
-		this.body = options?.body;
-		this.meta = options?.meta;
+		this.xcode = xcode;
 	}
 }
 
@@ -351,7 +330,9 @@ export const isCloudHttpException = (
 	return error instanceof CloudFunctionHttpException;
 };
 
-// * verify if the call is not from our cloud code (not from our server itself)
+// * allow us to verify ip address if the request is not from the cloud functions and from an user with a session token
+// * in other words: verify if the call is not from our cloud code (not from our server itself)
+// * especially necessary if directAccess is set to false
 export const isFromCloudEnvironment = async (
 	req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest,
 ) => {
@@ -372,10 +353,6 @@ export const isNotValidIp = async ({
 	req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest;
 	sessionToken: string;
 }) => {
-	if (!CONFIG_ENABLE_CHECK_SESSION_IP) {
-		return false;
-	}
-
 	const session = await new Parse.Query(Parse.Session)
 		.equalTo('sessionToken', sessionToken)
 		.select(['ipAddress'])

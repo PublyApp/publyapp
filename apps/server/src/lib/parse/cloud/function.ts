@@ -1,57 +1,37 @@
-import { logger } from '@org/shared/lib/winston.server';
-import type { RequestHandler } from 'express';
-import _ from 'lodash';
-import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
-import { getLogger } from 'parse-server/lib/logger.js';
-import { HttpException } from '@/server/exceptions/HttpException';
-import { checkParseHeaders } from '@/server/middlewares/check-parse-headers.middleware';
-import protectionMiddleware, {
-	authType as iAuthType,
-	type ProtectionMiddlewareOptions,
-} from '@/server/middlewares/protection.middleware';
-import RoleService from '@/server/modules/common/auth/role/role.service';
-import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
-import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
-import {
-	endPoint,
-	LOCALE_HEADER_KEY,
-	PARSE_INSTALLATION_ID_HEADER_KEY,
-	type RoleSet,
-	roleSet,
-	type StaffRoleSet,
-	TENANT_ID_HEADER_KEY,
-	type TenantSubRoleSet,
-	tenantSubRoleSet,
-	userGroup,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import InterZod from '@/shared/lib/zod/InterZod';
-import { makePath } from '@/shared/utils/string.utils';
-import { USE_MASTER_KEY } from '../../constants';
 import {
-	expressHandler,
-	getHeader,
-	getRequestIp,
-	getRequestUtils,
-} from '../../express';
-import { getT, i18nextServer } from '../../i18n';
-import { getCurrentInstallationId } from '../parse.utils';
-import {
-	alterLogger,
 	cloudFunction,
 	getParseFunctionHeader,
 	isFromCloudEnvironment,
 	isNotValidIp,
 	type ParseFunction,
 } from './core';
+import InterZod from '@/shared/lib/zod/InterZod';
+import { getT, i18nextServer } from '../../i18n';
+import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
+import {
+	LOCALE_HEADER_KEY,
+	roleSet,
+	TENANT_ID_HEADER_KEY,
+	tenantSubRoleSet,
+	userGroup,
+	type RoleSet,
+	type StaffRoleSet,
+	type TenantSubRoleSet,
+} from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import { HttpException } from '@/server/exceptions/HttpException';
+import RoleService from '@/server/modules/common/auth/role/role.service';
+import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
+import { USE_MASTER_KEY } from '../../constants';
+import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
 
-// biome-ignore lint/suspicious/noExplicitAny: nothing to explain here
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
 	ReturnType<T>
 >;
 
-// biome-ignore lint/suspicious/noExplicitAny: nothing to explain here
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type FunctionParams<T extends ParseFunction<any, any>> =
 	Parameters<T>[0]['params'];
 
@@ -139,7 +119,6 @@ type ParseFunctionEnhancedParams<
 	  }
 	// * case B - 1: request must be from a tenant member
 	// * implicitly, that means also: if the user is a staff member allow the function to run
-	// * but if the user is a staff member, only allow the middleware to pass if the user has the correct tenant sub roles
 	| {
 			requireUser: true;
 			group: typeof userGroup.TENANT;
@@ -158,7 +137,6 @@ type ParseFunctionEnhancedParams<
 ) & {
 	requireMasterKey?: boolean;
 	validateParams?: ParamsValidator<P>;
-	name: string;
 };
 
 export const parseFunctionEnhanced = <
@@ -167,15 +145,6 @@ export const parseFunctionEnhanced = <
 >(
 	params: ParseFunctionEnhancedParams<P, T>,
 ) => {
-	if (
-		!_.isNil(params.group) &&
-		!_.includes(_.values(userGroup), params.group)
-	) {
-		throw new Error(
-			`Invalid group:${params.group} is not a valid group. Valid groups are: ${_.join(_.values(userGroup), ', ')}`,
-		);
-	}
-
 	const {
 		requireUser,
 		validateParams,
@@ -294,7 +263,6 @@ export const parseFunctionEnhanced = <
 
 			const userHasRolePromise = roleService.hasRole(
 				user,
-				//.if group === userGroup.TENANT then allowed roleSet is fixed by us (the developer): roleSet.ABOVE_TENANT_USER
 				roleSet.ABOVE_TENANT_USER,
 			);
 			const isUserStaffMemberPromise = roleService.isUserStaffMember(user);
@@ -404,7 +372,7 @@ export const parseFunctionEnhanced = <
 		}
 
 		// --------------------------------------------------------------------------------------//
-		//                           only staff member are authorized                            //
+		//                           only staff member are authorized                           //
 		// --------------------------------------------------------------------------------------//
 		const { allowedRoles = roleSet.STAFF_MEMBER } = params;
 
@@ -449,27 +417,20 @@ export const parseFunctionEnhanced = <
 		});
 	});
 
-	_.set(actionBuilder, 'params', params);
-
-	return actionBuilder as typeof actionBuilder & {
-		params: typeof params;
-	};
+	return actionBuilder;
 };
 
 export const fromPublicParseFunction = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >({
-	name,
 	action,
 	validateParams,
 }: {
-	name: string;
 	action: ActionType1<P, T>;
 	validateParams?: ParamsValidator<P>;
 }) => {
 	return parseFunctionEnhanced({
-		name,
 		requireUser: false,
 		action,
 		validateParams,
@@ -480,18 +441,15 @@ export const fromAuthedUserParseFunction = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >({
-	name,
 	action,
 	validateParams,
 	allowedRoles,
 }: {
-	name: string;
 	action: ActionType2<P, T>;
 	validateParams?: ParamsValidator<P>;
 	allowedRoles?: RoleSet;
 }) => {
 	return parseFunctionEnhanced({
-		name,
 		requireUser: true,
 		group: userGroup.ANY,
 		action,
@@ -504,18 +462,15 @@ export const fromTenantMemberParseFunction = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >({
-	name,
 	action,
 	validateParams,
 	allowedTenantSubRoles,
 }: {
-	name: string;
 	action: ActionType3<P, T>;
 	validateParams?: ParamsValidator<P>;
 	allowedTenantSubRoles?: TenantSubRoleSet;
 }) => {
 	return parseFunctionEnhanced({
-		name,
 		requireUser: true,
 		group: userGroup.TENANT,
 		action,
@@ -528,115 +483,19 @@ export const fromStaffMemberParseFunction = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >({
-	name,
 	action,
 	validateParams,
 	allowedRoles,
 }: {
-	name: string;
 	action: ActionType2<P, T>;
 	validateParams?: ParamsValidator<P>;
 	allowedRoles?: StaffRoleSet;
 }) => {
 	return parseFunctionEnhanced({
-		name,
 		requireUser: true,
 		group: userGroup.STAFF,
 		action,
 		validateParams,
 		allowedRoles,
 	});
-};
-
-export const defineCloudFunction = <
-	P extends Parse.Cloud.Params = Parse.Cloud.Params,
-	T = unknown,
->(
-	parseFunction: ReturnType<typeof parseFunctionEnhanced<P, T>>,
-) => {
-	Parse.Cloud.define(parseFunction.params.name, parseFunction);
-};
-
-export const createExpressHandler = <
-	P extends Parse.Cloud.Params = Parse.Cloud.Params,
-	T = unknown,
->(
-	parseFunction: ReturnType<typeof parseFunctionEnhanced<P, T>>,
-	authType?: ProtectionMiddlewareOptions['authType'],
-) => {
-	const handler = expressHandler(async (req, res, next) => {
-		const { z, t, locale } = getRequestUtils(req);
-
-		if (parseFunction.params.requireUser) {
-			if (!req.user) {
-				logger.error(
-					'Pass the auth protection middleware before this handler!!',
-				);
-				return next(new HttpException(500, t('Internal server error')));
-			}
-		}
-
-		const { action, validateParams } = parseFunction.params;
-
-		const params = validateParams?.({ params: req.body, z }) || req.body;
-		const installationId =
-			getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) ||
-			_.get(req, 'body._InstallationId') ||
-			(await getCurrentInstallationId());
-		const ip = getRequestIp(req);
-		const log = getLogger();
-
-		const functionName = parseFunction.params.name;
-		const actionRequest: Parameters<
-			typeof parseFunction.params.action
-		>[0]['req'] = {
-			functionName,
-			context: {},
-			headers: req.headers,
-			params,
-			log,
-			installationId,
-			ip,
-		};
-		alterLogger({ req: actionRequest, functionName, functionType: 'function' });
-
-		const result = await action({
-			isStaffMember: true,
-			req: actionRequest,
-			params,
-			t,
-			log,
-			locale,
-			user: req.user as never,
-			z,
-		});
-
-		return res.status(200).json(result);
-	});
-
-	_.set(
-		handler,
-		'path',
-		makePath(endPoint.api.parse.functions, parseFunction.params.name),
-	);
-
-	const { group, allowedRoles, allowedTenantSubRoles } = parseFunction.params;
-
-	let authMiddleware: RequestHandler = (_req, _res, next) => next();
-
-	if (parseFunction.params.requireUser) {
-		authMiddleware = protectionMiddleware({
-			authType: authType || iAuthType.SESSION_TOKEN,
-			group,
-			allowedRoles,
-			allowedTenantSubRoles,
-		} as never);
-	}
-
-	_.set(handler, 'middlewares', [checkParseHeaders, authMiddleware]);
-
-	return handler as typeof handler & {
-		path: string;
-		middlewares: RequestHandler[];
-	};
 };

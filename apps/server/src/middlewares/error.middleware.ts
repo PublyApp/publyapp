@@ -7,8 +7,8 @@ import { HttpException } from '@/server/exceptions/HttpException';
 import { logger } from '@/server/lib/winston';
 
 import { getRequestUtils } from '../lib/express';
-import { isCloudHttpException } from '../lib/parse/function.utils';
 import { posthogClient } from '../lib/posthog';
+import { isCloudHttpException } from '../lib/parse/cloud/core';
 
 // ! this is the only middleware that we should not wrap into expressHandler wrapper function
 export const errorMiddleware: ErrorRequestHandler = async (
