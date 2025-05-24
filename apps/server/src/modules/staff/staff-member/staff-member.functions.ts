@@ -1,7 +1,4 @@
-import {
-	fromStaffMemberParseFunction,
-	getParseFunctionHeader,
-} from '@/server/lib/parse/function.utils';
+import { fromStaffMemberParseFunction } from '@/server/lib/parse/cloud/function';
 import {
 	fileProvider,
 	functionName,
@@ -19,6 +16,7 @@ import ParseUser from '../../common/auth/user/user.class';
 import RoleService from '../../common/auth/role/role.service';
 import type { IUser } from '@/shared/types/db/user.types';
 import { USE_MASTER_KEY } from '@/server/lib/constants';
+import { getParseFunctionHeader } from '@/server/lib/parse/cloud/core';
 
 const createStaffMember = fromStaffMemberParseFunction({
 	allowedRoles: roleSet.STAFF_ADMIN_ONLY,

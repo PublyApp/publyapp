@@ -1,17 +1,24 @@
 import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
 import {
+	fromAuthedUserParseFunction,
+	fromPublicParseFunction,
+	fromTenantMemberParseFunction,
 	parseFunctionEnhanced,
 	type FunctionParams,
 	type FunctionReturn,
-} from '@/server/lib/parse/function.utils';
+} from '@/server/lib/parse/cloud/function';
 import {
 	getDatabase,
 	getGlobalConfig,
 	parseFields,
 	removeParseFields,
 } from '@/server/lib/parse/parse.utils';
-import { className, functionName, roleSet } from '@/shared/lib/constants';
+import {
+	className,
+	functionName,
+	tenantSubRoleSet,
+} from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
 
 import RoleService from './role/role.service';
@@ -23,8 +30,7 @@ export namespace GetUserAuthDataFunction {
 	export type Return = FunctionReturn<typeof getUserAuthDataFunction>;
 }
 
-const getUserAuthDataFunction = parseFunctionEnhanced({
-	requireUser: true,
+const getUserAuthDataFunction = fromAuthedUserParseFunction({
 	action: async ({ user }) => {
 		const sessionToken = user.getSessionToken();
 
@@ -62,7 +68,7 @@ export namespace GetIsDisabledSignupFunction {
 	export type Return = FunctionReturn<typeof getIsDisabledSignupFunction>;
 }
 
-const getIsDisabledSignupFunction = parseFunctionEnhanced({
+const getIsDisabledSignupFunction = fromPublicParseFunction({
 	action: async () => {
 		const globalConfig = await getGlobalConfig();
 		const disabledSignup: boolean = globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY);
@@ -76,9 +82,7 @@ export namespace GetRedirectCodeFunction {
 	export type Return = FunctionReturn<typeof getRedirectCodeFunction>;
 }
 
-const getRedirectCodeFunction = parseFunctionEnhanced({
-	requireUser: true,
-	allowedRoles: roleSet.ABOVE_TENANT_USER,
+const getRedirectCodeFunction = fromAuthedUserParseFunction({
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
 			tenantId: z.string().optional(),
@@ -172,8 +176,7 @@ export namespace GetTenantAuthDataFunction {
 	export type Return = FunctionReturn<typeof getTenantAuthDataFunction>;
 }
 
-const getTenantAuthDataFunction = parseFunctionEnhanced({
-	requireUser: true,
+const getTenantAuthDataFunction = fromAuthedUserParseFunction({
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
 			tenantId: z.string(),

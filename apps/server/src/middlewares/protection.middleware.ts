@@ -21,7 +21,7 @@ type ProtectionMiddlewareOptions = (
 	  }
 	| {
 			withAuth?: false;
-			roles?: never;
+			roles?: undefined;
 	  }
 ) & {
 	withKey?: boolean;
