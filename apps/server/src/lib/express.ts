@@ -21,6 +21,8 @@ import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import InterZod from '@/shared/lib/zod/InterZod';
 
 import { i18nextServer } from './i18n';
+import type { TFunction } from 'i18next';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 type ParamsDictionary = Record<string, string>;
 
@@ -118,17 +120,31 @@ export const getHeader = (req: Request, key: string) => {
 	return req.get(key) || req.get(_.toLower(key));
 };
 
+export type RequestUtils = {
+	t: TFunction;
+	z: InterZod;
+	locale: AppLocale;
+};
+
 export const getRequestUtils = (req: Request) => {
+	if (req.requestUtils) {
+		return req.requestUtils;
+	}
+
 	const localeInHeaders = getHeader(req, LOCALE_HEADER_KEY);
 	const locale = getCorrectLocale(localeInHeaders);
 	const z = new InterZod({ i18n: i18nextServer, locale });
 	const { t } = z;
 
-	return {
+	const requestUtils = {
 		locale,
 		t,
 		z,
 	};
+
+	req.requestUtils = requestUtils;
+
+	return requestUtils;
 };
 
 export const getRequestIp = (req: Request) => {

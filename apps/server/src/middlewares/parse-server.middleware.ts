@@ -9,7 +9,11 @@ import {
 import { makePath } from '@/shared/utils/string.utils';
 
 import { HttpException } from '../exceptions/HttpException';
-import { PARSE_SERVER_URL, USE_MASTER_KEY } from '../lib/constants';
+import {
+	CONFIG_ENABLE_CHECK_SESSION_IP,
+	PARSE_SERVER_URL,
+	USE_MASTER_KEY,
+} from '../lib/constants';
 import { env } from '../lib/env';
 import { expressHandler, getHeader, getRequestIp } from '../lib/express';
 import { getCurrentInstallationId } from '../lib/parse/parse.utils';
@@ -57,6 +61,10 @@ const handleMatchSessionIp = async (
 	req: express.Request,
 	_res: express.Response,
 ) => {
+	if (!CONFIG_ENABLE_CHECK_SESSION_IP) {
+		return;
+	}
+
 	const _allowedPaths = ['/health'] satisfies `/${string}`[];
 
 	const allowedPaths: string[] = [..._allowedPaths];

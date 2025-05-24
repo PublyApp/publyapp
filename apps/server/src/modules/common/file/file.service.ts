@@ -85,8 +85,4 @@ export default class FileService {
 
 		return uploadAdapterMap;
 	}
-
-	// public static get defaultUploadAdapter(): Uploader {
-	// 	return new CloudFlareUploader();
-	// }
 }

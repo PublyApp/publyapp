@@ -13,6 +13,7 @@ import {
 import { getT } from '../../i18n';
 import { getCurrentInstallationId, getInternalConfig } from '../parse.utils';
 import { env } from '../../env';
+import { CONFIG_ENABLE_CHECK_SESSION_IP } from '../../constants';
 
 export type ParseFunction<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
@@ -353,6 +354,10 @@ export const isNotValidIp = async ({
 	req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest;
 	sessionToken: string;
 }) => {
+	if (!CONFIG_ENABLE_CHECK_SESSION_IP) {
+		return false;
+	}
+
 	const session = await new Parse.Query(Parse.Session)
 		.equalTo('sessionToken', sessionToken)
 		.select(['ipAddress'])

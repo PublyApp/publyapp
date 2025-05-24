@@ -98,7 +98,10 @@ type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
 type ParseFunctionEnhancedParams<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
-> = ( // --------------------------------------------------------------------------------------// //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
+> = // --------------------------------------------------------------------------------------//
+//                                  case A: no auth needed                               //
+// --------------------------------------------------------------------------------------//
+(
 	| {
 			requireUser?: false | undefined; // which means public access
 			group?: undefined;
@@ -119,6 +122,7 @@ type ParseFunctionEnhancedParams<
 	  }
 	// * case B - 1: request must be from a tenant member
 	// * implicitly, that means also: if the user is a staff member allow the function to run
+	// * but if the user is a staff member, only allow the middleware to pass if the user has the correct tenant sub roles
 	| {
 			requireUser: true;
 			group: typeof userGroup.TENANT;
@@ -263,6 +267,7 @@ export const parseFunctionEnhanced = <
 
 			const userHasRolePromise = roleService.hasRole(
 				user,
+				//.if group === userGroup.TENANT then allowed roleSet is fixed by us (the developer): roleSet.ABOVE_TENANT_USER
 				roleSet.ABOVE_TENANT_USER,
 			);
 			const isUserStaffMemberPromise = roleService.isUserStaffMember(user);
@@ -372,7 +377,7 @@ export const parseFunctionEnhanced = <
 		}
 
 		// --------------------------------------------------------------------------------------//
-		//                           only staff member are authorized                           //
+		//                           only staff member are authorized                            //
 		// --------------------------------------------------------------------------------------//
 		const { allowedRoles = roleSet.STAFF_MEMBER } = params;
 
