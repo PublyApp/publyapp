@@ -1,7 +1,4 @@
-import {
-	defineCloudFunction,
-	fromStaffMemberParseFunction,
-} from '@/server/lib/parse/cloud/function';
+import { fromStaffMemberParseFunction } from '@/server/lib/parse/cloud/function';
 import {
 	fileProvider,
 	functionName,
