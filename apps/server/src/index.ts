@@ -215,28 +215,6 @@ const bootstrap = async () => {
 
 	parseServer.app.disable('x-powered-by');
 
-	// some middlewares to some functions
-	// those are exceptional functions
-
-	// // For small files, use memory storage
-	// // For larger files, use disk storage
-	// // It is okay to not pass authentication before multer middleware
-	// // Rely on the cloud function's security, to ensure only authorized users can access this function
-	// app.use(
-	// 	makePath(
-	// 		endPoint.api.parse.functions,
-	// 		functionName.staff.staffMember.create,
-	// 	),
-	// 	multer({
-	// 		storage: multer.memoryStorage(),
-	// 		limits: { fileSize: mbToBytes(3) },
-	// 	}).single('avatar'),
-	// 	async (req, _res, next) => {
-	// 		_.set(req, 'headers.__avatar__', req.file);
-	// 		next();
-	// 	},
-	// );
-
 	app.use(PARSE_SERVER_URL.pathname, parseServerMiddleware, parseServer.app);
 
 	// --------------------------------------------------------------------------------------//
