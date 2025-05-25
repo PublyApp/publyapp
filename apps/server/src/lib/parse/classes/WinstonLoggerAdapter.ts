@@ -11,8 +11,13 @@ import DailyRotateFile from 'winston-daily-rotate-file';
 import duration from '@/shared/utils/duration.utils';
 
 import type { LoggerAdapter } from '../interfaces/LoggerAdapter';
+import { isBun } from "@/shared/lib/constants";
 
-const defaults = _.get(_defaults, 'default') as unknown as typeof _defaults;
+let defaults = _.get(_defaults, 'default') as unknown as typeof _defaults;
+
+if (isBun) {
+	defaults = _defaults;
+}
 
 const MILLISECONDS_IN_A_DAY = duration.toMilliseconds('1d');
 
@@ -177,7 +182,7 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 	// method copy pasted from parse-server source code just for compatibility purpose
 	// custom query as winston is currently limited
 	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
-	query(options: any, callback: (...args: any[]) => void = () => {}) {
+	query(options: any, callback: (...args: any[]) => void = () => { }) {
 		if (!options) {
 			// biome-ignore lint/style/noParameterAssign: code from parse-server leave as is for now
 			options = {};

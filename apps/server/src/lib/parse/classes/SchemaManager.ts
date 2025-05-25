@@ -1,17 +1,19 @@
 import _ from 'lodash';
 import type { Schema } from 'parse-server';
-import MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
-
+import _MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
 import asyncJs from 'async';
 import { MongoServerError, type CreateIndexesOptions } from 'mongodb';
-
-import { className as _className } from '@org/shared/lib/constants';
-
+import { className as _className, isBun } from '@org/shared/lib/constants';
 import { logger } from '@/server/lib/winston';
-import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
-
+import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
 import { DEFAULT_CLP } from '../../constants';
 import { getDatabase } from '../parse.utils';
+
+let MongoSchemaCollection = _MongoSchemaCollection.default;
+
+if (isBun) {
+	MongoSchemaCollection = _MongoSchemaCollection as never;
+}
 
 export type ManagedIndex = {
 	keys: Record<string, 1 | -1>;
@@ -161,7 +163,7 @@ export default class SchemaManager {
 						_.entries(schemaDefinition.fields),
 						([fieldName, value]) => {
 							inputSchemaObjectFields[fieldName] =
-								MongoSchemaCollection.default.parseFieldTypeToMongoFieldType({
+								MongoSchemaCollection.parseFieldTypeToMongoFieldType({
 									type: value.type,
 									targetClass: value.targetClass,
 								});

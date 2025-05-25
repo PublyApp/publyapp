@@ -1,9 +1,9 @@
 // @ts-check
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-
 import _ from 'lodash';
 import fse from 'fs-extra';
+import fs from 'node:fs';
 
 const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../');
 
@@ -11,13 +11,14 @@ const PACKAGES_DIRNAME = 'packages';
 const APPS_DIRNAME = 'apps';
 const SERVER_APP_NAME = 'server';
 const FRONT_APP_NAME = 'front';
+const JOBS_APP_NAME = 'jobs';
 
 const APPS_DIR_SRC = path.join(MONOREPO_ROOT_DIR, APPS_DIRNAME);
 const PACKAGES_DIR_SRC = path.join(MONOREPO_ROOT_DIR, PACKAGES_DIRNAME);
 
-const onWindows = /^win/.test(process.platform);
-const npxCommand = onWindows ? 'npx.cmd' : 'npx';
-const pnpmCommand = onWindows ? 'pnpm.cmd' : 'pnpm';
+// const onWindows = /^win/.test(process.platform);
+const npxCommand = /* onWindows ? 'bunx.cmd' : */ 'bunx';
+const bunCommand = /* onWindows ? 'bun.cmd' : */ 'bun';
 
 const DEPLOY_ROOT_DIR = path.join(MONOREPO_ROOT_DIR, 'scripts', 'build');
 
@@ -30,17 +31,20 @@ const SERVER_APP_DIR_DEST = path.join(APPS_DIR_DEST, SERVER_APP_NAME);
 const FRONT_APP_DIR_SRC = path.join(APPS_DIR_SRC, FRONT_APP_NAME);
 const FRONT_APP_DIR_DEST = path.join(APPS_DIR_DEST, FRONT_APP_NAME);
 
+// const JOBS_APP_DIR_SRC = path.join(APPS_DIR_SRC, JOBS_APP_NAME);
+// const JOBS_APP_DIR_DEST = path.join(APPS_DIR_DEST, JOBS_APP_NAME);
+
 // --------------------------------------------------------------------------------------//
 //                             clean the destination folder                              //
 // --------------------------------------------------------------------------------------//
 fse.removeSync(DEPLOY_ROOT_DIR);
 fse.mkdirSync(DEPLOY_ROOT_DIR);
 
-// ! I don't need a dockerfile, use default nixpacks system
-// // copy DockerFile
-// const dockerFileSrc = path.join(MONOREPO_ROOT_DIR, 'Dockerfile');
-// const dockerFileDest = path.join(DEPLOY_ROOT_DIR, 'Dockerfile');
-// fse.copyFileSync(dockerFileSrc, dockerFileDest);
+// // ! I don't need a dockerfile, use default nixpacks system
+// copy DockerFile
+const dockerFileSrc = path.join(MONOREPO_ROOT_DIR, 'Dockerfile-Bun');
+const dockerFileDest = path.join(DEPLOY_ROOT_DIR, 'Dockerfile');
+fse.copyFileSync(dockerFileSrc, dockerFileDest);
 
 // --------------------------------------------------------------------------------------//
 //                              copy package.json on root                                //
@@ -53,18 +57,10 @@ fse.copyFileSync(rootPackageJsonSrc, rootPackageJsonDest);
 // --------------------------------------------------------------------------------------//
 //                                 copy lock file on root                                //
 // --------------------------------------------------------------------------------------//
-const lockFileName = 'pnpm-lock.yaml';
+const lockFileName = 'bun.lock';
 const rootLockFileSrc = path.join(MONOREPO_ROOT_DIR, lockFileName);
 const rootLockFileDest = path.join(DEPLOY_ROOT_DIR, lockFileName);
 fse.copyFileSync(rootLockFileSrc, rootLockFileDest);
-
-// --------------------------------------------------------------------------------------//
-//                                copy pnpm-workspace file on root                       //
-// --------------------------------------------------------------------------------------//
-const workspaceFileName = 'pnpm-workspace.yaml';
-const workspaceFileSrc = path.join(MONOREPO_ROOT_DIR, workspaceFileName);
-const workspaceFileDest = path.join(DEPLOY_ROOT_DIR, workspaceFileName);
-fse.copyFileSync(workspaceFileSrc, workspaceFileDest);
 
 // --------------------------------------------------------------------------------------//
 //                                   copy .npmrc file on root                            //
@@ -123,13 +119,13 @@ spawnSync(npxCommand, buildArgs, {
 // //                                   build the server                                    //
 // // --------------------------------------------------------------------------------------//
 // const buildArgsServer = ['build', `--filter=${SERVER_APP_NAME}`];
-// spawnSync(pnpmCommand, buildArgsServer, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+// spawnSync(bunCommand, buildArgsServer, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
 
 // // --------------------------------------------------------------------------------------//
 // //                                   build the front                                    //
 // // -------------------------------------------------------------------------------------//
 // const buildArgsFront = ['build', `--filter=${FRONT_APP_NAME}`];
-// spawnSync(pnpmCommand, buildArgsFront, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
+// spawnSync(bunCommand, buildArgsFront, { cwd: MONOREPO_ROOT_DIR, stdio: 'inherit', shell: true });
 
 // --------------------------------------------------------------------------------------//
 //                                   copy the builds                                     //
@@ -167,31 +163,22 @@ _.forEach(subdirectories, (subdirectory) => {
 // --------------------------------------------------------------------------------------//
 //                                  set start command                                    //
 // --------------------------------------------------------------------------------------//
-const mainFile = path.relative(
-	MONOREPO_ROOT_DIR,
-	path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'),
-);
+const mainFile = path
+	.relative(MONOREPO_ROOT_DIR, path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'))
+	.replace(/\\/g, '/');
+
 // console.log(mainFile);
-const START_SCRIPT = `node --enable-source-maps ./${mainFile.replace(/\\/g, '/')}`;
-const args = ['pnpm', 'pkg', 'set', `scripts.start="${START_SCRIPT}"`];
-spawnSync(pnpmCommand, args, {
-	cwd: path.join(DEPLOY_ROOT_DIR),
-	stdio: 'inherit',
-	shell: true,
-});
 
-// unset build command
-const argsUnset = ['pkg', 'delete', 'scripts.build'];
-spawnSync(pnpmCommand, argsUnset, {
-	cwd: path.join(DEPLOY_ROOT_DIR),
-	stdio: 'inherit',
-	shell: true,
-});
+const pkgPath = path.join(DEPLOY_ROOT_DIR, 'package.json');
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
-// unset husky prepare command
-const argsUnset2 = ['pkg', 'delete', 'scripts.prepare'];
-spawnSync(pnpmCommand, argsUnset2, {
-	cwd: path.join(DEPLOY_ROOT_DIR),
-	stdio: 'inherit',
-	shell: true,
-});
+// Set scripts.start using lodash
+const startCommand = `bun --enable-source-maps ./${mainFile}`;
+_.set(pkg, 'scripts.start', startCommand);
+
+// Unset scripts.build and scripts.prepare using lodash
+_.unset(pkg, 'scripts.build');
+_.unset(pkg, 'scripts.prepare');
+
+// Write updated package.json
+fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));

@@ -6,20 +6,19 @@
 		"// =============== BUILD SCRIPTS ===============": "=============================",
 		"build": "turbo build",
 		"build:local": "turbo build:local",
-		"build:deploy": "node ./scripts/deploy.mjs",
+		"build:deploy": "bun ./scripts/deploy.mjs",
 		"// =============== START SCRIPTS ===============": "=============================",
-		"start:railway": "pnpm --filter server run start",
-		"start:test-online": "pnpm --filter server run start:test-online",
+		"start:test-online": "bun run --filter server start:test-online",
 		"// =============== DEV SCRIPTS ===============": "=============================",
 		"dev": "turbo dev",
-		"dev:server": "pnpm --filter server run dev",
-		"dev:front": "pnpm --filter front run dev",
+		"dev:server": "bun run --filter server dev",
+		"dev:front": "bun run --filter front dev",
 		"// =============== TSC SCRIPTS ===============": "=============================",
-		"tsc:server": "pnpm --filter server run type-check",
-		"tsc:front": "pnpm --filter front run type-check",
+		"tsc:server": "bun run --filter server type-check",
+		"tsc:front": "bun run --filter front type-check",
 		"// =============== SEED COMMANDS =================": "================================",
-		"seed": "pnpm --filter server run seed",
-		"seed:debug": "pnpm --filter server run seed:debug",
+		"seed": "bun run --filter server seed",
+		"seed:debug": "bun run --filter server seed:debug",
 		"// =============== LINTING ===============": "================================",
 		"format:check": "biome format .",
 		"format:write": "biome format --write .",
@@ -28,10 +27,11 @@
 		"// =============== MISC ===============": "================================",
 		"knip": "knip",
 		"prepare": "husky",
-		"update-deps": "pnpm up -i -r"
+		"update-deps": "??? in bun ???"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
+		"@types/bun": "^1.2.12",
 		"@types/node": "^20.14.15",
 		"archiver": "^7.0.1",
 		"dotenv": "^16.3.1",
@@ -39,14 +39,19 @@
 		"husky": "^9.0.11",
 		"knip": "^5.46.4",
 		"lint-staged": "^15.2.0",
+		"lodash": "^4.17.21",
 		"tsconfig": "workspace:*",
 		"turbo": "^2.0.3",
 		"typescript": "^5.8.3",
-		"lodash": "^4.17.21"
+		"json": "^11.0.0"
 	},
-	"packageManager": "pnpm@8.15.7",
+	"packageManager": "bun@1.2.12",
 	"engines": {
-		"node": ">=v22.x"
+		"node": ">=v22.x",
+		"bun": ">=1.2.14"
 	},
-	"trustedDependencies": ["sharp"]
+	"trustedDependencies": ["sharp"],
+	"workspaces": {
+		"packages": ["apps/*", "packages/*"]
+	}
 }

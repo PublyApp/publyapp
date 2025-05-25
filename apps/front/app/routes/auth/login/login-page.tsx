@@ -1,5 +1,4 @@
 import dayjs from 'dayjs';
-import i18next from 'i18next';
 import { data, redirect } from 'react-router';
 import { serializeError } from 'serialize-error';
 
@@ -7,7 +6,7 @@ import duration from '@org/shared/utils/duration.utils';
 
 import { CookieManager } from '@/front/lib/cookie-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
-import { getServerAction } from '@/front/lib/react-router/server.data';
+import { getServerAction } from '@/front/lib/react-router/server-data.server';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
@@ -71,11 +70,6 @@ export const action = getServerAction({
 		}) as never;
 	},
 });
-
-export const clientLoader = async (_: Route.ClientLoaderArgs) => {
-	i18next.loadNamespaces(['zod']);
-	return data({});
-};
 
 const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
 	return <LoginForm />;

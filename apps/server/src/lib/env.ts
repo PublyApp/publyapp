@@ -45,6 +45,7 @@ if (LOCAL || TEST_ONLINE_IN_LOCAL) {
 	const envFileName = `.env.${MODE}`;
 	const envConfig = dotenv.config({
 		path: path.resolve(process.cwd(), envFileName),
+		override: true,
 	});
 	dotenvExpand.expand(envConfig);
 }
