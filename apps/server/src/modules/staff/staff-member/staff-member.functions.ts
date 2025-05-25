@@ -1,4 +1,7 @@
-import { fromStaffMemberParseFunction } from '@/server/lib/parse/cloud/function';
+import {
+	defineCloudFunction,
+	fromStaffMemberParseFunction,
+} from '@/server/lib/parse/cloud/function';
 import {
 	fileProvider,
 	functionName,
@@ -18,7 +21,8 @@ import type { IUser } from '@/shared/types/db/user.types';
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { getParseFunctionHeader } from '@/server/lib/parse/cloud/core';
 
-const createStaffMember = fromStaffMemberParseFunction({
+export const createStaffMember = fromStaffMemberParseFunction({
+	name: functionName.staff.staffMember.create,
 	allowedRoles: roleSet.STAFF_ADMIN_ONLY,
 	validateParams: ({ params, z }) => {
 		return z
@@ -106,4 +110,4 @@ const createStaffMember = fromStaffMemberParseFunction({
 	},
 });
 
-Parse.Cloud.define(functionName.staff.staffMember.create, createStaffMember);
+// defineCloudFunction(createStaffMember);
