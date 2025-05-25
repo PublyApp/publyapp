@@ -26,7 +26,7 @@ import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 type ParamsDictionary = Record<string, string>;
 
-type AsyncRequestHandler<
+export type AsyncRequestHandler<
 	P = ParamsDictionary,
 	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 	ResBody = any,
