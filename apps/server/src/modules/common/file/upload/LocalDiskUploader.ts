@@ -6,13 +6,29 @@ import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
 import { fileProvider } from '@/shared/lib/constants';
 
 import type { Uploader, UploadInput } from './Uploader.interface';
+import { logger } from '@/server/lib/winston';
 
 export default class LocalDiskUploader implements Uploader {
 	provider = fileProvider.LOCAL_DISK;
 
 	async upload(params: UploadInput) {
-		await sharp(params.buffer).toFile(
-			path.join(FILE_UPLOAD_DESTINATION, params.name),
+		if (params.storageFrom === 'disk') {
+			// throw new Error('Cannot upload to cloud from disk: not implemented yet');
+			// ** we assume multer has already put the file in the correct place
+			// ** on our local disk
+			logger.info('Uploading to local disk');
+
+			return {
+				// ! remember to:
+				// form the correct path in the server and not on the client when getting an AppFile
+				// I intentionally removed express mount pth from there
+				// ? To avoid confusion, It is better to use external services like cloudinary instead of using local disk
+				url: path.posix.join('/', params.file.originalname),
+			};
+		}
+
+		await sharp(params.file.buffer).toFile(
+			path.join(FILE_UPLOAD_DESTINATION, params.file.originalname),
 		);
 
 		return {
@@ -20,7 +36,7 @@ export default class LocalDiskUploader implements Uploader {
 			// form the correct path in the server and not on the client when getting an AppFile
 			// I intentionally removed express mount pth from there
 			// ? To avoid confusion, It is better to use external services like cloudinary instead of using local disk
-			url: path.posix.join('/', params.name),
+			url: path.posix.join('/', params.file.originalname),
 		};
 	}
 }

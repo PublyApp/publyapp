@@ -1,6 +1,6 @@
 # use the official Bun image
 # see all versions at https://hub.docker.com/r/oven/bun/tags
-FROM oven/bun:1.2.8 AS base
+FROM oven/bun:1.2.14 AS base
 
 # Set working directory
 WORKDIR /usr/src/app
@@ -16,4 +16,4 @@ RUN bun install
 EXPOSE 3000
 
 # Command to run your application
-CMD ["bun", "run", "index.ts"]
+CMD ["bun", "run", "start"]

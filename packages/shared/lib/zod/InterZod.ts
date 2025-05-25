@@ -1,4 +1,4 @@
-import type { TFunction } from 'i18next';
+import type { i18n, TFunction } from 'i18next';
 import _ from 'lodash';
 import z, {
 	defaultErrorMap,
@@ -13,11 +13,13 @@ import z, {
 import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
 
 import { defaultLocale, type AppLocale } from '../i18n/resources';
+import { isServer } from '../constants';
 
 type I18nLike = {
 	// getFixedT: (locale: AppLocale) => TFunction;
 	// getFixedT: typeof i18next.getFixedT;
 	getFixedT: SyncFunction;
+	t?: TFunction;
 };
 
 /**
@@ -30,7 +32,7 @@ class InterZod {
 
 	protected _t: TFunction;
 
-	public get t(): TFunction {
+	public get t() {
 		return this._t;
 	}
 
@@ -51,12 +53,20 @@ class InterZod {
 			this._locale = locale;
 		}
 
-		this._t = this._i18n.getFixedT(this._locale);
+		if (isServer) {
+			this._t = this._i18n.getFixedT(this._locale);
+		} else {
+			this._t = (this._i18n as i18n).t;
+		}
 	}
 
 	setLocale(locale: AppLocale) {
 		this._locale = locale;
-		this._t = this._i18n.getFixedT(this._locale);
+		if (isServer) {
+			this._t = this._i18n.getFixedT(this._locale);
+		} else {
+			this._t = (this._i18n as i18n).t;
+		}
 	}
 
 	getErrorMap(option?: ZodI18nMapOption) {

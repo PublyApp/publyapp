@@ -24,18 +24,18 @@ const commonFR = {
 	status: 'Statut',
 
 	// ? ...
+	views: 'Vues',
 	'created-at': 'Créé le',
 	draft: 'Brouillon',
-	'edit-post': "Éditer l'article",
 	edit: 'Éditer',
+	'edit-post': "Éditer l'article",
+	published: 'Publié',
 	'invalid-number': 'Nombre invalide',
 	new: 'Nouveau',
 	preview: 'Aperçu',
 	'publish-date': 'Date de publication',
-	published: 'Publié',
 	save: 'Sauvegarder',
 	'update-date': 'Date de mise à jour',
-	views: 'Vues',
 	'your-description': 'Votre description',
 	'your-title': 'Votre titre',
 	'your-content': 'Votre contenu',
@@ -44,13 +44,13 @@ const commonFR = {
 	overview: 'Aperçu',
 	'staff-member': 'Membre du staff',
 	'staff-members': 'Membres du staff',
-	'unknown-item': '{{item}} inconnu',
-	'pricing-plan': 'Plan tarifaire',
+	link: 'Lien',
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',
 	'item-not-found': '{{item}} non trouvé',
 	'item-is-invalid': '{{item}} est invalide',
+	'invalid-item': '{{item}} invalide',
 	'new-item': 'Nouveau {{item}}',
 	'item-is-not-instance-of-type': "{{item}} n'est pas une instance de {{type}}",
 	'item-not-translated-short': '{{item}} non traduit',
@@ -60,6 +60,11 @@ const commonFR = {
 		'Retrouvez la version {{otherLanguage}} de ce {{item}}',
 	here: 'Ici',
 	'down-here': 'Ici bas',
+	'unknown-item': '{{item}} inconnu',
+	'pricing-plan': 'Plan tarifaire',
+	'auth-welcome-title': 'Re-bienvenu(e)',
+	cancel: 'Annuler',
+	confirm: 'Confirmer',
 
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',
@@ -78,6 +83,7 @@ const commonFR = {
 	'other-posts': 'Autres articles',
 
 	'sign-in': 'Se connecter',
+	'no-account-yet': 'Pas encore de compte?',
 	'sign-up': "S'inscrire",
 	'create-an-account': 'Créer un compte',
 	'email-address': 'Adresse email',
@@ -95,25 +101,33 @@ const commonFR = {
 	'master-key-only-function': 'Fonction master key uniquement',
 	'max-page-size-exceeded': 'Taille de page maximum de {{max}} excédée',
 
-	'blog-list-meta-title': 'Découvrez nos derniers articles | Devist Blog',
-	'blog-list-og-title': 'Découvrez nos derniers articles',
-	'blog-list-meta-description':
-		'Explorez nos derniers articles de blog pour des articles, des conseils et des histoires perspicaces. Restez à jour avec notre blog.',
-
-	'blog-post-meta-title': '{{title}} | Devist blog',
-
 	'new-signup-disabled': 'Les nouvelles inscriptions sont désactivées',
 	'set-as-current': 'Définir comme actuel',
 	'slug-linked-to-another-post': 'Slug lié à un autre article',
 
 	'list-of-items': 'Liste des {{items}}',
 	unauthorized: 'Non autorisé',
+	'too-many-invalid-requests': 'Trop de requêtes invalides',
+
+	firstname: 'Prénom',
+	lastname: 'Nom',
+	'save-item-confirmation-title': 'Sauvegarder {{item}}?',
+	'save-item-confirmation-message':
+		'{{item}} sera sauvegardé avec les informations suivantes. Veuillez Confirmer.',
+
+	'invalid-email-verification-link-description':
+		'Le lien de vérification que vous avez fourni est invalide ou expiré. Contactez votre administrateur pour obtenir un nouveau lien.',
+
+	'Error while uploading file': 'Error while uploading file',
+	'Internal server error': 'Erreur interne du serveur',
 
 	// messages from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
 	'Session token is expired.': 'Session token expiré.',
 	'Invalid username/password.': "Mot de passe/Nom d'utilisateur invalide",
 	'Invalid session token': 'Session token invalide',
+	'Invalid token': 'Token invalide',
+	'Token expired': 'Token expiré',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

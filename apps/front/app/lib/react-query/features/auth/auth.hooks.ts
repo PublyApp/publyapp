@@ -1,8 +1,9 @@
 import { useSuspenseQuery } from '@tanstack/react-query';
-
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
-
 import { getTenantAuthDataQuery, getUserAuthDataQuery } from './auth.actions';
+import { createSuspenseQuery } from 'react-query-kit';
+import { defaultApiClient } from 'packages/api/ApiClient';
+import { functionName } from '@/shared/lib/constants';
 
 // ---- 1 --------------------------------------------------------------------------------
 
@@ -49,3 +50,12 @@ export const useGetTenantAuthData = ({
 
 	return { result, key: query.queryKey };
 };
+
+// ---- 3 --------------------------------------------------------------------
+
+export const useCheckEmailVerificationToken = createSuspenseQuery({
+	queryKey: [functionName.auth.checkEmailVerificationToken],
+	fetcher: async ({ token }: { token: string }) => {
+		return defaultApiClient.auth.checkEmailVerificationToken({ token });
+	},
+});

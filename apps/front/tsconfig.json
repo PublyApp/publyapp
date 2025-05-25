@@ -3,7 +3,6 @@
 	"compilerOptions": {
 		"verbatimModuleSyntax": true,
 		"rootDirs": [".", "./.react-router/types"],
-
 		"lib": ["DOM", "DOM.Iterable", "ES2022", "ESNext"],
 		"isolatedModules": true,
 		"esModuleInterop": true,
@@ -14,29 +13,28 @@
 		"strict": true,
 		"allowJs": true,
 		"forceConsistentCasingInFileNames": true,
-
 		"module": "ESNext",
-
 		// Remix takes care of building everything in `remix build`.
 		"noEmit": true,
-
 		// For fixing the below error
 		// The inferred type of XXX cannot be named without a reference to '@/ui-react/node_modules/@types/react/jsx-runtime'. This is likely not portable. A type annotation is necessary.
 		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
 		"declarationMap": false,
-		"declaration": false,
-
-		"typeRoots": ["./node_modules/@types"]
+		"declaration": false
+		// ! we are not using pnpm anymore: careful with relative paths here
+		// "typeRoots": ["./node_modules/@types"],
 	},
 	"include": [
 		"**/*",
 		"**/.server/**/*",
 		"**/.client/**/*",
 		".react-router/types/**/*",
-		// ===
+		// ====
 		"@types",
 		"app",
-		"../server/@types"
+		"../server/@types",
+		// ====
+		"../../node_modules/simplebar-react/dist/index.d.ts"
 	],
 	"exclude": ["node_modules", "dist", "build", "public"]
 }

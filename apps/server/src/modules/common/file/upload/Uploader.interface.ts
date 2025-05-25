@@ -1,4 +1,20 @@
-export type UploadInput = { name: string; buffer: Buffer; folderPath?: string };
+import type {
+	MulterDiskFile,
+	MulterMemoryFile,
+} from '@/shared/validations/file/file-server.validations';
+
+// export type UploadInput = {name: string; buffer: Buffer; folderPath?: string };
+export type UploadInput =
+	| {
+			storageFrom: 'memory';
+			file: MulterMemoryFile;
+			folderPath?: string;
+	  }
+	| {
+			storageFrom: 'disk';
+			file: MulterDiskFile;
+			folderPath?: string;
+	  };
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type UploadResult<Meta = Record<string, any>> = {

@@ -100,10 +100,15 @@ const TenantsTable = () => {
 			pagination,
 			density: 'compact',
 		},
+		muiTablePaperProps: {
+			sx: {
+				flexGrow: 1,
+			},
+		},
 	});
 
 	return (
-		<Card>
+		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
 		</Card>
 	);

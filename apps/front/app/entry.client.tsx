@@ -6,8 +6,8 @@ import { I18nextProvider } from 'react-i18next';
 import { HydratedRouter } from 'react-router/dom';
 
 import { initApiClientOnClient } from './lib/api';
-import { initI18nOnClient } from './lib/i18n/initI18n.client';
-import { initZodOnClient } from './lib/zod';
+import { initI18nOnClient } from './lib/i18n/init-i18n.client';
+import { initZodOnClient } from './lib/zod/zod.client';
 
 const hydrate = async () => {
 	const i18n = await initI18nOnClient();
