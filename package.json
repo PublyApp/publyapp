@@ -52,6 +52,6 @@
 	},
 	"trustedDependencies": ["sharp"],
 	"workspaces": {
-		"packages": ["apps/*", "packages/*", "jobs"]
+		"packages": ["apps/*", "packages/*"]
 	}
 }
