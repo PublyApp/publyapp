@@ -17,7 +17,6 @@ import {
 	LOCALE_HEADER_KEY,
 	TENANT_ID_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
-	functionName,
 } from '@/shared/lib/constants';
 import { cloud } from './cloud';
 import {
@@ -44,10 +43,6 @@ import { errorMiddleware } from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
 import { posthogClient } from './lib/posthog';
-import { makePath } from '@/shared/utils/string.utils';
-import _ from 'lodash';
-import { mbToBytes } from '@/shared/utils/any.utils';
-import multer from 'multer';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -177,7 +172,7 @@ const bootstrap = async () => {
 	// start the parse server setup in the background
 	const startParsePromise = parseServer.start();
 
-	// set custom ennPoints routes
+	// set custom endPoints routes
 	app.use(coreApiRouter);
 
 	// --------------------------------------------------------------------------------------//
@@ -223,24 +218,24 @@ const bootstrap = async () => {
 	// some middlewares to some functions
 	// those are exceptional functions
 
-	// For small files, use memory storage
-	// For larger files, use disk storage
-	// It is okay to not pass authentication before multer middleware
-	// Rely on the cloud function's security, to ensure only authorized users can access this function
-	app.use(
-		makePath(
-			endPoint.api.parse.functions,
-			functionName.staff.staffMember.create,
-		),
-		multer({
-			storage: multer.memoryStorage(),
-			limits: { fileSize: mbToBytes(3) },
-		}).single('avatar'),
-		async (req, _res, next) => {
-			_.set(req, 'headers.__avatar__', req.file);
-			next();
-		},
-	);
+	// // For small files, use memory storage
+	// // For larger files, use disk storage
+	// // It is okay to not pass authentication before multer middleware
+	// // Rely on the cloud function's security, to ensure only authorized users can access this function
+	// app.use(
+	// 	makePath(
+	// 		endPoint.api.parse.functions,
+	// 		functionName.staff.staffMember.create,
+	// 	),
+	// 	multer({
+	// 		storage: multer.memoryStorage(),
+	// 		limits: { fileSize: mbToBytes(3) },
+	// 	}).single('avatar'),
+	// 	async (req, _res, next) => {
+	// 		_.set(req, 'headers.__avatar__', req.file);
+	// 		next();
+	// 	},
+	// );
 
 	app.use(PARSE_SERVER_URL.pathname, parseServerMiddleware, parseServer.app);
 

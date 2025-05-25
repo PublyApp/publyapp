@@ -116,7 +116,7 @@ const getParseFunctionName = ({
 	return functionName;
 };
 
-const alterLogger = ({
+export const alterLogger = ({
 	req,
 	functionType,
 	functionName,

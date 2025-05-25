@@ -119,6 +119,7 @@ const commonFR = {
 		'Le lien de vérification que vous avez fourni est invalide ou expiré. Contactez votre administrateur pour obtenir un nouveau lien.',
 
 	'Error while uploading file': 'Error while uploading file',
+	'Internal server error': 'Erreur interne du serveur',
 
 	// messages from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
