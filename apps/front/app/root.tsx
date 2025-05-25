@@ -2,7 +2,14 @@ import './styles/main.css';
 
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from 'react-router';
+import {
+	isRouteErrorResponse,
+	Links,
+	Meta,
+	Outlet,
+	Scripts,
+	ScrollRestoration,
+} from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
 
@@ -11,12 +18,15 @@ import { APP_NAME } from '@/shared/lib/constants';
 
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
-import { View500 } from './components/error/500-view';
-import { SettingsDrawer } from './components/settings/drawer';
-import { defaultSettings } from './components/settings/settings-config';
+import { NotFoundView, View403, View500 } from '@/front/components/error';
+import { SettingsDrawer } from '@/front/components/settings';
+import { defaultSettings } from '@/front/components/settings';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
-import { defaultQueryClient } from './lib/react-query/queryClient';
-import { getServerLoader } from './lib/react-router/server.data';
+import { defaultQueryClient } from './lib/react-query/query-client';
+import { getServerLoader } from './lib/react-router/server-data.server';
+import { Snackbar } from './components/snackbar/snackbar';
+import View400 from './components/error/400-view';
+import _ from 'lodash';
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -65,6 +75,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<QueryClientProvider client={defaultQueryClient}>
 					<MuiThemeProvider>
 						<MotionLazy>
+							<Snackbar />
 							<SettingsDrawer defaultSettings={defaultSettings} />
 							{children}
 						</MotionLazy>
@@ -96,6 +107,23 @@ const App = ({ loaderData }: Route.ComponentProps) => {
 export default App;
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+	if (isRouteErrorResponse(error)) {
+		if (error.status === 400) {
+			return (
+				<View400
+					title={_.get(error.data, 'title')}
+					description={_.get(error.data, 'description')}
+				/>
+			);
+		}
+		if (error.status === 403) {
+			return <View403 />;
+		}
+		if (error.status === 404) {
+			return <NotFoundView />;
+		}
+	}
+
 	if (import.meta.env.PROD) {
 		return <View500 />;
 	}

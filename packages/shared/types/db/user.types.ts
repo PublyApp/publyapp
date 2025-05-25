@@ -1,3 +1,4 @@
+import type ParseUser from '@/server/modules/common/auth/user/user.class';
 import type { BaseAttributes } from 'parse';
 
 // import { AppFile } from './appFile.types';
@@ -19,13 +20,14 @@ export type UserAttributes = {
 
 	status?: UserStatus;
 
-	// ===
+	// ====
 	avatarUrl?: string;
 };
 
 export type IUser = BaseAttributes & UserAttributes;
 
 export type IUserWithRelations = IUser & {
+	createdBy?: IUser;
 	// avatar?: AppFile;
 	// tenants?: {
 	// 	tenant: ITenant;
@@ -33,6 +35,7 @@ export type IUserWithRelations = IUser & {
 };
 
 export type IUserWithParseRelations = IUser & {
+	createdBy?: ParseUser;
 	// avatar?: ParseAppFile;
 	// tenants?: {
 	// 	tenant: ParseTenant;

@@ -1,6 +1,4 @@
-import { parseTriggerEnhanced } from '@/server/lib/parse/function.utils';
-
-// import ParseUserProfile from '../userProfile/userProfile.class';
+import { parseTriggerEnhanced } from '@/server/lib/parse/cloud/trigger';
 
 // --------------------------------------------------------------------------------------//
 //                                     BEFORE SAVE                                       //

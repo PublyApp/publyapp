@@ -1,3 +1,5 @@
+// ====
+
 const commonEN = {
 	hello: 'Hello',
 	userHasNoEmail: 'User has no email',
@@ -20,12 +22,15 @@ const commonEN = {
 	tenant: 'Tenant',
 	tenants: 'Tenants',
 	status: 'Status',
+	link: 'Link',
 
 	// ? ...
 	views: 'Views',
 	'created-at': 'Created at',
-	published: 'Published',
+	'edit-post': 'Edit post',
 	draft: 'Draft',
+	edit: 'Edit',
+	published: 'Published',
 	'invalid-number': 'Invalid number',
 	new: 'New',
 	'your-description': 'Your description',
@@ -35,8 +40,6 @@ const commonEN = {
 	'update-date': 'Update Date',
 	save: 'Save',
 	preview: 'Preview',
-	'edit-post': 'Edit post',
-	edit: 'Edit',
 	list: 'List',
 	settings: 'Settings',
 	overview: 'Overview',
@@ -47,6 +50,7 @@ const commonEN = {
 	'item-is-required': '{{item}} is required',
 	'item-not-found': '{{item}} not found',
 	'item-is-invalid': '{{item}} is invalid',
+	'invalid-item': 'Invalid {{item}}',
 	'new-item': 'New {{item}}',
 	'item-is-not-instance-of-type': '{{item}} is not instance of {{type}}',
 	'item-not-translated-short': '{{item}} not translated',
@@ -58,6 +62,9 @@ const commonEN = {
 	'down-here': 'Down here',
 	'unknown-item': 'Unknown {{item}}',
 	'pricing-plan': 'Pricing plan',
+	'auth-welcome-title': 'Welcome back',
+	cancel: 'Cancel',
+	confirm: 'Confirm',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
@@ -77,6 +84,7 @@ const commonEN = {
 
 	'sign-in': 'Sign in',
 	'sign-up': 'Sign up',
+	'no-account-yet': 'No account yet?',
 	'create-an-account': 'Create an account',
 	'email-address': 'Email address',
 	password: 'Password',
@@ -93,28 +101,33 @@ const commonEN = {
 	'master-key-only-function': 'Master Key only function',
 	'max-page-size-exceeded': 'Max page size of {{max}} exceeded',
 
-	'blog-list-meta-title': 'Discover Our Latest Articles | Devist Blog',
-	'blog-list-og-title': 'Discover Our Latest Articles',
-	'blog-list-meta-description':
-		'Explore our latest blog posts for insightful articles, tips, and stories. Stay updated with our blog.',
-
-	'blog-post-meta-title': '{{title}} | Devist blog',
-	// 'blog-post-og-title': '{{title}}',
-	// 'blog-post-meta-description':
-	// 	'{{description}}',
-
 	'new-signup-disabled': 'New signup are disabled',
 	'set-as-current': 'Set as current',
 	'slug-linked-to-another-post': 'Slug to another article',
 
 	'list-of-items': 'List of {{items}}',
 	unauthorized: 'Unauthorized',
+	'too-many-invalid-requests': 'Too many invalid requests',
+
+	firstname: 'Firstname',
+	lastname: 'Name',
+	'save-item-confirmation-title': 'Save {{item}}?',
+	'save-item-confirmation-message':
+		'{{item}} will be saved with the following informations. Please confirm.',
+
+	'invalid-email-verification-link-description':
+		'The verification link you issued is invalid or expired. Contact your administrator to get a new link.',
+
+	'Error while uploading file': 'Error while uploading file',
+	'Internal server error': 'Internal server error',
 
 	// messages from parse
 	'User email is not verified.': 'User email is not verified.',
 	'Session token is expired.': 'Session token is expired.',
 	'Invalid username/password.': 'Invalid username/password.',
 	'Invalid session token': 'Invalid session token',
+	'Invalid token': 'Invalid token',
+	'Token expired': 'Token expired',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

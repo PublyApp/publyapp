@@ -8,41 +8,30 @@ import Link from '@mui/material/Link';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import { useFetcher } from 'react-router';
-import type { z } from 'zod';
-
 import { FormHead } from '@/front/components/auth/form-head';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
-import { defaultZodClient } from '@/front/lib/zod';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import { getLoginSchema } from '@/shared/validations/auth.validations';
-
 import type { LoginActionResult } from './login-page';
-
-// ----------------------------------------------------------------------
-
-export type SignInSchemaType = z.infer<typeof SignInSchema>;
-
-export const SignInSchema = getLoginSchema(defaultZodClient);
-
-// ----------------------------------------------------------------------
+import { useTranslate } from '@/front/hooks/use-translate';
 
 const LoginForm = () => {
-	// const router = useRouter();
-	// const isLoading = fetcher.state === 'loading';
+	const { t } = useTranslate();
 	const showPassword = useBoolean();
-
 	const fetcher = useFetcher<LoginActionResult>();
 
 	const errorFetcher = fetcher.data?.error;
 	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
 
-	// const [errorMessage, setErrorMessage] = useState<string | null>(errorFetcher ? getErrorMessage(errorFetcher) : null);
+	const loginSchema = getLoginSchema(defaultZodClient);
+	const loginResolver = zodResolver(loginSchema);
 
 	const methods = useForm({
-		resolver: zodResolver(getLoginSchema(defaultZodClient)),
+		resolver: loginResolver,
 		defaultValues: {
 			email: '',
 			password: '',
@@ -63,7 +52,7 @@ const LoginForm = () => {
 		<Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
 			<Field.Text
 				name="email"
-				label="Email address"
+				label={t('email-address')}
 				slotProps={{ inputLabel: { shrink: true } }}
 			/>
 
@@ -75,7 +64,7 @@ const LoginForm = () => {
 					color="inherit"
 					sx={{ alignSelf: 'flex-end' }}
 				>
-					Forgot password?
+					{t('forgot-password')}?
 				</Link>
 
 				<Field.Text
@@ -113,7 +102,7 @@ const LoginForm = () => {
 				loading={isSubmitting}
 				loadingIndicator="Sign in..."
 			>
-				Sign in
+				{t('sign-in')}
 			</Button>
 		</Box>
 	);
@@ -121,16 +110,16 @@ const LoginForm = () => {
 	return (
 		<>
 			<FormHead
-				title="Sign in to your account"
+				title={t('sign-in')}
 				description={
 					<>
-						{"Don't have an account? "}
+						{t('no-account-yet')}{' '}
 						<Link
 							component={RouterLink}
 							href={FRONT_PATH_NAMES.auth.signup}
 							variant="subtitle2"
 						>
-							Get started
+							{t('create-an-account')}
 						</Link>
 					</>
 				}

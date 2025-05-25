@@ -8,8 +8,7 @@ import {
 	endPoint,
 	LOCALE_HEADER_KEY,
 	SESSION_TOKEN_COOKIE_KEY,
-	// X_FORWARDED_FOR_HEADER_KEY,
-	X_REMIX_CLIENT_IP,
+	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
@@ -55,8 +54,7 @@ export const initApiClientOnServer = ({
 	}
 
 	if (requestIp) {
-		// apiClient.parseRestClient.setHeader(X_FORWARDED_FOR_HEADER_KEY, requestIp);
-		apiClient.parseRestClient.setHeader(X_REMIX_CLIENT_IP, requestIp);
+		apiClient.parseRestClient.setHeader(REMIX_CLIENT_IP_HEADER_KEY, requestIp);
 	}
 
 	return apiClient;

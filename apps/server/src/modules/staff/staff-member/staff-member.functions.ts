@@ -1,0 +1,110 @@
+import { fromStaffMemberParseFunction } from '@/server/lib/parse/cloud/function';
+import {
+	fileProvider,
+	functionName,
+	roleNames,
+	roleSet,
+} from '@/shared/lib/constants';
+import FileService from '../../common/file/file.service';
+import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
+import _ from 'lodash';
+import { generateUsername } from 'unique-username-generator';
+import { makePath } from '@/shared/utils/string.utils';
+import { HttpException } from '@/server/exceptions/HttpException';
+import { nanoid } from 'nanoid';
+import ParseUser from '../../common/auth/user/user.class';
+import RoleService from '../../common/auth/role/role.service';
+import type { IUser } from '@/shared/types/db/user.types';
+import { USE_MASTER_KEY } from '@/server/lib/constants';
+import { getParseFunctionHeader } from '@/server/lib/parse/cloud/core';
+
+export const createStaffMember = fromStaffMemberParseFunction({
+	name: functionName.staff.staffMember.create,
+	allowedRoles: roleSet.STAFF_ADMIN_ONLY,
+	validateParams: ({ params, z }) => {
+		return z
+			.object({
+				firstName: z.string(),
+				lastName: z.string(),
+				email: z.string().email(),
+				role: z.enum(roleNames),
+			})
+			.parse(params);
+	},
+	action: async ({ params, user, req, z, t }) => {
+		const sessionToken = user?.getSessionToken();
+		const roleService = new RoleService(USE_MASTER_KEY);
+
+		const role = await roleService.findRoleByName(params.role);
+
+		if (!role) {
+			throw new HttpException(400, t('item-is-invalid', { item: t('role') }));
+		}
+
+		// upload avatar file
+		const file = getParseFunctionHeader(req, '__avatar__') as unknown;
+
+		const { success, data } = getMulterMemoryFileSchema(z).safeParse(file);
+
+		let avatarUrl: string | undefined;
+
+		if (success) {
+			const uploadAdapter = FileService.uploadAdapterMap.get(
+				fileProvider.CLOUDFLARE,
+			);
+
+			if (!uploadAdapter) {
+				throw new HttpException(500, t('Error while uploading file'));
+			}
+
+			const fileService = new FileService({ sessionToken, uploadAdapter });
+
+			const result = await fileService.uploadOne({
+				file: data,
+				folderPath: makePath('staff', 'staff-member', 'avatar'),
+				storageFrom: 'memory',
+			});
+
+			avatarUrl = result.url;
+
+			// free up memory usage by discarding the file blob
+			_.unset(req.headers, '__avatar__');
+		}
+
+		// create new user
+		const savedUser = await new ParseUser(
+			_.omitBy(
+				{
+					...params,
+					avatarUrl,
+					username: generateUsername(),
+					password: nanoid(),
+					createdBy: user,
+				},
+				(value, key) => _.isNil(value) || key === 'role',
+			) as never,
+		).save(null, { sessionToken: user.getSessionToken() });
+
+		await roleService.assignRoleToUser(savedUser, role);
+
+		const json = savedUser.toJSON();
+
+		const returnedJson = _.pick(json, [
+			'firstName',
+			'lastName',
+			'email',
+			'avatarUrl',
+			'username',
+			'createdAt',
+			'updatedAt',
+			'objectId',
+		]) as unknown as IUser;
+
+		_.set(returnedJson, 'role', params.role);
+		_.set(returnedJson, 'createdBy', user.id);
+
+		return returnedJson;
+	},
+});
+
+// defineCloudFunction(createStaffMember);

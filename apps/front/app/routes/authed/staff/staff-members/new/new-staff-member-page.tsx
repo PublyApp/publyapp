@@ -6,12 +6,20 @@ import type { TFunction } from 'i18next';
 import _ from 'lodash';
 import type { Route } from './+types/new-staff-member-page';
 import i18next from 'i18next';
-import { getServerLoader } from '@/front/lib/react-router/server.data';
-import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { data } from 'react-router';
+import { UserNewEditForm } from '../components/user-new-edit-form';
 
-const getPageTitle = (t: TFunction) => {
-	return _.capitalize(t('new-item', { item: _.toLower(t('staff-member')) }));
+const getPageTitle = (t: TFunction, seo?: boolean) => {
+	let str: string = _.capitalize(
+		t('new-item', { item: _.toLower(t('staff-member')) }),
+	);
+
+	if (seo) {
+		str = `${str} | Staff Dashboard - ${APP_NAME}`;
+	}
+
+	return str;
 };
 
 export const meta = (args: Route.MetaArgs) => {
@@ -23,19 +31,19 @@ export const meta = (args: Route.MetaArgs) => {
 
 	return [
 		{
-			title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+			title: getPageTitle(t, true),
 		},
 	];
 };
 
 export const loader = getServerLoader({
-	loader: async ({ locale }) => {
-		const t = await remixI18NextServer.getFixedT(locale);
+	loader: async ({ z }) => {
+		const t = z.t;
 
 		return data({
 			meta: [
 				{
-					title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+					title: getPageTitle(t, true),
 				},
 			],
 		});
@@ -60,6 +68,8 @@ const NewStaffMemberPage = () => {
 				]}
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
+
+			<UserNewEditForm />
 		</DashboardContent>
 	);
 };
