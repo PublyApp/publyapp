@@ -42,7 +42,8 @@
 		"lodash": "^4.17.21",
 		"tsconfig": "workspace:*",
 		"turbo": "^2.0.3",
-		"typescript": "^5.8.3"
+		"typescript": "^5.8.3",
+		"json": "^11.0.0"
 	},
 	"packageManager": "bun@1.2.12",
 	"engines": {
