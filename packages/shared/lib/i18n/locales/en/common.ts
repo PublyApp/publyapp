@@ -119,6 +119,7 @@ const commonEN = {
 		'The verification link you issued is invalid or expired. Contact your administrator to get a new link.',
 
 	'Error while uploading file': 'Error while uploading file',
+	'Internal server error': 'Internal server error',
 
 	// messages from parse
 	'User email is not verified.': 'User email is not verified.',

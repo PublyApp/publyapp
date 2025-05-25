@@ -1,6 +1,7 @@
 import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
 import {
+	defineCloudFunction,
 	fromAuthedUserParseFunction,
 	fromPublicParseFunction,
 	parseFunctionEnhanced,
@@ -21,11 +22,16 @@ import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
 
 export namespace GetUserAuthDataFunction {
-	export type Params = FunctionParams<typeof getUserAuthDataFunction>;
-	export type Return = FunctionReturn<typeof getUserAuthDataFunction>;
+	export type Params = FunctionParams<
+		typeof getUserAuthDataFunction.parseFunction
+	>;
+	export type Return = FunctionReturn<
+		typeof getUserAuthDataFunction.parseFunction
+	>;
 }
 
 const getUserAuthDataFunction = fromAuthedUserParseFunction({
+	name: functionName.auth.getUserAuthData,
 	action: async ({ user }) => {
 		const sessionToken = user.getSessionToken();
 
@@ -59,11 +65,14 @@ const getUserAuthDataFunction = fromAuthedUserParseFunction({
 });
 
 export namespace GetIsDisabledSignupFunction {
-	// export type Params = FunctionParams<typeof getIsDisabledSignup>;
-	export type Return = FunctionReturn<typeof getIsDisabledSignupFunction>;
+	// export type Params = FunctionParams<typeof getIsDisabledSignup.parseFunction>;
+	export type Return = FunctionReturn<
+		typeof getIsDisabledSignupFunction.parseFunction
+	>;
 }
 
 const getIsDisabledSignupFunction = fromPublicParseFunction({
+	name: functionName.auth.getIsDisabledSignup,
 	action: async () => {
 		const globalConfig = await getGlobalConfig();
 		const disabledSignup: boolean = globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY);
@@ -73,11 +82,16 @@ const getIsDisabledSignupFunction = fromPublicParseFunction({
 });
 
 export namespace GetRedirectCodeFunction {
-	export type Params = FunctionParams<typeof getRedirectCodeFunction>;
-	export type Return = FunctionReturn<typeof getRedirectCodeFunction>;
+	export type Params = FunctionParams<
+		typeof getRedirectCodeFunction.parseFunction
+	>;
+	export type Return = FunctionReturn<
+		typeof getRedirectCodeFunction.parseFunction
+	>;
 }
 
 const getRedirectCodeFunction = fromAuthedUserParseFunction({
+	name: functionName.auth.getRedirectCode,
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
 			tenantId: z.string().optional(),
@@ -167,11 +181,16 @@ const getRedirectCodeFunction = fromAuthedUserParseFunction({
 });
 
 export namespace GetTenantAuthDataFunction {
-	export type Params = FunctionParams<typeof getTenantAuthDataFunction>;
-	export type Return = FunctionReturn<typeof getTenantAuthDataFunction>;
+	export type Params = FunctionParams<
+		typeof getTenantAuthDataFunction.parseFunction
+	>;
+	export type Return = FunctionReturn<
+		typeof getTenantAuthDataFunction.parseFunction
+	>;
 }
 
 const getTenantAuthDataFunction = fromAuthedUserParseFunction({
+	name: functionName.auth.getTenantAuthData,
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
 			tenantId: z.string(),
@@ -241,22 +260,21 @@ const getTenantAuthDataFunction = fromAuthedUserParseFunction({
 	},
 });
 
-Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);
-Parse.Cloud.define(
-	functionName.auth.getTenantAuthData,
-	getTenantAuthDataFunction,
-);
-Parse.Cloud.define(
-	functionName.auth.getIsDisabledSignup,
-	getIsDisabledSignupFunction,
-);
-Parse.Cloud.define(functionName.auth.getRedirectCode, getRedirectCodeFunction);
+//--------------------------------------------------------------------------------------//
+//                                 Define the functions                                 //
+//--------------------------------------------------------------------------------------//
+
+defineCloudFunction(getUserAuthDataFunction);
+defineCloudFunction(getTenantAuthDataFunction);
+defineCloudFunction(getIsDisabledSignupFunction);
+defineCloudFunction(getRedirectCodeFunction);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //
 // --------------------------------------------------------------------------------------//
 
 const removeSeededUsersFunction = parseFunctionEnhanced({
+	name: functionName.auth.removeSeededUsers,
 	requireMasterKey: true,
 	action: async () => {
 		const User = getDatabase().collection(className.USER);
@@ -267,7 +285,4 @@ const removeSeededUsersFunction = parseFunctionEnhanced({
 	},
 });
 
-Parse.Cloud.define(
-	functionName.auth.removeSeededUsers,
-	removeSeededUsersFunction,
-);
+defineCloudFunction(removeSeededUsersFunction);

@@ -1,5 +1,6 @@
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import {
+	alterLogger,
 	cloudFunction,
 	getParseFunctionHeader,
 	isFromCloudEnvironment,
@@ -11,6 +12,7 @@ import { getT, i18nextServer } from '../../i18n';
 import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 import {
 	LOCALE_HEADER_KEY,
+	PARSE_INSTALLATION_ID_HEADER_KEY,
 	roleSet,
 	TENANT_ID_HEADER_KEY,
 	tenantSubRoleSet,
@@ -25,6 +27,16 @@ import RoleService from '@/server/modules/common/auth/role/role.service';
 import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
 import { USE_MASTER_KEY } from '../../constants';
 import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
+import {
+	expressHandler,
+	getHeader,
+	getRequestIp,
+	getRequestUtils,
+} from '../../express';
+import { logger } from '../../winston';
+import { getLogger } from 'parse-server/lib/logger';
+import { getCurrentInstallationId } from '../parse.utils';
+import _ from 'lodash';
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
@@ -98,8 +110,7 @@ type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
 type ParseFunctionEnhancedParams<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
-> = // --------------------------------------------------------------------------------------//
-//                                  case A: no auth needed                               //
+> = //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
 // --------------------------------------------------------------------------------------//
 (
 	| {
@@ -141,6 +152,7 @@ type ParseFunctionEnhancedParams<
 ) & {
 	requireMasterKey?: boolean;
 	validateParams?: ParamsValidator<P>;
+	name: string;
 };
 
 export const parseFunctionEnhanced = <
@@ -422,20 +434,41 @@ export const parseFunctionEnhanced = <
 		});
 	});
 
-	return actionBuilder;
+	// return actionBuilder;
+	return {
+		parseFunction: actionBuilder,
+		name: params.name,
+		validateParams: params.validateParams,
+		action: params.action,
+		requireUser,
+	};
+
+	// const getAction = () => {
+	// 	return params.action;
+	// };
+
+	// // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	// (actionBuilder as any).getAction = getAction;
+
+	// return actionBuilder as (ParseFunction<P, T> & {
+	// 	getAction: typeof getAction;
+	// });
 };
 
 export const fromPublicParseFunction = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >({
+	name,
 	action,
 	validateParams,
 }: {
+	name: string;
 	action: ActionType1<P, T>;
 	validateParams?: ParamsValidator<P>;
 }) => {
 	return parseFunctionEnhanced({
+		name,
 		requireUser: false,
 		action,
 		validateParams,
@@ -446,15 +479,18 @@ export const fromAuthedUserParseFunction = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >({
+	name,
 	action,
 	validateParams,
 	allowedRoles,
 }: {
+	name: string;
 	action: ActionType2<P, T>;
 	validateParams?: ParamsValidator<P>;
 	allowedRoles?: RoleSet;
 }) => {
 	return parseFunctionEnhanced({
+		name,
 		requireUser: true,
 		group: userGroup.ANY,
 		action,
@@ -467,15 +503,18 @@ export const fromTenantMemberParseFunction = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >({
+	name,
 	action,
 	validateParams,
 	allowedTenantSubRoles,
 }: {
+	name: string;
 	action: ActionType3<P, T>;
 	validateParams?: ParamsValidator<P>;
 	allowedTenantSubRoles?: TenantSubRoleSet;
 }) => {
 	return parseFunctionEnhanced({
+		name,
 		requireUser: true,
 		group: userGroup.TENANT,
 		action,
@@ -488,19 +527,99 @@ export const fromStaffMemberParseFunction = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >({
+	name,
 	action,
 	validateParams,
 	allowedRoles,
 }: {
+	name: string;
 	action: ActionType2<P, T>;
 	validateParams?: ParamsValidator<P>;
 	allowedRoles?: StaffRoleSet;
 }) => {
 	return parseFunctionEnhanced({
+		name,
 		requireUser: true,
 		group: userGroup.STAFF,
 		action,
 		validateParams,
 		allowedRoles,
 	});
+};
+
+export const defineCloudFunction = <
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+>(
+	input: Pick<
+		ReturnType<typeof parseFunctionEnhanced<P, T>>,
+		'parseFunction' | 'name'
+	> &
+		Record<string, unknown>,
+) => {
+	Parse.Cloud.define(input.name, input.parseFunction);
+};
+
+export const createExpressHandler = <
+	P extends Parse.Cloud.Params = Parse.Cloud.Params,
+	T = unknown,
+>(
+	input: Pick<
+		ReturnType<typeof parseFunctionEnhanced<P, T>>,
+		'action' | 'validateParams' | 'name' | 'requireUser'
+	> &
+		Record<string, unknown>,
+) => {
+	const handler = expressHandler(async (req, res, next) => {
+		const { z, t, locale } = getRequestUtils(req);
+
+		if (input.requireUser) {
+			if (!req.user) {
+				logger.error(
+					'Pass the auth protection middleware before this handler!!',
+				);
+				return next(new HttpException(500, t('Internal server error')));
+			}
+		}
+
+		const { action, validateParams } = input;
+
+		const params = validateParams?.({ params: req.body, z }) || req.body;
+		const installationId =
+			getHeader(req, PARSE_INSTALLATION_ID_HEADER_KEY) ||
+			_.get(req, 'body._InstallationId') ||
+			(await getCurrentInstallationId());
+		const ip = getRequestIp(req);
+		const log = getLogger();
+
+		const functionName = input.name;
+		const actionRequest: Parameters<typeof input.action>[0]['req'] = {
+			functionName,
+			context: {},
+			headers: req.headers,
+			params,
+			log,
+			installationId,
+			ip,
+		};
+		alterLogger({ req: actionRequest, functionName, functionType: 'function' });
+
+		const result = await action({
+			isStaffMember: true,
+			req: actionRequest,
+			params,
+			t,
+			log,
+			locale,
+			user: req.user as never,
+			z,
+		});
+
+		return res.status(200).json(result);
+	});
+
+	return {
+		handler,
+		name: input.name,
+	};
 };

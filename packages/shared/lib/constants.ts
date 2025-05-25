@@ -295,7 +295,7 @@ export const functionName = {
 	},
 	staff: {
 		staffMember: {
-			create: 'create-staff-member',
+			create: 'createStaffMember',
 		},
 	},
 } as const;
@@ -320,9 +320,6 @@ export const endPoint = {
 		upload: {
 			single: makePath(API_ROOT, ROOTS.UPLOAD, 'single'),
 			many: makePath(API_ROOT, ROOTS.UPLOAD, 'many'),
-		},
-		staffMember: {
-			create: makePath(API_ROOT, RESOURCE.staffMembers, 'create'),
 		},
 		parse: {
 			root: makePath(API_ROOT, PARSE_ROOT),
