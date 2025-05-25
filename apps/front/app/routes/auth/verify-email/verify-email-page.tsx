@@ -33,7 +33,9 @@ export const clientLoader = getClientLoader({
 const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
 	const token = loaderData.token;
 
-	const { data } = useCheckEmailVerificationToken({ variables: { token } });
+	/* const { data } =  */ useCheckEmailVerificationToken({
+		variables: { token },
+	});
 
 	// if (!token) {
 	// 	return (
