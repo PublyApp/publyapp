@@ -6,6 +6,7 @@ import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { getDatabase, getInternalConfig } from '@/server/lib/parse/parse.utils';
 import { className } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
+import _ from 'lodash';
 
 type AuthCloudServiceProps = {
 	sessionToken: string | ParsedQs | string[] | ParsedQs[];
@@ -46,7 +47,9 @@ export class AuthCloudService {
 	 * get all roles names including the inherited ones
 	 */
 	async getRoleNamesForSessionToken(): Promise<string[]> {
-		return this.auth.getUserRoles();
+		return ((await this.auth.getUserRoles()) as string[])
+			.filter((role) => _.startsWith(role, 'role:'))
+			.map((role) => role.replace('role:', ''));
 	}
 
 	/**
