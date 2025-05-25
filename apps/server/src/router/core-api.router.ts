@@ -64,8 +64,13 @@ coreApiRouter.post(
 	protectionMiddleware.fromStaffMember({
 		allowedRoles: staffRoleSet.STAFF_ADMIN_ONLY,
 	}),
-	expressHandler(async (req) => {
+	multer({
+		storage: multer.memoryStorage(),
+		limits: { fileSize: mbToBytes(3) },
+	}).single('avatar'),
+	expressHandler(async (req, _res, next) => {
 		_.set(req, 'headers.__avatar__', req.file);
+		next();
 	}),
 	handleCreateStaffMember.handler,
 );
