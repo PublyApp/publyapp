@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import _ from 'lodash';
 import fse from 'fs-extra';
+import fs from 'node:fs';
 
 const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../');
 
@@ -158,57 +159,22 @@ _.forEach(subdirectories, (subdirectory) => {
 // --------------------------------------------------------------------------------------//
 //                                  set start command                                    //
 // --------------------------------------------------------------------------------------//
-const mainFile = path.relative(
-	MONOREPO_ROOT_DIR,
-	path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'),
-);
+const mainFile = path
+	.relative(MONOREPO_ROOT_DIR, path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'))
+	.replace(/\\/g, '/');
 
 // console.log(mainFile);
-const START_SCRIPT = `bun --enable-source-maps ./${mainFile.replace(/\\/g, '/')}`;
-// const args = ['pkg', 'set', `scripts.start="${START_SCRIPT}"`];
-// spawnSync(bunCommand, args, {
-// 	cwd: path.join(DEPLOY_ROOT_DIR),
-// 	stdio: 'inherit',
-// 	shell: true,
-// });
-spawnSync(npxCommand, [
-	'json', '-I', '-f', 'package.json',
-	'-e', `this.scripts = { ...(this.scripts || {}), start: "${START_SCRIPT}" }`
-], {
-	cwd: path.join(DEPLOY_ROOT_DIR),
-	stdio: 'inherit',
-	shell: true,
-});
 
-// unset build command
-// const argsUnset = ['pkg', 'delete', 'scripts.build'];
-// spawnSync(bunCommand, argsUnset, {
-// 	cwd: path.join(DEPLOY_ROOT_DIR),
-// 	stdio: 'inherit',
-// 	shell: true,
-// });
-spawnSync(npxCommand, [
-	'json', '-I', '-f', 'package.json',
-	'-e', 'delete this.scripts?.build'
-], {
-	cwd: path.join(DEPLOY_ROOT_DIR),
-	stdio: 'inherit',
-	shell: true,
-});
+const pkgPath = path.join(DEPLOY_ROOT_DIR, 'package.json');
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
+// Set scripts.start using lodash
+const startCommand = `bun --enable-source-maps ./${mainFile}`;
+_.set(pkg, 'scripts.start', startCommand);
 
-// unset husky prepare command
-// const argsUnset2 = ['pkg', 'delete', 'scripts.prepare'];
-// spawnSync(bunCommand, argsUnset2, {
-// 	cwd: path.join(DEPLOY_ROOT_DIR),
-// 	stdio: 'inherit',
-// 	shell: true,
-// });
-spawnSync(npxCommand, [
-	'json', '-I', '-f', 'package.json',
-	'-e', 'delete this.scripts?.prepare'
-], {
-	cwd: path.join(DEPLOY_ROOT_DIR),
-	stdio: 'inherit',
-	shell: true,
-});
+// Unset scripts.build and scripts.prepare using lodash
+_.unset(pkg, 'scripts.build');
+_.unset(pkg, 'scripts.prepare');
+
+// Write updated package.json
+fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
