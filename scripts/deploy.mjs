@@ -162,26 +162,52 @@ const mainFile = path.relative(
 	MONOREPO_ROOT_DIR,
 	path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'),
 );
+
 // console.log(mainFile);
 const START_SCRIPT = `bun --enable-source-maps ./${mainFile.replace(/\\/g, '/')}`;
-const args = ['pkg', 'set', `scripts.start="${START_SCRIPT}"`];
-spawnSync(bunCommand, args, {
+// const args = ['pkg', 'set', `scripts.start="${START_SCRIPT}"`];
+// spawnSync(bunCommand, args, {
+// 	cwd: path.join(DEPLOY_ROOT_DIR),
+// 	stdio: 'inherit',
+// 	shell: true,
+// });
+spawnSync(npxCommand, [
+	'json', '-I', '-f', 'package.json',
+	'-e', `this.scripts = { ...(this.scripts || {}), start: "${START_SCRIPT}" }`
+], {
 	cwd: path.join(DEPLOY_ROOT_DIR),
 	stdio: 'inherit',
 	shell: true,
 });
 
 // unset build command
-const argsUnset = ['pkg', 'delete', 'scripts.build'];
-spawnSync(bunCommand, argsUnset, {
+// const argsUnset = ['pkg', 'delete', 'scripts.build'];
+// spawnSync(bunCommand, argsUnset, {
+// 	cwd: path.join(DEPLOY_ROOT_DIR),
+// 	stdio: 'inherit',
+// 	shell: true,
+// });
+spawnSync(npxCommand, [
+	'json', '-I', '-f', 'package.json',
+	'-e', 'delete this.scripts?.build'
+], {
 	cwd: path.join(DEPLOY_ROOT_DIR),
 	stdio: 'inherit',
 	shell: true,
 });
 
+
 // unset husky prepare command
-const argsUnset2 = ['pkg', 'delete', 'scripts.prepare'];
-spawnSync(bunCommand, argsUnset2, {
+// const argsUnset2 = ['pkg', 'delete', 'scripts.prepare'];
+// spawnSync(bunCommand, argsUnset2, {
+// 	cwd: path.join(DEPLOY_ROOT_DIR),
+// 	stdio: 'inherit',
+// 	shell: true,
+// });
+spawnSync(npxCommand, [
+	'json', '-I', '-f', 'package.json',
+	'-e', 'delete this.scripts?.prepare'
+], {
 	cwd: path.join(DEPLOY_ROOT_DIR),
 	stdio: 'inherit',
 	shell: true,
