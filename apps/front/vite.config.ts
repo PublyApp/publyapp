@@ -45,4 +45,13 @@ export default defineConfig({
 						'@tiptap/extension-code-block-lowlight',
 					],
 	},
+	resolve:
+		// https://github.com/remix-run/react-router/issues/12568#issuecomment-2629986004
+		process.env.NODE_ENV === 'development'
+			? {}
+			: {
+					alias: {
+						'react-dom/server': 'react-dom/server.node',
+					},
+				},
 });
