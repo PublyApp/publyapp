@@ -47,8 +47,10 @@
 	"packageManager": "bun@1.2.12",
 	"engines": {
 		"node": ">=v22.x",
-		"bun": ">=1.2.12"
+		"bun": ">=1.2.14"
 	},
 	"trustedDependencies": ["sharp"],
-	"workspaces": ["apps/*", "packages/*", "jobs"]
+	"workspaces": {
+		"packages": ["apps/*", "packages/*", "jobs"]
+	}
 }

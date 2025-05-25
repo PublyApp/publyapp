@@ -14,9 +14,9 @@ const FRONT_APP_NAME = 'front';
 const APPS_DIR_SRC = path.join(MONOREPO_ROOT_DIR, APPS_DIRNAME);
 const PACKAGES_DIR_SRC = path.join(MONOREPO_ROOT_DIR, PACKAGES_DIRNAME);
 
-const onWindows = /^win/.test(process.platform);
-const npxCommand = onWindows ? 'bunx.cmd' : 'bunx';
-const bunCommand = onWindows ? 'bun.cmd' : 'bun';
+// const onWindows = /^win/.test(process.platform);
+const npxCommand = /* onWindows ? 'bunx.cmd' : */ 'bunx';
+const bunCommand = /* onWindows ? 'bun.cmd' : */ 'bun';
 
 const DEPLOY_ROOT_DIR = path.join(MONOREPO_ROOT_DIR, 'scripts', 'build');
 
