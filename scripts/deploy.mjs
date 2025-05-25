@@ -11,6 +11,7 @@ const PACKAGES_DIRNAME = 'packages';
 const APPS_DIRNAME = 'apps';
 const SERVER_APP_NAME = 'server';
 const FRONT_APP_NAME = 'front';
+const JOBS_APP_NAME = 'jobs';
 
 const APPS_DIR_SRC = path.join(MONOREPO_ROOT_DIR, APPS_DIRNAME);
 const PACKAGES_DIR_SRC = path.join(MONOREPO_ROOT_DIR, PACKAGES_DIRNAME);
@@ -29,6 +30,9 @@ const SERVER_APP_DIR_DEST = path.join(APPS_DIR_DEST, SERVER_APP_NAME);
 
 const FRONT_APP_DIR_SRC = path.join(APPS_DIR_SRC, FRONT_APP_NAME);
 const FRONT_APP_DIR_DEST = path.join(APPS_DIR_DEST, FRONT_APP_NAME);
+
+// const JOBS_APP_DIR_SRC = path.join(APPS_DIR_SRC, JOBS_APP_NAME);
+// const JOBS_APP_DIR_DEST = path.join(APPS_DIR_DEST, JOBS_APP_NAME);
 
 // --------------------------------------------------------------------------------------//
 //                             clean the destination folder                              //
