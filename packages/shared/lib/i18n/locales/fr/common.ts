@@ -48,7 +48,7 @@ const commonFR = {
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',
-	'item-not-found': '{{item}} non trouvé',
+	'item-not-found': '{{item}} introuvable',
 	'item-is-invalid': '{{item}} est invalide',
 	'invalid-item': '{{item}} invalide',
 	'new-item': 'Nouveau {{item}}',
