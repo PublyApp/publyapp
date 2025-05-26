@@ -110,8 +110,7 @@ type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
 type ParseFunctionEnhancedParams<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
-> = // --------------------------------------------------------------------------------------// //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
-(
+> = ( // --------------------------------------------------------------------------------------// //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
 	| {
 			requireUser?: false | undefined; // which means public access
 			group?: undefined;
@@ -442,25 +441,11 @@ export const parseFunctionEnhanced = <
 		});
 	});
 
-	// return actionBuilder;
-	return {
-		parseFunction: actionBuilder,
-		name: params.name,
-		validateParams: params.validateParams,
-		action: params.action,
-		requireUser,
+	_.set(actionBuilder, 'params', params);
+
+	return actionBuilder as typeof actionBuilder & {
+		params: typeof params;
 	};
-
-	// const getAction = () => {
-	// 	return params.action;
-	// };
-
-	// // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	// (actionBuilder as any).getAction = getAction;
-
-	// return actionBuilder as (ParseFunction<P, T> & {
-	// 	getAction: typeof getAction;
-	// });
 };
 
 export const fromPublicParseFunction = <
@@ -559,29 +544,21 @@ export const defineCloudFunction = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >(
-	input: Pick<
-		ReturnType<typeof parseFunctionEnhanced<P, T>>,
-		'parseFunction' | 'name'
-	> &
-		Record<string, unknown>,
+	parseFunction: ReturnType<typeof parseFunctionEnhanced<P, T>>,
 ) => {
-	Parse.Cloud.define(input.name, input.parseFunction);
+	Parse.Cloud.define(parseFunction.params.name, parseFunction);
 };
 
 export const createExpressHandler = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >(
-	input: Pick<
-		ReturnType<typeof parseFunctionEnhanced<P, T>>,
-		'action' | 'validateParams' | 'name' | 'requireUser'
-	> &
-		Record<string, unknown>,
+	parseFunction: ReturnType<typeof parseFunctionEnhanced<P, T>>,
 ) => {
 	const handler = expressHandler(async (req, res, next) => {
 		const { z, t, locale } = getRequestUtils(req);
 
-		if (input.requireUser) {
+		if (parseFunction.params.requireUser) {
 			if (!req.user) {
 				logger.error(
 					'Pass the auth protection middleware before this handler!!',
@@ -590,7 +567,7 @@ export const createExpressHandler = <
 			}
 		}
 
-		const { action, validateParams } = input;
+		const { action, validateParams } = parseFunction.params;
 
 		const params = validateParams?.({ params: req.body, z }) || req.body;
 		const installationId =
@@ -600,8 +577,10 @@ export const createExpressHandler = <
 		const ip = getRequestIp(req);
 		const log = getLogger();
 
-		const functionName = input.name;
-		const actionRequest: Parameters<typeof input.action>[0]['req'] = {
+		const functionName = parseFunction.params.name;
+		const actionRequest: Parameters<
+			typeof parseFunction.params.action
+		>[0]['req'] = {
 			functionName,
 			context: {},
 			headers: req.headers,
@@ -626,8 +605,7 @@ export const createExpressHandler = <
 		return res.status(200).json(result);
 	});
 
-	return {
-		handler,
-		name: input.name,
-	};
+	_.set(handler, 'name', parseFunction.params.name);
+
+	return handler as typeof handler & { name: string };
 };
