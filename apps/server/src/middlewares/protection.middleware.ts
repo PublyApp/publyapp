@@ -66,13 +66,22 @@ const protectionMiddleware = (
 		);
 	}
 
+	if (
+		!_.isNil(options.group) &&
+		!_.includes(_.values(userGroup), options.group)
+	) {
+		throw new Error(
+			`Invalid group:${options.group} is not a valid group. Valid groups are: ${_.join(_.values(userGroup), ', ')}`,
+		);
+	}
+
+	const { group = userGroup.ANY } = options;
+
 	return expressHandler(async (req, _res, next) => {
 		if (options.authType === 'apiKey') {
 			// TODO: implement api key auth
 			throw new Error('Not implemented');
 		}
-
-		const { group = userGroup.ANY } = options;
 
 		const { t } = getRequestUtils(req);
 
