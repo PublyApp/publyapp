@@ -82,16 +82,6 @@ const bootstrap = async () => {
 			whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		}),
 	);
-	app.use((req, _res, next) => {
-		// The parse API end the custom API are both under this root path
-		// use only urlencoded there because Remix (React Router 7) will not
-		// populate action's formData correctly
-		if (req.path.startsWith(endPoint.api.root)) {
-			express.urlencoded({ extended: false });
-		}
-
-		next();
-	});
 	app.use(
 		express.json({
 			// ! if tex/plain is not specified, request body in Parse API endpoint will not work
@@ -105,6 +95,14 @@ const bootstrap = async () => {
 		'/resources',
 		express.static(path.resolve(import.meta.dirname, './resources')),
 	);
+	// The parse API end the custom API are both under this root path
+	// use only urlencoded there because Remix (React Router 7) will not
+	// populate action's formData correctly
+	app.use(endPoint.api.root, express.urlencoded({ extended: false }));
+	app.use(endPoint.api.root, (req, _res, next) => {
+		getRequestUtils(req);
+		next();
+	});
 
 	// File System adapter for Parse
 	const filesAdapter = new FSFilesAdapter({

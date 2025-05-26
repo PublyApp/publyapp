@@ -29,7 +29,7 @@
 		"seed": "bun --enable-source-maps dist/seed.mjs",
 		"seed:debug": "bun --enable-source-maps --inspect-brk dist/seed.mjs",
 		"// =============== TEST COMMANDS =================": "================================",
-		"postinstall": "bun scripts/patch.mjs",
+		"postinstall": "bun run scripts/patch.mjs",
 		"type-check": "tsc"
 	},
 	"dependencies": {
