@@ -72,5 +72,5 @@ coreApiRouter.post(
 		_.set(req, 'headers.__avatar__', req.file);
 		next();
 	}),
-	handleCreateStaffMember.handler,
+	handleCreateStaffMember,
 );
