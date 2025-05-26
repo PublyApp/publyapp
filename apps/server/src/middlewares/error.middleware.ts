@@ -1,14 +1,12 @@
 import _ from 'lodash';
-
 import type { ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
-
 import { HttpException } from '@/server/exceptions/HttpException';
 import { logger } from '@/server/lib/winston';
-
 import { getRequestUtils } from '../lib/express';
 import { posthogClient } from '../lib/posthog';
 import { isCloudHttpException } from '../lib/parse/cloud/core';
+import { serializeError } from 'serialize-error';
 
 // ! this is the only middleware that we should not wrap into expressHandler wrapper function
 export const errorMiddleware: ErrorRequestHandler = async (
@@ -17,12 +15,6 @@ export const errorMiddleware: ErrorRequestHandler = async (
 	res,
 	next,
 ) => {
-	posthogClient.captureException(error, req.user?.id, {
-		ip: req.ip,
-		path: req.path,
-		method: req.method,
-	});
-
 	try {
 		const { t } = getRequestUtils(req);
 		let xcode: string | undefined;
@@ -90,11 +82,28 @@ export const errorMiddleware: ErrorRequestHandler = async (
 			);
 		}
 
-		message = t(message as never);
+		// capture only critical errors
+		if (httpStatusCode >= 500) {
+			posthogClient.captureException(error, req.user?.id, {
+				ip: req.ip,
+				path: req.path,
+				method: req.method,
+			});
+		}
+
+		message = String(t(message as never));
 		res
 			.status(httpStatusCode)
-			.json({ error: String(message), code: parseErrorCode, xcode }); // conform to Parse Server error response
+			.json({ error: message, code: parseErrorCode, xcode }); // conform to Parse Server error response
 	} catch (_error) {
+		// capture only critical errors
+		posthogClient.captureException(error, req.user?.id, {
+			ip: req.ip,
+			path: req.path,
+			method: req.method,
+			error_1: serializeError(error),
+		});
+
 		next(_error);
 	}
 };

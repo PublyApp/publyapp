@@ -45,6 +45,7 @@ import coreApiRouter from './router/core-api.router';
 import { posthogClient } from './lib/posthog';
 import { forbiddenRoutesMiddleware } from './middlewares/forbidden-routes.middleware';
 import { HttpException } from './exceptions/HttpException';
+import _ from 'lodash';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -260,7 +261,7 @@ const bootstrap = async () => {
 
 				throw new HttpException(
 					404,
-					`${t('item-not-found', { item: 'Route' })}`,
+					_.capitalize(t('item-not-found', { item: 'Route' })),
 				);
 			}
 
