@@ -33,7 +33,7 @@ import {
 	PARSE_SERVER_URL,
 } from './lib/constants';
 import { env } from './lib/env';
-import { expressHandler } from './lib/express';
+import { expressHandler, getRequestUtils } from './lib/express';
 import { initI18next } from './lib/i18n';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
 import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
@@ -44,6 +44,7 @@ import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
 import { posthogClient } from './lib/posthog';
 import { forbiddenRoutesMiddleware } from './middlewares/forbidden-routes.middleware';
+import { HttpException } from './exceptions/HttpException';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -222,6 +223,8 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                   //
 	// --------------------------------------------------------------------------------------//
+	let remixHandler: ReturnType<typeof createRequestHandler> | undefined;
+
 	if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
 		app.use(
 			express.static(
@@ -229,28 +232,41 @@ const bootstrap = async () => {
 			),
 		);
 
-		// needs to handle all verbs (GET, POST, etc.)
-		app.all(
-			/(.*)/,
-			createRequestHandler({
-				// `remix build` and `remix dev` output files to a build directory, you need
-				// to pass that build to the request handler
-				build: await import(
-					/* webpackIgnore: true */ 'front/build/server/index.js' // ! the '.js' extension is important
-				),
+		remixHandler = createRequestHandler({
+			// `remix build` and `remix dev` output files to a build directory, you need
+			// to pass that build to the request handler
+			build: await import(
+				/* webpackIgnore: true */ 'front/build/server/index.js' // ! the '.js' extension is important
+			),
 
-				// return anything you want here to be available as `context` in your
-				// loaders and actions. This is where you can bridge the gap between Remix
-				// and your server
-				getLoadContext: (_req, _res) => {
-					return {
-						logger,
-						postHogServer: posthogClient,
-					};
-				},
-			}),
-		);
+			// return anything you want here to be available as `context` in your
+			// loaders and actions. This is where you can bridge the gap between Remix
+			// and your server
+			getLoadContext: (_req, _res) => {
+				return {
+					logger,
+					postHogServer: posthogClient,
+				};
+			},
+		});
 	}
+
+	// needs to handle all verbs (GET, POST, etc.)
+	app.all(
+		/(.*)/,
+		expressHandler(async (req, res, next) => {
+			if (req.path.startsWith(endPoint.api.root) || !remixHandler) {
+				const { t } = getRequestUtils(req);
+
+				throw new HttpException(
+					404,
+					`${t('item-not-found', { item: 'Route' })}`,
+				);
+			}
+
+			return remixHandler(req, res, next);
+		}),
+	);
 
 	// --------------------------------------------------------------------------------------//
 	//                                    run the server                                     //
