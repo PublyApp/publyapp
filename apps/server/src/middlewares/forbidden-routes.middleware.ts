@@ -41,8 +41,8 @@ export const forbiddenRoutesMiddleware = expressHandler(
 
 		const isWTF =
 			_.includes(path, '.git') ||
-			_.endsWith(path, '.vscode') ||
-			_.endsWith(path, '.env');
+			_.includes(path, '.vscode') ||
+			_.includes(path, '.env');
 		const isZip = _.endsWith(path, '.zip');
 		const isPHP = _.endsWith(path, '.php');
 		const isWordPressXML = _.includes(path, 'wp-') && _.endsWith(path, '.xml');
