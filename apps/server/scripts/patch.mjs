@@ -88,7 +88,7 @@ const patchClassNameRegex = async () => {
 	});
 };
 
-const patchParseMiddlewares = async () => {
+const patchParseMiddlewares_1 = async () => {
 	const filePath1 = path.resolve(
 		import.meta.dirname,
 		'../node_modules/parse-server/lib/middlewares.js',
@@ -108,10 +108,31 @@ const patchParseMiddlewares = async () => {
 	})
 }
 
+const patchParseMiddlewares_2 = async () => {
+	const filePath1 = path.resolve(
+		import.meta.dirname,
+		'../node_modules/parse-server/lib/middlewares.js',
+	);
+	const filePath2 = path.resolve(
+		import.meta.dirname,
+		'../../../node_modules/parse-server/lib/middlewares.js',
+	);
+
+	const exists1 = fs.existsSync(filePath1);
+
+	await replace({
+		disableGlobs: true,
+		files: exists1 ? filePath1 : filePath2,
+		from: "error: 'Invalid object for context.'",
+		to: "error: req.requestUtils?.t?.('Invalid object for context.') || 'Invalid object for context.'"
+	})
+}
+
 await Promise.all([
 	// patchParseServerBlockListForBunRuntime()
 	patchParseServerSelectNestedObjectKeys(),
 	patchParseServerAuthLib(),
 	patchClassNameRegex(),
-	patchParseMiddlewares(),
+	patchParseMiddlewares_1(),
+	patchParseMiddlewares_2(),
 ])
