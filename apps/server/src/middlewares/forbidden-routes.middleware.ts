@@ -45,16 +45,10 @@ export const forbiddenRoutesMiddleware = expressHandler(
 			_.includes(path, '.env');
 		const isZip = _.endsWith(path, '.zip');
 		const isPHP = _.endsWith(path, '.php');
-		const isWordPressXML = _.includes(path, 'wp-') && _.endsWith(path, '.xml');
+		const isWordPress = _.includes(path, 'wp-');
 		const pathMatches = maliciousBotsRoutes.has(path);
 
-		const maliciousConditions = [
-			isWTF,
-			isPHP,
-			isWordPressXML,
-			isZip,
-			pathMatches,
-		];
+		const maliciousConditions = [isWTF, isPHP, isWordPress, isZip, pathMatches];
 		const isMalicious = _.some(maliciousConditions, (condition) => !!condition);
 
 		if (isMalicious) {
