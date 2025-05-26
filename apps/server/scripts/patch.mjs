@@ -88,9 +88,30 @@ const patchClassNameRegex = async () => {
 	});
 };
 
+const patchParseMiddlewares = async () => {
+	const filePath1 = path.resolve(
+		import.meta.dirname,
+		'../node_modules/parse-server/lib/middlewares.js',
+	);
+	const filePath2 = path.resolve(
+		import.meta.dirname,
+		'../../../node_modules/parse-server/lib/middlewares.js',
+	);
+
+	const exists1 = fs.existsSync(filePath1);
+
+	await replace({
+		disableGlobs: true,
+		files: exists1 ? filePath1 : filePath2,
+		from: `function invalidRequest(req, res) {\n\tres.status(401);\n\tres.end('{"error":"unauthorized"}');\n}`,
+		to: `function invalidRequest(req, res) {\n\tconst message = req.requestUtils?.t?.('unauthorized') || 'unauthorized';\n\tres.status(401);\n\tres.end('{"error":"' + message + '"}');\n}`
+	})
+}
+
 await Promise.all([
 	// patchParseServerBlockListForBunRuntime()
 	patchParseServerSelectNestedObjectKeys(),
 	patchParseServerAuthLib(),
 	patchClassNameRegex(),
+	patchParseMiddlewares(),
 ])
