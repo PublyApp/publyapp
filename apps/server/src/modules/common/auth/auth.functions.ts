@@ -22,12 +22,8 @@ import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
 
 export namespace GetUserAuthDataFunction {
-	export type Params = FunctionParams<
-		typeof getUserAuthDataFunction.parseFunction
-	>;
-	export type Return = FunctionReturn<
-		typeof getUserAuthDataFunction.parseFunction
-	>;
+	export type Params = FunctionParams<typeof getUserAuthDataFunction>;
+	export type Return = FunctionReturn<typeof getUserAuthDataFunction>;
 }
 
 const getUserAuthDataFunction = fromAuthedUserParseFunction({
@@ -65,10 +61,8 @@ const getUserAuthDataFunction = fromAuthedUserParseFunction({
 });
 
 export namespace GetIsDisabledSignupFunction {
-	// export type Params = FunctionParams<typeof getIsDisabledSignup.parseFunction>;
-	export type Return = FunctionReturn<
-		typeof getIsDisabledSignupFunction.parseFunction
-	>;
+	// export type Params = FunctionParams<typeof getIsDisabledSignup>;
+	export type Return = FunctionReturn<typeof getIsDisabledSignupFunction>;
 }
 
 const getIsDisabledSignupFunction = fromPublicParseFunction({
@@ -82,12 +76,8 @@ const getIsDisabledSignupFunction = fromPublicParseFunction({
 });
 
 export namespace GetRedirectCodeFunction {
-	export type Params = FunctionParams<
-		typeof getRedirectCodeFunction.parseFunction
-	>;
-	export type Return = FunctionReturn<
-		typeof getRedirectCodeFunction.parseFunction
-	>;
+	export type Params = FunctionParams<typeof getRedirectCodeFunction>;
+	export type Return = FunctionReturn<typeof getRedirectCodeFunction>;
 }
 
 const getRedirectCodeFunction = fromAuthedUserParseFunction({
@@ -181,12 +171,8 @@ const getRedirectCodeFunction = fromAuthedUserParseFunction({
 });
 
 export namespace GetTenantAuthDataFunction {
-	export type Params = FunctionParams<
-		typeof getTenantAuthDataFunction.parseFunction
-	>;
-	export type Return = FunctionReturn<
-		typeof getTenantAuthDataFunction.parseFunction
-	>;
+	export type Params = FunctionParams<typeof getTenantAuthDataFunction>;
+	export type Return = FunctionReturn<typeof getTenantAuthDataFunction>;
 }
 
 const getTenantAuthDataFunction = fromAuthedUserParseFunction({
