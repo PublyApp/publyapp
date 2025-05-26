@@ -15,7 +15,12 @@ import {
 	USE_MASTER_KEY,
 } from '../lib/constants';
 import { env } from '../lib/env';
-import { expressHandler, getHeader, getRequestIp } from '../lib/express';
+import {
+	expressHandler,
+	getHeader,
+	getRequestIp,
+	getRequestUtils,
+} from '../lib/express';
 import { getCurrentInstallationId } from '../lib/parse/parse.utils';
 import { logger } from '../lib/winston';
 
@@ -54,7 +59,9 @@ const disableRestApiForClients = async (
 		return;
 	}
 
-	throw new HttpException(401, 'unauthorized');
+	const { t } = getRequestUtils(req);
+
+	throw new HttpException(401, t('unauthorized'));
 };
 
 const handleMatchSessionIp = async (
