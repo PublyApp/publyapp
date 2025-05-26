@@ -66,6 +66,13 @@ const protectionMiddleware = (
 		);
 	}
 
+	if (options.authType === 'apiKey') {
+		throw new Error(
+			'Not implemented: ' +
+				"options.authType is set to 'apiKey', change to 'sessionToken' or implement api key check",
+		);
+	}
+
 	if (
 		!_.isNil(options.group) &&
 		!_.includes(_.values(userGroup), options.group)
@@ -78,11 +85,6 @@ const protectionMiddleware = (
 	const { group = userGroup.ANY } = options;
 
 	return expressHandler(async (req, _res, next) => {
-		if (options.authType === 'apiKey') {
-			// TODO: implement api key auth
-			throw new Error('Not implemented');
-		}
-
 		const { t } = getRequestUtils(req);
 
 		const sessionToken =
