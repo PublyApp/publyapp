@@ -43,6 +43,7 @@ import { errorMiddleware } from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
 import { posthogClient } from './lib/posthog';
+import { forbiddenRoutesMiddleware } from './middlewares/forbidden-routes.middleware';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -61,6 +62,7 @@ const bootstrap = async () => {
 
 	app.set('trust proxy', 1);
 
+	app.use(forbiddenRoutesMiddleware);
 	app.use(
 		helmet({
 			contentSecurityPolicy: {
