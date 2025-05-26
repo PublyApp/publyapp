@@ -110,8 +110,7 @@ type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
 type ParseFunctionEnhancedParams<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
-> = //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
-// --------------------------------------------------------------------------------------//
+> = // --------------------------------------------------------------------------------------// //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
 (
 	| {
 			requireUser?: false | undefined; // which means public access
@@ -161,6 +160,15 @@ export const parseFunctionEnhanced = <
 >(
 	params: ParseFunctionEnhancedParams<P, T>,
 ) => {
+	if (
+		!_.isNil(params.group) &&
+		!_.includes(_.values(userGroup), params.group)
+	) {
+		throw new Error(
+			`Invalid group:${params.group} is not a valid group. Valid groups are: ${_.join(_.values(userGroup), ', ')}`,
+		);
+	}
+
 	const {
 		requireUser,
 		validateParams,
