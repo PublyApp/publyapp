@@ -39,7 +39,10 @@ export const forbiddenRoutesMiddleware = expressHandler(
 	async (req, res, next) => {
 		const { path } = req;
 
-		const isWTF = _.includes(path, '.git') || _.endsWith(path, '.vscode');
+		const isWTF =
+			_.includes(path, '.git') ||
+			_.endsWith(path, '.vscode') ||
+			_.endsWith(path, '.env');
 		const isZip = _.endsWith(path, '.zip');
 		const isPHP = _.endsWith(path, '.php');
 		const isWordPressXML = _.includes(path, 'wp-') && _.endsWith(path, '.xml');
