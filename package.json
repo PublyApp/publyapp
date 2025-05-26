@@ -27,7 +27,8 @@
 		"// =============== MISC ===============": "================================",
 		"knip": "knip",
 		"prepare": "husky",
-		"update-deps": "??? in bun ???"
+		"update-deps": "??? in bun ???",
+		"postinstall": "bun run apps/server/scripts/patch.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
