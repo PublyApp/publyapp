@@ -129,6 +129,7 @@ const commonFR = {
 	'Invalid token': 'Token invalide',
 	'Token expired': 'Token expiré',
 	'Invalid object for context.': 'Objet invalide pour le contexte.',
+	'Context is not an object': "Context n'est pas un objet",
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
