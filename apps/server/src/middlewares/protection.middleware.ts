@@ -21,14 +21,14 @@ import RoleService from '../modules/common/auth/role/role.service';
 import TenantService from '../modules/common/auth/tenant/tenant.service';
 import ParseTenant from '../modules/common/auth/tenant/tenant.class';
 
-type ProtectionMiddlewareOptions = (
-	| {
-			authType: 'sessionToken';
-	  }
-	| {
-			authType: 'apiKey';
-	  }
-) &
+export const authType = {
+	SESSION_TOKEN: 'sessionToken',
+	API_KEY: 'apiKey',
+} as const;
+
+export type ProtectionMiddlewareOptions = {
+	authType: ValueOf<typeof authType>;
+} &
 	// * case A: request can be from any authed user
 	(
 		| {
