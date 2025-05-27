@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { endPoint, staffRoleSet } from '@/shared/lib/constants';
+import { endPoint } from '@/shared/lib/constants';
 import protectionMiddleware from '../middlewares/protection.middleware';
 import {
 	handlePasswordLogin,
@@ -12,12 +12,10 @@ import {
 } from '../modules/common/file/file.controller';
 import multer from 'multer';
 import { mbToBytes } from '@/shared/utils/any.utils';
-import { makePath } from '@/shared/utils/string.utils';
 import { createStaffMember } from '../modules/staff/staff-member/staff-member.functions';
 import { createExpressHandler } from '../lib/parse/cloud/function';
 import { expressHandler } from '../lib/express';
 import _ from 'lodash';
-import { checkParseHeaders } from '../middlewares/check-parse-headers.middleware';
 
 const coreApiRouter = Router();
 export default coreApiRouter;
