@@ -61,11 +61,8 @@ coreApiRouter.get(endPoint.api.auth.verifyEmail, handleVerifyEmail);
 // --------------------------------------------------------------------------------------//
 const handleCreateStaffMember = createExpressHandler(createStaffMember);
 coreApiRouter.post(
-	makePath(endPoint.api.parse.functions, handleCreateStaffMember.name),
-	checkParseHeaders,
-	protectionMiddleware.fromStaffMember({
-		allowedRoles: staffRoleSet.STAFF_ADMIN_ONLY,
-	}),
+	handleCreateStaffMember.path,
+	...handleCreateStaffMember.middlewares,
 	multer({
 		storage: multer.memoryStorage(),
 		limits: { fileSize: mbToBytes(3) },
