@@ -37,6 +37,12 @@ import { logger } from '../../winston';
 import { getLogger } from 'parse-server/lib/logger';
 import { getCurrentInstallationId } from '../parse.utils';
 import _ from 'lodash';
+import type { RequestHandler } from 'express';
+import { checkParseHeaders } from '@/server/middlewares/check-parse-headers.middleware';
+import protectionMiddleware, {
+	authType as iAuthType,
+	type ProtectionMiddlewareOptions,
+} from '@/server/middlewares/protection.middleware';
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
@@ -554,6 +560,7 @@ export const createExpressHandler = <
 	T = unknown,
 >(
 	parseFunction: ReturnType<typeof parseFunctionEnhanced<P, T>>,
+	authType?: ProtectionMiddlewareOptions['authType'],
 ) => {
 	const handler = expressHandler(async (req, res, next) => {
 		const { z, t, locale } = getRequestUtils(req);
@@ -607,5 +614,18 @@ export const createExpressHandler = <
 
 	_.set(handler, 'name', parseFunction.params.name);
 
-	return handler as typeof handler & { name: string };
+	const { group, allowedRoles, allowedTenantSubRoles } = parseFunction.params;
+	const authMiddleware = protectionMiddleware({
+		authType: authType || iAuthType.SESSION_TOKEN,
+		group,
+		allowedRoles,
+		allowedTenantSubRoles,
+	} as never);
+
+	_.set(handler, 'middlewares', [checkParseHeaders, authMiddleware]);
+
+	return handler as typeof handler & {
+		name: string;
+		middlewares: RequestHandler[];
+	};
 };
