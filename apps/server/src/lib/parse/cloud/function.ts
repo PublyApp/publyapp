@@ -11,6 +11,7 @@ import InterZod from '@/shared/lib/zod/InterZod';
 import { getT, i18nextServer } from '../../i18n';
 import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 import {
+	endPoint,
 	LOCALE_HEADER_KEY,
 	PARSE_INSTALLATION_ID_HEADER_KEY,
 	roleSet,
@@ -43,6 +44,7 @@ import protectionMiddleware, {
 	authType as iAuthType,
 	type ProtectionMiddlewareOptions,
 } from '@/server/middlewares/protection.middleware';
+import { makePath } from '@/shared/utils/string.utils';
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
@@ -612,20 +614,29 @@ export const createExpressHandler = <
 		return res.status(200).json(result);
 	});
 
-	_.set(handler, 'name', parseFunction.params.name);
+	_.set(
+		handler,
+		'path',
+		makePath(endPoint.api.parse.functions, parseFunction.params.name),
+	);
 
 	const { group, allowedRoles, allowedTenantSubRoles } = parseFunction.params;
-	const authMiddleware = protectionMiddleware({
-		authType: authType || iAuthType.SESSION_TOKEN,
-		group,
-		allowedRoles,
-		allowedTenantSubRoles,
-	} as never);
+
+	let authMiddleware: RequestHandler = (_req, _res, next) => next();
+
+	if (parseFunction.params.requireUser) {
+		authMiddleware = protectionMiddleware({
+			authType: authType || iAuthType.SESSION_TOKEN,
+			group,
+			allowedRoles,
+			allowedTenantSubRoles,
+		} as never);
+	}
 
 	_.set(handler, 'middlewares', [checkParseHeaders, authMiddleware]);
 
 	return handler as typeof handler & {
-		name: string;
+		path: string;
 		middlewares: RequestHandler[];
 	};
 };
