@@ -17,6 +17,7 @@ import { createStaffMember } from '../modules/staff/staff-member/staff-member.fu
 import { createExpressHandler } from '../lib/parse/cloud/function';
 import { expressHandler } from '../lib/express';
 import _ from 'lodash';
+import { checkParseHeaders } from '../middlewares/check-parse-headers.middleware';
 
 const coreApiRouter = Router();
 export default coreApiRouter;
@@ -61,6 +62,7 @@ coreApiRouter.get(endPoint.api.auth.verifyEmail, handleVerifyEmail);
 const handleCreateStaffMember = createExpressHandler(createStaffMember);
 coreApiRouter.post(
 	makePath(endPoint.api.parse.functions, handleCreateStaffMember.name),
+	checkParseHeaders,
 	protectionMiddleware.fromStaffMember({
 		allowedRoles: staffRoleSet.STAFF_ADMIN_ONLY,
 	}),

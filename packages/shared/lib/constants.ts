@@ -343,6 +343,9 @@ export const fileProvider = {
 export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
 export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';
 export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
+
+export const PARSE_CONTEXT_HEADER_KEY = 'X-Parse-Context';
+
 export const REST_API_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Key`;
 
 export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}:session_token`;

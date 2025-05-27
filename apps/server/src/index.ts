@@ -99,6 +99,7 @@ const bootstrap = async () => {
 	// use only urlencoded there because Remix (React Router 7) will not
 	// populate action's formData correctly
 	app.use(endPoint.api.root, express.urlencoded({ extended: false }));
+	// set request utils on request object
 	app.use(endPoint.api.root, (req, _res, next) => {
 		getRequestUtils(req);
 		next();
