@@ -3,7 +3,10 @@
 // * we want to block them from hitting these routes
 
 import _ from 'lodash';
-import { expressHandler } from '../lib/express';
+import { expressHandler, getHeader } from '../lib/express';
+import { BlockList } from 'node:net';
+import { getGlobalConfig } from '../lib/parse/parse.utils';
+import { CLOUDFLARE_CONNECTING_IP_HEADER_KEY } from '@/shared/lib/constants';
 
 // https://gist.github.com/NickCraver/c9458f2e007e9df2bdf03f8a02af1d13
 const tenHoursOfFun = [
@@ -35,20 +38,45 @@ const maliciousBotsRoutes = new Set([
 	'/sftp-config.json',
 ]);
 
-export const forbiddenRoutesMiddleware = expressHandler(
+export const blocklist = new BlockList();
+
+export const populateBlocklist = async () => {
+	const config = await getGlobalConfig();
+	const ipAddresses: string[] = config.get('ipBlockList');
+	_.forEach(ipAddresses, (ipAddress) => {
+		try {
+			blocklist.addAddress(ipAddress);
+		} catch (error) {
+			console.error(error);
+		}
+	});
+};
+
+export const maliciousRequestsGuardMiddleware = expressHandler(
 	async (req, res, next) => {
 		const { path } = req;
 
+		const ipAddress = getHeader(req, CLOUDFLARE_CONNECTING_IP_HEADER_KEY); // getRequestIp(req);
+		const isBlockedIp = ipAddress ? blocklist.check(ipAddress) : false;
 		const isWTF =
 			_.includes(path, '.git') ||
 			_.includes(path, '.vscode') ||
+			_.includes(path, '.aws') ||
+			_.includes(path, '.circleci') ||
 			_.includes(path, '.env');
 		const isZip = _.endsWith(path, '.zip');
 		const isPHP = _.endsWith(path, '.php');
-		const isWordPress = _.includes(path, 'wp-');
+		const isWordPress = _.includes(path, 'wp');
 		const pathMatches = maliciousBotsRoutes.has(path);
 
-		const maliciousConditions = [isWTF, isPHP, isWordPress, isZip, pathMatches];
+		const maliciousConditions = [
+			isBlockedIp,
+			isWTF,
+			isPHP,
+			isWordPress,
+			isZip,
+			pathMatches,
+		];
 		const isMalicious = _.some(maliciousConditions, (condition) => !!condition);
 
 		if (isMalicious) {
