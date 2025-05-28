@@ -2,12 +2,11 @@
 // * such as wp-login.php, etc.
 // * we want to block them from hitting these routes
 
-import { BlockList, type IPVersion, isIPv6 } from 'node:net';
-import { logger } from '@org/shared/lib/winston.server';
 import _ from 'lodash';
-import { IP_BLOCKLIST_CONFIG_KEY } from '../lib/constants';
-import { expressHandler, getRequestIp } from '../lib/express';
-import { getDatabase, getGlobalConfig } from '../lib/parse/parse.utils';
+import { expressHandler, getHeader } from '../lib/express';
+import { BlockList } from 'node:net';
+import { getGlobalConfig } from '../lib/parse/parse.utils';
+import { CLOUDFLARE_CONNECTING_IP_HEADER_KEY } from '@/shared/lib/constants';
 
 // https://gist.github.com/NickCraver/c9458f2e007e9df2bdf03f8a02af1d13
 const tenHoursOfFun = [
@@ -43,85 +42,42 @@ export const blocklist = new BlockList();
 
 export const populateBlocklist = async () => {
 	const config = await getGlobalConfig();
-	const ipAddresses: string[] = config.get(IP_BLOCKLIST_CONFIG_KEY);
+	const ipAddresses: string[] = config.get('ipBlockList');
 	_.forEach(ipAddresses, (ipAddress) => {
 		try {
-			let ipVersion: IPVersion = 'ipv4';
-			if (isIPv6(ipAddress)) {
-				ipVersion = 'ipv6';
-			}
-			blocklist.addAddress(ipAddress, ipVersion);
+			blocklist.addAddress(ipAddress);
 		} catch (error) {
-			if (_.isObject(error)) {
-				_.set(error, 'ipAddress', ipAddress);
-			}
-			logger.error(error);
+			console.error(error);
 		}
 	});
 };
 
 export const maliciousRequestsGuardMiddleware = expressHandler(
 	async (req, res, next) => {
-		const { path: _path } = req;
-		const path = _.toLower(_path);
+		const { path } = req;
 
-		const ipAddress = getRequestIp(req) || '';
-
+		const ipAddress = getHeader(req, CLOUDFLARE_CONNECTING_IP_HEADER_KEY); // getRequestIp(req);
+		const isBlockedIp = ipAddress ? blocklist.check(ipAddress) : false;
 		const isWTF =
-			_.includes(path, _.toLower('test_block_ip')) ||
-			_.includes(path, _.toLower('.DS_Store')) ||
-			_.includes(path, _.toLower('.git')) ||
-			_.includes(path, _.toLower('.vscode')) ||
-			_.includes(path, _.toLower('.aws')) ||
-			_.includes(path, _.toLower('.circleci')) ||
-			_.includes(path, _.toLower('.env'));
-		const isZip = _.endsWith(path, _.toLower('.zip'));
-		const isWordPress = _.includes(path, _.toLower('/wp'));
-		const phpExtensionRegex = /\.php(?:[^/]*)?(?:\/|$)/i;
-		const isPHP = phpExtensionRegex.test(path);
-
-		const suspiciousConditions = [isWTF, isZip, isWordPress, isPHP];
-
-		const isSuspicious = _.some(suspiciousConditions, (condition) => condition);
-
-		if (isSuspicious) {
-			try {
-				let ipVersion: IPVersion = 'ipv4';
-				if (isIPv6(ipAddress)) {
-					ipVersion = 'ipv6';
-				}
-				blocklist.addAddress(ipAddress, ipVersion);
-				logger.debug('Blocked IP address', { ipAddress });
-			} catch (error) {
-				if (_.isObject(error)) {
-					_.set(error, 'ipAddress', ipAddress);
-				}
-				logger.error('Failed to add IP address to blocklist:', error);
-			}
-
-			const updateConfigAsynchronously = async () => {
-				const db = getDatabase();
-				const GlobalConfigCollection = db.collection('_GlobalConfig');
-				GlobalConfigCollection.updateOne(
-					{
-						_id: 1 as never,
-					},
-					{ $addToSet: { [`params.${IP_BLOCKLIST_CONFIG_KEY}`]: ipAddress } },
-				);
-			};
-
-			updateConfigAsynchronously().catch((error) => {
-				logger.error(error);
-			});
-		}
-
+			_.includes(path, '.git') ||
+			_.includes(path, '.vscode') ||
+			_.includes(path, '.aws') ||
+			_.includes(path, '.circleci') ||
+			_.includes(path, '.env');
+		const isZip = _.endsWith(path, '.zip');
+		const isPHP = _.endsWith(path, '.php');
+		const isWordPress = _.includes(path, 'wp');
 		const pathMatches = maliciousBotsRoutes.has(path);
 
-		const isBlockedIp = ipAddress ? blocklist.check(ipAddress) : false;
-
-		const maliciousConditions = [isSuspicious, pathMatches, isBlockedIp];
-
-		const isMalicious = _.some(maliciousConditions, (condition) => condition);
+		const maliciousConditions = [
+			isBlockedIp,
+			isWTF,
+			isPHP,
+			isWordPress,
+			isZip,
+			pathMatches,
+		];
+		const isMalicious = _.some(maliciousConditions, (condition) => !!condition);
 
 		if (isMalicious) {
 			const redirectUrl = _.sample(tenHoursOfFun);
