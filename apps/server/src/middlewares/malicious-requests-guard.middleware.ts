@@ -65,9 +65,12 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 			_.includes(path, '.circleci') ||
 			_.includes(path, '.env');
 		const isZip = _.endsWith(path, '.zip');
-		const isPHP = _.endsWith(path, '.php');
 		const isWordPress = _.includes(path, 'wp');
 		const pathMatches = maliciousBotsRoutes.has(path);
+
+		// const isPHP = _.endsWith(path, '.php');
+		const phpExtensionRegex = /\.php(?:\d+(?:\.\d+)?)?$/i;
+		const isPHP = phpExtensionRegex.test(path);
 
 		const maliciousConditions = [
 			isBlockedIp,
