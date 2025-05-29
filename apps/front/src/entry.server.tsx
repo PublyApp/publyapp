@@ -1,7 +1,5 @@
 import { PassThrough } from 'node:stream';
-
 import { createReadableStreamFromReadable } from '@react-router/node';
-import * as cookie from 'cookie';
 import { isbot } from 'isbot';
 import forEach from 'lodash/forEach';
 import get from 'lodash/get';
@@ -18,23 +16,15 @@ import {
 	type EntryContext,
 	ServerRouter,
 } from 'react-router';
-
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	LANGUAGE_DETECTION_METHOD,
-	LANGUAGE_DETECTION_METHOD_ENUM,
-	LOCALE_COOKIE_KEY,
 	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
-} from '@org/shared-ts/lib/constants';
-import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
-import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
-
-import { NonceProvider } from './hooks/use-nonce-context';
+} from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
-
+import _ from 'lodash';
+import { nanoid } from 'nanoid';
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
 const handleRequest = async (
@@ -69,7 +59,7 @@ const handleRequest = async (
 				},
 			);
 
-			analytics.capture({
+			loadContext.postHogServer.capture({
 				distinctId:
 					get(ipAddresses, toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
 					get(ipAddresses, toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
@@ -113,26 +103,11 @@ const handleRequest = async (
 				? 'onAllReady'
 				: 'onShellReady';
 
-		// regardless of the environment, we want to set the nonce
-		// to the static pre render path nonce if the path is a pre render path
-		// if (isPreRenderPath(new URL(request.url).pathname)) {
-		// 	finalLoadContext.nonce = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
-		// }
-
-		const nonce = finalLoadContext.nonce;
-
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
-				<NonceProvider value={nonce}>
-					<ServerRouter
-						context={routerContext}
-						url={request.url}
-						nonce={nonce}
-					/>
-				</NonceProvider>
+				<ServerRouter context={routerContext} url={request.url} />
 			</I18nextProvider>,
 			{
-				nonce: nonce,
 				[readyOption]: () => {
 					shellRendered = true;
 					const body = new PassThrough();
@@ -159,7 +134,7 @@ const handleRequest = async (
 					// errors encountered during initial shell rendering since they'll
 					// reject and get logged in handleDocumentRequest.
 					if (shellRendered) {
-						logger.error(getErrorMessage(error), { error });
+						console.error(error);
 					}
 				},
 			},
