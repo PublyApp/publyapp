@@ -1,10 +1,6 @@
 import { PassThrough } from 'node:stream';
-
 import { createReadableStreamFromReadable } from '@react-router/node';
-import * as cookie from 'cookie';
 import { isbot } from 'isbot';
-import _ from 'lodash';
-import { nanoid } from 'nanoid';
 import {
 	type RenderToPipeableStreamOptions,
 	renderToPipeableStream,
@@ -15,23 +11,15 @@ import {
 	type EntryContext,
 	ServerRouter,
 } from 'react-router';
-
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	LANGUAGE_DETECTION_METHOD,
-	LANGUAGE_DETECTION_METHOD_ENUM,
-	LOCALE_COOKIE_KEY,
 	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
-} from '@org/shared-ts/lib/constants';
-import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
-import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
-
-import { NonceProvider } from './hooks/use-nonce-context';
+} from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
-
+import _ from 'lodash';
+import { nanoid } from 'nanoid';
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
 const handleRequest = async (
@@ -41,11 +29,7 @@ const handleRequest = async (
 	routerContext: EntryContext,
 	loadContext: AppLoadContext,
 ) => {
-	const finalLoadContext = loadContext;
-
-	const analytics = finalLoadContext.analytics;
-
-	if (import.meta.env.PROD) {
+	if (loadContext.postHogServer) {
 		if (!_.toString(responseStatusCode).startsWith('2')) {
 			const ipAddresses = {};
 			_.forEach(
@@ -65,7 +49,7 @@ const handleRequest = async (
 				},
 			);
 
-			analytics.capture({
+			loadContext.postHogServer.capture({
 				distinctId:
 					_.get(ipAddresses, _.toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
 					_.get(ipAddresses, _.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
@@ -82,20 +66,9 @@ const handleRequest = async (
 		}
 	}
 
-	let locale: AppLocale;
-
-	if (
-		LANGUAGE_DETECTION_METHOD === LANGUAGE_DETECTION_METHOD_ENUM.QUERY_PARAM
-	) {
-		const url = new URL(request.url);
-		const language = url.searchParams.get(queryParamKey.language);
-		locale = getCorrectLocale(language);
-	} else {
-		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
-		const localeCookie = _.get(reqCookies, LOCALE_COOKIE_KEY);
-		locale = getCorrectLocale(localeCookie);
-	}
-
+	const url = new URL(request.url);
+	const language = url.searchParams.get(queryParamKey.language);
+	const locale = getCorrectLocale(language);
 	const i18nInstance = await iniI18nOnServer({ routerContext, locale });
 
 	return new Promise((resolve, reject) => {
@@ -109,26 +82,11 @@ const handleRequest = async (
 				? 'onAllReady'
 				: 'onShellReady';
 
-		// regardless of the environment, we want to set the nonce
-		// to the static pre render path nonce if the path is a pre render path
-		// if (isPreRenderPath(new URL(request.url).pathname)) {
-		// 	finalLoadContext.nonce = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
-		// }
-
-		const nonce = finalLoadContext.nonce;
-
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
-				<NonceProvider value={nonce}>
-					<ServerRouter
-						context={routerContext}
-						url={request.url}
-						nonce={nonce}
-					/>
-				</NonceProvider>
+				<ServerRouter context={routerContext} url={request.url} />
 			</I18nextProvider>,
 			{
-				nonce: nonce,
 				[readyOption]: () => {
 					shellRendered = true;
 					const body = new PassThrough();
@@ -156,7 +114,7 @@ const handleRequest = async (
 					// errors encountered during initial shell rendering since they'll
 					// reject and get logged in handleDocumentRequest.
 					if (shellRendered) {
-						logger.error(getErrorMessage(error), { error });
+						console.error(error);
 					}
 				},
 			},
