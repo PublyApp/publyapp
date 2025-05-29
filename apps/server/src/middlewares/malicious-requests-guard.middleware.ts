@@ -6,6 +6,7 @@ import _ from 'lodash';
 import { expressHandler, getRequestIp } from '../lib/express';
 import { BlockList } from 'node:net';
 import { getGlobalConfig } from '../lib/parse/parse.utils';
+import { logger } from '../lib/winston';
 
 // https://gist.github.com/NickCraver/c9458f2e007e9df2bdf03f8a02af1d13
 const tenHoursOfFun = [
@@ -46,7 +47,7 @@ export const populateBlocklist = async () => {
 		try {
 			blocklist.addAddress(ipAddress);
 		} catch (error) {
-			console.error(error);
+			logger.error(error);
 		}
 	});
 };
