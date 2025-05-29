@@ -1,5 +1,4 @@
 import { PassThrough } from 'node:stream';
-
 import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
 import {
@@ -12,15 +11,16 @@ import {
 	type EntryContext,
 	ServerRouter,
 } from 'react-router';
-
-import { queryParamKey } from '@/shared/lib/constants';
+import {
+	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	queryParamKey,
+	REMIX_CLIENT_IP_HEADER_KEY,
+} from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
-
-export const streamTimeout = 5_000;
+export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
 const handleRequest = async (
 	request: Request,
@@ -31,25 +31,36 @@ const handleRequest = async (
 ) => {
 	if (loadContext.postHogServer) {
 		if (!_.toString(responseStatusCode).startsWith('2')) {
-			const ipAddress =
-				request.headers.get('x-forwarded-for') ??
-				request.headers.get('cf-connecting-ip') ??
-				request.headers.get('x-real-ip') ??
-				request.headers.get('x-client-ip') ??
-				request.headers.get('x-forwarded') ??
-				request.headers.get('forwarded-for') ??
-				request.headers.get('forwarded') ??
-				nanoid();
+			const ipAddresses = {};
+			_.forEach(
+				[
+					_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+					_.toLower(REMIX_CLIENT_IP_HEADER_KEY),
+					// 'x-forwarded-for',
+					// 'x-real-ip',
+					// 'x-client-ip',
+					// 'x-forwarded',
+					// 'forwarded-for',
+					// 'forwarded',
+				],
+				(headerKey) => {
+					const lowerKey = _.toLower(headerKey);
+					_.set(ipAddresses, lowerKey, request.headers.get(lowerKey));
+				},
+			);
 
 			loadContext.postHogServer.capture({
+				distinctId:
+					_.get(ipAddresses, _.toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
+					_.get(ipAddresses, _.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
+					nanoid(),
 				event: 'bad_request',
-				distinctId: nanoid(),
 				properties: {
 					path: request.url,
-					ipAddress: ipAddress,
 					method: request.method,
-					host: request.headers.get('host'),
+					// host: request.headers.get('host'),
 					userAgent: request.headers.get('user-agent'),
+					...ipAddresses,
 				},
 			});
 		}
