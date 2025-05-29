@@ -60,6 +60,8 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 		const ipAddress = getRequestIp(req);
 
 		const isWTF =
+			_.includes(path, 'test_block_ip') ||
+			_.includes(_.toLower(path), _.toLower('.DS_Store')) ||
 			_.includes(path, '.git') ||
 			_.includes(path, '.vscode') ||
 			_.includes(path, '.aws') ||
