@@ -80,7 +80,7 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 			isZip,
 			pathMatches,
 		];
-		const isMalicious = _.some(maliciousConditions, (condition) => !!condition);
+		const isMalicious = _.some(maliciousConditions, (condition) => condition);
 
 		if (isMalicious) {
 			const redirectUrl = _.sample(tenHoursOfFun);
