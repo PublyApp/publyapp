@@ -1,11 +1,10 @@
 // @ts-check
 import { spawn } from "node:child_process";
-import { createI18nResourcesFiles } from '../rsbuild/config.mjs';
 import { bunBuild } from "./_bun-build.mjs";
 import path from "node:path";
 import _ from "lodash";
 import { isBun } from "node:process";
-import { buildOptions } from "./config.mjs";
+import { buildOptions, createI18nResourcesFiles } from "./config.mjs";
 import { rm } from "node:fs/promises";
 
 const deleteDist = async () => {
