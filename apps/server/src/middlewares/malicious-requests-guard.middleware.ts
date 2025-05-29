@@ -5,8 +5,9 @@
 import _ from 'lodash';
 import { expressHandler, getRequestIp } from '../lib/express';
 import { BlockList } from 'node:net';
-import { getGlobalConfig } from '../lib/parse/parse.utils';
+import { getGlobalConfig, setGlobalConfig } from '../lib/parse/parse.utils';
 import { logger } from '../lib/winston';
+import { IP_BLOCKLIST_CONFIG_KEY } from '../lib/constants';
 
 // https://gist.github.com/NickCraver/c9458f2e007e9df2bdf03f8a02af1d13
 const tenHoursOfFun = [
@@ -42,7 +43,7 @@ export const blocklist = new BlockList();
 
 export const populateBlocklist = async () => {
 	const config = await getGlobalConfig();
-	const ipAddresses: string[] = config.get('ipBlockList');
+	const ipAddresses: string[] = config.get(IP_BLOCKLIST_CONFIG_KEY);
 	_.forEach(ipAddresses, (ipAddress) => {
 		try {
 			blocklist.addAddress(ipAddress);
@@ -56,9 +57,8 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 	async (req, res, next) => {
 		const { path } = req;
 
-		// const ipAddress = getHeader(req, CLOUDFLARE_CONNECTING_IP_HEADER_KEY);
 		const ipAddress = getRequestIp(req);
-		const isBlockedIp = ipAddress ? blocklist.check(ipAddress) : false;
+
 		const isWTF =
 			_.includes(path, '.git') ||
 			_.includes(path, '.vscode') ||
@@ -67,20 +67,46 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 			_.includes(path, '.env');
 		const isZip = _.endsWith(path, '.zip');
 		const isWordPress = _.includes(path, 'wp');
-		const pathMatches = maliciousBotsRoutes.has(path);
-
-		// const isPHP = _.endsWith(path, '.php');
-		const phpExtensionRegex = /\.php(?:\d+(?:\.\d+)?)?$/i;
+		const phpExtensionRegex = /\.php(?:[^/]*)?(?:\/|$)/i;
 		const isPHP = phpExtensionRegex.test(path);
 
-		const maliciousConditions = [
-			isBlockedIp,
-			isWTF,
-			isPHP,
-			isWordPress,
-			isZip,
-			pathMatches,
-		];
+		const suspiciousConditions = [isWTF, isZip, isWordPress, isPHP];
+
+		const isSuspicious = _.some(suspiciousConditions, (condition) => condition);
+
+		if (isSuspicious) {
+			try {
+				blocklist.addAddress(ipAddress || '');
+			} catch (error) {
+				logger.error(error);
+			}
+
+			const updateConfigAsynchronously = async () => {
+				const globalConfig = await getGlobalConfig();
+
+				const updatedIpAddresses = _.uniq([
+					...(globalConfig.get(IP_BLOCKLIST_CONFIG_KEY) || []),
+					ipAddress,
+				]);
+
+				await setGlobalConfig({
+					[IP_BLOCKLIST_CONFIG_KEY]: {
+						value: updatedIpAddresses,
+					},
+				});
+			};
+
+			updateConfigAsynchronously().catch((error) => {
+				logger.error(error);
+			});
+		}
+
+		const pathMatches = maliciousBotsRoutes.has(path);
+
+		const isBlockedIp = ipAddress ? blocklist.check(ipAddress) : false;
+
+		const maliciousConditions = [isSuspicious, pathMatches, isBlockedIp];
+
 		const isMalicious = _.some(maliciousConditions, (condition) => condition);
 
 		if (isMalicious) {
