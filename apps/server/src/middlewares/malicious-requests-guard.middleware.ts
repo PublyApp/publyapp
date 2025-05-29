@@ -3,10 +3,9 @@
 // * we want to block them from hitting these routes
 
 import _ from 'lodash';
-import { expressHandler, getHeader } from '../lib/express';
+import { expressHandler, getRequestIp } from '../lib/express';
 import { BlockList } from 'node:net';
 import { getGlobalConfig } from '../lib/parse/parse.utils';
-import { CLOUDFLARE_CONNECTING_IP_HEADER_KEY } from '@/shared/lib/constants';
 
 // https://gist.github.com/NickCraver/c9458f2e007e9df2bdf03f8a02af1d13
 const tenHoursOfFun = [
@@ -56,7 +55,8 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 	async (req, res, next) => {
 		const { path } = req;
 
-		const ipAddress = getHeader(req, CLOUDFLARE_CONNECTING_IP_HEADER_KEY); // getRequestIp(req);
+		// const ipAddress = getHeader(req, CLOUDFLARE_CONNECTING_IP_HEADER_KEY);
+		const ipAddress = getRequestIp(req);
 		const isBlockedIp = ipAddress ? blocklist.check(ipAddress) : false;
 		const isWTF =
 			_.includes(path, '.git') ||
