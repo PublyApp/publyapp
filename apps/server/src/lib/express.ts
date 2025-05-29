@@ -16,6 +16,7 @@ import {
 	LOCALE_HEADER_KEY,
 	FORWARDED_FOR_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
+	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import InterZod from '@/shared/lib/zod/InterZod';
@@ -150,6 +151,7 @@ export const getRequestUtils = (req: Request) => {
 export const getRequestIp = (req: Request) => {
 	return (
 		getHeader(req, REMIX_CLIENT_IP_HEADER_KEY) ||
+		getHeader(req, CLOUDFLARE_CONNECTING_IP_HEADER_KEY) ||
 		getHeader(req, FORWARDED_FOR_HEADER_KEY) ||
 		req.socket.remoteAddress
 	);
