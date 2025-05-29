@@ -66,7 +66,7 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 			_.includes(path, '.circleci') ||
 			_.includes(path, '.env');
 		const isZip = _.endsWith(path, '.zip');
-		const isWordPress = _.includes(path, 'wp');
+		const isWordPress = _.includes(path, '/wp');
 		const phpExtensionRegex = /\.php(?:[^/]*)?(?:\/|$)/i;
 		const isPHP = phpExtensionRegex.test(path);
 
