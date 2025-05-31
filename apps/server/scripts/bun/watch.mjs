@@ -25,7 +25,6 @@ bunBuild({
 		); // we want the updated version and not the cached one
 		await createI18nResourcesFiles(resources);
 
-
 		// kill previous app process and start a new one
 		if (startAppProcess) {
 			startAppProcess.kill('SIGINT');
