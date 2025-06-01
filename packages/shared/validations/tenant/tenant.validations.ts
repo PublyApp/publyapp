@@ -1,8 +1,4 @@
-import {
-	DEFAULT_MAX_USER_PER_TENANT,
-	tenantSubRoleEnum,
-	tenantSubRoleNames,
-} from '@/shared/lib/constants';
+import { DEFAULT_MAX_USER_PER_TENANT } from '@/shared/lib/constants';
 import type InterZod from '@/shared/lib/zod/InterZod';
 
 export const getNewTenantSchemaServerSide = (
@@ -11,37 +7,9 @@ export const getNewTenantSchemaServerSide = (
 ) => {
 	return z.object({
 		name: z.string().min(5),
-		maxUsers: z
-			.number()
+		initialUsers: z
+			.array(z.string().email())
 			.min(1)
 			.max(options.maxUsers || DEFAULT_MAX_USER_PER_TENANT),
-		initialUsers: z
-			.array(
-				z.object({
-					email: z.string().email(),
-					role: z.enum(tenantSubRoleNames),
-				}),
-			)
-			.min(1)
-			.max(options.maxUsers || DEFAULT_MAX_USER_PER_TENANT)
-			// verify email is unique
-			.refine(
-				(users) => {
-					const emails = users.map((user) => user.email);
-					return new Set(emails).size === emails.length;
-				},
-				{
-					message: z.t('each-user-must-have-a-unique-email'),
-				},
-			)
-			// at least one admin
-			.refine(
-				(users) => {
-					return users.some((user) => user.role === tenantSubRoleEnum.ADMIN);
-				},
-				{
-					message: z.t('tenant-should-have-at-least-one-admin'),
-				},
-			),
 	});
 };

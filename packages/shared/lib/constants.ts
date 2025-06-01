@@ -20,6 +20,8 @@ export const roleNames = [
 	'AUTHED_USER',
 ] as const;
 
+export type RoleName = (typeof roleNames)[number];
+
 export const roleEnum = {
 	// cspell:ignore fnhux Rwmgyh Jhpma
 	STAFF_ADMIN: {
@@ -362,3 +364,5 @@ export const jobType = {
 	CONVERT_HTML_TO_PDF: 'CONVERT_HTML_TO_PDF',
 	// Later we may add other jobs, like deleting unused pdf from storage and from DB for example
 } as const;
+
+export const DEFAULT_MAX_USER_PER_TENANT = 5;
