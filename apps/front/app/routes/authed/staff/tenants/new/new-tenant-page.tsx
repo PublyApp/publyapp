@@ -8,9 +8,20 @@ import { data } from 'react-router';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
+import { TenantCreateForm } from '../components/tenant-create-form';
+import Button from '@mui/material/Button';
+import { useMainStore } from '@/front/lib/zustand/store';
 
-const getPageTitle = (t: TFunction) => {
-	return _.capitalize(t('new-item', { item: _.toLower(t('tenant')) }));
+const getPageTitle = (t: TFunction, seo?: boolean) => {
+	let str: string = _.capitalize(
+		t('new-item', { item: _.toLower(t('tenant')) }),
+	);
+
+	if (seo) {
+		str = `${str} | Staff Dashboard - ${APP_NAME}`;
+	}
+
+	return str;
 };
 
 export const meta = (args: Route.MetaArgs) => {
@@ -22,7 +33,7 @@ export const meta = (args: Route.MetaArgs) => {
 
 	return [
 		{
-			title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+			title: getPageTitle(t, true),
 		},
 	];
 };
@@ -34,7 +45,7 @@ export const loader = getServerLoader({
 		return data({
 			meta: [
 				{
-					title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+					title: getPageTitle(t, true),
 				},
 			],
 		});
@@ -43,6 +54,9 @@ export const loader = getServerLoader({
 
 const NewTenantPage = () => {
 	const { t } = useTranslate();
+	const { isSubmitting, submit } = useMainStore(
+		(rootState) => rootState.tenantsSlice.createTenantForm,
+	);
 
 	return (
 		<DashboardContent
@@ -52,13 +66,25 @@ const NewTenantPage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('staff-members')),
+						name: _.capitalize(t('tenants')),
 						href: FRONT_PATH_NAMES.staff.tenants.root,
 					},
 					{ name: _.capitalize(t('new')) },
 				]}
 				sx={{ mb: { xs: 3, md: 5 } }}
+				action={
+					<Button
+						type="submit"
+						variant="contained"
+						loading={isSubmitting}
+						onClick={submit}
+					>
+						{t('create-the-tenant')}
+					</Button>
+				}
 			/>
+
+			<TenantCreateForm />
 		</DashboardContent>
 	);
 };

@@ -118,6 +118,10 @@ const commonFR = {
 	'invalid-email-verification-link-description':
 		'Le lien de vérification que vous avez fourni est invalide ou expiré. Contactez votre administrateur pour obtenir un nouveau lien.',
 
+	'workspace-name': 'Nom du workspace',
+	'create-the-tenant': 'Créer le tenant',
+	'add-a-user': 'Ajouter un utilisateur',
+
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Erreur interne du serveur',
 

@@ -118,6 +118,10 @@ const commonEN = {
 	'invalid-email-verification-link-description':
 		'The verification link you issued is invalid or expired. Contact your administrator to get a new link.',
 
+	'workspace-name': 'Workspace name',
+	'create-the-tenant': 'Create the tenant',
+	'add-a-user': 'Add a user',
+
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Internal server error',
 
