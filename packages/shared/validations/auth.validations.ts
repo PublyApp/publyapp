@@ -77,6 +77,22 @@ export const getRegisterSchema = (z: InterZod) => {
 	});
 };
 
+export const getTenantSchema = (z: InterZod) => {
+	return z.object({
+		name: z.string().min(1),
+		maxUsers: z.number().min(1),
+		usersCount: z.number().min(0),
+		logo: z.custom<File>(
+			(val) => {
+				return val instanceof File; // Vérifie si c'est un objet File (navigateur)
+			},
+			{
+				message: 'Doit être un fichier valide',
+			},
+		),
+	});
+};
+
 export type LoginInput = z.infer<ReturnType<typeof getLoginSchema>>;
 export type SignupInput = z.infer<ReturnType<typeof getRegisterSchema>>;
 export type VerifyEmailInput = z.infer<ReturnType<typeof getVerifyEmailSchema>>;

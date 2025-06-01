@@ -2,10 +2,14 @@ import type ParseRestClient from '@org/parse-rest-client/ParseRestClient';
 
 import AuthEndPoints from './features/auth/auth.endpoints';
 
+import TenantEndPoints from './features/tenant/tenant.endpoints';
+
 export class ApiClient {
 	private _parseRestClient!: ParseRestClient;
 
 	private _auth!: AuthEndPoints;
+
+	private _tenant!: TenantEndPoints;
 
 	constructor({ parseRestClient }: { parseRestClient?: ParseRestClient } = {}) {
 		if (parseRestClient) {
@@ -24,6 +28,9 @@ export class ApiClient {
 
 		// endpoints
 		this._auth = new AuthEndPoints({ parseRestClient: this._parseRestClient });
+		this._tenant = new TenantEndPoints({
+			parseRestClient: this._parseRestClient,
+		});
 	}
 
 	public get parseRestClient() {
@@ -34,6 +41,11 @@ export class ApiClient {
 	public get auth() {
 		this.checkClient();
 		return this._auth;
+	}
+
+	public get tenant() {
+		this.checkClient();
+		return this._tenant;
 	}
 }
 
