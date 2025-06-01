@@ -50,7 +50,7 @@ export const initApiClientOnServer = ({
 	});
 
 	if (sessionToken) {
-		apiClient.parseRestClient.setSessionToken(sessionToken);
+		apiClient.parseRestClient.setSessionToken(decodeURIComponent(sessionToken));
 	}
 
 	if (requestIp) {
