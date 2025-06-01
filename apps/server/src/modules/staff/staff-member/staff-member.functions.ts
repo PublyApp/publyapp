@@ -1,10 +1,5 @@
 import { fromStaffMemberParseFunction } from '@/server/lib/parse/cloud/function';
-import {
-	fileProvider,
-	functionName,
-	roleNames,
-	roleSet,
-} from '@/shared/lib/constants';
+import { fileProvider, functionName, roleSet } from '@/shared/lib/constants';
 import FileService from '../../common/file/file.service';
 import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
 import _ from 'lodash';
@@ -17,19 +12,13 @@ import RoleService from '../../common/auth/role/role.service';
 import type { IUser } from '@/shared/types/db/user.types';
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { getParseFunctionHeader } from '@/server/lib/parse/cloud/core';
+import { getNewStaffMemberSchemaServerSide } from '@org/shared/validations/staff-member/staff-member.validation';
 
 export const createStaffMember = fromStaffMemberParseFunction({
 	name: functionName.staff.staffMember.create,
 	allowedRoles: roleSet.STAFF_ADMIN_ONLY,
 	validateParams: ({ params, z }) => {
-		return z
-			.object({
-				firstName: z.string(),
-				lastName: z.string(),
-				email: z.string().email(),
-				role: z.enum(roleNames),
-			})
-			.parse(params);
+		return getNewStaffMemberSchemaServerSide(z).parse(params);
 	},
 	action: async ({ params, user, req, z, t }) => {
 		const sessionToken = user?.getSessionToken();
@@ -106,5 +95,3 @@ export const createStaffMember = fromStaffMemberParseFunction({
 		return returnedJson;
 	},
 });
-
-// defineCloudFunction(createStaffMember);
