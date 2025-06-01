@@ -18,36 +18,50 @@ import {
 } from '@/shared/lib/constants';
 import type { Route } from './+types/authed-layout';
 import _ from 'lodash';
+import {
+	SIDEBAR_COOKIE_MAX_AGE,
+	SIDEBAR_COOKIE_NAME,
+} from '@/front/lib/constants';
+import { useMainStore } from '@/front/lib/zustand/store';
+import type { SettingsState } from '@/front/components/settings';
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
 		const browserCookies = cookie.parse(document.cookie);
 
-		const sessionToken = _.get(browserCookies, SESSION_TOKEN_COOKIE_KEY);
+		let sessionToken = _.get(browserCookies, SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			throw redirect(FRONT_PATH_NAMES.auth.login); // redirect to login
 		}
 
+		sessionToken = decodeURIComponent(sessionToken);
+
 		defaultApiClient.parseRestClient.setSessionToken(sessionToken);
 
-		// const cookies = new CookieManager();
-		// const sideBarOpenCookie = cookies.get(SIDEBAR_COOKIE_NAME);
+		const sideBarCookie = _.get(browserCookies, SIDEBAR_COOKIE_NAME);
 
 		// set zustand state
-		// useMainStore.setState((root) => {
-		// 	const allowedStates = ['expanded', 'collapsed'];
+		useMainStore.setState((root) => {
+			const allowedStates: Exclude<SettingsState['navLayout'], undefined>[] = [
+				'vertical',
+				'mini',
+				'horizontal',
+			];
 
-		// 	let state = _.toString(sideBarOpenCookie);
+			let state = _.toString(sideBarCookie);
 
-		// 	if (!allowedStates.includes(state)) {
-		// 		state = allowedStates[0];
-		// 		cookies.set(SIDEBAR_COOKIE_NAME, state);
-		// 	}
+			if (!allowedStates.includes(state as never)) {
+				state = allowedStates[0];
+				const newCookie = cookie.serialize(SIDEBAR_COOKIE_NAME, state, {
+					path: '/',
+					maxAge: SIDEBAR_COOKIE_MAX_AGE,
+				});
+				document.cookie = newCookie;
+			}
 
-		//
-		// 	root.settingsSlice.sidebar.state = state as never;
-		// });
+			root.settingsSlice.state.navLayout = state as never;
+		});
 
 		return {};
 	},
