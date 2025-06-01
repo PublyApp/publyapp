@@ -11,6 +11,7 @@ import {
 	FRONT_PATH_NAMES,
 	functionName,
 	roleEnum,
+	type RoleName,
 } from '@/shared/lib/constants';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Field } from '@/front/components/hook-form/fields';
@@ -28,6 +29,7 @@ import DialogActions from '@mui/material/DialogActions';
 import { toast } from '@/front/components/snackbar';
 import { defaultApiClient } from 'packages/api/ApiClient';
 import { useRouter } from '@/front/hooks/use-router';
+import { mbToBytes } from '@/shared/utils/any.utils';
 
 const ROLE_OPTIONS = _.chain(roleEnum)
 	.pickBy((value) => {
@@ -45,7 +47,7 @@ type IUserItem = {
 	id: string;
 	firstName: string;
 	lastName: string;
-	role: string;
+	role: RoleName;
 	email: string;
 	status: string;
 	avatarUrl: string;
@@ -53,8 +55,8 @@ type IUserItem = {
 
 // ----------------------------------------------------------------------
 
-type NewUserSchemaType = zod.infer<
-	ReturnType<typeof getNewStaffMemberSchemaClientSide>
+type NewUserSchemaType = Prettify<
+	zod.infer<ReturnType<typeof getNewStaffMemberSchemaClientSide>>
 >;
 
 // ----------------------------------------------------------------------
@@ -63,30 +65,19 @@ type Props = {
 	currentUser?: IUserItem;
 };
 
+const defaultValues: NewUserSchemaType = {
+	avatar: undefined,
+	firstName: '',
+	lastName: '',
+	email: '',
+	role: roleEnum.STAFF_CONTRIBUTOR.name,
+};
 export const UserNewEditForm = ({ currentUser }: Props) => {
 	const { t } = useTranslate();
 	const router = useRouter();
 	const openDialog = useBoolean();
 
 	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
-
-	const defaultValues: NewUserSchemaType = {
-		avatar: undefined,
-		firstName: '',
-		lastName: '',
-		email: '',
-		role: roleEnum.STAFF_CONTRIBUTOR.name,
-		// status: '',
-		// avatarUrl: undefined,
-		// isVerified: true,
-		// phoneNumber: '',
-		// country: '',
-		// state: '',
-		// city: '',
-		// address: '',
-		// zipCode: '',
-		// company: '',
-	};
 
 	const methods = useForm<NewUserSchemaType>({
 		mode: 'onSubmit',
@@ -199,7 +190,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 											}}
 										>
 											Allowed *.jpeg, *.jpg, *.png, *.gif
-											<br /> max size of {fData(3145728)}
+											<br /> max size of {fData(mbToBytes(3))}
 										</Typography>
 									}
 								/>
