@@ -1,5 +1,5 @@
 import _ from 'lodash';
-
+import * as cookie from 'cookie';
 import type { ApiClient } from 'packages/api/ApiClient';
 import {
 	redirect,
@@ -7,7 +7,6 @@ import {
 	type AppLoadContext,
 	type LoaderFunctionArgs,
 } from 'react-router';
-
 import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
@@ -17,7 +16,6 @@ import {
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
 import { initApiClientOnServer } from '../api';
-import { CookieManager } from '../cookie-manager';
 import { remixI18NextServer } from '../i18n/i18n.server';
 import { getRequestLocale } from './data.utils';
 import { isPromise } from '@/shared/utils/any.utils';
@@ -138,8 +136,10 @@ export const getServerLoader: GetServerLoader = <
 		}
 
 		// check if session token cookie is present
-		const reqCookies = new CookieManager(args.request.headers);
-		const sessionToken = reqCookies.get(SESSION_TOKEN_COOKIE_KEY);
+		const reqCookies = cookie.parse(
+			args.request.headers.get('Set-Cookie') || '',
+		);
+		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
@@ -223,8 +223,10 @@ export const getServerAction: GetServerAction = <
 			return params.action({ ...args, apiClient, z, locale });
 		}
 
-		const reqCookies = new CookieManager(args.request.headers);
-		const sessionToken = reqCookies.get(SESSION_TOKEN_COOKIE_KEY);
+		const reqCookies = cookie.parse(
+			args.request.headers.get('Set-Cookie') || '',
+		);
+		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;

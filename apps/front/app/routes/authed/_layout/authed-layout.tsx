@@ -1,14 +1,12 @@
+import * as cookie from 'cookie';
 import { Suspense, type ReactNode } from 'react';
-
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { defaultApiClient } from 'packages/api/ApiClient';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
-
 import { View500 } from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
-import { CookieManager } from '@/front/lib/cookie-manager';
 import {
 	getTenantAuthDataQuery,
 	getUserAuthDataQuery,
@@ -18,13 +16,14 @@ import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
-
 import type { Route } from './+types/authed-layout';
+import _ from 'lodash';
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
-		const browserCookies = new CookieManager();
-		const sessionToken = browserCookies.get(SESSION_TOKEN_COOKIE_KEY);
+		const browserCookies = cookie.parse(document.cookie);
+
+		const sessionToken = _.get(browserCookies, SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			throw redirect(FRONT_PATH_NAMES.auth.login); // redirect to login
