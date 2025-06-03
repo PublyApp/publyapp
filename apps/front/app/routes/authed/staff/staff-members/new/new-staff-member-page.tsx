@@ -50,6 +50,15 @@ export const loader = getServerLoader({
 	},
 });
 
+export const clientLoader = async ({
+	serverLoader,
+}: Route.ClientLoaderArgs) => {
+	i18next.loadNamespaces(['zod']);
+	const serverData = await serverLoader();
+	return data(serverData);
+};
+clientLoader.hydrate = true as const;
+
 const NewStaffMemberPage = () => {
 	const { t } = useTranslate();
 

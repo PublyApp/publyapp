@@ -30,7 +30,7 @@ export const initI18nOnClient = async () => {
 		.init({
 			...config, // spread the configuration
 			// This function detects the namespaces your routes rendered while SSR use
-			ns: getInitialNamespaces(),
+			ns: [...getInitialNamespaces()],
 			backend: {
 				loadPath: decodeURIComponent(backendUrl.toString()),
 			},

@@ -52,6 +52,15 @@ export const loader = getServerLoader({
 	},
 });
 
+export const clientLoader = async ({
+	serverLoader,
+}: Route.ClientLoaderArgs) => {
+	i18next.loadNamespaces(['zod']);
+	const serverData = await serverLoader();
+	return data(serverData);
+};
+clientLoader.hydrate = true as const;
+
 const NewTenantPage = () => {
 	const { t } = useTranslate();
 	const { isSubmitting, submit } = useMainStore(
