@@ -70,6 +70,8 @@ const NewTenantPage = () => {
 	return (
 		<DashboardContent
 			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+			compact
+			maxWidth="lg"
 		>
 			<CustomBreadcrumbs
 				heading={getPageTitle(t as never)}
