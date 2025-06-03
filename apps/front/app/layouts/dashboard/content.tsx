@@ -11,6 +11,7 @@ import { layoutClasses } from '../core/classes';
 export type DashboardContentProps = ContainerProps & {
 	layoutQuery?: Breakpoint;
 	disablePadding?: boolean;
+	compact?: boolean;
 };
 
 export const DashboardContent = ({
@@ -20,6 +21,7 @@ export const DashboardContent = ({
 	disablePadding,
 	maxWidth = 'lg',
 	layoutQuery = 'lg',
+	compact = false,
 	...other
 }: DashboardContentProps) => {
 	const settings = useSettingsContext();
@@ -29,7 +31,7 @@ export const DashboardContent = ({
 	return (
 		<Container
 			className={mergeClasses([layoutClasses.content, className])}
-			maxWidth={settings.state.compactLayout ? maxWidth : false}
+			maxWidth={compact || settings.state.compactLayout ? maxWidth : false}
 			sx={[
 				(theme) => {
 					return {
