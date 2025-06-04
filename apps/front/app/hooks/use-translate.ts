@@ -50,10 +50,12 @@ export const useTranslate = (ns?: Ns) => {
 		[/* currentLang, */ i18n],
 	);
 
+	const lang = currentLang ?? fallback;
+
 	return {
 		t,
 		i18n,
 		onChangeLang,
-		currentLang: currentLang ?? fallback,
+		currentLang: lang,
 	};
 };

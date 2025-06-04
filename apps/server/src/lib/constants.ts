@@ -98,3 +98,5 @@ export const EXPRESS_FILES_MOUNT_PATH = '/app/files';
 
 export const PARSE_SERVER_URL = new URL(env.SERVER_URL);
 PARSE_SERVER_URL.pathname = endPoint.api.parse.root;
+
+export const CONFIG_ENABLE_CHECK_SESSION_IP = false;

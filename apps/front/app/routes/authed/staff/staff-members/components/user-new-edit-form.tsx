@@ -1,0 +1,378 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import type zod from 'zod';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import Grid from '@mui/material/Grid';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import {
+	FRONT_PATH_NAMES,
+	functionName,
+	roleEnum,
+} from '@/shared/lib/constants';
+import { Form } from '@/front/components/hook-form/form-provider';
+import { Field } from '@/front/components/hook-form/fields';
+import { fData } from '@/front/utils/format-number';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
+import { useTranslate } from '@/front/hooks/use-translate';
+import MenuItem from '@mui/material/MenuItem';
+import _ from 'lodash';
+import { useBoolean } from 'minimal-shared/hooks';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import { toast } from '@/front/components/snackbar';
+import { defaultApiClient } from 'packages/api/ApiClient';
+import { useRouter } from '@/front/hooks/use-router';
+
+const ROLE_OPTIONS = _.chain(roleEnum)
+	.pickBy((value) => {
+		return _.startsWith(value.name, 'STAFF_');
+	})
+	.map((value) => {
+		return {
+			value: value.name,
+			label: value.name,
+		};
+	})
+	.value();
+
+type IUserItem = {
+	id: string;
+	firstName: string;
+	lastName: string;
+	role: string;
+	email: string;
+	status: string;
+	avatarUrl: string;
+};
+
+// ----------------------------------------------------------------------
+
+type NewUserSchemaType = zod.infer<
+	ReturnType<typeof getNewStaffMemberSchemaClientSide>
+>;
+
+// ----------------------------------------------------------------------
+
+type Props = {
+	currentUser?: IUserItem;
+};
+
+export const UserNewEditForm = ({ currentUser }: Props) => {
+	const { t } = useTranslate();
+	const router = useRouter();
+	const openDialog = useBoolean();
+
+	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
+
+	const defaultValues: NewUserSchemaType = {
+		avatar: undefined,
+		firstName: '',
+		lastName: '',
+		email: '',
+		role: roleEnum.STAFF_CONTRIBUTOR.name,
+		// status: '',
+		// avatarUrl: undefined,
+		// isVerified: true,
+		// phoneNumber: '',
+		// country: '',
+		// state: '',
+		// city: '',
+		// address: '',
+		// zipCode: '',
+		// company: '',
+	};
+
+	const methods = useForm<NewUserSchemaType>({
+		mode: 'onSubmit',
+		resolver: zodResolver(NewUserSchema),
+		defaultValues,
+		values: currentUser,
+	});
+
+	const {
+		reset,
+		// watch,
+		// control,
+		handleSubmit,
+		formState: { isSubmitting },
+	} = methods;
+
+	// const values = watch();
+
+	const handleCloseDialog = openDialog.onFalse;
+
+	const handleOpenDialog = handleSubmit(async () => {
+		try {
+			openDialog.onTrue();
+		} catch (error) {
+			console.error(error);
+		}
+	});
+
+	const handleConfirmDialog = handleSubmit(async (data) => {
+		try {
+			const formData = new FormData();
+			_.entries(data).forEach((value) => {
+				const [key, fieldValue] = value;
+				formData.append(key, fieldValue);
+			});
+			// console.log('***********', defaultApiClient.parseRestClient.getSessionToken());
+			await defaultApiClient.parseRestClient.cloudRun(
+				functionName.staff.staffMember.create,
+				{
+					params: formData,
+					headers: {
+						'Content-Type': 'multipart/form-data',
+						// 'Authorization': `Bearer ${defaultApiClient.parseRestClient.getSessionToken()}`,
+					},
+				},
+			);
+
+			reset();
+			toast.success(currentUser ? 'Update success!' : 'Create success!');
+			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
+		} catch (error) {
+			console.error(error);
+		}
+	});
+
+	const confirmValues = _.chain(methods.getValues())
+		.entries()
+		.map((value) => {
+			const [key, fieldValue] = value;
+			let finalValue = '';
+			if (_.isNil(fieldValue) || _.isEmpty(fieldValue)) {
+				finalValue = 'N/A';
+			} else {
+				finalValue = _.isString(fieldValue)
+					? fieldValue
+					: JSON.stringify(fieldValue);
+			}
+			if (fieldValue instanceof File) {
+				finalValue = fieldValue.name;
+			}
+			return {
+				name: _.capitalize(t(_.toLower(key) as never)),
+				value: finalValue,
+			};
+		})
+		.value();
+
+	return (
+		<>
+			<Form methods={methods} onSubmit={handleOpenDialog}>
+				<Grid container spacing={3}>
+					<Grid size={{ xs: 12, md: 4 }}>
+						<Card sx={{ pt: 10, pb: 5, px: 3 }}>
+							{/* {currentUser && (
+							<Label
+								color={
+									(values.status === 'active' && 'success') ||
+									(values.status === 'banned' && 'error') ||
+									'warning'
+								}
+								sx={{ position: 'absolute', top: 24, right: 24 }}
+							>
+								{values.status}
+							</Label>
+						)} */}
+
+							<Box sx={{ mb: 5 }}>
+								<Field.UploadAvatar
+									name="avatar"
+									maxSize={3145728}
+									helperText={
+										<Typography
+											variant="caption"
+											sx={{
+												mt: 3,
+												mx: 'auto',
+												display: 'block',
+												textAlign: 'center',
+												color: 'text.disabled',
+											}}
+										>
+											Allowed *.jpeg, *.jpg, *.png, *.gif
+											<br /> max size of {fData(3145728)}
+										</Typography>
+									}
+								/>
+							</Box>
+
+							{/* {currentUser && (
+							<FormControlLabel
+								labelPlacement="start"
+								control={
+									<Controller
+										name="status"
+										control={control}
+										render={({ field }) => (
+											<Switch
+												{...field}
+												checked={field.value !== 'active'}
+												onChange={(event) =>
+													field.onChange(
+														event.target.checked ? 'banned' : 'active',
+													)
+												}
+											/>
+										)}
+									/>
+								}
+								label={
+									<>
+										<Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+											Banned
+										</Typography>
+										<Typography
+											variant="body2"
+											sx={{ color: 'text.secondary' }}
+										>
+											Apply disable account
+										</Typography>
+									</>
+								}
+								sx={{
+									mx: 0,
+									mb: 3,
+									width: 1,
+									justifyContent: 'space-between',
+								}}
+							/>
+						)} */}
+
+							{/*<Field.Switch*/}
+							{/*	name="isVerified"*/}
+							{/*	labelPlacement="start"*/}
+							{/*	label={*/}
+							{/*		<>*/}
+							{/*			<Typography variant="subtitle2" sx={{ mb: 0.5 }}>*/}
+							{/*				Email verified*/}
+							{/*			</Typography>*/}
+							{/*			<Typography variant="body2" sx={{ color: 'text.secondary' }}>*/}
+							{/*				Disabling this will automatically send the user a*/}
+							{/*				verification email*/}
+							{/*			</Typography>*/}
+							{/*		</>*/}
+							{/*	}*/}
+							{/*	sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}*/}
+							{/*/>*/}
+
+							{/* {currentUser && (
+							<Stack
+								sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}
+							>
+								<Button variant="soft" color="error">
+									Delete user
+								</Button>
+							</Stack>
+						)} */}
+						</Card>
+					</Grid>
+
+					<Grid size={{ xs: 12, md: 8 }}>
+						<Card sx={{ p: 3 }}>
+							<Box
+								sx={{
+									rowGap: 3,
+									columnGap: 2,
+									display: 'grid',
+									gridTemplateColumns: {
+										xs: 'repeat(1, 1fr)',
+										sm: 'repeat(2, 1fr)',
+									},
+								}}
+							>
+								<Field.Text name="lastName" label={t('lastname')} required />
+								<Field.Text name="firstName" label={t('firstname')} />
+								<Field.Text name="email" label={t('email-address')} required />
+								<br />
+								<Field.Select name="role" label={t('role')} required>
+									{ROLE_OPTIONS.map((option) => (
+										<MenuItem key={option.value} value={option.label}>
+											{option.label}
+										</MenuItem>
+									))}
+								</Field.Select>
+								{/* <Field.Phone
+								name="phoneNumber"
+								label="Phone number"
+								country={!currentUser ? 'DE' : undefined}
+							/> */}
+
+								{/* <Field.CountrySelect
+								fullWidth
+								name="country"
+								label="Country"
+								placeholder="Choose a country"
+							/> */}
+
+								{/* <Field.Text name="state" label="State/region" /> */}
+								{/* <Field.Text name="city" label="City" /> */}
+								{/* <Field.Text name="address" label="Address" /> */}
+								{/* <Field.Text name="zipCode" label="Zip/code" /> */}
+								{/* <Field.Text name="company" label="Company" /> */}
+							</Box>
+
+							<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+								<Button
+									type="submit"
+									variant="contained"
+									loading={isSubmitting}
+								>
+									{!currentUser ? 'Create user' : 'Save changes'}
+								</Button>
+							</Stack>
+						</Card>
+					</Grid>
+				</Grid>
+			</Form>
+
+			<Dialog open={openDialog.value} onClose={handleCloseDialog}>
+				<DialogTitle>
+					{_.capitalize(
+						t('save-item-confirmation-title', { item: t('staff-member') }),
+					)}
+				</DialogTitle>
+
+				<DialogContent sx={{ color: 'text.secondary' }}>
+					<Typography sx={{ mb: 2 }}>
+						{_.capitalize(
+							t('save-item-confirmation-message', { item: t('staff-member') }),
+						)}
+					</Typography>
+					{confirmValues.map((value) => {
+						return (
+							<Typography key={value.name} sx={{ mb: 1 }}>
+								<Box component="span" sx={{ fontWeight: 'bold' }}>
+									{value.name}
+								</Box>
+								: {value.value}
+							</Typography>
+						);
+					})}
+				</DialogContent>
+
+				<DialogActions>
+					<Button variant="outlined" onClick={handleCloseDialog}>
+						{t('cancel')}
+					</Button>
+					<Button
+						variant="contained"
+						onClick={handleConfirmDialog}
+						autoFocus
+						loading={isSubmitting}
+					>
+						{t('confirm')}
+					</Button>
+				</DialogActions>
+			</Dialog>
+		</>
+	);
+};

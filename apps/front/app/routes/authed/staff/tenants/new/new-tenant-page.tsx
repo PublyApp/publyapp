@@ -8,6 +8,7 @@ import {
 	getServerLoader,
 } from '@/front/lib/react-router/server.data';
 import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { data } from 'react-router';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';

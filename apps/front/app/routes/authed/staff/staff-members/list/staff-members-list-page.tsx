@@ -9,14 +9,19 @@ import Button from '@mui/material/Button';
 import StaffMembersTable from './parts/staff-members-table';
 import type { Route } from './+types/staff-members-list-page';
 import i18next, { type TFunction } from 'i18next';
-import { getServerLoader } from '@/front/lib/react-router/server.data';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { data } from 'react-router';
-import { remixI18NextServer } from '@/front/lib/i18n/i18n.server';
 
-const getPageTitle = (t: TFunction) => {
-	return _.capitalize(
+const getPageTitle = (t: TFunction, seo?: boolean) => {
+	let str: string = _.capitalize(
 		t('list-of-items', { items: _.toLower(t('staff-members')) }),
 	);
+
+	if (seo) {
+		str = `${str} | Staff Dashboard - ${APP_NAME}`;
+	}
+
+	return str;
 };
 
 export const meta = (args: Route.MetaArgs) => {
@@ -28,19 +33,19 @@ export const meta = (args: Route.MetaArgs) => {
 
 	return [
 		{
-			title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+			title: getPageTitle(t, true),
 		},
 	];
 };
 
 export const loader = getServerLoader({
-	loader: async ({ locale }) => {
-		const t = await remixI18NextServer.getFixedT(locale);
+	loader: async ({ z }) => {
+		const t = z.t;
 
 		return data({
 			meta: [
 				{
-					title: `${getPageTitle(t)} | Staff Dashboard - ${APP_NAME}`,
+					title: getPageTitle(t, true),
 				},
 			],
 		});

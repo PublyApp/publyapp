@@ -1,18 +1,14 @@
 import { createServer } from 'node:http';
 import path from 'node:path';
-
 import { ParseServer } from 'parse-server/lib/index.js';
 import Parse from 'parse/node.js';
-
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
 import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
 import ParseDashboard from 'parse-dashboard';
-
 import duration from '@org/shared/utils/duration.utils';
-
 import { logger } from '@/server/lib/winston';
 import {
 	APP_ID,
@@ -20,9 +16,8 @@ import {
 	endPoint,
 	LOCALE_HEADER_KEY,
 	TENANT_ID_HEADER_KEY,
-	X_REMIX_CLIENT_IP,
+	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
-
 import { cloud } from './cloud';
 import {
 	createRolesIfNotExists,
@@ -45,8 +40,9 @@ import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
 import { setCurrentInstallationId } from './lib/parse/parse.utils';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
-import parseServerMiddleware from './middlewares/parseServer.middleware';
-import coreApiRouter from './router/coreApi.router';
+import parseServerMiddleware from './middlewares/parse-server.middleware';
+import coreApiRouter from './router/core-api.router';
+import { posthogClient } from './lib/posthog';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -63,7 +59,8 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	const app = express();
 
-	// setup middlewares
+	app.set('trust proxy', 1);
+
 	app.use(
 		helmet({
 			contentSecurityPolicy: {
@@ -100,7 +97,10 @@ const bootstrap = async () => {
 	// server uploaded files under express static middleware
 	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 	// serve i18n resources files under express static middleware (remark: these files are generated at build time)
-	app.use('/resources', express.static(path.resolve(__dirname, './resources')));
+	app.use(
+		'/resources',
+		express.static(path.resolve(import.meta.dirname, './resources')),
+	);
 
 	// File System adapter for Parse
 	const filesAdapter = new FSFilesAdapter({
@@ -109,7 +109,13 @@ const bootstrap = async () => {
 	});
 
 	// Email adapter for Parse
-	const emailAdapter = new CustomMailAdapter({ serverUrl: env.SERVER_URL });
+	// * combined with ParseServerOptions.verifyUserEmails set to true,
+	// * we ensure that verification token is created by Parse whenever a user is created
+	// * but we don't want Parse to send the email to the user by setting CustomMailAdapter.enableSendVerificationEmail to false
+	const emailAdapter = new CustomMailAdapter({
+		serverUrl: env.SERVER_URL,
+		enableSendVerificationEmail: false,
+	});
 
 	// Logger adapter for Parse
 	const loggerAdapter = new WinstonLoggerAdapter({ logger, maxLogFiles: 5 });
@@ -127,11 +133,14 @@ const bootstrap = async () => {
 		// === ADAPTERS ================================
 		filesAdapter,
 		loggerAdapter,
-		emailAdapter,
 		// =============================================
 		masterKeyIps: ['0.0.0.0/0', '::1'], // ! Allowing all ips is dangerous
 		sessionLength: duration.toSeconds('3d'), // 3 days
-		allowHeaders: [LOCALE_HEADER_KEY, TENANT_ID_HEADER_KEY, X_REMIX_CLIENT_IP],
+		allowHeaders: [
+			LOCALE_HEADER_KEY,
+			TENANT_ID_HEADER_KEY,
+			REMIX_CLIENT_IP_HEADER_KEY,
+		],
 		allowOrigin: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		// =============================================
 		directAccess: true,
@@ -150,19 +159,20 @@ const bootstrap = async () => {
 		pages: {
 			enableRouter: true,
 		},
+		emailAdapter,
+		verifyUserEmails: true, // automatically sends an email to newly created users
+		emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
+		emailVerifyTokenReuseIfValid: true,
 		// =============================================
-		// verifyUserEmails: true,
 		// preserveFileName: true,
-		// emailVerifyTokenReuseIfValid: true,
 		// logLevel: 'silly', // this seems to be not working at all
-		// emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
-		// middleware: parseServerMiddleware, // this is being mounted oly if with use the startApp method
+		// middleware: parseServerMiddleware, // this is being mounted only if with use the startApp method
 	});
 
 	// start the parse server setup in the background
 	const startParsePromise = parseServer.start();
 
-	// set custom ennPoints routes
+	// set custom endPoints routes
 	app.use(coreApiRouter);
 
 	// --------------------------------------------------------------------------------------//
@@ -212,7 +222,9 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
 		app.use(
-			express.static(path.resolve(__dirname, '../../front/build/client')),
+			express.static(
+				path.resolve(import.meta.dirname, '../../front/build/client'),
+			),
 		);
 
 		// needs to handle all verbs (GET, POST, etc.)
@@ -222,17 +234,18 @@ const bootstrap = async () => {
 				// `remix build` and `remix dev` output files to a build directory, you need
 				// to pass that build to the request handler
 				build: await import(
-					/* webpackIgnore: true */ 'front/build/server/index.js'
-				), // ! the '.js' extension is important
+					/* webpackIgnore: true */ 'front/build/server/index.js' // ! the '.js' extension is important
+				),
 
 				// return anything you want here to be available as `context` in your
 				// loaders and actions. This is where you can bridge the gap between Remix
 				// and your server
-				// getLoadContext: (_req, _res) => {
-				// 	return {
-				// 		logger,
-				// 	};
-				// },
+				getLoadContext: (_req, _res) => {
+					return {
+						logger,
+						postHogServer: posthogClient,
+					};
+				},
 			}),
 		);
 	}
@@ -250,7 +263,7 @@ const bootstrap = async () => {
 	// ! this must be mounted after all routes and all other middlewares
 	app.use(errorMiddleware);
 
-	server.listen(env.PORT, env.LOCAL ? 'localhost' : '0.0.0.0', () => {
+	server.listen(env.PORT, '0.0.0.0', () => {
 		logger.info(
 			'================================================================',
 		);

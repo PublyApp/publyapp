@@ -11,25 +11,34 @@ export const userGroup = {
 	STAFF: 'staff',
 } as const;
 
+export const roleNames = [
+	'STAFF_ADMIN',
+	'STAFF_EDITOR',
+	'STAFF_USER',
+	'STAFF_CONTRIBUTOR',
+	'TENANT_USER',
+	'AUTHED_USER',
+] as const;
+
 export const roleEnum = {
 	// cspell:ignore fnhux Rwmgyh Jhpma
 	STAFF_ADMIN: {
-		name: 'STAFF_ADMIN',
+		name: roleNames[0],
 		code: 'eM3RYjw2yaQ6Gb4BTfnhux',
 		rank: 100,
 	} as const,
 	STAFF_EDITOR: {
-		name: 'STAFF_EDITOR',
+		name: roleNames[1],
 		code: 'r6LN7A3RwmgyhZUB4tv8Mn',
 		rank: 80,
 	} as const,
 	STAFF_USER: {
-		name: 'STAFF_USER',
+		name: roleNames[2],
 		code: 'xPK6yNWkCA5TgGU49p72J3',
 		rank: 70,
 	} as const,
 	STAFF_CONTRIBUTOR: {
-		name: 'STAFF_CONTRIBUTOR',
+		name: roleNames[3],
 		code: 'WqgTy4uxJhpmaFPzZUNjXk',
 		rank: 60,
 	} as const,
@@ -40,14 +49,14 @@ export const roleEnum = {
 	// TENANT_ADMIN: { name: 'TENANT_ADMIN', code: 5_394_846 } as const,
 	// TENANT_EDITOR: { name: 'TENANT_EDITOR', code: 4_141_341 } as const,
 	TENANT_USER: {
-		name: 'TENANT_USER',
+		name: roleNames[4],
 		code: 't2GwKsZxen3YyLB7QTup4r',
 		rank: 50,
 	} as const,
 	// TENANT_CONTRIBUTOR: { name: 'TENANT_CONTRIBUTOR', code: 2_347_347 } as const,
 	// =======================================================
 	AUTHED_USER: {
-		name: 'AUTHED_USER',
+		name: 'AUTHED_USER' as const,
 		code: 'wC5zNLaK6MQjnSe4cGTr3v',
 		rank: 40,
 	} as const,
@@ -90,10 +99,10 @@ export const roleSet = {
 	ABOVE_STAFF_EDITOR,
 	ABOVE_STAFF_USER,
 	ABOVE_STAFF_CONTRIBUTOR,
-	// ===
+	// ====
 	ABOVE_TENANT_USER,
 	ALL,
-	// ===
+	// ====
 	STAFF_MEMBER: ABOVE_STAFF_CONTRIBUTOR,
 	TENANT_MEMBER: [roleEnum.TENANT_USER],
 };
@@ -207,8 +216,9 @@ export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
 export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
 export const TENANT_ID_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-TenantId`;
-export const X_FORWARDED_FOR_HEADER_KEY = 'X-Forwarded-For';
-export const X_REMIX_CLIENT_IP = 'X-Remix-Client-IP';
+export const FORWARDED_FOR_HEADER_KEY = 'X-Forwarded-For';
+export const REMIX_CLIENT_IP_HEADER_KEY = 'X-Remix-Client-IP';
+export const CLOUDFLARE_CONNECTING_IP_HEADER_KEY = 'CF-Connecting-IP';
 
 const RESOURCE = {
 	users: 'users',
@@ -236,6 +246,7 @@ export const FRONT_PATH_NAMES = {
 	auth: {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
+		verifyEmail: makePath('verify-email'),
 	},
 	tenant: (tenantId = '') => {
 		return {
@@ -278,8 +289,14 @@ export const functionName = {
 		getTenantAuthData: 'getTenantAuthData',
 		getIsDisabledSignup: 'getIsDisabledSignup',
 		getRedirectCode: 'getRedirectCode',
+		checkEmailVerificationToken: 'checkEmailVerificationToken',
 		// ====
 		removeSeededUsers: 'removeSeededUsers',
+	},
+	staff: {
+		staffMember: {
+			create: 'createStaffMember',
+		},
 	},
 } as const;
 
@@ -296,7 +313,6 @@ export const endPoint = {
 	api: {
 		root: makePath(API_ROOT),
 		auth: {
-			// root: makePath(apiPath, ROOTS.AUTH),
 			passwordLogin: makePath(API_ROOT, ROOTS.AUTH, 'password-login'),
 			passwordSignup: makePath(API_ROOT, ROOTS.AUTH, 'password-signup'),
 			verifyEmail: makePath(API_ROOT, ROOTS.AUTH, 'verify-email'),
@@ -316,9 +332,12 @@ export const DEFAULT_PAGE_SIZE = 25;
 
 export const isServer = typeof window === 'undefined';
 
+export const isBun = typeof Bun !== 'undefined';
+
 export const fileProvider = {
 	LOCAL_DISK: 'localDisk',
 	CLOUDINARY: 'cloudinary',
+	CLOUDFLARE: 'cloudflare',
 } as const;
 
 export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
@@ -333,6 +352,7 @@ export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
 export const queryParamKey = {
 	language: 'lng',
+	token: 'token',
 };
 
 export const jobType = {

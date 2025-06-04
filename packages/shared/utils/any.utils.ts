@@ -83,3 +83,14 @@ export const withResolvers = <T = unknown>() => {
 	// @ts-ignore
 	return { promise, resolve, reject };
 };
+
+/**
+ * @link https://stackoverflow.com/a/58110124/15003148
+ */
+export const nonNullable = <T>(value: T): value is NonNullable<T> => {
+	return value !== null && value !== undefined;
+};
+
+export const mbToBytes = (mb: number) => {
+	return mb * 1024 * 1024;
+};
