@@ -80,7 +80,9 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 			try {
 				blocklist.addAddress(ipAddress || '');
 			} catch (error) {
-				logger.error(error);
+				logger.error('Failed to add IP address to blocklist:', error, {
+					ipAddress,
+				});
 			}
 
 			const updateConfigAsynchronously = async () => {
