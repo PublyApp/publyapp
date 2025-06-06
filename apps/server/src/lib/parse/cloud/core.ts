@@ -331,9 +331,7 @@ export const isCloudHttpException = (
 	return error instanceof CloudFunctionHttpException;
 };
 
-// * allow us to verify ip address if the request is not from the cloud functions and from an user with a session token
-// * in other words: verify if the call is not from our cloud code (not from our server itself)
-// * especially necessary if directAccess is set to false
+// * verify if the call is not from our cloud code (not from our server itself)
 export const isFromCloudEnvironment = async (
 	req: Parse.Cloud.FunctionRequest | Parse.Cloud.TriggerRequest,
 ) => {
