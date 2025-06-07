@@ -16,6 +16,7 @@ import {
 import { HttpException } from '@/server/exceptions/HttpException';
 import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
 import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
+import { logger } from '../../winston';
 
 export const triggerType = {
 	beforeLogin: 'beforeLogin',
@@ -103,6 +104,10 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 			const { trigger } = params;
 
 			if (req.triggerName === triggerType.beforeFind) {
+				const tenantIdInContext: string | undefined = _.get(
+					req.context,
+					'tenantId',
+				) as string | undefined;
 				const tenantIdInHeaders = getParseFunctionHeader(
 					req,
 					TENANT_ID_HEADER_KEY,
@@ -111,10 +116,6 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 					req.query?.toJSON(),
 					'where.tenant.objectId',
 				);
-				const tenantIdInContext: string | undefined = _.get(
-					req.context,
-					'tenantId',
-				) as string | undefined;
 
 				const tenantId =
 					tenantIdInContext || tenantIdInHeaders || tenantIdInQuery;
@@ -146,9 +147,9 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 
 				const sessionToken = req.user.getSessionToken();
 
-				if (await isFromCloudEnvironment(req)) {
-					return trigger({ locale, req, t, tenantId });
-				}
+				// if (await isFromCloudEnvironment(req)) {
+				// 	return trigger({ locale, req, t, tenantId });
+				// }
 
 				// * no need to check ip because it is already done in: parseTriggerEnhanced function
 
@@ -166,6 +167,10 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 			}
 
 			if (req.triggerName === triggerType.afterFind) {
+				const tenantIdInContext: string | undefined = _.get(
+					req.context,
+					'tenantId',
+				) as string | undefined;
 				const tenantIdInHeaders = getParseFunctionHeader(
 					req,
 					TENANT_ID_HEADER_KEY,
@@ -174,10 +179,6 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 					req.query?.toJSON(),
 					'where.tenant.objectId',
 				);
-				const tenantIdInContext: string | undefined = _.get(
-					req.context,
-					'tenantId',
-				) as string | undefined;
 
 				const tenantId =
 					tenantIdInContext || tenantIdInHeaders || tenantIdInQuery;
@@ -192,17 +193,22 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 				return trigger({ locale, req, t, tenantId });
 			}
 
-			if (req.triggerName === triggerType.beforeSave) {
-				const tenantIdInHeaders = getParseFunctionHeader(
-					req,
-					TENANT_ID_HEADER_KEY,
-				);
-				const tenantIdInQuery: string | undefined = _.get(
-					req.query?.toJSON(),
-					'where.tenant.objectId',
-				);
+			if (
+				req.triggerName === triggerType.beforeSave ||
+				req.triggerName === triggerType.beforeDelete
+			) {
+				// const tenantIdInContext: string | undefined = _.get(
+				// 	req.context,
+				// 	'tenantId',
+				// ) as string | undefined;
+				// const tenantIdInHeaders = getParseFunctionHeader(
+				// 	req,
+				// 	TENANT_ID_HEADER_KEY,
+				// );
+				const tenantInObject = req.original?.id;
 
-				const tenantId = tenantIdInHeaders || tenantIdInQuery;
+				const tenantId =
+					/* tenantIdInContext || tenantIdInHeaders || */ tenantInObject;
 
 				if (!tenantId) {
 					throw new HttpException(
@@ -214,9 +220,9 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 				const tenantObject = new ParseTenant();
 				tenantObject.id = tenantId;
 
-				if (!tenantIdInQuery) {
-					req.query?.equalTo('tenant', tenantObject);
-				}
+				// if (!tenantIdInQuery) {
+				// 	req.query?.equalTo('tenant', tenantObject);
+				// }
 
 				if (req.master) {
 					return trigger({ locale, req, t, tenantId });
@@ -231,9 +237,9 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 
 				const sessionToken = req.user.getSessionToken();
 
-				if (await isFromCloudEnvironment(req)) {
-					return trigger({ locale, req, t, tenantId });
-				}
+				// if (await isFromCloudEnvironment(req)) {
+				// 	return trigger({ locale, req, t, tenantId });
+				// }
 
 				// * no need to check ip because it is already done in: parseTriggerEnhanced function
 
@@ -250,113 +256,40 @@ export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
 				return trigger({ locale, req, t, tenantId });
 			}
 
-			if (req.triggerName === 'beforeCreate') {
+			if (
+				req.triggerName === triggerType.afterSave ||
+				req.triggerName === triggerType.beforeDelete
+			) {
+				// const tenantIdInContext: string | undefined = _.get(
+				// 	req.context,
+				// 	'tenantId',
+				// ) as string | undefined;
+				// const tenantIdInHeaders = getParseFunctionHeader(
+				// 	req,
+				// 	TENANT_ID_HEADER_KEY,
+				// );
+				const tenantInObject = req.original?.id;
+
+				const tenantId =
+					/* tenantIdInContext || tenantIdInHeaders || */ tenantInObject;
+
+				if (!tenantId) {
+					throw new HttpException(
+						401,
+						t('item-is-required', { item: 'tenantId' }),
+					);
+				}
+
+				return trigger({ locale, req, t, tenantId });
 			}
+
+			logger.error(
+				`cannot use trigger type ${req.triggerName} as multi-tenant trigger`,
+				{
+					triggerName: req.triggerName,
+				},
+			);
+			throw new HttpException(500, t('Internal server error'));
 		},
 	});
 };
-
-/**
- * ! Warning!!!!!!!! This is a work in progress
- */
-// export const multiTenantTrigger = (params: MultiTenantTriggerParams) => {
-// 	return parseTriggerEnhanced({
-// 		trigger: async ({ locale, req, t }) => {
-// 			const { trigger } = params;
-
-// 			if (req.master) {
-// 				return trigger({ locale, req, t });
-// 			}
-
-// 			if (!req.user) {
-// 				throw new HttpException(
-// 					401,
-// 					t('item-is-required', { item: t('authentication') }),
-// 				);
-// 			}
-
-// 			const sessionToken = req.user.getSessionToken();
-
-// 			if (req.triggerName === 'beforeFind') {
-// 				const tenantIdInHeaders = getParseFunctionHeader(
-// 					req,
-// 					TENANT_ID_HEADER_KEY,
-// 				);
-// 				const tenantIdInQuery: string | undefined = _.get(
-// 					req.query?.toJSON(),
-// 					'where.tenant.objectId',
-// 				);
-
-// 				const tenantId = tenantIdInHeaders || tenantIdInQuery;
-
-// 				if (!tenantId) {
-// 					throw new HttpException(
-// 						401,
-// 						t('item-is-required', { item: 'tenantId' }),
-// 					);
-// 				}
-
-// 				const tenantObject = new ParseTenant();
-// 				tenantObject.id = tenantId;
-
-// 				const tenantService = new TenantService({ sessionToken });
-// 				const isUserMemberOfTenant = await tenantService.isUserMemberOfTenant({
-// 					user: req.user,
-// 					tenant: tenantObject,
-// 				});
-
-// 				if (!isUserMemberOfTenant) {
-// 					throw new HttpException(403, t('unauthorized'));
-// 				}
-// 				// return trigger({ locale, req, t });
-// 			}
-
-// 			// // TODO: verify if user is member of requested tenant ???
-// 			// const isUserMemberOfTenant = await TenantService.isUserMemberOfTenant({ user: req.user, tenant });
-
-// 			// if (!isUserMemberOfTenant) {
-// 			// 	throw new Error(t('unauthorized'));
-// 			// }
-
-// 			// const tenant = new Parse.Object(appClassName.TENANT);
-// 			// tenant.id = tenantIdInHeaders;
-// 			// req.query?.equalTo('tenant', tenant);
-// 			return trigger({ locale, req, t });
-// 		},
-
-// 		// const { headers, context } = req;
-// 		// const fromPublic = context?.fromPublic;
-// 		// const fromStaff = context?.fromStaff;
-
-// 		//
-// 		// let _headers: Record<string, unknown> = {};
-
-// 		// if (_.isObject(headers) && !_.isEmpty(headers)) {
-// 		// 	_headers = headers as never;
-// 		// } else if (_.isObject(context?.headers) && !_.isEmpty(context.headers)) {
-// 		// 	_headers = context.headers as never;
-// 		// }
-
-// 		//
-// 		// const _tenantId = _headers[_.toLower(TENANT_ID_HEADER_KEY)];
-// 		// const tenantId = _.isString(_tenantId) ? _tenantId : undefined;
-
-// 		// if (req.triggerName === 'beforeFind') {
-// 		// 	if (!tenantId && !req.master && !fromStaff && !fromPublic) {
-// 		// 		throw new Error(t('item-is-required', { item: 'tenantId' }));
-// 		// 	}
-
-// 		// 	// if (isPublic) {
-// 		// 	// 	return trigger({ locale, req, t });
-// 		// 	// }
-
-// 		// 	if (tenantId) {
-// 		// 		req.query?.equalTo('tenant', tenantId);
-// 		// 		return trigger({ locale, req, t, tenantId });
-// 		// 	}
-// 		// }
-
-// 		// return trigger({ locale, req, t });
-// 		// }
-// 	});
-// };
