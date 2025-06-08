@@ -17,6 +17,14 @@ import { mbToBytes, sleep } from '@/shared/utils/any.utils';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import _ from 'lodash';
+import {
+	DEFAULT_MAX_USER_PER_TENANT,
+	tenantSubRoleEnum,
+} from '@/shared/lib/constants';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { FieldContainer } from '@/front/components/form-extras';
+import IconButton from '@mui/material/IconButton';
+import MenuItem from '@mui/material/MenuItem';
 
 // ----------------------------------------------------------------------
 
@@ -26,18 +34,36 @@ type NewTenantSchemaType = zod.infer<
 
 // ----------------------------------------------------------------------
 
+const ROLE_OPTIONS = _.chain(tenantSubRoleEnum)
+	// .pickBy((value) => {
+	// 	return _.startsWith(value.name, 'STAFF_');
+	// })
+	.map((value) => {
+		return {
+			value: value,
+			label: value,
+		};
+	})
+	.value();
+
+const defaultValues = {
+	logo: undefined,
+	name: '',
+	initialUsers: [
+		{
+			email: '',
+			role: tenantSubRoleEnum.CONTRIBUTOR,
+		},
+	],
+	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
+} satisfies NewTenantSchemaType;
+
 export const TenantCreateForm = () => {
 	const { t } = useTranslate();
 	// const router = useRouter();
 	// const openDialog = useBoolean();
 
 	const NewTenantSchema = getNewTenantSchemaClientSide(defaultZodClient);
-
-	const defaultValues: NewTenantSchemaType = {
-		logo: undefined,
-		name: '',
-		initialUsers: [],
-	};
 
 	const methods = useForm<NewTenantSchemaType>({
 		mode: 'onSubmit',
@@ -48,7 +74,7 @@ export const TenantCreateForm = () => {
 	const {
 		// reset,
 		handleSubmit,
-		formState: { isSubmitting },
+		formState: { isSubmitting, errors },
 	} = methods;
 
 	const /* handleConfirmDialog */ submitNewTenant = useCallback(
@@ -194,28 +220,72 @@ export const TenantCreateForm = () => {
 									display: 'grid',
 									gridTemplateColumns: {
 										xs: 'repeat(1, 1fr)',
-										sm: 'repeat(2, 1fr)',
+										sm: 'repeat(1, 2.5fr 1.5fr)',
 									},
+									alignItems: 'flex-start',
 								}}
 							>
 								<Field.Text name="name" label={t('workspace-name')} required />
+
+								<FieldContainer
+									label={t('max-users')}
+									sx={{ alignItems: 'flex-start' }}
+								>
+									<Field.NumberInput
+										name="maxUsers"
+										disabled
+										sx={{
+											maxWidth: 120,
+										}}
+									/>
+								</FieldContainer>
 							</Box>
 						</Card>
 
 						<Card sx={{ p: 3 }}>
-							{/* <Box
+							<Box
 								sx={{
 									rowGap: 3,
 									columnGap: 2,
 									display: 'grid',
 									gridTemplateColumns: {
-										xs: 'repeat(1, 1fr)',
-										sm: 'repeat(2, 1fr)',
+										xs: 'repeat(1, 4fr 1.5fr 0.25fr)',
 									},
 								}}
 							>
-								<Field.Text name="name" label={t('workspace-name')} required />
-							</Box> */}
+								<Field.Text
+									name="initialUsers.0.email"
+									label={t('email-address')}
+									required
+								/>
+
+								<Field.Select
+									name="initialUsers.0.role"
+									label={t('role')}
+									required
+									// defaultValue={tenantSubRoleEnum.CONTRIBUTOR}
+								>
+									{ROLE_OPTIONS.map((option) => (
+										<MenuItem key={option.value} value={option.label}>
+											{option.label}
+										</MenuItem>
+									))}
+								</Field.Select>
+
+								<Box
+									sx={{
+										display: 'flex',
+										alignItems: 'start',
+										justifyContent: 'center',
+									}}
+								>
+									<IconButton size="large">
+										{/* <Iconify icon="eva:done-all-fill" /> */}
+										<Iconify icon="eva:checkmark-fill" />
+									</IconButton>
+								</Box>
+							</Box>
+
 							<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
 								<Button type="submit" variant="contained">
 									{_.capitalize(t('add-a-user'))}

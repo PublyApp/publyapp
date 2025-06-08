@@ -31,18 +31,6 @@ import { defaultApiClient } from 'packages/api/ApiClient';
 import { useRouter } from '@/front/hooks/use-router';
 import { mbToBytes } from '@/shared/utils/any.utils';
 
-const ROLE_OPTIONS = _.chain(roleEnum)
-	.pickBy((value) => {
-		return _.startsWith(value.name, 'STAFF_');
-	})
-	.map((value) => {
-		return {
-			value: value.name,
-			label: value.name,
-		};
-	})
-	.value();
-
 type IUserItem = {
 	id: string;
 	firstName: string;
@@ -65,6 +53,18 @@ type Props = {
 	currentUser?: IUserItem;
 };
 
+const ROLE_OPTIONS = _.chain(roleEnum)
+	.pickBy((value) => {
+		return _.startsWith(value.name, 'STAFF_');
+	})
+	.map((value) => {
+		return {
+			value: value.name,
+			label: value.name,
+		};
+	})
+	.value();
+
 const defaultValues: NewUserSchemaType = {
 	avatar: undefined,
 	firstName: '',
@@ -72,6 +72,7 @@ const defaultValues: NewUserSchemaType = {
 	email: '',
 	role: roleEnum.STAFF_CONTRIBUTOR.name,
 };
+
 export const UserNewEditForm = ({ currentUser }: Props) => {
 	const { t } = useTranslate();
 	const router = useRouter();
