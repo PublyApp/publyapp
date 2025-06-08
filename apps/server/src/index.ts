@@ -42,7 +42,7 @@ import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
-import { posthogClient } from './lib/posthog';
+import { postHogServer } from './lib/posthog';
 import {
 	maliciousRequestsGuardMiddleware,
 	populateBlocklist,
@@ -66,6 +66,7 @@ const bootstrap = async () => {
 	const app = express();
 
 	app.set('trust proxy', 1);
+	app.set('case sensitive routing', true);
 
 	app.use(maliciousRequestsGuardMiddleware);
 	app.use(
@@ -219,9 +220,19 @@ const bootstrap = async () => {
 	// wait for the parse server setup to finish, the mount the parse app to the express app
 	await startParsePromise;
 
-	parseServer.app.disable('x-powered-by');
+	parseServer.app.set('case sensitive routing', true);
+	parseServer.app.set('trust proxy', 1);
+	parseServer.app.disable('x-powered-by'); // already set by helmet on parent app
 
 	app.use(PARSE_SERVER_URL.pathname, parseServerMiddleware, parseServer.app);
+
+	app.get(
+		`${endPoint.api.root}/test`,
+		expressHandler(async (_req, res) => {
+			// const { t } = getRequestUtils(req);
+			return res.status(200).json({ ok: 'ok' });
+		}),
+	);
 
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                   //
@@ -248,7 +259,7 @@ const bootstrap = async () => {
 			getLoadContext: (_req, _res) => {
 				return {
 					logger,
-					postHogServer: posthogClient,
+					postHogServer: postHogServer,
 				};
 			},
 		});
