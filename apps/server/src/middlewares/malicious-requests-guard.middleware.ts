@@ -55,20 +55,21 @@ export const populateBlocklist = async () => {
 
 export const maliciousRequestsGuardMiddleware = expressHandler(
 	async (req, res, next) => {
-		const { path } = req;
+		const { path: _path } = req;
+		const path = _.toLower(_path);
 
 		const ipAddress = getRequestIp(req);
 
 		const isWTF =
-			_.includes(path, 'test_block_ip') ||
-			_.includes(_.toLower(path), _.toLower('.DS_Store')) ||
-			_.includes(path, '.git') ||
-			_.includes(path, '.vscode') ||
-			_.includes(path, '.aws') ||
-			_.includes(path, '.circleci') ||
-			_.includes(path, '.env');
-		const isZip = _.endsWith(path, '.zip');
-		const isWordPress = _.includes(path, '/wp');
+			_.includes(path, _.toLower('test_block_ip')) ||
+			_.includes(path, _.toLower('.DS_Store')) ||
+			_.includes(path, _.toLower('.git')) ||
+			_.includes(path, _.toLower('.vscode')) ||
+			_.includes(path, _.toLower('.aws')) ||
+			_.includes(path, _.toLower('.circleci')) ||
+			_.includes(path, _.toLower('.env'));
+		const isZip = _.endsWith(path, _.toLower('.zip'));
+		const isWordPress = _.includes(path, _.toLower('/wp'));
 		const phpExtensionRegex = /\.php(?:[^/]*)?(?:\/|$)/i;
 		const isPHP = phpExtensionRegex.test(path);
 
