@@ -2,7 +2,9 @@ import type { i18n, TFunction } from 'i18next';
 import _ from 'lodash';
 import z, {
 	defaultErrorMap,
+	type ZodArray,
 	ZodIssueCode,
+	type ZodTypeAny,
 	type Primitive,
 	type RawCreateParams,
 	type Writeable,
@@ -184,10 +186,11 @@ class InterZod {
 		return z.number({ errorMap: this.getErrorMap(), ...params });
 	}
 
-	array(
-		schema: Parameters<typeof z.array>[0],
-		params?: Parameters<typeof z.array>[1],
-	) {
+	// array<T extends ZodTypeAny>(schema: T, params?: RawCreateParams) => ZodArray<T>;
+	array<T extends ZodTypeAny>(
+		schema: T /* : Parameters<typeof z.array>[0] */,
+		params?: RawCreateParams /*  Parameters<typeof z.array>[1], */,
+	): ZodArray<T> {
 		return z.array(schema, { errorMap: this.getErrorMap(), ...params });
 	}
 
