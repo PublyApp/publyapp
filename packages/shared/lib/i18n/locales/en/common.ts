@@ -122,6 +122,10 @@ const commonEN = {
 	'create-the-tenant': 'Create the tenant',
 	'add-a-user': 'Add a user',
 	'max-users': 'Maximum users number',
+	'tenant-should-have-at-least-one-admin':
+		'A tenant should have at least one admin',
+	'each-user-must-have-a-unique-email':
+		'Each user must have a unique email address.',
 
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Internal server error',
