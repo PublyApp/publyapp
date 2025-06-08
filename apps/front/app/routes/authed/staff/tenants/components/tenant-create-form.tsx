@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 import type zod from 'zod';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
+import Tooltip from '@mui/material/Tooltip';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Field } from '@/front/components/hook-form/fields';
 import { fData } from '@/front/utils/format-number';
@@ -20,11 +21,13 @@ import _ from 'lodash';
 import {
 	DEFAULT_MAX_USER_PER_TENANT,
 	tenantSubRoleEnum,
+	type TenantSubRole,
 } from '@/shared/lib/constants';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { FieldContainer } from '@/front/components/form-extras';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
+import { HelperText } from '@/front/components/hook-form/help-text';
 
 // ----------------------------------------------------------------------
 
@@ -46,15 +49,15 @@ const ROLE_OPTIONS = _.chain(tenantSubRoleEnum)
 	})
 	.value();
 
+const initialUserValue = {
+	email: '',
+	role: tenantSubRoleEnum.ADMIN,
+};
+
 const defaultValues = {
 	logo: undefined,
 	name: '',
-	initialUsers: [
-		{
-			email: '',
-			role: tenantSubRoleEnum.CONTRIBUTOR,
-		},
-	],
+	initialUsers: [initialUserValue],
 	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 } satisfies NewTenantSchemaType;
 
@@ -75,7 +78,15 @@ export const TenantCreateForm = () => {
 		// reset,
 		handleSubmit,
 		formState: { isSubmitting, errors },
+		control,
 	} = methods;
+
+	console.log('🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵', errors);
+
+	const { fields, append, remove, update } = useFieldArray({
+		control,
+		name: 'initialUsers',
+	});
 
 	const /* handleConfirmDialog */ submitNewTenant = useCallback(
 			(e?: React.BaseSyntheticEvent) => {
@@ -181,6 +192,15 @@ export const TenantCreateForm = () => {
 	// 	})
 	// 	.value();
 
+	const handleAddUserToForm = () => {
+		append({
+			email: '',
+			role: _.isEmpty(fields)
+				? tenantSubRoleEnum.ADMIN
+				: tenantSubRoleEnum.CONTRIBUTOR,
+		});
+	};
+
 	return (
 		<>
 			<Form methods={methods} onSubmit={submitNewTenant}>
@@ -242,56 +262,61 @@ export const TenantCreateForm = () => {
 							</Box>
 						</Card>
 
-						<Card sx={{ p: 3 }}>
-							<Box
-								sx={{
-									rowGap: 3,
-									columnGap: 2,
-									display: 'grid',
-									gridTemplateColumns: {
-										xs: 'repeat(1, 4fr 1.5fr 0.25fr)',
-									},
+						<Box>
+							{errors.initialUsers?.root?.message ? (
+								<HelperText
+									error
+									errorMessage={errors.initialUsers?.root?.message}
+									sx={{ mb: 1 }}
+								/>
+							) : null}
+
+							<Card
+								sx={(theme) => {
+									return {
+										p: 3,
+										'--error': theme.vars.customShadows.cardErrorOutline,
+										'--normal': theme.vars.customShadows.card,
+										boxShadow: 'var(--shadow-card)',
+									};
+								}}
+								style={{
+									['--shadow-card' as string]: errors.initialUsers?.root
+										? 'var(--error)'
+										: 'var(--normal)',
 								}}
 							>
-								<Field.Text
-									name="initialUsers.0.email"
-									label={t('email-address')}
-									required
-								/>
-
-								<Field.Select
-									name="initialUsers.0.role"
-									label={t('role')}
-									required
-									// defaultValue={tenantSubRoleEnum.CONTRIBUTOR}
-								>
-									{ROLE_OPTIONS.map((option) => (
-										<MenuItem key={option.value} value={option.label}>
-											{option.label}
-										</MenuItem>
-									))}
-								</Field.Select>
-
 								<Box
 									sx={{
-										display: 'flex',
-										alignItems: 'start',
-										justifyContent: 'center',
+										rowGap: 3,
+										columnGap: 2,
+										display: 'grid',
+										gridTemplateColumns: {
+											xs: 'repeat(1, 4fr 1.5fr 0.25fr)',
+										},
 									}}
 								>
-									<IconButton size="large">
-										{/* <Iconify icon="eva:done-all-fill" /> */}
-										<Iconify icon="eva:checkmark-fill" />
-									</IconButton>
+									{_.map(fields, (field, index) => {
+										return (
+											<UserRow
+												key={field.id}
+												remove={remove}
+												update={update}
+												index={index}
+												fields={fields}
+												hasError={!!errors.initialUsers?.[index]}
+											/>
+										);
+									})}
 								</Box>
-							</Box>
 
-							<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-								<Button type="submit" variant="contained">
-									{_.capitalize(t('add-a-user'))}
-								</Button>
-							</Stack>
-						</Card>
+								<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+									<Button variant="contained" onClick={handleAddUserToForm}>
+										{_.capitalize(t('add-a-user'))}
+									</Button>
+								</Stack>
+							</Card>
+						</Box>
 					</Grid>
 				</Grid>
 			</Form>
@@ -335,6 +360,133 @@ export const TenantCreateForm = () => {
 					</Button>
 				</DialogActions>
 			</Dialog> */}
+		</>
+	);
+};
+
+type UserRowProps = {
+	index: number;
+	remove: (index: number) => void;
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	update: (index: number, value: any) => void;
+	fields: { email: string; role: TenantSubRole }[];
+	hasError: boolean;
+};
+
+const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
+	const { t } = useTranslate();
+
+	const handleRemoveUserRow = () => {
+		remove(index);
+	};
+
+	const handleChangeRole = useCallback(
+		(e: React.ChangeEvent<{ value: unknown }>) => {
+			const value = e.target.value;
+			update(index, {
+				...fields[index],
+				role: value as TenantSubRole,
+			});
+		},
+		[fields, index, update],
+	);
+
+	const handleChangeEmail = useCallback(
+		(e: React.ChangeEvent<{ value: unknown }>) => {
+			const value = e.target.value;
+			update(index, {
+				...fields[index],
+				email: value as string,
+			});
+		},
+		[fields, index, update],
+	);
+
+	const isAdmin = _.get(fields, `${index}.role`) === tenantSubRoleEnum.ADMIN;
+	const adminsList = _.filter(fields, (field) => {
+		return field.role === tenantSubRoleEnum.ADMIN;
+	});
+	const isTheOnlyAdmin = isAdmin && adminsList.length === 1;
+
+	return (
+		<>
+			<Field.Text
+				name={`initialUsers.${index}.email`}
+				label={t('email-address')}
+				onChange={handleChangeEmail}
+				required
+			/>
+
+			<Tooltip
+				title={t('tenant-should-have-at-least-one-admin')}
+				placement="top"
+				disableHoverListener={!isTheOnlyAdmin}
+			>
+				<span>
+					<Field.Select
+						name={`initialUsers.${index}.role`}
+						label={t('role')}
+						required
+						onChange={handleChangeRole}
+						disabled={isTheOnlyAdmin}
+					>
+						{ROLE_OPTIONS.map((option) => (
+							<MenuItem key={option.value} value={option.label}>
+								{option.label}
+							</MenuItem>
+						))}
+					</Field.Select>
+				</span>
+			</Tooltip>
+
+			{/* <Box
+				sx={{
+					display: 'flex',
+					flexDirection: 'column',
+					alignItems: 'center',
+					justifyContent: 'center',
+					marginTop: 'var(--var-margin-top)',
+				}}
+				style={{
+					['--var-margin-top' as string]: hasError ? '-50%' : 0,
+				}}
+			>
+				<IconButton size="medium">
+					<Iconify icon="eva:done-all-fill" />
+					<Iconify icon="eva:checkmark-fill" />
+				</IconButton>
+			</Box> */}
+
+			<Box
+				sx={{
+					display: 'flex',
+					flexDirection: 'column',
+					alignItems: 'center',
+					justifyContent: 'center',
+					marginTop: 'var(--var-margin-top)',
+				}}
+				style={{
+					['--var-margin-top' as string]: hasError ? '-50%' : 0,
+				}}
+			>
+				<Tooltip
+					title={t('tenant-should-have-at-least-one-admin')}
+					placement="top"
+					disableHoverListener={!isTheOnlyAdmin}
+				>
+					<span>
+						<IconButton
+							size="medium"
+							color="error"
+							onClick={handleRemoveUserRow}
+							disabled={isTheOnlyAdmin}
+						>
+							{/* <Iconify icon="eva:done-all-fill" /> */}
+							<Iconify icon="solar:trash-bin-trash-bold" />
+						</IconButton>
+					</span>
+				</Tooltip>
+			</Box>
 		</>
 	);
 };

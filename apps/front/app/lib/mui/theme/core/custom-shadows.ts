@@ -37,6 +37,8 @@ export interface CustomShadows {
 	card?: string;
 	dialog?: string;
 	dropdown?: string;
+
+	cardErrorOutline?: string;
 }
 
 // ----------------------------------------------------------------------
@@ -57,6 +59,7 @@ const createCustomShadows = (colorChannel: string): CustomShadows => {
 		/** ***** */
 		dialog: `-40px 40px 80px -8px ${varAlpha(common.blackChannel, 0.24)}`,
 		card: `0 0 2px 0 ${varAlpha(colorChannel, 0.2)}, 0 12px 24px -4px ${varAlpha(colorChannel, 0.12)}`,
+		// cardErrorOutline: `0 0 0 2px ${varAlpha(error.mainChannel, 0.24)}`,
 		dropdown: `0 0 2px 0 ${varAlpha(colorChannel, 0.24)}, -20px 20px 40px -4px ${varAlpha(colorChannel, 0.24)}`,
 		/** ***** */
 		primary: createShadowColor(primary.mainChannel),
@@ -65,10 +68,14 @@ const createCustomShadows = (colorChannel: string): CustomShadows => {
 		success: createShadowColor(success.mainChannel),
 		warning: createShadowColor(warning.mainChannel),
 		error: createShadowColor(error.mainChannel),
+		// ====
+		// the first shadow is the outline
+		cardErrorOutline: `0 0 0 1px ${varAlpha(error.mainChannel, 0.4)}, 0 0 2px 0 ${varAlpha(error.mainChannel, 0.2)}, 0 12px 24px -4px ${varAlpha(error.mainChannel, 0.12)}`,
 	};
 };
 
 export const customShadows: Record<ThemeColorScheme, CustomShadows> = {
 	light: createCustomShadows(grey['500Channel']),
 	dark: createCustomShadows(common.blackChannel),
+	// ====
 };
