@@ -121,6 +121,7 @@ const commonFR = {
 	'workspace-name': 'Nom du workspace',
 	'create-the-tenant': 'Créer le tenant',
 	'add-a-user': 'Ajouter un utilisateur',
+	'max-users': "Nombre maximum d'utilisateurs",
 
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Erreur interne du serveur',

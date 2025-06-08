@@ -121,11 +121,20 @@ export const staffRoleSet = _.pick(roleSet, [
 
 export type StaffRoleSet = ValueOf<typeof staffRoleSet>;
 
+export const tenantSubRoleNames = [
+	'ADMIN',
+	'EDITOR',
+	'USER',
+	'CONTRIBUTOR',
+] as const;
+
+export type TenantSubRoleName = (typeof tenantSubRoleNames)[number];
+
 export const tenantSubRoleEnum = {
-	ADMIN: 'ADMIN',
-	EDITOR: 'EDITOR',
-	USER: 'USER',
-	CONTRIBUTOR: 'CONTRIBUTOR',
+	ADMIN: tenantSubRoleNames[0],
+	EDITOR: tenantSubRoleNames[1],
+	USER: tenantSubRoleNames[2],
+	CONTRIBUTOR: tenantSubRoleNames[3],
 } as const;
 
 export type TenantSubRole = ValueOf<typeof tenantSubRoleEnum>;
