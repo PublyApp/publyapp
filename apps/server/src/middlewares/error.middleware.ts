@@ -4,7 +4,7 @@ import { ZodError } from 'zod';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { logger } from '@/server/lib/winston';
 import { getRequestUtils } from '../lib/express';
-import { posthogClient } from '../lib/posthog';
+import { postHogServer } from '../lib/posthog';
 import { isCloudHttpException } from '../lib/parse/cloud/core';
 import { serializeError } from 'serialize-error';
 
@@ -84,7 +84,7 @@ export const errorMiddleware: ErrorRequestHandler = async (
 
 		// capture only critical errors
 		if (httpStatusCode >= 500) {
-			posthogClient.captureException(error, req.user?.id, {
+			postHogServer.captureException(error, req.user?.id, {
 				ip: req.ip,
 				path: req.path,
 				method: req.method,
@@ -97,7 +97,7 @@ export const errorMiddleware: ErrorRequestHandler = async (
 			.json({ error: message, code: parseErrorCode, xcode }); // conform to Parse Server error response
 	} catch (_error) {
 		// capture only critical errors
-		posthogClient.captureException(error, req.user?.id, {
+		postHogServer.captureException(error, req.user?.id, {
 			ip: req.ip,
 			path: req.path,
 			method: req.method,
