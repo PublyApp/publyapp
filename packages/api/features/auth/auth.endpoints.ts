@@ -3,10 +3,10 @@ import _ from 'lodash';
 import type { IUser } from '@org/shared/types/db/user.types';
 
 import type {
-	GetIsDisabledSignupFunction,
-	GetRedirectCodeFunction,
-	GetTenantAuthDataFunction,
-	GetUserAuthDataFunction,
+	GetIsDisabledSignup,
+	GetRedirectCode,
+	GetTenantAuthData,
+	GetUserAuthData,
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
 import {
@@ -30,15 +30,15 @@ export default class AuthEndPoints extends BaseEndPoints {
 	}
 
 	async getUserAuthData() {
-		return this.parseRestClient.cloudRun<GetUserAuthDataFunction.Return>(
+		return this.parseRestClient.cloudRun<GetUserAuthData.Return>(
 			functionName.auth.getUserAuthData,
 		);
 	}
 
-	async getTenantAuthData(params: GetTenantAuthDataFunction.Params) {
+	async getTenantAuthData(params: GetTenantAuthData.Params) {
 		return this.parseRestClient.cloudRun<
-			GetTenantAuthDataFunction.Return,
-			GetTenantAuthDataFunction.Params
+			GetTenantAuthData.Return,
+			GetTenantAuthData.Params
 		>(functionName.auth.getTenantAuthData, {
 			params,
 		});
@@ -102,7 +102,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 	}
 
 	async getIsDisabledSignup() {
-		return this.parseRestClient.cloudRun<GetIsDisabledSignupFunction.Return>(
+		return this.parseRestClient.cloudRun<GetIsDisabledSignup.Return>(
 			functionName.auth.getIsDisabledSignup,
 		);
 	}
@@ -113,8 +113,8 @@ export default class AuthEndPoints extends BaseEndPoints {
 
 	async getRedirectCode({ tenantId }: { tenantId?: string } = {}) {
 		return this.parseRestClient.cloudRun<
-			GetRedirectCodeFunction.Return,
-			GetRedirectCodeFunction.Params
+			GetRedirectCode.Return,
+			GetRedirectCode.Params
 		>(functionName.auth.getRedirectCode, {
 			params: { tenantId },
 		});
