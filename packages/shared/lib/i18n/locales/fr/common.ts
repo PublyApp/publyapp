@@ -66,6 +66,7 @@ const commonFR = {
 	'auth-welcome-title': 'Re-bienvenu(e)',
 	cancel: 'Annuler',
 	confirm: 'Confirmer',
+	'item-creation-success-message': '{{item}} créé avec succès',
 
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',

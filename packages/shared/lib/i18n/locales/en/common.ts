@@ -66,6 +66,7 @@ const commonEN = {
 	'auth-welcome-title': 'Welcome back',
 	cancel: 'Cancel',
 	confirm: 'Confirm',
+	'item-creation-success-message': '{{item}} created successfully',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
