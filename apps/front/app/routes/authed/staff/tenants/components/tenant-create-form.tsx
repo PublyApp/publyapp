@@ -14,12 +14,13 @@ import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/ten
 import { useTranslate } from '@/front/hooks/use-translate';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useMainStore } from '@/front/lib/zustand/store';
-import { mbToBytes, sleep } from '@/shared/utils/any.utils';
+import { mbToBytes } from '@/shared/utils/any.utils';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import _ from 'lodash';
 import {
 	DEFAULT_MAX_USER_PER_TENANT,
+	FRONT_PATH_NAMES,
 	tenantSubRoleEnum,
 	type TenantSubRole,
 } from '@/shared/lib/constants';
@@ -35,6 +36,8 @@ import DialogActions from '@mui/material/DialogActions';
 import { useRouter } from '@/front/hooks/use-router';
 import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
+import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
+import { toast } from '@/front/components/snackbar';
 
 // ----------------------------------------------------------------------
 
@@ -45,9 +48,6 @@ type NewTenantSchemaType = zod.infer<
 // ----------------------------------------------------------------------
 
 const ROLE_OPTIONS = _.chain(tenantSubRoleEnum)
-	// .pickBy((value) => {
-	// 	return _.startsWith(value.name, 'STAFF_');
-	// })
 	.map((value) => {
 		return {
 			value: value,
@@ -93,39 +93,28 @@ export const TenantCreateForm = () => {
 		name: 'initialUsers',
 	});
 
+	const { mutate: createTenant } = useCreateTenant({
+		onSuccess: () => {
+			reset();
+			toast.success(
+				_.capitalize(t('item-creation-success-message', { item: t('tenant') })),
+			);
+			router.push(FRONT_PATH_NAMES.staff.tenants.root);
+		},
+		onError: (error) => {
+			toast.error(error.message);
+		},
+	});
+
 	const handleConfirmDialog = useCallback(
 		(e?: React.BaseSyntheticEvent) => {
 			const handler = handleSubmit(async (data) => {
-				console.log('☝️☝️☝️☝️', data);
-				await sleep(3000);
-				// try {
-				// 	// const formData = new FormData();
-				// 	// _.entries(data).forEach((value) => {
-				// 	// 	const [key, fieldValue] = value;
-				// 	// 	formData.append(key, fieldValue);
-				// 	// });
-				// 	// // console.log('***********', defaultApiClient.parseRestClient.getSessionToken());
-				// 	// await defaultApiClient.parseRestClient.cloudRun(
-				// 	// 	functionName.staff.staffMember.create,
-				// 	// 	{
-				// 	// 		params: formData,
-				// 	// 		headers: {
-				// 	// 			'Content-Type': 'multipart/form-data',
-				// 	// 			// 'Authorization': `Bearer ${defaultApiClient.parseRestClient.getSessionToken()}`,
-				// 	// 		},
-				// 	// 	},
-				// 	// );
-				// 	// reset();
-				// 	// toast.success(currentUser ? 'Update success!' : 'Create success!');
-				// 	// router.push(FRONT_PATH_NAMES.staff.tenants.root);
-				// } catch (error) {
-				// 	// console.error(error);
-				// }
+				createTenant(data);
 			});
 
 			return handler(e);
 		},
-		[handleSubmit],
+		[handleSubmit, createTenant],
 	);
 
 	const handleOpenDialog = useCallback(
@@ -139,7 +128,6 @@ export const TenantCreateForm = () => {
 		[handleSubmit, openDialog.onTrue],
 	);
 
-	// ***********************************
 	useEffect(() => {
 		useMainStore.setState((root) => {
 			root.tenantsSlice.createTenantForm.submit =
@@ -157,19 +145,6 @@ export const TenantCreateForm = () => {
 			});
 		};
 	}, [isSubmitting, handleOpenDialog]);
-
-	// useEffect(() => {
-	// 	return () => {
-	// 		const defaultSliceValues =
-	// 			useMainStore.getInitialState().tenantsSlice.createTenantForm;
-	// 		useMainStore.setState((root) => {
-	// 			root.tenantsSlice.createTenantForm.submit = defaultSliceValues.submit;
-	// 			root.tenantsSlice.createTenantForm.isSubmitting =
-	// 				defaultSliceValues.isSubmitting;
-	// 		});
-	// 	};
-	// }, []);
-	// ***********************************
 
 	const handleCloseDialog = openDialog.onFalse;
 
@@ -376,9 +351,21 @@ export const TenantCreateForm = () => {
 								</Box>
 
 								<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-									<Button variant="contained" onClick={handleAddUserToForm}>
-										{_.capitalize(t('add-a-user'))}
-									</Button>
+									<Tooltip
+										title={t('max-users-reached')}
+										disableHoverListener={!(fields.length >= values.maxUsers)}
+										placement="top"
+									>
+										<span>
+											<Button
+												variant="contained"
+												onClick={handleAddUserToForm}
+												disabled={fields.length >= values.maxUsers}
+											>
+												{_.capitalize(t('add-a-user'))}
+											</Button>
+										</span>
+									</Tooltip>
 								</Stack>
 							</Card>
 						</Box>

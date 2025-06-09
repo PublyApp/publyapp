@@ -16,6 +16,7 @@ import { createStaffMember } from '../modules/staff/staff-member/staff-member.fu
 import { createExpressHandler } from '../lib/parse/cloud/function';
 import { expressHandler } from '../lib/express';
 import _ from 'lodash';
+import { createTenant } from '../modules/staff/tenant/tenant.functions';
 
 const coreApiRouter = Router();
 export default coreApiRouter;
@@ -70,4 +71,19 @@ coreApiRouter.post(
 		next();
 	}),
 	handleCreateStaffMember,
+);
+
+const handleCreateTenant = createExpressHandler(createTenant);
+coreApiRouter.post(
+	handleCreateTenant.path,
+	...handleCreateTenant.middlewares,
+	multer({
+		storage: multer.memoryStorage(),
+		limits: { fileSize: mbToBytes(3) },
+	}).single('logo'),
+	expressHandler(async (req, _res, next) => {
+		_.set(req, 'headers.__logo__', req.file);
+		next();
+	}),
+	handleCreateTenant,
 );
