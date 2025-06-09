@@ -12,7 +12,7 @@ import { fData } from '@/front/utils/format-number';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMainStore } from '@/front/lib/zustand/store';
 import { mbToBytes } from '@/shared/utils/any.utils';
 import Button from '@mui/material/Button';
@@ -38,6 +38,8 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
 import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
 import { toast } from '@/front/components/snackbar';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+import Alert from '@mui/material/Alert';
 
 // ----------------------------------------------------------------------
 
@@ -93,6 +95,8 @@ export const TenantCreateForm = () => {
 		name: 'initialUsers',
 	});
 
+	const [alertMessage, setAlertMessage] = useState('');
+
 	const { mutate: createTenant } = useCreateTenant({
 		onSuccess: () => {
 			reset();
@@ -102,7 +106,22 @@ export const TenantCreateForm = () => {
 			router.push(FRONT_PATH_NAMES.staff.tenants.root);
 		},
 		onError: (error) => {
-			console.error('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌', error);
+			if (error instanceof ParseRestError) {
+				if (error.code === 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT') {
+					const notAllowedEmailsStr = _.map(
+						_.get(error.data, 'staff-member-emails', []) as string[],
+						(email) => {
+							return `'${email}'`;
+						},
+					).join(', ');
+					setAlertMessage(
+						t('NO_STAFF_MEMBERS_ALLOWED_IN_TENANT', {
+							emails: notAllowedEmailsStr,
+						}),
+					);
+				}
+			}
+			handleCloseDialog();
 			toast.error(error.message);
 		},
 	});
@@ -244,6 +263,17 @@ export const TenantCreateForm = () => {
 
 	return (
 		<>
+			{alertMessage ? (
+				<Alert
+					severity="error"
+					onClose={() => {
+						setAlertMessage('');
+					}}
+					sx={{ mb: 3 }}
+				>
+					{alertMessage}
+				</Alert>
+			) : null}
 			<Form methods={methods} onSubmit={handleOpenDialog}>
 				<Grid container spacing={3}>
 					<Grid size={{ xs: 12, md: 4 }}>
