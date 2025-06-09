@@ -130,6 +130,8 @@ const commonFR = {
 		'Chaque utilisateur doit avoir une adresse email unique.',
 	'initial-users': 'Utilisateurs initiaux',
 	'max-users-reached': "Nombre maximum d'utilisateurs atteint",
+	'initial-users-must-be-a-valid-json-string':
+		'Les utilisateurs initiaux doivent être une chaîne JSON valide',
 
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Erreur interne du serveur',
