@@ -67,6 +67,8 @@ const commonFR = {
 	cancel: 'Annuler',
 	confirm: 'Confirmer',
 	'item-creation-success-message': '{{item}} créé avec succès',
+	'cannot-create-tenant-with-staff-members':
+		'Impossible de créer un tenant avec des membres du staff',
 
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',

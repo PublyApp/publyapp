@@ -67,6 +67,8 @@ const commonEN = {
 	cancel: 'Cancel',
 	confirm: 'Confirm',
 	'item-creation-success-message': '{{item}} created successfully',
+	'cannot-create-tenant-with-staff-members':
+		'Cannot create tenant with staff members',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
