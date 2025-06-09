@@ -2,13 +2,13 @@ import type ParseRestClient from '@org/parse-rest-client/ParseRestClient';
 
 import AuthEndPoints from './features/auth/auth.endpoints';
 import StaffMemberEndPoints from './features/staff-member/staff-member.endpoint';
+import TenantEndPoints from './features/tenant/tenant.endpoints';
 
 export class ApiClient {
 	private _parseRestClient!: ParseRestClient;
-
 	private _auth!: AuthEndPoints;
-
 	private _staffMember!: StaffMemberEndPoints;
+	private _tenant!: TenantEndPoints;
 
 	constructor({ parseRestClient }: { parseRestClient?: ParseRestClient } = {}) {
 		if (parseRestClient) {
@@ -30,6 +30,9 @@ export class ApiClient {
 		this._staffMember = new StaffMemberEndPoints({
 			parseRestClient: this._parseRestClient,
 		});
+		this._tenant = new TenantEndPoints({
+			parseRestClient: this._parseRestClient,
+		});
 	}
 
 	public get parseRestClient() {
@@ -45,6 +48,11 @@ export class ApiClient {
 	public get staffMember() {
 		this.checkClient();
 		return this._staffMember;
+	}
+
+	public get tenant() {
+		this.checkClient();
+		return this._tenant;
 	}
 }
 
