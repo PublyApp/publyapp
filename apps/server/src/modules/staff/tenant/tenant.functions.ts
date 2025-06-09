@@ -106,6 +106,7 @@ export const createTenant = fromStaffMemberParseFunction({
 				400,
 				t('cannot-create-tenant-with-staff-members'),
 				{
+					xcode: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
 					body: {
 						'staff-member-emails': staffMemberEmails,
 					},
