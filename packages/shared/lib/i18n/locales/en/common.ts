@@ -129,6 +129,7 @@ const commonEN = {
 	'each-user-must-have-a-unique-email':
 		'Each user must have a unique email address.',
 	'initial-users': 'Initial users',
+	'max-users-reached': 'Maximum users number reached',
 
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Internal server error',
