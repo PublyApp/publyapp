@@ -308,6 +308,9 @@ export const functionName = {
 		staffMember: {
 			create: 'createStaffMember',
 		},
+		tenant: {
+			create: 'createTenant',
+		},
 	},
 } as const;
 
