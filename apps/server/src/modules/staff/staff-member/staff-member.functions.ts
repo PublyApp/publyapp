@@ -1,4 +1,8 @@
-import { fromStaffMemberParseFunction } from '@/server/lib/parse/cloud/function';
+import {
+	fromStaffMemberParseFunction,
+	type FunctionParams,
+	type FunctionReturn,
+} from '@/server/lib/parse/cloud/function';
 import { fileProvider, functionName, roleSet } from '@/shared/lib/constants';
 import FileService from '../../common/file/file.service';
 import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
@@ -13,6 +17,11 @@ import type { IUser } from '@/shared/types/db/user.types';
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { getParseFunctionHeader } from '@/server/lib/parse/cloud/core';
 import { getNewStaffMemberSchemaServerSide } from '@org/shared/validations/staff-member/staff-member.validation';
+
+export namespace CreateStaffMemberFunction {
+	export type Params = FunctionParams<typeof createStaffMember>;
+	export type Return = FunctionReturn<typeof createStaffMember>;
+}
 
 export const createStaffMember = fromStaffMemberParseFunction({
 	name: functionName.staff.staffMember.create,

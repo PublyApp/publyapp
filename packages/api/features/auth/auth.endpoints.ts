@@ -48,12 +48,12 @@ export default class AuthEndPoints extends BaseEndPoints {
 	 * login with username/email and password
 	 */
 	async passwordLogin(
-		input: (
+		params: (
 			| { username: string; email?: undefined }
 			| { email: string; username?: string }
 		) & { password: string },
 	) {
-		const { password } = input;
+		const { password } = params;
 
 		const headers = _.merge(getProtectionHeaders({}), {
 			'X-Parse-Revocable-Session': '1',
@@ -68,7 +68,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 
 		return this.parseRestClient.http.post<IUser & { sessionToken: string }>(
 			url.toString(),
-			{ email: input.email, username: input.username, password },
+			{ email: params.email, username: params.username, password },
 			{ headers },
 		);
 	}
@@ -76,14 +76,14 @@ export default class AuthEndPoints extends BaseEndPoints {
 	/**
 	 * sign up with username/email and password
 	 */
-	async passwordSignup(input: {
+	async passwordSignup(params: {
 		email: string;
 		username?: string;
 		password: string;
 		firstName?: string;
 		lastName?: string;
 	}) {
-		const { email, password, username, firstName, lastName } = input;
+		const { email, password, username, firstName, lastName } = params;
 
 		const headers = _.merge(getProtectionHeaders({}), {
 			'X-Parse-Revocable-Session': '1',
@@ -97,8 +97,8 @@ export default class AuthEndPoints extends BaseEndPoints {
 		);
 	}
 
-	async verificationEmailRequest(input: { email: string }) {
-		return this.parseRestClient.verificationEmailRequest(input);
+	async verificationEmailRequest(params: { email: string }) {
+		return this.parseRestClient.verificationEmailRequest(params);
 	}
 
 	async getIsDisabledSignup() {
