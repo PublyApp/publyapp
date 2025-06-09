@@ -1,13 +1,9 @@
 import type InterZod from '@/shared/lib/zod/InterZod';
 import { getFileSchemaClientSide } from '../file/file-client.validations';
-import { getEmailFieldSchema } from '../auth.validations';
+import { getNewStaffMemberSchemaServerSide } from './staff-member.validation';
 
 export const getNewStaffMemberSchemaClientSide = (z: InterZod) => {
-	return z.object({
+	return getNewStaffMemberSchemaServerSide(z).extend({
 		avatar: getFileSchemaClientSide(z).optional(),
-		firstName: z.string().optional(),
-		lastName: z.string().min(1),
-		email: getEmailFieldSchema(z),
-		role: z.string().min(1),
 	});
 };

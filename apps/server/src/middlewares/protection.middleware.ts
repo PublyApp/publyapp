@@ -21,14 +21,14 @@ import RoleService from '../modules/common/auth/role/role.service';
 import TenantService from '../modules/common/auth/tenant/tenant.service';
 import ParseTenant from '../modules/common/auth/tenant/tenant.class';
 
-type ProtectionMiddlewareOptions = (
-	| {
-			authType: 'sessionToken';
-	  }
-	| {
-			authType: 'apiKey';
-	  }
-) &
+export const authType = {
+	SESSION_TOKEN: 'sessionToken',
+	API_KEY: 'apiKey',
+} as const;
+
+export type ProtectionMiddlewareOptions = {
+	authType: ValueOf<typeof authType>;
+} &
 	// * case A: request can be from any authed user
 	(
 		| {
@@ -66,14 +66,25 @@ const protectionMiddleware = (
 		);
 	}
 
+	if (options.authType === 'apiKey') {
+		throw new Error(
+			'Not implemented: ' +
+				"options.authType is set to 'apiKey', change to 'sessionToken' or implement api key check",
+		);
+	}
+
+	if (
+		!_.isNil(options.group) &&
+		!_.includes(_.values(userGroup), options.group)
+	) {
+		throw new Error(
+			`Invalid group:${options.group} is not a valid group. Valid groups are: ${_.join(_.values(userGroup), ', ')}`,
+		);
+	}
+
+	const { group = userGroup.ANY } = options;
+
 	return expressHandler(async (req, _res, next) => {
-		if (options.authType === 'apiKey') {
-			// TODO: implement api key auth
-			throw new Error('Not implemented');
-		}
-
-		const { group = userGroup.ANY } = options;
-
 		const { t } = getRequestUtils(req);
 
 		const sessionToken =

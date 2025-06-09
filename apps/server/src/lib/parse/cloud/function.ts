@@ -11,6 +11,7 @@ import InterZod from '@/shared/lib/zod/InterZod';
 import { getT, i18nextServer } from '../../i18n';
 import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
 import {
+	endPoint,
 	LOCALE_HEADER_KEY,
 	PARSE_INSTALLATION_ID_HEADER_KEY,
 	roleSet,
@@ -37,6 +38,13 @@ import { logger } from '../../winston';
 import { getLogger } from 'parse-server/lib/logger';
 import { getCurrentInstallationId } from '../parse.utils';
 import _ from 'lodash';
+import type { RequestHandler } from 'express';
+import { checkParseHeaders } from '@/server/middlewares/check-parse-headers.middleware';
+import protectionMiddleware, {
+	authType as iAuthType,
+	type ProtectionMiddlewareOptions,
+} from '@/server/middlewares/protection.middleware';
+import { makePath } from '@/shared/utils/string.utils';
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
@@ -110,9 +118,7 @@ type ParamsValidator<P extends Parse.Cloud.Params = Parse.Cloud.Params> = ({
 type ParseFunctionEnhancedParams<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
-> = //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
-// --------------------------------------------------------------------------------------//
-(
+> = ( // --------------------------------------------------------------------------------------// //                                  case A: no auth needed                               // // --------------------------------------------------------------------------------------//
 	| {
 			requireUser?: false | undefined; // which means public access
 			group?: undefined;
@@ -161,6 +167,15 @@ export const parseFunctionEnhanced = <
 >(
 	params: ParseFunctionEnhancedParams<P, T>,
 ) => {
+	if (
+		!_.isNil(params.group) &&
+		!_.includes(_.values(userGroup), params.group)
+	) {
+		throw new Error(
+			`Invalid group:${params.group} is not a valid group. Valid groups are: ${_.join(_.values(userGroup), ', ')}`,
+		);
+	}
+
 	const {
 		requireUser,
 		validateParams,
@@ -434,25 +449,11 @@ export const parseFunctionEnhanced = <
 		});
 	});
 
-	// return actionBuilder;
-	return {
-		parseFunction: actionBuilder,
-		name: params.name,
-		validateParams: params.validateParams,
-		action: params.action,
-		requireUser,
+	_.set(actionBuilder, 'params', params);
+
+	return actionBuilder as typeof actionBuilder & {
+		params: typeof params;
 	};
-
-	// const getAction = () => {
-	// 	return params.action;
-	// };
-
-	// // biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	// (actionBuilder as any).getAction = getAction;
-
-	// return actionBuilder as (ParseFunction<P, T> & {
-	// 	getAction: typeof getAction;
-	// });
 };
 
 export const fromPublicParseFunction = <
@@ -551,29 +552,22 @@ export const defineCloudFunction = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >(
-	input: Pick<
-		ReturnType<typeof parseFunctionEnhanced<P, T>>,
-		'parseFunction' | 'name'
-	> &
-		Record<string, unknown>,
+	parseFunction: ReturnType<typeof parseFunctionEnhanced<P, T>>,
 ) => {
-	Parse.Cloud.define(input.name, input.parseFunction);
+	Parse.Cloud.define(parseFunction.params.name, parseFunction);
 };
 
 export const createExpressHandler = <
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
 	T = unknown,
 >(
-	input: Pick<
-		ReturnType<typeof parseFunctionEnhanced<P, T>>,
-		'action' | 'validateParams' | 'name' | 'requireUser'
-	> &
-		Record<string, unknown>,
+	parseFunction: ReturnType<typeof parseFunctionEnhanced<P, T>>,
+	authType?: ProtectionMiddlewareOptions['authType'],
 ) => {
 	const handler = expressHandler(async (req, res, next) => {
 		const { z, t, locale } = getRequestUtils(req);
 
-		if (input.requireUser) {
+		if (parseFunction.params.requireUser) {
 			if (!req.user) {
 				logger.error(
 					'Pass the auth protection middleware before this handler!!',
@@ -582,7 +576,7 @@ export const createExpressHandler = <
 			}
 		}
 
-		const { action, validateParams } = input;
+		const { action, validateParams } = parseFunction.params;
 
 		const params = validateParams?.({ params: req.body, z }) || req.body;
 		const installationId =
@@ -592,8 +586,10 @@ export const createExpressHandler = <
 		const ip = getRequestIp(req);
 		const log = getLogger();
 
-		const functionName = input.name;
-		const actionRequest: Parameters<typeof input.action>[0]['req'] = {
+		const functionName = parseFunction.params.name;
+		const actionRequest: Parameters<
+			typeof parseFunction.params.action
+		>[0]['req'] = {
 			functionName,
 			context: {},
 			headers: req.headers,
@@ -618,8 +614,29 @@ export const createExpressHandler = <
 		return res.status(200).json(result);
 	});
 
-	return {
+	_.set(
 		handler,
-		name: input.name,
+		'path',
+		makePath(endPoint.api.parse.functions, parseFunction.params.name),
+	);
+
+	const { group, allowedRoles, allowedTenantSubRoles } = parseFunction.params;
+
+	let authMiddleware: RequestHandler = (_req, _res, next) => next();
+
+	if (parseFunction.params.requireUser) {
+		authMiddleware = protectionMiddleware({
+			authType: authType || iAuthType.SESSION_TOKEN,
+			group,
+			allowedRoles,
+			allowedTenantSubRoles,
+		} as never);
+	}
+
+	_.set(handler, 'middlewares', [checkParseHeaders, authMiddleware]);
+
+	return handler as typeof handler & {
+		path: string;
+		middlewares: RequestHandler[];
 	};
 };

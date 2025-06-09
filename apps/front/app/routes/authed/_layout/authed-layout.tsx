@@ -1,54 +1,67 @@
+import * as cookie from 'cookie';
 import { Suspense, type ReactNode } from 'react';
-
 import { useSuspenseQueries } from '@tanstack/react-query';
 import { defaultApiClient } from 'packages/api/ApiClient';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
-
 import { View500 } from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
-import { CookieManager } from '@/front/lib/cookie-manager';
-import {
-	getTenantAuthDataQuery,
-	getUserAuthDataQuery,
-} from '@/front/lib/react-query/features/auth/auth.actions';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
-
 import type { Route } from './+types/authed-layout';
+import _ from 'lodash';
+import {
+	SIDEBAR_COOKIE_MAX_AGE,
+	SIDEBAR_COOKIE_NAME,
+} from '@/front/lib/constants';
+import { useMainStore } from '@/front/lib/zustand/store';
+import type { SettingsState } from '@/front/components/settings';
+import {
+	useGetTenantAuthData,
+	useGetUserAuthData,
+} from '@/front/lib/react-query/features/auth/auth.hooks';
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
-		const browserCookies = new CookieManager();
-		const sessionToken = browserCookies.get(SESSION_TOKEN_COOKIE_KEY);
+		const browserCookies = cookie.parse(document.cookie);
+
+		let sessionToken = _.get(browserCookies, SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			throw redirect(FRONT_PATH_NAMES.auth.login); // redirect to login
 		}
 
+		sessionToken = decodeURIComponent(sessionToken);
+
 		defaultApiClient.parseRestClient.setSessionToken(sessionToken);
 
-		// const cookies = new CookieManager();
-		// const sideBarOpenCookie = cookies.get(SIDEBAR_COOKIE_NAME);
+		const sideBarCookie = _.get(browserCookies, SIDEBAR_COOKIE_NAME);
 
 		// set zustand state
-		// useMainStore.setState((root) => {
-		// 	const allowedStates = ['expanded', 'collapsed'];
+		useMainStore.setState((root) => {
+			const allowedStates: Exclude<SettingsState['navLayout'], undefined>[] = [
+				'vertical',
+				'mini',
+				'horizontal',
+			];
 
-		// 	let state = _.toString(sideBarOpenCookie);
+			let state = _.toString(sideBarCookie);
 
-		// 	if (!allowedStates.includes(state)) {
-		// 		state = allowedStates[0];
-		// 		cookies.set(SIDEBAR_COOKIE_NAME, state);
-		// 	}
+			if (!allowedStates.includes(state as never)) {
+				state = allowedStates[0];
+				const newCookie = cookie.serialize(SIDEBAR_COOKIE_NAME, state, {
+					path: '/',
+					maxAge: SIDEBAR_COOKIE_MAX_AGE,
+				});
+				document.cookie = newCookie;
+			}
 
-		//
-		// 	root.settingsSlice.sidebar.state = state as never;
-		// });
+			root.settingsSlice.state.navLayout = state as never;
+		});
 
 		return {};
 	},
@@ -63,7 +76,10 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 
 	// trigger the queries in parallel
 	useSuspenseQueries({
-		queries: [getUserAuthDataQuery(), getTenantAuthDataQuery({ tenantId })],
+		queries: [
+			useGetUserAuthData.getOptions(),
+			useGetTenantAuthData.getOptions({ tenantId }),
+		],
 	});
 
 	return <>{children}</>;

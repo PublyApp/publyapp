@@ -21,16 +21,12 @@ import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
 
-export namespace GetUserAuthDataFunction {
-	export type Params = FunctionParams<
-		typeof getUserAuthDataFunction.parseFunction
-	>;
-	export type Return = FunctionReturn<
-		typeof getUserAuthDataFunction.parseFunction
-	>;
+export namespace GetUserAuthData {
+	export type Params = FunctionParams<typeof getUserAuthData>;
+	export type Return = FunctionReturn<typeof getUserAuthData>;
 }
 
-const getUserAuthDataFunction = fromAuthedUserParseFunction({
+const getUserAuthData = fromAuthedUserParseFunction({
 	name: functionName.auth.getUserAuthData,
 	action: async ({ user }) => {
 		const sessionToken = user.getSessionToken();
@@ -64,14 +60,12 @@ const getUserAuthDataFunction = fromAuthedUserParseFunction({
 	},
 });
 
-export namespace GetIsDisabledSignupFunction {
-	// export type Params = FunctionParams<typeof getIsDisabledSignup.parseFunction>;
-	export type Return = FunctionReturn<
-		typeof getIsDisabledSignupFunction.parseFunction
-	>;
+export namespace GetIsDisabledSignup {
+	// export type Params = FunctionParams<typeof getIsDisabledSignup>;
+	export type Return = FunctionReturn<typeof getIsDisabledSignup>;
 }
 
-const getIsDisabledSignupFunction = fromPublicParseFunction({
+const getIsDisabledSignup = fromPublicParseFunction({
 	name: functionName.auth.getIsDisabledSignup,
 	action: async () => {
 		const globalConfig = await getGlobalConfig();
@@ -81,16 +75,12 @@ const getIsDisabledSignupFunction = fromPublicParseFunction({
 	},
 });
 
-export namespace GetRedirectCodeFunction {
-	export type Params = FunctionParams<
-		typeof getRedirectCodeFunction.parseFunction
-	>;
-	export type Return = FunctionReturn<
-		typeof getRedirectCodeFunction.parseFunction
-	>;
+export namespace GetRedirectCode {
+	export type Params = FunctionParams<typeof getRedirectCode>;
+	export type Return = FunctionReturn<typeof getRedirectCode>;
 }
 
-const getRedirectCodeFunction = fromAuthedUserParseFunction({
+const getRedirectCode = fromAuthedUserParseFunction({
 	name: functionName.auth.getRedirectCode,
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
@@ -180,16 +170,12 @@ const getRedirectCodeFunction = fromAuthedUserParseFunction({
 	},
 });
 
-export namespace GetTenantAuthDataFunction {
-	export type Params = FunctionParams<
-		typeof getTenantAuthDataFunction.parseFunction
-	>;
-	export type Return = FunctionReturn<
-		typeof getTenantAuthDataFunction.parseFunction
-	>;
+export namespace GetTenantAuthData {
+	export type Params = FunctionParams<typeof getTenantAuthData>;
+	export type Return = FunctionReturn<typeof getTenantAuthData>;
 }
 
-const getTenantAuthDataFunction = fromAuthedUserParseFunction({
+const getTenantAuthData = fromAuthedUserParseFunction({
 	name: functionName.auth.getTenantAuthData,
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
@@ -264,10 +250,10 @@ const getTenantAuthDataFunction = fromAuthedUserParseFunction({
 //                                 Define the functions                                 //
 //--------------------------------------------------------------------------------------//
 
-defineCloudFunction(getUserAuthDataFunction);
-defineCloudFunction(getTenantAuthDataFunction);
-defineCloudFunction(getIsDisabledSignupFunction);
-defineCloudFunction(getRedirectCodeFunction);
+defineCloudFunction(getUserAuthData);
+defineCloudFunction(getTenantAuthData);
+defineCloudFunction(getIsDisabledSignup);
+defineCloudFunction(getRedirectCode);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //

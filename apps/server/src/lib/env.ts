@@ -31,7 +31,7 @@ export type AppEnv = z.infer<typeof envSchema>;
 
 const LOCAL = process.env.ONLINE !== 'true';
 const TEST_ONLINE_IN_LOCAL = process.env.TEST_ONLINE === 'true';
-const MODE: 'local' | 'development' | 'production' | 'test' | string =
+const MODE: 'development' | 'production' | 'test' | string =
 	process.env.MODE || 'local';
 
 logger.info(`==== LOCAL: ${LOCAL} ====`);

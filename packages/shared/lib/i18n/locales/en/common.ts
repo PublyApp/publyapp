@@ -23,6 +23,7 @@ const commonEN = {
 	tenants: 'Tenants',
 	status: 'Status',
 	link: 'Link',
+	logo: 'Logo',
 
 	// ? ...
 	views: 'Views',
@@ -65,6 +66,11 @@ const commonEN = {
 	'auth-welcome-title': 'Welcome back',
 	cancel: 'Cancel',
 	confirm: 'Confirm',
+	'item-creation-success-message': '{{item}} created successfully',
+	'cannot-create-tenant-with-staff-members':
+		'Cannot create tenant with staff members',
+	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT:
+		'The following emails are owned by staff-members; they are not allowed to be assigned to any tenant: {{emails}}',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
@@ -118,6 +124,19 @@ const commonEN = {
 	'invalid-email-verification-link-description':
 		'The verification link you issued is invalid or expired. Contact your administrator to get a new link.',
 
+	'workspace-name': 'Workspace name',
+	'create-the-tenant': 'Create the tenant',
+	'add-a-user': 'Add a user',
+	'max-users': 'Maximum users number',
+	'tenant-should-have-at-least-one-admin':
+		'A tenant should have at least one admin',
+	'each-user-must-have-a-unique-email':
+		'Each user must have a unique email address.',
+	'initial-users': 'Initial users',
+	'max-users-reached': 'Maximum users number reached',
+	'initial-users-must-be-a-valid-json-string':
+		'Initial users must be a valid JSON string',
+
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Internal server error',
 
@@ -128,6 +147,8 @@ const commonEN = {
 	'Invalid session token': 'Invalid session token',
 	'Invalid token': 'Invalid token',
 	'Token expired': 'Token expired',
+	'Invalid object for context.': 'Invalid object for context.',
+	'Context is not an object': 'Context is not an object',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

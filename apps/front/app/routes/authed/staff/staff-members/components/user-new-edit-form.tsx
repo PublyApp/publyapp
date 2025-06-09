@@ -9,8 +9,8 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import {
 	FRONT_PATH_NAMES,
-	functionName,
 	roleEnum,
+	type RoleName,
 } from '@/shared/lib/constants';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Field } from '@/front/components/hook-form/fields';
@@ -26,8 +26,31 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import { toast } from '@/front/components/snackbar';
-import { defaultApiClient } from 'packages/api/ApiClient';
 import { useRouter } from '@/front/hooks/use-router';
+import { mbToBytes } from '@/shared/utils/any.utils';
+import { useCreateStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+
+type IUserItem = {
+	id: string;
+	firstName: string;
+	lastName: string;
+	role: RoleName;
+	email: string;
+	status: string;
+	avatarUrl: string;
+};
+
+// ----------------------------------------------------------------------
+
+type NewUserSchemaType = Prettify<
+	zod.infer<ReturnType<typeof getNewStaffMemberSchemaClientSide>>
+>;
+
+// ----------------------------------------------------------------------
+
+type Props = {
+	currentUser?: IUserItem;
+};
 
 const ROLE_OPTIONS = _.chain(roleEnum)
 	.pickBy((value) => {
@@ -41,26 +64,12 @@ const ROLE_OPTIONS = _.chain(roleEnum)
 	})
 	.value();
 
-type IUserItem = {
-	id: string;
-	firstName: string;
-	lastName: string;
-	role: string;
-	email: string;
-	status: string;
-	avatarUrl: string;
-};
-
-// ----------------------------------------------------------------------
-
-type NewUserSchemaType = zod.infer<
-	ReturnType<typeof getNewStaffMemberSchemaClientSide>
->;
-
-// ----------------------------------------------------------------------
-
-type Props = {
-	currentUser?: IUserItem;
+const defaultValues: NewUserSchemaType = {
+	avatar: undefined,
+	firstName: '',
+	lastName: '',
+	email: '',
+	role: roleEnum.STAFF_CONTRIBUTOR.name,
 };
 
 export const UserNewEditForm = ({ currentUser }: Props) => {
@@ -69,24 +78,6 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 	const openDialog = useBoolean();
 
 	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
-
-	const defaultValues: NewUserSchemaType = {
-		avatar: undefined,
-		firstName: '',
-		lastName: '',
-		email: '',
-		role: roleEnum.STAFF_CONTRIBUTOR.name,
-		// status: '',
-		// avatarUrl: undefined,
-		// isVerified: true,
-		// phoneNumber: '',
-		// country: '',
-		// state: '',
-		// city: '',
-		// address: '',
-		// zipCode: '',
-		// company: '',
-	};
 
 	const methods = useForm<NewUserSchemaType>({
 		mode: 'onSubmit',
@@ -97,49 +88,35 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 
 	const {
 		reset,
-		// watch,
-		// control,
 		handleSubmit,
 		formState: { isSubmitting },
 	} = methods;
 
-	// const values = watch();
-
 	const handleCloseDialog = openDialog.onFalse;
 
 	const handleOpenDialog = handleSubmit(async () => {
-		try {
-			openDialog.onTrue();
-		} catch (error) {
-			console.error(error);
-		}
+		openDialog.onTrue();
+	});
+
+	const { mutate: createStaffMember } = useCreateStaffMember({
+		onSuccess: () => {
+			reset();
+			toast.success(
+				currentUser
+					? 'Update success!'
+					: _.capitalize(
+							t('item-creation-success-message', { item: t('staff-member') }),
+						),
+			);
+			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
+		},
+		onError: (error) => {
+			toast.error(error.message);
+		},
 	});
 
 	const handleConfirmDialog = handleSubmit(async (data) => {
-		try {
-			const formData = new FormData();
-			_.entries(data).forEach((value) => {
-				const [key, fieldValue] = value;
-				formData.append(key, fieldValue);
-			});
-			// console.log('***********', defaultApiClient.parseRestClient.getSessionToken());
-			await defaultApiClient.parseRestClient.cloudRun(
-				functionName.staff.staffMember.create,
-				{
-					params: formData,
-					headers: {
-						'Content-Type': 'multipart/form-data',
-						// 'Authorization': `Bearer ${defaultApiClient.parseRestClient.getSessionToken()}`,
-					},
-				},
-			);
-
-			reset();
-			toast.success(currentUser ? 'Update success!' : 'Create success!');
-			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
-		} catch (error) {
-			console.error(error);
-		}
+		createStaffMember(data);
 	});
 
 	const confirmValues = _.chain(methods.getValues())
@@ -199,7 +176,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 											}}
 										>
 											Allowed *.jpeg, *.jpg, *.png, *.gif
-											<br /> max size of {fData(3145728)}
+											<br /> max size of {fData(mbToBytes(3))}
 										</Typography>
 									}
 								/>

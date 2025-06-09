@@ -79,36 +79,6 @@ const settingsSlice = new Slice<
 					_.set(state.settingsSlice.state, path, value);
 				});
 			},
-			// sidebarActions: {
-			// 	toggleSidebar: () => {
-			// 		set((state) => {
-			// 			const newValue = state.settingsSlice.sidebar.state === 'expanded' ? 'collapsed' : 'expanded';
-
-			// 			const cookies = new CookieManager();
-			// 			cookies.set(SIDEBAR_COOKIE_NAME, newValue);
-
-			//
-			// 			state.settingsSlice.sidebar.state = newValue;
-			// 		});
-			// 	},
-			// 	setSideBarState: (value) => {
-			// 		set((state) => {
-			// 			let newValue: SettingsSliceValues['sidebar']['state'];
-
-			// 			if (_.isFunction(value)) {
-			// 				newValue = value(state.settingsSlice.sidebar.state);
-			// 			} else {
-			// 				newValue = value;
-			// 			}
-
-			// 			const cookies = new CookieManager();
-			// 			cookies.set(SIDEBAR_COOKIE_NAME, newValue);
-
-			//
-			// 			state.settingsSlice.sidebar.state = newValue;
-			// 		});
-			// 	},
-			// },
 		};
 	},
 });

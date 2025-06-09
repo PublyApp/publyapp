@@ -91,6 +91,7 @@ export const FILE_UPLOAD_DESTINATION = path.join(
 
 // Parse server's global config (saved in the database) utilities
 export const DISABLE_SIGNUP_CONFIG_KEY = 'disableSignup';
+export const IP_BLOCKLIST_CONFIG_KEY = 'ipBlocklist';
 
 export const CLOUD_INSTALLATION_ID = '7_UTZsD3OTKZFC4ifcvHbGVwthv8yh8GMlTm';
 
