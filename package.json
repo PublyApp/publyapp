@@ -11,8 +11,8 @@
 		"start:test-online": "bun run --filter server start:test-online",
 		"// =============== DEV SCRIPTS ===============": "=============================",
 		"dev": "turbo dev",
-		"dev:server": "bun run --filter server dev",
-		"dev:front": "bun run --filter front dev",
+		"dev:server": "bun run --filter server --elide-lines 0 dev",
+		"dev:front": "bun run --filter front --elide-lines 0 dev",
 		"// =============== TSC SCRIPTS ===============": "=============================",
 		"tsc:server": "bun run --filter server type-check",
 		"tsc:front": "bun run --filter front type-check",
@@ -27,13 +27,14 @@
 		"// =============== MISC ===============": "================================",
 		"knip": "knip",
 		"prepare": "husky",
-		"update-deps": "??? in bun ???"
+		"update-deps": "??? in bun ???",
+		"postinstall": "bun run apps/server/scripts/patch.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
 		"@types/bun": "^1.2.12",
 		"@types/node": "^20.14.15",
-		"archiver": "^7.0.1",
+		"archiver": "^6.0.1",
 		"dotenv": "^16.3.1",
 		"fs-extra": "^11.2.0",
 		"husky": "^9.0.11",

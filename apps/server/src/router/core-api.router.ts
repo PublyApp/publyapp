@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { endPoint, staffRoleSet } from '@/shared/lib/constants';
+import { endPoint } from '@/shared/lib/constants';
 import protectionMiddleware from '../middlewares/protection.middleware';
 import {
 	handlePasswordLogin,
@@ -12,11 +12,11 @@ import {
 } from '../modules/common/file/file.controller';
 import multer from 'multer';
 import { mbToBytes } from '@/shared/utils/any.utils';
-import { makePath } from '@/shared/utils/string.utils';
 import { createStaffMember } from '../modules/staff/staff-member/staff-member.functions';
 import { createExpressHandler } from '../lib/parse/cloud/function';
 import { expressHandler } from '../lib/express';
 import _ from 'lodash';
+import { createTenant } from '../modules/staff/tenant/tenant.functions';
 
 const coreApiRouter = Router();
 export default coreApiRouter;
@@ -60,10 +60,8 @@ coreApiRouter.get(endPoint.api.auth.verifyEmail, handleVerifyEmail);
 // --------------------------------------------------------------------------------------//
 const handleCreateStaffMember = createExpressHandler(createStaffMember);
 coreApiRouter.post(
-	makePath(endPoint.api.parse.functions, handleCreateStaffMember.name),
-	protectionMiddleware.fromStaffMember({
-		allowedRoles: staffRoleSet.STAFF_ADMIN_ONLY,
-	}),
+	handleCreateStaffMember.path,
+	...handleCreateStaffMember.middlewares,
 	multer({
 		storage: multer.memoryStorage(),
 		limits: { fileSize: mbToBytes(3) },
@@ -72,5 +70,20 @@ coreApiRouter.post(
 		_.set(req, 'headers.__avatar__', req.file);
 		next();
 	}),
-	handleCreateStaffMember.handler,
+	handleCreateStaffMember,
+);
+
+const handleCreateTenant = createExpressHandler(createTenant);
+coreApiRouter.post(
+	handleCreateTenant.path,
+	...handleCreateTenant.middlewares,
+	multer({
+		storage: multer.memoryStorage(),
+		limits: { fileSize: mbToBytes(3) },
+	}).single('logo'),
+	expressHandler(async (req, _res, next) => {
+		_.set(req, 'headers.__logo__', req.file);
+		next();
+	}),
+	handleCreateTenant,
 );

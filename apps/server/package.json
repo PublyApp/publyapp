@@ -29,7 +29,7 @@
 		"seed": "bun --enable-source-maps dist/seed.mjs",
 		"seed:debug": "bun --enable-source-maps --inspect-brk dist/seed.mjs",
 		"// =============== TEST COMMANDS =================": "================================",
-		"postinstall": "bun scripts/patch.mjs",
+		"postinstall": "bun run scripts/patch.mjs",
 		"type-check": "tsc"
 	},
 	"dependencies": {
@@ -80,7 +80,8 @@
 		"winston-transport-browserconsole": "^1.0.5",
 		"zod": "^3.22.4",
 		"zod-i18n-map": "^2.27.0",
-		"unique-username-generator": "^1.4.0"
+		"unique-username-generator": "^1.4.0",
+		"serialize-error": "^12.0.0"
 	},
 	"devDependencies": {
 		"@types/bun": "^1.2.12",

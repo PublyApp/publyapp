@@ -20,6 +20,8 @@ export const roleNames = [
 	'AUTHED_USER',
 ] as const;
 
+export type RoleName = (typeof roleNames)[number];
+
 export const roleEnum = {
 	// cspell:ignore fnhux Rwmgyh Jhpma
 	STAFF_ADMIN: {
@@ -119,11 +121,20 @@ export const staffRoleSet = _.pick(roleSet, [
 
 export type StaffRoleSet = ValueOf<typeof staffRoleSet>;
 
+export const tenantSubRoleNames = [
+	'ADMIN',
+	'EDITOR',
+	'USER',
+	'CONTRIBUTOR',
+] as const;
+
+export type TenantSubRoleName = (typeof tenantSubRoleNames)[number];
+
 export const tenantSubRoleEnum = {
-	ADMIN: 'ADMIN',
-	EDITOR: 'EDITOR',
-	USER: 'USER',
-	CONTRIBUTOR: 'CONTRIBUTOR',
+	ADMIN: tenantSubRoleNames[0],
+	EDITOR: tenantSubRoleNames[1],
+	USER: tenantSubRoleNames[2],
+	CONTRIBUTOR: tenantSubRoleNames[3],
 } as const;
 
 export type TenantSubRole = ValueOf<typeof tenantSubRoleEnum>;
@@ -297,6 +308,9 @@ export const functionName = {
 		staffMember: {
 			create: 'createStaffMember',
 		},
+		tenant: {
+			create: 'createTenant',
+		},
 	},
 } as const;
 
@@ -343,6 +357,9 @@ export const fileProvider = {
 export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
 export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';
 export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
+
+export const PARSE_CONTEXT_HEADER_KEY = 'X-Parse-Context';
+
 export const REST_API_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Key`;
 
 export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}:session_token`;
@@ -359,3 +376,5 @@ export const jobType = {
 	CONVERT_HTML_TO_PDF: 'CONVERT_HTML_TO_PDF',
 	// Later we may add other jobs, like deleting unused pdf from storage and from DB for example
 } as const;
+
+export const DEFAULT_MAX_USER_PER_TENANT = 5;

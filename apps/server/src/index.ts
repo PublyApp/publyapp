@@ -33,7 +33,7 @@ import {
 	PARSE_SERVER_URL,
 } from './lib/constants';
 import { env } from './lib/env';
-import { expressHandler } from './lib/express';
+import { expressHandler, getRequestUtils } from './lib/express';
 import { initI18next } from './lib/i18n';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
 import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
@@ -42,7 +42,13 @@ import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
 import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
-import { posthogClient } from './lib/posthog';
+import { postHogServer } from './lib/posthog';
+import {
+	maliciousRequestsGuardMiddleware,
+	populateBlocklist,
+} from './middlewares/malicious-requests-guard.middleware';
+import { HttpException } from './exceptions/HttpException';
+import _ from 'lodash';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -60,7 +66,9 @@ const bootstrap = async () => {
 	const app = express();
 
 	app.set('trust proxy', 1);
+	app.set('case sensitive routing', true);
 
+	app.use(maliciousRequestsGuardMiddleware);
 	app.use(
 		helmet({
 			contentSecurityPolicy: {
@@ -78,16 +86,6 @@ const bootstrap = async () => {
 			whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
 		}),
 	);
-	app.use((req, _res, next) => {
-		// The parse API end the custom API are both under this root path
-		// use only urlencoded there because Remix (React Router 7) will not
-		// populate action's formData correctly
-		if (req.path.startsWith(endPoint.api.root)) {
-			express.urlencoded({ extended: false });
-		}
-
-		next();
-	});
 	app.use(
 		express.json({
 			// ! if tex/plain is not specified, request body in Parse API endpoint will not work
@@ -101,6 +99,15 @@ const bootstrap = async () => {
 		'/resources',
 		express.static(path.resolve(import.meta.dirname, './resources')),
 	);
+	// The parse API end the custom API are both under this root path
+	// use only urlencoded there because Remix (React Router 7) will not
+	// populate action's formData correctly
+	app.use(endPoint.api.root, express.urlencoded({ extended: false }));
+	// set request utils on request object
+	app.use(endPoint.api.root, (req, _res, next) => {
+		getRequestUtils(req);
+		next();
+	});
 
 	// File System adapter for Parse
 	const filesAdapter = new FSFilesAdapter({
@@ -213,13 +220,25 @@ const bootstrap = async () => {
 	// wait for the parse server setup to finish, the mount the parse app to the express app
 	await startParsePromise;
 
-	parseServer.app.disable('x-powered-by');
+	parseServer.app.set('case sensitive routing', true);
+	parseServer.app.set('trust proxy', 1);
+	parseServer.app.disable('x-powered-by'); // already set by helmet on parent app
 
 	app.use(PARSE_SERVER_URL.pathname, parseServerMiddleware, parseServer.app);
+
+	app.get(
+		`${endPoint.api.root}/test`,
+		expressHandler(async (_req, res) => {
+			// const { t } = getRequestUtils(req);
+			return res.status(200).json({ ok: 'ok' });
+		}),
+	);
 
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                   //
 	// --------------------------------------------------------------------------------------//
+	let remixHandler: ReturnType<typeof createRequestHandler> | undefined;
+
 	if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
 		app.use(
 			express.static(
@@ -227,28 +246,41 @@ const bootstrap = async () => {
 			),
 		);
 
-		// needs to handle all verbs (GET, POST, etc.)
-		app.all(
-			/(.*)/,
-			createRequestHandler({
-				// `remix build` and `remix dev` output files to a build directory, you need
-				// to pass that build to the request handler
-				build: await import(
-					/* webpackIgnore: true */ 'front/build/server/index.js' // ! the '.js' extension is important
-				),
+		remixHandler = createRequestHandler({
+			// `remix build` and `remix dev` output files to a build directory, you need
+			// to pass that build to the request handler
+			build: await import(
+				/* webpackIgnore: true */ 'front/build/server/index.js' // ! the '.js' extension is important
+			),
 
-				// return anything you want here to be available as `context` in your
-				// loaders and actions. This is where you can bridge the gap between Remix
-				// and your server
-				getLoadContext: (_req, _res) => {
-					return {
-						logger,
-						postHogServer: posthogClient,
-					};
-				},
-			}),
-		);
+			// return anything you want here to be available as `context` in your
+			// loaders and actions. This is where you can bridge the gap between Remix
+			// and your server
+			getLoadContext: (_req, _res) => {
+				return {
+					logger,
+					postHogServer: postHogServer,
+				};
+			},
+		});
 	}
+
+	// needs to handle all verbs (GET, POST, etc.)
+	app.all(
+		/(.*)/,
+		expressHandler(async (req, res, next) => {
+			if (req.path.startsWith(endPoint.api.root) || !remixHandler) {
+				const { t } = getRequestUtils(req);
+
+				throw new HttpException(
+					404,
+					_.capitalize(t('item-not-found', { item: 'Route' })),
+				);
+			}
+
+			return remixHandler(req, res, next);
+		}),
+	);
 
 	// --------------------------------------------------------------------------------------//
 	//                                    run the server                                     //
@@ -291,6 +323,7 @@ const bootstrap = async () => {
 		createUploadDirIfNotExists(),
 		initCloudinary(),
 		setUpGlobalConfig(),
+		populateBlocklist(),
 	]);
 };
 

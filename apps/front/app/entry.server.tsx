@@ -31,34 +31,36 @@ const handleRequest = async (
 ) => {
 	if (loadContext.postHogServer) {
 		if (!_.toString(responseStatusCode).startsWith('2')) {
+			const ipAddresses = {};
+			_.forEach(
+				[
+					_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+					_.toLower(REMIX_CLIENT_IP_HEADER_KEY),
+					// 'x-forwarded-for',
+					// 'x-real-ip',
+					// 'x-client-ip',
+					// 'x-forwarded',
+					// 'forwarded-for',
+					// 'forwarded',
+				],
+				(headerKey) => {
+					const lowerKey = _.toLower(headerKey);
+					_.set(ipAddresses, lowerKey, request.headers.get(lowerKey));
+				},
+			);
+
 			loadContext.postHogServer.capture({
-				distinctId: nanoid(),
+				distinctId:
+					_.get(ipAddresses, _.toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
+					_.get(ipAddresses, _.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
+					nanoid(),
 				event: 'bad_request',
 				properties: {
 					path: request.url,
 					method: request.method,
-					host: request.headers.get('host'),
+					// host: request.headers.get('host'),
 					userAgent: request.headers.get('user-agent'),
-					...(() => {
-						const ipAddresses = {};
-						_.forEach(
-							[
-								'x-forwarded-for',
-								'x-real-ip',
-								_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
-								'x-client-ip',
-								'x-forwarded',
-								'forwarded-for',
-								'forwarded',
-								_.toLower(REMIX_CLIENT_IP_HEADER_KEY),
-							],
-							(headerKey) => {
-								const lowerKey = _.toLower(headerKey);
-								_.set(ipAddresses, lowerKey, request.headers.get(lowerKey));
-							},
-						);
-						return ipAddresses;
-					})(),
+					...ipAddresses,
 				},
 			});
 		}
