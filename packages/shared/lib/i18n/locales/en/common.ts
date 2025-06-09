@@ -69,6 +69,8 @@ const commonEN = {
 	'item-creation-success-message': '{{item}} created successfully',
 	'cannot-create-tenant-with-staff-members':
 		'Cannot create tenant with staff members',
+	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT:
+		'The following emails are owned by staff-members; they are not allowed to be assigned to any tenant: {{emails}}',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',

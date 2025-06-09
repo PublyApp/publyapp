@@ -69,6 +69,8 @@ const commonFR = {
 	'item-creation-success-message': '{{item}} créé avec succès',
 	'cannot-create-tenant-with-staff-members':
 		'Impossible de créer un tenant avec des membres du staff',
+	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT:
+		'Les e-mails suivants appartiennent à des membres du staff; ils ne peuvent être attribués à aucun tenant: {{emails}}',
 
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',
