@@ -100,11 +100,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 	const handleCloseDialog = openDialog.onFalse;
 
 	const handleOpenDialog = handleSubmit(async () => {
-		try {
-			openDialog.onTrue();
-		} catch (error) {
-			console.error(error);
-		}
+		openDialog.onTrue();
 	});
 
 	const handleConfirmDialog = handleSubmit(async (data) => {
