@@ -7,10 +7,6 @@ import { ClientOnly } from 'remix-utils/client-only';
 import { View500 } from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
-import {
-	getTenantAuthDataQuery,
-	getUserAuthDataQuery,
-} from '@/front/lib/react-query/features/auth/auth.actions';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import {
 	FRONT_PATH_NAMES,
@@ -24,6 +20,10 @@ import {
 } from '@/front/lib/constants';
 import { useMainStore } from '@/front/lib/zustand/store';
 import type { SettingsState } from '@/front/components/settings';
+import {
+	useGetTenantAuthData,
+	useGetUserAuthData,
+} from '@/front/lib/react-query/features/auth/auth.hooks';
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
@@ -76,7 +76,10 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 
 	// trigger the queries in parallel
 	useSuspenseQueries({
-		queries: [getUserAuthDataQuery(), getTenantAuthDataQuery({ tenantId })],
+		queries: [
+			useGetUserAuthData.getOptions(),
+			useGetTenantAuthData.getOptions({ tenantId }),
+		],
 	});
 
 	return <>{children}</>;
