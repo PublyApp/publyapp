@@ -286,7 +286,10 @@ export const cloudFunction: CloudFunction = <
 
 				if (error instanceof HttpException) {
 					return Promise.reject(
-						new CloudFunctionHttpException(error.status, message),
+						new CloudFunctionHttpException(error.status, message, {
+							xcode: error.xcode,
+							body: error.body,
+						}),
 					);
 				}
 
@@ -315,13 +318,18 @@ export const getParseFunctionHeader = (
 // ! only use the isCloudHttpException utility below
 class CloudFunctionHttpException extends Parse.Error {
 	status: number;
-
 	xcode?: string;
+	body?: Record<string, unknown>;
 
-	constructor(status: number, message: string, xcode?: string) {
+	constructor(
+		status: number,
+		message: string,
+		options?: { xcode?: string; body?: Record<string, unknown> },
+	) {
 		super(Parse.Error.SCRIPT_FAILED, message);
 		this.status = status;
-		this.xcode = xcode;
+		this.xcode = options?.xcode;
+		this.body = options?.body;
 	}
 }
 

@@ -73,11 +73,13 @@ export default class ParseRestClient {
 						code: errorCode,
 						error: errorMessage,
 						xcode,
+						data,
 					} = (error.response?.data as
 						| Partial<{
 								code: number;
 								error: string;
 								xcode: string;
+								data: Record<string, unknown>;
 						  }>
 						| undefined) || {};
 					const parseCode: number = errorCode || -1;
@@ -90,6 +92,7 @@ export default class ParseRestClient {
 						parseCode,
 						message,
 						code,
+						data,
 					});
 				}
 

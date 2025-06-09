@@ -102,6 +102,7 @@ export const TenantCreateForm = () => {
 			router.push(FRONT_PATH_NAMES.staff.tenants.root);
 		},
 		onError: (error) => {
+			console.error('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌', error);
 			toast.error(error.message);
 		},
 	});

@@ -18,6 +18,7 @@ export const errorMiddleware: ErrorRequestHandler = async (
 	try {
 		const { t } = getRequestUtils(req);
 		let xcode: string | undefined;
+		let errorBody: Record<string, unknown> | undefined;
 		let httpStatusCode = 500;
 		let message: string = t('unknown-error');
 		let parseErrorCode: typeof Parse.Error.prototype.code | undefined;
@@ -33,6 +34,7 @@ export const errorMiddleware: ErrorRequestHandler = async (
 		if (error instanceof HttpException) {
 			httpStatusCode = error.status;
 			xcode = error.xcode;
+			errorBody = error.body;
 		}
 
 		// get zod errors message
@@ -47,6 +49,7 @@ export const errorMiddleware: ErrorRequestHandler = async (
 			if (isCloudHttpException(error)) {
 				httpStatusCode = error.status;
 				xcode = error.xcode;
+				errorBody = error.body;
 			} else {
 				// [switch] copied from Parse Server source code
 				// TODO: fill out this mapping
@@ -94,7 +97,7 @@ export const errorMiddleware: ErrorRequestHandler = async (
 		message = String(t(message as never));
 		res
 			.status(httpStatusCode)
-			.json({ error: message, code: parseErrorCode, xcode }); // conform to Parse Server error response
+			.json({ error: message, code: parseErrorCode, xcode, data: errorBody }); // conform to Parse Server error response
 	} catch (_error) {
 		// capture only critical errors
 		postHogServer.captureException(error, req.user?.id, {
