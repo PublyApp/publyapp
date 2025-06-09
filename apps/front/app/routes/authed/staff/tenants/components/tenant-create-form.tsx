@@ -95,7 +95,9 @@ export const TenantCreateForm = () => {
 		name: 'initialUsers',
 	});
 
-	const [alertMessage, setAlertMessage] = useState('');
+	const [alertMessage, setAlertMessage] = useState<
+		string | { key: string; params: Record<string, string> | undefined }
+	>();
 
 	const { mutate: createTenant } = useCreateTenant({
 		onSuccess: () => {
@@ -114,11 +116,12 @@ export const TenantCreateForm = () => {
 							return `'${email}'`;
 						},
 					).join(', ');
-					setAlertMessage(
-						t('NO_STAFF_MEMBERS_ALLOWED_IN_TENANT', {
+					setAlertMessage({
+						key: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
+						params: {
 							emails: notAllowedEmailsStr,
-						}),
-					);
+						},
+					});
 				}
 			}
 			handleCloseDialog();
@@ -267,11 +270,16 @@ export const TenantCreateForm = () => {
 				<Alert
 					severity="error"
 					onClose={() => {
-						setAlertMessage('');
+						setAlertMessage(undefined);
 					}}
 					sx={{ mb: 3 }}
 				>
-					{alertMessage}
+					{_.isString(alertMessage)
+						? alertMessage
+						: (t(
+								alertMessage.key as never,
+								alertMessage.params as never,
+							) as unknown as string)}
 				</Alert>
 			) : null}
 			<Form methods={methods} onSubmit={handleOpenDialog}>
