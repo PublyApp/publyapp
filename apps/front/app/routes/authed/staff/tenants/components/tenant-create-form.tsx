@@ -12,7 +12,7 @@ import { fData } from '@/front/utils/format-number';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useMainStore } from '@/front/lib/zustand/store';
 import { mbToBytes, sleep } from '@/shared/utils/any.utils';
 import Button from '@mui/material/Button';
@@ -28,6 +28,13 @@ import { FieldContainer } from '@/front/components/form-extras';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import { HelperText } from '@/front/components/hook-form/help-text';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import { useRouter } from '@/front/hooks/use-router';
+import { useBoolean } from 'minimal-shared/hooks';
+import { nanoid } from 'nanoid';
 
 // ----------------------------------------------------------------------
 
@@ -55,16 +62,16 @@ const initialUserValue = {
 };
 
 const defaultValues = {
-	logo: undefined,
 	name: '',
-	initialUsers: [initialUserValue],
 	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
+	logo: undefined,
+	initialUsers: [initialUserValue],
 } satisfies NewTenantSchemaType;
 
 export const TenantCreateForm = () => {
 	const { t } = useTranslate();
-	// const router = useRouter();
-	// const openDialog = useBoolean();
+	const router = useRouter();
+	const openDialog = useBoolean();
 
 	const NewTenantSchema = getNewTenantSchemaClientSide(defaultZodClient);
 
@@ -75,79 +82,71 @@ export const TenantCreateForm = () => {
 	});
 
 	const {
-		// reset,
+		reset,
 		handleSubmit,
 		formState: { isSubmitting, errors },
 		control,
 	} = methods;
-
-	console.log('🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵🛵', errors);
 
 	const { fields, append, remove, update } = useFieldArray({
 		control,
 		name: 'initialUsers',
 	});
 
-	const /* handleConfirmDialog */ submitNewTenant = useCallback(
-			(e?: React.BaseSyntheticEvent) => {
-				const handler = handleSubmit(
-					async (data) => {
-						console.log('🎯🎯🎯🎯', data);
-						await sleep(3000);
-						// try {
-						// 	// const formData = new FormData();
-						// 	// _.entries(data).forEach((value) => {
-						// 	// 	const [key, fieldValue] = value;
-						// 	// 	formData.append(key, fieldValue);
-						// 	// });
-						// 	// // console.log('***********', defaultApiClient.parseRestClient.getSessionToken());
-						// 	// await defaultApiClient.parseRestClient.cloudRun(
-						// 	// 	functionName.staff.staffMember.create,
-						// 	// 	{
-						// 	// 		params: formData,
-						// 	// 		headers: {
-						// 	// 			'Content-Type': 'multipart/form-data',
-						// 	// 			// 'Authorization': `Bearer ${defaultApiClient.parseRestClient.getSessionToken()}`,
-						// 	// 		},
-						// 	// 	},
-						// 	// );
+	const handleConfirmDialog = useCallback(
+		(e?: React.BaseSyntheticEvent) => {
+			const handler = handleSubmit(async (data) => {
+				console.log('☝️☝️☝️☝️', data);
+				await sleep(3000);
+				// try {
+				// 	// const formData = new FormData();
+				// 	// _.entries(data).forEach((value) => {
+				// 	// 	const [key, fieldValue] = value;
+				// 	// 	formData.append(key, fieldValue);
+				// 	// });
+				// 	// // console.log('***********', defaultApiClient.parseRestClient.getSessionToken());
+				// 	// await defaultApiClient.parseRestClient.cloudRun(
+				// 	// 	functionName.staff.staffMember.create,
+				// 	// 	{
+				// 	// 		params: formData,
+				// 	// 		headers: {
+				// 	// 			'Content-Type': 'multipart/form-data',
+				// 	// 			// 'Authorization': `Bearer ${defaultApiClient.parseRestClient.getSessionToken()}`,
+				// 	// 		},
+				// 	// 	},
+				// 	// );
+				// 	// reset();
+				// 	// toast.success(currentUser ? 'Update success!' : 'Create success!');
+				// 	// router.push(FRONT_PATH_NAMES.staff.tenants.root);
+				// } catch (error) {
+				// 	// console.error(error);
+				// }
+			});
 
-						// 	// reset();
-						// 	// toast.success(currentUser ? 'Update success!' : 'Create success!');
-						// 	// router.push(FRONT_PATH_NAMES.staff.tenants.root);
-						// } catch (error) {
-						// 	// console.error(error);
-						// }
-					},
-					(error) => {
-						console.error('❌❌❌❌❌', error);
-					},
-				);
+			return handler(e);
+		},
+		[handleSubmit],
+	);
 
-				return handler(e);
-			},
-			[handleSubmit /* , reset, router */],
-		);
+	const handleOpenDialog = useCallback(
+		(e?: React.BaseSyntheticEvent) => {
+			const handler = handleSubmit(async () => {
+				openDialog.onTrue();
+			});
+
+			return handler(e);
+		},
+		[handleSubmit, openDialog.onTrue],
+	);
 
 	// ***********************************
 	useEffect(() => {
 		useMainStore.setState((root) => {
-			root.tenantsSlice.createTenantForm.submit = submitNewTenant;
+			root.tenantsSlice.createTenantForm.submit =
+				/* submitNewTenant */ handleOpenDialog;
 			root.tenantsSlice.createTenantForm.isSubmitting = isSubmitting;
 		});
 
-		// return () => {
-		// 	const defaultSliceValues =
-		// 		useMainStore.getInitialState().tenantsSlice.createTenantForm;
-		// 	useMainStore.setState((root) => {
-		// 		root.tenantsSlice.createTenantForm.submit = defaultSliceValues.submit;
-		// 		root.tenantsSlice.createTenantForm.isSubmitting =
-		// 			defaultSliceValues.isSubmitting;
-		// 	});
-		// };
-	}, [isSubmitting, submitNewTenant]);
-
-	useEffect(() => {
 		return () => {
 			const defaultSliceValues =
 				useMainStore.getInitialState().tenantsSlice.createTenantForm;
@@ -157,40 +156,106 @@ export const TenantCreateForm = () => {
 					defaultSliceValues.isSubmitting;
 			});
 		};
-	}, []);
+	}, [isSubmitting, handleOpenDialog]);
+
+	// useEffect(() => {
+	// 	return () => {
+	// 		const defaultSliceValues =
+	// 			useMainStore.getInitialState().tenantsSlice.createTenantForm;
+	// 		useMainStore.setState((root) => {
+	// 			root.tenantsSlice.createTenantForm.submit = defaultSliceValues.submit;
+	// 			root.tenantsSlice.createTenantForm.isSubmitting =
+	// 				defaultSliceValues.isSubmitting;
+	// 		});
+	// 	};
+	// }, []);
 	// ***********************************
 
-	// const handleCloseDialog = openDialog.onFalse;
+	const handleCloseDialog = openDialog.onFalse;
 
-	// const handleOpenDialog = handleSubmit(async () => {
-	// 	try {
-	// 		openDialog.onTrue();
-	// 	} catch (error) {
-	// 		console.error(error);
-	// 	}
-	// });
+	const values = methods.getValues();
 
-	// const confirmValues = _.chain(methods.getValues())
-	// 	.entries()
-	// 	.map((value) => {
-	// 		const [key, fieldValue] = value;
-	// 		let finalValue = '';
-	// 		if (_.isNil(fieldValue) || _.isEmpty(fieldValue)) {
-	// 			finalValue = 'N/A';
-	// 		} else {
-	// 			finalValue = _.isString(fieldValue)
-	// 				? fieldValue
-	// 				: JSON.stringify(fieldValue);
-	// 		}
-	// 		if (fieldValue instanceof File) {
-	// 			finalValue = fieldValue.name;
-	// 		}
-	// 		return {
-	// 			name: _.capitalize(t(_.toLower(key) as never)),
-	// 			value: finalValue,
-	// 		};
-	// 	})
-	// 	.value();
+	const renderConfirmValues = useMemo(() => {
+		return _.chain(values)
+			.entries()
+			.map((value) => {
+				const [key, fieldValue] = value;
+
+				if (key === 'initialUsers') {
+					let values = null;
+					if (_.isArray(fieldValue)) {
+						values = _.map(fieldValue, (value) => {
+							return (
+								<Typography key={`${value.email}_${value.role}`} sx={{ mb: 1 }}>
+									&nbsp;&nbsp;&nbsp;&nbsp;- {value.email} / {value.role}
+								</Typography>
+							);
+						});
+					}
+					return (
+						<Box key={key} sx={{ mb: 1 }}>
+							<Typography fontWeight="bold">{t('initial-users')}</Typography>
+							{values}
+						</Box>
+					);
+				}
+
+				if (key === 'logo') {
+					let value = 'N/A';
+					if (fieldValue instanceof File) {
+						value = fieldValue.name;
+					}
+					return (
+						<Typography key={key} sx={{ mb: 1 }}>
+							<Box component="span" sx={{ fontWeight: 'bold' }}>
+								{t('logo')}
+							</Box>
+							: {value}
+						</Typography>
+					);
+				}
+
+				if (key === 'maxUsers') {
+					let value = 'N/A';
+					if (!_.isNil(fieldValue)) {
+						value = _.toString(fieldValue);
+					}
+					return (
+						<Typography key={key} sx={{ mb: 1 }}>
+							<Box component="span" sx={{ fontWeight: 'bold' }}>
+								{t('max-users')}
+							</Box>
+							: {value}
+						</Typography>
+					);
+				}
+
+				if (key === 'name') {
+					let value = 'N/A';
+					if (!_.isNil(fieldValue)) {
+						value = _.toString(fieldValue);
+					}
+					return (
+						<Typography key={key} sx={{ mb: 1 }}>
+							<Box component="span" sx={{ fontWeight: 'bold' }}>
+								{t('name')}
+							</Box>
+							: {value}
+						</Typography>
+					);
+				}
+
+				return (
+					<Typography key={nanoid()} sx={{ mb: 1 }}>
+						<Box component="span" sx={{ fontWeight: 'bold' }}>
+							unhandled
+						</Box>
+						: unhandled
+					</Typography>
+				);
+			})
+			.value();
+	}, [values, t]);
 
 	const handleAddUserToForm = () => {
 		append({
@@ -203,7 +268,7 @@ export const TenantCreateForm = () => {
 
 	return (
 		<>
-			<Form methods={methods} onSubmit={submitNewTenant}>
+			<Form methods={methods} onSubmit={handleOpenDialog}>
 				<Grid container spacing={3}>
 					<Grid size={{ xs: 12, md: 4 }}>
 						<Card sx={{ pt: 10, pb: 5, px: 3 }}>
@@ -321,20 +386,21 @@ export const TenantCreateForm = () => {
 				</Grid>
 			</Form>
 
-			{/* <Dialog open={openDialog.value} onClose={handleCloseDialog}>
+			<Dialog open={openDialog.value} onClose={handleCloseDialog}>
 				<DialogTitle>
 					{_.capitalize(
-						t('save-item-confirmation-title', { item: t('staff-member') }),
+						t('save-item-confirmation-title', { item: t('tenant') }),
 					)}
 				</DialogTitle>
 
 				<DialogContent sx={{ color: 'text.secondary' }}>
 					<Typography sx={{ mb: 2 }}>
 						{_.capitalize(
-							t('save-item-confirmation-message', { item: t('staff-member') }),
+							t('save-item-confirmation-message', { item: t('tenant') }),
 						)}
 					</Typography>
-					{confirmValues.map((value) => {
+					{renderConfirmValues}
+					{/* {confirmValues.map((value) => {
 						return (
 							<Typography key={value.name} sx={{ mb: 1 }}>
 								<Box component="span" sx={{ fontWeight: 'bold' }}>
@@ -343,7 +409,7 @@ export const TenantCreateForm = () => {
 								: {value.value}
 							</Typography>
 						);
-					})}
+					})} */}
 				</DialogContent>
 
 				<DialogActions>
@@ -359,7 +425,7 @@ export const TenantCreateForm = () => {
 						{t('confirm')}
 					</Button>
 				</DialogActions>
-			</Dialog> */}
+			</Dialog>
 		</>
 	);
 };
@@ -391,17 +457,6 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 		[fields, index, update],
 	);
 
-	const handleChangeEmail = useCallback(
-		(e: React.ChangeEvent<{ value: unknown }>) => {
-			const value = e.target.value;
-			update(index, {
-				...fields[index],
-				email: value as string,
-			});
-		},
-		[fields, index, update],
-	);
-
 	const isAdmin = _.get(fields, `${index}.role`) === tenantSubRoleEnum.ADMIN;
 	const adminsList = _.filter(fields, (field) => {
 		return field.role === tenantSubRoleEnum.ADMIN;
@@ -413,7 +468,6 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 			<Field.Text
 				name={`initialUsers.${index}.email`}
 				label={t('email-address')}
-				onChange={handleChangeEmail}
 				required
 			/>
 
@@ -481,7 +535,6 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 							onClick={handleRemoveUserRow}
 							disabled={isTheOnlyAdmin}
 						>
-							{/* <Iconify icon="eva:done-all-fill" /> */}
 							<Iconify icon="solar:trash-bin-trash-bold" />
 						</IconButton>
 					</span>

@@ -23,6 +23,7 @@ const commonEN = {
 	tenants: 'Tenants',
 	status: 'Status',
 	link: 'Link',
+	logo: 'Logo',
 
 	// ? ...
 	views: 'Views',
@@ -126,6 +127,7 @@ const commonEN = {
 		'A tenant should have at least one admin',
 	'each-user-must-have-a-unique-email':
 		'Each user must have a unique email address.',
+	'initial-users': 'Initial users',
 
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Internal server error',

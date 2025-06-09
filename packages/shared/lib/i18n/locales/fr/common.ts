@@ -22,6 +22,7 @@ const commonFR = {
 	tenant: 'Tenant',
 	tenants: 'Tenants',
 	status: 'Statut',
+	logo: 'Logo',
 
 	// ? ...
 	views: 'Vues',
@@ -126,6 +127,7 @@ const commonFR = {
 		'Un tenant doit avoir au moins un admin',
 	'each-user-must-have-a-unique-email':
 		'Chaque utilisateur doit avoir une adresse email unique.',
+	'initial-users': 'Utilisateurs initiaux',
 
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Erreur interne du serveur',
