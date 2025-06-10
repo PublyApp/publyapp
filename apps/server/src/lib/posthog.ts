@@ -23,7 +23,7 @@ class SilentPostHog implements SimplePostHog {
 	}
 }
 
-export const posthogClient = (() => {
+export const postHogServer = (() => {
 	if (env.LOCAL) {
 		return new SilentPostHog();
 	}

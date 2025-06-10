@@ -26,7 +26,7 @@ declare global {
 
 			// biome-ignore lint/complexity/noBannedTypes: safe to use Object type here
 			interface TriggerRequest<T = Object> {
-				query: Query<T> | undefined;
+				query?: Query<T> | undefined;
 				context:
 					| (Record<string, unknown> & { locale?: string; fromCloud?: boolean })
 					| undefined;

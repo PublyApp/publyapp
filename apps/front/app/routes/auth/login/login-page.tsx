@@ -1,10 +1,10 @@
 import dayjs from 'dayjs';
 import { data, redirect } from 'react-router';
 import { serializeError } from 'serialize-error';
+import * as cookie from 'cookie';
 
 import duration from '@org/shared/utils/duration.utils';
 
-import { CookieManager } from '@/front/lib/cookie-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerAction } from '@/front/lib/react-router/server-data.server';
 import {
@@ -17,6 +17,7 @@ import { makePath } from '@/shared/utils/string.utils';
 
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';
+import _ from 'lodash';
 
 export const meta = (_: Route.MetaArgs) => {
 	return [{ title: `Log in - ${APP_NAME}` }];
@@ -40,28 +41,37 @@ export const action = getServerAction({
 			});
 		}
 
-		const reqCookies = new CookieManager(request.headers);
-
 		const resHeaders = new Headers();
-		const resCookies = new CookieManager(resHeaders);
+
+		const sessionTokenCookie = cookie.serialize(
+			SESSION_TOKEN_COOKIE_KEY,
+			loginResult.data.sessionToken,
+			{
+				expires: dayjs().add(3, 'day').toDate(),
+				maxAge: duration.toSeconds('3d'),
+			},
+		);
+		resHeaders.append('Set-Cookie', sessionTokenCookie);
 
 		apiClient.parseRestClient.setSessionToken(loginResult.data.sessionToken);
 
-		resCookies.set(SESSION_TOKEN_COOKIE_KEY, loginResult.data.sessionToken, {
-			maxAge: duration.toSeconds('3d'),
-		});
-
-		const tenantId = reqCookies.get(LAST_USED_TENANT_ID_COOKIE_KEY);
+		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
+		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
 		const { code } = await apiClient.auth.getRedirectCode({ tenantId });
 
 		let redirectPath = makePath(code);
 
 		if (code !== 'staff' && code !== 'unauthorized') {
-			resCookies.set(LAST_USED_TENANT_ID_COOKIE_KEY, code, {
-				expires: dayjs().add(3, 'day').toDate(),
-				maxAge: duration.toSeconds('3d'),
-			});
+			const lastUsedTenantIdCookie = cookie.serialize(
+				LAST_USED_TENANT_ID_COOKIE_KEY,
+				code,
+				{
+					expires: dayjs().add(3, 'day').toDate(),
+					maxAge: duration.toSeconds('3d'),
+				},
+			);
+			resHeaders.append('Set-Cookie', lastUsedTenantIdCookie);
 			redirectPath = FRONT_PATH_NAMES.tenant(code).root;
 		}
 

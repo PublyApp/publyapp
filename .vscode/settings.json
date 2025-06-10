@@ -12,6 +12,7 @@
 		"bgcolor",
 		"browserconsole",
 		"bunx",
+		"circleci",
 		"cloudflare",
 		"cloudinary",
 		"corepack",
@@ -87,7 +88,6 @@
 	],
 	"editor.defaultFormatter": "biomejs.biome",
 	"editor.codeActionsOnSave": {
-		// "source.fixAll.eslint": "explicit",
 		// "source.sortImports": "explicit",
 		"source.fixAll.biome": "explicit"
 		// "source.organizeImports.biome": "explicit"

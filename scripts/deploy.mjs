@@ -4,6 +4,7 @@ import path from 'node:path';
 import _ from 'lodash';
 import fse from 'fs-extra';
 import fs from 'node:fs';
+import archiver from 'archiver';
 
 const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../');
 
@@ -182,3 +183,22 @@ _.unset(pkg, 'scripts.prepare');
 
 // Write updated package.json
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+
+// --------------------------------------------------------------------------------------//
+//                              create zip archive of build                              //
+// --------------------------------------------------------------------------------------//
+const timestamp = new Date().toISOString().replace(/T/, '-').replace(/\..+/, '').replace(/:/g, '-');
+const output = fs.createWriteStream(path.join(MONOREPO_ROOT_DIR, 'scripts', `build-${timestamp}.zip`));
+const archive = archiver('zip', { zlib: { level: 9 } });
+
+output.on('close', () => {
+	console.log(`Archive created: ${archive.pointer()} total bytes`);
+});
+
+archive.on('error', (err) => {
+	throw err;
+});
+
+archive.pipe(output);
+archive.directory(DEPLOY_ROOT_DIR, false);
+archive.finalize();
