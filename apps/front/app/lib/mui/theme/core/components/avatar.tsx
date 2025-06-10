@@ -4,6 +4,7 @@ import type {
 	ComponentsVariants,
 	Theme,
 } from '@mui/material/styles';
+import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -89,7 +90,7 @@ const MuiAvatar: Components<Theme>['MuiAvatar'] = {
 			].flat() as never,
 		},
 		rounded: ({ theme }) => {
-			return { borderRadius: theme.shape.borderRadius * 1.5 };
+			return { borderRadius: _.toNumber(theme.shape.borderRadius) * 1.5 };
 		},
 		colorDefault: ({ ownerState, theme }) => {
 			const color = colorByName(ownerState.alt);

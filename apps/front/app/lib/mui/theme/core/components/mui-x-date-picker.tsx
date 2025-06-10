@@ -2,6 +2,7 @@ import { buttonClasses } from '@mui/material/Button';
 import { dialogActionsClasses } from '@mui/material/DialogActions';
 import type { Components, Theme } from '@mui/material/styles';
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -202,7 +203,7 @@ const MuiPickerPopper: Components<Theme>['MuiPickerPopper'] = {
 		paper: ({ theme }) => {
 			return {
 				boxShadow: theme.vars.customShadows.dropdown,
-				borderRadius: theme.shape.borderRadius * 1.5,
+				borderRadius: _.toNumber(theme.shape.borderRadius) * 1.5,
 			};
 		},
 	},

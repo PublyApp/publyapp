@@ -1,4 +1,5 @@
 import type { Theme } from '@mui/material/styles';
+import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -98,7 +99,7 @@ const horizontalVars = (theme: Theme) => {
 		...colorVars(theme, 'horizontal'),
 		'--nav-item-gap': '6px',
 		'--nav-height': '56px',
-		'--nav-item-radius': `${shape.borderRadius * 0.75}px`,
+		'--nav-item-radius': `${_.toNumber(shape.borderRadius) * 0.75}px`,
 		// root
 		'--nav-item-root-height': '32px',
 		'--nav-item-root-padding': '0 6px',

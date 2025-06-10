@@ -1,4 +1,5 @@
 import type { Theme } from '@mui/material/styles';
+import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -19,7 +20,7 @@ const desktopVars = (theme: Theme) => {
 		'--nav-item-root-padding': '0',
 		'--nav-item-root-active-color': palette.primary.main,
 		// sub
-		'--nav-item-sub-radius': `${shape.borderRadius * 0.75}px`,
+		'--nav-item-sub-radius': `${_.toNumber(shape.borderRadius) * 0.75}px`,
 		'--nav-item-sub-padding': '6px 8px 6px 8px',
 		'--nav-item-sub-color': palette.text.secondary,
 		'--nav-item-sub-hover-color': palette.text.primary,
