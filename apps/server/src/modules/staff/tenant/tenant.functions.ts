@@ -98,10 +98,6 @@ export const createTenant = fromStaffMemberParseFunction({
 				staffMemberEmails.push(usersMapById.get(result._id)?.get('email'));
 			});
 
-			// return {
-			// 	type: 'error',
-			// 	'staff-member-emails': staffMemberEmails,
-			// }
 			throw new HttpException(
 				400,
 				t('cannot-create-tenant-with-staff-members'),
