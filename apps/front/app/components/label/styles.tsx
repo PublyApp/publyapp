@@ -2,6 +2,7 @@ import { styled, type CSSObject } from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
 
 import type { LabelProps } from './types';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -102,7 +103,7 @@ export const LabelRoot = styled('span', {
 		padding: theme.spacing(0, 0.75),
 		fontSize: theme.typography.pxToRem(12),
 		fontWeight: theme.typography.fontWeightBold,
-		borderRadius: theme.shape.borderRadius * 0.75,
+		borderRadius: _.toNumber(theme.shape.borderRadius) * 0.75,
 		transition: theme.transitions.create(['all'], {
 			duration: theme.transitions.duration.shorter,
 		}),

@@ -4,6 +4,7 @@ import Tooltip from '@mui/material/Tooltip';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { Iconify } from '../../iconify/iconify';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -20,7 +21,7 @@ const LargeBlockRoot = styled('div')(({ theme }) => {
 		position: 'relative',
 		flexDirection: 'column',
 		padding: theme.spacing(4, 2, 2, 2),
-		borderRadius: theme.shape.borderRadius * 2,
+		borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
 		border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)}`,
 	};
 });
