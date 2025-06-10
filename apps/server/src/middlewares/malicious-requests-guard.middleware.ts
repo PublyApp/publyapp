@@ -4,7 +4,7 @@
 
 import _ from 'lodash';
 import { expressHandler, getRequestIp } from '../lib/express';
-import { BlockList } from 'node:net';
+import { BlockList, isIPv6, type IPVersion } from 'node:net';
 import { getGlobalConfig, setGlobalConfig } from '../lib/parse/parse.utils';
 import { logger } from '../lib/winston';
 import { IP_BLOCKLIST_CONFIG_KEY } from '../lib/constants';
@@ -46,8 +46,16 @@ export const populateBlocklist = async () => {
 	const ipAddresses: string[] = config.get(IP_BLOCKLIST_CONFIG_KEY);
 	_.forEach(ipAddresses, (ipAddress) => {
 		try {
-			blocklist.addAddress(ipAddress);
+			let ipVersion: IPVersion = 'ipv4';
+			if (isIPv6(ipAddress)) {
+				ipVersion = 'ipv6';
+			}
+			blocklist.addAddress(ipAddress, ipVersion);
 		} catch (error) {
+			if (_.isObject(error)) {
+				// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+				(error as any).ipAddress = ipAddress;
+			}
 			logger.error(error);
 		}
 	});
@@ -58,7 +66,7 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 		const { path: _path } = req;
 		const path = _.toLower(_path);
 
-		const ipAddress = getRequestIp(req);
+		const ipAddress = getRequestIp(req) || '';
 
 		const isWTF =
 			_.includes(path, _.toLower('test_block_ip')) ||
@@ -79,11 +87,18 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 
 		if (isSuspicious) {
 			try {
-				blocklist.addAddress(ipAddress || '');
+				let ipVersion: IPVersion = 'ipv4';
+				if (isIPv6(ipAddress)) {
+					ipVersion = 'ipv6';
+				}
+				blocklist.addAddress(ipAddress, ipVersion);
+				logger.info('Blocked IP address', { ipAddress });
 			} catch (error) {
-				logger.error('Failed to add IP address to blocklist:', error, {
-					ipAddress,
-				});
+				if (_.isObject(error)) {
+					// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+					(error as any).ipAddress = ipAddress;
+				}
+				logger.error('Failed to add IP address to blocklist:', error);
 			}
 
 			const updateConfigAsynchronously = async () => {
