@@ -1,6 +1,7 @@
 import type { Components, Theme } from '@mui/material/styles';
 import { tableCellClasses } from '@mui/material/TableCell';
 import { tableRowClasses } from '@mui/material/TableRow';
+import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -114,7 +115,7 @@ const MuiTablePagination: Components<Theme>['MuiTablePagination'] = {
 				paddingLeft: 8,
 				display: 'flex',
 				alignItems: 'center',
-				'&:focus': { borderRadius: theme.shape.borderRadius },
+				'&:focus': { borderRadius: _.toNumber(theme.shape.borderRadius) },
 			};
 		},
 		selectIcon: {
