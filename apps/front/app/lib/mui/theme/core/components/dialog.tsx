@@ -1,4 +1,5 @@
 import type { Components, Theme } from '@mui/material/styles';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -20,7 +21,7 @@ const MuiDialog: Components<Theme>['MuiDialog'] = {
 		paper: ({ ownerState, theme }) => {
 			return {
 				boxShadow: theme.vars.customShadows.dialog,
-				borderRadius: theme.shape.borderRadius * 2,
+				borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
 				...(!ownerState.fullScreen && { margin: theme.spacing(2) }),
 			};
 		},

@@ -187,10 +187,10 @@ const MuiChip: Components<Theme>['MuiChip'] = {
 		 * @sizes
 		 */
 		sizeMedium: ({ theme }) => {
-			return { borderRadius: theme.shape.borderRadius * 1.25 };
+			return { borderRadius: _.toNumber(theme.shape.borderRadius) * 1.25 };
 		},
 		sizeSmall: ({ theme }) => {
-			return { borderRadius: theme.shape.borderRadius };
+			return { borderRadius: _.toNumber(theme.shape.borderRadius) };
 		},
 		/**
 		 * @variant filled

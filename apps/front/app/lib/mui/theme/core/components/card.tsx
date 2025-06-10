@@ -1,4 +1,5 @@
 import type { Components, Theme } from '@mui/material/styles';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -11,7 +12,7 @@ const MuiCard: Components<Theme>['MuiCard'] = {
 			return {
 				position: 'relative',
 				boxShadow: theme.vars.customShadows.card,
-				borderRadius: theme.shape.borderRadius * 2,
+				borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
 				zIndex: 0, // Fix Safari overflow: hidden with border radius
 			};
 		},

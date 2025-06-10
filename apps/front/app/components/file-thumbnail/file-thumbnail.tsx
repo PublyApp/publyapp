@@ -6,6 +6,7 @@ import { DownloadButton, RemoveButton } from './action-buttons';
 import { fileThumbnailClasses } from './classes';
 import type { FileThumbnailProps } from './types';
 import { fileData, fileFormat, fileThumb } from './utils';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -112,7 +113,7 @@ const ItemRoot = styled('span')(({ theme }) => {
 		position: 'relative',
 		display: 'inline-flex',
 		justifyContent: 'center',
-		borderRadius: theme.shape.borderRadius * 1.25,
+		borderRadius: _.toNumber(theme.shape.borderRadius) * 1.25,
 	};
 });
 

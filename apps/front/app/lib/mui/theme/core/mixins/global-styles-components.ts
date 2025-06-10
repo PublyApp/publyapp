@@ -3,6 +3,7 @@ import { checkboxClasses } from '@mui/material/Checkbox';
 import { dividerClasses } from '@mui/material/Divider';
 import { menuItemClasses } from '@mui/material/MenuItem';
 import type { CSSObject, Theme } from '@mui/material/styles';
+import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
@@ -20,7 +21,7 @@ export const menuItemStyles = (theme: Theme): CSSObject => {
 	return {
 		...theme.typography.body2,
 		padding: theme.spacing(0.75, 1),
-		borderRadius: theme.shape.borderRadius * 0.75,
+		borderRadius: _.toNumber(theme.shape.borderRadius) * 0.75,
 		'&:not(:last-of-type)': {
 			marginBottom: 4,
 		},
@@ -95,7 +96,7 @@ export const paperStyles = (
 		...(dropdown && {
 			padding: theme.spacing(0.5),
 			boxShadow: theme.vars.customShadows.dropdown,
-			borderRadius: `${theme.shape.borderRadius * 1.25}px`,
+			borderRadius: `${_.toNumber(theme.shape.borderRadius) * 1.25}px`,
 		}),
 	};
 };
