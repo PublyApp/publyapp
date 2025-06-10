@@ -48,6 +48,7 @@ export default defineConfig(({ mode }) => {
 							'@mui/x-tree-view',
 							'@mui/x-internals',
 							'@mui/styled-engine',
+							'@mui/icons-material',
 							// ====
 							'mui-one-time-password-input',
 							'@tiptap/extension-code-block-lowlight',
