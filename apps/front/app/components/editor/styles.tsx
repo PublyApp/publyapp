@@ -2,6 +2,7 @@ import { styled } from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { editorClasses } from './classes';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -161,7 +162,7 @@ export const EditorRoot = styled('div', {
 					padding: theme.spacing(0.25, 0.5),
 					color: theme.vars.palette.text.secondary,
 					fontSize: theme.typography.body2.fontSize,
-					borderRadius: theme.shape.borderRadius / 2,
+					borderRadius: _.toNumber(theme.shape.borderRadius) / 2,
 					backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.2),
 				},
 				/**
