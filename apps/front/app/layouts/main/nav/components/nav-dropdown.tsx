@@ -1,5 +1,6 @@
 import Fade, { type FadeProps } from '@mui/material/Fade';
 import { styled } from '@mui/material/styles';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
@@ -7,7 +8,7 @@ const NavDropdownPaper = styled('div')(({ theme }) => {
 	return {
 		...theme.mixins.paperStyles(theme, { dropdown: true }),
 		padding: theme.spacing(5, 1, 1, 4),
-		borderRadius: theme.shape.borderRadius * 2,
+		borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
 		...(theme.direction === 'rtl' && {
 			padding: theme.spacing(5, 4, 1, 1),
 		}),
