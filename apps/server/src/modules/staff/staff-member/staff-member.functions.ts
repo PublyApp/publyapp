@@ -81,7 +81,7 @@ export const createStaffMember = fromStaffMemberParseFunction({
 				},
 				(value, key) => _.isNil(value) || key === 'role',
 			) as never,
-		).save(null, { sessionToken: user.getSessionToken() });
+		).save(null, { sessionToken });
 
 		await roleService.assignRoleToUser(savedUser, role);
 
