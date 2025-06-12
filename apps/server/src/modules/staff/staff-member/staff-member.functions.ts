@@ -1,22 +1,22 @@
-import {
-	fromStaffMemberParseFunction,
-	type FunctionParams,
-	type FunctionReturn,
-} from '@/server/lib/parse/cloud/function';
-import { fileProvider, functionName, roleSet } from '@/shared/lib/constants';
-import FileService from '../../common/file/file.service';
-import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
-import _ from 'lodash';
-import { generateUsername } from 'unique-username-generator';
-import { makePath } from '@/shared/utils/string.utils';
 import { HttpException } from '@/server/exceptions/HttpException';
-import { nanoid } from 'nanoid';
-import ParseUser from '../../common/auth/user/user.class';
-import RoleService from '../../common/auth/role/role.service';
-import type { IUser } from '@/shared/types/db/user.types';
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { getParseFunctionHeader } from '@/server/lib/parse/cloud/core';
+import {
+	type FunctionParams,
+	type FunctionReturn,
+	fromStaffMemberParseFunction,
+} from '@/server/lib/parse/cloud/function';
+import { fileProvider, functionName, roleSet } from '@/shared/lib/constants';
+import type { IUser } from '@/shared/types/db/user.types';
+import { makePath } from '@/shared/utils/string.utils';
+import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
 import { getNewStaffMemberSchemaServerSide } from '@org/shared/validations/staff-member/staff-member.validation';
+import _ from 'lodash';
+import { nanoid } from 'nanoid';
+import { generateUsername } from 'unique-username-generator';
+import RoleService from '../../common/auth/role/role.service';
+import ParseUser from '../../common/auth/user/user.class';
+import FileService from '../../common/file/file.service';
 
 export namespace CreateStaffMemberFunction {
 	export type Params = FunctionParams<typeof createStaffMember>;
