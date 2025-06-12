@@ -88,11 +88,11 @@
 	],
 	"editor.defaultFormatter": "biomejs.biome",
 	"editor.codeActionsOnSave": {
-		// "source.sortImports": "explicit",
-		"source.fixAll.biome": "explicit"
-		// "source.organizeImports.biome": "explicit"
+		"source.sortImports": "explicit",
+		"source.fixAll.biome": "explicit",
+		"source.organizeImports.biome": "explicit"
 	},
-	"editor.formatOnSave": true, // intensinnally set to false
+	"editor.formatOnSave": true,
 	"editor.tabSize": 2,
 	"editor.insertSpaces": false,
 	"editor.renderWhitespace": "all",
@@ -103,15 +103,6 @@
 		"tsconfig.nextjs.json": "tsconfig",
 		"tsconfig.react-library.json": "tsconfig"
 	},
-	"vscode-color-picker.languages": [
-		"javascript",
-		"javascriptreact",
-		"typescript",
-		"typescriptreact",
-		"postcss",
-		"xml",
-		"html"
-	],
 	"typescript.tsdk": "node_modules\\typescript\\lib",
 	"files.eol": "\n",
 	"[jsonc]": {
