@@ -1,11 +1,11 @@
 // @ts-check
-import path from 'node:path';
-import fs, { createWriteStream } from 'node:fs';
-import { pipeline, Readable } from 'node:stream';
-import { promisify } from 'node:util';
-import _ from 'lodash';
 import { createRsbuild as _createRsbuild } from '@rsbuild/core';
 import { pluginTypeCheck } from '@rsbuild/plugin-type-check';
+import _ from 'lodash';
+import fs, { createWriteStream } from 'node:fs';
+import path from 'node:path';
+import { pipeline, Readable } from 'node:stream';
+import { promisify } from 'node:util';
 
 export const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../../../../');
 
@@ -35,8 +35,6 @@ export const listDirectories = (pth) => {
 
 	return directories;
 };
-
-// exports.listDirectories = listDirectories;
 
 export const findExternals = () => {
 	// read all apps package.json
@@ -72,8 +70,6 @@ export const findExternals = () => {
 
 	return [...externalsSet];
 };
-
-// exports.findExternals = findExternals;
 
 export const externals = [
 	// ..._.filter(findExternals(), (k) => { return k !== 'cloudinary' }),
@@ -113,8 +109,6 @@ export const externals = [
 	'front/build/server/index.js',
 ];
 
-// exports.externals = externals;
-
 export const createRsbuild = () => {
 	return _createRsbuild({
 		rsbuildConfig: {
@@ -126,14 +120,14 @@ export const createRsbuild = () => {
 					seed: './src/_seed.ts',
 					migrations: './src/_migrations.ts',
 				},
-				define: {
-					// even during development, set NODE_ENV to production
-					// so that we can have production-like behavior
-					// (e.g. the app will not crash on missing env variables + better performance)
-					// To differentiate between development and production, use process.env.MODE instead of process.env.NODE_ENV
-					// (MODE is set by the user in the .env.local file or at node command line launch)
-					'process.env.NODE_ENV': JSON.stringify('production'),
-				},
+				// define: {
+				// 	// even during development, set NODE_ENV to production
+				// 	// so that we can have production-like behavior
+				// 	// (e.g. the app will not crash on missing env variables + better performance)
+				// 	// To differentiate between development and production, use process.env.MODE instead of process.env.NODE_ENV
+				// 	// (MODE is set by the user in the .env.local file or at node command line launch)
+				// 	// 'process.env.NODE_ENV': JSON.stringify('production'),
+				// },
 			},
 			output: {
 				target: 'node',

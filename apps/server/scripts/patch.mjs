@@ -46,27 +46,6 @@ const patchParseServerAuthLib = async () => {
 	});
 };
 
-// const patchParseServerBlockListForBunRuntime = async () => {
-// 	const filePath1 = path.resolve(
-// 		import.meta.dirname,
-// 		'../node_modules/parse-server/lib/middlewares.js',
-// 	);
-// 	const filePath2 = path.resolve(
-// 		import.meta.dirname,
-// 		'../../../node_modules/parse-server/lib/middlewares.js',
-// 	);
-//
-// 	const exists1 = fs.existsSync(filePath1);
-//
-// 	// const results =
-// 	replace({
-// 		disableGlobs: true,
-// 		files: (await exists1)? filePath1 : filePath2,
-// 		from: /blockList.addAddress\(/g,
-// 		to: 'blockList.addAddress?.(',
-// 	});
-// };
-
 const patchClassNameRegex = async () => {
 	const filePath1 = path.resolve(
 		import.meta.dirname,
