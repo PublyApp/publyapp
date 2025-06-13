@@ -23,7 +23,22 @@ const run = async () => {
 
 	let startAppProcess = null;
 
-	// onDevCompileDone in bun IDK why
+	// Handle Ctrl+C and other termination signals
+	const cleanup = () => {
+		if (startAppProcess) {
+			console.log('\n\x1b[33m%s\x1b[0m', 'Terminating app process...');
+			startAppProcess.kill('SIGINT');
+			startAppProcess = null;
+		}
+		process.exit(0);
+	};
+
+	// Listen for termination signals
+	process.on('SIGINT', cleanup);  // Ctrl+C
+	process.on('SIGTERM', cleanup); // Termination signal
+	process.on('exit', cleanup);     // Process exit
+
+	// onDevCompileDone does not work in Bun, IDK why
 	rsbuild.onAfterBuild/* onDevCompileDone */(async () => {
 		// create the i18n resources files in .jsonc format
 		const { resources } = await import(
