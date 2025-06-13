@@ -85,7 +85,8 @@
 		"stylis-plugin-rtl": "^2.1.1",
 		"zod": "^3.22.4",
 		"zustand": "^4.4.7",
-		"react-query-kit": "^3.3.1"
+		"react-query-kit": "^3.3.1",
+		"nprogress": "^0.2.0"
 	},
 	"devDependencies": {
 		"@esbuild-plugins/node-globals-polyfill": "^0.2.3",
@@ -102,6 +103,7 @@
 		"vite": "^5.4.19",
 		"vite-plugin-checker": "^0.9.0",
 		"vite-tsconfig-paths": "^5.1.2",
-		"vite-plugin-devtools-json": "^0.1.0"
+		"vite-plugin-devtools-json": "^0.1.0",
+		"@types/nprogress": "^0.2.3"
 	}
 }
