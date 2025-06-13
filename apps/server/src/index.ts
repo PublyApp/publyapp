@@ -1,24 +1,26 @@
-import { createServer } from 'node:http';
-import path from 'node:path';
-import { ParseServer } from 'parse-server/lib/index.js';
-import Parse from 'parse/node.js';
-import FSFilesAdapter from '@parse/fs-files-adapter';
-import { createRequestHandler } from '@react-router/express';
-import chalk from 'chalk';
-import express from 'express';
-import helmet from 'helmet';
-import ParseDashboard from 'parse-dashboard';
-import duration from '@org/shared/utils/duration.utils';
 import { logger } from '@/server/lib/winston';
 import {
 	APP_ID,
 	APP_NAME,
 	endPoint,
 	LOCALE_HEADER_KEY,
-	TENANT_ID_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
+	TENANT_ID_HEADER_KEY,
 } from '@/shared/lib/constants';
+import duration from '@org/shared/utils/duration.utils';
+import FSFilesAdapter from '@parse/fs-files-adapter';
+import { createRequestHandler } from '@react-router/express';
+import chalk from 'chalk';
+import express from 'express';
+import helmet from 'helmet';
+import _ from 'lodash';
+import { createServer } from 'node:http';
+import path from 'node:path';
+import ParseDashboard from 'parse-dashboard';
+import { ParseServer } from 'parse-server/lib/index.js';
+import Parse from 'parse/node.js';
 import { cloud } from './cloud';
+import { HttpException } from './exceptions/HttpException';
 import {
 	createRolesIfNotExists,
 	createUploadDirIfNotExists,
@@ -38,17 +40,15 @@ import { initI18next } from './lib/i18n';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
 import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
 import { setCurrentInstallationId } from './lib/parse/parse.utils';
+import { postHogServer } from './lib/posthog';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
-import parseServerMiddleware from './middlewares/parse-server.middleware';
-import coreApiRouter from './router/core-api.router';
-import { postHogServer } from './lib/posthog';
 import {
 	maliciousRequestsGuardMiddleware,
 	populateBlocklist,
 } from './middlewares/malicious-requests-guard.middleware';
-import { HttpException } from './exceptions/HttpException';
-import _ from 'lodash';
+import parseServerMiddleware from './middlewares/parse-server.middleware';
+import coreApiRouter from './router/core-api.router';
 
 // ! use the rsbuild metaPlugin I wrote to make these work
 // logger.info(import.meta.url);
@@ -97,7 +97,13 @@ const bootstrap = async () => {
 	// serve i18n resources files under express static middleware (remark: these files are generated at build time)
 	app.use(
 		'/resources',
-		express.static(path.resolve(import.meta.dirname, './resources')),
+		express.static(
+			path.resolve(
+				// import.meta.dirname,
+				__dirname,
+				'./resources',
+			),
+		),
 	);
 	// The parse API end the custom API are both under this root path
 	// use only urlencoded there because Remix (React Router 7) will not
