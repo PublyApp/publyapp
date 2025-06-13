@@ -177,6 +177,7 @@ const bootstrap = async () => {
 		emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
 		emailVerifyTokenReuseIfValid: true,
 		// =============================================
+		enableInsecureAuthAdapters: false,
 		// preserveFileName: true,
 		// logLevel: 'silly', // this seems to be not working at all
 		// middleware: parseServerMiddleware, // this is being mounted only if with use the startApp method
