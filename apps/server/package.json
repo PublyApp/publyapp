@@ -7,7 +7,7 @@
 		"build:local": "cross-env MODE=local bun run build:common",
 		"build:prod": "cross-env MODE=production bun run build:common",
 		"build:preprod": "cross-env MODE=preprod bun run build:common",
-		"build:common": "bun run build:bun",
+		"build:common": "bun run build:rs",
 		"build:bun": "bun scripts/bun/build.mjs",
 		"build:rs": "bun scripts/rsbuild/build.mjs",
 		"// =============== START COMMANDs =================": "================================",

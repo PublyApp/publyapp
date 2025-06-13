@@ -95,16 +95,7 @@ const bootstrap = async () => {
 	// server uploaded files under express static middleware
 	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 	// serve i18n resources files under express static middleware (remark: these files are generated at build time)
-	app.use(
-		'/resources',
-		express.static(
-			path.resolve(
-				// import.meta.dirname,
-				__dirname,
-				'./resources',
-			),
-		),
-	);
+	app.use('/resources', express.static(path.resolve(__dirname, './resources')));
 	// The parse API end the custom API are both under this root path
 	// use only urlencoded there because Remix (React Router 7) will not
 	// populate action's formData correctly
@@ -248,9 +239,7 @@ const bootstrap = async () => {
 
 	if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
 		app.use(
-			express.static(
-				path.resolve(import.meta.dirname, '../../front/build/client'),
-			),
+			express.static(path.resolve(__dirname, '../../front/build/client')),
 		);
 
 		remixHandler = createRequestHandler({
