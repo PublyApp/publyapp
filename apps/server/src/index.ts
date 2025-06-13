@@ -1,11 +1,13 @@
+import { createServer } from 'node:http';
+import path from 'node:path';
 import { logger } from '@/server/lib/winston';
 import {
 	APP_ID,
 	APP_NAME,
-	endPoint,
 	LOCALE_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
 	TENANT_ID_HEADER_KEY,
+	endPoint,
 } from '@/shared/lib/constants';
 import duration from '@org/shared/utils/duration.utils';
 import FSFilesAdapter from '@parse/fs-files-adapter';
@@ -14,8 +16,6 @@ import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
-import { createServer } from 'node:http';
-import path from 'node:path';
 import ParseDashboard from 'parse-dashboard';
 import { ParseServer } from 'parse-server/lib/index.js';
 import Parse from 'parse/node.js';
@@ -29,10 +29,10 @@ import {
 } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
 import {
-	corsWhiteList,
 	EXPRESS_FILES_MOUNT_PATH,
 	FILE_UPLOAD_DESTINATION,
 	PARSE_SERVER_URL,
+	corsWhiteList,
 } from './lib/constants';
 import { env } from './lib/env';
 import { expressHandler, getRequestUtils } from './lib/express';
@@ -49,13 +49,6 @@ import {
 } from './middlewares/malicious-requests-guard.middleware';
 import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
-
-// ! use the rsbuild metaPlugin I wrote to make these work
-// logger.info(import.meta.url);
-// logger.info(import.meta.filename);
-// logger.log(import.meta.dirname);
-
-// overrideConsole();
 
 global.Parse = Parse;
 
@@ -170,7 +163,7 @@ const bootstrap = async () => {
 		// =============================================
 		enableInsecureAuthAdapters: false,
 		// preserveFileName: true,
-		// logLevel: 'silly', // this seems to be not working at all
+		// logLevel: 'warn', // this seems to be not working at all
 		// middleware: parseServerMiddleware, // this is being mounted only if with use the startApp method
 	});
 
