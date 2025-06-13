@@ -1,14 +1,11 @@
-import { existsSync, promises as fs } from 'node:fs';
-
-import { className, roleEnum } from '@org/shared/lib/constants';
-
+import { promises as fs, existsSync } from 'node:fs';
 import {
 	DISABLE_SIGNUP_CONFIG_KEY,
 	FILE_UPLOAD_DESTINATION,
 	USE_MASTER_KEY,
 } from '@/server/lib/constants';
 import { logger } from '@/server/lib/winston';
-
+import { className, roleEnum } from '@org/shared/lib/constants';
 import SchemaManager from '../lib/parse/classes/SchemaManager';
 import {
 	getDatabase,
@@ -166,34 +163,4 @@ export const updateSchemasOnInit = async () => {
 	/* .then(() => {
 		parseServer.start();
 	}); */
-};
-
-export const overrideConsole = () => {
-	const originalConsoleError = console.error;
-
-	console.error = (...args: unknown[]) => {
-		logger.warn('DO NOT USE console.error, use logger.error instead');
-		originalConsoleError(...args);
-	};
-
-	const originalConsoleWarn = console.warn;
-
-	console.warn = (...args: unknown[]) => {
-		logger.warn('DO NOT USE console.warn, use logger.warn instead');
-		originalConsoleWarn(...args);
-	};
-
-	const originalConsoleInfo = console.info;
-
-	console.info = (...args: unknown[]) => {
-		logger.warn('DO NOT USE console.info, use logger.info instead');
-		originalConsoleInfo(...args);
-	};
-
-	const originalConsoleLog = console.log;
-
-	console.log = (...args: unknown[]) => {
-		logger.warn('DO NOT USE console.log, use logger.log/logger.info instead');
-		originalConsoleLog(...args);
-	};
 };
