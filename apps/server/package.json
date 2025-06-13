@@ -23,7 +23,7 @@
 		"dev:prod": "cross-env MODE=production bun run dev:common",
 		"dev:preprod": "cross-env MODE=preprod bun run dev:common",
 		"dev:common": "bun run dev:rs",
-		"dev:bun": "bun scripts/bun/watch.mjs",
+		"dev:bun": "cross-env NODE_ENV=development bun scripts/bun/watch.mjs",
 		"dev:rs": "cross-env NODE_ENV=development bun scripts/rsbuild/watch.mjs",
 		"// =============== SEED COMMANDS =================": "================================",
 		"seed": "bun --enable-source-maps dist/seed.mjs",
