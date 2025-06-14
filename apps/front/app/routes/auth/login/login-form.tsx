@@ -1,3 +1,12 @@
+import { FormHead } from '@/front/components/auth/form-head';
+import { Field, Form } from '@/front/components/hook-form';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { RouterLink } from '@/front/components/router-link';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { getErrorMessage } from '@/shared/utils/error-message';
+import { getLoginSchema } from '@/shared/validations/auth.validations';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -8,16 +17,7 @@ import Link from '@mui/material/Link';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import { useFetcher } from 'react-router';
-import { FormHead } from '@/front/components/auth/form-head';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { getErrorMessage } from '@/shared/utils/error-message';
-import { getLoginSchema } from '@/shared/validations/auth.validations';
 import type { LoginActionResult } from './login-page';
-import { useTranslate } from '@/front/hooks/use-translate';
 
 const LoginForm = () => {
 	const { t } = useTranslate();
@@ -69,7 +69,7 @@ const LoginForm = () => {
 
 				<Field.Text
 					name="password"
-					label="Password"
+					label={t('password')}
 					placeholder="6+ characters"
 					type={showPassword.value ? 'text' : 'password'}
 					slotProps={{

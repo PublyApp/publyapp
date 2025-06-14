@@ -137,6 +137,11 @@ const commonEN = {
 	'initial-users-must-be-a-valid-json-string':
 		'Initial users must be a valid JSON string',
 
+	'signup-title': 'Sign up',
+	'signup-are-disabled': 'Sign up are disabled for now',
+	'create-account': 'Create account',
+	'already-have-account-question': 'Already have an account?',
+
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Internal server error',
 
