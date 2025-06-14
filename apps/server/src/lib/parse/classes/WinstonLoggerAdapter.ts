@@ -22,6 +22,10 @@ if (isBun) {
 
 const MILLISECONDS_IN_A_DAY = duration.toMilliseconds('1d');
 
+if (env.LOCAL) {
+	winston.level = 'debug';
+}
+
 /**
  * @interface Options
  * @property {Logger} logger
@@ -50,10 +54,6 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 
 	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	log(level: string, message: string, ...meta: any[]) {
-		// if (level === 'warn' && message === 'afterSave caught an error') {
-		// 	return;
-		// }
-
 		return this.logger.log(level, message, ...meta);
 	}
 
@@ -157,10 +157,6 @@ export default class WinstonLoggerAdapter implements LoggerAdapter {
 				),
 				...options,
 			});
-
-			if (!env.LOCAL) {
-				consoleTransport.level = 'warn';
-			}
 
 			transports.push(consoleTransport);
 		}
