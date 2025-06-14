@@ -173,6 +173,10 @@ export const alterLogger = ({
 	const newLog = {
 		...oldLog,
 		adapter: oldLog.adapter,
+		debug: (...args: unknown[]) => {
+			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
+			oldLog.debug(...args);
+		},
 		info: (...args: unknown[]) => {
 			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
 			oldLog.info(...args);
@@ -226,20 +230,16 @@ export const cloudFunction: CloudFunction = <
 		const log: LoggerController = req.log;
 
 		try {
-			if (env.LOCAL) {
-				log.info(`${functionType} started`, {
-					user: _.get(req, 'user.id', undefined),
-					params: _.get(req, 'params', {}),
-				});
-			}
+			log.debug(`${functionType} started`, {
+				user: _.get(req, 'user.id', undefined),
+				params: _.get(req, 'params', {}),
+			});
 			const t1 = performance.now();
 			const result = await innerFunction(req as never);
 			const t2 = performance.now();
-			if (env.LOCAL) {
-				log.info(`${functionType} finished in ${(t2 - t1).toFixed(2)} ms`, {
-					result,
-				});
-			}
+			log.debug(`${functionType} finished in ${(t2 - t1).toFixed(2)} ms`, {
+				result,
+			});
 
 			return result;
 		} catch (error: unknown) {

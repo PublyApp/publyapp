@@ -37,15 +37,15 @@ export const createRolesIfNotExists = async () => {
 			.first(USE_MASTER_KEY);
 
 		if (foundRole) {
-			logger.info(`role: '${roleName}' already exists, skipping its creation`);
+			logger.debug(`role: '${roleName}' already exists, skipping its creation`);
 
 			if (foundRole.get('code') !== value.code) {
-				logger.info(`changing code for role: '${roleName}'`);
+				logger.debug(`changing code for role: '${roleName}'`);
 				foundRole.set('code', value.code);
 			}
 
 			if (foundRole.get('rank') !== value.rank) {
-				logger.info(`changing rank for role: '${roleName}'`);
+				logger.debug(`changing rank for role: '${roleName}'`);
 				foundRole.set('rank', value.rank);
 			}
 
@@ -70,7 +70,7 @@ export const createRolesIfNotExists = async () => {
 				});
 
 				if (!hasChildRole) {
-					logger.info(`setting child role for role: '${roleName}'`);
+					logger.debug(`setting child role for role: '${roleName}'`);
 					foundRole.getRoles().add(directChildRole);
 				}
 			}

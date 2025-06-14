@@ -13,7 +13,7 @@ export default class LocalDiskUploader implements Uploader {
 			// throw new Error('Cannot upload to cloud from disk: not implemented yet');
 			// ** we assume multer has already put the file in the correct place
 			// ** on our local disk
-			logger.info('Uploading to local disk');
+			logger.debug('Uploading to local disk');
 
 			return {
 				// ! remember to:
