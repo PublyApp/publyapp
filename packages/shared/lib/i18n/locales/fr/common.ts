@@ -137,6 +137,11 @@ const commonFR = {
 	'initial-users-must-be-a-valid-json-string':
 		'Les utilisateurs initiaux doivent être une chaîne JSON valide',
 
+	'signup-title': "S'enregistrer",
+	'signup-are-disabled': 'Les nouveaux enregistrements sont désactivés',
+	'create-account': 'Créer un compte',
+	'already-have-account-question': 'Vous vez déjà un compte?',
+
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Erreur interne du serveur',
 

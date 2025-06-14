@@ -29,15 +29,6 @@ export const getLoginSchema = (z: InterZod) => {
 	});
 };
 
-export const getSignUpSchema = (z: InterZod) => {
-	return z.object({
-		firstName: z.string().min(1),
-		lastName: z.string().min(1),
-		email: getEmailFieldSchema(z),
-		password: getPasswordFieldSchema(z),
-	});
-};
-
 export const getVerifyEmailSchema = (z: InterZod) => {
 	return getLoginSchema(z).pick({ email: true });
 };
@@ -67,7 +58,7 @@ export const getSendEmailUpdateEmailSchema = (z: InterZod) => {
 
 export const getRegisterSchema = (z: InterZod) => {
 	return getLoginSchema(z).extend({
-		firstName: z.string().min(1),
+		firstName: z.string().optional(),
 		lastName: z.string().min(1),
 	});
 };
