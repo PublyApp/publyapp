@@ -4,12 +4,12 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
 import { useTranslation } from 'react-i18next';
 import {
-	isRouteErrorResponse,
 	Links,
 	Meta,
 	Outlet,
 	Scripts,
 	ScrollRestoration,
+	isRouteErrorResponse,
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 
@@ -17,7 +17,7 @@ import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error
 import { APP_NAME } from '@/shared/lib/constants';
 
 import { NotFoundView, View403, View500 } from '@/front/components/error';
-import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
+import { SettingsDrawer, defaultSettings } from '@/front/components/settings';
 import _ from 'lodash';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
@@ -45,10 +45,10 @@ export const links: Route.LinksFunction = () => {
 
 export const meta = (_: Route.MetaArgs) => {
 	return [
-		{ title: `${APP_NAME}: The PDF API` },
+		{ title: `${APP_NAME}: The HTML to PDF conversion API` },
 		{
 			name: 'description',
-			content: 'The API for converting your HTML into PDF that just works!!',
+			content: 'The API for converting your HTML into PDF with ease!!',
 		},
 	];
 };
