@@ -1,12 +1,12 @@
 import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
 import {
+	type FunctionParams,
+	type FunctionReturn,
 	defineCloudFunction,
 	fromAuthedUserParseFunction,
 	fromPublicParseFunction,
 	parseFunctionEnhanced,
-	type FunctionParams,
-	type FunctionReturn,
 } from '@/server/lib/parse/cloud/function';
 import {
 	getDatabase,
@@ -17,6 +17,7 @@ import {
 import { className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
 
+import { sleep } from '@/shared/utils/any.utils';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
@@ -246,6 +247,21 @@ const getTenantAuthData = fromAuthedUserParseFunction({
 	},
 });
 
+const checkEmailVerificationToken = fromPublicParseFunction({
+	name: functionName.auth.checkEmailVerificationToken,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			token: z.string().min(1),
+		});
+		return schema.parse(params);
+	},
+	action: async (/* { params } */) => {
+		await sleep(2000);
+
+		return { ok: 'ok' };
+	},
+});
+
 //--------------------------------------------------------------------------------------//
 //                                 Define the functions                                 //
 //--------------------------------------------------------------------------------------//
@@ -254,6 +270,7 @@ defineCloudFunction(getUserAuthData);
 defineCloudFunction(getTenantAuthData);
 defineCloudFunction(getIsDisabledSignup);
 defineCloudFunction(getRedirectCode);
+defineCloudFunction(checkEmailVerificationToken);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //

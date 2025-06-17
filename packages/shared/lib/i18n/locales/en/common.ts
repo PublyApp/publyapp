@@ -154,6 +154,12 @@ const commonEN = {
 	'Token expired': 'Token expired',
 	'Invalid object for context.': 'Invalid object for context.',
 	'Context is not an object': 'Context is not an object',
+
+	// sign up terms
+	'terms-of-service': 'Terms of service',
+	'privacy-policy': 'Privacy policy',
+	'by-signing-up-agree': 'By signing up, I agree to',
+	and: 'and',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;
