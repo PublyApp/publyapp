@@ -159,6 +159,11 @@ const commonFR = {
 	'terms-of-service': "Conditions d'utilisation",
 	'privacy-policy': 'Politique de confidentialité',
 	'by-signing-up-agree': "En m'inscrivant, j'accepte les",
+
+	// Add these keys in the commonFR object
+	'verify-email': 'Vérifier Email',
+	'verify-email-description':
+		"pour vérifier que ce lien vous appartient, entrez l'e-mail avec lequel vous avez reçu ce lien",
 	and: 'et',
 } as const satisfies LooseCommonNamespace;
 

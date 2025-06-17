@@ -160,6 +160,11 @@ const commonEN = {
 	'privacy-policy': 'Privacy policy',
 	'by-signing-up-agree': 'By signing up, I agree to',
 	and: 'and',
+
+	// Add these keys in the commonEN object
+	'verify-email': 'Verify Email',
+	'verify-email-description':
+		'To verify that this link belongs to you, enter the email you received this link with',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

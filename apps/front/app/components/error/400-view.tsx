@@ -7,6 +7,7 @@ import { m } from 'framer-motion';
 import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
 
+import { useTranslate } from '@/front/hooks/use-translate';
 import { MotionContainer } from '../animate/motion-container';
 import { RouterLink } from '../router-link';
 
@@ -19,6 +20,8 @@ type View400Props = {
 };
 
 const View400 = ({ withLayout = true, title, description }: View400Props) => {
+	const { t } = useTranslate();
+
 	const renderContent = () => {
 		return (
 			<Container component={MotionContainer}>
@@ -54,7 +57,7 @@ const View400 = ({ withLayout = true, title, description }: View400Props) => {
 					size="large"
 					variant="contained"
 				>
-					Go to home
+					{t('go-to-home')}
 				</Button>
 			</Container>
 		);
