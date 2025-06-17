@@ -75,8 +75,8 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 								justifyContent: 'center',
 								fontFamily: theme.typography.fontSecondaryFamily,
 								[theme.breakpoints.up(lgKey)]: {
-									fontSize: theme.typography.pxToRem(72),
-									lineHeight: '90px',
+									fontSize: theme.typography.pxToRem(72 + 10),
+									lineHeight: '100px',
 								},
 							};
 						},
