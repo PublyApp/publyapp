@@ -10,10 +10,10 @@ import type {
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
 import {
-	endPoint,
-	functionName,
 	LOCALE_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
+	endPoint,
+	functionName,
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
@@ -27,6 +27,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 
 		this.passwordLogin = this.passwordLogin.bind(this);
 		this.getRedirectCode = this.getRedirectCode.bind(this);
+		this.verificationEmailRequest = this.verificationEmailRequest.bind(this);
 	}
 
 	async getUserAuthData() {

@@ -163,8 +163,14 @@ const commonEN = {
 
 	// Add these keys in the commonEN object
 	'verify-email': 'Verify Email',
-	'verify-email-description':
+	'verify-email-description-1': "Enter your account's email you need to verify",
+	'verify-email-description-2':
 		'To verify that this link belongs to you, enter the email you received this link with',
+
+	// Add these keys in the commonEN object
+	'verify-email-request-sent': 'Verification Email Sent',
+	'verify-email-request-sent-description':
+		'If the email address is valid, you will receive an email with a link to verify your account',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;
