@@ -16,8 +16,7 @@ import {
 } from '@/server/lib/parse/parse.utils';
 import { className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
-
-import { sleep } from '@/shared/utils/any.utils';
+import _ from 'lodash';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
@@ -247,6 +246,9 @@ const getTenantAuthData = fromAuthedUserParseFunction({
 	},
 });
 
+/**
+ * Verify the email verification token
+ */
 const checkEmailVerificationToken = fromPublicParseFunction({
 	name: functionName.auth.checkEmailVerificationToken,
 	validateParams: ({ params, z }) => {
@@ -255,10 +257,40 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 		});
 		return schema.parse(params);
 	},
-	action: async (/* { params } */) => {
-		await sleep(2000);
+	action: async ({ params, t }) => {
+		const token = params.token;
 
-		return { ok: 'ok' };
+		// check if token exists
+		const UserCollection = getDatabase().collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				_email_verify_token: token,
+			},
+			{
+				projection: {
+					_id: 1,
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			throw new HttpException(400, t('Invalid token'));
+		}
+
+		// check if token is expired
+		const isExpired = user._email_verify_token_expires_at < new Date();
+
+		if (isExpired) {
+			const error = new HttpException(400, t('Invalid token'));
+			// add additional information to the error
+			_.set(error, 'meta.cause', 'TOKEN_EXPIRED');
+			throw error;
+		}
+
+		return { isValid: true };
 	},
 });
 
