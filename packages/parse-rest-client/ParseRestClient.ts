@@ -106,6 +106,8 @@ export default class ParseRestClient {
 
 		this.http = new AxiosHttp(axiosInstance);
 		this.applicationId = applicationId;
+
+		this.verificationEmailRequest = this.verificationEmailRequest.bind(this);
 	}
 
 	setHeader(key: string, value: string) {

@@ -63,6 +63,12 @@ export const getRegisterSchema = (z: InterZod) => {
 	});
 };
 
+export const getRequestEmailVerificationSchema = (z: InterZod) => {
+	return z.object({
+		email: getEmailFieldSchema(z),
+	});
+};
+
 export type LoginInput = z.infer<ReturnType<typeof getLoginSchema>>;
 export type SignupInput = z.infer<ReturnType<typeof getRegisterSchema>>;
 export type VerifyEmailInput = z.infer<ReturnType<typeof getVerifyEmailSchema>>;

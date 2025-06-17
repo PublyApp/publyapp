@@ -35,7 +35,11 @@ const disableRestApiForClients = async (
 	req: express.Request,
 	_res: express.Response,
 ) => {
-	const _allowedPaths = ['/health', '/functions'] satisfies `/${string}`[];
+	const _allowedPaths = [
+		'/health',
+		'/functions',
+		'/verificationEmailRequest',
+	] satisfies `/${string}`[];
 
 	const authorizedPaths: string[] = [..._allowedPaths];
 	_.forEach(_allowedPaths, (path) => {

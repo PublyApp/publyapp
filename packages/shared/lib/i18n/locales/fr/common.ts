@@ -159,12 +159,19 @@ const commonFR = {
 	'terms-of-service': "Conditions d'utilisation",
 	'privacy-policy': 'Politique de confidentialité',
 	'by-signing-up-agree': "En m'inscrivant, j'accepte les",
+	and: 'et',
 
 	// Add these keys in the commonFR object
 	'verify-email': 'Vérifier Email',
-	'verify-email-description':
+	'verify-email-description-1':
+		"Entrez l'adresse email de votre compte que vous souhaitez vérifier",
+	'verify-email-description-2':
 		"pour vérifier que ce lien vous appartient, entrez l'e-mail avec lequel vous avez reçu ce lien",
-	and: 'et',
+
+	// Add these keys in the commonFR object
+	'verify-email-request-sent': 'Email de Vérification Envoyé',
+	'verify-email-request-sent-description':
+		"Si l'adresse email est valide, vous recevrez un email contenant un lien pour vérifier votre compte",
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
