@@ -3,14 +3,29 @@ import QueryDisplay from '@/front/components/query-display';
 import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { useCheckEmailVerificationToken } from '@/front/lib/react-query/features/auth/auth.hooks';
-import { FRONT_PATH_NAMES, queryParamKey } from '@/shared/lib/constants';
+import {
+	FRONT_PATH_NAMES,
+	X_CODE,
+	queryParamKey,
+} from '@/shared/lib/constants';
+import type { Theme } from '@mui/material';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { pxToRem } from 'minimal-shared/utils';
+import _ from 'lodash';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useSearchParams } from 'react-router';
+import { serializeError } from 'serialize-error';
+
+const boxStyles = (theme: Theme) => {
+	return {
+		[theme.breakpoints.up('md')]: {
+			mt: `-${theme.typography.pxToRem(300)}`,
+		},
+	};
+};
 
 const VerifyEmailPage = () => {
 	const { t } = useTranslate();
@@ -24,34 +39,18 @@ const VerifyEmailPage = () => {
 	});
 
 	if (!token) {
-		return <InvalidTokenView />;
+		return (
+			<Box sx={boxStyles}>
+				<InvalidTokenView />
+			</Box>
+		);
 	}
 
 	return (
-		<Box
-			sx={(theme) => {
-				return {
-					[theme.breakpoints.up('md')]: {
-						mt: /* checkTokenQuery.isSuccess ? '' :  */ `-${pxToRem(300)}`,
-					},
-				};
-			}}
-		>
+		<Box sx={boxStyles}>
 			<QueryDisplay
 				query={checkTokenQuery}
-				LoadingSlot={
-					<Box sx={{ width: '100%', mt: 2 }}>
-						<Skeleton variant="text" width="60%" height={40} />
-						<Skeleton variant="text" width="80%" height={24} sx={{ mt: 1 }} />
-						<Skeleton
-							variant="rectangular"
-							width="100%"
-							height={120}
-							sx={{ mt: 2, borderRadius: 1 }}
-						/>
-						<Skeleton variant="text" width="40%" height={24} sx={{ mt: 2 }} />
-					</Box>
-				}
+				LoadingSlot={LoadingFormView}
 				ErrorSlot={InvalidTokenView}
 			>
 				<Box>
@@ -88,26 +87,48 @@ const VerifyEmailPage = () => {
 
 export default VerifyEmailPage;
 
-const InvalidTokenView = () => {
-	const { t } = useTranslate();
-
+const LoadingFormView = () => {
 	return (
-		<Box>
-			<Typography variant="h3" color="text.primary">
-				{t('invalid-item', { item: t('link') })}
-			</Typography>
-			<Typography variant="body1" color="text.secondary">
-				{t('invalid-email-verification-link-description')}
-			</Typography>
-			<Button
-				component={RouterLink}
-				href={FRONT_PATH_NAMES.home}
-				variant="text"
-				color="primary"
-				endIcon={<Iconify icon="eva:arrowhead-right-fill" />}
-			>
-				{t('go-to-home')}
-			</Button>
+		<Box sx={{ width: '100%', mt: 2 }}>
+			<Skeleton variant="text" width="60%" height={40} />
+			<Skeleton variant="text" width="80%" height={24} sx={{ mt: 1 }} />
+			<Skeleton
+				variant="rectangular"
+				width="100%"
+				height={120}
+				sx={{ mt: 2, borderRadius: 1 }}
+			/>
+			<Skeleton variant="text" width="40%" height={24} sx={{ mt: 2 }} />
 		</Box>
 	);
+};
+
+const InvalidTokenView = ({ error }: { error?: unknown }) => {
+	const { t } = useTranslate();
+
+	if (error instanceof ParseRestError) {
+		if (error.code === X_CODE.INVALID_TOKEN) {
+			return (
+				<Box>
+					<Typography variant="h3" color="text.primary" mb={2}>
+						{t('invalid-item', { item: t('link') })}
+					</Typography>
+					<Typography variant="body1" color="text.secondary" mb={3}>
+						{t('invalid-email-verification-link-description')}
+					</Typography>
+					<Button
+						component={RouterLink}
+						href={FRONT_PATH_NAMES.home}
+						variant="text"
+						color="primary"
+						endIcon={<Iconify icon="eva:arrowhead-right-fill" />}
+					>
+						{t('go-to-home')}
+					</Button>
+				</Box>
+			);
+		}
+	}
+
+	throw error;
 };
