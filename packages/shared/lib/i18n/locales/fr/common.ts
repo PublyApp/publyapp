@@ -170,8 +170,9 @@ const commonFR = {
 
 	// Add these keys in the commonFR object
 	'verify-email-request-sent': 'Email de Vérification Envoyé',
-	'verify-email-request-sent-description':
-		"Si l'adresse email est valide, vous recevrez un email contenant un lien pour vérifier votre compte",
+	'verify-email-request-sent-description-part1': "Si l'adresse email ",
+	'verify-email-request-sent-description-part2':
+		' est valide, vous recevrez un email contenant un lien pour vérifier votre compte',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
