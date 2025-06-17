@@ -378,3 +378,8 @@ export const jobType = {
 } as const;
 
 export const DEFAULT_MAX_USER_PER_TENANT = 5;
+
+export const X_CODE = {
+	INVALID_TOKEN: 'INVALID_TOKEN',
+	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
+} as const;

@@ -1,15 +1,20 @@
 import { HttpException } from '@/server/exceptions/HttpException';
+import { USE_MASTER_KEY } from '@/server/lib/constants';
 import {
-	fromStaffMemberParseFunction,
 	type FunctionParams,
 	type FunctionReturn,
+	fromStaffMemberParseFunction,
 } from '@/server/lib/parse/cloud/function';
-import { className, functionName, roleSet } from '@/shared/lib/constants';
+import { getDatabase } from '@/server/lib/parse/parse.utils';
+import {
+	X_CODE,
+	className,
+	functionName,
+	roleSet,
+} from '@/shared/lib/constants';
 import { getNewTenantSchemaServerSide } from '@org/shared/validations/tenant/tenant.validations';
 import _ from 'lodash';
 import ParseUser from '../../common/auth/user/user.class';
-import { USE_MASTER_KEY } from '@/server/lib/constants';
-import { getDatabase } from '@/server/lib/parse/parse.utils';
 
 export namespace CreateTenantFunction {
 	export type Params = FunctionParams<typeof createTenant>;
@@ -98,15 +103,11 @@ export const createTenant = fromStaffMemberParseFunction({
 				staffMemberEmails.push(usersMapById.get(result._id)?.get('email'));
 			});
 
-			// return {
-			// 	type: 'error',
-			// 	'staff-member-emails': staffMemberEmails,
-			// }
 			throw new HttpException(
 				400,
 				t('cannot-create-tenant-with-staff-members'),
 				{
-					xcode: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
+					xcode: X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT,
 					body: {
 						'staff-member-emails': staffMemberEmails,
 					},
