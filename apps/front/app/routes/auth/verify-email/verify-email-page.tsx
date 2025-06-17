@@ -17,7 +17,6 @@ import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useSearchParams } from 'react-router';
-import { serializeError } from 'serialize-error';
 
 const boxStyles = (theme: Theme) => {
 	return {
@@ -41,7 +40,7 @@ const VerifyEmailPage = () => {
 	if (!token) {
 		return (
 			<Box sx={boxStyles}>
-				<InvalidTokenView />
+				<InvalidTokenView forceIsInvalid />
 			</Box>
 		);
 	}
@@ -103,30 +102,45 @@ const LoadingFormView = () => {
 	);
 };
 
-const InvalidTokenView = ({ error }: { error?: unknown }) => {
+const InvalidTokenView = ({
+	error,
+	forceIsInvalid = false,
+}: { error?: unknown; forceIsInvalid?: boolean }) => {
 	const { t } = useTranslate();
+
+	const renderInvalidTokenView = () => {
+		return (
+			<Box>
+				<Typography variant="h3" color="text.primary" mb={2}>
+					{t('invalid-item', { item: t('link') })}
+				</Typography>
+				<Typography variant="body1" color="text.secondary" mb={3}>
+					{t('invalid-email-verification-link-description')}
+				</Typography>
+				<Button
+					component={RouterLink}
+					href={FRONT_PATH_NAMES.home}
+					variant="text"
+					color="primary"
+					endIcon={<Iconify icon="eva:arrowhead-right-fill" />}
+				>
+					{t('go-to-home')}
+				</Button>
+			</Box>
+		);
+	};
+
+	if (!forceIsInvalid && _.isNil(error)) {
+		throw new Error('Error should not be nil');
+	}
+
+	if (forceIsInvalid) {
+		return renderInvalidTokenView();
+	}
 
 	if (error instanceof ParseRestError) {
 		if (error.code === X_CODE.INVALID_TOKEN) {
-			return (
-				<Box>
-					<Typography variant="h3" color="text.primary" mb={2}>
-						{t('invalid-item', { item: t('link') })}
-					</Typography>
-					<Typography variant="body1" color="text.secondary" mb={3}>
-						{t('invalid-email-verification-link-description')}
-					</Typography>
-					<Button
-						component={RouterLink}
-						href={FRONT_PATH_NAMES.home}
-						variant="text"
-						color="primary"
-						endIcon={<Iconify icon="eva:arrowhead-right-fill" />}
-					>
-						{t('go-to-home')}
-					</Button>
-				</Box>
-			);
+			return renderInvalidTokenView();
 		}
 	}
 
