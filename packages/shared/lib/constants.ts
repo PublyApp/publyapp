@@ -301,6 +301,7 @@ export const functionName = {
 		getIsDisabledSignup: 'getIsDisabledSignup',
 		getRedirectCode: 'getRedirectCode',
 		checkEmailVerificationToken: 'checkEmailVerificationToken',
+		challengeEmailForVerificationToken: 'challengeEmailForVerificationToken',
 		// ====
 		removeSeededUsers: 'removeSeededUsers',
 	},

@@ -16,6 +16,7 @@ import {
 } from '@/server/lib/parse/parse.utils';
 import { X_CODE, className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
+import { getEmailFieldSchema } from '@/shared/validations/auth.validations';
 import _ from 'lodash';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
@@ -298,6 +299,21 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 	},
 });
 
+const challengeEmailForVerificationToken = fromPublicParseFunction({
+	name: functionName.auth.challengeEmailForVerificationToken,
+	validateParams({ params, z }) {
+		const schema = z.object({
+			email: getEmailFieldSchema(z),
+			token: z.string().min(1),
+		});
+
+		return schema.parse(params);
+	},
+	action: async (/* { params, t } */) => {
+		// const { email, token } = params;
+	},
+});
+
 //--------------------------------------------------------------------------------------//
 //                                 Define the functions                                 //
 //--------------------------------------------------------------------------------------//
@@ -307,6 +323,7 @@ defineCloudFunction(getTenantAuthData);
 defineCloudFunction(getIsDisabledSignup);
 defineCloudFunction(getRedirectCode);
 defineCloudFunction(checkEmailVerificationToken);
+defineCloudFunction(challengeEmailForVerificationToken);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //

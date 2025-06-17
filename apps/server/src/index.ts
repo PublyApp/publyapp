@@ -249,7 +249,7 @@ const bootstrap = async () => {
 			getLoadContext: (_req, _res) => {
 				return {
 					logger,
-					postHogServer: postHogServer,
+					postHogServer,
 				};
 			},
 		});

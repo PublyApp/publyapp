@@ -100,7 +100,7 @@ const LoginForm = () => {
 				type="submit"
 				variant="contained"
 				loading={isSubmitting}
-				loadingIndicator="Sign in..."
+				loadingIndicator={`${t('login')}...`}
 			>
 				{t('sign-in')}
 			</Button>
