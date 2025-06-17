@@ -1,52 +1,113 @@
-import { getClientLoader } from '@/front/lib/react-router/client-data';
-import { queryParamKey } from '@/shared/lib/constants';
-import { data } from 'react-router';
-import type { Route } from './+types/verify-email-page';
+import { Iconify } from '@/front/components/iconify/iconify';
+import QueryDisplay from '@/front/components/query-display';
+import { RouterLink } from '@/front/components/router-link';
+import { useTranslate } from '@/front/hooks/use-translate';
 import { useCheckEmailVerificationToken } from '@/front/lib/react-query/features/auth/auth.hooks';
+import { FRONT_PATH_NAMES, queryParamKey } from '@/shared/lib/constants';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import { pxToRem } from 'minimal-shared/utils';
+import { useSearchParams } from 'react-router';
 
-export const clientLoader = getClientLoader({
-	loader: async ({ request, z }) => {
-		const t = z.t;
-		const url = new URL(request.url);
-		const searchParams = url.searchParams;
+const VerifyEmailPage = () => {
+	const { t } = useTranslate();
+	const [searchParams] = useSearchParams();
 
-		const token = searchParams.get(queryParamKey.token);
+	const token = searchParams.get(queryParamKey.token);
 
-		if (!token) {
-			throw data(
-				{
-					title: t('invalid-item', { item: t('link') }),
-					description: t('invalid-email-verification-link-description'),
-				},
-				{
-					status: 400,
-				},
-			);
-		}
-
-		return data({
-			token,
-		});
-	},
-});
-
-const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
-	const token = loaderData.token;
-
-	/* const { data } =  */ useCheckEmailVerificationToken({
-		variables: { token },
+	const checkTokenQuery = useCheckEmailVerificationToken({
+		variables: { token: token ?? '' },
+		enabled: !!token,
 	});
 
-	// if (!token) {
-	// 	return (
-	// 		<View400
-	// 			title="Invalid link"
-	// 			description="The verification link you issued is invalid or expired. Contact your administrator to get a new link."
-	// 		/>
-	// 	);
-	// }
+	if (!token) {
+		return <InvalidTokenView />;
+	}
 
-	return <div>VerifyEmailPage</div>;
+	return (
+		<Box
+			sx={(theme) => {
+				return {
+					[theme.breakpoints.up('md')]: {
+						mt: /* checkTokenQuery.isSuccess ? '' :  */ `-${pxToRem(300)}`,
+					},
+				};
+			}}
+		>
+			<QueryDisplay
+				query={checkTokenQuery}
+				LoadingSlot={
+					<Box sx={{ width: '100%', mt: 2 }}>
+						<Skeleton variant="text" width="60%" height={40} />
+						<Skeleton variant="text" width="80%" height={24} sx={{ mt: 1 }} />
+						<Skeleton
+							variant="rectangular"
+							width="100%"
+							height={120}
+							sx={{ mt: 2, borderRadius: 1 }}
+						/>
+						<Skeleton variant="text" width="40%" height={24} sx={{ mt: 2 }} />
+					</Box>
+				}
+				ErrorSlot={InvalidTokenView}
+			>
+				<Box>
+					<Typography variant="h5" color="text.primary" sx={{ mb: 2 }}>
+						{t('verify-email')}
+					</Typography>
+					<Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+						{t('verify-email-description')}
+					</Typography>
+					<Box sx={{ mt: 3 }}>
+						<TextField
+							fullWidth
+							label={t('email-address')}
+							type="email"
+							name="email"
+							autoComplete="email"
+							required
+						/>
+						<Button
+							fullWidth
+							size="large"
+							type="submit"
+							variant="contained"
+							sx={{ mt: 3 }}
+						>
+							{t('verify-email')}
+						</Button>
+					</Box>
+				</Box>
+			</QueryDisplay>
+		</Box>
+	);
 };
 
 export default VerifyEmailPage;
+
+const InvalidTokenView = () => {
+	const { t } = useTranslate();
+
+	return (
+		<Box>
+			<Typography variant="h3" color="text.primary">
+				{t('invalid-item', { item: t('link') })}
+			</Typography>
+			<Typography variant="body1" color="text.secondary">
+				{t('invalid-email-verification-link-description')}
+			</Typography>
+			<Button
+				component={RouterLink}
+				href={FRONT_PATH_NAMES.home}
+				variant="text"
+				color="primary"
+				endIcon={<Iconify icon="eva:arrowhead-right-fill" />}
+			>
+				{t('go-to-home')}
+			</Button>
+		</Box>
+	);
+};
