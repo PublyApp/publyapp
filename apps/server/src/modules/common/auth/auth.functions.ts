@@ -14,7 +14,7 @@ import {
 	parseFields,
 	removeParseFields,
 } from '@/server/lib/parse/parse.utils';
-import { className, functionName } from '@/shared/lib/constants';
+import { X_CODE, className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
 import _ from 'lodash';
 import RoleService from './role/role.service';
@@ -277,16 +277,20 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 		);
 
 		if (!user) {
-			throw new HttpException(400, t('Invalid token'));
+			throw new HttpException(400, t('Invalid token'), {
+				xcode: X_CODE.INVALID_TOKEN,
+			});
 		}
 
 		// check if token is expired
 		const isExpired = user._email_verify_token_expires_at < new Date();
 
 		if (isExpired) {
-			const error = new HttpException(400, t('Invalid token'));
+			const error = new HttpException(400, t('Invalid token'), {
+				xcode: X_CODE.INVALID_TOKEN,
+			});
 			// add additional information to the error
-			_.set(error, 'meta.cause', 'TOKEN_EXPIRED');
+			_.set(error, 'meta.cause', 'TOKEN_EXPIRED'); // only for debugging purposes, not to be exposed to the client
 			throw error;
 		}
 
