@@ -155,7 +155,7 @@ const InvalidTokenView = ({
 	const renderInvalidTokenView = () => {
 		return (
 			<Box>
-				<Typography variant="h3" color="text.primary" mb={2}>
+				<Typography variant="h4" color="text.primary" mb={2}>
 					{t('invalid-item', { item: t('link') })}
 				</Typography>
 				<Typography variant="body1" color="text.secondary" mb={3}>
@@ -199,7 +199,7 @@ const VerifyEmailRequestForm = () => {
 	const form = useForm({
 		resolver: zodResolver(schema),
 		defaultValues: {
-			email: 'dazdazdazdazda@gmlaz.daz',
+			email: '',
 		},
 	});
 
@@ -225,7 +225,11 @@ const VerifyEmailRequestForm = () => {
 					{t('verify-email-request-sent')}
 				</Typography>
 				<Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-					{t('verify-email-request-sent-description')}
+					{t('verify-email-request-sent-description-part1')}
+					<Typography component="span" sx={{ fontWeight: 'bold' }}>
+						{form.getValues().email}
+					</Typography>
+					{t('verify-email-request-sent-description-part2')}
 				</Typography>
 				<Button
 					component={RouterLink}
