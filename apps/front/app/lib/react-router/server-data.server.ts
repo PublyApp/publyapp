@@ -1,24 +1,24 @@
-import _ from 'lodash';
-import * as cookie from 'cookie';
-import type { ApiClient } from 'packages/api/ApiClient';
 import {
-	redirect,
-	type ActionFunctionArgs,
-	type AppLoadContext,
-	type LoaderFunctionArgs,
-} from 'react-router';
-import {
+	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	FORWARDED_FOR_HEADER_KEY,
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
-	FORWARDED_FOR_HEADER_KEY,
-	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
+import { isPromise } from '@/shared/utils/any.utils';
+import * as cookie from 'cookie';
+import _ from 'lodash';
+import type { ApiClient } from 'packages/api/ApiClient';
+import {
+	type ActionFunctionArgs,
+	type AppLoadContext,
+	type LoaderFunctionArgs,
+	redirect,
+} from 'react-router';
 import { initApiClientOnServer } from '../api';
 import { remixI18NextServer } from '../i18n/i18n.server';
 import { getRequestLocale } from './data.utils';
-import { isPromise } from '@/shared/utils/any.utils';
 
 type GetServerLoaderParamsWhenRequireUser<
 	T extends
@@ -188,23 +188,33 @@ type GetServerActionParamsWhenWhenUserNotRequired<
 };
 
 type GetServerAction = {
-	<T extends ActionFunctionArgs = ActionFunctionArgs, D = unknown>(
+	<
+		T extends
+			ActionFunctionArgs<AppLoadContext> = ActionFunctionArgs<AppLoadContext>,
+		D = unknown,
+	>(
 		params: GetServerActionParamsWhenRequireUser<T, D>,
 	): (args: T) => Promise<D>;
-	<T extends ActionFunctionArgs = ActionFunctionArgs, D = unknown>(
+	<
+		T extends
+			ActionFunctionArgs<AppLoadContext> = ActionFunctionArgs<AppLoadContext>,
+		D = unknown,
+	>(
 		params: GetServerActionParamsWhenWhenUserNotRequired<T, D>,
 	): (args: T) => Promise<D>;
 };
 
 type GetServerActionParams<
-	T extends ActionFunctionArgs = ActionFunctionArgs,
+	T extends
+		ActionFunctionArgs<AppLoadContext> = ActionFunctionArgs<AppLoadContext>,
 	D = unknown,
 > =
 	| GetServerActionParamsWhenRequireUser<T, D>
 	| GetServerActionParamsWhenWhenUserNotRequired<T, D>;
 
 export const getServerAction: GetServerAction = <
-	T extends ActionFunctionArgs = ActionFunctionArgs,
+	T extends
+		ActionFunctionArgs<AppLoadContext> = ActionFunctionArgs<AppLoadContext>,
 	D = unknown,
 >(
 	params: GetServerActionParams<T, D>,
