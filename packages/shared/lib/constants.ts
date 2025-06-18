@@ -301,6 +301,7 @@ export const functionName = {
 		getIsDisabledSignup: 'getIsDisabledSignup',
 		getRedirectCode: 'getRedirectCode',
 		checkEmailVerificationToken: 'checkEmailVerificationToken',
+		challengeEmailForToken: 'challengeEmailForToken',
 		// ====
 		removeSeededUsers: 'removeSeededUsers',
 	},
@@ -370,7 +371,18 @@ export const SLUG_REGEX = /^[a-z0-9-]+$/;
 export const queryParamKey = {
 	language: 'lng',
 	token: 'token',
-};
+	login_page: {
+		redirect_cause: 'rc',
+	},
+} as const;
+
+export const queryParamValue = {
+	login_page: {
+		redirect_cause: {
+			email_verification: 'email_verification',
+		},
+	},
+} as const;
 
 export const jobType = {
 	CONVERT_HTML_TO_PDF: 'CONVERT_HTML_TO_PDF',
@@ -378,3 +390,8 @@ export const jobType = {
 } as const;
 
 export const DEFAULT_MAX_USER_PER_TENANT = 5;
+
+export const X_CODE = {
+	INVALID_TOKEN: 'INVALID_TOKEN',
+	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
+} as const;

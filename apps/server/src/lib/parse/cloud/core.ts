@@ -1,19 +1,19 @@
-import _ from 'lodash';
-import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
-import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
-import chalk from 'chalk';
-import { ZodError } from 'zod';
-import { getCorrectLocale } from '@org/shared/lib/i18n/i18n.utils';
 import { HttpException } from '@/server/exceptions/HttpException';
 import {
 	FORWARDED_FOR_HEADER_KEY,
 	LOCALE_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
+import { getCorrectLocale } from '@org/shared/lib/i18n/i18n.utils';
+import chalk from 'chalk';
+import _ from 'lodash';
+import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
+import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
+import { ZodError } from 'zod';
+import { CONFIG_ENABLE_CHECK_SESSION_IP } from '../../constants';
+import { env } from '../../env';
 import { getT } from '../../i18n';
 import { getCurrentInstallationId, getInternalConfig } from '../parse.utils';
-import { env } from '../../env';
-import { CONFIG_ENABLE_CHECK_SESSION_IP } from '../../constants';
 
 export type ParseFunction<
 	P extends Parse.Cloud.Params = Parse.Cloud.Params,
@@ -173,6 +173,10 @@ export const alterLogger = ({
 	const newLog = {
 		...oldLog,
 		adapter: oldLog.adapter,
+		debug: (...args: unknown[]) => {
+			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
+			oldLog.debug(...args);
+		},
 		info: (...args: unknown[]) => {
 			args[0] = `${chalk.cyan(`(${execId})`)} ${chalk.magenta(`[ ${highlighted} ]`)} >> ${args[0]}`;
 			oldLog.info(...args);
@@ -226,16 +230,17 @@ export const cloudFunction: CloudFunction = <
 		const log: LoggerController = req.log;
 
 		try {
-			log.info(`${functionType} started`, {
+			log.debug(`${functionType} started`, {
 				user: _.get(req, 'user.id', undefined),
 				params: _.get(req, 'params', {}),
 			});
 			const t1 = performance.now();
 			const result = await innerFunction(req as never);
 			const t2 = performance.now();
-			log.info(`${functionType} finished in ${(t2 - t1).toFixed(2)} ms`, {
+			log.debug(`${functionType} finished in ${(t2 - t1).toFixed(2)} ms`, {
 				result,
 			});
+
 			return result;
 		} catch (error: unknown) {
 			const localeInHeader = getCorrectLocale(

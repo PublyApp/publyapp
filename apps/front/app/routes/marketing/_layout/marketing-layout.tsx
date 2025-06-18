@@ -4,7 +4,7 @@ import { MainLayout } from '@/front/layouts/main/layout';
 
 const MarketingLayout = () => {
 	return (
-		<MainLayout>
+		<MainLayout slotProps={{ nav: { data: [] } }}>
 			<Outlet />
 		</MainLayout>
 	);
