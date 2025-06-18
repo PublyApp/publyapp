@@ -15,12 +15,13 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
 import { useBoolean } from 'minimal-shared/hooks';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useFetcher } from 'react-router';
 import type { LoginActionResult } from './login-page';
 
 const LoginForm = () => {
-	const { t } = useTranslate();
+	const { t, i18n } = useTranslate();
 	const showPassword = useBoolean();
 	const fetcher = useFetcher<LoginActionResult>();
 
@@ -41,6 +42,12 @@ const LoginForm = () => {
 	const {
 		formState: { isSubmitting },
 	} = methods;
+
+	// Re-validate all fields when the language changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
+		methods.trigger();
+	}, [i18n.language]);
 
 	const handleLogin = methods.handleSubmit(async (data) => {
 		await fetcher.submit(data, {

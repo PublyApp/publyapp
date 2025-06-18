@@ -20,6 +20,7 @@ import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getRegisterSchema } from '@/shared/validations/auth.validations';
 import { Alert } from '@mui/material';
+import { useEffect } from 'react';
 
 // ----------------------------------------------------------------------
 
@@ -28,7 +29,7 @@ export type SignUpSchemaType = z.infer<ReturnType<typeof getRegisterSchema>>;
 // ----------------------------------------------------------------------
 
 const SignupForm = () => {
-	const { t } = useTranslate();
+	const { t, i18n } = useTranslate();
 	const showPassword = useBoolean();
 
 	const methods = useForm({
@@ -45,6 +46,12 @@ const SignupForm = () => {
 	const {
 		formState: { isSubmitting },
 	} = methods;
+
+	// Re-validate all fields when the language changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
+		methods.trigger();
+	}, [i18n.language]);
 
 	const renderForm = () => (
 		<Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
