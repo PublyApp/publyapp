@@ -101,7 +101,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		openDialog.onTrue();
 	});
 
-	const { mutate: createStaffMember } = useCreateStaffMember({
+	const { mutate: createStaffMember, isPending } = useCreateStaffMember({
 		onSuccess: () => {
 			reset();
 			toast.success(
@@ -304,7 +304,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 								<Button
 									type="submit"
 									variant="contained"
-									loading={isSubmitting}
+									loading={isSubmitting || isPending}
 								>
 									{!currentUser ? 'Create user' : 'Save changes'}
 								</Button>
@@ -340,14 +340,18 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 				</DialogContent>
 
 				<DialogActions>
-					<Button variant="outlined" onClick={handleCloseDialog}>
+					<Button
+						variant="outlined"
+						onClick={handleCloseDialog}
+						disabled={isSubmitting || isPending}
+					>
 						{t('cancel')}
 					</Button>
 					<Button
 						variant="contained"
 						onClick={handleConfirmDialog}
 						autoFocus
-						loading={isSubmitting}
+						loading={isSubmitting || isPending}
 					>
 						{t('confirm')}
 					</Button>
