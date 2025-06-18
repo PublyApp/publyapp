@@ -122,7 +122,7 @@ const commonEN = {
 		'{{item}} will be saved with the following informations. Please confirm.',
 
 	'invalid-email-verification-link-description':
-		'The verification link you issued is invalid or expired. Contact your administrator to get a new link.',
+		'The verification link you issued is invalid or expired.',
 
 	'workspace-name': 'Workspace name',
 	'create-the-tenant': 'Create the tenant',
@@ -174,6 +174,7 @@ const commonEN = {
 		' is valid, you will receive an email with a link to verify your account',
 
 	'email-verification-success': 'Email verification successful',
+	'request-new-verification-link': 'Request a new verification link',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;
