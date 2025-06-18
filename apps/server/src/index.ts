@@ -1,24 +1,26 @@
 import { createServer } from 'node:http';
 import path from 'node:path';
-import { ParseServer } from 'parse-server/lib/index.js';
-import Parse from 'parse/node.js';
+import { logger } from '@/server/lib/winston';
+import {
+	APP_ID,
+	APP_NAME,
+	LOCALE_HEADER_KEY,
+	REMIX_CLIENT_IP_HEADER_KEY,
+	TENANT_ID_HEADER_KEY,
+	endPoint,
+} from '@/shared/lib/constants';
+import duration from '@org/shared/utils/duration.utils';
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
 import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
+import _ from 'lodash';
 import ParseDashboard from 'parse-dashboard';
-import duration from '@org/shared/utils/duration.utils';
-import { logger } from '@/server/lib/winston';
-import {
-	APP_ID,
-	APP_NAME,
-	endPoint,
-	LOCALE_HEADER_KEY,
-	TENANT_ID_HEADER_KEY,
-	REMIX_CLIENT_IP_HEADER_KEY,
-} from '@/shared/lib/constants';
+import { ParseServer } from 'parse-server/lib/index.js';
+import Parse from 'parse/node.js';
 import { cloud } from './cloud';
+import { HttpException } from './exceptions/HttpException';
 import {
 	createRolesIfNotExists,
 	createUploadDirIfNotExists,
@@ -27,10 +29,10 @@ import {
 } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
 import {
-	corsWhiteList,
 	EXPRESS_FILES_MOUNT_PATH,
 	FILE_UPLOAD_DESTINATION,
 	PARSE_SERVER_URL,
+	corsWhiteList,
 } from './lib/constants';
 import { env } from './lib/env';
 import { expressHandler, getRequestUtils } from './lib/express';
@@ -38,24 +40,15 @@ import { initI18next } from './lib/i18n';
 import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
 import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
 import { setCurrentInstallationId } from './lib/parse/parse.utils';
+import { postHogServer } from './lib/posthog';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
-import parseServerMiddleware from './middlewares/parse-server.middleware';
-import coreApiRouter from './router/core-api.router';
-import { postHogServer } from './lib/posthog';
 import {
 	maliciousRequestsGuardMiddleware,
 	populateBlocklist,
 } from './middlewares/malicious-requests-guard.middleware';
-import { HttpException } from './exceptions/HttpException';
-import _ from 'lodash';
-
-// ! use the rsbuild metaPlugin I wrote to make these work
-// logger.info(import.meta.url);
-// logger.info(import.meta.filename);
-// logger.log(import.meta.dirname);
-
-// overrideConsole();
+import parseServerMiddleware from './middlewares/parse-server.middleware';
+import coreApiRouter from './router/core-api.router';
 
 global.Parse = Parse;
 
@@ -95,10 +88,7 @@ const bootstrap = async () => {
 	// server uploaded files under express static middleware
 	app.use(EXPRESS_FILES_MOUNT_PATH, express.static(FILE_UPLOAD_DESTINATION));
 	// serve i18n resources files under express static middleware (remark: these files are generated at build time)
-	app.use(
-		'/resources',
-		express.static(path.resolve(import.meta.dirname, './resources')),
-	);
+	app.use('/resources', express.static(path.resolve(__dirname, './resources')));
 	// The parse API end the custom API are both under this root path
 	// use only urlencoded there because Remix (React Router 7) will not
 	// populate action's formData correctly
@@ -171,8 +161,10 @@ const bootstrap = async () => {
 		emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
 		emailVerifyTokenReuseIfValid: true,
 		// =============================================
+		logLevel: env.LOCAL ? 'debug' : 'info',
+		enableInsecureAuthAdapters: false,
+		// =============================================
 		// preserveFileName: true,
-		// logLevel: 'silly', // this seems to be not working at all
 		// middleware: parseServerMiddleware, // this is being mounted only if with use the startApp method
 	});
 
@@ -207,7 +199,7 @@ const bootstrap = async () => {
 		app.all(
 			path.posix.join(endPoint.api.root, 'test'),
 			expressHandler(async (req, res) => {
-				logger.info('test route hit', {
+				logger.debug('test route hit', {
 					lol: 'test',
 					password: 'azerty',
 					body: req.body,
@@ -241,9 +233,7 @@ const bootstrap = async () => {
 
 	if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
 		app.use(
-			express.static(
-				path.resolve(import.meta.dirname, '../../front/build/client'),
-			),
+			express.static(path.resolve(__dirname, '../../front/build/client')),
 		);
 
 		remixHandler = createRequestHandler({
@@ -259,7 +249,7 @@ const bootstrap = async () => {
 			getLoadContext: (_req, _res) => {
 				return {
 					logger,
-					postHogServer: postHogServer,
+					postHogServer,
 				};
 			},
 		});

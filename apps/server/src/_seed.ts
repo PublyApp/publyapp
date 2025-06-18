@@ -15,10 +15,10 @@ if (!env.LOCAL || env.TEST_ONLINE_IN_LOCAL) {
 
 const run = async () => {
 	const results1 = await cleanUsers();
-	logger.info('✅✅', results1);
+	logger.debug('✅✅', results1);
 
 	const savedUsers = await createUsers({ num: 300 });
-	logger.info('users', { savedUsers: savedUsers.length });
+	logger.debug('users', { savedUsers: savedUsers.length });
 };
 
 run();

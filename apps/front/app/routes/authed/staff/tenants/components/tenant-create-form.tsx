@@ -1,45 +1,46 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useFieldArray, useForm } from 'react-hook-form';
-import type zod from 'zod';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Grid from '@mui/material/Grid';
-import Typography from '@mui/material/Typography';
-import Tooltip from '@mui/material/Tooltip';
-import { Form } from '@/front/components/hook-form/form-provider';
+import { FieldContainer } from '@/front/components/form-extras';
 import { Field } from '@/front/components/hook-form/fields';
-import { fData } from '@/front/utils/format-number';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
+import { Form } from '@/front/components/hook-form/form-provider';
+import { HelperText } from '@/front/components/hook-form/help-text';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { toast } from '@/front/components/snackbar';
+import { useRouter } from '@/front/hooks/use-router';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { useMainStore } from '@/front/lib/zustand/store';
-import { mbToBytes } from '@/shared/utils/any.utils';
-import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
-import _ from 'lodash';
+import { fData } from '@/front/utils/format-number';
 import {
 	DEFAULT_MAX_USER_PER_TENANT,
 	FRONT_PATH_NAMES,
-	tenantSubRoleEnum,
 	type TenantSubRole,
+	X_CODE,
+	tenantSubRoleEnum,
 } from '@/shared/lib/constants';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { FieldContainer } from '@/front/components/form-extras';
+import { mbToBytes } from '@/shared/utils/any.utils';
+import { zodResolver } from '@hookform/resolvers/zod';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
-import { HelperText } from '@/front/components/hook-form/help-text';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import { useRouter } from '@/front/hooks/use-router';
+import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
+import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
-import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
-import { toast } from '@/front/components/snackbar';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import Alert from '@mui/material/Alert';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFieldArray, useForm } from 'react-hook-form';
+import type zod from 'zod';
 
 // ----------------------------------------------------------------------
 
@@ -109,7 +110,7 @@ export const TenantCreateForm = () => {
 		},
 		onError: (error) => {
 			if (error instanceof ParseRestError) {
-				if (error.code === 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT') {
+				if (error.code === X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT) {
 					const notAllowedEmailsStr = _.map(
 						_.get(error.data, 'staff-member-emails', []) as string[],
 						(email) => {
@@ -117,12 +118,16 @@ export const TenantCreateForm = () => {
 						},
 					).join(', ');
 					setAlertMessage({
-						key: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
+						key: X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT,
 						params: {
 							emails: notAllowedEmailsStr,
 						},
 					});
+				} else {
+					setAlertMessage(error.message);
 				}
+			} else {
+				setAlertMessage(error.message);
 			}
 			handleCloseDialog();
 			toast.error(error.message);
