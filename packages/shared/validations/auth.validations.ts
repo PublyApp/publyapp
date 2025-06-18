@@ -63,9 +63,20 @@ export const getRegisterSchema = (z: InterZod) => {
 	});
 };
 
-export const getRequestEmailVerificationSchema = (z: InterZod) => {
+export const getEmailFormSchema = (z: InterZod) => {
 	return z.object({
 		email: getEmailFieldSchema(z),
+	});
+};
+
+export const getRequestEmailVerificationSchema = (z: InterZod) => {
+	return getEmailFormSchema(z);
+};
+
+// use server-side only
+export const getChallengeEmailForTokenSchema = (z: InterZod) => {
+	return getEmailFormSchema(z).extend({
+		token: z.string().min(1),
 	});
 };
 
