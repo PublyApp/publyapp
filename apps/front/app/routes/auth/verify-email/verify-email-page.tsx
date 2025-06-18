@@ -23,7 +23,7 @@ import {
 	getRequestEmailVerificationSchema,
 } from '@/shared/validations/auth.validations';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Stack, type Theme } from '@mui/material';
+import { Alert, type Theme } from '@mui/material';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
