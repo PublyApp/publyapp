@@ -1,34 +1,35 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import type zod from 'zod';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Grid from '@mui/material/Grid';
-import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import {
-	FRONT_PATH_NAMES,
-	roleEnum,
-	type RoleName,
-} from '@/shared/lib/constants';
-import { Form } from '@/front/components/hook-form/form-provider';
 import { Field } from '@/front/components/hook-form/fields';
-import { fData } from '@/front/utils/format-number';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
-import { useTranslate } from '@/front/hooks/use-translate';
-import MenuItem from '@mui/material/MenuItem';
-import _ from 'lodash';
-import { useBoolean } from 'minimal-shared/hooks';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
+import { Form } from '@/front/components/hook-form/form-provider';
 import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
-import { mbToBytes } from '@/shared/utils/any.utils';
+import { useTranslate } from '@/front/hooks/use-translate';
 import { useCreateStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { fData } from '@/front/utils/format-number';
+import {
+	FRONT_PATH_NAMES,
+	type RoleName,
+	roleEnum,
+} from '@/shared/lib/constants';
+import { mbToBytes } from '@/shared/utils/any.utils';
+import { zodResolver } from '@hookform/resolvers/zod';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Grid from '@mui/material/Grid';
+import MenuItem from '@mui/material/MenuItem';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
+import _ from 'lodash';
+import { useBoolean } from 'minimal-shared/hooks';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import type zod from 'zod';
 
 type IUserItem = {
 	id: string;
@@ -73,7 +74,7 @@ const defaultValues: NewUserSchemaType = {
 };
 
 export const UserNewEditForm = ({ currentUser }: Props) => {
-	const { t } = useTranslate();
+	const { t, i18n } = useTranslate();
 	const router = useRouter();
 	const openDialog = useBoolean();
 
@@ -91,6 +92,12 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		handleSubmit,
 		formState: { isSubmitting },
 	} = methods;
+
+	// Re-validate all fields when the language changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
+		methods.trigger();
+	}, [i18n.language]);
 
 	const handleCloseDialog = openDialog.onFalse;
 
