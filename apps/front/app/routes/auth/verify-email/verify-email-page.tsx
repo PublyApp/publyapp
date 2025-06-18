@@ -14,7 +14,11 @@ import {
 	queryParamKey,
 } from '@/shared/lib/constants';
 import { getErrorMessage } from '@/shared/utils/error-message';
-import { getRequestEmailVerificationSchema } from '@/shared/validations/auth.validations';
+import {
+	getChallengeEmailForTokenSchema,
+	getEmailFormSchema,
+	getRequestEmailVerificationSchema,
+} from '@/shared/validations/auth.validations';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, type Theme } from '@mui/material';
 import Box from '@mui/material/Box';
@@ -23,38 +27,101 @@ import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useForm } from 'react-hook-form';
-import { useFetcher } from 'react-router';
+import { redirect, useFetcher } from 'react-router';
 import type { Route } from './+types/verify-email-page';
+
+const actionIntent = {
+	REQUEST_EMAIL_VERIFICATION: 'REQUEST_EMAIL_VERIFICATION',
+	CHALLENGE_EMAIL_FOR_TOKEN: 'CHALLENGE_EMAIL_FOR_TOKEN',
+} as const;
 
 export const action = getServerAction({
 	action: async ({ request, apiClient, context, z }) => {
 		const formData = await request.formData();
+		const intent = formData.get('intent');
+
 		const email = formData.get('email');
+		const searchParams = new URL(request.url).searchParams;
+		const token = searchParams.get(queryParamKey.token);
 
-		const schema = getRequestEmailVerificationSchema(z);
+		switch (intent) {
+			case actionIntent.REQUEST_EMAIL_VERIFICATION: {
+				const schema = getRequestEmailVerificationSchema(z);
 
-		const parsed = schema.safeParse({ email });
+				const parsed = schema.safeParse({ email });
 
-		if (!parsed.success) {
-			return {
-				status: 'error',
-				error: parsed.error.errors[0].message,
-			};
+				if (!parsed.success) {
+					return {
+						status: 'error',
+						error: parsed.error.errors[0].message,
+					} as const;
+				}
+
+				const verificationEmailRequest = safeRun(
+					apiClient.auth.verificationEmailRequest,
+				);
+
+				// we intentionally don't return the actual outcome of the request
+				verificationEmailRequest({ email: parsed.data.email }).then(
+					(result) => {
+						if (result.status === 'error') {
+							(context.logger || console)?.error(
+								'Error when requesting email verification',
+								result.error,
+							);
+						}
+					},
+				);
+				break;
+			}
+
+			case actionIntent.CHALLENGE_EMAIL_FOR_TOKEN: {
+				const schema = getChallengeEmailForTokenSchema(z);
+
+				const parsed = schema.safeParse({ email, token });
+
+				if (!parsed.success) {
+					return {
+						status: 'error',
+						error: parsed.error.errors[0].message,
+					} as const;
+				}
+
+				const challengeEmailForToken = safeRun(
+					apiClient.auth.challengeEmailForToken,
+				);
+
+				const result = await challengeEmailForToken({
+					email: parsed.data.email,
+					token: parsed.data.token,
+				});
+
+				if (result.status === 'error') {
+					return {
+						status: 'error',
+						error: result.error.message,
+					} as const;
+				}
+
+				return redirect(FRONT_PATH_NAMES.auth.login);
+				// break;
+			}
+
+			default:
+				return {
+					status: 'error',
+					error: 'Invalid action intent',
+				} as const;
 		}
 
-		const verificationEmailRequest = safeRun(
-			apiClient.auth.verificationEmailRequest,
-		);
+		// const parsed = schema.safeParse({ email });
 
-		// we intentionally don't return the actual outcome of the request
-		verificationEmailRequest({ email: parsed.data.email }).then((result) => {
-			if (result.status === 'error') {
-				(context.logger || console)?.error(
-					'Error when requesting email verification',
-					result.error,
-				);
-			}
-		});
+		// if (!parsed.success) {
+		// 	return {
+		// 		status: 'error',
+		// 		error: parsed.error.errors[0].message,
+		// 	};
+		// }
 
 		return {
 			status: 'success',
@@ -114,7 +181,7 @@ const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
 	if (loaderData.code === 'NO_TOKEN') {
 		return (
 			<Box sx={boxStyles}>
-				<VerifyEmailRequestForm />
+				<EmailForForm intent={actionIntent.REQUEST_EMAIL_VERIFICATION} />
 			</Box>
 		);
 	}
@@ -129,7 +196,7 @@ const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
 
 	return (
 		<Box sx={boxStyles}>
-			<VerifyEmailRequestForm />
+			<EmailForForm intent={actionIntent.CHALLENGE_EMAIL_FOR_TOKEN} />
 		</Box>
 	);
 };
@@ -181,10 +248,21 @@ const InvalidTokenView = ({
 	throw error;
 };
 
-const VerifyEmailRequestForm = () => {
+const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 	const { t } = useTranslate();
 
-	const schema = getRequestEmailVerificationSchema(defaultZodClient);
+	const schema = getEmailFormSchema(defaultZodClient);
+
+	const formText = {
+		[actionIntent.REQUEST_EMAIL_VERIFICATION]: {
+			title: t('verify-email'),
+			description: t('verify-email-description-1'),
+		},
+		[actionIntent.CHALLENGE_EMAIL_FOR_TOKEN]: {
+			title: t('verify-email'),
+			description: t('verify-email-description-2'),
+		},
+	};
 
 	const form = useForm({
 		resolver: zodResolver(schema),
@@ -203,9 +281,15 @@ const VerifyEmailRequestForm = () => {
 	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
 
 	const handleSubmit = form.handleSubmit(async (data) => {
-		await fetcher.submit(data, {
-			method: 'post',
-		});
+		await fetcher.submit(
+			{
+				...data,
+				intent,
+			},
+			{
+				method: 'post',
+			},
+		);
 	});
 
 	if (fetcher.data?.status === 'success') {
@@ -243,10 +327,10 @@ const VerifyEmailRequestForm = () => {
 			)}
 			<Form methods={form} onSubmit={handleSubmit}>
 				<Typography variant="h5" color="text.primary" sx={{ mb: 2 }}>
-					{t('verify-email')}
+					{formText[intent].title}
 				</Typography>
 				<Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-					{t('verify-email-description-1')}
+					{formText[intent].description}
 				</Typography>
 				<Field.Text
 					name="email"
