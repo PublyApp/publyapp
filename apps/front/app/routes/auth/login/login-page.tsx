@@ -1,5 +1,6 @@
 import * as cookie from 'cookie';
 import dayjs from 'dayjs';
+import { useEffect, useRef } from 'react';
 import { data, redirect, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
 
@@ -20,7 +21,6 @@ import { makePath } from '@/shared/utils/string.utils';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
 import _ from 'lodash';
-import { useEffect } from 'react';
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';
 
@@ -92,13 +92,16 @@ const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
 	const redirect_cause = searchParams.get(
 		queryParamKey.login_page.redirect_cause,
 	);
+	const hasShownToast = useRef(false);
 
 	useEffect(() => {
 		if (
+			!hasShownToast.current &&
 			redirect_cause ===
-			queryParamValue.login_page.redirect_cause.email_verification
+				queryParamValue.login_page.redirect_cause.email_verification
 		) {
 			toast.success(t('email-verification-success'));
+			hasShownToast.current = true;
 		}
 	}, [redirect_cause, t]);
 
