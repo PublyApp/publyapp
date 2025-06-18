@@ -2,6 +2,7 @@ import { FormHead } from '@/front/components/auth/form-head';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
+import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
@@ -15,7 +16,6 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useFetcher } from 'react-router';
 import type { LoginActionResult } from './login-page';
@@ -43,11 +43,7 @@ const LoginForm = () => {
 		formState: { isSubmitting },
 	} = methods;
 
-	// Re-validate all fields when the language changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-	useEffect(() => {
-		methods.trigger();
-	}, [i18n.language]);
+	useLanguageTriggerValidation(i18n.language, methods);
 
 	const handleLogin = methods.handleSubmit(async (data) => {
 		await fetcher.submit(data, {
