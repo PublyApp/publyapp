@@ -72,7 +72,7 @@ const defaultValues = {
 } satisfies NewTenantSchemaType;
 
 export const TenantCreateForm = () => {
-	const { t } = useTranslate();
+	const { t, i18n } = useTranslate();
 	const router = useRouter();
 	const openDialog = useBoolean();
 
@@ -90,6 +90,12 @@ export const TenantCreateForm = () => {
 		formState: { isSubmitting, errors },
 		control,
 	} = methods;
+
+	// Re-validate all fields when the language changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
+		methods.trigger();
+	}, [i18n.language]);
 
 	const { fields, append, remove, update } = useFieldArray({
 		control,
