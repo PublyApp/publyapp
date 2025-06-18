@@ -122,7 +122,7 @@ const commonFR = {
 		'{{item}} sera sauvegardé avec les informations suivantes. Veuillez Confirmer.',
 
 	'invalid-email-verification-link-description':
-		'Le lien de vérification que vous avez fourni est invalide ou expiré. Contactez votre administrateur pour obtenir un nouveau lien.',
+		'Le lien de vérification que vous avez fourni est invalide ou expiré.',
 
 	'workspace-name': 'Nom du workspace',
 	'create-the-tenant': 'Créer le tenant',
@@ -175,6 +175,7 @@ const commonFR = {
 		' est valide, vous recevrez un email contenant un lien pour vérifier votre compte',
 
 	'email-verification-success': "Vérification d'email réussie",
+	'request-new-verification-link': 'Demander un nouveau lien de vérification',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
