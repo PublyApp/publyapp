@@ -9,7 +9,7 @@ export const toPascalCase = (str: string) => {
 
 	return (
 		str
-			.trim()
+			?.trim()
 			// Add space before capital letters (for camelCase)
 			.replace(/([A-Z])/g, ' $1')
 			// Split into words by non-alphanumeric characters

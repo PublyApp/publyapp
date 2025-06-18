@@ -2,6 +2,7 @@ import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { env } from '@/front/lib/env';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
@@ -108,12 +109,13 @@ export const action = getServerAction({
 					} as const;
 				}
 
-				const url = new URL(FRONT_PATH_NAMES.auth.login);
+				const url = new URL(env.VITE_SERVER_URL);
+				url.pathname = FRONT_PATH_NAMES.auth.login;
 				url.searchParams.set(
 					queryParamKey.login_page.redirect_cause,
 					queryParamValue.login_page.redirect_cause.email_verification,
 				);
-				return redirect(url.toString());
+				return redirect(`${url.pathname}${url.search}`);
 				// break;
 			}
 
