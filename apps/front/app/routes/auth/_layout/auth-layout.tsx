@@ -29,3 +29,7 @@ const AuthLayout = () => {
 };
 
 export default AuthLayout;
+
+export const HydrateFallback = () => {
+	return <SplashScreen />;
+};

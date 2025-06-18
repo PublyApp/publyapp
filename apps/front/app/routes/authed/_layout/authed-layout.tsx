@@ -1,29 +1,29 @@
-import * as cookie from 'cookie';
-import { Suspense, type ReactNode } from 'react';
-import { useSuspenseQueries } from '@tanstack/react-query';
-import { defaultApiClient } from 'packages/api/ApiClient';
-import { Outlet, redirect } from 'react-router';
-import { ClientOnly } from 'remix-utils/client-only';
 import { View500 } from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
+import type { SettingsState } from '@/front/components/settings';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
-import { getClientLoader } from '@/front/lib/react-router/client-data';
-import {
-	FRONT_PATH_NAMES,
-	SESSION_TOKEN_COOKIE_KEY,
-} from '@/shared/lib/constants';
-import type { Route } from './+types/authed-layout';
-import _ from 'lodash';
 import {
 	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
 } from '@/front/lib/constants';
-import { useMainStore } from '@/front/lib/zustand/store';
-import type { SettingsState } from '@/front/components/settings';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/auth/auth.hooks';
+import { getClientLoader } from '@/front/lib/react-router/client-data';
+import { useMainStore } from '@/front/lib/zustand/store';
+import {
+	FRONT_PATH_NAMES,
+	SESSION_TOKEN_COOKIE_KEY,
+} from '@/shared/lib/constants';
+import { useSuspenseQueries } from '@tanstack/react-query';
+import * as cookie from 'cookie';
+import _ from 'lodash';
+import { defaultApiClient } from 'packages/api/ApiClient';
+import { type ReactNode, Suspense } from 'react';
+import { Outlet, redirect } from 'react-router';
+import { ClientOnly } from 'remix-utils/client-only';
+import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
@@ -102,3 +102,7 @@ const AuthedLayout = ({ loaderData: _l }: Route.ComponentProps) => {
 };
 
 export default AuthedLayout;
+
+export const HydrateFallback = () => {
+	return <SplashScreen />;
+};
