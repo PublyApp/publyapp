@@ -12,6 +12,7 @@ import {
 	FRONT_PATH_NAMES,
 	X_CODE,
 	queryParamKey,
+	queryParamValue,
 } from '@/shared/lib/constants';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import {
@@ -103,7 +104,12 @@ export const action = getServerAction({
 					} as const;
 				}
 
-				return redirect(FRONT_PATH_NAMES.auth.login);
+				const url = new URL(FRONT_PATH_NAMES.auth.login);
+				url.searchParams.set(
+					queryParamKey.login_page.redirect_cause,
+					queryParamValue.login_page.redirect_cause.email_verification,
+				);
+				return redirect(url.toString());
 				// break;
 			}
 
