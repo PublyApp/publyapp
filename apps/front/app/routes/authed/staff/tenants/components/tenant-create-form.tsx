@@ -4,6 +4,7 @@ import { Form } from '@/front/components/hook-form/form-provider';
 import { HelperText } from '@/front/components/hook-form/help-text';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { toast } from '@/front/components/snackbar';
+import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useRouter } from '@/front/hooks/use-router';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
@@ -72,16 +73,19 @@ const defaultValues = {
 } satisfies NewTenantSchemaType;
 
 export const TenantCreateForm = () => {
-	const { t } = useTranslate();
+	const { t, i18n } = useTranslate();
 	const router = useRouter();
 	const openDialog = useBoolean();
 
 	const NewTenantSchema = getNewTenantSchemaClientSide(defaultZodClient);
 
+	const [disabledFormOnSuccess, setDisabledFormOnSuccess] = useState(false);
+
 	const methods = useForm<NewTenantSchemaType>({
 		mode: 'onSubmit',
 		resolver: zodResolver(NewTenantSchema),
 		defaultValues,
+		disabled: disabledFormOnSuccess,
 	});
 
 	const {
@@ -90,6 +94,8 @@ export const TenantCreateForm = () => {
 		formState: { isSubmitting, errors },
 		control,
 	} = methods;
+
+	useLanguageTriggerValidation(i18n.language, methods);
 
 	const { fields, append, remove, update } = useFieldArray({
 		control,
@@ -100,9 +106,10 @@ export const TenantCreateForm = () => {
 		string | { key: string; params: Record<string, string> | undefined }
 	>();
 
-	const { mutate: createTenant } = useCreateTenant({
+	const { mutate: createTenant, isPending } = useCreateTenant({
 		onSuccess: () => {
 			reset();
+			setDisabledFormOnSuccess(true);
 			toast.success(
 				_.capitalize(t('item-creation-success-message', { item: t('tenant') })),
 			);
@@ -158,9 +165,9 @@ export const TenantCreateForm = () => {
 
 	useEffect(() => {
 		useMainStore.setState((root) => {
-			root.tenantsSlice.createTenantForm.submit =
-				/* submitNewTenant */ handleOpenDialog;
-			root.tenantsSlice.createTenantForm.isSubmitting = isSubmitting;
+			root.tenantsSlice.createTenantForm.submit = handleOpenDialog;
+			root.tenantsSlice.createTenantForm.isSubmitting =
+				isSubmitting || isPending;
 		});
 
 		return () => {
@@ -172,7 +179,7 @@ export const TenantCreateForm = () => {
 					defaultSliceValues.isSubmitting;
 			});
 		};
-	}, [isSubmitting, handleOpenDialog]);
+	}, [isSubmitting, isPending, handleOpenDialog]);
 
 	const handleCloseDialog = openDialog.onFalse;
 
@@ -444,14 +451,18 @@ export const TenantCreateForm = () => {
 				</DialogContent>
 
 				<DialogActions>
-					<Button variant="outlined" onClick={handleCloseDialog}>
+					<Button
+						variant="outlined"
+						onClick={handleCloseDialog}
+						disabled={isSubmitting || isPending}
+					>
 						{t('cancel')}
 					</Button>
 					<Button
 						variant="contained"
 						onClick={handleConfirmDialog}
 						autoFocus
-						loading={isSubmitting}
+						loading={isSubmitting || isPending}
 					>
 						{t('confirm')}
 					</Button>

@@ -15,6 +15,7 @@ import { RouterLink } from '@/front/components/router-link';
 
 import { FormHead } from '@/front/components/auth/form-head';
 import { SignUpTerms } from '@/front/components/auth/sign-up-terms';
+import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
@@ -28,7 +29,7 @@ export type SignUpSchemaType = z.infer<ReturnType<typeof getRegisterSchema>>;
 // ----------------------------------------------------------------------
 
 const SignupForm = () => {
-	const { t } = useTranslate();
+	const { t, i18n } = useTranslate();
 	const showPassword = useBoolean();
 
 	const methods = useForm({
@@ -45,6 +46,8 @@ const SignupForm = () => {
 	const {
 		formState: { isSubmitting },
 	} = methods;
+
+	useLanguageTriggerValidation(i18n.language, methods);
 
 	const renderForm = () => (
 		<Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
