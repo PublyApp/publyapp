@@ -12,7 +12,7 @@ export function useLanguageTriggerValidation<
 >(lng: string, methods: UseFormReturn<TFieldValues>) {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	useEffect(() => {
-		if (methods.formState.isDirty || methods.formState.isSubmitted) {
+		if (methods.formState.isDirty && methods.formState.isSubmitted) {
 			methods.trigger();
 		}
 	}, [
