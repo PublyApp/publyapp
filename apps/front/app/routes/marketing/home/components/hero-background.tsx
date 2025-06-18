@@ -3,7 +3,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 
-// import { CONFIG } from 'src/global-config';
+//
 
 import { MotionContainer } from '@/front/components/animate';
 
@@ -28,21 +28,39 @@ export const HeroBackground = ({ sx, ...other }: BoxProps) => {
 							'--stroke-spacing': '80px',
 							/* line */
 							'--hero-line-stroke-width': 1,
-							'--hero-line-stroke-color': varAlpha(theme.vars.palette.grey['500Channel'], 0.32),
+							'--hero-line-stroke-color': varAlpha(
+								theme.vars.palette.grey['500Channel'],
+								0.32,
+							),
 							...theme.applyStyles('dark', {
-								'--hero-line-stroke-color': varAlpha(theme.vars.palette.grey['600Channel'], 0.16),
+								'--hero-line-stroke-color': varAlpha(
+									theme.vars.palette.grey['600Channel'],
+									0.16,
+								),
 							}),
 							/* text */
 							'--hero-text-stroke-width': 1,
-							'--hero-text-stroke-color': varAlpha(theme.vars.palette.grey['500Channel'], 0.24),
+							'--hero-text-stroke-color': varAlpha(
+								theme.vars.palette.grey['500Channel'],
+								0.24,
+							),
 							...theme.applyStyles('dark', {
-								'--hero-text-stroke-color': varAlpha(theme.vars.palette.grey['600Channel'], 0.12),
+								'--hero-text-stroke-color': varAlpha(
+									theme.vars.palette.grey['600Channel'],
+									0.12,
+								),
 							}),
 							/* circle */
 							'--hero-circle-stroke-width': 1,
-							'--hero-circle-stroke-color': varAlpha(theme.vars.palette.grey['500Channel'], 0.48),
+							'--hero-circle-stroke-color': varAlpha(
+								theme.vars.palette.grey['500Channel'],
+								0.48,
+							),
 							...theme.applyStyles('dark', {
-								'--hero-circle-stroke-color': varAlpha(theme.vars.palette.grey['600Channel'], 0.24),
+								'--hero-circle-stroke-color': varAlpha(
+									theme.vars.palette.grey['600Channel'],
+									0.24,
+								),
 							}),
 							/* plus */
 							'--hero-plus-stroke-color': theme.vars.palette.text.disabled,
@@ -86,7 +104,13 @@ export const HeroBackground = ({ sx, ...other }: BoxProps) => {
 						</radialGradient>
 
 						<mask id="mask_id">
-							<ellipse cx="50%" cy="50%" rx="50%" ry="36%" fill="url(#mask_gradient_id)" />
+							<ellipse
+								cx="50%"
+								cy="50%"
+								rx="50%"
+								ry="36%"
+								fill="url(#mask_gradient_id)"
+							/>
 						</mask>
 					</defs>
 
@@ -107,7 +131,7 @@ export const HeroBackground = ({ sx, ...other }: BoxProps) => {
 								...theme.mixins.bgGradient({
 									images: [
 										`linear-gradient(180deg, ${theme.vars.palette.background.default} 12%, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.92)} 50%, ${theme.vars.palette.background.default} 88%)`,
-										`url(${/* CONFIG.assetsDir */ ''}/assets/background/background-3.webp)`,
+										'url(/assets/background/background-3.webp)',
 									],
 								}),
 								top: 0,
@@ -119,9 +143,9 @@ export const HeroBackground = ({ sx, ...other }: BoxProps) => {
 								...theme.applyStyles('dark', {
 									...theme.mixins.bgGradient({
 										images: [
-											`url(${/* CONFIG.assetsDir */ ''}/assets/images/home/hero-blur.webp)`,
+											'url(/assets/images/home/hero-blur.webp)',
 											`linear-gradient(180deg, ${theme.vars.palette.background.default} 12%, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.96)} 50%, ${theme.vars.palette.background.default} 88%)`,
-											`url(${/* CONFIG.assetsDir */ ''}/assets/background/background-3.webp)`,
+											'url(/assets/background/background-3.webp)',
 										],
 									}),
 								}),

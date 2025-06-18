@@ -1,16 +1,18 @@
 import { useCallback } from 'react';
 
-import dayjs from 'dayjs';
+// import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
-import { allLangs } from '../lib/all-langs';
 import { config } from '../lib/i18n/i18n.config';
+import { allLangs } from '../lib/locales/all-langs';
 
 // ----------------------------------------------------------------------
 
-export const useTranslate = (ns?: string) => {
+type Ns = Parameters<typeof useTranslation>[0];
+
+export const useTranslate = (ns?: Ns) => {
 	const { t, i18n } = useTranslation(ns);
 
 	const fallback = allLangs.filter((lang) => {
@@ -37,20 +39,23 @@ export const useTranslate = (ns?: string) => {
 				// 	error: currentMessages.error,
 				// });
 
-				if (currentLang) {
-					dayjs.locale(currentLang.adapterLocale);
-				}
+				// * already handled in initI18n.client.ts
+				// if (currentLang) {
+				// 	dayjs.locale(currentLang.adapterLocale);
+				// }
 			} catch (error) {
 				console.error(error);
 			}
 		},
-		[currentLang, i18n],
+		[/* currentLang, */ i18n],
 	);
+
+	const lang = currentLang ?? fallback;
 
 	return {
 		t,
 		i18n,
 		onChangeLang,
-		currentLang: currentLang ?? fallback,
+		currentLang: lang,
 	};
 };

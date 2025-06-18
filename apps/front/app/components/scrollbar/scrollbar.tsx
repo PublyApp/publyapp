@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 import SimpleBar from 'simplebar-react';
@@ -26,7 +25,8 @@ export const Scrollbar = ({
 			sx={[
 				{
 					'& .simplebar-wrapper': slotProps?.wrapperSx as React.CSSProperties,
-					'& .simplebar-content-wrapper': slotProps?.contentWrapperSx as React.CSSProperties,
+					'& .simplebar-content-wrapper':
+						slotProps?.contentWrapperSx as React.CSSProperties,
 					'& .simplebar-content': slotProps?.contentSx as React.CSSProperties,
 				},
 				...(Array.isArray(sx) ? sx : [sx]),

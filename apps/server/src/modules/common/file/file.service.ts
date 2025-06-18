@@ -1,8 +1,8 @@
-import async from 'async';
-
 import CloudinaryUploader from './upload/CloudinaryUploader';
 import LocalDiskUploader from './upload/LocalDiskUploader';
-import { type Uploader } from './upload/Uploader.interface';
+import type { Uploader } from './upload/Uploader.interface';
+import type { MulterMemoryFile } from '@/shared/validations/file/file-server.validations';
+import CloudFlareUploader from './upload/CloudFlareUploader';
 
 export type FileServiceProps = {
 	sessionToken: string | undefined;
@@ -27,42 +27,62 @@ export default class FileService {
 		return file.mimetype.startsWith('image/');
 	}
 
-	async uploadOne({ file, folderPath }: { file: Express.Multer.File; folderPath?: string }) {
-		const filename = file.originalname;
-
+	async uploadOne({
+		file,
+		folderPath,
+		storageFrom,
+	}: {
+		storageFrom: 'memory';
+		file: MulterMemoryFile;
+		folderPath?: string;
+	}) {
 		// upload the file here
 		const result = await this.uploadAdapter.upload({
-			buffer: file.buffer,
-			name: filename,
+			file,
+			storageFrom,
 			folderPath,
 		});
 
 		return result;
 	}
 
-	async uploadMany({ files, folderPath }: { files: Express.Multer.File[]; folderPath?: string }) {
-		const results = await async.map(files, async (file: Express.Multer.File) => {
-			const savedFile = await this.uploadOne({ file, folderPath });
-			return savedFile;
-		});
+	async uploadMany(
+		/* {
+		files,
+		folderPath,
+	} */ _params: {
+			files: Express.Multer.File[];
+			folderPath?: string;
+		},
+	) {
+		// const results = await async.map(
+		// 	files,
+		// 	async (file: Express.Multer.File) => {
+		// 		const savedFile = await this.uploadOne({
+		// 			file,
+		// 			storageFrom,
+		// 			folderPath,
+		// 		});
+		// 		return savedFile;
+		// 	},
+		// );
 
-		return results;
+		// return results;
+		// TODO: re-implement
+		throw new Error('Not implemented');
 	}
 
 	public static get uploadAdapterMap() {
 		const localDiskUploader = new LocalDiskUploader();
 		const cloudinaryUploader = new CloudinaryUploader();
+		const cloudFlareUploader = new CloudFlareUploader();
 
 		const uploadAdapterMap = new Map([
 			[localDiskUploader.provider, localDiskUploader as Uploader],
 			[cloudinaryUploader.provider, cloudinaryUploader as Uploader],
+			[cloudFlareUploader.provider, cloudFlareUploader as Uploader],
 		]);
 
 		return uploadAdapterMap;
-	}
-
-	public static get defaultUploadAdapter(): Uploader {
-		// return new LocalDiskUploader();
-		return new CloudinaryUploader();
 	}
 }

@@ -1,25 +1,40 @@
 import type { Components, CSSObject, Theme } from '@mui/material/styles';
-import { toggleButtonClasses, type ToggleButtonProps } from '@mui/material/ToggleButton';
+import {
+	toggleButtonClasses,
+	type ToggleButtonProps,
+} from '@mui/material/ToggleButton';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
-const COLORS = ['primary', 'secondary', 'info', 'success', 'warning', 'error'] as const;
+const COLORS = [
+	'primary',
+	'secondary',
+	'info',
+	'success',
+	'warning',
+	'error',
+] as const;
 
 type PaletteColor = (typeof COLORS)[number];
 
 // ----------------------------------------------------------------------
 
-function styleColors(ownerState: ToggleButtonProps, styles: (val: PaletteColor) => CSSObject) {
+const styleColors = (
+	ownerState: ToggleButtonProps,
+	styles: (val: PaletteColor) => CSSObject,
+) => {
 	const outputStyle = COLORS.reduce((acc, color) => {
 		if (!ownerState.disabled && ownerState.color === color) {
+			// biome-ignore lint/style/noParameterAssign: code from template leave as is for now:
 			acc = styles(color);
 		}
+
 		return acc;
 	}, {});
 
 	return outputStyle;
-}
+};
 
 // ----------------------------------------------------------------------
 
@@ -30,12 +45,20 @@ const MuiToggleButton: Components<Theme>['MuiToggleButton'] = {
 	styleOverrides: {
 		root: ({ theme, ownerState }) => {
 			const styled = {
-				colors: styleColors(ownerState, (color) => ({
-					'&:hover': {
-						borderColor: varAlpha(theme.vars.palette[color].mainChannel, 0.48),
-						backgroundColor: varAlpha(theme.vars.palette[color].mainChannel, theme.vars.palette.action.hoverOpacity),
-					},
-				})),
+				colors: styleColors(ownerState, (color) => {
+					return {
+						'&:hover': {
+							borderColor: varAlpha(
+								theme.vars.palette[color].mainChannel,
+								0.48,
+							),
+							backgroundColor: varAlpha(
+								theme.vars.palette[color].mainChannel,
+								theme.vars.palette.action.hoverOpacity,
+							),
+						},
+					};
+				}),
 				selected: {
 					[`&.${toggleButtonClasses.selected}`]: {
 						borderColor: 'currentColor',
@@ -70,13 +93,18 @@ const MuiToggleButtonGroup: Components<Theme>['MuiToggleButtonGroup'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: ({ theme }) => ({
-			gap: 4,
-			padding: 4,
-			border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
-		}),
+		root: ({ theme }) => {
+			return {
+				gap: 4,
+				padding: 4,
+				border: `solid 1px ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+			};
+		},
 		grouped: {
-			[`&.${toggleButtonClasses.root}`]: { border: 'none', borderRadius: 'inherit' },
+			[`&.${toggleButtonClasses.root}`]: {
+				border: 'none',
+				borderRadius: 'inherit',
+			},
 			[`&.${toggleButtonClasses.selected}`]: { boxShadow: 'none' },
 		},
 	},

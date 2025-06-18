@@ -7,7 +7,9 @@ const MuiTreeItem: Components<Theme>['MuiTreeItem'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		label: ({ theme }) => ({ ...theme.typography.body2 }),
+		label: ({ theme }) => {
+			return { ...theme.typography.body2 };
+		},
 		iconContainer: { width: 'auto' },
 	},
 };

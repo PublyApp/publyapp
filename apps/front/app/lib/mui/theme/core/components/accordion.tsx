@@ -10,15 +10,17 @@ const MuiAccordion: Components<Theme>['MuiAccordion'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: ({ theme }) => ({
-			backgroundColor: 'transparent',
-			[`&.${accordionClasses.expanded}`]: {
-				boxShadow: theme.vars.customShadows.z8,
-				borderRadius: theme.shape.borderRadius,
-				backgroundColor: theme.vars.palette.background.paper,
-			},
-			[`&.${accordionClasses.disabled}`]: { backgroundColor: 'transparent' },
-		}),
+		root: ({ theme }) => {
+			return {
+				backgroundColor: 'transparent',
+				[`&.${accordionClasses.expanded}`]: {
+					boxShadow: theme.vars.customShadows.z8,
+					borderRadius: theme.shape.borderRadius,
+					backgroundColor: theme.vars.palette.background.paper,
+				},
+				[`&.${accordionClasses.disabled}`]: { backgroundColor: 'transparent' },
+			};
+		},
 	},
 };
 
@@ -29,15 +31,17 @@ const MuiAccordionSummary: Components<Theme>['MuiAccordionSummary'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: ({ theme }) => ({
-			paddingLeft: theme.spacing(2),
-			paddingRight: theme.spacing(1),
-			[`&.${accordionSummaryClasses.disabled}`]: {
-				opacity: 1,
-				color: theme.vars.palette.action.disabled,
-				[`& .${typographyClasses.root}`]: { color: 'inherit' },
-			},
-		}),
+		root: ({ theme }) => {
+			return {
+				paddingLeft: theme.spacing(2),
+				paddingRight: theme.spacing(1),
+				[`&.${accordionSummaryClasses.disabled}`]: {
+					opacity: 1,
+					color: theme.vars.palette.action.disabled,
+					[`& .${typographyClasses.root}`]: { color: 'inherit' },
+				},
+			};
+		},
 		expandIconWrapper: { color: 'inherit' },
 	},
 };

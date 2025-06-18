@@ -1,25 +1,71 @@
 import { PassThrough } from 'node:stream';
-
 import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
-import { renderToPipeableStream, type RenderToPipeableStreamOptions } from 'react-dom/server';
+import {
+	type RenderToPipeableStreamOptions,
+	renderToPipeableStream,
+} from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
-import { ServerRouter, type AppLoadContext, type EntryContext } from 'react-router';
-
-import { queryParamKey } from '@/shared/lib/constants';
+import {
+	type AppLoadContext,
+	type EntryContext,
+	ServerRouter,
+} from 'react-router';
+import {
+	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	queryParamKey,
+	REMIX_CLIENT_IP_HEADER_KEY,
+} from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-
-import { iniI18nOnServer } from './lib/i18n/initI18n.server';
-
-export const streamTimeout = 50_000;
+import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
+import _ from 'lodash';
+import { nanoid } from 'nanoid';
+export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
 const handleRequest = async (
 	request: Request,
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	routerContext: EntryContext,
-	_loadContext: AppLoadContext,
+	loadContext: AppLoadContext,
 ) => {
+	if (loadContext.postHogServer) {
+		if (!_.toString(responseStatusCode).startsWith('2')) {
+			const ipAddresses = {};
+			_.forEach(
+				[
+					_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+					_.toLower(REMIX_CLIENT_IP_HEADER_KEY),
+					// 'x-forwarded-for',
+					// 'x-real-ip',
+					// 'x-client-ip',
+					// 'x-forwarded',
+					// 'forwarded-for',
+					// 'forwarded',
+				],
+				(headerKey) => {
+					const lowerKey = _.toLower(headerKey);
+					_.set(ipAddresses, lowerKey, request.headers.get(lowerKey));
+				},
+			);
+
+			loadContext.postHogServer.capture({
+				distinctId:
+					_.get(ipAddresses, _.toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
+					_.get(ipAddresses, _.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
+					nanoid(),
+				event: 'bad_request',
+				properties: {
+					path: request.url,
+					method: request.method,
+					// host: request.headers.get('host'),
+					userAgent: request.headers.get('user-agent'),
+					...ipAddresses,
+				},
+			});
+		}
+	}
+
 	const url = new URL(request.url);
 	const language = url.searchParams.get(queryParamKey.language);
 	const locale = getCorrectLocale(language);
@@ -32,7 +78,9 @@ const handleRequest = async (
 		// Ensure requests from bots and SPA Mode renders wait for all content to load before responding
 		// https://react.dev/reference/react-dom/server/renderToPipeableStream#waiting-for-all-content-to-load-for-crawlers-and-static-generation
 		const readyOption: keyof RenderToPipeableStreamOptions =
-			(userAgent && isbot(userAgent)) || routerContext.isSpaMode ? 'onAllReady' : 'onShellReady';
+			(userAgent && isbot(userAgent)) || routerContext.isSpaMode
+				? 'onAllReady'
+				: 'onShellReady';
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
@@ -59,7 +107,7 @@ const handleRequest = async (
 					reject(error);
 				},
 				onError: (error: unknown) => {
-					// eslint-disable-next-line no-param-reassign
+					// biome-ignore lint/style/noParameterAssign: boilerplate from react-router framework scaffolding, just left as is
 					responseStatusCode = 500;
 
 					// Log streaming rendering errors from inside the shell.  Don't log

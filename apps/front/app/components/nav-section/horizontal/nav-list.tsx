@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useCallback, useEffect } from 'react';
 
 import { popoverClasses } from '@mui/material/Popover';
@@ -31,17 +30,23 @@ export const NavList = ({
 
 	const isActive = isActiveLink(pathname, data.path, !!data.children);
 
-	const { open, onOpen, onClose, anchorEl, elementRef: navItemRef } = usePopoverHover<HTMLButtonElement>();
+	const {
+		open,
+		onOpen,
+		onClose,
+		anchorEl,
+		elementRef: navItemRef,
+	} = usePopoverHover<HTMLButtonElement>();
 
 	const isRtl = theme.direction === 'rtl';
 	const id = open ? `${data.title}-popover` : undefined;
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		// If the pathname changes, close the menu
 		if (open) {
 			onClose();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	const handleOpenMenu = useCallback(() => {
@@ -107,10 +112,15 @@ export const NavList = ({
 					}}
 					sx={{
 						...cssVars,
-						[`& .${popoverClasses.paper}`]: { ...(depth === 1 && { pt: 1, ml: -0.75 }) },
+						[`& .${popoverClasses.paper}`]: {
+							...(depth === 1 && { pt: 1, ml: -0.75 }),
+						},
 					}}
 				>
-					<NavDropdownPaper className={navSectionClasses.dropdown.paper} sx={slotProps?.dropdown?.paper}>
+					<NavDropdownPaper
+						className={navSectionClasses.dropdown.paper}
+						sx={slotProps?.dropdown?.paper}
+					>
 						<NavSubList
 							data={data.children}
 							depth={depth}
@@ -127,7 +137,11 @@ export const NavList = ({
 	};
 
 	// Hidden item by role
-	if (data.allowedRoles && checkPermissions && checkPermissions(data.allowedRoles)) {
+	if (
+		data.allowedRoles &&
+		checkPermissions &&
+		checkPermissions(data.allowedRoles)
+	) {
 		return null;
 	}
 

@@ -1,10 +1,20 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { Fragment } from 'react';
 
 import Box, { type BoxProps } from '@mui/material/Box';
 import Portal from '@mui/material/Portal';
-import { styled, useTheme, type SxProps, type Theme } from '@mui/material/styles';
-import { m, useSpring, useTransform, type MotionProps, type MotionValue } from 'framer-motion';
+import {
+	styled,
+	useTheme,
+	type SxProps,
+	type Theme,
+} from '@mui/material/styles';
+import {
+	m,
+	useSpring,
+	useTransform,
+	type MotionProps,
+	type MotionValue,
+} from 'framer-motion';
 import { mergeClasses } from 'minimal-shared/utils';
 
 import { createClasses } from '@/front/lib/mui/theme/create-classes';
@@ -16,7 +26,9 @@ export const scrollProgressClasses = {
 	linear: createClasses('scroll__progress__linear'),
 };
 
-type BaseProps = MotionProps & React.ComponentProps<'svg'> & React.ComponentProps<'div'>;
+type BaseProps = MotionProps &
+	React.ComponentProps<'svg'> &
+	React.ComponentProps<'div'>;
 
 export interface ScrollProgressProps extends BaseProps {
 	size?: number;
@@ -26,7 +38,14 @@ export interface ScrollProgressProps extends BaseProps {
 	whenScroll?: 'x' | 'y';
 	progress: MotionValue<number>;
 	variant: 'linear' | 'circular';
-	color?: 'inherit' | 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error';
+	color?:
+		| 'inherit'
+		| 'primary'
+		| 'secondary'
+		| 'info'
+		| 'success'
+		| 'warning'
+		| 'error';
 	slotProps?: {
 		wrapper?: BoxProps;
 	};
@@ -51,11 +70,16 @@ export const ScrollProgress = ({
 
 	const transformProgress = useTransform(progressProps, [0, -1], [0, 1]);
 
-	const progress = isRtl && whenScroll === 'x' ? transformProgress : progressProps;
+	const progress =
+		isRtl && whenScroll === 'x' ? transformProgress : progressProps;
 
-	const scaleX = useSpring(progress, { stiffness: 100, damping: 30, restDelta: 0.001 });
+	const scaleX = useSpring(progress, {
+		stiffness: 100,
+		damping: 30,
+		restDelta: 0.001,
+	});
 
-	const progressSize = variant === 'circular' ? size ?? 64 : size ?? 3;
+	const progressSize = variant === 'circular' ? (size ?? 64) : (size ?? 3);
 
 	const renderCircular = () => {
 		return (
@@ -67,7 +91,9 @@ export const ScrollProgress = ({
 					{
 						width: progressSize,
 						height: progressSize,
-						...(color !== 'inherit' && { color: theme.vars.palette[color].main }),
+						...(color !== 'inherit' && {
+							color: theme.vars.palette[color].main,
+						}),
 					},
 					...(Array.isArray(sx) ? sx : [sx]),
 				]}
@@ -115,7 +141,9 @@ export const ScrollProgress = ({
 
 	return (
 		<PortalWrapper>
-			<Box {...slotProps?.wrapper}>{variant === 'circular' ? renderCircular() : renderLinear()}</Box>
+			<Box {...slotProps?.wrapper}>
+				{variant === 'circular' ? renderCircular() : renderLinear()}
+			</Box>
 		</PortalWrapper>
 	);
 };

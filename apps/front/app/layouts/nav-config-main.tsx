@@ -1,8 +1,8 @@
 // import { '#' from 'src/routes/'#'
 
-// import { CONFIG } from 'src/global-config';
+//
 
-// import { Iconify } from 'src/components/iconify';
+// import { Iconify } from '@/front/components/iconify';
 
 import { Iconify } from '../components/iconify/iconify';
 
@@ -11,7 +11,11 @@ import type { NavMainProps } from './main/nav/types';
 // ----------------------------------------------------------------------
 
 export const navData: NavMainProps['data'] = [
-	{ title: 'Home', path: '/', icon: <Iconify width={22} icon="solar:home-angle-bold-duotone" /> },
+	{
+		title: 'Home',
+		path: '/',
+		icon: <Iconify width={22} icon="solar:home-angle-bold-duotone" />,
+	},
 	{
 		title: 'Components',
 		path: '#',

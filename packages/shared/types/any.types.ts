@@ -6,5 +6,5 @@ export type ListMeta = {
 	totalPages: number;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 export type WithMeta<T extends Record<string, any>> = T & { meta: ListMeta };

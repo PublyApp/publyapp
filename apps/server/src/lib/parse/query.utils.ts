@@ -6,7 +6,10 @@ export type QueryOptions = {
 	exclude?: string[];
 };
 
-export const applyQueryOptions = (query: Parse.Query, options: QueryOptions) => {
+export const applyQueryOptions = (
+	query: Parse.Query,
+	options: QueryOptions,
+) => {
 	if (options.exclude) {
 		query.exclude(options.exclude as never);
 	}
@@ -32,7 +35,10 @@ export type LimitAndSkipOptions =
 			pageSize: number;
 	  };
 
-export const applySkipAndLimit = (query: Parse.Query, options: LimitAndSkipOptions) => {
+export const applySkipAndLimit = (
+	query: Parse.Query,
+	options: LimitAndSkipOptions,
+) => {
 	if (options.type === 'limit') {
 		query.skip(options.skip).limit(options.limit);
 	}
@@ -43,7 +49,10 @@ export const applySkipAndLimit = (query: Parse.Query, options: LimitAndSkipOptio
 	}
 };
 
-export const applySorting = (query: Parse.Query, sorting: { id: string; desc: boolean }[]) => {
+export const applySorting = (
+	query: Parse.Query,
+	sorting: { id: string; desc: boolean }[],
+) => {
 	for (const element of sorting) {
 		if (element.desc) {
 			query.addDescending(element.id as never);

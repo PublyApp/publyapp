@@ -2,7 +2,9 @@ import type { Attributes } from 'parse';
 
 // import { className as appClassName } from '@/shared/lib/constants';
 
-export default class CloudObject<T extends Attributes = Attributes> extends Parse.Object<T> {
+export default class CloudObject<
+	T extends Attributes = Attributes,
+> extends Parse.Object<T> {
 	// constructor() {
 	// 	const { className, tenantId, attributes } = props;
 	// 	super(className, attributes as never);

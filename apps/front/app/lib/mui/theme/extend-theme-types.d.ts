@@ -10,7 +10,10 @@ import type { ButtonExtendVariant } from './core/components/button';
 import type { FabExtendVariant } from './core/components/button-fab';
 import type { ButtonGroupExtendVariant } from './core/components/button-group';
 import type { ChipExtendVariant } from './core/components/chip';
-import type { PaginationExtendColor, PaginationExtendVariant } from './core/components/pagination';
+import type {
+	PaginationExtendColor,
+	PaginationExtendVariant,
+} from './core/components/pagination';
 import type { SliderExtendColor } from './core/components/slider';
 import type { CustomShadows } from './core/custom-shadows';
 import type { MixinsExtend } from './core/mixins';

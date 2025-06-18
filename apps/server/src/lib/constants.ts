@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 
 import type { CPLsInterface } from 'parse-server';
 
@@ -25,6 +25,8 @@ export const corsWhiteList = {
 	ONLINE: [
 		// Since the client builds arse served by the same server, the front and server domains are the same
 		new URL(env.SERVER_URL).origin,
+		'https://pdfvite.com',
+		'https://www.pdfvite.com',
 		'http://localhost:6180', // test online (for emulating online environment from local)
 	], // ? We're gonna see over time
 };
@@ -82,10 +84,14 @@ export const AUTHED_READONLY_CLP: CPLsInterface = {
 	},
 };
 
-export const FILE_UPLOAD_DESTINATION = path.join(process.cwd(), 'files/multer-uploads');
+export const FILE_UPLOAD_DESTINATION = path.join(
+	process.cwd(),
+	'files/multer-uploads',
+);
 
 // Parse server's global config (saved in the database) utilities
 export const DISABLE_SIGNUP_CONFIG_KEY = 'disableSignup';
+export const IP_BLOCKLIST_CONFIG_KEY = 'ipBlocklist';
 
 export const CLOUD_INSTALLATION_ID = '7_UTZsD3OTKZFC4ifcvHbGVwthv8yh8GMlTm';
 
@@ -93,3 +99,5 @@ export const EXPRESS_FILES_MOUNT_PATH = '/app/files';
 
 export const PARSE_SERVER_URL = new URL(env.SERVER_URL);
 PARSE_SERVER_URL.pathname = endPoint.api.parse.root;
+
+export const CONFIG_ENABLE_CHECK_SESSION_IP = false;

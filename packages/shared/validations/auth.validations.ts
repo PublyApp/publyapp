@@ -3,14 +3,9 @@ import type { z } from 'zod';
 import type { AppLocale } from '../lib/i18n/resources';
 import type InterZod from '../lib/zod/InterZod';
 
-const getEmailFieldSchema = (z: InterZod) => {
-	return z
-		.string(/* { required_error: 'Email required' } */)
-		.min(1 /* , 'Email required' */)
-		.email(/* { message: 'Invalid email' } */)
-		.max(120 /* , 'Email must be 120 chars max' */);
+export const getEmailFieldSchema = (z: InterZod) => {
+	return z.string().min(1).email().max(120);
 };
-// .refine(value => value.toLowerCase());
 
 const SPECIAL_CHAR_REGEX = /[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/;
 
@@ -21,9 +16,9 @@ const getPasswordFieldSchema = (z: InterZod) => {
 	};
 
 	return z
-		.string(/* { required_error: 'Password required' } */)
-		.min(8 /* , 'Password must be 8 chars min' */)
-		.max(64 /* , 'Password must be 64 chars max' */)
+		.string()
+		.min(8)
+		.max(64)
 		.regex(new RegExp(SPECIAL_CHAR_REGEX), regexMap[z.locale]);
 };
 
@@ -63,13 +58,34 @@ export const getSendEmailUpdateEmailSchema = (z: InterZod) => {
 
 export const getRegisterSchema = (z: InterZod) => {
 	return getLoginSchema(z).extend({
-		firstName: z.string(/* { required_error: 'First name required' } */).min(1),
-		lastName: z.string(/* { required_error: 'Last name required' } */).min(1),
+		firstName: z.string().optional(),
+		lastName: z.string().min(1),
+	});
+};
+
+export const getEmailFormSchema = (z: InterZod) => {
+	return z.object({
+		email: getEmailFieldSchema(z),
+	});
+};
+
+export const getRequestEmailVerificationSchema = (z: InterZod) => {
+	return getEmailFormSchema(z);
+};
+
+// use server-side only
+export const getChallengeEmailForTokenSchema = (z: InterZod) => {
+	return getEmailFormSchema(z).extend({
+		token: z.string().min(1),
 	});
 };
 
 export type LoginInput = z.infer<ReturnType<typeof getLoginSchema>>;
 export type SignupInput = z.infer<ReturnType<typeof getRegisterSchema>>;
 export type VerifyEmailInput = z.infer<ReturnType<typeof getVerifyEmailSchema>>;
-export type ResetPasswordInput = z.infer<ReturnType<typeof getResetPasswordSchema>>;
-export type SendUpdateEmailFormInput = z.infer<ReturnType<typeof getSendEmailUpdateEmailSchema>>;
+export type ResetPasswordInput = z.infer<
+	ReturnType<typeof getResetPasswordSchema>
+>;
+export type SendUpdateEmailFormInput = z.infer<
+	ReturnType<typeof getSendEmailUpdateEmailSchema>
+>;

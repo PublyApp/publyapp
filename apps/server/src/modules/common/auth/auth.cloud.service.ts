@@ -1,13 +1,12 @@
 import auth from 'parse-server/lib/Auth.js';
 import { UsersRouter } from 'parse-server/lib/Routers/UsersRouter.js';
-
-import { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import type { ParsedQs } from 'qs';
-
 import { USE_MASTER_KEY } from '@/server/lib/constants';
 import { getDatabase, getInternalConfig } from '@/server/lib/parse/parse.utils';
 import { className } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
+import _ from 'lodash';
 
 type AuthCloudServiceProps = {
 	sessionToken: string | ParsedQs | string[] | ParsedQs[];
@@ -16,7 +15,7 @@ type AuthCloudServiceProps = {
 export class AuthCloudService {
 	readonly sessionToken: string | ParsedQs | string[] | ParsedQs[];
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	private auth: any;
 
 	private constructor({ sessionToken }: AuthCloudServiceProps) {
@@ -31,7 +30,10 @@ export class AuthCloudService {
 
 	private async initialize() {
 		const config = getInternalConfig();
-		this.auth = await auth.getAuthForSessionToken({ config, sessionToken: this.sessionToken });
+		this.auth = await auth.getAuthForSessionToken({
+			config,
+			sessionToken: this.sessionToken,
+		});
 	}
 
 	/**
@@ -45,7 +47,9 @@ export class AuthCloudService {
 	 * get all roles names including the inherited ones
 	 */
 	async getRoleNamesForSessionToken(): Promise<string[]> {
-		return this.auth.getUserRoles();
+		return ((await this.auth.getUserRoles()) as string[])
+			.filter((role) => _.startsWith(role, 'role:'))
+			.map((role) => role.replace('role:', ''));
 	}
 
 	/**
@@ -64,7 +68,7 @@ export class AuthCloudService {
 		password: string;
 	}) {
 		// mimic auth object
-		// eslint-disable-next-line @typescript-eslint/naming-convention
+
 		const _auth = { isMaster: true };
 
 		const config = getInternalConfig();
@@ -85,10 +89,26 @@ export class AuthCloudService {
 		return user;
 	}
 
-	static async verifyEmail({ username, token }: { username: string; token: string }) {
+	static async verifyEmailByToken({
+		// username,
+		token,
+	}: {
+		// username: string;
+		token: string;
+	}) {
 		const findUserForEmailVerification = async () => {
-			const query = new Parse.Query(className.USER).equalTo('_email_verify_token', token).equalTo('username', username);
-			const toSelect = ['emailVerified', '_email_verify_token', '_email_verify_token_expires_at'];
+			const query = new Parse.Query(className.USER).equalTo(
+				'_email_verify_token',
+				token,
+			);
+			// .equalTo('username', username);
+
+			const toSelect = [
+				'emailVerified',
+				'_email_verify_token',
+				'_email_verify_token_expires_at',
+			];
+
 			query.select(toSelect);
 			return query.first(USE_MASTER_KEY);
 		};
@@ -96,37 +116,43 @@ export class AuthCloudService {
 		const user = await findUserForEmailVerification();
 
 		if (!user) {
-			throw new Parse.Error(Parse.Error.OBJECT_NOT_FOUND, 'Invalid token or username');
+			throw new Parse.Error(Parse.Error.INVALID_QUERY, 'Invalid token');
 		}
 
 		const emailVerified = user.get('emailVerified');
 
-		if (emailVerified) {
+		const setValuesOnSuccess = async () => {
+			await getDatabase()
+				.collection(className.USER)
+				.updateOne(
+					{ _id: user.id as never },
+					{
+						$set: { emailVerified: true },
+						$unset: {
+							_email_verify_token: 1,
+							_email_verify_token_expires_at: 1,
+						},
+					},
+				);
+		};
+
+		if (emailVerified === true) {
+			await setValuesOnSuccess();
 			return;
 		}
 
-		// eslint-disable-next-line @typescript-eslint/naming-convention
-		const _email_verify_token_expires_at = user.get('_email_verify_token_expires_at');
+		const _email_verify_token_expires_at = user.get(
+			'_email_verify_token_expires_at',
+		);
 
 		if (_email_verify_token_expires_at) {
-			const expirationTime = new Dayjs(_email_verify_token_expires_at);
+			const expirationTime = new dayjs.Dayjs(_email_verify_token_expires_at);
 
 			if (expirationTime.diff() <= 0) {
 				throw new Parse.Error(Parse.Error.VALIDATION_ERROR, 'Token expired');
 			}
 		}
 
-		await getDatabase()
-			.collection(className.USER)
-			.updateOne(
-				{ _id: user.id as never },
-				{
-					$set: { emailVerified: true },
-					$unset: {
-						_email_verify_token: 1,
-						_email_verify_token_expires_at: 1,
-					},
-				},
-			);
+		await setValuesOnSuccess();
 	}
 }

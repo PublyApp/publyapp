@@ -1,41 +1,24 @@
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { functionName } from '@/shared/lib/constants';
+import { defaultApiClient } from 'packages/api/ApiClient';
+import { createQuery, createSuspenseQuery } from 'react-query-kit';
 
-import { useTenantParam } from '@/front/hooks/use-tenant-param';
+export const useGetUserAuthData = createSuspenseQuery({
+	queryKey: [functionName.auth.getUserAuthData] as const,
+	fetcher: async () => {
+		return defaultApiClient.auth.getUserAuthData();
+	},
+});
 
-import { getTenantAuthDataQuery, getUserAuthDataQuery } from './auth.actions';
+export const useGetTenantAuthData = createSuspenseQuery({
+	queryKey: [functionName.auth.getTenantAuthData] as const,
+	fetcher: async ({ tenantId }: { tenantId: string }) => {
+		return defaultApiClient.auth.getTenantAuthData({ tenantId });
+	},
+});
 
-// ---- 1 --------------------------------------------------------------------------------
-
-type UseGetUserAuthDataProps = {
-	options?: Omit<ReturnType<typeof getUserAuthDataQuery>, 'queryKey' | 'queryFn'>;
-};
-
-export const useGetUserAuthData = ({ options }: UseGetUserAuthDataProps = {}) => {
-	const query = getUserAuthDataQuery();
-
-	const result = useSuspenseQuery({
-		...query,
-		...options,
-	});
-
-	return { result, key: query.queryKey };
-};
-
-// ---- 2 --------------------------------------------------------------------------------
-
-type UseGetTenantAuthDataProps = {
-	options?: Omit<ReturnType<typeof getTenantAuthDataQuery>, 'queryKey' | 'queryFn'>;
-};
-
-export const useGetTenantAuthData = ({ options }: UseGetTenantAuthDataProps = {}) => {
-	const tenantId = useTenantParam();
-
-	const query = getTenantAuthDataQuery({ tenantId });
-
-	const result = useSuspenseQuery({
-		...query,
-		...options,
-	});
-
-	return { result, key: query.queryKey };
-};
+export const useCheckEmailVerificationToken = createQuery({
+	queryKey: [functionName.auth.checkEmailVerificationToken],
+	fetcher: async ({ token }: { token: string }) => {
+		return defaultApiClient.auth.checkEmailVerificationToken({ token });
+	},
+});

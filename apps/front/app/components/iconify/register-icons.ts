@@ -1,12 +1,15 @@
 import { addCollection, type IconifyJSON } from '@iconify/react';
 
 import allIcons from './icon-sets';
+import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
 export const iconSets = Object.entries(allIcons).reduce((acc, [key, value]) => {
 	const [prefix, iconName] = key.split(':');
-	const existingPrefix = acc.find((item) => item.prefix === prefix);
+	const existingPrefix = acc.find((item) => {
+		return item.prefix === prefix;
+	});
 
 	if (existingPrefix) {
 		existingPrefix.icons[iconName] = value;
@@ -30,12 +33,12 @@ export type IconifyName = keyof typeof allIcons;
 
 let areIconsRegistered = false;
 
-export function registerIcons() {
+export const registerIcons = () => {
 	if (areIconsRegistered) {
 		return;
 	}
 
-	iconSets.forEach((iconSet) => {
+	_.forEach(iconSets, (iconSet) => {
 		const iconSetConfig = {
 			...iconSet,
 			width: (iconSet.prefix === 'carbon' && 32) || 24,
@@ -46,4 +49,4 @@ export function registerIcons() {
 	});
 
 	areIconsRegistered = true;
-}
+};

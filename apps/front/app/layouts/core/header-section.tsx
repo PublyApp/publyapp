@@ -1,6 +1,12 @@
 import AppBar, { type AppBarProps } from '@mui/material/AppBar';
 import Container, { type ContainerProps } from '@mui/material/Container';
-import { styled, type Breakpoint, type CSSObject, type SxProps, type Theme } from '@mui/material/styles';
+import {
+	styled,
+	type Breakpoint,
+	type CSSObject,
+	type SxProps,
+	type Theme,
+} from '@mui/material/styles';
 import { useScrollOffsetTop } from 'minimal-shared/hooks';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
@@ -25,7 +31,7 @@ export type HeaderSectionProps = AppBarProps & {
 	};
 };
 
-export function HeaderSection({
+export const HeaderSection = ({
 	sx,
 	slots,
 	slotProps,
@@ -34,7 +40,7 @@ export function HeaderSection({
 	disableElevation,
 	layoutQuery = 'md',
 	...other
-}: HeaderSectionProps) {
+}: HeaderSectionProps) => {
 	const { offsetTop: isOffset } = useScrollOffsetTop();
 
 	return (
@@ -46,11 +52,13 @@ export function HeaderSection({
 			disableElevation={disableElevation}
 			className={mergeClasses([layoutClasses.header, className])}
 			sx={[
-				(theme) => ({
-					...(isOffset && {
-						'--color': `var(--offset-color, ${theme.vars.palette.text.primary})`,
-					}),
-				}),
+				(theme) => {
+					return {
+						...(isOffset && {
+							'--color': `var(--offset-color, ${theme.vars.palette.text.primary})`,
+						}),
+					};
+				},
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 			{...other}
@@ -60,7 +68,9 @@ export function HeaderSection({
 			<HeaderContainer layoutQuery={layoutQuery} {...slotProps?.container}>
 				{slots?.leftArea}
 
-				<HeaderCenterArea {...slotProps?.centerArea}>{slots?.centerArea}</HeaderCenterArea>
+				<HeaderCenterArea {...slotProps?.centerArea}>
+					{slots?.centerArea}
+				</HeaderCenterArea>
 
 				{slots?.rightArea}
 			</HeaderContainer>
@@ -68,16 +78,23 @@ export function HeaderSection({
 			{slots?.bottomArea}
 		</HeaderRoot>
 	);
-}
+};
 
 // ----------------------------------------------------------------------
 
-type HeaderRootProps = Pick<HeaderSectionProps, 'disableOffset' | 'disableElevation'> & {
+type HeaderRootProps = Pick<
+	HeaderSectionProps,
+	'disableOffset' | 'disableElevation'
+> & {
 	isOffset: boolean;
 };
 
 const HeaderRoot = styled(AppBar, {
-	shouldForwardProp: (prop: string) => !['isOffset', 'disableOffset', 'disableElevation', 'sx'].includes(prop),
+	shouldForwardProp: (prop: string) => {
+		return !['isOffset', 'disableOffset', 'disableElevation', 'sx'].includes(
+			prop,
+		);
+	},
 })<HeaderRootProps>(({ isOffset, disableOffset, disableElevation, theme }) => {
 	const pauseZindex = { top: -1, bottom: -2 };
 
@@ -113,7 +130,7 @@ const HeaderRoot = styled(AppBar, {
 		height: 24,
 		margin: 'auto',
 		borderRadius: '50%',
-		width: `calc(100% - 48px)`,
+		width: 'calc(100% - 48px)',
 		zIndex: pauseZindex.bottom,
 		boxShadow: theme.vars.customShadows.z8,
 		...(isOffset && { opacity: 0.48, visibility: 'visible' }),
@@ -127,17 +144,25 @@ const HeaderRoot = styled(AppBar, {
 });
 
 const HeaderContainer = styled(Container, {
-	shouldForwardProp: (prop: string) => !['layoutQuery', 'sx'].includes(prop),
-})<Pick<HeaderSectionProps, 'layoutQuery'>>(({ layoutQuery = 'md', theme }) => ({
-	display: 'flex',
-	alignItems: 'center',
-	color: 'var(--color)',
-	height: 'var(--layout-header-mobile-height)',
-	[theme.breakpoints.up(layoutQuery)]: { height: 'var(--layout-header-desktop-height)' },
-}));
+	shouldForwardProp: (prop: string) => {
+		return !['layoutQuery', 'sx'].includes(prop);
+	},
+})<Pick<HeaderSectionProps, 'layoutQuery'>>(({ layoutQuery = 'md', theme }) => {
+	return {
+		display: 'flex',
+		alignItems: 'center',
+		color: 'var(--color)',
+		height: 'var(--layout-header-mobile-height)',
+		[theme.breakpoints.up(layoutQuery)]: {
+			height: 'var(--layout-header-desktop-height)',
+		},
+	};
+});
 
-const HeaderCenterArea = styled('div')(() => ({
-	display: 'flex',
-	flex: '1 1 auto',
-	justifyContent: 'center',
-}));
+const HeaderCenterArea = styled('div')(() => {
+	return {
+		display: 'flex',
+		flex: '1 1 auto',
+		justifyContent: 'center',
+	};
+});

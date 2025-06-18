@@ -1,4 +1,4 @@
-// import { useSettingsContext } from 'src/components/settings';
+// import { useSettingsContext } from '@/front/components/settings';
 import Badge from '@mui/material/Badge';
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import SvgIcon from '@mui/material/SvgIcon';
@@ -19,16 +19,11 @@ export const SettingsButton = ({ sx, ...other }: IconButtonProps) => {
 			whileHover={varHover(1.04)}
 			transition={transitionTap()}
 			aria-label="Settings button"
-			onClick={
-				settings.onToggleDrawer
-				// () => {
-				// 	console.log('drawer toggled');
-				// }
-			}
+			onClick={settings.onToggleDrawer}
 			sx={[{ p: 0, width: 40, height: 40 }, ...(Array.isArray(sx) ? sx : [sx])]}
 			{...other}
 		>
-			<Badge color="error" variant="dot" invisible={/* !settings.canReset */ false}>
+			<Badge color="error" variant="dot" invisible={!settings.canReset}>
 				<SvgIcon>
 					{/** https://icon-sets.iconify.design/solar/settings-bold-duotone/ */}
 					<m.path
@@ -38,7 +33,11 @@ export const SettingsButton = ({ sx, ...other }: IconButtonProps) => {
 						clipRule="evenodd"
 						opacity="0.4"
 						animate={{ rotate: 360 }}
-						transition={{ duration: 8, ease: 'linear', repeat: Infinity }}
+						transition={{
+							duration: 8,
+							ease: 'linear',
+							repeat: Number.POSITIVE_INFINITY,
+						}}
 					/>
 					<path
 						fill="currentColor"

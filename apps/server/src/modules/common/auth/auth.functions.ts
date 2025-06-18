@@ -1,21 +1,35 @@
 import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
-import { parseFunctionEnhanced, type FunctionParams, type FunctionReturn } from '@/server/lib/parse/function.utils';
-import { getDatabase, getGlobalConfig, parseFields, removeParseFields } from '@/server/lib/parse/parse.utils';
-import { className, functionName, roleSet } from '@/shared/lib/constants';
+import {
+	type FunctionParams,
+	type FunctionReturn,
+	defineCloudFunction,
+	fromAuthedUserParseFunction,
+	fromPublicParseFunction,
+	parseFunctionEnhanced,
+} from '@/server/lib/parse/cloud/function';
+import {
+	getDatabase,
+	getGlobalConfig,
+	parseFields,
+	removeParseFields,
+} from '@/server/lib/parse/parse.utils';
+import { X_CODE, className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
-
+import { sleep } from '@/shared/utils/any.utils';
+import { getEmailFieldSchema } from '@/shared/validations/auth.validations';
+import _ from 'lodash';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
 
-export namespace GetUserAuthDataFunction {
-	export type Params = FunctionParams<typeof getUserAuthDataFunction>;
-	export type Return = FunctionReturn<typeof getUserAuthDataFunction>;
+export namespace GetUserAuthData {
+	export type Params = FunctionParams<typeof getUserAuthData>;
+	export type Return = FunctionReturn<typeof getUserAuthData>;
 }
 
-const getUserAuthDataFunction = parseFunctionEnhanced({
-	requireUser: true,
+const getUserAuthData = fromAuthedUserParseFunction({
+	name: functionName.auth.getUserAuthData,
 	action: async ({ user }) => {
 		const sessionToken = user.getSessionToken();
 
@@ -26,11 +40,19 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 
 		let roles = await rolesPromises;
 		roles = roles.map((role) => {
-			return removeParseFields(role, [...parseFields, 'users', 'roles']) as never;
+			return removeParseFields(role, [
+				...parseFields,
+				'users',
+				'roles',
+			]) as never;
 		});
 
 		let userJson: IUser = user.toJSON() as never;
-		userJson = removeParseFields(userJson, [...parseFields, 'sessionToken', 'emailVerified']) as never;
+		userJson = removeParseFields(userJson, [
+			...parseFields,
+			'sessionToken',
+			'emailVerified',
+		]) as never;
 
 		return {
 			user: userJson,
@@ -40,12 +62,13 @@ const getUserAuthDataFunction = parseFunctionEnhanced({
 	},
 });
 
-export namespace GetIsDisabledSignupFunction {
+export namespace GetIsDisabledSignup {
 	// export type Params = FunctionParams<typeof getIsDisabledSignup>;
-	export type Return = FunctionReturn<typeof getIsDisabledSignupFunction>;
+	export type Return = FunctionReturn<typeof getIsDisabledSignup>;
 }
 
-const getIsDisabledSignupFunction = parseFunctionEnhanced({
+const getIsDisabledSignup = fromPublicParseFunction({
+	name: functionName.auth.getIsDisabledSignup,
 	action: async () => {
 		const globalConfig = await getGlobalConfig();
 		const disabledSignup: boolean = globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY);
@@ -54,14 +77,13 @@ const getIsDisabledSignupFunction = parseFunctionEnhanced({
 	},
 });
 
-export namespace GetRedirectCodeFunction {
-	export type Params = FunctionParams<typeof getRedirectCodeFunction>;
-	export type Return = FunctionReturn<typeof getRedirectCodeFunction>;
+export namespace GetRedirectCode {
+	export type Params = FunctionParams<typeof getRedirectCode>;
+	export type Return = FunctionReturn<typeof getRedirectCode>;
 }
 
-const getRedirectCodeFunction = parseFunctionEnhanced({
-	requireUser: true,
-	allowedRoles: roleSet.ABOVE_TENANT_USER,
+const getRedirectCode = fromAuthedUserParseFunction({
+	name: functionName.auth.getRedirectCode,
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
 			tenantId: z.string().optional(),
@@ -74,11 +96,16 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 
 		const tenantService = new TenantService({ sessionToken });
 
-		const fallBackTenantPromise = tenantService.findTenantsForUser(user, { select: [] });
-		let tenantExistsPromise: Promise<ParseTenant | undefined> = Promise.resolve(undefined);
+		const fallBackTenantPromise = tenantService.findTenantsForUser(user, {
+			select: [],
+		});
+		let tenantExistsPromise: Promise<ParseTenant | undefined> =
+			Promise.resolve(undefined);
 
 		if (params.tenantId) {
-			tenantExistsPromise = tenantService.getById(params.tenantId, { select: [] });
+			tenantExistsPromise = tenantService.getById(params.tenantId, {
+				select: [],
+			});
 		}
 
 		// check user's roles:
@@ -109,16 +136,22 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 		const tenant = await tenantExistsPromise;
 
 		if (tenant) {
-			const isMember = await tenantService.isUserMemberOfTenant({ user, tenant });
+			const isMember = await tenantService.isUserMemberOfTenant({
+				user,
+				tenant,
+			});
 
 			if (isMember) {
 				return { code: tenant.id };
 			}
 
-			log.warn(`Attempt to access tenant ${params.tenantId} by user ${user.id} who is not a member of said tenant`, {
-				tenantId: params.tenantId,
-				userId: user.id,
-			});
+			log.warn(
+				`Attempt to access tenant ${params.tenantId} by user ${user.id} who is not a member of said tenant`,
+				{
+					tenantId: params.tenantId,
+					userId: user.id,
+				},
+			);
 			return { code: 'unauthorized' };
 		}
 
@@ -139,13 +172,13 @@ const getRedirectCodeFunction = parseFunctionEnhanced({
 	},
 });
 
-export namespace GetTenantAuthDataFunction {
-	export type Params = FunctionParams<typeof getTenantAuthDataFunction>;
-	export type Return = FunctionReturn<typeof getTenantAuthDataFunction>;
+export namespace GetTenantAuthData {
+	export type Params = FunctionParams<typeof getTenantAuthData>;
+	export type Return = FunctionReturn<typeof getTenantAuthData>;
 }
 
-const getTenantAuthDataFunction = parseFunctionEnhanced({
-	requireUser: true,
+const getTenantAuthData = fromAuthedUserParseFunction({
+	name: functionName.auth.getTenantAuthData,
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
 			tenantId: z.string(),
@@ -169,9 +202,12 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 				};
 			}
 
-			log.warn(`Attempt to access staff auth data by user ${user.id} who is not a staff member`, {
-				userId: user.id,
-			});
+			log.warn(
+				`Attempt to access staff auth data by user ${user.id} who is not a staff member`,
+				{
+					userId: user.id,
+				},
+			);
 			throw new HttpException(403, t('unauthorized'));
 		}
 
@@ -212,16 +248,159 @@ const getTenantAuthDataFunction = parseFunctionEnhanced({
 	},
 });
 
-Parse.Cloud.define(functionName.auth.getUserAuthData, getUserAuthDataFunction);
-Parse.Cloud.define(functionName.auth.getTenantAuthData, getTenantAuthDataFunction);
-Parse.Cloud.define(functionName.auth.getIsDisabledSignup, getIsDisabledSignupFunction);
-Parse.Cloud.define(functionName.auth.getRedirectCode, getRedirectCodeFunction);
+export namespace CheckEmailVerificationToken {
+	export type Params = FunctionParams<typeof checkEmailVerificationToken>;
+	export type Return = FunctionReturn<typeof checkEmailVerificationToken>;
+}
+
+/**
+ * Verify the email verification token
+ */
+const checkEmailVerificationToken = fromPublicParseFunction({
+	name: functionName.auth.checkEmailVerificationToken,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			token: z.string().min(1),
+		});
+		return schema.parse(params);
+	},
+	action: async ({ params, t }) => {
+		const token = params.token;
+
+		// check if token exists
+		const UserCollection = getDatabase().collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				_email_verify_token: token,
+			},
+			{
+				projection: {
+					_id: 1,
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			throw new HttpException(400, t('Invalid token'), {
+				xcode: X_CODE.INVALID_TOKEN,
+			});
+		}
+
+		// check if token is expired
+		const isExpired = user._email_verify_token_expires_at < new Date();
+
+		if (isExpired) {
+			const error = new HttpException(400, t('Invalid token'), {
+				xcode: X_CODE.INVALID_TOKEN,
+			});
+			// add additional information to the error
+			_.set(error, 'meta.cause', 'TOKEN_EXPIRED'); // only for debugging purposes, not to be exposed to the client
+			throw error;
+		}
+
+		return { status: 'success' } as const;
+	},
+});
+
+export namespace ChallengeEmailForToken {
+	export type Params = FunctionParams<typeof challengeEmailForToken>;
+	export type Return = FunctionReturn<typeof challengeEmailForToken>;
+}
+
+const challengeEmailForToken = fromPublicParseFunction({
+	name: functionName.auth.challengeEmailForToken,
+	validateParams({ params, z }) {
+		const schema = z.object({
+			email: getEmailFieldSchema(z),
+			token: z.string().min(1),
+		});
+
+		return schema.parse(params);
+	},
+	action: async ({ params, req, t }) => {
+		await sleep(1000);
+		req.log.debug('challengeEmailForToken', { params });
+
+		// TODO:
+		// check if token/email pair is valid
+		// if valid, set email as verified, unset token + unset email_verify_token_expires_at
+		const UserCollection = getDatabase().collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				email: params.email,
+				_email_verify_token: params.token,
+			},
+			{
+				projection: {
+					_id: 1,
+					email: 1,
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			throw new HttpException(
+				400,
+				t('item-is-invalid', { item: 'Email/Token' }),
+			);
+		}
+
+		const isExpired = user._email_verify_token_expires_at < new Date();
+
+		if (isExpired) {
+			throw new HttpException(
+				400,
+				t('item-is-invalid', { item: 'Email/Token' }),
+			);
+		}
+
+		// set email as verified, unset token + unset email_verify_token_expires_at
+		await UserCollection.updateOne(
+			{
+				_id: user._id,
+			},
+			{
+				$set: {
+					emailVerified: true,
+					// _email_verify_token: undefined,
+					// _email_verify_token_expires_at: undefined,
+				},
+				$unset: {
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		return {
+			status: 'success',
+		} as const;
+	},
+});
+
+//--------------------------------------------------------------------------------------//
+//                                 Define the functions                                 //
+//--------------------------------------------------------------------------------------//
+
+defineCloudFunction(getUserAuthData);
+defineCloudFunction(getTenantAuthData);
+defineCloudFunction(getIsDisabledSignup);
+defineCloudFunction(getRedirectCode);
+defineCloudFunction(checkEmailVerificationToken);
+defineCloudFunction(challengeEmailForToken);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //
 // --------------------------------------------------------------------------------------//
 
 const removeSeededUsersFunction = parseFunctionEnhanced({
+	name: functionName.auth.removeSeededUsers,
 	requireMasterKey: true,
 	action: async () => {
 		const User = getDatabase().collection(className.USER);
@@ -232,4 +411,4 @@ const removeSeededUsersFunction = parseFunctionEnhanced({
 	},
 });
 
-Parse.Cloud.define(functionName.auth.removeSeededUsers, removeSeededUsersFunction);
+defineCloudFunction(removeSeededUsersFunction);

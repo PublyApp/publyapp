@@ -1,10 +1,15 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 import _ from 'lodash';
 
+import axios, {
+	type AxiosInstance,
+	type AxiosRequestConfig,
+	type AxiosResponse,
+} from 'axios';
+
 import {
-	DEVIST_REST_API_HEADER_KEY,
 	PARSE_APPLICATION_ID_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
+	REST_API_HEADER_KEY,
 } from './constants';
 
 export const createInstance = (baseURL?: string) => {
@@ -29,7 +34,11 @@ export class AxiosHttp {
 		return this.axios.get<T>(url, config).then(responseBody);
 	}
 
-	async post<T, B = unknown>(url: string, body: B, config?: AxiosRequestConfig) {
+	async post<T, B = unknown>(
+		url: string,
+		body: B,
+		config?: AxiosRequestConfig,
+	) {
 		return this.axios.post<T>(url, body, config).then(responseBody);
 	}
 
@@ -49,13 +58,15 @@ export const getProtectionHeaders = (options: {
 	restApiKey?: string;
 }): AxiosRequestConfig['headers'] => {
 	const headers: AxiosRequestConfig['headers'] = {
-		[DEVIST_REST_API_HEADER_KEY]: options.restApiKey,
+		[REST_API_HEADER_KEY]: options.restApiKey,
 		[PARSE_SESSION_TOKEN_HEADER_KEY]: options.sessionToken,
 		[PARSE_APPLICATION_ID_HEADER_KEY]: options.applicationId,
-		'Content-Type': options.hasFile ? 'multipart/form-data' : 'application/json',
+		'Content-Type': options.hasFile
+			? 'multipart/form-data'
+			: 'application/json',
 	};
 
-	_.keys(headers).forEach((key) => {
+	_.forEach(_.keys(headers), (key) => {
 		if (_.isNil((headers as never)[key])) {
 			delete (headers as never)[key];
 		}

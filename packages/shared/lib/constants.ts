@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
 import type { IRole } from '../types/db/role.types';
-import { makePath } from '../utils/string.utils';
+import { makePath, toPascalCase } from '../utils/string.utils';
 
 export type IRoleConfig = Pick<IRole, 'code' | 'name' | 'rank'>;
 
@@ -11,27 +11,69 @@ export const userGroup = {
 	STAFF: 'staff',
 } as const;
 
+export const roleNames = [
+	'STAFF_ADMIN',
+	'STAFF_EDITOR',
+	'STAFF_USER',
+	'STAFF_CONTRIBUTOR',
+	'TENANT_USER',
+	'AUTHED_USER',
+] as const;
+
+export type RoleName = (typeof roleNames)[number];
+
 export const roleEnum = {
 	// cspell:ignore fnhux Rwmgyh Jhpma
-	STAFF_ADMIN: { name: 'STAFF_ADMIN', code: 'eM3RYjw2yaQ6Gb4BTfnhux', rank: 100 } as const,
-	STAFF_EDITOR: { name: 'STAFF_EDITOR', code: 'r6LN7A3RwmgyhZUB4tv8Mn', rank: 80 } as const,
-	STAFF_USER: { name: 'STAFF_USER', code: 'xPK6yNWkCA5TgGU49p72J3', rank: 70 } as const,
-	STAFF_CONTRIBUTOR: { name: 'STAFF_CONTRIBUTOR', code: 'WqgTy4uxJhpmaFPzZUNjXk', rank: 60 } as const,
+	STAFF_ADMIN: {
+		name: roleNames[0],
+		code: 'eM3RYjw2yaQ6Gb4BTfnhux',
+		rank: 100,
+	} as const,
+	STAFF_EDITOR: {
+		name: roleNames[1],
+		code: 'r6LN7A3RwmgyhZUB4tv8Mn',
+		rank: 80,
+	} as const,
+	STAFF_USER: {
+		name: roleNames[2],
+		code: 'xPK6yNWkCA5TgGU49p72J3',
+		rank: 70,
+	} as const,
+	STAFF_CONTRIBUTOR: {
+		name: roleNames[3],
+		code: 'WqgTy4uxJhpmaFPzZUNjXk',
+		rank: 60,
+	} as const,
 	// =======================================================
 	// ! Role hierarchy by tenants will be hard to implement if using built-in Parse Roles
 	// ! because on user may have different Roles in two or more Tenants
 	// ! It's Better to implement our own Permission checker for the tenants
 	// TENANT_ADMIN: { name: 'TENANT_ADMIN', code: 5_394_846 } as const,
 	// TENANT_EDITOR: { name: 'TENANT_EDITOR', code: 4_141_341 } as const,
-	TENANT_USER: { name: 'TENANT_USER', code: 't2GwKsZxen3YyLB7QTup4r', rank: 50 } as const,
+	TENANT_USER: {
+		name: roleNames[4],
+		code: 't2GwKsZxen3YyLB7QTup4r',
+		rank: 50,
+	} as const,
 	// TENANT_CONTRIBUTOR: { name: 'TENANT_CONTRIBUTOR', code: 2_347_347 } as const,
 	// =======================================================
-	AUTHED_USER: { name: 'AUTHED_USER', code: 'wC5zNLaK6MQjnSe4cGTr3v', rank: 40 } as const,
+	AUTHED_USER: {
+		name: 'AUTHED_USER' as const,
+		code: 'wC5zNLaK6MQjnSe4cGTr3v',
+		rank: 40,
+	} as const,
 } satisfies Record<string, IRoleConfig>;
 
 const STAFF_ADMIN_ONLY = [roleEnum.STAFF_ADMIN] as const;
-const ABOVE_STAFF_EDITOR = [STAFF_ADMIN_ONLY[0], roleEnum.STAFF_EDITOR] as const;
-const ABOVE_STAFF_USER = [ABOVE_STAFF_EDITOR[0], ABOVE_STAFF_EDITOR[1], roleEnum.STAFF_USER] as const;
+const ABOVE_STAFF_EDITOR = [
+	STAFF_ADMIN_ONLY[0],
+	roleEnum.STAFF_EDITOR,
+] as const;
+const ABOVE_STAFF_USER = [
+	ABOVE_STAFF_EDITOR[0],
+	ABOVE_STAFF_EDITOR[1],
+	roleEnum.STAFF_USER,
+] as const;
 const ABOVE_STAFF_CONTRIBUTOR = [
 	ABOVE_STAFF_USER[0],
 	ABOVE_STAFF_USER[1],
@@ -59,10 +101,10 @@ export const roleSet = {
 	ABOVE_STAFF_EDITOR,
 	ABOVE_STAFF_USER,
 	ABOVE_STAFF_CONTRIBUTOR,
-	// ===
+	// ====
 	ABOVE_TENANT_USER,
 	ALL,
-	// ===
+	// ====
 	STAFF_MEMBER: ABOVE_STAFF_CONTRIBUTOR,
 	TENANT_MEMBER: [roleEnum.TENANT_USER],
 };
@@ -79,11 +121,20 @@ export const staffRoleSet = _.pick(roleSet, [
 
 export type StaffRoleSet = ValueOf<typeof staffRoleSet>;
 
+export const tenantSubRoleNames = [
+	'ADMIN',
+	'EDITOR',
+	'USER',
+	'CONTRIBUTOR',
+] as const;
+
+export type TenantSubRoleName = (typeof tenantSubRoleNames)[number];
+
 export const tenantSubRoleEnum = {
-	ADMIN: 'ADMIN',
-	EDITOR: 'EDITOR',
-	USER: 'USER',
-	CONTRIBUTOR: 'CONTRIBUTOR',
+	ADMIN: tenantSubRoleNames[0],
+	EDITOR: tenantSubRoleNames[1],
+	USER: tenantSubRoleNames[2],
+	CONTRIBUTOR: tenantSubRoleNames[3],
 } as const;
 
 export type TenantSubRole = ValueOf<typeof tenantSubRoleEnum>;
@@ -98,7 +149,11 @@ export const tenantSubRoleRank = {
 export const tenantSubRoleSet = {
 	ADMIN_ONLY: [tenantSubRoleEnum.ADMIN] as const,
 	ABOVE_EDITOR: [tenantSubRoleEnum.ADMIN, tenantSubRoleEnum.EDITOR] as const,
-	ABOVE_USER: [tenantSubRoleEnum.ADMIN, tenantSubRoleEnum.EDITOR, tenantSubRoleEnum.USER] as const,
+	ABOVE_USER: [
+		tenantSubRoleEnum.ADMIN,
+		tenantSubRoleEnum.EDITOR,
+		tenantSubRoleEnum.USER,
+	] as const,
 	ALL: [
 		tenantSubRoleEnum.ADMIN,
 		tenantSubRoleEnum.EDITOR,
@@ -150,8 +205,14 @@ const createParseJoinClassName = <F extends string, C extends string>(
 };
 
 const joinsClassName = {
-	_CUSTOM_JOIN_USER_TO_TENANT: createCustomJoinClassName(basicClassName.USER, basicClassName.TENANT),
-	_JOIN_USER_TO_ROLE: createParseJoinClassName('users' as const, basicClassName.ROLE),
+	_CUSTOM_JOIN_USER_TO_TENANT: createCustomJoinClassName(
+		basicClassName.USER,
+		basicClassName.TENANT,
+	),
+	_JOIN_USER_TO_ROLE: createParseJoinClassName(
+		'users' as const,
+		basicClassName.ROLE,
+	),
 };
 
 export const className = {
@@ -159,8 +220,16 @@ export const className = {
 	...joinsClassName,
 } as const;
 
-export const LOCALE_HEADER_KEY = 'X-Devist-Locale';
-export const TENANT_ID_HEADER_KEY = 'X-Devist-TenantId';
+export const APP_ID = 'pdf_vite_app';
+export const APP_NAME = 'PDF Vite';
+
+export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
+
+export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
+export const TENANT_ID_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-TenantId`;
+export const FORWARDED_FOR_HEADER_KEY = 'X-Forwarded-For';
+export const REMIX_CLIENT_IP_HEADER_KEY = 'X-Remix-Client-IP';
+export const CLOUDFLARE_CONNECTING_IP_HEADER_KEY = 'CF-Connecting-IP';
 
 const RESOURCE = {
 	users: 'users',
@@ -172,6 +241,8 @@ const RESOURCE = {
 	fileManager: 'file-manager',
 	blog: 'blog',
 	shortUrl: 'short-url',
+	staffMembers: 'staff-members',
+	tenantUSers: 'tenant-users',
 } as const;
 
 const ROOTS = {
@@ -186,8 +257,9 @@ export const FRONT_PATH_NAMES = {
 	auth: {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
+		verifyEmail: makePath('verify-email'),
 	},
-	tenant: (tenantId: string = '') => {
+	tenant: (tenantId = '') => {
 		return {
 			root: makePath(RESOURCE.client, tenantId),
 		};
@@ -196,21 +268,27 @@ export const FRONT_PATH_NAMES = {
 		root: makePath(ROOTS.STAFF),
 		tenants: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
-			details: (tenantId: string = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.tenants, tenantId);
+			new: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
+			details: (tenantId = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId);
 			},
 		},
 		tenantUsers: {
-			root: makePath(ROOTS.STAFF, 'tenant-users'),
-			details: (userId: string = '') => {
-				return makePath(ROOTS.STAFF, 'tenant-users', userId);
+			root: makePath(ROOTS.STAFF, RESOURCE.tenantUSers),
+			new: makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'new'),
+			details: (userId = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'details', userId);
 			},
 		},
 		staffMembers: {
-			root: makePath(ROOTS.STAFF, 'staff-members'),
-			details: (userId: string = '') => {
-				return makePath(ROOTS.STAFF, 'staff-members', userId);
+			root: makePath(ROOTS.STAFF, RESOURCE.staffMembers),
+			new: makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'new'),
+			details: (userId = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'details', userId);
 			},
+		},
+		settings: {
+			root: makePath(ROOTS.STAFF, 'settings'),
 		},
 	},
 } as const;
@@ -222,30 +300,18 @@ export const functionName = {
 		getTenantAuthData: 'getTenantAuthData',
 		getIsDisabledSignup: 'getIsDisabledSignup',
 		getRedirectCode: 'getRedirectCode',
-		// ===
+		checkEmailVerificationToken: 'checkEmailVerificationToken',
+		challengeEmailForToken: 'challengeEmailForToken',
+		// ====
 		removeSeededUsers: 'removeSeededUsers',
 	},
-	// Blog Posts
-	blog: {
-		createBlogPost: 'createBlogPost',
-		updateBlogPost: 'updateBlogPost',
-		getBlogPostFrontDetails: 'getBlogPostFrontDetails',
-		getBlogPostFrontDetailsRelatedPosts: 'getBlogPostFrontDetailsRelatedPosts',
-		getBlogPostBoEdit: 'getBlogPostBoEdit',
-		findBlogPostFrontList: 'findBlogPostFrontList',
-		findBlogPostBoTable: 'findBlogPostBoTable',
-		findBlogPostTag: 'findBlogPostTag',
-		findBlogPostFrontDetailsRelatedPosts: 'findBlogPostFrontDetailsRelatedPosts',
-		findBlogPostSlug: 'findBlogPostSlug',
-		addSlugToBlogPost: 'addSlugToBlogPost',
-		removeSeededBlogPosts: 'removeSeededBlogPosts',
-		setBlogPostCurrentSlug: 'setBlogPostCurrentSlug',
-		// updateBlogPostAuthorPointers: 'updateBlogPostAuthorPointers',
-	},
-	fileManager: {
-		// Files
-		findAppFile: 'findAppFile',
-		createAppFileFolder: 'createAppFileFolder',
+	staff: {
+		staffMember: {
+			create: 'createStaffMember',
+		},
+		tenant: {
+			create: 'createTenant',
+		},
 	},
 } as const;
 
@@ -262,7 +328,6 @@ export const endPoint = {
 	api: {
 		root: makePath(API_ROOT),
 		auth: {
-			// root: makePath(apiPath, ROOTS.AUTH),
 			passwordLogin: makePath(API_ROOT, ROOTS.AUTH, 'password-login'),
 			passwordSignup: makePath(API_ROOT, ROOTS.AUTH, 'password-signup'),
 			verifyEmail: makePath(API_ROOT, ROOTS.AUTH, 'verify-email'),
@@ -282,18 +347,21 @@ export const DEFAULT_PAGE_SIZE = 25;
 
 export const isServer = typeof window === 'undefined';
 
+export const isBun = typeof Bun !== 'undefined';
+
 export const fileProvider = {
 	LOCAL_DISK: 'localDisk',
 	CLOUDINARY: 'cloudinary',
+	CLOUDFLARE: 'cloudflare',
 } as const;
 
 export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
 export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';
 export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
-export const DEVIST_REST_API_HEADER_KEY = 'X-Devist-Key';
 
-export const APP_ID = 'pdf_vite_app';
-export const APP_NAME = 'PDF Vite';
+export const PARSE_CONTEXT_HEADER_KEY = 'X-Parse-Context';
+
+export const REST_API_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Key`;
 
 export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}:session_token`;
 export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}:last_used_tenant`;
@@ -302,9 +370,28 @@ export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
 export const queryParamKey = {
 	language: 'lng',
-};
+	token: 'token',
+	login_page: {
+		redirect_cause: 'rc',
+	},
+} as const;
+
+export const queryParamValue = {
+	login_page: {
+		redirect_cause: {
+			email_verification: 'email_verification',
+		},
+	},
+} as const;
 
 export const jobType = {
 	CONVERT_HTML_TO_PDF: 'CONVERT_HTML_TO_PDF',
 	// Later we may add other jobs, like deleting unused pdf from storage and from DB for example
+} as const;
+
+export const DEFAULT_MAX_USER_PER_TENANT = 5;
+
+export const X_CODE = {
+	INVALID_TOKEN: 'INVALID_TOKEN',
+	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
 } as const;

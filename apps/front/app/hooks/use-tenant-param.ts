@@ -7,8 +7,12 @@ import { getLastPath, makePath } from '@/shared/utils/string.utils';
 
 export const useTenantParam = () => {
 	const location = useLocation();
-	const isStaffRoute = location.pathname.startsWith(makePath(getLastPath(FRONT_PATH_NAMES.staff.root)));
-	const isTenantRoute = location.pathname.startsWith(makePath(getLastPath(FRONT_PATH_NAMES.tenant().root)));
+	const isStaffRoute = location.pathname.startsWith(
+		makePath(getLastPath(FRONT_PATH_NAMES.staff.root)),
+	);
+	const isTenantRoute = location.pathname.startsWith(
+		makePath(getLastPath(FRONT_PATH_NAMES.tenant().root)),
+	);
 	const params = useParams();
 
 	let tenantId = '';

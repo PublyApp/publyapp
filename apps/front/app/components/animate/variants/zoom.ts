@@ -4,7 +4,17 @@ import { transitionEnter, transitionExit } from './transition';
 
 // ----------------------------------------------------------------------
 
-type Direction = 'in' | 'inUp' | 'inDown' | 'inLeft' | 'inRight' | 'out' | 'outUp' | 'outDown' | 'outLeft' | 'outRight';
+type Direction =
+	| 'in'
+	| 'inUp'
+	| 'inDown'
+	| 'inLeft'
+	| 'inRight'
+	| 'out'
+	| 'outUp'
+	| 'outDown'
+	| 'outLeft'
+	| 'outRight';
 
 type Options = {
 	distance?: number;
@@ -18,10 +28,14 @@ export const varZoom = (direction: Direction, options?: Options): Variants => {
 	const transitionOut = options?.transitionOut;
 
 	const variants = {
-		/**** In ****/
+		/** ** In *** */
 		in: {
 			initial: { scale: 0, opacity: 0 },
-			animate: { scale: 1, opacity: 1, transition: transitionEnter(transitionIn) },
+			animate: {
+				scale: 1,
+				opacity: 1,
+				transition: transitionEnter(transitionIn),
+			},
 			exit: { scale: 0, opacity: 0, transition: transitionExit(transitionOut) },
 		},
 		inUp: {
@@ -88,10 +102,14 @@ export const varZoom = (direction: Direction, options?: Options): Variants => {
 				transition: transitionExit(transitionOut),
 			},
 		},
-		/**** Out ****/
+		/** ** Out *** */
 		out: {
 			initial: { scale: 1, opacity: 1 },
-			animate: { scale: 0, opacity: 0, transition: transitionEnter(transitionIn) },
+			animate: {
+				scale: 0,
+				opacity: 0,
+				transition: transitionEnter(transitionIn),
+			},
 		},
 		outUp: {
 			initial: { scale: 1, opacity: 1 },

@@ -3,10 +3,14 @@ import { useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import { mergeClasses } from 'minimal-shared/utils';
-import { Logo } from 'src/components/logo';
-import { NavSectionVertical, type NavSectionProps } from 'src/components/nav-section';
-import { Scrollbar } from 'src/components/scrollbar';
-import { usePathname } from 'src/routes/hooks';
+
+import { Logo } from '@/front/components/logo';
+import {
+	NavSectionVertical,
+	type NavSectionProps,
+} from '@/front/components/nav-section';
+import { Scrollbar } from '@/front/components/scrollbar';
+import { usePathname } from '@/front/hooks/use-pathname';
 
 import { NavUpgrade } from '../components/nav-upgrade';
 import { layoutClasses } from '../core/classes';
@@ -22,14 +26,23 @@ type NavMobileProps = NavSectionProps & {
 	};
 };
 
-export function NavMobile({ sx, data, open, slots, onClose, className, checkPermissions, ...other }: NavMobileProps) {
+export const NavMobile = ({
+	sx,
+	data,
+	open,
+	slots,
+	onClose,
+	className,
+	checkPermissions,
+	...other
+}: NavMobileProps) => {
 	const pathname = usePathname();
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: code from template leave as is for now
 	useEffect(() => {
 		if (open) {
 			onClose();
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pathname]);
 
 	return (
@@ -38,7 +51,11 @@ export function NavMobile({ sx, data, open, slots, onClose, className, checkPerm
 			onClose={onClose}
 			slotProps={{
 				paper: {
-					className: mergeClasses([layoutClasses.nav.root, layoutClasses.nav.vertical, className]),
+					className: mergeClasses([
+						layoutClasses.nav.root,
+						layoutClasses.nav.vertical,
+						className,
+					]),
 					sx: [
 						{
 							overflow: 'unset',
@@ -69,4 +86,4 @@ export function NavMobile({ sx, data, open, slots, onClose, className, checkPerm
 			{slots?.bottomArea}
 		</Drawer>
 	);
-}
+};

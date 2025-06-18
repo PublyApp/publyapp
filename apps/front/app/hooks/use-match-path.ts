@@ -14,9 +14,13 @@ const useMatchPath = () => {
 
 	const matchPath = useCallback(
 		(path: string, deep = true): ReturnType => {
-			const normalActive = path ? !!routerMatchPath({ path, end: true }, pathname) : false;
+			const normalActive = path
+				? !!routerMatchPath({ path, end: true }, pathname)
+				: false;
 
-			const deepActive = path ? !!routerMatchPath({ path, end: false }, pathname) : false;
+			const deepActive = path
+				? !!routerMatchPath({ path, end: false }, pathname)
+				: false;
 
 			return {
 				active: deep ? deepActive : normalActive,

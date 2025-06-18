@@ -1,6 +1,4 @@
-import { parseTriggerEnhanced } from '@/server/lib/parse/function.utils';
-
-// import ParseUserProfile from '../userProfile/userProfile.class';
+import { parseTriggerEnhanced } from '@/server/lib/parse/cloud/trigger';
 
 // --------------------------------------------------------------------------------------//
 //                                     BEFORE SAVE                                       //
@@ -8,7 +6,7 @@ import { parseTriggerEnhanced } from '@/server/lib/parse/function.utils';
 
 const beforeSaveRole = parseTriggerEnhanced<Parse.Role>({
 	trigger: async () => {
-		// req.log.info('beforeSaveRole', req);
+		// ====
 	},
 });
 
@@ -18,7 +16,7 @@ const beforeSaveRole = parseTriggerEnhanced<Parse.Role>({
 
 const afterSaveRole = parseTriggerEnhanced<Parse.Role>({
 	trigger: async () => {
-		// req.log.info('afterSaveRole', req);
+		// ====
 	},
 });
 

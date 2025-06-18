@@ -7,34 +7,14 @@
 		{
 			"type": "node",
 			"request": "attach",
-			"name": "Attach by Process ID",
+			"name": "Attach by Process ID (Node)",
 			// "cwd": "${workspaceFolder}/apps/server",
 			"processId": "${command:PickProcess}",
 			"internalConsoleOptions": "neverOpen",
 			// "outFiles": ["dist/**/*.js"],
 			"sourceMaps": true,
 			"smartStep": true,
-			"skipFiles": ["<node_internals>/**"],
-		},
-
-    // {
-    //   "type": "node",
-    //   "request": "launch",
-    //   "name": "Launch Server",
-		// 	"cwd": "${workspaceFolder}/apps/server",
-		// 	"program": "src/index.ts",
-    //   // "program": "dist/index.js",
-    //   "outFiles": ["dist/**/*.js"],
-		// 	"preLaunchTask": "npm: build:local - apps/server",
-		// 	"sourceMaps": true,
-		// 	"smartStep": true,
-		// 	"internalConsoleOptions": "openOnSessionStart",
-		// 	"runtimeArgs": ["-r", "esbuild-register"],
-		// 	// "runtimeArgs": ["-r", "ts-node/register", "-r", "tsconfig-paths/register"],
-		// 	// "runtimeArgs": ["--enable-source-maps"]
-		// 	"skipFiles": [
-		// 		"<node_internals>/**"
-		// 	],
-		// },
+			"skipFiles": ["<node_internals>/**"]
+		}
 	]
 }

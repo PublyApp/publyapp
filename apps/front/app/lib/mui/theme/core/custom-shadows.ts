@@ -2,7 +2,16 @@ import { varAlpha } from 'minimal-shared/utils';
 
 import type { ThemeColorScheme } from '../types';
 
-import { common, error, grey, info, primary, secondary, success, warning } from './palette';
+import {
+	common,
+	error,
+	grey,
+	info,
+	primary,
+	secondary,
+	success,
+	warning,
+} from './palette';
 
 // ----------------------------------------------------------------------
 
@@ -28,15 +37,17 @@ export interface CustomShadows {
 	card?: string;
 	dialog?: string;
 	dropdown?: string;
+
+	cardErrorOutline?: string;
 }
 
 // ----------------------------------------------------------------------
 
-export function createShadowColor(colorChannel: string): string {
+export const createShadowColor = (colorChannel: string): string => {
 	return `0 8px 16px 0 ${varAlpha(colorChannel, 0.24)}`;
-}
+};
 
-function createCustomShadows(colorChannel: string): CustomShadows {
+const createCustomShadows = (colorChannel: string): CustomShadows => {
 	return {
 		z1: `0 1px 2px 0 ${varAlpha(colorChannel, 0.16)}`,
 		z4: `0 4px 8px 0 ${varAlpha(colorChannel, 0.16)}`,
@@ -45,21 +56,26 @@ function createCustomShadows(colorChannel: string): CustomShadows {
 		z16: `0 16px 32px -4px ${varAlpha(colorChannel, 0.16)}`,
 		z20: `0 20px 40px -4px ${varAlpha(colorChannel, 0.16)}`,
 		z24: `0 24px 48px 0 ${varAlpha(colorChannel, 0.16)}`,
-		/********/
+		/** ***** */
 		dialog: `-40px 40px 80px -8px ${varAlpha(common.blackChannel, 0.24)}`,
 		card: `0 0 2px 0 ${varAlpha(colorChannel, 0.2)}, 0 12px 24px -4px ${varAlpha(colorChannel, 0.12)}`,
+		// cardErrorOutline: `0 0 0 2px ${varAlpha(error.mainChannel, 0.24)}`,
 		dropdown: `0 0 2px 0 ${varAlpha(colorChannel, 0.24)}, -20px 20px 40px -4px ${varAlpha(colorChannel, 0.24)}`,
-		/********/
+		/** ***** */
 		primary: createShadowColor(primary.mainChannel),
 		secondary: createShadowColor(secondary.mainChannel),
 		info: createShadowColor(info.mainChannel),
 		success: createShadowColor(success.mainChannel),
 		warning: createShadowColor(warning.mainChannel),
 		error: createShadowColor(error.mainChannel),
+		// ====
+		// the first shadow is the outline
+		cardErrorOutline: `0 0 0 1px ${varAlpha(error.mainChannel, 0.4)}, 0 0 2px 0 ${varAlpha(error.mainChannel, 0.2)}, 0 12px 24px -4px ${varAlpha(error.mainChannel, 0.12)}`,
 	};
-}
+};
 
 export const customShadows: Record<ThemeColorScheme, CustomShadows> = {
 	light: createCustomShadows(grey['500Channel']),
 	dark: createCustomShadows(common.blackChannel),
+	// ====
 };

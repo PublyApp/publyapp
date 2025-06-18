@@ -1,32 +1,29 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useRef, useState } from 'react';
 
-import Avatar, { avatarClasses } from '@mui/material/Avatar';
-import AvatarGroup from '@mui/material/AvatarGroup';
 import Box, { type BoxProps } from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
-import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
-import type { Breakpoint } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
+import type { Breakpoint } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import {
+	type MotionProps,
+	type MotionValue,
+	type SpringOptions,
 	m,
 	useMotionValueEvent,
 	useScroll,
 	useSpring,
 	useTransform,
-	type MotionProps,
-	type MotionValue,
-	type SpringOptions,
 } from 'framer-motion';
-import { nanoid } from 'nanoid';
 
 import { MotionContainer, varFade } from '@/front/components/animate';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
+import { useTranslate } from '@/front/hooks/use-translate';
 
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { HeroBackground } from '../components/hero-background';
 
 // ----------------------------------------------------------------------
@@ -40,6 +37,7 @@ const motionProps: MotionProps = {
 };
 
 export const HomeHero = ({ sx, ...other }: BoxProps) => {
+	const { t } = useTranslate();
 	const scrollProgress = useScrollPercent();
 
 	const mdUp = useMediaQuery((theme) => {
@@ -50,9 +48,9 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 
 	const y1 = useTransformY(scrollProgress.scrollY, distance * -7);
 	const y2 = useTransformY(scrollProgress.scrollY, distance * -6);
-	const y3 = useTransformY(scrollProgress.scrollY, distance * -5);
+	// const y3 = useTransformY(scrollProgress.scrollY, distance * -5);
 	const y4 = useTransformY(scrollProgress.scrollY, distance * -4);
-	const y5 = useTransformY(scrollProgress.scrollY, distance * -3);
+	// const y5 = useTransformY(scrollProgress.scrollY, distance * -3);
 
 	const opacity: MotionValue<number> = useTransform(
 		scrollProgress.scrollY,
@@ -70,32 +68,41 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 							return {
 								my: 0,
 								mx: 'auto',
-								maxWidth: 680,
+								maxWidth: 800,
 								display: 'flex',
 								flexWrap: 'wrap',
 								typography: 'h2',
 								justifyContent: 'center',
 								fontFamily: theme.typography.fontSecondaryFamily,
 								[theme.breakpoints.up(lgKey)]: {
-									fontSize: theme.typography.pxToRem(72),
-									lineHeight: '90px',
+									fontSize: theme.typography.pxToRem(72 + 10),
+									lineHeight: '100px',
 								},
 							};
 						},
 					]}
 				>
-					<Box component="span" sx={{ width: 1, opacity: 0.24 }}>
-						Boost your building
+					<Box component="span" sx={{ width: 1, whiteSpace: 'nowrap' }}>
+						PDF Generation
 					</Box>
-					<Box>
-						process with
+					<Box
+						component="span"
+						sx={{
+							display: 'flex',
+							alignItems: 'center',
+							gap: 3,
+							whiteSpace: 'nowrap',
+							flexWrap: 'nowrap',
+						}}
+					>
+						<Box sx={{ opacity: 0.24 }}>for the</Box>
 						<Box
 							component={m.span}
 							animate={{ backgroundPosition: '200% center' }}
 							transition={{
 								duration: 20,
 								ease: 'linear',
-								repeat: Infinity,
+								repeat: Number.POSITIVE_INFINITY,
 								repeatType: 'reverse',
 							}}
 							sx={[
@@ -105,12 +112,14 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 											`300deg, ${theme.vars.palette.primary.main} 0%, ${theme.vars.palette.warning.main} 25%, ${theme.vars.palette.primary.main} 50%, ${theme.vars.palette.warning.main} 75%, ${theme.vars.palette.primary.main} 100%`,
 										),
 										backgroundSize: '400%',
-										ml: { xs: 0.75, md: 1, xl: 1.5 },
 									};
+								},
+								{
+									whiteSpace: 'nowrap',
 								},
 							]}
 						>
-							Minimal
+							Modern Web.
 						</Box>
 					</Box>
 				</Box>
@@ -128,48 +137,51 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 							return {
 								mx: 'auto',
 								[theme.breakpoints.up(smKey)]: { whiteSpace: 'pre' },
-								[theme.breakpoints.up(lgKey)]: { fontSize: 20, lineHeight: '36px' },
+								[theme.breakpoints.up(lgKey)]: {
+									fontSize: 20,
+									lineHeight: '36px',
+								},
 							};
 						},
 					]}
 				>
-					{
-						'The starting point for your next project is based on MUI. \nEasy customization helps you build apps faster and better.'
-					}
+					Blazing-fast HTML to PDF conversion — pixel-perfect, developer-first.
 				</Typography>
 			</m.div>
 		);
 	};
 
-	const renderRatings = () => {
-		return (
-			<m.div {...motionProps}>
-				<Box
-					sx={{
-						gap: 1.5,
-						display: 'flex',
-						flexWrap: 'wrap',
-						alignItems: 'center',
-						typography: 'subtitle2',
-						justifyContent: 'center',
-					}}
-				>
-					<AvatarGroup sx={{ [`& .${avatarClasses.root}`]: { width: 32, height: 32 } }}>
-						{Array.from({ length: 3 }, (_, _index) => {
-							return (
-								<Avatar
-									key={/* _mock.fullName(index + 1) */ nanoid()}
-									alt={/* _mock.fullName(index + 1) */ '#'}
-									src={/* _mock.image.avatar(index + 1) */ '#'}
-								/>
-							);
-						})}
-					</AvatarGroup>
-					160+ Happy customers
-				</Box>
-			</m.div>
-		);
-	};
+	// const renderRatings = () => {
+	// 	return (
+	// 		<m.div {...motionProps}>
+	// 			<Box
+	// 				sx={{
+	// 					gap: 1.5,
+	// 					display: 'flex',
+	// 					flexWrap: 'wrap',
+	// 					alignItems: 'center',
+	// 					typography: 'subtitle2',
+	// 					justifyContent: 'center',
+	// 				}}
+	// 			>
+	// 				<AvatarGroup
+	// 					sx={{ [`& .${avatarClasses.root}`]: { width: 32, height: 32 } }}
+	// 				>
+	// 					{Array.from({ length: 3 }, (_, _index) => {
+	// 						return (
+	// 							<Avatar
+	// 								key={/* _mock.fullName(index + 1) */ nanoid()}
+	// 								alt={/* _mock.fullName(index + 1) */ '#'}
+	// 								src={/* _mock.image.avatar(index + 1) */ '#'}
+	// 							/>
+	// 						);
+	// 					})}
+	// 				</AvatarGroup>
+	// 				160+ Happy customers
+	// 			</Box>
+	// 		</m.div>
+	// 	);
+	// };
 
 	const renderButtons = () => {
 		return (
@@ -185,46 +197,16 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 					<Stack spacing={2.5} sx={{ alignItems: 'center' }}>
 						<Button
 							component={RouterLink}
-							href={/* paths.dashboard.root */ '#'}
+							href={FRONT_PATH_NAMES.auth.signup}
 							color="inherit"
 							size="large"
 							variant="contained"
-							startIcon={<Iconify width={24} icon="custom:flash-outline" />}
+							startIcon={
+								<Iconify width={24} icon={'solar:user-plus-outline' as never} />
+							}
 						>
-							<span>
-								Live preview
-								<Box
-									component="small"
-									sx={[
-										(theme) => {
-											return {
-												mt: '-3px',
-												opacity: 0.64,
-												display: 'flex',
-												fontSize: theme.typography.pxToRem(10),
-												fontWeight: theme.typography.fontWeightMedium,
-											};
-										},
-									]}
-								>
-									v0{/* {CONFIG.appVersion} */}
-								</Box>
-							</span>
+							<span>{t('sign-up')}</span>
 						</Button>
-
-						{/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
-						<Link
-							color="inherit"
-							variant="body2"
-							target="_blank"
-							rel="noopener"
-							href={/* paths.freeUI */ '#'}
-							underline="always"
-							sx={{ gap: 0.75, alignItems: 'center', display: 'inline-flex' }}
-						>
-							<Iconify width={16} icon="eva:external-link-fill" />
-							Get free version
-						</Link>
 					</Stack>
 				</m.div>
 
@@ -235,55 +217,54 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 						variant="outlined"
 						target="_blank"
 						rel="noopener"
-						href={/* paths.figmaUrl */ '#'}
-						startIcon={<Iconify width={24} icon="solar:figma-outline" />}
+						href={FRONT_PATH_NAMES.auth.login}
+						startIcon={<Iconify width={38} icon="solar:user-id-bold" />}
 						sx={{ borderColor: 'text.primary' }}
 					>
-						Figma preview
+						{t('sign-in')}
 					</Button>
 				</m.div>
 			</Box>
 		);
 	};
 
-	const renderIcons = () => {
-		return (
-			<Stack spacing={3} sx={{ textAlign: 'center' }}>
-				<m.div {...motionProps}>
-					<Typography variant="overline" sx={{ opacity: 0.4 }}>
-						Available For
-					</Typography>
-				</m.div>
+	// const renderIcons = () => {
+	// 	return (
+	// 		<Stack spacing={3} sx={{ textAlign: 'center' }}>
+	// 			<m.div {...motionProps}>
+	// 				<Typography variant="overline" sx={{ opacity: 0.4 }}>
+	// 					Available For
+	// 				</Typography>
+	// 			</m.div>
 
-				<Box sx={{ gap: 2.5, display: 'flex' }}>
-					{['js', 'ts', 'nextjs', 'vite', 'figma'].map((platform) => {
-						// eslint-disable-next-line no-useless-concat
-						const src = `/assets/icons/platforms/ic-${platform}` + '.svg';
-						return (
-							<m.div {...motionProps} key={platform}>
-								<Box
-									component="img"
-									alt={platform}
-									src={src}
-									sx={[
-										(theme) => {
-											return {
-												width: 24,
-												height: 24,
-												...theme.applyStyles('dark', {
-													...(platform === 'nextjs' && { filter: 'invert(1)' }),
-												}),
-											};
-										},
-									]}
-								/>
-							</m.div>
-						);
-					})}
-				</Box>
-			</Stack>
-		);
-	};
+	// 			<Box sx={{ gap: 2.5, display: 'flex' }}>
+	// 				{['js', 'ts', 'nextjs', 'vite', 'figma'].map((platform) => {
+	// 					const src = `/assets/icons/platforms/ic-${platform}.svg`;
+	// 					return (
+	// 						<m.div {...motionProps} key={platform}>
+	// 							<Box
+	// 								component="img"
+	// 								alt={platform}
+	// 								src={src}
+	// 								sx={[
+	// 									(theme) => {
+	// 										return {
+	// 											width: 24,
+	// 											height: 24,
+	// 											...theme.applyStyles('dark', {
+	// 												...(platform === 'nextjs' && { filter: 'invert(1)' }),
+	// 											}),
+	// 										};
+	// 									},
+	// 								]}
+	// 							/>
+	// 						</m.div>
+	// 					);
+	// 				})}
+	// 			</Box>
+	// 		</Stack>
+	// 	);
+	// };
 
 	return (
 		<Box
@@ -353,9 +334,9 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 						<m.div style={{ y: y2 }}>{renderText()}</m.div>
 					</Stack>
 
-					<m.div style={{ y: y3 }}>{renderRatings()}</m.div>
+					{/* <m.div style={{ y: y3 }}>{renderRatings()}</m.div> */}
 					<m.div style={{ y: y4 }}>{renderButtons()}</m.div>
-					<m.div style={{ y: y5 }}>{renderIcons()}</m.div>
+					{/* <m.div style={{ y: y5 }}>{renderIcons()}</m.div>  */}
 				</Container>
 
 				<HeroBackground />

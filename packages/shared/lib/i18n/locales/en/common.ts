@@ -1,3 +1,5 @@
+// ====
+
 const commonEN = {
 	hello: 'Hello',
 	userHasNoEmail: 'User has no email',
@@ -9,19 +11,27 @@ const commonEN = {
 	field: 'Field',
 	file: 'File',
 	locale: 'Locale',
-	name: 'name',
+	name: 'Name',
 	post: 'Post',
 	role: 'Role',
 	title: 'Title',
 	translation: 'Translation',
 	user: 'User',
+	users: 'Users',
 	number: 'Number',
+	tenant: 'Tenant',
+	tenants: 'Tenants',
+	status: 'Status',
+	link: 'Link',
+	logo: 'Logo',
 
 	// ? ...
 	views: 'Views',
 	'created-at': 'Created at',
-	published: 'Published',
+	'edit-post': 'Edit post',
 	draft: 'Draft',
+	edit: 'Edit',
+	published: 'Published',
 	'invalid-number': 'Invalid number',
 	new: 'New',
 	'your-description': 'Your description',
@@ -31,22 +41,36 @@ const commonEN = {
 	'update-date': 'Update Date',
 	save: 'Save',
 	preview: 'Preview',
-	'edit-post': 'Edit post',
-	edit: 'Edit',
 	list: 'List',
 	settings: 'Settings',
+	overview: 'Overview',
+	'staff-member': 'Staff member',
+	'staff-members': 'Staff members',
 
 	// ???
 	'item-is-required': '{{item}} is required',
 	'item-not-found': '{{item}} not found',
 	'item-is-invalid': '{{item}} is invalid',
+	'invalid-item': 'Invalid {{item}}',
 	'new-item': 'New {{item}}',
 	'item-is-not-instance-of-type': '{{item}} is not instance of {{type}}',
 	'item-not-translated-short': '{{item}} not translated',
-	'item-not-translated': 'This {{item}} is not yet translated in the current language',
-	'find-otherLanguage-version-of-item': 'Find the {{otherLanguage}} version of this {{item}}',
+	'item-not-translated':
+		'This {{item}} is not yet translated in the current language',
+	'find-otherLanguage-version-of-item':
+		'Find the {{otherLanguage}} version of this {{item}}',
 	here: 'Here',
 	'down-here': 'Down here',
+	'unknown-item': 'Unknown {{item}}',
+	'pricing-plan': 'Pricing plan',
+	'auth-welcome-title': 'Welcome back',
+	cancel: 'Cancel',
+	confirm: 'Confirm',
+	'item-creation-success-message': '{{item}} created successfully',
+	'cannot-create-tenant-with-staff-members':
+		'Cannot create tenant with staff members',
+	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT:
+		'The following emails are owned by staff-members; they are not allowed to be assigned to any tenant: {{emails}}',
 
 	// very specific sentences
 	'unknown-error': 'Unknown error',
@@ -66,6 +90,7 @@ const commonEN = {
 
 	'sign-in': 'Sign in',
 	'sign-up': 'Sign up',
+	'no-account-yet': 'No account yet?',
 	'create-an-account': 'Create an account',
 	'email-address': 'Email address',
 	password: 'Password',
@@ -82,28 +107,74 @@ const commonEN = {
 	'master-key-only-function': 'Master Key only function',
 	'max-page-size-exceeded': 'Max page size of {{max}} exceeded',
 
-	'blog-list-meta-title': 'Discover Our Latest Articles | Devist Blog',
-	'blog-list-og-title': 'Discover Our Latest Articles',
-	'blog-list-meta-description':
-		'Explore our latest blog posts for insightful articles, tips, and stories. Stay updated with our blog.',
-
-	'blog-post-meta-title': '{{title}} | Devist blog',
-	// 'blog-post-og-title': '{{title}}',
-	// 'blog-post-meta-description':
-	// 	'{{description}}',
-
 	'new-signup-disabled': 'New signup are disabled',
 	'set-as-current': 'Set as current',
 	'slug-linked-to-another-post': 'Slug to another article',
 
 	'list-of-items': 'List of {{items}}',
 	unauthorized: 'Unauthorized',
+	'too-many-invalid-requests': 'Too many invalid requests',
+
+	firstname: 'Firstname',
+	lastname: 'Name',
+	'save-item-confirmation-title': 'Save {{item}}?',
+	'save-item-confirmation-message':
+		'{{item}} will be saved with the following informations. Please confirm.',
+
+	'invalid-email-verification-link-description':
+		'The verification link you issued is invalid or expired.',
+
+	'workspace-name': 'Workspace name',
+	'create-the-tenant': 'Create the tenant',
+	'add-a-user': 'Add a user',
+	'max-users': 'Maximum users number',
+	'tenant-should-have-at-least-one-admin':
+		'A tenant should have at least one admin',
+	'each-user-must-have-a-unique-email':
+		'Each user must have a unique email address.',
+	'initial-users': 'Initial users',
+	'max-users-reached': 'Maximum users number reached',
+	'initial-users-must-be-a-valid-json-string':
+		'Initial users must be a valid JSON string',
+
+	'signup-title': 'Sign up',
+	'signup-are-disabled': 'Sign up are disabled for now',
+	'create-account': 'Create account',
+	'already-have-account-question': 'Already have an account?',
+
+	'Error while uploading file': 'Error while uploading file',
+	'Internal server error': 'Internal server error',
 
 	// messages from parse
 	'User email is not verified.': 'User email is not verified.',
 	'Session token is expired.': 'Session token is expired.',
 	'Invalid username/password.': 'Invalid username/password.',
 	'Invalid session token': 'Invalid session token',
+	'Invalid token': 'Invalid token',
+	'Token expired': 'Token expired',
+	'Invalid object for context.': 'Invalid object for context.',
+	'Context is not an object': 'Context is not an object',
+
+	// sign up terms
+	'terms-of-service': 'Terms of service',
+	'privacy-policy': 'Privacy policy',
+	'by-signing-up-agree': 'By signing up, I agree to',
+	and: 'and',
+
+	// Add these keys in the commonEN object
+	'verify-email': 'Verify Email',
+	'verify-email-description-1': "Enter your account's email you need to verify",
+	'verify-email-description-2':
+		'To verify that this link belongs to you, enter the email you received this link with',
+
+	// Add these keys in the commonEN object
+	'verify-email-request-sent': 'Verification Email Sent',
+	'verify-email-request-sent-description-part1': 'If the email address ',
+	'verify-email-request-sent-description-part2':
+		' is valid, you will receive an email with a link to verify your account',
+
+	'email-verification-success': 'Email verification successful',
+	'request-new-verification-link': 'Request a new verification link',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

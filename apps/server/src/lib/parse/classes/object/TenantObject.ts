@@ -2,8 +2,14 @@ import type { Attributes } from 'parse';
 
 import { className as appClassName } from '@/shared/lib/constants';
 
-export default class TenantObject<T extends Attributes = Attributes> extends Parse.Object<T> {
-	constructor(props: { className: string; tenantId: string; attributes?: DeepPartial<T> }) {
+export default class TenantObject<
+	T extends Attributes = Attributes,
+> extends Parse.Object<T> {
+	constructor(props: {
+		className: string;
+		tenantId: string;
+		attributes?: DeepPartial<T>;
+	}) {
 		const { className, tenantId, attributes } = props;
 		super(className, attributes as never);
 		const tenant = new Parse.Object(appClassName.TENANT);

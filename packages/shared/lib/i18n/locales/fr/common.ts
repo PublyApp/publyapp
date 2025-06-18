@@ -16,39 +16,61 @@ const commonFR = {
 	role: 'Rôle',
 	title: 'Titre',
 	translation: 'Traduction',
+	users: 'Utilisateurs',
 	user: 'Utilisateur',
 	number: 'Nombre',
+	tenant: 'Tenant',
+	tenants: 'Tenants',
+	status: 'Statut',
+	logo: 'Logo',
 
 	// ? ...
+	views: 'Vues',
 	'created-at': 'Créé le',
 	draft: 'Brouillon',
-	'edit-post': "Éditer l'article",
 	edit: 'Éditer',
+	'edit-post': "Éditer l'article",
+	published: 'Publié',
 	'invalid-number': 'Nombre invalide',
 	new: 'Nouveau',
 	preview: 'Aperçu',
 	'publish-date': 'Date de publication',
-	published: 'Publié',
 	save: 'Sauvegarder',
 	'update-date': 'Date de mise à jour',
-	views: 'Vues',
 	'your-description': 'Votre description',
 	'your-title': 'Votre titre',
 	'your-content': 'Votre contenu',
 	list: 'Liste',
 	settings: 'Paramètres',
+	overview: 'Aperçu',
+	'staff-member': 'Membre du staff',
+	'staff-members': 'Membres du staff',
+	link: 'Lien',
 
 	// ???
 	'item-is-required': '{{item}} est obligatoire',
-	'item-not-found': '{{item}} non trouvé',
+	'item-not-found': '{{item}} introuvable',
 	'item-is-invalid': '{{item}} est invalide',
+	'invalid-item': '{{item}} invalide',
 	'new-item': 'Nouveau {{item}}',
 	'item-is-not-instance-of-type': "{{item}} n'est pas une instance de {{type}}",
 	'item-not-translated-short': '{{item}} non traduit',
-	'item-not-translated': "Cet {{item}} n'est pas encore traduit dans le language actuel",
-	'find-otherLanguage-version-of-item': 'Retrouvez la version {{otherLanguage}} de ce {{item}}',
+	'item-not-translated':
+		"Cet {{item}} n'est pas encore traduit dans le language actuel",
+	'find-otherLanguage-version-of-item':
+		'Retrouvez la version {{otherLanguage}} de ce {{item}}',
 	here: 'Ici',
 	'down-here': 'Ici bas',
+	'unknown-item': '{{item}} inconnu',
+	'pricing-plan': 'Plan tarifaire',
+	'auth-welcome-title': 'Re-bienvenu(e)',
+	cancel: 'Annuler',
+	confirm: 'Confirmer',
+	'item-creation-success-message': '{{item}} créé avec succès',
+	'cannot-create-tenant-with-staff-members':
+		'Impossible de créer un tenant avec des membres du staff',
+	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT:
+		'Les e-mails suivants appartiennent à des membres du staff; ils ne peuvent être attribués à aucun tenant: {{emails}}',
 
 	// very specific sentences
 	'unknown-error': 'Erreur inconnue',
@@ -67,6 +89,7 @@ const commonFR = {
 	'other-posts': 'Autres articles',
 
 	'sign-in': 'Se connecter',
+	'no-account-yet': 'Pas encore de compte?',
 	'sign-up': "S'inscrire",
 	'create-an-account': 'Créer un compte',
 	'email-address': 'Adresse email',
@@ -84,25 +107,75 @@ const commonFR = {
 	'master-key-only-function': 'Fonction master key uniquement',
 	'max-page-size-exceeded': 'Taille de page maximum de {{max}} excédée',
 
-	'blog-list-meta-title': 'Découvrez nos derniers articles | Devist Blog',
-	'blog-list-og-title': 'Découvrez nos derniers articles',
-	'blog-list-meta-description':
-		'Explorez nos derniers articles de blog pour des articles, des conseils et des histoires perspicaces. Restez à jour avec notre blog.',
-
-	'blog-post-meta-title': '{{title}} | Devist blog',
-
 	'new-signup-disabled': 'Les nouvelles inscriptions sont désactivées',
 	'set-as-current': 'Définir comme actuel',
 	'slug-linked-to-another-post': 'Slug lié à un autre article',
 
 	'list-of-items': 'Liste des {{items}}',
 	unauthorized: 'Non autorisé',
+	'too-many-invalid-requests': 'Trop de requêtes invalides',
+
+	firstname: 'Prénom',
+	lastname: 'Nom',
+	'save-item-confirmation-title': 'Sauvegarder {{item}}?',
+	'save-item-confirmation-message':
+		'{{item}} sera sauvegardé avec les informations suivantes. Veuillez Confirmer.',
+
+	'invalid-email-verification-link-description':
+		'Le lien de vérification que vous avez fourni est invalide ou expiré.',
+
+	'workspace-name': 'Nom du workspace',
+	'create-the-tenant': 'Créer le tenant',
+	'add-a-user': 'Ajouter un utilisateur',
+	'max-users': "Nombre maximum d'utilisateurs",
+	'tenant-should-have-at-least-one-admin':
+		'Un tenant doit avoir au moins un admin',
+	'each-user-must-have-a-unique-email':
+		'Chaque utilisateur doit avoir une adresse email unique.',
+	'initial-users': 'Utilisateurs initiaux',
+	'max-users-reached': "Nombre maximum d'utilisateurs atteint",
+	'initial-users-must-be-a-valid-json-string':
+		'Les utilisateurs initiaux doivent être une chaîne JSON valide',
+
+	'signup-title': "S'enregistrer",
+	'signup-are-disabled': 'Les nouveaux enregistrements sont désactivés',
+	'create-account': 'Créer un compte',
+	'already-have-account-question': 'Vous vez déjà un compte?',
+
+	'Error while uploading file': 'Error while uploading file',
+	'Internal server error': 'Erreur interne du serveur',
 
 	// messages from parse
 	'User email is not verified.': "L'e-mail de l'utilisateur n'est pas vérifié.",
 	'Session token is expired.': 'Session token expiré.',
 	'Invalid username/password.': "Mot de passe/Nom d'utilisateur invalide",
 	'Invalid session token': 'Session token invalide',
+	'Invalid token': 'Token invalide',
+	'Token expired': 'Token expiré',
+	'Invalid object for context.': 'Objet invalide pour le contexte.',
+	'Context is not an object': "Context n'est pas un objet",
+
+	// sign up terms
+	'terms-of-service': "Conditions d'utilisation",
+	'privacy-policy': 'Politique de confidentialité',
+	'by-signing-up-agree': "En m'inscrivant, j'accepte les",
+	and: 'et',
+
+	// Add these keys in the commonFR object
+	'verify-email': 'Vérifier Email',
+	'verify-email-description-1':
+		"Entrez l'adresse email de votre compte que vous souhaitez vérifier",
+	'verify-email-description-2':
+		"pour vérifier que ce lien vous appartient, entrez l'e-mail avec lequel vous avez reçu ce lien",
+
+	// Add these keys in the commonFR object
+	'verify-email-request-sent': 'Email de Vérification Envoyé',
+	'verify-email-request-sent-description-part1': "Si l'adresse email ",
+	'verify-email-request-sent-description-part2':
+		' est valide, vous recevrez un email contenant un lien pour vérifier votre compte',
+
+	'email-verification-success': "Vérification d'email réussie",
+	'request-new-verification-link': 'Demander un nouveau lien de vérification',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

@@ -1,17 +1,19 @@
-import { type Schema } from 'parse-server';
-import MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
-
+import { logger } from '@/server/lib/winston';
+import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
+import { className as _className, isBun } from '@org/shared/lib/constants';
 import asyncJs from 'async';
 import _ from 'lodash';
-import { MongoServerError, type CreateIndexesOptions } from 'mongodb';
-
-import { className as _className } from '@org/shared/lib/constants';
-
-import { logger } from '@/server/lib/winston';
-import { tryCatchWrapper } from '@/shared/utils/tryCatch.utils';
-
+import { type CreateIndexesOptions, MongoServerError } from 'mongodb';
+import type { Schema } from 'parse-server';
+import _MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
 import { DEFAULT_CLP } from '../../constants';
 import { getDatabase } from '../parse.utils';
+
+let MongoSchemaCollection = _MongoSchemaCollection.default;
+
+if (isBun) {
+	MongoSchemaCollection = _MongoSchemaCollection as never;
+}
 
 export type ManagedIndex = {
 	keys: Record<string, 1 | -1>;
@@ -19,16 +21,17 @@ export type ManagedIndex = {
 };
 export type ManagedIndexes = Record<string, ManagedIndex>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type SchemaCustom<T extends Record<string, any> = Record<string, any>> = ReturnType<
-	typeof SchemaManager.defineSchema<T>
->;
+// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
+export type SchemaCustom<T extends Record<string, any> = Record<string, any>> =
+	ReturnType<typeof SchemaManager.defineSchema<T>>;
 
+// biome-ignore lint/complexity/noStaticOnlyClass: no
 export default class SchemaManager {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	static defineSchema<T extends Record<string, any> = Record<string, any>>(
 		className: string,
-		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> & Pick<Schema<T>, 'fields'> & { indexes?: ManagedIndexes },
+		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> &
+			Pick<Schema<T>, 'fields'> & { indexes?: ManagedIndexes },
 	) {
 		const fields = schema.fields || undefined;
 		const classLevelPermissions = schema.classLevelPermissions || DEFAULT_CLP;
@@ -42,10 +45,11 @@ export default class SchemaManager {
 		};
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 	static defineMultiTenantSchema<T extends Record<string, any>>(
 		className: string,
-		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> & Pick<Schema<T>, 'fields'> & { indexes?: ManagedIndexes },
+		schema: Partial<Omit<Schema<T>, 'fields' | 'indexes'>> &
+			Pick<Schema<T>, 'fields'> & { indexes?: ManagedIndexes },
 	) {
 		const schemaFields = schema.fields || {};
 		_.set(schemaFields, 'tenant', {
@@ -53,7 +57,7 @@ export default class SchemaManager {
 			required: true,
 			targetClass: _className.TENANT,
 		});
-		// eslint-disable-next-line no-param-reassign
+
 		schema.fields = schemaFields;
 
 		return SchemaManager.defineSchema(className, schema);
@@ -66,7 +70,9 @@ export default class SchemaManager {
 		await asyncJs.eachOfLimit(schemas, 10, async (schemaDefinition) => {
 			const wrappedFunction = tryCatchWrapper({
 				handler: async () => {
-					logger.info(`started to update schema '${schemaDefinition.className}'`);
+					logger.debug(
+						`started to update schema '${schemaDefinition.className}'`,
+					);
 
 					const inputSchemaObjectFields: Record<string, string> = {};
 
@@ -74,8 +80,12 @@ export default class SchemaManager {
 						_metadata: {
 							// class_permissions?: CPLsInterface;
 							// managed_indexes?: Record<string, Omit<CreateIndexesOptions, 'name'>>;
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							fields_options?: Record<string, { defaultValue?: any; required?: boolean }>;
+
+							fields_options?: Record<
+								string,
+								// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
+								{ defaultValue?: any; required?: boolean }
+							>;
 						};
 					} = { _metadata: {} };
 
@@ -108,15 +118,26 @@ export default class SchemaManager {
 								if (error instanceof MongoServerError) {
 									logger.warn(error.message);
 
-									if (error.message.startsWith('An existing index has the same name as the requested index.')) {
+									if (
+										error.message.startsWith(
+											'An existing index has the same name as the requested index.',
+										)
+									) {
 										await ClassCollection.dropIndex(indexName);
 
 										await ClassCollection.createIndex(indexDefinition.keys, {
 											name: indexName,
 											...indexDefinition.options,
 										});
-									} else if (error.message.startsWith('Index already exists with a different name: ')) {
-										const oldIndexName = error.message.replace('Index already exists with a different name: ', '');
+									} else if (
+										error.message.startsWith(
+											'Index already exists with a different name: ',
+										)
+									) {
+										const oldIndexName = error.message.replace(
+											'Index already exists with a different name: ',
+											'',
+										);
 
 										await ClassCollection.dropIndex(oldIndexName);
 
@@ -130,30 +151,44 @@ export default class SchemaManager {
 								}
 							}
 
-							_.set(inputSchemaObjectIndexes, `_metadata.managed_indexes.${indexName}`, indexDefinition);
+							_.set(
+								inputSchemaObjectIndexes,
+								`_metadata.managed_indexes.${indexName}`,
+								indexDefinition,
+							);
 						},
 					);
 
-					_.entries(schemaDefinition.fields).forEach(([fieldName, value]) => {
-						inputSchemaObjectFields[fieldName] = MongoSchemaCollection.default.parseFieldTypeToMongoFieldType({
-							type: value.type,
-							targetClass: value.targetClass,
-						});
+					_.forEach(
+						_.entries(schemaDefinition.fields),
+						([fieldName, value]) => {
+							inputSchemaObjectFields[fieldName] =
+								MongoSchemaCollection.parseFieldTypeToMongoFieldType({
+									type: value.type,
+									targetClass: value.targetClass,
+								});
 
-						if (_.isBoolean(value.required)) {
-							_.set(inputSchemaObjectFieldOptions, `_metadata.fields_options.${fieldName}.required`, value.required);
-						}
+							if (_.isBoolean(value.required)) {
+								_.set(
+									inputSchemaObjectFieldOptions,
+									`_metadata.fields_options.${fieldName}.required`,
+									value.required,
+								);
+							}
 
-						if (!_.isNil(value.defaultValue)) {
-							_.set(
-								inputSchemaObjectFieldOptions,
-								`_metadata.fields_options.${fieldName}.defaultValue`,
-								value.defaultValue,
-							);
-						}
+							if (!_.isNil(value.defaultValue)) {
+								_.set(
+									inputSchemaObjectFieldOptions,
+									`_metadata.fields_options.${fieldName}.defaultValue`,
+									value.defaultValue,
+								);
+							}
+						},
+					);
+
+					const oldSchemaObject = await SchemaCollection.findOne({
+						_id: schemaDefinition.className as never,
 					});
-
-					const oldSchemaObject = await SchemaCollection.findOne({ _id: schemaDefinition.className as never });
 
 					await fillManagedIndexesPromise;
 
@@ -168,7 +203,11 @@ export default class SchemaManager {
 						..._.get(newSchemaObject, '_metadata.managed_indexes'),
 						..._.get(inputSchemaObjectIndexes, '_metadata.managed_indexes'),
 					});
-					_.set(newSchemaObject, '_metadata.class_permissions', schemaDefinition.classLevelPermissions);
+					_.set(
+						newSchemaObject,
+						'_metadata.class_permissions',
+						schemaDefinition.classLevelPermissions,
+					);
 
 					await SchemaCollection.updateOne(
 						{
@@ -180,10 +219,15 @@ export default class SchemaManager {
 						{ upsert: true },
 					);
 
-					logger.info(`Finished updating schema '${schemaDefinition.className}'`);
+					logger.debug(
+						`Finished updating schema '${schemaDefinition.className}'`,
+					);
 				},
 				onError: (error) => {
-					logger.error(`Error while updating schema '${schemaDefinition.className}': \n`, error);
+					logger.error(
+						`Error while updating schema '${schemaDefinition.className}': \n`,
+						error,
+					);
 				},
 			});
 

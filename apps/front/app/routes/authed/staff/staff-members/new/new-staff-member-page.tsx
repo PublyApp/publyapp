@@ -1,0 +1,88 @@
+import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import type { TFunction } from 'i18next';
+import _ from 'lodash';
+import type { Route } from './+types/new-staff-member-page';
+import i18next from 'i18next';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { data } from 'react-router';
+import { UserNewEditForm } from '../components/user-new-edit-form';
+
+const getPageTitle = (t: TFunction, seo?: boolean) => {
+	let str: string = _.capitalize(
+		t('new-item', { item: _.toLower(t('staff-member')) }),
+	);
+
+	if (seo) {
+		str = `${str} | Staff Dashboard - ${APP_NAME}`;
+	}
+
+	return str;
+};
+
+export const meta = (args: Route.MetaArgs) => {
+	if (isServer) {
+		return _.get(args.data, 'meta', []);
+	}
+
+	const t: TFunction = i18next.t;
+
+	return [
+		{
+			title: getPageTitle(t, true),
+		},
+	];
+};
+
+export const loader = getServerLoader({
+	loader: async ({ z }) => {
+		const t = z.t;
+
+		return data({
+			meta: [
+				{
+					title: getPageTitle(t, true),
+				},
+			],
+		});
+	},
+});
+
+export const clientLoader = async ({
+	serverLoader,
+}: Route.ClientLoaderArgs) => {
+	i18next.loadNamespaces(['zod']);
+	const serverData = await serverLoader();
+	return data(serverData);
+};
+clientLoader.hydrate = true as const;
+
+const NewStaffMemberPage = () => {
+	const { t } = useTranslate();
+
+	return (
+		<DashboardContent
+			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+			compact
+			maxWidth="lg"
+		>
+			<CustomBreadcrumbs
+				heading={getPageTitle(t as never)}
+				links={[
+					{
+						name: _.capitalize(t('staff-members')),
+						href: FRONT_PATH_NAMES.staff.staffMembers.root,
+					},
+					{ name: _.capitalize(t('new')) },
+				]}
+				sx={{ mb: { xs: 3, md: 5 } }}
+			/>
+
+			<UserNewEditForm />
+		</DashboardContent>
+	);
+};
+
+export default NewStaffMemberPage;

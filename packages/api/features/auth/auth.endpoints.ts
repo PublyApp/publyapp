@@ -3,15 +3,25 @@ import _ from 'lodash';
 import type { IUser } from '@org/shared/types/db/user.types';
 
 import type {
-	GetIsDisabledSignupFunction,
-	GetRedirectCodeFunction,
-	GetTenantAuthDataFunction,
-	GetUserAuthDataFunction,
+	ChallengeEmailForToken,
+	CheckEmailVerificationToken,
+	GetIsDisabledSignup,
+	GetRedirectCode,
+	GetTenantAuthData,
+	GetUserAuthData,
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
-import { endPoint, functionName, LOCALE_HEADER_KEY, PARSE_SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import {
+	LOCALE_HEADER_KEY,
+	PARSE_SESSION_TOKEN_HEADER_KEY,
+	endPoint,
+	functionName,
+} from '@/shared/lib/constants';
+import { makePath } from '@/shared/utils/string.utils';
 
-import BaseEndPoints, { type BaseEndPointsProps } from '../../classes/BaseEndPoints';
+import BaseEndPoints, {
+	type BaseEndPointsProps,
+} from '../../classes/BaseEndPoints';
 
 export default class AuthEndPoints extends BaseEndPoints {
 	constructor({ parseRestClient }: BaseEndPointsProps) {
@@ -19,28 +29,37 @@ export default class AuthEndPoints extends BaseEndPoints {
 
 		this.passwordLogin = this.passwordLogin.bind(this);
 		this.getRedirectCode = this.getRedirectCode.bind(this);
+		this.verificationEmailRequest = this.verificationEmailRequest.bind(this);
+		this.checkEmailVerificationToken =
+			this.checkEmailVerificationToken.bind(this);
+		this.challengeEmailForToken = this.challengeEmailForToken.bind(this);
 	}
 
 	async getUserAuthData() {
-		return this.parseRestClient.cloudRun<GetUserAuthDataFunction.Return>(functionName.auth.getUserAuthData);
+		return this.parseRestClient.cloudRun<GetUserAuthData.Return>(
+			functionName.auth.getUserAuthData,
+		);
 	}
 
-	async getTenantAuthData(params: GetTenantAuthDataFunction.Params) {
-		return this.parseRestClient.cloudRun<GetTenantAuthDataFunction.Return, GetTenantAuthDataFunction.Params>(
-			functionName.auth.getTenantAuthData,
-			{
-				params,
-			},
-		);
+	async getTenantAuthData(params: GetTenantAuthData.Params) {
+		return this.parseRestClient.cloudRun<
+			GetTenantAuthData.Return,
+			GetTenantAuthData.Params
+		>(functionName.auth.getTenantAuthData, {
+			params,
+		});
 	}
 
 	/**
 	 * login with username/email and password
 	 */
 	async passwordLogin(
-		input: ({ username: string; email?: undefined } | { email: string; username?: string }) & { password: string },
+		params: (
+			| { username: string; email?: undefined }
+			| { email: string; username?: string }
+		) & { password: string },
 	) {
-		const { password } = input;
+		const { password } = params;
 
 		const headers = _.merge(getProtectionHeaders({}), {
 			'X-Parse-Revocable-Session': '1',
@@ -48,9 +67,14 @@ export default class AuthEndPoints extends BaseEndPoints {
 			[LOCALE_HEADER_KEY]: this.parseRestClient.getHeader(LOCALE_HEADER_KEY),
 		});
 
+		const url = new URL(this.parseRestClient.serverUrl);
+		let pathname = url.pathname;
+		pathname = makePath(pathname, endPoint.api.auth.passwordLogin);
+		url.pathname = pathname;
+
 		return this.parseRestClient.http.post<IUser & { sessionToken: string }>(
-			this.parseRestClient.serverUrl + endPoint.api.auth.passwordLogin,
-			{ email: input.email, username: input.username, password },
+			url.toString(),
+			{ email: params.email, username: params.username, password },
 			{ headers },
 		);
 	}
@@ -58,14 +82,14 @@ export default class AuthEndPoints extends BaseEndPoints {
 	/**
 	 * sign up with username/email and password
 	 */
-	async passwordSignup(input: {
+	async passwordSignup(params: {
 		email: string;
 		username?: string;
 		password: string;
 		firstName?: string;
 		lastName?: string;
 	}) {
-		const { email, password, username, firstName, lastName } = input;
+		const { email, password, username, firstName, lastName } = params;
 
 		const headers = _.merge(getProtectionHeaders({}), {
 			'X-Parse-Revocable-Session': '1',
@@ -79,12 +103,14 @@ export default class AuthEndPoints extends BaseEndPoints {
 		);
 	}
 
-	async verificationEmailRequest(input: { email: string }) {
-		return this.parseRestClient.verificationEmailRequest(input);
+	async verificationEmailRequest(params: { email: string }) {
+		return this.parseRestClient.verificationEmailRequest(params);
 	}
 
 	async getIsDisabledSignup() {
-		return this.parseRestClient.cloudRun<GetIsDisabledSignupFunction.Return>(functionName.auth.getIsDisabledSignup);
+		return this.parseRestClient.cloudRun<GetIsDisabledSignup.Return>(
+			functionName.auth.getIsDisabledSignup,
+		);
 	}
 
 	async logOut() {
@@ -92,11 +118,32 @@ export default class AuthEndPoints extends BaseEndPoints {
 	}
 
 	async getRedirectCode({ tenantId }: { tenantId?: string } = {}) {
-		return this.parseRestClient.cloudRun<GetRedirectCodeFunction.Return, GetRedirectCodeFunction.Params>(
-			functionName.auth.getRedirectCode,
-			{
-				params: { tenantId },
-			},
-		);
+		return this.parseRestClient.cloudRun<
+			GetRedirectCode.Return,
+			GetRedirectCode.Params
+		>(functionName.auth.getRedirectCode, {
+			params: { tenantId },
+		});
+	}
+
+	async checkEmailVerificationToken({ token }: { token: string }) {
+		return this.parseRestClient.cloudRun<
+			CheckEmailVerificationToken.Return,
+			CheckEmailVerificationToken.Params
+		>(functionName.auth.checkEmailVerificationToken, {
+			params: { token },
+		});
+	}
+
+	async challengeEmailForToken({
+		email,
+		token,
+	}: { email: string; token: string }) {
+		return this.parseRestClient.cloudRun<
+			ChallengeEmailForToken.Return,
+			ChallengeEmailForToken.Params
+		>(functionName.auth.challengeEmailForToken, {
+			params: { email, token },
+		});
 	}
 }
