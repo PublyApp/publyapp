@@ -15,6 +15,7 @@ import {
 	queryParamKey,
 	queryParamValue,
 } from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import {
 	getChallengeEmailForTokenSchema,
@@ -114,6 +115,10 @@ export const action = getServerAction({
 				url.searchParams.set(
 					queryParamKey.login_page.redirect_cause,
 					queryParamValue.login_page.redirect_cause.email_verification,
+				);
+				url.searchParams.set(
+					queryParamKey.language,
+					getCorrectLocale(searchParams.get(queryParamKey.language)),
 				);
 				return redirect(`${url.pathname}${url.search}`);
 				// break;
