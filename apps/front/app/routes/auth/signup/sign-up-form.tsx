@@ -15,12 +15,12 @@ import { RouterLink } from '@/front/components/router-link';
 
 import { FormHead } from '@/front/components/auth/form-head';
 import { SignUpTerms } from '@/front/components/auth/sign-up-terms';
+import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getRegisterSchema } from '@/shared/validations/auth.validations';
 import { Alert } from '@mui/material';
-import { useEffect } from 'react';
 
 // ----------------------------------------------------------------------
 
@@ -47,11 +47,7 @@ const SignupForm = () => {
 		formState: { isSubmitting },
 	} = methods;
 
-	// Re-validate all fields when the language changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-	useEffect(() => {
-		methods.trigger();
-	}, [i18n.language]);
+	useLanguageTriggerValidation(i18n.language, methods);
 
 	const renderForm = () => (
 		<Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
