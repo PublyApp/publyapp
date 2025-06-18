@@ -2,6 +2,7 @@ import { FormHead } from '@/front/components/auth/form-head';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
+import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
@@ -20,7 +21,7 @@ import { useFetcher } from 'react-router';
 import type { LoginActionResult } from './login-page';
 
 const LoginForm = () => {
-	const { t } = useTranslate();
+	const { t, i18n } = useTranslate();
 	const showPassword = useBoolean();
 	const fetcher = useFetcher<LoginActionResult>();
 
@@ -41,6 +42,8 @@ const LoginForm = () => {
 	const {
 		formState: { isSubmitting },
 	} = methods;
+
+	useLanguageTriggerValidation(i18n.language, methods);
 
 	const handleLogin = methods.handleSubmit(async (data) => {
 		await fetcher.submit(data, {
