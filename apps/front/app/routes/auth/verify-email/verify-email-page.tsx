@@ -23,7 +23,7 @@ import {
 	getRequestEmailVerificationSchema,
 } from '@/shared/validations/auth.validations';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, type Theme } from '@mui/material';
+import { Alert, Stack, type Theme } from '@mui/material';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
@@ -224,12 +224,12 @@ const InvalidTokenView = ({
 				</Typography>
 				<Button
 					component={RouterLink}
-					href={FRONT_PATH_NAMES.home}
+					href={FRONT_PATH_NAMES.auth.verifyEmail}
 					variant="text"
 					color="primary"
-					endIcon={<Iconify icon="eva:arrowhead-right-fill" />}
+					endIcon={<Iconify icon="eva:arrow-forward-fill" />}
 				>
-					{t('go-to-home')}
+					{t('request-new-verification-link')}
 				</Button>
 			</Box>
 		);
