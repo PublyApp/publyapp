@@ -73,7 +73,11 @@ export const action = getServerAction({
 						}
 					},
 				);
-				break;
+
+				return {
+					status: 'success',
+				} as const;
+				// break;
 			}
 
 			case actionIntent.CHALLENGE_EMAIL_FOR_TOKEN: {
@@ -119,19 +123,6 @@ export const action = getServerAction({
 					error: 'Invalid action intent',
 				} as const;
 		}
-
-		// const parsed = schema.safeParse({ email });
-
-		// if (!parsed.success) {
-		// 	return {
-		// 		status: 'error',
-		// 		error: parsed.error.errors[0].message,
-		// 	};
-		// }
-
-		return {
-			status: 'success',
-		};
 	},
 });
 
