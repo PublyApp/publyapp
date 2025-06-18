@@ -1,6 +1,7 @@
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
+import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { env } from '@/front/lib/env';
 import { safeRun } from '@/front/lib/react-router/safeRun';
@@ -29,7 +30,6 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { redirect, useFetcher } from 'react-router';
 import type { Route } from './+types/verify-email-page';
@@ -280,11 +280,7 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 		formState: { isSubmitting },
 	} = form;
 
-	// Re-validate all fields when the language changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-	useEffect(() => {
-		form.trigger();
-	}, [i18n.language]);
+	useLanguageTriggerValidation(i18n.language, form);
 
 	const fetcher = useFetcher<typeof action>();
 

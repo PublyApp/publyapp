@@ -1,6 +1,7 @@
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { toast } from '@/front/components/snackbar';
+import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useRouter } from '@/front/hooks/use-router';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { useCreateStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
@@ -27,7 +28,6 @@ import Typography from '@mui/material/Typography';
 import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import type zod from 'zod';
 
@@ -93,11 +93,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		formState: { isSubmitting },
 	} = methods;
 
-	// Re-validate all fields when the language changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-	useEffect(() => {
-		methods.trigger();
-	}, [i18n.language]);
+	useLanguageTriggerValidation(i18n.language, methods);
 
 	const handleCloseDialog = openDialog.onFalse;
 
