@@ -1,6 +1,7 @@
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
+import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { env } from '@/front/lib/env';
 import { safeRun } from '@/front/lib/react-router/safeRun';
@@ -15,6 +16,7 @@ import {
 	queryParamKey,
 	queryParamValue,
 } from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import {
 	getChallengeEmailForTokenSchema,
@@ -114,6 +116,10 @@ export const action = getServerAction({
 				url.searchParams.set(
 					queryParamKey.login_page.redirect_cause,
 					queryParamValue.login_page.redirect_cause.email_verification,
+				);
+				url.searchParams.set(
+					queryParamKey.language,
+					getCorrectLocale(searchParams.get(queryParamKey.language)),
 				);
 				return redirect(`${url.pathname}${url.search}`);
 				// break;
@@ -219,12 +225,12 @@ const InvalidTokenView = ({
 				</Typography>
 				<Button
 					component={RouterLink}
-					href={FRONT_PATH_NAMES.home}
+					href={FRONT_PATH_NAMES.auth.verifyEmail}
 					variant="text"
 					color="primary"
-					endIcon={<Iconify icon="eva:arrowhead-right-fill" />}
+					endIcon={<Iconify icon="eva:arrow-forward-fill" />}
 				>
-					{t('go-to-home')}
+					{t('request-new-verification-link')}
 				</Button>
 			</Box>
 		);
@@ -248,7 +254,7 @@ const InvalidTokenView = ({
 };
 
 const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
-	const { t } = useTranslate();
+	const { t, i18n } = useTranslate();
 
 	const schema = getEmailFormSchema(defaultZodClient);
 
@@ -273,6 +279,8 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 	const {
 		formState: { isSubmitting },
 	} = form;
+
+	useLanguageTriggerValidation(i18n.language, form);
 
 	const fetcher = useFetcher<typeof action>();
 

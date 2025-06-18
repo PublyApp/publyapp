@@ -1,34 +1,35 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import type zod from 'zod';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import Grid from '@mui/material/Grid';
-import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
+import { Field } from '@/front/components/hook-form/fields';
+import { Form } from '@/front/components/hook-form/form-provider';
+import { toast } from '@/front/components/snackbar';
+import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
+import { useRouter } from '@/front/hooks/use-router';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { useCreateStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { fData } from '@/front/utils/format-number';
 import {
 	FRONT_PATH_NAMES,
-	roleEnum,
 	type RoleName,
+	roleEnum,
 } from '@/shared/lib/constants';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { Field } from '@/front/components/hook-form/fields';
-import { fData } from '@/front/utils/format-number';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
-import { useTranslate } from '@/front/hooks/use-translate';
+import { mbToBytes } from '@/shared/utils/any.utils';
+import { zodResolver } from '@hookform/resolvers/zod';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { mbToBytes } from '@/shared/utils/any.utils';
-import { useCreateStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import { useForm } from 'react-hook-form';
+import type zod from 'zod';
 
 type IUserItem = {
 	id: string;
@@ -73,7 +74,7 @@ const defaultValues: NewUserSchemaType = {
 };
 
 export const UserNewEditForm = ({ currentUser }: Props) => {
-	const { t } = useTranslate();
+	const { t, i18n } = useTranslate();
 	const router = useRouter();
 	const openDialog = useBoolean();
 
@@ -92,13 +93,15 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		formState: { isSubmitting },
 	} = methods;
 
+	useLanguageTriggerValidation(i18n.language, methods);
+
 	const handleCloseDialog = openDialog.onFalse;
 
 	const handleOpenDialog = handleSubmit(async () => {
 		openDialog.onTrue();
 	});
 
-	const { mutate: createStaffMember } = useCreateStaffMember({
+	const { mutate: createStaffMember, isPending } = useCreateStaffMember({
 		onSuccess: () => {
 			reset();
 			toast.success(
@@ -301,7 +304,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 								<Button
 									type="submit"
 									variant="contained"
-									loading={isSubmitting}
+									loading={isSubmitting || isPending}
 								>
 									{!currentUser ? 'Create user' : 'Save changes'}
 								</Button>
@@ -337,14 +340,18 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 				</DialogContent>
 
 				<DialogActions>
-					<Button variant="outlined" onClick={handleCloseDialog}>
+					<Button
+						variant="outlined"
+						onClick={handleCloseDialog}
+						disabled={isSubmitting || isPending}
+					>
 						{t('cancel')}
 					</Button>
 					<Button
 						variant="contained"
 						onClick={handleConfirmDialog}
 						autoFocus
-						loading={isSubmitting}
+						loading={isSubmitting || isPending}
 					>
 						{t('confirm')}
 					</Button>
