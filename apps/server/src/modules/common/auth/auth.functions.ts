@@ -16,6 +16,7 @@ import {
 } from '@/server/lib/parse/parse.utils';
 import { X_CODE, className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
+import { sleep } from '@/shared/utils/any.utils';
 import { getEmailFieldSchema } from '@/shared/validations/auth.validations';
 import _ from 'lodash';
 import RoleService from './role/role.service';
@@ -247,6 +248,11 @@ const getTenantAuthData = fromAuthedUserParseFunction({
 	},
 });
 
+export namespace CheckEmailVerificationToken {
+	export type Params = FunctionParams<typeof checkEmailVerificationToken>;
+	export type Return = FunctionReturn<typeof checkEmailVerificationToken>;
+}
+
 /**
  * Verify the email verification token
  */
@@ -295,12 +301,17 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 			throw error;
 		}
 
-		return { isValid: true };
+		return { status: 'success' } as const;
 	},
 });
 
-const challengeEmailForVerificationToken = fromPublicParseFunction({
-	name: functionName.auth.challengeEmailForVerificationToken,
+export namespace ChallengeEmailForToken {
+	export type Params = FunctionParams<typeof challengeEmailForToken>;
+	export type Return = FunctionReturn<typeof challengeEmailForToken>;
+}
+
+const challengeEmailForToken = fromPublicParseFunction({
+	name: functionName.auth.challengeEmailForToken,
 	validateParams({ params, z }) {
 		const schema = z.object({
 			email: getEmailFieldSchema(z),
@@ -309,8 +320,67 @@ const challengeEmailForVerificationToken = fromPublicParseFunction({
 
 		return schema.parse(params);
 	},
-	action: async (/* { params, t } */) => {
-		// const { email, token } = params;
+	action: async ({ params, req, t }) => {
+		await sleep(1000);
+		req.log.debug('challengeEmailForToken', { params });
+
+		// TODO:
+		// check if token/email pair is valid
+		// if valid, set email as verified, unset token + unset email_verify_token_expires_at
+		const UserCollection = getDatabase().collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				email: params.email,
+				_email_verify_token: params.token,
+			},
+			{
+				projection: {
+					_id: 1,
+					email: 1,
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			throw new HttpException(
+				400,
+				t('item-is-invalid', { item: 'Email/Token' }),
+			);
+		}
+
+		const isExpired = user._email_verify_token_expires_at < new Date();
+
+		if (isExpired) {
+			throw new HttpException(
+				400,
+				t('item-is-invalid', { item: 'Email/Token' }),
+			);
+		}
+
+		// set email as verified, unset token + unset email_verify_token_expires_at
+		await UserCollection.updateOne(
+			{
+				_id: user._id,
+			},
+			{
+				$set: {
+					emailVerified: true,
+					// _email_verify_token: undefined,
+					// _email_verify_token_expires_at: undefined,
+				},
+				$unset: {
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		return {
+			status: 'success',
+		} as const;
 	},
 });
 
@@ -323,7 +393,7 @@ defineCloudFunction(getTenantAuthData);
 defineCloudFunction(getIsDisabledSignup);
 defineCloudFunction(getRedirectCode);
 defineCloudFunction(checkEmailVerificationToken);
-defineCloudFunction(challengeEmailForVerificationToken);
+defineCloudFunction(challengeEmailForToken);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //
