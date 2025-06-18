@@ -28,6 +28,8 @@ export default class AuthEndPoints extends BaseEndPoints {
 		this.passwordLogin = this.passwordLogin.bind(this);
 		this.getRedirectCode = this.getRedirectCode.bind(this);
 		this.verificationEmailRequest = this.verificationEmailRequest.bind(this);
+		this.checkEmailVerificationToken =
+			this.checkEmailVerificationToken.bind(this);
 	}
 
 	async getUserAuthData() {

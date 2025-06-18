@@ -1,11 +1,12 @@
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
-import QueryDisplay from '@/front/components/query-display';
 import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { useCheckEmailVerificationToken } from '@/front/lib/react-query/features/auth/auth.hooks';
 import { safeRun } from '@/front/lib/react-router/safeRun';
-import { getServerAction } from '@/front/lib/react-router/server-data.server';
+import {
+	getServerAction,
+	getServerLoader,
+} from '@/front/lib/react-router/server-data.server';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import {
 	FRONT_PATH_NAMES,
@@ -18,13 +19,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, type Theme } from '@mui/material';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Skeleton from '@mui/material/Skeleton';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useForm } from 'react-hook-form';
-import { useFetcher, useSearchParams } from 'react-router';
+import { useFetcher } from 'react-router';
+import type { Route } from './+types/verify-email-page';
 
 export const action = getServerAction({
 	action: async ({ request, apiClient, context, z }) => {
@@ -62,6 +62,46 @@ export const action = getServerAction({
 	},
 });
 
+export const loader = getServerLoader({
+	loader: async ({ request, apiClient }) => {
+		const searchParams = new URL(request.url).searchParams;
+		const token = searchParams.get(queryParamKey.token);
+
+		// if no token, we just return success
+		if (!token) {
+			return {
+				code: 'NO_TOKEN',
+			} as const;
+		}
+
+		const checkEmailVerificationToken = safeRun(
+			apiClient.auth.checkEmailVerificationToken,
+		);
+
+		const result = await checkEmailVerificationToken({ token });
+
+		if (result.status === 'error') {
+			if (result.error instanceof ParseRestError) {
+				if (result.error.code === X_CODE.INVALID_TOKEN) {
+					return {
+						code: 'INVALID_TOKEN',
+					} as const;
+				}
+
+				throw new Response(result.error.message, {
+					status: result.error.httpStatusCode,
+				});
+			}
+
+			throw result.error;
+		}
+
+		return {
+			code: 'OK',
+		} as const;
+	},
+});
+
 const boxStyles = (theme: Theme) => {
 	return {
 		[theme.breakpoints.up('md')]: {
@@ -70,18 +110,8 @@ const boxStyles = (theme: Theme) => {
 	};
 };
 
-const VerifyEmailPage = () => {
-	const { t } = useTranslate();
-	const [searchParams] = useSearchParams();
-
-	const token = searchParams.get(queryParamKey.token);
-
-	const checkTokenQuery = useCheckEmailVerificationToken({
-		variables: { token: token ?? '' },
-		enabled: !!token,
-	});
-
-	if (!token) {
+const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
+	if (loaderData.code === 'NO_TOKEN') {
 		return (
 			<Box sx={boxStyles}>
 				<VerifyEmailRequestForm />
@@ -89,62 +119,22 @@ const VerifyEmailPage = () => {
 		);
 	}
 
+	if (loaderData.code === 'INVALID_TOKEN') {
+		return (
+			<Box sx={boxStyles}>
+				<InvalidTokenView forceIsInvalid />
+			</Box>
+		);
+	}
+
 	return (
 		<Box sx={boxStyles}>
-			<QueryDisplay
-				query={checkTokenQuery}
-				LoadingSlot={LoadingFormView}
-				ErrorSlot={InvalidTokenView}
-			>
-				<Box>
-					<Typography variant="h5" color="text.primary" sx={{ mb: 2 }}>
-						{t('verify-email')}
-					</Typography>
-					<Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-						{t('verify-email-description-2')}
-					</Typography>
-					<Box sx={{ mt: 3 }}>
-						<TextField
-							fullWidth
-							label={t('email-address')}
-							type="email"
-							name="email"
-							autoComplete="email"
-							required
-						/>
-						<Button
-							fullWidth
-							size="large"
-							type="submit"
-							variant="contained"
-							sx={{ mt: 3 }}
-						>
-							{t('verify-email')}
-						</Button>
-					</Box>
-				</Box>
-			</QueryDisplay>
+			<VerifyEmailRequestForm />
 		</Box>
 	);
 };
 
 export default VerifyEmailPage;
-
-const LoadingFormView = () => {
-	return (
-		<Box sx={{ width: '100%', mt: 2 }}>
-			<Skeleton variant="text" width="60%" height={40} />
-			<Skeleton variant="text" width="80%" height={24} sx={{ mt: 1 }} />
-			<Skeleton
-				variant="rectangular"
-				width="100%"
-				height={120}
-				sx={{ mt: 2, borderRadius: 1 }}
-			/>
-			<Skeleton variant="text" width="40%" height={24} sx={{ mt: 2 }} />
-		</Box>
-	);
-};
 
 const InvalidTokenView = ({
 	error,
