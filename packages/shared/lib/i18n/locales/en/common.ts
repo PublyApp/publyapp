@@ -172,6 +172,8 @@ const commonEN = {
 	'verify-email-request-sent-description-part1': 'If the email address ',
 	'verify-email-request-sent-description-part2':
 		' is valid, you will receive an email with a link to verify your account',
+
+	'email-verification-success': 'Email verification successful',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

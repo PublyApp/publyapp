@@ -371,7 +371,18 @@ export const SLUG_REGEX = /^[a-z0-9-]+$/;
 export const queryParamKey = {
 	language: 'lng',
 	token: 'token',
-};
+	login_page: {
+		redirect_cause: 'rc',
+	},
+} as const;
+
+export const queryParamValue = {
+	login_page: {
+		redirect_cause: {
+			email_verification: 'email_verification',
+		},
+	},
+} as const;
 
 export const jobType = {
 	CONVERT_HTML_TO_PDF: 'CONVERT_HTML_TO_PDF',
