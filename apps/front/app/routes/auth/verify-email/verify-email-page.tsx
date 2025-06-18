@@ -29,6 +29,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { redirect, useFetcher } from 'react-router';
 import type { Route } from './+types/verify-email-page';
@@ -253,7 +254,7 @@ const InvalidTokenView = ({
 };
 
 const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
-	const { t } = useTranslate();
+	const { t, i18n } = useTranslate();
 
 	const schema = getEmailFormSchema(defaultZodClient);
 
@@ -278,6 +279,12 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 	const {
 		formState: { isSubmitting },
 	} = form;
+
+	// Re-validate all fields when the language changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
+		form.trigger();
+	}, [i18n.language]);
 
 	const fetcher = useFetcher<typeof action>();
 
