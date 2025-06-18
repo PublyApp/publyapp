@@ -137,6 +137,11 @@ const commonEN = {
 	'initial-users-must-be-a-valid-json-string':
 		'Initial users must be a valid JSON string',
 
+	'signup-title': 'Sign up',
+	'signup-are-disabled': 'Sign up are disabled for now',
+	'create-account': 'Create account',
+	'already-have-account-question': 'Already have an account?',
+
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Internal server error',
 
@@ -149,6 +154,26 @@ const commonEN = {
 	'Token expired': 'Token expired',
 	'Invalid object for context.': 'Invalid object for context.',
 	'Context is not an object': 'Context is not an object',
+
+	// sign up terms
+	'terms-of-service': 'Terms of service',
+	'privacy-policy': 'Privacy policy',
+	'by-signing-up-agree': 'By signing up, I agree to',
+	and: 'and',
+
+	// Add these keys in the commonEN object
+	'verify-email': 'Verify Email',
+	'verify-email-description-1': "Enter your account's email you need to verify",
+	'verify-email-description-2':
+		'To verify that this link belongs to you, enter the email you received this link with',
+
+	// Add these keys in the commonEN object
+	'verify-email-request-sent': 'Verification Email Sent',
+	'verify-email-request-sent-description-part1': 'If the email address ',
+	'verify-email-request-sent-description-part2':
+		' is valid, you will receive an email with a link to verify your account',
+
+	'email-verification-success': 'Email verification successful',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

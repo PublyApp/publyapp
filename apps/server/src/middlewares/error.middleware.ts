@@ -1,12 +1,12 @@
-import _ from 'lodash';
-import type { ErrorRequestHandler } from 'express';
-import { ZodError } from 'zod';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { logger } from '@/server/lib/winston';
-import { getRequestUtils } from '../lib/express';
-import { postHogServer } from '../lib/posthog';
-import { isCloudHttpException } from '../lib/parse/cloud/core';
+import type { ErrorRequestHandler } from 'express';
+import _ from 'lodash';
 import { serializeError } from 'serialize-error';
+import { ZodError } from 'zod';
+import { getRequestUtils } from '../lib/express';
+import { isCloudHttpException } from '../lib/parse/cloud/core';
+import { postHogServer } from '../lib/posthog';
 
 // ! this is the only middleware that we should not wrap into expressHandler wrapper function
 export const errorMiddleware: ErrorRequestHandler = async (

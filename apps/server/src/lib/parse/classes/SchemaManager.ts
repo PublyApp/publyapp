@@ -1,11 +1,11 @@
-import _ from 'lodash';
-import type { Schema } from 'parse-server';
-import _MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
-import asyncJs from 'async';
-import { MongoServerError, type CreateIndexesOptions } from 'mongodb';
-import { className as _className, isBun } from '@org/shared/lib/constants';
 import { logger } from '@/server/lib/winston';
 import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
+import { className as _className, isBun } from '@org/shared/lib/constants';
+import asyncJs from 'async';
+import _ from 'lodash';
+import { type CreateIndexesOptions, MongoServerError } from 'mongodb';
+import type { Schema } from 'parse-server';
+import _MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
 import { DEFAULT_CLP } from '../../constants';
 import { getDatabase } from '../parse.utils';
 
@@ -70,7 +70,7 @@ export default class SchemaManager {
 		await asyncJs.eachOfLimit(schemas, 10, async (schemaDefinition) => {
 			const wrappedFunction = tryCatchWrapper({
 				handler: async () => {
-					logger.info(
+					logger.debug(
 						`started to update schema '${schemaDefinition.className}'`,
 					);
 
@@ -219,7 +219,7 @@ export default class SchemaManager {
 						{ upsert: true },
 					);
 
-					logger.info(
+					logger.debug(
 						`Finished updating schema '${schemaDefinition.className}'`,
 					);
 				},

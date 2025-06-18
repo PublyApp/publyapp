@@ -1,12 +1,9 @@
 import path from 'node:path';
-
-import sharp from 'sharp';
-
 import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
-import { fileProvider } from '@/shared/lib/constants';
-
-import type { Uploader, UploadInput } from './Uploader.interface';
 import { logger } from '@/server/lib/winston';
+import { fileProvider } from '@/shared/lib/constants';
+import sharp from 'sharp';
+import type { UploadInput, Uploader } from './Uploader.interface';
 
 export default class LocalDiskUploader implements Uploader {
 	provider = fileProvider.LOCAL_DISK;
@@ -16,7 +13,7 @@ export default class LocalDiskUploader implements Uploader {
 			// throw new Error('Cannot upload to cloud from disk: not implemented yet');
 			// ** we assume multer has already put the file in the correct place
 			// ** on our local disk
-			logger.info('Uploading to local disk');
+			logger.debug('Uploading to local disk');
 
 			return {
 				// ! remember to:

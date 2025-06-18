@@ -1,6 +1,6 @@
-import { createSuspenseQuery } from 'react-query-kit';
-import { defaultApiClient } from 'packages/api/ApiClient';
 import { functionName } from '@/shared/lib/constants';
+import { defaultApiClient } from 'packages/api/ApiClient';
+import { createQuery, createSuspenseQuery } from 'react-query-kit';
 
 export const useGetUserAuthData = createSuspenseQuery({
 	queryKey: [functionName.auth.getUserAuthData] as const,
@@ -16,7 +16,7 @@ export const useGetTenantAuthData = createSuspenseQuery({
 	},
 });
 
-export const useCheckEmailVerificationToken = createSuspenseQuery({
+export const useCheckEmailVerificationToken = createQuery({
 	queryKey: [functionName.auth.checkEmailVerificationToken],
 	fetcher: async ({ token }: { token: string }) => {
 		return defaultApiClient.auth.checkEmailVerificationToken({ token });

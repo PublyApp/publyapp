@@ -1,12 +1,12 @@
 import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
 import {
+	type FunctionParams,
+	type FunctionReturn,
 	defineCloudFunction,
 	fromAuthedUserParseFunction,
 	fromPublicParseFunction,
 	parseFunctionEnhanced,
-	type FunctionParams,
-	type FunctionReturn,
 } from '@/server/lib/parse/cloud/function';
 import {
 	getDatabase,
@@ -14,9 +14,11 @@ import {
 	parseFields,
 	removeParseFields,
 } from '@/server/lib/parse/parse.utils';
-import { className, functionName } from '@/shared/lib/constants';
+import { X_CODE, className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
-
+import { sleep } from '@/shared/utils/any.utils';
+import { getEmailFieldSchema } from '@/shared/validations/auth.validations';
+import _ from 'lodash';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
@@ -246,6 +248,142 @@ const getTenantAuthData = fromAuthedUserParseFunction({
 	},
 });
 
+export namespace CheckEmailVerificationToken {
+	export type Params = FunctionParams<typeof checkEmailVerificationToken>;
+	export type Return = FunctionReturn<typeof checkEmailVerificationToken>;
+}
+
+/**
+ * Verify the email verification token
+ */
+const checkEmailVerificationToken = fromPublicParseFunction({
+	name: functionName.auth.checkEmailVerificationToken,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			token: z.string().min(1),
+		});
+		return schema.parse(params);
+	},
+	action: async ({ params, t }) => {
+		const token = params.token;
+
+		// check if token exists
+		const UserCollection = getDatabase().collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				_email_verify_token: token,
+			},
+			{
+				projection: {
+					_id: 1,
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			throw new HttpException(400, t('Invalid token'), {
+				xcode: X_CODE.INVALID_TOKEN,
+			});
+		}
+
+		// check if token is expired
+		const isExpired = user._email_verify_token_expires_at < new Date();
+
+		if (isExpired) {
+			const error = new HttpException(400, t('Invalid token'), {
+				xcode: X_CODE.INVALID_TOKEN,
+			});
+			// add additional information to the error
+			_.set(error, 'meta.cause', 'TOKEN_EXPIRED'); // only for debugging purposes, not to be exposed to the client
+			throw error;
+		}
+
+		return { status: 'success' } as const;
+	},
+});
+
+export namespace ChallengeEmailForToken {
+	export type Params = FunctionParams<typeof challengeEmailForToken>;
+	export type Return = FunctionReturn<typeof challengeEmailForToken>;
+}
+
+const challengeEmailForToken = fromPublicParseFunction({
+	name: functionName.auth.challengeEmailForToken,
+	validateParams({ params, z }) {
+		const schema = z.object({
+			email: getEmailFieldSchema(z),
+			token: z.string().min(1),
+		});
+
+		return schema.parse(params);
+	},
+	action: async ({ params, req, t }) => {
+		await sleep(1000);
+		req.log.debug('challengeEmailForToken', { params });
+
+		// TODO:
+		// check if token/email pair is valid
+		// if valid, set email as verified, unset token + unset email_verify_token_expires_at
+		const UserCollection = getDatabase().collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				email: params.email,
+				_email_verify_token: params.token,
+			},
+			{
+				projection: {
+					_id: 1,
+					email: 1,
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			throw new HttpException(
+				400,
+				t('item-is-invalid', { item: 'Email/Token' }),
+			);
+		}
+
+		const isExpired = user._email_verify_token_expires_at < new Date();
+
+		if (isExpired) {
+			throw new HttpException(
+				400,
+				t('item-is-invalid', { item: 'Email/Token' }),
+			);
+		}
+
+		// set email as verified, unset token + unset email_verify_token_expires_at
+		await UserCollection.updateOne(
+			{
+				_id: user._id,
+			},
+			{
+				$set: {
+					emailVerified: true,
+					// _email_verify_token: undefined,
+					// _email_verify_token_expires_at: undefined,
+				},
+				$unset: {
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		return {
+			status: 'success',
+		} as const;
+	},
+});
+
 //--------------------------------------------------------------------------------------//
 //                                 Define the functions                                 //
 //--------------------------------------------------------------------------------------//
@@ -254,6 +392,8 @@ defineCloudFunction(getUserAuthData);
 defineCloudFunction(getTenantAuthData);
 defineCloudFunction(getIsDisabledSignup);
 defineCloudFunction(getRedirectCode);
+defineCloudFunction(checkEmailVerificationToken);
+defineCloudFunction(challengeEmailForToken);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //

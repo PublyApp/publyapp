@@ -13,17 +13,17 @@ import { tryCatchWrapper } from '@org/shared/utils/try-catch.utils';
 
 import { logger } from '@/server/lib/winston';
 import {
-	LOCALE_HEADER_KEY,
-	FORWARDED_FOR_HEADER_KEY,
-	REMIX_CLIENT_IP_HEADER_KEY,
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	FORWARDED_FOR_HEADER_KEY,
+	LOCALE_HEADER_KEY,
+	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import InterZod from '@/shared/lib/zod/InterZod';
 
-import { i18nextServer } from './i18n';
-import type { TFunction } from 'i18next';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
+import type { TFunction } from 'i18next';
+import { i18nextServer } from './i18n';
 
 type ParamsDictionary = Record<string, string>;
 
@@ -106,7 +106,7 @@ export const listRoutes = (app: Application) => {
 				print.bind(null, path.concat(split(layer.regexp))),
 			);
 		} else if (layer.method) {
-			logger.info(
+			logger.debug(
 				'%s /%s',
 				layer.method.toUpperCase(),
 				path.concat(split(layer.regexp)).filter(Boolean).join('/'),

@@ -3,6 +3,8 @@ import _ from 'lodash';
 import type { IUser } from '@org/shared/types/db/user.types';
 
 import type {
+	ChallengeEmailForToken,
+	CheckEmailVerificationToken,
 	GetIsDisabledSignup,
 	GetRedirectCode,
 	GetTenantAuthData,
@@ -10,10 +12,10 @@ import type {
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
 import {
-	endPoint,
-	functionName,
 	LOCALE_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
+	endPoint,
+	functionName,
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
@@ -27,6 +29,10 @@ export default class AuthEndPoints extends BaseEndPoints {
 
 		this.passwordLogin = this.passwordLogin.bind(this);
 		this.getRedirectCode = this.getRedirectCode.bind(this);
+		this.verificationEmailRequest = this.verificationEmailRequest.bind(this);
+		this.checkEmailVerificationToken =
+			this.checkEmailVerificationToken.bind(this);
+		this.challengeEmailForToken = this.challengeEmailForToken.bind(this);
 	}
 
 	async getUserAuthData() {
@@ -121,11 +127,23 @@ export default class AuthEndPoints extends BaseEndPoints {
 	}
 
 	async checkEmailVerificationToken({ token }: { token: string }) {
-		return this.parseRestClient.cloudRun(
-			functionName.auth.checkEmailVerificationToken,
-			{
-				params: { token },
-			},
-		);
+		return this.parseRestClient.cloudRun<
+			CheckEmailVerificationToken.Return,
+			CheckEmailVerificationToken.Params
+		>(functionName.auth.checkEmailVerificationToken, {
+			params: { token },
+		});
+	}
+
+	async challengeEmailForToken({
+		email,
+		token,
+	}: { email: string; token: string }) {
+		return this.parseRestClient.cloudRun<
+			ChallengeEmailForToken.Return,
+			ChallengeEmailForToken.Params
+		>(functionName.auth.challengeEmailForToken, {
+			params: { email, token },
+		});
 	}
 }

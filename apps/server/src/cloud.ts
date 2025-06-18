@@ -1,18 +1,6 @@
 import { logger } from '@/server/lib/winston';
-import { parseFunction } from './lib/parse/cloud/function';
 
 const functions = async () => {
-	Parse.Cloud.define(
-		'hello',
-		parseFunction(async (req) => {
-			req.log.info('Hello world!', {
-				headers: req.headers,
-				params: req.params,
-			});
-			return 'Hello world!';
-		}),
-	);
-
 	await Promise.all([
 		// ====== common modules ======
 		import('@/server/modules/common/auth/auth.functions'),

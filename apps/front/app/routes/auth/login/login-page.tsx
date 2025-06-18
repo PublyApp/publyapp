@@ -1,7 +1,8 @@
-import dayjs from 'dayjs';
-import { data, redirect } from 'react-router';
-import { serializeError } from 'serialize-error';
 import * as cookie from 'cookie';
+import dayjs from 'dayjs';
+import { useEffect, useRef } from 'react';
+import { data, redirect, useSearchParams } from 'react-router';
+import { serializeError } from 'serialize-error';
 
 import duration from '@org/shared/utils/duration.utils';
 
@@ -12,12 +13,16 @@ import {
 	FRONT_PATH_NAMES,
 	LAST_USED_TENANT_ID_COOKIE_KEY,
 	SESSION_TOKEN_COOKIE_KEY,
+	queryParamKey,
+	queryParamValue,
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
+import { toast } from '@/front/components/snackbar';
+import { useTranslate } from '@/front/hooks/use-translate';
+import _ from 'lodash';
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';
-import _ from 'lodash';
 
 export const meta = (_: Route.MetaArgs) => {
 	return [{ title: `Log in - ${APP_NAME}` }];
@@ -82,6 +87,24 @@ export const action = getServerAction({
 });
 
 const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
+	const { t } = useTranslate();
+	const [searchParams] = useSearchParams();
+	const redirect_cause = searchParams.get(
+		queryParamKey.login_page.redirect_cause,
+	);
+	const hasShownToast = useRef(false);
+
+	useEffect(() => {
+		if (
+			!hasShownToast.current &&
+			redirect_cause ===
+				queryParamValue.login_page.redirect_cause.email_verification
+		) {
+			toast.success(t('email-verification-success'));
+			hasShownToast.current = true;
+		}
+	}, [redirect_cause, t]);
+
 	return <LoginForm />;
 };
 

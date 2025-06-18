@@ -137,6 +137,11 @@ const commonFR = {
 	'initial-users-must-be-a-valid-json-string':
 		'Les utilisateurs initiaux doivent être une chaîne JSON valide',
 
+	'signup-title': "S'enregistrer",
+	'signup-are-disabled': 'Les nouveaux enregistrements sont désactivés',
+	'create-account': 'Créer un compte',
+	'already-have-account-question': 'Vous vez déjà un compte?',
+
 	'Error while uploading file': 'Error while uploading file',
 	'Internal server error': 'Erreur interne du serveur',
 
@@ -149,6 +154,27 @@ const commonFR = {
 	'Token expired': 'Token expiré',
 	'Invalid object for context.': 'Objet invalide pour le contexte.',
 	'Context is not an object': "Context n'est pas un objet",
+
+	// sign up terms
+	'terms-of-service': "Conditions d'utilisation",
+	'privacy-policy': 'Politique de confidentialité',
+	'by-signing-up-agree': "En m'inscrivant, j'accepte les",
+	and: 'et',
+
+	// Add these keys in the commonFR object
+	'verify-email': 'Vérifier Email',
+	'verify-email-description-1':
+		"Entrez l'adresse email de votre compte que vous souhaitez vérifier",
+	'verify-email-description-2':
+		"pour vérifier que ce lien vous appartient, entrez l'e-mail avec lequel vous avez reçu ce lien",
+
+	// Add these keys in the commonFR object
+	'verify-email-request-sent': 'Email de Vérification Envoyé',
+	'verify-email-request-sent-description-part1': "Si l'adresse email ",
+	'verify-email-request-sent-description-part2':
+		' est valide, vous recevrez un email contenant un lien pour vérifier votre compte',
+
+	'email-verification-success': "Vérification d'email réussie",
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

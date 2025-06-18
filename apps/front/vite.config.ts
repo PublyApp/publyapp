@@ -42,13 +42,14 @@ export default defineConfig(({ mode }) => {
 					? [
 							'@mui/system',
 							'@mui/material',
-							'@mui/x-date-pickers',
 							'@mui/utils',
+							'@mui/icons-material',
+							'@mui/styled-engine',
+							// ====
+							'@mui/x-date-pickers',
 							'@mui/x-data-grid',
 							'@mui/x-tree-view',
 							'@mui/x-internals',
-							'@mui/styled-engine',
-							'@mui/icons-material',
 							// ====
 							'mui-one-time-password-input',
 							'@tiptap/extension-code-block-lowlight',

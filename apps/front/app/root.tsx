@@ -1,32 +1,32 @@
 import './styles/main.css';
 
 import { QueryClientProvider } from '@tanstack/react-query';
+import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
 import { useTranslation } from 'react-i18next';
 import {
-	isRouteErrorResponse,
 	Links,
 	Meta,
 	Outlet,
 	Scripts,
 	ScrollRestoration,
+	isRouteErrorResponse,
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
-import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
 
 import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
 import { APP_NAME } from '@/shared/lib/constants';
 
+import { NotFoundView, View403, View500 } from '@/front/components/error';
+import { SettingsDrawer, defaultSettings } from '@/front/components/settings';
+import _ from 'lodash';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
-import { NotFoundView, View403, View500 } from '@/front/components/error';
-import { SettingsDrawer } from '@/front/components/settings';
-import { defaultSettings } from '@/front/components/settings';
+import View400 from './components/error/400-view';
+import { ProgressBar } from './components/progress-bar';
+import { Snackbar } from './components/snackbar/snackbar';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/query-client';
 import { getServerLoader } from './lib/react-router/server-data.server';
-import { Snackbar } from './components/snackbar/snackbar';
-import View400 from './components/error/400-view';
-import _ from 'lodash';
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -45,10 +45,10 @@ export const links: Route.LinksFunction = () => {
 
 export const meta = (_: Route.MetaArgs) => {
 	return [
-		{ title: `${APP_NAME}: The PDF API` },
+		{ title: `${APP_NAME}: The HTML to PDF conversion API` },
 		{
 			name: 'description',
-			content: 'The API for converting your HTML into PDF that just works!!',
+			content: 'The API for converting your HTML into PDF with ease!!',
 		},
 	];
 };
@@ -76,6 +76,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 					<MuiThemeProvider>
 						<MotionLazy>
 							<Snackbar />
+							<ProgressBar />
 							<SettingsDrawer defaultSettings={defaultSettings} />
 							{children}
 						</MotionLazy>
