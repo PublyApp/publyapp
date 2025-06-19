@@ -26,11 +26,16 @@ export const createCSPDirectives = (
 ): HelmetCSPDirectives => {
 	const baseDirectives: CSPDirectives = {
 		defaultSrc: ["'self'"],
-		scriptSrc: ["'self'", 'https://www.pdfvite.com'],
-		styleSrc: ["'self'", "'unsafe-inline'"],
+		scriptSrc: ["'self'", 'https://www.pdfvite.com', 'https://www.pdfvite.com'],
+		styleSrc: [
+			"'self'",
+			"'unsafe-inline'",
+			'https://fonts.googleapis.com',
+			'https://fonts.gstatic.com',
+		],
 		imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-		fontSrc: ["'self'", 'data:'],
-		connectSrc: ["'self'", 'https://www.pdfvite.com'],
+		fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
+		connectSrc: ["'self'", 'https://www.pdfvite.com', 'https://pdfvite.com'],
 		mediaSrc: ["'self'"],
 		objectSrc: ["'none'"],
 		baseUri: ["'self'"],
@@ -46,7 +51,12 @@ export const createCSPDirectives = (
 			"'unsafe-inline'",
 			"'unsafe-eval'",
 		];
-		baseDirectives.connectSrc = [...baseDirectives.connectSrc!, 'ws:', 'wss:'];
+		baseDirectives.connectSrc = [
+			...baseDirectives.connectSrc!,
+			'http://localhost:6180',
+			'ws:',
+			'wss:',
+		];
 	}
 
 	// Convert to Helmet-compatible format
@@ -103,4 +113,41 @@ export const createCSPHeader = (isDevelopment = false): string => {
 	});
 
 	return parts.join('; ');
+};
+
+// Function to create CSP meta tags for React Router
+export const createCSPMetaTags = (isDevelopment = false, reportOnly = true) => {
+	const cspPolicy = createCSPHeader(isDevelopment);
+
+	const metaTags = [
+		{ httpEquiv: 'Content-Security-Policy', content: cspPolicy },
+	];
+
+	if (reportOnly) {
+		metaTags.push({
+			httpEquiv: 'Content-Security-Policy-Report-Only',
+			content: cspPolicy,
+		});
+	}
+
+	return metaTags;
+};
+
+// Unified CSP configuration for both frontend and backend
+export const getUnifiedCSPConfig = (
+	isDevelopment = false,
+	reportOnly = true,
+) => {
+	return {
+		directives: createCSPDirectives(isDevelopment),
+		header: createCSPHeader(isDevelopment),
+		metaTags: createCSPMetaTags(isDevelopment, reportOnly),
+		// For Helmet configuration
+		helmetConfig: {
+			useDefaults: true,
+			reportOnly,
+			directives: createCSPDirectives(isDevelopment),
+			policy: createCSPHeader(isDevelopment),
+		},
+	};
 };
