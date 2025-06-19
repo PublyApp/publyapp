@@ -76,7 +76,7 @@ const bootstrap = async () => {
 		return helmet({
 			contentSecurityPolicy: getUnifiedCSPConfig({
 				isDevelopment: env.LOCAL,
-				reportOnly: true,
+				reportOnly: false,
 				nonce,
 			}).helmetConfig,
 		})(req, res, next);
