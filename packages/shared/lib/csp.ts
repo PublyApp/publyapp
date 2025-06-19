@@ -21,32 +21,16 @@ export interface CSPDirectives {
 // Helmet-compatible CSP directives type
 export type HelmetCSPDirectives = Record<string, Iterable<string> | null>;
 
-export const createCSPDirectives = ({
+export const createCSPDirectives = (
 	isDevelopment = false,
-	nonce,
-}: {
-	isDevelopment?: boolean;
-	nonce: string;
-}): HelmetCSPDirectives => {
-	const _nonce = nonce ? `'nonce-${nonce}'` : '';
-
+): HelmetCSPDirectives => {
 	const baseDirectives: CSPDirectives = {
 		defaultSrc: ["'self'"],
-		scriptSrc: [
-			"'self'",
-			'https://www.pdfvite.com',
-			'https://pdfvite.com',
-			_nonce,
-		],
-		styleSrc: [
-			"'self'",
-			"'unsafe-inline'",
-			'https://fonts.googleapis.com',
-			'https://fonts.gstatic.com',
-		],
+		scriptSrc: ["'self'", 'https://www.pdfvite.com'],
+		styleSrc: ["'self'", "'unsafe-inline'"],
 		imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-		fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-		connectSrc: ["'self'", 'https://www.pdfvite.com', 'https://pdfvite.com'],
+		fontSrc: ["'self'", 'data:'],
+		connectSrc: ["'self'", 'https://www.pdfvite.com'],
 		mediaSrc: ["'self'"],
 		objectSrc: ["'none'"],
 		baseUri: ["'self'"],
@@ -58,17 +42,11 @@ export const createCSPDirectives = ({
 	// Add development-specific directives
 	if (isDevelopment) {
 		baseDirectives.scriptSrc = [
-			...(baseDirectives.scriptSrc || []),
+			...baseDirectives.scriptSrc!,
 			"'unsafe-inline'",
 			"'unsafe-eval'",
 		];
-		baseDirectives.connectSrc = [
-			...(baseDirectives.connectSrc || []),
-			'http://localhost:6180', // express server address
-			'http://localhost:6181', // vite server address
-			'ws:',
-			'wss:',
-		];
+		baseDirectives.connectSrc = [...baseDirectives.connectSrc!, 'ws:', 'wss:'];
 	}
 
 	// Convert to Helmet-compatible format
@@ -111,14 +89,8 @@ export const directivesToString = (directives: CSPDirectives): string => {
 	return parts.join('; ');
 };
 
-export const createCSPHeader = ({
-	isDevelopment = false,
-	nonce,
-}: {
-	isDevelopment?: boolean;
-	nonce: string;
-}): string => {
-	const directives = createCSPDirectives({ isDevelopment, nonce });
+export const createCSPHeader = (isDevelopment = false): string => {
+	const directives = createCSPDirectives(isDevelopment);
 
 	// Convert Helmet format back to string format for Vite
 	const parts: string[] = [];
@@ -131,61 +103,4 @@ export const createCSPHeader = ({
 	});
 
 	return parts.join('; ');
-};
-
-// Function to create CSP meta tags for React Router
-export const createCSPMetaTags = ({
-	isDevelopment = false,
-	reportOnly = true,
-	nonce,
-}: {
-	isDevelopment?: boolean;
-	reportOnly?: boolean;
-	nonce: string;
-}) => {
-	const cspPolicy = createCSPHeader({ isDevelopment, nonce });
-
-	const metaTags = [
-		{ httpEquiv: 'Content-Security-Policy', content: cspPolicy },
-	];
-
-	if (reportOnly) {
-		metaTags.push({
-			httpEquiv: 'Content-Security-Policy-Report-Only',
-			content: cspPolicy,
-		});
-	}
-
-	return metaTags;
-};
-
-// Unified CSP configuration for both frontend and backend
-export const getUnifiedCSPConfig = ({
-	isDevelopment = false,
-	reportOnly = true,
-	nonce,
-}: {
-	isDevelopment?: boolean;
-	reportOnly?: boolean;
-	nonce: string;
-}) => {
-	return {
-		directives: createCSPDirectives({ isDevelopment, nonce }),
-		headerKey: reportOnly
-			? 'Content-Security-Policy-Report-Only'
-			: 'Content-Security-Policy',
-		header: createCSPHeader({ isDevelopment, nonce: nonce || '' }),
-		metaTags: createCSPMetaTags({
-			isDevelopment,
-			reportOnly,
-			nonce: nonce || '',
-		}),
-		// For Helmet configuration
-		helmetConfig: {
-			useDefaults: true,
-			reportOnly,
-			directives: createCSPDirectives({ isDevelopment, nonce: nonce || '' }),
-			policy: createCSPHeader({ isDevelopment, nonce: nonce || '' }),
-		},
-	};
 };

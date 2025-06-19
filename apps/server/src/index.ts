@@ -1,5 +1,3 @@
-import { createServer } from 'node:http';
-import path from 'node:path';
 import { logger } from '@/server/lib/winston';
 import {
 	APP_ID,
@@ -9,6 +7,7 @@ import {
 	TENANT_ID_HEADER_KEY,
 	endPoint,
 } from '@/shared/lib/constants';
+import { createCSPDirectives } from '@org/shared/lib/csp';
 import duration from '@org/shared/utils/duration.utils';
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
@@ -16,6 +15,8 @@ import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
+import { createServer } from 'node:http';
+import path from 'node:path';
 import ParseDashboard from 'parse-dashboard';
 import { ParseServer } from 'parse-server/lib/index.js';
 import Parse from 'parse/node.js';
@@ -67,10 +68,7 @@ const bootstrap = async () => {
 			contentSecurityPolicy: {
 				useDefaults: true,
 				reportOnly: true,
-				directives: {
-					'connect-src': ["'self'", 'https://www.pdfvite.com'],
-					'script-src': ["'self'", 'https://www.pdfvite.com'],
-				},
+				directives: createCSPDirectives(env.LOCAL),
 			},
 		}),
 	);
