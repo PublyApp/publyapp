@@ -1,6 +1,15 @@
-import { PassThrough } from 'node:stream';
+import {
+	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	queryParamKey,
+	REMIX_CLIENT_IP_HEADER_KEY,
+} from '@/shared/lib/constants';
+import { getUnifiedCSPConfig } from '@/shared/lib/csp';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
+import _ from 'lodash';
+import { nanoid } from 'nanoid';
+import { PassThrough } from 'node:stream';
 import {
 	type RenderToPipeableStreamOptions,
 	renderToPipeableStream,
@@ -11,15 +20,7 @@ import {
 	type EntryContext,
 	ServerRouter,
 } from 'react-router';
-import {
-	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	queryParamKey,
-	REMIX_CLIENT_IP_HEADER_KEY,
-} from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
-import _ from 'lodash';
-import { nanoid } from 'nanoid';
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
 const handleRequest = async (
@@ -93,6 +94,14 @@ const handleRequest = async (
 					const stream = createReadableStreamFromReadable(body);
 
 					responseHeaders.set('Content-Type', 'text/html');
+
+					// Set CSP headers
+					const isDevelopment = import.meta.env.DEV;
+
+					if (isDevelopment) {
+						const cspConfig = getUnifiedCSPConfig(isDevelopment, false);
+						responseHeaders.set(cspConfig.headerKey, cspConfig.header);
+					}
 
 					resolve(
 						new Response(stream, {
