@@ -13,6 +13,8 @@ import {
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 
+import { CSPMonitor } from '@/front/components/csp-monitor';
+import { CSPTest } from '@/front/components/csp-test';
 import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
 import { APP_NAME } from '@/shared/lib/constants';
 
@@ -79,6 +81,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 							<ProgressBar />
 							<SettingsDrawer defaultSettings={defaultSettings} />
 							{children}
+							<CSPMonitor />
+							<CSPTest />
 						</MotionLazy>
 					</MuiThemeProvider>
 				</QueryClientProvider>
