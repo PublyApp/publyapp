@@ -26,7 +26,7 @@ export const createCSPDirectives = (
 ): HelmetCSPDirectives => {
 	const baseDirectives: CSPDirectives = {
 		defaultSrc: ["'self'"],
-		scriptSrc: ["'self'", 'https://www.pdfvite.com', 'https://www.pdfvite.com'],
+		scriptSrc: ["'self'", 'https://www.pdfvite.com', 'https://pdfvite.com'],
 		styleSrc: [
 			"'self'",
 			"'unsafe-inline'",
@@ -47,12 +47,12 @@ export const createCSPDirectives = (
 	// Add development-specific directives
 	if (isDevelopment) {
 		baseDirectives.scriptSrc = [
-			...baseDirectives.scriptSrc!,
+			...(baseDirectives.scriptSrc || []),
 			"'unsafe-inline'",
 			"'unsafe-eval'",
 		];
 		baseDirectives.connectSrc = [
-			...baseDirectives.connectSrc!,
+			...(baseDirectives.connectSrc || []),
 			'http://localhost:6180', // express server address
 			'http://localhost:6181', // vite server address
 			'ws:',
