@@ -15,7 +15,7 @@ import { useChangeLanguage } from 'remix-i18next/react';
 
 import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
 import { APP_NAME } from '@/shared/lib/constants';
-import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
+// import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
 
 import { NotFoundView, View403, View500 } from '@/front/components/error';
 import { SettingsDrawer, defaultSettings } from '@/front/components/settings';
@@ -45,13 +45,13 @@ export const links: Route.LinksFunction = () => {
 };
 
 export const meta: Route.MetaFunction = () => {
-	const isDevelopment = import.meta.env.DEV;
+	// const isDevelopment = import.meta.env.DEV;
 
 	return [
 		{ title: APP_NAME },
 		{ name: 'description', content: 'PDF Vite Application' },
 		// Add CSP meta tags for development using unified configuration
-		...(isDevelopment ? getUnifiedCSPConfig(isDevelopment).metaTags : []),
+		// ...(isDevelopment ? getUnifiedCSPConfig(isDevelopment).metaTags : []),
 	];
 };
 
