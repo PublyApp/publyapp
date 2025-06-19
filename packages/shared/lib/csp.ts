@@ -140,6 +140,9 @@ export const getUnifiedCSPConfig = (
 ) => {
 	return {
 		directives: createCSPDirectives(isDevelopment),
+		headerKey: reportOnly
+			? 'Content-Security-Policy-Report-Only'
+			: 'Content-Security-Policy',
 		header: createCSPHeader(isDevelopment),
 		metaTags: createCSPMetaTags(isDevelopment, reportOnly),
 		// For Helmet configuration
