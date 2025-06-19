@@ -113,7 +113,11 @@ const handleRequest = async (
 					const isDevelopment = import.meta.env.DEV;
 
 					if (isDevelopment) {
-						const cspConfig = getUnifiedCSPConfig({ isDevelopment, nonce });
+						const cspConfig = getUnifiedCSPConfig({
+							isDevelopment,
+							reportOnly: false,
+							nonce,
+						});
 						responseHeaders.set(cspConfig.headerKey, cspConfig.header);
 					}
 
