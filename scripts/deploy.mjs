@@ -1,10 +1,10 @@
 // @ts-check
-import { spawnSync } from 'node:child_process';
-import path from 'node:path';
-import _ from 'lodash';
-import fse from 'fs-extra';
-import fs from 'node:fs';
 import archiver from 'archiver';
+import fse from 'fs-extra';
+import _ from 'lodash';
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../');
 

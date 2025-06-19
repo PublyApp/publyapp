@@ -395,3 +395,18 @@ export const X_CODE = {
 	INVALID_TOKEN: 'INVALID_TOKEN',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
 } as const;
+
+export const PRE_RENDER_PATHS = ['/', '/login'] as const;
+
+export type PreRenderPath = (typeof PRE_RENDER_PATHS)[number];
+
+export const isPreRenderPath = (path: string): path is PreRenderPath => {
+	let _path = path;
+	if (path !== '/' && _path.endsWith('/')) {
+		_path = _path.slice(0, -1);
+	}
+	return PRE_RENDER_PATHS.includes(_path as PreRenderPath);
+};
+
+export const STATIC_PRE_RENDER_PATHS_MAP_NONCE =
+	'Ynuh4K7aYVf6z5RVxEGnal9zru8ZmYZsSE3n2GNtbBbc6Z2VRq';
