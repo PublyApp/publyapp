@@ -51,8 +51,6 @@ export const meta: Route.MetaFunction = () => {
 	return [
 		{ title: APP_NAME },
 		{ name: 'description', content: 'PDF Vite Application' },
-		// Add CSP meta tags for development using unified configuration
-		// ...(isDevelopment ? getUnifiedCSPConfig(isDevelopment).metaTags : []),
 	];
 };
 
