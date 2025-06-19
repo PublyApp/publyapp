@@ -7,7 +7,7 @@ import {
 	TENANT_ID_HEADER_KEY,
 	endPoint,
 } from '@/shared/lib/constants';
-import { createCSPDirectives } from '@org/shared/lib/csp';
+import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
 import duration from '@org/shared/utils/duration.utils';
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
@@ -65,11 +65,7 @@ const bootstrap = async () => {
 	app.use(maliciousRequestsGuardMiddleware);
 	app.use(
 		helmet({
-			contentSecurityPolicy: {
-				useDefaults: true,
-				reportOnly: true,
-				directives: createCSPDirectives(env.LOCAL),
-			},
+			contentSecurityPolicy: getUnifiedCSPConfig(env.LOCAL).helmetConfig,
 		}),
 	);
 	app.use(
