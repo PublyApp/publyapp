@@ -100,10 +100,7 @@ const handleRequest = async (
 
 					if (isDevelopment) {
 						const cspConfig = getUnifiedCSPConfig(isDevelopment, false);
-						responseHeaders.set(
-							'Content-Security-Policy-Report-Only',
-							cspConfig.header,
-						);
+						responseHeaders.set(cspConfig.headerKey, cspConfig.header);
 					}
 
 					resolve(
