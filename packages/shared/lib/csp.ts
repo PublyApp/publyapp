@@ -23,10 +23,18 @@ export type HelmetCSPDirectives = Record<string, Iterable<string> | null>;
 
 export const createCSPDirectives = (
 	isDevelopment = false,
+	nonce?: string,
 ): HelmetCSPDirectives => {
+	const _nonce = nonce ? `'nonce-${nonce}'` : '';
+
 	const baseDirectives: CSPDirectives = {
 		defaultSrc: ["'self'"],
-		scriptSrc: ["'self'", 'https://www.pdfvite.com', 'https://pdfvite.com'],
+		scriptSrc: [
+			"'self'",
+			'https://www.pdfvite.com',
+			'https://pdfvite.com',
+			_nonce,
+		],
 		styleSrc: [
 			"'self'",
 			"'unsafe-inline'",
@@ -135,12 +143,17 @@ export const createCSPMetaTags = (isDevelopment = false, reportOnly = true) => {
 };
 
 // Unified CSP configuration for both frontend and backend
-export const getUnifiedCSPConfig = (
+export const getUnifiedCSPConfig = ({
 	isDevelopment = false,
 	reportOnly = true,
-) => {
+	nonce,
+}: {
+	isDevelopment?: boolean;
+	reportOnly?: boolean;
+	nonce?: string;
+}) => {
 	return {
-		directives: createCSPDirectives(isDevelopment),
+		directives: createCSPDirectives(isDevelopment, nonce),
 		headerKey: reportOnly
 			? 'Content-Security-Policy-Report-Only'
 			: 'Content-Security-Policy',
