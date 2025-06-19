@@ -64,8 +64,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
 	const nonce = useNonce();
 
-	// console.log('🤢🤢🤢🤢🤢🤢🤢🤢🤢🤢🤢🤢🤢', nonce);
-
 	return (
 		<html lang={i18n.language} dir={i18n.dir()}>
 			<head>
