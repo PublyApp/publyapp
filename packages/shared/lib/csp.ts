@@ -53,7 +53,8 @@ export const createCSPDirectives = (
 		];
 		baseDirectives.connectSrc = [
 			...baseDirectives.connectSrc!,
-			'http://localhost:6180',
+			'http://localhost:6180', // express server address
+			'http://localhost:6181', // vite server address
 			'ws:',
 			'wss:',
 		];
