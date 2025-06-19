@@ -4,8 +4,10 @@ import {
 	APP_NAME,
 	LOCALE_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
+	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 	TENANT_ID_HEADER_KEY,
 	endPoint,
+	isPreRenderPath,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
 import duration from '@org/shared/utils/duration.utils';
@@ -15,10 +17,10 @@ import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
-import { nanoid } from 'nanoid';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import ParseDashboard from 'parse-dashboard';
+import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 import { ParseServer } from 'parse-server/lib/index.js';
 import Parse from 'parse/node.js';
 import { cloud } from './cloud';
@@ -65,14 +67,16 @@ const bootstrap = async () => {
 
 	app.use(maliciousRequestsGuardMiddleware);
 	app.use((req, res, next) => {
-		const nonce = nanoid();
+		const nonce = isPreRenderPath(req.path)
+			? STATIC_PRE_RENDER_PATHS_MAP_NONCE
+			: newObjectId();
 
 		_.set(req, '___NONCE___', nonce);
 
 		return helmet({
 			contentSecurityPolicy: getUnifiedCSPConfig({
 				isDevelopment: env.LOCAL,
-				reportOnly: false,
+				reportOnly: true,
 				nonce,
 			}).helmetConfig,
 		})(req, res, next);
@@ -249,11 +253,11 @@ const bootstrap = async () => {
 			// return anything you want here to be available as `context` in your
 			// loaders and actions. This is where you can bridge the gap between Remix
 			// and your server
-			getLoadContext: (_req, _res) => {
+			getLoadContext: (req, _res) => {
 				return {
 					logger,
 					postHogServer,
-					nonce: _.get(_req, '___NONCE___'),
+					nonce: _.get(req, '___NONCE___'),
 				};
 			},
 		});

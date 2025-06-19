@@ -1,7 +1,9 @@
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	isPreRenderPath,
 	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
+	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
@@ -20,6 +22,7 @@ import {
 	type EntryContext,
 	ServerRouter,
 } from 'react-router';
+import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
@@ -83,14 +86,22 @@ const handleRequest = async (
 				? 'onAllReady'
 				: 'onShellReady';
 
-		const _nonce = _.get(loadContext, 'nonce');
-		const nonce = _.isString(_nonce) ? _nonce : undefined;
+		const nonce = isPreRenderPath(new URL(request.url).pathname)
+			? STATIC_PRE_RENDER_PATHS_MAP_NONCE
+			: _.toString(_.get(loadContext, 'nonce') || nanoid());
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
-				<ServerRouter context={routerContext} url={request.url} nonce={nonce} />
+				<NonceProvider value={nonce}>
+					<ServerRouter
+						context={routerContext}
+						url={request.url}
+						nonce={nonce}
+					/>
+				</NonceProvider>
 			</I18nextProvider>,
 			{
+				nonce,
 				[readyOption]: () => {
 					shellRendered = true;
 					const body = new PassThrough();
