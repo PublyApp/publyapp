@@ -83,9 +83,12 @@ const handleRequest = async (
 				? 'onAllReady'
 				: 'onShellReady';
 
+		const _nonce = _.get(loadContext, 'nonce');
+		const nonce = _.isString(_nonce) ? _nonce : undefined;
+
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
-				<ServerRouter context={routerContext} url={request.url} />
+				<ServerRouter context={routerContext} url={request.url} nonce={nonce} />
 			</I18nextProvider>,
 			{
 				[readyOption]: () => {
@@ -99,7 +102,7 @@ const handleRequest = async (
 					const isDevelopment = import.meta.env.DEV;
 
 					if (isDevelopment) {
-						const cspConfig = getUnifiedCSPConfig(isDevelopment, false);
+						const cspConfig = getUnifiedCSPConfig({ isDevelopment, nonce });
 						responseHeaders.set(cspConfig.headerKey, cspConfig.header);
 					}
 

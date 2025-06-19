@@ -15,6 +15,7 @@ import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
+import { nanoid } from 'nanoid';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import ParseDashboard from 'parse-dashboard';
@@ -63,11 +64,19 @@ const bootstrap = async () => {
 	app.set('case sensitive routing', true);
 
 	app.use(maliciousRequestsGuardMiddleware);
-	app.use(
-		helmet({
-			contentSecurityPolicy: getUnifiedCSPConfig(env.LOCAL, false).helmetConfig,
-		}),
-	);
+	app.use((req, res, next) => {
+		const nonce = nanoid();
+
+		_.set(req, '___NONCE___', nonce);
+
+		return helmet({
+			contentSecurityPolicy: getUnifiedCSPConfig({
+				isDevelopment: env.LOCAL,
+				reportOnly: false,
+				nonce,
+			}).helmetConfig,
+		})(req, res, next);
+	});
 	app.use(
 		corsMiddleware({
 			whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
@@ -244,6 +253,7 @@ const bootstrap = async () => {
 				return {
 					logger,
 					postHogServer,
+					nonce: _.get(_req, '___NONCE___'),
 				};
 			},
 		});
