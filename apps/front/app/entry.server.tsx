@@ -97,11 +97,14 @@ const handleRequest = async (
 
 					// Set CSP headers
 					const isDevelopment = import.meta.env.DEV;
-					const cspConfig = getUnifiedCSPConfig(isDevelopment, true); // Always report-only for now
-					responseHeaders.set(
-						'Content-Security-Policy-Report-Only',
-						cspConfig.header,
-					);
+
+					if (isDevelopment) {
+						const cspConfig = getUnifiedCSPConfig(isDevelopment, false);
+						responseHeaders.set(
+							'Content-Security-Policy-Report-Only',
+							cspConfig.header,
+						);
+					}
 
 					resolve(
 						new Response(stream, {

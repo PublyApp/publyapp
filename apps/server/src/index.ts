@@ -65,7 +65,7 @@ const bootstrap = async () => {
 	app.use(maliciousRequestsGuardMiddleware);
 	app.use(
 		helmet({
-			contentSecurityPolicy: getUnifiedCSPConfig(env.LOCAL).helmetConfig,
+			contentSecurityPolicy: getUnifiedCSPConfig(env.LOCAL, false).helmetConfig,
 		}),
 	);
 	app.use(
