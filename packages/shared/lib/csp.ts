@@ -23,7 +23,7 @@ export type HelmetCSPDirectives = Record<string, Iterable<string> | null>;
 
 export const createCSPDirectives = (
 	isDevelopment = false,
-	nonce?: string,
+	nonce: string,
 ): HelmetCSPDirectives => {
 	const _nonce = nonce ? `'nonce-${nonce}'` : '';
 
@@ -108,8 +108,11 @@ export const directivesToString = (directives: CSPDirectives): string => {
 	return parts.join('; ');
 };
 
-export const createCSPHeader = (isDevelopment = false): string => {
-	const directives = createCSPDirectives(isDevelopment);
+export const createCSPHeader = (
+	isDevelopment = false,
+	nonce: string,
+): string => {
+	const directives = createCSPDirectives(isDevelopment, nonce);
 
 	// Convert Helmet format back to string format for Vite
 	const parts: string[] = [];
@@ -125,8 +128,12 @@ export const createCSPHeader = (isDevelopment = false): string => {
 };
 
 // Function to create CSP meta tags for React Router
-export const createCSPMetaTags = (isDevelopment = false, reportOnly = true) => {
-	const cspPolicy = createCSPHeader(isDevelopment);
+export const createCSPMetaTags = (
+	isDevelopment = false,
+	reportOnly = true,
+	nonce: string,
+) => {
+	const cspPolicy = createCSPHeader(isDevelopment, nonce);
 
 	const metaTags = [
 		{ httpEquiv: 'Content-Security-Policy', content: cspPolicy },
@@ -153,18 +160,18 @@ export const getUnifiedCSPConfig = ({
 	nonce?: string;
 }) => {
 	return {
-		directives: createCSPDirectives(isDevelopment, nonce),
+		directives: createCSPDirectives(isDevelopment, nonce || ''),
 		headerKey: reportOnly
 			? 'Content-Security-Policy-Report-Only'
 			: 'Content-Security-Policy',
-		header: createCSPHeader(isDevelopment),
-		metaTags: createCSPMetaTags(isDevelopment, reportOnly),
+		header: createCSPHeader(isDevelopment, nonce || ''),
+		metaTags: createCSPMetaTags(isDevelopment, reportOnly, nonce || ''),
 		// For Helmet configuration
 		helmetConfig: {
 			useDefaults: true,
 			reportOnly,
-			directives: createCSPDirectives(isDevelopment),
-			policy: createCSPHeader(isDevelopment),
+			directives: createCSPDirectives(isDevelopment, nonce || ''),
+			policy: createCSPHeader(isDevelopment, nonce || ''),
 		},
 	};
 };

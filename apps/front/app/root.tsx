@@ -25,6 +25,7 @@ import { MotionLazy } from './components/animate/motion-lazy';
 import View400 from './components/error/400-view';
 import { ProgressBar } from './components/progress-bar';
 import { Snackbar } from './components/snackbar/snackbar';
+import { useNonce } from './hooks/use-nonce';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/query-client';
 import { getServerLoader } from './lib/react-router/server-data.server';
@@ -63,6 +64,9 @@ export const loader = getServerLoader({
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
+	const nonce = useNonce();
+
+	// console.log('🤢🤢🤢🤢🤢🤢🤢🤢🤢🤢🤢🤢🤢', nonce);
 
 	return (
 		<html lang={i18n.language} dir={i18n.dir()}>
@@ -81,13 +85,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 							<ProgressBar />
 							<SettingsDrawer defaultSettings={defaultSettings} />
 							{children}
-							{/* <CSPMonitor />
-							<CSPTest /> */}
 						</MotionLazy>
 					</MuiThemeProvider>
 				</QueryClientProvider>
-				<ScrollRestoration />
-				<Scripts />
+				<ScrollRestoration nonce={nonce} />
+				<Scripts nonce={nonce} />
 			</body>
 		</html>
 	);
