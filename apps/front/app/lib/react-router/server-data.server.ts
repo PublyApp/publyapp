@@ -18,7 +18,7 @@ import {
 } from 'react-router';
 import { initApiClientOnServer } from '../api';
 import { remixI18NextServer } from '../i18n/i18n.server';
-import { getRequestLocale } from './data.utils';
+import { getDevContext, getRequestLocale } from './data.utils';
 
 type GetServerLoaderParamsWhenRequireUser<
 	T extends
@@ -112,11 +112,14 @@ export const getServerLoader: GetServerLoader = <
 	const loader = async (args: T) => {
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
-		const t = z.t;
-		if (isPromise(t)) {
-			// @ts-ignore
-			z._t = await t;
+
+		if (isPromise(z.t)) {
+			// @ts-expect-error - t is a promise
+			z._t = await z.t;
 		}
+
+		const finalLoadContext = getDevContext(args.context);
+
 		const requestIp =
 			args.request.headers.get(
 				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
@@ -127,12 +130,25 @@ export const getServerLoader: GetServerLoader = <
 			const apiClient = initApiClientOnServer({ locale, requestIp });
 
 			if (!params.withAuthDataPromise) {
-				return params.loader({ ...args, apiClient, z, locale });
+				return params.loader({
+					...args,
+					context: finalLoadContext,
+					apiClient,
+					z,
+					locale,
+				});
 			}
 
 			const authDataPromise = apiClient.auth.getUserAuthData();
 
-			return params.loader({ ...args, apiClient, z, locale, authDataPromise });
+			return params.loader({
+				...args,
+				context: finalLoadContext,
+				apiClient,
+				z,
+				locale,
+				authDataPromise,
+			});
 		}
 
 		// check if session token cookie is present
@@ -152,7 +168,14 @@ export const getServerLoader: GetServerLoader = <
 		});
 		const authData = await apiClient.auth.getUserAuthData();
 
-		return params.loader({ ...args, apiClient, z, locale, authData });
+		return params.loader({
+			...args,
+			context: finalLoadContext,
+			apiClient,
+			z,
+			locale,
+			authData,
+		});
 	};
 
 	return loader;
@@ -222,6 +245,14 @@ export const getServerAction: GetServerAction = <
 	const action = async (args: T) => {
 		const locale = getRequestLocale(args.request);
 		const z = new InterZod({ i18n: remixI18NextServer as never, locale });
+
+		if (isPromise(z.t)) {
+			// @ts-expect-error - z.t is a promise
+			z._t = await z.t;
+		}
+
+		const finalLoadContext = getDevContext(args.context);
+
 		const requestIp =
 			args.request.headers.get(
 				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
@@ -230,7 +261,13 @@ export const getServerAction: GetServerAction = <
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({ locale, requestIp });
-			return params.action({ ...args, apiClient, z, locale });
+			return params.action({
+				...args,
+				context: finalLoadContext,
+				apiClient,
+				z,
+				locale,
+			});
 		}
 
 		const reqCookies = cookie.parse(
@@ -250,7 +287,14 @@ export const getServerAction: GetServerAction = <
 
 		const authData = await apiClient.auth.getUserAuthData();
 
-		return params.action({ ...args, apiClient, z, locale, authData });
+		return params.action({
+			...args,
+			context: finalLoadContext,
+			apiClient,
+			z,
+			locale,
+			authData,
+		});
 	};
 
 	return action;
