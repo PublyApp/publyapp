@@ -1,4 +1,4 @@
-import { SimplePostHog } from './posthog.types';
+import type { SimplePostHog } from './posthog.types';
 
 /**
  * SilentPostHog is a PostHog client that does not send any data.
