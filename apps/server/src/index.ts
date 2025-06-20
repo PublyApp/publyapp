@@ -68,7 +68,11 @@ const bootstrap = async () => {
 
 	app.use(maliciousRequestsGuardMiddleware);
 	app.use((req, res, next) => {
-		if (req.path.startsWith(PARSE_DASHBOARD_MOUNT_PATH)) {
+		const isParseDashboardPath =
+			req.path.startsWith(PARSE_DASHBOARD_MOUNT_PATH) ||
+			req.path.startsWith('/parse-dashboard');
+
+		if (env.LOCAL && isParseDashboardPath) {
 			return next();
 		}
 
