@@ -1,9 +1,10 @@
+import { PassThrough } from 'node:stream';
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	isPreRenderPath,
-	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
+	isPreRenderPath,
+	queryParamKey,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
@@ -11,7 +12,6 @@ import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
-import { PassThrough } from 'node:stream';
 import {
 	type RenderToPipeableStreamOptions,
 	renderToPipeableStream,
@@ -24,6 +24,8 @@ import {
 } from 'react-router';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
+import { getDevContext } from './lib/react-router/get-dev-context.server';
+
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
 const handleRequest = async (
@@ -33,7 +35,11 @@ const handleRequest = async (
 	routerContext: EntryContext,
 	loadContext: AppLoadContext,
 ) => {
-	if (loadContext.postHogServer) {
+	const finalLoadContext = getDevContext(loadContext);
+
+	const postHogServer = finalLoadContext.postHogServer;
+
+	if (import.meta.env.PROD) {
 		if (!_.toString(responseStatusCode).startsWith('2')) {
 			const ipAddresses = {};
 			_.forEach(
@@ -53,7 +59,7 @@ const handleRequest = async (
 				},
 			);
 
-			loadContext.postHogServer.capture({
+			postHogServer.capture({
 				distinctId:
 					_.get(ipAddresses, _.toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
 					_.get(ipAddresses, _.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
@@ -86,9 +92,13 @@ const handleRequest = async (
 				? 'onAllReady'
 				: 'onShellReady';
 
-		const nonce = isPreRenderPath(new URL(request.url).pathname)
-			? STATIC_PRE_RENDER_PATHS_MAP_NONCE
-			: _.toString(_.get(loadContext, 'nonce') || nanoid());
+		// regardless of the environment, we want to set the nonce
+		// to the static pre render path nonce if the path is a pre render path
+		if (isPreRenderPath(new URL(request.url).pathname)) {
+			finalLoadContext.___NONCE___ = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
+		}
+
+		const nonce = _.toString(finalLoadContext.___NONCE___) || nanoid();
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>

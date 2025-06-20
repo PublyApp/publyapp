@@ -8,8 +8,8 @@ import z from 'zod';
 
 import { getNumericStringSchema } from '@org/shared/lib/zod/utils';
 
-import { logger } from '@/server/lib/winston';
 import { deepFreeze } from '@/shared/utils/any.utils';
+import { logger } from '@org/shared/lib/winston.server';
 
 import { defaultZodServer } from './zod';
 

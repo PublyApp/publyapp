@@ -18,13 +18,13 @@ import {
 	createSessionServer,
 	getGlobalConfig,
 } from '@/server/lib/parse/parse.utils';
-import { logger } from '@/server/lib/winston';
 import ParseUser from '@/server/modules/common/auth/user/user.class';
 import { defaultHttp } from '@/shared/lib/axios';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { logger } from '@org/shared/lib/winston.server';
 
-import { AuthCloudService } from './auth.cloud.service';
 import { generateUsername } from 'unique-username-generator';
+import { AuthCloudService } from './auth.cloud.service';
 
 export const handlePasswordLogin = expressHandler(async (req, res) => {
 	const { password } = req.body;
