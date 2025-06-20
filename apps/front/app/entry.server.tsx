@@ -1,3 +1,4 @@
+import { PassThrough } from 'node:stream';
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
@@ -11,7 +12,6 @@ import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
-import { PassThrough } from 'node:stream';
 import {
 	type RenderToPipeableStreamOptions,
 	renderToPipeableStream,
@@ -24,7 +24,7 @@ import {
 } from 'react-router';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
-import { getDevContext } from './lib/react-router/data.utils';
+import { getDevContext } from './lib/react-router/get-dev-context.server';
 
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
