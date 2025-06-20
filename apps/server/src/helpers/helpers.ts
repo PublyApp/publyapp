@@ -1,11 +1,11 @@
-import { promises as fs, existsSync } from 'node:fs';
 import {
 	DISABLE_SIGNUP_CONFIG_KEY,
 	FILE_UPLOAD_DESTINATION,
 	USE_MASTER_KEY,
 } from '@/server/lib/constants';
-import { logger } from '@/server/lib/winston';
 import { className, roleEnum } from '@org/shared/lib/constants';
+import { logger } from '@org/shared/lib/winston.server';
+import { existsSync, promises as fs } from 'node:fs';
 import SchemaManager from '../lib/parse/classes/SchemaManager';
 import {
 	getDatabase,

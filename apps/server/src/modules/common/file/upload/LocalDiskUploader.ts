@@ -1,7 +1,7 @@
-import path from 'node:path';
 import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
-import { logger } from '@/server/lib/winston';
 import { fileProvider } from '@/shared/lib/constants';
+import { logger } from '@org/shared/lib/winston.server';
+import path from 'node:path';
 import sharp from 'sharp';
 import type { UploadInput, Uploader } from './Uploader.interface';
 

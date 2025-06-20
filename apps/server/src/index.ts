@@ -1,4 +1,3 @@
-import { logger } from '@/server/lib/winston';
 import {
 	APP_ID,
 	APP_NAME,
@@ -10,6 +9,7 @@ import {
 	isPreRenderPath,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
+import { logger } from '@org/shared/lib/winston.server';
 import duration from '@org/shared/utils/duration.utils';
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
@@ -257,7 +257,7 @@ const bootstrap = async () => {
 				return {
 					logger,
 					postHogServer,
-					nonce: _.get(req, '___NONCE___'),
+					___NONCE___: _.get(req, '___NONCE___'),
 				};
 			},
 		});

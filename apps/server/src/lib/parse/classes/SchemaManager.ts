@@ -1,6 +1,6 @@
-import { logger } from '@/server/lib/winston';
 import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
 import { className as _className, isBun } from '@org/shared/lib/constants';
+import { logger } from '@org/shared/lib/winston.server';
 import asyncJs from 'async';
 import _ from 'lodash';
 import { type CreateIndexesOptions, MongoServerError } from 'mongodb';
