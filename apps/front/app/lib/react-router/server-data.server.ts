@@ -18,7 +18,8 @@ import {
 } from 'react-router';
 import { initApiClientOnServer } from '../api';
 import { remixI18NextServer } from '../i18n/i18n.server';
-import { getDevContext, getRequestLocale } from './data.utils';
+import { getRequestLocale } from './data.utils';
+import { getDevContext } from './get-dev-context.server';
 
 type GetServerLoaderParamsWhenRequireUser<
 	T extends
