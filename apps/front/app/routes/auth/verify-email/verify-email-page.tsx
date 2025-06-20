@@ -69,7 +69,7 @@ export const action = getServerAction({
 				verificationEmailRequest({ email: parsed.data.email }).then(
 					(result) => {
 						if (result.status === 'error') {
-							(context.logger || console)?.error(
+							context.logger.error(
 								'Error when requesting email verification',
 								result.error,
 							);

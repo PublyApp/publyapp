@@ -36,7 +36,25 @@ const handleRequest = async (
 	routerContext: EntryContext,
 	loadContext: AppLoadContext,
 ) => {
-	if (loadContext.postHogServer) {
+	let finalLoadContext: AppLoadContext;
+
+	if (import.meta.env.DEV) {
+		finalLoadContext = {
+			logger: logger,
+			postHogServer: new SilentPostHog(),
+			___NONCE___: nanoid(),
+			...(loadContext as Record<string, unknown>), // keep the original load context if there are any values in it
+		};
+	} else {
+		finalLoadContext = loadContext;
+	}
+
+	// just to be sure, override the load context with the final load context
+	loadContext = finalLoadContext;
+
+	const postHogServer = loadContext.postHogServer;
+
+	if (import.meta.env.PROD) {
 		if (!_.toString(responseStatusCode).startsWith('2')) {
 			const ipAddresses = {};
 			_.forEach(
@@ -56,7 +74,7 @@ const handleRequest = async (
 				},
 			);
 
-			loadContext.postHogServer.capture({
+			postHogServer.capture({
 				distinctId:
 					_.get(ipAddresses, _.toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
 					_.get(ipAddresses, _.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
@@ -89,26 +107,13 @@ const handleRequest = async (
 				? 'onAllReady'
 				: 'onShellReady';
 
-		let finalLoadContext: AppLoadContext;
-
-		if (import.meta.env.DEV) {
-			finalLoadContext = {
-				logger: logger,
-				postHogServer: new SilentPostHog(),
-				___NONCE___: nanoid(),
-				...loadContext, // keep the original load context if there are any values in it
-			};
-		} else {
-			finalLoadContext = loadContext;
-		}
-
 		// regardless of the environment, we want to set the nonce
 		// to the static pre render path nonce if the path is a pre render path
 		if (isPreRenderPath(new URL(request.url).pathname)) {
 			finalLoadContext.___NONCE___ = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
 		}
 
-		const nonce = _.toString(finalLoadContext.___NONCE___);
+		const nonce = _.toString(finalLoadContext.___NONCE___) || nanoid();
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
