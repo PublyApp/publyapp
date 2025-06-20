@@ -21,10 +21,13 @@ export interface CSPDirectives {
 // Helmet-compatible CSP directives type
 export type HelmetCSPDirectives = Record<string, Iterable<string> | null>;
 
-export const createCSPDirectives = (
+export const createCSPDirectives = ({
 	isDevelopment = false,
-	nonce: string,
-): HelmetCSPDirectives => {
+	nonce,
+}: {
+	isDevelopment?: boolean;
+	nonce: string;
+}): HelmetCSPDirectives => {
 	const _nonce = nonce ? `'nonce-${nonce}'` : '';
 
 	const baseDirectives: CSPDirectives = {
@@ -108,11 +111,14 @@ export const directivesToString = (directives: CSPDirectives): string => {
 	return parts.join('; ');
 };
 
-export const createCSPHeader = (
+export const createCSPHeader = ({
 	isDevelopment = false,
-	nonce: string,
-): string => {
-	const directives = createCSPDirectives(isDevelopment, nonce);
+	nonce,
+}: {
+	isDevelopment?: boolean;
+	nonce: string;
+}): string => {
+	const directives = createCSPDirectives({ isDevelopment, nonce });
 
 	// Convert Helmet format back to string format for Vite
 	const parts: string[] = [];
@@ -128,12 +134,16 @@ export const createCSPHeader = (
 };
 
 // Function to create CSP meta tags for React Router
-export const createCSPMetaTags = (
+export const createCSPMetaTags = ({
 	isDevelopment = false,
 	reportOnly = true,
-	nonce: string,
-) => {
-	const cspPolicy = createCSPHeader(isDevelopment, nonce);
+	nonce,
+}: {
+	isDevelopment?: boolean;
+	reportOnly?: boolean;
+	nonce: string;
+}) => {
+	const cspPolicy = createCSPHeader({ isDevelopment, nonce });
 
 	const metaTags = [
 		{ httpEquiv: 'Content-Security-Policy', content: cspPolicy },
@@ -157,21 +167,25 @@ export const getUnifiedCSPConfig = ({
 }: {
 	isDevelopment?: boolean;
 	reportOnly?: boolean;
-	nonce?: string;
+	nonce: string;
 }) => {
 	return {
-		directives: createCSPDirectives(isDevelopment, nonce || ''),
+		directives: createCSPDirectives({ isDevelopment, nonce }),
 		headerKey: reportOnly
 			? 'Content-Security-Policy-Report-Only'
 			: 'Content-Security-Policy',
-		header: createCSPHeader(isDevelopment, nonce || ''),
-		metaTags: createCSPMetaTags(isDevelopment, reportOnly, nonce || ''),
+		header: createCSPHeader({ isDevelopment, nonce: nonce || '' }),
+		metaTags: createCSPMetaTags({
+			isDevelopment,
+			reportOnly,
+			nonce: nonce || '',
+		}),
 		// For Helmet configuration
 		helmetConfig: {
 			useDefaults: true,
 			reportOnly,
-			directives: createCSPDirectives(isDevelopment, nonce || ''),
-			policy: createCSPHeader(isDevelopment, nonce || ''),
+			directives: createCSPDirectives({ isDevelopment, nonce: nonce || '' }),
+			policy: createCSPHeader({ isDevelopment, nonce: nonce || '' }),
 		},
 	};
 };
