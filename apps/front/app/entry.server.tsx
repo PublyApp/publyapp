@@ -7,8 +7,6 @@ import {
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { logger } from '@/shared/lib/winston.server';
-import { SilentPostHog } from '@org/shared/lib/posthog/silent-posthog';
 import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
 import _ from 'lodash';
@@ -26,6 +24,7 @@ import {
 } from 'react-router';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
+import { getDevContext } from './lib/react-router/data.utils';
 
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
@@ -36,23 +35,9 @@ const handleRequest = async (
 	routerContext: EntryContext,
 	loadContext: AppLoadContext,
 ) => {
-	let finalLoadContext: AppLoadContext;
+	const finalLoadContext = getDevContext(loadContext);
 
-	if (import.meta.env.DEV) {
-		finalLoadContext = {
-			logger: logger,
-			postHogServer: new SilentPostHog(),
-			___NONCE___: nanoid(),
-			...(loadContext as Record<string, unknown>), // keep the original load context if there are any values in it
-		};
-	} else {
-		finalLoadContext = loadContext;
-	}
-
-	// just to be sure, override the load context with the final load context
-	loadContext = finalLoadContext;
-
-	const postHogServer = loadContext.postHogServer;
+	const postHogServer = finalLoadContext.postHogServer;
 
 	if (import.meta.env.PROD) {
 		if (!_.toString(responseStatusCode).startsWith('2')) {
