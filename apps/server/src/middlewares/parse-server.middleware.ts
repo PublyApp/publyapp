@@ -8,6 +8,7 @@ import {
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
+import { logger } from '@org/shared/lib/winston.server';
 import { HttpException } from '../exceptions/HttpException';
 import {
 	CONFIG_ENABLE_CHECK_SESSION_IP,
@@ -22,7 +23,6 @@ import {
 	getRequestUtils,
 } from '../lib/express';
 import { getCurrentInstallationId } from '../lib/parse/parse.utils';
-import { logger } from '../lib/winston';
 
 const checkIsMaster = (req: express.Request) => {
 	return (

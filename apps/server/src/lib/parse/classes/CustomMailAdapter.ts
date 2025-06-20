@@ -1,5 +1,5 @@
-import { logger } from '@/server/lib/winston';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { logger } from '@org/shared/lib/winston.server';
 
 import { env } from '../../env';
 import type { MailAdapter } from '../interfaces/MailAdapter';
