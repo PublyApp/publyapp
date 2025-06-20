@@ -1,22 +1,22 @@
-import type { AppLocale } from '@/shared/lib/i18n/resources';
-import { getT } from '../../i18n';
-import {
-	cloudFunction,
-	getParseFunctionHeader,
-	isFromCloudEnvironment,
-	isNotValidIp,
-	type ParseTrigger,
-} from './core';
-import _ from 'lodash';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import { HttpException } from '@/server/exceptions/HttpException';
+import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
+import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
 import {
 	LOCALE_HEADER_KEY,
 	TENANT_ID_HEADER_KEY,
 } from '@/shared/lib/constants';
-import { HttpException } from '@/server/exceptions/HttpException';
-import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
-import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
-import { logger } from '../../winston';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
+import { logger } from '@org/shared/lib/winston.server';
+import _ from 'lodash';
+import { getT } from '../../i18n';
+import {
+	type ParseTrigger,
+	cloudFunction,
+	getParseFunctionHeader,
+	isFromCloudEnvironment,
+	isNotValidIp,
+} from './core';
 
 export const triggerType = {
 	beforeLogin: 'beforeLogin',
