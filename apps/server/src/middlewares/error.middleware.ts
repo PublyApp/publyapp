@@ -1,5 +1,5 @@
 import { HttpException } from '@/server/exceptions/HttpException';
-import { logger } from '@/server/lib/winston';
+import { logger } from '@org/shared/lib/winston.server';
 import type { ErrorRequestHandler } from 'express';
 import _ from 'lodash';
 import { serializeError } from 'serialize-error';

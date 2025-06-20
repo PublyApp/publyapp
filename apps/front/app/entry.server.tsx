@@ -1,12 +1,14 @@
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	isPreRenderPath,
-	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
+	isPreRenderPath,
+	queryParamKey,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import { logger } from '@/shared/lib/winston.server';
+import { SilentPostHog } from '@org/shared/lib/posthog/silent-posthog';
 import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
 import _ from 'lodash';
@@ -24,6 +26,7 @@ import {
 } from 'react-router';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
+
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
 const handleRequest = async (
@@ -86,9 +89,26 @@ const handleRequest = async (
 				? 'onAllReady'
 				: 'onShellReady';
 
-		const nonce = isPreRenderPath(new URL(request.url).pathname)
-			? STATIC_PRE_RENDER_PATHS_MAP_NONCE
-			: _.toString(_.get(loadContext, 'nonce') || nanoid());
+		let finalLoadContext: AppLoadContext;
+
+		if (import.meta.env.DEV) {
+			finalLoadContext = {
+				logger: logger,
+				postHogServer: new SilentPostHog(),
+				___NONCE___: nanoid(),
+				...loadContext, // keep the original load context if there are any values in it
+			};
+		} else {
+			finalLoadContext = loadContext;
+		}
+
+		// regardless of the environment, we want to set the nonce
+		// to the static pre render path nonce if the path is a pre render path
+		if (isPreRenderPath(new URL(request.url).pathname)) {
+			finalLoadContext.___NONCE___ = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
+		}
+
+		const nonce = _.toString(finalLoadContext.___NONCE___);
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>

@@ -11,7 +11,6 @@ import type { ParsedQs } from 'qs';
 
 import { tryCatchWrapper } from '@org/shared/utils/try-catch.utils';
 
-import { logger } from '@/server/lib/winston';
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
 	FORWARDED_FOR_HEADER_KEY,
@@ -20,6 +19,7 @@ import {
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import InterZod from '@/shared/lib/zod/InterZod';
+import { logger } from '@org/shared/lib/winston.server';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type { TFunction } from 'i18next';
