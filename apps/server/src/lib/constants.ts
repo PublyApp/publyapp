@@ -101,3 +101,5 @@ export const PARSE_SERVER_URL = new URL(env.SERVER_URL);
 PARSE_SERVER_URL.pathname = endPoint.api.parse.root;
 
 export const CONFIG_ENABLE_CHECK_SESSION_IP = false;
+
+export const PARSE_DASHBOARD_MOUNT_PATH = '/pdash';
