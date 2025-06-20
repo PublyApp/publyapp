@@ -1,4 +1,5 @@
-import { logger } from '@/server/lib/winston';
+import { createServer } from 'node:http';
+import path from 'node:path';
 import {
 	APP_ID,
 	APP_NAME,
@@ -10,6 +11,7 @@ import {
 	isPreRenderPath,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
+import { logger } from '@org/shared/lib/winston.server';
 import duration from '@org/shared/utils/duration.utils';
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
@@ -17,8 +19,6 @@ import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
-import { createServer } from 'node:http';
-import path from 'node:path';
 import ParseDashboard from 'parse-dashboard';
 import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 import { ParseServer } from 'parse-server/lib/index.js';
@@ -35,6 +35,7 @@ import { initCloudinary } from './lib/cloudinary';
 import {
 	EXPRESS_FILES_MOUNT_PATH,
 	FILE_UPLOAD_DESTINATION,
+	PARSE_DASHBOARD_MOUNT_PATH,
 	PARSE_SERVER_URL,
 	corsWhiteList,
 } from './lib/constants';
@@ -67,6 +68,14 @@ const bootstrap = async () => {
 
 	app.use(maliciousRequestsGuardMiddleware);
 	app.use((req, res, next) => {
+		const isParseDashboardPath =
+			req.path.startsWith(PARSE_DASHBOARD_MOUNT_PATH) ||
+			req.path.startsWith('/parse-dashboard');
+
+		if (env.LOCAL && isParseDashboardPath) {
+			return next();
+		}
+
 		const nonce = isPreRenderPath(req.path)
 			? STATIC_PRE_RENDER_PATHS_MAP_NONCE
 			: newObjectId();
@@ -184,8 +193,6 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                           //
 	// ------------------------------------------------------------------------------------- //
-	const PARSE_DASHBOARD_MOUNT_PATH = '/pdash';
-
 	if (env.LOCAL) {
 		const dashboard = new ParseDashboard(
 			{
@@ -257,7 +264,7 @@ const bootstrap = async () => {
 				return {
 					logger,
 					postHogServer,
-					nonce: _.get(req, '___NONCE___'),
+					___NONCE___: _.get(req, '___NONCE___'),
 				};
 			},
 		});
