@@ -176,6 +176,8 @@ const commonFR = {
 
 	'email-verification-success': "Vérification d'email réussie",
 	'request-new-verification-link': 'Demander un nouveau lien de vérification',
+
+	'session-expired': 'Session expirée',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

@@ -2,9 +2,9 @@
 // * such as wp-login.php, etc.
 // * we want to block them from hitting these routes
 
+import { BlockList, type IPVersion, isIPv6 } from 'node:net';
 import { logger } from '@org/shared/lib/winston.server';
 import _ from 'lodash';
-import { BlockList, type IPVersion, isIPv6 } from 'node:net';
 import { IP_BLOCKLIST_CONFIG_KEY } from '../lib/constants';
 import { expressHandler, getRequestIp } from '../lib/express';
 import { getGlobalConfig, setGlobalConfig } from '../lib/parse/parse.utils';
@@ -92,7 +92,7 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 					ipVersion = 'ipv6';
 				}
 				blocklist.addAddress(ipAddress, ipVersion);
-				logger.info('Blocked IP address', { ipAddress });
+				logger.debug('Blocked IP address', { ipAddress });
 			} catch (error) {
 				if (_.isObject(error)) {
 					// biome-ignore lint/suspicious/noExplicitAny: <explanation>
