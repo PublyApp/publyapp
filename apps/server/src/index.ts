@@ -179,6 +179,9 @@ const bootstrap = async () => {
 		// =============================================
 		logLevel: env.LOCAL ? 'debug' : 'info',
 		enableInsecureAuthAdapters: false,
+		databaseOptions: {
+			appName: APP_NAME,
+		},
 		// =============================================
 		// preserveFileName: true,
 		// middleware: parseServerMiddleware, // this is being mounted only if with use the startApp method
@@ -231,14 +234,6 @@ const bootstrap = async () => {
 	parseServer.app.disable('x-powered-by'); // already set by helmet on parent app
 
 	app.use(PARSE_SERVER_URL.pathname, parseServerMiddleware, parseServer.app);
-
-	app.get(
-		`${endPoint.api.root}/test`,
-		expressHandler(async (_req, res) => {
-			// const { t } = getRequestUtils(req);
-			return res.status(200).json({ ok: 'ok' });
-		}),
-	);
 
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                   //
