@@ -175,6 +175,8 @@ const commonEN = {
 
 	'email-verification-success': 'Email verification successful',
 	'request-new-verification-link': 'Request a new verification link',
+
+	'session-expired': 'Session expired',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

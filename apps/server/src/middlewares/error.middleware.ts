@@ -1,4 +1,5 @@
 import { HttpException } from '@/server/exceptions/HttpException';
+import { X_CODE } from '@/shared/lib/constants';
 import { logger } from '@org/shared/lib/winston.server';
 import type { ErrorRequestHandler } from 'express';
 import _ from 'lodash';
@@ -95,6 +96,14 @@ export const errorMiddleware: ErrorRequestHandler = async (
 		}
 
 		message = String(t(message as never));
+
+		if (
+			message === t('Invalid session token') ||
+			message === t('invalid-session')
+		) {
+			xcode = X_CODE.INVALID_SESSION;
+		}
+
 		res
 			.status(httpStatusCode)
 			.json({ error: message, code: parseErrorCode, xcode, data: errorBody }); // conform to Parse Server error response
