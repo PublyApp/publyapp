@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+import http from 'node:http';
 import path from 'node:path';
 import {
 	APP_ID,
@@ -285,7 +285,7 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
-	const server = createServer(app);
+	const server = http.createServer(app);
 
 	server.on('request', (req, _res) => {
 		req.socket.remoteAddress; // make express req.ip work in bun
