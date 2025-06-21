@@ -149,6 +149,7 @@ declare module 'parse-server' {
 	type DatabaseOptions = {
 		enableSchemaHooks?: boolean;
 		schemaCacheTtl?: number;
+		appName?: string;
 	};
 
 	export class ParseServer {
