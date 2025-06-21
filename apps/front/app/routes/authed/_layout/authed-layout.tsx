@@ -15,13 +15,25 @@ import { useMainStore } from '@/front/lib/zustand/store';
 import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
+	X_CODE,
+	queryParamKey,
+	queryParamValue,
 } from '@/shared/lib/constants';
-import { useSuspenseQueries } from '@tanstack/react-query';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
 import * as cookie from 'cookie';
 import _ from 'lodash';
 import { defaultApiClient } from 'packages/api/ApiClient';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { type ReactNode, Suspense } from 'react';
-import { Outlet, redirect } from 'react-router';
+import {
+	Navigate,
+	Outlet,
+	redirect,
+	useNavigate,
+	useRouteError,
+	useSearchParams,
+} from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 import type { Route } from './+types/authed-layout';
 
@@ -68,6 +80,45 @@ export const clientLoader = getClientLoader({
 });
 
 export const ErrorBoundary = (_: Route.ErrorBoundaryProps) => {
+	const [searchParams] = useSearchParams();
+	const queryClient = useQueryClient();
+
+	// check response error.body.code
+	// if invalid session token, redirect to login
+	// with a query param: redirectCause=invalid_session
+	// don't forget to remove session token cookie
+	// clear react-query cache too
+	const error = useRouteError();
+
+	if (error instanceof ParseRestError) {
+		if (error.code === X_CODE.INVALID_SESSION) {
+			// clear react-query cache too
+			queryClient.removeQueries();
+
+			// remove session token cookie
+			document.cookie = cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', {
+				path: '/',
+				maxAge: 0,
+			});
+
+			// redirect to login page with a query param as redirect cause
+			const url = new URL(window.location.origin);
+			url.pathname = FRONT_PATH_NAMES.auth.login;
+			url.searchParams.set(
+				queryParamKey.login_page.redirect_cause,
+				queryParamValue.login_page.redirect_cause.invalid_session,
+			);
+			url.searchParams.set(
+				queryParamKey.language,
+				getCorrectLocale(searchParams.get(queryParamKey.language)),
+			);
+
+			// navigate(`${url.pathname}${url.search}`);
+			return <Navigate to={`${url.pathname}${url.search}`} />;
+		}
+	}
+
+	// else, show the error page
 	return <View500 />;
 };
 
