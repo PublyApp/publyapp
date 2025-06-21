@@ -296,21 +296,18 @@ const bootstrap = async () => {
 	app.use(errorMiddleware);
 
 	server.listen(env.PORT, '0.0.0.0', () => {
+		const serverUrlMessage = `    server running at ${chalk.cyan(`${env.SERVER_URL}`)}`;
+		const dashUrlMessage = env.LOCAL
+			? `    access the dashboard at ${chalk.cyan(new URL(PARSE_DASHBOARD_MOUNT_PATH, env.SERVER_URL).toString())}    `
+			: '';
+
 		logger.info(
-			'================================================================',
+			'=============================================================',
 		);
-		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
-
-		if (env.LOCAL) {
-			const dashUrl = new URL(env.SERVER_URL);
-			dashUrl.pathname = PARSE_DASHBOARD_MOUNT_PATH;
-			logger.info(
-				`    access the dashboard at ${chalk.cyan(dashUrl.toString())}    `,
-			);
-		}
-
+		logger.info(serverUrlMessage);
+		env.LOCAL && logger.info(dashUrlMessage);
 		logger.info(
-			'================================================================',
+			'=============================================================',
 		);
 	});
 
