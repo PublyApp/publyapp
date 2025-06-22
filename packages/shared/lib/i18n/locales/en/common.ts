@@ -159,6 +159,8 @@ const commonEN = {
 	'Token expired': 'Token expired',
 	'Invalid object for context.': 'Invalid object for context.',
 	'Context is not an object': 'Context is not an object',
+	'Account already exists for this email address.':
+		'Account already exists for this email address.',
 
 	// sign up terms
 	'terms-of-service': 'Terms of service',
