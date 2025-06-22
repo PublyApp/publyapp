@@ -5,9 +5,9 @@ import { DEFAULT_CLP } from '@/server/lib/constants';
 import SchemaManager from '@/server/lib/parse/classes/SchemaManager';
 
 const staffAdmin = `role:${roleEnum.STAFF_ADMIN.name}` as const;
-// const staffEditor = `role:${roleEnum.STAFF_EDITOR.name}` as const;
-// const staffUser = `role:${roleEnum.STAFF_USER.name}` as const;
-// const staffContributor = `role:${roleEnum.STAFF_USER.name}` as const;
+const staffEditor = `role:${roleEnum.STAFF_EDITOR.name}` as const;
+const staffUser = `role:${roleEnum.STAFF_USER.name}` as const;
+const staffContributor = `role:${roleEnum.STAFF_CONTRIBUTOR.name}` as const;
 // const tenantUser = `role:${roleEnum.TENANT_USER.name}` as const;
 
 const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
@@ -23,6 +23,7 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
 			firstName: { type: 'String' },
 			lastName: { type: 'String' },
 			avatarUrl: { type: 'String' },
+			isStaffMember: { type: 'Boolean' },
 
 			// relations
 			createdBy: {
@@ -50,10 +51,13 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
 				requiresAuthentication: true,
 				[staffAdmin]: true,
 			},
-			// protectedFields: {
-			// 	'*': ['email'],
-			// 	[staffAdmin]: [],
-			// },
+			protectedFields: {
+				'*': ['isStaffMember'],
+				[staffAdmin]: [],
+				[staffEditor]: [],
+				[staffUser]: [],
+				[staffContributor]: [],
+			},
 		},
 	},
 );
