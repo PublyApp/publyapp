@@ -287,12 +287,6 @@ export const cloudFunction: CloudFunction = <
 					message = error.message;
 				}
 
-				log.debug('🤔🤔🤔🤔🤔🤔🤔🤔🤔', {
-					isWhat: error instanceof HttpException,
-					meta: (error as HttpException).meta,
-					body: (error as HttpException).body,
-				});
-
 				log.error(hasMessage ? '' : message, error);
 
 				if (error instanceof HttpException) {
