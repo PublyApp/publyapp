@@ -308,6 +308,8 @@ export const functionName = {
 	staff: {
 		staffMember: {
 			create: 'createStaffMember',
+			migrateIsStaffMember: 'migrateIsStaffMember',
+			migrateRoleData: 'migrateRoleData',
 		},
 		tenant: {
 			create: 'createTenant',

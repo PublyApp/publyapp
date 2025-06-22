@@ -5,8 +5,9 @@ import { parseTriggerEnhanced } from '@/server/lib/parse/cloud/trigger';
 // --------------------------------------------------------------------------------------//
 
 const beforeSaveRole = parseTriggerEnhanced<Parse.Role>({
-	trigger: async () => {
-		// ====
+	trigger: async ({ req, log }) => {
+		log.debug('🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯🎯', req.object.toJSON());
+		log.debug('😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂😂', req.original?.toJSON());
 	},
 });
 
