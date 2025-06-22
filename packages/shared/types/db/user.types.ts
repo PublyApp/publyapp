@@ -14,9 +14,11 @@ export type UserAttributes = {
 	username: string;
 	email: string;
 	password?: string;
+
 	// custom fields
 	firstName?: string;
 	lastName?: string;
+	isStaffMember?: boolean;
 
 	status?: UserStatus;
 

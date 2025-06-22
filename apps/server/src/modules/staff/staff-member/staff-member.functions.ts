@@ -78,6 +78,7 @@ export const createStaffMember = fromStaffMemberParseFunction({
 					username: generateUsername(),
 					password: nanoid(),
 					createdBy: user,
+					isStaffMember: true,
 				},
 				(value, key) => _.isNil(value) || key === 'role',
 			) as never,
