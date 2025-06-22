@@ -86,15 +86,14 @@ export const createStaffMember = fromStaffMemberParseFunction({
 					username: generateUsername(),
 					password: nanoid(),
 					createdBy: user,
-					isStaffMember: true,
 				},
 				(value, key) => _.isNil(value) || key === 'role',
 			) as never,
 		).save(null, { sessionToken });
 
-		await roleService.assignRoleToUser(savedUser, role);
+		await roleService.assignRoleToUsers(role, [savedUser]);
 
-		// set roleData asynchronously
+		// set roleData
 		const setRoleData = tryCatchWrapper({
 			handler: async () => {
 				const _user = new ParseUser();
@@ -103,16 +102,21 @@ export const createStaffMember = fromStaffMemberParseFunction({
 					role: params.role,
 					rank: roleEnum[params.role].rank,
 				});
+				_user.set('isStaffMember', true);
 				// obliged to use master key here
 				// because user objects have an ACL:
 				// only himself can update himself
 				await _user.save(null, USE_MASTER_KEY);
 			},
-			onError: (error) => {
+			onError: async (error) => {
 				log.error('Error setting roleData on user', error);
+				// delete the user
+				await savedUser.destroy(USE_MASTER_KEY);
+				throw error;
 			},
 		});
-		setRoleData();
+		// we mut await
+		await setRoleData();
 
 		const json = savedUser.toJSON();
 

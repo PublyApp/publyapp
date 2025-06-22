@@ -69,6 +69,10 @@ const commonFR = {
 	'item-creation-success-message': '{{item}} créé avec succès',
 	'cannot-create-tenant-with-staff-members':
 		'Impossible de créer un tenant avec des membres du staff',
+	'user-already-member-of-a-tenant':
+		"L'utilisateur est déjà membre d'un tenant",
+	'some-users-already-member-of-a-tenant':
+		"Certains utilisateurs sont déjà membres d'un tenant",
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT:
 		'Les e-mails suivants appartiennent à des membres du staff; ils ne peuvent être attribués à aucun tenant: {{emails}}',
 
