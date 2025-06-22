@@ -24,6 +24,7 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
 			lastName: { type: 'String' },
 			avatarUrl: { type: 'String' },
 			isStaffMember: { type: 'Boolean' },
+			roleData: { type: 'Object' },
 
 			// relations
 			createdBy: {
@@ -52,7 +53,7 @@ const UserSchema = SchemaManager.defineSchema<IUserWithParseRelations>(
 				[staffAdmin]: true,
 			},
 			protectedFields: {
-				'*': ['isStaffMember'],
+				'*': ['isStaffMember', 'roleData'],
 				[staffAdmin]: [],
 				[staffEditor]: [],
 				[staffUser]: [],
