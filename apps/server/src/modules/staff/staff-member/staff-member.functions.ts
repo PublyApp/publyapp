@@ -4,9 +4,16 @@ import { getParseFunctionHeader } from '@/server/lib/parse/cloud/core';
 import {
 	type FunctionParams,
 	type FunctionReturn,
+	defineCloudFunction,
 	fromStaffMemberParseFunction,
+	parseFunctionEnhanced,
 } from '@/server/lib/parse/cloud/function';
-import { fileProvider, functionName, roleSet } from '@/shared/lib/constants';
+import {
+	fileProvider,
+	functionName,
+	roleEnum,
+	roleSet,
+} from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
 import { makePath } from '@/shared/utils/string.utils';
 import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
@@ -86,6 +93,16 @@ export const createStaffMember = fromStaffMemberParseFunction({
 
 		await roleService.assignRoleToUser(savedUser, role);
 
+		// set roleData asynchronously
+		(async () => {
+			const _user = savedUser.clone();
+			_user.set('roleData', {
+				role: params.role,
+				rank: roleEnum[params.role].rank,
+			});
+			await _user.save(null, { sessionToken });
+		})();
+
 		const json = savedUser.toJSON();
 
 		const returnedJson = _.pick(json, [
@@ -105,3 +122,28 @@ export const createStaffMember = fromStaffMemberParseFunction({
 		return returnedJson;
 	},
 });
+
+//--------------------------------------------------------------------------------------//
+//                                                                                      //
+//                                 Migration functions                                  //
+//                                                                                      //
+//--------------------------------------------------------------------------------------//
+
+const migrateIsStaffMember = parseFunctionEnhanced({
+	name: functionName.staff.staffMember.migrateIsStaffMember,
+	requireMasterKey: true,
+	action: async () => {
+		await new Parse.Query(ParseUser).eachBatch(async () => {}, USE_MASTER_KEY);
+	},
+});
+
+const migrateRoleData = parseFunctionEnhanced({
+	name: functionName.staff.staffMember.migrateRoleData,
+	requireMasterKey: true,
+	action: async () => {
+		await new Parse.Query(ParseUser).eachBatch(async () => {}, USE_MASTER_KEY);
+	},
+});
+
+defineCloudFunction(migrateIsStaffMember);
+defineCloudFunction(migrateRoleData);
