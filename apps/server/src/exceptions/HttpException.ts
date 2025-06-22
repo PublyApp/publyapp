@@ -21,6 +21,7 @@ export class HttpException extends Error {
 		this.status = status;
 		this.message = message;
 		this.xcode = options?.xcode;
+		this.body = options?.body;
 		this.meta = options?.meta;
 	}
 }
