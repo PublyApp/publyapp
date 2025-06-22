@@ -73,6 +73,8 @@ const commonFR = {
 		"L'utilisateur est déjà membre d'un tenant",
 	'some-users-already-member-of-a-tenant':
 		"Certains utilisateurs sont déjà membres d'un tenant",
+	'some-users-already-members-of-the-staff':
+		'Certains utilisateurs sont déjà membres du staff',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT:
 		'Les e-mails suivants appartiennent à des membres du staff; ils ne peuvent être attribués à aucun tenant: {{emails}}',
 

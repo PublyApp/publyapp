@@ -72,6 +72,8 @@ const commonEN = {
 	'user-already-member-of-a-tenant': 'User is already a member of a tenant',
 	'some-users-already-member-of-a-tenant':
 		'Some users are already members of a tenant',
+	'some-users-already-members-of-the-staff':
+		'Some users are already members of the staff',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT:
 		'The following emails are owned by staff-members; they are not allowed to be assigned to any tenant: {{emails}}',
 
