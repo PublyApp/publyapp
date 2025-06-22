@@ -65,7 +65,7 @@ const beforeSaveRole = parseTriggerEnhanced<Parse.Role>({
 				if (!_.isEmpty(userIdsWithStaffMemberRole)) {
 					throw new HttpException(
 						400,
-						t('some-users-already-member-of-a-tenant'),
+						t('some-users-already-members-of-the-staff'),
 						{
 							body: {
 								userIds: userIdsWithStaffMemberRole,
@@ -124,7 +124,7 @@ const beforeSaveRole = parseTriggerEnhanced<Parse.Role>({
 
 				// step 2: check if users have no relation with any tenant (look in the _CustomJoin:User:Tenant collection)
 				const userIdsWithTenant =
-					staffTenantService.verifyIfUsersHaveAnyTenant(userIds);
+					await staffTenantService.verifyIfUsersHaveAnyTenant(userIds);
 
 				if (!_.isEmpty(userIdsWithTenant)) {
 					throw new HttpException(
