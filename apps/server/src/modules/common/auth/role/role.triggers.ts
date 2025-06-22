@@ -4,7 +4,6 @@ import { parseTriggerEnhanced } from '@/server/lib/parse/cloud/trigger';
 import StaffTenantService from '@/server/modules/staff/tenant/staff-tenant.service';
 import { roleEnum, roleSet, staffRoleSet } from '@/shared/lib/constants';
 import _ from 'lodash';
-import ParseUser from '../user/user.class';
 
 // --------------------------------------------------------------------------------------//
 //                                     BEFORE SAVE                                       //
