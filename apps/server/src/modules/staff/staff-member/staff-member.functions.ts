@@ -47,42 +47,12 @@ export const createStaffMember = fromStaffMemberParseFunction({
 			throw new HttpException(400, t('item-is-invalid', { item: t('role') }));
 		}
 
-		// upload avatar file
-		const file = getParseFunctionHeader(req, '__avatar__') as unknown;
-
-		const { success, data } = getMulterMemoryFileSchema(z).safeParse(file);
-
-		let avatarUrl: string | undefined;
-
-		if (success) {
-			const uploadAdapter = FileService.uploadAdapterMap.get(
-				fileProvider.CLOUDFLARE,
-			);
-
-			if (!uploadAdapter) {
-				throw new HttpException(500, t('Error while uploading file'));
-			}
-
-			const fileService = new FileService({ sessionToken, uploadAdapter });
-
-			const result = await fileService.uploadOne({
-				file: data,
-				folderPath: makePath('staff', 'staff-member', 'avatar'),
-				storageFrom: 'memory',
-			});
-
-			avatarUrl = result.url;
-
-			// free up memory usage by discarding the file blob
-			_.unset(req.headers, '__avatar__');
-		}
-
 		// create new user
 		const savedUser = await new ParseUser(
 			_.omitBy(
 				{
 					...params,
-					avatarUrl,
+					// avatarUrl,
 					username: generateUsername(),
 					password: nanoid(),
 					createdBy: user,
@@ -115,8 +85,59 @@ export const createStaffMember = fromStaffMemberParseFunction({
 				throw error;
 			},
 		});
-		// we mut await
+		// we must await
 		await setRoleData();
+
+		// only upload the image if user has been successfully created/saved
+		// upload avatar file
+		const uploadAvatarFile = tryCatchWrapper({
+			handler: async () => {
+				const file = getParseFunctionHeader(req, '__avatar__') as unknown;
+
+				const { success, data } = getMulterMemoryFileSchema(z).safeParse(file);
+
+				let avatarUrl: string | undefined;
+
+				if (success) {
+					const uploadAdapter = FileService.uploadAdapterMap.get(
+						fileProvider.CLOUDFLARE,
+					);
+
+					if (!uploadAdapter) {
+						throw new HttpException(500, t('Error while uploading file'));
+					}
+
+					const fileService = new FileService({ sessionToken, uploadAdapter });
+
+					const result = await fileService.uploadOne({
+						file: data,
+						folderPath: makePath('staff', 'staff-member', 'avatar'),
+						storageFrom: 'memory',
+					});
+
+					avatarUrl = result.url;
+
+					// free up memory usage by discarding the file blob
+					_.unset(req.headers, '__avatar__');
+
+					// finally set avatar url image on user object
+					const _user = new ParseUser();
+					_user.id = savedUser.id;
+					_user.set('avatarUrl', avatarUrl);
+					// obliged to use master key here
+					// because user objects have an ACL:
+					// only himself can update himself
+					await _user.save(null, USE_MASTER_KEY);
+				}
+			},
+			onError: async (error) => {
+				log.error('Error uploading avatar file', error);
+				savedUser.destroy(USE_MASTER_KEY);
+				throw error;
+			},
+		});
+		// we must await
+		await uploadAvatarFile();
 
 		const json = savedUser.toJSON();
 
