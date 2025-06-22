@@ -8,7 +8,9 @@ import {
 	fromStaffMemberParseFunction,
 	parseFunctionEnhanced,
 } from '@/server/lib/parse/cloud/function';
+import { getDatabase } from '@/server/lib/parse/parse.utils';
 import {
+	className,
 	fileProvider,
 	functionName,
 	roleEnum,
@@ -19,12 +21,15 @@ import { makePath } from '@/shared/utils/string.utils';
 import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
 import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
 import { getNewStaffMemberSchemaServerSide } from '@org/shared/validations/staff-member/staff-member.validation';
+import { eachOfLimit } from 'async';
 import _ from 'lodash';
+import type { AnyBulkWriteOperation, BulkWriteResult } from 'mongodb';
 import { nanoid } from 'nanoid';
 import { generateUsername } from 'unique-username-generator';
 import RoleService from '../../common/auth/role/role.service';
 import ParseUser from '../../common/auth/user/user.class';
 import FileService from '../../common/file/file.service';
+import StaffTenantService from '../tenant/staff-tenant.service';
 
 export namespace CreateStaffMemberFunction {
 	export type Params = FunctionParams<typeof createStaffMember>;
@@ -162,27 +167,107 @@ export const createStaffMember = fromStaffMemberParseFunction({
 	},
 });
 
-//--------------------------------------------------------------------------------------//
-//                                                                                      //
-//                                 Migration functions                                  //
-//                                                                                      //
-//--------------------------------------------------------------------------------------//
+// ==== Migration functions
 
 const migrateIsStaffMember = parseFunctionEnhanced({
 	name: functionName.staff.staffMember.migrateIsStaffMember,
 	requireMasterKey: true,
-	action: async () => {
-		await new Parse.Query(ParseUser).eachBatch(async () => {}, USE_MASTER_KEY);
+	action: async ({ log }) => {
+		const staffTenantService = new StaffTenantService();
+
+		// find which users have a STAFF role
+		const userIdsWithStaffRole: string[] = [];
+
+		const staffRoles = await new Parse.Query(Parse.Role)
+			.select('name')
+			.containedIn(
+				'name',
+				roleSet.STAFF_MEMBER.map((role) => role.name),
+			)
+			.findAll(USE_MASTER_KEY);
+
+		await new Parse.Query(ParseUser).select([]).eachBatch(async (users) => {
+			const _userIdsWithStaffRole =
+				await staffTenantService.verifyIfAnyOfUsersHaveAnyOfRoles(
+					users,
+					staffRoles,
+				);
+			userIdsWithStaffRole.push(..._userIdsWithStaffRole);
+		}, USE_MASTER_KEY);
+
+		// bulk update users using mongodb
+		const result = await getDatabase()
+			.collection(className.USER)
+			.updateMany(
+				{
+					_id: {
+						$in: userIdsWithStaffRole as never,
+					},
+				},
+				{
+					$set: {
+						isStaffMember: true,
+					},
+				},
+			);
+
+		log.debug('Finished migrating field isStaffMember', result);
 	},
 });
 
 const migrateRoleData = parseFunctionEnhanced({
 	name: functionName.staff.staffMember.migrateRoleData,
 	requireMasterKey: true,
-	action: async () => {
-		await new Parse.Query(ParseUser).eachBatch(async () => {}, USE_MASTER_KEY);
+	action: async ({ log }) => {
+		const roleService = new RoleService(USE_MASTER_KEY);
+
+		await new Parse.Query(ParseUser).select([]).eachBatch(async (users) => {
+			const bulkOps: AnyBulkWriteOperation<Document>[] = [];
+
+			// find users roles in batch
+			await eachOfLimit(users, 100, async (user) => {
+				const roles = await roleService.getUserRoles(user, {
+					json: true,
+					select: ['name', 'rank'],
+				});
+
+				// sort roles by rank
+				const sortedRoles = _.sortBy(roles, (role) => role.rank);
+
+				// get the highest rank role
+				const highestRankRole = _.first(sortedRoles);
+
+				if (highestRankRole) {
+					bulkOps.push({
+						updateOne: {
+							filter: { _id: user.id as never },
+							update: {
+								$set: {
+									roleData: {
+										role: highestRankRole.name,
+										rank: highestRankRole.rank,
+									},
+								},
+							},
+							upsert: true,
+						},
+					});
+				}
+			});
+
+			let result: BulkWriteResult | undefined;
+			if (bulkOps.length > 0) {
+				result = await getDatabase()
+					.collection(className.USER)
+					.bulkWrite(bulkOps as never);
+			}
+
+			log.debug('Batch update done', result || {});
+		}, USE_MASTER_KEY);
 	},
 });
 
-defineCloudFunction(migrateIsStaffMember);
-defineCloudFunction(migrateRoleData);
+export const defineStaffMemberFunctions = () => {
+	defineCloudFunction(migrateIsStaffMember);
+	defineCloudFunction(migrateRoleData);
+};
