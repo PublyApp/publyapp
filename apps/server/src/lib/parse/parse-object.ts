@@ -2,11 +2,6 @@ import _ from 'lodash';
 import type { PipelineStage } from 'mongoose';
 import { getDatabase } from './parse.utils';
 
-/**
- * Fetches missing attributes on Parse objects by querying the database directly.
- * This function is useful when Parse objects don't have all their attributes loaded
- * and you need to fetch specific missing attributes efficiently.
- */
 export const fetchAttributesOnObjects = async <
 	T extends Parse.Object = Parse.Object,
 >(
