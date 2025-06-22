@@ -61,6 +61,9 @@ export const createStaffMember = fromStaffMemberParseFunction({
 			) as never,
 		).save(null, { sessionToken });
 
+		// no need to check if is already member of a tenant
+		// because a newly created use should not have any role
+		// and should not have any tenant relation yet
 		await roleService.assignRoleToUsers(role, [savedUser]);
 
 		// set roleData
