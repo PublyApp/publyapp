@@ -308,6 +308,8 @@ export const functionName = {
 	staff: {
 		staffMember: {
 			create: 'createStaffMember',
+			migrateIsStaffMember: 'migrateIsStaffMember',
+			migrateRoleData: 'migrateRoleData',
 		},
 		tenant: {
 			create: 'createTenant',
@@ -363,8 +365,8 @@ export const PARSE_CONTEXT_HEADER_KEY = 'X-Parse-Context';
 
 export const REST_API_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Key`;
 
-export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}:session_token`;
-export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}:last_used_tenant`;
+export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
+export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
 
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
@@ -380,6 +382,7 @@ export const queryParamValue = {
 	login_page: {
 		redirect_cause: {
 			email_verification: 'email_verification',
+			invalid_session: 'invalid_session',
 		},
 	},
 } as const;
@@ -392,8 +395,9 @@ export const jobType = {
 export const DEFAULT_MAX_USER_PER_TENANT = 5;
 
 export const X_CODE = {
-	INVALID_TOKEN: 'INVALID_TOKEN',
+	INVALID_EMAIL_VERIFICATION_TOKEN: 'INVALID_EMAIL_VERIFICATION_TOKEN',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
+	INVALID_SESSION: 'INVALID_SESSION',
 } as const;
 
 export const PRE_RENDER_PATHS = ['/', '/login'] as const;

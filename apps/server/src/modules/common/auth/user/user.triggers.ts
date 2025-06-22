@@ -6,8 +6,8 @@ import { roleEnum } from '@org/shared/lib/constants';
 
 import { ADMIN_EMAILS, USE_MASTER_KEY } from '@/server/lib/constants';
 
-import RoleService from '../role/role.service';
 import { parseTriggerEnhanced } from '@/server/lib/parse/cloud/trigger';
+import RoleService from '../role/role.service';
 
 // --------------------------------------------------------------------------------------//
 //                                     BEFORE SAVE                                       //
@@ -110,7 +110,7 @@ const autoAssignAdminRole = async ({
 			throw new Error(t('item-not-found', { item: t('role') }));
 		}
 
-		await roleService.assignRoleToUser(userSaved, adminRole);
+		await roleService.assignRoleToUsers(adminRole, [userSaved]);
 	}
 };
 

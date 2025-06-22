@@ -154,7 +154,7 @@ export const loader = getServerLoader({
 
 		if (result.status === 'error') {
 			if (result.error instanceof ParseRestError) {
-				if (result.error.code === X_CODE.INVALID_TOKEN) {
+				if (result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN) {
 					return {
 						code: 'INVALID_TOKEN',
 					} as const;
@@ -245,7 +245,7 @@ const InvalidTokenView = ({
 	}
 
 	if (error instanceof ParseRestError) {
-		if (error.code === X_CODE.INVALID_TOKEN) {
+		if (error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN) {
 			return renderInvalidTokenView();
 		}
 	}
