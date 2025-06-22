@@ -16,6 +16,7 @@ import {
 } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
 import { makePath } from '@/shared/utils/string.utils';
+import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
 import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
 import { getNewStaffMemberSchemaServerSide } from '@org/shared/validations/staff-member/staff-member.validation';
 import _ from 'lodash';
@@ -36,7 +37,7 @@ export const createStaffMember = fromStaffMemberParseFunction({
 	validateParams: ({ params, z }) => {
 		return getNewStaffMemberSchemaServerSide(z).parse(params);
 	},
-	action: async ({ params, user, req, z, t }) => {
+	action: async ({ params, user, req, z, t, log }) => {
 		const sessionToken = user?.getSessionToken();
 		const roleService = new RoleService(USE_MASTER_KEY);
 
@@ -94,14 +95,24 @@ export const createStaffMember = fromStaffMemberParseFunction({
 		await roleService.assignRoleToUser(savedUser, role);
 
 		// set roleData asynchronously
-		(async () => {
-			const _user = savedUser.clone();
-			_user.set('roleData', {
-				role: params.role,
-				rank: roleEnum[params.role].rank,
-			});
-			await _user.save(null, { sessionToken });
-		})();
+		const setRoleData = tryCatchWrapper({
+			handler: async () => {
+				const _user = new ParseUser();
+				_user.id = savedUser.id;
+				_user.set('roleData', {
+					role: params.role,
+					rank: roleEnum[params.role].rank,
+				});
+				// obliged to use master key here
+				// because user objects have an ACL:
+				// only himself can update himself
+				await _user.save(null, USE_MASTER_KEY);
+			},
+			onError: (error) => {
+				log.error('Error setting roleData on user', error);
+			},
+		});
+		setRoleData();
 
 		const json = savedUser.toJSON();
 
