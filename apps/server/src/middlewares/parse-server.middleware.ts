@@ -120,9 +120,11 @@ const handleMatchSessionIp = async (
 		// ! directly use the master key instead
 		.first(USE_MASTER_KEY);
 
+	const { t } = getRequestUtils(req);
+
 	if (!session) {
 		logger.warn('Session token not found', { sessionToken });
-		throw new HttpException(401, 'Invalid session token');
+		throw new HttpException(401, t('Invalid session token'));
 	}
 
 	const requestIp = getRequestIp(req);
@@ -141,7 +143,7 @@ const handleMatchSessionIp = async (
 			requestIp,
 			sessionIp,
 		});
-		throw new HttpException(401, 'Invalid session token');
+		throw new HttpException(401, t('Invalid session token'));
 	}
 };
 

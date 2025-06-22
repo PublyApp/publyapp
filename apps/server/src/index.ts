@@ -1,4 +1,4 @@
-import { createServer } from 'node:http';
+import http from 'node:http';
 import path from 'node:path';
 import {
 	APP_ID,
@@ -179,6 +179,9 @@ const bootstrap = async () => {
 		// =============================================
 		logLevel: env.LOCAL ? 'debug' : 'info',
 		enableInsecureAuthAdapters: false,
+		databaseOptions: {
+			appName: APP_NAME,
+		},
 		// =============================================
 		// preserveFileName: true,
 		// middleware: parseServerMiddleware, // this is being mounted only if with use the startApp method
@@ -232,14 +235,6 @@ const bootstrap = async () => {
 
 	app.use(PARSE_SERVER_URL.pathname, parseServerMiddleware, parseServer.app);
 
-	app.get(
-		`${endPoint.api.root}/test`,
-		expressHandler(async (_req, res) => {
-			// const { t } = getRequestUtils(req);
-			return res.status(200).json({ ok: 'ok' });
-		}),
-	);
-
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                   //
 	// --------------------------------------------------------------------------------------//
@@ -290,7 +285,7 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
-	const server = createServer(app);
+	const server = http.createServer(app);
 
 	server.on('request', (req, _res) => {
 		req.socket.remoteAddress; // make express req.ip work in bun
@@ -301,21 +296,18 @@ const bootstrap = async () => {
 	app.use(errorMiddleware);
 
 	server.listen(env.PORT, '0.0.0.0', () => {
+		const serverUrlMessage = `    server running at ${chalk.cyan(`${env.SERVER_URL}`)}`;
+		const dashUrlMessage = env.LOCAL
+			? `    access the dashboard at ${chalk.cyan(new URL(PARSE_DASHBOARD_MOUNT_PATH, env.SERVER_URL).toString())}    `
+			: '';
+
 		logger.info(
-			'================================================================',
+			'=============================================================',
 		);
-		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
-
-		if (env.LOCAL) {
-			const dashUrl = new URL(env.SERVER_URL);
-			dashUrl.pathname = PARSE_DASHBOARD_MOUNT_PATH;
-			logger.info(
-				`    access the dashboard at ${chalk.cyan(dashUrl.toString())}    `,
-			);
-		}
-
+		logger.info(serverUrlMessage);
+		env.LOCAL && logger.info(dashUrlMessage);
 		logger.info(
-			'================================================================',
+			'=============================================================',
 		);
 	});
 

@@ -69,6 +69,11 @@ const commonEN = {
 	'item-creation-success-message': '{{item}} created successfully',
 	'cannot-create-tenant-with-staff-members':
 		'Cannot create tenant with staff members',
+	'user-already-member-of-a-tenant': 'User is already a member of a tenant',
+	'some-users-already-member-of-a-tenant':
+		'Some users are already members of a tenant',
+	'some-users-already-members-of-the-staff':
+		'Some users are already members of the staff',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT:
 		'The following emails are owned by staff-members; they are not allowed to be assigned to any tenant: {{emails}}',
 
@@ -154,6 +159,8 @@ const commonEN = {
 	'Token expired': 'Token expired',
 	'Invalid object for context.': 'Invalid object for context.',
 	'Context is not an object': 'Context is not an object',
+	'Account already exists for this email address.':
+		'Account already exists for this email address.',
 
 	// sign up terms
 	'terms-of-service': 'Terms of service',
@@ -175,6 +182,8 @@ const commonEN = {
 
 	'email-verification-success': 'Email verification successful',
 	'request-new-verification-link': 'Request a new verification link',
+
+	'session-expired': 'Session expired',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

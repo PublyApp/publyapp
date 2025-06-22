@@ -294,6 +294,7 @@ export const cloudFunction: CloudFunction = <
 						new CloudFunctionHttpException(error.status, message, {
 							xcode: error.xcode,
 							body: error.body,
+							meta: error.meta,
 						}),
 					);
 				}
@@ -325,16 +326,22 @@ class CloudFunctionHttpException extends Parse.Error {
 	status: number;
 	xcode?: string;
 	body?: Record<string, unknown>;
+	meta?: Record<string, unknown>;
 
 	constructor(
 		status: number,
 		message: string,
-		options?: { xcode?: string; body?: Record<string, unknown> },
+		options?: {
+			xcode?: string;
+			body?: Record<string, unknown>;
+			meta?: Record<string, unknown>;
+		},
 	) {
 		super(Parse.Error.SCRIPT_FAILED, message);
 		this.status = status;
 		this.xcode = options?.xcode;
 		this.body = options?.body;
+		this.meta = options?.meta;
 	}
 }
 

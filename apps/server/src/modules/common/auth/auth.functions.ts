@@ -285,7 +285,7 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 
 		if (!user) {
 			throw new HttpException(400, t('Invalid token'), {
-				xcode: X_CODE.INVALID_TOKEN,
+				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
 			});
 		}
 
@@ -294,10 +294,11 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 
 		if (isExpired) {
 			const error = new HttpException(400, t('Invalid token'), {
-				xcode: X_CODE.INVALID_TOKEN,
+				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
+				meta: {
+					reason: 'Session token expired',
+				},
 			});
-			// add additional information to the error
-			_.set(error, 'meta.cause', 'TOKEN_EXPIRED'); // only for debugging purposes, not to be exposed to the client
 			throw error;
 		}
 

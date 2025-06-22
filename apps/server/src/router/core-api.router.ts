@@ -1,5 +1,11 @@
-import { Router } from 'express';
 import { endPoint } from '@/shared/lib/constants';
+import { mbToBytes } from '@/shared/utils/any.utils';
+import { Router } from 'express';
+// import { createStaffMember } from '../modules/staff/staff-member/staff-member.functions';
+import _ from 'lodash';
+import multer from 'multer';
+import { expressHandler } from '../lib/express';
+import { createExpressHandler } from '../lib/parse/cloud/function';
 import protectionMiddleware from '../middlewares/protection.middleware';
 import {
 	handlePasswordLogin,
@@ -10,12 +16,6 @@ import {
 	handleUploadManyFiles,
 	handleUploadSingleFile,
 } from '../modules/common/file/file.controller';
-import multer from 'multer';
-import { mbToBytes } from '@/shared/utils/any.utils';
-import { createStaffMember } from '../modules/staff/staff-member/staff-member.functions';
-import { createExpressHandler } from '../lib/parse/cloud/function';
-import { expressHandler } from '../lib/express';
-import _ from 'lodash';
 import { createTenant } from '../modules/staff/tenant/tenant.functions';
 
 const coreApiRouter = Router();
@@ -58,20 +58,20 @@ coreApiRouter.get(endPoint.api.auth.verifyEmail, handleVerifyEmail);
 // --------------------------------------------------------------------------------------//
 //                           Parse functions as Express handlers                         //
 // --------------------------------------------------------------------------------------//
-const handleCreateStaffMember = createExpressHandler(createStaffMember);
-coreApiRouter.post(
-	handleCreateStaffMember.path,
-	...handleCreateStaffMember.middlewares,
-	multer({
-		storage: multer.memoryStorage(),
-		limits: { fileSize: mbToBytes(3) },
-	}).single('avatar'),
-	expressHandler(async (req, _res, next) => {
-		_.set(req, 'headers.__avatar__', req.file);
-		next();
-	}),
-	handleCreateStaffMember,
-);
+// const handleCreateStaffMember = createExpressHandler(createStaffMember);
+// coreApiRouter.post(
+// 	handleCreateStaffMember.path,
+// 	...handleCreateStaffMember.middlewares,
+// 	multer({
+// 		storage: multer.memoryStorage(),
+// 		limits: { fileSize: mbToBytes(3) },
+// 	}).single('avatar'),
+// 	expressHandler(async (req, _res, next) => {
+// 		_.set(req, 'headers.__avatar__', req.file);
+// 		next();
+// 	}),
+// 	handleCreateStaffMember,
+// );
 
 const handleCreateTenant = createExpressHandler(createTenant);
 coreApiRouter.post(

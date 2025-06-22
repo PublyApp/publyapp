@@ -69,6 +69,12 @@ const commonFR = {
 	'item-creation-success-message': '{{item}} créé avec succès',
 	'cannot-create-tenant-with-staff-members':
 		'Impossible de créer un tenant avec des membres du staff',
+	'user-already-member-of-a-tenant':
+		"L'utilisateur est déjà membre d'un tenant",
+	'some-users-already-member-of-a-tenant':
+		"Certains utilisateurs sont déjà membres d'un tenant",
+	'some-users-already-members-of-the-staff':
+		'Certains utilisateurs sont déjà membres du staff',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT:
 		'Les e-mails suivants appartiennent à des membres du staff; ils ne peuvent être attribués à aucun tenant: {{emails}}',
 
@@ -154,6 +160,8 @@ const commonFR = {
 	'Token expired': 'Token expiré',
 	'Invalid object for context.': 'Objet invalide pour le contexte.',
 	'Context is not an object': "Context n'est pas un objet",
+	'Account already exists for this email address.':
+		'Un compte existe déjà pour cette adresse email.',
 
 	// sign up terms
 	'terms-of-service': "Conditions d'utilisation",
@@ -176,6 +184,8 @@ const commonFR = {
 
 	'email-verification-success': "Vérification d'email réussie",
 	'request-new-verification-link': 'Demander un nouveau lien de vérification',
+
+	'session-expired': 'Session expirée',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
