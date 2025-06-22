@@ -3,22 +3,11 @@ import { getDatabase } from '@/server/lib/parse/parse.utils';
 import { className, roleSet } from '@/shared/lib/constants';
 import _ from 'lodash';
 
-// export interface StaffMemberValidationResult {
-// 	code: 'SUCCESS' | 'FAILURE';
-// 	'staff-member-emails': string[];
-// }
-
 export default class StaffTenantService {
 	// constructor(
 	// 	private readonly sessionToken: string,
 	// 	private readonly useMasterKey: boolean,
 	// ) { }
-
-	// async getTenant(tenantId: string) {
-	// 	const tenant = await new Parse.Query(ParseTenant).get(tenantId, {
-	// 		sessionToken: this.sessionToken,
-	// 	});
-	// }
 
 	/**
 	 * Validates that none of the provided users belong to staff members
