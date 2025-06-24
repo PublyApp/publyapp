@@ -1,9 +1,9 @@
+import path from 'node:path';
 import { reactRouter } from '@react-router/dev/vite';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
-import path from 'node:path';
 import { reactRouterDevTools } from 'react-router-devtools';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import checker from 'vite-plugin-checker';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tsconfigPaths from 'vite-tsconfig-paths';
@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
 			reactRouter(),
 			tsconfigPaths(),
 			checker({ typescript: true }),
-		],
+		] as Plugin[],
 		server: {
 			port: 6181,
 		},
@@ -34,6 +34,15 @@ export default defineConfig(({ mode }) => {
 			esbuildOptions: {
 				target: 'ES2022',
 			},
+			include: [
+				'lodash',
+				'nprogress',
+				'cookie',
+				'isbot',
+				'serialize-error',
+				'@mui/*',
+				'mui-one-time-password-input',
+			],
 		},
 		ssr: {
 			noExternal:
