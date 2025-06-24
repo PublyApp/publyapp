@@ -1,7 +1,7 @@
-import path from 'node:path';
 import { reactRouter } from '@react-router/dev/vite';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
+import path from 'node:path';
 import { reactRouterDevTools } from 'react-router-devtools';
 import { defineConfig, type Plugin } from 'vite';
 import checker from 'vite-plugin-checker';
@@ -40,7 +40,15 @@ export default defineConfig(({ mode }) => {
 				'cookie',
 				'isbot',
 				'serialize-error',
-				'@mui/*',
+				'@mui/system',
+				'@mui/material',
+				'@mui/utils',
+				'@mui/icons-material',
+				'@mui/styled-engine',
+				'@mui/x-date-pickers',
+				'@mui/x-data-grid',
+				'@mui/x-tree-view',
+				'@mui/x-internals',
 				'mui-one-time-password-input',
 			],
 		},
