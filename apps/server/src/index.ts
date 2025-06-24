@@ -213,17 +213,6 @@ const bootstrap = async () => {
 			},
 		);
 		app.use(PARSE_DASHBOARD_MOUNT_PATH, dashboard);
-		app.all(
-			path.posix.join(endPoint.api.root, 'test'),
-			expressHandler(async (req, res) => {
-				logger.debug('test route hit', {
-					lol: 'test',
-					password: 'azerty',
-					body: req.body,
-				});
-				return res.status(200).json({ ok: 'ok' });
-			}),
-		);
 	}
 
 	// wait for the parse server setup to finish, the mount the parse app to the express app
