@@ -48,7 +48,6 @@ export default defineConfig(({ mode }) => {
 				'@mui/x-date-pickers',
 				'@mui/x-data-grid',
 				'@mui/x-tree-view',
-				'@mui/x-internals',
 				'mui-one-time-password-input',
 			],
 		},
