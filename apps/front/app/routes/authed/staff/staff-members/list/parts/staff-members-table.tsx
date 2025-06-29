@@ -1,26 +1,30 @@
+import { Iconify } from '@/front/components/iconify/iconify';
+import { Label } from '@/front/components/label/label';
+import { RouterLink } from '@/front/components/router-link';
+import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { getUserFullName } from '@/shared/utils/user.utils';
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import IconButton from '@mui/material/IconButton';
+import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
+import type { OnChangeFn } from '@tanstack/table-core';
+import _ from 'lodash';
 import {
-	createMRTColumnHelper,
-	MaterialReactTable,
 	type MRT_ColumnDef,
 	type MRT_PaginationState,
+	type MRT_SortingState,
+	MaterialReactTable,
+	createMRTColumnHelper,
 } from 'material-react-table';
-import { useMemo, useState } from 'react';
-import Box from '@mui/material/Box';
-import Avatar from '@mui/material/Avatar';
-import Stack from '@mui/material/Stack';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { Label } from '@/front/components/label/label';
-import Link from '@mui/material/Link';
-import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
-import _ from 'lodash';
-import { getUserFullName } from '@/shared/utils/user.utils';
-import { RouterLink } from '@/front/components/router-link';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { mockDataStaffMembers } from './mock-data-staff-members';
+import { parseAsJson, useQueryState } from 'nuqs';
+import { useCallback, useMemo, useState } from 'react';
+import { z } from 'zod';
 
 export type StaffMemberRowData = {
 	id: string;
@@ -31,9 +35,6 @@ export type StaffMemberRowData = {
 	status: string;
 	email: string;
 };
-
-const data = mockDataStaffMembers;
-// data.length = 0;
 
 const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
 
@@ -79,21 +80,74 @@ const staffMembersTable = () => {
 		pageSize: DEFAULT_PAGE_SIZE, //customize the default page size
 	});
 
-	const slicedData = useMemo(() => {
-		const startIndex = pagination.pageIndex * pagination.pageSize;
-		const endIndex = startIndex + pagination.pageSize;
-		return _.slice(data, startIndex, endIndex);
-	}, [pagination]);
+	const schema = useMemo(() => {
+		return z.object({
+			id: z.string(),
+			desc: z.boolean(),
+		});
+	}, []);
+
+	const [sorting, setSorting] = useQueryState(
+		'staff-members-table-sorting',
+		parseAsJson<MRT_SortingState[number]>(schema.parse).withDefault({
+			desc: true,
+			id: 'createdAt',
+		}),
+	);
+
+	const handleSortingChange = useCallback<OnChangeFn<MRT_SortingState>>(
+		(updaterOrValue) => {
+			if (_.isFunction(updaterOrValue)) {
+				setSorting((prev) => {
+					const _sorting = updaterOrValue([prev]);
+					return _sorting[0];
+				});
+			} else {
+				setSorting(sorting);
+			}
+		},
+		[setSorting, sorting],
+	);
+
+	const { data: staffMembers, isPending } = useFindStaffMember({
+		variables: {
+			limit: pagination.pageSize,
+			sort: {
+				id: sorting.id,
+				order: sorting.desc === false ? 'asc' : 'desc',
+			},
+		},
+	});
+
+	const data: StaffMemberRowData[] = useMemo(() => {
+		if (!staffMembers) return [];
+
+		return _.map(staffMembers, (staffMember) => {
+			return {
+				id: staffMember.objectId,
+				avatarUrl: staffMember.avatarUrl || '',
+				firstName: staffMember.firstName || '',
+				lastName: staffMember.lastName || '',
+				role: staffMember.roleData?.role || '',
+				status: staffMember.status || '',
+				email: staffMember.email || '',
+			};
+		});
+	}, [staffMembers]);
 
 	const table = useMRTTable('default', {
 		columns,
-		data: slicedData,
-		manualPagination: true,
+		data: data,
 		rowCount: data.length,
+		manualPagination: true,
 		onPaginationChange: setPagination,
+		manualSorting: true,
+		onSortingChange: handleSortingChange,
 		state: {
 			pagination,
 			density: 'comfortable',
+			sorting: [sorting],
+			isLoading: isPending,
 		},
 		muiTablePaperProps: {
 			sx: {
