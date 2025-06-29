@@ -118,9 +118,10 @@ const staffMembersTable = () => {
 		[setSorting, sorting],
 	);
 
-	const { data: staffMembers, isPending } = useFindStaffMember({
+	const { data, isPending } = useFindStaffMember({
 		variables: {
 			limit: pagination.pageSize,
+			page: pagination.pageIndex + 1,
 			sort: {
 				id: sorting.id,
 				order: sorting.desc === false ? 'asc' : 'desc',
@@ -128,10 +129,10 @@ const staffMembersTable = () => {
 		},
 	});
 
-	const data: StaffMemberRowData[] = useMemo(() => {
-		if (!staffMembers) return [];
+	const rows: StaffMemberRowData[] = useMemo(() => {
+		if (!data?.rows) return [];
 
-		return _.map(staffMembers, (staffMember) => {
+		return _.map(data.rows, (staffMember) => {
 			return {
 				id: staffMember.objectId,
 				avatarUrl: staffMember.avatarUrl || '',
@@ -142,12 +143,12 @@ const staffMembersTable = () => {
 				email: staffMember.email || '',
 			};
 		});
-	}, [staffMembers]);
+	}, [data]);
 
 	const table = useMRTTable('default', {
 		columns,
-		data: data,
-		rowCount: data.length,
+		data: rows,
+		rowCount: data?.count || 0,
 		manualPagination: true,
 		onPaginationChange: setPagination,
 		manualSorting: true,
