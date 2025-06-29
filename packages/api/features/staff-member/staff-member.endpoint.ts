@@ -1,9 +1,12 @@
+import type {
+	CreateStaffMemberFunction,
+	FindStaffMemberFunction,
+} from '@/server/modules/staff/staff-member/staff-member.functions';
 import { functionName } from '@/shared/lib/constants';
+import _ from 'lodash';
 import BaseEndPoints, {
 	type BaseEndPointsProps,
 } from 'packages/api/classes/BaseEndPoints';
-import type { CreateStaffMemberFunction } from '@/server/modules/staff/staff-member/staff-member.functions';
-import _ from 'lodash';
 
 export type CreateStaffMemberParams = CreateStaffMemberFunction.Params & {
 	avatar?: File;
@@ -29,6 +32,15 @@ export default class StaffMemberEndPoints extends BaseEndPoints {
 			headers: {
 				'Content-Type': 'multipart/form-data',
 			},
+		});
+	}
+
+	findStaffMember(params: FindStaffMemberFunction.Params) {
+		return this.parseRestClient.cloudRun<
+			FindStaffMemberFunction.Return,
+			FindStaffMemberFunction.Params
+		>(functionName.staff.staffMember.find, {
+			params,
 		});
 	}
 }

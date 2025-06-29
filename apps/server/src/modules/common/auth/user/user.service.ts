@@ -50,6 +50,7 @@ export default class UserService {
 		return user;
 	}
 
+	// TODO: re evaluate this
 	async findUsersForStaffAdminTable() {
 		const userQuery = new Parse.Query(ParseUser).select([
 			'avatarUrl',
