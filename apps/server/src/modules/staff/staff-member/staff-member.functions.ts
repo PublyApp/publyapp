@@ -10,6 +10,7 @@ import {
 } from '@/server/lib/parse/cloud/function';
 import { getDatabase } from '@/server/lib/parse/parse.utils';
 import {
+	DEFAULT_PAGE_SIZE,
 	className,
 	fileProvider,
 	functionName,
@@ -167,6 +168,72 @@ export const createStaffMember = fromStaffMemberParseFunction({
 	},
 });
 
+export namespace FindStaffMemberFunction {
+	export type Params = FunctionParams<typeof findStaffMember>;
+	export type Return = FunctionReturn<typeof findStaffMember>;
+}
+
+const findStaffMember = fromStaffMemberParseFunction({
+	name: functionName.staff.staffMember.find,
+	allowedRoles: roleSet.STAFF_ADMIN_ONLY,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			limit: z.number().optional(),
+			lastId: z.string().optional(),
+			sort: z
+				.object({
+					id: z.string(),
+					order: z.enum(['desc', 'asc']),
+				})
+				.optional(),
+		});
+		return schema.parse(params);
+	},
+	action: async ({ params /* , user, req, z, t, log */ }) => {
+		// const sessionToken = user.getSessionToken();
+
+		const SELECTED_FIELDS = [
+			'firstName',
+			'lastName',
+			'email',
+			'avatarUrl',
+			'roleData.role',
+		];
+
+		const query = new Parse.Query(ParseUser)
+			.equalTo('isStaffMember', true)
+			.select(SELECTED_FIELDS);
+
+		// apply pagination/limit
+		// it's necessary to sort by at least one field, to make cursor based pagination work
+		const sort: NonNullable<typeof params.sort> = params.sort || {
+			id: 'createdAt',
+			order: 'desc',
+		};
+
+		if (sort.order === 'asc') {
+			query.addAscending('objectId');
+		} else {
+			query.addDescending('objectId');
+		}
+
+		query.limit(params.limit || DEFAULT_PAGE_SIZE);
+		if (params.lastId) {
+			query.greaterThan('objectId', params.lastId);
+		}
+
+		// ok to use master key here
+		// because function is only allowed to be used by staff admins
+		const staffMembers = await query.find(USE_MASTER_KEY);
+
+		const users = _.map(staffMembers, (user) => {
+			return _.pick(user.toJSON(), [...SELECTED_FIELDS, 'objectId']);
+		});
+
+		return users as IUser[];
+	},
+});
+
 // ==== Migration functions
 
 const migrateIsStaffMember = parseFunctionEnhanced({
@@ -270,4 +337,5 @@ const migrateRoleData = parseFunctionEnhanced({
 export const defineStaffMemberFunctions = () => {
 	defineCloudFunction(migrateIsStaffMember);
 	defineCloudFunction(migrateRoleData);
+	defineCloudFunction(findStaffMember);
 };

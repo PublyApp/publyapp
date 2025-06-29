@@ -65,11 +65,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const nonce = useNonce();
 
 	return (
-		<html lang={i18n.language} dir={i18n.dir()}>
+		<html lang={i18n.language} dir={i18n.dir()} suppressHydrationWarning>
 			<head>
 				{/* <script src="https://unpkg.com/react-scan/dist/auto.global.js" /> */}
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<meta name="csp-nonce" content={nonce} />
 				<Meta />
 				<Links />
 			</head>
