@@ -25,6 +25,16 @@ const commonEN = {
 	link: 'Link',
 	logo: 'Logo',
 
+	// Status values
+	active: 'Active',
+	pending: 'Pending',
+	banned: 'Banned',
+
+	// Role values
+	admin: 'Admin',
+	editor: 'Editor',
+	contributor: 'Contributor',
+
 	// ? ...
 	views: 'Views',
 	'created-at': 'Created at',

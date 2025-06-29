@@ -1,26 +1,32 @@
-import { useTranslate } from '@/front/hooks/use-translate';
-import Card from '@mui/material/Card';
-import {
-	createMRTColumnHelper,
-	MaterialReactTable,
-	type MRT_ColumnDef,
-	type MRT_PaginationState,
-} from 'material-react-table';
-import { useMemo, useState } from 'react';
-import Box from '@mui/material/Box';
-import Avatar from '@mui/material/Avatar';
-import Stack from '@mui/material/Stack';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { Label } from '@/front/components/label/label';
-import Link from '@mui/material/Link';
-import Tooltip from '@mui/material/Tooltip';
-import IconButton from '@mui/material/IconButton';
-import _ from 'lodash';
-import { getUserFullName } from '@/shared/utils/user.utils';
-import { RouterLink } from '@/front/components/router-link';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { Iconify } from '@/front/components/iconify/iconify';
-import { mockDataStaffMembers } from './mock-data-staff-members';
+import type { LabelColor } from '@/front/components/label';
+import { Label } from '@/front/components/label/label';
+import { RouterLink } from '@/front/components/router-link';
+import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTableState } from '@/front/hooks/use-table-state';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+	roleEnum,
+} from '@/shared/lib/constants';
+import { getUserFullName } from '@/shared/utils/user.utils';
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import IconButton from '@mui/material/IconButton';
+import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
+import Tooltip from '@mui/material/Tooltip';
+import _ from 'lodash';
+import {
+	type MRT_ColumnDef,
+	type MRT_SortingState,
+	MaterialReactTable,
+	createMRTColumnHelper,
+} from 'material-react-table';
+import { useMemo } from 'react';
 
 export type StaffMemberRowData = {
 	id: string;
@@ -32,13 +38,26 @@ export type StaffMemberRowData = {
 	email: string;
 };
 
-const data = mockDataStaffMembers;
-// data.length = 0;
-
 const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
 
-const staffMembersTable = () => {
+const defaultSorting: MRT_SortingState[number] = {
+	desc: true,
+	id: 'createdAt',
+};
+
+const StaffMembersTable = () => {
 	const { t } = useTranslate();
+
+	// Use the custom table state hook
+	const {
+		handlePaginationChange,
+		handleSortingChange,
+		apiVariables,
+		tableState,
+	} = useTableState({
+		defaultSorting,
+		defaultPageSize: DEFAULT_PAGE_SIZE,
+	});
 
 	const columns = useMemo(() => {
 		return [
@@ -52,19 +71,19 @@ const staffMembersTable = () => {
 					Cell: UserCell,
 					// grow: 1,
 					size: 300,
+					enableSorting: false,
 				},
 			),
 			columnHelper.accessor('role', {
 				header: t('role'),
-				Cell: (props) => {
-					return props.cell.getValue();
-				},
+				Cell: RoleCell,
 				size: 70,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
 				size: 70,
+				enableSorting: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',
@@ -74,26 +93,38 @@ const staffMembersTable = () => {
 		];
 	}, [t]);
 
-	const [pagination, setPagination] = useState<MRT_PaginationState>({
-		pageIndex: 0,
-		pageSize: DEFAULT_PAGE_SIZE, //customize the default page size
+	const { data, isPending } = useFindStaffMember({
+		variables: apiVariables,
 	});
 
-	const slicedData = useMemo(() => {
-		const startIndex = pagination.pageIndex * pagination.pageSize;
-		const endIndex = startIndex + pagination.pageSize;
-		return _.slice(data, startIndex, endIndex);
-	}, [pagination]);
+	const rows: StaffMemberRowData[] = useMemo(() => {
+		if (!data?.rows) return [];
+
+		return _.map(data.rows, (staffMember) => {
+			return {
+				id: staffMember.objectId,
+				avatarUrl: staffMember.avatarUrl || '',
+				firstName: staffMember.firstName || '',
+				lastName: staffMember.lastName || '',
+				role: staffMember.roleData?.role || '',
+				status: staffMember.status || '',
+				email: staffMember.email || '',
+			};
+		});
+	}, [data]);
 
 	const table = useMRTTable('default', {
 		columns,
-		data: slicedData,
+		data: rows,
+		rowCount: data?.count || 0,
 		manualPagination: true,
-		rowCount: data.length,
-		onPaginationChange: setPagination,
+		onPaginationChange: handlePaginationChange,
+		manualSorting: true,
+		onSortingChange: handleSortingChange,
 		state: {
-			pagination,
+			...tableState,
 			density: 'comfortable',
+			isLoading: isPending,
 		},
 		muiTablePaperProps: {
 			sx: {
@@ -109,7 +140,7 @@ const staffMembersTable = () => {
 	);
 };
 
-export default staffMembersTable;
+export default StaffMembersTable;
 
 // ----------------------------------------------------------------------
 
@@ -149,17 +180,52 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 
 	const status = props.cell.getValue();
 
+	let t_message: string = t('unknown-item', { item: 'status' });
+	let color: LabelColor = 'default';
+
+	if (status === 'active') {
+		t_message = t('active');
+		color = 'success';
+	} else if (status === 'pending') {
+		t_message = t('pending');
+		color = 'warning';
+	} else if (status === 'banned') {
+		t_message = t('banned');
+		color = 'error';
+	}
+
 	return (
-		<Label
-			variant="soft"
-			color={
-				(status === 'active' && 'success') ||
-				(status === 'pending' && 'warning') ||
-				(status === 'banned' && 'error') ||
-				'default'
-			}
-		>
-			{status || _.toLower(t('unknown-item', { item: 'status' }))}
+		<Label variant="soft" color={color}>
+			{t_message}
+		</Label>
+	);
+};
+
+const RoleCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
+	const { t } = useTranslate();
+
+	const role = props.cell.getValue();
+
+	let t_message: string = t('unknown-item', { item: 'role' });
+	let color: LabelColor = 'default';
+
+	if (role === roleEnum.STAFF_ADMIN.name) {
+		t_message = t('admin');
+		color = 'success';
+	} else if (role === roleEnum.STAFF_EDITOR.name) {
+		t_message = t('editor');
+		color = 'info';
+	} else if (role === roleEnum.STAFF_USER.name) {
+		t_message = t('user');
+		color = 'warning';
+	} else if (role === roleEnum.STAFF_CONTRIBUTOR.name) {
+		t_message = t('contributor');
+		color = 'error';
+	}
+
+	return (
+		<Label variant="soft" color={color}>
+			{t_message}
 		</Label>
 	);
 };
