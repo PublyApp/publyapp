@@ -202,7 +202,7 @@ const findStaffMember = fromStaffMemberParseFunction({
 
 		const query = new Parse.Query(ParseUser)
 			.equalTo('isStaffMember', true)
-			.select(SELECTED_FIELDS);
+			.select([...SELECTED_FIELDS, 'emailVerified']);
 
 		// apply pagination/limit
 		// it's necessary to sort by at least one field, to make cursor based pagination work
@@ -211,10 +211,15 @@ const findStaffMember = fromStaffMemberParseFunction({
 			order: 'desc',
 		};
 
+		// special case for sorting by roleData.rank
+		if (sort.id === 'role') {
+			sort.id = 'roleData.rank';
+		}
+
 		if (sort.order === 'asc') {
-			query.addAscending('objectId');
+			query.addAscending(sort.id);
 		} else {
-			query.addDescending('objectId');
+			query.addDescending(sort.id);
 		}
 
 		query.limit(params.limit || DEFAULT_PAGE_SIZE);
@@ -227,7 +232,15 @@ const findStaffMember = fromStaffMemberParseFunction({
 		const staffMembers = await query.find(USE_MASTER_KEY);
 
 		const users = _.map(staffMembers, (user) => {
-			return _.pick(user.toJSON(), [...SELECTED_FIELDS, 'objectId']);
+			const _userData = _.pick(user.toJSON(), [...SELECTED_FIELDS, 'objectId']);
+			let _status = user.get('emailVerified') === true ? 'active' : 'pending';
+
+			if (user.get('isBanned') === true) {
+				_status = 'banned';
+			}
+
+			_.set(_userData, 'status', _status);
+			return _userData;
 		});
 
 		return users as IUser[];
