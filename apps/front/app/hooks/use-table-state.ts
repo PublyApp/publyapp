@@ -1,5 +1,5 @@
 import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
-import type { OnChangeFn } from '@tanstack/react-table';
+import type { OnChangeFn } from '@tanstack/table-core';
 import _ from 'lodash';
 import type {
 	MRT_PaginationState,
@@ -103,11 +103,7 @@ export const useTableState = (
 
 	// Sorting change handler
 	const handleSortingChange = useCallback<OnChangeFn<MRT_SortingState>>(
-		(
-			updaterOrValue:
-				| MRT_SortingState
-				| ((prev: MRT_SortingState) => MRT_SortingState),
-		) => {
+		(updaterOrValue) => {
 			if (_.isFunction(updaterOrValue)) {
 				const { desc, id } = updaterOrValue([
 					{
@@ -140,11 +136,7 @@ export const useTableState = (
 
 	// Pagination change handler
 	const handlePaginationChange = useCallback<OnChangeFn<MRT_PaginationState>>(
-		(
-			updaterOrValue:
-				| MRT_PaginationState
-				| ((prev: MRT_PaginationState) => MRT_PaginationState),
-		) => {
+		(updaterOrValue) => {
 			if (_.isFunction(updaterOrValue)) {
 				const newPagination = updaterOrValue({
 					pageIndex: Number(paginationState[queryKeys.pagination.page]) - 1,

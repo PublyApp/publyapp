@@ -3,6 +3,7 @@ import type { LabelColor } from '@/front/components/label';
 import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
 import {
@@ -18,17 +19,14 @@ import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
-import type { OnChangeFn } from '@tanstack/table-core';
 import _ from 'lodash';
 import {
 	type MRT_ColumnDef,
-	type MRT_PaginationState,
 	type MRT_SortingState,
 	MaterialReactTable,
 	createMRTColumnHelper,
 } from 'material-react-table';
-import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 export type StaffMemberRowData = {
 	id: string;
@@ -40,17 +38,6 @@ export type StaffMemberRowData = {
 	email: string;
 };
 
-type QueryKeys = {
-	pagination: {
-		page: string;
-		pageSize: string;
-	};
-	sorting: {
-		id: string;
-		order: string;
-	};
-};
-
 const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
 
 const defaultSorting: MRT_SortingState[number] = {
@@ -58,20 +45,19 @@ const defaultSorting: MRT_SortingState[number] = {
 	id: 'createdAt',
 };
 
-// Default query keys
-const tableQueryKeys: Required<QueryKeys> = {
-	pagination: {
-		page: 'page',
-		pageSize: 'size',
-	},
-	sorting: {
-		id: 'id',
-		order: 'order',
-	},
-};
-
 const StaffMembersTable = () => {
 	const { t } = useTranslate();
+
+	// Use the custom table state hook
+	const {
+		handlePaginationChange,
+		handleSortingChange,
+		apiVariables,
+		tableState,
+	} = useTableState({
+		defaultSorting,
+		defaultPageSize: DEFAULT_PAGE_SIZE,
+	});
 
 	const columns = useMemo(() => {
 		return [
@@ -107,83 +93,8 @@ const StaffMembersTable = () => {
 		];
 	}, [t]);
 
-	const _sortOrder = ['asc', 'desc'] as const;
-
-	const [sortingState, setSortingState] = useQueryStates({
-		[tableQueryKeys.sorting.id]: parseAsString.withDefault('createdAt'),
-		[tableQueryKeys.sorting.order]:
-			parseAsStringLiteral(_sortOrder).withDefault('desc'),
-	});
-
-	const [paginationState, setPaginationState] = useQueryStates({
-		[tableQueryKeys.pagination.page]: parseAsString.withDefault('1'),
-		[tableQueryKeys.pagination.pageSize]: parseAsString.withDefault(
-			DEFAULT_PAGE_SIZE.toString(),
-		),
-	});
-
-	const handleSortingChange = useCallback<OnChangeFn<MRT_SortingState>>(
-		(updaterOrValue) => {
-			if (_.isFunction(updaterOrValue)) {
-				const { desc, id } =
-					updaterOrValue([
-						{
-							id: sortingState[tableQueryKeys.sorting.id],
-							desc: sortingState[tableQueryKeys.sorting.order] === 'desc',
-						},
-					])[0] || defaultSorting;
-				setSortingState({
-					[tableQueryKeys.sorting.id]: id,
-					[tableQueryKeys.sorting.order]: desc === false ? 'asc' : 'desc',
-				});
-			} else {
-				const { desc, id } = updaterOrValue[0] || defaultSorting;
-				setSortingState({
-					[tableQueryKeys.sorting.id]: id,
-					[tableQueryKeys.sorting.order]: desc === false ? 'asc' : 'desc',
-				});
-			}
-		},
-		[sortingState, setSortingState],
-	);
-
-	const handlePaginationChange = useCallback<OnChangeFn<MRT_PaginationState>>(
-		(updaterOrValue) => {
-			if (_.isFunction(updaterOrValue)) {
-				const newPagination = updaterOrValue({
-					pageIndex:
-						Number(paginationState[tableQueryKeys.pagination.page]) - 1,
-					pageSize: Number(paginationState[tableQueryKeys.pagination.pageSize]),
-				});
-				setPaginationState({
-					[tableQueryKeys.pagination.page]: (
-						newPagination.pageIndex + 1
-					).toString(),
-					[tableQueryKeys.pagination.pageSize]:
-						newPagination.pageSize.toString(),
-				});
-			} else {
-				setPaginationState({
-					[tableQueryKeys.pagination.page]: (
-						updaterOrValue.pageIndex + 1
-					).toString(),
-					[tableQueryKeys.pagination.pageSize]:
-						updaterOrValue.pageSize.toString(),
-				});
-			}
-		},
-		[paginationState, setPaginationState],
-	);
-
 	const { data, isPending } = useFindStaffMember({
-		variables: {
-			limit: Number(paginationState[tableQueryKeys.pagination.pageSize]),
-			page: Number(paginationState[tableQueryKeys.pagination.page]),
-			sort: {
-				id: sortingState[tableQueryKeys.sorting.id],
-				order: sortingState[tableQueryKeys.sorting.order] as never,
-			},
-		},
+		variables: apiVariables,
 	});
 
 	const rows: StaffMemberRowData[] = useMemo(() => {
@@ -211,17 +122,8 @@ const StaffMembersTable = () => {
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
 		state: {
-			pagination: {
-				pageIndex: Number(paginationState[tableQueryKeys.pagination.page]) - 1,
-				pageSize: Number(paginationState[tableQueryKeys.pagination.pageSize]),
-			},
+			...tableState,
 			density: 'comfortable',
-			sorting: [
-				{
-					id: sortingState[tableQueryKeys.sorting.id],
-					desc: sortingState[tableQueryKeys.sorting.order] === 'desc',
-				},
-			],
 			isLoading: isPending,
 		},
 		muiTablePaperProps: {
