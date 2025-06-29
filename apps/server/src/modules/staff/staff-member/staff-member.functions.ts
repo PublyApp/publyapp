@@ -9,6 +9,7 @@ import {
 	parseFunctionEnhanced,
 } from '@/server/lib/parse/cloud/function';
 import { getDatabase } from '@/server/lib/parse/parse.utils';
+import { applyPagination, applySorting } from '@/server/lib/parse/query.utils';
 import {
 	DEFAULT_PAGE_SIZE,
 	className,
@@ -179,7 +180,7 @@ const findStaffMember = fromStaffMemberParseFunction({
 	validateParams: ({ params, z }) => {
 		const schema = z.object({
 			limit: z.number().optional(),
-			lastId: z.string().optional(),
+			page: z.number().min(1).default(1).optional(),
 			sort: z
 				.object({
 					id: z.string(),
@@ -202,7 +203,11 @@ const findStaffMember = fromStaffMemberParseFunction({
 
 		const query = new Parse.Query(ParseUser)
 			.equalTo('isStaffMember', true)
+			.notEqualTo('isDeleted', true)
 			.select([...SELECTED_FIELDS, 'emailVerified']);
+
+		// because function is only allowed to be used by staff admins
+		const count = await query.count(USE_MASTER_KEY);
 
 		// apply pagination/limit
 		// it's necessary to sort by at least one field, to make cursor based pagination work
@@ -216,20 +221,17 @@ const findStaffMember = fromStaffMemberParseFunction({
 			sort.id = 'roleData.rank';
 		}
 
-		if (sort.order === 'asc') {
-			query.addAscending(sort.id);
-		} else {
-			query.addDescending(sort.id);
-		}
-
-		query.limit(params.limit || DEFAULT_PAGE_SIZE);
-		if (params.lastId) {
-			query.greaterThan('objectId', params.lastId);
-		}
+		applySorting(query, [sort]);
+		applyPagination(query, {
+			page: params.page || 1,
+			size: params.limit || DEFAULT_PAGE_SIZE,
+		});
 
 		// ok to use master key here
 		// because function is only allowed to be used by staff admins
 		const staffMembers = await query.find(USE_MASTER_KEY);
+
+		console.dir(query.toJSON(), { depth: null });
 
 		const users = _.map(staffMembers, (user) => {
 			const _userData = _.pick(user.toJSON(), [...SELECTED_FIELDS, 'objectId']);
@@ -243,7 +245,10 @@ const findStaffMember = fromStaffMemberParseFunction({
 			return _userData;
 		});
 
-		return users as IUser[];
+		return {
+			rows: users as IUser[],
+			count,
+		};
 	},
 });
 

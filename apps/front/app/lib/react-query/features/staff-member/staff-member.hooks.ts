@@ -14,15 +14,15 @@ export const useFindStaffMember = createQuery({
 	queryKey: [functionName.staff.staffMember.find] as const,
 	fetcher: async ({
 		limit,
-		lastId,
+		page,
 		sort,
 	}: {
 		limit?: number;
-		lastId?: string;
+		page?: number;
 		sort?: { id: string; order: 'desc' | 'asc' };
 	}) => {
 		return defaultApiClient.staffMember.findStaffMember({
-			lastId,
+			page,
 			limit,
 			sort,
 		});
