@@ -44,20 +44,34 @@ export const applySkipAndLimit = (
 	}
 
 	if (options.type === 'page') {
-		const skip = pageToSkip(options.page);
+		const skip = pageToSkip(options.page, options.pageSize);
 		query.skip(skip).limit(options.pageSize);
 	}
 };
 
+export const applyPagination = (
+	query: Parse.Query,
+	options: {
+		page: number;
+		size: number;
+	},
+) => {
+	applySkipAndLimit(query, {
+		type: 'page',
+		page: options.page,
+		pageSize: options.size,
+	});
+};
+
 export const applySorting = (
 	query: Parse.Query,
-	sorting: { id: string; desc: boolean }[],
+	sorting: { id: string; order: 'asc' | 'desc' }[],
 ) => {
 	for (const element of sorting) {
-		if (element.desc) {
-			query.addDescending(element.id as never);
-		} else {
+		if (element.order === 'asc') {
 			query.addAscending(element.id as never);
+		} else {
+			query.addDescending(element.id as never);
 		}
 	}
 };
