@@ -27,9 +27,8 @@ import {
 	MaterialReactTable,
 	createMRTColumnHelper,
 } from 'material-react-table';
-import { parseAsJson, useQueryState } from 'nuqs';
+import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
 import { useCallback, useMemo, useState } from 'react';
-import { z } from 'zod';
 
 export type StaffMemberRowData = {
 	id: string;
@@ -41,6 +40,17 @@ export type StaffMemberRowData = {
 	email: string;
 };
 
+type QueryKeys = {
+	pagination: {
+		page: string;
+		pageSize: string;
+	};
+	sorting: {
+		id: string;
+		order: string;
+	};
+};
+
 const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
 
 const defaultSorting: MRT_SortingState[number] = {
@@ -48,7 +58,19 @@ const defaultSorting: MRT_SortingState[number] = {
 	id: 'createdAt',
 };
 
-const staffMembersTable = () => {
+// Default query keys
+const tableQueryKeys: Required<QueryKeys> = {
+	pagination: {
+		page: 'page',
+		pageSize: 'size',
+	},
+	sorting: {
+		id: 'id',
+		order: 'order',
+	},
+};
+
+const StaffMembersTable = () => {
 	const { t } = useTranslate();
 
 	const columns = useMemo(() => {
@@ -85,46 +107,81 @@ const staffMembersTable = () => {
 		];
 	}, [t]);
 
-	const [pagination, setPagination] = useState<MRT_PaginationState>({
-		pageIndex: 0,
-		pageSize: DEFAULT_PAGE_SIZE, //customize the default page size
+	const _sortOrder = ['asc', 'desc'] as const;
+
+	const [sortingState, setSortingState] = useQueryStates({
+		[tableQueryKeys.sorting.id]: parseAsString.withDefault('createdAt'),
+		[tableQueryKeys.sorting.order]:
+			parseAsStringLiteral(_sortOrder).withDefault('desc'),
 	});
 
-	const schema = useMemo(() => {
-		return z.object({
-			id: z.string(),
-			desc: z.boolean(),
-		});
-	}, []);
-
-	const [sorting, setSorting] = useQueryState(
-		'sort',
-		parseAsJson<MRT_SortingState[number]>(schema.parse).withDefault(
-			defaultSorting,
+	const [paginationState, setPaginationState] = useQueryStates({
+		[tableQueryKeys.pagination.page]: parseAsString.withDefault('1'),
+		[tableQueryKeys.pagination.pageSize]: parseAsString.withDefault(
+			DEFAULT_PAGE_SIZE.toString(),
 		),
-	);
+	});
 
 	const handleSortingChange = useCallback<OnChangeFn<MRT_SortingState>>(
 		(updaterOrValue) => {
 			if (_.isFunction(updaterOrValue)) {
-				setSorting((prev) => {
-					const _sorting = updaterOrValue([prev]);
-					return _sorting[0] || defaultSorting;
+				const { desc, id } =
+					updaterOrValue([
+						{
+							id: sortingState[tableQueryKeys.sorting.id],
+							desc: sortingState[tableQueryKeys.sorting.order] === 'desc',
+						},
+					])[0] || defaultSorting;
+				setSortingState({
+					[tableQueryKeys.sorting.id]: id,
+					[tableQueryKeys.sorting.order]: desc === false ? 'asc' : 'desc',
 				});
 			} else {
-				setSorting(sorting);
+				const { desc, id } = updaterOrValue[0] || defaultSorting;
+				setSortingState({
+					[tableQueryKeys.sorting.id]: id,
+					[tableQueryKeys.sorting.order]: desc === false ? 'asc' : 'desc',
+				});
 			}
 		},
-		[setSorting, sorting],
+		[sortingState, setSortingState],
+	);
+
+	const handlePaginationChange = useCallback<OnChangeFn<MRT_PaginationState>>(
+		(updaterOrValue) => {
+			if (_.isFunction(updaterOrValue)) {
+				const newPagination = updaterOrValue({
+					pageIndex:
+						Number(paginationState[tableQueryKeys.pagination.page]) - 1,
+					pageSize: Number(paginationState[tableQueryKeys.pagination.pageSize]),
+				});
+				setPaginationState({
+					[tableQueryKeys.pagination.page]: (
+						newPagination.pageIndex + 1
+					).toString(),
+					[tableQueryKeys.pagination.pageSize]:
+						newPagination.pageSize.toString(),
+				});
+			} else {
+				setPaginationState({
+					[tableQueryKeys.pagination.page]: (
+						updaterOrValue.pageIndex + 1
+					).toString(),
+					[tableQueryKeys.pagination.pageSize]:
+						updaterOrValue.pageSize.toString(),
+				});
+			}
+		},
+		[paginationState, setPaginationState],
 	);
 
 	const { data, isPending } = useFindStaffMember({
 		variables: {
-			limit: pagination.pageSize,
-			page: pagination.pageIndex + 1,
+			limit: Number(paginationState[tableQueryKeys.pagination.pageSize]),
+			page: Number(paginationState[tableQueryKeys.pagination.page]),
 			sort: {
-				id: sorting.id,
-				order: sorting.desc === false ? 'asc' : 'desc',
+				id: sortingState[tableQueryKeys.sorting.id],
+				order: sortingState[tableQueryKeys.sorting.order] as never,
 			},
 		},
 	});
@@ -150,13 +207,21 @@ const staffMembersTable = () => {
 		data: rows,
 		rowCount: data?.count || 0,
 		manualPagination: true,
-		onPaginationChange: setPagination,
+		onPaginationChange: handlePaginationChange,
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
 		state: {
-			pagination,
+			pagination: {
+				pageIndex: Number(paginationState[tableQueryKeys.pagination.page]) - 1,
+				pageSize: Number(paginationState[tableQueryKeys.pagination.pageSize]),
+			},
 			density: 'comfortable',
-			sorting: [sorting],
+			sorting: [
+				{
+					id: sortingState[tableQueryKeys.sorting.id],
+					desc: sortingState[tableQueryKeys.sorting.order] === 'desc',
+				},
+			],
 			isLoading: isPending,
 		},
 		muiTablePaperProps: {
@@ -173,7 +238,7 @@ const staffMembersTable = () => {
 	);
 };
 
-export default staffMembersTable;
+export default StaffMembersTable;
 
 // ----------------------------------------------------------------------
 
