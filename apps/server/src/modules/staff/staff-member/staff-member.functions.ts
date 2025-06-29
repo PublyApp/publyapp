@@ -9,7 +9,9 @@ import {
 	parseFunctionEnhanced,
 } from '@/server/lib/parse/cloud/function';
 import { getDatabase } from '@/server/lib/parse/parse.utils';
+import { applyPagination, applySorting } from '@/server/lib/parse/query.utils';
 import {
+	DEFAULT_PAGE_SIZE,
 	className,
 	fileProvider,
 	functionName,
@@ -167,6 +169,89 @@ export const createStaffMember = fromStaffMemberParseFunction({
 	},
 });
 
+export namespace FindStaffMemberFunction {
+	export type Params = FunctionParams<typeof findStaffMember>;
+	export type Return = FunctionReturn<typeof findStaffMember>;
+}
+
+const findStaffMember = fromStaffMemberParseFunction({
+	name: functionName.staff.staffMember.find,
+	allowedRoles: roleSet.STAFF_ADMIN_ONLY,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			limit: z.number().optional(),
+			page: z.number().min(1).default(1).optional(),
+			sort: z
+				.object({
+					id: z.string(),
+					order: z.enum(['desc', 'asc']),
+				})
+				.optional(),
+		});
+		return schema.parse(params);
+	},
+	action: async ({ params /* , user, req, z, t, log */ }) => {
+		// const sessionToken = user.getSessionToken();
+
+		const SELECTED_FIELDS = [
+			'firstName',
+			'lastName',
+			'email',
+			'avatarUrl',
+			'roleData.role',
+		];
+
+		const query = new Parse.Query(ParseUser)
+			.equalTo('isStaffMember', true)
+			.notEqualTo('isDeleted', true)
+			.select([...SELECTED_FIELDS, 'emailVerified']);
+
+		// because function is only allowed to be used by staff admins
+		const count = await query.count(USE_MASTER_KEY);
+
+		// apply pagination/limit
+		// it's necessary to sort by at least one field, to make cursor based pagination work
+		const sort: NonNullable<typeof params.sort> = params.sort || {
+			id: 'createdAt',
+			order: 'desc',
+		};
+
+		// special case for sorting by roleData.rank
+		if (sort.id === 'role') {
+			sort.id = 'roleData.rank';
+		}
+
+		applySorting(query, [sort]);
+		applyPagination(query, {
+			page: params.page || 1,
+			size: params.limit || DEFAULT_PAGE_SIZE,
+		});
+
+		// ok to use master key here
+		// because function is only allowed to be used by staff admins
+		const staffMembers = await query.find(USE_MASTER_KEY);
+
+		console.dir(query.toJSON(), { depth: null });
+
+		const users = _.map(staffMembers, (user) => {
+			const _userData = _.pick(user.toJSON(), [...SELECTED_FIELDS, 'objectId']);
+			let _status = user.get('emailVerified') === true ? 'active' : 'pending';
+
+			if (user.get('isBanned') === true) {
+				_status = 'banned';
+			}
+
+			_.set(_userData, 'status', _status);
+			return _userData;
+		});
+
+		return {
+			rows: users as IUser[],
+			count,
+		};
+	},
+});
+
 // ==== Migration functions
 
 const migrateIsStaffMember = parseFunctionEnhanced({
@@ -270,4 +355,5 @@ const migrateRoleData = parseFunctionEnhanced({
 export const defineStaffMemberFunctions = () => {
 	defineCloudFunction(migrateIsStaffMember);
 	defineCloudFunction(migrateRoleData);
+	defineCloudFunction(findStaffMember);
 };

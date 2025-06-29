@@ -1,105 +1,108 @@
 import { EmptyContent } from '@/front/components/empty-content/empty-content';
-import type { TablePreset } from '../table-presets';
+import { Iconify } from '@/front/components/iconify/iconify';
+import type { Theme } from '@mui/material';
 import Box from '@mui/material/Box';
-import { textFieldClasses } from '@mui/material/TextField';
+import Button from '@mui/material/Button';
 import { inputBaseClasses } from '@mui/material/InputBase';
+import { textFieldClasses } from '@mui/material/TextField';
 import {
 	MRT_GlobalFilterTextField,
 	type MRT_RowData,
 	type MRT_TableInstance,
 } from 'material-react-table';
-import Button from '@mui/material/Button';
-import { Iconify } from '@/front/components/iconify/iconify';
+import type { TablePreset } from '../table-presets';
 
-export const defaultTablePreset: TablePreset = {
-	// columns,
-	// data,
-	layoutMode: 'grid',
-	enableStickyHeader: true,
-	enableRowSelection: true,
-	enableColumnActions: false,
-	sortDescFirst: true,
-	// enableColumnFilters: false,
-	// enableDensityToggle: false,
-	// enableFullScreenToggle: false,
-	// enableHiding: false,
-	// enableGlobalFilter: true,
-	// enableColumnResizing: true,
-	// enableTopToolbar: true,
-	renderEmptyRowsFallback: () => (
-		<EmptyContent
-			sx={{
-				minHeight: 400,
-			}}
-		/>
-	),
-	renderTopToolbar: (props) => {
-		return (
-			<CustomToolbar
-				table={props.table}
-				onOpenConfirmDeleteRows={(): void => {
-					throw new Error('Function not implemented.');
+export const defaultTablePreset = (theme: Theme): TablePreset => {
+	return {
+		// columns,
+		// data,
+		layoutMode: 'grid',
+		enableStickyHeader: true,
+		enableRowSelection: true,
+		enableColumnActions: false,
+		sortDescFirst: true,
+		// enableColumnFilters: false,
+		// enableDensityToggle: false,
+		// enableFullScreenToggle: false,
+		// enableHiding: false,
+		// enableGlobalFilter: true,
+		// enableColumnResizing: true,
+		// enableTopToolbar: true,
+		renderEmptyRowsFallback: () => (
+			<EmptyContent
+				sx={{
+					minHeight: 400,
 				}}
 			/>
-		);
-	},
-	state: {
-		showGlobalFilter: true,
-		density: 'spacious',
-	},
-	muiTablePaperProps: {
-		sx: {
-			minHeight: 640,
-			flexGrow: 1,
-			display: 'flex',
-			flexDirection: 'column',
-			height: '1px',
+		),
+		renderTopToolbar: (props) => {
+			return (
+				<CustomToolbar
+					table={props.table}
+					onOpenConfirmDeleteRows={(): void => {
+						throw new Error('Function not implemented.');
+					}}
+				/>
+			);
 		},
-	},
-	muiTableContainerProps: {
-		sx: {
-			scrollbarWidth: 'unset',
-			flexGrow: 1,
+		state: {
+			showLoadingOverlay: false,
+			showGlobalFilter: true,
+			density: 'spacious',
 		},
-	},
-	muiPaginationProps: {
-		showFirstButton: false,
-		showLastButton: false,
-	},
-	// muiBottomToolbarProps: {
-	// 	sx: {
-	// 		position: 'fixed',
-	// 		bottom: 0,
-	// 	},
-	// },
+		muiTablePaperProps: {
+			sx: {
+				minHeight: 640,
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				height: '1px',
+				bgcolor: theme.vars.palette.background.paper,
+			},
+		},
+		muiTableContainerProps: {
+			sx: {
+				scrollbarWidth: 'unset',
+				flexGrow: 1,
+			},
+		},
+		muiTableHeadProps: {
+			sx: {
+				'& > tr > th': {
+					bgcolor: theme.vars.palette.background.paper,
+				},
+			},
+		},
+		muiTableBodyProps: {
+			sx: {
+				'& > tr > td': {
+					bgcolor: theme.vars.palette.background.paper,
+				},
+			},
+		},
+		muiPaginationProps: {
+			showFirstButton: false,
+			showLastButton: false,
+			sx: {
+				bgcolor: theme.vars.palette.background.paper,
+			},
+		},
+		muiBottomToolbarProps: {
+			sx: {
+				bgcolor: theme.vars.palette.background.paper,
+			},
+		},
+	};
 };
 
 // ----------------------------------------------------------------------
 
-// declare module '@mui/x-data-grid' {
-//   interface ToolbarPropsOverrides {
-//     setFilterButtonEl: React.Dispatch<React.SetStateAction<HTMLButtonElement | null>>;
-//   }
-// }
-
-type CustomToolbarProps<TData extends MRT_RowData> =
-	/* GridSlotProps['toolbar'] & */ {
-		// canReset: boolean;
-		// filteredResults: number;
-		// selectedRowIds: string[] /* GridRowSelectionModel */;
-		// filters: UseSetStateReturn<IProductTableFilters>;
-
-		onOpenConfirmDeleteRows: () => void;
-
-		table: MRT_TableInstance<TData>;
-	};
+type CustomToolbarProps<TData extends MRT_RowData> = {
+	onOpenConfirmDeleteRows: () => void;
+	table: MRT_TableInstance<TData>;
+};
 
 const CustomToolbar = <TData extends MRT_RowData>({
-	// filters,
-	// canReset,
-	// selectedRowIds,
-	// filteredResults,
-	// setFilterButtonEl,
 	onOpenConfirmDeleteRows,
 	table,
 }: CustomToolbarProps<TData>) => {

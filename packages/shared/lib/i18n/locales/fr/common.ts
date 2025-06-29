@@ -24,6 +24,16 @@ const commonFR = {
 	status: 'Statut',
 	logo: 'Logo',
 
+	// Status values
+	active: 'Actif',
+	pending: 'En attente',
+	banned: 'Banni',
+
+	// Role values
+	admin: 'Administrateur',
+	editor: 'Éditeur',
+	contributor: 'Contributeur',
+
 	// ? ...
 	views: 'Vues',
 	'created-at': 'Créé le',
