@@ -308,6 +308,8 @@ export const functionName = {
 	staff: {
 		staffMember: {
 			create: 'createStaffMember',
+			find: 'findStaffMember',
+			// ==== Migrations ====
 			migrateIsStaffMember: 'migrateIsStaffMember',
 			migrateRoleData: 'migrateRoleData',
 		},
@@ -345,7 +347,7 @@ export const endPoint = {
 	},
 } as const;
 
-export const DEFAULT_PAGE_SIZE = 25;
+export const DEFAULT_PAGE_SIZE = 100;
 
 export const isServer = typeof window === 'undefined';
 
