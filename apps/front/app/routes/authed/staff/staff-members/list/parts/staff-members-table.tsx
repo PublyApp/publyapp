@@ -1,10 +1,15 @@
 import { Iconify } from '@/front/components/iconify/iconify';
+import type { LabelColor } from '@/front/components/label';
 import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+	roleEnum,
+} from '@/shared/lib/constants';
 import { getUserFullName } from '@/shared/utils/user.utils';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
@@ -38,6 +43,11 @@ export type StaffMemberRowData = {
 
 const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
 
+const defaultSorting: MRT_SortingState[number] = {
+	desc: true,
+	id: 'createdAt',
+};
+
 const staffMembersTable = () => {
 	const { t } = useTranslate();
 
@@ -53,19 +63,19 @@ const staffMembersTable = () => {
 					Cell: UserCell,
 					// grow: 1,
 					size: 300,
+					enableSorting: false,
 				},
 			),
 			columnHelper.accessor('role', {
 				header: t('role'),
-				Cell: (props) => {
-					return props.cell.getValue();
-				},
+				Cell: RoleCell,
 				size: 70,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
 				size: 70,
+				enableSorting: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',
@@ -88,11 +98,10 @@ const staffMembersTable = () => {
 	}, []);
 
 	const [sorting, setSorting] = useQueryState(
-		'staff-members-table-sorting',
-		parseAsJson<MRT_SortingState[number]>(schema.parse).withDefault({
-			desc: true,
-			id: 'createdAt',
-		}),
+		'sort',
+		parseAsJson<MRT_SortingState[number]>(schema.parse).withDefault(
+			defaultSorting,
+		),
 	);
 
 	const handleSortingChange = useCallback<OnChangeFn<MRT_SortingState>>(
@@ -100,7 +109,7 @@ const staffMembersTable = () => {
 			if (_.isFunction(updaterOrValue)) {
 				setSorting((prev) => {
 					const _sorting = updaterOrValue([prev]);
-					return _sorting[0];
+					return _sorting[0] || defaultSorting;
 				});
 			} else {
 				setSorting(sorting);
@@ -203,17 +212,52 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 
 	const status = props.cell.getValue();
 
+	let t_message: string = t('unknown-item', { item: 'status' });
+	let color: LabelColor = 'default';
+
+	if (status === 'active') {
+		t_message = t('active');
+		color = 'success';
+	} else if (status === 'pending') {
+		t_message = t('pending');
+		color = 'warning';
+	} else if (status === 'banned') {
+		t_message = t('banned');
+		color = 'error';
+	}
+
 	return (
-		<Label
-			variant="soft"
-			color={
-				(status === 'active' && 'success') ||
-				(status === 'pending' && 'warning') ||
-				(status === 'banned' && 'error') ||
-				'default'
-			}
-		>
-			{status || _.toLower(t('unknown-item', { item: 'status' }))}
+		<Label variant="soft" color={color}>
+			{t_message}
+		</Label>
+	);
+};
+
+const RoleCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
+	const { t } = useTranslate();
+
+	const role = props.cell.getValue();
+
+	let t_message: string = t('unknown-item', { item: 'role' });
+	let color: LabelColor = 'default';
+
+	if (role === roleEnum.STAFF_ADMIN.name) {
+		t_message = t('admin');
+		color = 'success';
+	} else if (role === roleEnum.STAFF_EDITOR.name) {
+		t_message = t('editor');
+		color = 'info';
+	} else if (role === roleEnum.STAFF_USER.name) {
+		t_message = t('user');
+		color = 'warning';
+	} else if (role === roleEnum.STAFF_CONTRIBUTOR.name) {
+		t_message = t('contributor');
+		color = 'error';
+	}
+
+	return (
+		<Label variant="soft" color={color}>
+			{t_message}
 		</Label>
 	);
 };
