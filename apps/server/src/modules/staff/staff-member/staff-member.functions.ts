@@ -231,8 +231,6 @@ const findStaffMember = fromStaffMemberParseFunction({
 		// because function is only allowed to be used by staff admins
 		const staffMembers = await query.find(USE_MASTER_KEY);
 
-		console.dir(query.toJSON(), { depth: null });
-
 		const users = _.map(staffMembers, (user) => {
 			const _userData = _.pick(user.toJSON(), [...SELECTED_FIELDS, 'objectId']);
 			let _status = user.get('emailVerified') === true ? 'active' : 'pending';
