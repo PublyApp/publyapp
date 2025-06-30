@@ -4,7 +4,10 @@ import { toast } from '@/front/components/snackbar';
 import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useRouter } from '@/front/hooks/use-router';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { useCreateStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import {
+	useCreateStaffMember,
+	useFindStaffMember,
+} from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { fData } from '@/front/utils/format-number';
 import {
@@ -26,6 +29,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
+import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
@@ -101,6 +105,8 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		openDialog.onTrue();
 	});
 
+	const queryClient = useQueryClient();
+
 	const { mutate: createStaffMember, isPending } = useCreateStaffMember({
 		onSuccess: () => {
 			reset();
@@ -111,6 +117,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 							t('item-creation-success-message', { item: t('staff-member') }),
 						),
 			);
+			queryClient.invalidateQueries({ queryKey: useFindStaffMember.getKey() });
 			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
 		},
 		onError: (error) => {
