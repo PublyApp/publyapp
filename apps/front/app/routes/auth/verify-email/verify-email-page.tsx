@@ -3,7 +3,6 @@ import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { env } from '@/front/lib/env';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
@@ -17,6 +16,7 @@ import {
 	queryParamValue,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import { encodeEmail } from '@/shared/utils/email-encoding.server';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import {
 	getChallengeEmailForTokenSchema,
@@ -32,6 +32,7 @@ import _ from 'lodash';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useForm } from 'react-hook-form';
 import { redirect, useFetcher } from 'react-router';
+import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';
 
 const actionIntent = {
@@ -111,17 +112,21 @@ export const action = getServerAction({
 					} as const;
 				}
 
-				const url = new URL(env.VITE_SERVER_URL);
-				url.pathname = FRONT_PATH_NAMES.auth.login;
-				url.searchParams.set(
-					queryParamKey.login_page.redirect_cause,
-					queryParamValue.login_page.redirect_cause.email_verification,
+				const pathname = FRONT_PATH_NAMES.auth.resetPassword;
+				const searchParams = new URLSearchParams();
+				searchParams.set(
+					queryParamKey.reset_password_page.redirect_cause,
+					queryParamValue.reset_password_page.redirect_cause.email_verification,
 				);
-				url.searchParams.set(
+				searchParams.set(
 					queryParamKey.language,
 					getCorrectLocale(searchParams.get(queryParamKey.language)),
 				);
-				return redirect(`${url.pathname}${url.search}`);
+				searchParams.set(
+					queryParamKey.reset_password_page.encoded_email,
+					encodeEmail(parsed.data.email),
+				);
+				return redirect(`${pathname}?${searchParams.toString()}`);
 				// break;
 			}
 
@@ -156,7 +161,7 @@ export const loader = getServerLoader({
 			if (result.error instanceof ParseRestError) {
 				if (result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN) {
 					return {
-						code: 'INVALID_TOKEN',
+						code: 'INVALID_LINK',
 					} as const;
 				}
 
@@ -191,10 +196,10 @@ const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
 		);
 	}
 
-	if (loaderData.code === 'INVALID_TOKEN') {
+	if (loaderData.code === 'INVALID_LINK') {
 		return (
 			<Box sx={boxStyles}>
-				<InvalidTokenView forceIsInvalid />
+				<InvalidLinkView forceIsInvalid />
 			</Box>
 		);
 	}
@@ -207,51 +212,6 @@ const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
 };
 
 export default VerifyEmailPage;
-
-const InvalidTokenView = ({
-	error,
-	forceIsInvalid = false,
-}: { error?: unknown; forceIsInvalid?: boolean }) => {
-	const { t } = useTranslate();
-
-	const renderInvalidTokenView = () => {
-		return (
-			<Box>
-				<Typography variant="h4" color="text.primary" mb={2}>
-					{t('invalid-item', { item: t('link') })}
-				</Typography>
-				<Typography variant="body1" color="text.secondary" mb={3}>
-					{t('invalid-email-verification-link-description')}
-				</Typography>
-				<Button
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.auth.verifyEmail}
-					variant="text"
-					color="primary"
-					endIcon={<Iconify icon="eva:arrow-forward-fill" />}
-				>
-					{t('request-new-verification-link')}
-				</Button>
-			</Box>
-		);
-	};
-
-	if (!forceIsInvalid && _.isNil(error)) {
-		throw new Error('Error should not be nil');
-	}
-
-	if (forceIsInvalid) {
-		return renderInvalidTokenView();
-	}
-
-	if (error instanceof ParseRestError) {
-		if (error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN) {
-			return renderInvalidTokenView();
-		}
-	}
-
-	throw error;
-};
 
 const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 	const { t, i18n } = useTranslate();
@@ -317,7 +277,7 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 					href={FRONT_PATH_NAMES.home}
 					variant="text"
 					color="primary"
-					endIcon={<Iconify icon="eva:arrowhead-right-fill" />}
+					endIcon={<Iconify icon="eva:arrow-forward-fill" />}
 				>
 					{t('go-to-home')}
 				</Button>
