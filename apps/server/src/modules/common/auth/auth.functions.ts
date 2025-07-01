@@ -17,8 +17,10 @@ import {
 } from '@/server/lib/parse/parse.utils';
 import { X_CODE, className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
-import { sleep } from '@/shared/utils/any.utils';
-import { getEmailFieldSchema } from '@/shared/validations/auth.validations';
+import {
+	getChallengeEmailForTokenSchema,
+	getEmailFieldSchema,
+} from '@/shared/validations/auth.validations';
 import _ from 'lodash';
 import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 import RoleService from './role/role.service';
@@ -316,17 +318,10 @@ export namespace ChallengeEmailForToken {
 const challengeEmailForToken = fromPublicParseFunction({
 	name: functionName.auth.challengeEmailForToken,
 	validateParams({ params, z }) {
-		const schema = z.object({
-			email: getEmailFieldSchema(z),
-			token: z.string().min(1),
-		});
-
+		const schema = getChallengeEmailForTokenSchema(z);
 		return schema.parse(params);
 	},
-	action: async ({ params, req, t }) => {
-		await sleep(1000);
-		req.log.debug('challengeEmailForToken', { params });
-
+	action: async ({ params, t }) => {
 		// check if token/email pair is valid
 		// if valid, set email as verified, unset token + unset email_verify_token_expires_at
 		const UserCollection = getDatabase().collection(className.USER);
@@ -350,6 +345,10 @@ const challengeEmailForToken = fromPublicParseFunction({
 			throw new HttpException(
 				400,
 				t('item-is-invalid', { item: 'Email/Token' }),
+				{
+					xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
+					meta: { cause: 'User not found' },
+				},
 			);
 		}
 
@@ -359,6 +358,10 @@ const challengeEmailForToken = fromPublicParseFunction({
 			throw new HttpException(
 				400,
 				t('item-is-invalid', { item: 'Email/Token' }),
+				{
+					xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
+					meta: { cause: 'Token expired' },
+				},
 			);
 		}
 
