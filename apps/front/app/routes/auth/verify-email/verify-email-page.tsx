@@ -184,9 +184,21 @@ export const loader = getServerLoader({
 			apiClient.auth.challengeEmailForToken,
 		);
 
+		const schema = getChallengeEmailForTokenSchema(defaultZodClient);
+		const parsed = schema.safeParse({ email: decodedEmail, token });
+
+		// we don't tell what went wrong here
+		// because we don't want to leak information
+		// to potential attackers
+		if (!parsed.success) {
+			return {
+				code: 'INVALID_LINK',
+			} as const;
+		}
+
 		const result = await challengeEmailForToken({
-			email: decodedEmail,
-			token,
+			email: parsed.data.email,
+			token: parsed.data.token,
 		});
 
 		if (result.status === 'error') {
