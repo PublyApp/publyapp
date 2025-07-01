@@ -17,10 +17,7 @@ import {
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
-import {
-	decodeString,
-	encodeString,
-} from '@/shared/utils/string-encoding.server';
+import { decodeString } from '@/shared/utils/string-encoding.server';
 import {
 	getChallengeEmailForTokenSchema,
 	getEmailFormSchema,
@@ -49,8 +46,8 @@ export const action = getServerAction({
 		const intent = formData.get('intent');
 
 		const email = formData.get('email');
-		const searchParams = new URL(request.url).searchParams;
-		const token = searchParams.get(queryParamKey.token);
+		// const searchParams = new URL(request.url).searchParams;
+		// const token = searchParams.get(queryParamKey.token);
 
 		switch (intent) {
 			case actionIntent.REQUEST_EMAIL_VERIFICATION: {
@@ -84,7 +81,6 @@ export const action = getServerAction({
 				return {
 					status: 'success',
 				} as const;
-				// break;
 			}
 
 			// case actionIntent.CHALLENGE_EMAIL_FOR_TOKEN: {
@@ -230,6 +226,7 @@ export const loader = getServerLoader({
 			queryParamKey.reset_password_page.encoded_email,
 			encodedEmail,
 		);
+		redirectSearchParams.set(queryParamKey.token, result.data.token);
 		return redirect(
 			`${FRONT_PATH_NAMES.auth.resetPassword}?${redirectSearchParams.toString()}`,
 		);

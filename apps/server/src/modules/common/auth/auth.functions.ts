@@ -17,10 +17,7 @@ import {
 } from '@/server/lib/parse/parse.utils';
 import { X_CODE, className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
-import {
-	getChallengeEmailForTokenSchema,
-	getEmailFieldSchema,
-} from '@/shared/validations/auth.validations';
+import { getChallengeEmailForTokenSchema } from '@/shared/validations/auth.validations';
 import _ from 'lodash';
 import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 import RoleService from './role/role.service';
