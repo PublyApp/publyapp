@@ -381,7 +381,7 @@ export const queryParamKey = {
 	},
 	reset_password_page: {
 		redirect_cause: 'rc',
-		encoded_email: 'enc',
+		encoded_email: 'id',
 		token: 'token',
 	},
 } as const;
