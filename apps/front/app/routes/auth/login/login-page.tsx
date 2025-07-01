@@ -98,13 +98,6 @@ const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
 		if (!hasShownToast.current) {
 			if (
 				redirect_cause ===
-				queryParamValue.login_page.redirect_cause.email_verification
-			) {
-				toast.success(t('email-verification-success'));
-			}
-
-			if (
-				redirect_cause ===
 				queryParamValue.login_page.redirect_cause.invalid_session
 			) {
 				toast.error(t('session-expired'));
