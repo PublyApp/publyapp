@@ -3,10 +3,7 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { queryParamKey, queryParamValue } from '@/shared/lib/constants';
 import { sleep } from '@/shared/utils/any.utils';
-import {
-	decodeString,
-	isValidEncodedEmail,
-} from '@/shared/utils/string-encoding.server';
+import { decodeString } from '@/shared/utils/string-encoding.server';
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import InvalidLinkView from '../components/invalid-link-view';
@@ -15,53 +12,50 @@ import type { Route } from './+types/reset-password-page';
 export const loader = getServerLoader({
 	loader: async ({ request }) => {
 		const searchParams = new URL(request.url).searchParams;
-		const redirectCause = searchParams.get(
-			queryParamKey.reset_password_page.redirect_cause,
-		);
+		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
 			queryParamKey.reset_password_page.encoded_email,
 		);
 
-		const token = searchParams.get(queryParamKey.reset_password_page.token);
-
-		if (!token) {
+		if (!token || !encodedEmail) {
 			return {
 				code: 'INVALID_LINK',
 			} as const;
 		}
 
-		if (
-			redirectCause ===
-			queryParamValue.reset_password_page.redirect_cause.email_verification
-		) {
-			if (!encodedEmail) {
-				return {
-					code: 'INVALID_LINK',
-				} as const;
-			}
-			if (!isValidEncodedEmail(encodedEmail)) {
-				return {
-					code: 'INVALID_LINK',
-				} as const;
-			}
+		let isValidEncodedEmail = false;
+		let decodedEmail = '';
 
-			const email = decodeString(encodedEmail);
+		try {
+			decodedEmail = decodeString(encodedEmail);
+			isValidEncodedEmail = true;
+		} catch (_error) {
+			isValidEncodedEmail = false;
+		}
 
-			const verifyTokenBelongsToEmail = async (
-				_email: string,
-				_token: string,
-			) => {
-				return await sleep(1000, true);
-			};
+		if (!isValidEncodedEmail) {
+			return {
+				code: 'INVALID_LINK',
+			} as const;
+		}
 
-			// verify if token belongs to the email
-			const tokenBelongsToEmail = await verifyTokenBelongsToEmail(email, token);
+		const verifyTokenBelongsToEmail = async (
+			_email: string,
+			_token: string,
+		) => {
+			return await sleep(1000, true);
+		};
 
-			if (!tokenBelongsToEmail) {
-				return {
-					code: 'INVALID_LINK',
-				} as const;
-			}
+		// verify if token belongs to the email
+		const tokenBelongsToEmail = await verifyTokenBelongsToEmail(
+			decodedEmail,
+			token,
+		);
+
+		if (!tokenBelongsToEmail) {
+			return {
+				code: 'INVALID_LINK',
+			} as const;
 		}
 
 		return {

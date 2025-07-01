@@ -254,66 +254,8 @@ export namespace CheckEmailVerificationToken {
 	export type Return = FunctionReturn<typeof checkEmailVerificationToken>;
 }
 
-/**
- * Verify the email verification token
- */
 const checkEmailVerificationToken = fromPublicParseFunction({
 	name: functionName.auth.checkEmailVerificationToken,
-	validateParams: ({ params, z }) => {
-		const schema = z.object({
-			token: z.string().min(1),
-		});
-		return schema.parse(params);
-	},
-	action: async ({ params, t }) => {
-		const token = params.token;
-
-		// check if token exists
-		const UserCollection = getDatabase().collection(className.USER);
-
-		const user = await UserCollection.findOne(
-			{
-				_email_verify_token: token,
-			},
-			{
-				projection: {
-					_id: 1,
-					_email_verify_token: 1,
-					_email_verify_token_expires_at: 1,
-				},
-			},
-		);
-
-		if (!user) {
-			throw new HttpException(400, t('Invalid token'), {
-				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
-			});
-		}
-
-		// check if token is expired
-		const isExpired = user._email_verify_token_expires_at < new Date();
-
-		if (isExpired) {
-			const error = new HttpException(400, t('Invalid token'), {
-				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
-				meta: {
-					reason: 'Session token expired',
-				},
-			});
-			throw error;
-		}
-
-		return { status: 'success' } as const;
-	},
-});
-
-export namespace ChallengeEmailForToken {
-	export type Params = FunctionParams<typeof challengeEmailForToken>;
-	export type Return = FunctionReturn<typeof challengeEmailForToken>;
-}
-
-const challengeEmailForToken = fromPublicParseFunction({
-	name: functionName.auth.challengeEmailForToken,
 	validateParams({ params, z }) {
 		const schema = getChallengeEmailForTokenSchema(z);
 		return schema.parse(params);
@@ -410,7 +352,6 @@ defineCloudFunction(getTenantAuthData);
 defineCloudFunction(getIsDisabledSignup);
 defineCloudFunction(getRedirectCode);
 defineCloudFunction(checkEmailVerificationToken);
-defineCloudFunction(challengeEmailForToken);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //
