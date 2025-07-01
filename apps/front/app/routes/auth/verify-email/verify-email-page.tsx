@@ -180,12 +180,6 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		// const checkEmailVerificationToken = safeRun(
-		// 	apiClient.auth.checkEmailVerificationToken,
-		// );
-
-		// const result = await checkEmailVerificationToken({ token });
-		// const result =
 		const challengeEmailForToken = safeRun(
 			apiClient.auth.challengeEmailForToken,
 		);
@@ -211,9 +205,22 @@ export const loader = getServerLoader({
 			throw result.error;
 		}
 
-		return {
-			code: 'OK',
-		} as const;
+		const redirectSearchParams = new URLSearchParams();
+		redirectSearchParams.set(
+			queryParamKey.reset_password_page.redirect_cause,
+			queryParamValue.reset_password_page.redirect_cause.email_verification,
+		);
+		redirectSearchParams.set(
+			queryParamKey.language,
+			getCorrectLocale(redirectSearchParams.get(queryParamKey.language)),
+		);
+		redirectSearchParams.set(
+			queryParamKey.reset_password_page.encoded_email,
+			encodedEmail,
+		);
+		return redirect(
+			`${FRONT_PATH_NAMES.auth.resetPassword}?${redirectSearchParams.toString()}`,
+		);
 	},
 });
 
