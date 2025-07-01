@@ -258,6 +258,7 @@ export const FRONT_PATH_NAMES = {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
 		verifyEmail: makePath('verify-email'),
+		resetPassword: makePath('reset-password'),
 	},
 	tenant: (tenantId = '') => {
 		return {
@@ -378,13 +379,22 @@ export const queryParamKey = {
 	login_page: {
 		redirect_cause: 'rc',
 	},
+	reset_password_page: {
+		redirect_cause: 'rc',
+		encoded_email: 'enc',
+		token: 'token',
+	},
 } as const;
 
 export const queryParamValue = {
 	login_page: {
 		redirect_cause: {
-			email_verification: 'email_verification',
 			invalid_session: 'invalid_session',
+		},
+	},
+	reset_password_page: {
+		redirect_cause: {
+			email_verification: 'email_verification',
 		},
 	},
 } as const;

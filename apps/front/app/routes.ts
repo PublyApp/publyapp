@@ -1,9 +1,9 @@
 import {
+	type RouteConfig,
 	index,
 	layout,
 	prefix,
 	route,
-	type RouteConfig,
 } from '@react-router/dev/routes';
 
 import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
@@ -25,6 +25,10 @@ const routes = [
 		route(
 			getLastPath(FRONT_PATH_NAMES.auth.verifyEmail),
 			'routes/auth/verify-email/verify-email-page.tsx',
+		),
+		route(
+			getLastPath(FRONT_PATH_NAMES.auth.resetPassword),
+			'routes/auth/reset-password/reset-password-page.tsx',
 		),
 	]),
 	layout('routes/authed/_layout/authed-layout.tsx', [

@@ -13,6 +13,10 @@ import {
 import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
 import { logger } from '@org/shared/lib/winston.server';
 import duration from '@org/shared/utils/duration.utils';
+import {
+	decodeString,
+	encodeString,
+} from '@org/shared/utils/string-encoding.server';
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
 import chalk from 'chalk';
@@ -176,6 +180,9 @@ const bootstrap = async () => {
 		verifyUserEmails: true, // automatically sends an email to newly created users
 		emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
 		emailVerifyTokenReuseIfValid: true,
+		passwordPolicy: {
+			resetTokenValidityDuration: duration.toSeconds('1d'),
+		},
 		// =============================================
 		logLevel: env.LOCAL ? 'debug' : 'info',
 		enableInsecureAuthAdapters: false,
@@ -313,4 +320,11 @@ const bootstrap = async () => {
 	]);
 };
 
-bootstrap();
+await bootstrap();
+
+const encoded = encodeString('w9enzkhx117cp6@altaddress.org');
+const decoded = decodeString(encoded);
+logger.debug('TEST ENCODE STRING', {
+	encoded,
+	decoded,
+});

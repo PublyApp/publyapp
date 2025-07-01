@@ -11,6 +11,7 @@ import {
 import {
 	getDatabase,
 	getGlobalConfig,
+	getInternalConfig,
 	parseFields,
 	removeParseFields,
 } from '@/server/lib/parse/parse.utils';
@@ -19,6 +20,7 @@ import type { IUser } from '@/shared/types/db/user.types';
 import { sleep } from '@/shared/utils/any.utils';
 import { getEmailFieldSchema } from '@/shared/validations/auth.validations';
 import _ from 'lodash';
+import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
@@ -325,7 +327,6 @@ const challengeEmailForToken = fromPublicParseFunction({
 		await sleep(1000);
 		req.log.debug('challengeEmailForToken', { params });
 
-		// TODO:
 		// check if token/email pair is valid
 		// if valid, set email as verified, unset token + unset email_verify_token_expires_at
 		const UserCollection = getDatabase().collection(className.USER);
@@ -361,7 +362,22 @@ const challengeEmailForToken = fromPublicParseFunction({
 			);
 		}
 
+		const config = getInternalConfig();
+
+		const passwordResetTokenData: {
+			_perishable_token: string;
+			_perishable_token_expires_at?: string;
+		} = {
+			_perishable_token: newObjectId(25),
+		};
+
+		if (config.passwordPolicy?.resetTokenValidityDuration) {
+			passwordResetTokenData._perishable_token_expires_at =
+				config.generatePasswordResetTokenExpiresAt();
+		}
+
 		// set email as verified, unset token + unset email_verify_token_expires_at
+		// set password reset token to let the user create a new password
 		await UserCollection.updateOne(
 			{
 				_id: user._id,
@@ -369,8 +385,7 @@ const challengeEmailForToken = fromPublicParseFunction({
 			{
 				$set: {
 					emailVerified: true,
-					// _email_verify_token: undefined,
-					// _email_verify_token_expires_at: undefined,
+					...passwordResetTokenData,
 				},
 				$unset: {
 					_email_verify_token: 1,
@@ -381,6 +396,7 @@ const challengeEmailForToken = fromPublicParseFunction({
 
 		return {
 			status: 'success',
+			token: passwordResetTokenData._perishable_token,
 		} as const;
 	},
 });

@@ -1,9 +1,9 @@
+import path from 'node:path';
 import { reactRouter } from '@react-router/dev/vite';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
-import path from 'node:path';
 import { reactRouterDevTools } from 'react-router-devtools';
-import { defineConfig, type Plugin } from 'vite';
+import { type Plugin, defineConfig } from 'vite';
 import checker from 'vite-plugin-checker';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tsconfigPaths from 'vite-tsconfig-paths';
@@ -85,8 +85,5 @@ export default defineConfig(({ mode }) => {
 							'react-dom/server': 'react-dom/server.node',
 						},
 					},
-		// define: {
-		// 	'process.env.VITE_SERVER_URL': JSON.stringify(/* your value */),
-		// }
 	};
 });
