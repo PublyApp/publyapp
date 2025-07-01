@@ -16,8 +16,11 @@ import {
 	queryParamValue,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { encodeEmail } from '@/shared/utils/email-encoding.server';
 import { getErrorMessage } from '@/shared/utils/error-message';
+import {
+	decodeString,
+	encodeString,
+} from '@/shared/utils/string-encoding.server';
 import {
 	getChallengeEmailForTokenSchema,
 	getEmailFormSchema,
@@ -37,7 +40,7 @@ import type { Route } from './+types/verify-email-page';
 
 const actionIntent = {
 	REQUEST_EMAIL_VERIFICATION: 'REQUEST_EMAIL_VERIFICATION',
-	CHALLENGE_EMAIL_FOR_TOKEN: 'CHALLENGE_EMAIL_FOR_TOKEN',
+	// CHALLENGE_EMAIL_FOR_TOKEN: 'CHALLENGE_EMAIL_FOR_TOKEN',
 } as const;
 
 export const action = getServerAction({
@@ -84,57 +87,58 @@ export const action = getServerAction({
 				// break;
 			}
 
-			case actionIntent.CHALLENGE_EMAIL_FOR_TOKEN: {
-				const schema = getChallengeEmailForTokenSchema(z);
+			// case actionIntent.CHALLENGE_EMAIL_FOR_TOKEN: {
+			// 	const schema = getChallengeEmailForTokenSchema(z);
 
-				const parsed = schema.safeParse({ email, token });
+			// 	const parsed = schema.safeParse({ email, token });
 
-				if (!parsed.success) {
-					return {
-						status: 'error',
-						error: parsed.error.errors[0].message,
-					} as const;
-				}
+			// 	if (!parsed.success) {
+			// 		return {
+			// 			status: 'error',
+			// 			error: parsed.error.errors[0].message,
+			// 		} as const;
+			// 	}
 
-				const challengeEmailForToken = safeRun(
-					apiClient.auth.challengeEmailForToken,
-				);
+			// 	const challengeEmailForToken = safeRun(
+			// 		apiClient.auth.challengeEmailForToken,
+			// 	);
 
-				const result = await challengeEmailForToken({
-					email: parsed.data.email,
-					token: parsed.data.token,
-				});
+			// 	const result = await challengeEmailForToken({
+			// 		email: parsed.data.email,
+			// 		token: parsed.data.token,
+			// 	});
 
-				if (result.status === 'error') {
-					return {
-						status: 'error',
-						error: result.error.message,
-					} as const;
-				}
+			// 	if (result.status === 'error') {
+			// 		return {
+			// 			status: 'error',
+			// 			error: result.error.message,
+			// 		} as const;
+			// 	}
 
-				const pathname = FRONT_PATH_NAMES.auth.resetPassword;
-				const searchParams = new URLSearchParams();
-				searchParams.set(
-					queryParamKey.reset_password_page.redirect_cause,
-					queryParamValue.reset_password_page.redirect_cause.email_verification,
-				);
-				searchParams.set(
-					queryParamKey.language,
-					getCorrectLocale(searchParams.get(queryParamKey.language)),
-				);
-				searchParams.set(
-					queryParamKey.reset_password_page.encoded_email,
-					encodeEmail(parsed.data.email),
-				);
-				return redirect(`${pathname}?${searchParams.toString()}`);
-				// break;
-			}
+			// 	const pathname = FRONT_PATH_NAMES.auth.resetPassword;
+			// 	const searchParams = new URLSearchParams();
+			// 	searchParams.set(
+			// 		queryParamKey.reset_password_page.redirect_cause,
+			// 		queryParamValue.reset_password_page.redirect_cause.email_verification,
+			// 	);
+			// 	searchParams.set(
+			// 		queryParamKey.language,
+			// 		getCorrectLocale(searchParams.get(queryParamKey.language)),
+			// 	);
+			// 	searchParams.set(
+			// 		queryParamKey.reset_password_page.encoded_email,
+			// 		encodeString(parsed.data.email),
+			// 	);
+			// 	return redirect(`${pathname}?${searchParams.toString()}`);
+			// 	// break;
+			// }
 
-			default:
+			default: {
 				return {
 					status: 'error',
 					error: 'Invalid action intent',
 				} as const;
+			}
 		}
 	},
 });
@@ -143,19 +147,53 @@ export const loader = getServerLoader({
 	loader: async ({ request, apiClient }) => {
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
+		const encodedEmail = searchParams.get(
+			queryParamKey.reset_password_page.encoded_email,
+		);
 
 		// if no token, we just return success
-		if (!token) {
+		if (!token && !encodedEmail) {
 			return {
-				code: 'NO_TOKEN',
+				code: 'NO_TOKEN_AND_ID',
 			} as const;
 		}
 
-		const checkEmailVerificationToken = safeRun(
-			apiClient.auth.checkEmailVerificationToken,
+		if (!token || !encodedEmail) {
+			return {
+				code: 'INVALID_LINK',
+			} as const;
+		}
+
+		let isValidEncodedEmail = false;
+		let decodedEmail = '';
+
+		try {
+			decodedEmail = decodeString(encodedEmail);
+			isValidEncodedEmail = true;
+		} catch (_error) {
+			isValidEncodedEmail = false;
+		}
+
+		if (!isValidEncodedEmail) {
+			return {
+				code: 'INVALID_LINK',
+			} as const;
+		}
+
+		// const checkEmailVerificationToken = safeRun(
+		// 	apiClient.auth.checkEmailVerificationToken,
+		// );
+
+		// const result = await checkEmailVerificationToken({ token });
+		// const result =
+		const challengeEmailForToken = safeRun(
+			apiClient.auth.challengeEmailForToken,
 		);
 
-		const result = await checkEmailVerificationToken({ token });
+		const result = await challengeEmailForToken({
+			email: decodedEmail,
+			token,
+		});
 
 		if (result.status === 'error') {
 			if (result.error instanceof ParseRestError) {
@@ -188,14 +226,6 @@ const boxStyles = (theme: Theme) => {
 };
 
 const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
-	if (loaderData.code === 'NO_TOKEN') {
-		return (
-			<Box sx={boxStyles}>
-				<EmailForForm intent={actionIntent.REQUEST_EMAIL_VERIFICATION} />
-			</Box>
-		);
-	}
-
 	if (loaderData.code === 'INVALID_LINK') {
 		return (
 			<Box sx={boxStyles}>
@@ -206,7 +236,7 @@ const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
 
 	return (
 		<Box sx={boxStyles}>
-			<EmailForForm intent={actionIntent.CHALLENGE_EMAIL_FOR_TOKEN} />
+			<EmailForForm intent={actionIntent.REQUEST_EMAIL_VERIFICATION} />
 		</Box>
 	);
 };
@@ -223,10 +253,10 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 			title: t('verify-email'),
 			description: t('verify-email-description-1'),
 		},
-		[actionIntent.CHALLENGE_EMAIL_FOR_TOKEN]: {
-			title: t('verify-email'),
-			description: t('verify-email-description-2'),
-		},
+		// [actionIntent.CHALLENGE_EMAIL_FOR_TOKEN]: {
+		// 	title: t('verify-email'),
+		// 	description: t('verify-email-description-2'),
+		// },
 	};
 
 	const form = useForm({
