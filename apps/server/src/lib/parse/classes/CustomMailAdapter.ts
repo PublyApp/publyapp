@@ -1,11 +1,10 @@
-import { FRONT_PATH_NAMES, className } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { logger } from '@org/shared/lib/winston.server';
 
 import { encodeString } from '@/shared/utils/string-encoding.server';
 import _ from 'lodash';
 import { env } from '../../env';
 import type { MailAdapter } from '../interfaces/MailAdapter';
-import { getDatabase } from '../parse.utils';
 
 type Props = {
 	serverUrl: string;
@@ -43,27 +42,17 @@ export default class CustomMailAdapter implements MailAdapter {
 
 	async getCustomVerificationLink({
 		token,
+		email,
 	}: {
 		token: string;
+		email: string;
 	}) {
 		const url = new URL(this.serverUrl);
 		// url.pathname = endPoint.api.auth.verifyEmail; // do not use a server endpoint
 		url.pathname = FRONT_PATH_NAMES.auth.verifyEmail; // use a front-end pathname instead
 		url.searchParams.set('token', token);
 
-		const user = await getDatabase()
-			.collection(className.USER)
-			.findOne(
-				{
-					_email_verify_token: token,
-				},
-				{
-					projection: {
-						email: 1,
-					},
-				},
-			);
-		url.searchParams.set('id', encodeString(_.toString(user?.email)));
+		url.searchParams.set('id', encodeString(_.toString(email)));
 
 		return url.toString();
 	}
@@ -84,8 +73,9 @@ export default class CustomMailAdapter implements MailAdapter {
 		const verificationUrl = new URL(link);
 		const verificationToken = verificationUrl.searchParams.get('token');
 
-		const customLink = await this.getCustomVerificationLink({
+		const customLink = this.getCustomVerificationLink({
 			token: verificationToken || '',
+			email: user.getEmail() || '',
 		});
 
 		if (env.LOCAL) {
