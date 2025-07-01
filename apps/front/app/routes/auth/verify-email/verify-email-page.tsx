@@ -83,52 +83,6 @@ export const action = getServerAction({
 				} as const;
 			}
 
-			// case actionIntent.CHALLENGE_EMAIL_FOR_TOKEN: {
-			// 	const schema = getChallengeEmailForTokenSchema(z);
-
-			// 	const parsed = schema.safeParse({ email, token });
-
-			// 	if (!parsed.success) {
-			// 		return {
-			// 			status: 'error',
-			// 			error: parsed.error.errors[0].message,
-			// 		} as const;
-			// 	}
-
-			// 	const challengeEmailForToken = safeRun(
-			// 		apiClient.auth.challengeEmailForToken,
-			// 	);
-
-			// 	const result = await challengeEmailForToken({
-			// 		email: parsed.data.email,
-			// 		token: parsed.data.token,
-			// 	});
-
-			// 	if (result.status === 'error') {
-			// 		return {
-			// 			status: 'error',
-			// 			error: result.error.message,
-			// 		} as const;
-			// 	}
-
-			// 	const pathname = FRONT_PATH_NAMES.auth.resetPassword;
-			// 	const searchParams = new URLSearchParams();
-			// 	searchParams.set(
-			// 		queryParamKey.reset_password_page.redirect_cause,
-			// 		queryParamValue.reset_password_page.redirect_cause.email_verification,
-			// 	);
-			// 	searchParams.set(
-			// 		queryParamKey.language,
-			// 		getCorrectLocale(searchParams.get(queryParamKey.language)),
-			// 	);
-			// 	searchParams.set(
-			// 		queryParamKey.reset_password_page.encoded_email,
-			// 		encodeString(parsed.data.email),
-			// 	);
-			// 	return redirect(`${pathname}?${searchParams.toString()}`);
-			// 	// break;
-			// }
-
 			default: {
 				return {
 					status: 'error',
@@ -176,8 +130,8 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		const challengeEmailForToken = safeRun(
-			apiClient.auth.challengeEmailForToken,
+		const checkEmailVerificationToken = safeRun(
+			apiClient.auth.checkEmailVerificationToken,
 		);
 
 		const schema = getChallengeEmailForTokenSchema(defaultZodClient);
@@ -192,7 +146,7 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		const result = await challengeEmailForToken({
+		const result = await checkEmailVerificationToken({
 			email: parsed.data.email,
 			token: parsed.data.token,
 		});

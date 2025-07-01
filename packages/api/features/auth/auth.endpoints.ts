@@ -3,8 +3,8 @@ import _ from 'lodash';
 import type { IUser } from '@org/shared/types/db/user.types';
 
 import type {
-	ChallengeEmailForToken,
 	CheckEmailVerificationToken,
+	// CheckEmailVerificationToken,
 	GetIsDisabledSignup,
 	GetRedirectCode,
 	GetTenantAuthData,
@@ -32,7 +32,6 @@ export default class AuthEndPoints extends BaseEndPoints {
 		this.verificationEmailRequest = this.verificationEmailRequest.bind(this);
 		this.checkEmailVerificationToken =
 			this.checkEmailVerificationToken.bind(this);
-		this.challengeEmailForToken = this.challengeEmailForToken.bind(this);
 	}
 
 	async getUserAuthData() {
@@ -126,23 +125,14 @@ export default class AuthEndPoints extends BaseEndPoints {
 		});
 	}
 
-	async checkEmailVerificationToken({ token }: { token: string }) {
-		return this.parseRestClient.cloudRun<
-			CheckEmailVerificationToken.Return,
-			CheckEmailVerificationToken.Params
-		>(functionName.auth.checkEmailVerificationToken, {
-			params: { token },
-		});
-	}
-
-	async challengeEmailForToken({
+	async checkEmailVerificationToken({
 		email,
 		token,
 	}: { email: string; token: string }) {
 		return this.parseRestClient.cloudRun<
-			ChallengeEmailForToken.Return,
-			ChallengeEmailForToken.Params
-		>(functionName.auth.challengeEmailForToken, {
+			CheckEmailVerificationToken.Return,
+			CheckEmailVerificationToken.Params
+		>(functionName.auth.checkEmailVerificationToken, {
 			params: { email, token },
 		});
 	}

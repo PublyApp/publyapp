@@ -15,10 +15,3 @@ export const useGetTenantAuthData = createSuspenseQuery({
 		return defaultApiClient.auth.getTenantAuthData({ tenantId });
 	},
 });
-
-export const useCheckEmailVerificationToken = createQuery({
-	queryKey: [functionName.auth.checkEmailVerificationToken],
-	fetcher: async ({ token }: { token: string }) => {
-		return defaultApiClient.auth.checkEmailVerificationToken({ token });
-	},
-});
