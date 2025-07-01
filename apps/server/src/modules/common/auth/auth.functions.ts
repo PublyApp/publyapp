@@ -17,7 +17,10 @@ import {
 } from '@/server/lib/parse/parse.utils';
 import { X_CODE, className, functionName } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
-import { getChallengeEmailForTokenSchema } from '@/shared/validations/auth.validations';
+import {
+	getCheckEmailVerificationTokenSchema,
+	getCheckResetPasswordTokenSchema,
+} from '@/shared/validations/auth.validations';
 import _ from 'lodash';
 import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 import RoleService from './role/role.service';
@@ -257,7 +260,7 @@ export namespace CheckEmailVerificationToken {
 const checkEmailVerificationToken = fromPublicParseFunction({
 	name: functionName.auth.checkEmailVerificationToken,
 	validateParams({ params, z }) {
-		const schema = getChallengeEmailForTokenSchema(z);
+		const schema = getCheckEmailVerificationTokenSchema(z);
 		return schema.parse(params);
 	},
 	action: async ({ params, t }) => {
@@ -343,6 +346,22 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 	},
 });
 
+const checkResetPasswordToken = fromPublicParseFunction({
+	name: functionName.auth.checkResetPasswordToken,
+	validateParams: ({ params, z }) => {
+		const schema = getCheckResetPasswordTokenSchema(z);
+		return schema.parse(params);
+	},
+	action: async (/* { params, t } */) => {
+		// const UserCollection = getDatabase().collection(className.USER);
+
+		// const user = await UserCollection.findOne({
+		// 	_perishable_token: params.token,
+		// });
+		return { ok: true };
+	},
+});
+
 //--------------------------------------------------------------------------------------//
 //                                 Define the functions                                 //
 //--------------------------------------------------------------------------------------//
@@ -352,6 +371,7 @@ defineCloudFunction(getTenantAuthData);
 defineCloudFunction(getIsDisabledSignup);
 defineCloudFunction(getRedirectCode);
 defineCloudFunction(checkEmailVerificationToken);
+defineCloudFunction(checkResetPasswordToken);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //

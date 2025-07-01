@@ -19,7 +19,7 @@ import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import { decodeString } from '@/shared/utils/string-encoding.server';
 import {
-	getChallengeEmailForTokenSchema,
+	getCheckEmailVerificationTokenSchema,
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
 } from '@/shared/validations/auth.validations';
@@ -134,7 +134,7 @@ export const loader = getServerLoader({
 			apiClient.auth.checkEmailVerificationToken,
 		);
 
-		const schema = getChallengeEmailForTokenSchema(defaultZodClient);
+		const schema = getCheckEmailVerificationTokenSchema(defaultZodClient);
 		const parsed = schema.safeParse({ email: decodedEmail, token });
 
 		// we don't tell what went wrong here

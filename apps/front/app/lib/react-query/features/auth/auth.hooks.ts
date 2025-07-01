@@ -1,6 +1,6 @@
 import { functionName } from '@/shared/lib/constants';
 import { defaultApiClient } from 'packages/api/ApiClient';
-import { createQuery, createSuspenseQuery } from 'react-query-kit';
+import { createSuspenseQuery } from 'react-query-kit';
 
 export const useGetUserAuthData = createSuspenseQuery({
 	queryKey: [functionName.auth.getUserAuthData] as const,

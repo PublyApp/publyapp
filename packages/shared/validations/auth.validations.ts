@@ -74,11 +74,14 @@ export const getRequestEmailVerificationSchema = (z: InterZod) => {
 };
 
 // use server-side only
-export const getChallengeEmailForTokenSchema = (z: InterZod) => {
+export const getCheckEmailVerificationTokenSchema = (z: InterZod) => {
 	return getEmailFormSchema(z).extend({
 		token: z.string().min(1),
 	});
 };
+
+export const getCheckResetPasswordTokenSchema =
+	getCheckEmailVerificationTokenSchema;
 
 export type LoginInput = z.infer<ReturnType<typeof getLoginSchema>>;
 export type SignupInput = z.infer<ReturnType<typeof getRegisterSchema>>;
