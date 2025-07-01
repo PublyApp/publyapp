@@ -320,11 +320,4 @@ const bootstrap = async () => {
 	]);
 };
 
-await bootstrap();
-
-const encoded = encodeString('w9enzkhx117cp6@altaddress.org');
-const decoded = decodeString(encoded);
-logger.debug('TEST ENCODE STRING', {
-	encoded,
-	decoded,
-});
+bootstrap();
