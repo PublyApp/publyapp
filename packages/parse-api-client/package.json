@@ -1,5 +1,5 @@
 {
-	"name": "@org/api",
+	"name": "@org/parse-api-client",
 	"version": "0.0.0",
 	"exports": {
 		"./*": {

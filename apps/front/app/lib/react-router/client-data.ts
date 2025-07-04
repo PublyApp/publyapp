@@ -1,4 +1,4 @@
-import type { ApiClient } from 'packages/api/ApiClient';
+import type { ApiClient } from '@/parse-api-client/ApiClient';
 import type { LoaderFunctionArgs } from 'react-router';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
