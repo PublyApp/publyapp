@@ -225,7 +225,7 @@
       "name": "tsconfig",
       "version": "0.0.0",
     },
-    "packages/api": {
+    "packages/parse-api-client": {
       "name": "@org/api",
       "version": "0.0.0",
       "dependencies": {
@@ -893,7 +893,7 @@
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 
-    "@org/api": ["@org/api@workspace:packages/api"],
+    "@org/api": ["@org/api@workspace:packages/parse-api-client"],
 
     "@org/parse-rest-client": ["@org/parse-rest-client@workspace:packages/parse-rest-client"],
 
