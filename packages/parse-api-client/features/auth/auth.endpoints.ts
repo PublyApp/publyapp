@@ -1,24 +1,21 @@
-import type { IUser } from '@org/shared/types/db/user.types';
 import _ from 'lodash';
+
+import type { IUser } from '@org/shared/types/db/user.types';
 
 import type {
 	CheckEmailVerificationToken,
-	CheckResetPasswordToken,
 	// CheckEmailVerificationToken,
 	GetIsDisabledSignup,
 	GetRedirectCode,
 	GetTenantAuthData,
 	GetUserAuthData,
-	GetVerificationLink,
-	RequestEmailVerification,
-	ResetPassword,
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
 import {
-	endPoint,
-	functionName,
 	LOCALE_HEADER_KEY,
 	PARSE_SESSION_TOKEN_HEADER_KEY,
+	endPoint,
+	functionName,
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
@@ -32,11 +29,9 @@ export default class AuthEndPoints extends BaseEndPoints {
 
 		this.passwordLogin = this.passwordLogin.bind(this);
 		this.getRedirectCode = this.getRedirectCode.bind(this);
-		this.requestEmailVerification = this.requestEmailVerification.bind(this);
+		this.verificationEmailRequest = this.verificationEmailRequest.bind(this);
 		this.checkEmailVerificationToken =
 			this.checkEmailVerificationToken.bind(this);
-		this.checkResetPasswordToken = this.checkResetPasswordToken.bind(this);
-		this.resetPassword = this.resetPassword.bind(this);
 	}
 
 	async getUserAuthData() {
@@ -45,12 +40,12 @@ export default class AuthEndPoints extends BaseEndPoints {
 		);
 	}
 
-	async getTenantAuthData({ tenantId }: { tenantId: string }) {
+	async getTenantAuthData(params: GetTenantAuthData.Params) {
 		return this.parseRestClient.cloudRun<
 			GetTenantAuthData.Return,
 			GetTenantAuthData.Params
 		>(functionName.auth.getTenantAuthData, {
-			params: { tenantId },
+			params,
 		});
 	}
 
@@ -107,13 +102,8 @@ export default class AuthEndPoints extends BaseEndPoints {
 		);
 	}
 
-	async requestEmailVerification({ email }: { email: string }) {
-		return this.parseRestClient.cloudRun<
-			RequestEmailVerification.Return,
-			RequestEmailVerification.Params
-		>(functionName.auth.requestEmailVerification, {
-			params: { email },
-		});
+	async verificationEmailRequest(params: { email: string }) {
+		return this.parseRestClient.verificationEmailRequest(params);
 	}
 
 	async getIsDisabledSignup() {
@@ -136,54 +126,14 @@ export default class AuthEndPoints extends BaseEndPoints {
 	}
 
 	async checkEmailVerificationToken({
-		id,
+		email,
 		token,
-	}: {
-		id: string;
-		token: string;
-	}) {
+	}: { email: string; token: string }) {
 		return this.parseRestClient.cloudRun<
 			CheckEmailVerificationToken.Return,
 			CheckEmailVerificationToken.Params
 		>(functionName.auth.checkEmailVerificationToken, {
-			params: { id, token },
-		});
-	}
-
-	async getVerificationLink({ userId }: { userId: string }) {
-		return this.parseRestClient.cloudRun<
-			GetVerificationLink.Return,
-			GetVerificationLink.Params
-		>(functionName.auth.getVerificationLink, {
-			params: { userId },
-		});
-	}
-
-	async checkResetPasswordToken({ id, token }: { id: string; token: string }) {
-		return this.parseRestClient.cloudRun<
-			CheckResetPasswordToken.Return,
-			CheckResetPasswordToken.Params
-		>(functionName.auth.checkResetPasswordToken, {
-			params: { id, token },
-		});
-	}
-
-	async resetPassword({
-		id,
-		token,
-		newPassword,
-		confirmPassword,
-	}: {
-		id: string;
-		token: string;
-		newPassword: string;
-		confirmPassword: string;
-	}) {
-		return this.parseRestClient.cloudRun<
-			ResetPassword.Return,
-			ResetPassword.Params
-		>(functionName.auth.resetPassword, {
-			params: { id, token, newPassword, confirmPassword },
+			params: { email, token },
 		});
 	}
 }

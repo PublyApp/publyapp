@@ -1,16 +1,15 @@
-import BaseEndPoints, {
-	type BaseEndPointsProps,
-} from '@/parse-api-client/classes/BaseEndPoints';
 import type {
 	CreateStaffMemberFunction,
 	FindStaffMemberFunction,
-	GetStaffMemberByIdFunction,
 } from '@/server/modules/staff/staff-member/staff-member.functions';
 import { functionName } from '@/shared/lib/constants';
 import _ from 'lodash';
+import BaseEndPoints, {
+	type BaseEndPointsProps,
+} from 'packages/api/classes/BaseEndPoints';
 
 export type CreateStaffMemberParams = CreateStaffMemberFunction.Params & {
-	avatar?: File | string;
+	avatar?: File;
 };
 
 export default class StaffMemberEndPoints extends BaseEndPoints {
@@ -41,15 +40,6 @@ export default class StaffMemberEndPoints extends BaseEndPoints {
 			FindStaffMemberFunction.Return,
 			FindStaffMemberFunction.Params
 		>(functionName.staff.staffMember.find, {
-			params,
-		});
-	}
-
-	getStaffMemberById(params: GetStaffMemberByIdFunction.Params) {
-		return this.parseRestClient.cloudRun<
-			GetStaffMemberByIdFunction.Return,
-			GetStaffMemberByIdFunction.Params
-		>(functionName.staff.staffMember.getById, {
 			params,
 		});
 	}

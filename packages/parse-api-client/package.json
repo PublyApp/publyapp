@@ -1,14 +1,10 @@
 {
-	"name": "@org/parse-api-client",
+	"name": "@org/api",
 	"version": "0.0.0",
 	"exports": {
 		"./*": {
-			"types": [
-				"./*.ts"
-			],
-			"default": [
-				"./*.ts"
-			]
+			"types": ["./*.ts"],
+			"default": ["./*.ts"]
 		}
 	},
 	"scripts": {
@@ -21,6 +17,7 @@
 	},
 	"devDependencies": {
 		"chai": "^5.1.0",
+		"@types/chai": "^4.3.14",
 		"@types/lodash": "^4.14.202"
 	}
 }
