@@ -1,5 +1,5 @@
+import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import { functionName } from '@/shared/lib/constants';
-import { defaultApiClient } from 'packages/api/ApiClient';
 import { createSuspenseQuery } from 'react-query-kit';
 
 export const useGetUserAuthData = createSuspenseQuery({
