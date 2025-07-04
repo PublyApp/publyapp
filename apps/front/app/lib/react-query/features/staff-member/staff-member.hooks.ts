@@ -1,6 +1,6 @@
+import { defaultApiClient } from '@/parse-api-client/ApiClient';
+import type { CreateStaffMemberParams } from '@/parse-api-client/features/staff-member/staff-member.endpoint';
 import { functionName } from '@/shared/lib/constants';
-import { defaultApiClient } from 'packages/api/ApiClient';
-import type { CreateStaffMemberParams } from 'packages/api/features/staff-member/staff-member.endpoint';
 import { createMutation, createQuery } from 'react-query-kit';
 
 export const useCreateStaffMember = createMutation({
