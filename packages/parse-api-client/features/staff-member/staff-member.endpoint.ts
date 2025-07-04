@@ -1,12 +1,12 @@
+import BaseEndPoints, {
+	type BaseEndPointsProps,
+} from '@/parse-api-client/classes/BaseEndPoints';
 import type {
 	CreateStaffMemberFunction,
 	FindStaffMemberFunction,
 } from '@/server/modules/staff/staff-member/staff-member.functions';
 import { functionName } from '@/shared/lib/constants';
 import _ from 'lodash';
-import BaseEndPoints, {
-	type BaseEndPointsProps,
-} from 'packages/api/classes/BaseEndPoints';
 
 export type CreateStaffMemberParams = CreateStaffMemberFunction.Params & {
 	avatar?: File;

@@ -1,6 +1,6 @@
+import { defaultApiClient } from '@/parse-api-client/ApiClient';
+import type { CreateTenantParams } from '@/parse-api-client/features/tenant/tenant.endpoints';
 import { functionName } from '@/shared/lib/constants';
-import { defaultApiClient } from '@org/api/ApiClient';
-import type { CreateTenantParams } from '@org/api/features/tenant/tenant.endpoints';
 import { createMutation } from 'react-query-kit';
 
 export const useCreateTenant = createMutation({
