@@ -1,4 +1,5 @@
 // core (MUI)
+import type { AppLocale } from '@/shared/lib/i18n/resources';
 import { frFR as frFRCore } from '@mui/material/locale';
 // data grid (MUI)
 import {
@@ -38,36 +39,6 @@ export const allLangs = [
 			},
 		},
 	},
-	// {
-	//   value: 'vi',
-	//   label: 'Vietnamese',
-	//   countryCode: 'VN',
-	//   adapterLocale: 'vi',
-	//   numberFormat: { code: 'vi-VN', currency: 'VND' },
-	//   systemValue: {
-	//     components: { ...viVNCore.components, ...viVNDate.components, ...viVNDataGrid.components },
-	//   },
-	// },
-	// {
-	//   value: 'cn',
-	//   label: 'Chinese',
-	//   countryCode: 'CN',
-	//   adapterLocale: 'zh-cn',
-	//   numberFormat: { code: 'zh-CN', currency: 'CNY' },
-	//   systemValue: {
-	//     components: { ...zhCNCore.components, ...zhCNDate.components, ...zhCNDataGrid.components },
-	//   },
-	// },
-	// {
-	//   value: 'ar',
-	//   label: 'Arabic',
-	//   countryCode: 'SA',
-	//   adapterLocale: 'ar-sa',
-	//   numberFormat: { code: 'ar', currency: 'AED' },
-	//   systemValue: {
-	//     components: { ...arSACore.components, ...arSDDataGrid.components },
-	//   },
-	// },
 ];
 
 /**
@@ -77,3 +48,21 @@ export const allLangs = [
  * Number format code:
  * https://gist.github.com/raushankrjha/d1c7e35cf87e69aa8b4208a8171a8416
  */
+
+// ----------------------------------------------------------------------
+
+export const changeLangMessages: Record<
+	AppLocale,
+	{ success: string; error: string; loading: string }
+> = {
+	en: {
+		success: 'Language has been changed!',
+		error: 'Error changing language!',
+		loading: 'Loading...',
+	},
+	fr: {
+		success: 'La langue a été changée!',
+		error: 'Erreur lors du changement de langue!',
+		loading: 'Chargement...',
+	},
+};

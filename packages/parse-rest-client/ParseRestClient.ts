@@ -59,7 +59,7 @@ export default class ParseRestClient {
 				// !!! do not reject Promises here, throw errors instead !!!!
 				// * This error interceptor can be used to handle errors globally
 				// * Ensure that the error responses from your API is of the following type:
-				// * { code: number; error: string; xcode?: string }
+				// * { code: number; error: string; xcode?: string; data?: Record<string, unknown> }
 				// * in this application, on the server side, our error responses are of this type
 				// * thanks to the generalized error handling middleware
 

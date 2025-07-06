@@ -1,7 +1,7 @@
+import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import Fetch from 'i18next-fetch-backend';
-import { defaultApiClient } from 'packages/api/ApiClient';
 import { initReactI18next } from 'react-i18next';
 import { getInitialNamespaces } from 'remix-i18next/client';
 
@@ -11,8 +11,8 @@ import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { env } from '../env';
 import { defaultZodClient } from '../zod/zod.client';
 
-import { config } from './i18n.config';
 import dayjs from 'dayjs';
+import { config } from './i18n.config';
 
 const backendUrl = new URL(env.VITE_SERVER_URL);
 backendUrl.pathname = '/resources/{{lng}}.{{ns}}.json';

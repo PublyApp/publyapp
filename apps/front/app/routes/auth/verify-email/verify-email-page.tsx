@@ -3,7 +3,6 @@ import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { env } from '@/front/lib/env';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
@@ -18,8 +17,9 @@ import {
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
+import { decodeString } from '@/shared/utils/string-encoding.server';
 import {
-	getChallengeEmailForTokenSchema,
+	getCheckEmailVerificationTokenSchema,
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
 } from '@/shared/validations/auth.validations';
@@ -32,11 +32,12 @@ import _ from 'lodash';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useForm } from 'react-hook-form';
 import { redirect, useFetcher } from 'react-router';
+import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';
 
 const actionIntent = {
 	REQUEST_EMAIL_VERIFICATION: 'REQUEST_EMAIL_VERIFICATION',
-	CHALLENGE_EMAIL_FOR_TOKEN: 'CHALLENGE_EMAIL_FOR_TOKEN',
+	// CHALLENGE_EMAIL_FOR_TOKEN: 'CHALLENGE_EMAIL_FOR_TOKEN',
 } as const;
 
 export const action = getServerAction({
@@ -45,8 +46,8 @@ export const action = getServerAction({
 		const intent = formData.get('intent');
 
 		const email = formData.get('email');
-		const searchParams = new URL(request.url).searchParams;
-		const token = searchParams.get(queryParamKey.token);
+		// const searchParams = new URL(request.url).searchParams;
+		// const token = searchParams.get(queryParamKey.token);
 
 		switch (intent) {
 			case actionIntent.REQUEST_EMAIL_VERIFICATION: {
@@ -61,12 +62,12 @@ export const action = getServerAction({
 					} as const;
 				}
 
-				const verificationEmailRequest = safeRun(
-					apiClient.auth.verificationEmailRequest,
+				const requestEmailVerification = safeRun(
+					apiClient.auth.requestEmailVerification,
 				);
 
 				// we intentionally don't return the actual outcome of the request
-				verificationEmailRequest({ email: parsed.data.email }).then(
+				requestEmailVerification({ email: parsed.data.email }).then(
 					(result) => {
 						if (result.status === 'error') {
 							context.logger.error(
@@ -80,69 +81,52 @@ export const action = getServerAction({
 				return {
 					status: 'success',
 				} as const;
-				// break;
 			}
 
-			case actionIntent.CHALLENGE_EMAIL_FOR_TOKEN: {
-				const schema = getChallengeEmailForTokenSchema(z);
-
-				const parsed = schema.safeParse({ email, token });
-
-				if (!parsed.success) {
-					return {
-						status: 'error',
-						error: parsed.error.errors[0].message,
-					} as const;
-				}
-
-				const challengeEmailForToken = safeRun(
-					apiClient.auth.challengeEmailForToken,
-				);
-
-				const result = await challengeEmailForToken({
-					email: parsed.data.email,
-					token: parsed.data.token,
-				});
-
-				if (result.status === 'error') {
-					return {
-						status: 'error',
-						error: result.error.message,
-					} as const;
-				}
-
-				const url = new URL(env.VITE_SERVER_URL);
-				url.pathname = FRONT_PATH_NAMES.auth.login;
-				url.searchParams.set(
-					queryParamKey.login_page.redirect_cause,
-					queryParamValue.login_page.redirect_cause.email_verification,
-				);
-				url.searchParams.set(
-					queryParamKey.language,
-					getCorrectLocale(searchParams.get(queryParamKey.language)),
-				);
-				return redirect(`${url.pathname}${url.search}`);
-				// break;
-			}
-
-			default:
+			default: {
 				return {
 					status: 'error',
 					error: 'Invalid action intent',
 				} as const;
+			}
 		}
 	},
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request, apiClient }) => {
+	loader: async ({ request, apiClient, z }) => {
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
+		const encodedEmail = searchParams.get(
+			queryParamKey.reset_password_page.encoded_email,
+		);
 
 		// if no token, we just return success
-		if (!token) {
+		if (!token && !encodedEmail) {
 			return {
-				code: 'NO_TOKEN',
+				code: 'NO_TOKEN_AND_ID',
+			} as const;
+		}
+
+		if (!token || !encodedEmail) {
+			return {
+				code: 'INVALID_LINK',
+			} as const;
+		}
+
+		let isValidEncodedEmail = false;
+		let decodedEmail = '';
+
+		try {
+			decodedEmail = decodeString(encodedEmail);
+			isValidEncodedEmail = true;
+		} catch (_error) {
+			isValidEncodedEmail = false;
+		}
+
+		if (!isValidEncodedEmail) {
+			return {
+				code: 'INVALID_LINK',
 			} as const;
 		}
 
@@ -150,13 +134,28 @@ export const loader = getServerLoader({
 			apiClient.auth.checkEmailVerificationToken,
 		);
 
-		const result = await checkEmailVerificationToken({ token });
+		const schema = getCheckEmailVerificationTokenSchema(z);
+		const parsed = schema.safeParse({ email: decodedEmail, token });
+
+		// we don't tell what went wrong here
+		// because we don't want to leak information
+		// to potential attackers
+		if (!parsed.success) {
+			return {
+				code: 'INVALID_LINK',
+			} as const;
+		}
+
+		const result = await checkEmailVerificationToken({
+			email: parsed.data.email,
+			token: parsed.data.token,
+		});
 
 		if (result.status === 'error') {
 			if (result.error instanceof ParseRestError) {
 				if (result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN) {
 					return {
-						code: 'INVALID_TOKEN',
+						code: 'INVALID_LINK',
 					} as const;
 				}
 
@@ -168,9 +167,23 @@ export const loader = getServerLoader({
 			throw result.error;
 		}
 
-		return {
-			code: 'OK',
-		} as const;
+		const redirectSearchParams = new URLSearchParams();
+		redirectSearchParams.set(
+			queryParamKey.reset_password_page.redirect_cause,
+			queryParamValue.reset_password_page.redirect_cause.email_verification,
+		);
+		redirectSearchParams.set(
+			queryParamKey.language,
+			getCorrectLocale(redirectSearchParams.get(queryParamKey.language)),
+		);
+		redirectSearchParams.set(
+			queryParamKey.reset_password_page.encoded_email,
+			encodedEmail,
+		);
+		redirectSearchParams.set(queryParamKey.token, result.data.token);
+		return redirect(
+			`${FRONT_PATH_NAMES.auth.resetPassword}?${redirectSearchParams.toString()}`,
+		);
 	},
 });
 
@@ -183,75 +196,22 @@ const boxStyles = (theme: Theme) => {
 };
 
 const VerifyEmailPage = ({ loaderData }: Route.ComponentProps) => {
-	if (loaderData.code === 'NO_TOKEN') {
+	if (loaderData.code === 'INVALID_LINK') {
 		return (
 			<Box sx={boxStyles}>
-				<EmailForForm intent={actionIntent.REQUEST_EMAIL_VERIFICATION} />
-			</Box>
-		);
-	}
-
-	if (loaderData.code === 'INVALID_TOKEN') {
-		return (
-			<Box sx={boxStyles}>
-				<InvalidTokenView forceIsInvalid />
+				<InvalidLinkView forceIsInvalid />
 			</Box>
 		);
 	}
 
 	return (
 		<Box sx={boxStyles}>
-			<EmailForForm intent={actionIntent.CHALLENGE_EMAIL_FOR_TOKEN} />
+			<EmailForForm intent={actionIntent.REQUEST_EMAIL_VERIFICATION} />
 		</Box>
 	);
 };
 
 export default VerifyEmailPage;
-
-const InvalidTokenView = ({
-	error,
-	forceIsInvalid = false,
-}: { error?: unknown; forceIsInvalid?: boolean }) => {
-	const { t } = useTranslate();
-
-	const renderInvalidTokenView = () => {
-		return (
-			<Box>
-				<Typography variant="h4" color="text.primary" mb={2}>
-					{t('invalid-item', { item: t('link') })}
-				</Typography>
-				<Typography variant="body1" color="text.secondary" mb={3}>
-					{t('invalid-email-verification-link-description')}
-				</Typography>
-				<Button
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.auth.verifyEmail}
-					variant="text"
-					color="primary"
-					endIcon={<Iconify icon="eva:arrow-forward-fill" />}
-				>
-					{t('request-new-verification-link')}
-				</Button>
-			</Box>
-		);
-	};
-
-	if (!forceIsInvalid && _.isNil(error)) {
-		throw new Error('Error should not be nil');
-	}
-
-	if (forceIsInvalid) {
-		return renderInvalidTokenView();
-	}
-
-	if (error instanceof ParseRestError) {
-		if (error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN) {
-			return renderInvalidTokenView();
-		}
-	}
-
-	throw error;
-};
 
 const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 	const { t, i18n } = useTranslate();
@@ -263,10 +223,10 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 			title: t('verify-email'),
 			description: t('verify-email-description-1'),
 		},
-		[actionIntent.CHALLENGE_EMAIL_FOR_TOKEN]: {
-			title: t('verify-email'),
-			description: t('verify-email-description-2'),
-		},
+		// [actionIntent.CHALLENGE_EMAIL_FOR_TOKEN]: {
+		// 	title: t('verify-email'),
+		// 	description: t('verify-email-description-2'),
+		// },
 	};
 
 	const form = useForm({
@@ -317,7 +277,7 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 					href={FRONT_PATH_NAMES.home}
 					variant="text"
 					color="primary"
-					endIcon={<Iconify icon="eva:arrowhead-right-fill" />}
+					endIcon={<Iconify icon="eva:arrow-forward-fill" />}
 				>
 					{t('go-to-home')}
 				</Button>

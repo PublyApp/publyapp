@@ -10,8 +10,6 @@ const RoleSchema = SchemaManager.defineSchema<Omit<IRole, 'name'>>(
 		fields: {
 			code: { type: 'String' },
 			rank: { type: 'Number' },
-			// verbs permissions
-			// canDeletePostOfOtherUsers: { type: 'Boolean' }, // todo: define the behavior
 		},
 		classLevelPermissions: AUTHED_READONLY_CLP,
 		indexes: {

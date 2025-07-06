@@ -5,8 +5,9 @@ import { useTranslation } from 'react-i18next';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 
+import { toast } from '../components/snackbar';
 import { config } from '../lib/i18n/i18n.config';
-import { allLangs } from '../lib/locales/all-langs';
+import { allLangs, changeLangMessages } from '../lib/locales/all-langs';
 
 // ----------------------------------------------------------------------
 
@@ -26,18 +27,19 @@ export const useTranslate = (ns?: Ns) => {
 	const onChangeLang = useCallback(
 		async (newLang: AppLocale) => {
 			try {
-				i18n.changeLanguage(newLang);
-				// const langChangePromise = i18n.changeLanguage(newLang);
+				// i18n.changeLanguage(newLang);
+				const langChangePromise = i18n.changeLanguage(newLang);
 
-				// const currentMessages = messages[newLang] || messages.en;
+				const currentMessages =
+					changeLangMessages[newLang] || changeLangMessages.en;
 
-				// toast.promise(langChangePromise, {
-				// 	loading: currentMessages.loading,
-				// 	success: () => {
-				// 		return currentMessages.success;
-				// 	},
-				// 	error: currentMessages.error,
-				// });
+				toast.promise(langChangePromise, {
+					loading: currentMessages.loading,
+					success: () => {
+						return currentMessages.success;
+					},
+					error: currentMessages.error,
+				});
 
 				// * already handled in initI18n.client.ts
 				// if (currentLang) {

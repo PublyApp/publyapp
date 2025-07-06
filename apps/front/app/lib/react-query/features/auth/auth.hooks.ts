@@ -1,5 +1,5 @@
+import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import { functionName } from '@/shared/lib/constants';
-import { defaultApiClient } from 'packages/api/ApiClient';
 import { createQuery, createSuspenseQuery } from 'react-query-kit';
 
 export const useGetUserAuthData = createSuspenseQuery({
@@ -16,9 +16,9 @@ export const useGetTenantAuthData = createSuspenseQuery({
 	},
 });
 
-export const useCheckEmailVerificationToken = createQuery({
-	queryKey: [functionName.auth.checkEmailVerificationToken],
-	fetcher: async ({ token }: { token: string }) => {
-		return defaultApiClient.auth.checkEmailVerificationToken({ token });
+export const useGetVerificationLink = createQuery({
+	queryKey: [functionName.auth.getVerificationLink] as const,
+	fetcher: async ({ userId }: { userId: string }) => {
+		return defaultApiClient.auth.getVerificationLink({ userId });
 	},
 });

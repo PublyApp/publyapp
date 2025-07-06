@@ -12,6 +12,7 @@ import {
 } from '@/front/lib/react-query/features/auth/auth.hooks';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { useMainStore } from '@/front/lib/zustand/store';
+import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
@@ -23,7 +24,6 @@ import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
 import * as cookie from 'cookie';
 import _ from 'lodash';
-import { defaultApiClient } from 'packages/api/ApiClient';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { type ReactNode, Suspense } from 'react';
 import {

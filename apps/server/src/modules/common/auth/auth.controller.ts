@@ -20,11 +20,9 @@ import {
 } from '@/server/lib/parse/parse.utils';
 import ParseUser from '@/server/modules/common/auth/user/user.class';
 import { defaultHttp } from '@/shared/lib/axios';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { logger } from '@org/shared/lib/winston.server';
 
 import { generateUsername } from 'unique-username-generator';
-import { AuthCloudService } from './auth.cloud.service';
+import { AuthCloudService } from './auth-cloud.service';
 
 export const handlePasswordLogin = expressHandler(async (req, res) => {
 	const { password } = req.body;
@@ -81,29 +79,29 @@ export const handlePasswordSignup = expressHandler(async (req, res) => {
 	return res.json(result.toJSON());
 });
 
-export const handleVerifyEmail = expressHandler(async (req, res) => {
-	const { t } = getRequestUtils(req);
-	try {
-		const { token } = req.query;
+// export const handleVerifyEmail = expressHandler(async (req, res) => {
+// 	const { t } = getRequestUtils(req);
+// 	try {
+// 		const { token } = req.query;
 
-		if (!token || !_.isString(token)) {
-			throw new HttpException(400, t('item-is-invalid', { item: 'token' }));
-		}
+// 		if (!token || !_.isString(token)) {
+// 			throw new HttpException(400, t('item-is-invalid', { item: 'token' }));
+// 		}
 
-		await AuthCloudService.verifyEmailByToken({ /* username, */ token });
+// 		await AuthCloudService.verifyEmailByToken({ token });
 
-		// on success redirect to success page
-		const successUrl = new URL(env.FRONT_URL);
-		successUrl.pathname = FRONT_PATH_NAMES.auth.login;
-		return res.redirect(successUrl.toString());
-	} catch (error) {
-		logger.error('Error in verifyEmail:', error);
-		// on error, redirect to error page
-		const failUrl = new URL(env.FRONT_URL);
-		failUrl.pathname = FRONT_PATH_NAMES.auth.signup;
-		return res.redirect(failUrl.toString());
-	}
-});
+// 		// on success redirect to success page
+// 		const successUrl = new URL(env.FRONT_URL);
+// 		successUrl.pathname = FRONT_PATH_NAMES.auth.login;
+// 		return res.redirect(successUrl.toString());
+// 	} catch (error) {
+// 		logger.error('Error in verifyEmail:', error);
+// 		// on error, redirect to error page
+// 		const failUrl = new URL(env.FRONT_URL);
+// 		failUrl.pathname = FRONT_PATH_NAMES.auth.signup;
+// 		return res.redirect(failUrl.toString());
+// 	}
+// });
 
 // ! ==================== wip: facebook login flow
 

@@ -1,24 +1,32 @@
 import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
+import { env } from '@/server/lib/env';
 import {
 	type FunctionParams,
 	type FunctionReturn,
 	defineCloudFunction,
 	fromAuthedUserParseFunction,
 	fromPublicParseFunction,
+	fromStaffMemberParseFunction,
 	parseFunctionEnhanced,
 } from '@/server/lib/parse/cloud/function';
 import {
 	getDatabase,
 	getGlobalConfig,
+	getInternalConfig,
 	parseFields,
 	removeParseFields,
 } from '@/server/lib/parse/parse.utils';
 import { X_CODE, className, functionName } from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/winston.server';
 import type { IUser } from '@/shared/types/db/user.types';
-import { sleep } from '@/shared/utils/any.utils';
-import { getEmailFieldSchema } from '@/shared/validations/auth.validations';
-import _ from 'lodash';
+import {
+	getCheckEmailVerificationTokenSchema,
+	getCheckResetPasswordTokenSchema,
+	getEmailFormSchema,
+} from '@/shared/validations/auth.validations';
+import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
+import { AuthCloudService } from './auth-cloud.service';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
@@ -253,79 +261,13 @@ export namespace CheckEmailVerificationToken {
 	export type Return = FunctionReturn<typeof checkEmailVerificationToken>;
 }
 
-/**
- * Verify the email verification token
- */
 const checkEmailVerificationToken = fromPublicParseFunction({
 	name: functionName.auth.checkEmailVerificationToken,
-	validateParams: ({ params, z }) => {
-		const schema = z.object({
-			token: z.string().min(1),
-		});
+	validateParams({ params, z }) {
+		const schema = getCheckEmailVerificationTokenSchema(z);
 		return schema.parse(params);
 	},
 	action: async ({ params, t }) => {
-		const token = params.token;
-
-		// check if token exists
-		const UserCollection = getDatabase().collection(className.USER);
-
-		const user = await UserCollection.findOne(
-			{
-				_email_verify_token: token,
-			},
-			{
-				projection: {
-					_id: 1,
-					_email_verify_token: 1,
-					_email_verify_token_expires_at: 1,
-				},
-			},
-		);
-
-		if (!user) {
-			throw new HttpException(400, t('Invalid token'), {
-				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
-			});
-		}
-
-		// check if token is expired
-		const isExpired = user._email_verify_token_expires_at < new Date();
-
-		if (isExpired) {
-			const error = new HttpException(400, t('Invalid token'), {
-				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
-				meta: {
-					reason: 'Session token expired',
-				},
-			});
-			throw error;
-		}
-
-		return { status: 'success' } as const;
-	},
-});
-
-export namespace ChallengeEmailForToken {
-	export type Params = FunctionParams<typeof challengeEmailForToken>;
-	export type Return = FunctionReturn<typeof challengeEmailForToken>;
-}
-
-const challengeEmailForToken = fromPublicParseFunction({
-	name: functionName.auth.challengeEmailForToken,
-	validateParams({ params, z }) {
-		const schema = z.object({
-			email: getEmailFieldSchema(z),
-			token: z.string().min(1),
-		});
-
-		return schema.parse(params);
-	},
-	action: async ({ params, req, t }) => {
-		await sleep(1000);
-		req.log.debug('challengeEmailForToken', { params });
-
-		// TODO:
 		// check if token/email pair is valid
 		// if valid, set email as verified, unset token + unset email_verify_token_expires_at
 		const UserCollection = getDatabase().collection(className.USER);
@@ -349,6 +291,10 @@ const challengeEmailForToken = fromPublicParseFunction({
 			throw new HttpException(
 				400,
 				t('item-is-invalid', { item: 'Email/Token' }),
+				{
+					xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
+					meta: { cause: 'User not found' },
+				},
 			);
 		}
 
@@ -358,10 +304,29 @@ const challengeEmailForToken = fromPublicParseFunction({
 			throw new HttpException(
 				400,
 				t('item-is-invalid', { item: 'Email/Token' }),
+				{
+					xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
+					meta: { cause: 'Token expired' },
+				},
 			);
 		}
 
+		const config = getInternalConfig();
+
+		const passwordResetTokenData: {
+			_perishable_token: string;
+			_perishable_token_expires_at?: string;
+		} = {
+			_perishable_token: newObjectId(25),
+		};
+
+		if (config.passwordPolicy?.resetTokenValidityDuration) {
+			passwordResetTokenData._perishable_token_expires_at =
+				config.generatePasswordResetTokenExpiresAt();
+		}
+
 		// set email as verified, unset token + unset email_verify_token_expires_at
+		// set password reset token to let the user create a new password
 		await UserCollection.updateOne(
 			{
 				_id: user._id,
@@ -369,8 +334,7 @@ const challengeEmailForToken = fromPublicParseFunction({
 			{
 				$set: {
 					emailVerified: true,
-					// _email_verify_token: undefined,
-					// _email_verify_token_expires_at: undefined,
+					...passwordResetTokenData,
 				},
 				$unset: {
 					_email_verify_token: 1,
@@ -381,6 +345,181 @@ const challengeEmailForToken = fromPublicParseFunction({
 
 		return {
 			status: 'success',
+			token: passwordResetTokenData._perishable_token,
+		} as const;
+	},
+});
+
+export namespace CheckResetPasswordToken {
+	export type Params = FunctionParams<typeof checkResetPasswordToken>;
+	export type Return = FunctionReturn<typeof checkResetPasswordToken>;
+}
+
+const checkResetPasswordToken = fromPublicParseFunction({
+	name: functionName.auth.checkResetPasswordToken,
+	validateParams: ({ params, z }) => {
+		const schema = getCheckResetPasswordTokenSchema(z);
+		return schema.parse(params);
+	},
+	action: async ({ params, t }) => {
+		const UserCollection = getDatabase().collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				_perishable_token: params.token,
+				email: params.email,
+			},
+			{
+				projection: {
+					_perishable_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			throw new HttpException(
+				400,
+				t('item-is-invalid', { item: 'Email/Token' }),
+				{
+					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN,
+					meta: { cause: 'User not found' },
+				},
+			);
+		}
+
+		const isExpired = user._perishable_token_expires_at < new Date();
+
+		if (isExpired) {
+			throw new HttpException(
+				400,
+				t('item-is-invalid', { item: 'Email/Token' }),
+				{
+					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN,
+					meta: { cause: 'Token expired' },
+				},
+			);
+		}
+
+		return { status: 'success' } as const;
+	},
+});
+
+export namespace RequestEmailVerification {
+	export type Params = FunctionParams<typeof requestEmailVerification>;
+	export type Return = FunctionReturn<typeof requestEmailVerification>;
+}
+
+const requestEmailVerification = fromPublicParseFunction({
+	name: functionName.auth.requestEmailVerification,
+	validateParams: ({ params, z }) => {
+		const schema = getEmailFormSchema(z);
+		return schema.parse(params);
+	},
+	action: async ({ params }) => {
+		const db = getDatabase();
+		const UserCollection = db.collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				email: params.email,
+			},
+			{
+				projection: {
+					_id: 1,
+					email: 1,
+					emailVerified: 1,
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			logger.warn('User not found for email verification request', {
+				email: params.email,
+			});
+			return { status: 'processed' } as const;
+		}
+
+		if (user.emailVerified) {
+			logger.warn('User already verified for email verification request', {
+				email: params.email,
+			});
+			return { status: 'processed' } as const;
+		}
+
+		const config = getInternalConfig();
+
+		if (
+			config.emailVerifyTokenReuseIfValid &&
+			config.emailVerifyTokenValidityDuration &&
+			user._email_verify_token &&
+			new Date() < new Date(user._email_verify_token_expires_at)
+		) {
+			// logger.warn("User already has a valid email verification token", { email: params.email });
+			return { status: 'processed' } as const;
+		}
+
+		const emailVerifyData: {
+			emailVerified: boolean;
+			_email_verify_token: string;
+			_email_verify_token_expires_at?: string;
+		} = {
+			emailVerified: false,
+			_email_verify_token: newObjectId(25),
+		};
+
+		if (config.emailVerifyTokenValidityDuration) {
+			emailVerifyData._email_verify_token_expires_at =
+				config.generateEmailVerifyTokenExpiresAt();
+		}
+
+		await UserCollection.updateOne(
+			{ _id: user._id },
+			{
+				$set: emailVerifyData,
+			},
+		);
+
+		return { status: 'success' } as const;
+	},
+});
+
+export namespace GetVerificationLink {
+	export type Params = FunctionParams<typeof getVerificationLink>;
+	export type Return = FunctionReturn<typeof getVerificationLink>;
+}
+
+const getVerificationLink = fromStaffMemberParseFunction({
+	name: functionName.auth.getVerificationLink,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			userId: z.string(),
+		});
+		return schema.parse(params);
+	},
+	action: async ({ params, t }) => {
+		const user = await getDatabase()
+			.collection(className.USER)
+			.findOne(
+				{
+					_id: params.userId as never,
+				},
+				{ projection: { email: 1, _email_verify_token: 1 } },
+			);
+
+		if (!user) {
+			throw new HttpException(404, t('item-not-found', { item: t('user') }));
+		}
+
+		const link = await AuthCloudService.getCustomVerificationLink({
+			token: user._email_verify_token,
+			email: user.email,
+			serverUrl: env.FRONT_URL,
+		});
+
+		return {
+			link,
 		} as const;
 	},
 });
@@ -394,7 +533,9 @@ defineCloudFunction(getTenantAuthData);
 defineCloudFunction(getIsDisabledSignup);
 defineCloudFunction(getRedirectCode);
 defineCloudFunction(checkEmailVerificationToken);
-defineCloudFunction(challengeEmailForToken);
+defineCloudFunction(checkResetPasswordToken);
+defineCloudFunction(requestEmailVerification);
+defineCloudFunction(getVerificationLink);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //

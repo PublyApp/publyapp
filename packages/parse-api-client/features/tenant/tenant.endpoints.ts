@@ -1,8 +1,8 @@
-import { functionName } from '@/shared/lib/constants';
 import BaseEndPoints, {
 	type BaseEndPointsProps,
-} from 'packages/api/classes/BaseEndPoints';
+} from '@/parse-api-client/classes/BaseEndPoints';
 import type { CreateTenantFunction } from '@/server/modules/staff/tenant/tenant.functions';
+import { functionName } from '@/shared/lib/constants';
 import _ from 'lodash';
 
 export type CreateTenantParams = CreateTenantFunction.Params & {

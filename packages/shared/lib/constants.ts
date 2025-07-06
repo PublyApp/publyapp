@@ -258,6 +258,7 @@ export const FRONT_PATH_NAMES = {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
 		verifyEmail: makePath('verify-email'),
+		resetPassword: makePath('reset-password'),
 	},
 	tenant: (tenantId = '') => {
 		return {
@@ -301,7 +302,9 @@ export const functionName = {
 		getIsDisabledSignup: 'getIsDisabledSignup',
 		getRedirectCode: 'getRedirectCode',
 		checkEmailVerificationToken: 'checkEmailVerificationToken',
-		challengeEmailForToken: 'challengeEmailForToken',
+		checkResetPasswordToken: 'checkResetPasswordToken',
+		requestEmailVerification: 'requestEmailVerification',
+		getVerificationLink: 'getVerificationLink',
 		// ====
 		removeSeededUsers: 'removeSeededUsers',
 	},
@@ -378,13 +381,22 @@ export const queryParamKey = {
 	login_page: {
 		redirect_cause: 'rc',
 	},
+	reset_password_page: {
+		redirect_cause: 'rc',
+		encoded_email: 'id',
+		token: 'token',
+	},
 } as const;
 
 export const queryParamValue = {
 	login_page: {
 		redirect_cause: {
-			email_verification: 'email_verification',
 			invalid_session: 'invalid_session',
+		},
+	},
+	reset_password_page: {
+		redirect_cause: {
+			email_verification: 'email_verification',
 		},
 	},
 } as const;
@@ -400,6 +412,8 @@ export const X_CODE = {
 	INVALID_EMAIL_VERIFICATION_TOKEN: 'INVALID_EMAIL_VERIFICATION_TOKEN',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
 	INVALID_SESSION: 'INVALID_SESSION',
+	EMAIL_ALREADY_VERIFIED: 'EMAIL_ALREADY_VERIFIED',
+	INVALID_RESET_PASSWORD_TOKEN: 'INVALID_RESET_PASSWORD_TOKEN',
 } as const;
 
 export const PRE_RENDER_PATHS = ['/', '/login'] as const;

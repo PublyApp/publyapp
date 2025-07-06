@@ -79,7 +79,7 @@ const SignupForm = () => {
 			<Field.Text
 				name="password"
 				label={t('password')}
-				placeholder="6+ characters"
+				placeholder={t('n+ characters', { characters: '8' })}
 				type={showPassword.value ? 'text' : 'password'}
 				slotProps={{
 					inputLabel: { shrink: true },
