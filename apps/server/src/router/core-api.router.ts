@@ -9,7 +9,6 @@ import protectionMiddleware from '../middlewares/protection.middleware';
 import {
 	handlePasswordLogin,
 	handlePasswordSignup,
-	handleVerifyEmail,
 } from '../modules/common/auth/auth.controller';
 import {
 	handleUploadManyFiles,
@@ -53,7 +52,7 @@ coreApiRouter.post(endPoint.api.auth.passwordSignup, handlePasswordSignup);
 // --------------------------------------------------------------------------------------//
 //                                    Email verification                                 //
 // --------------------------------------------------------------------------------------//
-coreApiRouter.get(endPoint.api.auth.verifyEmail, handleVerifyEmail);
+// coreApiRouter.get(endPoint.api.auth.verifyEmail, handleVerifyEmail);
 
 // --------------------------------------------------------------------------------------//
 //                           Parse functions as Express handlers                         //

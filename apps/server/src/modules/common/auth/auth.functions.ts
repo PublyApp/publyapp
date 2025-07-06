@@ -1,11 +1,13 @@
 import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
+import { env } from '@/server/lib/env';
 import {
 	type FunctionParams,
 	type FunctionReturn,
 	defineCloudFunction,
 	fromAuthedUserParseFunction,
 	fromPublicParseFunction,
+	fromStaffMemberParseFunction,
 	parseFunctionEnhanced,
 } from '@/server/lib/parse/cloud/function';
 import {
@@ -16,13 +18,15 @@ import {
 	removeParseFields,
 } from '@/server/lib/parse/parse.utils';
 import { X_CODE, className, functionName } from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/winston.server';
 import type { IUser } from '@/shared/types/db/user.types';
 import {
 	getCheckEmailVerificationTokenSchema,
 	getCheckResetPasswordTokenSchema,
+	getEmailFormSchema,
 } from '@/shared/validations/auth.validations';
-import _ from 'lodash';
 import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
+import { AuthCloudService } from './auth-cloud.service';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
@@ -362,6 +366,131 @@ const checkResetPasswordToken = fromPublicParseFunction({
 	},
 });
 
+export namespace RequestEmailVerification {
+	export type Params = FunctionParams<typeof requestEmailVerification>;
+	export type Return = FunctionReturn<typeof requestEmailVerification>;
+}
+
+const requestEmailVerification = fromPublicParseFunction({
+	name: functionName.auth.requestEmailVerification,
+	validateParams: ({ params, z }) => {
+		const schema = getEmailFormSchema(z);
+		return schema.parse(params);
+	},
+	action: async ({ params }) => {
+		const db = getDatabase();
+		const UserCollection = db.collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				email: params.email,
+			},
+			{
+				projection: {
+					_id: 1,
+					email: 1,
+					emailVerified: 1,
+					_email_verify_token: 1,
+					_email_verify_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			logger.warn('User not found for email verification request', {
+				email: params.email,
+			});
+			return { status: 'processed' } as const;
+		}
+
+		if (user.emailVerified) {
+			logger.warn('User already verified for email verification request', {
+				email: params.email,
+			});
+			return { status: 'processed' } as const;
+		}
+
+		const config = getInternalConfig();
+
+		if (
+			config.emailVerifyTokenReuseIfValid &&
+			config.emailVerifyTokenValidityDuration &&
+			user._email_verify_token &&
+			new Date() < new Date(user._email_verify_token_expires_at)
+		) {
+			// logger.warn("User already has a valid email verification token", { email: params.email });
+			return { status: 'processed' } as const;
+		}
+
+		const emailVerifyData: {
+			emailVerified: boolean;
+			_email_verify_token: string;
+			_email_verify_token_expires_at?: string;
+		} = {
+			emailVerified: false,
+			_email_verify_token: newObjectId(25),
+		};
+
+		if (config.emailVerifyTokenValidityDuration) {
+			emailVerifyData._email_verify_token_expires_at =
+				config.generateEmailVerifyTokenExpiresAt();
+		}
+
+		await UserCollection.updateOne(
+			{ _id: user._id },
+			{
+				$set: emailVerifyData,
+			},
+		);
+
+		return { status: 'success' } as const;
+	},
+});
+
+export namespace GetVerificationLink {
+	export type Params = FunctionParams<typeof getVerificationLink>;
+	export type Return = FunctionReturn<typeof getVerificationLink>;
+}
+
+const getVerificationLink = fromStaffMemberParseFunction({
+	name: functionName.auth.getVerificationLink,
+	validateParams: ({ params, z }) => {
+		const schema = z.object({
+			userId: z.string(),
+		});
+		return schema.parse(params);
+	},
+	action: async ({ params, t }) => {
+		const user = await getDatabase()
+			.collection(className.USER)
+			.findOne(
+				{
+					_id: params.userId as never,
+				},
+				{ projection: { email: 1 } },
+			);
+
+		if (!user) {
+			throw new HttpException(404, t('item-not-found', { item: t('user') }));
+		}
+
+		const link = await AuthCloudService.getCustomVerificationLink({
+			token: user._email_verify_token,
+			email: user.email,
+			serverUrl: env.FRONT_URL,
+		});
+
+		return {
+			link,
+		} as const;
+		// const sessionToken = user.getSessionToken();
+
+		// const tenantService = new TenantService({ sessionToken });
+
+		// const tenant = await tenantService.getById(params.tenantId, { select: [] });
+	},
+});
+
 //--------------------------------------------------------------------------------------//
 //                                 Define the functions                                 //
 //--------------------------------------------------------------------------------------//
@@ -372,6 +501,8 @@ defineCloudFunction(getIsDisabledSignup);
 defineCloudFunction(getRedirectCode);
 defineCloudFunction(checkEmailVerificationToken);
 defineCloudFunction(checkResetPasswordToken);
+defineCloudFunction(requestEmailVerification);
+defineCloudFunction(getVerificationLink);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //
