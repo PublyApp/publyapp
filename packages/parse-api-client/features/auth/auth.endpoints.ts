@@ -4,6 +4,7 @@ import type { IUser } from '@org/shared/types/db/user.types';
 
 import type {
 	CheckEmailVerificationToken,
+	CheckResetPasswordToken,
 	// CheckEmailVerificationToken,
 	GetIsDisabledSignup,
 	GetRedirectCode,
@@ -34,6 +35,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 		this.requestEmailVerification = this.requestEmailVerification.bind(this);
 		this.checkEmailVerificationToken =
 			this.checkEmailVerificationToken.bind(this);
+		this.checkResetPasswordToken = this.checkResetPasswordToken.bind(this);
 	}
 
 	async getUserAuthData() {
@@ -150,6 +152,18 @@ export default class AuthEndPoints extends BaseEndPoints {
 			GetVerificationLink.Params
 		>(functionName.auth.getVerificationLink, {
 			params: { userId },
+		});
+	}
+
+	async checkResetPasswordToken({
+		email,
+		token,
+	}: { email: string; token: string }) {
+		return this.parseRestClient.cloudRun<
+			CheckResetPasswordToken.Return,
+			CheckResetPasswordToken.Params
+		>(functionName.auth.checkResetPasswordToken, {
+			params: { email, token },
 		});
 	}
 }

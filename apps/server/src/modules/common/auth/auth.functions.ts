@@ -350,19 +350,57 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 	},
 });
 
+export namespace CheckResetPasswordToken {
+	export type Params = FunctionParams<typeof checkResetPasswordToken>;
+	export type Return = FunctionReturn<typeof checkResetPasswordToken>;
+}
+
 const checkResetPasswordToken = fromPublicParseFunction({
 	name: functionName.auth.checkResetPasswordToken,
 	validateParams: ({ params, z }) => {
 		const schema = getCheckResetPasswordTokenSchema(z);
 		return schema.parse(params);
 	},
-	action: async (/* { params, t } */) => {
-		// const UserCollection = getDatabase().collection(className.USER);
+	action: async ({ params, t }) => {
+		const UserCollection = getDatabase().collection(className.USER);
 
-		// const user = await UserCollection.findOne({
-		// 	_perishable_token: params.token,
-		// });
-		return { ok: true };
+		const user = await UserCollection.findOne(
+			{
+				_perishable_token: params.token,
+				email: params.email,
+			},
+			{
+				projection: {
+					_perishable_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			throw new HttpException(
+				400,
+				t('item-is-invalid', { item: 'Email/Token' }),
+				{
+					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN,
+					meta: { cause: 'User not found' },
+				},
+			);
+		}
+
+		const isExpired = user._perishable_token_expires_at < new Date();
+
+		if (isExpired) {
+			throw new HttpException(
+				400,
+				t('item-is-invalid', { item: 'Email/Token' }),
+				{
+					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN,
+					meta: { cause: 'Token expired' },
+				},
+			);
+		}
+
+		return { status: 'success' } as const;
 	},
 });
 
@@ -483,11 +521,6 @@ const getVerificationLink = fromStaffMemberParseFunction({
 		return {
 			link,
 		} as const;
-		// const sessionToken = user.getSessionToken();
-
-		// const tenantService = new TenantService({ sessionToken });
-
-		// const tenant = await tenantService.getById(params.tenantId, { select: [] });
 	},
 });
 

@@ -1,15 +1,17 @@
+import { error } from 'console';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { toast } from '@/front/components/snackbar';
 import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { queryParamKey, queryParamValue } from '@/shared/lib/constants';
+import { X_CODE, queryParamKey, queryParamValue } from '@/shared/lib/constants';
 import { sleep } from '@/shared/utils/any.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import { decodeString } from '@/shared/utils/string-encoding.server';
@@ -23,6 +25,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Typography from '@mui/material/Typography';
 import type { Theme } from '@mui/material/styles';
 import { useBoolean } from 'minimal-shared/hooks';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useFetcher, useSearchParams } from 'react-router';
@@ -45,7 +48,7 @@ export const action = getServerAction({
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request }) => {
+	loader: async ({ request, apiClient }) => {
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
@@ -74,23 +77,29 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		const verifyTokenBelongsToEmail = async (
-			_email: string,
-			_token: string,
-		) => {
-			return await sleep(1000, true);
-		};
-
-		// verify if token belongs to the email
-		const tokenBelongsToEmail = await verifyTokenBelongsToEmail(
-			decodedEmail,
-			token,
+		const checkResetPasswordToken = safeRun(
+			apiClient.auth.checkResetPasswordToken,
 		);
 
-		if (!tokenBelongsToEmail) {
-			return {
-				code: 'INVALID_LINK',
-			} as const;
+		// verify if token belongs to the email
+		const checkResetPasswordTokenResult = await checkResetPasswordToken({
+			email: decodedEmail,
+			token,
+		});
+
+		if (checkResetPasswordTokenResult.status === 'error') {
+			if (checkResetPasswordTokenResult.error instanceof ParseRestError) {
+				if (
+					checkResetPasswordTokenResult.error.code ===
+					X_CODE.INVALID_RESET_PASSWORD_TOKEN
+				) {
+					return {
+						code: 'INVALID_LINK',
+					} as const;
+				}
+			}
+
+			throw checkResetPasswordTokenResult.error;
 		}
 
 		return {
@@ -131,7 +140,11 @@ const ResetPasswordPage = ({ loaderData }: Route.ComponentProps) => {
 	}, [redirect_cause, t, loaderData.code]);
 
 	if (loaderData.code === 'INVALID_LINK') {
-		return <InvalidLinkView forceIsInvalid />;
+		return (
+			<Box sx={boxStyles}>
+				<InvalidLinkView forceIsInvalid />
+			</Box>
+		);
 	}
 
 	return (
