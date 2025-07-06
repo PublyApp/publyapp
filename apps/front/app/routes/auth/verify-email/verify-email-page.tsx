@@ -62,12 +62,12 @@ export const action = getServerAction({
 					} as const;
 				}
 
-				const verificationEmailRequest = safeRun(
-					apiClient.auth.verificationEmailRequest,
+				const requestEmailVerification = safeRun(
+					apiClient.auth.requestEmailVerification,
 				);
 
 				// we intentionally don't return the actual outcome of the request
-				verificationEmailRequest({ email: parsed.data.email }).then(
+				requestEmailVerification({ email: parsed.data.email }).then(
 					(result) => {
 						if (result.status === 'error') {
 							context.logger.error(

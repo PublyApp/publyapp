@@ -29,6 +29,9 @@
     },
     "apps/api": {
       "name": "api",
+      "dependencies": {
+        "hono": "^4.0.0",
+      },
       "devDependencies": {
         "@types/bun": "latest",
       },
@@ -56,7 +59,7 @@
         "@mui/x-data-grid": "^8.5.1",
         "@mui/x-date-pickers": "^8.5.1",
         "@mui/x-tree-view": "^8.5.1",
-        "@org/api": "workspace:*",
+        "@org/parse-api-client": "workspace:*",
         "@org/parse-rest-client": "workspace:*",
         "@org/shared": "workspace:*",
         "@react-router/node": "^7.5.2",
@@ -235,7 +238,7 @@
       "version": "0.0.0",
     },
     "packages/parse-api-client": {
-      "name": "@org/api",
+      "name": "@org/parse-api-client",
       "version": "0.0.0",
       "dependencies": {
         "@org/parse-rest-client": "workspace:*",
@@ -902,7 +905,7 @@
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 
-    "@org/api": ["@org/api@workspace:packages/parse-api-client"],
+    "@org/parse-api-client": ["@org/parse-api-client@workspace:packages/parse-api-client"],
 
     "@org/parse-rest-client": ["@org/parse-rest-client@workspace:packages/parse-rest-client"],
 
@@ -2125,6 +2128,8 @@
     "highlight.js": ["highlight.js@11.11.1", "", {}, "sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w=="],
 
     "hoist-non-react-statics": ["hoist-non-react-statics@3.3.2", "", { "dependencies": { "react-is": "^16.7.0" } }, "sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw=="],
+
+    "hono": ["hono@4.8.3", "", {}, "sha512-jYZ6ZtfWjzBdh8H/0CIFfCBHaFL75k+KMzaM177hrWWm2TWL39YMYaJgB74uK/niRc866NMlH9B8uCvIo284WQ=="],
 
     "hosted-git-info": ["hosted-git-info@6.1.3", "", { "dependencies": { "lru-cache": "^7.5.1" } }, "sha512-HVJyzUrLIL1c0QmviVh5E8VGyUS7xCFPS6yydaVd1UegW+ibV/CohqTH9MkOLDp5o+rb82DMo77PTuc9F/8GKw=="],
 
