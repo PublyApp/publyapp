@@ -1,4 +1,3 @@
-import { error } from 'console';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -12,7 +11,6 @@ import {
 } from '@/front/lib/react-router/server-data.server';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { X_CODE, queryParamKey, queryParamValue } from '@/shared/lib/constants';
-import { sleep } from '@/shared/utils/any.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import { decodeString } from '@/shared/utils/string-encoding.server';
 import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
