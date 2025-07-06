@@ -94,7 +94,7 @@ export const action = getServerAction({
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request, apiClient }) => {
+	loader: async ({ request, apiClient, z }) => {
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
@@ -134,7 +134,7 @@ export const loader = getServerLoader({
 			apiClient.auth.checkEmailVerificationToken,
 		);
 
-		const schema = getCheckEmailVerificationTokenSchema(defaultZodClient);
+		const schema = getCheckEmailVerificationTokenSchema(z);
 		const parsed = schema.safeParse({ email: decodedEmail, token });
 
 		// we don't tell what went wrong here
