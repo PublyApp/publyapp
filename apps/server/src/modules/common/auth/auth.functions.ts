@@ -467,7 +467,7 @@ const getVerificationLink = fromStaffMemberParseFunction({
 				{
 					_id: params.userId as never,
 				},
-				{ projection: { email: 1 } },
+				{ projection: { email: 1, _email_verify_token: 1 } },
 			);
 
 		if (!user) {

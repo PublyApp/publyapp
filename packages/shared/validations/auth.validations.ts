@@ -37,7 +37,7 @@ export const getResetPasswordSchema = (z: InterZod) => {
 	return z
 		.object({
 			password: getPasswordFieldSchema(z),
-			confirmPassword: z.string(),
+			confirmPassword: getPasswordFieldSchema(z),
 		})
 		.refine(
 			(data) => {

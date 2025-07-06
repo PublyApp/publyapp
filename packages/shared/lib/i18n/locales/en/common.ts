@@ -24,6 +24,7 @@ const commonEN = {
 	status: 'Status',
 	link: 'Link',
 	logo: 'Logo',
+	'verification-link': 'Verification link',
 
 	// Status values
 	active: 'Active',
@@ -38,9 +39,9 @@ const commonEN = {
 	// ? ...
 	views: 'Views',
 	'created-at': 'Created at',
-	'edit-post': 'Edit post',
 	draft: 'Draft',
 	edit: 'Edit',
+	delete: 'Delete',
 	published: 'Published',
 	'invalid-number': 'Invalid number',
 	new: 'New',
@@ -63,6 +64,8 @@ const commonEN = {
 	'item-is-invalid': '{{item}} is invalid',
 	'invalid-item': 'Invalid {{item}}',
 	'new-item': 'New {{item}}',
+	'delete-item': 'Delete {{item}}',
+	'copy-item': 'Copy {{item}}',
 	'item-is-not-instance-of-type': '{{item}} is not instance of {{type}}',
 	'item-not-translated-short': '{{item}} not translated',
 	'item-not-translated':
@@ -192,6 +195,14 @@ const commonEN = {
 
 	'email-verification-success': 'Email verification successful',
 	'request-new-verification-link': 'Request a new verification link',
+
+	'copy-link': 'Copy link',
+	'confirm-delete-dialog-text': 'Are you sure you want to delete this item?',
+	'copy-to-clipboard-success': 'Copied to clipboard',
+	'copy-to-clipboard-error': 'Error while copying to clipboard',
+	'reset-password': 'Reset password',
+	'confirm-password': 'Confirm password',
+	'n+ characters': '{{characters}}+ characters',
 
 	'session-expired': 'Session expired',
 } as const;

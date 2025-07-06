@@ -23,6 +23,7 @@ const commonFR = {
 	tenants: 'Tenants',
 	status: 'Statut',
 	logo: 'Logo',
+	'verification-link': 'Lien de vérification',
 
 	// Status values
 	active: 'Actif',
@@ -39,7 +40,7 @@ const commonFR = {
 	'created-at': 'Créé le',
 	draft: 'Brouillon',
 	edit: 'Éditer',
-	'edit-post': "Éditer l'article",
+	delete: 'Supprimer',
 	published: 'Publié',
 	'invalid-number': 'Nombre invalide',
 	new: 'Nouveau',
@@ -63,6 +64,8 @@ const commonFR = {
 	'item-is-invalid': '{{item}} est invalide',
 	'invalid-item': '{{item}} invalide',
 	'new-item': 'Nouveau {{item}}',
+	'delete-item': 'Supprimer {{item}}',
+	'copy-item': 'Copier {{item}}',
 	'item-is-not-instance-of-type': "{{item}} n'est pas une instance de {{type}}",
 	'item-not-translated-short': '{{item}} non traduit',
 	'item-not-translated':
@@ -194,6 +197,15 @@ const commonFR = {
 
 	'email-verification-success': "Vérification d'email réussie",
 	'request-new-verification-link': 'Demander un nouveau lien de vérification',
+
+	'copy-link': 'Copier le lien',
+	'confirm-delete-dialog-text':
+		'Êtes-vous sûr de vouloir supprimer cet élément ?',
+	'copy-to-clipboard-success': 'Copié dans le presse-papiers',
+	'copy-to-clipboard-error': 'Erreur lors de la copie ver le presse-papiers',
+	'reset-password': 'Réinitialiser le mot de passe',
+	'confirm-password': 'Confirmer le mot de passe',
+	'n+ characters': '{{characters}}+ caractères',
 
 	'session-expired': 'Session expirée',
 } as const satisfies LooseCommonNamespace;
