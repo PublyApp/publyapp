@@ -1,10 +1,10 @@
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 // @ts-check
 import archiver from 'archiver';
 import fse from 'fs-extra';
 import _ from 'lodash';
-import { spawnSync } from 'node:child_process';
-import fs from 'node:fs';
-import path from 'node:path';
 
 const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../');
 
@@ -157,6 +157,9 @@ const subdirectories = files.filter((file) => {
 // Copy each subdirectory with only package.json to dist directory
 _.forEach(subdirectories, (subdirectory) => {
 	const sourcePath = path.join(PACKAGES_DIR_SRC, subdirectory, 'package.json');
+	if (!fse.existsSync(sourcePath)) {
+		return;
+	}
 	const destPath = path.join(PACKAGES_DIR_DEST, subdirectory, 'package.json');
 	fse.copySync(sourcePath, destPath);
 });
