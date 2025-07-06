@@ -252,6 +252,7 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 
 	const menuActions = usePopover();
 	const confirmDialog = useBoolean();
+	const { t } = useTranslate();
 
 	const onConfirmDeleteRow = () => {
 		menuActions.onClose();
@@ -277,7 +278,12 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 		>
 			<MenuList>
 				{isUserPending ? (
-					<Tooltip title="Copy verification link" placement="top">
+					<Tooltip
+						title={_.capitalize(
+							t('copy-item', { item: t('verification-link') }),
+						)}
+						placement="top"
+					>
 						<MenuItem
 							component={Button}
 							loading={isLoading}
@@ -288,7 +294,7 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 									const result = await refetch();
 									if (result.error) {
 										console.error(result.error);
-										toast.error('Failed to get verification link');
+										toast.error(t('copy-to-clipboard-error'));
 										return;
 									}
 									if (result.data) {
@@ -296,12 +302,12 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 									}
 								}
 								navigator.clipboard.writeText(link);
-								toast.success('Copied to clipboard');
+								toast.success(t('copy-to-clipboard-success'));
 								menuActions.onClose();
 							}}
 						>
 							<Iconify icon="solar:copy-bold-duotone" />
-							Copy link
+							{t('copy-link')}
 						</MenuItem>
 					</Tooltip>
 				) : null}
@@ -312,7 +318,7 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 					onClick={() => menuActions.onClose()}
 				>
 					<Iconify icon="solar:pen-bold" />
-					Edit
+					{t('edit')}
 				</MenuItem>
 
 				<MenuItem
@@ -323,7 +329,7 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 					sx={{ color: 'error.main' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" />
-					Delete
+					{t('delete')}
 				</MenuItem>
 			</MenuList>
 		</CustomPopover>
@@ -333,8 +339,8 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 		<ConfirmDialog
 			open={confirmDialog.value}
 			onClose={confirmDialog.onFalse}
-			title="Delete"
-			content="Are you sure want to delete?"
+			title={t('delete-item', { item: t('staff-member') })}
+			content={t('confirm-delete-dialog-text')}
 			action={
 				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
 					Delete
