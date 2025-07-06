@@ -303,6 +303,8 @@ export const functionName = {
 		getRedirectCode: 'getRedirectCode',
 		checkEmailVerificationToken: 'checkEmailVerificationToken',
 		checkResetPasswordToken: 'checkResetPasswordToken',
+		requestEmailVerification: 'requestEmailVerification',
+		getVerificationLink: 'getVerificationLink',
 		// ====
 		removeSeededUsers: 'removeSeededUsers',
 	},
@@ -410,6 +412,7 @@ export const X_CODE = {
 	INVALID_EMAIL_VERIFICATION_TOKEN: 'INVALID_EMAIL_VERIFICATION_TOKEN',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
 	INVALID_SESSION: 'INVALID_SESSION',
+	EMAIL_ALREADY_VERIFIED: 'EMAIL_ALREADY_VERIFIED',
 } as const;
 
 export const PRE_RENDER_PATHS = ['/', '/login'] as const;

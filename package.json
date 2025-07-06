@@ -28,7 +28,8 @@
 		"knip": "knip",
 		"prepare": "husky",
 		"update-deps": "??? in bun ???",
-		"postinstall": "bun run apps/server/scripts/patch.mjs"
+		"postinstall": "bun run apps/server/scripts/patch.mjs",
+		"generate-secret": "bun run apps/server/scripts/generate-secret.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
