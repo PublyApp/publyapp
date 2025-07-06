@@ -350,6 +350,10 @@ const migrateRoleData = parseFunctionEnhanced({
 	},
 });
 
+//--------------------------------------------------------------------------------------//
+//                                 Define the functions                                 //
+//--------------------------------------------------------------------------------------//
+
 export const defineStaffMemberFunctions = () => {
 	defineCloudFunction(migrateIsStaffMember);
 	defineCloudFunction(migrateRoleData);
