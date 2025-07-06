@@ -1,17 +1,17 @@
-import type { i18n as I18n } from 'i18next';
-import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
-import { ApiClient, defaultApiClient } from '@org/api/ApiClient';
+import { ApiClient, defaultApiClient } from '@/parse-api-client/ApiClient';
 import {
 	APP_ID,
-	endPoint,
 	LOCALE_HEADER_KEY,
-	SESSION_TOKEN_COOKIE_KEY,
 	REMIX_CLIENT_IP_HEADER_KEY,
+	SESSION_TOKEN_COOKIE_KEY,
+	endPoint,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import { env } from './env';
 import * as cookie from 'cookie';
+import type { i18n as I18n } from 'i18next';
 import _ from 'lodash';
+import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
+import { env } from './env';
 
 const parseRestClient = new ParseRestClient({
 	applicationId: APP_ID,

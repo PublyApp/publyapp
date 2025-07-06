@@ -126,7 +126,9 @@ const bootstrap = async () => {
 	// * we ensure that verification token is created by Parse whenever a user is created
 	// * but we don't want Parse to send the email to the user by setting CustomMailAdapter.enableSendVerificationEmail to false
 	const emailAdapter = new CustomMailAdapter({
-		serverUrl: env.SERVER_URL,
+		serverUrl: env.FRONT_URL,
+		// ! we don't want Parse to send the email to the user
+		// * We implemented a custom email verification function instead
 		enableSendVerificationEmail: false,
 	});
 
@@ -160,7 +162,6 @@ const bootstrap = async () => {
 		enableExpressErrorHandler: true,
 		allowClientClassCreation: false,
 		allowExpiredAuthDataToken: false,
-		preventLoginWithUnverifiedEmail: true,
 		encodeParseObjectInCloudFunction: true,
 		logLevels: {
 			cloudFunctionError: 'silent',
@@ -173,9 +174,14 @@ const bootstrap = async () => {
 			enableRouter: true,
 		},
 		emailAdapter,
-		verifyUserEmails: true, // automatically sends an email to newly created users
+		// automatically sends an email to newly created users
+		verifyUserEmails: true,
+		preventLoginWithUnverifiedEmail: true,
 		emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
 		emailVerifyTokenReuseIfValid: true,
+		passwordPolicy: {
+			resetTokenValidityDuration: duration.toSeconds('1d'),
+		},
 		// =============================================
 		logLevel: env.LOCAL ? 'debug' : 'info',
 		enableInsecureAuthAdapters: false,

@@ -38,7 +38,7 @@ const disableRestApiForClients = async (
 	const _allowedPaths = [
 		'/health',
 		'/functions',
-		'/verificationEmailRequest',
+		// '/verificationEmailRequest', // Parse built-in email-verification endpoint
 	] satisfies `/${string}`[];
 
 	const authorizedPaths: string[] = [..._allowedPaths];
@@ -65,7 +65,11 @@ const disableRestApiForClients = async (
 
 	const { t } = getRequestUtils(req);
 
-	throw new HttpException(401, t('unauthorized'));
+	throw new HttpException(401, t('unauthorized'), {
+		meta: {
+			reason: `Parse Rest API call outside ot the server are disabled except for: ${_.join(authorizedPaths, ', ')}`,
+		},
+	});
 };
 
 const handleMatchSessionIp = async (

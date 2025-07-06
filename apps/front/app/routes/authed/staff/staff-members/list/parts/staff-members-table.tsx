@@ -1,10 +1,14 @@
+import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
+import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
 import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
+import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { useGetVerificationLink } from '@/front/lib/react-query/features/auth/auth.hooks';
 import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
 import {
 	DEFAULT_PAGE_SIZE,
@@ -14,9 +18,12 @@ import {
 import { getUserFullName } from '@/shared/utils/user.utils';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
+import MenuItem from '@mui/material/MenuItem';
+import MenuList from '@mui/material/MenuList';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import _ from 'lodash';
@@ -26,6 +33,7 @@ import {
 	MaterialReactTable,
 	createMRTColumnHelper,
 } from 'material-react-table';
+import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
 
 export type StaffMemberRowData = {
@@ -88,7 +96,7 @@ const StaffMembersTable = () => {
 			columnHelper.display({
 				header: 'Actions',
 				Cell: UserActionsCell,
-				size: 70,
+				size: 5,
 			}),
 		];
 	}, [t]);
@@ -129,6 +137,14 @@ const StaffMembersTable = () => {
 		muiTablePaperProps: {
 			sx: {
 				flexGrow: 1,
+			},
+		},
+		muiTableProps: {
+			sx: {
+				'& tr > th:last-of-type > .Mui-TableHeadCell-Content, & tr > td:last-of-type':
+					{
+						justifyContent: 'flex-end',
+					},
 			},
 		},
 	});
@@ -232,45 +248,118 @@ const RoleCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 
 const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 	const userId = props.row.original.id;
+	const isUserPending = props.row.original.status === 'pending';
 
-	return (
-		<Box sx={{ display: 'flex', alignItems: 'center' }}>
-			<Tooltip title="View details" placement="top" arrow>
-				<IconButton
-					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
-					// onClick={/* quickEditForm.onTrue */ () => {}}
-					LinkComponent={RouterLink}
+	const menuActions = usePopover();
+	const confirmDialog = useBoolean();
+	const { t } = useTranslate();
+
+	const onConfirmDeleteRow = () => {
+		menuActions.onClose();
+		toast.warning(`onDelete: ${userId}`);
+	};
+
+	const {
+		data: linkData,
+		refetch,
+		// isPending,
+		isLoading,
+	} = useGetVerificationLink({
+		variables: { userId },
+		enabled: false,
+	});
+
+	const renderMenuActions = () => (
+		<CustomPopover
+			open={menuActions.open}
+			anchorEl={menuActions.anchorEl}
+			onClose={isLoading ? undefined : menuActions.onClose}
+			slotProps={{ arrow: { placement: 'right-top' } }}
+		>
+			<MenuList>
+				{isUserPending ? (
+					<Tooltip
+						title={_.capitalize(
+							t('copy-item', { item: t('verification-link') }),
+						)}
+						placement="top"
+					>
+						<MenuItem
+							component={Button}
+							loading={isLoading}
+							fullWidth
+							onClick={async () => {
+								let link = linkData?.link || 'unable to get verification link';
+								if (!linkData) {
+									const result = await refetch();
+									if (result.error) {
+										console.error(result.error);
+										toast.error(t('copy-to-clipboard-error'));
+										return;
+									}
+									if (result.data) {
+										link = result.data.link || link;
+									}
+								}
+								navigator.clipboard.writeText(link);
+								toast.success(t('copy-to-clipboard-success'));
+								menuActions.onClose();
+							}}
+						>
+							<Iconify icon="solar:copy-bold-duotone" />
+							{t('copy-link')}
+						</MenuItem>
+					</Tooltip>
+				) : null}
+
+				<MenuItem
+					component={RouterLink}
 					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
-				>
-					<Iconify icon="solar:eye-bold" />
-				</IconButton>
-			</Tooltip>
-
-			<Tooltip title="Quick Edit" placement="top" arrow>
-				<IconButton
-					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
-					onClick={/* quickEditForm.onTrue */ () => {}}
+					onClick={() => menuActions.onClose()}
 				>
 					<Iconify icon="solar:pen-bold" />
-				</IconButton>
-			</Tooltip>
+					{t('edit')}
+				</MenuItem>
 
-			<Tooltip title="Delete" placement="top" arrow>
-				<IconButton
-					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
-					onClick={/* quickEditForm.onTrue */ () => {}}
+				<MenuItem
+					onClick={() => {
+						confirmDialog.onTrue();
+						menuActions.onClose();
+					}}
 					sx={{ color: 'error.main' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" />
-				</IconButton>
-			</Tooltip>
+					{t('delete')}
+				</MenuItem>
+			</MenuList>
+		</CustomPopover>
+	);
 
-			{/* <IconButton
-              color={menuActions.open ? 'inherit' : 'default'}
-              onClick={menuActions.onOpen}
-            >
-              <Iconify icon="eva:more-vertical-fill" />
-            </IconButton> */}
+	const renderConfirmDialog = () => (
+		<ConfirmDialog
+			open={confirmDialog.value}
+			onClose={confirmDialog.onFalse}
+			title={t('delete-item', { item: t('staff-member') })}
+			content={t('confirm-delete-dialog-text')}
+			action={
+				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
+					Delete
+				</Button>
+			}
+		/>
+	);
+
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<IconButton
+				color={menuActions.open ? 'inherit' : 'default'}
+				onClick={menuActions.onOpen}
+			>
+				<Iconify icon="eva:more-vertical-fill" />
+			</IconButton>
+
+			{renderMenuActions()}
+			{renderConfirmDialog()}
 		</Box>
 	);
 };

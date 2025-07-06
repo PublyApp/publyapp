@@ -1,25 +1,25 @@
-import type { RequestHandler } from 'express';
 import { HttpException } from '@/server/exceptions/HttpException';
-import { AuthCloudService } from '@/server/modules/common/auth/auth.cloud.service';
+import { AuthCloudService } from '@/server/modules/common/auth/auth-cloud.service';
 import {
 	PARSE_SESSION_TOKEN_HEADER_KEY,
-	userGroup,
 	type RoleSet,
-	type TenantSubRoleSet,
 	type StaffRoleSet,
-	roleSet,
 	TENANT_ID_HEADER_KEY,
+	type TenantSubRoleSet,
+	roleSet,
 	tenantSubRoleSet,
+	userGroup,
 } from '@/shared/lib/constants';
-import { expressHandler, getHeader, getRequestUtils } from '../lib/express';
+import type { RequestHandler } from 'express';
 import _ from 'lodash';
 import {
 	CONFIG_ENABLE_CHECK_SESSION_IP,
 	USE_MASTER_KEY,
 } from '../lib/constants';
+import { expressHandler, getHeader, getRequestUtils } from '../lib/express';
 import RoleService from '../modules/common/auth/role/role.service';
-import TenantService from '../modules/common/auth/tenant/tenant.service';
 import ParseTenant from '../modules/common/auth/tenant/tenant.class';
+import TenantService from '../modules/common/auth/tenant/tenant.service';
 
 export const authType = {
 	SESSION_TOKEN: 'sessionToken',
@@ -28,29 +28,27 @@ export const authType = {
 
 export type ProtectionMiddlewareOptions = {
 	authType: ValueOf<typeof authType>;
-} &
-	// * case A: request can be from any authed user
-	(
-		| {
-				group?: typeof userGroup.ANY | undefined;
-				allowedRoles?: RoleSet | undefined;
-				allowedTenantSubRoles?: undefined;
-		  }
-		// * case B: request must be from a tenant member
-		// * implicitly, that means also: if the user is a staff member allow the middleware to pass
-		// * but if the user is a staff member, only allow the middleware to pass if the user has the correct tenant sub roles
-		| {
-				group: typeof userGroup.TENANT;
-				allowedRoles?: undefined;
-				allowedTenantSubRoles?: TenantSubRoleSet | undefined;
-		  }
-		// * case C: request must be from a staff member
-		| {
-				group: typeof userGroup.STAFF;
-				allowedRoles?: StaffRoleSet | undefined;
-				allowedTenantSubRoles?: undefined;
-		  }
-	);
+} & ( // * case A: request can be from any authed user
+	| {
+			group?: typeof userGroup.ANY | undefined;
+			allowedRoles?: RoleSet | undefined;
+			allowedTenantSubRoles?: undefined;
+	  }
+	// * case B: request must be from a tenant member
+	// * implicitly, that means also: if the user is a staff member allow the middleware to pass
+	// * but if the user is a staff member, only allow the middleware to pass if the user has the correct tenant sub roles
+	| {
+			group: typeof userGroup.TENANT;
+			allowedRoles?: undefined;
+			allowedTenantSubRoles?: TenantSubRoleSet | undefined;
+	  }
+	// * case C: request must be from a staff member
+	| {
+			group: typeof userGroup.STAFF;
+			allowedRoles?: StaffRoleSet | undefined;
+			allowedTenantSubRoles?: undefined;
+	  }
+);
 
 /**
  * If no auth is needed for your route, just don't use this middleware in the first place.

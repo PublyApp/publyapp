@@ -1,6 +1,5 @@
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { AuthCloudService } from '@/server/modules/common/auth/auth-cloud.service';
 import { logger } from '@org/shared/lib/winston.server';
-
 import { env } from '../../env';
 import type { MailAdapter } from '../interfaces/MailAdapter';
 
@@ -38,19 +37,6 @@ export default class CustomMailAdapter implements MailAdapter {
 		logger.warn('sendPasswordResetEmail', { link, appName, user });
 	}
 
-	getCustomVerificationLink({
-		token,
-	}: {
-		token: string;
-	}) {
-		const url = new URL(this.serverUrl);
-		// url.pathname = endPoint.api.auth.verifyEmail; // do not use a server endpoint
-		url.pathname = FRONT_PATH_NAMES.auth.verifyEmail; // use a front-end pathname instead
-		url.searchParams.set('token', token);
-
-		return url.toString();
-	}
-
 	async sendVerificationEmail({
 		link,
 		appName,
@@ -67,8 +53,10 @@ export default class CustomMailAdapter implements MailAdapter {
 		const verificationUrl = new URL(link);
 		const verificationToken = verificationUrl.searchParams.get('token');
 
-		const customLink = this.getCustomVerificationLink({
+		const customLink = await AuthCloudService.getCustomVerificationLink({
 			token: verificationToken || '',
+			email: user.getEmail() || '',
+			serverUrl: this.serverUrl,
 		});
 
 		if (env.LOCAL) {

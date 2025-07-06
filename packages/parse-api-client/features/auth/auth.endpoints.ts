@@ -3,12 +3,15 @@ import _ from 'lodash';
 import type { IUser } from '@org/shared/types/db/user.types';
 
 import type {
-	ChallengeEmailForToken,
 	CheckEmailVerificationToken,
+	CheckResetPasswordToken,
+	// CheckEmailVerificationToken,
 	GetIsDisabledSignup,
 	GetRedirectCode,
 	GetTenantAuthData,
 	GetUserAuthData,
+	GetVerificationLink,
+	RequestEmailVerification,
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
 import {
@@ -29,10 +32,10 @@ export default class AuthEndPoints extends BaseEndPoints {
 
 		this.passwordLogin = this.passwordLogin.bind(this);
 		this.getRedirectCode = this.getRedirectCode.bind(this);
-		this.verificationEmailRequest = this.verificationEmailRequest.bind(this);
+		this.requestEmailVerification = this.requestEmailVerification.bind(this);
 		this.checkEmailVerificationToken =
 			this.checkEmailVerificationToken.bind(this);
-		this.challengeEmailForToken = this.challengeEmailForToken.bind(this);
+		this.checkResetPasswordToken = this.checkResetPasswordToken.bind(this);
 	}
 
 	async getUserAuthData() {
@@ -41,12 +44,12 @@ export default class AuthEndPoints extends BaseEndPoints {
 		);
 	}
 
-	async getTenantAuthData(params: GetTenantAuthData.Params) {
+	async getTenantAuthData({ tenantId }: { tenantId: string }) {
 		return this.parseRestClient.cloudRun<
 			GetTenantAuthData.Return,
 			GetTenantAuthData.Params
 		>(functionName.auth.getTenantAuthData, {
-			params,
+			params: { tenantId },
 		});
 	}
 
@@ -103,8 +106,13 @@ export default class AuthEndPoints extends BaseEndPoints {
 		);
 	}
 
-	async verificationEmailRequest(params: { email: string }) {
-		return this.parseRestClient.verificationEmailRequest(params);
+	async requestEmailVerification({ email }: { email: string }) {
+		return this.parseRestClient.cloudRun<
+			RequestEmailVerification.Return,
+			RequestEmailVerification.Params
+		>(functionName.auth.requestEmailVerification, {
+			params: { email },
+		});
 	}
 
 	async getIsDisabledSignup() {
@@ -126,23 +134,35 @@ export default class AuthEndPoints extends BaseEndPoints {
 		});
 	}
 
-	async checkEmailVerificationToken({ token }: { token: string }) {
-		return this.parseRestClient.cloudRun<
-			CheckEmailVerificationToken.Return,
-			CheckEmailVerificationToken.Params
-		>(functionName.auth.checkEmailVerificationToken, {
-			params: { token },
-		});
-	}
-
-	async challengeEmailForToken({
+	async checkEmailVerificationToken({
 		email,
 		token,
 	}: { email: string; token: string }) {
 		return this.parseRestClient.cloudRun<
-			ChallengeEmailForToken.Return,
-			ChallengeEmailForToken.Params
-		>(functionName.auth.challengeEmailForToken, {
+			CheckEmailVerificationToken.Return,
+			CheckEmailVerificationToken.Params
+		>(functionName.auth.checkEmailVerificationToken, {
+			params: { email, token },
+		});
+	}
+
+	async getVerificationLink({ userId }: { userId: string }) {
+		return this.parseRestClient.cloudRun<
+			GetVerificationLink.Return,
+			GetVerificationLink.Params
+		>(functionName.auth.getVerificationLink, {
+			params: { userId },
+		});
+	}
+
+	async checkResetPasswordToken({
+		email,
+		token,
+	}: { email: string; token: string }) {
+		return this.parseRestClient.cloudRun<
+			CheckResetPasswordToken.Return,
+			CheckResetPasswordToken.Params
+		>(functionName.auth.checkResetPasswordToken, {
 			params: { email, token },
 		});
 	}
