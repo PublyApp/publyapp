@@ -58,10 +58,18 @@ fse.copyFileSync(rootPackageJsonSrc, rootPackageJsonDest);
 // --------------------------------------------------------------------------------------//
 //                                 copy lock file on root                                //
 // --------------------------------------------------------------------------------------//
-const lockFileName = 'bun.lock';
+const lockFileName = 'pnpm-lock.yaml'; // 'bun.lock';
 const rootLockFileSrc = path.join(MONOREPO_ROOT_DIR, lockFileName);
 const rootLockFileDest = path.join(DEPLOY_ROOT_DIR, lockFileName);
 fse.copyFileSync(rootLockFileSrc, rootLockFileDest);
+
+// --------------------------------------------------------------------------------------//
+//                                 copy pnpm workspace on root                                //
+// --------------------------------------------------------------------------------------//
+const pnpmWorkspaceFileName = 'pnpm-workspace.yaml';
+const rootPnpmWorkspaceFileSrc = path.join(MONOREPO_ROOT_DIR, pnpmWorkspaceFileName);
+const rootPnpmWorkspaceFileDest = path.join(DEPLOY_ROOT_DIR, pnpmWorkspaceFileName);
+fse.copyFileSync(rootPnpmWorkspaceFileSrc, rootPnpmWorkspaceFileDest);
 
 // --------------------------------------------------------------------------------------//
 //                                   copy .npmrc file on root                            //
