@@ -1,20 +1,20 @@
+import { spawn } from 'node:child_process';
+import path from 'node:path';
 // @ts-check
 import chokidar from 'chokidar';
 import _ from 'lodash';
-import { spawn } from 'node:child_process';
-import path from 'node:path';
 import {
 	watch as _watch,
 	createI18nResourcesFiles,
 	createRsbuild,
 } from './config.mjs';
 
-// set node env to development
+// set node env to development (only if using node.js and not bun)
 // otherwise onDevCompileDone API will not be called
 // process.env.NODE_ENV = 'development';
 
-console.log('process.env.NODE_ENV', process.env.NODE_ENV);
-console.log('Bun.env.NODE_ENV', Bun.env.NODE_ENV);
+// console.log('process.env.NODE_ENV', process.env.NODE_ENV);
+// console.log('Bun.env.NODE_ENV', Bun.env.NODE_ENV);
 
 const isBun = typeof Bun !== 'undefined';
 
