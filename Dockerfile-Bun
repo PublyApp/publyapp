@@ -5,10 +5,12 @@ FROM oven/bun:1.2.17 AS base
 # Set working directory
 WORKDIR /usr/src/app
 
-RUN ls -al
-
 # Copy application files
-COPY . .
+COPY . /app
+
+# Set working directory to /app
+WORKDIR /app
+
 # Install dependencies
 RUN bun install
 
