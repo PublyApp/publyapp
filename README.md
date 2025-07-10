@@ -9,6 +9,7 @@ An API for converting HTML to PDF.
   - [nvm](https://github.com/nvm-sh/nvm) (mac/Linux only)
   - [nvm-windows](https://github.com/coreybutler/nvm-windows) (available for windows)
 - pnpm: once node is installed, run: `npm install -g pnpm`
+- bun: install bun as npm package globally: `npm install -g bun`
 - mongodb: [Install MongoDB Community Edition](https://www.mongodb.com/docs/manual/administration/install-community/)
 
 ## Installation
@@ -28,6 +29,10 @@ pnpm dev:server
 # run in the second terminal
 pnpm dev:front
 ```
+
+### Debugging while developing (server only)
+
+run `pnpm dev:server --inspect` then use the VS Code debugger: **Attach by WebSocket URL** configuration and you are good to set breakpoints in the code
 
 Now open your browser and go to `http://localhost:6181` to see the app.
 
