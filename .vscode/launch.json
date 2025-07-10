@@ -4,6 +4,18 @@
 		{
 			"type": "node",
 			"request": "attach",
+			"name": "Attach by WebSocket URL",
+			"address": "127.0.0.1",
+			"port": 6183,
+			"restart": false,
+			"internalConsoleOptions": "neverOpen",
+			"sourceMaps": true,
+			"smartStep": true,
+			"skipFiles": ["<node_internals>/**"]
+		},
+		{
+			"type": "node",
+			"request": "attach",
 			"name": "Attach by Process ID (Node)",
 			"processId": "${command:PickProcess}",
 			"internalConsoleOptions": "neverOpen",

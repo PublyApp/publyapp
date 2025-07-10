@@ -1,6 +1,6 @@
 import Box, { type BoxProps } from '@mui/material/Box';
 import type { SxProps, Theme } from '@mui/material/styles';
-import { m, type MotionProps } from 'framer-motion';
+import { type MotionProps, m } from 'framer-motion';
 
 import { varFade } from '@/front/components/animate';
 import type { PaletteColorKey } from '@/front/lib/mui/theme/core';
@@ -19,7 +19,7 @@ export const Lines = ({ strokeCount }: { strokeCount: number }) => {
 					strokeOpacity: 1,
 					transition: {
 						strokeOpacity: { delay, duration: 0.01 },
-						x2: { delay, bounce: 0, duration: 1.5, type: 'spring' },
+						x2: { delay, bounce: 0, duration: 1.5, type: 'spring' as const },
 					},
 				};
 			},
@@ -33,7 +33,7 @@ export const Lines = ({ strokeCount }: { strokeCount: number }) => {
 					strokeOpacity: 1,
 					transition: {
 						strokeOpacity: { delay, duration: 0.01 },
-						y2: { delay, bounce: 0, duration: 1.5, type: 'spring' },
+						y2: { delay, bounce: 0, duration: 1.5, type: 'spring' as const },
 					},
 				};
 			},
@@ -165,7 +165,12 @@ export const PlusIcon = () => {
 				pathLength: 1,
 				transition: {
 					opacity: { delay, duration: 0.01 },
-					pathLength: { delay, bounce: 0, duration: 1.5, type: 'spring' },
+					pathLength: {
+						delay,
+						bounce: 0,
+						duration: 1.5,
+						type: 'spring' as const,
+					},
 				},
 			};
 		},
