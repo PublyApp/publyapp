@@ -101,6 +101,10 @@ just dev-db
 # Or: docker-compose -f docker-compose.services.yml up -d
 ```
 
+### Debugging while developing (server only)
+
+run `pnpm dev:server --inspect` then use the VS Code debugger: **Attach by WebSocket URL** configuration and you are good to set breakpoints in the code
+
 Now open your browser and go to `http://localhost:6181` to see the app.
 
 ## Hosting
