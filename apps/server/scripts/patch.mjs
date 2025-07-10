@@ -108,7 +108,6 @@ const patchParseMiddlewares_2 = async () => {
 }
 
 await Promise.all([
-	// patchParseServerBlockListForBunRuntime()
 	patchParseServerSelectNestedObjectKeys(),
 	patchParseServerAuthLib(),
 	patchClassNameRegex(),
