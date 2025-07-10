@@ -258,4 +258,9 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 	};
 };
 
+/**
+ * This task is likely to not be used soon
+ * It only makes sense for large PDF generation
+ * rely on simple Cloud Run Service instead of CLoud Run Job for now
+ */
 export const convertHTMLToPDF = getControlledFunction({ handler: handler2 });
