@@ -50,8 +50,7 @@
 		"lodash": "^4.17.21",
 		"tsconfig": "workspace:*",
 		"turbo": "^2.0.3",
-		"typescript": "^5.8.3",
-		"vite": "^6.3.5"
+		"typescript": "^5.8.3"
 	},
 	"packageManager": "pnpm@10.13.1",
 	"engines": {
