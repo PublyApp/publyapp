@@ -100,7 +100,7 @@
 		"dotenv": "^16.3.1",
 		"dotenv-expand": "^12.0.2",
 		"react-router-devtools": "^1.1.10",
-		"vite": "^5.4.19",
+		"vite": "^6.3.5",
 		"vite-plugin-checker": "^0.9.0",
 		"vite-tsconfig-paths": "^5.1.2",
 		"vite-plugin-devtools-json": "^0.1.0",
