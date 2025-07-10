@@ -101,7 +101,9 @@
 	"material-icon-theme.files.associations": {
 		".env.preprod": "tune",
 		"tsconfig.nextjs.json": "tsconfig",
-		"tsconfig.react-library.json": "tsconfig"
+		"tsconfig.react-library.json": "tsconfig",
+		"Dockerfile-Bun": "docker",
+		"Dockerfile-Node": "docker"
 	},
 	"typescript.tsdk": "node_modules\\typescript\\lib",
 	"files.eol": "\n",
