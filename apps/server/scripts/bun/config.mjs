@@ -1,8 +1,8 @@
-// @ts-check
-import path from 'node:path';
 import fs, { createWriteStream } from 'node:fs';
-import { pipeline, Readable } from 'node:stream';
+import path from 'node:path';
+import { Readable, pipeline } from 'node:stream';
 import { promisify } from 'node:util';
+// @ts-check
 import _ from 'lodash';
 // import { createRsbuild as _createRsbuild } from '@rsbuild/core';
 // import { pluginTypeCheck } from '@rsbuild/plugin-type-check';
@@ -149,7 +149,7 @@ export const createI18nResourcesFiles = async (resources) => {
 };
 
 /**
- * @type {Bun.BuildConfig}
+ * // @type {Bun.BuildConfig}
  */
 export const buildOptions = {
 	entrypoints: ['./src/index.ts', './src/_seed.ts', './src/_migrations.ts', './src/_i18n.ts'],

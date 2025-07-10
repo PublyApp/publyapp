@@ -132,9 +132,7 @@ export const createRsbuild = () => {
 			output: {
 				target: 'node',
 				externals,
-				sourceMap: {
-					js: 'source-map',
-				},
+				sourceMap: true,
 			},
 			tools: {
 				rspack: {
