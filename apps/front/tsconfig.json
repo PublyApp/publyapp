@@ -20,9 +20,8 @@
 		// The inferred type of XXX cannot be named without a reference to '@/ui-react/node_modules/@types/react/jsx-runtime'. This is likely not portable. A type annotation is necessary.
 		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
 		"declarationMap": false,
-		"declaration": false
-		// ! we are not using pnpm anymore: careful with relative paths here
-		// "typeRoots": ["./node_modules/@types"],
+		"declaration": false,
+		"typeRoots": ["./node_modules/@types"] // comment if using bun (or any other hoisted package manager)
 	},
 	"include": [
 		"**/*",
@@ -32,9 +31,9 @@
 		// ====
 		"@types",
 		"app",
-		"../server/@types",
 		// ====
-		"../../node_modules/simplebar-react/dist/index.d.ts"
+		"../server/@types"
+		// "../../node_modules/simplebar-react/dist/index.d.ts"
 	],
 	"exclude": ["node_modules", "dist", "build", "public"]
 }

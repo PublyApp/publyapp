@@ -27,7 +27,7 @@ import { logger } from '@org/shared/lib/winston.server';
 import type { RequestHandler } from 'express';
 import _ from 'lodash';
 import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
-import { getLogger } from 'parse-server/lib/logger';
+import { getLogger } from 'parse-server/lib/logger.js';
 import { USE_MASTER_KEY } from '../../constants';
 import {
 	expressHandler,
