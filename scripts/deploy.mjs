@@ -185,7 +185,7 @@ const pkgPath = path.join(DEPLOY_ROOT_DIR, 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
 // Set scripts.start using lodash
-const startCommand = `bun --enable-source-maps ./${mainFile}`;
+const startCommand = `node --enable-source-maps ./${mainFile}`;
 _.set(pkg, 'scripts.start', startCommand);
 
 // Unset scripts.build and scripts.prepare using lodash
