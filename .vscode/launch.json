@@ -14,16 +14,6 @@
 			"skipFiles": ["<node_internals>/**"]
 		},
 		{
-			"type": "node",
-			"request": "attach",
-			"name": "Attach by Process ID (Node)",
-			"processId": "${command:PickProcess}",
-			"internalConsoleOptions": "neverOpen",
-			"sourceMaps": true,
-			"smartStep": true,
-			"skipFiles": ["<node_internals>/**"]
-		},
-		{
 			"type": "bun",
 			"internalConsoleOptions": "neverOpen",
 			"request": "attach",
