@@ -1,10 +1,11 @@
+import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
 import {
+	defineCloudFunction,
 	type FunctionParams,
 	type FunctionReturn,
-	defineCloudFunction,
 	fromAuthedUserParseFunction,
 	fromPublicParseFunction,
 	fromStaffMemberParseFunction,
@@ -17,7 +18,12 @@ import {
 	parseFields,
 	removeParseFields,
 } from '@/server/lib/parse/parse.utils';
-import { X_CODE, className, functionName } from '@/shared/lib/constants';
+import {
+	APP_NAME,
+	className,
+	functionName,
+	X_CODE,
+} from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/winston.server';
 import type { IUser } from '@/shared/types/db/user.types';
 import {
@@ -25,7 +31,7 @@ import {
 	getCheckResetPasswordTokenSchema,
 	getEmailFormSchema,
 } from '@/shared/validations/auth.validations';
-import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
+import EmailService from '../email/email.service';
 import { AuthCloudService } from './auth-cloud.service';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
@@ -415,7 +421,7 @@ const requestEmailVerification = fromPublicParseFunction({
 		const schema = getEmailFormSchema(z);
 		return schema.parse(params);
 	},
-	action: async ({ params }) => {
+	action: async ({ params, t }) => {
 		const db = getDatabase();
 		const UserCollection = db.collection(className.USER);
 
@@ -435,29 +441,57 @@ const requestEmailVerification = fromPublicParseFunction({
 		);
 
 		if (!user) {
-			logger.warn('User not found for email verification request', {
-				email: params.email,
+			throw new HttpException(404, t('item-not-found', { item: 'User' }), {
+				xcode: X_CODE.USER_NOT_FOUND,
 			});
-			return { status: 'processed' } as const;
 		}
 
 		if (user.emailVerified) {
-			logger.warn('User already verified for email verification request', {
-				email: params.email,
-			});
-			return { status: 'processed' } as const;
+			throw new HttpException(
+				400,
+				t('email-x-already-verified', { email: user.email }),
+				{
+					xcode: X_CODE.EMAIL_ALREADY_VERIFIED,
+				},
+			);
 		}
 
 		const config = getInternalConfig();
 
+		const emailService = new EmailService();
+
+		const sendEmail = async (emailData: { email: string; token: string }) => {
+			const customLink = await AuthCloudService.getCustomVerificationLink({
+				token: emailData.token,
+				email: emailData.email,
+				serverUrl: env.FRONT_URL,
+			});
+
+			await emailService.sendEmail({
+				subject: `Email Verification Link for ${APP_NAME} account`,
+				html: `<h1>Email Verification</h1>
+<p>Please click the link below to verify your email:</p>
+<a href="${customLink}">${customLink}</a>`,
+				to: emailData.email,
+			});
+		};
+
+		// if the token is valid and the token reuse is enabled, return success
 		if (
 			config.emailVerifyTokenReuseIfValid &&
 			config.emailVerifyTokenValidityDuration &&
 			user._email_verify_token &&
 			new Date() < new Date(user._email_verify_token_expires_at)
 		) {
-			// logger.warn("User already has a valid email verification token", { email: params.email });
-			return { status: 'processed' } as const;
+			// asynchronously send email
+			sendEmail({
+				email: user.email,
+				token: user._email_verify_token,
+			}).catch((error) => {
+				logger.error(error);
+			});
+
+			return { status: 'success' } as const;
 		}
 
 		const emailVerifyData: {
@@ -480,6 +514,14 @@ const requestEmailVerification = fromPublicParseFunction({
 				$set: emailVerifyData,
 			},
 		);
+
+		// asynchronously send email
+		sendEmail({
+			email: user.email,
+			token: user._email_verify_token,
+		}).catch((error) => {
+			logger.error(error);
+		});
 
 		return { status: 'success' } as const;
 	},

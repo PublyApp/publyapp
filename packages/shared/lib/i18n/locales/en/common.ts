@@ -205,6 +205,13 @@ const commonEN = {
 	'n+ characters': '{{characters}}+ characters',
 
 	'session-expired': 'Session expired',
+	'send-email-verification-follow-up': 'Resend verification',
+	'follow-up': 'Reminder',
+	'email-verification-follow-up-success':
+		'Email verification follow-up sent successfully',
+	'email-verification-follow-up-error':
+		'Failed to send email verification follow-up',
+	'email-x-already-verified': 'Email {{email}} is already verified',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

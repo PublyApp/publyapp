@@ -1,16 +1,16 @@
+import Button from '@mui/material/Button';
+import i18next, { type TFunction } from 'i18next';
 import _ from 'lodash';
+import { data } from 'react-router';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
-import Button from '@mui/material/Button';
-import StaffMembersTable from './parts/staff-members-table';
-import type { Route } from './+types/staff-members-list-page';
-import i18next, { type TFunction } from 'i18next';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { data } from 'react-router';
+import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import type { Route } from './+types/staff-members-list-page';
+import StaffMembersTable from './parts/staff-members-table';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(

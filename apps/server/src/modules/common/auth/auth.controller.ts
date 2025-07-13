@@ -1,8 +1,7 @@
-import _ from 'lodash';
-
 import dayjs from 'dayjs';
+import _ from 'lodash';
 import { nanoid } from 'nanoid';
-
+import { generateUsername } from 'unique-username-generator';
 import { HttpException } from '@/server/exceptions/HttpException';
 import {
 	DISABLE_SIGNUP_CONFIG_KEY,
@@ -20,18 +19,23 @@ import {
 } from '@/server/lib/parse/parse.utils';
 import ParseUser from '@/server/modules/common/auth/user/user.class';
 import { defaultHttp } from '@/shared/lib/axios';
-
-import { generateUsername } from 'unique-username-generator';
 import { AuthCloudService } from './auth-cloud.service';
 
 export const handlePasswordLogin = expressHandler(async (req, res) => {
 	const { password } = req.body;
 	const identifier = req.body.email || req.body.username;
+	const { t } = getRequestUtils(req);
 
 	const user = await AuthCloudService.authenticateUserWithPassword({
 		usernameOrEmail: identifier,
 		password,
 	});
+
+	// Before login:
+	// - check if user is banned or deleted
+	if (user.isBanned || user.isDeleted) {
+		throw new HttpException(403, t('Invalid username/password.'));
+	}
 
 	const ipAddress = getRequestIp(req) || nanoid();
 
@@ -43,6 +47,9 @@ export const handlePasswordLogin = expressHandler(async (req, res) => {
 	});
 
 	_.set(user, 'sessionToken', result.sessionToken);
+
+	// Ad after login logic here:
+	// - ???
 
 	return res.status(201).json(user);
 });
@@ -65,7 +72,6 @@ export const handlePasswordSignup = expressHandler(async (req, res) => {
 	}
 
 	if (!username) {
-		// username = `${email.split('@')?.[0]}_${nanoid(5)}`;
 		username = generateUsername();
 	}
 
@@ -78,30 +84,6 @@ export const handlePasswordSignup = expressHandler(async (req, res) => {
 
 	return res.json(result.toJSON());
 });
-
-// export const handleVerifyEmail = expressHandler(async (req, res) => {
-// 	const { t } = getRequestUtils(req);
-// 	try {
-// 		const { token } = req.query;
-
-// 		if (!token || !_.isString(token)) {
-// 			throw new HttpException(400, t('item-is-invalid', { item: 'token' }));
-// 		}
-
-// 		await AuthCloudService.verifyEmailByToken({ token });
-
-// 		// on success redirect to success page
-// 		const successUrl = new URL(env.FRONT_URL);
-// 		successUrl.pathname = FRONT_PATH_NAMES.auth.login;
-// 		return res.redirect(successUrl.toString());
-// 	} catch (error) {
-// 		logger.error('Error in verifyEmail:', error);
-// 		// on error, redirect to error page
-// 		const failUrl = new URL(env.FRONT_URL);
-// 		failUrl.pathname = FRONT_PATH_NAMES.auth.signup;
-// 		return res.redirect(failUrl.toString());
-// 	}
-// });
 
 // ! ==================== wip: facebook login flow
 

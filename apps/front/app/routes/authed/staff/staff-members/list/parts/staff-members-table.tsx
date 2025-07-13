@@ -1,21 +1,3 @@
-import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
-import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
-import { Iconify } from '@/front/components/iconify/iconify';
-import type { LabelColor } from '@/front/components/label';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { toast } from '@/front/components/snackbar';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTableState } from '@/front/hooks/use-table-state';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { useGetVerificationLink } from '@/front/lib/react-query/features/auth/auth.hooks';
-import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
-import {
-	DEFAULT_PAGE_SIZE,
-	FRONT_PATH_NAMES,
-	roleEnum,
-} from '@/shared/lib/constants';
-import { getUserFullName } from '@/shared/utils/user.utils';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -28,13 +10,35 @@ import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import _ from 'lodash';
 import {
+	createMRTColumnHelper,
+	MaterialReactTable,
 	type MRT_ColumnDef,
 	type MRT_SortingState,
-	MaterialReactTable,
-	createMRTColumnHelper,
 } from 'material-react-table';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useMemo } from 'react';
+import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
+import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
+import { Iconify } from '@/front/components/iconify/iconify';
+import type { LabelColor } from '@/front/components/label';
+import { Label } from '@/front/components/label/label';
+import { RouterLink } from '@/front/components/router-link';
+import { toast } from '@/front/components/snackbar';
+import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTableState } from '@/front/hooks/use-table-state';
+import { useTranslate } from '@/front/hooks/use-translate';
+import {
+	useGetVerificationLink,
+	useSendEmailVerificationReminder,
+} from '@/front/lib/react-query/features/auth/auth.hooks';
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+	roleEnum,
+} from '@/shared/lib/constants';
+import { getUserFullName } from '@/shared/utils/user.utils';
 
 export type StaffMemberRowData = {
 	id: string;
@@ -246,6 +250,8 @@ const RoleCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	);
 };
 
+const ALLOW_COPY_LINK = false;
+
 const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 	const userId = props.row.original.id;
 	const isUserPending = props.row.original.status === 'pending';
@@ -259,58 +265,37 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 		toast.warning(`onDelete: ${userId}`);
 	};
 
-	const {
-		data: linkData,
-		refetch,
-		// isPending,
-		isLoading,
-	} = useGetVerificationLink({
-		variables: { userId },
-		enabled: false,
-	});
+	// const {
+	// 	data: linkData,
+	// 	refetch: fetchVerificationLink,
+	// 	// isPending,
+	// 	isLoading: isLoadingGetVerificationLink,
+	// } = useGetVerificationLink({
+	// 	variables: { userId },
+	// 	enabled: false,
+	// });
 
 	const renderMenuActions = () => (
 		<CustomPopover
 			open={menuActions.open}
 			anchorEl={menuActions.anchorEl}
-			onClose={isLoading ? undefined : menuActions.onClose}
+			onClose={
+				/* isLoadingGetVerificationLink ? undefined :  */ menuActions.onClose
+			}
 			slotProps={{ arrow: { placement: 'right-top' } }}
 		>
 			<MenuList>
-				{isUserPending ? (
-					<Tooltip
-						title={_.capitalize(
-							t('copy-item', { item: t('verification-link') }),
-						)}
-						placement="top"
-					>
-						<MenuItem
-							component={Button}
-							loading={isLoading}
-							fullWidth
-							onClick={async () => {
-								let link = linkData?.link || 'unable to get verification link';
-								if (!linkData) {
-									const result = await refetch();
-									if (result.error) {
-										console.error(result.error);
-										toast.error(t('copy-to-clipboard-error'));
-										return;
-									}
-									if (result.data) {
-										link = result.data.link || link;
-									}
-								}
-								navigator.clipboard.writeText(link);
-								toast.success(t('copy-to-clipboard-success'));
-								menuActions.onClose();
-							}}
-						>
-							<Iconify icon="solar:copy-bold-duotone" />
-							{t('copy-link')}
-						</MenuItem>
-					</Tooltip>
-				) : null}
+				<CopyLinkButton
+					isUserPending={isUserPending}
+					userId={userId}
+					onClose={menuActions.onClose}
+				/>
+
+				<FollowUpButton
+					isUserPending={isUserPending}
+					email={props.row.original.email}
+					onClose={menuActions.onClose}
+				/>
 
 				<MenuItem
 					component={RouterLink}
@@ -320,7 +305,6 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 					<Iconify icon="solar:pen-bold" />
 					{t('edit')}
 				</MenuItem>
-
 				<MenuItem
 					onClick={() => {
 						confirmDialog.onTrue();
@@ -362,4 +346,113 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 			{renderConfirmDialog()}
 		</Box>
 	);
+};
+
+const CopyLinkButton = ({
+	isUserPending,
+	userId,
+	onClose,
+	// isLoadingGetVerificationLink,
+	// linkData,
+	// fetchVerificationLink,
+	// menuActions,
+}: {
+	isUserPending: boolean;
+	userId: string;
+	onClose?: () => void;
+}) => {
+	const { t } = useTranslate();
+
+	const {
+		data: linkData,
+		refetch: fetchVerificationLink,
+		// isPending,
+		isLoading: isLoadingGetVerificationLink,
+	} = useGetVerificationLink({
+		variables: { userId },
+		enabled: false,
+	});
+
+	return isUserPending && ALLOW_COPY_LINK ? (
+		<Tooltip
+			title={_.capitalize(t('copy-item', { item: t('verification-link') }))}
+			placement="top"
+		>
+			<MenuItem
+				component={Button}
+				loading={isLoadingGetVerificationLink}
+				fullWidth
+				onClick={async () => {
+					let link = linkData?.link || 'unable to get verification link';
+					if (!linkData) {
+						const result = await fetchVerificationLink();
+						if (result.error) {
+							console.error(result.error);
+							toast.error(t('copy-to-clipboard-error'));
+							return;
+						}
+						if (result.data) {
+							link = result.data.link || link;
+						}
+					}
+					navigator.clipboard.writeText(link);
+					toast.success(t('copy-to-clipboard-success'));
+					onClose?.();
+				}}
+			>
+				<Iconify icon="solar:copy-bold-duotone" />
+				{t('copy-link')}
+			</MenuItem>
+		</Tooltip>
+	) : null;
+};
+
+const FollowUpButton = ({
+	isUserPending,
+	email,
+	onClose,
+}: {
+	isUserPending: boolean;
+	email: string;
+	onClose?: () => void;
+}) => {
+	const { t } = useTranslate();
+
+	const {
+		mutateAsync: sendEmailVerificationReminder,
+		isPending: isPendingSendEmailVerificationReminder,
+	} = useSendEmailVerificationReminder({
+		onSuccess: () => {
+			toast.success(t('email-verification-follow-up-success'));
+			onClose?.();
+		},
+		onError: (error) => {
+			if (error instanceof ParseRestError) {
+				toast.error(error.message);
+				return;
+			}
+			toast.error(t('email-verification-follow-up-error'));
+			onClose?.();
+		},
+	});
+
+	return isUserPending ? (
+		<Tooltip
+			title={_.capitalize(t('send-email-verification-follow-up'))}
+			placement="top"
+		>
+			<MenuItem
+				component={Button}
+				loading={isPendingSendEmailVerificationReminder}
+				fullWidth
+				onClick={async () => {
+					await sendEmailVerificationReminder({ email });
+					onClose?.();
+				}}
+			>
+				<Iconify icon="custom:send-fill" />
+				{t('follow-up')}
+			</MenuItem>
+		</Tooltip>
+	) : null;
 };
