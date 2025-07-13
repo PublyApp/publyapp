@@ -1,3 +1,11 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, type Theme } from '@mui/material';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+import { useForm } from 'react-hook-form';
+import { redirect, useFetcher } from 'react-router';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
@@ -11,9 +19,9 @@ import {
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import {
 	FRONT_PATH_NAMES,
-	X_CODE,
 	queryParamKey,
 	queryParamValue,
+	X_CODE,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
@@ -23,15 +31,6 @@ import {
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
 } from '@/shared/validations/auth.validations';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, type Theme } from '@mui/material';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import _ from 'lodash';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { useForm } from 'react-hook-form';
-import { redirect, useFetcher } from 'react-router';
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';
 
@@ -167,23 +166,33 @@ export const loader = getServerLoader({
 			throw result.error;
 		}
 
-		const redirectSearchParams = new URLSearchParams();
-		redirectSearchParams.set(
+		const redirectUrl = new URL(result.data.resetPasswordLink);
+		redirectUrl.searchParams.set(
+			queryParamKey.language,
+			getCorrectLocale(searchParams.get(queryParamKey.language)),
+		);
+		redirectUrl.searchParams.set(
 			queryParamKey.reset_password_page.redirect_cause,
 			queryParamValue.reset_password_page.redirect_cause.email_verification,
 		);
-		redirectSearchParams.set(
-			queryParamKey.language,
-			getCorrectLocale(redirectSearchParams.get(queryParamKey.language)),
-		);
-		redirectSearchParams.set(
-			queryParamKey.reset_password_page.encoded_email,
-			encodedEmail,
-		);
-		redirectSearchParams.set(queryParamKey.token, result.data.token);
-		return redirect(
-			`${FRONT_PATH_NAMES.auth.resetPassword}?${redirectSearchParams.toString()}`,
-		);
+		return redirect(redirectUrl.toString());
+		// const redirectSearchParams = new URLSearchParams();
+		// redirectSearchParams.set(
+		// 	queryParamKey.reset_password_page.redirect_cause,
+		// 	queryParamValue.reset_password_page.redirect_cause.email_verification,
+		// );
+		// redirectSearchParams.set(
+		// 	queryParamKey.language,
+		// 	getCorrectLocale(redirectSearchParams.get(queryParamKey.language)),
+		// );
+		// redirectSearchParams.set(
+		// 	queryParamKey.reset_password_page.encoded_email,
+		// 	encodedEmail,
+		// );
+		// redirectSearchParams.set(queryParamKey.token, result.data.token);
+		// return redirect(
+		// 	`${FRONT_PATH_NAMES.auth.resetPassword}?${redirectSearchParams.toString()}`,
+		// );
 	},
 });
 
