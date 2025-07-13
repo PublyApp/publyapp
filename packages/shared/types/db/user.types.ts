@@ -1,5 +1,5 @@
-import type ParseUser from '@/server/modules/common/auth/user/user.class';
 import type { BaseAttributes } from 'parse';
+import type ParseUser from '@/server/modules/common/auth/user/user.class';
 
 export type UserStatus = 'active' | 'pending' | 'banned';
 
@@ -19,6 +19,10 @@ export type UserAttributes = {
 	};
 
 	status?: UserStatus;
+
+	// ====
+	isBanned?: boolean;
+	isDeleted?: boolean;
 
 	// ====
 	avatarUrl?: string;
