@@ -218,6 +218,7 @@ const commonFR = {
 
 	'reset-password-description':
 		'Entrez votre nouveau mot de passe pour <span style="font-weight: bold;">{{email}}</span>',
+	'password-reset-success': 'Mot de passe réinitialisé avec succès',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

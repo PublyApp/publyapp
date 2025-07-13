@@ -215,6 +215,7 @@ const commonEN = {
 
 	'reset-password-description':
 		'Enter your new password for <span style="font-weight: bold;">{{email}}</span>',
+	'password-reset-success': 'Password reset successfully',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;
