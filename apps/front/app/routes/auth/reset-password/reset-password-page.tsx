@@ -11,11 +11,12 @@ import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useFetcher, useLoaderData, useSearchParams } from 'react-router';
+import { object } from 'zod';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { toast } from '@/front/components/snackbar';
-import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
+import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
@@ -30,15 +31,51 @@ import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
 
 export const action = getServerAction({
-	action: async ({ request }) => {
+	action: async ({ request, apiClient, z }) => {
+		const searchParams = new URL(request.url).searchParams;
+		const token = searchParams.get(queryParamKey.token);
+		const encodedEmail = searchParams.get(
+			queryParamKey.reset_password_page.encoded_email,
+		);
+
 		const formData = await request.formData();
 		const password = formData.get('password');
 		const confirmPassword = formData.get('confirmPassword');
 
-		if (password !== confirmPassword) {
+		const resetPassword = safeRun(apiClient.auth.resetPassword);
+
+		const schema = getResetPasswordSchema(z).and(
+			z.object({
+				token: z.string().min(1),
+				id: z.string().min(1),
+			}),
+		);
+
+		const validationResult = schema.safeParse({
+			password,
+			confirmPassword,
+			token,
+			id: encodedEmail,
+		});
+
+		if (!validationResult.success) {
 			return {
 				status: 'error',
-				error: 'Passwords do not match',
+				error: validationResult.error.errors[0].message,
+			} as const;
+		}
+
+		const result = await resetPassword({
+			id: validationResult.data.id,
+			token: validationResult.data.token,
+			password: validationResult.data.password,
+			confirmPassword: validationResult.data.confirmPassword,
+		});
+
+		if (result.status === 'error') {
+			return {
+				status: 'error',
+				error: result.error.message,
 			} as const;
 		}
 	},
@@ -155,7 +192,7 @@ const ResetPasswordForm = () => {
 		formState: { isSubmitting },
 	} = form;
 
-	useLanguageTriggerValidation(i18n.language, form);
+	useSyncFormToLang(i18n.language, form);
 
 	const fetcher = useFetcher<typeof action>();
 
@@ -252,7 +289,6 @@ const ResetPasswordForm = () => {
 						variant="contained"
 						sx={{ mt: 3 }}
 						loading={isSubmitting}
-						// loadingIndicator={`${t('verify-email')}...`}
 					>
 						{t('reset-password')}
 					</Button>

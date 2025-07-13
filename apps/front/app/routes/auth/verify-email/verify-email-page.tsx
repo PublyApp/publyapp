@@ -9,7 +9,7 @@ import { redirect, useFetcher } from 'react-router';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
-import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
+import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
@@ -217,7 +217,7 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 		formState: { isSubmitting },
 	} = form;
 
-	useLanguageTriggerValidation(i18n.language, form);
+	useSyncFormToLang(i18n.language, form);
 
 	const fetcher = useFetcher<typeof action>();
 
@@ -288,7 +288,6 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 					variant="contained"
 					sx={{ mt: 3 }}
 					loading={isSubmitting}
-					loadingIndicator={`${t('verify-email')}...`}
 				>
 					{t('verify-email')}
 				</Button>

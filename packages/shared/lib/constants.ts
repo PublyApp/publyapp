@@ -305,6 +305,7 @@ export const functionName = {
 		checkResetPasswordToken: 'checkResetPasswordToken',
 		requestEmailVerification: 'requestEmailVerification',
 		getVerificationLink: 'getVerificationLink',
+		resetPassword: 'resetPassword',
 		// ====
 		removeSeededUsers: 'removeSeededUsers',
 	},
@@ -409,6 +410,7 @@ export const jobType = {
 export const DEFAULT_MAX_USER_PER_TENANT = 5;
 
 export const X_CODE = {
+	VALIDATION_ERROR: 'VALIDATION_ERROR',
 	INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID:
 		'INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
