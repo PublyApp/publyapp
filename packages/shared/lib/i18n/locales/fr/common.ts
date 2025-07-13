@@ -215,6 +215,9 @@ const commonFR = {
 	'email-verification-follow-up-error':
 		"Échec de l'envoi du suivi de vérification email",
 	'email-x-already-verified': "L'email {{email}} est déjà vérifié",
+
+	'reset-password-description':
+		'Entrez votre nouveau mot de passe pour <span style="font-weight: bold;">{{email}}</span>',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

@@ -212,6 +212,9 @@ const commonEN = {
 	'email-verification-follow-up-error':
 		'Failed to send email verification follow-up',
 	'email-x-already-verified': 'Email {{email}} is already verified',
+
+	'reset-password-description':
+		'Enter your new password for <span style="font-weight: bold;">{{email}}</span>',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;
