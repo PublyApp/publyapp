@@ -25,7 +25,6 @@ import {
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { queryParamKey, queryParamValue, X_CODE } from '@/shared/lib/constants';
 import { getErrorMessage } from '@/shared/utils/error-message';
-import { decodeString } from '@/shared/utils/string-encoding.server';
 import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
@@ -59,45 +58,42 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		let isValidEncodedString = false;
-		let decodedEmail = '';
+		// let isValidEncodedString = false;
+		// let decodedEmail = '';
 
-		try {
-			decodedEmail = decodeString(encodedEmail);
-			isValidEncodedString = true;
-		} catch (_error) {
-			isValidEncodedString = false;
-		}
+		// try {
+		// 	decodedEmail = decodeString(encodedEmail);
+		// 	isValidEncodedString = true;
+		// } catch (_error) {
+		// 	isValidEncodedString = false;
+		// }
 
-		if (!isValidEncodedString) {
-			return {
-				code: 'INVALID_LINK',
-			} as const;
-		}
+		// if (!isValidEncodedString) {
+		// 	return {
+		// 		code: 'INVALID_LINK',
+		// 	} as const;
+		// }
 
 		const checkResetPasswordToken = safeRun(
 			apiClient.auth.checkResetPasswordToken,
 		);
 
 		// verify if token belongs to the email
-		const checkResetPasswordTokenResult = await checkResetPasswordToken({
-			email: decodedEmail,
+		const result = await checkResetPasswordToken({
+			id: encodedEmail,
 			token,
 		});
 
-		if (checkResetPasswordTokenResult.status === 'error') {
-			if (checkResetPasswordTokenResult.error instanceof ParseRestError) {
-				if (
-					checkResetPasswordTokenResult.error.code ===
-					X_CODE.INVALID_RESET_PASSWORD_TOKEN
-				) {
+		if (result.status === 'error') {
+			if (result.error instanceof ParseRestError) {
+				if (result.error.code === X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID) {
 					return {
 						code: 'INVALID_LINK',
 					} as const;
 				}
 			}
 
-			throw checkResetPasswordTokenResult.error;
+			throw result.error;
 		}
 
 		return {

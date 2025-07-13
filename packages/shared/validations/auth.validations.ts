@@ -75,8 +75,9 @@ export const getRequestEmailVerificationSchema = (z: InterZod) => {
 
 // use server-side only
 export const getCheckEmailVerificationTokenSchema = (z: InterZod) => {
-	return getEmailFormSchema(z).extend({
+	return z.object({
 		token: z.string().min(1),
+		id: z.string().min(1),
 	});
 };
 
