@@ -294,8 +294,8 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 		const result = schema.safeParse(req.params);
 
 		if (!result.success) {
-			throw new HttpException(400, t('invalid-item', { item: 'Email/Token' }), {
-				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
+			throw new HttpException(400, t('invalid-item', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID,
 				meta: { cause: 'Did not pass validation' },
 			});
 		}
@@ -323,27 +323,19 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 		);
 
 		if (!user) {
-			throw new HttpException(
-				400,
-				t('item-is-invalid', { item: 'Email/Token' }),
-				{
-					xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
-					meta: { cause: 'User not found' },
-				},
-			);
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID,
+				meta: { cause: 'User not found' },
+			});
 		}
 
 		const isExpired = user._email_verify_token_expires_at < new Date();
 
 		if (isExpired) {
-			throw new HttpException(
-				400,
-				t('item-is-invalid', { item: 'Email/Token' }),
-				{
-					xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
-					meta: { cause: 'Token expired' },
-				},
-			);
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID,
+				meta: { cause: 'Token expired' },
+			});
 		}
 
 		const config = getInternalConfig();
