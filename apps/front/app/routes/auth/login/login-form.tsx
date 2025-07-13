@@ -1,13 +1,3 @@
-import { FormHead } from '@/front/components/auth/form-head';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { getErrorMessage } from '@/shared/utils/error-message';
-import { getLoginSchema } from '@/shared/validations/auth.validations';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -18,6 +8,16 @@ import Link from '@mui/material/Link';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import { useFetcher } from 'react-router';
+import { FormHead } from '@/front/components/auth/form-head';
+import { Field, Form } from '@/front/components/hook-form';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { RouterLink } from '@/front/components/router-link';
+import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { getErrorMessage } from '@/shared/utils/error-message';
+import { getLoginSchema } from '@/shared/validations/auth.validations';
 import type { LoginActionResult } from './login-page';
 
 const LoginForm = () => {
@@ -43,7 +43,7 @@ const LoginForm = () => {
 		formState: { isSubmitting },
 	} = methods;
 
-	useLanguageTriggerValidation(i18n.language, methods);
+	useSyncFormToLang(i18n.language, methods);
 
 	const handleLogin = methods.handleSubmit(async (data) => {
 		await fetcher.submit(data, {
@@ -103,7 +103,6 @@ const LoginForm = () => {
 				type="submit"
 				variant="contained"
 				loading={isSubmitting}
-				loadingIndicator={`${t('login')}...`}
 			>
 				{t('sign-in')}
 			</Button>
