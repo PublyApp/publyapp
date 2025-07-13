@@ -1,5 +1,3 @@
-import { EmptyContent } from '@/front/components/empty-content/empty-content';
-import { Iconify } from '@/front/components/iconify/iconify';
 import type { Theme } from '@mui/material';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -10,6 +8,8 @@ import {
 	type MRT_RowData,
 	type MRT_TableInstance,
 } from 'material-react-table';
+import { EmptyContent } from '@/front/components/empty-content/empty-content';
+import { Iconify } from '@/front/components/iconify/iconify';
 import type { TablePreset } from '../table-presets';
 
 export const defaultTablePreset = (theme: Theme): TablePreset => {
@@ -30,6 +30,7 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 		// enableTopToolbar: true,
 		renderEmptyRowsFallback: () => (
 			<EmptyContent
+				className="empty-content"
 				sx={{
 					minHeight: 400,
 				}}
