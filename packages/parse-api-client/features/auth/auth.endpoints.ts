@@ -157,18 +157,12 @@ export default class AuthEndPoints extends BaseEndPoints {
 		});
 	}
 
-	async checkResetPasswordToken({
-		email,
-		token,
-	}: {
-		email: string;
-		token: string;
-	}) {
+	async checkResetPasswordToken({ id, token }: { id: string; token: string }) {
 		return this.parseRestClient.cloudRun<
 			CheckResetPasswordToken.Return,
 			CheckResetPasswordToken.Params
 		>(functionName.auth.checkResetPasswordToken, {
-			params: { email, token },
+			params: { id, token },
 		});
 	}
 }
