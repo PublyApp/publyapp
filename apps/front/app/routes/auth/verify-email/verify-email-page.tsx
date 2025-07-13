@@ -112,31 +112,11 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		// let isValidEncodedString = false;
-		// let decodedEmail = '';
-
-		// try {
-		// 	decodedEmail = decodeString(encodedEmail);
-		// 	isValidEncodedString = true;
-		// } catch (_error) {
-		// 	isValidEncodedString = false;
-		// }
-
-		// if (!isValidEncodedString) {
-		// 	return {
-		// 		code: 'INVALID_LINK',
-		// 	} as const;
-		// }
-
 		const checkEmailVerificationToken = safeRun(
 			apiClient.auth.checkEmailVerificationToken,
 		);
 
-		const schema = getCheckEmailVerificationTokenSchema(z)
-			.pick({ token: true })
-			.extend({
-				id: z.string().min(1),
-			});
+		const schema = getCheckEmailVerificationTokenSchema(z);
 		const parsed = schema.safeParse({ id: encodedEmail, token });
 
 		// we don't tell what went wrong here
@@ -181,23 +161,6 @@ export const loader = getServerLoader({
 			queryParamValue.reset_password_page.redirect_cause.email_verification,
 		);
 		return redirect(redirectUrl.toString());
-		// const redirectSearchParams = new URLSearchParams();
-		// redirectSearchParams.set(
-		// 	queryParamKey.reset_password_page.redirect_cause,
-		// 	queryParamValue.reset_password_page.redirect_cause.email_verification,
-		// );
-		// redirectSearchParams.set(
-		// 	queryParamKey.language,
-		// 	getCorrectLocale(redirectSearchParams.get(queryParamKey.language)),
-		// );
-		// redirectSearchParams.set(
-		// 	queryParamKey.reset_password_page.encoded_email,
-		// 	encodedEmail,
-		// );
-		// redirectSearchParams.set(queryParamKey.token, result.data.token);
-		// return redirect(
-		// 	`${FRONT_PATH_NAMES.auth.resetPassword}?${redirectSearchParams.toString()}`,
-		// );
 	},
 });
 
