@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import zodEn from 'zod-i18n-map/locales/en/zod.json' with { type: 'json' };
 
 import common from './common';
