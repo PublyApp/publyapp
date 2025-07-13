@@ -97,7 +97,7 @@ export function decodeString(
  * @param encodedEmail - The string to validate
  * @returns True if it's a valid encoded email, false otherwise
  */
-export function isValidEncodedEmail(
+export function isValidEncodedString(
 	encodedEmail: string,
 	secret: string = STRING_ENCODING_SECRET_DEFAULT,
 ): boolean {
