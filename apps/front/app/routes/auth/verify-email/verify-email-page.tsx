@@ -155,7 +155,9 @@ export const loader = getServerLoader({
 
 		if (result.status === 'error') {
 			if (result.error instanceof ParseRestError) {
-				if (result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN) {
+				if (
+					result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID
+				) {
 					return {
 						code: 'INVALID_LINK',
 					} as const;
