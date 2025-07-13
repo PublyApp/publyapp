@@ -1,7 +1,10 @@
 import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 import type { z as zod } from 'zod';
 import { HttpException } from '@/server/exceptions/HttpException';
-import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
+import {
+	DISABLE_SIGNUP_CONFIG_KEY,
+	USE_MASTER_KEY,
+} from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
 import {
 	defineCloudFunction,
@@ -42,6 +45,7 @@ import { AuthCloudService } from './auth-cloud.service';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
+import ParseUser from './user/user.class';
 
 export namespace GetUserAuthData {
 	export type Params = FunctionParams<typeof getUserAuthData>;
@@ -443,27 +447,19 @@ const checkResetPasswordToken = fromPublicParseFunction({
 		);
 
 		if (!user) {
-			throw new HttpException(
-				400,
-				t('item-is-invalid', { item: 'Email/Token' }),
-				{
-					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
-					meta: { cause: 'User not found' },
-				},
-			);
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+				meta: { cause: 'User not found' },
+			});
 		}
 
 		const isExpired = user._perishable_token_expires_at < new Date();
 
 		if (isExpired) {
-			throw new HttpException(
-				400,
-				t('item-is-invalid', { item: 'Email/Token' }),
-				{
-					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
-					meta: { cause: 'Token expired' },
-				},
-			);
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+				meta: { cause: 'Token expired' },
+			});
 		}
 
 		return { status: 'success', email } as const;
@@ -655,15 +651,62 @@ const getResetPasswordSchemaServer = (z: InterZod) => {
 
 const resetPassword = fromPublicParseFunction({
 	name: functionName.auth.resetPassword,
-	action: async ({ req, z }) => {
+	action: async ({ req, z, t }) => {
 		const schema = getResetPasswordSchemaServer(z);
 		const result = schema.safeParse(req.params);
 
 		if (!result.success) {
+			if (['id', 'token'].includes(result.error.errors[0].path[0] as string)) {
+				throw new HttpException(400, t('invalid-item', { item: 'ID/Token' }), {
+					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+					meta: { cause: 'Did not pass validation' },
+				});
+			}
+
 			throw new HttpException(400, result.error.errors[0].message, {
 				xcode: X_CODE.VALIDATION_ERROR,
 			});
 		}
+
+		const params = result.data;
+		const email = params.id;
+
+		const UserCollection = getDatabase().collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				_perishable_token: params.token,
+				email,
+			},
+			{
+				projection: {
+					_perishable_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+				meta: { cause: 'User not found' },
+			});
+		}
+
+		const isExpired = user._perishable_token_expires_at < new Date();
+
+		if (isExpired) {
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+				meta: { cause: 'Token expired' },
+			});
+		}
+
+		const userObject = new ParseUser();
+		userObject.id = user._id as never;
+		userObject.set('password', params.newPassword);
+		userObject.unset('_perishable_token');
+		userObject.unset('_perishable_token_expires_at');
+		await userObject.save(null, USE_MASTER_KEY); // master key is required due to owner ALC on user objects
 
 		return { status: 'success' } as const;
 	},
@@ -681,6 +724,7 @@ defineCloudFunction(checkEmailVerificationToken);
 defineCloudFunction(checkResetPasswordToken);
 defineCloudFunction(requestEmailVerification);
 defineCloudFunction(getVerificationLink);
+defineCloudFunction(resetPassword);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //
