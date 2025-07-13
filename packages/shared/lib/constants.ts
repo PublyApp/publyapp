@@ -393,6 +393,7 @@ export const queryParamValue = {
 	login_page: {
 		redirect_cause: {
 			invalid_session: 'invalid_session',
+			password_reset_success: 'password_reset_success',
 		},
 	},
 	reset_password_page: {

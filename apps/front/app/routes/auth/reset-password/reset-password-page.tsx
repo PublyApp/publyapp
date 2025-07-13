@@ -10,8 +10,12 @@ import { useBoolean } from 'minimal-shared/hooks';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { useFetcher, useLoaderData, useSearchParams } from 'react-router';
-import { object } from 'zod';
+import {
+	redirect,
+	useFetcher,
+	useLoaderData,
+	useSearchParams,
+} from 'react-router';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -24,7 +28,13 @@ import {
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { queryParamKey, queryParamValue, X_CODE } from '@/shared/lib/constants';
+import {
+	FRONT_PATH_NAMES,
+	queryParamKey,
+	queryParamValue,
+	X_CODE,
+} from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
 import InvalidLinkView from '../components/invalid-link-view';
@@ -39,7 +49,7 @@ export const action = getServerAction({
 		);
 
 		const formData = await request.formData();
-		const password = formData.get('password');
+		const newPassword = formData.get('newPassword');
 		const confirmPassword = formData.get('confirmPassword');
 
 		const resetPassword = safeRun(apiClient.auth.resetPassword);
@@ -52,7 +62,7 @@ export const action = getServerAction({
 		);
 
 		const validationResult = schema.safeParse({
-			password,
+			newPassword,
 			confirmPassword,
 			token,
 			id: encodedEmail,
@@ -68,7 +78,7 @@ export const action = getServerAction({
 		const result = await resetPassword({
 			id: validationResult.data.id,
 			token: validationResult.data.token,
-			password: validationResult.data.password,
+			newPassword: validationResult.data.newPassword,
 			confirmPassword: validationResult.data.confirmPassword,
 		});
 
@@ -78,6 +88,19 @@ export const action = getServerAction({
 				error: result.error.message,
 			} as const;
 		}
+
+		const redirectParams = new URLSearchParams();
+		redirectParams.set(
+			queryParamKey.login_page.redirect_cause,
+			queryParamValue.login_page.redirect_cause.password_reset_success,
+		);
+		redirectParams.set(
+			queryParamKey.language,
+			getCorrectLocale(searchParams.get(queryParamKey.language)),
+		);
+		return redirect(
+			`${FRONT_PATH_NAMES.auth.login}?${redirectParams.toString()}`,
+		);
 	},
 });
 
@@ -183,7 +206,7 @@ const ResetPasswordForm = () => {
 	const form = useForm({
 		resolver: zodResolver(schema),
 		defaultValues: {
-			password: '',
+			newPassword: '',
 			confirmPassword: '',
 		},
 	});
@@ -230,7 +253,7 @@ const ResetPasswordForm = () => {
 					/>
 
 					<Field.Text
-						name="password"
+						name="newPassword"
 						label={t('password')}
 						placeholder={t('n+ characters', { characters: '8' })}
 						type={showPassword.value ? 'text' : 'password'}

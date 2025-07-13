@@ -36,6 +36,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 		this.checkEmailVerificationToken =
 			this.checkEmailVerificationToken.bind(this);
 		this.checkResetPasswordToken = this.checkResetPasswordToken.bind(this);
+		this.resetPassword = this.resetPassword.bind(this);
 	}
 
 	async getUserAuthData() {
@@ -170,19 +171,19 @@ export default class AuthEndPoints extends BaseEndPoints {
 	async resetPassword({
 		id,
 		token,
-		password,
+		newPassword,
 		confirmPassword,
 	}: {
 		id: string;
 		token: string;
-		password: string;
+		newPassword: string;
 		confirmPassword: string;
 	}) {
 		return this.parseRestClient.cloudRun<
 			ResetPassword.Return,
 			ResetPassword.Params
 		>(functionName.auth.resetPassword, {
-			params: { id, token, password, confirmPassword },
+			params: { id, token, newPassword, confirmPassword },
 		});
 	}
 }
