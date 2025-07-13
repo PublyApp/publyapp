@@ -1,4 +1,5 @@
 import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
+import type { z as zod } from 'zod';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
@@ -34,6 +35,7 @@ import {
 import {
 	getCheckEmailVerificationTokenSchema,
 	getEmailFormSchema,
+	getResetPasswordSchema,
 } from '@/shared/validations/auth.validations';
 import EmailService from '../email/email.service';
 import { AuthCloudService } from './auth-cloud.service';
@@ -401,10 +403,9 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 });
 
 export namespace CheckResetPasswordToken {
-	export type Params = {
-		id: string;
-		token: string;
-	};
+	export type Params = zod.infer<
+		ReturnType<typeof getCheckResetPasswordTokenSchemaServer>
+	>;
 	export type Return = FunctionReturn<typeof checkResetPasswordToken>;
 }
 
@@ -622,6 +623,49 @@ const getVerificationLink = fromStaffMemberParseFunction({
 		return {
 			link,
 		} as const;
+	},
+});
+
+export namespace ResetPassword {
+	export type Params = Prettify<
+		zod.infer<ReturnType<typeof getResetPasswordSchemaServer>>
+	>;
+	export type Return = FunctionReturn<typeof resetPassword>;
+}
+
+const getResetPasswordSchemaServer = (z: InterZod) => {
+	return getResetPasswordSchema(z).and(
+		z.object({
+			id: z
+				.string()
+				.min(1)
+				.refine(
+					(arg) => {
+						return isValidEncodedString(arg);
+					},
+					z.t('invalid-item', { item: 'id' }),
+				)
+				.transform((arg) => {
+					return decodeString(arg);
+				}),
+			token: z.string().min(1),
+		}),
+	);
+};
+
+const resetPassword = fromPublicParseFunction({
+	name: functionName.auth.resetPassword,
+	action: async ({ req, z }) => {
+		const schema = getResetPasswordSchemaServer(z);
+		const result = schema.safeParse(req.params);
+
+		if (!result.success) {
+			throw new HttpException(400, result.error.errors[0].message, {
+				xcode: X_CODE.VALIDATION_ERROR,
+			});
+		}
+
+		return { status: 'success' } as const;
 	},
 });
 

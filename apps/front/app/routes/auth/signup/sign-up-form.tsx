@@ -1,26 +1,23 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useBoolean } from 'minimal-shared/hooks';
-import { useForm } from 'react-hook-form';
-import type { z } from 'zod';
-
+import { Alert } from '@mui/material';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
-
+import { useBoolean } from 'minimal-shared/hooks';
+import { useForm } from 'react-hook-form';
+import type { z } from 'zod';
+import { FormHead } from '@/front/components/auth/form-head';
+import { SignUpTerms } from '@/front/components/auth/sign-up-terms';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
-
-import { FormHead } from '@/front/components/auth/form-head';
-import { SignUpTerms } from '@/front/components/auth/sign-up-terms';
-import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
+import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getRegisterSchema } from '@/shared/validations/auth.validations';
-import { Alert } from '@mui/material';
 
 // ----------------------------------------------------------------------
 
@@ -47,7 +44,7 @@ const SignupForm = () => {
 		formState: { isSubmitting },
 	} = methods;
 
-	useLanguageTriggerValidation(i18n.language, methods);
+	useSyncFormToLang(i18n.language, methods);
 
 	const renderForm = () => (
 		<Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
@@ -108,7 +105,6 @@ const SignupForm = () => {
 				type="submit"
 				variant="contained"
 				loading={isSubmitting}
-				loadingIndicator={`${t('create-account')}...`}
 				disabled
 			>
 				{t('create-account')}

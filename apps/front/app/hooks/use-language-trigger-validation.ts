@@ -7,7 +7,7 @@ import type { FieldValues, UseFormReturn } from 'react-hook-form';
  * @param language The current language (string)
  * @param methods The react-hook-form methods object
  */
-export function useLanguageTriggerValidation<
+export function useSyncFormToLang<
 	TFieldValues extends FieldValues = FieldValues,
 >(lng: string, methods: UseFormReturn<TFieldValues>) {
 	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
