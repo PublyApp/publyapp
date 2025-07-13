@@ -349,9 +349,29 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 			},
 		);
 
+		// generate reset password link
+		const resetPasswordLink = await AuthCloudService.getCustomResetPasswordLink(
+			{
+				token: passwordResetTokenData._perishable_token,
+				email: user.email,
+				serverUrl: env.FRONT_URL,
+			},
+		);
+
+		// asynchronously send email
+		const emailService = new EmailService();
+		emailService.sendEmail({
+			to: user.email,
+			subject: `${APP_NAME} - Email Verification Success`,
+			html: `<h1>Your email has been verified</h1>
+<p>You have been redirected to the reset password page automatically to change your password.</p>
+<p>If you did not reset reset your password at that time you can still do it by clicking the link below:</p>
+<a href="${resetPasswordLink}">${resetPasswordLink}</a>`,
+		});
+
 		return {
 			status: 'success',
-			token: passwordResetTokenData._perishable_token,
+			resetPasswordLink,
 		} as const;
 	},
 });

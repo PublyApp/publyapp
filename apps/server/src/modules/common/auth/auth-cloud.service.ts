@@ -105,4 +105,23 @@ export class AuthCloudService {
 
 		return url.toString();
 	}
+
+	static async getCustomResetPasswordLink({
+		token,
+		email,
+		serverUrl,
+	}: {
+		token: string;
+		email: string;
+		serverUrl: string;
+	}) {
+		const url = new URL(serverUrl);
+		// url.pathname = endPoint.api.auth.resetPassword; // do not use a server endpoint
+		url.pathname = FRONT_PATH_NAMES.auth.resetPassword; // use a front-end pathname instead
+		url.searchParams.set('token', token);
+
+		url.searchParams.set('id', encodeString(_.toString(email)));
+
+		return url.toString();
+	}
 }
