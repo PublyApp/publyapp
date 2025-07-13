@@ -10,7 +10,7 @@ import { useBoolean } from 'minimal-shared/hooks';
 import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { useFetcher, useSearchParams } from 'react-router';
+import { useFetcher, useLoaderData, useSearchParams } from 'react-router';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -58,22 +58,6 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		// let isValidEncodedString = false;
-		// let decodedEmail = '';
-
-		// try {
-		// 	decodedEmail = decodeString(encodedEmail);
-		// 	isValidEncodedString = true;
-		// } catch (_error) {
-		// 	isValidEncodedString = false;
-		// }
-
-		// if (!isValidEncodedString) {
-		// 	return {
-		// 		code: 'INVALID_LINK',
-		// 	} as const;
-		// }
-
 		const checkResetPasswordToken = safeRun(
 			apiClient.auth.checkResetPasswordToken,
 		);
@@ -98,6 +82,7 @@ export const loader = getServerLoader({
 
 		return {
 			code: 'OK',
+			email: result.data.email,
 		} as const;
 	},
 });
@@ -154,6 +139,7 @@ const ResetPasswordForm = () => {
 	const { t, i18n } = useTranslate();
 	const showPassword = useBoolean();
 	const showConfirmPassword = useBoolean();
+	const loaderData = useLoaderData<typeof loader>();
 
 	const schema = getResetPasswordSchema(defaultZodClient);
 
@@ -194,9 +180,17 @@ const ResetPasswordForm = () => {
 					<Typography variant="h5" color="text.primary" sx={{ mb: 2 }}>
 						{t('reset-password')}
 					</Typography>
-					{/* <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-					{formText[intent].description}
-				</Typography> */}
+					<Typography
+						variant="body1"
+						color="text.secondary"
+						sx={{ mb: 3 }}
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: It's only dangerousIf we let users to set it
+						dangerouslySetInnerHTML={{
+							__html: t('reset-password-description', {
+								email: loaderData.email,
+							}),
+						}}
+					/>
 
 					<Field.Text
 						name="password"
