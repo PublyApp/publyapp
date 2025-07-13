@@ -25,6 +25,7 @@ import {
 	X_CODE,
 } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/winston.server';
+import type InterZod from '@/shared/lib/zod/InterZod';
 import type { IUser } from '@/shared/types/db/user.types';
 import {
 	decodeString,
@@ -32,7 +33,6 @@ import {
 } from '@/shared/utils/string-encoding.server';
 import {
 	getCheckEmailVerificationTokenSchema,
-	getCheckResetPasswordTokenSchema,
 	getEmailFormSchema,
 } from '@/shared/validations/auth.validations';
 import EmailService from '../email/email.service';
@@ -271,26 +271,29 @@ export namespace CheckEmailVerificationToken {
 	export type Return = FunctionReturn<typeof checkEmailVerificationToken>;
 }
 
+const getCheckEmailVerificationTokenSchemaServer = (z: InterZod) => {
+	return getCheckEmailVerificationTokenSchema(z)
+		.pick({ token: true })
+		.extend({
+			id: z
+				.string()
+				.min(1)
+				.refine(
+					(arg) => {
+						return isValidEncodedString(arg);
+					},
+					z.t('invalid-item', { item: 'id' }),
+				)
+				.transform((arg) => {
+					return decodeString(arg);
+				}),
+		});
+};
+
 const checkEmailVerificationToken = fromPublicParseFunction({
 	name: functionName.auth.checkEmailVerificationToken,
 	action: async ({ t, req, z }) => {
-		const schema = getCheckEmailVerificationTokenSchema(z)
-			.pick({ token: true })
-			.extend({
-				id: z
-					.string()
-					.min(1)
-					.refine(
-						(arg) => {
-							return isValidEncodedString(arg);
-						},
-						z.t('invalid-item', { item: 'id' }),
-					)
-					.transform((arg) => {
-						return decodeString(arg);
-					}),
-			});
-
+		const schema = getCheckEmailVerificationTokenSchemaServer(z);
 		const result = schema.safeParse(req.params);
 
 		if (!result.success) {
@@ -398,23 +401,38 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 });
 
 export namespace CheckResetPasswordToken {
-	export type Params = FunctionParams<typeof checkResetPasswordToken>;
+	export type Params = {
+		id: string;
+		token: string;
+	};
 	export type Return = FunctionReturn<typeof checkResetPasswordToken>;
 }
 
+const getCheckResetPasswordTokenSchemaServer =
+	getCheckEmailVerificationTokenSchemaServer;
+
 const checkResetPasswordToken = fromPublicParseFunction({
 	name: functionName.auth.checkResetPasswordToken,
-	validateParams: ({ params, z }) => {
-		const schema = getCheckResetPasswordTokenSchema(z);
-		return schema.parse(params);
-	},
-	action: async ({ params, t }) => {
+	action: async ({ t, req, z }) => {
+		const schema = getCheckResetPasswordTokenSchemaServer(z);
+		const result = schema.safeParse(req.params);
+
+		if (!result.success) {
+			throw new HttpException(400, t('invalid-item', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+				meta: { cause: 'Did not pass validation' },
+			});
+		}
+
+		const params = result.data;
+		const email = params.id;
+
 		const UserCollection = getDatabase().collection(className.USER);
 
 		const user = await UserCollection.findOne(
 			{
 				_perishable_token: params.token,
-				email: params.email,
+				email,
 			},
 			{
 				projection: {
@@ -428,7 +446,7 @@ const checkResetPasswordToken = fromPublicParseFunction({
 				400,
 				t('item-is-invalid', { item: 'Email/Token' }),
 				{
-					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN,
+					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
 					meta: { cause: 'User not found' },
 				},
 			);
@@ -441,7 +459,7 @@ const checkResetPasswordToken = fromPublicParseFunction({
 				400,
 				t('item-is-invalid', { item: 'Email/Token' }),
 				{
-					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN,
+					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
 					meta: { cause: 'Token expired' },
 				},
 			);
