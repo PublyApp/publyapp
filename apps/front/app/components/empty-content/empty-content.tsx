@@ -1,13 +1,11 @@
 import type { BoxProps } from '@mui/material/Box';
-import type { Theme, SxProps } from '@mui/material/styles';
-import type { TypographyProps } from '@mui/material/Typography';
-
-import { varAlpha } from 'minimal-shared/utils';
-
 import Box from '@mui/material/Box';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { styled } from '@mui/material/styles';
+import type { TypographyProps } from '@mui/material/Typography';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
@@ -25,7 +23,7 @@ export type EmptyContentProps = React.ComponentProps<'div'> & {
 	};
 };
 
-export function EmptyContent({
+export const EmptyContent = ({
 	sx,
 	imgUrl,
 	action,
@@ -34,7 +32,7 @@ export function EmptyContent({
 	description,
 	title = 'No data',
 	...other
-}: EmptyContentProps) {
+}: EmptyContentProps) => {
 	return (
 		<ContentRoot filled={filled} sx={sx} {...other}>
 			<Box
@@ -94,8 +92,7 @@ export function EmptyContent({
 			{action && action}
 		</ContentRoot>
 	);
-}
-
+};
 // ----------------------------------------------------------------------
 
 const ContentRoot = styled('div', {

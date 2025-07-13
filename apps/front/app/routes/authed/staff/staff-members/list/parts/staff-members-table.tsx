@@ -145,7 +145,7 @@ const StaffMembersTable = () => {
 		},
 		muiTableProps: {
 			sx: {
-				'& tr > th:last-of-type > .Mui-TableHeadCell-Content, & tr > td:last-of-type':
+				'& tr > th:last-of-type > .Mui-TableHeadCell-Content, & tr > td:last-of-type:not(:has(.empty-content))':
 					{
 						justifyContent: 'flex-end',
 					},
@@ -265,16 +265,6 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 		toast.warning(`onDelete: ${userId}`);
 	};
 
-	// const {
-	// 	data: linkData,
-	// 	refetch: fetchVerificationLink,
-	// 	// isPending,
-	// 	isLoading: isLoadingGetVerificationLink,
-	// } = useGetVerificationLink({
-	// 	variables: { userId },
-	// 	enabled: false,
-	// });
-
 	const renderMenuActions = () => (
 		<CustomPopover
 			open={menuActions.open}
@@ -352,10 +342,6 @@ const CopyLinkButton = ({
 	isUserPending,
 	userId,
 	onClose,
-	// isLoadingGetVerificationLink,
-	// linkData,
-	// fetchVerificationLink,
-	// menuActions,
 }: {
 	isUserPending: boolean;
 	userId: string;
@@ -366,7 +352,6 @@ const CopyLinkButton = ({
 	const {
 		data: linkData,
 		refetch: fetchVerificationLink,
-		// isPending,
 		isLoading: isLoadingGetVerificationLink,
 	} = useGetVerificationLink({
 		variables: { userId },
