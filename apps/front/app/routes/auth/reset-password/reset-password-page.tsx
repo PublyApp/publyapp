@@ -1,3 +1,16 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
+import type { Theme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
+import { useBoolean } from 'minimal-shared/hooks';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+import { useEffect, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { useFetcher, useSearchParams } from 'react-router';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -10,23 +23,10 @@ import {
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { X_CODE, queryParamKey, queryParamValue } from '@/shared/lib/constants';
+import { queryParamKey, queryParamValue, X_CODE } from '@/shared/lib/constants';
 import { getErrorMessage } from '@/shared/utils/error-message';
 import { decodeString } from '@/shared/utils/string-encoding.server';
 import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
-import { zodResolver } from '@hookform/resolvers/zod';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import Typography from '@mui/material/Typography';
-import type { Theme } from '@mui/material/styles';
-import { useBoolean } from 'minimal-shared/hooks';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { useEffect, useRef } from 'react';
-import { useForm } from 'react-hook-form';
-import { useFetcher, useSearchParams } from 'react-router';
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
 
@@ -59,17 +59,17 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		let isValidEncodedEmail = false;
+		let isValidEncodedString = false;
 		let decodedEmail = '';
 
 		try {
 			decodedEmail = decodeString(encodedEmail);
-			isValidEncodedEmail = true;
+			isValidEncodedString = true;
 		} catch (_error) {
-			isValidEncodedEmail = false;
+			isValidEncodedString = false;
 		}
 
-		if (!isValidEncodedEmail) {
+		if (!isValidEncodedString) {
 			return {
 				code: 'INVALID_LINK',
 			} as const;

@@ -1,6 +1,5 @@
-import _ from 'lodash';
-
 import type { IUser } from '@org/shared/types/db/user.types';
+import _ from 'lodash';
 
 import type {
 	CheckEmailVerificationToken,
@@ -15,10 +14,10 @@ import type {
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
 import {
-	LOCALE_HEADER_KEY,
-	PARSE_SESSION_TOKEN_HEADER_KEY,
 	endPoint,
 	functionName,
+	LOCALE_HEADER_KEY,
+	PARSE_SESSION_TOKEN_HEADER_KEY,
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
@@ -135,14 +134,17 @@ export default class AuthEndPoints extends BaseEndPoints {
 	}
 
 	async checkEmailVerificationToken({
-		email,
+		id,
 		token,
-	}: { email: string; token: string }) {
+	}: {
+		id: string;
+		token: string;
+	}) {
 		return this.parseRestClient.cloudRun<
 			CheckEmailVerificationToken.Return,
 			CheckEmailVerificationToken.Params
 		>(functionName.auth.checkEmailVerificationToken, {
-			params: { email, token },
+			params: { id, token },
 		});
 	}
 
@@ -158,7 +160,10 @@ export default class AuthEndPoints extends BaseEndPoints {
 	async checkResetPasswordToken({
 		email,
 		token,
-	}: { email: string; token: string }) {
+	}: {
+		email: string;
+		token: string;
+	}) {
 		return this.parseRestClient.cloudRun<
 			CheckResetPasswordToken.Return,
 			CheckResetPasswordToken.Params

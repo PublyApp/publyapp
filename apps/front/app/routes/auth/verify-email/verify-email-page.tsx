@@ -25,7 +25,6 @@ import {
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
-import { decodeString } from '@/shared/utils/string-encoding.server';
 import {
 	getCheckEmailVerificationTokenSchema,
 	getEmailFormSchema,
@@ -113,28 +112,32 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		let isValidEncodedEmail = false;
-		let decodedEmail = '';
+		// let isValidEncodedString = false;
+		// let decodedEmail = '';
 
-		try {
-			decodedEmail = decodeString(encodedEmail);
-			isValidEncodedEmail = true;
-		} catch (_error) {
-			isValidEncodedEmail = false;
-		}
+		// try {
+		// 	decodedEmail = decodeString(encodedEmail);
+		// 	isValidEncodedString = true;
+		// } catch (_error) {
+		// 	isValidEncodedString = false;
+		// }
 
-		if (!isValidEncodedEmail) {
-			return {
-				code: 'INVALID_LINK',
-			} as const;
-		}
+		// if (!isValidEncodedString) {
+		// 	return {
+		// 		code: 'INVALID_LINK',
+		// 	} as const;
+		// }
 
 		const checkEmailVerificationToken = safeRun(
 			apiClient.auth.checkEmailVerificationToken,
 		);
 
-		const schema = getCheckEmailVerificationTokenSchema(z);
-		const parsed = schema.safeParse({ email: decodedEmail, token });
+		const schema = getCheckEmailVerificationTokenSchema(z)
+			.pick({ token: true })
+			.extend({
+				id: z.string().min(1),
+			});
+		const parsed = schema.safeParse({ id: encodedEmail, token });
 
 		// we don't tell what went wrong here
 		// because we don't want to leak information
@@ -146,7 +149,7 @@ export const loader = getServerLoader({
 		}
 
 		const result = await checkEmailVerificationToken({
-			email: parsed.data.email,
+			id: encodedEmail,
 			token: parsed.data.token,
 		});
 
