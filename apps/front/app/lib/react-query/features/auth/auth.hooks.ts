@@ -1,6 +1,10 @@
+import {
+	createMutation,
+	createQuery,
+	createSuspenseQuery,
+} from 'react-query-kit';
 import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import { functionName } from '@/shared/lib/constants';
-import { createQuery, createSuspenseQuery } from 'react-query-kit';
 
 export const useGetUserAuthData = createSuspenseQuery({
 	queryKey: [functionName.auth.getUserAuthData] as const,
@@ -20,5 +24,14 @@ export const useGetVerificationLink = createQuery({
 	queryKey: [functionName.auth.getVerificationLink] as const,
 	fetcher: async ({ userId }: { userId: string }) => {
 		return defaultApiClient.auth.getVerificationLink({ userId });
+	},
+});
+
+export const useSendEmailVerificationReminder = createMutation({
+	mutationKey: [
+		`${functionName.auth.requestEmailVerification}-reminder`,
+	] as const,
+	mutationFn: async ({ email }: { email: string }) => {
+		return defaultApiClient.auth.requestEmailVerification({ email });
 	},
 });

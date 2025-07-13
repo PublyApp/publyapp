@@ -1,15 +1,5 @@
 import http from 'node:http';
 import path from 'node:path';
-import {
-	APP_ID,
-	APP_NAME,
-	LOCALE_HEADER_KEY,
-	REMIX_CLIENT_IP_HEADER_KEY,
-	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
-	TENANT_ID_HEADER_KEY,
-	endPoint,
-	isPreRenderPath,
-} from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
 import { logger } from '@org/shared/lib/winston.server';
 import duration from '@org/shared/utils/duration.utils';
@@ -19,10 +9,20 @@ import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
+import Parse from 'parse/node.js';
 import ParseDashboard from 'parse-dashboard';
 import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
 import { ParseServer } from 'parse-server/lib/index.js';
-import Parse from 'parse/node.js';
+import {
+	APP_ID,
+	APP_NAME,
+	endPoint,
+	isPreRenderPath,
+	LOCALE_HEADER_KEY,
+	REMIX_CLIENT_IP_HEADER_KEY,
+	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
+	TENANT_ID_HEADER_KEY,
+} from '@/shared/lib/constants';
 import { cloud } from './cloud';
 import { HttpException } from './exceptions/HttpException';
 import {
@@ -33,16 +33,16 @@ import {
 } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
 import {
+	corsWhiteList,
 	EXPRESS_FILES_MOUNT_PATH,
 	FILE_UPLOAD_DESTINATION,
 	PARSE_DASHBOARD_MOUNT_PATH,
 	PARSE_SERVER_URL,
-	corsWhiteList,
 } from './lib/constants';
 import { env } from './lib/env';
 import { expressHandler, getRequestUtils } from './lib/express';
 import { initI18next } from './lib/i18n';
-import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
+import CustomMailAdapter from './lib/parse/classes/ParseMailAdapter';
 import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
 import { setCurrentInstallationId } from './lib/parse/parse.utils';
 import { postHogServer } from './lib/posthog';

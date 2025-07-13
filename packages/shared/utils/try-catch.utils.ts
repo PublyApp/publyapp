@@ -1,12 +1,12 @@
 import { isAsyncFunction, isPromise } from './any.utils';
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
 type Handler = (error: unknown) => any;
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
 type AsyncHandler = (error: unknown) => Promise<any>;
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
 type ErrorHandler<T extends GenericFunction = () => any> =
-	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	// biome-ignore lint/suspicious/noExplicitAny: return type can be anything
 	ReturnType<T> extends PromiseLike<any> ? Handler | AsyncHandler : Handler;
 
 const defaultErrorHandler: ErrorHandler = (error) => {
@@ -33,7 +33,7 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 	}
 
 	if (isAsyncFunction(handler)) {
-		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+		// biome-ignore lint/suspicious/noExplicitAny: forwarding any arguments from the original function
 		const wrappedFunctionAsync = async (...args: any[]) => {
 			try {
 				const result = await handler(...args);
@@ -57,7 +57,7 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 		);
 	}
 
-	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	// biome-ignore lint/suspicious/noExplicitAny: forwarding any arguments from the original function
 	const wrappedFunctionSync = (...args: any[]) => {
 		try {
 			const result = handler(...args);

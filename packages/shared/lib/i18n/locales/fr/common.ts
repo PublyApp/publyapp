@@ -208,6 +208,13 @@ const commonFR = {
 	'n+ characters': '{{characters}}+ caractères',
 
 	'session-expired': 'Session expirée',
+	'send-email-verification-follow-up': 'Relancer la vérification',
+	'follow-up': 'Relancer',
+	'email-verification-follow-up-success':
+		'Suivi de vérification email envoyé avec succès',
+	'email-verification-follow-up-error':
+		"Échec de l'envoi du suivi de vérification email",
+	'email-x-already-verified': "L'email {{email}} est déjà vérifié",
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
