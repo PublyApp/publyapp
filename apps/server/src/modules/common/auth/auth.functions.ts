@@ -27,6 +27,10 @@ import {
 import { logger } from '@/shared/lib/winston.server';
 import type { IUser } from '@/shared/types/db/user.types';
 import {
+	decodeString,
+	isValidEncodedString,
+} from '@/shared/utils/string-encoding.server';
+import {
 	getCheckEmailVerificationTokenSchema,
 	getCheckResetPasswordTokenSchema,
 	getEmailFormSchema,
@@ -263,24 +267,49 @@ const getTenantAuthData = fromAuthedUserParseFunction({
 });
 
 export namespace CheckEmailVerificationToken {
-	export type Params = FunctionParams<typeof checkEmailVerificationToken>;
+	export type Params = { id: string; token: string }; // FunctionParams<typeof checkEmailVerificationToken>;
 	export type Return = FunctionReturn<typeof checkEmailVerificationToken>;
 }
 
 const checkEmailVerificationToken = fromPublicParseFunction({
 	name: functionName.auth.checkEmailVerificationToken,
-	validateParams({ params, z }) {
-		const schema = getCheckEmailVerificationTokenSchema(z);
-		return schema.parse(params);
-	},
-	action: async ({ params, t }) => {
+	action: async ({ t, req, z }) => {
+		const schema = getCheckEmailVerificationTokenSchema(z)
+			.pick({ token: true })
+			.extend({
+				id: z
+					.string()
+					.min(1)
+					.refine(
+						(arg) => {
+							return isValidEncodedString(arg);
+						},
+						z.t('invalid-item', { item: 'id' }),
+					)
+					.transform((arg) => {
+						return decodeString(arg);
+					}),
+			});
+
+		const result = schema.safeParse(req.params);
+
+		if (!result.success) {
+			throw new HttpException(400, t('invalid-item', { item: 'Email/Token' }), {
+				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
+				meta: { cause: 'Did not pass validation' },
+			});
+		}
+
+		const params = result.data;
+		const email = params.id;
+
 		// check if token/email pair is valid
 		// if valid, set email as verified, unset token + unset email_verify_token_expires_at
 		const UserCollection = getDatabase().collection(className.USER);
 
 		const user = await UserCollection.findOne(
 			{
-				email: params.email,
+				email,
 				_email_verify_token: params.token,
 			},
 			{
