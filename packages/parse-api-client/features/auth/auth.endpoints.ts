@@ -11,6 +11,7 @@ import type {
 	GetUserAuthData,
 	GetVerificationLink,
 	RequestEmailVerification,
+	ResetPassword,
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
 import {
@@ -163,6 +164,25 @@ export default class AuthEndPoints extends BaseEndPoints {
 			CheckResetPasswordToken.Params
 		>(functionName.auth.checkResetPasswordToken, {
 			params: { id, token },
+		});
+	}
+
+	async resetPassword({
+		id,
+		token,
+		password,
+		confirmPassword,
+	}: {
+		id: string;
+		token: string;
+		password: string;
+		confirmPassword: string;
+	}) {
+		return this.parseRestClient.cloudRun<
+			ResetPassword.Return,
+			ResetPassword.Params
+		>(functionName.auth.resetPassword, {
+			params: { id, token, password, confirmPassword },
 		});
 	}
 }
