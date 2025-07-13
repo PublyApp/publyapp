@@ -465,7 +465,7 @@ const checkResetPasswordToken = fromPublicParseFunction({
 			);
 		}
 
-		return { status: 'success' } as const;
+		return { status: 'success', email } as const;
 	},
 });
 
