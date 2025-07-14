@@ -1,11 +1,12 @@
+import { existsSync, promises as fs } from 'node:fs';
+import { className, roleEnum } from '@org/shared/lib/constants';
+import { logger } from '@org/shared/lib/winston.server';
 import {
 	DISABLE_SIGNUP_CONFIG_KEY,
 	FILE_UPLOAD_DESTINATION,
+	IP_BLOCKLIST_CONFIG_KEY,
 	USE_MASTER_KEY,
 } from '@/server/lib/constants';
-import { className, roleEnum } from '@org/shared/lib/constants';
-import { logger } from '@org/shared/lib/winston.server';
-import { existsSync, promises as fs } from 'node:fs';
 import SchemaManager from '../lib/parse/classes/SchemaManager';
 import {
 	getDatabase,
@@ -104,6 +105,11 @@ export const setUpGlobalConfig = async () => {
 	await setGlobalConfig({
 		[DISABLE_SIGNUP_CONFIG_KEY]: {
 			value: globalConfig.get(DISABLE_SIGNUP_CONFIG_KEY) ?? true,
+			masterKeyOnly: true,
+		},
+		[IP_BLOCKLIST_CONFIG_KEY]: {
+			value: globalConfig.get(IP_BLOCKLIST_CONFIG_KEY) ?? [],
+			masterKeyOnly: true,
 		},
 	});
 };
