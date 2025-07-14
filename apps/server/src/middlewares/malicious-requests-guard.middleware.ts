@@ -7,11 +7,7 @@ import { logger } from '@org/shared/lib/winston.server';
 import _ from 'lodash';
 import { IP_BLOCKLIST_CONFIG_KEY } from '../lib/constants';
 import { expressHandler, getRequestIp } from '../lib/express';
-import {
-	getDatabase,
-	getGlobalConfig,
-	setGlobalConfig,
-} from '../lib/parse/parse.utils';
+import { getDatabase, getGlobalConfig } from '../lib/parse/parse.utils';
 
 // https://gist.github.com/NickCraver/c9458f2e007e9df2bdf03f8a02af1d13
 const tenHoursOfFun = [
