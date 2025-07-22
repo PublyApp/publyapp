@@ -9,7 +9,6 @@ import { transitionTap, varHover, varTap } from '@/front/components/animate';
 import { CustomPopover } from '@/front/components/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { useSettingsContext } from '@/front/hooks/use-settings-context';
-import { useTranslate } from '@/front/hooks/use-translate';
 
 // ----------------------------------------------------------------------
 
@@ -30,8 +29,8 @@ export const ColorSchemePopover = ({
 	sx,
 	...other
 }: ColorSchemePopoverProps) => {
-	const { t } = useTranslate();
 	const { open, anchorEl, onClose, onOpen } = usePopover();
+
 	const settings = useSettingsContext();
 	const { mode, setMode, allColorSchemes } = useColorScheme();
 
@@ -52,8 +51,7 @@ export const ColorSchemePopover = ({
 								key={option}
 								selected={option === mode}
 								onClick={() => {
-									handleChangeColorScheme(option);
-									onClose();
+									return handleChangeColorScheme(option);
 								}}
 							>
 								{_.get(
@@ -61,9 +59,7 @@ export const ColorSchemePopover = ({
 									`${option}.icon`,
 									<Iconify icon="mingcute:close-line" />,
 								)}
-								{t(
-									_.get(colorSchemeConfigs, `${option}.t_key`, option) as never,
-								)}
+								{_.get(colorSchemeConfigs, `${option}.t_key`, option)}
 							</MenuItem>
 						);
 					})}
@@ -79,7 +75,7 @@ export const ColorSchemePopover = ({
 				whileTap={varTap(0.96)}
 				whileHover={varHover(1.04)}
 				transition={transitionTap()}
-				aria-label="Color scheme button"
+				aria-label="Languages button"
 				onClick={onOpen}
 				sx={[
 					(theme) => {
