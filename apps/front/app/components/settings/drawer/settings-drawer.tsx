@@ -1,26 +1,20 @@
-import { useCallback, useEffect } from 'react';
-
 import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
-import { useColorScheme } from '@mui/material/styles';
 import SvgIcon from '@mui/material/SvgIcon';
+import { useColorScheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { hasKeys, varAlpha } from 'minimal-shared/utils';
-
+import { useCallback, useEffect } from 'react';
 import { themeConfig } from '@/front/lib/mui/theme/theme-config';
 import type { ThemeColorScheme } from '@/front/lib/mui/theme/types';
 import { primaryColorPresets } from '@/front/lib/mui/theme/with-settings';
-
-// import { themeConfig } from 'src/theme/theme-config';
-// import type { ThemeColorScheme } from 'src/theme/types';
 import { useSettingsContext } from '../../../hooks/use-settings-context';
 import { Iconify } from '../../iconify/iconify';
 import { Scrollbar } from '../../scrollbar';
 import type { SettingsDrawerProps, SettingsState } from '../types';
-
 import { BaseOption } from './base-option';
 import { FontFamilyOptions, FontSizeOptions } from './font-options';
 import { FullScreenButton } from './fullscreen-button';
