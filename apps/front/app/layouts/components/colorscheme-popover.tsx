@@ -9,6 +9,7 @@ import { transitionTap, varHover, varTap } from '@/front/components/animate';
 import { CustomPopover } from '@/front/components/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { useSettingsContext } from '@/front/hooks/use-settings-context';
+import { useTranslate } from '@/front/hooks/use-translate';
 
 // ----------------------------------------------------------------------
 
@@ -29,8 +30,8 @@ export const ColorSchemePopover = ({
 	sx,
 	...other
 }: ColorSchemePopoverProps) => {
+	const { t } = useTranslate();
 	const { open, anchorEl, onClose, onOpen } = usePopover();
-
 	const settings = useSettingsContext();
 	const { mode, setMode, allColorSchemes } = useColorScheme();
 
@@ -59,7 +60,9 @@ export const ColorSchemePopover = ({
 									`${option}.icon`,
 									<Iconify icon="mingcute:close-line" />,
 								)}
-								{_.get(colorSchemeConfigs, `${option}.t_key`, option)}
+								{t(
+									_.get(colorSchemeConfigs, `${option}.t_key`, option) as never,
+								)}
 							</MenuItem>
 						);
 					})}
