@@ -8,7 +8,7 @@ import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 import { UserNewEditForm } from '../components/user-new-edit-form';
-import type { Route } from './+types/new-staff-member-page';
+import type { Route } from './+types/staff-member-details-page';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(
@@ -59,7 +59,7 @@ export const clientLoader = async ({
 };
 clientLoader.hydrate = true as const;
 
-const NewStaffMemberPage = () => {
+const StaffMemberDetailsPage = () => {
 	const { t } = useTranslate();
 
 	return (
@@ -85,4 +85,4 @@ const NewStaffMemberPage = () => {
 	);
 };
 
-export default NewStaffMemberPage;
+export default StaffMemberDetailsPage;

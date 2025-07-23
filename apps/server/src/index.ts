@@ -55,6 +55,18 @@ import {
 import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
 
+// ! This is a hack to prevent the console from logging the error "Error: No route matches URL"
+// ! from Remix/React router
+const original_console_error = console.error;
+
+console.error = (...args: unknown[]) => {
+	if (_.startsWith(_.toString(args[0]), 'Error: No route matches URL ')) {
+		return;
+	}
+	original_console_error(...args);
+};
+// ! ==============================
+
 global.Parse = Parse;
 
 const bootstrap = async () => {
