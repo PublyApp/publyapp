@@ -111,7 +111,7 @@ const StaffMemberDetailsPage = () => {
 					return (
 						<UserNewEditForm
 							currentUser={{
-								avatarUrl: _.toString(data.avatarUrl),
+								avatar: _.toString(data.avatarUrl),
 								email: _.toString(data.email),
 								firstName: _.toString(data.firstName),
 								lastName: _.toString(data.lastName),
