@@ -1,13 +1,4 @@
 import { PassThrough } from 'node:stream';
-import {
-	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	REMIX_CLIENT_IP_HEADER_KEY,
-	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
-	isPreRenderPath,
-	queryParamKey,
-} from '@/shared/lib/constants';
-import { getUnifiedCSPConfig } from '@/shared/lib/csp';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { createReadableStreamFromReadable } from '@react-router/node';
 import { isbot } from 'isbot';
 import _ from 'lodash';
@@ -22,6 +13,15 @@ import {
 	type EntryContext,
 	ServerRouter,
 } from 'react-router';
+import {
+	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	isPreRenderPath,
+	queryParamKey,
+	REMIX_CLIENT_IP_HEADER_KEY,
+	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
+} from '@/shared/lib/constants';
+import { getUnifiedCSPConfig } from '@/shared/lib/csp';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
 import { getDevContext } from './lib/react-router/get-dev-context.server';
