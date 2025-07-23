@@ -1,7 +1,7 @@
 import _ from 'lodash';
 
-export const sleep = <T = unknown>(timeout: number, value?: T) => {
-	const warningMessage = 'sleep function invoked';
+export const delay = <T = unknown>(timeout: number, value?: T) => {
+	const warningMessage = 'delay function invoked';
 	console.warn(`%c${warningMessage}`, 'color: yellow');
 	return new Promise<T>((resolve) => {
 		return setTimeout(() => {

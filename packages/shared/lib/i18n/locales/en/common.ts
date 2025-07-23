@@ -205,6 +205,25 @@ const commonEN = {
 	'n+ characters': '{{characters}}+ characters',
 
 	'session-expired': 'Session expired',
+	'send-email-verification-follow-up': 'Resend verification',
+	'follow-up': 'Reminder',
+	'email-verification-follow-up-success':
+		'Email verification follow-up sent successfully',
+	'email-verification-follow-up-error':
+		'Failed to send email verification follow-up',
+	'email-x-already-verified': 'Email {{email}} is already verified',
+
+	'reset-password-description':
+		'Enter your new password for <span style="font-weight: bold;">{{email}}</span>',
+	'password-reset-success': 'Password reset successfully',
+
+	'light-mode': 'Light mode',
+	'dark-mode': 'Dark mode',
+
+	details: 'Details',
+	'edit-item': 'Edit {{item}}',
+	'user-not-found-description':
+		'The user you are looking for could not be found. It may have been deleted or the link you followed may be incorrect.',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

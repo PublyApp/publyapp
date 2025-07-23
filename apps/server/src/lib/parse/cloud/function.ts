@@ -1,21 +1,26 @@
+import { logger } from '@org/shared/lib/winston.server';
+import type { RequestHandler } from 'express';
+import _ from 'lodash';
+import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
+import { getLogger } from 'parse-server/lib/logger.js';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { checkParseHeaders } from '@/server/middlewares/check-parse-headers.middleware';
 import protectionMiddleware, {
-	type ProtectionMiddlewareOptions,
 	authType as iAuthType,
+	type ProtectionMiddlewareOptions,
 } from '@/server/middlewares/protection.middleware';
 import RoleService from '@/server/modules/common/auth/role/role.service';
 import ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
 import TenantService from '@/server/modules/common/auth/tenant/tenant.service';
 import {
+	endPoint,
 	LOCALE_HEADER_KEY,
 	PARSE_INSTALLATION_ID_HEADER_KEY,
 	type RoleSet,
+	roleSet,
 	type StaffRoleSet,
 	TENANT_ID_HEADER_KEY,
 	type TenantSubRoleSet,
-	endPoint,
-	roleSet,
 	tenantSubRoleSet,
 	userGroup,
 } from '@/shared/lib/constants';
@@ -23,11 +28,6 @@ import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
 import { makePath } from '@/shared/utils/string.utils';
-import { logger } from '@org/shared/lib/winston.server';
-import type { RequestHandler } from 'express';
-import _ from 'lodash';
-import type { LoggerController } from 'parse-server/lib/Controllers/LoggerController';
-import { getLogger } from 'parse-server/lib/logger';
 import { USE_MASTER_KEY } from '../../constants';
 import {
 	expressHandler,
@@ -38,20 +38,20 @@ import {
 import { getT, i18nextServer } from '../../i18n';
 import { getCurrentInstallationId } from '../parse.utils';
 import {
-	type ParseFunction,
 	alterLogger,
 	cloudFunction,
 	getParseFunctionHeader,
 	isFromCloudEnvironment,
 	isNotValidIp,
+	type ParseFunction,
 } from './core';
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+// biome-ignore lint/suspicious/noExplicitAny: nothing to explain here
 export type FunctionReturn<T extends ParseFunction<any, any>> = Awaited<
 	ReturnType<T>
 >;
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+// biome-ignore lint/suspicious/noExplicitAny: nothing to explain here
 export type FunctionParams<T extends ParseFunction<any, any>> =
 	Parameters<T>[0]['params'];
 

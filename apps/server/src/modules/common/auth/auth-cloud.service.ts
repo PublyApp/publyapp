@@ -1,11 +1,11 @@
-import { getInternalConfig } from '@/server/lib/parse/parse.utils';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import type { IUser } from '@/shared/types/db/user.types';
-import { encodeString } from '@/shared/utils/string-encoding.server';
 import _ from 'lodash';
 import auth from 'parse-server/lib/Auth.js';
 import { UsersRouter } from 'parse-server/lib/Routers/UsersRouter.js';
 import type { ParsedQs } from 'qs';
+import { getInternalConfig } from '@/server/lib/parse/parse.utils';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import type { IUser } from '@/shared/types/db/user.types';
+import { encodeString } from '@/shared/utils/string-encoding.server';
 
 type AuthCloudServiceProps = {
 	sessionToken: string | ParsedQs | string[] | ParsedQs[];
@@ -14,7 +14,7 @@ type AuthCloudServiceProps = {
 export class AuthCloudService {
 	readonly sessionToken: string | ParsedQs | string[] | ParsedQs[];
 
-	// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
+	// biome-ignore lint/suspicious/noExplicitAny: use any for now (TODO: add type definition)
 	private auth: any;
 
 	private constructor({ sessionToken }: AuthCloudServiceProps) {
@@ -87,70 +87,6 @@ export class AuthCloudService {
 		return user;
 	}
 
-	// static async verifyEmailByToken({
-	// 	token,
-	// }: {
-	// 	token: string;
-	// }) {
-	// 	const findUserForEmailVerification = async () => {
-	// 		const query = new Parse.Query(className.USER).equalTo(
-	// 			'_email_verify_token',
-	// 			token,
-	// 		);
-
-	// 		const toSelect = [
-	// 			'emailVerified',
-	// 			'_email_verify_token',
-	// 			'_email_verify_token_expires_at',
-	// 		];
-
-	// 		query.select(toSelect);
-	// 		return query.first(USE_MASTER_KEY);
-	// 	};
-
-	// 	const user = await findUserForEmailVerification();
-
-	// 	if (!user) {
-	// 		throw new Parse.Error(Parse.Error.INVALID_QUERY, 'Invalid token');
-	// 	}
-
-	// 	const emailVerified = user.get('emailVerified');
-
-	// 	const setValuesOnSuccess = async () => {
-	// 		await getDatabase()
-	// 			.collection(className.USER)
-	// 			.updateOne(
-	// 				{ _id: user.id as never },
-	// 				{
-	// 					$set: { emailVerified: true },
-	// 					$unset: {
-	// 						_email_verify_token: 1,
-	// 						_email_verify_token_expires_at: 1,
-	// 					},
-	// 				},
-	// 			);
-	// 	};
-
-	// 	if (emailVerified === true) {
-	// 		await setValuesOnSuccess();
-	// 		return;
-	// 	}
-
-	// 	const _email_verify_token_expires_at = user.get(
-	// 		'_email_verify_token_expires_at',
-	// 	);
-
-	// 	if (_email_verify_token_expires_at) {
-	// 		const expirationTime = new dayjs.Dayjs(_email_verify_token_expires_at);
-
-	// 		if (expirationTime.diff() <= 0) {
-	// 			throw new Parse.Error(Parse.Error.VALIDATION_ERROR, 'Token expired');
-	// 		}
-	// 	}
-
-	// 	await setValuesOnSuccess();
-	// }
-
 	static async getCustomVerificationLink({
 		token,
 		email,
@@ -163,6 +99,25 @@ export class AuthCloudService {
 		const url = new URL(serverUrl);
 		// url.pathname = endPoint.api.auth.verifyEmail; // do not use a server endpoint
 		url.pathname = FRONT_PATH_NAMES.auth.verifyEmail; // use a front-end pathname instead
+		url.searchParams.set('token', token);
+
+		url.searchParams.set('id', encodeString(_.toString(email)));
+
+		return url.toString();
+	}
+
+	static async getCustomResetPasswordLink({
+		token,
+		email,
+		serverUrl,
+	}: {
+		token: string;
+		email: string;
+		serverUrl: string;
+	}) {
+		const url = new URL(serverUrl);
+		// url.pathname = endPoint.api.auth.resetPassword; // do not use a server endpoint
+		url.pathname = FRONT_PATH_NAMES.auth.resetPassword; // use a front-end pathname instead
 		url.searchParams.set('token', token);
 
 		url.searchParams.set('id', encodeString(_.toString(email)));

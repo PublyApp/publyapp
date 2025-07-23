@@ -3,8 +3,12 @@
 	"version": "0.0.0",
 	"exports": {
 		"./*": {
-			"types": ["./*.ts"],
-			"default": ["./*.ts"]
+			"types": [
+				"./*.ts"
+			],
+			"default": [
+				"./*.ts"
+			]
 		}
 	},
 	"dependencies": {
@@ -15,7 +19,7 @@
 		"mongodb": "^5.9.0",
 		"mongoose": "^8.0.4",
 		"ms": "^2.1.3",
-		"multer": "1.4.5-lts.1",
+		"multer": "^2.0.1",
 		"numeral": "^2.0.6",
 		"parse": "6.0.0",
 		"winston": "^3.11.0",
@@ -26,10 +30,9 @@
 		"posthog-node": "^4.17.1"
 	},
 	"devDependencies": {
-		"@types/bun": "^1.2.17",
 		"@types/lodash": "^4.14.202",
 		"@types/ms": "^0.7.34",
-		"@types/multer": "^1.4.11",
+		"@types/multer": "^2.0.0",
 		"@types/numeral": "^2.0.5",
 		"@types/parse": "^3.0.9",
 		"tsconfig": "workspace:*"

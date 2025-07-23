@@ -6,16 +6,24 @@
 		"// =============== BUILD SCRIPTS ===============": "=============================",
 		"build": "turbo build",
 		"build:local": "turbo build:local",
-		"build:deploy": "bun ./scripts/deploy.mjs",
+		"build:deploy": "node ./scripts/deploy.mjs",
 		"// =============== START SCRIPTS ===============": "=============================",
-		"start:test-online": "bun run --filter server start:test-online",
+		"start:test-online": "pnpm run --filter server start:test-online",
 		"// =============== DEV SCRIPTS ===============": "=============================",
 		"dev": "turbo dev",
-		"dev:server": "bun run --filter server --elide-lines 0 dev",
-		"dev:front": "bun run --filter front --elide-lines 0 dev",
+		"dev:server": "pnpm run dev:server:pnpm",
+		"dev:front": "pnpm run dev:front:pnpm",
+		"dev:server:bun": "bun run --filter server --elide-lines 0 dev",
+		"dev:front:bun": "bun run --filter front --elide-lines 0 dev",
+		"dev:server:pnpm": "pnpm run --filter server dev",
+		"dev:front:pnpm": "pnpm run --filter front dev",
 		"// =============== TSC SCRIPTS ===============": "=============================",
-		"tsc:server": "bun run --filter server type-check",
-		"tsc:front": "bun run --filter front type-check",
+		"tsc:server": "pnpm run tsc:server:pnpm",
+		"tsc:front": "pnpm run tsc:front:pnpm",
+		"tsc:server:bun": "bun run --filter server type-check",
+		"tsc:front:bun": "bun run --filter front type-check",
+		"tsc:server:pnpm": "pnpm run --filter server type-check",
+		"tsc:front:pnpm": "pnpm run --filter front type-check",
 		"// =============== SEED COMMANDS =================": "================================",
 		"seed": "bun run --filter server seed",
 		"seed:debug": "bun run --filter server seed:debug",
@@ -27,35 +35,36 @@
 		"// =============== MISC ===============": "================================",
 		"knip": "knip",
 		"prepare": "husky",
-		"update-deps": "??? in bun ???",
-		"postinstall": "bun run apps/server/scripts/patch.mjs",
-		"generate-secret": "bun run apps/server/scripts/generate-secret.mjs"
+		"update-deps": "pnpm up -r"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "1.9.4",
-		"@types/bun": "^1.2.17",
-		"@types/node": "^20.14.15",
-		"archiver": "^6.0.1",
-		"dotenv": "^16.3.1",
+		"@biomejs/biome": "^2.1.1",
+		"@types/node": "^20.19.7",
+		"archiver": "^6.0.2",
+		"dotenv": "^17.2.0",
 		"fs-extra": "^11.2.0",
 		"husky": "^9.0.11",
 		"json": "^11.0.0",
 		"knip": "^5.46.4",
-		"lint-staged": "^15.2.0",
+		"lint-staged": "^15.5.2",
 		"lodash": "^4.17.21",
 		"tsconfig": "workspace:*",
 		"turbo": "^2.0.3",
-		"typescript": "^5.8.3",
-		"vite": "^6.3.5"
+		"typescript": "^5.8.3"
 	},
-	"packageManager": "bun@1.2.17",
+	"packageManager": "pnpm@10.13.1",
 	"engines": {
-		"node": ">=v22.x",
+		"node": ">=v24.x",
 		"bun": ">=1.2.17"
 	},
-	"trustedDependencies": ["sharp"],
+	"trustedDependencies": [
+		"sharp"
+	],
 	"workspaces": {
-		"packages": ["apps/*", "packages/*"]
+		"packages": [
+			"apps/*",
+			"packages/*"
+		]
 	},
 	"dependencies": {
 		"cookie": "^1.0.2",

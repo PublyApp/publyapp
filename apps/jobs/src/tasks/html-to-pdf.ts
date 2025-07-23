@@ -7,7 +7,7 @@ import { chromium } from 'playwright';
 import { z } from 'zod';
 
 import { className } from '@/shared/lib/constants';
-import { sleep } from '@/shared/utils/any.utils';
+import { delay } from '@/shared/utils/any.utils';
 
 import { getJobTypeFunction } from '../utils/utils';
 
@@ -201,7 +201,7 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 
 				do {
 					if (iterationIndex > 0) {
-						await sleep(intervalTime - elapsedTime);
+						await delay(intervalTime - elapsedTime);
 					}
 
 					const t1 = Date.now();
@@ -258,4 +258,9 @@ const getControlledFunction = ({ handler }: { handler: AsyncFunction }) => {
 	};
 };
 
+/**
+ * This task is likely to not be used soon
+ * It only makes sense for large PDF generation
+ * rely on simple Cloud Run Service instead of CLoud Run Job for now
+ */
 export const convertHTMLToPDF = getControlledFunction({ handler: handler2 });

@@ -1,5 +1,5 @@
-import { AuthCloudService } from '@/server/modules/common/auth/auth-cloud.service';
 import { logger } from '@org/shared/lib/winston.server';
+import { AuthCloudService } from '@/server/modules/common/auth/auth-cloud.service';
 import { env } from '../../env';
 import type { MailAdapter } from '../interfaces/MailAdapter';
 
@@ -8,7 +8,7 @@ type Props = {
 	enableSendVerificationEmail: boolean;
 };
 
-export default class CustomMailAdapter implements MailAdapter {
+export default class ParseMailAdapter implements MailAdapter {
 	serverUrl: string;
 	enableSendVerificationEmail: boolean;
 
@@ -70,12 +70,10 @@ export default class CustomMailAdapter implements MailAdapter {
 
 		this.sendMail({
 			to: user.getEmail() || '',
-			text: `
-				<h1>Email Verification</h1>
-				<p>Please click the link below to verify your email:</p>
-				<a href="${customLink}">${customLink}</a>
-			`,
 			subject: `Email Verification Link for ${appName} account`,
+			text: `<h1>Email Verification</h1>
+<p>Please click the link below to verify your email:</p>
+<a href="${customLink}">${customLink}</a>`,
 		});
 	}
 }

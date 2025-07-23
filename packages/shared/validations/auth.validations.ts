@@ -36,12 +36,12 @@ export const getVerifyEmailSchema = (z: InterZod) => {
 export const getResetPasswordSchema = (z: InterZod) => {
 	return z
 		.object({
-			password: getPasswordFieldSchema(z),
+			newPassword: getPasswordFieldSchema(z),
 			confirmPassword: getPasswordFieldSchema(z),
 		})
 		.refine(
 			(data) => {
-				return data.confirmPassword === data.password;
+				return data.confirmPassword === data.newPassword;
 			},
 			{
 				message: 'Passwords are not the same',
@@ -75,8 +75,9 @@ export const getRequestEmailVerificationSchema = (z: InterZod) => {
 
 // use server-side only
 export const getCheckEmailVerificationTokenSchema = (z: InterZod) => {
-	return getEmailFormSchema(z).extend({
+	return z.object({
 		token: z.string().min(1),
+		id: z.string().min(1),
 	});
 };
 

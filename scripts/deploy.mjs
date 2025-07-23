@@ -1,10 +1,10 @@
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 // @ts-check
 import archiver from 'archiver';
 import fse from 'fs-extra';
 import _ from 'lodash';
-import { spawnSync } from 'node:child_process';
-import fs from 'node:fs';
-import path from 'node:path';
 
 const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../');
 
@@ -18,8 +18,8 @@ const APPS_DIR_SRC = path.join(MONOREPO_ROOT_DIR, APPS_DIRNAME);
 const PACKAGES_DIR_SRC = path.join(MONOREPO_ROOT_DIR, PACKAGES_DIRNAME);
 
 // const onWindows = /^win/.test(process.platform);
-const npxCommand = /* onWindows ? 'bunx.cmd' : */ 'bunx';
-const bunCommand = /* onWindows ? 'bun.cmd' : */ 'bun';
+const npxCommand = 'pnpm'; // /* onWindows ? 'bunx.cmd' : */ // 'bunx';
+// const bunCommand = /* onWindows ? 'bun.cmd' : */ 'bun';
 
 const DEPLOY_ROOT_DIR = path.join(MONOREPO_ROOT_DIR, 'scripts', 'build');
 
@@ -41,9 +41,9 @@ const FRONT_APP_DIR_DEST = path.join(APPS_DIR_DEST, FRONT_APP_NAME);
 fse.removeSync(DEPLOY_ROOT_DIR);
 fse.mkdirSync(DEPLOY_ROOT_DIR);
 
-// // ! I don't need a dockerfile, use default nixpacks system
+// // ! I don't need a dockerfile, use default nixpacks system when using pnpm/node
 // copy DockerFile
-const dockerFileSrc = path.join(MONOREPO_ROOT_DIR, 'Dockerfile-Bun');
+const dockerFileSrc = path.join(MONOREPO_ROOT_DIR, 'Dockerfile-Node');
 const dockerFileDest = path.join(DEPLOY_ROOT_DIR, 'Dockerfile');
 fse.copyFileSync(dockerFileSrc, dockerFileDest);
 
@@ -58,10 +58,18 @@ fse.copyFileSync(rootPackageJsonSrc, rootPackageJsonDest);
 // --------------------------------------------------------------------------------------//
 //                                 copy lock file on root                                //
 // --------------------------------------------------------------------------------------//
-const lockFileName = 'bun.lock';
+const lockFileName = 'pnpm-lock.yaml'; // 'bun.lock';
 const rootLockFileSrc = path.join(MONOREPO_ROOT_DIR, lockFileName);
 const rootLockFileDest = path.join(DEPLOY_ROOT_DIR, lockFileName);
 fse.copyFileSync(rootLockFileSrc, rootLockFileDest);
+
+// --------------------------------------------------------------------------------------//
+//                                 copy pnpm workspace on root                                //
+// --------------------------------------------------------------------------------------//
+const pnpmWorkspaceFileName = 'pnpm-workspace.yaml';
+const rootPnpmWorkspaceFileSrc = path.join(MONOREPO_ROOT_DIR, pnpmWorkspaceFileName);
+const rootPnpmWorkspaceFileDest = path.join(DEPLOY_ROOT_DIR, pnpmWorkspaceFileName);
+fse.copyFileSync(rootPnpmWorkspaceFileSrc, rootPnpmWorkspaceFileDest);
 
 // --------------------------------------------------------------------------------------//
 //                                   copy .npmrc file on root                            //
@@ -157,6 +165,9 @@ const subdirectories = files.filter((file) => {
 // Copy each subdirectory with only package.json to dist directory
 _.forEach(subdirectories, (subdirectory) => {
 	const sourcePath = path.join(PACKAGES_DIR_SRC, subdirectory, 'package.json');
+	if (!fse.existsSync(sourcePath)) {
+		return;
+	}
 	const destPath = path.join(PACKAGES_DIR_DEST, subdirectory, 'package.json');
 	fse.copySync(sourcePath, destPath);
 });
@@ -174,7 +185,7 @@ const pkgPath = path.join(DEPLOY_ROOT_DIR, 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
 // Set scripts.start using lodash
-const startCommand = `bun --enable-source-maps ./${mainFile}`;
+const startCommand = `node --enable-source-maps ./${mainFile}`;
 _.set(pkg, 'scripts.start', startCommand);
 
 // Unset scripts.build and scripts.prepare using lodash

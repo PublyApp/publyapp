@@ -305,6 +305,7 @@ export const functionName = {
 		checkResetPasswordToken: 'checkResetPasswordToken',
 		requestEmailVerification: 'requestEmailVerification',
 		getVerificationLink: 'getVerificationLink',
+		resetPassword: 'resetPassword',
 		// ====
 		removeSeededUsers: 'removeSeededUsers',
 	},
@@ -312,6 +313,7 @@ export const functionName = {
 		staffMember: {
 			create: 'createStaffMember',
 			find: 'findStaffMember',
+			getById: 'getStaffMemberById',
 			// ==== Migrations ====
 			migrateIsStaffMember: 'migrateIsStaffMember',
 			migrateRoleData: 'migrateRoleData',
@@ -392,6 +394,7 @@ export const queryParamValue = {
 	login_page: {
 		redirect_cause: {
 			invalid_session: 'invalid_session',
+			password_reset_success: 'password_reset_success',
 		},
 	},
 	reset_password_page: {
@@ -409,11 +412,14 @@ export const jobType = {
 export const DEFAULT_MAX_USER_PER_TENANT = 5;
 
 export const X_CODE = {
-	INVALID_EMAIL_VERIFICATION_TOKEN: 'INVALID_EMAIL_VERIFICATION_TOKEN',
+	VALIDATION_ERROR: 'VALIDATION_ERROR',
+	INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID:
+		'INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
 	INVALID_SESSION: 'INVALID_SESSION',
 	EMAIL_ALREADY_VERIFIED: 'EMAIL_ALREADY_VERIFIED',
-	INVALID_RESET_PASSWORD_TOKEN: 'INVALID_RESET_PASSWORD_TOKEN',
+	INVALID_RESET_PASSWORD_TOKEN_OR_ID: 'INVALID_RESET_PASSWORD_TOKEN_OR_ID',
+	USER_NOT_FOUND: 'USER_NOT_FOUND',
 } as const;
 
 export const PRE_RENDER_PATHS = ['/', '/login'] as const;

@@ -1,26 +1,23 @@
+import duration from '@org/shared/utils/duration.utils';
 import * as cookie from 'cookie';
 import dayjs from 'dayjs';
+import _ from 'lodash';
 import { useEffect, useRef } from 'react';
 import { data, redirect, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
-
-import duration from '@org/shared/utils/duration.utils';
-
+import { toast } from '@/front/components/snackbar';
+import { useTranslate } from '@/front/hooks/use-translate';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerAction } from '@/front/lib/react-router/server-data.server';
 import {
 	APP_NAME,
 	FRONT_PATH_NAMES,
 	LAST_USED_TENANT_ID_COOKIE_KEY,
-	SESSION_TOKEN_COOKIE_KEY,
 	queryParamKey,
 	queryParamValue,
+	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
-
-import { toast } from '@/front/components/snackbar';
-import { useTranslate } from '@/front/hooks/use-translate';
-import _ from 'lodash';
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';
 
@@ -101,6 +98,13 @@ const LoginPage = ({ actionData: _ }: Route.ComponentProps) => {
 				queryParamValue.login_page.redirect_cause.invalid_session
 			) {
 				toast.error(t('session-expired'));
+			}
+
+			if (
+				redirect_cause ===
+				queryParamValue.login_page.redirect_cause.password_reset_success
+			) {
+				toast.success(t('password-reset-success'));
 			}
 
 			hasShownToast.current = true;

@@ -1,6 +1,5 @@
-import _ from 'lodash';
-
 import type { IUser } from '@org/shared/types/db/user.types';
+import _ from 'lodash';
 
 import type {
 	CheckEmailVerificationToken,
@@ -12,13 +11,14 @@ import type {
 	GetUserAuthData,
 	GetVerificationLink,
 	RequestEmailVerification,
+	ResetPassword,
 } from '@/server/modules/common/auth/auth.functions';
 import { getProtectionHeaders } from '@/shared/lib/axios';
 import {
-	LOCALE_HEADER_KEY,
-	PARSE_SESSION_TOKEN_HEADER_KEY,
 	endPoint,
 	functionName,
+	LOCALE_HEADER_KEY,
+	PARSE_SESSION_TOKEN_HEADER_KEY,
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
@@ -36,6 +36,7 @@ export default class AuthEndPoints extends BaseEndPoints {
 		this.checkEmailVerificationToken =
 			this.checkEmailVerificationToken.bind(this);
 		this.checkResetPasswordToken = this.checkResetPasswordToken.bind(this);
+		this.resetPassword = this.resetPassword.bind(this);
 	}
 
 	async getUserAuthData() {
@@ -135,14 +136,17 @@ export default class AuthEndPoints extends BaseEndPoints {
 	}
 
 	async checkEmailVerificationToken({
-		email,
+		id,
 		token,
-	}: { email: string; token: string }) {
+	}: {
+		id: string;
+		token: string;
+	}) {
 		return this.parseRestClient.cloudRun<
 			CheckEmailVerificationToken.Return,
 			CheckEmailVerificationToken.Params
 		>(functionName.auth.checkEmailVerificationToken, {
-			params: { email, token },
+			params: { id, token },
 		});
 	}
 
@@ -155,15 +159,31 @@ export default class AuthEndPoints extends BaseEndPoints {
 		});
 	}
 
-	async checkResetPasswordToken({
-		email,
-		token,
-	}: { email: string; token: string }) {
+	async checkResetPasswordToken({ id, token }: { id: string; token: string }) {
 		return this.parseRestClient.cloudRun<
 			CheckResetPasswordToken.Return,
 			CheckResetPasswordToken.Params
 		>(functionName.auth.checkResetPasswordToken, {
-			params: { email, token },
+			params: { id, token },
+		});
+	}
+
+	async resetPassword({
+		id,
+		token,
+		newPassword,
+		confirmPassword,
+	}: {
+		id: string;
+		token: string;
+		newPassword: string;
+		confirmPassword: string;
+	}) {
+		return this.parseRestClient.cloudRun<
+			ResetPassword.Return,
+			ResetPassword.Params
+		>(functionName.auth.resetPassword, {
+			params: { id, token, newPassword, confirmPassword },
 		});
 	}
 }

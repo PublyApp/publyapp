@@ -1,33 +1,34 @@
-import { HttpException } from '@/server/exceptions/HttpException';
-import { USE_MASTER_KEY } from '@/server/lib/constants';
-import { getParseFunctionHeader } from '@/server/lib/parse/cloud/core';
-import {
-	type FunctionParams,
-	type FunctionReturn,
-	defineCloudFunction,
-	fromStaffMemberParseFunction,
-	parseFunctionEnhanced,
-} from '@/server/lib/parse/cloud/function';
-import { getDatabase } from '@/server/lib/parse/parse.utils';
-import { applyPagination, applySorting } from '@/server/lib/parse/query.utils';
-import {
-	DEFAULT_PAGE_SIZE,
-	className,
-	fileProvider,
-	functionName,
-	roleEnum,
-	roleSet,
-} from '@/shared/lib/constants';
-import type { IUser } from '@/shared/types/db/user.types';
-import { makePath } from '@/shared/utils/string.utils';
-import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
-import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
 import { getNewStaffMemberSchemaServerSide } from '@org/shared/validations/staff-member/staff-member.validation';
 import { eachOfLimit } from 'async';
 import _ from 'lodash';
 import type { AnyBulkWriteOperation, BulkWriteResult } from 'mongodb';
 import { nanoid } from 'nanoid';
 import { generateUsername } from 'unique-username-generator';
+import { HttpException } from '@/server/exceptions/HttpException';
+import { USE_MASTER_KEY } from '@/server/lib/constants';
+import { getParseFunctionHeader } from '@/server/lib/parse/cloud/core';
+import {
+	defineCloudFunction,
+	type FunctionParams,
+	type FunctionReturn,
+	fromStaffMemberParseFunction,
+	parseFunctionEnhanced,
+} from '@/server/lib/parse/cloud/function';
+import { getDatabase, removeParseFields } from '@/server/lib/parse/parse.utils';
+import { applyPagination, applySorting } from '@/server/lib/parse/query.utils';
+import {
+	className,
+	DEFAULT_PAGE_SIZE,
+	fileProvider,
+	functionName,
+	roleEnum,
+	roleSet,
+	X_CODE,
+} from '@/shared/lib/constants';
+import type { IUser } from '@/shared/types/db/user.types';
+import { makePath } from '@/shared/utils/string.utils';
+import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
+import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
 import RoleService from '../../common/auth/role/role.service';
 import ParseUser from '../../common/auth/user/user.class';
 import FileService from '../../common/file/file.service';
@@ -350,6 +351,47 @@ const migrateRoleData = parseFunctionEnhanced({
 	},
 });
 
+export namespace GetStaffMemberByIdFunction {
+	export type Params = FunctionParams<typeof getStaffMemberById>;
+	export type Return = FunctionReturn<typeof getStaffMemberById>;
+}
+
+const getStaffMemberById = fromStaffMemberParseFunction({
+	name: functionName.staff.staffMember.getById,
+	allowedRoles: roleSet.STAFF_ADMIN_ONLY,
+	validateParams: ({ params, z }) => {
+		return z
+			.object({
+				id: z.string(),
+			})
+			.parse(params);
+	},
+	action: async ({ params, t }) => {
+		const user = await new Parse.Query(ParseUser)
+			.select(['firstName', 'lastName', 'email', 'avatarUrl', 'roleData.role'])
+			.equalTo('isStaffMember', true)
+			.equalTo('objectId', params.id)
+			.notEqualTo('isDeleted', true)
+			// ok to use master key here
+			// because function is only allowed to be used by staff admins
+			// and user documents have an ACL allowing owner only
+			// so we are obliged to use master key anyway
+			.first(USE_MASTER_KEY);
+
+		if (!user) {
+			throw new HttpException(
+				404,
+				t('item-not-found', { item: t('staff-member') }),
+				{
+					xcode: X_CODE.USER_NOT_FOUND,
+				},
+			);
+		}
+
+		return removeParseFields(user.toJSON()) as IUser;
+	},
+});
+
 //--------------------------------------------------------------------------------------//
 //                                 Define the functions                                 //
 //--------------------------------------------------------------------------------------//
@@ -358,4 +400,5 @@ export const defineStaffMemberFunctions = () => {
 	defineCloudFunction(migrateIsStaffMember);
 	defineCloudFunction(migrateRoleData);
 	defineCloudFunction(findStaffMember);
+	defineCloudFunction(getStaffMemberById);
 };

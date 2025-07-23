@@ -1,30 +1,28 @@
-import { isValidElement, type FC, type ReactNode } from 'react';
-
 import type { UseQueryResult } from '@tanstack/react-query';
 import _ from 'lodash';
+import { type FC, isValidElement, type ReactNode } from 'react';
 import { checkIfEmptyQueryData } from '../lib/react-query/query-utils';
 
-type Props = {
-	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	query: UseQueryResult<any, any>;
+type Props<TData = unknown, TError = Error> = {
+	query: UseQueryResult<TData, TError>;
 	loadingStrategy?: 'loading' | 'pending' | 'fetching'; // defaults to 'pending'
 	LoadingSlot?: ReactNode | FC;
 	ErrorSlot?: ReactNode | FC<{ error: unknown }>;
 	EmptySlot?: ReactNode | FC;
-	children?: ReactNode;
+	children?: ReactNode | FC<{ data: TData }>;
 };
 
 const defaultLoadingElement = <div>Loading...</div>;
 const defaultErrorElement = <div>Error...</div>;
 
-const QueryDisplay = ({
+const QueryDisplay = <TData = unknown, TError = Error>({
 	query,
 	LoadingSlot,
 	ErrorSlot,
 	EmptySlot,
 	loadingStrategy,
 	children,
-}: Props) => {
+}: Props<TData, TError>) => {
 	let showLoading: boolean;
 
 	switch (loadingStrategy) {
@@ -80,7 +78,11 @@ const QueryDisplay = ({
 		}
 	}
 
-	// if query is successful, return children
+	// if query is successful, handle children
+	if (_.isFunction(children)) {
+		return children({ data: query.data as TData });
+	}
+
 	return children;
 };
 

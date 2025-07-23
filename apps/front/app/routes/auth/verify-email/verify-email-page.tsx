@@ -1,7 +1,15 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, type Theme } from '@mui/material';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+import { useForm } from 'react-hook-form';
+import { redirect, useFetcher } from 'react-router';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
-import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
+import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
@@ -11,27 +19,17 @@ import {
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import {
 	FRONT_PATH_NAMES,
-	X_CODE,
 	queryParamKey,
 	queryParamValue,
+	X_CODE,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
-import { decodeString } from '@/shared/utils/string-encoding.server';
 import {
 	getCheckEmailVerificationTokenSchema,
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
 } from '@/shared/validations/auth.validations';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, type Theme } from '@mui/material';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import _ from 'lodash';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { useForm } from 'react-hook-form';
-import { redirect, useFetcher } from 'react-router';
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';
 
@@ -114,28 +112,12 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		let isValidEncodedEmail = false;
-		let decodedEmail = '';
-
-		try {
-			decodedEmail = decodeString(encodedEmail);
-			isValidEncodedEmail = true;
-		} catch (_error) {
-			isValidEncodedEmail = false;
-		}
-
-		if (!isValidEncodedEmail) {
-			return {
-				code: 'INVALID_LINK',
-			} as const;
-		}
-
 		const checkEmailVerificationToken = safeRun(
 			apiClient.auth.checkEmailVerificationToken,
 		);
 
 		const schema = getCheckEmailVerificationTokenSchema(z);
-		const parsed = schema.safeParse({ email: decodedEmail, token });
+		const parsed = schema.safeParse({ id: encodedEmail, token });
 
 		// we don't tell what went wrong here
 		// because we don't want to leak information
@@ -147,13 +129,15 @@ export const loader = getServerLoader({
 		}
 
 		const result = await checkEmailVerificationToken({
-			email: parsed.data.email,
+			id: encodedEmail,
 			token: parsed.data.token,
 		});
 
 		if (result.status === 'error') {
 			if (result.error instanceof ParseRestError) {
-				if (result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN) {
+				if (
+					result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID
+				) {
 					return {
 						code: 'INVALID_LINK',
 					} as const;
@@ -167,23 +151,16 @@ export const loader = getServerLoader({
 			throw result.error;
 		}
 
-		const redirectSearchParams = new URLSearchParams();
-		redirectSearchParams.set(
+		const redirectUrl = new URL(result.data.resetPasswordLink);
+		redirectUrl.searchParams.set(
+			queryParamKey.language,
+			getCorrectLocale(searchParams.get(queryParamKey.language)),
+		);
+		redirectUrl.searchParams.set(
 			queryParamKey.reset_password_page.redirect_cause,
 			queryParamValue.reset_password_page.redirect_cause.email_verification,
 		);
-		redirectSearchParams.set(
-			queryParamKey.language,
-			getCorrectLocale(redirectSearchParams.get(queryParamKey.language)),
-		);
-		redirectSearchParams.set(
-			queryParamKey.reset_password_page.encoded_email,
-			encodedEmail,
-		);
-		redirectSearchParams.set(queryParamKey.token, result.data.token);
-		return redirect(
-			`${FRONT_PATH_NAMES.auth.resetPassword}?${redirectSearchParams.toString()}`,
-		);
+		return redirect(redirectUrl.toString());
 	},
 });
 
@@ -240,7 +217,7 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 		formState: { isSubmitting },
 	} = form;
 
-	useLanguageTriggerValidation(i18n.language, form);
+	useSyncFormToLang(i18n.language, form);
 
 	const fetcher = useFetcher<typeof action>();
 
@@ -311,7 +288,6 @@ const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 					variant="contained"
 					sx={{ mt: 3 }}
 					loading={isSubmitting}
-					loadingIndicator={`${t('verify-email')}...`}
 				>
 					{t('verify-email')}
 				</Button>

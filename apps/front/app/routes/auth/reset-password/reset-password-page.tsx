@@ -1,8 +1,26 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
+import type { Theme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
+import { useBoolean } from 'minimal-shared/hooks';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+import { useEffect, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import {
+	redirect,
+	useFetcher,
+	useLoaderData,
+	useSearchParams,
+} from 'react-router';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { toast } from '@/front/components/snackbar';
-import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
+import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
@@ -10,38 +28,79 @@ import {
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { X_CODE, queryParamKey, queryParamValue } from '@/shared/lib/constants';
+import {
+	FRONT_PATH_NAMES,
+	queryParamKey,
+	queryParamValue,
+	X_CODE,
+} from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error-message';
-import { decodeString } from '@/shared/utils/string-encoding.server';
 import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
-import { zodResolver } from '@hookform/resolvers/zod';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import Typography from '@mui/material/Typography';
-import type { Theme } from '@mui/material/styles';
-import { useBoolean } from 'minimal-shared/hooks';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { useEffect, useRef } from 'react';
-import { useForm } from 'react-hook-form';
-import { useFetcher, useSearchParams } from 'react-router';
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
 
 export const action = getServerAction({
-	action: async ({ request }) => {
+	action: async ({ request, apiClient, z }) => {
+		const searchParams = new URL(request.url).searchParams;
+		const token = searchParams.get(queryParamKey.token);
+		const encodedEmail = searchParams.get(
+			queryParamKey.reset_password_page.encoded_email,
+		);
+
 		const formData = await request.formData();
-		const password = formData.get('password');
+		const newPassword = formData.get('newPassword');
 		const confirmPassword = formData.get('confirmPassword');
 
-		if (password !== confirmPassword) {
+		const resetPassword = safeRun(apiClient.auth.resetPassword);
+
+		const schema = getResetPasswordSchema(z).and(
+			z.object({
+				token: z.string().min(1),
+				id: z.string().min(1),
+			}),
+		);
+
+		const validationResult = schema.safeParse({
+			newPassword,
+			confirmPassword,
+			token,
+			id: encodedEmail,
+		});
+
+		if (!validationResult.success) {
 			return {
 				status: 'error',
-				error: 'Passwords do not match',
+				error: validationResult.error.errors[0].message,
 			} as const;
 		}
+
+		const result = await resetPassword({
+			id: validationResult.data.id,
+			token: validationResult.data.token,
+			newPassword: validationResult.data.newPassword,
+			confirmPassword: validationResult.data.confirmPassword,
+		});
+
+		if (result.status === 'error') {
+			return {
+				status: 'error',
+				error: result.error.message,
+			} as const;
+		}
+
+		const redirectParams = new URLSearchParams();
+		redirectParams.set(
+			queryParamKey.login_page.redirect_cause,
+			queryParamValue.login_page.redirect_cause.password_reset_success,
+		);
+		redirectParams.set(
+			queryParamKey.language,
+			getCorrectLocale(searchParams.get(queryParamKey.language)),
+		);
+		return redirect(
+			`${FRONT_PATH_NAMES.auth.login}?${redirectParams.toString()}`,
+		);
 	},
 });
 
@@ -59,49 +118,31 @@ export const loader = getServerLoader({
 			} as const;
 		}
 
-		let isValidEncodedEmail = false;
-		let decodedEmail = '';
-
-		try {
-			decodedEmail = decodeString(encodedEmail);
-			isValidEncodedEmail = true;
-		} catch (_error) {
-			isValidEncodedEmail = false;
-		}
-
-		if (!isValidEncodedEmail) {
-			return {
-				code: 'INVALID_LINK',
-			} as const;
-		}
-
 		const checkResetPasswordToken = safeRun(
 			apiClient.auth.checkResetPasswordToken,
 		);
 
 		// verify if token belongs to the email
-		const checkResetPasswordTokenResult = await checkResetPasswordToken({
-			email: decodedEmail,
+		const result = await checkResetPasswordToken({
+			id: encodedEmail,
 			token,
 		});
 
-		if (checkResetPasswordTokenResult.status === 'error') {
-			if (checkResetPasswordTokenResult.error instanceof ParseRestError) {
-				if (
-					checkResetPasswordTokenResult.error.code ===
-					X_CODE.INVALID_RESET_PASSWORD_TOKEN
-				) {
+		if (result.status === 'error') {
+			if (result.error instanceof ParseRestError) {
+				if (result.error.code === X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID) {
 					return {
 						code: 'INVALID_LINK',
 					} as const;
 				}
 			}
 
-			throw checkResetPasswordTokenResult.error;
+			throw result.error;
 		}
 
 		return {
 			code: 'OK',
+			email: result.data.email,
 		} as const;
 	},
 });
@@ -158,13 +199,14 @@ const ResetPasswordForm = () => {
 	const { t, i18n } = useTranslate();
 	const showPassword = useBoolean();
 	const showConfirmPassword = useBoolean();
+	const loaderData = useLoaderData<typeof loader>();
 
 	const schema = getResetPasswordSchema(defaultZodClient);
 
 	const form = useForm({
 		resolver: zodResolver(schema),
 		defaultValues: {
-			password: '',
+			newPassword: '',
 			confirmPassword: '',
 		},
 	});
@@ -173,7 +215,7 @@ const ResetPasswordForm = () => {
 		formState: { isSubmitting },
 	} = form;
 
-	useLanguageTriggerValidation(i18n.language, form);
+	useSyncFormToLang(i18n.language, form);
 
 	const fetcher = useFetcher<typeof action>();
 
@@ -198,12 +240,20 @@ const ResetPasswordForm = () => {
 					<Typography variant="h5" color="text.primary" sx={{ mb: 2 }}>
 						{t('reset-password')}
 					</Typography>
-					{/* <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-					{formText[intent].description}
-				</Typography> */}
+					<Typography
+						variant="body1"
+						color="text.secondary"
+						sx={{ mb: 3 }}
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: It's only dangerousIf we let users to set it
+						dangerouslySetInnerHTML={{
+							__html: t('reset-password-description', {
+								email: loaderData.email,
+							}),
+						}}
+					/>
 
 					<Field.Text
-						name="password"
+						name="newPassword"
 						label={t('password')}
 						placeholder={t('n+ characters', { characters: '8' })}
 						type={showPassword.value ? 'text' : 'password'}
@@ -262,7 +312,6 @@ const ResetPasswordForm = () => {
 						variant="contained"
 						sx={{ mt: 3 }}
 						loading={isSubmitting}
-						// loadingIndicator={`${t('verify-email')}...`}
 					>
 						{t('reset-password')}
 					</Button>
