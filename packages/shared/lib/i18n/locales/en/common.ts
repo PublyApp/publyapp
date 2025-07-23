@@ -219,6 +219,11 @@ const commonEN = {
 
 	'light-mode': 'Light mode',
 	'dark-mode': 'Dark mode',
+
+	details: 'Details',
+	'edit-item': 'Edit {{item}}',
+	'user-not-found-description':
+		'The user you are looking for could not be found. It may have been deleted or the link you followed may be incorrect.',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

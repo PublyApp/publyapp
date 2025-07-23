@@ -11,9 +11,15 @@ import { RouterLink } from '../router-link';
 
 type NotFoundViewProps = {
 	withLayout?: boolean;
+	title?: string;
+	description?: string;
 };
 
-export const NotFoundView = ({ withLayout = true }: NotFoundViewProps) => {
+export const NotFoundView = ({
+	withLayout = true,
+	title,
+	description,
+}: NotFoundViewProps) => {
 	const renderContent = () => {
 		return (
 			<Container component={MotionContainer}>
@@ -28,14 +34,14 @@ export const NotFoundView = ({ withLayout = true }: NotFoundViewProps) => {
 
 				<m.div /* variants={varBounce('in')} */>
 					<Typography variant="h3" sx={{ mb: 2 }}>
-						Sorry, page not found!
+						{title || 'Sorry, page not found!'}
 					</Typography>
 				</m.div>
 
 				<m.div /* variants={varBounce('in')} */>
 					<Typography sx={{ color: 'text.secondary', mb: 2 }}>
-						Sorry, we couldn't find the page you're looking for. Perhaps you've
-						mistyped the URL? Be sure to check your spelling.
+						{description ||
+							"Sorry, we couldn't find the page you're looking for. Perhaps you've mistyped the URL? Be sure to check your spelling."}
 					</Typography>
 				</m.div>
 
