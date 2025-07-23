@@ -88,7 +88,11 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		mode: 'onSubmit',
 		resolver: zodResolver(NewUserSchema),
 		defaultValues,
-		values: currentUser,
+		values: {
+			...defaultValues,
+			...currentUser,
+			avatar: currentUser?.avatarUrl as never,
+		},
 	});
 
 	const {
