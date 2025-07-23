@@ -8,13 +8,8 @@
 		// https://github.com/microsoft/TypeScript/issues/29808#issuecomment-560951060
 		"declarationMap": false,
 		"declaration": false,
-		// ! we are not using pnpm anymore: careful with relative paths here
-		// "typeRoots": ["./node_modules/@types"],
+		"typeRoots": ["./node_modules/@types"] // comment if using bun (or any other hoisted package manager)
 	},
-	"include": [
-		"."
-	],
-	"exclude": [
-		"node_modules"
-	]
+	"include": ["."],
+	"exclude": ["node_modules"]
 }

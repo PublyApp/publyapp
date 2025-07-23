@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.1.1/schema.json",
 	"vcs": {
 		"enabled": false,
 		"clientKind": "git",
@@ -7,21 +7,26 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"ignore": [
-			"node_modules",
-			"build",
-			"dist",
-			".turbo",
-			".husky/_",
-			".react-router"
+		"includes": [
+			"**",
+			"!**/node_modules",
+			"!**/build",
+			"!**/dist",
+			"!**/.turbo",
+			"!**/.husky/_",
+			"!**/.react-router"
 		]
 	},
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab"
 	},
-	"organizeImports": {
-		"enabled": true
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
 	},
 	"linter": {
 		"enabled": true,
@@ -29,6 +34,18 @@
 			"recommended": true,
 			"complexity": {
 				"noForEach": "off"
+			},
+			"style": {
+				"noParameterAssign": "error",
+				"useAsConstAssertion": "error",
+				"useDefaultParameterLast": "error",
+				"useEnumInitializers": "error",
+				"useSelfClosingElements": "error",
+				"useSingleVarDeclarator": "error",
+				"noUnusedTemplateLiteral": "error",
+				"useNumberNamespace": "error",
+				"noInferrableTypes": "error",
+				"noUselessElse": "error"
 			}
 		}
 	},
@@ -39,7 +56,7 @@
 	},
 	"overrides": [
 		{
-			"include": ["tsconfig.*.json", "**/**/tsconfig.json", ".vscode/*.json"],
+			"includes": ["**/tsconfig.*.json", "**/.vscode/**/*.json"],
 			"json": {
 				"parser": {
 					"allowComments": true,

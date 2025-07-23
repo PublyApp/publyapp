@@ -4,8 +4,10 @@
 		{
 			"type": "node",
 			"request": "attach",
-			"name": "Attach by Process ID (Node)",
-			"processId": "${command:PickProcess}",
+			"name": "Attach by WebSocket URL",
+			"address": "127.0.0.1",
+			"port": 6183,
+			"restart": false,
 			"internalConsoleOptions": "neverOpen",
 			"sourceMaps": true,
 			"smartStep": true,
@@ -16,7 +18,7 @@
 			"internalConsoleOptions": "neverOpen",
 			"request": "attach",
 			"name": "Attach Bun",
-			"url": "ws://localhost:6499/",
+			"url": "ws://localhost:6499/y5peyetdv1a",
 			"stopOnEntry": false
 		}
 	]

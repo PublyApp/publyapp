@@ -208,6 +208,25 @@ const commonFR = {
 	'n+ characters': '{{characters}}+ caractères',
 
 	'session-expired': 'Session expirée',
+	'send-email-verification-follow-up': 'Relancer la vérification',
+	'follow-up': 'Relancer',
+	'email-verification-follow-up-success':
+		'Suivi de vérification email envoyé avec succès',
+	'email-verification-follow-up-error':
+		"Échec de l'envoi du suivi de vérification email",
+	'email-x-already-verified': "L'email {{email}} est déjà vérifié",
+
+	'reset-password-description':
+		'Entrez votre nouveau mot de passe pour <span style="font-weight: bold;">{{email}}</span>',
+	'password-reset-success': 'Mot de passe réinitialisé avec succès',
+
+	'light-mode': 'Mode clair',
+	'dark-mode': 'Mode sombre',
+
+	details: 'Détails',
+	'edit-item': 'Modifier {{item}}',
+	'user-not-found-description':
+		"L'utilisateur que vous recherchez n'a pas pu être trouvé. Il a peut-être été supprimé ou le lien que vous avez suivi peut être incorrect.",
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

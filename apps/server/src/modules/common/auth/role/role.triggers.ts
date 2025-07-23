@@ -17,19 +17,17 @@ const beforeSaveRole = parseTriggerEnhanced<Parse.Role>({
 		const isAddingRoleToUsers = _.get(json, 'users.__op') === 'AddRelation';
 
 		if (isAddingRoleToUsers) {
+			const rules = [
+				'staff members cannot be members of a tenant and vice-versa',
+				'do not forget to set roleData on the user object',
+				'do not forget to set isStaffMember on the user object (only necessary for staff member users)',
+				'please add the new rules to this list if new requirements arise',
+			];
 			log.debug('============================================================');
 			log.debug('  ⚠️⚠️⚠️ WARNING!!: updating users to role relation');
-			log.debug('  please ensure all side effects are handled properly');
-			log.debug(
-				'  rule 1: staff members cannot be members of a tenant and vice-versa',
-			);
-			log.debug('  rule 2: do not forget to set roleData on the user object');
-			log.debug(
-				'  rule 3: do not forget to set isStaffMember on the user object (only necessary for staff member users)',
-			);
-			log.debug(
-				'  rule 4: please add the new rules to this list if new requirements arise',
-			);
+			rules.forEach((rule, index) => {
+				log.debug(`rule ${index + 1}: ${rule}`);
+			});
 			log.debug('============================================================');
 
 			const roleName = req.original?.get('name');

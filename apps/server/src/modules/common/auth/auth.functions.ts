@@ -1,10 +1,15 @@
+import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
+import type { z as zod } from 'zod';
 import { HttpException } from '@/server/exceptions/HttpException';
-import { DISABLE_SIGNUP_CONFIG_KEY } from '@/server/lib/constants';
+import {
+	DISABLE_SIGNUP_CONFIG_KEY,
+	USE_MASTER_KEY,
+} from '@/server/lib/constants';
 import { env } from '@/server/lib/env';
 import {
+	defineCloudFunction,
 	type FunctionParams,
 	type FunctionReturn,
-	defineCloudFunction,
 	fromAuthedUserParseFunction,
 	fromPublicParseFunction,
 	fromStaffMemberParseFunction,
@@ -17,19 +22,30 @@ import {
 	parseFields,
 	removeParseFields,
 } from '@/server/lib/parse/parse.utils';
-import { X_CODE, className, functionName } from '@/shared/lib/constants';
+import {
+	APP_NAME,
+	className,
+	functionName,
+	X_CODE,
+} from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/winston.server';
+import type InterZod from '@/shared/lib/zod/InterZod';
 import type { IUser } from '@/shared/types/db/user.types';
 import {
+	decodeString,
+	isValidEncodedString,
+} from '@/shared/utils/string-encoding.server';
+import {
 	getCheckEmailVerificationTokenSchema,
-	getCheckResetPasswordTokenSchema,
 	getEmailFormSchema,
+	getResetPasswordSchema,
 } from '@/shared/validations/auth.validations';
-import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
+import EmailService from '../email/email.service';
 import { AuthCloudService } from './auth-cloud.service';
 import RoleService from './role/role.service';
 import type ParseTenant from './tenant/tenant.class';
 import TenantService from './tenant/tenant.service';
+import ParseUser from './user/user.class';
 
 export namespace GetUserAuthData {
 	export type Params = FunctionParams<typeof getUserAuthData>;
@@ -257,24 +273,52 @@ const getTenantAuthData = fromAuthedUserParseFunction({
 });
 
 export namespace CheckEmailVerificationToken {
-	export type Params = FunctionParams<typeof checkEmailVerificationToken>;
+	export type Params = { id: string; token: string }; // FunctionParams<typeof checkEmailVerificationToken>;
 	export type Return = FunctionReturn<typeof checkEmailVerificationToken>;
 }
 
+const getCheckEmailVerificationTokenSchemaServer = (z: InterZod) => {
+	return getCheckEmailVerificationTokenSchema(z)
+		.pick({ token: true })
+		.extend({
+			id: z
+				.string()
+				.min(1)
+				.refine(
+					(arg) => {
+						return isValidEncodedString(arg);
+					},
+					z.t('invalid-item', { item: 'id' }),
+				)
+				.transform((arg) => {
+					return decodeString(arg);
+				}),
+		});
+};
+
 const checkEmailVerificationToken = fromPublicParseFunction({
 	name: functionName.auth.checkEmailVerificationToken,
-	validateParams({ params, z }) {
-		const schema = getCheckEmailVerificationTokenSchema(z);
-		return schema.parse(params);
-	},
-	action: async ({ params, t }) => {
+	action: async ({ t, req, z }) => {
+		const schema = getCheckEmailVerificationTokenSchemaServer(z);
+		const result = schema.safeParse(req.params);
+
+		if (!result.success) {
+			throw new HttpException(400, t('invalid-item', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID,
+				meta: { cause: 'Did not pass validation' },
+			});
+		}
+
+		const params = result.data;
+		const email = params.id;
+
 		// check if token/email pair is valid
 		// if valid, set email as verified, unset token + unset email_verify_token_expires_at
 		const UserCollection = getDatabase().collection(className.USER);
 
 		const user = await UserCollection.findOne(
 			{
-				email: params.email,
+				email,
 				_email_verify_token: params.token,
 			},
 			{
@@ -288,27 +332,19 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 		);
 
 		if (!user) {
-			throw new HttpException(
-				400,
-				t('item-is-invalid', { item: 'Email/Token' }),
-				{
-					xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
-					meta: { cause: 'User not found' },
-				},
-			);
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID,
+				meta: { cause: 'User not found' },
+			});
 		}
 
 		const isExpired = user._email_verify_token_expires_at < new Date();
 
 		if (isExpired) {
-			throw new HttpException(
-				400,
-				t('item-is-invalid', { item: 'Email/Token' }),
-				{
-					xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN,
-					meta: { cause: 'Token expired' },
-				},
-			);
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID,
+				meta: { cause: 'Token expired' },
+			});
 		}
 
 		const config = getInternalConfig();
@@ -343,31 +379,65 @@ const checkEmailVerificationToken = fromPublicParseFunction({
 			},
 		);
 
+		// generate reset password link
+		const resetPasswordLink = await AuthCloudService.getCustomResetPasswordLink(
+			{
+				token: passwordResetTokenData._perishable_token,
+				email: user.email,
+				serverUrl: env.FRONT_URL,
+			},
+		);
+
+		// asynchronously send email
+		const emailService = new EmailService();
+		emailService.sendEmail({
+			to: user.email,
+			subject: `${APP_NAME} - Email Verification Success`,
+			html: `<h1>Your email has been verified</h1>
+<p>You have been redirected to the reset password page automatically to change your password.</p>
+<p>If you did not reset reset your password at that time you can still do it by clicking the link below:</p>
+<a href="${resetPasswordLink}">${resetPasswordLink}</a>`,
+		});
+
 		return {
 			status: 'success',
-			token: passwordResetTokenData._perishable_token,
+			resetPasswordLink,
 		} as const;
 	},
 });
 
 export namespace CheckResetPasswordToken {
-	export type Params = FunctionParams<typeof checkResetPasswordToken>;
+	export type Params = zod.infer<
+		ReturnType<typeof getCheckResetPasswordTokenSchemaServer>
+	>;
 	export type Return = FunctionReturn<typeof checkResetPasswordToken>;
 }
 
+const getCheckResetPasswordTokenSchemaServer =
+	getCheckEmailVerificationTokenSchemaServer;
+
 const checkResetPasswordToken = fromPublicParseFunction({
 	name: functionName.auth.checkResetPasswordToken,
-	validateParams: ({ params, z }) => {
-		const schema = getCheckResetPasswordTokenSchema(z);
-		return schema.parse(params);
-	},
-	action: async ({ params, t }) => {
+	action: async ({ t, req, z }) => {
+		const schema = getCheckResetPasswordTokenSchemaServer(z);
+		const result = schema.safeParse(req.params);
+
+		if (!result.success) {
+			throw new HttpException(400, t('invalid-item', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+				meta: { cause: 'Did not pass validation' },
+			});
+		}
+
+		const params = result.data;
+		const email = params.id;
+
 		const UserCollection = getDatabase().collection(className.USER);
 
 		const user = await UserCollection.findOne(
 			{
 				_perishable_token: params.token,
-				email: params.email,
+				email,
 			},
 			{
 				projection: {
@@ -377,30 +447,22 @@ const checkResetPasswordToken = fromPublicParseFunction({
 		);
 
 		if (!user) {
-			throw new HttpException(
-				400,
-				t('item-is-invalid', { item: 'Email/Token' }),
-				{
-					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN,
-					meta: { cause: 'User not found' },
-				},
-			);
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+				meta: { cause: 'User not found' },
+			});
 		}
 
 		const isExpired = user._perishable_token_expires_at < new Date();
 
 		if (isExpired) {
-			throw new HttpException(
-				400,
-				t('item-is-invalid', { item: 'Email/Token' }),
-				{
-					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN,
-					meta: { cause: 'Token expired' },
-				},
-			);
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+				meta: { cause: 'Token expired' },
+			});
 		}
 
-		return { status: 'success' } as const;
+		return { status: 'success', email } as const;
 	},
 });
 
@@ -415,7 +477,7 @@ const requestEmailVerification = fromPublicParseFunction({
 		const schema = getEmailFormSchema(z);
 		return schema.parse(params);
 	},
-	action: async ({ params }) => {
+	action: async ({ params, t }) => {
 		const db = getDatabase();
 		const UserCollection = db.collection(className.USER);
 
@@ -435,29 +497,57 @@ const requestEmailVerification = fromPublicParseFunction({
 		);
 
 		if (!user) {
-			logger.warn('User not found for email verification request', {
-				email: params.email,
+			throw new HttpException(404, t('item-not-found', { item: 'User' }), {
+				xcode: X_CODE.USER_NOT_FOUND,
 			});
-			return { status: 'processed' } as const;
 		}
 
 		if (user.emailVerified) {
-			logger.warn('User already verified for email verification request', {
-				email: params.email,
-			});
-			return { status: 'processed' } as const;
+			throw new HttpException(
+				400,
+				t('email-x-already-verified', { email: user.email }),
+				{
+					xcode: X_CODE.EMAIL_ALREADY_VERIFIED,
+				},
+			);
 		}
 
 		const config = getInternalConfig();
 
+		const emailService = new EmailService();
+
+		const sendEmail = async (emailData: { email: string; token: string }) => {
+			const customLink = await AuthCloudService.getCustomVerificationLink({
+				token: emailData.token,
+				email: emailData.email,
+				serverUrl: env.FRONT_URL,
+			});
+
+			await emailService.sendEmail({
+				subject: `Email Verification Link for ${APP_NAME} account`,
+				html: `<h1>Email Verification</h1>
+<p>Please click the link below to verify your email:</p>
+<a href="${customLink}">${customLink}</a>`,
+				to: emailData.email,
+			});
+		};
+
+		// if the token is valid and the token reuse is enabled, return success
 		if (
 			config.emailVerifyTokenReuseIfValid &&
 			config.emailVerifyTokenValidityDuration &&
 			user._email_verify_token &&
 			new Date() < new Date(user._email_verify_token_expires_at)
 		) {
-			// logger.warn("User already has a valid email verification token", { email: params.email });
-			return { status: 'processed' } as const;
+			// asynchronously send email
+			sendEmail({
+				email: user.email,
+				token: user._email_verify_token,
+			}).catch((error) => {
+				logger.error(error);
+			});
+
+			return { status: 'success' } as const;
 		}
 
 		const emailVerifyData: {
@@ -480,6 +570,14 @@ const requestEmailVerification = fromPublicParseFunction({
 				$set: emailVerifyData,
 			},
 		);
+
+		// asynchronously send email
+		sendEmail({
+			email: user.email,
+			token: user._email_verify_token,
+		}).catch((error) => {
+			logger.error(error);
+		});
 
 		return { status: 'success' } as const;
 	},
@@ -524,6 +622,96 @@ const getVerificationLink = fromStaffMemberParseFunction({
 	},
 });
 
+export namespace ResetPassword {
+	export type Params = Prettify<
+		zod.infer<ReturnType<typeof getResetPasswordSchemaServer>>
+	>;
+	export type Return = FunctionReturn<typeof resetPassword>;
+}
+
+const getResetPasswordSchemaServer = (z: InterZod) => {
+	return getResetPasswordSchema(z).and(
+		z.object({
+			id: z
+				.string()
+				.min(1)
+				.refine(
+					(arg) => {
+						return isValidEncodedString(arg);
+					},
+					z.t('invalid-item', { item: 'id' }),
+				)
+				.transform((arg) => {
+					return decodeString(arg);
+				}),
+			token: z.string().min(1),
+		}),
+	);
+};
+
+const resetPassword = fromPublicParseFunction({
+	name: functionName.auth.resetPassword,
+	action: async ({ req, z, t }) => {
+		const schema = getResetPasswordSchemaServer(z);
+		const result = schema.safeParse(req.params);
+
+		if (!result.success) {
+			if (['id', 'token'].includes(result.error.errors[0].path[0] as string)) {
+				throw new HttpException(400, t('invalid-item', { item: 'ID/Token' }), {
+					xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+					meta: { cause: 'Did not pass validation' },
+				});
+			}
+
+			throw new HttpException(400, result.error.errors[0].message, {
+				xcode: X_CODE.VALIDATION_ERROR,
+			});
+		}
+
+		const params = result.data;
+		const email = params.id;
+
+		const UserCollection = getDatabase().collection(className.USER);
+
+		const user = await UserCollection.findOne(
+			{
+				_perishable_token: params.token,
+				email,
+			},
+			{
+				projection: {
+					_perishable_token_expires_at: 1,
+				},
+			},
+		);
+
+		if (!user) {
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+				meta: { cause: 'User not found' },
+			});
+		}
+
+		const isExpired = user._perishable_token_expires_at < new Date();
+
+		if (isExpired) {
+			throw new HttpException(400, t('item-is-invalid', { item: 'ID/Token' }), {
+				xcode: X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID,
+				meta: { cause: 'Token expired' },
+			});
+		}
+
+		const userObject = new ParseUser();
+		userObject.id = user._id as never;
+		userObject.set('password', params.newPassword);
+		userObject.unset('_perishable_token');
+		userObject.unset('_perishable_token_expires_at');
+		await userObject.save(null, USE_MASTER_KEY); // master key is required due to owner ALC on user objects
+
+		return { status: 'success' } as const;
+	},
+});
+
 //--------------------------------------------------------------------------------------//
 //                                 Define the functions                                 //
 //--------------------------------------------------------------------------------------//
@@ -536,6 +724,7 @@ defineCloudFunction(checkEmailVerificationToken);
 defineCloudFunction(checkResetPasswordToken);
 defineCloudFunction(requestEmailVerification);
 defineCloudFunction(getVerificationLink);
+defineCloudFunction(resetPassword);
 
 // --------------------------------------------------------------------------------------//
 //                                       SEEDING                                        //

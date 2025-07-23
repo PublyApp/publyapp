@@ -1,57 +1,68 @@
+import { type SupportedColorScheme, useColorScheme } from '@mui/material';
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import { m } from 'framer-motion';
+import _ from 'lodash';
 import { usePopover } from 'minimal-shared/hooks';
-import { useCallback } from 'react';
 import { transitionTap, varHover, varTap } from '@/front/components/animate';
 import { CustomPopover } from '@/front/components/custom-popover';
-import { FlagIcon } from '@/front/components/flag-icon';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { useSettingsContext } from '@/front/hooks/use-settings-context';
 import { useTranslate } from '@/front/hooks/use-translate';
-import type { AppLocale } from '@/shared/lib/i18n/resources';
 
 // ----------------------------------------------------------------------
 
-export type LanguagePopoverProps = IconButtonProps & {
-	data?: {
-		value: string;
-		label: string;
-		countryCode: string;
-	}[];
+const colorSchemeConfigs = {
+	light: {
+		icon: <Iconify icon="solar:sun-bold-duotone" />,
+		t_key: 'light-mode',
+	},
+	dark: {
+		icon: <Iconify icon="solar:moon-bold-duotone" />,
+		t_key: 'dark-mode',
+	},
 };
 
-export const LanguagePopover = ({
-	data = [],
+export type ColorSchemePopoverProps = IconButtonProps;
+
+export const ColorSchemePopover = ({
 	sx,
 	...other
-}: LanguagePopoverProps) => {
+}: ColorSchemePopoverProps) => {
+	const { t } = useTranslate();
 	const { open, anchorEl, onClose, onOpen } = usePopover();
+	const settings = useSettingsContext();
+	const { mode, setMode, allColorSchemes } = useColorScheme();
 
-	const { onChangeLang, currentLang } = useTranslate();
-
-	const handleChangeLang = useCallback(
-		(newLang: AppLocale) => {
-			onChangeLang(newLang);
-			onClose();
-		},
-		[onChangeLang, onClose],
-	);
+	const handleChangeColorScheme = (colorScheme: SupportedColorScheme) => {
+		setMode(colorScheme);
+		settings.setState({
+			colorScheme,
+		});
+	};
 
 	const renderMenuList = () => {
 		return (
 			<CustomPopover open={open} anchorEl={anchorEl} onClose={onClose}>
 				<MenuList sx={{ width: 160, minHeight: 72 }}>
-					{data?.map((option) => {
+					{_.map(allColorSchemes, (option) => {
 						return (
 							<MenuItem
-								key={option.value}
-								selected={option.value === currentLang.value}
+								key={option}
+								selected={option === mode}
 								onClick={() => {
-									return handleChangeLang(option.value as AppLocale);
+									return handleChangeColorScheme(option);
 								}}
 							>
-								<FlagIcon code={option.countryCode} />
-								{option.label}
+								{_.get(
+									colorSchemeConfigs,
+									`${option}.icon`,
+									<Iconify icon="mingcute:close-line" />,
+								)}
+								{t(
+									_.get(colorSchemeConfigs, `${option}.t_key`, option) as never,
+								)}
 							</MenuItem>
 						);
 					})}
@@ -82,7 +93,11 @@ export const LanguagePopover = ({
 				]}
 				{...other}
 			>
-				<FlagIcon code={currentLang.countryCode} />
+				{_.get(
+					colorSchemeConfigs,
+					`${mode}.icon`,
+					<Iconify icon="mingcute:close-line" />,
+				)}
 			</IconButton>
 
 			{renderMenuList()}
