@@ -222,6 +222,11 @@ const commonFR = {
 
 	'light-mode': 'Mode clair',
 	'dark-mode': 'Mode sombre',
+
+	details: 'Détails',
+	'edit-item': 'Modifier {{item}}',
+	'user-not-found-description':
+		"L'utilisateur que vous recherchez n'a pas pu être trouvé. Il a peut-être été supprimé ou le lien que vous avez suivi peut être incorrect.",
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

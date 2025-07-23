@@ -313,6 +313,7 @@ export const functionName = {
 		staffMember: {
 			create: 'createStaffMember',
 			find: 'findStaffMember',
+			getById: 'getStaffMemberById',
 			// ==== Migrations ====
 			migrateIsStaffMember: 'migrateIsStaffMember',
 			migrateRoleData: 'migrateRoleData',
