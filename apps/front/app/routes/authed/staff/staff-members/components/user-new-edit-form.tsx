@@ -37,12 +37,12 @@ import { mbToBytes } from '@/shared/utils/any.utils';
 
 type IUserItem = {
 	id: string;
-	firstName: string;
+	firstName?: string;
 	lastName: string;
 	role: RoleName;
 	email: string;
 	status: string;
-	avatarUrl: string;
+	avatar?: string;
 };
 
 // ----------------------------------------------------------------------
@@ -88,11 +88,12 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		mode: 'onSubmit',
 		resolver: zodResolver(NewUserSchema),
 		defaultValues,
-		values: {
-			...defaultValues,
-			...currentUser,
-			avatar: currentUser?.avatarUrl as never,
-		},
+		values: currentUser
+			? {
+					...currentUser,
+					avatar: currentUser.avatar as never,
+				}
+			: undefined,
 	});
 
 	const {
