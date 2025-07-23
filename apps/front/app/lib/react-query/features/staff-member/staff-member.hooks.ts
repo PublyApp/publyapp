@@ -1,7 +1,7 @@
+import { createMutation, createQuery } from 'react-query-kit';
 import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import type { CreateStaffMemberParams } from '@/parse-api-client/features/staff-member/staff-member.endpoint';
 import { functionName } from '@/shared/lib/constants';
-import { createMutation, createQuery } from 'react-query-kit';
 
 export const useCreateStaffMember = createMutation({
 	mutationKey: [functionName.staff.staffMember.create] as const,
@@ -26,5 +26,12 @@ export const useFindStaffMember = createQuery({
 			limit,
 			sort,
 		});
+	},
+});
+
+export const useGetStaffMemberById = createQuery({
+	queryKey: [functionName.staff.staffMember.getById] as const,
+	fetcher: async ({ id }: { id: string }) => {
+		return defaultApiClient.staffMember.getStaffMemberById({ id });
 	},
 });
