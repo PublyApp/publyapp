@@ -3,9 +3,9 @@ import auth from 'parse-server/lib/Auth.js';
 import { UsersRouter } from 'parse-server/lib/Routers/UsersRouter.js';
 import type { ParsedQs } from 'qs';
 import { getInternalConfig } from '@/server/lib/parse/parse.utils';
+import { encodeString } from '@/server/utils/string.utils';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
-import { encodeString } from '@/shared/utils/string-encoding.server';
 
 type AuthCloudServiceProps = {
 	sessionToken: string | ParsedQs | string[] | ParsedQs[];

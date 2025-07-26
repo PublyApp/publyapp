@@ -35,7 +35,7 @@ import {
 	X_CODE,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { getErrorMessage } from '@/shared/utils/error-message';
+import { getErrorMessage } from '@/shared/utils/error.utils';
 import { getResetPasswordSchema } from '@/shared/validations/auth.validations';
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
