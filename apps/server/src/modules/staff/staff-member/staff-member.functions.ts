@@ -27,7 +27,7 @@ import {
 } from '@/shared/lib/constants';
 import type { IUser } from '@/shared/types/db/user.types';
 import { makePath } from '@/shared/utils/string.utils';
-import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
+import { tryCatchWrapper } from '@/shared/utils/try-catch';
 import { getMulterMemoryFileSchema } from '@/shared/validations/file/file-server.validations';
 import RoleService from '../../common/auth/role/role.service';
 import ParseUser from '../../common/auth/user/user.class';

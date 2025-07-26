@@ -24,7 +24,7 @@ import {
 	X_CODE,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { getErrorMessage } from '@/shared/utils/error-message';
+import { getErrorMessage } from '@/shared/utils/error.utils';
 import {
 	getCheckEmailVerificationTokenSchema,
 	getEmailFormSchema,
