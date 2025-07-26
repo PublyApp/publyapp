@@ -1,15 +1,21 @@
 import { delay as delayFn } from './any.utils';
 
-export const retry = async <F extends GenericFunction>(
-	fn: F,
+export const retry = async <F extends GenericFunction>({
+	fn,
+	args,
 	attempts = 3,
 	delay = 2000,
-): Promise<ReturnType<F>> => {
+}: {
+	fn: F;
+	args?: Parameters<F>;
+	attempts?: number;
+	delay?: number;
+}): Promise<ReturnType<F>> => {
 	try {
-		return await fn();
+		return await fn(...(args ?? []));
 	} catch (error) {
 		if (attempts === 0) throw error;
 		await delayFn(delay);
-		return retry(fn, attempts - 1, delay * 2);
+		return retry({ fn, args, attempts: attempts - 1, delay: delay * 2 });
 	}
 };
