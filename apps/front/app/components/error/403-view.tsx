@@ -2,13 +2,12 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
-
+import { useTranslate } from '@/front/hooks/use-translate';
+import { SimpleCompactContent } from '@/front/layouts/simple/content';
 // import ForbiddenIllustration from '@/front/assets/illustrations/forbidden-illustration';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
-
 import { MotionContainer } from '../animate/motion-container';
 import { RouterLink } from '../router-link';
-import { SimpleCompactContent } from '@/front/layouts/simple/content';
 
 // ----------------------------------------------------------------------
 
@@ -17,6 +16,8 @@ type View403Props = {
 };
 
 export const View403 = ({ withLayout = true }: View403Props) => {
+	const { t } = useTranslate();
+
 	const renderContent = () => {
 		return (
 			<Container component={MotionContainer}>
@@ -52,7 +53,7 @@ export const View403 = ({ withLayout = true }: View403Props) => {
 					size="large"
 					variant="contained"
 				>
-					Go to home
+					{t('go-to-home')}
 				</Button>
 			</Container>
 		);

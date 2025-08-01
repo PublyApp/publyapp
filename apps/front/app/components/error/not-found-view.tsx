@@ -2,6 +2,7 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
+import { useTranslate } from '@/front/hooks/use-translate';
 import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
 import { MotionContainer } from '../animate/motion-container';
@@ -20,6 +21,8 @@ export const NotFoundView = ({
 	title,
 	description,
 }: NotFoundViewProps) => {
+	const { t } = useTranslate();
+
 	const renderContent = () => {
 		return (
 			<Container component={MotionContainer}>
@@ -55,7 +58,7 @@ export const NotFoundView = ({
 					size="large"
 					variant="contained"
 				>
-					Go to home
+					{t('go-to-home')}
 				</Button>
 			</Container>
 		);

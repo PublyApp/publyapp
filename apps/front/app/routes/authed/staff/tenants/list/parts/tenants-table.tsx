@@ -1,9 +1,3 @@
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -19,6 +13,12 @@ import {
 	type MRT_PaginationState,
 } from 'material-react-table';
 import { useMemo, useState } from 'react';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { Label } from '@/front/components/label/label';
+import { RouterLink } from '@/front/components/router-link';
+import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { mockDataTenants } from './mock-data-tenants';
 
 export type TenantRowData = {
