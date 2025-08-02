@@ -271,7 +271,38 @@ export const FRONT_PATH_NAMES = {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
 			new: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
 			details: (tenantId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId);
+				return {
+					root: makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId),
+					tabs: {
+						general: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+						),
+						users: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'users',
+						),
+						billing: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'billing',
+						),
+						profiles: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'profiles',
+						),
+					},
+				};
 			},
 		},
 		tenantUsers: {
