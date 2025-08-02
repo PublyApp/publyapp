@@ -2,6 +2,7 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
+import { useHomePath } from '@/front/hooks/use-home-path';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
@@ -22,6 +23,7 @@ export const NotFoundView = ({
 	description,
 }: NotFoundViewProps) => {
 	const { t } = useTranslate();
+	const homePath = useHomePath();
 
 	const renderContent = () => {
 		return (
@@ -43,8 +45,7 @@ export const NotFoundView = ({
 
 				<m.div /* variants={varBounce('in')} */>
 					<Typography sx={{ color: 'text.secondary', mb: 2 }}>
-						{description ||
-							"Sorry, we couldn't find the page you're looking for. Perhaps you've mistyped the URL? Be sure to check your spelling."}
+						{description || t('not-found-sentence')}
 					</Typography>
 				</m.div>
 
@@ -54,7 +55,7 @@ export const NotFoundView = ({
 
 				<Button
 					component={RouterLink}
-					href="/"
+					href={homePath}
 					size="large"
 					variant="contained"
 				>

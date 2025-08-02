@@ -19,8 +19,8 @@ import type zod from 'zod';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { toast } from '@/front/components/snackbar';
-import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
 import { useRouter } from '@/front/hooks/use-router';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import {
 	useCreateStaffMember,
