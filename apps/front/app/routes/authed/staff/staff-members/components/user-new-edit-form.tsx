@@ -91,7 +91,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		values: currentUser
 			? {
 					...currentUser,
-					avatar: currentUser.avatar as never,
+					avatar: currentUser.avatar,
 				}
 			: undefined,
 	});
@@ -318,7 +318,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 									variant="contained"
 									loading={isSubmitting || isPending}
 								>
-									{!currentUser ? 'Create user' : 'Save changes'}
+									{!currentUser ? t('create-user') : t('save-changes')}
 								</Button>
 							</Stack>
 						</Card>

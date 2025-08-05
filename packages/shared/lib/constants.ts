@@ -351,6 +351,7 @@ export const functionName = {
 		},
 		tenant: {
 			create: 'createTenant',
+			get: 'getTenant',
 		},
 	},
 } as const;

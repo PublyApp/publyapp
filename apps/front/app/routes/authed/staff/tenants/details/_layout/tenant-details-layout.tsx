@@ -40,51 +40,44 @@ export const meta = (args: Route.MetaArgs) => {
 	];
 };
 
-const IDENTIFIER = ':tenantId';
-
-const tenantDetailPaths = FRONT_PATH_NAMES.staff.tenants.details(IDENTIFIER);
-
 const TenantDetailsLayout = () => {
 	const { t } = useTranslate();
 	const pathname = usePathname();
 	const { tenantId } = useParams();
 
 	const NAV_ITEMS = useMemo(() => {
+		const tenantDetailPaths = FRONT_PATH_NAMES.staff.tenants.details(tenantId);
+
 		return [
 			{
 				label: t('general'),
 				icon: <Iconify width={24} icon="solar:home-angle-bold-duotone" />,
-				href: getLastPath(tenantDetailPaths.tabs.general),
+				href: tenantDetailPaths.tabs.general,
 			},
 			{
 				label: t('users'),
 				icon: (
 					<Iconify width={24} icon="solar:users-group-rounded-bold-duotone" />
 				),
-				href: getLastPath(tenantDetailPaths.tabs.users),
+				href: tenantDetailPaths.tabs.users,
 			},
 			{
 				label: t('billing'),
 				icon: <Iconify width={24} icon="solar:bill-list-bold" />,
-				href: getLastPath(tenantDetailPaths.tabs.billing),
+				href: tenantDetailPaths.tabs.billing,
 			},
 			{
 				label: t('profiles'),
 				icon: <Iconify width={24} icon="solar:settings-bold-duotone" />,
-				href: getLastPath(tenantDetailPaths.tabs.profiles),
+				href: tenantDetailPaths.tabs.profiles,
 			},
 		];
-	}, [t]);
+	}, [t, tenantId]);
 
 	const tabValue = useMemo(() => {
-		let value = removeLastSlash(getLastPath(pathname));
-
-		if (value === tenantId) {
-			value = IDENTIFIER;
-		}
-
+		const value = removeLastSlash(pathname);
 		return value;
-	}, [pathname, tenantId]);
+	}, [pathname]);
 
 	return (
 		<DashboardContent

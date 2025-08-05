@@ -1,9 +1,3 @@
-import type { TFunction } from 'i18next';
-import i18next from 'i18next';
-import _ from 'lodash';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import type { FC } from 'react';
-import { data, useParams } from 'react-router';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import View400 from '@/front/components/error/400-view';
 import { View500 } from '@/front/components/error/500-view';
@@ -19,6 +13,12 @@ import {
 	isServer,
 	X_CODE,
 } from '@/shared/lib/constants';
+import type { TFunction } from 'i18next';
+import i18next from 'i18next';
+import _ from 'lodash';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+import type { FC } from 'react';
+import { data, useParams } from 'react-router';
 import { UserNewEditForm } from '../components/user-new-edit-form';
 import { UserNewEditFormSkeleton } from '../components/user-new-edit-form-skeleton';
 import type { Route } from './+types/staff-member-details-page';
@@ -145,7 +145,7 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 		}
 
 		if (_.toString(error.httpStatusCode).startsWith('4')) {
-			return <View400 withLayout />;
+			return <View400 withLayout={false} />;
 		}
 	}
 
