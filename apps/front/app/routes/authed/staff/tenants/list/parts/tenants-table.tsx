@@ -121,7 +121,9 @@ export default TenantsTable;
 const ProductCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	const logoUrl = props.row.original.logoUrl;
 	const name = props.row.original.name;
-	const href = FRONT_PATH_NAMES.staff.tenants.details(props.row.original.id);
+	const href = FRONT_PATH_NAMES.staff.tenants.details(
+		props.row.original.id,
+	).root;
 
 	return (
 		<Box
@@ -185,7 +187,7 @@ const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
 					// onClick={/* quickEditForm.onTrue */ () => {}}
 					LinkComponent={RouterLink}
-					href={FRONT_PATH_NAMES.staff.tenants.details(tenantId)}
+					href={FRONT_PATH_NAMES.staff.tenants.details(tenantId).root}
 				>
 					<Iconify icon="solar:eye-bold" />
 				</IconButton>
