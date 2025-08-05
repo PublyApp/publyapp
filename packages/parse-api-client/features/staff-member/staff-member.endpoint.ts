@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import BaseEndPoints, {
 	type BaseEndPointsProps,
 } from '@/parse-api-client/classes/BaseEndPoints';
@@ -8,9 +7,10 @@ import type {
 	GetStaffMemberByIdFunction,
 } from '@/server/modules/staff/staff-member/staff-member.functions';
 import { functionName } from '@/shared/lib/constants';
+import _ from 'lodash';
 
 export type CreateStaffMemberParams = CreateStaffMemberFunction.Params & {
-	avatar?: File;
+	avatar?: File | string;
 };
 
 export default class StaffMemberEndPoints extends BaseEndPoints {

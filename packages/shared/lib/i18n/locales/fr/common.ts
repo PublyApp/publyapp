@@ -232,6 +232,8 @@ const commonFR = {
 	general: 'Général',
 	billing: 'Facturation',
 	profiles: 'Profils',
+	'create-user': 'Créer un utilisateur',
+	'save-changes': 'Sauvegarder les modifications',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

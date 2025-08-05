@@ -229,6 +229,8 @@ const commonEN = {
 	general: 'General',
 	billing: 'Billing',
 	profiles: 'Profiles',
+	'create-user': 'Create user',
+	'save-changes': 'Save changes',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

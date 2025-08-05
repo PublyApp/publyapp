@@ -1,7 +1,7 @@
 import CssBaseline from '@mui/material/CssBaseline';
 import {
-	ThemeProvider as ThemeVarsProvider,
 	type ThemeProviderProps as MuiThemeProviderProps,
+	ThemeProvider as ThemeVarsProvider,
 } from '@mui/material/styles';
 
 import { useSettingsContext } from '@/front/hooks/use-settings-context';

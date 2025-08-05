@@ -1,5 +1,5 @@
 const TenantDetailsUsersPage = () => {
-	return <div>TenantDetailsUsersPage</div>;
+	return <div>LOL</div>;
 };
 
 export default TenantDetailsUsersPage;

@@ -1,3 +1,24 @@
+import { FieldContainer } from '@/front/components/form-extras';
+import { Field } from '@/front/components/hook-form/fields';
+import { Form } from '@/front/components/hook-form/form-provider';
+import { HelperText } from '@/front/components/hook-form/help-text';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { toast } from '@/front/components/snackbar';
+import { useRouter } from '@/front/hooks/use-router';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { useMainStore } from '@/front/lib/zustand/store';
+import { fData } from '@/front/utils/format-number';
+import {
+	DEFAULT_MAX_USER_PER_TENANT,
+	FRONT_PATH_NAMES,
+	type TenantSubRole,
+	tenantSubRoleEnum,
+	X_CODE,
+} from '@/shared/lib/constants';
+import { mbToBytes } from '@/shared/utils/any.utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -21,27 +42,6 @@ import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import type zod from 'zod';
-import { FieldContainer } from '@/front/components/form-extras';
-import { Field } from '@/front/components/hook-form/fields';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { HelperText } from '@/front/components/hook-form/help-text';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { useMainStore } from '@/front/lib/zustand/store';
-import { fData } from '@/front/utils/format-number';
-import {
-	DEFAULT_MAX_USER_PER_TENANT,
-	FRONT_PATH_NAMES,
-	type TenantSubRole,
-	tenantSubRoleEnum,
-	X_CODE,
-} from '@/shared/lib/constants';
-import { mbToBytes } from '@/shared/utils/any.utils';
 
 // ----------------------------------------------------------------------
 
@@ -72,12 +72,35 @@ const defaultValues = {
 	initialUsers: [initialUserValue],
 } satisfies NewTenantSchemaType;
 
-export const TenantCreateForm = () => {
+type ITenantItem = {
+	id: string;
+	name: string;
+	maxUsers: number;
+	logo: string;
+};
+
+type TenantCreateOrEditFormProps = {
+	currentTenant?: ITenantItem;
+};
+
+export const TenantCreateOrEditForm = ({
+	currentTenant,
+}: TenantCreateOrEditFormProps) => {
 	const { t, i18n } = useTranslate();
 	const router = useRouter();
 	const openDialog = useBoolean();
 
-	const NewTenantSchema = getNewTenantSchemaClientSide(defaultZodClient);
+	let NewTenantSchema = getNewTenantSchemaClientSide(defaultZodClient, {
+		maxUsers: DEFAULT_MAX_USER_PER_TENANT,
+	});
+
+	const editMode = !!currentTenant;
+
+	if (editMode) {
+		NewTenantSchema = NewTenantSchema.omit({
+			initialUsers: true,
+		}) as never;
+	}
 
 	const [disabledFormOnSuccess, setDisabledFormOnSuccess] = useState(false);
 
@@ -85,6 +108,12 @@ export const TenantCreateForm = () => {
 		mode: 'onSubmit',
 		resolver: zodResolver(NewTenantSchema),
 		defaultValues,
+		values: currentTenant
+			? {
+					...currentTenant,
+					initialUsers: [],
+				}
+			: undefined,
 		disabled: disabledFormOnSuccess,
 	});
 
@@ -192,6 +221,10 @@ export const TenantCreateForm = () => {
 				const [key, fieldValue] = value;
 
 				if (key === 'initialUsers') {
+					if (editMode) {
+						return null;
+					}
+
 					let values = null;
 					if (_.isArray(fieldValue)) {
 						values = _.map(fieldValue, (value) => {
@@ -265,7 +298,7 @@ export const TenantCreateForm = () => {
 				);
 			})
 			.value();
-	}, [values, t]);
+	}, [values, t, editMode]);
 
 	const handleAddUserToForm = () => {
 		append({
@@ -294,6 +327,7 @@ export const TenantCreateForm = () => {
 							) as unknown as string)}
 				</Alert>
 			) : null}
+
 			<Form methods={methods} onSubmit={handleOpenDialog}>
 				<Grid container spacing={3}>
 					<Grid size={{ xs: 12, md: 4 }}>
@@ -351,6 +385,16 @@ export const TenantCreateForm = () => {
 									/>
 								</FieldContainer>
 							</Box>
+							<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+								<Button
+									type="submit"
+									variant="contained"
+									loading={isSubmitting || isPending}
+									onClick={handleOpenDialog}
+								>
+									{!editMode ? t('create-the-tenant') : t('save-changes')}
+								</Button>
+							</Stack>
 						</Card>
 
 						<Box>
@@ -362,63 +406,65 @@ export const TenantCreateForm = () => {
 								/>
 							) : null}
 
-							<Card
-								sx={(theme) => {
-									return {
-										p: 3,
-										'--error': theme.vars.customShadows.cardErrorOutline,
-										'--normal': theme.vars.customShadows.card,
-										boxShadow: 'var(--shadow-card)',
-									};
-								}}
-								style={{
-									['--shadow-card' as string]: errors.initialUsers?.root
-										? 'var(--error)'
-										: 'var(--normal)',
-								}}
-							>
-								<Box
-									sx={{
-										rowGap: 3,
-										columnGap: 2,
-										display: 'grid',
-										gridTemplateColumns: {
-											xs: 'repeat(1, 4fr 1.5fr 0.25fr)',
-										},
+							{editMode ? null : (
+								<Card
+									sx={(theme) => {
+										return {
+											p: 3,
+											'--error': theme.vars.customShadows.cardErrorOutline,
+											'--normal': theme.vars.customShadows.card,
+											boxShadow: 'var(--shadow-card)',
+										};
+									}}
+									style={{
+										['--shadow-card' as string]: errors.initialUsers?.root
+											? 'var(--error)'
+											: 'var(--normal)',
 									}}
 								>
-									{_.map(fields, (field, index) => {
-										return (
-											<UserRow
-												key={field.id}
-												remove={remove}
-												update={update}
-												index={index}
-												fields={fields}
-												hasError={!!errors.initialUsers?.[index]}
-											/>
-										);
-									})}
-								</Box>
-
-								<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-									<Tooltip
-										title={t('max-users-reached')}
-										disableHoverListener={!(fields.length >= values.maxUsers)}
-										placement="top"
+									<Box
+										sx={{
+											rowGap: 3,
+											columnGap: 2,
+											display: 'grid',
+											gridTemplateColumns: {
+												xs: 'repeat(1, 4fr 1.5fr 0.25fr)',
+											},
+										}}
 									>
-										<span>
-											<Button
-												variant="contained"
-												onClick={handleAddUserToForm}
-												disabled={fields.length >= values.maxUsers}
-											>
-												{_.capitalize(t('add-a-user'))}
-											</Button>
-										</span>
-									</Tooltip>
-								</Stack>
-							</Card>
+										{_.map(fields, (field, index) => {
+											return (
+												<UserRow
+													key={field.id}
+													remove={remove}
+													update={update}
+													index={index}
+													fields={fields}
+													hasError={!!errors.initialUsers?.[index]}
+												/>
+											);
+										})}
+									</Box>
+
+									<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+										<Tooltip
+											title={t('max-users-reached')}
+											disableHoverListener={!(fields.length >= values.maxUsers)}
+											placement="top"
+										>
+											<span>
+												<Button
+													variant="contained"
+													onClick={handleAddUserToForm}
+													disabled={fields.length >= values.maxUsers}
+												>
+													{_.capitalize(t('add-a-user'))}
+												</Button>
+											</span>
+										</Tooltip>
+									</Stack>
+								</Card>
+							)}
 						</Box>
 					</Grid>
 				</Grid>
@@ -472,12 +518,13 @@ export const TenantCreateForm = () => {
 	);
 };
 
+type UserRowType = { email: string; role: TenantSubRole };
+
 type UserRowProps = {
 	index: number;
 	remove: (index: number) => void;
-	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-	update: (index: number, value: any) => void;
-	fields: { email: string; role: TenantSubRole }[];
+	update: (index: number, value: UserRowType) => void;
+	fields: UserRowType[];
 	hasError: boolean;
 };
 
@@ -489,11 +536,11 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 	};
 
 	const handleChangeRole = useCallback(
-		(e: React.ChangeEvent<{ value: unknown }>) => {
-			const value = e.target.value;
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			const value = e.target.value as TenantSubRole;
 			update(index, {
 				...fields[index],
-				role: value as TenantSubRole,
+				role: value,
 			});
 		},
 		[fields, index, update],
