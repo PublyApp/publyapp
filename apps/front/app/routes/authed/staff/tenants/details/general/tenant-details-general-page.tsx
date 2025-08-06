@@ -1,6 +1,5 @@
 import { View500 } from '@/front/components/error/500-view';
 import QueryDisplay from '@/front/components/query-display';
-import { useTranslate } from '@/front/hooks/use-translate';
 import { useGetTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
 import _ from 'lodash';
 import type { FC } from 'react';
