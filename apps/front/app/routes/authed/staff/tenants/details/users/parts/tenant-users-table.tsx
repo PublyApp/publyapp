@@ -40,7 +40,7 @@ import {
 } from '@/shared/lib/constants';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
-export type StaffMemberRowData = {
+export type TenantUserRowData = {
 	id: string;
 	avatarUrl: string;
 	firstName: string;
@@ -50,14 +50,14 @@ export type StaffMemberRowData = {
 	email: string;
 };
 
-const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
+const columnHelper = createMRTColumnHelper<TenantUserRowData>();
 
 const defaultSorting: MRT_SortingState[number] = {
 	desc: true,
 	id: 'createdAt',
 };
 
-const StaffMembersTable = () => {
+const TenantUsersTable = () => {
 	const { t } = useTranslate();
 
 	// Use the custom table state hook
@@ -109,7 +109,7 @@ const StaffMembersTable = () => {
 		variables: apiVariables,
 	});
 
-	const rows: StaffMemberRowData[] = useMemo(() => {
+	const rows: TenantUserRowData[] = useMemo(() => {
 		if (!data?.rows) return [];
 
 		return _.map(data.rows, (staffMember) => {
@@ -152,11 +152,11 @@ const StaffMembersTable = () => {
 	);
 };
 
-export default StaffMembersTable;
+export default TenantUsersTable;
 
 // ----------------------------------------------------------------------
 
-const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
+const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const userId = props.row.original.id;
 	const fullName = props.cell.getValue();
 	const avatarUrl = props.row.original.avatarUrl;
@@ -185,7 +185,7 @@ const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	);
 };
 
-const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
+const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 	props,
 ) => {
 	const { t } = useTranslate();
@@ -213,7 +213,7 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	);
 };
 
-const RoleCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
+const RoleCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const { t } = useTranslate();
 
 	const role = props.cell.getValue();
@@ -244,7 +244,7 @@ const RoleCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 
 const ALLOW_COPY_LINK = false;
 
-const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
+const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 	const userId = props.row.original.id;
 	const isUserPending = props.row.original.status === 'pending';
 

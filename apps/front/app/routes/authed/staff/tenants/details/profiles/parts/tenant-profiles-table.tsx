@@ -1,5 +1,6 @@
 import Card from '@mui/material/Card';
 import Checkbox from '@mui/material/Checkbox';
+import Skeleton from '@mui/material/Skeleton';
 import _ from 'lodash';
 import {
 	createMRTColumnHelper,
@@ -72,8 +73,26 @@ const TenantProfilesTable = () => {
 		return columnsDefinition;
 	}, [profilesMap]);
 
+	const placeholderColumns = useMemo(() => {
+		return [
+			...columns,
+			...Array.from({ length: 10 }, (_, index) => {
+				return columnHelper.accessor(`placeholder-${index}`, {
+					id: `placeholder-${index}`,
+					header: `Placeholder ${index}`,
+					Header: () => {
+						return <Skeleton variant="text" width="100%" height="100%" />;
+					},
+					Cell: () => {
+						return <Skeleton variant="text" width="100%" height="100%" />;
+					},
+				});
+			}),
+		];
+	}, [columns]);
+
 	const table = useMRTTable('default', {
-		columns,
+		columns: isPending ? placeholderColumns : columns,
 		data: rows,
 		state: {
 			isLoading: isPending,

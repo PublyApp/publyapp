@@ -1,5 +1,7 @@
+import TenantUsersTable from './parts/tenant-users-table';
+
 const TenantDetailsUsersPage = () => {
-	return <div>LOL</div>;
+	return <TenantUsersTable />;
 };
 
 export default TenantDetailsUsersPage;
