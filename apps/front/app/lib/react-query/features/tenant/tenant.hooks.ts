@@ -1,8 +1,9 @@
+import { createMutation, createQuery } from 'react-query-kit';
+import { _tenantProfiles } from '@/front/_mock/_tenant-profiles';
 import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import type { CreateTenantParams } from '@/parse-api-client/features/tenant/tenant.endpoints';
 import { functionName } from '@/shared/lib/constants';
 import { delay } from '@/shared/utils/any.utils';
-import { createMutation, createQuery } from 'react-query-kit';
 
 export const useCreateTenant = createMutation({
 	mutationKey: [functionName.staff.tenant.create] as const,
@@ -26,5 +27,17 @@ export const useGetTenant = createQuery({
 			maxUsers: 1000,
 		};
 		// return defaultApiClient.tenant.getTenant(params);
+	},
+});
+
+type FindTenantProfilesParams = {
+	tenantId: string;
+};
+
+export const useFindTenantProfiles = createQuery({
+	queryKey: [functionName.staff.tenant.findProfiles] as const,
+	fetcher: async (_params: FindTenantProfilesParams) => {
+		await delay(5_000);
+		return _tenantProfiles;
 	},
 });
