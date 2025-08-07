@@ -93,6 +93,14 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 				bgcolor: theme.vars.palette.background.paper,
 			},
 		},
+		muiTableProps: {
+			sx: {
+				'& tr > th:last-of-type > .Mui-TableHeadCell-Content, & tr > td:last-of-type:not(:has(.empty-content))':
+					{
+						justifyContent: 'flex-end',
+					},
+			},
+		},
 	};
 };
 
