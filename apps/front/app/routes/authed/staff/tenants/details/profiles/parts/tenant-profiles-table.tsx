@@ -1,6 +1,7 @@
 import Card from '@mui/material/Card';
 import Checkbox from '@mui/material/Checkbox';
 import Skeleton from '@mui/material/Skeleton';
+import { useColorScheme, useTheme } from '@mui/material/styles';
 import _ from 'lodash';
 import {
 	createMRTColumnHelper,
@@ -44,6 +45,8 @@ const TenantProfilesTable = () => {
 		return map;
 	}, [profiles]);
 
+	const theme = useTheme();
+
 	const columns = useMemo(() => {
 		const columnsDefinition = [
 			columnHelper.accessor('permission', {
@@ -51,6 +54,7 @@ const TenantProfilesTable = () => {
 				Cell: ({ cell }) => {
 					return <>{cell.getValue()}</>;
 				},
+				size: 250, // ! no choice but to set a fixed size
 			}),
 		];
 
@@ -96,24 +100,47 @@ const TenantProfilesTable = () => {
 		data: rows,
 		state: {
 			isLoading: isPending,
+			columnPinning: {
+				left: ['permission'],
+			},
 		},
 		// TODO: create a new preset
 		enableRowSelection: false,
 		enableSorting: false,
 		enablePagination: false,
 		enableBottomToolbar: false,
+		enableColumnPinning: true,
 		muiTableProps: {
 			sx: {
 				'& tr th:not(:first-of-type) .Mui-TableHeadCell-Content, & tr td:not(:first-of-type)':
 					{
 						justifyContent: 'center',
 					},
+				'& tr th:first-of-type .Mui-TableHeadCell-Content, & tr td:first-of-type':
+					{
+						justifyContent: 'flex-start !important',
+					},
+				'& th[data-pinned="true"]:before, & td[data-pinned="true"]:before': {
+					boxShadow: 'unset',
+					borderRight: `1.75px dashed ${theme.vars.palette.divider}`,
+					backgroundColor: 'var(--permission-column-bg)',
+				},
 			},
 		},
 	});
 
+	const { mode } = useColorScheme();
+
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Card
+			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+			style={{
+				['--permission-column-bg' as string]:
+					mode === 'dark'
+						? theme.vars.palette.grey[800]
+						: theme.vars.palette.grey[200],
+			}}
+		>
 			<MaterialReactTable table={table} />
 		</Card>
 	);

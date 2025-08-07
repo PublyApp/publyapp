@@ -95,7 +95,7 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 		},
 		muiTableProps: {
 			sx: {
-				'& tr > th:last-of-type > .Mui-TableHeadCell-Content, & tr > td:last-of-type:not(:has(.empty-content))':
+				'& tr > th:last-of-type > .Mui-TableHeadCell-Content:has(.is-actions-column), & tr > td:last-of-type:not(:has(.empty-content)):has(.is-actions-column)':
 					{
 						justifyContent: 'flex-end',
 					},
