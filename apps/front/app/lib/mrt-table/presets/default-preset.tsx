@@ -131,7 +131,7 @@ const CustomToolbar = <TData extends MRT_RowData>({
 			{/* <GridToolbarContainer> */}
 			{/* <ProductTableToolbar
           filters={filters}
-          options={{ stocks: PRODUCT_STOCK_OPTIONS, publishs: PUBLISH_OPTIONS }}
+          options={{ stocks: PRODUCT_STOCK_OPTIONS, publish: PUBLISH_OPTIONS }}
         /> */}
 
 			{/* <GridToolbarQuickFilter /> */}
