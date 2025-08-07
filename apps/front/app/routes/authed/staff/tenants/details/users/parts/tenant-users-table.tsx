@@ -316,7 +316,10 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 	);
 
 	return (
-		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+		<Box
+			className="is-actions-column"
+			sx={{ display: 'flex', alignItems: 'center' }}
+		>
 			<IconButton
 				color={menuActions.open ? 'inherit' : 'default'}
 				onClick={menuActions.onOpen}
