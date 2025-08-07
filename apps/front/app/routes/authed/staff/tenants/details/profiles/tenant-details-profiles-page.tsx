@@ -1,5 +1,7 @@
+import TenantProfilesTable from './parts/tenant-profiles-table';
+
 const TenantDetailsProfilesPage = () => {
-	return <div>TenantDetailsProfilesPage</div>;
+	return <TenantProfilesTable />;
 };
 
 export default TenantDetailsProfilesPage;
