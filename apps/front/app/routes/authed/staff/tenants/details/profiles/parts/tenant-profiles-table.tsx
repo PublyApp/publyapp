@@ -1,3 +1,7 @@
+import type { TenantProfile } from '@/front/_mock/_tenant-profiles';
+import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useFindTenantProfiles } from '@/front/lib/react-query/features/tenant/tenant.hooks';
+import { TENANT_PROFILES_PERMISSIONS_ENUM } from '@/shared/lib/constants';
 import Card from '@mui/material/Card';
 import Checkbox from '@mui/material/Checkbox';
 import Skeleton from '@mui/material/Skeleton';
@@ -9,10 +13,6 @@ import {
 } from 'material-react-table';
 import { useMemo } from 'react';
 import { useParams } from 'react-router';
-import type { TenantProfile } from '@/front/_mock/_tenant-profiles';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useFindTenantProfiles } from '@/front/lib/react-query/features/tenant/tenant.hooks';
-import { TENANT_PROFILES_PERMISSIONS_ENUM } from '@/shared/lib/constants';
 
 const columnHelper = createMRTColumnHelper<
 	Record<string, unknown> & { permission: string }
@@ -122,8 +122,14 @@ const TenantProfilesTable = () => {
 					},
 				'& th[data-pinned="true"]:before, & td[data-pinned="true"]:before': {
 					boxShadow: 'unset',
-					borderRight: `1.75px dashed ${theme.vars.palette.divider}`,
+					borderRight: `1px dashed ${theme.vars.palette.divider}`,
 					backgroundColor: 'var(--permission-column-bg)',
+					// backgroundColor: 'red',
+					// backgroundColor: 'white',
+				},
+				'& th[data-pinned="true"], & td[data-pinned="true"]': {
+					opacity: 1,
+					// backgroundColor: 'blue',
 				},
 			},
 		},
@@ -137,8 +143,8 @@ const TenantProfilesTable = () => {
 			style={{
 				['--permission-column-bg' as string]:
 					mode === 'dark'
-						? theme.vars.palette.grey[800]
-						: theme.vars.palette.grey[200],
+						? theme.vars.palette.background.paper
+						: theme.vars.palette.grey[100],
 			}}
 		>
 			<MaterialReactTable table={table} />
