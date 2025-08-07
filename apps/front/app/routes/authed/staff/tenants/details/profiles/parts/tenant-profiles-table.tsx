@@ -1,4 +1,5 @@
 import Card from '@mui/material/Card';
+import Checkbox from '@mui/material/Checkbox';
 import _ from 'lodash';
 import {
 	createMRTColumnHelper,
@@ -16,6 +17,12 @@ const columnHelper = createMRTColumnHelper<
 >();
 
 const ALL_PERMISSIONS = _.values(TENANT_PROFILES_PERMISSIONS_ENUM);
+
+const rows = _.map(ALL_PERMISSIONS, (permission: string) => {
+	return {
+		permission,
+	};
+});
 
 const TenantProfilesTable = () => {
 	const { tenantId } = useParams();
@@ -50,30 +57,20 @@ const TenantProfilesTable = () => {
 			columnsDefinition.push(
 				columnHelper.accessor(profile.objectId, {
 					header: profile.name,
-					Cell: ({ cell, row }) => {
-						return (
-							<>
-								{profilesMap.get(profile.objectId)?.permissions[
-									row.original.permission
-								]
-									? 'Yes'
-									: 'No'}
-							</>
+					Cell: ({ row }) => {
+						const isActive = _.get(
+							profilesMap.get(profile.objectId),
+							`permissions.${row.original.permission}`,
+							false,
 						);
+
+						return <Checkbox checked={isActive} />;
 					},
 				}),
 			);
 		});
 		return columnsDefinition;
 	}, [profilesMap]);
-
-	const rows = useMemo(() => {
-		return _.map(ALL_PERMISSIONS, (permission: string) => {
-			return {
-				permission,
-			};
-		});
-	}, []);
 
 	const table = useMRTTable('default', {
 		columns,
@@ -86,6 +83,14 @@ const TenantProfilesTable = () => {
 		enableSorting: false,
 		enablePagination: false,
 		enableBottomToolbar: false,
+		muiTableProps: {
+			sx: {
+				'& tr th:not(:first-of-type) .Mui-TableHeadCell-Content, & tr td:not(:first-of-type)':
+					{
+						justifyContent: 'center',
+					},
+			},
+		},
 	});
 
 	return (
