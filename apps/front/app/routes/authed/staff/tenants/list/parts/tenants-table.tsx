@@ -44,7 +44,7 @@ const TenantsTable = () => {
 		return [
 			columnHelper.accessor('name', {
 				header: t('name'),
-				Cell: ProductCell,
+				Cell: TenantCell,
 				// grow: 1,
 				size: 300,
 			}),
@@ -118,7 +118,7 @@ export default TenantsTable;
 
 // ----------------------------------------------------------------------
 
-const ProductCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
+const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	const logoUrl = props.row.original.logoUrl;
 	const name = props.row.original.name;
 	const href = FRONT_PATH_NAMES.staff.tenants.details(
@@ -128,7 +128,7 @@ const ProductCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 	return (
 		<Box
 			sx={{
-				py: 2,
+				py: 1,
 				gap: 2,
 				width: 1,
 				display: 'flex',
@@ -139,7 +139,7 @@ const ProductCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 				alt={name}
 				src={logoUrl}
 				variant="rounded"
-				sx={{ width: 64, height: 64 }}
+				sx={{ width: 46, height: 46 }}
 			/>
 
 			<ListItemText
@@ -148,7 +148,7 @@ const ProductCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 						{name}
 					</Link>
 				}
-				// secondary={params.row.category}
+				secondary={props.row.original.id}
 				slotProps={{
 					primary: { noWrap: true },
 					secondary: { sx: { color: 'text.disabled' } },

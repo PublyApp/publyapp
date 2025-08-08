@@ -2,12 +2,14 @@ import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import {
 	createMRTColumnHelper,
@@ -161,6 +163,7 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const fullName = props.cell.getValue();
 	const avatarUrl = props.row.original.avatarUrl;
 	const email = props.row.original.email;
+	const openDrawer = useBoolean();
 
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
@@ -169,18 +172,53 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 			<Stack
 				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
 			>
-				<Link
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
-					color="inherit"
-					sx={{ cursor: 'pointer' }}
-				>
-					{fullName}
-				</Link>
+				<Stack direction="row" gap={0.7}>
+					<Link
+						color="inherit"
+						sx={{ cursor: 'pointer' }}
+						onClick={openDrawer.onTrue}
+					>
+						{fullName}
+					</Link>
+					<Link
+						component={RouterLink}
+						href={FRONT_PATH_NAMES.staff.tenantUsers.details(userId)}
+						color="inherit"
+						sx={{ position: 'relative', top: -3 }}
+					>
+						<Iconify
+							icon="solar:square-top-down-linear"
+							width={12}
+							height={12}
+							fontWeight={900}
+						/>
+					</Link>
+				</Stack>
 				<Box component="span" sx={{ color: 'text.disabled' }}>
 					{email}
 				</Box>
 			</Stack>
+			<Drawer
+				open={openDrawer.value}
+				onClose={openDrawer.onFalse}
+				anchor="right"
+				sx={(theme) => {
+					return {
+						zIndex: theme.zIndex.modal + 1,
+					};
+				}}
+				slotProps={{
+					paper: {
+						sx: {
+							width: 720,
+						},
+					},
+				}}
+			>
+				<Box sx={{ width: 300, p: 2 }}>
+					<Typography>{fullName}</Typography>
+				</Box>
+			</Drawer>
 		</Box>
 	);
 };
