@@ -186,13 +186,13 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 					<Link
 						component={RouterLink}
 						href={userDetailsLink}
-						color="inherit"
+						color="text.secondary"
 						sx={{ position: 'relative', top: -3 }}
 					>
 						<Iconify
-							icon="solar:square-top-down-linear"
-							width={12}
-							height={12}
+							icon="eva:external-link-outline"
+							width={16}
+							height={16}
 							fontWeight={900}
 						/>
 					</Link>
