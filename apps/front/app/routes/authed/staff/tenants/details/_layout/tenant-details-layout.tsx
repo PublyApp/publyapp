@@ -1,8 +1,11 @@
+import Button from '@mui/material/Button';
+import Drawer from '@mui/material/Drawer';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
+import { useBoolean } from 'minimal-shared/hooks';
 import { removeLastSlash } from 'minimal-shared/utils';
 import { useMemo } from 'react';
 import { data, Outlet, useParams } from 'react-router';
@@ -59,19 +62,14 @@ const TenantDetailsLayout = () => {
 	const pathname = usePathname();
 	const { tenantId } = useParams();
 
-	const NAV_ITEMS = useMemo(() => {
+	const { NAV_ITEMS, ACTIONS } = useMemo(() => {
 		const tenantDetailPaths = FRONT_PATH_NAMES.staff.tenants.details(tenantId);
 
-		return [
+		const NAV_ITEMS = [
 			{
 				label: t('general'),
 				icon: <Iconify width={24} icon="solar:buildings-bold" />,
 				href: tenantDetailPaths.tabs.general,
-			},
-			{
-				label: t('users'),
-				icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
-				href: tenantDetailPaths.tabs.users,
 			},
 			{
 				label: t('billing'),
@@ -79,11 +77,28 @@ const TenantDetailsLayout = () => {
 				href: tenantDetailPaths.tabs.billing,
 			},
 			{
+				label: t('users'),
+				icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
+				href: tenantDetailPaths.tabs.users,
+				action: <CreateUserButton />,
+			},
+			{
 				label: t('profiles'),
 				icon: <Iconify width={24} icon="solar:settings-bold" />,
 				href: tenantDetailPaths.tabs.profiles,
+				action: <CreateProfileButton />,
 			},
 		];
+
+		const ACTIONS = {} as Record<string, React.ReactNode>;
+
+		_.forEach(NAV_ITEMS, (item) => {
+			if (item.action) {
+				ACTIONS[item.href] = item.action;
+			}
+		});
+
+		return { NAV_ITEMS, ACTIONS };
 	}, [t, tenantId]);
 
 	const tabValue = useMemo(() => {
@@ -107,6 +122,7 @@ const TenantDetailsLayout = () => {
 					{ name: t('details') },
 				]}
 				sx={{ mb: 3 }}
+				action={ACTIONS[tabValue] || null}
 			/>
 
 			<Tabs value={tabValue} sx={{ mb: { xs: 3, md: 5 } }}>
@@ -128,3 +144,79 @@ const TenantDetailsLayout = () => {
 };
 
 export default TenantDetailsLayout;
+
+const CreateUserButton = () => {
+	const { t } = useTranslate();
+	const openDrawer = useBoolean();
+
+	return (
+		<>
+			<Button
+				type="submit"
+				variant="contained"
+				// loading={isSubmitting}
+				onClick={openDrawer.onTrue}
+				startIcon={<Iconify icon="mingcute:add-line" />}
+			>
+				{_.capitalize(t('new-item', { item: t('user') }))}
+			</Button>
+			<Drawer
+				open={openDrawer.value}
+				onClose={openDrawer.onFalse}
+				anchor="right"
+				sx={(theme) => {
+					return {
+						zIndex: theme.zIndex.modal + 1,
+					};
+				}}
+				slotProps={{
+					paper: {
+						sx: {
+							width: 720,
+						},
+					},
+				}}
+			>
+				ADD USER FORM HERE
+			</Drawer>
+		</>
+	);
+};
+
+const CreateProfileButton = () => {
+	const { t } = useTranslate();
+	const openDrawer = useBoolean();
+
+	return (
+		<>
+			<Button
+				type="submit"
+				variant="contained"
+				// loading={isSubmitting}
+				onClick={openDrawer.onTrue}
+				startIcon={<Iconify icon="mingcute:add-line" />}
+			>
+				{_.capitalize(t('new-item', { item: t('profile') }))}
+			</Button>
+			<Drawer
+				open={openDrawer.value}
+				onClose={openDrawer.onFalse}
+				anchor="right"
+				sx={(theme) => {
+					return {
+						zIndex: theme.zIndex.modal + 1,
+					};
+				}}
+				slotProps={{
+					paper: {
+						sx: {
+							width: 720,
+						},
+					},
+				}}
+			>
+				ADD PROFILE FORM HERE
+			</Drawer>
+		</>
+	);
+};

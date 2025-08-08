@@ -231,6 +231,8 @@ const commonEN = {
 	profiles: 'Profiles',
 	'create-user': 'Create user',
 	'save-changes': 'Save changes',
+
+	profile: 'Profile',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;
