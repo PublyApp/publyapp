@@ -22,6 +22,7 @@ import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useMemo } from 'react';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
+import DrawerAnchor from '@/front/components/drawer-anchor';
 import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
 import { Label } from '@/front/components/label/label';
@@ -165,6 +166,8 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	const email = props.row.original.email;
 	const openDrawer = useBoolean();
 
+	const userDetailsLink = FRONT_PATH_NAMES.staff.tenantUsers.details(userId);
+
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
 			<Avatar alt={fullName} src={avatarUrl} />
@@ -182,7 +185,7 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 					</Link>
 					<Link
 						component={RouterLink}
-						href={FRONT_PATH_NAMES.staff.tenantUsers.details(userId)}
+						href={userDetailsLink}
 						color="inherit"
 						sx={{ position: 'relative', top: -3 }}
 					>
@@ -211,10 +214,16 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 					paper: {
 						sx: {
 							width: 720,
+							overflow: 'unset',
 						},
 					},
 				}}
 			>
+				<DrawerAnchor
+					onClick={openDrawer.onToggle}
+					component={RouterLink}
+					href={userDetailsLink}
+				/>
 				<Box sx={{ width: 300, p: 2 }}>
 					<Typography>{fullName}</Typography>
 				</Box>
