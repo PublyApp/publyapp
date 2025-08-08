@@ -234,6 +234,8 @@ const commonFR = {
 	profiles: 'Profils',
 	'create-user': 'Créer un utilisateur',
 	'save-changes': 'Sauvegarder les modifications',
+
+	profile: 'Profil',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;
