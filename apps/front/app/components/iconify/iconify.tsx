@@ -1,14 +1,13 @@
-import { useId } from 'react';
-
 import { Icon, type IconProps } from '@iconify/react';
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
+import { useId } from 'react';
 
 import { iconifyClasses } from './classes';
 import {
 	allIconNames,
-	registerIcons,
 	type IconifyName,
+	registerIcons,
 } from './register-icons';
 
 // ----------------------------------------------------------------------

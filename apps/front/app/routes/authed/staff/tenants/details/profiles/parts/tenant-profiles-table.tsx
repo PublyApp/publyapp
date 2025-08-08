@@ -1,12 +1,13 @@
 import Card from '@mui/material/Card';
 import Checkbox from '@mui/material/Checkbox';
 import Skeleton from '@mui/material/Skeleton';
-import { useColorScheme, useTheme } from '@mui/material/styles';
+import { darken, useColorScheme, useTheme } from '@mui/material/styles';
 import _ from 'lodash';
 import {
 	createMRTColumnHelper,
 	MaterialReactTable,
 } from 'material-react-table';
+import { nanoid } from 'nanoid';
 import { useMemo } from 'react';
 import { useParams } from 'react-router';
 import type { TenantProfile } from '@/front/_mock/_tenant-profiles';
@@ -78,7 +79,7 @@ const TenantProfilesTable = () => {
 
 		profilesMap.forEach((profile) => {
 			columnsDefinition.push(
-				columnHelper.accessor(profile.objectId, {
+				columnHelper.accessor(`${profile.objectId}-${nanoid()}`, {
 					header: profile.name,
 					Cell: ({ row }) => {
 						const isActive = _.get(
@@ -123,7 +124,7 @@ const TenantProfilesTable = () => {
 				'& th[data-pinned="true"]:before, & td[data-pinned="true"]:before': {
 					boxShadow: 'unset',
 					borderRight: `1px dashed ${theme.vars.palette.divider}`,
-					backgroundColor: 'var(--permission-column-bg)',
+					backgroundColor: 'var(--permission-column-bg) !important',
 				},
 				'& th[data-pinned="true"], & td[data-pinned="true"]': {
 					opacity: 1,
@@ -140,7 +141,7 @@ const TenantProfilesTable = () => {
 			style={{
 				['--permission-column-bg' as string]:
 					mode === 'dark'
-						? theme.vars.palette.background.paper
+						? darken(theme.palette.grey[800], 0.05)
 						: theme.vars.palette.grey[100],
 			}}
 		>

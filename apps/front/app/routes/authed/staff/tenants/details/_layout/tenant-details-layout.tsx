@@ -1,11 +1,3 @@
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { usePathname } from '@/front/hooks/use-pathname';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import type { TFunction } from 'i18next';
@@ -14,6 +6,14 @@ import _ from 'lodash';
 import { removeLastSlash } from 'minimal-shared/utils';
 import { useMemo } from 'react';
 import { data, Outlet, useParams } from 'react-router';
+import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { RouterLink } from '@/front/components/router-link';
+import { usePathname } from '@/front/hooks/use-pathname';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 import type { Route } from './+types/tenant-details-layout';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
@@ -65,14 +65,12 @@ const TenantDetailsLayout = () => {
 		return [
 			{
 				label: t('general'),
-				icon: <Iconify width={24} icon="solar:home-angle-bold-duotone" />,
+				icon: <Iconify width={24} icon="solar:buildings-bold" />,
 				href: tenantDetailPaths.tabs.general,
 			},
 			{
 				label: t('users'),
-				icon: (
-					<Iconify width={24} icon="solar:users-group-rounded-bold-duotone" />
-				),
+				icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
 				href: tenantDetailPaths.tabs.users,
 			},
 			{
@@ -82,7 +80,7 @@ const TenantDetailsLayout = () => {
 			},
 			{
 				label: t('profiles'),
-				icon: <Iconify width={24} icon="solar:settings-bold-duotone" />,
+				icon: <Iconify width={24} icon="solar:settings-bold" />,
 				href: tenantDetailPaths.tabs.profiles,
 			},
 		];
