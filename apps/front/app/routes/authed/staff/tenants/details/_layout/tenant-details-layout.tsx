@@ -71,11 +71,11 @@ const TenantDetailsLayout = () => {
 				icon: <Iconify width={24} icon="solar:buildings-bold" />,
 				href: tenantDetailPaths.tabs.general,
 			},
-			{
-				label: t('billing'),
-				icon: <Iconify width={24} icon="solar:bill-list-bold" />,
-				href: tenantDetailPaths.tabs.billing,
-			},
+			// {
+			// 	label: t('billing'),
+			// 	icon: <Iconify width={24} icon="solar:bill-list-bold" />,
+			// 	href: tenantDetailPaths.tabs.billing,
+			// },
 			{
 				label: t('users'),
 				icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
