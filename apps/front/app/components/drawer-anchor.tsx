@@ -1,6 +1,5 @@
 import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import { varAlpha } from 'minimal-shared/utils';
-import { Iconify } from './iconify/iconify';
 
 // Polymorphic type that extends IconButtonProps and allows component prop
 type DrawerAnchorProps<T extends React.ElementType = 'button'> = Omit<
@@ -14,6 +13,7 @@ const DrawerAnchor = <T extends React.ElementType = 'button'>({
 	onClick,
 	sx,
 	component,
+	children,
 	...other
 }: DrawerAnchorProps<T>) => {
 	return (
@@ -47,7 +47,7 @@ const DrawerAnchor = <T extends React.ElementType = 'button'>({
 			]}
 			{...other}
 		>
-			<Iconify icon="eva:expand-outline" />
+			{children}
 		</IconButton>
 	);
 };

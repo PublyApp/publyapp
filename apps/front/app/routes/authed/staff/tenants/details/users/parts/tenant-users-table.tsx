@@ -219,11 +219,9 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 					},
 				}}
 			>
-				<DrawerAnchor
-					onClick={openDrawer.onToggle}
-					component={RouterLink}
-					href={userDetailsLink}
-				/>
+				<DrawerAnchor component={RouterLink} href={userDetailsLink}>
+					<Iconify icon="eva:expand-outline" />
+				</DrawerAnchor>
 				<Box sx={{ width: 300, p: 2 }}>
 					<Typography>{fullName}</Typography>
 				</Box>
@@ -356,7 +354,7 @@ const UserActionsCell: MRT_ColumnDef<TenantUserRowData>['Cell'] = (props) => {
 			content={t('confirm-delete-dialog-text')}
 			action={
 				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
-					Delete
+					{t('delete')}
 				</Button>
 			}
 		/>

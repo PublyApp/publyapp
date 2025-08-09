@@ -309,7 +309,7 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 			content={t('confirm-delete-dialog-text')}
 			action={
 				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
-					Delete
+					{t('delete')}
 				</Button>
 			}
 		/>

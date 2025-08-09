@@ -50,7 +50,7 @@ export const _tenantProfiles: TenantProfile[] = [
 	},
 	{
 		objectId: nanoid(),
-		name: 'Tech Support',
+		name: 'Tech Support very long name here',
 		permissions: {
 			[TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_DASHBOARD]: true,
 			[TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_BILLING]: true,
