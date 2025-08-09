@@ -44,10 +44,6 @@ export const initI18nOnClient = async () => {
 				// server-side with remix-i18next, by using the `<html lang>` attribute
 				// we can communicate to the client the language detected server-side
 				order: ['htmlTag'],
-				// order: LANGUAGE_DETECTION_METHOD === LANGUAGE_DETECTION_METHOD_ENUM.QUERY_PARAM
-				// 	? ['htmlTag']
-				// 	: ['cookie', 'htmlTag'],
-				// lookupCookie: LOCALE_COOKIE_KEY,
 				// Because we only use htmlTag, there's no reason to cache the language
 				// on the browser, so we disable it
 				caches: [],
