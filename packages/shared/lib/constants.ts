@@ -227,6 +227,7 @@ export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
 export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
 export const TENANT_ID_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-TenantId`;
+
 export const FORWARDED_FOR_HEADER_KEY = 'X-Forwarded-For';
 export const REMIX_CLIENT_IP_HEADER_KEY = 'X-Remix-Client-IP';
 export const CLOUDFLARE_CONNECTING_IP_HEADER_KEY = 'CF-Connecting-IP';
@@ -407,6 +408,7 @@ export const REST_API_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Key`;
 
 export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
 export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
+export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
 
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
@@ -500,3 +502,15 @@ export type TenantModulesEnum = ValueOf<typeof TENANT_MODULES_ENUM>;
 export type TenantProfilesPermissionsEnum = ValueOf<
 	typeof TENANT_PROFILES_PERMISSIONS_ENUM
 >;
+
+export const LANGUAGE_DETECTION_METHOD_ENUM = {
+	COOKIE: 'cookie',
+	QUERY_PARAM: 'queryParam',
+} as const;
+
+export type LanguageDetectionMethod = ValueOf<
+	typeof LANGUAGE_DETECTION_METHOD_ENUM
+>;
+
+export const LANGUAGE_DETECTION_METHOD: LanguageDetectionMethod =
+	LANGUAGE_DETECTION_METHOD_ENUM.COOKIE;

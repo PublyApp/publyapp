@@ -1,5 +1,3 @@
-import _ from 'lodash';
-
 import type { AppLocale, DefaultLocale, SupportedLanguages } from './resources';
 
 const appLocales: SupportedLanguages = ['en', 'fr'] as const;
