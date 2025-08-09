@@ -1,5 +1,6 @@
 import { PassThrough } from 'node:stream';
 import { createReadableStreamFromReadable } from '@react-router/node';
+import * as cookie from 'cookie';
 import { isbot } from 'isbot';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
@@ -16,12 +17,16 @@ import {
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
 	isPreRenderPath,
+	LANGUAGE_DETECTION_METHOD,
+	LANGUAGE_DETECTION_METHOD_ENUM,
+	LOCALE_COOKIE_KEY,
 	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
 import { getDevContext } from './lib/react-router/get-dev-context.server';
@@ -76,9 +81,20 @@ const handleRequest = async (
 		}
 	}
 
-	const url = new URL(request.url);
-	const language = url.searchParams.get(queryParamKey.language);
-	const locale = getCorrectLocale(language);
+	let locale: AppLocale;
+
+	if (
+		LANGUAGE_DETECTION_METHOD === LANGUAGE_DETECTION_METHOD_ENUM.QUERY_PARAM
+	) {
+		const url = new URL(request.url);
+		const language = url.searchParams.get(queryParamKey.language);
+		locale = getCorrectLocale(language);
+	} else {
+		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
+		const localeCookie = _.get(reqCookies, LOCALE_COOKIE_KEY);
+		locale = getCorrectLocale(localeCookie);
+	}
+
 	const i18nInstance = await iniI18nOnServer({ routerContext, locale });
 
 	return new Promise((resolve, reject) => {

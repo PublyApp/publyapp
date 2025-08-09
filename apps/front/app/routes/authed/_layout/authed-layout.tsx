@@ -1,3 +1,16 @@
+import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import * as cookie from 'cookie';
+import _ from 'lodash';
+import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+import { type ReactNode, Suspense } from 'react';
+import {
+	Navigate,
+	Outlet,
+	redirect,
+	useRouteError,
+	useSearchParams,
+} from 'react-router';
+import { ClientOnly } from 'remix-utils/client-only';
 import { View500 } from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
 import type { SettingsState } from '@/front/components/settings';
@@ -15,25 +28,12 @@ import { useMainStore } from '@/front/lib/zustand/store';
 import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import {
 	FRONT_PATH_NAMES,
-	SESSION_TOKEN_COOKIE_KEY,
-	X_CODE,
 	queryParamKey,
 	queryParamValue,
+	SESSION_TOKEN_COOKIE_KEY,
+	X_CODE,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
-import * as cookie from 'cookie';
-import _ from 'lodash';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { type ReactNode, Suspense } from 'react';
-import {
-	Navigate,
-	Outlet,
-	redirect,
-	useRouteError,
-	useSearchParams,
-} from 'react-router';
-import { ClientOnly } from 'remix-utils/client-only';
 import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
