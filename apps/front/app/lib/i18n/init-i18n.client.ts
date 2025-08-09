@@ -57,10 +57,6 @@ export const initI18nOnClient = async () => {
 	INITIALIZED = true;
 
 	i18next.on('languageChanged', (language) => {
-		if (!INITIALIZED) {
-			return;
-		}
-		console.log('🎯🎯🎯🎯', language);
 		const correctLocale = getCorrectLocale(language);
 
 		defaultApiClient.parseRestClient.setHeader(
@@ -87,7 +83,6 @@ export const initI18nOnClient = async () => {
 				path: '/',
 			});
 			document.cookie = localeCookie;
-			console.log('🔥🔥🔥', cookie.parse(document.cookie));
 		}
 
 		// TODO: set locale for other libraries
