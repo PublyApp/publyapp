@@ -50,10 +50,7 @@ export default class FileService {
 		/* {
 		files,
 		folderPath,
-	} */ _params: {
-			files: Express.Multer.File[];
-			folderPath?: string;
-		},
+	} */ _params: { files: Express.Multer.File[]; folderPath?: string },
 	) {
 		// const results = await async.map(
 		// 	files,

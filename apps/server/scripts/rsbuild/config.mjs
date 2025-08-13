@@ -7,7 +7,10 @@ import { createRsbuild as _createRsbuild } from '@rsbuild/core';
 import { pluginTypeCheck } from '@rsbuild/plugin-type-check';
 import _ from 'lodash';
 
-export const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../../../../');
+export const MONOREPO_ROOT_DIR = path.resolve(
+	import.meta.dirname,
+	'../../../../',
+);
 
 export const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
 export const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');

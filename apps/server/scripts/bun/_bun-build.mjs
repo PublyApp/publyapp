@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 
 const cwd = process.cwd();
 
-function absolute(path/* : string */) {
+function absolute(path /* : string */) {
 	return resolve(cwd, path);
 }
 
@@ -15,13 +15,14 @@ function absolute(path/* : string */) {
 // 	const sources = sourcemap ? (sourcemap.sources /* as string[] */) : [];
 // 	return sources.map((source) => join(dirname(artifact.path), source));
 // }
-async function getArtifactSources(artifact/* : BuildArtifact */) {
+async function getArtifactSources(artifact /* : BuildArtifact */) {
 	const sourcemap = await artifact.sourcemap?.json();
 	if (!sourcemap) return [];
-	return (sourcemap.sources/*  as string[] */).map((source) => join(dirname(artifact.path), source));
+	return sourcemap.sources /*  as string[] */
+		.map((source) => join(dirname(artifact.path), source));
 }
 
-async function getOutputSources(output/* : BuildOutput */) {
+async function getOutputSources(output /* : BuildOutput */) {
 	const sources = await Promise.all(output.outputs.map(getArtifactSources));
 	return new Set(sources.flat().map(absolute));
 }
@@ -35,16 +36,16 @@ async function getOutputSources(output/* : BuildOutput */) {
  * @param {Parameters<typeof Bun.build>[0] & { watch?: string; onBuild: (output: BuildOutput) => Promise<void>}} config - The build configuration
  * @returns {Promise<BuildOutput>} - The build output
  */
-export async function bunBuild(config/* : BuildConfig */) {
-	const { watch, onBuild, sourcemap = "external", ...rest } = config;
-	if (watch && config.sourcemap !== "external") {
-		console.error("Watch requires external sourcemap, setting to external");
+export async function bunBuild(config /* : BuildConfig */) {
+	const { watch, onBuild, sourcemap = 'external', ...rest } = config;
+	if (watch && config.sourcemap !== 'external') {
+		console.error('Watch requires external sourcemap, setting to external');
 	}
 	let output = await Bun.build({ ...rest, sourcemap });
 
 	if (watch) {
 		let sources = await getOutputSources(output);
-		let debounce/* : Timer | null */ = null;
+		let debounce /* : Timer | null */ = null;
 		let pending = false;
 
 		const rebuild = async () => {
