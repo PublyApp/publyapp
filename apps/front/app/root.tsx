@@ -1,25 +1,23 @@
 import './styles/main.css';
 
+import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import { QueryClientProvider } from '@tanstack/react-query';
+import _ from 'lodash';
 import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
 import { useTranslation } from 'react-i18next';
 import {
+	isRouteErrorResponse,
 	Links,
 	Meta,
 	Outlet,
 	Scripts,
 	ScrollRestoration,
-	isRouteErrorResponse,
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
-
-import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
-import { APP_NAME } from '@/shared/lib/constants';
-// import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
-
 import { NotFoundView, View403, View500 } from '@/front/components/error';
-import { SettingsDrawer, defaultSettings } from '@/front/components/settings';
-import _ from 'lodash';
+import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
+import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
+import { APP_NAME } from '@/shared/lib/constants';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
 import View400 from './components/error/400-view';
@@ -75,6 +73,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<Links />
 			</head>
 			<body>
+				<InitColorSchemeScript
+					attribute="[data-color-scheme='%s']"
+					nonce={nonce}
+				/>
 				<QueryClientProvider client={defaultQueryClient}>
 					<MuiThemeProvider>
 						<MotionLazy>
