@@ -1,16 +1,16 @@
-import { spawn } from "node:child_process";
-import { rm } from "node:fs/promises";
-import path from "node:path";
-import { isBun } from "node:process";
+import { spawn } from 'node:child_process';
+import { rm } from 'node:fs/promises';
+import path from 'node:path';
+import { isBun } from 'node:process';
 // @ts-check
-import _ from "lodash";
-import { bunBuild } from "./_bun-build.mjs";
-import { buildOptions, createI18nResourcesFiles } from "./config.mjs";
+import _ from 'lodash';
+import { bunBuild } from './_bun-build.mjs';
+import { buildOptions, createI18nResourcesFiles } from './config.mjs';
 
 const deleteDist = async () => {
 	const distPath = path.resolve(import.meta.dirname, '../../dist');
 	await rm(distPath, { recursive: true, force: true });
-}
+};
 
 let startAppProcess = null;
 await deleteDist();
@@ -29,12 +29,16 @@ bunBuild({
 		if (startAppProcess) {
 			startAppProcess.kill('SIGINT');
 			startAppProcess = null;
-			await rm("../../dist", { recursive: true, force: true });
+			await rm('../../dist', { recursive: true, force: true });
 		}
 
 		// const startCommand = ['node', '--enable-source-maps', 'dist/index.mjs'];
 		const onWindows = /^win/.test(process.platform);
-		const startCommand = [onWindows ? /* 'bun.cmd' */ 'bun' : 'bun', '--enable-source-maps', 'dist/index.mjs'];
+		const startCommand = [
+			onWindows ? /* 'bun.cmd' */ 'bun' : 'bun',
+			'--enable-source-maps',
+			'dist/index.mjs',
+		];
 
 		console.log(
 			'\x1b[32m%s\x1b[0m',

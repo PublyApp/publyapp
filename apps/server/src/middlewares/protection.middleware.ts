@@ -211,7 +211,9 @@ const protectionMiddleware = (
 
 protectionMiddleware.fromAuthedUser = ({
 	allowedRoles,
-}: { allowedRoles?: RoleSet }) => {
+}: {
+	allowedRoles?: RoleSet;
+}) => {
 	return protectionMiddleware({
 		authType: 'sessionToken',
 		group: userGroup.ANY,

@@ -23,10 +23,9 @@ const run = async () => {
 	let startAppProcess = null;
 
 	// onDevCompileDone does not work anymore, IDK why
-	rsbuild
-		.onAfterBuild
+	rsbuild.onAfterBuild(
 		// .onDevCompileDone
-		(async () => {
+		async () => {
 			// create the i18n resources files in .jsonc format
 			const { resources } = await import(
 				`../../dist/i18n.mjs?update=${Date.now()}`
@@ -42,7 +41,8 @@ const run = async () => {
 			const startCommand = [
 				'node',
 				...(inspect ? ['--inspect', '--inspect-port=6183'] : []),
-				'--enable-source-maps', 'dist/index.mjs'
+				'--enable-source-maps',
+				'dist/index.mjs',
 			];
 
 			console.log(
@@ -72,7 +72,8 @@ const run = async () => {
 
 			// ! subprocesses of subprocess are not killed
 			// startAppProcess = spawn('npm.cmd', ['start'], { stdio: 'inherit', cwd: import.meta.dirname });
-		});
+		},
+	);
 
 	const watch = () => {
 		_watch(rsbuild);
