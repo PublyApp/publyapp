@@ -1,24 +1,3 @@
-import { FieldContainer } from '@/front/components/form-extras';
-import { Field } from '@/front/components/hook-form/fields';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { HelperText } from '@/front/components/hook-form/help-text';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { useMainStore } from '@/front/lib/zustand/store';
-import { fData } from '@/front/utils/format-number';
-import {
-	DEFAULT_MAX_USER_PER_TENANT,
-	FRONT_PATH_NAMES,
-	type TenantSubRole,
-	tenantSubRoleEnum,
-	X_CODE,
-} from '@/shared/lib/constants';
-import { mbToBytes } from '@/shared/utils/any.utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -42,6 +21,27 @@ import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import type zod from 'zod';
+import { FieldContainer } from '@/front/components/form-extras';
+import { Field } from '@/front/components/hook-form/fields';
+import { Form } from '@/front/components/hook-form/form-provider';
+import { HelperText } from '@/front/components/hook-form/help-text';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { toast } from '@/front/components/snackbar';
+import { useRouter } from '@/front/hooks/use-router';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { useMainStore } from '@/front/lib/zustand/store';
+import { fData } from '@/front/utils/format-number';
+import {
+	DEFAULT_MAX_USER_PER_TENANT,
+	FRONT_PATH_NAMES,
+	type TenantSubRole,
+	tenantSubRoleEnum,
+	X_CODE,
+} from '@/shared/lib/constants';
+import { mbToBytes } from '@/shared/utils/any.utils';
 
 // ----------------------------------------------------------------------
 
@@ -385,16 +385,18 @@ export const TenantCreateOrEditForm = ({
 									/>
 								</FieldContainer>
 							</Box>
-							<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-								<Button
-									type="submit"
-									variant="contained"
-									loading={isSubmitting || isPending}
-									onClick={handleOpenDialog}
-								>
-									{!editMode ? t('create-the-tenant') : t('save-changes')}
-								</Button>
-							</Stack>
+							{!editMode ? null : (
+								<Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+									<Button
+										type="submit"
+										variant="contained"
+										loading={isSubmitting || isPending}
+										onClick={handleOpenDialog}
+									>
+										{!editMode ? t('create-the-tenant') : t('save-changes')}
+									</Button>
+								</Stack>
+							)}
 						</Card>
 
 						<Box>
