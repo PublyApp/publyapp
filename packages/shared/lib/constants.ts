@@ -306,6 +306,12 @@ export const FRONT_PATH_NAMES = {
 				};
 			},
 		},
+		users: {
+			root: makePath(ROOTS.STAFF, RESOURCE.users),
+			details: (userId = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.users, 'details', userId);
+			},
+		},
 		tenantUsers: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenantUSers),
 			new: makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'new'),

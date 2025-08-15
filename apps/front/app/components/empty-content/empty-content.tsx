@@ -6,6 +6,7 @@ import type { TypographyProps } from '@mui/material/Typography';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import { varAlpha } from 'minimal-shared/utils';
+import { useTranslate } from '@/front/hooks/use-translate';
 
 // ----------------------------------------------------------------------
 
