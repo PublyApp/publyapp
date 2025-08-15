@@ -209,7 +209,7 @@ const ProfileHeader: MRT_ColumnDef<TenantProfileRowData, string>['Header'] = ({
 				}}
 				slotProps={{
 					paper: {
-						sx: { width: 500 },
+						sx: { width: 400 },
 					},
 				}}
 			>
