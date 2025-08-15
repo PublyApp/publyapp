@@ -210,7 +210,7 @@ const CreateProfileButton = () => {
 				slotProps={{
 					paper: {
 						sx: {
-							width: 720,
+							width: 400,
 						},
 					},
 				}}

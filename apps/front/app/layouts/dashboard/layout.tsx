@@ -12,6 +12,7 @@ import type {
 import { useMockedUser } from '@/front/hooks/use-mocked-user';
 import { useSettingsContext } from '@/front/hooks/use-settings-context';
 import { allLangs } from '@/front/lib/locales/all-langs';
+import { AccountDrawer } from '../components/account-drawer';
 import { ColorSchemePopover } from '../components/colorscheme-popover';
 import { LanguagePopover } from '../components/language-popover';
 import { MenuButton } from '../components/menu-button';
@@ -20,6 +21,8 @@ import { layoutClasses } from '../core/classes';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
+// import { _contacts, _notifications } from '@/front/_mock';
+import { _account } from '../nav-config-account';
 import { navData as dashboardNavData } from '../nav-config-dashboard';
 import { _workspaces } from '../nav-config-workspace';
 import { VerticalDivider } from './content';
@@ -28,8 +31,6 @@ import { NavHorizontal } from './nav-horizontal';
 import { NavMobile } from './nav-mobile';
 import { NavVertical } from './nav-vertical';
 
-// import { _contacts, _notifications } from '@/front/_mock';
-// import { _account } from '../nav-config-account';
 // import { AccountDrawer } from '../components/account-drawer';
 // import { ContactsPopover } from '../components/contacts-popover';
 // import { NotificationsDrawer } from '../components/notifications-drawer';
@@ -189,7 +190,7 @@ export const DashboardLayout = ({
 					{/* <SettingsButton /> */}
 
 					{/** @slot Account drawer */}
-					{/* <AccountDrawer data={_account} /> */}
+					<AccountDrawer data={_account} />
 				</Box>
 			),
 		};

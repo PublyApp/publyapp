@@ -5,27 +5,17 @@ import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
-import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useBoolean } from 'minimal-shared/hooks';
-import { varAlpha } from 'minimal-shared/utils';
-
-import { _mock } from '@/front/_mock';
-// import { useMockedUser } from 'src/auth/hooks';
-// import { RouterLink } from 'src/routes/components';
-// import { usePathname } from 'src/routes/hooks';
-// import { paths } from 'src/routes/paths';
-
 import { AnimateBorder } from '@/front/components/animate';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label';
 import { RouterLink } from '@/front/components/router-link';
 import { Scrollbar } from '@/front/components/scrollbar';
-import { useMockedUser } from '@/front/hooks/use-mocked-user';
 import { usePathname } from '@/front/hooks/use-pathname';
-
+import { useGetUserAuthData } from '@/front/lib/react-query/features/auth/auth.hooks';
+import { getUserFullName } from '@/shared/utils/user.utils';
 import { AccountButton } from './account-button';
-import { UpgradeBlock } from './nav-upgrade';
 import { SignOutButton } from './sign-out-button';
 
 // ----------------------------------------------------------------------
@@ -46,7 +36,9 @@ export const AccountDrawer = ({
 }: AccountDrawerProps) => {
 	const pathname = usePathname();
 
-	const { user } = useMockedUser();
+	const {
+		data: { user },
+	} = useGetUserAuthData();
 
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
@@ -59,11 +51,11 @@ export const AccountDrawer = ({
 				}}
 			>
 				<Avatar
-					src={user?.photoURL}
-					alt={user?.displayName}
+					src={user?.avatarUrl}
+					alt={getUserFullName(user)}
 					sx={{ width: 1, height: 1 }}
 				>
-					{user?.displayName?.charAt(0).toUpperCase()}
+					{getUserFullName(user).charAt(0).toUpperCase()}
 				</Avatar>
 			</AnimateBorder>
 		);
@@ -133,8 +125,8 @@ export const AccountDrawer = ({
 		<>
 			<AccountButton
 				onClick={onOpen}
-				photoURL={user?.photoURL}
-				displayName={user?.displayName}
+				photoURL={user?.avatarUrl || ''}
+				displayName={getUserFullName(user)}
 				sx={sx}
 				{...other}
 			/>
@@ -164,6 +156,7 @@ export const AccountDrawer = ({
 					<Box
 						sx={{
 							pt: 8,
+							pb: 3,
 							display: 'flex',
 							alignItems: 'center',
 							flexDirection: 'column',
@@ -172,7 +165,7 @@ export const AccountDrawer = ({
 						{renderAvatar()}
 
 						<Typography variant="subtitle1" noWrap sx={{ mt: 2 }}>
-							{user?.displayName}
+							{getUserFullName(user)}
 						</Typography>
 
 						<Typography
@@ -184,7 +177,7 @@ export const AccountDrawer = ({
 						</Typography>
 					</Box>
 
-					<Box
+					{/* <Box
 						sx={{
 							p: 3,
 							gap: 1,
@@ -225,13 +218,13 @@ export const AccountDrawer = ({
 								<Iconify icon="mingcute:add-line" />
 							</IconButton>
 						</Tooltip>
-					</Box>
+					</Box> */}
 
 					{renderList()}
 
-					<Box sx={{ px: 2.5, py: 3 }}>
+					{/* <Box sx={{ px: 2.5, py: 3 }}>
 						<UpgradeBlock />
-					</Box>
+					</Box> */}
 				</Scrollbar>
 
 				<Box sx={{ p: 2.5 }}>
