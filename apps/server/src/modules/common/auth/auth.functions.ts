@@ -23,6 +23,10 @@ import {
 	removeParseFields,
 } from '@/server/lib/parse/parse.utils';
 import {
+	decodeString,
+	isValidEncodedString,
+} from '@/server/utils/string.utils';
+import {
 	APP_NAME,
 	className,
 	functionName,
@@ -31,10 +35,6 @@ import {
 import { logger } from '@/shared/lib/winston.server';
 import type InterZod from '@/shared/lib/zod/InterZod';
 import type { IUser } from '@/shared/types/db/user.types';
-import {
-	decodeString,
-	isValidEncodedString,
-} from '@/shared/utils/string-encoding.server';
 import {
 	getCheckEmailVerificationTokenSchema,
 	getEmailFormSchema,

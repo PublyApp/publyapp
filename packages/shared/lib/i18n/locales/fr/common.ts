@@ -54,6 +54,7 @@ const commonFR = {
 	list: 'Liste',
 	settings: 'Paramètres',
 	overview: 'Aperçu',
+	dashboard: 'Tableau de bord',
 	'staff-member': 'Membre du staff',
 	'staff-members': 'Membres du staff',
 	link: 'Lien',
@@ -105,6 +106,7 @@ const commonFR = {
 	'not-found-sentence':
 		"Désolé, nous n'avons pas trouvé la page que vous recherchez. Peut-être avez-vous mal saisi l'URL? Assurez-vous de vérifier votre orthographe.",
 	'go-to-home': "Aller à l'accueil",
+	'no-data': 'Aucune donnée',
 	'other-posts': 'Autres articles',
 
 	'sign-in': 'Se connecter',
@@ -227,6 +229,16 @@ const commonFR = {
 	'edit-item': 'Modifier {{item}}',
 	'user-not-found-description':
 		"L'utilisateur que vous recherchez n'a pas pu être trouvé. Il a peut-être été supprimé ou le lien que vous avez suivi peut être incorrect.",
+
+	'tenant-details': 'Détails du tenant',
+	general: 'Général',
+	billing: 'Facturation',
+	profiles: 'Profils',
+	'create-user': 'Créer un utilisateur',
+	'save-changes': 'Sauvegarder les modifications',
+
+	profile: 'Profil',
+	'background-jobs': 'Tâches de fond',
 } as const satisfies LooseCommonNamespace;
 
 export default commonFR;

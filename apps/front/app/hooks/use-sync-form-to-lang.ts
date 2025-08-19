@@ -7,12 +7,15 @@ import type { FieldValues, UseFormReturn } from 'react-hook-form';
  * @param language The current language (string)
  * @param methods The react-hook-form methods object
  */
-export function useSyncFormToLang<
+export const useSyncFormToLang = <
 	TFieldValues extends FieldValues = FieldValues,
->(lng: string, methods: UseFormReturn<TFieldValues>) {
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+>(
+	lng: string,
+	methods: UseFormReturn<TFieldValues>,
+) => {
+	// biome-ignore lint/correctness/useExhaustiveDependencies: This is intended to obtain the desired effect
 	useEffect(() => {
-		if (methods.formState.isDirty && methods.formState.isSubmitted) {
+		if (/* methods.formState.isDirty &&  */ methods.formState.isSubmitted) {
 			methods.trigger();
 		}
 	}, [
@@ -21,4 +24,4 @@ export function useSyncFormToLang<
 		methods.formState.isSubmitted,
 		methods.trigger,
 	]);
-}
+};

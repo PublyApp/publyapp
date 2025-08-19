@@ -55,6 +55,7 @@ const commonEN = {
 	list: 'List',
 	settings: 'Settings',
 	overview: 'Overview',
+	dashboard: 'Dashboard',
 	'staff-member': 'Staff member',
 	'staff-members': 'Staff members',
 
@@ -104,6 +105,7 @@ const commonEN = {
 	'not-found-sentence':
 		"Sorry, we couldn't find the page you're looking for. Perhaps you've mistyped the URL? Be sure to check your spelling.",
 	'go-to-home': 'Go to home',
+	'no-data': 'No data',
 	'other-posts': 'Other posts',
 
 	'sign-in': 'Sign in',
@@ -224,6 +226,16 @@ const commonEN = {
 	'edit-item': 'Edit {{item}}',
 	'user-not-found-description':
 		'The user you are looking for could not be found. It may have been deleted or the link you followed may be incorrect.',
+
+	'tenant-details': 'Tenant details',
+	general: 'General',
+	billing: 'Billing',
+	profiles: 'Profiles',
+	'create-user': 'Create user',
+	'save-changes': 'Save changes',
+
+	profile: 'Profile',
+	'background-jobs': 'Background jobs',
 } as const;
 
 export type LooseCommonNamespace = ToPrimitive<typeof commonEN>;

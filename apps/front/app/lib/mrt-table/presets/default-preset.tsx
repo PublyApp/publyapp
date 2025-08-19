@@ -93,6 +93,14 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 				bgcolor: theme.vars.palette.background.paper,
 			},
 		},
+		muiTableProps: {
+			sx: {
+				'& tr > th:last-of-type > .Mui-TableHeadCell-Content:has(.is-actions-column), & tr > td:last-of-type:not(:has(.empty-content)):has(.is-actions-column)':
+					{
+						justifyContent: 'flex-end',
+					},
+			},
+		},
 	};
 };
 
@@ -131,7 +139,7 @@ const CustomToolbar = <TData extends MRT_RowData>({
 			{/* <GridToolbarContainer> */}
 			{/* <ProductTableToolbar
           filters={filters}
-          options={{ stocks: PRODUCT_STOCK_OPTIONS, publishs: PUBLISH_OPTIONS }}
+          options={{ stocks: PRODUCT_STOCK_OPTIONS, publish: PUBLISH_OPTIONS }}
         /> */}
 
 			{/* <GridToolbarQuickFilter /> */}

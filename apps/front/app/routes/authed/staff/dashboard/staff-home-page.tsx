@@ -1,14 +1,19 @@
-import { redirect } from 'react-router';
-
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-
-// * I don't see what to show on an eventual dashboard home page, so for now, we redirect this to the tenants list page
-export const loader = () => {
-	return redirect(FRONT_PATH_NAMES.staff.tenants.root);
-};
+import { EmptyContent } from '@/front/components/empty-content';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
 
 const StaffHomePage = () => {
-	return <h1>StaffHomePage</h1>;
+	const { t } = useTranslate();
+
+	return (
+		<DashboardContent
+			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+			compact
+			maxWidth="lg"
+		>
+			<EmptyContent title={t('no-data')} />
+		</DashboardContent>
+	);
 };
 
 export default StaffHomePage;

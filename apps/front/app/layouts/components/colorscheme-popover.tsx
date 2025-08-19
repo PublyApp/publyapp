@@ -52,7 +52,8 @@ export const ColorSchemePopover = ({
 								key={option}
 								selected={option === mode}
 								onClick={() => {
-									return handleChangeColorScheme(option);
+									handleChangeColorScheme(option);
+									onClose();
 								}}
 							>
 								{_.get(
@@ -78,7 +79,7 @@ export const ColorSchemePopover = ({
 				whileTap={varTap(0.96)}
 				whileHover={varHover(1.04)}
 				transition={transitionTap()}
-				aria-label="Languages button"
+				aria-label="Color scheme button"
 				onClick={onOpen}
 				sx={[
 					(theme) => {

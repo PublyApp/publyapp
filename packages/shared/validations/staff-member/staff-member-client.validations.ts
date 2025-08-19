@@ -4,6 +4,6 @@ import { getNewStaffMemberSchemaServerSide } from './staff-member.validation';
 
 export const getNewStaffMemberSchemaClientSide = (z: InterZod) => {
 	return getNewStaffMemberSchemaServerSide(z).extend({
-		avatar: getFileSchemaClientSide(z).optional(),
+		avatar: getFileSchemaClientSide(z).or(z.string()).optional(),
 	});
 };

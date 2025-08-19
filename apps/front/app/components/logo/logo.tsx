@@ -1,13 +1,11 @@
-import { useId } from 'react';
-
 import Link, { type LinkProps } from '@mui/material/Link';
 import { styled, useTheme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
-
-import { RouterLink } from '../router-link';
-
-import { logoClasses } from './classes';
+import { useId } from 'react';
+import { useHomePath } from '@/front/hooks/use-home-path';
 import { APP_NAME } from '@/shared/lib/constants';
+import { RouterLink } from '../router-link';
+import { logoClasses } from './classes';
 
 // ----------------------------------------------------------------------
 
@@ -20,18 +18,22 @@ export const Logo = ({
 	sx,
 	disabled,
 	className,
-	href = '/',
+	href: hrefProp,
 	isSingle = true,
 	...other
 }: LogoProps) => {
+	const homePath = useHomePath();
 	const theme = useTheme();
-
 	const gradientId = useId();
-
 	const TEXT_PRIMARY = theme.vars.palette.text.primary;
 	const PRIMARY_LIGHT = theme.vars.palette.primary.light;
 	const PRIMARY_MAIN = theme.vars.palette.primary.main;
 	const PRIMARY_DARKER = theme.vars.palette.primary.dark;
+
+	let href = hrefProp;
+	if (!href) {
+		href = homePath;
+	}
 
 	/*
     * OR using local (public folder)

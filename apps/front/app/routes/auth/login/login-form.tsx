@@ -12,11 +12,11 @@ import { FormHead } from '@/front/components/auth/form-head';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { getErrorMessage } from '@/shared/utils/error-message';
+import { getErrorMessage } from '@/shared/utils/error.utils';
 import { getLoginSchema } from '@/shared/validations/auth.validations';
 import type { LoginActionResult } from './login-page';
 
