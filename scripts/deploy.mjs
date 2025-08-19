@@ -67,8 +67,14 @@ fse.copyFileSync(rootLockFileSrc, rootLockFileDest);
 //                                 copy pnpm workspace on root                                //
 // --------------------------------------------------------------------------------------//
 const pnpmWorkspaceFileName = 'pnpm-workspace.yaml';
-const rootPnpmWorkspaceFileSrc = path.join(MONOREPO_ROOT_DIR, pnpmWorkspaceFileName);
-const rootPnpmWorkspaceFileDest = path.join(DEPLOY_ROOT_DIR, pnpmWorkspaceFileName);
+const rootPnpmWorkspaceFileSrc = path.join(
+	MONOREPO_ROOT_DIR,
+	pnpmWorkspaceFileName,
+);
+const rootPnpmWorkspaceFileDest = path.join(
+	DEPLOY_ROOT_DIR,
+	pnpmWorkspaceFileName,
+);
 fse.copyFileSync(rootPnpmWorkspaceFileSrc, rootPnpmWorkspaceFileDest);
 
 // --------------------------------------------------------------------------------------//
@@ -176,7 +182,10 @@ _.forEach(subdirectories, (subdirectory) => {
 //                                  set start command                                    //
 // --------------------------------------------------------------------------------------//
 const mainFile = path
-	.relative(MONOREPO_ROOT_DIR, path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'))
+	.relative(
+		MONOREPO_ROOT_DIR,
+		path.join(SERVER_APP_DIR_SRC, serverBuildDirName, 'index.mjs'),
+	)
 	.replace(/\\/g, '/');
 
 // console.log(mainFile);
@@ -198,8 +207,14 @@ fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
 // --------------------------------------------------------------------------------------//
 //                              create zip archive of build                              //
 // --------------------------------------------------------------------------------------//
-const timestamp = new Date().toISOString().replace(/T/, '-').replace(/\..+/, '').replace(/:/g, '-');
-const output = fs.createWriteStream(path.join(MONOREPO_ROOT_DIR, 'scripts', `build-${timestamp}.zip`));
+const timestamp = new Date()
+	.toISOString()
+	.replace(/T/, '-')
+	.replace(/\..+/, '')
+	.replace(/:/g, '-');
+const output = fs.createWriteStream(
+	path.join(MONOREPO_ROOT_DIR, 'scripts', `build-${timestamp}.zip`),
+);
 const archive = archiver('zip', { zlib: { level: 9 } });
 
 output.on('close', () => {

@@ -19,8 +19,8 @@ import type zod from 'zod';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { toast } from '@/front/components/snackbar';
-import { useSyncFormToLang } from '@/front/hooks/use-language-trigger-validation';
 import { useRouter } from '@/front/hooks/use-router';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import {
 	useCreateStaffMember,
@@ -91,7 +91,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		values: currentUser
 			? {
 					...currentUser,
-					avatar: currentUser.avatar as never,
+					avatar: currentUser.avatar,
 				}
 			: undefined,
 	});
@@ -318,7 +318,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 									variant="contained"
 									loading={isSubmitting || isPending}
 								>
-									{!currentUser ? 'Create user' : 'Save changes'}
+									{!currentUser ? t('create-user') : t('save-changes')}
 								</Button>
 							</Stack>
 						</Card>

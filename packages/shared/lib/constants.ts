@@ -271,7 +271,44 @@ export const FRONT_PATH_NAMES = {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
 			new: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
 			details: (tenantId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId);
+				return {
+					root: makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId),
+					tabs: {
+						general: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+						),
+						users: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'users',
+						),
+						billing: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'billing',
+						),
+						profiles: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'profiles',
+						),
+					},
+				};
+			},
+		},
+		users: {
+			root: makePath(ROOTS.STAFF, RESOURCE.users),
+			details: (userId = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.users, 'details', userId);
 			},
 		},
 		tenantUsers: {
@@ -320,6 +357,8 @@ export const functionName = {
 		},
 		tenant: {
 			create: 'createTenant',
+			get: 'getTenant',
+			findProfiles: 'findTenantProfiles',
 		},
 	},
 } as const;
@@ -374,6 +413,7 @@ export const REST_API_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Key`;
 
 export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
 export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
+export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
 
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
@@ -436,3 +476,46 @@ export const isPreRenderPath = (path: string): path is PreRenderPath => {
 
 export const STATIC_PRE_RENDER_PATHS_MAP_NONCE =
 	'Ynuh4K7aYVf6z5RVxEGnal9zru8ZmYZsSE3n2GNtbBbc6Z2VRq';
+
+export const TENANT_PROFILES_PERMISSIONS_ENUM = {
+	CAN_ACCESS_DASHBOARD: 'can_access_dashboard',
+	CAN_ACCESS_BILLING: 'can_access_billing',
+	CAN_ACCESS_SETTINGS: 'can_access_settings',
+	CAN_ACCESS_USERS: 'can_access_users',
+} as const;
+
+export const TENANT_MODULES_ENUM = {
+	ALL: 'all',
+} as const;
+
+export const TENANT_MODULES_GROUPING = {
+	// Group in a single module for now.
+	// When we have more modules, we can split them into different modules.
+	ALL: {
+		code: 'all',
+		permissions: [
+			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_DASHBOARD,
+			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_BILLING,
+			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_SETTINGS,
+			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_USERS,
+		],
+	},
+} as const;
+
+export type TenantModulesEnum = ValueOf<typeof TENANT_MODULES_ENUM>;
+
+export type TenantProfilesPermissionsEnum = ValueOf<
+	typeof TENANT_PROFILES_PERMISSIONS_ENUM
+>;
+
+export const LANGUAGE_DETECTION_METHOD_ENUM = {
+	COOKIE: 'cookie',
+	QUERY_PARAM: 'queryParam',
+} as const;
+
+export type LanguageDetectionMethod = ValueOf<
+	typeof LANGUAGE_DETECTION_METHOD_ENUM
+>;
+
+export const LANGUAGE_DETECTION_METHOD: LanguageDetectionMethod =
+	LANGUAGE_DETECTION_METHOD_ENUM.COOKIE;

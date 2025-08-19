@@ -2,9 +2,9 @@ import { Suspense } from 'react';
 import { Outlet } from 'react-router';
 
 import { LoadingScreen } from '@/front/components/loading-screen';
+import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardLayout } from '@/front/layouts/dashboard/layout';
 import { ICONS, type NavDataType } from '@/front/layouts/nav-config-dashboard';
-import { useTranslate } from '@/front/hooks/use-translate';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 const StaffLayout = () => {
@@ -15,9 +15,23 @@ const StaffLayout = () => {
 			subheader: t('overview'),
 			items: [
 				{
+					title: t('dashboard'),
+					path: FRONT_PATH_NAMES.staff.root,
+					icon: ICONS.dashboard,
+					// deepActiveMatch: true,
+					// children: [],
+				},
+				{
 					title: t('tenants'),
 					path: FRONT_PATH_NAMES.staff.tenants.root,
 					icon: ICONS.banking,
+					deepActiveMatch: true,
+					// children: [],
+				},
+				{
+					title: t('users'),
+					path: FRONT_PATH_NAMES.staff.users.root,
+					icon: ICONS.user,
 					deepActiveMatch: true,
 					// children: [],
 				},
@@ -27,6 +41,12 @@ const StaffLayout = () => {
 					icon: ICONS.user,
 					deepActiveMatch: true,
 					// children: [],
+				},
+				{
+					title: t('background-jobs'),
+					// path: FRONT_PATH_NAMES.staff.settings.root,
+					path: 'background-jobs',
+					icon: ICONS.settings,
 				},
 				{
 					title: t('settings'),

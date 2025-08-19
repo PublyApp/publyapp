@@ -145,7 +145,7 @@ const ErrorView: FC<{ error: unknown }> = ({ error }) => {
 		}
 
 		if (_.toString(error.httpStatusCode).startsWith('4')) {
-			return <View400 withLayout />;
+			return <View400 withLayout={false} />;
 		}
 	}
 

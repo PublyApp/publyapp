@@ -1,4 +1,3 @@
-import { tryCatchWrapper } from '@/shared/utils/try-catch.utils';
 import { className as _className, isBun } from '@org/shared/lib/constants';
 import { logger } from '@org/shared/lib/winston.server';
 import asyncJs from 'async';
@@ -6,6 +5,7 @@ import _ from 'lodash';
 import { type CreateIndexesOptions, MongoServerError } from 'mongodb';
 import type { Schema } from 'parse-server';
 import _MongoSchemaCollection from 'parse-server/lib/Adapters/Storage/Mongo/MongoSchemaCollection.js';
+import { tryCatchWrapper } from '@/shared/utils/try-catch';
 import { DEFAULT_CLP } from '../../constants';
 import { getDatabase } from '../parse.utils';
 

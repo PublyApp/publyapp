@@ -1,17 +1,14 @@
 import Box from '@mui/material/Box';
-import { styled, type Breakpoint } from '@mui/material/styles';
+import { type Breakpoint, styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
-
 import { Logo } from '@/front/components/logo';
 import {
 	NavSectionMini,
-	NavSectionVertical,
 	type NavSectionProps,
+	NavSectionVertical,
 } from '@/front/components/nav-section';
 import { Scrollbar } from '@/front/components/scrollbar';
-
 import { NavToggleButton } from '../components/nav-toggle-button';
-import { NavUpgrade } from '../components/nav-upgrade';
 import { layoutClasses } from '../core/classes';
 
 // ----------------------------------------------------------------------
@@ -56,7 +53,7 @@ export const NavVertical = ({
 						sx={{ px: 2, flex: '1 1 auto' }}
 					/>
 
-					{slots?.bottomArea ?? <NavUpgrade />}
+					{slots?.bottomArea /* ?? <NavUpgrade /> */}
 				</Scrollbar>
 			</>
 		);

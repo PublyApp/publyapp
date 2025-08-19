@@ -2,12 +2,9 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
-
-// import PageNotFoundIllustration from '@/front/assets/illustrations/page-not-found-illustration';
+import { useTranslate } from '@/front/hooks/use-translate';
 import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
-
-import { useTranslate } from '@/front/hooks/use-translate';
 import { MotionContainer } from '../animate/motion-container';
 import { RouterLink } from '../router-link';
 

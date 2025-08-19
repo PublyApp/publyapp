@@ -10,7 +10,7 @@ import type {
 import { functionName } from '@/shared/lib/constants';
 
 export type CreateStaffMemberParams = CreateStaffMemberFunction.Params & {
-	avatar?: File;
+	avatar?: File | string;
 };
 
 export default class StaffMemberEndPoints extends BaseEndPoints {

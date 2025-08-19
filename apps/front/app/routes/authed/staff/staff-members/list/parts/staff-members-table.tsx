@@ -143,14 +143,6 @@ const StaffMembersTable = () => {
 				flexGrow: 1,
 			},
 		},
-		muiTableProps: {
-			sx: {
-				'& tr > th:last-of-type > .Mui-TableHeadCell-Content, & tr > td:last-of-type:not(:has(.empty-content))':
-					{
-						justifyContent: 'flex-end',
-					},
-			},
-		},
 	});
 
 	return (
@@ -317,14 +309,17 @@ const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 			content={t('confirm-delete-dialog-text')}
 			action={
 				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
-					Delete
+					{t('delete')}
 				</Button>
 			}
 		/>
 	);
 
 	return (
-		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+		<Box
+			className="is-actions-column"
+			sx={{ display: 'flex', alignItems: 'center' }}
+		>
 			<IconButton
 				color={menuActions.open ? 'inherit' : 'default'}
 				onClick={menuActions.onOpen}

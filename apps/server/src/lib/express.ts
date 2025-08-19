@@ -1,5 +1,5 @@
-import _ from 'lodash';
-
+import { logger } from '@org/shared/lib/winston.server';
+import { tryCatchWrapper } from '@org/shared/utils/try-catch';
 import type {
 	Application,
 	NextFunction,
@@ -7,10 +7,9 @@ import type {
 	RequestHandler,
 	Response,
 } from 'express';
+import type { TFunction } from 'i18next';
+import _ from 'lodash';
 import type { ParsedQs } from 'qs';
-
-import { tryCatchWrapper } from '@org/shared/utils/try-catch.utils';
-
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
 	FORWARDED_FOR_HEADER_KEY,
@@ -18,11 +17,9 @@ import {
 	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import InterZod from '@/shared/lib/zod/InterZod';
-import { logger } from '@org/shared/lib/winston.server';
 
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import type { TFunction } from 'i18next';
+import InterZod from '@/shared/lib/zod/InterZod';
 import { i18nextServer } from './i18n';
 
 type ParamsDictionary = Record<string, string>;
@@ -89,7 +86,7 @@ export const listRoutes = (app: Application) => {
 			.toString()
 			.replace('\\/?', '')
 			.replace('(?=\\/|$)', '$')
-			.match(/^\/\^((?:\\[.*+?^${}()|[\]\\\/]|[^.*+?^${}()|[\]\\\/])*)\$\//);
+			.match(/^\/\^((?:\\[.*+?^${}()|[\]\\/]|[^.*+?^${}()|[\]\\/])*)\$\//);
 		return match
 			? match[1].replace(/\\(.)/g, '$1').split('/')
 			: `<complex:${thing.toString()}>`;

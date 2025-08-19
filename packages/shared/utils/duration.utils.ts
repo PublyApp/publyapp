@@ -23,4 +23,5 @@ const duration = {
 	toMinutes,
 	toHours,
 };
+
 export default duration;

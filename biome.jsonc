@@ -46,6 +46,9 @@
 				"useNumberNamespace": "error",
 				"noInferrableTypes": "error",
 				"noUselessElse": "error"
+			},
+			"suspicious": {
+				"noDocumentCookie": "off"
 			}
 		}
 	},
