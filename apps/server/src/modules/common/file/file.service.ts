@@ -1,8 +1,8 @@
+import type { MulterMemoryFile } from '@/shared/validations/file/file-server.validations';
+import CloudFlareUploader from './upload/CloudFlareUploader';
 import CloudinaryUploader from './upload/CloudinaryUploader';
 import LocalDiskUploader from './upload/LocalDiskUploader';
 import type { Uploader } from './upload/Uploader.interface';
-import type { MulterMemoryFile } from '@/shared/validations/file/file-server.validations';
-import CloudFlareUploader from './upload/CloudFlareUploader';
 
 export type FileServiceProps = {
 	sessionToken: string | undefined;

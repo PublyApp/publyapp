@@ -25,10 +25,7 @@ export type TenantRowData = {
 	id: string;
 	name: string;
 	logoUrl: string;
-	users: {
-		count: number;
-		maxAllowed: number;
-	};
+	users: { count: number; maxAllowed: number };
 	status: string; // 'active' | 'archived';
 	pricingPlan: string; // 'free' | 'bronze' | 'silver '| 'gold' | 'platinum'; //TODO: add plan enum
 };

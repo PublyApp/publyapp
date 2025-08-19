@@ -25,7 +25,6 @@
  *   return <script nonce={nonce}>console.log('Allowed by CSP');</script>;
  * }
  */
-
 import { createContext, useContext } from 'react';
 
 /**

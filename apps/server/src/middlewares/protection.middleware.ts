@@ -1,17 +1,17 @@
+import type { RequestHandler } from 'express';
+import _ from 'lodash';
 import { HttpException } from '@/server/exceptions/HttpException';
 import { AuthCloudService } from '@/server/modules/common/auth/auth-cloud.service';
 import {
 	PARSE_SESSION_TOKEN_HEADER_KEY,
 	type RoleSet,
+	roleSet,
 	type StaffRoleSet,
 	TENANT_ID_HEADER_KEY,
 	type TenantSubRoleSet,
-	roleSet,
 	tenantSubRoleSet,
 	userGroup,
 } from '@/shared/lib/constants';
-import type { RequestHandler } from 'express';
-import _ from 'lodash';
 import {
 	CONFIG_ENABLE_CHECK_SESSION_IP,
 	USE_MASTER_KEY,

@@ -1,8 +1,9 @@
+// @ts-check
+
 import fs, { createWriteStream } from 'node:fs';
 import path from 'node:path';
-import { Readable, pipeline } from 'node:stream';
+import { pipeline, Readable } from 'node:stream';
 import { promisify } from 'node:util';
-// @ts-check
 import { createRsbuild as _createRsbuild } from '@rsbuild/core';
 import { pluginTypeCheck } from '@rsbuild/plugin-type-check';
 import _ from 'lodash';
