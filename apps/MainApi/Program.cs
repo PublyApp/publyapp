@@ -1,41 +1,56 @@
+using Scalar.AspNetCore;
+using MainApi.Src.Lib;
+using MainApi.Src.Features.Common.Auth;
+using MainApi.Src.Features.Tenant.Product;
+using MainApi.Src.Features.Common.Auth.Middlewares;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.AddServices();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// dev only middlewares
 if (app.Environment.IsDevelopment())
 {
+		app.UseDeveloperExceptionPage();
     app.MapOpenApi();
+		app.MapScalarApiReference();
 }
+
+// all-time middlewares
+app.UseCheckSessionHeader();
+app.UseCheckTenantHeader();
+app.UseSessionAuthentication();
+// TODO: UseTenantAuthentication();
+
+// mount endpoints
+app.MapAuthEndpoints();
+
+var staffGroup = app.MapGroup("/staff");
+var tenantGroup = app.MapGroup("/tenant");
+
+// Map organized endpoints
+tenantGroup.MapProductEndpoints();
+
+app.MapFallback(() => Results.NotFound(new {
+	message = "Route not found",
+	key = "route-not-found",
+}));
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+// TEsting validation
+// ! use dotnet add package FluentValidation.AspNetCore
+// ! article example: https://dev.to/stevsharp/validating-minimal-apis-best-practices-and-approaches-1gal
+// app.MapPost("/testing-validation", async Task<IResult> (
+// 	HttpContext context,
+// 	[FromBody] Product product
+// 	) => {
+// 	return Results.Ok(new {
+// 		message = "Test is valid",
+// 		key = "test-is-valid"
+// 	});
+// });
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
