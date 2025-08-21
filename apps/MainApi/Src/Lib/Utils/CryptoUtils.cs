@@ -1,8 +1,8 @@
-namespace MainApi.Src.Lib;
+namespace MainApi.Src.Lib.Utils;
 
 using System.Security.Cryptography;
 
-public static class Utils
+public static class CryptoUtils
 {
     private const string Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
