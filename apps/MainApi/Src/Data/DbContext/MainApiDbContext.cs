@@ -2,6 +2,7 @@ namespace MainApi.Src.Data.DbContext;
 
 using System.Linq.Expressions;
 using MainApi.Src.Features.Common.Session;
+using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.EntityFrameworkCore.Extensions;
@@ -24,6 +25,8 @@ public class MainApiDbContext : DbContext
 
     public DbSet<Session> Session { get; init; }
 		public DbSet<Product> Product { get; init; }
+		public DbSet<User> User { get; init; }
+
 		public string? TenantId { get; set; }
 
     public MainApiDbContext(DbContextOptions options) : base(options)

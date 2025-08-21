@@ -34,12 +34,10 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 
 // Configure MongoDB connection
-var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDB")
-    ?? Environment.GetEnvironmentVariable("MONGODB_URI")
-    ?? "mongodb://localhost:27017";
-var databaseName = builder.Configuration["MongoDB:DatabaseName"] ?? "MainApiDb";
+string mongoUri = AppEnvironment.MONGODB_URI;
+string databaseName = AppEnvironment.MONGODB_DATABASE_NAME;
 
-var mongoClient = new MongoClient(mongoConnectionString);
+var mongoClient = new MongoClient(mongoUri);
 var mongoDatabase = mongoClient.GetDatabase(databaseName);
 
 var dbContextWithoutFilter = new MainApiDbContext(
