@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
 using Microsoft.Extensions.Options;
 using UserNs = MainApi.Src.Features.Common.User;
 
@@ -37,7 +38,7 @@ public class SessionService : ISessionService
 		var session = new Session
 		{
 			UserId = user.Id,
-			Token = Utils.NewToken(),
+			Token = CryptoUtils.NewToken(),
 			ExpiresAt = DateTime.UtcNow.AddDays(_config.Value.SESSION_EXPIRY_DAYS),
 		};
 
