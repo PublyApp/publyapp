@@ -8,7 +8,6 @@ using MainApi.Src.Features.Common.Auth.Validators;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Common.Session;
-using Microsoft.Extensions.Options;
 
 public static class AppServicesConfig
 {

@@ -42,16 +42,37 @@ public static class AuthHandlers
 				return Results.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
 			}
 
-#pragma warning disable IDE0042 // Deconstruct variable declaration
-		var sessionResult = await sessionService.CreateSessionForUser(user);
-#pragma warning restore IDE0042 // Deconstruct variable declaration
+		var createSessionResult = await sessionService.CreateSessionForUser(user);
 
-		if (!sessionResult.success)
-			{
-				return Results.BadRequest(new { message = sessionResult.message, key = sessionResult.key });
-			}
+		if (createSessionResult is CreateSessionResult.Success success)
+		{
+			return Results.Ok(new {
+				message = "Login successful",
+				key = "login-successful",
+				authData = new {
+					userId = user.Id,
+					sessionToken = success.Session.Token,
+					sessionExpiresAt = success.Session.ExpiresAt,
+					sessionExpiresInMs = success.Session.ExpiresAt.HasValue
+						? (success.Session.ExpiresAt.Value - DateTime.UtcNow).TotalMilliseconds
+						: 0
+				}
+			});
+		}
 
-			return Results.Ok(new { message = "Login successful", key = "login-successful", user, session = sessionResult.session });
+		if (createSessionResult is CreateSessionResult.Failure failure)
+		{
+			return Results.BadRequest(new {
+				message = failure.Message,
+				key = failure.Key
+			});
+		}
+
+		// This should never happen with proper discriminated unions, but good to have as fallback
+		return Results.BadRequest(new {
+			message = "Unknown session creation result",
+			key = "unknown-session-creation-result"
+		});
 		}
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
@@ -74,16 +95,29 @@ public static class AuthHandlers
 				Password = userDto.Password,
 			};
 
-#pragma warning disable IDE0042 // Deconstruct variable declaration
-		var userResult = await userService.CreateUser(newUser);
-#pragma warning restore IDE0042 // Deconstruct variable declaration
+		var createUserResult = await userService.CreateUser(newUser);
 
-		if (!userResult.success)
-			{
-				return Results.BadRequest(new { message = userResult.message, key = userResult.key });
-			}
+		if (createUserResult is CreateUserResult.Success success)
+		{
+			return Results.Json(new {
+				message = "Registration successful",
+				key = "registration-successful",
+				user = success.User
+			}, statusCode: StatusCodes.Status201Created);
+		}
 
-			// Don't return the user object with hashed password
-			return Results.Json(new { message = "Registration successful", key = "registration-successful", user = userResult.user }, statusCode: StatusCodes.Status201Created);
+		if (createUserResult is CreateUserResult.Failure failure)
+		{
+			return Results.BadRequest(new {
+				message = failure.Message,
+				key = failure.Key
+			});
+		}
+
+		// This should never happen with proper discriminated unions, but good to have as fallback
+		return Results.BadRequest(new {
+			message = "Unknown user creation result",
+			key = "unknown-user-creation-result"
+		});
 		}
 }

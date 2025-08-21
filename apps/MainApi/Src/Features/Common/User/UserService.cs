@@ -4,9 +4,15 @@ using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Features.Common.Auth;
 
+public abstract record CreateUserResult
+{
+    public sealed record Success(User User) : CreateUserResult;
+    public sealed record Failure(string Message, string Key) : CreateUserResult;
+}
+
 public interface IUserService
 {
-	Task<(bool success, string message, string key, User? user)> CreateUser(User user);
+	Task<CreateUserResult> CreateUser(User user);
 	Task<User?> GetUserByEmail(string email);
 }
 
@@ -21,13 +27,13 @@ public class UserService : IUserService
 		_passwordService = passwordService;
 	}
 
-	public async Task<(bool success, string message, string key, User? user)> CreateUser(User user)
+	public async Task<CreateUserResult> CreateUser(User user)
 	{
 		// check if user already exists
 		var existingUser = await _dbContext.User.FirstOrDefaultAsync(u => u.Email == user.Email);
 		if (existingUser != null)
 		{
-			return (success: false, message: "User already exists", key: "user-already-exists", user: null);
+			return new CreateUserResult.Failure("User already exists", "user-already-exists");
 		}
 
 		// Hash the password before storing
@@ -36,7 +42,7 @@ public class UserService : IUserService
 		var result = await _dbContext.User.AddAsync(user);
 		await _dbContext.SaveChangesAsync();
 
-		return (success: true, message: "User created successfully", key: "user-created-successfully", user: result.Entity);
+		return new CreateUserResult.Success(result.Entity);
 	}
 
 	public async Task<User?> GetUserByEmail(string email)
