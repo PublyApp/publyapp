@@ -1,15 +1,17 @@
 namespace MainApi.Src.Data;
 
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 public class BaseAttributes
 {
     [BsonId]
-    public string? Id { get; set; }
+		// [BsonRepresentation(BsonType.ObjectId)]
+    public string? Id { get; set; } = ObjectId.GenerateNewId().ToString();
 
-    [BsonElement("_created_at")]
-    public DateTime? CreatedAt { get; set; }
+    [BsonElement("createdAt")]
+    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 
-    [BsonElement("_updated_at")]
-    public DateTime? UpdatedAt { get; set; }
+    [BsonElement("updatedAt")]
+    public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
 }

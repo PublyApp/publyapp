@@ -3,6 +3,8 @@ using MainApi.Src.Data.DbContext;
 using MongoDB.Driver;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Features.Tenant.Product;
+using FluentValidation;
+using MainApi.Src.Features.Common.Auth.Validators;
 
 public static class AppConfiguration
 {
@@ -26,6 +28,8 @@ static string GetCurrentTenantId(IServiceProvider serviceProvider)
 
 		public static WebApplicationBuilder AddServices(this WebApplicationBuilder builder)
 		{
+			builder.Services.AddProblemDetails();
+
 			// Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -60,6 +64,10 @@ builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) =>
 			.UseMongoDB(mongoDatabase.Client, mongoDatabase.DatabaseNamespace.DatabaseName)
 			.UseTenantId(tenantId);
 }, ServiceLifetime.Scoped);
+
+// Register FluentValidation
+builder.Services.AddValidatorsFromAssemblyContaining<LoginWithEmailAndPasswordDtoValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterWithEmailAndPasswordDtoValidator>();
 
 // Register services
 builder.Services.AddScoped<IProductService, ProductService>();

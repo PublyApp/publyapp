@@ -12,8 +12,8 @@ public class Session : BaseAttributes, INoTenantFilter
     [BsonElement("token")]
     public string Token { get; set; } = string.Empty;
 
-    [BsonElement("_expires_at")]
+    [BsonElement("expiresAt")]
     public DateTime? ExpiresAt { get; set; }
 
-		public static string CollectionName { get; } = "_Session";
+		public static readonly string CollectionName = "_Session";
 }
