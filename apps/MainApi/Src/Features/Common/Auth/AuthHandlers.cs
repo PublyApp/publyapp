@@ -1,11 +1,9 @@
 namespace MainApi.Src.Features.Common.Auth;
 
-using MainApi.Src.Data.DbContext;
 using Microsoft.AspNetCore.Mvc;
 using MainApi.Src.Features.Common.User;
-using MongoDB.Bson;
-using Microsoft.EntityFrameworkCore;
 using FluentValidation;
+using MainApi.Src.Features.Common.Session;
 
 public class LoginWithEmailAndPasswordDto
 {
@@ -20,15 +18,44 @@ public class RegisterWithEmailAndPasswordDto: LoginWithEmailAndPasswordDto
 public static class AuthHandlers
 {
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-	public static async Task<IResult> LoginWithEmailAndPassword([FromBody] LoginWithEmailAndPasswordDto userDto)
+	public static async Task<IResult> LoginWithEmailAndPassword([FromBody] LoginWithEmailAndPasswordDto userDto, [FromServices] IUserService userService, [FromServices] ISessionService sessionService, [FromServices] IValidator<LoginWithEmailAndPasswordDto> validator, [FromServices] IPasswordService passwordService)
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 	{
 			// FluentValidation handles all validation, including null checks
-			return Results.Ok(new { message = "Login successful", key = "login-successful" });
+			var validationResult = await validator.ValidateAsync(userDto);
+			if (!validationResult.IsValid)
+			{
+				return Results.BadRequest(new { message = "Validation failed", key = "validation-failed",
+					errors = validationResult.Errors.Select(e => e.ErrorMessage).ToArray()
+					});
+			}
+
+			var user = await userService.GetUserByEmail(userDto.Email);
+			if (user == null)
+			{
+				return Results.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
+			}
+
+			// Verify the password
+			if (!passwordService.VerifyPassword(userDto.Password, user.Password))
+			{
+				return Results.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
+			}
+
+#pragma warning disable IDE0042 // Deconstruct variable declaration
+		var sessionResult = await sessionService.CreateSessionForUser(user);
+#pragma warning restore IDE0042 // Deconstruct variable declaration
+
+		if (!sessionResult.success)
+			{
+				return Results.BadRequest(new { message = sessionResult.message, key = sessionResult.key });
+			}
+
+			return Results.Ok(new { message = "Login successful", key = "login-successful", user, session = sessionResult.session });
 		}
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-	public static async Task<IResult> RegisterWithEmailAndPassword([FromBody] RegisterWithEmailAndPasswordDto userDto, [FromServices] MainApiDbContext dbContext, [FromServices] IValidator<RegisterWithEmailAndPasswordDto> validator)
+	public static async Task<IResult> RegisterWithEmailAndPassword([FromBody] RegisterWithEmailAndPasswordDto userDto, [FromServices] IValidator<RegisterWithEmailAndPasswordDto> validator, [FromServices] IUserService userService)
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 		{
 			// FluentValidation handles all validation, including null checks and field validation
@@ -38,28 +65,25 @@ public static class AuthHandlers
 			{
 				return Results.BadRequest(new { message = "Validation failed", key = "validation-failed",
 					errors = validationResult.Errors.Select(e => e.ErrorMessage).ToArray()
-					// errors = validationResult.Errors
-				 });
-			}
-
-			// check if user already exists
-			var existingUser = await dbContext.User.FirstOrDefaultAsync(u => u.Email == userDto.Email);
-			if (existingUser != null)
-			{
-				return Results.BadRequest(new { message = "User already exists", key = "user-already-exists" });
+					});
 			}
 
 			var newUser = new User
 			{
 				Email = userDto.Email,
 				Password = userDto.Password,
-				CreatedAt = DateTime.UtcNow,
-				UpdatedAt = DateTime.UtcNow
 			};
 
-			await dbContext.User.AddAsync(newUser);
-			await dbContext.SaveChangesAsync();
+#pragma warning disable IDE0042 // Deconstruct variable declaration
+		var userResult = await userService.CreateUser(newUser);
+#pragma warning restore IDE0042 // Deconstruct variable declaration
 
-			return Results.Json(new { message = "Register successful", key = "register-successful", user = newUser }, statusCode: StatusCodes.Status201Created);
+		if (!userResult.success)
+			{
+				return Results.BadRequest(new { message = userResult.message, key = userResult.key });
+			}
+
+			// Don't return the user object with hashed password
+			return Results.Json(new { message = "Registration successful", key = "registration-successful", user = userResult.user }, statusCode: StatusCodes.Status201Created);
 		}
 }

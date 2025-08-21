@@ -5,10 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Features.Tenant.Product;
 using FluentValidation;
 using MainApi.Src.Features.Common.Auth.Validators;
+using MainApi.Src.Features.Common.User;
+using MainApi.Src.Features.Common.Auth;
+using MainApi.Src.Features.Common.Session;
 
-public static class AppConfiguration
+public static class AppServicesConfig
 {
-
 // Helper method to get current tenant ID
 // (you'll need to implement this based on your authentication/authorization)
 static string GetCurrentTenantId(IServiceProvider serviceProvider)
@@ -29,6 +31,9 @@ static string GetCurrentTenantId(IServiceProvider serviceProvider)
 		public static WebApplicationBuilder AddServices(this WebApplicationBuilder builder)
 		{
 			builder.Services.AddProblemDetails();
+
+			// Configure strongly-typed settings
+			builder.Services.Configure<AppSettings>(builder.Configuration);
 
 			// Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -71,6 +76,9 @@ builder.Services.AddValidatorsFromAssemblyContaining<RegisterWithEmailAndPasswor
 
 // Register services
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IPasswordService, PasswordService>();
+builder.Services.AddScoped<ISessionService, SessionService>();
 
 return builder;
 		}

@@ -14,47 +14,47 @@ public interface IProductService
 
 public class ProductService : IProductService
 {
-    private readonly MainApiDbContext _context;
+    private readonly MainApiDbContext _dbContext;
 
-    public ProductService(MainApiDbContext context)
+    public ProductService(MainApiDbContext dbContext)
     {
-        _context = context;
+        _dbContext = dbContext;
     }
 
     public async Task<IEnumerable<Product>> GetAllProductsAsync()
     {
-        return await _context.Product.ToListAsync();
+        return await _dbContext.Product.ToListAsync();
     }
 
     public async Task<Product?> GetProductByIdAsync(string id)
     {
-        return await _context.Product.FindAsync(id);
+        return await _dbContext.Product.FindAsync(id);
     }
 
     public async Task<Product> CreateProductAsync(Product product)
     {
-        _context.Product.Add(product);
-        await _context.SaveChangesAsync();
+        _dbContext.Product.Add(product);
+        await _dbContext.SaveChangesAsync();
         return product;
     }
 
     public async Task<Product> UpdateProductAsync(Product product)
     {
-        _context.Entry(product).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
+        _dbContext.Entry(product).State = EntityState.Modified;
+        await _dbContext.SaveChangesAsync();
         return product;
     }
 
     public async Task<bool> DeleteProductAsync(string id)
     {
-        var product = await _context.Product.FindAsync(id);
+        var product = await _dbContext.Product.FindAsync(id);
         if (product == null)
         {
             return false;
         }
 
-        _context.Product.Remove(product);
-        await _context.SaveChangesAsync();
+        _dbContext.Product.Remove(product);
+        await _dbContext.SaveChangesAsync();
         return true;
     }
 }

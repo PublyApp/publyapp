@@ -1,7 +1,6 @@
 namespace MainApi.Src.Features.Common.Auth.Middlewares;
 
 using MainApi.Src.Data.DbContext;
-using Microsoft.EntityFrameworkCore;
 
 public class SessionAuthMiddleware
 {
@@ -12,7 +11,7 @@ public class SessionAuthMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, MainApiDbContext db)
+    public async Task InvokeAsync(HttpContext context, MainApiDbContext dbContext)
     {
         var token = CheckSessionHeaderMiddleware.GetSessionToken(context);
 
