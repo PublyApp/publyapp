@@ -8,6 +8,7 @@ using MainApi.Src.Features.Common.Auth.Validators;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Common.Session;
+using Microsoft.Extensions.Options;
 
 public static class AppServicesConfig
 {
@@ -33,7 +34,10 @@ static string GetCurrentTenantId(IServiceProvider serviceProvider)
 			builder.Services.AddProblemDetails();
 
 			// Configure strongly-typed settings
-			builder.Services.Configure<AppSettings>(builder.Configuration);
+			builder.Services.AddOptions<AppSettings>()
+				.Bind(builder.Configuration.GetSection("AppSettings"))
+				.ValidateDataAnnotations()
+				.ValidateOnStart(); // This will validate at startup
 
 			// Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -43,11 +47,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 
 // Configure MongoDB connection
-string mongoUri = AppEnvironment.MONGODB_URI;
-string databaseName = AppEnvironment.MONGODB_DATABASE_NAME;
-
-var mongoClient = new MongoClient(mongoUri);
-var mongoDatabase = mongoClient.GetDatabase(databaseName);
+var mongoClient = new MongoClient(AppEnvironment.MONGODB_URI);
+var mongoDatabase = mongoClient.GetDatabase(AppEnvironment.MONGODB_DATABASE_NAME);
 
 var dbContextWithoutFilter = new MainApiDbContext(
 	new DbContextOptionsBuilder<MainApiDbContext>()
