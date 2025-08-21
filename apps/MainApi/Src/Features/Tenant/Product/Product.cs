@@ -13,8 +13,6 @@ public class Product : BaseAttributes, ITenantFilter {
 	[BsonElement("price")]
 	public decimal? Price { get; set; }
 
-	[BsonElement("_tenant_id")]
+	[BsonElement("tenantId")]
 	public string? TenantId { get; set; }
-
-	public static string CollectionName { get; } = "Product";
 }
