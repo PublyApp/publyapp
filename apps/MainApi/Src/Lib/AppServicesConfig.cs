@@ -90,6 +90,9 @@ builder.Services.AddScoped<ITenantContext, TenantContext>();
 // Register Collection
 builder.Services.AddScoped(typeof(IAppCollection<>), typeof(AppCollection<>));
 
+// Register MongoDB index initializer hosted service
+builder.Services.AddHostedService<MongoIndexesInitializer>();
+
 return builder;
 		}
 }

@@ -16,7 +16,6 @@ app.UseCustomExceptionHandler();
 // dev only middlewares
 if (app.Environment.IsDevelopment())
 {
-		// app.UseDeveloperExceptionPage();
     app.MapOpenApi();
 		app.MapScalarApiReference();
 }
