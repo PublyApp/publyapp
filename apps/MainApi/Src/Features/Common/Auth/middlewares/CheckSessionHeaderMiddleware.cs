@@ -1,18 +1,21 @@
+using MainApi.Src.Lib;
+
 namespace MainApi.Src.Features.Common.Auth.Middlewares;
 
 public class CheckSessionHeaderMiddleware
 {
     private readonly RequestDelegate _next;
 
-		public static string? GetSessionToken(HttpContext context) {
-			var token = context.Items["sessionToken"] ?? context.Request.Headers["X-Session-Token"].ToString();
+		public static string? GetSessionToken(HttpContext httpContext) {
+			var sessionToken = httpContext.RequestServices.GetRequiredService<IAuthContext>().SessionToken
+				?? httpContext.Request.Headers["X-Session-Token"].FirstOrDefault();
 
-			if (string.IsNullOrEmpty(token as string))
+			if (string.IsNullOrEmpty(sessionToken))
         {
 						return null;
         }
 
-			return token as string;
+			return sessionToken;
 		}
 
 	public CheckSessionHeaderMiddleware(RequestDelegate next)
@@ -20,21 +23,22 @@ public class CheckSessionHeaderMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext httpContext, IAuthContext authContext)
     {
-        var token = GetSessionToken(context);
+        var token = GetSessionToken(httpContext);
 
 				if (string.IsNullOrEmpty(token)) {
-					context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-					await context.Response.WriteAsJsonAsync(new {
+					httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+					await httpContext.Response.WriteAsJsonAsync(new {
 						message = "Unauthorized",
 						key = "unauthorized",
 					});
 					return;
 				}
 
-        context.Items["sessionToken"] = token;
-        await _next(context);
+        // var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
+        authContext.SessionToken = token;
+        await _next(httpContext);
     }
 }
 

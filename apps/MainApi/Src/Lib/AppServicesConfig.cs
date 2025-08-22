@@ -8,6 +8,7 @@ using MainApi.Src.Features.Common.Auth.Validators;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Common.Session;
+using MainApi.Src.Data.MongoDb;
 
 public static class AppServicesConfig
 {
@@ -17,7 +18,7 @@ static string GetCurrentTenantId(IServiceProvider serviceProvider)
 {
 	return "123";
 	// var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-	// var tenantId = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].ToString();
+	// var tenantId = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].FirstOrDefault();
 
 	// if (tenantId == null)
 	// {
@@ -79,6 +80,15 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
+
+// Register AuthContext
+builder.Services.AddScoped<IAuthContext, AuthContext>();
+
+// Register TenantContext
+builder.Services.AddScoped<ITenantContext, TenantContext>();
+
+// Register Collection
+builder.Services.AddScoped(typeof(IAppCollection<>), typeof(AppCollection<>));
 
 return builder;
 		}

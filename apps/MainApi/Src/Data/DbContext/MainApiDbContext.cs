@@ -71,7 +71,7 @@ public class MainApiDbContext : DbContext
 				}
 			}
 
-			if (typeof(ITenantFilter).IsAssignableFrom(entityType.ClrType))
+			if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType))
                 {
                     modelBuilder.Entity(entityType.ClrType)
 											.ToCollection(collectionName);
@@ -89,7 +89,7 @@ public class MainApiDbContext : DbContext
 											.HasQueryFilter(lambda);
 											}
                 }
-                else if (typeof(INoTenantFilter).IsAssignableFrom(entityType.ClrType))
+                else if (typeof(INoTenantEntity).IsAssignableFrom(entityType.ClrType))
                 {
                     // Set collection name for non-tenant-filtered entities
                     modelBuilder.Entity(entityType.ClrType).ToCollection(collectionName);
@@ -97,7 +97,7 @@ public class MainApiDbContext : DbContext
                 else
                 {
                     throw new Exception(
-                        $"You haven't added the {nameof(ITenantFilter)} or {nameof(INoTenantFilter)} to the entity {entityType.ClrType.Name}");
+                        $"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)} or {nameof(INoTenantEntity)}");
                 }
             }
     }
