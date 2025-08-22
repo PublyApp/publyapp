@@ -6,13 +6,13 @@ using MongoDB.Bson.Serialization.Attributes;
 
 public class BaseAttributes
 {
-    [BsonId]
-		// [BsonRepresentation(BsonType.ObjectId)]
-    public string? Id { get; set; } = CryptoUtils.NewObjectId();
+	[BsonId]
+	// [BsonRepresentation(BsonType.ObjectId)]
+	public string? Id { get; set; } = CryptoUtils.NewObjectId();
 
-    [BsonElement("createdAt")]
-    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
+	[BsonElement("createdAt")]
+	public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 
-    [BsonElement("updatedAt")]
-    public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
+	[BsonElement("updatedAt")]
+	public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
 }

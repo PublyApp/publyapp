@@ -8,8 +8,8 @@ namespace MainApi.Src.Features.Common.Session;
 
 public abstract record CreateSessionResult
 {
-    public sealed record Success(Session Session) : CreateSessionResult;
-    public sealed record Failure(string Message, string Key) : CreateSessionResult;
+	public sealed record Success(Session Session) : CreateSessionResult;
+	public sealed record Failure(string Message, string Key) : CreateSessionResult;
 }
 
 public interface ISessionService
