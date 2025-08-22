@@ -1,11 +1,14 @@
+using MainApi.Src.Lib;
+
 namespace MainApi.Src.Features.Common.Auth.Middlewares;
 
 public class CheckTenantHeaderMiddleware
 {
     private readonly RequestDelegate _next;
 
-		public static string? GetTenantId(HttpContext context) {
-			var tenantId = context.Items["tenantId"] ?? context.Request.Headers["X-Tenant-Id"].ToString();
+		public static string? GetTenantId(HttpContext httpContext) {
+			var tenantId = httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId
+				?? httpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault();
 
 			if (string.IsNullOrEmpty(tenantId as string))
         {
@@ -21,22 +24,23 @@ public class CheckTenantHeaderMiddleware
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context)
+    public async Task InvokeAsync(HttpContext httpContext)
     {
-        var tenantId = GetTenantId(context);
+        var tenantId = GetTenantId(httpContext);
 
 				if (string.IsNullOrEmpty(tenantId)) {
-					context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-					await context.Response.WriteAsJsonAsync(new {
+					httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+					await httpContext.Response.WriteAsJsonAsync(new {
 						message = "Unauthorized",
 						key = "unauthorized",
 					});
 					return;
 				}
 
-        context.Items["tenantId"] = tenantId;
+        var tenantContext = httpContext.RequestServices.GetRequiredService<ITenantContext>();
+				tenantContext.TenantId = tenantId;
 
-        await _next(context);
+        await _next(httpContext);
     }
 }
 

@@ -1,21 +1,26 @@
 namespace MainApi.Src.Features.Common.Auth.Middlewares;
 
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib;
+using Microsoft.EntityFrameworkCore;
 
 public class SessionAuthMiddleware
 {
+	private readonly ILogger<SessionAuthMiddleware> _logger;
     private readonly RequestDelegate _next;
 
-	public SessionAuthMiddleware(RequestDelegate next)
+	public SessionAuthMiddleware(RequestDelegate next, ILogger<SessionAuthMiddleware> logger)
 	{
+		_logger = logger;
         _next = next;
     }
 
-    public async Task InvokeAsync(HttpContext context, MainApiDbContext dbContext)
+    public async Task InvokeAsync(HttpContext context, MainApiDbContext dbContext, IAuthContext authContext)
     {
-        var token = CheckSessionHeaderMiddleware.GetSessionToken(context);
+        var sessionToken = CheckSessionHeaderMiddleware.GetSessionToken(context);
 
-				if (string.IsNullOrEmpty(token)) {
+				if (string.IsNullOrEmpty(sessionToken)) {
+					_logger.LogDebug("Session token is missing in request");
 					context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 					await context.Response.WriteAsJsonAsync(new {
 						message = "Unauthorized",
@@ -24,12 +29,12 @@ public class SessionAuthMiddleware
 					return;
 				}
 
-        // var session = await db.Session
-        //     .FirstOrDefaultAsync(s => s.Token == token && s.ExpiresAt > DateTime.UtcNow);
-				var cond = token == "123";
+        var session = await dbContext.Session
+            .FirstOrDefaultAsync(s => s.Token == sessionToken && s.ExpiresAt > DateTime.UtcNow);
 
-        if (/* session is null */!cond)
+        if (session is null)
         {
+					_logger.LogDebug("Session token is invalid or expired: {logData}", new { sessionToken });
 					context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 					await context.Response.WriteAsJsonAsync(new {
 						message = "Unauthorized",
@@ -39,7 +44,19 @@ public class SessionAuthMiddleware
         }
 
         // Attach userId for downstream handlers
-        context.Items["UserId"] = "123"; //session.UserId;
+				authContext.SessionToken = sessionToken;
+        authContext.UserId = session.UserId;
+
+				if (!authContext.IsAuthenticated) {
+					_logger.LogError("Failed to authenticate user, session has no user attached to it: {logData}", new { sessionToken, userId = session.UserId });
+					context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+					await context.Response.WriteAsJsonAsync(new {
+						message = "Failed to authenticate user",
+						key = "failed-to-authenticate-user",
+					});
+					return;
+				}
+
         await _next(context);
     }
 }

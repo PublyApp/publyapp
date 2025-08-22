@@ -4,7 +4,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MainApi.Src.Data;
 
-public class Session : BaseAttributes, INoTenantFilter
+public class Session : BaseAttributes, INoTenantEntity
 {
     [BsonElement("userId")]
     public string UserId { get; set; } = string.Empty;
