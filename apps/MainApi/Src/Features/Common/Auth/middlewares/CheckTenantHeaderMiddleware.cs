@@ -4,62 +4,65 @@ namespace MainApi.Src.Features.Common.Auth.Middlewares;
 
 public class CheckTenantHeaderMiddleware
 {
-    private readonly RequestDelegate _next;
+	private readonly RequestDelegate _next;
 
-		public static string? GetTenantId(HttpContext httpContext) {
-			var tenantId = httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId
-				?? httpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault();
+	public static string? GetTenantId(HttpContext httpContext)
+	{
+		var tenantId = httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId
+			?? httpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault();
 
-			if (string.IsNullOrEmpty(tenantId as string))
-        {
+		if (string.IsNullOrEmpty(tenantId as string))
+		{
 
-						return null;
-        }
-
-			return tenantId as string;
+			return null;
 		}
+
+		return tenantId as string;
+	}
 
 	public CheckTenantHeaderMiddleware(RequestDelegate next)
 	{
-        _next = next;
-    }
+		_next = next;
+	}
 
-    public async Task InvokeAsync(HttpContext httpContext)
-    {
-        var tenantId = GetTenantId(httpContext);
+	public async Task InvokeAsync(HttpContext httpContext)
+	{
+		var tenantId = GetTenantId(httpContext);
 
-				if (string.IsNullOrEmpty(tenantId)) {
-					httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-					await httpContext.Response.WriteAsJsonAsync(new {
-						message = "Unauthorized",
-						key = "unauthorized",
-					});
-					return;
-				}
+		if (string.IsNullOrEmpty(tenantId))
+		{
+			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+			await httpContext.Response.WriteAsJsonAsync(new
+			{
+				message = "Unauthorized",
+				key = "unauthorized",
+			});
+			return;
+		}
 
-        var tenantContext = httpContext.RequestServices.GetRequiredService<ITenantContext>();
-				tenantContext.TenantId = tenantId;
+		var tenantContext = httpContext.RequestServices.GetRequiredService<ITenantContext>();
+		tenantContext.TenantId = tenantId;
 
-        await _next(httpContext);
-    }
+		await _next(httpContext);
+	}
 }
 
 // Extension method
 public static class CheckTenantHeaderMiddlewareExtensions
 {
-    private static bool ShouldUseTenantHeaderCheck(HttpContext context)
-    {
-        return context.Request.Path.StartsWithSegments("/tenant");
-    }
+	private static bool ShouldUseTenantHeaderCheck(HttpContext context)
+	{
+		return context.Request.Path.StartsWithSegments("/tenant");
+	}
 
-    private static void ConfigureTenantHeaderCheck(IApplicationBuilder builder)
-    {
-        builder.UseMiddleware<CheckTenantHeaderMiddleware>();
-    }
+	private static void ConfigureTenantHeaderCheck(IApplicationBuilder builder)
+	{
+		builder.UseMiddleware<CheckTenantHeaderMiddleware>();
+	}
 
-    public static WebApplication UseCheckTenantHeader(this WebApplication app)
-    {
-        app.UseWhen(ShouldUseTenantHeaderCheck, ConfigureTenantHeaderCheck);
-        return app;
-    }
+	public static WebApplication UseCheckTenantHeader(this WebApplication app)
+	{
+		app.UseWhen(ShouldUseTenantHeaderCheck, ConfigureTenantHeaderCheck);
+		return app;
+	}
 }

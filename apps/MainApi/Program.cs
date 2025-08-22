@@ -16,8 +16,8 @@ app.UseCustomExceptionHandler();
 // dev only middlewares
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-		app.MapScalarApiReference();
+	app.MapOpenApi();
+	app.MapScalarApiReference();
 }
 
 // all-time middlewares
@@ -35,7 +35,8 @@ var tenantGroup = app.MapGroup("/tenant");
 // Map organized endpoints
 tenantGroup.MapProductEndpoints();
 
-app.MapFallback(() => Results.NotFound(new {
+app.MapFallback(() => Results.NotFound(new
+{
 	message = "Route not found",
 	key = "route-not-found",
 }));

@@ -6,14 +6,14 @@ using MainApi.Src.Data;
 
 public class Session : BaseAttributes, INoTenantEntity
 {
-    [BsonElement("userId")]
-    public string UserId { get; set; } = string.Empty;
+	[BsonElement("userId")]
+	public string UserId { get; set; } = string.Empty;
 
-    [BsonElement("token")]
-    public string Token { get; set; } = string.Empty;
+	[BsonElement("token")]
+	public string Token { get; set; } = string.Empty;
 
-    [BsonElement("expiresAt")]
-    public DateTime? ExpiresAt { get; set; }
+	[BsonElement("expiresAt")]
+	public DateTime? ExpiresAt { get; set; }
 
-		public static readonly string CollectionName = "_Session";
+	public static readonly string CollectionName = "_Session";
 }

@@ -12,87 +12,87 @@ using MainApi.Src.Data.MongoDb;
 
 public static class AppServicesConfig
 {
-// Helper method to get current tenant ID
-// (you'll need to implement this based on your authentication/authorization)
-static string GetCurrentTenantId(IServiceProvider serviceProvider)
-{
-	return "123";
-	// var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-	// var tenantId = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].FirstOrDefault();
+	// Helper method to get current tenant ID
+	// (you'll need to implement this based on your authentication/authorization)
+	static string GetCurrentTenantId(IServiceProvider serviceProvider)
+	{
+		return "123";
+		// var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
+		// var tenantId = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].FirstOrDefault();
 
-	// if (tenantId == null)
-	// {
-	// 	throw new Exception("Tenant ID is required");
-	// }
+		// if (tenantId == null)
+		// {
+		// 	throw new Exception("Tenant ID is required");
+		// }
 
-	// return tenantId;
-	// return "";
-}
+		// return tenantId;
+		// return "";
+	}
 
-		public static WebApplicationBuilder AddServices(this WebApplicationBuilder builder)
+	public static WebApplicationBuilder AddServices(this WebApplicationBuilder builder)
+	{
+		builder.Services.AddProblemDetails();
+
+		// Configure strongly-typed settings
+		builder.Services.AddOptions<AppSettings>()
+			.Bind(builder.Configuration.GetSection("AppSettings"))
+			.ValidateDataAnnotations()
+			.ValidateOnStart(); // This will validate at startup
+
+		// Add services to the container.
+		// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+		builder.Services.AddOpenApi();
+
+		// Add HttpContextAccessor for accessing HTTP context in services
+		builder.Services.AddHttpContextAccessor();
+
+		// Configure MongoDB connection
+		var mongoClient = new MongoClient(AppEnvironment.MONGODB_URI);
+		var mongoDatabase = mongoClient.GetDatabase(AppEnvironment.MONGODB_DATABASE_NAME);
+
+		var dbContextWithoutFilter = new MainApiDbContext(
+			new DbContextOptionsBuilder<MainApiDbContext>()
+				.UseMongoDB(mongoDatabase.Client, mongoDatabase.DatabaseNamespace.DatabaseName)
+				.Options
+			);
+
+		MainApiDbContext.SetSingleTon(dbContextWithoutFilter);
+
+		// Register MongoDB client and database
+		builder.Services.AddSingleton<IMongoClient>(mongoClient);
+		builder.Services.AddSingleton<IMongoDatabase>(mongoDatabase);
+
+		// Register scoped DbContext (for per-request instances)
+		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) =>
 		{
-			builder.Services.AddProblemDetails();
-
-			// Configure strongly-typed settings
-			builder.Services.AddOptions<AppSettings>()
-				.Bind(builder.Configuration.GetSection("AppSettings"))
-				.ValidateDataAnnotations()
-				.ValidateOnStart(); // This will validate at startup
-
-			// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
-// Add HttpContextAccessor for accessing HTTP context in services
-builder.Services.AddHttpContextAccessor();
-
-// Configure MongoDB connection
-var mongoClient = new MongoClient(AppEnvironment.MONGODB_URI);
-var mongoDatabase = mongoClient.GetDatabase(AppEnvironment.MONGODB_DATABASE_NAME);
-
-var dbContextWithoutFilter = new MainApiDbContext(
-	new DbContextOptionsBuilder<MainApiDbContext>()
+			var tenantId = GetCurrentTenantId(serviceProvider);
+			options
 		.UseMongoDB(mongoDatabase.Client, mongoDatabase.DatabaseNamespace.DatabaseName)
-		.Options
-	);
+		.UseTenantId(tenantId);
+		}, ServiceLifetime.Scoped);
 
-MainApiDbContext.SetSingleTon(dbContextWithoutFilter);
+		// Register FluentValidation
+		builder.Services.AddValidatorsFromAssemblyContaining<LoginWithEmailAndPasswordDtoValidator>();
+		builder.Services.AddValidatorsFromAssemblyContaining<RegisterWithEmailAndPasswordDtoValidator>();
 
-// Register MongoDB client and database
-builder.Services.AddSingleton<IMongoClient>(mongoClient);
-builder.Services.AddSingleton<IMongoDatabase>(mongoDatabase);
+		// Register services
+		builder.Services.AddScoped<IProductService, ProductService>();
+		builder.Services.AddScoped<IUserService, UserService>();
+		builder.Services.AddScoped<IPasswordService, PasswordService>();
+		builder.Services.AddScoped<ISessionService, SessionService>();
 
-// Register scoped DbContext (for per-request instances)
-builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) =>
-{
-    var tenantId = GetCurrentTenantId(serviceProvider);
-    options
-			.UseMongoDB(mongoDatabase.Client, mongoDatabase.DatabaseNamespace.DatabaseName)
-			.UseTenantId(tenantId);
-}, ServiceLifetime.Scoped);
+		// Register AuthContext
+		builder.Services.AddScoped<IAuthContext, AuthContext>();
 
-// Register FluentValidation
-builder.Services.AddValidatorsFromAssemblyContaining<LoginWithEmailAndPasswordDtoValidator>();
-builder.Services.AddValidatorsFromAssemblyContaining<RegisterWithEmailAndPasswordDtoValidator>();
+		// Register TenantContext
+		builder.Services.AddScoped<ITenantContext, TenantContext>();
 
-// Register services
-builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IPasswordService, PasswordService>();
-builder.Services.AddScoped<ISessionService, SessionService>();
+		// Register Collection
+		builder.Services.AddScoped(typeof(IAppCollection<>), typeof(AppCollection<>));
 
-// Register AuthContext
-builder.Services.AddScoped<IAuthContext, AuthContext>();
+		// Register MongoDB index initializer hosted service
+		builder.Services.AddHostedService<MongoIndexesInitializer>();
 
-// Register TenantContext
-builder.Services.AddScoped<ITenantContext, TenantContext>();
-
-// Register Collection
-builder.Services.AddScoped(typeof(IAppCollection<>), typeof(AppCollection<>));
-
-// Register MongoDB index initializer hosted service
-builder.Services.AddHostedService<MongoIndexesInitializer>();
-
-return builder;
-		}
+		return builder;
+	}
 }

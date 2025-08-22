@@ -6,8 +6,8 @@ using MainApi.Src.Features.Common.Auth;
 
 public abstract record CreateUserResult
 {
-    public sealed record Success(User User) : CreateUserResult;
-    public sealed record Failure(string Message, string Key) : CreateUserResult;
+	public sealed record Success(User User) : CreateUserResult;
+	public sealed record Failure(string Message, string Key) : CreateUserResult;
 }
 
 public interface IUserService

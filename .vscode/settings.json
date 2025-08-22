@@ -91,7 +91,8 @@
 	"editor.codeActionsOnSave": {
 		"source.sortImports": "explicit",
 		"source.fixAll.biome": "explicit",
-		"source.organizeImports.biome": "explicit"
+		"source.organizeImports.biome": "explicit",
+		"source.fixAll.csharp": "explicit"
 	},
 	"editor.formatOnSave": true,
 	"editor.tabSize": 2,
@@ -110,5 +111,8 @@
 	"files.eol": "\n",
 	"[jsonc]": {
 		"editor.defaultFormatter": "vscode.json-language-features"
+	},
+	"[csharp]": {
+		"editor.defaultFormatter": "anysphere.csharp"
 	}
 }
