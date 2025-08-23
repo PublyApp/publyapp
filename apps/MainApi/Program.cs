@@ -7,6 +7,9 @@ using MainApi.Src.Features.Common.Auth.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Serilog
+builder.ConfigureSerilog();
+
 builder.AddServices();
 
 var app = builder.Build();

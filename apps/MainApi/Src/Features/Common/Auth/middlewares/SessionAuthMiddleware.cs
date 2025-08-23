@@ -36,7 +36,7 @@ public class SessionAuthMiddleware
 
 		if (session is null)
 		{
-			_logger.LogDebug("Session token is invalid or expired: {logData}", new { sessionToken });
+			_logger.LogDebug("Session token is invalid or expired: {@SessionData}", new { sessionToken });
 			context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 			await context.Response.WriteAsJsonAsync(new
 			{
@@ -52,7 +52,7 @@ public class SessionAuthMiddleware
 
 		if (!authContext.IsAuthenticated)
 		{
-			_logger.LogError("Failed to authenticate user, session has no user attached to it: {logData}", new { sessionToken, userId = session.UserId });
+			_logger.LogError("Failed to authenticate user, session has no user attached to it: {@SessionData}", new { sessionToken, userId = session.UserId });
 			context.Response.StatusCode = StatusCodes.Status500InternalServerError;
 			await context.Response.WriteAsJsonAsync(new
 			{

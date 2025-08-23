@@ -19,7 +19,7 @@ public class StaffAuthMiddleware
 	{
 		if (!authContext.IsAuthenticated)
 		{
-			_logger.LogError("Request userId or sessionToken is missing: {logData}", new
+			_logger.LogError("Request userId or sessionToken is missing: {@StaffAuthData}", new
 			{
 				userId = authContext.UserId,
 				sessionToken = authContext.SessionToken,
@@ -42,7 +42,7 @@ public class StaffAuthMiddleware
 
 		if (accountStaff is null)
 		{
-			_logger.LogDebug("User is not a staff member: {logData}", new { authContext.UserId });
+			_logger.LogDebug("User is not a staff member: {@StaffAuthData}", new { UserId = authContext.UserId });
 			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
 			await httpContext.Response.WriteAsJsonAsync(new
 			{
