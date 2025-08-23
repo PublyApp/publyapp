@@ -15,4 +15,7 @@ public class BaseAttributes
 
 	[BsonElement("updatedAt")]
 	public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
+
+	[BsonElement("isDeleted")]
+	public bool? IsDeleted { get; set; }
 }

@@ -2,7 +2,7 @@ using MongoDB.Driver;
 
 namespace MainApi.Src.Features.Tenant.Product;
 
-public static class ProductIndexInitializer
+public static class ProductIndexesInitializer
 {
 	public static Task<string> CreateNameIndex(IMongoCollection<Product> products)
 	{

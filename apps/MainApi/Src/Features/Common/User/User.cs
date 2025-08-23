@@ -11,5 +11,11 @@ public class User : BaseAttributes, INoTenantEntity
 	[BsonElement("password")]
 	public string Password { get; set; } = string.Empty;
 
+	[BsonElement("isSuspended")]
+	public bool? IsSuspended { get; set; }
+
+	[BsonElement("isVerified")]
+	public bool? IsVerified { get; set; }
+
 	public static readonly string CollectionName = "_User";
 }

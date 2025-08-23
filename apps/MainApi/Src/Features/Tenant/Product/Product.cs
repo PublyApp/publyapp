@@ -15,5 +15,5 @@ public class Product : BaseAttributes, ITenantEntity
 	public decimal? Price { get; set; }
 
 	[BsonElement("tenantId")]
-	public string? TenantId { get; set; }
+	public string TenantId { get; set; } = string.Empty;
 }

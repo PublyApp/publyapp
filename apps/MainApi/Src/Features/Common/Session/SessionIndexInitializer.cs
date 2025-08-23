@@ -2,7 +2,7 @@ using MongoDB.Driver;
 
 namespace MainApi.Src.Features.Common.Session;
 
-public static class SessionIndexInitializer
+public static class SessionIndexesInitializer
 {
 	public static async Task EnsureIndexesAsync(IMongoDatabase database, ILogger logger)
 	{

@@ -2,7 +2,7 @@ using MongoDB.Driver;
 
 namespace MainApi.Src.Features.Common.User;
 
-public static class UserIndexInitializer
+public static class UserIndexesInitializer
 {
 	public static Task<string> CreateEmailIndex(IMongoCollection<User> users)
 	{

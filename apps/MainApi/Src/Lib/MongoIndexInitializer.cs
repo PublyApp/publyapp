@@ -37,9 +37,9 @@ public class MongoIndexesInitializer : IHostedService
 	{
 		// Run all index creation operations in parallel
 		await Task.WhenAll(
-				UserIndexInitializer.EnsureIndexesAsync(_database, _logger),
-				SessionIndexInitializer.EnsureIndexesAsync(_database, _logger),
-				ProductIndexInitializer.EnsureIndexesAsync(_database, _logger)
+				UserIndexesInitializer.EnsureIndexesAsync(_database, _logger),
+				SessionIndexesInitializer.EnsureIndexesAsync(_database, _logger),
+				ProductIndexesInitializer.EnsureIndexesAsync(_database, _logger)
 		);
 	}
 }
