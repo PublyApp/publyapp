@@ -1,3 +1,5 @@
+using MainApi.Src.Features.Common.Account;
+
 namespace MainApi.Src.Lib;
 
 public interface IAuthContext
@@ -6,6 +8,8 @@ public interface IAuthContext
 	string? UserId { get; set; }
 
 	bool IsAuthenticated { get; }
+
+	UserAccountStaff? AccountStaff { get; set; }
 }
 
 public class AuthContext : IAuthContext
@@ -20,4 +24,6 @@ public class AuthContext : IAuthContext
 			return !string.IsNullOrEmpty(SessionToken) && !string.IsNullOrEmpty(UserId);
 		}
 	}
+
+	public UserAccountStaff? AccountStaff { get; set; }
 }

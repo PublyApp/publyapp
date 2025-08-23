@@ -13,7 +13,7 @@ public abstract record CreateUserResult
 public interface IUserService
 {
 	Task<CreateUserResult> CreateUser(User user);
-	Task<User?> GetUserByEmail(string email);
+	Task<User?> GetUserToLogin(string email);
 }
 
 public class UserService : IUserService
@@ -45,14 +45,8 @@ public class UserService : IUserService
 		return new CreateUserResult.Success(result.Entity);
 	}
 
-	public async Task<User?> GetUserByEmail(string email)
+	public async Task<User?> GetUserToLogin(string email)
 	{
-		var user = await _dbContext.User.FirstOrDefaultAsync(u => u.Email == email);
-		if (user == null)
-		{
-			return null;
-		}
-
-		return user;
+		return await _dbContext.User.FirstOrDefaultAsync(u => u.Email == email && u.IsDeleted != true);
 	}
 }

@@ -33,10 +33,20 @@ public static class AuthHandlers
 			});
 		}
 
-		var user = await userService.GetUserByEmail(userDto.Email);
+		var user = await userService.GetUserToLogin(userDto.Email);
 		if (user == null)
 		{
 			return Results.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
+		}
+
+		if (user.IsDeleted == true)
+		{
+			return Results.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
+		}
+
+		if (user.IsSuspended == true)
+		{
+			return Results.BadRequest(new { message = "User is suspended", key = "user-suspended" });
 		}
 
 		// Verify the password
