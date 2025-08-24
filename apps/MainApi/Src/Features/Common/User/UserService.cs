@@ -47,6 +47,12 @@ public class UserService : IUserService
 
 	public async Task<User?> GetUserToLogin(string email)
 	{
-		return await _dbContext.User.FirstOrDefaultAsync(u => u.Email == email && u.IsDeleted != true);
+		return await _dbContext.User.FirstOrDefaultAsync(
+			u => u.Email == email
+		// check these fields directly in the login handler, for customized error responses
+		&& u.IsDeleted != true // only isDeleted is relevant to check here
+													 // && u.IsSuspended != true
+													 // && u.IsVerified == true
+		);
 	}
 }
