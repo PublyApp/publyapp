@@ -49,6 +49,11 @@ public static class AuthHandlers
 			return Results.BadRequest(new { message = "User is suspended", key = "user-suspended" });
 		}
 
+		if (user.IsVerified == false)
+		{
+			return Results.BadRequest(new { message = "User is not verified", key = "user-not-verified" });
+		}
+
 		// Verify the password
 		if (!passwordService.VerifyPassword(userDto.Password, user.Password))
 		{
