@@ -4,11 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 using MainApi.Src.Features.Common.User;
 using FluentValidation;
 using MainApi.Src.Features.Common.Session;
+using System.Text.Json;
 
 public class LoginWithEmailAndPasswordDto
 {
-	public string Email { get; set; } = string.Empty;
-	public string Password { get; set; } = string.Empty;
+	public JsonElement Email { get; set; }
+	public JsonElement Password { get; set; }
 }
 
 public class RegisterWithEmailAndPasswordDto : LoginWithEmailAndPasswordDto
@@ -18,11 +19,11 @@ public class RegisterWithEmailAndPasswordDto : LoginWithEmailAndPasswordDto
 public static class AuthHandlers
 {
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-	public static async Task<IResult> LoginWithEmailAndPassword([FromBody] LoginWithEmailAndPasswordDto userDto, [FromServices] IUserService userService, [FromServices] ISessionService sessionService, [FromServices] IValidator<LoginWithEmailAndPasswordDto> validator, [FromServices] IPasswordService passwordService)
+	public static async Task<IResult> LoginWithEmailAndPassword([FromBody] LoginWithEmailAndPasswordDto loginDto, [FromServices] IUserService userService, [FromServices] ISessionService sessionService, [FromServices] IValidator<LoginWithEmailAndPasswordDto> validator, [FromServices] IPasswordService passwordService)
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 	{
 		// FluentValidation handles all validation, including null checks
-		var validationResult = await validator.ValidateAsync(userDto);
+		var validationResult = await validator.ValidateAsync(loginDto);
 		if (!validationResult.IsValid)
 		{
 			return Results.BadRequest(new
@@ -33,7 +34,20 @@ public static class AuthHandlers
 			});
 		}
 
-		var user = await userService.GetUserToLogin(userDto.Email);
+		// Convert JsonElements to strings
+		string email = loginDto.Email.ValueKind switch
+		{
+			JsonValueKind.String => loginDto.Email.GetString()!,
+			_ => throw new Exception("Email must be a string")
+		};
+
+		string password = loginDto.Password.ValueKind switch
+		{
+			JsonValueKind.String => loginDto.Password.GetString()!,
+			_ => throw new Exception("Password must be a string")
+		};
+
+		var user = await userService.GetUserToLogin(email);
 		if (user == null)
 		{
 			return Results.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
@@ -55,7 +69,7 @@ public static class AuthHandlers
 		}
 
 		// Verify the password
-		if (!passwordService.VerifyPassword(userDto.Password, user.Password))
+		if (!passwordService.VerifyPassword(password, user.Password))
 		{
 			return Results.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
 		}
@@ -98,12 +112,12 @@ public static class AuthHandlers
 	}
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-	public static async Task<IResult> RegisterWithEmailAndPassword([FromBody] RegisterWithEmailAndPasswordDto userDto, [FromServices] IValidator<RegisterWithEmailAndPasswordDto> validator, [FromServices] IUserService userService)
+	public static async Task<IResult> RegisterWithEmailAndPassword([FromBody] RegisterWithEmailAndPasswordDto registerDto, [FromServices] IValidator<RegisterWithEmailAndPasswordDto> validator, [FromServices] IUserService userService)
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 	{
 		// FluentValidation handles all validation, including null checks and field validation
 		// var validator = new RegisterWithEmailAndPasswordDtoValidator();
-		var validationResult = await validator.ValidateAsync(userDto);
+		var validationResult = await validator.ValidateAsync(registerDto);
 		if (!validationResult.IsValid)
 		{
 			return Results.BadRequest(new
@@ -114,10 +128,23 @@ public static class AuthHandlers
 			});
 		}
 
+		// Convert JsonElements to strings
+		string email = registerDto.Email.ValueKind switch
+		{
+			JsonValueKind.String => registerDto.Email.GetString()!,
+			_ => throw new Exception("Email must be a string")
+		};
+
+		string password = registerDto.Password.ValueKind switch
+		{
+			JsonValueKind.String => registerDto.Password.GetString()!,
+			_ => throw new Exception("Password must be a string")
+		};
+
 		var newUser = new User
 		{
-			Email = userDto.Email,
-			Password = userDto.Password,
+			Email = email,
+			Password = password,
 		};
 
 		var createUserResult = await userService.CreateUser(newUser);

@@ -60,7 +60,7 @@ public static class CheckTenantHeaderMiddlewareExtensions
 		builder.UseMiddleware<CheckTenantHeaderMiddleware>();
 	}
 
-	public static WebApplication UseCheckTenantHeader(this WebApplication app)
+	public static IApplicationBuilder UseCheckTenantHeader(this IApplicationBuilder app)
 	{
 		app.UseWhen(ShouldUseTenantHeaderCheck, ConfigureTenantHeaderCheck);
 		return app;

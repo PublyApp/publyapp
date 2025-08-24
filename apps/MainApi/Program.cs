@@ -4,6 +4,7 @@ using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Tenant.Product;
 using MainApi.Src.Features.Common.Auth.Middlewares;
+using MainApi.Src.Features.Staff.Tenant;
 
 AppEnvironment.LoadEnv();
 
@@ -25,6 +26,7 @@ if (app.Environment.IsDevelopment())
 app.UseCheckSessionHeader();
 app.UseCheckTenantHeader();
 app.UseSessionAuthentication();
+app.UseStaffAuthorization();
 // TODO: UseTenantAuthentication();
 
 app.MapAuthEndpoints();
@@ -32,6 +34,10 @@ app.MapAuthEndpoints();
 var staffGroup = app.MapGroup("/staff");
 var tenantGroup = app.MapGroup("/tenant");
 
+// Staff endpoints
+staffGroup.MapTenantStaffEndpoints();
+
+// Tenant endpoints
 tenantGroup.MapProductEndpoints();
 
 app.MapFallback(() => Results.NotFound(new

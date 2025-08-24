@@ -11,5 +11,8 @@ public class UserAccountStaff : BaseAttributes, INoTenantEntity
 	[BsonElement("isSuspended")]
 	public bool? IsSuspended { get; set; }
 
+	[BsonElement("hierarchyLevel")]
+	public AccountHierarchyLevel? HierarchyLevel { get; set; }
+
 	public static readonly string CollectionName = "_UserAccountStaff";
 }

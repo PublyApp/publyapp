@@ -40,6 +40,8 @@ public class StaffAuthMiddleware
 			u.IsDeleted != true &&
 			u.IsSuspended != true);
 
+		_logger.LogDebug("Account staff: {@AccountStaff}", accountStaff);
+
 		if (accountStaff is null)
 		{
 			_logger.LogDebug("User is not a staff member: {@StaffAuthData}", new { UserId = authContext.UserId });
@@ -54,5 +56,26 @@ public class StaffAuthMiddleware
 
 		authContext.AccountStaff = accountStaff;
 		await _next(httpContext);
+	}
+}
+
+
+// Extension method
+public static class StaffAuthMiddlewareExtensions
+{
+	private static bool ShouldUseStaffAuthorization(HttpContext context)
+	{
+		return context.Request.Path.StartsWithSegments("/staff");
+	}
+
+	private static void ConfigureStaffAuthorization(IApplicationBuilder builder)
+	{
+		builder.UseMiddleware<StaffAuthMiddleware>();
+	}
+
+	public static IApplicationBuilder UseStaffAuthorization(this IApplicationBuilder app)
+	{
+		app.UseWhen(ShouldUseStaffAuthorization, ConfigureStaffAuthorization);
+		return app;
 	}
 }

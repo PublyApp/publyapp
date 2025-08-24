@@ -11,5 +11,8 @@ public class UserAccountTenant : BaseAttributes, ITenantEntity
 	[BsonElement("tenantId")]
 	public string TenantId { get; set; } = string.Empty;
 
+	[BsonElement("hierarchyLevel")]
+	public AccountHierarchyLevel? HierarchyLevel { get; set; }
+
 	public static readonly string CollectionName = "_UserAccountTenant";
 }

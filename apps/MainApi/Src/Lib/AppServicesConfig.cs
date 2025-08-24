@@ -9,6 +9,8 @@ using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Data.MongoDb;
+using MainApi.Src.Features.Staff.Tenant;
+using MainApi.Src.Features.Staff.Tenant.Validators;
 
 public static class AppServicesConfig
 {
@@ -29,7 +31,7 @@ public static class AppServicesConfig
 		// return "";
 	}
 
-	public static WebApplicationBuilder AddServices(this WebApplicationBuilder builder)
+	public static IHostApplicationBuilder AddServices(this IHostApplicationBuilder builder)
 	{
 		builder.Services.AddProblemDetails();
 
@@ -71,15 +73,24 @@ public static class AppServicesConfig
 		.UseTenantId(tenantId);
 		}, ServiceLifetime.Scoped);
 
+		// // Configure JSON options
+		// builder.Services.ConfigureHttpJsonOptions(options =>
+		// {
+		// 	options.SerializerOptions.PropertyNamingPolicy = null;
+		// 	options.SerializerOptions.PropertyNameCaseInsensitive = true;
+		// });
+
 		// Register FluentValidation
 		builder.Services.AddValidatorsFromAssemblyContaining<LoginWithEmailAndPasswordDtoValidator>();
 		builder.Services.AddValidatorsFromAssemblyContaining<RegisterWithEmailAndPasswordDtoValidator>();
+		builder.Services.AddValidatorsFromAssemblyContaining<CreateTenantStaffValidator>();
 
 		// Register services
-		builder.Services.AddScoped<IProductService, ProductService>();
 		builder.Services.AddScoped<IUserService, UserService>();
 		builder.Services.AddScoped<IPasswordService, PasswordService>();
 		builder.Services.AddScoped<ISessionService, SessionService>();
+		builder.Services.AddScoped<ITenantStaffService, TenantStaffService>();
+		builder.Services.AddScoped<IProductService, ProductService>();
 
 		// Register AuthContext
 		builder.Services.AddScoped<IAuthContext, AuthContext>();
