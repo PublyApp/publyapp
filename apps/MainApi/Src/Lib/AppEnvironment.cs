@@ -2,23 +2,34 @@ using FluentValidation;
 
 namespace MainApi.Src.Lib;
 
+
 public static class AppEnvironment
 {
-	public static string MONGODB_URI { get { return GetEnvVar(nameof(MONGODB_URI)); } }
-	public static string MONGODB_DATABASE_NAME { get { return GetEnvVar(nameof(MONGODB_DATABASE_NAME)); } }
+	public static string MONGODB_URI { get { return GetEnvVar(nameof(_MONGODB_URI)); } }
+	private static string _MONGODB_URI = string.Empty;
+
+	public static string MONGODB_DATABASE_NAME { get { return GetEnvVar(nameof(_MONGODB_DATABASE_NAME)); } }
+	private static string _MONGODB_DATABASE_NAME = string.Empty;
 
 	private static bool IS_DOTENV_LOADED = false;
 	private static bool IS_INITIALIZED = false;
 	private static readonly EnvironmentValidator _validator = new EnvironmentValidator();
 
-	public static string GetEnvVar(string name)
+	private static string GetEnvVar(string name)
 	{
 		if (!IS_INITIALIZED)
 		{
 			throw new Exception("Environment is not initialized: call AppEnvironment.LoadEnv() first");
 		}
 
-		return Environment.GetEnvironmentVariable(name)!;
+		var property = typeof(AppEnvironment).GetField(name, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+		if (property == null)
+		{
+			throw new Exception($"Environment variable {name} is not supported by {nameof(AppEnvironment)}");
+		}
+
+		return property.GetValue(null) as string ?? string.Empty;
 	}
 
 	public static void LoadEnv()
@@ -54,7 +65,8 @@ public static class AppEnvironment
 			throw new Exception($"Environment validation failed:\n\t\t{errors}");
 		}
 
-		// Both properties are now read-only and get values directly from environment
+		_MONGODB_URI = mongoDbUri!;
+		_MONGODB_DATABASE_NAME = mongoDbDatabaseName!;
 	}
 }
 
