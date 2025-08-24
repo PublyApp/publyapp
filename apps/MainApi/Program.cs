@@ -5,7 +5,7 @@ using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Tenant.Product;
 using MainApi.Src.Features.Common.Auth.Middlewares;
 
-AppEnvironment.LoadDotEnv();
+AppEnvironment.LoadEnv();
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -29,3 +29,5 @@ dotnet_diagnostic.IDE0005.severity = warning
 dotnet_diagnostic.IDE0090.severity = none
 # Use compound assignment
 dotnet_diagnostic.IDE0074.severity = none
+# Member name can be simplified
+dotnet_diagnostic.IDE0037.severity = none

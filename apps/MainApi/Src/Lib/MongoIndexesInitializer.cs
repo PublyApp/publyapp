@@ -2,6 +2,7 @@ using MongoDB.Driver;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Tenant.Product;
+using MainApi.Src.Features.Common.Account;
 
 namespace MainApi.Src.Lib;
 
@@ -39,7 +40,9 @@ public class MongoIndexesInitializer : IHostedService
 		await Task.WhenAll(
 				UserIndexesInitializer.EnsureIndexesAsync(_database, _logger),
 				SessionIndexesInitializer.EnsureIndexesAsync(_database, _logger),
-				ProductIndexesInitializer.EnsureIndexesAsync(_database, _logger)
+				ProductIndexesInitializer.EnsureIndexesAsync(_database, _logger),
+				UserAccountStaffIndexesInitializer.EnsureIndexesAsync(_database, _logger),
+				UserAccountTenantIndexesInitializer.EnsureIndexesAsync(_database, _logger)
 		);
 	}
 }
