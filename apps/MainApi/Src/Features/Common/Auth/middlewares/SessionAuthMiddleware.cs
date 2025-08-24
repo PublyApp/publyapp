@@ -80,7 +80,7 @@ public static class SessionAuthMiddlewareExtensions
 		builder.UseMiddleware<SessionAuthMiddleware>();
 	}
 
-	public static WebApplication UseSessionAuthentication(this WebApplication app)
+	public static IApplicationBuilder UseSessionAuthentication(this IApplicationBuilder app)
 	{
 		app.UseWhen(ShouldUseSessionAuthentication, ConfigureSessionAuthentication);
 		return app;

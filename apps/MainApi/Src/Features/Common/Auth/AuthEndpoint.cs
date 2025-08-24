@@ -5,7 +5,7 @@ using FluentValidation;
 
 public static class AuthEndpoint
 {
-	public static RouteGroupBuilder MapAuthEndpoints(this WebApplication app)
+	public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
 	{
 		var group = app.MapGroup("/auth")
 			.WithTags("Auth")

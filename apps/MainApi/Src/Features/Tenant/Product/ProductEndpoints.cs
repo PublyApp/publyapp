@@ -2,7 +2,7 @@ namespace MainApi.Src.Features.Tenant.Product;
 
 public static class ProductEndpoints
 {
-	public static RouteGroupBuilder MapProductEndpoints(this RouteGroupBuilder routes)
+	public static IEndpointRouteBuilder MapProductEndpoints(this IEndpointRouteBuilder routes)
 	{
 		var group = routes.MapGroup("/products")
 				.WithTags("Products")

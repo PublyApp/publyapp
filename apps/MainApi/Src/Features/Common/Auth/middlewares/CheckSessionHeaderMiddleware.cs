@@ -59,7 +59,7 @@ public static class CheckSessionHeaderMiddlewareExtensions
 		builder.UseMiddleware<CheckSessionHeaderMiddleware>();
 	}
 
-	public static WebApplication UseCheckSessionHeader(this WebApplication app)
+	public static IApplicationBuilder UseCheckSessionHeader(this IApplicationBuilder app)
 	{
 		app.UseWhen(ShouldUseSessionHeaderCheck, ConfigureSessionHeaderCheck);
 		return app;

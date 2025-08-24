@@ -4,7 +4,7 @@ namespace MainApi.Src.Lib.Extensions;
 
 public static class CustomExceptionHandler
 {
-	public static void UseCustomExceptionHandler(this WebApplication app)
+	public static void UseCustomExceptionHandler(this IApplicationBuilder app)
 	{
 		app.UseExceptionHandler(exceptionHandlerApp =>
 		{
@@ -21,9 +21,11 @@ public static class CustomExceptionHandler
 
 						if (exceptionType != null)
 						{
-							if (exceptionType is Microsoft.AspNetCore.Http.BadHttpRequestException badRequestException &&
-													 badRequestException.Message.Contains("Required parameter") &&
-													 badRequestException.Message.Contains("was not provided from body"))
+							if (
+									exceptionType is Microsoft.AspNetCore.Http.BadHttpRequestException badRequestException
+									&& badRequestException.Message.Contains("Required parameter")
+									&& badRequestException.Message.Contains("was not provided from body")
+								)
 							{
 								message = "Request body is missing";
 								key = "request-body-missing";
