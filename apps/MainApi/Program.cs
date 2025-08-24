@@ -46,17 +46,4 @@ app.MapFallback(() => Results.NotFound(new
 
 app.UseHttpsRedirection();
 
-// TEsting validation
-// ! use dotnet add package FluentValidation.AspNetCore
-// ! article example: https://dev.to/stevsharp/validating-minimal-apis-best-practices-and-approaches-1gal
-// app.MapPost("/testing-validation", async Task<IResult> (
-// 	HttpContext context,
-// 	[FromBody] Product product
-// 	) => {
-// 	return Results.Ok(new {
-// 		message = "Test is valid",
-// 		key = "test-is-valid"
-// 	});
-// });
-
 app.Run();
