@@ -37,7 +37,7 @@ public class MainApiDbContext : DbContext
 
 	public MainApiDbContext(DbContextOptions options) : base(options)
 	{
-		var extension = options.FindExtension<MongoDbContextOptionsExtension>();
+		var extension = options.FindExtension<TenantExtension>();
 		TenantId = extension?.TenantId;
 	}
 

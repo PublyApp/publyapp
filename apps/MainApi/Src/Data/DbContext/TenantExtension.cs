@@ -1,8 +1,9 @@
 namespace MainApi.Src.Data.DbContext;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
-public class MongoDbContextOptionsExtension : IDbContextOptionsExtension
+public class TenantExtension : IDbContextOptionsExtension
 {
 	public string? TenantId { get; set; }
 
@@ -23,11 +24,27 @@ public class MongoDbContextOptionsExtension : IDbContextOptionsExtension
 		public ExtensionInfo(IDbContextOptionsExtension extension) : base(extension) { }
 
 		public override bool IsDatabaseProvider => false;
-		public override string LogFragment => $"TenantId={((MongoDbContextOptionsExtension)Extension).TenantId}";
+		public override string LogFragment => $"TenantId={((TenantExtension)Extension).TenantId}";
 
 		public override int GetServiceProviderHashCode() => 0;
 		public override bool ShouldUseSameServiceProvider(DbContextOptionsExtensionInfo other) => true;
 		public override void PopulateDebugInfo(IDictionary<string, string> debugInfo)
-				=> debugInfo[$"Tenant:{nameof(TenantId)}"] = ((MongoDbContextOptionsExtension)Extension).TenantId ?? "(null)";
+				=> debugInfo[$"Tenant:{nameof(TenantId)}"] = ((TenantExtension)Extension).TenantId ?? "(null)";
+	}
+}
+
+public static class UseTenantIdExtension
+{
+	public static DbContextOptionsBuilder UseTenantId(
+			this DbContextOptionsBuilder optionsBuilder,
+			string tenantId)
+	{
+		var extension = optionsBuilder.Options.FindExtension<TenantExtension>()
+				?? new TenantExtension();
+
+		extension.TenantId = tenantId;
+		((IDbContextOptionsBuilderInfrastructure)optionsBuilder).AddOrUpdateExtension(extension);
+
+		return optionsBuilder;
 	}
 }
