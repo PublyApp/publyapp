@@ -2,7 +2,6 @@ using System.Text.Json;
 using FluentValidation;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.User;
-using MainApi.Src.Lib.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
@@ -49,19 +48,28 @@ public class PasswordLoginBodyValidator : AbstractValidator<PasswordLoginBody>
 
 		RuleFor(x => x.Email)
 			.NotEmpty().WithMessage("Email is required")
-			.Must(email => email.ValueKind == JsonValueKind.String).WithMessage("Email must be a string")
 			.DependentRules(() =>
 			{
-				RuleFor(x => x.Email.GetString()!)
-					.EmailAddress().WithMessage("Invalid email address");
+				RuleFor(x => x.Email)
+					.Must(email => email.ValueKind == JsonValueKind.String).WithMessage("Email must be a string")
+					.DependentRules(() =>
+					{
+						RuleFor(x => x.Email.GetString()!)
+							.EmailAddress().WithMessage("Invalid email address");
+					});
 			});
 
 		RuleFor(x => x.Password)
-			.Must(password => password.ValueKind == JsonValueKind.String).WithMessage("Password must be a string")
+			.NotEmpty().WithMessage("Password is required")
 			.DependentRules(() =>
 			{
-				RuleFor(x => x.Password.GetString()!)
-					.MinimumLength(6).WithMessage("Password must be at least 6 characters long");
+				RuleFor(x => x.Password)
+					.Must(password => password.ValueKind == JsonValueKind.String).WithMessage("Password must be a string")
+					.DependentRules(() =>
+					{
+						RuleFor(x => x.Password.GetString()!)
+							.MinimumLength(6).WithMessage("Password must be at least 6 characters long");
+					});
 			});
 	}
 }

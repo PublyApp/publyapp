@@ -3,8 +3,8 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Tenant.Product;
-using MainApi.Src.Features.Common.Auth.Middlewares;
 using MainApi.Src.Features.Staff.Tenant;
+using MainApi.Src.Lib.Middlewares;
 
 AppEnvironment.LoadEnv();
 

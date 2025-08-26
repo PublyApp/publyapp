@@ -1,4 +1,4 @@
-namespace MainApi.Src.Features.Common.Auth.Middlewares;
+namespace MainApi.Src.Lib.Middlewares;
 
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
