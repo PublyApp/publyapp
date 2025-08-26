@@ -16,16 +16,12 @@ public static class AuthEndpoint
 		group.MapPost("/login", PasswordLogin.HandlePasswordLogin)
 			.WithName("LoginWithEmailAndPassword")
 			.WithSummary("Password Login")
-			.WithBodyValidation<PasswordLoginBody>()
-			.Produces<PasswordLoginSuccessResult>()
-			.Produces<PasswordLoginFailResult>(StatusCodes.Status400BadRequest);
+			.WithBodyValidation<PasswordLoginBody>();
 
 		group.MapPost("/register", PasswordRegister.HandlePasswordRegister)
 			.WithName("RegisterWithEmailAndPassword")
 			.WithSummary("Password Register")
-			.WithBodyValidation<PasswordRegisterBody>()
-			.Produces<PasswordRegisterSuccessResult>()
-			.Produces<PasswordRegisterFailResult>(StatusCodes.Status400BadRequest);
+			.WithBodyValidation<PasswordRegisterBody>();
 
 		return group;
 	}

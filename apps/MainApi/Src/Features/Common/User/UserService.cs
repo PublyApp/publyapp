@@ -37,7 +37,7 @@ public class UserService : IUserService
 		}
 
 		// Hash the password before storing
-		user.Password = _passwordService.HashPassword(user.Password);
+		user.Password = _passwordService.HashPassword(user.Password ?? throw new Exception("Password is null"));
 
 		var result = await _dbContext.User.AddAsync(user);
 		await _dbContext.SaveChangesAsync();
