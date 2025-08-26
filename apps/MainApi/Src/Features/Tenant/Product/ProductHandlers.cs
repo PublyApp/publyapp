@@ -5,7 +5,7 @@ public static class ProductHandlers
 	public static async Task<IResult> GetProducts(IProductService productService)
 	{
 		var products = await productService.GetAllProductsAsync();
-		return Results.Ok(products);
+		return TypedResults.Ok(products);
 	}
 
 	public static async Task<IResult> GetProductById(string id, IProductService productService)
@@ -14,27 +14,27 @@ public static class ProductHandlers
 
 		if (product == null)
 		{
-			return Results.NotFound();
+			return TypedResults.NotFound();
 		}
 
-		return Results.Ok(product);
+		return TypedResults.Ok(product);
 	}
 
 	public static async Task<IResult> CreateProduct(Product product, IProductService productService)
 	{
 		var createdProduct = await productService.CreateProductAsync(product);
-		return Results.Created($"/api/products/{createdProduct.Id}", createdProduct);
+		return TypedResults.Created($"/api/products/{createdProduct.Id}", createdProduct);
 	}
 
 	public static async Task<IResult> UpdateProduct(string id, Product product, IProductService productService)
 	{
 		if (id != product.Id)
 		{
-			return Results.BadRequest();
+			return TypedResults.BadRequest();
 		}
 
 		var updatedProduct = await productService.UpdateProductAsync(product);
-		return Results.Ok(updatedProduct);
+		return TypedResults.Ok(updatedProduct);
 	}
 
 	public static async Task<IResult> DeleteProduct(string id, IProductService productService)
@@ -43,9 +43,9 @@ public static class ProductHandlers
 
 		if (!deleted)
 		{
-			return Results.NotFound();
+			return TypedResults.NotFound();
 		}
 
-		return Results.NoContent();
+		return TypedResults.NoContent();
 	}
 }
