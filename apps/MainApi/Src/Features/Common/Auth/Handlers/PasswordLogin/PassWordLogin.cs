@@ -68,51 +68,54 @@ public class PasswordLoginBodyValidator : AbstractValidator<PasswordLoginBody>
 	}
 }
 
-public class PasswordLoginApiResponseAuthData
+public class PasswordLoginResultAuthData
 {
 	public string UserId { get; set; } = string.Empty;
 	public DateTime SessionExpiresAt { get; set; }
 	public double SessionExpiresInMs { get; set; }
 }
 
-public class PasswordLoginSuccessApiResponse : AppResponseResult
-{
-	public PasswordLoginApiResponseAuthData AuthData { get; set; } = new();
-}
-
-public class PasswordLoginSuccessResponseResult : AppResponseResult
+public class PasswordLoginSuccessResult : AppResponseResult
 {
 	public new string Message { get; set; } = "Login successful";
 	public new string Key { get; set; } = "login-successful";
-	public required User User { get; set; }
+	public PasswordLoginResultAuthData AuthData { get; set; } = new();
 
-	public required Session Session { get; set; }
-
-	public PasswordLoginSuccessApiResponse GetApiResponse()
+	public static PasswordLoginSuccessResult GetApiResponse(User user, Session session, string? message = null, string? key = null)
 	{
-		return new PasswordLoginSuccessApiResponse
+		var result = new PasswordLoginSuccessResult
 		{
-			Message = Message,
-			Key = Key,
-			AuthData = new PasswordLoginApiResponseAuthData
+			AuthData = new PasswordLoginResultAuthData
 			{
-				UserId = User.Id ?? string.Empty,
-				SessionExpiresAt = Session.ExpiresAt ?? DateTime.UtcNow,
-				SessionExpiresInMs = Session.ExpiresAt.HasValue
-					? (Session.ExpiresAt.Value - DateTime.UtcNow).TotalMilliseconds
+				UserId = user.Id,
+				SessionExpiresAt = session.ExpiresAt ?? DateTime.UtcNow,
+				SessionExpiresInMs = session.ExpiresAt.HasValue
+					? (session.ExpiresAt.Value - DateTime.UtcNow).TotalMilliseconds
 					: 0
 			}
 		};
+
+		if (!string.IsNullOrEmpty(message))
+		{
+			result.Message = message;
+		}
+
+		if (!string.IsNullOrEmpty(key))
+		{
+			result.Key = key;
+		}
+
+		return result;
 	}
 }
 
-public class PasswordLoginFailResponseResult : AppResponseResult
+public class PasswordLoginFailResult : AppResponseResult
 {
 	public new string Message { get; set; } = "Failed to login";
 	public new string Key { get; set; } = "failed-to-login";
 }
 
-public class PasswordLoginInvalidEmailOrPasswordResponseResult : PasswordLoginFailResponseResult
+public class InvalidEmailOrPasswordResult : PasswordLoginFailResult
 {
 	public new string Message { get; set; } = "Invalid email or password";
 	public new string Key { get; set; } = "invalid-email-or-password";
@@ -133,12 +136,12 @@ public static class PasswordLogin
 
 		var user = await userService.GetUserToLogin(email);
 
+		var invalidEmailOrPasswordResult = new InvalidEmailOrPasswordResult();
+
 		if (user == null)
 		{
-			return TypedResults.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
+			return TypedResults.BadRequest(invalidEmailOrPasswordResult);
 		}
-
-		var invalidEmailOrPasswordResult = new PasswordLoginInvalidEmailOrPasswordResponseResult();
 
 		if (user.IsDeleted == true)
 		{
@@ -147,12 +150,12 @@ public static class PasswordLogin
 
 		if (user.IsSuspended == true)
 		{
-			return TypedResults.BadRequest(new PasswordLoginFailResponseResult { Message = "User is suspended", Key = "user-suspended" });
+			return TypedResults.BadRequest(new PasswordLoginFailResult { Message = "User is suspended", Key = "user-suspended" });
 		}
 
 		if (user.IsVerified != true)
 		{
-			return TypedResults.BadRequest(new PasswordLoginFailResponseResult { Message = "User is not verified", Key = "user-not-verified" });
+			return TypedResults.BadRequest(new PasswordLoginFailResult { Message = "User is not verified", Key = "user-not-verified" });
 		}
 
 		// Verify the password
@@ -165,17 +168,12 @@ public static class PasswordLogin
 
 		if (createSessionResult is CreateSessionResult.Success success)
 		{
-			var successResult = new PasswordLoginSuccessResponseResult
-			{
-				User = user,
-				Session = success.Session,
-			};
-			return TypedResults.Ok(successResult.GetApiResponse());
+			return TypedResults.Ok(PasswordLoginSuccessResult.GetApiResponse(user, success.Session));
 		}
 
 		if (createSessionResult is CreateSessionResult.Failure failure)
 		{
-			return TypedResults.BadRequest(new PasswordLoginFailResponseResult
+			return TypedResults.BadRequest(new PasswordLoginFailResult
 			{
 				Message = failure.Message,
 				Key = failure.Key
@@ -184,6 +182,6 @@ public static class PasswordLogin
 
 		// This should never happen with proper discriminated unions
 		// but good to have as fallback
-		return TypedResults.BadRequest(new PasswordLoginFailResponseResult { });
+		return TypedResults.BadRequest(new PasswordLoginFailResult { });
 	}
 }

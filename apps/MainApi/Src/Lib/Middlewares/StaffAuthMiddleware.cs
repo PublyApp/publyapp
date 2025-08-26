@@ -3,7 +3,6 @@ namespace MainApi.Src.Lib.Middlewares;
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 
-
 public class StaffAuthMiddleware
 {
 	private readonly ILogger<StaffAuthMiddleware> _logger;

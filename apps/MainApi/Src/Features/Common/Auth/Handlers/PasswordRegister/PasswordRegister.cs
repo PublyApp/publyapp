@@ -43,7 +43,7 @@ public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterB
 	}
 }
 
-public class PasswordRegisterApiResponseUser
+public class PasswordRegisterResultUser
 {
 	public string Id { get; set; } = string.Empty;
 	public string Email { get; set; } = string.Empty;
@@ -51,42 +51,47 @@ public class PasswordRegisterApiResponseUser
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
-public class PasswordRegisterSuccessApiResponse : AppResponseResult
-{
-	public PasswordRegisterApiResponseUser User { get; set; } = new();
-}
-
-public class PasswordRegisterSuccessResponseResult : AppResponseResult
+public class PasswordRegisterSuccessResult : AppResponseResult
 {
 	public new string Message { get; set; } = "Registration successful";
 	public new string Key { get; set; } = "registration-successful";
 
-	public required User User { get; set; }
+	public PasswordRegisterResultUser User { get; set; } = new();
 
-	public PasswordRegisterSuccessApiResponse GetApiResponse()
+	public static PasswordRegisterSuccessResult GetApiResponse(User user, string? message = null, string? key = null)
 	{
-		return new PasswordRegisterSuccessApiResponse
+		var result = new PasswordRegisterSuccessResult
 		{
-			Message = Message,
-			Key = Key,
-			User = new PasswordRegisterApiResponseUser
+			User = new PasswordRegisterResultUser
 			{
-				Id = User.Id,
-				Email = User.Email,
-				CreatedAt = User.CreatedAt,
-				UpdatedAt = User.UpdatedAt,
+				Id = user.Id,
+				Email = user.Email,
+				CreatedAt = user.CreatedAt,
+				UpdatedAt = user.UpdatedAt,
 			}
 		};
+
+		if (!string.IsNullOrEmpty(message))
+		{
+			result.Message = message;
+		}
+
+		if (!string.IsNullOrEmpty(key))
+		{
+			result.Key = key;
+		}
+
+		return result;
 	}
 }
 
-public class PasswordRegisterFailResponseResult : AppResponseResult
+public class PasswordRegisterFailResult : AppResponseResult
 {
 	public new string Message { get; set; } = "Failed to register user";
 	public new string Key { get; set; } = "failed-to-register-user";
 }
 
-public class CreateUserFailResponseResult : PasswordRegisterFailResponseResult
+public class CreateUserFailResponseResult : PasswordRegisterFailResult
 {
 }
 
@@ -110,27 +115,21 @@ public static class PasswordRegister
 
 		if (createUserResult is CreateUserResult.Failure failure)
 		{
-			var failResult = new CreateUserFailResponseResult
+			var failureResponseResult = new CreateUserFailResponseResult
 			{
 				Message = failure.Message,
 				Key = failure.Key
 			};
-			return TypedResults.BadRequest(failResult);
+			return TypedResults.BadRequest(failureResponseResult);
 		}
 
 		if (createUserResult is CreateUserResult.Success success)
 		{
-			var successResult = new PasswordRegisterSuccessResponseResult
-			{
-				User = success.User
-			};
-			return TypedResults.Ok(successResult.GetApiResponse());
+			return TypedResults.Ok(PasswordRegisterSuccessResult.GetApiResponse(success.User));
 		}
 
 		// This should never happen with proper discriminated unions
 		// but good to have as fallback
-		return TypedResults.BadRequest(new PasswordRegisterFailResponseResult
-		{
-		});
+		return TypedResults.BadRequest(new PasswordRegisterFailResult { });
 	}
 }
