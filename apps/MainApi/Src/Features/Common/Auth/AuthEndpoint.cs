@@ -18,14 +18,14 @@ public static class AuthEndpoint
 			.WithSummary("Password Login")
 			.WithBodyValidation<PasswordLoginBody>()
 			.Produces<PasswordLoginSuccessApiResponse>()
-			.Produces<PasswordLoginFailResponseResult>(400);
+			.Produces<PasswordLoginFailResponseResult>(StatusCodes.Status400BadRequest);
 
 		group.MapPost("/register", PasswordRegister.HandlePasswordRegister)
 			.WithName("RegisterWithEmailAndPassword")
 			.WithSummary("Password Register")
 			.WithBodyValidation<PasswordRegisterBody>()
 			.Produces<PasswordRegisterSuccessApiResponse>()
-			.Produces<PasswordRegisterFailResponseResult>(400);
+			.Produces<PasswordRegisterFailResponseResult>(StatusCodes.Status400BadRequest);
 
 		// group.MapPost("/login-with-google", AuthHandlers.LoginWithGoogle);
 

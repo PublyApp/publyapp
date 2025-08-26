@@ -53,7 +53,7 @@ public class PasswordRegisterApiResponseUser
 
 public class PasswordRegisterSuccessApiResponse : AppResponseResult
 {
-	public required PasswordRegisterApiResponseUser User { get; set; }
+	public PasswordRegisterApiResponseUser User { get; set; } = new();
 }
 
 public class PasswordRegisterSuccessResponseResult : AppResponseResult
