@@ -2,14 +2,16 @@ using System.Text.Json;
 using FluentValidation;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.User;
+using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
 
+using User = MainApi.Src.Features.Common.User.User;
+using Session = MainApi.Src.Features.Common.Session.Session;
+
 public class PasswordLoginBody
 {
-	// public string Email { get; set; } = string.Empty;
-	// public string Password { get; set; } = string.Empty;
 	public JsonElement Email { get; set; }
 	public JsonElement Password { get; set; }
 
@@ -38,14 +40,6 @@ public class PasswordLoginBodyValidator : AbstractValidator<PasswordLoginBody>
 {
 	public PasswordLoginBodyValidator()
 	{
-		// RuleFor(x => x.Email)
-		// 	.NotEmpty().WithMessage("Email is required")
-		// 	.EmailAddress().WithMessage("Invalid email address");
-
-		// RuleFor(x => x.Password)
-		// 	.NotEmpty().WithMessage("Password is required")
-		// 	.MinimumLength(6).WithMessage("Password must be at least 6 characters long");
-
 		RuleFor(x => x.Email)
 			.NotEmpty().WithMessage("Email is required")
 			.DependentRules(() =>
@@ -74,11 +68,42 @@ public class PasswordLoginBodyValidator : AbstractValidator<PasswordLoginBody>
 	}
 }
 
-public class PasswordLoginSuccessResultDto
+public class PasswordLoginSuccessResponseResult : AppResponseResult
 {
-	public required string Message { get; set; }
-	public required string Key { get; set; }
-	public required object SessionToken { get; set; }
+	public new string Message { get; set; } = "Login successful";
+	public new string Key { get; set; } = "login-successful";
+	public required User User { get; set; }
+
+	public required Session Session { get; set; }
+
+	public object GetApiResponse()
+	{
+		return new
+		{
+			message = Message,
+			key = Key,
+			authData = new
+			{
+				userId = User.Id,
+				sessionExpiresAt = User.CreatedAt,
+				sessionExpiresInMs = User.CreatedAt.HasValue
+					? (User.CreatedAt.Value - DateTime.UtcNow).TotalMilliseconds
+					: 0
+			}
+		};
+	}
+}
+
+public class PasswordLoginFailResponseResult : AppResponseResult
+{
+	public new string Message { get; set; } = "Failed to login";
+	public new string Key { get; set; } = "failed-to-login";
+}
+
+public class PasswordLoginInvalidEmailOrPasswordResponseResult : PasswordLoginFailResponseResult
+{
+	public new string Message { get; set; } = "Invalid email or password";
+	public new string Key { get; set; } = "invalid-email-or-password";
 }
 
 public static class PasswordLogin
@@ -101,45 +126,39 @@ public static class PasswordLogin
 			return TypedResults.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
 		}
 
+		var invalidEmailOrPasswordResult = new PasswordLoginInvalidEmailOrPasswordResponseResult();
+
 		if (user.IsDeleted == true)
 		{
-			return TypedResults.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
+			return TypedResults.BadRequest(invalidEmailOrPasswordResult);
 		}
 
 		if (user.IsSuspended == true)
 		{
-			return TypedResults.BadRequest(new { message = "User is suspended", key = "user-suspended" });
+			return TypedResults.BadRequest(new PasswordLoginFailResponseResult { Message = "User is suspended", Key = "user-suspended" });
 		}
 
 		if (user.IsVerified != true)
 		{
-			return TypedResults.BadRequest(new { message = "User is not verified", key = "user-not-verified" });
+			return TypedResults.BadRequest(new PasswordLoginFailResponseResult { Message = "User is not verified", Key = "user-not-verified" });
 		}
 
 		// Verify the password
 		if (!passwordService.VerifyPassword(password, user.Password))
 		{
-			return TypedResults.BadRequest(new { message = "Invalid email or password", key = "invalid-email-or-password" });
+			return TypedResults.BadRequest(invalidEmailOrPasswordResult);
 		}
 
 		var createSessionResult = await sessionService.CreateSessionForUser(user);
 
 		if (createSessionResult is CreateSessionResult.Success success)
 		{
-			return TypedResults.Ok(new PasswordLoginSuccessResultDto
+			var successResult = new PasswordLoginSuccessResponseResult
 			{
-				Message = "Login successful",
-				Key = "login-successful",
-				SessionToken = success.Session.Token,
-				// authData = new
-				// {
-				// 	userId = user.Id,
-				// 	sessionExpiresAt = success.Session.ExpiresAt,
-				// 	sessionExpiresInMs = success.Session.ExpiresAt.HasValue
-				// 		? (success.Session.ExpiresAt.Value - DateTime.UtcNow).TotalMilliseconds
-				// 		: 0
-				// }
-			});
+				User = user,
+				Session = success.Session,
+			};
+			return TypedResults.Ok(successResult.GetApiResponse());
 		}
 
 		if (createSessionResult is CreateSessionResult.Failure failure)
@@ -151,11 +170,8 @@ public static class PasswordLogin
 			});
 		}
 
-		// This should never happen with proper discriminated unions, but good to have as fallback
-		return TypedResults.BadRequest(new
-		{
-			message = "Unknown session creation result",
-			key = "unknown-session-creation-result"
-		});
+		// This should never happen with proper discriminated unions
+		// but good to have as fallback
+		return TypedResults.BadRequest(new PasswordLoginFailResponseResult { });
 	}
 }
