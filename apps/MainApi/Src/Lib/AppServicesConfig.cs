@@ -4,13 +4,11 @@ using MongoDB.Driver;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Features.Tenant.Product;
 using FluentValidation;
-using MainApi.Src.Features.Common.Auth.Validators;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Data.MongoDb;
 using MainApi.Src.Features.Staff.Tenant;
-using MainApi.Src.Features.Staff.Tenant.Validators;
 
 public static class AppServicesConfig
 {
@@ -73,17 +71,18 @@ public static class AppServicesConfig
 		.UseTenantId(tenantId);
 		}, ServiceLifetime.Scoped);
 
-		// // Configure JSON options
-		// builder.Services.ConfigureHttpJsonOptions(options =>
-		// {
-		// 	options.SerializerOptions.PropertyNamingPolicy = null;
-		// 	options.SerializerOptions.PropertyNameCaseInsensitive = true;
-		// });
+		// Configure JSON options
+		builder.Services.ConfigureHttpJsonOptions(options =>
+		{
+			options.SerializerOptions.PropertyNamingPolicy = null;
+			options.SerializerOptions.PropertyNameCaseInsensitive = true;
+		});
 
 		// Register FluentValidation
-		builder.Services.AddValidatorsFromAssemblyContaining<LoginWithEmailAndPasswordDtoValidator>();
-		builder.Services.AddValidatorsFromAssemblyContaining<RegisterWithEmailAndPasswordDtoValidator>();
-		builder.Services.AddValidatorsFromAssemblyContaining<CreateTenantStaffValidator>();
+		builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+		// builder.Services.AddValidatorsFromAssemblyContaining<LoginWithEmailAndPasswordDtoValidator>();
+		// builder.Services.AddValidatorsFromAssemblyContaining<RegisterWithEmailAndPasswordDtoValidator>();
+		// builder.Services.AddValidatorsFromAssemblyContaining<CreateTenantStaffValidator>();
 
 		// Register services
 		builder.Services.AddScoped<IUserService, UserService>();

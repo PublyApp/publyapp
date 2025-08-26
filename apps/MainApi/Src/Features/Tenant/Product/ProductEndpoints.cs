@@ -6,7 +6,7 @@ public static class ProductEndpoints
 	{
 		var group = routes.MapGroup("/products")
 				.WithTags("Products")
-				.WithOpenApi();
+		.WithOpenApi();
 
 		group.MapGet("/", ProductHandlers.GetProducts)
 			.WithName("GetProducts")

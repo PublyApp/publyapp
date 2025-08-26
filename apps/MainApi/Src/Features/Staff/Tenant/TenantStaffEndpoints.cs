@@ -6,7 +6,7 @@ public static class TenantStaffEndpoints
 	{
 		var group = routes.MapGroup("/tenants")
 			.WithTags("Tenants")
-			.WithOpenApi();
+		.WithOpenApi();
 
 		group.MapPost("/", TenantStaffHandlers.CreateTenant)
 			.WithName("CreateTenant")
