@@ -159,7 +159,7 @@ public static class PasswordLogin
 		}
 
 		// Verify the password
-		if (!passwordService.VerifyPassword(password, user.Password))
+		if (!passwordService.VerifyPassword(password, user.Password ?? string.Empty))
 		{
 			return TypedResults.BadRequest(invalidEmailOrPasswordResult);
 		}

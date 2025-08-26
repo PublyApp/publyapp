@@ -8,11 +8,11 @@ public class UserAccountTenant : BaseAttributes, ITenantEntity
 	[BsonElement("userId")]
 	public string? UserId { get; set; }
 
-	[BsonElement("tenantId")]
-	public string TenantId { get; set; } = string.Empty;
-
 	[BsonElement("hierarchyLevel")]
 	public AccountHierarchyLevel? HierarchyLevel { get; set; }
+
+	[BsonElement("tenantId")]
+	public string TenantId { get; set; } = string.Empty;
 
 	public static readonly string CollectionName = "_UserAccountTenant";
 }
