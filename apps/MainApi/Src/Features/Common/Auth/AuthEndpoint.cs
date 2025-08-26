@@ -16,12 +16,16 @@ public static class AuthEndpoint
 		group.MapPost("/login", PasswordLogin.HandlePasswordLogin)
 			.WithName("LoginWithEmailAndPassword")
 			.WithSummary("Password Login")
-			.WithBodyValidation<PasswordLoginBody>();
+			.WithBodyValidation<PasswordLoginBody>()
+			.Produces<PasswordLoginSuccessApiResponse>()
+			.Produces<PasswordLoginFailResponseResult>(400);
 
 		group.MapPost("/register", PasswordRegister.HandlePasswordRegister)
 			.WithName("RegisterWithEmailAndPassword")
 			.WithSummary("Password Register")
-			.WithBodyValidation<PasswordRegisterBody>();
+			.WithBodyValidation<PasswordRegisterBody>()
+			.Produces<PasswordRegisterSuccessApiResponse>()
+			.Produces<PasswordRegisterFailResponseResult>(400);
 
 		// group.MapPost("/login-with-google", AuthHandlers.LoginWithGoogle);
 
