@@ -1,6 +1,4 @@
-using MainApi.Src.Lib;
-
-namespace MainApi.Src.Features.Common.Auth.Middlewares;
+namespace MainApi.Src.Lib.Middlewares;
 
 public class CheckTenantHeaderMiddleware
 {

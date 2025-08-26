@@ -1,8 +1,8 @@
+namespace MainApi.Src.Lib.Middlewares;
+
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Lib;
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Src.Features.Common.Auth.Middlewares;
 
 public class StaffAuthMiddleware
 {

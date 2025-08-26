@@ -72,11 +72,11 @@ public static class AppServicesConfig
 		}, ServiceLifetime.Scoped);
 
 		// Configure JSON options
-		builder.Services.ConfigureHttpJsonOptions(options =>
-		{
-			options.SerializerOptions.PropertyNamingPolicy = null;
-			options.SerializerOptions.PropertyNameCaseInsensitive = true;
-		});
+		// builder.Services.ConfigureHttpJsonOptions(options =>
+		// {
+		// 	options.SerializerOptions.PropertyNamingPolicy = null;
+		// 	options.SerializerOptions.PropertyNameCaseInsensitive = true;
+		// });
 
 		// Register FluentValidation
 		builder.Services.AddValidatorsFromAssemblyContaining<Program>();
