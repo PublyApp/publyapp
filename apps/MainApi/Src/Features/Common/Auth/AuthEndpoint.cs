@@ -1,7 +1,9 @@
 namespace MainApi.Src.Features.Common.Auth;
 
 using FluentValidation;
-// using MainApi.Src.Features.Common.Auth.Filters;
+using MainApi.Src.Lib.Filters;
+
+using MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
 
 public static class AuthEndpoint
 {
@@ -11,14 +13,15 @@ public static class AuthEndpoint
 			.WithTags("Auth")
 			.WithOpenApi();
 
-		group.MapPost("/login", AuthHandlers.LoginWithEmailAndPassword)
-				.WithName("LoginWithEmailAndPassword")
-				.WithSummary("Login with email and password");
+		group.MapPost("/login", PasswordLogin.HandlePasswordLogin)
+			.WithName("LoginWithEmailAndPassword")
+			.WithSummary("Password Login")
+			.AddEndpointFilter<ValidationFilter<PasswordLoginBody>>();
 		// .WithValidation<LoginWithEmailAndPasswordDto>();
 
 		group.MapPost("/register", AuthHandlers.RegisterWithEmailAndPassword)
-				.WithName("RegisterWithEmailAndPassword")
-				.WithSummary("Register with email and password");
+			.WithName("RegisterWithEmailAndPassword")
+			.WithSummary("Password Register");
 		// .WithValidation<RegisterWithEmailAndPasswordDto>();
 
 		// group.MapPost("/login-with-google", AuthHandlers.LoginWithGoogle);
