@@ -68,6 +68,18 @@ public class PasswordLoginBodyValidator : AbstractValidator<PasswordLoginBody>
 	}
 }
 
+public class PasswordLoginApiResponseAuthData
+{
+	public required string UserId { get; set; }
+	public required DateTime SessionExpiresAt { get; set; }
+	public required double SessionExpiresInMs { get; set; }
+}
+
+public class PasswordLoginSuccessApiResponse : AppResponseResult
+{
+	public required PasswordLoginApiResponseAuthData AuthData { get; set; }
+}
+
 public class PasswordLoginSuccessResponseResult : AppResponseResult
 {
 	public new string Message { get; set; } = "Login successful";
@@ -76,18 +88,18 @@ public class PasswordLoginSuccessResponseResult : AppResponseResult
 
 	public required Session Session { get; set; }
 
-	public object GetApiResponse()
+	public PasswordLoginSuccessApiResponse GetApiResponse()
 	{
-		return new
+		return new PasswordLoginSuccessApiResponse
 		{
-			message = Message,
-			key = Key,
-			authData = new
+			Message = Message,
+			Key = Key,
+			AuthData = new PasswordLoginApiResponseAuthData
 			{
-				userId = User.Id,
-				sessionExpiresAt = User.CreatedAt,
-				sessionExpiresInMs = User.CreatedAt.HasValue
-					? (User.CreatedAt.Value - DateTime.UtcNow).TotalMilliseconds
+				UserId = User.Id ?? string.Empty,
+				SessionExpiresAt = Session.ExpiresAt ?? DateTime.UtcNow,
+				SessionExpiresInMs = Session.ExpiresAt.HasValue
+					? (Session.ExpiresAt.Value - DateTime.UtcNow).TotalMilliseconds
 					: 0
 			}
 		};
@@ -163,10 +175,10 @@ public static class PasswordLogin
 
 		if (createSessionResult is CreateSessionResult.Failure failure)
 		{
-			return TypedResults.BadRequest(new
+			return TypedResults.BadRequest(new PasswordLoginFailResponseResult
 			{
-				message = failure.Message,
-				key = failure.Key
+				Message = failure.Message,
+				Key = failure.Key
 			});
 		}
 

@@ -43,6 +43,19 @@ public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterB
 	}
 }
 
+public class PasswordRegisterApiResponseUser
+{
+	public string Id { get; set; } = string.Empty;
+	public string Email { get; set; } = string.Empty;
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class PasswordRegisterSuccessApiResponse : AppResponseResult
+{
+	public required PasswordRegisterApiResponseUser User { get; set; }
+}
+
 public class PasswordRegisterSuccessResponseResult : AppResponseResult
 {
 	public new string Message { get; set; } = "Registration successful";
@@ -50,18 +63,18 @@ public class PasswordRegisterSuccessResponseResult : AppResponseResult
 
 	public required User User { get; set; }
 
-	public object GetApiResponse()
+	public PasswordRegisterSuccessApiResponse GetApiResponse()
 	{
-		return new
+		return new PasswordRegisterSuccessApiResponse
 		{
-			message = Message,
-			key = Key,
-			user = new
+			Message = Message,
+			Key = Key,
+			User = new PasswordRegisterApiResponseUser
 			{
-				id = User.Id,
-				email = User.Email,
-				createdAt = User.CreatedAt,
-				updatedAt = User.UpdatedAt,
+				Id = User.Id,
+				Email = User.Email,
+				CreatedAt = User.CreatedAt,
+				UpdatedAt = User.UpdatedAt,
 			}
 		};
 	}
