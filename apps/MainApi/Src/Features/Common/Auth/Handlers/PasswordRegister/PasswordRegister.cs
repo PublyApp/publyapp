@@ -4,6 +4,7 @@ using System.Text.Json;
 using FluentValidation;
 using MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
 using MainApi.Src.Features.Common.User;
+using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Mvc;
 
 public class PasswordRegisterBody : PasswordLoginBody
@@ -42,9 +43,38 @@ public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterB
 	}
 }
 
-public class PasswordRegisterSuccessResultDto
+public class PasswordRegisterSuccessResponseResult : AppResponseResult
 {
-	public required string Message { get; set; }
+	public new string Message { get; set; } = "Registration successful";
+	public new string Key { get; set; } = "registration-successful";
+
+	public required User User { get; set; }
+
+	public object GetApiResponse()
+	{
+		return new
+		{
+			message = Message,
+			key = Key,
+			user = new
+			{
+				id = User.Id,
+				email = User.Email,
+				createdAt = User.CreatedAt,
+				updatedAt = User.UpdatedAt,
+			}
+		};
+	}
+}
+
+public class PasswordRegisterFailResponseResult : AppResponseResult
+{
+	public new string Message { get; set; } = "Failed to register user";
+	public new string Key { get; set; } = "failed-to-register-user";
+}
+
+public class CreateUserFailResponseResult : PasswordRegisterFailResponseResult
+{
 }
 
 public static class PasswordRegister
@@ -65,30 +95,29 @@ public static class PasswordRegister
 
 		var createUserResult = await userService.CreateUser(newUser);
 
-		if (createUserResult is CreateUserResult.Success success)
-		{
-			return Results.Json(new
-			{
-				message = "Registration successful",
-				key = "registration-successful",
-				user = success.User
-			}, statusCode: StatusCodes.Status201Created);
-		}
-
 		if (createUserResult is CreateUserResult.Failure failure)
 		{
-			return Results.BadRequest(new
+			var failResult = new CreateUserFailResponseResult
 			{
-				message = failure.Message,
-				key = failure.Key
-			});
+				Message = failure.Message,
+				Key = failure.Key
+			};
+			return TypedResults.BadRequest(failResult);
 		}
 
-		// This should never happen with proper discriminated unions, but good to have as fallback
-		return Results.BadRequest(new
+		if (createUserResult is CreateUserResult.Success success)
 		{
-			message = "Unknown user creation result",
-			key = "unknown-user-creation-result"
+			var successResult = new PasswordRegisterSuccessResponseResult
+			{
+				User = success.User
+			};
+			return TypedResults.Ok(successResult.GetApiResponse());
+		}
+
+		// This should never happen with proper discriminated unions
+		// but good to have as fallback
+		return TypedResults.BadRequest(new PasswordRegisterFailResponseResult
+		{
 		});
 	}
 }

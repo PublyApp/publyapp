@@ -111,7 +111,7 @@ public static class PasswordLogin
 			return TypedResults.BadRequest(new { message = "User is suspended", key = "user-suspended" });
 		}
 
-		if (user.IsVerified == false)
+		if (user.IsVerified != true)
 		{
 			return TypedResults.BadRequest(new { message = "User is not verified", key = "user-not-verified" });
 		}
@@ -144,7 +144,7 @@ public static class PasswordLogin
 
 		if (createSessionResult is CreateSessionResult.Failure failure)
 		{
-			return Results.BadRequest(new
+			return TypedResults.BadRequest(new
 			{
 				message = failure.Message,
 				key = failure.Key
@@ -152,7 +152,7 @@ public static class PasswordLogin
 		}
 
 		// This should never happen with proper discriminated unions, but good to have as fallback
-		return Results.BadRequest(new
+		return TypedResults.BadRequest(new
 		{
 			message = "Unknown session creation result",
 			key = "unknown-session-creation-result"

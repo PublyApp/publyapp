@@ -21,7 +21,7 @@ public static class TenantStaffHandlers
 		var validationResult = await validator.ValidateAsync(createTenantDto);
 		if (!validationResult.IsValid)
 		{
-			return Results.BadRequest(new
+			return TypedResults.BadRequest(new
 			{
 				message = "Validation failed",
 				key = "validation-failed",
@@ -42,6 +42,6 @@ public static class TenantStaffHandlers
 		};
 
 		var result = await tenantStaffService.CreateTenant(tenant);
-		return Results.Ok(result);
+		return TypedResults.Ok(result);
 	}
 }
