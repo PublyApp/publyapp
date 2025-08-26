@@ -70,14 +70,14 @@ public class PasswordLoginBodyValidator : AbstractValidator<PasswordLoginBody>
 
 public class PasswordLoginApiResponseAuthData
 {
-	public required string UserId { get; set; }
-	public required DateTime SessionExpiresAt { get; set; }
-	public required double SessionExpiresInMs { get; set; }
+	public string UserId { get; set; } = string.Empty;
+	public DateTime SessionExpiresAt { get; set; }
+	public double SessionExpiresInMs { get; set; }
 }
 
 public class PasswordLoginSuccessApiResponse : AppResponseResult
 {
-	public required PasswordLoginApiResponseAuthData AuthData { get; set; }
+	public PasswordLoginApiResponseAuthData AuthData { get; set; } = new();
 }
 
 public class PasswordLoginSuccessResponseResult : AppResponseResult
