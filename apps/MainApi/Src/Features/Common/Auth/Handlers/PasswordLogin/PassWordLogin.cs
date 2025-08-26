@@ -3,6 +3,7 @@ using FluentValidation;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
@@ -123,7 +124,11 @@ public class InvalidEmailOrPasswordResult : PasswordLoginFailResult
 
 public static class PasswordLogin
 {
-	public static async Task<IResult> HandlePasswordLogin(
+	public static async Task<Results<
+	Ok<PasswordLoginSuccessResult>,
+	BadRequest<PasswordLoginFailResult>,
+	BadRequest<InvalidEmailOrPasswordResult>
+	>> HandlePasswordLogin(
 		[FromBody] PasswordLoginBody loginBody,
 		[FromServices] IUserService userService,
 		[FromServices] ISessionService sessionService,

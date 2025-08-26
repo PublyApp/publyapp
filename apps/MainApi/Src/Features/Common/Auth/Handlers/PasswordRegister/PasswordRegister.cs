@@ -5,6 +5,7 @@ using FluentValidation;
 using MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 public class PasswordRegisterBody : PasswordLoginBody
@@ -97,7 +98,11 @@ public class CreateUserFailResponseResult : PasswordRegisterFailResult
 
 public static class PasswordRegister
 {
-	public static async Task<IResult> HandlePasswordRegister(
+	public static async Task<Results<
+	Ok<PasswordRegisterSuccessResult>,
+	BadRequest<PasswordRegisterFailResult>,
+	BadRequest<CreateUserFailResponseResult>
+	>> HandlePasswordRegister(
 		[FromBody] PasswordRegisterBody registerBody,
 		[FromServices] IUserService userService
 )
