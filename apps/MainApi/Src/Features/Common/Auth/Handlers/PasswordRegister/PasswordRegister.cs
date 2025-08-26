@@ -64,10 +64,10 @@ public class PasswordRegisterSuccessResult : AppResponseResult
 		{
 			User = new PasswordRegisterResultUser
 			{
-				Id = user.Id ?? string.Empty,
-				Email = user.Email ?? string.Empty,
-				CreatedAt = user.CreatedAt ?? DateTime.UtcNow,
-				UpdatedAt = user.UpdatedAt ?? DateTime.UtcNow,
+				Id = user.Id ?? throw new Exception("Id is null"),
+				Email = user.Email ?? throw new Exception("Email is null"),
+				CreatedAt = user.CreatedAt ?? throw new Exception("CreatedAt is null"),
+				UpdatedAt = user.UpdatedAt ?? throw new Exception("UpdatedAt is null"),
 			}
 		};
 

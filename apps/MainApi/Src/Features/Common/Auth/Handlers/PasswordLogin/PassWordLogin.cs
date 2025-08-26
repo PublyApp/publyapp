@@ -87,8 +87,8 @@ public class PasswordLoginSuccessResult : AppResponseResult
 		{
 			AuthData = new PasswordLoginResultAuthData
 			{
-				UserId = user.Id,
-				SessionExpiresAt = session.ExpiresAt ?? DateTime.UtcNow,
+				UserId = user.Id ?? throw new Exception("Id is null"),
+				SessionExpiresAt = session.ExpiresAt ?? throw new Exception("ExpiresAt is null"),
 				SessionExpiresInMs = session.ExpiresAt.HasValue
 					? (session.ExpiresAt.Value - DateTime.UtcNow).TotalMilliseconds
 					: 0
