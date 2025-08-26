@@ -20,7 +20,23 @@ app.UseCustomExceptionHandler();
 if (app.Environment.IsDevelopment())
 {
 	app.MapOpenApi();
-	app.MapScalarApiReference();
+	app.MapScalarApiReference(options =>
+	{
+		options.EnabledTargets = [
+			ScalarTarget.Shell,
+			ScalarTarget.Node,
+			ScalarTarget.JavaScript,
+			ScalarTarget.CSharp,
+		];
+		options.EnabledClients = [
+			ScalarClient.Curl,
+			ScalarClient.Wget,
+			ScalarClient.Axios,
+			ScalarClient.HttpClient,
+			ScalarClient.Request,
+			ScalarClient.RestSharp,
+		];
+	});
 }
 
 app.UseCheckSessionHeader();
