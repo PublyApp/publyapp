@@ -1,3 +1,6 @@
+using MainApi.Src.Features.Staff.Tenant.Handlers.CreateTenantStaff;
+using MainApi.Src.Lib.Filters;
+
 namespace MainApi.Src.Features.Staff.Tenant;
 
 public static class TenantStaffEndpoints
@@ -6,11 +9,13 @@ public static class TenantStaffEndpoints
 	{
 		var group = routes.MapGroup("/tenants")
 			.WithTags("Tenants")
-		.WithOpenApi();
+			.WithOpenApi();
 
-		group.MapPost("/", TenantStaffHandlers.CreateTenant)
+		group.MapPost("/", CreateTenantStaff.HandleCreateTenantStaff)
 			.WithName("CreateTenant")
-			.WithSummary("Create a new tenant");
+			.WithSummary("Create a new tenant")
+			.WithBodyValidation<CreateTenantStaffBody>()
+			.WithStaffPermission(StaffPermissionEnum.CAN_CREATE_TENANT);
 
 		return group;
 	}
