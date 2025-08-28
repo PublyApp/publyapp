@@ -14,5 +14,8 @@ public class UserAccountStaff : BaseAttributes, INoTenantEntity
 	[BsonElement("hierarchyLevel")]
 	public AccountHierarchyLevel? HierarchyLevel { get; set; }
 
+	[BsonElement("profileIds")]
+	public List<string>? ProfileIds { get; set; }
+
 	public static readonly string CollectionName = "_UserAccountStaff";
 }

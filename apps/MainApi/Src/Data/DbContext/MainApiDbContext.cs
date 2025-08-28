@@ -2,6 +2,7 @@ namespace MainApi.Src.Data.DbContext;
 
 using System.Linq.Expressions;
 using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
@@ -34,6 +35,8 @@ public class MainApiDbContext : DbContext
 	public DbSet<UserAccountStaff> UserAccountStaff { get; init; }
 	public DbSet<UserAccountTenant> UserAccountTenant { get; init; }
 	public DbSet<Tenant> Tenant { get; init; }
+	public DbSet<ProfileStaff> ProfileStaff { get; init; }
+	public DbSet<ProfileTenant> ProfileTenant { get; init; }
 
 	public string? TenantId { get; set; }
 
