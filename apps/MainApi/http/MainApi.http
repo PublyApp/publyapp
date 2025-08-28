@@ -1,0 +1,12 @@
+@MainApi_HostAddress = http://localhost:5077
+
+POST {{MainApi_HostAddress}}/auth/login
+Accept: application/json
+Content-Type: application/json
+
+{
+	"email": "admin@example.com",
+	"password": "password"
+}
+
+###

@@ -1,6 +1,0 @@
-@MainApi_HostAddress = http://localhost:5077
-
-GET {{MainApi_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
