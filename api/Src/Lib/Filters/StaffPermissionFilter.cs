@@ -5,13 +5,6 @@ using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Lib.Middlewares;
 using Microsoft.EntityFrameworkCore;
 
-// public class BodyValidationFailResult : AppResponseResult
-// {
-// 	public new string Message { get; set; } = "Validation failed";
-// 	public new string Key { get; set; } = "validation-failed";
-// 	public object FieldErrors { get; set; } = new Dictionary<string, string[]>();
-// }
-
 public class StaffPermissionFilter : IEndpointFilter
 {
 	private readonly StaffPermission[]? _requiredPermissions;
