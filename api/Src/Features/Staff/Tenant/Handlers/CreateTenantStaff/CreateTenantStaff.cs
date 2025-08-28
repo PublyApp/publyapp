@@ -54,6 +54,18 @@ public class CreateTenantStaffSuccessResult : AppResponseResult
 	public new string Message { get; set; } = "Tenant created successfully";
 	public new string Key { get; set; } = "tenant-created-successfully";
 	public CreateTenantStaffSuccessResultTenantData Tenant { get; set; } = new CreateTenantStaffSuccessResultTenantData();
+
+	public static CreateTenantStaffSuccessResult GetApiResponse(Tenant tenant)
+	{
+		return new CreateTenantStaffSuccessResult
+		{
+			Tenant = new CreateTenantStaffSuccessResultTenantData
+			{
+				Id = tenant.Id ?? throw new Exception("Tenant ID is null"),
+				TenantName = tenant.Name ?? throw new Exception("Tenant name is null")
+			}
+		};
+	}
 }
 
 public static class CreateTenantStaff
@@ -75,15 +87,8 @@ public static class CreateTenantStaff
 			Name = tenantName,
 		};
 
-		var result = await tenantStaffService.CreateTenant(tenant);
+		var savedTenant = await tenantStaffService.CreateTenant(tenant);
 
-		return TypedResults.Ok(new CreateTenantStaffSuccessResult
-		{
-			Tenant = new CreateTenantStaffSuccessResultTenantData
-			{
-				Id = result.Id ?? throw new Exception("Tenant ID is null"),
-				TenantName = result.Name ?? throw new Exception("Tenant name is null")
-			}
-		});
+		return TypedResults.Ok(CreateTenantStaffSuccessResult.GetApiResponse(savedTenant));
 	}
 }

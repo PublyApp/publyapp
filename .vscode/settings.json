@@ -116,5 +116,11 @@
 	},
 	"[csharp]": {
 		"editor.defaultFormatter": "anysphere.csharp"
+	},
+	"rest-client.environmentVariables": {
+		"$shared": {
+			"rootUrl": "http://localhost:5077",
+			"sessionToken": "f3d6202a8565dcff45532b526534bec0"
+		}
 	}
 }
