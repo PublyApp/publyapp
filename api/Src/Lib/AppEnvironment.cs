@@ -1,7 +1,6 @@
-using FluentValidation;
-
 namespace MainApi.Src.Lib;
 
+using FluentValidation;
 
 public static class AppEnvironment
 {
