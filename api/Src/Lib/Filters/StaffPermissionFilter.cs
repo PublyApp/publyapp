@@ -10,14 +10,20 @@ public class StaffPermissionFilter : IEndpointFilter
 	private readonly StaffPermission[]? _requiredPermissions;
 	private readonly Func<HashSet<string>, bool>? _customPermissionChecker;
 
-	public StaffPermissionFilter(params StaffPermission[] requiredPermissions)
+	public StaffPermissionFilter(StaffPermission[] requiredPermissions)
 	{
+		ArgumentNullException.ThrowIfNull(requiredPermissions);
+		if (requiredPermissions.Length == 0)
+			throw new ArgumentException("At least one permission is required.", nameof(requiredPermissions));
+
 		_requiredPermissions = requiredPermissions;
 		_customPermissionChecker = null;
 	}
 
 	public StaffPermissionFilter(Func<HashSet<string>, bool> customPermissionChecker)
 	{
+		ArgumentNullException.ThrowIfNull(customPermissionChecker);
+
 		_requiredPermissions = null;
 		_customPermissionChecker = customPermissionChecker;
 	}
@@ -117,7 +123,7 @@ public class StaffPermissionFilter : IEndpointFilter
 
 public static class StaffPermissionFilterExtensions
 {
-	public static RouteHandlerBuilder WithStaffPermission(this RouteHandlerBuilder builder, params StaffPermission[] requiredPermissions)
+	public static RouteHandlerBuilder WithStaffPermission(this RouteHandlerBuilder builder, StaffPermission[] requiredPermissions)
 	{
 		return builder.AddEndpointFilter(new StaffPermissionFilter(requiredPermissions));
 	}

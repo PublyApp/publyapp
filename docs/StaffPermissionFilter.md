@@ -6,6 +6,7 @@ The `StaffPermissionFilter` is a flexible endpoint filter that provides permissi
 
 - [Overview](#overview)
 - [Basic Usage](#basic-usage)
+- [Constructor Requirements](#constructor-requirements)
 - [Custom Permission Logic](#custom-permission-logic)
 - [Helper Methods](#helper-methods)
 - [Advanced Examples](#advanced-examples)
@@ -46,9 +47,9 @@ app.MapPost("/staff/tenants", CreateTenant)
        StaffPermissionEnum.CAN_CREATE_TENANT
    );
 
-// No permissions required (just authenticated staff)
+// No permissions required (just authenticated staff) - Use custom logic instead
 app.MapGet("/staff/profile", GetProfile)
-   .WithStaffPermission();
+   .WithStaffPermission(_ => true);
 ```
 
 ### Direct Construction
@@ -57,10 +58,65 @@ You can also construct the filter directly:
 
 ```csharp
 app.MapDelete("/staff/tenants/{id}", DeleteTenant)
-   .AddEndpointFilter(new StaffPermissionFilter(
+   .AddEndpointFilter(new StaffPermissionFilter(new[] {
        StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST,
        StaffPermissionEnum.CAN_DELETE_TENANT
-   ));
+   }));
+```
+
+**Note**: Direct construction requires explicit array creation since the constructor parameters are now required and validated.
+
+## Constructor Requirements
+
+The `StaffPermissionFilter` constructors now enforce strict parameter validation:
+
+### Permission Array Constructor
+
+```csharp
+public StaffPermissionFilter(StaffPermission[] requiredPermissions)
+```
+
+**Requirements:**
+- ❌ `null` values are not allowed (throws `ArgumentNullException`)
+- ❌ Empty arrays are not allowed (throws `ArgumentException`)
+- ✅ Must provide at least one valid permission
+
+```csharp
+// ✅ Valid - Single permission
+new StaffPermissionFilter(new[] { StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST });
+
+// ✅ Valid - Multiple permissions
+new StaffPermissionFilter(new[] {
+    StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST,
+    StaffPermissionEnum.CAN_CREATE_TENANT
+});
+
+// ❌ Invalid - Will throw ArgumentNullException
+new StaffPermissionFilter(null);
+
+// ❌ Invalid - Will throw ArgumentException
+new StaffPermissionFilter(new StaffPermission[0]);
+```
+
+### Custom Logic Constructor
+
+```csharp
+public StaffPermissionFilter(Func<HashSet<string>, bool> customPermissionChecker)
+```
+
+**Requirements:**
+- ❌ `null` values are not allowed (throws `ArgumentNullException`)
+- ✅ Must provide a valid function that accepts `HashSet<string>` and returns `bool`
+
+```csharp
+// ✅ Valid - Custom logic
+new StaffPermissionFilter(permissions => permissions.Contains("custom-permission"));
+
+// ✅ Valid - Always allow (for authenticated-only endpoints)
+new StaffPermissionFilter(_ => true);
+
+// ❌ Invalid - Will throw ArgumentNullException
+new StaffPermissionFilter((Func<HashSet<string>, bool>)null);
 ```
 
 ## Custom Permission Logic
@@ -403,6 +459,8 @@ Make sure these are properly configured in your middleware pipeline.
 1. **Filter not working**: Ensure `StaffAuthMiddleware` is configured before the filter
 2. **Always forbidden**: Check that user has assigned profiles with correct permissions
 3. **Performance issues**: Consider caching user permissions for frequently accessed endpoints
+4. **ArgumentNullException on startup**: Ensure constructor parameters are not null
+5. **ArgumentException on startup**: Ensure permission arrays are not empty (must have at least one permission)
 
 ### Debug Logging
 
