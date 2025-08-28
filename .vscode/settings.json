@@ -93,7 +93,8 @@
 		"source.sortImports": "explicit",
 		"source.fixAll.biome": "explicit",
 		"source.organizeImports.biome": "explicit",
-		"source.fixAll.csharp": "explicit"
+		"source.fixAll.csharp": "explicit",
+		"source.organizeImports.csharp": "explicit"
 	},
 	"editor.formatOnSave": true,
 	"editor.tabSize": 2,

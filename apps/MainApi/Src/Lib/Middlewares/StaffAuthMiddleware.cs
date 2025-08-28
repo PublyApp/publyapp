@@ -39,8 +39,6 @@ public class StaffAuthMiddleware
 			u.IsDeleted != true &&
 			u.IsSuspended != true);
 
-		_logger.LogDebug("Account staff: {@AccountStaff}", accountStaff);
-
 		if (accountStaff is null)
 		{
 			_logger.LogDebug("User is not a staff member: {@StaffAuthData}", new { UserId = authContext.UserId });
@@ -57,7 +55,6 @@ public class StaffAuthMiddleware
 		await _next(httpContext);
 	}
 }
-
 
 // Extension method
 public static class StaffAuthMiddlewareExtensions

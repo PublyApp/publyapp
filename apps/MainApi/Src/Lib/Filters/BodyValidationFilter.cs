@@ -18,10 +18,10 @@ public class BodyValidationFilter<TRequest> : IEndpointFilter
 		_validator = validator;
 	}
 
-	public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+	public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext httpContext, EndpointFilterDelegate next)
 	{
-		var request = context.GetArgument<TRequest>(0);
-		var result = await _validator.ValidateAsync(request, context.HttpContext.RequestAborted);
+		var request = httpContext.GetArgument<TRequest>(0);
+		var result = await _validator.ValidateAsync(request, httpContext.HttpContext.RequestAborted);
 
 		if (!result.IsValid)
 		{
@@ -31,7 +31,7 @@ public class BodyValidationFilter<TRequest> : IEndpointFilter
 			});
 		}
 
-		return await next(context);
+		return await next(httpContext);
 	}
 }
 
