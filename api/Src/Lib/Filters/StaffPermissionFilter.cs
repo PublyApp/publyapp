@@ -81,3 +81,17 @@ public static class StaffPermissionFilterExtensions
 	}
 }
 
+public class StaffPermission
+{
+	public required string Key { get; init; }
+}
+
+public static class StaffPermissionEnum
+{
+	// ==== TENANTS ====
+	public static readonly StaffPermission CAN_ACCESS_TENANTS_LIST = new StaffPermission { Key = "can-access-tenants-list" };
+	public static readonly StaffPermission CAN_CREATE_TENANT = new StaffPermission { Key = "can-create-tenant" };
+
+	// ==== USERS ====
+	public static readonly StaffPermission CAN_ACCESS_USERS_LIST = new StaffPermission { Key = "can-access-users-list" };
+}
