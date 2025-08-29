@@ -12,7 +12,6 @@
 		"type-check": "react-router typegen && tsc"
 	},
 	"dependencies": {
-		"@org/js-client": "workspace:*",
 		"@emotion/cache": "^11.14.0",
 		"@emotion/react": "^11.14.0",
 		"@emotion/styled": "^11.14.0",
@@ -23,12 +22,15 @@
 		"@fontsource/barlow": "^5.2.5",
 		"@hookform/resolvers": "^4.1.3",
 		"@iconify/react": "^5.2.0",
+		"@microsoft/kiota-abstractions": "1.0.0-preview.97",
+		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.97",
 		"@mui/icons-material": "^7.1.1",
 		"@mui/lab": "^7.0.0-beta.13",
 		"@mui/material": "^7.1.1",
 		"@mui/x-data-grid": "^8.5.1",
 		"@mui/x-date-pickers": "^8.5.1",
 		"@mui/x-tree-view": "^8.5.1",
+		"@org/js-client": "workspace:*",
 		"@org/parse-api-client": "workspace:*",
 		"@org/parse-rest-client": "workspace:*",
 		"@org/shared": "workspace:*",
