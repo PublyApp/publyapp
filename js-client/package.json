@@ -1,0 +1,15 @@
+{
+	"name": "@org/js-client",
+	"version": "0.0.1",
+	"main": "src/index.ts",
+	"types": "src/index.d.ts",
+	"scripts": {
+		"kiota:generate": "dotnet tool run kiota generate --openapi ../api/openapi/MainApi.json --output src --language typescript --namespace-name MainApi.Client",
+		"kiota:info": "dotnet tool run kiota info -d ../api/openapi/MainApi.json -l TypeScript",
+		"build": "tsc"
+	},
+	"dependencies": {
+		"@microsoft/kiota-authentication-azure": "1.0.0-preview.96",
+		"@microsoft/kiota-bundle": "1.0.0-preview.96"
+	}
+}
