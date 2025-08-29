@@ -12,6 +12,7 @@
 			"@/shared/*": ["./packages/shared/*"],
 			"@/ui-react/*": ["./packages/ui-react/*"],
 			"@/parse-api-client/*": ["./packages/parse-api-client/*"],
+			"@/js-client/*": ["./packages/js-client/*"],
 			// for remix app
 			"~/front/*": ["./apps/front/app/*"]
 		}
