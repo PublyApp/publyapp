@@ -580,7 +580,9 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
 
-  js-client:
+  packages/_tsconfig: {}
+
+  packages/js-client:
     dependencies:
       '@microsoft/kiota-authentication-azure':
         specifier: 1.0.0-preview.96
@@ -588,8 +590,6 @@ importers:
       '@microsoft/kiota-bundle':
         specifier: 1.0.0-preview.96
         version: 1.0.0-preview.96
-
-  packages/_tsconfig: {}
 
   packages/parse-api-client:
     dependencies:
