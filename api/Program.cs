@@ -10,7 +10,7 @@ AppEnvironment.LoadEnv();
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.ConfigureSerilog();
+builder.ConfigureLogger();
 builder.AddServices();
 
 var app = builder.Build();

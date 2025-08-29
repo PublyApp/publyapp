@@ -3,9 +3,9 @@ using Serilog.Events;
 
 namespace MainApi.Src.Lib;
 
-public static class SerilogConfigExtensions
+public static class LoggerConfigExtensions
 {
-	public static WebApplicationBuilder ConfigureSerilog(this WebApplicationBuilder builder)
+	public static WebApplicationBuilder ConfigureLogger(this WebApplicationBuilder builder)
 	{
 		builder.Host.UseSerilog((context, loggerConfig) =>
 		{
