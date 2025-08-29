@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 
 public static class CryptoUtils
 {
-	private const string Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+	private static ReadOnlySpan<char> Chars => ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 	/// <summary>
 	/// Generates a random alphanumeric string of specified size.
@@ -20,16 +20,19 @@ public static class CryptoUtils
 			throw new ArgumentException("Zero-length randomString is useless.", nameof(size));
 		}
 
-		var bytes = new byte[size];
+		// Use stackalloc for small sizes, heap allocation for larger ones
+		Span<byte> bytes = size <= 256 ? stackalloc byte[size] : new byte[size];
 		RandomNumberGenerator.Fill(bytes);
 
-		var objectId = new char[size];
-		for (int i = 0; i < bytes.Length; ++i)
+		// Use string.Create to avoid intermediate char array allocation
+		return string.Create(size, bytes, static (chars, randomBytes) =>
 		{
-			objectId[i] = Chars[bytes[i] % Chars.Length];
-		}
-
-		return new string(objectId);
+			var charsSpan = Chars;
+			for (int i = 0; i < chars.Length; i++)
+			{
+				chars[i] = charsSpan[randomBytes[i] % charsSpan.Length];
+			}
+		});
 	}
 
 	/// <summary>
@@ -51,8 +54,12 @@ public static class CryptoUtils
 	/// <returns>A random hex string suitable for secure tokens</returns>
 	public static string NewToken(int size = 32)
 	{
-		var bytes = new byte[size / 2]; // Each byte produces 2 hex characters
+		var byteLength = size / 2; // Each byte produces 2 hex characters
+
+		// Use stackalloc for small sizes (typical tokens), heap allocation for larger ones
+		Span<byte> bytes = byteLength <= 128 ? stackalloc byte[byteLength] : new byte[byteLength];
 		RandomNumberGenerator.Fill(bytes);
+
 		return Convert.ToHexString(bytes).ToLower();
 	}
 
@@ -65,8 +72,18 @@ public static class CryptoUtils
 	public static string Md5Hash(string input)
 	{
 		using var md5 = MD5.Create();
-		var inputBytes = System.Text.Encoding.UTF8.GetBytes(input);
-		var hashBytes = md5.ComputeHash(inputBytes);
+
+		// Calculate required byte length for UTF-8 encoding
+		var maxByteCount = System.Text.Encoding.UTF8.GetMaxByteCount(input.Length);
+
+		// Use stackalloc for small strings, heap allocation for larger ones
+		Span<byte> inputBytes = maxByteCount <= 1024 ? stackalloc byte[maxByteCount] : new byte[maxByteCount];
+		var actualByteCount = System.Text.Encoding.UTF8.GetBytes(input, inputBytes);
+
+		// Use span for hash output to avoid intermediate allocation
+		Span<byte> hashBytes = stackalloc byte[16]; // MD5 always produces 16 bytes
+		md5.TryComputeHash(inputBytes[..actualByteCount], hashBytes, out _);
+
 		return Convert.ToHexString(hashBytes).ToLower();
 	}
 }
