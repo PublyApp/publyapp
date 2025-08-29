@@ -19,6 +19,7 @@ app.UseCustomExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
+	// /openapi/{documentName}.json
 	app.MapOpenApi();
 	app.MapScalarApiReference(options =>
 	{
