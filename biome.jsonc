@@ -14,7 +14,8 @@
 			"!**/dist",
 			"!**/.turbo",
 			"!**/.husky/_",
-			"!**/.react-router"
+			"!**/.react-router",
+			"!js-client/**"
 		]
 	},
 	"formatter": {
