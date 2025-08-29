@@ -31,7 +31,7 @@ public static class AppServicesConfig
 
 	public static IHostApplicationBuilder AddServices(this IHostApplicationBuilder builder)
 	{
-		builder.Services.AddProblemDetails();
+		// builder.Services.AddProblemDetails();
 
 		// Configure strongly-typed settings
 		builder.Services.AddOptions<AppSettings>()
