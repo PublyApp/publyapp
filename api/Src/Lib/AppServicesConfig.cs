@@ -41,6 +41,7 @@ public static class AppServicesConfig
 
 		// Add services to the container.
 		// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+		builder.Services.AddEndpointsApiExplorer();
 		builder.Services.AddOpenApi();
 
 		// Add HttpContextAccessor for accessing HTTP context in services
