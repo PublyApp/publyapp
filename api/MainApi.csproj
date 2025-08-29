@@ -19,6 +19,16 @@
     <PackageReference Include="Serilog.Sinks.Async" Version="2.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+		<!-- for exporting openapi documents to json file at build time -->
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="9.0.8">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
 
+	<!-- for exporting openapi documents to json file at build time -->
+	<PropertyGroup>
+		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\openapi</OpenApiDocumentsDirectory>
+	</PropertyGroup>
 </Project>
