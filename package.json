@@ -37,7 +37,8 @@
 		"// =============== MISC ===============": "================================",
 		"knip": "knip",
 		"prepare": "husky",
-		"update-deps": "pnpm up -r"
+		"update-deps": "pnpm up -r",
+		"generate:client": "pnpm run --filter @org/js-client kiota:generate"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.1.1",
