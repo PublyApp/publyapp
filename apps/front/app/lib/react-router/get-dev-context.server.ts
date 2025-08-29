@@ -1,7 +1,7 @@
-import { SilentPostHog } from '@/shared/lib/posthog/silent-posthog';
-import { logger } from '@/shared/lib/winston.server';
 import { nanoid } from 'nanoid';
 import type { AppLoadContext } from 'react-router';
+import { SilentPostHog } from '@/shared/lib/posthog/silent-posthog';
+import { logger } from '@/shared/lib/winston.server';
 
 export const getDevContext = (loadContext: AppLoadContext) => {
 	let finalLoadContext: AppLoadContext;
