@@ -1,3 +1,7 @@
+// import type { ApiClient } from '@/parse-api-client/ApiClient';
+// import { clientManager } from '../js-client/client-manager';
+
+import type { ApiClient } from '@org/js-client/src/apiClient';
 import * as cookie from 'cookie';
 import _ from 'lodash';
 import {
@@ -6,18 +10,19 @@ import {
 	type LoaderFunctionArgs,
 	redirect,
 } from 'react-router';
-
 import {
+	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	FORWARDED_FOR_HEADER_KEY,
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
-} from '@org/shared-ts/lib/constants';
-import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
-import InterZod from '@org/shared-ts/lib/zod/InterZod';
-import { isPromise } from '@org/shared-ts/utils/any.utils';
-
-import { parseSessionCookie } from '../cookies/session-cookie.utils';
+} from '@/shared/lib/constants';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
+import InterZod from '@/shared/lib/zod/InterZod';
+import { isPromise } from '@/shared/utils/any.utils';
+import { initApiClientOnServer } from '../api';
 import { remixI18NextServer } from '../i18n/i18n.server';
 import { getRequestLocale } from './data.utils';
+import { getDevContext } from './get-dev-context.server';
 
 type GetServerLoaderParamsWhenRequireUser<
 	T extends LoaderFunctionArgs<AppLoadContext> =
@@ -29,12 +34,8 @@ type GetServerLoaderParamsWhenRequireUser<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
-			/** Primary token (tenantToken ?? staffToken) - guaranteed when requireUser */
-			sessionToken: string;
-			/** Staff session token (for staff UI) */
-			staffToken?: string;
-			/** Tenant session token (for tenant UI/impersonation) */
-			tenantToken?: string;
+			apiClient: ApiClient;
+			// authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
 		},
 	) => Promise<D>;
 };
@@ -50,12 +51,7 @@ type GetServerLoaderParamsWithoutAuthDataPromise<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
-			/** Primary token (tenantToken ?? staffToken) */
-			sessionToken: string | undefined;
-			/** Staff session token (for staff UI) */
-			staffToken?: string;
-			/** Tenant session token (for tenant UI/impersonation) */
-			tenantToken?: string;
+			apiClient: ApiClient;
 		},
 	) => Promise<D>;
 };
@@ -71,12 +67,8 @@ type GetServerLoaderParamsWithAuthDataPromise<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
-			/** Primary token (tenantToken ?? staffToken) */
-			sessionToken: string | undefined;
-			/** Staff session token (for staff UI) */
-			staffToken?: string;
-			/** Tenant session token (for tenant UI/impersonation) */
-			tenantToken?: string;
+			apiClient: ApiClient;
+			// authDataPromise: ReturnType<ApiClient['auth']['getUserAuthData']>;
 		},
 	) => Promise<D>;
 };
@@ -130,32 +122,65 @@ export const getServerLoader: GetServerLoader = <
 			z._t = await z.t;
 		}
 
-		const finalLoadContext = args.context;
+		const finalLoadContext = getDevContext(args.context);
 
-		// Extract and parse session token(s) from cookies
-		const reqCookies = cookie.parse(args.request.headers.get('Cookie') || '');
-		const rawCookieValue = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY) as
-			| string
-			| undefined;
+		const requestIp =
+			args.request.headers.get(
+				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+			) || // ✅ Cloudflare real IP
+			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
-		// Parse dual-token format (handles legacy single-token format too)
-		const tokens = rawCookieValue ? parseSessionCookie(rawCookieValue) : {};
-		const sessionToken = tokens.tenantToken ?? tokens.staffToken;
+		if (!params.requireUser) {
+			const apiClient = initApiClientOnServer({
+				/* locale, requestIp */
+			});
 
-		// Redirect to login if user is required but no session token
-		if (params.requireUser && !sessionToken) {
+			if (!params.withAuthDataPromise) {
+				return params.loader({
+					...args,
+					context: finalLoadContext,
+					apiClient,
+					z,
+					locale,
+				});
+			}
+
+			// const authDataPromise = apiClient.auth.getUserAuthData();
+
+			return params.loader({
+				...args,
+				context: finalLoadContext,
+				apiClient,
+				z,
+				locale,
+				// authDataPromise,
+			});
+		}
+
+		// check if session token cookie is present
+		const reqCookies = cookie.parse(
+			args.request.headers.get('Set-Cookie') || '',
+		);
+		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
+
+		if (!sessionToken) {
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		// Pass all tokens to loader - caller can use sessionToken (primary) or specific tokens
+		const apiClient = initApiClientOnServer({
+			// locale,
+			sessionToken,
+			// requestIp,
+		});
+		// const authData = await apiClient.auth.getUserAuthData();
+
 		return params.loader({
 			...args,
 			context: finalLoadContext,
-			sessionToken: sessionToken as never,
-			staffToken: tokens.staffToken,
-			tenantToken: tokens.tenantToken,
-			locale,
+			apiClient,
 			z,
+			locale,
+			// authData,
 		});
 	};
 
@@ -171,12 +196,8 @@ type GetServerActionParamsWhenRequireUser<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
-			/** Primary token (tenantToken ?? staffToken) - guaranteed when requireUser */
-			sessionToken: string;
-			/** Staff session token (for staff UI) */
-			staffToken?: string;
-			/** Tenant session token (for tenant UI/impersonation) */
-			tenantToken?: string;
+			apiClient: ApiClient;
+			// authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
 		},
 	) => Promise<D>;
 };
@@ -190,12 +211,7 @@ type GetServerActionParamsWhenWhenUserNotRequired<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
-			/** Primary token (tenantToken ?? staffToken) */
-			sessionToken: string | undefined;
-			/** Staff session token (for staff UI) */
-			staffToken?: string;
-			/** Tenant session token (for tenant UI/impersonation) */
-			tenantToken?: string;
+			apiClient: ApiClient;
 		},
 	) => Promise<D>;
 };
@@ -241,32 +257,51 @@ export const getServerAction: GetServerAction = <
 			z._t = await z.t;
 		}
 
-		const finalLoadContext = args.context;
+		const finalLoadContext = getDevContext(args.context);
 
-		// Extract and parse session token(s) from cookies
-		const reqCookies = cookie.parse(args.request.headers.get('Cookie') || '');
-		const rawCookieValue = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY) as
-			| string
-			| undefined;
+		const requestIp =
+			args.request.headers.get(
+				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+			) || // ✅ Cloudflare real IP
+			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
-		// Parse dual-token format (handles legacy single-token format too)
-		const tokens = rawCookieValue ? parseSessionCookie(rawCookieValue) : {};
-		const sessionToken = tokens.tenantToken ?? tokens.staffToken;
+		if (!params.requireUser) {
+			const apiClient = initApiClientOnServer({
+				/* locale, requestIp */
+			});
+			return params.action({
+				...args,
+				context: finalLoadContext,
+				apiClient,
+				z,
+				locale,
+			});
+		}
 
-		// Redirect to login if user is required but no session token
-		if (params.requireUser && !sessionToken) {
+		const reqCookies = cookie.parse(
+			args.request.headers.get('Set-Cookie') || '',
+		);
+		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
+
+		if (!sessionToken) {
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		// Pass all tokens to action - caller can use sessionToken (primary) or specific tokens
+		const apiClient = initApiClientOnServer({
+			// locale,
+			sessionToken,
+			// requestIp,
+		});
+
+		// const authData = await apiClient.auth.getUserAuthData();
+
 		return params.action({
 			...args,
 			context: finalLoadContext,
-			sessionToken: sessionToken as never,
-			staffToken: tokens.staffToken,
-			tenantToken: tokens.tenantToken,
-			locale,
+			apiClient,
 			z,
+			locale,
+			// authData,
 		});
 	};
 
