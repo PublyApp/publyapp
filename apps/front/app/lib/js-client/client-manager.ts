@@ -6,6 +6,7 @@ import {
 } from '@microsoft/kiota-abstractions';
 import { FetchRequestAdapter } from '@microsoft/kiota-http-fetchlibrary';
 import { type ApiClient, createApiClient } from '@org/js-client/src/apiClient';
+import { SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 class ClientManager {
 	private static _instance: ClientManager;
@@ -37,7 +38,7 @@ class ClientManager {
 		if (sessionToken) {
 			authProvider = new ApiKeyAuthenticationProvider(
 				sessionToken,
-				'X-Session-Token',
+				SESSION_TOKEN_HEADER_KEY,
 				ApiKeyLocation.Header,
 			);
 		} else {
@@ -50,3 +51,24 @@ class ClientManager {
 }
 
 export const clientManager = ClientManager.getInstance();
+
+// import { AnonymousAuthenticationProvider } from '@microsoft/kiota-abstractions';
+// import { FetchRequestAdapter, KiotaClientFactory } from '@microsoft/kiota-http-fetchlibrary';
+
+// import { createClient } from './generated/client.js';
+
+// // API requires no authentication, so use the anonymous
+// // authentication provider
+// const authProvider = new AnonymousAuthenticationProvider();
+
+// // Define a custom fetch function to set the 'credentials' option.
+// // This function wraps the global fetch, but adds our required option.
+// const customFetch = (url: Parameters<typeof fetch>[0], init?: RequestInit) => fetch(url, {
+//   ...init,
+//   credentials: 'include', // 'include' tells the browser to send cookies
+// });
+
+// const httpClient = KiotaClientFactory.create(customFetch);
+// const adapter = new FetchRequestAdapter(authProvider, undefined, undefined, httpClient);
+// adapter.baseUrl = 'http://localhost:3000';
+// export const client = createClient(adapter);
