@@ -16,6 +16,7 @@ builder.AddServices();
 var app = builder.Build();
 
 app.UseCustomExceptionHandler();
+app.UseCors();
 
 if (app.Environment.IsDevelopment())
 {
