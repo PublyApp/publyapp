@@ -5,7 +5,6 @@ using MainApi.Src.Lib.Filters;
 using MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
 using MainApi.Src.Features.Common.Auth.Handlers.PasswordRegister;
 using MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
-using Microsoft.OpenApi.Models;
 
 public static class AuthEndpoint
 {

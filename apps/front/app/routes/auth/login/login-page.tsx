@@ -63,14 +63,11 @@ export const action = getServerAction({
 		const resHeaders = new Headers();
 
 		const cookieOptions = {
-			expires: loginResult.data?.authData?.sessionExpiresAt || new Date(),
-			maxAge: dayjs(loginResult.data?.authData?.sessionExpiresAt).diff(
-				dayjs(),
-				'days',
-			),
+			expires: loginResult.data?.sessionExpiresAt || new Date(),
+			maxAge: dayjs(loginResult.data?.sessionExpiresAt).diff(dayjs(), 'days'),
 		};
 
-		const sessionToken = loginResult.data?.authData?.sessionToken || '';
+		const sessionToken = loginResult.data?.sessionToken || '';
 
 		console.log('👍👍👍👍', cookieOptions, {
 			sessionToken,

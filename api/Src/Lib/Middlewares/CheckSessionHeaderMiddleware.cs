@@ -50,7 +50,7 @@ public static class CheckSessionHeaderMiddlewareExtensions
 	{
 		return context.Request.Path.StartsWithSegments("/staff")
 			|| context.Request.Path.StartsWithSegments("/tenant")
-			|| context.Request.Path.StartsWithSegments("/user-auth-data");
+			|| context.Request.Path.StartsWithSegments("/auth/user-auth-data");
 	}
 
 	private static void ConfigureSessionHeaderCheck(IApplicationBuilder builder)

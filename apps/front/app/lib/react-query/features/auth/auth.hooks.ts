@@ -11,7 +11,7 @@ export const useGetUserAuthData = createSuspenseQuery({
 	queryKey: [functionName.auth.getUserAuthData] as const,
 	fetcher: async () => {
 		// return defaultApiClient.auth.getUserAuthData();
-		return clientManager.apiClient.auth.getUserAuthData();
+		return clientManager.apiClient.auth.userAuthData.get();
 	},
 });
 

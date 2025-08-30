@@ -25,6 +25,11 @@ public class GetUserAuthData
 	{
 		if (!authContext.IsAuthenticated)
 		{
+			logger.LogError("{@GetUserAuthData}", new
+			{
+				UserId = authContext.UserId,
+				SessionToken = authContext.SessionToken
+			});
 			throw new Exception("GetUserAuthData must be set behind SessionAuthMiddleware.");
 		}
 
