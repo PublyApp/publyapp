@@ -15,7 +15,8 @@
 			"!**/.turbo",
 			"!**/.husky/_",
 			"!**/.react-router",
-			"!packages/js-client/**"
+			"!packages/js-client/**",
+			"!api/openapi/**"
 		]
 	},
 	"formatter": {
