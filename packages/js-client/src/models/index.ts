@@ -53,20 +53,11 @@ export function createCreateTenantStaffSuccessResultTenantDataFromDiscriminatorV
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateUserFailResponseResult}
+ * @returns {GetUserAuthDataSuccessResult}
  */
 // @ts-ignore
-export function createCreateUserFailResponseResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateUserFailResponseResult;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {InvalidEmailOrPasswordResult}
- */
-// @ts-ignore
-export function createInvalidEmailOrPasswordResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoInvalidEmailOrPasswordResult;
+export function createGetUserAuthDataSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetUserAuthDataSuccessResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -76,15 +67,6 @@ export function createInvalidEmailOrPasswordResultFromDiscriminatorValue(parseNo
 // @ts-ignore
 export function createPasswordLoginBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoPasswordLoginBody;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {PasswordLoginResultAuthData}
- */
-// @ts-ignore
-export function createPasswordLoginResultAuthDataFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoPasswordLoginResultAuthData;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -103,15 +85,6 @@ export function createPasswordLoginSuccessResultFromDiscriminatorValue(parseNode
 // @ts-ignore
 export function createPasswordRegisterBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoPasswordRegisterBody;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {PasswordRegisterResultUser}
- */
-// @ts-ignore
-export function createPasswordRegisterResultUserFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoPasswordRegisterResultUser;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -160,16 +133,6 @@ export interface CreateTenantStaffSuccessResultTenantData extends AdditionalData
      * The tenantName property
      */
     tenantName?: string | null;
-}
-export interface CreateUserFailResponseResult extends AdditionalDataHolder, ApiError, Parsable {
-    /**
-     * The key property
-     */
-    key?: string | null;
-    /**
-     * The message property
-     */
-    messageEscaped?: string | null;
 }
 /**
  * The deserialization information for the current model
@@ -221,26 +184,14 @@ export function deserializeIntoCreateTenantStaffSuccessResultTenantData(createTe
 }
 /**
  * The deserialization information for the current model
- * @param CreateUserFailResponseResult The instance to deserialize into.
+ * @param GetUserAuthDataSuccessResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoCreateUserFailResponseResult(createUserFailResponseResult: Partial<CreateUserFailResponseResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoGetUserAuthDataSuccessResult(getUserAuthDataSuccessResult: Partial<GetUserAuthDataSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "key": n => { createUserFailResponseResult.key = n.getStringValue(); },
-        "message": n => { createUserFailResponseResult.messageEscaped = n.getStringValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param InvalidEmailOrPasswordResult The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoInvalidEmailOrPasswordResult(invalidEmailOrPasswordResult: Partial<InvalidEmailOrPasswordResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "key": n => { invalidEmailOrPasswordResult.key = n.getStringValue(); },
-        "message": n => { invalidEmailOrPasswordResult.messageEscaped = n.getStringValue(); },
+        "email": n => { getUserAuthDataSuccessResult.email = n.getStringValue(); },
+        "userId": n => { getUserAuthDataSuccessResult.userId = n.getStringValue(); },
     }
 }
 /**
@@ -257,29 +208,18 @@ export function deserializeIntoPasswordLoginBody(passwordLoginBody: Partial<Pass
 }
 /**
  * The deserialization information for the current model
- * @param PasswordLoginResultAuthData The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoPasswordLoginResultAuthData(passwordLoginResultAuthData: Partial<PasswordLoginResultAuthData> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "sessionExpiresAt": n => { passwordLoginResultAuthData.sessionExpiresAt = n.getDateValue(); },
-        "sessionExpiresInMs": n => { passwordLoginResultAuthData.sessionExpiresInMs = n.getNumberValue(); },
-        "sessionToken": n => { passwordLoginResultAuthData.sessionToken = n.getStringValue(); },
-        "userId": n => { passwordLoginResultAuthData.userId = n.getStringValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
  * @param PasswordLoginSuccessResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
 export function deserializeIntoPasswordLoginSuccessResult(passwordLoginSuccessResult: Partial<PasswordLoginSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "authData": n => { passwordLoginSuccessResult.authData = n.getObjectValue<PasswordLoginResultAuthData>(createPasswordLoginResultAuthDataFromDiscriminatorValue); },
         "key": n => { passwordLoginSuccessResult.key = n.getStringValue(); },
         "message": n => { passwordLoginSuccessResult.message = n.getStringValue(); },
+        "sessionExpiresAt": n => { passwordLoginSuccessResult.sessionExpiresAt = n.getDateValue(); },
+        "sessionExpiresInMs": n => { passwordLoginSuccessResult.sessionExpiresInMs = n.getNumberValue(); },
+        "sessionToken": n => { passwordLoginSuccessResult.sessionToken = n.getStringValue(); },
+        "userId": n => { passwordLoginSuccessResult.userId = n.getStringValue(); },
     }
 }
 /**
@@ -296,29 +236,18 @@ export function deserializeIntoPasswordRegisterBody(passwordRegisterBody: Partia
 }
 /**
  * The deserialization information for the current model
- * @param PasswordRegisterResultUser The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoPasswordRegisterResultUser(passwordRegisterResultUser: Partial<PasswordRegisterResultUser> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "createdAt": n => { passwordRegisterResultUser.createdAt = n.getDateValue(); },
-        "email": n => { passwordRegisterResultUser.email = n.getStringValue(); },
-        "id": n => { passwordRegisterResultUser.id = n.getStringValue(); },
-        "updatedAt": n => { passwordRegisterResultUser.updatedAt = n.getDateValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
  * @param PasswordRegisterSuccessResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
 export function deserializeIntoPasswordRegisterSuccessResult(passwordRegisterSuccessResult: Partial<PasswordRegisterSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "createdAt": n => { passwordRegisterSuccessResult.createdAt = n.getDateValue(); },
+        "email": n => { passwordRegisterSuccessResult.email = n.getStringValue(); },
+        "id": n => { passwordRegisterSuccessResult.id = n.getStringValue(); },
         "key": n => { passwordRegisterSuccessResult.key = n.getStringValue(); },
         "message": n => { passwordRegisterSuccessResult.message = n.getStringValue(); },
-        "user": n => { passwordRegisterSuccessResult.user = n.getObjectValue<PasswordRegisterResultUser>(createPasswordRegisterResultUserFromDiscriminatorValue); },
+        "updatedAt": n => { passwordRegisterSuccessResult.updatedAt = n.getDateValue(); },
     }
 }
 /**
@@ -339,15 +268,15 @@ export function deserializeIntoProduct(product: Partial<Product> | undefined = {
         "updatedAt": n => { product.updatedAt = n.getDateValue(); },
     }
 }
-export interface InvalidEmailOrPasswordResult extends AdditionalDataHolder, ApiError, Parsable {
+export interface GetUserAuthDataSuccessResult extends AdditionalDataHolder, Parsable {
     /**
-     * The key property
+     * The email property
      */
-    key?: string | null;
+    email?: string | null;
     /**
-     * The message property
+     * The userId property
      */
-    messageEscaped?: string | null;
+    userId?: string | null;
 }
 export interface PasswordLoginBody extends AdditionalDataHolder, Parsable {
     /**
@@ -359,7 +288,15 @@ export interface PasswordLoginBody extends AdditionalDataHolder, Parsable {
      */
     password?: UntypedNode | null;
 }
-export interface PasswordLoginResultAuthData extends AdditionalDataHolder, Parsable {
+export interface PasswordLoginSuccessResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The key property
+     */
+    key?: string | null;
+    /**
+     * The message property
+     */
+    message?: string | null;
     /**
      * The sessionExpiresAt property
      */
@@ -377,20 +314,6 @@ export interface PasswordLoginResultAuthData extends AdditionalDataHolder, Parsa
      */
     userId?: string | null;
 }
-export interface PasswordLoginSuccessResult extends AdditionalDataHolder, Parsable {
-    /**
-     * The authData property
-     */
-    authData?: PasswordLoginResultAuthData | null;
-    /**
-     * The key property
-     */
-    key?: string | null;
-    /**
-     * The message property
-     */
-    message?: string | null;
-}
 export interface PasswordRegisterBody extends AdditionalDataHolder, Parsable {
     /**
      * The email property
@@ -401,7 +324,7 @@ export interface PasswordRegisterBody extends AdditionalDataHolder, Parsable {
      */
     password?: UntypedNode | null;
 }
-export interface PasswordRegisterResultUser extends AdditionalDataHolder, Parsable {
+export interface PasswordRegisterSuccessResult extends AdditionalDataHolder, Parsable {
     /**
      * The createdAt property
      */
@@ -415,12 +338,6 @@ export interface PasswordRegisterResultUser extends AdditionalDataHolder, Parsab
      */
     id?: string | null;
     /**
-     * The updatedAt property
-     */
-    updatedAt?: Date | null;
-}
-export interface PasswordRegisterSuccessResult extends AdditionalDataHolder, Parsable {
-    /**
      * The key property
      */
     key?: string | null;
@@ -429,9 +346,9 @@ export interface PasswordRegisterSuccessResult extends AdditionalDataHolder, Par
      */
     message?: string | null;
     /**
-     * The user property
+     * The updatedAt property
      */
-    user?: PasswordRegisterResultUser | null;
+    updatedAt?: Date | null;
 }
 export interface Product extends AdditionalDataHolder, Parsable {
     /**
@@ -521,29 +438,16 @@ export function serializeCreateTenantStaffSuccessResultTenantData(writer: Serial
 }
 /**
  * Serializes information the current object
- * @param CreateUserFailResponseResult The instance to serialize from.
+ * @param GetUserAuthDataSuccessResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeCreateUserFailResponseResult(writer: SerializationWriter, createUserFailResponseResult: Partial<CreateUserFailResponseResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createUserFailResponseResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("key", createUserFailResponseResult.key);
-    writer.writeStringValue("message", createUserFailResponseResult.messageEscaped);
-    writer.writeAdditionalData(createUserFailResponseResult.additionalData);
-}
-/**
- * Serializes information the current object
- * @param InvalidEmailOrPasswordResult The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeInvalidEmailOrPasswordResult(writer: SerializationWriter, invalidEmailOrPasswordResult: Partial<InvalidEmailOrPasswordResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!invalidEmailOrPasswordResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("key", invalidEmailOrPasswordResult.key);
-    writer.writeStringValue("message", invalidEmailOrPasswordResult.messageEscaped);
-    writer.writeAdditionalData(invalidEmailOrPasswordResult.additionalData);
+export function serializeGetUserAuthDataSuccessResult(writer: SerializationWriter, getUserAuthDataSuccessResult: Partial<GetUserAuthDataSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getUserAuthDataSuccessResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("email", getUserAuthDataSuccessResult.email);
+    writer.writeStringValue("userId", getUserAuthDataSuccessResult.userId);
+    writer.writeAdditionalData(getUserAuthDataSuccessResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -561,30 +465,18 @@ export function serializePasswordLoginBody(writer: SerializationWriter, password
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param PasswordLoginResultAuthData The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializePasswordLoginResultAuthData(writer: SerializationWriter, passwordLoginResultAuthData: Partial<PasswordLoginResultAuthData> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!passwordLoginResultAuthData || isSerializingDerivedType) { return; }
-    writer.writeDateValue("sessionExpiresAt", passwordLoginResultAuthData.sessionExpiresAt);
-    writer.writeNumberValue("sessionExpiresInMs", passwordLoginResultAuthData.sessionExpiresInMs);
-    writer.writeStringValue("sessionToken", passwordLoginResultAuthData.sessionToken);
-    writer.writeStringValue("userId", passwordLoginResultAuthData.userId);
-    writer.writeAdditionalData(passwordLoginResultAuthData.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param PasswordLoginSuccessResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
 export function serializePasswordLoginSuccessResult(writer: SerializationWriter, passwordLoginSuccessResult: Partial<PasswordLoginSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!passwordLoginSuccessResult || isSerializingDerivedType) { return; }
-    writer.writeObjectValue<PasswordLoginResultAuthData>("authData", passwordLoginSuccessResult.authData, serializePasswordLoginResultAuthData);
     writer.writeStringValue("key", passwordLoginSuccessResult.key);
     writer.writeStringValue("message", passwordLoginSuccessResult.message);
+    writer.writeDateValue("sessionExpiresAt", passwordLoginSuccessResult.sessionExpiresAt);
+    writer.writeNumberValue("sessionExpiresInMs", passwordLoginSuccessResult.sessionExpiresInMs);
+    writer.writeStringValue("sessionToken", passwordLoginSuccessResult.sessionToken);
+    writer.writeStringValue("userId", passwordLoginSuccessResult.userId);
     writer.writeAdditionalData(passwordLoginSuccessResult.additionalData);
 }
 /**
@@ -603,30 +495,18 @@ export function serializePasswordRegisterBody(writer: SerializationWriter, passw
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param PasswordRegisterResultUser The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializePasswordRegisterResultUser(writer: SerializationWriter, passwordRegisterResultUser: Partial<PasswordRegisterResultUser> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!passwordRegisterResultUser || isSerializingDerivedType) { return; }
-    writer.writeDateValue("createdAt", passwordRegisterResultUser.createdAt);
-    writer.writeStringValue("email", passwordRegisterResultUser.email);
-    writer.writeStringValue("id", passwordRegisterResultUser.id);
-    writer.writeDateValue("updatedAt", passwordRegisterResultUser.updatedAt);
-    writer.writeAdditionalData(passwordRegisterResultUser.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param PasswordRegisterSuccessResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
 export function serializePasswordRegisterSuccessResult(writer: SerializationWriter, passwordRegisterSuccessResult: Partial<PasswordRegisterSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!passwordRegisterSuccessResult || isSerializingDerivedType) { return; }
+    writer.writeDateValue("createdAt", passwordRegisterSuccessResult.createdAt);
+    writer.writeStringValue("email", passwordRegisterSuccessResult.email);
+    writer.writeStringValue("id", passwordRegisterSuccessResult.id);
     writer.writeStringValue("key", passwordRegisterSuccessResult.key);
     writer.writeStringValue("message", passwordRegisterSuccessResult.message);
-    writer.writeObjectValue<PasswordRegisterResultUser>("user", passwordRegisterSuccessResult.user, serializePasswordRegisterResultUser);
+    writer.writeDateValue("updatedAt", passwordRegisterSuccessResult.updatedAt);
     writer.writeAdditionalData(passwordRegisterSuccessResult.additionalData);
 }
 /**
