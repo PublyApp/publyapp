@@ -32,14 +32,15 @@ public class GetUserAuthData
 
 		if (user == null)
 		{
-			logger.LogDebug("User not found: {@Context}", new
+			logger.LogError("User not found for session: {@Context}", new
 			{
 				UserId = authContext.UserId,
+				SessionToken = authContext.SessionToken
 			});
 			return TypedResults.BadRequest(new AppResponseResult
 			{
-				Message = "User not found",
-				Key = "user-not-found"
+				Message = "Invalid session",
+				Key = "invalid-session"
 			});
 		}
 
