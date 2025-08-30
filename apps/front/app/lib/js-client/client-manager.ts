@@ -7,24 +7,34 @@ import {
 import { FetchRequestAdapter } from '@microsoft/kiota-http-fetchlibrary';
 import { type ApiClient, createApiClient } from '@org/js-client/src/apiClient';
 import { SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
+import { env } from '../env';
 
+/**
+ * Singleton manager for the API clients
+ */
 class ClientManager {
 	private static _instance: ClientManager;
+
+	private static _anonymousClient: ApiClient;
 
 	private static _apiClient: ApiClient;
 
 	get apiClient() {
-		if (!ClientManager._apiClient) {
-			ClientManager._apiClient = this.createApiClient();
-		}
 		return ClientManager._apiClient;
+	}
+
+	get anonymousClient() {
+		return ClientManager._anonymousClient;
 	}
 
 	setApiClient(apiClient: ApiClient) {
 		ClientManager._apiClient = apiClient;
 	}
 
-	private constructor() {}
+	private constructor() {
+		ClientManager._anonymousClient = this.createApiClient();
+		ClientManager._apiClient = ClientManager._anonymousClient;
+	}
 
 	public static getInstance() {
 		if (!ClientManager._instance) {
@@ -45,6 +55,7 @@ class ClientManager {
 			authProvider = new AnonymousAuthenticationProvider();
 		}
 		const adapter = new FetchRequestAdapter(authProvider);
+		adapter.baseUrl = env.VITE_ASP_SERVER_URL;
 		const apiClient = createApiClient(adapter);
 		return apiClient;
 	}

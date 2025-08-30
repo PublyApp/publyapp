@@ -4,6 +4,8 @@ using FluentValidation;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
 using MainApi.Src.Features.Common.Auth.Handlers.PasswordRegister;
+using MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
+using Microsoft.OpenApi.Models;
 
 public static class AuthEndpoint
 {
@@ -22,6 +24,10 @@ public static class AuthEndpoint
 			.WithName("RegisterWithEmailAndPassword")
 			.WithSummary("Password Register")
 			.WithBodyValidation<PasswordRegisterBody>();
+
+		group.MapGet("/user-auth-data", GetUserAuthData.HandleGetUserAuthData)
+			.WithName("GetUserAuthData")
+			.WithSummary("Get User Auth Data");
 
 		return group;
 	}

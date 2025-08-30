@@ -54,54 +54,17 @@ public class PasswordRegisterResultUser
 
 public class PasswordRegisterSuccessResult : AppResponseResult
 {
-	public new string Message { get; set; } = "Registration successful";
-	public new string Key { get; set; } = "registration-successful";
-
-	public PasswordRegisterResultUser User { get; set; } = new();
-
-	public static PasswordRegisterSuccessResult GetApiResponse(User user, string? message = null, string? key = null)
-	{
-		var result = new PasswordRegisterSuccessResult
-		{
-			User = new PasswordRegisterResultUser
-			{
-				Id = user.Id ?? throw new Exception("Id is null"),
-				Email = user.Email ?? throw new Exception("Email is null"),
-				CreatedAt = user.CreatedAt ?? throw new Exception("CreatedAt is null"),
-				UpdatedAt = user.UpdatedAt ?? throw new Exception("UpdatedAt is null"),
-			}
-		};
-
-		if (!string.IsNullOrEmpty(message))
-		{
-			result.Message = message;
-		}
-
-		if (!string.IsNullOrEmpty(key))
-		{
-			result.Key = key;
-		}
-
-		return result;
-	}
-}
-
-public class PasswordRegisterFailResult : AppResponseResult
-{
-	public new string Message { get; set; } = "Failed to register user";
-	public new string Key { get; set; } = "failed-to-register-user";
-}
-
-public class CreateUserFailResponseResult : PasswordRegisterFailResult
-{
+	public string Id { get; set; } = string.Empty;
+	public string Email { get; set; } = string.Empty;
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public static class PasswordRegister
 {
 	public static async Task<Results<
 	Ok<PasswordRegisterSuccessResult>,
-	BadRequest<PasswordRegisterFailResult>,
-	BadRequest<CreateUserFailResponseResult>
+	BadRequest<AppResponseResult>
 	>> HandlePasswordRegister(
 		[FromBody] PasswordRegisterBody registerBody,
 		[FromServices] IUserService userService
@@ -120,7 +83,7 @@ public static class PasswordRegister
 
 		if (createUserResult is CreateUserResult.Failure failure)
 		{
-			var failureResponseResult = new CreateUserFailResponseResult
+			var failureResponseResult = new AppResponseResult
 			{
 				Message = failure.Message,
 				Key = failure.Key
@@ -130,11 +93,21 @@ public static class PasswordRegister
 
 		if (createUserResult is CreateUserResult.Success success)
 		{
-			return TypedResults.Ok(PasswordRegisterSuccessResult.GetApiResponse(success.User));
+			return TypedResults.Ok(new PasswordRegisterSuccessResult
+			{
+				Id = success.User.Id ?? throw new Exception("Id is null"),
+				Email = success.User.Email ?? throw new Exception("Email is null"),
+				CreatedAt = success.User.CreatedAt ?? throw new Exception("CreatedAt is null"),
+				UpdatedAt = success.User.UpdatedAt ?? throw new Exception("UpdatedAt is null"),
+			});
 		}
 
 		// This should never happen with proper discriminated unions
 		// but good to have as fallback
-		return TypedResults.BadRequest(new PasswordRegisterFailResult { });
+		return TypedResults.BadRequest(new AppResponseResult
+		{
+			Message = "Failed to register user",
+			Key = "failed-to-register-user"
+		});
 	}
 }

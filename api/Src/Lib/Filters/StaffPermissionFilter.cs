@@ -38,12 +38,7 @@ public class StaffPermissionFilter : IEndpointFilter
 
 		if (accountStaff == null)
 		{
-			logger.LogError($"{nameof(AuthContext.AccountStaff)} is null. {nameof(StaffAuthMiddleware)} must be passed before {nameof(StaffPermissionFilter)}");
-			return TypedResults.InternalServerError(new
-			{
-				message = "Internal server error",
-				key = "internal-server-error",
-			});
+			throw new Exception("StaffPermissionFilter must be set behind StaffAuthMiddleware.");
 		}
 
 		// if user is not admin, check user permissions

@@ -2,16 +2,15 @@ import * as cookie from 'cookie';
 import type { i18n as I18n } from 'i18next';
 import _ from 'lodash';
 import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
-import { ApiClient, defaultApiClient } from '@/parse-api-client/ApiClient';
+import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import {
 	APP_ID,
 	endPoint,
 	LOCALE_HEADER_KEY,
-	REMIX_CLIENT_IP_HEADER_KEY,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
-import type { AppLocale } from '@/shared/lib/i18n/resources';
 import { env } from './env';
+import { clientManager } from './js-client/client-manager';
 
 const parseRestClient = new ParseRestClient({
 	applicationId: APP_ID,
@@ -34,28 +33,29 @@ export const initApiClientOnClient = (i18n: I18n) => {
 };
 
 export const initApiClientOnServer = ({
-	locale,
+	// locale,
 	sessionToken,
-	requestIp,
+	// requestIp,
 }: {
-	locale: AppLocale;
+	// locale: AppLocale;
 	sessionToken?: string;
-	requestIp?: string | null;
+	// requestIp?: string | null;
 }) => {
 	// set locale header
-	parseRestClient.setHeader(LOCALE_HEADER_KEY, locale);
+	// parseRestClient.setHeader(LOCALE_HEADER_KEY, locale);
 
-	const apiClient = new ApiClient({
-		parseRestClient,
-	});
+	// const apiClient = new ApiClient({
+	// 	parseRestClient,
+	// });
+	const apiClient = clientManager.createApiClient(sessionToken);
 
-	if (sessionToken) {
-		apiClient.parseRestClient.setSessionToken(decodeURIComponent(sessionToken));
-	}
+	// if (sessionToken) {
+	// 	apiClient.parseRestClient.setSessionToken(decodeURIComponent(sessionToken));
+	// }
 
-	if (requestIp) {
-		apiClient.parseRestClient.setHeader(REMIX_CLIENT_IP_HEADER_KEY, requestIp);
-	}
+	// if (requestIp) {
+	// 	apiClient.parseRestClient.setHeader(REMIX_CLIENT_IP_HEADER_KEY, requestIp);
+	// }
 
 	return apiClient;
 };

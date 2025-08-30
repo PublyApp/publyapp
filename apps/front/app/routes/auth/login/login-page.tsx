@@ -34,7 +34,24 @@ export const action = getServerAction({
 		const email = formData.get('email');
 		const password = formData.get('password');
 
-		const passwordLogin = safeRun(apiClient.auth.passwordLogin);
+		// const passwordLogin = safeRun(apiClient.auth.passwordLogin);
+		const passwordLogin = safeRun(
+			async ({ email, password }: { email: string; password: string }) => {
+				return apiClient.auth.login.post({
+					email: {
+						getValue() {
+							return email;
+						},
+					},
+					password: {
+						getValue() {
+							return password;
+						},
+					},
+				});
+			},
+		);
+
 		const loginResult = await passwordLogin({ email, password } as never);
 
 		if (loginResult.status === 'error') {
@@ -45,22 +62,40 @@ export const action = getServerAction({
 
 		const resHeaders = new Headers();
 
+		const cookieOptions = {
+			expires: loginResult.data?.authData?.sessionExpiresAt || new Date(),
+			maxAge: dayjs(loginResult.data?.authData?.sessionExpiresAt).diff(
+				dayjs(),
+				'days',
+			),
+		};
+
+		const sessionToken = loginResult.data?.authData?.sessionToken || '';
+
+		console.log('👍👍👍👍', cookieOptions, {
+			sessionToken,
+		});
+
 		const sessionTokenCookie = cookie.serialize(
 			SESSION_TOKEN_COOKIE_KEY,
-			loginResult.data.sessionToken,
-			{
-				expires: dayjs().add(3, 'day').toDate(),
-				maxAge: duration.toSeconds('3d'),
-			},
+			// loginResult.data.sessionToken,
+			sessionToken,
+			cookieOptions,
+			// {
+			// 	// expires: dayjs().add(3, 'day').toDate(),
+			// 	// maxAge: duration.toSeconds('3d'),
+			// },
 		);
 		resHeaders.append('Set-Cookie', sessionTokenCookie);
 
-		apiClient.parseRestClient.setSessionToken(loginResult.data.sessionToken);
+		// apiClient.parseRestClient.setSessionToken(sessionToken);
 
 		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
-		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
+		// @ts-ignore
+		const _tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
-		const { code } = await apiClient.auth.getRedirectCode({ tenantId });
+		// const { code } = await apiClient.auth.getRedirectCode({ tenantId });
+		const code = 'staff'; // TODO: implement getRedirectCode in the ASP back-end
 
 		let redirectPath = makePath(code);
 
