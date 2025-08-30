@@ -3,13 +3,15 @@ import {
 	createQuery,
 	createSuspenseQuery,
 } from 'react-query-kit';
+import { clientManager } from '@/front/lib/js-client/client-manager';
 import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import { functionName } from '@/shared/lib/constants';
 
 export const useGetUserAuthData = createSuspenseQuery({
 	queryKey: [functionName.auth.getUserAuthData] as const,
 	fetcher: async () => {
-		return defaultApiClient.auth.getUserAuthData();
+		// return defaultApiClient.auth.getUserAuthData();
+		return clientManager.apiClient.auth.getUserAuthData();
 	},
 });
 

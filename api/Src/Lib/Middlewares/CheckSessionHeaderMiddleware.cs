@@ -49,7 +49,8 @@ public static class CheckSessionHeaderMiddlewareExtensions
 	private static bool ShouldUseSessionHeaderCheck(HttpContext context)
 	{
 		return context.Request.Path.StartsWithSegments("/staff")
-				|| context.Request.Path.StartsWithSegments("/tenant");
+			|| context.Request.Path.StartsWithSegments("/tenant")
+			|| context.Request.Path.StartsWithSegments("/user-auth-data");
 	}
 
 	private static void ConfigureSessionHeaderCheck(IApplicationBuilder builder)

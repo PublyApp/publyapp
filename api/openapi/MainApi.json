@@ -36,7 +36,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/components/schemas/InvalidEmailOrPasswordResult"
+									"$ref": "#/components/schemas/AppResponseResult"
 								}
 							}
 						}
@@ -75,7 +75,36 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/components/schemas/CreateUserFailResponseResult"
+									"$ref": "#/components/schemas/AppResponseResult"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/user-auth-data": {
+			"get": {
+				"tags": ["Auth"],
+				"summary": "Get User Auth Data",
+				"operationId": "GetUserAuthData",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/GetUserAuthDataSuccessResult"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Bad Request",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/AppResponseResult"
 								}
 							}
 						}
@@ -273,24 +302,13 @@
 					}
 				}
 			},
-			"CreateUserFailResponseResult": {
+			"GetUserAuthDataSuccessResult": {
 				"type": "object",
 				"properties": {
-					"message": {
+					"userId": {
 						"type": "string"
 					},
-					"key": {
-						"type": "string"
-					}
-				}
-			},
-			"InvalidEmailOrPasswordResult": {
-				"type": "object",
-				"properties": {
-					"message": {
-						"type": "string"
-					},
-					"key": {
+					"email": {
 						"type": "string"
 					}
 				}
@@ -307,7 +325,7 @@
 					}
 				}
 			},
-			"PasswordLoginResultAuthData": {
+			"PasswordLoginSuccessResult": {
 				"type": "object",
 				"properties": {
 					"userId": {
@@ -323,20 +341,12 @@
 					"sessionExpiresInMs": {
 						"type": "number",
 						"format": "double"
-					}
-				}
-			},
-			"PasswordLoginSuccessResult": {
-				"type": "object",
-				"properties": {
+					},
 					"message": {
 						"type": "string"
 					},
 					"key": {
 						"type": "string"
-					},
-					"authData": {
-						"$ref": "#/components/schemas/PasswordLoginResultAuthData"
 					}
 				}
 			},
@@ -351,7 +361,7 @@
 					}
 				}
 			},
-			"PasswordRegisterResultUser": {
+			"PasswordRegisterSuccessResult": {
 				"type": "object",
 				"properties": {
 					"id": {
@@ -367,20 +377,12 @@
 					"updatedAt": {
 						"type": "string",
 						"format": "date-time"
-					}
-				}
-			},
-			"PasswordRegisterSuccessResult": {
-				"type": "object",
-				"properties": {
+					},
 					"message": {
 						"type": "string"
 					},
 					"key": {
 						"type": "string"
-					},
-					"user": {
-						"$ref": "#/components/schemas/PasswordRegisterResultUser"
 					}
 				}
 			},

@@ -28,7 +28,7 @@ export const checkParseHeaders = expressHandler(async (req, _res, next) => {
 	if (!_.isNil(contextHeader)) {
 		try {
 			contextHeader = JSON.parse(contextHeader);
-		} catch (e) {
+		} catch (_e) {
 			throw new HttpException(400, t('Invalid object for context.'));
 		}
 		if (!_.isObject(contextHeader)) {
