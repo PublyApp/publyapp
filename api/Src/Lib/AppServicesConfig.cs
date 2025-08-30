@@ -31,6 +31,14 @@ public static class AppServicesConfig
 
 	public static IHostApplicationBuilder AddServices(this IHostApplicationBuilder builder)
 	{
+		builder.Services.AddCors(options =>
+		{
+			options.AddDefaultPolicy(
+					policy =>
+					{
+						policy.WithOrigins(AppEnvironment.FRONT_URL);
+					});
+		});
 		// builder.Services.AddProblemDetails();
 
 		// Configure strongly-typed settings

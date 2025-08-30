@@ -64,7 +64,8 @@ export const createCSPDirectives = ({
 		];
 		baseDirectives.connectSrc = [
 			...(baseDirectives.connectSrc || []),
-			'http://localhost:6180', // express server address
+			'http://localhost:5077', // ASP server address
+			'http://localhost:6180', // express server address // ! TODO: remove once migration to ASP completed
 			'http://localhost:6181', // vite server address
 			'ws:',
 			'wss:',
