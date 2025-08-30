@@ -1,10 +1,10 @@
+import _ from 'lodash';
 import {
 	PARSE_APPLICATION_ID_HEADER_KEY,
 	PARSE_CONTEXT_HEADER_KEY,
 } from '@/shared/lib/constants';
-import { expressHandler, getHeader, getRequestUtils } from '../lib/express';
-import _ from 'lodash';
 import { HttpException } from '../exceptions/HttpException';
+import { expressHandler, getHeader, getRequestUtils } from '../lib/express';
 
 /**
  * Check the headers to match Parse Server requirements
