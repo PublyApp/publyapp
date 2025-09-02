@@ -1,6 +1,5 @@
+import { tryCatchWrapper } from '@org/shared/utils/try-catch';
 import _ from 'lodash';
-
-import { tryCatchWrapper } from '@org/shared/utils/try-catch.utils';
 
 type SafeRunFunction<F extends GenericFunction> = (
 	...args: Parameters<F>
@@ -36,12 +35,20 @@ export const safeRun = <F extends GenericFunction>(
 		onError: (err) => {
 			let error: Error = new Error('Unknown error');
 
-			if (!error) {
-				// do nothing
-			}
-
 			if (err instanceof Error) {
 				error = err;
+			} else if (_.isObject(err)) {
+				if (_.has(err, 'messageEscaped')) {
+					// for Kiota client errors
+					error = new Error(err.messageEscaped);
+				} else if (_.has(err, 'message')) {
+					error = new Error(err.message);
+				} else {
+					error = new Error(JSON.stringify(err));
+				}
+				_.entries(err).forEach(([key, value]) => {
+					_.set(error, key, value);
+				});
 			} else {
 				error = new Error(String(err));
 			}
