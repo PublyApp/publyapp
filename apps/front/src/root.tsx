@@ -2,10 +2,8 @@ import './styles/main.css';
 
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import { QueryClientProvider } from '@tanstack/react-query';
-import i18next, { type TFunction } from 'i18next';
 import _ from 'lodash';
 import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
 	isRouteErrorResponse,
@@ -14,40 +12,21 @@ import {
 	Outlet,
 	Scripts,
 	ScrollRestoration,
-	useNavigate,
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
-
-import {
-	APP_NAME,
-	isServer,
-	queryParamValue,
-} from '@org/shared-ts/lib/constants';
 import { NotFoundView, View403, View500 } from '@/front/components/error';
+import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
 import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
-
+import { APP_NAME } from '@/shared/lib/constants';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
 import View400 from './components/error/400-view';
 import { ProgressBar } from './components/progress-bar';
 import { Snackbar } from './components/snackbar/snackbar';
-import { useNonce } from './hooks/use-nonce-context';
-import { logout } from './lib/cookies/logout.utils';
-import { LocalizationProvider } from './lib/locales/localization-provider';
+import { useNonce } from './hooks/use-nonce';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
-import { getQueryClient } from './lib/react-query/query-client';
-import { setGlobalNavigate } from './lib/react-router/navigation-helper';
+import { defaultQueryClient } from './lib/react-query/query-client';
 import { getServerLoader } from './lib/react-router/server-data.server';
-
-const getPageTitle = (t: TFunction, seo?: boolean) => {
-	let str: string = _.capitalize(t('social-media-management-platform'));
-
-	if (seo) {
-		str = `${APP_NAME} | ${str}`;
-	}
-
-	return str;
-};
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -64,65 +43,24 @@ export const links: Route.LinksFunction = () => {
 	];
 };
 
-export const meta = (args: Route.MetaArgs) => {
-	if (isServer) {
-		return _.get(args.loaderData, 'meta', []);
-	}
-
-	const t: TFunction = i18next.t;
+export const meta: Route.MetaFunction = () => {
+	// const isDevelopment = import.meta.env.DEV;
 
 	return [
-		{ title: getPageTitle(t, true) },
-		{
-			name: 'description',
-			content: getPageTitle(t, true),
-		},
+		{ title: APP_NAME },
+		{ name: 'description', content: 'PDF Vite Application' },
 	];
 };
 
 export const loader = getServerLoader({
-	loader: async ({ locale, z }) => {
-		const t = z.t;
-
-		return {
-			locale,
-			meta: [
-				{ title: getPageTitle(t, true) },
-				{
-					name: 'description',
-					content: getPageTitle(t, true),
-				},
-			],
-		};
+	loader: async ({ locale }) => {
+		return { locale };
 	},
 });
-
-/**
- * Get QueryClient with proper SSR/browser handling.
- * - Server: creates fresh client per request (no onAuthError - logout doesn't make sense on server)
- * - Browser: singleton with onAuthError for centralized 401 handling
- */
-const getRootQueryClient = () => {
-	// On server, getQueryClient() creates a fresh client per call (no caching)
-	if (isServer) {
-		return getQueryClient();
-	}
-
-	// On browser, use singleton with auth error handling
-	return getQueryClient({
-		onAuthError: () => {
-			logout({
-				redirectCause:
-					queryParamValue.login_page.redirect_cause.invalid_session,
-			});
-		},
-	});
-};
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
 	const nonce = useNonce();
-	const queryClient = getRootQueryClient();
 
 	return (
 		<html lang={i18n.language} dir={i18n.dir()} suppressHydrationWarning>
@@ -139,17 +77,15 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 					attribute="[data-color-scheme='%s']"
 					nonce={nonce}
 				/>
-				<QueryClientProvider client={queryClient}>
-					<LocalizationProvider>
-						<MuiThemeProvider>
-							<MotionLazy>
-								<Snackbar />
-								<ProgressBar />
-								<SettingsDrawer defaultSettings={defaultSettings} />
-								{children}
-							</MotionLazy>
-						</MuiThemeProvider>
-					</LocalizationProvider>
+				<QueryClientProvider client={defaultQueryClient}>
+					<MuiThemeProvider>
+						<MotionLazy>
+							<Snackbar />
+							<ProgressBar />
+							<SettingsDrawer defaultSettings={defaultSettings} />
+							{children}
+						</MotionLazy>
+					</MuiThemeProvider>
 				</QueryClientProvider>
 				<ScrollRestoration nonce={nonce} />
 				<Scripts nonce={nonce} />
@@ -160,14 +96,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
 const App = ({ loaderData }: Route.ComponentProps) => {
 	const { locale } = loaderData;
-	const navigate = useNavigate();
-
-	// Set up global navigate for use outside React components (e.g., logout)
-	// Use effect to avoid side-effects during render + avoid SSR global mutations.
-	useEffect(() => {
-		if (isServer) return;
-		setGlobalNavigate(navigate);
-	}, [navigate]);
 
 	// This hook will change the i18n instance language to the current locale
 	// detected by the loader, this way, when we do something to change the
@@ -202,9 +130,9 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		}
 	}
 
-	// if (import.meta.env.DEV) {
-	// 	return <TemplateErrorBoundary error={error} />;
-	// }
+	if (import.meta.env.DEV) {
+		return <TemplateErrorBoundary error={error} />;
+	}
 
 	return <View500 />;
 };
