@@ -2,6 +2,7 @@ import * as cookie from 'cookie';
 import type { i18n as I18n } from 'i18next';
 import _ from 'lodash';
 import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
+import type { ApiClient } from '@/js-client/src/apiClient';
 import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import {
 	APP_ID,
@@ -12,24 +13,32 @@ import {
 import { env } from './env';
 import { clientManager } from './js-client/client-manager';
 
-const parseRestClient = new ParseRestClient({
-	applicationId: APP_ID,
-	parseServerUrl: env.VITE_SERVER_URL + endPoint.api.parse.root,
-});
+// const parseRestClient = new ParseRestClient({
+// 	applicationId: APP_ID,
+// 	parseServerUrl: env.VITE_SERVER_URL + endPoint.api.parse.root,
+// });
 
-export const initApiClientOnClient = (i18n: I18n) => {
-	defaultApiClient.setRestClient(parseRestClient);
+export const initApiClientOnClient = (/* i18n: I18n */) => {
+	// defaultApiClient.setRestClient(parseRestClient);
 
 	const browserCookies = cookie.parse(document.cookie);
 	const sessionToken = decodeURIComponent(
 		_.get(browserCookies, SESSION_TOKEN_COOKIE_KEY) || '',
 	);
 
-	defaultApiClient.parseRestClient.setSessionToken(sessionToken);
-	defaultApiClient.parseRestClient.setHeader(LOCALE_HEADER_KEY, i18n.language);
+	// defaultApiClient.parseRestClient.setSessionToken(sessionToken);
+	// defaultApiClient.parseRestClient.setHeader(LOCALE_HEADER_KEY, i18n.language);
 	// TODO: set last used tenant id header too
 
-	return defaultApiClient;
+	// return defaultApiClient;
+	// let apiClient: ApiClient;
+
+	if (!_.isNil(sessionToken) && !_.isEmpty(sessionToken)) {
+		const apiClient = clientManager.createApiClient(sessionToken);
+		clientManager.setApiClient(apiClient);
+	}
+
+	return clientManager.apiClient;
 };
 
 export const initApiClientOnServer = ({

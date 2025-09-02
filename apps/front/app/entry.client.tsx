@@ -11,7 +11,7 @@ import { initZodOnClient } from './lib/zod/zod.client';
 const hydrate = async () => {
 	const i18n = await initI18nOnClient();
 	initZodOnClient(i18n);
-	initApiClientOnClient(i18n);
+	initApiClientOnClient(/* i18n */);
 
 	// Get nonce from meta tag or generate a fallback
 	const nonceMeta = document.querySelector('meta[name="csp-nonce"]');

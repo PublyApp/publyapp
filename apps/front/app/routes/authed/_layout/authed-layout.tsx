@@ -12,9 +12,11 @@ import {
 } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 import { View500 } from '@/front/components/error';
+import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
 import { SplashScreen } from '@/front/components/loading-screen';
 import type { SettingsState } from '@/front/components/settings';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
+import { initApiClientOnClient } from '@/front/lib/api';
 import {
 	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
@@ -25,7 +27,6 @@ import {
 } from '@/front/lib/react-query/features/auth/auth.hooks';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { useMainStore } from '@/front/lib/zustand/store';
-import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import {
 	FRONT_PATH_NAMES,
 	queryParamKey,
@@ -39,16 +40,17 @@ import type { Route } from './+types/authed-layout';
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
 		const browserCookies = cookie.parse(document.cookie);
-
-		let sessionToken = _.get(browserCookies, SESSION_TOKEN_COOKIE_KEY);
+		const sessionToken = _.get(browserCookies, SESSION_TOKEN_COOKIE_KEY);
 
 		if (!sessionToken) {
 			throw redirect(FRONT_PATH_NAMES.auth.login); // redirect to login
 		}
 
-		sessionToken = decodeURIComponent(sessionToken);
-
-		defaultApiClient.parseRestClient.setSessionToken(sessionToken);
+		initApiClientOnClient();
+		// sessionToken = decodeURIComponent(sessionToken);
+		// // defaultApiClient.parseRestClient.setSessionToken(sessionToken);
+		// const apiClient = clientManager.createApiClient(sessionToken);
+		// clientManager.setApiClient(apiClient);
 
 		const sideBarCookie = _.get(browserCookies, SIDEBAR_COOKIE_NAME);
 
@@ -115,6 +117,10 @@ export const ErrorBoundary = (_: Route.ErrorBoundaryProps) => {
 			// navigate(`${url.pathname}${url.search}`);
 			return <Navigate to={`${url.pathname}${url.search}`} />;
 		}
+	}
+
+	if (import.meta.env.DEV) {
+		return <TemplateErrorBoundary error={error} />;
 	}
 
 	// else, show the error page

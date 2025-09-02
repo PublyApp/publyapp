@@ -9,6 +9,7 @@ using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Data.MongoDb;
 using MainApi.Src.Features.Staff.Tenant;
+using Microsoft.Extensions.Options;
 
 public static class AppServicesConfig
 {
@@ -31,14 +32,6 @@ public static class AppServicesConfig
 
 	public static IHostApplicationBuilder AddServices(this IHostApplicationBuilder builder)
 	{
-		builder.Services.AddCors(options =>
-		{
-			options.AddDefaultPolicy(
-					policy =>
-					{
-						policy.WithOrigins(AppEnvironment.FRONT_URL);
-					});
-		});
 		// builder.Services.AddProblemDetails();
 
 		// Configure strongly-typed settings
@@ -46,6 +39,21 @@ public static class AppServicesConfig
 			.Bind(builder.Configuration.GetSection("AppSettings"))
 			.ValidateDataAnnotations()
 			.ValidateOnStart(); // This will validate at startup
+
+		builder.Services.AddCors(options =>
+		{
+			options.AddDefaultPolicy(
+					policy =>
+					{
+						policy
+							.WithOrigins(AppEnvironment.FRONT_URL)
+							.WithHeaders(
+								builder.Services.BuildServiceProvider()
+									.GetRequiredService<IOptions<AppSettings>>()
+									.Value.SESSION_TOKEN_HEADER_KEY
+							);
+					});
+		});
 
 		// Add services to the container.
 		// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
