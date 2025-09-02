@@ -7,7 +7,6 @@ import i18next, { type TFunction } from 'i18next';
 import capitalize from 'lodash/capitalize';
 import get from 'lodash/get';
 import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
-import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
 	isRouteErrorResponse,
@@ -16,7 +15,6 @@ import {
 	Outlet,
 	Scripts,
 	ScrollRestoration,
-	useNavigate,
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
 
@@ -46,8 +44,7 @@ import { LocalizationProvider } from './lib/locales/localization-provider';
 import { createTheme } from './lib/mui/theme/create-theme';
 import { themeConfig } from './lib/mui/theme/theme-config';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
-import { getQueryClient } from './lib/react-query/query-client';
-import { setGlobalNavigate } from './lib/react-router/navigation-helper';
+import { defaultQueryClient } from './lib/react-query/query-client';
 import { getServerLoader } from './lib/react-router/server-data.server';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
@@ -92,28 +89,14 @@ export const meta = (args: Route.MetaArgs) => {
 	const t: TFunction = i18next.t;
 
 	return [
-		{ title: getPageTitle(t, true) },
-		{
-			name: 'description',
-			content: getPageTitle(t, true),
-		},
+		{ title: APP_NAME },
+		{ name: 'description', content: 'PDF Vite Application' },
 	];
 };
 
 export const loader = getServerLoader({
-	loader: async ({ locale, z }) => {
-		const t = z.t;
-
-		return {
-			locale,
-			meta: [
-				{ title: getPageTitle(t, true) },
-				{
-					name: 'description',
-					content: getPageTitle(t, true),
-				},
-			],
-		};
+	loader: async ({ locale }) => {
+		return { locale };
 	},
 });
 
@@ -165,7 +148,6 @@ const getColorSchemeBootstrapScript = () => {
 export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
 	const nonce = useNonce();
-	const queryClient = getRootQueryClient();
 
 	return (
 		<html lang={i18n.language} dir={i18n.dir()} suppressHydrationWarning>
@@ -196,17 +178,15 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 					modeStorageKey={COLOR_SCHEME_STORAGE_KEY}
 					nonce={nonce}
 				/>
-				<QueryClientProvider client={queryClient}>
-					<LocalizationProvider>
-						<MuiThemeProvider>
-							<MotionLazy>
-								<Snackbar />
-								<ProgressBar />
-								<SettingsDrawer defaultSettings={defaultSettings} />
-								{children}
-							</MotionLazy>
-						</MuiThemeProvider>
-					</LocalizationProvider>
+				<QueryClientProvider client={defaultQueryClient}>
+					<MuiThemeProvider>
+						<MotionLazy>
+							<Snackbar />
+							<ProgressBar />
+							<SettingsDrawer defaultSettings={defaultSettings} />
+							{children}
+						</MotionLazy>
+					</MuiThemeProvider>
 				</QueryClientProvider>
 				<ScrollRestoration nonce={nonce} />
 				<Scripts nonce={nonce} />
@@ -217,14 +197,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
 const App = ({ loaderData }: Route.ComponentProps) => {
 	const { locale } = loaderData;
-	const navigate = useNavigate();
-
-	// Set up global navigate for use outside React components (e.g., logout)
-	// Use effect to avoid side-effects during render + avoid SSR global mutations.
-	useEffect(() => {
-		if (isServer) return;
-		setGlobalNavigate(navigate);
-	}, [navigate]);
 
 	// This hook will change the i18n instance language to the current locale
 	// detected by the loader, this way, when we do something to change the
@@ -259,9 +231,9 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		}
 	}
 
-	// if (import.meta.env.DEV) {
-	// 	return <TemplateErrorBoundary error={error} />;
-	// }
+	if (import.meta.env.DEV) {
+		return <TemplateErrorBoundary error={error} />;
+	}
 
 	return <View500 />;
 };
