@@ -75,13 +75,11 @@ public class PasswordLoginSuccessResult : AppResponseResult
 	public double SessionExpiresInMs { get; set; }
 }
 
-public static class PasswordLogin
+public class PasswordLogin
 {
 	public static async Task<Results<
 	Ok<PasswordLoginSuccessResult>,
 	BadRequest<AppResponseResult>
-	// BadRequest<PasswordLoginFailResult>,
-	// BadRequest<InvalidEmailOrPasswordResult>
 	>> HandlePasswordLogin(
 		[FromBody] PasswordLoginBody loginBody,
 		[FromServices] IUserService userService,
