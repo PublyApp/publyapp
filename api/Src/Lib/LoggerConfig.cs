@@ -1,5 +1,6 @@
 using Serilog;
 using Serilog.Events;
+using Serilog.Sinks.SystemConsole.Themes;
 
 namespace MainApi.Src.Lib;
 
@@ -47,7 +48,11 @@ public static class LoggerConfigExtensions
 			{
 				loggerConfig
 					.MinimumLevel.Debug()
-					.WriteTo.Console()
+					.WriteTo.Console(
+						theme: AnsiConsoleTheme.Code,
+						// outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}",
+						applyThemeToRedirectedOutput: true
+						)
 					.WriteTo.Async(writeTo => writeTo.Logger(l => l
 						.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Debug)
 						.WriteTo.File(
@@ -66,7 +71,9 @@ public static class LoggerConfigExtensions
 							e.Level == LogEventLevel.Information &&
 							e.Properties.ContainsKey("SourceContext") &&
 							e.Properties["SourceContext"].ToString().Contains("Microsoft.Hosting"))
-						.WriteTo.Console());
+						.WriteTo.Console(
+							theme: AnsiConsoleTheme.Literate,
+							applyThemeToRedirectedOutput: true));
 			}
 		});
 
