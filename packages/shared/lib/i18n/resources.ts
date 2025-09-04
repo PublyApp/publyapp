@@ -1,6 +1,6 @@
 // ! WARNING!: never import this file on any client-side/browser code
 // ! because it will be costly in term of loading time/size/performance
-// ! you should only import types from this files on client-side/browser code
+// ! only types should be imported from this file when working in client-side/browser code
 
 // Import here your languages
 import en from './locales/en';
