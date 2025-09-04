@@ -1,4 +1,4 @@
-import type { PipelineStage } from 'mongoose';
+import { type PipelineStage as MongoosePipelineStage } from 'mongoose';
 
 import type { AppLocale } from '../lib/i18n/resources';
 import type { DateType } from '../types/date.types';
@@ -11,12 +11,12 @@ declare global {
 			updatedAt?: DateType;
 		}
 
-		export type PipelineStage = PipelineStage;
+		export type PipelineStage = MongoosePipelineStage;
 
 		export type OmitBaseAttributes<T> = Omit<T, keyof BaseAttributes>;
 
 		namespace Cloud {
-			interface FunctionRequest<T extends Params = Params> {
+			interface FunctionRequest<_T extends Params = Params> {
 				// biome-ignore lint/suspicious/noExplicitAny: safe to use any here
 				headers: Record<string, any> | undefined;
 				ip?: string | undefined;
@@ -91,8 +91,6 @@ declare global {
 			interface BatchOptions {
 				context?: ContextOptions;
 			}
-
-			// TODO: add ContextOptions to more operations
 		}
 	}
 }
