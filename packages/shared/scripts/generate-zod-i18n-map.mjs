@@ -8,20 +8,34 @@ const __dirname = path.dirname(__filename);
 
 const supportedLanguages = ['en', 'fr'];
 
-for (const language of supportedLanguages) {
-	const zod = await import(`zod-i18n-map/locales/${language}/zod.json`, {
-		with: { type: 'json' },
-	});
-	const zodData = zod.default;
-	_.set(
-		zodData,
-		'errors.invalid_type_with_path',
-		'{{path}} is expected {{expected}}, received {{received}}',
-	);
+console.log('Generating zod i18n maps...');
 
-	const outputPath = path.join(
-		__dirname,
-		`../lib/i18n/json/zod.${language}.json`,
-	);
-	fs.writeFileSync(outputPath, JSON.stringify(zodData, null, '\t'));
+for (const language of supportedLanguages) {
+	console.log(`Processing ${language}...`);
+
+	try {
+		const zod = await import(`zod-i18n-map/locales/${language}/zod.json`, {
+			with: { type: 'json' },
+		});
+		const zodData = zod.default;
+
+		_.set(
+			zodData,
+			'errors.invalid_type_with_path',
+			'{{path}} is expected {{expected}}, received {{received}}',
+		);
+
+		const outputPath = path.join(
+			__dirname,
+			`../lib/i18n/json/zod.${language}.json`,
+		);
+
+		fs.writeFileSync(outputPath, `${JSON.stringify(zodData, null, '\t')}\n`);
+		console.log(`✓ Generated zod.${language}.json`);
+	} catch (error) {
+		console.error(`Error processing ${language}:`, error.message);
+		throw error;
+	}
 }
+
+console.log('Done!');
