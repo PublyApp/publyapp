@@ -25,6 +25,13 @@ type Join<
 
 type Previous = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, ...0[]];
 
+/*
+ * Recursively generates dot-separated paths of an object's keys up to a specified depth.
+ *
+ * @param TEntity: the object type to extract paths from
+ * @param TDepth: maximum recursion depth (default: 3)
+ * @param TKey: allowed key types (default: string | number)
+ */
 type Paths<
 	TEntity,
 	TDepth extends number = 3,
