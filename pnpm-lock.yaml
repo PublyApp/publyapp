@@ -30,6 +30,9 @@ importers:
       archiver:
         specifier: ^6.0.2
         version: 6.0.2
+      chokidar:
+        specifier: ^4.0.3
+        version: 4.0.3
       dotenv:
         specifier: ^17.2.0
         version: 17.2.0
