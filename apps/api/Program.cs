@@ -1,4 +1,3 @@
-using Scalar.AspNetCore;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Features.Common.Auth;
@@ -18,29 +17,7 @@ var app = builder.Build();
 
 app.UseCustomExceptionHandler();
 app.UseCors();
-
-if (app.Environment.IsDevelopment())
-{
-	// /openapi/{documentName}.json
-	app.MapOpenApi();
-	app.MapScalarApiReference(options =>
-	{
-		options.EnabledTargets = [
-			ScalarTarget.Shell,
-			ScalarTarget.Node,
-			ScalarTarget.JavaScript,
-			ScalarTarget.CSharp,
-		];
-		options.EnabledClients = [
-			ScalarClient.Curl,
-			ScalarClient.Wget,
-			ScalarClient.Axios,
-			ScalarClient.HttpClient,
-			ScalarClient.Request,
-			ScalarClient.RestSharp,
-		];
-	});
-}
+app.UseOpenApi();
 
 app.UseCheckSessionHeader();
 app.UseCheckTenantHeader();
@@ -59,18 +36,10 @@ staffGroup.MapTenantStaffEndpoints();
 // Tenant endpoints
 tenantGroup.MapProductEndpoints();
 
-// Example endpoint showing type-safe translation keys
-app.MapGet("/example/unauthorized", () =>
+app.MapFallback(() =>
 {
-	return Results.Json(ApiResponse.Create("Access denied", ResponseKeys.Unauthorized));
+	return Results.NotFound(ApiResponse.Create("Route not found", ResponseKeys.NotFound));
 });
-
-app.MapGet("/example/not-found", () =>
-{
-	return Results.Json(ApiResponse.Create("Resource not found", ResponseKeys.NotFound));
-});
-
-app.MapFallback(() => Results.NotFound(ApiResponse.Create("Route not found", ResponseKeys.NotFound)));
 
 app.UseHttpsRedirection();
 
