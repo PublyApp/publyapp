@@ -1,0 +1,11 @@
+{
+	"unauthorized": "Unauthorized",
+	"internal-server-error": "Internal server error",
+	"not-found": "Not found",
+	"bad-request": "Bad request",
+	"unprocessable-entity": "Unprocessable entity",
+	"too-many-requests": "Too many requests",
+	"service-unavailable": "Service unavailable",
+	"gateway-timeout": "Gateway timeout",
+	"method-not-allowed": "Method not allowed"
+}
