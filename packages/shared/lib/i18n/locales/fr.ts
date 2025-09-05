@@ -8,7 +8,7 @@ import type { LooseResource } from './en';
 const resourceFR = {
 	common,
 	zod,
-	responseMessage,
+	'response-message': responseMessage,
 } as const satisfies LooseResource;
 
 export default resourceFR;
