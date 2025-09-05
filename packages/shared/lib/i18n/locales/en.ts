@@ -7,7 +7,7 @@ import zod from '../json/zod.en.json' with { type: 'json' };
 const resourceEN = {
 	common,
 	zod,
-	responseMessage,
+	'response-message': responseMessage,
 } as const;
 
 export type Resource = typeof resourceEN;
