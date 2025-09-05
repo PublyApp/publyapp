@@ -7,5 +7,10 @@
 	"too-many-requests": "Too many requests",
 	"service-unavailable": "Service unavailable",
 	"gateway-timeout": "Gateway timeout",
-	"method-not-allowed": "Method not allowed"
+	"method-not-allowed": "Method not allowed",
+	"invalid-email-or-password": "Invalid email or password",
+	"user-suspended": "User suspended",
+	"user-not-verified": "User not verified",
+	"user-id-required": "User ID required",
+	"failed-to-login": "Failed to login"
 }

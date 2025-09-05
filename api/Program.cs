@@ -5,6 +5,7 @@ using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Tenant.Product;
 using MainApi.Src.Features.Staff.Tenant;
 using MainApi.Src.Lib.Middlewares;
+using MainApi.Localization;
 
 AppEnvironment.LoadEnv();
 
@@ -58,11 +59,18 @@ staffGroup.MapTenantStaffEndpoints();
 // Tenant endpoints
 tenantGroup.MapProductEndpoints();
 
-app.MapFallback(() => Results.NotFound(new
+// Example endpoint showing type-safe translation keys
+app.MapGet("/example/unauthorized", () =>
 {
-	message = "Route not found",
-	key = "route-not-found",
-}));
+	return Results.Json(ApiResponse.Create("Access denied", ResponseKeys.Unauthorized));
+});
+
+app.MapGet("/example/not-found", () =>
+{
+	return Results.Json(ApiResponse.Create("Resource not found", ResponseKeys.NotFound));
+});
+
+app.MapFallback(() => Results.NotFound(ApiResponse.Create("Route not found", ResponseKeys.NotFound)));
 
 app.UseHttpsRedirection();
 

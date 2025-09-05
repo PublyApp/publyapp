@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FluentValidation;
+using MainApi.Localization;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
@@ -79,7 +80,7 @@ public class PasswordLogin
 {
 	public static async Task<Results<
 	Ok<PasswordLoginSuccessResult>,
-	BadRequest<AppResponseResult>
+	BadRequest<ApiResponse>
 	>> HandlePasswordLogin(
 		[FromBody] PasswordLoginBody loginBody,
 		[FromServices] IUserService userService,
@@ -101,28 +102,28 @@ public class PasswordLogin
 
 		if (user == null)
 		{
-			return TypedResults.BadRequest(invalidEmailOrPasswordResult);
+			return TypedResults.BadRequest(ApiResponse.Create("Invalid email or password", ResponseKeys.InvalidEmailOrPassword));
 		}
 
 		if (user.IsDeleted == true)
 		{
-			return TypedResults.BadRequest(invalidEmailOrPasswordResult);
+			return TypedResults.BadRequest(ApiResponse.Create("Invalid email or password", ResponseKeys.InvalidEmailOrPassword));
 		}
 
 		if (user.IsSuspended == true)
 		{
-			return TypedResults.BadRequest(new AppResponseResult { Message = "User is suspended", Key = "user-suspended" });
+			return TypedResults.BadRequest(ApiResponse.Create("User is suspended", ResponseKeys.UserSuspended));
 		}
 
 		if (user.IsVerified != true)
 		{
-			return TypedResults.BadRequest(new AppResponseResult { Message = "User is not verified", Key = "user-not-verified" });
+			return TypedResults.BadRequest(ApiResponse.Create("User is not verified", ResponseKeys.UserNotVerified));
 		}
 
 		// Verify the password
 		if (!passwordService.VerifyPassword(password, user.Password ?? string.Empty))
 		{
-			return TypedResults.BadRequest(invalidEmailOrPasswordResult);
+			return TypedResults.BadRequest(ApiResponse.Create("Invalid email or password", ResponseKeys.InvalidEmailOrPassword));
 		}
 
 		var createSessionResult = await sessionService.CreateSessionForUser(user);
@@ -142,15 +143,11 @@ public class PasswordLogin
 
 		if (createSessionResult is CreateSessionResult.Failure failure)
 		{
-			return TypedResults.BadRequest(new AppResponseResult
-			{
-				Message = failure.Message,
-				Key = failure.Key
-			});
+			return TypedResults.BadRequest(ApiResponse.Create(failure.Message, failure.Key));
 		}
 
 		// This should never happen with proper discriminated unions
 		// but good to have as fallback
-		return TypedResults.BadRequest(new AppResponseResult { Message = "Failed to login", Key = "failed-to-login" });
+		return TypedResults.BadRequest(ApiResponse.Create("Failed to login", ResponseKeys.FailedToLogin));
 	}
 }
