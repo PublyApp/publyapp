@@ -1,475 +1,470 @@
 {
-	"openapi": "3.0.1",
-	"info": {
-		"title": "MainApi | v1",
-		"version": "1.0.0"
-	},
-	"paths": {
-		"/auth/login": {
-			"post": {
-				"tags": ["Auth"],
-				"summary": "Password Login",
-				"operationId": "LoginWithEmailAndPassword",
-				"requestBody": {
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/components/schemas/PasswordLoginBody"
-							}
-						}
-					},
-					"required": true
-				},
-				"responses": {
-					"200": {
-						"description": "OK",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/PasswordLoginSuccessResult"
-								}
-							}
-						}
-					},
-					"400": {
-						"description": "Bad Request",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/ApiResponse"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/auth/register": {
-			"post": {
-				"tags": ["Auth"],
-				"summary": "Password Register",
-				"operationId": "RegisterWithEmailAndPassword",
-				"requestBody": {
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/components/schemas/PasswordRegisterBody"
-							}
-						}
-					},
-					"required": true
-				},
-				"responses": {
-					"200": {
-						"description": "OK",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/PasswordRegisterSuccessResult"
-								}
-							}
-						}
-					},
-					"400": {
-						"description": "Bad Request",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/AppResponseResult"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/auth/user-auth-data": {
-			"get": {
-				"tags": ["Auth"],
-				"summary": "Get User Auth Data",
-				"operationId": "GetUserAuthData",
-				"responses": {
-					"200": {
-						"description": "OK",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/GetUserAuthDataSuccessResult"
-								}
-							}
-						}
-					},
-					"400": {
-						"description": "Bad Request",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/AppResponseResult"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/staff/tenants": {
-			"post": {
-				"tags": ["Tenants"],
-				"summary": "Create a new tenant",
-				"operationId": "CreateTenant",
-				"requestBody": {
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/components/schemas/CreateTenantStaffBody"
-							}
-						}
-					},
-					"required": true
-				},
-				"responses": {
-					"200": {
-						"description": "OK",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/CreateTenantStaffSuccessResult"
-								}
-							}
-						}
-					},
-					"400": {
-						"description": "Bad Request",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/components/schemas/AppResponseResult"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"/tenant/products": {
-			"get": {
-				"tags": ["Products"],
-				"summary": "Get all products",
-				"operationId": "GetProducts",
-				"responses": {
-					"200": {
-						"description": "OK"
-					}
-				}
-			},
-			"post": {
-				"tags": ["Products"],
-				"summary": "Create a new product",
-				"operationId": "CreateProduct",
-				"requestBody": {
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/components/schemas/Product"
-							}
-						}
-					},
-					"required": true
-				},
-				"responses": {
-					"200": {
-						"description": "OK"
-					}
-				}
-			}
-		},
-		"/tenant/products/{id}": {
-			"get": {
-				"tags": ["Products"],
-				"summary": "Get product by ID",
-				"operationId": "GetProduct",
-				"parameters": [
-					{
-						"name": "id",
-						"in": "path",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "OK"
-					}
-				}
-			},
-			"put": {
-				"tags": ["Products"],
-				"summary": "Update an existing product",
-				"operationId": "UpdateProduct",
-				"parameters": [
-					{
-						"name": "id",
-						"in": "path",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				],
-				"requestBody": {
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/components/schemas/Product"
-							}
-						}
-					},
-					"required": true
-				},
-				"responses": {
-					"200": {
-						"description": "OK"
-					}
-				}
-			},
-			"delete": {
-				"tags": ["Products"],
-				"summary": "Delete a product",
-				"operationId": "DeleteProduct",
-				"parameters": [
-					{
-						"name": "id",
-						"in": "path",
-						"required": true,
-						"schema": {
-							"type": "string"
-						}
-					}
-				],
-				"responses": {
-					"200": {
-						"description": "OK"
-					}
-				}
-			}
-		},
-		"/example/unauthorized": {
-			"get": {
-				"tags": ["MainApi"],
-				"responses": {
-					"200": {
-						"description": "OK"
-					}
-				}
-			}
-		},
-		"/example/not-found": {
-			"get": {
-				"tags": ["MainApi"],
-				"responses": {
-					"200": {
-						"description": "OK"
-					}
-				}
-			}
-		}
-	},
-	"components": {
-		"schemas": {
-			"ApiResponse": {
-				"type": "object",
-				"properties": {
-					"message": {
-						"type": "string"
-					},
-					"key": {
-						"type": "string"
-					}
-				}
-			},
-			"AppResponseResult": {
-				"type": "object",
-				"properties": {
-					"message": {
-						"type": "string"
-					},
-					"key": {
-						"type": "string"
-					}
-				}
-			},
-			"CreateTenantStaffBody": {
-				"type": "object",
-				"properties": {
-					"name": {
-						"$ref": "#/components/schemas/JsonElement"
-					}
-				}
-			},
-			"CreateTenantStaffSuccessResult": {
-				"type": "object",
-				"properties": {
-					"message": {
-						"type": "string"
-					},
-					"key": {
-						"type": "string"
-					},
-					"tenant": {
-						"$ref": "#/components/schemas/CreateTenantStaffSuccessResultTenantData"
-					}
-				}
-			},
-			"CreateTenantStaffSuccessResultTenantData": {
-				"type": "object",
-				"properties": {
-					"id": {
-						"type": "string"
-					},
-					"tenantName": {
-						"type": "string"
-					}
-				}
-			},
-			"GetUserAuthDataSuccessResult": {
-				"type": "object",
-				"properties": {
-					"userId": {
-						"type": "string"
-					},
-					"email": {
-						"type": "string"
-					}
-				}
-			},
-			"JsonElement": {},
-			"PasswordLoginBody": {
-				"type": "object",
-				"properties": {
-					"email": {
-						"$ref": "#/components/schemas/JsonElement"
-					},
-					"password": {
-						"$ref": "#/components/schemas/JsonElement"
-					}
-				}
-			},
-			"PasswordLoginSuccessResult": {
-				"type": "object",
-				"properties": {
-					"userId": {
-						"type": "string"
-					},
-					"sessionToken": {
-						"type": "string"
-					},
-					"sessionExpiresAt": {
-						"type": "string",
-						"format": "date-time"
-					},
-					"sessionExpiresInMs": {
-						"type": "number",
-						"format": "double"
-					},
-					"message": {
-						"type": "string"
-					},
-					"key": {
-						"type": "string"
-					}
-				}
-			},
-			"PasswordRegisterBody": {
-				"type": "object",
-				"properties": {
-					"email": {
-						"$ref": "#/components/schemas/JsonElement"
-					},
-					"password": {
-						"$ref": "#/components/schemas/JsonElement"
-					}
-				}
-			},
-			"PasswordRegisterSuccessResult": {
-				"type": "object",
-				"properties": {
-					"id": {
-						"type": "string"
-					},
-					"email": {
-						"type": "string"
-					},
-					"createdAt": {
-						"type": "string",
-						"format": "date-time"
-					},
-					"updatedAt": {
-						"type": "string",
-						"format": "date-time"
-					},
-					"message": {
-						"type": "string"
-					},
-					"key": {
-						"type": "string"
-					}
-				}
-			},
-			"Product": {
-				"type": "object",
-				"properties": {
-					"name": {
-						"type": "string",
-						"nullable": true
-					},
-					"description": {
-						"type": "string",
-						"nullable": true
-					},
-					"price": {
-						"type": "number",
-						"format": "double",
-						"nullable": true
-					},
-					"tenantId": {
-						"type": "string"
-					},
-					"id": {
-						"type": "string",
-						"nullable": true
-					},
-					"createdAt": {
-						"type": "string",
-						"format": "date-time",
-						"nullable": true
-					},
-					"updatedAt": {
-						"type": "string",
-						"format": "date-time",
-						"nullable": true
-					},
-					"isDeleted": {
-						"type": "boolean",
-						"nullable": true
-					}
-				}
-			}
-		}
-	},
-	"tags": [
-		{
-			"name": "Auth"
-		},
-		{
-			"name": "Tenants"
-		},
-		{
-			"name": "Products"
-		},
-		{
-			"name": "MainApi"
-		}
-	]
+  "openapi": "3.0.1",
+  "info": {
+    "title": "MainApi | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Password Login",
+        "operationId": "LoginWithEmailAndPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLoginBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordLoginSuccessResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Password Register",
+        "operationId": "RegisterWithEmailAndPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordRegisterBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordRegisterSuccessResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user-auth-data": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get User Auth Data",
+        "operationId": "GetUserAuthData",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserAuthDataSuccessResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/tenants": {
+      "post": {
+        "tags": [
+          "Tenants"
+        ],
+        "summary": "Create a new tenant",
+        "operationId": "CreateTenant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantStaffBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTenantStaffSuccessResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tenant/products": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Get all products",
+        "operationId": "GetProducts",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Create a new product",
+        "operationId": "CreateProduct",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Product"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/tenant/products/{id}": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Get product by ID",
+        "operationId": "GetProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Update an existing product",
+        "operationId": "UpdateProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Product"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Delete a product",
+        "operationId": "DeleteProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        }
+      },
+      "AppResponseResult": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateTenantStaffBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "CreateTenantStaffSuccessResult": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/CreateTenantStaffSuccessResultTenantData"
+          }
+        }
+      },
+      "CreateTenantStaffSuccessResultTenantData": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantName": {
+            "type": "string"
+          }
+        }
+      },
+      "GetUserAuthDataSuccessResult": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        }
+      },
+      "JsonElement": { },
+      "PasswordLoginBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "password": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "PasswordLoginSuccessResult": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "sessionToken": {
+            "type": "string"
+          },
+          "sessionExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sessionExpiresInMs": {
+            "type": "number",
+            "format": "double"
+          },
+          "message": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        }
+      },
+      "PasswordRegisterBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "password": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "PasswordRegisterSuccessResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "message": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "isDeleted": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Tenants"
+    },
+    {
+      "name": "Products"
+    }
+  ]
 }

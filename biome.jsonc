@@ -16,7 +16,7 @@
 			"!**/.husky/_",
 			"!**/.react-router",
 			"!packages/js-client/**",
-			"!api/openapi/**"
+			"!apps/api/openapi/**"
 		]
 	},
 	"formatter": {
