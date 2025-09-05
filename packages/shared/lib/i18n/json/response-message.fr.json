@@ -1,0 +1,16 @@
+{
+	"unauthorized": "Non autorisé",
+	"internal-server-error": "Erreur interne du serveur",
+	"not-found": "Non trouvé",
+	"bad-request": "Mauvaise requête",
+	"unprocessable-entity": "Entité non traitable",
+	"too-many-requests": "Trop de requêtes",
+	"service-unavailable": "Service indisponible",
+	"gateway-timeout": "Délai d'attente de la passerelle",
+	"method-not-allowed": "Méthode non autorisée",
+	"invalid-email-or-password": "Email ou mot de passe invalide",
+	"user-suspended": "Utilisateur suspendu",
+	"user-not-verified": "Utilisateur non vérifié",
+	"user-id-required": "ID utilisateur requis",
+	"failed-to-login": "Échec de la connexion"
+}
