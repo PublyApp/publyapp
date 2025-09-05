@@ -1,3 +1,4 @@
+using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
@@ -9,7 +10,7 @@ namespace MainApi.Src.Features.Common.Session;
 public abstract record CreateSessionResult
 {
 	public sealed record Success(Session Session) : CreateSessionResult;
-	public sealed record Failure(string Message, string Key) : CreateSessionResult;
+	public sealed record Failure(string Message, TranslationKey Key) : CreateSessionResult;
 }
 
 public interface ISessionService
@@ -32,7 +33,7 @@ public class SessionService : ISessionService
 	{
 		if (string.IsNullOrEmpty(user.Id))
 		{
-			return new CreateSessionResult.Failure("User ID is required", "user-id-required");
+			return new CreateSessionResult.Failure("User ID is required", ResponseKeys.UserIdRequired);
 		}
 
 		var session = new Session

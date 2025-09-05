@@ -38,7 +38,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AppResponseResult"
+                  "$ref": "#/components/schemas/ApiResponse"
                 }
               }
             }
@@ -272,10 +272,45 @@
           }
         }
       }
+    },
+    "/example/unauthorized": {
+      "get": {
+        "tags": [
+          "MainApi"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/example/not-found": {
+      "get": {
+        "tags": [
+          "MainApi"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        }
+      },
       "AppResponseResult": {
         "type": "object",
         "properties": {
@@ -454,6 +489,9 @@
     },
     {
       "name": "Products"
+    },
+    {
+      "name": "MainApi"
     }
   ]
 }
