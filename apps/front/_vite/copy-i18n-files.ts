@@ -15,6 +15,9 @@ const targets: PluginCopyOptions['targets'] = [
 	},
 ];
 
+const enableLog = false;
+const _log = enableLog ? console.log : () => {};
+
 const copyI18nFiles = (): Plugin => {
 	const copyFiles = async () => {
 		const tasks: Promise<void>[] = [];
@@ -22,13 +25,13 @@ const copyI18nFiles = (): Plugin => {
 		targets.forEach(({ src, dest }) => {
 			const task = fs.promises.cp(src, dest, { recursive: true });
 			task.then(() => {
-				console.log(`Copied ${src} to ${dest}`);
+				_log(`Copied ${src} to ${dest}`);
 			});
 			tasks.push(task);
 		});
 
 		await Promise.all(tasks).then(() => {
-			console.log('Copied all files');
+			_log('Copied all files');
 		});
 	};
 
