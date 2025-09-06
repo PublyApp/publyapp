@@ -42,10 +42,9 @@ public class VerifyEmailRequestBodyValidator : AbstractValidator<VerifyEmailRequ
 	}
 }
 
-
-
-public class VerifyEmailRequestSuccessResult : AppResponseResult
+public class VerifyEmailRequestSuccessResult
 {
+	public string Status { get; set; } = "success";
 }
 
 public class VerifyEmailRequest
@@ -74,7 +73,7 @@ public class VerifyEmailRequest
 
 		var userEmail = user.Email ?? throw new Exception("User email is null");
 
-		// if the token is valid, reuse it and send email
+		// if the token is still valid, reuse it and send email
 		if (!string.IsNullOrEmpty(user.EmailVerifyToken)
 		&& (DateTime.UtcNow < (user.EmailVerifyTokenExpiresAt ?? DateTime.MinValue)))
 		{
