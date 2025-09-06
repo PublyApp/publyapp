@@ -11,6 +11,7 @@
 		"start:test-online": "pnpm run --filter server start:test-online",
 		"// =============== DEV SCRIPTS ===============": "=============================",
 		"dev": "turbo dev",
+		"dev:api": "node apps/api/run-dev.mjs",
 		"dev:server": "pnpm run dev:server:pnpm",
 		"dev:front": "pnpm run dev:front:pnpm",
 		"dev:server:bun": "bun run --filter server --elide-lines 0 dev",
