@@ -1,5 +1,5 @@
 {
-  "openapi": "3.1.1",
+  "openapi": "3.0.1",
   "info": {
     "title": "MainApi | v1",
     "version": "1.0.0"
@@ -28,7 +28,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PasswordLoginResult"
+                  "$ref": "#/components/schemas/PasswordLoginSuccessResult"
                 }
               }
             }
@@ -36,29 +36,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
+                  "$ref": "#/components/schemas/ApiResponse"
                 }
               }
             }
@@ -89,7 +69,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PasswordRegisterResult"
+                  "$ref": "#/components/schemas/PasswordRegisterSuccessResult"
                 }
               }
             }
@@ -97,29 +77,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
+                  "$ref": "#/components/schemas/ApiResponse"
                 }
               }
             }
@@ -140,7 +100,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetUserAuthDataResult"
+                  "$ref": "#/components/schemas/GetUserAuthDataSuccessResult"
                 }
               }
             }
@@ -191,37 +151,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Tenant"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
+                  "$ref": "#/components/schemas/AppResponseResult"
                 }
               }
             }
@@ -229,7 +159,7 @@
         }
       }
     },
-    "/auth/verify-email-request": {
+    "/auth/verify-email": {
       "post": {
         "tags": [
           "Auth"
@@ -252,7 +182,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/VerifyEmailRequestResult"
+                  "$ref": "#/components/schemas/VerifyEmailRequestSuccessResult"
                 }
               }
             }
@@ -5372,7 +5302,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateTenantAsStaffBody"
+                "$ref": "#/components/schemas/CreateTenantStaffBody"
               }
             }
           },
@@ -5527,7 +5457,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindTenantsAsStaffResponse"
+                  "$ref": "#/components/schemas/CreateTenantStaffSuccessResult"
                 }
               }
             }
@@ -5535,19 +5465,9 @@
           "400": {
             "description": "Bad Request",
             "content": {
-              "application/problem+json": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                  "$ref": "#/components/schemas/AppResponseResult"
                 }
               }
             }
@@ -5555,16 +5475,52 @@
         }
       }
     },
-    "/staff/tenants/{tenantId}": {
+    "/tenant/products": {
       "get": {
         "tags": [
-          "Tenants"
+          "Products"
         ],
-        "summary": "Get a tenant by id",
-        "operationId": "GetTenantById",
+        "summary": "Get all products",
+        "operationId": "GetProducts",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Create a new product",
+        "operationId": "CreateProduct",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Product"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/tenant/products/{id}": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Get product by ID",
+        "operationId": "GetProduct",
         "parameters": [
           {
-            "name": "tenantId",
+            "name": "id",
             "in": "path",
             "required": true,
             "schema": {
@@ -5573,77 +5529,20 @@
           }
         ],
         "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
           "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetTenantAsStaffResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
+            "description": "OK"
           }
         }
       },
-      "patch": {
+      "put": {
         "tags": [
-          "Tenants"
+          "Products"
         ],
-        "summary": "Update a tenant",
-        "operationId": "UpdateTenant",
+        "summary": "Update an existing product",
+        "operationId": "UpdateProduct",
         "parameters": [
           {
-            "name": "tenantId",
+            "name": "id",
             "in": "path",
             "required": true,
             "schema": {
@@ -5655,94 +5554,27 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateTenantAsStaffBody"
+                "$ref": "#/components/schemas/Product"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
           "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GetTenantAsStaffResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ValidationProblemDetails"
-                }
-              }
-            }
+            "description": "OK"
           }
         }
       },
       "delete": {
         "tags": [
-          "Tenants"
+          "Products"
         ],
-        "summary": "Soft-delete a suspended tenant",
-        "operationId": "DeleteTenant",
+        "summary": "Delete a product",
+        "operationId": "DeleteProduct",
         "parameters": [
           {
-            "name": "tenantId",
+            "name": "id",
             "in": "path",
             "required": true,
             "schema": {
@@ -5751,36 +5583,6 @@
           }
         ],
         "responses": {
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AppProblemDetails"
-                }
-              }
-            }
-          },
           "200": {
             "description": "OK",
             "content": {
@@ -7187,116 +6989,9 @@
           "key": {
             "type": "string"
           }
-        },
-        "description": "Represents an API response with a message and a type-safe translation key"
-      },
-      "AppProblemDetails": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "title": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "status": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": "integer",
-            "format": "int32"
-          },
-          "detail": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "instance": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "translationKey": {
-            "type": "string",
-            "description": "The translation key for frontend localization.\r\nSerialized as \"translationKey\" in the JSON response."
-          }
-        },
-        "description": "A ProblemDetails extension that includes a translation key for frontend i18n.\r\nComplies with RFC 7807 while supporting localization."
-      },
-      "AuditLogDetail": {
-        "required": [
-          "id",
-          "userId",
-          "userName",
-          "userEmail",
-          "action",
-          "createdAt"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userName": {
-            "type": "string"
-          },
-          "userEmail": {
-            "type": "string"
-          },
-          "action": {
-            "type": "string"
-          },
-          "targetId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "uuid"
-          },
-          "details": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "ipAddress": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "userAgent": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
         }
       },
-      "AuditLogListItem": {
-        "required": [
-          "id",
-          "userId",
-          "userName",
-          "userEmail",
-          "action",
-          "createdAt"
-        ],
+      "AppResponseResult": {
         "type": "object",
         "properties": {
           "id": {
@@ -7717,45 +7412,42 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "message": {
-            "$ref": "#/components/schemas/JsonElement"
+            "type": "string"
           },
-          "startsAt": {
-            "$ref": "#/components/schemas/JsonElement"
-          },
-          "expiresAt": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JsonElement"
-              }
-            ]
+          "key": {
+            "type": "string"
           }
         }
       },
-      "CreateTenantAsStaffBody": {
+      "CreateTenantStaffBody": {
         "type": "object",
         "properties": {
           "name": {
             "$ref": "#/components/schemas/JsonElement"
-          },
-          "maxUsers": {
-            "$ref": "#/components/schemas/JsonElement"
-          },
-          "initialUsers": {
-            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },
-      "CreateTenantAsStaffResult": {
+      "CreateTenantStaffSuccessResult": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/CreateTenantStaffSuccessResultTenantData"
+          }
+        }
+      },
+      "CreateTenantStaffSuccessResultTenantData": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "type": "string"
           },
-          "name": {
+          "tenantName": {
             "type": "string"
           }
         }
@@ -8230,17 +7922,6 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "tenantId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "uuid"
-          },
-          "sessionToken": {
             "type": "string"
           },
           "sessionExpiresAt": {
@@ -8374,12 +8055,11 @@
           }
         }
       },
-      "PasswordLoginResult": {
+      "PasswordLoginSuccessResult": {
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string",
-            "format": "uuid"
+            "type": "string"
           },
           "sessionToken": {
             "type": "string"
@@ -8389,9 +8069,14 @@
             "format": "date-time"
           },
           "sessionExpiresInMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
             "type": "number",
             "format": "double"
+          },
+          "message": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
           }
         }
       },
@@ -8406,12 +8091,11 @@
           }
         }
       },
-      "PasswordRegisterResult": {
+      "PasswordRegisterSuccessResult": {
         "type": "object",
         "properties": {
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "type": "string"
           },
           "email": {
             "type": "string"
@@ -8423,19 +8107,32 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "message": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
           }
         }
       },
-      "PermissionAsStaffItem": {
+      "Product": {
         "type": "object",
         "properties": {
-          "key": {
-            "type": "string"
-          },
           "name": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "tenantId": {
             "type": "string"
           }
         }
@@ -8976,7 +8673,12 @@
           },
           "updatedAt": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "nullable": true
+          },
+          "isDeleted": {
+            "type": "boolean",
+            "nullable": true
           }
         }
       },
@@ -9552,10 +9254,13 @@
           }
         }
       },
-      "VerifyEmailRequestResult": {
+      "VerifyEmailRequestSuccessResult": {
         "type": "object",
         "properties": {
-          "status": {
+          "message": {
+            "type": "string"
+          },
+          "key": {
             "type": "string"
           }
         }
@@ -9597,13 +9302,7 @@
       "name": "Tenants"
     },
     {
-      "name": "Staff System Notices"
-    },
-    {
-      "name": "Staff Audit Logs"
-    },
-    {
-      "name": "MainApi"
+      "name": "Products"
     }
   ]
 }

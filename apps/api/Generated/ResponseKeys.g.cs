@@ -10,11 +10,12 @@ namespace MainApi.Localization;
 /// <summary>
 /// Type-safe translation keys generated from response message JSON
 /// </summary>
-public static partial class ResponseKeys {
-	/// <summary>
-	/// Bad request
-	/// </summary>
-	public static readonly TranslationKey BadRequest = new("bad-request");
+public static partial class ResponseKeys
+{
+    /// <summary>
+    /// Bad request
+    /// </summary>
+    public static readonly TranslationKey BadRequest = new("bad-request");
 
 	/// <summary>
 	/// Cannot demote the last admin from the tenant
@@ -36,15 +37,15 @@ public static partial class ResponseKeys {
 	/// </summary>
 	public static readonly TranslationKey ConfirmDeleteDialogText = new("confirm-delete-dialog-text");
 
-	/// <summary>
-	/// create your first {{item}}
-	/// </summary>
-	public static readonly TranslationKey CreateFirstItem = new("create-first-item");
+    /// <summary>
+    /// Failed to login
+    /// </summary>
+    public static readonly TranslationKey FailedToLogin = new("failed-to-login");
 
-	/// <summary>
-	/// delete {{item}}
-	/// </summary>
-	public static readonly TranslationKey DeleteItem = new("delete-item");
+    /// <summary>
+    /// Failed to register user
+    /// </summary>
+    public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
 
 	/// <summary>
 	/// Email is already in use
@@ -56,65 +57,65 @@ public static partial class ResponseKeys {
 	/// </summary>
 	public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
 
-	/// <summary>
-	/// error loading {{item}}
-	/// </summary>
-	public static readonly TranslationKey ErrorLoadingItems = new("error-loading-items");
+    /// <summary>
+    /// Internal server error
+    /// </summary>
+    public static readonly TranslationKey InternalServerError = new("internal-server-error");
 
-	/// <summary>
-	/// Failed to authenticate user
-	/// </summary>
-	public static readonly TranslationKey FailedToAuthenticateUser = new("failed-to-authenticate-user");
+    /// <summary>
+    /// Invalid email or password
+    /// </summary>
+    public static readonly TranslationKey InvalidEmailOrPassword = new("invalid-email-or-password");
 
-	/// <summary>
-	/// Failed to create user
-	/// </summary>
-	public static readonly TranslationKey FailedToCreateUser = new("failed-to-create-user");
+    /// <summary>
+    /// Method not allowed
+    /// </summary>
+    public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
 
-	/// <summary>
-	/// Failed to login
-	/// </summary>
-	public static readonly TranslationKey FailedToLogin = new("failed-to-login");
+    /// <summary>
+    /// Not found
+    /// </summary>
+    public static readonly TranslationKey NotFound = new("not-found");
 
-	/// <summary>
-	/// Failed to register user
-	/// </summary>
-	public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
+    /// <summary>
+    /// Service unavailable
+    /// </summary>
+    public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
 
-	/// <summary>
-	/// Failed to update staff user
-	/// </summary>
-	public static readonly TranslationKey FailedToUpdateStaffUser = new("failed-to-update-staff-user");
+    /// <summary>
+    /// Too many requests
+    /// </summary>
+    public static readonly TranslationKey TooManyRequests = new("too-many-requests");
 
-	/// <summary>
-	/// Forbidden
-	/// </summary>
-	public static readonly TranslationKey Forbidden = new("forbidden");
+    /// <summary>
+    /// Unauthorized
+    /// </summary>
+    public static readonly TranslationKey Unauthorized = new("unauthorized");
 
-	/// <summary>
-	/// Gateway timeout
-	/// </summary>
-	public static readonly TranslationKey GatewayTimeout = new("gateway-timeout");
+    /// <summary>
+    /// Unprocessable entity
+    /// </summary>
+    public static readonly TranslationKey UnprocessableEntity = new("unprocessable-entity");
 
-	/// <summary>
-	/// Internal server error
-	/// </summary>
-	public static readonly TranslationKey InternalServerError = new("internal-server-error");
+    /// <summary>
+    /// User already exists
+    /// </summary>
+    public static readonly TranslationKey UserAlreadyExists = new("user-already-exists");
 
-	/// <summary>
-	/// Invalid email or password
-	/// </summary>
-	public static readonly TranslationKey InvalidEmailOrPassword = new("invalid-email-or-password");
+    /// <summary>
+    /// User ID required
+    /// </summary>
+    public static readonly TranslationKey UserIdRequired = new("user-id-required");
 
-	/// <summary>
-	/// Invalid or expired email verification token
-	/// </summary>
-	public static readonly TranslationKey InvalidEmailVerificationToken = new("invalid-email-verification-token");
+    /// <summary>
+    /// User not found
+    /// </summary>
+    public static readonly TranslationKey UserNotFound = new("user-not-found");
 
-	/// <summary>
-	/// Invalid or expired invitation token
-	/// </summary>
-	public static readonly TranslationKey InvalidInvitationToken = new("invalid-invitation-token");
+    /// <summary>
+    /// User not verified
+    /// </summary>
+    public static readonly TranslationKey UserNotVerified = new("user-not-verified");
 
 	/// <summary>
 	/// Invalid or expired password reset token
