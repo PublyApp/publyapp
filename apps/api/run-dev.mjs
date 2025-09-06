@@ -20,7 +20,7 @@ let isRestarting = false;
 const runDotnet = () => {
 	return spawn('dotnet', ['run'], {
 		stdio: 'inherit',
-		cwd: process.cwd(),
+		cwd: import.meta.dirname,
 	});
 };
 
