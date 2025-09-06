@@ -2,6 +2,7 @@ namespace MainApi.Src.Features.Common.Auth.Handlers.PasswordRegister;
 
 using System.Text.Json;
 using FluentValidation;
+using MainApi.Localization;
 using MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
@@ -64,7 +65,7 @@ public static class PasswordRegister
 {
 	public static async Task<Results<
 	Ok<PasswordRegisterSuccessResult>,
-	BadRequest<AppResponseResult>
+	BadRequest<ApiResponse>
 	>> HandlePasswordRegister(
 		[FromBody] PasswordRegisterBody registerBody,
 		[FromServices] IUserService userService
@@ -83,12 +84,7 @@ public static class PasswordRegister
 
 		if (createUserResult is CreateUserResult.Failure failure)
 		{
-			var failureResponseResult = new AppResponseResult
-			{
-				Message = failure.Message,
-				Key = failure.Key
-			};
-			return TypedResults.BadRequest(failureResponseResult);
+			return TypedResults.BadRequest(ApiResponse.Create(failure.Message, failure.Key));
 		}
 
 		if (createUserResult is CreateUserResult.Success success)
@@ -104,10 +100,6 @@ public static class PasswordRegister
 
 		// This should never happen with proper discriminated unions
 		// but good to have as fallback
-		return TypedResults.BadRequest(new AppResponseResult
-		{
-			Message = "Failed to register user",
-			Key = "failed-to-register-user"
-		});
+		return TypedResults.BadRequest(ApiResponse.Create("Failed to register user", ResponseKeys.FailedToRegisterUser));
 	}
 }

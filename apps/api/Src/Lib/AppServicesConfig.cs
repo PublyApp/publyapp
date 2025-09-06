@@ -10,6 +10,7 @@ using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Data.MongoDb;
 using MainApi.Src.Features.Staff.Tenant;
 using Microsoft.Extensions.Options;
+using MainApi.Src.Features.Common.Email;
 
 public static class AppServicesConfig
 {
@@ -102,6 +103,10 @@ public static class AppServicesConfig
 		// builder.Services.AddValidatorsFromAssemblyContaining<CreateTenantStaffValidator>();
 
 		// Register services
+		// singleton services
+		builder.Services.AddSingleton<IEmailService, EmailService>();
+
+		// scoped services
 		builder.Services.AddScoped<IUserService, UserService>();
 		builder.Services.AddScoped<IPasswordService, PasswordService>();
 		builder.Services.AddScoped<ISessionService, SessionService>();

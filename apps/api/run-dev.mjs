@@ -1,11 +1,16 @@
 import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
 
 const chokidar = await import('chokidar');
 
+// Get the directory where this script is located
+const scriptDir = import.meta.dirname;
+
 const watcher = chokidar.watch([
-	'Program.cs',
-	'Src',
+	path.join(scriptDir, 'Program.cs'),
+	path.join(scriptDir, 'Src'),
 ], {
 	ignored: /node_modules/,
 	persistent: true,
@@ -13,9 +18,24 @@ const watcher = chokidar.watch([
 });
 
 console.log('Watching Program.cs and Src folder for changes...');
+console.log('Type "rs" and press Enter to restart the dotnet process');
 
 let dotnetProcess = null;
 let isRestarting = false;
+
+// Set up stdin handling for manual restart
+const rl = createInterface({
+	input: process.stdin,
+	output: process.stdout,
+});
+
+rl.on('line', (input) => {
+	const trimmed = input.trim().toLowerCase();
+	if (trimmed === 'rs') {
+		console.log('Manual restart triggered...');
+		restartDotnet();
+	}
+});
 
 const runDotnet = () => {
 	return spawn('dotnet', ['run'], {
@@ -80,6 +100,7 @@ watcher.on('all', async (event, path) => {
 process.on('SIGINT', async () => {
 	console.log('\nShutting down...');
 	watcher.close();
+	rl.close();
 	if (dotnetProcess) {
 		await killProcess(dotnetProcess);
 	}
@@ -89,6 +110,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
 	console.log('\nShutting down...');
 	watcher.close();
+	rl.close();
 	if (dotnetProcess) {
 		await killProcess(dotnetProcess);
 	}

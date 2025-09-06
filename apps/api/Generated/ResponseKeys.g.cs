@@ -18,9 +18,19 @@ public static partial class ResponseKeys
     public static readonly TranslationKey BadRequest = new("bad-request");
 
     /// <summary>
+    /// Email already verified
+    /// </summary>
+    public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
+
+    /// <summary>
     /// Failed to login
     /// </summary>
     public static readonly TranslationKey FailedToLogin = new("failed-to-login");
+
+    /// <summary>
+    /// Failed to register user
+    /// </summary>
+    public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
 
     /// <summary>
     /// Gateway timeout
@@ -68,9 +78,19 @@ public static partial class ResponseKeys
     public static readonly TranslationKey UnprocessableEntity = new("unprocessable-entity");
 
     /// <summary>
+    /// User already exists
+    /// </summary>
+    public static readonly TranslationKey UserAlreadyExists = new("user-already-exists");
+
+    /// <summary>
     /// User ID required
     /// </summary>
     public static readonly TranslationKey UserIdRequired = new("user-id-required");
+
+    /// <summary>
+    /// User not found
+    /// </summary>
+    public static readonly TranslationKey UserNotFound = new("user-not-found");
 
     /// <summary>
     /// User not verified

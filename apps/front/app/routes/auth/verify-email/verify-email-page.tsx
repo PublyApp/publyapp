@@ -1,11 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, type Theme } from '@mui/material';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { useForm } from 'react-hook-form';
-import { redirect, useFetcher } from 'react-router';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
@@ -30,6 +22,13 @@ import {
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
 } from '@/shared/validations/auth.validations';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, type Theme } from '@mui/material';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import { useForm } from 'react-hook-form';
+import { redirect, useFetcher } from 'react-router';
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';
 

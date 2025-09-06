@@ -79,7 +79,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AppResponseResult"
+                  "$ref": "#/components/schemas/ApiResponse"
                 }
               }
             }
@@ -111,6 +111,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AppResponseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verify-email": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Verify Email Request",
+        "operationId": "VerifyEmailRequest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyEmailRequestSuccessResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
                 }
               }
             }
@@ -451,6 +492,28 @@
           "isDeleted": {
             "type": "boolean",
             "nullable": true
+          }
+        }
+      },
+      "VerifyEmailRequestBody": {
+        "required": [
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "VerifyEmailRequestSuccessResult": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
           }
         }
       }

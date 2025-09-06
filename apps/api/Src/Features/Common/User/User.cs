@@ -17,5 +17,11 @@ public class User : BaseAttributes, INoTenantEntity
 	[BsonElement("isVerified")]
 	public bool? IsVerified { get; set; }
 
+	[BsonElement("emailVerifyToken")]
+	public string? EmailVerifyToken { get; set; }
+
+	[BsonElement("emailVerifyTokenExpiresAt")]
+	public DateTime? EmailVerifyTokenExpiresAt { get; set; }
+
 	public static readonly string CollectionName = "_User";
 }

@@ -31,8 +31,6 @@
 		"@mui/x-date-pickers": "^8.5.1",
 		"@mui/x-tree-view": "^8.5.1",
 		"@org/js-client": "workspace:*",
-		"@org/parse-api-client": "workspace:*",
-		"@org/parse-rest-client": "workspace:*",
 		"@org/shared": "workspace:*",
 		"@react-router/node": "^7.5.2",
 		"@react-router/serve": "^7.5.2",
