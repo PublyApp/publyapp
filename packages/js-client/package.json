@@ -4,8 +4,9 @@
 	"main": "src/index.ts",
 	"types": "src/index.d.ts",
 	"scripts": {
-		"kiota:generate": "dotnet tool run kiota generate --openapi ../../api/openapi/MainApi.json --output src --language typescript --namespace-name MainApi.Client",
-		"kiota:info": "dotnet tool run kiota info -d ../../api/openapi/MainApi.json -l TypeScript"
+		"kiota:generate": "dotnet tool run kiota generate -d ../../apps/api/openapi/MainApi.json -o src -l typescript -n MainApi.Client -c ApiClient",
+		"kiota:update": "dotnet tool run kiota update -o src",
+		"kiota:info": "dotnet tool run kiota info -d ../../apps/api/openapi/MainApi.json -l typeScript"
 	},
 	"dependencies": {
 		"@microsoft/kiota-abstractions": "1.0.0-preview.97",

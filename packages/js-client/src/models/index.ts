@@ -4,6 +4,16 @@
 // @ts-ignore
 import { createUntypedNodeFromDiscriminatorValue, type AdditionalDataHolder, type ApiError, type Parsable, type ParseNode, type SerializationWriter, type UntypedNode } from '@microsoft/kiota-abstractions';
 
+export interface ApiResponse extends AdditionalDataHolder, ApiError, Parsable {
+    /**
+     * The key property
+     */
+    key?: string | null;
+    /**
+     * The message property
+     */
+    messageEscaped?: string | null;
+}
 export interface AppResponseResult extends AdditionalDataHolder, ApiError, Parsable {
     /**
      * The key property
@@ -13,6 +23,15 @@ export interface AppResponseResult extends AdditionalDataHolder, ApiError, Parsa
      * The message property
      */
     messageEscaped?: string | null;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ApiResponse}
+ */
+// @ts-ignore
+export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoApiResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -133,6 +152,18 @@ export interface CreateTenantStaffSuccessResultTenantData extends AdditionalData
      * The tenantName property
      */
     tenantName?: string | null;
+}
+/**
+ * The deserialization information for the current model
+ * @param ApiResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoApiResponse(apiResponse: Partial<ApiResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "key": n => { apiResponse.key = n.getStringValue(); },
+        "message": n => { apiResponse.messageEscaped = n.getStringValue(); },
+    }
 }
 /**
  * The deserialization information for the current model
@@ -383,6 +414,19 @@ export interface Product extends AdditionalDataHolder, Parsable {
      * The updatedAt property
      */
     updatedAt?: Date | null;
+}
+/**
+ * Serializes information the current object
+ * @param ApiResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeApiResponse(writer: SerializationWriter, apiResponse: Partial<ApiResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!apiResponse || isSerializingDerivedType) { return; }
+    writer.writeStringValue("key", apiResponse.key);
+    writer.writeStringValue("message", apiResponse.messageEscaped);
+    writer.writeAdditionalData(apiResponse.additionalData);
 }
 /**
  * Serializes information the current object
