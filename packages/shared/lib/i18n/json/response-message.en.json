@@ -12,5 +12,9 @@
 	"user-suspended": "User suspended",
 	"user-not-verified": "User not verified",
 	"user-id-required": "User ID required",
-	"failed-to-login": "Failed to login"
+	"failed-to-login": "Failed to login",
+	"user-not-found": "User not found",
+	"email-already-verified": "Email already verified",
+	"failed-to-register-user": "Failed to register user",
+	"user-already-exists": "User already exists"
 }

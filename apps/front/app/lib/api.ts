@@ -1,16 +1,6 @@
+import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import * as cookie from 'cookie';
-import type { i18n as I18n } from 'i18next';
 import _ from 'lodash';
-import ParseRestClient from 'packages/parse-rest-client/ParseRestClient';
-import type { ApiClient } from '@/js-client/src/apiClient';
-import { defaultApiClient } from '@/parse-api-client/ApiClient';
-import {
-	APP_ID,
-	endPoint,
-	LOCALE_HEADER_KEY,
-	SESSION_TOKEN_COOKIE_KEY,
-} from '@/shared/lib/constants';
-import { env } from './env';
 import { clientManager } from './js-client/client-manager';
 
 // const parseRestClient = new ParseRestClient({

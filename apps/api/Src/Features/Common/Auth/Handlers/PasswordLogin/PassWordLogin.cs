@@ -19,7 +19,6 @@ public class PasswordLoginBody
 		return Password.ValueKind switch
 		{
 			JsonValueKind.String => Password.GetString() ?? throw new InvalidOperationException("Password cannot be null"),
-			JsonValueKind.Number => Password.GetRawText(),
 			_ => throw new InvalidOperationException("Invalid password format")
 		};
 	}
@@ -29,7 +28,6 @@ public class PasswordLoginBody
 		return Email.ValueKind switch
 		{
 			JsonValueKind.String => Email.GetString() ?? throw new InvalidOperationException("Email cannot be null"),
-			JsonValueKind.Number => Email.GetRawText(),
 			_ => throw new InvalidOperationException("Invalid email format")
 		};
 	}

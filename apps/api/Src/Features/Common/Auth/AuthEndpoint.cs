@@ -5,6 +5,7 @@ using MainApi.Src.Lib.Filters;
 using MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
 using MainApi.Src.Features.Common.Auth.Handlers.PasswordRegister;
 using MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
+using MainApi.Src.Features.Common.Auth.Handlers.VerifyEmailRequest;
 
 public static class AuthEndpoint
 {
@@ -27,6 +28,11 @@ public static class AuthEndpoint
 		group.MapGet("/user-auth-data", GetUserAuthData.HandleGetUserAuthData)
 			.WithName("GetUserAuthData")
 			.WithSummary("Get User Auth Data");
+
+		group.MapPost("/verify-email", VerifyEmailRequest.HandleVerifyEmailRequest)
+			.WithName("VerifyEmailRequest")
+			.WithSummary("Verify Email Request")
+			.WithBodyValidation<VerifyEmailRequestBody>();
 
 		return group;
 	}

@@ -3,17 +3,20 @@ namespace MainApi.Src.Features.Common.User;
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Features.Common.Auth;
+using MainApi.Src.Lib;
+using MainApi.Localization;
 
 public abstract record CreateUserResult
 {
 	public sealed record Success(User User) : CreateUserResult;
-	public sealed record Failure(string Message, string Key) : CreateUserResult;
+	public sealed record Failure(string Message, TranslationKey Key) : CreateUserResult;
 }
 
 public interface IUserService
 {
 	Task<CreateUserResult> CreateUser(User user);
 	Task<User?> GetUserToLogin(string email);
+	Task<User?> GetUserByEmail(string email);
 }
 
 public class UserService : IUserService
@@ -33,7 +36,7 @@ public class UserService : IUserService
 		var existingUser = await _dbContext.User.FirstOrDefaultAsync(u => u.Email == user.Email);
 		if (existingUser != null)
 		{
-			return new CreateUserResult.Failure("User already exists", "user-already-exists");
+			return new CreateUserResult.Failure("User already exists", ResponseKeys.UserAlreadyExists);
 		}
 
 		// Hash the password before storing
@@ -46,6 +49,11 @@ public class UserService : IUserService
 	}
 
 	public async Task<User?> GetUserToLogin(string email)
+	{
+		return await GetUserByEmail(email);
+	}
+
+	public async Task<User?> GetUserByEmail(string email)
 	{
 		return await _dbContext.User.FirstOrDefaultAsync(
 			u => u.Email == email

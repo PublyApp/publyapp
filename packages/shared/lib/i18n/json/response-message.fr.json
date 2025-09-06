@@ -12,5 +12,9 @@
 	"user-suspended": "Utilisateur suspendu",
 	"user-not-verified": "Utilisateur non vérifié",
 	"user-id-required": "ID utilisateur requis",
-	"failed-to-login": "Échec de la connexion"
+	"failed-to-login": "Échec de la connexion",
+	"user-not-found": "Utilisateur non trouvé",
+	"email-already-verified": "Email déjà vérifié",
+	"failed-to-register-user": "Échec de l'inscription",
+	"user-already-exists": "Utilisateur déjà existant"
 }
