@@ -13,7 +13,11 @@ export const resources = {
 	fr,
 } as const;
 
-const _ns = ['common', 'zod'] as const satisfies NameSpace[];
+const _ns = [
+	'common',
+	'zod',
+	'response-message',
+] as const satisfies NameSpace[];
 export const NS = _ns;
 
 export const defaultLocale = appLocales[0];
