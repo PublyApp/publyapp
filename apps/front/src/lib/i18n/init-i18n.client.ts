@@ -1,10 +1,19 @@
+import { defaultApiClient } from '@/parse-api-client/ApiClient';
+import {
+	LANGUAGE_DETECTION_METHOD,
+	LANGUAGE_DETECTION_METHOD_ENUM,
+	LOCALE_COOKIE_KEY,
+	LOCALE_HEADER_KEY,
+	queryParamKey,
+} from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import duration from '@/shared/utils/duration.utils';
 import * as cookie from 'cookie';
 import dayjs from 'dayjs';
 import type { i18n as I18nInstance } from 'i18next';
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import Fetch from 'i18next-fetch-backend';
-import _ from 'lodash';
 import { initReactI18next } from 'react-i18next';
 import { getInitialNamespaces } from 'remix-i18next/client';
 
@@ -23,6 +32,8 @@ import { interZodClient } from '../zod/zod.client';
 import { config } from './i18n.config';
 import { localeTabSync } from './locale-tab-sync.client';
 
+// const backendUrl = new URL(env.VITE_SERVER_URL);
+// backendUrl.pathname = '/resources/{{lng}}.{{ns}}.json';
 const backendUrl = new URL(window.location.origin);
 backendUrl.pathname = '/tx/{{ns}}.{{lng}}.json';
 
@@ -54,7 +65,7 @@ const initI18nextInstance = async (initialNamespaces: string[]) => {
 		.init({
 			...config, // spread the configuration
 			// This function detects the namespaces your routes rendered while SSR use
-			ns: initialNamespaces,
+			ns: [...getInitialNamespaces()],
 			backend: {
 				loadPath: decodeURIComponent(backendUrl.toString()),
 			},
@@ -139,5 +150,8 @@ const initLocaleSideEffects = (i18n: I18nInstance) => {
 		if (localeTabSync.shouldBroadcast()) {
 			localeTabSync.broadcastLocaleToTabs(correctLocale);
 		}
+
+		// TODO: set locale for other libraries
+		// ???
 	});
 };
