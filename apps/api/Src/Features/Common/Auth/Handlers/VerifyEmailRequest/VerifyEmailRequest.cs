@@ -5,8 +5,10 @@ using MainApi.Localization;
 using MainApi.Src.Features.Common.Email;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 
 public class VerifyEmailRequestBody
@@ -55,7 +57,9 @@ public class VerifyEmailRequest
 	> HandleVerifyEmailRequest(
 		[FromBody] VerifyEmailRequestBody body,
 		[FromServices] IUserService userService,
-		[FromServices] IEmailService emailService
+		[FromServices] IEmailService emailService,
+		[FromServices] ILogger<VerifyEmailRequest> logger,
+		[FromServices] IOptions<AppSettings> appSettings
 	)
 	{
 		// check if user exists
@@ -77,8 +81,36 @@ public class VerifyEmailRequest
 		if (!string.IsNullOrEmpty(user.EmailVerifyToken)
 		&& (DateTime.UtcNow < (user.EmailVerifyTokenExpiresAt ?? DateTime.MinValue)))
 		{
-			await emailService.SendEmail(userEmail, "Email Verification", "Please verify your email by clicking the link below: " + user.EmailVerifyToken);
+			// asynchronously send email, does not wait for the email to be sent
+			// reuse the token
+			_ = emailService.SendVerificationMail(userEmail, user.EmailVerifyToken).ContinueWith(t =>
+			{
+				if (t.IsFaulted)
+				{
+					logger.LogError(t.Exception, "Error sending email");
+				}
+			});
+
+			return TypedResults.Ok(new VerifyEmailRequestSuccessResult());
 		}
+
+		var emailVerifyToken = CryptoUtils.NewObjectId(25);
+		var emailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
+
+		user.IsVerified = false;
+		user.EmailVerifyToken = emailVerifyToken;
+		user.EmailVerifyTokenExpiresAt = emailVerifyTokenExpiresAt;
+
+		await userService.UpdateUser(user);
+
+		// asynchronously send email, does not wait for the email to be sent
+		_ = emailService.SendVerificationMail(userEmail, user.EmailVerifyToken).ContinueWith(t =>
+		{
+			if (t.IsFaulted)
+			{
+				logger.LogError(t.Exception, "Error sending email");
+			}
+		});
 
 		return TypedResults.Ok(new VerifyEmailRequestSuccessResult());
 	}
