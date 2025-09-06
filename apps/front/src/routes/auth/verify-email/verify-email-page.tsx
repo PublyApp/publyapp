@@ -1,3 +1,27 @@
+import { Field, Form } from '@/front/components/hook-form';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { RouterLink } from '@/front/components/router-link';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { safeRun } from '@/front/lib/react-router/safeRun';
+import {
+	getServerAction,
+	getServerLoader,
+} from '@/front/lib/react-router/server-data.server';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import {
+	FRONT_PATH_NAMES,
+	queryParamKey,
+	queryParamValue,
+	X_CODE,
+} from '@/shared/lib/constants';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import { getErrorMessage } from '@/shared/utils/error.utils';
+import {
+	getCheckEmailVerificationTokenSchema,
+	getEmailFormSchema,
+	getRequestEmailVerificationSchema,
+} from '@/shared/validations/auth.validations';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Alert, type Theme } from '@mui/material';
 import Box from '@mui/material/Box';
@@ -5,47 +29,22 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useForm } from 'react-hook-form';
 import { redirect, useFetcher } from 'react-router';
-import { serializeError } from 'serialize-error';
-
-import {
-	FRONT_PATH_NAMES,
-	queryParamKey,
-	queryParamValue,
-} from '@org/shared-ts/lib/constants';
-import { getCorrectLocale } from '@org/shared-ts/lib/i18n/i18n.utils';
-import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
-import {
-	getCheckEmailVerificationTokenSchema,
-	getEmailFormSchema,
-	getRequestEmailVerificationSchema,
-} from '@org/shared-ts/validations/auth.validations';
-import { Field, Form } from '@/front/components/hook-form';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { RouterLink } from '@/front/components/router-link';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
-import { safeRun } from '@/front/lib/react-router/safeRun';
-import {
-	getServerAction,
-	getServerLoader,
-} from '@/front/lib/react-router/server-data.server';
-import { interZodClient } from '@/front/lib/zod/zod.client';
-
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';
 
 const actionIntent = {
 	REQUEST_EMAIL_VERIFICATION: 'REQUEST_EMAIL_VERIFICATION',
+	// CHALLENGE_EMAIL_FOR_TOKEN: 'CHALLENGE_EMAIL_FOR_TOKEN',
 } as const;
 
 export const action = getServerAction({
-	action: async ({ request, context, z }) => {
-		const apiClient = getClientManager().createClient({ skipAuth: true });
+	action: async ({ request, apiClient, context, z }) => {
 		const formData = await request.formData();
 		const intent = formData.get('intent');
 
 		const email = formData.get('email');
+		// const searchParams = new URL(request.url).searchParams;
+		// const token = searchParams.get(queryParamKey.token);
 
 		switch (intent) {
 			case actionIntent.REQUEST_EMAIL_VERIFICATION: {
@@ -61,23 +60,20 @@ export const action = getServerAction({
 				}
 
 				const requestEmailVerification = safeRun(
-					apiClient.auth.verifyEmailRequest.post,
+					apiClient.auth.requestEmailVerification,
 				);
 
 				// we intentionally don't return the actual outcome of the request
-				requestEmailVerification({
-					email: {
-						getValue() {
-							return parsed.data.email;
-						},
+				requestEmailVerification({ email: parsed.data.email }).then(
+					(result) => {
+						if (result.status === 'error') {
+							context.logger.error(
+								'Error when requesting email verification',
+								result.error,
+							);
+						}
 					},
-				}).then((result) => {
-					if (result.status === 'error') {
-						context.logger.error('Error when requesting email verification', {
-							error: serializeError(result.error),
-						});
-					}
-				});
+				);
 
 				return {
 					status: 'success',
@@ -95,14 +91,14 @@ export const action = getServerAction({
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request, z, context }) => {
-		const apiClient = getClientManager().createClient({ skipAuth: true });
+	loader: async ({ request, apiClient, z }) => {
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
 			queryParamKey.reset_password_page.encoded_email,
 		);
 
+		// if no token, we just return success
 		if (!token && !encodedEmail) {
 			return {
 				code: 'NO_TOKEN_AND_ID',
@@ -116,14 +112,7 @@ export const loader = getServerLoader({
 		}
 
 		const checkEmailVerificationToken = safeRun(
-			async (params: { id: string; token: string }) => {
-				return await apiClient.auth.checkEmailVerificationToken.get({
-					queryParameters: {
-						id: params.id,
-						token: params.token,
-					},
-				});
-			},
+			apiClient.auth.checkEmailVerificationToken,
 		);
 
 		const schema = getCheckEmailVerificationTokenSchema(z);
@@ -144,26 +133,24 @@ export const loader = getServerLoader({
 		});
 
 		if (result.status === 'error') {
-			if (
-				result.error.message === 'Invalid or expired email verification token'
-			) {
-				return {
-					code: 'INVALID_LINK',
-				} as const;
+			if (result.error instanceof ParseRestError) {
+				if (
+					result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID
+				) {
+					return {
+						code: 'INVALID_LINK',
+					} as const;
+				}
+
+				throw new Response(result.error.message, {
+					status: result.error.httpStatusCode,
+				});
 			}
 
 			throw result.error;
 		}
 
-		let redirectUrl: URL;
-
-		try {
-			redirectUrl = new URL(result.data?.resetPasswordUrl ?? '');
-		} catch (_error) {
-			context.logger.error('Error when creating redirect URL', _error);
-			redirectUrl = new URL(request.url);
-		}
-
+		const redirectUrl = new URL(result.data.resetPasswordLink);
 		redirectUrl.searchParams.set(
 			queryParamKey.language,
 			getCorrectLocale(searchParams.get(queryParamKey.language)),
@@ -205,7 +192,7 @@ export default VerifyEmailPage;
 const EmailForForm = ({ intent }: { intent: keyof typeof actionIntent }) => {
 	const { t, i18n } = useTranslate();
 
-	const schema = getEmailFormSchema(interZodClient);
+	const schema = getEmailFormSchema(defaultZodClient);
 
 	const formText = {
 		[actionIntent.REQUEST_EMAIL_VERIFICATION]: {

@@ -10,330 +10,96 @@ namespace MainApi.Localization;
 /// <summary>
 /// Type-safe translation keys generated from response message JSON
 /// </summary>
-public static partial class ResponseKeys {
-	/// <summary>
-	/// Bad request
-	/// </summary>
-	public static readonly TranslationKey BadRequest = new("bad-request");
-
-	/// <summary>
-	/// are you sure you want to delete this item?
-	/// </summary>
-	public static readonly TranslationKey ConfirmDeleteDialogText = new("confirm-delete-dialog-text");
-
-	/// <summary>
-	/// create your first {{item}}
-	/// </summary>
-	public static readonly TranslationKey CreateFirstItem = new("create-first-item");
-
-	/// <summary>
-	/// delete {{item}}
-	/// </summary>
-	public static readonly TranslationKey DeleteItem = new("delete-item");
-
-	/// <summary>
-	/// Email already verified
-	/// </summary>
-	public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
-
-	/// <summary>
-	/// error loading {{item}}
-	/// </summary>
-	public static readonly TranslationKey ErrorLoadingItems = new("error-loading-items");
-
-	/// <summary>
-	/// Failed to authenticate user
-	/// </summary>
-	public static readonly TranslationKey FailedToAuthenticateUser = new("failed-to-authenticate-user");
-
-	/// <summary>
-	/// Failed to create user
-	/// </summary>
-	public static readonly TranslationKey FailedToCreateUser = new("failed-to-create-user");
-
-	/// <summary>
-	/// Failed to login
-	/// </summary>
-	public static readonly TranslationKey FailedToLogin = new("failed-to-login");
-
-	/// <summary>
-	/// Failed to register user
-	/// </summary>
-	public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
-
-	/// <summary>
-	/// Failed to update staff user
-	/// </summary>
-	public static readonly TranslationKey FailedToUpdateStaffUser = new("failed-to-update-staff-user");
-
-	/// <summary>
-	/// Forbidden
-	/// </summary>
-	public static readonly TranslationKey Forbidden = new("forbidden");
-
-	/// <summary>
-	/// Gateway timeout
-	/// </summary>
-	public static readonly TranslationKey GatewayTimeout = new("gateway-timeout");
-
-	/// <summary>
-	/// Internal server error
-	/// </summary>
-	public static readonly TranslationKey InternalServerError = new("internal-server-error");
-
-	/// <summary>
-	/// Invalid email or password
-	/// </summary>
-	public static readonly TranslationKey InvalidEmailOrPassword = new("invalid-email-or-password");
-
-	/// <summary>
-	/// Invalid or expired email verification token
-	/// </summary>
-	public static readonly TranslationKey InvalidEmailVerificationToken = new("invalid-email-verification-token");
-
-	/// <summary>
-	/// Invalid or expired invitation token
-	/// </summary>
-	public static readonly TranslationKey InvalidInvitationToken = new("invalid-invitation-token");
-
-	/// <summary>
-	/// Invalid or expired password reset token
-	/// </summary>
-	public static readonly TranslationKey InvalidPasswordResetToken = new("invalid-password-reset-token");
-
-	/// <summary>
-	/// Invalid session
-	/// </summary>
-	public static readonly TranslationKey InvalidSession = new("invalid-session");
-
-	/// <summary>
-	/// Invitation email resent successfully
-	/// </summary>
-	public static readonly TranslationKey InvitationResent = new("invitation-resent");
-
-	/// <summary>
-	/// Invitation revoked successfully
-	/// </summary>
-	public static readonly TranslationKey InvitationRevoked = new("invitation-revoked");
-
-	/// <summary>
-	/// Malformed ID
-	/// </summary>
-	public static readonly TranslationKey MalformedId = new("malformed-id");
-
-	/// <summary>
-	/// Method not allowed
-	/// </summary>
-	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
-
-	/// <summary>
-	/// no {{item}} found
-	/// </summary>
-	public static readonly TranslationKey NoItemsFound = new("no-items-found");
-
-	/// <summary>
-	/// Not a staff user
-	/// </summary>
-	public static readonly TranslationKey NotAStaffUser = new("not-a-staff-user");
-
-	/// <summary>
-	/// Not found
-	/// </summary>
-	public static readonly TranslationKey NotFound = new("not-found");
-
-	/// <summary>
-	/// Password reset successfully
-	/// </summary>
-	public static readonly TranslationKey PasswordResetSuccess = new("password-reset-success");
-
-	/// <summary>
-	/// A pending invitation already exists
-	/// </summary>
-	public static readonly TranslationKey PendingInvitationExists = new("pending-invitation-exists");
-
-	/// <summary>
-	/// profile
-	/// </summary>
-	public static readonly TranslationKey Profile = new("profile");
-
-	/// <summary>
-	/// Profile name already exists
-	/// </summary>
-	public static readonly TranslationKey ProfileNameAlreadyExists = new("profile-name-already-exists");
-
-	/// <summary>
-	/// profiles
-	/// </summary>
-	public static readonly TranslationKey Profiles = new("profiles");
-
-	/// <summary>
-	/// Query parameter missing
-	/// </summary>
-	public static readonly TranslationKey QueryParametersMissing = new("query-parameters-missing");
-
-	/// <summary>
-	/// Query parameters validation failed
-	/// </summary>
-	public static readonly TranslationKey QueryParametersValidationFailed = new("query-parameters-validation-failed");
-
-	/// <summary>
-	/// Request body missing
-	/// </summary>
-	public static readonly TranslationKey RequestBodyMissing = new("request-body-missing");
-
-	/// <summary>
-	/// Request body validation failed
-	/// </summary>
-	public static readonly TranslationKey RequestBodyValidationFailed = new("request-body-validation-failed");
-
-	/// <summary>
-	/// Service unavailable
-	/// </summary>
-	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
-
-	/// <summary>
-	/// Staff profile created successfully
-	/// </summary>
-	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
-
-	/// <summary>
-	/// staff profiles
-	/// </summary>
-	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
-
-	/// <summary>
-	/// Staff user updated successfully
-	/// </summary>
-	public static readonly TranslationKey StaffUserUpdatedSuccessfully = new("staff-user-updated-successfully");
-
-	/// <summary>
-	/// Tenant is already suspended
-	/// </summary>
-	public static readonly TranslationKey TenantAlreadySuspended = new("tenant-already-suspended");
-
-	/// <summary>
-	/// Tenant has been deleted successfully
-	/// </summary>
-	public static readonly TranslationKey TenantDeletedSuccess = new("tenant-deleted-success");
-
-	/// <summary>
-	/// Tenant ID required
-	/// </summary>
-	public static readonly TranslationKey TenantIdRequired = new("tenant-id-required");
-
-	/// <summary>
-	/// Max users cannot be less than the current number of users
-	/// </summary>
-	public static readonly TranslationKey TenantMaxUsersBelowCount = new("tenant-max-users-below-count");
-
-	/// <summary>
-	/// Only active tenants can be suspended
-	/// </summary>
-	public static readonly TranslationKey TenantNotActiveCannotSuspend = new("tenant-not-active-cannot-suspend");
-
-	/// <summary>
-	/// Tenant not found
-	/// </summary>
-	public static readonly TranslationKey TenantNotFound = new("tenant-not-found");
-
-	/// <summary>
-	/// Tenant is not currently suspended
-	/// </summary>
-	public static readonly TranslationKey TenantNotSuspended = new("tenant-not-suspended");
-
-	/// <summary>
-	/// Only suspended tenants can be deleted
-	/// </summary>
-	public static readonly TranslationKey TenantNotSuspendedCannotDelete = new("tenant-not-suspended-cannot-delete");
-
-	/// <summary>
-	/// Tenant has been reactivated successfully
-	/// </summary>
-	public static readonly TranslationKey TenantReactivatedSuccess = new("tenant-reactivated-success");
-
-	/// <summary>
-	/// This tenant has been suspended
-	/// </summary>
-	public static readonly TranslationKey TenantSuspended = new("tenant-suspended");
-
-	/// <summary>
-	/// Tenant has been suspended successfully
-	/// </summary>
-	public static readonly TranslationKey TenantSuspendedSuccess = new("tenant-suspended-success");
-
-	/// <summary>
-	/// Tenant has been updated successfully
-	/// </summary>
-	public static readonly TranslationKey TenantUpdatedSuccess = new("tenant-updated-success");
-
-	/// <summary>
-	/// Too many requests
-	/// </summary>
-	public static readonly TranslationKey TooManyRequests = new("too-many-requests");
-
-	/// <summary>
-	/// Unauthorized
-	/// </summary>
-	public static readonly TranslationKey Unauthorized = new("unauthorized");
-
-	/// <summary>
-	/// Unprocessable entity
-	/// </summary>
-	public static readonly TranslationKey UnprocessableEntity = new("unprocessable-entity");
-
-	/// <summary>
-	/// user accounts
-	/// </summary>
-	public static readonly TranslationKey UserAccounts = new("user-accounts");
-
-	/// <summary>
-	/// User already exists
-	/// </summary>
-	public static readonly TranslationKey UserAlreadyExists = new("user-already-exists");
-
-	/// <summary>
-	/// User already member of staff
-	/// </summary>
-	public static readonly TranslationKey UserAlreadyMemberOfStaff = new("user-already-member-of-staff");
-
-	/// <summary>
-	/// User does not have the necessary permissions
-	/// </summary>
-	public static readonly TranslationKey UserDoesNotHaveTheNecessaryPermissions = new("user-does-not-have-the-necessary-permissions");
-
-	/// <summary>
-	/// This user already has a staff account. Staff and tenant/project accounts are mutually exclusive.
-	/// </summary>
-	public static readonly TranslationKey UserHasStaffAccount = new("user-has-staff-account");
-
-	/// <summary>
-	/// This user already has tenant or project accounts. Staff and tenant/project accounts are mutually exclusive.
-	/// </summary>
-	public static readonly TranslationKey UserHasTenantOrProjectAccounts = new("user-has-tenant-or-project-accounts");
-
-	/// <summary>
-	/// User ID required
-	/// </summary>
-	public static readonly TranslationKey UserIdRequired = new("user-id-required");
-
-	/// <summary>
-	/// User not found
-	/// </summary>
-	public static readonly TranslationKey UserNotFound = new("user-not-found");
-
-	/// <summary>
-	/// User not verified
-	/// </summary>
-	public static readonly TranslationKey UserNotVerified = new("user-not-verified");
-
-	/// <summary>
-	/// User suspended
-	/// </summary>
-	public static readonly TranslationKey UserSuspended = new("user-suspended");
-
-	/// <summary>
-	/// view details
-	/// </summary>
-	public static readonly TranslationKey ViewDetails = new("view-details");
+public static partial class ResponseKeys
+{
+    /// <summary>
+    /// Bad request
+    /// </summary>
+    public static readonly TranslationKey BadRequest = new("bad-request");
+
+    /// <summary>
+    /// Email already verified
+    /// </summary>
+    public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
+
+    /// <summary>
+    /// Failed to login
+    /// </summary>
+    public static readonly TranslationKey FailedToLogin = new("failed-to-login");
+
+    /// <summary>
+    /// Failed to register user
+    /// </summary>
+    public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
+
+    /// <summary>
+    /// Gateway timeout
+    /// </summary>
+    public static readonly TranslationKey GatewayTimeout = new("gateway-timeout");
+
+    /// <summary>
+    /// Internal server error
+    /// </summary>
+    public static readonly TranslationKey InternalServerError = new("internal-server-error");
+
+    /// <summary>
+    /// Invalid email or password
+    /// </summary>
+    public static readonly TranslationKey InvalidEmailOrPassword = new("invalid-email-or-password");
+
+    /// <summary>
+    /// Method not allowed
+    /// </summary>
+    public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
+
+    /// <summary>
+    /// Not found
+    /// </summary>
+    public static readonly TranslationKey NotFound = new("not-found");
+
+    /// <summary>
+    /// Service unavailable
+    /// </summary>
+    public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
+
+    /// <summary>
+    /// Too many requests
+    /// </summary>
+    public static readonly TranslationKey TooManyRequests = new("too-many-requests");
+
+    /// <summary>
+    /// Unauthorized
+    /// </summary>
+    public static readonly TranslationKey Unauthorized = new("unauthorized");
+
+    /// <summary>
+    /// Unprocessable entity
+    /// </summary>
+    public static readonly TranslationKey UnprocessableEntity = new("unprocessable-entity");
+
+    /// <summary>
+    /// User already exists
+    /// </summary>
+    public static readonly TranslationKey UserAlreadyExists = new("user-already-exists");
+
+    /// <summary>
+    /// User ID required
+    /// </summary>
+    public static readonly TranslationKey UserIdRequired = new("user-id-required");
+
+    /// <summary>
+    /// User not found
+    /// </summary>
+    public static readonly TranslationKey UserNotFound = new("user-not-found");
+
+    /// <summary>
+    /// User not verified
+    /// </summary>
+    public static readonly TranslationKey UserNotVerified = new("user-not-verified");
+
+    /// <summary>
+    /// User suspended
+    /// </summary>
+    public static readonly TranslationKey UserSuspended = new("user-suspended");
 
 }
