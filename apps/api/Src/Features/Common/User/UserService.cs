@@ -17,6 +17,7 @@ public interface IUserService
 	Task<CreateUserResult> CreateUser(User user);
 	Task<User?> GetUserToLogin(string email);
 	Task<User?> GetUserByEmail(string email);
+	Task<User?> UpdateUser(User user);
 }
 
 public class UserService : IUserService
@@ -62,5 +63,12 @@ public class UserService : IUserService
 													 // && u.IsSuspended != true
 													 // && u.IsVerified == true
 		);
+	}
+
+	public async Task<User?> UpdateUser(User user)
+	{
+		_dbContext.User.Update(user);
+		await _dbContext.SaveChangesAsync();
+		return user;
 	}
 }
