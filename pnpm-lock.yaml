@@ -349,6 +349,9 @@ importers:
       vite-plugin-devtools-json:
         specifier: ^0.2.1
         version: 0.2.1(vite@6.3.5(@types/node@20.19.7)(jiti@2.4.2)(yaml@2.8.0))
+      vite-plugin-static-copy:
+        specifier: ^3.1.2
+        version: 3.1.2(vite@6.3.5(@types/node@20.19.7)(jiti@2.4.2)(yaml@2.8.0))
       vite-tsconfig-paths:
         specifier: ^5.1.2
         version: 5.1.4(typescript@5.8.3)(vite@6.3.5(@types/node@20.19.7)(jiti@2.4.2)(yaml@2.8.0))
@@ -6641,6 +6644,10 @@ packages:
     resolution: {integrity: sha512-LaNjtRWUBY++zB5nE/NwcaoMylSPk+S+ZHNB1TzdbMJMny6dynpAGt7X/tl/QYq3TIeE6nxHppbo2LGymrG5Pw==}
     engines: {node: '>=10'}
 
+  p-map@7.0.3:
+    resolution: {integrity: sha512-VkndIv2fIB99swvQoA65bm+fsmt6UNdGeIB0oxBs+WhAhdh08QA04JXpI7rbB9r08/nkbysKoya9rtDERYOYMA==}
+    engines: {node: '>=18'}
+
   p-timeout@6.1.4:
     resolution: {integrity: sha512-MyIV3ZA/PmyBN/ud8vV9XzwTrNtR4jFrObymZYnZqMmW0zA8Z17vnT0rBgFE/TlohB+YCHqXMgZzb3Csp49vqg==}
     engines: {node: '>=14.16'}
@@ -8351,6 +8358,12 @@ packages:
     resolution: {integrity: sha512-5aiNvf/iLTuLR1dUqoI5CLLGgeK2hd6u+tA+RIp7GUZDyAcM6ECaUEWOOtGpidbcxbkKq++KtmSqA3jhMbPwMA==}
     peerDependencies:
       vite: ^2.7.0 || ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
+
+  vite-plugin-static-copy@3.1.2:
+    resolution: {integrity: sha512-aVmYOzptLVOI2b1jL+cmkF7O6uhRv1u5fvOkQgbohWZp2CbR22kn9ZqkCUIt9umKF7UhdbsEpshn1rf4720QFg==}
+    engines: {node: ^18.0.0 || >=20.0.0}
+    peerDependencies:
+      vite: ^5.0.0 || ^6.0.0 || ^7.0.0
 
   vite-tsconfig-paths@5.1.4:
     resolution: {integrity: sha512-cYj0LRuLV2c2sMqhqhGpaO3LretdtMn/BVX4cPLanIZuwwrkVl+lK84E/miEXkCHWXuq65rhNN4rXsBcOB3S4w==}
@@ -15228,6 +15241,8 @@ snapshots:
     dependencies:
       p-limit: 3.1.0
 
+  p-map@7.0.3: {}
+
   p-timeout@6.1.4: {}
 
   p-try@2.2.0: {}
@@ -17184,6 +17199,15 @@ snapshots:
   vite-plugin-devtools-json@0.2.1(vite@6.3.5(@types/node@20.19.7)(jiti@2.4.2)(yaml@2.8.0)):
     dependencies:
       uuid: 11.1.0
+      vite: 6.3.5(@types/node@20.19.7)(jiti@2.4.2)(yaml@2.8.0)
+
+  vite-plugin-static-copy@3.1.2(vite@6.3.5(@types/node@20.19.7)(jiti@2.4.2)(yaml@2.8.0)):
+    dependencies:
+      chokidar: 3.6.0
+      fs-extra: 11.3.0
+      p-map: 7.0.3
+      picocolors: 1.1.1
+      tinyglobby: 0.2.14
       vite: 6.3.5(@types/node@20.19.7)(jiti@2.4.2)(yaml@2.8.0)
 
   vite-tsconfig-paths@5.1.4(typescript@5.8.3)(vite@6.3.5(@types/node@20.19.7)(jiti@2.4.2)(yaml@2.8.0)):
