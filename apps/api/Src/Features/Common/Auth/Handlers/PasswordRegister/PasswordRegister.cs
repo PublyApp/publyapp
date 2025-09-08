@@ -53,7 +53,7 @@ public class PasswordRegisterResultUser
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
-public class PasswordRegisterSuccessResult : AppResponseResult
+public class PasswordRegisterSuccessResult
 {
 	public string Id { get; set; } = string.Empty;
 	public string Email { get; set; } = string.Empty;
@@ -68,7 +68,8 @@ public static class PasswordRegister
 	BadRequest<ApiResponse>
 	>> HandlePasswordRegister(
 		[FromBody] PasswordRegisterBody registerBody,
-		[FromServices] IUserService userService
+		[FromServices] IUserService userService,
+		CancellationToken cancellationToken = default
 )
 	{
 		var email = registerBody.GetEmail();
@@ -80,7 +81,7 @@ public static class PasswordRegister
 			Password = password,
 		};
 
-		var createUserResult = await userService.CreateUser(newUser);
+		var createUserResult = await userService.CreateUserAsync(newUser, cancellationToken);
 
 		if (createUserResult is CreateUserResult.Failure failure)
 		{

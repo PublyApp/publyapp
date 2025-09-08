@@ -463,12 +463,6 @@
           "sessionExpiresInMs": {
             "type": "number",
             "format": "double"
-          },
-          "message": {
-            "type": "string"
-          },
-          "key": {
-            "type": "string"
           }
         }
       },
@@ -499,12 +493,6 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
-          },
-          "message": {
-            "type": "string"
-          },
-          "key": {
-            "type": "string"
           }
         }
       },

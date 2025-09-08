@@ -59,11 +59,12 @@ public class VerifyEmailRequest
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<VerifyEmailRequest> logger,
-		[FromServices] IOptions<AppSettings> appSettings
+		[FromServices] IOptions<AppSettings> appSettings,
+		CancellationToken cancellationToken = default
 	)
 	{
 		// check if user exists
-		var user = await userService.GetUserByEmail(body.GetEmail());
+		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken).ConfigureAwait(false);
 
 		if (user == null)
 		{
@@ -81,15 +82,16 @@ public class VerifyEmailRequest
 		if (!string.IsNullOrEmpty(user.EmailVerifyToken)
 		&& (DateTime.UtcNow < (user.EmailVerifyTokenExpiresAt ?? DateTime.MinValue)))
 		{
-			// asynchronously send email, does not wait for the email to be sent
-			// reuse the token
-			_ = emailService.SendVerificationMail(userEmail, user.EmailVerifyToken).ContinueWith(t =>
+			// Send email asynchronously with proper error handling
+			try
 			{
-				if (t.IsFaulted)
-				{
-					logger.LogError(t.Exception, "Error sending email");
-				}
-			});
+				await emailService.SendVerificationMail(userEmail, user.EmailVerifyToken).ConfigureAwait(false);
+			}
+			catch (Exception ex)
+			{
+				logger.LogError(ex, "Error sending verification email to {Email}", userEmail);
+				// Continue execution - email failure shouldn't fail the request
+			}
 
 			return TypedResults.Ok(new VerifyEmailRequestSuccessResult());
 		}
@@ -101,16 +103,18 @@ public class VerifyEmailRequest
 		user.EmailVerifyToken = emailVerifyToken;
 		user.EmailVerifyTokenExpiresAt = emailVerifyTokenExpiresAt;
 
-		await userService.UpdateUser(user);
+		await userService.UpdateUserAsync(user, cancellationToken).ConfigureAwait(false);
 
-		// asynchronously send email, does not wait for the email to be sent
-		_ = emailService.SendVerificationMail(userEmail, user.EmailVerifyToken).ContinueWith(t =>
+		// Send email asynchronously with proper error handling
+		try
 		{
-			if (t.IsFaulted)
-			{
-				logger.LogError(t.Exception, "Error sending email");
-			}
-		});
+			await emailService.SendVerificationMail(userEmail, user.EmailVerifyToken).ConfigureAwait(false);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Error sending verification email to {Email}", userEmail);
+			// Continue execution - email failure shouldn't fail the request
+		}
 
 		return TypedResults.Ok(new VerifyEmailRequestSuccessResult());
 	}

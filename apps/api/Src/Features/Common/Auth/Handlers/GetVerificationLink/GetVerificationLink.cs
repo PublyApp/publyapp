@@ -28,10 +28,11 @@ public class GetVerificationLink
 {
 	public async static Task<Results<Ok<GetVerificationLinkSuccessResult>, BadRequest<ApiResponse>>> HandleGetVerificationLink(
 		[AsParameters] GetVerificationLinkQuery query,
-		[FromServices] ILogger<GetVerificationLink> logger
+		[FromServices] ILogger<GetVerificationLink> logger,
+		CancellationToken cancellationToken = default
 	)
 	{
-		await Task.Delay(1000);
+		await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
 		logger.LogDebug("GetVerificationLink: {@logData}", new { query.UserId });
 		return TypedResults.Ok(new GetVerificationLinkSuccessResult { Link = "https://example.com" });
 	}

@@ -66,7 +66,7 @@ public class PasswordLoginBodyValidator : AbstractValidator<PasswordLoginBody>
 }
 
 
-public class PasswordLoginSuccessResult : AppResponseResult
+public class PasswordLoginSuccessResult
 {
 	public string UserId { get; set; } = string.Empty;
 	public string SessionToken { get; set; } = string.Empty;
@@ -90,13 +90,8 @@ public class PasswordLogin
 		string email = loginBody.GetEmail();
 		string password = loginBody.GetPassword();
 
-		var user = await userService.GetUserToLogin(email);
+		var user = await userService.GetUserToLoginAsync(email);
 
-		var invalidEmailOrPasswordResult = new AppResponseResult
-		{
-			Message = "Invalid email or password",
-			Key = "invalid-email-or-password"
-		};
 
 		if (user == null)
 		{
