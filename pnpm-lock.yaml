@@ -171,6 +171,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^2.11.6
         version: 2.25.0
+      chalk:
+        specifier: ^5.4.1
+        version: 5.4.1
       cookie:
         specifier: ^1.0.2
         version: 1.0.2

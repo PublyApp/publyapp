@@ -8,6 +8,8 @@ import { RegisterRequestBuilderRequestsMetadata, type RegisterRequestBuilder } f
 // @ts-ignore
 import { type UserAuthDataRequestBuilder, UserAuthDataRequestBuilderRequestsMetadata } from './userAuthData/index.js';
 // @ts-ignore
+import { type VerifyEmailRequestRequestBuilder, VerifyEmailRequestRequestBuilderRequestsMetadata } from './verifyEmailRequest/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -26,6 +28,10 @@ export interface AuthRequestBuilder extends BaseRequestBuilder<AuthRequestBuilde
      * The userAuthData property
      */
     get userAuthData(): UserAuthDataRequestBuilder;
+    /**
+     * The verifyEmailRequest property
+     */
+    get verifyEmailRequest(): VerifyEmailRequestRequestBuilder;
 }
 /**
  * Uri template for the request builder.
@@ -43,6 +49,9 @@ export const AuthRequestBuilderNavigationMetadata: Record<Exclude<keyof AuthRequ
     },
     userAuthData: {
         requestsMetadata: UserAuthDataRequestBuilderRequestsMetadata,
+    },
+    verifyEmailRequest: {
+        requestsMetadata: VerifyEmailRequestRequestBuilderRequestsMetadata,
     },
 };
 /* tslint:enable */

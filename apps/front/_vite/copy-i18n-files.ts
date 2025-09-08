@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
 import { normalizePath, type Plugin } from 'vite';
@@ -15,8 +16,15 @@ const targets: PluginCopyOptions['targets'] = [
 	},
 ];
 
-const enableLog = false;
-const _log = enableLog ? console.log : () => {};
+const enableLog = true;
+const enableDebug = false;
+const logPrefix = '[copy-i18n-files]';
+const _log = enableLog
+	? (...args: any[]) => console.log(logPrefix, ...args)
+	: () => {};
+const _debug = enableDebug
+	? (...args: any[]) => console.debug(logPrefix, ...args)
+	: () => {};
 
 const copyI18nFiles = (): Plugin => {
 	const copyFiles = async () => {
@@ -25,18 +33,18 @@ const copyI18nFiles = (): Plugin => {
 		targets.forEach(({ src, dest }) => {
 			const task = fs.promises.cp(src, dest, { recursive: true });
 			task.then(() => {
-				_log(`Copied ${src} to ${dest}`);
+				_debug(`copied ${src} to ${dest}`);
 			});
 			tasks.push(task);
 		});
 
 		await Promise.all(tasks).then(() => {
-			_log('Copied all files');
+			_log(chalk.cyan('i18n files copied'));
 		});
 	};
 
 	return {
-		name: '@rog/vite-plugin-copy',
+		name: '@rog/vite-plugin-copy-i18n-files',
 		// Remove apply to run in both dev and build modes
 		configureServer: async () => {
 			await copyFiles();
