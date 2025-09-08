@@ -5,11 +5,11 @@ namespace MainApi.Src.Features.Tenant.Product;
 
 public interface IProductService
 {
-	Task<IEnumerable<Product>> GetAllProductsAsync();
-	Task<Product?> GetProductByIdAsync(string id);
-	Task<Product> CreateProductAsync(Product product);
-	Task<Product> UpdateProductAsync(Product product);
-	Task<bool> DeleteProductAsync(string id);
+	Task<IEnumerable<Product>> GetAllProductsAsync(CancellationToken cancellationToken = default);
+	Task<Product?> GetProductByIdAsync(string id, CancellationToken cancellationToken = default);
+	Task<Product> CreateProductAsync(Product product, CancellationToken cancellationToken = default);
+	Task<Product> UpdateProductAsync(Product product, CancellationToken cancellationToken = default);
+	Task<bool> DeleteProductAsync(string id, CancellationToken cancellationToken = default);
 }
 
 public class ProductService : IProductService
@@ -21,40 +21,40 @@ public class ProductService : IProductService
 		_dbContext = dbContext;
 	}
 
-	public async Task<IEnumerable<Product>> GetAllProductsAsync()
+	public async Task<IEnumerable<Product>> GetAllProductsAsync(CancellationToken cancellationToken = default)
 	{
-		return await _dbContext.Product.ToListAsync();
+		return await _dbContext.Product.ToListAsync(cancellationToken).ConfigureAwait(false);
 	}
 
-	public async Task<Product?> GetProductByIdAsync(string id)
+	public async Task<Product?> GetProductByIdAsync(string id, CancellationToken cancellationToken = default)
 	{
-		return await _dbContext.Product.FindAsync(id);
+		return await _dbContext.Product.FindAsync(new object[] { id }, cancellationToken).ConfigureAwait(false);
 	}
 
-	public async Task<Product> CreateProductAsync(Product product)
+	public async Task<Product> CreateProductAsync(Product product, CancellationToken cancellationToken = default)
 	{
 		_dbContext.Product.Add(product);
-		await _dbContext.SaveChangesAsync();
+		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		return product;
 	}
 
-	public async Task<Product> UpdateProductAsync(Product product)
+	public async Task<Product> UpdateProductAsync(Product product, CancellationToken cancellationToken = default)
 	{
 		_dbContext.Entry(product).State = EntityState.Modified;
-		await _dbContext.SaveChangesAsync();
+		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		return product;
 	}
 
-	public async Task<bool> DeleteProductAsync(string id)
+	public async Task<bool> DeleteProductAsync(string id, CancellationToken cancellationToken = default)
 	{
-		var product = await _dbContext.Product.FindAsync(id);
+		var product = await _dbContext.Product.FindAsync(new object[] { id }, cancellationToken).ConfigureAwait(false);
 		if (product == null)
 		{
 			return false;
 		}
 
 		_dbContext.Product.Remove(product);
-		await _dbContext.SaveChangesAsync();
+		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 		return true;
 	}
 }
