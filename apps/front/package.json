@@ -47,6 +47,7 @@
 		"@tiptap/pm": "^2.11.6",
 		"@tiptap/react": "^2.11.6",
 		"@tiptap/starter-kit": "^2.11.6",
+		"chalk": "^5.4.1",
 		"cookie": "^1.0.2",
 		"cross-env": "^7.0.3",
 		"dayjs": "^1.11.12",

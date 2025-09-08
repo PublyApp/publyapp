@@ -118,7 +118,7 @@
         }
       }
     },
-    "/auth/verify-email": {
+    "/auth/verify-email-request": {
       "post": {
         "tags": [
           "Auth"
@@ -142,6 +142,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/VerifyEmailRequestSuccessResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/verification-link": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get Verification Link",
+        "operationId": "GetVerificationLink",
+        "parameters": [
+          {
+            "name": "UserId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetVerificationLinkSuccessResult"
                 }
               }
             }
@@ -379,6 +420,17 @@
             "type": "string"
           },
           "email": {
+            "type": "string"
+          }
+        }
+      },
+      "GetVerificationLinkSuccessResult": {
+        "required": [
+          "link"
+        ],
+        "type": "object",
+        "properties": {
+          "link": {
             "type": "string"
           }
         }

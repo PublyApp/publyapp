@@ -154,6 +154,24 @@ export interface CreateTenantStaffSuccessResultTenantData extends AdditionalData
     tenantName?: string | null;
 }
 /**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {VerifyEmailRequestBody}
+ */
+// @ts-ignore
+export function createVerifyEmailRequestBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoVerifyEmailRequestBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {VerifyEmailRequestSuccessResult}
+ */
+// @ts-ignore
+export function createVerifyEmailRequestSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoVerifyEmailRequestSuccessResult;
+}
+/**
  * The deserialization information for the current model
  * @param ApiResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
@@ -297,6 +315,28 @@ export function deserializeIntoProduct(product: Partial<Product> | undefined = {
         "price": n => { product.price = n.getNumberValue(); },
         "tenantId": n => { product.tenantId = n.getStringValue(); },
         "updatedAt": n => { product.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param VerifyEmailRequestBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoVerifyEmailRequestBody(verifyEmailRequestBody: Partial<VerifyEmailRequestBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "email": n => { verifyEmailRequestBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param VerifyEmailRequestSuccessResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoVerifyEmailRequestSuccessResult(verifyEmailRequestSuccessResult: Partial<VerifyEmailRequestSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "status": n => { verifyEmailRequestSuccessResult.status = n.getStringValue(); },
     }
 }
 export interface GetUserAuthDataSuccessResult extends AdditionalDataHolder, Parsable {
@@ -571,6 +611,42 @@ export function serializeProduct(writer: SerializationWriter, product: Partial<P
     writer.writeStringValue("tenantId", product.tenantId);
     writer.writeDateValue("updatedAt", product.updatedAt);
     writer.writeAdditionalData(product.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param VerifyEmailRequestBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeVerifyEmailRequestBody(writer: SerializationWriter, verifyEmailRequestBody: Partial<VerifyEmailRequestBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!verifyEmailRequestBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("email", verifyEmailRequestBody.email);
+    writer.writeAdditionalData(verifyEmailRequestBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param VerifyEmailRequestSuccessResult The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeVerifyEmailRequestSuccessResult(writer: SerializationWriter, verifyEmailRequestSuccessResult: Partial<VerifyEmailRequestSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!verifyEmailRequestSuccessResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("status", verifyEmailRequestSuccessResult.status);
+    writer.writeAdditionalData(verifyEmailRequestSuccessResult.additionalData);
+}
+export interface VerifyEmailRequestBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The email property
+     */
+    email?: UntypedNode | null;
+}
+export interface VerifyEmailRequestSuccessResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The status property
+     */
+    status?: string | null;
 }
 /* tslint:enable */
 /* eslint-enable */
