@@ -1,21 +1,21 @@
 namespace MainApi.Src.Features.Common.Account;
 
 using MainApi.Src.Data;
-using MongoDB.Bson.Serialization.Attributes;
+using System.ComponentModel.DataAnnotations.Schema;
 
 public class UserAccountStaff : BaseAttributes, INoTenantEntity
 {
-	[BsonElement("userId")]
-	public string? UserId { get; set; }
+	[Column("user_id")]
+	public Guid UserId { get; set; }
 
-	[BsonElement("isSuspended")]
-	public bool? IsSuspended { get; set; }
+	[Column("is_suspended")]
+	public bool IsSuspended { get; set; } = false;
 
-	[BsonElement("hierarchyLevel")]
-	public AccountHierarchyLevel? HierarchyLevel { get; set; }
+	[Column("hierarchy_level")]
+	public AccountHierarchyLevel HierarchyLevel { get; set; }
 
-	[BsonElement("profileIds")]
-	public List<string>? ProfileIds { get; set; }
+	[Column("profile_ids")]
+	public List<Guid> ProfileIds { get; set; } = new();
 
-	public static readonly string CollectionName = "_UserAccountStaff";
+	public static readonly string TableName = "user_account_staff";
 }

@@ -1,18 +1,18 @@
 namespace MainApi.Src.Features.Common.Profile;
 
 using MainApi.Src.Data;
-using MongoDB.Bson.Serialization.Attributes;
+using System.ComponentModel.DataAnnotations.Schema;
 
 public class ProfileStaff : BaseAttributes, INoTenantEntity
 {
-	[BsonElement("name")]
+	[Column("name")]
 	public string? Name { get; set; }
 
-	[BsonElement("description")]
+	[Column("description")]
 	public string? Description { get; set; }
 
-	[BsonElement("permissions")]
-	public List<string>? Permissions { get; set; }
+	[Column("permissions")]
+	public List<string> Permissions { get; set; } = new();
 
-	public static readonly string CollectionName = "_ProfileStaff";
+	public static readonly string TableName = "profile_staff";
 }

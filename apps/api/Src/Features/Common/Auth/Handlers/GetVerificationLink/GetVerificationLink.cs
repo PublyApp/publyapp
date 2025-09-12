@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 public class GetVerificationLinkQuery
 {
-	public string UserId { get; set; } = string.Empty;
+	public Guid UserId { get; set; }
 }
 
 public class GetVerificationLinkQueryValidator : AbstractValidator<GetVerificationLinkQuery>

@@ -8,7 +8,7 @@ public static class ProductHandlers
 		return TypedResults.Ok(products);
 	}
 
-	public static async Task<IResult> GetProductById(string id, IProductService productService, CancellationToken cancellationToken = default)
+	public static async Task<IResult> GetProductById(Guid id, IProductService productService, CancellationToken cancellationToken = default)
 	{
 		var product = await productService.GetProductByIdAsync(id, cancellationToken).ConfigureAwait(false);
 
@@ -26,7 +26,7 @@ public static class ProductHandlers
 		return TypedResults.Created($"/api/products/{createdProduct.Id}", createdProduct);
 	}
 
-	public static async Task<IResult> UpdateProduct(string id, Product product, IProductService productService, CancellationToken cancellationToken = default)
+	public static async Task<IResult> UpdateProduct(Guid id, Product product, IProductService productService, CancellationToken cancellationToken = default)
 	{
 		if (id != product.Id)
 		{
@@ -37,7 +37,7 @@ public static class ProductHandlers
 		return TypedResults.Ok(updatedProduct);
 	}
 
-	public static async Task<IResult> DeleteProduct(string id, IProductService productService, CancellationToken cancellationToken = default)
+	public static async Task<IResult> DeleteProduct(Guid id, IProductService productService, CancellationToken cancellationToken = default)
 	{
 		var deleted = await productService.DeleteProductAsync(id, cancellationToken).ConfigureAwait(false);
 

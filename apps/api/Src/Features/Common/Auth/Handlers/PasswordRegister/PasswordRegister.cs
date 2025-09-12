@@ -47,7 +47,7 @@ public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterB
 
 public class PasswordRegisterResultUser
 {
-	public string Id { get; set; } = string.Empty;
+	public Guid Id { get; set; }
 	public string Email { get; set; } = string.Empty;
 	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -55,7 +55,7 @@ public class PasswordRegisterResultUser
 
 public class PasswordRegisterSuccessResult
 {
-	public string Id { get; set; } = string.Empty;
+	public Guid Id { get; set; }
 	public string Email { get; set; } = string.Empty;
 	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -92,10 +92,10 @@ public static class PasswordRegister
 		{
 			return TypedResults.Ok(new PasswordRegisterSuccessResult
 			{
-				Id = success.User.Id ?? throw new Exception("Id is null"),
+				Id = success.User.Id,
 				Email = success.User.Email ?? throw new Exception("Email is null"),
-				CreatedAt = success.User.CreatedAt ?? throw new Exception("CreatedAt is null"),
-				UpdatedAt = success.User.UpdatedAt ?? throw new Exception("UpdatedAt is null"),
+				CreatedAt = success.User.CreatedAt,
+				UpdatedAt = success.User.UpdatedAt,
 			});
 		}
 

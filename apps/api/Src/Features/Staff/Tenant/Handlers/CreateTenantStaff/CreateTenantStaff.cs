@@ -45,7 +45,7 @@ public class CreateTenantStaffBodyValidator : AbstractValidator<CreateTenantStaf
 
 public class CreateTenantStaffSuccessResultTenantData
 {
-	public string Id { get; set; } = string.Empty;
+	public Guid Id { get; set; }
 	public string TenantName { get; set; } = string.Empty;
 }
 
@@ -61,7 +61,7 @@ public class CreateTenantStaffSuccessResult : AppResponseResult
 		{
 			Tenant = new CreateTenantStaffSuccessResultTenantData
 			{
-				Id = tenant.Id ?? throw new Exception("Tenant ID is null"),
+				Id = tenant.Id,
 				TenantName = tenant.Name ?? throw new Exception("Tenant name is null")
 			}
 		};

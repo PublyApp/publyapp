@@ -1,13 +1,12 @@
 namespace MainApi.Src.Lib;
 using MainApi.Src.Data.DbContext;
-using MongoDB.Driver;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Features.Tenant.Product;
 using FluentValidation;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Common.Session;
-using MainApi.Src.Data.MongoDb;
+using MainApi.Src.Data.Repository;
 using MainApi.Src.Features.Staff.Tenant;
 using Microsoft.Extensions.Options;
 using MainApi.Src.Features.Common.Email;
@@ -16,19 +15,18 @@ public static class AppServicesConfig
 {
 	// Helper method to get current tenant ID
 	// (you'll need to implement this based on your authentication/authorization)
-	static string GetCurrentTenantId(IServiceProvider serviceProvider)
+	static Guid GetCurrentTenantId(IServiceProvider serviceProvider)
 	{
-		return "123";
-		// var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-		// var tenantId = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].FirstOrDefault();
+		return Guid.Parse("01234567-89ab-7def-0123-456789abcdef"); // Default tenant ID for development
+																															 // var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
+																															 // var tenantIdHeader = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].FirstOrDefault();
 
-		// if (tenantId == null)
+		// if (tenantIdHeader == null || !Guid.TryParse(tenantIdHeader, out Guid tenantId))
 		// {
-		// 	throw new Exception("Tenant ID is required");
+		// 	throw new Exception("Valid Tenant ID is required");
 		// }
 
 		// return tenantId;
-		// return "";
 	}
 
 	public static IHostApplicationBuilder AddServices(this IHostApplicationBuilder builder)
@@ -64,30 +62,23 @@ public static class AppServicesConfig
 		// Add HttpContextAccessor for accessing HTTP context in services
 		builder.Services.AddHttpContextAccessor();
 
-		// Configure MongoDB connection
-		var mongoClient = new MongoClient(AppEnvironment.MONGODB_URI);
-		var mongoDatabase = mongoClient.GetDatabase(AppEnvironment.MONGODB_DATABASE_NAME);
-
-		var dbContextWithoutFilter = new MainApiDbContext(
-			new DbContextOptionsBuilder<MainApiDbContext>()
-				.UseMongoDB(mongoDatabase.Client, mongoDatabase.DatabaseNamespace.DatabaseName)
-				.Options
-			);
-
-		MainApiDbContext.SetSingleTon(dbContextWithoutFilter);
-
-		// Register MongoDB client and database
-		builder.Services.AddSingleton<IMongoClient>(mongoClient);
-		builder.Services.AddSingleton<IMongoDatabase>(mongoDatabase);
-
 		// Register scoped DbContext (for per-request instances)
 		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) =>
 		{
 			var tenantId = GetCurrentTenantId(serviceProvider);
 			options
-		.UseMongoDB(mongoDatabase.Client, mongoDatabase.DatabaseNamespace.DatabaseName)
-		.UseTenantId(tenantId);
+				.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
+				.UseTenantId(tenantId);
 		}, ServiceLifetime.Scoped);
+
+		// Create a singleton context for operations that don't need tenant filtering
+		var dbContextWithoutFilter = new MainApiDbContext(
+			new DbContextOptionsBuilder<MainApiDbContext>()
+				.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
+				.Options
+		);
+
+		MainApiDbContext.SetSingleTon(dbContextWithoutFilter);
 
 		// Configure JSON options
 		// builder.Services.ConfigureHttpJsonOptions(options =>
@@ -116,14 +107,12 @@ public static class AppServicesConfig
 		// Register AuthContext
 		builder.Services.AddScoped<IAuthContext, AuthContext>();
 
+		// TODO: move tenant informations to the auth context
 		// Register TenantContext
 		builder.Services.AddScoped<ITenantContext, TenantContext>();
 
-		// Register Collection
-		builder.Services.AddScoped(typeof(IAppCollection<>), typeof(AppCollection<>));
-
-		// Register MongoDB index initializer hosted service
-		builder.Services.AddHostedService<MongoIndexesInitializer>();
+		// Register Repository
+		builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 
 		return builder;
 	}

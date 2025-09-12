@@ -4,11 +4,8 @@ using FluentValidation;
 
 public static class AppEnvironment
 {
-	public static string MONGODB_URI { get { return GetEnvVar(nameof(_MONGODB_URI)); } }
-	private static string _MONGODB_URI = string.Empty;
-
-	public static string MONGODB_DATABASE_NAME { get { return GetEnvVar(nameof(_MONGODB_DATABASE_NAME)); } }
-	private static string _MONGODB_DATABASE_NAME = string.Empty;
+	public static string POSTGRES_CONNECTION_STRING { get { return GetEnvVar(nameof(_POSTGRES_CONNECTION_STRING)); } }
+	private static string _POSTGRES_CONNECTION_STRING = string.Empty;
 
 	public static string FRONT_URL { get { return GetEnvVar(nameof(_FRONT_URL)); } }
 	private static string _FRONT_URL = string.Empty;
@@ -52,14 +49,12 @@ public static class AppEnvironment
 
 	private static void ValidateAndSetEnvironmentVariables()
 	{
-		var mongoDbUri = Environment.GetEnvironmentVariable(nameof(MONGODB_URI));
-		var mongoDbDatabaseName = Environment.GetEnvironmentVariable(nameof(MONGODB_DATABASE_NAME));
+		var postgresConnectionString = Environment.GetEnvironmentVariable(nameof(POSTGRES_CONNECTION_STRING));
 		var frontUrl = Environment.GetEnvironmentVariable(nameof(FRONT_URL));
 
 		var validationResult = _validator.Validate(new EnvironmentConfig
 		{
-			MongoDbUri = mongoDbUri,
-			MongoDbDatabaseName = mongoDbDatabaseName,
+			PostgresConnectionString = postgresConnectionString,
 			FrontUrl = frontUrl
 		});
 
@@ -69,16 +64,14 @@ public static class AppEnvironment
 			throw new Exception($"Environment validation failed:\n\t\t{errors}");
 		}
 
-		_MONGODB_URI = mongoDbUri!;
-		_MONGODB_DATABASE_NAME = mongoDbDatabaseName!;
+		_POSTGRES_CONNECTION_STRING = postgresConnectionString!;
 		_FRONT_URL = frontUrl!;
 	}
 }
 
 public class EnvironmentConfig
 {
-	public string? MongoDbUri { get; set; }
-	public string? MongoDbDatabaseName { get; set; }
+	public string? PostgresConnectionString { get; set; }
 	public string? FrontUrl { get; set; }
 }
 
@@ -86,14 +79,9 @@ public class EnvironmentValidator : AbstractValidator<EnvironmentConfig>
 {
 	public EnvironmentValidator()
 	{
-		RuleFor(x => x.MongoDbUri)
-			.NotEmpty().WithMessage("MONGODB_URI is not set or is empty")
-			.Must(BeValidMongoDbUri).WithMessage("MONGODB_URI must be a valid MongoDB URI (mongodb:// or mongodb+srv://)");
-
-		RuleFor(x => x.MongoDbDatabaseName)
-			.NotEmpty().WithMessage("MONGODB_DATABASE_NAME is not set or is empty")
-			.MaximumLength(64).WithMessage("MONGODB_DATABASE_NAME cannot exceed 64 characters")
-			.Must(BeValidDatabaseName).WithMessage("MONGODB_DATABASE_NAME contains invalid characters or is a reserved word");
+		RuleFor(x => x.PostgresConnectionString)
+			.NotEmpty().WithMessage("POSTGRES_CONNECTION_STRING is not set or is empty")
+			.Must(BeValidPostgresConnectionString).WithMessage("POSTGRES_CONNECTION_STRING must be a valid PostgreSQL connection string");
 
 		RuleFor(x => x.FrontUrl)
 			.NotEmpty().WithMessage("FRONT_URL is not set or is empty")
@@ -110,33 +98,13 @@ public class EnvironmentValidator : AbstractValidator<EnvironmentConfig>
 			&& (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
 	}
 
-	private static bool BeValidMongoDbUri(string? uri)
+	private static bool BeValidPostgresConnectionString(string? connectionString)
 	{
-		if (string.IsNullOrWhiteSpace(uri)) return false;
+		if (string.IsNullOrWhiteSpace(connectionString)) return false;
 
-		if (!Uri.TryCreate(uri, UriKind.Absolute, out var parsedUri))
-			return false;
-
-		if (parsedUri.Scheme != "mongodb" && parsedUri.Scheme != "mongodb+srv")
-			return false;
-
-		return !string.IsNullOrWhiteSpace(parsedUri.Host);
-	}
-
-	private static bool BeValidDatabaseName(string? databaseName)
-	{
-		if (string.IsNullOrWhiteSpace(databaseName)) return false;
-
-		// MongoDB database name restrictions
-		var invalidChars = new[] { '/', '\\', '.', ' ', '"', '$', '*', '<', '>', ':', '|', '?' };
-		if (invalidChars.Any(c => databaseName.Contains(c)))
-			return false;
-
-		// Cannot start with reserved words
-		var reservedWords = new[] { "admin", "local", "config" };
-		if (reservedWords.Contains(databaseName.ToLower()))
-			return false;
-
-		return true;
+		// Basic validation for PostgreSQL connection string
+		// Should contain at least Host, Database, Username, and Password
+		var requiredKeys = new[] { "Host", "Database", "Username", "Password" };
+		return requiredKeys.All(key => connectionString.Contains(key));
 	}
 }

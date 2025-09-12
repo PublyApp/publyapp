@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 
 public class TenantExtension : IDbContextOptionsExtension
 {
-	public string? TenantId { get; set; }
+	public Guid? TenantId { get; set; }
 
 	public void ApplyServices(IServiceCollection services)
 	{
@@ -29,7 +29,7 @@ public class TenantExtension : IDbContextOptionsExtension
 		public override int GetServiceProviderHashCode() => 0;
 		public override bool ShouldUseSameServiceProvider(DbContextOptionsExtensionInfo other) => true;
 		public override void PopulateDebugInfo(IDictionary<string, string> debugInfo)
-				=> debugInfo[$"Tenant:{nameof(TenantId)}"] = ((TenantExtension)Extension).TenantId ?? "(null)";
+				=> debugInfo[$"Tenant:{nameof(TenantId)}"] = ((TenantExtension)Extension).TenantId?.ToString() ?? "(null)";
 	}
 }
 
@@ -37,7 +37,7 @@ public static class UseTenantIdExtension
 {
 	public static DbContextOptionsBuilder UseTenantId(
 			this DbContextOptionsBuilder optionsBuilder,
-			string tenantId)
+			Guid tenantId)
 	{
 		var extension = optionsBuilder.Options.FindExtension<TenantExtension>()
 				?? new TenantExtension();

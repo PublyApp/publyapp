@@ -6,10 +6,10 @@ namespace MainApi.Src.Features.Tenant.Product;
 public interface IProductService
 {
 	Task<IEnumerable<Product>> GetAllProductsAsync(CancellationToken cancellationToken = default);
-	Task<Product?> GetProductByIdAsync(string id, CancellationToken cancellationToken = default);
+	Task<Product?> GetProductByIdAsync(Guid id, CancellationToken cancellationToken = default);
 	Task<Product> CreateProductAsync(Product product, CancellationToken cancellationToken = default);
 	Task<Product> UpdateProductAsync(Product product, CancellationToken cancellationToken = default);
-	Task<bool> DeleteProductAsync(string id, CancellationToken cancellationToken = default);
+	Task<bool> DeleteProductAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
 public class ProductService : IProductService
@@ -26,7 +26,7 @@ public class ProductService : IProductService
 		return await _dbContext.Product.ToListAsync(cancellationToken).ConfigureAwait(false);
 	}
 
-	public async Task<Product?> GetProductByIdAsync(string id, CancellationToken cancellationToken = default)
+	public async Task<Product?> GetProductByIdAsync(Guid id, CancellationToken cancellationToken = default)
 	{
 		return await _dbContext.Product.FindAsync(new object[] { id }, cancellationToken).ConfigureAwait(false);
 	}
@@ -45,7 +45,7 @@ public class ProductService : IProductService
 		return product;
 	}
 
-	public async Task<bool> DeleteProductAsync(string id, CancellationToken cancellationToken = default)
+	public async Task<bool> DeleteProductAsync(Guid id, CancellationToken cancellationToken = default)
 	{
 		var product = await _dbContext.Product.FindAsync(new object[] { id }, cancellationToken).ConfigureAwait(false);
 		if (product == null)

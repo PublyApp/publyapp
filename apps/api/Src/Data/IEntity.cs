@@ -1,6 +1,6 @@
 namespace MainApi.Src.Data;
 
-using MongoDB.Bson.Serialization.Attributes;
+using System.ComponentModel.DataAnnotations.Schema;
 
 public interface IEntity
 {
@@ -8,8 +8,8 @@ public interface IEntity
 
 public interface ITenantEntity : IEntity
 {
-	[BsonElement("tenantId")]
-	string TenantId { get; set; }
+	[Column("tenant_id")]
+	Guid TenantId { get; set; }
 }
 
 public interface INoTenantEntity : IEntity

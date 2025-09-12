@@ -1,21 +1,19 @@
 namespace MainApi.Src.Data;
 
-using MainApi.Src.Lib.Utils;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 public class BaseAttributes
 {
-	[BsonId]
-	// [BsonRepresentation(BsonType.ObjectId)]
-	public string? Id { get; set; } = CryptoUtils.NewObjectId();
+	[Key]
+	[Column("id")]
+	public Guid Id { get; set; } = Guid.CreateVersion7();
 
-	[BsonElement("createdAt")]
-	public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
+	[Column("created_at")]
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-	[BsonElement("updatedAt")]
-	public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
+	[Column("updated_at")]
+	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-	[BsonElement("isDeleted")]
-	public bool? IsDeleted { get; set; }
+	[Column("is_deleted")]
+	public bool IsDeleted { get; set; } = false;
 }

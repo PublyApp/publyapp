@@ -1,18 +1,18 @@
 namespace MainApi.Src.Features.Common.Account;
 
 using MainApi.Src.Data;
-using MongoDB.Bson.Serialization.Attributes;
+using System.ComponentModel.DataAnnotations.Schema;
 
 public class UserAccountTenant : BaseAttributes, ITenantEntity
 {
-	[BsonElement("userId")]
-	public string? UserId { get; set; }
+	[Column("user_id")]
+	public Guid UserId { get; set; }
 
-	[BsonElement("hierarchyLevel")]
-	public AccountHierarchyLevel? HierarchyLevel { get; set; }
+	[Column("hierarchy_level")]
+	public AccountHierarchyLevel HierarchyLevel { get; set; }
 
-	[BsonElement("tenantId")]
-	public string TenantId { get; set; } = string.Empty;
+	[Column("tenant_id")]
+	public Guid TenantId { get; set; }
 
-	public static readonly string CollectionName = "_UserAccountTenant";
+	public static readonly string TableName = "user_account_tenant";
 }

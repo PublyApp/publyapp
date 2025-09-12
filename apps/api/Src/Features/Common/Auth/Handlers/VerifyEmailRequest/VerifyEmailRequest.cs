@@ -96,7 +96,7 @@ public class VerifyEmailRequest
 			return TypedResults.Ok(new VerifyEmailRequestSuccessResult());
 		}
 
-		var emailVerifyToken = CryptoUtils.NewObjectId(25);
+		var emailVerifyToken = CryptoUtils.RandomString(25);
 		var emailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
 
 		user.IsVerified = false;
