@@ -27,7 +27,7 @@ public class EmailService : IEmailService
 
 	public static string CreateVerificationLink(string token, string email)
 	{
-		return $"{AppEnvironment.FRONT_URL}/verify-email?token={token}&id={AppEncoder.EncodeString(email)}";
+		return $"{AppEnvironment.FRONT_URL}/verify-email?token={token}&id={CryptoUtils.EncryptString(email)}";
 	}
 
 	public async Task SendVerificationMail(string email, string token)

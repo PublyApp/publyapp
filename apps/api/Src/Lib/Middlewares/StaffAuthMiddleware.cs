@@ -36,8 +36,8 @@ public class StaffAuthMiddleware
 		// verify if the user is a staff member
 		var accountStaff = await dbContext.UserAccountStaff.FirstOrDefaultAsync(u =>
 			u.UserId == authContext.UserId &&
-			u.IsDeleted != true &&
-			u.IsSuspended != true);
+			!u.IsDeleted &&
+			!u.IsSuspended);
 
 		if (accountStaff is null)
 		{

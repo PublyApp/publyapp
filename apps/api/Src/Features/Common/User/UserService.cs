@@ -76,9 +76,9 @@ public class UserService : IUserService
 		return await _dbContext.User.FirstOrDefaultAsync(
 			u => u.Email == email
 		// check these fields directly in the login handler, for customized error responses
-		&& u.IsDeleted != true, // only isDeleted is relevant to check here
-														// && u.IsSuspended != true
-														// && u.IsVerified == true
+		&& !u.IsDeleted, // only isDeleted is relevant to check here
+										 // && !u.IsSuspended
+										 // && u.IsVerified
 		cancellationToken).ConfigureAwait(false);
 	}
 

@@ -172,7 +172,8 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -290,7 +291,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -312,7 +314,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -344,7 +347,8 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -406,7 +410,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "tenantName": {
             "type": "string"
@@ -417,7 +422,8 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "email": {
             "type": "string"
@@ -451,7 +457,8 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "sessionToken": {
             "type": "string"
@@ -481,7 +488,8 @@
         "type": "object",
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "email": {
             "type": "string"
@@ -509,29 +517,26 @@
           },
           "price": {
             "type": "number",
-            "format": "double",
-            "nullable": true
+            "format": "double"
           },
           "tenantId": {
-            "type": "string"
+            "type": "string",
+            "format": "uuid"
           },
           "id": {
             "type": "string",
-            "nullable": true
+            "format": "uuid"
           },
           "createdAt": {
             "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "format": "date-time"
           },
           "updatedAt": {
             "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "format": "date-time"
           },
           "isDeleted": {
-            "type": "boolean",
-            "nullable": true
+            "type": "boolean"
           }
         }
       },

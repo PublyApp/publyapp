@@ -68,7 +68,7 @@ public class PasswordLoginBodyValidator : AbstractValidator<PasswordLoginBody>
 
 public class PasswordLoginSuccessResult
 {
-	public string UserId { get; set; } = string.Empty;
+	public Guid UserId { get; set; }
 	public string SessionToken { get; set; } = string.Empty;
 	public DateTime SessionExpiresAt { get; set; }
 	public double SessionExpiresInMs { get; set; }
@@ -125,12 +125,10 @@ public class PasswordLogin
 		{
 			return TypedResults.Ok(new PasswordLoginSuccessResult
 			{
-				UserId = user.Id ?? throw new Exception("Id is null"),
+				UserId = user.Id,
 				SessionToken = success.Session.Token ?? throw new Exception("Token is null"),
-				SessionExpiresAt = success.Session.ExpiresAt ?? throw new Exception("ExpiresAt is null"),
-				SessionExpiresInMs = success.Session.ExpiresAt.HasValue
-					? (success.Session.ExpiresAt.Value - DateTime.UtcNow).TotalMilliseconds
-					: 0
+				SessionExpiresAt = success.Session.ExpiresAt,
+				SessionExpiresInMs = (success.Session.ExpiresAt - DateTime.UtcNow).TotalMilliseconds
 			});
 		}
 

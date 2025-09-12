@@ -1,27 +1,27 @@
 using MainApi.Src.Data;
-using MongoDB.Bson.Serialization.Attributes;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MainApi.Src.Features.Common.User;
 
 public class User : BaseAttributes, INoTenantEntity
 {
-	[BsonElement("email")]
+	[Column("email")]
 	public string? Email { get; set; }
 
-	[BsonElement("password")]
+	[Column("password")]
 	public string? Password { get; set; }
 
-	[BsonElement("isSuspended")]
-	public bool? IsSuspended { get; set; }
+	[Column("is_suspended")]
+	public bool IsSuspended { get; set; } = false;
 
-	[BsonElement("isVerified")]
-	public bool? IsVerified { get; set; }
+	[Column("is_verified")]
+	public bool IsVerified { get; set; } = false;
 
-	[BsonElement("emailVerifyToken")]
+	[Column("email_verify_token")]
 	public string? EmailVerifyToken { get; set; }
 
-	[BsonElement("emailVerifyTokenExpiresAt")]
+	[Column("email_verify_token_expires_at")]
 	public DateTime? EmailVerifyTokenExpiresAt { get; set; }
 
-	public static readonly string CollectionName = "_User";
+	public static readonly string TableName = "users";
 }

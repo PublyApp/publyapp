@@ -1,19 +1,21 @@
 using MainApi.Src.Data;
-using MongoDB.Bson.Serialization.Attributes;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MainApi.Src.Features.Tenant.Product;
 
 public class Product : BaseAttributes, ITenantEntity
 {
-	[BsonElement("name")]
+	[Column("name")]
 	public string? Name { get; set; }
 
-	[BsonElement("description")]
+	[Column("description")]
 	public string? Description { get; set; }
 
-	[BsonElement("price")]
-	public decimal? Price { get; set; }
+	[Column("price")]
+	public decimal Price { get; set; }
 
-	[BsonElement("tenantId")]
-	public string TenantId { get; set; } = string.Empty;
+	[Column("tenant_id")]
+	public Guid TenantId { get; set; }
+
+	public static readonly string TableName = "products";
 }

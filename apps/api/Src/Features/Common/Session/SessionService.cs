@@ -31,7 +31,7 @@ public class SessionService : ISessionService
 
 	public async Task<CreateSessionResult> CreateSessionForUser(UserNs.User user)
 	{
-		if (string.IsNullOrEmpty(user.Id))
+		if (user.Id == Guid.Empty)
 		{
 			return new CreateSessionResult.Failure("User ID is required", ResponseKeys.UserIdRequired);
 		}
