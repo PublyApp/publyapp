@@ -48,9 +48,9 @@ public class PermissionService
 			.Join(_context.Set<UserAccountProfile>(),
 				pp => pp.ProfileId,
 				uap => uap.ProfileId,
-				(pp, uap) => new { pp.PermissionKey, uap.AccountId })
+				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
 			.Join(_context.Set<UserAccount>(),
-				joined => joined.AccountId,
+				joined => joined.UserAccountId,
 				ua => ua.Id,
 				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.AccountType })
 			.Where(x => x.UserId == userId && x.AccountType == AccountType.Staff)
@@ -67,9 +67,9 @@ public class PermissionService
 			.Join(_context.Set<UserAccountProfile>(),
 				pp => pp.ProfileId,
 				uap => uap.ProfileId,
-				(pp, uap) => new { pp.PermissionKey, uap.AccountId })
+				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
 			.Join(_context.Set<UserAccount>(),
-				joined => joined.AccountId,
+				joined => joined.UserAccountId,
 				ua => ua.Id,
 				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.AccountType })
 			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.AccountType == AccountType.Tenant)

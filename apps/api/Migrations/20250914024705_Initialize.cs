@@ -186,8 +186,7 @@ namespace MainApi.Migrations
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
-                    account_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserAccountId = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_account_id = table.Column<Guid>(type: "uuid", nullable: false),
                     profile_id = table.Column<Guid>(type: "uuid", nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -203,8 +202,8 @@ namespace MainApi.Migrations
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_user_account_profiles_user_accounts_UserAccountId",
-                        column: x => x.UserAccountId,
+                        name: "FK_user_account_profiles_user_accounts_user_account_id",
+                        column: x => x.user_account_id,
                         principalTable: "user_accounts",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -231,9 +230,9 @@ namespace MainApi.Migrations
                 column: "profile_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_user_account_profiles_UserAccountId",
+                name: "IX_user_account_profiles_user_account_id",
                 table: "user_account_profiles",
-                column: "UserAccountId");
+                column: "user_account_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_user_accounts_tenant_id",
@@ -241,9 +240,10 @@ namespace MainApi.Migrations
                 column: "tenant_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_user_accounts_user_id",
+                name: "IX_user_accounts_user_id_tenant_id_account_type",
                 table: "user_accounts",
-                column: "user_id");
+                columns: new[] { "user_id", "tenant_id", "account_type" },
+                unique: true);
         }
 
         /// <inheritdoc />

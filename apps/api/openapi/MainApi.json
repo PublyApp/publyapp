@@ -762,7 +762,7 @@
       "UserAccountProfile": {
         "type": "object",
         "properties": {
-          "accountId": {
+          "userAccountId": {
             "type": "string",
             "format": "uuid"
           },
