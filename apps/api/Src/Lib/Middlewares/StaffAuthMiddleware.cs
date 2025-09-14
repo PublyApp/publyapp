@@ -1,6 +1,7 @@
 namespace MainApi.Src.Lib.Middlewares;
 
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Account;
 using Microsoft.EntityFrameworkCore;
 
 public class StaffAuthMiddleware
@@ -34,8 +35,9 @@ public class StaffAuthMiddleware
 		}
 
 		// verify if the user is a staff member
-		var accountStaff = await dbContext.UserAccountStaff.FirstOrDefaultAsync(u =>
+		var accountStaff = await dbContext.UserAccount.FirstOrDefaultAsync(u =>
 			u.UserId == authContext.UserId &&
+			u.AccountType == AccountType.Staff &&
 			!u.IsDeleted &&
 			!u.IsSuspended);
 

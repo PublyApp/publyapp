@@ -10,6 +10,7 @@ using MainApi.Src.Data.Repository;
 using MainApi.Src.Features.Staff.Tenant;
 using Microsoft.Extensions.Options;
 using MainApi.Src.Features.Common.Email;
+using MainApi.Src.Features.Common.Permission;
 
 public static class AppServicesConfig
 {
@@ -113,6 +114,9 @@ public static class AppServicesConfig
 
 		// Register Repository
 		builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
+		// Register PermissionService
+		builder.Services.AddScoped<PermissionService>();
 
 		return builder;
 	}

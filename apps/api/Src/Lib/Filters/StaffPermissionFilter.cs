@@ -2,7 +2,7 @@ namespace MainApi.Src.Lib.Filters;
 
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Lib.Middlewares;
+using MainApi.Src.Features.Common.Permission;
 using Microsoft.EntityFrameworkCore;
 
 public class StaffPermissionFilter : IEndpointFilter
@@ -34,6 +34,7 @@ public class StaffPermissionFilter : IEndpointFilter
 		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
 		var accountStaff = authContext.AccountStaff;
 		var dbContext = httpContext.RequestServices.GetRequiredService<MainApiDbContext>();
+		var permissionService = httpContext.RequestServices.GetRequiredService<PermissionService>();
 		var logger = httpContext.RequestServices.GetRequiredService<ILogger<StaffPermissionFilter>>();
 
 		if (accountStaff == null)
@@ -44,39 +45,28 @@ public class StaffPermissionFilter : IEndpointFilter
 		// if user is not admin, check user permissions
 		if (accountStaff.HierarchyLevel != AccountHierarchyLevel.Admin)
 		{
-			var profileIds = accountStaff.ProfileIds;
-
-			// early clause guard to avoid unnecessary database calls
-			if (profileIds == null || profileIds.Count == 0)
-			{
-				logger.LogDebug("User is not an admin and has no profileIds: {@AccountStaff}", new
-				{
-					accountId = accountStaff.Id,
-					userId = accountStaff.UserId,
-					sessionToken = authContext.SessionToken,
-				});
-
-				return TypedResults.Json(new
-				{
-					message = "Unauthorized",
-					key = "unauthorized",
-				}, statusCode: StatusCodes.Status401Unauthorized);
-			}
-
 			// Check if any permissions need to be validated
 			if ((_requiredPermissions != null && _requiredPermissions.Length > 0) || _customPermissionChecker != null)
 			{
-				// Get user's profiles from database
-				var userProfiles = await dbContext.ProfileStaff
-					.Where(p => profileIds.Contains(p.Id!) && p.IsDeleted != true)
-					.ToListAsync();
+				// Get user's effective permissions using the new unified system
+				var userPermissions = await permissionService.GetStaffPermissionsAsync(accountStaff.UserId);
 
-				// Get all permissions from user's profiles
-				var userPermissions = userProfiles
-					.Where(p => p.Permissions != null)
-					.SelectMany(p => p.Permissions!)
-					.Distinct()
-					.ToHashSet();
+				// early clause guard to avoid unnecessary permission checks
+				if (userPermissions.Count == 0)
+				{
+					logger.LogDebug("User is not an admin and has no permissions: {@AccountStaff}", new
+					{
+						accountId = accountStaff.Id,
+						userId = accountStaff.UserId,
+						sessionToken = authContext.SessionToken,
+					});
+
+					return TypedResults.Json(new
+					{
+						message = "Unauthorized",
+						key = "unauthorized",
+					}, statusCode: StatusCodes.Status401Unauthorized);
+				}
 
 				bool hasRequiredPermissions;
 

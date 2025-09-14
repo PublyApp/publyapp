@@ -39,18 +39,64 @@ This document covers the migration from MongoDB to PostgreSQL and provides essen
 | `sessions` | User sessions | Token-based authentication |
 | `tenants` | Multi-tenant support | Tenant isolation |
 | `products` | Product catalog | Tenant-scoped products |
-| `profile_staff` | Staff profiles | Permission management |
-| `profile_tenant` | Tenant profiles | Tenant-specific permissions |
-| `user_account_staff` | Staff accounts | Staff role assignments |
-| `user_account_tenant` | Tenant accounts | Tenant role assignments |
+| `permissions` | Global permission keys | Staff/tenant/both scope |
+| `profiles` | Unified profile system | Staff and tenant profiles |
+| `profile_permissions` | Profile → permission mapping | Relational permissions |
+| `user_accounts` | Unified account system | Staff and tenant accounts |
+| `user_account_profiles` | Account → profile assignments | Replaces array fields |
+| `profile_staff` | Staff profiles (legacy) | **DEPRECATED** - use `profiles` |
+| `profile_tenant` | Tenant profiles (legacy) | **DEPRECATED** - use `profiles` |
+| `user_account_staff` | Staff accounts (legacy) | **DEPRECATED** - use `user_accounts` |
+| `user_account_tenant` | Tenant accounts (legacy) | **DEPRECATED** - use `user_accounts` |
 
 ### Schema Features
 
 - **UUID v7 Primary Keys**: All tables use time-ordered UUIDs
 - **Audit Fields**: `created_at`, `updated_at`, `is_deleted` on all entities
 - **Multi-tenancy**: Foreign key relationships for tenant isolation
-- **Array Support**: PostgreSQL arrays for permissions and profile IDs
+- **Unified Permission System**: Single source of truth for all permissions
+- **Relational Design**: No array fields - proper foreign key relationships
+- **Scope-based Permissions**: Staff, tenant, or both permission scopes
 - **Proper Indexing**: Foreign key indexes for performance
+
+### New Unified Permission and Account Systems
+
+The new schema replaces array-based permissions and separate account tables with a proper relational design:
+
+```sql
+-- Global permissions table
+permissions (key, description, scope)
+├── scope: 'staff', 'tenant', or 'both'
+
+-- Unified profiles table
+profiles (id, tenant_id, name, profile_type)
+├── tenant_id: NULL for staff profiles, tenant ID for tenant profiles
+├── profile_type: 'staff' or 'tenant'
+
+-- Profile → permission mapping
+profile_permissions (profile_id, permission_key)
+├── Many-to-many relationship between profiles and permissions
+
+-- Unified accounts table
+user_accounts (id, user_id, tenant_id, account_type, hierarchy_level, is_suspended)
+├── account_type: 'staff' or 'tenant'
+├── tenant_id: NULL for staff accounts, tenant ID for tenant accounts
+├── Replaces separate user_account_staff and user_account_tenant tables
+
+-- Account → profile assignments
+user_account_profiles (account_id, profile_id)
+├── Replaces the ProfileIds array fields
+├── Links accounts to their assigned profiles
+```
+
+**Benefits:**
+- **Single Source of Truth**: All permission keys and account types defined once
+- **Type Safety**: Foreign key constraints prevent invalid permissions and account types
+- **Flexible**: Staff can have both staff and tenant permissions
+- **Unified**: Single account table handles both staff and tenant accounts
+- **Queryable**: Easy to find all users with specific permissions or account types
+- **Maintainable**: No array manipulation or duplicate table logic in application code
+- **Consistent**: Same patterns for both staff and tenant entities
 
 ## UUID v7 Implementation
 
@@ -119,6 +165,85 @@ dotnet tool run dotnet-ef migrations script
 # Update database to specific migration
 dotnet tool run dotnet-ef database update MigrationName
 ```
+
+## Permission System Migration
+
+### From Array-Based to Relational Permissions
+
+The new unified permission system replaces the old array-based approach:
+
+**Before (Array-based + Separate Tables):**
+```csharp
+// Old approach - arrays in entities and separate tables
+public class ProfileStaff : BaseAttributes
+{
+    public List<string> Permissions { get; set; } = new();
+}
+
+public class UserAccountStaff : BaseAttributes
+{
+    public List<Guid> ProfileIds { get; set; } = new();
+}
+
+public class UserAccountTenant : BaseAttributes
+{
+    public Guid TenantId { get; set; }
+    // Separate table for tenant accounts
+}
+```
+
+**After (Unified Relational):**
+```csharp
+// New approach - unified entities with proper relationships
+public class Permission : BaseAttributes
+{
+    public string Key { get; set; }
+    public PermissionScope Scope { get; set; }
+}
+
+public class UserAccount : BaseAttributes
+{
+    public Guid UserId { get; set; }
+    public Guid TenantId { get; set; }  // NULL for staff accounts
+    public AccountType AccountType { get; set; }  // Staff or Tenant
+    public AccountHierarchyLevel HierarchyLevel { get; set; }
+}
+
+public class ProfilePermission : BaseAttributes
+{
+    public Guid ProfileId { get; set; }
+    public string PermissionKey { get; set; }
+}
+```
+
+### Migration Steps
+
+Since you started fresh with no existing data, the unified system is already in place:
+
+1. **Database Schema Created:**
+   ```bash
+   dotnet tool run dotnet-ef database update
+   ```
+   ✅ **COMPLETED** - Your database now has the unified permission and account system
+
+2. **Next Steps:**
+   - Use `PermissionService` for new permission queries
+   - Use `StaffPermissionFilterV2` for new authorization logic
+   - Create profiles and permissions using the new unified entities
+
+### Migration Complete ✅
+
+**All obsolete classes have been removed and the system is now fully unified:**
+
+- ❌ `ProfileStaff` → ✅ `Profile` with `ProfileType.Staff`
+- ❌ `ProfileTenant` → ✅ `Profile` with `ProfileType.Tenant`
+- ❌ `UserAccountStaff` → ✅ `UserAccount` with `AccountType.Staff`
+- ❌ `UserAccountTenant` → ✅ `UserAccount` with `AccountType.Tenant`
+
+**Database cleanup completed:**
+- Obsolete tables removed from database
+- All code updated to use unified entities
+- Permission system fully migrated to relational design
 
 ## Development Workflow
 
