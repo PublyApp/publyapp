@@ -1,17 +1,22 @@
 using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations.Schema;
 using MainApi.Src.Features.Common.Account;
+using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Features.Common.User;
 
 [Table("users")]
+[Index(nameof(Email), IsUnique = true)]
 public class User : BaseAttributes, INoTenantEntity
 {
 	[Column("email")]
-	public string? Email { get; set; }
+	[EmailAddress]
+	[Required]
+	public string Email { get; set; } = string.Empty;
 
 	[Column("password")]
-	public string? Password { get; set; }
+	public string Password { get; set; } = string.Empty;
 
 	[Column("is_suspended")]
 	public bool IsSuspended { get; set; } = false;

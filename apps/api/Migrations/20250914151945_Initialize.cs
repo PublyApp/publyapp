@@ -46,8 +46,8 @@ namespace MainApi.Migrations
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
-                    email = table.Column<string>(type: "text", nullable: true),
-                    password = table.Column<string>(type: "text", nullable: true),
+                    email = table.Column<string>(type: "text", nullable: false),
+                    password = table.Column<string>(type: "text", nullable: false),
                     is_suspended = table.Column<bool>(type: "boolean", nullable: false),
                     is_verified = table.Column<bool>(type: "boolean", nullable: false),
                     email_verify_token = table.Column<string>(type: "text", nullable: true),
@@ -264,6 +264,12 @@ namespace MainApi.Migrations
                 name: "IX_user_accounts_user_id_tenant_id_account_type",
                 table: "user_accounts",
                 columns: new[] { "user_id", "tenant_id", "account_type" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_users_email",
+                table: "users",
+                column: "email",
                 unique: true);
         }
 
