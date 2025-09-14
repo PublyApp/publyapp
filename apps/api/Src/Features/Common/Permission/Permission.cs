@@ -23,22 +23,22 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity
 		{
 			if (Key.StartsWith("TENANT:"))
 			{
-				Key = "TENANT:" + key;
+				Key = key;
 			}
 			else
 			{
-				Key = key;
+				Key = "TENANT:" + key;
 			}
 		}
 		else if (scope == PermissionScope.Staff)
 		{
 			if (Key.StartsWith("STAFF:"))
 			{
-				Key = "STAFF:" + key;
+				Key = key;
 			}
 			else
 			{
-				Key = key;
+				Key = "STAFF:" + key;
 			}
 		}
 		else
