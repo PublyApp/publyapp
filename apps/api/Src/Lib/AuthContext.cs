@@ -9,7 +9,7 @@ public interface IAuthContext
 
 	bool IsAuthenticated { get; }
 
-	UserAccountStaff? AccountStaff { get; set; }
+	UserAccount? AccountStaff { get; set; }
 }
 
 public class AuthContext : IAuthContext
@@ -25,5 +25,5 @@ public class AuthContext : IAuthContext
 		}
 	}
 
-	public UserAccountStaff? AccountStaff { get; set; }
+	public UserAccount? AccountStaff { get; set; }
 }

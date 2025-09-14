@@ -64,6 +64,8 @@ importers:
         specifier: ^5.8.3
         version: 5.8.3
 
+  apps/api: {}
+
   apps/front:
     dependencies:
       '@emotion/cache':

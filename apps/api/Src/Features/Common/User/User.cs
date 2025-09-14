@@ -1,8 +1,10 @@
 using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations.Schema;
+using MainApi.Src.Features.Common.Account;
 
 namespace MainApi.Src.Features.Common.User;
 
+[Table("users")]
 public class User : BaseAttributes, INoTenantEntity
 {
 	[Column("email")]
@@ -23,5 +25,7 @@ public class User : BaseAttributes, INoTenantEntity
 	[Column("email_verify_token_expires_at")]
 	public DateTime? EmailVerifyTokenExpiresAt { get; set; }
 
-	public static readonly string TableName = "users";
+	// Navigation properties
+	public ICollection<UserAccount> UserAccounts { get; set; } = [];
+	public ICollection<Session.Session> Sessions { get; set; } = [];
 }

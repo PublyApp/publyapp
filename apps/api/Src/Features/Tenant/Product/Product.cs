@@ -1,8 +1,10 @@
-using MainApi.Src.Data;
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace MainApi.Src.Features.Tenant.Product;
 
+using MainApi.Src.Data;
+using System.ComponentModel.DataAnnotations.Schema;
+using CommonTenant = MainApi.Src.Features.Common.Tenant;
+
+[Table("products")]
 public class Product : BaseAttributes, ITenantEntity
 {
 	[Column("name")]
@@ -16,6 +18,5 @@ public class Product : BaseAttributes, ITenantEntity
 
 	[Column("tenant_id")]
 	public Guid TenantId { get; set; }
-
-	public static readonly string TableName = "products";
+	public CommonTenant.Tenant Tenant { get; set; } = null!;
 }
