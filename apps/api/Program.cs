@@ -5,6 +5,7 @@ using MainApi.Src.Features.Tenant.Product;
 using MainApi.Src.Features.Staff.Tenant;
 using MainApi.Src.Lib.Middlewares;
 using MainApi.Localization;
+using MainApi.Src.Features.Common.Tenant;
 
 AppEnvironment.LoadEnv();
 

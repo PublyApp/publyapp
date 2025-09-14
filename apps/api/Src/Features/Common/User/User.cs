@@ -10,10 +10,21 @@ namespace MainApi.Src.Features.Common.User;
 [Index(nameof(Email), IsUnique = true)]
 public class User : BaseAttributes, INoTenantEntity
 {
+	[Column("last_name")]
+	public string LastName { get; set; } = string.Empty;
+
+	[Column("first_name")]
+	public string? FirstName { get; set; }
+
+	private string _email = string.Empty;
+
 	[Column("email")]
 	[EmailAddress]
-	[Required]
-	public string Email { get; set; } = string.Empty;
+	public string Email
+	{
+		get { return _email; }
+		set { _email = value.ToLower(); }
+	}
 
 	[Column("password")]
 	public string Password { get; set; } = string.Empty;
