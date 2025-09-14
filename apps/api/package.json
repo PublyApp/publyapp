@@ -7,8 +7,8 @@
 		"dev:api": "dotnet watch --project MainApi.csproj",
 		"build": "dotnet build MainApi.csproj",
 		"publish": "dotnet publish MainApi.csproj --output ./bin",
-		"migrate:add": "dotnet tool run dotnet-ef migrations add",
-		"migrate:apply": "dotnet tool run dotnet-ef database update",
-		"migrate:remove": "dotnet tool run dotnet-ef migrations remove"
+		"migrate:add": "dotnet ef migrations add",
+		"migrate:apply": "dotnet ef database update",
+		"migrate:remove": "dotnet ef migrations remove"
 	}
 }

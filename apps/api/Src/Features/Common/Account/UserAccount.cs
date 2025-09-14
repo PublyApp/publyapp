@@ -1,4 +1,5 @@
 using MainApi.Src.Data;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MainApi.Src.Features.Common.Account;
@@ -7,6 +8,7 @@ namespace MainApi.Src.Features.Common.Account;
 /// Join table between users and tenants
 /// </summary>
 [Table("user_accounts")]
+[Index(nameof(UserId), nameof(TenantId), nameof(AccountType), IsUnique = true)]
 public class UserAccount : BaseAttributes, ITenantEntity
 {
 	[Column("user_id")]

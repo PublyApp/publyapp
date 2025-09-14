@@ -9,8 +9,8 @@ namespace MainApi.Src.Features.Common.Account;
 [Table("user_account_profiles")]
 public class UserAccountProfile : BaseAttributes, INoTenantEntity
 {
-	[Column("account_id")]
-	public Guid AccountId { get; set; }
+	[Column("user_account_id")]
+	public Guid UserAccountId { get; set; }
 	public UserAccount UserAccount { get; set; } = null!;
 
 	[Column("profile_id")]

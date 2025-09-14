@@ -18,7 +18,8 @@
 			"!packages/js-client/**",
 			"!apps/api/openapi/**",
 			"!apps/api/Migrations/**",
-			"!apps/api/bin/**"
+			"!apps/api/bin/**",
+			"!.config/dotnet-tools.json"
 		]
 	},
 	"formatter": {

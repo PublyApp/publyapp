@@ -6,7 +6,7 @@ import { serializeProduct, type Product } from '../../models/index.js';
 // @ts-ignore
 import { ProductsItemRequestBuilderRequestsMetadata, type ProductsItemRequestBuilder } from './item/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { type BaseRequestBuilder, type Guid, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /tenant/products
@@ -17,7 +17,7 @@ export interface ProductsRequestBuilder extends BaseRequestBuilder<ProductsReque
      * @param id Unique identifier of the item
      * @returns {ProductsItemRequestBuilder}
      */
-     byId(id: string) : ProductsItemRequestBuilder;
+     byId(id: Guid) : ProductsItemRequestBuilder;
     /**
      * Get all products
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.

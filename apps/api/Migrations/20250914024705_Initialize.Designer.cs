@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20250914021505_Initialize")]
+    [Migration("20250914024705_Initialize")]
     partial class Initialize
     {
         /// <inheritdoc />
@@ -68,7 +68,8 @@ namespace MainApi.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "TenantId", "AccountType")
+                        .IsUnique();
 
                     b.ToTable("user_accounts");
                 });
@@ -79,10 +80,6 @@ namespace MainApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    b.Property<Guid>("AccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("account_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -101,7 +98,8 @@ namespace MainApi.Migrations
                         .HasColumnName("updated_at");
 
                     b.Property<Guid>("UserAccountId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_account_id");
 
                     b.HasKey("Id");
 
