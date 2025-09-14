@@ -1,7 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Lib.Filters;
 using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Features.Common.Permission;

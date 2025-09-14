@@ -1,3 +1,4 @@
 {
-	"*.{js,ts,jsx,tsx,html,svelte,json,jsonc}": "biome format --write"
+	"*.{js,ts,jsx,tsx,html,svelte}": "biome format --write",
+	"*.{json,jsonc}": "biome format --write --no-errors-on-unmatched"
 }
