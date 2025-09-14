@@ -16,5 +16,6 @@
 	"user-not-found": "User not found",
 	"email-already-verified": "Email already verified",
 	"failed-to-register-user": "Failed to register user",
-	"user-already-exists": "User already exists"
+	"user-already-exists": "User already exists",
+	"user-does-not-have-the-necessary-permissions": "User does not have the necessary permissions"
 }

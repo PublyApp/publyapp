@@ -228,7 +228,7 @@ Since you started fresh with no existing data, the unified system is already in 
 
 2. **Next Steps:**
    - Use `PermissionService` for new permission queries
-   - Use `StaffPermissionFilterV2` for new authorization logic
+   - Use `PermissionFilterV2` for new authorization logic
    - Create profiles and permissions using the new unified entities
 
 ### Migration Complete ✅

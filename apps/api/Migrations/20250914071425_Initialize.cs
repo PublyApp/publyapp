@@ -15,9 +15,7 @@ namespace MainApi.Migrations
                 name: "permissions",
                 columns: table => new
                 {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
                     key = table.Column<string>(type: "text", nullable: false),
-                    description = table.Column<string>(type: "text", nullable: false),
                     scope = table.Column<int>(type: "integer", nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -25,23 +23,7 @@ namespace MainApi.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_permissions", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "profile_permissions",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    profile_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    permission_key = table.Column<string>(type: "text", nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    is_deleted = table.Column<bool>(type: "boolean", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_profile_permissions", x => x.id);
+                    table.PrimaryKey("PK_permissions", x => x.key);
                 });
 
             migrationBuilder.CreateTable(
@@ -182,6 +164,34 @@ namespace MainApi.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "profile_permissions",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    profile_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    permission_key = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    is_deleted = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_profile_permissions", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_profile_permissions_permissions_permission_key",
+                        column: x => x.permission_key,
+                        principalTable: "permissions",
+                        principalColumn: "key",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_profile_permissions_profiles_profile_id",
+                        column: x => x.profile_id,
+                        principalTable: "profiles",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "user_account_profiles",
                 columns: table => new
                 {
@@ -215,6 +225,16 @@ namespace MainApi.Migrations
                 column: "tenant_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_profile_permissions_permission_key",
+                table: "profile_permissions",
+                column: "permission_key");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_profile_permissions_profile_id",
+                table: "profile_permissions",
+                column: "profile_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_profiles_tenant_id",
                 table: "profiles",
                 column: "tenant_id");
@@ -230,9 +250,10 @@ namespace MainApi.Migrations
                 column: "profile_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_user_account_profiles_user_account_id",
+                name: "IX_user_account_profiles_user_account_id_profile_id",
                 table: "user_account_profiles",
-                column: "user_account_id");
+                columns: new[] { "user_account_id", "profile_id" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_user_accounts_tenant_id",
@@ -250,9 +271,6 @@ namespace MainApi.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "permissions");
-
-            migrationBuilder.DropTable(
                 name: "products");
 
             migrationBuilder.DropTable(
@@ -263,6 +281,9 @@ namespace MainApi.Migrations
 
             migrationBuilder.DropTable(
                 name: "user_account_profiles");
+
+            migrationBuilder.DropTable(
+                name: "permissions");
 
             migrationBuilder.DropTable(
                 name: "profiles");

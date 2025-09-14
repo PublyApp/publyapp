@@ -19,7 +19,8 @@
 			"!apps/api/openapi/**",
 			"!apps/api/Migrations/**",
 			"!apps/api/bin/**",
-			"!.config/dotnet-tools.json"
+			"!.config/dotnet-tools.json",
+			"!apps/api/Generated/**"
 		]
 	},
 	"formatter": {

@@ -102,35 +102,25 @@ namespace MainApi.Migrations
 
                     b.HasIndex("ProfileId");
 
-                    b.HasIndex("UserAccountId");
+                    b.HasIndex("UserAccountId", "ProfileId")
+                        .IsUnique();
 
                     b.ToTable("user_account_profiles");
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Permission.Permission", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
+                    b.Property<string>("Key")
+                        .HasColumnType("text")
+                        .HasColumnName("key");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("key");
 
                     b.Property<int>("Scope")
                         .HasColumnType("integer")
@@ -140,7 +130,7 @@ namespace MainApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.HasKey("Id");
+                    b.HasKey("Key");
 
                     b.ToTable("permissions");
                 });
@@ -217,6 +207,10 @@ namespace MainApi.Migrations
                         .HasColumnName("updated_at");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PermissionKey");
+
+                    b.HasIndex("ProfileId");
 
                     b.ToTable("profile_permissions");
                 });
@@ -427,6 +421,23 @@ namespace MainApi.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("MainApi.Src.Features.Common.Profile.ProfilePermission", b =>
+                {
+                    b.HasOne("MainApi.Src.Features.Common.Permission.Permission", "Permission")
+                        .WithMany("ProfilePermissions")
+                        .HasForeignKey("PermissionKey")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MainApi.Src.Features.Common.Profile.Profile", null)
+                        .WithMany("ProfilePermissions")
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+                });
+
             modelBuilder.Entity("MainApi.Src.Features.Common.Session.Session", b =>
                 {
                     b.HasOne("MainApi.Src.Features.Common.User.User", "User")
@@ -454,8 +465,15 @@ namespace MainApi.Migrations
                     b.Navigation("UserAccountProfiles");
                 });
 
+            modelBuilder.Entity("MainApi.Src.Features.Common.Permission.Permission", b =>
+                {
+                    b.Navigation("ProfilePermissions");
+                });
+
             modelBuilder.Entity("MainApi.Src.Features.Common.Profile.Profile", b =>
                 {
+                    b.Navigation("ProfilePermissions");
+
                     b.Navigation("UserAccountProfiles");
                 });
 

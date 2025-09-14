@@ -8,6 +8,7 @@ using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Tenant.Product;
+using MainApi.Src.Lib.Filters;
 using Microsoft.EntityFrameworkCore;
 
 public class MainApiDbContext : DbContext
@@ -49,6 +50,18 @@ public class MainApiDbContext : DbContext
 	{
 		var extension = options.FindExtension<TenantExtension>();
 		TenantId = extension?.TenantId;
+	}
+
+	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+	{
+		base.OnConfiguring(optionsBuilder);
+
+		// EF Core 9: Define seeding logic here
+		optionsBuilder.UseSeeding((context, _) =>
+		{
+			var dbContext = (MainApiDbContext)context;
+			SeedPermissions(dbContext);
+		});
 	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -102,5 +115,46 @@ public class MainApiDbContext : DbContext
 						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)} or {nameof(INoTenantEntity)}");
 			}
 		}
+	}
+
+	private static void SeedPermissions(MainApiDbContext dbContext)
+	{
+		// Check if any permissions already exist to prevent duplicates
+		if (!dbContext.Permission.Any())
+		{
+			var permissions = GetPermissionsFromEnum();
+			dbContext.Permission.AddRange(permissions);
+			dbContext.SaveChanges();
+		}
+	}
+
+	private static List<Permission> GetPermissionsFromEnum()
+	{
+		// Get all permission objects from PermissionEnum using reflection
+		var staffEnumType = typeof(PermissionEnum.Staff);
+		var tenantEnumType = typeof(PermissionEnum.Tenant);
+		var staffFields = staffEnumType.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+		var tenantFields = tenantEnumType.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+
+		var permissions = new List<Permission>();
+
+		foreach (var field in staffFields)
+		{
+			if (field.FieldType == typeof(Permission))
+			{
+				var permission = (Permission)field.GetValue(null)!;
+				permissions.Add(permission);
+			}
+		}
+		foreach (var field in tenantFields)
+		{
+			if (field.FieldType == typeof(Permission))
+			{
+				var permission = (Permission)field.GetValue(null)!;
+				permissions.Add(permission);
+			}
+		}
+
+		return permissions;
 	}
 }

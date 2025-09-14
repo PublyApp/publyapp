@@ -21,6 +21,7 @@ public class Profile : BaseAttributes, ITenantEntity
 
 	// navigation properties
 	public ICollection<Account.UserAccountProfile> UserAccountProfiles { get; set; } = [];
+	public ICollection<ProfilePermission> ProfilePermissions { get; set; } = [];
 }
 
 public enum ProfileType
