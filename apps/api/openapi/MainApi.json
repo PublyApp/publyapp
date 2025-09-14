@@ -695,9 +695,11 @@
       "Tenant": {
         "type": "object",
         "properties": {
+          "code": {
+            "type": "string"
+          },
           "name": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "userAccounts": {
             "type": "array",
@@ -723,11 +725,15 @@
         }
       },
       "User": {
-        "required": [
-          "email"
-        ],
         "type": "object",
         "properties": {
+          "lastName": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string",
+            "nullable": true
+          },
           "email": {
             "type": "string"
           },

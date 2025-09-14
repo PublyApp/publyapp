@@ -31,7 +31,8 @@ namespace MainApi.Migrations
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
-                    name = table.Column<string>(type: "text", nullable: true),
+                    code = table.Column<string>(type: "text", nullable: false),
+                    name = table.Column<string>(type: "text", nullable: false),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     is_deleted = table.Column<bool>(type: "boolean", nullable: false)
@@ -46,6 +47,8 @@ namespace MainApi.Migrations
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
+                    last_name = table.Column<string>(type: "text", nullable: false),
+                    first_name = table.Column<string>(type: "text", nullable: true),
                     email = table.Column<string>(type: "text", nullable: false),
                     password = table.Column<string>(type: "text", nullable: false),
                     is_suspended = table.Column<bool>(type: "boolean", nullable: false),
@@ -243,6 +246,12 @@ namespace MainApi.Migrations
                 name: "IX_sessions_user_id",
                 table: "sessions",
                 column: "user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_tenants_code",
+                table: "tenants",
+                column: "code",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_user_account_profiles_profile_id",
