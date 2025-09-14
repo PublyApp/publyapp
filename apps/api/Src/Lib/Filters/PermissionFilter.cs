@@ -1,16 +1,16 @@
 namespace MainApi.Src.Lib.Filters;
 
+using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Permission;
-using Microsoft.EntityFrameworkCore;
 
-public class StaffPermissionFilter : IEndpointFilter
+public class PermissionFilter : IEndpointFilter
 {
-	private readonly StaffPermission[]? _requiredPermissions;
+	private readonly Permission[]? _requiredPermissions;
 	private readonly Func<HashSet<string>, bool>? _customPermissionChecker;
 
-	public StaffPermissionFilter(StaffPermission[] requiredPermissions)
+	public PermissionFilter(Permission[] requiredPermissions)
 	{
 		ArgumentNullException.ThrowIfNull(requiredPermissions);
 		if (requiredPermissions.Length == 0)
@@ -20,7 +20,7 @@ public class StaffPermissionFilter : IEndpointFilter
 		_customPermissionChecker = null;
 	}
 
-	public StaffPermissionFilter(Func<HashSet<string>, bool> customPermissionChecker)
+	public PermissionFilter(Func<HashSet<string>, bool> customPermissionChecker)
 	{
 		ArgumentNullException.ThrowIfNull(customPermissionChecker);
 
@@ -35,11 +35,11 @@ public class StaffPermissionFilter : IEndpointFilter
 		var accountStaff = authContext.AccountStaff;
 		var dbContext = httpContext.RequestServices.GetRequiredService<MainApiDbContext>();
 		var permissionService = httpContext.RequestServices.GetRequiredService<PermissionService>();
-		var logger = httpContext.RequestServices.GetRequiredService<ILogger<StaffPermissionFilter>>();
+		var logger = httpContext.RequestServices.GetRequiredService<ILogger<PermissionFilter>>();
 
 		if (accountStaff == null)
 		{
-			throw new Exception("StaffPermissionFilter must be set behind StaffAuthMiddleware.");
+			throw new Exception("PermissionFilter must be set behind StaffAuthMiddleware.");
 		}
 
 		// if user is not admin, check user permissions
@@ -49,7 +49,7 @@ public class StaffPermissionFilter : IEndpointFilter
 			if ((_requiredPermissions != null && _requiredPermissions.Length > 0) || _customPermissionChecker != null)
 			{
 				// Get user's effective permissions using the new unified system
-				var userPermissions = await permissionService.GetStaffPermissionsAsync(accountStaff.UserId);
+				var userPermissions = await permissionService.GetPermissionsAsync(accountStaff.UserId);
 
 				// early clause guard to avoid unnecessary permission checks
 				if (userPermissions.Count == 0)
@@ -93,11 +93,11 @@ public class StaffPermissionFilter : IEndpointFilter
 						// userPermissions = userPermissions.ToArray(),
 					});
 
-					return TypedResults.Json(new
-					{
-						message = "Insufficient permissions",
-						key = "insufficient-permissions",
-					}, statusCode: StatusCodes.Status403Forbidden);
+					return TypedResults.Json(ApiResponse.Create(
+						"User does not have the necessary permissions",
+						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions),
+						statusCode: StatusCodes.Status403Forbidden
+					);
 				}
 			}
 		}
@@ -106,25 +106,25 @@ public class StaffPermissionFilter : IEndpointFilter
 	}
 }
 
-public static class StaffPermissionFilterExtensions
+public static class PermissionFilterExtensions
 {
-	public static RouteHandlerBuilder WithStaffPermission(this RouteHandlerBuilder builder, StaffPermission[] requiredPermissions)
+	public static RouteHandlerBuilder WithPermission(this RouteHandlerBuilder builder, Permission[] requiredPermissions)
 	{
-		return builder.AddEndpointFilter(new StaffPermissionFilter(requiredPermissions));
+		return builder.AddEndpointFilter(new PermissionFilter(requiredPermissions));
 	}
 
-	public static RouteHandlerBuilder WithStaffPermission(this RouteHandlerBuilder builder, Func<HashSet<string>, bool> customPermissionChecker)
+	public static RouteHandlerBuilder WithPermission(this RouteHandlerBuilder builder, Func<HashSet<string>, bool> customPermissionChecker)
 	{
-		return builder.AddEndpointFilter(new StaffPermissionFilter(customPermissionChecker));
+		return builder.AddEndpointFilter(new PermissionFilter(customPermissionChecker));
 	}
 }
 
-public static class StaffPermissionLogic
+public static class PermissionLogic
 {
 	/// <summary>
 	/// User must have ANY of the specified permissions (OR logic)
 	/// </summary>
-	public static Func<HashSet<string>, bool> AnyOf(params StaffPermission[] permissions)
+	public static Func<HashSet<string>, bool> AnyOf(params Permission[] permissions)
 	{
 		var permissionKeys = permissions.Select(p => p.Key).ToHashSet();
 		return userPermissions => permissionKeys.Any(key => userPermissions.Contains(key));
@@ -133,7 +133,7 @@ public static class StaffPermissionLogic
 	/// <summary>
 	/// User must have ALL of the specified permissions (AND logic)
 	/// </summary>
-	public static Func<HashSet<string>, bool> AllOf(params StaffPermission[] permissions)
+	public static Func<HashSet<string>, bool> AllOf(params Permission[] permissions)
 	{
 		var permissionKeys = permissions.Select(p => p.Key).ToHashSet();
 		return userPermissions => permissionKeys.All(key => userPermissions.Contains(key));
@@ -166,23 +166,37 @@ public static class StaffPermissionLogic
 	/// <summary>
 	/// Checks if user has a specific permission
 	/// </summary>
-	public static Func<HashSet<string>, bool> HasPermission(StaffPermission permission)
+	public static Func<HashSet<string>, bool> HasPermission(Permission permission)
 	{
 		return userPermissions => userPermissions.Contains(permission.Key);
 	}
 }
 
-public class StaffPermission
+public static class PermissionEnum
 {
-	public required string Key { get; init; }
-}
+	//--------------------------------------------------------------------------------------//
+	//                                                                                      //
+	//                                  Staff permissions                                   //
+	//                                                                                      //
+	//--------------------------------------------------------------------------------------//
+	public static class Staff
+	{
 
-public static class StaffPermissionEnum
-{
-	// ==== TENANTS ====
-	public static readonly StaffPermission CAN_ACCESS_TENANTS_LIST = new StaffPermission { Key = "can-access-tenants-list" };
-	public static readonly StaffPermission CAN_CREATE_TENANT = new StaffPermission { Key = "can-create-tenant" };
+		// ==== TENANTS ====
+		public static readonly Permission CAN_ACCESS_TENANTS_LIST = Permission.CreateStaffPermission(nameof(CAN_ACCESS_TENANTS_LIST));
+		public static readonly Permission CAN_CREATE_TENANT = Permission.CreateStaffPermission(nameof(CAN_CREATE_TENANT));
 
-	// ==== USERS ====
-	public static readonly StaffPermission CAN_ACCESS_USERS_LIST = new StaffPermission { Key = "can-access-users-list" };
+		// ==== USERS ====
+		public static readonly Permission CAN_ACCESS_USERS_LIST = Permission.CreateStaffPermission(nameof(CAN_ACCESS_USERS_LIST));
+	}
+
+	//--------------------------------------------------------------------------------------//
+	//                                                                                      //
+	//                                  Tenant Permissions                                  //
+	//                                                                                      //
+	//--------------------------------------------------------------------------------------//
+	public static class Tenant
+	{
+		// TODO: Add tenant permissions
+	}
 }

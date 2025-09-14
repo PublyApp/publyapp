@@ -15,7 +15,7 @@ public static class TenantStaffEndpoints
 			.WithName("CreateTenant")
 			.WithSummary("Create a new tenant")
 			.WithBodyValidation<CreateTenantStaffBody>()
-			.WithStaffPermission([StaffPermissionEnum.CAN_CREATE_TENANT]);
+			.WithPermission([PermissionEnum.Staff.CAN_CREATE_TENANT]);
 
 		return group;
 	}

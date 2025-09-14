@@ -12,4 +12,6 @@ public class ProfilePermission : BaseAttributes, INoTenantEntity
 	[Column("permission_key")]
 	public string PermissionKey { get; set; } = string.Empty;
 
+	// Navigation properties
+	public Permission.Permission Permission { get; set; } = null!;
 }

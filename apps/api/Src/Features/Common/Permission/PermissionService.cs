@@ -1,6 +1,7 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Lib.Filters;
 using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Features.Common.Permission;
@@ -16,7 +17,7 @@ public class PermissionService
 
 	/// <summary>
 	/// Gets all effective permissions for a user across all their profiles.
-	/// This method works seamlessly with the existing StaffPermissionFilter.
+	/// This method works seamlessly with the existing PermissionFilter.
 	/// </summary>
 	/// <param name="userId">The user ID</param>
 	/// <param name="tenantId">Optional tenant ID for tenant-scoped permissions</param>
@@ -26,8 +27,8 @@ public class PermissionService
 		var permissions = new HashSet<string>();
 
 		// Get staff permissions (always available for staff users)
-		var staffPermissions = await GetStaffPermissionsAsync(userId);
-		permissions.UnionWith(staffPermissions);
+		var Permissions = await GetPermissionsAsync(userId);
+		permissions.UnionWith(Permissions);
 
 		// Get tenant permissions (if in tenant context)
 		if (tenantId.HasValue)
@@ -42,7 +43,7 @@ public class PermissionService
 	/// <summary>
 	/// Gets staff permissions for a user (from staff profiles)
 	/// </summary>
-	public async Task<HashSet<string>> GetStaffPermissionsAsync(Guid userId)
+	public async Task<HashSet<string>> GetPermissionsAsync(Guid userId)
 	{
 		return await _context.Set<ProfilePermission>()
 			.Join(_context.Set<UserAccountProfile>(),
@@ -86,57 +87,5 @@ public class PermissionService
 			.Where(pp => profileIds.Contains(pp.ProfileId))
 			.Select(pp => pp.PermissionKey)
 			.ToHashSetAsync();
-	}
-
-	/// <summary>
-	/// Seeds the permissions table with all permission keys from StaffPermissionEnum
-	/// </summary>
-	public async Task SeedPermissionsAsync()
-	{
-		// This would be called during application startup or migration
-		// to ensure all permission keys from your enum are in the database
-
-		var existingPermissions = await _context.Set<Permission>()
-			.Select(p => p.Key)
-			.ToHashSetAsync();
-
-		// Add any missing permissions from your StaffPermissionEnum
-		// You would implement this based on your actual enum values
-		var enumPermissions = GetPermissionKeysFromEnum();
-
-		var missingPermissions = enumPermissions
-			.Where(key => !existingPermissions.Contains(key))
-			.Select(key => new Permission
-			{
-				Key = key,
-				Description = GetPermissionDescription(key),
-				Scope = GetPermissionScope(key)
-			});
-
-		if (missingPermissions.Any())
-		{
-			_context.Set<Permission>().AddRange(missingPermissions);
-			await _context.SaveChangesAsync();
-		}
-	}
-
-	private List<string> GetPermissionKeysFromEnum()
-	{
-		// TODO: Implement this to return all keys from your StaffPermissionEnum
-		// This ensures your database stays in sync with your code
-		return new List<string>();
-	}
-
-	private string GetPermissionDescription(string key)
-	{
-		// TODO: Implement this to return human-readable descriptions
-		return $"Permission: {key}";
-	}
-
-	private PermissionScope GetPermissionScope(string key)
-	{
-		// TODO: Implement this to determine if a permission is staff, tenant, or both
-		// Based on your business logic
-		return PermissionScope.Both;
 	}
 }

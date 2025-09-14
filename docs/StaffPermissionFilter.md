@@ -1,6 +1,6 @@
-# StaffPermissionFilter Documentation
+# PermissionFilter Documentation
 
-The `StaffPermissionFilter` is a flexible endpoint filter that provides permission-based access control for staff members in the PDFVite API. It supports both simple permission requirements and complex custom logic.
+The `PermissionFilter` is a flexible endpoint filter that provides permission-based access control for staff members in the PDFVite API. It supports both simple permission requirements and complex custom logic.
 
 ## Table of Contents
 
@@ -22,7 +22,7 @@ The filter operates on two levels:
 
 ### Key Features
 
-- ✅ **Type-safe**: Uses `StaffPermission` class for compile-time safety
+- ✅ **Type-safe**: Uses `Permission` class for compile-time safety
 - ✅ **Flexible**: Supports simple AND logic or complex custom logic
 - ✅ **Performant**: Only queries database when necessary
 - ✅ **Comprehensive Logging**: Detailed debug logs for troubleshooting
@@ -38,18 +38,18 @@ For endpoints that require users to have ALL specified permissions:
 ```csharp
 // Single permission
 app.MapGet("/staff/tenants", GetTenants)
-   .WithStaffPermission(StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST);
+   .WithPermission(PermissionEnum.CAN_ACCESS_TENANTS_LIST);
 
 // Multiple permissions (user must have ALL)
 app.MapPost("/staff/tenants", CreateTenant)
-   .WithStaffPermission(
-       StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST,
-       StaffPermissionEnum.CAN_CREATE_TENANT
+   .WithPermission(
+       PermissionEnum.CAN_ACCESS_TENANTS_LIST,
+       PermissionEnum.CAN_CREATE_TENANT
    );
 
 // No permissions required (just authenticated staff) - Use custom logic instead
 app.MapGet("/staff/profile", GetProfile)
-   .WithStaffPermission(_ => true);
+   .WithPermission(_ => true);
 ```
 
 ### Direct Construction
@@ -58,9 +58,9 @@ You can also construct the filter directly:
 
 ```csharp
 app.MapDelete("/staff/tenants/{id}", DeleteTenant)
-   .AddEndpointFilter(new StaffPermissionFilter(new[] {
-       StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST,
-       StaffPermissionEnum.CAN_DELETE_TENANT
+   .AddEndpointFilter(new PermissionFilter(new[] {
+       PermissionEnum.CAN_ACCESS_TENANTS_LIST,
+       PermissionEnum.CAN_DELETE_TENANT
    }));
 ```
 
@@ -68,12 +68,12 @@ app.MapDelete("/staff/tenants/{id}", DeleteTenant)
 
 ## Constructor Requirements
 
-The `StaffPermissionFilter` constructors now enforce strict parameter validation:
+The `PermissionFilter` constructors now enforce strict parameter validation:
 
 ### Permission Array Constructor
 
 ```csharp
-public StaffPermissionFilter(StaffPermission[] requiredPermissions)
+public PermissionFilter(Permission[] requiredPermissions)
 ```
 
 **Requirements:**
@@ -83,25 +83,25 @@ public StaffPermissionFilter(StaffPermission[] requiredPermissions)
 
 ```csharp
 // ✅ Valid - Single permission
-new StaffPermissionFilter(new[] { StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST });
+new PermissionFilter(new[] { PermissionEnum.CAN_ACCESS_TENANTS_LIST });
 
 // ✅ Valid - Multiple permissions
-new StaffPermissionFilter(new[] {
-    StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST,
-    StaffPermissionEnum.CAN_CREATE_TENANT
+new PermissionFilter(new[] {
+    PermissionEnum.CAN_ACCESS_TENANTS_LIST,
+    PermissionEnum.CAN_CREATE_TENANT
 });
 
 // ❌ Invalid - Will throw ArgumentNullException
-new StaffPermissionFilter(null);
+new PermissionFilter(null);
 
 // ❌ Invalid - Will throw ArgumentException
-new StaffPermissionFilter(new StaffPermission[0]);
+new PermissionFilter(new Permission[0]);
 ```
 
 ### Custom Logic Constructor
 
 ```csharp
-public StaffPermissionFilter(Func<HashSet<string>, bool> customPermissionChecker)
+public PermissionFilter(Func<HashSet<string>, bool> customPermissionChecker)
 ```
 
 **Requirements:**
@@ -110,13 +110,13 @@ public StaffPermissionFilter(Func<HashSet<string>, bool> customPermissionChecker
 
 ```csharp
 // ✅ Valid - Custom logic
-new StaffPermissionFilter(permissions => permissions.Contains("custom-permission"));
+new PermissionFilter(permissions => permissions.Contains("custom-permission"));
 
 // ✅ Valid - Always allow (for authenticated-only endpoints)
-new StaffPermissionFilter(_ => true);
+new PermissionFilter(_ => true);
 
 // ❌ Invalid - Will throw ArgumentNullException
-new StaffPermissionFilter((Func<HashSet<string>, bool>)null);
+new PermissionFilter((Func<HashSet<string>, bool>)null);
 ```
 
 ## Custom Permission Logic
@@ -128,7 +128,7 @@ For complex permission requirements, use custom logic with lambda functions:
 ```csharp
 // Custom logic: permission_a OR (permission_b AND permission_d)
 app.MapGet("/complex-endpoint", GetComplexData)
-   .WithStaffPermission(userPermissions =>
+   .WithPermission(userPermissions =>
        userPermissions.Contains("permission-a") ||
        (userPermissions.Contains("permission-b") && userPermissions.Contains("permission-d"))
    );
@@ -139,7 +139,7 @@ app.MapGet("/complex-endpoint", GetComplexData)
 ```csharp
 // Role-based access with fallback permissions
 app.MapPut("/admin-endpoint", AdminFunction)
-   .WithStaffPermission(userPermissions =>
+   .WithPermission(userPermissions =>
    {
        // Super admin can do anything
        if (userPermissions.Contains("super-admin")) return true;
@@ -155,7 +155,7 @@ app.MapPut("/admin-endpoint", AdminFunction)
 
 // Context-aware permissions
 app.MapPost("/conditional-access", ConditionalEndpoint)
-   .WithStaffPermission(userPermissions =>
+   .WithPermission(userPermissions =>
    {
        // Different requirements based on time, user load, etc.
        bool isMaintenanceMode = /* check maintenance status */;
@@ -169,17 +169,17 @@ app.MapPost("/conditional-access", ConditionalEndpoint)
 
 ## Helper Methods
 
-The `StaffPermissionLogic` class provides helper methods for common permission patterns:
+The `PermissionLogic` class provides helper methods for common permission patterns:
 
 ### OR Logic (Any Permission)
 
 ```csharp
 // User needs ANY of these permissions
 app.MapGet("/flexible-endpoint", GetData)
-   .WithStaffPermission(
-       StaffPermissionLogic.AnyOf(
-           StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST,
-           StaffPermissionEnum.CAN_ACCESS_USERS_LIST
+   .WithPermission(
+       PermissionLogic.AnyOf(
+           PermissionEnum.CAN_ACCESS_TENANTS_LIST,
+           PermissionEnum.CAN_ACCESS_USERS_LIST
        )
    );
 ```
@@ -189,10 +189,10 @@ app.MapGet("/flexible-endpoint", GetData)
 ```csharp
 // User needs ALL of these permissions (same as default behavior)
 app.MapPost("/secure-endpoint", SecureAction)
-   .WithStaffPermission(
-       StaffPermissionLogic.AllOf(
-           StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST,
-           StaffPermissionEnum.CAN_CREATE_TENANT
+   .WithPermission(
+       PermissionLogic.AllOf(
+           PermissionEnum.CAN_ACCESS_TENANTS_LIST,
+           PermissionEnum.CAN_CREATE_TENANT
        )
    );
 ```
@@ -202,13 +202,13 @@ app.MapPost("/secure-endpoint", SecureAction)
 ```csharp
 // Complex combination: (permission_a OR permission_b) AND permission_c
 app.MapPut("/advanced-endpoint", AdvancedAction)
-   .WithStaffPermission(
-       StaffPermissionLogic.AndAlso(
-           StaffPermissionLogic.AnyOf(
-               StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST,
-               StaffPermissionEnum.CAN_ACCESS_USERS_LIST
+   .WithPermission(
+       PermissionLogic.AndAlso(
+           PermissionLogic.AnyOf(
+               PermissionEnum.CAN_ACCESS_TENANTS_LIST,
+               PermissionEnum.CAN_ACCESS_USERS_LIST
            ),
-           StaffPermissionLogic.HasPermission("can-modify-data")
+           PermissionLogic.HasPermission("can-modify-data")
        )
    );
 ```
@@ -218,14 +218,14 @@ app.MapPut("/advanced-endpoint", AdvancedAction)
 ```csharp
 // Check single permission by string key
 app.MapGet("/single-check", SingleCheck)
-   .WithStaffPermission(
-       StaffPermissionLogic.HasPermission("custom-permission-key")
+   .WithPermission(
+       PermissionLogic.HasPermission("custom-permission-key")
    );
 
-// Check single permission by StaffPermission object
+// Check single permission by Permission object
 app.MapGet("/object-check", ObjectCheck)
-   .WithStaffPermission(
-       StaffPermissionLogic.HasPermission(StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST)
+   .WithPermission(
+       PermissionLogic.HasPermission(PermissionEnum.CAN_ACCESS_TENANTS_LIST)
    );
 ```
 
@@ -239,23 +239,23 @@ Create reusable permission logic for consistency across endpoints:
 public static class CustomPermissionCheckers
 {
     public static readonly Func<HashSet<string>, bool> CanManageUsers =
-        StaffPermissionLogic.OrElse(
-            StaffPermissionLogic.HasPermission("super-admin"),
-            StaffPermissionLogic.AllOf(
-                StaffPermissionEnum.CAN_ACCESS_USERS_LIST,
-                StaffPermissionEnum.CAN_CREATE_USER,
-                StaffPermissionEnum.CAN_UPDATE_USER
+        PermissionLogic.OrElse(
+            PermissionLogic.HasPermission("super-admin"),
+            PermissionLogic.AllOf(
+                PermissionEnum.CAN_ACCESS_USERS_LIST,
+                PermissionEnum.CAN_CREATE_USER,
+                PermissionEnum.CAN_UPDATE_USER
             )
         );
 
     public static readonly Func<HashSet<string>, bool> CanAccessReports =
-        StaffPermissionLogic.OrElse(
-            StaffPermissionLogic.HasPermission("admin"),
-            StaffPermissionLogic.AndAlso(
-                StaffPermissionLogic.HasPermission("can-view-reports"),
-                StaffPermissionLogic.AnyOf(
-                    StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST,
-                    StaffPermissionEnum.CAN_ACCESS_USERS_LIST
+        PermissionLogic.OrElse(
+            PermissionLogic.HasPermission("admin"),
+            PermissionLogic.AndAlso(
+                PermissionLogic.HasPermission("can-view-reports"),
+                PermissionLogic.AnyOf(
+                    PermissionEnum.CAN_ACCESS_TENANTS_LIST,
+                    PermissionEnum.CAN_ACCESS_USERS_LIST
                 )
             )
         );
@@ -275,13 +275,13 @@ public static class CustomPermissionCheckers
 
 // Usage
 app.MapPost("/users", CreateUser)
-   .WithStaffPermission(CustomPermissionCheckers.CanManageUsers);
+   .WithPermission(CustomPermissionCheckers.CanManageUsers);
 
 app.MapGet("/reports", GetReports)
-   .WithStaffPermission(CustomPermissionCheckers.CanAccessReports);
+   .WithPermission(CustomPermissionCheckers.CanAccessReports);
 
 app.MapPut("/system/settings", UpdateSystemSettings)
-   .WithStaffPermission(CustomPermissionCheckers.CanModifySystem);
+   .WithPermission(CustomPermissionCheckers.CanModifySystem);
 ```
 
 ### Environment-Based Logic
@@ -313,21 +313,21 @@ public static class EnvironmentPermissionCheckers
 bool isProduction = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production";
 
 app.MapPost("/deploy", DeployApplication)
-   .WithStaffPermission(EnvironmentPermissionCheckers.CreateEnvironmentChecker(isProduction));
+   .WithPermission(EnvironmentPermissionCheckers.CreateEnvironmentChecker(isProduction));
 ```
 
 ## Best Practices
 
 ### 1. Use Predefined Permissions
 
-Always use permissions from `StaffPermissionEnum` when possible for consistency:
+Always use permissions from `PermissionEnum` when possible for consistency:
 
 ```csharp
 // ✅ Good
-.WithStaffPermission(StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST)
+.WithPermission(PermissionEnum.CAN_ACCESS_TENANTS_LIST)
 
 // ❌ Avoid
-.WithStaffPermission(userPermissions => userPermissions.Contains("can-access-tenants-list"))
+.WithPermission(userPermissions => userPermissions.Contains("can-access-tenants-list"))
 ```
 
 ### 2. Create Reusable Logic
@@ -351,7 +351,7 @@ Always document complex permission logic:
 ```csharp
 // ✅ Good
 app.MapPost("/complex-operation", ComplexOperation)
-   .WithStaffPermission(userPermissions =>
+   .WithPermission(userPermissions =>
    {
        // Business rule: Admin OR (has tenant access AND either user management OR report access)
        bool isAdmin = userPermissions.Contains("admin");
@@ -389,31 +389,31 @@ public void CustomPermissionChecker_ShouldRequireMultiplePermissions()
 
 ### Available Permissions
 
-Current predefined permissions in `StaffPermissionEnum`:
+Current predefined permissions in `PermissionEnum`:
 
 ```csharp
 // Tenant Management
-StaffPermissionEnum.CAN_ACCESS_TENANTS_LIST
-StaffPermissionEnum.CAN_CREATE_TENANT
+PermissionEnum.CAN_ACCESS_TENANTS_LIST
+PermissionEnum.CAN_CREATE_TENANT
 
 // User Management
-StaffPermissionEnum.CAN_ACCESS_USERS_LIST
+PermissionEnum.CAN_ACCESS_USERS_LIST
 ```
 
 ### Adding New Permissions
 
 To add new permissions:
 
-1.Add to `StaffPermissionEnum`:
+1.Add to `PermissionEnum`:
 
 ```csharp
-public static class StaffPermissionEnum
+public static class PermissionEnum
 {
     // ... existing permissions ...
 
     // ==== NEW CATEGORY ====
-    public static readonly StaffPermission CAN_ACCESS_REPORTS = new StaffPermission { Key = "can-access-reports" };
-    public static readonly StaffPermission CAN_EXPORT_DATA = new StaffPermission { Key = "can-export-data" };
+    public static readonly Permission CAN_ACCESS_REPORTS = new Permission { Key = "can-access-reports" };
+    public static readonly Permission CAN_EXPORT_DATA = new Permission { Key = "can-export-data" };
 }
 ```
 
@@ -474,7 +474,7 @@ The filter provides detailed debug logging. Enable debug level logging to see:
 {
   "Logging": {
     "LogLevel": {
-      "MainApi.Src.Lib.Filters.StaffPermissionFilter": "Debug"
+      "MainApi.Src.Lib.Filters.PermissionFilter": "Debug"
     }
   }
 }
@@ -482,4 +482,4 @@ The filter provides detailed debug logging. Enable debug level logging to see:
 
 ---
 
-For more examples and advanced usage patterns, refer to the test files and implementation in `api/Src/Lib/Filters/StaffPermissionFilter.cs`.
+For more examples and advanced usage patterns, refer to the test files and implementation in `api/Src/Lib/Filters/PermissionFilter.cs`.

@@ -83,6 +83,11 @@ public static partial class ResponseKeys
     public static readonly TranslationKey UserAlreadyExists = new("user-already-exists");
 
     /// <summary>
+    /// User does not have the necessary permissions
+    /// </summary>
+    public static readonly TranslationKey UserDoesNotHaveTheNecessaryPermissions = new("user-does-not-have-the-necessary-permissions");
+
+    /// <summary>
     /// User ID required
     /// </summary>
     public static readonly TranslationKey UserIdRequired = new("user-id-required");

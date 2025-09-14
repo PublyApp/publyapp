@@ -510,6 +510,35 @@
           }
         }
       },
+      "Permission": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/PermissionScope"
+          },
+          "profilePermissions": {
+            "type": "array",
+            "items": { }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isDeleted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PermissionScope": {
+        "type": "integer"
+      },
       "Product": {
         "type": "object",
         "properties": {
@@ -572,6 +601,42 @@
           "userAccountProfiles": {
             "type": "array",
             "items": { }
+          },
+          "profilePermissions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfilePermission"
+            }
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isDeleted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProfilePermission": {
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "permissionKey": {
+            "type": "string"
+          },
+          "permission": {
+            "$ref": "#/components/schemas/Permission"
           },
           "id": {
             "type": "string",
