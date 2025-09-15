@@ -4,8 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace MainApi.Src.Features.Common.Profile;
 
 [Table("profiles")]
-public class Profile : BaseAttributes, ITenantEntity
-{
+public class Profile : BaseAttributes, ITenantEntity {
 	[Column("tenant_id")]
 	public Guid TenantId { get; set; }
 	public Tenant.Tenant Tenant { get; set; } = null!;
@@ -24,8 +23,7 @@ public class Profile : BaseAttributes, ITenantEntity
 	public ICollection<ProfilePermission> ProfilePermissions { get; set; } = [];
 }
 
-public enum ProfileType
-{
+public enum ProfileType {
 	Staff = 0,
 	Tenant = 1
 }

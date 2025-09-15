@@ -5,12 +5,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Features.Common.Permission;
 
-public class PermissionService
-{
+public class PermissionService {
 	private readonly MainApiDbContext _context;
 
-	public PermissionService(MainApiDbContext context)
-	{
+	public PermissionService(MainApiDbContext context) {
 		_context = context;
 	}
 
@@ -21,8 +19,7 @@ public class PermissionService
 	/// <param name="userId">The user ID</param>
 	/// <param name="tenantId">Optional tenant ID for tenant-scoped permissions</param>
 	/// <returns>HashSet of permission keys</returns>
-	public async Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null)
-	{
+	public async Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null) {
 		var permissions = new HashSet<string>();
 
 		// Get staff permissions (always available for staff users)
@@ -30,8 +27,7 @@ public class PermissionService
 		permissions.UnionWith(Permissions);
 
 		// Get tenant permissions (if in tenant context)
-		if (tenantId.HasValue)
-		{
+		if (tenantId.HasValue) {
 			var tenantPermissions = await GetTenantPermissionsAsync(userId, tenantId.Value);
 			permissions.UnionWith(tenantPermissions);
 		}
@@ -42,8 +38,7 @@ public class PermissionService
 	/// <summary>
 	/// Gets staff permissions for a user (from staff profiles)
 	/// </summary>
-	public async Task<HashSet<string>> GetPermissionsAsync(Guid userId)
-	{
+	public async Task<HashSet<string>> GetPermissionsAsync(Guid userId) {
 		return await _context.Set<ProfilePermission>()
 			.Join(_context.Set<UserAccountProfile>(),
 				pp => pp.ProfileId,
@@ -61,8 +56,7 @@ public class PermissionService
 	/// <summary>
 	/// Gets tenant permissions for a user in a specific tenant
 	/// </summary>
-	private async Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId)
-	{
+	private async Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId) {
 		return await _context.Set<ProfilePermission>()
 			.Join(_context.Set<UserAccountProfile>(),
 				pp => pp.ProfileId,
@@ -80,8 +74,7 @@ public class PermissionService
 	/// <summary>
 	/// Gets permissions for specific profile IDs (backward compatibility with existing filter)
 	/// </summary>
-	public async Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds)
-	{
+	public async Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds) {
 		return await _context.Set<ProfilePermission>()
 			.Where(pp => profileIds.Contains(pp.ProfileId))
 			.Select(pp => pp.PermissionKey)

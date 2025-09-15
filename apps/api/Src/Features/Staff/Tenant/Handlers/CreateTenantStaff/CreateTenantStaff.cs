@@ -7,14 +7,11 @@ using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using FluentValidation;
 
-public class CreateTenantStaffBody
-{
+public class CreateTenantStaffBody {
 	public JsonElement Name { get; set; }
 
-	public string GetName()
-	{
-		string name = Name.ValueKind switch
-		{
+	public string GetName() {
+		string name = Name.ValueKind switch {
 			JsonValueKind.String => Name.GetString()!,
 			JsonValueKind.Number => Name.GetRawText(), // or .GetInt32(), etc.
 			_ => throw new Exception("Invalid type for name")
@@ -24,18 +21,14 @@ public class CreateTenantStaffBody
 	}
 }
 
-public class CreateTenantStaffBodyValidator : AbstractValidator<CreateTenantStaffBody>
-{
-	public CreateTenantStaffBodyValidator()
-	{
+public class CreateTenantStaffBodyValidator : AbstractValidator<CreateTenantStaffBody> {
+	public CreateTenantStaffBodyValidator() {
 		RuleFor(x => x.Name)
 			.NotEmpty().WithMessage("Name is required")
-			.DependentRules(() =>
-			{
+			.DependentRules(() => {
 				RuleFor(x => x.Name)
 					.Must(name => name.ValueKind == JsonValueKind.String).WithMessage("Name must be a string")
-					.DependentRules(() =>
-					{
+					.DependentRules(() => {
 						RuleFor(x => x.Name.GetString()!)
 							.MinimumLength(5).WithMessage("Name must be at least 5 characters long");
 					});
@@ -43,24 +36,19 @@ public class CreateTenantStaffBodyValidator : AbstractValidator<CreateTenantStaf
 	}
 }
 
-public class CreateTenantStaffSuccessResultTenantData
-{
+public class CreateTenantStaffSuccessResultTenantData {
 	public Guid Id { get; set; }
 	public string TenantName { get; set; } = string.Empty;
 }
 
-public class CreateTenantStaffSuccessResult : AppResponseResult
-{
+public class CreateTenantStaffSuccessResult : AppResponseResult {
 	public new string Message { get; set; } = "Tenant created successfully";
 	public new string Key { get; set; } = "tenant-created-successfully";
 	public CreateTenantStaffSuccessResultTenantData Tenant { get; set; } = new CreateTenantStaffSuccessResultTenantData();
 
-	public static CreateTenantStaffSuccessResult GetApiResponse(Tenant tenant)
-	{
-		return new CreateTenantStaffSuccessResult
-		{
-			Tenant = new CreateTenantStaffSuccessResultTenantData
-			{
+	public static CreateTenantStaffSuccessResult GetApiResponse(Tenant tenant) {
+		return new CreateTenantStaffSuccessResult {
+			Tenant = new CreateTenantStaffSuccessResultTenantData {
 				Id = tenant.Id,
 				TenantName = tenant.Name ?? throw new Exception("Tenant name is null")
 			}
@@ -68,8 +56,7 @@ public class CreateTenantStaffSuccessResult : AppResponseResult
 	}
 }
 
-public static class CreateTenantStaff
-{
+public static class CreateTenantStaff {
 	public static async Task<
 	Results<
 	Ok<CreateTenantStaffSuccessResult>,
@@ -78,12 +65,10 @@ public static class CreateTenantStaff
 	HandleCreateTenantStaff(
 		[FromBody] CreateTenantStaffBody createTenantBody,
 		[FromServices] ITenantStaffService tenantStaffService
-		)
-	{
+		) {
 		string tenantName = createTenantBody.GetName();
 
-		var tenant = new Tenant
-		{
+		var tenant = new Tenant {
 			Name = tenantName,
 		};
 

@@ -3,16 +3,13 @@ using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 
 namespace MainApi.Src.Features.Common.Auth;
 
-public interface IPasswordService
-{
+public interface IPasswordService {
 	string HashPassword(string password);
 	bool VerifyPassword(string password, string hashedPassword);
 }
 
-public class PasswordService : IPasswordService
-{
-	public string HashPassword(string password)
-	{
+public class PasswordService : IPasswordService {
+	public string HashPassword(string password) {
 		// Generate a 128-bit salt using a cryptographically strong random sequence of nonzero values
 		byte[] salt = new byte[128 / 8];
 		RandomNumberGenerator.Fill(salt);
@@ -29,14 +26,11 @@ public class PasswordService : IPasswordService
 		return $"{Convert.ToBase64String(salt)}.{hashed}";
 	}
 
-	public bool VerifyPassword(string password, string hashedPassword)
-	{
-		try
-		{
+	public bool VerifyPassword(string password, string hashedPassword) {
+		try {
 			// Split the stored password into salt and hash
 			var parts = hashedPassword.Split('.');
-			if (parts.Length != 2)
-			{
+			if (parts.Length != 2) {
 				return false;
 			}
 
@@ -53,9 +47,7 @@ public class PasswordService : IPasswordService
 
 			// Compare the computed hash with the stored hash
 			return hash == hashedInput;
-		}
-		catch
-		{
+		} catch {
 			return false;
 		}
 	}

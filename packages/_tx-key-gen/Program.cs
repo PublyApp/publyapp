@@ -1,8 +1,7 @@
 using System.Text.Json;
 using System.Text;
 
-if (args.Length != 2)
-{
+if (args.Length != 2) {
 	Console.WriteLine("Usage: TranslationKeyGenerator <input-json-file> <output-cs-file>");
 	Console.WriteLine("Example: TranslationKeyGenerator response-message.en.json Keys.g.cs");
 	Environment.Exit(1);
@@ -11,21 +10,16 @@ if (args.Length != 2)
 var inputFile = args[0];
 var outputFile = args[1];
 
-try
-{
+try {
 	GenerateKeysClass(inputFile, outputFile);
 	Console.WriteLine($"✅ Generated translation keys: {outputFile}");
-}
-catch (Exception ex)
-{
+} catch (Exception ex) {
 	Console.WriteLine($"❌ Error generating translation keys: {ex.Message}");
 	Environment.Exit(1);
 }
 
-static void GenerateKeysClass(string inputFile, string outputFile)
-{
-	if (!File.Exists(inputFile))
-	{
+static void GenerateKeysClass(string inputFile, string outputFile) {
+	if (!File.Exists(inputFile)) {
 		throw new FileNotFoundException($"Input file not found: {inputFile}");
 	}
 
@@ -54,16 +48,14 @@ static void GenerateKeysClass(string inputFile, string outputFile)
 	// Generate properties for each key in the JSON
 	var sortedKeys = new List<(string key, string value)>();
 
-	foreach (var property in doc.RootElement.EnumerateObject())
-	{
+	foreach (var property in doc.RootElement.EnumerateObject()) {
 		sortedKeys.Add((property.Name, property.Value.GetString() ?? string.Empty));
 	}
 
 	// Sort keys alphabetically for consistent output
 	sortedKeys.Sort((a, b) => string.Compare(a.key, b.key, StringComparison.Ordinal));
 
-	foreach (var (key, value) in sortedKeys)
-	{
+	foreach (var (key, value) in sortedKeys) {
 		var propertyName = ToPascalCase(key);
 		var escapedValue = EscapeXmlComment(value);
 
@@ -78,8 +70,7 @@ static void GenerateKeysClass(string inputFile, string outputFile)
 
 	// Ensure output directory exists
 	var outputDir = Path.GetDirectoryName(outputFile);
-	if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
-	{
+	if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir)) {
 		Directory.CreateDirectory(outputDir);
 	}
 
@@ -90,21 +81,17 @@ static void GenerateKeysClass(string inputFile, string outputFile)
 /// <summary>
 /// Converts a kebab-case or snake-case string to PascalCase for C# property names
 /// </summary>
-static string ToPascalCase(string input)
-{
+static string ToPascalCase(string input) {
 	if (string.IsNullOrEmpty(input))
 		return input;
 
 	var parts = input.Split(new[] { '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
 	var result = new StringBuilder();
 
-	foreach (var part in parts)
-	{
-		if (part.Length > 0)
-		{
+	foreach (var part in parts) {
+		if (part.Length > 0) {
 			result.Append(char.ToUpperInvariant(part[0]));
-			if (part.Length > 1)
-			{
+			if (part.Length > 1) {
 				result.Append(part[1..].ToLowerInvariant());
 			}
 		}
@@ -116,8 +103,7 @@ static string ToPascalCase(string input)
 /// <summary>
 /// Escapes a string for use in C# XML documentation comments
 /// </summary>
-static string EscapeXmlComment(string text)
-{
+static string EscapeXmlComment(string text) {
 	if (string.IsNullOrEmpty(text))
 		return string.Empty;
 

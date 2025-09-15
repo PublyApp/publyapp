@@ -12,12 +12,10 @@ using Microsoft.Extensions.Options;
 using MainApi.Src.Features.Common.Email;
 using MainApi.Src.Features.Common.Permission;
 
-public static class AppServicesConfig
-{
+public static class AppServicesConfig {
 	// Helper method to get current tenant ID
 	// (you'll need to implement this based on your authentication/authorization)
-	static Guid GetCurrentTenantId(IServiceProvider serviceProvider)
-	{
+	static Guid GetCurrentTenantId(IServiceProvider serviceProvider) {
 		return Guid.Parse("01234567-89ab-7def-0123-456789abcdef"); // Default tenant ID for development
 																															 // var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
 																															 // var tenantIdHeader = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].FirstOrDefault();
@@ -30,8 +28,7 @@ public static class AppServicesConfig
 		// return tenantId;
 	}
 
-	public static IHostApplicationBuilder AddServices(this IHostApplicationBuilder builder)
-	{
+	public static IHostApplicationBuilder AddServices(this IHostApplicationBuilder builder) {
 		// builder.Services.AddProblemDetails();
 
 		// Configure strongly-typed settings
@@ -40,11 +37,9 @@ public static class AppServicesConfig
 			.ValidateDataAnnotations()
 			.ValidateOnStart(); // This will validate at startup
 
-		builder.Services.AddCors(options =>
-		{
+		builder.Services.AddCors(options => {
 			options.AddDefaultPolicy(
-					policy =>
-					{
+					policy => {
 						policy
 							.WithOrigins(AppEnvironment.FRONT_URL)
 							.WithHeaders(
@@ -64,8 +59,7 @@ public static class AppServicesConfig
 		builder.Services.AddHttpContextAccessor();
 
 		// Register scoped DbContext (for per-request instances)
-		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) =>
-		{
+		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) => {
 			var tenantId = GetCurrentTenantId(serviceProvider);
 			options
 				.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)

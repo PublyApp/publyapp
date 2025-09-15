@@ -7,13 +7,11 @@ namespace MainApi.Src.Features.Common.Tenant;
 
 [Table("tenants")]
 [Index(nameof(Code), IsUnique = true)]
-public class Tenant : BaseAttributes, INoTenantEntity
-{
+public class Tenant : BaseAttributes, INoTenantEntity {
 	private string _code = string.Empty;
 
 	[Column("code")]
-	public string Code
-	{
+	public string Code {
 		get { return _code; }
 		set { _code = value.ToLower(); }
 	}

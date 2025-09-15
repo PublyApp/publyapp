@@ -5,8 +5,7 @@ namespace MainApi.Src.Data;
 /// <summary>
 /// Extension methods for DbSet to provide audit tracking for bulk operations.
 /// </summary>
-public static class DbSetExtensions
-{
+public static class DbSetExtensions {
 	/// <summary>
 	/// Bulk soft delete with audit tracking (sets IsDeleted, DeletedAt, UpdatedAt).
 	/// </summary>
@@ -16,8 +15,7 @@ public static class DbSetExtensions
 	/// <example>
 	/// <code>var deletedCount = context.User.ExecuteSoftDelete();</code>
 	/// </example>
-	public static int ExecuteSoftDelete<TEntity>(this DbSet<TEntity> dbSet) where TEntity : BaseAttributesNoKey
-	{
+	public static int ExecuteSoftDelete<TEntity>(this DbSet<TEntity> dbSet) where TEntity : BaseAttributesNoKey {
 		var now = DateTime.UtcNow;
 		return dbSet.ExecuteUpdate(setters => setters
 			.SetProperty(e => e.IsDeleted, true)
@@ -35,8 +33,7 @@ public static class DbSetExtensions
 	/// <example>
 	/// <code>var deletedCount = await context.User.ExecuteSoftDeleteAsync();</code>
 	/// </example>
-	public static async Task<int> ExecuteSoftDeleteAsync<TEntity>(this DbSet<TEntity> dbSet, CancellationToken cancellationToken = default) where TEntity : BaseAttributesNoKey
-	{
+	public static async Task<int> ExecuteSoftDeleteAsync<TEntity>(this DbSet<TEntity> dbSet, CancellationToken cancellationToken = default) where TEntity : BaseAttributesNoKey {
 		var now = DateTime.UtcNow;
 		return await dbSet.ExecuteUpdateAsync(setters => setters
 			.SetProperty(e => e.IsDeleted, true)
@@ -54,8 +51,7 @@ public static class DbSetExtensions
 	/// <example>
 	/// <code>var updatedCount = context.User.ExecuteUpdateWithAudit(setters => setters.SetProperty(u => u.IsSuspended, true));</code>
 	/// </example>
-	public static int ExecuteUpdateWithAudit<TEntity>(this DbSet<TEntity> dbSet, Func<Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>, Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>> setPropertyCalls) where TEntity : BaseAttributesNoKey
-	{
+	public static int ExecuteUpdateWithAudit<TEntity>(this DbSet<TEntity> dbSet, Func<Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>, Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>> setPropertyCalls) where TEntity : BaseAttributesNoKey {
 		return dbSet.ExecuteUpdate(setters =>
 			setPropertyCalls(setters).SetProperty(e => e.UpdatedAt, DateTime.UtcNow));
 	}
@@ -71,8 +67,7 @@ public static class DbSetExtensions
 	/// <example>
 	/// <code>var updatedCount = await context.User.ExecuteUpdateWithAuditAsync(setters => setters.SetProperty(u => u.IsSuspended, true));</code>
 	/// </example>
-	public static async Task<int> ExecuteUpdateWithAuditAsync<TEntity>(this DbSet<TEntity> dbSet, Func<Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>, Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>> setPropertyCalls, CancellationToken cancellationToken = default) where TEntity : BaseAttributesNoKey
-	{
+	public static async Task<int> ExecuteUpdateWithAuditAsync<TEntity>(this DbSet<TEntity> dbSet, Func<Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>, Microsoft.EntityFrameworkCore.Query.SetPropertyCalls<TEntity>> setPropertyCalls, CancellationToken cancellationToken = default) where TEntity : BaseAttributesNoKey {
 		return await dbSet.ExecuteUpdateAsync(setters =>
 			setPropertyCalls(setters).SetProperty(e => e.UpdatedAt, DateTime.UtcNow), cancellationToken);
 	}
