@@ -11,6 +11,9 @@ using MainApi.Src.Features.Tenant.Product;
 using MainApi.Src.Lib.Filters;
 using Microsoft.EntityFrameworkCore;
 
+/// <summary>
+/// Main database context with automatic audit tracking for all entities.
+/// </summary>
 public class MainApiDbContext : DbContext
 {
 	private static MainApiDbContext? _singleton = null;
@@ -157,4 +160,97 @@ public class MainApiDbContext : DbContext
 
 		return permissions;
 	}
+
+	#region Audit Tracking - SaveChanges Overrides
+
+	/// <summary>
+	/// Automatically handles audit field updates for all entities.
+	/// </summary>
+	public override int SaveChanges()
+	{
+		UpdateAuditFields();
+		return base.SaveChanges();
+	}
+
+	/// <summary>
+	/// Automatically handles audit field updates for all entities.
+	/// </summary>
+	public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+	{
+		UpdateAuditFields();
+		return await base.SaveChangesAsync(cancellationToken);
+	}
+
+	private readonly HashSet<object> _forceHardDeleteEntities = new();
+
+	/// <summary>
+	/// Updates audit fields based on entity state: Added (CreatedAt, UpdatedAt), Modified (UpdatedAt), Deleted (soft delete).
+	/// </summary>
+	private void UpdateAuditFields()
+	{
+		var entries = ChangeTracker.Entries()
+			.Where(e => e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted);
+
+		foreach (var entry in entries)
+		{
+			if (entry.Entity is BaseAttributesNoKey baseEntity)
+			{
+				var now = DateTime.UtcNow;
+
+				switch (entry.State)
+				{
+					case EntityState.Added:
+						baseEntity.CreatedAt = now;
+						baseEntity.UpdatedAt = now;
+						baseEntity.IsDeleted = false;
+						baseEntity.DeletedAt = null;
+						break;
+
+					case EntityState.Modified:
+						baseEntity.UpdatedAt = now;
+						break;
+
+					case EntityState.Deleted:
+						// Check if this is a forced hard delete
+						if (_forceHardDeleteEntities.Contains(entry.Entity))
+						{
+							// Allow actual deletion - don't convert to soft delete
+							_forceHardDeleteEntities.Remove(entry.Entity);
+							continue;
+						}
+
+						// Default behavior: convert to soft delete
+						entry.State = EntityState.Modified;
+						baseEntity.IsDeleted = true;
+						baseEntity.DeletedAt = now;
+						baseEntity.UpdatedAt = now;
+						break;
+				}
+			}
+		}
+	}
+
+	/// <summary>
+	/// Forces a hard delete (permanent removal) instead of soft delete.
+	/// Use with caution as this bypasses audit tracking.
+	/// </summary>
+	public void ForceHardDelete<TEntity>(TEntity entity) where TEntity : class
+	{
+		_forceHardDeleteEntities.Add(entity);
+		Remove(entity);
+	}
+
+	/// <summary>
+	/// Forces hard delete for multiple entities.
+	/// </summary>
+	public void ForceHardDeleteRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class
+	{
+		foreach (var entity in entities)
+		{
+			ForceHardDelete(entity);
+		}
+	}
+
+	#endregion
+
 }
