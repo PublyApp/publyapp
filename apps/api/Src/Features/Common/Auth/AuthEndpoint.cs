@@ -8,10 +8,8 @@ using MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
 using MainApi.Src.Features.Common.Auth.Handlers.VerifyEmailRequest;
 using MainApi.Src.Features.Common.Auth.Handlers.GetVerificationLink;
 
-public static class AuthEndpoint
-{
-	public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
-	{
+public static class AuthEndpoint {
+	public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app) {
 		var group = app.MapGroup("/auth")
 			.WithTags("Auth")
 			.WithOpenApi();

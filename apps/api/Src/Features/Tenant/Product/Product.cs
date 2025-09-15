@@ -5,8 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using CommonTenant = MainApi.Src.Features.Common.Tenant;
 
 [Table("products")]
-public class Product : BaseAttributes, ITenantEntity
-{
+public class Product : BaseAttributes, ITenantEntity {
 	[Column("name")]
 	public string? Name { get; set; }
 

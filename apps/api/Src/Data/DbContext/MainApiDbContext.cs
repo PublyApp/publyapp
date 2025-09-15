@@ -14,19 +14,15 @@ using Microsoft.EntityFrameworkCore;
 /// <summary>
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
-public class MainApiDbContext : DbContext
-{
+public class MainApiDbContext : DbContext {
 	private static MainApiDbContext? _singleton = null;
 
-	public static void SetSingleTon(MainApiDbContext context)
-	{
+	public static void SetSingleTon(MainApiDbContext context) {
 		_singleton = context;
 	}
 
-	public static MainApiDbContext GetSingleTon()
-	{
-		if (_singleton is null)
-		{
+	public static MainApiDbContext GetSingleTon() {
+		if (_singleton is null) {
 			throw new Exception("You must call SetSingleTon before calling GetSingleTon");
 		}
 
@@ -49,31 +45,26 @@ public class MainApiDbContext : DbContext
 
 	public Guid? TenantId { get; set; }
 
-	public MainApiDbContext(DbContextOptions options) : base(options)
-	{
+	public MainApiDbContext(DbContextOptions options) : base(options) {
 		var extension = options.FindExtension<TenantExtension>();
 		TenantId = extension?.TenantId;
 	}
 
-	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-	{
+	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
 		base.OnConfiguring(optionsBuilder);
 
 		// EF Core 9: Define seeding logic here
-		optionsBuilder.UseSeeding((context, _) =>
-		{
+		optionsBuilder.UseSeeding((context, _) => {
 			var dbContext = (MainApiDbContext)context;
 			SeedPermissions(dbContext);
 		});
 	}
 
-	protected override void OnModelCreating(ModelBuilder modelBuilder)
-	{
+	protected override void OnModelCreating(ModelBuilder modelBuilder) {
 		base.OnModelCreating(modelBuilder);
 
 		// Apply matching query filters to ensure consistent filtering
-		if (TenantId != null)
-		{
+		if (TenantId != null) {
 			// UserAccountProfile gets a filter that matches the Profile's tenant
 			// This ensures both entities in the relationship are filtered consistently
 			modelBuilder.Entity<UserAccountProfile>()
@@ -81,20 +72,16 @@ public class MainApiDbContext : DbContext
 		}
 
 		// Configure other entities with generic approach
-		foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-		{
+		foreach (var entityType in modelBuilder.Model.GetEntityTypes()) {
 			// Skip entities we've already configured specifically
-			if (entityType.ClrType == typeof(UserAccountProfile))
-			{
+			if (entityType.ClrType == typeof(UserAccountProfile)) {
 				continue;
 			}
 
-			if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType))
-			{
+			if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType)) {
 				modelBuilder.Entity(entityType.ClrType);
 
-				if (TenantId != null)
-				{
+				if (TenantId != null) {
 					// Dynamically apply query filter for tenant-filtered entities
 					var parameter = Expression.Parameter(entityType.ClrType, "x");
 					var tenantIdProperty = Expression.Property(parameter, nameof(TenantId));
@@ -106,33 +93,26 @@ public class MainApiDbContext : DbContext
 					modelBuilder.Entity(entityType.ClrType)
 						.HasQueryFilter(lambda);
 				}
-			}
-			else if (typeof(INoTenantEntity).IsAssignableFrom(entityType.ClrType))
-			{
+			} else if (typeof(INoTenantEntity).IsAssignableFrom(entityType.ClrType)) {
 				// Set table name for non-tenant-filtered entities
 				modelBuilder.Entity(entityType.ClrType);
-			}
-			else
-			{
+			} else {
 				throw new Exception(
 						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)} or {nameof(INoTenantEntity)}");
 			}
 		}
 	}
 
-	private static void SeedPermissions(MainApiDbContext dbContext)
-	{
+	private static void SeedPermissions(MainApiDbContext dbContext) {
 		// Check if any permissions already exist to prevent duplicates
-		if (!dbContext.Permission.Any())
-		{
+		if (!dbContext.Permission.Any()) {
 			var permissions = GetPermissionsFromEnum();
 			dbContext.Permission.AddRange(permissions);
 			dbContext.SaveChanges();
 		}
 	}
 
-	private static List<Permission> GetPermissionsFromEnum()
-	{
+	private static List<Permission> GetPermissionsFromEnum() {
 		// Get all permission objects from PermissionEnum using reflection
 		var staffEnumType = typeof(PermissionEnum.Staff);
 		var tenantEnumType = typeof(PermissionEnum.Tenant);
@@ -141,18 +121,14 @@ public class MainApiDbContext : DbContext
 
 		var permissions = new List<Permission>();
 
-		foreach (var field in staffFields)
-		{
-			if (field.FieldType == typeof(Permission))
-			{
+		foreach (var field in staffFields) {
+			if (field.FieldType == typeof(Permission)) {
 				var permission = (Permission)field.GetValue(null)!;
 				permissions.Add(permission);
 			}
 		}
-		foreach (var field in tenantFields)
-		{
-			if (field.FieldType == typeof(Permission))
-			{
+		foreach (var field in tenantFields) {
+			if (field.FieldType == typeof(Permission)) {
 				var permission = (Permission)field.GetValue(null)!;
 				permissions.Add(permission);
 			}
@@ -166,8 +142,7 @@ public class MainApiDbContext : DbContext
 	/// <summary>
 	/// Automatically handles audit field updates for all entities.
 	/// </summary>
-	public override int SaveChanges()
-	{
+	public override int SaveChanges() {
 		UpdateAuditFields();
 		return base.SaveChanges();
 	}
@@ -175,8 +150,7 @@ public class MainApiDbContext : DbContext
 	/// <summary>
 	/// Automatically handles audit field updates for all entities.
 	/// </summary>
-	public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-	{
+	public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) {
 		UpdateAuditFields();
 		return await base.SaveChangesAsync(cancellationToken);
 	}
@@ -186,19 +160,15 @@ public class MainApiDbContext : DbContext
 	/// <summary>
 	/// Updates audit fields based on entity state: Added (CreatedAt, UpdatedAt), Modified (UpdatedAt), Deleted (soft delete).
 	/// </summary>
-	private void UpdateAuditFields()
-	{
+	private void UpdateAuditFields() {
 		var entries = ChangeTracker.Entries()
 			.Where(e => e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted);
 
-		foreach (var entry in entries)
-		{
-			if (entry.Entity is BaseAttributesNoKey baseEntity)
-			{
+		foreach (var entry in entries) {
+			if (entry.Entity is BaseAttributesNoKey baseEntity) {
 				var now = DateTime.UtcNow;
 
-				switch (entry.State)
-				{
+				switch (entry.State) {
 					case EntityState.Added:
 						baseEntity.CreatedAt = now;
 						baseEntity.UpdatedAt = now;
@@ -212,8 +182,7 @@ public class MainApiDbContext : DbContext
 
 					case EntityState.Deleted:
 						// Check if this is a forced hard delete
-						if (_forceHardDeleteEntities.Contains(entry.Entity))
-						{
+						if (_forceHardDeleteEntities.Contains(entry.Entity)) {
 							// Allow actual deletion - don't convert to soft delete
 							_forceHardDeleteEntities.Remove(entry.Entity);
 							continue;
@@ -234,8 +203,7 @@ public class MainApiDbContext : DbContext
 	/// Forces a hard delete (permanent removal) instead of soft delete.
 	/// Use with caution as this bypasses audit tracking.
 	/// </summary>
-	public void ForceHardDelete<TEntity>(TEntity entity) where TEntity : class
-	{
+	public void ForceHardDelete<TEntity>(TEntity entity) where TEntity : class {
 		_forceHardDeleteEntities.Add(entity);
 		Remove(entity);
 	}
@@ -243,10 +211,8 @@ public class MainApiDbContext : DbContext
 	/// <summary>
 	/// Forces hard delete for multiple entities.
 	/// </summary>
-	public void ForceHardDeleteRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class
-	{
-		foreach (var entity in entities)
-		{
+	public void ForceHardDeleteRange<TEntity>(IEnumerable<TEntity> entities) where TEntity : class {
+		foreach (var entity in entities) {
 			ForceHardDelete(entity);
 		}
 	}

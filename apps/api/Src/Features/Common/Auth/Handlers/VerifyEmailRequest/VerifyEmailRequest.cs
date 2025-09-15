@@ -11,32 +11,25 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 
-public class VerifyEmailRequestBody
-{
+public class VerifyEmailRequestBody {
 	public required JsonElement Email { get; set; }
 
-	public string GetEmail()
-	{
-		return Email.ValueKind switch
-		{
+	public string GetEmail() {
+		return Email.ValueKind switch {
 			JsonValueKind.String => Email.GetString() ?? throw new InvalidOperationException("Email cannot be null"),
 			_ => throw new InvalidOperationException("Invalid email format")
 		};
 	}
 }
 
-public class VerifyEmailRequestBodyValidator : AbstractValidator<VerifyEmailRequestBody>
-{
-	public VerifyEmailRequestBodyValidator()
-	{
+public class VerifyEmailRequestBodyValidator : AbstractValidator<VerifyEmailRequestBody> {
+	public VerifyEmailRequestBodyValidator() {
 		RuleFor(x => x.Email)
 			.NotEmpty().WithMessage("Email is required")
-			.DependentRules(() =>
-			{
+			.DependentRules(() => {
 				RuleFor(x => x.Email)
 					.Must(email => email.ValueKind == JsonValueKind.String).WithMessage("Email must be a string")
-					.DependentRules(() =>
-					{
+					.DependentRules(() => {
 						RuleFor(x => x.Email.GetString()!)
 							.EmailAddress().WithMessage("Invalid email address");
 					});
@@ -44,13 +37,11 @@ public class VerifyEmailRequestBodyValidator : AbstractValidator<VerifyEmailRequ
 	}
 }
 
-public class VerifyEmailRequestSuccessResult
-{
+public class VerifyEmailRequestSuccessResult {
 	public string Status { get; set; } = "success";
 }
 
-public class VerifyEmailRequest
-{
+public class VerifyEmailRequest {
 	public static async Task<
 	Results<Ok<VerifyEmailRequestSuccessResult>,
 	BadRequest<ApiResponse>>
@@ -61,18 +52,15 @@ public class VerifyEmailRequest
 		[FromServices] ILogger<VerifyEmailRequest> logger,
 		[FromServices] IOptions<AppSettings> appSettings,
 		CancellationToken cancellationToken = default
-	)
-	{
+	) {
 		// check if user exists
 		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken).ConfigureAwait(false);
 
-		if (user == null)
-		{
+		if (user == null) {
 			return TypedResults.BadRequest(ApiResponse.Create("User not found", ResponseKeys.UserNotFound));
 		}
 
-		if (user.IsVerified == true)
-		{
+		if (user.IsVerified == true) {
 			return TypedResults.BadRequest(ApiResponse.Create("Email already verified", ResponseKeys.EmailAlreadyVerified));
 		}
 
@@ -80,15 +68,11 @@ public class VerifyEmailRequest
 
 		// if the token is still valid, reuse it and send email
 		if (!string.IsNullOrEmpty(user.EmailVerifyToken)
-		&& (DateTime.UtcNow < (user.EmailVerifyTokenExpiresAt ?? DateTime.MinValue)))
-		{
+		&& (DateTime.UtcNow < (user.EmailVerifyTokenExpiresAt ?? DateTime.MinValue))) {
 			// Send email asynchronously with proper error handling
-			try
-			{
+			try {
 				await emailService.SendVerificationMail(userEmail, user.EmailVerifyToken).ConfigureAwait(false);
-			}
-			catch (Exception ex)
-			{
+			} catch (Exception ex) {
 				logger.LogError(ex, "Error sending verification email to {Email}", userEmail);
 				// Continue execution - email failure shouldn't fail the request
 			}
@@ -106,12 +90,9 @@ public class VerifyEmailRequest
 		await userService.UpdateUserAsync(user, cancellationToken).ConfigureAwait(false);
 
 		// Send email asynchronously with proper error handling
-		try
-		{
+		try {
 			await emailService.SendVerificationMail(userEmail, user.EmailVerifyToken).ConfigureAwait(false);
-		}
-		catch (Exception ex)
-		{
+		} catch (Exception ex) {
 			logger.LogError(ex, "Error sending verification email to {Email}", userEmail);
 			// Continue execution - email failure shouldn't fail the request
 		}

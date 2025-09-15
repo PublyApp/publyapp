@@ -6,8 +6,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 /// <summary>
 /// Base class for entities that need audit tracking without a primary key.
 /// </summary>
-public class BaseAttributesNoKey
-{
+public class BaseAttributesNoKey {
 	[Column("created_at")]
 	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -24,8 +23,7 @@ public class BaseAttributesNoKey
 /// <summary>
 /// Base class for entities that need audit tracking with a primary key.
 /// </summary>
-public class BaseAttributes : BaseAttributesNoKey
-{
+public class BaseAttributes : BaseAttributesNoKey {
 	[Key]
 	[Column("id")]
 	public Guid Id { get; set; } = Guid.CreateVersion7();

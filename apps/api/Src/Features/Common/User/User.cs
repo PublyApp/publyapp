@@ -8,8 +8,7 @@ namespace MainApi.Src.Features.Common.User;
 
 [Table("users")]
 [Index(nameof(Email), IsUnique = true)]
-public class User : BaseAttributes, INoTenantEntity
-{
+public class User : BaseAttributes, INoTenantEntity {
 	[Column("last_name")]
 	public string LastName { get; set; } = string.Empty;
 
@@ -20,8 +19,7 @@ public class User : BaseAttributes, INoTenantEntity
 
 	[Column("email")]
 	[EmailAddress]
-	public string Email
-	{
+	public string Email {
 		get { return _email; }
 		set { _email = value.ToLower(); }
 	}

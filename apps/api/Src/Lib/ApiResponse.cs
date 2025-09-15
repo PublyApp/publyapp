@@ -5,8 +5,7 @@ namespace MainApi.Src.Lib;
 /// </summary>
 /// <param name="Message">The message (usually in English for debugging)</param>
 /// <param name="Key">The translation key for frontend localization</param>
-public record ApiResponse
-{
+public record ApiResponse {
 	public string Message { get; set; } = string.Empty;
 	public string Key { get; set; } = string.Empty;
 

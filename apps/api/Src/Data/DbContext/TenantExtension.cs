@@ -3,24 +3,20 @@ namespace MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
-public class TenantExtension : IDbContextOptionsExtension
-{
+public class TenantExtension : IDbContextOptionsExtension {
 	public Guid? TenantId { get; set; }
 
-	public void ApplyServices(IServiceCollection services)
-	{
+	public void ApplyServices(IServiceCollection services) {
 		// No additional services needed
 	}
 
-	public void Validate(IDbContextOptions options)
-	{
+	public void Validate(IDbContextOptions options) {
 		// Validation if needed
 	}
 
 	public DbContextOptionsExtensionInfo Info => new ExtensionInfo(this);
 
-	private sealed class ExtensionInfo : DbContextOptionsExtensionInfo
-	{
+	private sealed class ExtensionInfo : DbContextOptionsExtensionInfo {
 		public ExtensionInfo(IDbContextOptionsExtension extension) : base(extension) { }
 
 		public override bool IsDatabaseProvider => false;
@@ -33,12 +29,10 @@ public class TenantExtension : IDbContextOptionsExtension
 	}
 }
 
-public static class UseTenantIdExtension
-{
+public static class UseTenantIdExtension {
 	public static DbContextOptionsBuilder UseTenantId(
 			this DbContextOptionsBuilder optionsBuilder,
-			Guid tenantId)
-	{
+			Guid tenantId) {
 		var extension = optionsBuilder.Options.FindExtension<TenantExtension>()
 				?? new TenantExtension();
 

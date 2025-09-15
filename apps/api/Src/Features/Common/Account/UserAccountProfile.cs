@@ -9,8 +9,7 @@ namespace MainApi.Src.Features.Common.Account;
 /// </summary>
 [Table("user_account_profiles")]
 [Index(nameof(UserAccountId), nameof(ProfileId), IsUnique = true)]
-public class UserAccountProfile : BaseAttributes, INoTenantEntity
-{
+public class UserAccountProfile : BaseAttributes, INoTenantEntity {
 	[Column("user_account_id")]
 	public Guid UserAccountId { get; set; }
 	public UserAccount UserAccount { get; set; } = null!;

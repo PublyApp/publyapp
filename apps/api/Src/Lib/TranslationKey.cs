@@ -7,8 +7,7 @@ namespace MainApi.Src.Lib;
 /// Represents a type-safe translation key that can only be created from generated constants
 /// </summary>
 [JsonConverter(typeof(TranslationKeyJsonConverter))]
-public readonly struct TranslationKey : IEquatable<TranslationKey>
-{
+public readonly struct TranslationKey : IEquatable<TranslationKey> {
 	/// <summary>
 	/// The translation key value (e.g., "unauthorized", "not-found")
 	/// </summary>
@@ -18,8 +17,7 @@ public readonly struct TranslationKey : IEquatable<TranslationKey>
 	/// Creates a new TranslationKey with the specified value
 	/// </summary>
 	/// <param name="value">The translation key value</param>
-	public TranslationKey(string value)
-	{
+	public TranslationKey(string value) {
 		Value = value ?? throw new ArgumentNullException(nameof(value));
 	}
 
@@ -62,15 +60,12 @@ public readonly struct TranslationKey : IEquatable<TranslationKey>
 /// <summary>
 /// JSON converter for TranslationKey that serializes it as a simple string
 /// </summary>
-public class TranslationKeyJsonConverter : JsonConverter<TranslationKey>
-{
-	public override TranslationKey Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-	{
+public class TranslationKeyJsonConverter : JsonConverter<TranslationKey> {
+	public override TranslationKey Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
 		return new TranslationKey(reader.GetString() ?? string.Empty);
 	}
 
-	public override void Write(Utf8JsonWriter writer, TranslationKey value, JsonSerializerOptions options)
-	{
+	public override void Write(Utf8JsonWriter writer, TranslationKey value, JsonSerializerOptions options) {
 		writer.WriteStringValue(value.Value);
 	}
 }

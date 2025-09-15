@@ -4,12 +4,9 @@ using Serilog.Sinks.SystemConsole.Themes;
 
 namespace MainApi.Src.Lib;
 
-public static class LoggerConfigExtensions
-{
-	public static WebApplicationBuilder ConfigureLogger(this WebApplicationBuilder builder)
-	{
-		builder.Host.UseSerilog((context, loggerConfig) =>
-		{
+public static class LoggerConfigExtensions {
+	public static WebApplicationBuilder ConfigureLogger(this WebApplicationBuilder builder) {
+		builder.Host.UseSerilog((context, loggerConfig) => {
 			var environment = context.HostingEnvironment.EnvironmentName;
 
 			loggerConfig
@@ -44,8 +41,7 @@ public static class LoggerConfigExtensions
 					)));
 
 			// Development: Show everything in console + debug file
-			if (environment == "Development")
-			{
+			if (environment == "Development") {
 				loggerConfig
 					.MinimumLevel.Debug()
 					.WriteTo.Console(
@@ -63,8 +59,7 @@ public static class LoggerConfigExtensions
 						)));
 			}
 			// Production: Show only startup info in console
-			else
-			{
+			else {
 				loggerConfig
 					.WriteTo.Logger(l => l
 						.Filter.ByIncludingOnly(e =>

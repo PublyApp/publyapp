@@ -6,43 +6,29 @@ using MainApi.Src.Features.Common.Profile;
 namespace MainApi.Src.Features.Common.Permission;
 
 [Table("permissions")]
-public class Permission : BaseAttributesNoKey, INoTenantEntity
-{
+public class Permission : BaseAttributesNoKey, INoTenantEntity {
 	[Key]
 	[Column("key")]
 	public string Key { get; set; } = string.Empty;
 
-	Permission(string key, PermissionScope scope)
-	{
-		if (string.IsNullOrEmpty(key))
-		{
+	Permission(string key, PermissionScope scope) {
+		if (string.IsNullOrEmpty(key)) {
 			throw new Exception("Key cannot be empty");
 		}
 
-		if (scope == PermissionScope.Tenant)
-		{
-			if (Key.StartsWith("TENANT:"))
-			{
+		if (scope == PermissionScope.Tenant) {
+			if (Key.StartsWith("TENANT:")) {
 				Key = key;
-			}
-			else
-			{
+			} else {
 				Key = "TENANT:" + key;
 			}
-		}
-		else if (scope == PermissionScope.Staff)
-		{
-			if (Key.StartsWith("STAFF:"))
-			{
+		} else if (scope == PermissionScope.Staff) {
+			if (Key.StartsWith("STAFF:")) {
 				Key = key;
-			}
-			else
-			{
+			} else {
 				Key = "STAFF:" + key;
 			}
-		}
-		else
-		{
+		} else {
 			throw new Exception("Invalid scope");
 		}
 
@@ -55,21 +41,16 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity
 	// Navigation properties
 	public ICollection<ProfilePermission> ProfilePermissions { get; set; } = [];
 
-	public static Permission CreateTenantPermission(string key)
-	{
-		return new Permission(key, PermissionScope.Tenant)
-		{ };
+	public static Permission CreateTenantPermission(string key) {
+		return new Permission(key, PermissionScope.Tenant) { };
 	}
 
-	public static Permission CreateStaffPermission(string key)
-	{
-		return new Permission(key, PermissionScope.Staff)
-		{ };
+	public static Permission CreateStaffPermission(string key) {
+		return new Permission(key, PermissionScope.Staff) { };
 	}
 }
 
-public enum PermissionScope
-{
+public enum PermissionScope {
 	Staff = 0,
 	Tenant = 1
 }

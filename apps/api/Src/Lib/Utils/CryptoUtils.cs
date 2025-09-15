@@ -4,8 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 
-public static class CryptoUtils
-{
+public static class CryptoUtils {
 	private static ReadOnlySpan<char> Chars => ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 	/// <summary>
@@ -15,10 +14,8 @@ public static class CryptoUtils
 	/// <param name="size">The length of the string to generate</param>
 	/// <returns>A random alphanumeric string</returns>
 	/// <exception cref="ArgumentException">Thrown when size is 0</exception>
-	public static string RandomString(int size)
-	{
-		if (size == 0)
-		{
+	public static string RandomString(int size) {
+		if (size == 0) {
 			throw new ArgumentException("Zero-length randomString is useless.", nameof(size));
 		}
 
@@ -27,11 +24,9 @@ public static class CryptoUtils
 		RandomNumberGenerator.Fill(bytes);
 
 		// Use string.Create to avoid intermediate char array allocation
-		return string.Create(size, bytes, static (chars, randomBytes) =>
-		{
+		return string.Create(size, bytes, static (chars, randomBytes) => {
 			var charsSpan = Chars;
-			for (int i = 0; i < chars.Length; i++)
-			{
+			for (int i = 0; i < chars.Length; i++) {
 				chars[i] = charsSpan[randomBytes[i] % charsSpan.Length];
 			}
 		});
@@ -43,8 +38,7 @@ public static class CryptoUtils
 	/// </summary>
 	/// <param name="size">The length of the hex string (default: 32)</param>
 	/// <returns>A random hex string suitable for secure tokens</returns>
-	public static string NewToken(int size = 32)
-	{
+	public static string NewToken(int size = 32) {
 		var byteLength = size / 2; // Each byte produces 2 hex characters
 
 		// Use stackalloc for small sizes (typical tokens), heap allocation for larger ones
@@ -66,15 +60,12 @@ public static class CryptoUtils
 	/// <returns>The encoded string as a URL-safe base64 string</returns>
 	/// <exception cref="ArgumentException">Thrown when input is null or empty</exception>
 	/// <exception cref="CryptographicException">Thrown when encryption fails</exception>
-	public static string EncryptString(string input, string? secret = null)
-	{
-		if (string.IsNullOrEmpty(input))
-		{
+	public static string EncryptString(string input, string? secret = null) {
+		if (string.IsNullOrEmpty(input)) {
 			throw new ArgumentException("Input string cannot be null or empty", nameof(input));
 		}
 
-		try
-		{
+		try {
 			secret ??= STRING_ENCRYPTION_SECRET_DEFAULT;
 
 			// Generate a random IV (Initialization Vector) - 12 bytes for AES-GCM
@@ -103,9 +94,7 @@ public static class CryptoUtils
 				.Replace('+', '-')
 				.Replace('/', '_')
 				.TrimEnd('=');
-		}
-		catch (Exception ex) when (ex is not ArgumentException)
-		{
+		} catch (Exception ex) when (ex is not ArgumentException) {
 			throw new CryptographicException($"Failed to encode string: {ex.Message}", ex);
 		}
 	}
@@ -118,15 +107,12 @@ public static class CryptoUtils
 	/// <returns>The decoded string</returns>
 	/// <exception cref="ArgumentException">Thrown when encodedInput is null or empty</exception>
 	/// <exception cref="CryptographicException">Thrown when decryption fails</exception>
-	public static string DecryptString(string encodedInput, string? secret = null)
-	{
-		if (string.IsNullOrEmpty(encodedInput))
-		{
+	public static string DecryptString(string encodedInput, string? secret = null) {
+		if (string.IsNullOrEmpty(encodedInput)) {
 			throw new ArgumentException("Encoded input string cannot be null or empty", nameof(encodedInput));
 		}
 
-		try
-		{
+		try {
 			secret ??= STRING_ENCRYPTION_SECRET_DEFAULT;
 
 			// Convert from URL-safe base64 back to regular base64
@@ -160,9 +146,7 @@ public static class CryptoUtils
 			aesGcm.Decrypt(iv, encryptedData, authTag, plaintext);
 
 			return Encoding.UTF8.GetString(plaintext);
-		}
-		catch (Exception ex) when (ex is not ArgumentException)
-		{
+		} catch (Exception ex) when (ex is not ArgumentException) {
 			throw new CryptographicException($"Failed to decode string: {ex.Message}", ex);
 		}
 	}
@@ -173,15 +157,11 @@ public static class CryptoUtils
 	/// <param name="encodedInput">The string to validate</param>
 	/// <param name="secret">The base64-encoded secret key (optional, uses default if not provided)</param>
 	/// <returns>True if it's a valid encoded string, false otherwise</returns>
-	public static bool IsValidEncryptedString(string encodedInput, string? secret = null)
-	{
-		try
-		{
+	public static bool IsValidEncryptedString(string encodedInput, string? secret = null) {
+		try {
 			DecryptString(encodedInput, secret);
 			return true;
-		}
-		catch
-		{
+		} catch {
 			return false;
 		}
 	}
@@ -190,8 +170,7 @@ public static class CryptoUtils
 	/// Generates a new random secret key for string encoding
 	/// </summary>
 	/// <returns>A base64-encoded 32-byte secret key</returns>
-	public static string GenerateSecretKey()
-	{
+	public static string GenerateSecretKey() {
 		using var rng = RandomNumberGenerator.Create();
 		var keyBytes = new byte[32]; // 256 bits
 		rng.GetBytes(keyBytes);

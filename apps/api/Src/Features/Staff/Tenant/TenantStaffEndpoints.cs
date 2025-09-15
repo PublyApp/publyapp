@@ -3,10 +3,8 @@ using MainApi.Src.Lib.Filters;
 
 namespace MainApi.Src.Features.Staff.Tenant;
 
-public static class TenantStaffEndpoints
-{
-	public static IEndpointRouteBuilder MapTenantStaffEndpoints(this IEndpointRouteBuilder routes)
-	{
+public static class TenantStaffEndpoints {
+	public static IEndpointRouteBuilder MapTenantStaffEndpoints(this IEndpointRouteBuilder routes) {
 		var group = routes.MapGroup("/tenants")
 			.WithTags("Tenants")
 			.WithOpenApi();

@@ -4,8 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using MainApi.Src.Data;
 
 [Table("sessions")]
-public class Session : BaseAttributes, INoTenantEntity
-{
+public class Session : BaseAttributes, INoTenantEntity {
 	[Column("user_id")]
 	public Guid UserId { get; set; }
 	public User.User User { get; set; } = null!;

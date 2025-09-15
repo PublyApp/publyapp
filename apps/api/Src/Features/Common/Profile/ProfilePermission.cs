@@ -4,8 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace MainApi.Src.Features.Common.Profile;
 
 [Table("profile_permissions")]
-public class ProfilePermission : BaseAttributes, INoTenantEntity
-{
+public class ProfilePermission : BaseAttributes, INoTenantEntity {
 	[Column("profile_id")]
 	public Guid ProfileId { get; set; }
 

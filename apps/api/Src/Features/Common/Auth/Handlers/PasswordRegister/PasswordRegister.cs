@@ -9,22 +9,17 @@ using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-public class PasswordRegisterBody : PasswordLoginBody
-{
+public class PasswordRegisterBody : PasswordLoginBody {
 }
 
-public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterBody>
-{
-	public PasswordRegisterBodyValidator()
-	{
+public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterBody> {
+	public PasswordRegisterBodyValidator() {
 		RuleFor(x => x.Email)
 			.NotEmpty().WithMessage("Email is required")
-			.DependentRules(() =>
-			{
+			.DependentRules(() => {
 				RuleFor(x => x.Email)
 					.Must(email => email.ValueKind == JsonValueKind.String).WithMessage("mail must be a string")
-					.DependentRules(() =>
-					{
+					.DependentRules(() => {
 						RuleFor(x => x.Email.GetString()!)
 							.EmailAddress().WithMessage("Invalid email address");
 					});
@@ -32,12 +27,10 @@ public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterB
 
 		RuleFor(x => x.Password)
 			.NotEmpty().WithMessage("Password is required")
-			.DependentRules(() =>
-			{
+			.DependentRules(() => {
 				RuleFor(x => x.Password)
 					.Must(password => password.ValueKind == JsonValueKind.String).WithMessage("Password must be a string")
-					.DependentRules(() =>
-					{
+					.DependentRules(() => {
 						RuleFor(x => x.Password.GetString()!)
 							.MinimumLength(6).WithMessage("Password must be at least 6 characters long");
 					});
@@ -45,24 +38,21 @@ public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterB
 	}
 }
 
-public class PasswordRegisterResultUser
-{
+public class PasswordRegisterResultUser {
 	public Guid Id { get; set; }
 	public string Email { get; set; } = string.Empty;
 	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
-public class PasswordRegisterSuccessResult
-{
+public class PasswordRegisterSuccessResult {
 	public Guid Id { get; set; }
 	public string Email { get; set; } = string.Empty;
 	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
-public static class PasswordRegister
-{
+public static class PasswordRegister {
 	public static async Task<Results<
 	Ok<PasswordRegisterSuccessResult>,
 	BadRequest<ApiResponse>
@@ -70,28 +60,23 @@ public static class PasswordRegister
 		[FromBody] PasswordRegisterBody registerBody,
 		[FromServices] IUserService userService,
 		CancellationToken cancellationToken = default
-)
-	{
+) {
 		var email = registerBody.GetEmail();
 		var password = registerBody.GetPassword();
 
-		var newUser = new User
-		{
+		var newUser = new User {
 			Email = email,
 			Password = password,
 		};
 
 		var createUserResult = await userService.CreateUserAsync(newUser, cancellationToken);
 
-		if (createUserResult is CreateUserResult.Failure failure)
-		{
+		if (createUserResult is CreateUserResult.Failure failure) {
 			return TypedResults.BadRequest(ApiResponse.Create(failure.Message, failure.Key));
 		}
 
-		if (createUserResult is CreateUserResult.Success success)
-		{
-			return TypedResults.Ok(new PasswordRegisterSuccessResult
-			{
+		if (createUserResult is CreateUserResult.Success success) {
+			return TypedResults.Ok(new PasswordRegisterSuccessResult {
 				Id = success.User.Id,
 				Email = success.User.Email ?? throw new Exception("Email is null"),
 				CreatedAt = success.User.CreatedAt,

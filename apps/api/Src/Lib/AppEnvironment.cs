@@ -2,8 +2,7 @@ namespace MainApi.Src.Lib;
 
 using FluentValidation;
 
-public static class AppEnvironment
-{
+public static class AppEnvironment {
 	public static string POSTGRES_CONNECTION_STRING { get { return GetEnvVar(nameof(_POSTGRES_CONNECTION_STRING)); } }
 	private static string _POSTGRES_CONNECTION_STRING = string.Empty;
 
@@ -14,52 +13,44 @@ public static class AppEnvironment
 	private static bool IS_INITIALIZED = false;
 	private static readonly EnvironmentValidator _validator = new EnvironmentValidator();
 
-	private static string GetEnvVar(string name)
-	{
-		if (!IS_INITIALIZED)
-		{
+	private static string GetEnvVar(string name) {
+		if (!IS_INITIALIZED) {
 			throw new Exception("Environment is not initialized: call AppEnvironment.LoadEnv() first");
 		}
 
 		var property = typeof(AppEnvironment).GetField(name, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
 
-		if (property == null)
-		{
+		if (property == null) {
 			throw new Exception($"Environment variable {name} is not supported by {nameof(AppEnvironment)}");
 		}
 
 		return property.GetValue(null) as string ?? string.Empty;
 	}
 
-	public static void LoadEnv()
-	{
+	public static void LoadEnv() {
 		if (IS_INITIALIZED) return;
 		LoadDotEnv();
 		ValidateAndSetEnvironmentVariables();
 		IS_INITIALIZED = true;
 	}
 
-	private static void LoadDotEnv()
-	{
+	private static void LoadDotEnv() {
 		if (IS_DOTENV_LOADED) return;
 		string path = Path.Combine(Directory.GetCurrentDirectory(), ".env.local");
 		DotNetEnv.Env.Load(path);
 		IS_DOTENV_LOADED = true;
 	}
 
-	private static void ValidateAndSetEnvironmentVariables()
-	{
+	private static void ValidateAndSetEnvironmentVariables() {
 		var postgresConnectionString = Environment.GetEnvironmentVariable(nameof(POSTGRES_CONNECTION_STRING));
 		var frontUrl = Environment.GetEnvironmentVariable(nameof(FRONT_URL));
 
-		var validationResult = _validator.Validate(new EnvironmentConfig
-		{
+		var validationResult = _validator.Validate(new EnvironmentConfig {
 			PostgresConnectionString = postgresConnectionString,
 			FrontUrl = frontUrl
 		});
 
-		if (!validationResult.IsValid)
-		{
+		if (!validationResult.IsValid) {
 			var errors = string.Join(",\n\t\t", validationResult.Errors.Select(e => e.ErrorMessage));
 			throw new Exception($"Environment validation failed:\n\t\t{errors}");
 		}
@@ -69,16 +60,13 @@ public static class AppEnvironment
 	}
 }
 
-public class EnvironmentConfig
-{
+public class EnvironmentConfig {
 	public string? PostgresConnectionString { get; set; }
 	public string? FrontUrl { get; set; }
 }
 
-public class EnvironmentValidator : AbstractValidator<EnvironmentConfig>
-{
-	public EnvironmentValidator()
-	{
+public class EnvironmentValidator : AbstractValidator<EnvironmentConfig> {
+	public EnvironmentValidator() {
 		RuleFor(x => x.PostgresConnectionString)
 			.NotEmpty().WithMessage("POSTGRES_CONNECTION_STRING is not set or is empty")
 			.Must(BeValidPostgresConnectionString).WithMessage("POSTGRES_CONNECTION_STRING must be a valid PostgreSQL connection string");
@@ -88,18 +76,15 @@ public class EnvironmentValidator : AbstractValidator<EnvironmentConfig>
 			.Must(BeAValidUrl).WithMessage("FRONT_URL must be a valid URL");
 	}
 
-	private static bool BeAValidUrl(string? url)
-	{
-		if (string.IsNullOrWhiteSpace(url))
-		{
+	private static bool BeAValidUrl(string? url) {
+		if (string.IsNullOrWhiteSpace(url)) {
 			return false; // Or handle as per your requirements (e.g., use NotEmpty)
 		}
 		return Uri.TryCreate(url, UriKind.Absolute, out Uri? result)
 			&& (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
 	}
 
-	private static bool BeValidPostgresConnectionString(string? connectionString)
-	{
+	private static bool BeValidPostgresConnectionString(string? connectionString) {
 		if (string.IsNullOrWhiteSpace(connectionString)) return false;
 
 		// Basic validation for PostgreSQL connection string
