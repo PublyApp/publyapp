@@ -10,101 +10,100 @@ namespace MainApi.Localization;
 /// <summary>
 /// Type-safe translation keys generated from response message JSON
 /// </summary>
-public static partial class ResponseKeys
-{
-    /// <summary>
-    /// Bad request
-    /// </summary>
-    public static readonly TranslationKey BadRequest = new("bad-request");
+public static partial class ResponseKeys {
+	/// <summary>
+	/// Bad request
+	/// </summary>
+	public static readonly TranslationKey BadRequest = new("bad-request");
 
-    /// <summary>
-    /// Email already verified
-    /// </summary>
-    public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
+	/// <summary>
+	/// Email already verified
+	/// </summary>
+	public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
 
-    /// <summary>
-    /// Failed to login
-    /// </summary>
-    public static readonly TranslationKey FailedToLogin = new("failed-to-login");
+	/// <summary>
+	/// Failed to login
+	/// </summary>
+	public static readonly TranslationKey FailedToLogin = new("failed-to-login");
 
-    /// <summary>
-    /// Failed to register user
-    /// </summary>
-    public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
+	/// <summary>
+	/// Failed to register user
+	/// </summary>
+	public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
 
-    /// <summary>
-    /// Gateway timeout
-    /// </summary>
-    public static readonly TranslationKey GatewayTimeout = new("gateway-timeout");
+	/// <summary>
+	/// Gateway timeout
+	/// </summary>
+	public static readonly TranslationKey GatewayTimeout = new("gateway-timeout");
 
-    /// <summary>
-    /// Internal server error
-    /// </summary>
-    public static readonly TranslationKey InternalServerError = new("internal-server-error");
+	/// <summary>
+	/// Internal server error
+	/// </summary>
+	public static readonly TranslationKey InternalServerError = new("internal-server-error");
 
-    /// <summary>
-    /// Invalid email or password
-    /// </summary>
-    public static readonly TranslationKey InvalidEmailOrPassword = new("invalid-email-or-password");
+	/// <summary>
+	/// Invalid email or password
+	/// </summary>
+	public static readonly TranslationKey InvalidEmailOrPassword = new("invalid-email-or-password");
 
-    /// <summary>
-    /// Method not allowed
-    /// </summary>
-    public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
+	/// <summary>
+	/// Method not allowed
+	/// </summary>
+	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
 
-    /// <summary>
-    /// Not found
-    /// </summary>
-    public static readonly TranslationKey NotFound = new("not-found");
+	/// <summary>
+	/// Not found
+	/// </summary>
+	public static readonly TranslationKey NotFound = new("not-found");
 
-    /// <summary>
-    /// Service unavailable
-    /// </summary>
-    public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
+	/// <summary>
+	/// Service unavailable
+	/// </summary>
+	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
 
-    /// <summary>
-    /// Too many requests
-    /// </summary>
-    public static readonly TranslationKey TooManyRequests = new("too-many-requests");
+	/// <summary>
+	/// Too many requests
+	/// </summary>
+	public static readonly TranslationKey TooManyRequests = new("too-many-requests");
 
-    /// <summary>
-    /// Unauthorized
-    /// </summary>
-    public static readonly TranslationKey Unauthorized = new("unauthorized");
+	/// <summary>
+	/// Unauthorized
+	/// </summary>
+	public static readonly TranslationKey Unauthorized = new("unauthorized");
 
-    /// <summary>
-    /// Unprocessable entity
-    /// </summary>
-    public static readonly TranslationKey UnprocessableEntity = new("unprocessable-entity");
+	/// <summary>
+	/// Unprocessable entity
+	/// </summary>
+	public static readonly TranslationKey UnprocessableEntity = new("unprocessable-entity");
 
-    /// <summary>
-    /// User already exists
-    /// </summary>
-    public static readonly TranslationKey UserAlreadyExists = new("user-already-exists");
+	/// <summary>
+	/// User already exists
+	/// </summary>
+	public static readonly TranslationKey UserAlreadyExists = new("user-already-exists");
 
-    /// <summary>
-    /// User does not have the necessary permissions
-    /// </summary>
-    public static readonly TranslationKey UserDoesNotHaveTheNecessaryPermissions = new("user-does-not-have-the-necessary-permissions");
+	/// <summary>
+	/// User does not have the necessary permissions
+	/// </summary>
+	public static readonly TranslationKey UserDoesNotHaveTheNecessaryPermissions = new("user-does-not-have-the-necessary-permissions");
 
-    /// <summary>
-    /// User ID required
-    /// </summary>
-    public static readonly TranslationKey UserIdRequired = new("user-id-required");
+	/// <summary>
+	/// User ID required
+	/// </summary>
+	public static readonly TranslationKey UserIdRequired = new("user-id-required");
 
-    /// <summary>
-    /// User not found
-    /// </summary>
-    public static readonly TranslationKey UserNotFound = new("user-not-found");
+	/// <summary>
+	/// User not found
+	/// </summary>
+	public static readonly TranslationKey UserNotFound = new("user-not-found");
 
-    /// <summary>
-    /// User not verified
-    /// </summary>
-    public static readonly TranslationKey UserNotVerified = new("user-not-verified");
+	/// <summary>
+	/// User not verified
+	/// </summary>
+	public static readonly TranslationKey UserNotVerified = new("user-not-verified");
 
-    /// <summary>
-    /// User suspended
-    /// </summary>
-    public static readonly TranslationKey UserSuspended = new("user-suspended");
+	/// <summary>
+	/// User suspended
+	/// </summary>
+	public static readonly TranslationKey UserSuspended = new("user-suspended");
 
 }

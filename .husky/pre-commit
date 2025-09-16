@@ -1,19 +1,6 @@
 # makes sure fnm will make npx work
 # eval "$(fnm env --use-on-cd)"
 
-# Format C# files first
-echo "🔧 Formatting C# files..."
-if command -v dotnet >/dev/null 2>&1; then
-    dotnet format PDFViteApp.sln
-    if [ $? -ne 0 ]; then
-        echo "❌ C# formatting failed"
-        exit 1
-    fi
-    echo "✅ C# files formatted successfully"
-else
-    echo "⚠️  dotnet not found, skipping C# formatting"
-fi
-
 # Cross-platform solution that works in both terminal and VS Code/Cursor
 # Try pnpm first, then fallback to other package managers
 
