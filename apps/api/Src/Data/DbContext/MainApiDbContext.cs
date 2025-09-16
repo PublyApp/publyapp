@@ -80,7 +80,10 @@ public class MainApiDbContext : DbContext {
 
 		// Configure other entities with generic approach
 		foreach (var entityType in modelBuilder.Model.GetEntityTypes()) {
-			// Skip entities we've already configured specifically
+			// Skip UserAccountProfile - it's already configured above with custom query filter
+			// UserAccountProfile implements INoTenantEntity but needs tenant filtering through Profile.TenantId
+			// Without this check, it would be processed as a regular INoTenantEntity (no filtering)
+			// or potentially cause duplicate entity configuration issues
 			if (entityType.ClrType == typeof(UserAccountProfile)) {
 				continue;
 			}
