@@ -63,6 +63,13 @@ public class MainApiDbContext : DbContext {
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
 		base.OnModelCreating(modelBuilder);
 
+		// Database-level lowercase constraints
+		modelBuilder.Entity<Tenant>()
+			.ToTable(t => t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)"));
+
+		modelBuilder.Entity<User>()
+			.ToTable(t => t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)"));
+
 		// Apply matching query filters to ensure consistent filtering
 		if (TenantId != null) {
 			// UserAccountProfile gets a filter that matches the Profile's tenant
