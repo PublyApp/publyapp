@@ -42,8 +42,8 @@ static void GenerateKeysClass(string inputFile, string outputFile) {
 	sb.AppendLine("/// <summary>");
 	sb.AppendLine("/// Type-safe translation keys generated from response message JSON");
 	sb.AppendLine("/// </summary>");
-	sb.AppendLine("public static partial class ResponseKeys");
-	sb.AppendLine("{");
+	sb.AppendLine("public static partial class ResponseKeys {");
+	// sb.AppendLine("{");
 
 	// Generate properties for each key in the JSON
 	var sortedKeys = new List<(string key, string value)>();
@@ -59,10 +59,10 @@ static void GenerateKeysClass(string inputFile, string outputFile) {
 		var propertyName = ToPascalCase(key);
 		var escapedValue = EscapeXmlComment(value);
 
-		sb.AppendLine("    /// <summary>");
-		sb.AppendLine($"    /// {escapedValue}");
-		sb.AppendLine("    /// </summary>");
-		sb.AppendLine($"    public static readonly TranslationKey {propertyName} = new(\"{key}\");");
+		sb.AppendLine("\t/// <summary>");
+		sb.AppendLine($"\t/// {escapedValue}");
+		sb.AppendLine("\t/// </summary>");
+		sb.AppendLine($"\tpublic static readonly TranslationKey {propertyName} = new(\"{key}\");");
 		sb.AppendLine();
 	}
 
