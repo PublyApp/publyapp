@@ -14,7 +14,8 @@ namespace MainApi.Migrations {
 						scope = table.Column<int>(type: "integer", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false)
+						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_permissions", x => x.key);
@@ -28,10 +29,12 @@ namespace MainApi.Migrations {
 						name = table.Column<string>(type: "text", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false)
+						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_tenants", x => x.id);
+						table.CheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)");
 					});
 
 			migrationBuilder.CreateTable(
@@ -48,10 +51,12 @@ namespace MainApi.Migrations {
 						email_verify_token_expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false)
+						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_users", x => x.id);
+						table.CheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
 					});
 
 			migrationBuilder.CreateTable(
@@ -64,7 +69,8 @@ namespace MainApi.Migrations {
 						tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false)
+						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_products", x => x.id);
@@ -86,7 +92,8 @@ namespace MainApi.Migrations {
 						profile_type = table.Column<int>(type: "integer", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false)
+						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_profiles", x => x.id);
@@ -107,7 +114,8 @@ namespace MainApi.Migrations {
 						expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false)
+						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_sessions", x => x.id);
@@ -130,7 +138,8 @@ namespace MainApi.Migrations {
 						is_suspended = table.Column<bool>(type: "boolean", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false)
+						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_user_accounts", x => x.id);
@@ -156,7 +165,8 @@ namespace MainApi.Migrations {
 						permission_key = table.Column<string>(type: "text", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false)
+						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_profile_permissions", x => x.id);
@@ -182,7 +192,8 @@ namespace MainApi.Migrations {
 						profile_id = table.Column<Guid>(type: "uuid", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false)
+						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_user_account_profiles", x => x.id);

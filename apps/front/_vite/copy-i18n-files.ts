@@ -1,6 +1,6 @@
-import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
+import chalk from 'chalk';
 import { normalizePath, type Plugin } from 'vite';
 
 type PluginCopyOptions = {
@@ -20,10 +20,10 @@ const enableLog = true;
 const enableDebug = false;
 const logPrefix = '[copy-i18n-files]';
 const _log = enableLog
-	? (...args: any[]) => console.log(logPrefix, ...args)
+	? (...args: unknown[]) => console.log(logPrefix, ...args)
 	: () => {};
 const _debug = enableDebug
-	? (...args: any[]) => console.debug(logPrefix, ...args)
+	? (...args: unknown[]) => console.debug(logPrefix, ...args)
 	: () => {};
 
 const copyI18nFiles = (): Plugin => {
