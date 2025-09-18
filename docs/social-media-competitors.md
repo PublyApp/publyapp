@@ -23,3 +23,9 @@
 <https://postiz.com/>
 
 <https://www.socialchamp.com/>
+
+<https://contentstudio.io/>
+
+<https://socialrails.com/>
+
+<https://www.brandcil.com/>

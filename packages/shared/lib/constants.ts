@@ -447,7 +447,7 @@ export const queryParamValue = {
 } as const;
 
 export const jobType = {
-	CONVERT_HTML_TO_PDF: 'CONVERT_HTML_TO_PDF',
+	EXAMPLE_JOB: 'EXAMPLE_JOB',
 	// Later we may add other jobs, like deleting unused pdf from storage and from DB for example
 } as const;
 
