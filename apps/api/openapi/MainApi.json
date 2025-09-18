@@ -212,7 +212,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateTenantStaffBody"
+                "$ref": "#/components/schemas/CreateStaffTenantBody"
               }
             }
           },
@@ -224,7 +224,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateTenantStaffSuccessResult"
+                  "$ref": "#/components/schemas/CreateStaffTenantSuccessResult"
                 }
               }
             }
@@ -390,7 +390,7 @@
           }
         }
       },
-      "CreateTenantStaffBody": {
+      "CreateStaffTenantBody": {
         "type": "object",
         "properties": {
           "name": {
@@ -398,7 +398,7 @@
           }
         }
       },
-      "CreateTenantStaffSuccessResult": {
+      "CreateStaffTenantSuccessResult": {
         "type": "object",
         "properties": {
           "message": {
@@ -408,11 +408,11 @@
             "type": "string"
           },
           "tenant": {
-            "$ref": "#/components/schemas/CreateTenantStaffSuccessResultTenantData"
+            "$ref": "#/components/schemas/CreateStaffTenantSuccessResultTenantData"
           }
         }
       },
-      "CreateTenantStaffSuccessResultTenantData": {
+      "CreateStaffTenantSuccessResultTenantData": {
         "type": "object",
         "properties": {
           "id": {

@@ -17,8 +17,16 @@ using Microsoft.EntityFrameworkCore;
 public class MainApiDbContext : DbContext {
 	private static MainApiDbContext? _singleton = null;
 
-	public static void SetSingleTon(MainApiDbContext context) {
-		_singleton = context;
+	public MainApiDbContext SingleTon {
+		get {
+			if (_singleton is null) {
+				throw new Exception("You must set a singleton before getting it");
+			}
+			return _singleton;
+		}
+		set {
+			_singleton = value;
+		}
 	}
 
 	public static MainApiDbContext GetSingleTon() {

@@ -1,5 +1,5 @@
 
-### @name CreateTenantStaff
+### @name CreateStaffTenant
 
 POST {{rootUrl}}/staff/tenants
 # Accept: application/json

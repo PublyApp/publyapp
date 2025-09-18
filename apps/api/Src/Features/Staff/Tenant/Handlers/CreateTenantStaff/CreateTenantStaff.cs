@@ -1,4 +1,4 @@
-namespace MainApi.Src.Features.Staff.Tenant.Handlers.CreateTenantStaff;
+namespace MainApi.Src.Features.Staff.Tenant.Handlers.CreateStaffTenant;
 
 using Microsoft.AspNetCore.Mvc;
 using MainApi.Src.Features.Common.Tenant;
@@ -7,7 +7,7 @@ using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using FluentValidation;
 
-public class CreateTenantStaffBody {
+public class CreateStaffTenantBody {
 	public JsonElement Name { get; set; }
 
 	public string GetName() {
@@ -21,8 +21,8 @@ public class CreateTenantStaffBody {
 	}
 }
 
-public class CreateTenantStaffBodyValidator : AbstractValidator<CreateTenantStaffBody> {
-	public CreateTenantStaffBodyValidator() {
+public class CreateStaffTenantBodyValidator : AbstractValidator<CreateStaffTenantBody> {
+	public CreateStaffTenantBodyValidator() {
 		RuleFor(x => x.Name)
 			.NotEmpty().WithMessage("Name is required")
 			.DependentRules(() => {
@@ -36,19 +36,19 @@ public class CreateTenantStaffBodyValidator : AbstractValidator<CreateTenantStaf
 	}
 }
 
-public class CreateTenantStaffSuccessResultTenantData {
+public class CreateStaffTenantSuccessResultTenantData {
 	public Guid Id { get; set; }
 	public string TenantName { get; set; } = string.Empty;
 }
 
-public class CreateTenantStaffSuccessResult : AppResponseResult {
+public class CreateStaffTenantSuccessResult : AppResponseResult {
 	public new string Message { get; set; } = "Tenant created successfully";
 	public new string Key { get; set; } = "tenant-created-successfully";
-	public CreateTenantStaffSuccessResultTenantData Tenant { get; set; } = new CreateTenantStaffSuccessResultTenantData();
+	public CreateStaffTenantSuccessResultTenantData Tenant { get; set; } = new CreateStaffTenantSuccessResultTenantData();
 
-	public static CreateTenantStaffSuccessResult GetApiResponse(Tenant tenant) {
-		return new CreateTenantStaffSuccessResult {
-			Tenant = new CreateTenantStaffSuccessResultTenantData {
+	public static CreateStaffTenantSuccessResult GetApiResponse(Tenant tenant) {
+		return new CreateStaffTenantSuccessResult {
+			Tenant = new CreateStaffTenantSuccessResultTenantData {
 				Id = tenant.Id,
 				TenantName = tenant.Name ?? throw new Exception("Tenant name is null")
 			}
@@ -56,15 +56,15 @@ public class CreateTenantStaffSuccessResult : AppResponseResult {
 	}
 }
 
-public static class CreateTenantStaff {
+public static class CreateStaffTenant {
 	public static async Task<
 	Results<
-	Ok<CreateTenantStaffSuccessResult>,
+	Ok<CreateStaffTenantSuccessResult>,
 	BadRequest<AppResponseResult>
 	>>
-	HandleCreateTenantStaff(
-		[FromBody] CreateTenantStaffBody createTenantBody,
-		[FromServices] ITenantStaffService tenantStaffService
+	HandleCreateStaffTenant(
+		[FromBody] CreateStaffTenantBody createTenantBody,
+		[FromServices] IStaffTenantService StaffTenantService
 		) {
 		string tenantName = createTenantBody.GetName();
 
@@ -72,8 +72,8 @@ public static class CreateTenantStaff {
 			Name = tenantName,
 		};
 
-		var savedTenant = await tenantStaffService.CreateTenant(tenant);
+		var savedTenant = await StaffTenantService.CreateTenant(tenant);
 
-		return TypedResults.Ok(CreateTenantStaffSuccessResult.GetApiResponse(savedTenant));
+		return TypedResults.Ok(CreateStaffTenantSuccessResult.GetApiResponse(savedTenant));
 	}
 }

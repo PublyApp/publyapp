@@ -3,14 +3,14 @@ namespace MainApi.Src.Features.Staff.Tenant;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Tenant;
 
-public interface ITenantStaffService {
+public interface IStaffTenantService {
 	Task<Tenant> CreateTenant(Tenant tenant);
 }
 
-public class TenantStaffService : ITenantStaffService {
+public class StaffTenantService : IStaffTenantService {
 	private readonly MainApiDbContext _dbContext;
 
-	public TenantStaffService(MainApiDbContext dbContext) {
+	public StaffTenantService(MainApiDbContext dbContext) {
 		_dbContext = dbContext;
 	}
 
