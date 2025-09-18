@@ -31,7 +31,7 @@ var staffGroup = app.MapGroup("/staff");
 var tenantGroup = app.MapGroup("/tenant");
 
 // Staff endpoints
-staffGroup.MapTenantStaffEndpoints();
+staffGroup.MapStaffTenantEndpoints();
 
 // Tenant endpoints
 tenantGroup.MapProductEndpoints();
