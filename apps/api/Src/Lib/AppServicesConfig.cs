@@ -14,10 +14,12 @@ using MainApi.Src.Features.Common.Permission;
 public static class AppServicesConfig {
 	// Helper method to get current tenant ID
 	// (you'll need to implement this based on your authentication/authorization)
-	private static Guid GetCurrentTenantId(IServiceProvider serviceProvider) {// TODO: implement this
-		return Guid.Parse("01234567-89ab-7def-0123-456789abcdef"); // Default tenant ID for development
-																															 // var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-																															 // var tenantIdHeader = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].FirstOrDefault();
+	private static Guid GetCurrentTenantId(IServiceProvider serviceProvider) {
+		// TODO: implement this
+		// Default tenant ID for development
+		// var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
+		// var tenantIdHeader = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].FirstOrDefault();
+		return Guid.Parse("01234567-89ab-7def-0123-456789abcdef");
 
 		// if (tenantIdHeader == null || !Guid.TryParse(tenantIdHeader, out Guid tenantId))
 		// {
@@ -27,7 +29,7 @@ public static class AppServicesConfig {
 		// return tenantId;
 	}
 
-	public static IHostApplicationBuilder AddServices(this IHostApplicationBuilder builder) {
+	public static IHostApplicationBuilder AddServices(this WebApplicationBuilder builder) {
 		// Configure strongly-typed settings
 		builder.Services.AddOptions<AppSettings>()
 			.Bind(builder.Configuration.GetSection("AppSettings"))
@@ -93,6 +95,12 @@ public static class AppServicesConfig {
 		// TODO: move tenant informations to the auth context
 		// Register TenantContext
 		builder.Services.AddScoped<ITenantContext, TenantContext>();
+
+		// Validate services at build time
+		builder.Host.UseDefaultServiceProvider(options => {
+			options.ValidateScopes = true; // On by default in development
+			options.ValidateOnBuild = true; // Opt-in: validate services at build time
+		});
 
 		return builder;
 	}
