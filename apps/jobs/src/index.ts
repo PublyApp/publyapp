@@ -1,7 +1,7 @@
 import _ from 'lodash';
 import { ZodError } from 'zod';
 import { jobType } from '@/shared/lib/constants';
-import { convertHTMLToPDF } from './tasks/html-to-pdf';
+import { exampleJob } from './jobs/example-job';
 
 const genericMessage = {
 	BAD_PARAM: 'Bad parameter',
@@ -9,8 +9,7 @@ const genericMessage = {
 };
 
 const jobTypeMap = new Map<string, AsyncFunction>([
-	// ===
-	[jobType.CONVERT_HTML_TO_PDF, convertHTMLToPDF],
+	[jobType.EXAMPLE_JOB, exampleJob],
 ]);
 
 const main = async () => {
