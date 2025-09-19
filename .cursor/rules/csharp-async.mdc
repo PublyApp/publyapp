@@ -125,7 +125,7 @@ public ValueTask<CachedData> GetCachedAsync(string key)
 - Make actions async, accept `CancellationToken`
 - Use appropriate HTTP status codes
 
-### Services
+### Services (general)
 
 - Implement async interfaces; log with structured context
 - Consider `ValueTask<T>` on hot paths
@@ -195,7 +195,7 @@ public static async Task<Results<Ok<T>, BadRequest<ApiResponse>>> Handle(
 }
 ```
 
-### Services
+### Services (implementation patterns)
 
 - Async methods only; add cancellation
 - Log with structured context and rethrow
