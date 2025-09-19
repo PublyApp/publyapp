@@ -1,5 +1,6 @@
 namespace MainApi.Src.Lib.Middlewares;
 
+using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
 using Microsoft.EntityFrameworkCore;
@@ -21,10 +22,10 @@ public class StaffAuthMiddleware {
 			});
 			_logger.LogError($"{nameof(SessionAuthMiddleware)} must be passed before {nameof(StaffAuthMiddleware)}");
 			httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
-			await httpContext.Response.WriteAsJsonAsync(new {
-				message = "Failed to authenticate user",
-				key = "failed-to-authenticate-user",
-			});
+			await httpContext.Response.WriteAsJsonAsync(ApiResponse.Create(
+				"Failed to authenticate user",
+				ResponseKeys.FailedToAuthenticateUser
+			));
 			return;
 		}
 

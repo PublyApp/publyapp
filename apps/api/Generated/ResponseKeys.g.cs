@@ -22,6 +22,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
 
 	/// <summary>
+	/// Failed to authenticate user
+	/// </summary>
+	public static readonly TranslationKey FailedToAuthenticateUser = new("failed-to-authenticate-user");
+
+	/// <summary>
 	/// Failed to login
 	/// </summary>
 	public static readonly TranslationKey FailedToLogin = new("failed-to-login");
@@ -45,6 +50,11 @@ public static partial class ResponseKeys {
 	/// Invalid email or password
 	/// </summary>
 	public static readonly TranslationKey InvalidEmailOrPassword = new("invalid-email-or-password");
+
+	/// <summary>
+	/// Invalid session
+	/// </summary>
+	public static readonly TranslationKey InvalidSession = new("invalid-session");
 
 	/// <summary>
 	/// Method not allowed

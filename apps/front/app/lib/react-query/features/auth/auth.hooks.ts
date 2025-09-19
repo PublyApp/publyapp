@@ -4,12 +4,15 @@ import {
 	createSuspenseQuery,
 } from 'react-query-kit';
 import { clientManager } from '@/front/lib/js-client/client-manager';
+import type { ApiClient } from '@/js-client/src/apiClient';
+import { getQueryKey } from '../../query-utils';
+
+const getUserAuthDataQueryKey = getQueryKey<ApiClient>(
+	(client) => client.auth.userAuthData.get,
+);
 
 export const useGetUserAuthData = createSuspenseQuery({
-	queryKey: [
-		clientManager.anonymousClient.auth.userAuthData.toGetRequestInformation()
-			.URL,
-	] as const,
+	queryKey: [getUserAuthDataQueryKey] as const,
 	fetcher: async () => {
 		return clientManager.apiClient.auth.userAuthData.get();
 	},
@@ -17,8 +20,7 @@ export const useGetUserAuthData = createSuspenseQuery({
 
 export const useGetTenantAuthData = createSuspenseQuery({
 	queryKey: [
-		clientManager.anonymousClient.auth.tenantAuthData.toGetRequestInformation()
-			.URL,
+		getQueryKey<ApiClient>((client) => client.auth.tenantAuthData.get),
 	] as const,
 	fetcher: async ({ tenantId }: { tenantId: string }) => {
 		return clientManager.apiClient.auth.tenantAuthData.get({
@@ -34,34 +36,27 @@ export const useGetTenantAuthData = createSuspenseQuery({
 	},
 });
 
+const getVerificationLinkQueryKey = getQueryKey<ApiClient>(
+	(client) => client.auth.verificationLink.get,
+);
+
 export const useGetVerificationLink = createQuery({
-	queryKey: [
-		clientManager.anonymousClient.auth.verificationLink.toPostRequestInformation()
-			.URL,
-	] as const,
+	queryKey: [getVerificationLinkQueryKey] as const,
 	fetcher: async ({ userId }: { userId: string }) => {
 		return clientManager.apiClient.auth.verificationLink.get({
-			userId: {
-				getValue() {
-					return userId;
-				},
+			queryParameters: {
+				userId,
 			},
 		});
 	},
 });
 
+const getVerifyEmailRequestQueryKey = getQueryKey<ApiClient>(
+	(client) => client.auth.verifyEmailRequest.post,
+);
+
 export const useSendEmailVerificationReminder = createMutation({
-	mutationKey: [
-		clientManager.anonymousClient.auth.verifyEmailRequest.toPostRequestInformation(
-			{
-				email: {
-					getValue() {
-						return '';
-					},
-				},
-			},
-		).URL,
-	] as const,
+	mutationKey: [getVerifyEmailRequestQueryKey] as const,
 	mutationFn: async ({ email }: { email: string }) => {
 		return clientManager.apiClient.auth.verifyEmailRequest.post({
 			email: {

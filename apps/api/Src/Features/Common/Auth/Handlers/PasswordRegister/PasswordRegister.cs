@@ -78,7 +78,7 @@ public static class PasswordRegister {
 		if (createUserResult is CreateUserResult.Success success) {
 			return TypedResults.Ok(new PasswordRegisterSuccessResult {
 				Id = success.User.Id,
-				Email = success.User.Email ?? throw new Exception("Email is null"),
+				Email = success.User.Email,
 				CreatedAt = success.User.CreatedAt,
 				UpdatedAt = success.User.UpdatedAt,
 			});

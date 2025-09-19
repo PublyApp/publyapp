@@ -7,7 +7,6 @@ import InputAdornment from '@mui/material/InputAdornment';
 import type { Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { useBoolean } from 'minimal-shared/hooks';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import {

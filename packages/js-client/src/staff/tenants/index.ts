@@ -17,14 +17,14 @@ export interface TenantsRequestBuilder extends BaseRequestBuilder<TenantsRequest
      * @returns {Promise<CreateStaffTenantSuccessResult>}
      * @throws {AppResponseResult} error when the service returns a 400 status code
      */
-    post(body: CreateStaffTenantBody, requestConfiguration?: RequestConfiguration<object> | undefined): Promise<CreateStaffTenantSuccessResult | undefined>;
+     post(body: CreateStaffTenantBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<CreateStaffTenantSuccessResult | undefined>;
     /**
      * Create a new tenant
      * @param body The request body
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-    toPostRequestInformation(body: CreateStaffTenantBody, requestConfiguration?: RequestConfiguration<object> | undefined): RequestInformation;
+     toPostRequestInformation(body: CreateStaffTenantBody, requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
 }
 /**
  * Uri template for the request builder.
@@ -41,7 +41,7 @@ export const TenantsRequestBuilderRequestsMetadata: RequestsMetadata = {
             400: createAppResponseResultFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",
-        responseBodyFactory: createCreateStaffTenantSuccessResultFromDiscriminatorValue,
+        responseBodyFactory:  createCreateStaffTenantSuccessResultFromDiscriminatorValue,
         requestBodyContentType: "application/json",
         requestBodySerializer: serializeCreateStaffTenantBody,
         requestInformationContentSetMethod: "setContentFromParsable",
