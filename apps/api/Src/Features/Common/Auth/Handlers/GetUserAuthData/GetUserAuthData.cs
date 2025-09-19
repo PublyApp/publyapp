@@ -3,11 +3,12 @@ using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Middlewares;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
 
 public class GetUserAuthDataResult {
-	public Guid UserId { get; set; }
+	public Guid Id { get; set; }
 	public string Email { get; set; } = string.Empty;
 }
 
@@ -20,7 +21,7 @@ public class GetUserAuthData {
 	> HandleGetUserAuthData(
 		IAuthContext authContext,
 		ILogger<GetUserAuthData> logger,
-		IUserService userService,
+		[FromServices] IUserService userService,
 		CancellationToken cancellationToken = default
 	) {
 		if (!authContext.IsAuthenticated) {
@@ -32,19 +33,17 @@ public class GetUserAuthData {
 		}
 
 		if (authContext.UserId is not Guid userId) {
-			return TypedResults.BadRequest(ApiResponse.Create(
-					"Invalid session",
-					ResponseKeys.InvalidSession
-			));
+			throw new Exception($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
 		var user = await userService.GetUserByIdAsync(userId, cancellationToken);
 
 		if (user is null) {
 			logger.LogError("User not found for session: {@Context}", new {
+				SessionToken = authContext.SessionToken,
 				UserId = authContext.UserId,
-				SessionToken = authContext.SessionToken
 			});
+
 			return TypedResults.BadRequest(ApiResponse.Create(
 					"Invalid session",
 					ResponseKeys.InvalidSession
@@ -52,7 +51,7 @@ public class GetUserAuthData {
 		}
 
 		return TypedResults.Ok(new GetUserAuthDataResult {
-			UserId = user.Id,
+			Id = user.Id,
 			Email = user.Email
 		});
 	}

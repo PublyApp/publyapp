@@ -31,29 +31,21 @@ public class UserService : IUserService {
 	}
 
 	public async Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default) {
-		try {
-			// check if user already exists
-			var existingUser = await _dbContext.User
-				.FirstOrDefaultAsync(u => u.Email == user.Email, cancellationToken)
-				.ConfigureAwait(false);
-			if (existingUser != null) {
-				return new CreateUserResult.Failure("User already exists", ResponseKeys.UserAlreadyExists);
-			}
-
-			// Hash the password before storing
-			user.Password = _passwordService.HashPassword(user.Password);
-
-			var result = await _dbContext.User.AddAsync(user, cancellationToken).ConfigureAwait(false);
-			await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-			return new CreateUserResult.Success(result.Entity);
-		} catch (OperationCanceledException) {
-			_logger.LogInformation("User creation cancelled for email {Email}", user.Email);
-			throw;
-		} catch (Exception ex) {
-			_logger.LogError(ex, "Failed to create user with email {Email}", user.Email);
-			throw;
+		// check if user already exists
+		var existingUser = await _dbContext.User
+			.FirstOrDefaultAsync(u => u.Email == user.Email, cancellationToken)
+			.ConfigureAwait(false);
+		if (existingUser != null) {
+			return new CreateUserResult.Failure("User already exists", ResponseKeys.UserAlreadyExists);
 		}
+
+		// Hash the password before storing
+		user.Password = _passwordService.HashPassword(user.Password);
+
+		var result = await _dbContext.User.AddAsync(user, cancellationToken).ConfigureAwait(false);
+		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+		return new CreateUserResult.Success(result.Entity);
 	}
 
 	public async Task<User?> GetUserToLoginAsync(string email, CancellationToken cancellationToken = default) {
@@ -72,17 +64,9 @@ public class UserService : IUserService {
 	}
 
 	public async Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default) {
-		try {
-			_dbContext.User.Update(user);
-			await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-			return user;
-		} catch (OperationCanceledException) {
-			_logger.LogInformation("User update cancelled for ID {UserId}", user.Id);
-			throw;
-		} catch (Exception ex) {
-			_logger.LogError(ex, "Failed to update user {UserId}", user.Id);
-			throw;
-		}
+		_dbContext.User.Update(user);
+		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+		return user;
 	}
 
 	public async Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default) {
