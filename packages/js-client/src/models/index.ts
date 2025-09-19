@@ -30,7 +30,7 @@ export interface AppResponseResult extends AdditionalDataHolder, ApiError, Parsa
  * @returns {ApiResponse}
  */
 // @ts-ignore
-export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoApiResponse;
 }
 /**
@@ -39,7 +39,7 @@ export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | u
  * @returns {AppResponseResult}
  */
 // @ts-ignore
-export function createAppResponseResultFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createAppResponseResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoAppResponseResult;
 }
 /**
@@ -48,7 +48,7 @@ export function createAppResponseResultFromDiscriminatorValue(parseNode: ParseNo
  * @returns {CreateStaffTenantBody}
  */
 // @ts-ignore
-export function createCreateStaffTenantBodyFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createCreateStaffTenantBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoCreateStaffTenantBody;
 }
 /**
@@ -57,7 +57,7 @@ export function createCreateStaffTenantBodyFromDiscriminatorValue(parseNode: Par
  * @returns {CreateStaffTenantSuccessResult}
  */
 // @ts-ignore
-export function createCreateStaffTenantSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createCreateStaffTenantSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoCreateStaffTenantSuccessResult;
 }
 /**
@@ -66,7 +66,7 @@ export function createCreateStaffTenantSuccessResultFromDiscriminatorValue(parse
  * @returns {CreateStaffTenantSuccessResultTenantData}
  */
 // @ts-ignore
-export function createCreateStaffTenantSuccessResultTenantDataFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createCreateStaffTenantSuccessResultTenantDataFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoCreateStaffTenantSuccessResultTenantData;
 }
 /**
@@ -75,7 +75,7 @@ export function createCreateStaffTenantSuccessResultTenantDataFromDiscriminatorV
  * @returns {GetUserAuthDataSuccessResult}
  */
 // @ts-ignore
-export function createGetUserAuthDataSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createGetUserAuthDataSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoGetUserAuthDataSuccessResult;
 }
 /**
@@ -84,7 +84,7 @@ export function createGetUserAuthDataSuccessResultFromDiscriminatorValue(parseNo
  * @returns {GetVerificationLinkSuccessResult}
  */
 // @ts-ignore
-export function createGetVerificationLinkSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createGetVerificationLinkSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoGetVerificationLinkSuccessResult;
 }
 /**
@@ -93,7 +93,7 @@ export function createGetVerificationLinkSuccessResultFromDiscriminatorValue(par
  * @returns {PasswordLoginBody}
  */
 // @ts-ignore
-export function createPasswordLoginBodyFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createPasswordLoginBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoPasswordLoginBody;
 }
 /**
@@ -102,7 +102,7 @@ export function createPasswordLoginBodyFromDiscriminatorValue(parseNode: ParseNo
  * @returns {PasswordLoginSuccessResult}
  */
 // @ts-ignore
-export function createPasswordLoginSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createPasswordLoginSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoPasswordLoginSuccessResult;
 }
 /**
@@ -111,7 +111,7 @@ export function createPasswordLoginSuccessResultFromDiscriminatorValue(parseNode
  * @returns {PasswordRegisterBody}
  */
 // @ts-ignore
-export function createPasswordRegisterBodyFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createPasswordRegisterBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoPasswordRegisterBody;
 }
 /**
@@ -120,8 +120,17 @@ export function createPasswordRegisterBodyFromDiscriminatorValue(parseNode: Pars
  * @returns {PasswordRegisterSuccessResult}
  */
 // @ts-ignore
-export function createPasswordRegisterSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createPasswordRegisterSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoPasswordRegisterSuccessResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {Permission}
+ */
+// @ts-ignore
+export function createPermissionFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPermission;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -129,7 +138,7 @@ export function createPasswordRegisterSuccessResultFromDiscriminatorValue(parseN
  * @returns {Product}
  */
 // @ts-ignore
-export function createProductFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createProductFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoProduct;
 }
 /**
@@ -138,8 +147,17 @@ export function createProductFromDiscriminatorValue(parseNode: ParseNode | undef
  * @returns {Profile}
  */
 // @ts-ignore
-export function createProfileFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createProfileFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoProfile;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ProfilePermission}
+ */
+// @ts-ignore
+export function createProfilePermissionFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoProfilePermission;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -147,17 +165,8 @@ export function createProfileFromDiscriminatorValue(parseNode: ParseNode | undef
  * @returns {Session}
  */
 // @ts-ignore
-export function createSessionFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createSessionFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoSession;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {Tenant}
- */
-// @ts-ignore
-export function createTenantFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoTenant;
 }
 export interface CreateStaffTenantBody extends AdditionalDataHolder, Parsable {
     /**
@@ -192,10 +201,19 @@ export interface CreateStaffTenantSuccessResultTenantData extends AdditionalData
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {Tenant}
+ */
+// @ts-ignore
+export function createTenantFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenant;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {UserAccount}
  */
 // @ts-ignore
-export function createUserAccountFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createUserAccountFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoUserAccount;
 }
 /**
@@ -204,7 +222,7 @@ export function createUserAccountFromDiscriminatorValue(parseNode: ParseNode | u
  * @returns {UserAccountProfile}
  */
 // @ts-ignore
-export function createUserAccountProfileFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createUserAccountProfileFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoUserAccountProfile;
 }
 /**
@@ -213,7 +231,7 @@ export function createUserAccountProfileFromDiscriminatorValue(parseNode: ParseN
  * @returns {User}
  */
 // @ts-ignore
-export function createUserFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createUserFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoUser;
 }
 /**
@@ -222,7 +240,7 @@ export function createUserFromDiscriminatorValue(parseNode: ParseNode | undefine
  * @returns {VerifyEmailRequestBody}
  */
 // @ts-ignore
-export function createVerifyEmailRequestBodyFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createVerifyEmailRequestBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoVerifyEmailRequestBody;
 }
 /**
@@ -231,7 +249,7 @@ export function createVerifyEmailRequestBodyFromDiscriminatorValue(parseNode: Pa
  * @returns {VerifyEmailRequestSuccessResult}
  */
 // @ts-ignore
-export function createVerifyEmailRequestSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined): ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+export function createVerifyEmailRequestSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoVerifyEmailRequestSuccessResult;
 }
 /**
@@ -240,7 +258,7 @@ export function createVerifyEmailRequestSuccessResultFromDiscriminatorValue(pars
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoApiResponse(apiResponse: Partial<ApiResponse> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoApiResponse(apiResponse: Partial<ApiResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "key": n => { apiResponse.key = n.getStringValue(); },
         "message": n => { apiResponse.messageEscaped = n.getStringValue(); },
@@ -252,7 +270,7 @@ export function deserializeIntoApiResponse(apiResponse: Partial<ApiResponse> | u
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoAppResponseResult(appResponseResult: Partial<AppResponseResult> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoAppResponseResult(appResponseResult: Partial<AppResponseResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "key": n => { appResponseResult.key = n.getStringValue(); },
         "message": n => { appResponseResult.messageEscaped = n.getStringValue(); },
@@ -264,7 +282,7 @@ export function deserializeIntoAppResponseResult(appResponseResult: Partial<AppR
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoCreateStaffTenantBody(createStaffTenantBody: Partial<CreateStaffTenantBody> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoCreateStaffTenantBody(createStaffTenantBody: Partial<CreateStaffTenantBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "name": n => { createStaffTenantBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
@@ -275,7 +293,7 @@ export function deserializeIntoCreateStaffTenantBody(createStaffTenantBody: Part
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoCreateStaffTenantSuccessResult(createStaffTenantSuccessResult: Partial<CreateStaffTenantSuccessResult> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoCreateStaffTenantSuccessResult(createStaffTenantSuccessResult: Partial<CreateStaffTenantSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "key": n => { createStaffTenantSuccessResult.key = n.getStringValue(); },
         "message": n => { createStaffTenantSuccessResult.message = n.getStringValue(); },
@@ -288,7 +306,7 @@ export function deserializeIntoCreateStaffTenantSuccessResult(createStaffTenantS
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoCreateStaffTenantSuccessResultTenantData(createStaffTenantSuccessResultTenantData: Partial<CreateStaffTenantSuccessResultTenantData> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoCreateStaffTenantSuccessResultTenantData(createStaffTenantSuccessResultTenantData: Partial<CreateStaffTenantSuccessResultTenantData> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "id": n => { createStaffTenantSuccessResultTenantData.id = n.getGuidValue(); },
         "tenantName": n => { createStaffTenantSuccessResultTenantData.tenantName = n.getStringValue(); },
@@ -300,7 +318,7 @@ export function deserializeIntoCreateStaffTenantSuccessResultTenantData(createSt
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoGetUserAuthDataSuccessResult(getUserAuthDataSuccessResult: Partial<GetUserAuthDataSuccessResult> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoGetUserAuthDataSuccessResult(getUserAuthDataSuccessResult: Partial<GetUserAuthDataSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "email": n => { getUserAuthDataSuccessResult.email = n.getStringValue(); },
         "userId": n => { getUserAuthDataSuccessResult.userId = n.getGuidValue(); },
@@ -312,7 +330,7 @@ export function deserializeIntoGetUserAuthDataSuccessResult(getUserAuthDataSucce
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoGetVerificationLinkSuccessResult(getVerificationLinkSuccessResult: Partial<GetVerificationLinkSuccessResult> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoGetVerificationLinkSuccessResult(getVerificationLinkSuccessResult: Partial<GetVerificationLinkSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "link": n => { getVerificationLinkSuccessResult.link = n.getStringValue(); },
     }
@@ -323,7 +341,7 @@ export function deserializeIntoGetVerificationLinkSuccessResult(getVerificationL
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoPasswordLoginBody(passwordLoginBody: Partial<PasswordLoginBody> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoPasswordLoginBody(passwordLoginBody: Partial<PasswordLoginBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "email": n => { passwordLoginBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "password": n => { passwordLoginBody.password = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
@@ -335,7 +353,7 @@ export function deserializeIntoPasswordLoginBody(passwordLoginBody: Partial<Pass
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoPasswordLoginSuccessResult(passwordLoginSuccessResult: Partial<PasswordLoginSuccessResult> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoPasswordLoginSuccessResult(passwordLoginSuccessResult: Partial<PasswordLoginSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "sessionExpiresAt": n => { passwordLoginSuccessResult.sessionExpiresAt = n.getDateValue(); },
         "sessionExpiresInMs": n => { passwordLoginSuccessResult.sessionExpiresInMs = n.getNumberValue(); },
@@ -349,7 +367,7 @@ export function deserializeIntoPasswordLoginSuccessResult(passwordLoginSuccessRe
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoPasswordRegisterBody(passwordRegisterBody: Partial<PasswordRegisterBody> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoPasswordRegisterBody(passwordRegisterBody: Partial<PasswordRegisterBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "email": n => { passwordRegisterBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "password": n => { passwordRegisterBody.password = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
@@ -361,7 +379,7 @@ export function deserializeIntoPasswordRegisterBody(passwordRegisterBody: Partia
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoPasswordRegisterSuccessResult(passwordRegisterSuccessResult: Partial<PasswordRegisterSuccessResult> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoPasswordRegisterSuccessResult(passwordRegisterSuccessResult: Partial<PasswordRegisterSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "createdAt": n => { passwordRegisterSuccessResult.createdAt = n.getDateValue(); },
         "email": n => { passwordRegisterSuccessResult.email = n.getStringValue(); },
@@ -371,13 +389,31 @@ export function deserializeIntoPasswordRegisterSuccessResult(passwordRegisterSuc
 }
 /**
  * The deserialization information for the current model
+ * @param Permission The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPermission(permission: Partial<Permission> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "createdAt": n => { permission.createdAt = n.getDateValue(); },
+        "deletedAt": n => { permission.deletedAt = n.getDateValue(); },
+        "isDeleted": n => { permission.isDeleted = n.getBooleanValue(); },
+        "key": n => { permission.key = n.getStringValue(); },
+        "profilePermissions": n => { permission.profilePermissions = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "scope": n => { permission.scope = n.getNumberValue(); },
+        "updatedAt": n => { permission.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param Product The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoProduct(product: Partial<Product> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoProduct(product: Partial<Product> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "createdAt": n => { product.createdAt = n.getDateValue(); },
+        "deletedAt": n => { product.deletedAt = n.getDateValue(); },
         "description": n => { product.description = n.getStringValue(); },
         "id": n => { product.id = n.getGuidValue(); },
         "isDeleted": n => { product.isDeleted = n.getBooleanValue(); },
@@ -394,13 +430,15 @@ export function deserializeIntoProduct(product: Partial<Product> | undefined = {
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoProfile(profile: Partial<Profile> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoProfile(profile: Partial<Profile> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "createdAt": n => { profile.createdAt = n.getDateValue(); },
+        "deletedAt": n => { profile.deletedAt = n.getDateValue(); },
         "description": n => { profile.description = n.getStringValue(); },
         "id": n => { profile.id = n.getGuidValue(); },
         "isDeleted": n => { profile.isDeleted = n.getBooleanValue(); },
         "name": n => { profile.name = n.getStringValue(); },
+        "profilePermissions": n => { profile.profilePermissions = n.getCollectionOfObjectValues<ProfilePermission>(createProfilePermissionFromDiscriminatorValue); },
         "profileType": n => { profile.profileType = n.getNumberValue(); },
         "tenant": n => { profile.tenant = n.getObjectValue<Tenant>(createTenantFromDiscriminatorValue); },
         "tenantId": n => { profile.tenantId = n.getGuidValue(); },
@@ -410,13 +448,32 @@ export function deserializeIntoProfile(profile: Partial<Profile> | undefined = {
 }
 /**
  * The deserialization information for the current model
+ * @param ProfilePermission The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoProfilePermission(profilePermission: Partial<ProfilePermission> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "createdAt": n => { profilePermission.createdAt = n.getDateValue(); },
+        "deletedAt": n => { profilePermission.deletedAt = n.getDateValue(); },
+        "id": n => { profilePermission.id = n.getGuidValue(); },
+        "isDeleted": n => { profilePermission.isDeleted = n.getBooleanValue(); },
+        "permission": n => { profilePermission.permission = n.getObjectValue<Permission>(createPermissionFromDiscriminatorValue); },
+        "permissionKey": n => { profilePermission.permissionKey = n.getStringValue(); },
+        "profileId": n => { profilePermission.profileId = n.getGuidValue(); },
+        "updatedAt": n => { profilePermission.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param Session The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoSession(session: Partial<Session> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoSession(session: Partial<Session> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "createdAt": n => { session.createdAt = n.getDateValue(); },
+        "deletedAt": n => { session.deletedAt = n.getDateValue(); },
         "expiresAt": n => { session.expiresAt = n.getDateValue(); },
         "id": n => { session.id = n.getGuidValue(); },
         "isDeleted": n => { session.isDeleted = n.getBooleanValue(); },
@@ -432,9 +489,11 @@ export function deserializeIntoSession(session: Partial<Session> | undefined = {
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoTenant(tenant: Partial<Tenant> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoTenant(tenant: Partial<Tenant> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "code": n => { tenant.code = n.getStringValue(); },
         "createdAt": n => { tenant.createdAt = n.getDateValue(); },
+        "deletedAt": n => { tenant.deletedAt = n.getDateValue(); },
         "id": n => { tenant.id = n.getGuidValue(); },
         "isDeleted": n => { tenant.isDeleted = n.getBooleanValue(); },
         "name": n => { tenant.name = n.getStringValue(); },
@@ -448,16 +507,19 @@ export function deserializeIntoTenant(tenant: Partial<Tenant> | undefined = {}):
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoUser(user: Partial<User> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoUser(user: Partial<User> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "createdAt": n => { user.createdAt = n.getDateValue(); },
+        "deletedAt": n => { user.deletedAt = n.getDateValue(); },
         "email": n => { user.email = n.getStringValue(); },
         "emailVerifyToken": n => { user.emailVerifyToken = n.getStringValue(); },
         "emailVerifyTokenExpiresAt": n => { user.emailVerifyTokenExpiresAt = n.getDateValue(); },
+        "firstName": n => { user.firstName = n.getStringValue(); },
         "id": n => { user.id = n.getGuidValue(); },
         "isDeleted": n => { user.isDeleted = n.getBooleanValue(); },
         "isSuspended": n => { user.isSuspended = n.getBooleanValue(); },
         "isVerified": n => { user.isVerified = n.getBooleanValue(); },
+        "lastName": n => { user.lastName = n.getStringValue(); },
         "password": n => { user.password = n.getStringValue(); },
         "sessions": n => { user.sessions = n.getCollectionOfObjectValues<Session>(createSessionFromDiscriminatorValue); },
         "updatedAt": n => { user.updatedAt = n.getDateValue(); },
@@ -470,10 +532,11 @@ export function deserializeIntoUser(user: Partial<User> | undefined = {}): Recor
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoUserAccount(userAccount: Partial<UserAccount> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoUserAccount(userAccount: Partial<UserAccount> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "accountType": n => { userAccount.accountType = n.getNumberValue(); },
         "createdAt": n => { userAccount.createdAt = n.getDateValue(); },
+        "deletedAt": n => { userAccount.deletedAt = n.getDateValue(); },
         "hierarchyLevel": n => { userAccount.hierarchyLevel = n.getNumberValue(); },
         "id": n => { userAccount.id = n.getGuidValue(); },
         "isDeleted": n => { userAccount.isDeleted = n.getBooleanValue(); },
@@ -492,9 +555,10 @@ export function deserializeIntoUserAccount(userAccount: Partial<UserAccount> | u
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoUserAccountProfile(userAccountProfile: Partial<UserAccountProfile> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoUserAccountProfile(userAccountProfile: Partial<UserAccountProfile> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "createdAt": n => { userAccountProfile.createdAt = n.getDateValue(); },
+        "deletedAt": n => { userAccountProfile.deletedAt = n.getDateValue(); },
         "id": n => { userAccountProfile.id = n.getGuidValue(); },
         "isDeleted": n => { userAccountProfile.isDeleted = n.getBooleanValue(); },
         "profile": n => { userAccountProfile.profile = n.getObjectValue<Profile>(createProfileFromDiscriminatorValue); },
@@ -510,7 +574,7 @@ export function deserializeIntoUserAccountProfile(userAccountProfile: Partial<Us
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoVerifyEmailRequestBody(verifyEmailRequestBody: Partial<VerifyEmailRequestBody> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoVerifyEmailRequestBody(verifyEmailRequestBody: Partial<VerifyEmailRequestBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "email": n => { verifyEmailRequestBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
@@ -521,7 +585,7 @@ export function deserializeIntoVerifyEmailRequestBody(verifyEmailRequestBody: Pa
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoVerifyEmailRequestSuccessResult(verifyEmailRequestSuccessResult: Partial<VerifyEmailRequestSuccessResult> | undefined = {}): Record<string, (node: ParseNode) => void> {
+export function deserializeIntoVerifyEmailRequestSuccessResult(verifyEmailRequestSuccessResult: Partial<VerifyEmailRequestSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "status": n => { verifyEmailRequestSuccessResult.status = n.getStringValue(); },
     }
@@ -598,11 +662,45 @@ export interface PasswordRegisterSuccessResult extends AdditionalDataHolder, Par
      */
     updatedAt?: Date | null;
 }
+export interface Permission extends AdditionalDataHolder, Parsable {
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The deletedAt property
+     */
+    deletedAt?: Date | null;
+    /**
+     * The isDeleted property
+     */
+    isDeleted?: boolean | null;
+    /**
+     * The key property
+     */
+    key?: string | null;
+    /**
+     * The profilePermissions property
+     */
+    profilePermissions?: UntypedNode | null;
+    /**
+     * The scope property
+     */
+    scope?: number | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
+}
 export interface Product extends AdditionalDataHolder, Parsable {
     /**
      * The createdAt property
      */
     createdAt?: Date | null;
+    /**
+     * The deletedAt property
+     */
+    deletedAt?: Date | null;
     /**
      * The description property
      */
@@ -642,6 +740,10 @@ export interface Profile extends AdditionalDataHolder, Parsable {
      */
     createdAt?: Date | null;
     /**
+     * The deletedAt property
+     */
+    deletedAt?: Date | null;
+    /**
      * The description property
      */
     description?: string | null;
@@ -657,6 +759,10 @@ export interface Profile extends AdditionalDataHolder, Parsable {
      * The name property
      */
     name?: string | null;
+    /**
+     * The profilePermissions property
+     */
+    profilePermissions?: ProfilePermission[] | null;
     /**
      * The profileType property
      */
@@ -678,6 +784,40 @@ export interface Profile extends AdditionalDataHolder, Parsable {
      */
     userAccountProfiles?: UntypedNode | null;
 }
+export interface ProfilePermission extends AdditionalDataHolder, Parsable {
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
+     * The deletedAt property
+     */
+    deletedAt?: Date | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The isDeleted property
+     */
+    isDeleted?: boolean | null;
+    /**
+     * The permission property
+     */
+    permission?: Permission | null;
+    /**
+     * The permissionKey property
+     */
+    permissionKey?: string | null;
+    /**
+     * The profileId property
+     */
+    profileId?: Guid | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
+}
 /**
  * Serializes information the current object
  * @param ApiResponse The instance to serialize from.
@@ -685,7 +825,7 @@ export interface Profile extends AdditionalDataHolder, Parsable {
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeApiResponse(writer: SerializationWriter, apiResponse: Partial<ApiResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeApiResponse(writer: SerializationWriter, apiResponse: Partial<ApiResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!apiResponse || isSerializingDerivedType) { return; }
     writer.writeStringValue("key", apiResponse.key);
     writer.writeStringValue("message", apiResponse.messageEscaped);
@@ -698,7 +838,7 @@ export function serializeApiResponse(writer: SerializationWriter, apiResponse: P
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeAppResponseResult(writer: SerializationWriter, appResponseResult: Partial<AppResponseResult> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeAppResponseResult(writer: SerializationWriter, appResponseResult: Partial<AppResponseResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!appResponseResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("key", appResponseResult.key);
     writer.writeStringValue("message", appResponseResult.messageEscaped);
@@ -711,7 +851,7 @@ export function serializeAppResponseResult(writer: SerializationWriter, appRespo
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeCreateStaffTenantBody(writer: SerializationWriter, createStaffTenantBody: Partial<CreateStaffTenantBody> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeCreateStaffTenantBody(writer: SerializationWriter, createStaffTenantBody: Partial<CreateStaffTenantBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createStaffTenantBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("name", createStaffTenantBody.name);
     writer.writeAdditionalData(createStaffTenantBody.additionalData);
@@ -723,7 +863,7 @@ export function serializeCreateStaffTenantBody(writer: SerializationWriter, crea
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeCreateStaffTenantSuccessResult(writer: SerializationWriter, createStaffTenantSuccessResult: Partial<CreateStaffTenantSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeCreateStaffTenantSuccessResult(writer: SerializationWriter, createStaffTenantSuccessResult: Partial<CreateStaffTenantSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createStaffTenantSuccessResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("key", createStaffTenantSuccessResult.key);
     writer.writeStringValue("message", createStaffTenantSuccessResult.message);
@@ -737,7 +877,7 @@ export function serializeCreateStaffTenantSuccessResult(writer: SerializationWri
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeCreateStaffTenantSuccessResultTenantData(writer: SerializationWriter, createStaffTenantSuccessResultTenantData: Partial<CreateStaffTenantSuccessResultTenantData> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeCreateStaffTenantSuccessResultTenantData(writer: SerializationWriter, createStaffTenantSuccessResultTenantData: Partial<CreateStaffTenantSuccessResultTenantData> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createStaffTenantSuccessResultTenantData || isSerializingDerivedType) { return; }
     writer.writeGuidValue("id", createStaffTenantSuccessResultTenantData.id);
     writer.writeStringValue("tenantName", createStaffTenantSuccessResultTenantData.tenantName);
@@ -750,7 +890,7 @@ export function serializeCreateStaffTenantSuccessResultTenantData(writer: Serial
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeGetUserAuthDataSuccessResult(writer: SerializationWriter, getUserAuthDataSuccessResult: Partial<GetUserAuthDataSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeGetUserAuthDataSuccessResult(writer: SerializationWriter, getUserAuthDataSuccessResult: Partial<GetUserAuthDataSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getUserAuthDataSuccessResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("email", getUserAuthDataSuccessResult.email);
     writer.writeGuidValue("userId", getUserAuthDataSuccessResult.userId);
@@ -763,7 +903,7 @@ export function serializeGetUserAuthDataSuccessResult(writer: SerializationWrite
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeGetVerificationLinkSuccessResult(writer: SerializationWriter, getVerificationLinkSuccessResult: Partial<GetVerificationLinkSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeGetVerificationLinkSuccessResult(writer: SerializationWriter, getVerificationLinkSuccessResult: Partial<GetVerificationLinkSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getVerificationLinkSuccessResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("link", getVerificationLinkSuccessResult.link);
     writer.writeAdditionalData(getVerificationLinkSuccessResult.additionalData);
@@ -775,7 +915,7 @@ export function serializeGetVerificationLinkSuccessResult(writer: SerializationW
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializePasswordLoginBody(writer: SerializationWriter, passwordLoginBody: Partial<PasswordLoginBody> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializePasswordLoginBody(writer: SerializationWriter, passwordLoginBody: Partial<PasswordLoginBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!passwordLoginBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("email", passwordLoginBody.email);
     writer.writeObjectValue("password", passwordLoginBody.password);
@@ -788,7 +928,7 @@ export function serializePasswordLoginBody(writer: SerializationWriter, password
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializePasswordLoginSuccessResult(writer: SerializationWriter, passwordLoginSuccessResult: Partial<PasswordLoginSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializePasswordLoginSuccessResult(writer: SerializationWriter, passwordLoginSuccessResult: Partial<PasswordLoginSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!passwordLoginSuccessResult || isSerializingDerivedType) { return; }
     writer.writeDateValue("sessionExpiresAt", passwordLoginSuccessResult.sessionExpiresAt);
     writer.writeNumberValue("sessionExpiresInMs", passwordLoginSuccessResult.sessionExpiresInMs);
@@ -803,7 +943,7 @@ export function serializePasswordLoginSuccessResult(writer: SerializationWriter,
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializePasswordRegisterBody(writer: SerializationWriter, passwordRegisterBody: Partial<PasswordRegisterBody> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializePasswordRegisterBody(writer: SerializationWriter, passwordRegisterBody: Partial<PasswordRegisterBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!passwordRegisterBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("email", passwordRegisterBody.email);
     writer.writeObjectValue("password", passwordRegisterBody.password);
@@ -816,7 +956,7 @@ export function serializePasswordRegisterBody(writer: SerializationWriter, passw
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializePasswordRegisterSuccessResult(writer: SerializationWriter, passwordRegisterSuccessResult: Partial<PasswordRegisterSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializePasswordRegisterSuccessResult(writer: SerializationWriter, passwordRegisterSuccessResult: Partial<PasswordRegisterSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!passwordRegisterSuccessResult || isSerializingDerivedType) { return; }
     writer.writeDateValue("createdAt", passwordRegisterSuccessResult.createdAt);
     writer.writeStringValue("email", passwordRegisterSuccessResult.email);
@@ -827,13 +967,32 @@ export function serializePasswordRegisterSuccessResult(writer: SerializationWrit
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param Permission The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePermission(writer: SerializationWriter, permission: Partial<Permission> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!permission || isSerializingDerivedType) { return; }
+    writer.writeDateValue("createdAt", permission.createdAt);
+    writer.writeDateValue("deletedAt", permission.deletedAt);
+    writer.writeBooleanValue("isDeleted", permission.isDeleted);
+    writer.writeStringValue("key", permission.key);
+    writer.writeObjectValue("profilePermissions", permission.profilePermissions);
+    writer.writeNumberValue("scope", permission.scope);
+    writer.writeDateValue("updatedAt", permission.updatedAt);
+    writer.writeAdditionalData(permission.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param Product The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeProduct(writer: SerializationWriter, product: Partial<Product> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeProduct(writer: SerializationWriter, product: Partial<Product> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!product || isSerializingDerivedType) { return; }
     writer.writeDateValue("createdAt", product.createdAt);
+    writer.writeDateValue("deletedAt", product.deletedAt);
     writer.writeStringValue("description", product.description);
     writer.writeGuidValue("id", product.id);
     writer.writeBooleanValue("isDeleted", product.isDeleted);
@@ -851,13 +1010,15 @@ export function serializeProduct(writer: SerializationWriter, product: Partial<P
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeProfile(writer: SerializationWriter, profile: Partial<Profile> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeProfile(writer: SerializationWriter, profile: Partial<Profile> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!profile || isSerializingDerivedType) { return; }
     writer.writeDateValue("createdAt", profile.createdAt);
+    writer.writeDateValue("deletedAt", profile.deletedAt);
     writer.writeStringValue("description", profile.description);
     writer.writeGuidValue("id", profile.id);
     writer.writeBooleanValue("isDeleted", profile.isDeleted);
     writer.writeStringValue("name", profile.name);
+    writer.writeCollectionOfObjectValues<ProfilePermission>("profilePermissions", profile.profilePermissions, serializeProfilePermission);
     writer.writeNumberValue("profileType", profile.profileType);
     writer.writeObjectValue<Tenant>("tenant", profile.tenant, serializeTenant);
     writer.writeGuidValue("tenantId", profile.tenantId);
@@ -868,13 +1029,33 @@ export function serializeProfile(writer: SerializationWriter, profile: Partial<P
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ProfilePermission The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeProfilePermission(writer: SerializationWriter, profilePermission: Partial<ProfilePermission> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!profilePermission || isSerializingDerivedType) { return; }
+    writer.writeDateValue("createdAt", profilePermission.createdAt);
+    writer.writeDateValue("deletedAt", profilePermission.deletedAt);
+    writer.writeGuidValue("id", profilePermission.id);
+    writer.writeBooleanValue("isDeleted", profilePermission.isDeleted);
+    writer.writeObjectValue<Permission>("permission", profilePermission.permission, serializePermission);
+    writer.writeStringValue("permissionKey", profilePermission.permissionKey);
+    writer.writeGuidValue("profileId", profilePermission.profileId);
+    writer.writeDateValue("updatedAt", profilePermission.updatedAt);
+    writer.writeAdditionalData(profilePermission.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param Session The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeSession(writer: SerializationWriter, session: Partial<Session> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeSession(writer: SerializationWriter, session: Partial<Session> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!session || isSerializingDerivedType) { return; }
     writer.writeDateValue("createdAt", session.createdAt);
+    writer.writeDateValue("deletedAt", session.deletedAt);
     writer.writeDateValue("expiresAt", session.expiresAt);
     writer.writeGuidValue("id", session.id);
     writer.writeBooleanValue("isDeleted", session.isDeleted);
@@ -891,9 +1072,11 @@ export function serializeSession(writer: SerializationWriter, session: Partial<S
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeTenant(writer: SerializationWriter, tenant: Partial<Tenant> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeTenant(writer: SerializationWriter, tenant: Partial<Tenant> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenant || isSerializingDerivedType) { return; }
+    writer.writeStringValue("code", tenant.code);
     writer.writeDateValue("createdAt", tenant.createdAt);
+    writer.writeDateValue("deletedAt", tenant.deletedAt);
     writer.writeGuidValue("id", tenant.id);
     writer.writeBooleanValue("isDeleted", tenant.isDeleted);
     writer.writeStringValue("name", tenant.name);
@@ -908,16 +1091,19 @@ export function serializeTenant(writer: SerializationWriter, tenant: Partial<Ten
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeUser(writer: SerializationWriter, user: Partial<User> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeUser(writer: SerializationWriter, user: Partial<User> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!user || isSerializingDerivedType) { return; }
     writer.writeDateValue("createdAt", user.createdAt);
+    writer.writeDateValue("deletedAt", user.deletedAt);
     writer.writeStringValue("email", user.email);
     writer.writeStringValue("emailVerifyToken", user.emailVerifyToken);
     writer.writeDateValue("emailVerifyTokenExpiresAt", user.emailVerifyTokenExpiresAt);
+    writer.writeStringValue("firstName", user.firstName);
     writer.writeGuidValue("id", user.id);
     writer.writeBooleanValue("isDeleted", user.isDeleted);
     writer.writeBooleanValue("isSuspended", user.isSuspended);
     writer.writeBooleanValue("isVerified", user.isVerified);
+    writer.writeStringValue("lastName", user.lastName);
     writer.writeStringValue("password", user.password);
     writer.writeCollectionOfObjectValues<Session>("sessions", user.sessions, serializeSession);
     writer.writeDateValue("updatedAt", user.updatedAt);
@@ -931,10 +1117,11 @@ export function serializeUser(writer: SerializationWriter, user: Partial<User> |
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeUserAccount(writer: SerializationWriter, userAccount: Partial<UserAccount> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeUserAccount(writer: SerializationWriter, userAccount: Partial<UserAccount> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!userAccount || isSerializingDerivedType) { return; }
     writer.writeNumberValue("accountType", userAccount.accountType);
     writer.writeDateValue("createdAt", userAccount.createdAt);
+    writer.writeDateValue("deletedAt", userAccount.deletedAt);
     writer.writeNumberValue("hierarchyLevel", userAccount.hierarchyLevel);
     writer.writeGuidValue("id", userAccount.id);
     writer.writeBooleanValue("isDeleted", userAccount.isDeleted);
@@ -954,9 +1141,10 @@ export function serializeUserAccount(writer: SerializationWriter, userAccount: P
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeUserAccountProfile(writer: SerializationWriter, userAccountProfile: Partial<UserAccountProfile> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeUserAccountProfile(writer: SerializationWriter, userAccountProfile: Partial<UserAccountProfile> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!userAccountProfile || isSerializingDerivedType) { return; }
     writer.writeDateValue("createdAt", userAccountProfile.createdAt);
+    writer.writeDateValue("deletedAt", userAccountProfile.deletedAt);
     writer.writeGuidValue("id", userAccountProfile.id);
     writer.writeBooleanValue("isDeleted", userAccountProfile.isDeleted);
     writer.writeObjectValue<Profile>("profile", userAccountProfile.profile, serializeProfile);
@@ -973,7 +1161,7 @@ export function serializeUserAccountProfile(writer: SerializationWriter, userAcc
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeVerifyEmailRequestBody(writer: SerializationWriter, verifyEmailRequestBody: Partial<VerifyEmailRequestBody> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeVerifyEmailRequestBody(writer: SerializationWriter, verifyEmailRequestBody: Partial<VerifyEmailRequestBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!verifyEmailRequestBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("email", verifyEmailRequestBody.email);
     writer.writeAdditionalData(verifyEmailRequestBody.additionalData);
@@ -985,7 +1173,7 @@ export function serializeVerifyEmailRequestBody(writer: SerializationWriter, ver
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeVerifyEmailRequestSuccessResult(writer: SerializationWriter, verifyEmailRequestSuccessResult: Partial<VerifyEmailRequestSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false): void {
+export function serializeVerifyEmailRequestSuccessResult(writer: SerializationWriter, verifyEmailRequestSuccessResult: Partial<VerifyEmailRequestSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!verifyEmailRequestSuccessResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("status", verifyEmailRequestSuccessResult.status);
     writer.writeAdditionalData(verifyEmailRequestSuccessResult.additionalData);
@@ -995,6 +1183,10 @@ export interface Session extends AdditionalDataHolder, Parsable {
      * The createdAt property
      */
     createdAt?: Date | null;
+    /**
+     * The deletedAt property
+     */
+    deletedAt?: Date | null;
     /**
      * The expiresAt property
      */
@@ -1026,9 +1218,17 @@ export interface Session extends AdditionalDataHolder, Parsable {
 }
 export interface Tenant extends AdditionalDataHolder, Parsable {
     /**
+     * The code property
+     */
+    code?: string | null;
+    /**
      * The createdAt property
      */
     createdAt?: Date | null;
+    /**
+     * The deletedAt property
+     */
+    deletedAt?: Date | null;
     /**
      * The id property
      */
@@ -1056,6 +1256,10 @@ export interface User extends AdditionalDataHolder, Parsable {
      */
     createdAt?: Date | null;
     /**
+     * The deletedAt property
+     */
+    deletedAt?: Date | null;
+    /**
      * The email property
      */
     email?: string | null;
@@ -1067,6 +1271,10 @@ export interface User extends AdditionalDataHolder, Parsable {
      * The emailVerifyTokenExpiresAt property
      */
     emailVerifyTokenExpiresAt?: Date | null;
+    /**
+     * The firstName property
+     */
+    firstName?: string | null;
     /**
      * The id property
      */
@@ -1083,6 +1291,10 @@ export interface User extends AdditionalDataHolder, Parsable {
      * The isVerified property
      */
     isVerified?: boolean | null;
+    /**
+     * The lastName property
+     */
+    lastName?: string | null;
     /**
      * The password property
      */
@@ -1109,6 +1321,10 @@ export interface UserAccount extends AdditionalDataHolder, Parsable {
      * The createdAt property
      */
     createdAt?: Date | null;
+    /**
+     * The deletedAt property
+     */
+    deletedAt?: Date | null;
     /**
      * The hierarchyLevel property
      */
@@ -1155,6 +1371,10 @@ export interface UserAccountProfile extends AdditionalDataHolder, Parsable {
      * The createdAt property
      */
     createdAt?: Date | null;
+    /**
+     * The deletedAt property
+     */
+    deletedAt?: Date | null;
     /**
      * The id property
      */

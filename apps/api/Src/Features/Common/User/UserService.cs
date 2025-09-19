@@ -16,6 +16,7 @@ public interface IUserService {
 	Task<User?> GetUserToLoginAsync(string email, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
 	Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default);
+	Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default);
 }
 
 public class UserService : IUserService {
@@ -40,7 +41,7 @@ public class UserService : IUserService {
 			}
 
 			// Hash the password before storing
-			user.Password = _passwordService.HashPassword(user.Password ?? throw new ArgumentException("Password cannot be null", nameof(user.Password)));
+			user.Password = _passwordService.HashPassword(user.Password);
 
 			var result = await _dbContext.User.AddAsync(user, cancellationToken).ConfigureAwait(false);
 			await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -62,11 +63,12 @@ public class UserService : IUserService {
 	public async Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default) {
 		return await _dbContext.User.FirstOrDefaultAsync(
 			u => u.Email == email
-		// check these fields directly in the login handler, for customized error responses
-		&& !u.IsDeleted, // only isDeleted is relevant to check here
-										 // && !u.IsSuspended
-										 // && u.IsVerified
-		cancellationToken).ConfigureAwait(false);
+			// check these fields directly in the login handler, for customized error responses
+			&& !u.IsDeleted, // only isDeleted is relevant to check here
+											 // && !u.IsSuspended
+											 // && u.IsVerified
+			cancellationToken
+		).ConfigureAwait(false);
 	}
 
 	public async Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default) {
@@ -81,5 +83,11 @@ public class UserService : IUserService {
 			_logger.LogError(ex, "Failed to update user {UserId}", user.Id);
 			throw;
 		}
+	}
+
+	public async Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default) {
+		return await _dbContext.User
+			.FindAsync([id, cancellationToken], cancellationToken: cancellationToken)
+			.ConfigureAwait(false);
 	}
 }

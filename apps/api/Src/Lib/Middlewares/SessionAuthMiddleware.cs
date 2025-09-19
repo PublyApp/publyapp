@@ -1,5 +1,6 @@
 namespace MainApi.Src.Lib.Middlewares;
 
+using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
 using Microsoft.EntityFrameworkCore;
@@ -46,10 +47,10 @@ public class SessionAuthMiddleware {
 		if (!authContext.IsAuthenticated) {
 			_logger.LogError("Failed to authenticate user, session has no user attached to it: {@SessionData}", new { sessionToken, userId = session.UserId });
 			context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-			await context.Response.WriteAsJsonAsync(new {
-				message = "Failed to authenticate user",
-				key = "failed-to-authenticate-user",
-			});
+			await context.Response.WriteAsJsonAsync(ApiResponse.Create(
+				"Failed to authenticate user",
+				ResponseKeys.FailedToAuthenticateUser
+			));
 			return;
 		}
 

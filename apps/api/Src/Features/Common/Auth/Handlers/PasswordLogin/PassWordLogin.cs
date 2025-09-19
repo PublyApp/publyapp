@@ -105,7 +105,7 @@ public class PasswordLogin {
 		if (createSessionResult is CreateSessionResult.Success success) {
 			return TypedResults.Ok(new PasswordLoginSuccessResult {
 				UserId = user.Id,
-				SessionToken = success.Session.Token ?? throw new Exception("Token is null"),
+				SessionToken = success.Session.Token,
 				SessionExpiresAt = success.Session.ExpiresAt,
 				SessionExpiresInMs = (success.Session.ExpiresAt - DateTime.UtcNow).TotalMilliseconds
 			});

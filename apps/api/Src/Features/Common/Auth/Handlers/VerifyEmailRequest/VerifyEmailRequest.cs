@@ -64,7 +64,7 @@ public class VerifyEmailRequest {
 			return TypedResults.BadRequest(ApiResponse.Create("Email already verified", ResponseKeys.EmailAlreadyVerified));
 		}
 
-		var userEmail = user.Email ?? throw new Exception("User email is null");
+		var userEmail = user.Email;
 
 		// if the token is still valid, reuse it and send email
 		if (!string.IsNullOrEmpty(user.EmailVerifyToken)

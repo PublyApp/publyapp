@@ -36,31 +36,16 @@ public class CreateStaffTenantBodyValidator : AbstractValidator<CreateStaffTenan
 	}
 }
 
-public class CreateStaffTenantSuccessResultTenantData {
+public class CreateStaffTenantSuccessResult {
 	public Guid Id { get; set; }
-	public string TenantName { get; set; } = string.Empty;
-}
-
-public class CreateStaffTenantSuccessResult : AppResponseResult {
-	public new string Message { get; set; } = "Tenant created successfully";
-	public new string Key { get; set; } = "tenant-created-successfully";
-	public CreateStaffTenantSuccessResultTenantData Tenant { get; set; } = new CreateStaffTenantSuccessResultTenantData();
-
-	public static CreateStaffTenantSuccessResult GetApiResponse(Tenant tenant) {
-		return new CreateStaffTenantSuccessResult {
-			Tenant = new CreateStaffTenantSuccessResultTenantData {
-				Id = tenant.Id,
-				TenantName = tenant.Name ?? throw new Exception("Tenant name is null")
-			}
-		};
-	}
+	public string Name { get; set; } = string.Empty;
 }
 
 public static class CreateStaffTenant {
 	public static async Task<
 	Results<
 	Ok<CreateStaffTenantSuccessResult>,
-	BadRequest<AppResponseResult>
+	BadRequest<ApiResponse>
 	>>
 	HandleCreateStaffTenant(
 		[FromBody] CreateStaffTenantBody createTenantBody,
@@ -74,6 +59,9 @@ public static class CreateStaffTenant {
 
 		var savedTenant = await StaffTenantService.CreateTenant(tenant);
 
-		return TypedResults.Ok(CreateStaffTenantSuccessResult.GetApiResponse(savedTenant));
+		return TypedResults.Ok(new CreateStaffTenantSuccessResult {
+			Id = savedTenant.Id,
+			Name = savedTenant.Name
+		});
 	}
 }

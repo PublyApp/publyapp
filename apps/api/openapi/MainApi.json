@@ -110,7 +110,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AppResponseResult"
+                  "$ref": "#/components/schemas/ApiResponse"
                 }
               }
             }
@@ -172,8 +172,7 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "type": "string"
             }
           }
         ],
@@ -234,7 +233,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AppResponseResult"
+                  "$ref": "#/components/schemas/ApiResponse"
                 }
               }
             }
@@ -379,17 +378,6 @@
           }
         }
       },
-      "AppResponseResult": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "key": {
-            "type": "string"
-          }
-        }
-      },
       "CreateStaffTenantBody": {
         "type": "object",
         "properties": {
@@ -401,25 +389,11 @@
       "CreateStaffTenantSuccessResult": {
         "type": "object",
         "properties": {
-          "message": {
-            "type": "string"
-          },
-          "key": {
-            "type": "string"
-          },
-          "tenant": {
-            "$ref": "#/components/schemas/CreateStaffTenantSuccessResultTenantData"
-          }
-        }
-      },
-      "CreateStaffTenantSuccessResultTenantData": {
-        "type": "object",
-        "properties": {
           "id": {
             "type": "string",
             "format": "uuid"
           },
-          "tenantName": {
+          "name": {
             "type": "string"
           }
         }

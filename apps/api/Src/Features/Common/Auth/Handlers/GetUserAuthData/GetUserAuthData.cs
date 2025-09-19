@@ -1,5 +1,7 @@
-using MainApi.Src.Data.DbContext;
+using MainApi.Localization;
+using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Middlewares;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
@@ -12,38 +14,46 @@ public class GetUserAuthDataSuccessResult {
 public class GetUserAuthData {
 	public static async Task<
 	Results<
-	Ok<GetUserAuthDataSuccessResult>,
-	BadRequest<AppResponseResult>
-	>
+		Ok<GetUserAuthDataSuccessResult>,
+		BadRequest<ApiResponse>
+		>
 	> HandleGetUserAuthData(
-	IAuthContext authContext,
-	ILogger<GetUserAuthData> logger,
-	MainApiDbContext dbContext
+		IAuthContext authContext,
+		ILogger<GetUserAuthData> logger,
+		IUserService userService,
+		CancellationToken cancellationToken = default
 	) {
 		if (!authContext.IsAuthenticated) {
 			logger.LogError("{@GetUserAuthData}", new {
 				UserId = authContext.UserId,
 				SessionToken = authContext.SessionToken
 			});
-			throw new Exception("GetUserAuthData must be set behind SessionAuthMiddleware.");
+			throw new Exception($"{nameof(GetUserAuthData)} must be set behind {nameof(SessionAuthMiddleware)}.");
 		}
 
-		var user = await dbContext.User.FindAsync(authContext.UserId);
+		if (authContext.UserId is not Guid userId) {
+			return TypedResults.BadRequest(ApiResponse.Create(
+					"Invalid session",
+					ResponseKeys.InvalidSession
+			));
+		}
 
-		if (user == null) {
+		var user = await userService.GetUserByIdAsync(userId, cancellationToken);
+
+		if (user is null) {
 			logger.LogError("User not found for session: {@Context}", new {
 				UserId = authContext.UserId,
 				SessionToken = authContext.SessionToken
 			});
-			return TypedResults.BadRequest(new AppResponseResult {
-				Message = "Invalid session",
-				Key = "invalid-session"
-			});
+			return TypedResults.BadRequest(ApiResponse.Create(
+					"Invalid session",
+					ResponseKeys.InvalidSession
+				));
 		}
 
 		return TypedResults.Ok(new GetUserAuthDataSuccessResult {
 			UserId = user.Id,
-			Email = user.Email ?? throw new Exception("Email is null")
+			Email = user.Email
 		});
 	}
 }
