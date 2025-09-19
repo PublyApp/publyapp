@@ -4,6 +4,7 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Middlewares;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Features.Common.Auth.Handlers.GetTenantAuthData;
 
@@ -31,7 +32,7 @@ public class GetTenantAuthData {
 		IAuthContext authContext,
 		ILogger<GetTenantAuthData> logger,
 		[AsParameters] GetTenantAuthDataQuery query,
-		[FromServices] AppSettings appSettings,
+		[FromServices] IOptions<AppSettings> appSettings,
 		[FromServices] ITenantService tenantService,
 		CancellationToken cancellationToken = default
 	) {
@@ -49,7 +50,7 @@ public class GetTenantAuthData {
 
 		if (string.Equals(
 			query.TenantId,
-			appSettings.STAFF_TENANT_CODE,
+			appSettings.Value.STAFF_TENANT_CODE,
 			StringComparison.Ordinal
 		)) {
 			var isUserStaffMember = await tenantService.IsUserStaffMemberAsync(userId, cancellationToken);

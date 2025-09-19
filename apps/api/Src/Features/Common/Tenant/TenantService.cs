@@ -2,8 +2,8 @@ namespace MainApi.Src.Features.Common.Tenant;
 
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 public interface ITenantService {
 	Task<bool> IsUserStaffMemberAsync(Guid userId, CancellationToken cancellationToken = default);
@@ -14,9 +14,9 @@ public class TenantService : ITenantService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly AppSettings _appSettings;
 
-	public TenantService(MainApiDbContext context, [FromServices] AppSettings appSettings) {
+	public TenantService(MainApiDbContext context, IOptions<AppSettings> appSettings) {
 		_dbContext = context;
-		_appSettings = appSettings;
+		_appSettings = appSettings.Value;
 	}
 	public async Task<bool> IsUserStaffMemberAsync(Guid userId, CancellationToken cancellationToken = default) {
 		// Check if user account exists where userId matches and tenant code is "staff"

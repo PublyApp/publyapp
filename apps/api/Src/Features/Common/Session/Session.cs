@@ -2,8 +2,11 @@ namespace MainApi.Src.Features.Common.Session;
 
 using System.ComponentModel.DataAnnotations.Schema;
 using MainApi.Src.Data;
+using Microsoft.EntityFrameworkCore;
 
 [Table("sessions")]
+[Index(nameof(Token), IsUnique = true)]
+[Index(nameof(ExpiresAt))]
 public class Session : BaseAttributes, INoTenantEntity {
 	[Column("user_id")]
 	public Guid UserId { get; set; }

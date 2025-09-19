@@ -9,6 +9,7 @@ namespace MainApi.Src.Features.Common.Account;
 /// </summary>
 [Table("user_accounts")]
 [Index(nameof(UserId), nameof(TenantId), nameof(AccountType), IsUnique = true)]
+[Index(nameof(UserId), nameof(AccountType))]
 public class UserAccount : BaseAttributes, ITenantEntity {
 	[Column("user_id")]
 	public Guid UserId { get; set; }
