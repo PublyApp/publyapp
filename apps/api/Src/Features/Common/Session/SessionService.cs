@@ -18,11 +18,11 @@ public interface ISessionService {
 
 public class SessionService : ISessionService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly IOptions<AppSettings> _config;
+	private readonly IOptions<AppSettings> _appSettings;
 
-	public SessionService(MainApiDbContext dbContext, IOptions<AppSettings> config) {
+	public SessionService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings) {
 		_dbContext = dbContext;
-		_config = config;
+		_appSettings = appSettings;
 	}
 
 	public async Task<CreateSessionResult> CreateSessionForUser(UserNs.User user) {
@@ -33,7 +33,7 @@ public class SessionService : ISessionService {
 		var session = new Session {
 			UserId = user.Id,
 			Token = CryptoUtils.NewToken(),
-			ExpiresAt = DateTime.UtcNow.AddDays(_config.Value.SESSION_EXPIRY_DAYS),
+			ExpiresAt = DateTime.UtcNow.AddDays(_appSettings.Value.SESSION_EXPIRY_DAYS),
 		};
 
 		var result = await _dbContext.Session.AddAsync(session);

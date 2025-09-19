@@ -78,6 +78,22 @@ public class MainApiDbContext : DbContext {
 		modelBuilder.Entity<User>()
 			.ToTable(t => t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)"));
 
+		// Partial indexes to favor active rows without enforcing global filters
+		modelBuilder.Entity<User>()
+			.HasIndex(u => u.Email)
+			.HasDatabaseName("ix_users_email_active")
+			.HasFilter("\"is_deleted\" = false");
+
+		modelBuilder.Entity<Tenant>()
+			.HasIndex(t => t.Code)
+			.HasDatabaseName("ix_tenants_code_active")
+			.HasFilter("\"is_deleted\" = false");
+
+		modelBuilder.Entity<UserAccount>()
+			.HasIndex(u => new { u.UserId, u.AccountType })
+			.HasDatabaseName("ix_user_accounts_userid_accounttype_active")
+			.HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
+
 		// Apply matching query filters to ensure consistent filtering
 		if (TenantId != null) {
 			// UserAccountProfile gets a filter that matches the Profile's tenant
