@@ -37,13 +37,13 @@ public class VerifyEmailRequestBodyValidator : AbstractValidator<VerifyEmailRequ
 	}
 }
 
-public class VerifyEmailRequestSuccessResult {
+public class VerifyEmailRequestResult {
 	public string Status { get; set; } = "success";
 }
 
 public class VerifyEmailRequest {
 	public static async Task<
-	Results<Ok<VerifyEmailRequestSuccessResult>,
+	Results<Ok<VerifyEmailRequestResult>,
 	BadRequest<ApiResponse>>
 	> HandleVerifyEmailRequest(
 		[FromBody] VerifyEmailRequestBody body,
@@ -77,7 +77,7 @@ public class VerifyEmailRequest {
 				// Continue execution - email failure shouldn't fail the request
 			}
 
-			return TypedResults.Ok(new VerifyEmailRequestSuccessResult());
+			return TypedResults.Ok(new VerifyEmailRequestResult());
 		}
 
 		var emailVerifyToken = CryptoUtils.RandomString(25);
@@ -97,6 +97,6 @@ public class VerifyEmailRequest {
 			// Continue execution - email failure shouldn't fail the request
 		}
 
-		return TypedResults.Ok(new VerifyEmailRequestSuccessResult());
+		return TypedResults.Ok(new VerifyEmailRequestResult());
 	}
 }

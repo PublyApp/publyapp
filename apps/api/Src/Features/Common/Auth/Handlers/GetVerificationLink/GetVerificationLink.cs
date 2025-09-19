@@ -22,14 +22,14 @@ public class GetVerificationLinkQueryValidator : AbstractValidator<GetVerificati
 	}
 }
 
-public class GetVerificationLinkSuccessResult {
+public class GetVerificationLinkResult {
 	public required string Link { get; set; }
 }
 
 public class GetVerificationLink {
 	public async static Task<
 		Results<
-			Ok<GetVerificationLinkSuccessResult>,
+			Ok<GetVerificationLinkResult>,
 			BadRequest<ApiResponse>
 		>
 	> HandleGetVerificationLink(
@@ -57,6 +57,6 @@ public class GetVerificationLink {
 
 		var link = AuthUtils.CreateVerificationLink(user.Id.ToString(), user.Email);
 
-		return TypedResults.Ok(new GetVerificationLinkSuccessResult { Link = link });
+		return TypedResults.Ok(new GetVerificationLinkResult { Link = link });
 	}
 }

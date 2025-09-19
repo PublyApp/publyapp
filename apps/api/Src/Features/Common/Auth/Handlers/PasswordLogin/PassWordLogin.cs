@@ -54,8 +54,7 @@ public class PasswordLoginBodyValidator : AbstractValidator<PasswordLoginBody> {
 	}
 }
 
-
-public class PasswordLoginSuccessResult {
+public class PasswordLoginResult {
 	public Guid UserId { get; set; }
 	public string SessionToken { get; set; } = string.Empty;
 	public DateTime SessionExpiresAt { get; set; }
@@ -64,7 +63,7 @@ public class PasswordLoginSuccessResult {
 
 public class PasswordLogin {
 	public static async Task<Results<
-	Ok<PasswordLoginSuccessResult>,
+	Ok<PasswordLoginResult>,
 	BadRequest<ApiResponse>
 	>> HandlePasswordLogin(
 		[FromBody] PasswordLoginBody loginBody,
@@ -103,7 +102,7 @@ public class PasswordLogin {
 		var createSessionResult = await sessionService.CreateSessionForUser(user);
 
 		if (createSessionResult is CreateSessionResult.Success success) {
-			return TypedResults.Ok(new PasswordLoginSuccessResult {
+			return TypedResults.Ok(new PasswordLoginResult {
 				UserId = user.Id,
 				SessionToken = success.Session.Token,
 				SessionExpiresAt = success.Session.ExpiresAt,

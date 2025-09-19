@@ -38,14 +38,7 @@ public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterB
 	}
 }
 
-public class PasswordRegisterResultUser {
-	public Guid Id { get; set; }
-	public string Email { get; set; } = string.Empty;
-	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-}
-
-public class PasswordRegisterSuccessResult {
+public class PasswordRegisterResult {
 	public Guid Id { get; set; }
 	public string Email { get; set; } = string.Empty;
 	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -54,7 +47,7 @@ public class PasswordRegisterSuccessResult {
 
 public static class PasswordRegister {
 	public static async Task<Results<
-	Ok<PasswordRegisterSuccessResult>,
+	Ok<PasswordRegisterResult>,
 	BadRequest<ApiResponse>
 	>> HandlePasswordRegister(
 		[FromBody] PasswordRegisterBody registerBody,
@@ -76,7 +69,7 @@ public static class PasswordRegister {
 		}
 
 		if (createUserResult is CreateUserResult.Success success) {
-			return TypedResults.Ok(new PasswordRegisterSuccessResult {
+			return TypedResults.Ok(new PasswordRegisterResult {
 				Id = success.User.Id,
 				Email = success.User.Email,
 				CreatedAt = success.User.CreatedAt,

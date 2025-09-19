@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
 
-public class GetUserAuthDataSuccessResult {
+public class GetUserAuthDataResult {
 	public Guid UserId { get; set; }
 	public string Email { get; set; } = string.Empty;
 }
@@ -14,7 +14,7 @@ public class GetUserAuthDataSuccessResult {
 public class GetUserAuthData {
 	public static async Task<
 	Results<
-		Ok<GetUserAuthDataSuccessResult>,
+		Ok<GetUserAuthDataResult>,
 		BadRequest<ApiResponse>
 		>
 	> HandleGetUserAuthData(
@@ -51,7 +51,7 @@ public class GetUserAuthData {
 				));
 		}
 
-		return TypedResults.Ok(new GetUserAuthDataSuccessResult {
+		return TypedResults.Ok(new GetUserAuthDataResult {
 			UserId = user.Id,
 			Email = user.Email
 		});
