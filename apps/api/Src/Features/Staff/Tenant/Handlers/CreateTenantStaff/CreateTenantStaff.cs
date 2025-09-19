@@ -36,7 +36,7 @@ public class CreateStaffTenantBodyValidator : AbstractValidator<CreateStaffTenan
 	}
 }
 
-public class CreateStaffTenantSuccessResult {
+public class CreateStaffTenantResult {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
 }
@@ -44,7 +44,7 @@ public class CreateStaffTenantSuccessResult {
 public static class CreateStaffTenant {
 	public static async Task<
 	Results<
-	Ok<CreateStaffTenantSuccessResult>,
+	Ok<CreateStaffTenantResult>,
 	BadRequest<ApiResponse>
 	>>
 	HandleCreateStaffTenant(
@@ -59,7 +59,7 @@ public static class CreateStaffTenant {
 
 		var savedTenant = await StaffTenantService.CreateTenant(tenant);
 
-		return TypedResults.Ok(new CreateStaffTenantSuccessResult {
+		return TypedResults.Ok(new CreateStaffTenantResult {
 			Id = savedTenant.Id,
 			Name = savedTenant.Name
 		});
