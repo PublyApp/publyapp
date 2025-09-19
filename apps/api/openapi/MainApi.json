@@ -401,7 +401,7 @@
       "GetUserAuthDataResult": {
         "type": "object",
         "properties": {
-          "userId": {
+          "id": {
             "type": "string",
             "format": "uuid"
           },

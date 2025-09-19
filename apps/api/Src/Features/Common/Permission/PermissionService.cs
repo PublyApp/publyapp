@@ -5,7 +5,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Features.Common.Permission;
 
-public class PermissionService {
+public interface IPermissionService {
+	Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null);
+	Task<HashSet<string>> GetPermissionsAsync(Guid userId);
+	Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds);
+}
+
+public class PermissionService : IPermissionService {
 	private readonly MainApiDbContext _context;
 
 	public PermissionService(MainApiDbContext context) {

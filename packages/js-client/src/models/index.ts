@@ -14,16 +14,6 @@ export interface ApiResponse extends AdditionalDataHolder, ApiError, Parsable {
      */
     messageEscaped?: string | null;
 }
-export interface AppResponseResult extends AdditionalDataHolder, ApiError, Parsable {
-    /**
-     * The key property
-     */
-    key?: string | null;
-    /**
-     * The message property
-     */
-    messageEscaped?: string | null;
-}
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
@@ -32,15 +22,6 @@ export interface AppResponseResult extends AdditionalDataHolder, ApiError, Parsa
 // @ts-ignore
 export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoApiResponse;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {AppResponseResult}
- */
-// @ts-ignore
-export function createAppResponseResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoAppResponseResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -54,38 +35,29 @@ export function createCreateStaffTenantBodyFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffTenantSuccessResult}
+ * @returns {CreateStaffTenantResult}
  */
 // @ts-ignore
-export function createCreateStaffTenantSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffTenantSuccessResult;
+export function createCreateStaffTenantResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateStaffTenantResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffTenantSuccessResultTenantData}
+ * @returns {GetUserAuthDataResult}
  */
 // @ts-ignore
-export function createCreateStaffTenantSuccessResultTenantDataFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffTenantSuccessResultTenantData;
+export function createGetUserAuthDataResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetUserAuthDataResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {GetUserAuthDataSuccessResult}
+ * @returns {GetVerificationLinkResult}
  */
 // @ts-ignore
-export function createGetUserAuthDataSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoGetUserAuthDataSuccessResult;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {GetVerificationLinkSuccessResult}
- */
-// @ts-ignore
-export function createGetVerificationLinkSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoGetVerificationLinkSuccessResult;
+export function createGetVerificationLinkResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetVerificationLinkResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -99,11 +71,11 @@ export function createPasswordLoginBodyFromDiscriminatorValue(parseNode: ParseNo
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {PasswordLoginSuccessResult}
+ * @returns {PasswordLoginResult}
  */
 // @ts-ignore
-export function createPasswordLoginSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoPasswordLoginSuccessResult;
+export function createPasswordLoginResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPasswordLoginResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -117,11 +89,11 @@ export function createPasswordRegisterBodyFromDiscriminatorValue(parseNode: Pars
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {PasswordRegisterSuccessResult}
+ * @returns {PasswordRegisterResult}
  */
 // @ts-ignore
-export function createPasswordRegisterSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoPasswordRegisterSuccessResult;
+export function createPasswordRegisterResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPasswordRegisterResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -174,29 +146,15 @@ export interface CreateStaffTenantBody extends AdditionalDataHolder, Parsable {
      */
     name?: UntypedNode | null;
 }
-export interface CreateStaffTenantSuccessResult extends AdditionalDataHolder, Parsable {
-    /**
-     * The key property
-     */
-    key?: string | null;
-    /**
-     * The message property
-     */
-    message?: string | null;
-    /**
-     * The tenant property
-     */
-    tenant?: CreateStaffTenantSuccessResultTenantData | null;
-}
-export interface CreateStaffTenantSuccessResultTenantData extends AdditionalDataHolder, Parsable {
+export interface CreateStaffTenantResult extends AdditionalDataHolder, Parsable {
     /**
      * The id property
      */
     id?: Guid | null;
     /**
-     * The tenantName property
+     * The name property
      */
-    tenantName?: string | null;
+    name?: string | null;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -246,11 +204,11 @@ export function createVerifyEmailRequestBodyFromDiscriminatorValue(parseNode: Pa
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {VerifyEmailRequestSuccessResult}
+ * @returns {VerifyEmailRequestResult}
  */
 // @ts-ignore
-export function createVerifyEmailRequestSuccessResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoVerifyEmailRequestSuccessResult;
+export function createVerifyEmailRequestResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoVerifyEmailRequestResult;
 }
 /**
  * The deserialization information for the current model
@@ -266,18 +224,6 @@ export function deserializeIntoApiResponse(apiResponse: Partial<ApiResponse> | u
 }
 /**
  * The deserialization information for the current model
- * @param AppResponseResult The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoAppResponseResult(appResponseResult: Partial<AppResponseResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "key": n => { appResponseResult.key = n.getStringValue(); },
-        "message": n => { appResponseResult.messageEscaped = n.getStringValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
  * @param CreateStaffTenantBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -289,50 +235,37 @@ export function deserializeIntoCreateStaffTenantBody(createStaffTenantBody: Part
 }
 /**
  * The deserialization information for the current model
- * @param CreateStaffTenantSuccessResult The instance to deserialize into.
+ * @param CreateStaffTenantResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoCreateStaffTenantSuccessResult(createStaffTenantSuccessResult: Partial<CreateStaffTenantSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoCreateStaffTenantResult(createStaffTenantResult: Partial<CreateStaffTenantResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "key": n => { createStaffTenantSuccessResult.key = n.getStringValue(); },
-        "message": n => { createStaffTenantSuccessResult.message = n.getStringValue(); },
-        "tenant": n => { createStaffTenantSuccessResult.tenant = n.getObjectValue<CreateStaffTenantSuccessResultTenantData>(createCreateStaffTenantSuccessResultTenantDataFromDiscriminatorValue); },
+        "id": n => { createStaffTenantResult.id = n.getGuidValue(); },
+        "name": n => { createStaffTenantResult.name = n.getStringValue(); },
     }
 }
 /**
  * The deserialization information for the current model
- * @param CreateStaffTenantSuccessResultTenantData The instance to deserialize into.
+ * @param GetUserAuthDataResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoCreateStaffTenantSuccessResultTenantData(createStaffTenantSuccessResultTenantData: Partial<CreateStaffTenantSuccessResultTenantData> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoGetUserAuthDataResult(getUserAuthDataResult: Partial<GetUserAuthDataResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "id": n => { createStaffTenantSuccessResultTenantData.id = n.getGuidValue(); },
-        "tenantName": n => { createStaffTenantSuccessResultTenantData.tenantName = n.getStringValue(); },
+        "email": n => { getUserAuthDataResult.email = n.getStringValue(); },
+        "id": n => { getUserAuthDataResult.id = n.getGuidValue(); },
     }
 }
 /**
  * The deserialization information for the current model
- * @param GetUserAuthDataSuccessResult The instance to deserialize into.
+ * @param GetVerificationLinkResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoGetUserAuthDataSuccessResult(getUserAuthDataSuccessResult: Partial<GetUserAuthDataSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoGetVerificationLinkResult(getVerificationLinkResult: Partial<GetVerificationLinkResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "email": n => { getUserAuthDataSuccessResult.email = n.getStringValue(); },
-        "userId": n => { getUserAuthDataSuccessResult.userId = n.getGuidValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param GetVerificationLinkSuccessResult The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoGetVerificationLinkSuccessResult(getVerificationLinkSuccessResult: Partial<GetVerificationLinkSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "link": n => { getVerificationLinkSuccessResult.link = n.getStringValue(); },
+        "link": n => { getVerificationLinkResult.link = n.getStringValue(); },
     }
 }
 /**
@@ -349,16 +282,16 @@ export function deserializeIntoPasswordLoginBody(passwordLoginBody: Partial<Pass
 }
 /**
  * The deserialization information for the current model
- * @param PasswordLoginSuccessResult The instance to deserialize into.
+ * @param PasswordLoginResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoPasswordLoginSuccessResult(passwordLoginSuccessResult: Partial<PasswordLoginSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoPasswordLoginResult(passwordLoginResult: Partial<PasswordLoginResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "sessionExpiresAt": n => { passwordLoginSuccessResult.sessionExpiresAt = n.getDateValue(); },
-        "sessionExpiresInMs": n => { passwordLoginSuccessResult.sessionExpiresInMs = n.getNumberValue(); },
-        "sessionToken": n => { passwordLoginSuccessResult.sessionToken = n.getStringValue(); },
-        "userId": n => { passwordLoginSuccessResult.userId = n.getGuidValue(); },
+        "sessionExpiresAt": n => { passwordLoginResult.sessionExpiresAt = n.getDateValue(); },
+        "sessionExpiresInMs": n => { passwordLoginResult.sessionExpiresInMs = n.getNumberValue(); },
+        "sessionToken": n => { passwordLoginResult.sessionToken = n.getStringValue(); },
+        "userId": n => { passwordLoginResult.userId = n.getGuidValue(); },
     }
 }
 /**
@@ -375,16 +308,16 @@ export function deserializeIntoPasswordRegisterBody(passwordRegisterBody: Partia
 }
 /**
  * The deserialization information for the current model
- * @param PasswordRegisterSuccessResult The instance to deserialize into.
+ * @param PasswordRegisterResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoPasswordRegisterSuccessResult(passwordRegisterSuccessResult: Partial<PasswordRegisterSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoPasswordRegisterResult(passwordRegisterResult: Partial<PasswordRegisterResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "createdAt": n => { passwordRegisterSuccessResult.createdAt = n.getDateValue(); },
-        "email": n => { passwordRegisterSuccessResult.email = n.getStringValue(); },
-        "id": n => { passwordRegisterSuccessResult.id = n.getGuidValue(); },
-        "updatedAt": n => { passwordRegisterSuccessResult.updatedAt = n.getDateValue(); },
+        "createdAt": n => { passwordRegisterResult.createdAt = n.getDateValue(); },
+        "email": n => { passwordRegisterResult.email = n.getStringValue(); },
+        "id": n => { passwordRegisterResult.id = n.getGuidValue(); },
+        "updatedAt": n => { passwordRegisterResult.updatedAt = n.getDateValue(); },
     }
 }
 /**
@@ -581,26 +514,26 @@ export function deserializeIntoVerifyEmailRequestBody(verifyEmailRequestBody: Pa
 }
 /**
  * The deserialization information for the current model
- * @param VerifyEmailRequestSuccessResult The instance to deserialize into.
+ * @param VerifyEmailRequestResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoVerifyEmailRequestSuccessResult(verifyEmailRequestSuccessResult: Partial<VerifyEmailRequestSuccessResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoVerifyEmailRequestResult(verifyEmailRequestResult: Partial<VerifyEmailRequestResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "status": n => { verifyEmailRequestSuccessResult.status = n.getStringValue(); },
+        "status": n => { verifyEmailRequestResult.status = n.getStringValue(); },
     }
 }
-export interface GetUserAuthDataSuccessResult extends AdditionalDataHolder, Parsable {
+export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
     /**
      * The email property
      */
     email?: string | null;
     /**
-     * The userId property
+     * The id property
      */
-    userId?: Guid | null;
+    id?: Guid | null;
 }
-export interface GetVerificationLinkSuccessResult extends AdditionalDataHolder, Parsable {
+export interface GetVerificationLinkResult extends AdditionalDataHolder, Parsable {
     /**
      * The link property
      */
@@ -616,7 +549,7 @@ export interface PasswordLoginBody extends AdditionalDataHolder, Parsable {
      */
     password?: UntypedNode | null;
 }
-export interface PasswordLoginSuccessResult extends AdditionalDataHolder, Parsable {
+export interface PasswordLoginResult extends AdditionalDataHolder, Parsable {
     /**
      * The sessionExpiresAt property
      */
@@ -644,7 +577,7 @@ export interface PasswordRegisterBody extends AdditionalDataHolder, Parsable {
      */
     password?: UntypedNode | null;
 }
-export interface PasswordRegisterSuccessResult extends AdditionalDataHolder, Parsable {
+export interface PasswordRegisterResult extends AdditionalDataHolder, Parsable {
     /**
      * The createdAt property
      */
@@ -833,19 +766,6 @@ export function serializeApiResponse(writer: SerializationWriter, apiResponse: P
 }
 /**
  * Serializes information the current object
- * @param AppResponseResult The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeAppResponseResult(writer: SerializationWriter, appResponseResult: Partial<AppResponseResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!appResponseResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("key", appResponseResult.key);
-    writer.writeStringValue("message", appResponseResult.messageEscaped);
-    writer.writeAdditionalData(appResponseResult.additionalData);
-}
-/**
- * Serializes information the current object
  * @param CreateStaffTenantBody The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -858,55 +778,41 @@ export function serializeCreateStaffTenantBody(writer: SerializationWriter, crea
 }
 /**
  * Serializes information the current object
- * @param CreateStaffTenantSuccessResult The instance to serialize from.
+ * @param CreateStaffTenantResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeCreateStaffTenantSuccessResult(writer: SerializationWriter, createStaffTenantSuccessResult: Partial<CreateStaffTenantSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createStaffTenantSuccessResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("key", createStaffTenantSuccessResult.key);
-    writer.writeStringValue("message", createStaffTenantSuccessResult.message);
-    writer.writeObjectValue<CreateStaffTenantSuccessResultTenantData>("tenant", createStaffTenantSuccessResult.tenant, serializeCreateStaffTenantSuccessResultTenantData);
-    writer.writeAdditionalData(createStaffTenantSuccessResult.additionalData);
+export function serializeCreateStaffTenantResult(writer: SerializationWriter, createStaffTenantResult: Partial<CreateStaffTenantResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createStaffTenantResult || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("id", createStaffTenantResult.id);
+    writer.writeStringValue("name", createStaffTenantResult.name);
+    writer.writeAdditionalData(createStaffTenantResult.additionalData);
 }
 /**
  * Serializes information the current object
- * @param CreateStaffTenantSuccessResultTenantData The instance to serialize from.
+ * @param GetUserAuthDataResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeCreateStaffTenantSuccessResultTenantData(writer: SerializationWriter, createStaffTenantSuccessResultTenantData: Partial<CreateStaffTenantSuccessResultTenantData> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createStaffTenantSuccessResultTenantData || isSerializingDerivedType) { return; }
-    writer.writeGuidValue("id", createStaffTenantSuccessResultTenantData.id);
-    writer.writeStringValue("tenantName", createStaffTenantSuccessResultTenantData.tenantName);
-    writer.writeAdditionalData(createStaffTenantSuccessResultTenantData.additionalData);
+export function serializeGetUserAuthDataResult(writer: SerializationWriter, getUserAuthDataResult: Partial<GetUserAuthDataResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getUserAuthDataResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("email", getUserAuthDataResult.email);
+    writer.writeGuidValue("id", getUserAuthDataResult.id);
+    writer.writeAdditionalData(getUserAuthDataResult.additionalData);
 }
 /**
  * Serializes information the current object
- * @param GetUserAuthDataSuccessResult The instance to serialize from.
+ * @param GetVerificationLinkResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeGetUserAuthDataSuccessResult(writer: SerializationWriter, getUserAuthDataSuccessResult: Partial<GetUserAuthDataSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!getUserAuthDataSuccessResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("email", getUserAuthDataSuccessResult.email);
-    writer.writeGuidValue("userId", getUserAuthDataSuccessResult.userId);
-    writer.writeAdditionalData(getUserAuthDataSuccessResult.additionalData);
-}
-/**
- * Serializes information the current object
- * @param GetVerificationLinkSuccessResult The instance to serialize from.
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeGetVerificationLinkSuccessResult(writer: SerializationWriter, getVerificationLinkSuccessResult: Partial<GetVerificationLinkSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!getVerificationLinkSuccessResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("link", getVerificationLinkSuccessResult.link);
-    writer.writeAdditionalData(getVerificationLinkSuccessResult.additionalData);
+export function serializeGetVerificationLinkResult(writer: SerializationWriter, getVerificationLinkResult: Partial<GetVerificationLinkResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getVerificationLinkResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("link", getVerificationLinkResult.link);
+    writer.writeAdditionalData(getVerificationLinkResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -924,17 +830,17 @@ export function serializePasswordLoginBody(writer: SerializationWriter, password
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param PasswordLoginSuccessResult The instance to serialize from.
+ * @param PasswordLoginResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializePasswordLoginSuccessResult(writer: SerializationWriter, passwordLoginSuccessResult: Partial<PasswordLoginSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!passwordLoginSuccessResult || isSerializingDerivedType) { return; }
-    writer.writeDateValue("sessionExpiresAt", passwordLoginSuccessResult.sessionExpiresAt);
-    writer.writeNumberValue("sessionExpiresInMs", passwordLoginSuccessResult.sessionExpiresInMs);
-    writer.writeStringValue("sessionToken", passwordLoginSuccessResult.sessionToken);
-    writer.writeGuidValue("userId", passwordLoginSuccessResult.userId);
-    writer.writeAdditionalData(passwordLoginSuccessResult.additionalData);
+export function serializePasswordLoginResult(writer: SerializationWriter, passwordLoginResult: Partial<PasswordLoginResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!passwordLoginResult || isSerializingDerivedType) { return; }
+    writer.writeDateValue("sessionExpiresAt", passwordLoginResult.sessionExpiresAt);
+    writer.writeNumberValue("sessionExpiresInMs", passwordLoginResult.sessionExpiresInMs);
+    writer.writeStringValue("sessionToken", passwordLoginResult.sessionToken);
+    writer.writeGuidValue("userId", passwordLoginResult.userId);
+    writer.writeAdditionalData(passwordLoginResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -952,17 +858,17 @@ export function serializePasswordRegisterBody(writer: SerializationWriter, passw
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param PasswordRegisterSuccessResult The instance to serialize from.
+ * @param PasswordRegisterResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializePasswordRegisterSuccessResult(writer: SerializationWriter, passwordRegisterSuccessResult: Partial<PasswordRegisterSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!passwordRegisterSuccessResult || isSerializingDerivedType) { return; }
-    writer.writeDateValue("createdAt", passwordRegisterSuccessResult.createdAt);
-    writer.writeStringValue("email", passwordRegisterSuccessResult.email);
-    writer.writeGuidValue("id", passwordRegisterSuccessResult.id);
-    writer.writeDateValue("updatedAt", passwordRegisterSuccessResult.updatedAt);
-    writer.writeAdditionalData(passwordRegisterSuccessResult.additionalData);
+export function serializePasswordRegisterResult(writer: SerializationWriter, passwordRegisterResult: Partial<PasswordRegisterResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!passwordRegisterResult || isSerializingDerivedType) { return; }
+    writer.writeDateValue("createdAt", passwordRegisterResult.createdAt);
+    writer.writeStringValue("email", passwordRegisterResult.email);
+    writer.writeGuidValue("id", passwordRegisterResult.id);
+    writer.writeDateValue("updatedAt", passwordRegisterResult.updatedAt);
+    writer.writeAdditionalData(passwordRegisterResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -1169,14 +1075,14 @@ export function serializeVerifyEmailRequestBody(writer: SerializationWriter, ver
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param VerifyEmailRequestSuccessResult The instance to serialize from.
+ * @param VerifyEmailRequestResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeVerifyEmailRequestSuccessResult(writer: SerializationWriter, verifyEmailRequestSuccessResult: Partial<VerifyEmailRequestSuccessResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!verifyEmailRequestSuccessResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("status", verifyEmailRequestSuccessResult.status);
-    writer.writeAdditionalData(verifyEmailRequestSuccessResult.additionalData);
+export function serializeVerifyEmailRequestResult(writer: SerializationWriter, verifyEmailRequestResult: Partial<VerifyEmailRequestResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!verifyEmailRequestResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("status", verifyEmailRequestResult.status);
+    writer.writeAdditionalData(verifyEmailRequestResult.additionalData);
 }
 export interface Session extends AdditionalDataHolder, Parsable {
     /**
@@ -1410,7 +1316,7 @@ export interface VerifyEmailRequestBody extends AdditionalDataHolder, Parsable {
      */
     email?: UntypedNode | null;
 }
-export interface VerifyEmailRequestSuccessResult extends AdditionalDataHolder, Parsable {
+export interface VerifyEmailRequestResult extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */

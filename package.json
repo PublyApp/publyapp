@@ -39,7 +39,8 @@
 		"knip": "knip",
 		"prepare": "husky",
 		"update-deps": "pnpm up -r",
-		"generate:client": "pnpm run --filter @org/js-client kiota:generate"
+		"generate:client": "pnpm run --filter @org/js-client kiota:generate",
+		"update:client": "pnpm run --filter @org/js-client kiota:update"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.1.1",
