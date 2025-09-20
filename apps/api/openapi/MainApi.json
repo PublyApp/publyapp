@@ -118,6 +118,47 @@
         }
       }
     },
+    "/auth/tenant-auth-data": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get Tenant Auth Data",
+        "operationId": "GetTenantAuthData",
+        "parameters": [
+          {
+            "name": "TenantId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTenantAuthDataResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/verify-email-request": {
       "post": {
         "tags": [
@@ -395,6 +436,34 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "GetTenantAuthDataResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "profileIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

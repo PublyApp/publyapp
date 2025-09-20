@@ -7,6 +7,7 @@
 		"build": "turbo build",
 		"build:local": "turbo build:local",
 		"build:deploy": "node ./scripts/deploy.mjs",
+		"build:api": "pnpm run --filter api build",
 		"// =============== START SCRIPTS ===============": "=============================",
 		"start:test-online": "pnpm run --filter server start:test-online",
 		"// =============== DEV SCRIPTS ===============": "=============================",
