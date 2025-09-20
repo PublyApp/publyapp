@@ -7,6 +7,7 @@ using MainApi.Src.Features.Common.Auth.Handlers.PasswordRegister;
 using MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
 using MainApi.Src.Features.Common.Auth.Handlers.VerifyEmailRequest;
 using MainApi.Src.Features.Common.Auth.Handlers.GetVerificationLink;
+using MainApi.Src.Features.Common.Auth.Handlers.GetTenantAuthData;
 
 public static class AuthEndpoint {
 	public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app) {
@@ -27,6 +28,10 @@ public static class AuthEndpoint {
 		group.MapGet("/user-auth-data", GetUserAuthData.HandleGetUserAuthData)
 			.WithName("GetUserAuthData")
 			.WithSummary("Get User Auth Data");
+
+		group.MapGet("/tenant-auth-data", GetTenantAuthData.HandleGetTenantAuthData)
+			.WithName("GetTenantAuthData")
+			.WithSummary("Get Tenant Auth Data");
 
 		group.MapPost("/verify-email-request", VerifyEmailRequest.HandleVerifyEmailRequest)
 			.WithName("VerifyEmailRequest")

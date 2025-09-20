@@ -18,10 +18,12 @@ export const useGetUserAuthData = createSuspenseQuery({
 	},
 });
 
+const getTenantAuthDataQueryKey = getQueryKey<ApiClient>(
+	(client) => client.auth.tenantAuthData.get,
+);
+
 export const useGetTenantAuthData = createSuspenseQuery({
-	queryKey: [
-		getQueryKey<ApiClient>((client) => client.auth.tenantAuthData.get),
-	] as const,
+	queryKey: [getTenantAuthDataQueryKey] as const,
 	fetcher: async ({ tenantId }: { tenantId: string }) => {
 		return clientManager.apiClient.auth.tenantAuthData.get({
 			tenantId: {
@@ -30,9 +32,6 @@ export const useGetTenantAuthData = createSuspenseQuery({
 				},
 			},
 		});
-		// return {
-		// 	permissions: ['*'],
-		// };
 	},
 });
 

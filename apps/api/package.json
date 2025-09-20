@@ -4,7 +4,6 @@
 	"private": true,
 	"scripts": {
 		"dev": "dotnet watch --project MainApi.csproj",
-		"dev:api": "dotnet watch --project MainApi.csproj",
 		"build": "dotnet build MainApi.csproj",
 		"publish": "dotnet publish MainApi.csproj --output ./bin",
 		"migrate:add": "dotnet ef migrations add",
