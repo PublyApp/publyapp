@@ -5,6 +5,7 @@ using MainApi.Src.Features.Tenant.Product;
 using MainApi.Src.Features.Staff.Tenant;
 using MainApi.Src.Lib.Middlewares;
 
+
 AppEnvironment.LoadEnv();
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,8 +27,8 @@ app.UseStaffAuthorization();
 
 app.MapAuthEndpoints();
 
-var staffGroup = app.MapGroup("/staff");
-var tenantGroup = app.MapGroup("/tenant");
+var staffGroup = app.MapGroup(RoutePath.Staff.Root);
+var tenantGroup = app.MapGroup(RoutePath.Tenant.Root);
 
 // Staff endpoints
 staffGroup.MapStaffTenantEndpoints();

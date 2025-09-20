@@ -17,10 +17,10 @@ import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/ten
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import type zod from 'zod';
+// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { FieldContainer } from '@/front/components/form-extras';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
@@ -145,26 +145,27 @@ export const TenantCreateOrEditForm = ({
 			router.push(FRONT_PATH_NAMES.staff.tenants.root);
 		},
 		onError: (error) => {
-			if (error instanceof ParseRestError) {
-				if (error.code === X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT) {
-					const notAllowedEmailsStr = _.map(
-						_.get(error.data, 'staff-member-emails', []) as string[],
-						(email) => {
-							return `'${email}'`;
-						},
-					).join(', ');
-					setAlertMessage({
-						key: X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT,
-						params: {
-							emails: notAllowedEmailsStr,
-						},
-					});
-				} else {
-					setAlertMessage(error.message);
-				}
-			} else {
-				setAlertMessage(error.message);
-			}
+			// if (error instanceof ParseRestError) {
+			// 	if (error.code === X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT) {
+			// 		const notAllowedEmailsStr = _.map(
+			// 			_.get(error.data, 'staff-member-emails', []) as string[],
+			// 			(email) => {
+			// 				return `'${email}'`;
+			// 			},
+			// 		).join(', ');
+			// 		setAlertMessage({
+			// 			key: X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT,
+			// 			params: {
+			// 				emails: notAllowedEmailsStr,
+			// 			},
+			// 		});
+			// 	} else {
+			// 		setAlertMessage(error.message);
+			// 	}
+			// } else {
+			// 	setAlertMessage(error.message);
+			// }
+			setAlertMessage(error.message);
 			handleCloseDialog();
 			toast.error(error.message);
 		},

@@ -15,6 +15,7 @@ import {
 	useLoaderData,
 	useSearchParams,
 } from 'react-router';
+// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -128,13 +129,13 @@ export const loader = getServerLoader({
 		});
 
 		if (result.status === 'error') {
-			if (result.error instanceof ParseRestError) {
-				if (result.error.code === X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID) {
-					return {
-						code: 'INVALID_LINK',
-					} as const;
-				}
-			}
+			// if (result.error instanceof ParseRestError) {
+			// 	if (result.error.code === X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID) {
+			// 		return {
+			// 			code: 'INVALID_LINK',
+			// 		} as const;
+			// 	}
+			// }
 
 			throw result.error;
 		}

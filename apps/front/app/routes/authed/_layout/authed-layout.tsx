@@ -1,3 +1,15 @@
+import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import * as cookie from 'cookie';
+import _ from 'lodash';
+import { type ReactNode, Suspense } from 'react';
+import {
+	Navigate,
+	Outlet,
+	redirect,
+	useRouteError,
+	useSearchParams,
+} from 'react-router';
+import { ClientOnly } from 'remix-utils/client-only';
 import { View500 } from '@/front/components/error';
 import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
 import { SplashScreen } from '@/front/components/loading-screen';
@@ -16,25 +28,12 @@ import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { useMainStore } from '@/front/lib/zustand/store';
 import {
 	FRONT_PATH_NAMES,
-	SESSION_TOKEN_COOKIE_KEY,
-	X_CODE,
 	queryParamKey,
 	queryParamValue,
+	SESSION_TOKEN_COOKIE_KEY,
+	X_CODE,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
-import * as cookie from 'cookie';
-import _ from 'lodash';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-import { type ReactNode, Suspense } from 'react';
-import {
-	Navigate,
-	Outlet,
-	redirect,
-	useRouteError,
-	useSearchParams,
-} from 'react-router';
-import { ClientOnly } from 'remix-utils/client-only';
 import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
@@ -81,8 +80,8 @@ export const clientLoader = getClientLoader({
 });
 
 export const ErrorBoundary = (_: Route.ErrorBoundaryProps) => {
-	const [searchParams] = useSearchParams();
-	const queryClient = useQueryClient();
+	// const [searchParams] = useSearchParams();
+	// const queryClient = useQueryClient();
 
 	// check response error.body.code
 	// if invalid session token, redirect to login
@@ -91,33 +90,33 @@ export const ErrorBoundary = (_: Route.ErrorBoundaryProps) => {
 	// clear react-query cache too
 	const error = useRouteError();
 
-	if (error instanceof ParseRestError) {
-		if (error.code === X_CODE.INVALID_SESSION) {
-			// clear react-query cache too
-			queryClient.removeQueries();
+	// if (error instanceof ParseRestError) {
+	// 	if (error.code === X_CODE.INVALID_SESSION) {
+	// 		// clear react-query cache too
+	// 		queryClient.removeQueries();
 
-			// remove session token cookie
-			document.cookie = cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', {
-				path: '/',
-				maxAge: 0,
-			});
+	// 		// remove session token cookie
+	// 		document.cookie = cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', {
+	// 			path: '/',
+	// 			maxAge: 0,
+	// 		});
 
-			// redirect to login page with a query param as redirect cause
-			const url = new URL(window.location.origin);
-			url.pathname = FRONT_PATH_NAMES.auth.login;
-			url.searchParams.set(
-				queryParamKey.login_page.redirect_cause,
-				queryParamValue.login_page.redirect_cause.invalid_session,
-			);
-			url.searchParams.set(
-				queryParamKey.language,
-				getCorrectLocale(searchParams.get(queryParamKey.language)),
-			);
+	// 		// redirect to login page with a query param as redirect cause
+	// 		const url = new URL(window.location.origin);
+	// 		url.pathname = FRONT_PATH_NAMES.auth.login;
+	// 		url.searchParams.set(
+	// 			queryParamKey.login_page.redirect_cause,
+	// 			queryParamValue.login_page.redirect_cause.invalid_session,
+	// 		);
+	// 		url.searchParams.set(
+	// 			queryParamKey.language,
+	// 			getCorrectLocale(searchParams.get(queryParamKey.language)),
+	// 		);
 
-			// navigate(`${url.pathname}${url.search}`);
-			return <Navigate to={`${url.pathname}${url.search}`} />;
-		}
-	}
+	// 		// navigate(`${url.pathname}${url.search}`);
+	// 		return <Navigate to={`${url.pathname}${url.search}`} />;
+	// 	}
+	// }
 
 	if (import.meta.env.DEV) {
 		return <TemplateErrorBoundary error={error} />;
