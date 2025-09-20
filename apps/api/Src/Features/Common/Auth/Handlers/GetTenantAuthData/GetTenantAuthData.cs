@@ -20,6 +20,12 @@ public class GetTenantAuthDataResult {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
 	public string Code { get; set; } = string.Empty;
+	public List<Guid> ProfileIds { get; set; } = [];
+
+	/// <summary>
+	/// The permission keys for the user in the tenant
+	/// </summary>
+	public List<string> Permissions { get; set; } = [];
 }
 
 public class GetTenantAuthData {
@@ -81,7 +87,9 @@ public class GetTenantAuthData {
 				new GetTenantAuthDataResult {
 					Id = staffTenant.Id,
 					Name = staffTenant.Name,
-					Code = staffTenant.Code
+					Code = staffTenant.Code,
+					ProfileIds = [],
+					Permissions = []
 				}
 			);
 		}

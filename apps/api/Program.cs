@@ -4,7 +4,6 @@ using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Tenant.Product;
 using MainApi.Src.Features.Staff.Tenant;
 using MainApi.Src.Lib.Middlewares;
-using MainApi.Localization;
 
 AppEnvironment.LoadEnv();
 
@@ -36,9 +35,7 @@ staffGroup.MapStaffTenantEndpoints();
 // Tenant endpoints
 tenantGroup.MapProductEndpoints();
 
-app.MapFallback(() => {
-	return Results.NotFound(ApiResponse.Create("Route not found", ResponseKeys.NotFound));
-});
+app.MapNotFoundRoute();
 
 app.UseHttpsRedirection();
 

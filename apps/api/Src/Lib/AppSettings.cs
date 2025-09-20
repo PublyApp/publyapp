@@ -6,14 +6,16 @@ using System.ComponentModel.DataAnnotations;
 public class AppSettings {
 	[Required(ErrorMessage = "SESSION_EXPIRY_DAYS is required in appsettings.json::AppSettings")]
 	[Range(1, 365, ErrorMessage = "SESSION_EXPIRY_DAYS must be between 1 and 365")]
-	public int SESSION_EXPIRY_DAYS { get; set; }
+	public int SESSION_EXPIRY_DAYS { get; }
 
 	[Required(ErrorMessage = "SESSION_TOKEN_HEADER_KEY is required in appsettings.json::AppSettings")]
-	public string SESSION_TOKEN_HEADER_KEY { get; set; } = string.Empty;
+	public string SESSION_TOKEN_HEADER_KEY { get; } = string.Empty;
 
 	[Required(ErrorMessage = "EMAIL_VERIFY_TOKEN_VALIDITY_DURATION is required in appsettings.json::AppSettings")]
 	[Range(1, 365, ErrorMessage = "EMAIL_VERIFY_TOKEN_VALIDITY_DURATION must be between 1 and 365")]
-	public int EMAIL_VERIFY_TOKEN_VALIDITY_DURATION { get; set; }
+	public int EMAIL_VERIFY_TOKEN_VALIDITY_DURATION { get; }
 
 	public readonly string STAFF_TENANT_CODE = "staff";
+
+	public readonly int MAX_PROFILES_PER_USER_PER_TENTANT = 5;
 }
