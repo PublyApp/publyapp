@@ -23,3 +23,7 @@ Content-Type: application/json
 ### @name GetVerificationLink
 
 GET {{rootUrl}}/auth/verification-link?userId=123
+
+### @name GetTenantAuthData
+
+GET {{rootUrl}}/auth/tenant-auth-data

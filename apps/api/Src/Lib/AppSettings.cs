@@ -17,5 +17,5 @@ public class AppSettings {
 
 	public readonly string STAFF_TENANT_CODE = "staff";
 
-	public readonly int MAX_PROFILES_PER_USER_PER_TENTANT = 5;
+	public readonly int MAX_PROFILES_PER_USER_PER_TENANT = 5;
 }

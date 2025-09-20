@@ -26,10 +26,8 @@ export const useGetTenantAuthData = createSuspenseQuery({
 	queryKey: [getTenantAuthDataQueryKey] as const,
 	fetcher: async ({ tenantId }: { tenantId: string }) => {
 		return clientManager.apiClient.auth.tenantAuthData.get({
-			tenantId: {
-				getValue() {
-					return tenantId;
-				},
+			queryParameters: {
+				tenantId,
 			},
 		});
 	},

@@ -6,6 +6,8 @@ import { LoginRequestBuilderRequestsMetadata, type LoginRequestBuilder } from '.
 // @ts-ignore
 import { RegisterRequestBuilderRequestsMetadata, type RegisterRequestBuilder } from './register/index.js';
 // @ts-ignore
+import { TenantAuthDataRequestBuilderRequestsMetadata, type TenantAuthDataRequestBuilder } from './tenantAuthData/index.js';
+// @ts-ignore
 import { type UserAuthDataRequestBuilder, UserAuthDataRequestBuilderRequestsMetadata } from './userAuthData/index.js';
 // @ts-ignore
 import { type VerificationLinkRequestBuilder, VerificationLinkRequestBuilderRequestsMetadata } from './verificationLink/index.js';
@@ -26,6 +28,10 @@ export interface AuthRequestBuilder extends BaseRequestBuilder<AuthRequestBuilde
      * The register property
      */
     get register(): RegisterRequestBuilder;
+    /**
+     * The tenantAuthData property
+     */
+    get tenantAuthData(): TenantAuthDataRequestBuilder;
     /**
      * The userAuthData property
      */
@@ -52,6 +58,9 @@ export const AuthRequestBuilderNavigationMetadata: Record<Exclude<keyof AuthRequ
     },
     register: {
         requestsMetadata: RegisterRequestBuilderRequestsMetadata,
+    },
+    tenantAuthData: {
+        requestsMetadata: TenantAuthDataRequestBuilderRequestsMetadata,
     },
     userAuthData: {
         requestsMetadata: UserAuthDataRequestBuilderRequestsMetadata,
