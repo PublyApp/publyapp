@@ -13,21 +13,14 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import type zod from 'zod';
-
-import {
-	ACCOUNT_LEVEL_ENUM,
-	type AccountLevel,
-	DEFAULT_MAX_USER_PER_TENANT,
-	FRONT_PATH_NAMES,
-} from '@org/shared-ts/lib/constants';
-import { mbToBytes } from '@org/shared-ts/utils/any.utils';
-import { getNewTenantSchemaClientSide } from '@org/shared-ts/validations/tenant/tenant-client.validations';
+// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { FieldContainer } from '@/front/components/form-extras';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
@@ -37,10 +30,18 @@ import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { useCreateTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
-import { interZodClient } from '@/front/lib/zod/zod.client';
+import { useCreateTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { useMainStore } from '@/front/lib/zustand/store';
 import { fData } from '@/front/utils/format-number';
+import {
+	DEFAULT_MAX_USER_PER_TENANT,
+	FRONT_PATH_NAMES,
+	type TenantSubRole,
+	tenantSubRoleEnum,
+	X_CODE,
+} from '@/shared/lib/constants';
+import { mbToBytes } from '@/shared/utils/any.utils';
 
 // ----------------------------------------------------------------------
 
@@ -50,32 +51,32 @@ type NewTenantSchemaType = zod.infer<
 
 // ----------------------------------------------------------------------
 
-const ACCOUNT_LEVEL_OPTIONS = _.chain(ACCOUNT_LEVEL_ENUM)
-	.entries()
+const ROLE_OPTIONS = _.chain(tenantSubRoleEnum)
 	.map((value) => {
-		const [, accountLevel] = value;
-		return accountLevel;
+		return {
+			value: value,
+			label: value,
+		};
 	})
 	.value();
 
-const initialUser = {
+const initialUserValue = {
 	email: '',
-	accountLevel: ACCOUNT_LEVEL_ENUM.ADMIN,
+	role: tenantSubRoleEnum.ADMIN,
 };
 
 const defaultValues = {
 	name: '',
 	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 	logo: undefined,
-	initialUsers: [initialUser],
+	initialUsers: [initialUserValue],
 } satisfies NewTenantSchemaType;
 
 type ITenantItem = {
-	id?: string | null;
-	tenantId?: string | null;
-	name?: string | null;
-	maxUsers?: number | null;
-	logo?: string | null;
+	id: string;
+	name: string;
+	maxUsers: number;
+	logo: string;
 };
 
 type TenantCreateOrEditFormProps = {
@@ -89,7 +90,7 @@ export const TenantCreateOrEditForm = ({
 	const router = useRouter();
 	const openDialog = useBoolean();
 
-	let NewTenantSchema = getNewTenantSchemaClientSide(interZodClient, {
+	let NewTenantSchema = getNewTenantSchemaClientSide(defaultZodClient, {
 		maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 	});
 
@@ -109,9 +110,7 @@ export const TenantCreateOrEditForm = ({
 		defaultValues,
 		values: currentTenant
 			? {
-					name: currentTenant.name ?? '',
-					maxUsers: currentTenant.maxUsers ?? DEFAULT_MAX_USER_PER_TENANT,
-					logo: currentTenant.logo ?? undefined,
+					...currentTenant,
 					initialUsers: [],
 				}
 			: undefined,
@@ -149,7 +148,7 @@ export const TenantCreateOrEditForm = ({
 			// if (error instanceof ParseRestError) {
 			// 	if (error.code === X_CODE.NO_STAFF_MEMBERS_ALLOWED_IN_TENANT) {
 			// 		const notAllowedEmailsStr = _.map(
-			// 			_.get(error.data, 'staff-user-emails', []) as string[],
+			// 			_.get(error.data, 'staff-member-emails', []) as string[],
 			// 			(email) => {
 			// 				return `'${email}'`;
 			// 			},
@@ -231,11 +230,8 @@ export const TenantCreateOrEditForm = ({
 					if (_.isArray(fieldValue)) {
 						values = _.map(fieldValue, (value) => {
 							return (
-								<Typography
-									key={`${value.email}_${value.accountLevel}`}
-									sx={{ mb: 1 }}
-								>
-									&nbsp;&nbsp;&nbsp;&nbsp;- {value.email} / {value.accountLevel}
+								<Typography key={`${value.email}_${value.role}`} sx={{ mb: 1 }}>
+									&nbsp;&nbsp;&nbsp;&nbsp;- {value.email} / {value.role}
 								</Typography>
 							);
 						});
@@ -308,10 +304,9 @@ export const TenantCreateOrEditForm = ({
 	const handleAddUserToForm = () => {
 		append({
 			email: '',
-			accountLevel: ACCOUNT_LEVEL_ENUM.ADMIN,
-			// role: _.isEmpty(fields)
-			// 	? tenantSubRoleEnum.ADMIN
-			// 	: tenantSubRoleEnum.CONTRIBUTOR,
+			role: _.isEmpty(fields)
+				? tenantSubRoleEnum.ADMIN
+				: tenantSubRoleEnum.CONTRIBUTOR,
 		});
 	};
 
@@ -526,7 +521,7 @@ export const TenantCreateOrEditForm = ({
 	);
 };
 
-type UserRowType = { email: string; accountLevel: AccountLevel };
+type UserRowType = { email: string; role: TenantSubRole };
 
 type UserRowProps = {
 	index: number;
@@ -545,19 +540,18 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 
 	const handleChangeRole = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
-			const value = e.target.value as AccountLevel;
+			const value = e.target.value as TenantSubRole;
 			update(index, {
 				...fields[index],
-				accountLevel: value,
+				role: value,
 			});
 		},
 		[fields, index, update],
 	);
 
-	const isAdmin =
-		_.get(fields, `${index}.accountLevel`) === ACCOUNT_LEVEL_ENUM.ADMIN;
+	const isAdmin = _.get(fields, `${index}.role`) === tenantSubRoleEnum.ADMIN;
 	const adminsList = _.filter(fields, (field) => {
-		return field.accountLevel === ACCOUNT_LEVEL_ENUM.ADMIN;
+		return field.role === tenantSubRoleEnum.ADMIN;
 	});
 	const isTheOnlyAdmin = isAdmin && adminsList.length === 1;
 
@@ -576,15 +570,15 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 			>
 				<span>
 					<Field.Select
-						name={`initialUsers.${index}.accountLevel`}
-						label={t('level')}
+						name={`initialUsers.${index}.role`}
+						label={t('role')}
 						required
 						onChange={handleChangeRole}
 						disabled={isTheOnlyAdmin}
 					>
-						{ACCOUNT_LEVEL_OPTIONS.map((option) => (
-							<MenuItem key={option} value={option}>
-								{option}
+						{ROLE_OPTIONS.map((option) => (
+							<MenuItem key={option.value} value={option.label}>
+								{option.label}
 							</MenuItem>
 						))}
 					</Field.Select>
