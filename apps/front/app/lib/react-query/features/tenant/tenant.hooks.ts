@@ -1,9 +1,15 @@
 import { createMutation, createQuery } from 'react-query-kit';
 import { _tenantProfiles } from '@/front/_mock/_tenant-profiles';
-import { defaultApiClient } from '@/parse-api-client/ApiClient';
-import type { CreateTenantParams } from '@/parse-api-client/features/tenant/tenant.endpoints';
+import type { ApiClient } from '@/js-client/src/apiClient';
+// import { defaultApiClient } from '@/parse-api-client/ApiClient';
+// import type { CreateTenantParams } from '@/parse-api-client/features/tenant/tenant.endpoints';
 import { functionName } from '@/shared/lib/constants';
 import { delay } from '@/shared/utils/any.utils';
+import { getQueryKey } from '../../query-utils';
+
+const createTenantMutationKey = getQueryKey<ApiClient>(
+	(client) => client.tenant.createTenant.post,
+);
 
 export const useCreateTenant = createMutation({
 	mutationKey: [functionName.staff.tenant.create] as const,
