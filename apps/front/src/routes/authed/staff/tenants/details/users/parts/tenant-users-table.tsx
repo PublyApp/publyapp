@@ -88,7 +88,7 @@ export type TenantUserRowData = {
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	level: string;
+	role: string;
 	status: string;
 	email: string;
 };
@@ -324,7 +324,6 @@ const useTenantUsersTableController = () => {
 	} = useTableState({
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
-		paginationMode: 'cursor',
 	});
 
 	const handleDebouncedSearchChange = useCallback(
@@ -379,23 +378,26 @@ const useTenantUsersTableController = () => {
 					id: 'fullName',
 					header: t('name'),
 					Cell: UserCell,
+					// grow: 1,
+					size: 300,
 					enableSorting: false,
 				},
 			),
-			columnHelper.accessor('level', {
-				header: t('level'),
-				Cell: LevelCell,
-				size: 150,
+			columnHelper.accessor('role', {
+				header: t('role'),
+				Cell: RoleCell,
+				size: 70,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
-				size: 150,
+				size: 70,
+				enableSorting: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',
 				Cell: UserActionsCell,
-				size: 150,
+				size: 5,
 			}),
 		];
 	}, [t]);
@@ -463,16 +465,16 @@ const useTenantUsersTableController = () => {
 
 		return map(tenantUsersQuery.data.data, (tenantUser) => {
 			return {
-				id: tenantUser.id || '',
-				avatarUrl: tenantUser.avatarUrl || '',
-				firstName: tenantUser.firstName || '',
-				lastName: tenantUser.lastName || '',
-				level: tenantUser.level || '',
-				status: tenantUser.status || '',
-				email: tenantUser.email || '',
+				id: staffMember.objectId,
+				avatarUrl: staffMember.avatarUrl || '',
+				firstName: staffMember.firstName || '',
+				lastName: staffMember.lastName || '',
+				role: staffMember.roleData?.role || '',
+				status: staffMember.status || '',
+				email: staffMember.email || '',
 			};
 		});
-	}, [tenantUsersQuery.data]);
+	}, [data]);
 
 	const {
 		rowSelection,
@@ -898,7 +900,7 @@ const TenantUsersTable = () => {
 	} = useTenantUsersTableController();
 
 	return (
-		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
 
 			<TenantUsersExportDialogController
@@ -965,11 +967,7 @@ const UserCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 			</Avatar>
 
 			<Stack
-				sx={{
-					typography: 'body2',
-					flex: '1 1 auto',
-					alignItems: 'flex-start',
-				}}
+				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
 			>
 				<Link color="inherit" component={RouterLink} href={userDetailsLink}>
 					{fullName}

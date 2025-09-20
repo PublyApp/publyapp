@@ -13,6 +13,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
@@ -58,32 +59,32 @@ type NewTenantSchemaType = zod.infer<
 
 // ----------------------------------------------------------------------
 
-const ACCOUNT_LEVEL_OPTIONS = _.chain(ACCOUNT_LEVEL_ENUM)
-	.entries()
+const ROLE_OPTIONS = _.chain(tenantSubRoleEnum)
 	.map((value) => {
-		const [, accountLevel] = value;
-		return accountLevel;
+		return {
+			value: value,
+			label: value,
+		};
 	})
 	.value();
 
-const initialUser = {
+const initialUserValue = {
 	email: '',
-	accountLevel: ACCOUNT_LEVEL_ENUM.ADMIN,
+	role: tenantSubRoleEnum.ADMIN,
 };
 
 const defaultValues = {
 	name: '',
 	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 	logo: undefined,
-	initialUsers: [initialUser],
+	initialUsers: [initialUserValue],
 } satisfies NewTenantSchemaType;
 
 type ITenantItem = {
-	id?: string | null;
-	tenantId?: string | null;
-	name?: string | null;
-	maxUsers?: number | null;
-	logo?: string | null;
+	id: string;
+	name: string;
+	maxUsers: number;
+	logo: string;
 };
 
 type TenantCreateOrEditFormProps = {
@@ -101,7 +102,7 @@ export const TenantCreateOrEditForm = ({
 	const router = useRouter();
 	const openDialog = useBoolean();
 
-	let NewTenantSchema = getNewTenantSchemaClientSide(interZodClient, {
+	let NewTenantSchema = getNewTenantSchemaClientSide(defaultZodClient, {
 		maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 	});
 
@@ -121,9 +122,7 @@ export const TenantCreateOrEditForm = ({
 		defaultValues,
 		values: currentTenant
 			? {
-					name: currentTenant.name ?? '',
-					maxUsers: currentTenant.maxUsers ?? DEFAULT_MAX_USER_PER_TENANT,
-					logo: currentTenant.logo ?? undefined,
+					...currentTenant,
 					initialUsers: [],
 				}
 			: undefined,
@@ -224,11 +223,8 @@ export const TenantCreateOrEditForm = ({
 					if (_.isArray(fieldValue)) {
 						values = _.map(fieldValue, (value) => {
 							return (
-								<Typography
-									key={`${value.email}_${value.accountLevel}`}
-									sx={{ mb: 1 }}
-								>
-									&nbsp;&nbsp;&nbsp;&nbsp;- {value.email} / {value.accountLevel}
+								<Typography key={`${value.email}_${value.role}`} sx={{ mb: 1 }}>
+									&nbsp;&nbsp;&nbsp;&nbsp;- {value.email} / {value.role}
 								</Typography>
 							);
 						});
@@ -668,15 +664,15 @@ const UserRow = ({
 			>
 				<span>
 					<Field.Select
-						name={`initialUsers.${index}.accountLevel`}
-						label={t('level')}
+						name={`initialUsers.${index}.role`}
+						label={t('role')}
 						required
 						onChange={handleChangeRole}
 						disabled={isTheOnlyAdmin}
 					>
-						{ACCOUNT_LEVEL_OPTIONS.map((option) => (
-							<MenuItem key={option} value={option}>
-								{option}
+						{ROLE_OPTIONS.map((option) => (
+							<MenuItem key={option.value} value={option.label}>
+								{option.label}
 							</MenuItem>
 						))}
 					</Field.Select>

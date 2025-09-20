@@ -45,8 +45,7 @@ import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/reset-password-page';
 
 export const action = getServerAction({
-	action: async ({ request, z, context }) => {
-		const apiClient = getClientManager().createClient({ skipAuth: true });
+	action: async ({ request, apiClient, z }) => {
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
@@ -57,37 +56,7 @@ export const action = getServerAction({
 		const newPassword = formData.get('newPassword');
 		const confirmPassword = formData.get('confirmPassword');
 
-		const resetPassword = safeRun(
-			async (params: {
-				id: string;
-				token: string;
-				newPassword: string;
-				confirmPassword: string;
-			}) => {
-				return await apiClient.auth.resetPassword.post({
-					id: {
-						getValue: () => {
-							return params.id;
-						},
-					},
-					token: {
-						getValue: () => {
-							return params.token;
-						},
-					},
-					newPassword: {
-						getValue: () => {
-							return params.newPassword;
-						},
-					},
-					confirmPassword: {
-						getValue: () => {
-							return params.confirmPassword;
-						},
-					},
-				});
-			},
-		);
+		const resetPassword = safeRun(apiClient.auth.resetPassword);
 
 		const schema = getResetPasswordSchema(z).and(
 			z.object({
@@ -118,13 +87,9 @@ export const action = getServerAction({
 		});
 
 		if (result.status === 'error') {
-			context.logger.error('Failed to reset password', {
-				error: serializeError(result.error),
-			});
-
 			return {
 				status: 'error',
-				error: serializeError(result.error),
+				error: result.error.message,
 			} as const;
 		}
 
@@ -144,8 +109,7 @@ export const action = getServerAction({
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request, context }) => {
-		const apiClient = getClientManager().createClient({ skipAuth: true });
+	loader: async ({ request, apiClient }) => {
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
@@ -159,14 +123,7 @@ export const loader = getServerLoader({
 		}
 
 		const checkResetPasswordToken = safeRun(
-			async (params: { id: string; token: string }) => {
-				return await apiClient.auth.checkResetPasswordToken.get({
-					queryParameters: {
-						id: params.id,
-						token: params.token,
-					},
-				});
-			},
+			apiClient.auth.checkResetPasswordToken,
 		);
 
 		// verify if token belongs to the email
@@ -176,22 +133,20 @@ export const loader = getServerLoader({
 		});
 
 		if (result.status === 'error') {
-			context.logger.error('Failed to check reset password token', {
-				error: serializeError(result.error),
-			});
-
-			if (result.error.message === 'Invalid or expired password reset token') {
-				return {
-					code: 'INVALID_LINK',
-				} as const;
-			}
+			// if (result.error instanceof ParseRestError) {
+			// 	if (result.error.code === X_CODE.INVALID_RESET_PASSWORD_TOKEN_OR_ID) {
+			// 		return {
+			// 			code: 'INVALID_LINK',
+			// 		} as const;
+			// 	}
+			// }
 
 			throw result.error;
 		}
 
 		return {
 			code: 'OK',
-			email: result.data?.email ?? '',
+			email: result.data.email,
 		} as const;
 	},
 });
@@ -250,7 +205,7 @@ const ResetPasswordForm = () => {
 	const showConfirmPassword = useBoolean();
 	const loaderData = useLoaderData<typeof loader>();
 
-	const schema = getResetPasswordSchema(interZodClient);
+	const schema = getResetPasswordSchema(defaultZodClient);
 
 	const form = useForm({
 		resolver: zodResolver(schema),
@@ -268,7 +223,8 @@ const ResetPasswordForm = () => {
 
 	const fetcher = useFetcher<typeof action>();
 
-	const errorMessage = getSerializedErrorMessage(fetcher.data?.error, t);
+	const errorFetcher = fetcher.data?.error;
+	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
 
 	const handleSubmit = form.handleSubmit(async (data) => {
 		await fetcher.submit(data, {
