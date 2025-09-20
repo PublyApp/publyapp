@@ -398,18 +398,6 @@
           }
         }
       }
-    },
-    "/test": {
-      "get": {
-        "tags": [
-          "MainApi"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
     }
   },
   "components": {
@@ -1006,9 +994,6 @@
     },
     {
       "name": "Products"
-    },
-    {
-      "name": "MainApi"
     }
   ]
 }

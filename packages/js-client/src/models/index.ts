@@ -134,6 +134,15 @@ export function createProfileFromDiscriminatorValue(parseNode: ParseNode | undef
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ProfileItem}
+ */
+// @ts-ignore
+export function createProfileItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoProfileItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {ProfilePermission}
  */
 // @ts-ignore
@@ -265,8 +274,7 @@ export function deserializeIntoGetTenantAuthDataResult(getTenantAuthDataResult: 
         "code": n => { getTenantAuthDataResult.code = n.getStringValue(); },
         "id": n => { getTenantAuthDataResult.id = n.getGuidValue(); },
         "name": n => { getTenantAuthDataResult.name = n.getStringValue(); },
-        "permissions": n => { getTenantAuthDataResult.permissions = n.getCollectionOfPrimitiveValues<string>(); },
-        "profileIds": n => { getTenantAuthDataResult.profileIds = n.getCollectionOfPrimitiveValues<Guid>(); },
+        "profiles": n => { getTenantAuthDataResult.profiles = n.getCollectionOfObjectValues<ProfileItem>(createProfileItemFromDiscriminatorValue); },
     }
 }
 /**
@@ -401,6 +409,19 @@ export function deserializeIntoProfile(profile: Partial<Profile> | undefined = {
         "tenantId": n => { profile.tenantId = n.getGuidValue(); },
         "updatedAt": n => { profile.updatedAt = n.getDateValue(); },
         "userAccountProfiles": n => { profile.userAccountProfiles = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ProfileItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoProfileItem(profileItem: Partial<ProfileItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "id": n => { profileItem.id = n.getGuidValue(); },
+        "name": n => { profileItem.name = n.getStringValue(); },
+        "permissions": n => { profileItem.permissions = n.getCollectionOfPrimitiveValues<string>(); },
     }
 }
 /**
@@ -561,13 +582,9 @@ export interface GetTenantAuthDataResult extends AdditionalDataHolder, Parsable 
      */
     name?: string | null;
     /**
-     * The permissions property
+     * The profiles property
      */
-    permissions?: string[] | null;
-    /**
-     * The profileIds property
-     */
-    profileIds?: Guid[] | null;
+    profiles?: ProfileItem[] | null;
 }
 export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
     /**
@@ -763,6 +780,20 @@ export interface Profile extends AdditionalDataHolder, Parsable {
      */
     userAccountProfiles?: UntypedNode | null;
 }
+export interface ProfileItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+    /**
+     * The permissions property
+     */
+    permissions?: string[] | null;
+}
 export interface ProfilePermission extends AdditionalDataHolder, Parsable {
     /**
      * The createdAt property
@@ -847,8 +878,7 @@ export function serializeGetTenantAuthDataResult(writer: SerializationWriter, ge
     writer.writeStringValue("code", getTenantAuthDataResult.code);
     writer.writeGuidValue("id", getTenantAuthDataResult.id);
     writer.writeStringValue("name", getTenantAuthDataResult.name);
-    writer.writeCollectionOfPrimitiveValues<string>("permissions", getTenantAuthDataResult.permissions);
-    writer.writeCollectionOfPrimitiveValues<Guid>("profileIds", getTenantAuthDataResult.profileIds);
+    writer.writeCollectionOfObjectValues<ProfileItem>("profiles", getTenantAuthDataResult.profiles, serializeProfileItem);
     writer.writeAdditionalData(getTenantAuthDataResult.additionalData);
 }
 /**
@@ -993,6 +1023,20 @@ export function serializeProfile(writer: SerializationWriter, profile: Partial<P
     writer.writeDateValue("updatedAt", profile.updatedAt);
     writer.writeObjectValue("userAccountProfiles", profile.userAccountProfiles);
     writer.writeAdditionalData(profile.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ProfileItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeProfileItem(writer: SerializationWriter, profileItem: Partial<ProfileItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!profileItem || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("id", profileItem.id);
+    writer.writeStringValue("name", profileItem.name);
+    writer.writeCollectionOfPrimitiveValues<string>("permissions", profileItem.permissions);
+    writer.writeAdditionalData(profileItem.additionalData);
 }
 /**
  * Serializes information the current object
