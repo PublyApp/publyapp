@@ -398,6 +398,18 @@
           }
         }
       }
+    },
+    "/test": {
+      "get": {
+        "tags": [
+          "MainApi"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -452,17 +464,10 @@
           "code": {
             "type": "string"
           },
-          "profileIds": {
+          "profiles": {
             "type": "array",
             "items": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          "permissions": {
-            "type": "array",
-            "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ProfileItem"
             }
           }
         }
@@ -680,6 +685,24 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          }
+        }
+      },
+      "ProfileItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -983,6 +1006,9 @@
     },
     {
       "name": "Products"
+    },
+    {
+      "name": "MainApi"
     }
   ]
 }

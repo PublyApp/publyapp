@@ -44,6 +44,15 @@ export function createCreateStaffTenantResultFromDiscriminatorValue(parseNode: P
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetTenantAuthDataResult}
+ */
+// @ts-ignore
+export function createGetTenantAuthDataResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetTenantAuthDataResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetUserAuthDataResult}
  */
 // @ts-ignore
@@ -243,6 +252,21 @@ export function deserializeIntoCreateStaffTenantResult(createStaffTenantResult: 
     return {
         "id": n => { createStaffTenantResult.id = n.getGuidValue(); },
         "name": n => { createStaffTenantResult.name = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetTenantAuthDataResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetTenantAuthDataResult(getTenantAuthDataResult: Partial<GetTenantAuthDataResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "code": n => { getTenantAuthDataResult.code = n.getStringValue(); },
+        "id": n => { getTenantAuthDataResult.id = n.getGuidValue(); },
+        "name": n => { getTenantAuthDataResult.name = n.getStringValue(); },
+        "permissions": n => { getTenantAuthDataResult.permissions = n.getCollectionOfPrimitiveValues<string>(); },
+        "profileIds": n => { getTenantAuthDataResult.profileIds = n.getCollectionOfPrimitiveValues<Guid>(); },
     }
 }
 /**
@@ -523,6 +547,28 @@ export function deserializeIntoVerifyEmailRequestResult(verifyEmailRequestResult
         "status": n => { verifyEmailRequestResult.status = n.getStringValue(); },
     }
 }
+export interface GetTenantAuthDataResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The code property
+     */
+    code?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+    /**
+     * The permissions property
+     */
+    permissions?: string[] | null;
+    /**
+     * The profileIds property
+     */
+    profileIds?: Guid[] | null;
+}
 export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
     /**
      * The email property
@@ -788,6 +834,22 @@ export function serializeCreateStaffTenantResult(writer: SerializationWriter, cr
     writer.writeGuidValue("id", createStaffTenantResult.id);
     writer.writeStringValue("name", createStaffTenantResult.name);
     writer.writeAdditionalData(createStaffTenantResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetTenantAuthDataResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetTenantAuthDataResult(writer: SerializationWriter, getTenantAuthDataResult: Partial<GetTenantAuthDataResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getTenantAuthDataResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("code", getTenantAuthDataResult.code);
+    writer.writeGuidValue("id", getTenantAuthDataResult.id);
+    writer.writeStringValue("name", getTenantAuthDataResult.name);
+    writer.writeCollectionOfPrimitiveValues<string>("permissions", getTenantAuthDataResult.permissions);
+    writer.writeCollectionOfPrimitiveValues<Guid>("profileIds", getTenantAuthDataResult.profileIds);
+    writer.writeAdditionalData(getTenantAuthDataResult.additionalData);
 }
 /**
  * Serializes information the current object

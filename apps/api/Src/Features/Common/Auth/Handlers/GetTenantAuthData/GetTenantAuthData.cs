@@ -1,4 +1,6 @@
 using MainApi.Localization;
+using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Middlewares;
@@ -16,16 +18,12 @@ public class GetTenantAuthDataQuery {
 	}
 }
 
+
 public class GetTenantAuthDataResult {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
 	public string Code { get; set; } = string.Empty;
-	public List<Guid> ProfileIds { get; set; } = [];
-
-	/// <summary>
-	/// The permission keys for the user in the tenant
-	/// </summary>
-	public List<string> Permissions { get; set; } = [];
+	public List<ProfileItem> Profiles { get; set; } = [];
 }
 
 public class GetTenantAuthData {
@@ -40,6 +38,8 @@ public class GetTenantAuthData {
 		[AsParameters] GetTenantAuthDataQuery query,
 		[FromServices] IOptions<AppSettings> appSettings,
 		[FromServices] ITenantService tenantService,
+		[FromServices] IProfileService profileService,
+		[FromServices] MainApiDbContext dbContext,
 		CancellationToken cancellationToken = default
 	) {
 		if (!authContext.IsAuthenticated) {
@@ -59,6 +59,13 @@ public class GetTenantAuthData {
 			appSettings.Value.STAFF_TENANT_CODE,
 			StringComparison.Ordinal
 		)) {
+			// check if the staff tenant still exists
+			var staffTenant = await tenantService.GetStaffTenantAsync(cancellationToken);
+
+			if (staffTenant is null) {
+				throw new Exception("Staff tenant not found");
+			}
+
 			var isUserStaffMember = await tenantService.IsUserStaffMemberAsync(userId, cancellationToken);
 
 			if (!isUserStaffMember) {
@@ -77,27 +84,72 @@ public class GetTenantAuthData {
 				));
 			}
 
-			var staffTenant = await tenantService.GetStaffTenantAsync(cancellationToken);
-
-			if (staffTenant is null) {
-				throw new Exception("Staff tenant not found");
-			}
+			// Get the user's profiles and permissions for the staff tenant
+			var staffProfileItems = await profileService.GetUserProfilesWithPermissionsForTenantAsync(
+				userId,
+				staffTenant.Id,
+				appSettings.Value.MAX_PROFILES_PER_USER_PER_TENANT,
+				cancellationToken
+			);
 
 			return TypedResults.Ok(
 				new GetTenantAuthDataResult {
 					Id = staffTenant.Id,
 					Name = staffTenant.Name,
 					Code = staffTenant.Code,
-					ProfileIds = [],
-					Permissions = []
+					Profiles = staffProfileItems
 				}
 			);
 		}
 
+		var tenantId = query.GetTenantId();
+
+		if (tenantId == Guid.Empty) {
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"Tenant not found",
+				ResponseKeys.NotFound
+			));
+		}
+
+		var tenant = await tenantService.GetTenantAsync(tenantId, cancellationToken);
+
+		if (tenant is null) {
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"Tenant not found",
+				ResponseKeys.NotFound
+			));
+		}
+
+		var isUserMemberOfTenant = await tenantService.IsUserMemberOfTenantAsync(userId, tenantId, cancellationToken);
+
+		if (!isUserMemberOfTenant) {
+			logger.LogWarning(
+				"Attempt to access tenant auth data by user who is not a member of the tenant, {@LogData}",
+				new {
+					UserId = userId,
+					TenantId = tenantId,
+					SessionToken = authContext.SessionToken,
+				}
+			);
+
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"Unauthorized",
+				ResponseKeys.Unauthorized
+			));
+		}
+
+		var tenantProfileItems = await profileService.GetUserProfilesWithPermissionsForTenantAsync(
+			userId,
+			tenantId,
+			appSettings.Value.MAX_PROFILES_PER_USER_PER_TENANT,
+			cancellationToken
+		);
+
 		return TypedResults.Ok(new GetTenantAuthDataResult {
-			Id = query.GetTenantId(),
-			Name = query.TenantId,
-			Code = query.TenantId
+			Id = tenantId,
+			Name = tenant.Name,
+			Code = tenant.Code,
+			Profiles = tenantProfileItems
 		});
 	}
 }
