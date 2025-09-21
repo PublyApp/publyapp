@@ -15,6 +15,7 @@ The application implements automatic audit tracking for all entities that inheri
 ## Base Classes
 
 ### BaseAttributesNoKey
+
 For entities that need audit tracking without a primary key.
 
 ```csharp
@@ -28,6 +29,7 @@ public class BaseAttributesNoKey
 ```
 
 ### BaseAttributes
+
 For entities with primary keys (most common).
 
 ```csharp
@@ -42,6 +44,7 @@ public class BaseAttributes : BaseAttributesNoKey
 ### Standard Operations (Automatic)
 
 #### Creating Entities
+
 ```csharp
 var newUser = new User
 {
@@ -55,6 +58,7 @@ await context.SaveChangesAsync(); // CreatedAt and UpdatedAt set automatically
 ```
 
 #### Updating Entities
+
 ```csharp
 var user = await context.User.FirstAsync();
 user.FirstName = "Jane";
@@ -62,6 +66,7 @@ await context.SaveChangesAsync(); // UpdatedAt set automatically
 ```
 
 #### Deleting Entities (Soft Delete)
+
 ```csharp
 var user = await context.User.FirstAsync();
 context.User.Remove(user);
@@ -71,6 +76,7 @@ await context.SaveChangesAsync(); // Sets IsDeleted=true, DeletedAt=now, Updated
 ### Bulk Operations (With Audit Tracking)
 
 #### Bulk Updates
+
 ```csharp
 // Update multiple users with automatic UpdatedAt tracking
 var updatedCount = await context.User.ExecuteUpdateWithAuditAsync(
@@ -86,6 +92,7 @@ var updatedCount2 = await context.User.ExecuteUpdateWithAuditAsync(
 ```
 
 #### Bulk Soft Deletes
+
 ```csharp
 // Soft delete all users with complete audit trail
 var deletedCount = await context.User.ExecuteSoftDeleteAsync();
@@ -100,6 +107,7 @@ var deletedCount2 = await context.User
 ```
 
 #### Force Hard Delete (Opt-Out)
+
 ```csharp
 // This permanently deletes the record (bypasses soft delete)
 context.ForceHardDelete(user);
@@ -136,6 +144,7 @@ dotnet ef database update
 ## Query Patterns
 
 ### Include Soft-Deleted Records
+
 ```csharp
 var allUsers = await context.User
     .IgnoreQueryFilters()
@@ -143,11 +152,13 @@ var allUsers = await context.User
 ```
 
 ### Exclude Soft-Deleted Records (Default)
+
 ```csharp
 var activeUsers = await context.User.ToListAsync();
 ```
 
 ### Only Soft-Deleted Records
+
 ```csharp
 var deletedUsers = await context.User
     .Where(u => u.IsDeleted)
@@ -159,31 +170,39 @@ var deletedUsers = await context.User
 ### DbSet Extension Methods
 
 #### ExecuteSoftDelete
+
 ```csharp
 public static int ExecuteSoftDelete<TEntity>(this DbSet<TEntity> dbSet)
     where TEntity : BaseAttributesNoKey
 ```
+
 Bulk soft delete with audit tracking (sets IsDeleted, DeletedAt, UpdatedAt).
 
 #### ExecuteSoftDeleteAsync
+
 ```csharp
 public static async Task<int> ExecuteSoftDeleteAsync<TEntity>(this DbSet<TEntity> dbSet, CancellationToken cancellationToken = default)
     where TEntity : BaseAttributesNoKey
 ```
+
 Async bulk soft delete with audit tracking.
 
 #### ExecuteUpdateWithAudit
+
 ```csharp
 public static int ExecuteUpdateWithAudit<TEntity>(this DbSet<TEntity> dbSet, Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>> setPropertyCalls)
     where TEntity : BaseAttributesNoKey
 ```
+
 Bulk update with automatic UpdatedAt tracking.
 
 #### ExecuteUpdateWithAuditAsync
+
 ```csharp
 public static async Task<int> ExecuteUpdateWithAuditAsync<TEntity>(this DbSet<TEntity> dbSet, Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>> setPropertyCalls, CancellationToken cancellationToken = default)
     where TEntity : BaseAttributesNoKey
 ```
+
 Async bulk update with automatic UpdatedAt tracking.
 
 ## Best Practices
@@ -197,13 +216,16 @@ Async bulk update with automatic UpdatedAt tracking.
 ## Troubleshooting
 
 ### Audit Fields Not Updating
+
 - Ensure entity inherits from `BaseAttributesNoKey`
 - Check that `SaveChanges()` is being called
 
 ### Soft Deletes Not Working
+
 - Use `ExecuteSoftDelete` instead of standard `ExecuteDelete`
 - Verify entity inherits from `BaseAttributesNoKey`
 
 ### Performance Issues
+
 - Use bulk operations for large datasets
 - Consider adding database indexes on audit columns

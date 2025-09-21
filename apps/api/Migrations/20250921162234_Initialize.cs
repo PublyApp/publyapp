@@ -41,10 +41,11 @@ namespace MainApi.Migrations {
 					name: "users",
 					columns: table => new {
 						id = table.Column<Guid>(type: "uuid", nullable: false),
-						last_name = table.Column<string>(type: "text", nullable: false),
+						last_name = table.Column<string>(type: "text", nullable: true),
 						first_name = table.Column<string>(type: "text", nullable: true),
 						email = table.Column<string>(type: "text", nullable: false),
 						password = table.Column<string>(type: "text", nullable: false),
+						avatar_url = table.Column<string>(type: "text", nullable: true),
 						is_suspended = table.Column<bool>(type: "boolean", nullable: false),
 						is_verified = table.Column<bool>(type: "boolean", nullable: false),
 						email_verify_token = table.Column<string>(type: "text", nullable: true),
@@ -232,15 +233,27 @@ namespace MainApi.Migrations {
 					column: "tenant_id");
 
 			migrationBuilder.CreateIndex(
+					name: "IX_sessions_expires_at",
+					table: "sessions",
+					column: "expires_at");
+
+			migrationBuilder.CreateIndex(
+					name: "IX_sessions_token",
+					table: "sessions",
+					column: "token",
+					unique: true);
+
+			migrationBuilder.CreateIndex(
 					name: "IX_sessions_user_id",
 					table: "sessions",
 					column: "user_id");
 
 			migrationBuilder.CreateIndex(
-					name: "IX_tenants_code",
+					name: "ix_tenants_code_active",
 					table: "tenants",
 					column: "code",
-					unique: true);
+					unique: true,
+					filter: "\"is_deleted\" = false");
 
 			migrationBuilder.CreateIndex(
 					name: "IX_user_account_profiles_profile_id",
@@ -259,16 +272,23 @@ namespace MainApi.Migrations {
 					column: "tenant_id");
 
 			migrationBuilder.CreateIndex(
+					name: "ix_user_accounts_user_id_account_type_active",
+					table: "user_accounts",
+					columns: new[] { "user_id", "account_type" },
+					filter: "\"is_deleted\" = false AND \"is_suspended\" = false");
+
+			migrationBuilder.CreateIndex(
 					name: "IX_user_accounts_user_id_tenant_id_account_type",
 					table: "user_accounts",
 					columns: new[] { "user_id", "tenant_id", "account_type" },
 					unique: true);
 
 			migrationBuilder.CreateIndex(
-					name: "IX_users_email",
+					name: "ix_users_email_active",
 					table: "users",
 					column: "email",
-					unique: true);
+					unique: true,
+					filter: "\"is_deleted\" = false");
 		}
 
 		/// <inheritdoc />

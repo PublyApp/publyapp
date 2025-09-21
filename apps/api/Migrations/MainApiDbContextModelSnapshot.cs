@@ -70,7 +70,7 @@ namespace MainApi.Migrations
                     b.HasIndex("TenantId");
 
                     b.HasIndex("UserId", "AccountType")
-                        .HasDatabaseName("ix_user_accounts_userid_accounttype_active")
+                        .HasDatabaseName("ix_user_accounts_user_id_account_type_active")
                         .HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
 
                     b.HasIndex("UserId", "TenantId", "AccountType")
@@ -340,6 +340,10 @@ namespace MainApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("avatar_url");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -378,7 +382,6 @@ namespace MainApi.Migrations
                         .HasColumnName("is_verified");
 
                     b.Property<string>("LastName")
-                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("last_name");
 

@@ -90,6 +90,7 @@ user_account_profiles (account_id, profile_id)
 ```
 
 **Benefits:**
+
 - **Single Source of Truth**: All permission keys and account types defined once
 - **Type Safety**: Foreign key constraints prevent invalid permissions and account types
 - **Flexible**: Staff can have both staff and tenant permissions
@@ -103,6 +104,7 @@ user_account_profiles (account_id, profile_id)
 ### What is UUID v7?
 
 UUID v7 is a time-ordered UUID that includes:
+
 - **Timestamp**: 48-bit timestamp (milliseconds since Unix epoch)
 - **Random Data**: 74 bits of random data
 - **Version**: Version 7 identifier
@@ -173,6 +175,7 @@ dotnet tool run dotnet-ef database update MigrationName
 The new unified permission system replaces the old array-based approach:
 
 **Before (Array-based + Separate Tables):**
+
 ```csharp
 // Old approach - arrays in entities and separate tables
 public class ProfileStaff : BaseAttributes
@@ -193,6 +196,7 @@ public class UserAccountTenant : BaseAttributes
 ```
 
 **After (Unified Relational):**
+
 ```csharp
 // New approach - unified entities with proper relationships
 public class Permission : BaseAttributes
@@ -221,9 +225,11 @@ public class ProfilePermission : BaseAttributes
 Since you started fresh with no existing data, the unified system is already in place:
 
 1. **Database Schema Created:**
+
    ```bash
    dotnet tool run dotnet-ef database update
    ```
+
    ✅ **COMPLETED** - Your database now has the unified permission and account system
 
 2. **Next Steps:**
@@ -241,6 +247,7 @@ Since you started fresh with no existing data, the unified system is already in 
 - ❌ `UserAccountTenant` → ✅ `UserAccount` with `AccountType.Tenant`
 
 **Database cleanup completed:**
+
 - Obsolete tables removed from database
 - All code updated to use unified entities
 - Permission system fully migrated to relational design
@@ -250,6 +257,7 @@ Since you started fresh with no existing data, the unified system is already in 
 ### Setting Up Environment
 
 1. **Install PostgreSQL**:
+
    ```bash
    # Using Docker (recommended)
    docker run --name postgres-pdfvite \
@@ -260,13 +268,16 @@ Since you started fresh with no existing data, the unified system is already in 
    ```
 
 2. **Set Environment Variables**:
+
    Create `.env.local` in `apps/api/`:
-   ```
+
+   ```text
    POSTGRES_CONNECTION_STRING=Host=localhost;Database=pdfvite_db;Username=postgres;Password=password
    FRONT_URL=http://localhost:3000
    ```
 
 3. **Apply Migrations**:
+
    ```bash
    cd apps/api
    dotnet tool run dotnet-ef database update
@@ -360,12 +371,14 @@ docker exec -i postgres-pdfvite psql -U postgres pdfvite_db < backup.sql
 ### Common Issues
 
 #### 1. "relation does not exist" Error
+
 ```bash
 # Solution: Apply migrations
 dotnet tool run dotnet-ef database update
 ```
 
 #### 2. Connection String Issues
+
 ```bash
 # Check environment variables
 echo $POSTGRES_CONNECTION_STRING
@@ -375,6 +388,7 @@ docker ps | grep postgres
 ```
 
 #### 3. Migration Conflicts
+
 ```bash
 # Remove last migration (if not applied)
 dotnet tool run dotnet-ef migrations remove
@@ -385,6 +399,7 @@ dotnet tool run dotnet-ef database update
 ```
 
 #### 4. UUID Generation Issues
+
 ```csharp
 // Ensure you're using the correct method
 public Guid Id { get; set; } = Guid.CreateVersion7(); // ✅ Correct

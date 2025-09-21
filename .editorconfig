@@ -37,3 +37,5 @@ csharp_new_line_before_open_brace = none
 csharp_new_line_before_else = false
 csharp_new_line_before_catch = false
 csharp_new_line_before_finally = false
+# IDE0305: Simplify collection initialization
+dotnet_diagnostic.IDE0305.severity = none

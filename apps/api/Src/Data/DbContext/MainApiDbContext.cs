@@ -8,8 +8,8 @@ using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Tenant.Product;
-using MainApi.Src.Lib.Filters;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 
 /// <summary>
 /// Main database context with automatic audit tracking for all entities.
@@ -64,7 +64,22 @@ public class MainApiDbContext : DbContext {
 		// EF Core 9: Define seeding logic here
 		optionsBuilder.UseSeeding((context, _) => {
 			var dbContext = (MainApiDbContext)context;
-			SeedPermissions(dbContext);
+
+			if (dbContext is null) {
+				throw new Exception("dbContext is null");
+			}
+
+			Seeder.SeedAll(dbContext);
+		});
+
+		optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
+			var dbContext = (MainApiDbContext)context;
+
+			if (dbContext is null) {
+				throw new Exception("dbContext is null");
+			}
+
+			await Seeder.SeedAllAsync(dbContext);
 		});
 	}
 
@@ -91,7 +106,7 @@ public class MainApiDbContext : DbContext {
 
 		modelBuilder.Entity<UserAccount>()
 			.HasIndex(u => new { u.UserId, u.AccountType })
-			.HasDatabaseName("ix_user_accounts_userid_accounttype_active")
+			.HasDatabaseName("ix_user_accounts_user_id_account_type_active")
 			.HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
 
 		// Apply matching query filters to ensure consistent filtering
@@ -135,40 +150,6 @@ public class MainApiDbContext : DbContext {
 						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)} or {nameof(INoTenantEntity)}");
 			}
 		}
-	}
-
-	private static void SeedPermissions(MainApiDbContext dbContext) {
-		// Check if any permissions already exist to prevent duplicates
-		if (!dbContext.Permission.Any()) {
-			var permissions = GetPermissionsFromEnum();
-			dbContext.Permission.AddRange(permissions);
-			dbContext.SaveChanges();
-		}
-	}
-
-	private static List<Permission> GetPermissionsFromEnum() {
-		// Get all permission objects from PermissionEnum using reflection
-		var staffEnumType = typeof(PermissionEnum.Staff);
-		var tenantEnumType = typeof(PermissionEnum.Tenant);
-		var staffFields = staffEnumType.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-		var tenantFields = tenantEnumType.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-
-		var permissions = new List<Permission>();
-
-		foreach (var field in staffFields) {
-			if (field.FieldType == typeof(Permission)) {
-				var permission = (Permission)field.GetValue(null)!;
-				permissions.Add(permission);
-			}
-		}
-		foreach (var field in tenantFields) {
-			if (field.FieldType == typeof(Permission)) {
-				var permission = (Permission)field.GetValue(null)!;
-				permissions.Add(permission);
-			}
-		}
-
-		return permissions;
 	}
 
 	#region Audit Tracking - SaveChanges Overrides
@@ -252,5 +233,4 @@ public class MainApiDbContext : DbContext {
 	}
 
 	#endregion
-
 }

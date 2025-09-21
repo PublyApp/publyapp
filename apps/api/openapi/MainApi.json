@@ -967,6 +967,10 @@
         }
       },
       "Tenant": {
+        "required": [
+          "code",
+          "name"
+        ],
         "type": "object",
         "properties": {
           "code": {

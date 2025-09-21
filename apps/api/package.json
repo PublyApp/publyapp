@@ -8,6 +8,7 @@
 		"publish": "dotnet publish MainApi.csproj --output ./bin",
 		"migrate:add": "dotnet ef migrations add",
 		"migrate:apply": "dotnet ef database update",
-		"migrate:remove": "dotnet ef migrations remove"
+		"migrate:remove": "dotnet ef migrations remove",
+		"seed": "dotnet ef database seed"
 	}
 }
