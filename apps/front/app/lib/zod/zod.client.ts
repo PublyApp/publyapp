@@ -5,7 +5,8 @@ import InterZod from '@/shared/lib/zod/InterZod';
 
 export const defaultZodClient = new InterZod({ i18n: i18next });
 
-// ! This must be called after initI18nOnClient(): the order of the calls in entry.client.tsx is important
+// ! This must be called after initI18nOnClient()
+// ! the order of the calls in entry.client.tsx is important
 export const initZodOnClient = (i18n: I18n) => {
 	const locale = getCorrectLocale(i18n.language);
 	defaultZodClient.setLocale(locale);

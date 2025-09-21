@@ -1,16 +1,16 @@
+import { spawn } from 'node:child_process';
+import { rm } from 'node:fs/promises';
+import path from 'node:path';
+import { isBun } from 'node:process';
 // @ts-check
-import { spawn } from "node:child_process";
-import { bunBuild } from "./_bun-build.mjs";
-import path from "node:path";
-import _ from "lodash";
-import { isBun } from "node:process";
-import { buildOptions, createI18nResourcesFiles } from "./config.mjs";
-import { rm } from "node:fs/promises";
+import _ from 'lodash';
+import { bunBuild } from './_bun-build.mjs';
+import { buildOptions, createI18nResourcesFiles } from './config.mjs';
 
 const deleteDist = async () => {
 	const distPath = path.resolve(import.meta.dirname, '../../dist');
 	await rm(distPath, { recursive: true, force: true });
-}
+};
 
 let startAppProcess = null;
 await deleteDist();
@@ -29,12 +29,16 @@ bunBuild({
 		if (startAppProcess) {
 			startAppProcess.kill('SIGINT');
 			startAppProcess = null;
-			await rm("../../dist", { recursive: true, force: true });
+			await rm('../../dist', { recursive: true, force: true });
 		}
 
 		// const startCommand = ['node', '--enable-source-maps', 'dist/index.mjs'];
 		const onWindows = /^win/.test(process.platform);
-		const startCommand = [onWindows ? /* 'bun.cmd' */ 'bun' : 'bun', '--enable-source-maps', 'dist/index.mjs'];
+		const startCommand = [
+			onWindows ? /* 'bun.cmd' */ 'bun' : 'bun',
+			'--enable-source-maps',
+			'dist/index.mjs',
+		];
 
 		console.log(
 			'\x1b[32m%s\x1b[0m',
@@ -49,19 +53,19 @@ bunBuild({
 		const [node, ...args] = startCommand;
 
 		if (isBun) {
-			startAppProcess = Bun.spawn({
-				cmd: [node, ...args],
-				stdio: ["inherit", "inherit", "inherit"],
-				cwd: path.resolve(import.meta.dirname, '../../'),
-				env: _.assign({}, process.env, {
-					// even during development, set NODE_ENV to production
-					// so that we can have production-like behavior
-					// (e.g. the app will not crash on missing env variables + better performance)
-					// To differentiate between development and production, use process.env.MODE instead of process.env.NODE_ENV
-					// (MODE is set by the user in the .env.local file or at node command line launch)
-					NODE_ENV: 'production',
-				}),
-			})
+			// startAppProcess = Bun.spawn({
+			// 	cmd: [node, ...args],
+			// 	stdio: ["inherit", "inherit", "inherit"],
+			// 	cwd: path.resolve(import.meta.dirname, '../../'),
+			// 	env: _.assign({}, process.env, {
+			// 		// even during development, set NODE_ENV to production
+			// 		// so that we can have production-like behavior
+			// 		// (e.g. the app will not crash on missing env variables + better performance)
+			// 		// To differentiate between development and production, use process.env.MODE instead of process.env.NODE_ENV
+			// 		// (MODE is set by the user in the .env.local file or at node command line launch)
+			// 		NODE_ENV: 'production',
+			// 	}),
+			// })
 		} else {
 			startAppProcess = spawn(node, args, {
 				stdio: 'inherit',

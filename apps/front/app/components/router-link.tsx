@@ -1,7 +1,12 @@
 import _ from 'lodash';
+import { useEffect, useState } from 'react';
 import { Link, type LinkProps, type To } from 'react-router';
+import {
+	LANGUAGE_DETECTION_METHOD,
+	LANGUAGE_DETECTION_METHOD_ENUM,
+	queryParamKey,
+} from '@/shared/lib/constants';
 import { useTranslate } from '../hooks/use-translate';
-import { isServer, queryParamKey } from '@/shared/lib/constants';
 import { env } from '../lib/env';
 
 // ----------------------------------------------------------------------
@@ -17,7 +22,7 @@ if (import.meta.env.DEV) {
 }
 const viteOrigin = viteUrl.origin;
 
-const checkIsExternalUrl = (to: To): to is string => {
+const checkIsExternalUrl = (to: To, clientOrigin?: string): to is string => {
 	if (_.isObject(to)) {
 		return false;
 	}
@@ -26,22 +31,29 @@ const checkIsExternalUrl = (to: To): to is string => {
 
 	try {
 		url = new URL(to);
-	} catch (e) {}
+	} catch (_e) {}
 
 	if (!url) {
 		return false;
 	}
 
-	if ((isServer ? viteOrigin : window.location.origin) === url.origin) {
+	const origin = clientOrigin || viteOrigin;
+	if (origin === url.origin) {
 		return true;
 	}
 
 	return false;
 };
 
-export const RouterLink = ({ href, ref, ...other }: RouterLinkProps) => {
-	const isExternalUrl = checkIsExternalUrl(href);
+const RouterLink_A = ({ href, ref, ...other }: RouterLinkProps) => {
+	const [clientOrigin, setClientOrigin] = useState<string | undefined>();
 	const { currentLang } = useTranslate();
+
+	useEffect(() => {
+		setClientOrigin(window.location.origin);
+	}, []);
+
+	const isExternalUrl = checkIsExternalUrl(href, clientOrigin);
 
 	let to = href;
 
@@ -62,7 +74,7 @@ export const RouterLink = ({ href, ref, ...other }: RouterLinkProps) => {
 
 			try {
 				url = new URL(href);
-			} catch (e) {}
+			} catch (_e) {}
 
 			if (!url) {
 				const [pathname, search] = _.split(href, '?');
@@ -79,3 +91,12 @@ export const RouterLink = ({ href, ref, ...other }: RouterLinkProps) => {
 
 	return <Link ref={ref} to={to} {...other} />;
 };
+
+const RouterLink_B = ({ href, ref, ...other }: RouterLinkProps) => {
+	return <Link ref={ref} to={href} {...other} />;
+};
+
+export const RouterLink =
+	LANGUAGE_DETECTION_METHOD === LANGUAGE_DETECTION_METHOD_ENUM.QUERY_PARAM
+		? RouterLink_A
+		: RouterLink_B;

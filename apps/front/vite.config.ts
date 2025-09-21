@@ -1,12 +1,13 @@
+import path from 'node:path';
 import { reactRouter } from '@react-router/dev/vite';
-import { defineConfig } from 'vite';
-import checker from 'vite-plugin-checker';
-import tsconfigPaths from 'vite-tsconfig-paths';
-import { reactRouterDevTools } from 'react-router-devtools';
-import devtoolsJson from 'vite-plugin-devtools-json';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
-import path from 'node:path';
+import { reactRouterDevTools } from 'react-router-devtools';
+import { defineConfig } from 'vite';
+import checker from 'vite-plugin-checker';
+import devtoolsJson from 'vite-plugin-devtools-json';
+import tsconfigPaths from 'vite-tsconfig-paths';
+import copyI18nFiles from './_vite/copy-i18n-files';
 
 export default defineConfig(({ mode }) => {
 	const envFileName = `.env.${mode}`;
@@ -18,6 +19,7 @@ export default defineConfig(({ mode }) => {
 
 	return {
 		plugins: [
+			copyI18nFiles(),
 			devtoolsJson(),
 			reactRouterDevTools(),
 			reactRouter(),
@@ -34,6 +36,22 @@ export default defineConfig(({ mode }) => {
 			esbuildOptions: {
 				target: 'ES2022',
 			},
+			include: [
+				'lodash',
+				'nprogress',
+				'cookie',
+				'isbot',
+				'serialize-error',
+				'@mui/system',
+				'@mui/material',
+				'@mui/utils',
+				'@mui/icons-material',
+				'@mui/styled-engine',
+				'@mui/x-date-pickers',
+				'@mui/x-data-grid',
+				'@mui/x-tree-view',
+				'mui-one-time-password-input',
+			],
 		},
 		ssr: {
 			noExternal:
@@ -69,8 +87,5 @@ export default defineConfig(({ mode }) => {
 							'react-dom/server': 'react-dom/server.node',
 						},
 					},
-		// define: {
-		// 	'process.env.VITE_SERVER_URL': JSON.stringify(/* your value */),
-		// }
 	};
 });

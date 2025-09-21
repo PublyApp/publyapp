@@ -1,13 +1,17 @@
 // @ts-check
-import path from 'node:path';
+
 import fs, { createWriteStream } from 'node:fs';
+import path from 'node:path';
 import { pipeline, Readable } from 'node:stream';
 import { promisify } from 'node:util';
 import _ from 'lodash';
 // import { createRsbuild as _createRsbuild } from '@rsbuild/core';
 // import { pluginTypeCheck } from '@rsbuild/plugin-type-check';
 
-export const MONOREPO_ROOT_DIR = path.resolve(import.meta.dirname, '../../../../');
+export const MONOREPO_ROOT_DIR = path.resolve(
+	import.meta.dirname,
+	'../../../../',
+);
 
 export const APPS_DIR = path.join(MONOREPO_ROOT_DIR, 'apps');
 export const PACKAGES_DIR = path.join(MONOREPO_ROOT_DIR, 'packages');
@@ -148,11 +152,14 @@ export const createI18nResourcesFiles = async (resources) => {
 	);
 };
 
-/**
- * @type {Bun.BuildConfig}
- */
+// @type {Bun.BuildConfig}
 export const buildOptions = {
-	entrypoints: ['./src/index.ts', './src/_seed.ts', './src/_migrations.ts', './src/_i18n.ts'],
+	entrypoints: [
+		'./src/index.ts',
+		'./src/_seed.ts',
+		'./src/_migrations.ts',
+		'./src/_i18n.ts',
+	],
 	outdir: './dist',
 	target: 'bun',
 	naming: '[name].mjs',
@@ -162,4 +169,4 @@ export const buildOptions = {
 	env: 'disable',
 	minify: false,
 	root: '../../',
-}
+};

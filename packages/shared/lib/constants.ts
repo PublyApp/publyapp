@@ -258,6 +258,7 @@ export const FRONT_PATH_NAMES = {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
 		verifyEmail: makePath('verify-email'),
+		resetPassword: makePath('reset-password'),
 	},
 	tenant: (tenantId = '') => {
 		return {
@@ -270,7 +271,44 @@ export const FRONT_PATH_NAMES = {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
 			new: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
 			details: (tenantId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId);
+				return {
+					root: makePath(ROOTS.STAFF, RESOURCE.tenants, 'details', tenantId),
+					tabs: {
+						general: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+						),
+						users: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'users',
+						),
+						billing: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'billing',
+						),
+						profiles: makePath(
+							ROOTS.STAFF,
+							RESOURCE.tenants,
+							'details',
+							tenantId,
+							'profiles',
+						),
+					},
+				};
+			},
+		},
+		users: {
+			root: makePath(ROOTS.STAFF, RESOURCE.users),
+			details: (userId = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.users, 'details', userId);
 			},
 		},
 		tenantUsers: {
@@ -301,16 +339,26 @@ export const functionName = {
 		getIsDisabledSignup: 'getIsDisabledSignup',
 		getRedirectCode: 'getRedirectCode',
 		checkEmailVerificationToken: 'checkEmailVerificationToken',
-		challengeEmailForToken: 'challengeEmailForToken',
+		checkResetPasswordToken: 'checkResetPasswordToken',
+		requestEmailVerification: 'requestEmailVerification',
+		getVerificationLink: 'getVerificationLink',
+		resetPassword: 'resetPassword',
 		// ====
 		removeSeededUsers: 'removeSeededUsers',
 	},
 	staff: {
 		staffMember: {
 			create: 'createStaffMember',
+			find: 'findStaffMember',
+			getById: 'getStaffMemberById',
+			// ==== Migrations ====
+			migrateIsStaffMember: 'migrateIsStaffMember',
+			migrateRoleData: 'migrateRoleData',
 		},
 		tenant: {
 			create: 'createTenant',
+			get: 'getTenant',
+			findProfiles: 'findTenantProfiles',
 		},
 	},
 } as const;
@@ -343,7 +391,7 @@ export const endPoint = {
 	},
 } as const;
 
-export const DEFAULT_PAGE_SIZE = 25;
+export const DEFAULT_PAGE_SIZE = 100;
 
 export const isServer = typeof window === 'undefined';
 
@@ -359,12 +407,15 @@ export const PARSE_SESSION_TOKEN_HEADER_KEY = 'X-Parse-Session-Token';
 export const PARSE_INSTALLATION_ID_HEADER_KEY = 'X-Parse-InstallationId';
 export const PARSE_APPLICATION_ID_HEADER_KEY = 'X-Parse-Application-Id';
 
+export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
+
 export const PARSE_CONTEXT_HEADER_KEY = 'X-Parse-Context';
 
 export const REST_API_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Key`;
 
-export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}:session_token`;
-export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}:last_used_tenant`;
+export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
+export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
+export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
 
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
@@ -374,10 +425,21 @@ export const queryParamKey = {
 	login_page: {
 		redirect_cause: 'rc',
 	},
+	reset_password_page: {
+		redirect_cause: 'rc',
+		encoded_email: 'id',
+		token: 'token',
+	},
 } as const;
 
 export const queryParamValue = {
 	login_page: {
+		redirect_cause: {
+			invalid_session: 'invalid_session',
+			password_reset_success: 'password_reset_success',
+		},
+	},
+	reset_password_page: {
 		redirect_cause: {
 			email_verification: 'email_verification',
 		},
@@ -385,13 +447,77 @@ export const queryParamValue = {
 } as const;
 
 export const jobType = {
-	CONVERT_HTML_TO_PDF: 'CONVERT_HTML_TO_PDF',
+	EXAMPLE_JOB: 'EXAMPLE_JOB',
 	// Later we may add other jobs, like deleting unused pdf from storage and from DB for example
 } as const;
 
 export const DEFAULT_MAX_USER_PER_TENANT = 5;
 
 export const X_CODE = {
-	INVALID_TOKEN: 'INVALID_TOKEN',
+	VALIDATION_ERROR: 'VALIDATION_ERROR',
+	INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID:
+		'INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID',
 	NO_STAFF_MEMBERS_ALLOWED_IN_TENANT: 'NO_STAFF_MEMBERS_ALLOWED_IN_TENANT',
+	INVALID_SESSION: 'INVALID_SESSION',
+	EMAIL_ALREADY_VERIFIED: 'EMAIL_ALREADY_VERIFIED',
+	INVALID_RESET_PASSWORD_TOKEN_OR_ID: 'INVALID_RESET_PASSWORD_TOKEN_OR_ID',
+	USER_NOT_FOUND: 'USER_NOT_FOUND',
 } as const;
+
+export const PRE_RENDER_PATHS = ['/', '/login'] as const;
+
+export type PreRenderPath = (typeof PRE_RENDER_PATHS)[number];
+
+export const isPreRenderPath = (path: string): path is PreRenderPath => {
+	let _path = path;
+	if (path !== '/' && _path.endsWith('/')) {
+		_path = _path.slice(0, -1);
+	}
+	return PRE_RENDER_PATHS.includes(_path as PreRenderPath);
+};
+
+export const STATIC_PRE_RENDER_PATHS_MAP_NONCE =
+	'Ynuh4K7aYVf6z5RVxEGnal9zru8ZmYZsSE3n2GNtbBbc6Z2VRq';
+
+export const TENANT_PROFILES_PERMISSIONS_ENUM = {
+	CAN_ACCESS_DASHBOARD: 'can_access_dashboard',
+	CAN_ACCESS_BILLING: 'can_access_billing',
+	CAN_ACCESS_SETTINGS: 'can_access_settings',
+	CAN_ACCESS_USERS: 'can_access_users',
+} as const;
+
+export const TENANT_MODULES_ENUM = {
+	ALL: 'all',
+} as const;
+
+export const TENANT_MODULES_GROUPING = {
+	// Group in a single module for now.
+	// When we have more modules, we can split them into different modules.
+	ALL: {
+		code: 'all',
+		permissions: [
+			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_DASHBOARD,
+			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_BILLING,
+			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_SETTINGS,
+			TENANT_PROFILES_PERMISSIONS_ENUM.CAN_ACCESS_USERS,
+		],
+	},
+} as const;
+
+export type TenantModulesEnum = ValueOf<typeof TENANT_MODULES_ENUM>;
+
+export type TenantProfilesPermissionsEnum = ValueOf<
+	typeof TENANT_PROFILES_PERMISSIONS_ENUM
+>;
+
+export const LANGUAGE_DETECTION_METHOD_ENUM = {
+	COOKIE: 'cookie',
+	QUERY_PARAM: 'queryParam',
+} as const;
+
+export type LanguageDetectionMethod = ValueOf<
+	typeof LANGUAGE_DETECTION_METHOD_ENUM
+>;
+
+export const LANGUAGE_DETECTION_METHOD: LanguageDetectionMethod =
+	LANGUAGE_DETECTION_METHOD_ENUM.COOKIE;

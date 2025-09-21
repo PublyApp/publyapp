@@ -1,12 +1,14 @@
-import { logger } from '@/server/lib/winston';
+import { logger } from '@org/shared/lib/winston.server';
+import { defineStaffMemberFunctions } from './modules/staff/staff-member/staff-member.functions';
 
 const functions = async () => {
 	await Promise.all([
 		// ====== common modules ======
 		import('@/server/modules/common/auth/auth.functions'),
 		// ====== staff modules =======
-		import('@/server/modules/staff/staff-member/staff-member.functions'),
+		defineStaffMemberFunctions(),
 		// ====== tenant modules ======
+		// nothing there yet
 	]);
 };
 

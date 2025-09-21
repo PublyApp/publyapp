@@ -1,11 +1,5 @@
-import type ParseUser from '@/server/modules/common/auth/user/user.class';
 import type { BaseAttributes } from 'parse';
-
-// import { AppFile } from './appFile.types';
-
-// import type ParseTenant from '@/server/modules/common/auth/tenant/tenant.class';
-
-// import type { ITenant } from './tenant.types';
+import type ParseUser from '@/server/modules/common/auth/user/user.class';
 
 export type UserStatus = 'active' | 'pending' | 'banned';
 
@@ -14,11 +8,21 @@ export type UserAttributes = {
 	username: string;
 	email: string;
 	password?: string;
+
 	// custom fields
 	firstName?: string;
 	lastName?: string;
+	isStaffMember?: boolean;
+	roleData?: {
+		role: string;
+		rank: number;
+	};
 
 	status?: UserStatus;
+
+	// ====
+	isBanned?: boolean;
+	isDeleted?: boolean;
 
 	// ====
 	avatarUrl?: string;

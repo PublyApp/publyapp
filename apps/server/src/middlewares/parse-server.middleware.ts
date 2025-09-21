@@ -8,6 +8,7 @@ import {
 } from '@/shared/lib/constants';
 import { makePath } from '@/shared/utils/string.utils';
 
+import { logger } from '@org/shared/lib/winston.server';
 import { HttpException } from '../exceptions/HttpException';
 import {
 	CONFIG_ENABLE_CHECK_SESSION_IP,
@@ -22,7 +23,6 @@ import {
 	getRequestUtils,
 } from '../lib/express';
 import { getCurrentInstallationId } from '../lib/parse/parse.utils';
-import { logger } from '../lib/winston';
 
 const checkIsMaster = (req: express.Request) => {
 	return (
@@ -38,7 +38,7 @@ const disableRestApiForClients = async (
 	const _allowedPaths = [
 		'/health',
 		'/functions',
-		'/verificationEmailRequest',
+		// '/verificationEmailRequest', // Parse built-in email-verification endpoint
 	] satisfies `/${string}`[];
 
 	const authorizedPaths: string[] = [..._allowedPaths];
@@ -65,7 +65,11 @@ const disableRestApiForClients = async (
 
 	const { t } = getRequestUtils(req);
 
-	throw new HttpException(401, t('unauthorized'));
+	throw new HttpException(401, t('unauthorized'), {
+		meta: {
+			reason: `Parse Rest API call outside ot the server are disabled except for: ${_.join(authorizedPaths, ', ')}`,
+		},
+	});
 };
 
 const handleMatchSessionIp = async (
@@ -120,9 +124,11 @@ const handleMatchSessionIp = async (
 		// ! directly use the master key instead
 		.first(USE_MASTER_KEY);
 
+	const { t } = getRequestUtils(req);
+
 	if (!session) {
 		logger.warn('Session token not found', { sessionToken });
-		throw new HttpException(401, 'Invalid session token');
+		throw new HttpException(401, t('Invalid session token'));
 	}
 
 	const requestIp = getRequestIp(req);
@@ -141,7 +147,7 @@ const handleMatchSessionIp = async (
 			requestIp,
 			sessionIp,
 		});
-		throw new HttpException(401, 'Invalid session token');
+		throw new HttpException(401, t('Invalid session token'));
 	}
 };
 

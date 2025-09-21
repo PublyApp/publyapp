@@ -1,29 +1,29 @@
 import './styles/main.css';
 
+import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import { QueryClientProvider } from '@tanstack/react-query';
+import _ from 'lodash';
 import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
 import { useTranslation } from 'react-i18next';
 import {
+	isRouteErrorResponse,
 	Links,
 	Meta,
 	Outlet,
 	Scripts,
 	ScrollRestoration,
-	isRouteErrorResponse,
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
-
-import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
-import { APP_NAME } from '@/shared/lib/constants';
-
 import { NotFoundView, View403, View500 } from '@/front/components/error';
-import { SettingsDrawer, defaultSettings } from '@/front/components/settings';
-import _ from 'lodash';
+import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
+import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
+import { APP_NAME } from '@/shared/lib/constants';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
 import View400 from './components/error/400-view';
 import { ProgressBar } from './components/progress-bar';
 import { Snackbar } from './components/snackbar/snackbar';
+import { useNonce } from './hooks/use-nonce';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/query-client';
 import { getServerLoader } from './lib/react-router/server-data.server';
@@ -43,13 +43,12 @@ export const links: Route.LinksFunction = () => {
 	];
 };
 
-export const meta = (_: Route.MetaArgs) => {
+export const meta: Route.MetaFunction = () => {
+	// const isDevelopment = import.meta.env.DEV;
+
 	return [
-		{ title: `${APP_NAME}: The HTML to PDF conversion API` },
-		{
-			name: 'description',
-			content: 'The API for converting your HTML into PDF with ease!!',
-		},
+		{ title: APP_NAME },
+		{ name: 'description', content: 'PDF Vite Application' },
 	];
 };
 
@@ -61,17 +60,23 @@ export const loader = getServerLoader({
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
 	const { i18n } = useTranslation();
+	const nonce = useNonce();
 
 	return (
-		<html lang={i18n.language} dir={i18n.dir()}>
+		<html lang={i18n.language} dir={i18n.dir()} suppressHydrationWarning>
 			<head>
 				{/* <script src="https://unpkg.com/react-scan/dist/auto.global.js" /> */}
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<meta name="csp-nonce" content={nonce} />
 				<Meta />
 				<Links />
 			</head>
 			<body>
+				<InitColorSchemeScript
+					attribute="[data-color-scheme='%s']"
+					nonce={nonce}
+				/>
 				<QueryClientProvider client={defaultQueryClient}>
 					<MuiThemeProvider>
 						<MotionLazy>
@@ -82,8 +87,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 						</MotionLazy>
 					</MuiThemeProvider>
 				</QueryClientProvider>
-				<ScrollRestoration />
-				<Scripts />
+				<ScrollRestoration nonce={nonce} />
+				<Scripts nonce={nonce} />
 			</body>
 		</html>
 	);
@@ -125,9 +130,9 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		}
 	}
 
-	if (import.meta.env.PROD) {
-		return <View500 />;
+	if (import.meta.env.DEV) {
+		return <TemplateErrorBoundary error={error} />;
 	}
 
-	return <TemplateErrorBoundary error={error} />;
+	return <View500 />;
 };

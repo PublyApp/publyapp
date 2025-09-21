@@ -1,14 +1,7 @@
-import { createServer } from 'node:http';
+import http from 'node:http';
 import path from 'node:path';
-import { logger } from '@/server/lib/winston';
-import {
-	APP_ID,
-	APP_NAME,
-	LOCALE_HEADER_KEY,
-	REMIX_CLIENT_IP_HEADER_KEY,
-	TENANT_ID_HEADER_KEY,
-	endPoint,
-} from '@/shared/lib/constants';
+import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
+import { logger } from '@org/shared/lib/winston.server';
 import duration from '@org/shared/utils/duration.utils';
 import FSFilesAdapter from '@parse/fs-files-adapter';
 import { createRequestHandler } from '@react-router/express';
@@ -16,9 +9,20 @@ import chalk from 'chalk';
 import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
-import ParseDashboard from 'parse-dashboard';
-import { ParseServer } from 'parse-server/lib/index.js';
 import Parse from 'parse/node.js';
+import ParseDashboard from 'parse-dashboard';
+import { newObjectId } from 'parse-server/lib/cryptoUtils.js';
+import { ParseServer } from 'parse-server/lib/index.js';
+import {
+	APP_ID,
+	APP_NAME,
+	endPoint,
+	isPreRenderPath,
+	LOCALE_HEADER_KEY,
+	REMIX_CLIENT_IP_HEADER_KEY,
+	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
+	TENANT_ID_HEADER_KEY,
+} from '@/shared/lib/constants';
 import { cloud } from './cloud';
 import { HttpException } from './exceptions/HttpException';
 import {
@@ -29,15 +33,16 @@ import {
 } from './helpers/helpers';
 import { initCloudinary } from './lib/cloudinary';
 import {
+	corsWhiteList,
 	EXPRESS_FILES_MOUNT_PATH,
 	FILE_UPLOAD_DESTINATION,
+	PARSE_DASHBOARD_MOUNT_PATH,
 	PARSE_SERVER_URL,
-	corsWhiteList,
 } from './lib/constants';
 import { env } from './lib/env';
 import { expressHandler, getRequestUtils } from './lib/express';
 import { initI18next } from './lib/i18n';
-import CustomMailAdapter from './lib/parse/classes/CustomMailAdapter';
+import CustomMailAdapter from './lib/parse/classes/ParseMailAdapter';
 import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
 import { setCurrentInstallationId } from './lib/parse/parse.utils';
 import { postHogServer } from './lib/posthog';
@@ -49,6 +54,18 @@ import {
 } from './middlewares/malicious-requests-guard.middleware';
 import parseServerMiddleware from './middlewares/parse-server.middleware';
 import coreApiRouter from './router/core-api.router';
+
+// ! This is a hack to prevent the console from logging the error "Error: No route matches URL"
+// ! from Remix/React router
+const original_console_error = console.error;
+
+console.error = (...args: unknown[]) => {
+	if (_.startsWith(_.toString(args[0]), 'Error: No route matches URL ')) {
+		return;
+	}
+	original_console_error(...args);
+};
+// ! ==============================
 
 global.Parse = Parse;
 
@@ -62,18 +79,29 @@ const bootstrap = async () => {
 	app.set('case sensitive routing', true);
 
 	app.use(maliciousRequestsGuardMiddleware);
-	app.use(
-		helmet({
-			contentSecurityPolicy: {
-				useDefaults: true,
-				reportOnly: true,
-				directives: {
-					'connect-src': ["'self'", 'https://www.pdfvite.com'],
-					'script-src': ["'self'", 'https://www.pdfvite.com'],
-				},
-			},
-		}),
-	);
+	app.use((req, res, next) => {
+		const isParseDashboardPath =
+			req.path.startsWith(PARSE_DASHBOARD_MOUNT_PATH) ||
+			req.path.startsWith('/parse-dashboard');
+
+		if (env.LOCAL && isParseDashboardPath) {
+			return next();
+		}
+
+		const nonce = isPreRenderPath(req.path)
+			? STATIC_PRE_RENDER_PATHS_MAP_NONCE
+			: newObjectId();
+
+		_.set(req, '___NONCE___', nonce);
+
+		return helmet({
+			contentSecurityPolicy: getUnifiedCSPConfig({
+				isDevelopment: env.LOCAL,
+				reportOnly: false,
+				nonce,
+			}).helmetConfig,
+		})(req, res, next);
+	});
 	app.use(
 		corsMiddleware({
 			whiteList: env.LOCAL ? corsWhiteList.LOCAL : corsWhiteList.ONLINE,
@@ -110,7 +138,9 @@ const bootstrap = async () => {
 	// * we ensure that verification token is created by Parse whenever a user is created
 	// * but we don't want Parse to send the email to the user by setting CustomMailAdapter.enableSendVerificationEmail to false
 	const emailAdapter = new CustomMailAdapter({
-		serverUrl: env.SERVER_URL,
+		serverUrl: env.FRONT_URL,
+		// ! we don't want Parse to send the email to the user
+		// * We implemented a custom email verification function instead
 		enableSendVerificationEmail: false,
 	});
 
@@ -144,7 +174,6 @@ const bootstrap = async () => {
 		enableExpressErrorHandler: true,
 		allowClientClassCreation: false,
 		allowExpiredAuthDataToken: false,
-		preventLoginWithUnverifiedEmail: true,
 		encodeParseObjectInCloudFunction: true,
 		logLevels: {
 			cloudFunctionError: 'silent',
@@ -157,12 +186,20 @@ const bootstrap = async () => {
 			enableRouter: true,
 		},
 		emailAdapter,
-		verifyUserEmails: true, // automatically sends an email to newly created users
+		// automatically sends an email to newly created users
+		verifyUserEmails: true,
+		preventLoginWithUnverifiedEmail: true,
 		emailVerifyTokenValidityDuration: duration.toSeconds('1d'),
 		emailVerifyTokenReuseIfValid: true,
+		passwordPolicy: {
+			resetTokenValidityDuration: duration.toSeconds('1d'),
+		},
 		// =============================================
 		logLevel: env.LOCAL ? 'debug' : 'info',
 		enableInsecureAuthAdapters: false,
+		databaseOptions: {
+			appName: APP_NAME,
+		},
 		// =============================================
 		// preserveFileName: true,
 		// middleware: parseServerMiddleware, // this is being mounted only if with use the startApp method
@@ -177,8 +214,6 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                         setup parse dashboard when in local                           //
 	// ------------------------------------------------------------------------------------- //
-	const PARSE_DASHBOARD_MOUNT_PATH = '/pdash';
-
 	if (env.LOCAL) {
 		const dashboard = new ParseDashboard(
 			{
@@ -196,17 +231,6 @@ const bootstrap = async () => {
 			},
 		);
 		app.use(PARSE_DASHBOARD_MOUNT_PATH, dashboard);
-		app.all(
-			path.posix.join(endPoint.api.root, 'test'),
-			expressHandler(async (req, res) => {
-				logger.debug('test route hit', {
-					lol: 'test',
-					password: 'azerty',
-					body: req.body,
-				});
-				return res.status(200).json({ ok: 'ok' });
-			}),
-		);
 	}
 
 	// wait for the parse server setup to finish, the mount the parse app to the express app
@@ -217,14 +241,6 @@ const bootstrap = async () => {
 	parseServer.app.disable('x-powered-by'); // already set by helmet on parent app
 
 	app.use(PARSE_SERVER_URL.pathname, parseServerMiddleware, parseServer.app);
-
-	app.get(
-		`${endPoint.api.root}/test`,
-		expressHandler(async (_req, res) => {
-			// const { t } = getRequestUtils(req);
-			return res.status(200).json({ ok: 'ok' });
-		}),
-	);
 
 	// --------------------------------------------------------------------------------------//
 	//                  mount remix build when in a deployment environment                   //
@@ -246,10 +262,11 @@ const bootstrap = async () => {
 			// return anything you want here to be available as `context` in your
 			// loaders and actions. This is where you can bridge the gap between Remix
 			// and your server
-			getLoadContext: (_req, _res) => {
+			getLoadContext: (req, _res) => {
 				return {
 					logger,
 					postHogServer,
+					___NONCE___: _.get(req, '___NONCE___'),
 				};
 			},
 		});
@@ -275,7 +292,7 @@ const bootstrap = async () => {
 	// --------------------------------------------------------------------------------------//
 	//                                    run the server                                     //
 	// --------------------------------------------------------------------------------------//
-	const server = createServer(app);
+	const server = http.createServer(app);
 
 	server.on('request', (req, _res) => {
 		req.socket.remoteAddress; // make express req.ip work in bun
@@ -286,21 +303,18 @@ const bootstrap = async () => {
 	app.use(errorMiddleware);
 
 	server.listen(env.PORT, '0.0.0.0', () => {
+		const serverUrlMessage = `    server running at ${chalk.cyan(`${env.SERVER_URL}`)}`;
+		const dashUrlMessage = env.LOCAL
+			? `    access the dashboard at ${chalk.cyan(new URL(PARSE_DASHBOARD_MOUNT_PATH, env.SERVER_URL).toString())}    `
+			: '';
+
 		logger.info(
-			'================================================================',
+			'=============================================================',
 		);
-		logger.info(`    server running at ${chalk.cyan(`${env.SERVER_URL}`)}    `);
-
-		if (env.LOCAL) {
-			const dashUrl = new URL(env.SERVER_URL);
-			dashUrl.pathname = PARSE_DASHBOARD_MOUNT_PATH;
-			logger.info(
-				`    access the dashboard at ${chalk.cyan(dashUrl.toString())}    `,
-			);
-		}
-
+		logger.info(serverUrlMessage);
+		env.LOCAL && logger.info(dashUrlMessage);
 		logger.info(
-			'================================================================',
+			'=============================================================',
 		);
 	});
 

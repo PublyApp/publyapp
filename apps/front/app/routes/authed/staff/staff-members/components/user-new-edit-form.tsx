@@ -1,18 +1,3 @@
-import { Field } from '@/front/components/hook-form/fields';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { toast } from '@/front/components/snackbar';
-import { useLanguageTriggerValidation } from '@/front/hooks/use-language-trigger-validation';
-import { useRouter } from '@/front/hooks/use-router';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { useCreateStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { fData } from '@/front/utils/format-number';
-import {
-	FRONT_PATH_NAMES,
-	type RoleName,
-	roleEnum,
-} from '@/shared/lib/constants';
-import { mbToBytes } from '@/shared/utils/any.utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -26,19 +11,38 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
+import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import type zod from 'zod';
+import { Field } from '@/front/components/hook-form/fields';
+import { Form } from '@/front/components/hook-form/form-provider';
+import { toast } from '@/front/components/snackbar';
+import { useRouter } from '@/front/hooks/use-router';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
+import { useTranslate } from '@/front/hooks/use-translate';
+import {
+	useCreateStaffMember,
+	useFindStaffMember,
+} from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { fData } from '@/front/utils/format-number';
+import {
+	FRONT_PATH_NAMES,
+	type RoleName,
+	roleEnum,
+} from '@/shared/lib/constants';
+import { mbToBytes } from '@/shared/utils/any.utils';
 
 type IUserItem = {
 	id: string;
-	firstName: string;
+	firstName?: string;
 	lastName: string;
 	role: RoleName;
 	email: string;
 	status: string;
-	avatarUrl: string;
+	avatar?: string;
 };
 
 // ----------------------------------------------------------------------
@@ -84,7 +88,12 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		mode: 'onSubmit',
 		resolver: zodResolver(NewUserSchema),
 		defaultValues,
-		values: currentUser,
+		values: currentUser
+			? {
+					...currentUser,
+					avatar: currentUser.avatar,
+				}
+			: undefined,
 	});
 
 	const {
@@ -93,13 +102,15 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		formState: { isSubmitting },
 	} = methods;
 
-	useLanguageTriggerValidation(i18n.language, methods);
+	useSyncFormToLang(i18n.language, methods);
 
 	const handleCloseDialog = openDialog.onFalse;
 
 	const handleOpenDialog = handleSubmit(async () => {
 		openDialog.onTrue();
 	});
+
+	const queryClient = useQueryClient();
 
 	const { mutate: createStaffMember, isPending } = useCreateStaffMember({
 		onSuccess: () => {
@@ -111,6 +122,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 							t('item-creation-success-message', { item: t('staff-member') }),
 						),
 			);
+			queryClient.invalidateQueries({ queryKey: useFindStaffMember.getKey() });
 			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
 		},
 		onError: (error) => {
@@ -306,7 +318,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 									variant="contained"
 									loading={isSubmitting || isPending}
 								>
-									{!currentUser ? 'Create user' : 'Save changes'}
+									{!currentUser ? t('create-user') : t('save-changes')}
 								</Button>
 							</Stack>
 						</Card>

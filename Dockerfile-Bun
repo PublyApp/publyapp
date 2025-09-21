@@ -1,14 +1,16 @@
 # use the official Bun image
 # see all versions at https://hub.docker.com/r/oven/bun/tags
-FROM oven/bun:1.2.14 AS base
+FROM oven/bun:1.2.17 AS base
 
 # Set working directory
 WORKDIR /usr/src/app
 
-RUN ls -al
-
 # Copy application files
-COPY . .
+COPY . /app
+
+# Set working directory to /app
+WORKDIR /app
+
 # Install dependencies
 RUN bun install
 

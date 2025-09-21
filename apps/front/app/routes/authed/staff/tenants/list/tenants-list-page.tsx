@@ -1,17 +1,17 @@
-import _ from 'lodash';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { RouterLink } from '@/front/components/router-link';
 import Button from '@mui/material/Button';
-import { Iconify } from '@/front/components/iconify/iconify';
-import TenantsTable from './parts/tenants-table';
 import type { TFunction } from 'i18next';
-import type { Route } from './+types/tenants-list-page';
 import i18next from 'i18next';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import _ from 'lodash';
 import { data } from 'react-router';
+import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { RouterLink } from '@/front/components/router-link';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import type { Route } from './+types/tenants-list-page';
+import TenantsTable from './parts/tenants-table';
 
 const getPageTitle = (t: TFunction) => {
 	return _.capitalize(t('list-of-items', { items: t('tenants') }));
@@ -55,7 +55,6 @@ const TenantsListPage = () => {
 			<CustomBreadcrumbs
 				heading={getPageTitle(t as never)}
 				links={[
-					// { name: 'Dashboard', href: paths.dashboard.root },
 					{
 						name: _.capitalize(t('tenants')),
 						href: FRONT_PATH_NAMES.staff.tenants.root,

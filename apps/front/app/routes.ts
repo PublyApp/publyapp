@@ -1,13 +1,12 @@
+import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
+import { getLastPath } from '@org/shared/utils/string.utils';
 import {
 	index,
 	layout,
 	prefix,
-	route,
 	type RouteConfig,
+	route,
 } from '@react-router/dev/routes';
-
-import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
-import { getLastPath } from '@org/shared/utils/string.utils';
 
 const routes = [
 	layout('routes/marketing/_layout/marketing-layout.tsx', [
@@ -26,6 +25,10 @@ const routes = [
 			getLastPath(FRONT_PATH_NAMES.auth.verifyEmail),
 			'routes/auth/verify-email/verify-email-page.tsx',
 		),
+		route(
+			getLastPath(FRONT_PATH_NAMES.auth.resetPassword),
+			'routes/auth/reset-password/reset-password-page.tsx',
+		),
 	]),
 	layout('routes/authed/_layout/authed-layout.tsx', [
 		route(
@@ -40,6 +43,43 @@ const routes = [
 							getLastPath(FRONT_PATH_NAMES.staff.tenants.new),
 							'routes/authed/staff/tenants/new/new-tenant-page.tsx',
 						),
+						route(
+							getLastPath(
+								FRONT_PATH_NAMES.staff.tenants.details(':tenantId').root,
+								2,
+							),
+							'routes/authed/staff/tenants/details/_layout/tenant-details-layout.tsx',
+							[
+								index(
+									'routes/authed/staff/tenants/details/general/tenant-details-general-page.tsx',
+								),
+								route(
+									getLastPath(
+										FRONT_PATH_NAMES.staff.tenants.details(':tenantId').tabs
+											.users,
+									),
+									'routes/authed/staff/tenants/details/users/tenant-details-users-page.tsx',
+								),
+								route(
+									getLastPath(
+										FRONT_PATH_NAMES.staff.tenants.details(':tenantId').tabs
+											.billing,
+									),
+									'routes/authed/staff/tenants/details/billing/tenant-details-billing-page.tsx',
+								),
+								route(
+									getLastPath(
+										FRONT_PATH_NAMES.staff.tenants.details(':tenantId').tabs
+											.profiles,
+									),
+									'routes/authed/staff/tenants/details/profiles/tenant-details-profiles-page.tsx',
+								),
+								route(
+									'*',
+									'routes/authed/staff/tenants/details/_errors/tenant-details-fallback-tab-page.tsx',
+								),
+							],
+						),
 					]),
 					...prefix(getLastPath(FRONT_PATH_NAMES.staff.staffMembers.root), [
 						index(
@@ -48,6 +88,13 @@ const routes = [
 						route(
 							getLastPath(FRONT_PATH_NAMES.staff.staffMembers.new),
 							'routes/authed/staff/staff-members/new/new-staff-member-page.tsx',
+						),
+						route(
+							getLastPath(
+								FRONT_PATH_NAMES.staff.staffMembers.details(':userId'),
+								2,
+							),
+							'routes/authed/staff/staff-members/details/staff-member-details-page.tsx',
 						),
 					]),
 				]),

@@ -1,88 +1,62 @@
+import { spawn } from 'node:child_process';
+import path from 'node:path';
 // @ts-check
 import chokidar from 'chokidar';
 import _ from 'lodash';
-import { spawn } from 'node:child_process';
-import path from 'node:path';
 import {
 	watch as _watch,
 	createI18nResourcesFiles,
 	createRsbuild,
 } from './config.mjs';
 
-// set node env to development
-// otherwise onDevCompileDone API will not be called
-// process.env.NODE_ENV = 'development';
+const args = process.argv.slice(2);
 
-console.log('process.env.NODE_ENV', process.env.NODE_ENV);
-console.log('Bun.env.NODE_ENV', Bun.env.NODE_ENV);
+let inspect = false;
 
-const isBun = typeof Bun !== 'undefined';
+if (args.includes('--inspect')) {
+	inspect = true;
+}
 
 const run = async () => {
 	const rsbuild = await createRsbuild();
 
 	let startAppProcess = null;
 
-	// Handle Ctrl+C and other termination signals
-	const cleanup = () => {
-		if (startAppProcess) {
-			console.log('\n\x1b[33m%s\x1b[0m', 'Terminating app process...');
-			startAppProcess.kill('SIGINT');
-			startAppProcess = null;
-		}
-		process.exit(0);
-	};
+	// onDevCompileDone does not work anymore, IDK why
+	rsbuild.onAfterBuild(
+		// .onDevCompileDone
+		async () => {
+			// create the i18n resources files in .jsonc format
+			const { resources } = await import(
+				`../../dist/i18n.mjs?update=${Date.now()}`
+			); // we want the updated version and not the cached one
+			await createI18nResourcesFiles(resources);
 
-	// Listen for termination signals
-	process.on('SIGINT', cleanup);  // Ctrl+C
-	process.on('SIGTERM', cleanup); // Termination signal
-	process.on('exit', cleanup);     // Process exit
+			// kill previous app process and start a new one
+			if (startAppProcess) {
+				startAppProcess.kill('SIGINT');
+				startAppProcess = null;
+			}
 
-	// onDevCompileDone does not work in Bun, IDK why
-	rsbuild.onAfterBuild/* onDevCompileDone */(async () => {
-		// create the i18n resources files in .jsonc format
-		const { resources } = await import(
-			`../../dist/i18n.mjs?update=${Date.now()}`
-		); // we want the updated version and not the cached one
-		await createI18nResourcesFiles(resources);
+			const startCommand = [
+				'node',
+				...(inspect ? ['--inspect', '--inspect-port=6183'] : []),
+				'--enable-source-maps',
+				'dist/index.mjs',
+			];
 
-		// kill previous app process and start a new one
-		if (startAppProcess) {
-			startAppProcess.kill('SIGINT');
-			startAppProcess = null;
-		}
+			console.log(
+				'\x1b[32m%s\x1b[0m',
+				'====>',
+				startCommand
+					.map((arg) => {
+						return arg.includes(' ') ? `"${arg}"` : arg;
+					})
+					.join(' '),
+			);
 
-		// const startCommand = ['node', '--enable-source-maps', 'dist/index.mjs'];
-		const onWindows = /^win/.test(process.platform);
-		const startCommand = [onWindows ? /* 'bun.cmd' */ 'bun' : 'bun', '--enable-source-maps', 'dist/index.mjs'];
+			const [node, ...args] = startCommand;
 
-		console.log(
-			'\x1b[32m%s\x1b[0m',
-			'====>',
-			startCommand
-				.map((arg) => {
-					return arg.includes(' ') ? `"${arg}"` : arg;
-				})
-				.join(' '),
-		);
-
-		const [node, ...args] = startCommand;
-
-		if (isBun) {
-			startAppProcess = Bun.spawn({
-				cmd: [node, ...args],
-				stdio: ["inherit", "inherit", "inherit"],
-				cwd: path.resolve(import.meta.dirname, '../../'),
-				env: _.assign({}, process.env, {
-					// even during development, set NODE_ENV to production
-					// so that we can have production-like behavior
-					// (e.g. the app will not crash on missing env variables + better performance)
-					// To differentiate between development and production, use process.env.MODE instead of process.env.NODE_ENV
-					// (MODE is set by the user in the .env.local file or at node command line launch)
-					NODE_ENV: 'production',
-				}),
-			})
-		} else {
 			startAppProcess = spawn(node, args, {
 				stdio: 'inherit',
 				cwd: path.resolve(import.meta.dirname, '../../'),
@@ -95,11 +69,11 @@ const run = async () => {
 					NODE_ENV: 'production',
 				}),
 			});
-		}
 
-		// ! subprocesses of subprocess are not killed
-		// startAppProcess = spawn('npm.cmd', ['start'], { stdio: 'inherit', cwd: import.meta.dirname });
-	});
+			// ! subprocesses of subprocess are not killed
+			// startAppProcess = spawn('npm.cmd', ['start'], { stdio: 'inherit', cwd: import.meta.dirname });
+		},
+	);
 
 	const watch = () => {
 		_watch(rsbuild);

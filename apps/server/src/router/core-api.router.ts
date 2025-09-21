@@ -1,21 +1,20 @@
-import { Router } from 'express';
 import { endPoint } from '@/shared/lib/constants';
+import { mbToBytes } from '@/shared/utils/any.utils';
+import { Router } from 'express';
+import _ from 'lodash';
+import multer from 'multer';
+import { expressHandler } from '../lib/express';
+import { createExpressHandler } from '../lib/parse/cloud/function';
 import protectionMiddleware from '../middlewares/protection.middleware';
 import {
 	handlePasswordLogin,
 	handlePasswordSignup,
-	handleVerifyEmail,
 } from '../modules/common/auth/auth.controller';
 import {
 	handleUploadManyFiles,
 	handleUploadSingleFile,
 } from '../modules/common/file/file.controller';
-import multer from 'multer';
-import { mbToBytes } from '@/shared/utils/any.utils';
 import { createStaffMember } from '../modules/staff/staff-member/staff-member.functions';
-import { createExpressHandler } from '../lib/parse/cloud/function';
-import { expressHandler } from '../lib/express';
-import _ from 'lodash';
 import { createTenant } from '../modules/staff/tenant/tenant.functions';
 
 const coreApiRouter = Router();
@@ -53,7 +52,7 @@ coreApiRouter.post(endPoint.api.auth.passwordSignup, handlePasswordSignup);
 // --------------------------------------------------------------------------------------//
 //                                    Email verification                                 //
 // --------------------------------------------------------------------------------------//
-coreApiRouter.get(endPoint.api.auth.verifyEmail, handleVerifyEmail);
+// coreApiRouter.get(endPoint.api.auth.verifyEmail, handleVerifyEmail);
 
 // --------------------------------------------------------------------------------------//
 //                           Parse functions as Express handlers                         //

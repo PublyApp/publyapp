@@ -1,6 +1,6 @@
 import {
-	createTheme as createMuiTheme,
 	type Components,
+	createTheme as createMuiTheme,
 	type Theme,
 } from '@mui/material/styles';
 

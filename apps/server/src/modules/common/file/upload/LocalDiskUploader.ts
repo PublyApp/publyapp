@@ -1,9 +1,9 @@
 import path from 'node:path';
-import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
-import { logger } from '@/server/lib/winston';
-import { fileProvider } from '@/shared/lib/constants';
+import { logger } from '@org/shared/lib/winston.server';
 import sharp from 'sharp';
-import type { UploadInput, Uploader } from './Uploader.interface';
+import { FILE_UPLOAD_DESTINATION } from '@/server/lib/constants';
+import { fileProvider } from '@/shared/lib/constants';
+import type { Uploader, UploadInput } from './Uploader.interface';
 
 export default class LocalDiskUploader implements Uploader {
 	provider = fileProvider.LOCAL_DISK;

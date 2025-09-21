@@ -1,11 +1,11 @@
 import {
-	applyQueryOptions,
 	type QueryOptions,
+	applyQueryOptions,
 } from '@/server/lib/parse/query.utils';
 import {
-	roleSet,
 	type IRoleConfig,
 	type RoleSet,
+	roleSet,
 } from '@/shared/lib/constants';
 import type { IRole } from '@/shared/types/db/role.types';
 
@@ -54,9 +54,9 @@ export default class RoleService {
 			.first({ sessionToken: this.sessionToken, useMasterKey: this.master });
 	}
 
-	async assignRoleToUser(user: Parse.User, role: Parse.Role) {
+	async assignRoleToUsers(role: Parse.Role, users: Parse.User[]) {
 		const relation = role.getUsers();
-		relation.add(user);
+		relation.add(users);
 		return role.save(null, {
 			sessionToken: this.sessionToken,
 			useMasterKey: this.master,

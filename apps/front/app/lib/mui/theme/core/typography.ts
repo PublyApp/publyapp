@@ -1,7 +1,7 @@
 import {
-	createTheme as getTheme,
 	type Breakpoint,
 	type CSSObject,
+	createTheme as getTheme,
 	type TypographyVariantsOptions,
 } from '@mui/material/styles';
 import { pxToRem, setFont } from 'minimal-shared/utils';

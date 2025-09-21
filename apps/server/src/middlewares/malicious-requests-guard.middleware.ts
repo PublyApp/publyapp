@@ -2,12 +2,12 @@
 // * such as wp-login.php, etc.
 // * we want to block them from hitting these routes
 
+import { BlockList, type IPVersion, isIPv6 } from 'node:net';
+import { logger } from '@org/shared/lib/winston.server';
 import _ from 'lodash';
-import { expressHandler, getRequestIp } from '../lib/express';
-import { BlockList, isIPv6, type IPVersion } from 'node:net';
-import { getGlobalConfig, setGlobalConfig } from '../lib/parse/parse.utils';
-import { logger } from '../lib/winston';
 import { IP_BLOCKLIST_CONFIG_KEY } from '../lib/constants';
+import { expressHandler, getRequestIp } from '../lib/express';
+import { getDatabase, getGlobalConfig } from '../lib/parse/parse.utils';
 
 // https://gist.github.com/NickCraver/c9458f2e007e9df2bdf03f8a02af1d13
 const tenHoursOfFun = [
@@ -53,8 +53,7 @@ export const populateBlocklist = async () => {
 			blocklist.addAddress(ipAddress, ipVersion);
 		} catch (error) {
 			if (_.isObject(error)) {
-				// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-				(error as any).ipAddress = ipAddress;
+				_.set(error, 'ipAddress', ipAddress);
 			}
 			logger.error(error);
 		}
@@ -92,28 +91,23 @@ export const maliciousRequestsGuardMiddleware = expressHandler(
 					ipVersion = 'ipv6';
 				}
 				blocklist.addAddress(ipAddress, ipVersion);
-				logger.info('Blocked IP address', { ipAddress });
+				logger.debug('Blocked IP address', { ipAddress });
 			} catch (error) {
 				if (_.isObject(error)) {
-					// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-					(error as any).ipAddress = ipAddress;
+					_.set(error, 'ipAddress', ipAddress);
 				}
 				logger.error('Failed to add IP address to blocklist:', error);
 			}
 
 			const updateConfigAsynchronously = async () => {
-				const globalConfig = await getGlobalConfig();
-
-				const updatedIpAddresses = _.uniq([
-					...(globalConfig.get(IP_BLOCKLIST_CONFIG_KEY) || []),
-					ipAddress,
-				]);
-
-				await setGlobalConfig({
-					[IP_BLOCKLIST_CONFIG_KEY]: {
-						value: updatedIpAddresses,
+				const db = getDatabase();
+				const GlobalConfigCollection = db.collection('_GlobalConfig');
+				GlobalConfigCollection.updateOne(
+					{
+						_id: 1 as never,
 					},
-				});
+					{ $addToSet: { [`params.${IP_BLOCKLIST_CONFIG_KEY}`]: ipAddress } },
+				);
 			};
 
 			updateConfigAsynchronously().catch((error) => {

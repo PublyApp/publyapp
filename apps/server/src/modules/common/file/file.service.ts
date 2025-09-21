@@ -1,8 +1,8 @@
+import type { MulterMemoryFile } from '@/shared/validations/file/file-server.validations';
+import CloudFlareUploader from './upload/CloudFlareUploader';
 import CloudinaryUploader from './upload/CloudinaryUploader';
 import LocalDiskUploader from './upload/LocalDiskUploader';
 import type { Uploader } from './upload/Uploader.interface';
-import type { MulterMemoryFile } from '@/shared/validations/file/file-server.validations';
-import CloudFlareUploader from './upload/CloudFlareUploader';
 
 export type FileServiceProps = {
 	sessionToken: string | undefined;
@@ -50,10 +50,7 @@ export default class FileService {
 		/* {
 		files,
 		folderPath,
-	} */ _params: {
-			files: Express.Multer.File[];
-			folderPath?: string;
-		},
+	} */ _params: { files: Express.Multer.File[]; folderPath?: string },
 	) {
 		// const results = await async.map(
 		// 	files,
