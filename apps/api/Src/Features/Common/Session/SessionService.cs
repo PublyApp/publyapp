@@ -1,4 +1,3 @@
-using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
@@ -13,7 +12,7 @@ public abstract record CreateSessionResult {
 }
 
 public interface ISessionService {
-	Task<CreateSessionResult> CreateSessionForUser(UserNs.User user);
+	Task<Session> CreateSessionForUser(UserNs.User user);
 }
 
 public class SessionService : ISessionService {
@@ -25,11 +24,7 @@ public class SessionService : ISessionService {
 		_appSettings = appSettings;
 	}
 
-	public async Task<CreateSessionResult> CreateSessionForUser(UserNs.User user) {
-		if (user.Id == Guid.Empty) {
-			return new CreateSessionResult.Failure("User ID is required", ResponseKeys.UserIdRequired);
-		}
-
+	public async Task<Session> CreateSessionForUser(UserNs.User user) {
 		var session = new Session {
 			UserId = user.Id,
 			Token = CryptoUtils.NewToken(),
@@ -39,6 +34,6 @@ public class SessionService : ISessionService {
 		var result = await _dbContext.Session.AddAsync(session);
 		await _dbContext.SaveChangesAsync();
 
-		return new CreateSessionResult.Success(result.Entity);
+		return result.Entity;
 	}
 }

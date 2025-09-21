@@ -1,7 +1,7 @@
+import path from 'node:path';
 import { reactRouter } from '@react-router/dev/vite';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
-import path from 'node:path';
 import { reactRouterDevTools } from 'react-router-devtools';
 import { defineConfig } from 'vite';
 import checker from 'vite-plugin-checker';

@@ -1,37 +1,73 @@
 import { createMutation, createQuery } from 'react-query-kit';
-import { defaultApiClient } from '@/parse-api-client/ApiClient';
-import type { CreateStaffMemberParams } from '@/parse-api-client/features/staff-member/staff-member.endpoint';
-import { functionName } from '@/shared/lib/constants';
+import { clientManager } from '@/front/lib/js-client/client-manager';
+import type { ApiClient } from '@/js-client/src/apiClient';
+import { getQueryKey } from '../../query-utils';
+
+const createStaffMemberMutationKey = getQueryKey<ApiClient>(
+	(client) => client.staff.staffMembers.post,
+);
 
 export const useCreateStaffMember = createMutation({
-	mutationKey: [functionName.staff.staffMember.create] as const,
-	mutationFn: async (data: CreateStaffMemberParams) => {
-		return defaultApiClient.staffMember.createStaffMember(data);
-	},
-});
-
-export const useFindStaffMember = createQuery({
-	queryKey: [functionName.staff.staffMember.find] as const,
-	fetcher: async ({
-		limit,
-		page,
-		sort,
-	}: {
-		limit?: number;
-		page?: number;
-		sort?: { id: string; order: 'desc' | 'asc' };
+	mutationKey: [createStaffMemberMutationKey] as const,
+	mutationFn: async (data: {
+		email: string;
+		firstName?: string;
+		lastName?: string;
+		avatarUrl?: string;
 	}) => {
-		return defaultApiClient.staffMember.findStaffMember({
-			page,
-			limit,
-			sort,
+		return clientManager.apiClient.staff.staffMembers.post({
+			email: {
+				getValue() {
+					return data.email;
+				},
+			},
+			firstName: {
+				getValue() {
+					return data.firstName;
+				},
+			},
+			lastName: {
+				getValue() {
+					return data.lastName;
+				},
+			},
+			avatarUrl: {
+				getValue() {
+					return data.avatarUrl;
+				},
+			},
 		});
 	},
 });
 
+const findStaffMemberQueryKey = getQueryKey<ApiClient>(
+	(client) => client.staff.staffMembers.get,
+);
+
+export const useFindStaffMember = createQuery({
+	queryKey: [findStaffMemberQueryKey] as const,
+	fetcher: async (params: {
+		limit?: number;
+		page?: number;
+		sort?: { id: string; order: 'desc' | 'asc' };
+	}) => {
+		return clientManager.apiClient.staff.staffMembers.get({
+			queryParameters: {
+				limit: params.limit,
+				page: params.page,
+				sort: params.sort,
+			},
+		});
+	},
+});
+
+const getStaffMemberByIdQueryKey = getQueryKey<ApiClient>(
+	(client) => client.staff.staffMembers.byUserId('').get,
+);
+
 export const useGetStaffMemberById = createQuery({
-	queryKey: [functionName.staff.staffMember.getById] as const,
-	fetcher: async ({ id }: { id: string }) => {
-		return defaultApiClient.staffMember.getStaffMemberById({ id });
+	queryKey: [getStaffMemberByIdQueryKey] as const,
+	fetcher: async ({ userId }: { userId: string }) => {
+		return clientManager.apiClient.staff.staffMembers.byUserId(userId).get();
 	},
 });

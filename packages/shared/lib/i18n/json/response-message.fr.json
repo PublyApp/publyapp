@@ -19,5 +19,7 @@
 	"user-already-exists": "Utilisateur déjà existant",
 	"user-does-not-have-the-necessary-permissions": "Utilisateur n'a pas les permissions nécessaires",
 	"invalid-session": "Session invalide",
-	"failed-to-authenticate-user": "Échec de l'authentification"
+	"failed-to-authenticate-user": "Échec de l'authentification",
+	"failed-to-create-user": "Échec de la création d'utilisateur",
+	"user-already-member-of-staff": "Utilisateur déjà membre de l'équipe"
 }

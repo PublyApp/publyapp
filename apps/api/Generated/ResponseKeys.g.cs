@@ -27,6 +27,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey FailedToAuthenticateUser = new("failed-to-authenticate-user");
 
 	/// <summary>
+	/// Failed to create user
+	/// </summary>
+	public static readonly TranslationKey FailedToCreateUser = new("failed-to-create-user");
+
+	/// <summary>
 	/// Failed to login
 	/// </summary>
 	public static readonly TranslationKey FailedToLogin = new("failed-to-login");
@@ -90,6 +95,11 @@ public static partial class ResponseKeys {
 	/// User already exists
 	/// </summary>
 	public static readonly TranslationKey UserAlreadyExists = new("user-already-exists");
+
+	/// <summary>
+	/// User already member of staff
+	/// </summary>
+	public static readonly TranslationKey UserAlreadyMemberOfStaff = new("user-already-member-of-staff");
 
 	/// <summary>
 	/// User does not have the necessary permissions

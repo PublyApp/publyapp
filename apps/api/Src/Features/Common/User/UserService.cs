@@ -3,12 +3,11 @@ namespace MainApi.Src.Features.Common.User;
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Features.Common.Auth;
-using MainApi.Src.Lib;
-using MainApi.Localization;
 
 public abstract record CreateUserResult {
 	public sealed record Success(User User) : CreateUserResult;
-	public sealed record Failure(string Message, TranslationKey Key) : CreateUserResult;
+	public sealed record UserAlreadyExists : CreateUserResult;
+	// public sealed record Failure(string Message, TranslationKey Key) : CreateUserResult;
 }
 
 public interface IUserService {
@@ -21,12 +20,10 @@ public interface IUserService {
 
 public class UserService : IUserService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly IPasswordService _passwordService;
 	private readonly ILogger<UserService> _logger;
 
 	public UserService(MainApiDbContext dbContext, IPasswordService passwordService, ILogger<UserService> logger) {
 		_dbContext = dbContext;
-		_passwordService = passwordService;
 		_logger = logger;
 	}
 
@@ -35,12 +32,10 @@ public class UserService : IUserService {
 		var existingUser = await _dbContext.User
 			.FirstOrDefaultAsync(u => u.Email == user.Email, cancellationToken)
 			.ConfigureAwait(false);
-		if (existingUser != null) {
-			return new CreateUserResult.Failure("User already exists", ResponseKeys.UserAlreadyExists);
-		}
 
-		// Hash the password before storing
-		user.Password = _passwordService.HashPassword(user.Password);
+		if (existingUser is not null) {
+			return new CreateUserResult.UserAlreadyExists();
+		}
 
 		var result = await _dbContext.User.AddAsync(user, cancellationToken).ConfigureAwait(false);
 		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

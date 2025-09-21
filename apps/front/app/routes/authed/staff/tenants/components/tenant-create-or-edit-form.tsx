@@ -39,7 +39,6 @@ import {
 	FRONT_PATH_NAMES,
 	type TenantSubRole,
 	tenantSubRoleEnum,
-	X_CODE,
 } from '@/shared/lib/constants';
 import { mbToBytes } from '@/shared/utils/any.utils';
 
