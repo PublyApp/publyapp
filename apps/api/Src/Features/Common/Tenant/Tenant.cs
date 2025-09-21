@@ -11,13 +11,13 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	private string _code = string.Empty;
 
 	[Column("code")]
-	public string Code {
+	public required string Code {
 		get { return _code; }
 		set { _code = value.ToLower(); }
 	}
 
 	[Column("name")]
-	public string Name { get; set; } = string.Empty;
+	public required string Name { get; set; }
 
 	// navigation properties
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];

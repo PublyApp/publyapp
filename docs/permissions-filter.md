@@ -77,6 +77,7 @@ public PermissionFilter(Permission[] requiredPermissions)
 ```
 
 **Requirements:**
+
 - ❌ `null` values are not allowed (throws `ArgumentNullException`)
 - ❌ Empty arrays are not allowed (throws `ArgumentException`)
 - ✅ Must provide at least one valid permission
@@ -105,6 +106,7 @@ public PermissionFilter(Func<HashSet<string>, bool> customPermissionChecker)
 ```
 
 **Requirements:**
+
 - ❌ `null` values are not allowed (throws `ArgumentNullException`)
 - ✅ Must provide a valid function that accepts `HashSet<string>` and returns `bool`
 

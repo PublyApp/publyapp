@@ -6,6 +6,7 @@ using System.Text.Json;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using FluentValidation;
+using MainApi.Src.Lib.Utils;
 
 public class CreateStaffTenantBody {
 	public JsonElement Name { get; set; }
@@ -55,6 +56,7 @@ public static class CreateStaffTenant {
 
 		var tenant = new Tenant {
 			Name = tenantName,
+			Code = CryptoUtils.RandomString(10).ToLower()
 		};
 
 		var savedTenant = await StaffTenantService.CreateTenant(tenant);
