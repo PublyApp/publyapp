@@ -1,0 +1,40 @@
+using MainApi.Src.Features.Staff.StaffMember.Handlers.CreateStaffMember;
+using MainApi.Src.Features.Staff.StaffMember.Handlers.FindStaffMembers;
+using MainApi.Src.Features.Staff.StaffMember.Handlers.GetStaffMemberById;
+using MainApi.Src.Lib;
+using MainApi.Src.Lib.Filters;
+using MainApi.Src.Lib.Utils;
+
+namespace MainApi.Src.Features.Staff.StaffMember;
+
+public static class StaffMemberEndPoints {
+	public static IEndpointRouteBuilder MapStaffMemberEndPoints(this IEndpointRouteBuilder routes) {
+		var group = routes.MapGroup(PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.Root))
+			.WithTags("Staff Members")
+			.WithOpenApi();
+
+		group.MapPost(
+			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.Create),
+			CreateStaffMember.HandleCreateStaffMember
+		)
+			.WithName("CreateStaffMember")
+			.WithSummary("Create a new staff member")
+			.WithBodyValidation<CreateStaffMemberBody>();
+
+		group.MapGet(
+			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.GetById),
+			GetStaffMemberById.HandleGetStaffMemberById
+		)
+			.WithName("GetStaffMemberById")
+			.WithSummary("Get a staff member by id");
+
+		group.MapGet(
+			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.Find),
+			FindStaffMembers.HandleFindStaffMembers
+		)
+			.WithName("FindStaffMembers")
+			.WithSummary("Find staff members");
+
+		return routes;
+	}
+}

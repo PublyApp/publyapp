@@ -1,5 +1,6 @@
 import { createMutation, createQuery } from 'react-query-kit';
 import { _tenantProfiles } from '@/front/_mock/_tenant-profiles';
+import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
 // import { defaultApiClient } from '@/parse-api-client/ApiClient';
 // import type { CreateTenantParams } from '@/parse-api-client/features/tenant/tenant.endpoints';
@@ -8,23 +9,25 @@ import { delay } from '@/shared/utils/any.utils';
 import { getQueryKey } from '../../query-utils';
 
 const createTenantMutationKey = getQueryKey<ApiClient>(
-	(client) => client.tenant.createTenant.post,
+	(client) => client.staff.tenants.post,
 );
 
 export const useCreateTenant = createMutation({
-	mutationKey: [functionName.staff.tenant.create] as const,
-	mutationFn: async (params: CreateTenantParams) => {
-		return defaultApiClient.tenant.createTenant(params);
+	mutationKey: [createTenantMutationKey] as const,
+	mutationFn: async (params: { name: string }) => {
+		return clientManager.apiClient.staff.tenants.post({
+			name: {
+				getValue() {
+					return params.name;
+				},
+			},
+		});
 	},
 });
 
-type GetTenantParams = {
-	tenantId: string;
-};
-
 export const useGetTenant = createQuery({
 	queryKey: [functionName.staff.tenant.get] as const,
-	fetcher: async (params: GetTenantParams) => {
+	fetcher: async (params: { tenantId: string }) => {
 		await delay(5_000);
 		return {
 			id: params.tenantId,

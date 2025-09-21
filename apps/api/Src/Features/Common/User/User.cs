@@ -10,7 +10,7 @@ namespace MainApi.Src.Features.Common.User;
 [Index(nameof(Email), IsUnique = true)]
 public class User : BaseAttributes, INoTenantEntity {
 	[Column("last_name")]
-	public string LastName { get; set; } = string.Empty;
+	public string? LastName { get; set; } = string.Empty;
 
 	[Column("first_name")]
 	public string? FirstName { get; set; }
@@ -19,13 +19,16 @@ public class User : BaseAttributes, INoTenantEntity {
 
 	[Column("email")]
 	[EmailAddress]
-	public string Email {
+	public required string Email {
 		get { return _email; }
 		set { _email = value.ToLower(); }
 	}
 
 	[Column("password")]
-	public string Password { get; set; } = string.Empty;
+	public required string Password { get; set; } = string.Empty;
+
+	[Column("avatar_url")]
+	public string? AvatarUrl { get; set; }
 
 	[Column("is_suspended")]
 	public bool IsSuspended { get; set; } = false;

@@ -77,45 +77,49 @@ public class PasswordLogin {
 
 		var user = await userService.GetUserToLoginAsync(email);
 
-
-		if (user == null) {
-			return TypedResults.BadRequest(ApiResponse.Create("Invalid email or password", ResponseKeys.InvalidEmailOrPassword));
+		if (user is null) {
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"Invalid email or password",
+				ResponseKeys.InvalidEmailOrPassword
+			));
 		}
 
 		if (user.IsDeleted == true) {
-			return TypedResults.BadRequest(ApiResponse.Create("Invalid email or password", ResponseKeys.InvalidEmailOrPassword));
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"Invalid email or password",
+				ResponseKeys.InvalidEmailOrPassword
+			));
 		}
 
 		if (user.IsSuspended == true) {
-			return TypedResults.BadRequest(ApiResponse.Create("User is suspended", ResponseKeys.UserSuspended));
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"User is suspended",
+				ResponseKeys.UserSuspended
+			));
 		}
 
 		if (user.IsVerified != true) {
-			return TypedResults.BadRequest(ApiResponse.Create("User is not verified", ResponseKeys.UserNotVerified));
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"User is not verified",
+				ResponseKeys.UserNotVerified
+			));
 		}
 
 		// Verify the password
 		if (!passwordService.VerifyPassword(password, user.Password ?? string.Empty)) {
-			return TypedResults.BadRequest(ApiResponse.Create("Invalid email or password", ResponseKeys.InvalidEmailOrPassword));
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"Invalid email or password",
+				ResponseKeys.InvalidEmailOrPassword
+			));
 		}
 
-		var createSessionResult = await sessionService.CreateSessionForUser(user);
+		var session = await sessionService.CreateSessionForUser(user);
 
-		if (createSessionResult is CreateSessionResult.Success success) {
-			return TypedResults.Ok(new PasswordLoginResult {
-				UserId = user.Id,
-				SessionToken = success.Session.Token,
-				SessionExpiresAt = success.Session.ExpiresAt,
-				SessionExpiresInMs = (success.Session.ExpiresAt - DateTime.UtcNow).TotalMilliseconds
-			});
-		}
-
-		if (createSessionResult is CreateSessionResult.Failure failure) {
-			return TypedResults.BadRequest(ApiResponse.Create(failure.Message, failure.Key));
-		}
-
-		// This should never happen with proper discriminated unions
-		// but good to have as fallback
-		return TypedResults.BadRequest(ApiResponse.Create("Failed to login", ResponseKeys.FailedToLogin));
+		return TypedResults.Ok(new PasswordLoginResult {
+			UserId = user.Id,
+			SessionToken = session.Token,
+			SessionExpiresAt = session.ExpiresAt,
+			SessionExpiresInMs = (session.ExpiresAt - DateTime.UtcNow).TotalMilliseconds
+		});
 	}
 }

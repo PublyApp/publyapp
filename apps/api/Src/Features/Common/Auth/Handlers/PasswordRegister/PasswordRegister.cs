@@ -8,12 +8,13 @@ using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 public class PasswordRegisterBody : PasswordLoginBody {
 }
 
 public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterBody> {
-	public PasswordRegisterBodyValidator() {
+	public PasswordRegisterBodyValidator(IOptions<AppSettings> appSettings) {
 		RuleFor(x => x.Email)
 			.NotEmpty().WithMessage("Email is required")
 			.DependentRules(() => {
@@ -29,10 +30,12 @@ public class PasswordRegisterBodyValidator : AbstractValidator<PasswordRegisterB
 			.NotEmpty().WithMessage("Password is required")
 			.DependentRules(() => {
 				RuleFor(x => x.Password)
-					.Must(password => password.ValueKind == JsonValueKind.String).WithMessage("Password must be a string")
+					.Must(password => password.ValueKind == JsonValueKind.String)
+					.WithMessage("Password must be a string")
 					.DependentRules(() => {
 						RuleFor(x => x.Password.GetString()!)
-							.MinimumLength(6).WithMessage("Password must be at least 6 characters long");
+							.MinimumLength(appSettings.Value.PASSWORD_MIN_LENGTH)
+							.WithMessage("Password must be at least 6 characters long");
 					});
 			});
 	}
@@ -52,10 +55,14 @@ public static class PasswordRegister {
 	>> HandlePasswordRegister(
 		[FromBody] PasswordRegisterBody registerBody,
 		[FromServices] IUserService userService,
+		[FromServices] IPasswordService passwordService,
 		CancellationToken cancellationToken = default
 ) {
 		var email = registerBody.GetEmail();
 		var password = registerBody.GetPassword();
+
+		// hash the password
+		password = passwordService.HashPassword(password);
 
 		var newUser = new User {
 			Email = email,
@@ -64,8 +71,11 @@ public static class PasswordRegister {
 
 		var createUserResult = await userService.CreateUserAsync(newUser, cancellationToken);
 
-		if (createUserResult is CreateUserResult.Failure failure) {
-			return TypedResults.BadRequest(ApiResponse.Create(failure.Message, failure.Key));
+		if (createUserResult is CreateUserResult.UserAlreadyExists) {
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"User already exists",
+				ResponseKeys.UserAlreadyExists
+			));
 		}
 
 		if (createUserResult is CreateUserResult.Success success) {
@@ -77,8 +87,9 @@ public static class PasswordRegister {
 			});
 		}
 
-		// This should never happen with proper discriminated unions
-		// but good to have as fallback
-		return TypedResults.BadRequest(ApiResponse.Create("Failed to register user", ResponseKeys.FailedToRegisterUser));
+		return TypedResults.BadRequest(ApiResponse.Create(
+			"Failed to register user",
+			ResponseKeys.FailedToRegisterUser
+		));
 	}
 }

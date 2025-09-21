@@ -282,6 +282,120 @@
         }
       }
     },
+    "/staff/staff-members": {
+      "post": {
+        "tags": [
+          "Staff Members"
+        ],
+        "summary": "Create a new staff member",
+        "operationId": "CreateStaffMember",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStaffMemberBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateStaffMemberResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Staff Members"
+        ],
+        "summary": "Find staff members",
+        "operationId": "FindStaffMembers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StaffMemberItem"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/staff-members/{userId}": {
+      "get": {
+        "tags": [
+          "Staff Members"
+        ],
+        "summary": "Get a staff member by id",
+        "operationId": "GetStaffMemberById",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetStaffMemberByIdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tenant/products": {
       "get": {
         "tags": [
@@ -419,6 +533,36 @@
           }
         }
       },
+      "CreateStaffMemberBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "lastName": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "firstName": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "avatarUrl": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          }
+        }
+      },
+      "CreateStaffMemberResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "CreateStaffTenantBody": {
         "type": "object",
         "properties": {
@@ -436,6 +580,30 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "GetStaffMemberByIdResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true
+          },
+          "firstName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -484,6 +652,9 @@
         }
       },
       "JsonElement": { },
+      "NullableOfJsonElement": {
+        "nullable": true
+      },
       "PasswordLoginBody": {
         "type": "object",
         "properties": {
@@ -771,6 +942,30 @@
           }
         }
       },
+      "StaffMemberItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true
+          },
+          "firstName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "Tenant": {
         "type": "object",
         "properties": {
@@ -809,10 +1004,15 @@
         }
       },
       "User": {
+        "required": [
+          "email",
+          "password"
+        ],
         "type": "object",
         "properties": {
           "lastName": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "firstName": {
             "type": "string",
@@ -823,6 +1023,10 @@
           },
           "password": {
             "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
           },
           "isSuspended": {
             "type": "boolean"
@@ -872,6 +1076,10 @@
         }
       },
       "UserAccount": {
+        "required": [
+          "userId",
+          "tenantId"
+        ],
         "type": "object",
         "properties": {
           "userId": {
@@ -991,6 +1199,9 @@
     },
     {
       "name": "Tenants"
+    },
+    {
+      "name": "Staff Members"
     },
     {
       "name": "Products"

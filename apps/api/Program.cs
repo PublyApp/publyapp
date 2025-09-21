@@ -4,7 +4,7 @@ using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Tenant.Product;
 using MainApi.Src.Features.Staff.Tenant;
 using MainApi.Src.Lib.Middlewares;
-
+using MainApi.Src.Features.Staff.StaffMember;
 
 AppEnvironment.LoadEnv();
 
@@ -32,6 +32,7 @@ var tenantGroup = app.MapGroup(RoutePath.Tenant.Root);
 
 // Staff endpoints
 staffGroup.MapStaffTenantEndpoints();
+staffGroup.MapStaffMemberEndPoints();
 
 // Tenant endpoints
 tenantGroup.MapProductEndpoints();

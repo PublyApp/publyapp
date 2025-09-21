@@ -12,18 +12,18 @@ namespace MainApi.Src.Features.Common.Account;
 [Index(nameof(UserId), nameof(AccountType))]
 public class UserAccount : BaseAttributes, ITenantEntity {
 	[Column("user_id")]
-	public Guid UserId { get; set; }
+	public required Guid UserId { get; set; }
 	public User.User User { get; set; } = null!;
 
 	[Column("tenant_id")]
-	public Guid TenantId { get; set; }
+	public required Guid TenantId { get; set; }
 	public Tenant.Tenant Tenant { get; set; } = null!;
 
 	[Column("account_type")]
-	public AccountType AccountType { get; set; }
+	public AccountType AccountType { get; set; } = AccountType.Tenant;
 
 	[Column("hierarchy_level")]
-	public AccountHierarchyLevel HierarchyLevel { get; set; }
+	public AccountHierarchyLevel HierarchyLevel { get; set; } = AccountHierarchyLevel.User;
 
 	[Column("is_suspended")]
 	public bool IsSuspended { get; set; } = false;

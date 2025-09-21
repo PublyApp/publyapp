@@ -1,5 +1,5 @@
 using MainApi.Localization;
-using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Lib;
@@ -38,8 +38,8 @@ public class GetTenantAuthData {
 		[AsParameters] GetTenantAuthDataQuery query,
 		[FromServices] IOptions<AppSettings> appSettings,
 		[FromServices] ITenantService tenantService,
+		[FromServices] IAccountService accountService,
 		[FromServices] IProfileService profileService,
-		[FromServices] MainApiDbContext dbContext,
 		CancellationToken cancellationToken = default
 	) {
 		if (!authContext.IsAuthenticated) {
@@ -66,7 +66,7 @@ public class GetTenantAuthData {
 				throw new Exception("Staff tenant not found");
 			}
 
-			var isUserStaffMember = await tenantService.IsUserStaffMemberAsync(userId, cancellationToken);
+			var isUserStaffMember = await accountService.IsUserStaffMemberAsync(userId, cancellationToken);
 
 			if (!isUserStaffMember) {
 				logger.LogWarning(
@@ -120,7 +120,7 @@ public class GetTenantAuthData {
 			));
 		}
 
-		var isUserMemberOfTenant = await tenantService.IsUserMemberOfTenantAsync(userId, tenantId, cancellationToken);
+		var isUserMemberOfTenant = await accountService.IsUserMemberOfTenantAsync(userId, tenantId, cancellationToken);
 
 		if (!isUserMemberOfTenant) {
 			logger.LogWarning(
