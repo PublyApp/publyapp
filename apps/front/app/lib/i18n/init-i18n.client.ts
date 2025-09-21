@@ -1,10 +1,3 @@
-import * as cookie from 'cookie';
-import dayjs from 'dayjs';
-import i18next from 'i18next';
-import LanguageDetector from 'i18next-browser-languagedetector';
-import Fetch from 'i18next-fetch-backend';
-import { initReactI18next } from 'react-i18next';
-import { getInitialNamespaces } from 'remix-i18next/client';
 import { defaultApiClient } from '@/parse-api-client/ApiClient';
 import {
 	LANGUAGE_DETECTION_METHOD,
@@ -15,12 +8,20 @@ import {
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import duration from '@/shared/utils/duration.utils';
-import { env } from '../env';
+import * as cookie from 'cookie';
+import dayjs from 'dayjs';
+import i18next from 'i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
+import Fetch from 'i18next-fetch-backend';
+import { initReactI18next } from 'react-i18next';
+import { getInitialNamespaces } from 'remix-i18next/client';
 import { defaultZodClient } from '../zod/zod.client';
 import { config } from './i18n.config';
 
-const backendUrl = new URL(env.VITE_SERVER_URL);
-backendUrl.pathname = '/resources/{{lng}}.{{ns}}.json';
+// const backendUrl = new URL(env.VITE_SERVER_URL);
+// backendUrl.pathname = '/resources/{{lng}}.{{ns}}.json';
+const backendUrl = new URL(window.location.origin);
+backendUrl.pathname = '/tx/{{ns}}.{{lng}}.json';
 
 let INITIALIZED = false;
 
