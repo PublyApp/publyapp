@@ -14,7 +14,13 @@
 			"!**/dist",
 			"!**/.turbo",
 			"!**/.husky/_",
-			"!**/.react-router"
+			"!**/.react-router",
+			"!packages/js-client/**",
+			"!apps/api/openapi/**",
+			"!apps/api/Migrations/**",
+			"!apps/api/bin/**",
+			"!.config/dotnet-tools.json",
+			"!apps/api/Generated/**"
 		]
 	},
 	"formatter": {

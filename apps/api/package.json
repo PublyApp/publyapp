@@ -1,0 +1,14 @@
+{
+	"name": "api",
+	"version": "1.0.0",
+	"private": true,
+	"scripts": {
+		"dev": "dotnet watch --project MainApi.csproj",
+		"build": "dotnet build MainApi.csproj",
+		"publish": "dotnet publish MainApi.csproj --output ./bin",
+		"migrate:add": "dotnet ef migrations add",
+		"migrate:apply": "dotnet ef database update",
+		"migrate:remove": "dotnet ef migrations remove",
+		"seed": "dotnet ef database seed"
+	}
+}

@@ -130,9 +130,9 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		}
 	}
 
-	if (import.meta.env.PROD) {
-		return <View500 />;
+	if (import.meta.env.DEV) {
+		return <TemplateErrorBoundary error={error} />;
 	}
 
-	return <TemplateErrorBoundary error={error} />;
+	return <View500 />;
 };

@@ -1,3 +1,0 @@
-{
-	"*.{js,ts,jsx,tsx,html,svelte,json,jsonc}": "biome format --write"
-}

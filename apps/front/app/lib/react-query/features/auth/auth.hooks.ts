@@ -3,35 +3,64 @@ import {
 	createQuery,
 	createSuspenseQuery,
 } from 'react-query-kit';
-import { defaultApiClient } from '@/parse-api-client/ApiClient';
-import { functionName } from '@/shared/lib/constants';
+import { clientManager } from '@/front/lib/js-client/client-manager';
+import type { ApiClient } from '@/js-client/src/apiClient';
+import { getQueryKey } from '../../query-utils';
+
+const getUserAuthDataQueryKey = getQueryKey<ApiClient>(
+	(client) => client.auth.userAuthData.get,
+);
 
 export const useGetUserAuthData = createSuspenseQuery({
-	queryKey: [functionName.auth.getUserAuthData] as const,
+	queryKey: [getUserAuthDataQueryKey] as const,
 	fetcher: async () => {
-		return defaultApiClient.auth.getUserAuthData();
+		return clientManager.apiClient.auth.userAuthData.get();
 	},
 });
+
+const getTenantAuthDataQueryKey = getQueryKey<ApiClient>(
+	(client) => client.auth.tenantAuthData.get,
+);
 
 export const useGetTenantAuthData = createSuspenseQuery({
-	queryKey: [functionName.auth.getTenantAuthData] as const,
+	queryKey: [getTenantAuthDataQueryKey] as const,
 	fetcher: async ({ tenantId }: { tenantId: string }) => {
-		return defaultApiClient.auth.getTenantAuthData({ tenantId });
+		return clientManager.apiClient.auth.tenantAuthData.get({
+			queryParameters: {
+				tenantId,
+			},
+		});
 	},
 });
+
+const getVerificationLinkQueryKey = getQueryKey<ApiClient>(
+	(client) => client.auth.verificationLink.get,
+);
 
 export const useGetVerificationLink = createQuery({
-	queryKey: [functionName.auth.getVerificationLink] as const,
+	queryKey: [getVerificationLinkQueryKey] as const,
 	fetcher: async ({ userId }: { userId: string }) => {
-		return defaultApiClient.auth.getVerificationLink({ userId });
+		return clientManager.apiClient.auth.verificationLink.get({
+			queryParameters: {
+				userId,
+			},
+		});
 	},
 });
 
+const getVerifyEmailRequestQueryKey = getQueryKey<ApiClient>(
+	(client) => client.auth.verifyEmailRequest.post,
+);
+
 export const useSendEmailVerificationReminder = createMutation({
-	mutationKey: [
-		`${functionName.auth.requestEmailVerification}-reminder`,
-	] as const,
+	mutationKey: [getVerifyEmailRequestQueryKey] as const,
 	mutationFn: async ({ email }: { email: string }) => {
-		return defaultApiClient.auth.requestEmailVerification({ email });
+		return clientManager.apiClient.auth.verifyEmailRequest.post({
+			email: {
+				getValue() {
+					return email;
+				},
+			},
+		});
 	},
 });

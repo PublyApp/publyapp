@@ -2,11 +2,10 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { FRONT_PATH_NAMES, X_CODE } from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
 const InvalidLinkView = ({
 	error,
@@ -45,12 +44,6 @@ const InvalidLinkView = ({
 
 	if (forceIsInvalid) {
 		return renderInvalidLinkView();
-	}
-
-	if (error instanceof ParseRestError) {
-		if (error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID) {
-			return renderInvalidLinkView();
-		}
 	}
 
 	throw error;

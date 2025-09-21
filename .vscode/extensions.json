@@ -33,6 +33,7 @@
 		"jasonnutter.search-node-modules",
 		"jock.svg",
 		"MarkosTh09.color-picker",
-		"ms-dotnettools.csdevkit"
+		"ms-dotnettools.csdevkit",
+		"humao.rest-client"
 	]
 }
