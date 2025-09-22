@@ -22,14 +22,15 @@
 		"@fontsource/barlow": "^5.2.5",
 		"@hookform/resolvers": "^4.1.3",
 		"@iconify/react": "^5.2.0",
+		"@microsoft/kiota-abstractions": "1.0.0-preview.97",
+		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.97",
 		"@mui/icons-material": "^7.1.1",
 		"@mui/lab": "^7.0.0-beta.13",
 		"@mui/material": "^7.1.1",
 		"@mui/x-data-grid": "^8.5.1",
 		"@mui/x-date-pickers": "^8.5.1",
 		"@mui/x-tree-view": "^8.5.1",
-		"@org/parse-api-client": "workspace:*",
-		"@org/parse-rest-client": "workspace:*",
+		"@org/js-client": "workspace:*",
 		"@org/shared": "workspace:*",
 		"@react-router/node": "^7.5.2",
 		"@react-router/serve": "^7.5.2",
@@ -46,6 +47,7 @@
 		"@tiptap/pm": "^2.11.6",
 		"@tiptap/react": "^2.11.6",
 		"@tiptap/starter-kit": "^2.11.6",
+		"chalk": "^5.4.1",
 		"cookie": "^1.0.2",
 		"cross-env": "^7.0.3",
 		"dayjs": "^1.11.12",
@@ -105,6 +107,7 @@
 		"vite": "^6.3.5",
 		"vite-plugin-checker": "^0.10.0",
 		"vite-plugin-devtools-json": "^0.2.1",
+		"vite-plugin-static-copy": "^3.1.2",
 		"vite-tsconfig-paths": "^5.1.2"
 	}
 }

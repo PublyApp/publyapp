@@ -1,4 +1,15 @@
-import type { ApiClient } from '@/parse-api-client/ApiClient';
+// import type { ApiClient } from '@/parse-api-client/ApiClient';
+// import { clientManager } from '../js-client/client-manager';
+
+import type { ApiClient } from '@org/js-client/src/apiClient';
+import * as cookie from 'cookie';
+import _ from 'lodash';
+import {
+	type ActionFunctionArgs,
+	type AppLoadContext,
+	type LoaderFunctionArgs,
+	redirect,
+} from 'react-router';
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
 	FORWARDED_FOR_HEADER_KEY,
@@ -8,14 +19,6 @@ import {
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
 import { isPromise } from '@/shared/utils/any.utils';
-import * as cookie from 'cookie';
-import _ from 'lodash';
-import {
-	type ActionFunctionArgs,
-	type AppLoadContext,
-	type LoaderFunctionArgs,
-	redirect,
-} from 'react-router';
 import { initApiClientOnServer } from '../api';
 import { remixI18NextServer } from '../i18n/i18n.server';
 import { getRequestLocale } from './data.utils';
@@ -32,7 +35,7 @@ type GetServerLoaderParamsWhenRequireUser<
 			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
-			authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
+			// authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
 		},
 	) => Promise<D>;
 };
@@ -65,7 +68,7 @@ type GetServerLoaderParamsWithAuthDataPromise<
 			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
-			authDataPromise: ReturnType<ApiClient['auth']['getUserAuthData']>;
+			// authDataPromise: ReturnType<ApiClient['auth']['getUserAuthData']>;
 		},
 	) => Promise<D>;
 };
@@ -128,7 +131,9 @@ export const getServerLoader: GetServerLoader = <
 			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
-			const apiClient = initApiClientOnServer({ locale, requestIp });
+			const apiClient = initApiClientOnServer({
+				/* locale, requestIp */
+			});
 
 			if (!params.withAuthDataPromise) {
 				return params.loader({
@@ -140,7 +145,7 @@ export const getServerLoader: GetServerLoader = <
 				});
 			}
 
-			const authDataPromise = apiClient.auth.getUserAuthData();
+			// const authDataPromise = apiClient.auth.getUserAuthData();
 
 			return params.loader({
 				...args,
@@ -148,7 +153,7 @@ export const getServerLoader: GetServerLoader = <
 				apiClient,
 				z,
 				locale,
-				authDataPromise,
+				// authDataPromise,
 			});
 		}
 
@@ -163,11 +168,11 @@ export const getServerLoader: GetServerLoader = <
 		}
 
 		const apiClient = initApiClientOnServer({
-			locale,
+			// locale,
 			sessionToken,
-			requestIp,
+			// requestIp,
 		});
-		const authData = await apiClient.auth.getUserAuthData();
+		// const authData = await apiClient.auth.getUserAuthData();
 
 		return params.loader({
 			...args,
@@ -175,7 +180,7 @@ export const getServerLoader: GetServerLoader = <
 			apiClient,
 			z,
 			locale,
-			authData,
+			// authData,
 		});
 	};
 
@@ -192,7 +197,7 @@ type GetServerActionParamsWhenRequireUser<
 			z: InterZod;
 			locale: AppLocale;
 			apiClient: ApiClient;
-			authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
+			// authData: Awaited<ReturnType<ApiClient['auth']['getUserAuthData']>>;
 		},
 	) => Promise<D>;
 };
@@ -261,7 +266,9 @@ export const getServerAction: GetServerAction = <
 			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
-			const apiClient = initApiClientOnServer({ locale, requestIp });
+			const apiClient = initApiClientOnServer({
+				/* locale, requestIp */
+			});
 			return params.action({
 				...args,
 				context: finalLoadContext,
@@ -281,12 +288,12 @@ export const getServerAction: GetServerAction = <
 		}
 
 		const apiClient = initApiClientOnServer({
-			locale,
+			// locale,
 			sessionToken,
-			requestIp,
+			// requestIp,
 		});
 
-		const authData = await apiClient.auth.getUserAuthData();
+		// const authData = await apiClient.auth.getUserAuthData();
 
 		return params.action({
 			...args,
@@ -294,7 +301,7 @@ export const getServerAction: GetServerAction = <
 			apiClient,
 			z,
 			locale,
-			authData,
+			// authData,
 		});
 	};
 

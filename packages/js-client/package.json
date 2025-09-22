@@ -1,0 +1,20 @@
+{
+	"name": "@org/js-client",
+	"version": "0.0.1",
+	"main": "src/index.ts",
+	"types": "src/index.d.ts",
+	"scripts": {
+		"kiota:generate": "dotnet kiota generate -d ../../apps/api/openapi/MainApi.json -o src -l typescript -n MainApi.Client -c ApiClient",
+		"kiota:update": "dotnet kiota update -o src",
+		"kiota:info": "dotnet kiota info -d ../../apps/api/openapi/MainApi.json -l typeScript"
+	},
+	"dependencies": {
+		"@microsoft/kiota-abstractions": "1.0.0-preview.97",
+		"@microsoft/kiota-authentication-azure": "1.0.0-preview.97",
+		"@microsoft/kiota-bundle": "1.0.0-preview.97",
+		"@microsoft/kiota-serialization-form": "1.0.0-preview.97",
+		"@microsoft/kiota-serialization-json": "1.0.0-preview.97",
+		"@microsoft/kiota-serialization-multipart": "1.0.0-preview.97",
+		"@microsoft/kiota-serialization-text": "1.0.0-preview.97"
+	}
+}

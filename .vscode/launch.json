@@ -2,6 +2,11 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+			"name": "Attach to MainApi",
+			"type": "coreclr",
+			"request": "attach"
+		},
+		{
 			"type": "node",
 			"request": "attach",
 			"name": "Attach by WebSocket URL",
