@@ -1,35 +1,30 @@
-using System.Globalization;
-
 using FluentValidation;
-
-using Npgsql;
 
 namespace MainApi.Src.Lib;
 
-/// <summary>
-/// Provides access to environment variables with validation.
-/// Call Initialize() once at startup before accessing properties.
-/// </summary>
-public class AppEnvironment {
-	// Static accessor for use outside DI
-	private static AppEnvironment? _instance;
-	private static readonly Lock InitLock = new();
+public static class AppEnvironment {
+	public static string POSTGRES_CONNECTION_STRING { get { return GetEnvVar(nameof(_POSTGRES_CONNECTION_STRING)); } }
+	private static string _POSTGRES_CONNECTION_STRING = string.Empty;
 
-	/// <summary>
-	/// Gets the initialized instance. Throws if Initialize() hasn't been called.
-	/// </summary>
-	public static AppEnvironment Instance {
-		get {
-			var instance = Volatile.Read(ref _instance);
-			if (instance is null) {
-				throw new InvalidOperationException(
-					"AppEnvironment not initialized. "
-					+ "Call AppEnvironment.Initialize() "
-					+ "first."
-				);
-			}
-			return instance;
+	public static string FRONT_URL { get { return GetEnvVar(nameof(_FRONT_URL)); } }
+	private static string _FRONT_URL = string.Empty;
+
+	private static bool IS_DOTENV_LOADED = false;
+	private static bool IS_INITIALIZED = false;
+	private static readonly EnvironmentValidator _validator = new EnvironmentValidator();
+
+	private static string GetEnvVar(string name) {
+		if (!IS_INITIALIZED) {
+			throw new Exception("Environment is not initialized: call AppEnvironment.LoadEnv() first");
 		}
+
+		var property = typeof(AppEnvironment).GetField(name, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+
+		if (property == null) {
+			throw new Exception($"Environment variable {name} is not supported by {nameof(AppEnvironment)}");
+		}
+
+		return property.GetValue(null) as string ?? string.Empty;
 	}
 
 	// ========== Environment Variables (secrets, URLs) ==========
@@ -322,33 +317,40 @@ public class AppEnvironment {
 		}
 
 		DotNetEnv.Env.Load(path);
+		IS_DOTENV_LOADED = true;
 	}
 
-	public static string? FindDotEnvPath(string fileName) {
-		// We intentionally search parent directories because the current working directory can vary:
-		// - `dotnet run` often uses `apps/api/`
-		// - build-time OpenAPI generation can execute from `apps/api/bin/...` or another working dir
-		// Walking up ensures we can find the repo-root `.env.development` reliably.
-		var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
-		while (directory is not null) {
-			var candidate = Path.Combine(directory.FullName, fileName);
-			if (File.Exists(candidate)) return candidate;
-			directory = directory.Parent;
+	private static void ValidateAndSetEnvironmentVariables() {
+		var postgresConnectionString = Environment.GetEnvironmentVariable(nameof(POSTGRES_CONNECTION_STRING));
+		var frontUrl = Environment.GetEnvironmentVariable(nameof(FRONT_URL));
+
+		var validationResult = _validator.Validate(new EnvironmentConfig {
+			PostgresConnectionString = postgresConnectionString,
+			FrontUrl = frontUrl
+		});
+
+		if (!validationResult.IsValid) {
+			var errors = string.Join(",\n\t\t", validationResult.Errors.Select(e => e.ErrorMessage));
+			throw new Exception($"Environment validation failed:\n\t\t{errors}");
 		}
 
-		return null;
+		_POSTGRES_CONNECTION_STRING = postgresConnectionString!;
+		_FRONT_URL = frontUrl!;
 	}
 }
 
-public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
-	public AppEnvironmentValidator() {
-		// Environment variables
-		RuleFor(x => x.POSTGRES_CONNECTION_STRING)
-			.NotEmpty().WithMessage("POSTGRES_CONNECTION_STRING is not set or is empty")
-			.Must(BeValidPostgresConnectionString)
-			.WithMessage("POSTGRES_CONNECTION_STRING must be a valid PostgreSQL connection string");
+public class EnvironmentConfig {
+	public string? PostgresConnectionString { get; set; }
+	public string? FrontUrl { get; set; }
+}
 
-		RuleFor(x => x.FRONT_URL)
+public class EnvironmentValidator : AbstractValidator<EnvironmentConfig> {
+	public EnvironmentValidator() {
+		RuleFor(x => x.PostgresConnectionString)
+			.NotEmpty().WithMessage("POSTGRES_CONNECTION_STRING is not set or is empty")
+			.Must(BeValidPostgresConnectionString).WithMessage("POSTGRES_CONNECTION_STRING must be a valid PostgreSQL connection string");
+
+		RuleFor(x => x.FrontUrl)
 			.NotEmpty().WithMessage("FRONT_URL is not set or is empty")
 			.Must(BeValidUrl)
 			.WithMessage("FRONT_URL must be a valid URL");
@@ -420,28 +422,20 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 			.WithMessage("TENANT_ID_HEADER_KEY must be a valid HTTP header name");
 	}
 
-	private static bool BeValidUrl(string url) =>
-		Uri.TryCreate(url, UriKind.Absolute, out var uri)
-		&& (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
-		&& !string.IsNullOrWhiteSpace(uri.Host)
-		&& string.IsNullOrEmpty(uri.UserInfo)
-		&& uri.AbsolutePath is "/"
-		&& string.IsNullOrEmpty(uri.Query)
-		&& string.IsNullOrEmpty(uri.Fragment);
-
-	private static bool BeValidHeaderName(string headerName) =>
-		!string.IsNullOrWhiteSpace(headerName)
-		&& headerName.All(c => char.IsLetterOrDigit(c) || c == '-');
-
-	private static bool BeValidPostgresConnectionString(string connectionString) {
-		try {
-			var builder = new NpgsqlConnectionStringBuilder(connectionString);
-			return !string.IsNullOrWhiteSpace(builder.Host)
-				&& !string.IsNullOrWhiteSpace(builder.Database)
-				&& !string.IsNullOrWhiteSpace(builder.Username)
-				&& !string.IsNullOrWhiteSpace(builder.Password);
-		} catch {
-			return false;
+	private static bool BeAValidUrl(string? url) {
+		if (string.IsNullOrWhiteSpace(url)) {
+			return false; // Or handle as per your requirements (e.g., use NotEmpty)
 		}
+		return Uri.TryCreate(url, UriKind.Absolute, out Uri? result)
+			&& (result.Scheme == Uri.UriSchemeHttp || result.Scheme == Uri.UriSchemeHttps);
+	}
+
+	private static bool BeValidPostgresConnectionString(string? connectionString) {
+		if (string.IsNullOrWhiteSpace(connectionString)) return false;
+
+		// Basic validation for PostgreSQL connection string
+		// Should contain at least Host, Database, Username, and Password
+		var requiredKeys = new[] { "Host", "Database", "Username", "Password" };
+		return requiredKeys.All(key => connectionString.Contains(key));
 	}
 }

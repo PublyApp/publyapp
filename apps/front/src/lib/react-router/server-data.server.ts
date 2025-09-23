@@ -11,8 +11,8 @@ import {
 	redirect,
 } from 'react-router';
 import {
-	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	FORWARDED_FOR_HEADER_KEY,
+	// CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	// FORWARDED_FOR_HEADER_KEY,
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
@@ -124,11 +124,11 @@ export const getServerLoader: GetServerLoader = <
 
 		const finalLoadContext = getDevContext(args.context);
 
-		const requestIp =
-			args.request.headers.get(
-				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
-			) || // ✅ Cloudflare real IP
-			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
+		// const requestIp =
+		// 	args.request.headers.get(
+		// 		_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+		// 	) || // ✅ Cloudflare real IP
+		// 	args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({
@@ -259,11 +259,11 @@ export const getServerAction: GetServerAction = <
 
 		const finalLoadContext = getDevContext(args.context);
 
-		const requestIp =
-			args.request.headers.get(
-				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
-			) || // ✅ Cloudflare real IP
-			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
+		// const requestIp =
+		// 	args.request.headers.get(
+		// 		_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+		// 	) || // ✅ Cloudflare real IP
+		// 	args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({
@@ -288,11 +288,14 @@ export const getServerAction: GetServerAction = <
 		}
 
 		const apiClient = initApiClientOnServer({
-			// locale,
 			sessionToken,
+			// locale,
 			// requestIp,
 		});
 
+		// ! Don't force every loader to have auth data
+		// ! Let the developer decide if they want to have auth data or not
+		// ! in their implementation
 		// const authData = await apiClient.auth.getUserAuthData();
 
 		return params.action({

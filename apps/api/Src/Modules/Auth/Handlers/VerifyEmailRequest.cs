@@ -1,34 +1,39 @@
-using System.Text.Json;
-
 using FluentValidation;
-
 using MainApi.Localization;
-using MainApi.Src.Infrastructure.Messaging.Email;
+using MainApi.Src.Features.Common.Email;
+using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Extensions;
-using MainApi.Src.Lib.ProblemResults;
 using MainApi.Src.Lib.Utils;
-using MainApi.Src.Lib.Validation;
-using MainApi.Src.Modules.Users.Services;
-
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using System.Text.Json;
 
-namespace MainApi.Src.Modules.Auth.Handlers;
+namespace MainApi.Src.Features.Common.Auth.Handlers;
 
 public class VerifyEmailRequestBody {
 	public required JsonElement Email { get; set; }
 
 	public string GetEmail() {
-		return Email.GetValueAsString();
+		return Email.ValueKind switch {
+			JsonValueKind.String => Email.GetString() ?? throw new InvalidOperationException("Email cannot be null"),
+			_ => throw new InvalidOperationException("Invalid email format")
+		};
 	}
 }
 
-public class VerifyEmailRequestBodyValidator
-	: AbstractValidator<VerifyEmailRequestBody> {
+public class VerifyEmailRequestBodyValidator : AbstractValidator<VerifyEmailRequestBody> {
 	public VerifyEmailRequestBodyValidator() {
 		RuleFor(x => x.Email)
-			.MustBeRequiredEmail();
+			.NotEmpty().WithMessage("Email is required")
+			.DependentRules(() => {
+				RuleFor(x => x.Email)
+					.Must(email => email.ValueKind == JsonValueKind.String).WithMessage("Email must be a string")
+					.DependentRules(() => {
+						RuleFor(x => x.Email.GetString()!)
+							.EmailAddress().WithMessage("Invalid email address");
+					});
+			});
 	}
 }
 
@@ -40,32 +45,25 @@ public class VerifyEmailRequest {
 	public static async Task<
 		Results<
 			Ok<VerifyEmailRequestResult>,
-			AppBadRequestHttpResult,
-			AppNotFoundHttpResult
+			BadRequest<ApiResponse>
 		>
 	> HandleVerifyEmailRequest(
 		[FromBody] VerifyEmailRequestBody body,
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<VerifyEmailRequest> logger,
-		CancellationToken cancellationToken
+		[FromServices] IOptions<AppSettings> appSettings,
+		CancellationToken cancellationToken = default
 	) {
-		var env = AppEnvironment.Instance;
-
 		// check if user exists
-		var user = await userService.GetUserByEmailAsync(
-			body.GetEmail(), cancellationToken
-		);
+		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken).ConfigureAwait(false);
 
-		if (user is null) {
-			return TypedProblems.NotFound(
-				"User not found",
-				ResponseKeys.NotFound
-			);
+		if (user == null) {
+			return TypedResults.BadRequest(ApiResponse.Create("User not found", ResponseKeys.UserNotFound));
 		}
 
 		if (user.IsVerified == true) {
-			return TypedProblems.BadRequest("Email already verified", ResponseKeys.EmailAlreadyVerified);
+			return TypedResults.BadRequest(ApiResponse.Create("Email already verified", ResponseKeys.EmailAlreadyVerified));
 		}
 
 		var userEmail = user.Email;
@@ -77,35 +75,31 @@ public class VerifyEmailRequest {
 		) {
 			// Send email asynchronously with proper error handling
 			// We don't await this because we want to return the response immediately
-			_ = emailService.SendEmailVerificationRequestAsync(userEmail, user.EmailVerifyToken)
+			_ = emailService.SendVerificationMail(userEmail, user.EmailVerifyToken)
 				.ContinueWith(t => {
 					if (t.Exception != null) {
-						if (logger.IsEnabled(LogLevel.Error)) {
-							logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
-						}
+						logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
 					}
 				}, cancellationToken);
 
 			return TypedResults.Ok(new VerifyEmailRequestResult());
 		}
 
-		var emailVerifyToken = CryptoUtils.RandomString(env.EMAIL_VERIFY_TOKEN_LENGTH);
-		var emailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(env.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
+		var emailVerifyToken = CryptoUtils.RandomString(25);
+		var emailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
 
 		user.IsVerified = false;
 		user.EmailVerifyToken = emailVerifyToken;
 		user.EmailVerifyTokenExpiresAt = emailVerifyTokenExpiresAt;
 
-		await userService.UpdateUserAsync(user, cancellationToken);
+		await userService.UpdateUserAsync(user, cancellationToken).ConfigureAwait(false);
 
 		// Send email asynchronously with proper error handling
 		// We don't await this because we want to return the response immediately
-		_ = emailService.SendEmailVerificationRequestAsync(userEmail, user.EmailVerifyToken)
+		_ = emailService.SendVerificationMail(userEmail, user.EmailVerifyToken)
 			.ContinueWith(t => {
 				if (t.Exception != null) {
-					if (logger.IsEnabled(LogLevel.Error)) {
-						logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
-					}
+					logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
 				}
 			}, cancellationToken);
 

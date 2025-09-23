@@ -36,9 +36,8 @@ export const createCSPDirectives = ({
 		defaultSrc: ["'self'"],
 		scriptSrc: [
 			"'self'",
-			'https://www.publyapp.com',
-			'https://publyapp.com',
-			'https://us-assets.i.posthog.com', // PostHog Scripts
+			'https://www.pdfvite.com',
+			'https://pdfvite.com',
 			_nonce,
 		],
 		styleSrc: [
@@ -49,13 +48,7 @@ export const createCSPDirectives = ({
 		],
 		imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
 		fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-		connectSrc: [
-			"'self'",
-			'https://www.publyapp.com',
-			'https://publyapp.com',
-			'https://us.i.posthog.com', // PostHog API
-			'https://us-assets.i.posthog.com', // PostHog Assets
-		],
+		connectSrc: ["'self'", 'https://www.pdfvite.com', 'https://pdfvite.com'],
 		mediaSrc: ["'self'"],
 		objectSrc: ["'none'"],
 		baseUri: ["'self'"],
@@ -74,8 +67,8 @@ export const createCSPDirectives = ({
 		];
 		baseDirectives.connectSrc = [
 			...(baseDirectives.connectSrc || []),
-			'http://localhost:5000', // ASP server address
-			'http://localhost:5050', // vite server address
+			'http://localhost:5077', // ASP server address
+			'http://localhost:6181', // vite server address
 			'ws:',
 			'wss:',
 		];

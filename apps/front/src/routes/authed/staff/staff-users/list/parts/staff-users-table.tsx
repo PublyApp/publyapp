@@ -24,14 +24,7 @@ const StaffUsersTable = () => {
 	} = useStaffUsersTableController();
 
 	return (
-		<Box
-			sx={{
-				flexGrow: 1,
-				display: 'flex',
-				flexDirection: 'column',
-				border: 'none',
-			}}
-		>
+		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
 
 			<StaffUsersExportDialogController
