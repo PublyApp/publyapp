@@ -16,13 +16,11 @@ import {
 } from 'react-router';
 import {
 	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	isPreRenderPath,
 	LANGUAGE_DETECTION_METHOD,
 	LANGUAGE_DETECTION_METHOD_ENUM,
 	LOCALE_COOKIE_KEY,
 	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
-	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 } from '@/shared/lib/constants';
 // import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
@@ -110,24 +108,24 @@ const handleRequest = async (
 
 		// regardless of the environment, we want to set the nonce
 		// to the static pre render path nonce if the path is a pre render path
-		if (isPreRenderPath(new URL(request.url).pathname)) {
-			finalLoadContext.___NONCE___ = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
-		}
+		// if (isPreRenderPath(new URL(request.url).pathname)) {
+		// 	finalLoadContext.___NONCE___ = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
+		// }
 
-		const nonce = _.toString(finalLoadContext.___NONCE___) || nanoid();
+		const ___NONCE___ = finalLoadContext.___NONCE___;
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
-				<NonceProvider value={nonce}>
+				<NonceProvider value={___NONCE___}>
 					<ServerRouter
 						context={routerContext}
 						url={request.url}
-						nonce={nonce}
+						nonce={___NONCE___}
 					/>
 				</NonceProvider>
 			</I18nextProvider>,
 			{
-				nonce,
+				nonce: ___NONCE___,
 				[readyOption]: () => {
 					shellRendered = true;
 					const body = new PassThrough();

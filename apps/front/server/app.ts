@@ -45,7 +45,7 @@ app.use(
 			return import('virtual:react-router/server-build');
 		},
 		getLoadContext: (req, _res) => {
-			const ___NONCE___ = _.get(req, '___NONCE___');
+			const ___NONCE___ = _.get(req, '___NONCE___') as unknown as string;
 
 			if (isDevelopment) {
 				return {
