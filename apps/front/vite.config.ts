@@ -19,9 +19,9 @@ export default defineConfig(({ mode }) => {
 
 	return {
 		plugins: [
-			copyI18nFiles(),
-			devtoolsJson(),
-			reactRouterDevTools(),
+			// copyI18nFiles(),
+			// devtoolsJson(),
+			// reactRouterDevTools(),
 			reactRouter(),
 			tsconfigPaths(),
 			// checker({ typescript: true }),
