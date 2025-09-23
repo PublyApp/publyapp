@@ -62,12 +62,12 @@ public static class AppServicesConfig {
 		});
 
 		// Create a singleton context for operations that don't need tenant filtering
-		var dbContextWithoutFilter = new MainApiDbContext(
-			new DbContextOptionsBuilder<MainApiDbContext>()
-				.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
-				.Options
-		);
-		dbContextWithoutFilter.SingleTon = dbContextWithoutFilter;
+		// var dbContextWithoutFilter = new MainApiDbContext(
+		// 	new DbContextOptionsBuilder<MainApiDbContext>()
+		// 		.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
+		// 		.Options
+		// );
+		// dbContextWithoutFilter.SingleTon = dbContextWithoutFilter;
 
 		// Register scoped DbContext (for per-request instances)
 		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) => {

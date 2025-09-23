@@ -7,6 +7,7 @@ using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
+using MainApi.Src.Lib;
 
 namespace MainApi.Src.Data.DbContext;
 
@@ -16,15 +17,16 @@ namespace MainApi.Src.Data.DbContext;
 public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private static MainApiDbContext? _singleton = null;
 
-	public MainApiDbContext SingleTon {
+	public static MainApiDbContext SingleTon {
 		get {
 			if (_singleton is null) {
-				throw new Exception("You must set a singleton before getting it");
+				_singleton = new MainApiDbContext(
+					new DbContextOptionsBuilder<MainApiDbContext>()
+						.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
+						.Options
+				);
 			}
 			return _singleton;
-		}
-		set {
-			_singleton = value;
 		}
 	}
 
