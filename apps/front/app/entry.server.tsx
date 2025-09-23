@@ -109,23 +109,23 @@ const handleRequest = async (
 		// regardless of the environment, we want to set the nonce
 		// to the static pre render path nonce if the path is a pre render path
 		// if (isPreRenderPath(new URL(request.url).pathname)) {
-		// 	finalLoadContext.___NONCE___ = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
+		// 	finalLoadContext.nonce = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
 		// }
 
-		const ___NONCE___ = finalLoadContext.___NONCE___;
+		const nonce = finalLoadContext.nonce;
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
-				<NonceProvider value={___NONCE___}>
+				<NonceProvider value={nonce}>
 					<ServerRouter
 						context={routerContext}
 						url={request.url}
-						nonce={___NONCE___}
+						nonce={nonce}
 					/>
 				</NonceProvider>
 			</I18nextProvider>,
 			{
-				nonce: ___NONCE___,
+				nonce: nonce,
 				[readyOption]: () => {
 					shellRendered = true;
 					const body = new PassThrough();
