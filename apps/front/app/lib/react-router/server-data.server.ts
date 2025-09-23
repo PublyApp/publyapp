@@ -22,7 +22,8 @@ import { isPromise } from '@/shared/utils/any.utils';
 import { initApiClientOnServer } from '../api';
 import { remixI18NextServer } from '../i18n/i18n.server';
 import { getRequestLocale } from './data.utils';
-import { getDevContext } from './get-dev-context.server';
+
+// import { getFinalLoadContext } from './get-final-load-context.server';
 
 type GetServerLoaderParamsWhenRequireUser<
 	T extends
@@ -122,7 +123,7 @@ export const getServerLoader: GetServerLoader = <
 			z._t = await z.t;
 		}
 
-		const finalLoadContext = getDevContext(args.context);
+		const finalLoadContext = args.context; // getFinalLoadContext(args.context);
 
 		// const requestIp =
 		// 	args.request.headers.get(
@@ -257,7 +258,7 @@ export const getServerAction: GetServerAction = <
 			z._t = await z.t;
 		}
 
-		const finalLoadContext = getDevContext(args.context);
+		const finalLoadContext = args.context; // getFinalLoadContext(args.context);
 
 		// const requestIp =
 		// 	args.request.headers.get(

@@ -20,11 +20,11 @@ import {
 	REMIX_CLIENT_IP_HEADER_KEY,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 } from '@/shared/lib/constants';
-import { getUnifiedCSPConfig } from '@/shared/lib/csp';
+// import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
-import { getDevContext } from './lib/react-router/get-dev-context.server';
+// import { getFinalLoadContext } from './lib/react-router/get-final-load-context.server';
 
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
@@ -35,7 +35,7 @@ const handleRequest = async (
 	routerContext: EntryContext,
 	loadContext: AppLoadContext,
 ) => {
-	const finalLoadContext = getDevContext(loadContext);
+	const finalLoadContext = loadContext;
 
 	const postHogServer = finalLoadContext.postHogServer;
 
@@ -120,16 +120,16 @@ const handleRequest = async (
 					responseHeaders.set('Content-Type', 'text/html');
 
 					// Set CSP headers
-					const isDevelopment = import.meta.env.DEV;
+					// const isDevelopment = import.meta.env.DEV;
 
-					if (isDevelopment) {
-						const cspConfig = getUnifiedCSPConfig({
-							isDevelopment,
-							reportOnly: false,
-							nonce,
-						});
-						responseHeaders.set(cspConfig.headerKey, cspConfig.header);
-					}
+					// if (isDevelopment) {
+					// 	const cspConfig = getUnifiedCSPConfig({
+					// 		isDevelopment,
+					// 		reportOnly: false,
+					// 		nonce,
+					// 	});
+					// 	responseHeaders.set(cspConfig.headerKey, cspConfig.header);
+					// }
 
 					resolve(
 						new Response(stream, {
