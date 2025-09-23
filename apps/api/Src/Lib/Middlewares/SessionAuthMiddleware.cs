@@ -1,9 +1,8 @@
-namespace MainApi.Src.Lib.Middlewares;
-
 using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Lib;
 using Microsoft.EntityFrameworkCore;
+
+namespace MainApi.Src.Lib.Middlewares;
 
 public class SessionAuthMiddleware {
 	private readonly ILogger<SessionAuthMiddleware> _logger;
@@ -20,10 +19,9 @@ public class SessionAuthMiddleware {
 		if (string.IsNullOrEmpty(sessionToken)) {
 			_logger.LogDebug("Session token is missing in request");
 			context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-			await context.Response.WriteAsJsonAsync(new {
-				message = "Unauthorized",
-				key = "unauthorized",
-			});
+			await context.Response.WriteAsJsonAsync(
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
+			);
 			return;
 		}
 
@@ -33,10 +31,9 @@ public class SessionAuthMiddleware {
 		if (session is null) {
 			_logger.LogDebug("Session token is invalid or expired: {@SessionData}", new { sessionToken });
 			context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-			await context.Response.WriteAsJsonAsync(new {
-				message = "Unauthorized",
-				key = "unauthorized",
-			});
+			await context.Response.WriteAsJsonAsync(
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
+			);
 			return;
 		}
 

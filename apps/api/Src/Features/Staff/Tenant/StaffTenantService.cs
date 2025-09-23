@@ -1,10 +1,10 @@
+using MainApi.Src.Data.DbContext;
+using CommonTenantNs = MainApi.Src.Features.Common.Tenant;
+
 namespace MainApi.Src.Features.Staff.Tenant;
 
-using MainApi.Src.Data.DbContext;
-using MainApi.Src.Features.Common.Tenant;
-
 public interface IStaffTenantService {
-	Task<Tenant> CreateTenant(Tenant tenant);
+	Task<CommonTenantNs.Tenant> CreateTenant(CommonTenantNs.Tenant tenant);
 }
 
 public class StaffTenantService : IStaffTenantService {
@@ -14,7 +14,7 @@ public class StaffTenantService : IStaffTenantService {
 		_dbContext = dbContext;
 	}
 
-	public async Task<Tenant> CreateTenant(Tenant tenant) {
+	public async Task<CommonTenantNs.Tenant> CreateTenant(CommonTenantNs.Tenant tenant) {
 		var result = await _dbContext.Tenant.AddAsync(tenant);
 		await _dbContext.SaveChangesAsync();
 		return result.Entity;

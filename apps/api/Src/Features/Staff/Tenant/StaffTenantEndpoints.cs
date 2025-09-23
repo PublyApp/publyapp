@@ -2,6 +2,7 @@ using MainApi.Src.Features.Staff.Tenant.Handlers;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Lib.Extensions;
 
 namespace MainApi.Src.Features.Staff.Tenant;
 
@@ -18,7 +19,8 @@ public static class StaffTenantEndpoints {
 			.WithName("CreateTenant")
 			.WithSummary("Create a new tenant")
 			.WithBodyValidation<CreateTenantAsStaffBody>()
-			.WithPermission([PermissionEnum.Staff.CAN_CREATE_TENANT]);
+			.WithPermission([PermissionEnum.Staff.CAN_CREATE_TENANT])
+			.Produces500ApiResponse();
 
 		return group;
 	}

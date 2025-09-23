@@ -1,6 +1,6 @@
-namespace MainApi.Src.Lib.Filters;
-
 using FluentValidation;
+
+namespace MainApi.Src.Lib.Filters;
 
 public class QueryValidationFailResult : AppResponseResult {
 	public new string Message { get; set; } = "Query parameter validation failed";

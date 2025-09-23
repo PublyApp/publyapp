@@ -15,6 +15,7 @@ export interface VerificationLinkRequestBuilder extends BaseRequestBuilder<Verif
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<GetVerificationLinkResult>}
      * @throws {ApiResponse} error when the service returns a 400 status code
+     * @throws {ApiResponse} error when the service returns a 500 status code
      */
      get(requestConfiguration?: RequestConfiguration<VerificationLinkRequestBuilderGetQueryParameters> | undefined) : Promise<GetVerificationLinkResult | undefined>;
     /**
@@ -49,6 +50,7 @@ export const VerificationLinkRequestBuilderRequestsMetadata: RequestsMetadata = 
         responseBodyContentType: "application/json",
         errorMappings: {
             400: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
+            500: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",
         responseBodyFactory:  createGetVerificationLinkResultFromDiscriminatorValue,

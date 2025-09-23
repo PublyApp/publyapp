@@ -1,9 +1,9 @@
-namespace MainApi.Src.Lib.Filters;
-
 using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Permission;
+
+namespace MainApi.Src.Lib.Filters;
 
 public class PermissionFilter : IEndpointFilter {
 	private readonly Permission[]? _requiredPermissions;

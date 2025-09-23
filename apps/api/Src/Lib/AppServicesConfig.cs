@@ -1,4 +1,3 @@
-namespace MainApi.Src.Lib;
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Features.Tenant.Product;
@@ -13,6 +12,8 @@ using MainApi.Src.Features.Common.Permission;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.Account;
+
+namespace MainApi.Src.Lib;
 
 public static class AppServicesConfig {
 	// Helper method to get current tenant ID

@@ -1,11 +1,11 @@
-namespace MainApi.Src.Features.Common.Auth.Handlers;
-
 using FluentValidation;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using MainApi.Src.Features.Common.User;
 using MainApi.Localization;
+
+namespace MainApi.Src.Features.Common.Auth.Handlers;
 
 public class GetVerificationLinkQuery {
 	public string UserId { get; set; } = string.Empty;

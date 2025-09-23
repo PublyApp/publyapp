@@ -3,6 +3,8 @@
  * Used by both frontend and backend to ensure consistent CSP policies
  */
 
+import _ from 'lodash';
+
 export interface CSPDirectives {
 	defaultSrc?: string[];
 	scriptSrc?: string[];
@@ -61,11 +63,11 @@ export const createCSPDirectives = ({
 			...(baseDirectives.scriptSrc || []),
 			"'unsafe-inline'",
 			"'unsafe-eval'",
+			'blob:',
 		];
 		baseDirectives.connectSrc = [
 			...(baseDirectives.connectSrc || []),
 			'http://localhost:5077', // ASP server address
-			'http://localhost:6180', // express server address // ! TODO: remove once migration to ASP completed
 			'http://localhost:6181', // vite server address
 			'ws:',
 			'wss:',
@@ -75,7 +77,7 @@ export const createCSPDirectives = ({
 	// Convert to Helmet-compatible format
 	const helmetDirectives: HelmetCSPDirectives = {};
 
-	Object.entries(baseDirectives).forEach(([key, value]) => {
+	_.entries(baseDirectives).forEach(([key, value]) => {
 		if (value === undefined) return;
 
 		const directiveName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -95,7 +97,7 @@ export const createCSPDirectives = ({
 export const directivesToString = (directives: CSPDirectives): string => {
 	const parts: string[] = [];
 
-	Object.entries(directives).forEach(([key, value]) => {
+	_.entries(directives).forEach(([key, value]) => {
 		if (value === undefined) return;
 
 		const directiveName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -123,7 +125,7 @@ export const createCSPHeader = ({
 
 	// Convert Helmet format back to string format for Vite
 	const parts: string[] = [];
-	Object.entries(directives).forEach(([directive, values]) => {
+	_.entries(directives).forEach(([directive, values]) => {
 		if (values && Array.from(values).length > 0) {
 			parts.push(`${directive} ${Array.from(values).join(' ')}`);
 		} else {

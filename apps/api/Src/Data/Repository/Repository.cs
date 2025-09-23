@@ -1,8 +1,8 @@
-namespace MainApi.Src.Data.Repository;
-
 using System.Linq.Expressions;
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
+
+namespace MainApi.Src.Data.Repository;
 
 public class Repository<T> : IRepository<T> where T : class, IEntity {
 	private readonly MainApiDbContext _context;

@@ -23,6 +23,7 @@ export interface StaffMembersRequestBuilder extends BaseRequestBuilder<StaffMemb
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<StaffMemberItem[]>}
      * @throws {ApiResponse} error when the service returns a 400 status code
+     * @throws {ApiResponse} error when the service returns a 500 status code
      */
      get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<StaffMemberItem[] | undefined>;
     /**
@@ -31,6 +32,7 @@ export interface StaffMembersRequestBuilder extends BaseRequestBuilder<StaffMemb
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<CreateStaffMemberResult>}
      * @throws {ApiResponse} error when the service returns a 400 status code
+     * @throws {ApiResponse} error when the service returns a 500 status code
      */
      post(body: CreateStaffMemberBody, requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<CreateStaffMemberResult | undefined>;
     /**
@@ -69,6 +71,7 @@ export const StaffMembersRequestBuilderRequestsMetadata: RequestsMetadata = {
         responseBodyContentType: "application/json",
         errorMappings: {
             400: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
+            500: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "sendCollection",
         responseBodyFactory:  createStaffMemberItemFromDiscriminatorValue,
@@ -78,6 +81,7 @@ export const StaffMembersRequestBuilderRequestsMetadata: RequestsMetadata = {
         responseBodyContentType: "application/json",
         errorMappings: {
             400: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
+            500: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",
         responseBodyFactory:  createCreateStaffMemberResultFromDiscriminatorValue,

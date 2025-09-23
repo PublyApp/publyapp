@@ -1,14 +1,13 @@
-import { Outlet, data } from 'react-router';
-
+import i18next from 'i18next';
+import { Suspense } from 'react';
+import { data, Outlet } from 'react-router';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { AuthSplitLayout } from '@/front/layouts/auth-split/layout';
-import i18next from 'i18next';
-import { Suspense } from 'react';
 import type { Route } from './+types/auth-layout';
 
 export const clientLoader = async (_: Route.ClientLoaderArgs) => {
-	i18next.loadNamespaces(['zod']);
+	i18next.loadNamespaces(['zod', 'response-message']);
 	return data({});
 };
 

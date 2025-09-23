@@ -1,9 +1,9 @@
-namespace MainApi.Src.Lib.Middlewares;
-
 using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
 using Microsoft.EntityFrameworkCore;
+
+namespace MainApi.Src.Lib.Middlewares;
 
 public class StaffAuthMiddleware {
 	private readonly ILogger<StaffAuthMiddleware> _logger;
@@ -39,10 +39,9 @@ public class StaffAuthMiddleware {
 		if (accountStaff is null) {
 			_logger.LogDebug("User is not a staff member: {@StaffAuthData}", new { UserId = authContext.UserId });
 			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-			await httpContext.Response.WriteAsJsonAsync(new {
-				message = "Unauthorized",
-				key = "unauthorized",
-			});
+			await httpContext.Response.WriteAsJsonAsync(
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
+			);
 			return;
 		}
 

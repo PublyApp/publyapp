@@ -1,8 +1,8 @@
-namespace MainApi.Src.Features.Common.Session;
-
 using System.ComponentModel.DataAnnotations.Schema;
 using MainApi.Src.Data;
 using Microsoft.EntityFrameworkCore;
+
+namespace MainApi.Src.Features.Common.Session;
 
 [Table("sessions")]
 [Index(nameof(Token), IsUnique = true)]

@@ -21,5 +21,7 @@
 	"invalid-session": "Session invalide",
 	"failed-to-authenticate-user": "Échec de l'authentification",
 	"failed-to-create-user": "Échec de la création d'utilisateur",
-	"user-already-member-of-staff": "Utilisateur déjà membre de l'équipe"
+	"user-already-member-of-staff": "Utilisateur déjà membre de l'équipe",
+	"request-body-missing": "Corps de la requête manquant",
+	"query-parameters-missing": "Paramètre de requête manquant"
 }

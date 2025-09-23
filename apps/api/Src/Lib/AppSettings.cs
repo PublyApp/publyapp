@@ -1,6 +1,6 @@
-namespace MainApi.Src.Lib;
-
 using System.ComponentModel.DataAnnotations;
+
+namespace MainApi.Src.Lib;
 
 // Configuration class for strongly-typed settings
 public class AppSettings {

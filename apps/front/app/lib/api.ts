@@ -1,16 +1,9 @@
-import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import * as cookie from 'cookie';
 import _ from 'lodash';
+import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 import { clientManager } from './js-client/client-manager';
 
-// const parseRestClient = new ParseRestClient({
-// 	applicationId: APP_ID,
-// 	parseServerUrl: env.VITE_SERVER_URL + endPoint.api.parse.root,
-// });
-
-export const initApiClientOnClient = (/* i18n: I18n */) => {
-	// defaultApiClient.setRestClient(parseRestClient);
-
+export const initApiClientOnClient = () => {
 	const browserCookies = cookie.parse(document.cookie);
 	const sessionToken = decodeURIComponent(
 		_.get(browserCookies, SESSION_TOKEN_COOKIE_KEY) || '',

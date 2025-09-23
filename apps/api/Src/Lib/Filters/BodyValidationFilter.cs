@@ -1,6 +1,6 @@
-namespace MainApi.Src.Lib.Filters;
-
 using FluentValidation;
+
+namespace MainApi.Src.Lib.Filters;
 
 public class BodyValidationFailResult : AppResponseResult {
 	public new string Message { get; set; } = "Validation failed";
@@ -34,4 +34,3 @@ public static class BodyValidationFilterExtensions {
 		return builder.AddEndpointFilter<BodyValidationFilter<TRequest>>();
 	}
 }
-

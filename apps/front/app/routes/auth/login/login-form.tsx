@@ -5,6 +5,7 @@ import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import Link from '@mui/material/Link';
+import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import { useFetcher } from 'react-router';
@@ -26,7 +27,15 @@ const LoginForm = () => {
 	const fetcher = useFetcher<LoginActionResult>();
 
 	const errorFetcher = fetcher.data?.error;
-	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
+	let errorMessage: string | null = null;
+	if (errorFetcher) {
+		const translationKey = _.get(errorFetcher, 'key');
+		if (translationKey) {
+			errorMessage = t(translationKey as never, { ns: 'response-message' });
+		} else {
+			errorMessage = getErrorMessage(errorFetcher);
+		}
+	}
 
 	const loginSchema = getLoginSchema(defaultZodClient);
 	const loginResolver = zodResolver(loginSchema);

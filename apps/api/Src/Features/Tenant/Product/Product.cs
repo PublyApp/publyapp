@@ -1,8 +1,8 @@
-namespace MainApi.Src.Features.Tenant.Product;
-
 using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations.Schema;
 using CommonTenant = MainApi.Src.Features.Common.Tenant;
+
+namespace MainApi.Src.Features.Tenant.Product;
 
 [Table("products")]
 public class Product : BaseAttributes, ITenantEntity {

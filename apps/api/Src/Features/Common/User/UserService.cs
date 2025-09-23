@@ -1,8 +1,8 @@
-namespace MainApi.Src.Features.Common.User;
-
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Features.Common.Auth;
+
+namespace MainApi.Src.Features.Common.User;
 
 public abstract record CreateUserResult {
 	public sealed record Success(User User) : CreateUserResult;
