@@ -9,7 +9,7 @@ import devtoolsJson from 'vite-plugin-devtools-json';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import copyI18nFiles from './_vite/copy-i18n-files';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, isSsrBuild }) => {
 	const envFileName = `.env.${mode}`;
 	const envConfig = dotenv.config({
 		path: path.resolve(process.cwd(), envFileName),
@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => {
 		},
 		build: {
 			target: 'ES2022',
+			rollupOptions: isSsrBuild ? { input: './server/app.ts' } : undefined,
 		},
 		optimizeDeps: {
 			esbuildOptions: {

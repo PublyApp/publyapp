@@ -1,36 +1,19 @@
-// * https://reactrouter.com/api/other-api/adapter#react-routerexpress
-import 'react-router';
+import 'react-router'; // * https://reactrouter.com/api/other-api/adapter#react-routerexpress
 
 import { createRequestHandler } from '@react-router/express';
 import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
-
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
-} from '@org/shared-ts/lib/constants';
-import { getUnifiedCSPConfig } from '@org/shared-ts/lib/csp';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { LogLevelEnum } from '@org/shared-ts/lib/logger/logger.utils';
-import { analytics } from '@/front/lib/analytics/analytics';
-
-declare global {
-	namespace Express {
-		export interface Request {
-			___NONCE___?: string;
-		}
-	}
-}
+} from '@/shared/lib/constants';
+import { getUnifiedCSPConfig } from '@/shared/lib/csp';
+import { SilentPostHog } from '@/shared/lib/posthog/silent-posthog';
+import { logger } from '@/shared/lib/winston.server';
 
 const isDevelopment = import.meta.env.DEV;
-
-if (isDevelopment) {
-	logger.logLevel = LogLevelEnum.DEBUG;
-} else {
-	logger.logLevel = LogLevelEnum.WARN;
-}
 
 export const app = express();
 
@@ -54,30 +37,29 @@ app.use((req, res, next) => {
 	})(req, res, next);
 });
 
-const reactRouterHandler = createRequestHandler({
-	build: async () => {
-		return import('virtual:react-router/server-build');
-	},
-	getLoadContext: (req, _res) => {
-		const nonce = _.get(req, '___NONCE___');
+const silentPostHog = new SilentPostHog();
 
-		if (!nonce) {
-			throw new Error('Nonce has not been set');
-		}
+app.use(
+	createRequestHandler({
+		build: () => {
+			return import('virtual:react-router/server-build');
+		},
+		getLoadContext: (req, _res) => {
+			const ___NONCE___ = _.get(req, '___NONCE___');
 
-		return {
-			logger: logger,
-			analytics: analytics,
-			nonce,
-		};
-	},
-});
+			if (isDevelopment) {
+				return {
+					logger,
+					postHogServer: silentPostHog,
+					___NONCE___,
+				};
+			}
 
-// Handle Chrome DevTools workspace mapping request
-app.get('/.well-known/appspecific/com.chrome.devtools.json', (_req, res) => {
-	res.status(404).json({
-		error: 'Chrome DevTools workspace mapping not configured',
-	});
-});
-
-app.use(reactRouterHandler);
+			return {
+				logger,
+				postHogServer: silentPostHog, // TODO: use the real posthog client in production
+				___NONCE___,
+			};
+		},
+	}),
+);

@@ -1,14 +1,13 @@
-// * https://reactrouter.com/api/other-api/adapter#react-routerexpress
-// * https://github.com/remix-run/react-router-templates/blob/main/node-custom-server/server.js
-
-// @ts-check
 import compression from 'compression';
 import express from 'express';
 import morgan from 'morgan';
 
-const MODE = process.env.MODE;
-const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
-const PORT = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 5050;
+// Short-circuit the type-checking of the built output.
+const BUILD_PATH = './build/server/index.js';
+const DEVELOPMENT = process.env.NODE_ENV === 'development';
+const PORT = Number.parseInt(
+	process.env.PORT || (DEVELOPMENT ? '6181' : '3000'),
+);
 
 const app = express();
 
@@ -17,18 +16,14 @@ app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.set('case sensitive routing', true);
 
-if (IS_DEVELOPMENT) {
+if (DEVELOPMENT) {
 	console.log('Starting development server');
-
-	const viteDevServer = await import('vite').then((vite) => {
-		return vite.createServer({
+	const viteDevServer = await import('vite').then((vite) =>
+		vite.createServer({
 			server: { middlewareMode: true },
-			mode: MODE,
-		});
-	});
-
+		}),
+	);
 	app.use(viteDevServer.middlewares);
-
 	app.use(async (req, res, next) => {
 		try {
 			const source = await viteDevServer.ssrLoadModule('./server/app.ts');
@@ -37,29 +32,20 @@ if (IS_DEVELOPMENT) {
 			if (typeof error === 'object' && error instanceof Error) {
 				viteDevServer.ssrFixStacktrace(error);
 			}
-
 			next(error);
 		}
 	});
 } else {
 	console.log('Starting production server');
-
 	app.use(
 		'/assets',
 		express.static('build/client/assets', { immutable: true, maxAge: '1y' }),
 	);
-
 	app.use(morgan('tiny'));
 	app.use(express.static('build/client', { maxAge: '1h' }));
-	app.use(await import('./build/server/index.js').then((mod) => mod.app));
+	app.use(await import(BUILD_PATH).then((mod) => mod.app));
 }
 
-const SEPARATOR = '='.repeat(60);
-
 app.listen(PORT, () => {
-	console.log(`\n${SEPARATOR}`);
-	console.log(
-		`🚀  Server is running at: \x1b[32mhttp://localhost:${PORT}\x1b[0m`,
-	);
-	console.log(`${SEPARATOR}\n`);
+	console.log(`Server is running on http://localhost:${PORT}`);
 });
