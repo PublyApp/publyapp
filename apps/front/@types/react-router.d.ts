@@ -3,7 +3,8 @@ import type { logger } from '@org/shared/lib/winston.server';
 
 declare module 'react-router' {
 	interface AppLoadContext {
-		logger?: typeof logger;
-		postHogServer?: SimplePostHog;
+		logger: typeof logger;
+		postHogServer: SimplePostHog;
+		___NONCE___: string;
 	}
 }
