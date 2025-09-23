@@ -252,7 +252,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateStaffTenantBody"
+                "$ref": "#/components/schemas/CreateTenantAsStaffBody"
               }
             }
           },
@@ -264,7 +264,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateStaffTenantResult"
+                  "$ref": "#/components/schemas/CreateTenantAsStaffResult"
                 }
               }
             }
@@ -563,7 +563,7 @@
           }
         }
       },
-      "CreateStaffTenantBody": {
+      "CreateTenantAsStaffBody": {
         "type": "object",
         "properties": {
           "name": {
@@ -571,7 +571,7 @@
           }
         }
       },
-      "CreateStaffTenantResult": {
+      "CreateTenantAsStaffResult": {
         "type": "object",
         "properties": {
           "id": {

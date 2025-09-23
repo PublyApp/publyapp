@@ -7,7 +7,7 @@ using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
+namespace MainApi.Src.Features.Common.Auth.Handlers;
 
 public class PasswordLoginBody {
 	public JsonElement Email { get; set; }

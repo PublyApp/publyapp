@@ -5,7 +5,7 @@ using MainApi.Src.Lib.Middlewares;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
+namespace MainApi.Src.Features.Common.Auth.Handlers;
 
 public class GetUserAuthDataResult {
 	public Guid Id { get; set; }

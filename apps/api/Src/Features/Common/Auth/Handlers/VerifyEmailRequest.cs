@@ -1,4 +1,4 @@
-namespace MainApi.Src.Features.Common.Auth.Handlers.VerifyEmailRequest;
+namespace MainApi.Src.Features.Common.Auth.Handlers;
 
 using FluentValidation;
 using MainApi.Localization;

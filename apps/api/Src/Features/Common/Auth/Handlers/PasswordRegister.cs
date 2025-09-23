@@ -1,9 +1,8 @@
-namespace MainApi.Src.Features.Common.Auth.Handlers.PasswordRegister;
+namespace MainApi.Src.Features.Common.Auth.Handlers;
 
 using System.Text.Json;
 using FluentValidation;
 using MainApi.Localization;
-using MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;

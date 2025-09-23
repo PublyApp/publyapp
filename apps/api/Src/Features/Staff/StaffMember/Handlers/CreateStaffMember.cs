@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
-namespace MainApi.Src.Features.Staff.StaffMember.Handlers.CreateStaffMember;
+namespace MainApi.Src.Features.Staff.StaffMember.Handlers;
 
 public class CreateStaffMemberResult {
 	public Guid Id { get; set; }
