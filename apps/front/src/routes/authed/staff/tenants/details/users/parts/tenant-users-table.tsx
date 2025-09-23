@@ -451,7 +451,8 @@ const FollowUpButton = ({
 			toast.success(t('email-verification-follow-up-success'));
 			onClose?.();
 		},
-		onError: (error) => {
+		onError: (_error) => {
+			console.error(_error);
 			// if (error instanceof ParseRestError) {
 			// 	toast.error(error.message);
 			// 	return;

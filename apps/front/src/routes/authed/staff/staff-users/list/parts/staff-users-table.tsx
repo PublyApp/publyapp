@@ -1,8 +1,11 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
+import MenuItem from '@mui/material/MenuItem';
+import MenuList from '@mui/material/MenuList';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import _ from 'lodash';
@@ -12,20 +15,10 @@ import {
 	type MRT_ColumnDef,
 	type MRT_SortingState,
 } from 'material-react-table';
-import { useBoolean } from 'minimal-shared/hooks';
+import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
-
-import type { StaffUserItem } from '@org/client-ts/src/models';
-import {
-	ACCOUNT_LEVEL_ENUM,
-	DEFAULT_PAGE_SIZE,
-	FRONT_PATH_NAMES,
-	USER_STATUS_ENUM,
-	voidFunction,
-} from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
+import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
 import { Label } from '@/front/components/label/label';
@@ -34,44 +27,36 @@ import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
-	useGetUserAuthData,
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
-} from '@/front/lib/react-query/features/common/auth.hooks';
-import { useFindStaffUser } from '@/front/lib/react-query/features/staff/staff-user.hooks';
+} from '@/front/lib/react-query/features/auth/auth.hooks';
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import {
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+	roleEnum,
+} from '@/shared/lib/constants';
+import { getUserFullName } from '@/shared/utils/user.utils';
 
-export type StaffUserRowData = {
+export type StaffMemberRowData = {
 	id: string;
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	level: string;
+	role: string;
 	status: string;
 	email: string;
 };
 
-const StaffUserRowDataMapper = (staffUser: StaffUserItem): StaffUserRowData => {
-	return {
-		id: staffUser.id || '',
-		avatarUrl: staffUser.avatarUrl || '',
-		firstName: staffUser.firstName || '',
-		lastName: staffUser.lastName || '',
-		level: staffUser.level || '',
-		status: staffUser.status || '',
-		email: staffUser.email || '',
-	};
-};
-
-const columnHelper = createMRTColumnHelper<StaffUserRowData>();
+const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
 
 const defaultSorting: MRT_SortingState[number] = {
 	desc: true,
 	id: 'createdAt',
 };
 
-const StaffUsersTable = () => {
+const StaffMembersTable = () => {
 	const { t } = useTranslate();
 
 	// Use the custom table state hook
@@ -95,47 +80,61 @@ const StaffUsersTable = () => {
 					id: 'fullName',
 					header: t('name'),
 					Cell: UserCell,
+					// grow: 1,
+					size: 300,
 					enableSorting: false,
-					// size: 900,
 				},
 			),
-			columnHelper.accessor('level', {
-				header: t('level'),
-				Cell: LevelCell,
-				size: 150,
+			columnHelper.accessor('role', {
+				header: t('role'),
+				Cell: RoleCell,
+				size: 70,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
-				size: 150,
+				size: 70,
+				enableSorting: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',
 				Cell: UserActionsCell,
-				size: 150,
+				size: 5,
 			}),
 		];
 	}, [t]);
 
-	const { data, isPending } = useFindStaffUser({
+	const { data, isPending } = useFindStaffMember({
 		variables: apiVariables,
 	});
 
-	const dataTable = useMemo(() => {
-		return _.map(data?.staffUsers, StaffUserRowDataMapper);
+	const rows: StaffMemberRowData[] = useMemo(() => {
+		if (!data?.rows) return [];
+
+		return _.map(data.rows, (staffMember) => {
+			return {
+				id: staffMember.objectId,
+				avatarUrl: staffMember.avatarUrl || '',
+				firstName: staffMember.firstName || '',
+				lastName: staffMember.lastName || '',
+				role: staffMember.roleData?.role || '',
+				status: staffMember.status || '',
+				email: staffMember.email || '',
+			};
+		});
 	}, [data]);
 
-	const table = useMRTTable('minimal', {
+	const table = useMRTTable('default', {
 		columns,
-		data: dataTable,
-		rowCount: getUntypedNumber(data?.count, 0),
+		data: rows,
+		rowCount: data?.count || 0,
 		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
 		state: {
 			...tableState,
-			density: 'compact',
+			density: 'comfortable',
 			isLoading: isPending,
 		},
 		muiTablePaperProps: {
@@ -143,46 +142,24 @@ const StaffUsersTable = () => {
 				flexGrow: 1,
 			},
 		},
-		muiTableProps: {
-			sx: {
-				'& .MuiTableBody-root > tr > td:not(:nth-of-type(2)), & .MuiTableHead-root > tr > th:not(:nth-of-type(2))':
-					{
-						// backgroundColor: 'red !important',
-						flex: '1 1 auto !important',
-						// flexGrow: 1,
-					},
-			},
-		},
 	});
 
 	return (
-		<Box
-			sx={{
-				flexGrow: 1,
-				display: 'flex',
-				flexDirection: 'column',
-				border: 'none',
-			}}
-		>
+		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
-		</Box>
+		</Card>
 	);
 };
 
-export default StaffUsersTable;
+export default StaffMembersTable;
 
 // ----------------------------------------------------------------------
 
-const UserCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
-	const { t } = useTranslate();
-
+const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	const userId = props.row.original.id;
-	const fullName = _.trim(props.cell.getValue()) || t('un-named');
+	const fullName = props.cell.getValue();
 	const avatarUrl = props.row.original.avatarUrl;
 	const email = props.row.original.email;
-
-	const { data: userAuthData } = useGetUserAuthData();
-	const isMe = userAuthData.id === userId;
 
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
@@ -191,17 +168,14 @@ const UserCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 			<Stack
 				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
 			>
-				<Stack direction="row" spacing={1} alignItems="center">
-					<Link
-						component={RouterLink}
-						href={FRONT_PATH_NAMES.staff.staffUsers.details(userId)}
-						color="inherit"
-						sx={{ cursor: 'pointer' }}
-					>
-						{fullName}
-					</Link>
-					{isMe && <Label variant="inverted">me</Label>}
-				</Stack>
+				<Link
+					component={RouterLink}
+					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
+					color="inherit"
+					sx={{ cursor: 'pointer' }}
+				>
+					{fullName}
+				</Link>
 				<Box component="span" sx={{ color: 'text.disabled' }}>
 					{email}
 				</Box>
@@ -210,7 +184,9 @@ const UserCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 	);
 };
 
-const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
+const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
+	props,
+) => {
 	const { t } = useTranslate();
 
 	const status = props.cell.getValue();
@@ -218,24 +194,15 @@ const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 	let t_message: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
 
-	if (status === USER_STATUS_ENUM.ACTIVE) {
+	if (status === 'active') {
 		t_message = t('active');
 		color = 'success';
-	} else if (status === USER_STATUS_ENUM.PENDING) {
+	} else if (status === 'pending') {
 		t_message = t('pending');
 		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.BANNED) {
+	} else if (status === 'banned') {
 		t_message = t('banned');
 		color = 'error';
-	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
-		t_message = t('suspended');
-		color = 'warning';
-	} else if (status === USER_STATUS_ENUM.DELETED) {
-		t_message = t('deleted');
-		color = 'error';
-	} else if (status === USER_STATUS_ENUM.INACTIVE) {
-		t_message = t('inactive');
-		color = 'default';
 	}
 
 	return (
@@ -245,20 +212,26 @@ const StatusCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 	);
 };
 
-const LevelCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
+const RoleCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	const { t } = useTranslate();
 
-	const level = props.cell.getValue();
+	const role = props.cell.getValue();
 
 	let t_message: string = t('unknown-item', { item: 'role' });
 	let color: LabelColor = 'default';
 
-	if (level === ACCOUNT_LEVEL_ENUM.ADMIN) {
+	if (role === roleEnum.STAFF_ADMIN.name) {
 		t_message = t('admin');
 		color = 'success';
-	} else if (level === ACCOUNT_LEVEL_ENUM.USER) {
+	} else if (role === roleEnum.STAFF_EDITOR.name) {
+		t_message = t('editor');
+		color = 'info';
+	} else if (role === roleEnum.STAFF_USER.name) {
 		t_message = t('user');
 		color = 'warning';
+	} else if (role === roleEnum.STAFF_CONTRIBUTOR.name) {
+		t_message = t('contributor');
+		color = 'error';
 	}
 
 	return (
@@ -270,23 +243,68 @@ const LevelCell: MRT_ColumnDef<StaffUserRowData, string>['Cell'] = (props) => {
 
 const ALLOW_COPY_LINK = false;
 
-const UserActionsCell: MRT_ColumnDef<StaffUserRowData>['Cell'] = (props) => {
+const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 	const userId = props.row.original.id;
-	const isUserPending = props.row.original.status === USER_STATUS_ENUM.PENDING;
+	const isUserPending = props.row.original.status === 'pending';
 
+	const menuActions = usePopover();
 	const confirmDialog = useBoolean();
 	const { t } = useTranslate();
 
 	const onConfirmDeleteRow = () => {
-		logger.info('onConfirmDeleteRow', { userId });
-		toast.warning('TODO: implement delete');
+		menuActions.onClose();
+		toast.warning(`onDelete: ${userId}`);
 	};
+
+	const renderMenuActions = () => (
+		<CustomPopover
+			open={menuActions.open}
+			anchorEl={menuActions.anchorEl}
+			onClose={
+				/* isLoadingGetVerificationLink ? undefined :  */ menuActions.onClose
+			}
+			slotProps={{ arrow: { placement: 'right-top' } }}
+		>
+			<MenuList>
+				<CopyLinkButton
+					isUserPending={isUserPending}
+					userId={userId}
+					onClose={menuActions.onClose}
+				/>
+
+				<FollowUpButton
+					isUserPending={isUserPending}
+					email={props.row.original.email}
+					onClose={menuActions.onClose}
+				/>
+
+				<MenuItem
+					component={RouterLink}
+					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
+					onClick={() => menuActions.onClose()}
+				>
+					<Iconify icon="solar:pen-bold" />
+					{t('edit')}
+				</MenuItem>
+				<MenuItem
+					onClick={() => {
+						confirmDialog.onTrue();
+						menuActions.onClose();
+					}}
+					sx={{ color: 'error.main' }}
+				>
+					<Iconify icon="solar:trash-bin-trash-bold" />
+					{t('delete')}
+				</MenuItem>
+			</MenuList>
+		</CustomPopover>
+	);
 
 	const renderConfirmDialog = () => (
 		<ConfirmDialog
 			open={confirmDialog.value}
 			onClose={confirmDialog.onFalse}
-			title={t('delete-item', { item: t('staff-user') })}
+			title={t('delete-item', { item: t('staff-member') })}
 			content={t('confirm-delete-dialog-text')}
 			action={
 				<Button variant="contained" color="error" onClick={onConfirmDeleteRow}>
@@ -297,47 +315,20 @@ const UserActionsCell: MRT_ColumnDef<StaffUserRowData>['Cell'] = (props) => {
 	);
 
 	return (
-		<>
-			<Box
-				// className="is-actions-column"
-				sx={{ display: 'flex', alignItems: 'center' }}
+		<Box
+			className="is-actions-column"
+			sx={{ display: 'flex', alignItems: 'center' }}
+		>
+			<IconButton
+				color={menuActions.open ? 'inherit' : 'default'}
+				onClick={menuActions.onOpen}
 			>
-				<FollowUpButton
-					isUserPending={isUserPending}
-					email={props.row.original.email}
-					// forceShow={true}
-				/>
+				<Iconify icon="eva:more-vertical-fill" />
+			</IconButton>
 
-				<CopyLinkButton
-					isUserPending={isUserPending}
-					userId={userId}
-					onClose={voidFunction}
-					// forceShow={true}
-				/>
-
-				<Tooltip title={t('view-details')} placement="top" arrow>
-					<IconButton
-						color={'default'}
-						LinkComponent={RouterLink}
-						href={FRONT_PATH_NAMES.staff.staffUsers.details(userId)}
-					>
-						<Iconify icon="solar:eye-bold" />
-					</IconButton>
-				</Tooltip>
-
-				<Tooltip title="Delete" placement="top" arrow>
-					<IconButton
-						color={'default'}
-						onClick={confirmDialog.onTrue}
-						sx={{ color: 'error.main' }}
-					>
-						<Iconify icon="solar:trash-bin-trash-bold" />
-					</IconButton>
-				</Tooltip>
-			</Box>
-
+			{renderMenuActions()}
 			{renderConfirmDialog()}
-		</>
+		</Box>
 	);
 };
 
@@ -345,12 +336,10 @@ const CopyLinkButton = ({
 	isUserPending,
 	userId,
 	onClose,
-	forceShow = false,
 }: {
 	isUserPending: boolean;
 	userId: string;
 	onClose?: () => void;
-	forceShow?: boolean;
 }) => {
 	const { t } = useTranslate();
 
@@ -363,24 +352,21 @@ const CopyLinkButton = ({
 		enabled: false,
 	});
 
-	if ((!isUserPending || !ALLOW_COPY_LINK) && !forceShow) return null;
-
-	return (
+	return isUserPending && ALLOW_COPY_LINK ? (
 		<Tooltip
 			title={_.capitalize(t('copy-item', { item: t('verification-link') }))}
 			placement="top"
 		>
-			<IconButton
-				color={'default'}
+			<MenuItem
+				component={Button}
 				loading={isLoadingGetVerificationLink}
+				fullWidth
 				onClick={async () => {
 					let link = linkData?.link || 'unable to get verification link';
 					if (!linkData) {
 						const result = await fetchVerificationLink();
 						if (result.error) {
-							logger.error('Failed to get verification link', {
-								error: result.error,
-							});
+							console.error(result.error);
 							toast.error(t('copy-to-clipboard-error'));
 							return;
 						}
@@ -394,19 +380,20 @@ const CopyLinkButton = ({
 				}}
 			>
 				<Iconify icon="solar:copy-bold-duotone" />
-			</IconButton>
+				{t('copy-link')}
+			</MenuItem>
 		</Tooltip>
-	);
+	) : null;
 };
 
 const FollowUpButton = ({
 	isUserPending,
 	email,
-	forceShow = false,
+	onClose,
 }: {
 	isUserPending: boolean;
 	email: string;
-	forceShow?: boolean;
+	onClose?: () => void;
 }) => {
 	const { t } = useTranslate();
 
@@ -414,29 +401,38 @@ const FollowUpButton = ({
 		mutateAsync: sendEmailVerificationReminder,
 		isPending: isPendingSendEmailVerificationReminder,
 	} = useSendEmailVerificationReminder({
-		// Success toast handled manually since we want a custom message
 		onSuccess: () => {
 			toast.success(t('email-verification-follow-up-success'));
+			onClose?.();
 		},
-		// Error toasts handled by global handler automatically
+		onError: (error) => {
+			console.error(error);
+			// if (error instanceof ParseRestError) {
+			// 	toast.error(error.message);
+			// 	return;
+			// }
+			toast.error(t('email-verification-follow-up-error'));
+			onClose?.();
+		},
 	});
 
-	if (!isUserPending && !forceShow) return null;
-
-	return (
+	return isUserPending ? (
 		<Tooltip
 			title={_.capitalize(t('send-email-verification-follow-up'))}
 			placement="top"
 		>
-			<IconButton
-				color={'default'}
+			<MenuItem
+				component={Button}
 				loading={isPendingSendEmailVerificationReminder}
+				fullWidth
 				onClick={async () => {
 					await sendEmailVerificationReminder({ email });
+					onClose?.();
 				}}
 			>
 				<Iconify icon="custom:send-fill" />
-			</IconButton>
+				{t('follow-up')}
+			</MenuItem>
 		</Tooltip>
-	);
+	) : null;
 };
