@@ -16,13 +16,11 @@ import {
 	useTransform,
 } from 'framer-motion';
 import { useRef, useState } from 'react';
-
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
 import { MotionContainer, varFade } from '@/front/components/animate';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';
-
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { HeroBackground } from '../components/hero-background';
 
 // ----------------------------------------------------------------------
@@ -82,7 +80,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 					]}
 				>
 					<Box component="span" sx={{ width: 1, whiteSpace: 'nowrap' }}>
-						Schedule Smarter,
+						PDF Generation
 					</Box>
 					<Box
 						component="span"
@@ -94,7 +92,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 							flexWrap: 'nowrap',
 						}}
 					>
-						<Box sx={{ opacity: 0.24 }}>Not</Box>
+						<Box sx={{ opacity: 0.24 }}>for the</Box>
 						<Box
 							component={m.span}
 							animate={{ backgroundPosition: '200% center' }}
@@ -118,7 +116,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 								},
 							]}
 						>
-							Harder.
+							Modern Web.
 						</Box>
 					</Box>
 				</Box>
@@ -144,7 +142,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 						},
 					]}
 				>
-					Plan, schedule, and publish your social media content across all platforms — effortlessly.
+					Blazing-fast HTML to PDF conversion — pixel-perfect, developer-first.
 				</Typography>
 			</m.div>
 		);
