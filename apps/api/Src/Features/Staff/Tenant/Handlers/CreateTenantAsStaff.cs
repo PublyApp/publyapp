@@ -1,4 +1,4 @@
-namespace MainApi.Src.Features.Staff.Tenant.Handlers.CreateStaffTenant;
+namespace MainApi.Src.Features.Staff.Tenant.Handlers;
 
 using Microsoft.AspNetCore.Mvc;
 using MainApi.Src.Features.Common.Tenant;
@@ -8,22 +8,21 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using FluentValidation;
 using MainApi.Src.Lib.Utils;
 
-public class CreateStaffTenantBody {
+public class CreateTenantAsStaffBody {
 	public JsonElement Name { get; set; }
 
 	public string GetName() {
 		string name = Name.ValueKind switch {
-			JsonValueKind.String => Name.GetString()!,
-			JsonValueKind.Number => Name.GetRawText(), // or .GetInt32(), etc.
-			_ => throw new Exception("Invalid type for name")
+			JsonValueKind.String => Name.GetString() ?? throw new Exception("Name cannot be null"),
+			_ => throw new Exception("Name must be a string")
 		};
 
 		return name;
 	}
 }
 
-public class CreateStaffTenantBodyValidator : AbstractValidator<CreateStaffTenantBody> {
-	public CreateStaffTenantBodyValidator() {
+public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAsStaffBody> {
+	public CreateTenantAsStaffBodyValidator() {
 		RuleFor(x => x.Name)
 			.NotEmpty().WithMessage("Name is required")
 			.DependentRules(() => {
@@ -37,19 +36,19 @@ public class CreateStaffTenantBodyValidator : AbstractValidator<CreateStaffTenan
 	}
 }
 
-public class CreateStaffTenantResult {
+public class CreateTenantAsStaffResult {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
 }
 
-public static class CreateStaffTenant {
+public static class CreateTenantAsStaff {
 	public static async Task<
 	Results<
-	Ok<CreateStaffTenantResult>,
+	Ok<CreateTenantAsStaffResult>,
 	BadRequest<ApiResponse>
 	>>
-	HandleCreateStaffTenant(
-		[FromBody] CreateStaffTenantBody createTenantBody,
+	HandleCreateTenantAsStaff(
+		[FromBody] CreateTenantAsStaffBody createTenantBody,
 		[FromServices] IStaffTenantService StaffTenantService
 		) {
 		string tenantName = createTenantBody.GetName();
@@ -61,7 +60,7 @@ public static class CreateStaffTenant {
 
 		var savedTenant = await StaffTenantService.CreateTenant(tenant);
 
-		return TypedResults.Ok(new CreateStaffTenantResult {
+		return TypedResults.Ok(new CreateTenantAsStaffResult {
 			Id = savedTenant.Id,
 			Name = savedTenant.Name
 		});

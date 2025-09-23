@@ -3,7 +3,7 @@ using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Features.Staff.StaffMember.Handlers.FindStaffMembers;
+namespace MainApi.Src.Features.Staff.StaffMember.Handlers;
 
 public class StaffMemberItem {
 	public Guid Id { get; set; }

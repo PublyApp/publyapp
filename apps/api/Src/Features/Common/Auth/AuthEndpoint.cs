@@ -2,12 +2,7 @@ namespace MainApi.Src.Features.Common.Auth;
 
 using FluentValidation;
 using MainApi.Src.Lib.Filters;
-using MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
-using MainApi.Src.Features.Common.Auth.Handlers.PasswordRegister;
-using MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
-using MainApi.Src.Features.Common.Auth.Handlers.VerifyEmailRequest;
-using MainApi.Src.Features.Common.Auth.Handlers.GetVerificationLink;
-using MainApi.Src.Features.Common.Auth.Handlers.GetTenantAuthData;
+using MainApi.Src.Features.Common.Auth.Handlers;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
 

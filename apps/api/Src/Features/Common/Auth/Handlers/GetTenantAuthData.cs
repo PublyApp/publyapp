@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
-namespace MainApi.Src.Features.Common.Auth.Handlers.GetTenantAuthData;
+namespace MainApi.Src.Features.Common.Auth.Handlers;
 
 public class GetTenantAuthDataQuery {
 	public string TenantId { get; set; } = string.Empty;

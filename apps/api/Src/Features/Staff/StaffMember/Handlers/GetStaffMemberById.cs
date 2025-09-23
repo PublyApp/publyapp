@@ -4,7 +4,7 @@ using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Features.Staff.StaffMember.Handlers.GetStaffMemberById;
+namespace MainApi.Src.Features.Staff.StaffMember.Handlers;
 
 public class GetStaffMemberByIdResult {
 	public Guid Id { get; set; }

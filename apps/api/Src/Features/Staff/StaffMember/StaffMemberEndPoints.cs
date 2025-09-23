@@ -1,6 +1,4 @@
-using MainApi.Src.Features.Staff.StaffMember.Handlers.CreateStaffMember;
-using MainApi.Src.Features.Staff.StaffMember.Handlers.FindStaffMembers;
-using MainApi.Src.Features.Staff.StaffMember.Handlers.GetStaffMemberById;
+using MainApi.Src.Features.Staff.StaffMember.Handlers;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
