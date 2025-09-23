@@ -5,7 +5,6 @@ import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
-
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
@@ -25,12 +24,6 @@ declare global {
 }
 
 const isDevelopment = import.meta.env.DEV;
-
-if (isDevelopment) {
-	logger.logLevel = LogLevelEnum.DEBUG;
-} else {
-	logger.logLevel = LogLevelEnum.WARN;
-}
 
 export const app = express();
 
@@ -54,30 +47,29 @@ app.use((req, res, next) => {
 	})(req, res, next);
 });
 
-const reactRouterHandler = createRequestHandler({
-	build: async () => {
-		return import('virtual:react-router/server-build');
-	},
-	getLoadContext: (req, _res) => {
-		const nonce = _.get(req, '___NONCE___');
+const silentPostHog = new SilentPostHog();
 
-		if (!nonce) {
-			throw new Error('Nonce has not been set');
-		}
+app.use(
+	createRequestHandler({
+		build: () => {
+			return import('virtual:react-router/server-build');
+		},
+		getLoadContext: (req, _res) => {
+			const ___NONCE___ = _.get(req, '___NONCE___');
 
-		return {
-			logger: logger,
-			analytics: analytics,
-			nonce,
-		};
-	},
-});
+			if (isDevelopment) {
+				return {
+					logger,
+					postHogServer: silentPostHog,
+					___NONCE___,
+				};
+			}
 
-// Handle Chrome DevTools workspace mapping request
-app.get('/.well-known/appspecific/com.chrome.devtools.json', (_req, res) => {
-	res.status(404).json({
-		error: 'Chrome DevTools workspace mapping not configured',
-	});
-});
-
-app.use(reactRouterHandler);
+			return {
+				logger,
+				postHogServer: silentPostHog, // TODO: use the real posthog client in production
+				___NONCE___,
+			};
+		},
+	}),
+);

@@ -1,15 +1,6 @@
-import {
-	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	REMIX_CLIENT_IP_HEADER_KEY,
-	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
-	isPreRenderPath,
-	queryParamKey,
-} from '@/shared/lib/constants';
-import { getUnifiedCSPConfig } from '@/shared/lib/csp';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { logger } from '@/shared/lib/winston.server';
-import { SilentPostHog } from '@org/shared/lib/posthog/silent-posthog';
+import { PassThrough } from 'node:stream';
 import { createReadableStreamFromReadable } from '@react-router/node';
+import * as cookie from 'cookie';
 import { isbot } from 'isbot';
 import forEach from 'lodash/forEach';
 import get from 'lodash/get';
@@ -26,8 +17,22 @@ import {
 	type EntryContext,
 	ServerRouter,
 } from 'react-router';
+import {
+	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	isPreRenderPath,
+	LANGUAGE_DETECTION_METHOD,
+	LANGUAGE_DETECTION_METHOD_ENUM,
+	LOCALE_COOKIE_KEY,
+	queryParamKey,
+	REMIX_CLIENT_IP_HEADER_KEY,
+	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
+} from '@/shared/lib/constants';
+// import { getUnifiedCSPConfig } from '@/shared/lib/csp';
+import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import type { AppLocale } from '@/shared/lib/i18n/resources';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
+// import { getFinalLoadContext } from './lib/react-router/get-final-load-context.server';
 
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
@@ -63,7 +68,7 @@ const handleRequest = async (
 				},
 			);
 
-			loadContext.postHogServer.capture({
+			postHogServer.capture({
 				distinctId:
 					get(ipAddresses, toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
 					get(ipAddresses, toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
@@ -107,26 +112,13 @@ const handleRequest = async (
 				? 'onAllReady'
 				: 'onShellReady';
 
-		let finalLoadContext: AppLoadContext;
-
-		if (import.meta.env.DEV) {
-			finalLoadContext = {
-				logger: logger,
-				postHogServer: new SilentPostHog(),
-				___NONCE___: nanoid(),
-				...loadContext, // keep the original load context if there are any values in it
-			};
-		} else {
-			finalLoadContext = loadContext;
-		}
-
 		// regardless of the environment, we want to set the nonce
 		// to the static pre render path nonce if the path is a pre render path
 		if (isPreRenderPath(new URL(request.url).pathname)) {
 			finalLoadContext.___NONCE___ = STATIC_PRE_RENDER_PATHS_MAP_NONCE;
 		}
 
-		const nonce = _.toString(finalLoadContext.___NONCE___);
+		const nonce = _.toString(finalLoadContext.___NONCE___) || nanoid();
 
 		const { pipe, abort } = renderToPipeableStream(
 			<I18nextProvider i18n={i18nInstance}>
@@ -148,16 +140,16 @@ const handleRequest = async (
 					responseHeaders.set('Content-Type', 'text/html');
 
 					// Set CSP headers
-					const isDevelopment = import.meta.env.DEV;
+					// const isDevelopment = import.meta.env.DEV;
 
-					if (isDevelopment) {
-						const cspConfig = getUnifiedCSPConfig({
-							isDevelopment,
-							reportOnly: false,
-							nonce,
-						});
-						responseHeaders.set(cspConfig.headerKey, cspConfig.header);
-					}
+					// if (isDevelopment) {
+					// 	const cspConfig = getUnifiedCSPConfig({
+					// 		isDevelopment,
+					// 		reportOnly: false,
+					// 		nonce,
+					// 	});
+					// 	responseHeaders.set(cspConfig.headerKey, cspConfig.header);
+					// }
 
 					resolve(
 						new Response(stream, {
