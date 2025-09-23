@@ -1,9 +1,9 @@
-namespace MainApi.Src.Features.Common.Tenant;
-
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+
+namespace MainApi.Src.Features.Common.Tenant;
 
 public interface ITenantService {
 	Task<Tenant?> GetStaffTenantAsync(CancellationToken cancellationToken = default);

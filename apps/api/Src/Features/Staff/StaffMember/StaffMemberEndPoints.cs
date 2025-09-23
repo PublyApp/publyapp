@@ -2,6 +2,7 @@ using MainApi.Src.Features.Staff.StaffMember.Handlers;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Lib.Extensions;
 
 namespace MainApi.Src.Features.Staff.StaffMember;
 
@@ -17,21 +18,24 @@ public static class StaffMemberEndPoints {
 		)
 			.WithName("CreateStaffMember")
 			.WithSummary("Create a new staff member")
-			.WithBodyValidation<CreateStaffMemberBody>();
+			.WithBodyValidation<CreateStaffMemberBody>()
+			.Produces500ApiResponse();
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.GetById),
 			GetStaffMemberById.HandleGetStaffMemberById
 		)
 			.WithName("GetStaffMemberById")
-			.WithSummary("Get a staff member by id");
+			.WithSummary("Get a staff member by id")
+			.Produces500ApiResponse();
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.Find),
 			FindStaffMembers.HandleFindStaffMembers
 		)
 			.WithName("FindStaffMembers")
-			.WithSummary("Find staff members");
+			.WithSummary("Find staff members")
+			.Produces500ApiResponse();
 
 		return routes;
 	}

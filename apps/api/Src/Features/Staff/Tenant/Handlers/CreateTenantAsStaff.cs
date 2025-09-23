@@ -1,12 +1,11 @@
-namespace MainApi.Src.Features.Staff.Tenant.Handlers;
-
 using Microsoft.AspNetCore.Mvc;
-using MainApi.Src.Features.Common.Tenant;
 using System.Text.Json;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using FluentValidation;
 using MainApi.Src.Lib.Utils;
+
+namespace MainApi.Src.Features.Staff.Tenant.Handlers;
 
 public class CreateTenantAsStaffBody {
 	public JsonElement Name { get; set; }
@@ -53,7 +52,7 @@ public static class CreateTenantAsStaff {
 		) {
 		string tenantName = createTenantBody.GetName();
 
-		var tenant = new Tenant {
+		var tenant = new MainApi.Src.Features.Common.Tenant.Tenant {
 			Name = tenantName,
 			Code = CryptoUtils.RandomString(10).ToLower()
 		};

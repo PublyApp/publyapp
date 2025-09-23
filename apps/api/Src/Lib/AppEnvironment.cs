@@ -1,6 +1,6 @@
-namespace MainApi.Src.Lib;
-
 using FluentValidation;
+
+namespace MainApi.Src.Lib;
 
 public static class AppEnvironment {
 	public static string POSTGRES_CONNECTION_STRING { get { return GetEnvVar(nameof(_POSTGRES_CONNECTION_STRING)); } }

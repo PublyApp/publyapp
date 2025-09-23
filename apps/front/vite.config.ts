@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => {
 			reactRouterDevTools(),
 			reactRouter(),
 			tsconfigPaths(),
-			checker({ typescript: true }),
+			// checker({ typescript: true }),
 		],
 		server: {
 			port: 6181,

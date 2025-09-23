@@ -16,7 +16,7 @@ interface RouterLinkProps extends Omit<LinkProps, 'to'> {
 	ref?: React.RefObject<HTMLAnchorElement | null>;
 }
 
-const viteUrl = new URL(env.VITE_SERVER_URL);
+const viteUrl = new URL(env.VITE_ASP_SERVER_URL);
 if (import.meta.env.DEV) {
 	viteUrl.port = '6181'; // ! vite port: remember to change if you change port in vite.config.ts
 }

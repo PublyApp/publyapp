@@ -1,3 +1,5 @@
+using MainApi.Localization;
+
 namespace MainApi.Src.Lib.Middlewares;
 
 public class CheckTenantHeaderMiddleware {
@@ -24,10 +26,9 @@ public class CheckTenantHeaderMiddleware {
 
 		if (string.IsNullOrEmpty(tenantId)) {
 			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-			await httpContext.Response.WriteAsJsonAsync(new {
-				message = "Unauthorized",
-				key = "unauthorized",
-			});
+			await httpContext.Response.WriteAsJsonAsync(
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
+			);
 			return;
 		}
 

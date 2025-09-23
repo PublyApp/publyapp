@@ -16,7 +16,6 @@ import {
 	type MRT_SortingState,
 } from 'material-react-table';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useMemo } from 'react';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
@@ -407,10 +406,11 @@ const FollowUpButton = ({
 			onClose?.();
 		},
 		onError: (error) => {
-			if (error instanceof ParseRestError) {
-				toast.error(error.message);
-				return;
-			}
+			console.error(error);
+			// if (error instanceof ParseRestError) {
+			// 	toast.error(error.message);
+			// 	return;
+			// }
 			toast.error(t('email-verification-follow-up-error'));
 			onClose?.();
 		},

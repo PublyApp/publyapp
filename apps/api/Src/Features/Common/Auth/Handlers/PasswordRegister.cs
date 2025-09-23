@@ -1,5 +1,3 @@
-namespace MainApi.Src.Features.Common.Auth.Handlers;
-
 using System.Text.Json;
 using FluentValidation;
 using MainApi.Localization;
@@ -8,6 +6,8 @@ using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+
+namespace MainApi.Src.Features.Common.Auth.Handlers;
 
 public class PasswordRegisterBody : PasswordLoginBody {
 }
@@ -63,7 +63,7 @@ public static class PasswordRegister {
 		// hash the password
 		password = passwordService.HashPassword(password);
 
-		var newUser = new User {
+		var newUser = new MainApi.Src.Features.Common.User.User {
 			Email = email,
 			Password = password,
 		};

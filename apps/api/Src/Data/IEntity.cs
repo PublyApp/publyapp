@@ -1,6 +1,6 @@
-namespace MainApi.Src.Data;
-
 using System.ComponentModel.DataAnnotations.Schema;
+
+namespace MainApi.Src.Data;
 
 public interface IEntity {
 }

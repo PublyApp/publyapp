@@ -1,9 +1,9 @@
 import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import type { FC } from 'react';
 import { data, useParams } from 'react-router';
+// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import View400 from '@/front/components/error/400-view';
 import { View500 } from '@/front/components/error/500-view';
@@ -130,24 +130,24 @@ const StaffMemberDetailsPage = () => {
 export default StaffMemberDetailsPage;
 
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
-	console.info(error);
-	const { t } = useTranslate();
+	console.error(error);
+	// const { t } = useTranslate();
 
-	if (error instanceof ParseRestError) {
-		if (error.code === X_CODE.USER_NOT_FOUND) {
-			return (
-				<NotFoundView
-					withLayout={false}
-					title={t('item-not-found', { item: t('user') })}
-					description={t('user-not-found-description')}
-				/>
-			);
-		}
+	// if (error instanceof ParseRestError) {
+	// 	if (error.code === X_CODE.USER_NOT_FOUND) {
+	// 		return (
+	// 			<NotFoundView
+	// 				withLayout={false}
+	// 				title={t('item-not-found', { item: t('user') })}
+	// 				description={t('user-not-found-description')}
+	// 			/>
+	// 		);
+	// 	}
 
-		if (_.toString(error.httpStatusCode).startsWith('4')) {
-			return <View400 withLayout={false} />;
-		}
-	}
+	// 	if (_.toString(error.httpStatusCode).startsWith('4')) {
+	// 		return <View400 withLayout={false} />;
+	// 	}
+	// }
 
 	return <View500 withLayout={false} />;
 };

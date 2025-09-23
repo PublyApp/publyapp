@@ -1,5 +1,3 @@
-namespace MainApi.Src.Data.DbContext;
-
 using System.Linq.Expressions;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Profile;
@@ -9,12 +7,13 @@ using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
+
+namespace MainApi.Src.Data.DbContext;
 
 /// <summary>
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
-public class MainApiDbContext : DbContext {
+public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private static MainApiDbContext? _singleton = null;
 
 	public MainApiDbContext SingleTon {

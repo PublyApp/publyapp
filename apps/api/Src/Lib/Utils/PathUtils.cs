@@ -1,5 +1,6 @@
-namespace MainApi.Src.Lib.Utils;
 using System.Text.RegularExpressions;
+
+namespace MainApi.Src.Lib.Utils;
 
 public static partial class PathUtils {
 	[GeneratedRegex("/+")]

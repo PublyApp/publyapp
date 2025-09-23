@@ -44,20 +44,20 @@ export function createCreateStaffMemberResultFromDiscriminatorValue(parseNode: P
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffTenantBody}
+ * @returns {CreateTenantAsStaffBody}
  */
 // @ts-ignore
-export function createCreateStaffTenantBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffTenantBody;
+export function createCreateTenantAsStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {CreateStaffTenantResult}
+ * @returns {CreateTenantAsStaffResult}
  */
 // @ts-ignore
-export function createCreateStaffTenantResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoCreateStaffTenantResult;
+export function createCreateTenantAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCreateTenantAsStaffResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -222,13 +222,13 @@ export interface CreateStaffMemberResult extends AdditionalDataHolder, Parsable 
      */
     id?: Guid | null;
 }
-export interface CreateStaffTenantBody extends AdditionalDataHolder, Parsable {
+export interface CreateTenantAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
      * The name property
      */
     name?: UntypedNode | null;
 }
-export interface CreateStaffTenantResult extends AdditionalDataHolder, Parsable {
+export interface CreateTenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
      * The id property
      */
@@ -332,25 +332,25 @@ export function deserializeIntoCreateStaffMemberResult(createStaffMemberResult: 
 }
 /**
  * The deserialization information for the current model
- * @param CreateStaffTenantBody The instance to deserialize into.
+ * @param CreateTenantAsStaffBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoCreateStaffTenantBody(createStaffTenantBody: Partial<CreateStaffTenantBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoCreateTenantAsStaffBody(createTenantAsStaffBody: Partial<CreateTenantAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "name": n => { createStaffTenantBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "name": n => { createTenantAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
  * The deserialization information for the current model
- * @param CreateStaffTenantResult The instance to deserialize into.
+ * @param CreateTenantAsStaffResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
 // @ts-ignore
-export function deserializeIntoCreateStaffTenantResult(createStaffTenantResult: Partial<CreateStaffTenantResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+export function deserializeIntoCreateTenantAsStaffResult(createTenantAsStaffResult: Partial<CreateTenantAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "id": n => { createStaffTenantResult.id = n.getGuidValue(); },
-        "name": n => { createStaffTenantResult.name = n.getStringValue(); },
+        "id": n => { createTenantAsStaffResult.id = n.getGuidValue(); },
+        "name": n => { createTenantAsStaffResult.name = n.getStringValue(); },
     }
 }
 /**
@@ -1014,28 +1014,28 @@ export function serializeCreateStaffMemberResult(writer: SerializationWriter, cr
 }
 /**
  * Serializes information the current object
- * @param CreateStaffTenantBody The instance to serialize from.
+ * @param CreateTenantAsStaffBody The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeCreateStaffTenantBody(writer: SerializationWriter, createStaffTenantBody: Partial<CreateStaffTenantBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createStaffTenantBody || isSerializingDerivedType) { return; }
-    writer.writeObjectValue("name", createStaffTenantBody.name);
-    writer.writeAdditionalData(createStaffTenantBody.additionalData);
+export function serializeCreateTenantAsStaffBody(writer: SerializationWriter, createTenantAsStaffBody: Partial<CreateTenantAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("name", createTenantAsStaffBody.name);
+    writer.writeAdditionalData(createTenantAsStaffBody.additionalData);
 }
 /**
  * Serializes information the current object
- * @param CreateStaffTenantResult The instance to serialize from.
+ * @param CreateTenantAsStaffResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
  */
 // @ts-ignore
-export function serializeCreateStaffTenantResult(writer: SerializationWriter, createStaffTenantResult: Partial<CreateStaffTenantResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!createStaffTenantResult || isSerializingDerivedType) { return; }
-    writer.writeGuidValue("id", createStaffTenantResult.id);
-    writer.writeStringValue("name", createStaffTenantResult.name);
-    writer.writeAdditionalData(createStaffTenantResult.additionalData);
+export function serializeCreateTenantAsStaffResult(writer: SerializationWriter, createTenantAsStaffResult: Partial<CreateTenantAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!createTenantAsStaffResult || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("id", createTenantAsStaffResult.id);
+    writer.writeStringValue("name", createTenantAsStaffResult.name);
+    writer.writeAdditionalData(createTenantAsStaffResult.additionalData);
 }
 /**
  * Serializes information the current object

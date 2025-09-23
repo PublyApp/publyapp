@@ -452,6 +452,7 @@ const FollowUpButton = ({
 			onClose?.();
 		},
 		onError: (_error) => {
+			console.error(_error);
 			// if (error instanceof ParseRestError) {
 			// 	toast.error(error.message);
 			// 	return;

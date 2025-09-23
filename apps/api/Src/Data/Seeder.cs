@@ -1,5 +1,3 @@
-namespace MainApi.Src.Data;
-
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Auth;
@@ -8,6 +6,8 @@ using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib.Filters;
 using Microsoft.EntityFrameworkCore;
+
+namespace MainApi.Src.Data;
 
 internal record SeedUser(string Email, string Password, AccountHierarchyLevel Role);
 

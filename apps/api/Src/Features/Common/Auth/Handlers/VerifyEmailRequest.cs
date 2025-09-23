@@ -1,5 +1,3 @@
-namespace MainApi.Src.Features.Common.Auth.Handlers;
-
 using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Features.Common.Email;
@@ -10,6 +8,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
+
+namespace MainApi.Src.Features.Common.Auth.Handlers;
 
 public class VerifyEmailRequestBody {
 	public required JsonElement Email { get; set; }
