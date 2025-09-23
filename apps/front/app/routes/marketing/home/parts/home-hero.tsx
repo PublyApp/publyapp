@@ -1,28 +1,25 @@
-import { useRef, useState } from 'react';
-
 import Box, { type BoxProps } from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import type { Breakpoint } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import {
 	type MotionProps,
 	type MotionValue,
-	type SpringOptions,
 	m,
+	type SpringOptions,
 	useMotionValueEvent,
 	useScroll,
 	useSpring,
 	useTransform,
 } from 'framer-motion';
-
+import { useRef, useState } from 'react';
 import { MotionContainer, varFade } from '@/front/components/animate';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
 import { useTranslate } from '@/front/hooks/use-translate';
-
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { HeroBackground } from '../components/hero-background';
 
