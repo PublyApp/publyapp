@@ -5,6 +5,6 @@ declare module 'react-router' {
 	interface AppLoadContext {
 		logger: typeof logger;
 		postHogServer: SimplePostHog;
-		___NONCE___: string;
+		nonce: string;
 	}
 }

@@ -45,20 +45,20 @@ app.use(
 			return import('virtual:react-router/server-build');
 		},
 		getLoadContext: (req, _res) => {
-			const ___NONCE___ = _.get(req, '___NONCE___') as unknown as string;
+			const nonce = _.get(req, '___NONCE___') as unknown as string;
 
 			if (isDevelopment) {
 				return {
 					logger,
 					postHogServer: silentPostHog,
-					___NONCE___,
+					nonce,
 				};
 			}
 
 			return {
 				logger,
 				postHogServer: silentPostHog, // TODO: use the real posthog client in production
-				___NONCE___,
+				nonce,
 			};
 		},
 	}),
