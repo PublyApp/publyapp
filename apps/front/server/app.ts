@@ -1,16 +1,20 @@
-import 'react-router'; // * https://reactrouter.com/api/other-api/adapter#react-routerexpress
+// * https://reactrouter.com/api/other-api/adapter#react-routerexpress
+import 'react-router';
 
 import { createRequestHandler } from '@react-router/express';
 import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
+import { env } from '@/front/lib/env';
+import { PostHogAnalyticsNode } from '@/shared/lib/analytics/analytics.server';
+import type { IAnalytics } from '@/shared/lib/analytics/analytics.types';
+import { PostHogAnalyticsLocal } from '@/shared/lib/analytics/analytics-local';
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
-import { SilentPostHog } from '@/shared/lib/posthog/silent-posthog';
 import { logger } from '@/shared/lib/winston.server';
 
 const isDevelopment = import.meta.env.DEV;
@@ -37,7 +41,11 @@ app.use((req, res, next) => {
 	})(req, res, next);
 });
 
-const silentPostHog = new SilentPostHog();
+let posthog: IAnalytics = new PostHogAnalyticsLocal();
+
+if (!isDevelopment) {
+	posthog = new PostHogAnalyticsNode(env.VITE_POSTHOG_API_KEY);
+}
 
 app.use(
 	createRequestHandler({
@@ -50,14 +58,14 @@ app.use(
 			if (isDevelopment) {
 				return {
 					logger,
-					postHogServer: silentPostHog,
+					analytics: posthog,
 					nonce,
 				};
 			}
 
 			return {
 				logger,
-				postHogServer: silentPostHog, // TODO: use the real posthog client in production
+				analytics: posthog,
 				nonce,
 			};
 		},

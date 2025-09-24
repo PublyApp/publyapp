@@ -40,7 +40,7 @@ const handleRequest = async (
 ) => {
 	const finalLoadContext = loadContext;
 
-	const postHogServer = finalLoadContext.postHogServer;
+	const analytics = finalLoadContext.analytics;
 
 	if (import.meta.env.PROD) {
 		if (!_.toString(responseStatusCode).startsWith('2')) {
@@ -62,7 +62,7 @@ const handleRequest = async (
 				},
 			);
 
-			postHogServer.capture({
+			analytics.node.capture({
 				distinctId:
 					_.get(ipAddresses, _.toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
 					_.get(ipAddresses, _.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
