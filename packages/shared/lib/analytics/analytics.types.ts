@@ -1,10 +1,6 @@
 import type { CaptureOptions, EventName, Properties } from 'posthog-js';
 import type { EventMessage, IdentifyMessage } from 'posthog-node';
 
-// export type IAnalytics = Pick<
-// 	PostHog,
-// 	'capture' | 'identify' | 'captureException'
-// >;
 export interface IAnalytics {
 	node: {
 		capture(props: EventMessage): void;

@@ -4,6 +4,7 @@ import type {
 	PostHogConfig,
 	Properties,
 } from 'posthog-js';
+import type { IAnalytics } from './analytics.types';
 
 export interface IPostHogBrowser {
 	init(apiKey: string, config?: Partial<PostHogConfig>, name?: string): void;
@@ -19,17 +20,53 @@ export interface IPostHogBrowser {
 	): void;
 	captureException(error: unknown, additionalProperties?: Properties): void;
 }
-export class PostHogAnalyticsBrowser {
-	private static posthog: IPostHogBrowser;
-	public static instance: PostHogAnalyticsBrowser;
+
+export const posthogBrowserMock: IPostHogBrowser = {
+	init: (...args) => {
+		console.warn('posthog mock object is being used', args);
+	},
+	capture: (...args) => {
+		console.warn('posthog mock object is being used', args);
+	},
+	captureException: () => {
+		console.warn('posthog mock object is being used');
+	},
+	identify: (...args) => {
+		console.warn('posthog mock object is being used', args);
+	},
+};
+
+export class AnalyticsBrowser implements IAnalytics {
+	private static posthog?: IPostHogBrowser;
+	public static instance: AnalyticsBrowser;
+
+	private constructor() {}
 
 	static initialize(apiKey: string, posthog: IPostHogBrowser) {
-		PostHogAnalyticsBrowser.posthog = posthog;
-		PostHogAnalyticsBrowser.posthog.init(apiKey, {
+		AnalyticsBrowser.posthog = posthog;
+		AnalyticsBrowser.posthog.init(apiKey, {
 			api_host: 'https://us.i.posthog.com',
 			capture_exceptions: true,
 		});
-		PostHogAnalyticsBrowser.instance = new PostHogAnalyticsBrowser();
+		AnalyticsBrowser.instance = new AnalyticsBrowser();
+	}
+
+	public static identify(distinctId: string, properties?: Properties) {
+		AnalyticsBrowser.instance.browser.identify(distinctId, properties);
+	}
+
+	public static capture(event_name: EventName, properties?: Properties) {
+		AnalyticsBrowser.instance.browser.capture(event_name, properties);
+	}
+
+	public static captureException(
+		error: unknown,
+		additionalProperties?: Properties,
+	) {
+		AnalyticsBrowser.instance.browser.captureException(
+			error,
+			additionalProperties,
+		);
 	}
 
 	browser = {
@@ -38,7 +75,13 @@ export class PostHogAnalyticsBrowser {
 			userPropertiesToSet?: Properties,
 			userPropertiesToSetOnce?: Properties,
 		) {
-			PostHogAnalyticsBrowser.posthog.identify(
+			if (!AnalyticsBrowser.posthog) {
+			}
+			if (!AnalyticsBrowser.posthog) {
+				console.error('PostHog is not initialized');
+				return;
+			}
+			AnalyticsBrowser.posthog.identify(
 				new_distinct_id,
 				userPropertiesToSet,
 				userPropertiesToSetOnce,
@@ -49,19 +92,34 @@ export class PostHogAnalyticsBrowser {
 			properties?: Properties | null,
 			options?: CaptureOptions,
 		) {
-			PostHogAnalyticsBrowser.posthog.capture(event_name, properties, options);
+			if (!AnalyticsBrowser.posthog) {
+				console.error('PostHog is not initialized');
+				return;
+			}
+			AnalyticsBrowser.posthog.capture(event_name, properties, options);
 		},
 		captureException(error: unknown, additionalProperties?: Properties) {
-			PostHogAnalyticsBrowser.posthog.captureException(
-				error,
-				additionalProperties,
-			);
+			if (!AnalyticsBrowser.posthog) {
+				console.error('PostHog is not initialized');
+				return;
+			}
+			AnalyticsBrowser.posthog.captureException(error, additionalProperties);
 		},
 	};
 
 	node = {
-		capture() {},
-		identify() {},
-		captureException() {},
+		capture() {
+			console.error('AnalyticsBrowser.node.capture is not supported on client');
+		},
+		identify() {
+			console.error(
+				'AnalyticsBrowser.node.identify is not supported on client',
+			);
+		},
+		captureException() {
+			console.error(
+				'AnalyticsBrowser.node.captureException is not supported on client',
+			);
+		},
 	};
 }

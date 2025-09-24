@@ -4,28 +4,28 @@ import type { IAnalytics } from './analytics.types';
  * SilentPostHog is a PostHog client that does not send any data.
  * It is used when in local and both client-side/server-side
  */
-export class PostHogAnalyticsLocal implements IAnalytics {
+export class AnalyticsLocal implements IAnalytics {
 	node = {
 		capture() {
-			/* do nothing */
+			console.warn('AnalyticsLocal instance used');
 		},
 		identify() {
-			/* do nothing */
+			console.warn('AnalyticsLocal instance used');
 		},
 		captureException() {
-			/* do nothing */
+			console.warn('AnalyticsLocal instance used');
 		},
 	};
 
 	browser = {
 		capture() {
-			/* do nothing */
+			console.warn('AnalyticsLocal instance used');
 		},
 		identify() {
-			/* do nothing */
+			console.warn('AnalyticsLocal instance used');
 		},
 		captureException() {
-			/* do nothing */
+			console.warn('AnalyticsLocal instance used');
 		},
 	};
 }
