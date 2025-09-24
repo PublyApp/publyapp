@@ -66,7 +66,7 @@ const handleRequest = async (
 				},
 			);
 
-			postHogServer.capture({
+			analytics.node.capture({
 				distinctId:
 					get(ipAddresses, toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
 					get(ipAddresses, toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
