@@ -45,7 +45,7 @@ import { initI18next } from './lib/i18n';
 import CustomMailAdapter from './lib/parse/classes/ParseMailAdapter';
 import WinstonLoggerAdapter from './lib/parse/classes/WinstonLoggerAdapter';
 import { setCurrentInstallationId } from './lib/parse/parse.utils';
-import { postHogServer } from './lib/posthog';
+import { analytics } from './lib/posthog';
 import { corsMiddleware } from './middlewares/cors.middleware';
 import { errorMiddleware } from './middlewares/error.middleware';
 import {
@@ -265,7 +265,7 @@ const bootstrap = async () => {
 			getLoadContext: (req, _res) => {
 				return {
 					logger,
-					postHogServer,
+					analytics,
 					___NONCE___: _.get(req, '___NONCE___'),
 				};
 			},

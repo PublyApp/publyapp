@@ -12,7 +12,6 @@
 		"type-check": "react-router typegen && tsc"
 	},
 	"dependencies": {
-		"helmet": "8.0.0",
 		"@emotion/cache": "^11.14.0",
 		"@emotion/react": "^11.14.0",
 		"@emotion/styled": "^11.14.0",
@@ -55,6 +54,7 @@
 		"dayjs": "^1.11.12",
 		"express": "5.1.0",
 		"framer-motion": "^12.6.1",
+		"helmet": "8.0.0",
 		"i18next": "^24.2.2",
 		"i18next-browser-languagedetector": "^7.2.1",
 		"i18next-fetch-backend": "6.0.0",
@@ -73,6 +73,7 @@
 		"nanoid": "^5.0.4",
 		"nprogress": "^0.2.0",
 		"nuqs": "2.4.3",
+		"posthog-js": "^1.268.1",
 		"react": "19.1.0",
 		"react-dom": "19.1.0",
 		"react-dropzone": "^14.3.8",

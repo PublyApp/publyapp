@@ -1,4 +1,4 @@
-import { SilentPostHog } from '@org/shared/lib/posthog/silent-posthog';
+import { PostHogAnalyticsLocal } from '@org/shared/lib/analytics/analytics.server';
 import { PostHog } from 'posthog-node';
 import { env } from './env';
 
@@ -7,9 +7,9 @@ import { env } from './env';
  * It is used when in production.
  */
 
-export const postHogServer = (() => {
+export const analytics = (() => {
 	if (env.LOCAL) {
-		return new SilentPostHog();
+		return new PostHogAnalyticsLocal();
 	}
 
 	return new PostHog(
