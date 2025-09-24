@@ -1,4 +1,4 @@
-import { PostHogAnalyticsLocal } from '@org/shared/lib/analytics/analytics.server';
+import { AnalyticsLocal } from '@org/shared/lib/analytics/analytics.server';
 import { PostHog } from 'posthog-node';
 import { env } from './env';
 
@@ -9,7 +9,7 @@ import { env } from './env';
 
 export const analytics = (() => {
 	if (env.LOCAL) {
-		return new PostHogAnalyticsLocal();
+		return new AnalyticsLocal();
 	}
 
 	return new PostHog(

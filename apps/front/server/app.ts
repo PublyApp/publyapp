@@ -7,15 +7,23 @@ import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
 import { env } from '@/front/lib/env';
-import { PostHogAnalyticsNode } from '@/shared/lib/analytics/analytics.server';
+import { AnalyticsNode } from '@/shared/lib/analytics/analytics.server';
 import type { IAnalytics } from '@/shared/lib/analytics/analytics.types';
-import { PostHogAnalyticsLocal } from '@/shared/lib/analytics/analytics-local';
+import { AnalyticsLocal } from '@/shared/lib/analytics/analytics-local';
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { logger } from '@/shared/lib/winston.server';
+
+declare global {
+	namespace Express {
+		export interface Request {
+			___NONCE___?: string;
+		}
+	}
+}
 
 const isDevelopment = import.meta.env.DEV;
 
@@ -41,10 +49,10 @@ app.use((req, res, next) => {
 	})(req, res, next);
 });
 
-let posthog: IAnalytics = new PostHogAnalyticsLocal();
+let posthog: IAnalytics = new AnalyticsLocal();
 
 if (!isDevelopment) {
-	posthog = new PostHogAnalyticsNode(env.VITE_POSTHOG_API_KEY);
+	posthog = new AnalyticsNode(env.VITE_POSTHOG_API_KEY);
 }
 
 app.use(
@@ -53,7 +61,13 @@ app.use(
 			return import('virtual:react-router/server-build');
 		},
 		getLoadContext: (req, _res) => {
-			const nonce = _.get(req, '___NONCE___') as unknown as string;
+			const nonce = _.get(req, '___NONCE___');
+
+			if (!nonce) {
+				throw new Error('Nonce has not been set');
+			}
+
+			console.log('nonce', nonce);
 
 			if (isDevelopment) {
 				return {

@@ -1,11 +1,12 @@
 import { type EventMessage, type IdentifyMessage, PostHog } from 'posthog-node';
+import { logger } from '../winston.server';
 import type { IAnalytics } from './analytics.types';
 
 /**
  * PostHogAnalyticsServer is a PostHog client that sends data to PostHog.
  * It is used when in production and server-side only
  */
-export class PostHogAnalyticsNode implements IAnalytics {
+export class AnalyticsNode implements IAnalytics {
 	private readonly posthog: PostHog;
 
 	constructor(apiKey: string) {
@@ -34,13 +35,13 @@ export class PostHogAnalyticsNode implements IAnalytics {
 
 	browser = {
 		capture() {
-			/* do nothing */
+			logger.error('AnalyticsNode.browser.capture is not supported on server');
 		},
 		identify() {
-			/* do nothing */
+			logger.error('AnalyticsNode.browser.capture is not supported on server');
 		},
 		captureException() {
-			/* do nothing */
+			logger.error('AnalyticsNode.browser.capture is not supported on server');
 		},
 	};
 }
