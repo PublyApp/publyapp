@@ -1,3 +1,11 @@
+import { AnimateBorder } from '@/front/components/animate';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { Label } from '@/front/components/label';
+import { RouterLink } from '@/front/components/router-link';
+import { Scrollbar } from '@/front/components/scrollbar';
+import { usePathname } from '@/front/hooks/use-pathname';
+import { useGetUserAuthData } from '@/front/lib/react-query/features/auth/auth.hooks';
+import { getUserFullName } from '@/shared/utils/user.utils';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Drawer from '@mui/material/Drawer';
@@ -7,18 +15,6 @@ import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useCallback } from 'react';
-
-import { getUserFullName } from '@org/shared-ts/utils/user.utils';
-import { AnimateBorder } from '@/front/components/animate';
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label';
-import { RouterLink } from '@/front/components/router-link';
-import { Scrollbar } from '@/front/components/scrollbar';
-import { usePathname } from '@/front/hooks/use-pathname';
-import { logout } from '@/front/lib/cookies/logout.utils';
-import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
-
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';
 
@@ -53,7 +49,7 @@ export const AccountDrawer = ({
 				}}
 			>
 				<Avatar
-					src={userData?.avatarUrl || ''}
+					src={userData?.avatarUrl}
 					alt={getUserFullName(userData)}
 					sx={{ width: 1, height: 1 }}
 				>
@@ -122,11 +118,6 @@ export const AccountDrawer = ({
 			</MenuList>
 		);
 	};
-
-	const handleLogout = useCallback(() => {
-		onClose();
-		logout();
-	}, [onClose]);
 
 	return (
 		<>
@@ -235,7 +226,7 @@ export const AccountDrawer = ({
 				</Scrollbar>
 
 				<Box sx={{ p: 2.5 }}>
-					<SignOutButton onClick={handleLogout} />
+					<SignOutButton onClose={onClose} />
 				</Box>
 			</Drawer>
 		</>
