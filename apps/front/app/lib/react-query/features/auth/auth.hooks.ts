@@ -1,10 +1,10 @@
+import { clientManager } from '@/front/lib/js-client/client-manager';
+import type { ApiClient } from '@/js-client/src/apiClient';
 import {
 	createMutation,
 	createQuery,
 	createSuspenseQuery,
 } from 'react-query-kit';
-import { clientManager } from '@/front/lib/js-client/client-manager';
-import type { ApiClient } from '@/js-client/src/apiClient';
 import { getQueryKey } from '../../query-utils';
 
 const getUserAuthDataQueryKey = getQueryKey<ApiClient>(
@@ -14,7 +14,7 @@ const getUserAuthDataQueryKey = getQueryKey<ApiClient>(
 export const useGetUserAuthData = createSuspenseQuery({
 	queryKey: [getUserAuthDataQueryKey] as const,
 	fetcher: async () => {
-		return clientManager.apiClient.auth.userAuthData.get();
+		return await clientManager.apiClient.auth.userAuthData.get();
 	},
 });
 
