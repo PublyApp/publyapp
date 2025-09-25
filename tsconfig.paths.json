@@ -7,13 +7,12 @@
 		// making tsconfig paths work when type checking with tsc
 		"baseUrl": ".",
 		"paths": {
-			"@/server/*": ["./apps/server/src/*"],
 			"@/front/*": ["./apps/front/app/*"],
 			"@/shared/*": ["./packages/shared/*"],
 			"@/ui-react/*": ["./packages/ui-react/*"],
 			"@/parse-api-client/*": ["./packages/parse-api-client/*"],
 			"@/js-client/*": ["./packages/js-client/*"],
-			// for remix app
+			// for remix/react-router app
 			"~/front/*": ["./apps/front/app/*"]
 		}
 	}
