@@ -22,14 +22,15 @@ builder.AddServices();
 
 var app = builder.Build();
 
-app.UseCustomExceptionHandler();
 app.UseCors();
 app.UseOpenApi();
+app.UseHttpsRedirection();
+app.UseCustomExceptionHandler();
 
-app.UseCheckSessionHeader();
 app.UseCheckTenantHeader();
-app.UseSessionAuthentication();
+app.UseCheckSessionHeader();
 app.UseStaffAuthorization();
+app.UseSessionAuthentication();
 // TODO: UseTenantAuthentication();
 
 app.MapAuthEndpoints();
@@ -54,7 +55,5 @@ tenantGroup.MapProductEndpoints();
 		staffGroup.MapTenantEndpointsForStaff();
 		staffGroup.MapSystemNoticeEndpointsForStaff();
 		staffGroup.MapAuditLogEndpointsForStaff();
-
-app.UseHttpsRedirection();
 
 app.Run();
