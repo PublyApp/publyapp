@@ -6,9 +6,9 @@ import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
 import { env } from '@/front/lib/env';
-import { PostHogAnalyticsNode } from '@/shared/lib/analytics/analytics.server';
+import { AnalyticsNode } from '@/shared/lib/analytics/analytics.server';
 import type { IAnalytics } from '@/shared/lib/analytics/analytics.types';
-import { PostHogAnalyticsLocal } from '@/shared/lib/analytics/analytics-local';
+import { AnalyticsLocal } from '@/shared/lib/analytics/analytics-local';
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
@@ -18,6 +18,14 @@ import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { LogLevelEnum } from '@org/shared-ts/lib/logger/logger.utils';
 
 import { analytics } from '#app/lib/analytics/analytics.ts';
+
+declare global {
+	namespace Express {
+		export interface Request {
+			___NONCE___?: string;
+		}
+	}
+}
 
 declare global {
 	namespace Express {
@@ -51,33 +59,44 @@ app.use((req, res, next) => {
 	})(req, res, next);
 });
 
-let posthog: IAnalytics = new PostHogAnalyticsLocal();
+let posthog: IAnalytics = new AnalyticsLocal();
 
 if (!isDevelopment) {
-	posthog = new PostHogAnalyticsNode(env.VITE_POSTHOG_API_KEY);
+	posthog = new AnalyticsNode(env.VITE_POSTHOG_API_KEY);
 }
 
-app.use(
-	createRequestHandler({
-		build: () => {
-			return import('virtual:react-router/server-build');
-		},
-		getLoadContext: (req, _res) => {
-			const nonce = _.get(req, '___NONCE___') as unknown as string;
+const reactRouterHandler = createRequestHandler({
+	build: () => {
+		return import('virtual:react-router/server-build');
+	},
+	getLoadContext: (req, _res) => {
+		const nonce = _.get(req, '___NONCE___');
 
-			if (isDevelopment) {
-				return {
-					logger,
-					analytics: posthog,
-					nonce,
-				};
-			}
+		if (!nonce) {
+			throw new Error('Nonce has not been set');
+		}
 
+		if (isDevelopment) {
 			return {
 				logger,
 				analytics: posthog,
 				nonce,
 			};
-		},
-	}),
-);
+		}
+
+		return {
+			logger,
+			analytics: posthog,
+			nonce,
+		};
+	},
+});
+
+// Handle Chrome DevTools workspace mapping request
+app.get('/.well-known/appspecific/com.chrome.devtools.json', (_req, res) => {
+	res.status(404).json({
+		error: 'Chrome DevTools workspace mapping not configured',
+	});
+});
+
+app.use(reactRouterHandler);

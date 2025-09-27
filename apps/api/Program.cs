@@ -13,9 +13,9 @@ using MainApi.Src.Modules.Tenants.Endpoints;
 using MainApi.Src.Modules.Users.Endpoints;
 
 
-AppEnvironment.LoadEnv();
-
 var builder = WebApplication.CreateBuilder(args);
+
+AppEnvironment.LoadEnv();
 
 builder.ConfigureLogger();
 builder.AddServices();

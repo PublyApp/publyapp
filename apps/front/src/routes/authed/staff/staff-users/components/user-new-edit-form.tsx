@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -9,6 +10,8 @@ import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
+import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import type { ReactNode } from 'react';
@@ -40,7 +43,20 @@ type Props<T extends Record<string, unknown>> = {
 	sidebarFooter?: ReactNode;
 };
 
-const ACCOUNT_LEVEL_OPTIONS = _.values(ACCOUNT_LEVEL_ENUM);
+const ROLE_OPTIONS = _.chain(/* roleEnum */ [])
+	.pickBy((value) => {
+		// return _.startsWith(value.name, 'STAFF_');
+		return true;
+	})
+	.map((value) => {
+		return {
+			// value: value.name,
+			// label: value.name,
+			value: '',
+			label: '',
+		};
+	})
+	.value();
 
 export const UserNewEditForm = <T extends Record<string, unknown>>({
 	onMutate,
@@ -54,6 +70,28 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 	const { t } = useTranslate();
 	const openDialog = useBoolean();
 
+	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
+
+	const methods = useForm<NewUserSchemaType>({
+		mode: 'onSubmit',
+		resolver: zodResolver(NewUserSchema),
+		defaultValues,
+		values: currentUser
+			? {
+					...currentUser,
+					avatar: currentUser.avatar,
+				}
+			: undefined,
+	});
+
+	const {
+		reset,
+		handleSubmit,
+		formState: { isSubmitting },
+	} = methods;
+
+	useSyncFormToLang(i18n.language, methods);
+
 	const handleCloseDialog = openDialog.onFalse;
 
 	const handleOpenDialog = form.handleSubmit(async (data) => {
@@ -65,11 +103,32 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 		openDialog.onTrue();
 	});
 
-	const handleConfirmDialog = form.handleSubmit(async (data) => {
-		onMutate?.(data);
+	const queryClient = useQueryClient();
+
+	const { mutate: createStaffMember, isPending } = useCreateStaffMember({
+		onSuccess: () => {
+			reset();
+			toast.success(
+				currentUser
+					? 'Update success!'
+					: _.capitalize(
+							t('item-creation-success-message', { item: t('staff-member') }),
+						),
+			);
+			queryClient.invalidateQueries({ queryKey: useFindStaffMember.getKey() });
+			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
+		},
+		onError: (error) => {
+			toast.error(error.message);
+		},
 	});
 
-	const confirmValues = _.chain(form.getValues())
+	const handleConfirmDialog = handleSubmit(async (data) => {
+		// createStaffMember(data);
+		// await delayFn(1000);
+	});
+
+	const confirmValues = _.chain(methods.getValues())
 		.entries()
 		.map((value) => {
 			const [key, fieldValue] = value;
@@ -77,14 +136,9 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 			if (_.isNil(fieldValue) || _.isEmpty(fieldValue)) {
 				finalValue = 'N/A';
 			} else {
-				if (_.isObject(fieldValue)) {
-					finalValue = JSON.stringify(fieldValue);
-				} else {
-					finalValue = _.toString(fieldValue);
-				}
-			}
-			if (_.isBoolean(fieldValue)) {
-				finalValue = fieldValue ? t('yes') : t('no');
+				finalValue = _.isString(fieldValue)
+					? fieldValue
+					: JSON.stringify(fieldValue);
 			}
 			if (fieldValue instanceof File) {
 				finalValue = fieldValue.name;
@@ -95,8 +149,6 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 			};
 		})
 		.value();
-
-	const isSubmitting = form.formState.isSubmitting;
 
 	return (
 		<>

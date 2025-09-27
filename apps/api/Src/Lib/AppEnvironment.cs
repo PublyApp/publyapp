@@ -320,6 +320,29 @@ public static class AppEnvironment {
 		IS_DOTENV_LOADED = true;
 	}
 
+	/// <summary>
+	/// Determines if the application is running in Production environment
+	/// </summary>
+	public static bool IsProduction() {
+		var environment = GetEnvironmentName();
+		return string.Equals(environment, "Production", StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
+	/// Determines if the application is running in Development environment
+	/// </summary>
+	public static bool IsDevelopment() {
+		var environment = GetEnvironmentName();
+		return string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
+	/// Gets the current environment name (Development, Production, Staging, etc.)
+	/// </summary>
+	public static string GetEnvironmentName() {
+		return Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+	}
+
 	private static void ValidateAndSetEnvironmentVariables() {
 		var postgresConnectionString = Environment.GetEnvironmentVariable(nameof(POSTGRES_CONNECTION_STRING));
 		var frontUrl = Environment.GetEnvironmentVariable(nameof(FRONT_URL));

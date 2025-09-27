@@ -1,8 +1,5 @@
-import {
-	ACCOUNT_LEVEL_ENUM,
-	DEFAULT_MAX_USER_PER_TENANT,
-} from '@org/shared-ts/lib/constants';
-import type InterZod from '@org/shared-ts/lib/zod/InterZod';
+import { DEFAULT_MAX_USER_PER_TENANT } from '@/shared/lib/constants';
+import type InterZod from '@/shared/lib/zod/InterZod';
 
 export const getNewTenantSchemaServerSide = (
 	z: InterZod,
@@ -18,10 +15,7 @@ export const getNewTenantSchemaServerSide = (
 			.array(
 				z.object({
 					email: z.string().email(),
-					accountLevel: z.enum([
-						ACCOUNT_LEVEL_ENUM.ADMIN,
-						ACCOUNT_LEVEL_ENUM.USER,
-					]),
+					role: z.enum(/* tenantSubRoleNames */ ['']),
 				}),
 			)
 			.min(1)
@@ -40,7 +34,7 @@ export const getNewTenantSchemaServerSide = (
 			.refine(
 				(users) => {
 					return users.some(
-						(user) => user.accountLevel === ACCOUNT_LEVEL_ENUM.ADMIN,
+						(user) => user.role === /* tenantSubRoleEnum.ADMIN */ '',
 					);
 				},
 				{

@@ -59,7 +59,7 @@ type NewTenantSchemaType = zod.infer<
 
 // ----------------------------------------------------------------------
 
-const ROLE_OPTIONS = _.chain(tenantSubRoleEnum)
+const ROLE_OPTIONS = _.chain(/* tenantSubRoleEnum */ [])
 	.map((value) => {
 		return {
 			value: value,
@@ -70,7 +70,7 @@ const ROLE_OPTIONS = _.chain(tenantSubRoleEnum)
 
 const initialUserValue = {
 	email: '',
-	role: tenantSubRoleEnum.ADMIN,
+	role: /* tenantSubRoleEnum.ADMIN */ '',
 };
 
 const defaultValues = {
