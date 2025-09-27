@@ -133,18 +133,6 @@ const handleRequest = async (
 
 					responseHeaders.set('Content-Type', 'text/html');
 
-					// Set CSP headers
-					// const isDevelopment = import.meta.env.DEV;
-
-					// if (isDevelopment) {
-					// 	const cspConfig = getUnifiedCSPConfig({
-					// 		isDevelopment,
-					// 		reportOnly: false,
-					// 		nonce,
-					// 	});
-					// 	responseHeaders.set(cspConfig.headerKey, cspConfig.header);
-					// }
-
 					resolve(
 						new Response(stream, {
 							headers: responseHeaders,

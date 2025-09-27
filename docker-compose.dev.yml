@@ -1,0 +1,45 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      args:
+        POSTGRES_CONNECTION_STRING: ${POSTGRES_CONNECTION_STRING}
+        FRONT_URL: ${FRONT_URL}
+    container_name: pdfvite-api-dev
+    restart: unless-stopped
+    env_file:
+      - .env.development
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    ports:
+      - "5000:5000"
+    networks:
+      - app-network
+    volumes:
+      - ./apps/api:/src/apps/api
+      - ./packages:/src/packages
+
+  front:
+    build:
+      context: .
+      dockerfile: apps/front/Dockerfile
+    container_name: pdfvite-front-dev
+    restart: unless-stopped
+    env_file:
+      - .env.development
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+    depends_on:
+      - api
+    volumes:
+      - ./apps/front:/app/apps/front
+      - ./packages:/app/packages
+
+networks:
+  app-network:
+    driver: bridge

@@ -31,8 +31,9 @@
 		// ====
 		"@types",
 		"app",
+		"server"
 		// ====
-		"../server/@types"
+		// "../server/@types"
 		// "../../node_modules/simplebar-react/dist/index.d.ts"
 	],
 	"exclude": ["node_modules", "dist", "build", "public"]

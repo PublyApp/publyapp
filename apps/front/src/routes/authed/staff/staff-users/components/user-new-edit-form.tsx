@@ -1,3 +1,4 @@
+import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -9,48 +10,133 @@ import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
+import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
-import type { UseFormReturn } from 'react-hook-form';
-
-import { ACCOUNT_LEVEL_ENUM } from '@org/shared-ts/lib/constants';
-import { mbToBytes } from '@org/shared-ts/utils/any.utils';
+import { useForm } from 'react-hook-form';
+import type zod from 'zod';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
+import { toast } from '@/front/components/snackbar';
+import { useRouter } from '@/front/hooks/use-router';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
+import {
+	useCreateStaffMember,
+	useFindStaffMember,
+} from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { fData } from '@/front/utils/format-number';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { mbToBytes } from '@/shared/utils/any.utils';
+
+type IUserItem = {
+	id: string;
+	firstName?: string;
+	lastName: string;
+	// role: RoleName;
+	role: /* RoleName */ any;
+	email: string;
+	status: string;
+	avatar?: string;
+};
 
 // ----------------------------------------------------------------------
 
-type Props<T extends Record<string, unknown>> = {
-	form: UseFormReturn<T>;
-	onMutate: (data: T) => void;
-	isMutating: boolean;
-	isEdit?: boolean;
+type NewUserSchemaType = Prettify<
+	zod.infer<ReturnType<typeof getNewStaffMemberSchemaClientSide>>
+>;
+
+// ----------------------------------------------------------------------
+
+type Props = {
+	currentUser?: IUserItem;
 };
 
-const ACCOUNT_LEVEL_OPTIONS = _.values(ACCOUNT_LEVEL_ENUM);
+const ROLE_OPTIONS = _.chain(/* roleEnum */ [])
+	.pickBy((value) => {
+		// return _.startsWith(value.name, 'STAFF_');
+		return true;
+	})
+	.map((value) => {
+		return {
+			// value: value.name,
+			// label: value.name,
+			value: '',
+			label: '',
+		};
+	})
+	.value();
 
-export const UserNewEditForm = <T extends Record<string, unknown>>({
-	onMutate,
-	isMutating,
-	form,
-	isEdit,
-}: Props<T>) => {
-	const { t } = useTranslate();
+const defaultValues: NewUserSchemaType = {
+	avatar: undefined,
+	firstName: '',
+	lastName: '',
+	email: '',
+	// role: roleEnum.STAFF_CONTRIBUTOR.name,
+	role: '',
+};
+
+export const UserNewEditForm = ({ currentUser }: Props) => {
+	const { t, i18n } = useTranslate();
+	const router = useRouter();
 	const openDialog = useBoolean();
+
+	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
+
+	const methods = useForm<NewUserSchemaType>({
+		mode: 'onSubmit',
+		resolver: zodResolver(NewUserSchema),
+		defaultValues,
+		values: currentUser
+			? {
+					...currentUser,
+					avatar: currentUser.avatar,
+				}
+			: undefined,
+	});
+
+	const {
+		reset,
+		handleSubmit,
+		formState: { isSubmitting },
+	} = methods;
+
+	useSyncFormToLang(i18n.language, methods);
 
 	const handleCloseDialog = openDialog.onFalse;
 
-	const handleOpenDialog = form.handleSubmit(async () => {
+	const handleOpenDialog = handleSubmit(async () => {
 		openDialog.onTrue();
 	});
 
-	const handleConfirmDialog = form.handleSubmit(async (data) => {
-		onMutate?.(data);
+	const queryClient = useQueryClient();
+
+	const { mutate: createStaffMember, isPending } = useCreateStaffMember({
+		onSuccess: () => {
+			reset();
+			toast.success(
+				currentUser
+					? 'Update success!'
+					: _.capitalize(
+							t('item-creation-success-message', { item: t('staff-member') }),
+						),
+			);
+			queryClient.invalidateQueries({ queryKey: useFindStaffMember.getKey() });
+			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
+		},
+		onError: (error) => {
+			toast.error(error.message);
+		},
 	});
 
-	const confirmValues = _.chain(form.getValues())
+	const handleConfirmDialog = handleSubmit(async (data) => {
+		// createStaffMember(data);
+		// await delayFn(1000);
+	});
+
+	const confirmValues = _.chain(methods.getValues())
 		.entries()
 		.map((value) => {
 			const [key, fieldValue] = value;
@@ -58,14 +144,9 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 			if (_.isNil(fieldValue) || _.isEmpty(fieldValue)) {
 				finalValue = 'N/A';
 			} else {
-				if (_.isObject(fieldValue)) {
-					finalValue = JSON.stringify(fieldValue);
-				} else {
-					finalValue = _.toString(fieldValue);
-				}
-			}
-			if (_.isBoolean(fieldValue)) {
-				finalValue = fieldValue ? t('yes') : t('no');
+				finalValue = _.isString(fieldValue)
+					? fieldValue
+					: JSON.stringify(fieldValue);
 			}
 			if (fieldValue instanceof File) {
 				finalValue = fieldValue.name;
@@ -77,11 +158,9 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 		})
 		.value();
 
-	const isSubmitting = form.formState.isSubmitting;
-
 	return (
 		<>
-			<Form methods={form} onSubmit={handleOpenDialog}>
+			<Form methods={methods} onSubmit={handleOpenDialog}>
 				<Grid container spacing={3}>
 					<Grid size={{ xs: 12, md: 4 }}>
 						<Card sx={{ pt: 10, pb: 5, px: 3 }}>
@@ -198,41 +277,23 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 									rowGap: 3,
 									columnGap: 2,
 									display: 'grid',
+									gridTemplateColumns: {
+										xs: 'repeat(1, 1fr)',
+										sm: 'repeat(2, 1fr)',
+									},
 								}}
 							>
 								<Field.Text name="lastName" label={t('lastname')} required />
 								<Field.Text name="firstName" label={t('firstname')} />
-								<Stack direction="row" spacing={2}>
-									<Field.Text
-										name="email"
-										label={t('email-address')}
-										required
-									/>
-									{!isEdit ? (
-										<Field.Switch
-											name="sendNotification"
-											label={t('send-notification')}
-											slotProps={{
-												wrapper: { sx: { whiteSpace: 'nowrap' } },
-											}}
-										/>
-									) : null}
-								</Stack>
-								<Field.Select name="accountLevel" label={t('level')} required>
-									{ACCOUNT_LEVEL_OPTIONS.map((option) => (
-										<MenuItem key={option} value={option}>
-											{option}
-										</MenuItem>
-									))}
-								</Field.Select>
-
-								{/* <Field.Select name="role" label={t('role')} required>
+								<Field.Text name="email" label={t('email-address')} required />
+								<br />
+								<Field.Select name="role" label={t('role')} required>
 									{ROLE_OPTIONS.map((option) => (
 										<MenuItem key={option.value} value={option.label}>
 											{option.label}
 										</MenuItem>
 									))}
-								</Field.Select> */}
+								</Field.Select>
 								{/* <Field.Phone
 								name="phoneNumber"
 								label="Phone number"
@@ -257,9 +318,9 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 								<Button
 									type="submit"
 									variant="contained"
-									loading={isSubmitting || isMutating}
+									loading={isSubmitting || isPending}
 								>
-									{!isEdit ? t('create-user') : t('save-changes')}
+									{!currentUser ? t('create-user') : t('save-changes')}
 								</Button>
 							</Stack>
 						</Card>
@@ -270,14 +331,14 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 			<Dialog open={openDialog.value} onClose={handleCloseDialog}>
 				<DialogTitle>
 					{_.capitalize(
-						t('save-item-confirmation-title', { item: t('staff-user') }),
+						t('save-item-confirmation-title', { item: t('staff-member') }),
 					)}
 				</DialogTitle>
 
 				<DialogContent sx={{ color: 'text.secondary' }}>
 					<Typography sx={{ mb: 2 }}>
 						{_.capitalize(
-							t('save-item-confirmation-message', { item: t('staff-user') }),
+							t('save-item-confirmation-message', { item: t('staff-member') }),
 						)}
 					</Typography>
 					{confirmValues.map((value) => {
@@ -296,7 +357,7 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 					<Button
 						variant="outlined"
 						onClick={handleCloseDialog}
-						disabled={isSubmitting || isMutating}
+						disabled={isSubmitting || isPending}
 					>
 						{t('cancel')}
 					</Button>
@@ -304,7 +365,7 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 						variant="contained"
 						onClick={handleConfirmDialog}
 						autoFocus
-						loading={isSubmitting || isMutating}
+						loading={isSubmitting || isPending}
 					>
 						{t('confirm')}
 					</Button>

@@ -8,6 +8,7 @@ const DEVELOPMENT = process.env.NODE_ENV === 'development';
 const PORT = Number.parseInt(
 	process.env.PORT || (DEVELOPMENT ? '6181' : '3000'),
 );
+const MODE = process.env.MODE;
 
 const app = express();
 
@@ -21,6 +22,7 @@ if (DEVELOPMENT) {
 	const viteDevServer = await import('vite').then((vite) =>
 		vite.createServer({
 			server: { middlewareMode: true },
+			mode: MODE,
 		}),
 	);
 	app.use(viteDevServer.middlewares);
