@@ -27,7 +27,7 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 			// checker({ typescript: true }),
 		],
 		server: {
-			port: 6181,
+			port: 5050,
 		},
 		build: {
 			target: 'ES2022',

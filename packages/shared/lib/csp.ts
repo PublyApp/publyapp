@@ -67,8 +67,8 @@ export const createCSPDirectives = ({
 		];
 		baseDirectives.connectSrc = [
 			...(baseDirectives.connectSrc || []),
-			'http://localhost:5077', // ASP server address
-			'http://localhost:6181', // vite server address
+			'http://localhost:5000', // ASP server address
+			'http://localhost:5050', // vite server address
 			'ws:',
 			'wss:',
 		];

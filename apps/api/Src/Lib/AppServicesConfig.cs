@@ -34,6 +34,9 @@ public static class AppServicesConfig {
 	}
 
 	public static IHostApplicationBuilder AddServices(this WebApplicationBuilder builder) {
+		// Add HealthChecks
+		builder.Services.AddHealthChecks();
+
 		// Configure strongly-typed settings
 		builder.Services.AddOptions<AppSettings>()
 			.Bind(builder.Configuration.GetSection("AppSettings"))
