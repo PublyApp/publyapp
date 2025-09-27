@@ -55,33 +55,38 @@ if (!isDevelopment) {
 	posthog = new AnalyticsNode(env.VITE_POSTHOG_API_KEY);
 }
 
-app.use(
-	createRequestHandler({
-		build: () => {
-			return import('virtual:react-router/server-build');
-		},
-		getLoadContext: (req, _res) => {
-			const nonce = _.get(req, '___NONCE___');
+const reactRouterHandler = createRequestHandler({
+	build: () => {
+		return import('virtual:react-router/server-build');
+	},
+	getLoadContext: (req, _res) => {
+		const nonce = _.get(req, '___NONCE___');
 
-			if (!nonce) {
-				throw new Error('Nonce has not been set');
-			}
+		if (!nonce) {
+			throw new Error('Nonce has not been set');
+		}
 
-			console.log('nonce', nonce);
-
-			if (isDevelopment) {
-				return {
-					logger,
-					analytics: posthog,
-					nonce,
-				};
-			}
-
+		if (isDevelopment) {
 			return {
 				logger,
 				analytics: posthog,
 				nonce,
 			};
-		},
-	}),
-);
+		}
+
+		return {
+			logger,
+			analytics: posthog,
+			nonce,
+		};
+	},
+});
+
+// Handle Chrome DevTools workspace mapping request
+app.get('/.well-known/appspecific/com.chrome.devtools.json', (_req, res) => {
+	res.status(404).json({
+		error: 'Chrome DevTools workspace mapping not configured',
+	});
+});
+
+app.use(reactRouterHandler);

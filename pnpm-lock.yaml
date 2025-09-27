@@ -6966,7 +6966,7 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 24.0.13
+      '@types/node': 20.19.7
 
   '@types/connect@3.4.38':
     dependencies:

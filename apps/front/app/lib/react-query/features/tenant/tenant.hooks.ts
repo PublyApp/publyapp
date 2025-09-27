@@ -4,7 +4,7 @@ import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
 // import { defaultApiClient } from '@/parse-api-client/ApiClient';
 // import type { CreateTenantParams } from '@/parse-api-client/features/tenant/tenant.endpoints';
-import { functionName } from '@/shared/lib/constants';
+// import { functionName } from '@/shared/lib/constants';
 import { delay } from '@/shared/utils/any.utils';
 import { getQueryKey } from '../../query-utils';
 
@@ -26,7 +26,7 @@ export const useCreateTenant = createMutation({
 });
 
 export const useGetTenant = createQuery({
-	queryKey: [functionName.staff.tenant.get] as const,
+	queryKey: ['functionName.staff.tenant.get'] as const,
 	fetcher: async (params: { tenantId: string }) => {
 		await delay(5_000);
 		return {
@@ -44,7 +44,7 @@ type FindTenantProfilesParams = {
 };
 
 export const useFindTenantProfiles = createQuery({
-	queryKey: [functionName.staff.tenant.findProfiles] as const,
+	queryKey: ['functionName.staff.tenant.findProfiles'] as const,
 	fetcher: async (_params: FindTenantProfilesParams) => {
 		await delay(5_000);
 		return _tenantProfiles;

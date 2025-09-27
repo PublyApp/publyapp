@@ -28,18 +28,15 @@ import {
 } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { fData } from '@/front/utils/format-number';
-import {
-	FRONT_PATH_NAMES,
-	type RoleName,
-	roleEnum,
-} from '@/shared/lib/constants';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { mbToBytes } from '@/shared/utils/any.utils';
 
 type IUserItem = {
 	id: string;
 	firstName?: string;
 	lastName: string;
-	role: RoleName;
+	// role: RoleName;
+	role: /* RoleName */ any;
 	email: string;
 	status: string;
 	avatar?: string;
@@ -57,14 +54,17 @@ type Props = {
 	currentUser?: IUserItem;
 };
 
-const ROLE_OPTIONS = _.chain(roleEnum)
+const ROLE_OPTIONS = _.chain(/* roleEnum */ [])
 	.pickBy((value) => {
-		return _.startsWith(value.name, 'STAFF_');
+		// return _.startsWith(value.name, 'STAFF_');
+		return true;
 	})
 	.map((value) => {
 		return {
-			value: value.name,
-			label: value.name,
+			// value: value.name,
+			// label: value.name,
+			value: '',
+			label: '',
 		};
 	})
 	.value();
@@ -74,7 +74,8 @@ const defaultValues: NewUserSchemaType = {
 	firstName: '',
 	lastName: '',
 	email: '',
-	role: roleEnum.STAFF_CONTRIBUTOR.name,
+	// role: roleEnum.STAFF_CONTRIBUTOR.name,
+	role: '',
 };
 
 export const UserNewEditForm = ({ currentUser }: Props) => {
@@ -131,7 +132,8 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 	});
 
 	const handleConfirmDialog = handleSubmit(async (data) => {
-		createStaffMember(data);
+		// createStaffMember(data);
+		// await delayFn(1000);
 	});
 
 	const confirmValues = _.chain(methods.getValues())
