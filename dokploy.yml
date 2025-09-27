@@ -1,0 +1,49 @@
+# Dokploy Configuration for PDF Vite App
+# Set environment variables in Dokploy GUI
+
+services:
+  pdfvite-api:
+    image: ghcr.io/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/api:latest
+    container_name: pdfvite-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
+      - FRONT_URL=${FRONT_URL}
+    ports:
+      - "5000:5000"
+    networks:
+      - pdfvite-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  pdfvite-front:
+    image: ghcr.io/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/front:latest
+    container_name: pdfvite-front
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - VITE_ASP_SERVER_URL=${VITE_ASP_SERVER_URL}
+      - VITE_POSTHOG_API_KEY=${VITE_POSTHOG_API_KEY}
+    ports:
+      - "3000:3000"
+    networks:
+      - pdfvite-network
+    depends_on:
+      - pdfvite-api
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  pdfvite-network:
+    driver: bridge

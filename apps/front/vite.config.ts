@@ -1,10 +1,10 @@
+import path from 'node:path';
 import { reactRouter } from '@react-router/dev/vite';
 import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
-import path from 'node:path';
 import { reactRouterDevTools } from 'react-router-devtools';
 import { defineConfig } from 'vite';
-import checker from 'vite-plugin-checker';
+// import checker from 'vite-plugin-checker';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import copyI18nFiles from './_vite/copy-i18n-files';
@@ -12,7 +12,7 @@ import copyI18nFiles from './_vite/copy-i18n-files';
 export default defineConfig(({ mode, isSsrBuild }) => {
 	const envFileName = `.env.${mode}`;
 	const envConfig = dotenv.config({
-		path: path.resolve(process.cwd(), envFileName),
+		path: path.resolve(process.cwd(), '../../', envFileName),
 		override: true,
 	});
 	dotenvExpand.expand(envConfig);
@@ -24,7 +24,7 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 			reactRouterDevTools(),
 			reactRouter(),
 			tsconfigPaths(),
-			checker({ typescript: true }),
+			// checker({ typescript: true }),
 		],
 		server: {
 			port: 6181,

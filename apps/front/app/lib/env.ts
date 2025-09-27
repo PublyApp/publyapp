@@ -19,7 +19,7 @@ const parseZodSchema = () => {
 	} catch (error) {
 		if (error instanceof ZodError) {
 			const err = new Error(
-				`failed to validate .env: ${JSON.stringify(error.issues[0])}`,
+				`failed to validate .env.${import.meta.env.MODE}: ${JSON.stringify(error.issues[0])}`,
 			);
 			throw err;
 		}

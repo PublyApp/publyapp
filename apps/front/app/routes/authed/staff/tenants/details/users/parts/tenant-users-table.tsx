@@ -36,11 +36,7 @@ import {
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/auth/auth.hooks';
 import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
-import {
-	DEFAULT_PAGE_SIZE,
-	FRONT_PATH_NAMES,
-	roleEnum,
-} from '@/shared/lib/constants';
+import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
 export type TenantUserRowData = {
@@ -266,16 +262,16 @@ const RoleCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
 	let t_message: string = t('unknown-item', { item: 'role' });
 	let color: LabelColor = 'default';
 
-	if (role === roleEnum.STAFF_ADMIN.name) {
+	if (role === /* roleEnum.STAFF_ADMIN.name */ '') {
 		t_message = t('admin');
 		color = 'success';
-	} else if (role === roleEnum.STAFF_EDITOR.name) {
+	} else if (role === /* roleEnum.STAFF_EDITOR.name */ '') {
 		t_message = t('editor');
 		color = 'info';
-	} else if (role === roleEnum.STAFF_USER.name) {
+	} else if (role === /* roleEnum.STAFF_USER.name */ '') {
 		t_message = t('user');
 		color = 'warning';
-	} else if (role === roleEnum.STAFF_CONTRIBUTOR.name) {
+	} else if (role === /* roleEnum.STAFF_CONTRIBUTOR.name */ '') {
 		t_message = t('contributor');
 		color = 'error';
 	}

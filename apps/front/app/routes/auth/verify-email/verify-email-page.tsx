@@ -1,3 +1,10 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Alert, type Theme } from '@mui/material';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import { useForm } from 'react-hook-form';
+import { redirect, useFetcher } from 'react-router';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
@@ -13,7 +20,6 @@ import {
 	FRONT_PATH_NAMES,
 	queryParamKey,
 	queryParamValue,
-	X_CODE,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error.utils';
@@ -22,13 +28,6 @@ import {
 	getEmailFormSchema,
 	getRequestEmailVerificationSchema,
 } from '@/shared/validations/auth.validations';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, type Theme } from '@mui/material';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
-import { useForm } from 'react-hook-form';
-import { redirect, useFetcher } from 'react-router';
 import InvalidLinkView from '../components/invalid-link-view';
 import type { Route } from './+types/verify-email-page';
 
@@ -133,19 +132,19 @@ export const loader = getServerLoader({
 		});
 
 		if (result.status === 'error') {
-			if (result.error instanceof ParseRestError) {
-				if (
-					result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID
-				) {
-					return {
-						code: 'INVALID_LINK',
-					} as const;
-				}
+			// if (result.error instanceof ParseRestError) {
+			// 	if (
+			// 		result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID
+			// 	) {
+			// 		return {
+			// 			code: 'INVALID_LINK',
+			// 		} as const;
+			// 	}
 
-				throw new Response(result.error.message, {
-					status: result.error.httpStatusCode,
-				});
-			}
+			// 	throw new Response(result.error.message, {
+			// 		status: result.error.httpStatusCode,
+			// 	});
+			// }
 
 			throw result.error;
 		}
