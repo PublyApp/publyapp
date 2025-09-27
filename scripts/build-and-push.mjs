@@ -4,7 +4,7 @@ import { execSync } from 'node:child_process';
 
 // Configuration
 const GITHUB_USERNAME = process.env.GITHUB_USERNAME || 'your-username';
-const REPO_NAME = process.env.REPO_NAME || 'pdf-vite-app';
+const REPO_NAME = process.env.REPO_NAME || 'publyapp';
 const REGISTRY = 'ghcr.io';
 const TAG = process.argv[2] || 'latest';
 

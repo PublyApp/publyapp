@@ -1,7 +1,7 @@
 import { makePath, toPascalCase } from '../utils/string.utils';
 
-export const APP_ID = 'pdf_vite_app';
-export const APP_NAME = 'PDF Vite';
+export const APP_ID = 'publyapp';
+export const APP_NAME = 'PublyApp';
 
 export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 

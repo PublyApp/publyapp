@@ -6,7 +6,7 @@ services:
       args:
         POSTGRES_CONNECTION_STRING: ${POSTGRES_CONNECTION_STRING}
         FRONT_URL: ${FRONT_URL}
-    container_name: pdfvite-api-dev
+    container_name: publyapp-api-dev
     restart: unless-stopped
     env_file:
       - .env.development
@@ -24,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: apps/front/Dockerfile
-    container_name: pdfvite-front-dev
+    container_name: publyapp-front-dev
     restart: unless-stopped
     env_file:
       - .env.development

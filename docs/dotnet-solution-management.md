@@ -289,10 +289,10 @@ This approach ensures version consistency while keeping project files clean! �
 
 ## 📝 **Our Project Structure**
 
-This is how our PDFVite solution is organized:
+This is how our PublyApp solution is organized:
 
 ```text
-PDFViteApp.sln                          # Solution file
+PublyAppApp.sln                          # Solution file
 Directory.Packages.props                # Central package versions
 Directory.Build.props                   # Common build properties
 ├── api/

@@ -11,9 +11,9 @@
 
   <!-- Common metadata -->
   <PropertyGroup>
-    <Company>PDFVite</Company>
-    <Product>PDFVite Application</Product>
-    <Copyright>Copyright © PDFVite 2024</Copyright>
+    <Company>PublyApp</Company>
+    <Product>PublyApp Application</Product>
+    <Copyright>Copyright © PublyApp 2024</Copyright>
   </PropertyGroup>
 
   <!-- Build configuration -->

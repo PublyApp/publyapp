@@ -48,7 +48,7 @@ Set up the following environment variables:
 ```bash
 # Required for build scripts
 export GITHUB_USERNAME="your-github-username"
-export REPO_NAME="pdf-vite-app"  # or your actual repo name
+export REPO_NAME="publyapp"  # or your actual repo name
 
 # Required for API build
 export POSTGRES_CONNECTION_STRING="your-postgres-connection-string"
@@ -58,7 +58,7 @@ export FRONT_URL="https://your-frontend-domain.com"
 **Windows PowerShell:**
 ```powershell
 $env:GITHUB_USERNAME = "your-github-username"
-$env:REPO_NAME = "pdf-vite-app"
+$env:REPO_NAME = "publyapp"
 $env:POSTGRES_CONNECTION_STRING = "your-postgres-connection-string"
 $env:FRONT_URL = "https://your-frontend-domain.com"
 ```
@@ -70,7 +70,7 @@ PDF Vite App uses centralized `.env` files for configuration:
 **For Production:**
 ```bash
 # Database
-DB_CONNECTION_STRING=Host=your-db-host;Database=pdfvite;Username=your-username;Password=your-password;Port=5432;SSL Mode=Require;
+DB_CONNECTION_STRING=Host=your-db-host;Database=publyapp;Username=your-username;Password=your-password;Port=5432;SSL Mode=Require;
 
 # JWT Secret
 JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
@@ -173,9 +173,9 @@ The `dokploy.yml` file is configured to use your GitHub Container Registry image
 
 ```yaml
 services:
-  pdfvite-api:
+  publyapp-api:
     image: ghcr.io/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/api:latest
-    container_name: pdfvite-api
+    container_name: publyapp-api
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
@@ -185,7 +185,7 @@ services:
     ports:
       - "5000:5000"
     networks:
-      - pdfvite-network
+      - publyapp-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
@@ -193,9 +193,9 @@ services:
       retries: 3
       start_period: 40s
 
-  pdfvite-front:
+  publyapp-front:
     image: ghcr.io/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME/front:latest
-    container_name: pdfvite-front
+    container_name: publyapp-front
     restart: unless-stopped
     environment:
       - NODE_ENV=production
@@ -204,9 +204,9 @@ services:
     ports:
       - "3000:3000"
     networks:
-      - pdfvite-network
+      - publyapp-network
     depends_on:
-      - pdfvite-api
+      - publyapp-api
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
       interval: 30s
@@ -215,7 +215,7 @@ services:
       start_period: 40s
 
 networks:
-  pdfvite-network:
+  publyapp-network:
     driver: bridge
 ```
 
@@ -271,7 +271,7 @@ This is useful for:
 ## 🏗️ Project Structure
 
 ```
-pdf-vite-app/
+publyapp/
 ├── apps/
 │   ├── api/
 │   │   └── Dockerfile          # API Docker image
