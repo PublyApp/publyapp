@@ -18,7 +18,7 @@ interface RouterLinkProps extends Omit<LinkProps, 'to'> {
 
 const viteUrl = new URL(env.VITE_ASP_SERVER_URL);
 if (import.meta.env.DEV) {
-	viteUrl.port = '6181'; // ! vite port: remember to change if you change port in vite.config.ts
+	viteUrl.port = '5050'; // ! vite port: remember to change if you change port in vite.config.ts
 }
 const viteOrigin = viteUrl.origin;
 

@@ -82,8 +82,6 @@ function main() {
 	const apiBuildCommand = [
 		'docker build',
 		'-f apps/api/Dockerfile',
-		`--build-arg POSTGRES_CONNECTION_STRING="${process.env.POSTGRES_CONNECTION_STRING}"`,
-		`--build-arg FRONT_URL="${process.env.FRONT_URL}"`,
 		`-t ${apiImageTag}`,
 		'.'
 	].join(' ');
