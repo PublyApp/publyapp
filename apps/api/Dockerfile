@@ -15,16 +15,10 @@ COPY . .
 WORKDIR /src/apps/api
 RUN dotnet restore
 
-# Accept build arguments for environment variables (no default values)
-ARG POSTGRES_CONNECTION_STRING
-ARG FRONT_URL
+# Note: OpenAPI generation is disabled during Docker build to avoid environment variable requirements
 
-# Set build-time environment variables for OpenAPI generation
-ENV POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
-ENV FRONT_URL=${FRONT_URL}
-
-# Build the project
-RUN dotnet build -c Release --no-restore
+# Build the project (disable OpenAPI generation during Docker build)
+RUN dotnet build -c Release --no-restore -p:OpenApiGenerateDocuments=false
 
 # Publish the project
 RUN dotnet publish -c Release --no-build -o /app/publish
