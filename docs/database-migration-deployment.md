@@ -1,6 +1,6 @@
 # Database Migration and Seeding Deployment Guide
 
-This document outlines the industry-standard approaches for applying migrations and seeds to production databases in the PDFVite application.
+This document outlines the industry-standard approaches for applying migrations and seeds to production databases in the PublyApp application.
 
 ## 🎯 **Industry Standard Approaches**
 
@@ -84,7 +84,7 @@ protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 
 ## 🎯 **Recommended Production Workflow**
 
-### **For PDFVite Application:**
+### **For PublyApp Application:**
 
 #### **1. Development Phase:**
 
@@ -101,7 +101,7 @@ dotnet ef database update
 dotnet ef migrations script --idempotent -o staging-migration.sql
 
 # Apply to staging
-sqlcmd -S staging-server -d pdfvite_staging -i staging-migration.sql
+sqlcmd -S staging-server -d publyapp_staging -i staging-migration.sql
 ```
 
 #### **3. Production Deployment:**
@@ -112,7 +112,7 @@ dotnet ef migrations script --idempotent -o production-migration.sql
 
 # Review with DBA/team
 # Apply during maintenance window
-sqlcmd -S prod-server -d pdfvite_prod -i production-migration.sql
+sqlcmd -S prod-server -d publyapp_prod -i production-migration.sql
 ```
 
 ## 🔧 **Seeding Implementation**
@@ -203,7 +203,7 @@ Seeding happens automatically when:
 dotnet ef migrations script 20240101000000_PreviousMigration --idempotent -o rollback.sql
 
 # Apply rollback
-sqlcmd -S prod-server -d pdfvite_prod -i rollback.sql
+sqlcmd -S prod-server -d publyapp_prod -i rollback.sql
 ```
 
 ### **Seeding Rollback:**

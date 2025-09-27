@@ -260,9 +260,9 @@ Since you started fresh with no existing data, the unified system is already in 
 
    ```bash
    # Using Docker (recommended)
-   docker run --name postgres-pdfvite \
+   docker run --name postgres-publyapp \
      -e POSTGRES_PASSWORD=password \
-     -e POSTGRES_DB=pdfvite_db \
+     -e POSTGRES_DB=publyapp_db \
      -p 5432:5432 \
      -d postgres:15
    ```
@@ -272,7 +272,7 @@ Since you started fresh with no existing data, the unified system is already in 
    Create `.env.local` in `apps/api/`:
 
    ```text
-   POSTGRES_CONNECTION_STRING=Host=localhost;Database=pdfvite_db;Username=postgres;Password=password
+   POSTGRES_CONNECTION_STRING=Host=localhost;Database=publyapp_db;Username=postgres;Password=password
    FRONT_URL=http://localhost:3000
    ```
 
@@ -315,10 +315,10 @@ dotnet tool run dotnet-ef database update
 
 ```bash
 # Using psql command line
-psql -h localhost -U postgres -d pdfvite_db
+psql -h localhost -U postgres -d publyapp_db
 
 # Using Docker
-docker exec -it postgres-pdfvite psql -U postgres -d pdfvite_db
+docker exec -it postgres-publyapp psql -U postgres -d publyapp_db
 ```
 
 ### Useful SQL Queries
@@ -356,14 +356,14 @@ SELECT * FROM pg_locks;
 
 ```bash
 # Backup database
-pg_dump -h localhost -U postgres pdfvite_db > backup.sql
+pg_dump -h localhost -U postgres publyapp_db > backup.sql
 
 # Restore database
-psql -h localhost -U postgres pdfvite_db < backup.sql
+psql -h localhost -U postgres publyapp_db < backup.sql
 
 # Using Docker
-docker exec postgres-pdfvite pg_dump -U postgres pdfvite_db > backup.sql
-docker exec -i postgres-pdfvite psql -U postgres pdfvite_db < backup.sql
+docker exec postgres-publyapp pg_dump -U postgres publyapp_db > backup.sql
+docker exec -i postgres-publyapp psql -U postgres publyapp_db < backup.sql
 ```
 
 ## Troubleshooting

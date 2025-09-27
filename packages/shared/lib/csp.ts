@@ -36,8 +36,8 @@ export const createCSPDirectives = ({
 		defaultSrc: ["'self'"],
 		scriptSrc: [
 			"'self'",
-			'https://www.pdfvite.com',
-			'https://pdfvite.com',
+			'https://www.publyapp.com',
+			'https://publyapp.com',
 			_nonce,
 		],
 		styleSrc: [
@@ -48,7 +48,7 @@ export const createCSPDirectives = ({
 		],
 		imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
 		fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-		connectSrc: ["'self'", 'https://www.pdfvite.com', 'https://pdfvite.com'],
+		connectSrc: ["'self'", 'https://www.publyapp.com', 'https://publyapp.com'],
 		mediaSrc: ["'self'"],
 		objectSrc: ["'none'"],
 		baseUri: ["'self'"],
