@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 
+// @ts-check
+
 import { execSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 
 // Configuration
-const GITHUB_USERNAME = process.env.GITHUB_USERNAME || 'your-username';
+const GITHUB_USERNAME = process.env.GITHUB_USERNAME || 'radandevist';
 const REPO_NAME = process.env.REPO_NAME || 'publyapp';
 const REGISTRY = 'ghcr.io';
 const TAG = process.argv[2] || 'latest';
@@ -27,7 +30,7 @@ function execCommand(command, description) {
 		log(`📦 ${description}...`, 'green');
 		execSync(command, { stdio: 'inherit' });
 		return true;
-	} catch (error) {
+	} catch {
 		log(`❌ Failed to ${description.toLowerCase()}`, 'red');
 		log(`Command: ${command}`, 'yellow');
 		process.exit(1);
@@ -36,36 +39,45 @@ function execCommand(command, description) {
 
 function checkDockerLogin() {
 	try {
-		const result = execSync('docker info', { encoding: 'utf8' });
-		if (!result.includes('ghcr.io')) {
-			log('⚠️  You need to login to GitHub Container Registry first:', 'yellow');
-			log('docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_TOKEN', 'blue');
-			log('');
-			log('You can create a GitHub Personal Access Token at:', 'blue');
-			log('https://github.com/settings/tokens', 'blue');
-			log('Make sure to give it \'write:packages\' permission', 'blue');
-			process.exit(1);
+		// Check if we're logged into ghcr.io by checking the config file
+		const configPath = process.platform === 'win32'
+			? `${process.env.USERPROFILE}\\.docker\\config.json`
+			: `${process.env.HOME}/.docker/config.json`;
+
+		if (existsSync(configPath)) {
+			const config = JSON.parse(readFileSync(configPath, 'utf8'));
+			if (config.auths?.['ghcr.io']) {
+				return; // We're logged in
+			}
 		}
-	} catch (_error) {
+
+		log('⚠️  You need to login to GitHub Container Registry first:', 'yellow');
+		log('docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_TOKEN', 'blue');
+		log('');
+		log('You can create a GitHub Personal Access Token at:', 'blue');
+		log('https://github.com/settings/tokens', 'blue');
+		log('Make sure to give it \'write:packages\' permission', 'blue');
+		process.exit(1);
+	} catch {
 		log('⚠️  Could not check Docker login status. Please ensure you\'re logged in to ghcr.io', 'yellow');
 		process.exit(1);
 	}
 }
 
-function checkEnvironmentVariables() {
-	const requiredVars = ['POSTGRES_CONNECTION_STRING', 'FRONT_URL'];
-	const missing = requiredVars.filter(varName => !process.env[varName]);
+// function checkEnvironmentVariables() {
+// 	const requiredVars = ['POSTGRES_CONNECTION_STRING', 'FRONT_URL'];
+// 	const missing = requiredVars.filter(varName => !process.env[varName]);
 
-	if (missing.length > 0) {
-		log('⚠️  Missing required environment variables:', 'yellow');
-		missing.forEach(varName => {
-			log(`  - ${varName}`, 'red');
-		});
-		log('');
-		log('Please set these environment variables before running the script.', 'blue');
-		process.exit(1);
-	}
-}
+// 	if (missing.length > 0) {
+// 		log('⚠️  Missing required environment variables:', 'yellow');
+// 		missing.forEach(varName => {
+// 			log(`  - ${varName}`, 'red');
+// 		});
+// 		log('');
+// 		log('Please set these environment variables before running the script.', 'blue');
+// 		process.exit(1);
+// 	}
+// }
 
 function main() {
 	log('🚀 Building and pushing Docker images to GitHub Container Registry', 'green');
@@ -75,7 +87,7 @@ function main() {
 
 	// Check prerequisites
 	checkDockerLogin();
-	checkEnvironmentVariables();
+	// checkEnvironmentVariables();
 
 	// Build API image
 	const apiImageTag = `${REGISTRY}/${GITHUB_USERNAME}/${REPO_NAME}/api:${TAG}`;
