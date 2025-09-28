@@ -30,6 +30,9 @@ public class User : BaseAttributes, INoTenantEntity {
 	[Column("avatar_url")]
 	public string? AvatarUrl { get; set; }
 
+	[Column("status")]
+	public UserStatus Status { get; set; } = UserStatus.Inactive;
+
 	[Column("is_suspended")]
 	public bool IsSuspended { get; set; } = false;
 
@@ -45,4 +48,12 @@ public class User : BaseAttributes, INoTenantEntity {
 	// Navigation properties
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];
 	public ICollection<Session.Session> Sessions { get; set; } = [];
+}
+
+public enum UserStatus {
+	Inactive = 10,
+	Pending = 20,
+	Suspended = 30,
+	Active = 40,
+	Deleted = 50,
 }

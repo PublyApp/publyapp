@@ -39,6 +39,22 @@ import { useFindStaffMember } from '@/front/lib/react-query/features/staff-membe
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
+const UserStatus = {
+	Inactive: 10,
+	Pending: 20,
+	Suspended: 30,
+	Active: 40,
+	Deleted: 50,
+} as const;
+
+const statusMapLabel: Record<number, string> = {
+	[UserStatus.Inactive]: 'inactive',
+	[UserStatus.Pending]: 'pending',
+	[UserStatus.Suspended]: 'suspended',
+	[UserStatus.Active]: 'active',
+	[UserStatus.Deleted]: 'deleted',
+};
+
 export type TenantUserRowData = {
 	id: string;
 	avatarUrl: string;
@@ -118,7 +134,7 @@ const TenantUsersTable = () => {
 				firstName: staffMember.firstName || '',
 				lastName: staffMember.lastName || '',
 				// role: staffMember.roleData?.role || '',
-				status: staffMember.status || '',
+				status: statusMapLabel[staffMember.status || 0] || '',
 				email: staffMember.email || '',
 			};
 		});
