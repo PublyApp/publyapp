@@ -1,4 +1,5 @@
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +12,7 @@ public class StaffMemberItem {
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public string? Status { get; set; }
+	public UserStatus Status { get; set; } = UserStatus.Inactive;
 }
 
 public class FindStaffMembersResult {
@@ -39,6 +40,7 @@ public class FindStaffMembers {
 					LastName = "Test",
 					FirstName = "Test",
 					AvatarUrl = "https://via.placeholder.com/150",
+					Status = UserStatus.Active,
 				},
 			],
 			Count = 1,

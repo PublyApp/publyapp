@@ -1120,8 +1120,7 @@
             "nullable": true
           },
           "status": {
-            "type": "string",
-            "nullable": true
+            "$ref": "#/components/schemas/UserStatus"
           }
         }
       },
@@ -1190,6 +1189,9 @@
           "avatarUrl": {
             "type": "string",
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/UserStatus"
           },
           "isSuspended": {
             "type": "boolean"
@@ -1334,6 +1336,9 @@
             "nullable": true
           }
         }
+      },
+      "UserStatus": {
+        "type": "integer"
       },
       "VerifyEmailRequestBody": {
         "required": [

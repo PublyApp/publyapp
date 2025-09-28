@@ -601,7 +601,7 @@ export function deserializeIntoStaffMemberItem(staffMemberItem: Partial<StaffMem
         "firstName": n => { staffMemberItem.firstName = n.getStringValue(); },
         "id": n => { staffMemberItem.id = n.getGuidValue(); },
         "lastName": n => { staffMemberItem.lastName = n.getStringValue(); },
-        "status": n => { staffMemberItem.status = n.getStringValue(); },
+        "status": n => { staffMemberItem.status = n.getNumberValue(); },
     }
 }
 /**
@@ -644,6 +644,7 @@ export function deserializeIntoUser(user: Partial<User> | undefined = {}) : Reco
         "lastName": n => { user.lastName = n.getStringValue(); },
         "password": n => { user.password = n.getStringValue(); },
         "sessions": n => { user.sessions = n.getCollectionOfObjectValues<Session>(createSessionFromDiscriminatorValue); },
+        "status": n => { user.status = n.getNumberValue(); },
         "updatedAt": n => { user.updatedAt = n.getDateValue(); },
         "userAccounts": n => { user.userAccounts = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
@@ -1329,7 +1330,7 @@ export function serializeStaffMemberItem(writer: SerializationWriter, staffMembe
     writer.writeStringValue("firstName", staffMemberItem.firstName);
     writer.writeGuidValue("id", staffMemberItem.id);
     writer.writeStringValue("lastName", staffMemberItem.lastName);
-    writer.writeStringValue("status", staffMemberItem.status);
+    writer.writeNumberValue("status", staffMemberItem.status);
     writer.writeAdditionalData(staffMemberItem.additionalData);
 }
 /**
@@ -1374,6 +1375,7 @@ export function serializeUser(writer: SerializationWriter, user: Partial<User> |
     writer.writeStringValue("lastName", user.lastName);
     writer.writeStringValue("password", user.password);
     writer.writeCollectionOfObjectValues<Session>("sessions", user.sessions, serializeSession);
+    writer.writeNumberValue("status", user.status);
     writer.writeDateValue("updatedAt", user.updatedAt);
     writer.writeObjectValue("userAccounts", user.userAccounts);
     writer.writeAdditionalData(user.additionalData);
@@ -1508,7 +1510,7 @@ export interface StaffMemberItem extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: string | null;
+    status?: number | null;
 }
 export interface Tenant extends AdditionalDataHolder, Parsable {
     /**
@@ -1601,6 +1603,10 @@ export interface User extends AdditionalDataHolder, Parsable {
      * The sessions property
      */
     sessions?: Session[] | null;
+    /**
+     * The status property
+     */
+    status?: number | null;
     /**
      * The updatedAt property
      */
