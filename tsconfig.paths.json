@@ -9,10 +9,8 @@
 		"paths": {
 			"@/front/*": ["./apps/front/app/*"],
 			"@/shared/*": ["./packages/shared/*"],
-			"@/ui-react/*": ["./packages/ui-react/*"],
-			"@/parse-api-client/*": ["./packages/parse-api-client/*"],
 			"@/js-client/*": ["./packages/js-client/*"],
-			// for remix/react-router app
+			// for remix aka react-router app
 			"~/front/*": ["./apps/front/app/*"]
 		}
 	}

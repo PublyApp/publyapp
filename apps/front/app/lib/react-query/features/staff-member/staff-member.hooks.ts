@@ -16,7 +16,7 @@ export const useCreateStaffMember = createMutation({
 		lastName?: string;
 		avatarUrl?: string;
 	}) => {
-		return clientManager.apiClient.staff.staffMembers.post({
+		const result = await clientManager.apiClient.staff.staffMembers.post({
 			email: {
 				getValue() {
 					return data.email;
@@ -38,6 +38,10 @@ export const useCreateStaffMember = createMutation({
 				},
 			},
 		});
+		if (_.isNil(result)) {
+			throw new Error(`[${createStaffMemberMutationKey}]: result is nil`);
+		}
+		return result;
 	},
 });
 
@@ -73,6 +77,12 @@ const getStaffMemberByIdQueryKey = getQueryKey<ApiClient>(
 export const useGetStaffMemberById = createQuery({
 	queryKey: [getStaffMemberByIdQueryKey] as const,
 	fetcher: async ({ userId }: { userId: string }) => {
-		return clientManager.apiClient.staff.staffMembers.byUserId(userId).get();
+		const result = await clientManager.apiClient.staff.staffMembers
+			.byUserId(userId)
+			.get();
+		if (_.isNil(result)) {
+			throw new Error(`[${getStaffMemberByIdQueryKey}]: result is nil`);
+		}
+		return result;
 	},
 });
