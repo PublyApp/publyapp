@@ -64,35 +64,27 @@ export const action = getServerAction({
 
 		const cookieOptions = {
 			expires: loginResult.data?.sessionExpiresAt || new Date(),
-			maxAge: dayjs(loginResult.data?.sessionExpiresAt).diff(dayjs(), 'days'),
+			maxAge: dayjs(loginResult.data?.sessionExpiresAt).diff(
+				dayjs(),
+				'seconds',
+			),
 		};
 
 		const sessionToken = loginResult.data?.sessionToken || '';
 
-		console.log('👍👍👍👍', cookieOptions, {
-			sessionToken,
-		});
-
 		const sessionTokenCookie = cookie.serialize(
 			SESSION_TOKEN_COOKIE_KEY,
-			// loginResult.data.sessionToken,
 			sessionToken,
 			cookieOptions,
-			// {
-			// 	// expires: dayjs().add(3, 'day').toDate(),
-			// 	// maxAge: duration.toSeconds('3d'),
-			// },
 		);
 		resHeaders.append('Set-Cookie', sessionTokenCookie);
 
 		// apiClient.parseRestClient.setSessionToken(sessionToken);
 
 		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
-		// @ts-ignore
-		const _tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
+		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
-		// const { code } = await apiClient.auth.getRedirectCode({ tenantId });
-		const code = 'staff'; // TODO: implement getRedirectCode in the ASP back-end
+		const { code } = await apiClient.auth.getRedirectCode({ tenantId });
 
 		let redirectPath = makePath(code);
 

@@ -376,25 +376,6 @@ importers:
         specifier: ^5.1.2
         version: 5.1.4(typescript@5.8.3)(vite@6.3.6(@types/node@20.19.7)(jiti@2.4.2)(yaml@2.8.0))
 
-  apps/jobs:
-    dependencies:
-      '@org/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      lodash:
-        specifier: ^4.17.21
-        version: 4.17.21
-      zod:
-        specifier: ^3.22.4
-        version: 3.25.76
-    devDependencies:
-      '@types/lodash':
-        specifier: ^4.14.202
-        version: 4.17.20
-      typescript:
-        specifier: ^5.8.3
-        version: 5.8.3
-
   packages/_tsconfig: {}
 
   packages/js-client:

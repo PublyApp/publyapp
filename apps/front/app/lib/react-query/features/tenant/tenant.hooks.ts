@@ -25,8 +25,12 @@ export const useCreateTenant = createMutation({
 	},
 });
 
+const getTenantQueryKey = getQueryKey<ApiClient>(
+	(client) => client.staff.tenants.byTenantId('').get,
+);
+
 export const useGetTenant = createQuery({
-	queryKey: ['functionName.staff.tenant.get'] as const,
+	queryKey: [getTenantQueryKey] as const,
 	fetcher: async (params: { tenantId: string }) => {
 		await delay(5_000);
 		return {
@@ -43,8 +47,12 @@ type FindTenantProfilesParams = {
 	tenantId: string;
 };
 
+const findTenantProfilesQueryKey = getQueryKey<ApiClient>(
+	(client) => client.staff.tenants.get,
+);
+
 export const useFindTenantProfiles = createQuery({
-	queryKey: ['functionName.staff.tenant.findProfiles'] as const,
+	queryKey: [findTenantProfilesQueryKey] as const,
 	fetcher: async (_params: FindTenantProfilesParams) => {
 		await delay(5_000);
 		return _tenantProfiles;
