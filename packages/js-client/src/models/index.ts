@@ -62,6 +62,15 @@ export function createCreateTenantAsStaffResultFromDiscriminatorValue(parseNode:
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindStaffMembersResult}
+ */
+// @ts-ignore
+export function createFindStaffMembersResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindStaffMembersResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetStaffMemberByIdResult}
  */
 // @ts-ignore
@@ -355,6 +364,18 @@ export function deserializeIntoCreateTenantAsStaffResult(createTenantAsStaffResu
 }
 /**
  * The deserialization information for the current model
+ * @param FindStaffMembersResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindStaffMembersResult(findStaffMembersResult: Partial<FindStaffMembersResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "count": n => { findStaffMembersResult.count = n.getNumberValue(); },
+        "staffMembers": n => { findStaffMembersResult.staffMembers = n.getCollectionOfObjectValues<StaffMemberItem>(createStaffMemberItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param GetStaffMemberByIdResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -580,6 +601,7 @@ export function deserializeIntoStaffMemberItem(staffMemberItem: Partial<StaffMem
         "firstName": n => { staffMemberItem.firstName = n.getStringValue(); },
         "id": n => { staffMemberItem.id = n.getGuidValue(); },
         "lastName": n => { staffMemberItem.lastName = n.getStringValue(); },
+        "status": n => { staffMemberItem.status = n.getStringValue(); },
     }
 }
 /**
@@ -689,6 +711,16 @@ export function deserializeIntoVerifyEmailRequestResult(verifyEmailRequestResult
     return {
         "status": n => { verifyEmailRequestResult.status = n.getStringValue(); },
     }
+}
+export interface FindStaffMembersResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The count property
+     */
+    count?: number | null;
+    /**
+     * The staffMembers property
+     */
+    staffMembers?: StaffMemberItem[] | null;
 }
 export interface GetStaffMemberByIdResult extends AdditionalDataHolder, Parsable {
     /**
@@ -1044,6 +1076,19 @@ export function serializeCreateTenantAsStaffResult(writer: SerializationWriter, 
 }
 /**
  * Serializes information the current object
+ * @param FindStaffMembersResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindStaffMembersResult(writer: SerializationWriter, findStaffMembersResult: Partial<FindStaffMembersResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findStaffMembersResult || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("count", findStaffMembersResult.count);
+    writer.writeCollectionOfObjectValues<StaffMemberItem>("staffMembers", findStaffMembersResult.staffMembers, serializeStaffMemberItem);
+    writer.writeAdditionalData(findStaffMembersResult.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param GetStaffMemberByIdResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -1284,6 +1329,7 @@ export function serializeStaffMemberItem(writer: SerializationWriter, staffMembe
     writer.writeStringValue("firstName", staffMemberItem.firstName);
     writer.writeGuidValue("id", staffMemberItem.id);
     writer.writeStringValue("lastName", staffMemberItem.lastName);
+    writer.writeStringValue("status", staffMemberItem.status);
     writer.writeAdditionalData(staffMemberItem.additionalData);
 }
 /**
@@ -1459,6 +1505,10 @@ export interface StaffMemberItem extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
 }
 export interface Tenant extends AdditionalDataHolder, Parsable {
     /**

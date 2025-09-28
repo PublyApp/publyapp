@@ -15,6 +15,7 @@
 		"// =============== DEV SCRIPTS ===============": "=================================",
 		"dev": "turbo dev",
 		"dev:api": "node apps/api/run-dev.mjs",
+		"dev:db": "docker-compose -f docker-compose.data.yml up -d",
 		"dev:front": "pnpm run dev:front:pnpm",
 		"dev:front:bun": "bun run --filter front --elide-lines 0 dev",
 		"dev:front:pnpm": "pnpm run --filter front dev",

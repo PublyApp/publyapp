@@ -1,3 +1,8 @@
+# This file is used to start the API and Frontend services locally
+# It is used to test the services locally
+# It is not used to deploy the services to the cloud
+# It is not used to deploy the services to the cloud
+
 services:
   api:
     build:
@@ -31,7 +36,7 @@ services:
     environment:
       - NODE_ENV=development
     ports:
-      - "3000:3000"
+      - "5050:5050"
     networks:
       - app-network
     depends_on:

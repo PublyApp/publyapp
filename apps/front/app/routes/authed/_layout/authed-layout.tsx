@@ -1,14 +1,8 @@
-import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import { useSuspenseQueries } from '@tanstack/react-query';
 import * as cookie from 'cookie';
 import _ from 'lodash';
 import { type ReactNode, Suspense } from 'react';
-import {
-	Navigate,
-	Outlet,
-	redirect,
-	useRouteError,
-	useSearchParams,
-} from 'react-router';
+import { Outlet, redirect, useRouteError } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 import { View500 } from '@/front/components/error';
 import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
@@ -28,12 +22,8 @@ import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { useMainStore } from '@/front/lib/zustand/store';
 import {
 	FRONT_PATH_NAMES,
-	queryParamKey,
-	queryParamValue,
 	SESSION_TOKEN_COOKIE_KEY,
-	X_CODE,
 } from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
