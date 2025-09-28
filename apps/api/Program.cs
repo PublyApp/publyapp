@@ -6,9 +6,9 @@ using MainApi.Src.Features.Staff.Tenant;
 using MainApi.Src.Lib.Middlewares;
 using MainApi.Src.Features.Staff.StaffMember;
 
-var builder = WebApplication.CreateBuilder(args);
+AppEnvironment.LoadEnv(); // ! must be called before anything else
 
-AppEnvironment.LoadEnv();
+var builder = WebApplication.CreateBuilder(args);
 
 builder.ConfigureLogger();
 builder.AddServices();
