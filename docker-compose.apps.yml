@@ -3,6 +3,7 @@
 # It is not used to deploy the services to the cloud
 # It is not used to deploy the services to the cloud
 
+name: publyapp-apps
 services:
   api:
     build:

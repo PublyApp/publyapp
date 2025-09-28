@@ -3,6 +3,7 @@
 # It is not used to deploy the services to the cloud
 # It is not used to deploy the services to the cloud
 
+name: publyapp-data
 services:
   publyapp-postgres:
     # ref: https://hub.docker.com/_/postgres
@@ -16,7 +17,7 @@ services:
     volumes:
       - postgres-volume:/var/lib/postgresql/data
     ports:
-      - 5454:5454
+      - 5454:5432
     networks:
       - publyapp-network
 
