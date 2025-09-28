@@ -11,12 +11,18 @@ public class StaffMemberItem {
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
+	public string? Status { get; set; }
+}
+
+public class FindStaffMembersResult {
+	public required List<StaffMemberItem> StaffMembers { get; set; }
+	public required int Count { get; set; }
 }
 
 public class FindStaffMembers {
 	public static async Task<
 		Results<
-			Ok<List<StaffMemberItem>>,
+			Ok<FindStaffMembersResult>,
 			BadRequest<ApiResponse>
 		>
 	> HandleFindStaffMembers(
@@ -25,14 +31,17 @@ public class FindStaffMembers {
 	) {
 		await Task.Delay(1000, cancellationToken);
 
-		return TypedResults.Ok(new List<StaffMemberItem> {
-			new StaffMemberItem {
-				Id = Guid.NewGuid(),
-				Email = "test@test.com",
-				LastName = "Test",
-				FirstName = "Test",
-				AvatarUrl = "https://via.placeholder.com/150",
-			},
+		return TypedResults.Ok(new FindStaffMembersResult {
+			StaffMembers = [
+				new StaffMemberItem {
+					Id = Guid.NewGuid(),
+					Email = "test@test.com",
+					LastName = "Test",
+					FirstName = "Test",
+					AvatarUrl = "https://via.placeholder.com/150",
+				},
+			],
+			Count = 1,
 		});
 	}
 }

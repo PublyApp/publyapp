@@ -414,10 +414,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StaffMemberItem"
-                  }
+                  "$ref": "#/components/schemas/FindStaffMembersResult"
                 }
               }
             }
@@ -715,6 +712,25 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "FindStaffMembersResult": {
+        "required": [
+          "staffMembers",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "staffMembers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffMemberItem"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -1100,6 +1116,10 @@
             "nullable": true
           },
           "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
             "type": "string",
             "nullable": true
           }

@@ -15,11 +15,11 @@ const getUserAuthDataQueryKey = getQueryKey<ApiClient>(
 export const useGetUserAuthData = createSuspenseQuery({
 	queryKey: [getUserAuthDataQueryKey] as const,
 	fetcher: async () => {
-		const data = await clientManager.apiClient.auth.userAuthData.get();
-		if (_.isNil(data)) {
-			throw new Error(`[${getUserAuthDataQueryKey}]: data is nil`);
+		const result = await clientManager.apiClient.auth.userAuthData.get();
+		if (_.isNil(result)) {
+			throw new Error(`[${getUserAuthDataQueryKey}]: result is nil`);
 		}
-		return data;
+		return result;
 	},
 });
 

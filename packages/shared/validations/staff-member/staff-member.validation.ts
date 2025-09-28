@@ -6,6 +6,6 @@ export const getNewStaffMemberSchemaServerSide = (z: InterZod) => {
 		firstName: z.string().optional(),
 		lastName: z.string().min(1),
 		email: z.string().email(),
-		role: z.enum(/* roleNames */ ['']),
+		// role: z.enum(/* roleNames */ ['']),
 	});
 };

@@ -7,7 +7,6 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Grid from '@mui/material/Grid';
-import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
@@ -36,7 +35,7 @@ type IUserItem = {
 	firstName?: string;
 	lastName: string;
 	// role: RoleName;
-	role: /* RoleName */ any;
+	// role: /* RoleName */ any;
 	email: string;
 	status: string;
 	avatar?: string;
@@ -54,20 +53,20 @@ type Props = {
 	currentUser?: IUserItem;
 };
 
-const ROLE_OPTIONS = _.chain(/* roleEnum */ [])
-	.pickBy((value) => {
-		// return _.startsWith(value.name, 'STAFF_');
-		return true;
-	})
-	.map((value) => {
-		return {
-			// value: value.name,
-			// label: value.name,
-			value: '',
-			label: '',
-		};
-	})
-	.value();
+// const ROLE_OPTIONS = _.chain(/* roleEnum */ [])
+// 	.pickBy((value) => {
+// 		// return _.startsWith(value.name, 'STAFF_');
+// 		return true;
+// 	})
+// 	.map((value) => {
+// 		return {
+// 			// value: value.name,
+// 			// label: value.name,
+// 			value: '',
+// 			label: '',
+// 		};
+// 	})
+// 	.value();
 
 const defaultValues: NewUserSchemaType = {
 	avatar: undefined,
@@ -75,7 +74,7 @@ const defaultValues: NewUserSchemaType = {
 	lastName: '',
 	email: '',
 	// role: roleEnum.STAFF_CONTRIBUTOR.name,
-	role: '',
+	// role: '',
 };
 
 export const UserNewEditForm = ({ currentUser }: Props) => {
@@ -287,13 +286,13 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 								<Field.Text name="firstName" label={t('firstname')} />
 								<Field.Text name="email" label={t('email-address')} required />
 								<br />
-								<Field.Select name="role" label={t('role')} required>
+								{/* <Field.Select name="role" label={t('role')} required>
 									{ROLE_OPTIONS.map((option) => (
 										<MenuItem key={option.value} value={option.label}>
 											{option.label}
 										</MenuItem>
 									))}
-								</Field.Select>
+								</Field.Select> */}
 								{/* <Field.Phone
 								name="phoneNumber"
 								label="Phone number"

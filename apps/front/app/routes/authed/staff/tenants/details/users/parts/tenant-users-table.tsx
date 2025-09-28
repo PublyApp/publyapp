@@ -44,7 +44,7 @@ export type TenantUserRowData = {
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	role: string;
+	// role: string;
 	status: string;
 	email: string;
 };
@@ -85,11 +85,11 @@ const TenantUsersTable = () => {
 					enableSorting: false,
 				},
 			),
-			columnHelper.accessor('role', {
-				header: t('role'),
-				Cell: RoleCell,
-				size: 70,
-			}),
+			// columnHelper.accessor('role', {
+			// 	header: t('role'),
+			// 	Cell: RoleCell,
+			// 	size: 70,
+			// }),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
@@ -109,15 +109,15 @@ const TenantUsersTable = () => {
 	});
 
 	const rows: TenantUserRowData[] = useMemo(() => {
-		if (!data?.rows) return [];
+		if (!data?.staffMembers) return [];
 
-		return _.map(data.rows, (staffMember) => {
+		return _.map(data.staffMembers, (staffMember) => {
 			return {
-				id: staffMember.objectId,
+				id: staffMember.id || '',
 				avatarUrl: staffMember.avatarUrl || '',
 				firstName: staffMember.firstName || '',
 				lastName: staffMember.lastName || '',
-				role: staffMember.roleData?.role || '',
+				// role: staffMember.roleData?.role || '',
 				status: staffMember.status || '',
 				email: staffMember.email || '',
 			};
@@ -254,34 +254,34 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 	);
 };
 
-const RoleCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
-	const { t } = useTranslate();
+// const RoleCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
+// 	const { t } = useTranslate();
 
-	const role = props.cell.getValue();
+// 	const role = props.cell.getValue();
 
-	let t_message: string = t('unknown-item', { item: 'role' });
-	let color: LabelColor = 'default';
+// 	const t_message: string = t('unknown-item', { item: 'role' });
+// 	const color: LabelColor = 'default';
 
-	if (role === /* roleEnum.STAFF_ADMIN.name */ '') {
-		t_message = t('admin');
-		color = 'success';
-	} else if (role === /* roleEnum.STAFF_EDITOR.name */ '') {
-		t_message = t('editor');
-		color = 'info';
-	} else if (role === /* roleEnum.STAFF_USER.name */ '') {
-		t_message = t('user');
-		color = 'warning';
-	} else if (role === /* roleEnum.STAFF_CONTRIBUTOR.name */ '') {
-		t_message = t('contributor');
-		color = 'error';
-	}
+// 	// if (role === /* roleEnum.STAFF_ADMIN.name */ '') {
+// 	// 	t_message = t('admin');
+// 	// 	color = 'success';
+// 	// } else if (role === /* roleEnum.STAFF_EDITOR.name */ '') {
+// 	// 	t_message = t('editor');
+// 	// 	color = 'info';
+// 	// } else if (role === /* roleEnum.STAFF_USER.name */ '') {
+// 	// 	t_message = t('user');
+// 	// 	color = 'warning';
+// 	// } else if (role === /* roleEnum.STAFF_CONTRIBUTOR.name */ '') {
+// 	// 	t_message = t('contributor');
+// 	// 	color = 'error';
+// 	// }
 
-	return (
-		<Label variant="soft" color={color}>
-			{t_message}
-		</Label>
-	);
-};
+// 	return (
+// 		<Label variant="soft" color={color}>
+// 			{t_message}
+// 		</Label>
+// 	);
+// };
 
 const ALLOW_COPY_LINK = false;
 
