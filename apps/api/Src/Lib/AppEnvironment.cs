@@ -64,7 +64,19 @@ public static class AppEnvironment {
 	/// Gets the current environment name (Development, Production, Staging, etc.)
 	/// </summary>
 	public static string GetEnvironmentName() {
-		return Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+		var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+
+		if (string.IsNullOrEmpty(environment)) {
+			var logger = LoggerFactory
+				.Create(builder => builder.AddConsole())
+				.CreateLogger<Program>();
+			logger.LogWarning("ASPNETCORE_ENVIRONMENT is not set, defaulting to Development");
+			environment = "Development";
+		}
+
+		Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", environment);
+
+		return environment;
 	}
 
 	private static void ValidateAndSetEnvironmentVariables() {

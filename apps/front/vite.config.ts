@@ -4,10 +4,11 @@ import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import { reactRouterDevTools } from 'react-router-devtools';
 import { defineConfig } from 'vite';
-// import checker from 'vite-plugin-checker';
+import checker from 'vite-plugin-checker';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import copyI18nFiles from './_vite/copy-i18n-files';
+import generateClient from './_vite/generate-client';
 
 export default defineConfig(({ mode, isSsrBuild }) => {
 	const envFileName = `.env.${mode}`;
@@ -20,11 +21,15 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 	return {
 		plugins: [
 			copyI18nFiles(),
+			generateClient(),
 			devtoolsJson(),
+			tsconfigPaths(),
+			checker({
+				typescript: true,
+				// biome: true,
+			}),
 			reactRouterDevTools(),
 			reactRouter(),
-			tsconfigPaths(),
-			// checker({ typescript: true }),
 		],
 		server: {
 			port: 5050,

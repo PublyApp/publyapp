@@ -10,6 +10,7 @@ namespace MainApi.Src.Features.Common.Auth.Handlers;
 public class GetUserAuthDataResult {
 	public Guid Id { get; set; }
 	public string Email { get; set; } = string.Empty;
+	public string? AvatarUrl { get; set; }
 }
 
 public class GetUserAuthData {
@@ -52,7 +53,8 @@ public class GetUserAuthData {
 
 		return TypedResults.Ok(new GetUserAuthDataResult {
 			Id = user.Id,
-			Email = user.Email
+			Email = user.Email,
+			AvatarUrl = user.AvatarUrl
 		});
 	}
 }

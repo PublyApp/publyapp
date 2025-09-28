@@ -772,6 +772,10 @@
           },
           "email": {
             "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
           }
         }
       },

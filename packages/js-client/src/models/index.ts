@@ -390,6 +390,7 @@ export function deserializeIntoGetTenantAuthDataResult(getTenantAuthDataResult: 
 // @ts-ignore
 export function deserializeIntoGetUserAuthDataResult(getUserAuthDataResult: Partial<GetUserAuthDataResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "avatarUrl": n => { getUserAuthDataResult.avatarUrl = n.getStringValue(); },
         "email": n => { getUserAuthDataResult.email = n.getStringValue(); },
         "id": n => { getUserAuthDataResult.id = n.getGuidValue(); },
     }
@@ -730,6 +731,10 @@ export interface GetTenantAuthDataResult extends AdditionalDataHolder, Parsable 
     profiles?: ProfileItem[] | null;
 }
 export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The avatarUrl property
+     */
+    avatarUrl?: string | null;
     /**
      * The email property
      */
@@ -1077,6 +1082,7 @@ export function serializeGetTenantAuthDataResult(writer: SerializationWriter, ge
 // @ts-ignore
 export function serializeGetUserAuthDataResult(writer: SerializationWriter, getUserAuthDataResult: Partial<GetUserAuthDataResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getUserAuthDataResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("avatarUrl", getUserAuthDataResult.avatarUrl);
     writer.writeStringValue("email", getUserAuthDataResult.email);
     writer.writeGuidValue("id", getUserAuthDataResult.id);
     writer.writeAdditionalData(getUserAuthDataResult.additionalData);
