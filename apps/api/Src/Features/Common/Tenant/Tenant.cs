@@ -21,4 +21,5 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 
 	// navigation properties
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];
+	public ICollection<Project.Project> Projects { get; set; } = [];
 }
