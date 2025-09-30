@@ -28,6 +28,12 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 			} else {
 				Key = "STAFF:" + key;
 			}
+		} else if (scope == PermissionScope.Project) {
+			if (Key.StartsWith("PROJECT:")) {
+				Key = key;
+			} else {
+				Key = "PROJECT:" + key;
+			}
 		} else {
 			throw new Exception("Invalid scope");
 		}
@@ -48,9 +54,14 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 	public static Permission CreateStaffPermission(string key) {
 		return new Permission(key, PermissionScope.Staff) { };
 	}
+
+	public static Permission CreateProjectPermission(string key) {
+		return new Permission(key, PermissionScope.Project) { };
+	}
 }
 
 public enum PermissionScope {
 	Staff = 0,
-	Tenant = 1
+	Tenant = 1,
+	Project = 2
 }

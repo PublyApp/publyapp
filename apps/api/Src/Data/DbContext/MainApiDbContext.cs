@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Permission;
+using MainApi.Src.Features.Common.Project;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
@@ -43,13 +44,16 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	public DbSet<User> User { get; init; }
 	public DbSet<Tenant> Tenant { get; init; }
 
+	// Project system entities (still needed for Project entity)
+	public DbSet<Project> Project { get; init; }
+
 	// Unified permission system entities
 	public DbSet<Permission> Permission { get; init; }
 	public DbSet<Profile> Profile { get; init; }
 	public DbSet<ProfilePermission> ProfilePermission { get; init; }
 	public DbSet<UserAccountProfile> UserAccountProfile { get; init; }
 
-	// Unified account system
+	// Unified account system (handles Staff, Tenant, and Project accounts)
 	public DbSet<UserAccount> UserAccount { get; init; }
 
 	public Guid? TenantId { get; set; }
@@ -93,6 +97,32 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 		modelBuilder.Entity<User>()
 			.ToTable(t => t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)"));
+
+		// Database-level account type constraints
+		modelBuilder.Entity<UserAccount>()
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Staff_Constraints",
+				"(account_type = 0 AND tenant_id IS NULL AND project_id IS NULL) OR account_type != 0"));
+
+		modelBuilder.Entity<UserAccount>()
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints",
+				"(account_type = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR account_type != 1"));
+
+		modelBuilder.Entity<UserAccount>()
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Project_Constraints",
+				"(account_type = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR account_type != 2"));
+
+		// Database-level profile type constraints
+		modelBuilder.Entity<Profile>()
+			.ToTable(t => t.HasCheckConstraint("CK_Profile_Staff_Constraints",
+				"(profile_type = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_type != 0"));
+
+		modelBuilder.Entity<Profile>()
+			.ToTable(t => t.HasCheckConstraint("CK_Profile_Tenant_Constraints",
+				"(profile_type = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_type != 1"));
+
+		modelBuilder.Entity<Profile>()
+			.ToTable(t => t.HasCheckConstraint("CK_Profile_Project_Constraints",
+				"(profile_type = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_type != 2"));
 
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.Entity<User>()
