@@ -106,7 +106,7 @@ public class PasswordLogin {
 		}
 
 		// Verify the password
-		if (!passwordService.VerifyPassword(password, user.Password ?? string.Empty)) {
+		if (!passwordService.VerifyPassword(password, user.Password)) {
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"Invalid email or password",
 				ResponseKeys.InvalidEmailOrPassword
