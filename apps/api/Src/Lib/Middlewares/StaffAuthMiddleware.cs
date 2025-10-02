@@ -1,7 +1,5 @@
 using MainApi.Localization;
-using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
-using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Lib.Middlewares;
 
@@ -14,7 +12,12 @@ public class StaffAuthMiddleware {
 		_next = next;
 	}
 
-	public async Task InvokeAsync(HttpContext httpContext, MainApiDbContext dbContext, IAuthContext authContext) {
+	public async Task InvokeAsync(
+		HttpContext httpContext,
+		// MainApiDbContext dbContext,
+		IAccountService accountService,
+		IAuthContext authContext
+	) {
 		if (!authContext.IsAuthenticated) {
 			_logger.LogError("Request userId or sessionToken is missing: {@StaffAuthData}", new {
 				userId = authContext.UserId,
@@ -22,25 +25,30 @@ public class StaffAuthMiddleware {
 			});
 			_logger.LogError($"{nameof(SessionAuthMiddleware)} must be passed before {nameof(StaffAuthMiddleware)}");
 			httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
-			await httpContext.Response.WriteAsJsonAsync(ApiResponse.Create(
-				"Failed to authenticate user",
-				ResponseKeys.FailedToAuthenticateUser
-			));
+			await httpContext.Response.WriteAsJsonAsync(
+				ApiResponse.Create(
+					"Failed to authenticate user",
+					ResponseKeys.FailedToAuthenticateUser
+				),
+				cancellationToken: httpContext.RequestAborted
+			);
 			return;
 		}
 
+		if (authContext.UserId is not Guid userId) {
+			throw new InvalidOperationException("User ID is not a valid GUID");
+		}
+
 		// verify if the user is a staff member
-		var accountStaff = await dbContext.UserAccount.FirstOrDefaultAsync(u =>
-			u.UserId == authContext.UserId &&
-			u.AccountScope == AccountScope.Staff &&
-			!u.IsDeleted &&
-			!u.IsSuspended);
+		var accountStaff = await accountService
+			.GetUserStaffAccountAsync(userId, httpContext.RequestAborted);
 
 		if (accountStaff is null) {
 			_logger.LogDebug("User is not a staff member: {@StaffAuthData}", new { UserId = authContext.UserId });
 			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
 			await httpContext.Response.WriteAsJsonAsync(
-				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
+				cancellationToken: httpContext.RequestAborted
 			);
 			return;
 		}
