@@ -1,10 +1,12 @@
 using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Features.Common.Profile;
 
 [Table("profile_permissions")]
+[Index(nameof(ProfileId), nameof(PermissionKey))]
 public class ProfilePermission : BaseAttributes, INoTenantEntity {
 	[Column("profile_id")]
 	public Guid ProfileId { get; set; }
