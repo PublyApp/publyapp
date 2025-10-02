@@ -28,7 +28,7 @@ public class SessionAuthMiddleware {
 			return;
 		}
 
-		var session = await sessionService.GetSessionByToken(sessionToken);
+		var session = await sessionService.GetSessionByToken(sessionToken, httpContext.RequestAborted);
 
 		if (session is null) {
 			_logger.LogDebug("Session token is invalid or expired: {@SessionData}", new { sessionToken });

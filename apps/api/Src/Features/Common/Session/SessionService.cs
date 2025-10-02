@@ -7,11 +7,6 @@ using UserNs = MainApi.Src.Features.Common.User;
 
 namespace MainApi.Src.Features.Common.Session;
 
-public abstract record CreateSessionResult {
-	public sealed record Success(Session Session) : CreateSessionResult;
-	public sealed record Failure(string Message, TranslationKey Key) : CreateSessionResult;
-}
-
 public interface ISessionService {
 	Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default);
 	Task<Session?> GetSessionByToken(string token, CancellationToken cancellationToken = default);
@@ -33,7 +28,7 @@ public class SessionService : ISessionService {
 			ExpiresAt = DateTime.UtcNow.AddDays(_appSettings.Value.SESSION_EXPIRY_DAYS),
 		};
 
-		var result = await _dbContext.Session.AddAsync(session);
+		var result = await _dbContext.Session.AddAsync(session, cancellationToken);
 		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
 		return result.Entity;

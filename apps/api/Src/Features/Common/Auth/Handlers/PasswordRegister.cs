@@ -55,7 +55,7 @@ public static class PasswordRegister {
 		[FromBody] PasswordRegisterBody registerBody,
 		[FromServices] IUserService userService,
 		[FromServices] IPasswordService passwordService,
-		CancellationToken cancellationToken = default
+		CancellationToken cancellationToken
 ) {
 		var email = registerBody.GetEmail();
 		var password = registerBody.GetPassword();
