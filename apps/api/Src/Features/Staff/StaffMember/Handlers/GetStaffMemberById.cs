@@ -1,5 +1,4 @@
 using MainApi.Localization;
-using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +21,7 @@ public class GetStaffMemberById {
 		>
 	> HandleGetStaffMemberById(
 		[FromRoute] string userId,
-		[FromServices] IAccountService accountService,
+		[FromServices] IStaffMemberService staffMemberService,
 		ILogger<GetStaffMemberById> logger,
 		CancellationToken cancellationToken = default
 	) {
@@ -38,7 +37,7 @@ public class GetStaffMemberById {
 		}
 
 		// Get the staff member user by ID using the account service
-		var user = await accountService.GetStaffMemberUserByIdAsync(userIdGuid, cancellationToken);
+		var user = await staffMemberService.GetStaffMemberUserByIdAsync(userIdGuid, cancellationToken);
 
 		if (user is null) {
 			logger.LogDebug("User does not exist or is not a staff member: {@LogData}", new { UserId = userIdGuid });
