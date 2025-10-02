@@ -39,10 +39,14 @@ public class CheckSessionHeaderMiddleware {
 
 // Extension method
 public static class CheckSessionHeaderMiddlewareExtensions {
+	private static readonly string[] _paths = [
+		RoutePath.Staff.Root,
+		RoutePath.Tenant.Root,
+		RoutePath.Auth.GetUserAuthData
+	];
+
 	private static bool ShouldUseSessionHeaderCheck(HttpContext context) {
-		return context.Request.Path.StartsWithSegments("/staff")
-			|| context.Request.Path.StartsWithSegments("/tenant")
-			|| context.Request.Path.StartsWithSegments("/auth/user-auth-data");
+		return _paths.Any(path => context.Request.Path.StartsWithSegments(path));
 	}
 
 	private static void ConfigureSessionHeaderCheck(IApplicationBuilder builder) {

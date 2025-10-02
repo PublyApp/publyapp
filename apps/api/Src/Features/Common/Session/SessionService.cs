@@ -1,6 +1,7 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using UserNs = MainApi.Src.Features.Common.User;
 
@@ -13,6 +14,7 @@ public abstract record CreateSessionResult {
 
 public interface ISessionService {
 	Task<Session> CreateSessionForUser(UserNs.User user);
+	Task<Session?> GetSessionByToken(string token, CancellationToken cancellationToken = default);
 }
 
 public class SessionService : ISessionService {
@@ -35,5 +37,14 @@ public class SessionService : ISessionService {
 		await _dbContext.SaveChangesAsync();
 
 		return result.Entity;
+	}
+
+	public async Task<Session?> GetSessionByToken(string token, CancellationToken cancellationToken = default) {
+		var query =
+			from s in _dbContext.Session
+			where s.Token == token && s.ExpiresAt > DateTime.UtcNow
+			select s;
+
+		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 }
