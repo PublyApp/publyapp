@@ -13,6 +13,7 @@ namespace MainApi.Src.Features.Common.Account;
 [Index(nameof(UserId), nameof(AccountScope))]
 [Index(nameof(TenantId), nameof(AccountScope))]
 [Index(nameof(ProjectId), nameof(AccountScope))]
+[Index(nameof(UserId), nameof(TenantId))]
 public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("user_id")]
 	public required Guid UserId { get; set; }

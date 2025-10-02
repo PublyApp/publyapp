@@ -67,25 +67,25 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		base.OnConfiguring(optionsBuilder);
 
 		// EF Core 9: Define seeding logic here
-		optionsBuilder.UseSeeding((context, _) => {
-			var dbContext = (MainApiDbContext)context;
+		// optionsBuilder.UseSeeding((context, _) => {
+		// 	var dbContext = (MainApiDbContext)context;
 
-			if (dbContext is null) {
-				throw new Exception("dbContext is null");
-			}
+		// 	if (dbContext is null) {
+		// 		throw new Exception("dbContext is null");
+		// 	}
 
-			Seeder.SeedAll(dbContext);
-		});
+		// 	Seeder.SeedAll(dbContext);
+		// });
 
-		optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
-			var dbContext = (MainApiDbContext)context;
+		// optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
+		// 	var dbContext = (MainApiDbContext)context;
 
-			if (dbContext is null) {
-				throw new Exception("dbContext is null");
-			}
+		// 	if (dbContext is null) {
+		// 		throw new Exception("dbContext is null");
+		// 	}
 
-			await Seeder.SeedAllAsync(dbContext);
-		});
+		// 	await Seeder.SeedAllAsync(dbContext);
+		// });
 	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {

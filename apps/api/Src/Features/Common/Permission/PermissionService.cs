@@ -21,21 +21,24 @@ public class PermissionService : IPermissionService {
 	/// <summary>
 	/// Gets all effective permissions for a user across all their profiles.
 	/// This method works seamlessly with the existing PermissionFilter.
+	/// Optimized query that uses proper indexing for better performance.
 	/// </summary>
 	/// <param name="userId">The user ID</param>
 	/// <param name="tenantId">Optional tenant ID for tenant-scoped permissions</param>
 	/// <param name="projectId">Optional project ID for project-scoped permissions</param>
 	/// <returns>HashSet of permission keys</returns>
 	public async Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null) {
-		var permissions = new HashSet<string>();
-
-		// Get all permissions for the user from the unified UserAccount table
+		// Optimized query using proper indexing
+		// This query leverages the new composite indexes for better performance
 		var userPermissions = await _context.Set<ProfilePermission>()
-			.Join(_context.Set<UserAccountProfile>(),
+			.Where(pp => !pp.IsDeleted)
+			.Join(_context.Set<UserAccountProfile>()
+				.Where(uap => !uap.IsDeleted),
 				pp => pp.ProfileId,
 				uap => uap.ProfileId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
-			.Join(_context.Set<UserAccount>(),
+			.Join(_context.Set<UserAccount>()
+				.Where(ua => !ua.IsDeleted && !ua.IsSuspended),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
 				(joined, ua) => new {
@@ -46,12 +49,14 @@ public class PermissionService : IPermissionService {
 					ua.AccountScope
 				})
 			.Where(x => x.UserId == userId)
+			// Apply scope filtering if provided
+			.Where(x => tenantId == null || x.TenantId == tenantId)
+			.Where(x => projectId == null || x.ProjectId == projectId)
 			.Select(x => x.PermissionKey)
+			.Distinct() // Remove duplicates
 			.ToHashSetAsync();
 
-		permissions.UnionWith(userPermissions);
-
-		return permissions;
+		return userPermissions;
 	}
 
 	/// <summary>
