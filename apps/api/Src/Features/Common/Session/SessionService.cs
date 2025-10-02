@@ -13,7 +13,7 @@ public abstract record CreateSessionResult {
 }
 
 public interface ISessionService {
-	Task<Session> CreateSessionForUser(UserNs.User user);
+	Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default);
 	Task<Session?> GetSessionByToken(string token, CancellationToken cancellationToken = default);
 }
 
@@ -26,7 +26,7 @@ public class SessionService : ISessionService {
 		_appSettings = appSettings;
 	}
 
-	public async Task<Session> CreateSessionForUser(UserNs.User user) {
+	public async Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default) {
 		var session = new Session {
 			UserId = user.Id,
 			Token = CryptoUtils.NewToken(),
@@ -34,7 +34,7 @@ public class SessionService : ISessionService {
 		};
 
 		var result = await _dbContext.Session.AddAsync(session);
-		await _dbContext.SaveChangesAsync();
+		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
 		return result.Entity;
 	}
