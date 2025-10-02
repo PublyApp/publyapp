@@ -14,31 +14,22 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 
 	Permission(string key, PermissionScope scope) {
 		if (string.IsNullOrEmpty(key)) {
-			throw new Exception("Key cannot be empty");
+			throw new ArgumentException("Key cannot be empty");
 		}
 
-		if (scope == PermissionScope.Tenant) {
-			if (Key.StartsWith("TENANT:")) {
-				Key = key;
-			} else {
-				Key = "TENANT:" + key;
-			}
-		} else if (scope == PermissionScope.Staff) {
-			if (Key.StartsWith("STAFF:")) {
-				Key = key;
-			} else {
-				Key = "STAFF:" + key;
-			}
-		} else if (scope == PermissionScope.Project) {
-			if (Key.StartsWith("PROJECT:")) {
-				Key = key;
-			} else {
-				Key = "PROJECT:" + key;
-			}
-		} else {
+		if (!Enum.IsDefined(scope)) {
 			throw new Exception("Invalid scope");
 		}
 
+		if (scope == PermissionScope.Tenant && !key.StartsWith(ScopeKeyPrefix.Tenant)) {
+			throw new Exception("Tenant permission key must start with " + ScopeKeyPrefix.Tenant);
+		} else if (scope == PermissionScope.Staff && !key.StartsWith(ScopeKeyPrefix.Staff)) {
+			throw new Exception("Staff permission key must start with " + ScopeKeyPrefix.Staff);
+		} else if (scope == PermissionScope.Project && !key.StartsWith(ScopeKeyPrefix.Project)) {
+			throw new Exception("Project permission key must start with " + ScopeKeyPrefix.Project);
+		}
+
+		Key = key;
 		Scope = scope;
 	}
 
@@ -50,15 +41,21 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 	public ICollection<ProfilePermission> ProfilePermissions { get; set; } = [];
 
 	public static Permission CreateTenantPermission(string key) {
-		return new Permission(key, PermissionScope.Tenant) { };
+		return new Permission(string.Concat(ScopeKeyPrefix.Tenant, key.ToLower()), PermissionScope.Tenant) { };
 	}
 
 	public static Permission CreateStaffPermission(string key) {
-		return new Permission(key, PermissionScope.Staff) { };
+		return new Permission(string.Concat(ScopeKeyPrefix.Staff, key.ToLower()), PermissionScope.Staff) { };
 	}
 
 	public static Permission CreateProjectPermission(string key) {
-		return new Permission(key, PermissionScope.Project) { };
+		return new Permission(string.Concat(ScopeKeyPrefix.Project, key.ToLower()), PermissionScope.Project) { };
+	}
+
+	public static class ScopeKeyPrefix {
+		public static readonly string Staff = "staff:";
+		public static readonly string Tenant = "tenant:";
+		public static readonly string Project = "project:";
 	}
 }
 
