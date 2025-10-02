@@ -69,17 +69,17 @@ permissions (key, description, scope)
 ├── scope: 'staff', 'tenant', or 'both'
 
 -- Unified profiles table
-profiles (id, tenant_id, name, profile_type)
+profiles (id, tenant_id, name, profile_scope)
 ├── tenant_id: NULL for staff profiles, tenant ID for tenant profiles
-├── profile_type: 'staff' or 'tenant'
+├── profile_scope: 'staff' or 'tenant'
 
 -- Profile → permission mapping
 profile_permissions (profile_id, permission_key)
 ├── Many-to-many relationship between profiles and permissions
 
 -- Unified accounts table
-user_accounts (id, user_id, tenant_id, account_type, hierarchy_level, is_suspended)
-├── account_type: 'staff' or 'tenant'
+user_accounts (id, user_id, tenant_id, account_scope, hierarchy_level, is_suspended)
+├── account_scope: 'staff' or 'tenant'
 ├── tenant_id: NULL for staff accounts, tenant ID for tenant accounts
 ├── Replaces separate user_account_staff and user_account_tenant tables
 
@@ -209,7 +209,7 @@ public class UserAccount : BaseAttributes
 {
     public Guid UserId { get; set; }
     public Guid TenantId { get; set; }  // NULL for staff accounts
-    public AccountType AccountType { get; set; }  // Staff or Tenant
+    public AccountScope AccountScope { get; set; }  // Staff or Tenant
     public AccountHierarchyLevel HierarchyLevel { get; set; }
 }
 
@@ -241,10 +241,10 @@ Since you started fresh with no existing data, the unified system is already in 
 
 **All obsolete classes have been removed and the system is now fully unified:**
 
-- ❌ `ProfileStaff` → ✅ `Profile` with `ProfileType.Staff`
-- ❌ `ProfileTenant` → ✅ `Profile` with `ProfileType.Tenant`
-- ❌ `UserAccountStaff` → ✅ `UserAccount` with `AccountType.Staff`
-- ❌ `UserAccountTenant` → ✅ `UserAccount` with `AccountType.Tenant`
+- ❌ `ProfileStaff` → ✅ `Profile` with `ProfileScope.Staff`
+- ❌ `ProfileTenant` → ✅ `Profile` with `ProfileScope.Tenant`
+- ❌ `UserAccountStaff` → ✅ `UserAccount` with `AccountScope.Staff`
+- ❌ `UserAccountTenant` → ✅ `UserAccount` with `AccountScope.Tenant`
 
 **Database cleanup completed:**
 

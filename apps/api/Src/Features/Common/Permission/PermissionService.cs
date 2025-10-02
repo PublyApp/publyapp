@@ -43,7 +43,7 @@ public class PermissionService : IPermissionService {
 					ua.UserId,
 					ua.TenantId,
 					ua.ProjectId,
-					ua.AccountType
+					ua.AccountScope
 				})
 			.Where(x => x.UserId == userId)
 			.Select(x => x.PermissionKey)
@@ -66,8 +66,8 @@ public class PermissionService : IPermissionService {
 			.Join(_context.Set<UserAccount>(),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
-				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.AccountType })
-			.Where(x => x.UserId == userId && x.AccountType == AccountType.Staff)
+				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.AccountScope })
+			.Where(x => x.UserId == userId && x.AccountScope == AccountScope.Staff)
 			.Select(x => x.PermissionKey)
 			.ToHashSetAsync();
 	}
@@ -84,8 +84,8 @@ public class PermissionService : IPermissionService {
 			.Join(_context.Set<UserAccount>(),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
-				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.AccountType })
-			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.AccountType == AccountType.Tenant)
+				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.AccountScope })
+			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.AccountScope == AccountScope.Tenant)
 			.Select(x => x.PermissionKey)
 			.ToHashSetAsync();
 	}
@@ -102,8 +102,8 @@ public class PermissionService : IPermissionService {
 			.Join(_context.Set<UserAccount>(),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
-				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.ProjectId, ua.AccountType })
-			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.ProjectId == projectId && x.AccountType == AccountType.Project)
+				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.ProjectId, ua.AccountScope })
+			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.ProjectId == projectId && x.AccountScope == AccountScope.Project)
 			.Select(x => x.PermissionKey)
 			.ToHashSetAsync();
 	}

@@ -1,6 +1,8 @@
 using MainApi.Src.Data;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
+using MainApi.Src.Features.Common.Account;
+using System.Text.Json.Serialization;
 
 namespace MainApi.Src.Features.Common.Project;
 
@@ -9,6 +11,7 @@ namespace MainApi.Src.Features.Common.Project;
 public class Project : BaseAttributes, ITenantEntity {
 	[Column("tenant_id")]
 	public required Guid TenantId { get; set; }
+	[JsonIgnore]
 	public Tenant.Tenant Tenant { get; set; } = null!;
 
 	[Column("name")]
@@ -24,6 +27,8 @@ public class Project : BaseAttributes, ITenantEntity {
 	public bool IsActive { get; set; } = true;
 
 	// Navigation properties
-	public ICollection<UserProjectAccount> UserProjectAccounts { get; set; } = [];
-	public ICollection<ProjectProfile> ProjectProfiles { get; set; } = [];
+	[JsonIgnore]
+	public ICollection<UserAccount> UserAccounts { get; set; } = [];
+	[JsonIgnore]
+	public ICollection<Profile.Profile> Profiles { get; set; } = [];
 }

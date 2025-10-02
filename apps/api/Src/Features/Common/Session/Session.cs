@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using MainApi.Src.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 namespace MainApi.Src.Features.Common.Session;
 
@@ -10,6 +11,7 @@ namespace MainApi.Src.Features.Common.Session;
 public class Session : BaseAttributes, INoTenantEntity {
 	[Column("user_id")]
 	public Guid UserId { get; set; }
+	[JsonIgnore]
 	public User.User User { get; set; } = null!;
 
 	[Column("token")]

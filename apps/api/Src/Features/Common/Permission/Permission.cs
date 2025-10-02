@@ -2,6 +2,7 @@ using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using MainApi.Src.Features.Common.Profile;
+using System.Text.Json.Serialization;
 
 namespace MainApi.Src.Features.Common.Permission;
 
@@ -45,6 +46,7 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 	public PermissionScope Scope { get; set; }
 
 	// Navigation properties
+	[JsonIgnore]
 	public ICollection<ProfilePermission> ProfilePermissions { get; set; } = [];
 
 	public static Permission CreateTenantPermission(string key) {

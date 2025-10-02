@@ -101,28 +101,28 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		// Database-level account type constraints
 		modelBuilder.Entity<UserAccount>()
 			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Staff_Constraints",
-				"(account_type = 0 AND tenant_id IS NULL AND project_id IS NULL) OR account_type != 0"));
+				"(account_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR account_scope != 0"));
 
 		modelBuilder.Entity<UserAccount>()
 			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints",
-				"(account_type = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR account_type != 1"));
+				"(account_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR account_scope != 1"));
 
 		modelBuilder.Entity<UserAccount>()
 			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Project_Constraints",
-				"(account_type = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR account_type != 2"));
+				"(account_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR account_scope != 2"));
 
 		// Database-level profile type constraints
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Staff_Constraints",
-				"(profile_type = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_type != 0"));
+				"(profile_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_scope != 0"));
 
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Tenant_Constraints",
-				"(profile_type = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_type != 1"));
+				"(profile_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_scope != 1"));
 
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Project_Constraints",
-				"(profile_type = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_type != 2"));
+				"(profile_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_scope != 2"));
 
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.Entity<User>()
@@ -136,7 +136,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasFilter("\"is_deleted\" = false");
 
 		modelBuilder.Entity<UserAccount>()
-			.HasIndex(u => new { u.UserId, u.AccountType })
+			.HasIndex(u => new { u.UserId, u.AccountScope })
 			.HasDatabaseName("ix_user_accounts_user_id_account_type_active")
 			.HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
 
@@ -173,12 +173,15 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 					modelBuilder.Entity(entityType.ClrType)
 						.HasQueryFilter(lambda);
 				}
+			} else if (typeof(IOptionalTenantEntity).IsAssignableFrom(entityType.ClrType)) {
+				// Set table name for optional tenant entities (no automatic filtering)
+				modelBuilder.Entity(entityType.ClrType);
 			} else if (typeof(INoTenantEntity).IsAssignableFrom(entityType.ClrType)) {
 				// Set table name for non-tenant-filtered entities
 				modelBuilder.Entity(entityType.ClrType);
 			} else {
 				throw new Exception(
-						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)} or {nameof(INoTenantEntity)}");
+						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)}, {nameof(IOptionalTenantEntity)}, or {nameof(INoTenantEntity)}");
 			}
 		}
 	}
