@@ -56,7 +56,7 @@ public class AccountService : IAccountService {
 		var account = new UserAccount {
 			UserId = userId,
 			TenantId = staffTenantId,
-			AccountType = AccountType.Staff,
+			AccountScope = AccountScope.Staff,
 			HierarchyLevel = AccountHierarchyLevel.User,
 		};
 

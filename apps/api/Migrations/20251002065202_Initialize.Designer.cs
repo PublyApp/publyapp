@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20250921162234_Initialize")]
+    [Migration("20251002065202_Initialize")]
     partial class Initialize
     {
         /// <inheritdoc />
@@ -32,9 +32,9 @@ namespace MainApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<int>("AccountType")
+                    b.Property<int>("AccountScope")
                         .HasColumnType("integer")
-                        .HasColumnName("account_type");
+                        .HasColumnName("account_scope");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -56,7 +56,11 @@ namespace MainApi.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_suspended");
 
-                    b.Property<Guid>("TenantId")
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
@@ -70,16 +74,25 @@ namespace MainApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId");
+                    b.HasIndex("ProjectId", "AccountScope");
 
-                    b.HasIndex("UserId", "AccountType")
+                    b.HasIndex("TenantId", "AccountScope");
+
+                    b.HasIndex("UserId", "AccountScope")
                         .HasDatabaseName("ix_user_accounts_user_id_account_type_active")
                         .HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
 
-                    b.HasIndex("UserId", "TenantId", "AccountType")
+                    b.HasIndex("UserId", "TenantId", "ProjectId", "AccountScope")
                         .IsUnique();
 
-                    b.ToTable("user_accounts");
+                    b.ToTable("user_accounts", t =>
+                        {
+                            t.HasCheckConstraint("CK_UserAccount_Project_Constraints", "(account_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR account_scope != 2");
+
+                            t.HasCheckConstraint("CK_UserAccount_Staff_Constraints", "(account_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR account_scope != 0");
+
+                            t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints", "(account_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR account_scope != 1");
+                        });
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Account.UserAccountProfile", b =>
@@ -182,11 +195,15 @@ namespace MainApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
-                    b.Property<int>("ProfileType")
+                    b.Property<int>("ProfileScope")
                         .HasColumnType("integer")
-                        .HasColumnName("profile_type");
+                        .HasColumnName("profile_scope");
 
-                    b.Property<Guid>("TenantId")
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
@@ -196,9 +213,18 @@ namespace MainApi.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ProjectId");
+
                     b.HasIndex("TenantId");
 
-                    b.ToTable("profiles");
+                    b.ToTable("profiles", t =>
+                        {
+                            t.HasCheckConstraint("CK_Profile_Project_Constraints", "(profile_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_scope != 2");
+
+                            t.HasCheckConstraint("CK_Profile_Staff_Constraints", "(profile_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_scope != 0");
+
+                            t.HasCheckConstraint("CK_Profile_Tenant_Constraints", "(profile_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_scope != 1");
+                        });
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Profile.ProfilePermission", b =>
@@ -240,6 +266,58 @@ namespace MainApi.Migrations
                     b.HasIndex("ProfileId");
 
                     b.ToTable("profile_permissions");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Features.Common.Project.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BrandIdentity")
+                        .HasColumnType("text")
+                        .HasColumnName("brand_identity");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("projects");
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Session.Session", b =>
@@ -393,6 +471,10 @@ namespace MainApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("password");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -458,17 +540,21 @@ namespace MainApi.Migrations
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Account.UserAccount", b =>
                 {
+                    b.HasOne("MainApi.Src.Features.Common.Project.Project", "Project")
+                        .WithMany("UserAccounts")
+                        .HasForeignKey("ProjectId");
+
                     b.HasOne("MainApi.Src.Features.Common.Tenant.Tenant", "Tenant")
                         .WithMany("UserAccounts")
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TenantId");
 
                     b.HasOne("MainApi.Src.Features.Common.User.User", "User")
                         .WithMany("UserAccounts")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Project");
 
                     b.Navigation("Tenant");
 
@@ -496,11 +582,15 @@ namespace MainApi.Migrations
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Profile.Profile", b =>
                 {
+                    b.HasOne("MainApi.Src.Features.Common.Project.Project", "Project")
+                        .WithMany("Profiles")
+                        .HasForeignKey("ProjectId");
+
                     b.HasOne("MainApi.Src.Features.Common.Tenant.Tenant", "Tenant")
                         .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TenantId");
+
+                    b.Navigation("Project");
 
                     b.Navigation("Tenant");
                 });
@@ -520,6 +610,17 @@ namespace MainApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Permission");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Features.Common.Project.Project", b =>
+                {
+                    b.HasOne("MainApi.Src.Features.Common.Tenant.Tenant", "Tenant")
+                        .WithMany("Projects")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Session.Session", b =>
@@ -561,8 +662,17 @@ namespace MainApi.Migrations
                     b.Navigation("UserAccountProfiles");
                 });
 
+            modelBuilder.Entity("MainApi.Src.Features.Common.Project.Project", b =>
+                {
+                    b.Navigation("Profiles");
+
+                    b.Navigation("UserAccounts");
+                });
+
             modelBuilder.Entity("MainApi.Src.Features.Common.Tenant.Tenant", b =>
                 {
+                    b.Navigation("Projects");
+
                     b.Navigation("UserAccounts");
                 });
 

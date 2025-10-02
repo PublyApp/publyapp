@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using MainApi.Src.Features.Common.Account;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 namespace MainApi.Src.Features.Common.User;
 
@@ -46,7 +47,9 @@ public class User : BaseAttributes, INoTenantEntity {
 	public DateTime? EmailVerifyTokenExpiresAt { get; set; }
 
 	// Navigation properties
+	[JsonIgnore]
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];
+	[JsonIgnore]
 	public ICollection<Session.Session> Sessions { get; set; } = [];
 }
 
