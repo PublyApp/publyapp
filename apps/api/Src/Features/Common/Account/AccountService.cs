@@ -51,11 +51,11 @@ public class AccountService : IAccountService {
 		CancellationToken cancellationToken = default
 	) {
 		var query =
-				from ua in _dbContext.UserAccount
-				where ua.UserId == userId
-				&& ua.AccountScope == AccountScope.Staff
-				&& !ua.IsDeleted && !ua.IsSuspended
-				select ua;
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+			&& ua.AccountScope == AccountScope.Staff
+			&& !ua.IsDeleted && !ua.IsSuspended
+			select ua;
 
 		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 	}

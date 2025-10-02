@@ -14,7 +14,6 @@ public class StaffAuthMiddleware {
 
 	public async Task InvokeAsync(
 		HttpContext httpContext,
-		// MainApiDbContext dbContext,
 		IAccountService accountService,
 		IAuthContext authContext
 	) {
@@ -61,7 +60,7 @@ public class StaffAuthMiddleware {
 // Extension method
 public static class StaffAuthMiddlewareExtensions {
 	private static bool ShouldUseStaffAuthorization(HttpContext context) {
-		return context.Request.Path.StartsWithSegments("/staff");
+		return context.Request.Path.StartsWithSegments(RoutePath.Staff.Root);
 	}
 
 	private static void ConfigureStaffAuthorization(IApplicationBuilder builder) {

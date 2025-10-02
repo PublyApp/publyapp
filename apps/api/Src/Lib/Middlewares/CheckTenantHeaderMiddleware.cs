@@ -42,7 +42,7 @@ public class CheckTenantHeaderMiddleware {
 // Extension method
 public static class CheckTenantHeaderMiddlewareExtensions {
 	private static bool ShouldUseTenantHeaderCheck(HttpContext context) {
-		return context.Request.Path.StartsWithSegments("/tenant");
+		return context.Request.Path.StartsWithSegments(RoutePath.Tenant.Root);
 	}
 
 	private static void ConfigureTenantHeaderCheck(IApplicationBuilder builder) {
