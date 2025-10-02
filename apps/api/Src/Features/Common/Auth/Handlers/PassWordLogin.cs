@@ -69,13 +69,14 @@ public class PasswordLogin {
 		[FromBody] PasswordLoginBody loginBody,
 		[FromServices] IUserService userService,
 		[FromServices] ISessionService sessionService,
-		[FromServices] IPasswordService passwordService
+		[FromServices] IPasswordService passwordService,
+		CancellationToken cancellationToken
 	) {
 		// Get validated string values
 		string email = loginBody.GetEmail();
 		string password = loginBody.GetPassword();
 
-		var user = await userService.GetUserToLoginAsync(email);
+		var user = await userService.GetUserByEmailAsync(email, cancellationToken);
 
 		if (user is null) {
 			return TypedResults.BadRequest(ApiResponse.Create(
@@ -113,7 +114,7 @@ public class PasswordLogin {
 			));
 		}
 
-		var session = await sessionService.CreateSessionForUser(user);
+		var session = await sessionService.CreateSessionForUser(user, cancellationToken);
 
 		return TypedResults.Ok(new PasswordLoginResult {
 			UserId = user.Id,
