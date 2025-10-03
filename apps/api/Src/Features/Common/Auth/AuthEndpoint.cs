@@ -19,7 +19,7 @@ public static class AuthEndpoint {
 		)
 			.WithName("LoginWithEmailAndPassword")
 			.WithSummary("Password Login")
-			.WithBodyValidation<PasswordLoginBody>()
+			.WithReqBodyValidation<PasswordLoginBody>()
 			.Produces500ApiResponse();
 
 		group.MapPost(
@@ -28,7 +28,7 @@ public static class AuthEndpoint {
 		)
 			.WithName("RegisterWithEmailAndPassword")
 			.WithSummary("Password Register")
-			.WithBodyValidation<PasswordRegisterBody>()
+			.WithReqBodyValidation<PasswordRegisterBody>()
 			.Produces500ApiResponse();
 
 		group.MapGet(
@@ -53,7 +53,7 @@ public static class AuthEndpoint {
 		)
 			.WithName("VerifyEmailRequest")
 			.WithSummary("Verify Email Request")
-			.WithBodyValidation<VerifyEmailRequestBody>()
+			.WithReqBodyValidation<VerifyEmailRequestBody>()
 			.Produces500ApiResponse();
 
 		group.MapGet(
@@ -62,7 +62,7 @@ public static class AuthEndpoint {
 		)
 			.WithName("GetVerificationLink")
 			.WithSummary("Get Verification Link")
-			.WithQueryValidation<GetVerificationLinkQuery>()
+			.WithRedQueryValidation<GetVerificationLinkQuery>()
 			.Produces500ApiResponse();
 
 		return group;

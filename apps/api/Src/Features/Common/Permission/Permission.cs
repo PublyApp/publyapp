@@ -14,7 +14,7 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 
 	Permission(string key, PermissionScope scope) {
 		if (string.IsNullOrEmpty(key)) {
-			throw new ArgumentException("Key cannot be empty");
+			throw new ArgumentException("Key cannot be empty", nameof(key));
 		}
 
 		if (!Enum.IsDefined(scope)) {

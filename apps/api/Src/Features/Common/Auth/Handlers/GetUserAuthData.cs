@@ -23,7 +23,7 @@ public class GetUserAuthData {
 		IAuthContext authContext,
 		ILogger<GetUserAuthData> logger,
 		[FromServices] IUserService userService,
-		CancellationToken cancellationToken = default
+		CancellationToken cancellationToken
 	) {
 		if (!authContext.IsAuthenticated) {
 			logger.LogError("{@GetUserAuthData}", new {

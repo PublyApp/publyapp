@@ -2,16 +2,16 @@ using FluentValidation;
 
 namespace MainApi.Src.Lib.Filters;
 
-public class QueryValidationFailResult : AppResponseResult {
+public class ReqQueryValidationFailResult : AppResponseResult {
 	public new string Message { get; set; } = "Query parameter validation failed";
 	public new string Key { get; set; } = "query-validation-failed";
 	public object FieldErrors { get; set; } = new Dictionary<string, string[]>();
 }
 
-public class QueryValidationFilter<TRequest> : IEndpointFilter {
+public class ReqQueryValidationFilter<TRequest> : IEndpointFilter {
 	private readonly IValidator<TRequest> _validator;
 
-	public QueryValidationFilter(IValidator<TRequest> validator) {
+	public ReqQueryValidationFilter(IValidator<TRequest> validator) {
 		_validator = validator;
 	}
 
@@ -21,7 +21,7 @@ public class QueryValidationFilter<TRequest> : IEndpointFilter {
 		var result = await _validator.ValidateAsync(request, httpContext.HttpContext.RequestAborted);
 
 		if (!result.IsValid) {
-			return TypedResults.BadRequest(new QueryValidationFailResult {
+			return TypedResults.BadRequest(new ReqQueryValidationFailResult {
 				FieldErrors = result.ToDictionary()
 			});
 		}
@@ -30,8 +30,8 @@ public class QueryValidationFilter<TRequest> : IEndpointFilter {
 	}
 }
 
-public static class QueryValidationFilterExtensions {
-	public static RouteHandlerBuilder WithQueryValidation<TRequest>(this RouteHandlerBuilder builder) {
-		return builder.AddEndpointFilter<QueryValidationFilter<TRequest>>();
+public static class ReqQueryValidationFilterExtensions {
+	public static RouteHandlerBuilder WithRedQueryValidation<TRequest>(this RouteHandlerBuilder builder) {
+		return builder.AddEndpointFilter<ReqQueryValidationFilter<TRequest>>();
 	}
 }
