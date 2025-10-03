@@ -18,7 +18,7 @@ public static class StaffMemberEndPoints {
 		)
 			.WithName("CreateStaffMember")
 			.WithSummary("Create a new staff member")
-			.WithBodyValidation<CreateStaffMemberBody>()
+			.WithReqBodyValidation<CreateStaffMemberBody>()
 			.Produces500ApiResponse();
 
 		group.MapGet(

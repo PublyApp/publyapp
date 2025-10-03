@@ -60,7 +60,7 @@ export const action = getServerAction({
 			});
 		}
 
-		const resHeaders = new Headers();
+		const responseHeaders = new Headers();
 
 		const cookieOptions = {
 			expires: loginResult.data?.sessionExpiresAt || new Date(),
@@ -77,7 +77,7 @@ export const action = getServerAction({
 			sessionToken,
 			cookieOptions,
 		);
-		resHeaders.append('Set-Cookie', sessionTokenCookie);
+		responseHeaders.append('Set-Cookie', sessionTokenCookie);
 
 		// apiClient.parseRestClient.setSessionToken(sessionToken);
 
@@ -97,12 +97,12 @@ export const action = getServerAction({
 					maxAge: duration.toSeconds('3d'),
 				},
 			);
-			resHeaders.append('Set-Cookie', lastUsedTenantIdCookie);
+			responseHeaders.append('Set-Cookie', lastUsedTenantIdCookie);
 			redirectPath = FRONT_PATH_NAMES.tenant(code).root;
 		}
 
 		return redirect(redirectPath, {
-			headers: resHeaders,
+			headers: responseHeaders,
 		}) as never;
 	},
 });

@@ -18,7 +18,7 @@ public static class StaffTenantEndpoints {
 		)
 			.WithName("CreateTenant")
 			.WithSummary("Create a new tenant")
-			.WithBodyValidation<CreateTenantAsStaffBody>()
+			.WithReqBodyValidation<CreateTenantAsStaffBody>()
 			.WithPermission([PermissionEnum.Staff.CAN_CREATE_TENANT])
 			.Produces500ApiResponse();
 

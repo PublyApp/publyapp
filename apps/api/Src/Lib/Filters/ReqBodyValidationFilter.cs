@@ -2,16 +2,16 @@ using FluentValidation;
 
 namespace MainApi.Src.Lib.Filters;
 
-public class BodyValidationFailResult : AppResponseResult {
+public class ReqBodyValidationFailResult : AppResponseResult {
 	public new string Message { get; set; } = "Validation failed";
 	public new string Key { get; set; } = "validation-failed";
 	public object FieldErrors { get; set; } = new Dictionary<string, string[]>();
 }
 
-public class BodyValidationFilter<TRequest> : IEndpointFilter {
+public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 	private readonly IValidator<TRequest> _validator;
 
-	public BodyValidationFilter(IValidator<TRequest> validator) {
+	public ReqBodyValidationFilter(IValidator<TRequest> validator) {
 		_validator = validator;
 	}
 
@@ -20,7 +20,7 @@ public class BodyValidationFilter<TRequest> : IEndpointFilter {
 		var result = await _validator.ValidateAsync(request, httpContext.HttpContext.RequestAborted);
 
 		if (!result.IsValid) {
-			return TypedResults.BadRequest(new BodyValidationFailResult {
+			return TypedResults.BadRequest(new ReqBodyValidationFailResult {
 				FieldErrors = result.ToDictionary()
 			});
 		}
@@ -29,8 +29,8 @@ public class BodyValidationFilter<TRequest> : IEndpointFilter {
 	}
 }
 
-public static class BodyValidationFilterExtensions {
-	public static RouteHandlerBuilder WithBodyValidation<TRequest>(this RouteHandlerBuilder builder) {
-		return builder.AddEndpointFilter<BodyValidationFilter<TRequest>>();
+public static class ReqBodyValidationFilterExtensions {
+	public static RouteHandlerBuilder WithReqBodyValidation<TRequest>(this RouteHandlerBuilder builder) {
+		return builder.AddEndpointFilter<ReqBodyValidationFilter<TRequest>>();
 	}
 }

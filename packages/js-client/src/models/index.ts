@@ -143,15 +143,6 @@ export function createPasswordRegisterResultFromDiscriminatorValue(parseNode: Pa
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {Permission}
- */
-// @ts-ignore
-export function createPermissionFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoPermission;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {Product}
  */
 // @ts-ignore
@@ -161,38 +152,11 @@ export function createProductFromDiscriminatorValue(parseNode: ParseNode | undef
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {Profile}
- */
-// @ts-ignore
-export function createProfileFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoProfile;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {ProfileItem}
  */
 // @ts-ignore
 export function createProfileItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoProfileItem;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {ProfilePermission}
- */
-// @ts-ignore
-export function createProfilePermissionFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoProfilePermission;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {Session}
- */
-// @ts-ignore
-export function createSessionFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoSession;
 }
 export interface CreateStaffMemberBody extends AdditionalDataHolder, Parsable {
     /**
@@ -246,42 +210,6 @@ export interface CreateTenantAsStaffResult extends AdditionalDataHolder, Parsabl
      * The name property
      */
     name?: string | null;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {Tenant}
- */
-// @ts-ignore
-export function createTenantFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoTenant;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {UserAccount}
- */
-// @ts-ignore
-export function createUserAccountFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoUserAccount;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {UserAccountProfile}
- */
-// @ts-ignore
-export function createUserAccountProfileFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoUserAccountProfile;
-}
-/**
- * Creates a new instance of the appropriate class based on discriminator value
- * @param parseNode The parse node to use to read the discriminator value and create the object
- * @returns {User}
- */
-// @ts-ignore
-export function createUserFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
-    return deserializeIntoUser;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -481,23 +409,6 @@ export function deserializeIntoPasswordRegisterResult(passwordRegisterResult: Pa
 }
 /**
  * The deserialization information for the current model
- * @param Permission The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoPermission(permission: Partial<Permission> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "createdAt": n => { permission.createdAt = n.getDateValue(); },
-        "deletedAt": n => { permission.deletedAt = n.getDateValue(); },
-        "isDeleted": n => { permission.isDeleted = n.getBooleanValue(); },
-        "key": n => { permission.key = n.getStringValue(); },
-        "profilePermissions": n => { permission.profilePermissions = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
-        "scope": n => { permission.scope = n.getNumberValue(); },
-        "updatedAt": n => { permission.updatedAt = n.getDateValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
  * @param Product The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -511,31 +422,8 @@ export function deserializeIntoProduct(product: Partial<Product> | undefined = {
         "isDeleted": n => { product.isDeleted = n.getBooleanValue(); },
         "name": n => { product.name = n.getStringValue(); },
         "price": n => { product.price = n.getNumberValue(); },
-        "tenant": n => { product.tenant = n.getObjectValue<Tenant>(createTenantFromDiscriminatorValue); },
         "tenantId": n => { product.tenantId = n.getGuidValue(); },
         "updatedAt": n => { product.updatedAt = n.getDateValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param Profile The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoProfile(profile: Partial<Profile> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "createdAt": n => { profile.createdAt = n.getDateValue(); },
-        "deletedAt": n => { profile.deletedAt = n.getDateValue(); },
-        "description": n => { profile.description = n.getStringValue(); },
-        "id": n => { profile.id = n.getGuidValue(); },
-        "isDeleted": n => { profile.isDeleted = n.getBooleanValue(); },
-        "name": n => { profile.name = n.getStringValue(); },
-        "profilePermissions": n => { profile.profilePermissions = n.getCollectionOfObjectValues<ProfilePermission>(createProfilePermissionFromDiscriminatorValue); },
-        "profileType": n => { profile.profileType = n.getNumberValue(); },
-        "tenant": n => { profile.tenant = n.getObjectValue<Tenant>(createTenantFromDiscriminatorValue); },
-        "tenantId": n => { profile.tenantId = n.getGuidValue(); },
-        "updatedAt": n => { profile.updatedAt = n.getDateValue(); },
-        "userAccountProfiles": n => { profile.userAccountProfiles = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -553,43 +441,6 @@ export function deserializeIntoProfileItem(profileItem: Partial<ProfileItem> | u
 }
 /**
  * The deserialization information for the current model
- * @param ProfilePermission The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoProfilePermission(profilePermission: Partial<ProfilePermission> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "createdAt": n => { profilePermission.createdAt = n.getDateValue(); },
-        "deletedAt": n => { profilePermission.deletedAt = n.getDateValue(); },
-        "id": n => { profilePermission.id = n.getGuidValue(); },
-        "isDeleted": n => { profilePermission.isDeleted = n.getBooleanValue(); },
-        "permission": n => { profilePermission.permission = n.getObjectValue<Permission>(createPermissionFromDiscriminatorValue); },
-        "permissionKey": n => { profilePermission.permissionKey = n.getStringValue(); },
-        "profileId": n => { profilePermission.profileId = n.getGuidValue(); },
-        "updatedAt": n => { profilePermission.updatedAt = n.getDateValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param Session The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoSession(session: Partial<Session> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "createdAt": n => { session.createdAt = n.getDateValue(); },
-        "deletedAt": n => { session.deletedAt = n.getDateValue(); },
-        "expiresAt": n => { session.expiresAt = n.getDateValue(); },
-        "id": n => { session.id = n.getGuidValue(); },
-        "isDeleted": n => { session.isDeleted = n.getBooleanValue(); },
-        "token": n => { session.token = n.getStringValue(); },
-        "updatedAt": n => { session.updatedAt = n.getDateValue(); },
-        "user": n => { session.user = n.getObjectValue<User>(createUserFromDiscriminatorValue); },
-        "userId": n => { session.userId = n.getGuidValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
  * @param StaffMemberItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -602,93 +453,6 @@ export function deserializeIntoStaffMemberItem(staffMemberItem: Partial<StaffMem
         "id": n => { staffMemberItem.id = n.getGuidValue(); },
         "lastName": n => { staffMemberItem.lastName = n.getStringValue(); },
         "status": n => { staffMemberItem.status = n.getNumberValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param Tenant The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoTenant(tenant: Partial<Tenant> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "code": n => { tenant.code = n.getStringValue(); },
-        "createdAt": n => { tenant.createdAt = n.getDateValue(); },
-        "deletedAt": n => { tenant.deletedAt = n.getDateValue(); },
-        "id": n => { tenant.id = n.getGuidValue(); },
-        "isDeleted": n => { tenant.isDeleted = n.getBooleanValue(); },
-        "name": n => { tenant.name = n.getStringValue(); },
-        "updatedAt": n => { tenant.updatedAt = n.getDateValue(); },
-        "userAccounts": n => { tenant.userAccounts = n.getCollectionOfObjectValues<UserAccount>(createUserAccountFromDiscriminatorValue); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param User The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoUser(user: Partial<User> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "avatarUrl": n => { user.avatarUrl = n.getStringValue(); },
-        "createdAt": n => { user.createdAt = n.getDateValue(); },
-        "deletedAt": n => { user.deletedAt = n.getDateValue(); },
-        "email": n => { user.email = n.getStringValue(); },
-        "emailVerifyToken": n => { user.emailVerifyToken = n.getStringValue(); },
-        "emailVerifyTokenExpiresAt": n => { user.emailVerifyTokenExpiresAt = n.getDateValue(); },
-        "firstName": n => { user.firstName = n.getStringValue(); },
-        "id": n => { user.id = n.getGuidValue(); },
-        "isDeleted": n => { user.isDeleted = n.getBooleanValue(); },
-        "isSuspended": n => { user.isSuspended = n.getBooleanValue(); },
-        "isVerified": n => { user.isVerified = n.getBooleanValue(); },
-        "lastName": n => { user.lastName = n.getStringValue(); },
-        "password": n => { user.password = n.getStringValue(); },
-        "sessions": n => { user.sessions = n.getCollectionOfObjectValues<Session>(createSessionFromDiscriminatorValue); },
-        "status": n => { user.status = n.getNumberValue(); },
-        "updatedAt": n => { user.updatedAt = n.getDateValue(); },
-        "userAccounts": n => { user.userAccounts = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param UserAccount The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoUserAccount(userAccount: Partial<UserAccount> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "accountType": n => { userAccount.accountType = n.getNumberValue(); },
-        "createdAt": n => { userAccount.createdAt = n.getDateValue(); },
-        "deletedAt": n => { userAccount.deletedAt = n.getDateValue(); },
-        "hierarchyLevel": n => { userAccount.hierarchyLevel = n.getNumberValue(); },
-        "id": n => { userAccount.id = n.getGuidValue(); },
-        "isDeleted": n => { userAccount.isDeleted = n.getBooleanValue(); },
-        "isSuspended": n => { userAccount.isSuspended = n.getBooleanValue(); },
-        "tenant": n => { userAccount.tenant = n.getObjectValue<Tenant>(createTenantFromDiscriminatorValue); },
-        "tenantId": n => { userAccount.tenantId = n.getGuidValue(); },
-        "updatedAt": n => { userAccount.updatedAt = n.getDateValue(); },
-        "user": n => { userAccount.user = n.getObjectValue<User>(createUserFromDiscriminatorValue); },
-        "userAccountProfiles": n => { userAccount.userAccountProfiles = n.getCollectionOfObjectValues<UserAccountProfile>(createUserAccountProfileFromDiscriminatorValue); },
-        "userId": n => { userAccount.userId = n.getGuidValue(); },
-    }
-}
-/**
- * The deserialization information for the current model
- * @param UserAccountProfile The instance to deserialize into.
- * @returns {Record<string, (node: ParseNode) => void>}
- */
-// @ts-ignore
-export function deserializeIntoUserAccountProfile(userAccountProfile: Partial<UserAccountProfile> | undefined = {}) : Record<string, (node: ParseNode) => void> {
-    return {
-        "createdAt": n => { userAccountProfile.createdAt = n.getDateValue(); },
-        "deletedAt": n => { userAccountProfile.deletedAt = n.getDateValue(); },
-        "id": n => { userAccountProfile.id = n.getGuidValue(); },
-        "isDeleted": n => { userAccountProfile.isDeleted = n.getBooleanValue(); },
-        "profile": n => { userAccountProfile.profile = n.getObjectValue<Profile>(createProfileFromDiscriminatorValue); },
-        "profileId": n => { userAccountProfile.profileId = n.getGuidValue(); },
-        "updatedAt": n => { userAccountProfile.updatedAt = n.getDateValue(); },
-        "userAccount": n => { userAccountProfile.userAccount = n.getObjectValue<UserAccount>(createUserAccountFromDiscriminatorValue); },
-        "userAccountId": n => { userAccountProfile.userAccountId = n.getGuidValue(); },
     }
 }
 /**
@@ -839,36 +603,6 @@ export interface PasswordRegisterResult extends AdditionalDataHolder, Parsable {
      */
     updatedAt?: Date | null;
 }
-export interface Permission extends AdditionalDataHolder, Parsable {
-    /**
-     * The createdAt property
-     */
-    createdAt?: Date | null;
-    /**
-     * The deletedAt property
-     */
-    deletedAt?: Date | null;
-    /**
-     * The isDeleted property
-     */
-    isDeleted?: boolean | null;
-    /**
-     * The key property
-     */
-    key?: string | null;
-    /**
-     * The profilePermissions property
-     */
-    profilePermissions?: UntypedNode | null;
-    /**
-     * The scope property
-     */
-    scope?: number | null;
-    /**
-     * The updatedAt property
-     */
-    updatedAt?: Date | null;
-}
 export interface Product extends AdditionalDataHolder, Parsable {
     /**
      * The createdAt property
@@ -899,10 +633,6 @@ export interface Product extends AdditionalDataHolder, Parsable {
      */
     price?: number | null;
     /**
-     * The tenant property
-     */
-    tenant?: Tenant | null;
-    /**
      * The tenantId property
      */
     tenantId?: Guid | null;
@@ -910,56 +640,6 @@ export interface Product extends AdditionalDataHolder, Parsable {
      * The updatedAt property
      */
     updatedAt?: Date | null;
-}
-export interface Profile extends AdditionalDataHolder, Parsable {
-    /**
-     * The createdAt property
-     */
-    createdAt?: Date | null;
-    /**
-     * The deletedAt property
-     */
-    deletedAt?: Date | null;
-    /**
-     * The description property
-     */
-    description?: string | null;
-    /**
-     * The id property
-     */
-    id?: Guid | null;
-    /**
-     * The isDeleted property
-     */
-    isDeleted?: boolean | null;
-    /**
-     * The name property
-     */
-    name?: string | null;
-    /**
-     * The profilePermissions property
-     */
-    profilePermissions?: ProfilePermission[] | null;
-    /**
-     * The profileType property
-     */
-    profileType?: number | null;
-    /**
-     * The tenant property
-     */
-    tenant?: Tenant | null;
-    /**
-     * The tenantId property
-     */
-    tenantId?: Guid | null;
-    /**
-     * The updatedAt property
-     */
-    updatedAt?: Date | null;
-    /**
-     * The userAccountProfiles property
-     */
-    userAccountProfiles?: UntypedNode | null;
 }
 export interface ProfileItem extends AdditionalDataHolder, Parsable {
     /**
@@ -974,40 +654,6 @@ export interface ProfileItem extends AdditionalDataHolder, Parsable {
      * The permissions property
      */
     permissions?: string[] | null;
-}
-export interface ProfilePermission extends AdditionalDataHolder, Parsable {
-    /**
-     * The createdAt property
-     */
-    createdAt?: Date | null;
-    /**
-     * The deletedAt property
-     */
-    deletedAt?: Date | null;
-    /**
-     * The id property
-     */
-    id?: Guid | null;
-    /**
-     * The isDeleted property
-     */
-    isDeleted?: boolean | null;
-    /**
-     * The permission property
-     */
-    permission?: Permission | null;
-    /**
-     * The permissionKey property
-     */
-    permissionKey?: string | null;
-    /**
-     * The profileId property
-     */
-    profileId?: Guid | null;
-    /**
-     * The updatedAt property
-     */
-    updatedAt?: Date | null;
 }
 /**
  * Serializes information the current object
@@ -1204,24 +850,6 @@ export function serializePasswordRegisterResult(writer: SerializationWriter, pas
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param Permission The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializePermission(writer: SerializationWriter, permission: Partial<Permission> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!permission || isSerializingDerivedType) { return; }
-    writer.writeDateValue("createdAt", permission.createdAt);
-    writer.writeDateValue("deletedAt", permission.deletedAt);
-    writer.writeBooleanValue("isDeleted", permission.isDeleted);
-    writer.writeStringValue("key", permission.key);
-    writer.writeObjectValue("profilePermissions", permission.profilePermissions);
-    writer.writeNumberValue("scope", permission.scope);
-    writer.writeDateValue("updatedAt", permission.updatedAt);
-    writer.writeAdditionalData(permission.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param Product The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -1235,33 +863,9 @@ export function serializeProduct(writer: SerializationWriter, product: Partial<P
     writer.writeBooleanValue("isDeleted", product.isDeleted);
     writer.writeStringValue("name", product.name);
     writer.writeNumberValue("price", product.price);
-    writer.writeObjectValue<Tenant>("tenant", product.tenant, serializeTenant);
     writer.writeGuidValue("tenantId", product.tenantId);
     writer.writeDateValue("updatedAt", product.updatedAt);
     writer.writeAdditionalData(product.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param Profile The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeProfile(writer: SerializationWriter, profile: Partial<Profile> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!profile || isSerializingDerivedType) { return; }
-    writer.writeDateValue("createdAt", profile.createdAt);
-    writer.writeDateValue("deletedAt", profile.deletedAt);
-    writer.writeStringValue("description", profile.description);
-    writer.writeGuidValue("id", profile.id);
-    writer.writeBooleanValue("isDeleted", profile.isDeleted);
-    writer.writeStringValue("name", profile.name);
-    writer.writeCollectionOfObjectValues<ProfilePermission>("profilePermissions", profile.profilePermissions, serializeProfilePermission);
-    writer.writeNumberValue("profileType", profile.profileType);
-    writer.writeObjectValue<Tenant>("tenant", profile.tenant, serializeTenant);
-    writer.writeGuidValue("tenantId", profile.tenantId);
-    writer.writeDateValue("updatedAt", profile.updatedAt);
-    writer.writeObjectValue("userAccountProfiles", profile.userAccountProfiles);
-    writer.writeAdditionalData(profile.additionalData);
 }
 /**
  * Serializes information the current object
@@ -1280,45 +884,6 @@ export function serializeProfileItem(writer: SerializationWriter, profileItem: P
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param ProfilePermission The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeProfilePermission(writer: SerializationWriter, profilePermission: Partial<ProfilePermission> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!profilePermission || isSerializingDerivedType) { return; }
-    writer.writeDateValue("createdAt", profilePermission.createdAt);
-    writer.writeDateValue("deletedAt", profilePermission.deletedAt);
-    writer.writeGuidValue("id", profilePermission.id);
-    writer.writeBooleanValue("isDeleted", profilePermission.isDeleted);
-    writer.writeObjectValue<Permission>("permission", profilePermission.permission, serializePermission);
-    writer.writeStringValue("permissionKey", profilePermission.permissionKey);
-    writer.writeGuidValue("profileId", profilePermission.profileId);
-    writer.writeDateValue("updatedAt", profilePermission.updatedAt);
-    writer.writeAdditionalData(profilePermission.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param Session The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeSession(writer: SerializationWriter, session: Partial<Session> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!session || isSerializingDerivedType) { return; }
-    writer.writeDateValue("createdAt", session.createdAt);
-    writer.writeDateValue("deletedAt", session.deletedAt);
-    writer.writeDateValue("expiresAt", session.expiresAt);
-    writer.writeGuidValue("id", session.id);
-    writer.writeBooleanValue("isDeleted", session.isDeleted);
-    writer.writeStringValue("token", session.token);
-    writer.writeDateValue("updatedAt", session.updatedAt);
-    writer.writeObjectValue<User>("user", session.user, serializeUser);
-    writer.writeGuidValue("userId", session.userId);
-    writer.writeAdditionalData(session.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param StaffMemberItem The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -1332,97 +897,6 @@ export function serializeStaffMemberItem(writer: SerializationWriter, staffMembe
     writer.writeStringValue("lastName", staffMemberItem.lastName);
     writer.writeNumberValue("status", staffMemberItem.status);
     writer.writeAdditionalData(staffMemberItem.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param Tenant The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeTenant(writer: SerializationWriter, tenant: Partial<Tenant> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!tenant || isSerializingDerivedType) { return; }
-    writer.writeStringValue("code", tenant.code);
-    writer.writeDateValue("createdAt", tenant.createdAt);
-    writer.writeDateValue("deletedAt", tenant.deletedAt);
-    writer.writeGuidValue("id", tenant.id);
-    writer.writeBooleanValue("isDeleted", tenant.isDeleted);
-    writer.writeStringValue("name", tenant.name);
-    writer.writeDateValue("updatedAt", tenant.updatedAt);
-    writer.writeCollectionOfObjectValues<UserAccount>("userAccounts", tenant.userAccounts, serializeUserAccount);
-    writer.writeAdditionalData(tenant.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param User The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeUser(writer: SerializationWriter, user: Partial<User> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!user || isSerializingDerivedType) { return; }
-    writer.writeStringValue("avatarUrl", user.avatarUrl);
-    writer.writeDateValue("createdAt", user.createdAt);
-    writer.writeDateValue("deletedAt", user.deletedAt);
-    writer.writeStringValue("email", user.email);
-    writer.writeStringValue("emailVerifyToken", user.emailVerifyToken);
-    writer.writeDateValue("emailVerifyTokenExpiresAt", user.emailVerifyTokenExpiresAt);
-    writer.writeStringValue("firstName", user.firstName);
-    writer.writeGuidValue("id", user.id);
-    writer.writeBooleanValue("isDeleted", user.isDeleted);
-    writer.writeBooleanValue("isSuspended", user.isSuspended);
-    writer.writeBooleanValue("isVerified", user.isVerified);
-    writer.writeStringValue("lastName", user.lastName);
-    writer.writeStringValue("password", user.password);
-    writer.writeCollectionOfObjectValues<Session>("sessions", user.sessions, serializeSession);
-    writer.writeNumberValue("status", user.status);
-    writer.writeDateValue("updatedAt", user.updatedAt);
-    writer.writeObjectValue("userAccounts", user.userAccounts);
-    writer.writeAdditionalData(user.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param UserAccount The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeUserAccount(writer: SerializationWriter, userAccount: Partial<UserAccount> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!userAccount || isSerializingDerivedType) { return; }
-    writer.writeNumberValue("accountType", userAccount.accountType);
-    writer.writeDateValue("createdAt", userAccount.createdAt);
-    writer.writeDateValue("deletedAt", userAccount.deletedAt);
-    writer.writeNumberValue("hierarchyLevel", userAccount.hierarchyLevel);
-    writer.writeGuidValue("id", userAccount.id);
-    writer.writeBooleanValue("isDeleted", userAccount.isDeleted);
-    writer.writeBooleanValue("isSuspended", userAccount.isSuspended);
-    writer.writeObjectValue<Tenant>("tenant", userAccount.tenant, serializeTenant);
-    writer.writeGuidValue("tenantId", userAccount.tenantId);
-    writer.writeDateValue("updatedAt", userAccount.updatedAt);
-    writer.writeObjectValue<User>("user", userAccount.user, serializeUser);
-    writer.writeCollectionOfObjectValues<UserAccountProfile>("userAccountProfiles", userAccount.userAccountProfiles, serializeUserAccountProfile);
-    writer.writeGuidValue("userId", userAccount.userId);
-    writer.writeAdditionalData(userAccount.additionalData);
-}
-/**
- * Serializes information the current object
- * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
- * @param UserAccountProfile The instance to serialize from.
- * @param writer Serialization writer to use to serialize this model
- */
-// @ts-ignore
-export function serializeUserAccountProfile(writer: SerializationWriter, userAccountProfile: Partial<UserAccountProfile> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
-    if (!userAccountProfile || isSerializingDerivedType) { return; }
-    writer.writeDateValue("createdAt", userAccountProfile.createdAt);
-    writer.writeDateValue("deletedAt", userAccountProfile.deletedAt);
-    writer.writeGuidValue("id", userAccountProfile.id);
-    writer.writeBooleanValue("isDeleted", userAccountProfile.isDeleted);
-    writer.writeObjectValue<Profile>("profile", userAccountProfile.profile, serializeProfile);
-    writer.writeGuidValue("profileId", userAccountProfile.profileId);
-    writer.writeDateValue("updatedAt", userAccountProfile.updatedAt);
-    writer.writeObjectValue<UserAccount>("userAccount", userAccountProfile.userAccount, serializeUserAccount);
-    writer.writeGuidValue("userAccountId", userAccountProfile.userAccountId);
-    writer.writeAdditionalData(userAccountProfile.additionalData);
 }
 /**
  * Serializes information the current object
@@ -1447,44 +921,6 @@ export function serializeVerifyEmailRequestResult(writer: SerializationWriter, v
     if (!verifyEmailRequestResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("status", verifyEmailRequestResult.status);
     writer.writeAdditionalData(verifyEmailRequestResult.additionalData);
-}
-export interface Session extends AdditionalDataHolder, Parsable {
-    /**
-     * The createdAt property
-     */
-    createdAt?: Date | null;
-    /**
-     * The deletedAt property
-     */
-    deletedAt?: Date | null;
-    /**
-     * The expiresAt property
-     */
-    expiresAt?: Date | null;
-    /**
-     * The id property
-     */
-    id?: Guid | null;
-    /**
-     * The isDeleted property
-     */
-    isDeleted?: boolean | null;
-    /**
-     * The token property
-     */
-    token?: string | null;
-    /**
-     * The updatedAt property
-     */
-    updatedAt?: Date | null;
-    /**
-     * The user property
-     */
-    user?: User | null;
-    /**
-     * The userId property
-     */
-    userId?: Guid | null;
 }
 export interface StaffMemberItem extends AdditionalDataHolder, Parsable {
     /**
@@ -1511,202 +947,6 @@ export interface StaffMemberItem extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: number | null;
-}
-export interface Tenant extends AdditionalDataHolder, Parsable {
-    /**
-     * The code property
-     */
-    code?: string | null;
-    /**
-     * The createdAt property
-     */
-    createdAt?: Date | null;
-    /**
-     * The deletedAt property
-     */
-    deletedAt?: Date | null;
-    /**
-     * The id property
-     */
-    id?: Guid | null;
-    /**
-     * The isDeleted property
-     */
-    isDeleted?: boolean | null;
-    /**
-     * The name property
-     */
-    name?: string | null;
-    /**
-     * The updatedAt property
-     */
-    updatedAt?: Date | null;
-    /**
-     * The userAccounts property
-     */
-    userAccounts?: UserAccount[] | null;
-}
-export interface User extends AdditionalDataHolder, Parsable {
-    /**
-     * The avatarUrl property
-     */
-    avatarUrl?: string | null;
-    /**
-     * The createdAt property
-     */
-    createdAt?: Date | null;
-    /**
-     * The deletedAt property
-     */
-    deletedAt?: Date | null;
-    /**
-     * The email property
-     */
-    email?: string | null;
-    /**
-     * The emailVerifyToken property
-     */
-    emailVerifyToken?: string | null;
-    /**
-     * The emailVerifyTokenExpiresAt property
-     */
-    emailVerifyTokenExpiresAt?: Date | null;
-    /**
-     * The firstName property
-     */
-    firstName?: string | null;
-    /**
-     * The id property
-     */
-    id?: Guid | null;
-    /**
-     * The isDeleted property
-     */
-    isDeleted?: boolean | null;
-    /**
-     * The isSuspended property
-     */
-    isSuspended?: boolean | null;
-    /**
-     * The isVerified property
-     */
-    isVerified?: boolean | null;
-    /**
-     * The lastName property
-     */
-    lastName?: string | null;
-    /**
-     * The password property
-     */
-    password?: string | null;
-    /**
-     * The sessions property
-     */
-    sessions?: Session[] | null;
-    /**
-     * The status property
-     */
-    status?: number | null;
-    /**
-     * The updatedAt property
-     */
-    updatedAt?: Date | null;
-    /**
-     * The userAccounts property
-     */
-    userAccounts?: UntypedNode | null;
-}
-export interface UserAccount extends AdditionalDataHolder, Parsable {
-    /**
-     * The accountType property
-     */
-    accountType?: number | null;
-    /**
-     * The createdAt property
-     */
-    createdAt?: Date | null;
-    /**
-     * The deletedAt property
-     */
-    deletedAt?: Date | null;
-    /**
-     * The hierarchyLevel property
-     */
-    hierarchyLevel?: number | null;
-    /**
-     * The id property
-     */
-    id?: Guid | null;
-    /**
-     * The isDeleted property
-     */
-    isDeleted?: boolean | null;
-    /**
-     * The isSuspended property
-     */
-    isSuspended?: boolean | null;
-    /**
-     * The tenant property
-     */
-    tenant?: Tenant | null;
-    /**
-     * The tenantId property
-     */
-    tenantId?: Guid | null;
-    /**
-     * The updatedAt property
-     */
-    updatedAt?: Date | null;
-    /**
-     * The user property
-     */
-    user?: User | null;
-    /**
-     * The userAccountProfiles property
-     */
-    userAccountProfiles?: UserAccountProfile[] | null;
-    /**
-     * The userId property
-     */
-    userId?: Guid | null;
-}
-export interface UserAccountProfile extends AdditionalDataHolder, Parsable {
-    /**
-     * The createdAt property
-     */
-    createdAt?: Date | null;
-    /**
-     * The deletedAt property
-     */
-    deletedAt?: Date | null;
-    /**
-     * The id property
-     */
-    id?: Guid | null;
-    /**
-     * The isDeleted property
-     */
-    isDeleted?: boolean | null;
-    /**
-     * The profile property
-     */
-    profile?: Profile | null;
-    /**
-     * The profileId property
-     */
-    profileId?: Guid | null;
-    /**
-     * The updatedAt property
-     */
-    updatedAt?: Date | null;
-    /**
-     * The userAccount property
-     */
-    userAccount?: UserAccount | null;
-    /**
-     * The userAccountId property
-     */
-    userAccountId?: Guid | null;
 }
 export interface VerifyEmailRequestBody extends AdditionalDataHolder, Parsable {
     /**
