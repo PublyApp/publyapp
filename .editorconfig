@@ -31,11 +31,13 @@ dotnet_diagnostic.IDE0090.severity = none
 dotnet_diagnostic.IDE0074.severity = none
 # Member name can be simplified
 dotnet_diagnostic.IDE0037.severity = none
+# IDE0305: Simplify collection initialization
+dotnet_diagnostic.IDE0305.severity = none
+# IDE0200: Remove unnecessary lambda expression
+dotnet_diagnostic.IDE0200.severity = none
 # Line length and wrapping
 csharp_max_line_length = 50
 csharp_new_line_before_open_brace = none
 csharp_new_line_before_else = false
 csharp_new_line_before_catch = false
 csharp_new_line_before_finally = false
-# IDE0305: Simplify collection initialization
-dotnet_diagnostic.IDE0305.severity = none
