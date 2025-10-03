@@ -101,11 +101,17 @@ public class PermissionFilter : IEndpointFilter {
 }
 
 public static class PermissionFilterExtensions {
-	public static RouteHandlerBuilder WithPermission(this RouteHandlerBuilder builder, Permission[] requiredPermissions) {
+	public static RouteHandlerBuilder WithPermission(
+		this RouteHandlerBuilder builder,
+		Permission[] requiredPermissions
+	) {
 		return builder.AddEndpointFilter(new PermissionFilter(requiredPermissions));
 	}
 
-	public static RouteHandlerBuilder WithPermission(this RouteHandlerBuilder builder, Func<HashSet<string>, bool> customPermissionChecker) {
+	public static RouteHandlerBuilder WithPermission(
+		this RouteHandlerBuilder builder,
+		Func<HashSet<string>, bool> customPermissionChecker
+	) {
 		return builder.AddEndpointFilter(new PermissionFilter(customPermissionChecker));
 	}
 }
