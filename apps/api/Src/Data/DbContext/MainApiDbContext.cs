@@ -1,31 +1,33 @@
-namespace MainApi.Src.Data.DbContext;
-
 using System.Linq.Expressions;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Permission;
+using MainApi.Src.Features.Common.Project;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
+using MainApi.Src.Lib;
+
+namespace MainApi.Src.Data.DbContext;
 
 /// <summary>
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
-public class MainApiDbContext : DbContext {
+public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private static MainApiDbContext? _singleton = null;
 
-	public MainApiDbContext SingleTon {
+	public static MainApiDbContext SingleTon {
 		get {
 			if (_singleton is null) {
-				throw new Exception("You must set a singleton before getting it");
+				_singleton = new MainApiDbContext(
+					new DbContextOptionsBuilder<MainApiDbContext>()
+						.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
+						.Options
+				);
 			}
 			return _singleton;
-		}
-		set {
-			_singleton = value;
 		}
 	}
 
@@ -42,13 +44,16 @@ public class MainApiDbContext : DbContext {
 	public DbSet<User> User { get; init; }
 	public DbSet<Tenant> Tenant { get; init; }
 
+	// Project system entities (still needed for Project entity)
+	public DbSet<Project> Project { get; init; }
+
 	// Unified permission system entities
 	public DbSet<Permission> Permission { get; init; }
 	public DbSet<Profile> Profile { get; init; }
 	public DbSet<ProfilePermission> ProfilePermission { get; init; }
 	public DbSet<UserAccountProfile> UserAccountProfile { get; init; }
 
-	// Unified account system
+	// Unified account system (handles Staff, Tenant, and Project accounts)
 	public DbSet<UserAccount> UserAccount { get; init; }
 
 	public Guid? TenantId { get; set; }
@@ -62,25 +67,25 @@ public class MainApiDbContext : DbContext {
 		base.OnConfiguring(optionsBuilder);
 
 		// EF Core 9: Define seeding logic here
-		optionsBuilder.UseSeeding((context, _) => {
-			var dbContext = (MainApiDbContext)context;
+		// optionsBuilder.UseSeeding((context, _) => {
+		// 	var dbContext = (MainApiDbContext)context;
 
-			if (dbContext is null) {
-				throw new Exception("dbContext is null");
-			}
+		// 	if (dbContext is null) {
+		// 		throw new Exception("dbContext is null");
+		// 	}
 
-			Seeder.SeedAll(dbContext);
-		});
+		// 	Seeder.SeedAll(dbContext);
+		// });
 
-		optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
-			var dbContext = (MainApiDbContext)context;
+		// optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
+		// 	var dbContext = (MainApiDbContext)context;
 
-			if (dbContext is null) {
-				throw new Exception("dbContext is null");
-			}
+		// 	if (dbContext is null) {
+		// 		throw new Exception("dbContext is null");
+		// 	}
 
-			await Seeder.SeedAllAsync(dbContext);
-		});
+		// 	await Seeder.SeedAllAsync(dbContext);
+		// });
 	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
@@ -92,6 +97,32 @@ public class MainApiDbContext : DbContext {
 
 		modelBuilder.Entity<User>()
 			.ToTable(t => t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)"));
+
+		// Database-level account type constraints
+		modelBuilder.Entity<UserAccount>()
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Staff_Constraints",
+				"(account_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR account_scope != 0"));
+
+		modelBuilder.Entity<UserAccount>()
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints",
+				"(account_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR account_scope != 1"));
+
+		modelBuilder.Entity<UserAccount>()
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Project_Constraints",
+				"(account_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR account_scope != 2"));
+
+		// Database-level profile type constraints
+		modelBuilder.Entity<Profile>()
+			.ToTable(t => t.HasCheckConstraint("CK_Profile_Staff_Constraints",
+				"(profile_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_scope != 0"));
+
+		modelBuilder.Entity<Profile>()
+			.ToTable(t => t.HasCheckConstraint("CK_Profile_Tenant_Constraints",
+				"(profile_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_scope != 1"));
+
+		modelBuilder.Entity<Profile>()
+			.ToTable(t => t.HasCheckConstraint("CK_Profile_Project_Constraints",
+				"(profile_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_scope != 2"));
 
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.Entity<User>()
@@ -105,7 +136,7 @@ public class MainApiDbContext : DbContext {
 			.HasFilter("\"is_deleted\" = false");
 
 		modelBuilder.Entity<UserAccount>()
-			.HasIndex(u => new { u.UserId, u.AccountType })
+			.HasIndex(u => new { u.UserId, u.AccountScope })
 			.HasDatabaseName("ix_user_accounts_user_id_account_type_active")
 			.HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
 
@@ -142,12 +173,15 @@ public class MainApiDbContext : DbContext {
 					modelBuilder.Entity(entityType.ClrType)
 						.HasQueryFilter(lambda);
 				}
+			} else if (typeof(IOptionalTenantEntity).IsAssignableFrom(entityType.ClrType)) {
+				// Set table name for optional tenant entities (no automatic filtering)
+				modelBuilder.Entity(entityType.ClrType);
 			} else if (typeof(INoTenantEntity).IsAssignableFrom(entityType.ClrType)) {
 				// Set table name for non-tenant-filtered entities
 				modelBuilder.Entity(entityType.ClrType);
 			} else {
 				throw new Exception(
-						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)} or {nameof(INoTenantEntity)}");
+						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)}, {nameof(IOptionalTenantEntity)}, or {nameof(INoTenantEntity)}");
 			}
 		}
 	}

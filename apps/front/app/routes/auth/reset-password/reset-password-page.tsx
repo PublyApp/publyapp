@@ -32,7 +32,6 @@ import {
 	FRONT_PATH_NAMES,
 	queryParamKey,
 	queryParamValue,
-	X_CODE,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import { getErrorMessage } from '@/shared/utils/error.utils';

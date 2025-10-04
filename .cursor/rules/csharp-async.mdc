@@ -1,12 +1,12 @@
 ---
-description: Unified high-performance C# async/await rules and PDFVite-specific guidance
+description: Unified high-performance C# async/await rules and PublyApp-specific guidance
 globs:
   - "**/*.cs"
 alwaysApply: true
 applyIntelligently: true
 ---
 
-# C# async/await rules (global + PDFVite-specific)
+# C# async/await rules (global + PublyApp-specific)
 
 ## 🎯 Primary directive
 
@@ -170,7 +170,7 @@ var tasks = items.Select(async x =>
 return (await Task.WhenAll(tasks).ConfigureAwait(false)).ToList();
 ```
 
-## 🏷️ PDFVite-specific rules
+## 🏷️ PublyApp-specific rules
 
 ### Handlers
 

@@ -34,7 +34,7 @@ pnpm dev:front
 
 run `pnpm dev:server --inspect` then use the VS Code debugger: **Attach by WebSocket URL** configuration and you are good to set breakpoints in the code
 
-Now open your browser and go to `http://localhost:6181` to see the app.
+Now open your browser and go to `http://localhost:5050` to see the app.
 
 ## Hosting
 

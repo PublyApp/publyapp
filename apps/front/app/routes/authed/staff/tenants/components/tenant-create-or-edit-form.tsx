@@ -37,8 +37,6 @@ import { fData } from '@/front/utils/format-number';
 import {
 	DEFAULT_MAX_USER_PER_TENANT,
 	FRONT_PATH_NAMES,
-	type TenantSubRole,
-	tenantSubRoleEnum,
 } from '@/shared/lib/constants';
 import { mbToBytes } from '@/shared/utils/any.utils';
 
@@ -50,7 +48,7 @@ type NewTenantSchemaType = zod.infer<
 
 // ----------------------------------------------------------------------
 
-const ROLE_OPTIONS = _.chain(tenantSubRoleEnum)
+const ROLE_OPTIONS = _.chain(/* tenantSubRoleEnum */ [])
 	.map((value) => {
 		return {
 			value: value,
@@ -61,7 +59,7 @@ const ROLE_OPTIONS = _.chain(tenantSubRoleEnum)
 
 const initialUserValue = {
 	email: '',
-	role: tenantSubRoleEnum.ADMIN,
+	role: /* tenantSubRoleEnum.ADMIN */ '',
 };
 
 const defaultValues = {
@@ -303,9 +301,10 @@ export const TenantCreateOrEditForm = ({
 	const handleAddUserToForm = () => {
 		append({
 			email: '',
-			role: _.isEmpty(fields)
-				? tenantSubRoleEnum.ADMIN
-				: tenantSubRoleEnum.CONTRIBUTOR,
+			role: '',
+			// role: _.isEmpty(fields)
+			// 	? tenantSubRoleEnum.ADMIN
+			// 	: tenantSubRoleEnum.CONTRIBUTOR,
 		});
 	};
 
@@ -520,7 +519,7 @@ export const TenantCreateOrEditForm = ({
 	);
 };
 
-type UserRowType = { email: string; role: TenantSubRole };
+type UserRowType = { email: string; role: /* TenantSubRole */ any };
 
 type UserRowProps = {
 	index: number;
@@ -548,9 +547,10 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 		[fields, index, update],
 	);
 
-	const isAdmin = _.get(fields, `${index}.role`) === tenantSubRoleEnum.ADMIN;
+	const isAdmin =
+		_.get(fields, `${index}.role`) === /* tenantSubRoleEnum.ADMIN */ '';
 	const adminsList = _.filter(fields, (field) => {
-		return field.role === tenantSubRoleEnum.ADMIN;
+		return field.role === /* tenantSubRoleEnum.ADMIN */ '';
 	});
 	const isTheOnlyAdmin = isAdmin && adminsList.length === 1;
 

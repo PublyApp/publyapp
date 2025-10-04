@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import {
 	createMutation,
 	createQuery,
@@ -14,7 +15,11 @@ const getUserAuthDataQueryKey = getQueryKey<ApiClient>(
 export const useGetUserAuthData = createSuspenseQuery({
 	queryKey: [getUserAuthDataQueryKey] as const,
 	fetcher: async () => {
-		return clientManager.apiClient.auth.userAuthData.get();
+		const result = await clientManager.apiClient.auth.userAuthData.get();
+		if (_.isNil(result)) {
+			throw new Error(`[${getUserAuthDataQueryKey}]: result is nil`);
+		}
+		return result;
 	},
 });
 
@@ -25,11 +30,15 @@ const getTenantAuthDataQueryKey = getQueryKey<ApiClient>(
 export const useGetTenantAuthData = createSuspenseQuery({
 	queryKey: [getTenantAuthDataQueryKey] as const,
 	fetcher: async ({ tenantId }: { tenantId: string }) => {
-		return clientManager.apiClient.auth.tenantAuthData.get({
+		const result = await clientManager.apiClient.auth.tenantAuthData.get({
 			queryParameters: {
 				tenantId,
 			},
 		});
+		if (_.isNil(result)) {
+			throw new Error(`[${getTenantAuthDataQueryKey}]: result is nil`);
+		}
+		return result;
 	},
 });
 
@@ -40,11 +49,15 @@ const getVerificationLinkQueryKey = getQueryKey<ApiClient>(
 export const useGetVerificationLink = createQuery({
 	queryKey: [getVerificationLinkQueryKey] as const,
 	fetcher: async ({ userId }: { userId: string }) => {
-		return clientManager.apiClient.auth.verificationLink.get({
+		const result = await clientManager.apiClient.auth.verificationLink.get({
 			queryParameters: {
 				userId,
 			},
 		});
+		if (_.isNil(result)) {
+			throw new Error(`[${getVerificationLinkQueryKey}]: result is nil`);
+		}
+		return result;
 	},
 });
 
@@ -55,12 +68,16 @@ const getVerifyEmailRequestQueryKey = getQueryKey<ApiClient>(
 export const useSendEmailVerificationReminder = createMutation({
 	mutationKey: [getVerifyEmailRequestQueryKey] as const,
 	mutationFn: async ({ email }: { email: string }) => {
-		return clientManager.apiClient.auth.verifyEmailRequest.post({
+		const result = await clientManager.apiClient.auth.verifyEmailRequest.post({
 			email: {
 				getValue() {
 					return email;
 				},
 			},
 		});
+		if (_.isNil(result)) {
+			throw new Error(`[${getVerifyEmailRequestQueryKey}]: result is nil`);
+		}
+		return result;
 	},
 });

@@ -72,6 +72,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey NotFound = new("not-found");
 
 	/// <summary>
+	/// Query parameter missing
+	/// </summary>
+	public static readonly TranslationKey QueryParametersMissing = new("query-parameters-missing");
+
+	/// <summary>
+	/// Request body missing
+	/// </summary>
+	public static readonly TranslationKey RequestBodyMissing = new("request-body-missing");
+
+	/// <summary>
 	/// Service unavailable
 	/// </summary>
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");

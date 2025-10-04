@@ -1,26 +1,37 @@
 using MainApi.Src.Data;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace MainApi.Src.Features.Common.Account;
 
 /// <summary>
-/// Join table between users and tenants
+/// Unified account table for users across all scopes (Staff, Tenant, Project)
 /// </summary>
 [Table("user_accounts")]
-[Index(nameof(UserId), nameof(TenantId), nameof(AccountType), IsUnique = true)]
-[Index(nameof(UserId), nameof(AccountType))]
-public class UserAccount : BaseAttributes, ITenantEntity {
+[Index(nameof(UserId), nameof(TenantId), nameof(ProjectId), nameof(AccountScope), IsUnique = true)]
+[Index(nameof(UserId), nameof(AccountScope))]
+[Index(nameof(TenantId), nameof(AccountScope))]
+[Index(nameof(ProjectId), nameof(AccountScope))]
+[Index(nameof(UserId), nameof(TenantId))]
+public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("user_id")]
 	public required Guid UserId { get; set; }
+	[JsonIgnore]
 	public User.User User { get; set; } = null!;
 
 	[Column("tenant_id")]
-	public required Guid TenantId { get; set; }
-	public Tenant.Tenant Tenant { get; set; } = null!;
+	public Guid? TenantId { get; set; }  // Nullable for staff accounts
+	[JsonIgnore]
+	public Tenant.Tenant? Tenant { get; set; }
 
-	[Column("account_type")]
-	public AccountType AccountType { get; set; } = AccountType.Tenant;
+	[Column("project_id")]
+	public Guid? ProjectId { get; set; }  // Nullable for staff/tenant accounts
+	[JsonIgnore]
+	public Project.Project? Project { get; set; }
+
+	[Column("account_scope")]
+	public AccountScope AccountScope { get; set; } = AccountScope.Tenant;
 
 	[Column("hierarchy_level")]
 	public AccountHierarchyLevel HierarchyLevel { get; set; } = AccountHierarchyLevel.User;
@@ -28,13 +39,69 @@ public class UserAccount : BaseAttributes, ITenantEntity {
 	[Column("is_suspended")]
 	public bool IsSuspended { get; set; } = false;
 
+	// Computed properties for easy identification
+	public bool IsStaffAccount => AccountScope == AccountScope.Staff && TenantId == null && ProjectId == null;
+	public bool IsTenantAccount => AccountScope == AccountScope.Tenant && TenantId != null && ProjectId == null;
+	public bool IsProjectAccount => AccountScope == AccountScope.Project && TenantId != null && ProjectId != null;
+
+	// Factory methods for type-safe creation
+	public static UserAccount CreateStaffAccount(Guid userId) {
+		return new UserAccount {
+			UserId = userId,
+			AccountScope = AccountScope.Staff,
+			TenantId = null,
+			ProjectId = null
+		};
+	}
+
+	public static UserAccount CreateTenantAccount(Guid userId, Guid tenantId) {
+		return new UserAccount {
+			UserId = userId,
+			AccountScope = AccountScope.Tenant,
+			TenantId = tenantId,
+			ProjectId = null
+		};
+	}
+
+	public static UserAccount CreateProjectAccount(Guid userId, Guid tenantId, Guid projectId) {
+		return new UserAccount {
+			UserId = userId,
+			AccountScope = AccountScope.Project,
+			TenantId = tenantId,
+			ProjectId = projectId
+		};
+	}
+
+	// Validation
+	public void ValidateAccountType() {
+		switch (AccountScope) {
+			case AccountScope.Staff:
+				if (TenantId != null || ProjectId != null) {
+					throw new InvalidOperationException("Staff accounts cannot have TenantId or ProjectId");
+				}
+				break;
+			case AccountScope.Tenant:
+				if (TenantId == null || ProjectId != null) {
+					throw new InvalidOperationException("Tenant accounts must have TenantId but not ProjectId");
+				}
+				break;
+			case AccountScope.Project:
+				if (TenantId == null || ProjectId == null) {
+					throw new InvalidOperationException("Project accounts must have both TenantId and ProjectId");
+				}
+				break;
+		}
+	}
+
 	// navigation properties
+	[JsonIgnore]
 	public ICollection<UserAccountProfile> UserAccountProfiles { get; set; } = [];
 }
 
-public enum AccountType {
+public enum AccountScope {
 	Staff = 0,
-	Tenant = 1
+	Tenant = 1,
+	Project = 2
 }
 
 public enum AccountHierarchyLevel {

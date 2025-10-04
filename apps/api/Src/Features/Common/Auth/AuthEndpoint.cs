@@ -1,15 +1,11 @@
-namespace MainApi.Src.Features.Common.Auth;
-
 using FluentValidation;
 using MainApi.Src.Lib.Filters;
-using MainApi.Src.Features.Common.Auth.Handlers.PasswordLogin;
-using MainApi.Src.Features.Common.Auth.Handlers.PasswordRegister;
-using MainApi.Src.Features.Common.Auth.Handlers.GetUserAuthData;
-using MainApi.Src.Features.Common.Auth.Handlers.VerifyEmailRequest;
-using MainApi.Src.Features.Common.Auth.Handlers.GetVerificationLink;
-using MainApi.Src.Features.Common.Auth.Handlers.GetTenantAuthData;
+using MainApi.Src.Features.Common.Auth.Handlers;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Lib.Extensions;
+
+namespace MainApi.Src.Features.Common.Auth;
 
 public static class AuthEndpoint {
 	public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app) {
@@ -23,7 +19,8 @@ public static class AuthEndpoint {
 		)
 			.WithName("LoginWithEmailAndPassword")
 			.WithSummary("Password Login")
-			.WithBodyValidation<PasswordLoginBody>();
+			.WithReqBodyValidation<PasswordLoginBody>()
+			.Produces500ApiResponse();
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Auth.Register),
@@ -31,21 +28,24 @@ public static class AuthEndpoint {
 		)
 			.WithName("RegisterWithEmailAndPassword")
 			.WithSummary("Password Register")
-			.WithBodyValidation<PasswordRegisterBody>();
+			.WithReqBodyValidation<PasswordRegisterBody>()
+			.Produces500ApiResponse();
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.GetUserAuthData),
 			GetUserAuthData.HandleGetUserAuthData
 		)
 			.WithName("GetUserAuthData")
-			.WithSummary("Get User Auth Data");
+			.WithSummary("Get User Auth Data")
+			.Produces500ApiResponse();
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.GetTenantAuthData),
 			GetTenantAuthData.HandleGetTenantAuthData
 		)
 			.WithName("GetTenantAuthData")
-			.WithSummary("Get Tenant Auth Data");
+			.WithSummary("Get Tenant Auth Data")
+			.Produces500ApiResponse();
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Auth.VerifyEmailRequest),
@@ -53,7 +53,8 @@ public static class AuthEndpoint {
 		)
 			.WithName("VerifyEmailRequest")
 			.WithSummary("Verify Email Request")
-			.WithBodyValidation<VerifyEmailRequestBody>();
+			.WithReqBodyValidation<VerifyEmailRequestBody>()
+			.Produces500ApiResponse();
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.GetVerificationLink),
@@ -61,7 +62,8 @@ public static class AuthEndpoint {
 		)
 			.WithName("GetVerificationLink")
 			.WithSummary("Get Verification Link")
-			.WithQueryValidation<GetVerificationLinkQuery>();
+			.WithRedQueryValidation<GetVerificationLinkQuery>()
+			.Produces500ApiResponse();
 
 		return group;
 	}

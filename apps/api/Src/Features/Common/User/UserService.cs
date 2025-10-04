@@ -1,18 +1,16 @@
-namespace MainApi.Src.Features.Common.User;
-
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Features.Common.Auth;
 
+namespace MainApi.Src.Features.Common.User;
+
 public abstract record CreateUserResult {
 	public sealed record Success(User User) : CreateUserResult;
 	public sealed record UserAlreadyExists : CreateUserResult;
-	// public sealed record Failure(string Message, TranslationKey Key) : CreateUserResult;
 }
 
 public interface IUserService {
 	Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default);
-	Task<User?> GetUserToLoginAsync(string email, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
 	Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default);
@@ -43,19 +41,18 @@ public class UserService : IUserService {
 		return new CreateUserResult.Success(result.Entity);
 	}
 
-	public async Task<User?> GetUserToLoginAsync(string email, CancellationToken cancellationToken = default) {
-		return await GetUserByEmailAsync(email, cancellationToken).ConfigureAwait(false);
-	}
-
 	public async Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default) {
-		return await _dbContext.User.FirstOrDefaultAsync(
-			u => u.Email == email
-			// check these fields directly in the login handler, for customized error responses
-			&& !u.IsDeleted, // only isDeleted is relevant to check here
-											 // && !u.IsSuspended
-											 // && u.IsVerified
-			cancellationToken
-		).ConfigureAwait(false);
+		var query =
+			from u in _dbContext.User
+			where u.Email == email
+			&& !u.IsDeleted
+			// * check these fields directly in the login handler
+			// * for customized error responses
+			// && !u.IsSuspended
+			// && u.IsVerified
+			select u;
+
+		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 	}
 
 	public async Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default) {
@@ -65,8 +62,12 @@ public class UserService : IUserService {
 	}
 
 	public async Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default) {
-		return await _dbContext.User
-			.FindAsync([id, cancellationToken], cancellationToken: cancellationToken)
-			.ConfigureAwait(false);
+		// return await _dbContext.User
+		// 	.FindAsync([id, cancellationToken], cancellationToken: cancellationToken)
+		// 	.ConfigureAwait(false);
+		var query = from u in _dbContext.User
+								where u.Id == id
+								select u;
+		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 	}
 }

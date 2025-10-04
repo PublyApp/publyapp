@@ -1,0 +1,67 @@
+using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+using MainApi.Src.Lib;
+using Microsoft.AspNetCore.Http.HttpResults;
+using FluentValidation;
+using MainApi.Src.Lib.Utils;
+
+namespace MainApi.Src.Features.Staff.Tenant.Handlers;
+
+public class CreateTenantAsStaffBody {
+	public JsonElement Name { get; set; }
+
+	public string GetName() {
+		string name = Name.ValueKind switch {
+			JsonValueKind.String => Name.GetString() ?? throw new Exception("Name cannot be null"),
+			_ => throw new Exception("Name must be a string")
+		};
+
+		return name;
+	}
+}
+
+public class CreateTenantAsStaffBodyValidator : AbstractValidator<CreateTenantAsStaffBody> {
+	public CreateTenantAsStaffBodyValidator() {
+		RuleFor(x => x.Name)
+			.NotEmpty().WithMessage("Name is required")
+			.DependentRules(() => {
+				RuleFor(x => x.Name)
+					.Must(name => name.ValueKind == JsonValueKind.String).WithMessage("Name must be a string")
+					.DependentRules(() => {
+						RuleFor(x => x.Name.GetString()!)
+							.MinimumLength(5).WithMessage("Name must be at least 5 characters long");
+					});
+			});
+	}
+}
+
+public class CreateTenantAsStaffResult {
+	public Guid Id { get; set; }
+	public string Name { get; set; } = string.Empty;
+}
+
+public static class CreateTenantAsStaff {
+	public static async Task<
+	Results<
+	Ok<CreateTenantAsStaffResult>,
+	BadRequest<ApiResponse>
+	>>
+	HandleCreateTenantAsStaff(
+		[FromBody] CreateTenantAsStaffBody createTenantBody,
+		[FromServices] IStaffTenantService StaffTenantService
+		) {
+		string tenantName = createTenantBody.GetName();
+
+		var tenant = new MainApi.Src.Features.Common.Tenant.Tenant {
+			Name = tenantName,
+			Code = CryptoUtils.RandomString(10).ToLower()
+		};
+
+		var savedTenant = await StaffTenantService.CreateTenant(tenant);
+
+		return TypedResults.Ok(new CreateTenantAsStaffResult {
+			Id = savedTenant.Id,
+			Name = savedTenant.Name
+		});
+	}
+}

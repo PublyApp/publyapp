@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using MainApi.Src.Features.Common.Account;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 namespace MainApi.Src.Features.Common.User;
 
@@ -30,6 +31,9 @@ public class User : BaseAttributes, INoTenantEntity {
 	[Column("avatar_url")]
 	public string? AvatarUrl { get; set; }
 
+	[Column("status")]
+	public UserStatus Status { get; set; } = UserStatus.Inactive;
+
 	[Column("is_suspended")]
 	public bool IsSuspended { get; set; } = false;
 
@@ -43,6 +47,16 @@ public class User : BaseAttributes, INoTenantEntity {
 	public DateTime? EmailVerifyTokenExpiresAt { get; set; }
 
 	// Navigation properties
+	[JsonIgnore]
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];
+	[JsonIgnore]
 	public ICollection<Session.Session> Sessions { get; set; } = [];
+}
+
+public enum UserStatus {
+	Inactive = 10,
+	Pending = 20,
+	Suspended = 30,
+	Active = 40,
+	Deleted = 50,
 }

@@ -1,6 +1,6 @@
 # PermissionFilter Documentation
 
-The `PermissionFilter` is a flexible endpoint filter that provides permission-based access control for staff members in the PDFVite API. It supports both simple permission requirements and complex custom logic.
+The `PermissionFilter` is a flexible endpoint filter that provides permission-based access control for staff members in the PublyApp API. It supports both simple permission requirements and complex custom logic.
 
 ## Table of Contents
 

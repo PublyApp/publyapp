@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace MainApi.Src.Features.Common.Permission;
 
 public interface IPermissionService {
-	Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null);
+	Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null);
 	Task<HashSet<string>> GetPermissionsAsync(Guid userId);
 	Task<HashSet<string>> GetPermissionsForProfilesAsync(List<Guid> profileIds);
 }
@@ -21,24 +21,42 @@ public class PermissionService : IPermissionService {
 	/// <summary>
 	/// Gets all effective permissions for a user across all their profiles.
 	/// This method works seamlessly with the existing PermissionFilter.
+	/// Optimized query that uses proper indexing for better performance.
 	/// </summary>
 	/// <param name="userId">The user ID</param>
 	/// <param name="tenantId">Optional tenant ID for tenant-scoped permissions</param>
+	/// <param name="projectId">Optional project ID for project-scoped permissions</param>
 	/// <returns>HashSet of permission keys</returns>
-	public async Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null) {
-		var permissions = new HashSet<string>();
+	public async Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null) {
+		// Optimized query using proper indexing
+		// This query leverages the new composite indexes for better performance
+		var userPermissions = await _context.Set<ProfilePermission>()
+			.Where(pp => !pp.IsDeleted)
+			.Join(_context.Set<UserAccountProfile>()
+				.Where(uap => !uap.IsDeleted),
+				pp => pp.ProfileId,
+				uap => uap.ProfileId,
+				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
+			.Join(_context.Set<UserAccount>()
+				.Where(ua => !ua.IsDeleted && !ua.IsSuspended),
+				joined => joined.UserAccountId,
+				ua => ua.Id,
+				(joined, ua) => new {
+					joined.PermissionKey,
+					ua.UserId,
+					ua.TenantId,
+					ua.ProjectId,
+					ua.AccountScope
+				})
+			.Where(x => x.UserId == userId)
+			// Apply scope filtering if provided
+			.Where(x => tenantId == null || x.TenantId == tenantId)
+			.Where(x => projectId == null || x.ProjectId == projectId)
+			.Select(x => x.PermissionKey)
+			.Distinct() // Remove duplicates
+			.ToHashSetAsync();
 
-		// Get staff permissions (always available for staff users)
-		var Permissions = await GetPermissionsAsync(userId);
-		permissions.UnionWith(Permissions);
-
-		// Get tenant permissions (if in tenant context)
-		if (tenantId.HasValue) {
-			var tenantPermissions = await GetTenantPermissionsAsync(userId, tenantId.Value);
-			permissions.UnionWith(tenantPermissions);
-		}
-
-		return permissions;
+		return userPermissions;
 	}
 
 	/// <summary>
@@ -53,8 +71,8 @@ public class PermissionService : IPermissionService {
 			.Join(_context.Set<UserAccount>(),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
-				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.AccountType })
-			.Where(x => x.UserId == userId && x.AccountType == AccountType.Staff)
+				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.AccountScope })
+			.Where(x => x.UserId == userId && x.AccountScope == AccountScope.Staff)
 			.Select(x => x.PermissionKey)
 			.ToHashSetAsync();
 	}
@@ -62,7 +80,7 @@ public class PermissionService : IPermissionService {
 	/// <summary>
 	/// Gets tenant permissions for a user in a specific tenant
 	/// </summary>
-	private async Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId) {
+	public async Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId) {
 		return await _context.Set<ProfilePermission>()
 			.Join(_context.Set<UserAccountProfile>(),
 				pp => pp.ProfileId,
@@ -71,8 +89,26 @@ public class PermissionService : IPermissionService {
 			.Join(_context.Set<UserAccount>(),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
-				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.AccountType })
-			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.AccountType == AccountType.Tenant)
+				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.AccountScope })
+			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.AccountScope == AccountScope.Tenant)
+			.Select(x => x.PermissionKey)
+			.ToHashSetAsync();
+	}
+
+	/// <summary>
+	/// Gets project permissions for a user in a specific project
+	/// </summary>
+	public async Task<HashSet<string>> GetProjectPermissionsAsync(Guid userId, Guid tenantId, Guid projectId) {
+		return await _context.Set<ProfilePermission>()
+			.Join(_context.Set<UserAccountProfile>(),
+				pp => pp.ProfileId,
+				uap => uap.ProfileId,
+				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
+			.Join(_context.Set<UserAccount>(),
+				joined => joined.UserAccountId,
+				ua => ua.Id,
+				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.ProjectId, ua.AccountScope })
+			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.ProjectId == projectId && x.AccountScope == AccountScope.Project)
 			.Select(x => x.PermissionKey)
 			.ToHashSetAsync();
 	}

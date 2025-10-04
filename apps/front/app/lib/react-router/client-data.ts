@@ -1,13 +1,10 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import type { ApiClient } from '@/parse-api-client/ApiClient';
-
+import type { ApiClient } from '@/js-client/src/apiClient';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type InterZod from '@/shared/lib/zod/InterZod';
-
 import { initApiClientOnClient } from '../api';
 import { initI18nOnClient } from '../i18n/init-i18n.client';
 import { initZodOnClient } from '../zod/zod.client';
-
 import { getRequestLocale } from './data.utils';
 
 type GetCLientLoaderParams<
@@ -42,7 +39,7 @@ export const getClientLoader: GetCLientLoader = <
 
 		const i18n = await initI18nOnClient();
 		const z = initZodOnClient(i18n);
-		const apiClient = initApiClientOnClient(i18n);
+		const apiClient = initApiClientOnClient();
 
 		return params.loader({ ...args, apiClient, z, locale });
 	};

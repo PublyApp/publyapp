@@ -122,7 +122,6 @@ const TenantProfilesTable = () => {
 				left: ['permission'],
 			},
 		},
-		// TODO: create a new preset
 		enableRowSelection: false,
 		enableSorting: false,
 		enablePagination: false,

@@ -69,17 +69,17 @@ permissions (key, description, scope)
 ├── scope: 'staff', 'tenant', or 'both'
 
 -- Unified profiles table
-profiles (id, tenant_id, name, profile_type)
+profiles (id, tenant_id, name, profile_scope)
 ├── tenant_id: NULL for staff profiles, tenant ID for tenant profiles
-├── profile_type: 'staff' or 'tenant'
+├── profile_scope: 'staff' or 'tenant'
 
 -- Profile → permission mapping
 profile_permissions (profile_id, permission_key)
 ├── Many-to-many relationship between profiles and permissions
 
 -- Unified accounts table
-user_accounts (id, user_id, tenant_id, account_type, hierarchy_level, is_suspended)
-├── account_type: 'staff' or 'tenant'
+user_accounts (id, user_id, tenant_id, account_scope, hierarchy_level, is_suspended)
+├── account_scope: 'staff' or 'tenant'
 ├── tenant_id: NULL for staff accounts, tenant ID for tenant accounts
 ├── Replaces separate user_account_staff and user_account_tenant tables
 
@@ -209,7 +209,7 @@ public class UserAccount : BaseAttributes
 {
     public Guid UserId { get; set; }
     public Guid TenantId { get; set; }  // NULL for staff accounts
-    public AccountType AccountType { get; set; }  // Staff or Tenant
+    public AccountScope AccountScope { get; set; }  // Staff or Tenant
     public AccountHierarchyLevel HierarchyLevel { get; set; }
 }
 
@@ -241,10 +241,10 @@ Since you started fresh with no existing data, the unified system is already in 
 
 **All obsolete classes have been removed and the system is now fully unified:**
 
-- ❌ `ProfileStaff` → ✅ `Profile` with `ProfileType.Staff`
-- ❌ `ProfileTenant` → ✅ `Profile` with `ProfileType.Tenant`
-- ❌ `UserAccountStaff` → ✅ `UserAccount` with `AccountType.Staff`
-- ❌ `UserAccountTenant` → ✅ `UserAccount` with `AccountType.Tenant`
+- ❌ `ProfileStaff` → ✅ `Profile` with `ProfileScope.Staff`
+- ❌ `ProfileTenant` → ✅ `Profile` with `ProfileScope.Tenant`
+- ❌ `UserAccountStaff` → ✅ `UserAccount` with `AccountScope.Staff`
+- ❌ `UserAccountTenant` → ✅ `UserAccount` with `AccountScope.Tenant`
 
 **Database cleanup completed:**
 
@@ -260,9 +260,9 @@ Since you started fresh with no existing data, the unified system is already in 
 
    ```bash
    # Using Docker (recommended)
-   docker run --name postgres-pdfvite \
+   docker run --name postgres-publyapp \
      -e POSTGRES_PASSWORD=password \
-     -e POSTGRES_DB=pdfvite_db \
+     -e POSTGRES_DB=publyapp_db \
      -p 5432:5432 \
      -d postgres:15
    ```
@@ -272,7 +272,7 @@ Since you started fresh with no existing data, the unified system is already in 
    Create `.env.local` in `apps/api/`:
 
    ```text
-   POSTGRES_CONNECTION_STRING=Host=localhost;Database=pdfvite_db;Username=postgres;Password=password
+   POSTGRES_CONNECTION_STRING=Host=localhost;Database=publyapp_db;Username=postgres;Password=password
    FRONT_URL=http://localhost:3000
    ```
 
@@ -315,10 +315,10 @@ dotnet tool run dotnet-ef database update
 
 ```bash
 # Using psql command line
-psql -h localhost -U postgres -d pdfvite_db
+psql -h localhost -U postgres -d publyapp_db
 
 # Using Docker
-docker exec -it postgres-pdfvite psql -U postgres -d pdfvite_db
+docker exec -it postgres-publyapp psql -U postgres -d publyapp_db
 ```
 
 ### Useful SQL Queries
@@ -356,14 +356,14 @@ SELECT * FROM pg_locks;
 
 ```bash
 # Backup database
-pg_dump -h localhost -U postgres pdfvite_db > backup.sql
+pg_dump -h localhost -U postgres publyapp_db > backup.sql
 
 # Restore database
-psql -h localhost -U postgres pdfvite_db < backup.sql
+psql -h localhost -U postgres publyapp_db < backup.sql
 
 # Using Docker
-docker exec postgres-pdfvite pg_dump -U postgres pdfvite_db > backup.sql
-docker exec -i postgres-pdfvite psql -U postgres pdfvite_db < backup.sql
+docker exec postgres-publyapp pg_dump -U postgres publyapp_db > backup.sql
+docker exec -i postgres-publyapp psql -U postgres publyapp_db < backup.sql
 ```
 
 ## Troubleshooting

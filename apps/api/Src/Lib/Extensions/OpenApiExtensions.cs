@@ -32,4 +32,13 @@ public static class OpenApiExtensions {
 
 		return app;
 	}
+
+	/// <summary>
+	/// Adds a 500 Internal Server Error response to the OpenAPI documentation
+	/// (works with build-time OpenAPI generation)
+	/// </summary>
+	public static RouteHandlerBuilder Produces500ApiResponse(this RouteHandlerBuilder builder) {
+		return builder.Produces<ApiResponse>(StatusCodes.Status500InternalServerError, "application/json");
+	}
 }
+
