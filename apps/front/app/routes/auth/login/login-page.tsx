@@ -28,13 +28,12 @@ export const meta = (_: Route.MetaArgs) => {
 export type LoginActionResult = Awaited<ReturnType<typeof action>>['data'];
 
 export const action = getServerAction({
-	action: async ({ request, apiClient }) => {
+	action: async ({ request, apiClient, context }) => {
 		const formData = await request.formData();
 
 		const email = formData.get('email');
 		const password = formData.get('password');
 
-		// const passwordLogin = safeRun(apiClient.auth.passwordLogin);
 		const passwordLogin = safeRun(
 			async ({ email, password }: { email: string; password: string }) => {
 				return apiClient.auth.login.post({
@@ -84,21 +83,35 @@ export const action = getServerAction({
 		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
 		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
-		const { code } = await apiClient.auth.getRedirectCode({ tenantId });
+		const getRedirectCode = safeRun(async () => {
+			return apiClient.auth.redirectCode.get({ queryParameters: { tenantId } });
+		});
+		const getRedirectCodeResult = await getRedirectCode();
 
-		let redirectPath = makePath(code);
+		if (getRedirectCodeResult.status === 'error') {
+			context.logger.error('Failed to get redirect code', {
+				error: serializeError(getRedirectCodeResult.error),
+			});
+			// throw a generic error
+			throw new Error('Failed to login');
+		}
 
-		if (code !== 'staff' && code !== 'unauthorized') {
+		const redirectCode =
+			getRedirectCodeResult.data?.redirectCode || 'unauthorized';
+
+		let redirectPath = makePath(redirectCode);
+
+		if (redirectCode !== 'staff' && redirectCode !== 'unauthorized') {
 			const lastUsedTenantIdCookie = cookie.serialize(
 				LAST_USED_TENANT_ID_COOKIE_KEY,
-				code,
+				redirectCode,
 				{
 					expires: dayjs().add(3, 'day').toDate(),
 					maxAge: duration.toSeconds('3d'),
 				},
 			);
 			responseHeaders.append('Set-Cookie', lastUsedTenantIdCookie);
-			redirectPath = FRONT_PATH_NAMES.tenant(code).root;
+			redirectPath = FRONT_PATH_NAMES.tenant(redirectCode).root;
 		}
 
 		return redirect(redirectPath, {

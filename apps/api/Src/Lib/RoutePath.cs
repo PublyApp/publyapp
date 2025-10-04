@@ -12,6 +12,7 @@ public static class RoutePath {
 		public static readonly string GetTenantAuthData = PathUtils.Join(RoutePath.Auth.Root, "/tenant-auth-data");
 		public static readonly string VerifyEmailRequest = PathUtils.Join(RoutePath.Auth.Root, "/verify-email-request");
 		public static readonly string GetVerificationLink = PathUtils.Join(RoutePath.Auth.Root, "/verification-link");
+		public static readonly string GetRedirectCode = PathUtils.Join(RoutePath.Auth.Root, "/redirect-code");
 	}
 	public static class Staff {
 		public static readonly string Root = "/staff";

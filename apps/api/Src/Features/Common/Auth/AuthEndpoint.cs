@@ -62,7 +62,16 @@ public static class AuthEndpoint {
 		)
 			.WithName("GetVerificationLink")
 			.WithSummary("Get Verification Link")
-			.WithRedQueryValidation<GetVerificationLinkQuery>()
+			.WithReqQueryValidation<GetVerificationLinkQuery>()
+			.Produces500ApiResponse();
+
+		group.MapGet(
+			PathUtils.GetLastSegment(RoutePath.Auth.GetRedirectCode),
+			GetRedirectCode.HandleGetRedirectCode
+		)
+			.WithName("GetRedirectCode")
+			.WithSummary("Get Redirect Code")
+			.WithReqQueryValidation<GetRedirectCodeQuery>()
 			.Produces500ApiResponse();
 
 		return group;
