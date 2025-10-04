@@ -42,7 +42,8 @@ public static class CheckSessionHeaderMiddlewareExtensions {
 	private static readonly string[] _paths = [
 		RoutePath.Staff.Root,
 		RoutePath.Tenant.Root,
-		RoutePath.Auth.GetUserAuthData
+		RoutePath.Auth.GetUserAuthData,
+		RoutePath.Auth.GetRedirectCode
 	];
 
 	private static bool ShouldUseSessionHeaderCheck(HttpContext context) {

@@ -4,6 +4,8 @@
 // @ts-ignore
 import { LoginRequestBuilderRequestsMetadata, type LoginRequestBuilder } from './login/index.js';
 // @ts-ignore
+import { RedirectCodeRequestBuilderRequestsMetadata, type RedirectCodeRequestBuilder } from './redirectCode/index.js';
+// @ts-ignore
 import { RegisterRequestBuilderRequestsMetadata, type RegisterRequestBuilder } from './register/index.js';
 // @ts-ignore
 import { TenantAuthDataRequestBuilderRequestsMetadata, type TenantAuthDataRequestBuilder } from './tenantAuthData/index.js';
@@ -24,6 +26,10 @@ export interface AuthRequestBuilder extends BaseRequestBuilder<AuthRequestBuilde
      * The login property
      */
     get login(): LoginRequestBuilder;
+    /**
+     * The redirectCode property
+     */
+    get redirectCode(): RedirectCodeRequestBuilder;
     /**
      * The register property
      */
@@ -55,6 +61,9 @@ export const AuthRequestBuilderUriTemplate = "{+baseurl}/auth";
 export const AuthRequestBuilderNavigationMetadata: Record<Exclude<keyof AuthRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     login: {
         requestsMetadata: LoginRequestBuilderRequestsMetadata,
+    },
+    redirectCode: {
+        requestsMetadata: RedirectCodeRequestBuilderRequestsMetadata,
     },
     register: {
         requestsMetadata: RegisterRequestBuilderRequestsMetadata,

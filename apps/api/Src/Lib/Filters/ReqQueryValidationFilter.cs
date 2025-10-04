@@ -31,7 +31,7 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter {
 }
 
 public static class ReqQueryValidationFilterExtensions {
-	public static RouteHandlerBuilder WithRedQueryValidation<TRequest>(this RouteHandlerBuilder builder) {
+	public static RouteHandlerBuilder WithReqQueryValidation<TRequest>(this RouteHandlerBuilder builder) {
 		return builder.AddEndpointFilter<ReqQueryValidationFilter<TRequest>>();
 	}
 }

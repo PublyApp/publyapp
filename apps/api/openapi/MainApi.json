@@ -301,6 +301,56 @@
         }
       }
     },
+    "/auth/redirect-code": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get Redirect Code",
+        "operationId": "GetRedirectCode",
+        "parameters": [
+          {
+            "name": "TenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetRedirectCodeResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/tenants": {
       "post": {
         "tags": [
@@ -725,6 +775,14 @@
           "count": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "GetRedirectCodeResult": {
+        "type": "object",
+        "properties": {
+          "redirectCode": {
+            "type": "string"
           }
         }
       },
