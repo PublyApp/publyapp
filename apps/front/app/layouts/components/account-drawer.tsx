@@ -36,9 +36,7 @@ export const AccountDrawer = ({
 }: AccountDrawerProps) => {
 	const pathname = usePathname();
 
-	const {
-		data: { user },
-	} = useGetUserAuthData();
+	const { data: userData } = useGetUserAuthData();
 
 	const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
@@ -51,11 +49,11 @@ export const AccountDrawer = ({
 				}}
 			>
 				<Avatar
-					src={user?.avatarUrl}
-					alt={getUserFullName(user)}
+					src={userData?.avatarUrl || ''}
+					alt={getUserFullName(userData)}
 					sx={{ width: 1, height: 1 }}
 				>
-					{getUserFullName(user).charAt(0).toUpperCase()}
+					{getUserFullName(userData).charAt(0).toUpperCase()}
 				</Avatar>
 			</AnimateBorder>
 		);
@@ -125,8 +123,8 @@ export const AccountDrawer = ({
 		<>
 			<AccountButton
 				onClick={onOpen}
-				photoURL={user?.avatarUrl || ''}
-				displayName={getUserFullName(user)}
+				photoURL={userData?.avatarUrl || ''}
+				displayName={getUserFullName(userData)}
 				sx={sx}
 				{...other}
 			/>
@@ -165,7 +163,7 @@ export const AccountDrawer = ({
 						{renderAvatar()}
 
 						<Typography variant="subtitle1" noWrap sx={{ mt: 2 }}>
-							{getUserFullName(user)}
+							{getUserFullName(userData)}
 						</Typography>
 
 						<Typography
@@ -173,7 +171,7 @@ export const AccountDrawer = ({
 							sx={{ color: 'text.secondary', mt: 0.5 }}
 							noWrap
 						>
-							{user?.email}
+							{userData?.email}
 						</Typography>
 					</Box>
 

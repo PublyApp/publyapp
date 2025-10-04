@@ -1,9 +1,9 @@
-namespace MainApi.Src.Lib.Filters;
-
 using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Permission;
+
+namespace MainApi.Src.Lib.Filters;
 
 public class PermissionFilter : IEndpointFilter {
 	private readonly Permission[]? _requiredPermissions;
@@ -25,7 +25,10 @@ public class PermissionFilter : IEndpointFilter {
 		_customPermissionChecker = customPermissionChecker;
 	}
 
-	public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next) {
+	public async ValueTask<object?> InvokeAsync(
+		EndpointFilterInvocationContext context,
+		EndpointFilterDelegate next
+	) {
 		var httpContext = context.HttpContext;
 		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
 		var accountStaff = authContext.AccountStaff;
@@ -40,7 +43,10 @@ public class PermissionFilter : IEndpointFilter {
 		// if user is not admin, check user permissions
 		if (accountStaff.HierarchyLevel != AccountHierarchyLevel.Admin) {
 			// Check if any permissions need to be validated
-			if ((_requiredPermissions != null && _requiredPermissions.Length > 0) || _customPermissionChecker != null) {
+			if (
+				(_requiredPermissions is not null && _requiredPermissions.Length > 0)
+				|| _customPermissionChecker is not null
+			) {
 				// Get user's effective permissions using the new unified system
 				var userPermissions = await permissionService.GetPermissionsAsync(accountStaff.UserId);
 
@@ -60,13 +66,16 @@ public class PermissionFilter : IEndpointFilter {
 
 				bool hasRequiredPermissions;
 
-				if (_customPermissionChecker != null) {
+				if (_customPermissionChecker is not null) {
 					// Use custom permission checker
 					hasRequiredPermissions = _customPermissionChecker(userPermissions);
-				} else {
+				} else if (_requiredPermissions is not null && _requiredPermissions.Length > 0) {
 					// Use default logic: user must have ALL required permissions
-					var requiredPermissionKeys = _requiredPermissions!.Select(p => p.Key);
+					var requiredPermissionKeys = _requiredPermissions.Select(p => p.Key);
 					hasRequiredPermissions = requiredPermissionKeys.All(key => userPermissions.Contains(key));
+				} else {
+					// No permissions required
+					hasRequiredPermissions = true;
 				}
 
 				if (!hasRequiredPermissions) {
@@ -92,11 +101,17 @@ public class PermissionFilter : IEndpointFilter {
 }
 
 public static class PermissionFilterExtensions {
-	public static RouteHandlerBuilder WithPermission(this RouteHandlerBuilder builder, Permission[] requiredPermissions) {
+	public static RouteHandlerBuilder WithPermission(
+		this RouteHandlerBuilder builder,
+		Permission[] requiredPermissions
+	) {
 		return builder.AddEndpointFilter(new PermissionFilter(requiredPermissions));
 	}
 
-	public static RouteHandlerBuilder WithPermission(this RouteHandlerBuilder builder, Func<HashSet<string>, bool> customPermissionChecker) {
+	public static RouteHandlerBuilder WithPermission(
+		this RouteHandlerBuilder builder,
+		Func<HashSet<string>, bool> customPermissionChecker
+	) {
 		return builder.AddEndpointFilter(new PermissionFilter(customPermissionChecker));
 	}
 }

@@ -4,6 +4,8 @@
 		"airbnb",
 		"Aktiv",
 		"appsettings",
+		"appspecific",
+		"ASPNETCORE",
 		"authed",
 		"Authed",
 		"Autocapture",
@@ -22,6 +24,7 @@
 		"customizer",
 		"datauri",
 		"dayjs",
+		"Dokploy",
 		"dotnet",
 		"ecommerce",
 		"faqs",
@@ -61,15 +64,16 @@
 		"Parens",
 		"partialize",
 		"pdash",
-		"pdfvite",
 		"PHOTOSHOP",
 		"Pipeable",
 		"postgres",
+		"postgresql",
 		"posthog",
 		"POWERPOINT",
 		"preprod",
 		"PREPROD",
 		"Proxifier",
+		"publyapp",
 		"radandevist",
 		"remixicon",
 		"Revalidator",
@@ -128,7 +132,7 @@
 	},
 	"rest-client.environmentVariables": {
 		"$shared": {
-			"rootUrl": "http://localhost:5077",
+			"rootUrl": "http://localhost:5000",
 			"sessionToken": "f3d6202a8565dcff45532b526534bec0"
 		}
 	}

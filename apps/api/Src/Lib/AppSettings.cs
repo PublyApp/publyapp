@@ -1,6 +1,6 @@
-namespace MainApi.Src.Lib;
-
 using System.ComponentModel.DataAnnotations;
+
+namespace MainApi.Src.Lib;
 
 // Configuration class for strongly-typed settings
 public class AppSettings {
@@ -22,4 +22,6 @@ public class AppSettings {
 	public readonly string STAFF_TENANT_CODE = "staff";
 
 	public readonly int MAX_PROFILES_PER_USER_PER_TENANT = 5;
+
+	public readonly int PAGINATION_DEFAULT_LIMIT = 100;
 }

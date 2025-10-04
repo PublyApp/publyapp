@@ -1,0 +1,53 @@
+# Dokploy Configuration for PDF Vite App
+# Set environment variables in Dokploy GUI
+
+services:
+  publyapp-api:
+    image: ghcr.io/radandevist/publyapp/api:latest
+    container_name: publyapp-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - POSTGRES_CONNECTION_STRING=${POSTGRES_CONNECTION_STRING}
+      - FRONT_URL=${FRONT_URL}
+    networks:
+      - publyapp-network
+    labels:
+      - "dokploy.domain=api.publyapp.com"
+      - "dokploy.port=5000"
+      - "dokploy.https=true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  publyapp-front:
+    image: ghcr.io/radandevist/publyapp/front:latest
+    container_name: publyapp-front
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=5050
+      - VITE_ASP_SERVER_URL=${VITE_ASP_SERVER_URL}
+      - VITE_POSTHOG_API_KEY=${VITE_POSTHOG_API_KEY}
+    networks:
+      - publyapp-network
+    labels:
+      - "dokploy.domain=publyapp.com,www.publyapp.com"
+      - "dokploy.port=5050"
+      - "dokploy.https=true"
+    depends_on:
+      - publyapp-api
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5050/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  publyapp-network:
+    driver: bridge

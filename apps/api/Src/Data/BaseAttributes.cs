@@ -1,7 +1,7 @@
-namespace MainApi.Src.Data;
-
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+
+namespace MainApi.Src.Data;
 
 /// <summary>
 /// Base class for entities that need audit tracking without a primary key.

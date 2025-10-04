@@ -1,7 +1,8 @@
-using MainApi.Src.Features.Staff.Tenant.Handlers.CreateStaffTenant;
+using MainApi.Src.Features.Staff.Tenant.Handlers;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Lib.Extensions;
 
 namespace MainApi.Src.Features.Staff.Tenant;
 
@@ -13,12 +14,13 @@ public static class StaffTenantEndpoints {
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Staff.Tenants.Create),
-			CreateStaffTenant.HandleCreateStaffTenant
+			CreateTenantAsStaff.HandleCreateTenantAsStaff
 		)
 			.WithName("CreateTenant")
 			.WithSummary("Create a new tenant")
-			.WithBodyValidation<CreateStaffTenantBody>()
-			.WithPermission([PermissionEnum.Staff.CAN_CREATE_TENANT]);
+			.WithReqBodyValidation<CreateTenantAsStaffBody>()
+			.WithPermission([PermissionEnum.Staff.CAN_CREATE_TENANT])
+			.Produces500ApiResponse();
 
 		return group;
 	}

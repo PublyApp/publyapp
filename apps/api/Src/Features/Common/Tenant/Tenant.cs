@@ -2,6 +2,7 @@ using MainApi.Src.Data;
 using MainApi.Src.Features.Common.Account;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace MainApi.Src.Features.Common.Tenant;
 
@@ -20,5 +21,8 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	public required string Name { get; set; }
 
 	// navigation properties
+	[JsonIgnore]
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];
+	[JsonIgnore]
+	public ICollection<Project.Project> Projects { get; set; } = [];
 }

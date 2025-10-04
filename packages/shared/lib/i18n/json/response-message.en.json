@@ -21,5 +21,7 @@
 	"invalid-session": "Invalid session",
 	"failed-to-authenticate-user": "Failed to authenticate user",
 	"failed-to-create-user": "Failed to create user",
-	"user-already-member-of-staff": "User already member of staff"
+	"user-already-member-of-staff": "User already member of staff",
+	"request-body-missing": "Request body missing",
+	"query-parameters-missing": "Query parameter missing"
 }

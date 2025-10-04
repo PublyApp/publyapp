@@ -11,8 +11,8 @@ import {
 	redirect,
 } from 'react-router';
 import {
-	CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	FORWARDED_FOR_HEADER_KEY,
+	// CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
+	// FORWARDED_FOR_HEADER_KEY,
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
@@ -22,7 +22,8 @@ import { isPromise } from '@/shared/utils/any.utils';
 import { initApiClientOnServer } from '../api';
 import { remixI18NextServer } from '../i18n/i18n.server';
 import { getRequestLocale } from './data.utils';
-import { getDevContext } from './get-dev-context.server';
+
+// import { getFinalLoadContext } from './get-final-load-context.server';
 
 type GetServerLoaderParamsWhenRequireUser<
 	T extends
@@ -122,13 +123,13 @@ export const getServerLoader: GetServerLoader = <
 			z._t = await z.t;
 		}
 
-		const finalLoadContext = getDevContext(args.context);
+		const finalLoadContext = args.context; // getFinalLoadContext(args.context);
 
-		const requestIp =
-			args.request.headers.get(
-				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
-			) || // ✅ Cloudflare real IP
-			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
+		// const requestIp =
+		// 	args.request.headers.get(
+		// 		_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+		// 	) || // ✅ Cloudflare real IP
+		// 	args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({
@@ -257,13 +258,13 @@ export const getServerAction: GetServerAction = <
 			z._t = await z.t;
 		}
 
-		const finalLoadContext = getDevContext(args.context);
+		const finalLoadContext = args.context; // getFinalLoadContext(args.context);
 
-		const requestIp =
-			args.request.headers.get(
-				_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
-			) || // ✅ Cloudflare real IP
-			args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
+		// const requestIp =
+		// 	args.request.headers.get(
+		// 		_.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY),
+		// 	) || // ✅ Cloudflare real IP
+		// 	args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
 			const apiClient = initApiClientOnServer({
@@ -288,11 +289,14 @@ export const getServerAction: GetServerAction = <
 		}
 
 		const apiClient = initApiClientOnServer({
-			// locale,
 			sessionToken,
+			// locale,
 			// requestIp,
 		});
 
+		// ! Don't force every loader to have auth data
+		// ! Let the developer decide if they want to have auth data or not
+		// ! in their implementation
 		// const authData = await apiClient.auth.getUserAuthData();
 
 		return params.action({

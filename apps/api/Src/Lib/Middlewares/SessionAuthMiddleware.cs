@@ -1,9 +1,7 @@
-namespace MainApi.Src.Lib.Middlewares;
-
 using MainApi.Localization;
-using MainApi.Src.Data.DbContext;
-using MainApi.Src.Lib;
-using Microsoft.EntityFrameworkCore;
+using MainApi.Src.Features.Common.Session;
+
+namespace MainApi.Src.Lib.Middlewares;
 
 public class SessionAuthMiddleware {
 	private readonly ILogger<SessionAuthMiddleware> _logger;
@@ -14,29 +12,30 @@ public class SessionAuthMiddleware {
 		_next = next;
 	}
 
-	public async Task InvokeAsync(HttpContext context, MainApiDbContext dbContext, IAuthContext authContext) {
-		var sessionToken = CheckSessionHeaderMiddleware.GetSessionToken(context);
+	public async Task InvokeAsync(
+		HttpContext httpContext,
+		ISessionService sessionService,
+		IAuthContext authContext
+	) {
+		var sessionToken = CheckSessionHeaderMiddleware.GetSessionToken(httpContext);
 
 		if (string.IsNullOrEmpty(sessionToken)) {
 			_logger.LogDebug("Session token is missing in request");
-			context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-			await context.Response.WriteAsJsonAsync(new {
-				message = "Unauthorized",
-				key = "unauthorized",
-			});
+			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+			await httpContext.Response.WriteAsJsonAsync(
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
+			);
 			return;
 		}
 
-		var session = await dbContext.Session
-				.FirstOrDefaultAsync(s => s.Token == sessionToken && s.ExpiresAt > DateTime.UtcNow);
+		var session = await sessionService.GetSessionByToken(sessionToken, httpContext.RequestAborted);
 
 		if (session is null) {
 			_logger.LogDebug("Session token is invalid or expired: {@SessionData}", new { sessionToken });
-			context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-			await context.Response.WriteAsJsonAsync(new {
-				message = "Unauthorized",
-				key = "unauthorized",
-			});
+			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
+			await httpContext.Response.WriteAsJsonAsync(
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
+			);
 			return;
 		}
 
@@ -46,24 +45,28 @@ public class SessionAuthMiddleware {
 
 		if (!authContext.IsAuthenticated) {
 			_logger.LogError("Failed to authenticate user, session has no user attached to it: {@SessionData}", new { sessionToken, userId = session.UserId });
-			context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-			await context.Response.WriteAsJsonAsync(ApiResponse.Create(
+			httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+			await httpContext.Response.WriteAsJsonAsync(ApiResponse.Create(
 				"Failed to authenticate user",
 				ResponseKeys.FailedToAuthenticateUser
 			));
 			return;
 		}
 
-		await _next(context);
+		await _next(httpContext);
 	}
 }
 
 // Extension method
 public static class SessionAuthMiddlewareExtensions {
+	private static readonly string[] _paths = [
+		RoutePath.Staff.Root,
+		RoutePath.Tenant.Root,
+		RoutePath.Auth.GetUserAuthData
+	];
+
 	private static bool ShouldUseSessionAuthentication(HttpContext context) {
-		return context.Request.Path.StartsWithSegments("/staff")
-			|| context.Request.Path.StartsWithSegments("/tenant")
-			|| context.Request.Path.StartsWithSegments("/auth/user-auth-data");
+		return _paths.Any(path => context.Request.Path.StartsWithSegments(path));
 	}
 
 	private static void ConfigureSessionAuthentication(IApplicationBuilder builder) {

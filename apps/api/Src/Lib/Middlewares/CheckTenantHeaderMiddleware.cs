@@ -1,3 +1,5 @@
+using MainApi.Localization;
+
 namespace MainApi.Src.Lib.Middlewares;
 
 public class CheckTenantHeaderMiddleware {
@@ -24,10 +26,9 @@ public class CheckTenantHeaderMiddleware {
 
 		if (string.IsNullOrEmpty(tenantId)) {
 			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-			await httpContext.Response.WriteAsJsonAsync(new {
-				message = "Unauthorized",
-				key = "unauthorized",
-			});
+			await httpContext.Response.WriteAsJsonAsync(
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
+			);
 			return;
 		}
 
@@ -41,7 +42,7 @@ public class CheckTenantHeaderMiddleware {
 // Extension method
 public static class CheckTenantHeaderMiddlewareExtensions {
 	private static bool ShouldUseTenantHeaderCheck(HttpContext context) {
-		return context.Request.Path.StartsWithSegments("/tenant");
+		return context.Request.Path.StartsWithSegments(RoutePath.Tenant.Root);
 	}
 
 	private static void ConfigureTenantHeaderCheck(IApplicationBuilder builder) {

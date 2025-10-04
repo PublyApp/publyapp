@@ -1,6 +1,6 @@
-namespace MainApi.Src.Lib;
-
 using FluentValidation;
+
+namespace MainApi.Src.Lib;
 
 public static class AppEnvironment {
 	public static string POSTGRES_CONNECTION_STRING { get { return GetEnvVar(nameof(_POSTGRES_CONNECTION_STRING)); } }
@@ -36,9 +36,47 @@ public static class AppEnvironment {
 
 	private static void LoadDotEnv() {
 		if (IS_DOTENV_LOADED) return;
-		string path = Path.Combine(Directory.GetCurrentDirectory(), ".env.local");
-		DotNetEnv.Env.Load(path);
+		if (IsDevelopment()) {
+			// * relative to the api project (Program.cs)
+			string path = Path.Combine(Directory.GetCurrentDirectory(), "../../.env.development");
+			DotNetEnv.Env.Load(path);
+		}
 		IS_DOTENV_LOADED = true;
+	}
+
+	/// <summary>
+	/// Determines if the application is running in Production environment
+	/// </summary>
+	public static bool IsProduction() {
+		var environment = GetEnvironmentName();
+		return string.Equals(environment, "Production", StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
+	/// Determines if the application is running in Development environment
+	/// </summary>
+	public static bool IsDevelopment() {
+		var environment = GetEnvironmentName();
+		return string.Equals(environment, "Development", StringComparison.OrdinalIgnoreCase);
+	}
+
+	/// <summary>
+	/// Gets the current environment name (Development, Production, Staging, etc.)
+	/// </summary>
+	public static string GetEnvironmentName() {
+		var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+
+		if (string.IsNullOrEmpty(environment)) {
+			var logger = LoggerFactory
+				.Create(builder => builder.AddConsole())
+				.CreateLogger<Program>();
+			logger.LogWarning("ASPNETCORE_ENVIRONMENT is not set, defaulting to Development");
+			environment = "Development";
+		}
+
+		Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", environment);
+
+		return environment;
 	}
 
 	private static void ValidateAndSetEnvironmentVariables() {

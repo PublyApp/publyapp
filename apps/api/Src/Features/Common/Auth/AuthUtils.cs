@@ -1,8 +1,8 @@
-namespace MainApi.Src.Features.Common.Auth;
-
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
 using Microsoft.AspNetCore.WebUtilities;
+
+namespace MainApi.Src.Features.Common.Auth;
 
 public static class AuthUtils {
 	public static string CreateVerificationLink(string token, string email) {

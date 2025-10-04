@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
@@ -15,7 +16,7 @@ export const useCreateStaffMember = createMutation({
 		lastName?: string;
 		avatarUrl?: string;
 	}) => {
-		return clientManager.apiClient.staff.staffMembers.post({
+		const result = await clientManager.apiClient.staff.staffMembers.post({
 			email: {
 				getValue() {
 					return data.email;
@@ -37,6 +38,10 @@ export const useCreateStaffMember = createMutation({
 				},
 			},
 		});
+		if (_.isNil(result)) {
+			throw new Error(`[${createStaffMemberMutationKey}]: result is nil`);
+		}
+		return result;
 	},
 });
 
@@ -51,13 +56,17 @@ export const useFindStaffMember = createQuery({
 		page?: number;
 		sort?: { id: string; order: 'desc' | 'asc' };
 	}) => {
-		return clientManager.apiClient.staff.staffMembers.get({
+		const result = await clientManager.apiClient.staff.staffMembers.get({
 			queryParameters: {
 				limit: params.limit,
 				page: params.page,
 				sort: params.sort,
 			},
 		});
+		if (_.isNil(result)) {
+			throw new Error(`[${findStaffMemberQueryKey}] result is nil`);
+		}
+		return result;
 	},
 });
 
@@ -68,6 +77,12 @@ const getStaffMemberByIdQueryKey = getQueryKey<ApiClient>(
 export const useGetStaffMemberById = createQuery({
 	queryKey: [getStaffMemberByIdQueryKey] as const,
 	fetcher: async ({ userId }: { userId: string }) => {
-		return clientManager.apiClient.staff.staffMembers.byUserId(userId).get();
+		const result = await clientManager.apiClient.staff.staffMembers
+			.byUserId(userId)
+			.get();
+		if (_.isNil(result)) {
+			throw new Error(`[${getStaffMemberByIdQueryKey}]: result is nil`);
+		}
+		return result;
 	},
 });

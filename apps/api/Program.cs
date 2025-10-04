@@ -6,7 +6,7 @@ using MainApi.Src.Features.Staff.Tenant;
 using MainApi.Src.Lib.Middlewares;
 using MainApi.Src.Features.Staff.StaffMember;
 
-AppEnvironment.LoadEnv();
+AppEnvironment.LoadEnv(); // ! must be called before anything else
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,14 +15,15 @@ builder.AddServices();
 
 var app = builder.Build();
 
-app.UseCustomExceptionHandler();
 app.UseCors();
 app.UseOpenApi();
+app.UseHttpsRedirection();
+app.UseCustomExceptionHandler();
 
-app.UseCheckSessionHeader();
 app.UseCheckTenantHeader();
-app.UseSessionAuthentication();
+app.UseCheckSessionHeader();
 app.UseStaffAuthorization();
+app.UseSessionAuthentication();
 // TODO: UseTenantAuthentication();
 
 app.MapAuthEndpoints();
@@ -37,8 +38,7 @@ staffGroup.MapStaffMemberEndPoints();
 // Tenant endpoints
 tenantGroup.MapProductEndpoints();
 
+app.MapHealthChecks("/health");
 app.MapNotFoundRoute();
-
-app.UseHttpsRedirection();
 
 app.Run();

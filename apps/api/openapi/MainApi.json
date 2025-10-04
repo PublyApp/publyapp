@@ -42,6 +42,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -83,6 +93,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -107,6 +127,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "content": {
               "application/json": {
                 "schema": {
@@ -155,6 +185,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -189,6 +229,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "content": {
               "application/json": {
                 "schema": {
@@ -237,6 +287,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -252,7 +312,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateStaffTenantBody"
+                "$ref": "#/components/schemas/CreateTenantAsStaffBody"
               }
             }
           },
@@ -264,13 +324,23 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateStaffTenantResult"
+                  "$ref": "#/components/schemas/CreateTenantAsStaffResult"
                 }
               }
             }
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "content": {
               "application/json": {
                 "schema": {
@@ -319,6 +389,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       },
@@ -334,16 +414,23 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StaffMemberItem"
-                  }
+                  "$ref": "#/components/schemas/FindStaffMembersResult"
                 }
               }
             }
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
             "content": {
               "application/json": {
                 "schema": {
@@ -392,6 +479,16 @@
                 }
               }
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -404,8 +501,15 @@
         "summary": "Get all products",
         "operationId": "GetProducts",
         "responses": {
-          "200": {
-            "description": "OK"
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       },
@@ -426,8 +530,15 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK"
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -451,8 +562,15 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       },
@@ -484,8 +602,15 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK"
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       },
@@ -507,8 +632,15 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -516,12 +648,6 @@
   },
   "components": {
     "schemas": {
-      "AccountHierarchyLevel": {
-        "type": "integer"
-      },
-      "AccountType": {
-        "type": "integer"
-      },
       "ApiResponse": {
         "type": "object",
         "properties": {
@@ -563,7 +689,7 @@
           }
         }
       },
-      "CreateStaffTenantBody": {
+      "CreateTenantAsStaffBody": {
         "type": "object",
         "properties": {
           "name": {
@@ -571,7 +697,7 @@
           }
         }
       },
-      "CreateStaffTenantResult": {
+      "CreateTenantAsStaffResult": {
         "type": "object",
         "properties": {
           "id": {
@@ -580,6 +706,25 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "FindStaffMembersResult": {
+        "required": [
+          "staffMembers",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "staffMembers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffMemberItem"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -637,6 +782,10 @@
           },
           "email": {
             "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -717,40 +866,6 @@
           }
         }
       },
-      "Permission": {
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "scope": {
-            "$ref": "#/components/schemas/PermissionScope"
-          },
-          "profilePermissions": {
-            "type": "array",
-            "items": { }
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
-      "PermissionScope": {
-        "type": "integer"
-      },
       "Product": {
         "type": "object",
         "properties": {
@@ -769,61 +884,6 @@
           "tenantId": {
             "type": "string",
             "format": "uuid"
-          },
-          "tenant": {
-            "$ref": "#/components/schemas/Tenant"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
-      "Profile": {
-        "type": "object",
-        "properties": {
-          "tenantId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "tenant": {
-            "$ref": "#/components/schemas/Tenant"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "profileType": {
-            "$ref": "#/components/schemas/ProfileType"
-          },
-          "userAccountProfiles": {
-            "type": "array",
-            "items": { }
-          },
-          "profilePermissions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProfilePermission"
-            }
           },
           "id": {
             "type": "string",
@@ -865,83 +925,6 @@
           }
         }
       },
-      "ProfilePermission": {
-        "type": "object",
-        "properties": {
-          "profileId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "permissionKey": {
-            "type": "string"
-          },
-          "permission": {
-            "$ref": "#/components/schemas/Permission"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
-      "ProfileType": {
-        "type": "integer"
-      },
-      "Session": {
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "token": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
       "StaffMemberItem": {
         "type": "object",
         "properties": {
@@ -963,218 +946,14 @@
           "avatarUrl": {
             "type": "string",
             "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/UserStatus"
           }
         }
       },
-      "Tenant": {
-        "required": [
-          "code",
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "userAccounts": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/UserAccount"
-            }
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
-      "User": {
-        "required": [
-          "email",
-          "password"
-        ],
-        "type": "object",
-        "properties": {
-          "lastName": {
-            "type": "string",
-            "nullable": true
-          },
-          "firstName": {
-            "type": "string",
-            "nullable": true
-          },
-          "email": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          },
-          "avatarUrl": {
-            "type": "string",
-            "nullable": true
-          },
-          "isSuspended": {
-            "type": "boolean"
-          },
-          "isVerified": {
-            "type": "boolean"
-          },
-          "emailVerifyToken": {
-            "type": "string",
-            "nullable": true
-          },
-          "emailVerifyTokenExpiresAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "userAccounts": {
-            "type": "array",
-            "items": { }
-          },
-          "sessions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Session"
-            }
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
-      "UserAccount": {
-        "required": [
-          "userId",
-          "tenantId"
-        ],
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "tenantId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "tenant": {
-            "$ref": "#/components/schemas/Tenant"
-          },
-          "accountType": {
-            "$ref": "#/components/schemas/AccountType"
-          },
-          "hierarchyLevel": {
-            "$ref": "#/components/schemas/AccountHierarchyLevel"
-          },
-          "isSuspended": {
-            "type": "boolean"
-          },
-          "userAccountProfiles": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/UserAccountProfile"
-            }
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
-      "UserAccountProfile": {
-        "type": "object",
-        "properties": {
-          "userAccountId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userAccount": {
-            "$ref": "#/components/schemas/UserAccount"
-          },
-          "profileId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "profile": {
-            "$ref": "#/components/schemas/Profile"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
+      "UserStatus": {
+        "type": "integer"
       },
       "VerifyEmailRequestBody": {
         "required": [

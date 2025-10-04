@@ -1,6 +1,6 @@
-namespace MainApi.Src.Data.Repository;
-
 using System.Linq.Expressions;
+
+namespace MainApi.Src.Data.Repository;
 
 public interface IRepository<T> where T : class, IEntity {
 	Task<List<T>> FindAsync(Expression<Func<T, bool>>? filter = null);
