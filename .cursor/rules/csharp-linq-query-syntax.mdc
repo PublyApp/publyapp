@@ -1,0 +1,189 @@
+---
+description: C# LINQ query syntax rules - prefer query syntax over method syntax for database queries
+globs:
+  - "**/*.cs"
+alwaysApply: true
+applyIntelligently: true
+---
+
+# C# LINQ Query Syntax Rules
+
+## Prefer LINQ query syntax over method syntax for database queries
+
+Query syntax is preferred for database queries (EF Core, LINQ-to-SQL) because:
+
+- More readable and declarative
+- Better for complex queries with multiple operations
+- Easier to understand the intent
+- More consistent with SQL-like patterns
+- Better for joins and grouping operations
+- Translates more naturally to SQL
+
+rules:
+
+- id: prefer-query-syntax-where-simple
+  description: >
+    Prefer LINQ query syntax with `where` clause over method syntax
+    `.Where()` for better readability and consistency.
+  pattern: $collection.Where($predicate)
+  notPattern: $collection.Where(x => x.Property == $value)
+  replacement: |
+    from $item in $collection
+    where $predicate
+    select $item
+  languages: [csharp]
+  severity: info
+  message: "Consider using LINQ query syntax with 'where' clause instead of method syntax for better readability."
+
+- id: prefer-query-syntax-select-simple
+  description: >
+    Prefer LINQ query syntax with `select` clause over method syntax
+    `.Select()` for better readability and consistency.
+  pattern: $collection.Select($selector)
+  notPattern: $collection.Select(x => x.Property)
+  replacement: |
+    from $item in $collection
+    select $selector
+  languages: [csharp]
+  severity: info
+  message: "Consider using LINQ query syntax with 'select' clause instead of method syntax for better readability."
+
+- id: prefer-query-syntax-where-select
+  description: >
+    Prefer LINQ query syntax for combined where and select operations
+    over chained method syntax for better readability.
+  pattern: $collection.Where($predicate).Select($selector)
+  replacement: |
+    from $item in $collection
+    where $predicate
+    select $selector
+  languages: [csharp]
+  severity: warning
+  message: "Use LINQ query syntax for combined where and select operations instead of chained method syntax."
+
+- id: prefer-query-syntax-where-select-chained
+  description: >
+    Prefer LINQ query syntax for chained operations that include additional
+    method calls like ToList(), ToArray(), etc.
+  pattern: $collection.Where($predicate).Select($selector).$method($args)
+  replacement: |
+    (from $item in $collection
+    where $predicate
+    select $selector).$method($args)
+  languages: [csharp]
+  severity: warning
+  message: "Use LINQ query syntax for chained operations instead of method syntax."
+
+- id: prefer-query-syntax-orderby
+  description: >
+    Prefer LINQ query syntax with `orderby` clause over method syntax
+    `.OrderBy()` for better readability and consistency.
+  pattern: $collection.OrderBy($keySelector)
+  replacement: |
+    from $item in $collection
+    orderby $keySelector
+    select $item
+  languages: [csharp]
+  severity: warning
+  message: "Use LINQ query syntax with 'orderby' clause instead of method syntax for better readability."
+
+- id: prefer-query-syntax-orderby-descending
+  description: >
+    Prefer LINQ query syntax with `orderby ... descending` clause over
+    method syntax `.OrderByDescending()` for better readability.
+  pattern: $collection.OrderByDescending($keySelector)
+  replacement: |
+    from $item in $collection
+    orderby $keySelector descending
+    select $item
+  languages: [csharp]
+  severity: warning
+  message: "Use LINQ query syntax with 'orderby ... descending' clause instead of method syntax for better readability."
+
+- id: prefer-query-syntax-thenby
+  description: >
+    Prefer LINQ query syntax with multiple `orderby` clauses over method syntax
+    `.ThenBy()` for better readability and consistency.
+  pattern: $collection.OrderBy($keySelector1).ThenBy($keySelector2)
+  replacement: |
+    from $item in $collection
+    orderby $keySelector1, $keySelector2
+    select $item
+  languages: [csharp]
+  severity: warning
+  message: "Use LINQ query syntax with multiple orderby clauses instead of ThenBy() method syntax."
+
+- id: prefer-query-syntax-thenby-descending
+  description: >
+    Prefer LINQ query syntax with multiple `orderby` clauses over method syntax
+    `.ThenByDescending()` for better readability and consistency.
+  pattern: $collection.OrderBy($keySelector1).ThenByDescending($keySelector2)
+  replacement: |
+    from $item in $collection
+    orderby $keySelector1, $keySelector2 descending
+    select $item
+  languages: [csharp]
+  severity: warning
+  message: "Use LINQ query syntax with multiple orderby clauses instead of ThenByDescending() method syntax."
+
+- id: prefer-query-syntax-groupby
+  description: >
+    Prefer LINQ query syntax with `group by` clause over method syntax
+    `.GroupBy()` for better readability and consistency.
+  pattern: $collection.GroupBy($keySelector)
+  languages: [csharp]
+  severity: warning
+  message: "Use LINQ query syntax with 'group by' clause instead of method syntax. Example: from x in collection group x by key into g select g."
+
+- id: prefer-query-syntax-join
+  description: >
+    Prefer LINQ query syntax with `join` clause over method syntax
+    `.Join()` for better readability and consistency.
+  pattern: $collection1.Join($collection2, $keySelector1, $keySelector2, $resultSelector)
+  languages: [csharp]
+  severity: warning
+  message: "Use LINQ query syntax with 'join' clause instead of method syntax. Example: from a in coll1 join b in coll2 on a.Id equals b.FkId select new { a, b }."
+
+- id: prefer-query-syntax-selectmany
+  description: >
+    Prefer LINQ query syntax with multiple `from` clauses over method syntax
+    `.SelectMany()` for better readability and consistency.
+  pattern: $collection.SelectMany($selector)
+  languages: [csharp]
+  severity: warning
+  message: "Use LINQ query syntax with multiple 'from' clauses instead of SelectMany(). Example: from p in parents from c in p.Children select c."
+
+- id: prefer-query-syntax-let
+  description: >
+    Prefer LINQ query syntax with `let` clause for intermediate calculations
+    over method syntax with multiple operations for better readability.
+  pattern: $collection.Select($x => new { $x, $intermediate = $calculation }).Where($predicate)
+  replacement: |
+    from $item in $collection
+    let $intermediate = $calculation
+    where $predicate
+    select $item
+  languages: [csharp]
+  severity: info
+  message: "Consider using LINQ query syntax with 'let' clause for intermediate calculations to improve readability."
+
+## Exceptions
+
+Method syntax is acceptable for:
+
+- Simple single operations (e.g., `.First()`, `.Count()`, `.Any()`, `.ToList()`, `.ToArray()`)
+- Operations that don't have query syntax equivalents
+- When query syntax would be more verbose than method syntax
+- Performance-critical code where method syntax is more efficient
+- In-memory collections where method syntax is more idiomatic
+- Simple projections like `.Select(x => x.Property)`
+
+## Database Query Context
+
+This rule is specifically designed for database queries using:
+
+- Entity Framework Core
+- LINQ-to-SQL
+- Other ORMs that translate LINQ to SQL
+
+For in-memory collections, method syntax may be more appropriate in some cases.
