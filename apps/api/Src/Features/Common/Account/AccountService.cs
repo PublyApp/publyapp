@@ -15,6 +15,7 @@ public interface IAccountService {
 	Task<UserAccount?> GetUserStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserStaffMemberAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserMemberOfTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
+	Task<List<UserAccount>> FindUserTenantAccountsAsync(Guid userId, int? limit = null, CancellationToken cancellationToken = default);
 }
 
 public class AccountService : IAccountService {
@@ -86,5 +87,23 @@ public class AccountService : IAccountService {
 			select ua;
 
 		return await query.AnyAsync(cancellationToken).ConfigureAwait(false);
+	}
+
+	public async Task<List<UserAccount>> FindUserTenantAccountsAsync(
+		Guid userId,
+		int? limit = null,
+		CancellationToken cancellationToken = default
+	) {
+		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
+
+		var query =
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+			&& ua.AccountScope == AccountScope.Tenant
+			&& ua.TenantId != null
+			&& !ua.IsDeleted && !ua.IsSuspended
+			select ua;
+
+		return await query.Take(effectiveLimit).ToListAsync(cancellationToken).ConfigureAwait(false);
 	}
 }
