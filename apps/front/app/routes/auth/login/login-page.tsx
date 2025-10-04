@@ -84,21 +84,25 @@ export const action = getServerAction({
 		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
 		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
-		const { code } = await apiClient.auth.getRedirectCode({ tenantId });
+		const getRedirectCodeResult = await apiClient.auth.redirectCode.get({
+			queryParameters: { tenantId },
+		});
 
-		let redirectPath = makePath(code);
+		const redirectCode = getRedirectCodeResult?.redirectCode || 'unauthorized';
 
-		if (code !== 'staff' && code !== 'unauthorized') {
+		let redirectPath = makePath(redirectCode);
+
+		if (redirectCode !== 'staff' && redirectCode !== 'unauthorized') {
 			const lastUsedTenantIdCookie = cookie.serialize(
 				LAST_USED_TENANT_ID_COOKIE_KEY,
-				code,
+				redirectCode,
 				{
 					expires: dayjs().add(3, 'day').toDate(),
 					maxAge: duration.toSeconds('3d'),
 				},
 			);
 			responseHeaders.append('Set-Cookie', lastUsedTenantIdCookie);
-			redirectPath = FRONT_PATH_NAMES.tenant(code).root;
+			redirectPath = FRONT_PATH_NAMES.tenant(redirectCode).root;
 		}
 
 		return redirect(redirectPath, {
