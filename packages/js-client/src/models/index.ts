@@ -71,6 +71,15 @@ export function createFindStaffMembersResultFromDiscriminatorValue(parseNode: Pa
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetRedirectCodeResult}
+ */
+// @ts-ignore
+export function createGetRedirectCodeResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetRedirectCodeResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetStaffMemberByIdResult}
  */
 // @ts-ignore
@@ -304,6 +313,17 @@ export function deserializeIntoFindStaffMembersResult(findStaffMembersResult: Pa
 }
 /**
  * The deserialization information for the current model
+ * @param GetRedirectCodeResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetRedirectCodeResult(getRedirectCodeResult: Partial<GetRedirectCodeResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "redirectCode": n => { getRedirectCodeResult.redirectCode = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param GetStaffMemberByIdResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -486,6 +506,12 @@ export interface FindStaffMembersResult extends AdditionalDataHolder, Parsable {
      * The staffMembers property
      */
     staffMembers?: StaffMemberItem[] | null;
+}
+export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The redirectCode property
+     */
+    redirectCode?: string | null;
 }
 export interface GetStaffMemberByIdResult extends AdditionalDataHolder, Parsable {
     /**
@@ -733,6 +759,18 @@ export function serializeFindStaffMembersResult(writer: SerializationWriter, fin
     writer.writeNumberValue("count", findStaffMembersResult.count);
     writer.writeCollectionOfObjectValues<StaffMemberItem>("staffMembers", findStaffMembersResult.staffMembers, serializeStaffMemberItem);
     writer.writeAdditionalData(findStaffMembersResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetRedirectCodeResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetRedirectCodeResult(writer: SerializationWriter, getRedirectCodeResult: Partial<GetRedirectCodeResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getRedirectCodeResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("redirectCode", getRedirectCodeResult.redirectCode);
+    writer.writeAdditionalData(getRedirectCodeResult.additionalData);
 }
 /**
  * Serializes information the current object
