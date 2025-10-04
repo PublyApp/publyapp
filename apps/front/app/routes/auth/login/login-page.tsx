@@ -28,13 +28,12 @@ export const meta = (_: Route.MetaArgs) => {
 export type LoginActionResult = Awaited<ReturnType<typeof action>>['data'];
 
 export const action = getServerAction({
-	action: async ({ request, apiClient }) => {
+	action: async ({ request, apiClient, context }) => {
 		const formData = await request.formData();
 
 		const email = formData.get('email');
 		const password = formData.get('password');
 
-		// const passwordLogin = safeRun(apiClient.auth.passwordLogin);
 		const passwordLogin = safeRun(
 			async ({ email, password }: { email: string; password: string }) => {
 				return apiClient.auth.login.post({
@@ -84,11 +83,21 @@ export const action = getServerAction({
 		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
 		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
-		const getRedirectCodeResult = await apiClient.auth.redirectCode.get({
-			queryParameters: { tenantId },
+		const getRedirectCode = safeRun(async () => {
+			return apiClient.auth.redirectCode.get({ queryParameters: { tenantId } });
 		});
+		const getRedirectCodeResult = await getRedirectCode();
 
-		const redirectCode = getRedirectCodeResult?.redirectCode || 'unauthorized';
+		if (getRedirectCodeResult.status === 'error') {
+			context.logger.error('Failed to get redirect code', {
+				error: serializeError(getRedirectCodeResult.error),
+			});
+			// throw a generic error
+			throw new Error('Failed to login');
+		}
+
+		const redirectCode =
+			getRedirectCodeResult.data?.redirectCode || 'unauthorized';
 
 		let redirectPath = makePath(redirectCode);
 
