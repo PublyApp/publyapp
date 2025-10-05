@@ -1,4 +1,3 @@
-using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -6,24 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Features.Staff.Tenant.Handlers;
 
-public class GetTenantAsStaffQuery {
-	public string TenantId { get; set; } = string.Empty;
-
-	public Guid GetTenantId() {
-		return Guid.TryParse(TenantId, out var tenantId) ? tenantId : Guid.Empty;
-	}
-}
-
 public class GetTenantAsStaffResult {
 	public Guid TenantId { get; set; }
 	public string Name { get; set; } = string.Empty;
-}
-
-public class GetTenantAsStaffQueryValidator : AbstractValidator<GetTenantAsStaffQuery> {
-	public GetTenantAsStaffQueryValidator() {
-		RuleFor(x => x.TenantId)
-			.NotEmpty().WithMessage("TenantId is required");
-	}
 }
 
 public class GetTenantAsStaff {
