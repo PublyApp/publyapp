@@ -31,7 +31,7 @@ public static class StaffTenantEndpoints {
 			.WithPermission([PermissionEnum.Staff.CAN_GET_TENANT])
 			.Produces500ApiResponse();
 
-		group.MapPost(
+		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.Tenants.Find),
 			FindTenantsAsStaff.HandleFindTenantsAsStaff
 		)

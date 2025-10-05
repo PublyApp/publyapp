@@ -25,7 +25,7 @@ export interface StaffMembersRequestBuilder extends BaseRequestBuilder<StaffMemb
      * @throws {ApiResponse} error when the service returns a 400 status code
      * @throws {ApiResponse} error when the service returns a 500 status code
      */
-     get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<FindStaffMembersResult | undefined>;
+     get(requestConfiguration?: RequestConfiguration<StaffMembersRequestBuilderGetQueryParameters> | undefined) : Promise<FindStaffMembersResult | undefined>;
     /**
      * Create a new staff member
      * @param body The request body
@@ -40,7 +40,7 @@ export interface StaffMembersRequestBuilder extends BaseRequestBuilder<StaffMemb
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-     toGetRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
+     toGetRequestInformation(requestConfiguration?: RequestConfiguration<StaffMembersRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
     /**
      * Create a new staff member
      * @param body The request body
@@ -50,9 +50,23 @@ export interface StaffMembersRequestBuilder extends BaseRequestBuilder<StaffMemb
      toPostRequestInformation(body: CreateStaffMemberBody, requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
 }
 /**
+ * Find staff members
+ */
+export interface StaffMembersRequestBuilderGetQueryParameters {
+    page?: string;
+    pageSize?: string;
+}
+/**
  * Uri template for the request builder.
  */
-export const StaffMembersRequestBuilderUriTemplate = "{+baseurl}/staff/staff-members";
+export const StaffMembersRequestBuilderUriTemplate = "{+baseurl}/staff/staff-members{?Page*,PageSize*}";
+/**
+ * Mapper for query parameters from symbol name to serialization name represented as a constant.
+ */
+const StaffMembersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
+    "page": "Page",
+    "pageSize": "PageSize",
+};
 /**
  * Metadata for all the navigation properties in the request builder.
  */
@@ -75,6 +89,7 @@ export const StaffMembersRequestBuilderRequestsMetadata: RequestsMetadata = {
         },
         adapterMethodName: "send",
         responseBodyFactory:  createFindStaffMembersResultFromDiscriminatorValue,
+        queryParametersMapper: StaffMembersRequestBuilderGetQueryParametersMapper,
     },
     post: {
         uriTemplate: StaffMembersRequestBuilderUriTemplate,

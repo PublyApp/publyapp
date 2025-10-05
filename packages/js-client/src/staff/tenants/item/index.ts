@@ -11,7 +11,7 @@ import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type Requ
  */
 export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTenantItemRequestBuilder> {
     /**
-     * Get a tenant
+     * Get a tenant by id
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<GetTenantAsStaffResult>}
      * @throws {ApiResponse} error when the service returns a 400 status code
@@ -19,7 +19,7 @@ export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTen
      */
      get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<GetTenantAsStaffResult | undefined>;
     /**
-     * Get a tenant
+     * Get a tenant by id
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
