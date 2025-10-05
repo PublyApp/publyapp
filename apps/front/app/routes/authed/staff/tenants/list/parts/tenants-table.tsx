@@ -1,9 +1,3 @@
-import { Iconify } from '@/front/components/iconify/iconify';
-import { Label } from '@/front/components/label/label';
-import { RouterLink } from '@/front/components/router-link';
-import { useMRTTable } from '@/front/hooks/use-mrt-table';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -18,22 +12,35 @@ import {
 	type MRT_ColumnDef,
 	type MRT_PaginationState,
 } from 'material-react-table';
+import { nanoid } from 'nanoid';
 import { useMemo, useState } from 'react';
-import { mockDataTenants } from './mock-data-tenants';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { Label } from '@/front/components/label/label';
+import { RouterLink } from '@/front/components/router-link';
+import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { useFindTenants } from '@/front/lib/react-query/features/tenant/tenant.hooks';
+import type { TenantAsStaffItem } from '@/js-client/src/models';
+import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
+// import { mockDataTenants } from './mock-data-tenants';
 
 export type TenantRowData = {
 	id: string;
 	name: string;
-	logoUrl: string;
-	users: {
-		count: number;
-		maxAllowed: number;
-	};
-	status: string; // 'active' | 'archived';
-	pricingPlan: string; // 'free' | 'bronze' | 'silver '| 'gold' | 'platinum'; //TODO: add plan enum
+	// logoUrl: string;
+	// users: { count: number; maxAllowed: number };
+	// status: string; // 'active' | 'archived';
+	// pricingPlan: string; // 'free' | 'bronze' | 'silver '| 'gold' | 'platinum'; //TODO: add plan enum
 };
 
-const data = mockDataTenants;
+const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
+	return {
+		id: tenant.id || nanoid(),
+		name: tenant.name || '-',
+	};
+};
+
+// const data = mockDataTenants;
 
 const columnHelper = createMRTColumnHelper<TenantRowData>();
 
@@ -44,33 +51,33 @@ const TenantsTable = () => {
 		return [
 			columnHelper.accessor('name', {
 				header: t('name'),
-				Cell: ProductCell,
+				Cell: TenantCell,
 				// grow: 1,
 				size: 300,
 			}),
-			columnHelper.accessor('users.count', {
-				header: t('users'),
-				Cell: (props) => {
-					return (
-						<>
-							{props.cell.getValue()} / {props.row.original.users.maxAllowed}
-						</>
-					);
-				},
-				size: 70,
-			}),
-			columnHelper.accessor('pricingPlan', {
-				header: t('pricing-plan'),
-				Cell: (props) => {
-					return props.cell.getValue();
-				},
-				size: 70,
-			}),
-			columnHelper.accessor('status', {
-				header: t('status'),
-				Cell: StatusCell,
-				size: 70,
-			}),
+			// columnHelper.accessor('users.count', {
+			// 	header: t('users'),
+			// 	Cell: (props) => {
+			// 		return (
+			// 			<>
+			// 				{props.cell.getValue()} / {props.row.original.users.maxAllowed}
+			// 			</>
+			// 		);
+			// 	},
+			// 	size: 70,
+			// }),
+			// columnHelper.accessor('pricingPlan', {
+			// 	header: t('pricing-plan'),
+			// 	Cell: (props) => {
+			// 		return props.cell.getValue();
+			// 	},
+			// 	size: 70,
+			// }),
+			// columnHelper.accessor('status', {
+			// 	header: t('status'),
+			// 	Cell: StatusCell,
+			// 	size: 70,
+			// }),
 			columnHelper.display({
 				header: 'Actions',
 				Cell: TenantActionsCell,
@@ -84,21 +91,28 @@ const TenantsTable = () => {
 		pageSize: DEFAULT_PAGE_SIZE, //customize the default page size
 	});
 
-	const slicedData = useMemo(() => {
-		const startIndex = pagination.pageIndex * pagination.pageSize;
-		const endIndex = startIndex + pagination.pageSize;
-		return _.slice(data, startIndex, endIndex);
-	}, [pagination]);
+	// const slicedData = useMemo(() => {
+	// 	const startIndex = pagination.pageIndex * pagination.pageSize;
+	// 	const endIndex = startIndex + pagination.pageSize;
+	// 	return _.slice(data, startIndex, endIndex);
+	// }, [pagination]);
+	const { data, isPending } = useFindTenants({
+		variables: {
+			page: pagination.pageIndex,
+			pageSize: pagination.pageSize,
+		},
+	});
 
 	const table = useMRTTable('default', {
 		columns,
-		data: slicedData,
+		data: _.map(data?.tenants, (tenant) => TenantRowDataMapper(tenant)),
 		manualPagination: true,
-		rowCount: data.length,
+		rowCount: data?.count || 0,
 		onPaginationChange: setPagination,
 		state: {
 			pagination,
 			density: 'compact',
+			isLoading: isPending,
 		},
 		muiTablePaperProps: {
 			sx: {
@@ -118,15 +132,17 @@ export default TenantsTable;
 
 // ----------------------------------------------------------------------
 
-const ProductCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
-	const logoUrl = props.row.original.logoUrl;
+const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
+	// const logoUrl = props.row.original.logoUrl;
 	const name = props.row.original.name;
-	const href = FRONT_PATH_NAMES.staff.tenants.details(props.row.original.id);
+	const href = FRONT_PATH_NAMES.staff.tenants.details(
+		props.row.original.id,
+	).root;
 
 	return (
 		<Box
 			sx={{
-				py: 2,
+				py: 1,
 				gap: 2,
 				width: 1,
 				display: 'flex',
@@ -135,9 +151,9 @@ const ProductCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 		>
 			<Avatar
 				alt={name}
-				src={logoUrl}
+				// src={logoUrl}
 				variant="rounded"
-				sx={{ width: 64, height: 64 }}
+				sx={{ width: 46, height: 46 }}
 			/>
 
 			<ListItemText
@@ -146,7 +162,7 @@ const ProductCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 						{name}
 					</Link>
 				}
-				// secondary={params.row.category}
+				secondary={props.row.original.id}
 				slotProps={{
 					primary: { noWrap: true },
 					secondary: { sx: { color: 'text.disabled' } },
@@ -185,7 +201,7 @@ const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
 					// onClick={/* quickEditForm.onTrue */ () => {}}
 					LinkComponent={RouterLink}
-					href={FRONT_PATH_NAMES.staff.tenants.details(tenantId)}
+					href={FRONT_PATH_NAMES.staff.tenants.details(tenantId).root}
 				>
 					<Iconify icon="solar:eye-bold" />
 				</IconButton>
