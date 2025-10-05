@@ -41,23 +41,59 @@ export const useGetTenant = createQuery({
 	},
 });
 
-type FindTenantProfilesParams = {
+type FindTenantsParams = {
 	page?: number;
 	pageSize?: number;
 };
 
-const findTenantProfilesQueryKey = getQueryKey<ApiClient>(
+const findTenantsQueryKey = getQueryKey<ApiClient>(
 	(client) => client.staff.tenants.get,
 );
 
-export const useFindTenantProfiles = createQuery({
-	queryKey: [findTenantProfilesQueryKey] as const,
-	fetcher: async (params: FindTenantProfilesParams) => {
-		return clientManager.apiClient.staff.tenants.get({
+export const useFindTenants = createQuery({
+	queryKey: [findTenantsQueryKey] as const,
+	fetcher: async (params: FindTenantsParams) => {
+		const result = await clientManager.apiClient.staff.tenants.get({
 			queryParameters: {
 				page: params.page ? params.page.toString() : undefined,
 				pageSize: params.pageSize ? params.pageSize.toString() : undefined,
 			},
 		});
+
+		if (_.isNil(result)) {
+			throw new Error(`[${findTenantsQueryKey}] result is nil`);
+		}
+
+		return result;
+	},
+});
+
+type FindTenantProfilesParams = {
+	page?: number;
+	pageSize?: number;
+	tenantId: string;
+};
+
+const findTenantProfilesQueryKey = getQueryKey<ApiClient>(
+	(client) => client.staff.tenants.byTenantId('').profiles.get,
+);
+
+export const useFindTenantProfiles = createQuery({
+	queryKey: [findTenantProfilesQueryKey] as const,
+	fetcher: async (params: FindTenantProfilesParams) => {
+		const result = await clientManager.apiClient.staff.tenants
+			.byTenantId(params.tenantId)
+			.profiles.get({
+				queryParameters: {
+					page: params.page ? params.page.toString() : undefined,
+					pageSize: params.pageSize ? params.pageSize.toString() : undefined,
+				},
+			});
+
+		if (_.isNil(result)) {
+			throw new Error(`[${findTenantProfilesQueryKey}] result is nil`);
+		}
+
+		return result;
 	},
 });

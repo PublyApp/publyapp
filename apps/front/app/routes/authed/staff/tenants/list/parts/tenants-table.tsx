@@ -12,25 +12,35 @@ import {
 	type MRT_ColumnDef,
 	type MRT_PaginationState,
 } from 'material-react-table';
+import { nanoid } from 'nanoid';
 import { useMemo, useState } from 'react';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { useFindTenants } from '@/front/lib/react-query/features/tenant/tenant.hooks';
+import type { TenantAsStaffItem } from '@/js-client/src/models';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
-import { mockDataTenants } from './mock-data-tenants';
+// import { mockDataTenants } from './mock-data-tenants';
 
 export type TenantRowData = {
 	id: string;
 	name: string;
-	logoUrl: string;
-	users: { count: number; maxAllowed: number };
-	status: string; // 'active' | 'archived';
-	pricingPlan: string; // 'free' | 'bronze' | 'silver '| 'gold' | 'platinum'; //TODO: add plan enum
+	// logoUrl: string;
+	// users: { count: number; maxAllowed: number };
+	// status: string; // 'active' | 'archived';
+	// pricingPlan: string; // 'free' | 'bronze' | 'silver '| 'gold' | 'platinum'; //TODO: add plan enum
 };
 
-const data = mockDataTenants;
+const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
+	return {
+		id: tenant.id || nanoid(),
+		name: tenant.name || '-',
+	};
+};
+
+// const data = mockDataTenants;
 
 const columnHelper = createMRTColumnHelper<TenantRowData>();
 
@@ -45,29 +55,29 @@ const TenantsTable = () => {
 				// grow: 1,
 				size: 300,
 			}),
-			columnHelper.accessor('users.count', {
-				header: t('users'),
-				Cell: (props) => {
-					return (
-						<>
-							{props.cell.getValue()} / {props.row.original.users.maxAllowed}
-						</>
-					);
-				},
-				size: 70,
-			}),
-			columnHelper.accessor('pricingPlan', {
-				header: t('pricing-plan'),
-				Cell: (props) => {
-					return props.cell.getValue();
-				},
-				size: 70,
-			}),
-			columnHelper.accessor('status', {
-				header: t('status'),
-				Cell: StatusCell,
-				size: 70,
-			}),
+			// columnHelper.accessor('users.count', {
+			// 	header: t('users'),
+			// 	Cell: (props) => {
+			// 		return (
+			// 			<>
+			// 				{props.cell.getValue()} / {props.row.original.users.maxAllowed}
+			// 			</>
+			// 		);
+			// 	},
+			// 	size: 70,
+			// }),
+			// columnHelper.accessor('pricingPlan', {
+			// 	header: t('pricing-plan'),
+			// 	Cell: (props) => {
+			// 		return props.cell.getValue();
+			// 	},
+			// 	size: 70,
+			// }),
+			// columnHelper.accessor('status', {
+			// 	header: t('status'),
+			// 	Cell: StatusCell,
+			// 	size: 70,
+			// }),
 			columnHelper.display({
 				header: 'Actions',
 				Cell: TenantActionsCell,
@@ -81,21 +91,28 @@ const TenantsTable = () => {
 		pageSize: DEFAULT_PAGE_SIZE, //customize the default page size
 	});
 
-	const slicedData = useMemo(() => {
-		const startIndex = pagination.pageIndex * pagination.pageSize;
-		const endIndex = startIndex + pagination.pageSize;
-		return _.slice(data, startIndex, endIndex);
-	}, [pagination]);
+	// const slicedData = useMemo(() => {
+	// 	const startIndex = pagination.pageIndex * pagination.pageSize;
+	// 	const endIndex = startIndex + pagination.pageSize;
+	// 	return _.slice(data, startIndex, endIndex);
+	// }, [pagination]);
+	const { data, isPending } = useFindTenants({
+		variables: {
+			page: pagination.pageIndex,
+			pageSize: pagination.pageSize,
+		},
+	});
 
 	const table = useMRTTable('default', {
 		columns,
-		data: slicedData,
+		data: _.map(data?.tenants, (tenant) => TenantRowDataMapper(tenant)),
 		manualPagination: true,
-		rowCount: data.length,
+		rowCount: data?.count || 0,
 		onPaginationChange: setPagination,
 		state: {
 			pagination,
 			density: 'compact',
+			isLoading: isPending,
 		},
 		muiTablePaperProps: {
 			sx: {
@@ -116,7 +133,7 @@ export default TenantsTable;
 // ----------------------------------------------------------------------
 
 const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
-	const logoUrl = props.row.original.logoUrl;
+	// const logoUrl = props.row.original.logoUrl;
 	const name = props.row.original.name;
 	const href = FRONT_PATH_NAMES.staff.tenants.details(
 		props.row.original.id,
@@ -134,7 +151,7 @@ const TenantCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 		>
 			<Avatar
 				alt={name}
-				src={logoUrl}
+				// src={logoUrl}
 				variant="rounded"
 				sx={{ width: 46, height: 46 }}
 			/>
