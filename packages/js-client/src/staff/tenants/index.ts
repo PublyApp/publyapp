@@ -4,12 +4,20 @@
 // @ts-ignore
 import { createApiResponseFromDiscriminatorValue, createCreateTenantAsStaffResultFromDiscriminatorValue, serializeCreateTenantAsStaffBody, serializeCreateTenantAsStaffResult, type ApiResponse, type CreateTenantAsStaffBody, type CreateTenantAsStaffResult } from '../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { type WithTenantItemRequestBuilder, WithTenantItemRequestBuilderRequestsMetadata } from './item/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /staff/tenants
  */
 export interface TenantsRequestBuilder extends BaseRequestBuilder<TenantsRequestBuilder> {
+    /**
+     * Gets an item from the MainApi.Client.staff.tenants.item collection
+     * @param tenantId Unique identifier of the item
+     * @returns {WithTenantItemRequestBuilder}
+     */
+     byTenantId(tenantId: string) : WithTenantItemRequestBuilder;
     /**
      * Create a new tenant
      * @param body The request body
@@ -31,6 +39,15 @@ export interface TenantsRequestBuilder extends BaseRequestBuilder<TenantsRequest
  * Uri template for the request builder.
  */
 export const TenantsRequestBuilderUriTemplate = "{+baseurl}/staff/tenants";
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const TenantsRequestBuilderNavigationMetadata: Record<Exclude<keyof TenantsRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    byTenantId: {
+        requestsMetadata: WithTenantItemRequestBuilderRequestsMetadata,
+        pathParametersMappings: ["tenantId"],
+    },
+};
 /**
  * Metadata for all the requests in the request builder.
  */

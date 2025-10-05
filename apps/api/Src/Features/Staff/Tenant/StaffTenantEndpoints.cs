@@ -22,6 +22,25 @@ public static class StaffTenantEndpoints {
 			.WithPermission([PermissionEnum.Staff.CAN_CREATE_TENANT])
 			.Produces500ApiResponse();
 
+		group.MapGet(
+			PathUtils.GetLastSegment(RoutePath.Staff.Tenants.GetById),
+			GetTenantAsStaff.HandleGetTenantAsStaff
+		)
+			.WithName("GetTenantById")
+			.WithSummary("Get a tenant by id")
+			.WithPermission([PermissionEnum.Staff.CAN_GET_TENANT])
+			.Produces500ApiResponse();
+
+		group.MapPost(
+			PathUtils.GetLastSegment(RoutePath.Staff.Tenants.Find),
+			FindTenantsAsStaff.HandleFindTenantsAsStaff
+		)
+			.WithName("FindTenants")
+			.WithSummary("Find tenants with pagination")
+			.WithReqQueryValidation<FindTenantsAsStaffQuery>()
+			.WithPermission([PermissionEnum.Staff.CAN_GET_TENANT])
+			.Produces500ApiResponse();
+
 		return group;
 	}
 }

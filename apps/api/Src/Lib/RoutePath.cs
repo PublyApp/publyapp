@@ -28,6 +28,11 @@ public static class RoutePath {
 		public static class Tenants {
 			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/tenants");
 			public static readonly string Create = PathUtils.Join(RoutePath.Staff.Tenants.Root, "/");
+			public static readonly string Find = PathUtils.Join(RoutePath.Staff.Tenants.Root, "/");
+			public static readonly string GetById = PathUtils.Join(RoutePath.Staff.Tenants.Root, "/{tenantId}");
+			public static string GetByIdFn(string tenantId) {
+				return PathUtils.Join(RoutePath.Staff.Tenants.Root, $"/{tenantId}");
+			}
 		}
 	};
 	public static class Tenant {

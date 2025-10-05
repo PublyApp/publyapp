@@ -173,6 +173,7 @@ public static class PermissionEnum {
 		// ==== TENANTS ====
 		public static readonly Permission CAN_ACCESS_TENANTS_LIST = Permission.CreateStaffPermission(nameof(CAN_ACCESS_TENANTS_LIST));
 		public static readonly Permission CAN_CREATE_TENANT = Permission.CreateStaffPermission(nameof(CAN_CREATE_TENANT));
+		public static readonly Permission CAN_GET_TENANT = Permission.CreateStaffPermission(nameof(CAN_GET_TENANT));
 
 		// ==== USERS ====
 		public static readonly Permission CAN_ACCESS_USERS_LIST = Permission.CreateStaffPermission(nameof(CAN_ACCESS_USERS_LIST));

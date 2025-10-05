@@ -171,7 +171,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetTenantAuthDataResult"
+                  "$ref": "#/components/schemas/Tenant"
                 }
               }
             }
@@ -356,25 +356,82 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "Create a new tenant",
-        "operationId": "CreateTenant",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateTenantAsStaffBody"
-              }
+        "summary": "Find tenants with pagination",
+        "operationId": "FindTenants",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
-          "required": true
-        },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CreateTenantAsStaffResult"
+                  "$ref": "#/components/schemas/TenantAsStaffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/tenants/{tenantId}": {
+      "get": {
+        "tags": [
+          "Tenants"
+        ],
+        "summary": "Get a tenant by id",
+        "operationId": "GetTenantById",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTenantAsStaffResult"
                 }
               }
             }
@@ -458,6 +515,22 @@
         ],
         "summary": "Find staff members",
         "operationId": "FindStaffMembers",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -810,24 +883,15 @@
           }
         }
       },
-      "GetTenantAuthDataResult": {
+      "GetTenantAsStaffResult": {
         "type": "object",
         "properties": {
-          "id": {
+          "tenantId": {
             "type": "string",
             "format": "uuid"
           },
           "name": {
             "type": "string"
-          },
-          "code": {
-            "type": "string"
-          },
-          "profiles": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProfileItem"
-            }
           }
         }
       },
@@ -1007,6 +1071,58 @@
           },
           "status": {
             "$ref": "#/components/schemas/UserStatus"
+          }
+        }
+      },
+      "Tenant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileItem"
+            }
+          }
+        }
+      },
+      "TenantAsStaffItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "TenantAsStaffResult": {
+        "required": [
+          "tenants",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "tenants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantAsStaffItem"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

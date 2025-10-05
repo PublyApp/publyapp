@@ -76,9 +76,9 @@ const getStaffMemberByIdQueryKey = getQueryKey<ApiClient>(
 
 export const useGetStaffMemberById = createQuery({
 	queryKey: [getStaffMemberByIdQueryKey] as const,
-	fetcher: async ({ userId }: { userId: string }) => {
+	fetcher: async (params: { userId: string }) => {
 		const result = await clientManager.apiClient.staff.staffMembers
-			.byUserId(userId)
+			.byUserId(params.userId)
 			.get();
 		if (_.isNil(result)) {
 			throw new Error(`[${getStaffMemberByIdQueryKey}]: result is nil`);
