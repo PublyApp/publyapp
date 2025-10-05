@@ -1,10 +1,8 @@
+import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
 import { _tenantProfiles } from '@/front/_mock/_tenant-profiles';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
-// import { defaultApiClient } from '@/parse-api-client/ApiClient';
-// import type { CreateTenantParams } from '@/parse-api-client/features/tenant/tenant.endpoints';
-// import { functionName } from '@/shared/lib/constants';
 import { delay } from '@/shared/utils/any.utils';
 import { getQueryKey } from '../../query-utils';
 
@@ -32,14 +30,13 @@ const getTenantQueryKey = getQueryKey<ApiClient>(
 export const useGetTenant = createQuery({
 	queryKey: [getTenantQueryKey] as const,
 	fetcher: async (params: { tenantId: string }) => {
-		await delay(5_000);
-		return {
-			id: params.tenantId,
-			name: `Tenant 1 - ${params.tenantId}`,
-			logo: 'https://via.placeholder.com/150',
-			maxUsers: 1000,
-		};
-		// return defaultApiClient.tenant.getTenant(params);
+		const result = await clientManager.apiClient.staff.tenants
+			.byTenantId(params.tenantId)
+			.get();
+		if (_.isNil(result)) {
+			throw new Error(`[${getTenantQueryKey}]: result is nil`);
+		}
+		return result;
 	},
 });
 

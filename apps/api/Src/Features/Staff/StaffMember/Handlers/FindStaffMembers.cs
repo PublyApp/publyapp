@@ -1,4 +1,4 @@
-using MainApi.Src.Data.DbContext;
+using FluentValidation;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -20,6 +20,53 @@ public class FindStaffMembersResult {
 	public required int Count { get; set; }
 }
 
+public class FindStaffMembersQuery {
+	[FromQuery] public string? Page { get; set; }
+	[FromQuery] public string? PageSize { get; set; }
+
+	public int? GetPage() {
+		if (Page is null) {
+			return null;
+		}
+
+		if (!int.TryParse(Page, out var page)) {
+			throw new Exception("Page must be a valid number");
+		}
+		return page;
+	}
+
+	public int? GetPageSize() {
+		if (PageSize is null) {
+			return null;
+		}
+
+		if (!int.TryParse(PageSize, out var pageSize)) {
+			throw new Exception("PageSize must be a valid number");
+		}
+		return pageSize;
+	}
+}
+
+public class FindStaffMembersQueryValidator : AbstractValidator<FindStaffMembersQuery> {
+	public FindStaffMembersQueryValidator() {
+		RuleFor(x => x.Page)
+			.Must(BeValidNullableNumber)
+			.WithMessage("Page must be a valid number greater than or equal to 1");
+
+		RuleFor(x => x.PageSize)
+			.Must(BeValidNullableNumber)
+			.WithMessage("PageSize must be a valid number greater than or equal to 1");
+	}
+
+	private static bool BeValidNullableNumber(string? value) {
+		if (value is null) {
+			return true;
+		}
+
+		return int.TryParse(value, out var num) && num >= 1;
+	}
+}
+
 public class FindStaffMembers {
 	public static async Task<
 		Results<
@@ -27,23 +74,36 @@ public class FindStaffMembers {
 			BadRequest<ApiResponse>
 		>
 	> HandleFindStaffMembers(
-		[FromServices] MainApiDbContext dbContext,
-		CancellationToken cancellationToken = default
+		[AsParameters] FindStaffMembersQuery findStaffMembersQuery,
+		[FromServices] IStaffMemberService staffMemberService,
+		CancellationToken cancellationToken
 	) {
-		await Task.Delay(1000, cancellationToken);
+		var page = findStaffMembersQuery.GetPage();
+		var pageSize = findStaffMembersQuery.GetPageSize();
 
-		return TypedResults.Ok(new FindStaffMembersResult {
-			StaffMembers = [
-				new StaffMemberItem {
-					Id = Guid.NewGuid(),
-					Email = "test@test.com",
-					LastName = "Test",
-					FirstName = "Test",
-					AvatarUrl = "https://via.placeholder.com/150",
-					Status = UserStatus.Active,
-				},
-			],
-			Count = 1,
-		});
+		var countTask = staffMemberService.CountStaffMembersAsync(cancellationToken);
+
+		var staffMembersTask = staffMemberService.FindStaffMembersAsync(
+			page: page,
+			pageSize: pageSize,
+			cancellationToken: cancellationToken
+		);
+
+		await Task.WhenAll(countTask, staffMembersTask).ConfigureAwait(false);
+
+		var count = await countTask;
+		var staffMembers = await staffMembersTask;
+
+		return TypedResults.Ok(
+			new FindStaffMembersResult {
+				StaffMembers = staffMembers
+					.Select(staffMember => new StaffMemberItem {
+						Id = staffMember.Id,
+						Email = staffMember.Email,
+					})
+					.ToList(),
+				Count = count,
+			}
+		);
 	}
 }

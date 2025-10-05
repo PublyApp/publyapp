@@ -48,7 +48,8 @@ public static class CreateTenantAsStaff {
 	>>
 	HandleCreateTenantAsStaff(
 		[FromBody] CreateTenantAsStaffBody createTenantBody,
-		[FromServices] IStaffTenantService StaffTenantService
+		[FromServices] IStaffTenantService StaffTenantService,
+		CancellationToken cancellationToken
 		) {
 		string tenantName = createTenantBody.GetName();
 
@@ -57,7 +58,7 @@ public static class CreateTenantAsStaff {
 			Code = CryptoUtils.RandomString(10).ToLower()
 		};
 
-		var savedTenant = await StaffTenantService.CreateTenant(tenant);
+		var savedTenant = await StaffTenantService.CreateTenant(tenant, cancellationToken);
 
 		return TypedResults.Ok(new CreateTenantAsStaffResult {
 			Id = savedTenant.Id,

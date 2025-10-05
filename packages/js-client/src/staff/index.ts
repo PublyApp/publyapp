@@ -4,7 +4,7 @@
 // @ts-ignore
 import { StaffMembersRequestBuilderNavigationMetadata, StaffMembersRequestBuilderRequestsMetadata, type StaffMembersRequestBuilder } from './staffMembers/index.js';
 // @ts-ignore
-import { TenantsRequestBuilderRequestsMetadata, type TenantsRequestBuilder } from './tenants/index.js';
+import { TenantsRequestBuilderNavigationMetadata, TenantsRequestBuilderRequestsMetadata, type TenantsRequestBuilder } from './tenants/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata } from '@microsoft/kiota-abstractions';
 
@@ -35,6 +35,7 @@ export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRe
     },
     tenants: {
         requestsMetadata: TenantsRequestBuilderRequestsMetadata,
+        navigationMetadata: TenantsRequestBuilderNavigationMetadata,
     },
 };
 /* tslint:enable */

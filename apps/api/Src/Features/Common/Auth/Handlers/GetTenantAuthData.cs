@@ -18,18 +18,25 @@ public class GetTenantAuthDataQuery {
 	}
 }
 
-
 public class GetTenantAuthDataResult {
-	public Guid Id { get; set; }
-	public string Name { get; set; } = string.Empty;
-	public string Code { get; set; } = string.Empty;
-	public List<ProfileItem> Profiles { get; set; } = [];
+	public class Tenant {
+		public Guid Id { get; set; }
+		public string Name { get; set; } = string.Empty;
+		public string Code { get; set; } = string.Empty;
+		public List<ProfileItem> Profiles { get; set; } = [];
+	}
+
+	public class Staff {
+		public string Code { get; set; } = "staff";
+		public List<ProfileItem> Profiles { get; set; } = [];
+	}
 }
 
 public class GetTenantAuthData {
 	public static async Task<
 		Results<
-			Ok<GetTenantAuthDataResult>,
+			Ok<GetTenantAuthDataResult.Staff>,
+			Ok<GetTenantAuthDataResult.Tenant>,
 			BadRequest<ApiResponse>
 			>
 		> HandleGetTenantAuthData(
@@ -56,16 +63,9 @@ public class GetTenantAuthData {
 
 		if (string.Equals(
 			query.TenantId,
-			appSettings.Value.STAFF_TENANT_CODE,
+			"staff",
 			StringComparison.Ordinal
 		)) {
-			// check if the staff tenant still exists
-			var staffTenant = await tenantService.GetStaffTenantAsync(cancellationToken);
-
-			if (staffTenant is null) {
-				throw new Exception("Staff tenant not found");
-			}
-
 			var isUserStaffMember = await accountService.IsUserStaffMemberAsync(userId, cancellationToken);
 
 			if (!isUserStaffMember) {
@@ -84,19 +84,15 @@ public class GetTenantAuthData {
 				));
 			}
 
-			// Get the user's profiles and permissions for the staff tenant
-			var staffProfileItems = await profileService.GetUserProfilesWithPermissionsForTenantAsync(
+			// Get the user's profiles and permissions for the staff scope
+			var staffProfileItems = await profileService.GetStaffProfilesWithPermissionsAsync(
 				userId,
-				staffTenant.Id,
-				appSettings.Value.MAX_PROFILES_PER_USER_PER_TENANT,
-				cancellationToken
+				cancellationToken: cancellationToken
 			);
 
 			return TypedResults.Ok(
-				new GetTenantAuthDataResult {
-					Id = staffTenant.Id,
-					Name = staffTenant.Name,
-					Code = staffTenant.Code,
+				new GetTenantAuthDataResult.Staff {
+					Code = "staff",
 					Profiles = staffProfileItems
 				}
 			);
@@ -141,15 +137,17 @@ public class GetTenantAuthData {
 		var tenantProfileItems = await profileService.GetUserProfilesWithPermissionsForTenantAsync(
 			userId,
 			tenantId,
-			appSettings.Value.MAX_PROFILES_PER_USER_PER_TENANT,
+			appSettings.Value.MAX_PROFILES_PER_USER,
 			cancellationToken
 		);
 
-		return TypedResults.Ok(new GetTenantAuthDataResult {
-			Id = tenantId,
-			Name = tenant.Name,
-			Code = tenant.Code,
-			Profiles = tenantProfileItems
-		});
+		return TypedResults.Ok(
+			new GetTenantAuthDataResult.Tenant {
+				Id = tenantId,
+				Name = tenant.Name,
+				Code = tenant.Code,
+				Profiles = tenantProfileItems
+			}
+		);
 	}
 }
