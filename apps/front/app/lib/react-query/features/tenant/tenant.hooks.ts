@@ -1,9 +1,8 @@
 import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
-import { _tenantProfiles } from '@/front/_mock/_tenant-profiles';
+// import { _tenantProfiles } from '@/front/_mock/_tenant-profiles';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
-import { delay } from '@/shared/utils/any.utils';
 import { getQueryKey } from '../../query-utils';
 
 const createTenantMutationKey = getQueryKey<ApiClient>(
@@ -33,15 +32,18 @@ export const useGetTenant = createQuery({
 		const result = await clientManager.apiClient.staff.tenants
 			.byTenantId(params.tenantId)
 			.get();
+
 		if (_.isNil(result)) {
 			throw new Error(`[${getTenantQueryKey}]: result is nil`);
 		}
+
 		return result;
 	},
 });
 
 type FindTenantProfilesParams = {
-	tenantId: string;
+	page?: number;
+	pageSize?: number;
 };
 
 const findTenantProfilesQueryKey = getQueryKey<ApiClient>(
@@ -50,8 +52,12 @@ const findTenantProfilesQueryKey = getQueryKey<ApiClient>(
 
 export const useFindTenantProfiles = createQuery({
 	queryKey: [findTenantProfilesQueryKey] as const,
-	fetcher: async (_params: FindTenantProfilesParams) => {
-		await delay(5_000);
-		return _tenantProfiles;
+	fetcher: async (params: FindTenantProfilesParams) => {
+		return clientManager.apiClient.staff.tenants.get({
+			queryParameters: {
+				page: params.page ? params.page.toString() : undefined,
+				pageSize: params.pageSize ? params.pageSize.toString() : undefined,
+			},
+		});
 	},
 });
