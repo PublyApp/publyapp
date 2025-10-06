@@ -43,7 +43,8 @@ export const useGetTenant = createQuery({
 
 type FindTenantsParams = {
 	page?: number;
-	pageSize?: number;
+	limit?: number;
+	sort?: { id: string; order: 'desc' | 'asc' };
 };
 
 const findTenantsQueryKey = getQueryKey<ApiClient>(
@@ -56,7 +57,9 @@ export const useFindTenants = createQuery({
 		const result = await clientManager.apiClient.staff.tenants.get({
 			queryParameters: {
 				page: params.page ? params.page.toString() : undefined,
-				pageSize: params.pageSize ? params.pageSize.toString() : undefined,
+				limit: params.limit ? params.limit.toString() : undefined,
+				sortId: params.sort?.id,
+				sortOrder: params.sort?.order,
 			},
 		});
 
@@ -69,9 +72,10 @@ export const useFindTenants = createQuery({
 });
 
 type FindTenantProfilesParams = {
-	page?: number;
-	pageSize?: number;
 	tenantId: string;
+	page?: number;
+	limit?: number;
+	sort?: { id: string; order: 'desc' | 'asc' };
 };
 
 const findTenantProfilesQueryKey = getQueryKey<ApiClient>(

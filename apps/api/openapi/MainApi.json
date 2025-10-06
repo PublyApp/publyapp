@@ -416,7 +416,21 @@
             }
           },
           {
-            "name": "PageSize",
+            "name": "Limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortOrder",
             "in": "query",
             "schema": {
               "type": "string"
@@ -573,7 +587,21 @@
             }
           },
           {
-            "name": "PageSize",
+            "name": "Limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortOrder",
             "in": "query",
             "schema": {
               "type": "string"

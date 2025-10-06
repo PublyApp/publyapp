@@ -30,8 +30,8 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import {
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
-} from '@/front/lib/react-query/features/auth/auth.hooks';
-import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+} from '@/front/lib/react-query/features/common/auth.hooks';
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getUserFullName } from '@/shared/utils/user.utils';
 

@@ -19,7 +19,7 @@ import { Label } from '@/front/components/label/label';
 import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { useFindTenants } from '@/front/lib/react-query/features/tenant/tenant.hooks';
+import { useFindTenants } from '@/front/lib/react-query/features/staff/tenant.hooks';
 import type { TenantAsStaffItem } from '@/js-client/src/models';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 // import { mockDataTenants } from './mock-data-tenants';

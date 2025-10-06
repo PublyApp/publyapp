@@ -3,7 +3,7 @@ import type { FC } from 'react';
 import { useParams } from 'react-router';
 import { View500 } from '@/front/components/error/500-view';
 import QueryDisplay from '@/front/components/query-display';
-import { useGetTenant } from '@/front/lib/react-query/features/tenant/tenant.hooks';
+import { useGetTenant } from '@/front/lib/react-query/features/staff/tenant.hooks';
 import { TenantCreateOrEditFormSkeleton } from '../../components/tenant-create-form-skeleton';
 import { TenantCreateOrEditForm } from '../../components/tenant-create-or-edit-form';
 

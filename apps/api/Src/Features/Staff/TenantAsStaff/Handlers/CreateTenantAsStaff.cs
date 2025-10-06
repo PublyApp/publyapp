@@ -1,11 +1,11 @@
-using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
 using MainApi.Src.Lib;
-using Microsoft.AspNetCore.Http.HttpResults;
+using System.Text.Json;
 using FluentValidation;
 using MainApi.Src.Lib.Utils;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace MainApi.Src.Features.Staff.Tenant.Handlers;
+namespace MainApi.Src.Features.Staff.TenantAsStaff.Handlers;
 
 public class CreateTenantAsStaffBody {
 	public JsonElement Name { get; set; }
@@ -48,7 +48,7 @@ public static class CreateTenantAsStaff {
 	>>
 	HandleCreateTenantAsStaff(
 		[FromBody] CreateTenantAsStaffBody createTenantBody,
-		[FromServices] IStaffTenantService StaffTenantService,
+		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		CancellationToken cancellationToken
 		) {
 		string tenantName = createTenantBody.GetName();
@@ -58,7 +58,7 @@ public static class CreateTenantAsStaff {
 			Code = CryptoUtils.RandomString(10).ToLower()
 		};
 
-		var savedTenant = await StaffTenantService.CreateTenant(tenant, cancellationToken);
+		var savedTenant = await tenantAsStaffService.CreateTenant(tenant, cancellationToken);
 
 		return TypedResults.Ok(new CreateTenantAsStaffResult {
 			Id = savedTenant.Id,

@@ -17,7 +17,7 @@ import {
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
-} from '@/front/lib/react-query/features/auth/auth.hooks';
+} from '@/front/lib/react-query/features/common/auth.hooks';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { useMainStore } from '@/front/lib/zustand/store';
 import {

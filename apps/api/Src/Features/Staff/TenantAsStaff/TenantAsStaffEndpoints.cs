@@ -1,13 +1,13 @@
-using MainApi.Src.Features.Staff.Tenant.Handlers;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Features.Staff.TenantAsStaff.Handlers;
 
-namespace MainApi.Src.Features.Staff.Tenant;
+namespace MainApi.Src.Features.Staff.TenantAsStaff;
 
-public static class StaffTenantEndpoints {
-	public static IEndpointRouteBuilder MapStaffTenantEndpoints(this IEndpointRouteBuilder routes) {
+public static class TenantAsStaffEndpoints {
+	public static IEndpointRouteBuilder MapTenantAsStaffEndpoints(this IEndpointRouteBuilder routes) {
 		var group = routes.MapGroup(PathUtils.GetLastSegment(RoutePath.Staff.Tenants.Root))
 			.WithTags("Tenants")
 			.WithOpenApi();
@@ -38,7 +38,7 @@ public static class StaffTenantEndpoints {
 			.WithName("FindTenants")
 			.WithSummary("Find tenants with pagination")
 			.WithReqQueryValidation<FindTenantsAsStaffQuery>()
-			.WithPermission([PermissionEnum.Staff.CAN_GET_TENANT])
+			.WithPermission([PermissionEnum.Staff.CAN_LIST_TENANTS])
 			.Produces500ApiResponse();
 
 		return group;
