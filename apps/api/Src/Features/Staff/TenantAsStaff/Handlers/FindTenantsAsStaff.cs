@@ -1,30 +1,26 @@
-using FluentValidation;
-using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
-using Microsoft.AspNetCore.Http.HttpResults;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace MainApi.Src.Features.Staff.StaffMember.Handlers;
+namespace MainApi.Src.Features.Staff.TenantAsStaff.Handlers;
 
-public class StaffMemberItem {
+public class TenantAsStaffItem {
 	public Guid Id { get; set; }
-	public string Email { get; set; } = string.Empty;
-	public string? LastName { get; set; }
-	public string? FirstName { get; set; }
-	public string? AvatarUrl { get; set; }
-	public UserStatus Status { get; set; } = UserStatus.Inactive;
+	public string Name { get; set; } = string.Empty;
 }
 
-public class FindStaffMembersResult {
-	public required List<StaffMemberItem> StaffMembers { get; set; }
+public class TenantAsStaffResult {
+	public required List<TenantAsStaffItem> Tenants { get; set; }
 	public required int Count { get; set; }
 }
 
-public class FindStaffMembersQuery {
+public class FindTenantsAsStaffQuery {
 	[FromQuery] public string? Page { get; set; }
 	[FromQuery] public string? Limit { get; set; }
 	[FromQuery] public string? SortId { get; set; }
 	[FromQuery] public string? SortOrder { get; set; }
+
 	public int? GetPage() {
 		if (Page is null) {
 			return null;
@@ -33,6 +29,7 @@ public class FindStaffMembersQuery {
 		if (!int.TryParse(Page, out var page)) {
 			throw new Exception("Page must be a valid number");
 		}
+
 		return page;
 	}
 
@@ -52,7 +49,6 @@ public class FindStaffMembersQuery {
 		if (SortId is null) {
 			return null;
 		}
-
 		return SortId;
 	}
 
@@ -74,8 +70,8 @@ public class FindStaffMembersQuery {
 	}
 }
 
-public class FindStaffMembersQueryValidator : AbstractValidator<FindStaffMembersQuery> {
-	public FindStaffMembersQueryValidator() {
+public class FindTenantsAsStaffQueryValidator : AbstractValidator<FindTenantsAsStaffQuery> {
+	public FindTenantsAsStaffQueryValidator() {
 		RuleFor(x => x.Page)
 			.Must(BeValidNullableNumber)
 			.WithMessage("Page must be a valid number greater than or equal to 1");
@@ -121,25 +117,20 @@ public class FindStaffMembersQueryValidator : AbstractValidator<FindStaffMembers
 	}
 }
 
-public class FindStaffMembers {
-	public static async Task<
-		Results<
-			Ok<FindStaffMembersResult>,
-			BadRequest<ApiResponse>
-		>
-	> HandleFindStaffMembers(
-		[AsParameters] FindStaffMembersQuery findStaffMembersQuery,
-		[FromServices] IStaffMemberService staffMemberService,
+public class FindTenantsAsStaff {
+	public static async Task<Results<Ok<TenantAsStaffResult>, BadRequest<ApiResponse>>> HandleFindTenantsAsStaff(
+		[AsParameters] FindTenantsAsStaffQuery findTenantsAsStaffQuery,
+		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		CancellationToken cancellationToken
 	) {
-		var page = findStaffMembersQuery.GetPage();
-		var limit = findStaffMembersQuery.GetLimit();
-		var sortId = findStaffMembersQuery.GetSortId();
-		var sortOrder = findStaffMembersQuery.GetSortOrder();
+		var page = findTenantsAsStaffQuery.GetPage();
+		var limit = findTenantsAsStaffQuery.GetLimit();
+		var sortId = findTenantsAsStaffQuery.GetSortId();
+		var sortOrder = findTenantsAsStaffQuery.GetSortOrder();
 
-		var countTask = staffMemberService.CountStaffMembersAsync(cancellationToken);
+		var countTask = tenantAsStaffService.CountTenantsAsync(cancellationToken);
 
-		var staffMembersTask = staffMemberService.FindStaffMembersAsync(
+		var tenantsTask = tenantAsStaffService.FindTenantsAsync(
 			page: page,
 			limit: limit,
 			sortId: sortId,
@@ -147,21 +138,19 @@ public class FindStaffMembers {
 			cancellationToken: cancellationToken
 		);
 
-		await Task.WhenAll(countTask, staffMembersTask).ConfigureAwait(false);
+		await Task.WhenAll(countTask, tenantsTask).ConfigureAwait(false);
 
-		var count = await countTask;
-		var staffMembers = await staffMembersTask;
+		var tenants = tenantsTask.Result;
+		var count = countTask.Result;
 
-		return TypedResults.Ok(
-			new FindStaffMembersResult {
-				StaffMembers = staffMembers
-					.Select(staffMember => new StaffMemberItem {
-						Id = staffMember.Id,
-						Email = staffMember.Email,
-					})
-					.ToList(),
-				Count = count,
-			}
-		);
+		return TypedResults.Ok(new TenantAsStaffResult {
+			Tenants = tenants
+				.Select(tenant => new TenantAsStaffItem {
+					Id = tenant.Id,
+					Name = tenant.Name,
+				})
+				.ToList(),
+			Count = count,
+		});
 	}
 }

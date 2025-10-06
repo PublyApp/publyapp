@@ -11,7 +11,7 @@ import { View500 } from '@/front/components/error/500-view';
 import QueryDisplay from '@/front/components/query-display';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { useGetStaffMemberById } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import { useGetStaffMemberById } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 import { UserNewEditForm } from '../components/user-new-edit-form';

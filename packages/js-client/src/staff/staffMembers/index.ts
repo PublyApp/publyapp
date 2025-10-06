@@ -53,19 +53,23 @@ export interface StaffMembersRequestBuilder extends BaseRequestBuilder<StaffMemb
  * Find staff members
  */
 export interface StaffMembersRequestBuilderGetQueryParameters {
+    limit?: string;
     page?: string;
-    pageSize?: string;
+    sortId?: string;
+    sortOrder?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const StaffMembersRequestBuilderUriTemplate = "{+baseurl}/staff/staff-members{?Page*,PageSize*}";
+export const StaffMembersRequestBuilderUriTemplate = "{+baseurl}/staff/staff-members{?Limit*,Page*,SortId*,SortOrder*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const StaffMembersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
+    "limit": "Limit",
     "page": "Page",
-    "pageSize": "PageSize",
+    "sortId": "SortId",
+    "sortOrder": "SortOrder",
 };
 /**
  * Metadata for all the navigation properties in the request builder.

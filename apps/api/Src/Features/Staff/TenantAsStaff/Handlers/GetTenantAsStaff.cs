@@ -1,10 +1,9 @@
-using MainApi.Localization;
 using MainApi.Src.Lib;
-using Microsoft.AspNetCore.Http.HttpResults;
+using MainApi.Localization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace MainApi.Src.Features.Staff.Tenant.Handlers;
-
+namespace MainApi.Src.Features.Staff.TenantAsStaff.Handlers;
 public class GetTenantAsStaffResult {
 	public Guid TenantId { get; set; }
 	public string Name { get; set; } = string.Empty;
@@ -17,7 +16,7 @@ public class GetTenantAsStaff {
 			BadRequest<ApiResponse>
 		>
 	> HandleGetTenantAsStaff(
-		[FromServices] IStaffTenantService staffTenantService,
+		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromRoute] string tenantId,
 		CancellationToken cancellationToken
 	) {
@@ -29,7 +28,7 @@ public class GetTenantAsStaff {
 			));
 		}
 
-		var tenant = await staffTenantService.GetTenantAsync(tenantIdGuid, cancellationToken);
+		var tenant = await tenantAsStaffService.GetTenantAsync(tenantIdGuid, cancellationToken);
 
 		if (tenant is null) {
 			return TypedResults.BadRequest(ApiResponse.Create(

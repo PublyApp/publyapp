@@ -49,18 +49,21 @@ const findStaffMemberQueryKey = getQueryKey<ApiClient>(
 	(client) => client.staff.staffMembers.get,
 );
 
+type FindStaffMembersQuery = {
+	limit?: number;
+	page?: number;
+	sort?: { id: string; order: 'desc' | 'asc' };
+};
+
 export const useFindStaffMember = createQuery({
 	queryKey: [findStaffMemberQueryKey] as const,
-	fetcher: async (params: {
-		limit?: number;
-		page?: number;
-		sort?: { id: string; order: 'desc' | 'asc' };
-	}) => {
+	fetcher: async (params: FindStaffMembersQuery) => {
 		const result = await clientManager.apiClient.staff.staffMembers.get({
 			queryParameters: {
-				limit: params.limit,
-				page: params.page,
-				sort: params.sort,
+				page: params.page ? params.page.toString() : undefined,
+				limit: params.limit ? params.limit.toString() : undefined,
+				sortId: params.sort?.id,
+				sortOrder: params.sort?.order,
 			},
 		});
 		if (_.isNil(result)) {

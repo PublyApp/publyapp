@@ -53,19 +53,23 @@ export interface TenantsRequestBuilder extends BaseRequestBuilder<TenantsRequest
  * Find tenants with pagination
  */
 export interface TenantsRequestBuilderGetQueryParameters {
+    limit?: string;
     page?: string;
-    pageSize?: string;
+    sortId?: string;
+    sortOrder?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const TenantsRequestBuilderUriTemplate = "{+baseurl}/staff/tenants{?Page*,PageSize*}";
+export const TenantsRequestBuilderUriTemplate = "{+baseurl}/staff/tenants{?Limit*,Page*,SortId*,SortOrder*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const TenantsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
+    "limit": "Limit",
     "page": "Page",
-    "pageSize": "PageSize",
+    "sortId": "SortId",
+    "sortOrder": "SortOrder",
 };
 /**
  * Metadata for all the navigation properties in the request builder.

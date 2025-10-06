@@ -169,14 +169,18 @@ public static class PermissionEnum {
 	//                                                                                      //
 	//--------------------------------------------------------------------------------------//
 	public static class Staff {
-
 		// ==== TENANTS ====
-		public static readonly Permission CAN_ACCESS_TENANTS_LIST = Permission.CreateStaffPermission(nameof(CAN_ACCESS_TENANTS_LIST));
+		public static readonly Permission CAN_LIST_TENANTS = Permission.CreateStaffPermission(nameof(CAN_LIST_TENANTS));
 		public static readonly Permission CAN_CREATE_TENANT = Permission.CreateStaffPermission(nameof(CAN_CREATE_TENANT));
 		public static readonly Permission CAN_GET_TENANT = Permission.CreateStaffPermission(nameof(CAN_GET_TENANT));
 
 		// ==== USERS ====
-		public static readonly Permission CAN_ACCESS_USERS_LIST = Permission.CreateStaffPermission(nameof(CAN_ACCESS_USERS_LIST));
+		public static readonly Permission CAN_LIST_USERS = Permission.CreateStaffPermission(nameof(CAN_LIST_USERS));
+
+		// ==== PROFILES ====
+		public static readonly Permission CAN_GET_PROFILE = Permission.CreateStaffPermission(nameof(CAN_GET_PROFILE));
+		public static readonly Permission CAN_LIST_PROFILES = Permission.CreateStaffPermission(nameof(CAN_LIST_PROFILES));
+		public static readonly Permission CAN_CREATE_PROFILE = Permission.CreateStaffPermission(nameof(CAN_CREATE_PROFILE));
 	}
 
 	//--------------------------------------------------------------------------------------//

@@ -10,7 +10,13 @@ namespace MainApi.Src.Features.Staff.StaffMember;
 public interface IStaffMemberService {
 	Task<User?> GetStaffMemberUserByIdAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<int> CountStaffMembersAsync(CancellationToken cancellationToken = default);
-	Task<List<User>> FindStaffMembersAsync(int? page = 1, int? pageSize = null, CancellationToken cancellationToken = default);
+	Task<List<User>> FindStaffMembersAsync(
+		int? page,
+		int? limit,
+		string? sortId,
+		SortOrder? sortOrder,
+		CancellationToken cancellationToken = default
+	);
 }
 
 public class StaffMemberService : IStaffMemberService {
@@ -51,8 +57,17 @@ public class StaffMemberService : IStaffMemberService {
 		return await query.CountAsync(cancellationToken).ConfigureAwait(false);
 	}
 
-	public async Task<List<User>> FindStaffMembersAsync(int? page = 1, int? pageSize = null, CancellationToken cancellationToken = default) {
-		var effectivePageSize = pageSize ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
+	public async Task<List<User>> FindStaffMembersAsync(
+		int? page = 1,
+		int? limit = null,
+		string? sortId = null,
+		SortOrder? sortOrder = null,
+		CancellationToken cancellationToken = default
+	) {
+		var effectivePage = page ?? 1;
+		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
+		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
+
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.AccountScope == AccountScope.Staff
@@ -62,8 +77,16 @@ public class StaffMemberService : IStaffMemberService {
 			&& !ua.User.IsSuspended
 			select ua.User;
 
+		if (sortId is not null) {
+			if (effectiveSortOrder == SortOrder.Asc) {
+				query = query.OrderBy(u => EF.Property<object>(u, sortId));
+			} else {
+				query = query.OrderByDescending(u => EF.Property<object>(u, sortId));
+			}
+		}
+
 		return await query
-			.Skip((page ?? 1) * effectivePageSize).Take(effectivePageSize)
+			.Skip((effectivePage - 1) * effectiveLimit).Take(effectiveLimit)
 			.ToListAsync(cancellationToken)
 			.ConfigureAwait(false);
 	}

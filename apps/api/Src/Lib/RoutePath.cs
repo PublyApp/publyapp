@@ -16,6 +16,15 @@ public static class RoutePath {
 	}
 	public static class Staff {
 		public static readonly string Root = "/staff";
+		public static class Profiles {
+			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/profiles");
+			public static readonly string Create = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/");
+			public static readonly string Find = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/");
+			public static readonly string GetById = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/{profileId}");
+			public static string GetByIdFn(string profileId) {
+				return PathUtils.Join(RoutePath.Staff.Profiles.Root, $"/{profileId}");
+			}
+		}
 		public static class StaffMember {
 			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/staff-members");
 			public static readonly string Create = PathUtils.Join(RoutePath.Staff.StaffMember.Root, "/");

@@ -13,7 +13,7 @@ import { Label } from '@/front/components/label';
 import { RouterLink } from '@/front/components/router-link';
 import { Scrollbar } from '@/front/components/scrollbar';
 import { usePathname } from '@/front/hooks/use-pathname';
-import { useGetUserAuthData } from '@/front/lib/react-query/features/auth/auth.hooks';
+import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
 import { getUserFullName } from '@/shared/utils/user.utils';
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';
