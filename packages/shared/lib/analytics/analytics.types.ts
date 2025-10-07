@@ -1,29 +1,48 @@
-import type { CaptureOptions, EventName, Properties } from 'posthog-js';
-import type { EventMessage, IdentifyMessage } from 'posthog-node';
+/**
+ * Unified analytics interface with consistent API across server and browser environments.
+ * Implementations translate these standard parameters to their respective PostHog library requirements.
+ */
+
+export interface CaptureEventParams {
+	/** Unique identifier for the user/session */
+	distinctId: string;
+	/** Name of the event being captured */
+	event: string;
+	/** Optional properties/metadata for the event */
+	properties?: Record<string, unknown>;
+}
+
+export interface IdentifyUserParams {
+	/** Unique identifier for the user */
+	distinctId: string;
+	/** Properties to set on the user profile */
+	properties?: Record<string, unknown>;
+	/** Properties to set only once (won't overwrite existing values) */
+	propertiesSetOnce?: Record<string, unknown>;
+}
+
+export interface CaptureExceptionParams {
+	/** The error/exception to capture */
+	error: unknown;
+	/** Unique identifier for the user/session */
+	distinctId?: string;
+	/** Additional properties/context for the exception */
+	additionalProperties?: Record<string, unknown>;
+}
 
 export interface IAnalytics {
-	node: {
-		capture(props: EventMessage): void;
-		identify(props: IdentifyMessage): void;
-		captureException(
-			error: unknown,
-			distinctId?: string,
-			// biome-ignore lint/suspicious/noExplicitAny: inherit from PostHog
-			additionalProperties?: Record<string | number, any>,
-		): void;
-	};
+	/**
+	 * Capture an analytics event
+	 */
+	capture(params: CaptureEventParams): void;
 
-	browser: {
-		identify(
-			new_distinct_id?: string,
-			userPropertiesToSet?: Properties,
-			userPropertiesToSetOnce?: Properties,
-		): void;
-		capture(
-			event_name: EventName,
-			properties?: Properties | null,
-			options?: CaptureOptions,
-		): void;
-		captureException(error: unknown, additionalProperties?: Properties): void;
-	};
+	/**
+	 * Identify a user with their properties
+	 */
+	identify(params: IdentifyUserParams): void;
+
+	/**
+	 * Capture an exception/error
+	 */
+	captureException(params: CaptureExceptionParams): void;
 }
