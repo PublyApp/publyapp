@@ -1,10 +1,10 @@
+import type { PostHogConfig, Properties } from 'posthog-js';
 import type {
-	CaptureOptions,
-	EventName,
-	PostHogConfig,
-	Properties,
-} from 'posthog-js';
-import type { IAnalytics } from './analytics.types';
+	CaptureEventParams,
+	CaptureExceptionParams,
+	IAnalytics,
+	IdentifyUserParams,
+} from './analytics.types';
 
 export interface IPostHogBrowser {
 	init(apiKey: string, config?: Partial<PostHogConfig>, name?: string): void;
@@ -13,11 +13,7 @@ export interface IPostHogBrowser {
 		userPropertiesToSet?: Properties,
 		userPropertiesToSetOnce?: Properties,
 	): void;
-	capture(
-		event_name: EventName,
-		properties?: Properties | null,
-		options?: CaptureOptions,
-	): void;
+	capture(event_name: string, properties?: Properties | null): void;
 	captureException(error: unknown, additionalProperties?: Properties): void;
 }
 
@@ -51,75 +47,39 @@ export class AnalyticsBrowser implements IAnalytics {
 		AnalyticsBrowser.instance = new AnalyticsBrowser();
 	}
 
-	public static identify(distinctId: string, properties?: Properties) {
-		AnalyticsBrowser.instance.browser.identify(distinctId, properties);
+	capture(params: CaptureEventParams): void {
+		if (!AnalyticsBrowser.posthog) {
+			console.error('PostHog is not initialized');
+			return;
+		}
+		// Translate to posthog-js browser format
+		// Note: Browser PostHog automatically tracks distinctId, but we can set it via identify first
+		AnalyticsBrowser.posthog.capture(params.event, params.properties);
 	}
 
-	public static capture(event_name: EventName, properties?: Properties) {
-		AnalyticsBrowser.instance.browser.capture(event_name, properties);
-	}
-
-	public static captureException(
-		error: unknown,
-		additionalProperties?: Properties,
-	) {
-		AnalyticsBrowser.instance.browser.captureException(
-			error,
-			additionalProperties,
+	identify(params: IdentifyUserParams): void {
+		if (!AnalyticsBrowser.posthog) {
+			console.error('PostHog is not initialized');
+			return;
+		}
+		// Translate to posthog-js browser format
+		AnalyticsBrowser.posthog.identify(
+			params.distinctId,
+			params.properties,
+			params.propertiesSetOnce,
 		);
 	}
 
-	browser = {
-		identify(
-			new_distinct_id?: string,
-			userPropertiesToSet?: Properties,
-			userPropertiesToSetOnce?: Properties,
-		) {
-			if (!AnalyticsBrowser.posthog) {
-			}
-			if (!AnalyticsBrowser.posthog) {
-				console.error('PostHog is not initialized');
-				return;
-			}
-			AnalyticsBrowser.posthog.identify(
-				new_distinct_id,
-				userPropertiesToSet,
-				userPropertiesToSetOnce,
-			);
-		},
-		capture(
-			event_name: EventName,
-			properties?: Properties | null,
-			options?: CaptureOptions,
-		) {
-			if (!AnalyticsBrowser.posthog) {
-				console.error('PostHog is not initialized');
-				return;
-			}
-			AnalyticsBrowser.posthog.capture(event_name, properties, options);
-		},
-		captureException(error: unknown, additionalProperties?: Properties) {
-			if (!AnalyticsBrowser.posthog) {
-				console.error('PostHog is not initialized');
-				return;
-			}
-			AnalyticsBrowser.posthog.captureException(error, additionalProperties);
-		},
-	};
-
-	node = {
-		capture() {
-			console.error('AnalyticsBrowser.node.capture is not supported on client');
-		},
-		identify() {
-			console.error(
-				'AnalyticsBrowser.node.identify is not supported on client',
-			);
-		},
-		captureException() {
-			console.error(
-				'AnalyticsBrowser.node.captureException is not supported on client',
-			);
-		},
-	};
+	captureException(params: CaptureExceptionParams): void {
+		if (!AnalyticsBrowser.posthog) {
+			console.error('PostHog is not initialized');
+			return;
+		}
+		// Browser PostHog tracks distinctId automatically from session
+		// If distinctId is provided, we could identify first, but typically not needed for exceptions
+		AnalyticsBrowser.posthog.captureException(
+			params.error,
+			params.additionalProperties,
+		);
+	}
 }

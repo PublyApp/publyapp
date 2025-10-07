@@ -19,6 +19,7 @@ public static class ProfileAsStaffEndPoints {
 			.WithName("FindProfiles")
 			.WithSummary("Find profiles")
 			.WithPermission([PermissionEnum.Staff.CAN_LIST_PROFILES])
+			.WithReqQueryValidation<FindTenantProfilesAsStaffQuery>()
 			.Produces500ApiResponse();
 
 		return routes;

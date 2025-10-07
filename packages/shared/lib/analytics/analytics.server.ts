@@ -1,10 +1,14 @@
-import { type EventMessage, type IdentifyMessage, PostHog } from 'posthog-node';
-import { logger } from '../winston.server';
-import type { IAnalytics } from './analytics.types';
+import { PostHog } from 'posthog-node';
+import type {
+	CaptureEventParams,
+	CaptureExceptionParams,
+	IAnalytics,
+	IdentifyUserParams,
+} from './analytics.types';
 
 /**
- * PostHogAnalyticsServer is a PostHog client that sends data to PostHog.
- * It is used when in production and server-side only
+ * AnalyticsNode is a PostHog client that sends data to PostHog from the server.
+ * It is used in production for server-side analytics.
  */
 export class AnalyticsNode implements IAnalytics {
 	private readonly posthog: PostHog;
@@ -16,32 +20,35 @@ export class AnalyticsNode implements IAnalytics {
 		});
 	}
 
-	node = {
-		capture: (props: EventMessage) => {
-			this.posthog.capture(props);
-		},
-		identify: (props: IdentifyMessage) => {
-			this.posthog.identify(props);
-		},
-		captureException: (
-			error: unknown,
-			distinctId?: string,
-			// biome-ignore lint/suspicious/noExplicitAny: inherit from PostHog
-			additionalProperties?: Record<string | number, any>,
-		) => {
-			this.posthog.captureException(error, distinctId, additionalProperties);
-		},
-	};
+	capture(params: CaptureEventParams): void {
+		// Translate to posthog-node EventMessage format
+		this.posthog.capture({
+			distinctId: params.distinctId,
+			event: params.event,
+			properties: params.properties,
+		});
+	}
 
-	browser = {
-		capture() {
-			logger.error('AnalyticsNode.browser.capture is not supported on server');
-		},
-		identify() {
-			logger.error('AnalyticsNode.browser.capture is not supported on server');
-		},
-		captureException() {
-			logger.error('AnalyticsNode.browser.capture is not supported on server');
-		},
-	};
+	identify(params: IdentifyUserParams): void {
+		// Translate to posthog-node IdentifyMessage format
+		const properties = {
+			...params.properties,
+			...(params.propertiesSetOnce
+				? { $set_once: params.propertiesSetOnce }
+				: {}),
+		};
+
+		this.posthog.identify({
+			distinctId: params.distinctId,
+			properties,
+		});
+	}
+
+	captureException(params: CaptureExceptionParams): void {
+		this.posthog.captureException(
+			params.error,
+			params.distinctId,
+			params.additionalProperties,
+		);
+	}
 }
