@@ -30,7 +30,7 @@ import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { useCreateTenant } from '@/front/lib/react-query/features/staff/tenant.hooks';
+import { useCreateTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { useMainStore } from '@/front/lib/zustand/store';
 import { fData } from '@/front/utils/format-number';
