@@ -693,6 +693,85 @@
         }
       }
     },
+    "/staff/profiles/tenant/{tenantId}": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Find profiles",
+        "operationId": "FindProfiles",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindProfilesAsStaffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tenant/products": {
       "get": {
         "tags": [
@@ -909,6 +988,25 @@
           }
         }
       },
+      "FindProfilesAsStaffResult": {
+        "required": [
+          "profiles",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileAsStaffItem"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "FindStaffMembersResult": {
         "required": [
           "staffMembers",
@@ -1106,6 +1204,18 @@
           }
         }
       },
+      "ProfileAsStaffItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "ProfileItem": {
         "type": "object",
         "properties": {
@@ -1236,6 +1346,9 @@
     },
     {
       "name": "Staff Members"
+    },
+    {
+      "name": "Profiles"
     },
     {
       "name": "Products"

@@ -79,18 +79,20 @@ type FindTenantProfilesParams = {
 };
 
 const findTenantProfilesQueryKey = getQueryKey<ApiClient>(
-	(client) => client.staff.tenants.byTenantId('').profiles.get,
+	(client) => client.staff.profiles.tenant.byTenantId('').get,
 );
 
 export const useFindTenantProfiles = createQuery({
 	queryKey: [findTenantProfilesQueryKey] as const,
 	fetcher: async (params: FindTenantProfilesParams) => {
-		const result = await clientManager.apiClient.staff.tenants
+		const result = await clientManager.apiClient.staff.profiles.tenant
 			.byTenantId(params.tenantId)
-			.profiles.get({
+			.get({
 				queryParameters: {
 					page: params.page ? params.page.toString() : undefined,
-					pageSize: params.pageSize ? params.pageSize.toString() : undefined,
+					limit: params.limit ? params.limit.toString() : undefined,
+					sortId: params.sort?.id,
+					sortOrder: params.sort?.order,
 				},
 			});
 

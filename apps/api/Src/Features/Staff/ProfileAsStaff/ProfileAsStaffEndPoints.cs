@@ -13,7 +13,7 @@ public static class ProfileAsStaffEndPoints {
 			.WithOpenApi();
 
 		group.MapGet(
-			PathUtils.GetLastSegment(RoutePath.Staff.Profiles.Find),
+			PathUtils.GetLastSegment(RoutePath.Staff.Profiles.FindForTenant, n: 2),
 			FindProfilesAsStaff.HandleFindProfilesAsStaff
 		)
 			.WithName("FindProfiles")

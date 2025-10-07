@@ -15,6 +15,10 @@ public class FindProfilesAsStaffResult {
 	public required int Count { get; set; }
 }
 
+public class FindProfilesAsStaffQuery : PaginatedQuery { }
+
+public class FindProfilesAsStaffQueryValidator : PaginatedQueryValidator<FindProfilesAsStaffQuery> { }
+
 public class FindProfilesAsStaff {
 	public static async Task<
 		Results<
@@ -23,38 +27,37 @@ public class FindProfilesAsStaff {
 		>
 	> HandleFindProfilesAsStaff(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[AsParameters] FindProfilesAsStaffQuery findProfilesAsStaffQuery,
 		[FromRoute] string tenantId,
 		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
-			return TypedResults.BadRequest(ApiResponse.Create(
-				"Tenant not found",
-				ResponseKeys.NotFound
-			));
+			return TypedResults.BadRequest(ApiResponse.Create("Tenant not found", ResponseKeys.NotFound));
 		}
 
-		// var page = null;// findProfilesAsStaffQuery.GetPage();
-		// var limit = null;// findProfilesAsStaffQuery.GetLimit();
-		// var sortId = null;// findProfilesAsStaffQuery.GetSortId();
-		// var sortOrder = null;// findProfilesAsStaffQuery.GetSortOrder();
+		var page = findProfilesAsStaffQuery.GetPage();
+		var limit = findProfilesAsStaffQuery.GetLimit();
+		var sortId = findProfilesAsStaffQuery.GetSortId();
+		var sortOrder = findProfilesAsStaffQuery.GetSortOrder();
+
 
 		var profiles = await profileAsStaffService.FindTenantProfilesAsync(
 			tenantId: tenantIdGuid,
-			page: null,
-			limit: null,
-			sortId: null,
-			sortOrder: null,
+			page: page,
+			limit: limit,
+			sortId: sortId,
+			sortOrder: sortOrder,
 			cancellationToken: cancellationToken
 		);
 
-		return TypedResults.Ok(
-			new FindProfilesAsStaffResult {
-				Profiles = profiles.Select(profile => new ProfileAsStaffItem {
+		return TypedResults.Ok(new FindProfilesAsStaffResult {
+			Profiles = profiles
+				.Select(profile => new ProfileAsStaffItem {
 					Id = profile.Id,
 					Name = profile.Name,
-				}).ToList(),
-				Count = profiles.Count,
-			}
-		);
+				})
+				.ToList(),
+			Count = profiles.Count,
+		});
 	}
 }
