@@ -35,6 +35,7 @@ public static class StaffMemberEndPoints {
 		)
 			.WithName("FindStaffMembers")
 			.WithSummary("Find staff members")
+			.WithReqQueryValidation<FindStaffMembersQuery>()
 			.Produces500ApiResponse();
 
 		return routes;
