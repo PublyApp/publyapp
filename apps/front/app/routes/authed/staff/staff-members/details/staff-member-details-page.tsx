@@ -7,18 +7,13 @@ import { data, useParams } from 'react-router';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import View400 from '@/front/components/error/400-view';
 import { View500 } from '@/front/components/error/500-view';
-import { NotFoundView } from '@/front/components/error/not-found-view';
+// import { NotFoundView } from '@/front/components/error/not-found-view';
 import QueryDisplay from '@/front/components/query-display';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { useGetStaffMemberById } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+import { useGetStaffMemberById } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import {
-	APP_NAME,
-	FRONT_PATH_NAMES,
-	isServer,
-	X_CODE,
-} from '@/shared/lib/constants';
+import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 import { UserNewEditForm } from '../components/user-new-edit-form';
 import { UserNewEditFormSkeleton } from '../components/user-new-edit-form-skeleton';
 import type { Route } from './+types/staff-member-details-page';
@@ -76,7 +71,7 @@ const StaffMemberDetailsPage = () => {
 	const { t } = useTranslate();
 	const { userId } = useParams();
 	const getByIdQuery = useGetStaffMemberById({
-		variables: { id: userId ?? '' },
+		variables: { userId: userId ?? '' },
 		enabled: !!userId,
 	});
 

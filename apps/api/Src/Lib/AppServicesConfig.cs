@@ -5,7 +5,6 @@ using FluentValidation;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Common.Session;
-using MainApi.Src.Features.Staff.Tenant;
 using Microsoft.Extensions.Options;
 using MainApi.Src.Features.Common.Email;
 using MainApi.Src.Features.Common.Permission;
@@ -13,6 +12,7 @@ using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Staff.StaffMember;
+using MainApi.Src.Features.Staff.TenantAsStaff;
 
 namespace MainApi.Src.Lib;
 
@@ -93,7 +93,7 @@ public static class AppServicesConfig {
 		builder.Services.AddScoped<IUserService, UserService>();
 		builder.Services.AddScoped<IPasswordService, PasswordService>();
 		builder.Services.AddScoped<ISessionService, SessionService>();
-		builder.Services.AddScoped<IStaffTenantService, StaffTenantService>();
+		builder.Services.AddScoped<ITenantAsStaffService, TenantAsStaffService>();
 		builder.Services.AddScoped<IProductService, ProductService>();
 		builder.Services.AddScoped<ITenantService, TenantService>();
 		builder.Services.AddScoped<IAccountService, AccountService>();
