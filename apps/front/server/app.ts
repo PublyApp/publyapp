@@ -16,6 +16,7 @@ import {
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { serverLogger } from '@/shared/lib/logger/logger.server';
+import { LogLevelEnum } from '@/shared/lib/logger/logger.utils';
 
 declare global {
 	namespace Express {
@@ -26,6 +27,12 @@ declare global {
 }
 
 const isDevelopment = import.meta.env.DEV;
+
+if (isDevelopment) {
+	serverLogger.logLevel = LogLevelEnum.DEBUG;
+} else {
+	serverLogger.logLevel = LogLevelEnum.WARN;
+}
 
 export const app = express();
 

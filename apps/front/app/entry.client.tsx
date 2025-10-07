@@ -1,14 +1,23 @@
 import { StrictMode, startTransition } from 'react';
-
 import { hydrateRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import { HydratedRouter } from 'react-router/dom';
+import { clientLogger } from '@/shared/lib/logger/logger.client';
+import { LogLevelEnum } from '@/shared/lib/logger/logger.utils';
 import { NonceProvider } from './hooks/use-nonce';
 import { initApiClientOnClient } from './lib/api';
 import { initI18nOnClient } from './lib/i18n/init-i18n.client';
 import { initZodOnClient } from './lib/zod/zod.client';
 
+const isDevelopment = import.meta.env.DEV;
+
 const hydrate = async () => {
+	if (isDevelopment) {
+		clientLogger.logLevel = LogLevelEnum.DEBUG;
+	} else {
+		clientLogger.logLevel = LogLevelEnum.WARN;
+	}
+
 	const i18n = await initI18nOnClient();
 	initZodOnClient(i18n);
 	initApiClientOnClient(/* i18n */);

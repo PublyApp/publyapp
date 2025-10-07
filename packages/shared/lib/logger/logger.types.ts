@@ -1,4 +1,4 @@
-export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+import type { LogLevel } from './logger.utils';
 
 export interface ILogger {
 	logLevel: LogLevel;

@@ -1,5 +1,5 @@
-import type { ILogger, LogLevel } from './logger.types';
-import { logLevelHierarchy } from './logger.utils';
+import type { ILogger } from './logger.types';
+import { type LogLevel, logLevelHierarchy } from './logger.utils';
 
 export class ClientLogger implements ILogger {
 	logLevel: LogLevel = 'debug';

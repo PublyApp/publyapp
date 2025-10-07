@@ -1,7 +1,7 @@
 import winston, { createLogger, format } from 'winston';
 import { consoleFormat } from 'winston-console-format';
-import type { ILogger, LogLevel } from './logger.types';
-import { logLevelHierarchy } from './logger.utils';
+import type { ILogger } from './logger.types';
+import { type LogLevel, logLevelHierarchy } from './logger.utils';
 
 const winstonLogger = createLogger();
 
