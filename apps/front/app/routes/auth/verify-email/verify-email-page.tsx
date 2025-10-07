@@ -33,7 +33,6 @@ import type { Route } from './+types/verify-email-page';
 
 const actionIntent = {
 	REQUEST_EMAIL_VERIFICATION: 'REQUEST_EMAIL_VERIFICATION',
-	// CHALLENGE_EMAIL_FOR_TOKEN: 'CHALLENGE_EMAIL_FOR_TOKEN',
 } as const;
 
 export const action = getServerAction({
@@ -42,8 +41,6 @@ export const action = getServerAction({
 		const intent = formData.get('intent');
 
 		const email = formData.get('email');
-		// const searchParams = new URL(request.url).searchParams;
-		// const token = searchParams.get(queryParamKey.token);
 
 		switch (intent) {
 			case actionIntent.REQUEST_EMAIL_VERIFICATION: {
@@ -59,20 +56,24 @@ export const action = getServerAction({
 				}
 
 				const requestEmailVerification = safeRun(
-					apiClient.auth.requestEmailVerification,
+					apiClient.auth.verifyEmailRequest.post,
 				);
 
 				// we intentionally don't return the actual outcome of the request
-				requestEmailVerification({ email: parsed.data.email }).then(
-					(result) => {
-						if (result.status === 'error') {
-							context.logger.error(
-								'Error when requesting email verification',
-								result.error,
-							);
-						}
+				requestEmailVerification({
+					email: {
+						getValue() {
+							return parsed.data.email;
+						},
 					},
-				);
+				}).then((result) => {
+					if (result.status === 'error') {
+						context.logger.error(
+							'Error when requesting email verification',
+							result.error,
+						);
+					}
+				});
 
 				return {
 					status: 'success',
