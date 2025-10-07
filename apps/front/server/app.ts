@@ -6,10 +6,7 @@ import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
-import { env } from '@/front/lib/env';
-import { AnalyticsNode } from '@/shared/lib/analytics/analytics.server';
-import type { IAnalytics } from '@/shared/lib/analytics/analytics.types';
-import { AnalyticsLocal } from '@/shared/lib/analytics/analytics-local';
+import { analyticsServer } from '@/front/lib/analytics/analytics.server';
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
@@ -56,12 +53,6 @@ app.use((req, res, next) => {
 	})(req, res, next);
 });
 
-let analytics: IAnalytics = new AnalyticsLocal();
-
-if (!isDevelopment) {
-	analytics = new AnalyticsNode(env.VITE_POSTHOG_API_KEY);
-}
-
 const reactRouterHandler = createRequestHandler({
 	build: () => {
 		return import('virtual:react-router/server-build');
@@ -75,7 +66,7 @@ const reactRouterHandler = createRequestHandler({
 
 		return {
 			logger: serverLogger,
-			analytics,
+			analytics: analyticsServer,
 			nonce,
 		};
 	},
