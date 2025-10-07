@@ -15,7 +15,7 @@ import {
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
-import { logger } from '@/shared/lib/logger/winston.server';
+import { serverLogger } from '@/shared/lib/logger/logger.server';
 
 declare global {
 	namespace Express {
@@ -67,7 +67,7 @@ const reactRouterHandler = createRequestHandler({
 		}
 
 		return {
-			logger,
+			logger: serverLogger,
 			analytics,
 			nonce,
 		};

@@ -1,9 +1,9 @@
 import type { IAnalytics } from '@org/shared/lib/analytics/analytics.types';
-import type { logger } from '@org/shared/lib/logger/winston.server';
+import type { ILogger } from '@org/shared/lib/logger/logger.types';
 
 declare module 'react-router' {
 	interface AppLoadContext {
-		logger: typeof logger;
+		logger: ILogger;
 		analytics: IAnalytics;
 		nonce: string;
 	}
