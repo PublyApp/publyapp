@@ -15,7 +15,7 @@ import {
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
-import { logger } from '@/shared/lib/winston.server';
+import { logger } from '@/shared/lib/logger/winston.server';
 
 declare global {
 	namespace Express {

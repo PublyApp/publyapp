@@ -62,7 +62,7 @@ const handleRequest = async (
 				},
 			);
 
-			analytics.node.capture({
+			analytics.capture({
 				distinctId:
 					_.get(ipAddresses, _.toLower(REMIX_CLIENT_IP_HEADER_KEY)) ||
 					_.get(ipAddresses, _.toLower(CLOUDFLARE_CONNECTING_IP_HEADER_KEY)) ||
