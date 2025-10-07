@@ -1,31 +1,24 @@
-import type { IAnalytics } from './analytics.types';
+import type {
+	CaptureEventParams,
+	CaptureExceptionParams,
+	IAnalytics,
+	IdentifyUserParams,
+} from './analytics.types';
 
 /**
- * SilentPostHog is a PostHog client that does not send any data.
- * It is used when in local and both client-side/server-side
+ * AnalyticsLocal is a no-op PostHog client that does not send any data.
+ * It is used in local development for both client-side and server-side.
  */
 export class AnalyticsLocal implements IAnalytics {
-	node = {
-		capture() {
-			console.warn('AnalyticsLocal instance used');
-		},
-		identify() {
-			console.warn('AnalyticsLocal instance used');
-		},
-		captureException() {
-			console.warn('AnalyticsLocal instance used');
-		},
-	};
+	capture(_params: CaptureEventParams): void {
+		console.warn('AnalyticsLocal instance used - capture');
+	}
 
-	browser = {
-		capture() {
-			console.warn('AnalyticsLocal instance used');
-		},
-		identify() {
-			console.warn('AnalyticsLocal instance used');
-		},
-		captureException() {
-			console.warn('AnalyticsLocal instance used');
-		},
-	};
+	identify(_params: IdentifyUserParams): void {
+		console.warn('AnalyticsLocal instance used - identify');
+	}
+
+	captureException(_params: CaptureExceptionParams): void {
+		console.warn('AnalyticsLocal instance used - captureException');
+	}
 }
