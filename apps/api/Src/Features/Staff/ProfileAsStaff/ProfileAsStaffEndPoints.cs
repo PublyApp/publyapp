@@ -14,7 +14,7 @@ public static class ProfileAsStaffEndPoints {
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.Profiles.FindForTenant, n: 2),
-			FindProfilesAsStaff.HandleFindProfilesAsStaff
+			FindTenantProfilesAsStaff.HandleFindTenantProfilesAsStaff
 		)
 			.WithName("FindProfiles")
 			.WithSummary("Find profiles")
