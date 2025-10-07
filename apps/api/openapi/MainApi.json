@@ -744,7 +744,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindProfilesAsStaffResult"
+                  "$ref": "#/components/schemas/FindTenantProfilesAsStaffResult"
                 }
               }
             }
@@ -988,25 +988,6 @@
           }
         }
       },
-      "FindProfilesAsStaffResult": {
-        "required": [
-          "profiles",
-          "count"
-        ],
-        "type": "object",
-        "properties": {
-          "profiles": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProfileAsStaffItem"
-            }
-          },
-          "count": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
-      },
       "FindStaffMembersResult": {
         "required": [
           "staffMembers",
@@ -1018,6 +999,25 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/StaffMemberItem"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "FindTenantProfilesAsStaffResult": {
+        "required": [
+          "profiles",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileAsStaffItem"
             }
           },
           "count": {

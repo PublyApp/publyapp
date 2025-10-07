@@ -10,24 +10,24 @@ public class ProfileAsStaffItem {
 	public string Name { get; set; } = string.Empty;
 }
 
-public class FindProfilesAsStaffResult {
+public class FindTenantProfilesAsStaffResult {
 	public required List<ProfileAsStaffItem> Profiles { get; set; }
 	public required int Count { get; set; }
 }
 
-public class FindProfilesAsStaffQuery : PaginatedQuery { }
+public class FindTenantProfilesAsStaffQuery : PaginatedQuery { }
 
-public class FindProfilesAsStaffQueryValidator : PaginatedQueryValidator<FindProfilesAsStaffQuery> { }
+public class FindTenantProfilesAsStaffQueryValidator : PaginatedQueryValidator<FindTenantProfilesAsStaffQuery> { }
 
-public class FindProfilesAsStaff {
+public class FindTenantProfilesAsStaff {
 	public static async Task<
 		Results<
-			Ok<FindProfilesAsStaffResult>,
+			Ok<FindTenantProfilesAsStaffResult>,
 			BadRequest<ApiResponse>
 		>
-	> HandleFindProfilesAsStaff(
+	> HandleFindTenantProfilesAsStaff(
 		[FromServices] IProfileAsStaffService profileAsStaffService,
-		[AsParameters] FindProfilesAsStaffQuery findProfilesAsStaffQuery,
+		[AsParameters] FindTenantProfilesAsStaffQuery findTenantProfilesAsStaffQuery,
 		[FromRoute] string tenantId,
 		CancellationToken cancellationToken
 	) {
@@ -35,10 +35,10 @@ public class FindProfilesAsStaff {
 			return TypedResults.BadRequest(ApiResponse.Create("Tenant not found", ResponseKeys.NotFound));
 		}
 
-		var page = findProfilesAsStaffQuery.GetPage();
-		var limit = findProfilesAsStaffQuery.GetLimit();
-		var sortId = findProfilesAsStaffQuery.GetSortId();
-		var sortOrder = findProfilesAsStaffQuery.GetSortOrder();
+		var page = findTenantProfilesAsStaffQuery.GetPage();
+		var limit = findTenantProfilesAsStaffQuery.GetLimit();
+		var sortId = findTenantProfilesAsStaffQuery.GetSortId();
+		var sortOrder = findTenantProfilesAsStaffQuery.GetSortOrder();
 
 
 		var profiles = await profileAsStaffService.FindTenantProfilesAsync(
@@ -50,7 +50,7 @@ public class FindProfilesAsStaff {
 			cancellationToken: cancellationToken
 		);
 
-		return TypedResults.Ok(new FindProfilesAsStaffResult {
+		return TypedResults.Ok(new FindTenantProfilesAsStaffResult {
 			Profiles = profiles
 				.Select(profile => new ProfileAsStaffItem {
 					Id = profile.Id,
