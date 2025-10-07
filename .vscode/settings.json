@@ -123,6 +123,9 @@
 		"Dockerfile-Bun": "docker",
 		"Dockerfile-Node": "docker"
 	},
+	"material-icon-theme.folders.associations": {
+		"front": "public"
+	},
 	"typescript.tsdk": "node_modules\\typescript\\lib",
 	"files.eol": "\n",
 	"[jsonc]": {

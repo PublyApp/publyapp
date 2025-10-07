@@ -35,9 +35,11 @@ dotnet_diagnostic.IDE0037.severity = none
 dotnet_diagnostic.IDE0305.severity = none
 # IDE0200: Remove unnecessary lambda expression
 dotnet_diagnostic.IDE0200.severity = none
-# Line length and wrapping
-csharp_max_line_length = 50
+# IDE2000: Avoid multiple blank lines
+dotnet_diagnostic.IDE2000.severity = warning
+# ==== Braces syntax to follow Js/Java style ====
 csharp_new_line_before_open_brace = none
 csharp_new_line_before_else = false
 csharp_new_line_before_catch = false
 csharp_new_line_before_finally = false
+# ==== Braces syntax to follow Js/Java style ====

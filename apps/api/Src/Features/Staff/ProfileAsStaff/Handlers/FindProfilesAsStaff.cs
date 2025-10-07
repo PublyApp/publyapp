@@ -15,7 +15,6 @@ public class FindProfilesAsStaffResult {
 	public required int Count { get; set; }
 }
 
-
 public class FindProfilesAsStaff {
 	public static async Task<
 		Results<
@@ -45,7 +44,8 @@ public class FindProfilesAsStaff {
 			limit: null,
 			sortId: null,
 			sortOrder: null,
-			cancellationToken: cancellationToken);
+			cancellationToken: cancellationToken
+		);
 
 		return TypedResults.Ok(
 			new FindProfilesAsStaffResult {
