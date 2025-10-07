@@ -1,6 +1,10 @@
-import type { CaptureOptions, EventName, Properties } from 'posthog-js';
-import { type EventMessage, type IdentifyMessage, PostHog } from 'posthog-node';
-import type { IAnalytics } from './analytics.types';
+import { PostHog } from 'posthog-node';
+import type {
+	CaptureEventParams,
+	CaptureExceptionParams,
+	IAnalytics,
+	IdentifyUserParams,
+} from './analytics.types';
 
 /**
  * AnalyticsNode is a PostHog client that sends data to PostHog from the server.
@@ -16,68 +20,35 @@ export class AnalyticsNode implements IAnalytics {
 		});
 	}
 
-	// Server-side capture with EventMessage
-	capture(event: EventMessage): void;
-	// Client-side capture signature (not used on server, but required by interface)
-	capture(
-		event: EventName,
-		properties?: Properties | null,
-		options?: CaptureOptions,
-	): void;
-	capture(event: EventMessage | EventName): void {
-		// Server implementation only handles EventMessage
-		this.posthog.capture(event as EventMessage);
+	capture(params: CaptureEventParams): void {
+		// Translate to posthog-node EventMessage format
+		this.posthog.capture({
+			distinctId: params.distinctId,
+			event: params.event,
+			properties: params.properties,
+		});
 	}
 
-	// Server-side identify with IdentifyMessage
-	identify(props: IdentifyMessage): void;
-	// Client-side identify signature (not used on server, but required by interface)
-	identify(
-		distinctId: string,
-		userPropertiesToSet?: Properties,
-		userPropertiesToSetOnce?: Properties,
-	): void;
-	identify(
-		propsOrDistinctId: IdentifyMessage | string,
-		userPropertiesToSet?: Properties,
-		_userPropertiesToSetOnce?: Properties,
-	): void {
-		// Server implementation only handles IdentifyMessage
-		if (typeof propsOrDistinctId === 'string') {
-			// Client-side call on server (shouldn't happen, but handle gracefully)
-			this.posthog.identify({
-				distinctId: propsOrDistinctId,
-				properties: userPropertiesToSet,
-			});
-		} else {
-			this.posthog.identify(propsOrDistinctId);
-		}
+	identify(params: IdentifyUserParams): void {
+		// Translate to posthog-node IdentifyMessage format
+		const properties = {
+			...params.properties,
+			...(params.propertiesSetOnce
+				? { $set_once: params.propertiesSetOnce }
+				: {}),
+		};
+
+		this.posthog.identify({
+			distinctId: params.distinctId,
+			properties,
+		});
 	}
 
-	// Server-side captureException with distinctId
-	captureException(
-		error: unknown,
-		distinctId?: string,
-		additionalProperties?: Properties,
-	): void;
-	// Client-side captureException signature (not used on server, but required by interface)
-	captureException(error: unknown, additionalProperties?: Properties): void;
-	captureException(
-		error: unknown,
-		distinctIdOrProperties?: string | Properties,
-		additionalProperties?: Properties,
-	): void {
-		// Handle both signatures
-		if (typeof distinctIdOrProperties === 'string') {
-			// Server-side call with distinctId
-			this.posthog.captureException(
-				error,
-				distinctIdOrProperties,
-				additionalProperties,
-			);
-		} else {
-			// Client-side call or no distinctId
-			this.posthog.captureException(error, undefined, distinctIdOrProperties);
-		}
+	captureException(params: CaptureExceptionParams): void {
+		this.posthog.captureException(
+			params.error,
+			params.distinctId,
+			params.additionalProperties,
+		);
 	}
 }

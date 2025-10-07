@@ -49,10 +49,10 @@ app.use((req, res, next) => {
 	})(req, res, next);
 });
 
-let posthog: IAnalytics = new AnalyticsLocal();
+let analytics: IAnalytics = new AnalyticsLocal();
 
 if (!isDevelopment) {
-	posthog = new AnalyticsNode(env.VITE_POSTHOG_API_KEY);
+	analytics = new AnalyticsNode(env.VITE_POSTHOG_API_KEY);
 }
 
 const reactRouterHandler = createRequestHandler({
@@ -66,17 +66,9 @@ const reactRouterHandler = createRequestHandler({
 			throw new Error('Nonce has not been set');
 		}
 
-		if (isDevelopment) {
-			return {
-				logger,
-				analytics: posthog,
-				nonce,
-			};
-		}
-
 		return {
 			logger,
-			analytics: posthog,
+			analytics,
 			nonce,
 		};
 	},

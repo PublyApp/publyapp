@@ -1,47 +1,48 @@
-import type { CaptureOptions, EventName, Properties } from 'posthog-js';
-import type { EventMessage, IdentifyMessage } from 'posthog-node';
-
 /**
- * Unified analytics interface that works across both server (Node) and client (Browser) environments.
- * Uses method overloads to provide type-safe APIs for each environment.
+ * Unified analytics interface with consistent API across server and browser environments.
+ * Implementations translate these standard parameters to their respective PostHog library requirements.
  */
+
+export interface CaptureEventParams {
+	/** Unique identifier for the user/session */
+	distinctId: string;
+	/** Name of the event being captured */
+	event: string;
+	/** Optional properties/metadata for the event */
+	properties?: Record<string, unknown>;
+}
+
+export interface IdentifyUserParams {
+	/** Unique identifier for the user */
+	distinctId: string;
+	/** Properties to set on the user profile */
+	properties?: Record<string, unknown>;
+	/** Properties to set only once (won't overwrite existing values) */
+	propertiesSetOnce?: Record<string, unknown>;
+}
+
+export interface CaptureExceptionParams {
+	/** The error/exception to capture */
+	error: unknown;
+	/** Unique identifier for the user/session */
+	distinctId?: string;
+	/** Additional properties/context for the exception */
+	additionalProperties?: Record<string, unknown>;
+}
+
 export interface IAnalytics {
 	/**
-	 * Capture an event (Server-side with EventMessage)
+	 * Capture an analytics event
 	 */
-	capture(event: EventMessage): void;
-	/**
-	 * Capture an event (Client-side with event name and properties)
-	 */
-	capture(
-		event: EventName,
-		properties?: Properties | null,
-		options?: CaptureOptions,
-	): void;
+	capture(params: CaptureEventParams): void;
 
 	/**
-	 * Identify a user (Server-side with IdentifyMessage)
+	 * Identify a user with their properties
 	 */
-	identify(props: IdentifyMessage): void;
-	/**
-	 * Identify a user (Client-side with distinct ID and properties)
-	 */
-	identify(
-		distinctId: string,
-		userPropertiesToSet?: Properties,
-		userPropertiesToSetOnce?: Properties,
-	): void;
+	identify(params: IdentifyUserParams): void;
 
 	/**
-	 * Capture an exception (Server-side with distinctId)
+	 * Capture an exception/error
 	 */
-	captureException(
-		error: unknown,
-		distinctId?: string,
-		additionalProperties?: Properties,
-	): void;
-	/**
-	 * Capture an exception (Client-side with properties only)
-	 */
-	captureException(error: unknown, additionalProperties?: Properties): void;
+	captureException(params: CaptureExceptionParams): void;
 }
