@@ -38,6 +38,7 @@ export const createCSPDirectives = ({
 			"'self'",
 			'https://www.publyapp.com',
 			'https://publyapp.com',
+			'https://us-assets.i.posthog.com', // PostHog Scripts
 			_nonce,
 		],
 		styleSrc: [
@@ -48,7 +49,13 @@ export const createCSPDirectives = ({
 		],
 		imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
 		fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com'],
-		connectSrc: ["'self'", 'https://www.publyapp.com', 'https://publyapp.com'],
+		connectSrc: [
+			"'self'",
+			'https://www.publyapp.com',
+			'https://publyapp.com',
+			'https://us.i.posthog.com', // PostHog API
+			'https://us-assets.i.posthog.com', // PostHog Assets
+		],
 		mediaSrc: ["'self'"],
 		objectSrc: ["'none'"],
 		baseUri: ["'self'"],

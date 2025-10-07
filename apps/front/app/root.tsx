@@ -23,7 +23,6 @@ import _ from 'lodash';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
 import View400 from './components/error/400-view';
-import LoadAnalytics from './components/load-analytics';
 import { ProgressBar } from './components/progress-bar';
 import { Snackbar } from './components/snackbar/snackbar';
 import { useNonce } from './hooks/use-nonce';
@@ -86,7 +85,6 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				</QueryClientProvider>
 				<ScrollRestoration nonce={nonce} />
 				<Scripts nonce={nonce} />
-				<LoadAnalytics />
 			</body>
 		</html>
 	);
