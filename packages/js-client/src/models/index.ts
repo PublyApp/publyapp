@@ -62,6 +62,15 @@ export function createCreateTenantAsStaffResultFromDiscriminatorValue(parseNode:
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindProfilesAsStaffResult}
+ */
+// @ts-ignore
+export function createFindProfilesAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindProfilesAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindStaffMembersResult}
  */
 // @ts-ignore
@@ -157,6 +166,15 @@ export function createPasswordRegisterResultFromDiscriminatorValue(parseNode: Pa
 // @ts-ignore
 export function createProductFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoProduct;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ProfileAsStaffItem}
+ */
+// @ts-ignore
+export function createProfileAsStaffItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoProfileAsStaffItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -328,6 +346,18 @@ export function deserializeIntoCreateTenantAsStaffResult(createTenantAsStaffResu
 }
 /**
  * The deserialization information for the current model
+ * @param FindProfilesAsStaffResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindProfilesAsStaffResult(findProfilesAsStaffResult: Partial<FindProfilesAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "count": n => { findProfilesAsStaffResult.count = n.getNumberValue(); },
+        "profiles": n => { findProfilesAsStaffResult.profiles = n.getCollectionOfObjectValues<ProfileAsStaffItem>(createProfileAsStaffItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindStaffMembersResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -473,6 +503,18 @@ export function deserializeIntoProduct(product: Partial<Product> | undefined = {
 }
 /**
  * The deserialization information for the current model
+ * @param ProfileAsStaffItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoProfileAsStaffItem(profileAsStaffItem: Partial<ProfileAsStaffItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "id": n => { profileAsStaffItem.id = n.getGuidValue(); },
+        "name": n => { profileAsStaffItem.name = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param ProfileItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -559,6 +601,16 @@ export function deserializeIntoVerifyEmailRequestResult(verifyEmailRequestResult
     return {
         "status": n => { verifyEmailRequestResult.status = n.getStringValue(); },
     }
+}
+export interface FindProfilesAsStaffResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The count property
+     */
+    count?: number | null;
+    /**
+     * The profiles property
+     */
+    profiles?: ProfileAsStaffItem[] | null;
 }
 export interface FindStaffMembersResult extends AdditionalDataHolder, Parsable {
     /**
@@ -722,6 +774,16 @@ export interface Product extends AdditionalDataHolder, Parsable {
      */
     updatedAt?: Date | null;
 }
+export interface ProfileAsStaffItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+}
 export interface ProfileItem extends AdditionalDataHolder, Parsable {
     /**
      * The id property
@@ -801,6 +863,19 @@ export function serializeCreateTenantAsStaffResult(writer: SerializationWriter, 
     writer.writeGuidValue("id", createTenantAsStaffResult.id);
     writer.writeStringValue("name", createTenantAsStaffResult.name);
     writer.writeAdditionalData(createTenantAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param FindProfilesAsStaffResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindProfilesAsStaffResult(writer: SerializationWriter, findProfilesAsStaffResult: Partial<FindProfilesAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findProfilesAsStaffResult || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("count", findProfilesAsStaffResult.count);
+    writer.writeCollectionOfObjectValues<ProfileAsStaffItem>("profiles", findProfilesAsStaffResult.profiles, serializeProfileAsStaffItem);
+    writer.writeAdditionalData(findProfilesAsStaffResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -957,6 +1032,19 @@ export function serializeProduct(writer: SerializationWriter, product: Partial<P
     writer.writeGuidValue("tenantId", product.tenantId);
     writer.writeDateValue("updatedAt", product.updatedAt);
     writer.writeAdditionalData(product.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ProfileAsStaffItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeProfileAsStaffItem(writer: SerializationWriter, profileAsStaffItem: Partial<ProfileAsStaffItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!profileAsStaffItem || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("id", profileAsStaffItem.id);
+    writer.writeStringValue("name", profileAsStaffItem.name);
+    writer.writeAdditionalData(profileAsStaffItem.additionalData);
 }
 /**
  * Serializes information the current object

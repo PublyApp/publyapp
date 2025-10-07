@@ -5,6 +5,7 @@ using MainApi.Src.Features.Tenant.Product;
 using MainApi.Src.Features.Staff.TenantAsStaff;
 using MainApi.Src.Lib.Middlewares;
 using MainApi.Src.Features.Staff.StaffMember;
+using MainApi.Src.Features.Staff.ProfileAsStaff;
 
 AppEnvironment.LoadEnv(); // ! must be called before anything else
 
@@ -34,6 +35,7 @@ var tenantGroup = app.MapGroup(RoutePath.Tenant.Root);
 // Staff endpoints
 staffGroup.MapTenantAsStaffEndpoints();
 staffGroup.MapStaffMemberEndPoints();
+staffGroup.MapProfileAsStaffEndPoints();
 
 // Tenant endpoints
 tenantGroup.MapProductEndpoints();

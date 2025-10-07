@@ -1,4 +1,3 @@
-using FluentValidation;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -20,106 +19,9 @@ public class FindStaffMembersResult {
 	public required int Count { get; set; }
 }
 
-public class FindStaffMembersQuery {
-	[FromQuery] public string? Page { get; set; }
-	[FromQuery] public string? Limit { get; set; }
-	[FromQuery] public string? SortId { get; set; }
-	[FromQuery] public string? SortOrder { get; set; }
-	public int? GetPage() {
-		if (Page is null) {
-			return null;
-		}
+public class FindStaffMembersQuery : PaginatedQuery { }
 
-		if (!int.TryParse(Page, out var page)) {
-			throw new Exception("Page must be a valid number");
-		}
-		return page;
-	}
-
-	public int? GetLimit() {
-		if (Limit is null) {
-			return null;
-		}
-
-		if (!int.TryParse(Limit, out var limit)) {
-			throw new Exception("Limit must be a valid number");
-		}
-
-		return limit;
-	}
-
-	public string? GetSortId() {
-		if (SortId is null) {
-			return null;
-		}
-
-		return SortId;
-	}
-
-	public Lib.SortOrder GetSortOrder() {
-		if (SortOrder is null) {
-			return Lib.SortOrder.Desc;
-		}
-
-		if (
-			!SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase)
-			&& !SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase)
-		) {
-			throw new Exception("SortOrder must equal 'asc' or 'desc'");
-		}
-
-		return SortOrder == "asc"
-			? Lib.SortOrder.Asc
-			: Lib.SortOrder.Desc;
-	}
-}
-
-public class FindStaffMembersQueryValidator : AbstractValidator<FindStaffMembersQuery> {
-	public FindStaffMembersQueryValidator() {
-		RuleFor(x => x.Page)
-			.Must(BeValidNullableNumber)
-			.WithMessage("Page must be a valid number greater than or equal to 1");
-
-		RuleFor(x => x.Limit)
-			.Must(BeValidNullableNumber)
-			.WithMessage("Limit must be a valid number greater than or equal to 1");
-
-		RuleFor(x => x.SortId)
-			.Must(BeValidNullableString)
-			.WithMessage("SortId must be a valid string");
-
-		RuleFor(x => x.SortOrder)
-			.Must(BeValidNullableSort)
-			.WithMessage("SortOrder must equal 'asc' or 'desc'");
-	}
-
-	private static bool BeValidNullableString(string? value) {
-		if (value is null) {
-			return true;
-		}
-
-		return !string.IsNullOrEmpty(value);
-	}
-
-	private static bool BeValidNullableSort(string? value) {
-		if (value is null) {
-			return true;
-		}
-
-		return (
-			value.Equals("asc", StringComparison.OrdinalIgnoreCase)
-			|| value.Equals("desc", StringComparison.OrdinalIgnoreCase)
-		);
-	}
-
-	private static bool BeValidNullableNumber(string? value) {
-		if (value is null) {
-			return true;
-		}
-
-		return int.TryParse(value, out var num) && num >= 1;
-	}
-}
+public class FindStaffMembersQueryValidator : PaginatedQueryValidator<FindStaffMembersQuery> { }
 
 public class FindStaffMembers {
 	public static async Task<
