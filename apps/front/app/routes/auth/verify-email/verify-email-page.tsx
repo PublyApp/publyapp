@@ -91,7 +91,7 @@ export const action = getServerAction({
 });
 
 export const loader = getServerLoader({
-	loader: async ({ request, apiClient, z }) => {
+	loader: async ({ request, apiClient, z, context }) => {
 		const searchParams = new URL(request.url).searchParams;
 		const token = searchParams.get(queryParamKey.token);
 		const encodedEmail = searchParams.get(
@@ -112,7 +112,14 @@ export const loader = getServerLoader({
 		}
 
 		const checkEmailVerificationToken = safeRun(
-			apiClient.auth.checkEmailVerificationToken,
+			async (params: { id: string; token: string }) => {
+				return await apiClient.auth.checkEmailVerificationToken.get({
+					queryParameters: {
+						id: params.id,
+						token: params.token,
+					},
+				});
+			},
 		);
 
 		const schema = getCheckEmailVerificationTokenSchema(z);
@@ -133,24 +140,25 @@ export const loader = getServerLoader({
 		});
 
 		if (result.status === 'error') {
-			// if (result.error instanceof ParseRestError) {
-			// 	if (
-			// 		result.error.code === X_CODE.INVALID_EMAIL_VERIFICATION_TOKEN_OR_ID
-			// 	) {
-			// 		return {
-			// 			code: 'INVALID_LINK',
-			// 		} as const;
-			// 	}
-
-			// 	throw new Response(result.error.message, {
-			// 		status: result.error.httpStatusCode,
-			// 	});
-			// }
+			if (
+				result.error.message === 'Invalid or expired email verification token'
+			) {
+				return {
+					code: 'INVALID_LINK',
+				} as const;
+			}
 
 			throw result.error;
 		}
 
-		const redirectUrl = new URL(result.data.resetPasswordLink);
+		let redirectUrl: URL;
+		try {
+			redirectUrl = new URL(result.data?.resetPasswordLink ?? '');
+		} catch (_error) {
+			context.logger.error('Error when creating redirect URL', _error);
+			redirectUrl = new URL(request.url);
+		}
+
 		redirectUrl.searchParams.set(
 			queryParamKey.language,
 			getCorrectLocale(searchParams.get(queryParamKey.language)),

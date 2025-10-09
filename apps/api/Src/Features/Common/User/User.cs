@@ -46,6 +46,12 @@ public class User : BaseAttributes, INoTenantEntity {
 	[Column("email_verify_token_expires_at")]
 	public DateTime? EmailVerifyTokenExpiresAt { get; set; }
 
+	[Column("password_reset_token")]
+	public string? PasswordResetToken { get; set; }
+
+	[Column("password_reset_token_expires_at")]
+	public DateTime? PasswordResetTokenExpiresAt { get; set; }
+
 	// Navigation properties
 	[JsonIgnore]
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];
