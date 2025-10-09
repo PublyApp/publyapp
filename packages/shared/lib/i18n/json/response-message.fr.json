@@ -23,5 +23,8 @@
 	"failed-to-create-user": "Échec de la création d'utilisateur",
 	"user-already-member-of-staff": "Utilisateur déjà membre de l'équipe",
 	"request-body-missing": "Corps de la requête manquant",
-	"query-parameters-missing": "Paramètre de requête manquant"
+	"query-parameters-missing": "Paramètre de requête manquant",
+	"invalid-email-verification-token": "Jeton de vérification d'e-mail invalide ou expiré",
+	"invalid-password-reset-token": "Jeton de réinitialisation de mot de passe invalide ou expiré",
+	"password-reset-success": "Mot de passe réinitialisé avec succès"
 }

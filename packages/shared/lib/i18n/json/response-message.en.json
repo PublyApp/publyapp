@@ -23,5 +23,8 @@
 	"failed-to-create-user": "Failed to create user",
 	"user-already-member-of-staff": "User already member of staff",
 	"request-body-missing": "Request body missing",
-	"query-parameters-missing": "Query parameter missing"
+	"query-parameters-missing": "Query parameter missing",
+	"invalid-email-verification-token": "Invalid or expired email verification token",
+	"invalid-password-reset-token": "Invalid or expired password reset token",
+	"password-reset-success": "Password reset successfully"
 }

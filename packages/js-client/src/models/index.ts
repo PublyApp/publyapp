@@ -14,6 +14,26 @@ export interface ApiResponse extends AdditionalDataHolder, ApiError, Parsable {
      */
     messageEscaped?: string | null;
 }
+export interface CheckEmailVerificationTokenResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The resetPasswordLink property
+     */
+    resetPasswordLink?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+}
+export interface CheckResetPasswordTokenResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The email property
+     */
+    email?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+}
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
@@ -22,6 +42,24 @@ export interface ApiResponse extends AdditionalDataHolder, ApiError, Parsable {
 // @ts-ignore
 export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoApiResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CheckEmailVerificationTokenResult}
+ */
+// @ts-ignore
+export function createCheckEmailVerificationTokenResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCheckEmailVerificationTokenResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CheckResetPasswordTokenResult}
+ */
+// @ts-ignore
+export function createCheckResetPasswordTokenResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCheckResetPasswordTokenResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -185,6 +223,24 @@ export function createProfileAsStaffItemFromDiscriminatorValue(parseNode: ParseN
 export function createProfileItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoProfileItem;
 }
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ResetPasswordBody}
+ */
+// @ts-ignore
+export function createResetPasswordBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResetPasswordBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ResetPasswordResult}
+ */
+// @ts-ignore
+export function createResetPasswordResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResetPasswordResult;
+}
 export interface CreateStaffMemberBody extends AdditionalDataHolder, Parsable {
     /**
      * The avatarUrl property
@@ -293,6 +349,30 @@ export function deserializeIntoApiResponse(apiResponse: Partial<ApiResponse> | u
     return {
         "key": n => { apiResponse.key = n.getStringValue(); },
         "message": n => { apiResponse.messageEscaped = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CheckEmailVerificationTokenResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCheckEmailVerificationTokenResult(checkEmailVerificationTokenResult: Partial<CheckEmailVerificationTokenResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "resetPasswordLink": n => { checkEmailVerificationTokenResult.resetPasswordLink = n.getStringValue(); },
+        "status": n => { checkEmailVerificationTokenResult.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CheckResetPasswordTokenResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCheckResetPasswordTokenResult(checkResetPasswordTokenResult: Partial<CheckResetPasswordTokenResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "email": n => { checkResetPasswordTokenResult.email = n.getStringValue(); },
+        "status": n => { checkResetPasswordTokenResult.status = n.getStringValue(); },
     }
 }
 /**
@@ -524,6 +604,31 @@ export function deserializeIntoProfileItem(profileItem: Partial<ProfileItem> | u
         "id": n => { profileItem.id = n.getGuidValue(); },
         "name": n => { profileItem.name = n.getStringValue(); },
         "permissions": n => { profileItem.permissions = n.getCollectionOfPrimitiveValues<string>(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ResetPasswordBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResetPasswordBody(resetPasswordBody: Partial<ResetPasswordBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "confirmPassword": n => { resetPasswordBody.confirmPassword = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "id": n => { resetPasswordBody.id = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "newPassword": n => { resetPasswordBody.newPassword = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "token": n => { resetPasswordBody.token = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ResetPasswordResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResetPasswordResult(resetPasswordResult: Partial<ResetPasswordResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "status": n => { resetPasswordResult.status = n.getStringValue(); },
     }
 }
 /**
@@ -798,6 +903,30 @@ export interface ProfileItem extends AdditionalDataHolder, Parsable {
      */
     permissions?: string[] | null;
 }
+export interface ResetPasswordBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The confirmPassword property
+     */
+    confirmPassword?: UntypedNode | null;
+    /**
+     * The id property
+     */
+    id?: UntypedNode | null;
+    /**
+     * The newPassword property
+     */
+    newPassword?: UntypedNode | null;
+    /**
+     * The token property
+     */
+    token?: UntypedNode | null;
+}
+export interface ResetPasswordResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The status property
+     */
+    status?: string | null;
+}
 /**
  * Serializes information the current object
  * @param ApiResponse The instance to serialize from.
@@ -810,6 +939,32 @@ export function serializeApiResponse(writer: SerializationWriter, apiResponse: P
     writer.writeStringValue("key", apiResponse.key);
     writer.writeStringValue("message", apiResponse.messageEscaped);
     writer.writeAdditionalData(apiResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CheckEmailVerificationTokenResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCheckEmailVerificationTokenResult(writer: SerializationWriter, checkEmailVerificationTokenResult: Partial<CheckEmailVerificationTokenResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!checkEmailVerificationTokenResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("resetPasswordLink", checkEmailVerificationTokenResult.resetPasswordLink);
+    writer.writeStringValue("status", checkEmailVerificationTokenResult.status);
+    writer.writeAdditionalData(checkEmailVerificationTokenResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CheckResetPasswordTokenResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCheckResetPasswordTokenResult(writer: SerializationWriter, checkResetPasswordTokenResult: Partial<CheckResetPasswordTokenResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!checkResetPasswordTokenResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("email", checkResetPasswordTokenResult.email);
+    writer.writeStringValue("status", checkResetPasswordTokenResult.status);
+    writer.writeAdditionalData(checkResetPasswordTokenResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -1059,6 +1214,33 @@ export function serializeProfileItem(writer: SerializationWriter, profileItem: P
     writer.writeStringValue("name", profileItem.name);
     writer.writeCollectionOfPrimitiveValues<string>("permissions", profileItem.permissions);
     writer.writeAdditionalData(profileItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResetPasswordBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResetPasswordBody(writer: SerializationWriter, resetPasswordBody: Partial<ResetPasswordBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!resetPasswordBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("confirmPassword", resetPasswordBody.confirmPassword);
+    writer.writeObjectValue("id", resetPasswordBody.id);
+    writer.writeObjectValue("newPassword", resetPasswordBody.newPassword);
+    writer.writeObjectValue("token", resetPasswordBody.token);
+    writer.writeAdditionalData(resetPasswordBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResetPasswordResult The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResetPasswordResult(writer: SerializationWriter, resetPasswordResult: Partial<ResetPasswordResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!resetPasswordResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("status", resetPasswordResult.status);
+    writer.writeAdditionalData(resetPasswordResult.additionalData);
 }
 /**
  * Serializes information the current object

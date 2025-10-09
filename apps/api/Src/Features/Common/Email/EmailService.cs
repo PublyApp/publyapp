@@ -25,6 +25,10 @@ public class EmailService : IEmailService {
 		return $"{AppEnvironment.FRONT_URL}/verify-email?token={token}&id={CryptoUtils.EncryptString(email)}";
 	}
 
+	public static string CreateResetPasswordLink(string token, string email) {
+		return $"{AppEnvironment.FRONT_URL}/reset-password?token={token}&id={CryptoUtils.EncryptString(email)}";
+	}
+
 	public async Task SendVerificationMail(string email, string token) {
 		await SendEmail(
 				email,

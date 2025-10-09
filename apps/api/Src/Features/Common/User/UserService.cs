@@ -12,6 +12,8 @@ public abstract record CreateUserResult {
 public interface IUserService {
 	Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
+	Task<User?> GetUserByEmailAndEmailVerifyTokenAsync(string email, string token, CancellationToken cancellationToken = default);
+	Task<User?> GetUserByEmailAndPasswordResetTokenAsync(string email, string token, CancellationToken cancellationToken = default);
 	Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default);
 }
@@ -68,6 +70,26 @@ public class UserService : IUserService {
 		var query = from u in _dbContext.User
 								where u.Id == id
 								select u;
+		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+	}
+
+	public async Task<User?> GetUserByEmailAndEmailVerifyTokenAsync(string email, string token, CancellationToken cancellationToken = default) {
+		var query =
+			from u in _dbContext.User
+			where u.Email == email
+			&& u.EmailVerifyToken == token
+			select u;
+
+		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+	}
+
+	public async Task<User?> GetUserByEmailAndPasswordResetTokenAsync(string email, string token, CancellationToken cancellationToken = default) {
+		var query =
+			from u in _dbContext.User
+			where u.Email == email
+			&& u.PasswordResetToken == token
+			select u;
+
 		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 	}
 }

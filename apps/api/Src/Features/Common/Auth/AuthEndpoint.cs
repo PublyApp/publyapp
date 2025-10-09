@@ -74,6 +74,33 @@ public static class AuthEndpoint {
 			.WithReqQueryValidation<GetRedirectCodeQuery>()
 			.Produces500ApiResponse();
 
+		group.MapGet(
+			PathUtils.GetLastSegment(RoutePath.Auth.CheckEmailVerificationToken),
+			CheckEmailVerificationToken.HandleCheckEmailVerificationToken
+		)
+			.WithName("CheckEmailVerificationToken")
+			.WithSummary("Check Email Verification Token")
+			.WithReqQueryValidation<CheckEmailVerificationTokenQuery>()
+			.Produces500ApiResponse();
+
+		group.MapGet(
+			PathUtils.GetLastSegment(RoutePath.Auth.CheckResetPasswordToken),
+			CheckResetPasswordToken.HandleCheckResetPasswordToken
+		)
+			.WithName("CheckResetPasswordToken")
+			.WithSummary("Check Reset Password Token")
+			.WithReqQueryValidation<CheckResetPasswordTokenQuery>()
+			.Produces500ApiResponse();
+
+		group.MapPost(
+			PathUtils.GetLastSegment(RoutePath.Auth.ResetPassword),
+			ResetPassword.HandleResetPassword
+		)
+			.WithName("ResetPassword")
+			.WithSummary("Reset Password")
+			.WithReqBodyValidation<ResetPasswordBody>()
+			.Produces500ApiResponse();
+
 		return group;
 	}
 }
