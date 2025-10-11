@@ -62,7 +62,7 @@ public class GetRedirectCode {
 				var tenant = await tenantService.GetTenantAsync(tenantId, cancellationToken);
 
 				if (tenant != null) {
-					return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenant.Id.ToString() });
+					return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenant.GetRequiredId().ToString() });
 				}
 			}
 
@@ -77,7 +77,7 @@ public class GetRedirectCode {
 				var isMember = await accountService.IsUserMemberOfTenantAsync(userId, tenantId, cancellationToken);
 
 				if (isMember) {
-					return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenant.Id.ToString() });
+					return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenant.GetRequiredId().ToString() });
 				}
 
 				logger.LogWarning(

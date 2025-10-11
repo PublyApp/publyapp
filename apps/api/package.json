@@ -5,7 +5,8 @@
 	"scripts": {
 		"dev": "dotnet watch --project MainApi.csproj",
 		"build": "dotnet build MainApi.csproj",
-		"publish": "dotnet publish MainApi.csproj --output ./bin",
+		"publish": "dotnet publish",
+		"db:reset": "dotnet ef database drop -f && dotnet ef database update",
 		"migrate:add": "dotnet ef migrations add",
 		"migrate:apply": "dotnet ef database update",
 		"migrate:remove": "dotnet ef migrations remove",

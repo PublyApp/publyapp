@@ -210,7 +210,7 @@ public class UserAccount : BaseAttributes
     public Guid UserId { get; set; }
     public Guid TenantId { get; set; }  // NULL for staff accounts
     public AccountScope AccountScope { get; set; }  // Staff or Tenant
-    public AccountHierarchyLevel HierarchyLevel { get; set; }
+    public AccountLevel HierarchyLevel { get; set; }
 }
 
 public class ProfilePermission : BaseAttributes

@@ -173,7 +173,7 @@ public class CreateStaffMember {
 		// Create staff account using AccountService
 		// (it handles getting the staff tenant internally)
 		var accountResult = await accountService.CreateStaffAccountAsync(
-			success.User.Id,
+			success.User.GetRequiredId(),
 			cancellationToken
 		);
 
@@ -186,8 +186,8 @@ public class CreateStaffMember {
 
 		if (accountResult is CreateStaffAccountResult.Success accountSuccess) {
 			return TypedResults.Ok(new CreateStaffMemberResult {
-				Id = success.User.Id,
-				AccountId = accountSuccess.Account.Id,
+				Id = success.User.GetRequiredId(),
+				AccountId = accountSuccess.Account.GetRequiredId(),
 			});
 		}
 

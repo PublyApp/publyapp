@@ -79,7 +79,7 @@ public static class PasswordRegister {
 
 		if (createUserResult is CreateUserResult.Success success) {
 			return TypedResults.Ok(new PasswordRegisterResult {
-				Id = success.User.Id,
+				Id = success.User.GetRequiredId(),
 				Email = success.User.Email,
 				CreatedAt = success.User.CreatedAt,
 				UpdatedAt = success.User.UpdatedAt,

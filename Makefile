@@ -188,24 +188,24 @@ knip:
 
 db-migrate:
 	@echo "Running database migrations..."
-	cd $(API_DIR) && dotnet ef database update
+	cd $(API_DIR) && dotnet tool run dotnet-ef database update
 
 db-reset:
 	@echo "Resetting database..."
-	cd $(API_DIR) && dotnet ef database drop -f
-	cd $(API_DIR) && dotnet ef database update
+	cd $(API_DIR) && dotnet tool run dotnet-ef database drop -f
+	cd $(API_DIR) && dotnet tool run dotnet-ef database update
 
 db-add:
-	@if [ -z "$(NAME)" ]; then \
-		echo "Usage: make db-add NAME=migration_name"; \
-		exit 1; \
-	fi
-	@echo "Adding migration: $(NAME)"
-	cd $(API_DIR) && dotnet ef migrations add $(NAME)
+	@echo "Adding migration: $(filter-out $@,$(MAKECMDGOALS))"
+	cd $(API_DIR) && dotnet tool run dotnet-ef migrations add $(filter-out $@,$(MAKECMDGOALS))
 
 db-remove:
 	@echo "Removing last migration..."
-	cd $(API_DIR) && dotnet ef migrations remove
+	cd $(API_DIR) && dotnet tool run dotnet-ef migrations remove
+
+# Catch-all target to prevent Make from trying to build non-existent targets
+%:
+	@:
 
 # =============================================================================
 # DOCKER OPERATIONS

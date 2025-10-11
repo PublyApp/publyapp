@@ -52,7 +52,7 @@ public class GetUserAuthData {
 		}
 
 		return TypedResults.Ok(new GetUserAuthDataResult {
-			Id = user.Id,
+			Id = user.GetRequiredId(),
 			Email = user.Email,
 			AvatarUrl = user.AvatarUrl
 		});

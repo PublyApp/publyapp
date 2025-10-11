@@ -117,7 +117,7 @@ public class PasswordLogin {
 		var session = await sessionService.CreateSessionForUser(user, cancellationToken);
 
 		return TypedResults.Ok(new PasswordLoginResult {
-			UserId = user.Id,
+			UserId = user.GetRequiredId(),
 			SessionToken = session.Token,
 			SessionExpiresAt = session.ExpiresAt,
 			SessionExpiresInMs = (session.ExpiresAt - DateTime.UtcNow).TotalMilliseconds

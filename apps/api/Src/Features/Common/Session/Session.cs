@@ -10,7 +10,7 @@ namespace MainApi.Src.Features.Common.Session;
 [Index(nameof(ExpiresAt))]
 public class Session : BaseAttributes, INoTenantEntity {
 	[Column("user_id")]
-	public required Guid UserId { get; set; }
+	public Guid? UserId { get; set; }
 
 	[JsonIgnore]
 	public User.User User { get; set; } = null!;

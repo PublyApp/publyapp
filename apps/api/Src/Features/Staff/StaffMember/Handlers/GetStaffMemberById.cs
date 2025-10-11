@@ -49,7 +49,7 @@ public class GetStaffMemberById {
 		}
 
 		return TypedResults.Ok(new GetStaffMemberByIdResult {
-			Id = user.Id,
+			Id = user.GetRequiredId(),
 			Email = user.Email,
 			LastName = user.LastName,
 			FirstName = user.FirstName,
