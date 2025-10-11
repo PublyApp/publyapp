@@ -50,3 +50,5 @@ packages/*/dist
 # .env.production
 
 .pnpm-store/
+
+.dump/
