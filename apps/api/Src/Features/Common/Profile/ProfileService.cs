@@ -49,7 +49,7 @@ public class ProfileService : IProfileService {
 											uap.UserAccount.UserId == userId &&
 											uap.UserAccount.TenantId == tenantId)
 								select new ProfileItem {
-									Id = p.Id,
+									Id = p.GetRequiredId(),
 									Name = p.Name,
 									Permissions =
 										(
@@ -83,7 +83,7 @@ public class ProfileService : IProfileService {
 			where p.ProfileScope == ProfileScope.Staff &&
 					p.UserAccountProfiles.Any(uap => uap.UserAccount.UserId == userId)
 			select new ProfileItem {
-				Id = p.Id,
+				Id = p.GetRequiredId(),
 				Name = p.Name,
 				Permissions =
 					(

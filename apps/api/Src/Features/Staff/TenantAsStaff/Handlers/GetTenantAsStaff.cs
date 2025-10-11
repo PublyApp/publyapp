@@ -38,7 +38,7 @@ public class GetTenantAsStaff {
 		}
 
 		return TypedResults.Ok(new GetTenantAsStaffResult {
-			TenantId = tenant.Id,
+			TenantId = tenant.GetRequiredId(),
 			Name = tenant.Name,
 		});
 	}

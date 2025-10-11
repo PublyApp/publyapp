@@ -61,7 +61,7 @@ public static class CreateTenantAsStaff {
 		var savedTenant = await tenantAsStaffService.CreateTenant(tenant, cancellationToken);
 
 		return TypedResults.Ok(new CreateTenantAsStaffResult {
-			Id = savedTenant.Id,
+			Id = savedTenant.GetRequiredId(),
 			Name = savedTenant.Name
 		});
 	}

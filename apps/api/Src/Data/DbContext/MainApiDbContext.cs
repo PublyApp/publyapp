@@ -183,6 +183,13 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				throw new Exception(
 						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)}, {nameof(IOptionalTenantEntity)}, or {nameof(INoTenantEntity)}");
 			}
+
+			// Configure UUID v7 auto-generation for entities with Guid Id (inheriting from BaseAttributes)
+			if (typeof(BaseAttributes).IsAssignableFrom(entityType.ClrType)) {
+				modelBuilder.Entity(entityType.ClrType)
+					.Property("Id")
+					.HasDefaultValueSql("uuidv7()");
+			}
 		}
 	}
 
