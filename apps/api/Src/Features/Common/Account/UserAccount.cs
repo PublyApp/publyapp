@@ -33,8 +33,8 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("account_scope")]
 	public AccountScope AccountScope { get; set; } = AccountScope.Tenant;
 
-	[Column("hierarchy_level")]
-	public AccountHierarchyLevel HierarchyLevel { get; set; } = AccountHierarchyLevel.User;
+	[Column("level")]
+	public AccountLevel Level { get; set; } = AccountLevel.User;
 
 	[Column("is_suspended")]
 	public bool IsSuspended { get; set; } = false;
@@ -104,7 +104,7 @@ public enum AccountScope {
 	Project = 2
 }
 
-public enum AccountHierarchyLevel {
+public enum AccountLevel {
 	// maybe owner too?
 	Admin = 50,
 	User = 10,
