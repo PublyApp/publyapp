@@ -170,7 +170,7 @@ namespace MainApi.Migrations {
 						tenant_id = table.Column<Guid>(type: "uuid", nullable: true),
 						project_id = table.Column<Guid>(type: "uuid", nullable: true),
 						account_scope = table.Column<int>(type: "integer", nullable: false),
-						hierarchy_level = table.Column<int>(type: "integer", nullable: false),
+						level = table.Column<int>(type: "integer", nullable: false),
 						is_suspended = table.Column<bool>(type: "boolean", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
