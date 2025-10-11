@@ -2,6 +2,7 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
+		<PublishDir>publish</PublishDir>
 	</PropertyGroup>
 
 	<ItemGroup>
