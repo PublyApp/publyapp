@@ -27,7 +27,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<int>("AccountScope")
                         .HasColumnType("integer")
@@ -41,10 +42,6 @@ namespace MainApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
-                    b.Property<int>("HierarchyLevel")
-                        .HasColumnType("integer")
-                        .HasColumnName("hierarchy_level");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
@@ -52,6 +49,10 @@ namespace MainApi.Migrations
                     b.Property<bool>("IsSuspended")
                         .HasColumnType("boolean")
                         .HasColumnName("is_suspended");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer")
+                        .HasColumnName("level");
 
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid")
@@ -171,7 +172,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -231,7 +233,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -272,7 +275,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<string>("BrandIdentity")
                         .HasColumnType("text")
@@ -324,7 +328,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -351,7 +356,7 @@ namespace MainApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
@@ -372,7 +377,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -418,7 +424,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("text")
@@ -504,7 +511,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -634,9 +642,7 @@ namespace MainApi.Migrations
                 {
                     b.HasOne("MainApi.Src.Features.Common.User.User", "User")
                         .WithMany("Sessions")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("UserId");
 
                     b.Navigation("User");
                 });

@@ -47,7 +47,7 @@ public class FindTenantsAsStaff {
 		return TypedResults.Ok(new TenantAsStaffResult {
 			Tenants = tenants
 				.Select(tenant => new TenantAsStaffItem {
-					Id = tenant.Id,
+					Id = tenant.GetRequiredId(),
 					Name = tenant.Name,
 				})
 				.ToList(),

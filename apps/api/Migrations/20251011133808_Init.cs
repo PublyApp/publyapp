@@ -4,7 +4,7 @@
 
 namespace MainApi.Migrations {
 	/// <inheritdoc />
-	public partial class Initialize : Migration {
+	public partial class Init : Migration {
 		/// <inheritdoc />
 		protected override void Up(MigrationBuilder migrationBuilder) {
 			migrationBuilder.CreateTable(
@@ -24,7 +24,7 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateTable(
 					name: "tenants",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false),
+						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
 						code = table.Column<string>(type: "text", nullable: false),
 						name = table.Column<string>(type: "text", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -40,7 +40,7 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateTable(
 					name: "users",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false),
+						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
 						last_name = table.Column<string>(type: "text", nullable: true),
 						first_name = table.Column<string>(type: "text", nullable: true),
 						email = table.Column<string>(type: "text", nullable: false),
@@ -51,6 +51,8 @@ namespace MainApi.Migrations {
 						is_verified = table.Column<bool>(type: "boolean", nullable: false),
 						email_verify_token = table.Column<string>(type: "text", nullable: true),
 						email_verify_token_expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+						password_reset_token = table.Column<string>(type: "text", nullable: true),
+						password_reset_token_expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
@@ -64,7 +66,7 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateTable(
 					name: "products",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false),
+						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
 						name = table.Column<string>(type: "text", nullable: true),
 						description = table.Column<string>(type: "text", nullable: true),
 						price = table.Column<decimal>(type: "numeric", nullable: false),
@@ -87,7 +89,7 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateTable(
 					name: "projects",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false),
+						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
 						tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
 						name = table.Column<string>(type: "text", nullable: false),
 						description = table.Column<string>(type: "text", nullable: true),
@@ -111,8 +113,8 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateTable(
 					name: "sessions",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false),
-						user_id = table.Column<Guid>(type: "uuid", nullable: false),
+						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
+						user_id = table.Column<Guid>(type: "uuid", nullable: true),
 						token = table.Column<string>(type: "text", nullable: false),
 						expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -126,14 +128,13 @@ namespace MainApi.Migrations {
 											name: "FK_sessions_users_user_id",
 											column: x => x.user_id,
 											principalTable: "users",
-											principalColumn: "id",
-											onDelete: ReferentialAction.Cascade);
+											principalColumn: "id");
 					});
 
 			migrationBuilder.CreateTable(
 					name: "profiles",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false),
+						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
 						tenant_id = table.Column<Guid>(type: "uuid", nullable: true),
 						project_id = table.Column<Guid>(type: "uuid", nullable: true),
 						name = table.Column<string>(type: "text", nullable: false),
@@ -164,12 +165,12 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateTable(
 					name: "user_accounts",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false),
+						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
 						user_id = table.Column<Guid>(type: "uuid", nullable: false),
 						tenant_id = table.Column<Guid>(type: "uuid", nullable: true),
 						project_id = table.Column<Guid>(type: "uuid", nullable: true),
 						account_scope = table.Column<int>(type: "integer", nullable: false),
-						hierarchy_level = table.Column<int>(type: "integer", nullable: false),
+						level = table.Column<int>(type: "integer", nullable: false),
 						is_suspended = table.Column<bool>(type: "boolean", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -202,7 +203,7 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateTable(
 					name: "profile_permissions",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false),
+						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
 						profile_id = table.Column<Guid>(type: "uuid", nullable: false),
 						permission_key = table.Column<string>(type: "text", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -264,9 +265,9 @@ namespace MainApi.Migrations {
 					column: "permission_key");
 
 			migrationBuilder.CreateIndex(
-					name: "IX_profile_permissions_profile_id",
+					name: "IX_profile_permissions_profile_id_permission_key",
 					table: "profile_permissions",
-					column: "profile_id");
+					columns: new[] { "profile_id", "permission_key" });
 
 			migrationBuilder.CreateIndex(
 					name: "IX_profiles_project_id",
@@ -333,6 +334,11 @@ namespace MainApi.Migrations {
 					table: "user_accounts",
 					columns: new[] { "user_id", "account_scope" },
 					filter: "\"is_deleted\" = false AND \"is_suspended\" = false");
+
+			migrationBuilder.CreateIndex(
+					name: "IX_user_accounts_user_id_tenant_id",
+					table: "user_accounts",
+					columns: new[] { "user_id", "tenant_id" });
 
 			migrationBuilder.CreateIndex(
 					name: "IX_user_accounts_user_id_tenant_id_project_id_account_scope",

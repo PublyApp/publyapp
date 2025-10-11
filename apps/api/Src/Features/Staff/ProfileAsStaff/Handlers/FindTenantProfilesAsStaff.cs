@@ -53,7 +53,7 @@ public class FindTenantProfilesAsStaff {
 		return TypedResults.Ok(new FindTenantProfilesAsStaffResult {
 			Profiles = profiles
 				.Select(profile => new ProfileAsStaffItem {
-					Id = profile.Id,
+					Id = profile.GetRequiredId(),
 					Name = profile.Name,
 				})
 				.ToList(),

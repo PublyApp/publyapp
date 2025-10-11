@@ -58,7 +58,7 @@ public class FindStaffMembers {
 			new FindStaffMembersResult {
 				StaffMembers = staffMembers
 					.Select(staffMember => new StaffMemberItem {
-						Id = staffMember.Id,
+						Id = staffMember.GetRequiredId(),
 						Email = staffMember.Email,
 					})
 					.ToList(),

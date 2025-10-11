@@ -55,7 +55,7 @@ public class GetVerificationLink {
 			return TypedResults.BadRequest(ApiResponse.Create("User not found", ResponseKeys.UserNotFound));
 		}
 
-		var link = AuthUtils.CreateVerificationLink(user.Id.ToString(), user.Email);
+		var link = AuthUtils.CreateVerificationLink(user.GetRequiredId().ToString(), user.Email);
 
 		return TypedResults.Ok(new GetVerificationLinkResult { Link = link });
 	}

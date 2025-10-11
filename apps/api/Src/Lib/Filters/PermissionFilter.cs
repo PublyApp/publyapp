@@ -41,7 +41,7 @@ public class PermissionFilter : IEndpointFilter {
 		}
 
 		// if user is not admin, check user permissions
-		if (accountStaff.HierarchyLevel != AccountHierarchyLevel.Admin) {
+		if (accountStaff.Level != AccountLevel.Admin) {
 			// Check if any permissions need to be validated
 			if (
 				(_requiredPermissions is not null && _requiredPermissions.Length > 0)
