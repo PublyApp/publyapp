@@ -6,16 +6,14 @@ import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
-import { env } from '@/front/lib/env';
-import { AnalyticsNode } from '@/shared/lib/analytics/analytics.server';
-import type { IAnalytics } from '@/shared/lib/analytics/analytics.types';
-import { AnalyticsLocal } from '@/shared/lib/analytics/analytics-local';
+import { analyticsServer } from '@/front/lib/analytics/analytics.server';
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
 } from '@/shared/lib/constants';
 import { getUnifiedCSPConfig } from '@/shared/lib/csp';
-import { logger } from '@/shared/lib/winston.server';
+import { serverLogger } from '@/shared/lib/logger/logger.server';
+import { LogLevelEnum } from '@/shared/lib/logger/logger.utils';
 
 declare global {
 	namespace Express {
@@ -26,6 +24,12 @@ declare global {
 }
 
 const isDevelopment = import.meta.env.DEV;
+
+if (isDevelopment) {
+	serverLogger.logLevel = LogLevelEnum.DEBUG;
+} else {
+	serverLogger.logLevel = LogLevelEnum.WARN;
+}
 
 export const app = express();
 
@@ -49,12 +53,6 @@ app.use((req, res, next) => {
 	})(req, res, next);
 });
 
-let posthog: IAnalytics = new AnalyticsLocal();
-
-if (!isDevelopment) {
-	posthog = new AnalyticsNode(env.VITE_POSTHOG_API_KEY);
-}
-
 const reactRouterHandler = createRequestHandler({
 	build: () => {
 		return import('virtual:react-router/server-build');
@@ -66,17 +64,9 @@ const reactRouterHandler = createRequestHandler({
 			throw new Error('Nonce has not been set');
 		}
 
-		if (isDevelopment) {
-			return {
-				logger,
-				analytics: posthog,
-				nonce,
-			};
-		}
-
 		return {
-			logger,
-			analytics: posthog,
+			logger: serverLogger,
+			analytics: analyticsServer,
 			nonce,
 		};
 	},

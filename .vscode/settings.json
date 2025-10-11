@@ -123,6 +123,9 @@
 		"Dockerfile-Bun": "docker",
 		"Dockerfile-Node": "docker"
 	},
+	"material-icon-theme.folders.associations": {
+		"front": "public"
+	},
 	"typescript.tsdk": "node_modules\\typescript\\lib",
 	"files.eol": "\n",
 	"[jsonc]": {
@@ -136,5 +139,6 @@
 			"rootUrl": "http://localhost:5000",
 			"sessionToken": "f3d6202a8565dcff45532b526534bec0"
 		}
-	}
+	},
+	"dotnet.defaultSolution": "PublyApp.sln"
 }

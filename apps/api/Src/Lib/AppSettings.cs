@@ -15,13 +15,15 @@ public class AppSettings {
 	[Range(1, 365, ErrorMessage = "EMAIL_VERIFY_TOKEN_VALIDITY_DURATION must be between 1 and 365")]
 	public int EMAIL_VERIFY_TOKEN_VALIDITY_DURATION { get; init; }
 
+	[Required(ErrorMessage = "PASSWORD_RESET_TOKEN_VALIDITY_DURATION is required in appsettings.json::AppSettings")]
+	[Range(1, 365, ErrorMessage = "PASSWORD_RESET_TOKEN_VALIDITY_DURATION must be between 1 and 365")]
+	public int PASSWORD_RESET_TOKEN_VALIDITY_DURATION { get; init; }
+
 	[Required(ErrorMessage = "PASSWORD_MIN_LENGTH is required in appsettings.json::AppSettings")]
 	[Range(1, 100, ErrorMessage = "PASSWORD_MIN_LENGTH must be between 1 and 100")]
 	public int PASSWORD_MIN_LENGTH { get; init; }
 
-	public readonly string STAFF_TENANT_CODE = "staff";
-
-	public readonly int MAX_PROFILES_PER_USER_PER_TENANT = 5;
+	public readonly int MAX_PROFILES_PER_USER = 5;
 
 	public readonly int PAGINATION_DEFAULT_LIMIT = 100;
 }

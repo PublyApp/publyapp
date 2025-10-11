@@ -13,9 +13,19 @@ public static class RoutePath {
 		public static readonly string VerifyEmailRequest = PathUtils.Join(RoutePath.Auth.Root, "/verify-email-request");
 		public static readonly string GetVerificationLink = PathUtils.Join(RoutePath.Auth.Root, "/verification-link");
 		public static readonly string GetRedirectCode = PathUtils.Join(RoutePath.Auth.Root, "/redirect-code");
+		public static readonly string CheckEmailVerificationToken = PathUtils.Join(RoutePath.Auth.Root, "/check-email-verification-token");
+		public static readonly string CheckResetPasswordToken = PathUtils.Join(RoutePath.Auth.Root, "/check-reset-password-token");
+		public static readonly string ResetPassword = PathUtils.Join(RoutePath.Auth.Root, "/reset-password");
 	}
 	public static class Staff {
 		public static readonly string Root = "/staff";
+		public static class Profiles {
+			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/profiles");
+			public static readonly string FindForTenant = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/tenant/{tenantId}");
+			public static string FindForTenantFn(string tenantId) {
+				return PathUtils.Join(RoutePath.Staff.Profiles.Root, $"/tenant/{tenantId}");
+			}
+		}
 		public static class StaffMember {
 			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/staff-members");
 			public static readonly string Create = PathUtils.Join(RoutePath.Staff.StaffMember.Root, "/");
@@ -28,6 +38,11 @@ public static class RoutePath {
 		public static class Tenants {
 			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/tenants");
 			public static readonly string Create = PathUtils.Join(RoutePath.Staff.Tenants.Root, "/");
+			public static readonly string Find = PathUtils.Join(RoutePath.Staff.Tenants.Root, "/");
+			public static readonly string GetById = PathUtils.Join(RoutePath.Staff.Tenants.Root, "/{tenantId}");
+			public static string GetByIdFn(string tenantId) {
+				return PathUtils.Join(RoutePath.Staff.Tenants.Root, $"/{tenantId}");
+			}
 		}
 	};
 	public static class Tenant {

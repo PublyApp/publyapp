@@ -41,7 +41,7 @@ public class PermissionFilter : IEndpointFilter {
 		}
 
 		// if user is not admin, check user permissions
-		if (accountStaff.HierarchyLevel != AccountHierarchyLevel.Admin) {
+		if (accountStaff.Level != AccountLevel.Admin) {
 			// Check if any permissions need to be validated
 			if (
 				(_requiredPermissions is not null && _requiredPermissions.Length > 0)
@@ -169,13 +169,18 @@ public static class PermissionEnum {
 	//                                                                                      //
 	//--------------------------------------------------------------------------------------//
 	public static class Staff {
-
 		// ==== TENANTS ====
-		public static readonly Permission CAN_ACCESS_TENANTS_LIST = Permission.CreateStaffPermission(nameof(CAN_ACCESS_TENANTS_LIST));
+		public static readonly Permission CAN_LIST_TENANTS = Permission.CreateStaffPermission(nameof(CAN_LIST_TENANTS));
 		public static readonly Permission CAN_CREATE_TENANT = Permission.CreateStaffPermission(nameof(CAN_CREATE_TENANT));
+		public static readonly Permission CAN_GET_TENANT = Permission.CreateStaffPermission(nameof(CAN_GET_TENANT));
 
 		// ==== USERS ====
-		public static readonly Permission CAN_ACCESS_USERS_LIST = Permission.CreateStaffPermission(nameof(CAN_ACCESS_USERS_LIST));
+		public static readonly Permission CAN_LIST_USERS = Permission.CreateStaffPermission(nameof(CAN_LIST_USERS));
+
+		// ==== PROFILES ====
+		public static readonly Permission CAN_GET_PROFILE = Permission.CreateStaffPermission(nameof(CAN_GET_PROFILE));
+		public static readonly Permission CAN_LIST_PROFILES = Permission.CreateStaffPermission(nameof(CAN_LIST_PROFILES));
+		public static readonly Permission CAN_CREATE_PROFILE = Permission.CreateStaffPermission(nameof(CAN_CREATE_PROFILE));
 	}
 
 	//--------------------------------------------------------------------------------------//

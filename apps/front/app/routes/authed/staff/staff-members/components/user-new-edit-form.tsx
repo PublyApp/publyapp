@@ -24,7 +24,7 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import {
 	useCreateStaffMember,
 	useFindStaffMember,
-} from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+} from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { fData } from '@/front/utils/format-number';
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';

@@ -1,4 +1,3 @@
-using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -20,6 +19,10 @@ public class FindStaffMembersResult {
 	public required int Count { get; set; }
 }
 
+public class FindStaffMembersQuery : PaginatedQuery { }
+
+public class FindStaffMembersQueryValidator : PaginatedQueryValidator<FindStaffMembersQuery> { }
+
 public class FindStaffMembers {
 	public static async Task<
 		Results<
@@ -27,23 +30,40 @@ public class FindStaffMembers {
 			BadRequest<ApiResponse>
 		>
 	> HandleFindStaffMembers(
-		[FromServices] MainApiDbContext dbContext,
-		CancellationToken cancellationToken = default
+		[AsParameters] FindStaffMembersQuery findStaffMembersQuery,
+		[FromServices] IStaffMemberService staffMemberService,
+		CancellationToken cancellationToken
 	) {
-		await Task.Delay(1000, cancellationToken);
+		var page = findStaffMembersQuery.GetPage();
+		var limit = findStaffMembersQuery.GetLimit();
+		var sortId = findStaffMembersQuery.GetSortId();
+		var sortOrder = findStaffMembersQuery.GetSortOrder();
 
-		return TypedResults.Ok(new FindStaffMembersResult {
-			StaffMembers = [
-				new StaffMemberItem {
-					Id = Guid.NewGuid(),
-					Email = "test@test.com",
-					LastName = "Test",
-					FirstName = "Test",
-					AvatarUrl = "https://via.placeholder.com/150",
-					Status = UserStatus.Active,
-				},
-			],
-			Count = 1,
-		});
+		var countTask = staffMemberService.CountStaffMembersAsync(cancellationToken);
+
+		var staffMembersTask = staffMemberService.FindStaffMembersAsync(
+			page: page,
+			limit: limit,
+			sortId: sortId,
+			sortOrder: sortOrder,
+			cancellationToken: cancellationToken
+		);
+
+		await Task.WhenAll(countTask, staffMembersTask).ConfigureAwait(false);
+
+		var count = await countTask;
+		var staffMembers = await staffMembersTask;
+
+		return TypedResults.Ok(
+			new FindStaffMembersResult {
+				StaffMembers = staffMembers
+					.Select(staffMember => new StaffMemberItem {
+						Id = staffMember.GetRequiredId(),
+						Email = staffMember.Email,
+					})
+					.ToList(),
+				Count = count,
+			}
+		);
 	}
 }

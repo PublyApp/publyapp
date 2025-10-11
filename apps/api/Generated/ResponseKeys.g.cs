@@ -57,6 +57,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvalidEmailOrPassword = new("invalid-email-or-password");
 
 	/// <summary>
+	/// Invalid or expired email verification token
+	/// </summary>
+	public static readonly TranslationKey InvalidEmailVerificationToken = new("invalid-email-verification-token");
+
+	/// <summary>
+	/// Invalid or expired password reset token
+	/// </summary>
+	public static readonly TranslationKey InvalidPasswordResetToken = new("invalid-password-reset-token");
+
+	/// <summary>
 	/// Invalid session
 	/// </summary>
 	public static readonly TranslationKey InvalidSession = new("invalid-session");
@@ -70,6 +80,11 @@ public static partial class ResponseKeys {
 	/// Not found
 	/// </summary>
 	public static readonly TranslationKey NotFound = new("not-found");
+
+	/// <summary>
+	/// Password reset successfully
+	/// </summary>
+	public static readonly TranslationKey PasswordResetSuccess = new("password-reset-success");
 
 	/// <summary>
 	/// Query parameter missing
