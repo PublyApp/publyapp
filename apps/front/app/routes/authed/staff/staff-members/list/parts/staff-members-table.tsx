@@ -103,7 +103,7 @@ const StaffMembersTable = () => {
 			),
 			columnHelper.accessor('level', {
 				header: t('level'),
-				Cell: RoleCell,
+				Cell: LevelCell,
 				size: 70,
 			}),
 			columnHelper.accessor('status', {
@@ -228,7 +228,9 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
 	);
 };
 
-const RoleCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (props) => {
+const LevelCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
+	props,
+) => {
 	const { t } = useTranslate();
 
 	const level = props.cell.getValue();

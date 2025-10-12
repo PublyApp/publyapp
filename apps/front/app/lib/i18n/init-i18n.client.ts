@@ -13,6 +13,7 @@ import {
 	queryParamKey,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import { clientLogger } from '@/shared/lib/logger/logger.client';
 import duration from '@/shared/utils/duration.utils';
 import { defaultZodClient } from '../zod/zod.client';
 import { config } from './i18n.config';
@@ -49,6 +50,32 @@ export const initI18nOnClient = async () => {
 		});
 
 	INITIALIZED = true;
+
+	// HMR: reload translations when the copy plugin broadcasts updates
+	if (import.meta.hot) {
+		import.meta.hot.on('i18n:updated', async (data) => {
+			try {
+				clientLogger.debug('[i18n-hmr] Reloading translations...', data);
+
+				// Force reload all resources with cache busting
+				const lng = i18next.language;
+				const loadedNamespaces = Object.keys(i18next.store.data[lng] || {});
+
+				// Clear the cache first
+				i18next.store.data = {};
+
+				// Reload resources with cache busting
+				await i18next.reloadResources(lng, loadedNamespaces);
+
+				// Force a re-render by triggering a language change event
+				i18next.emit('languageChanged', lng);
+
+				clientLogger.debug('[i18n-hmr] Translations reloaded successfully');
+			} catch (err) {
+				clientLogger.error('[i18n-hmr] reload failed', err);
+			}
+		});
+	}
 
 	i18next.on('languageChanged', (language) => {
 		const correctLocale = getCorrectLocale(language);
