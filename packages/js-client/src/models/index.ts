@@ -644,6 +644,7 @@ export function deserializeIntoStaffMemberItem(staffMemberItem: Partial<StaffMem
         "firstName": n => { staffMemberItem.firstName = n.getStringValue(); },
         "id": n => { staffMemberItem.id = n.getGuidValue(); },
         "lastName": n => { staffMemberItem.lastName = n.getStringValue(); },
+        "level": n => { staffMemberItem.level = n.getNumberValue(); },
         "status": n => { staffMemberItem.status = n.getNumberValue(); },
     }
 }
@@ -1256,6 +1257,7 @@ export function serializeStaffMemberItem(writer: SerializationWriter, staffMembe
     writer.writeStringValue("firstName", staffMemberItem.firstName);
     writer.writeGuidValue("id", staffMemberItem.id);
     writer.writeStringValue("lastName", staffMemberItem.lastName);
+    writer.writeNumberValue("level", staffMemberItem.level);
     writer.writeNumberValue("status", staffMemberItem.status);
     writer.writeAdditionalData(staffMemberItem.additionalData);
 }
@@ -1345,6 +1347,10 @@ export interface StaffMemberItem extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: string | null;
+    /**
+     * The level property
+     */
+    level?: number | null;
     /**
      * The status property
      */

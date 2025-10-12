@@ -1,3 +1,4 @@
+using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -11,7 +12,8 @@ public class StaffMemberItem {
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public UserStatus Status { get; set; } = UserStatus.Inactive;
+	public UserStatus Status { get; set; }
+	public AccountLevel Level { get; set; }
 }
 
 public class FindStaffMembersResult {
@@ -53,8 +55,13 @@ public class FindStaffMembers {
 			new FindStaffMembersResult {
 				StaffMembers = staffMembers
 					.Select(staffMember => new StaffMemberItem {
-						Id = staffMember.GetRequiredId(),
-						Email = staffMember.Email,
+						Id = staffMember.User.GetRequiredId(),
+						Email = staffMember.User.Email,
+						LastName = staffMember.User.LastName,
+						FirstName = staffMember.User.FirstName,
+						AvatarUrl = staffMember.User.AvatarUrl,
+						Status = staffMember.User.Status,
+						Level = staffMember.Level,
 					})
 					.ToList(),
 				Count = count,

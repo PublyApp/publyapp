@@ -175,5 +175,6 @@
 	"create-user": "Create user",
 	"save-changes": "Save changes",
 	"profile": "Profile",
-	"background-jobs": "Background jobs"
+	"background-jobs": "Background jobs",
+	"level": "Level"
 }

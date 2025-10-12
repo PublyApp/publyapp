@@ -1126,6 +1126,9 @@
   },
   "components": {
     "schemas": {
+      "AccountLevel": {
+        "type": "integer"
+      },
       "ApiResponse": {
         "type": "object",
         "properties": {
@@ -1511,6 +1514,9 @@
           },
           "status": {
             "$ref": "#/components/schemas/UserStatus"
+          },
+          "level": {
+            "$ref": "#/components/schemas/AccountLevel"
           }
         }
       },
