@@ -171,9 +171,10 @@ public static class Seeder {
 		};
 
 		var tenantCodes = tenantData.Select(td => td.Tenant.Code).ToList();
-		var existingTenantCodesQuery = from t in dbContext.Tenant
-																	 where tenantCodes.Contains(t.Code)
-																	 select t.Code;
+		var existingTenantCodesQuery =
+			from t in dbContext.Tenant
+			where tenantCodes.Contains(t.Code)
+			select t.Code;
 		var existingTenantCodes = await existingTenantCodesQuery.ToListAsync();
 
 		var newTenants = tenantData
@@ -244,9 +245,10 @@ public static class Seeder {
 			await dbContext.SaveChangesAsync();
 		}
 
-		var allUsersQuery = from u in dbContext.User
-												where allUserEmails.Contains(u.Email)
-												select u;
+		var allUsersQuery =
+			from u in dbContext.User
+			where allUserEmails.Contains(u.Email)
+			select u;
 		var allUsers = await allUsersQuery.ToDictionaryAsync(u => u.Email, u => u.GetRequiredId());
 
 		var desiredAccounts = new List<UserAccount>();
@@ -322,8 +324,9 @@ public static class Seeder {
 			])
 		};
 
-		var tenantsQuery = from t in dbContext.Tenant
-											 select t;
+		var tenantsQuery =
+			from t in dbContext.Tenant
+			select t;
 		var tenants = await tenantsQuery.ToListAsync();
 
 		foreach (var tenant in tenants) {
@@ -350,17 +353,19 @@ public static class Seeder {
 			await dbContext.SaveChangesAsync();
 		}
 
-		var allProfilesQuery = from p in dbContext.Profile
-													 where profilesData.Select(pd => pd.Name).Contains(p.Name)
-													 select p;
+		var allProfilesQuery =
+			from p in dbContext.Profile
+			where profilesData.Select(pd => pd.Name).Contains(p.Name)
+			select p;
 		var allProfiles = await allProfilesQuery.ToDictionaryAsync(p => p.Name, p => p.GetRequiredId());
 
 		var profilePermissionsToAdd = new List<ProfilePermission>();
 		foreach (var pd in profilesData.Where(pd => pd.PermissionKeys.Length > 0)) {
 			if (allProfiles.TryGetValue(pd.Name, out var profileId)) {
-				var existingPermissionsQuery = from pp in dbContext.ProfilePermission
-																			 where pp.ProfileId == profileId
-																			 select pp.PermissionKey;
+				var existingPermissionsQuery =
+					from pp in dbContext.ProfilePermission
+					where pp.ProfileId == profileId
+					select pp.PermissionKey;
 				var existingPermissions = await existingPermissionsQuery.ToListAsync();
 
 				var newPermissions = pd.PermissionKeys
@@ -382,33 +387,38 @@ public static class Seeder {
 	}
 
 	private static async Task SeedUserAccountProfilesAsync(MainApiDbContext dbContext) {
-		var staffAdminProfileQuery = from p in dbContext.Profile
-																 where p.Name == "Staff Admin"
-																 select p;
+		var staffAdminProfileQuery =
+			from p in dbContext.Profile
+			where p.Name == "Staff Admin"
+			select p;
 		var staffAdminProfile = await staffAdminProfileQuery.FirstOrDefaultAsync();
-		var staffUserProfileQuery = from p in dbContext.Profile
-																where p.Name == "Staff User"
-																select p;
+		var staffUserProfileQuery =
+			from p in dbContext.Profile
+			where p.Name == "Staff User"
+			select p;
 		var staffUserProfile = await staffUserProfileQuery.FirstOrDefaultAsync();
 
 		if (staffAdminProfile == null || staffUserProfile == null) return;
 
-		var staffAdminAccountQuery = from ua in dbContext.UserAccount.Include(ua => ua.User)
-																 where ua.User.Email == "staff-admin@example.com" && ua.AccountScope == AccountScope.Staff
-																 select ua;
+		var staffAdminAccountQuery =
+			from ua in dbContext.UserAccount.Include(ua => ua.User)
+			where ua.User.Email == "staff-admin@example.com" && ua.AccountScope == AccountScope.Staff
+			select ua;
 		var staffAdminAccount = await staffAdminAccountQuery.FirstOrDefaultAsync();
 
-		var staffUserAccountQuery = from ua in dbContext.UserAccount.Include(ua => ua.User)
-																where ua.User.Email == "staff-user@example.com" && ua.AccountScope == AccountScope.Staff
-																select ua;
+		var staffUserAccountQuery =
+			from ua in dbContext.UserAccount.Include(ua => ua.User)
+			where ua.User.Email == "staff-user@example.com" && ua.AccountScope == AccountScope.Staff
+			select ua;
 		var staffUserAccount = await staffUserAccountQuery.FirstOrDefaultAsync();
 
 		var userAccountProfilesToAdd = new List<UserAccountProfile>();
 
 		if (staffAdminAccount != null && staffAdminProfile != null) {
-			var staffAdminUapExistsQuery = from uap in dbContext.UserAccountProfile
-																		 where uap.UserAccountId == staffAdminAccount.Id && uap.ProfileId == staffAdminProfile.Id
-																		 select uap;
+			var staffAdminUapExistsQuery =
+				from uap in dbContext.UserAccountProfile
+				where uap.UserAccountId == staffAdminAccount.Id && uap.ProfileId == staffAdminProfile.Id
+				select uap;
 			if (!await staffAdminUapExistsQuery.AnyAsync()) {
 				userAccountProfilesToAdd.Add(new UserAccountProfile {
 					UserAccountId = staffAdminAccount.GetRequiredId(),
@@ -418,9 +428,10 @@ public static class Seeder {
 		}
 
 		if (staffUserAccount != null && staffUserProfile != null) {
-			var staffUserUapExistsQuery = from uap in dbContext.UserAccountProfile
-																		where uap.UserAccountId == staffUserAccount.Id && uap.ProfileId == staffUserProfile.Id
-																		select uap;
+			var staffUserUapExistsQuery =
+				from uap in dbContext.UserAccountProfile
+				where uap.UserAccountId == staffUserAccount.Id && uap.ProfileId == staffUserProfile.Id
+				select uap;
 			if (!await staffUserUapExistsQuery.AnyAsync()) {
 				userAccountProfilesToAdd.Add(new UserAccountProfile {
 					UserAccountId = staffUserAccount.GetRequiredId(),
@@ -432,19 +443,22 @@ public static class Seeder {
 		var tenantWithUsersQuery = dbContext.Tenant
 				.Include(t => t.UserAccounts)
 				.ThenInclude(ua => ua.User);
-		var tenantsWithUsersQuery = from t in tenantWithUsersQuery
-																where t.Code != "staff"
-																select t;
+		var tenantsWithUsersQuery =
+			from t in tenantWithUsersQuery
+			where t.Code != "staff"
+			select t;
 		var tenants = await tenantsWithUsersQuery.ToListAsync();
 
 		foreach (var tenant in tenants) {
-			var tenantAdminProfileQuery = from p in dbContext.Profile
-																		where p.Name == $"{tenant.Name} Admin" && p.TenantId == tenant.Id
-																		select p;
+			var tenantAdminProfileQuery =
+				from p in dbContext.Profile
+				where p.Name == $"{tenant.Name} Admin" && p.TenantId == tenant.Id
+				select p;
 			var tenantAdminProfile = await tenantAdminProfileQuery.FirstOrDefaultAsync();
-			var tenantUserProfileQuery = from p in dbContext.Profile
-																	 where p.Name == $"{tenant.Name} User" && p.TenantId == tenant.Id
-																	 select p;
+			var tenantUserProfileQuery =
+				from p in dbContext.Profile
+				where p.Name == $"{tenant.Name} User" && p.TenantId == tenant.Id
+				select p;
 			var tenantUserProfile = await tenantUserProfileQuery.FirstOrDefaultAsync();
 
 			if (tenantAdminProfile == null || tenantUserProfile == null) continue;
@@ -452,9 +466,10 @@ public static class Seeder {
 			foreach (var userAccount in tenant.UserAccounts.Where(ua => ua.AccountScope == AccountScope.Tenant)) {
 				var targetProfile = userAccount.Level == AccountLevel.Admin ? tenantAdminProfile : tenantUserProfile;
 
-				var userAccountProfileExistsQuery = from uap in dbContext.UserAccountProfile
-																						where uap.UserAccountId == userAccount.Id && uap.ProfileId == targetProfile.Id
-																						select uap;
+				var userAccountProfileExistsQuery =
+					from uap in dbContext.UserAccountProfile
+					where uap.UserAccountId == userAccount.Id && uap.ProfileId == targetProfile.Id
+					select uap;
 				if (!await userAccountProfileExistsQuery.AnyAsync()) {
 					userAccountProfilesToAdd.Add(new UserAccountProfile {
 						UserAccountId = userAccount.GetRequiredId(),

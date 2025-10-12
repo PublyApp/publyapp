@@ -1,4 +1,5 @@
 using FluentValidation;
+using MainApi.Localization;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Lib;
@@ -11,8 +12,8 @@ namespace MainApi.Src.Features.Common.Auth.Handlers;
 public class GetRedirectCodeQuery {
 	public string? TenantId { get; set; }
 
-	public Guid GetTenantId() {
-		return Guid.TryParse(TenantId, out var tenantId) ? tenantId : Guid.Empty;
+	public Guid? GetTenantId() {
+		return Guid.TryParse(TenantId, out var tenantId) ? tenantId : null;
 	}
 }
 
@@ -58,42 +59,50 @@ public class GetRedirectCode {
 		var isUserStaffMember = await accountService.IsUserStaffMemberAsync(userId, cancellationToken);
 
 		if (isUserStaffMember) {
-			if (tenantId != Guid.Empty) {
-				var tenant = await tenantService.GetTenantAsync(tenantId, cancellationToken);
+			if (tenantId is not Guid guidTenantIdAsStaff) {
+				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "staff" });
+			}
 
-				if (tenant != null) {
-					return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenant.GetRequiredId().ToString() });
-				}
+			var tenantFoundAsStaff = await tenantService.GetTenantAsync(guidTenantIdAsStaff, cancellationToken);
+
+			if (tenantFoundAsStaff is not null) {
+				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenantFoundAsStaff.GetRequiredId().ToString() });
 			}
 
 			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "staff" });
 		}
 
 		// User is not a staff member, check tenant access
-		if (tenantId != Guid.Empty) {
-			var tenant = await tenantService.GetTenantAsync(tenantId, cancellationToken);
+		if (tenantId is not Guid guidTenantIdAsMember) {
+			return TypedResults.BadRequest(ApiResponse.Create("Tenant Id is required", ResponseKeys.TenantIdRequired));
+		}
 
-			if (tenant != null) {
-				var isMember = await accountService.IsUserMemberOfTenantAsync(userId, tenantId, cancellationToken);
+		var tenantFound = await tenantService.GetTenantAsync(guidTenantIdAsMember, cancellationToken);
 
-				if (isMember) {
-					return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenant.GetRequiredId().ToString() });
-				}
+		if (tenantFound is not null) {
+			var isMember = await accountService.IsUserMemberOfTenantAsync(userId, guidTenantIdAsMember, cancellationToken);
 
-				logger.LogWarning(
-					"Attempt to access tenant {TenantId} by user {UserId} who is not a member of said tenant",
-					tenantId,
-					userId
-				);
-				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "unauthorized" });
+			if (isMember) {
+				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenantFound.GetRequiredId().ToString() });
 			}
+
+			logger.LogWarning(
+				"Attempt to access tenant {TenantId} by user {UserId} who is not a member of said tenant",
+				tenantId,
+				userId
+			);
+
+			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "unauthorized" });
 		}
 
 		// Get fallback tenant (first tenant the user is a member of)
-		var userTenantAccounts = await accountService.FindUserTenantAccountsAsync(userId, limit: 1, cancellationToken: cancellationToken);
+		var userTenantAccounts = await accountService.FindUserTenantAccountsAsync(
+			userId, limit: 1, cancellationToken: cancellationToken
+		);
+
 		var fallbackTenant = userTenantAccounts.FirstOrDefault();
 
-		if (fallbackTenant?.TenantId != null) {
+		if (fallbackTenant?.TenantId is not null) {
 			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = fallbackTenant.TenantId.Value.ToString() });
 		}
 
@@ -102,6 +111,7 @@ public class GetRedirectCode {
 			query.TenantId,
 			userId
 		);
+
 		return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "unauthorized" });
 	}
 }

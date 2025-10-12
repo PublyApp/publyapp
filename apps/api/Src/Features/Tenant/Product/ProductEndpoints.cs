@@ -11,27 +11,27 @@ public static class ProductEndpoints {
 		group.MapGet("/", ProductHandlers.GetProducts)
 			.WithName("GetProducts")
 			.WithSummary("Get all products")
-			.Produces500ApiResponse();
+			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		group.MapGet("/{id}", ProductHandlers.GetProductById)
 		.WithName("GetProduct")
 		.WithSummary("Get product by ID")
-		.Produces500ApiResponse();
+		.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		group.MapPost("/", ProductHandlers.CreateProduct)
 			.WithName("CreateProduct")
 			.WithSummary("Create a new product")
-			.Produces500ApiResponse();
+			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		group.MapPut("/{id}", ProductHandlers.UpdateProduct)
 			.WithName("UpdateProduct")
 			.WithSummary("Update an existing product")
-			.Produces500ApiResponse();
+			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		group.MapDelete("/{id}", ProductHandlers.DeleteProduct)
 			.WithName("DeleteProduct")
 			.WithSummary("Delete a product")
-			.Produces500ApiResponse();
+			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		return routes;
 	}

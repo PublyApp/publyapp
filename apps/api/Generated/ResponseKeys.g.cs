@@ -102,6 +102,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
 
 	/// <summary>
+	/// Tenant ID required
+	/// </summary>
+	public static readonly TranslationKey TenantIdRequired = new("tenant-id-required");
+
+	/// <summary>
 	/// Too many requests
 	/// </summary>
 	public static readonly TranslationKey TooManyRequests = new("too-many-requests");

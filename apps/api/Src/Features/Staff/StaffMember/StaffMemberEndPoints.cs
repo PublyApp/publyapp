@@ -19,7 +19,7 @@ public static class StaffMemberEndPoints {
 			.WithName("CreateStaffMember")
 			.WithSummary("Create a new staff member")
 			.WithReqBodyValidation<CreateStaffMemberBody>()
-			.Produces500ApiResponse();
+			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.GetById),
@@ -27,7 +27,7 @@ public static class StaffMemberEndPoints {
 		)
 			.WithName("GetStaffMemberById")
 			.WithSummary("Get a staff member by id")
-			.Produces500ApiResponse();
+			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.Find),
@@ -36,7 +36,7 @@ public static class StaffMemberEndPoints {
 			.WithName("FindStaffMembers")
 			.WithSummary("Find staff members")
 			.WithReqQueryValidation<FindStaffMembersQuery>()
-			.Produces500ApiResponse();
+			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		return routes;
 	}

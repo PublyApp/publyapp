@@ -43,3 +43,5 @@ csharp_new_line_before_else = false
 csharp_new_line_before_catch = false
 csharp_new_line_before_finally = false
 # ==== Braces syntax to follow Js/Java style ====
+# IDE0042: Deconstruct variable declaration
+dotnet_diagnostic.IDE0042.severity = none

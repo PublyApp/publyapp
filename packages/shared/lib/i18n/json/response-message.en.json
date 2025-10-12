@@ -26,5 +26,6 @@
 	"query-parameters-missing": "Query parameter missing",
 	"invalid-email-verification-token": "Invalid or expired email verification token",
 	"invalid-password-reset-token": "Invalid or expired password reset token",
-	"password-reset-success": "Password reset successfully"
+	"password-reset-success": "Password reset successfully",
+	"tenant-id-required": "Tenant ID required"
 }
