@@ -32,7 +32,13 @@ import {
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
 import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
-import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import type { StaffMemberItem } from '@/js-client/src/models';
+import {
+	ACCOUNT_LEVEL_ENUM,
+	DEFAULT_PAGE_SIZE,
+	FRONT_PATH_NAMES,
+	USER_STATUS_ENUM,
+} from '@/shared/lib/constants';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
 export type StaffMemberRowData = {
@@ -40,9 +46,23 @@ export type StaffMemberRowData = {
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	role: string;
-	status: string;
+	level: number;
+	status: number;
 	email: string;
+};
+
+const StaffMemberRowDataMapper = (
+	staffMember: StaffMemberItem,
+): StaffMemberRowData => {
+	return {
+		id: staffMember.id || '',
+		avatarUrl: staffMember.avatarUrl || '',
+		firstName: staffMember.firstName || '',
+		lastName: staffMember.lastName || '',
+		level: staffMember.level || 0,
+		status: staffMember.status || 0,
+		email: staffMember.email || '',
+	};
 };
 
 const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
@@ -81,8 +101,8 @@ const StaffMembersTable = () => {
 					enableSorting: false,
 				},
 			),
-			columnHelper.accessor('role', {
-				header: t('role'),
+			columnHelper.accessor('level', {
+				header: t('level'),
 				Cell: RoleCell,
 				size: 70,
 			}),
@@ -105,19 +125,7 @@ const StaffMembersTable = () => {
 	});
 
 	const rows: StaffMemberRowData[] = useMemo(() => {
-		if (!data?.rows) return [];
-
-		return _.map(data.rows, (staffMember) => {
-			return {
-				id: staffMember.objectId,
-				avatarUrl: staffMember.avatarUrl || '',
-				firstName: staffMember.firstName || '',
-				lastName: staffMember.lastName || '',
-				role: staffMember.roleData?.role || '',
-				status: staffMember.status || '',
-				email: staffMember.email || '',
-			};
-		});
+		return _.map(data?.staffMembers, StaffMemberRowDataMapper);
 	}, [data]);
 
 	const table = useMRTTable('default', {
@@ -180,7 +188,7 @@ const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	);
 };
 
-const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
+const StatusCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
 	props,
 ) => {
 	const { t } = useTranslate();
@@ -190,16 +198,26 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	let t_message: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
 
-	if (status === 'active') {
+	if (status === USER_STATUS_ENUM.ACTIVE) {
 		t_message = t('active');
 		color = 'success';
-	} else if (status === 'pending') {
+	} else if (status === USER_STATUS_ENUM.PENDING) {
 		t_message = t('pending');
 		color = 'warning';
-	} else if (status === 'banned') {
+	} else if (status === USER_STATUS_ENUM.BANNED) {
 		t_message = t('banned');
 		color = 'error';
 	}
+	// if (status === 'active') {
+	// 	t_message = t('active');
+	// 	color = 'success';
+	// } else if (status === 'pending') {
+	// 	t_message = t('pending');
+	// 	color = 'warning';
+	// } else if (status === 'banned') {
+	// 	t_message = t('banned');
+	// 	color = 'error';
+	// }
 
 	return (
 		<Label variant="soft" color={color}>
@@ -208,27 +226,35 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	);
 };
 
-const RoleCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
+const RoleCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (props) => {
 	const { t } = useTranslate();
 
-	const role = props.cell.getValue();
+	const level = props.cell.getValue();
 
 	let t_message: string = t('unknown-item', { item: 'role' });
 	let color: LabelColor = 'default';
 
-	if (role === /* roleEnum.STAFF_ADMIN.name */ '') {
+	if (level === ACCOUNT_LEVEL_ENUM.ADMIN) {
 		t_message = t('admin');
 		color = 'success';
-	} else if (role === /* roleEnum.STAFF_EDITOR.name */ '') {
-		t_message = t('editor');
-		color = 'info';
-	} else if (role === /* roleEnum.STAFF_USER.name */ '') {
+	} else if (level === ACCOUNT_LEVEL_ENUM.USER) {
 		t_message = t('user');
 		color = 'warning';
-	} else if (role === /* roleEnum.STAFF_CONTRIBUTOR.name */ '') {
-		t_message = t('contributor');
-		color = 'error';
 	}
+
+	// if (level === /* roleEnum.STAFF_ADMIN.name */ '') {
+	// 	t_message = t('admin');
+	// 	color = 'success';
+	// } else if (level === /* roleEnum.STAFF_EDITOR.name */ '') {
+	// 	t_message = t('editor');
+	// 	color = 'info';
+	// } else if (level === /* roleEnum.STAFF_USER.name */ '') {
+	// 	t_message = t('user');
+	// 	color = 'warning';
+	// } else if (level === /* roleEnum.STAFF_CONTRIBUTOR.name */ '') {
+	// 	t_message = t('contributor');
+	// 	color = 'error';
+	// }
 
 	return (
 		<Label variant="soft" color={color}>
@@ -241,7 +267,7 @@ const ALLOW_COPY_LINK = false;
 
 const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 	const userId = props.row.original.id;
-	const isUserPending = props.row.original.status === 'pending';
+	const isUserPending = props.row.original.status === USER_STATUS_ENUM.PENDING;
 
 	const menuActions = usePopover();
 	const confirmDialog = useBoolean();

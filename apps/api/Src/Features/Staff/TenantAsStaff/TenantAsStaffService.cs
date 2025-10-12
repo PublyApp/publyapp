@@ -59,11 +59,21 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			select tenant;
 
 		if (sortId is not null) {
-			if (effectiveSortOrder == SortOrder.Asc) {
-				query = query.OrderBy(t => EF.Property<object>(t, sortId));
-			} else {
-				query = query.OrderByDescending(t => EF.Property<object>(t, sortId));
-			}
+			query = sortId.ToLower() switch {
+				"createdat" => effectiveSortOrder == SortOrder.Asc
+					? query.OrderBy(t => t.CreatedAt)
+					: query.OrderByDescending(t => t.CreatedAt),
+				"updatedat" => effectiveSortOrder == SortOrder.Asc
+					? query.OrderBy(t => t.UpdatedAt)
+					: query.OrderByDescending(t => t.UpdatedAt),
+				"code" => effectiveSortOrder == SortOrder.Asc
+					? query.OrderBy(t => t.Code)
+					: query.OrderByDescending(t => t.Code),
+				"name" => effectiveSortOrder == SortOrder.Asc
+					? query.OrderBy(t => t.Name)
+					: query.OrderByDescending(t => t.Name),
+				_ => query // Default: no sorting for unsupported fields
+			};
 		}
 
 		return await query

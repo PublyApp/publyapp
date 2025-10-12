@@ -175,5 +175,6 @@
 	"create-user": "Créer un utilisateur",
 	"save-changes": "Sauvegarder les modifications",
 	"profile": "Profil",
-	"background-jobs": "Tâches de fond"
+	"background-jobs": "Tâches de fond",
+	"level": "Level"
 }
