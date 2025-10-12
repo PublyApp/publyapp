@@ -39,20 +39,15 @@ public class FindStaffMembers {
 		var sortId = findStaffMembersQuery.GetSortId();
 		var sortOrder = findStaffMembersQuery.GetSortOrder();
 
-		var countTask = staffMemberService.CountStaffMembersAsync(cancellationToken);
+		var count = await staffMemberService.CountStaffMembersAsync(cancellationToken);
 
-		var staffMembersTask = staffMemberService.FindStaffMembersAsync(
+		var staffMembers = await staffMemberService.FindStaffMembersAsync(
 			page: page,
 			limit: limit,
 			sortId: sortId,
 			sortOrder: sortOrder,
 			cancellationToken: cancellationToken
 		);
-
-		await Task.WhenAll(countTask, staffMembersTask).ConfigureAwait(false);
-
-		var count = await countTask;
-		var staffMembers = await staffMembersTask;
 
 		return TypedResults.Ok(
 			new FindStaffMembersResult {

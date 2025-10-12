@@ -29,20 +29,15 @@ public class FindTenantsAsStaff {
 		var sortId = findTenantsAsStaffQuery.GetSortId();
 		var sortOrder = findTenantsAsStaffQuery.GetSortOrder();
 
-		var countTask = tenantAsStaffService.CountTenantsAsync(cancellationToken);
+		var count = await tenantAsStaffService.CountTenantsAsync(cancellationToken);
 
-		var tenantsTask = tenantAsStaffService.FindTenantsAsync(
+		var tenants = await tenantAsStaffService.FindTenantsAsync(
 			page: page,
 			limit: limit,
 			sortId: sortId,
 			sortOrder: sortOrder,
 			cancellationToken: cancellationToken
 		);
-
-		await Task.WhenAll(countTask, tenantsTask).ConfigureAwait(false);
-
-		var tenants = tenantsTask.Result;
-		var count = countTask.Result;
 
 		return TypedResults.Ok(new TenantAsStaffResult {
 			Tenants = tenants
