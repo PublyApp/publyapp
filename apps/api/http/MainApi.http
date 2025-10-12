@@ -1,29 +1,29 @@
-### @name PasswordLogin
+# ### @name PasswordLogin
 
-POST {{rootUrl}}/auth/login
-# Accept: application/json
-Content-Type: application/json
+# POST {{rootUrl}}/auth/login
+# # Accept: application/json
+# Content-Type: application/json
 
-{
-	"email": "admin@example.com",
-	"password": "password@123-local"
-}
+# {
+# 	"email": "admin@example.com",
+# 	"password": "password@123-local"
+# }
 
-### @name PasswordRegister
+# ### @name PasswordRegister
 
-POST {{rootUrl}}/auth/register
-# Accept: application/json
-Content-Type: application/json
+# POST {{rootUrl}}/auth/register
+# # Accept: application/json
+# Content-Type: application/json
 
-{
-	"email": "admin@example.com",
-	"password": "password@123-local"
-}
+# {
+# 	"email": "admin@example.com",
+# 	"password": "password@123-local"
+# }
 
-### @name GetVerificationLink
+# ### @name GetVerificationLink
 
-GET {{rootUrl}}/auth/verification-link?userId=123
+# GET {{rootUrl}}/auth/verification-link?userId=123
 
-### @name GetTenantAuthData
+# ### @name GetTenantAuthData
 
-GET {{rootUrl}}/auth/tenant-auth-data
+# GET {{rootUrl}}/auth/tenant-auth-data

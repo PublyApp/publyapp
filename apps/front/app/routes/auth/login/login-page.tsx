@@ -7,6 +7,7 @@ import { data, redirect, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { clientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerAction } from '@/front/lib/react-router/server-data.server';
 import {
@@ -83,8 +84,13 @@ export const action = getServerAction({
 		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
 		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
+		const authedApiClient = clientManager.createApiClient(sessionToken);
+
 		const getRedirectCode = safeRun(async () => {
-			return apiClient.auth.redirectCode.get({ queryParameters: { tenantId } });
+			// return apiClient.auth.redirectCode.get({ queryParameters: { tenantId } });
+			return authedApiClient.auth.redirectCode.get({
+				queryParameters: { tenantId },
+			});
 		});
 		const getRedirectCodeResult = await getRedirectCode();
 
