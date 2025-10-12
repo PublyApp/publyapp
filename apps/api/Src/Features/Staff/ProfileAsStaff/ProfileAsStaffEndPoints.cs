@@ -20,7 +20,7 @@ public static class ProfileAsStaffEndPoints {
 			.WithSummary("Find profiles")
 			.WithPermission([PermissionEnum.Staff.CAN_LIST_PROFILES])
 			.WithReqQueryValidation<FindTenantProfilesAsStaffQuery>()
-			.Produces500ApiResponse();
+			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		return routes;
 	}

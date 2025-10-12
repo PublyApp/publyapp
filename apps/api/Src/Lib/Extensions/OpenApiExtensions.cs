@@ -34,11 +34,16 @@ public static class OpenApiExtensions {
 	}
 
 	/// <summary>
-	/// Adds a 500 Internal Server Error response to the OpenAPI documentation
-	/// (works with build-time OpenAPI generation)
+	/// Adds one or more API responses to the OpenAPI documentation for the given status codes
+	/// (works with build-time OpenAPI generation).
+	/// Usage: builder.ProducesApiResponses(StatusCodes.Status401Unauthorized, StatusCodes.Status500InternalServerError);
 	/// </summary>
-	public static RouteHandlerBuilder Produces500ApiResponse(this RouteHandlerBuilder builder) {
-		return builder.Produces<ApiResponse>(StatusCodes.Status500InternalServerError, "application/json");
+	public static RouteHandlerBuilder ProducesApiResponses(this RouteHandlerBuilder builder, params int[] statusCodes) {
+		if (statusCodes is null || statusCodes.Length == 0) return builder;
+		foreach (var statusCode in statusCodes) {
+			builder = builder.Produces<ApiResponse>(statusCode, "application/json");
+		}
+		return builder;
 	}
 }
 
