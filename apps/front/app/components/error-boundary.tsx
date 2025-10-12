@@ -1,6 +1,7 @@
 import GlobalStyles from '@mui/material/GlobalStyles';
 import type { CSSObject, Theme } from '@mui/material/styles';
 import { isRouteErrorResponse } from 'react-router';
+import { isJsClientError } from '../lib/js-client/js-client-error';
 
 // ----------------------------------------------------------------------
 type ErrorBoundaryProps = {
@@ -36,19 +37,41 @@ const parseStackTrace = (stack?: string) => {
 };
 
 const renderErrorMessage = (error: unknown) => {
-	if (isRouteErrorResponse(error)) {
+	const _error = error;
+
+	if (isRouteErrorResponse(_error)) {
 		return (
 			<>
 				<h1 className={errorBoundaryClasses.title}>
-					{error.status}: {error.statusText}
+					{_error.status}: {_error.statusText}
 				</h1>
-				<p className={errorBoundaryClasses.message}>{error.data}</p>
+				<p className={errorBoundaryClasses.message}>{_error.data}</p>
 			</>
 		);
 	}
 
-	if (error instanceof Error) {
-		const { filePath, functionName } = parseStackTrace(error.stack);
+	if (isJsClientError(_error)) {
+		return (
+			<>
+				<h1 className={errorBoundaryClasses.title}>
+					{_error.responseStatusCode}: {_error.messageEscaped}
+				</h1>
+				<p className={errorBoundaryClasses.message}>{_error.messageEscaped}</p>
+				<pre className={errorBoundaryClasses.details}>
+					{_error.key ? `Key: ${_error.key}` : ''}
+					{_error.responseStatusCode
+						? `,\nStatus Code: ${_error.responseStatusCode}`
+						: ''}
+					{_error.responseHeaders
+						? `,\nHeaders: ${JSON.stringify(_error.responseHeaders, null, 2)}`
+						: ''}
+				</pre>
+			</>
+		);
+	}
+
+	if (_error instanceof Error) {
+		const { filePath, functionName } = parseStackTrace(_error.stack);
 
 		return (
 			<>
@@ -56,9 +79,9 @@ const renderErrorMessage = (error: unknown) => {
 					Unexpected Application Error!
 				</h1>
 				<p className={errorBoundaryClasses.message}>
-					{error.name}: {error.message}
+					{_error.name}: {_error.message}
 				</p>
-				<pre className={errorBoundaryClasses.details}>{error.stack}</pre>
+				<pre className={errorBoundaryClasses.details}>{_error.stack}</pre>
 				{(filePath || functionName) && (
 					<p className={errorBoundaryClasses.filePath}>
 						{filePath} ({functionName})

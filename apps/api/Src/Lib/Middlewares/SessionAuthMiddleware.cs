@@ -63,7 +63,8 @@ public static class SessionAuthMiddlewareExtensions {
 		RoutePath.Staff.Root,
 		RoutePath.Tenant.Root,
 		RoutePath.Auth.GetUserAuthData,
-		RoutePath.Auth.GetRedirectCode
+		RoutePath.Auth.GetRedirectCode,
+		RoutePath.Auth.GetTenantAuthData
 	];
 
 	private static bool ShouldUseSessionAuthentication(HttpContext context) {

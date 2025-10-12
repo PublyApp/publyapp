@@ -109,6 +109,7 @@ export const ErrorBoundary = (_: Route.ErrorBoundaryProps) => {
 	// }
 
 	if (import.meta.env.DEV) {
+		console.log('❌❌❌', error);
 		return <TemplateErrorBoundary error={error} />;
 	}
 
