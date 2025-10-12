@@ -37,7 +37,10 @@ public static class AuthEndpoint {
 		)
 			.WithName("GetUserAuthData")
 			.WithSummary("Get User Auth Data")
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.ProducesApiResponses(
+				StatusCodes.Status500InternalServerError,
+				StatusCodes.Status401Unauthorized
+			);
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Auth.GetTenantAuthData),
@@ -45,7 +48,10 @@ public static class AuthEndpoint {
 		)
 			.WithName("GetTenantAuthData")
 			.WithSummary("Get Tenant Auth Data")
-			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+			.ProducesApiResponses(
+				StatusCodes.Status500InternalServerError,
+				StatusCodes.Status401Unauthorized
+			);
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Auth.VerifyEmailRequest),
