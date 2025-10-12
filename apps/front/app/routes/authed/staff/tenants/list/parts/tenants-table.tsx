@@ -91,11 +91,6 @@ const TenantsTable = () => {
 		pageSize: DEFAULT_PAGE_SIZE, //customize the default page size
 	});
 
-	// const slicedData = useMemo(() => {
-	// 	const startIndex = pagination.pageIndex * pagination.pageSize;
-	// 	const endIndex = startIndex + pagination.pageSize;
-	// 	return _.slice(data, startIndex, endIndex);
-	// }, [pagination]);
 	const { data, isPending } = useFindTenants({
 		variables: {
 			page: pagination.pageIndex,
@@ -103,9 +98,13 @@ const TenantsTable = () => {
 		},
 	});
 
+	const dataTable = useMemo(() => {
+		return _.map(data?.tenants, (tenant) => TenantRowDataMapper(tenant));
+	}, [data]);
+
 	const table = useMRTTable('default', {
 		columns,
-		data: _.map(data?.tenants, (tenant) => TenantRowDataMapper(tenant)),
+		data: dataTable,
 		manualPagination: true,
 		rowCount: data?.count || 0,
 		onPaginationChange: setPagination,

@@ -1,3 +1,4 @@
+using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -11,7 +12,8 @@ public class StaffMemberItem {
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public UserStatus Status { get; set; } = UserStatus.Inactive;
+	public UserStatus Status { get; set; }
+	public AccountLevel Level { get; set; }
 }
 
 public class FindStaffMembersResult {
@@ -39,9 +41,9 @@ public class FindStaffMembers {
 		var sortId = findStaffMembersQuery.GetSortId();
 		var sortOrder = findStaffMembersQuery.GetSortOrder();
 
-		var countTask = staffMemberService.CountStaffMembersAsync(cancellationToken);
+		var count = await staffMemberService.CountStaffMembersAsync(cancellationToken);
 
-		var staffMembersTask = staffMemberService.FindStaffMembersAsync(
+		var staffMembers = await staffMemberService.FindStaffMembersAsync(
 			page: page,
 			limit: limit,
 			sortId: sortId,
@@ -49,17 +51,17 @@ public class FindStaffMembers {
 			cancellationToken: cancellationToken
 		);
 
-		await Task.WhenAll(countTask, staffMembersTask).ConfigureAwait(false);
-
-		var count = await countTask;
-		var staffMembers = await staffMembersTask;
-
 		return TypedResults.Ok(
 			new FindStaffMembersResult {
 				StaffMembers = staffMembers
 					.Select(staffMember => new StaffMemberItem {
-						Id = staffMember.GetRequiredId(),
-						Email = staffMember.Email,
+						Id = staffMember.User.GetRequiredId(),
+						Email = staffMember.User.Email,
+						LastName = staffMember.User.LastName,
+						FirstName = staffMember.User.FirstName,
+						AvatarUrl = staffMember.User.AvatarUrl,
+						Status = staffMember.User.Status,
+						Level = staffMember.Level,
 					})
 					.ToList(),
 				Count = count,
