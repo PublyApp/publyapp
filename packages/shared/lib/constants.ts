@@ -216,3 +216,16 @@ export type LanguageDetectionMethod = ValueOf<
 
 export const LANGUAGE_DETECTION_METHOD: LanguageDetectionMethod =
 	LANGUAGE_DETECTION_METHOD_ENUM.COOKIE;
+
+export const ACCOUNT_LEVEL_ENUM = {
+	ADMIN: 50,
+	USER: 10,
+} as const;
+
+export const USER_STATUS_ENUM = {
+	ACTIVE: 1,
+	PENDING: 2,
+	BANNED: 3,
+} as const;
+
+export type UserStatus = ValueOf<typeof USER_STATUS_ENUM>;

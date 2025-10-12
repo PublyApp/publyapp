@@ -144,6 +144,16 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -188,6 +198,16 @@
           },
           "500": {
             "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -1106,6 +1126,9 @@
   },
   "components": {
     "schemas": {
+      "AccountLevel": {
+        "type": "integer"
+      },
       "ApiResponse": {
         "type": "object",
         "properties": {
@@ -1491,6 +1514,9 @@
           },
           "status": {
             "$ref": "#/components/schemas/UserStatus"
+          },
+          "level": {
+            "$ref": "#/components/schemas/AccountLevel"
           }
         }
       },
