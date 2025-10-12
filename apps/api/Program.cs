@@ -21,10 +21,11 @@ app.UseOpenApi();
 app.UseHttpsRedirection();
 app.UseCustomExceptionHandler();
 
+// ! order matters !
 app.UseCheckTenantHeader();
 app.UseCheckSessionHeader();
-app.UseStaffAuthorization();
 app.UseSessionAuthentication();
+app.UseStaffAuthorization();
 // TODO: UseTenantAuthentication();
 
 app.MapAuthEndpoints();

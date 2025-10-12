@@ -33,7 +33,7 @@ public class PermissionFilter : IEndpointFilter {
 		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
 		var accountStaff = authContext.AccountStaff;
 		var dbContext = httpContext.RequestServices.GetRequiredService<MainApiDbContext>();
-		var permissionService = httpContext.RequestServices.GetRequiredService<PermissionService>();
+		var permissionService = httpContext.RequestServices.GetRequiredService<IPermissionService>();
 		var logger = httpContext.RequestServices.GetRequiredService<ILogger<PermissionFilter>>();
 
 		if (accountStaff == null) {
