@@ -22,7 +22,6 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import { useFindTenants } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import type { TenantAsStaffItem } from '@/js-client/src/models';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
-// import { mockDataTenants } from './mock-data-tenants';
 
 export type TenantRowData = {
 	id: string;

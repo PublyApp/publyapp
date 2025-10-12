@@ -33,6 +33,9 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 		],
 		server: {
 			port: 5050,
+			watch: {
+				ignored: ['**/packages/shared/lib/i18n/json/**'],
+			},
 		},
 		build: {
 			target: 'ES2022',
