@@ -161,7 +161,7 @@ export default StaffMembersTable;
 
 const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	const userId = props.row.original.id;
-	const fullName = props.cell.getValue();
+	const fullName = _.trim(props.cell.getValue()) || 'UnNamed';
 	const avatarUrl = props.row.original.avatarUrl;
 	const email = props.row.original.email;
 
