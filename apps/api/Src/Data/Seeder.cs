@@ -45,8 +45,9 @@ public static class Seeder {
 
 	private static async Task SeedPermissionsAsync(MainApiDbContext dbContext) {
 		var permissions = GetPermissionsFromEnum();
-		var existingKeysQuery = from p in dbContext.Permission
-														select p.Key;
+		var existingKeysQuery =
+			from p in dbContext.Permission
+			select p.Key;
 		var existingKeys = await existingKeysQuery.ToListAsync();
 
 		var newPermissions = permissions
@@ -54,8 +55,12 @@ public static class Seeder {
 			.ToList();
 
 		if (newPermissions.Count != 0) {
-			await dbContext.Permission.AddRangeAsync(newPermissions);
-			await dbContext.SaveChangesAsync();
+			try {
+				await dbContext.Permission.AddRangeAsync(newPermissions);
+				await dbContext.SaveChangesAsync();
+			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				Console.WriteLine($"Skipping duplicate permissions: {ex.Message}");
+			}
 		}
 	}
 
@@ -70,9 +75,11 @@ public static class Seeder {
 			("staff-user@example.com", AccountLevel.User)
 		};
 
-		var existingStaffEmailsQuery = from u in dbContext.User
-																	 where staffUsers.Select(su => su.Email).Contains(u.Email)
-																	 select u.Email;
+		var existingStaffEmailsQuery =
+			from u in dbContext.User
+			where staffUsers.Select(su => su.Email).Contains(u.Email)
+			select u.Email;
+
 		var existingStaffEmails = await existingStaffEmailsQuery.ToListAsync();
 
 		var newStaffUsers = staffUsers
@@ -86,14 +93,20 @@ public static class Seeder {
 			.ToList();
 
 		if (newStaffUsers.Count != 0) {
-			await dbContext.User.AddRangeAsync(newStaffUsers);
-			await dbContext.SaveChangesAsync();
+			try {
+				await dbContext.User.AddRangeAsync(newStaffUsers);
+				await dbContext.SaveChangesAsync();
+			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				Console.WriteLine($"Skipping duplicate staff users: {ex.Message}");
+			}
 		}
 
 		// Create staff user accounts
-		var allStaffUsersQuery = from u in dbContext.User
-														 where staffUsers.Select(su => su.Email).Contains(u.Email)
-														 select u;
+		var allStaffUsersQuery =
+			from u in dbContext.User
+			where staffUsers.Select(su => su.Email).Contains(u.Email)
+			select u;
+
 		var allStaffUsers = await allStaffUsersQuery.ToDictionaryAsync(u => u.Email, u => u.GetRequiredId());
 
 		var desiredStaffAccounts = new List<UserAccount>();
@@ -106,9 +119,11 @@ public static class Seeder {
 			}
 		}
 
-		var existingStaffAccountsQuery = from ua in dbContext.UserAccount
-																		 where ua.TenantId == null && ua.AccountScope == AccountScope.Staff
-																		 select new { ua.UserId };
+		var existingStaffAccountsQuery =
+			from ua in dbContext.UserAccount
+			where ua.TenantId == null && ua.Scope == AccountScope.Staff
+			select new { ua.UserId };
+
 		var existingStaffAccounts = await existingStaffAccountsQuery.ToListAsync();
 
 		var existingStaffUserIds = new HashSet<Guid>(
@@ -120,8 +135,12 @@ public static class Seeder {
 			.ToList();
 
 		if (newStaffAccounts.Count != 0) {
-			await dbContext.UserAccount.AddRangeAsync(newStaffAccounts);
-			await dbContext.SaveChangesAsync();
+			try {
+				await dbContext.UserAccount.AddRangeAsync(newStaffAccounts);
+				await dbContext.SaveChangesAsync();
+			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				Console.WriteLine($"Skipping duplicate staff accounts: {ex.Message}");
+			}
 		}
 	}
 
@@ -130,7 +149,7 @@ public static class Seeder {
 
 		var tenantData = new List<TenantSeedData> {
 			new TenantSeedData {
-				Tenant = new Tenant { Code = "acme-corp", Name = "Acme Corporation" },
+				Tenant = new Tenant { Code = "acme-corp", Name = "Acme Corporation", Status = TenantStatus.Active },
 								Projects = [
 										new Project { Name = "Marketing Campaign 2024", TenantId = Guid.Empty, IsActive = true },
 										new Project { Name = "Product Launch", TenantId = Guid.Empty, IsActive = true }
@@ -141,7 +160,7 @@ public static class Seeder {
 				]
 			},
 			new TenantSeedData {
-				Tenant = new Tenant { Code = "techstart-inc", Name = "TechStart Inc" },
+				Tenant = new Tenant { Code = "techstart-inc", Name = "TechStart Inc", Status = TenantStatus.Active },
 								Projects = [
 										new Project { Name = "Mobile App", TenantId = Guid.Empty, IsActive = true },
 										new Project { Name = "Web Platform", TenantId = Guid.Empty, IsActive = true }
@@ -152,7 +171,7 @@ public static class Seeder {
 				]
 			},
 			new TenantSeedData {
-				Tenant = new Tenant { Code = "global-solutions", Name = "Global Solutions" },
+				Tenant = new Tenant { Code = "global-solutions", Name = "Global Solutions", Status = TenantStatus.Active },
 								Projects = [
 										new Project { Name = "Enterprise Suite", TenantId = Guid.Empty, IsActive = true },
 										new Project { Name = "Customer Portal", TenantId = Guid.Empty, IsActive = true }
@@ -179,17 +198,26 @@ public static class Seeder {
 
 		var newTenants = tenantData
 			.Where(td => !existingTenantCodes.Contains(td.Tenant.Code))
-			.Select(td => new Tenant { Code = td.Tenant.Code, Name = td.Tenant.Name })
+			.Select(td => new Tenant {
+				Code = td.Tenant.Code,
+				Name = td.Tenant.Name,
+				Status = td.Tenant.Status,
+			})
 			.ToList();
 
 		if (newTenants.Count != 0) {
-			await dbContext.Tenant.AddRangeAsync(newTenants);
-			await dbContext.SaveChangesAsync();
+			try {
+				await dbContext.Tenant.AddRangeAsync(newTenants);
+				await dbContext.SaveChangesAsync();
+			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				Console.WriteLine($"Skipping duplicate tenants: {ex.Message}");
+			}
 		}
 
-		var allTenantsQuery = from t in dbContext.Tenant
-													where tenantCodes.Contains(t.Code)
-													select t;
+		var allTenantsQuery =
+			from t in dbContext.Tenant
+			where tenantCodes.Contains(t.Code)
+			select t;
 		var allTenants = await allTenantsQuery.ToDictionaryAsync(t => t.Code, t => t.GetRequiredId());
 
 		var projectsToAdd = new List<Project>();
@@ -197,13 +225,18 @@ public static class Seeder {
 			if (allTenants.TryGetValue(td.Tenant.Code, out var tenantId)) {
 				var projectNames = td.Projects.Select(p => p.Name).ToList();
 
-				var existingProjectsQuery = from p in dbContext.Project
-																		where p.TenantId == tenantId && projectNames.Contains(p.Name)
-																		select p.Name;
-				var existingProjects = await existingProjectsQuery.ToListAsync();
+				// Get existing projects with their names for this tenant
+				var existingProjectsQuery =
+					from p in dbContext.Project
+					where p.TenantId == tenantId && projectNames.Contains(p.Name)
+					select new { p.Name, p.Id };
 
+				var existingProjects = await existingProjectsQuery.ToListAsync();
+				var existingProjectNames = existingProjects.Select(p => p.Name).ToHashSet();
+
+				// Only add projects that don't already exist
 				var newProjects = td.Projects
-					.Where(p => !existingProjects.Contains(p.Name))
+					.Where(p => !existingProjectNames.Contains(p.Name))
 					.Select(p => new Project {
 						TenantId = tenantId,
 						Name = p.Name,
@@ -216,9 +249,27 @@ public static class Seeder {
 			}
 		}
 
+		// Add projects in smaller batches to avoid constraint violations
 		if (projectsToAdd.Count != 0) {
-			await dbContext.Project.AddRangeAsync(projectsToAdd);
-			await dbContext.SaveChangesAsync();
+			const int batchSize = 10;
+			for (int i = 0; i < projectsToAdd.Count; i += batchSize) {
+				var batch = projectsToAdd.Skip(i).Take(batchSize).ToList();
+				try {
+					await dbContext.Project.AddRangeAsync(batch);
+					await dbContext.SaveChangesAsync();
+				} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+					// Handle duplicate key constraint violations gracefully
+					// This can happen if projects were created between our check and the insert
+					Console.WriteLine($"Skipping duplicate projects in batch {i / batchSize + 1}: {ex.Message}");
+					// Clear the current batch from the context to avoid further issues
+					foreach (var project in batch) {
+						var entry = dbContext.Entry(project);
+						if (entry.State != EntityState.Detached) {
+							entry.State = EntityState.Detached;
+						}
+					}
+				}
+			}
 		}
 
 		var tenantUserEmails = tenantData.SelectMany(td => td.Users.Select(u => u.Email)).ToList();
@@ -241,8 +292,12 @@ public static class Seeder {
 			.ToList();
 
 		if (newUsers.Count != 0) {
-			await dbContext.User.AddRangeAsync(newUsers);
-			await dbContext.SaveChangesAsync();
+			try {
+				await dbContext.User.AddRangeAsync(newUsers);
+				await dbContext.SaveChangesAsync();
+			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				Console.WriteLine($"Skipping duplicate users: {ex.Message}");
+			}
 		}
 
 		var allUsersQuery =
@@ -260,7 +315,7 @@ public static class Seeder {
 						desiredAccounts.Add(new UserAccount {
 							UserId = userId,
 							TenantId = tenantId,
-							AccountScope = AccountScope.Tenant,
+							Scope = AccountScope.Tenant,
 							Level = u.Level,
 							IsSuspended = false
 						});
@@ -276,7 +331,7 @@ public static class Seeder {
 						desiredAccounts.Add(new UserAccount {
 							UserId = userId,
 							TenantId = tenantId,
-							AccountScope = AccountScope.Tenant,
+							Scope = AccountScope.Tenant,
 							Level = AccountLevel.User,
 							IsSuspended = false
 						});
@@ -286,11 +341,12 @@ public static class Seeder {
 		}
 
 		var tenantIds = allTenants.Values.ToList();
-		var existingUserAccountsQuery = from ua in dbContext.UserAccount
-																		where ua.AccountScope == AccountScope.Tenant
-																					&& ua.TenantId.HasValue
-																					&& tenantIds.Contains(ua.TenantId.Value)
-																		select new { ua.UserId, TenantId = ua.TenantId!.Value };
+		var existingUserAccountsQuery =
+			from ua in dbContext.UserAccount
+			where ua.Scope == AccountScope.Tenant
+						&& ua.TenantId.HasValue
+						&& tenantIds.Contains(ua.TenantId.Value)
+			select new { ua.UserId, TenantId = ua.TenantId!.Value };
 		var existingUserAccounts = await existingUserAccountsQuery.ToListAsync();
 
 		var existingSet = new HashSet<(Guid, Guid)>(existingUserAccounts.Select(p => (p.UserId, p.TenantId)));
@@ -300,8 +356,12 @@ public static class Seeder {
 			.ToList();
 
 		if (newAccounts.Count != 0) {
-			await dbContext.UserAccount.AddRangeAsync(newAccounts);
-			await dbContext.SaveChangesAsync();
+			try {
+				await dbContext.UserAccount.AddRangeAsync(newAccounts);
+				await dbContext.SaveChangesAsync();
+			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				Console.WriteLine($"Skipping duplicate user accounts: {ex.Message}");
+			}
 		}
 	}
 
@@ -349,8 +409,12 @@ public static class Seeder {
 			.ToList();
 
 		if (newProfiles.Count != 0) {
-			await dbContext.Profile.AddRangeAsync(newProfiles);
-			await dbContext.SaveChangesAsync();
+			try {
+				await dbContext.Profile.AddRangeAsync(newProfiles);
+				await dbContext.SaveChangesAsync();
+			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				Console.WriteLine($"Skipping duplicate profiles: {ex.Message}");
+			}
 		}
 
 		var allProfilesQuery =
@@ -381,8 +445,12 @@ public static class Seeder {
 		}
 
 		if (profilePermissionsToAdd.Count != 0) {
-			await dbContext.ProfilePermission.AddRangeAsync(profilePermissionsToAdd);
-			await dbContext.SaveChangesAsync();
+			try {
+				await dbContext.ProfilePermission.AddRangeAsync(profilePermissionsToAdd);
+				await dbContext.SaveChangesAsync();
+			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				Console.WriteLine($"Skipping duplicate profile permissions: {ex.Message}");
+			}
 		}
 	}
 
@@ -402,13 +470,13 @@ public static class Seeder {
 
 		var staffAdminAccountQuery =
 			from ua in dbContext.UserAccount.Include(ua => ua.User)
-			where ua.User.Email == "staff-admin@example.com" && ua.AccountScope == AccountScope.Staff
+			where ua.User.Email == "staff-admin@example.com" && ua.Scope == AccountScope.Staff
 			select ua;
 		var staffAdminAccount = await staffAdminAccountQuery.FirstOrDefaultAsync();
 
 		var staffUserAccountQuery =
 			from ua in dbContext.UserAccount.Include(ua => ua.User)
-			where ua.User.Email == "staff-user@example.com" && ua.AccountScope == AccountScope.Staff
+			where ua.User.Email == "staff-user@example.com" && ua.Scope == AccountScope.Staff
 			select ua;
 		var staffUserAccount = await staffUserAccountQuery.FirstOrDefaultAsync();
 
@@ -463,7 +531,7 @@ public static class Seeder {
 
 			if (tenantAdminProfile == null || tenantUserProfile == null) continue;
 
-			foreach (var userAccount in tenant.UserAccounts.Where(ua => ua.AccountScope == AccountScope.Tenant)) {
+			foreach (var userAccount in tenant.UserAccounts.Where(ua => ua.Scope == AccountScope.Tenant)) {
 				var targetProfile = userAccount.Level == AccountLevel.Admin ? tenantAdminProfile : tenantUserProfile;
 
 				var userAccountProfileExistsQuery =
@@ -480,8 +548,20 @@ public static class Seeder {
 		}
 
 		if (userAccountProfilesToAdd.Count != 0) {
-			await dbContext.UserAccountProfile.AddRangeAsync(userAccountProfilesToAdd);
-			await dbContext.SaveChangesAsync();
+			try {
+				await dbContext.UserAccountProfile.AddRangeAsync(userAccountProfilesToAdd);
+				await dbContext.SaveChangesAsync();
+			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				// Handle duplicate key constraint violations gracefully
+				Console.WriteLine($"Skipping duplicate user account profiles: {ex.Message}");
+				// Clear the current batch from the context to avoid further issues
+				foreach (var profile in userAccountProfilesToAdd) {
+					var entry = dbContext.Entry(profile);
+					if (entry.State != EntityState.Detached) {
+						entry.State = EntityState.Detached;
+					}
+				}
+			}
 		}
 	}
 

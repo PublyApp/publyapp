@@ -671,7 +671,11 @@ export function deserializeIntoTenant(tenant: Partial<Tenant> | undefined = {}) 
 export function deserializeIntoTenantAsStaffItem(tenantAsStaffItem: Partial<TenantAsStaffItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "id": n => { tenantAsStaffItem.id = n.getGuidValue(); },
+        "logoUrl": n => { tenantAsStaffItem.logoUrl = n.getStringValue(); },
+        "maxUsers": n => { tenantAsStaffItem.maxUsers = n.getNumberValue(); },
         "name": n => { tenantAsStaffItem.name = n.getStringValue(); },
+        "status": n => { tenantAsStaffItem.status = n.getStringValue(); },
+        "usersCount": n => { tenantAsStaffItem.usersCount = n.getNumberValue(); },
     }
 }
 /**
@@ -1286,7 +1290,11 @@ export function serializeTenant(writer: SerializationWriter, tenant: Partial<Ten
 export function serializeTenantAsStaffItem(writer: SerializationWriter, tenantAsStaffItem: Partial<TenantAsStaffItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantAsStaffItem || isSerializingDerivedType) { return; }
     writer.writeGuidValue("id", tenantAsStaffItem.id);
+    writer.writeStringValue("logoUrl", tenantAsStaffItem.logoUrl);
+    writer.writeNumberValue("maxUsers", tenantAsStaffItem.maxUsers);
     writer.writeStringValue("name", tenantAsStaffItem.name);
+    writer.writeStringValue("status", tenantAsStaffItem.status);
+    writer.writeNumberValue("usersCount", tenantAsStaffItem.usersCount);
     writer.writeAdditionalData(tenantAsStaffItem.additionalData);
 }
 /**
@@ -1380,9 +1388,25 @@ export interface TenantAsStaffItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The logoUrl property
+     */
+    logoUrl?: string | null;
+    /**
+     * The maxUsers property
+     */
+    maxUsers?: number | null;
+    /**
      * The name property
      */
     name?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+    /**
+     * The usersCount property
+     */
+    usersCount?: number | null;
 }
 export interface TenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**

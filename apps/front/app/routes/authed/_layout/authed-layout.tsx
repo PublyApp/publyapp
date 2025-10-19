@@ -80,14 +80,17 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 	clientLogger.debug('ErrorBoundary', { error });
 
+	// alert(JSON.stringify(error));
+
 	if (
 		isJsClientError(error) &&
 		error.responseStatusCode === 401 &&
-		error.messageEscaped === 'Unauthorized'
+		_.toLower(error.messageEscaped) === _.toLower('Unauthorized')
 	) {
 		// remove session token cookie
 		document.cookie = cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', {
 			path: '/',
+			expires: new Date(0),
 			maxAge: 0,
 		});
 
@@ -102,7 +105,8 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 			queryParamValue.login_page.redirect_cause.invalid_session,
 		);
 
-		clientLogger.debug('Redirecting to login page', { url });
+		clientLogger.debug('Redirecting to login page', { url: url.toString() });
+		// alert(url.toString());
 
 		return <Navigate to={url.pathname + url.search} />;
 	}
