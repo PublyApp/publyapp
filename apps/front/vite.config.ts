@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import { reactRouterDevTools } from 'react-router-devtools';
 import { defineConfig } from 'vite';
-// import checker from 'vite-plugin-checker';
+import checker from 'vite-plugin-checker';
 import devtoolsJson from 'vite-plugin-devtools-json';
 
 import copyI18nFiles from './_vite/copy-i18n-files';

@@ -138,8 +138,5 @@ const initLocaleSideEffects = (i18n: I18nInstance) => {
 		if (localeTabSync.shouldBroadcast()) {
 			localeTabSync.broadcastLocaleToTabs(correctLocale);
 		}
-
-		// TODO: set locale for other libraries
-		// ???
 	});
 };

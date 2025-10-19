@@ -1,10 +1,6 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-
-import type { AppLocale } from '@org/shared-ts/lib/i18n/resources';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { getErrorMessage } from '@org/shared-ts/utils/error.utils';
-
+import type { AppLocale } from '@/shared/lib/i18n/resources';
 import { toast } from '../components/snackbar';
 import { config } from '../lib/i18n/i18n.config';
 import { allLangs, changeLangMessages } from '../lib/locales/all-langs';
@@ -43,7 +39,7 @@ export const useTranslate = (ns?: Ns) => {
 				// 	dayjs.locale(currentLang.adapterLocale);
 				// }
 			} catch (error) {
-				logger.error(getErrorMessage(error), { error });
+				console.error(error);
 			}
 		},
 		[/* currentLang, */ i18n],
