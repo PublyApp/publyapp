@@ -229,3 +229,12 @@ export const USER_STATUS_ENUM = {
 } as const;
 
 export type UserStatus = ValueOf<typeof USER_STATUS_ENUM>;
+
+export const TENANT_STATUS_ENUM = {
+	PENDING: 'Pending',
+	ACTIVE: 'Active',
+	SUSPENDED: 'Suspended',
+	ARCHIVED: 'Archived',
+} as const;
+
+export type TenantStatus = ValueOf<typeof TENANT_STATUS_ENUM>;

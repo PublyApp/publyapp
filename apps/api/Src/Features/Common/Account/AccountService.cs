@@ -54,7 +54,7 @@ public class AccountService : IAccountService {
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
-			&& ua.AccountScope == AccountScope.Staff
+			&& ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;
 
@@ -68,7 +68,7 @@ public class AccountService : IAccountService {
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
-			&& ua.AccountScope == AccountScope.Staff
+			&& ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;
 
@@ -99,7 +99,7 @@ public class AccountService : IAccountService {
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
-			&& ua.AccountScope == AccountScope.Tenant
+			&& ua.Scope == AccountScope.Tenant
 			&& ua.TenantId != null
 			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;

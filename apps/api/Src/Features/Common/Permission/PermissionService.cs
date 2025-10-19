@@ -46,7 +46,7 @@ public class PermissionService : IPermissionService {
 					ua.UserId,
 					ua.TenantId,
 					ua.ProjectId,
-					ua.AccountScope
+					ua.Scope
 				})
 			.Where(x => x.UserId == userId)
 			// Apply scope filtering if provided
@@ -71,8 +71,8 @@ public class PermissionService : IPermissionService {
 			.Join(_context.Set<UserAccount>(),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
-				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.AccountScope })
-			.Where(x => x.UserId == userId && x.AccountScope == AccountScope.Staff)
+				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.Scope })
+			.Where(x => x.UserId == userId && x.Scope == AccountScope.Staff)
 			.Select(x => x.PermissionKey)
 			.ToHashSetAsync();
 	}
@@ -89,8 +89,8 @@ public class PermissionService : IPermissionService {
 			.Join(_context.Set<UserAccount>(),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
-				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.AccountScope })
-			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.AccountScope == AccountScope.Tenant)
+				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.Scope })
+			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.Scope == AccountScope.Tenant)
 			.Select(x => x.PermissionKey)
 			.ToHashSetAsync();
 	}
@@ -107,8 +107,8 @@ public class PermissionService : IPermissionService {
 			.Join(_context.Set<UserAccount>(),
 				joined => joined.UserAccountId,
 				ua => ua.Id,
-				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.ProjectId, ua.AccountScope })
-			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.ProjectId == projectId && x.AccountScope == AccountScope.Project)
+				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.ProjectId, ua.Scope })
+			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.ProjectId == projectId && x.Scope == AccountScope.Project)
 			.Select(x => x.PermissionKey)
 			.ToHashSetAsync();
 	}

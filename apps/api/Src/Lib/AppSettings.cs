@@ -26,4 +26,6 @@ public class AppSettings {
 	public readonly int MAX_PROFILES_PER_USER = 5;
 
 	public readonly int PAGINATION_DEFAULT_LIMIT = 100;
+
+	public static readonly int DEFAULT_MAX_USERS_PER_TENANT = 5;
 }

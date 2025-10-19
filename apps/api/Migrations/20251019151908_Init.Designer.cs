@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20251011133808_Init")]
+    [Migration("20251019151908_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -32,10 +32,6 @@ namespace MainApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id")
                         .HasDefaultValueSql("uuidv7()");
-
-                    b.Property<int>("AccountScope")
-                        .HasColumnType("integer")
-                        .HasColumnName("account_scope");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -61,6 +57,10 @@ namespace MainApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("project_id");
 
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer")
+                        .HasColumnName("scope");
+
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
@@ -75,26 +75,26 @@ namespace MainApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProjectId", "AccountScope");
+                    b.HasIndex("ProjectId", "Scope");
 
-                    b.HasIndex("TenantId", "AccountScope");
+                    b.HasIndex("TenantId", "Scope");
 
-                    b.HasIndex("UserId", "AccountScope")
+                    b.HasIndex("UserId", "Scope")
                         .HasDatabaseName("ix_user_accounts_user_id_account_type_active")
                         .HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
 
                     b.HasIndex("UserId", "TenantId");
 
-                    b.HasIndex("UserId", "TenantId", "ProjectId", "AccountScope")
+                    b.HasIndex("UserId", "TenantId", "ProjectId", "Scope")
                         .IsUnique();
 
                     b.ToTable("user_accounts", t =>
                         {
-                            t.HasCheckConstraint("CK_UserAccount_Project_Constraints", "(account_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR account_scope != 2");
+                            t.HasCheckConstraint("CK_UserAccount_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
 
-                            t.HasCheckConstraint("CK_UserAccount_Staff_Constraints", "(account_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR account_scope != 0");
+                            t.HasCheckConstraint("CK_UserAccount_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
 
-                            t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints", "(account_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR account_scope != 1");
+                            t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
                         });
                 });
 
@@ -400,10 +400,26 @@ namespace MainApi.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
+                    b.Property<bool>("IsSuspended")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_suspended");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("logo_url");
+
+                    b.Property<int>("MaxUsers")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_users");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("name");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")

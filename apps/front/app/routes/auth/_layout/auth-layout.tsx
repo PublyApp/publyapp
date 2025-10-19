@@ -72,7 +72,13 @@ export const clientLoader = getClientLoader({
 					(result) => result.status === 'error',
 				);
 
-				if (_.some(errors, (error) => error.error.message === 'Unauthorized')) {
+				if (
+					_.some(
+						errors,
+						(error) =>
+							_.toLower(error.error.message) === _.toLower('Unauthorized'),
+					)
+				) {
 					const sessionTokenCookie = cookie.serialize(
 						SESSION_TOKEN_COOKIE_KEY,
 						'',

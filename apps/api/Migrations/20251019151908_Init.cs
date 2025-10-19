@@ -27,6 +27,10 @@ namespace MainApi.Migrations {
 						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
 						code = table.Column<string>(type: "text", nullable: false),
 						name = table.Column<string>(type: "text", nullable: false),
+						logo_url = table.Column<string>(type: "text", nullable: true),
+						status = table.Column<int>(type: "integer", nullable: false),
+						is_suspended = table.Column<bool>(type: "boolean", nullable: false),
+						max_users = table.Column<int>(type: "integer", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
@@ -169,7 +173,7 @@ namespace MainApi.Migrations {
 						user_id = table.Column<Guid>(type: "uuid", nullable: false),
 						tenant_id = table.Column<Guid>(type: "uuid", nullable: true),
 						project_id = table.Column<Guid>(type: "uuid", nullable: true),
-						account_scope = table.Column<int>(type: "integer", nullable: false),
+						scope = table.Column<int>(type: "integer", nullable: false),
 						level = table.Column<int>(type: "integer", nullable: false),
 						is_suspended = table.Column<bool>(type: "boolean", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -179,9 +183,9 @@ namespace MainApi.Migrations {
 					},
 					constraints: table => {
 						table.PrimaryKey("PK_user_accounts", x => x.id);
-						table.CheckConstraint("CK_UserAccount_Project_Constraints", "(account_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR account_scope != 2");
-						table.CheckConstraint("CK_UserAccount_Staff_Constraints", "(account_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR account_scope != 0");
-						table.CheckConstraint("CK_UserAccount_Tenant_Constraints", "(account_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR account_scope != 1");
+						table.CheckConstraint("CK_UserAccount_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
+						table.CheckConstraint("CK_UserAccount_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
+						table.CheckConstraint("CK_UserAccount_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
 						table.ForeignKey(
 											name: "FK_user_accounts_projects_project_id",
 											column: x => x.project_id,
@@ -320,19 +324,19 @@ namespace MainApi.Migrations {
 					unique: true);
 
 			migrationBuilder.CreateIndex(
-					name: "IX_user_accounts_project_id_account_scope",
+					name: "IX_user_accounts_project_id_scope",
 					table: "user_accounts",
-					columns: new[] { "project_id", "account_scope" });
+					columns: new[] { "project_id", "scope" });
 
 			migrationBuilder.CreateIndex(
-					name: "IX_user_accounts_tenant_id_account_scope",
+					name: "IX_user_accounts_tenant_id_scope",
 					table: "user_accounts",
-					columns: new[] { "tenant_id", "account_scope" });
+					columns: new[] { "tenant_id", "scope" });
 
 			migrationBuilder.CreateIndex(
 					name: "ix_user_accounts_user_id_account_type_active",
 					table: "user_accounts",
-					columns: new[] { "user_id", "account_scope" },
+					columns: new[] { "user_id", "scope" },
 					filter: "\"is_deleted\" = false AND \"is_suspended\" = false");
 
 			migrationBuilder.CreateIndex(
@@ -341,9 +345,9 @@ namespace MainApi.Migrations {
 					columns: new[] { "user_id", "tenant_id" });
 
 			migrationBuilder.CreateIndex(
-					name: "IX_user_accounts_user_id_tenant_id_project_id_account_scope",
+					name: "IX_user_accounts_user_id_tenant_id_project_id_scope",
 					table: "user_accounts",
-					columns: new[] { "user_id", "tenant_id", "project_id", "account_scope" },
+					columns: new[] { "user_id", "tenant_id", "project_id", "scope" },
 					unique: true);
 
 			migrationBuilder.CreateIndex(

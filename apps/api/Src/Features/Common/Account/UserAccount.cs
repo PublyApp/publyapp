@@ -9,10 +9,10 @@ namespace MainApi.Src.Features.Common.Account;
 /// Unified account table for users across all scopes (Staff, Tenant, Project)
 /// </summary>
 [Table("user_accounts")]
-[Index(nameof(UserId), nameof(TenantId), nameof(ProjectId), nameof(AccountScope), IsUnique = true)]
-[Index(nameof(UserId), nameof(AccountScope))]
-[Index(nameof(TenantId), nameof(AccountScope))]
-[Index(nameof(ProjectId), nameof(AccountScope))]
+[Index(nameof(UserId), nameof(TenantId), nameof(ProjectId), nameof(Scope), IsUnique = true)]
+[Index(nameof(UserId), nameof(Scope))]
+[Index(nameof(TenantId), nameof(Scope))]
+[Index(nameof(ProjectId), nameof(Scope))]
 [Index(nameof(UserId), nameof(TenantId))]
 public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[Column("user_id")]
@@ -30,8 +30,8 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	[JsonIgnore]
 	public Project.Project? Project { get; set; }
 
-	[Column("account_scope")]
-	public AccountScope AccountScope { get; set; } = AccountScope.Tenant;
+	[Column("scope")]
+	public AccountScope Scope { get; set; } = AccountScope.Tenant;
 
 	[Column("level")]
 	public AccountLevel Level { get; set; } = AccountLevel.User;
@@ -40,15 +40,15 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	public bool IsSuspended { get; set; } = false;
 
 	// Computed properties for easy identification
-	public bool IsStaffAccount => AccountScope == AccountScope.Staff && TenantId == null && ProjectId == null;
-	public bool IsTenantAccount => AccountScope == AccountScope.Tenant && TenantId != null && ProjectId == null;
-	public bool IsProjectAccount => AccountScope == AccountScope.Project && TenantId != null && ProjectId != null;
+	public bool IsStaffAccount => Scope == AccountScope.Staff && TenantId == null && ProjectId == null;
+	public bool IsTenantAccount => Scope == AccountScope.Tenant && TenantId != null && ProjectId == null;
+	public bool IsProjectAccount => Scope == AccountScope.Project && TenantId != null && ProjectId != null;
 
 	// Factory methods for type-safe creation
 	public static UserAccount CreateStaffAccount(Guid userId) {
 		return new UserAccount {
 			UserId = userId,
-			AccountScope = AccountScope.Staff,
+			Scope = AccountScope.Staff,
 			TenantId = null,
 			ProjectId = null
 		};
@@ -57,7 +57,7 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	public static UserAccount CreateTenantAccount(Guid userId, Guid tenantId) {
 		return new UserAccount {
 			UserId = userId,
-			AccountScope = AccountScope.Tenant,
+			Scope = AccountScope.Tenant,
 			TenantId = tenantId,
 			ProjectId = null
 		};
@@ -66,7 +66,7 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	public static UserAccount CreateProjectAccount(Guid userId, Guid tenantId, Guid projectId) {
 		return new UserAccount {
 			UserId = userId,
-			AccountScope = AccountScope.Project,
+			Scope = AccountScope.Project,
 			TenantId = tenantId,
 			ProjectId = projectId
 		};
@@ -74,7 +74,7 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 
 	// Validation
 	public void ValidateAccountType() {
-		switch (AccountScope) {
+		switch (Scope) {
 			case AccountScope.Staff:
 				if (TenantId != null || ProjectId != null) {
 					throw new InvalidOperationException("Staff accounts cannot have TenantId or ProjectId");

@@ -1,12 +1,17 @@
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http.HttpResults;
+using CommonTenantNs = MainApi.Src.Features.Common.Tenant;
 
 namespace MainApi.Src.Features.Staff.TenantAsStaff.Handlers;
 
 public class TenantAsStaffItem {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
+	public string? LogoUrl { get; set; }
+	public int UsersCount { get; set; }
+	public int MaxUsers { get; set; }
+	public string Status { get; set; } = string.Empty;
 }
 
 public class TenantAsStaffResult {
@@ -42,8 +47,12 @@ public class FindTenantsAsStaff {
 		return TypedResults.Ok(new TenantAsStaffResult {
 			Tenants = tenants
 				.Select(tenant => new TenantAsStaffItem {
-					Id = tenant.GetRequiredId(),
-					Name = tenant.Name,
+					Id = tenant.Tenant.GetRequiredId(),
+					Name = tenant.Tenant.Name,
+					LogoUrl = tenant.Tenant.LogoUrl,
+					UsersCount = tenant.UsersCount,
+					MaxUsers = tenant.Tenant.MaxUsers,
+					Status = CommonTenantNs.Tenant.GetStatusDescription(tenant.Tenant.Status),
 				})
 				.ToList(),
 			Count = count,
