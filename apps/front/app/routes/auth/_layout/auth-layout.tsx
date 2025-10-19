@@ -73,6 +73,17 @@ export const clientLoader = getClientLoader({
 				);
 
 				if (_.some(errors, (error) => error.error.message === 'Unauthorized')) {
+					const sessionTokenCookie = cookie.serialize(
+						SESSION_TOKEN_COOKIE_KEY,
+						'',
+						{
+							expires: new Date(0),
+							maxAge: 0,
+							path: '/',
+						},
+					);
+					document.cookie = sessionTokenCookie;
+
 					return null;
 				}
 
