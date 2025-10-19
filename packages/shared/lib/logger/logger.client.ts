@@ -8,28 +8,28 @@ export class ClientLogger implements ILogger {
 		if (logLevelHierarchy[this.logLevel] > logLevelHierarchy.info) {
 			return;
 		}
-		console.info(message, ...meta);
+		console.info(`💡 ${message}`, ...meta);
 	}
 
 	warn(message: string, ...meta: unknown[]): void {
 		if (logLevelHierarchy[this.logLevel] > logLevelHierarchy.warn) {
 			return;
 		}
-		console.warn(message, ...meta);
+		console.warn(`⚠️ ${message}`, ...meta);
 	}
 
 	error(message: string, ...meta: unknown[]): void {
 		if (logLevelHierarchy[this.logLevel] > logLevelHierarchy.error) {
 			return;
 		}
-		console.error(message, ...meta);
+		console.error(`🚨 ${message}`, ...meta);
 	}
 
 	debug(message: string, ...meta: unknown[]): void {
 		if (logLevelHierarchy[this.logLevel] > logLevelHierarchy.debug) {
 			return;
 		}
-		console.debug(message, ...meta);
+		console.debug(`🐛 ${message}`, ...meta);
 	}
 }
 
