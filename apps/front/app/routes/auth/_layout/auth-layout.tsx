@@ -2,8 +2,7 @@ import * as cookie from 'cookie';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { Suspense } from 'react';
-import { data, Outlet, redirect } from 'react-router';
-import { serializeError } from 'serialize-error';
+import { Outlet, redirect } from 'react-router';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { AuthSplitLayout } from '@/front/layouts/auth-split/layout';
@@ -23,7 +22,7 @@ import {
 } from '@/shared/lib/constants';
 
 export const loader = getServerLoader({
-	loader: async ({ request, context }) => {
+	loader: async ({ request }) => {
 		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
 		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
 
@@ -47,32 +46,13 @@ export const loader = getServerLoader({
 			});
 		});
 
-		const resultsArray = await Promise.all([
-			getUserAuthData(),
-			getRedirectCode(),
-		]);
-
-		context.logger.debug('resultsArray', { resultsArray });
-
-		if (_.some(resultsArray, (result) => result.status === 'error')) {
-			const errors = resultsArray.filter((result) => result.status === 'error');
-
-			context.logger.error('Failed to get user auth data or redirect code', {
-				errors: errors.map((result) => serializeError(result.error)),
-			});
-
-			throw (
-				_.first(errors)?.error ||
-				new Error('Failed to get user auth data or redirect code')
-			);
-		}
+		const userAuthDataPromise = getUserAuthData();
+		const redirectCodePromise = getRedirectCode();
 
 		return {
-			status: 'AUTHENTICATED',
-			userAuthData:
-				resultsArray[0].status === 'success' ? resultsArray[0].data : undefined,
-			redirectCode:
-				resultsArray[1].status === 'success' ? resultsArray[1].data : undefined,
+			status: 'HAS_AUTH_TOKEN',
+			userAuthDataPromise,
+			redirectCodePromise,
 		} as const;
 	},
 });
@@ -81,13 +61,43 @@ export const clientLoader = getClientLoader({
 	loader: async ({ serverLoader }) => {
 		const serverData = await serverLoader<typeof loader>();
 
-		if (serverData.status === 'AUTHENTICATED') {
+		if (serverData.status === 'HAS_AUTH_TOKEN') {
+			const resultsArray = await Promise.all([
+				serverData.userAuthDataPromise,
+				serverData.redirectCodePromise,
+			]);
+
+			if (_.some(resultsArray, (result) => result.status === 'error')) {
+				const errors = resultsArray.filter(
+					(result) => result.status === 'error',
+				);
+
+				if (_.some(errors, (error) => error.error.message === 'Unauthorized')) {
+					return null;
+				}
+
+				throw (
+					_.first(errors)?.error ||
+					new Error('Failed to get user auth data or redirect code')
+				);
+			}
+
+			const userAuthDataResult = await serverData.userAuthDataPromise;
+			const redirectCodeResult = await serverData.redirectCodePromise;
+
+			const userAuthData =
+				userAuthDataResult.status === 'success'
+					? userAuthDataResult.data
+					: undefined;
+			const redirectCode =
+				redirectCodeResult.status === 'success'
+					? redirectCodeResult.data?.redirectCode
+					: undefined;
+
 			defaultQueryClient.setQueryData(
 				useGetUserAuthData.getKey(),
-				serverData.userAuthData,
+				userAuthData,
 			);
-
-			const redirectCode = serverData.redirectCode?.redirectCode;
 
 			if (redirectCode && redirectCode !== 'unauthorized') {
 				defaultQueryClient.prefetchQuery({
@@ -110,10 +120,10 @@ export const clientLoader = getClientLoader({
 		}
 
 		i18next.loadNamespaces(['zod', 'response-message']);
-		return data({});
+		return null;
 	},
 });
-(clientLoader as unknown as Record<string, unknown>).hydrate = true as const;
+clientLoader.hydrate = true;
 
 const AuthLayout = () => {
 	const { t } = useTranslate();

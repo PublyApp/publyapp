@@ -25,7 +25,7 @@ type GetCLientLoader = <
 	D = unknown,
 >(
 	params: GetCLientLoaderParams<T, D>,
-) => (args: T) => Promise<D>;
+) => ((args: T) => Promise<D>) & { hydrate?: boolean };
 
 export const getClientLoader: GetCLientLoader = <
 	T extends ClientLoaderFunctionArgs = ClientLoaderFunctionArgs,
