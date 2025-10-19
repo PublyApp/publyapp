@@ -1,13 +1,12 @@
+import { useQueryErrorResetBoundary } from '@tanstack/react-query';
 import {
-	Suspense,
-	useEffect,
-	useRef,
 	type ComponentType,
 	type ReactNode,
+	Suspense,
 	type SuspenseProps,
+	useEffect,
+	useRef,
 } from 'react';
-
-import { useQueryErrorResetBoundary } from '@tanstack/react-query';
 import {
 	ErrorBoundary,
 	type ErrorBoundaryPropsWithComponent,
