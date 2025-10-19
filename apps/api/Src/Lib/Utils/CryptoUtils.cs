@@ -31,22 +31,6 @@ public static class CryptoUtils {
 		});
 	}
 
-	/// <summary>
-	/// Returns a new random hex string suitable for secure tokens.
-	/// Equivalent to Parse Server's newToken function.
-	/// </summary>
-	/// <param name="size">The length of the hex string (default: 32)</param>
-	/// <returns>A random hex string suitable for secure tokens</returns>
-	public static string NewToken(int size = 32) {
-		var byteLength = size / 2; // Each byte produces 2 hex characters
-
-		// Use stackalloc for small sizes (typical tokens), heap allocation for larger ones
-		Span<byte> bytes = byteLength <= 128 ? stackalloc byte[byteLength] : new byte[byteLength];
-		RandomNumberGenerator.Fill(bytes);
-
-		return Convert.ToHexString(bytes).ToLower();
-	}
-
 	// Secret key for string encoding - should be at least 32 bytes
 	// This matches the default secret from the TypeScript implementation
 	private const string STRING_ENCRYPTION_SECRET_DEFAULT = "kkV4WINee3ZuveFJkBTwja5jhQ6dJ1gtbutuhp1Ncjg=";
