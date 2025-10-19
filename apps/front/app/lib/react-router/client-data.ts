@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from 'react-router';
+import type { ClientLoaderFunctionArgs } from 'react-router';
 import type { ApiClient } from '@/js-client/src/apiClient';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import type InterZod from '@/shared/lib/zod/InterZod';
@@ -8,7 +8,7 @@ import { initZodOnClient } from '../zod/zod.client';
 import { getRequestLocale } from './data.utils';
 
 type GetCLientLoaderParams<
-	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	T extends ClientLoaderFunctionArgs = ClientLoaderFunctionArgs,
 	D = unknown,
 > = {
 	loader: (
@@ -21,14 +21,14 @@ type GetCLientLoaderParams<
 };
 
 type GetCLientLoader = <
-	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	T extends ClientLoaderFunctionArgs = ClientLoaderFunctionArgs,
 	D = unknown,
 >(
 	params: GetCLientLoaderParams<T, D>,
 ) => (args: T) => Promise<D>;
 
 export const getClientLoader: GetCLientLoader = <
-	T extends LoaderFunctionArgs = LoaderFunctionArgs,
+	T extends ClientLoaderFunctionArgs = ClientLoaderFunctionArgs,
 	D = unknown,
 >(
 	params: GetCLientLoaderParams<T, D>,

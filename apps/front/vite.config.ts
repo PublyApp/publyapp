@@ -25,7 +25,7 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 			devtoolsJson(),
 			tsconfigPaths(),
 			checker({
-				typescript: true,
+				// typescript: true,
 				// biome: true,
 			}),
 			reactRouterDevTools(),

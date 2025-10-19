@@ -79,15 +79,12 @@ export const action = getServerAction({
 		);
 		responseHeaders.append('Set-Cookie', sessionTokenCookie);
 
-		// apiClient.parseRestClient.setSessionToken(sessionToken);
-
 		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
 		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
 		const authedApiClient = clientManager.createApiClient(sessionToken);
 
 		const getRedirectCode = safeRun(async () => {
-			// return apiClient.auth.redirectCode.get({ queryParameters: { tenantId } });
 			return authedApiClient.auth.redirectCode.get({
 				queryParameters: { tenantId },
 			});

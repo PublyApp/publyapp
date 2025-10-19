@@ -1,15 +1,9 @@
 import { useCallback } from 'react';
-
-// import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-
 import { toast } from '../components/snackbar';
 import { config } from '../lib/i18n/i18n.config';
 import { allLangs, changeLangMessages } from '../lib/locales/all-langs';
-
-// ----------------------------------------------------------------------
 
 type Ns = Parameters<typeof useTranslation>[0];
 
@@ -27,7 +21,6 @@ export const useTranslate = (ns?: Ns) => {
 	const onChangeLang = useCallback(
 		async (newLang: AppLocale) => {
 			try {
-				// i18n.changeLanguage(newLang);
 				const langChangePromise = i18n.changeLanguage(newLang);
 
 				const currentMessages =

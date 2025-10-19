@@ -9,7 +9,6 @@ import {
 	LANGUAGE_DETECTION_METHOD,
 	LANGUAGE_DETECTION_METHOD_ENUM,
 	LOCALE_COOKIE_KEY,
-	// LOCALE_HEADER_KEY,
 	queryParamKey,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
@@ -80,15 +79,13 @@ export const initI18nOnClient = async () => {
 	i18next.on('languageChanged', (language) => {
 		const correctLocale = getCorrectLocale(language);
 
-		// defaultApiClient.parseRestClient.setHeader(
-		// 	LOCALE_HEADER_KEY,
-		// 	correctLocale,
-		// );
-
 		// set locale of dayjs (date formatting)
 		dayjs.locale(correctLocale);
 		// set locale for our InterZod instance
 		defaultZodClient.setLocale(correctLocale);
+
+		// TODO: set locale for other libraries
+		// ???
 
 		if (
 			LANGUAGE_DETECTION_METHOD === LANGUAGE_DETECTION_METHOD_ENUM.QUERY_PARAM
@@ -105,9 +102,6 @@ export const initI18nOnClient = async () => {
 			});
 			document.cookie = localeCookie;
 		}
-
-		// TODO: set locale for other libraries
-		// ???
 	});
 
 	return i18next;

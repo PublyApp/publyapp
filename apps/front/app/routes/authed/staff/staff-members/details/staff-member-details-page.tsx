@@ -110,9 +110,11 @@ const StaffMemberDetailsPage = () => {
 								email: _.toString(data.email),
 								firstName: _.toString(data.firstName),
 								lastName: _.toString(data.lastName),
-								role: _.toString(data.roleData?.role) as never,
-								id: _.toString(data.objectId),
-								status: _.toString(data.status),
+								id: _.toString(data.id),
+								status: '',
+								// role: _.toString(data.roleData?.role) as never,
+								// id: _.toString(data.objectId),
+								// status: _.toString(data.status),
 							}}
 						/>
 					);

@@ -36,14 +36,10 @@ export const clientLoader = getClientLoader({
 		}
 
 		initApiClientOnClient();
-		// sessionToken = decodeURIComponent(sessionToken);
-		// // defaultApiClient.parseRestClient.setSessionToken(sessionToken);
-		// const apiClient = clientManager.createApiClient(sessionToken);
-		// clientManager.setApiClient(apiClient);
 
 		const sideBarCookie = _.get(browserCookies, SIDEBAR_COOKIE_NAME);
 
-		// set zustand state
+		// Initialize zustand navLayout state
 		useMainStore.setState((root) => {
 			const allowedStates: Exclude<SettingsState['navLayout'], undefined>[] = [
 				'vertical',
@@ -109,7 +105,6 @@ export const ErrorBoundary = (_: Route.ErrorBoundaryProps) => {
 	// }
 
 	if (import.meta.env.DEV) {
-		console.log('❌❌❌', error);
 		return <TemplateErrorBoundary error={error} />;
 	}
 

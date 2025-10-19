@@ -1,14 +1,15 @@
+import * as cookie from 'cookie';
 import _ from 'lodash';
-
 import { defaultSettings } from '@/front/components/settings/settings-config';
 import type { SettingsState } from '@/front/components/settings/types';
-
+import { SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME } from '../../constants';
+import type { useMainStore } from '../store';
 import Slice from '../utils/Slice';
 
 export type SettingsSliceValues = {
 	openDrawer: boolean;
-	state: SettingsState;
 	canReset: boolean;
+	state: SettingsState;
 };
 
 export type SettingsSliceActions = {
@@ -25,8 +26,8 @@ export type SettingsSliceState = SettingsSliceValues & SettingsSliceActions;
 
 const defaultValues: SettingsSliceValues = {
 	openDrawer: false,
-	state: defaultSettings,
 	canReset: true,
+	state: defaultSettings,
 };
 
 const sliceName = 'settingsSlice' as const;
@@ -98,3 +99,26 @@ export default settingsSlice;
 // export const selectSetSidebarState = (state: RootState) => {
 // 	return state.settingsSlice.sidebarActions.setSideBarState;
 // };
+
+// -----------------------------------------------------------------------------------------
+
+export const subscribeToNavLayout = (store: typeof useMainStore) => {
+	store.subscribe((rootState, prevRootState) => {
+		const navLayout = rootState.settingsSlice.state.navLayout;
+		const prevNavLayout = prevRootState.settingsSlice.state.navLayout;
+		if (navLayout !== prevNavLayout) {
+			const sidebarCookieValue = navLayout || defaultSettings.navLayout;
+
+			const sidebarCookie = cookie.serialize(
+				SIDEBAR_COOKIE_NAME,
+				sidebarCookieValue || 'vertical',
+				{
+					maxAge: SIDEBAR_COOKIE_MAX_AGE,
+					path: '/',
+				},
+			);
+
+			document.cookie = sidebarCookie;
+		}
+	});
+};
