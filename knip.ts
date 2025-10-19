@@ -20,6 +20,9 @@ const config: KnipConfig = {
 				'server/**/*.{ts,mjs,js,cjs,json}',
 			],
 		},
+		'apps/api': {
+			entry: 'run-dev.mjs',
+		},
 	},
 };
 
