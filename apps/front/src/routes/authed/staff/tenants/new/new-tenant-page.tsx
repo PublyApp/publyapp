@@ -1,22 +1,14 @@
-import Button from '@mui/material/Button';
-import type { TFunction } from 'i18next';
-import i18next from 'i18next';
-import _ from 'lodash';
-import { data } from 'react-router';
-
-import {
-	APP_NAME,
-	FRONT_PATH_NAMES,
-	I18N_NAMESPACES,
-	isServer,
-} from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { useMainStore } from '@/front/lib/zustand/store';
-
+import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import Button from '@mui/material/Button';
+import type { TFunction } from 'i18next';
+import i18next from 'i18next';
+import _ from 'lodash';
+import { data } from 'react-router';
 import { TenantCreateOrEditForm } from '../components/tenant-create-or-edit-form';
 import type { Route } from './+types/new-tenant-page';
 
@@ -63,9 +55,7 @@ export const loader = getServerLoader({
 export const clientLoader = async ({
 	serverLoader,
 }: Route.ClientLoaderArgs) => {
-	i18next.loadNamespaces([I18N_NAMESPACES.ZOD]).catch((error) => {
-		logger.error('Failed to load namespaces', error);
-	});
+	i18next.loadNamespaces(['zod']);
 	const serverData = await serverLoader();
 	return data(serverData);
 };
