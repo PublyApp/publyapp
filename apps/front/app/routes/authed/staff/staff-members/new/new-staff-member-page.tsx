@@ -24,7 +24,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.data, 'meta', []);
+		return _.get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
