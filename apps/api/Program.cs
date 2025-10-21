@@ -16,10 +16,12 @@ builder.AddServices();
 
 var app = builder.Build();
 
+// ! order matters !
+app.UseSecurityHeaders();
+app.UseCustomExceptionHandler();
+app.UseHttpsRedirection();
 app.UseCors();
 app.UseOpenApi();
-app.UseHttpsRedirection();
-app.UseCustomExceptionHandler();
 
 // ! order matters !
 app.UseCheckTenantHeader();

@@ -21,6 +21,7 @@
 		<PackageReference Include="Serilog.Sinks.Async" />
 		<PackageReference Include="Serilog.Sinks.Console" />
 		<PackageReference Include="Serilog.Sinks.File" />
+		<PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" />
 		<!-- for exporting openapi documents to json file at build time -->
 		<PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
