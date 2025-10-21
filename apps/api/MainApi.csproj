@@ -48,7 +48,4 @@
 			ContinueOnError="false"
 		/>
 	</Target>
-
-	<!-- Generated files are automatically included by .NET SDK -->
-
 </Project>
