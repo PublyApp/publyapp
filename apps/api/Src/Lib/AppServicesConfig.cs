@@ -55,13 +55,24 @@ public static class AppServicesConfig {
 		builder.Services.AddCors(options => {
 			options.AddDefaultPolicy(
 					policy => {
+						// Get session token header name from configuration
+						var sessionTokenHeader = builder.Services.BuildServiceProvider()
+							.GetRequiredService<IOptions<AppSettings>>()
+							.Value.SESSION_TOKEN_HEADER_KEY;
+
 						policy
 							.WithOrigins(AppEnvironment.FRONT_URL)
+							.AllowAnyMethod() // GET, POST, PUT, DELETE, PATCH, OPTIONS
 							.WithHeaders(
-								builder.Services.BuildServiceProvider()
-									.GetRequiredService<IOptions<AppSettings>>()
-									.Value.SESSION_TOKEN_HEADER_KEY
-							);
+								// Standard headers
+								"Content-Type",
+								"Accept",
+								// Custom headers
+								sessionTokenHeader    // X-Session-Token
+																			// "X-Tenant-Id"
+							)
+							.WithExposedHeaders(sessionTokenHeader) // Allow frontend to read this header from responses
+							.SetPreflightMaxAge(TimeSpan.FromMinutes(10)); // Cache preflight requests
 					});
 		});
 
