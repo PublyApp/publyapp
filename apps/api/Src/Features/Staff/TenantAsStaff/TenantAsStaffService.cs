@@ -87,6 +87,9 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				"name" => effectiveSortOrder == SortOrder.Asc
 					? query.OrderBy(t => t.Tenant.Name)
 					: query.OrderByDescending(t => t.Tenant.Name),
+				"status" => effectiveSortOrder == SortOrder.Asc
+					? query.OrderBy(t => t.Tenant.Status)
+					: query.OrderByDescending(t => t.Tenant.Status),
 				"userscount" => effectiveSortOrder == SortOrder.Asc
 					? query.OrderBy(t => t.UsersCount)
 					: query.OrderByDescending(t => t.UsersCount),

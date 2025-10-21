@@ -1,4 +1,3 @@
-import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 import type { OnChangeFn } from '@tanstack/react-table';
 import _ from 'lodash';
 import type {
@@ -7,6 +6,7 @@ import type {
 } from 'material-react-table';
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
 import { useCallback } from 'react';
+import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 
 export type TableQueryKeys = {
 	pagination: {
@@ -70,8 +70,8 @@ const defaultTableQueryKeys: TableQueryKeys = {
 		pageSize: 'size',
 	},
 	sorting: {
-		id: 'id',
-		order: 'order',
+		id: 'sort_id',
+		order: 'sort_order',
 	},
 };
 
