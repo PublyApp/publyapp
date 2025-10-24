@@ -131,8 +131,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 	});
 
 	const handleConfirmDialog = handleSubmit(async (data) => {
-		// createStaffMember(data);
-		// await delayFn(1000);
+		createStaffMember(data);
 	});
 
 	const confirmValues = _.chain(methods.getValues())
