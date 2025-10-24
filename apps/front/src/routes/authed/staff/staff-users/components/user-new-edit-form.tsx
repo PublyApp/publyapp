@@ -124,8 +124,7 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 	});
 
 	const handleConfirmDialog = handleSubmit(async (data) => {
-		// createStaffMember(data);
-		// await delayFn(1000);
+		createStaffMember(data);
 	});
 
 	const confirmValues = _.chain(methods.getValues())
