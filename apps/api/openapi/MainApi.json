@@ -1513,7 +1513,7 @@
             "nullable": true
           },
           "status": {
-            "$ref": "#/components/schemas/UserStatus"
+            "type": "string"
           },
           "level": {
             "$ref": "#/components/schemas/AccountLevel"
@@ -1586,9 +1586,6 @@
             "format": "int32"
           }
         }
-      },
-      "UserStatus": {
-        "type": "integer"
       },
       "VerifyEmailRequestBody": {
         "required": [

@@ -28,6 +28,7 @@ import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import {
+	useGetUserAuthData,
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
@@ -39,6 +40,7 @@ import {
 	FRONT_PATH_NAMES,
 	USER_STATUS_ENUM,
 } from '@/shared/lib/constants';
+import { clientLogger } from '@/shared/lib/logger/logger.client';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
 export type StaffMemberRowData = {
@@ -47,7 +49,7 @@ export type StaffMemberRowData = {
 	firstName: string;
 	lastName: string;
 	level: number;
-	status: number;
+	status: string;
 	email: string;
 };
 
@@ -60,7 +62,7 @@ const StaffMemberRowDataMapper = (
 		firstName: staffMember.firstName || '',
 		lastName: staffMember.lastName || '',
 		level: staffMember.level || 0,
-		status: staffMember.status || 0,
+		status: staffMember.status || '',
 		email: staffMember.email || '',
 	};
 };
@@ -167,6 +169,9 @@ const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	const avatarUrl = props.row.original.avatarUrl;
 	const email = props.row.original.email;
 
+	const { data: userAuthData } = useGetUserAuthData();
+	const isMe = userAuthData.id === userId;
+
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
 			<Avatar alt={fullName} src={avatarUrl} />
@@ -174,14 +179,17 @@ const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 			<Stack
 				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
 			>
-				<Link
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
-					color="inherit"
-					sx={{ cursor: 'pointer' }}
-				>
-					{fullName}
-				</Link>
+				<Stack direction="row" spacing={1} alignItems="center">
+					<Link
+						component={RouterLink}
+						href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
+						color="inherit"
+						sx={{ cursor: 'pointer' }}
+					>
+						{fullName}
+					</Link>
+					{isMe && <Label variant="inverted">me</Label>}
+				</Stack>
 				<Box component="span" sx={{ color: 'text.disabled' }}>
 					{email}
 				</Box>
@@ -190,7 +198,7 @@ const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	);
 };
 
-const StatusCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
+const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	props,
 ) => {
 	const { t } = useTranslate();
@@ -199,6 +207,8 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
 
 	let t_message: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
+
+	clientLogger.debug(status);
 
 	if (status === USER_STATUS_ENUM.ACTIVE) {
 		t_message = t('active');
@@ -209,6 +219,15 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
 	} else if (status === USER_STATUS_ENUM.BANNED) {
 		t_message = t('banned');
 		color = 'error';
+	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
+		t_message = t('suspended');
+		color = 'warning';
+	} else if (status === USER_STATUS_ENUM.DELETED) {
+		t_message = t('deleted');
+		color = 'error';
+	} else if (status === USER_STATUS_ENUM.INACTIVE) {
+		t_message = t('inactive');
+		color = 'default';
 	}
 	// if (status === 'active') {
 	// 	t_message = t('active');

@@ -645,7 +645,7 @@ export function deserializeIntoStaffMemberItem(staffMemberItem: Partial<StaffMem
         "id": n => { staffMemberItem.id = n.getGuidValue(); },
         "lastName": n => { staffMemberItem.lastName = n.getStringValue(); },
         "level": n => { staffMemberItem.level = n.getNumberValue(); },
-        "status": n => { staffMemberItem.status = n.getNumberValue(); },
+        "status": n => { staffMemberItem.status = n.getStringValue(); },
     }
 }
 /**
@@ -1262,7 +1262,7 @@ export function serializeStaffMemberItem(writer: SerializationWriter, staffMembe
     writer.writeGuidValue("id", staffMemberItem.id);
     writer.writeStringValue("lastName", staffMemberItem.lastName);
     writer.writeNumberValue("level", staffMemberItem.level);
-    writer.writeNumberValue("status", staffMemberItem.status);
+    writer.writeStringValue("status", staffMemberItem.status);
     writer.writeAdditionalData(staffMemberItem.additionalData);
 }
 /**
@@ -1362,7 +1362,7 @@ export interface StaffMemberItem extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: number | null;
+    status?: string | null;
 }
 export interface Tenant extends AdditionalDataHolder, Parsable {
     /**

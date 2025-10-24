@@ -1,5 +1,5 @@
 using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Features.Common.User;
+using UserNs = MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +12,7 @@ public class StaffMemberItem {
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public UserStatus Status { get; set; }
+	public string Status { get; set; } = string.Empty;
 	public AccountLevel Level { get; set; }
 }
 
@@ -60,7 +60,7 @@ public class FindStaffMembers {
 						LastName = staffMember.User.LastName,
 						FirstName = staffMember.User.FirstName,
 						AvatarUrl = staffMember.User.AvatarUrl,
-						Status = staffMember.User.Status,
+						Status = UserNs.User.GetStatusDescription(staffMember.User.Status),
 						Level = staffMember.Level,
 					})
 					.ToList(),
