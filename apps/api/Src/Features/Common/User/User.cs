@@ -57,6 +57,17 @@ public class User : BaseAttributes, INoTenantEntity {
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];
 	[JsonIgnore]
 	public ICollection<Session.Session> Sessions { get; set; } = [];
+
+	public static string GetStatusDescription(UserStatus status) {
+		return status switch {
+			UserStatus.Inactive => "Inactive",
+			UserStatus.Pending => "Pending",
+			UserStatus.Suspended => "Suspended",
+			UserStatus.Active => "Active",
+			UserStatus.Deleted => "Deleted",
+			_ => "Unknown",
+		};
+	}
 }
 
 public enum UserStatus {
@@ -65,4 +76,5 @@ public enum UserStatus {
 	Suspended = 30,
 	Active = 40,
 	Deleted = 50,
+	Banned = 60,
 }
