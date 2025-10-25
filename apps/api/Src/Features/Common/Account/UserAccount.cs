@@ -45,12 +45,13 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	public bool IsProjectAccount => Scope == AccountScope.Project && TenantId != null && ProjectId != null;
 
 	// Factory methods for type-safe creation
-	public static UserAccount CreateStaffAccount(Guid userId) {
+	public static UserAccount CreateStaffAccount(Guid userId, AccountLevel? accountLevel = null) {
 		return new UserAccount {
 			UserId = userId,
 			Scope = AccountScope.Staff,
 			TenantId = null,
-			ProjectId = null
+			ProjectId = null,
+			Level = accountLevel ?? AccountLevel.User,
 		};
 	}
 
@@ -96,6 +97,26 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	// navigation properties
 	[JsonIgnore]
 	public ICollection<UserAccountProfile> UserAccountProfiles { get; set; } = [];
+
+	public static AccountLevel? ParseAccountLevel(string accountLevel) {
+		var isAdmin = string.Compare(accountLevel, "admin", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isAdmin) {
+			return AccountLevel.Admin;
+		}
+		var isUser = string.Compare(accountLevel, "user", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isUser) {
+			return AccountLevel.User;
+		}
+		return null;
+	}
+
+	public static string GetAccountLevelDescription(AccountLevel accountLevel) {
+		return accountLevel switch {
+			AccountLevel.Admin => "Admin",
+			AccountLevel.User => "User",
+			_ => "Unknown"
+		};
+	}
 }
 
 public enum AccountScope {

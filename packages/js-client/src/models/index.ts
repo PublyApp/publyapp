@@ -243,6 +243,10 @@ export function createResetPasswordResultFromDiscriminatorValue(parseNode: Parse
 }
 export interface CreateStaffMemberBody extends AdditionalDataHolder, Parsable {
     /**
+     * The accountLevel property
+     */
+    accountLevel?: UntypedNode | null;
+    /**
      * The avatarUrl property
      */
     avatarUrl?: UntypedNode | null;
@@ -383,6 +387,7 @@ export function deserializeIntoCheckResetPasswordTokenResult(checkResetPasswordT
 // @ts-ignore
 export function deserializeIntoCreateStaffMemberBody(createStaffMemberBody: Partial<CreateStaffMemberBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "accountLevel": n => { createStaffMemberBody.accountLevel = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "avatarUrl": n => { createStaffMemberBody.avatarUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "email": n => { createStaffMemberBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "firstName": n => { createStaffMemberBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
@@ -644,7 +649,7 @@ export function deserializeIntoStaffMemberItem(staffMemberItem: Partial<StaffMem
         "firstName": n => { staffMemberItem.firstName = n.getStringValue(); },
         "id": n => { staffMemberItem.id = n.getGuidValue(); },
         "lastName": n => { staffMemberItem.lastName = n.getStringValue(); },
-        "level": n => { staffMemberItem.level = n.getNumberValue(); },
+        "level": n => { staffMemberItem.level = n.getStringValue(); },
         "status": n => { staffMemberItem.status = n.getStringValue(); },
     }
 }
@@ -980,6 +985,7 @@ export function serializeCheckResetPasswordTokenResult(writer: SerializationWrit
 // @ts-ignore
 export function serializeCreateStaffMemberBody(writer: SerializationWriter, createStaffMemberBody: Partial<CreateStaffMemberBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createStaffMemberBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("accountLevel", createStaffMemberBody.accountLevel);
     writer.writeObjectValue("avatarUrl", createStaffMemberBody.avatarUrl);
     writer.writeObjectValue("email", createStaffMemberBody.email);
     writer.writeObjectValue("firstName", createStaffMemberBody.firstName);
@@ -1261,7 +1267,7 @@ export function serializeStaffMemberItem(writer: SerializationWriter, staffMembe
     writer.writeStringValue("firstName", staffMemberItem.firstName);
     writer.writeGuidValue("id", staffMemberItem.id);
     writer.writeStringValue("lastName", staffMemberItem.lastName);
-    writer.writeNumberValue("level", staffMemberItem.level);
+    writer.writeStringValue("level", staffMemberItem.level);
     writer.writeStringValue("status", staffMemberItem.status);
     writer.writeAdditionalData(staffMemberItem.additionalData);
 }
@@ -1358,7 +1364,7 @@ export interface StaffMemberItem extends AdditionalDataHolder, Parsable {
     /**
      * The level property
      */
-    level?: number | null;
+    level?: string | null;
     /**
      * The status property
      */

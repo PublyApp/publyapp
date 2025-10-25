@@ -9,6 +9,7 @@ using MainApi.Src.Lib.Utils;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using AccountNs = MainApi.Src.Features.Common.Account;
 
 namespace MainApi.Src.Features.Staff.StaffMember.Handlers;
 
@@ -22,7 +23,7 @@ public class CreateStaffMemberBody {
 	public JsonElement LastName { get; set; }
 	public JsonElement? FirstName { get; set; }
 	public JsonElement? AvatarUrl { get; set; }
-
+	public JsonElement? AccountLevel { get; set; }
 	public string GetEmail() {
 		return Email.ValueKind switch {
 			JsonValueKind.String => Email.GetString() ?? throw new InvalidOperationException("Email cannot be null"),
@@ -54,6 +55,30 @@ public class CreateStaffMemberBody {
 			JsonValueKind.String => AvatarUrl?.GetString(),
 			_ => throw new InvalidOperationException("AvatarUrl must be a string or null")
 		};
+	}
+
+	public AccountLevel GetAccountLevel() {
+		switch (AccountLevel?.ValueKind) {
+			case null: {
+					return AccountNs.AccountLevel.User;
+				}
+			case JsonValueKind.Null: {
+					return AccountNs.AccountLevel.User;
+				}
+			case JsonValueKind.Undefined: {
+					return AccountNs.AccountLevel.User;
+				}
+			case JsonValueKind.String: {
+					var accountLevel = UserAccount.ParseAccountLevel(AccountLevel?.GetString() ?? throw new InvalidOperationException("AccountLevel must be a string"));
+					if (accountLevel is null) {
+						throw new InvalidOperationException("Invalid account level: " + AccountLevel?.GetString());
+					}
+					return accountLevel.Value;
+				}
+			default: {
+					throw new InvalidOperationException("AccountLevel must be a string or null");
+				}
+		}
 	}
 }
 
@@ -97,6 +122,29 @@ public class PasswordRegisterBodyValidator : AbstractValidator<CreateStaffMember
 						.Must(BeNullableValidUrl)
 						.WithMessage("AvatarUrl must be a valid URL");
 				});
+
+		RuleFor(x => x.AccountLevel)
+			.Must(BeNullableString)
+			.WithMessage("AvatarUrl must be a string or null")
+			.DependentRules(() => {
+				RuleFor(x => x.AccountLevel)
+					.Must(BeValidAccountLevelNullable)
+					.WithMessage("AccountLevel must be a valid account level");
+			});
+	}
+
+	private static bool BeValidAccountLevelNullable(JsonElement? element) {
+		if (element is null) {
+			return true;
+		}
+		if (element?.ValueKind == JsonValueKind.String) {
+			var accountLevel = UserAccount.ParseAccountLevel(element?.GetString() ?? "");
+			if (accountLevel is null) {
+				return false;
+			}
+			return true;
+		}
+		return false;
 	}
 
 	private static bool BeNullableString(JsonElement? element) {
@@ -189,6 +237,7 @@ public class CreateStaffMember {
 		// Create staff account using AccountService
 		var accountResult = await accountService.CreateStaffAccountAsync(
 			userIdGuid,
+			accountLevel: body.GetAccountLevel(),
 			cancellationToken
 		);
 

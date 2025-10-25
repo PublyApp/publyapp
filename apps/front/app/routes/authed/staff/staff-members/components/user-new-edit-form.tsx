@@ -35,6 +35,7 @@ import {
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 } from '@/shared/lib/constants';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import { mbToBytes } from '@/shared/utils/any.utils';
 
 type UserNewEditData = {

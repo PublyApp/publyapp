@@ -48,7 +48,7 @@ export type StaffMemberRowData = {
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	level: number;
+	level: string;
 	status: string;
 	email: string;
 };
@@ -61,7 +61,7 @@ const StaffMemberRowDataMapper = (
 		avatarUrl: staffMember.avatarUrl || '',
 		firstName: staffMember.firstName || '',
 		lastName: staffMember.lastName || '',
-		level: staffMember.level || 0,
+		level: staffMember.level || '',
 		status: staffMember.status || '',
 		email: staffMember.email || '',
 	};
@@ -245,7 +245,7 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	);
 };
 
-const LevelCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
+const LevelCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	props,
 ) => {
 	const { t } = useTranslate();
@@ -262,20 +262,6 @@ const LevelCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
 		t_message = t('user');
 		color = 'warning';
 	}
-
-	// if (level === /* roleEnum.STAFF_ADMIN.name */ '') {
-	// 	t_message = t('admin');
-	// 	color = 'success';
-	// } else if (level === /* roleEnum.STAFF_EDITOR.name */ '') {
-	// 	t_message = t('editor');
-	// 	color = 'info';
-	// } else if (level === /* roleEnum.STAFF_USER.name */ '') {
-	// 	t_message = t('user');
-	// 	color = 'warning';
-	// } else if (level === /* roleEnum.STAFF_CONTRIBUTOR.name */ '') {
-	// 	t_message = t('contributor');
-	// 	color = 'error';
-	// }
 
 	return (
 		<Label variant="soft" color={color}>

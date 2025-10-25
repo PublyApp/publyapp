@@ -1126,9 +1126,6 @@
   },
   "components": {
     "schemas": {
-      "AccountLevel": {
-        "type": "integer"
-      },
       "ApiResponse": {
         "type": "object",
         "properties": {
@@ -1175,6 +1172,9 @@
             "$ref": "#/components/schemas/NullableOfJsonElement"
           },
           "avatarUrl": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "accountLevel": {
             "$ref": "#/components/schemas/NullableOfJsonElement"
           }
         }
@@ -1516,7 +1516,7 @@
             "type": "string"
           },
           "level": {
-            "$ref": "#/components/schemas/AccountLevel"
+            "type": "string"
           }
         }
       },
