@@ -4,7 +4,7 @@ import { StrictMode, startTransition } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import { HydratedRouter } from 'react-router/dom';
-import { clientLogger } from '@/shared/lib/logger/logger.client';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import { LogLevelEnum } from '@/shared/lib/logger/logger.utils';
 import { NonceProvider } from './hooks/use-nonce';
 import { initApiClientOnClient } from './lib/api';
@@ -15,9 +15,9 @@ const isDevelopment = import.meta.env.DEV;
 
 const hydrate = async () => {
 	if (isDevelopment) {
-		clientLogger.logLevel = LogLevelEnum.DEBUG;
+		isoLogger.logLevel = LogLevelEnum.DEBUG;
 	} else {
-		clientLogger.logLevel = LogLevelEnum.WARN;
+		isoLogger.logLevel = LogLevelEnum.WARN;
 	}
 
 	const i18n = await initI18nOnClient();

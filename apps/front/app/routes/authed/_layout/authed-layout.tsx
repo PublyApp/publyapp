@@ -28,7 +28,7 @@ import {
 	queryParamValue,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
-import { clientLogger } from '@/shared/lib/logger/logger.client';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
@@ -78,7 +78,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	// clear react-query cache too
 	// const error = useRouteError();
 
-	clientLogger.debug('ErrorBoundary', { error });
+	isoLogger.debug('ErrorBoundary', { error });
 
 	// alert(JSON.stringify(error));
 
@@ -105,7 +105,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 			queryParamValue.login_page.redirect_cause.invalid_session,
 		);
 
-		clientLogger.debug('Redirecting to login page', { url: url.toString() });
+		isoLogger.debug('Redirecting to login page', { url: url.toString() });
 		// alert(url.toString());
 
 		return <Navigate to={url.pathname + url.search} />;

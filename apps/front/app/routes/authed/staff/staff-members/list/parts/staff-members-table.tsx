@@ -40,7 +40,7 @@ import {
 	FRONT_PATH_NAMES,
 	USER_STATUS_ENUM,
 } from '@/shared/lib/constants';
-import { clientLogger } from '@/shared/lib/logger/logger.client';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
 export type StaffMemberRowData = {
@@ -76,6 +76,8 @@ const defaultSorting: MRT_SortingState[number] = {
 
 const StaffMembersTable = () => {
 	const { t } = useTranslate();
+
+	// isoLogger.debug('StaffMembersTable', { ok: 'ok' });
 
 	// Use the custom table state hook
 	const {
@@ -208,7 +210,7 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	let t_message: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
 
-	clientLogger.debug(status);
+	isoLogger.debug('StatusCell', { status });
 
 	if (status === USER_STATUS_ENUM.ACTIVE) {
 		t_message = t('active');
