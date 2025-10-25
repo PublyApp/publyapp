@@ -2,6 +2,7 @@ import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
+import type { AccountLevel } from '@/shared/lib/constants';
 import { getQueryKey } from '../../query-utils';
 
 const createStaffMemberMutationKey = getQueryKey<ApiClient>(
@@ -15,6 +16,7 @@ export const useCreateStaffMember = createMutation({
 		firstName?: string;
 		lastName?: string;
 		avatarUrl?: string;
+		accountLevel: AccountLevel;
 	}) => {
 		const result = await clientManager.apiClient.staff.staffMembers.post({
 			email: {
@@ -35,6 +37,11 @@ export const useCreateStaffMember = createMutation({
 			avatarUrl: {
 				getValue() {
 					return data.avatarUrl;
+				},
+			},
+			accountLevel: {
+				getValue() {
+					return data.accountLevel;
 				},
 			},
 		});

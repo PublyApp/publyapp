@@ -13,7 +13,7 @@ public class StaffMemberItem {
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
 	public string Status { get; set; } = string.Empty;
-	public AccountLevel Level { get; set; }
+	public string Level { get; set; } = string.Empty;
 }
 
 public class FindStaffMembersResult {
@@ -61,7 +61,7 @@ public class FindStaffMembers {
 						FirstName = staffMember.User.FirstName,
 						AvatarUrl = staffMember.User.AvatarUrl,
 						Status = UserNs.User.GetStatusDescription(staffMember.User.Status),
-						Level = staffMember.Level,
+						Level = UserAccount.GetAccountLevelDescription(staffMember.Level),
 					})
 					.ToList(),
 				Count = count,
