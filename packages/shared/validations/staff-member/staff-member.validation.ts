@@ -1,4 +1,4 @@
-// import { roleNames } from '@/shared/lib/constants';
+import { ACCOUNT_LEVEL_ENUM } from '@/shared/lib/constants';
 import type InterZod from '@/shared/lib/zod/InterZod';
 
 export const getNewStaffMemberSchemaServerSide = (z: InterZod) => {
@@ -6,6 +6,9 @@ export const getNewStaffMemberSchemaServerSide = (z: InterZod) => {
 		firstName: z.string().optional(),
 		lastName: z.string().min(1),
 		email: z.string().email(),
-		// role: z.enum(/* roleNames */ ['']),
+		accountLevel: z.enum([
+			ACCOUNT_LEVEL_ENUM.ADMIN,
+			ACCOUNT_LEVEL_ENUM.USER,
+		] as const),
 	});
 };

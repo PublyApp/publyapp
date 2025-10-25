@@ -7,6 +7,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Grid from '@mui/material/Grid';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
@@ -21,21 +22,26 @@ import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import {
 	useCreateStaffMember,
 	useFindStaffMember,
 } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { fData } from '@/front/utils/format-number';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import {
+	ACCOUNT_LEVEL_ENUM,
+	type AccountLevel,
+	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
+} from '@/shared/lib/constants';
 import { mbToBytes } from '@/shared/utils/any.utils';
 
-type IUserItem = {
+type UserNewEditData = {
 	id: string;
 	firstName?: string;
 	lastName: string;
-	// role: RoleName;
-	// role: /* RoleName */ any;
+	accountLevel: AccountLevel;
 	email: string;
 	status: string;
 	avatar?: string;
@@ -50,31 +56,17 @@ type NewUserSchemaType = Prettify<
 // ----------------------------------------------------------------------
 
 type Props = {
-	currentUser?: IUserItem;
+	currentUser?: UserNewEditData;
 };
 
-// const ROLE_OPTIONS = _.chain(/* roleEnum */ [])
-// 	.pickBy((value) => {
-// 		// return _.startsWith(value.name, 'STAFF_');
-// 		return true;
-// 	})
-// 	.map((value) => {
-// 		return {
-// 			// value: value.name,
-// 			// label: value.name,
-// 			value: '',
-// 			label: '',
-// 		};
-// 	})
-// 	.value();
+const ACCOUNT_LEVEL_OPTIONS = _.values(ACCOUNT_LEVEL_ENUM);
 
 const defaultValues: NewUserSchemaType = {
 	avatar: undefined,
 	firstName: '',
 	lastName: '',
 	email: '',
-	// role: roleEnum.STAFF_CONTRIBUTOR.name,
-	// role: '',
+	accountLevel: ACCOUNT_LEVEL_ENUM.USER,
 };
 
 export const UserNewEditForm = ({ currentUser }: Props) => {
@@ -84,7 +76,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 
 	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
 
-	const methods = useForm<NewUserSchemaType>({
+	const form = useForm<NewUserSchemaType>({
 		mode: 'onSubmit',
 		resolver: zodResolver(NewUserSchema),
 		defaultValues,
@@ -100,9 +92,9 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		reset,
 		handleSubmit,
 		formState: { isSubmitting },
-	} = methods;
+	} = form;
 
-	useSyncFormToLang(i18n.language, methods);
+	useSyncFormToLang(i18n.language, form);
 
 	const handleCloseDialog = openDialog.onFalse;
 
@@ -126,7 +118,15 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
 		},
 		onError: (error) => {
-			toast.error(error.message);
+			if (isJsClientError(error)) {
+				toast.error(
+					error.key
+						? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
+						: error.messageEscaped,
+				);
+				return;
+			}
+			toast.error(_.trim(error.message) || t('unknown-error'));
 		},
 	});
 
@@ -134,7 +134,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		createStaffMember(data);
 	});
 
-	const confirmValues = _.chain(methods.getValues())
+	const confirmValues = _.chain(form.getValues())
 		.entries()
 		.map((value) => {
 			const [key, fieldValue] = value;
@@ -158,7 +158,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 
 	return (
 		<>
-			<Form methods={methods} onSubmit={handleOpenDialog}>
+			<Form methods={form} onSubmit={handleOpenDialog}>
 				<Grid container spacing={3}>
 					<Grid size={{ xs: 12, md: 4 }}>
 						<Card sx={{ pt: 10, pb: 5, px: 3 }}>
@@ -285,6 +285,14 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 								<Field.Text name="firstName" label={t('firstname')} />
 								<Field.Text name="email" label={t('email-address')} required />
 								<br />
+								<Field.Select name="accountLevel" label={t('level')} required>
+									{ACCOUNT_LEVEL_OPTIONS.map((option) => (
+										<MenuItem key={option} value={option}>
+											{option}
+										</MenuItem>
+									))}
+								</Field.Select>
+
 								{/* <Field.Select name="role" label={t('role')} required>
 									{ROLE_OPTIONS.map((option) => (
 										<MenuItem key={option.value} value={option.label}>

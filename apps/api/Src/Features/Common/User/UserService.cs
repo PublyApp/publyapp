@@ -6,7 +6,7 @@ namespace MainApi.Src.Features.Common.User;
 
 public abstract record CreateUserResult {
 	public sealed record Success(User User) : CreateUserResult;
-	public sealed record UserAlreadyExists : CreateUserResult;
+	public sealed record UserAlreadyExists(User User) : CreateUserResult;
 }
 
 public interface IUserService {
@@ -34,7 +34,7 @@ public class UserService : IUserService {
 			.ConfigureAwait(false);
 
 		if (existingUser is not null) {
-			return new CreateUserResult.UserAlreadyExists();
+			return new CreateUserResult.UserAlreadyExists(existingUser);
 		}
 
 		var result = await _dbContext.User.AddAsync(user, cancellationToken).ConfigureAwait(false);
