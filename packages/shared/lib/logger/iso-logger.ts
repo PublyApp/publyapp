@@ -47,7 +47,7 @@ export class IsoLogger implements ILogger {
 		if (isServer) {
 			winstonLogger.info(message, ...meta);
 		} else {
-			console.info(message, ...meta);
+			console.info(`💡 ${message}`, ...meta);
 		}
 	}
 
@@ -58,7 +58,7 @@ export class IsoLogger implements ILogger {
 		if (isServer) {
 			winstonLogger.warn(message, ...meta);
 		} else {
-			console.warn(message, ...meta);
+			console.warn(`⚠️ ${message}`, ...meta);
 		}
 	}
 
@@ -69,7 +69,7 @@ export class IsoLogger implements ILogger {
 		if (isServer) {
 			winstonLogger.error(message, ...meta);
 		} else {
-			console.error(message, ...meta);
+			console.error(`🚨 ${message}`, ...meta);
 		}
 	}
 
@@ -80,7 +80,7 @@ export class IsoLogger implements ILogger {
 		if (isServer) {
 			winstonLogger.debug(message, ...meta);
 		} else {
-			console.debug(message, ...meta);
+			console.debug(`🐛 ${message}`, ...meta);
 		}
 	}
 }

@@ -12,7 +12,7 @@ import {
 	queryParamKey,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { clientLogger } from '@/shared/lib/logger/logger.client';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import duration from '@/shared/utils/duration.utils';
 import { defaultZodClient } from '../zod/zod.client';
 import { config } from './i18n.config';
@@ -54,7 +54,7 @@ export const initI18nOnClient = async () => {
 	if (import.meta.hot) {
 		import.meta.hot.on('i18n:updated', async (data) => {
 			try {
-				clientLogger.debug('[i18n-hmr] Reloading translations...', data);
+				isoLogger.debug('[i18n-hmr] Reloading translations...', data);
 
 				// Force reload all resources with cache busting
 				const lng = i18next.language;
@@ -69,9 +69,9 @@ export const initI18nOnClient = async () => {
 				// Force a re-render by triggering a language change event
 				i18next.emit('languageChanged', lng);
 
-				clientLogger.debug('[i18n-hmr] Translations reloaded successfully');
+				isoLogger.debug('[i18n-hmr] Translations reloaded successfully');
 			} catch (err) {
-				clientLogger.error('[i18n-hmr] reload failed', err);
+				isoLogger.error('[i18n-hmr] reload failed', err);
 			}
 		});
 	}
