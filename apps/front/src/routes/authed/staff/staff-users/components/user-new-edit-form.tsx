@@ -43,20 +43,7 @@ type Props<T extends Record<string, unknown>> = {
 	sidebarFooter?: ReactNode;
 };
 
-const ROLE_OPTIONS = _.chain(/* roleEnum */ [])
-	.pickBy((value) => {
-		// return _.startsWith(value.name, 'STAFF_');
-		return true;
-	})
-	.map((value) => {
-		return {
-			// value: value.name,
-			// label: value.name,
-			value: '',
-			label: '',
-		};
-	})
-	.value();
+const ACCOUNT_LEVEL_OPTIONS = _.values(ACCOUNT_LEVEL_ENUM);
 
 export const UserNewEditForm = <T extends Record<string, unknown>>({
 	onMutate,
@@ -72,7 +59,7 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 
 	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
 
-	const methods = useForm<NewUserSchemaType>({
+	const form = useForm<NewUserSchemaType>({
 		mode: 'onSubmit',
 		resolver: zodResolver(NewUserSchema),
 		defaultValues,
@@ -88,9 +75,9 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 		reset,
 		handleSubmit,
 		formState: { isSubmitting },
-	} = methods;
+	} = form;
 
-	useSyncFormToLang(i18n.language, methods);
+	useSyncFormToLang(i18n.language, form);
 
 	const handleCloseDialog = openDialog.onFalse;
 
@@ -119,7 +106,15 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
 		},
 		onError: (error) => {
-			toast.error(error.message);
+			if (isJsClientError(error)) {
+				toast.error(
+					error.key
+						? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
+						: error.messageEscaped,
+				);
+				return;
+			}
+			toast.error(_.trim(error.message) || t('unknown-error'));
 		},
 	});
 
@@ -127,7 +122,7 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 		createStaffMember(data);
 	});
 
-	const confirmValues = _.chain(methods.getValues())
+	const confirmValues = _.chain(form.getValues())
 		.entries()
 		.map((value) => {
 			const [key, fieldValue] = value;

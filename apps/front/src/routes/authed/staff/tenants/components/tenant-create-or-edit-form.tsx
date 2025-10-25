@@ -51,6 +51,8 @@ import { interZodClient } from '#app/lib/zod/zod.client.ts';
 import { useMainStore } from '#app/lib/zustand/store.ts';
 import { fData } from '#app/utils/format-number.ts';
 
+// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+
 // ----------------------------------------------------------------------
 
 type NewTenantSchemaType = zod.infer<

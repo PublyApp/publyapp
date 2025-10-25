@@ -4,6 +4,7 @@ import type { i18n as I18nInstance } from 'i18next';
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import Fetch from 'i18next-fetch-backend';
+import _ from 'lodash';
 import { initReactI18next } from 'react-i18next';
 import { getInitialNamespaces } from 'remix-i18next/client';
 
@@ -53,7 +54,7 @@ const initI18nextInstance = async (initialNamespaces: string[]) => {
 		.init({
 			...config, // spread the configuration
 			// This function detects the namespaces your routes rendered while SSR use
-			ns: [...getInitialNamespaces()],
+			ns: initialNamespaces,
 			backend: {
 				loadPath: decodeURIComponent(backendUrl.toString()),
 			},

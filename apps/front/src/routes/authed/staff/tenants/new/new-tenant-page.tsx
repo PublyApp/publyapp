@@ -64,7 +64,9 @@ export const loader = getServerLoader({
 export const clientLoader = async ({
 	serverLoader,
 }: Route.ClientLoaderArgs) => {
-	i18next.loadNamespaces(['zod']);
+	i18next.loadNamespaces([I18N_NAMESPACES.ZOD]).catch((error) => {
+		isoLogger.error('Failed to load namespaces', error);
+	});
 	const serverData = await serverLoader();
 	return data(serverData);
 };
