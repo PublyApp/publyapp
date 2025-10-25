@@ -221,7 +221,7 @@ docker-push:
 
 docker-up:
 	@echo "Starting services with Docker Compose..."
-	docker-compose up -d
+	docker-compose -f docker-compose.services.yml up -d
 
 docker-down:
 	@echo "Stopping Docker services..."
