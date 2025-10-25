@@ -38,7 +38,9 @@ public class CreateStaffMemberBody {
 
 	public string? GetFirstName() {
 		return FirstName?.ValueKind switch {
+			null => null,
 			JsonValueKind.Null => null,
+			JsonValueKind.Undefined => null,
 			JsonValueKind.String => FirstName?.GetString(),
 			_ => throw new InvalidOperationException("FirstName must be a string or null")
 		};
@@ -46,7 +48,9 @@ public class CreateStaffMemberBody {
 
 	public string? GetAvatarUrl() {
 		return AvatarUrl?.ValueKind switch {
+			null => null,
 			JsonValueKind.Null => null,
+			JsonValueKind.Undefined => null,
 			JsonValueKind.String => AvatarUrl?.GetString(),
 			_ => throw new InvalidOperationException("AvatarUrl must be a string or null")
 		};
@@ -141,6 +145,7 @@ public class CreateStaffMember {
 		[FromServices] IPasswordService passwordService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IOptions<AppSettings> appSettings,
+		[FromServices] ILogger<CreateStaffMember> logger,
 		CancellationToken cancellationToken = default
 	) {
 		var password = CryptoUtils.RandomString(appSettings.Value.PASSWORD_MIN_LENGTH);
@@ -156,24 +161,34 @@ public class CreateStaffMember {
 
 		var userResult = await userService.CreateUserAsync(user, cancellationToken);
 
-		if (userResult is CreateUserResult.UserAlreadyExists) {
-			return TypedResults.BadRequest(ApiResponse.Create(
-				"User already exists",
-				ResponseKeys.UserAlreadyExists
-			));
-		}
+		Guid userIdGuid;
 
-		if (userResult is not CreateUserResult.Success success) {
+		if (userResult is CreateUserResult.UserAlreadyExists alreadyExistUserResult) {
+			// That's okay, we can use the existing user
+			logger.LogDebug(
+				"User already exists, using existing user: {@LogData}",
+				new { UserId = alreadyExistUserResult.User.GetRequiredId() }
+			);
+			userIdGuid = alreadyExistUserResult.User.GetRequiredId();
+		} else if (userResult is CreateUserResult.Success successCreateUserResult) {
+			logger.LogDebug(
+				"User created successfully, using new user: {@LogData}",
+				new { UserId = successCreateUserResult.User.GetRequiredId() }
+			);
+			userIdGuid = successCreateUserResult.User.GetRequiredId();
+		} else {
+			logger.LogError(
+				"Failed to create user: {@LogData}",
+				new { UserResult = userResult }
+			);
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"Failed to create user",
 				ResponseKeys.FailedToCreateUser
 			));
 		}
-
 		// Create staff account using AccountService
-		// (it handles getting the staff tenant internally)
 		var accountResult = await accountService.CreateStaffAccountAsync(
-			success.User.GetRequiredId(),
+			userIdGuid,
 			cancellationToken
 		);
 
@@ -186,7 +201,7 @@ public class CreateStaffMember {
 
 		if (accountResult is CreateStaffAccountResult.Success accountSuccess) {
 			return TypedResults.Ok(new CreateStaffMemberResult {
-				Id = success.User.GetRequiredId(),
+				Id = userIdGuid,
 				AccountId = accountSuccess.Account.GetRequiredId(),
 			});
 		}

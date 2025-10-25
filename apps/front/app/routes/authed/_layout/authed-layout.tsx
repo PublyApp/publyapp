@@ -1,5 +1,6 @@
 import { useSuspenseQueries } from '@tanstack/react-query';
 import * as cookie from 'cookie';
+import i18next from 'i18next';
 import _ from 'lodash';
 import { type ReactNode, Suspense } from 'react';
 import { Navigate, Outlet, redirect } from 'react-router';
@@ -24,6 +25,7 @@ import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { useMainStore } from '@/front/lib/zustand/store';
 import {
 	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
 	queryParamKey,
 	queryParamValue,
 	SESSION_TOKEN_COOKIE_KEY,
@@ -33,6 +35,12 @@ import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
+		i18next
+			.loadNamespaces([I18N_NAMESPACES.ZOD, I18N_NAMESPACES.RESPONSE_MESSAGE])
+			.catch((error) => {
+				isoLogger.error('Failed to load namespaces', error);
+			});
+
 		const browserCookies = cookie.parse(document.cookie);
 		const sessionToken = _.get(browserCookies, SESSION_TOKEN_COOKIE_KEY);
 
@@ -66,7 +74,7 @@ export const clientLoader = getClientLoader({
 			root.settingsSlice.state.navLayout = state as never;
 		});
 
-		return {};
+		return null;
 	},
 });
 
@@ -79,8 +87,6 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	// const error = useRouteError();
 
 	isoLogger.debug('ErrorBoundary', { error });
-
-	// alert(JSON.stringify(error));
 
 	if (
 		isJsClientError(error) &&

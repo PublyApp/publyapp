@@ -47,7 +47,8 @@ export class IsoLogger implements ILogger {
 		if (isServer) {
 			winstonLogger.info(message, ...meta);
 		} else {
-			console.info(`💡 ${message}`, ...meta);
+			const caller = this.getCallerInfo();
+			console.info(`💡 [${caller}] ${message}`, ...meta);
 		}
 	}
 
@@ -58,7 +59,8 @@ export class IsoLogger implements ILogger {
 		if (isServer) {
 			winstonLogger.warn(message, ...meta);
 		} else {
-			console.warn(`⚠️ ${message}`, ...meta);
+			const caller = this.getCallerInfo();
+			console.warn(`⚠️ [${caller}] ${message}`, ...meta);
 		}
 	}
 
@@ -69,7 +71,8 @@ export class IsoLogger implements ILogger {
 		if (isServer) {
 			winstonLogger.error(message, ...meta);
 		} else {
-			console.error(`🚨 ${message}`, ...meta);
+			const caller = this.getCallerInfo();
+			console.error(`🚨 [${caller}] ${message}`, ...meta);
 		}
 	}
 
@@ -80,8 +83,36 @@ export class IsoLogger implements ILogger {
 		if (isServer) {
 			winstonLogger.debug(message, ...meta);
 		} else {
-			console.debug(`🐛 ${message}`, ...meta);
+			const caller = this.getCallerInfo();
+			console.debug(`🐛 [${caller}] ${message}`, ...meta);
 		}
+	}
+
+	// Helper method to get the calling location
+	private getCallerInfo(): string {
+		const stack = new Error().stack;
+		if (!stack) return '';
+
+		const lines = stack.split('\n');
+		// Skip the first 3 lines: Error, getCallerInfo, and the logger method
+		// Look for the first line that's not from this logger file
+		for (let i = 3; i < lines.length; i++) {
+			const line = lines[i];
+			if (
+				line &&
+				!line.includes('iso-logger.ts') &&
+				!line.includes('IsoLogger')
+			) {
+				// Extract filename and line number
+				const match = line.match(/\(([^)]+):(\d+):\d+\)/);
+				if (match) {
+					const [, filepath, lineNumber] = match;
+					const filename = filepath.split('/').pop() || filepath;
+					return `${filename}:${lineNumber}`;
+				}
+			}
+		}
+		return '';
 	}
 }
 

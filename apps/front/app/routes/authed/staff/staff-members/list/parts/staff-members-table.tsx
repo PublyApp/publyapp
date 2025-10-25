@@ -77,8 +77,6 @@ const defaultSorting: MRT_SortingState[number] = {
 const StaffMembersTable = () => {
 	const { t } = useTranslate();
 
-	// isoLogger.debug('StaffMembersTable', { ok: 'ok' });
-
 	// Use the custom table state hook
 	const {
 		handlePaginationChange,
@@ -100,7 +98,6 @@ const StaffMembersTable = () => {
 					id: 'fullName',
 					header: t('name'),
 					Cell: UserCell,
-					// grow: 1,
 					size: 300,
 					enableSorting: false,
 				},
@@ -114,7 +111,6 @@ const StaffMembersTable = () => {
 				header: t('status'),
 				Cell: StatusCell,
 				size: 70,
-				enableSorting: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',

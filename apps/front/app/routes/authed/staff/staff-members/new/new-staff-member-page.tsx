@@ -6,7 +6,13 @@ import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
+	isServer,
+} from '@/shared/lib/constants';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import { UserNewEditForm } from '../components/user-new-edit-form';
 import type { Route } from './+types/new-staff-member-page';
 
@@ -53,7 +59,9 @@ export const loader = getServerLoader({
 export const clientLoader = async ({
 	serverLoader,
 }: Route.ClientLoaderArgs) => {
-	i18next.loadNamespaces(['zod']);
+	i18next.loadNamespaces([I18N_NAMESPACES.ZOD]).catch((error) => {
+		isoLogger.error('Failed to load namespaces', error);
+	});
 	const serverData = await serverLoader();
 	return data(serverData);
 };
