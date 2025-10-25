@@ -76,7 +76,6 @@ const StaffMembersTable = () => {
 					id: 'fullName',
 					header: t('name'),
 					Cell: UserCell,
-					// grow: 1,
 					size: 300,
 					enableSorting: false,
 				},
@@ -90,7 +89,6 @@ const StaffMembersTable = () => {
 				header: t('status'),
 				Cell: StatusCell,
 				size: 70,
-				enableSorting: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',
