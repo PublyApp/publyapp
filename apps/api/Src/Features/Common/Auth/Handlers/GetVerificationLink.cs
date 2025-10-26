@@ -36,7 +36,7 @@ public class GetVerificationLink {
 		[AsParameters] GetVerificationLinkQuery query,
 		[FromServices] ILogger<GetVerificationLink> logger,
 		[FromServices] IUserService UserService,
-		CancellationToken cancellationToken = default
+		CancellationToken cancellationToken
 	) {
 		var userId = query.GetUserId();
 
@@ -55,7 +55,7 @@ public class GetVerificationLink {
 			return TypedResults.BadRequest(ApiResponse.Create("User not found", ResponseKeys.UserNotFound));
 		}
 
-		var link = AuthUtils.CreateVerificationLink(user.GetRequiredId().ToString(), user.Email);
+		var link = AuthUtils.CreateVerificationUrl(user.GetRequiredId().ToString(), user.Email);
 
 		return TypedResults.Ok(new GetVerificationLinkResult { Link = link });
 	}

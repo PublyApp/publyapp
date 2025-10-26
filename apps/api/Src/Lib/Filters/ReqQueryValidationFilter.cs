@@ -1,11 +1,22 @@
 using FluentValidation;
+using MainApi.Localization;
 
 namespace MainApi.Src.Lib.Filters;
 
-public class ReqQueryValidationFailResult : AppResponseResult {
-	public new string Message { get; set; } = "Query parameter validation failed";
-	public new string Key { get; set; } = "query-validation-failed";
-	public object FieldErrors { get; set; } = new Dictionary<string, string[]>();
+public record ReqQueryValidationFailedResponse : ApiResponse {
+	public IDictionary<string, string[]> FieldErrors { get; set; } = new Dictionary<string, string[]>();
+
+	public static ReqQueryValidationFailedResponse Create(
+			string message,
+			TranslationKey key,
+			IDictionary<string, string[]> fieldErrors
+		) {
+		return new ReqQueryValidationFailedResponse {
+			Message = message,
+			Key = key,
+			FieldErrors = fieldErrors
+		};
+	}
 }
 
 public class ReqQueryValidationFilter<TRequest> : IEndpointFilter {
@@ -20,10 +31,14 @@ public class ReqQueryValidationFilter<TRequest> : IEndpointFilter {
 		var request = httpContext.GetArgument<TRequest>(0);
 		var result = await _validator.ValidateAsync(request, httpContext.HttpContext.RequestAborted);
 
+
 		if (!result.IsValid) {
-			return TypedResults.BadRequest(new ReqQueryValidationFailResult {
-				FieldErrors = result.ToDictionary()
-			});
+			var response = ReqQueryValidationFailedResponse.Create(
+					"Query parameters validation failed",
+					ResponseKeys.QueryParametersValidationFailed,
+					result.ToDictionary()
+				);
+			return TypedResults.BadRequest(response);
 		}
 
 		return await next(httpContext);

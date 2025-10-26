@@ -36,11 +36,13 @@ public class CheckResetPasswordToken {
 			BadRequest<ApiResponse>
 		>
 	> HandleCheckResetPasswordToken(
-		[FromQuery] string id,
-		[FromQuery] string token,
+		[AsParameters] CheckResetPasswordTokenQuery query,
 		[FromServices] IUserService userService,
-		CancellationToken cancellationToken = default
+		CancellationToken cancellationToken
 	) {
+		string id = query.Id;
+		string token = query.Token;
+
 		// Decrypt the ID to get email
 		string email;
 		try {

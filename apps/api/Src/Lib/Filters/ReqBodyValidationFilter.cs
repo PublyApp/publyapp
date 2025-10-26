@@ -1,11 +1,22 @@
 using FluentValidation;
+using MainApi.Localization;
 
 namespace MainApi.Src.Lib.Filters;
 
-public class ReqBodyValidationFailResult : AppResponseResult {
-	public new string Message { get; set; } = "Validation failed";
-	public new string Key { get; set; } = "validation-failed";
-	public object FieldErrors { get; set; } = new Dictionary<string, string[]>();
+public record ReqBodyValidationFailedResponse : ApiResponse {
+	public IDictionary<string, string[]> FieldErrors { get; set; } = new Dictionary<string, string[]>();
+
+	public static ReqBodyValidationFailedResponse Create(
+		string message,
+		TranslationKey key,
+		IDictionary<string, string[]> fieldErrors
+	) {
+		return new ReqBodyValidationFailedResponse {
+			Message = message,
+			Key = key,
+			FieldErrors = fieldErrors
+		};
+	}
 }
 
 public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
@@ -20,9 +31,12 @@ public class ReqBodyValidationFilter<TRequest> : IEndpointFilter {
 		var result = await _validator.ValidateAsync(request, httpContext.HttpContext.RequestAborted);
 
 		if (!result.IsValid) {
-			return TypedResults.BadRequest(new ReqBodyValidationFailResult {
-				FieldErrors = result.ToDictionary()
-			});
+			var response = ReqBodyValidationFailedResponse.Create(
+				"Request body validation failed",
+				ResponseKeys.RequestBodyValidationFailed,
+				result.ToDictionary()
+			);
+			return TypedResults.BadRequest(response);
 		}
 
 		return await next(httpContext);

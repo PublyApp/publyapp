@@ -47,7 +47,7 @@ public class GetTenantAuthData {
 		[FromServices] ITenantService tenantService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IProfileService profileService,
-		CancellationToken cancellationToken = default
+		CancellationToken cancellationToken
 	) {
 		if (!authContext.IsAuthenticated) {
 			logger.LogError("{@GetUserAuthData}", new {

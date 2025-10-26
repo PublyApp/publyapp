@@ -390,7 +390,7 @@
         "operationId": "CheckEmailVerificationToken",
         "parameters": [
           {
-            "name": "id",
+            "name": "Id",
             "in": "query",
             "required": true,
             "schema": {
@@ -398,7 +398,7 @@
             }
           },
           {
-            "name": "token",
+            "name": "Token",
             "in": "query",
             "required": true,
             "schema": {
@@ -449,7 +449,7 @@
         "operationId": "CheckResetPasswordToken",
         "parameters": [
           {
-            "name": "id",
+            "name": "Id",
             "in": "query",
             "required": true,
             "schema": {
@@ -457,7 +457,7 @@
             }
           },
           {
-            "name": "token",
+            "name": "Token",
             "in": "query",
             "required": true,
             "schema": {
@@ -1175,6 +1175,9 @@
             "$ref": "#/components/schemas/NullableOfJsonElement"
           },
           "accountLevel": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "sendNotification": {
             "$ref": "#/components/schemas/NullableOfJsonElement"
           }
         }

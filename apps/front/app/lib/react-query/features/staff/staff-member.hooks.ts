@@ -17,6 +17,7 @@ export const useCreateStaffMember = createMutation({
 		lastName?: string;
 		avatarUrl?: string;
 		accountLevel: AccountLevel;
+		sendNotification?: boolean;
 	}) => {
 		const result = await clientManager.apiClient.staff.staffMembers.post({
 			email: {
@@ -42,6 +43,11 @@ export const useCreateStaffMember = createMutation({
 			accountLevel: {
 				getValue() {
 					return data.accountLevel;
+				},
+			},
+			sendNotification: {
+				getValue() {
+					return data.sendNotification;
 				},
 			},
 		});

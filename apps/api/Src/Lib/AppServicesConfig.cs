@@ -5,7 +5,6 @@ using FluentValidation;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Common.Session;
-using Microsoft.Extensions.Options;
 using MainApi.Src.Features.Common.Email;
 using MainApi.Src.Features.Common.Permission;
 using MainApi.Src.Features.Common.Profile;
@@ -13,6 +12,8 @@ using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Staff.StaffMember;
 using MainApi.Src.Features.Staff.TenantAsStaff;
+using MainApi.Src.Lib.Email;
+using Resend;
 
 namespace MainApi.Src.Lib;
 
@@ -51,31 +52,6 @@ public static class AppServicesConfig {
 		// Add HttpContextAccessor for accessing HTTP context in services
 		builder.Services.AddHttpContextAccessor();
 
-		// Add CORS
-		builder.Services.AddCors(options => {
-			options.AddDefaultPolicy(
-					policy => {
-						// Get session token header name from configuration
-						var sessionTokenHeader = builder.Services.BuildServiceProvider()
-							.GetRequiredService<IOptions<AppSettings>>()
-							.Value.SESSION_TOKEN_HEADER_KEY;
-
-						policy
-							.WithOrigins(AppEnvironment.FRONT_URL)
-							.AllowAnyMethod() // GET, POST, PUT, DELETE, PATCH, OPTIONS
-							.WithHeaders(
-								// Standard headers
-								"Content-Type",
-								"Accept",
-								// Custom headers
-								sessionTokenHeader    // X-Session-Token
-																			// "X-Tenant-Id"
-							)
-							.WithExposedHeaders(sessionTokenHeader) // Allow frontend to read this header from responses
-							.SetPreflightMaxAge(TimeSpan.FromMinutes(10)); // Cache preflight requests
-					});
-		});
-
 		// Create a singleton context for operations that don't need tenant filtering
 		// var dbContextWithoutFilter = new MainApiDbContext(
 		// 	new DbContextOptionsBuilder<MainApiDbContext>()
@@ -98,6 +74,8 @@ public static class AppServicesConfig {
 
 		// Register services
 		// singleton services
+		builder.Services.AddSingleton<IResend>(sp => ResendClient.Create(AppEnvironment.RESEND_API_KEY));
+		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		builder.Services.AddSingleton<IEmailService, EmailService>();
 
 		// scoped services

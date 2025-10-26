@@ -3,8 +3,10 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Auth;
+using MainApi.Src.Features.Common.Email;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Utils;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -24,37 +26,26 @@ public class CreateStaffMemberBody {
 	public JsonElement? FirstName { get; set; }
 	public JsonElement? AvatarUrl { get; set; }
 	public JsonElement? AccountLevel { get; set; }
+	public JsonElement? SendNotification { get; set; }
+
 	public string GetEmail() {
-		return Email.ValueKind switch {
-			JsonValueKind.String => Email.GetString() ?? throw new InvalidOperationException("Email cannot be null"),
-			_ => throw new InvalidOperationException("Email must be a string")
-		};
+		return Email.GetValueAsString();
 	}
+
 	public string GetLastName() {
-		return LastName.ValueKind switch {
-			JsonValueKind.String => LastName.GetString() ?? throw new InvalidOperationException("LastName cannot be null"),
-			_ => throw new InvalidOperationException("LastName must be a string")
-		};
+		return LastName.GetValueAsString();
 	}
 
 	public string? GetFirstName() {
-		return FirstName?.ValueKind switch {
-			null => null,
-			JsonValueKind.Null => null,
-			JsonValueKind.Undefined => null,
-			JsonValueKind.String => FirstName?.GetString(),
-			_ => throw new InvalidOperationException("FirstName must be a string or null")
-		};
+		return FirstName.GetValueAsStringOrNull();
 	}
 
 	public string? GetAvatarUrl() {
-		return AvatarUrl?.ValueKind switch {
-			null => null,
-			JsonValueKind.Null => null,
-			JsonValueKind.Undefined => null,
-			JsonValueKind.String => AvatarUrl?.GetString(),
-			_ => throw new InvalidOperationException("AvatarUrl must be a string or null")
-		};
+		return AvatarUrl.GetValueAsStringOrNull();
+	}
+
+	public bool GetSendNotification() {
+		return SendNotification.GetValueAsBoolean();
 	}
 
 	public AccountLevel GetAccountLevel() {
@@ -69,9 +60,10 @@ public class CreateStaffMemberBody {
 					return AccountNs.AccountLevel.User;
 				}
 			case JsonValueKind.String: {
-					var accountLevel = UserAccount.ParseAccountLevel(AccountLevel?.GetString() ?? throw new InvalidOperationException("AccountLevel must be a string"));
+					var accountLevelString = AccountLevel.GetValueAsString();
+					var accountLevel = UserAccount.ParseAccountLevel(accountLevelString);
 					if (accountLevel is null) {
-						throw new InvalidOperationException("Invalid account level: " + AccountLevel?.GetString());
+						throw new InvalidOperationException("Invalid account level: " + accountLevelString);
 					}
 					return accountLevel.Value;
 				}
@@ -88,7 +80,8 @@ public class PasswordRegisterBodyValidator : AbstractValidator<CreateStaffMember
 			.NotEmpty().WithMessage("Email is required")
 			.DependentRules(() => {
 				RuleFor(x => x.Email)
-					.Must(email => email.ValueKind == JsonValueKind.String).WithMessage("mail must be a string")
+					.Must(email => email.ValueKind == JsonValueKind.String)
+					.WithMessage("mail must be a string")
 					.DependentRules(() => {
 						RuleFor(x => x.Email.GetString()!)
 							.EmailAddress().WithMessage("Invalid email address");
@@ -99,7 +92,8 @@ public class PasswordRegisterBodyValidator : AbstractValidator<CreateStaffMember
 			.NotEmpty().WithMessage("LastName is required")
 			.DependentRules(() => {
 				RuleFor(x => x.LastName)
-					.Must(lastName => lastName.ValueKind == JsonValueKind.String).WithMessage("LastName must be a string")
+					.Must(lastName => lastName.ValueKind == JsonValueKind.String)
+					.WithMessage("LastName must be a string")
 					.DependentRules(() => {
 						RuleFor(x => x.LastName.GetString()!)
 							.NotEmpty().WithMessage("LastName is required");
@@ -131,6 +125,23 @@ public class PasswordRegisterBodyValidator : AbstractValidator<CreateStaffMember
 					.Must(BeValidAccountLevelNullable)
 					.WithMessage("AccountLevel must be a valid account level");
 			});
+
+		RuleFor(x => x.SendNotification)
+			.Must(BeNullableBoolean)
+			.WithMessage("SendNotification must be a boolean or null");
+	}
+
+	private static bool BeNullableBoolean(JsonElement? element) {
+		if (element is null) {
+			return true;
+		}
+		if ((element?.ValueKind is JsonValueKind.Null) || (element?.ValueKind is JsonValueKind.Undefined)) {
+			return false;
+		}
+		if ((element?.ValueKind is JsonValueKind.True) || (element?.ValueKind is JsonValueKind.False)) {
+			return true;
+		}
+		return false;
 	}
 
 	private static bool BeValidAccountLevelNullable(JsonElement? element) {
@@ -192,9 +203,10 @@ public class CreateStaffMember {
 		[FromServices] IUserService userService,
 		[FromServices] IPasswordService passwordService,
 		[FromServices] IAccountService accountService,
+		[FromServices] IEmailService emailService,
 		[FromServices] IOptions<AppSettings> appSettings,
 		[FromServices] ILogger<CreateStaffMember> logger,
-		CancellationToken cancellationToken = default
+		CancellationToken cancellationToken
 	) {
 		var password = CryptoUtils.RandomString(appSettings.Value.PASSWORD_MIN_LENGTH);
 		password = passwordService.HashPassword(password);
@@ -205,11 +217,20 @@ public class CreateStaffMember {
 			LastName = body.GetLastName(),
 			FirstName = body.GetFirstName(),
 			AvatarUrl = body.GetAvatarUrl(),
+			IsVerified = false,
 		};
+
+		if (body.GetSendNotification()) {
+			user.IsVerified = false;
+			user.EmailVerifyToken = CryptoUtils.RandomString(appSettings.Value.EMAIL_VERIFY_TOKEN_LENGTH);
+			user.EmailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
+		}
 
 		var userResult = await userService.CreateUserAsync(user, cancellationToken);
 
 		Guid userIdGuid;
+
+		var shouldVerifyEmail = false;
 
 		if (userResult is CreateUserResult.UserAlreadyExists alreadyExistUserResult) {
 			// That's okay, we can use the existing user
@@ -219,6 +240,7 @@ public class CreateStaffMember {
 			);
 			userIdGuid = alreadyExistUserResult.User.GetRequiredId();
 		} else if (userResult is CreateUserResult.Success successCreateUserResult) {
+			shouldVerifyEmail = true;
 			logger.LogDebug(
 				"User created successfully, using new user: {@LogData}",
 				new { UserId = successCreateUserResult.User.GetRequiredId() }
@@ -234,6 +256,7 @@ public class CreateStaffMember {
 				ResponseKeys.FailedToCreateUser
 			));
 		}
+
 		// Create staff account using AccountService
 		var accountResult = await accountService.CreateStaffAccountAsync(
 			userIdGuid,
@@ -249,6 +272,16 @@ public class CreateStaffMember {
 		}
 
 		if (accountResult is CreateStaffAccountResult.Success accountSuccess) {
+			if (body.GetSendNotification()) {
+				if (shouldVerifyEmail) {
+					if (string.IsNullOrEmpty(user.EmailVerifyToken)) {
+						throw new InvalidOperationException("Email verify should not be null or empty");
+					}
+					await emailService.SendStaffWelcomeEmail(user.Email, user.EmailVerifyToken);
+				} else {
+					await emailService.SendJoinedStaffNotificationEmail(user.Email);
+				}
+			}
 			return TypedResults.Ok(new CreateStaffMemberResult {
 				Id = userIdGuid,
 				AccountId = accountSuccess.Account.GetRequiredId(),

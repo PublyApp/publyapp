@@ -13,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.ConfigureLogger();
 builder.AddServices();
+builder.AddCors();
 
 var app = builder.Build();
 

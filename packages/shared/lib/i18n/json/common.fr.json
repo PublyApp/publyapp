@@ -181,5 +181,8 @@
 	"organizations": "Organisations",
 	"inactive": "Inactif",
 	"deleted": "Supprimé",
-	"suspended": "Suspendu"
+	"suspended": "Suspendu",
+	"send-notification": "Envoyer une notification",
+	"yes": "Oui",
+	"no": "Non"
 }

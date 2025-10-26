@@ -4,6 +4,15 @@ namespace MainApi.Src.Lib;
 
 // Configuration class for strongly-typed settings
 public class AppSettings {
+	[Required(ErrorMessage = "APP_NAME is required in appsettings.json::AppSettings")]
+	public string APP_NAME { get; init; } = string.Empty;
+
+	[Required(ErrorMessage = "DEFAULT_EMAIL_SENDER_EMAIL is required in appsettings.json::AppSettings")]
+	public string DEFAULT_EMAIL_SENDER_EMAIL { get; init; } = string.Empty;
+
+	[Required(ErrorMessage = "DEFAULT_EMAIL_SENDER_NAME is required in appsettings.json::AppSettings")]
+	public string DEFAULT_EMAIL_SENDER_NAME { get; init; } = string.Empty;
+
 	[Required(ErrorMessage = "SESSION_TOKEN_HEADER_KEY is required in appsettings.json::AppSettings")]
 	public string SESSION_TOKEN_HEADER_KEY { get; init; } = string.Empty;
 
@@ -22,6 +31,14 @@ public class AppSettings {
 	[Required(ErrorMessage = "PASSWORD_MIN_LENGTH is required in appsettings.json::AppSettings")]
 	[Range(1, 100, ErrorMessage = "PASSWORD_MIN_LENGTH must be between 1 and 100")]
 	public int PASSWORD_MIN_LENGTH { get; init; }
+
+	[Required(ErrorMessage = "EMAIL_VERIFY_TOKEN_LENGTH is required in appsettings.json::AppSettings")]
+	[Range(25, int.MaxValue, ErrorMessage = "EMAIL_VERIFY_TOKEN_LENGTH must be between 25 and int.MaxValue")]
+	public int EMAIL_VERIFY_TOKEN_LENGTH { get; init; }
+
+	[Required(ErrorMessage = "PASSWORD_RESET_TOKEN_LENGTH is required in appsettings.json::AppSettings")]
+	[Range(25, int.MaxValue, ErrorMessage = "PASSWORD_RESET_TOKEN_LENGTH must be between 25 and int.MaxValue")]
+	public int PASSWORD_RESET_TOKEN_LENGTH { get; init; }
 
 	public readonly int MAX_PROFILES_PER_USER = 5;
 
