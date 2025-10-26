@@ -1,21 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Card from '@mui/material/Card';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import Grid from '@mui/material/Grid';
-import MenuItem from '@mui/material/MenuItem';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
-import { useQueryClient } from '@tanstack/react-query';
-import _ from 'lodash';
-import { useBoolean } from 'minimal-shared/hooks';
-import { useForm } from 'react-hook-form';
-import type zod from 'zod';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
 import { toast } from '@/front/components/snackbar';
@@ -35,8 +17,25 @@ import {
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 } from '@/shared/lib/constants';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import { mbToBytes } from '@/shared/utils/any.utils';
+import { zodResolver } from '@hookform/resolvers/zod';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import Grid from '@mui/material/Grid';
+import MenuItem from '@mui/material/MenuItem';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
+import { useQueryClient } from '@tanstack/react-query';
+import _ from 'lodash';
+import { useBoolean } from 'minimal-shared/hooks';
+import { useForm } from 'react-hook-form';
+import type zod from 'zod';
 
 type UserNewEditData = {
 	id: string;
@@ -68,9 +67,12 @@ const defaultValues: NewUserSchemaType = {
 	lastName: '',
 	email: '',
 	accountLevel: ACCOUNT_LEVEL_ENUM.USER,
+	sendNotification: false,
 };
 
 export const UserNewEditForm = ({ currentUser }: Props) => {
+	const isEdit = !!currentUser;
+
 	const { t, i18n } = useTranslate();
 	const router = useRouter();
 	const openDialog = useBoolean();
@@ -81,7 +83,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		mode: 'onSubmit',
 		resolver: zodResolver(NewUserSchema),
 		defaultValues,
-		values: currentUser
+		values: isEdit
 			? {
 					...currentUser,
 					avatar: currentUser.avatar,
@@ -109,7 +111,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		onSuccess: () => {
 			reset();
 			toast.success(
-				currentUser
+				isEdit
 					? 'Update success!'
 					: _.capitalize(
 							t('item-creation-success-message', { item: t('staff-member') }),
@@ -143,9 +145,14 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 			if (_.isNil(fieldValue) || _.isEmpty(fieldValue)) {
 				finalValue = 'N/A';
 			} else {
-				finalValue = _.isString(fieldValue)
-					? fieldValue
-					: JSON.stringify(fieldValue);
+				if (_.isObject(fieldValue)) {
+					finalValue = JSON.stringify(fieldValue);
+				} else {
+					finalValue = _.toString(fieldValue);
+				}
+			}
+			if (_.isBoolean(fieldValue)) {
+				finalValue = fieldValue ? t('yes') : t('no');
 			}
 			if (fieldValue instanceof File) {
 				finalValue = fieldValue.name;
@@ -156,6 +163,8 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 			};
 		})
 		.value();
+
+	// isoLogger.debug('confirmValues', confirmValues);
 
 	return (
 		<>
@@ -276,16 +285,24 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 									rowGap: 3,
 									columnGap: 2,
 									display: 'grid',
-									gridTemplateColumns: {
-										xs: 'repeat(1, 1fr)',
-										sm: 'repeat(2, 1fr)',
-									},
 								}}
 							>
 								<Field.Text name="lastName" label={t('lastname')} required />
 								<Field.Text name="firstName" label={t('firstname')} />
-								<Field.Text name="email" label={t('email-address')} required />
-								<br />
+								<Stack direction="row" spacing={2}>
+									<Field.Text
+										name="email"
+										label={t('email-address')}
+										required
+									/>
+									<Field.Switch
+										name="sendNotification"
+										label={t('send-notification')}
+										slotProps={{
+											wrapper: { sx: { whiteSpace: 'nowrap' } },
+										}}
+									/>
+								</Stack>
 								<Field.Select name="accountLevel" label={t('level')} required>
 									{ACCOUNT_LEVEL_OPTIONS.map((option) => (
 										<MenuItem key={option} value={option}>
@@ -327,7 +344,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 									variant="contained"
 									loading={isSubmitting || isPending}
 								>
-									{!currentUser ? t('create-user') : t('save-changes')}
+									{!isEdit ? t('create-user') : t('save-changes')}
 								</Button>
 							</Stack>
 						</Card>

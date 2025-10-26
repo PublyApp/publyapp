@@ -2,7 +2,7 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 
-namespace MainApi.Src.Lib;
+namespace MainApi.Src.Lib.Extensions;
 
 public static class LoggerConfigExtensions {
 	public static WebApplicationBuilder ConfigureLogger(this WebApplicationBuilder builder) {
@@ -12,6 +12,7 @@ public static class LoggerConfigExtensions {
 			loggerConfig
 				.MinimumLevel.Information()
 				.MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+				.MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
 				.Enrich.FromLogContext()
 				.Enrich.WithMachineName()
 				.Enrich.WithThreadId()

@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.WebUtilities;
 namespace MainApi.Src.Features.Common.Auth;
 
 public static class AuthUtils {
-	public static string CreateVerificationLink(string token, string email) {
+	public static string CreateVerificationUrl(string token, string email) {
 		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
-			Path = "/verify-email"
+			Path = "/verify-email" // Path of the front-end app (using react router)
 		};
 
 		var queryParams = new Dictionary<string, string?> {
@@ -18,5 +18,28 @@ public static class AuthUtils {
 		var url = QueryHelpers.AddQueryString(builder.Uri.ToString(), queryParams);
 
 		return url;
+	}
+
+	public static string CreateResetPasswordUrl(string token, string email) {
+		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
+			Path = "/reset-password" // Path of the front-end app (using react router)
+		};
+
+		var queryParams = new Dictionary<string, string?> {
+			["token"] = token,
+			["id"] = CryptoUtils.EncryptString(email)
+		};
+
+		var url = QueryHelpers.AddQueryString(builder.Uri.ToString(), queryParams);
+
+		return url;
+	}
+
+	public static string GetFrontendLoginPageUrl() {
+		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
+			Path = "/login" // Path of the front-end app (using react router)
+		};
+
+		return builder.Uri.ToString();
 	}
 }

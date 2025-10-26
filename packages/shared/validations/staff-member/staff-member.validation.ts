@@ -10,5 +10,6 @@ export const getNewStaffMemberSchemaServerSide = (z: InterZod) => {
 			ACCOUNT_LEVEL_ENUM.ADMIN,
 			ACCOUNT_LEVEL_ENUM.USER,
 		] as const),
+		sendNotification: z.boolean().optional(),
 	});
 };
