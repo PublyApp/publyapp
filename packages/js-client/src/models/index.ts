@@ -243,6 +243,10 @@ export function createResetPasswordResultFromDiscriminatorValue(parseNode: Parse
 }
 export interface CreateStaffMemberBody extends AdditionalDataHolder, Parsable {
     /**
+     * The accountLevel property
+     */
+    accountLevel?: UntypedNode | null;
+    /**
      * The avatarUrl property
      */
     avatarUrl?: UntypedNode | null;
@@ -258,6 +262,10 @@ export interface CreateStaffMemberBody extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: UntypedNode | null;
+    /**
+     * The sendNotification property
+     */
+    sendNotification?: UntypedNode | null;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -383,10 +391,12 @@ export function deserializeIntoCheckResetPasswordTokenResult(checkResetPasswordT
 // @ts-ignore
 export function deserializeIntoCreateStaffMemberBody(createStaffMemberBody: Partial<CreateStaffMemberBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "accountLevel": n => { createStaffMemberBody.accountLevel = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "avatarUrl": n => { createStaffMemberBody.avatarUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "email": n => { createStaffMemberBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "firstName": n => { createStaffMemberBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "lastName": n => { createStaffMemberBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "sendNotification": n => { createStaffMemberBody.sendNotification = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -644,8 +654,8 @@ export function deserializeIntoStaffMemberItem(staffMemberItem: Partial<StaffMem
         "firstName": n => { staffMemberItem.firstName = n.getStringValue(); },
         "id": n => { staffMemberItem.id = n.getGuidValue(); },
         "lastName": n => { staffMemberItem.lastName = n.getStringValue(); },
-        "level": n => { staffMemberItem.level = n.getNumberValue(); },
-        "status": n => { staffMemberItem.status = n.getNumberValue(); },
+        "level": n => { staffMemberItem.level = n.getStringValue(); },
+        "status": n => { staffMemberItem.status = n.getStringValue(); },
     }
 }
 /**
@@ -671,7 +681,11 @@ export function deserializeIntoTenant(tenant: Partial<Tenant> | undefined = {}) 
 export function deserializeIntoTenantAsStaffItem(tenantAsStaffItem: Partial<TenantAsStaffItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "id": n => { tenantAsStaffItem.id = n.getGuidValue(); },
+        "logoUrl": n => { tenantAsStaffItem.logoUrl = n.getStringValue(); },
+        "maxUsers": n => { tenantAsStaffItem.maxUsers = n.getNumberValue(); },
         "name": n => { tenantAsStaffItem.name = n.getStringValue(); },
+        "status": n => { tenantAsStaffItem.status = n.getStringValue(); },
+        "usersCount": n => { tenantAsStaffItem.usersCount = n.getNumberValue(); },
     }
 }
 /**
@@ -976,10 +990,12 @@ export function serializeCheckResetPasswordTokenResult(writer: SerializationWrit
 // @ts-ignore
 export function serializeCreateStaffMemberBody(writer: SerializationWriter, createStaffMemberBody: Partial<CreateStaffMemberBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createStaffMemberBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("accountLevel", createStaffMemberBody.accountLevel);
     writer.writeObjectValue("avatarUrl", createStaffMemberBody.avatarUrl);
     writer.writeObjectValue("email", createStaffMemberBody.email);
     writer.writeObjectValue("firstName", createStaffMemberBody.firstName);
     writer.writeObjectValue("lastName", createStaffMemberBody.lastName);
+    writer.writeObjectValue("sendNotification", createStaffMemberBody.sendNotification);
     writer.writeAdditionalData(createStaffMemberBody.additionalData);
 }
 /**
@@ -1257,8 +1273,8 @@ export function serializeStaffMemberItem(writer: SerializationWriter, staffMembe
     writer.writeStringValue("firstName", staffMemberItem.firstName);
     writer.writeGuidValue("id", staffMemberItem.id);
     writer.writeStringValue("lastName", staffMemberItem.lastName);
-    writer.writeNumberValue("level", staffMemberItem.level);
-    writer.writeNumberValue("status", staffMemberItem.status);
+    writer.writeStringValue("level", staffMemberItem.level);
+    writer.writeStringValue("status", staffMemberItem.status);
     writer.writeAdditionalData(staffMemberItem.additionalData);
 }
 /**
@@ -1286,7 +1302,11 @@ export function serializeTenant(writer: SerializationWriter, tenant: Partial<Ten
 export function serializeTenantAsStaffItem(writer: SerializationWriter, tenantAsStaffItem: Partial<TenantAsStaffItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantAsStaffItem || isSerializingDerivedType) { return; }
     writer.writeGuidValue("id", tenantAsStaffItem.id);
+    writer.writeStringValue("logoUrl", tenantAsStaffItem.logoUrl);
+    writer.writeNumberValue("maxUsers", tenantAsStaffItem.maxUsers);
     writer.writeStringValue("name", tenantAsStaffItem.name);
+    writer.writeStringValue("status", tenantAsStaffItem.status);
+    writer.writeNumberValue("usersCount", tenantAsStaffItem.usersCount);
     writer.writeAdditionalData(tenantAsStaffItem.additionalData);
 }
 /**
@@ -1350,11 +1370,11 @@ export interface StaffMemberItem extends AdditionalDataHolder, Parsable {
     /**
      * The level property
      */
-    level?: number | null;
+    level?: string | null;
     /**
      * The status property
      */
-    status?: number | null;
+    status?: string | null;
 }
 export interface Tenant extends AdditionalDataHolder, Parsable {
     /**
@@ -1380,9 +1400,25 @@ export interface TenantAsStaffItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The logoUrl property
+     */
+    logoUrl?: string | null;
+    /**
+     * The maxUsers property
+     */
+    maxUsers?: number | null;
+    /**
      * The name property
      */
     name?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+    /**
+     * The usersCount property
+     */
+    usersCount?: number | null;
 }
 export interface TenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**

@@ -3,6 +3,7 @@ import dayjs from 'dayjs';
 import i18next from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 import Fetch from 'i18next-fetch-backend';
+import _ from 'lodash';
 import { initReactI18next } from 'react-i18next';
 import { getInitialNamespaces } from 'remix-i18next/client';
 import {
@@ -12,7 +13,7 @@ import {
 	queryParamKey,
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
-import { clientLogger } from '@/shared/lib/logger/logger.client';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import duration from '@/shared/utils/duration.utils';
 import { defaultZodClient } from '../zod/zod.client';
 import { config } from './i18n.config';
@@ -26,6 +27,9 @@ export const initI18nOnClient = async () => {
 	if (INITIALIZED) {
 		return i18next;
 	}
+
+	const initialNamespaces = getInitialNamespaces();
+
 	await i18next
 		.use(initReactI18next) // Tell i18next to use the react-i18next plugin
 		.use(LanguageDetector) // Setup a client-side language detector
@@ -33,7 +37,7 @@ export const initI18nOnClient = async () => {
 		.init({
 			...config, // spread the configuration
 			// This function detects the namespaces your routes rendered while SSR use
-			ns: [...getInitialNamespaces()],
+			ns: initialNamespaces,
 			backend: {
 				loadPath: decodeURIComponent(backendUrl.toString()),
 			},
@@ -54,11 +58,11 @@ export const initI18nOnClient = async () => {
 	if (import.meta.hot) {
 		import.meta.hot.on('i18n:updated', async (data) => {
 			try {
-				clientLogger.debug('[i18n-hmr] Reloading translations...', data);
+				isoLogger.debug('[i18n-hmr] Reloading translations...', data);
 
 				// Force reload all resources with cache busting
 				const lng = i18next.language;
-				const loadedNamespaces = Object.keys(i18next.store.data[lng] || {});
+				const loadedNamespaces = _.keys(i18next.store.data[lng] || {});
 
 				// Clear the cache first
 				i18next.store.data = {};
@@ -69,9 +73,9 @@ export const initI18nOnClient = async () => {
 				// Force a re-render by triggering a language change event
 				i18next.emit('languageChanged', lng);
 
-				clientLogger.debug('[i18n-hmr] Translations reloaded successfully');
+				isoLogger.debug('[i18n-hmr] Translations reloaded successfully');
 			} catch (err) {
-				clientLogger.error('[i18n-hmr] reload failed', err);
+				isoLogger.error('[i18n-hmr] reload failed', err);
 			}
 		});
 	}

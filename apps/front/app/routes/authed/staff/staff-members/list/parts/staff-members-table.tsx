@@ -28,6 +28,7 @@ import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import {
+	useGetUserAuthData,
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
 } from '@/front/lib/react-query/features/common/auth.hooks';
@@ -46,8 +47,8 @@ export type StaffMemberRowData = {
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	level: number;
-	status: number;
+	level: string;
+	status: string;
 	email: string;
 };
 
@@ -59,8 +60,8 @@ const StaffMemberRowDataMapper = (
 		avatarUrl: staffMember.avatarUrl || '',
 		firstName: staffMember.firstName || '',
 		lastName: staffMember.lastName || '',
-		level: staffMember.level || 0,
-		status: staffMember.status || 0,
+		level: staffMember.level || '',
+		status: staffMember.status || '',
 		email: staffMember.email || '',
 	};
 };
@@ -96,7 +97,6 @@ const StaffMembersTable = () => {
 					id: 'fullName',
 					header: t('name'),
 					Cell: UserCell,
-					// grow: 1,
 					size: 300,
 					enableSorting: false,
 				},
@@ -110,7 +110,6 @@ const StaffMembersTable = () => {
 				header: t('status'),
 				Cell: StatusCell,
 				size: 70,
-				enableSorting: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',
@@ -167,6 +166,9 @@ const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	const avatarUrl = props.row.original.avatarUrl;
 	const email = props.row.original.email;
 
+	const { data: userAuthData } = useGetUserAuthData();
+	const isMe = userAuthData.id === userId;
+
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
 			<Avatar alt={fullName} src={avatarUrl} />
@@ -174,14 +176,17 @@ const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 			<Stack
 				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
 			>
-				<Link
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
-					color="inherit"
-					sx={{ cursor: 'pointer' }}
-				>
-					{fullName}
-				</Link>
+				<Stack direction="row" spacing={1} alignItems="center">
+					<Link
+						component={RouterLink}
+						href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
+						color="inherit"
+						sx={{ cursor: 'pointer' }}
+					>
+						{fullName}
+					</Link>
+					{isMe && <Label variant="inverted">me</Label>}
+				</Stack>
 				<Box component="span" sx={{ color: 'text.disabled' }}>
 					{email}
 				</Box>
@@ -190,7 +195,7 @@ const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 	);
 };
 
-const StatusCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
+const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	props,
 ) => {
 	const { t } = useTranslate();
@@ -209,17 +214,16 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
 	} else if (status === USER_STATUS_ENUM.BANNED) {
 		t_message = t('banned');
 		color = 'error';
+	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
+		t_message = t('suspended');
+		color = 'warning';
+	} else if (status === USER_STATUS_ENUM.DELETED) {
+		t_message = t('deleted');
+		color = 'error';
+	} else if (status === USER_STATUS_ENUM.INACTIVE) {
+		t_message = t('inactive');
+		color = 'default';
 	}
-	// if (status === 'active') {
-	// 	t_message = t('active');
-	// 	color = 'success';
-	// } else if (status === 'pending') {
-	// 	t_message = t('pending');
-	// 	color = 'warning';
-	// } else if (status === 'banned') {
-	// 	t_message = t('banned');
-	// 	color = 'error';
-	// }
 
 	return (
 		<Label variant="soft" color={color}>
@@ -228,7 +232,7 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
 	);
 };
 
-const LevelCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
+const LevelCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	props,
 ) => {
 	const { t } = useTranslate();
@@ -245,20 +249,6 @@ const LevelCell: MRT_ColumnDef<StaffMemberRowData, number>['Cell'] = (
 		t_message = t('user');
 		color = 'warning';
 	}
-
-	// if (level === /* roleEnum.STAFF_ADMIN.name */ '') {
-	// 	t_message = t('admin');
-	// 	color = 'success';
-	// } else if (level === /* roleEnum.STAFF_EDITOR.name */ '') {
-	// 	t_message = t('editor');
-	// 	color = 'info';
-	// } else if (level === /* roleEnum.STAFF_USER.name */ '') {
-	// 	t_message = t('user');
-	// 	color = 'warning';
-	// } else if (level === /* roleEnum.STAFF_CONTRIBUTOR.name */ '') {
-	// 	t_message = t('contributor');
-	// 	color = 'error';
-	// }
 
 	return (
 		<Label variant="soft" color={color}>

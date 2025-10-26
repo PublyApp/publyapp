@@ -38,14 +38,16 @@ public class CheckEmailVerificationToken {
 			BadRequest<ApiResponse>
 		>
 	> HandleCheckEmailVerificationToken(
-		[FromQuery] string id,
-		[FromQuery] string token,
+		[AsParameters] CheckEmailVerificationTokenQuery query,
 		[FromServices] IUserService userService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<CheckEmailVerificationToken> logger,
 		[FromServices] IOptions<AppSettings> appSettings,
-		CancellationToken cancellationToken = default
+		CancellationToken cancellationToken
 	) {
+		string id = query.Id;
+		string token = query.Token;
+
 		// Decrypt the ID to get email
 		string email;
 		try {
@@ -76,11 +78,12 @@ public class CheckEmailVerificationToken {
 		}
 
 		// Generate password reset token
-		var passwordResetToken = CryptoUtils.RandomString(25);
+		var passwordResetToken = CryptoUtils.RandomString(appSettings.Value.PASSWORD_RESET_TOKEN_LENGTH);
 		var passwordResetTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.PASSWORD_RESET_TOKEN_VALIDITY_DURATION);
 
 		// Update user
 		user.IsVerified = true;
+		user.Status = UserStatus.Active;
 		user.PasswordResetToken = passwordResetToken;
 		user.PasswordResetTokenExpiresAt = passwordResetTokenExpiresAt;
 		user.EmailVerifyToken = null;
@@ -89,14 +92,11 @@ public class CheckEmailVerificationToken {
 		await userService.UpdateUserAsync(user, cancellationToken);
 
 		// Create reset password link
-		var resetPasswordLink = EmailService.CreateResetPasswordLink(passwordResetToken, user.Email);
+		var resetPasswordUrl = AuthUtils.CreateResetPasswordUrl(passwordResetToken, user.Email);
 
 		// Send success email asynchronously
-		_ = emailService.SendEmail(
-			user.Email,
-			"Email Verification Success",
-			$"<h1>Your email has been verified</h1>\n<p>You have been redirected to the reset password page automatically to change your password.</p>\n<p>If you did not reset your password at that time you can still do it by clicking the link below:</p>\n<a href=\"{resetPasswordLink}\">{resetPasswordLink}</a>"
-		).ContinueWith(t => {
+		_ = emailService.SendEmailVerifiedNotification(user.Email)
+		.ContinueWith(t => {
 			if (t.Exception != null) {
 				logger.LogError(t.Exception, "Error sending email verification success email to {Email}", user.Email);
 			}
@@ -104,7 +104,7 @@ public class CheckEmailVerificationToken {
 
 		return TypedResults.Ok(new CheckEmailVerificationTokenResult {
 			Status = "success",
-			ResetPasswordLink = resetPasswordLink
+			ResetPasswordLink = resetPasswordUrl
 		});
 	}
 }

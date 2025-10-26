@@ -28,9 +28,9 @@ public class SessionAuthMiddleware {
 			return;
 		}
 
-		var session = await sessionService.GetSessionByToken(sessionToken, httpContext.RequestAborted);
+		var sessionData = await sessionService.GetSessionByToken(sessionToken, httpContext.RequestAborted);
 
-		if (session is null) {
+		if (sessionData is null) {
 			_logger.LogDebug("Session token is invalid or expired: {@SessionData}", new { sessionToken });
 			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
 			await httpContext.Response.WriteAsJsonAsync(
@@ -41,10 +41,11 @@ public class SessionAuthMiddleware {
 
 		// Attach userId for downstream handlers
 		authContext.SessionToken = sessionToken;
-		authContext.UserId = session.UserId;
+		authContext.UserId = sessionData.User.Id;
+		// authContext.User = sessionData.User;
 
 		if (!authContext.IsAuthenticated) {
-			_logger.LogError("Failed to authenticate user, session has no user attached to it: {@SessionData}", new { sessionToken, userId = session.UserId });
+			_logger.LogError("Failed to authenticate user, session has no user attached to it: {@SessionData}", new { sessionToken, userId = sessionData.User.Id });
 			httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
 			await httpContext.Response.WriteAsJsonAsync(ApiResponse.Create(
 				"Failed to authenticate user",

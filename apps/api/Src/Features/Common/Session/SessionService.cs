@@ -7,9 +7,14 @@ using UserNs = MainApi.Src.Features.Common.User;
 
 namespace MainApi.Src.Features.Common.Session;
 
+public class SessionData {
+	public required Session Session { get; set; }
+	public required UserNs.User User { get; set; }
+}
+
 public interface ISessionService {
 	Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default);
-	Task<Session?> GetSessionByToken(string token, CancellationToken cancellationToken = default);
+	Task<SessionData?> GetSessionByToken(string token, CancellationToken cancellationToken = default);
 }
 
 public class SessionService : ISessionService {
@@ -24,7 +29,7 @@ public class SessionService : ISessionService {
 	public async Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default) {
 		var session = new Session {
 			UserId = user.Id,
-			Token = CryptoUtils.NewToken(),
+			Token = CryptoUtils.RandomString(32),
 			ExpiresAt = DateTime.UtcNow.AddDays(_appSettings.Value.SESSION_EXPIRY_DAYS),
 		};
 
@@ -34,12 +39,25 @@ public class SessionService : ISessionService {
 		return result.Entity;
 	}
 
-	public async Task<Session?> GetSessionByToken(string token, CancellationToken cancellationToken = default) {
+	public async Task<SessionData?> GetSessionByToken(string token, CancellationToken cancellationToken = default) {
 		var query =
 			from s in _dbContext.Session
+			join u in _dbContext.User on s.UserId equals u.Id
 			where s.Token == token && s.ExpiresAt > DateTime.UtcNow
-			select s;
+			select new { Session = s, User = u };
 
-		return await query.FirstOrDefaultAsync(cancellationToken);
+		var result = await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+
+		if (result is null) return null;
+
+		// Runtime filtering
+		if (result.User.IsDeleted || result.User.IsSuspended || !result.User.IsVerified) {
+			return null;
+		}
+
+		return new SessionData {
+			Session = result.Session,
+			User = result.User,
+		};
 	}
 }

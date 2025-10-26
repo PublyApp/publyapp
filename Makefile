@@ -106,9 +106,9 @@ dev-front:
 	@echo "Starting frontend development server..."
 	cd $(FRONTEND_DIR) && pnpm dev
 
-dev-db:
-	@echo "Starting database with Docker..."
-	docker-compose -f docker-compose.data.yml up -d
+dev-services:
+	@echo "Starting services with Docker..."
+	docker-compose -f docker-compose.services.yml up -d
 
 # =============================================================================
 # BUILDING
@@ -221,7 +221,7 @@ docker-push:
 
 docker-up:
 	@echo "Starting services with Docker Compose..."
-	docker-compose up -d
+	docker-compose -f docker-compose.services.yml up -d
 
 docker-down:
 	@echo "Stopping Docker services..."

@@ -40,7 +40,7 @@ public class StaffMemberService : IStaffMemberService {
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
-			&& ua.AccountScope == AccountScope.Staff
+			&& ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted
 			&& !ua.IsSuspended
 			&& !ua.User.IsDeleted
@@ -53,7 +53,7 @@ public class StaffMemberService : IStaffMemberService {
 	public async Task<int> CountStaffMembersAsync(CancellationToken cancellationToken = default) {
 		var query =
 			from ua in _dbContext.UserAccount
-			where ua.AccountScope == AccountScope.Staff
+			where ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted
 			&& !ua.IsSuspended
 			&& !ua.User.IsDeleted
@@ -75,7 +75,7 @@ public class StaffMemberService : IStaffMemberService {
 
 		var query =
 			from ua in _dbContext.UserAccount
-			where ua.AccountScope == AccountScope.Staff
+			where ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted
 			&& !ua.IsSuspended
 			&& !ua.User.IsDeleted

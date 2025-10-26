@@ -1,12 +1,11 @@
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
-using MainApi.Src.Features.Common.Auth;
 
 namespace MainApi.Src.Features.Common.User;
 
 public abstract record CreateUserResult {
 	public sealed record Success(User User) : CreateUserResult;
-	public sealed record UserAlreadyExists : CreateUserResult;
+	public sealed record UserAlreadyExists(User User) : CreateUserResult;
 }
 
 public interface IUserService {
@@ -20,11 +19,9 @@ public interface IUserService {
 
 public class UserService : IUserService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly ILogger<UserService> _logger;
 
-	public UserService(MainApiDbContext dbContext, IPasswordService passwordService, ILogger<UserService> logger) {
+	public UserService(MainApiDbContext dbContext) {
 		_dbContext = dbContext;
-		_logger = logger;
 	}
 
 	public async Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default) {
@@ -34,7 +31,7 @@ public class UserService : IUserService {
 			.ConfigureAwait(false);
 
 		if (existingUser is not null) {
-			return new CreateUserResult.UserAlreadyExists();
+			return new CreateUserResult.UserAlreadyExists(existingUser);
 		}
 
 		var result = await _dbContext.User.AddAsync(user, cancellationToken).ConfigureAwait(false);
@@ -64,12 +61,10 @@ public class UserService : IUserService {
 	}
 
 	public async Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default) {
-		// return await _dbContext.User
-		// 	.FindAsync([id, cancellationToken], cancellationToken: cancellationToken)
-		// 	.ConfigureAwait(false);
-		var query = from u in _dbContext.User
-								where u.Id == id
-								select u;
+		var query =
+			from u in _dbContext.User
+			where u.Id == id
+			select u;
 		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 	}
 

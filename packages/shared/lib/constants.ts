@@ -1,4 +1,5 @@
 import { makePath, toPascalCase } from '../utils/string.utils';
+import type { NameSpace } from './i18n/resources';
 
 export const APP_ID = 'publyapp';
 export const APP_NAME = 'PublyApp';
@@ -218,14 +219,36 @@ export const LANGUAGE_DETECTION_METHOD: LanguageDetectionMethod =
 	LANGUAGE_DETECTION_METHOD_ENUM.COOKIE;
 
 export const ACCOUNT_LEVEL_ENUM = {
-	ADMIN: 50,
-	USER: 10,
+	ADMIN: 'Admin',
+	USER: 'User',
 } as const;
 
+export type AccountLevel = ValueOf<typeof ACCOUNT_LEVEL_ENUM>;
+
 export const USER_STATUS_ENUM = {
-	ACTIVE: 1,
-	PENDING: 2,
-	BANNED: 3,
+	INACTIVE: 'Inactive',
+	PENDING: 'Pending',
+	SUSPENDED: 'Suspended',
+	ACTIVE: 'Active',
+	DELETED: 'Deleted',
+	BANNED: 'Banned',
 } as const;
 
 export type UserStatus = ValueOf<typeof USER_STATUS_ENUM>;
+
+export const TENANT_STATUS_ENUM = {
+	PENDING: 'Pending',
+	ACTIVE: 'Active',
+	SUSPENDED: 'Suspended',
+	ARCHIVED: 'Archived',
+} as const;
+
+export type TenantStatus = ValueOf<typeof TENANT_STATUS_ENUM>;
+
+export const voidFunction = () => {};
+
+export const I18N_NAMESPACES = {
+	COMMON: 'common',
+	ZOD: 'zod',
+	RESPONSE_MESSAGE: 'response-message',
+} as const satisfies Record<string, NameSpace>;

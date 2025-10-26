@@ -11,7 +11,7 @@ public abstract record CreateStaffAccountResult {
 }
 
 public interface IAccountService {
-	Task<CreateStaffAccountResult> CreateStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<CreateStaffAccountResult> CreateStaffAccountAsync(Guid userId, AccountLevel? accountLevel = null, CancellationToken cancellationToken = default);
 	Task<UserAccount?> GetUserStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserStaffMemberAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserMemberOfTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
@@ -29,6 +29,7 @@ public class AccountService : IAccountService {
 
 	public async Task<CreateStaffAccountResult> CreateStaffAccountAsync(
 		Guid userId,
+		AccountLevel? accountLevel = null,
 		CancellationToken cancellationToken = default
 	) {
 		// Check if user is already a staff member
@@ -37,7 +38,7 @@ public class AccountService : IAccountService {
 			return new CreateStaffAccountResult.UserAlreadyStaffMember();
 		}
 
-		var account = UserAccount.CreateStaffAccount(userId);
+		var account = UserAccount.CreateStaffAccount(userId, accountLevel);
 
 		var addedAccount = await _dbContext.UserAccount
 			.AddAsync(account, cancellationToken)
@@ -54,7 +55,7 @@ public class AccountService : IAccountService {
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
-			&& ua.AccountScope == AccountScope.Staff
+			&& ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;
 
@@ -68,7 +69,7 @@ public class AccountService : IAccountService {
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
-			&& ua.AccountScope == AccountScope.Staff
+			&& ua.Scope == AccountScope.Staff
 			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;
 
@@ -99,7 +100,7 @@ public class AccountService : IAccountService {
 		var query =
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
-			&& ua.AccountScope == AccountScope.Tenant
+			&& ua.Scope == AccountScope.Tenant
 			&& ua.TenantId != null
 			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;
