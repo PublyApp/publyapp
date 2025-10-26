@@ -40,7 +40,6 @@ import {
 	FRONT_PATH_NAMES,
 	USER_STATUS_ENUM,
 } from '@/shared/lib/constants';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
 export type StaffMemberRowData = {
@@ -206,8 +205,6 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	let t_message: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
 
-	isoLogger.debug('StatusCell', { status });
-
 	if (status === USER_STATUS_ENUM.ACTIVE) {
 		t_message = t('active');
 		color = 'success';
@@ -227,16 +224,6 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 		t_message = t('inactive');
 		color = 'default';
 	}
-	// if (status === 'active') {
-	// 	t_message = t('active');
-	// 	color = 'success';
-	// } else if (status === 'pending') {
-	// 	t_message = t('pending');
-	// 	color = 'warning';
-	// } else if (status === 'banned') {
-	// 	t_message = t('banned');
-	// 	color = 'error';
-	// }
 
 	return (
 		<Label variant="soft" color={color}>

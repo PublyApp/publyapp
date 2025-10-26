@@ -23,7 +23,7 @@ public class GetStaffMemberById {
 		[FromRoute] string userId,
 		[FromServices] IStaffMemberService staffMemberService,
 		ILogger<GetStaffMemberById> logger,
-		CancellationToken cancellationToken = default
+		CancellationToken cancellationToken
 	) {
 		var isUserIdGuid = Guid.TryParse(userId, out var userIdGuid);
 

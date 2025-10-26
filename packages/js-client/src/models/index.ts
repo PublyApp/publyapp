@@ -262,6 +262,10 @@ export interface CreateStaffMemberBody extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: UntypedNode | null;
+    /**
+     * The sendNotification property
+     */
+    sendNotification?: UntypedNode | null;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -392,6 +396,7 @@ export function deserializeIntoCreateStaffMemberBody(createStaffMemberBody: Part
         "email": n => { createStaffMemberBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "firstName": n => { createStaffMemberBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "lastName": n => { createStaffMemberBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "sendNotification": n => { createStaffMemberBody.sendNotification = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -990,6 +995,7 @@ export function serializeCreateStaffMemberBody(writer: SerializationWriter, crea
     writer.writeObjectValue("email", createStaffMemberBody.email);
     writer.writeObjectValue("firstName", createStaffMemberBody.firstName);
     writer.writeObjectValue("lastName", createStaffMemberBody.lastName);
+    writer.writeObjectValue("sendNotification", createStaffMemberBody.sendNotification);
     writer.writeAdditionalData(createStaffMemberBody.additionalData);
 }
 /**

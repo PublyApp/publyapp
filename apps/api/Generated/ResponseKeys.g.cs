@@ -92,9 +92,19 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey QueryParametersMissing = new("query-parameters-missing");
 
 	/// <summary>
+	/// Query parameters validation failed
+	/// </summary>
+	public static readonly TranslationKey QueryParametersValidationFailed = new("query-parameters-validation-failed");
+
+	/// <summary>
 	/// Request body missing
 	/// </summary>
 	public static readonly TranslationKey RequestBodyMissing = new("request-body-missing");
+
+	/// <summary>
+	/// Request body validation failed
+	/// </summary>
+	public static readonly TranslationKey RequestBodyValidationFailed = new("request-body-validation-failed");
 
 	/// <summary>
 	/// Service unavailable
