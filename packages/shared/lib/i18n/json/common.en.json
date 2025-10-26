@@ -177,5 +177,12 @@
 	"profile": "Profile",
 	"background-jobs": "Background jobs",
 	"level": "Level",
-	"un-named": "No name"
+	"un-named": "No name",
+	"organizations": "Organizations",
+	"inactive": "Inactive",
+	"deleted": "Deleted",
+	"suspended": "Suspended",
+	"send-notification": "Send notification",
+	"yes": "Yes",
+	"no": "No"
 }

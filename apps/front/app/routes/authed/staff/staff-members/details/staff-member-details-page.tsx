@@ -3,20 +3,27 @@ import i18next from 'i18next';
 import _ from 'lodash';
 import type { FC } from 'react';
 import { data, useParams } from 'react-router';
-// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import View400 from '@/front/components/error/400-view';
 import { View500 } from '@/front/components/error/500-view';
-// import { NotFoundView } from '@/front/components/error/not-found-view';
 import QueryDisplay from '@/front/components/query-display';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { useGetStaffMemberById } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
-import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
+	isServer,
+} from '@/shared/lib/constants';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import { UserNewEditForm } from '../components/user-new-edit-form';
 import { UserNewEditFormSkeleton } from '../components/user-new-edit-form-skeleton';
 import type { Route } from './+types/staff-member-details-page';
+
+// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
+// import { NotFoundView } from '@/front/components/error/not-found-view';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(
@@ -32,7 +39,7 @@ const getPageTitle = (t: TFunction, seo?: boolean) => {
 
 export const meta = (args: Route.MetaArgs) => {
 	if (isServer) {
-		return _.get(args.data, 'meta', []);
+		return _.get(args.loaderData, 'meta', []);
 	}
 
 	const t: TFunction = i18next.t;
@@ -61,7 +68,9 @@ export const loader = getServerLoader({
 export const clientLoader = async ({
 	serverLoader,
 }: Route.ClientLoaderArgs) => {
-	i18next.loadNamespaces(['zod']);
+	i18next.loadNamespaces([I18N_NAMESPACES.ZOD]).catch((error) => {
+		isoLogger.error('Failed to load namespaces', error);
+	});
 	const serverData = await serverLoader();
 	return data(serverData);
 };
@@ -112,6 +121,7 @@ const StaffMemberDetailsPage = () => {
 								lastName: _.toString(data.lastName),
 								id: _.toString(data.id),
 								status: '',
+								// status: _.toString(data.),
 								// role: _.toString(data.roleData?.role) as never,
 								// id: _.toString(data.objectId),
 								// status: _.toString(data.status),
@@ -127,7 +137,7 @@ const StaffMemberDetailsPage = () => {
 export default StaffMemberDetailsPage;
 
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
-	console.error(error);
+	isoLogger.debug('ErrorView', { error });
 	// const { t } = useTranslate();
 
 	// if (error instanceof ParseRestError) {

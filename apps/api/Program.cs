@@ -13,13 +13,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.ConfigureLogger();
 builder.AddServices();
+builder.AddCors();
 
 var app = builder.Build();
 
+// ! order matters !
+app.UseSecurityHeaders();
+app.UseCustomExceptionHandler();
+app.UseHttpsRedirection();
 app.UseCors();
 app.UseOpenApi();
-app.UseHttpsRedirection();
-app.UseCustomExceptionHandler();
 
 // ! order matters !
 app.UseCheckTenantHeader();

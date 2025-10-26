@@ -390,7 +390,7 @@
         "operationId": "CheckEmailVerificationToken",
         "parameters": [
           {
-            "name": "id",
+            "name": "Id",
             "in": "query",
             "required": true,
             "schema": {
@@ -398,7 +398,7 @@
             }
           },
           {
-            "name": "token",
+            "name": "Token",
             "in": "query",
             "required": true,
             "schema": {
@@ -449,7 +449,7 @@
         "operationId": "CheckResetPasswordToken",
         "parameters": [
           {
-            "name": "id",
+            "name": "Id",
             "in": "query",
             "required": true,
             "schema": {
@@ -457,7 +457,7 @@
             }
           },
           {
-            "name": "token",
+            "name": "Token",
             "in": "query",
             "required": true,
             "schema": {
@@ -1126,9 +1126,6 @@
   },
   "components": {
     "schemas": {
-      "AccountLevel": {
-        "type": "integer"
-      },
       "ApiResponse": {
         "type": "object",
         "properties": {
@@ -1175,6 +1172,12 @@
             "$ref": "#/components/schemas/NullableOfJsonElement"
           },
           "avatarUrl": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "accountLevel": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "sendNotification": {
             "$ref": "#/components/schemas/NullableOfJsonElement"
           }
         }
@@ -1513,10 +1516,10 @@
             "nullable": true
           },
           "status": {
-            "$ref": "#/components/schemas/UserStatus"
+            "type": "string"
           },
           "level": {
-            "$ref": "#/components/schemas/AccountLevel"
+            "type": "string"
           }
         }
       },
@@ -1550,6 +1553,21 @@
           },
           "name": {
             "type": "string"
+          },
+          "logoUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "usersCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxUsers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
           }
         }
       },
@@ -1571,9 +1589,6 @@
             "format": "int32"
           }
         }
-      },
-      "UserStatus": {
-        "type": "integer"
       },
       "VerifyEmailRequestBody": {
         "required": [

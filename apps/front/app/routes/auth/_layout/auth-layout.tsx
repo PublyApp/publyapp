@@ -17,9 +17,11 @@ import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import {
 	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
 	LAST_USED_TENANT_ID_COOKIE_KEY,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 
 export const loader = getServerLoader({
 	loader: async ({ request }) => {
@@ -59,6 +61,12 @@ export const loader = getServerLoader({
 
 export const clientLoader = getClientLoader({
 	loader: async ({ serverLoader }) => {
+		i18next
+			.loadNamespaces([I18N_NAMESPACES.ZOD, I18N_NAMESPACES.RESPONSE_MESSAGE])
+			.catch((error) => {
+				isoLogger.error('Failed to load namespaces', error);
+			});
+
 		const serverData = await serverLoader<typeof loader>();
 
 		if (serverData.status === 'HAS_AUTH_TOKEN') {
@@ -72,7 +80,13 @@ export const clientLoader = getClientLoader({
 					(result) => result.status === 'error',
 				);
 
-				if (_.some(errors, (error) => error.error.message === 'Unauthorized')) {
+				if (
+					_.some(
+						errors,
+						(error) =>
+							_.toLower(error.error.message) === _.toLower('Unauthorized'),
+					)
+				) {
 					const sessionTokenCookie = cookie.serialize(
 						SESSION_TOKEN_COOKIE_KEY,
 						'',
@@ -130,7 +144,6 @@ export const clientLoader = getClientLoader({
 			}
 		}
 
-		i18next.loadNamespaces(['zod', 'response-message']);
 		return null;
 	},
 });

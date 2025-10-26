@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentValidation;
 using MainApi.Localization;
+using MainApi.Src.Features.Common.Email;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
@@ -111,7 +112,9 @@ public class ResetPassword {
 		[FromBody] ResetPasswordBody body,
 		[FromServices] IUserService userService,
 		[FromServices] IPasswordService passwordService,
-		CancellationToken cancellationToken = default
+		[FromServices] IEmailService emailService,
+		[FromServices] ILogger<ResetPassword> logger,
+		CancellationToken cancellationToken
 	) {
 		// Get validated string values
 		string id = body.GetId();
@@ -156,6 +159,15 @@ public class ResetPassword {
 		user.PasswordResetTokenExpiresAt = null;
 
 		await userService.UpdateUserAsync(user, cancellationToken);
+
+		// Send email asynchronously with proper error handling
+		// We don't await this because we want to return the response immediately
+		_ = emailService.SendPasswordResetNotificationEmail(user.Email)
+			.ContinueWith(t => {
+				if (t.Exception != null) {
+					logger.LogError(t.Exception, "Error sending password reset notification email to {Email}", user.Email);
+				}
+			}, cancellationToken);
 
 		return TypedResults.Ok(new ResetPasswordResult {
 			Status = "success"

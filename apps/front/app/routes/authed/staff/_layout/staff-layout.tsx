@@ -22,7 +22,7 @@ const StaffLayout = () => {
 					// children: [],
 				},
 				{
-					title: t('tenants'),
+					title: t('organizations'),
 					path: FRONT_PATH_NAMES.staff.tenants.root,
 					icon: ICONS.banking,
 					deepActiveMatch: true,

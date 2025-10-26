@@ -101,15 +101,15 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		// Database-level account type constraints
 		modelBuilder.Entity<UserAccount>()
 			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Staff_Constraints",
-				"(account_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR account_scope != 0"));
+				"(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
 
 		modelBuilder.Entity<UserAccount>()
 			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints",
-				"(account_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR account_scope != 1"));
+				"(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
 
 		modelBuilder.Entity<UserAccount>()
 			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Project_Constraints",
-				"(account_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR account_scope != 2"));
+				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
 
 		// Database-level profile type constraints
 		modelBuilder.Entity<Profile>()
@@ -136,7 +136,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasFilter("\"is_deleted\" = false");
 
 		modelBuilder.Entity<UserAccount>()
-			.HasIndex(u => new { u.UserId, u.AccountScope })
+			.HasIndex(u => new { u.UserId, u.Scope })
 			.HasDatabaseName("ix_user_accounts_user_id_account_type_active")
 			.HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
 
