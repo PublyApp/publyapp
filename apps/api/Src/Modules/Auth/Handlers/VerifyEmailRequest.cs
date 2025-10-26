@@ -53,7 +53,7 @@ public class VerifyEmailRequest {
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<VerifyEmailRequest> logger,
 		[FromServices] IOptions<AppSettings> appSettings,
-		CancellationToken cancellationToken = default
+		CancellationToken cancellationToken
 	) {
 		// check if user exists
 		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken).ConfigureAwait(false);
@@ -75,7 +75,7 @@ public class VerifyEmailRequest {
 		) {
 			// Send email asynchronously with proper error handling
 			// We don't await this because we want to return the response immediately
-			_ = emailService.SendVerificationMail(userEmail, user.EmailVerifyToken)
+			_ = emailService.SendEmailVerificationRequest(userEmail, user.EmailVerifyToken)
 				.ContinueWith(t => {
 					if (t.Exception != null) {
 						logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
@@ -85,7 +85,7 @@ public class VerifyEmailRequest {
 			return TypedResults.Ok(new VerifyEmailRequestResult());
 		}
 
-		var emailVerifyToken = CryptoUtils.RandomString(25);
+		var emailVerifyToken = CryptoUtils.RandomString(appSettings.Value.EMAIL_VERIFY_TOKEN_LENGTH);
 		var emailVerifyTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.EMAIL_VERIFY_TOKEN_VALIDITY_DURATION);
 
 		user.IsVerified = false;
@@ -96,7 +96,7 @@ public class VerifyEmailRequest {
 
 		// Send email asynchronously with proper error handling
 		// We don't await this because we want to return the response immediately
-		_ = emailService.SendVerificationMail(userEmail, user.EmailVerifyToken)
+		_ = emailService.SendEmailVerificationRequest(userEmail, user.EmailVerifyToken)
 			.ContinueWith(t => {
 				if (t.Exception != null) {
 					logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
