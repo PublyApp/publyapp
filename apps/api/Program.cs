@@ -19,6 +19,7 @@ AppEnvironment.LoadEnv();
 
 builder.ConfigureLogger();
 builder.AddServices();
+builder.AddCors();
 
 var app = builder.Build();
 

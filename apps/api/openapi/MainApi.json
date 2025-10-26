@@ -185,6 +185,16 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -212,7 +222,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetTenantAuthDataResult"
+                  "$ref": "#/components/schemas/Tenant"
                 }
               }
             }
@@ -229,6 +239,16 @@
           },
           "500": {
             "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -5372,6 +5392,235 @@
         }
       }
     },
+    "/auth/redirect-code": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get Redirect Code",
+        "operationId": "GetRedirectCode",
+        "parameters": [
+          {
+            "name": "TenantId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetRedirectCodeResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/check-email-verification-token": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Check Email Verification Token",
+        "operationId": "CheckEmailVerificationToken",
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckEmailVerificationTokenResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/check-reset-password-token": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Check Reset Password Token",
+        "operationId": "CheckResetPasswordToken",
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckResetPasswordTokenResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Reset Password",
+        "operationId": "ResetPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetPasswordResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/tenants": {
       "post": {
         "tags": [
@@ -5564,6 +5813,126 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "Tenants"
+        ],
+        "summary": "Find tenants with pagination",
+        "operationId": "FindTenants",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantAsStaffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/tenants/{tenantId}": {
+      "get": {
+        "tags": [
+          "Tenants"
+        ],
+        "summary": "Get a tenant by id",
+        "operationId": "GetTenantById",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTenantAsStaffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/staff/staff-members": {
@@ -5622,16 +5991,43 @@
         ],
         "summary": "Find staff members",
         "operationId": "FindStaffMembers",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/StaffMemberItem"
-                  }
+                  "$ref": "#/components/schemas/FindStaffMembersResult"
                 }
               }
             }
@@ -5683,6 +6079,85 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetStaffMemberByIdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/profiles/tenant/{tenantId}": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Find profiles",
+        "operationId": "FindProfiles",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindTenantProfilesAsStaffResult"
                 }
               }
             }
@@ -7257,6 +7732,28 @@
           }
         }
       },
+      "CheckEmailVerificationTokenResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "resetPasswordLink": {
+            "type": "string"
+          }
+        }
+      },
+      "CheckResetPasswordTokenResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        }
+      },
       "CreateStaffMemberBody": {
         "type": "object",
         "properties": {
@@ -7687,6 +8184,12 @@
             "$ref": "#/components/schemas/NullableOfJsonElement"
           },
           "avatarUrl": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "accountLevel": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "sendNotification": {
             "$ref": "#/components/schemas/NullableOfJsonElement"
           }
         }
@@ -8396,40 +8899,6 @@
           }
         }
       },
-      "Permission": {
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "scope": {
-            "$ref": "#/components/schemas/PermissionScope"
-          },
-          "profilePermissions": {
-            "type": "array",
-            "items": { }
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
-      "PermissionScope": {
-        "type": "integer"
-      },
       "Product": {
         "type": "object",
         "properties": {
@@ -8473,7 +8942,8 @@
         "properties": {
           "id": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "nullable": true
           },
           "email": {
             "type": "string"
@@ -8998,55 +9468,15 @@
           }
         }
       },
-      "Profile": {
+      "ProfileAsStaffItem": {
         "type": "object",
         "properties": {
-          "tenantId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "tenant": {
-            "$ref": "#/components/schemas/Tenant"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string",
-            "nullable": true
-          },
-          "profileType": {
-            "$ref": "#/components/schemas/ProfileType"
-          },
-          "userAccountProfiles": {
-            "type": "array",
-            "items": { }
-          },
-          "profilePermissions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProfilePermission"
-            }
-          },
           "id": {
             "type": "string",
             "format": "uuid"
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -9068,80 +9498,34 @@
           }
         }
       },
-      "ProfilePermission": {
+      "ResetPasswordBody": {
+        "required": [
+          "id",
+          "token",
+          "newPassword",
+          "confirmPassword"
+        ],
         "type": "object",
         "properties": {
-          "profileId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "permissionKey": {
-            "type": "string"
-          },
-          "permission": {
-            "$ref": "#/components/schemas/Permission"
-          },
           "id": {
-            "type": "string",
-            "format": "uuid"
+            "$ref": "#/components/schemas/JsonElement"
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "token": {
+            "$ref": "#/components/schemas/JsonElement"
           },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
+          "newPassword": {
+            "$ref": "#/components/schemas/JsonElement"
           },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+          "confirmPassword": {
+            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },
-      "ProfileType": {
-        "type": "integer"
-      },
-      "Session": {
+      "ResetPasswordResult": {
         "type": "object",
         "properties": {
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "token": {
+          "status": {
             "type": "string"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
           }
         }
       },
@@ -9166,216 +9550,79 @@
           "avatarUrl": {
             "type": "string",
             "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
           }
         }
       },
       "Tenant": {
-        "required": [
-          "code",
-          "name"
-        ],
         "type": "object",
         "properties": {
-          "code": {
-            "type": "string"
+          "id": {
+            "type": "string",
+            "format": "uuid"
           },
           "name": {
             "type": "string"
           },
-          "userAccounts": {
+          "code": {
+            "type": "string"
+          },
+          "profiles": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/UserAccount"
+              "$ref": "#/components/schemas/ProfileItem"
             }
-          },
+          }
+        }
+      },
+      "TenantAsStaffItem": {
+        "type": "object",
+        "properties": {
           "id": {
             "type": "string",
             "format": "uuid"
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "name": {
+            "type": "string"
           },
-          "updatedAt": {
+          "logoUrl": {
             "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
             "nullable": true
+          },
+          "usersCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxUsers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "type": "string"
           }
         }
       },
-      "User": {
+      "TenantAsStaffResult": {
         "required": [
-          "email",
-          "password"
+          "tenants",
+          "count"
         ],
         "type": "object",
         "properties": {
-          "lastName": {
-            "type": "string",
-            "nullable": true
-          },
-          "firstName": {
-            "type": "string",
-            "nullable": true
-          },
-          "email": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          },
-          "avatarUrl": {
-            "type": "string",
-            "nullable": true
-          },
-          "isSuspended": {
-            "type": "boolean"
-          },
-          "isVerified": {
-            "type": "boolean"
-          },
-          "emailVerifyToken": {
-            "type": "string",
-            "nullable": true
-          },
-          "emailVerifyTokenExpiresAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "userAccounts": {
-            "type": "array",
-            "items": { }
-          },
-          "sessions": {
+          "tenants": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Session"
+              "$ref": "#/components/schemas/TenantAsStaffItem"
             }
           },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
-      "UserAccount": {
-        "required": [
-          "userId",
-          "tenantId"
-        ],
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "user": {
-            "$ref": "#/components/schemas/User"
-          },
-          "tenantId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "tenant": {
-            "$ref": "#/components/schemas/Tenant"
-          },
-          "accountType": {
-            "$ref": "#/components/schemas/AccountType"
-          },
-          "hierarchyLevel": {
-            "$ref": "#/components/schemas/AccountHierarchyLevel"
-          },
-          "isSuspended": {
-            "type": "boolean"
-          },
-          "userAccountProfiles": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/UserAccountProfile"
-            }
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        }
-      },
-      "UserAccountProfile": {
-        "type": "object",
-        "properties": {
-          "userAccountId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "userAccount": {
-            "$ref": "#/components/schemas/UserAccount"
-          },
-          "profileId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "profile": {
-            "$ref": "#/components/schemas/Profile"
-          },
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "isDeleted": {
-            "type": "boolean"
-          },
-          "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+          "count": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -9997,6 +10244,9 @@
     },
     {
       "name": "Staff Members"
+    },
+    {
+      "name": "Profiles"
     },
     {
       "name": "Products"

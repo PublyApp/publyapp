@@ -63,7 +63,7 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 		mode: 'onSubmit',
 		resolver: zodResolver(NewUserSchema),
 		defaultValues,
-		values: currentUser
+		values: isEdit
 			? {
 					...currentUser,
 					avatar: currentUser.avatar,
@@ -96,7 +96,7 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 		onSuccess: () => {
 			reset();
 			toast.success(
-				currentUser
+				isEdit
 					? 'Update success!'
 					: _.capitalize(
 							t('item-creation-success-message', { item: t('staff-member') }),
@@ -130,9 +130,14 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 			if (_.isNil(fieldValue) || _.isEmpty(fieldValue)) {
 				finalValue = 'N/A';
 			} else {
-				finalValue = _.isString(fieldValue)
-					? fieldValue
-					: JSON.stringify(fieldValue);
+				if (_.isObject(fieldValue)) {
+					finalValue = JSON.stringify(fieldValue);
+				} else {
+					finalValue = _.toString(fieldValue);
+				}
+			}
+			if (_.isBoolean(fieldValue)) {
+				finalValue = fieldValue ? t('yes') : t('no');
 			}
 			if (fieldValue instanceof File) {
 				finalValue = fieldValue.name;
@@ -143,6 +148,8 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 			};
 		})
 		.value();
+
+	// isoLogger.debug('confirmValues', confirmValues);
 
 	return (
 		<>

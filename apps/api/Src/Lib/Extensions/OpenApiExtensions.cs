@@ -41,4 +41,3 @@ public static class OpenApiExtensions {
 		return builder.Produces<ApiResponse>(StatusCodes.Status500InternalServerError, "application/json");
 	}
 }
-
