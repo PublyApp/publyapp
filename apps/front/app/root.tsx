@@ -44,8 +44,6 @@ export const links: Route.LinksFunction = () => {
 };
 
 export const meta: Route.MetaFunction = () => {
-	// const isDevelopment = import.meta.env.DEV;
-
 	return [
 		{ title: APP_NAME },
 		{ name: 'description', content: 'PDF Vite Application' },

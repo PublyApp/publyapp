@@ -34,21 +34,33 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import {
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
-} from '@/front/lib/react-query/features/auth/auth.hooks';
-import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
-import {
-	DEFAULT_PAGE_SIZE,
-	FRONT_PATH_NAMES,
-	roleEnum,
-} from '@/shared/lib/constants';
+} from '@/front/lib/react-query/features/common/auth.hooks';
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 import { getUserFullName } from '@/shared/utils/user.utils';
+
+const UserStatus = {
+	Inactive: 10,
+	Pending: 20,
+	Suspended: 30,
+	Active: 40,
+	Deleted: 50,
+} as const;
+
+const statusMapLabel: Record<number, string> = {
+	[UserStatus.Inactive]: 'inactive',
+	[UserStatus.Pending]: 'pending',
+	[UserStatus.Suspended]: 'suspended',
+	[UserStatus.Active]: 'active',
+	[UserStatus.Deleted]: 'deleted',
+};
 
 export type TenantUserRowData = {
 	id: string;
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	role: string;
+	// role: string;
 	status: string;
 	email: string;
 };
@@ -89,11 +101,11 @@ const TenantUsersTable = () => {
 					enableSorting: false,
 				},
 			),
-			columnHelper.accessor('role', {
-				header: t('role'),
-				Cell: RoleCell,
-				size: 70,
-			}),
+			// columnHelper.accessor('role', {
+			// 	header: t('role'),
+			// 	Cell: RoleCell,
+			// 	size: 70,
+			// }),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
@@ -113,16 +125,16 @@ const TenantUsersTable = () => {
 	});
 
 	const rows: TenantUserRowData[] = useMemo(() => {
-		if (!data?.rows) return [];
+		if (!data?.staffMembers) return [];
 
-		return _.map(data.rows, (staffMember) => {
+		return _.map(data.staffMembers, (staffMember) => {
 			return {
-				id: staffMember.objectId,
+				id: staffMember.id || '',
 				avatarUrl: staffMember.avatarUrl || '',
 				firstName: staffMember.firstName || '',
 				lastName: staffMember.lastName || '',
-				role: staffMember.roleData?.role || '',
-				status: staffMember.status || '',
+				// role: staffMember.roleData?.role || '',
+				status: statusMapLabel[staffMember.status || 0] || '',
 				email: staffMember.email || '',
 			};
 		});
@@ -258,34 +270,34 @@ const StatusCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (
 	);
 };
 
-const RoleCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
-	const { t } = useTranslate();
+// const RoleCell: MRT_ColumnDef<TenantUserRowData, string>['Cell'] = (props) => {
+// 	const { t } = useTranslate();
 
-	const role = props.cell.getValue();
+// 	const role = props.cell.getValue();
 
-	let t_message: string = t('unknown-item', { item: 'role' });
-	let color: LabelColor = 'default';
+// 	const t_message: string = t('unknown-item', { item: 'role' });
+// 	const color: LabelColor = 'default';
 
-	if (role === roleEnum.STAFF_ADMIN.name) {
-		t_message = t('admin');
-		color = 'success';
-	} else if (role === roleEnum.STAFF_EDITOR.name) {
-		t_message = t('editor');
-		color = 'info';
-	} else if (role === roleEnum.STAFF_USER.name) {
-		t_message = t('user');
-		color = 'warning';
-	} else if (role === roleEnum.STAFF_CONTRIBUTOR.name) {
-		t_message = t('contributor');
-		color = 'error';
-	}
+// 	// if (role === /* roleEnum.STAFF_ADMIN.name */ '') {
+// 	// 	t_message = t('admin');
+// 	// 	color = 'success';
+// 	// } else if (role === /* roleEnum.STAFF_EDITOR.name */ '') {
+// 	// 	t_message = t('editor');
+// 	// 	color = 'info';
+// 	// } else if (role === /* roleEnum.STAFF_USER.name */ '') {
+// 	// 	t_message = t('user');
+// 	// 	color = 'warning';
+// 	// } else if (role === /* roleEnum.STAFF_CONTRIBUTOR.name */ '') {
+// 	// 	t_message = t('contributor');
+// 	// 	color = 'error';
+// 	// }
 
-	return (
-		<Label variant="soft" color={color}>
-			{t_message}
-		</Label>
-	);
-};
+// 	return (
+// 		<Label variant="soft" color={color}>
+// 			{t_message}
+// 		</Label>
+// 	);
+// };
 
 const ALLOW_COPY_LINK = false;
 
@@ -452,6 +464,7 @@ const FollowUpButton = ({
 			onClose?.();
 		},
 		onError: (_error) => {
+			console.error(_error);
 			// if (error instanceof ParseRestError) {
 			// 	toast.error(error.message);
 			// 	return;

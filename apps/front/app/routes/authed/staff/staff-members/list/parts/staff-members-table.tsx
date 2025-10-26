@@ -16,7 +16,6 @@ import {
 	type MRT_SortingState,
 } from 'material-react-table';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 import { useMemo } from 'react';
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { CustomPopover } from '@/front/components/custom-popover/custom-popover';
@@ -29,14 +28,17 @@ import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import {
+	useGetUserAuthData,
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
-} from '@/front/lib/react-query/features/auth/auth.hooks';
-import { useFindStaffMember } from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
+} from '@/front/lib/react-query/features/common/auth.hooks';
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import type { StaffMemberItem } from '@/js-client/src/models';
 import {
+	ACCOUNT_LEVEL_ENUM,
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
-	roleEnum,
+	USER_STATUS_ENUM,
 } from '@/shared/lib/constants';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
@@ -45,9 +47,23 @@ export type StaffMemberRowData = {
 	avatarUrl: string;
 	firstName: string;
 	lastName: string;
-	role: string;
+	level: string;
 	status: string;
 	email: string;
+};
+
+const StaffMemberRowDataMapper = (
+	staffMember: StaffMemberItem,
+): StaffMemberRowData => {
+	return {
+		id: staffMember.id || '',
+		avatarUrl: staffMember.avatarUrl || '',
+		firstName: staffMember.firstName || '',
+		lastName: staffMember.lastName || '',
+		level: staffMember.level || '',
+		status: staffMember.status || '',
+		email: staffMember.email || '',
+	};
 };
 
 const columnHelper = createMRTColumnHelper<StaffMemberRowData>();
@@ -81,21 +97,19 @@ const StaffMembersTable = () => {
 					id: 'fullName',
 					header: t('name'),
 					Cell: UserCell,
-					// grow: 1,
 					size: 300,
 					enableSorting: false,
 				},
 			),
-			columnHelper.accessor('role', {
-				header: t('role'),
-				Cell: RoleCell,
+			columnHelper.accessor('level', {
+				header: t('level'),
+				Cell: LevelCell,
 				size: 70,
 			}),
 			columnHelper.accessor('status', {
 				header: t('status'),
 				Cell: StatusCell,
 				size: 70,
-				enableSorting: false,
 			}),
 			columnHelper.display({
 				header: 'Actions',
@@ -110,19 +124,7 @@ const StaffMembersTable = () => {
 	});
 
 	const rows: StaffMemberRowData[] = useMemo(() => {
-		if (!data?.rows) return [];
-
-		return _.map(data.rows, (staffMember) => {
-			return {
-				id: staffMember.objectId,
-				avatarUrl: staffMember.avatarUrl || '',
-				firstName: staffMember.firstName || '',
-				lastName: staffMember.lastName || '',
-				role: staffMember.roleData?.role || '',
-				status: staffMember.status || '',
-				email: staffMember.email || '',
-			};
-		});
+		return _.map(data?.staffMembers, StaffMemberRowDataMapper);
 	}, [data]);
 
 	const table = useMRTTable('default', {
@@ -157,10 +159,15 @@ export default StaffMembersTable;
 // ----------------------------------------------------------------------
 
 const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
+	const { t } = useTranslate();
+
 	const userId = props.row.original.id;
-	const fullName = props.cell.getValue();
+	const fullName = _.trim(props.cell.getValue()) || t('un-named');
 	const avatarUrl = props.row.original.avatarUrl;
 	const email = props.row.original.email;
+
+	const { data: userAuthData } = useGetUserAuthData();
+	const isMe = userAuthData.id === userId;
 
 	return (
 		<Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
@@ -169,14 +176,17 @@ const UserCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
 			<Stack
 				sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}
 			>
-				<Link
-					component={RouterLink}
-					href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
-					color="inherit"
-					sx={{ cursor: 'pointer' }}
-				>
-					{fullName}
-				</Link>
+				<Stack direction="row" spacing={1} alignItems="center">
+					<Link
+						component={RouterLink}
+						href={FRONT_PATH_NAMES.staff.staffMembers.details(userId)}
+						color="inherit"
+						sx={{ cursor: 'pointer' }}
+					>
+						{fullName}
+					</Link>
+					{isMe && <Label variant="inverted">me</Label>}
+				</Stack>
 				<Box component="span" sx={{ color: 'text.disabled' }}>
 					{email}
 				</Box>
@@ -195,15 +205,24 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	let t_message: string = t('unknown-item', { item: 'status' });
 	let color: LabelColor = 'default';
 
-	if (status === 'active') {
+	if (status === USER_STATUS_ENUM.ACTIVE) {
 		t_message = t('active');
 		color = 'success';
-	} else if (status === 'pending') {
+	} else if (status === USER_STATUS_ENUM.PENDING) {
 		t_message = t('pending');
 		color = 'warning';
-	} else if (status === 'banned') {
+	} else if (status === USER_STATUS_ENUM.BANNED) {
 		t_message = t('banned');
 		color = 'error';
+	} else if (status === USER_STATUS_ENUM.SUSPENDED) {
+		t_message = t('suspended');
+		color = 'warning';
+	} else if (status === USER_STATUS_ENUM.DELETED) {
+		t_message = t('deleted');
+		color = 'error';
+	} else if (status === USER_STATUS_ENUM.INACTIVE) {
+		t_message = t('inactive');
+		color = 'default';
 	}
 
 	return (
@@ -213,26 +232,22 @@ const StatusCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
 	);
 };
 
-const RoleCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (props) => {
+const LevelCell: MRT_ColumnDef<StaffMemberRowData, string>['Cell'] = (
+	props,
+) => {
 	const { t } = useTranslate();
 
-	const role = props.cell.getValue();
+	const level = props.cell.getValue();
 
 	let t_message: string = t('unknown-item', { item: 'role' });
 	let color: LabelColor = 'default';
 
-	if (role === roleEnum.STAFF_ADMIN.name) {
+	if (level === ACCOUNT_LEVEL_ENUM.ADMIN) {
 		t_message = t('admin');
 		color = 'success';
-	} else if (role === roleEnum.STAFF_EDITOR.name) {
-		t_message = t('editor');
-		color = 'info';
-	} else if (role === roleEnum.STAFF_USER.name) {
+	} else if (level === ACCOUNT_LEVEL_ENUM.USER) {
 		t_message = t('user');
 		color = 'warning';
-	} else if (role === roleEnum.STAFF_CONTRIBUTOR.name) {
-		t_message = t('contributor');
-		color = 'error';
 	}
 
 	return (
@@ -246,7 +261,7 @@ const ALLOW_COPY_LINK = false;
 
 const UserActionsCell: MRT_ColumnDef<StaffMemberRowData>['Cell'] = (props) => {
 	const userId = props.row.original.id;
-	const isUserPending = props.row.original.status === 'pending';
+	const isUserPending = props.row.original.status === USER_STATUS_ENUM.PENDING;
 
 	const menuActions = usePopover();
 	const confirmDialog = useBoolean();
@@ -407,10 +422,11 @@ const FollowUpButton = ({
 			onClose?.();
 		},
 		onError: (error) => {
-			if (error instanceof ParseRestError) {
-				toast.error(error.message);
-				return;
-			}
+			console.error(error);
+			// if (error instanceof ParseRestError) {
+			// 	toast.error(error.message);
+			// 	return;
+			// }
 			toast.error(t('email-verification-follow-up-error'));
 			onClose?.();
 		},

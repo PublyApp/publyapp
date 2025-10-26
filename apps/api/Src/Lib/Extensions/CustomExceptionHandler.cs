@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using System.Text.RegularExpressions;
+using MainApi.Localization;
 
 namespace MainApi.Src.Lib.Extensions;
 
@@ -11,7 +12,7 @@ public static class CustomExceptionHandler {
 				context.Response.StatusCode = StatusCodes.Status500InternalServerError;
 
 				var message = "Internal server error";
-				var key = "internal-server-error";
+				var key = ResponseKeys.InternalServerError;
 
 				var exceptionHandlerFeature = context.Features.Get<IExceptionHandlerFeature>();
 				var exceptionType = exceptionHandlerFeature?.Error;
@@ -23,7 +24,7 @@ public static class CustomExceptionHandler {
 							&& badRequestException.Message.Contains("was not provided from body")
 						) {
 						message = "Request body is missing";
-						key = "request-body-missing";
+						key = ResponseKeys.RequestBodyMissing;
 						context.Response.StatusCode = StatusCodes.Status400BadRequest;
 					}
 
@@ -37,12 +38,12 @@ public static class CustomExceptionHandler {
 						var parameterName = match.Success ? match.Groups[1].Value : "unknown";
 
 						message = $"Query parameter '{parameterName}' is missing";
-						key = "query-parameter-missing";
+						key = ResponseKeys.QueryParametersMissing;
 						context.Response.StatusCode = StatusCodes.Status400BadRequest;
 					}
 				}
 
-				var response = new { message, key };
+				var response = new ApiResponse { Message = message, Key = key };
 				await context.Response.WriteAsJsonAsync(response);
 			});
 		});

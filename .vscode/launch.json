@@ -4,7 +4,9 @@
 		{
 			"name": "Attach to MainApi",
 			"type": "coreclr",
-			"request": "attach"
+			"request": "attach",
+			"processId": "${command:pickProcess}",
+			"justMyCode": false
 		},
 		{
 			"type": "node",

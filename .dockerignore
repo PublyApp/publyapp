@@ -1,0 +1,75 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Environment files
+.env
+.env.*
+!.env.production
+env.example
+
+# Node modules (will be installed in container)
+node_modules/
+**/node_modules/
+
+# Build outputs
+build/
+dist/
+**/build/
+**/dist/
+
+# Logs
+logs/
+*.log
+**/logs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Development files
+.vite/
+**/.vite/
+
+# Test files
+**/*.test.*
+**/*.spec.*
+coverage/
+
+# Temporary files
+tmp/
+temp/
+**/tmp/
+**/temp/
+
+# Package manager files (will be copied separately)
+# pnpm-lock.yaml - needed for frozen-lockfile
+package-lock.json
+yarn.lock
+
+# .NET specific
+bin/
+obj/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.cache

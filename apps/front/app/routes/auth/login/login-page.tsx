@@ -7,6 +7,7 @@ import { data, redirect, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { clientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerAction } from '@/front/lib/react-router/server-data.server';
 import {
@@ -28,13 +29,12 @@ export const meta = (_: Route.MetaArgs) => {
 export type LoginActionResult = Awaited<ReturnType<typeof action>>['data'];
 
 export const action = getServerAction({
-	action: async ({ request, apiClient }) => {
+	action: async ({ request, apiClient, context }) => {
 		const formData = await request.formData();
 
 		const email = formData.get('email');
 		const password = formData.get('password');
 
-		// const passwordLogin = safeRun(apiClient.auth.passwordLogin);
 		const passwordLogin = safeRun(
 			async ({ email, password }: { email: string; password: string }) => {
 				return apiClient.auth.login.post({
@@ -60,57 +60,65 @@ export const action = getServerAction({
 			});
 		}
 
-		const resHeaders = new Headers();
+		const responseHeaders = new Headers();
 
 		const cookieOptions = {
 			expires: loginResult.data?.sessionExpiresAt || new Date(),
-			maxAge: dayjs(loginResult.data?.sessionExpiresAt).diff(dayjs(), 'days'),
+			maxAge: dayjs(loginResult.data?.sessionExpiresAt).diff(
+				dayjs(),
+				'seconds',
+			),
 		};
 
 		const sessionToken = loginResult.data?.sessionToken || '';
 
-		console.log('👍👍👍👍', cookieOptions, {
-			sessionToken,
-		});
-
 		const sessionTokenCookie = cookie.serialize(
 			SESSION_TOKEN_COOKIE_KEY,
-			// loginResult.data.sessionToken,
 			sessionToken,
 			cookieOptions,
-			// {
-			// 	// expires: dayjs().add(3, 'day').toDate(),
-			// 	// maxAge: duration.toSeconds('3d'),
-			// },
 		);
-		resHeaders.append('Set-Cookie', sessionTokenCookie);
-
-		// apiClient.parseRestClient.setSessionToken(sessionToken);
+		responseHeaders.append('Set-Cookie', sessionTokenCookie);
 
 		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
-		// @ts-ignore
-		const _tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
+		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
-		// const { code } = await apiClient.auth.getRedirectCode({ tenantId });
-		const code = 'staff'; // TODO: implement getRedirectCode in the ASP back-end
+		const authedApiClient = clientManager.createApiClient(sessionToken);
 
-		let redirectPath = makePath(code);
+		const getRedirectCode = safeRun(async () => {
+			return authedApiClient.auth.redirectCode.get({
+				queryParameters: { tenantId },
+			});
+		});
+		const getRedirectCodeResult = await getRedirectCode();
 
-		if (code !== 'staff' && code !== 'unauthorized') {
+		if (getRedirectCodeResult.status === 'error') {
+			context.logger.error('Failed to get redirect code', {
+				error: serializeError(getRedirectCodeResult.error),
+			});
+			// throw a generic error
+			throw new Error('Failed to login');
+		}
+
+		const redirectCode =
+			getRedirectCodeResult.data?.redirectCode || 'unauthorized';
+
+		let redirectPath = makePath(redirectCode);
+
+		if (redirectCode !== 'staff' && redirectCode !== 'unauthorized') {
 			const lastUsedTenantIdCookie = cookie.serialize(
 				LAST_USED_TENANT_ID_COOKIE_KEY,
-				code,
+				redirectCode,
 				{
 					expires: dayjs().add(3, 'day').toDate(),
 					maxAge: duration.toSeconds('3d'),
 				},
 			);
-			resHeaders.append('Set-Cookie', lastUsedTenantIdCookie);
-			redirectPath = FRONT_PATH_NAMES.tenant(code).root;
+			responseHeaders.append('Set-Cookie', lastUsedTenantIdCookie);
+			redirectPath = FRONT_PATH_NAMES.tenant(redirectCode).root;
 		}
 
 		return redirect(redirectPath, {
-			headers: resHeaders,
+			headers: responseHeaders,
 		}) as never;
 	},
 });

@@ -1,3 +1,23 @@
+import { Field } from '@/front/components/hook-form/fields';
+import { Form } from '@/front/components/hook-form/form-provider';
+import { toast } from '@/front/components/snackbar';
+import { useRouter } from '@/front/hooks/use-router';
+import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { isJsClientError } from '@/front/lib/js-client/js-client-error';
+import {
+	useCreateStaffMember,
+	useFindStaffMember,
+} from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import { defaultZodClient } from '@/front/lib/zod/zod.client';
+import { fData } from '@/front/utils/format-number';
+import {
+	ACCOUNT_LEVEL_ENUM,
+	type AccountLevel,
+	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
+} from '@/shared/lib/constants';
+import { mbToBytes } from '@/shared/utils/any.utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -16,30 +36,12 @@ import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import type zod from 'zod';
-import { Field } from '@/front/components/hook-form/fields';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import {
-	useCreateStaffMember,
-	useFindStaffMember,
-} from '@/front/lib/react-query/features/staff-member/staff-member.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { fData } from '@/front/utils/format-number';
-import {
-	FRONT_PATH_NAMES,
-	type RoleName,
-	roleEnum,
-} from '@/shared/lib/constants';
-import { mbToBytes } from '@/shared/utils/any.utils';
 
-type IUserItem = {
+type UserNewEditData = {
 	id: string;
 	firstName?: string;
 	lastName: string;
-	role: RoleName;
+	accountLevel: AccountLevel;
 	email: string;
 	status: string;
 	avatar?: string;
@@ -54,41 +56,34 @@ type NewUserSchemaType = Prettify<
 // ----------------------------------------------------------------------
 
 type Props = {
-	currentUser?: IUserItem;
+	currentUser?: UserNewEditData;
 };
 
-const ROLE_OPTIONS = _.chain(roleEnum)
-	.pickBy((value) => {
-		return _.startsWith(value.name, 'STAFF_');
-	})
-	.map((value) => {
-		return {
-			value: value.name,
-			label: value.name,
-		};
-	})
-	.value();
+const ACCOUNT_LEVEL_OPTIONS = _.values(ACCOUNT_LEVEL_ENUM);
 
 const defaultValues: NewUserSchemaType = {
 	avatar: undefined,
 	firstName: '',
 	lastName: '',
 	email: '',
-	role: roleEnum.STAFF_CONTRIBUTOR.name,
+	accountLevel: ACCOUNT_LEVEL_ENUM.USER,
+	sendNotification: false,
 };
 
 export const UserNewEditForm = ({ currentUser }: Props) => {
+	const isEdit = !!currentUser;
+
 	const { t, i18n } = useTranslate();
 	const router = useRouter();
 	const openDialog = useBoolean();
 
 	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
 
-	const methods = useForm<NewUserSchemaType>({
+	const form = useForm<NewUserSchemaType>({
 		mode: 'onSubmit',
 		resolver: zodResolver(NewUserSchema),
 		defaultValues,
-		values: currentUser
+		values: isEdit
 			? {
 					...currentUser,
 					avatar: currentUser.avatar,
@@ -100,9 +95,9 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		reset,
 		handleSubmit,
 		formState: { isSubmitting },
-	} = methods;
+	} = form;
 
-	useSyncFormToLang(i18n.language, methods);
+	useSyncFormToLang(i18n.language, form);
 
 	const handleCloseDialog = openDialog.onFalse;
 
@@ -116,7 +111,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		onSuccess: () => {
 			reset();
 			toast.success(
-				currentUser
+				isEdit
 					? 'Update success!'
 					: _.capitalize(
 							t('item-creation-success-message', { item: t('staff-member') }),
@@ -126,7 +121,15 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
 		},
 		onError: (error) => {
-			toast.error(error.message);
+			if (isJsClientError(error)) {
+				toast.error(
+					error.key
+						? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
+						: error.messageEscaped,
+				);
+				return;
+			}
+			toast.error(_.trim(error.message) || t('unknown-error'));
 		},
 	});
 
@@ -134,7 +137,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		createStaffMember(data);
 	});
 
-	const confirmValues = _.chain(methods.getValues())
+	const confirmValues = _.chain(form.getValues())
 		.entries()
 		.map((value) => {
 			const [key, fieldValue] = value;
@@ -142,9 +145,14 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 			if (_.isNil(fieldValue) || _.isEmpty(fieldValue)) {
 				finalValue = 'N/A';
 			} else {
-				finalValue = _.isString(fieldValue)
-					? fieldValue
-					: JSON.stringify(fieldValue);
+				if (_.isObject(fieldValue)) {
+					finalValue = JSON.stringify(fieldValue);
+				} else {
+					finalValue = _.toString(fieldValue);
+				}
+			}
+			if (_.isBoolean(fieldValue)) {
+				finalValue = fieldValue ? t('yes') : t('no');
 			}
 			if (fieldValue instanceof File) {
 				finalValue = fieldValue.name;
@@ -156,9 +164,11 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		})
 		.value();
 
+	// isoLogger.debug('confirmValues', confirmValues);
+
 	return (
 		<>
-			<Form methods={methods} onSubmit={handleOpenDialog}>
+			<Form methods={form} onSubmit={handleOpenDialog}>
 				<Grid container spacing={3}>
 					<Grid size={{ xs: 12, md: 4 }}>
 						<Card sx={{ pt: 10, pb: 5, px: 3 }}>
@@ -275,23 +285,39 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 									rowGap: 3,
 									columnGap: 2,
 									display: 'grid',
-									gridTemplateColumns: {
-										xs: 'repeat(1, 1fr)',
-										sm: 'repeat(2, 1fr)',
-									},
 								}}
 							>
 								<Field.Text name="lastName" label={t('lastname')} required />
 								<Field.Text name="firstName" label={t('firstname')} />
-								<Field.Text name="email" label={t('email-address')} required />
-								<br />
-								<Field.Select name="role" label={t('role')} required>
+								<Stack direction="row" spacing={2}>
+									<Field.Text
+										name="email"
+										label={t('email-address')}
+										required
+									/>
+									<Field.Switch
+										name="sendNotification"
+										label={t('send-notification')}
+										slotProps={{
+											wrapper: { sx: { whiteSpace: 'nowrap' } },
+										}}
+									/>
+								</Stack>
+								<Field.Select name="accountLevel" label={t('level')} required>
+									{ACCOUNT_LEVEL_OPTIONS.map((option) => (
+										<MenuItem key={option} value={option}>
+											{option}
+										</MenuItem>
+									))}
+								</Field.Select>
+
+								{/* <Field.Select name="role" label={t('role')} required>
 									{ROLE_OPTIONS.map((option) => (
 										<MenuItem key={option.value} value={option.label}>
 											{option.label}
 										</MenuItem>
 									))}
-								</Field.Select>
+								</Field.Select> */}
 								{/* <Field.Phone
 								name="phoneNumber"
 								label="Phone number"
@@ -318,7 +344,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 									variant="contained"
 									loading={isSubmitting || isPending}
 								>
-									{!currentUser ? t('create-user') : t('save-changes')}
+									{!isEdit ? t('create-user') : t('save-changes')}
 								</Button>
 							</Stack>
 						</Card>

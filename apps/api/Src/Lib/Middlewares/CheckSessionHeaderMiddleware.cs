@@ -1,3 +1,5 @@
+using MainApi.Localization;
+
 namespace MainApi.Src.Lib.Middlewares;
 
 public class CheckSessionHeaderMiddleware {
@@ -23,10 +25,9 @@ public class CheckSessionHeaderMiddleware {
 
 		if (string.IsNullOrEmpty(token)) {
 			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;
-			await httpContext.Response.WriteAsJsonAsync(new {
-				message = "Unauthorized",
-				key = "unauthorized",
-			});
+			await httpContext.Response.WriteAsJsonAsync(
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized)
+			);
 			return;
 		}
 
@@ -38,10 +39,15 @@ public class CheckSessionHeaderMiddleware {
 
 // Extension method
 public static class CheckSessionHeaderMiddlewareExtensions {
+	private static readonly string[] _paths = [
+		RoutePath.Staff.Root,
+		RoutePath.Tenant.Root,
+		RoutePath.Auth.GetUserAuthData,
+		RoutePath.Auth.GetRedirectCode
+	];
+
 	private static bool ShouldUseSessionHeaderCheck(HttpContext context) {
-		return context.Request.Path.StartsWithSegments("/staff")
-			|| context.Request.Path.StartsWithSegments("/tenant")
-			|| context.Request.Path.StartsWithSegments("/auth/user-auth-data");
+		return _paths.Any(path => context.Request.Path.StartsWithSegments(path));
 	}
 
 	private static void ConfigureSessionHeaderCheck(IApplicationBuilder builder) {

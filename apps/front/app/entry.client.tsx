@@ -1,17 +1,28 @@
-import { StrictMode, startTransition } from 'react';
+import './lib/analytics/analytics.client'; // load analytics client
 
+import { StrictMode, startTransition } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import { HydratedRouter } from 'react-router/dom';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
+import { LogLevelEnum } from '@/shared/lib/logger/logger.utils';
 import { NonceProvider } from './hooks/use-nonce';
 import { initApiClientOnClient } from './lib/api';
 import { initI18nOnClient } from './lib/i18n/init-i18n.client';
 import { initZodOnClient } from './lib/zod/zod.client';
 
+const isDevelopment = import.meta.env.DEV;
+
 const hydrate = async () => {
+	if (isDevelopment) {
+		isoLogger.logLevel = LogLevelEnum.DEBUG;
+	} else {
+		isoLogger.logLevel = LogLevelEnum.WARN;
+	}
+
 	const i18n = await initI18nOnClient();
 	initZodOnClient(i18n);
-	initApiClientOnClient(/* i18n */);
+	initApiClientOnClient();
 
 	// Get nonce from meta tag or generate a fallback
 	const nonceMeta = document.querySelector('meta[name="csp-nonce"]');

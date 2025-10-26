@@ -1,6 +1,7 @@
 using MainApi.Src.Data;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace MainApi.Src.Features.Common.Account;
 
@@ -12,9 +13,11 @@ namespace MainApi.Src.Features.Common.Account;
 public class UserAccountProfile : BaseAttributes, INoTenantEntity {
 	[Column("user_account_id")]
 	public Guid UserAccountId { get; set; }
+	[JsonIgnore]
 	public UserAccount UserAccount { get; set; } = null!;
 
 	[Column("profile_id")]
 	public Guid ProfileId { get; set; }
+	[JsonIgnore]
 	public Profile.Profile Profile { get; set; } = null!;
 }

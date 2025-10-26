@@ -1,9 +1,10 @@
-import type { SimplePostHog } from '@org/shared/lib/posthog/posthog.types';
-import type { logger } from '@org/shared/lib/winston.server';
+import type { IAnalytics } from '@org/shared/lib/analytics/analytics.types';
+import type { ILogger } from '@org/shared/lib/logger/logger.types';
 
 declare module 'react-router' {
 	interface AppLoadContext {
-		logger: typeof logger;
-		postHogServer: SimplePostHog;
+		logger: ILogger;
+		analytics: IAnalytics;
+		nonce: string;
 	}
 }

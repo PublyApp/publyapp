@@ -175,5 +175,14 @@
 	"create-user": "Créer un utilisateur",
 	"save-changes": "Sauvegarder les modifications",
 	"profile": "Profil",
-	"background-jobs": "Tâches de fond"
+	"background-jobs": "Tâches de fond",
+	"level": "Level",
+	"un-named": "Sans nom",
+	"organizations": "Organisations",
+	"inactive": "Inactif",
+	"deleted": "Supprimé",
+	"suspended": "Suspendu",
+	"send-notification": "Envoyer une notification",
+	"yes": "Oui",
+	"no": "Non"
 }

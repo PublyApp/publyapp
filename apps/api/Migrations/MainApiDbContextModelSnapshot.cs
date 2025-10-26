@@ -27,11 +27,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int>("AccountType")
-                        .HasColumnType("integer")
-                        .HasColumnName("account_type");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -41,10 +38,6 @@ namespace MainApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
-                    b.Property<int>("HierarchyLevel")
-                        .HasColumnType("integer")
-                        .HasColumnName("hierarchy_level");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
@@ -53,7 +46,19 @@ namespace MainApi.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_suspended");
 
-                    b.Property<Guid>("TenantId")
+                    b.Property<int>("Level")
+                        .HasColumnType("integer")
+                        .HasColumnName("level");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer")
+                        .HasColumnName("scope");
+
+                    b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
@@ -67,16 +72,27 @@ namespace MainApi.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId");
+                    b.HasIndex("ProjectId", "Scope");
 
-                    b.HasIndex("UserId", "AccountType")
+                    b.HasIndex("TenantId", "Scope");
+
+                    b.HasIndex("UserId", "Scope")
                         .HasDatabaseName("ix_user_accounts_user_id_account_type_active")
                         .HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
 
-                    b.HasIndex("UserId", "TenantId", "AccountType")
+                    b.HasIndex("UserId", "TenantId");
+
+                    b.HasIndex("UserId", "TenantId", "ProjectId", "Scope")
                         .IsUnique();
 
-                    b.ToTable("user_accounts");
+                    b.ToTable("user_accounts", t =>
+                        {
+                            t.HasCheckConstraint("CK_UserAccount_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
+
+                            t.HasCheckConstraint("CK_UserAccount_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
+
+                            t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
+                        });
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Account.UserAccountProfile", b =>
@@ -156,7 +172,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -179,11 +196,15 @@ namespace MainApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
-                    b.Property<int>("ProfileType")
+                    b.Property<int>("ProfileScope")
                         .HasColumnType("integer")
-                        .HasColumnName("profile_type");
+                        .HasColumnName("profile_scope");
 
-                    b.Property<Guid>("TenantId")
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
@@ -193,9 +214,18 @@ namespace MainApi.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ProjectId");
+
                     b.HasIndex("TenantId");
 
-                    b.ToTable("profiles");
+                    b.ToTable("profiles", t =>
+                        {
+                            t.HasCheckConstraint("CK_Profile_Project_Constraints", "(profile_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_scope != 2");
+
+                            t.HasCheckConstraint("CK_Profile_Staff_Constraints", "(profile_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_scope != 0");
+
+                            t.HasCheckConstraint("CK_Profile_Tenant_Constraints", "(profile_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_scope != 1");
+                        });
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Profile.ProfilePermission", b =>
@@ -203,7 +233,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -234,9 +265,62 @@ namespace MainApi.Migrations
 
                     b.HasIndex("PermissionKey");
 
-                    b.HasIndex("ProfileId");
+                    b.HasIndex("ProfileId", "PermissionKey");
 
                     b.ToTable("profile_permissions");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Features.Common.Project.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<string>("BrandIdentity")
+                        .HasColumnType("text")
+                        .HasColumnName("brand_identity");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("projects");
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Session.Session", b =>
@@ -244,7 +328,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -271,7 +356,7 @@ namespace MainApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
@@ -292,7 +377,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -311,10 +397,26 @@ namespace MainApi.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
+                    b.Property<bool>("IsSuspended")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_suspended");
+
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("logo_url");
+
+                    b.Property<int>("MaxUsers")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_users");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("name");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -338,7 +440,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("text")
@@ -390,6 +493,18 @@ namespace MainApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("password");
 
+                    b.Property<string>("PasswordResetToken")
+                        .HasColumnType("text")
+                        .HasColumnName("password_reset_token");
+
+                    b.Property<DateTime?>("PasswordResetTokenExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("password_reset_token_expires_at");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -412,7 +527,8 @@ namespace MainApi.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("id");
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -455,17 +571,21 @@ namespace MainApi.Migrations
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Account.UserAccount", b =>
                 {
+                    b.HasOne("MainApi.Src.Features.Common.Project.Project", "Project")
+                        .WithMany("UserAccounts")
+                        .HasForeignKey("ProjectId");
+
                     b.HasOne("MainApi.Src.Features.Common.Tenant.Tenant", "Tenant")
                         .WithMany("UserAccounts")
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TenantId");
 
                     b.HasOne("MainApi.Src.Features.Common.User.User", "User")
                         .WithMany("UserAccounts")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Project");
 
                     b.Navigation("Tenant");
 
@@ -493,11 +613,15 @@ namespace MainApi.Migrations
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Profile.Profile", b =>
                 {
+                    b.HasOne("MainApi.Src.Features.Common.Project.Project", "Project")
+                        .WithMany("Profiles")
+                        .HasForeignKey("ProjectId");
+
                     b.HasOne("MainApi.Src.Features.Common.Tenant.Tenant", "Tenant")
                         .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TenantId");
+
+                    b.Navigation("Project");
 
                     b.Navigation("Tenant");
                 });
@@ -519,13 +643,22 @@ namespace MainApi.Migrations
                     b.Navigation("Permission");
                 });
 
+            modelBuilder.Entity("MainApi.Src.Features.Common.Project.Project", b =>
+                {
+                    b.HasOne("MainApi.Src.Features.Common.Tenant.Tenant", "Tenant")
+                        .WithMany("Projects")
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("MainApi.Src.Features.Common.Session.Session", b =>
                 {
                     b.HasOne("MainApi.Src.Features.Common.User.User", "User")
                         .WithMany("Sessions")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("UserId");
 
                     b.Navigation("User");
                 });
@@ -558,8 +691,17 @@ namespace MainApi.Migrations
                     b.Navigation("UserAccountProfiles");
                 });
 
+            modelBuilder.Entity("MainApi.Src.Features.Common.Project.Project", b =>
+                {
+                    b.Navigation("Profiles");
+
+                    b.Navigation("UserAccounts");
+                });
+
             modelBuilder.Entity("MainApi.Src.Features.Common.Tenant.Tenant", b =>
                 {
+                    b.Navigation("Projects");
+
                     b.Navigation("UserAccounts");
                 });
 

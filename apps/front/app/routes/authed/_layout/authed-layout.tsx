@@ -1,14 +1,9 @@
-import { useQueryClient, useSuspenseQueries } from '@tanstack/react-query';
+import { useSuspenseQueries } from '@tanstack/react-query';
 import * as cookie from 'cookie';
+import i18next from 'i18next';
 import _ from 'lodash';
 import { type ReactNode, Suspense } from 'react';
-import {
-	Navigate,
-	Outlet,
-	redirect,
-	useRouteError,
-	useSearchParams,
-} from 'react-router';
+import { Navigate, Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 import { View500 } from '@/front/components/error';
 import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
@@ -20,24 +15,32 @@ import {
 	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
 } from '@/front/lib/constants';
+import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
-} from '@/front/lib/react-query/features/auth/auth.hooks';
+} from '@/front/lib/react-query/features/common/auth.hooks';
+import { defaultQueryClient } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { useMainStore } from '@/front/lib/zustand/store';
 import {
 	FRONT_PATH_NAMES,
+	I18N_NAMESPACES,
 	queryParamKey,
 	queryParamValue,
 	SESSION_TOKEN_COOKIE_KEY,
-	X_CODE,
 } from '@/shared/lib/constants';
-import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
+		i18next
+			.loadNamespaces([I18N_NAMESPACES.ZOD, I18N_NAMESPACES.RESPONSE_MESSAGE])
+			.catch((error) => {
+				isoLogger.error('Failed to load namespaces', error);
+			});
+
 		const browserCookies = cookie.parse(document.cookie);
 		const sessionToken = _.get(browserCookies, SESSION_TOKEN_COOKIE_KEY);
 
@@ -46,14 +49,10 @@ export const clientLoader = getClientLoader({
 		}
 
 		initApiClientOnClient();
-		// sessionToken = decodeURIComponent(sessionToken);
-		// // defaultApiClient.parseRestClient.setSessionToken(sessionToken);
-		// const apiClient = clientManager.createApiClient(sessionToken);
-		// clientManager.setApiClient(apiClient);
 
 		const sideBarCookie = _.get(browserCookies, SIDEBAR_COOKIE_NAME);
 
-		// set zustand state
+		// Initialize zustand navLayout state
 		useMainStore.setState((root) => {
 			const allowedStates: Exclude<SettingsState['navLayout'], undefined>[] = [
 				'vertical',
@@ -75,48 +74,48 @@ export const clientLoader = getClientLoader({
 			root.settingsSlice.state.navLayout = state as never;
 		});
 
-		return {};
+		return null;
 	},
 });
 
-export const ErrorBoundary = (_: Route.ErrorBoundaryProps) => {
-	// const [searchParams] = useSearchParams();
-	// const queryClient = useQueryClient();
-
+export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	// check response error.body.code
 	// if invalid session token, redirect to login
 	// with a query param: redirectCause=invalid_session
 	// don't forget to remove session token cookie
 	// clear react-query cache too
-	const error = useRouteError();
+	// const error = useRouteError();
 
-	// if (error instanceof ParseRestError) {
-	// 	if (error.code === X_CODE.INVALID_SESSION) {
-	// 		// clear react-query cache too
-	// 		queryClient.removeQueries();
+	isoLogger.debug('ErrorBoundary', { error });
 
-	// 		// remove session token cookie
-	// 		document.cookie = cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', {
-	// 			path: '/',
-	// 			maxAge: 0,
-	// 		});
+	if (
+		isJsClientError(error) &&
+		error.responseStatusCode === 401 &&
+		_.toLower(error.messageEscaped) === _.toLower('Unauthorized')
+	) {
+		// remove session token cookie
+		document.cookie = cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', {
+			path: '/',
+			expires: new Date(0),
+			maxAge: 0,
+		});
 
-	// 		// redirect to login page with a query param as redirect cause
-	// 		const url = new URL(window.location.origin);
-	// 		url.pathname = FRONT_PATH_NAMES.auth.login;
-	// 		url.searchParams.set(
-	// 			queryParamKey.login_page.redirect_cause,
-	// 			queryParamValue.login_page.redirect_cause.invalid_session,
-	// 		);
-	// 		url.searchParams.set(
-	// 			queryParamKey.language,
-	// 			getCorrectLocale(searchParams.get(queryParamKey.language)),
-	// 		);
+		// clear react-query cache too
+		defaultQueryClient.removeQueries();
 
-	// 		// navigate(`${url.pathname}${url.search}`);
-	// 		return <Navigate to={`${url.pathname}${url.search}`} />;
-	// 	}
-	// }
+		// redirect to login page with a query param as redirect cause
+		const url = new URL(window.location.origin);
+		url.pathname = FRONT_PATH_NAMES.auth.login;
+		url.searchParams.set(
+			queryParamKey.login_page.redirect_cause,
+			queryParamValue.login_page.redirect_cause.invalid_session,
+		);
+
+		isoLogger.debug('Redirecting to login page', { url: url.toString() });
+		// alert(url.toString());
+
+		return <Navigate to={url.pathname + url.search} />;
+	}
 
 	if (import.meta.env.DEV) {
 		return <TemplateErrorBoundary error={error} />;

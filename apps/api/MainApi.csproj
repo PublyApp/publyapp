@@ -2,6 +2,7 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
+		<PublishDir>publish</PublishDir>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -12,6 +13,7 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+		<PackageReference Include="Resend" />
 		<PackageReference Include="System.Text.Json" />
 		<PackageReference Include="Scalar.AspNetCore" />
 		<PackageReference Include="Serilog.AspNetCore" />
@@ -20,6 +22,7 @@
 		<PackageReference Include="Serilog.Sinks.Async" />
 		<PackageReference Include="Serilog.Sinks.Console" />
 		<PackageReference Include="Serilog.Sinks.File" />
+		<PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" />
 		<!-- for exporting openapi documents to json file at build time -->
 		<PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -42,12 +45,6 @@
 
 	<Target Name="GenerateTranslationKeys" BeforeTargets="BeforeBuild">
 		<Message Text="Generating translation keys from response-message.en.json..." Importance="high" />
-		<Exec
-			Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\..\packages\_tx-key-gen\TranslationKeyGenerator.csproj&quot; &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;"
-			ContinueOnError="false"
-		/>
+		<Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)\..\..\packages\_tx-key-gen\TranslationKeyGenerator.csproj&quot; &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;" ContinueOnError="false" />
 	</Target>
-
-	<!-- Generated files are automatically included by .NET SDK -->
-
 </Project>
