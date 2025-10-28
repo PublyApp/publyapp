@@ -198,12 +198,12 @@ public class StaffMemberService : IStaffMemberService {
 				}
 
 				await _dbContext.UserAccount
-						.Where(ua => ua.UserId == userId && ua.Scope == AccountScope.Staff)
-						.ExecuteUpdateWithAuditAsync(setters => {
-							return setters
-								.SetProperty(ua => ua.Level, UserAccount.ParseAccountLevel(document.AccountLevel));
-						},
-						cancellationToken);
+					.Where(ua => ua.UserId == userId && ua.Scope == AccountScope.Staff)
+					.ExecuteUpdateWithAuditAsync(setters => {
+						return setters
+							.SetProperty(ua => ua.Level, UserAccount.ParseAccountLevel(document.AccountLevel));
+					},
+					cancellationToken);
 			}
 
 			await transaction.CommitAsync(cancellationToken);
