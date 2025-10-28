@@ -25,7 +25,6 @@ public abstract record UpdateUserByIdResult {
 	public sealed record Success() : UpdateUserByIdResult;
 	public sealed record UserNotFound() : UpdateUserByIdResult;
 	public sealed record UserAccountNotFound() : UpdateUserByIdResult;
-	public sealed record MultipleStaffAccountsFound() : UpdateUserByIdResult;
 	public sealed record UpdateFailed(string ErrorMessage) : UpdateUserByIdResult;
 }
 
@@ -150,7 +149,7 @@ public class StaffMemberService : IStaffMemberService {
 		Guid userId,
 		UpdateUserDocument document,
 		CancellationToken cancellationToken = default
-) {
+	) {
 		await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		try {
@@ -184,6 +183,13 @@ public class StaffMemberService : IStaffMemberService {
 			}
 
 			if (document.AccountLevel is not null) {
+				var accountLevel = UserAccount.ParseAccountLevel(document.AccountLevel);
+
+				if (accountLevel is null) {
+					await transaction.RollbackAsync(cancellationToken);
+					throw new ArgumentException($"Invalid account level: '{document.AccountLevel}'");
+				}
+
 				var staffAccountCount = await _dbContext.UserAccount
 					.CountAsync(ua => ua.UserId == userId && ua.Scope == AccountScope.Staff, cancellationToken);
 
@@ -194,14 +200,19 @@ public class StaffMemberService : IStaffMemberService {
 
 				if (staffAccountCount > 1) {
 					await transaction.RollbackAsync(cancellationToken);
-					return new UpdateUserByIdResult.MultipleStaffAccountsFound();
+					throw new InvalidOperationException(
+						$"Data integrity violation: User {userId} has {staffAccountCount} staff accounts"
+					);
 				}
 
 				await _dbContext.UserAccount
 					.Where(ua => ua.UserId == userId && ua.Scope == AccountScope.Staff)
 					.ExecuteUpdateWithAuditAsync(setters => {
-						return setters
-							.SetProperty(ua => ua.Level, UserAccount.ParseAccountLevel(document.AccountLevel));
+						var s = setters;
+
+						s = s.SetProperty(ua => ua.Level, accountLevel);
+
+						return s;
 					},
 					cancellationToken);
 			}

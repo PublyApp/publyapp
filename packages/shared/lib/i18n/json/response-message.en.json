@@ -30,7 +30,6 @@
 	"tenant-id-required": "Tenant ID required",
 	"request-body-validation-failed": "Request body validation failed",
 	"query-parameters-validation-failed": "Query parameters validation failed",
-	"multiple-staff-accounts-found": "Multiple staff accounts found",
 	"failed-to-update-staff-member": "Failed to update staff member",
 	"staff-member-updated-successfully": "Staff member updated successfully"
 }
