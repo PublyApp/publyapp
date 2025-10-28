@@ -277,9 +277,9 @@ public class CreateStaffMember {
 					if (string.IsNullOrEmpty(user.EmailVerifyToken)) {
 						throw new InvalidOperationException("Email verify should not be null or empty");
 					}
-					await emailService.SendStaffWelcomeEmail(user.Email, user.EmailVerifyToken);
+					await emailService.SendStaffWelcomeEmailAsync(user.Email, user.EmailVerifyToken);
 				} else {
-					await emailService.SendJoinedStaffNotificationEmail(user.Email);
+					await emailService.SendJoinedStaffNotificationEmailAsync(user.Email);
 				}
 			}
 			return TypedResults.Ok(new CreateStaffMemberResult {

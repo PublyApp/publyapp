@@ -162,7 +162,7 @@ public class ResetPassword {
 
 		// Send email asynchronously with proper error handling
 		// We don't await this because we want to return the response immediately
-		_ = emailService.SendPasswordResetNotificationEmail(user.Email)
+		_ = emailService.SendPasswordResetNotificationEmailAsync(user.Email)
 			.ContinueWith(t => {
 				if (t.Exception != null) {
 					logger.LogError(t.Exception, "Error sending password reset notification email to {Email}", user.Email);

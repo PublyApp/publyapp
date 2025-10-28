@@ -48,7 +48,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			from tenant in _dbContext.Tenant
 			where tenant.Id == tenantId
 			select tenant;
-		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<List<TenantAsStaffItem>> FindTenantsAsync(
@@ -102,8 +102,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			.Take(effectiveLimit);
 
 		return await query
-			.ToListAsync(cancellationToken)
-			.ConfigureAwait(false);
+			.ToListAsync(cancellationToken);
 	}
 
 	public async Task<int> CountTenantsAsync(CancellationToken cancellationToken = default) {
@@ -112,6 +111,6 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			where tenant.IsDeleted != true
 			select tenant;
 
-		return await query.CountAsync(cancellationToken).ConfigureAwait(false);
+		return await query.CountAsync(cancellationToken);
 	}
 }
