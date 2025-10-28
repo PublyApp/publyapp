@@ -1,12 +1,12 @@
 ---
-description: Unified high-performance C# async/await rules and PublyApp-specific guidance
+description: Modern C# async/await rules for ASP.NET Core applications (PublyApp)
 globs:
   - "**/*.cs"
 alwaysApply: true
 applyIntelligently: true
 ---
 
-# C# async/await rules (global + PublyApp-specific)
+# C# async/await rules (ASP.NET Core)
 
 ## 🎯 Primary directive
 
@@ -17,31 +17,36 @@ Prioritize non-blocking, high-throughput async I/O. Eliminate sync-over-async, m
 ### 1) Blocking async code (thread pool starvation)
 
 ```csharp
-// Do not block on async
+// NEVER block on async - causes thread pool exhaustion
 .Result
 .Wait()
 .GetAwaiter().GetResult()
-Task.Run(() => await SomeAsyncMethod()) // unnecessary for I/O
+Task.Run(() => await SomeAsyncMethod()) // unnecessary for I/O operations
 ```
 
 ### 2) Async void (silent failures)
 
 ```csharp
-// Only valid for UI/events
-public async void ProcessMessage(Message msg) // use Task instead
+// ❌ WRONG - exceptions are swallowed
+public async void ProcessMessage(Message msg)
+
+// ✅ CORRECT - use Task instead
+public async Task ProcessMessageAsync(Message msg, CancellationToken cancellationToken = default)
 ```
 
 ### 3) Sequential async when parallel is possible
 
 ```csharp
-// Inefficient
-var user = await GetUserAsync(id);
-var permissions = await GetPermissionsAsync(id);
+// ❌ INEFFICIENT - sequential execution
+var user = await GetUserAsync(id, cancellationToken);
+var permissions = await GetPermissionsAsync(id, cancellationToken);
 
-// Preferred
-var userTask = GetUserAsync(id);
-var permissionsTask = GetPermissionsAsync(id);
-await Task.WhenAll(userTask, permissionsTask).ConfigureAwait(false);
+// ✅ EFFICIENT - parallel execution
+var userTask = GetUserAsync(id, cancellationToken);
+var permissionsTask = GetPermissionsAsync(id, cancellationToken);
+await Task.WhenAll(userTask, permissionsTask);
+var user = await userTask;
+var permissions = await permissionsTask;
 ```
 
 ## ✅ Required patterns
@@ -50,28 +55,41 @@ await Task.WhenAll(userTask, permissionsTask).ConfigureAwait(false);
 
 - Return `Task<T>`/`Task`; avoid `async void`
 - Add `CancellationToken cancellationToken = default` to public async APIs
-- Use `ConfigureAwait(false)` in library/service layers
+- **ASP.NET Core Note:** `ConfigureAwait(false)` is NOT needed - ASP.NET Core has no SynchronizationContext
 
-### Parallel operations
+### Parallel operations for independent queries
 
 ```csharp
+// Run independent operations in parallel
 var userTask = _userService.GetUserAsync(userId, cancellationToken);
 var permissionsTask = _authService.GetPermissionsAsync(userId, cancellationToken);
-await Task.WhenAll(userTask, permissionsTask).ConfigureAwait(false);
+await Task.WhenAll(userTask, permissionsTask);
+
+var user = await userTask;
+var permissions = await permissionsTask;
 ```
 
-### Controlled concurrency (bulk work)
+### Controlled concurrency for bulk operations
 
 ```csharp
+// Limit concurrent operations to prevent resource exhaustion
 const int maxConcurrency = 10;
 using var semaphore = new SemaphoreSlim(maxConcurrency);
+
 var tasks = ids.Select(async id =>
 {
-    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-    try { return await _svc.ProcessAsync(id, cancellationToken).ConfigureAwait(false); }
-    finally { semaphore.Release(); }
+    await semaphore.WaitAsync(cancellationToken);
+    try
+    {
+        return await _service.ProcessAsync(id, cancellationToken);
+    }
+    finally
+    {
+        semaphore.Release();
+    }
 });
-var results = await Task.WhenAll(tasks).ConfigureAwait(false);
+
+var results = await Task.WhenAll(tasks);
 ```
 
 ### Proper exception handling
@@ -81,8 +99,8 @@ public async Task ProcessAsync(Data data, CancellationToken cancellationToken = 
 {
     try
     {
-        await _repository.SaveAsync(data, cancellationToken).ConfigureAwait(false);
-        await _notificationService.NotifyAsync(data.UserId, cancellationToken).ConfigureAwait(false);
+        await _repository.SaveAsync(data, cancellationToken);
+        await _notificationService.NotifyAsync(data.UserId, cancellationToken);
     }
     catch (OperationCanceledException)
     {
@@ -97,13 +115,16 @@ public async Task ProcessAsync(Data data, CancellationToken cancellationToken = 
 }
 ```
 
-### ValueTask for hot paths
+### ValueTask for hot paths (optional optimization)
 
 ```csharp
-public ValueTask<CachedData> GetCachedAsync(string key)
+// Use ValueTask when operation often completes synchronously
+public ValueTask<CachedData?> GetCachedAsync(string key)
 {
-    if (_cache.TryGetValue(key, out var data)) return new ValueTask<CachedData>(data);
-    return new ValueTask<CachedData>(LoadFromDatabaseAsync(key));
+    if (_cache.TryGetValue(key, out var data))
+        return new ValueTask<CachedData?>(data);
+
+    return new ValueTask<CachedData?>(LoadFromDatabaseAsync(key));
 }
 ```
 
@@ -111,140 +132,259 @@ public ValueTask<CachedData> GetCachedAsync(string key)
 
 ### Database (EF Core)
 
-- Use async variants: `FirstOrDefaultAsync`, `ToListAsync`, `SaveChangesAsync`
-- Include `CancellationToken`
-- Use `ConfigureAwait(false)` in service/library code
+```csharp
+// Always use async variants with CancellationToken
+var user = await _dbContext.Users
+    .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-### HTTP
+await _dbContext.SaveChangesAsync(cancellationToken);
 
-- Use async `HttpClient` APIs and timeouts/retries
-- Handle `OperationCanceledException`
+// Parallel independent queries
+var userTask = _dbContext.Users.FindAsync(new object[] { userId }, cancellationToken);
+var ordersTask = _dbContext.Orders
+    .Where(o => o.UserId == userId)
+    .ToListAsync(cancellationToken);
+
+await Task.WhenAll(userTask.AsTask(), ordersTask);
+```
+
+### HTTP Clients
+
+```csharp
+// Use async HttpClient APIs with timeouts
+using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+try
+{
+    var response = await _httpClient.GetFromJsonAsync<User>(
+        $"/api/users/{userId}",
+        cts.Token);
+    return response;
+}
+catch (OperationCanceledException)
+{
+    _logger.LogWarning("HTTP request timed out or was cancelled");
+    throw;
+}
+```
+
+### Transactions
+
+```csharp
+// Use async transactions with proper cleanup
+await using var transaction = await _dbContext.Database
+    .BeginTransactionAsync(cancellationToken);
+
+try
+{
+    await _dbContext.Users
+        .Where(u => u.Id == userId)
+        .ExecuteUpdateAsync(/* ... */, cancellationToken);
+
+    await _dbContext.UserAccounts
+        .Where(ua => ua.UserId == userId)
+        .ExecuteUpdateAsync(/* ... */, cancellationToken);
+
+    await transaction.CommitAsync(cancellationToken);
+}
+catch
+{
+    await transaction.RollbackAsync(cancellationToken);
+    throw;
+}
+```
 
 ### Controllers/Endpoints
 
-- Make actions async, accept `CancellationToken`
-- Use appropriate HTTP status codes
-
-### Services (general)
-
-- Implement async interfaces; log with structured context
-- Consider `ValueTask<T>` on hot paths
-
-### Testing
-
-- Async test methods; test cancellation and exception paths
-
-## 🧭 Enforcement snippets
-
-### Method signatures
-
 ```csharp
-public async Task<ActionResult<UserData>> GetUserDataAsync(
-    int userId,
-    CancellationToken cancellationToken = default)
+// Minimal API endpoints
+app.MapGet("/users/{id}", async (
+    Guid id,
+    IUserService userService,
+    CancellationToken cancellationToken) =>
 {
-    // ...
+    var user = await userService.GetUserAsync(id, cancellationToken);
+    return user is not null ? Results.Ok(user) : Results.NotFound();
+});
+
+// Controller actions
+[HttpGet("{id}")]
+public async Task<ActionResult<UserDto>> GetUser(
+    Guid id,
+    CancellationToken cancellationToken)
+{
+    var user = await _userService.GetUserAsync(id, cancellationToken);
+    return user is not null ? Ok(user) : NotFound();
 }
 ```
 
-### EF operations
+### Services
 
 ```csharp
-var user = await _dbContext.Users
-    .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
-    .ConfigureAwait(false);
-await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-```
-
-### Bulk with concurrency control
-
-```csharp
-const int maxConcurrency = 10;
-using var gate = new SemaphoreSlim(maxConcurrency, maxConcurrency);
-var tasks = items.Select(async x =>
+public class UserService : IUserService
 {
-    await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-    try { return await ProcessAsync(x, cancellationToken).ConfigureAwait(false); }
-    finally { gate.Release(); }
-});
-return (await Task.WhenAll(tasks).ConfigureAwait(false)).ToList();
+    private readonly AppDbContext _dbContext;
+    private readonly ILogger<UserService> _logger;
+
+    public async Task<User?> GetUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get user {UserId}", userId);
+            throw;
+        }
+    }
+}
 ```
 
-## 🏷️ PublyApp-specific rules
+## 🏷️ PublyApp-specific patterns
 
-### Handlers
-
-- Include `CancellationToken` parameter
-- Use EF async with `ConfigureAwait(false)`
-- Return `Results<...>`; never block
-
-Example
+### Handlers (Minimal API)
 
 ```csharp
-public static async Task<Results<Ok<T>, BadRequest<ApiResponse>>> Handle(
+public static async Task<Results<Ok<UserDto>, NotFound, BadRequest<ApiResponse>>> Handle(
+    Guid userId,
     IAuthContext auth,
-    ILogger<MyHandler> logger,
+    ILogger<GetUserHandler> logger,
     MainApiDbContext db,
     CancellationToken cancellationToken = default)
 {
-    if (!auth.IsAuthenticated) throw new UnauthorizedAccessException();
-    var user = await db.User.FindAsync(new object[] { auth.UserId }, cancellationToken)
-        .ConfigureAwait(false);
-    if (user is null) return TypedResults.BadRequest(new ApiResponse { Message = "Invalid session", Key = "invalid-session" });
-    return TypedResults.Ok(/* map */);
+    if (!auth.IsAuthenticated)
+        throw new UnauthorizedAccessException();
+
+    var user = await db.User
+        .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+
+    if (user is null)
+        return TypedResults.NotFound();
+
+    return TypedResults.Ok(new UserDto
+    {
+        Id = user.Id,
+        Email = user.Email,
+        Name = user.Name
+    });
 }
 ```
 
-### Services (implementation patterns)
-
-- Async methods only; add cancellation
-- Log with structured context and rethrow
-- Prefer parallel queries where independent
-
-### Bulk operations (repo standard)
+### Service with transaction
 
 ```csharp
-const int MaxConcurrency = 10;
-using var gate = new SemaphoreSlim(MaxConcurrency, MaxConcurrency);
-var tasks = users.Select(async u =>
+public async Task<UpdateResult> UpdateStaffMemberAsync(
+    Guid userId,
+    UpdateDocument document,
+    CancellationToken cancellationToken = default)
 {
-    await gate.WaitAsync(ct).ConfigureAwait(false);
-    try { return await ProcessSingleUserAsync(u, ct).ConfigureAwait(false); }
-    finally { gate.Release(); }
-});
-return (await Task.WhenAll(tasks).ConfigureAwait(false)).ToList();
+    await using var transaction = await _dbContext.Database
+        .BeginTransactionAsync(cancellationToken);
+
+    try
+    {
+        var updated = await _dbContext.User
+            .Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(/* ... */, cancellationToken);
+
+        if (updated == 0)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return UpdateResult.NotFound();
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return UpdateResult.Success();
+    }
+    catch (Exception ex)
+    {
+        await transaction.RollbackAsync(cancellationToken);
+        _logger.LogError(ex, "Failed to update user {UserId}", userId);
+        return UpdateResult.Failed(ex.Message);
+    }
+}
 ```
 
-### Anti-patterns to watch
+### Bulk operations with concurrency control
 
-- Sync-over-async in handlers or middlewares
-- Missing `ConfigureAwait(false)` in library/service code
-- Missing `CancellationToken` parameters
-- Sequential EF queries that can run in parallel
+```csharp
+public async Task<List<ProcessResult>> ProcessUsersAsync(
+    List<Guid> userIds,
+    CancellationToken cancellationToken = default)
+{
+    const int maxConcurrency = 10;
+    using var semaphore = new SemaphoreSlim(maxConcurrency);
 
-## ✅ Lint checklist (Cursor must verify)
+    var tasks = userIds.Select(async userId =>
+    {
+        await semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            return await ProcessSingleUserAsync(userId, cancellationToken);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    });
 
-- [ ] No `.Result`/`.Wait()`/`.GetAwaiter().GetResult()`
-- [ ] No `async void` (except events)
-- [ ] `Task.WhenAll()` used where possible
-- [ ] `ConfigureAwait(false)` used in service/library code
-- [ ] `CancellationToken` present on public async APIs
-- [ ] Concurrency limits for bulk operations
-- [ ] Exceptions logged with structured context and rethrown
+    return (await Task.WhenAll(tasks)).ToList();
+}
+```
 
-## 📊 Expected results
+## ✅ Lint checklist (verify before commit)
 
-- Response time: 10–100x faster
-- Throughput: 50–100x increase
-- Thread usage: ~80% reduction
-- Memory allocation: ~60% less
-- Cloud costs: 50–70% savings
+- [ ] No `.Result`/`.Wait()`/`.GetAwaiter().GetResult()` blocking calls
+- [ ] No `async void` methods (except event handlers)
+- [ ] `Task.WhenAll()` used for independent parallel operations
+- [ ] `CancellationToken` parameter on all public async methods
+- [ ] `SemaphoreSlim` used to limit concurrency in bulk operations
+- [ ] Exceptions logged with structured context before rethrowing
+- [ ] Transactions use `await using` and explicit rollback on errors
+- [ ] EF Core uses async methods: `FindAsync`, `FirstOrDefaultAsync`, `ToListAsync`, `SaveChangesAsync`, `ExecuteUpdateAsync`
 
-## 🔍 Monitoring indicators
+## 📊 Expected benefits
+
+- **Response time:** 10-100x faster for I/O-bound operations
+- **Throughput:** 50-100x more concurrent requests
+- **Thread usage:** ~80% reduction in thread pool pressure
+- **Memory allocation:** ~60% less due to efficient async state machines
+- **Cloud costs:** 50-70% savings from better resource utilization
+
+## 🔍 Warning signs of problems
 
 - Thread pool starvation with low CPU usage
-- Random deadlocks during peak traffic
-- Response times grow exponentially with load
-- Silent failures without proper exception logging
+- Deadlocks during peak traffic (especially if blocking on async)
+- Response times grow exponentially under load
+- High memory usage from thread accumulation
+- Silent failures from unhandled exceptions in async void methods
 
-Remember: async isn't just syntax—it's how we handle I/O efficiently to maximize throughput and minimize resource usage.
+## ⚠️ ConfigureAwait(false) - NOT NEEDED in ASP.NET Core
+
+**Important:** ASP.NET Core does NOT have a SynchronizationContext. Using `ConfigureAwait(false)` provides **zero benefit** in ASP.NET Core applications and only adds noise.
+
+```csharp
+// ❌ UNNECESSARY in ASP.NET Core apps
+var user = await _dbContext.Users
+    .FirstOrDefaultAsync(u => u.Id == id, cancellationToken)
+    .ConfigureAwait(false); // Does nothing!
+
+// ✅ CORRECT for ASP.NET Core
+var user = await _dbContext.Users
+    .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+```
+
+**Only use ConfigureAwait(false) when:**
+- Building a reusable class library that might be consumed by UI applications (WPF, WinForms, Xamarin)
+- You need to be absolutely certain about not capturing context
+
+**For PublyApp:** Skip `ConfigureAwait(false)` entirely. It's cargo cult programming in ASP.NET Core.
+
+---
+
+Remember: async isn't just syntax—it's the foundation of scalable, high-throughput web applications. Write async code that never blocks and runs independent operations in parallel.

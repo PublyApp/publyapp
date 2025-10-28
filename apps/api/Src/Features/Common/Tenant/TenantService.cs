@@ -21,8 +21,9 @@ public class TenantService : ITenantService {
 	public async Task<Tenant?> GetTenantAsync(Guid tenantId, CancellationToken cancellationToken = default) {
 		return await _dbContext.Tenant
 			.Where(x => x.Id == tenantId)
-			.FirstOrDefaultAsync(cancellationToken)
-			.ConfigureAwait(false);
+			.FirstOrDefaultAsync(cancellationToken);
+
+
 	}
 
 }

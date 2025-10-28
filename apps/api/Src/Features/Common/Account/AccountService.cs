@@ -41,9 +41,10 @@ public class AccountService : IAccountService {
 		var account = UserAccount.CreateStaffAccount(userId, accountLevel);
 
 		var addedAccount = await _dbContext.UserAccount
-			.AddAsync(account, cancellationToken)
-			.ConfigureAwait(false);
-		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+			.AddAsync(account, cancellationToken);
+
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		return new CreateStaffAccountResult.Success(addedAccount.Entity);
 	}
@@ -59,7 +60,7 @@ public class AccountService : IAccountService {
 			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;
 
-		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<bool> IsUserStaffMemberAsync(
@@ -73,7 +74,7 @@ public class AccountService : IAccountService {
 			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;
 
-		return await query.AnyAsync(cancellationToken).ConfigureAwait(false);
+		return await query.AnyAsync(cancellationToken);
 	}
 
 	public async Task<bool> IsUserMemberOfTenantAsync(
@@ -87,7 +88,7 @@ public class AccountService : IAccountService {
 			&& ua.TenantId == tenantId
 			select ua;
 
-		return await query.AnyAsync(cancellationToken).ConfigureAwait(false);
+		return await query.AnyAsync(cancellationToken);
 	}
 
 	public async Task<List<UserAccount>> FindUserTenantAccountsAsync(
@@ -105,6 +106,6 @@ public class AccountService : IAccountService {
 			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;
 
-		return await query.Take(effectiveLimit).ToListAsync(cancellationToken).ConfigureAwait(false);
+		return await query.Take(effectiveLimit).ToListAsync(cancellationToken);
 	}
 }

@@ -38,6 +38,15 @@ public static class StaffMemberEndPoints {
 			.WithReqQueryValidation<FindStaffMembersQuery>()
 			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
+		group.MapPatch(
+			PathUtils.GetLastSegment(RoutePath.Staff.StaffMember.Update),
+			UpdateStaffMember.HandleUpdateStaffMember
+		)
+			.WithName("UpdateStaffMember")
+			.WithSummary("Update a staff member")
+			.WithReqBodyValidation<UpdateStaffMemberBody>()
+			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
+
 		return routes;
 	}
 }

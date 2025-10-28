@@ -121,6 +121,7 @@ const StaffMemberDetailsPage = () => {
 								lastName: _.toString(data.lastName),
 								id: _.toString(data.id),
 								status: '',
+								accountLevel: data.accountLevel as AccountLevel,
 								// status: _.toString(data.),
 								// role: _.toString(data.roleData?.role) as never,
 								// id: _.toString(data.objectId),

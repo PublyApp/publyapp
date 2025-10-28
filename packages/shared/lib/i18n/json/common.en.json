@@ -67,6 +67,7 @@
 	"cancel": "Cancel",
 	"confirm": "Confirm",
 	"item-creation-success-message": "{{item}} created successfully",
+	"item-update-success-message": "{{item}} updated successfully",
 	"cannot-create-tenant-with-staff-members": "Cannot create tenant with staff members",
 	"user-already-member-of-a-tenant": "User is already a member of a tenant",
 	"some-users-already-member-of-a-tenant": "Some users are already members of a tenant",

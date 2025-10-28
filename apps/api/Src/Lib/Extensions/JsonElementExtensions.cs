@@ -57,4 +57,21 @@ public static class JsonElementExtensions {
 			_ => throw new InvalidOperationException($"{propertyName} must be a boolean or null")
 		};
 	}
+
+	public static Guid GetValueAsGuid(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
+		return element.ValueKind switch {
+			JsonValueKind.String => Guid.Parse(element.GetString() ?? throw new InvalidOperationException($"{propertyName} is not a guid")),
+			_ => throw new InvalidOperationException($"{propertyName} must be a guid")
+		};
+	}
+
+	public static Guid GetValueAsGuid(this JsonElement? element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
+		return element?.ValueKind switch {
+			null => throw new InvalidOperationException($"{propertyName} is not a guid"),
+			JsonValueKind.Null => throw new InvalidOperationException($"{propertyName} is not a guid"),
+			JsonValueKind.Undefined => throw new InvalidOperationException($"{propertyName} is not a guid"),
+			JsonValueKind.String => Guid.Parse(element?.GetString() ?? throw new InvalidOperationException($"{propertyName} is not a guid")),
+			_ => throw new InvalidOperationException($"{propertyName} must be a guid")
+		};
+	}
 }

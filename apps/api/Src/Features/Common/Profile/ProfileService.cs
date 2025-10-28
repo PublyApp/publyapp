@@ -60,8 +60,9 @@ public class ProfileService : IProfileService {
 
 		return await query
 			.Take(maxProfilesPerUser ?? _appSettings.Value.MAX_PROFILES_PER_USER)
-			.ToListAsync(cancellationToken)
-			.ConfigureAwait(false);
+			.ToListAsync(cancellationToken);
+
+
 	}
 
 	/// <summary>
@@ -94,8 +95,7 @@ public class ProfileService : IProfileService {
 
 		return await query
 			.Take(maxProfilesPerUser ?? _appSettings.Value.MAX_PROFILES_PER_USER)
-			.ToListAsync(cancellationToken)
-			.ConfigureAwait(false);
+			.ToListAsync(cancellationToken);
 	}
 }
 

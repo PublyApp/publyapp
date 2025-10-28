@@ -56,7 +56,7 @@ public class VerifyEmailRequest {
 		CancellationToken cancellationToken
 	) {
 		// check if user exists
-		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken).ConfigureAwait(false);
+		var user = await userService.GetUserByEmailAsync(body.GetEmail(), cancellationToken);
 
 		if (user == null) {
 			return TypedResults.BadRequest(ApiResponse.Create("User not found", ResponseKeys.UserNotFound));
@@ -75,7 +75,7 @@ public class VerifyEmailRequest {
 		) {
 			// Send email asynchronously with proper error handling
 			// We don't await this because we want to return the response immediately
-			_ = emailService.SendEmailVerificationRequest(userEmail, user.EmailVerifyToken)
+			_ = emailService.SendEmailVerificationRequestAsync(userEmail, user.EmailVerifyToken)
 				.ContinueWith(t => {
 					if (t.Exception != null) {
 						logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
@@ -92,11 +92,11 @@ public class VerifyEmailRequest {
 		user.EmailVerifyToken = emailVerifyToken;
 		user.EmailVerifyTokenExpiresAt = emailVerifyTokenExpiresAt;
 
-		await userService.UpdateUserAsync(user, cancellationToken).ConfigureAwait(false);
+		await userService.UpdateUserAsync(user, cancellationToken);
 
 		// Send email asynchronously with proper error handling
 		// We don't await this because we want to return the response immediately
-		_ = emailService.SendEmailVerificationRequest(userEmail, user.EmailVerifyToken)
+		_ = emailService.SendEmailVerificationRequestAsync(userEmail, user.EmailVerifyToken)
 			.ContinueWith(t => {
 				if (t.Exception != null) {
 					logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);

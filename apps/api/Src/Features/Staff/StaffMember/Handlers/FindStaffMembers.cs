@@ -61,7 +61,7 @@ public class FindStaffMembers {
 						FirstName = staffMember.User.FirstName,
 						AvatarUrl = staffMember.User.AvatarUrl,
 						Status = UserNs.User.GetStatusDescription(staffMember.User.Status),
-						Level = UserAccount.GetAccountLevelDescription(staffMember.Level),
+						Level = UserAccount.GetAccountLevelDescription(staffMember.AccountLevel),
 					})
 					.ToList(),
 				Count = count,

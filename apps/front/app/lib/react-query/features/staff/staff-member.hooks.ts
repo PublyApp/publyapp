@@ -9,16 +9,18 @@ const createStaffMemberMutationKey = getQueryKey<ApiClient>(
 	(client) => client.staff.staffMembers.post,
 );
 
+type CreateStaffMemberPayload = {
+	email: string;
+	firstName?: string;
+	lastName?: string;
+	avatarUrl?: string;
+	sendNotification?: boolean;
+	accountLevel?: AccountLevel;
+};
+
 export const useCreateStaffMember = createMutation({
 	mutationKey: [createStaffMemberMutationKey] as const,
-	mutationFn: async (data: {
-		email: string;
-		firstName?: string;
-		lastName?: string;
-		avatarUrl?: string;
-		accountLevel: AccountLevel;
-		sendNotification?: boolean;
-	}) => {
+	mutationFn: async (data: CreateStaffMemberPayload) => {
 		const result = await clientManager.apiClient.staff.staffMembers.post({
 			email: {
 				getValue() {
@@ -98,6 +100,58 @@ export const useGetStaffMemberById = createQuery({
 			.get();
 		if (_.isNil(result)) {
 			throw new Error(`[${getStaffMemberByIdQueryKey}]: result is nil`);
+		}
+		return result;
+	},
+});
+
+const updateStaffMemberMutationKey = getQueryKey<ApiClient>(
+	(client) => client.staff.staffMembers.byUserId('').patch,
+);
+
+type UpdateStaffMemberPayload = {
+	userId: string;
+	email: string;
+	firstName?: string;
+	lastName?: string;
+	avatarUrl?: string;
+	accountLevel?: AccountLevel;
+};
+
+export const useUpdateStaffMember = createMutation({
+	mutationKey: [updateStaffMemberMutationKey] as const,
+	mutationFn: async (data: UpdateStaffMemberPayload) => {
+		const result = await clientManager.apiClient.staff.staffMembers
+			.byUserId(data.userId)
+			.patch({
+				email: {
+					getValue() {
+						return data.email;
+					},
+				},
+				accountLevel: {
+					getValue() {
+						return data.accountLevel;
+					},
+				},
+				firstName: {
+					getValue() {
+						return data.firstName;
+					},
+				},
+				lastName: {
+					getValue() {
+						return data.lastName;
+					},
+				},
+				avatarUrl: {
+					getValue() {
+						return data.avatarUrl;
+					},
+				},
+			});
+		if (_.isNil(result)) {
+			throw new Error(`[${updateStaffMemberMutationKey}]: result is nil`);
 		}
 		return result;
 	},
