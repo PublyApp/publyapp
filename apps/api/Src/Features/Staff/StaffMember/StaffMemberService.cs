@@ -158,14 +158,23 @@ public class StaffMemberService : IStaffMemberService {
 					.Where(u => u.Id == userId)
 					.ExecuteUpdateWithAuditAsync(setters => {
 						var s = setters;
-						if (document.Email is not null)
+
+						if (document.Email is not null) {
 							s = s.SetProperty(u => u.Email, document.Email);
-						if (document.LastName is not null)
+						}
+
+						if (document.LastName is not null) {
 							s = s.SetProperty(u => u.LastName, document.LastName);
-						if (document.FirstName is not null)
+						}
+
+						if (document.FirstName is not null) {
 							s = s.SetProperty(u => u.FirstName, document.FirstName);
-						if (document.AvatarUrl is not null)
+						}
+
+						if (document.AvatarUrl is not null) {
 							s = s.SetProperty(u => u.AvatarUrl, document.AvatarUrl);
+						}
+
 						return s;
 					}, cancellationToken);
 
@@ -190,8 +199,10 @@ public class StaffMemberService : IStaffMemberService {
 
 				await _dbContext.UserAccount
 						.Where(ua => ua.UserId == userId && ua.Scope == AccountScope.Staff)
-						.ExecuteUpdateWithAuditAsync(setters => setters
-								.SetProperty(ua => ua.Level, UserAccount.ParseAccountLevel(document.AccountLevel)),
+						.ExecuteUpdateWithAuditAsync(setters => {
+							return setters
+								.SetProperty(ua => ua.Level, UserAccount.ParseAccountLevel(document.AccountLevel));
+						},
 						cancellationToken);
 			}
 
