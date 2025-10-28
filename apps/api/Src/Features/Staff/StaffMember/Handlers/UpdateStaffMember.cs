@@ -110,15 +110,6 @@ public class UpdateStaffMember {
 			));
 		}
 
-		if (result is UpdateUserByIdResult.MultipleStaffAccountsFound) {
-			logger.LogWarning("Multiple staff accounts found: {@LogData}", new { UserId = userIdGuid });
-
-			return TypedResults.BadRequest(ApiResponse.Create(
-				"Multiple staff accounts found",
-				ResponseKeys.MultipleStaffAccountsFound
-			));
-		}
-
 		if (result is UpdateUserByIdResult.UpdateFailed updateFailed) {
 			logger.LogError("Failed to update staff member: {@LogData}", new { UserId = userIdGuid, ErrorMessage = updateFailed.ErrorMessage });
 
