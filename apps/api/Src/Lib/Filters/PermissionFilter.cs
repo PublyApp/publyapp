@@ -171,16 +171,27 @@ public static class PermissionEnum {
 	public static class Staff {
 		// ==== TENANTS ====
 		public static readonly Permission CAN_LIST_TENANTS = Permission.CreateStaffPermission(nameof(CAN_LIST_TENANTS));
-		public static readonly Permission CAN_CREATE_TENANT = Permission.CreateStaffPermission(nameof(CAN_CREATE_TENANT));
 		public static readonly Permission CAN_GET_TENANT = Permission.CreateStaffPermission(nameof(CAN_GET_TENANT));
+		public static readonly Permission CAN_CREATE_TENANT = Permission.CreateStaffPermission(nameof(CAN_CREATE_TENANT));
+		public static readonly Permission CAN_UPDATE_TENANT = Permission.CreateStaffPermission(nameof(CAN_UPDATE_TENANT));
 
 		// ==== USERS ====
 		public static readonly Permission CAN_LIST_USERS = Permission.CreateStaffPermission(nameof(CAN_LIST_USERS));
+		public static readonly Permission CAN_GET_USER = Permission.CreateStaffPermission(nameof(CAN_GET_USER));
+		public static readonly Permission CAN_CREATE_USER = Permission.CreateStaffPermission(nameof(CAN_CREATE_USER));
+		public static readonly Permission CAN_UPDATE_USER = Permission.CreateStaffPermission(nameof(CAN_UPDATE_USER));
 
 		// ==== PROFILES ====
-		public static readonly Permission CAN_GET_PROFILE = Permission.CreateStaffPermission(nameof(CAN_GET_PROFILE));
 		public static readonly Permission CAN_LIST_PROFILES = Permission.CreateStaffPermission(nameof(CAN_LIST_PROFILES));
+		public static readonly Permission CAN_GET_PROFILE = Permission.CreateStaffPermission(nameof(CAN_GET_PROFILE));
 		public static readonly Permission CAN_CREATE_PROFILE = Permission.CreateStaffPermission(nameof(CAN_CREATE_PROFILE));
+		public static readonly Permission CAN_UPDATE_PROFILE = Permission.CreateStaffPermission(nameof(CAN_UPDATE_PROFILE));
+
+		// ==== STAFF MEMBERS ====
+		public static readonly Permission CAN_LIST_STAFF_MEMBERS = Permission.CreateStaffPermission(nameof(CAN_LIST_STAFF_MEMBERS));
+		public static readonly Permission CAN_CREATE_STAFF_MEMBER = Permission.CreateStaffPermission(nameof(CAN_CREATE_STAFF_MEMBER));
+		public static readonly Permission CAN_GET_STAFF_MEMBER = Permission.CreateStaffPermission(nameof(CAN_GET_STAFF_MEMBER));
+		public static readonly Permission CAN_UPDATE_STAFF_MEMBER = Permission.CreateStaffPermission(nameof(CAN_UPDATE_STAFF_MEMBER));
 	}
 
 	//--------------------------------------------------------------------------------------//
