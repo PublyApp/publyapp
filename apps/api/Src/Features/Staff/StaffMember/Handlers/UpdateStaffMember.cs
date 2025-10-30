@@ -1,15 +1,15 @@
 using System.Text.Json;
+using FluentValidation;
 using MainApi.Localization;
-using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using AccountNs = MainApi.Src.Features.Common.Account;
 
 namespace MainApi.Src.Features.Staff.StaffMember.Handlers;
 
 public class UpdateStaffMemberBody {
-	// public JsonElement? UserId { get; set; }
 	public JsonElement? Email { get; set; }
 	public JsonElement? LastName { get; set; }
 	public JsonElement? FirstName { get; set; }
@@ -35,19 +35,154 @@ public class UpdateStaffMemberBody {
 	public string? GetAccountLevel() {
 		return AccountLevel?.GetValueAsStringOrNull();
 	}
-
-	// public Guid GetUserId() {
-	// 	return UserId.GetValueAsGuid();
-	// }
 }
 
-public class UpdateStaffMemberResult {
-	public Guid Id { get; set; }
-	public string Email { get; set; } = string.Empty;
-	public string LastName { get; set; } = string.Empty;
-	public string FirstName { get; set; } = string.Empty;
-	public string AvatarUrl { get; set; } = string.Empty;
-	public string AccountLevel { get; set; } = string.Empty;
+public class UpdateStaffMemberBodyValidator : AbstractValidator<UpdateStaffMemberBody> {
+	public UpdateStaffMemberBodyValidator() {
+		RuleFor(x => x.Email)
+			.Must(BeStringOrNull)
+			.WithMessage("Email must be a string or null")
+			.DependentRules(() => {
+				RuleFor(x => x.Email)
+					.Must(BeValidEmail)
+					.WithMessage("Email must be a valid email address")
+					.When(x => x.Email.HasValue && x.Email.Value.ValueKind == JsonValueKind.String);
+			});
+
+		RuleFor(x => x.LastName)
+			.Must(BeStringOrNull)
+			.WithMessage("LastName must be a string or null")
+			.DependentRules(() => {
+				RuleFor(x => x.LastName)
+					.Must(BeNotEmpty)
+					.WithMessage("LastName must not be empty")
+					.When(x => x.LastName.HasValue && x.LastName.Value.ValueKind == JsonValueKind.String);
+			});
+
+		RuleFor(x => x.FirstName)
+			.Must(BeStringOrNull)
+			.WithMessage("FirstName must be a string or null")
+			.DependentRules(() => {
+				RuleFor(x => x.FirstName)
+					.Must(BeNotEmpty)
+					.WithMessage("FirstName must not be empty")
+					.When(x => x.FirstName.HasValue && x.FirstName.Value.ValueKind == JsonValueKind.String);
+			});
+
+		RuleFor(x => x.AvatarUrl)
+			.Must(BeStringOrNull)
+			.WithMessage("AvatarUrl must be a string or null")
+			.DependentRules(() => {
+				RuleFor(x => x.AvatarUrl)
+					.Must(BeValidUrl)
+					.WithMessage("AvatarUrl must be a valid URL")
+					.When(x => x.AvatarUrl.HasValue && x.AvatarUrl.Value.ValueKind == JsonValueKind.String);
+			});
+
+		RuleFor(x => x.AccountLevel)
+			.Must(BeStringOrNull)
+			.WithMessage("AccountLevel must be a string or null")
+			.DependentRules(() => {
+				RuleFor(x => x.AccountLevel)
+					.Must(BeValidAccountLevel)
+					.WithMessage("AccountLevel must be a valid account level")
+					.When(x => x.AccountLevel.HasValue && x.AccountLevel.Value.ValueKind == JsonValueKind.String);
+			});
+	}
+
+	private static bool BeStringOrNull(JsonElement? element) {
+		if (element is null) {
+			return true;
+		}
+
+		var valueKind = element.Value.ValueKind;
+		var isString = valueKind is JsonValueKind.String;
+		var isJsonNull = valueKind is JsonValueKind.Null;
+
+		return isString || isJsonNull;
+	}
+
+	private static bool BeValidEmail(JsonElement? element) {
+		if (element is null) {
+			return true;
+		}
+
+		if (element.Value.ValueKind is JsonValueKind.Null) {
+			return true;
+		}
+
+		var email = element?.GetString();
+
+		if (string.IsNullOrWhiteSpace(email)) {
+			return false;
+		}
+
+		try {
+			var addr = new System.Net.Mail.MailAddress(email);
+			var isValidFormat = addr.Address == email;
+			return isValidFormat;
+		} catch {
+			return false;
+		}
+	}
+
+	private static bool BeValidUrl(JsonElement? element) {
+		if (element is null) {
+			return true;
+		}
+
+		if (element.Value.ValueKind is JsonValueKind.Null) {
+			return true;
+		}
+
+		var url = element?.GetString();
+
+		if (string.IsNullOrWhiteSpace(url)) {
+			return false;
+		}
+
+		var isValidUri = Uri.TryCreate(url, UriKind.Absolute, out Uri? result);
+		if (!isValidUri) {
+			return false;
+		}
+
+		var isHttpScheme = result?.Scheme == Uri.UriSchemeHttp;
+		var isHttpsScheme = result?.Scheme == Uri.UriSchemeHttps;
+		var hasValidScheme = isHttpScheme || isHttpsScheme;
+
+		return hasValidScheme;
+	}
+
+	private static bool BeNotEmpty(JsonElement? element) {
+		if (element is null) {
+			return true;
+		}
+
+		if (element.Value.ValueKind is JsonValueKind.Null) {
+			return true;
+		}
+
+		var value = element?.GetString();
+		var isNotEmpty = !string.IsNullOrWhiteSpace(value);
+
+		return isNotEmpty;
+	}
+
+	private static bool BeValidAccountLevel(JsonElement? element) {
+		if (element is null) {
+			return true;
+		}
+
+		if (element.Value.ValueKind is JsonValueKind.Null) {
+			return true;
+		}
+
+		var accountLevelString = element?.GetString() ?? string.Empty;
+		var parsedLevel = AccountNs.UserAccount.ParseAccountLevel(accountLevelString);
+		var isValid = parsedLevel is not null;
+
+		return isValid;
+	}
 }
 
 public class UpdateStaffMember {
@@ -61,16 +196,9 @@ public class UpdateStaffMember {
 		[FromRoute] string userId,
 		[FromBody] UpdateStaffMemberBody body,
 		[FromServices] IStaffMemberService staffMemberService,
-		[FromServices] IUserService userService,
 		ILogger<UpdateStaffMember> logger,
 		CancellationToken cancellationToken
 	) {
-		// var userId = body.GetUserId();
-		// var email = body.GetEmail();
-		// var lastName = body.GetLastName();
-		// var firstName = body.GetFirstName();
-		// var avatarUrl = body.GetAvatarUrl();
-		// var accountLevel = body.GetAccountLevel();
 		var parseResult = Guid.TryParse(userId, out var userIdGuid);
 
 		if (!parseResult) {

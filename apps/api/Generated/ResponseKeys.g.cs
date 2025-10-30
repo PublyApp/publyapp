@@ -82,11 +82,6 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
 
 	/// <summary>
-	/// Multiple staff accounts found
-	/// </summary>
-	public static readonly TranslationKey MultipleStaffAccountsFound = new("multiple-staff-accounts-found");
-
-	/// <summary>
 	/// Not found
 	/// </summary>
 	public static readonly TranslationKey NotFound = new("not-found");
