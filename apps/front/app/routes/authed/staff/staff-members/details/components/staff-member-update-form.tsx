@@ -20,7 +20,6 @@ import {
 	USER_STATUS_ENUM,
 	type UserStatus,
 } from '@/shared/lib/constants';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import { getUpdateStaffMemberSchema } from '@/shared/validations/staff-member/staff-member.validation';
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 
