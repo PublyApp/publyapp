@@ -1344,6 +1344,9 @@
           },
           "accountLevel": {
             "type": "string"
+          },
+          "status": {
+            "type": "string"
           }
         }
       },

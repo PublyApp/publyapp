@@ -13,8 +13,8 @@ import {
 	isServer,
 } from '@/shared/lib/constants';
 import { isoLogger } from '@/shared/lib/logger/iso-logger';
-import { UserNewEditForm } from '../components/user-new-edit-form';
 import type { Route } from './+types/new-staff-member-page';
+import NewStaffMemberForm from './components/new-staff-member-form';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
 	let str: string = _.capitalize(
@@ -87,8 +87,7 @@ const NewStaffMemberPage = () => {
 				]}
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
-
-			<UserNewEditForm />
+			<NewStaffMemberForm />
 		</DashboardContent>
 	);
 };
