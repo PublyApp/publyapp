@@ -11,7 +11,7 @@ namespace MainApi.Src.Features.Common.User;
 [Index(nameof(Email), IsUnique = true)]
 public class User : BaseAttributes, INoTenantEntity {
 	[Column("last_name")]
-	public string? LastName { get; set; } = string.Empty;
+	public string? LastName { get; set; }
 
 	[Column("first_name")]
 	public string? FirstName { get; set; }
@@ -67,6 +67,34 @@ public class User : BaseAttributes, INoTenantEntity {
 			UserStatus.Deleted => "Deleted",
 			_ => "Unknown",
 		};
+	}
+
+	public static UserStatus? ParseStatus(string statusString) {
+		var isInactive = string.Compare(statusString, "inactive", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isInactive) {
+			return UserStatus.Inactive;
+		}
+		var isPending = string.Compare(statusString, "pending", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isPending) {
+			return UserStatus.Pending;
+		}
+		var isSuspended = string.Compare(statusString, "suspended", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isSuspended) {
+			return UserStatus.Suspended;
+		}
+		var isActive = string.Compare(statusString, "active", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isActive) {
+			return UserStatus.Active;
+		}
+		var isDeleted = string.Compare(statusString, "deleted", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isDeleted) {
+			return UserStatus.Deleted;
+		}
+		var isBanned = string.Compare(statusString, "banned", StringComparison.OrdinalIgnoreCase) == 0;
+		if (isBanned) {
+			return UserStatus.Banned;
+		}
+		return null;
 	}
 }
 

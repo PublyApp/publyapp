@@ -122,12 +122,28 @@ public static class DbSetExtensions {
 
 	/// <summary>
 	/// Bulk update with automatic UpdatedAt tracking.
+	/// NOTE: This method only works when ALL properties to update are known at compile time.
+	/// For conditional/partial updates (PATCH-style), manually add .SetProperty(e => e.UpdatedAt, DateTime.UtcNow)
+	/// to your ExecuteUpdateAsync call with ternary operators (e.g., document.Field ?? entity.Field).
 	/// </summary>
 	/// <typeparam name="TEntity">Entity type that inherits from BaseAttributesNoKey</typeparam>
 	/// <param name="source">The queryable to operate on</param>
 	/// <param name="setPropertyCalls">Function specifying which properties to update</param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>Number of rows affected</returns>
+	/// <example>
+	/// <code>
+	/// // Good: All properties known at compile time
+	/// await query.ExecuteUpdateWithAuditAsync(setters => setters
+	///     .SetProperty(u => u.Name, "John")
+	///     .SetProperty(u => u.Email, "john@example.com"), cancellationToken);
+	///
+	/// // Bad: Conditional updates - use ExecuteUpdateAsync directly instead
+	/// // await query.ExecuteUpdateAsync(setters => setters
+	/// //     .SetProperty(u => u.Email, u => document.Email ?? u.Email)
+	/// //     .SetProperty(u => u.UpdatedAt, DateTime.UtcNow), cancellationToken);
+	/// </code>
+	/// </example>
 	public static async Task<int> ExecuteUpdateWithAuditAsync<TEntity>(
 			this IQueryable<TEntity> source,
 			Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>> setPropertyCalls,
@@ -141,6 +157,9 @@ public static class DbSetExtensions {
 
 	/// <summary>
 	/// Bulk update with automatic UpdatedAt tracking (DbSet overload).
+	/// NOTE: This method only works when ALL properties to update are known at compile time.
+	/// For conditional/partial updates (PATCH-style), manually add .SetProperty(e => e.UpdatedAt, DateTime.UtcNow)
+	/// to your ExecuteUpdateAsync call with ternary operators.
 	/// </summary>
 	/// <typeparam name="TEntity">Entity type that inherits from BaseAttributesNoKey</typeparam>
 	/// <param name="dbSet">The DbSet to operate on</param>

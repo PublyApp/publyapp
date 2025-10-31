@@ -17,7 +17,10 @@ import {
 	type AccountLevel,
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
+	USER_STATUS_ENUM,
+	type UserStatus,
 } from '@/shared/lib/constants';
+import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import { getUpdateStaffMemberSchema } from '@/shared/validations/staff-member/staff-member.validation';
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 
@@ -37,6 +40,7 @@ export type StaffMemberUpdateData = {
 };
 
 const accountLevels: AccountLevel[] = _.values(ACCOUNT_LEVEL_ENUM);
+const userStatuses: UserStatus[] = _.values(USER_STATUS_ENUM);
 
 const StaffMemberUpdateForm = ({
 	currentUser,
@@ -56,12 +60,22 @@ const StaffMemberUpdateForm = ({
 		_evalUatedAccountLevel = currentUser.accountLevel as AccountLevel;
 	}
 
+	let _evalUatedStatus: UserStatus | undefined;
+	if (!_.includes(userStatuses, currentUser.status as UserStatus)) {
+		_evalUatedStatus = undefined;
+	} else {
+		_evalUatedStatus = currentUser.status as UserStatus;
+	}
+
+	// isoLogger.debug('currentUser', currentUser);
+
 	const form = useForm<UpdateUserSchemaType>({
 		mode: 'onSubmit',
 		resolver: zodResolver(UpdateUserSchema),
 		values: {
 			...currentUser,
 			accountLevel: _evalUatedAccountLevel,
+			status: _evalUatedStatus,
 		},
 	});
 
@@ -95,7 +109,10 @@ const StaffMemberUpdateForm = ({
 	return (
 		<UserNewEditForm
 			form={form}
-			onMutate={updateStaffMember}
+			onMutate={(data) => {
+				// isoLogger.debug('data', data);
+				updateStaffMember(data);
+			}}
 			isMutating={isUpdating}
 			isEdit
 		/>

@@ -6,6 +6,7 @@ using MainApi.Src.Lib.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using AccountNs = MainApi.Src.Features.Common.Account;
+using UserNs = MainApi.Src.Features.Common.User;
 
 namespace MainApi.Src.Features.Staff.StaffMember.Handlers;
 
@@ -15,6 +16,7 @@ public class UpdateStaffMemberBody {
 	public JsonElement? FirstName { get; set; }
 	public JsonElement? AvatarUrl { get; set; }
 	public JsonElement? AccountLevel { get; set; }
+	public JsonElement? Status { get; set; }
 
 	public string? GetEmail() {
 		return Email?.GetValueAsStringOrNull();
@@ -34,6 +36,10 @@ public class UpdateStaffMemberBody {
 
 	public string? GetAccountLevel() {
 		return AccountLevel?.GetValueAsStringOrNull();
+	}
+
+	public string? GetStatus() {
+		return Status?.GetValueAsStringOrNull();
 	}
 }
 
@@ -88,6 +94,32 @@ public class UpdateStaffMemberBodyValidator : AbstractValidator<UpdateStaffMembe
 					.WithMessage("AccountLevel must be a valid account level")
 					.When(x => x.AccountLevel.HasValue && x.AccountLevel.Value.ValueKind == JsonValueKind.String);
 			});
+
+		RuleFor(x => x.Status)
+			.Must(BeStringOrNull)
+			.WithMessage("Status must be a string or null")
+			.DependentRules(() => {
+				RuleFor(x => x.Status)
+					.Must(BeValidStatus)
+					.WithMessage("Status must be a valid status")
+					.When(x => x.Status.HasValue && x.Status.Value.ValueKind == JsonValueKind.String);
+			});
+	}
+
+	private static bool BeValidStatus(JsonElement? element) {
+		if (element is null) {
+			return true;
+		}
+
+		if (element.Value.ValueKind is JsonValueKind.Null) {
+			return true;
+		}
+
+		var statusString = element?.GetString() ?? string.Empty;
+		var parsedStatus = UserNs.User.ParseStatus(statusString);
+		var isValid = parsedStatus is not null;
+
+		return isValid;
 	}
 
 	private static bool BeStringOrNull(JsonElement? element) {
