@@ -10,8 +10,6 @@ import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
-import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import type { ReactNode } from 'react';
@@ -57,28 +55,6 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 	const { t } = useTranslate();
 	const openDialog = useBoolean();
 
-	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
-
-	const form = useForm<NewUserSchemaType>({
-		mode: 'onSubmit',
-		resolver: zodResolver(NewUserSchema),
-		defaultValues,
-		values: isEdit
-			? {
-					...currentUser,
-					avatar: currentUser.avatar,
-				}
-			: undefined,
-	});
-
-	const {
-		reset,
-		handleSubmit,
-		formState: { isSubmitting },
-	} = form;
-
-	useSyncFormToLang(i18n.language, form);
-
 	const handleCloseDialog = openDialog.onFalse;
 
 	const handleOpenDialog = form.handleSubmit(async (data) => {
@@ -90,36 +66,8 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 		openDialog.onTrue();
 	});
 
-	const queryClient = useQueryClient();
-
-	const { mutate: createStaffMember, isPending } = useCreateStaffMember({
-		onSuccess: () => {
-			reset();
-			toast.success(
-				isEdit
-					? 'Update success!'
-					: _.capitalize(
-							t('item-creation-success-message', { item: t('staff-member') }),
-						),
-			);
-			queryClient.invalidateQueries({ queryKey: useFindStaffMember.getKey() });
-			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
-		},
-		onError: (error) => {
-			if (isJsClientError(error)) {
-				toast.error(
-					error.key
-						? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
-						: error.messageEscaped,
-				);
-				return;
-			}
-			toast.error(_.trim(error.message) || t('unknown-error'));
-		},
-	});
-
-	const handleConfirmDialog = handleSubmit(async (data) => {
-		createStaffMember(data);
+	const handleConfirmDialog = form.handleSubmit(async (data) => {
+		onMutate?.(data);
 	});
 
 	const confirmValues = _.chain(form.getValues())
@@ -149,7 +97,7 @@ export const UserNewEditForm = <T extends Record<string, unknown>>({
 		})
 		.value();
 
-	// isoLogger.debug('confirmValues', confirmValues);
+	const isSubmitting = form.formState.isSubmitting;
 
 	return (
 		<>
