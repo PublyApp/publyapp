@@ -1,4 +1,3 @@
-using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.User;
@@ -153,29 +152,16 @@ public class StaffMemberService : IStaffMemberService {
 		await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
 		try {
+			// Use ternary operators for conditional updates - only update if value is provided
+			// Otherwise, keep the existing value (u.PropertyName)
 			var updatedCount = await _dbContext.User
-					.Where(u => u.Id == userId)
-					.ExecuteUpdateWithAuditAsync(setters => {
-						var s = setters;
-
-						if (document.Email is not null) {
-							s = s.SetProperty(u => u.Email, document.Email);
-						}
-
-						if (document.LastName is not null) {
-							s = s.SetProperty(u => u.LastName, document.LastName);
-						}
-
-						if (document.FirstName is not null) {
-							s = s.SetProperty(u => u.FirstName, document.FirstName);
-						}
-
-						if (document.AvatarUrl is not null) {
-							s = s.SetProperty(u => u.AvatarUrl, document.AvatarUrl);
-						}
-
-						return s;
-					}, cancellationToken);
+				.Where(u => u.Id == userId)
+				.ExecuteUpdateAsync(setters => setters
+					.SetProperty(u => u.Email, u => document.Email ?? u.Email)
+					.SetProperty(u => u.LastName, u => document.LastName ?? u.LastName)
+					.SetProperty(u => u.FirstName, u => document.FirstName ?? u.FirstName)
+					.SetProperty(u => u.AvatarUrl, u => document.AvatarUrl ?? u.AvatarUrl)
+					.SetProperty(u => u.UpdatedAt, DateTime.UtcNow), cancellationToken);
 
 			if (updatedCount == 0) {
 				await transaction.RollbackAsync(cancellationToken);
@@ -207,14 +193,9 @@ public class StaffMemberService : IStaffMemberService {
 
 				await _dbContext.UserAccount
 					.Where(ua => ua.UserId == userId && ua.Scope == AccountScope.Staff)
-					.ExecuteUpdateWithAuditAsync(setters => {
-						var s = setters;
-
-						s = s.SetProperty(ua => ua.Level, accountLevel);
-
-						return s;
-					},
-					cancellationToken);
+					.ExecuteUpdateAsync(setters => setters
+						.SetProperty(ua => ua.Level, accountLevel)
+						.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow), cancellationToken);
 			}
 
 			await transaction.CommitAsync(cancellationToken);

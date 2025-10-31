@@ -1672,6 +1672,9 @@
           },
           "accountLevel": {
             "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "status": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
           }
         }
       },
