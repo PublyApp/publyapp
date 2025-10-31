@@ -1,5 +1,6 @@
 using MainApi.Localization;
 using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Features.Common.User;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -13,6 +14,7 @@ public class GetStaffMemberByIdResult {
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
 	public string AccountLevel { get; set; } = string.Empty;
+	public string Status { get; set; } = string.Empty;
 }
 
 public class GetStaffMemberById {
@@ -56,7 +58,8 @@ public class GetStaffMemberById {
 			LastName = user.User.LastName,
 			FirstName = user.User.FirstName,
 			AvatarUrl = user.User.AvatarUrl,
-			AccountLevel = UserAccount.GetAccountLevelDescription(user.AccountLevel)
+			AccountLevel = UserAccount.GetAccountLevelDescription(user.AccountLevel),
+			Status = User.GetStatusDescription(user.User.Status),
 		});
 	}
 }

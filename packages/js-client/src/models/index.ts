@@ -492,6 +492,7 @@ export function deserializeIntoGetStaffMemberByIdResult(getStaffMemberByIdResult
         "firstName": n => { getStaffMemberByIdResult.firstName = n.getStringValue(); },
         "id": n => { getStaffMemberByIdResult.id = n.getGuidValue(); },
         "lastName": n => { getStaffMemberByIdResult.lastName = n.getStringValue(); },
+        "status": n => { getStaffMemberByIdResult.status = n.getStringValue(); },
     }
 }
 /**
@@ -798,6 +799,10 @@ export interface GetStaffMemberByIdResult extends AdditionalDataHolder, Parsable
      * The lastName property
      */
     lastName?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
 }
 export interface GetTenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
@@ -1118,6 +1123,7 @@ export function serializeGetStaffMemberByIdResult(writer: SerializationWriter, g
     writer.writeStringValue("firstName", getStaffMemberByIdResult.firstName);
     writer.writeGuidValue("id", getStaffMemberByIdResult.id);
     writer.writeStringValue("lastName", getStaffMemberByIdResult.lastName);
+    writer.writeStringValue("status", getStaffMemberByIdResult.status);
     writer.writeAdditionalData(getStaffMemberByIdResult.additionalData);
 }
 /**
