@@ -1,24 +1,3 @@
-import { Field } from '@/front/components/hook-form/fields';
-import { Form } from '@/front/components/hook-form/form-provider';
-import { toast } from '@/front/components/snackbar';
-import { useRouter } from '@/front/hooks/use-router';
-import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { isJsClientError } from '@/front/lib/js-client/js-client-error';
-import {
-	useCreateStaffMember,
-	useFindStaffMember,
-} from '@/front/lib/react-query/features/staff/staff-member.hooks';
-import { defaultZodClient } from '@/front/lib/zod/zod.client';
-import { fData } from '@/front/utils/format-number';
-import {
-	ACCOUNT_LEVEL_ENUM,
-	type AccountLevel,
-	FRONT_PATH_NAMES,
-	I18N_NAMESPACES,
-} from '@/shared/lib/constants';
-import { mbToBytes } from '@/shared/utils/any.utils';
-import { zodResolver } from '@hookform/resolvers/zod';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -30,111 +9,44 @@ import Grid from '@mui/material/Grid';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { getNewStaffMemberSchemaClientSide } from '@org/shared/validations/staff-member/staff-member-client.validations';
-import { useQueryClient } from '@tanstack/react-query';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useForm } from 'react-hook-form';
-import type zod from 'zod';
-
-type UserNewEditData = {
-	id: string;
-	firstName?: string;
-	lastName: string;
-	accountLevel: AccountLevel;
-	email: string;
-	status: string;
-	avatar?: string;
-};
+import type { UseFormReturn } from 'react-hook-form';
+import { Field } from '@/front/components/hook-form/fields';
+import { Form } from '@/front/components/hook-form/form-provider';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { fData } from '@/front/utils/format-number';
+import { ACCOUNT_LEVEL_ENUM } from '@/shared/lib/constants';
+import { mbToBytes } from '@/shared/utils/any.utils';
 
 // ----------------------------------------------------------------------
 
-type NewUserSchemaType = Prettify<
-	zod.infer<ReturnType<typeof getNewStaffMemberSchemaClientSide>>
->;
-
-// ----------------------------------------------------------------------
-
-type Props = {
-	currentUser?: UserNewEditData;
+type Props<T extends Record<string, unknown>> = {
+	form: UseFormReturn<T>;
+	onMutate: (data: T) => void;
+	isMutating: boolean;
+	isEdit?: boolean;
 };
 
 const ACCOUNT_LEVEL_OPTIONS = _.values(ACCOUNT_LEVEL_ENUM);
 
-const defaultValues: NewUserSchemaType = {
-	avatar: undefined,
-	firstName: '',
-	lastName: '',
-	email: '',
-	accountLevel: ACCOUNT_LEVEL_ENUM.USER,
-	sendNotification: false,
-};
-
-export const UserNewEditForm = ({ currentUser }: Props) => {
-	const isEdit = !!currentUser;
-
-	const { t, i18n } = useTranslate();
-	const router = useRouter();
+export const UserNewEditForm = <T extends Record<string, unknown>>({
+	onMutate,
+	isMutating,
+	form,
+	isEdit,
+}: Props<T>) => {
+	const { t } = useTranslate();
 	const openDialog = useBoolean();
-
-	const NewUserSchema = getNewStaffMemberSchemaClientSide(defaultZodClient);
-
-	const form = useForm<NewUserSchemaType>({
-		mode: 'onSubmit',
-		resolver: zodResolver(NewUserSchema),
-		defaultValues,
-		values: isEdit
-			? {
-					...currentUser,
-					avatar: currentUser.avatar,
-				}
-			: undefined,
-	});
-
-	const {
-		reset,
-		handleSubmit,
-		formState: { isSubmitting },
-	} = form;
-
-	useSyncFormToLang(i18n.language, form);
 
 	const handleCloseDialog = openDialog.onFalse;
 
-	const handleOpenDialog = handleSubmit(async () => {
+	const handleOpenDialog = form.handleSubmit(async () => {
 		openDialog.onTrue();
 	});
 
-	const queryClient = useQueryClient();
-
-	const { mutate: createStaffMember, isPending } = useCreateStaffMember({
-		onSuccess: () => {
-			reset();
-			toast.success(
-				isEdit
-					? 'Update success!'
-					: _.capitalize(
-							t('item-creation-success-message', { item: t('staff-member') }),
-						),
-			);
-			queryClient.invalidateQueries({ queryKey: useFindStaffMember.getKey() });
-			router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
-		},
-		onError: (error) => {
-			if (isJsClientError(error)) {
-				toast.error(
-					error.key
-						? t(error.key as never, { ns: I18N_NAMESPACES.RESPONSE_MESSAGE })
-						: error.messageEscaped,
-				);
-				return;
-			}
-			toast.error(_.trim(error.message) || t('unknown-error'));
-		},
-	});
-
-	const handleConfirmDialog = handleSubmit(async (data) => {
-		createStaffMember(data);
+	const handleConfirmDialog = form.handleSubmit(async (data) => {
+		onMutate?.(data);
 	});
 
 	const confirmValues = _.chain(form.getValues())
@@ -164,7 +76,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 		})
 		.value();
 
-	// isoLogger.debug('confirmValues', confirmValues);
+	const isSubmitting = form.formState.isSubmitting;
 
 	return (
 		<>
@@ -295,13 +207,15 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 										label={t('email-address')}
 										required
 									/>
-									<Field.Switch
-										name="sendNotification"
-										label={t('send-notification')}
-										slotProps={{
-											wrapper: { sx: { whiteSpace: 'nowrap' } },
-										}}
-									/>
+									{!isEdit ? (
+										<Field.Switch
+											name="sendNotification"
+											label={t('send-notification')}
+											slotProps={{
+												wrapper: { sx: { whiteSpace: 'nowrap' } },
+											}}
+										/>
+									) : null}
 								</Stack>
 								<Field.Select name="accountLevel" label={t('level')} required>
 									{ACCOUNT_LEVEL_OPTIONS.map((option) => (
@@ -342,7 +256,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 								<Button
 									type="submit"
 									variant="contained"
-									loading={isSubmitting || isPending}
+									loading={isSubmitting || isMutating}
 								>
 									{!isEdit ? t('create-user') : t('save-changes')}
 								</Button>
@@ -381,7 +295,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 					<Button
 						variant="outlined"
 						onClick={handleCloseDialog}
-						disabled={isSubmitting || isPending}
+						disabled={isSubmitting || isMutating}
 					>
 						{t('cancel')}
 					</Button>
@@ -389,7 +303,7 @@ export const UserNewEditForm = ({ currentUser }: Props) => {
 						variant="contained"
 						onClick={handleConfirmDialog}
 						autoFocus
-						loading={isSubmitting || isPending}
+						loading={isSubmitting || isMutating}
 					>
 						{t('confirm')}
 					</Button>

@@ -29,5 +29,7 @@
 	"password-reset-success": "Mot de passe réinitialisé avec succès",
 	"tenant-id-required": "ID du tenant requis",
 	"request-body-validation-failed": "Validation du corps de la requête échouée",
-	"query-parameters-validation-failed": "Validation des paramètres de requête échouée"
+	"query-parameters-validation-failed": "Validation des paramètres de requête échouée",
+	"failed-to-update-staff-member": "Échec de la mise à jour du compte staff",
+	"staff-member-updated-successfully": "Compte staff mis à jour avec succès"
 }

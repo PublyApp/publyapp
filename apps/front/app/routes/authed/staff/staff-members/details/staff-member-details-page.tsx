@@ -18,10 +18,13 @@ import {
 	isServer,
 } from '@/shared/lib/constants';
 import { isoLogger } from '@/shared/lib/logger/iso-logger';
-import { UserNewEditForm } from '../components/user-new-edit-form';
 import { UserNewEditFormSkeleton } from '../components/user-new-edit-form-skeleton';
 import type { Route } from './+types/staff-member-details-page';
+import StaffMemberUpdateForm, {
+	type StaffMemberUpdateData,
+} from './components/staff-member-update-form';
 
+// import { UserNewEditForm } from '../components/user-new-edit-form';
 // import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 // import { NotFoundView } from '@/front/components/error/not-found-view';
 
@@ -112,22 +115,16 @@ const StaffMemberDetailsPage = () => {
 				ErrorSlot={ErrorView}
 			>
 				{({ data }) => {
-					return (
-						<UserNewEditForm
-							currentUser={{
-								avatar: _.toString(data.avatarUrl),
-								email: _.toString(data.email),
-								firstName: _.toString(data.firstName),
-								lastName: _.toString(data.lastName),
-								id: _.toString(data.id),
-								status: '',
-								// status: _.toString(data.),
-								// role: _.toString(data.roleData?.role) as never,
-								// id: _.toString(data.objectId),
-								// status: _.toString(data.status),
-							}}
-						/>
-					);
+					const currentUser: StaffMemberUpdateData = {
+						id: _.toString(data?.id),
+						firstName: data?.firstName ?? undefined,
+						lastName: data?.lastName ?? undefined,
+						email: data?.email ?? undefined,
+						avatar: data?.avatarUrl ?? undefined,
+						accountLevel: data?.accountLevel ?? undefined,
+						status: data?.status ?? undefined,
+					};
+					return <StaffMemberUpdateForm currentUser={currentUser} />;
 				}}
 			</QueryDisplay>
 		</DashboardContent>
