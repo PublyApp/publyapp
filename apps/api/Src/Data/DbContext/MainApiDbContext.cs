@@ -9,6 +9,7 @@ using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Lib;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace MainApi.Src.Data.DbContext;
 
@@ -17,6 +18,7 @@ namespace MainApi.Src.Data.DbContext;
 /// </summary>
 public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private static MainApiDbContext? _singleton = null;
+	private static readonly Lazy<IReadOnlyList<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
 	public static MainApiDbContext SingleTon {
 		get {
@@ -33,7 +35,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 	public static MainApiDbContext GetSingleTon() {
 		if (_singleton is null) {
-			throw new Exception("You must call SetSingleTon before calling GetSingleTon");
+			throw new InvalidOperationException("SetSingleTon must be called before GetSingleTon");
 		}
 
 		return _singleton;
@@ -66,26 +68,98 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
 		base.OnConfiguring(optionsBuilder);
 
-		// EF Core 9: Define seeding logic here
+		// EF Core 9: Define seeding logic here using reflection to discover all seeders
 		optionsBuilder.UseSeeding((context, _) => {
 			var dbContext = (MainApiDbContext)context;
 
 			if (dbContext is null) {
-				throw new Exception("dbContext is null");
+				throw new InvalidOperationException("Seeding context cannot be null");
 			}
 
-			Seeder.SeedAll(dbContext);
+			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
+			SeedAllSync(dbContext, infrastructure.Instance);
 		});
 
 		optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
 			var dbContext = (MainApiDbContext)context;
 
 			if (dbContext is null) {
-				throw new Exception("dbContext is null");
+				throw new InvalidOperationException("Seeding context cannot be null");
 			}
 
-			await Seeder.SeedAllAsync(dbContext);
+			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
+			await SeedAllAsync(dbContext, infrastructure.Instance, cancellationToken);
 		});
+	}
+
+	/// <summary>
+	/// Discovers and executes all entity seeders synchronously.
+	/// </summary>
+	private static void SeedAllSync(MainApiDbContext dbContext, IServiceProvider serviceProvider) {
+		Task.Run(() => SeedAllAsync(dbContext, serviceProvider, CancellationToken.None))
+			.GetAwaiter()
+			.GetResult();
+	}
+
+	/// <summary>
+	/// Discovers and executes all entity seeders asynchronously using reflection.
+	/// </summary>
+	private static async Task SeedAllAsync(MainApiDbContext dbContext, IServiceProvider serviceProvider, CancellationToken cancellationToken) {
+		var logger = serviceProvider.GetService<ILogger<MainApiDbContext>>();
+		var seeders = CreateSeeders(serviceProvider);
+
+		foreach (var seeder in seeders) {
+			logger?.LogInformation("Running seeder {Seeder} with order {Order}", seeder.GetType().Name, seeder.Order);
+			await seeder.SeedAsync(dbContext, cancellationToken);
+		}
+	}
+
+	/// <summary>
+	/// Discovers all classes that implement <see cref="IEntitySeeder"/> using reflection.
+	/// </summary>
+	private static IReadOnlyList<Type> DiscoverSeeders() => SeederTypeCache.Value;
+
+	/// <summary>
+	/// Creates seeded instances via dependency injection with robust error handling.
+	/// </summary>
+	/// <param name="serviceProvider">The service provider used for DI instantiation.</param>
+	/// <exception cref="InvalidOperationException">Thrown if a seeder cannot be instantiated.</exception>
+	private static IReadOnlyList<IEntitySeeder> CreateSeeders(IServiceProvider serviceProvider) {
+		var seederTypes = DiscoverSeeders();
+		var seeders = new List<IEntitySeeder>(seederTypes.Count);
+
+		foreach (var type in seederTypes) {
+			try {
+				var instance = (IEntitySeeder)ActivatorUtilities.CreateInstance(serviceProvider, type);
+				seeders.Add(instance);
+			} catch (Exception ex) {
+				throw new InvalidOperationException($"Failed to instantiate seeder '{type.FullName}'.", ex);
+			}
+		}
+
+		return seeders
+			.OrderBy(seeder => seeder.Order)
+			.ToList();
+	}
+
+	/// <summary>
+	/// Performs the reflection scan to find available seeders. Results are cached.
+	/// </summary>
+	private static IReadOnlyList<Type> DiscoverSeedersInternal() {
+		var seederInterface = typeof(IEntitySeeder);
+		var assembly = typeof(MainApiDbContext).Assembly;
+
+		var seederTypes = assembly
+			.GetTypes()
+			.Where(t =>
+				t.IsClass &&
+				!t.IsAbstract &&
+				seederInterface.IsAssignableFrom(t) &&
+				t != seederInterface
+			)
+			.ToList();
+
+		return seederTypes;
 	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
