@@ -19,9 +19,9 @@ public static class DbSetExtensions {
 			where TEntity : BaseAttributesNoKey {
 		var now = DateTime.UtcNow;
 		return source.ExecuteUpdate(setters => setters
-				.SetProperty(e => e.IsDeleted, true)
-				.SetProperty(e => e.DeletedAt, now)
-				.SetProperty(e => e.UpdatedAt, now));
+			.SetProperty(e => e.IsDeleted, true)
+			.SetProperty(e => e.DeletedAt, now)
+			.SetProperty(e => e.UpdatedAt, now));
 	}
 
 	/// <summary>
@@ -37,9 +37,9 @@ public static class DbSetExtensions {
 			where TEntity : BaseAttributesNoKey {
 		var now = DateTime.UtcNow;
 		return dbSet.ExecuteUpdate(setters => setters
-				.SetProperty(e => e.IsDeleted, true)
-				.SetProperty(e => e.DeletedAt, now)
-				.SetProperty(e => e.UpdatedAt, now));
+			.SetProperty(e => e.IsDeleted, true)
+			.SetProperty(e => e.DeletedAt, now)
+			.SetProperty(e => e.UpdatedAt, now));
 	}
 
 	// ==================== ExecuteSoftDeleteAsync (Async) ====================
@@ -57,9 +57,9 @@ public static class DbSetExtensions {
 			where TEntity : BaseAttributesNoKey {
 		var now = DateTime.UtcNow;
 		return await source.ExecuteUpdateAsync(setters => setters
-				.SetProperty(e => e.IsDeleted, true)
-				.SetProperty(e => e.DeletedAt, now)
-				.SetProperty(e => e.UpdatedAt, now), cancellationToken);
+			.SetProperty(e => e.IsDeleted, true)
+			.SetProperty(e => e.DeletedAt, now)
+			.SetProperty(e => e.UpdatedAt, now), cancellationToken);
 	}
 
 	/// <summary>
@@ -78,9 +78,9 @@ public static class DbSetExtensions {
 			where TEntity : BaseAttributesNoKey {
 		var now = DateTime.UtcNow;
 		return await dbSet.ExecuteUpdateAsync(setters => setters
-				.SetProperty(e => e.IsDeleted, true)
-				.SetProperty(e => e.DeletedAt, now)
-				.SetProperty(e => e.UpdatedAt, now), cancellationToken);
+			.SetProperty(e => e.IsDeleted, true)
+			.SetProperty(e => e.DeletedAt, now)
+			.SetProperty(e => e.UpdatedAt, now), cancellationToken);
 	}
 
 	// ==================== ExecuteUpdateWithAudit (Sync) ====================
@@ -97,7 +97,7 @@ public static class DbSetExtensions {
 			Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>> setPropertyCalls)
 			where TEntity : BaseAttributesNoKey {
 		return source.ExecuteUpdate(setters =>
-				setPropertyCalls(setters).SetProperty(e => e.UpdatedAt, DateTime.UtcNow));
+			setPropertyCalls(setters).SetProperty(e => e.UpdatedAt, DateTime.UtcNow));
 	}
 
 	/// <summary>
