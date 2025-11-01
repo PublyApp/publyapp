@@ -1,25 +1,12 @@
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Common.Permission;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
-using MainApi.Src.Features.Common.Project;
-using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Lib.Filters;
 using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Data;
-
-internal record SeedUser(string Email, string Password, AccountLevel Level);
-
-internal class TenantSeedData {
-	public Tenant Tenant { get; set; } = new() { Code = string.Empty, Name = string.Empty };
-	public List<Project> Projects { get; set; } = [];
-	public List<SeedUser> Users { get; set; } = [];
-}
-
-internal record CrossTenantUser(string Email, List<string> TenantCodes);
 
 /// <summary>
 /// Handles database seeding operations for the application.
@@ -33,14 +20,13 @@ public static class Seeder {
 	}
 
 	/// <summary>
-	/// Seeds all initial data into the database (asynchronous version).
+	/// Seeds only base entities that don't require relations.
+	/// Base entities: Permission, User, Tenant
 	/// </summary>
 	public static async Task SeedAllAsync(MainApiDbContext dbContext) {
 		await SeedPermissionsAsync(dbContext);
-		await SeedStaffUsersAsync(dbContext);
-		await SeedTenantsProjectsAndUsersAsync(dbContext);
-		await SeedProfilesAndPermissionsAsync(dbContext);
-		await SeedUserAccountProfilesAsync(dbContext);
+		await SeedUsersAsync(dbContext);
+		await SeedTenantsAsync(dbContext);
 	}
 
 	private static async Task SeedPermissionsAsync(MainApiDbContext dbContext) {
@@ -64,229 +50,41 @@ public static class Seeder {
 		}
 	}
 
-	private static async Task SeedStaffUsersAsync(MainApiDbContext dbContext) {
+	private static async Task SeedUsersAsync(MainApiDbContext dbContext) {
 		var seedPassword = GetSeedPassword();
 
-		// No longer creating a special 'staff' tenant; staff accounts are global (TenantId = null)
-
-		// Seed staff users
-		var staffUsers = new List<(string Email, AccountLevel Level)> {
-			("staff-admin@example.com", AccountLevel.Admin),
-			("staff-user@example.com", AccountLevel.User)
+		// Seed all users (staff and tenant users)
+		var allUsers = new List<(string Email, UserStatus Status, string? FirstName, string? LastName)> {
+			// Staff users
+			("staff-admin@example.com", UserStatus.Active, "Staff", "Admin"),
+			("staff-user@example.com", UserStatus.Active, "Staff", "User"),
+			// Tenant users
+			("admin-acme@example.com", UserStatus.Active, "Admin", "Acme"),
+			("user-acme@example.com", UserStatus.Active, "User", "Acme"),
+			("admin-techstart@example.com", UserStatus.Active, "Admin", "TechStart"),
+			("user-techstart@example.com", UserStatus.Active, "User", "TechStart"),
+			("admin-global@example.com", UserStatus.Active, "Admin", "Global"),
+			("user-global@example.com", UserStatus.Active, "User", "Global"),
+			// Cross-tenant users
+			("alice@example.com", UserStatus.Active, "Alice", "Example"),
+			("bob@example.com", UserStatus.Active, "Bob", "Example"),
+			("charlie@example.com", UserStatus.Active, "Charlie", "Example")
 		};
 
-		var existingStaffEmailsQuery =
+		var existingUserEmailsQuery =
 			from u in dbContext.User
-			where staffUsers.Select(su => su.Email).Contains(u.Email)
+			where allUsers.Select(au => au.Email).Contains(u.Email)
 			select u.Email;
-
-		var existingStaffEmails = await existingStaffEmailsQuery.ToListAsync();
-
-		var newStaffUsers = staffUsers
-			.Where(su => !existingStaffEmails.Contains(su.Email))
-			.Select(su => new User {
-				Email = su.Email,
-				Password = seedPassword,
-				Status = UserStatus.Active,
-				IsVerified = true
-			})
-			.ToList();
-
-		if (newStaffUsers.Count != 0) {
-			try {
-				await dbContext.User.AddRangeAsync(newStaffUsers);
-				await dbContext.SaveChangesAsync();
-			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				Console.WriteLine($"Skipping duplicate staff users: {ex.Message}");
-			}
-		}
-
-		// Create staff user accounts
-		var allStaffUsersQuery =
-			from u in dbContext.User
-			where staffUsers.Select(su => su.Email).Contains(u.Email)
-			select u;
-
-		var allStaffUsers = await allStaffUsersQuery.ToDictionaryAsync(u => u.Email, u => u.GetRequiredId());
-
-		var desiredStaffAccounts = new List<UserAccount>();
-		foreach (var (email, level) in staffUsers) {
-			if (allStaffUsers.TryGetValue(email, out var userId)) {
-				var staffAccount = UserAccount.CreateStaffAccount(userId);
-				staffAccount.Level = level;
-				staffAccount.IsSuspended = false;
-				desiredStaffAccounts.Add(staffAccount);
-			}
-		}
-
-		var existingStaffAccountsQuery =
-			from ua in dbContext.UserAccount
-			where ua.TenantId == null && ua.Scope == AccountScope.Staff
-			select new { ua.UserId };
-
-		var existingStaffAccounts = await existingStaffAccountsQuery.ToListAsync();
-
-		var existingStaffUserIds = new HashSet<Guid>(
-			existingStaffAccounts.Select(p => p.UserId)
-		);
-
-		var newStaffAccounts = desiredStaffAccounts
-			.Where(a => !existingStaffUserIds.Contains(a.UserId))
-			.ToList();
-
-		if (newStaffAccounts.Count != 0) {
-			try {
-				await dbContext.UserAccount.AddRangeAsync(newStaffAccounts);
-				await dbContext.SaveChangesAsync();
-			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				Console.WriteLine($"Skipping duplicate staff accounts: {ex.Message}");
-			}
-		}
-	}
-
-	private static async Task SeedTenantsProjectsAndUsersAsync(MainApiDbContext dbContext) {
-		var seedPassword = GetSeedPassword();
-
-		var tenantData = new List<TenantSeedData> {
-			new TenantSeedData {
-				Tenant = new Tenant { Code = "acme-corp", Name = "Acme Corporation", Status = TenantStatus.Active },
-								Projects = [
-										new Project { Name = "Marketing Campaign 2024", TenantId = Guid.Empty, IsActive = true },
-										new Project { Name = "Product Launch", TenantId = Guid.Empty, IsActive = true }
-								],
-				Users = [
-					new SeedUser("admin-acme@example.com", seedPassword, AccountLevel.Admin),
-					new SeedUser("user-acme@example.com", seedPassword, AccountLevel.User)
-				]
-			},
-			new TenantSeedData {
-				Tenant = new Tenant { Code = "techstart-inc", Name = "TechStart Inc", Status = TenantStatus.Active },
-								Projects = [
-										new Project { Name = "Mobile App", TenantId = Guid.Empty, IsActive = true },
-										new Project { Name = "Web Platform", TenantId = Guid.Empty, IsActive = true }
-								],
-				Users = [
-					new SeedUser("admin-techstart@example.com", seedPassword, AccountLevel.Admin),
-					new SeedUser("user-techstart@example.com", seedPassword, AccountLevel.User)
-				]
-			},
-			new TenantSeedData {
-				Tenant = new Tenant { Code = "global-solutions", Name = "Global Solutions", Status = TenantStatus.Active },
-								Projects = [
-										new Project { Name = "Enterprise Suite", TenantId = Guid.Empty, IsActive = true },
-										new Project { Name = "Customer Portal", TenantId = Guid.Empty, IsActive = true }
-								],
-				Users = [
-					new SeedUser("admin-global@example.com", seedPassword, AccountLevel.Admin),
-					new SeedUser("user-global@example.com", seedPassword, AccountLevel.User)
-				]
-			}
-		};
-
-		var crossTenantUsers = new List<CrossTenantUser> {
-			new CrossTenantUser("alice@example.com", ["acme-corp"]),
-			new CrossTenantUser("bob@example.com", ["acme-corp", "techstart-inc"]),
-			new CrossTenantUser("charlie@example.com", ["acme-corp", "techstart-inc", "global-solutions"])
-		};
-
-		var tenantCodes = tenantData.Select(td => td.Tenant.Code).ToList();
-		var existingTenantCodesQuery =
-			from t in dbContext.Tenant
-			where tenantCodes.Contains(t.Code)
-			select t.Code;
-		var existingTenantCodes = await existingTenantCodesQuery.ToListAsync();
-
-		var newTenants = tenantData
-			.Where(td => !existingTenantCodes.Contains(td.Tenant.Code))
-			.Select(td => new Tenant {
-				Code = td.Tenant.Code,
-				Name = td.Tenant.Name,
-				Status = td.Tenant.Status,
-			})
-			.ToList();
-
-		if (newTenants.Count != 0) {
-			try {
-				await dbContext.Tenant.AddRangeAsync(newTenants);
-				await dbContext.SaveChangesAsync();
-			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				Console.WriteLine($"Skipping duplicate tenants: {ex.Message}");
-			}
-		}
-
-		var allTenantsQuery =
-			from t in dbContext.Tenant
-			where tenantCodes.Contains(t.Code)
-			select t;
-		var allTenants = await allTenantsQuery.ToDictionaryAsync(t => t.Code, t => t.GetRequiredId());
-
-		var projectsToAdd = new List<Project>();
-		foreach (var td in tenantData) {
-			if (allTenants.TryGetValue(td.Tenant.Code, out var tenantId)) {
-				var projectNames = td.Projects.Select(p => p.Name).ToList();
-
-				// Get existing projects with their names for this tenant
-				var existingProjectsQuery =
-					from p in dbContext.Project
-					where p.TenantId == tenantId && projectNames.Contains(p.Name)
-					select new { p.Name, p.Id };
-
-				var existingProjects = await existingProjectsQuery.ToListAsync();
-				var existingProjectNames = existingProjects.Select(p => p.Name).ToHashSet();
-
-				// Only add projects that don't already exist
-				var newProjects = td.Projects
-					.Where(p => !existingProjectNames.Contains(p.Name))
-					.Select(p => new Project {
-						TenantId = tenantId,
-						Name = p.Name,
-						Description = p.Description,
-						IsActive = p.IsActive
-					})
-					.ToList();
-
-				projectsToAdd.AddRange(newProjects);
-			}
-		}
-
-		// Add projects in smaller batches to avoid constraint violations
-		if (projectsToAdd.Count != 0) {
-			const int batchSize = 10;
-			for (int i = 0; i < projectsToAdd.Count; i += batchSize) {
-				var batch = projectsToAdd.Skip(i).Take(batchSize).ToList();
-				try {
-					await dbContext.Project.AddRangeAsync(batch);
-					await dbContext.SaveChangesAsync();
-				} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-					// Handle duplicate key constraint violations gracefully
-					// This can happen if projects were created between our check and the insert
-					Console.WriteLine($"Skipping duplicate projects in batch {i / batchSize + 1}: {ex.Message}");
-					// Clear the current batch from the context to avoid further issues
-					foreach (var project in batch) {
-						var entry = dbContext.Entry(project);
-						if (entry.State != EntityState.Detached) {
-							entry.State = EntityState.Detached;
-						}
-					}
-				}
-			}
-		}
-
-		var tenantUserEmails = tenantData.SelectMany(td => td.Users.Select(u => u.Email)).ToList();
-		var crossTenantUserEmails = crossTenantUsers.Select(ctu => ctu.Email).ToList();
-		var allUserEmails = tenantUserEmails.Concat(crossTenantUserEmails).Distinct().ToList();
-
-		var existingUserEmailsQuery = from u in dbContext.User
-																	where allUserEmails.Contains(u.Email)
-																	select u.Email;
 		var existingUserEmails = await existingUserEmailsQuery.ToListAsync();
 
-		var newUsers = allUserEmails
-			.Where(email => !existingUserEmails.Contains(email))
-			.Select(email => new User {
-				Email = email,
+		var newUsers = allUsers
+			.Where(au => !existingUserEmails.Contains(au.Email))
+			.Select(au => new User {
+				Email = au.Email,
 				Password = seedPassword,
-				Status = UserStatus.Active,
+				Status = au.Status,
+				FirstName = au.FirstName,
+				LastName = au.LastName,
 				IsVerified = true
 			})
 			.ToList();
@@ -299,268 +97,37 @@ public static class Seeder {
 				Console.WriteLine($"Skipping duplicate users: {ex.Message}");
 			}
 		}
-
-		var allUsersQuery =
-			from u in dbContext.User
-			where allUserEmails.Contains(u.Email)
-			select u;
-		var allUsers = await allUsersQuery.ToDictionaryAsync(u => u.Email, u => u.GetRequiredId());
-
-		var desiredAccounts = new List<UserAccount>();
-
-		foreach (var td in tenantData) {
-			if (allTenants.TryGetValue(td.Tenant.Code, out var tenantId)) {
-				foreach (var u in td.Users) {
-					if (allUsers.TryGetValue(u.Email, out var userId)) {
-						desiredAccounts.Add(new UserAccount {
-							UserId = userId,
-							TenantId = tenantId,
-							Scope = AccountScope.Tenant,
-							Level = u.Level,
-							IsSuspended = false
-						});
-					}
-				}
-			}
-		}
-
-		foreach (var ctu in crossTenantUsers) {
-			if (allUsers.TryGetValue(ctu.Email, out var userId)) {
-				foreach (var tenantCode in ctu.TenantCodes) {
-					if (allTenants.TryGetValue(tenantCode, out var tenantId)) {
-						desiredAccounts.Add(new UserAccount {
-							UserId = userId,
-							TenantId = tenantId,
-							Scope = AccountScope.Tenant,
-							Level = AccountLevel.User,
-							IsSuspended = false
-						});
-					}
-				}
-			}
-		}
-
-		var tenantIds = allTenants.Values.ToList();
-		var existingUserAccountsQuery =
-			from ua in dbContext.UserAccount
-			where ua.Scope == AccountScope.Tenant
-						&& ua.TenantId.HasValue
-						&& tenantIds.Contains(ua.TenantId.Value)
-			select new { ua.UserId, TenantId = ua.TenantId!.Value };
-		var existingUserAccounts = await existingUserAccountsQuery.ToListAsync();
-
-		var existingSet = new HashSet<(Guid, Guid)>(existingUserAccounts.Select(p => (p.UserId, p.TenantId)));
-
-		var newAccounts = desiredAccounts
-			.Where(a => !existingSet.Contains((a.UserId, a.TenantId!.Value)))
-			.ToList();
-
-		if (newAccounts.Count != 0) {
-			try {
-				await dbContext.UserAccount.AddRangeAsync(newAccounts);
-				await dbContext.SaveChangesAsync();
-			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				Console.WriteLine($"Skipping duplicate user accounts: {ex.Message}");
-			}
-		}
 	}
 
-	private static async Task SeedProfilesAndPermissionsAsync(MainApiDbContext dbContext) {
-		// Staff profiles do not depend on a special 'staff' tenant
-
-		var profilesData = new List<(string Name, ProfileScope Scope, Guid? TenantId, string[] PermissionKeys)> {
-			("Staff Admin", ProfileScope.Staff, null, [
-				PermissionEnum.Staff.CAN_LIST_TENANTS.Key,
-				PermissionEnum.Staff.CAN_CREATE_TENANT.Key,
-				PermissionEnum.Staff.CAN_GET_TENANT.Key,
-				PermissionEnum.Staff.CAN_LIST_USERS.Key,
-				PermissionEnum.Staff.CAN_GET_PROFILE.Key,
-				PermissionEnum.Staff.CAN_LIST_PROFILES.Key,
-				PermissionEnum.Staff.CAN_CREATE_PROFILE.Key
-			]),
-			("Staff User", ProfileScope.Staff, null, [
-				PermissionEnum.Staff.CAN_LIST_TENANTS.Key,
-				PermissionEnum.Staff.CAN_LIST_USERS.Key
-			])
+	private static async Task SeedTenantsAsync(MainApiDbContext dbContext) {
+		var tenantsData = new List<(string Code, string Name, TenantStatus Status)> {
+			("acme-corp", "Acme Corporation", TenantStatus.Active),
+			("techstart-inc", "TechStart Inc", TenantStatus.Active),
+			("global-solutions", "Global Solutions", TenantStatus.Active)
 		};
 
-		var tenantsQuery =
+		var tenantCodes = tenantsData.Select(td => td.Code).ToList();
+		var existingTenantCodesQuery =
 			from t in dbContext.Tenant
-			select t;
-		var tenants = await tenantsQuery.ToListAsync();
+			where tenantCodes.Contains(t.Code)
+			select t.Code;
+		var existingTenantCodes = await existingTenantCodesQuery.ToListAsync();
 
-		foreach (var tenant in tenants) {
-			profilesData.Add(($"{tenant.Name} Admin", ProfileScope.Tenant, tenant.Id, []));
-			profilesData.Add(($"{tenant.Name} User", ProfileScope.Tenant, tenant.Id, []));
-		}
-
-		var existingProfilesQuery = from p in dbContext.Profile
-																where profilesData.Select(pd => pd.Name).Contains(p.Name)
-																select p.Name;
-		var existingProfiles = await existingProfilesQuery.ToListAsync();
-
-		var newProfiles = profilesData
-			.Where(pd => !existingProfiles.Contains(pd.Name))
-			.Select(pd => new Profile {
-				Name = pd.Name,
-				ProfileScope = pd.Scope,
-				TenantId = pd.TenantId
+		var newTenants = tenantsData
+			.Where(td => !existingTenantCodes.Contains(td.Code))
+			.Select(td => new Tenant {
+				Code = td.Code,
+				Name = td.Name,
+				Status = td.Status
 			})
 			.ToList();
 
-		if (newProfiles.Count != 0) {
+		if (newTenants.Count != 0) {
 			try {
-				await dbContext.Profile.AddRangeAsync(newProfiles);
+				await dbContext.Tenant.AddRangeAsync(newTenants);
 				await dbContext.SaveChangesAsync();
 			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				Console.WriteLine($"Skipping duplicate profiles: {ex.Message}");
-			}
-		}
-
-		var allProfilesQuery =
-			from p in dbContext.Profile
-			where profilesData.Select(pd => pd.Name).Contains(p.Name)
-			select p;
-		var allProfiles = await allProfilesQuery.ToDictionaryAsync(p => p.Name, p => p.GetRequiredId());
-
-		var profilePermissionsToAdd = new List<ProfilePermission>();
-		foreach (var pd in profilesData.Where(pd => pd.PermissionKeys.Length > 0)) {
-			if (allProfiles.TryGetValue(pd.Name, out var profileId)) {
-				var existingPermissionsQuery =
-					from pp in dbContext.ProfilePermission
-					where pp.ProfileId == profileId
-					select pp.PermissionKey;
-				var existingPermissions = await existingPermissionsQuery.ToListAsync();
-
-				var newPermissions = pd.PermissionKeys
-					.Where(key => !existingPermissions.Contains(key))
-					.Select(key => new ProfilePermission {
-						ProfileId = profileId,
-						PermissionKey = key
-					})
-					.ToList();
-
-				profilePermissionsToAdd.AddRange(newPermissions);
-			}
-		}
-
-		if (profilePermissionsToAdd.Count != 0) {
-			try {
-				await dbContext.ProfilePermission.AddRangeAsync(profilePermissionsToAdd);
-				await dbContext.SaveChangesAsync();
-			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				Console.WriteLine($"Skipping duplicate profile permissions: {ex.Message}");
-			}
-		}
-	}
-
-	private static async Task SeedUserAccountProfilesAsync(MainApiDbContext dbContext) {
-		var staffAdminProfileQuery =
-			from p in dbContext.Profile
-			where p.Name == "Staff Admin"
-			select p;
-		var staffAdminProfile = await staffAdminProfileQuery.FirstOrDefaultAsync();
-		var staffUserProfileQuery =
-			from p in dbContext.Profile
-			where p.Name == "Staff User"
-			select p;
-		var staffUserProfile = await staffUserProfileQuery.FirstOrDefaultAsync();
-
-		if (staffAdminProfile == null || staffUserProfile == null) return;
-
-		var staffAdminAccountQuery =
-			from ua in dbContext.UserAccount.Include(ua => ua.User)
-			where ua.User.Email == "staff-admin@example.com" && ua.Scope == AccountScope.Staff
-			select ua;
-		var staffAdminAccount = await staffAdminAccountQuery.FirstOrDefaultAsync();
-
-		var staffUserAccountQuery =
-			from ua in dbContext.UserAccount.Include(ua => ua.User)
-			where ua.User.Email == "staff-user@example.com" && ua.Scope == AccountScope.Staff
-			select ua;
-		var staffUserAccount = await staffUserAccountQuery.FirstOrDefaultAsync();
-
-		var userAccountProfilesToAdd = new List<UserAccountProfile>();
-
-		if (staffAdminAccount != null && staffAdminProfile != null) {
-			var staffAdminUapExistsQuery =
-				from uap in dbContext.UserAccountProfile
-				where uap.UserAccountId == staffAdminAccount.Id && uap.ProfileId == staffAdminProfile.Id
-				select uap;
-			if (!await staffAdminUapExistsQuery.AnyAsync()) {
-				userAccountProfilesToAdd.Add(new UserAccountProfile {
-					UserAccountId = staffAdminAccount.GetRequiredId(),
-					ProfileId = staffAdminProfile.GetRequiredId()
-				});
-			}
-		}
-
-		if (staffUserAccount != null && staffUserProfile != null) {
-			var staffUserUapExistsQuery =
-				from uap in dbContext.UserAccountProfile
-				where uap.UserAccountId == staffUserAccount.Id && uap.ProfileId == staffUserProfile.Id
-				select uap;
-			if (!await staffUserUapExistsQuery.AnyAsync()) {
-				userAccountProfilesToAdd.Add(new UserAccountProfile {
-					UserAccountId = staffUserAccount.GetRequiredId(),
-					ProfileId = staffUserProfile.GetRequiredId()
-				});
-			}
-		}
-
-		var tenantWithUsersQuery = dbContext.Tenant
-				.Include(t => t.UserAccounts)
-				.ThenInclude(ua => ua.User);
-		var tenantsWithUsersQuery =
-			from t in tenantWithUsersQuery
-			where t.Code != "staff"
-			select t;
-		var tenants = await tenantsWithUsersQuery.ToListAsync();
-
-		foreach (var tenant in tenants) {
-			var tenantAdminProfileQuery =
-				from p in dbContext.Profile
-				where p.Name == $"{tenant.Name} Admin" && p.TenantId == tenant.Id
-				select p;
-			var tenantAdminProfile = await tenantAdminProfileQuery.FirstOrDefaultAsync();
-			var tenantUserProfileQuery =
-				from p in dbContext.Profile
-				where p.Name == $"{tenant.Name} User" && p.TenantId == tenant.Id
-				select p;
-			var tenantUserProfile = await tenantUserProfileQuery.FirstOrDefaultAsync();
-
-			if (tenantAdminProfile == null || tenantUserProfile == null) continue;
-
-			foreach (var userAccount in tenant.UserAccounts.Where(ua => ua.Scope == AccountScope.Tenant)) {
-				var targetProfile = userAccount.Level == AccountLevel.Admin ? tenantAdminProfile : tenantUserProfile;
-
-				var userAccountProfileExistsQuery =
-					from uap in dbContext.UserAccountProfile
-					where uap.UserAccountId == userAccount.Id && uap.ProfileId == targetProfile.Id
-					select uap;
-				if (!await userAccountProfileExistsQuery.AnyAsync()) {
-					userAccountProfilesToAdd.Add(new UserAccountProfile {
-						UserAccountId = userAccount.GetRequiredId(),
-						ProfileId = targetProfile.GetRequiredId()
-					});
-				}
-			}
-		}
-
-		if (userAccountProfilesToAdd.Count != 0) {
-			try {
-				await dbContext.UserAccountProfile.AddRangeAsync(userAccountProfilesToAdd);
-				await dbContext.SaveChangesAsync();
-			} catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				// Handle duplicate key constraint violations gracefully
-				Console.WriteLine($"Skipping duplicate user account profiles: {ex.Message}");
-				// Clear the current batch from the context to avoid further issues
-				foreach (var profile in userAccountProfilesToAdd) {
-					var entry = dbContext.Entry(profile);
-					if (entry.State != EntityState.Detached) {
-						entry.State = EntityState.Detached;
-					}
-				}
+				Console.WriteLine($"Skipping duplicate tenants: {ex.Message}");
 			}
 		}
 	}

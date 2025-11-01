@@ -181,7 +181,8 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				modelBuilder.Entity(entityType.ClrType);
 			} else {
 				throw new Exception(
-						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)}, {nameof(IOptionalTenantEntity)}, or {nameof(INoTenantEntity)}");
+					$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)}, {nameof(IOptionalTenantEntity)}, or {nameof(INoTenantEntity)}"
+				);
 			}
 
 			// Configure UUID v7 auto-generation for entities with Guid Id (inheriting from BaseAttributes)
