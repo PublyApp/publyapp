@@ -724,6 +724,7 @@ export function deserializeIntoUpdateStaffMemberBody(updateStaffMemberBody: Part
         "email": n => { updateStaffMemberBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "firstName": n => { updateStaffMemberBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "lastName": n => { updateStaffMemberBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "status": n => { updateStaffMemberBody.status = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -1372,6 +1373,7 @@ export function serializeUpdateStaffMemberBody(writer: SerializationWriter, upda
     writer.writeObjectValue("email", updateStaffMemberBody.email);
     writer.writeObjectValue("firstName", updateStaffMemberBody.firstName);
     writer.writeObjectValue("lastName", updateStaffMemberBody.lastName);
+    writer.writeObjectValue("status", updateStaffMemberBody.status);
     writer.writeAdditionalData(updateStaffMemberBody.additionalData);
 }
 /**
@@ -1503,6 +1505,10 @@ export interface UpdateStaffMemberBody extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: UntypedNode | null;
+    /**
+     * The status property
+     */
+    status?: UntypedNode | null;
 }
 export interface VerifyEmailRequestBody extends AdditionalDataHolder, Parsable {
     /**
