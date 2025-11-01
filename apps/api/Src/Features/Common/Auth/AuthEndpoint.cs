@@ -37,6 +37,8 @@ public static class AuthEndpoint {
 		)
 			.WithName("GetUserAuthData")
 			.WithSummary("Get User Auth Data")
+			.WithCheckSessionHeader()
+			.WithSessionAuthentication()
 			.ProducesApiResponses(
 				StatusCodes.Status500InternalServerError,
 				StatusCodes.Status401Unauthorized
@@ -48,6 +50,8 @@ public static class AuthEndpoint {
 		)
 			.WithName("GetTenantAuthData")
 			.WithSummary("Get Tenant Auth Data")
+			.WithCheckSessionHeader()
+			.WithSessionAuthentication()
 			.ProducesApiResponses(
 				StatusCodes.Status500InternalServerError,
 				StatusCodes.Status401Unauthorized
@@ -78,6 +82,8 @@ public static class AuthEndpoint {
 			.WithName("GetRedirectCode")
 			.WithSummary("Get Redirect Code")
 			.WithReqQueryValidation<GetRedirectCodeQuery>()
+			.WithCheckSessionHeader()
+			.WithSessionAuthentication()
 			.ProducesApiResponses(
 				StatusCodes.Status500InternalServerError,
 				StatusCodes.Status401Unauthorized
