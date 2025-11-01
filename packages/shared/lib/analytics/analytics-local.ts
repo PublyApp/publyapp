@@ -1,3 +1,4 @@
+import { isoLogger } from '../logger/iso-logger';
 import type {
 	CaptureEventParams,
 	CaptureExceptionParams,
@@ -11,14 +12,14 @@ import type {
  */
 export class AnalyticsLocal implements IAnalytics {
 	capture(_params: CaptureEventParams): void {
-		console.warn('AnalyticsLocal instance used - capture');
+		isoLogger.warn('AnalyticsLocal instance used - capture');
 	}
 
 	identify(_params: IdentifyUserParams): void {
-		console.warn('AnalyticsLocal instance used - identify');
+		isoLogger.warn('AnalyticsLocal instance used - identify');
 	}
 
 	captureException(_params: CaptureExceptionParams): void {
-		console.warn('AnalyticsLocal instance used - captureException');
+		isoLogger.warn('AnalyticsLocal instance used - captureException');
 	}
 }

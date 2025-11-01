@@ -34,6 +34,10 @@ public static class RoutePath {
 				return PathUtils.Join(RoutePath.Staff.StaffMember.Root, $"/{userId}");
 			}
 			public static readonly string Find = PathUtils.Join(RoutePath.Staff.StaffMember.Root, "/");
+			public static readonly string Update = PathUtils.Join(RoutePath.Staff.StaffMember.Root, "/{userId}");
+			public static string UpdateFn(string userId) {
+				return PathUtils.Join(RoutePath.Staff.StaffMember.Root, $"/{userId}");
+			}
 		}
 		public static class Tenants {
 			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/tenants");

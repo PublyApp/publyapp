@@ -112,7 +112,7 @@ export const MainLayout = ({
 							component={RouterLink}
 							variant="contained"
 							rel="noopener"
-							href={makePath(FRONT_PATH_NAMES.staff.tenants.root)}
+							href={makePath(FRONT_PATH_NAMES.staff.root)}
 							sx={(theme) => {
 								return {
 									display: 'none',

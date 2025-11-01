@@ -6,13 +6,13 @@ using Microsoft.Extensions.Options;
 namespace MainApi.Src.Features.Common.Email;
 
 public interface IEmailService {
-	Task SendWelComeEmail(string email, string token);
-	Task SendEmailVerificationRequest(string email, string token);
-	Task SendEmailVerifiedNotification(string email);
-	Task SendStaffWelcomeEmail(string email, string token);
-	Task SendJoinedStaffNotificationEmail(string email);
-	Task SendResetPasswordRequestEmail(string email, string token);
-	Task SendPasswordResetNotificationEmail(string email);
+	Task SendWelComeEmailAsync(string email, string token);
+	Task SendEmailVerificationRequestAsync(string email, string token);
+	Task SendEmailVerifiedNotificationAsync(string email);
+	Task SendStaffWelcomeEmailAsync(string email, string token);
+	Task SendJoinedStaffNotificationEmailAsync(string email);
+	Task SendResetPasswordRequestEmailAsync(string email, string token);
+	Task SendPasswordResetNotificationEmailAsync(string email);
 }
 
 public class EmailService : IEmailService {
@@ -38,7 +38,7 @@ public class EmailService : IEmailService {
 	}
 
 	// used when a staff member is created and user is new, hence needs to verify email
-	public async Task SendStaffWelcomeEmail(string email, string token) {
+	public async Task SendStaffWelcomeEmailAsync(string email, string token) {
 		var verificationUrl = AuthUtils.CreateVerificationUrl(token, email);
 		await _emailSender.SendAsync(new EmailRequest {
 			To = email,
@@ -55,7 +55,7 @@ public class EmailService : IEmailService {
 	}
 
 	// used when a staff membership is added to an existing user: user already existed, hence no need to verify email
-	public async Task SendJoinedStaffNotificationEmail(string email) {
+	public async Task SendJoinedStaffNotificationEmailAsync(string email) {
 		await _emailSender.SendAsync(new EmailRequest {
 			To = email,
 			From = $"{_appSettings.Value.DEFAULT_EMAIL_SENDER_NAME} <{_appSettings.Value.DEFAULT_EMAIL_SENDER_EMAIL}>",
@@ -69,7 +69,7 @@ public class EmailService : IEmailService {
 	}
 
 	// used when a user is created and needs to verify email
-	public async Task SendWelComeEmail(string email, string token) {
+	public async Task SendWelComeEmailAsync(string email, string token) {
 		var verificationUrl = AuthUtils.CreateVerificationUrl(token, email);
 		await _emailSender.SendAsync(new EmailRequest {
 			To = email,
@@ -86,7 +86,7 @@ public class EmailService : IEmailService {
 	}
 
 	// used when a user requests to verify his/her email
-	public async Task SendEmailVerificationRequest(string email, string token) {
+	public async Task SendEmailVerificationRequestAsync(string email, string token) {
 		var verificationUrl = AuthUtils.CreateVerificationUrl(token, email);
 		await _emailSender.SendAsync(new EmailRequest {
 			To = email,
@@ -103,7 +103,7 @@ public class EmailService : IEmailService {
 	}
 
 	// used when a user's email is verified following the verification process
-	public async Task SendEmailVerifiedNotification(string email) {
+	public async Task SendEmailVerifiedNotificationAsync(string email) {
 		await _emailSender.SendAsync(new EmailRequest {
 			To = email,
 			From = $"{_appSettings.Value.DEFAULT_EMAIL_SENDER_NAME} <{_appSettings.Value.DEFAULT_EMAIL_SENDER_EMAIL}>",
@@ -116,7 +116,7 @@ public class EmailService : IEmailService {
 		});
 	}
 
-	public async Task SendResetPasswordRequestEmail(string email, string token) {
+	public async Task SendResetPasswordRequestEmailAsync(string email, string token) {
 		var resetPasswordUrl = AuthUtils.CreateResetPasswordUrl(token, email);
 		await _emailSender.SendAsync(new EmailRequest {
 			To = email,
@@ -132,7 +132,7 @@ public class EmailService : IEmailService {
 		});
 	}
 
-	public async Task SendPasswordResetNotificationEmail(string email) {
+	public async Task SendPasswordResetNotificationEmailAsync(string email) {
 		await _emailSender.SendAsync(new EmailRequest {
 			To = email,
 			From = $"{_appSettings.Value.DEFAULT_EMAIL_SENDER_NAME} <{_appSettings.Value.DEFAULT_EMAIL_SENDER_EMAIL}>",
