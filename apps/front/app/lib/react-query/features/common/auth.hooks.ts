@@ -5,6 +5,7 @@ import {
 	createSuspenseQuery,
 } from 'react-query-kit';
 import { clientManager } from '@/front/lib/js-client/client-manager';
+import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import type { ApiClient } from '@/js-client/src/apiClient';
 import { getQueryKey } from '../../query-utils';
 
@@ -20,6 +21,20 @@ export const useGetUserAuthData = createSuspenseQuery({
 			throw new Error(`[${getUserAuthDataQueryKey}]: result is nil`);
 		}
 		return result;
+	},
+	// Custom retry logic to prevent infinite API calls on auth failures
+	// When user is deleted/suspended or session is invalid, fail immediately
+	// without retries to let ErrorBoundary handle the redirect
+	retry: (failureCount, error) => {
+		if (isJsClientError(error)) {
+			const authErrorStatuses = [401, 403, 404];
+			if (authErrorStatuses.includes(error.responseStatusCode)) {
+				// Don't retry on auth errors - fail fast
+				return false;
+			}
+		}
+		// For other errors (network issues, etc.), retry up to 2 times
+		return failureCount < 2;
 	},
 });
 
@@ -39,6 +54,20 @@ export const useGetTenantAuthData = createSuspenseQuery({
 			throw new Error(`[${getTenantAuthDataQueryKey}]: result is nil`);
 		}
 		return result;
+	},
+	// Custom retry logic to prevent infinite API calls on auth failures
+	// When user is deleted/suspended or session is invalid, fail immediately
+	// without retries to let ErrorBoundary handle the redirect
+	retry: (failureCount, error) => {
+		if (isJsClientError(error)) {
+			const authErrorStatuses = [401, 403, 404];
+			if (authErrorStatuses.includes(error.responseStatusCode)) {
+				// Don't retry on auth errors - fail fast
+				return false;
+			}
+		}
+		// For other errors (network issues, etc.), retry up to 2 times
+		return failureCount < 2;
 	},
 });
 
