@@ -14,6 +14,7 @@ namespace MainApi.Src.Features.Common.Invitation;
 [Index(nameof(InvitedByUserId))]
 [Index(nameof(ExpiresAt))]
 [Index(nameof(TenantId), nameof(Scope))]
+[Index(nameof(TokenHash), IsUnique = true)]
 public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	[Column("email")]
 	public required string Email { get; set; }

@@ -10,6 +10,9 @@ using MainApi.Src.Features.Common.Permission;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Features.Common.Invitation;
+using MainApi.Src.Features.Staff.Audit;
+using MainApi.Src.Features.Staff.Impersonation;
 using MainApi.Src.Features.Staff.StaffMember;
 using MainApi.Src.Features.Staff.TenantAsStaff;
 using MainApi.Src.Lib.Email;
@@ -20,19 +23,18 @@ namespace MainApi.Src.Lib;
 public static class AppServicesConfig {
 	// Helper method to get current tenant ID
 	// (you'll need to implement this based on your authentication/authorization)
-	private static Guid GetCurrentTenantId(IServiceProvider serviceProvider) {
-		// TODO: implement this
-		// Default tenant ID for development
-		// var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-		// var tenantIdHeader = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].FirstOrDefault();
-		return Guid.Parse("01234567-89ab-7def-0123-456789abcdef");
+	private static Guid? GetCurrentTenantId(IHttpContextAccessor httpContextAccessor) {
+		var httpContext = httpContextAccessor.HttpContext;
+		if (httpContext is null) {
+			return null;
+		}
 
-		// if (tenantIdHeader == null || !Guid.TryParse(tenantIdHeader, out Guid tenantId))
-		// {
-		// 	throw new Exception("Valid Tenant ID is required");
-		// }
+		var tenantIdHeader = httpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault();
+		if (string.IsNullOrEmpty(tenantIdHeader)) {
+			return null;
+		}
 
-		// return tenantId;
+		return Guid.TryParse(tenantIdHeader, out var tenantId) ? tenantId : null;
 	}
 
 	public static IHostApplicationBuilder AddServices(this WebApplicationBuilder builder) {
@@ -62,11 +64,14 @@ public static class AppServicesConfig {
 
 		// Register scoped DbContext (for per-request instances)
 		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) => {
-			var tenantId = GetCurrentTenantId(serviceProvider);
-			// TODO: if tenantId is null, use the singleton db context instead of instantiating a new one
-			options
-				.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
-				.UseTenantId(tenantId);
+			var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
+			var tenantId = GetCurrentTenantId(httpContextAccessor);
+
+			options.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING);
+
+			if (tenantId.HasValue) {
+				options.UseTenantId(tenantId.Value);
+			}
 		}, ServiceLifetime.Scoped);
 
 		// Register FluentValidation
@@ -87,6 +92,9 @@ public static class AppServicesConfig {
 		builder.Services.AddScoped<ITenantService, TenantService>();
 		builder.Services.AddScoped<IAccountService, AccountService>();
 		builder.Services.AddScoped<IProfileService, ProfileService>();
+		builder.Services.AddScoped<IInvitationService, InvitationService>();
+		builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+		builder.Services.AddScoped<IImpersonationService, ImpersonationService>();
 		builder.Services.AddScoped<IStaffMemberService, StaffMemberService>();
 		builder.Services.AddScoped<IPermissionService, PermissionService>();
 
