@@ -123,13 +123,13 @@ const StaffMembersTable = () => {
 		variables: apiVariables,
 	});
 
-	const rows: StaffMemberRowData[] = useMemo(() => {
+	const dataTable = useMemo(() => {
 		return _.map(data?.staffMembers, StaffMemberRowDataMapper);
 	}, [data]);
 
 	const table = useMRTTable('default', {
 		columns,
-		data: rows,
+		data: dataTable,
 		rowCount: data?.count || 0,
 		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
@@ -137,7 +137,7 @@ const StaffMembersTable = () => {
 		onSortingChange: handleSortingChange,
 		state: {
 			...tableState,
-			density: 'comfortable',
+			density: 'compact',
 			isLoading: isPending,
 		},
 		muiTablePaperProps: {
