@@ -106,6 +106,9 @@ export const FRONT_PATH_NAMES = {
 				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'details', userId);
 			},
 		},
+		backgroundJobs: {
+			root: makePath(ROOTS.STAFF, 'background-jobs'),
+		},
 		settings: {
 			root: makePath(ROOTS.STAFF, 'settings'),
 		},

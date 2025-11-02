@@ -98,11 +98,6 @@ const TenantsTable = () => {
 		];
 	}, [t]);
 
-	// const [pagination, setPagination] = useState<MRT_PaginationState>({
-	// 	pageIndex: 0,
-	// 	pageSize: DEFAULT_PAGE_SIZE, //customize the default page size
-	// });
-
 	// Use the custom table state hook
 	const {
 		handlePaginationChange,
@@ -125,8 +120,8 @@ const TenantsTable = () => {
 	const table = useMRTTable('default', {
 		columns,
 		data: dataTable,
-		manualPagination: true,
 		rowCount: data?.count || 0,
+		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
