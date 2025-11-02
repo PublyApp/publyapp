@@ -27,8 +27,12 @@ public class SessionService : ISessionService {
 	}
 
 	public async Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default) {
+		if (user.Id is null) {
+			throw new InvalidOperationException("Cannot create session for user without persisted identifier.");
+		}
+
 		var session = new Session {
-			UserId = user.Id,
+			UserId = user.Id.Value,
 			Token = CryptoUtils.RandomString(32),
 			ExpiresAt = DateTime.UtcNow.AddDays(_appSettings.Value.SESSION_EXPIRY_DAYS),
 		};

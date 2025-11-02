@@ -11,7 +11,7 @@ namespace MainApi.Src.Features.Common.Session;
 [Index(nameof(ExpiresAt))]
 public class Session : BaseAttributes, INoTenantEntity {
 	[Column("user_id")]
-	public Guid? UserId { get; set; }
+	public required Guid UserId { get; set; }
 
 	[JsonIgnore]
 	public UserEntity User { get; set; } = null!;
@@ -27,6 +27,7 @@ public class Session : BaseAttributes, INoTenantEntity {
 
 	[Column("impersonating_staff_user_id")]
 	public Guid? ImpersonatingStaffUserId { get; set; }
+
 	[JsonIgnore]
 	public UserEntity? ImpersonatingStaffUser { get; set; }
 

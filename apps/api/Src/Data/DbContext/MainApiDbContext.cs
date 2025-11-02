@@ -6,6 +6,9 @@ using MainApi.Src.Features.Common.Project;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
+using MainApi.Src.Features.Common.Invitation;
+using MainApi.Src.Features.Staff.Audit;
+using MainApi.Src.Features.Staff.Notice;
 using MainApi.Src.Features.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Lib;
@@ -57,6 +60,13 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 	// Unified account system (handles Staff, Tenant, and Project accounts)
 	public DbSet<UserAccount> UserAccount { get; init; }
+
+	// Unified invitation system (Staff/Tenant/Project)
+	public DbSet<Invitation> Invitation { get; init; }
+
+	// Staff backoffice entities
+	public DbSet<AuditLog> AuditLog { get; init; }
+	public DbSet<SystemNotice> SystemNotice { get; init; }
 
 	public Guid? TenantId { get; set; }
 
@@ -197,6 +207,32 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Project_Constraints",
 				"(profile_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_scope != 2"));
+
+		// Database-level invitation scope constraints
+		modelBuilder.Entity<Invitation>()
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Staff_Constraints",
+				"(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
+
+		modelBuilder.Entity<Invitation>()
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Tenant_Constraints",
+				"(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
+
+		modelBuilder.Entity<Invitation>()
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Project_Constraints",
+				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
+
+		// Explicit relationships for Session -> User (two FKs to same principal)
+		modelBuilder.Entity<Session>()
+			.HasOne(s => s.User)
+			.WithMany(u => u.Sessions)
+			.HasForeignKey(s => s.UserId)
+			.IsRequired();
+
+		modelBuilder.Entity<Session>()
+			.HasOne(s => s.ImpersonatingStaffUser)
+			.WithMany()
+			.HasForeignKey(s => s.ImpersonatingStaffUserId)
+			.OnDelete(DeleteBehavior.Restrict);
 
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.Entity<User>()
