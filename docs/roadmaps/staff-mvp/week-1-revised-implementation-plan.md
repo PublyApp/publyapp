@@ -1,9 +1,10 @@
 # Staff MVP Week 1: Revised Implementation Plan (Pragmatic Approach)
 
-**Document Version:** 2.1 (Simplified)  
+**Document Version:** 3.1 (Complete Vertical Slice - GPT-5 Review Applied)  
 **Date:** November 2, 2025  
-**Status:** READY FOR IMPLEMENTATION  
-**Estimated Time:** 8.5-12.5 hours (~2 focused work days)
+**Status:** READY FOR IMPLEMENTATION (Code Review Corrections Applied)  
+**Estimated Time:** 19-26 hours (~3-4 focused work days)  
+**Review Status:** ✅ GPT-5 corrections applied (see `docs/reviews/` for details)
 
 ---
 
@@ -234,6 +235,8 @@ Add to end of file:
 ```bash
 # Staff Owner Bootstrap
 STAFF_OWNER_EMAIL=owner@publyapp.local
+# Note: STAFF_OWNER_BOOTSTRAP_CODE is for production use, not development seeding
+# Development seeding uses a fixed password for convenience
 STAFF_OWNER_BOOTSTRAP_CODE=ChangeMe123!@3#lol
 ```
 
@@ -242,9 +245,13 @@ STAFF_OWNER_BOOTSTRAP_CODE=ChangeMe123!@3#lol
 Add:
 ```bash
 # Staff Owner Bootstrap (CHANGE THESE IN PRODUCTION!)
+# The Owner account will be created during database seeding
+# STAFF_OWNER_BOOTSTRAP_CODE can be used for first-time password reset (future feature)
 STAFF_OWNER_EMAIL=owner@yourdomain.com
 STAFF_OWNER_BOOTSTRAP_CODE=<generate-secure-random-string>
 ```
+
+**Important:** The `STAFF_OWNER_BOOTSTRAP_CODE` is defined for future use (e.g., password reset on first login). Currently, development seeding uses a fixed password for convenience. In production, you should implement a secure password reset mechanism using this code.
 
 **File:** `apps/api/Src/Lib/AppEnvironment.cs`
 
@@ -1080,7 +1087,7 @@ public class AuditLogService : IAuditLogService {
             TargetId = targetId,
             Details = details is not null ? JsonSerializer.Serialize(details) : null,
             IpAddress = httpContext?.Connection.RemoteIpAddress?.ToString(),
-            UserAgent = httpContext?.Request.Headers.UserAgent.ToString()
+            UserAgent = httpContext?.Request.Headers["User-Agent"].ToString()  // Use indexer for reliability
         };
 
         await _dbContext.AuditLog.AddAsync(auditLog, cancellationToken);
@@ -1228,7 +1235,1199 @@ builder.Services.AddHttpContextAccessor();
 
 ---
 
-### Phase 5: Verification & Testing (1-2 hours)
+### Phase 5: API Endpoints & Handlers (3-4 hours)
+
+**Approach:** Following Vertical Slice Architecture, create endpoint handlers with proper validation, authorization, and response formatting.
+
+#### Task 5.1: Create Invitation DTOs and Validators
+
+**Directory:** `apps/api/Src/Features/Staff/Invitations/`
+
+**File:** `apps/api/Src/Features/Staff/Invitations/InvitationDtos.cs`
+
+```csharp
+namespace MainApi.Src.Features.Staff.Invitations;
+
+// Request DTOs
+public record CreateStaffInvitationRequest {
+    public required string Email { get; init; }
+    public required Guid ProfileId { get; init; }
+}
+
+public record AcceptInvitationRequest {
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
+    public required string Password { get; init; }
+}
+
+// Response DTOs
+public record InvitationResponse {
+    public required Guid Id { get; init; }
+    public required string Email { get; init; }
+    public required string Scope { get; init; }
+    public required string ProfileName { get; init; }
+    public required DateTime ExpiresAt { get; init; }
+    public required bool IsAccepted { get; init; }
+    public required bool IsRevoked { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public string? InvitedByName { get; init; }
+}
+
+public record InvitationTokenResponse {
+    public required Guid InvitationId { get; init; }
+    public required string Token { get; init; }
+    public required DateTime ExpiresAt { get; init; }
+}
+
+public record InvitationDetailsResponse {
+    public required string Email { get; init; }
+    public required string ProfileName { get; init; }
+    public required DateTime ExpiresAt { get; init; }
+}
+```
+
+**File:** `apps/api/Src/Features/Staff/Invitations/InvitationValidators.cs`
+
+```csharp
+using FluentValidation;
+
+namespace MainApi.Src.Features.Staff.Invitations;
+
+public class CreateStaffInvitationRequestValidator : AbstractValidator<CreateStaffInvitationRequest> {
+    public CreateStaffInvitationRequestValidator() {
+        RuleFor(x => x.Email)
+            .NotEmpty()
+            .EmailAddress()
+            .MaximumLength(255);
+
+        RuleFor(x => x.ProfileId)
+            .NotEmpty();
+    }
+}
+
+public class AcceptInvitationRequestValidator : AbstractValidator<AcceptInvitationRequest> {
+    public AcceptInvitationRequestValidator() {
+        RuleFor(x => x.FirstName)
+            .NotEmpty()
+            .MaximumLength(100);
+
+        RuleFor(x => x.LastName)
+            .NotEmpty()
+            .MaximumLength(100);
+
+        RuleFor(x => x.Password)
+            .NotEmpty()
+            .MinimumLength(8)
+            .MaximumLength(255);
+    }
+}
+```
+
+#### Task 5.2: Create Invitation Request Handlers
+
+**File:** `apps/api/Src/Features/Staff/Invitations/Handlers/CreateStaffInvitation.cs`
+
+```csharp
+using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Invitation;
+using MainApi.Src.Features.Common.Profile;
+using MainApi.Src.Features.Staff.Audit;
+using MainApi.Src.Lib;
+using MainApi.Src.Lib.ApiResponse;
+using MainApi.Src.Lib.Auth;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace MainApi.Src.Features.Staff.Invitations.Handlers;
+
+public static class CreateStaffInvitation {
+    public static async Task<Results<Ok<InvitationTokenResponse>, BadRequest<ApiResponse>, Forbidden<ApiResponse>>> Handle(
+        [FromServices] IAuthContext authContext,
+        [FromServices] MainApiDbContext dbContext,
+        [FromServices] IInvitationService invitationService,
+        [FromServices] IAuditLogService auditLogService,
+        [FromBody] CreateStaffInvitationRequest request,
+        CancellationToken cancellationToken = default
+    ) {
+        // Authorization: Staff Admin or Owner only
+        if (authContext.Account?.Scope != AccountScope.Staff || authContext.Account?.Level < AccountLevel.Admin) {
+            return TypedResults.Forbidden(
+                ApiResponse.Create("Forbidden", ResponseKeys.Forbidden)
+            );
+        }
+
+        // Validate profile exists and is Staff scope
+        var profileQuery =
+            from p in dbContext.Profile
+            where p.Id == request.ProfileId && p.ProfileScope == ProfileScope.Staff
+            select p;
+        var profile = await profileQuery.FirstOrDefaultAsync(cancellationToken);
+
+        if (profile is null) {
+            return TypedResults.BadRequest(
+                ApiResponse.Create("Profile not found", ResponseKeys.ProfileNotFound)
+            );
+        }
+
+        // Check if user already exists
+        var existingUserQuery =
+            from u in dbContext.User
+            where u.Email == request.Email.ToLowerInvariant()
+            select u;
+        var existingUser = await existingUserQuery.FirstOrDefaultAsync(cancellationToken);
+
+        if (existingUser is not null) {
+            return TypedResults.BadRequest(
+                ApiResponse.Create("User already exists", ResponseKeys.UserAlreadyExists)
+            );
+        }
+
+        // Check for pending invitation
+        var pendingInvitationQuery =
+            from inv in dbContext.Invitation
+            where inv.Email == request.Email.ToLowerInvariant()
+               && inv.Scope == InvitationScope.Staff
+               && !inv.IsAccepted
+               && !inv.IsRevoked
+               && inv.ExpiresAt > DateTime.UtcNow
+            select inv;
+        var pendingInvitation = await pendingInvitationQuery.FirstOrDefaultAsync(cancellationToken);
+
+        if (pendingInvitation is not null) {
+            return TypedResults.BadRequest(
+                ApiResponse.Create("Pending invitation exists", ResponseKeys.PendingInvitationExists)
+            );
+        }
+
+        // Create invitation
+        var (invitation, token) = await invitationService.CreateStaffInvitationAsync(
+            request.Email,
+            request.ProfileId,
+            authContext.User!.GetRequiredId(),
+            cancellationToken
+        );
+
+        // Audit log
+        await auditLogService.LogAsync(
+            authContext.User.GetRequiredId(),
+            AuditActions.InvitationCreated,
+            invitation.GetRequiredId(),
+            new { Email = request.Email, ProfileId = request.ProfileId, Scope = "Staff" },
+            cancellationToken
+        );
+
+        // Return typed response directly (not wrapped in ApiResponse<T>)
+        var response = new InvitationTokenResponse {
+            InvitationId = invitation.GetRequiredId(),
+            Token = token,
+            ExpiresAt = invitation.ExpiresAt
+        };
+
+        return TypedResults.Ok(response);
+    }
+}
+```
+
+**File:** `apps/api/Src/Features/Staff/Invitations/Handlers/GetInvitationDetails.cs`
+
+```csharp
+using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Invitation;
+using MainApi.Src.Lib.ApiResponse;
+using MainApi.Localization;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace MainApi.Src.Features.Staff.Invitations.Handlers;
+
+public static class GetInvitationDetails {
+    public static async Task<Results<Ok<InvitationDetailsResponse>, NotFound<ApiResponse>, BadRequest<ApiResponse>>> Handle(
+        [FromRoute] string token,
+        [FromServices] MainApiDbContext dbContext,
+        [FromServices] IInvitationService invitationService,
+        CancellationToken cancellationToken = default
+    ) {
+        // Validate token
+        var invitation = await invitationService.ValidateInvitationTokenAsync(token, cancellationToken);
+
+        if (invitation is null) {
+            return TypedResults.NotFound(
+                ApiResponse.Create("Invitation not found or expired", ResponseKeys.NotFound)
+            );
+        }
+
+        // Get profile details (use LINQ query syntax)
+        var profileQuery =
+            from p in dbContext.Profile
+            where p.Id == invitation.ProfileId
+            select p;
+        var profile = await profileQuery.FirstOrDefaultAsync(cancellationToken);
+
+        if (profile is null) {
+            return TypedResults.BadRequest(
+                ApiResponse.Create("Profile not found", ResponseKeys.ProfileNotFound)
+            );
+        }
+
+        // Return typed response directly
+        var response = new InvitationDetailsResponse {
+            Email = invitation.Email,
+            ProfileName = profile.Name,
+            ExpiresAt = invitation.ExpiresAt
+        };
+
+        return TypedResults.Ok(response);
+    }
+}
+```
+
+**File:** `apps/api/Src/Features/Staff/Invitations/Handlers/AcceptInvitation.cs`
+
+```csharp
+using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Features.Common.Auth;
+using MainApi.Src.Features.Common.Invitation;
+using MainApi.Src.Features.Common.Profile;
+using MainApi.Src.Features.Common.Session;
+using MainApi.Src.Features.Common.User;
+using MainApi.Src.Features.Staff.Audit;
+using MainApi.Src.Lib.ApiResponse;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Localization;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace MainApi.Src.Features.Staff.Invitations.Handlers;
+
+public static class AcceptInvitation {
+    public static async Task<Results<Ok<SessionResponse>, NotFound<ApiResponse>, BadRequest<ApiResponse>>> Handle(
+        [FromRoute] string token,
+        [FromBody] AcceptInvitationRequest request,
+        [FromServices] MainApiDbContext dbContext,
+        [FromServices] IInvitationService invitationService,
+        [FromServices] IAuditLogService auditLogService,
+        [FromServices] ISessionService sessionService,
+        [FromServices] IPasswordService passwordService,
+        HttpContext httpContext,
+        CancellationToken cancellationToken = default
+    ) {
+        // Validate invitation token and ensure Staff scope
+        var invitation = await invitationService.ValidateInvitationTokenAsync(token, cancellationToken);
+
+        if (invitation is null || invitation.Scope != InvitationScope.Staff) {
+            return TypedResults.NotFound(
+                ApiResponse.Create("Invitation not found or expired", ResponseKeys.NotFound)
+            );
+        }
+
+        // Check if user already exists (use LINQ query syntax)
+        var existingUserQuery =
+            from u in dbContext.User
+            where u.Email == invitation.Email
+            select u;
+        var existingUser = await existingUserQuery.FirstOrDefaultAsync(cancellationToken);
+
+        if (existingUser is not null) {
+            return TypedResults.BadRequest(
+                ApiResponse.Create("User already exists", ResponseKeys.UserAlreadyExists)
+            );
+        }
+
+        // Use transaction for consistency
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        try {
+            // Create user with verified status (CRITICAL: must be true for session auth)
+            var user = new User {
+                Email = invitation.Email,
+                Password = passwordService.HashPassword(request.Password),
+                FirstName = request.FirstName,
+                LastName = request.LastName,
+                Status = UserStatus.Active,
+                IsVerified = true  // CRITICAL: SessionService checks this flag
+            };
+            await dbContext.User.AddAsync(user, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            // Create staff account
+            var account = UserAccount.CreateStaffAccount(user.GetRequiredId(), AccountLevel.User);
+            await dbContext.UserAccount.AddAsync(account, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            // Assign profile to account
+            var userAccountProfile = new UserAccountProfile {
+                UserAccountId = account.GetRequiredId(),
+                ProfileId = invitation.ProfileId
+            };
+            await dbContext.UserAccountProfile.AddAsync(userAccountProfile, cancellationToken);
+
+            // Mark invitation as accepted
+            invitation.IsAccepted = true;
+            invitation.AcceptedAt = DateTime.UtcNow;
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            // Create session (correct signature: takes User entity)
+            var session = await sessionService.CreateSessionForUser(user, cancellationToken);
+
+            // Audit log
+            await auditLogService.LogAsync(
+                user.GetRequiredId(),
+                AuditActions.InvitationAccepted,
+                invitation.GetRequiredId(),
+                new { Email = invitation.Email },
+                cancellationToken
+            );
+
+            await transaction.CommitAsync(cancellationToken);
+
+            // Return typed response directly (not wrapped in ApiResponse<T>)
+            var response = new SessionResponse {
+                Token = session.Token,
+                ExpiresAt = session.ExpiresAt,
+                User = new UserResponse {
+                    Id = user.GetRequiredId(),
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName
+                }
+            };
+
+            return TypedResults.Ok(response);
+        } catch {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+    }
+}
+```
+
+**File:** `apps/api/Src/Features/Staff/Invitations/Handlers/ListStaffInvitations.cs`
+
+```csharp
+using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Invitation;
+using MainApi.Src.Lib;
+using MainApi.Src.Lib.ApiResponse;
+using MainApi.Src.Lib.Auth;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Localization;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace MainApi.Src.Features.Staff.Invitations.Handlers;
+
+public static class ListStaffInvitations {
+    public static async Task<Results<Ok<List<InvitationResponse>>, Forbidden<ApiResponse>>> Handle(
+        [FromServices] IAuthContext authContext,
+        [FromServices] MainApiDbContext dbContext,
+        CancellationToken cancellationToken = default
+    ) {
+        // Authorization: Staff only
+        if (authContext.Account?.Scope != AccountScope.Staff) {
+            return TypedResults.Forbidden(
+                ApiResponse.Create("Forbidden", ResponseKeys.Forbidden)
+            );
+        }
+
+        // Query invitations with profile and inviter details
+        var invitationsQuery =
+            from inv in dbContext.Invitation
+            where inv.Scope == InvitationScope.Staff
+            join profile in dbContext.Profile on inv.ProfileId equals profile.Id
+            join inviter in dbContext.User on inv.InvitedByUserId equals inviter.Id
+            orderby inv.CreatedAt descending
+            select new InvitationResponse {
+                Id = inv.GetRequiredId(),
+                Email = inv.Email,
+                Scope = "Staff",
+                ProfileName = profile.Name,
+                ExpiresAt = inv.ExpiresAt,
+                IsAccepted = inv.IsAccepted,
+                IsRevoked = inv.IsRevoked,
+                CreatedAt = inv.CreatedAt.Value,
+                InvitedByName = $"{inviter.FirstName} {inviter.LastName}"
+            };
+
+        var invitations = await invitationsQuery.ToListAsync(cancellationToken);
+
+        // Return typed response directly
+        return TypedResults.Ok(invitations);
+    }
+}
+```
+
+**File:** `apps/api/Src/Features/Staff/Invitations/Handlers/RevokeInvitation.cs`
+
+```csharp
+using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Invitation;
+using MainApi.Src.Features.Staff.Audit;
+using MainApi.Src.Lib;
+using MainApi.Src.Lib.ApiResponse;
+using MainApi.Src.Lib.Auth;
+using MainApi.Src.Lib.Extensions;
+using MainApi.Localization;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
+namespace MainApi.Src.Features.Staff.Invitations.Handlers;
+
+public static class RevokeInvitation {
+    public static async Task<Results<Ok, NotFound<ApiResponse>, Forbidden<ApiResponse>>> Handle(
+        [FromRoute] Guid invitationId,
+        [FromServices] IAuthContext authContext,
+        [FromServices] IInvitationService invitationService,
+        [FromServices] IAuditLogService auditLogService,
+        CancellationToken cancellationToken = default
+    ) {
+        // Authorization: Staff Admin or Owner only
+        if (authContext.Account?.Scope != AccountScope.Staff || authContext.Account?.Level < AccountLevel.Admin) {
+            return TypedResults.Forbidden(
+                ApiResponse.Create("Forbidden", ResponseKeys.Forbidden)
+            );
+        }
+
+        var success = await invitationService.RevokeInvitationAsync(invitationId, cancellationToken);
+
+        if (!success) {
+            return TypedResults.NotFound(
+                ApiResponse.Create("Invitation not found", ResponseKeys.NotFound)
+            );
+        }
+
+        // Audit log
+        await auditLogService.LogAsync(
+            authContext.User!.GetRequiredId(),
+            AuditActions.InvitationRevoked,
+            invitationId,
+            null,
+            cancellationToken
+        );
+
+        // Success responses without payload can return Ok() directly
+        return TypedResults.Ok();
+    }
+}
+```
+
+#### Task 5.3: Create Endpoint Mappings
+
+**File:** `apps/api/Src/Features/Staff/Invitations/InvitationEndpoints.cs`
+
+**CRITICAL:** Anonymous endpoints (details, accept) must be mapped **outside** the staff group to avoid `StaffAuthMiddleware` blocking them.
+
+```csharp
+using MainApi.Src.Features.Staff.Invitations.Handlers;
+using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
+
+namespace MainApi.Src.Features.Staff.Invitations;
+
+public static class InvitationEndpoints {
+    public static void MapStaffInvitationEndpoints(this IEndpointRouteBuilder app) {
+        // ANONYMOUS endpoints - mapped outside staff group to bypass middleware
+        var anonymousGroup = app.MapGroup("/invitations")
+            .WithTags("Invitations (Anonymous)");
+
+        // Get invitation details by token (anonymous - for acceptance page)
+        anonymousGroup.MapGet("/{token}/details", GetInvitationDetails.Handle)
+            .WithName("GetInvitationDetails");
+
+        // Accept invitation (anonymous - creates user + session)
+        anonymousGroup.MapPost("/{token}/accept", AcceptInvitation.Handle)
+            .WithName("AcceptInvitation");
+
+        // AUTHENTICATED endpoints - mapped under /staff (protected by StaffAuthMiddleware)
+        var staffGroup = app.MapGroup(RoutePath.Staff.Invitations.Root)
+            .WithTags("Staff Invitations")
+            .RequireAuthorization();
+
+        // Create staff invitation (Admin/Owner only)
+        staffGroup.MapPost("/", CreateStaffInvitation.Handle)
+            .WithName("CreateStaffInvitation");
+
+        // List staff invitations (Staff only)
+        staffGroup.MapGet("/", ListStaffInvitations.Handle)
+            .WithName("ListStaffInvitations");
+
+        // Revoke invitation (Admin/Owner only)
+        staffGroup.MapDelete("/{invitationId:guid}", RevokeInvitation.Handle)
+            .WithName("RevokeInvitation");
+    }
+}
+```
+
+**Important Notes:**
+- Anonymous endpoints at `/invitations/*` - no authentication required
+- Authenticated endpoints at `/staff/invitations/*` - protected by `StaffAuthMiddleware`
+- This prevents 401 errors when users try to accept invitations
+
+#### Task 5.4: Add Route Constants
+
+**File:** `apps/api/Src/Lib/RoutePath.cs`
+
+Add inside the `Staff` class (following the PathUtils.Join pattern used throughout the codebase):
+```csharp
+public static class Invitations {
+    public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/invitations");
+    public static readonly string Create = PathUtils.Join(Root, "/");
+    public static readonly string List = PathUtils.Join(Root, "/");
+    public static readonly string Revoke = PathUtils.Join(Root, "/{invitationId}");
+}
+
+// Anonymous routes (outside staff group)
+public static class AnonymousInvitations {
+    public const string Root = "/invitations";
+    public static readonly string Details = PathUtils.Join(Root, "/{token}/details");
+    public static readonly string Accept = PathUtils.Join(Root, "/{token}/accept");
+}
+```
+
+**Note:** Anonymous invitation routes are defined separately since they're not under the `/staff` group.
+
+#### Task 5.5: Register Endpoints in Program.cs
+
+**File:** `apps/api/Src/Program.cs`
+
+Add after other endpoint mappings:
+```csharp
+// Staff invitation endpoints
+app.MapStaffInvitationEndpoints();
+```
+
+#### Task 5.6: Add Translation Keys
+
+**File:** `packages/shared/lib/i18n/json/en/response-message.json`
+
+Add:
+```json
+{
+  "staff": {
+    "invitations": {
+      "created": "Invitation sent successfully",
+      "accepted": "Welcome! Your account has been created",
+      "revoked": "Invitation revoked successfully",
+      "not_found": "Invitation not found",
+      "not_found_or_expired": "Invitation not found or has expired",
+      "user_already_exists": "A user with this email already exists",
+      "pending_invitation_exists": "A pending invitation already exists for this email",
+      "profile_not_found": "Profile not found",
+      "create": {
+        "forbidden": "You do not have permission to create invitations"
+      },
+      "list": {
+        "forbidden": "You do not have permission to view invitations"
+      },
+      "revoke": {
+        "forbidden": "You do not have permission to revoke invitations"
+      }
+    }
+  }
+}
+```
+
+---
+
+### Phase 6: Frontend Implementation (4-5 hours)
+
+**Approach:** Create React pages for invitation acceptance and staff invitation management following the project's patterns.
+
+#### Task 6.1: Generate TypeScript API Client
+
+After implementing Phase 5 endpoints:
+
+```bash
+# Build API to generate OpenAPI spec
+make build-api
+
+# Generate TypeScript client
+make generate-client
+```
+
+#### Task 6.2: Create Invitation Acceptance Page
+
+**File:** `apps/front/app/routes/auth/accept-invitation/route.tsx`
+
+```tsx
+import { Button } from "~/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useParams, useNavigate } from "react-router";
+import { ClientManager } from "~/lib/js-client";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+
+const acceptInvitationSchema = z.object({
+  firstName: z.string().min(1, "First name is required").max(100),
+  lastName: z.string().min(1, "Last name is required").max(100),
+  password: z.string().min(8, "Password must be at least 8 characters").max(255),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+type AcceptInvitationForm = z.infer<typeof acceptInvitationSchema>;
+
+export default function AcceptInvitationPage() {
+  const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
+  const { t } = useTranslation("common");
+  const anonClient = clientManager.anonymousClient;  // Correct API: anonymousClient property
+
+  // Fetch invitation details
+  const { data: invitationData, isLoading, error } = useQuery({
+    queryKey: ["invitation", token],
+    queryFn: async () => {
+      if (!token) throw new Error("No invitation token");
+      // Use Kiota client pattern - actual path depends on generated client
+      const response = await anonClient.invitations.byToken(token).details.get();
+      return response;
+    },
+    enabled: !!token,
+  });
+
+  // Accept invitation mutation
+  const acceptMutation = useMutation({
+    mutationFn: async (data: AcceptInvitationForm) => {
+      if (!token) throw new Error("No invitation token");
+      // Use Kiota client pattern
+      const response = await anonClient.invitations.byToken(token).accept.post({
+        body: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          password: data.password,
+        },
+      });
+      return response;
+    },
+    onSuccess: (response) => {
+      // Create authenticated client and set it (correct API)
+      if (response?.token) {
+        const authedClient = clientManager.createApiClient(response.token);
+        clientManager.setApiClient(authedClient);
+      }
+      toast.success(t("auth.invitation_accepted"));
+      navigate("/staff/dashboard");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t("errors.generic"));
+    },
+  });
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<AcceptInvitationForm>({
+    resolver: zodResolver(acceptInvitationSchema),
+  });
+
+  const onSubmit = (data: AcceptInvitationForm) => {
+    acceptMutation.mutate(data);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p>{t("common.loading")}</p>
+      </div>
+    );
+  }
+
+  if (error || !invitationData) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>{t("auth.invitation_invalid")}</CardTitle>
+            <CardDescription>
+              {t("auth.invitation_invalid_description")}
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>{t("auth.accept_invitation")}</CardTitle>
+          <CardDescription>
+            {t("auth.accept_invitation_description", {
+              email: invitationData.email,
+              role: invitationData.profileName,
+            })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">{t("auth.first_name")}</Label>
+              <Input
+                id="firstName"
+                {...register("firstName")}
+                disabled={acceptMutation.isPending}
+              />
+              {errors.firstName && (
+                <p className="text-sm text-red-500">{errors.firstName.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lastName">{t("auth.last_name")}</Label>
+              <Input
+                id="lastName"
+                {...register("lastName")}
+                disabled={acceptMutation.isPending}
+              />
+              {errors.lastName && (
+                <p className="text-sm text-red-500">{errors.lastName.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">{t("auth.password")}</Label>
+              <Input
+                id="password"
+                type="password"
+                {...register("password")}
+                disabled={acceptMutation.isPending}
+              />
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">
+                {t("auth.confirm_password")}
+              </Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                {...register("confirmPassword")}
+                disabled={acceptMutation.isPending}
+              />
+              {errors.confirmPassword && (
+                <p className="text-sm text-red-500">
+                  {errors.confirmPassword.message}
+                </p>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={acceptMutation.isPending}
+            >
+              {acceptMutation.isPending
+                ? t("common.loading")
+                : t("auth.create_account")}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+#### Task 6.3: Create Staff Invitations Management Page
+
+**File:** `apps/front/app/routes/staff/invitations/route.tsx`
+
+```tsx
+import { Button } from "~/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "~/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
+import { Badge } from "~/components/ui/badge";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { ClientManager } from "~/lib/js-client";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+import { useState } from "react";
+import { Copy, UserPlus } from "lucide-react";
+
+const createInvitationSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  profileId: z.string().uuid("Invalid profile"),
+});
+
+type CreateInvitationForm = z.infer<typeof createInvitationSchema>;
+
+export default function StaffInvitationsPage() {
+  const { t } = useTranslation("common");
+  const queryClient = useQueryClient();
+  const apiClient = clientManager.apiClient;  // Correct API: apiClient property
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [invitationToken, setInvitationToken] = useState<string | null>(null);
+
+  // Fetch staff profiles
+  const { data: profiles } = useQuery({
+    queryKey: ["staff-profiles"],
+    queryFn: async () => {
+      // Use Kiota client pattern
+      const response = await apiClient.staff.profiles.get();
+      return response || [];
+    },
+  });
+
+  // Fetch invitations
+  const { data: invitations, isLoading } = useQuery({
+    queryKey: ["staff-invitations"],
+    queryFn: async () => {
+      // Use Kiota client pattern
+      const response = await apiClient.staff.invitations.get();
+      return response || [];
+    },
+  });
+
+  // Create invitation mutation
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateInvitationForm) => {
+      // Use Kiota client pattern
+      const response = await apiClient.staff.invitations.post({
+        body: data,
+      });
+      return response;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["staff-invitations"] });
+      setInvitationToken(data?.token || null);
+      toast.success(t("staff.invitation_created"));
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t("errors.generic"));
+    },
+  });
+
+  // Revoke invitation mutation
+  const revokeMutation = useMutation({
+    mutationFn: async (invitationId: string) => {
+      // Use Kiota client pattern - byInvitationId style
+      await apiClient.staff.invitations.byInvitationId(invitationId).delete();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["staff-invitations"] });
+      toast.success(t("staff.invitation_revoked"));
+    },
+    onError: (error: any) => {
+      toast.error(error.message || t("errors.generic"));
+    },
+  });
+
+  const form = useForm<CreateInvitationForm>({
+    resolver: zodResolver(createInvitationSchema),
+  });
+
+  const onSubmit = (data: CreateInvitationForm) => {
+    createMutation.mutate(data);
+  };
+
+  const copyInvitationLink = () => {
+    if (!invitationToken) return;
+    const invitationUrl = `${window.location.origin}/auth/accept-invitation/${invitationToken}`;
+    navigator.clipboard.writeText(invitationUrl);
+    toast.success(t("staff.invitation_link_copied"));
+  };
+
+  const getStatusBadge = (invitation: any) => {
+    if (invitation.isAccepted) {
+      return <Badge variant="success">{t("staff.accepted")}</Badge>;
+    }
+    if (invitation.isRevoked) {
+      return <Badge variant="destructive">{t("staff.revoked")}</Badge>;
+    }
+    if (new Date(invitation.expiresAt) < new Date()) {
+      return <Badge variant="secondary">{t("staff.expired")}</Badge>;
+    }
+    return <Badge variant="default">{t("staff.pending")}</Badge>;
+  };
+
+  return (
+    <div className="container mx-auto py-8">
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">{t("staff.invitations")}</h1>
+          <p className="text-muted-foreground">
+            {t("staff.invitations_description")}
+          </p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <UserPlus className="mr-2 h-4 w-4" />
+              {t("staff.invite_staff")}
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t("staff.invite_staff_member")}</DialogTitle>
+              <DialogDescription>
+                {t("staff.invite_staff_description")}
+              </DialogDescription>
+            </DialogHeader>
+
+            {invitationToken ? (
+              <div className="space-y-4">
+                <p className="text-sm text-green-600">
+                  {t("staff.invitation_created_success")}
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    value={`${window.location.origin}/auth/accept-invitation/${invitationToken}`}
+                  />
+                  <Button onClick={copyInvitationLink} variant="outline">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    setInvitationToken(null);
+                    setDialogOpen(false);
+                  }}
+                >
+                  {t("common.done")}
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">{t("auth.email")}</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    {...form.register("email")}
+                    disabled={createMutation.isPending}
+                  />
+                  {form.formState.errors.email && (
+                    <p className="text-sm text-red-500">
+                      {form.formState.errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="profileId">{t("staff.profile")}</Label>
+                  <Select
+                    onValueChange={(value) => form.setValue("profileId", value)}
+                    disabled={createMutation.isPending}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("staff.select_profile")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {profiles?.map((profile: any) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.formState.errors.profileId && (
+                    <p className="text-sm text-red-500">
+                      {form.formState.errors.profileId.message}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending
+                    ? t("common.loading")
+                    : t("staff.send_invitation")}
+                </Button>
+              </form>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("staff.invitation_history")}</CardTitle>
+          <CardDescription>
+            {t("staff.invitation_history_description")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p>{t("common.loading")}</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("auth.email")}</TableHead>
+                  <TableHead>{t("staff.profile")}</TableHead>
+                  <TableHead>{t("staff.invited_by")}</TableHead>
+                  <TableHead>{t("staff.status")}</TableHead>
+                  <TableHead>{t("staff.expires")}</TableHead>
+                  <TableHead>{t("common.actions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invitations?.map((invitation: any) => (
+                  <TableRow key={invitation.id}>
+                    <TableCell>{invitation.email}</TableCell>
+                    <TableCell>{invitation.profileName}</TableCell>
+                    <TableCell>{invitation.invitedByName}</TableCell>
+                    <TableCell>{getStatusBadge(invitation)}</TableCell>
+                    <TableCell>
+                      {formatDistanceToNow(new Date(invitation.expiresAt), {
+                        addSuffix: true,
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      {!invitation.isAccepted && !invitation.isRevoked && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => revokeMutation.mutate(invitation.id)}
+                          disabled={revokeMutation.isPending}
+                        >
+                          {t("staff.revoke")}
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+#### Task 6.4: Add Routes
+
+**File:** `apps/front/app/routes.ts`
+
+Add routes:
+```typescript
+// Auth routes
+{
+  path: "/auth/accept-invitation/:token",
+  lazy: () => import("./routes/auth/accept-invitation/route"),
+},
+
+// Staff routes (authenticated)
+{
+  path: "/staff/invitations",
+  lazy: () => import("./routes/staff/invitations/route"),
+},
+```
+
+#### Task 6.5: Add Translation Keys
+
+**File:** `packages/shared/lib/i18n/json/en/common.json`
+
+Add:
+```json
+{
+  "staff": {
+    "invitations": "Invitations",
+    "invitations_description": "Manage staff member invitations",
+    "invite_staff": "Invite Staff",
+    "invite_staff_member": "Invite Staff Member",
+    "invite_staff_description": "Send an invitation to join the staff team",
+    "invitation_created": "Invitation created successfully",
+    "invitation_created_success": "Invitation has been created. Share this link with the invitee:",
+    "invitation_link_copied": "Invitation link copied to clipboard",
+    "invitation_revoked": "Invitation revoked successfully",
+    "invitation_history": "Invitation History",
+    "invitation_history_description": "View all sent invitations and their status",
+    "profile": "Profile",
+    "select_profile": "Select a profile",
+    "invited_by": "Invited By",
+    "status": "Status",
+    "expires": "Expires",
+    "accepted": "Accepted",
+    "revoked": "Revoked",
+    "expired": "Expired",
+    "pending": "Pending",
+    "revoke": "Revoke",
+    "send_invitation": "Send Invitation"
+  },
+  "auth": {
+    "accept_invitation": "Accept Invitation",
+    "accept_invitation_description": "You've been invited to join as {role}. Email: {email}",
+    "invitation_invalid": "Invalid Invitation",
+    "invitation_invalid_description": "This invitation link is invalid or has expired.",
+    "invitation_accepted": "Account created successfully! Welcome aboard.",
+    "first_name": "First Name",
+    "last_name": "Last Name",
+    "password": "Password",
+    "confirm_password": "Confirm Password",
+    "create_account": "Create Account"
+  }
+}
+```
+
+---
+
+### Phase 7: End-to-End Testing & Verification (2-3 hours)
 
 #### Task 5.1: Manual Testing Checklist
 
@@ -1331,9 +2530,64 @@ curl -X POST http://localhost:5000/staff/test/invitation \
 curl http://localhost:5000/staff/test/invitation/<TOKEN>
 ```
 
-#### Task 5.2: Remove Test Endpoints
+#### Task 7.2: Complete Invitation Flow Testing
 
-**IMPORTANT:** After testing, remove or comment out the test endpoints before committing!
+**End-to-end test of the complete invitation system:**
+
+1. **Staff creates invitation (as Owner):**
+   - Log in as Owner (`owner@publyapp.local`)
+   - Navigate to `/staff/invitations`
+   - Click "Invite Staff" button
+   - Fill form: email + select "Staff Admin" profile
+   - Copy invitation link from dialog
+
+2. **Accept invitation (as new staff member):**
+   - Open invitation link in incognito/private window
+   - Verify invitation details are displayed
+   - Fill acceptance form (name, password)
+   - Click "Create Account"
+   - Verify redirect to staff dashboard with active session
+
+3. **Verify invitation status updated:**
+   - Return to Owner session
+   - Refresh invitations page
+   - Verify invitation shows "Accepted" status
+
+4. **Test revoke flow:**
+   - Create another invitation
+   - Click "Revoke" button
+   - Verify status changes to "Revoked"
+   - Attempt to open invitation link
+   - Verify error message appears
+
+#### Task 7.3: Frontend Integration Verification
+
+```bash
+# Run TypeScript checks
+make tsc-front
+
+# Verify no type errors in new components
+# Expected: No errors in:
+# - apps/front/app/routes/auth/accept-invitation/route.tsx
+# - apps/front/app/routes/staff/invitations/route.tsx
+```
+
+#### Task 7.4: API Documentation Check
+
+```bash
+# Start API
+make dev-api
+
+# Open Scalar documentation
+open http://localhost:5000/scalar/v1
+
+# Verify endpoints appear:
+# - POST /staff/invitations
+# - GET /staff/invitations
+# - GET /staff/invitations/{token}/details
+# - POST /staff/invitations/{token}/accept
+# - DELETE /staff/invitations/{invitationId}
+```
 
 ---
 
@@ -1357,8 +2611,13 @@ curl http://localhost:5000/staff/test/invitation/<TOKEN>
 - [ ] **InvitationService** can validate invitations for any scope
 - [ ] **AuditLogService** can log actions
 - [ ] **ImpersonationService** can create impersonation sessions
-- [ ] **Manual testing** completed and verified
-- [ ] **Test endpoints** removed before commit
+- [ ] **API endpoints** created with proper handlers and validators
+- [ ] **Translation keys** added for API responses
+- [ ] **Frontend pages** created for invitation acceptance and management
+- [ ] **Routes** registered in React Router
+- [ ] **TypeScript client** regenerated after API changes
+- [ ] **End-to-end testing** completed (create → accept → verify flow)
+- [ ] **API documentation** verified in Scalar
 
 ---
 
@@ -1536,10 +2795,14 @@ Before you begin, please confirm:
 | Phase 2: New Entities | 3-4h | Medium |
 | Phase 3: Database Integration | 1-2h | Low |
 | Phase 4: Core Services | 2-3h | Medium |
-| Phase 5: Testing | 1-2h | Low |
-| **Total** | **8.5-12.5h** | **Medium** |
+| **Phase 5: API Endpoints & Handlers** | **3-4h** | **Medium-High** |
+| **Phase 6: Frontend Implementation** | **4-5h** | **Medium-High** |
+| Phase 7: End-to-End Testing | 2-3h | Medium |
+| **Total** | **19-26h** | **Medium-High** |
 
-**Realistic estimate:** 1.5-2 focused work days (assuming 4-6 hours/day)
+**Realistic estimate:** 3-4 focused work days (assuming 5-7 hours/day)
+
+**Note:** This is now a complete vertical slice with fully functional invitation system including backend services, API endpoints, and user interface.
 
 ---
 
@@ -1547,21 +2810,31 @@ Before you begin, please confirm:
 
 Once Week 1 is complete, Week 2 will focus on:
 
-1. **Invitation Endpoints:**
-   - `POST /staff/invitations` - Create invitation (Owner/Admin only)
-   - `GET /staff/invitations` - List invitations
-   - `POST /staff/invitations/{token}/accept` - Accept invitation
-   - `POST /staff/invitations/{id}/revoke` - Revoke invitation
+1. **Email Integration:**
+   - Set up email service (SendGrid/Mailgun/AWS SES)
+   - Email templates for invitations
+   - Automated invitation emails instead of manual link sharing
 
-2. **Authentication Flow:**
-   - Staff login page
-   - Invitation acceptance page
-   - Staff dashboard with session info
+2. **Tenant Management UI:**
+   - List tenants page
+   - Tenant details page
+   - Suspend/reactivate tenant actions
+   - Tenant activity monitoring
 
-3. **Frontend Integration:**
-   - React components for invitation management
-   - Audit log viewer
-   - System notice banner
+3. **Audit Log Viewer:**
+   - Filterable audit log page
+   - Export audit logs (CSV/JSON)
+   - Real-time activity feed
+
+4. **System Notices UI:**
+   - Create/edit system notices
+   - Notice banner component
+   - Notice scheduling and expiration
+
+5. **Impersonation UI:**
+   - Impersonate tenant button in tenant details
+   - Impersonation banner showing current context
+   - End impersonation action
 
 ---
 
