@@ -1,10 +1,10 @@
 import AppBar, { type AppBarProps } from '@mui/material/AppBar';
 import Container, { type ContainerProps } from '@mui/material/Container';
 import {
-	styled,
 	type Breakpoint,
 	type CSSObject,
 	type SxProps,
+	styled,
 	type Theme,
 } from '@mui/material/styles';
 import { useScrollOffsetTop } from 'minimal-shared/hooks';

@@ -1,8 +1,7 @@
-import { useId } from 'react';
-
 import Box, { type BoxProps } from '@mui/material/Box';
-import { styled, type SxProps, type Theme } from '@mui/material/styles';
-import { m, type MotionProps, type Transition } from 'framer-motion';
+import { type SxProps, styled, type Theme } from '@mui/material/styles';
+import { type MotionProps, m, type Transition } from 'framer-motion';
+import { useId } from 'react';
 
 import { varFade } from '@/front/components/animate/variants/fade';
 

@@ -1,5 +1,5 @@
 import Popover, { popoverClasses } from '@mui/material/Popover';
-import { styled, type CSSObject } from '@mui/material/styles';
+import { type CSSObject, styled } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 

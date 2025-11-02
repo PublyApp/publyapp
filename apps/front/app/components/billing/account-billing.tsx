@@ -1,7 +1,6 @@
+import Grid from '@mui/material/Grid';
 import type { IAddressItem, IPaymentCard } from '@/front/types/common';
 import type { IUserAccountBillingHistory } from '@/front/types/user';
-
-import Grid from '@mui/material/Grid';
 
 import { AccountBillingAddress } from './account-billing-address';
 import { AccountBillingHistory } from './account-billing-history';

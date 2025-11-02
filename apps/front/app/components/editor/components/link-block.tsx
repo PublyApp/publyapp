@@ -1,10 +1,9 @@
-import { useCallback, useState } from 'react';
-
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Popover from '@mui/material/Popover';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { useCallback, useState } from 'react';
 
 import { editorClasses } from '../classes';
 import type { EditorToolbarProps } from '../types';

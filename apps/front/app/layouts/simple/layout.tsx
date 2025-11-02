@@ -1,9 +1,8 @@
-import _ from 'lodash';
-
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import type { Breakpoint } from '@mui/material/styles';
+import _ from 'lodash';
 
 import { Logo } from '@/front/components/logo/logo';
 import { RouterLink } from '@/front/components/router-link';

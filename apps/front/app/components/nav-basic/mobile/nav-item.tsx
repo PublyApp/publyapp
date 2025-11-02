@@ -1,5 +1,5 @@
 import ButtonBase from '@mui/material/ButtonBase';
-import { styled, type CSSObject } from '@mui/material/styles';
+import { type CSSObject, styled } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
 import { mergeClasses } from 'minimal-shared/utils';
 

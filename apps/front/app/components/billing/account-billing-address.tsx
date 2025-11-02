@@ -1,8 +1,3 @@
-import type { IAddressItem } from '@/front/types/common';
-
-import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import { useCallback, useState } from 'react';
-
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
@@ -10,6 +5,9 @@ import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Stack from '@mui/material/Stack';
+import { useBoolean, usePopover } from 'minimal-shared/hooks';
+import { useCallback, useState } from 'react';
+import type { IAddressItem } from '@/front/types/common';
 
 import { AddressItem, AddressNewForm } from '../address';
 import { CustomPopover } from '../custom-popover/custom-popover';

@@ -1,9 +1,8 @@
-import { useState } from 'react';
-
 import ButtonBase, { buttonBaseClasses } from '@mui/material/ButtonBase';
 import { listClasses } from '@mui/material/List';
 import Menu from '@mui/material/Menu';
 import { varAlpha } from 'minimal-shared/utils';
+import { useState } from 'react';
 
 import { Iconify } from '../../iconify/iconify';
 import type { EditorToolbarProps } from '../types';

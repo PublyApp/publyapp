@@ -1,16 +1,14 @@
-import type { IPaymentCard } from '@/front/types/common';
-import type { CardProps } from '@mui/material/Card';
-
-import { useBoolean } from 'minimal-shared/hooks';
-
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import type { CardProps } from '@mui/material/Card';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import { useBoolean } from 'minimal-shared/hooks';
+import type { IPaymentCard } from '@/front/types/common';
 
 import { Iconify } from '../iconify/iconify';
 

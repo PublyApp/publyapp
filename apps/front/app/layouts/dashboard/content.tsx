@@ -1,5 +1,5 @@
 import Container, { type ContainerProps } from '@mui/material/Container';
-import { styled, type Breakpoint } from '@mui/material/styles';
+import { type Breakpoint, styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
 import { useSettingsContext } from '@/front/hooks/use-settings-context';

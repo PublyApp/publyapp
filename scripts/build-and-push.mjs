@@ -18,7 +18,7 @@ const colors = {
 	yellow: '\x1b[33m',
 	blue: '\x1b[34m',
 	reset: '\x1b[0m',
-	bold: '\x1b[1m'
+	bold: '\x1b[1m',
 };
 
 function log(message, color = 'reset') {
@@ -40,9 +40,10 @@ function execCommand(command, description) {
 function checkDockerLogin() {
 	try {
 		// Check if we're logged into ghcr.io by checking the config file
-		const configPath = process.platform === 'win32'
-			? `${process.env.USERPROFILE}\\.docker\\config.json`
-			: `${process.env.HOME}/.docker/config.json`;
+		const configPath =
+			process.platform === 'win32'
+				? `${process.env.USERPROFILE}\\.docker\\config.json`
+				: `${process.env.HOME}/.docker/config.json`;
 
 		if (existsSync(configPath)) {
 			const config = JSON.parse(readFileSync(configPath, 'utf8'));
@@ -52,14 +53,20 @@ function checkDockerLogin() {
 		}
 
 		log('⚠️  You need to login to GitHub Container Registry first:', 'yellow');
-		log('docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_TOKEN', 'blue');
+		log(
+			'docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_TOKEN',
+			'blue',
+		);
 		log('');
 		log('You can create a GitHub Personal Access Token at:', 'blue');
 		log('https://github.com/settings/tokens', 'blue');
-		log('Make sure to give it \'write:packages\' permission', 'blue');
+		log("Make sure to give it 'write:packages' permission", 'blue');
 		process.exit(1);
 	} catch {
-		log('⚠️  Could not check Docker login status. Please ensure you\'re logged in to ghcr.io', 'yellow');
+		log(
+			"⚠️  Could not check Docker login status. Please ensure you're logged in to ghcr.io",
+			'yellow',
+		);
 		process.exit(1);
 	}
 }
@@ -80,7 +87,10 @@ function checkDockerLogin() {
 // }
 
 function main() {
-	log('🚀 Building and pushing Docker images to GitHub Container Registry', 'green');
+	log(
+		'🚀 Building and pushing Docker images to GitHub Container Registry',
+		'green',
+	);
 	log(`Repository: ${REGISTRY}/${GITHUB_USERNAME}/${REPO_NAME}`, 'yellow');
 	log(`Tag: ${TAG}`, 'yellow');
 	log('');
@@ -95,7 +105,7 @@ function main() {
 		'docker build',
 		'-f apps/api/Dockerfile',
 		`-t ${apiImageTag}`,
-		'.'
+		'.',
 	].join(' ');
 
 	execCommand(apiBuildCommand, 'Building API image');
@@ -106,7 +116,7 @@ function main() {
 		'docker build',
 		'-f apps/front/Dockerfile',
 		`-t ${frontImageTag}`,
-		'.'
+		'.',
 	].join(' ');
 
 	execCommand(frontBuildCommand, 'Building Frontend image');

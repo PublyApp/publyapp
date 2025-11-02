@@ -1,8 +1,8 @@
 import GlobalStyles from '@mui/material/GlobalStyles';
 import {
-	styled,
 	type CSSObject,
 	type SxProps,
+	styled,
 	type Theme,
 } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';

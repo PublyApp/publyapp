@@ -1,4 +1,4 @@
-import { styled, type CSSObject, type Theme } from '@mui/material/styles';
+import { type CSSObject, styled, type Theme } from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
 
 import type { PopoverArrow } from './types';

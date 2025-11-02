@@ -1,10 +1,9 @@
 import Box, { type BoxProps } from '@mui/material/Box';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { type MotionProps, m } from 'framer-motion';
-
+import { nanoid } from 'nanoid';
 import { varFade } from '@/front/components/animate';
 import type { PaletteColorKey } from '@/front/lib/mui/theme/core';
-import { nanoid } from 'nanoid';
 
 // ----------------------------------------------------------------------
 

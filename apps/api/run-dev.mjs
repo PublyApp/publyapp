@@ -8,14 +8,14 @@ const chokidar = await import('chokidar');
 // Get the directory where this script is located
 const scriptDir = import.meta.dirname;
 
-const watcher = chokidar.watch([
-	path.join(scriptDir, 'Program.cs'),
-	path.join(scriptDir, 'Src'),
-], {
-	ignored: /node_modules/,
-	persistent: true,
-	ignoreInitial: true,
-});
+const watcher = chokidar.watch(
+	[path.join(scriptDir, 'Program.cs'), path.join(scriptDir, 'Src')],
+	{
+		ignored: /node_modules/,
+		persistent: true,
+		ignoreInitial: true,
+	},
+);
 
 console.log('Watching Program.cs and Src folder for changes...');
 console.log('Type "rs" and press Enter to restart the dotnet process');

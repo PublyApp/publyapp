@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { z as zod, type ZodTypeAny } from 'zod';
+import { type ZodTypeAny, z as zod } from 'zod';
 
 // ----------------------------------------------------------------------
 

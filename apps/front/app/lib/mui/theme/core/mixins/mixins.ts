@@ -7,10 +7,10 @@ import { maxLine, textGradient } from './text';
 
 // ----------------------------------------------------------------------
 
-export type * from './text';
-export type * from './border';
 export type * from './background';
+export type * from './border';
 export type * from './global-styles-components';
+export type * from './text';
 
 export type MixinsExtend = {
 	hideScrollX: CSSObject;

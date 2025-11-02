@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
-
 import Box, { type BoxProps } from '@mui/material/Box';
 import Dialog, { dialogClasses } from '@mui/material/Dialog';
 import IconButton from '@mui/material/IconButton';
@@ -7,12 +5,13 @@ import InputAdornment from '@mui/material/InputAdornment';
 import InputBase, { inputBaseClasses } from '@mui/material/InputBase';
 import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
-import { useTheme, type Breakpoint } from '@mui/material/styles';
+import { type Breakpoint, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 // import match from 'autosuggest-highlight/match';
 // import parse from 'autosuggest-highlight/parse';
 import { useBoolean } from 'minimal-shared/hooks';
 import { varAlpha } from 'minimal-shared/utils';
+import { useCallback, useEffect, useState } from 'react';
 
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label';

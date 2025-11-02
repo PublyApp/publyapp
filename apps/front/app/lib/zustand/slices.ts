@@ -1,8 +1,8 @@
 import _ from 'lodash';
-import type Slice from './utils/Slice';
 import dummySlice from './features/dummy.slice';
 import settingsSlice from './features/settings.slice';
 import tenantsSlice from './features/tenants.slice';
+import type Slice from './utils/Slice';
 
 export const slicesMap = (() => {
 	const slices = [dummySlice, settingsSlice, tenantsSlice];

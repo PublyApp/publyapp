@@ -1,11 +1,10 @@
 import ButtonBase, { type ButtonBaseProps } from '@mui/material/ButtonBase';
-import { styled } from '@mui/material/styles';
 import Switch from '@mui/material/Switch';
+import { styled } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
-import { varAlpha } from 'minimal-shared/utils';
-
-import { Iconify } from '../../iconify/iconify';
 import _ from 'lodash';
+import { varAlpha } from 'minimal-shared/utils';
+import { Iconify } from '../../iconify/iconify';
 
 // ----------------------------------------------------------------------
 

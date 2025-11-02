@@ -1,8 +1,8 @@
-import chalk from 'chalk';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { type Plugin } from 'vite';
+import chalk from 'chalk';
+import type { Plugin } from 'vite';
 
 const enableLog = true;
 const enableDebug = false;

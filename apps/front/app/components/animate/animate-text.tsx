@@ -1,20 +1,17 @@
-import { useEffect, useMemo, useRef } from 'react';
-
-import { styled, type SxProps, type Theme } from '@mui/material/styles';
+import { type SxProps, styled, type Theme } from '@mui/material/styles';
 import Typography, { type TypographyProps } from '@mui/material/Typography';
 import {
 	m,
+	type UseInViewOptions,
 	useAnimation,
 	useInView,
-	type UseInViewOptions,
 	type Variants,
 } from 'framer-motion';
 import { mergeClasses } from 'minimal-shared/utils';
-
-import { createClasses } from '@/front/lib/mui/theme/create-classes';
-
-import { varContainer, varFade } from './variants';
 import { nanoid } from 'nanoid';
+import { useEffect, useMemo, useRef } from 'react';
+import { createClasses } from '@/front/lib/mui/theme/create-classes';
+import { varContainer, varFade } from './variants';
 
 // ----------------------------------------------------------------------
 

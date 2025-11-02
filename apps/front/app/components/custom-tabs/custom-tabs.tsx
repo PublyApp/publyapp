@@ -1,4 +1,4 @@
-import { styled, type SxProps, type Theme } from '@mui/material/styles';
+import { type SxProps, styled, type Theme } from '@mui/material/styles';
 import { tabClasses } from '@mui/material/Tab';
 import Tabs, { type TabsProps } from '@mui/material/Tabs';
 import { useIsClient } from 'minimal-shared/hooks';

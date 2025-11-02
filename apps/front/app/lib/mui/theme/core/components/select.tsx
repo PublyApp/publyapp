@@ -1,5 +1,5 @@
-import type { Components, Theme } from '@mui/material/styles';
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import type { Components, Theme } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 

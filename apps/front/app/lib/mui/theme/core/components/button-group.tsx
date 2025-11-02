@@ -1,6 +1,6 @@
 import {
-	buttonGroupClasses,
 	type ButtonGroupProps,
+	buttonGroupClasses,
 } from '@mui/material/ButtonGroup';
 import type {
 	Components,

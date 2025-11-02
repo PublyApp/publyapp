@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
-
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
+import { useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 import { Iconify } from '../iconify/iconify';

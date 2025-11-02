@@ -1,21 +1,20 @@
-import { Fragment } from 'react';
-
 import Box, { type BoxProps } from '@mui/material/Box';
 import Portal from '@mui/material/Portal';
 import {
-	styled,
-	useTheme,
 	type SxProps,
+	styled,
 	type Theme,
+	useTheme,
 } from '@mui/material/styles';
 import {
+	type MotionProps,
+	type MotionValue,
 	m,
 	useSpring,
 	useTransform,
-	type MotionProps,
-	type MotionValue,
 } from 'framer-motion';
 import { mergeClasses } from 'minimal-shared/utils';
+import { Fragment } from 'react';
 
 import { createClasses } from '@/front/lib/mui/theme/create-classes';
 

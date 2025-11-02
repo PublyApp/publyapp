@@ -2,20 +2,19 @@ import type { i18n, TFunction } from 'i18next';
 import _ from 'lodash';
 import z, {
 	defaultErrorMap,
-	type ZodArray,
-	ZodIssueCode,
-	type ZodTypeAny,
 	type Primitive,
 	type RawCreateParams,
 	type Writeable,
+	type ZodArray,
 	type ZodDiscriminatedUnionOption,
 	type ZodEnum,
 	type ZodErrorMap,
+	ZodIssueCode,
+	type ZodTypeAny,
 } from 'zod';
 import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
-
-import { defaultLocale, type AppLocale } from '../i18n/resources';
 import { isServer } from '../constants';
+import { type AppLocale, defaultLocale } from '../i18n/resources';
 
 type I18nLike = {
 	// getFixedT: (locale: AppLocale) => TFunction;

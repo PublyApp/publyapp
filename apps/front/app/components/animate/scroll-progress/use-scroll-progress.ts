@@ -1,6 +1,5 @@
+import { type MotionValue, useScroll } from 'framer-motion';
 import { useMemo, useRef } from 'react';
-
-import { useScroll, type MotionValue } from 'framer-motion';
 
 // ----------------------------------------------------------------------
 

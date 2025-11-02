@@ -1,5 +1,5 @@
 import ButtonBase from '@mui/material/ButtonBase';
-import { styled, type CSSObject } from '@mui/material/styles';
+import { type CSSObject, styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
 
 import { Iconify } from '@/front/components/iconify/iconify';

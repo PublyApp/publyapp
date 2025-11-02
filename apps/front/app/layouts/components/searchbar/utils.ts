@@ -1,5 +1,5 @@
-import type { NavSectionProps } from '@/front/components/nav-section';
 import _ from 'lodash';
+import type { NavSectionProps } from '@/front/components/nav-section';
 
 // ----------------------------------------------------------------------
 

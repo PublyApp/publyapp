@@ -1,5 +1,3 @@
-import { useCallback, useState } from 'react';
-
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button, { buttonClasses } from '@mui/material/Button';
@@ -10,6 +8,7 @@ import MenuList from '@mui/material/MenuList';
 import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
+import { useCallback, useState } from 'react';
 
 import { CustomPopover } from '@/front/components/custom-popover';
 import { Iconify } from '@/front/components/iconify/iconify';

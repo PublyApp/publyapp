@@ -1,9 +1,9 @@
 import type { LinkProps } from '@mui/material/Link';
 
 import Link from '@mui/material/Link';
-import { RouterLink } from '../router-link';
 import { iconifyClasses } from '../iconify/classes';
 import { Iconify } from '../iconify/iconify';
+import { RouterLink } from '../router-link';
 
 // ----------------------------------------------------------------------
 
