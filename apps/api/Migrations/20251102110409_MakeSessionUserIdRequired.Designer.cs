@@ -3,6 +3,7 @@ using System;
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    partial class MainApiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251102110409_MakeSessionUserIdRequired")]
+    partial class MakeSessionUserIdRequired
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -470,9 +473,9 @@ namespace MainApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-			b.Property<Guid>("UserId")
-				.HasColumnType("uuid")
-				.HasColumnName("user_id");
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
 
                     b.HasKey("Id");
 
@@ -931,9 +934,9 @@ namespace MainApi.Migrations
 
                     b.HasOne("MainApi.Src.Features.Common.User.User", "User")
                         .WithMany("Sessions")
-				.HasForeignKey("UserId")
-				.OnDelete(DeleteBehavior.Cascade)
-				.IsRequired();
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("ImpersonatingStaffUser");
 
