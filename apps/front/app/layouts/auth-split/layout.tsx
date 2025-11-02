@@ -1,15 +1,15 @@
-import _ from 'lodash';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import type { Breakpoint } from '@mui/material/styles';
+import _ from 'lodash';
 import { Logo } from '@/front/components/logo/logo';
+import { allLangs } from '@/front/lib/locales/all-langs';
+import { LanguagePopover } from '../components/language-popover';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
 import { AuthSplitContent, type AuthSplitContentProps } from './content';
 import { AuthSplitSection, type AuthSplitSectionProps } from './section';
-import { allLangs } from '@/front/lib/locales/all-langs';
-import { LanguagePopover } from '../components/language-popover';
 
 // ----------------------------------------------------------------------
 

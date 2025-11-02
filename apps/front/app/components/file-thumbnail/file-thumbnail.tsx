@@ -1,12 +1,11 @@
 import { styled } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
+import _ from 'lodash';
 import { mergeClasses } from 'minimal-shared/utils';
-
 import { DownloadButton, RemoveButton } from './action-buttons';
 import { fileThumbnailClasses } from './classes';
 import type { FileThumbnailProps } from './types';
 import { fileData, fileFormat, fileThumb } from './utils';
-import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 

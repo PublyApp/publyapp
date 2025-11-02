@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react';
-
 import { useBoolean } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { usePathname } from '@/front/hooks/use-pathname';
 

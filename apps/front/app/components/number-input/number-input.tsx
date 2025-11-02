@@ -1,10 +1,9 @@
-import { useCallback, useId } from 'react';
-
 import Box, { type BoxProps } from '@mui/material/Box';
 import type { ButtonBaseProps } from '@mui/material/ButtonBase';
 import type { FormHelperTextProps } from '@mui/material/FormHelperText';
 import type { InputBaseProps } from '@mui/material/InputBase';
 import { varAlpha } from 'minimal-shared/utils';
+import { useCallback, useId } from 'react';
 
 import { Iconify } from '../iconify/iconify';
 

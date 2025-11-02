@@ -1,7 +1,7 @@
 import Box, { type BoxProps } from '@mui/material/Box';
 import type { SxProps, Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
-import { m, type MotionProps } from 'framer-motion';
+import { type MotionProps, m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { varFade } from '@/front/components/animate/variants/fade';
