@@ -29,7 +29,10 @@
    - Use `is`/`is not` for null checks (NEVER `==`/`!=`)
    - Use LINQ query syntax for database queries (NOT method syntax)
    - Always add `CancellationToken` parameters to async methods
-   - Use `BaseAttributes` for all entities (automatic audit tracking)
+   - **CRITICAL: Base class selection**
+     - Use `BaseAttributes` for entities with **Guid primary key** (database auto-generates UUID v7)
+     - Use `BaseAttributesNoKey` for entities with **non-Guid primary key** (string, composite, etc.)
+     - Example: AuditLog uses `BaseAttributes` (Guid PK), Permission uses `BaseAttributesNoKey` (string PK)
    - Implement correct tenant interface: `ITenantEntity`, `IOptionalTenantEntity`, or `INoTenantEntity`
 
 4. **After making changes:**
@@ -73,6 +76,13 @@ This simplified plan respects the existing architecture and follows minimal seed
 ---
 
 ## Architecture Decisions
+
+**Key Architectural Principles:**
+1. **Minimal Seeding** - Seed structure, not relationships
+2. **Unified Entity Pattern** - Single table with scope discriminator (Profile, UserAccount, Invitation)
+3. **Database-Generated IDs** - PostgreSQL UUID v7 for all Guid primary keys
+4. **Session Extension** - Extend existing Session for impersonation (no new table)
+5. **Generic Audit Logging** - String-based actions for flexibility
 
 ### Decision 0: Minimal Seeding Principle ✅
 
@@ -154,6 +164,59 @@ This simplified plan respects the existing architecture and follows minimal seed
 - ✅ Can revoke invite before acceptance
 
 **Follows principle:** One logical entity = One table with scope discriminator
+
+### Decision 5: Database-Generated UUID v7 Primary Keys ✅
+
+**Rationale:** Delegate ID generation to PostgreSQL for consistency and performance.
+
+**Architecture:**
+```csharp
+// MainApiDbContext.OnModelCreating()
+if (typeof(BaseAttributes).IsAssignableFrom(entityType.ClrType)) {
+    modelBuilder.Entity(entityType.ClrType)
+        .Property("Id")
+        .HasDefaultValueSql("uuidv7()");  // Database generates UUID v7
+}
+```
+
+**Base Class Selection Rules:**
+
+| Use Case | Base Class | Primary Key | Example Entities |
+|----------|------------|-------------|------------------|
+| **Guid PK** | `BaseAttributes` | `Guid?` (nullable, DB fills) | User, Tenant, Profile, Invitation, AuditLog, SystemNotice |
+| **Non-Guid PK** | `BaseAttributesNoKey` + manual PK | String, composite, etc. | Permission (`string Key`) |
+
+**Why nullable Guid?:**
+- `null` indicates entity hasn't been saved yet (call `entity.IsNew()`)
+- Database fills with UUID v7 on INSERT
+- UUID v7 provides timestamp-ordered IDs (better than random GUIDs)
+
+**Implementation Pattern:**
+```csharp
+// ✅ CORRECT - Guid primary key
+public class AuditLog : BaseAttributes, INoTenantEntity {
+    // Id inherited from BaseAttributes (Guid?)
+    // Database auto-generates UUID v7
+}
+
+// ✅ CORRECT - Non-Guid primary key
+public class Permission : BaseAttributesNoKey, INoTenantEntity {
+    [Key]
+    public string Key { get; set; }  // Manual string PK
+}
+
+// ❌ WRONG - Don't manually define Guid Id for BaseAttributes entities
+public class SomeEntity : BaseAttributesNoKey {
+    [Key]
+    public Guid Id { get; set; }  // Bypasses UUID v7 generation
+}
+```
+
+**Benefits:**
+- ✅ Consistent ID generation across all entities
+- ✅ Timestamp-ordered UUIDs improve database performance
+- ✅ No application code needed to generate IDs
+- ✅ Database guarantees uniqueness
 
 ---
 
@@ -530,6 +593,22 @@ public enum InvitationScope {
 
 **File:** `apps/api/Src/Features/Staff/Audit/AuditLog.cs`
 
+**IMPORTANT - Base Class Selection:**
+
+This project uses **database-generated UUID v7** for all Guid primary keys (configured in `MainApiDbContext.OnModelCreating()`). Follow these rules:
+
+- ✅ **Use `BaseAttributes`**: For entities with **Guid primary key** (database auto-generates UUID v7)
+  - Examples: User, Tenant, Profile, Invitation, SystemNotice, Session, **AuditLog**
+  
+- ✅ **Use `BaseAttributesNoKey`**: For entities with **non-Guid primary key** (string, composite, etc.)
+  - Example: Permission (uses string primary key: `public string Key`)
+
+**Why AuditLog uses BaseAttributes:**
+- AuditLog has a Guid primary key → Should use `BaseAttributes`
+- Database automatically generates UUID v7 on INSERT
+- The nullable `Guid?` in BaseAttributes is intentional (null before save, DB fills it)
+- Consistent with all other Guid PK entities in the codebase
+
 ```csharp
 using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -539,12 +618,15 @@ namespace MainApi.Src.Features.Staff.Audit;
 
 /// <summary>
 /// Generic audit log for tracking staff actions.
+/// Uses BaseAttributes for automatic Guid primary key (database-generated UUID v7).
 /// </summary>
 [Table("audit_logs")]
 [Index(nameof(UserId), nameof(CreatedAt))]
 [Index(nameof(Action), nameof(CreatedAt))]
 [Index(nameof(TargetId))]
-public class AuditLog : BaseAttributesNoKey, INoTenantEntity {
+public class AuditLog : BaseAttributes, INoTenantEntity {
+    // Id inherited from BaseAttributes (Guid? - database generates UUID v7)
+
     [Column("user_id")]
     public required Guid UserId { get; set; }
 
@@ -1553,14 +1635,14 @@ invitations (unified for all scopes)
     └── CK_Invitation_Project_Constraints
 
 audit_logs
-├── id (uuid, PK)
+├── id (uuid, PK)                          # Auto-generated UUID v7 by database
 ├── user_id (uuid, FK)
 ├── action (varchar)
 ├── target_id (uuid)
 ├── details (jsonb)
 ├── ip_address (varchar)
 ├── user_agent (text)
-└── created_at
+└── created_at, updated_at, is_deleted, deleted_at  # From BaseAttributes
 
 system_notices
 ├── id (uuid, PK)
