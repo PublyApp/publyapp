@@ -80,6 +80,7 @@ export type NavSubListProps = Omit<NavListProps, 'data'> & {
 
 export type NavGroupProps = Omit<NavListProps, 'data' | 'depth'> & {
 	subheader?: string;
+	collapsible?: boolean;
 	items: NavItemDataProps[];
 };
 
@@ -91,6 +92,7 @@ export type NavSectionProps = React.ComponentProps<'nav'> &
 		sx?: SxProps<Theme>;
 		data: {
 			subheader?: string;
+			collapsible?: boolean;
 			items: NavItemDataProps[];
 		}[];
 	};

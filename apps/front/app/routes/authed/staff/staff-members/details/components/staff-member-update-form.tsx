@@ -9,6 +9,7 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import {
 	useFindStaffMember,
+	useGetStaffMemberById,
 	useUpdateStaffMember,
 } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
@@ -89,6 +90,9 @@ const StaffMemberUpdateForm = ({
 				);
 				queryClient.invalidateQueries({
 					queryKey: useFindStaffMember.getKey(),
+				});
+				queryClient.invalidateQueries({
+					queryKey: useGetStaffMemberById.getKey({ userId: currentUser.id }),
 				});
 				router.push(FRONT_PATH_NAMES.staff.staffMembers.root);
 			},
