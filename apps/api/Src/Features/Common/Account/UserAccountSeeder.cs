@@ -1,6 +1,7 @@
 using System.Data;
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib;
 using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Features.Common.Account;
@@ -26,11 +27,19 @@ public class UserAccountSeeder : IEntitySeeder {
 	public int Order => 40;
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
+		AppEnvironment.LoadEnv();
 		// Define staff accounts to create
-		var staffAccountsData = new List<(string Email, AccountLevel Level)> {
+		var staffAccountsData = new List<(string Email, AccountLevel Level)>();
+
+		var ownerEmail = AppEnvironment.STAFF_OWNER_EMAIL;
+		if (!string.IsNullOrWhiteSpace(ownerEmail)) {
+			staffAccountsData.Add((ownerEmail.Trim().ToLowerInvariant(), AccountLevel.Admin));
+		}
+
+		staffAccountsData.AddRange(new[] {
 			("staff-admin@example.com", AccountLevel.Admin),
 			("staff-user@example.com", AccountLevel.User)
-		};
+		});
 
 		// Get user IDs for the staff users
 		var staffEmails = staffAccountsData.Select(sa => sa.Email).ToList();

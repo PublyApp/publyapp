@@ -12,6 +12,12 @@ public static class AppEnvironment {
 	public static string RESEND_API_KEY { get { return GetEnvVar(nameof(_RESEND_API_KEY)); } }
 	private static string _RESEND_API_KEY = string.Empty;
 
+	public static string STAFF_OWNER_EMAIL { get { return GetEnvVar(nameof(_STAFF_OWNER_EMAIL)); } }
+	private static string _STAFF_OWNER_EMAIL = string.Empty;
+
+	public static string STAFF_OWNER_BOOTSTRAP_CODE { get { return GetEnvVar(nameof(_STAFF_OWNER_BOOTSTRAP_CODE)); } }
+	private static string _STAFF_OWNER_BOOTSTRAP_CODE = string.Empty;
+
 	// ==================================================
 
 	private static bool IS_DOTENV_LOADED = false;
@@ -88,11 +94,15 @@ public static class AppEnvironment {
 		var postgresConnectionString = Environment.GetEnvironmentVariable(nameof(POSTGRES_CONNECTION_STRING));
 		var frontUrl = Environment.GetEnvironmentVariable(nameof(FRONT_URL));
 		var resendApiKey = Environment.GetEnvironmentVariable(nameof(RESEND_API_KEY));
+		var staffOwnerEmail = Environment.GetEnvironmentVariable(nameof(STAFF_OWNER_EMAIL));
+		var staffOwnerBootstrapCode = Environment.GetEnvironmentVariable(nameof(STAFF_OWNER_BOOTSTRAP_CODE));
 
 		var validationResult = _validator.Validate(new EnvironmentConfig {
 			PostgresConnectionString = postgresConnectionString,
 			FrontUrl = frontUrl,
-			ResendApiKey = resendApiKey
+			ResendApiKey = resendApiKey,
+			StaffOwnerEmail = staffOwnerEmail,
+			StaffOwnerBootstrapCode = staffOwnerBootstrapCode
 		});
 
 		if (!validationResult.IsValid) {
@@ -103,6 +113,8 @@ public static class AppEnvironment {
 		_POSTGRES_CONNECTION_STRING = postgresConnectionString!;
 		_FRONT_URL = frontUrl!;
 		_RESEND_API_KEY = resendApiKey!;
+		_STAFF_OWNER_EMAIL = staffOwnerEmail!;
+		_STAFF_OWNER_BOOTSTRAP_CODE = staffOwnerBootstrapCode!;
 	}
 }
 
@@ -110,6 +122,8 @@ public class EnvironmentConfig {
 	public string? PostgresConnectionString { get; set; }
 	public string? FrontUrl { get; set; }
 	public string? ResendApiKey { get; set; }
+	public string? StaffOwnerEmail { get; set; }
+	public string? StaffOwnerBootstrapCode { get; set; }
 }
 
 public class EnvironmentValidator : AbstractValidator<EnvironmentConfig> {
@@ -123,7 +137,14 @@ public class EnvironmentValidator : AbstractValidator<EnvironmentConfig> {
 			.Must(BeAValidUrl).WithMessage("FRONT_URL must be a valid URL");
 
 		RuleFor(x => x.ResendApiKey)
-		.NotEmpty().WithMessage("RESEND_API_KEY is not set or is empty");
+			.NotEmpty().WithMessage("RESEND_API_KEY is not set or is empty");
+
+		RuleFor(x => x.StaffOwnerEmail)
+			.NotEmpty().WithMessage("STAFF_OWNER_EMAIL is not set or is empty")
+			.EmailAddress().WithMessage("STAFF_OWNER_EMAIL must be a valid email address");
+
+		RuleFor(x => x.StaffOwnerBootstrapCode)
+			.NotEmpty().WithMessage("STAFF_OWNER_BOOTSTRAP_CODE is not set or is empty");
 	}
 
 	private static bool BeAValidUrl(string? url) {

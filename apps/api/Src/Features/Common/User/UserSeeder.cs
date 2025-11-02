@@ -2,6 +2,7 @@ using System.Data;
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Auth;
+using MainApi.Src.Lib;
 using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Features.Common.User;
@@ -31,10 +32,19 @@ public class UserSeeder : IEntitySeeder {
 	public int Order => 30;
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
+		AppEnvironment.LoadEnv();
 		var seedPassword = GetSeedPassword();
 
 		// Seed all users (staff and tenant users)
-		var allUsers = new List<(string Email, UserStatus Status, string? FirstName, string? LastName)> {
+		var allUsers = new List<(string Email, UserStatus Status, string? FirstName, string? LastName)>();
+
+		var ownerEmail = AppEnvironment.STAFF_OWNER_EMAIL;
+		if (!string.IsNullOrWhiteSpace(ownerEmail)) {
+			var normalizedOwnerEmail = ownerEmail.Trim().ToLowerInvariant();
+			allUsers.Add((normalizedOwnerEmail, UserStatus.Active, "Platform", "Owner"));
+		}
+
+		allUsers.AddRange(new List<(string Email, UserStatus Status, string? FirstName, string? LastName)> {
 			// Staff users
 			("staff-admin@example.com", UserStatus.Active, "Staff", "Admin"),
 			("staff-user@example.com", UserStatus.Active, "Staff", "User"),
@@ -49,11 +59,12 @@ public class UserSeeder : IEntitySeeder {
 			("alice@example.com", UserStatus.Active, "Alice", "Example"),
 			("bob@example.com", UserStatus.Active, "Bob", "Example"),
 			("charlie@example.com", UserStatus.Active, "Charlie", "Example")
-		};
+		});
 
+		var targetEmails = allUsers.Select(au => au.Email).ToList();
 		var existingUserEmailsQuery =
 			from u in dbContext.User
-			where allUsers.Select(au => au.Email).Contains(u.Email)
+			where targetEmails.Contains(u.Email)
 			select u.Email;
 		var existingUserEmails = await existingUserEmailsQuery.ToListAsync(cancellationToken);
 
