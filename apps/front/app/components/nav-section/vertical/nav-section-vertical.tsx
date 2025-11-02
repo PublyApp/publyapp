@@ -38,6 +38,7 @@ export const NavSectionVertical = ({
 						<Group
 							key={group.subheader ?? group.items[0].title}
 							subheader={group.subheader}
+							collapsible={group.collapsible}
 							items={group.items}
 							render={render}
 							slotProps={slotProps}
@@ -57,11 +58,13 @@ const Group = ({
 	items,
 	render,
 	subheader,
+	collapsible,
 	slotProps,
 	checkPermissions,
 	enabledRootRedirect,
 }: NavGroupProps) => {
 	const groupOpen = useBoolean(true);
+	const isCollapsible = collapsible !== false;
 
 	const renderContent = () => {
 		return (
@@ -83,24 +86,42 @@ const Group = ({
 		);
 	};
 
+	const renderSubheader = () => {
+		if (!subheader) {
+			return null;
+		}
+
+		if (isCollapsible) {
+			return (
+				<NavSubheader
+					data-title={subheader}
+					open={groupOpen.value}
+					onClick={groupOpen.onToggle}
+					sx={slotProps?.subheader}
+				>
+					{subheader}
+				</NavSubheader>
+			);
+		}
+
+		return (
+			<NavSubheader data-title={subheader} sx={slotProps?.subheader}>
+				{subheader}
+			</NavSubheader>
+		);
+	};
+
+	const renderGroupContent = () => {
+		if (subheader && isCollapsible) {
+			return <Collapse in={groupOpen.value}>{renderContent()}</Collapse>;
+		}
+		return renderContent();
+	};
+
 	return (
 		<NavLi>
-			{subheader ? (
-				<>
-					<NavSubheader
-						data-title={subheader}
-						open={groupOpen.value}
-						onClick={groupOpen.onToggle}
-						sx={slotProps?.subheader}
-					>
-						{subheader}
-					</NavSubheader>
-
-					<Collapse in={groupOpen.value}>{renderContent()}</Collapse>
-				</>
-			) : (
-				renderContent()
-			)}
+			{renderSubheader()}
+			{renderGroupContent()}
 		</NavLi>
 	);
 };

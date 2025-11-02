@@ -1,21 +1,14 @@
-// import { Label } from 'src/components/label';
-// import type { NavSectionProps } from 'src/components/nav-section';
-// import { SvgColor } from 'src/components/svg-color';
-
 import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
-
+import { Iconify } from '../components/iconify/iconify';
 import { Label } from '../components/label/label';
 import type { NavSectionProps } from '../components/nav-section/types';
 import { SvgColor } from '../components/svg-color/svg-color';
-import { Iconify } from '../components/iconify/iconify';
-
-// import { CONFIG } from 'src/global-config';
-// import { paths } from 'src/routes/paths';
 
 // ----------------------------------------------------------------------
 
 const icon = (name: string) => {
-	return <SvgColor src={`/assets/icons/navbar/${name}.svg`} />;
+	const iconPath = `/assets/icons/navbar/${name}.svg`;
+	return <SvgColor src={iconPath} />;
 };
 
 export const ICONS = {
