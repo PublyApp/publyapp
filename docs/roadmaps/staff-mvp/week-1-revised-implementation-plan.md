@@ -1571,6 +1571,156 @@ Once Week 1 is complete, Week 2 will focus on:
 
 ---
 
+## ADDENDUM: Phase 4 Completion Fixes (2025-11-02)
+
+**Status:** Post-Implementation Review Consensus  
+**Refs:** `docs/reviews/staff-mvp-week1-phase4-rejoinder.md`
+
+After implementing Phase 4 core services, GPT 5 and Claude conducted a code review and reached consensus on these minimal, safe improvements:
+
+### Required Fixes (30-45 minutes)
+
+1. **Add Unique Index on TokenHash** ✅ CRITICAL
+   - **File:** `Invitation.cs`
+   - **Change:** Add `[Index(nameof(TokenHash), IsUnique = true)]`
+   - **Impact:** Prevents O(n) table scans on invitation validation
+   - **Migration:** `make db-add NAME=AddInvitationTokenHashUniqueIndex`
+
+2. **Make RevokeInvitationAsync Idempotent** ✅ IMPORTANT
+   - **File:** `InvitationService.cs`
+   - **Change:** Add guards for already-revoked (no-op success) and accepted (return false)
+   - **Impact:** State-transition invariant; prevents data corruption
+   - **Lines:** +15 lines of guard logic
+
+3. **Standardize Token Generation** ✅ CONSISTENCY
+   - **File:** `ImpersonationService.cs`
+   - **Change:** Replace GUID concatenation with `CryptoUtils.RandomString(32)`
+   - **Impact:** Matches SessionService pattern; same entropy (256 bits)
+   - **Lines:** +1 using, -1/+1 method body
+
+4. **Add Account Selection Tie-Breaker** ✅ DETERMINISM
+   - **File:** `ImpersonationService.cs`
+   - **Change:** `orderby ua.Level descending, ua.CreatedAt ascending`
+   - **Impact:** Deterministic behavior when multiple accounts have same level
+   - **Lines:** Modify 1 line
+
+5. **Parse Tenant Header Conditionally** (Optional)
+   - **File:** `AppServicesConfig.cs`
+   - **Change:** Return `Guid?` and apply `UseTenantId` only when header parses
+   - **Impact:** Removes hard-coded GUID; graceful degradation
+   - **Lines:** +10, -5
+
+### Deferred to Phase 5 (Endpoint Layer)
+
+- **Profile scope validation** - Endpoint handlers will validate with proper error messages
+- **Authorization checks** - Already correct per vertical slice (belongs in handlers/filters)
+- **Audit details serialization** - Current fail-fast is appropriate for MVP
+
+### Implementation Plan
+
+See detailed step-by-step instructions in:
+- `docs/implementation-plans/phase4-fixes.md`
+
+### Updated Task 4.1 Code (InvitationService)
+
+Replace the `RevokeInvitationAsync` method in Phase 4 Task 4.1 with:
+
+```csharp
+public async Task<bool> RevokeInvitationAsync(
+    Guid invitationId,
+    CancellationToken cancellationToken = default
+) {
+    var invitation = await _dbContext.Invitation
+        .FindAsync(new object[] { invitationId }, cancellationToken);
+
+    if (invitation is null) {
+        return false;
+    }
+
+    // Idempotent: already revoked is a no-op success
+    if (invitation.IsRevoked) {
+        _logger.LogInformation(
+            "Invitation {InvitationId} is already revoked; no-op",
+            invitationId
+        );
+        return true;
+    }
+
+    // State-transition invariant: cannot revoke accepted invitations
+    if (invitation.IsAccepted) {
+        _logger.LogWarning(
+            "Attempt to revoke accepted invitation {InvitationId} blocked",
+            invitationId
+        );
+        return false;
+    }
+
+    invitation.IsRevoked = true;
+    invitation.RevokedAt = DateTime.UtcNow;
+
+    await _dbContext.SaveChangesAsync(cancellationToken);
+
+    _logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
+    return true;
+}
+```
+
+### Updated Task 4.3 Code (ImpersonationService)
+
+**Add using directive:**
+```csharp
+using MainApi.Src.Lib.Utils;
+```
+
+**Update account selection query (around line 35):**
+```csharp
+var tenantAccountQuery =
+    from ua in _dbContext.UserAccount
+    where ua.TenantId == tenantId
+        && ua.Scope == AccountScope.Tenant
+        && ua.IsSuspended == false
+    orderby ua.Level descending, ua.CreatedAt ascending  // Added tie-breaker
+    select ua;
+```
+
+**Update token generation (around line 85):**
+```csharp
+private static string GenerateSessionToken() {
+    return CryptoUtils.RandomString(32);  // Matches SessionService
+}
+```
+
+### Updated Task 2.1 Code (Invitation Entity)
+
+Add unique index attribute after existing indexes:
+
+```csharp
+[Table("invitations")]
+[Index(nameof(Email), nameof(Scope), nameof(IsAccepted))]
+[Index(nameof(InvitedByUserId))]
+[Index(nameof(ExpiresAt))]
+[Index(nameof(TenantId), nameof(Scope))]
+[Index(nameof(TokenHash), IsUnique = true)]  // ADDED: Performance critical
+public class Invitation : BaseAttributes, IOptionalTenantEntity {
+```
+
+### Verification After Fixes
+
+```bash
+# Code quality
+make check-write
+
+# Create and apply migration
+make db-add NAME=AddInvitationTokenHashUniqueIndex
+make db-migrate
+
+# Verify index in database
+make dev-db
+\d invitations  # Should show unique index on token_hash
+```
+
+---
+
 ## Appendix: Quick Reference
 
 ### New Files Created
