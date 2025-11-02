@@ -104,17 +104,15 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		defaultQueryClient.removeQueries();
 
 		// redirect to login page with a query param as redirect cause
-		const url = new URL(window.location.origin);
-		url.pathname = FRONT_PATH_NAMES.auth.login;
+		const url = new URL(FRONT_PATH_NAMES.auth.login, window.location.origin);
 		url.searchParams.set(
 			queryParamKey.login_page.redirect_cause,
 			queryParamValue.login_page.redirect_cause.invalid_session,
 		);
 
 		isoLogger.debug('Redirecting to login page', { url: url.toString() });
-		// alert(url.toString());
 
-		return <Navigate to={url.pathname + url.search} />;
+		return <Navigate to={url.pathname + url.search} replace />;
 	}
 
 	if (import.meta.env.DEV) {
@@ -127,6 +125,21 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	const tenantId = useTenantParam();
+
+	// Check if session token exists before running queries
+	// This prevents infinite loop when ErrorBoundary clears the cookie
+	const browserCookies = cookie.parse(document.cookie);
+	const sessionToken = _.get(browserCookies, SESSION_TOKEN_COOKIE_KEY);
+
+	if (!sessionToken) {
+		// No session token, redirect to login
+		const url = new URL(FRONT_PATH_NAMES.auth.login, window.location.origin);
+		url.searchParams.set(
+			queryParamKey.login_page.redirect_cause,
+			queryParamValue.login_page.redirect_cause.invalid_session,
+		);
+		return <Navigate to={url.pathname + url.search} replace />;
+	}
 
 	// trigger the queries in parallel
 	useSuspenseQueries({
