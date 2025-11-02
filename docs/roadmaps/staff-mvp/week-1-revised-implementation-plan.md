@@ -50,7 +50,7 @@
 This simplified plan respects the existing architecture and follows minimal seeding principles:
 
 **✅ INCLUDE:**
-1. **Staff Invitation system** - Controlled onboarding with pre-authorization
+1. **Unified Invitation system** - Single table with scope discriminator (Staff/Tenant/Project)
 2. **Owner bootstrap** - Extend existing seeders (UserSeeder + UserAccountSeeder)
 3. **Simplified Audit Logging** - Generic, flexible tracking system
 4. **Session-based Impersonation** - Extend existing Session entity
@@ -62,6 +62,7 @@ This simplified plan respects the existing architecture and follows minimal seed
 8. ~~StaffImpersonationToken~~ - Extend Session instead
 9. ~~OwnerSeeder~~ - Extend existing seeders instead
 10. ~~UserAccountProfileSeeder~~ - No relationship seeding (runtime only)
+11. ~~StaffInvitation~~ - Use generic Invitation table with scope instead
 
 **⏭️ DEFER:**
 11. Magic-link authentication (use password login for now)
@@ -133,19 +134,26 @@ This simplified plan respects the existing architecture and follows minimal seed
 - More flexible (add new actions without migrations)
 - Good enough for MVP
 
-### Decision 4: Keep Staff Invitation ✅
+### Decision 4: Unified Invitation Table ✅
 
-**Rationale:** After debate, invitation provides better pre-authorization and audit trail.
+**Rationale:** Follow existing architectural pattern of single table with scope discriminator.
 
 **Implementation:**
-- `StaffInvitation` entity for tracking invite lifecycle
+- Single `Invitation` entity with `InvitationScope` enum (Staff/Tenant/Project)
+- Implements `IOptionalTenantEntity` (like UserAccount)
+- Validation method ensures scope constraints (like UserAccount.ValidateAccountType())
 - Token-based invite acceptance
 - Revocable before acceptance
 
 **Benefits:**
-- Control who can become staff (not just anyone who verifies email)
-- Know who invited whom (audit trail)
-- Can revoke invite before acceptance
+- ✅ Consistent with UserAccount and Profile patterns
+- ✅ Future-proof for tenant/project invitations
+- ✅ Single InvitationService handles all scopes
+- ✅ No duplicate tables or logic per scope
+- ✅ Control who can become staff (audit trail)
+- ✅ Can revoke invite before acceptance
+
+**Follows principle:** One logical entity = One table with scope discriminator
 
 ---
 
@@ -361,29 +369,46 @@ public class StaffProfileSeeder : IEntitySeeder {
 
 ### Phase 2: New Entities (3-4 hours)
 
-#### Task 2.1: Create StaffInvitation Entity
+#### Task 2.1: Create Invitation Entity (Unified, Scope-Based)
 
-**Directory:** `apps/api/Src/Features/Staff/Invitation/`
+**Directory:** `apps/api/Src/Features/Common/Invitation/`
 
-**File:** `apps/api/Src/Features/Staff/Invitation/StaffInvitation.cs`
+**File:** `apps/api/Src/Features/Common/Invitation/Invitation.cs`
+
+**IMPORTANT:** This follows the same pattern as `UserAccount` and `Profile` - single table with scope discriminator.
 
 ```csharp
 using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-namespace MainApi.Src.Features.Staff.Invitation;
+namespace MainApi.Src.Features.Common.Invitation;
 
 /// <summary>
-/// Tracks staff invitation lifecycle for controlled onboarding.
+/// Unified invitation table for all scopes (Staff, Tenant, Project).
+/// Follows the same pattern as UserAccount and Profile.
 /// </summary>
-[Table("staff_invitations")]
-[Index(nameof(Email), nameof(IsAccepted))]
+[Table("invitations")]
+[Index(nameof(Email), nameof(Scope), nameof(IsAccepted))]
 [Index(nameof(InvitedByUserId))]
 [Index(nameof(ExpiresAt))]
-public class StaffInvitation : BaseAttributes, INoTenantEntity {
+[Index(nameof(TenantId), nameof(Scope))]
+public class Invitation : BaseAttributes, IOptionalTenantEntity {
     [Column("email")]
     public required string Email { get; set; }
+
+    [Column("scope")]
+    public InvitationScope Scope { get; set; } = InvitationScope.Tenant;
+
+    [Column("tenant_id")]
+    public Guid? TenantId { get; set; }  // Nullable for staff invitations
+    [JsonIgnore]
+    public Tenant.Tenant? Tenant { get; set; }
+
+    [Column("project_id")]
+    public Guid? ProjectId { get; set; }  // Nullable for staff/tenant invitations
+    [JsonIgnore]
+    public Project.Project? Project { get; set; }
 
     [Column("token_hash")]
     public required string TokenHash { get; set; }
@@ -410,10 +435,76 @@ public class StaffInvitation : BaseAttributes, INoTenantEntity {
     public User.User InvitedByUser { get; set; } = null!;
 
     [Column("profile_id")]
-    public required Guid ProfileId { get; set; }  // Which staff profile to assign
+    public required Guid ProfileId { get; set; }  // Profile already has scope
 
     [JsonIgnore]
     public Profile.Profile Profile { get; set; } = null!;
+
+    // Computed properties for easy identification (like UserAccount)
+    public bool IsStaffInvitation => Scope == InvitationScope.Staff && TenantId == null && ProjectId == null;
+    public bool IsTenantInvitation => Scope == InvitationScope.Tenant && TenantId != null && ProjectId == null;
+    public bool IsProjectInvitation => Scope == InvitationScope.Project && TenantId != null && ProjectId != null;
+
+    // Factory methods for type-safe creation (like UserAccount)
+    public static Invitation CreateStaffInvitation(string email, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string tokenHash) {
+        return new Invitation {
+            Email = email.ToLowerInvariant(),
+            Scope = InvitationScope.Staff,
+            TenantId = null,
+            ProjectId = null,
+            ProfileId = profileId,
+            InvitedByUserId = invitedByUserId,
+            ExpiresAt = expiresAt,
+            TokenHash = tokenHash
+        };
+    }
+
+    public static Invitation CreateTenantInvitation(string email, Guid tenantId, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string tokenHash) {
+        return new Invitation {
+            Email = email.ToLowerInvariant(),
+            Scope = InvitationScope.Tenant,
+            TenantId = tenantId,
+            ProjectId = null,
+            ProfileId = profileId,
+            InvitedByUserId = invitedByUserId,
+            ExpiresAt = expiresAt,
+            TokenHash = tokenHash
+        };
+    }
+
+    public static Invitation CreateProjectInvitation(string email, Guid tenantId, Guid projectId, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string tokenHash) {
+        return new Invitation {
+            Email = email.ToLowerInvariant(),
+            Scope = InvitationScope.Project,
+            TenantId = tenantId,
+            ProjectId = projectId,
+            ProfileId = profileId,
+            InvitedByUserId = invitedByUserId,
+            ExpiresAt = expiresAt,
+            TokenHash = tokenHash
+        };
+    }
+
+    // Validation (like UserAccount.ValidateAccountType)
+    public void ValidateInvitationType() {
+        switch (Scope) {
+            case InvitationScope.Staff:
+                if (TenantId != null || ProjectId != null) {
+                    throw new InvalidOperationException("Staff invitations cannot have TenantId or ProjectId");
+                }
+                break;
+            case InvitationScope.Tenant:
+                if (TenantId == null || ProjectId != null) {
+                    throw new InvalidOperationException("Tenant invitations must have TenantId but not ProjectId");
+                }
+                break;
+            case InvitationScope.Project:
+                if (TenantId == null || ProjectId == null) {
+                    throw new InvalidOperationException("Project invitations must have both TenantId and ProjectId");
+                }
+                break;
+        }
+    }
 
     /// <summary>
     /// Check if invitation is valid for acceptance.
@@ -424,6 +515,12 @@ public class StaffInvitation : BaseAttributes, INoTenantEntity {
                && !IsDeleted
                && ExpiresAt > DateTime.UtcNow;
     }
+}
+
+public enum InvitationScope {
+    Staff = 0,
+    Tenant = 1,
+    Project = 2
 }
 ```
 
@@ -600,17 +697,35 @@ public bool IsImpersonationValid() {
 
 Add using statements at top:
 ```csharp
-using MainApi.Src.Features.Staff.Invitation;
+using MainApi.Src.Features.Common.Invitation;
 using MainApi.Src.Features.Staff.Audit;
 using MainApi.Src.Features.Staff.Notice;
 ```
 
 Add DbSet properties after existing DbSets:
 ```csharp
+// Unified invitation system (Staff/Tenant/Project)
+public DbSet<Invitation> Invitation { get; init; }
+
 // Staff backoffice entities
-public DbSet<StaffInvitation> StaffInvitation { get; init; }
 public DbSet<AuditLog> AuditLog { get; init; }
 public DbSet<SystemNotice> SystemNotice { get; init; }
+```
+
+Add database-level constraints in `OnModelCreating` method (similar to UserAccount):
+```csharp
+// Database-level invitation scope constraints
+modelBuilder.Entity<Invitation>()
+    .ToTable(t => t.HasCheckConstraint("CK_Invitation_Staff_Constraints",
+        "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
+
+modelBuilder.Entity<Invitation>()
+    .ToTable(t => t.HasCheckConstraint("CK_Invitation_Tenant_Constraints",
+        "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
+
+modelBuilder.Entity<Invitation>()
+    .ToTable(t => t.HasCheckConstraint("CK_Invitation_Project_Constraints",
+        "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
 ```
 
 #### Task 3.2: Create and Apply Migration
@@ -636,7 +751,7 @@ make db-migrate
 ```
 
 **Expected migration should create:**
-1. `staff_invitations` table with indexes
+1. `invitations` table with indexes and CHECK constraints (like user_accounts)
 2. `audit_logs` table with indexes
 3. `system_notices` table with indexes
 4. Add 4 columns to `session` table for impersonation
@@ -646,9 +761,11 @@ make db-migrate
 
 ### Phase 4: Core Services (2-3 hours)
 
-#### Task 4.1: Create StaffInvitationService
+#### Task 4.1: Create InvitationService (Unified, Scope-Aware)
 
-**File:** `apps/api/Src/Features/Staff/Invitation/StaffInvitationService.cs`
+**File:** `apps/api/Src/Features/Common/Invitation/InvitationService.cs`
+
+**IMPORTANT:** This service handles ALL invitation scopes (Staff/Tenant/Project), not just staff.
 
 ```csharp
 using System.Security.Cryptography;
@@ -657,16 +774,26 @@ using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Profile;
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Src.Features.Staff.Invitation;
+namespace MainApi.Src.Features.Common.Invitation;
 
-public interface IStaffInvitationService {
-    Task<(StaffInvitation Invitation, string Token)> CreateInvitationAsync(
+public interface IInvitationService {
+    // Staff invitation
+    Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
         string email,
         Guid profileId,
         Guid invitedByUserId,
         CancellationToken cancellationToken = default);
 
-    Task<StaffInvitation?> ValidateInvitationTokenAsync(
+    // Tenant invitation (future)
+    Task<(Invitation Invitation, string Token)> CreateTenantInvitationAsync(
+        string email,
+        Guid tenantId,
+        Guid profileId,
+        Guid invitedByUserId,
+        CancellationToken cancellationToken = default);
+
+    // Common validation
+    Task<Invitation?> ValidateInvitationTokenAsync(
         string token,
         CancellationToken cancellationToken = default);
 
@@ -675,46 +802,39 @@ public interface IStaffInvitationService {
         CancellationToken cancellationToken = default);
 }
 
-public class StaffInvitationService : IStaffInvitationService {
+public class InvitationService : IInvitationService {
     private readonly MainApiDbContext _dbContext;
-    private readonly ILogger<StaffInvitationService> _logger;
+    private readonly ILogger<InvitationService> _logger;
 
-    public StaffInvitationService(
+    public InvitationService(
         MainApiDbContext dbContext,
-        ILogger<StaffInvitationService> logger
+        ILogger<InvitationService> logger
     ) {
         _dbContext = dbContext;
         _logger = logger;
     }
 
-    public async Task<(StaffInvitation Invitation, string Token)> CreateInvitationAsync(
+    public async Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
         string email,
         Guid profileId,
         Guid invitedByUserId,
         CancellationToken cancellationToken = default
     ) {
-        // Generate random token (cryptographically secure)
-        var tokenBytes = new byte[32];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(tokenBytes);
-        var token = Convert.ToBase64String(tokenBytes)
-            .Replace("+", "-")
-            .Replace("/", "_")
-            .TrimEnd('=');
+        var (token, tokenHash) = GenerateToken();
+        var expiresAt = DateTime.UtcNow.AddDays(7);
 
-        // Hash token for storage
-        var tokenHash = HashToken(token);
+        // Use factory method for type safety
+        var invitation = Invitation.CreateStaffInvitation(
+            email,
+            profileId,
+            invitedByUserId,
+            expiresAt,
+            tokenHash
+        );
 
-        // Create invitation
-        var invitation = new StaffInvitation {
-            Email = email.ToLowerInvariant(),
-            TokenHash = tokenHash,
-            ExpiresAt = DateTime.UtcNow.AddDays(7),
-            ProfileId = profileId,
-            InvitedByUserId = invitedByUserId
-        };
+        invitation.ValidateInvitationType();
 
-        await _dbContext.StaffInvitation.AddAsync(invitation, cancellationToken);
+        await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
@@ -726,14 +846,49 @@ public class StaffInvitationService : IStaffInvitationService {
         return (invitation, token);
     }
 
-    public async Task<StaffInvitation?> ValidateInvitationTokenAsync(
+    public async Task<(Invitation Invitation, string Token)> CreateTenantInvitationAsync(
+        string email,
+        Guid tenantId,
+        Guid profileId,
+        Guid invitedByUserId,
+        CancellationToken cancellationToken = default
+    ) {
+        var (token, tokenHash) = GenerateToken();
+        var expiresAt = DateTime.UtcNow.AddDays(7);
+
+        // Use factory method for type safety
+        var invitation = Invitation.CreateTenantInvitation(
+            email,
+            tenantId,
+            profileId,
+            invitedByUserId,
+            expiresAt,
+            tokenHash
+        );
+
+        invitation.ValidateInvitationType();
+
+        await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Created tenant invitation for {Email} in tenant {TenantId} by user {InvitedBy}",
+            email,
+            tenantId,
+            invitedByUserId
+        );
+
+        return (invitation, token);
+    }
+
+    public async Task<Invitation?> ValidateInvitationTokenAsync(
         string token,
         CancellationToken cancellationToken = default
     ) {
         var tokenHash = HashToken(token);
 
         var invitation = await (
-            from inv in _dbContext.StaffInvitation
+            from inv in _dbContext.Invitation
             where inv.TokenHash == tokenHash
             select inv
         ).FirstOrDefaultAsync(cancellationToken);
@@ -743,7 +898,10 @@ public class StaffInvitationService : IStaffInvitationService {
         }
 
         if (!invitation.CanBeAccepted()) {
-            _logger.LogWarning("Invitation {Id} cannot be accepted (expired or revoked)", invitation.Id);
+            _logger.LogWarning(
+                "Invitation {Id} cannot be accepted (expired or revoked)",
+                invitation.Id
+            );
             return null;
         }
 
@@ -754,7 +912,7 @@ public class StaffInvitationService : IStaffInvitationService {
         Guid invitationId,
         CancellationToken cancellationToken = default
     ) {
-        var invitation = await _dbContext.StaffInvitation
+        var invitation = await _dbContext.Invitation
             .FindAsync(new object[] { invitationId }, cancellationToken);
 
         if (invitation is null) {
@@ -768,6 +926,19 @@ public class StaffInvitationService : IStaffInvitationService {
 
         _logger.LogInformation("Revoked invitation {Id}", invitationId);
         return true;
+    }
+
+    private static (string Token, string TokenHash) GenerateToken() {
+        var tokenBytes = new byte[32];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(tokenBytes);
+        var token = Convert.ToBase64String(tokenBytes)
+            .Replace("+", "-")
+            .Replace("/", "_")
+            .TrimEnd('=');
+
+        var tokenHash = HashToken(token);
+        return (token, tokenHash);
     }
 
     private static string HashToken(string token) {
@@ -962,8 +1133,10 @@ public class ImpersonationService : IImpersonationService {
 
 Add service registrations:
 ```csharp
+// Unified invitation service (handles Staff/Tenant/Project)
+builder.Services.AddScoped<IInvitationService, InvitationService>();
+
 // Staff services
-builder.Services.AddScoped<IStaffInvitationService, StaffInvitationService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IImpersonationService, ImpersonationService>();
 
@@ -986,7 +1159,7 @@ make dev-db
 \dt
 
 # Expected tables:
-# - staff_invitations
+# - invitations (unified for Staff/Tenant/Project)
 # - audit_logs
 # - system_notices
 # - session (with new columns for impersonation)
@@ -1019,7 +1192,7 @@ Create a simple test endpoint temporarily:
 **File:** `apps/api/Src/Features/Staff/TestEndpoints.cs`
 
 ```csharp
-using MainApi.Src.Features.Staff.Invitation;
+using MainApi.Src.Features.Common.Invitation;
 using MainApi.Src.Features.Staff.Audit;
 using Microsoft.AspNetCore.Mvc;
 
@@ -1029,13 +1202,13 @@ public static class TestEndpoints {
     public static void MapStaffTestEndpoints(this IEndpointRouteBuilder app) {
         var group = app.MapGroup("/staff/test");
 
-        // Test invitation creation
+        // Test staff invitation creation
         group.MapPost("/invitation", async (
-            [FromServices] IStaffInvitationService invitationService,
+            [FromServices] IInvitationService invitationService,
             [FromServices] IAuditLogService auditLogService,
             [FromBody] TestInviteRequest request
         ) => {
-            var (invitation, token) = await invitationService.CreateInvitationAsync(
+            var (invitation, token) = await invitationService.CreateStaffInvitationAsync(
                 request.Email,
                 request.ProfileId,
                 request.InvitedByUserId
@@ -1045,16 +1218,16 @@ public static class TestEndpoints {
                 request.InvitedByUserId,
                 AuditActions.InvitationCreated,
                 invitation.Id,
-                new { Email = request.Email }
+                new { Email = request.Email, Scope = "Staff" }
             );
 
-            return Results.Ok(new { InvitationId = invitation.Id, Token = token });
+            return Results.Ok(new { InvitationId = invitation.Id, Token = token, Scope = invitation.Scope });
         });
 
-        // Test invitation validation
+        // Test invitation validation (works for any scope)
         group.MapGet("/invitation/{token}", async (
             [FromRoute] string token,
-            [FromServices] IStaffInvitationService invitationService
+            [FromServices] IInvitationService invitationService
         ) => {
             var invitation = await invitationService.ValidateInvitationTokenAsync(token);
             return invitation is not null ? Results.Ok(invitation) : Results.NotFound();
@@ -1091,13 +1264,15 @@ curl http://localhost:5000/staff/test/invitation/<TOKEN>
 - [ ] **UserAccountSeeder** modified to create Owner account with Admin level
 - [ ] **Staff profiles** created by StaffProfileSeeder (structure only, no assignments)
 - [ ] **Owner user** can log in with bootstrap credentials
-- [ ] **StaffInvitation entity** exists with proper indexes
+- [ ] **Invitation entity** exists with scope discriminator (Staff/Tenant/Project)
+- [ ] **Database constraints** ensure scope-based validation (like UserAccount)
 - [ ] **AuditLog entity** exists with proper indexes
 - [ ] **SystemNotice entity** exists with proper indexes
 - [ ] **Session entity** extended with impersonation fields
 - [ ] **Migration** created and applied successfully
 - [ ] **Services** registered in DI container
-- [ ] **StaffInvitationService** can create and validate invitations
+- [ ] **InvitationService** can create staff invitations (future: tenant/project)
+- [ ] **InvitationService** can validate invitations for any scope
 - [ ] **AuditLogService** can log actions
 - [ ] **ImpersonationService** can create impersonation sessions
 - [ ] **Manual testing** completed and verified
@@ -1135,13 +1310,15 @@ After completing all tasks:
    git add .
    git commit -m "feat(staff): implement Week 1 foundations (invitations, audit, impersonation)
 
-   - Add StaffInvitation entity for controlled onboarding
+   - Add unified Invitation entity with scope discriminator (Staff/Tenant/Project)
+   - Follow UserAccount/Profile pattern: single table with scope enum
+   - Add database constraints for scope-based validation
    - Add AuditLog entity for compliance tracking
    - Add SystemNotice entity for operational alerts
    - Extend Session entity with impersonation support
    - Extend UserSeeder and UserAccountSeeder for Owner bootstrap
    - Create StaffProfileSeeder for profile structure (no assignments)
-   - Add core services: StaffInvitationService, AuditLogService, ImpersonationService
+   - Add InvitationService (handles all scopes), AuditLogService, ImpersonationService
    - Follow minimal seeding principle: structure only, no relationships
 
    Co-authored-by: factory-droid[bot] <138933559+factory-droid[bot]@users.noreply.github.com>"
@@ -1224,7 +1401,27 @@ WHERE u.email = '<STAFF_OWNER_EMAIL>' AND ua.scope = 0 AND ua.level = 50;
 - Ensure `StaffProfileSeeder` (order 35) runs before creating invitations
 - Verify profiles exist in database: `SELECT * FROM profiles WHERE profile_scope = 0;`
 - Check seeder execution order in logs
-- Profile IDs must exist before calling `StaffInvitationService.CreateInvitationAsync()`
+- Profile IDs must exist before calling `InvitationService.CreateStaffInvitationAsync()`
+
+### Scope Constraint Violations
+
+**Issue:** Cannot insert invitation - CHECK constraint failed
+
+**Solution:**
+```bash
+# Check constraint error usually means scope doesn't match tenant_id/project_id
+# Examples:
+# - Staff invitation must have tenant_id=NULL and project_id=NULL
+# - Tenant invitation must have tenant_id NOT NULL and project_id=NULL
+
+# Use factory methods to ensure correct structure:
+var invitation = Invitation.CreateStaffInvitation(...);  # Correct
+# vs
+var invitation = new Invitation { Scope = InvitationScope.Staff, TenantId = someId };  # WRONG
+
+# Always call ValidateInvitationType() before saving
+invitation.ValidateInvitationType();
+```
 
 ### Session Impersonation Not Working
 
@@ -1297,18 +1494,20 @@ Once Week 1 is complete, Week 2 will focus on:
 ### New Files Created
 
 ```
-apps/api/Src/Features/Staff/
-├── StaffProfileSeeder.cs                  # Creates staff profiles (structure only)
-├── Invitation/
-│   ├── StaffInvitation.cs                 # Entity
-│   └── StaffInvitationService.cs          # Service
-├── Audit/
-│   ├── AuditLog.cs                        # Entity
-│   └── AuditLogService.cs                 # Service
-├── Notice/
-│   └── SystemNotice.cs                    # Entity
-└── Impersonation/
-    └── ImpersonationService.cs            # Service
+apps/api/Src/Features/
+├── Common/
+│   └── Invitation/
+│       ├── Invitation.cs                  # Entity (unified for all scopes)
+│       └── InvitationService.cs           # Service (handles Staff/Tenant/Project)
+└── Staff/
+    ├── StaffProfileSeeder.cs              # Creates staff profiles (structure only)
+    ├── Audit/
+    │   ├── AuditLog.cs                    # Entity
+    │   └── AuditLogService.cs             # Service
+    ├── Notice/
+    │   └── SystemNotice.cs                # Entity
+    └── Impersonation/
+        └── ImpersonationService.cs        # Service
 ```
 
 ### Modified Files
@@ -1319,8 +1518,11 @@ apps/api/Src/
 │   └── Common/
 │       ├── User/UserSeeder.cs             # MODIFIED: Add Owner from env
 │       ├── Account/UserAccountSeeder.cs   # MODIFIED: Add Owner account
-│       └── Session/Session.cs             # MODIFIED: Add impersonation fields
-├── Data/DbContext/MainApiDbContext.cs     # MODIFIED: Register new entities
+│       ├── Session/Session.cs             # MODIFIED: Add impersonation fields
+│       └── Invitation/                    # NEW folder
+│           ├── Invitation.cs              # NEW: Unified invitation entity
+│           └── InvitationService.cs       # NEW: Handles all scopes
+├── Data/DbContext/MainApiDbContext.cs     # MODIFIED: Register entities + constraints
 ├── Lib/AppEnvironment.cs                  # MODIFIED: Add env vars
 └── Program.cs                             # MODIFIED: Register services
 
@@ -1330,9 +1532,12 @@ apps/api/Src/
 ### Database Tables
 
 ```sql
-staff_invitations
+invitations (unified for all scopes)
 ├── id (uuid, PK)
 ├── email (varchar)
+├── scope (int)                            # 0=Staff, 1=Tenant, 2=Project
+├── tenant_id (uuid, FK, nullable)         # Null for Staff
+├── project_id (uuid, FK, nullable)        # Null for Staff/Tenant
 ├── token_hash (varchar)
 ├── expires_at (timestamp)
 ├── is_accepted (boolean)
@@ -1341,7 +1546,11 @@ staff_invitations
 ├── revoked_at (timestamp)
 ├── invited_by_user_id (uuid, FK)
 ├── profile_id (uuid, FK)
-└── created_at, updated_at, is_deleted, deleted_at
+├── created_at, updated_at, is_deleted, deleted_at
+└── CHECK constraints (like user_accounts):
+    ├── CK_Invitation_Staff_Constraints
+    ├── CK_Invitation_Tenant_Constraints
+    └── CK_Invitation_Project_Constraints
 
 audit_logs
 ├── id (uuid, PK)
