@@ -2,11 +2,13 @@ using System.Linq.Expressions;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.Permission;
+using MainApi.Src.Features.Common.Project;
 using MainApi.Src.Features.Common.Session;
 using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace MainApi.Src.Data.DbContext;
 
@@ -14,32 +16,15 @@ namespace MainApi.Src.Data.DbContext;
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
 public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
-	private static MainApiDbContext? _singleton = null;
-
-	public MainApiDbContext SingleTon {
-		get {
-			if (_singleton is null) {
-				throw new Exception("You must set a singleton before getting it");
-			}
-			return _singleton;
-		}
-		set {
-			_singleton = value;
-		}
-	}
-
-	public static MainApiDbContext GetSingleTon() {
-		if (_singleton is null) {
-			throw new Exception("You must call SetSingleTon before calling GetSingleTon");
-		}
-
-		return _singleton;
-	}
+	private static readonly Lazy<IReadOnlyList<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
 	public DbSet<Session> Session { get; init; }
 	public DbSet<Product> Product { get; init; }
 	public DbSet<User> User { get; init; }
 	public DbSet<Tenant> Tenant { get; init; }
+
+	// Project system entities (still needed for Project entity)
+	public DbSet<Project> Project { get; init; }
 
 	// Unified permission system entities
 	public DbSet<Permission> Permission { get; init; }
@@ -47,7 +32,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	public DbSet<ProfilePermission> ProfilePermission { get; init; }
 	public DbSet<UserAccountProfile> UserAccountProfile { get; init; }
 
-	// Unified account system
+	// Unified account system (handles Staff, Tenant, and Project accounts)
 	public DbSet<UserAccount> UserAccount { get; init; }
 
 	public Guid? TenantId { get; set; }
@@ -60,26 +45,98 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
 		base.OnConfiguring(optionsBuilder);
 
-		// EF Core 9: Define seeding logic here
+		// EF Core 9: Define seeding logic here using reflection to discover all seeders
 		optionsBuilder.UseSeeding((context, _) => {
 			var dbContext = (MainApiDbContext)context;
 
 			if (dbContext is null) {
-				throw new Exception("dbContext is null");
+				throw new InvalidOperationException("Seeding context cannot be null");
 			}
 
-			Seeder.SeedAll(dbContext);
+			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
+			SeedAllSync(dbContext, infrastructure.Instance);
 		});
 
 		optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
 			var dbContext = (MainApiDbContext)context;
 
 			if (dbContext is null) {
-				throw new Exception("dbContext is null");
+				throw new InvalidOperationException("Seeding context cannot be null");
 			}
 
-			await Seeder.SeedAllAsync(dbContext);
+			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
+			await SeedAllAsync(dbContext, infrastructure.Instance, cancellationToken);
 		});
+	}
+
+	/// <summary>
+	/// Discovers and executes all entity seeders synchronously.
+	/// </summary>
+	private static void SeedAllSync(MainApiDbContext dbContext, IServiceProvider serviceProvider) {
+		Task.Run(() => SeedAllAsync(dbContext, serviceProvider, CancellationToken.None))
+			.GetAwaiter()
+			.GetResult();
+	}
+
+	/// <summary>
+	/// Discovers and executes all entity seeders asynchronously using reflection.
+	/// </summary>
+	private static async Task SeedAllAsync(MainApiDbContext dbContext, IServiceProvider serviceProvider, CancellationToken cancellationToken) {
+		var logger = serviceProvider.GetService<ILogger<MainApiDbContext>>();
+		var seeders = CreateSeeders(serviceProvider);
+
+		foreach (var seeder in seeders) {
+			logger?.LogInformation("Running seeder {Seeder} with order {Order}", seeder.GetType().Name, seeder.Order);
+			await seeder.SeedAsync(dbContext, cancellationToken);
+		}
+	}
+
+	/// <summary>
+	/// Discovers all classes that implement <see cref="IEntitySeeder"/> using reflection.
+	/// </summary>
+	private static IReadOnlyList<Type> DiscoverSeeders() => SeederTypeCache.Value;
+
+	/// <summary>
+	/// Creates seeded instances via dependency injection with robust error handling.
+	/// </summary>
+	/// <param name="serviceProvider">The service provider used for DI instantiation.</param>
+	/// <exception cref="InvalidOperationException">Thrown if a seeder cannot be instantiated.</exception>
+	private static IReadOnlyList<IEntitySeeder> CreateSeeders(IServiceProvider serviceProvider) {
+		var seederTypes = DiscoverSeeders();
+		var seeders = new List<IEntitySeeder>(seederTypes.Count);
+
+		foreach (var type in seederTypes) {
+			try {
+				var instance = (IEntitySeeder)ActivatorUtilities.CreateInstance(serviceProvider, type);
+				seeders.Add(instance);
+			} catch (Exception ex) {
+				throw new InvalidOperationException($"Failed to instantiate seeder '{type.FullName}'.", ex);
+			}
+		}
+
+		return seeders
+			.OrderBy(seeder => seeder.Order)
+			.ToList();
+	}
+
+	/// <summary>
+	/// Performs the reflection scan to find available seeders. Results are cached.
+	/// </summary>
+	private static IReadOnlyList<Type> DiscoverSeedersInternal() {
+		var seederInterface = typeof(IEntitySeeder);
+		var assembly = typeof(MainApiDbContext).Assembly;
+
+		var seederTypes = assembly
+			.GetTypes()
+			.Where(t =>
+				t.IsClass &&
+				!t.IsAbstract &&
+				seederInterface.IsAssignableFrom(t) &&
+				t != seederInterface
+			)
+			.ToList();
+
+		return seederTypes;
 	}
 
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
@@ -203,6 +260,32 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 				.OnDelete(DeleteBehavior.Restrict);
 		});
 
+		// Database-level account type constraints
+		modelBuilder.Entity<UserAccount>()
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Staff_Constraints",
+				"(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
+
+		modelBuilder.Entity<UserAccount>()
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Tenant_Constraints",
+				"(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
+
+		modelBuilder.Entity<UserAccount>()
+			.ToTable(t => t.HasCheckConstraint("CK_UserAccount_Project_Constraints",
+				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
+
+		// Database-level profile type constraints
+		modelBuilder.Entity<Profile>()
+			.ToTable(t => t.HasCheckConstraint("CK_Profile_Staff_Constraints",
+				"(profile_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_scope != 0"));
+
+		modelBuilder.Entity<Profile>()
+			.ToTable(t => t.HasCheckConstraint("CK_Profile_Tenant_Constraints",
+				"(profile_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_scope != 1"));
+
+		modelBuilder.Entity<Profile>()
+			.ToTable(t => t.HasCheckConstraint("CK_Profile_Project_Constraints",
+				"(profile_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_scope != 2"));
+
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.Entity<User>()
 			.HasIndex(u => u.Email)
@@ -215,7 +298,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasFilter("\"is_deleted\" = false");
 
 		modelBuilder.Entity<UserAccount>()
-			.HasIndex(u => new { u.UserId, u.AccountType })
+			.HasIndex(u => new { u.UserId, u.Scope })
 			.HasDatabaseName("ix_user_accounts_user_id_account_type_active")
 			// Covers active membership lookups. Status 1 is AccountStatus.Suspended.
 			.HasFilter("\"is_deleted\" = false AND \"status\" != 1");
@@ -281,12 +364,23 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 					modelBuilder.Entity(entityType.ClrType)
 						.HasQueryFilter(lambda);
 				}
+			} else if (typeof(IOptionalTenantEntity).IsAssignableFrom(entityType.ClrType)) {
+				// Set table name for optional tenant entities (no automatic filtering)
+				modelBuilder.Entity(entityType.ClrType);
 			} else if (typeof(INoTenantEntity).IsAssignableFrom(entityType.ClrType)) {
 				// Set table name for non-tenant-filtered entities
 				modelBuilder.Entity(entityType.ClrType);
 			} else {
 				throw new Exception(
-						$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)} or {nameof(INoTenantEntity)}");
+					$"{entityType.ClrType.Name} must implement {nameof(ITenantEntity)}, {nameof(IOptionalTenantEntity)}, or {nameof(INoTenantEntity)}"
+				);
+			}
+
+			// Configure UUID v7 auto-generation for entities with Guid Id (inheriting from BaseAttributes)
+			if (typeof(BaseAttributes).IsAssignableFrom(entityType.ClrType)) {
+				modelBuilder.Entity(entityType.ClrType)
+					.Property("Id")
+					.HasDefaultValueSql("uuidv7()");
 			}
 		}
 	}
