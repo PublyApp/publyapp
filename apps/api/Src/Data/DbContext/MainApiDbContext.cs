@@ -8,7 +8,6 @@ using MainApi.Src.Features.Common.Tenant;
 using MainApi.Src.Features.Common.User;
 using MainApi.Src.Features.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
-using MainApi.Src.Lib;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace MainApi.Src.Data.DbContext;
@@ -17,29 +16,7 @@ namespace MainApi.Src.Data.DbContext;
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
 public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
-	private static MainApiDbContext? _singleton = null;
 	private static readonly Lazy<IReadOnlyList<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
-
-	public static MainApiDbContext SingleTon {
-		get {
-			if (_singleton is null) {
-				_singleton = new MainApiDbContext(
-					new DbContextOptionsBuilder<MainApiDbContext>()
-						.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
-						.Options
-				);
-			}
-			return _singleton;
-		}
-	}
-
-	public static MainApiDbContext GetSingleTon() {
-		if (_singleton is null) {
-			throw new InvalidOperationException("SetSingleTon must be called before GetSingleTon");
-		}
-
-		return _singleton;
-	}
 
 	public DbSet<Session> Session { get; init; }
 	public DbSet<Product> Product { get; init; }

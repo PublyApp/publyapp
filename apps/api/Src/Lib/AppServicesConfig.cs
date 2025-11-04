@@ -52,18 +52,10 @@ public static class AppServicesConfig {
 		// Add HttpContextAccessor for accessing HTTP context in services
 		builder.Services.AddHttpContextAccessor();
 
-		// Create a singleton context for operations that don't need tenant filtering
-		// var dbContextWithoutFilter = new MainApiDbContext(
-		// 	new DbContextOptionsBuilder<MainApiDbContext>()
-		// 		.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
-		// 		.Options
-		// );
-		// dbContextWithoutFilter.SingleTon = dbContextWithoutFilter;
-
 		// Register scoped DbContext (for per-request instances)
+		// EF Core DbContext is not thread-safe and must be scoped, not singleton
 		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) => {
 			var tenantId = GetCurrentTenantId(serviceProvider);
-			// TODO: if tenantId is null, use the singleton db context instead of instantiating a new one
 			options
 				.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
 				.UseTenantId(tenantId);
