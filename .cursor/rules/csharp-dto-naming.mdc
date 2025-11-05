@@ -1,0 +1,154 @@
+---
+description: DTO naming conventions for request/response objects
+globs:
+  - "**/*.cs"
+alwaysApply: true
+applyIntelligently: true
+---
+
+# C# DTO Naming Conventions
+
+## DO NOT use "Dto" suffix
+
+This project does NOT use the "Dto" suffix on data transfer objects.
+
+## Request DTO Naming Rules
+
+Request DTOs must indicate their source (body or query parameters):
+
+### For Request Body Parameters
+
+Use `Body` suffix:
+
+```csharp
+// ✅ CORRECT - Request from HTTP body
+public record CreateStaffInvitationBody {
+    public required JsonElement Email { get; init; }
+    public required JsonElement ProfileId { get; init; }
+}
+
+// ✅ CORRECT - Update request from body
+public record UpdateTenantBody {
+    public required JsonElement Name { get; init; }
+    public required JsonElement Status { get; init; }
+}
+```
+
+### For Query Parameters
+
+Use `Query` suffix:
+
+```csharp
+// ✅ CORRECT - Query parameters from URL
+public record ListInvitationsQuery {
+    public string? Email { get; init; }
+    public InvitationScope? Scope { get; init; }
+    public int? Page { get; init; }
+    public int? PageSize { get; init; }
+}
+
+// ✅ CORRECT - Search query
+public record SearchTenantsQuery {
+    public string? SearchTerm { get; init; }
+    public TenantStatus? Status { get; init; }
+}
+```
+
+## Response DTO Naming Rules
+
+Response DTOs use descriptive names WITHOUT suffix:
+
+```csharp
+// ✅ CORRECT - Simple noun for response
+public record InvitationDetails {
+    public required Guid Id { get; init; }
+    public required string Email { get; init; }
+    public required DateTime ExpiresAt { get; init; }
+}
+
+// ✅ CORRECT - Use "Response" suffix only when needed for clarity
+public record CreateInvitationResponse {
+    public required Guid InvitationId { get; init; }
+    public required string Token { get; init; }
+}
+
+// ✅ CORRECT - List response
+public record TenantListItem {
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+}
+```
+
+## Anti-patterns to AVOID
+
+```csharp
+// ❌ WRONG - Don't use "Dto" suffix
+public record CreateStaffInvitationDto { }
+public record InvitationDto { }
+
+// ❌ WRONG - Don't use generic "Request" for body params
+public record CreateStaffInvitationRequest { }  // Should be "Body"
+
+// ❌ WRONG - Don't use "Request" for query params
+public record ListInvitationsRequest { }  // Should be "Query"
+
+// ❌ WRONG - Don't mix naming patterns
+public record CreateStaffInvitationReqDto { }
+```
+
+## Why JsonElement for Request Bodies?
+
+Request body DTOs MUST use `JsonElement` for all properties:
+
+```csharp
+// ✅ CORRECT - JsonElement allows validation filters to run
+public record CreateStaffInvitationBody {
+    public required JsonElement Email { get; init; }
+    public required JsonElement ProfileId { get; init; }
+}
+
+// ❌ WRONG - Typed properties will fail BEFORE validation filters
+public record CreateStaffInvitationBody {
+    public required string Email { get; init; }  // Throws before FluentValidation runs!
+    public required Guid ProfileId { get; init; }
+}
+```
+
+**Reason**: ASP.NET Core parameter binding runs BEFORE FluentValidation filters. If binding fails (e.g., invalid GUID format), it throws before validation logic can provide user-friendly error messages. Using `JsonElement` defers type conversion to validation logic.
+
+## Complete Example
+
+```csharp
+// Request from body
+public record CreateInvitationBody {
+    public required JsonElement Email { get; init; }
+    public required JsonElement ProfileId { get; init; }
+}
+
+// Request from query
+public record ListInvitationsQuery {
+    public string? Email { get; init; }
+    public int? Page { get; init; }
+}
+
+// Response
+public record InvitationCreated {
+    public required Guid InvitationId { get; init; }
+    public required string Token { get; init; }
+}
+
+// List item response
+public record InvitationListItem {
+    public required Guid Id { get; init; }
+    public required string Email { get; init; }
+    public required bool IsAccepted { get; init; }
+}
+```
+
+## Rules Summary
+
+1. **NO "Dto" suffix** - Never use it
+2. **Body params** - Use `Body` suffix + `JsonElement` properties
+3. **Query params** - Use `Query` suffix + typed properties (string, int, enums)
+4. **Responses** - Use descriptive names, optionally add `Response` suffix for clarity
+5. **Lists** - Use `ListItem` or `Summary` suffix for list responses

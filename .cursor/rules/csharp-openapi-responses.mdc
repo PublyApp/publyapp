@@ -1,0 +1,345 @@
+---
+description: OpenAPI response documentation rules for complete API client generation
+globs:
+  - "**/*Endpoints.cs"
+  - "**/Endpoints/**/*.cs"
+alwaysApply: true
+applyIntelligently: true
+---
+
+# C# OpenAPI Response Documentation Rules
+
+## CRITICAL: Document ALL possible responses
+
+**RULE:** Every endpoint MUST explicitly document ALL status codes that the handler can return using `.ProducesApiResponses()`.
+
+## Why This Matters
+
+The TypeScript API client is auto-generated from OpenAPI spec:
+- Missing response codes = Missing error handling in frontend
+- Incomplete spec = Runtime errors in production
+- Complete docs = Type-safe client with all error paths
+
+## The Problem
+
+```csharp
+// ❌ WRONG - Handler returns 403, but endpoint doesn't document it
+// Handler:
+public static async Task<Results<Ok, BadRequest<ApiResponse>, JsonHttpResult<ApiResponse>>> Handle(...) {
+    if (!authorized) {
+        return TypedResults.Json(
+            ApiResponse.Create("Forbidden", ResponseKeys.Forbidden),
+            statusCode: StatusCodes.Status403Forbidden  // ⚠️ This 403 is not documented!
+        );
+    }
+    // ...
+}
+
+// Endpoint:
+group.MapPost("/", CreateStaffInvitation.Handle)
+    .WithReqBodyValidation<CreateStaffInvitationBody>()
+    .ProducesApiResponses(StatusCodes.Status500InternalServerError);
+    // ❌ Missing 403! Frontend won't know how to handle it!
+```
+
+## The Solution
+
+```csharp
+// ✅ CORRECT - All responses documented
+// Handler:
+public static async Task<Results<
+    Ok<InvitationCreated>,
+    BadRequest<ApiResponse>,
+    Forbidden<ApiResponse>  // Explicit in return type
+>> HandleCreateStaffInvitation(...) {
+    if (!authorized) {
+        return TypedResults.Forbidden(
+            ApiResponse.Create("Forbidden", ResponseKeys.Forbidden)
+        );
+    }
+    // ...
+}
+
+// Endpoint:
+group.MapPost("/", CreateStaffInvitation.HandleCreateStaffInvitation)
+    .WithReqBodyValidation<CreateStaffInvitationBody>()
+    .ProducesApiResponses(
+        StatusCodes.Status500InternalServerError,
+        StatusCodes.Status403Forbidden  // ✅ Now documented!
+    );
+```
+
+## Rule: JsonHttpResult Requires Manual Documentation
+
+### When to use JsonHttpResult
+
+Use `JsonHttpResult<T>` when you need to return a custom status code not covered by typed results:
+
+```csharp
+// Custom status code example
+return TypedResults.Json(
+    ApiResponse.Create("Custom error", ResponseKeys.CustomError),
+    statusCode: 418  // I'm a teapot
+);
+```
+
+### Documentation Requirements
+
+**If handler uses JsonHttpResult → Must add status code to ProducesApiResponses**
+
+```csharp
+// Handler returns JsonHttpResult for 403
+public static async Task<Results<
+    Ok<Response>,
+    BadRequest<ApiResponse>,
+    JsonHttpResult<ApiResponse>  // ⚠️ Requires manual documentation
+>> HandleAction(...) {
+    return TypedResults.Json(
+        ApiResponse.Create("Forbidden", ResponseKeys.Forbidden),
+        statusCode: StatusCodes.Status403Forbidden
+    );
+}
+
+// Endpoint MUST document the 403
+group.MapPost("/", Handler.HandleAction)
+    .ProducesApiResponses(
+        StatusCodes.Status500InternalServerError,
+        StatusCodes.Status403Forbidden  // ✅ Required for JsonHttpResult
+    );
+```
+
+## Common Response Patterns
+
+### Create/Update Endpoints
+
+```csharp
+// Handler
+public static async Task<Results<
+    Ok<ResourceCreated>,
+    BadRequest<ApiResponse>,
+    Forbidden<ApiResponse>,
+    Conflict<ApiResponse>
+>> HandleCreate(...) { /* ... */ }
+
+// Endpoint
+group.MapPost("/", Handler.HandleCreate)
+    .WithReqBodyValidation<CreateBody>()
+    .ProducesApiResponses(
+        StatusCodes.Status500InternalServerError,
+        StatusCodes.Status403Forbidden,
+        StatusCodes.Status409Conflict
+    );
+```
+
+### Get/Find Endpoints
+
+```csharp
+// Handler
+public static async Task<Results<
+    Ok<Resource>,
+    NotFound<ApiResponse>,
+    Forbidden<ApiResponse>
+>> HandleGet(...) { /* ... */ }
+
+// Endpoint
+group.MapGet("/{id:guid}", Handler.HandleGet)
+    .ProducesApiResponses(
+        StatusCodes.Status500InternalServerError,
+        StatusCodes.Status404NotFound,
+        StatusCodes.Status403Forbidden
+    );
+```
+
+### Delete Endpoints
+
+```csharp
+// Handler
+public static async Task<Results<
+    NoContent,
+    NotFound<ApiResponse>,
+    Forbidden<ApiResponse>
+>> HandleDelete(...) { /* ... */ }
+
+// Endpoint
+group.MapDelete("/{id:guid}", Handler.HandleDelete)
+    .ProducesApiResponses(
+        StatusCodes.Status500InternalServerError,
+        StatusCodes.Status404NotFound,
+        StatusCodes.Status403Forbidden
+    );
+```
+
+### List/Search Endpoints
+
+```csharp
+// Handler
+public static async Task<Results<
+    Ok<List<ResourceListItem>>,
+    BadRequest<ApiResponse>,
+    Forbidden<ApiResponse>
+>> HandleList(...) { /* ... */ }
+
+// Endpoint
+group.MapGet("/", Handler.HandleList)
+    .ProducesApiResponses(
+        StatusCodes.Status500InternalServerError,
+        StatusCodes.Status403Forbidden
+    );
+```
+
+## Audit Checklist
+
+For each endpoint, verify:
+
+1. **List all Results<> types in handler return type**
+   ```csharp
+   Results<Ok, BadRequest, Forbidden, NotFound>
+           ↓       ↓         ↓          ↓
+          200     400       403        404
+   ```
+
+2. **Check for JsonHttpResult** - Requires manual status code extraction
+   ```csharp
+   JsonHttpResult<ApiResponse> with statusCode: 403
+                                                  ↓
+   Must add StatusCodes.Status403Forbidden to ProducesApiResponses
+   ```
+
+3. **Document in endpoint**
+   ```csharp
+   .ProducesApiResponses(
+       StatusCodes.Status500InternalServerError,  // Always include
+       StatusCodes.Status403Forbidden,            // From handler
+       StatusCodes.Status404NotFound              // From handler
+   );
+   ```
+
+## Anti-patterns to Avoid
+
+```csharp
+// ❌ WRONG - JsonHttpResult without documentation
+public static async Task<Results<Ok, JsonHttpResult<ApiResponse>>> Handle(...) {
+    return TypedResults.Json(response, statusCode: 403);
+}
+group.MapPost("/", Handle)
+    .ProducesApiResponses(StatusCodes.Status500InternalServerError);
+    // Missing 403!
+
+// ❌ WRONG - Using TypedResults without typed result
+return TypedResults.Json(response, statusCode: 403);
+// Should be: return TypedResults.Forbidden(response);
+
+// ❌ WRONG - Undocumented status code
+if (error) {
+    return TypedResults.Json(response, statusCode: 422);  // Undocumented!
+}
+```
+
+## Best Practices
+
+```csharp
+// ✅ BEST - Use typed results when possible
+return TypedResults.Ok(response);         // 200
+return TypedResults.BadRequest(response); // 400
+return TypedResults.Forbidden(response);  // 403
+return TypedResults.NotFound(response);   // 404
+return TypedResults.NoContent();          // 204
+
+// ✅ GOOD - JsonHttpResult only for custom codes
+return TypedResults.Json(response, statusCode: 418);  // No typed result for 418
+
+// ✅ BEST - Complete documentation
+group.MapPost("/", Handler.HandleAction)
+    .WithReqBodyValidation<Body>()
+    .WithSummary("Create a new resource")
+    .ProducesApiResponses(
+        StatusCodes.Status500InternalServerError,
+        StatusCodes.Status400BadRequest,
+        StatusCodes.Status403Forbidden,
+        StatusCodes.Status409Conflict
+    );
+```
+
+## Complete Example
+
+```csharp
+// Handler with all responses explicitly typed
+public static class CreateStaffInvitation {
+    public static async Task<Results<
+        Ok<InvitationCreated>,
+        BadRequest<ApiResponse>,
+        Forbidden<ApiResponse>,
+        Conflict<ApiResponse>
+    >> HandleCreateStaffInvitation(
+        [FromServices] IAuthContext authContext,
+        [FromServices] IInvitationService invitationService,
+        [FromBody] CreateStaffInvitationBody request,
+        CancellationToken cancellationToken
+    ) {
+        // 403 - Forbidden
+        if (authContext.AccountStaff?.Level != AccountLevel.Admin) {
+            return TypedResults.Forbidden(
+                ApiResponse.Create("Forbidden", ResponseKeys.Forbidden)
+            );
+        }
+
+        // 409 - Conflict (user already exists)
+        var exists = await invitationService.UserExistsAsync(
+            request.Email.GetString()!,
+            cancellationToken
+        );
+        if (exists) {
+            return TypedResults.Conflict(
+                ApiResponse.Create("User already exists", ResponseKeys.UserAlreadyExists)
+            );
+        }
+
+        // 400 - Bad Request (from validation or service)
+        try {
+            var result = await invitationService.CreateAsync(...);
+
+            // 200 - Success
+            return TypedResults.Ok(new InvitationCreated {
+                InvitationId = result.InvitationId,
+                Token = result.Token
+            });
+        } catch (ValidationException ex) {
+            return TypedResults.BadRequest(
+                ApiResponse.Create(ex.Message, ResponseKeys.ValidationError)
+            );
+        }
+    }
+}
+
+// Endpoint with complete documentation
+public static class InvitationEndpoints {
+    public static IEndpointRouteBuilder MapInvitationEndpoints(this IEndpointRouteBuilder routes) {
+        var group = routes.MapGroup("/invitations")
+            .WithTags("Staff Invitations");
+
+        group.MapPost("/", CreateStaffInvitation.HandleCreateStaffInvitation)
+            .WithName("CreateStaffInvitation")
+            .WithSummary("Create a staff invitation (Admin only)")
+            .WithReqBodyValidation<CreateStaffInvitationBody>()
+            .ProducesApiResponses(
+                StatusCodes.Status500InternalServerError,  // Always include
+                StatusCodes.Status403Forbidden,            // From handler
+                StatusCodes.Status409Conflict              // From handler
+                // 400 is auto-documented by WithReqBodyValidation
+                // 200 is auto-documented by Ok<T> return type
+            );
+
+        return routes;
+    }
+}
+```
+
+## Rules Summary
+
+1. **Document ALL responses** - Every status code handler can return
+2. **JsonHttpResult = Manual docs** - Extract status code, add to ProducesApiResponses
+3. **Prefer typed results** - Use TypedResults.Forbidden over JsonHttpResult
+4. **Match handler signature** - Results<> types must match documented codes
+5. **Always include 500** - Internal server error is always possible
+6. **Validation auto-docs 400** - WithReqBodyValidation adds 400 automatically
+7. **Success auto-docs** - Ok<T> adds 200 automatically
