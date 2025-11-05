@@ -1,10 +1,10 @@
 # Staff MVP Week 1: Revised Implementation Plan (Pragmatic Approach)
 
-**Document Version:** 3.1 (Complete Vertical Slice - GPT-5 Review Applied)  
-**Date:** November 2, 2025  
-**Status:** READY FOR IMPLEMENTATION (Code Review Corrections Applied)  
-**Estimated Time:** 19-26 hours (~3-4 focused work days)  
-**Review Status:** ✅ GPT-5 corrections applied (see `docs/reviews/` for details)
+**Document Version:** 3.2 (Complete Vertical Slice with Full Frontend)
+**Date:** November 5, 2025
+**Status:** READY FOR IMPLEMENTATION (Frontend Included in Week 1)
+**Estimated Time:** 19-26 hours (~3-4 focused work days)
+**Review Status:** ✅ Updated to include complete frontend implementation in Week 1
 
 ---
 
@@ -2671,19 +2671,20 @@ After completing all tasks:
 
 ### Current Limitations
 
-1. **No email sending** - Invitation tokens must be shared manually for now
-2. **No admin UI** - Services exist but no frontend yet (Week 2-3)
-3. **Basic token security** - No rate limiting on validation attempts
-4. **No unit tests** - Add in Week 2
+1. **No email sending** - Invitation tokens must be shared manually (copy/paste link)
+2. **Basic token security** - No rate limiting on validation attempts
+3. **No unit tests** - Add in Week 2
 
 ### Future Enhancements (Later Weeks)
 
-- Week 2: Staff invitation/authentication endpoints
-- Week 2: Frontend pages for invitation acceptance
-- Week 3: Email integration for sending invitations
-- Week 4: Admin UI for managing invitations and viewing audit logs
-- Week 5: Advanced audit log filtering and export
-- Week 6: Rate limiting and brute-force protection
+- Week 2: Email integration for sending invitations automatically
+- Week 2: Unit testing infrastructure for all services and handlers
+- Week 3: Advanced audit log filtering and export functionality
+- Week 3: Admin UI for viewing detailed audit logs and analytics
+- Week 4: Tenant management UI (suspend, reactivate, view details)
+- Week 4: System notices management UI for staff
+- Week 5: Rate limiting and brute-force protection
+- Week 6: Impersonation UI for staff to access tenant accounts
 
 ---
 
@@ -2808,33 +2809,45 @@ Before you begin, please confirm:
 
 ## Next Steps (Week 2 Preview)
 
-Once Week 1 is complete, Week 2 will focus on:
+Once Week 1 is complete (including full invitation UI), Week 2 will focus on:
 
 1. **Email Integration:**
    - Set up email service (SendGrid/Mailgun/AWS SES)
-   - Email templates for invitations
-   - Automated invitation emails instead of manual link sharing
+   - Email templates for invitations with branded design
+   - Automated invitation emails (replace manual copy/paste workflow)
+   - Email verification and bounce handling
 
-2. **Tenant Management UI:**
-   - List tenants page
-   - Tenant details page
-   - Suspend/reactivate tenant actions
-   - Tenant activity monitoring
+2. **Unit Testing Infrastructure:**
+   - xUnit test project setup
+   - Integration tests for invitation flow
+   - Service layer unit tests
+   - Test data builders and fixtures
+   - Mock authentication context for testing
 
-3. **Audit Log Viewer:**
-   - Filterable audit log page
+3. **Tenant Management UI:**
+   - List tenants page with search and filters
+   - Tenant details page with activity history
+   - Suspend/reactivate tenant actions with confirmation
+   - Tenant usage metrics and statistics
+   - Tenant activity monitoring dashboard
+
+4. **Audit Log Viewer UI:**
+   - Filterable audit log page (by user, action, date range)
    - Export audit logs (CSV/JSON)
-   - Real-time activity feed
+   - Real-time activity feed with WebSocket updates
+   - Audit log detail modal with full context
 
-4. **System Notices UI:**
-   - Create/edit system notices
-   - Notice banner component
-   - Notice scheduling and expiration
+5. **System Notices Management UI:**
+   - Create/edit system notices form
+   - Notice banner component for staff portal
+   - Notice scheduling with start/end dates
+   - Notice preview and testing
 
-5. **Impersonation UI:**
-   - Impersonate tenant button in tenant details
-   - Impersonation banner showing current context
-   - End impersonation action
+6. **Impersonation UI:**
+   - Impersonate tenant button in tenant list/details
+   - Impersonation banner showing current context and exit option
+   - Impersonation session timer and auto-logout
+   - Impersonation audit trail display
 
 ---
 
