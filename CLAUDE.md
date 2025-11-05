@@ -464,6 +464,170 @@ public static async Task<Ok> HandleCreateUser(
 - Transaction management
 - Domain event coordination
 
+### Service Dependencies
+
+**CRITICAL:** Services MUST NOT depend on other services. This prevents circular dependencies.
+
+```csharp
+// ❌ WRONG - Service depending on other services
+public class InvitationService : IInvitationService {
+    private readonly ISessionService _sessionService;      // BAD!
+    private readonly IPasswordService _passwordService;    // BAD!
+
+    public InvitationService(
+        MainApiDbContext dbContext,
+        ISessionService sessionService,
+        IPasswordService passwordService
+    ) { }
+}
+
+// ✅ CORRECT - Services only depend on DbContext and infrastructure
+public class InvitationService : IInvitationService {
+    private readonly MainApiDbContext _dbContext;
+    private readonly ILogger<InvitationService> _logger;
+
+    public InvitationService(
+        MainApiDbContext dbContext,
+        ILogger<InvitationService> logger
+    ) { }
+
+    // Service methods do ONE thing, return data
+    public async Task<User> CreateUserFromInvitationAsync(
+        Invitation invitation,
+        string firstName,
+        string lastName,
+        string passwordHash  // Already hashed by handler!
+    ) {
+        var user = new User {
+            Email = invitation.Email,
+            Password = passwordHash,  // No service dependency needed
+            // ...
+        };
+        await _dbContext.User.AddAsync(user);
+        await _dbContext.SaveChangesAsync();
+        return user;
+    }
+}
+
+// ✅ CORRECT - Handlers orchestrate multiple services
+public static class AcceptInvitation {
+    public static async Task<Results<...>> HandleAcceptInvitation(
+        [FromServices] IInvitationService invitationService,
+        [FromServices] ISessionService sessionService,
+        [FromServices] IPasswordService passwordService,
+        // ... other services
+    ) {
+        // Handler orchestrates - calls services in sequence
+        var hash = passwordService.HashPassword(password);
+        var user = await invitationService.CreateUserFromInvitationAsync(..., hash);
+        var session = await sessionService.CreateSessionForUser(user);
+        return TypedResults.Ok(...);
+    }
+}
+```
+
+**Architecture principle:** Handlers orchestrate, Services implement.
+
+**Exception:** Infrastructure services (ILogger, IConfiguration, IOptions) are OK since they don't create circular dependencies.
+
+### Naming Conventions
+
+**Use "Find" prefix for list/collection retrieval, NOT "List":**
+
+```csharp
+// ❌ WRONG
+Task<List<Invitation>> ListStaffInvitationsAsync();
+public static class ListStaffInvitations { }
+public static async Task<...> HandleListStaffInvitations(...) { }
+
+// ✅ CORRECT
+Task<List<Invitation>> FindStaffInvitationsAsync();
+public static class FindStaffInvitations { }
+public static async Task<...> HandleFindStaffInvitations(...) { }
+```
+
+**Naming patterns:**
+- Get single item: `GetUserById`, `HandleGetUserById`
+- Get list/collection: `FindUsers`, `HandleFindUsers`
+- Create: `CreateUser`, `HandleCreateUser`
+- Update: `UpdateUser`, `HandleUpdateUser`
+- Delete: `DeleteUser`, `HandleDeleteUser`
+- Special actions: Use the verb (e.g., `RevokeInvitation`)
+
+### API Response Pattern
+
+**CRITICAL:** All responses MUST follow the `ApiResponse` pattern.
+
+**Rules:**
+1. **Success WITH data**: Return data directly using `TypedResults.Ok(data)`
+2. **Success WITHOUT data**: Return `ApiResponse` using `TypedResults.Ok(new ApiResponse { ... })`
+3. **All error responses**: MUST return `ApiResponse` with appropriate status code
+
+```csharp
+// ✅ Success WITH data - return data directly
+public static async Task<Results<
+    Ok<User>,
+    NotFound<ApiResponse>
+>> HandleGetUser(...) {
+    var user = await userService.GetUserAsync(id);
+
+    if (user is null) {
+        return TypedResults.NotFound(
+            ApiResponse.Create("User not found", ResponseKeys.NotFound)
+        );
+    }
+
+    return TypedResults.Ok(user);  // Data returned directly
+}
+
+// ✅ Success WITHOUT data - return ApiResponse
+public static async Task<Results<
+    Ok<ApiResponse>,
+    NotFound<ApiResponse>
+>> HandleDeleteUser(...) {
+    var success = await userService.DeleteUserAsync(id);
+
+    if (!success) {
+        return TypedResults.NotFound(
+            ApiResponse.Create("User not found", ResponseKeys.NotFound)
+        );
+    }
+
+    // No data to return, so return ApiResponse
+    return TypedResults.Ok(
+        ApiResponse.Create("User deleted successfully", ResponseKeys.UserDeleted)
+    );
+}
+
+// ✅ For responses that don't support custom payload - use JsonHttpResult
+public static async Task<Results<
+    Ok<User>,
+    BadRequest<ApiResponse>,
+    JsonHttpResult  // For 403 since Forbid() doesn't support payload
+>> HandleUpdateUser(...) {
+    if (!hasPermission) {
+        return TypedResults.Json(
+            ApiResponse.Create(
+                "User does not have the necessary permissions",
+                ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+            ),
+            statusCode: StatusCodes.Status403Forbidden
+        );
+    }
+
+    var updatedUser = await userService.UpdateUserAsync(user);
+    return TypedResults.Ok(updatedUser);
+}
+```
+
+**When TypedResults doesn't support custom payloads** (like `.Forbid()`, `.Unauthorized()`):
+Use `TypedResults.Json()` with explicit status code and `ApiResponse` payload.
+
+**❌ NEVER use:**
+- `TypedResults.Ok()` without payload
+- `TypedResults.Forbid()` (use `TypedResults.Json(..., statusCode: 403)` instead)
+- `TypedResults.Unauthorized()` (use `TypedResults.Json(..., statusCode: 401)` instead)
+
 ### String Comparison
 
 **NEVER use `.ToLowerInvariant()` with `==` for case-insensitive comparison:**
