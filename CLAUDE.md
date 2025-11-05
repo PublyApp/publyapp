@@ -337,6 +337,219 @@ var results = await Task.WhenAll(tasks);
 - Use `SemaphoreSlim` to limit concurrency in bulk operations
 - Use `await using` for transactions with explicit rollback on errors
 
+### Handler Architecture (Vertical Slice)
+
+**CRITICAL:** Each handler file must be self-contained with ALL related code in ONE file.
+
+```csharp
+// ✅ CORRECT - Everything in one file: Handler + DTOs + Validators
+// File: apps/api/Src/Features/Staff/Invitations/Handlers/CreateStaffInvitation.cs
+
+using FluentValidation;
+using System.Text.Json;
+
+namespace MainApi.Src.Features.Staff.Invitations.Handlers;
+
+// Request DTO (Body suffix for request body, Query suffix for query params)
+public record CreateStaffInvitationBody {
+    public required JsonElement Email { get; init; }      // JsonElement for body params!
+    public required JsonElement ProfileId { get; init; }
+}
+
+// Response DTO (no Dto suffix!)
+public record InvitationCreated {
+    public required Guid InvitationId { get; init; }
+    public required string Token { get; init; }
+}
+
+// Validator (in same file)
+public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffInvitationBody> {
+    public CreateStaffInvitationBodyValidator() {
+        RuleFor(x => x.Email).NotEmpty().EmailAddress();
+        RuleFor(x => x.ProfileId).NotEmpty();
+    }
+}
+
+// Handler class (descriptive HandleX method name)
+public static class CreateStaffInvitation {
+    public static async Task<Results<Ok<InvitationCreated>, BadRequest<ApiResponse>, Forbidden<ApiResponse>>>
+    HandleCreateStaffInvitation(  // ✅ Descriptive name, NOT just "Handle"
+        [FromServices] IAuthContext authContext,
+        [FromServices] IInvitationService invitationService,  // ✅ Use service, NOT DbContext
+        [FromBody] CreateStaffInvitationBody request,
+        CancellationToken cancellationToken = default
+    ) {
+        // Handler only orchestrates - no DbContext access!
+        var result = await invitationService.CreateStaffInvitationAsync(...);
+        return TypedResults.Ok(new InvitationCreated { ... });
+    }
+}
+```
+
+**Rules:**
+1. **NO separate DTO files** - Define DTOs in handler file
+2. **NO separate Validator files** - Define validators in handler file
+3. **NO "Dto" suffix** - Use descriptive names like `InvitationCreated`, NOT `InvitationDto`
+4. **Request DTOs naming**:
+   - `Body` suffix for request body params (e.g., `CreateUserBody`)
+   - `Query` suffix for query params (e.g., `ListUsersQuery`)
+5. **Handler method names** - Use `HandleCreateUser`, NOT just `Handle`
+6. **NO DbContext in handlers** - All database access through service layer
+7. **Line length** - Maximum 100 characters, break long lines
+
+### DTO and Request/Response Patterns
+
+**Request Body DTOs MUST use JsonElement:**
+
+```csharp
+// ✅ CORRECT - JsonElement allows FluentValidation to provide friendly errors
+public record CreateUserBody {
+    public required JsonElement Email { get; init; }
+    public required JsonElement Password { get; init; }
+}
+
+// ❌ WRONG - Typed properties throw before validation runs
+public record CreateUserBody {
+    public required string Email { get; init; }  // Throws if not a string!
+    public required Guid Id { get; init; }       // Throws if invalid GUID format!
+}
+```
+
+**Why JsonElement?** ASP.NET Core parameter binding runs BEFORE FluentValidation. Using `JsonElement` defers type conversion to validation, allowing friendly error messages instead of ugly 400 errors.
+
+**Query Parameters use typed properties:**
+
+```csharp
+// ✅ CORRECT - Query params from URL are always strings, so typed properties work
+public record ListUsersQuery {
+    public string? Search { get; init; }
+    public UserStatus? Status { get; init; }
+    public int? Page { get; init; }
+}
+```
+
+### Service Layer Separation
+
+**CRITICAL:** Handlers MUST NOT access `DbContext` directly. Use service layer.
+
+```csharp
+// ❌ WRONG - Handler accesses DbContext
+public static async Task<Ok> Handle(
+    [FromServices] MainApiDbContext dbContext,  // NO!
+    [FromBody] CreateBody request
+) {
+    var user = await dbContext.User.FindAsync(id);  // NO!
+    await dbContext.SaveChangesAsync();  // NO!
+}
+
+// ✅ CORRECT - Handler delegates to service
+public static async Task<Ok> HandleCreateUser(
+    [FromServices] IUserService userService,  // YES!
+    [FromBody] CreateUserBody request
+) {
+    var result = await userService.CreateAsync(...);  // YES!
+    return TypedResults.Ok();
+}
+```
+
+**Handler responsibilities:**
+- Validate authorization
+- Parse/validate input
+- Orchestrate service calls
+- Map responses to HTTP results
+
+**Service responsibilities:**
+- All database access (DbContext)
+- Business logic
+- Transaction management
+- Domain event coordination
+
+### String Comparison
+
+**NEVER use `.ToLowerInvariant()` with `==` for case-insensitive comparison:**
+
+```csharp
+// ❌ WRONG - Creates temporary strings
+if (email.ToLowerInvariant() == other.ToLowerInvariant())
+
+// ✅ CORRECT - No temporary strings
+if (email.Equals(other, StringComparison.OrdinalIgnoreCase))
+
+// ✅ CORRECT - For Contains, StartsWith, EndsWith
+if (email.Contains("@example.com", StringComparison.OrdinalIgnoreCase))
+if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+```
+
+**For database queries:** Store emails in lowercase, compare directly:
+
+```csharp
+// ✅ CORRECT - Normalize once for storage
+var normalizedEmail = email.ToLowerInvariant();
+var user = await (
+    from u in _dbContext.User
+    where u.Email == normalizedEmail  // Direct comparison
+    select u
+).FirstOrDefaultAsync(cancellationToken);
+```
+
+### OpenAPI Documentation
+
+**CRITICAL:** Document ALL status codes the handler can return.
+
+```csharp
+// Handler returns these status codes
+public static async Task<Results<
+    Ok<Response>,
+    BadRequest<ApiResponse>,
+    Forbidden<ApiResponse>,       // Must document this!
+    JsonHttpResult<ApiResponse>   // Must document custom status codes!
+>> HandleAction(...) {
+    if (!authorized) {
+        return TypedResults.Json(
+            ApiResponse.Create("Forbidden", ResponseKeys.Forbidden),
+            statusCode: StatusCodes.Status403Forbidden  // Custom status code
+        );
+    }
+}
+
+// Endpoint MUST document ALL possible responses
+group.MapPost("/", Handler.HandleAction)
+    .WithReqBodyValidation<CreateBody>()
+    .ProducesApiResponses(
+        StatusCodes.Status500InternalServerError,  // Always include
+        StatusCodes.Status403Forbidden             // From JsonHttpResult!
+        // 400 auto-documented by WithReqBodyValidation
+        // 200 auto-documented by Ok<Response>
+    );
+```
+
+**Rule:** If handler uses `JsonHttpResult` → Must add status code to `ProducesApiResponses`.
+
+**Why:** TypeScript API client is auto-generated from OpenAPI spec. Missing status codes = broken error handling in frontend.
+
+### Code Formatting
+
+**Maximum line length: 100 characters**
+
+```csharp
+// ❌ WRONG - Line too long
+public static async Task<Results<Ok<Response>, BadRequest<ApiResponse>, Forbidden<ApiResponse>>> HandleAction([FromServices] IAuthContext authContext, [FromServices] IService service, [FromBody] CreateBody request, CancellationToken cancellationToken = default) {
+
+// ✅ CORRECT - Break into multiple lines
+public static async Task<Results<
+    Ok<Response>,
+    BadRequest<ApiResponse>,
+    Forbidden<ApiResponse>
+>> HandleAction(
+    [FromServices] IAuthContext authContext,
+    [FromServices] IService service,
+    [FromBody] CreateBody request,
+    CancellationToken cancellationToken = default
+) {
+    // Implementation
+}
+```
+
 ## Common Workflows
 
 ### Adding a New Feature
