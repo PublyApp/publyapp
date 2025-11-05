@@ -77,6 +77,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvalidSession = new("invalid-session");
 
 	/// <summary>
+	/// Invitation revoked successfully
+	/// </summary>
+	public static readonly TranslationKey InvitationRevoked = new("invitation-revoked");
+
+	/// <summary>
 	/// Method not allowed
 	/// </summary>
 	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
@@ -90,6 +95,11 @@ public static partial class ResponseKeys {
 	/// Password reset successfully
 	/// </summary>
 	public static readonly TranslationKey PasswordResetSuccess = new("password-reset-success");
+
+	/// <summary>
+	/// A pending invitation already exists
+	/// </summary>
+	public static readonly TranslationKey PendingInvitationExists = new("pending-invitation-exists");
 
 	/// <summary>
 	/// Query parameter missing

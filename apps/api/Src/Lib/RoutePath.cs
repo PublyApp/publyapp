@@ -17,6 +17,17 @@ public static class RoutePath {
 		public static readonly string CheckResetPasswordToken = PathUtils.Join(RoutePath.Auth.Root, "/check-reset-password-token");
 		public static readonly string ResetPassword = PathUtils.Join(RoutePath.Auth.Root, "/reset-password");
 	}
+	public static class Invitations {
+		public static readonly string Root = "/invitations";
+		public static readonly string DetailsByToken = PathUtils.Join(RoutePath.Invitations.Root, "/{token}/details");
+		public static string DetailsByTokenFn(string token) {
+			return PathUtils.Join(RoutePath.Invitations.Root, $"/{token}/details");
+		}
+		public static readonly string AcceptByToken = PathUtils.Join(RoutePath.Invitations.Root, "/{token}/accept");
+		public static string AcceptByTokenFn(string token) {
+			return PathUtils.Join(RoutePath.Invitations.Root, $"/{token}/accept");
+		}
+	}
 	public static class Staff {
 		public static readonly string Root = "/staff";
 		public static class Profiles {
@@ -46,6 +57,15 @@ public static class RoutePath {
 			public static readonly string GetById = PathUtils.Join(RoutePath.Staff.Tenants.Root, "/{tenantId}");
 			public static string GetByIdFn(string tenantId) {
 				return PathUtils.Join(RoutePath.Staff.Tenants.Root, $"/{tenantId}");
+			}
+		}
+		public static class Invitations {
+			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/invitations");
+			public static readonly string Create = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/");
+			public static readonly string Find = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/");
+			public static readonly string RevokeById = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/{invitationId}");
+			public static string RevokeByIdFn(string invitationId) {
+				return PathUtils.Join(RoutePath.Staff.Invitations.Root, $"/{invitationId}");
 			}
 		}
 	};
