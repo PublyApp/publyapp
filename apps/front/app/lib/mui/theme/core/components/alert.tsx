@@ -1,6 +1,6 @@
-import { alertClasses, type AlertProps } from '@mui/material/Alert';
-import type { Components, CSSObject, Theme } from '@mui/material/styles';
+import { type AlertProps, alertClasses } from '@mui/material/Alert';
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import type { Components, CSSObject, Theme } from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------

@@ -21,16 +21,18 @@ public class ProjectService : IProjectService {
 	public async Task<Project?> GetProjectAsync(Guid projectId, CancellationToken cancellationToken = default) {
 		return await _dbContext.Project
 			.Where(x => x.Id == projectId)
-			.FirstOrDefaultAsync(cancellationToken)
-			.ConfigureAwait(false);
+			.FirstOrDefaultAsync(cancellationToken);
+
+
 	}
 
 	public async Task<List<Project>> GetProjectsForTenantAsync(Guid tenantId, CancellationToken cancellationToken = default) {
 		return await _dbContext.Project
 			.Where(x => x.TenantId == tenantId && x.IsActive)
 			.OrderBy(x => x.Name)
-			.ToListAsync(cancellationToken)
-			.ConfigureAwait(false);
+			.ToListAsync(cancellationToken);
+
+
 	}
 
 	public async Task<Project> CreateProjectAsync(Project project, CancellationToken cancellationToken = default) {

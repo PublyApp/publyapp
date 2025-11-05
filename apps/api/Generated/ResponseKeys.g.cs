@@ -42,6 +42,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
 
 	/// <summary>
+	/// Failed to update staff member
+	/// </summary>
+	public static readonly TranslationKey FailedToUpdateStaffMember = new("failed-to-update-staff-member");
+
+	/// <summary>
 	/// Gateway timeout
 	/// </summary>
 	public static readonly TranslationKey GatewayTimeout = new("gateway-timeout");
@@ -72,6 +77,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvalidSession = new("invalid-session");
 
 	/// <summary>
+	/// Invitation revoked successfully
+	/// </summary>
+	public static readonly TranslationKey InvitationRevoked = new("invitation-revoked");
+
+	/// <summary>
 	/// Method not allowed
 	/// </summary>
 	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
@@ -85,6 +95,11 @@ public static partial class ResponseKeys {
 	/// Password reset successfully
 	/// </summary>
 	public static readonly TranslationKey PasswordResetSuccess = new("password-reset-success");
+
+	/// <summary>
+	/// A pending invitation already exists
+	/// </summary>
+	public static readonly TranslationKey PendingInvitationExists = new("pending-invitation-exists");
 
 	/// <summary>
 	/// Query parameter missing
@@ -110,6 +125,11 @@ public static partial class ResponseKeys {
 	/// Service unavailable
 	/// </summary>
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
+
+	/// <summary>
+	/// Staff member updated successfully
+	/// </summary>
+	public static readonly TranslationKey StaffMemberUpdatedSuccessfully = new("staff-member-updated-successfully");
 
 	/// <summary>
 	/// Tenant ID required

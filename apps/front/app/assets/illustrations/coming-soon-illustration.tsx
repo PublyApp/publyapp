@@ -1,6 +1,5 @@
-import { memo } from 'react';
-
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
+import { memo } from 'react';
 
 import { BackgroundShape } from './background-shape';
 

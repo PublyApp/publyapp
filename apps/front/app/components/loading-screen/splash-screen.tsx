@@ -1,7 +1,6 @@
-import { Fragment } from 'react';
-
 import Portal from '@mui/material/Portal';
-import { styled, type SxProps, type Theme } from '@mui/material/styles';
+import { type SxProps, styled, type Theme } from '@mui/material/styles';
+import { Fragment } from 'react';
 
 import { AnimateLogoZoom } from '../animate';
 

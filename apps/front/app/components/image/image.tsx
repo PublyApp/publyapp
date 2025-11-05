@@ -1,16 +1,15 @@
-import { startTransition, useCallback, useRef, useState } from 'react';
-
 import type { Breakpoint } from '@mui/material/styles';
-import { useInView, type UseInViewOptions } from 'framer-motion';
+import { type UseInViewOptions, useInView } from 'framer-motion';
 import { mergeClasses, mergeRefs } from 'minimal-shared/utils';
+import { startTransition, useCallback, useRef, useState } from 'react';
 
 import { imageClasses } from './classes';
 import {
+	type EffectsType,
 	ImageImg,
 	ImageOverlay,
 	ImagePlaceholder,
 	ImageRoot,
-	type EffectsType,
 } from './styles';
 
 // ----------------------------------------------------------------------

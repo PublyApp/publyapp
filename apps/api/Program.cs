@@ -3,9 +3,10 @@ using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Features.Common.Auth;
 using MainApi.Src.Features.Tenant.Product;
 using MainApi.Src.Features.Staff.TenantAsStaff;
-using MainApi.Src.Lib.Middlewares;
 using MainApi.Src.Features.Staff.StaffMember;
 using MainApi.Src.Features.Staff.ProfileAsStaff;
+using MainApi.Src.Lib.Filters;
+using MainApi.Src.Features.Staff.Invitations;
 
 AppEnvironment.LoadEnv(); // ! must be called before anything else
 
@@ -25,21 +26,36 @@ app.UseCors();
 app.UseOpenApi();
 
 // ! order matters !
-app.UseCheckTenantHeader();
-app.UseCheckSessionHeader();
-app.UseSessionAuthentication();
-app.UseStaffAuthorization();
+// TODO[filters]: Middlewares are temporarily kept for A/B testing with filters.
+// Remove the middleware registrations below once filter behavior is verified.
+// Tracking: see FILTER_IMPLEMENTATION_SUMMARY.md "Next Steps".
+// app.UseCheckTenantHeader();
+// app.UseCheckSessionHeader();
+// app.UseSessionAuthentication();
+// app.UseStaffAuthorization();
 // TODO: UseTenantAuthentication();
 
 app.MapAuthEndpoints();
+app.MapInvitationAnonymousEndpoints();
 
-var staffGroup = app.MapGroup(RoutePath.Staff.Root);
-var tenantGroup = app.MapGroup(RoutePath.Tenant.Root);
+// Apply filters to route groups (in order of execution)
+var tenantGroup = app.MapGroup(RoutePath.Tenant.Root)
+	.WithCheckSessionHeader()         // 1. Check session header
+	.WithCheckTenantHeader()          // 2. Check tenant header
+	.WithSessionAuthentication()      // 3. Authenticate session
+																		// TODO[tenant-auth]: TenantAuthFilter is a placeholder; implement verification or remove for now.
+	.WithTenantAuthorization();       // 4. Verify tenant access (placeholder)
+
+var staffGroup = app.MapGroup(RoutePath.Staff.Root)
+	.WithCheckSessionHeader()         // 1. Check session header
+	.WithSessionAuthentication()      // 2. Authenticate session
+	.WithStaffAuthorization();         // 3. Verify staff account
 
 // Staff endpoints
 staffGroup.MapTenantAsStaffEndpoints();
 staffGroup.MapStaffMemberEndPoints();
 staffGroup.MapProfileAsStaffEndPoints();
+staffGroup.MapInvitationAsStaffEndpoints();
 
 // Tenant endpoints
 tenantGroup.MapProductEndpoints();

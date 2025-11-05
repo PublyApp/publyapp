@@ -1,6 +1,5 @@
 import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
-// import { _tenantProfiles } from '@/front/_mock/_tenant-profiles';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
 import { getQueryKey } from '../../query-utils';

@@ -1,4 +1,5 @@
 import type { PostHogConfig, Properties } from 'posthog-js';
+import { isoLogger } from '../logger/iso-logger';
 import type {
 	CaptureEventParams,
 	CaptureExceptionParams,
@@ -19,16 +20,16 @@ export interface IPostHogBrowser {
 
 export const posthogBrowserMock: IPostHogBrowser = {
 	init: (...args) => {
-		console.warn('posthog mock object is being used', args);
+		isoLogger.warn('posthog mock object is being used', args);
 	},
 	capture: (...args) => {
-		console.warn('posthog mock object is being used', args);
+		isoLogger.warn('posthog mock object is being used', args);
 	},
 	captureException: () => {
-		console.warn('posthog mock object is being used');
+		isoLogger.warn('posthog mock object is being used');
 	},
 	identify: (...args) => {
-		console.warn('posthog mock object is being used', args);
+		isoLogger.warn('posthog mock object is being used', args);
 	},
 };
 
@@ -45,7 +46,7 @@ export class AnalyticsBrowser implements IAnalytics {
 
 	capture(params: CaptureEventParams): void {
 		if (!this.posthog) {
-			console.error('PostHog is not initialized');
+			isoLogger.error('PostHog is not initialized');
 			return;
 		}
 		// Translate to posthog-js browser format
@@ -55,7 +56,7 @@ export class AnalyticsBrowser implements IAnalytics {
 
 	identify(params: IdentifyUserParams): void {
 		if (!this.posthog) {
-			console.error('PostHog is not initialized');
+			isoLogger.error('PostHog is not initialized');
 			return;
 		}
 		// Translate to posthog-js browser format
@@ -68,7 +69,7 @@ export class AnalyticsBrowser implements IAnalytics {
 
 	captureException(params: CaptureExceptionParams): void {
 		if (!this.posthog) {
-			console.error('PostHog is not initialized');
+			isoLogger.error('PostHog is not initialized');
 			return;
 		}
 		// Browser PostHog tracks distinctId automatically from session

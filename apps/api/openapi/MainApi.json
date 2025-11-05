@@ -550,6 +550,280 @@
         }
       }
     },
+    "/invitations/{token}/details": {
+      "get": {
+        "tags": [
+          "Invitations (Anonymous)"
+        ],
+        "summary": "Get invitation details by token",
+        "operationId": "GetInvitationDetails",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/{token}/accept": {
+      "post": {
+        "tags": [
+          "Invitations (Anonymous)"
+        ],
+        "summary": "Accept invitation and create account + session",
+        "operationId": "AcceptInvitation",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationAccepted"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tenant/products": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Get all products",
+        "operationId": "GetProducts",
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Create a new product",
+        "operationId": "CreateProduct",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Product"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tenant/products/{id}": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Get product by ID",
+        "operationId": "GetProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Update an existing product",
+        "operationId": "UpdateProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Product"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Products"
+        ],
+        "summary": "Delete a product",
+        "operationId": "DeleteProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/tenants": {
       "post": {
         "tags": [
@@ -890,6 +1164,65 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "Staff Members"
+        ],
+        "summary": "Update a staff member",
+        "operationId": "UpdateStaffMember",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStaffMemberBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/staff/profiles/tenant/{tenantId}": {
@@ -971,16 +1304,56 @@
         }
       }
     },
-    "/tenant/products": {
-      "get": {
+    "/staff/invitations": {
+      "post": {
         "tags": [
-          "Products"
+          "Staff Invitations"
         ],
-        "summary": "Get all products",
-        "operationId": "GetProducts",
+        "summary": "Create a staff invitation (Admin only)",
+        "operationId": "CreateStaffInvitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStaffInvitationBody"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -991,25 +1364,38 @@
           }
         }
       },
-      "post": {
+      "get": {
         "tags": [
-          "Products"
+          "Staff Invitations"
         ],
-        "summary": "Create a new product",
-        "operationId": "CreateProduct",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Product"
+        "summary": "Find staff invitations",
+        "operationId": "FindStaffInvitations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationListItem"
+                  }
+                }
               }
             }
           },
-          "required": true
-        },
-        "responses": {
           "500": {
             "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -1021,16 +1407,16 @@
         }
       }
     },
-    "/tenant/products/{id}": {
-      "get": {
+    "/staff/invitations/{invitationId}": {
+      "delete": {
         "tags": [
-          "Products"
+          "Staff Invitations"
         ],
-        "summary": "Get product by ID",
-        "operationId": "GetProduct",
+        "summary": "Revoke a staff invitation (Admin only)",
+        "operationId": "RevokeInvitation",
         "parameters": [
           {
-            "name": "id",
+            "name": "invitationId",
             "in": "path",
             "required": true,
             "schema": {
@@ -1040,46 +1426,26 @@
           }
         ],
         "responses": {
-          "500": {
-            "description": "Internal Server Error",
+          "200": {
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponse"
                 }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "Products"
-        ],
-        "summary": "Update an existing product",
-        "operationId": "UpdateProduct",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Product"
               }
             }
           },
-          "required": true
-        },
-        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -1089,29 +1455,9 @@
                 }
               }
             }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Products"
-        ],
-        "summary": "Delete a product",
-        "operationId": "DeleteProduct",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "500": {
-            "description": "Internal Server Error",
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/json": {
                 "schema": {
@@ -1126,6 +1472,25 @@
   },
   "components": {
     "schemas": {
+      "AcceptInvitationBody": {
+        "required": [
+          "firstName",
+          "lastName",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "lastName": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "password": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
       "ApiResponse": {
         "type": "object",
         "properties": {
@@ -1156,6 +1521,21 @@
           },
           "email": {
             "type": "string"
+          }
+        }
+      },
+      "CreateStaffInvitationBody": {
+        "required": [
+          "email",
+          "profileId"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "profileId": {
+            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },
@@ -1282,6 +1662,12 @@
           "avatarUrl": {
             "type": "string",
             "nullable": true
+          },
+          "accountLevel": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
           }
         }
       },
@@ -1321,6 +1707,119 @@
         "properties": {
           "link": {
             "type": "string"
+          }
+        }
+      },
+      "InvitationAccepted": {
+        "required": [
+          "userId",
+          "sessionToken",
+          "sessionExpiresAt",
+          "sessionExpiresInMs"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionToken": {
+            "type": "string"
+          },
+          "sessionExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sessionExpiresInMs": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "InvitationCreated": {
+        "required": [
+          "invitationId",
+          "token",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "invitationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "token": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "InvitationDetails": {
+        "required": [
+          "email",
+          "profileName",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "InvitationListItem": {
+        "required": [
+          "id",
+          "email",
+          "scope",
+          "profileName",
+          "expiresAt",
+          "isAccepted",
+          "isRevoked",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isAccepted": {
+            "type": "boolean"
+          },
+          "isRevoked": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "invitedByName": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -1590,6 +2089,29 @@
           }
         }
       },
+      "UpdateStaffMemberBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "lastName": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "firstName": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "avatarUrl": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "accountLevel": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "status": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          }
+        }
+      },
       "VerifyEmailRequestBody": {
         "required": [
           "email"
@@ -1616,6 +2138,12 @@
       "name": "Auth"
     },
     {
+      "name": "Invitations (Anonymous)"
+    },
+    {
+      "name": "Products"
+    },
+    {
       "name": "Tenants"
     },
     {
@@ -1625,7 +2153,7 @@
       "name": "Profiles"
     },
     {
-      "name": "Products"
+      "name": "Staff Invitations"
     }
   ]
 }

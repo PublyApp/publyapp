@@ -27,14 +27,18 @@ public class SessionService : ISessionService {
 	}
 
 	public async Task<Session> CreateSessionForUser(UserNs.User user, CancellationToken cancellationToken = default) {
+		if (user.Id is null) {
+			throw new InvalidOperationException("Cannot create session for user without persisted identifier.");
+		}
+
 		var session = new Session {
-			UserId = user.Id,
+			UserId = user.Id.Value,
 			Token = CryptoUtils.RandomString(32),
 			ExpiresAt = DateTime.UtcNow.AddDays(_appSettings.Value.SESSION_EXPIRY_DAYS),
 		};
 
 		var result = await _dbContext.Session.AddAsync(session, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		return result.Entity;
 	}
@@ -46,7 +50,7 @@ public class SessionService : ISessionService {
 			where s.Token == token && s.ExpiresAt > DateTime.UtcNow
 			select new { Session = s, User = u };
 
-		var result = await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+		var result = await query.FirstOrDefaultAsync(cancellationToken);
 
 		if (result is null) return null;
 

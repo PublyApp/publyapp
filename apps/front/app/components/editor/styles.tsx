@@ -1,8 +1,7 @@
 import { styled } from '@mui/material/styles';
-import { varAlpha } from 'minimal-shared/utils';
-
-import { editorClasses } from './classes';
 import _ from 'lodash';
+import { varAlpha } from 'minimal-shared/utils';
+import { editorClasses } from './classes';
 
 // ----------------------------------------------------------------------
 

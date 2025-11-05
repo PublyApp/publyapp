@@ -29,5 +29,9 @@
 	"password-reset-success": "Password reset successfully",
 	"tenant-id-required": "Tenant ID required",
 	"request-body-validation-failed": "Request body validation failed",
-	"query-parameters-validation-failed": "Query parameters validation failed"
+	"query-parameters-validation-failed": "Query parameters validation failed",
+	"failed-to-update-staff-member": "Failed to update staff member",
+	"staff-member-updated-successfully": "Staff member updated successfully",
+	"invitation-revoked": "Invitation revoked successfully",
+	"pending-invitation-exists": "A pending invitation already exists"
 }

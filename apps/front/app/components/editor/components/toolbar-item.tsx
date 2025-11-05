@@ -1,9 +1,8 @@
 import ButtonBase from '@mui/material/ButtonBase';
-import { styled } from '@mui/material/styles';
 import SvgIcon from '@mui/material/SvgIcon';
-
-import type { EditorToolbarItemProps } from '../types';
+import { styled } from '@mui/material/styles';
 import _ from 'lodash';
+import type { EditorToolbarItemProps } from '../types';
 
 // ----------------------------------------------------------------------
 

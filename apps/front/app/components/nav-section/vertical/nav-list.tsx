@@ -1,16 +1,13 @@
-import { useCallback, useEffect, useRef } from 'react';
+import _ from 'lodash';
 
 import { useBoolean } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
-
+import { useCallback, useEffect, useRef } from 'react';
 import { usePathname } from '@/front/hooks/use-pathname';
-
 import { NavCollapse, NavLi, NavUl } from '../components';
 import { navSectionClasses } from '../styles';
 import type { NavListProps, NavSubListProps } from '../types';
-
 import { NavItem } from './nav-item';
-import _ from 'lodash';
 
 // ----------------------------------------------------------------------
 
