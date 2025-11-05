@@ -1,0 +1,52 @@
+using MainApi.Localization;
+using MainApi.Src.Features.Common.Invitation;
+using MainApi.Src.Lib;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
+namespace MainApi.Src.Features.Staff.Invitations.Handlers;
+
+public record InvitationDetails {
+	public required string Email { get; init; }
+	public required string ProfileName { get; init; }
+	public required DateTime ExpiresAt { get; init; }
+}
+
+public static class GetInvitationDetails {
+	public static async Task<Results<
+		Ok<InvitationDetails>,
+		NotFound<ApiResponse>
+	>> HandleGetInvitationDetails(
+		[FromRoute] string token,
+		[FromServices] IInvitationService invitationService,
+		CancellationToken cancellationToken = default
+	) {
+		var invitation = await invitationService.ValidateInvitationTokenAsync(
+			token,
+			cancellationToken
+		);
+
+		if (invitation is null) {
+			return TypedResults.NotFound(
+				ApiResponse.Create("Invitation not found", ResponseKeys.NotFound)
+			);
+		}
+
+		var profile = await invitationService.GetStaffProfileAsync(
+			invitation.ProfileId,
+			cancellationToken
+		);
+
+		if (profile is null) {
+			return TypedResults.NotFound(
+				ApiResponse.Create("Profile not found", ResponseKeys.NotFound)
+			);
+		}
+
+		return TypedResults.Ok(new InvitationDetails {
+			Email = invitation.Email,
+			ProfileName = profile.Name,
+			ExpiresAt = invitation.ExpiresAt
+		});
+	}
+}

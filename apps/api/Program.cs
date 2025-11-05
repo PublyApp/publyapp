@@ -6,6 +6,7 @@ using MainApi.Src.Features.Staff.TenantAsStaff;
 using MainApi.Src.Features.Staff.StaffMember;
 using MainApi.Src.Features.Staff.ProfileAsStaff;
 using MainApi.Src.Lib.Filters;
+using MainApi.Src.Features.Staff.Invitations;
 
 AppEnvironment.LoadEnv(); // ! must be called before anything else
 
@@ -35,6 +36,7 @@ app.UseOpenApi();
 // TODO: UseTenantAuthentication();
 
 app.MapAuthEndpoints();
+app.MapInvitationAnonymousEndpoints();
 
 // Apply filters to route groups (in order of execution)
 var tenantGroup = app.MapGroup(RoutePath.Tenant.Root)
@@ -53,6 +55,7 @@ var staffGroup = app.MapGroup(RoutePath.Staff.Root)
 staffGroup.MapTenantAsStaffEndpoints();
 staffGroup.MapStaffMemberEndPoints();
 staffGroup.MapProfileAsStaffEndPoints();
+staffGroup.MapInvitationAsStaffEndpoints();
 
 // Tenant endpoints
 tenantGroup.MapProductEndpoints();
