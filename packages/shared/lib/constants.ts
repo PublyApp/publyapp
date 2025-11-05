@@ -40,6 +40,8 @@ export const FRONT_PATH_NAMES = {
 		signup: makePath('sign-up'),
 		verifyEmail: makePath('verify-email'),
 		resetPassword: makePath('reset-password'),
+		acceptInvitation: (token = '') =>
+			makePath('auth', 'accept-invitation', token),
 	},
 	tenant: (tenantId = '') => {
 		return {
@@ -105,6 +107,9 @@ export const FRONT_PATH_NAMES = {
 			details: (userId = '') => {
 				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'details', userId);
 			},
+		},
+		invitations: {
+			root: makePath(ROOTS.STAFF, 'invitations'),
 		},
 		backgroundJobs: {
 			root: makePath(ROOTS.STAFF, 'background-jobs'),

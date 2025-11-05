@@ -29,6 +29,10 @@ const routes = [
 			getLastPath(FRONT_PATH_NAMES.auth.resetPassword),
 			'routes/auth/reset-password/reset-password-page.tsx',
 		),
+		route(
+			getLastPath(FRONT_PATH_NAMES.auth.acceptInvitation(':token'), 2),
+			'routes/auth/accept-invitation/accept-invitation-page.tsx',
+		),
 	]),
 	layout('routes/authed/_layout/authed-layout.tsx', [
 		route(
@@ -97,6 +101,10 @@ const routes = [
 							'routes/authed/staff/staff-members/details/staff-member-details-page.tsx',
 						),
 					]),
+					route(
+						getLastPath(FRONT_PATH_NAMES.staff.invitations.root),
+						'routes/authed/staff/invitations/staff-invitations-page.tsx',
+					),
 				]),
 				route('*', 'routes/authed/staff/_errors/staff-not-found-page.tsx'),
 			],
