@@ -32,7 +32,7 @@ if (isServer) {
 		// ...options,
 	});
 
-	winstonLogger.configure({
+	winstonLogger?.configure({
 		transports: [serverConsoleTransport],
 	});
 }
@@ -166,14 +166,16 @@ class BrowserConsoleFormatter {
 }
 
 // Create browser formatter instance
-const browserFormatter = !isServer
-	? new BrowserConsoleFormatter({
-			showMeta: true,
-			metaStrip: ['timestamp', 'service'],
-			depth: Number.POSITIVE_INFINITY,
-			maxArrayLength: Number.POSITIVE_INFINITY,
-		})
-	: null;
+let browserFormatter: BrowserConsoleFormatter;
+
+if (!isServer) {
+	browserFormatter = new BrowserConsoleFormatter({
+		showMeta: true,
+		metaStrip: ['timestamp', 'service'],
+		depth: Number.POSITIVE_INFINITY,
+		maxArrayLength: Number.POSITIVE_INFINITY,
+	});
+}
 
 export class IsoLogger implements ILogger {
 	logLevel: LogLevel = 'debug';
@@ -182,10 +184,10 @@ export class IsoLogger implements ILogger {
 		if (logLevelHierarchy[this.logLevel] > logLevelHierarchy.info) {
 			return;
 		}
+		const caller = this.getCallerInfo();
 		if (isServer) {
-			winstonLogger.info(message, ...meta);
+			winstonLogger?.info(`[${caller}] ${message}`, ...meta);
 		} else {
-			const caller = this.getCallerInfo();
 			browserFormatter?.format('info', caller, message, ...meta);
 		}
 	}
@@ -194,10 +196,10 @@ export class IsoLogger implements ILogger {
 		if (logLevelHierarchy[this.logLevel] > logLevelHierarchy.warn) {
 			return;
 		}
+		const caller = this.getCallerInfo();
 		if (isServer) {
-			winstonLogger.warn(message, ...meta);
+			winstonLogger?.warn(`[${caller}] ${message}`, ...meta);
 		} else {
-			const caller = this.getCallerInfo();
 			browserFormatter?.format('warn', caller, message, ...meta);
 		}
 	}
@@ -206,10 +208,10 @@ export class IsoLogger implements ILogger {
 		if (logLevelHierarchy[this.logLevel] > logLevelHierarchy.error) {
 			return;
 		}
+		const caller = this.getCallerInfo();
 		if (isServer) {
-			winstonLogger.error(message, ...meta);
+			winstonLogger?.error(`[${caller}] ${message}`, ...meta);
 		} else {
-			const caller = this.getCallerInfo();
 			browserFormatter?.format('error', caller, message, ...meta);
 		}
 	}
@@ -218,10 +220,10 @@ export class IsoLogger implements ILogger {
 		if (logLevelHierarchy[this.logLevel] > logLevelHierarchy.debug) {
 			return;
 		}
+		const caller = this.getCallerInfo();
 		if (isServer) {
-			winstonLogger.debug(message, ...meta);
+			winstonLogger?.debug(`[${caller}] ${message}`, ...meta);
 		} else {
-			const caller = this.getCallerInfo();
 			browserFormatter?.format('debug', caller, message, ...meta);
 		}
 	}
