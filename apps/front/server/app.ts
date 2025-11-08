@@ -6,7 +6,7 @@ import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
-import { analyticsServer } from '@/front/lib/analytics/analytics.server';
+import { analytics } from '@/front/lib/analytics/analytics';
 import {
 	isPreRenderPath,
 	STATIC_PRE_RENDER_PATHS_MAP_NONCE,
@@ -66,7 +66,7 @@ const reactRouterHandler = createRequestHandler({
 
 		return {
 			logger: isoLogger,
-			analytics: analyticsServer,
+			analytics: analytics,
 			nonce,
 		};
 	},

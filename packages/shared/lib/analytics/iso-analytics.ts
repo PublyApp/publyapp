@@ -1,3 +1,4 @@
+import type { PostHogConfig, Properties } from 'posthog-js';
 import type { PostHog } from 'posthog-node';
 import { isServer } from '../constants';
 import { isoLogger } from '../logger/iso-logger';
@@ -7,7 +8,17 @@ import type {
 	IAnalytics,
 	IdentifyUserParams,
 } from './analytics.types';
-import type { IPostHogBrowser } from './analytics.client';
+
+export interface IPostHogBrowser {
+	init(apiKey: string, config?: Partial<PostHogConfig>, name?: string): void;
+	identify(
+		new_distinct_id?: string,
+		userPropertiesToSet?: Properties,
+		userPropertiesToSetOnce?: Properties,
+	): void;
+	capture(event_name: string, properties?: Properties | null): void;
+	captureException(error: unknown, additionalProperties?: Properties): void;
+}
 
 /**
  * IsoAnalytics is a unified analytics client that works on both server and browser environments.
@@ -29,6 +40,8 @@ import type { IPostHogBrowser } from './analytics.client';
  * ```
  */
 export class IsoAnalytics implements IAnalytics {
+	public logOnly = false;
+
 	private apiKey: string;
 	private initialized = false;
 	private posthogNode: PostHog | null = null;
@@ -46,6 +59,12 @@ export class IsoAnalytics implements IAnalytics {
 	 */
 	async init(): Promise<void> {
 		if (this.initialized) {
+			return;
+		}
+
+		if (this.logOnly) {
+			isoLogger.info('Analytics.init', 'log only mode');
+			this.initialized = true;
 			return;
 		}
 
@@ -84,6 +103,11 @@ export class IsoAnalytics implements IAnalytics {
 			return;
 		}
 
+		if (this.logOnly) {
+			isoLogger.info('Analytics.capture', params);
+			return;
+		}
+
 		if (isServer) {
 			if (!this.posthogNode) {
 				isoLogger.error('PostHog Node is not initialized');
@@ -109,6 +133,11 @@ export class IsoAnalytics implements IAnalytics {
 	identify(params: IdentifyUserParams): void {
 		if (!this.initialized) {
 			isoLogger.warn('Analytics not initialized, skipping identify user');
+			return;
+		}
+
+		if (this.logOnly) {
+			isoLogger.info('Analytics.identify', params);
 			return;
 		}
 
@@ -146,6 +175,11 @@ export class IsoAnalytics implements IAnalytics {
 	captureException(params: CaptureExceptionParams): void {
 		if (!this.initialized) {
 			isoLogger.warn('Analytics not initialized, skipping capture exception');
+			return;
+		}
+
+		if (this.logOnly) {
+			isoLogger.info('Analytics.captureException', params);
 			return;
 		}
 
