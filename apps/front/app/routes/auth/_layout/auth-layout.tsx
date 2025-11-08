@@ -21,7 +21,7 @@ import {
 	LAST_USED_TENANT_ID_COOKIE_KEY,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
+import { logger } from '@/shared/lib/logger/iso-logger';
 
 export const loader = getServerLoader({
 	loader: async ({ request }) => {
@@ -64,7 +64,7 @@ export const clientLoader = getClientLoader({
 		i18next
 			.loadNamespaces([I18N_NAMESPACES.ZOD, I18N_NAMESPACES.RESPONSE_MESSAGE])
 			.catch((error) => {
-				isoLogger.error('Failed to load namespaces', error);
+				logger.error('Failed to load namespaces', error);
 			});
 
 		const serverData = await serverLoader<typeof loader>();

@@ -17,7 +17,7 @@ import {
 	I18N_NAMESPACES,
 	isServer,
 } from '@/shared/lib/constants';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
+import { logger } from '@/shared/lib/logger/iso-logger';
 import { UserNewEditFormSkeleton } from '../components/user-new-edit-form-skeleton';
 import type { Route } from './+types/staff-member-details-page';
 import StaffMemberUpdateForm, {
@@ -72,7 +72,7 @@ export const clientLoader = async ({
 	serverLoader,
 }: Route.ClientLoaderArgs) => {
 	i18next.loadNamespaces([I18N_NAMESPACES.ZOD]).catch((error) => {
-		isoLogger.error('Failed to load namespaces', error);
+		logger.error('Failed to load namespaces', error);
 	});
 	const serverData = await serverLoader();
 	return data(serverData);
@@ -134,7 +134,7 @@ const StaffMemberDetailsPage = () => {
 export default StaffMemberDetailsPage;
 
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
-	isoLogger.debug('ErrorView', { error });
+	logger.debug('ErrorView', { error });
 	// const { t } = useTranslate();
 
 	// if (error instanceof ParseRestError) {

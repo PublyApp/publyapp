@@ -1,7 +1,7 @@
 # Auth Query Infinite Retry Fix
 
-**Issue**: [#78](https://github.com/radandevist/publyapp/issues/78)  
-**Date**: November 2, 2025  
+**Issue**: [#78](https://github.com/radandevist/publyapp/issues/78)
+**Date**: November 2, 2025
 **Status**: Fixed
 
 ## Problem Statement
@@ -25,11 +25,11 @@ When a user's session became invalid (user deleted/suspended, session deleted, o
 After the ErrorBoundary caught the auth error and cleared the session cookie, React would attempt to re-render the component tree. This re-render would trigger the auth queries again before the redirect could complete, creating an infinite loop:
 
 ```
-Auth API fails (401) 
-→ ErrorBoundary catches error, clears cookie 
-→ React re-renders 
-→ Auth queries run again 
-→ API fails (401) 
+Auth API fails (401)
+→ ErrorBoundary catches error, clears cookie
+→ React re-renders
+→ Auth queries run again
+→ API fails (401)
 → ... (infinite loop)
 ```
 
@@ -112,7 +112,7 @@ ErrorBoundary properly handles 401 errors by clearing session state and redirect
 
 ```typescript
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	isoLogger.debug('ErrorBoundary', { error });
+	logger.debug('ErrorBoundary', { error });
 
 	if (
 		isJsClientError(error) &&
@@ -136,7 +136,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 			queryParamValue.login_page.redirect_cause.invalid_session,
 		);
 
-		isoLogger.debug('Redirecting to login page', { url: url.toString() });
+		logger.debug('Redirecting to login page', { url: url.toString() });
 
 		return <Navigate to={url.pathname + url.search} replace />;
 	}
@@ -158,27 +158,27 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 ### Normal Flow (Valid Session)
 ```
-Page Load 
-→ clientLoader checks cookie exists 
-→ AuthQueriesGuard checks cookie exists 
-→ Auth queries run 
-→ Success (200) 
+Page Load
+→ clientLoader checks cookie exists
+→ AuthQueriesGuard checks cookie exists
+→ Auth queries run
+→ Success (200)
 → Page renders
 ```
 
 ### Invalid Session Flow
 ```
-Page Load 
-→ clientLoader checks cookie exists 
-→ AuthQueriesGuard checks cookie exists 
-→ Auth queries run 
-→ API fails with 401 (no retry due to custom retry logic) 
-→ ErrorBoundary catches error 
-→ ErrorBoundary clears cookie and cache 
-→ ErrorBoundary returns <Navigate> to login 
-→ React tries to re-render 
-→ AuthQueriesGuard checks cookie (missing) 
-→ Immediately returns <Navigate> (no API calls) 
+Page Load
+→ clientLoader checks cookie exists
+→ AuthQueriesGuard checks cookie exists
+→ Auth queries run
+→ API fails with 401 (no retry due to custom retry logic)
+→ ErrorBoundary catches error
+→ ErrorBoundary clears cookie and cache
+→ ErrorBoundary returns <Navigate> to login
+→ React tries to re-render
+→ AuthQueriesGuard checks cookie (missing)
+→ Immediately returns <Navigate> (no API calls)
 → User redirected to login
 ```
 
@@ -197,7 +197,7 @@ Page Load
 ### Manual Testing Steps
 
 1. **Test valid session**: Login and navigate through authenticated pages - should work normally
-2. **Test suspended user**: 
+2. **Test suspended user**:
    - Login to application
    - In database: `UPDATE "User" SET "IsSuspended" = true WHERE "Email" = 'test@example.com';`
    - Reload page
