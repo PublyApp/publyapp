@@ -13,19 +13,6 @@ import { initZodOnClient } from './lib/zod/zod.client';
 
 const isDevelopment = import.meta.env.DEV;
 
-isoLogger.info('Client entry', {
-	env: import.meta.env.MODE,
-});
-isoLogger.warn('Client entry', {
-	env: import.meta.env.MODE,
-});
-isoLogger.error('Client entry', {
-	env: import.meta.env.MODE,
-});
-isoLogger.debug('Client entry', {
-	env: import.meta.env.MODE,
-});
-
 const hydrate = async () => {
 	if (isDevelopment) {
 		isoLogger.logLevel = LogLevelEnum.DEBUG;
