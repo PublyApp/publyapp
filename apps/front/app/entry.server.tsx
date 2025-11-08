@@ -24,24 +24,10 @@ import {
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
 
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
-
-isoLogger.info('Server entry', {
-	env: import.meta.env.MODE,
-});
-isoLogger.warn('Server entry', {
-	env: import.meta.env.MODE,
-});
-isoLogger.error('Server entry', {
-	env: import.meta.env.MODE,
-});
-isoLogger.debug('Server entry', {
-	env: import.meta.env.MODE,
-});
 
 const handleRequest = async (
 	request: Request,
