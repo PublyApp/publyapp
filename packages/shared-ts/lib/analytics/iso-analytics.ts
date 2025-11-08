@@ -1,8 +1,7 @@
 import type { PostHogConfig, Properties } from 'posthog-js';
 import type { PostHog } from 'posthog-node';
-
 import { isServer } from '../constants';
-import { logger } from '../logger/iso-logger';
+import { isoLogger } from '../logger/iso-logger';
 import type {
 	CaptureEventParams,
 	CaptureExceptionParams,
@@ -64,7 +63,7 @@ export class IsoAnalytics implements IAnalytics {
 		}
 
 		if (this.logOnly) {
-			logger.info('Analytics.init', 'log only mode');
+			isoLogger.info('Analytics.init', 'log only mode');
 			this.initialized = true;
 			return;
 		}
@@ -77,7 +76,7 @@ export class IsoAnalytics implements IAnalytics {
 			}
 			this.initialized = true;
 		} catch (error) {
-			logger.error('Failed to initialize analytics', error);
+			isoLogger.error('Failed to initialize analytics', error);
 		}
 	}
 
@@ -100,18 +99,18 @@ export class IsoAnalytics implements IAnalytics {
 
 	capture(params: CaptureEventParams): void {
 		if (!this.initialized) {
-			logger.warn('Analytics not initialized, skipping capture event');
+			isoLogger.warn('Analytics not initialized, skipping capture event');
 			return;
 		}
 
 		if (this.logOnly) {
-			logger.info('Analytics.capture', params);
+			isoLogger.info('Analytics.capture', params);
 			return;
 		}
 
 		if (isServer) {
 			if (!this.posthogNode) {
-				logger.error('PostHog Node is not initialized');
+				isoLogger.error('PostHog Node is not initialized');
 				return;
 			}
 			// Server-side: posthog-node EventMessage format
@@ -122,7 +121,7 @@ export class IsoAnalytics implements IAnalytics {
 			});
 		} else {
 			if (!this.posthogBrowser) {
-				logger.error('PostHog Browser is not initialized');
+				isoLogger.error('PostHog Browser is not initialized');
 				return;
 			}
 			// Browser-side: posthog-js format
@@ -133,18 +132,18 @@ export class IsoAnalytics implements IAnalytics {
 
 	identify(params: IdentifyUserParams): void {
 		if (!this.initialized) {
-			logger.warn('Analytics not initialized, skipping identify user');
+			isoLogger.warn('Analytics not initialized, skipping identify user');
 			return;
 		}
 
 		if (this.logOnly) {
-			logger.info('Analytics.identify', params);
+			isoLogger.info('Analytics.identify', params);
 			return;
 		}
 
 		if (isServer) {
 			if (!this.posthogNode) {
-				logger.error('PostHog Node is not initialized');
+				isoLogger.error('PostHog Node is not initialized');
 				return;
 			}
 			// Server-side: posthog-node IdentifyMessage format
@@ -161,7 +160,7 @@ export class IsoAnalytics implements IAnalytics {
 			});
 		} else {
 			if (!this.posthogBrowser) {
-				logger.error('PostHog Browser is not initialized');
+				isoLogger.error('PostHog Browser is not initialized');
 				return;
 			}
 			// Browser-side: posthog-js format
@@ -175,18 +174,18 @@ export class IsoAnalytics implements IAnalytics {
 
 	captureException(params: CaptureExceptionParams): void {
 		if (!this.initialized) {
-			logger.warn('Analytics not initialized, skipping capture exception');
+			isoLogger.warn('Analytics not initialized, skipping capture exception');
 			return;
 		}
 
 		if (this.logOnly) {
-			logger.info('Analytics.captureException', params);
+			isoLogger.info('Analytics.captureException', params);
 			return;
 		}
 
 		if (isServer) {
 			if (!this.posthogNode) {
-				logger.error('PostHog Node is not initialized');
+				isoLogger.error('PostHog Node is not initialized');
 				return;
 			}
 			// Server-side: posthog-node format
@@ -197,7 +196,7 @@ export class IsoAnalytics implements IAnalytics {
 			);
 		} else {
 			if (!this.posthogBrowser) {
-				logger.error('PostHog Browser is not initialized');
+				isoLogger.error('PostHog Browser is not initialized');
 				return;
 			}
 			// Browser-side: posthog-js format
