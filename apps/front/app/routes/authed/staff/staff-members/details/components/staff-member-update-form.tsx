@@ -67,7 +67,7 @@ const StaffMemberUpdateForm = ({
 		_evalUatedStatus = currentUser.status as UserStatus;
 	}
 
-	// isoLogger.debug('currentUser', currentUser);
+	// logger.debug('currentUser', currentUser);
 
 	const form = useForm<UpdateUserSchemaType>({
 		mode: 'onSubmit',
@@ -113,7 +113,7 @@ const StaffMemberUpdateForm = ({
 		<UserNewEditForm
 			form={form}
 			onMutate={(data) => {
-				// isoLogger.debug('data', data);
+				// logger.debug('data', data);
 				updateStaffMember(data);
 			}}
 			isMutating={isUpdating}
