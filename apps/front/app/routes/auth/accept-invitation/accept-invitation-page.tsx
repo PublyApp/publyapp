@@ -1,4 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/card';
+import CardContent from '@mui/material/card';
+import CardDescription from '@mui/material/card';
+import CardHeader from '@mui/material/card';
+import CardTitle from '@mui/material/card';
+import Input from '@mui/material/input';
 import { APP_NAME } from '@org/shared/lib/constants';
 import * as cookie from 'cookie';
 import dayjs from 'dayjs';
@@ -7,21 +14,14 @@ import { useForm } from 'react-hook-form';
 import { data, redirect, useNavigate, useParams } from 'react-router';
 import { serializeError } from 'serialize-error';
 import { z } from 'zod';
-import { Button } from '@/front/components/ui/button';
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from '@/front/components/ui/card';
-import { Input } from '@/front/components/ui/input';
-import { Label } from '@/front/components/ui/label';
+import { Label } from '@/front/components/label/label';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { clientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
-import { getServerAction } from '@/front/lib/react-router/server-data.server';
+import {
+	getServerAction,
+	getServerLoader,
+} from '@/front/lib/react-router/server-data.server';
 import {
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
@@ -52,31 +52,33 @@ type AcceptInvitationForm = z.infer<typeof acceptInvitationSchema>;
 
 export type InvitationLoaderResult = Awaited<ReturnType<typeof loader>>['data'];
 
-export const loader = async ({ params, apiClient }: Route.LoaderArgs) => {
-	const token = params.token;
+export const loader = getServerLoader({
+	loader: async ({ params, apiClient }) => {
+		const token = params.token;
 
-	if (!token) {
-		return data(
-			{ error: 'No invitation token provided', invitationData: null },
-			{ status: 400 },
-		);
-	}
+		if (!token) {
+			return data(
+				{ error: 'No invitation token provided', invitationData: null },
+				{ status: 400 },
+			);
+		}
 
-	const getInvitationDetails = safeRun(async () => {
-		return apiClient.invitations.byToken(token).details.get();
-	});
+		const getInvitationDetails = safeRun(async () => {
+			return apiClient.invitations.byToken(token).details.get();
+		});
 
-	const result = await getInvitationDetails();
+		const result = await getInvitationDetails();
 
-	if (result.status === 'error') {
-		return data(
-			{ error: serializeError(result.error), invitationData: null },
-			{ status: 400 },
-		);
-	}
+		if (result.status === 'error') {
+			return data(
+				{ error: serializeError(result.error), invitationData: null },
+				{ status: 400 },
+			);
+		}
 
-	return data({ error: null, invitationData: result.data });
-};
+		return data({ error: null, invitationData: result.data });
+	},
+});
 
 export type AcceptInvitationActionResult = Awaited<
 	ReturnType<typeof action>
@@ -97,9 +99,21 @@ export const action = getServerAction({
 
 		const acceptInvitation = safeRun(async () => {
 			return apiClient.invitations.byToken(token).accept.post({
-				firstName,
-				lastName,
-				password,
+				firstName: {
+					getValue: () => {
+						return firstName;
+					},
+				},
+				lastName: {
+					getValue: () => {
+						return lastName;
+					},
+				},
+				password: {
+					getValue: () => {
+						return password;
+					},
+				},
 			});
 		});
 
@@ -157,9 +171,7 @@ const AcceptInvitationPage = ({
 
 	useEffect(() => {
 		if (actionData?.error) {
-			toast.error(
-				t('auth-invitation-error') || 'Failed to accept invitation',
-			);
+			toast.error(t('auth-invitation-error') || 'Failed to accept invitation');
 			setIsSubmitting(false);
 		}
 	}, [actionData, t]);
@@ -244,7 +256,9 @@ const AcceptInvitationPage = ({
 								disabled={isSubmitting}
 							/>
 							{errors.lastName && (
-								<p className="text-sm text-red-500">{errors.lastName.message}</p>
+								<p className="text-sm text-red-500">
+									{errors.lastName.message}
+								</p>
 							)}
 						</div>
 
@@ -257,14 +271,14 @@ const AcceptInvitationPage = ({
 								disabled={isSubmitting}
 							/>
 							{errors.password && (
-								<p className="text-sm text-red-500">{errors.password.message}</p>
+								<p className="text-sm text-red-500">
+									{errors.password.message}
+								</p>
 							)}
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="confirmPassword">
-								{t('confirm-password')}
-							</Label>
+							<Label htmlFor="confirmPassword">{t('confirm-password')}</Label>
 							<Input
 								id="confirmPassword"
 								type="password"
