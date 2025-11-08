@@ -172,22 +172,118 @@ Form State       → React Hook Form (local form state)
 - Session token from `X-Session-Token` header
 - API client instances: `apiClient` (authenticated), `anonApiClient` (anonymous)
 
-**Data Fetching Pattern:**
+**Data Fetching Pattern (Route-Type Specific):**
+
+**CRITICAL:** Data fetching strategy depends on route type:
+
+1. **Marketing Pages** (`app/routes/marketing/**`) → SSR with React Router loaders/actions
+2. **Auth Pages** (`app/routes/auth/**`) → SSR with React Router loaders/actions (hide API endpoints)
+3. **Authed Pages** (`app/routes/authed/**`) → Client-only with TanStack Query (NO SSR)
+
 ```tsx
-// Server-side loader
+// ❌ WRONG - Server loader in authenticated dashboard page
+// File: app/routes/authed/staff/members-page.tsx
+export const loader = async ({ apiClient }) => {
+  const data = await apiClient.staff.staffMembers.get();
+  return { data };
+};
+
+// ✅ CORRECT - react-query-kit hooks for authenticated pages
+// Step 1: Define hook in app/lib/react-query/features/staff/staff-member.hooks.ts
+import { createQuery } from 'react-query-kit';
+import { getQueryKey } from '../../query-utils';
+
+const findStaffMemberQueryKey = getQueryKey<ApiClient>(
+  (client) => client.staff.staffMembers.get,
+);
+
+export const useFindStaffMember = createQuery({
+  queryKey: [findStaffMemberQueryKey] as const,
+  fetcher: async (params: { page?: number }) => {
+    const result = await clientManager.apiClient.staff.staffMembers.get({
+      queryParameters: { page: params.page?.toString() },
+    });
+    if (_.isNil(result)) throw new Error(`[${findStaffMemberQueryKey}]: result is nil`);
+    return result;
+  },
+});
+
+// Step 2: Use hook in component
+// File: app/routes/authed/staff/members-page.tsx
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+
+function StaffMembersPage() {
+  const { data, isLoading } = useFindStaffMember({ variables: { page: 1 } });
+  return <div>{/* render */}</div>;
+}
+
+// ✅ CORRECT - Server loader for auth pages (hide endpoints)
+// File: app/routes/auth/login/login-page.tsx
 export const loader = getServerLoader({
-  loader: async ({ params, apiClient }) => {
-    const data = await apiClient.staff.staffMembers.get();
-    return { data };
+  loader: async ({ apiClient }) => {
+    // Pre-fetch data server-side
+    return data({ ... });
   }
 });
 
-// Client-side query
-const { data } = useQuery({
-  queryKey: ['staff-members'],
-  queryFn: () => api.staff.staffMembers.get()
+// ✅ CORRECT - Mutations in authed pages use react-query-kit
+// Step 1: Define mutation hook
+import { createMutation } from 'react-query-kit';
+
+export const useCreateMember = createMutation({
+  mutationKey: [createMemberMutationKey] as const,
+  mutationFn: async (data: { email: string }) => {
+    const result = await clientManager.apiClient.staff.members.post({
+      email: { getValue() { return data.email; } },
+    });
+    if (_.isNil(result)) throw new Error('result is nil');
+    return result;
+  },
 });
+
+// Step 2: Use in component
+function CreateMemberDialog() {
+  const { mutate } = useCreateMember({
+    onSuccess: () => queryClient.invalidateQueries(['staff.members.get'])
+  });
+}
 ```
+
+**Why different strategies:**
+- **Marketing/Auth pages:** SSR for SEO and security (hide API endpoints)
+- **Authed pages:** Client-only for better UX, real-time updates, no SEO needed
+- Authed layout wrapped in `<ClientOnly>` component
+
+**Optimized Data Fetching (Optional):**
+
+For authed pages where you want to optimize initial load time, use `getClientLoader` with react-query-kit prefetching:
+
+```tsx
+import { getClientLoader } from '@/front/lib/react-router/client-data';
+import { QueryClient } from '@tanstack/react-query';
+
+// ✅ CORRECT - Use getClientLoader wrapper
+export const clientLoader = getClientLoader({
+  loader: async ({ apiClient, z, locale }) => {
+    const queryClient = new QueryClient();
+    
+    // Prefetch using react-query-kit hooks
+    await queryClient.prefetchQuery({
+      queryKey: useFindStaffMember.getKey({ page: 1 }),
+      queryFn: () => useFindStaffMember.fetcher({ page: 1 }),
+    });
+    
+    return null;
+  },
+});
+
+// ❌ WRONG - Don't export raw clientLoader
+export async function clientLoader() { ... }
+```
+
+**Benefits:** `getClientLoader` provides initialized `apiClient`, `z` (Zod with i18n), and `locale` - just like `getServerLoader` on the server.
+
+**Reference:** See `.cursor/rules/react-router-data-fetching.mdc` for complete patterns.
 
 ### Authentication & Authorization
 
@@ -243,6 +339,166 @@ return TypedResults.BadRequest(new ApiResponse { Message = ValidationError });
 ```
 
 Routes defined in `apps/api/Src/Lib/RoutePath.cs` and frontend in `packages/shared/lib/constants.ts`.
+
+## Frontend Coding Standards
+
+### UI Component Library: Material-UI
+
+**CRITICAL:** This project uses Material-UI (MUI) v6 as the primary UI library. Never use native HTML elements for structure, nor components from other UI libraries (shadcn/ui, Chakra, etc.).
+
+**Component imports:**
+```tsx
+// ✅ CORRECT - Import MUI components
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Table from '@mui/material/Table';
+import Dialog from '@mui/material/Dialog';
+
+// ❌ WRONG - Never use native HTML or other libraries
+<div className="container">  // Use <Box> instead
+<h1>Title</h1>               // Use <Typography variant="h1">
+<button>Click</button>       // Use <Button>
+import { Card } from '~/components/ui/card';  // Wrong library!
+```
+
+**Common replacements:**
+- `<div>` → `<Box>`
+- `<h1>` through `<h6>` → `<Typography variant="h1">` through `<Typography variant="h6">`
+- `<p>` → `<Typography>`
+- `<button>` → `<Button>`
+- `<input>` → `<TextField>`
+- `<select>` → `<Select>` with `<MenuItem>`
+- `<table>` → `<Table>` with `<TableHead>`, `<TableBody>`, `<TableRow>`, `<TableCell>`
+
+**Reference:** See `.cursor/rules/react-material-ui-components.mdc` for complete mapping guide and `.dump/main-template/src/sections/**/*.tsx` for real-world examples.
+
+### Styling: sx Prop and Theme System
+
+**CRITICAL:** This project uses MUI's `sx` prop for styling. Never use Tailwind CSS, CSS modules with className, or inline style strings.
+
+**Styling pattern:**
+```tsx
+// ❌ WRONG - Using Tailwind classes
+<div className="flex items-center justify-between p-4 bg-gray-100">
+  <h1 className="text-3xl font-bold">Title</h1>
+</div>
+
+// ✅ CORRECT - Using sx prop
+<Box sx={{ 
+  display: 'flex', 
+  alignItems: 'center', 
+  justifyContent: 'space-between',
+  p: 4,                    // padding: theme.spacing(4)
+  bgcolor: 'grey.100'      // theme.palette.grey[100]
+}}>
+  <Typography variant="h1" sx={{ fontSize: '3rem', fontWeight: 'bold' }}>
+    Title
+  </Typography>
+</Box>
+```
+
+**Tailwind to sx prop quick reference:**
+- `className="flex"` → `sx={{ display: 'flex' }}`
+- `className="p-4"` → `sx={{ p: 4 }}`
+- `className="mx-auto"` → `sx={{ mx: 'auto' }}`
+- `className="text-center"` → `sx={{ textAlign: 'center' }}`
+- `className="bg-blue-500"` → `sx={{ bgcolor: 'primary.main' }}`
+- `className="hover:bg-blue-700"` → `sx={{ '&:hover': { bgcolor: 'primary.dark' } }}`
+
+**Responsive styling:**
+```tsx
+<Box sx={{ 
+  p: { xs: 2, md: 4, lg: 8 },  // Responsive padding
+  fontSize: { xs: '1rem', md: '1.25rem' }
+}}>
+```
+
+**Reference:** See `.cursor/rules/react-styling-mui.mdc` for complete Tailwind-to-sx conversion guide.
+
+### Date Handling: Day.js
+
+**CRITICAL:** This project uses Day.js for all date operations. Never use date-fns, Moment.js, or native Date methods for formatting.
+
+**Pattern:**
+```tsx
+// ❌ WRONG - Using date-fns
+import { formatDistanceToNow } from 'date-fns';
+const timeAgo = formatDistanceToNow(new Date(date), { addSuffix: true });
+
+// ✅ CORRECT - Using dayjs
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+dayjs.extend(relativeTime);
+const timeAgo = dayjs(date).fromNow();
+```
+
+**Common operations:**
+```tsx
+// Formatting
+dayjs(date).format('MMM DD, YYYY');         // Nov 08, 2024
+dayjs(date).format('YYYY-MM-DD HH:mm:ss');  // 2024-11-08 15:30:00
+
+// Relative time
+dayjs(date).fromNow();                      // "2 hours ago"
+
+// Manipulation
+dayjs(date).add(7, 'day');                  // Add 7 days
+dayjs(date).subtract(1, 'month');           // Subtract 1 month
+
+// Comparison
+dayjs(date1).isAfter(date2);                // Boolean
+dayjs(date1).isBefore(date2);               // Boolean
+```
+
+**Reference:** See `.cursor/rules/react-date-handling.mdc` for complete Day.js guide and migration from date-fns.
+
+### Form Handling
+
+**Use React Hook Form with Zod validation:**
+```tsx
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const schema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+type FormData = z.infer<typeof schema>;
+
+const form = useForm<FormData>({
+  resolver: zodResolver(schema),
+});
+```
+
+### Component Structure Best Practices
+
+1. **Import order:**
+   - React imports
+   - Third-party libraries
+   - MUI components
+   - Project imports (utils, hooks, types)
+   - Local components
+
+2. **Component file structure:**
+   - Type definitions
+   - Component function
+   - Styled components (if using `styled()`)
+   - Helper functions
+
+3. **Never create wrapper components for MUI:**
+   - Use MUI components directly
+   - Use `sx` prop for styling variations
+   - Check `.dump/main-template` for patterns
+
+4. **Look at the premium template first:**
+   - Before implementing UI, check `.dump/main-template/src/sections/` for similar patterns
+   - Follow the same MUI component usage patterns
+   - Reuse styling approaches
 
 ## C# Coding Standards
 

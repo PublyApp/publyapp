@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Card from '@mui/material/card';
-import CardContent from '@mui/material/card';
-import CardDescription from '@mui/material/card';
-import CardHeader from '@mui/material/card';
-import CardTitle from '@mui/material/card';
-import Input from '@mui/material/input';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardHeader from '@mui/material/CardHeader';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
 import { APP_NAME } from '@org/shared/lib/constants';
 import * as cookie from 'cookie';
 import dayjs from 'dayjs';
@@ -14,7 +14,6 @@ import { useForm } from 'react-hook-form';
 import { data, redirect, useNavigate, useParams } from 'react-router';
 import { serializeError } from 'serialize-error';
 import { z } from 'zod';
-import { Label } from '@/front/components/label/label';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { safeRun } from '@/front/lib/react-router/safeRun';
@@ -200,105 +199,110 @@ const AcceptInvitationPage = ({
 
 	if (loaderData?.error || !loaderData?.invitationData) {
 		return (
-			<div className="flex min-h-screen items-center justify-center">
-				<Card className="w-full max-w-md">
-					<CardHeader>
-						<CardTitle>{t('auth-invitation-invalid')}</CardTitle>
-						<CardDescription>
-							{t('auth-invitation-invalid-description')}
-						</CardDescription>
-					</CardHeader>
+			<Box
+				sx={{
+					minHeight: '100vh',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+				}}
+			>
+				<Card sx={{ width: '100%', maxWidth: 500 }}>
+					<CardHeader
+						title={t('auth-invitation-invalid')}
+						subheader={t('auth-invitation-invalid-description')}
+					/>
 					<CardContent>
-						<Button onClick={() => navigate(FRONT_PATH_NAMES.auth.login)}>
+						<Button
+							variant="contained"
+							onClick={() => navigate(FRONT_PATH_NAMES.auth.login)}
+						>
 							{t('auth-back-to-login')}
 						</Button>
 					</CardContent>
 				</Card>
-			</div>
+			</Box>
 		);
 	}
 
 	const invitationData = loaderData.invitationData;
 
 	return (
-		<div className="flex min-h-screen items-center justify-center p-4">
-			<Card className="w-full max-w-md">
-				<CardHeader>
-					<CardTitle>{t('auth-accept-invitation')}</CardTitle>
-					<CardDescription>
-						{t('auth-accept-invitation-description', {
-							email: invitationData.email,
-							role: invitationData.profileName,
-						})}
-					</CardDescription>
-				</CardHeader>
+		<Box
+			sx={{
+				minHeight: '100vh',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				p: 2,
+			}}
+		>
+			<Card sx={{ width: '100%', maxWidth: 500 }}>
+				<CardHeader
+					title={t('auth-accept-invitation')}
+					subheader={t('auth-accept-invitation-description', {
+						email: invitationData.email,
+						role: invitationData.profileName,
+					})}
+				/>
 				<CardContent>
-					<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-						<div className="space-y-2">
-							<Label htmlFor="firstName">{t('auth-first-name')}</Label>
-							<Input
+					<Box component="form" onSubmit={handleSubmit(onSubmit)}>
+						<Stack spacing={3}>
+							<TextField
 								id="firstName"
+								label={t('auth-first-name')}
+								fullWidth
 								{...register('firstName')}
 								disabled={isSubmitting}
+								error={!!errors.firstName}
+								helperText={errors.firstName?.message}
 							/>
-							{errors.firstName && (
-								<p className="text-sm text-red-500">
-									{errors.firstName.message}
-								</p>
-							)}
-						</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="lastName">{t('auth-last-name')}</Label>
-							<Input
+							<TextField
 								id="lastName"
+								label={t('auth-last-name')}
+								fullWidth
 								{...register('lastName')}
 								disabled={isSubmitting}
+								error={!!errors.lastName}
+								helperText={errors.lastName?.message}
 							/>
-							{errors.lastName && (
-								<p className="text-sm text-red-500">
-									{errors.lastName.message}
-								</p>
-							)}
-						</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="password">{t('password')}</Label>
-							<Input
+							<TextField
 								id="password"
+								label={t('password')}
 								type="password"
+								fullWidth
 								{...register('password')}
 								disabled={isSubmitting}
+								error={!!errors.password}
+								helperText={errors.password?.message}
 							/>
-							{errors.password && (
-								<p className="text-sm text-red-500">
-									{errors.password.message}
-								</p>
-							)}
-						</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="confirmPassword">{t('confirm-password')}</Label>
-							<Input
+							<TextField
 								id="confirmPassword"
+								label={t('confirm-password')}
 								type="password"
+								fullWidth
 								{...register('confirmPassword')}
 								disabled={isSubmitting}
+								error={!!errors.confirmPassword}
+								helperText={errors.confirmPassword?.message}
 							/>
-							{errors.confirmPassword && (
-								<p className="text-sm text-red-500">
-									{errors.confirmPassword.message}
-								</p>
-							)}
-						</div>
 
-						<Button type="submit" className="w-full" disabled={isSubmitting}>
-							{isSubmitting ? t('common-loading') : t('create-account')}
-						</Button>
-					</form>
+							<Button
+								type="submit"
+								variant="contained"
+								fullWidth
+								disabled={isSubmitting}
+							>
+								{isSubmitting ? t('common-loading') : t('create-account')}
+							</Button>
+						</Stack>
+					</Box>
 				</CardContent>
 			</Card>
-		</div>
+		</Box>
 	);
 };
 
