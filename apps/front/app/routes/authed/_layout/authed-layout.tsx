@@ -30,7 +30,7 @@ import {
 	queryParamValue,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
-import { isoLogger } from '@/shared/lib/logger/iso-logger';
+import { logger } from '@/shared/lib/logger/iso-logger';
 import type { Route } from './+types/authed-layout';
 
 export const clientLoader = getClientLoader({
@@ -38,7 +38,7 @@ export const clientLoader = getClientLoader({
 		i18next
 			.loadNamespaces([I18N_NAMESPACES.ZOD, I18N_NAMESPACES.RESPONSE_MESSAGE])
 			.catch((error) => {
-				isoLogger.error('Failed to load namespaces', error);
+				logger.error('Failed to load namespaces', error);
 			});
 
 		const browserCookies = cookie.parse(document.cookie);
@@ -86,7 +86,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	// clear react-query cache too
 	// const error = useRouteError();
 
-	isoLogger.debug('ErrorBoundary', { error });
+	logger.debug('ErrorBoundary', { error });
 
 	if (
 		isJsClientError(error) &&
@@ -110,7 +110,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 			queryParamValue.login_page.redirect_cause.invalid_session,
 		);
 
-		isoLogger.debug('Redirecting to login page', { url: url.toString() });
+		logger.debug('Redirecting to login page', { url: url.toString() });
 
 		return <Navigate to={url.pathname + url.search} replace />;
 	}
@@ -121,6 +121,24 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 	// else, show the error page
 	return <View500 />;
+};
+
+const AuthQueriesLoader = ({
+	children,
+	tenantId,
+}: {
+	children: ReactNode;
+	tenantId: string;
+}) => {
+	// trigger the queries in parallel
+	useSuspenseQueries({
+		queries: [
+			useGetUserAuthData.getOptions(),
+			useGetTenantAuthData.getOptions({ tenantId }),
+		],
+	});
+
+	return <>{children}</>;
 };
 
 const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
@@ -141,15 +159,7 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 		return <Navigate to={url.pathname + url.search} replace />;
 	}
 
-	// trigger the queries in parallel
-	useSuspenseQueries({
-		queries: [
-			useGetUserAuthData.getOptions(),
-			useGetTenantAuthData.getOptions({ tenantId }),
-		],
-	});
-
-	return <>{children}</>;
+	return <AuthQueriesLoader tenantId={tenantId}>{children}</AuthQueriesLoader>;
 };
 
 const AuthedLayout = ({ loaderData: _l }: Route.ComponentProps) => {
