@@ -1,8 +1,8 @@
 import _ from 'lodash';
+import { logger } from '@/shared/lib/logger/iso-logger';
 
 export const delay = <T = unknown>(timeout: number, value?: T) => {
-	const warningMessage = 'delay function invoked';
-	console.warn(`%c${warningMessage}`, 'color: yellow');
+	logger.warn('delay function invoked', { timeout, value });
 	return new Promise<T>((resolve) => {
 		return setTimeout(() => {
 			resolve(value as never);

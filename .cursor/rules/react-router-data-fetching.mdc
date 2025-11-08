@@ -1,0 +1,538 @@
+# React Router Data Fetching Patterns
+
+## Rule Overview
+
+**CRITICAL:** This project has specific data fetching patterns based on route type. Never mix patterns between route types.
+
+## Route Types and Data Fetching Strategy
+
+### 1. Marketing Pages (Public, SEO-Important)
+
+**Location:** `app/routes/marketing/**`
+
+**Strategy:** Server-Side Rendering (SSR) with React Router loaders/actions
+
+**When to use:**
+- Landing pages
+- Pricing pages
+- About/Contact pages
+- Any public-facing page that needs SEO
+
+**Pattern:**
+```tsx
+import { getServerLoader, getServerAction } from '@/front/lib/react-router/server-data.server';
+import { data } from 'react-router';
+import { safeRun } from '@/front/lib/react-router/safeRun';
+
+// ✅ CORRECT - Use server loader
+export const loader = getServerLoader({
+  loader: async ({ apiClient, request }) => {
+    const getPricingData = safeRun(async () => {
+      return apiClient.public.pricing.get();
+    });
+    
+    const result = await getPricingData();
+    
+    if (result.status === 'error') {
+      return data({ error: serializeError(result.error), pricing: null });
+    }
+    
+    return data({ error: null, pricing: result.data });
+  }
+});
+
+// ✅ CORRECT - Use server action
+export const action = getServerAction({
+  action: async ({ request, apiClient }) => {
+    const formData = await request.formData();
+    // Handle form submission server-side
+    return data({ success: true });
+  }
+});
+```
+
+### 2. Auth Pages (Login, Signup, Password Reset, Accept Invitation)
+
+**Location:** `app/routes/auth/**`
+
+**Strategy:** Server-Side Rendering (SSR) with React Router loaders/actions
+
+**Why SSR for auth pages:**
+- Hide actual API endpoints from public
+- Better security (credentials not exposed in client code)
+- SEO benefits for public auth pages
+
+**Pattern:**
+```tsx
+import { getServerLoader, getServerAction } from '@/front/lib/react-router/server-data.server';
+import { data, redirect } from 'react-router';
+import { safeRun } from '@/front/lib/react-router/safeRun';
+import * as cookie from 'cookie';
+
+// ✅ CORRECT - Server loader for auth pages
+export const loader = getServerLoader({
+  loader: async ({ params, apiClient }) => {
+    const token = params.token;
+    
+    const getInvitationDetails = safeRun(async () => {
+      return apiClient.invitations.byToken(token).details.get();
+    });
+    
+    const result = await getInvitationDetails();
+    
+    if (result.status === 'error') {
+      return data({ error: serializeError(result.error), data: null }, { status: 400 });
+    }
+    
+    return data({ error: null, data: result.data });
+  }
+});
+
+// ✅ CORRECT - Server action for auth pages (handles cookies, redirects)
+export const action = getServerAction({
+  action: async ({ request, apiClient }) => {
+    const formData = await request.formData();
+    
+    const login = safeRun(async () => {
+      return apiClient.auth.login.post({
+        email: formData.get('email'),
+        password: formData.get('password'),
+      });
+    });
+    
+    const result = await login();
+    
+    if (result.status === 'error') {
+      return data({ error: serializeError(result.error) });
+    }
+    
+    // Set session cookie
+    const responseHeaders = new Headers();
+    const sessionCookie = cookie.serialize('session', result.data.token, {
+      httpOnly: true,
+      secure: true,
+      maxAge: 604800, // 7 days
+      path: '/',
+      sameSite: 'lax',
+    });
+    responseHeaders.append('Set-Cookie', sessionCookie);
+    
+    return redirect('/dashboard', { headers: responseHeaders });
+  }
+});
+```
+
+### 3. Authenticated Pages (Staff Dashboard, Tenant Dashboard)
+
+**Location:** `app/routes/authed/**`
+
+**Strategy:** Client-Only with TanStack Query (NO SSR)
+
+**Why client-only:**
+- These pages are behind authentication wall (no SEO needed)
+- The layout is wrapped in `<ClientOnly>` component
+- Better performance with client-side caching
+- Real-time data updates easier
+- No need to hide API endpoints (user is authenticated)
+
+**Pattern - Data Fetching:**
+
+**IMPORTANT:** This project uses **react-query-kit** instead of direct TanStack Query hooks. All queries/mutations must be defined in hook files following the established pattern.
+
+```tsx
+// ❌ WRONG - Don't define server loader for authed pages
+export const loader = async ({ apiClient }: Route.LoaderArgs) => { ... }
+
+// ❌ WRONG - Don't use TanStack Query directly
+import { useQuery } from '@tanstack/react-query';
+const { data } = useQuery({ queryKey: ['staff-members'], queryFn: ... });
+
+// ✅ CORRECT - Define hooks using react-query-kit
+// File: app/lib/react-query/features/staff/staff-member.hooks.ts
+import { createQuery } from 'react-query-kit';
+import { clientManager } from '@/front/lib/js-client';
+import { getQueryKey } from '../../query-utils';
+
+const findStaffMemberQueryKey = getQueryKey<ApiClient>(
+  (client) => client.staff.staffMembers.get,
+);
+
+export const useFindStaffMember = createQuery({
+  queryKey: [findStaffMemberQueryKey] as const,
+  fetcher: async (params: { page?: number; limit?: number }) => {
+    const result = await clientManager.apiClient.staff.staffMembers.get({
+      queryParameters: {
+        page: params.page?.toString(),
+        limit: params.limit?.toString(),
+      },
+    });
+    if (_.isNil(result)) {
+      throw new Error(`[${findStaffMemberQueryKey}]: result is nil`);
+    }
+    return result;
+  },
+});
+
+// ✅ CORRECT - Use the hook in component
+// File: app/routes/authed/staff/members/members-page.tsx
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+
+function StaffMembersPage() {
+  const { data, isLoading, error } = useFindStaffMember({ 
+    variables: { page: 1, limit: 10 } 
+  });
+  
+  if (isLoading) return <CircularProgress />;
+  if (error) return <Typography color="error">Error loading data</Typography>;
+  
+  return <div>{/* Render data */}</div>;
+}
+```
+
+**Pattern - Mutations (Create, Update, Delete):**
+```tsx
+// ✅ CORRECT - Define mutation using react-query-kit
+// File: app/lib/react-query/features/staff/staff-invitation.hooks.ts
+import { createMutation } from 'react-query-kit';
+import { clientManager } from '@/front/lib/js-client';
+import { getQueryKey } from '../../query-utils';
+
+const createInvitationMutationKey = getQueryKey<ApiClient>(
+  (client) => client.staff.invitations.post,
+);
+
+type CreateInvitationPayload = {
+  email: string;
+  profileId: string;
+};
+
+export const useCreateInvitation = createMutation({
+  mutationKey: [createInvitationMutationKey] as const,
+  mutationFn: async (data: CreateInvitationPayload) => {
+    const result = await clientManager.apiClient.staff.invitations.post({
+      email: {
+        getValue() {
+          return data.email;
+        },
+      },
+      profileId: {
+        getValue() {
+          return data.profileId;
+        },
+      },
+    });
+    if (_.isNil(result)) {
+      throw new Error(`[${createInvitationMutationKey}]: result is nil`);
+    }
+    return result;
+  },
+});
+
+// ✅ CORRECT - Use mutation in component
+// File: app/routes/authed/staff/invitations/invitations-page.tsx
+import { useCreateInvitation } from '@/front/lib/react-query/features/staff/staff-invitation.hooks';
+import { useQueryClient } from '@tanstack/react-query';
+
+function CreateInvitationDialog() {
+  const queryClient = useQueryClient();
+  
+  const { mutate, isPending } = useCreateInvitation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff.invitations.get'] });
+      toast.success('Invitation sent');
+    },
+    onError: (error) => {
+      toast.error('Failed to send invitation');
+    },
+  });
+  
+  const handleSubmit = (data: FormData) => {
+    mutate({
+      email: data.email,
+      profileId: data.profileId,
+    });
+  };
+  
+  return (
+    <Dialog>
+      <Box component="form" onSubmit={handleSubmit}>
+        {/* Form fields */}
+        <Button type="submit" disabled={isPending}>
+          {isPending ? 'Creating...' : 'Create'}
+        </Button>
+      </Box>
+    </Dialog>
+  );
+}
+```
+
+**Pattern - Creating Query/Mutation Hooks:**
+
+**CRITICAL:** Always create hooks in the appropriate feature directory following this structure:
+
+```
+app/lib/react-query/features/
+├── common/
+│   └── auth.hooks.ts
+└── staff/
+    ├── staff-member.hooks.ts
+    ├── staff-tenant.hooks.ts
+    └── staff-invitation.hooks.ts    # Create new files here
+```
+
+**Key Patterns:**
+
+1. **Query Keys**: Use `getQueryKey<ApiClient>()` utility for type-safe keys
+2. **Error Handling**: Always check `_.isNil(result)` and throw descriptive error
+3. **API Client**: Always use `clientManager.apiClient` (singleton)
+4. **Request Bodies**: Use `getValue()` format for Kiota-generated client
+5. **Exports**: Export the hook directly (e.g., `useCreateInvitation`)
+
+**Request Body Format (Kiota Client):**
+
+```tsx
+// For mutations, transform data to Kiota format with getValue()
+const result = await clientManager.apiClient.staff.invitations.post({
+  email: {
+    getValue() {
+      return data.email;
+    },
+  },
+  profileId: {
+    getValue() {
+      return data.profileId;
+    },
+  },
+});
+
+// Can also use lodash to transform objects
+const body: CreateStaffMemberBody = {};
+_.forEach(data, (value, key) => {
+  body[key as keyof CreateStaffMemberBody] = {
+    getValue() {
+      return value;
+    },
+  };
+});
+```
+
+**Pattern - Optimized Data Fetching with getClientLoader (Optional):**
+
+For authed pages where you want to optimize initial load time, you can prefetch queries in a clientLoader using `getClientLoader` and react-query-kit hooks:
+
+```tsx
+import { QueryClient } from '@tanstack/react-query';
+import { getClientLoader } from '@/front/lib/react-router/client-data';
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+import type { Route } from './+types/staff-members-page';
+
+// ✅ CORRECT - Use getClientLoader wrapper (provides apiClient, z, locale)
+export const clientLoader = getClientLoader({
+  loader: async ({ apiClient, z, locale }: Route.ClientLoaderArgs) => {
+    const queryClient = new QueryClient();
+    
+    // Prefetch using the same react-query-kit hook
+    // This is possible because react-query-kit hooks expose getKey() and fetcher
+    await queryClient.prefetchQuery({
+      queryKey: useFindStaffMember.getKey({ page: 1 }),
+      queryFn: () => useFindStaffMember.fetcher({ page: 1 }),
+    });
+    
+    return null; // Client loader just prefetches, doesn't return data
+  },
+});
+
+// ❌ WRONG - Don't export raw clientLoader function
+export async function clientLoader(_: Route.ClientLoaderArgs) {
+  // Missing apiClient, z, locale initialization
+}
+
+// Component still uses the hook as normal
+function StaffMembersPage() {
+  // Data is already cached from clientLoader prefetch
+  const { data, isLoading } = useFindStaffMember({ 
+    variables: { page: 1 } 
+  });
+  
+  // isLoading will be false on initial render because data is prefetched
+  return <div>{/* Render */}</div>;
+}
+```
+
+**Benefits of getClientLoader:**
+- ✅ Provides initialized `apiClient` (no manual setup needed)
+- ✅ Provides `z` (Zod with i18n support)
+- ✅ Provides `locale` (current user locale)
+- ✅ Consistent with server-side patterns (`getServerLoader`)
+- ✅ Faster perceived load time with prefetching
+- ✅ Data ready before component renders
+
+**Note:** For client-side mutations in authed pages, always use react-query-kit mutation hooks. There is no `getClientAction` - all mutations should be handled through `createMutation` hooks.
+
+## Helper Functions Reference
+
+### getServerLoader
+
+**When to use:** Marketing pages and auth pages (server-side data fetching)
+
+```tsx
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+
+export const loader = getServerLoader({
+  loader: async ({ apiClient, z, locale, request, params }) => {
+    // Server-side data fetching
+    // Provides: apiClient, z (Zod with i18n), locale
+    return data({ ... });
+  }
+});
+```
+
+### getServerAction
+
+**When to use:** Marketing pages and auth pages (server-side mutations)
+
+```tsx
+import { getServerAction } from '@/front/lib/react-router/server-data.server';
+
+export const action = getServerAction({
+  action: async ({ apiClient, z, locale, request }) => {
+    // Server-side form handling / mutations
+    // Provides: apiClient, z (Zod with i18n), locale
+    return data({ ... }) or redirect(...);
+  }
+});
+```
+
+### getClientLoader
+
+**When to use:** Authed pages (client-side prefetching/initialization)
+
+```tsx
+import { getClientLoader } from '@/front/lib/react-router/client-data';
+import { QueryClient } from '@tanstack/react-query';
+
+export const clientLoader = getClientLoader({
+  loader: async ({ apiClient, z, locale }) => {
+    // Client-side data prefetching or initialization
+    // Provides: apiClient, z (Zod with i18n), locale
+    
+    // Example: Prefetch queries for better UX
+    const queryClient = new QueryClient();
+    await queryClient.prefetchQuery({
+      queryKey: useSomeQuery.getKey(),
+      queryFn: () => useSomeQuery.fetcher(),
+    });
+    
+    return null;
+  }
+});
+```
+
+**Note:** There is no `getClientAction` - use react-query-kit mutation hooks for client-side mutations in authed pages.
+
+### safeRun
+
+**Always use for API calls** (both server and client):
+
+```tsx
+import { safeRun } from '@/front/lib/react-router/safeRun';
+
+const getUsers = safeRun(async () => {
+  return apiClient.users.get();
+});
+
+const result = await getUsers();
+
+if (result.status === 'error') {
+  // Handle error
+  console.error(result.error);
+} else {
+  // Handle success
+  const data = result.data;
+}
+```
+
+## Quick Decision Tree
+
+```
+Is this page behind authentication wall (authed/** routes)?
+├─ YES → Use TanStack Query (client-only)
+│   ├─ Data fetching: useQuery
+│   ├─ Mutations: useMutation
+│   └─ Optional: clientLoader for prefetching
+│
+└─ NO → Is it a public page?
+    ├─ YES (marketing/**) → Use SSR (getServerLoader/getServerAction)
+    │   ├─ Reason: SEO benefits
+    │   └─ Pattern: Server loaders/actions with React Router
+    │
+    └─ NO (auth/**) → Use SSR (getServerLoader/getServerAction)
+        ├─ Reason: Hide API endpoints, security
+        └─ Pattern: Server loaders/actions with React Router
+```
+
+## Common Mistakes to Avoid
+
+### ❌ WRONG - Server loader in authed pages
+
+```tsx
+// File: app/routes/authed/staff/members/staff-members-page.tsx
+
+// ❌ DON'T DO THIS - authed pages should not use server loaders
+export const loader = async ({ apiClient }: Route.LoaderArgs) => {
+  const result = await apiClient.staff.members.get();
+  return data({ members: result });
+};
+```
+
+### ❌ WRONG - TanStack Query in auth pages
+
+```tsx
+// File: app/routes/auth/login/login-page.tsx
+
+// ❌ DON'T DO THIS - auth pages should use server actions
+function LoginPage() {
+  const loginMutation = useMutation({
+    mutationFn: async (data) => {
+      return apiClient.auth.login.post(data); // Exposes endpoint
+    }
+  });
+}
+```
+
+### ❌ WRONG - Mixing patterns
+
+```tsx
+// ❌ DON'T DO THIS - using both server loader and useQuery in authed page
+export const loader = async ({ apiClient }) => { ... }; // Wrong for authed
+
+function Page() {
+  const { data } = useQuery({ ... }); // Also fetching client-side
+  // Confusion: which data source to use?
+}
+```
+
+## Rules to Remember
+
+1. ✅ **Marketing pages:** Always use `getServerLoader` and `getServerAction`
+2. ✅ **Auth pages:** Always use `getServerLoader` and `getServerAction`
+3. ✅ **Authed pages:** Never use server loaders/actions, use react-query-kit hooks
+4. ✅ **Authed pages (optional optimization):** Use `getClientLoader` for prefetching
+5. ✅ **All API calls:** Always wrap with `safeRun()` for error handling (server-side)
+6. ✅ **Authed queries:** Define hooks with `createQuery` from react-query-kit
+7. ✅ **Authed mutations:** Define hooks with `createMutation` from react-query-kit
+8. ✅ **Query keys:** Always use `getQueryKey<ApiClient>()` utility for type-safety
+9. ✅ **API client:** Always use `clientManager.apiClient` (singleton)
+10. ✅ **Request bodies:** Use `getValue()` format for Kiota-generated client
+11. ✅ **Hook location:** Create hooks in `app/lib/react-query/features/[domain]/`
+12. ❌ **Never** use `useQuery`/`useMutation` directly from TanStack Query in components
+13. ❌ **Never** define queries/mutations inline - always create dedicated hook files
+14. ❌ **Never** export raw `loader`/`action`/`clientLoader` functions - always use wrapper functions
+15. ❌ **Never** use `getClientAction` - it doesn't exist, use mutation hooks instead
+
+## Reference Examples
+
+For real-world examples:
+- **Marketing page:** Check existing marketing routes (if any)
+- **Auth page:** `app/routes/auth/login/login-page.tsx`
+- **Authed page:** Other dashboard pages (once properly implemented)
