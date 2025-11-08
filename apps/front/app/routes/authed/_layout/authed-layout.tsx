@@ -123,6 +123,24 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <View500 />;
 };
 
+const AuthQueriesLoader = ({
+	children,
+	tenantId,
+}: {
+	children: ReactNode;
+	tenantId: string;
+}) => {
+	// trigger the queries in parallel
+	useSuspenseQueries({
+		queries: [
+			useGetUserAuthData.getOptions(),
+			useGetTenantAuthData.getOptions({ tenantId }),
+		],
+	});
+
+	return <>{children}</>;
+};
+
 const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	const tenantId = useTenantParam();
 
@@ -141,15 +159,7 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 		return <Navigate to={url.pathname + url.search} replace />;
 	}
 
-	// trigger the queries in parallel
-	useSuspenseQueries({
-		queries: [
-			useGetUserAuthData.getOptions(),
-			useGetTenantAuthData.getOptions({ tenantId }),
-		],
-	});
-
-	return <>{children}</>;
+	return <AuthQueriesLoader tenantId={tenantId}>{children}</AuthQueriesLoader>;
 };
 
 const AuthedLayout = ({ loaderData: _l }: Route.ComponentProps) => {
