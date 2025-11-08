@@ -332,6 +332,15 @@ export function createTenantFromDiscriminatorValue(parseNode: ParseNode | undefi
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateStaffMemberBody}
+ */
+// @ts-ignore
+export function createUpdateStaffMemberBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateStaffMemberBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {VerifyEmailRequestBody}
  */
 // @ts-ignore
@@ -477,11 +486,13 @@ export function deserializeIntoGetRedirectCodeResult(getRedirectCodeResult: Part
 // @ts-ignore
 export function deserializeIntoGetStaffMemberByIdResult(getStaffMemberByIdResult: Partial<GetStaffMemberByIdResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "accountLevel": n => { getStaffMemberByIdResult.accountLevel = n.getStringValue(); },
         "avatarUrl": n => { getStaffMemberByIdResult.avatarUrl = n.getStringValue(); },
         "email": n => { getStaffMemberByIdResult.email = n.getStringValue(); },
         "firstName": n => { getStaffMemberByIdResult.firstName = n.getStringValue(); },
         "id": n => { getStaffMemberByIdResult.id = n.getGuidValue(); },
         "lastName": n => { getStaffMemberByIdResult.lastName = n.getStringValue(); },
+        "status": n => { getStaffMemberByIdResult.status = n.getStringValue(); },
     }
 }
 /**
@@ -702,6 +713,22 @@ export function deserializeIntoTenantAsStaffResult(tenantAsStaffResult: Partial<
 }
 /**
  * The deserialization information for the current model
+ * @param UpdateStaffMemberBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateStaffMemberBody(updateStaffMemberBody: Partial<UpdateStaffMemberBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "accountLevel": n => { updateStaffMemberBody.accountLevel = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "avatarUrl": n => { updateStaffMemberBody.avatarUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "email": n => { updateStaffMemberBody.email = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "firstName": n => { updateStaffMemberBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "lastName": n => { updateStaffMemberBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "status": n => { updateStaffMemberBody.status = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param VerifyEmailRequestBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -750,6 +777,10 @@ export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
 }
 export interface GetStaffMemberByIdResult extends AdditionalDataHolder, Parsable {
     /**
+     * The accountLevel property
+     */
+    accountLevel?: string | null;
+    /**
      * The avatarUrl property
      */
     avatarUrl?: string | null;
@@ -769,6 +800,10 @@ export interface GetStaffMemberByIdResult extends AdditionalDataHolder, Parsable
      * The lastName property
      */
     lastName?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
 }
 export interface GetTenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
@@ -1083,11 +1118,13 @@ export function serializeGetRedirectCodeResult(writer: SerializationWriter, getR
 // @ts-ignore
 export function serializeGetStaffMemberByIdResult(writer: SerializationWriter, getStaffMemberByIdResult: Partial<GetStaffMemberByIdResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getStaffMemberByIdResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("accountLevel", getStaffMemberByIdResult.accountLevel);
     writer.writeStringValue("avatarUrl", getStaffMemberByIdResult.avatarUrl);
     writer.writeStringValue("email", getStaffMemberByIdResult.email);
     writer.writeStringValue("firstName", getStaffMemberByIdResult.firstName);
     writer.writeGuidValue("id", getStaffMemberByIdResult.id);
     writer.writeStringValue("lastName", getStaffMemberByIdResult.lastName);
+    writer.writeStringValue("status", getStaffMemberByIdResult.status);
     writer.writeAdditionalData(getStaffMemberByIdResult.additionalData);
 }
 /**
@@ -1325,6 +1362,23 @@ export function serializeTenantAsStaffResult(writer: SerializationWriter, tenant
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateStaffMemberBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateStaffMemberBody(writer: SerializationWriter, updateStaffMemberBody: Partial<UpdateStaffMemberBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateStaffMemberBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("accountLevel", updateStaffMemberBody.accountLevel);
+    writer.writeObjectValue("avatarUrl", updateStaffMemberBody.avatarUrl);
+    writer.writeObjectValue("email", updateStaffMemberBody.email);
+    writer.writeObjectValue("firstName", updateStaffMemberBody.firstName);
+    writer.writeObjectValue("lastName", updateStaffMemberBody.lastName);
+    writer.writeObjectValue("status", updateStaffMemberBody.status);
+    writer.writeAdditionalData(updateStaffMemberBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param VerifyEmailRequestBody The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -1429,6 +1483,32 @@ export interface TenantAsStaffResult extends AdditionalDataHolder, Parsable {
      * The tenants property
      */
     tenants?: TenantAsStaffItem[] | null;
+}
+export interface UpdateStaffMemberBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The accountLevel property
+     */
+    accountLevel?: UntypedNode | null;
+    /**
+     * The avatarUrl property
+     */
+    avatarUrl?: UntypedNode | null;
+    /**
+     * The email property
+     */
+    email?: UntypedNode | null;
+    /**
+     * The firstName property
+     */
+    firstName?: UntypedNode | null;
+    /**
+     * The lastName property
+     */
+    lastName?: UntypedNode | null;
+    /**
+     * The status property
+     */
+    status?: UntypedNode | null;
 }
 export interface VerifyEmailRequestBody extends AdditionalDataHolder, Parsable {
     /**

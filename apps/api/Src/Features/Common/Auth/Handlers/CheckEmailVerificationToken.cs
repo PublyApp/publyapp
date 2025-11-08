@@ -95,7 +95,7 @@ public class CheckEmailVerificationToken {
 		var resetPasswordUrl = AuthUtils.CreateResetPasswordUrl(passwordResetToken, user.Email);
 
 		// Send success email asynchronously
-		_ = emailService.SendEmailVerifiedNotification(user.Email)
+		_ = emailService.SendEmailVerifiedNotificationAsync(user.Email)
 		.ContinueWith(t => {
 			if (t.Exception != null) {
 				logger.LogError(t.Exception, "Error sending email verification success email to {Email}", user.Email);

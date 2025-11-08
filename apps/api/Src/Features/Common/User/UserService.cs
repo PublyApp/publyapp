@@ -13,6 +13,15 @@ public interface IUserService {
 	Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByEmailAndEmailVerifyTokenAsync(string email, string token, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByEmailAndPasswordResetTokenAsync(string email, string token, CancellationToken cancellationToken = default);
+	/// <summary>
+	/// Updates a user entity (PUT-style full replacement).
+	/// NOTE: This marks ALL properties as modified, even unchanged ones.
+	/// For PATCH operations, fetch the entity first, modify specific fields, then call this.
+	/// For more efficient partial updates without fetching, consider using UpdateUserByIdAsync.
+	/// </summary>
+	/// <param name="user">The user entity with updated values</param>
+	/// <param name="cancellationToken">Cancellation token</param>
+	/// <returns>The updated user entity</returns>
 	Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default);
 }
@@ -27,15 +36,16 @@ public class UserService : IUserService {
 	public async Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default) {
 		// check if user already exists
 		var existingUser = await _dbContext.User
-			.FirstOrDefaultAsync(u => u.Email == user.Email, cancellationToken)
-			.ConfigureAwait(false);
+			.FirstOrDefaultAsync(u => u.Email == user.Email, cancellationToken);
+
+
 
 		if (existingUser is not null) {
 			return new CreateUserResult.UserAlreadyExists(existingUser);
 		}
 
-		var result = await _dbContext.User.AddAsync(user, cancellationToken).ConfigureAwait(false);
-		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+		var result = await _dbContext.User.AddAsync(user, cancellationToken);
+		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		return new CreateUserResult.Success(result.Entity);
 	}
@@ -51,12 +61,12 @@ public class UserService : IUserService {
 			// && u.IsVerified
 			select u;
 
-		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default) {
 		_dbContext.User.Update(user);
-		await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+		await _dbContext.SaveChangesAsync(cancellationToken);
 		return user;
 	}
 
@@ -65,7 +75,7 @@ public class UserService : IUserService {
 			from u in _dbContext.User
 			where u.Id == id
 			select u;
-		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<User?> GetUserByEmailAndEmailVerifyTokenAsync(string email, string token, CancellationToken cancellationToken = default) {
@@ -75,7 +85,7 @@ public class UserService : IUserService {
 			&& u.EmailVerifyToken == token
 			select u;
 
-		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
 	public async Task<User?> GetUserByEmailAndPasswordResetTokenAsync(string email, string token, CancellationToken cancellationToken = default) {
@@ -85,6 +95,6 @@ public class UserService : IUserService {
 			&& u.PasswordResetToken == token
 			select u;
 
-		return await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 }

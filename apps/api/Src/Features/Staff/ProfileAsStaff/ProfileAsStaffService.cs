@@ -46,7 +46,6 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		return await query
 			.Skip((effectivePage - 1) * effectiveLimit)
 			.Take(effectiveLimit)
-			.ToListAsync(cancellationToken)
-			.ConfigureAwait(false);
+			.ToListAsync(cancellationToken);
 	}
 }
