@@ -244,11 +244,25 @@ export class IsoLogger implements ILogger {
 				!line.includes('IsoLogger')
 			) {
 				// Extract filename and line number
-				const match = line.match(/\(([^)]+):(\d+):\d+\)/);
-				if (match) {
-					const [, filepath, lineNumber] = match;
-					const filename = filepath.split('/').pop() || filepath;
-					return `${filename}:${lineNumber}`;
+				// Try multiple patterns to handle different browser stack trace formats:
+				// 1. Chrome/Edge with function name: "at functionName (file:line:col)"
+				// 2. Chrome/Edge without function name: "at file:line:col"
+				// 3. Firefox: "functionName@file:line:col"
+				const patterns = [
+					/\(([^)]+):(\d+):\d+\)/, // Pattern 1: with parentheses
+					/at\s+(.+):(\d+):\d+/, // Pattern 2: without parentheses
+					/@(.+):(\d+):\d+/, // Pattern 3: Firefox format
+				];
+
+				for (const pattern of patterns) {
+					const match = line.match(pattern);
+					if (match) {
+						const [, filepath, lineNumber] = match;
+						// Extract just the filename from the full path or URL
+						const filename =
+							filepath.split('/').pop()?.split('?')[0] || filepath;
+						return `${filename}:${lineNumber}`;
+					}
 				}
 			}
 		}
