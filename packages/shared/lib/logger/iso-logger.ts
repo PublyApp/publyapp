@@ -270,4 +270,4 @@ export class IsoLogger implements ILogger {
 	}
 }
 
-export const isoLogger = new IsoLogger();
+export const logger = new IsoLogger();
