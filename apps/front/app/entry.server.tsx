@@ -22,12 +22,10 @@ import {
 	queryParamKey,
 	REMIX_CLIENT_IP_HEADER_KEY,
 } from '@/shared/lib/constants';
-// import { getUnifiedCSPConfig } from '@/shared/lib/csp';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
-// import { getFinalLoadContext } from './lib/react-router/get-final-load-context.server';
 
 export const streamTimeout = import.meta.env.DEV ? 50_000 : 5_000;
 
