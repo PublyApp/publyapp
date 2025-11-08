@@ -80,7 +80,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 					]}
 				>
 					<Box component="span" sx={{ width: 1, whiteSpace: 'nowrap' }}>
-						PDF Generation
+						Schedule Smarter,
 					</Box>
 					<Box
 						component="span"
@@ -92,7 +92,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 							flexWrap: 'nowrap',
 						}}
 					>
-						<Box sx={{ opacity: 0.24 }}>for the</Box>
+						<Box sx={{ opacity: 0.24 }}>Not</Box>
 						<Box
 							component={m.span}
 							animate={{ backgroundPosition: '200% center' }}
@@ -116,7 +116,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 								},
 							]}
 						>
-							Modern Web.
+							Harder.
 						</Box>
 					</Box>
 				</Box>
@@ -142,7 +142,7 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 						},
 					]}
 				>
-					Blazing-fast HTML to PDF conversion — pixel-perfect, developer-first.
+					Plan, schedule, and publish your social media content across all platforms — effortlessly.
 				</Typography>
 			</m.div>
 		);
