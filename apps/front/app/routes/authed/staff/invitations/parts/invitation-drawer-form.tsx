@@ -1,6 +1,7 @@
 import DrawerAnchor from '@/front/components/drawer-anchor';
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
+import { toast } from '@/front/components/snackbar';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { defaultZodClient } from '@/front/lib/zod/zod.client';
@@ -13,7 +14,6 @@ import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import DialogTitle from '@mui/material/DialogTitle';
 import Drawer from '@mui/material/Drawer';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import _ from 'lodash';
 import { useForm } from 'react-hook-form';
@@ -176,9 +176,7 @@ const InvitationDrawerForm = ({ open, onClose }: Props) => {
 					/>
 
 					<Button
-						onClick={form.handleSubmit(onSubmit, () => {
-							logger.debug('onSubmit error', { errors: form.formState.errors });
-						})}
+						onClick={form.handleSubmit(onSubmit)}
 						disabled={form.formState.isSubmitting}
 						loading={form.formState.isSubmitting}
 						variant="contained"
@@ -206,4 +204,5 @@ const profilesOptions: ProfileOption[] = Array.from(
 
 const onSubmit = (data: CreateInvitationForm) => {
 	logger.debug('onSubmit', { data });
+	toast.warning('TODO: Implement onSubmit');
 };
