@@ -223,5 +223,9 @@
 	"common-done": "Done",
 	"common-loading": "Loading...",
 	"errors-generic": "An error occurred. Please try again.",
-	"view-details": "View details"
+	"view-details": "View details",
+	"invitation": "Invitation",
+	"new-invitation": "New invitation",
+	"select-profiles": "Select profiles",
+	"send-invitation": "Send invitation"
 }

@@ -103,7 +103,7 @@ const routes = [
 					]),
 					route(
 						getLastPath(FRONT_PATH_NAMES.staff.invitations.root),
-						'routes/authed/staff/invitations/staff-invitations-page.tsx',
+						'routes/authed/staff/invitations/staff-invitations-list-page.tsx',
 					),
 				]),
 				route('*', 'routes/authed/staff/_errors/staff-not-found-page.tsx'),

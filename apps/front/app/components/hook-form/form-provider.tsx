@@ -1,3 +1,4 @@
+import Box, { type BoxProps } from '@mui/material/Box';
 import { FormProvider as RHFForm, type UseFormReturn } from 'react-hook-form';
 
 // ----------------------------------------------------------------------
@@ -7,14 +8,23 @@ export type FormProps = {
 	children: React.ReactNode;
 	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
 	methods: UseFormReturn<any>;
+	slotProps?: {
+		form?: BoxProps;
+	};
 };
 
-export const Form = ({ children, onSubmit, methods }: FormProps) => {
+export const Form = ({ children, onSubmit, methods, slotProps }: FormProps) => {
 	return (
 		<RHFForm {...methods}>
-			<form onSubmit={onSubmit} noValidate autoComplete="off">
+			<Box
+				component="form"
+				onSubmit={onSubmit}
+				noValidate
+				autoComplete="off"
+				{...slotProps?.form}
+			>
 				{children}
-			</form>
+			</Box>
 		</RHFForm>
 	);
 };
