@@ -80,7 +80,7 @@ const StaffInvitationsListPage = () => {
 						variant="contained"
 						startIcon={<Iconify icon="mingcute:add-line" />}
 					>
-						{t('new-invitation')}
+						{t('new-item', { item: _.toLower(t('profile')) })}
 					</Button>
 				}
 				sx={{ mb: { xs: 3, md: 5 } }}
