@@ -37,6 +37,8 @@ import {
 } from '@/front/lib/react-query/features/common/auth.hooks';
 import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/logger/iso-logger';
+import { getErrorMessage } from '@/shared/utils/error.utils';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
 const UserStatus = {
@@ -424,7 +426,9 @@ const CopyLinkButton = ({
 					if (!linkData) {
 						const result = await fetchVerificationLink();
 						if (result.error) {
-							console.error(result.error);
+							logger.error(getErrorMessage(result.error), {
+								error: result.error,
+							});
 							toast.error(t('copy-to-clipboard-error'));
 							return;
 						}
@@ -463,8 +467,8 @@ const FollowUpButton = ({
 			toast.success(t('email-verification-follow-up-success'));
 			onClose?.();
 		},
-		onError: (_error) => {
-			console.error(_error);
+		onError: (error) => {
+			logger.error(getErrorMessage(error), { error });
 			// if (error instanceof ParseRestError) {
 			// 	toast.error(error.message);
 			// 	return;

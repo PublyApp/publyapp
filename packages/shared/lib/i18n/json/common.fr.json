@@ -210,5 +210,7 @@
 	"invitation": "Invitation",
 	"new-invitation": "Nouvelle invitation",
 	"select-profiles": "Sélectionner les profils",
-	"send-invitation": "Envoyer l'invitation"
+	"send-invitation": "Envoyer l'invitation",
+	"staff-profiles": "Profils du staff",
+	"roles": "Rôles"
 }

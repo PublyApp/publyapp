@@ -7,6 +7,7 @@ import type {
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
 import { useCallback, useEffect, useState } from 'react';
 import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/logger/iso-logger';
 
 export type TableQueryKeys = {
 	pagination: {
@@ -214,8 +215,8 @@ export function useTableState(
 	// Reset cursor helper (only used in cursor mode)
 	const resetCursor = useCallback(() => {
 		if (paginationMode !== 'cursor') {
-			if (process.env.NODE_ENV === 'development') {
-				console.warn('resetCursor called in page mode - ignoring');
+			if (import.meta.env.DEV) {
+				logger.warn('resetCursor called in page mode - ignoring');
 			}
 			return;
 		}
@@ -231,8 +232,8 @@ export function useTableState(
 	const setNextCursor = useCallback(
 		(cursor: string | null) => {
 			if (paginationMode !== 'cursor') {
-				if (process.env.NODE_ENV === 'development') {
-					console.warn('setNextCursor called in page mode - ignoring');
+				if (import.meta.env.DEV) {
+					logger.warn('setNextCursor called in page mode - ignoring');
 				}
 				return;
 			}

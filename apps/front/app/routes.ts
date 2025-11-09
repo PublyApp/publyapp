@@ -101,10 +101,32 @@ const routes = [
 							'routes/authed/staff/staff-members/details/staff-member-details-page.tsx',
 						),
 					]),
-					route(
-						getLastPath(FRONT_PATH_NAMES.staff.invitations.root),
-						'routes/authed/staff/invitations/staff-invitations-list-page.tsx',
-					),
+					...prefix(getLastPath(FRONT_PATH_NAMES.staff.invitations.root), [
+						index(
+							'routes/authed/staff/invitations/list/staff-invitations-list-page.tsx',
+						),
+						route(
+							getLastPath(
+								FRONT_PATH_NAMES.staff.invitations.details(':invitationId'),
+							),
+							'routes/authed/staff/invitations/details/staff-invitation-details-page.tsx',
+						),
+					]),
+					...prefix(getLastPath(FRONT_PATH_NAMES.staff.profiles.root), [
+						index(
+							'routes/authed/staff/profiles/list/staff-profiles-list-page.tsx',
+						),
+						route(
+							getLastPath(FRONT_PATH_NAMES.staff.profiles.new),
+							'routes/authed/staff/profiles/new/new-staff-profile-page.tsx',
+						),
+						route(
+							getLastPath(
+								FRONT_PATH_NAMES.staff.profiles.details(':profileId'),
+							),
+							'routes/authed/staff/profiles/details/staff-profile-details-page.tsx',
+						),
+					]),
 				]),
 				route('*', 'routes/authed/staff/_errors/staff-not-found-page.tsx'),
 			],

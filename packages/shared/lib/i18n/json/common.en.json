@@ -188,7 +188,7 @@
 	"send-notification": "Send notification",
 	"yes": "Yes",
 	"no": "No",
-	"staff-invitations": "Staff Invitations",
+	"staff-invitations": "Staff invitations",
 	"staff-invitations-description": "Manage staff member invitations",
 	"staff-invite-staff": "Invite Staff",
 	"staff-invite-staff-member": "Invite Staff Member",
@@ -227,5 +227,7 @@
 	"invitation": "Invitation",
 	"new-invitation": "New invitation",
 	"select-profiles": "Select profiles",
-	"send-invitation": "Send invitation"
+	"send-invitation": "Send invitation",
+	"staff-profiles": "Staff profiles",
+	"roles": "Roles"
 }
