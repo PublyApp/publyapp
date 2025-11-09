@@ -123,13 +123,9 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <View500 />;
 };
 
-const AuthQueriesLoader = ({
-	children,
-	tenantId,
-}: {
-	children: ReactNode;
-	tenantId: string;
-}) => {
+const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
+	const tenantId = useTenantParam();
+
 	// trigger the queries in parallel
 	useSuspenseQueries({
 		queries: [
@@ -142,8 +138,6 @@ const AuthQueriesLoader = ({
 };
 
 const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
-	const tenantId = useTenantParam();
-
 	// Check if session token exists before running queries
 	// This prevents infinite loop when ErrorBoundary clears the cookie
 	const browserCookies = cookie.parse(document.cookie);
@@ -159,7 +153,7 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 		return <Navigate to={url.pathname + url.search} replace />;
 	}
 
-	return <AuthQueriesLoader tenantId={tenantId}>{children}</AuthQueriesLoader>;
+	return <AuthQueriesLoader>{children}</AuthQueriesLoader>;
 };
 
 const AuthedLayout = ({ loaderData: _l }: Route.ComponentProps) => {
