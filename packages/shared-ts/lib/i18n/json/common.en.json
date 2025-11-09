@@ -188,7 +188,7 @@
 	"send-notification": "Send notification",
 	"yes": "Yes",
 	"no": "No",
-	"staff-invitations": "Staff Invitations",
+	"staff-invitations": "Staff invitations",
 	"staff-invitations-description": "Manage staff member invitations",
 	"staff-invite-staff": "Invite Staff",
 	"staff-invite-staff-member": "Invite Staff Member",
@@ -223,5 +223,11 @@
 	"common-done": "Done",
 	"common-loading": "Loading...",
 	"errors-generic": "An error occurred. Please try again.",
-	"view-details": "View details"
+	"view-details": "View details",
+	"invitation": "Invitation",
+	"new-invitation": "New invitation",
+	"select-profiles": "Select profiles",
+	"send-invitation": "Send invitation",
+	"staff-profiles": "Staff profiles",
+	"roles": "Roles"
 }

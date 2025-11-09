@@ -10,7 +10,7 @@ import { useCallback, useState } from 'react';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import type { IAddressItem } from '@/front/types/common';
-
+import { logger } from '@/shared/lib/logger/iso-logger';
 import { AddressItem, AddressNewForm } from '../address';
 import { CustomPopover } from '../custom-popover/custom-popover';
 import { Iconify } from '../iconify/iconify';

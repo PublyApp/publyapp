@@ -6,63 +6,14 @@ export const APP_NAME = 'PublyApp';
 
 export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
-export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
-export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
-/** @deprecated Use TENANT_HINTS_COOKIE_KEY_LEGACY for new code */
-export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
-export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
-
-// =============================================================================
-// Tenant Hints Cookie (Identity-Scoped)
-// See: docs/implementation-plans/identity-scoped-tenant-cookie.md
-// =============================================================================
-
-/** New cookie key for user→tenant mapping (v4 format) */
-export const TENANT_HINTS_COOKIE_KEY = `${APP_ID}-last_tenants`;
-
-/** Legacy cookie key (v1-v3, for migration) */
-export const TENANT_HINTS_COOKIE_KEY_LEGACY = LAST_USED_TENANT_ID_COOKIE_KEY;
-
-/** Max users to store in mapping (keeps cookie under 1KB) */
-export const TENANT_HINTS_MAX_ENTRIES = 10;
-
-/** Cookie version for future format changes */
-export const TENANT_HINTS_COOKIE_VERSION = 'v1';
-
-/** Max cookie value length before treating as invalid (DoS protection) */
-export const TENANT_HINTS_MAX_COOKIE_LENGTH = 2048;
-
-/** Paths to clear legacy cookie from (handles historical path-scoped duplicates) */
-export const TENANT_HINTS_LEGACY_CLEAR_PATHS = [
-	'/',
-	'/auth',
-	'/auth/login',
-	'/app',
-] as const;
-
 export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
 export const TENANT_ID_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-TenantId`;
 export const FORWARDED_FOR_HEADER_KEY = 'X-Forwarded-For';
 export const REMIX_CLIENT_IP_HEADER_KEY = 'X-Remix-Client-IP';
 export const CLOUDFLARE_CONNECTING_IP_HEADER_KEY = 'CF-Connecting-IP';
 
-// =============================================================================
-// Redirect Codes (GetRedirectCode API response)
-// =============================================================================
-
-export const REDIRECT_CODE = {
-	STAFF: 'staff',
-	UNAUTHORIZED: 'unauthorized',
-	TENANT_PICKER: 'tenant-picker',
-} as const;
-
-export type RedirectCode =
-	| (typeof REDIRECT_CODE)[keyof typeof REDIRECT_CODE]
-	| (string & {});
-
 const RESOURCE = {
 	users: 'users',
-	app: 'app',
 	client: 'client',
 	clients: 'clients',
 	tenant: 'tenant',
@@ -71,11 +22,10 @@ const RESOURCE = {
 	fileManager: 'file-manager',
 	blog: 'blog',
 	shortUrl: 'short-url',
-	tenantUsers: 'tenant-users',
-	staffUsers: 'staff-users',
+	staffMembers: 'staff-members',
+	tenantUSers: 'tenant-users',
 	profiles: 'profiles',
 	invitations: 'invitations',
-	auditLogs: 'audit-logs',
 } as const;
 
 const ROOTS = {
@@ -83,86 +33,30 @@ const ROOTS = {
 	DASHBOARD: 'dashboard',
 	STAFF: 'staff',
 	UPLOAD: 'upload',
-	ONBOARDING: 'onboarding',
 } as const;
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
-	unauthorized: makePath('unauthorized'),
 	auth: {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
 		verifyEmail: makePath('verify-email'),
 		resetPassword: makePath('reset-password'),
-		acceptInvitation: makePath('accept-invitation'),
-		clearSession: makePath(ROOTS.AUTH, 'clear-session'),
+		acceptInvitation: (token = '') =>
+			makePath('auth', 'accept-invitation', token),
 	},
 	tenant: (tenantId = '') => {
 		return {
-			_root: makePath(RESOURCE.app),
-			organizations: makePath(RESOURCE.app, 'organizations'),
-			root: makePath(RESOURCE.app, tenantId),
-			posts: {
-				root: makePath(RESOURCE.app, tenantId, 'posts'),
-				drafts: makePath(RESOURCE.app, tenantId, 'posts', 'drafts'),
-				history: makePath(RESOURCE.app, tenantId, 'posts', 'history'),
-			},
-			settings: {
-				root: makePath(RESOURCE.app, tenantId, 'settings'),
-				general: makePath(RESOURCE.app, tenantId, 'settings', 'general'),
-				members: makePath(RESOURCE.app, tenantId, 'settings', 'members'),
-				roles: makePath(RESOURCE.app, tenantId, 'settings', 'roles'),
-				workspaces: makePath(RESOURCE.app, tenantId, 'settings', 'workspaces'),
-				integrations: makePath(
-					RESOURCE.app,
-					tenantId,
-					'settings',
-					'integrations',
-				),
-				billing: makePath(RESOURCE.app, tenantId, 'settings', 'billing'),
-				security: makePath(RESOURCE.app, tenantId, 'settings', 'security'),
-			},
-			account: {
-				root: makePath(RESOURCE.app, tenantId, 'account'),
-				security: makePath(RESOURCE.app, tenantId, 'account', 'security'),
-				notifications: makePath(
-					RESOURCE.app,
-					tenantId,
-					'account',
-					'notifications',
-				),
-			},
+			root: makePath(RESOURCE.client, tenantId),
 		};
 	},
 	staff: {
 		root: makePath(ROOTS.STAFF),
-		account: {
-			root: makePath(ROOTS.STAFF, 'account'),
-			security: makePath(ROOTS.STAFF, 'account', 'security'),
-			notifications: makePath(ROOTS.STAFF, 'account', 'notifications'),
-		},
 		profiles: {
 			root: makePath(ROOTS.STAFF, RESOURCE.profiles),
 			new: makePath(ROOTS.STAFF, RESOURCE.profiles, 'new'),
 			details: (profileId = '') => {
-				return {
-					root: makePath(ROOTS.STAFF, RESOURCE.profiles, 'details', profileId),
-					tabs: {
-						basicsAndPermissions: makePath(
-							ROOTS.STAFF,
-							RESOURCE.profiles,
-							'details',
-							profileId,
-						),
-						users: makePath(
-							ROOTS.STAFF,
-							RESOURCE.profiles,
-							'details',
-							profileId,
-							'users',
-						),
-					},
-				};
+				return makePath(ROOTS.STAFF, RESOURCE.profiles, 'details', profileId);
 			},
 		},
 		tenants: {
@@ -203,23 +97,28 @@ export const FRONT_PATH_NAMES = {
 				};
 			},
 		},
-		tenantUsers: {
-			root: makePath(ROOTS.STAFF, RESOURCE.tenantUsers),
-			new: makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'new'),
+		users: {
+			root: makePath(ROOTS.STAFF, RESOURCE.users),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.tenantUsers, 'details', userId);
+				return makePath(ROOTS.STAFF, RESOURCE.users, 'details', userId);
 			},
 		},
-		staffUsers: {
-			root: makePath(ROOTS.STAFF, RESOURCE.staffUsers),
-			new: makePath(ROOTS.STAFF, RESOURCE.staffUsers, 'new'),
+		tenantUsers: {
+			root: makePath(ROOTS.STAFF, RESOURCE.tenantUSers),
+			new: makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'new'),
 			details: (userId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.staffUsers, 'details', userId);
+				return makePath(ROOTS.STAFF, RESOURCE.tenantUSers, 'details', userId);
+			},
+		},
+		staffMembers: {
+			root: makePath(ROOTS.STAFF, RESOURCE.staffMembers),
+			new: makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'new'),
+			details: (userId = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'details', userId);
 			},
 		},
 		invitations: {
 			root: makePath(ROOTS.STAFF, RESOURCE.invitations),
-			new: makePath(ROOTS.STAFF, RESOURCE.invitations, 'new'),
 			details: (invitationId = '') => {
 				return makePath(
 					ROOTS.STAFF,
@@ -229,14 +128,11 @@ export const FRONT_PATH_NAMES = {
 				);
 			},
 		},
-		auditLogs: {
-			root: makePath(ROOTS.STAFF, RESOURCE.auditLogs),
-			details: (logId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.auditLogs, 'details', logId);
-			},
-		},
 		backgroundJobs: {
 			root: makePath(ROOTS.STAFF, 'background-jobs'),
+		},
+		settings: {
+			root: makePath(ROOTS.STAFF, 'settings'),
 		},
 	},
 } as const;
@@ -247,12 +143,17 @@ export const isServer = typeof window === 'undefined';
 
 export const isBun = typeof Bun !== 'undefined';
 
+export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
+
+export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
+export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
+export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
+
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
 export const queryParamKey = {
 	language: 'lng',
 	token: 'token',
-	notice: 'notice',
 	login_page: {
 		redirect_cause: 'rc',
 	},
@@ -261,28 +162,9 @@ export const queryParamKey = {
 		encoded_email: 'id',
 		token: 'token',
 	},
-	accept_invitation_page: {
-		encoded_email: 'id',
-		token: 'token',
-	},
-} as const;
-
-/**
- * Form action keys for POST-based operations.
- * Using POST instead of GET query params prevents CSRF attacks.
- */
-export const formActionKey = {
-	/**
-	 * Action to clear httpOnly session cookies.
-	 * Used when client-side JS detects it cannot read a cookie that the server can see.
-	 */
-	clear_httponly_session: 'clear_httponly_session',
 } as const;
 
 export const queryParamValue = {
-	notice: {
-		org_suspended: 'org-suspended',
-	},
 	login_page: {
 		redirect_cause: {
 			invalid_session: 'invalid_session',
