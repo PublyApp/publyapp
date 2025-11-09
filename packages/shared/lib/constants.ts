@@ -260,3 +260,5 @@ export const I18N_NAMESPACES = {
 	ZOD: 'zod',
 	RESPONSE_MESSAGE: 'response-message',
 } as const satisfies Record<string, NameSpace>;
+
+export const MAX_PROFILES_PER_ACCOUNT = 5;

@@ -56,7 +56,7 @@ const createInvitationSchema = z.object({
 
 type CreateInvitationForm = z.infer<typeof createInvitationSchema>;
 
-const StaffInvitationsPage = () => {
+const StaffInvitationsListPage = () => {
 	const { t } = useTranslate();
 	const queryClient = useQueryClient();
 
@@ -351,4 +351,4 @@ const StaffInvitationsPage = () => {
 	);
 };
 
-export default StaffInvitationsPage;
+export default StaffInvitationsListPage;

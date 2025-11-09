@@ -4,35 +4,36 @@ import Autocomplete, {
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
 import { Controller, useFormContext } from 'react-hook-form';
 
-// ----------------------------------------------------------------------
-
-export type AutocompleteBaseProps = Omit<
+export type AutocompleteBaseProps<T> = AutocompleteProps<
 	// biome-ignore lint/suspicious/noExplicitAny: code from template leave as is for now
-	AutocompleteProps<any, boolean, boolean, boolean>,
-	'renderInput'
+	T,
+	boolean,
+	boolean,
+	boolean
 >;
 
-export type RHFAutocompleteProps = AutocompleteBaseProps & {
+export type RHFAutocompleteProps<T> = AutocompleteBaseProps<T> & {
 	name: string;
 	label?: string;
 	placeholder?: string;
 	helperText?: React.ReactNode;
-	slotProps?: AutocompleteBaseProps['slotProps'] & {
+	slotProps?: AutocompleteBaseProps<T>['slotProps'] & {
 		textfield?: TextFieldProps;
 	};
 };
 
-export const RHFAutocomplete = ({
+export const RHFAutocomplete = <T,>({
 	name,
 	label,
 	slotProps,
 	helperText,
 	placeholder,
 	...other
-}: RHFAutocompleteProps) => {
+}: RHFAutocompleteProps<T>) => {
 	const { control, setValue } = useFormContext();
 
 	const { textfield, ...otherSlotProps } = slotProps ?? {};
+	const { renderInput, ..._other } = other;
 
 	return (
 		<Controller
@@ -47,6 +48,10 @@ export const RHFAutocomplete = ({
 							return setValue(name, newValue, { shouldValidate: true });
 						}}
 						renderInput={(params) => {
+							if (renderInput) {
+								return renderInput(params);
+							}
+
 							return (
 								<TextField
 									{...params}
@@ -66,8 +71,8 @@ export const RHFAutocomplete = ({
 								/>
 							);
 						}}
-						{...other}
-						{...otherSlotProps}
+						{..._other}
+						slotProps={otherSlotProps}
 					/>
 				);
 			}}

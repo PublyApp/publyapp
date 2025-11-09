@@ -1,6 +1,6 @@
 import { ACCOUNT_LEVEL_ENUM, USER_STATUS_ENUM } from '@/shared/lib/constants';
 import type InterZod from '@/shared/lib/zod/InterZod';
-import { getFileSchemaClientSide } from '../file/file-client.validations';
+import { getFileSchemaClientSide } from './file/file-client.validations';
 
 export const getNewStaffMemberSchema = (z: InterZod) => {
 	return z.object({
