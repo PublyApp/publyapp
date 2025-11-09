@@ -27,14 +27,14 @@ const StaffLayout = () => {
 			collapsible: false,
 			items: [
 				{
-					title: t('organizations'),
+					title: t('tenants'),
 					path: FRONT_PATH_NAMES.staff.tenants.root,
 					icon: ICONS.banking,
 					deepActiveMatch: true,
 				},
 				{
 					title: t('users'),
-					path: FRONT_PATH_NAMES.staff.tenantUsers.root,
+					path: FRONT_PATH_NAMES.staff.users.root,
 					icon: ICONS.user,
 					deepActiveMatch: true,
 				},
@@ -45,8 +45,8 @@ const StaffLayout = () => {
 			collapsible: false,
 			items: [
 				{
-					title: t('users'),
-					path: FRONT_PATH_NAMES.staff.staffUsers.root,
+					title: t('staff-members'),
+					path: FRONT_PATH_NAMES.staff.staffMembers.root,
 					icon: ICONS.user,
 					deepActiveMatch: true,
 				},
@@ -57,21 +57,21 @@ const StaffLayout = () => {
 					deepActiveMatch: true,
 				},
 				{
-					title: t('invitations'),
+					title: t('staff-invitations'),
 					path: FRONT_PATH_NAMES.staff.invitations.root,
 					icon: ICONS.mail,
 					deepActiveMatch: true,
 				},
 				{
-					title: t('audit-logs'),
-					path: FRONT_PATH_NAMES.staff.auditLogs.root,
-					icon: ICONS.history,
+					title: t('background-jobs'),
+					path: FRONT_PATH_NAMES.staff.backgroundJobs.root,
+					icon: ICONS.job,
 					deepActiveMatch: true,
 				},
 				{
-					title: t('workers'),
-					path: FRONT_PATH_NAMES.staff.backgroundJobs.root,
-					icon: ICONS.job,
+					title: t('settings'),
+					path: FRONT_PATH_NAMES.staff.settings.root,
+					icon: ICONS.settings,
 					deepActiveMatch: true,
 				},
 			],

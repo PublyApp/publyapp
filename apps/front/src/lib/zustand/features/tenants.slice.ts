@@ -1,5 +1,4 @@
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-
+import { logger } from '@/shared/lib/logger/iso-logger';
 import Slice from '../utils/Slice';
 
 export type TenantsSliceValues = {
