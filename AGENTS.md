@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding assistants when working with code in this repository.
 
 ## Project Overview
 
@@ -266,13 +266,13 @@ import { QueryClient } from '@tanstack/react-query';
 export const clientLoader = getClientLoader({
   loader: async ({ apiClient, z, locale }) => {
     const queryClient = new QueryClient();
-    
+
     // Prefetch using react-query-kit hooks
     await queryClient.prefetchQuery({
       queryKey: useFindStaffMember.getKey({ page: 1 }),
       queryFn: () => useFindStaffMember.fetcher({ page: 1 }),
     });
-    
+
     return null;
   },
 });
@@ -387,9 +387,9 @@ import { Card } from '~/components/ui/card';  // Wrong library!
 </div>
 
 // ✅ CORRECT - Using sx prop
-<Box sx={{ 
-  display: 'flex', 
-  alignItems: 'center', 
+<Box sx={{
+  display: 'flex',
+  alignItems: 'center',
   justifyContent: 'space-between',
   p: 4,                    // padding: theme.spacing(4)
   bgcolor: 'grey.100'      // theme.palette.grey[100]
@@ -410,7 +410,7 @@ import { Card } from '~/components/ui/card';  // Wrong library!
 
 **Responsive styling:**
 ```tsx
-<Box sx={{ 
+<Box sx={{
   p: { xs: 2, md: 4, lg: 8 },  // Responsive padding
   fontSize: { xs: '1rem', md: '1.25rem' }
 }}>
