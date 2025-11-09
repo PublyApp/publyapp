@@ -222,5 +222,6 @@
 	"common-actions": "Actions",
 	"common-done": "Done",
 	"common-loading": "Loading...",
-	"errors-generic": "An error occurred. Please try again."
+	"errors-generic": "An error occurred. Please try again.",
+	"view-details": "View details"
 }

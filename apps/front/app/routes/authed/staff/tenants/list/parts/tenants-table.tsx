@@ -27,6 +27,7 @@ import {
 	DEFAULT_PAGE_SIZE,
 	FRONT_PATH_NAMES,
 	TENANT_STATUS_ENUM,
+	voidFunction,
 } from '@/shared/lib/constants';
 
 export type TenantRowData = {
@@ -214,10 +215,14 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 
 const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 	const tenantId = props.row.original.id;
+	const { t } = useTranslate();
 
 	return (
-		<Box sx={{ display: 'flex', alignItems: 'center' }}>
-			<Tooltip title="View details" placement="top" arrow>
+		<Box
+			// className="is-actions-column"
+			sx={{ display: 'flex', alignItems: 'center' }}
+		>
+			<Tooltip title={t('view-details')} placement="top" arrow>
 				<IconButton
 					color={'default'}
 					LinkComponent={RouterLink}
@@ -227,31 +232,15 @@ const TenantActionsCell: MRT_ColumnDef<TenantRowData>['Cell'] = (props) => {
 				</IconButton>
 			</Tooltip>
 
-			<Tooltip title="Quick Edit" placement="top" arrow>
-				<IconButton
-					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
-					onClick={/* quickEditForm.onTrue */ () => {}}
-				>
-					<Iconify icon="solar:pen-bold" />
-				</IconButton>
-			</Tooltip>
-
 			<Tooltip title="Delete" placement="top" arrow>
 				<IconButton
-					color={/* quickEditForm.value ? 'inherit' : 'default' */ 'default'}
-					onClick={/* quickEditForm.onTrue */ () => {}}
+					color={'default'}
+					onClick={voidFunction}
 					sx={{ color: 'error.main' }}
 				>
 					<Iconify icon="solar:trash-bin-trash-bold" />
 				</IconButton>
 			</Tooltip>
-
-			{/* <IconButton
-              color={menuActions.open ? 'inherit' : 'default'}
-              onClick={menuActions.onOpen}
-            >
-              <Iconify icon="eva:more-vertical-fill" />
-            </IconButton> */}
 		</Box>
 	);
 };
