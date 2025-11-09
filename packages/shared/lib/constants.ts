@@ -24,6 +24,8 @@ const RESOURCE = {
 	shortUrl: 'short-url',
 	staffMembers: 'staff-members',
 	tenantUSers: 'tenant-users',
+	profiles: 'profiles',
+	invitations: 'invitations',
 } as const;
 
 const ROOTS = {
@@ -50,6 +52,13 @@ export const FRONT_PATH_NAMES = {
 	},
 	staff: {
 		root: makePath(ROOTS.STAFF),
+		profiles: {
+			root: makePath(ROOTS.STAFF, RESOURCE.profiles),
+			new: makePath(ROOTS.STAFF, RESOURCE.profiles, 'new'),
+			details: (profileId = '') => {
+				return makePath(ROOTS.STAFF, RESOURCE.profiles, 'details', profileId);
+			},
+		},
 		tenants: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
 			new: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
@@ -109,7 +118,15 @@ export const FRONT_PATH_NAMES = {
 			},
 		},
 		invitations: {
-			root: makePath(ROOTS.STAFF, 'invitations'),
+			root: makePath(ROOTS.STAFF, RESOURCE.invitations),
+			details: (invitationId = '') => {
+				return makePath(
+					ROOTS.STAFF,
+					RESOURCE.invitations,
+					'details',
+					invitationId,
+				);
+			},
 		},
 		backgroundJobs: {
 			root: makePath(ROOTS.STAFF, 'background-jobs'),

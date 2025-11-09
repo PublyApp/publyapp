@@ -5,6 +5,8 @@ import { useCallback } from 'react';
 // import { useAuthContext } from 'src/auth/hooks';
 import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
+import { logger } from '@/shared/lib/logger/iso-logger';
+import { getErrorMessage } from '@/shared/utils/error.utils';
 
 // ----------------------------------------------------------------------
 
@@ -29,7 +31,7 @@ export const SignOutButton = ({ onClose, sx, ...other }: Props) => {
 			onClose?.();
 			router.refresh();
 		} catch (error) {
-			console.error(error);
+			logger.error(getErrorMessage(error), { error });
 			toast.error('Unable to logout!');
 		}
 	}, [onClose, router]);

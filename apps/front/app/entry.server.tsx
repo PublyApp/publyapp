@@ -24,6 +24,8 @@ import {
 } from '@/shared/lib/constants';
 import { getCorrectLocale } from '@/shared/lib/i18n/i18n.utils';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
+import { logger } from '@/shared/lib/logger/iso-logger';
+import { getErrorMessage } from '@/shared/utils/error.utils';
 import { NonceProvider } from './hooks/use-nonce';
 import { iniI18nOnServer } from './lib/i18n/init-i18n.server';
 
@@ -151,7 +153,7 @@ const handleRequest = async (
 					// errors encountered during initial shell rendering since they'll
 					// reject and get logged in handleDocumentRequest.
 					if (shellRendered) {
-						console.error(error);
+						logger.error(getErrorMessage(error), { error });
 					}
 				},
 			},

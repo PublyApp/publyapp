@@ -22,7 +22,7 @@
  *
  * function Component() {
  *   const nonce = useNonce();
- *   return <script nonce={nonce}>console.log('Allowed by CSP');</script>;
+ *   return <script nonce={nonce}>logger.log('Allowed by CSP');</script>;
  * }
  */
 import { createContext, useContext } from 'react';

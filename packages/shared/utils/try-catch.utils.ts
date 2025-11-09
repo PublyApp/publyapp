@@ -1,4 +1,6 @@
+import { logger } from '../lib/logger/iso-logger';
 import { isAsyncFunction, isPromise } from './any.utils';
+import { getErrorMessage } from './error.utils';
 
 // biome-ignore lint/suspicious/noExplicitAny: return type can be anything
 type Handler = (error: unknown) => any;
@@ -10,9 +12,8 @@ type ErrorHandler<T extends GenericFunction = () => any> =
 	ReturnType<T> extends PromiseLike<any> ? Handler | AsyncHandler : Handler;
 
 const defaultErrorHandler: ErrorHandler = (error) => {
-	console.warn('You may want to define a custom error handler');
-	console.error(error);
-	console.trace(error);
+	logger.warn('You may want to define a custom error handler');
+	logger.error(getErrorMessage(error), { error });
 };
 
 /**
