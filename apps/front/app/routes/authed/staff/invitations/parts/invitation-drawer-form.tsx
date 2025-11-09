@@ -138,17 +138,8 @@ const InvitationDrawerForm = ({ open, onClose }: Props) => {
 								}),
 							},
 						}}
-						renderInput={(params) => {
-							return (
-								<TextField
-									{...params}
-									error={!!form.formState.errors.profileIds}
-									helperText={form.formState.errors.profileIds?.message}
-									label={t('profiles')}
-									placeholder={t('select-profiles')}
-								/>
-							);
-						}}
+						label={t('profiles')}
+						placeholder={t('select-profiles')}
 						renderOption={(props, option, { selected }) => {
 							return (
 								<li {...props} key={option.value}>
