@@ -65,7 +65,6 @@ const TenantsTable = () => {
 			columnHelper.accessor('name', {
 				header: t('name'),
 				Cell: TenantCell,
-				// grow: 1,
 				size: 300,
 			}),
 			columnHelper.accessor('usersCount', {
