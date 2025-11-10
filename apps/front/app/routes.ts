@@ -4,8 +4,8 @@ import {
 	index,
 	layout,
 	prefix,
-	type RouteConfig,
 	route,
+	type RouteConfig,
 } from '@react-router/dev/routes';
 
 const routes = [
@@ -122,9 +122,26 @@ const routes = [
 						),
 						route(
 							getLastPath(
-								FRONT_PATH_NAMES.staff.profiles.details(':profileId'),
+								FRONT_PATH_NAMES.staff.profiles.details(':profileId').root,
+								2,
 							),
-							'routes/authed/staff/profiles/details/staff-profile-details-page.tsx',
+							'routes/authed/staff/profiles/details/_layout/staff-profile-details-layout.tsx',
+							[
+								index(
+									'routes/authed/staff/profiles/details/basics/staff-profile-details-basics-tab-page.tsx',
+								),
+								route(
+									getLastPath(
+										FRONT_PATH_NAMES.staff.profiles.details(':profileId').tabs
+											.users,
+									),
+									'routes/authed/staff/profiles/details/users/staff-profile-details-users-tab-page.tsx',
+								),
+								route(
+									'*',
+									'routes/authed/staff/profiles/details/_errors/staff-profile-details-fallback-tab-page.tsx',
+								),
+							],
 						),
 					]),
 				]),

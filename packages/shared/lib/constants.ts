@@ -56,7 +56,24 @@ export const FRONT_PATH_NAMES = {
 			root: makePath(ROOTS.STAFF, RESOURCE.profiles),
 			new: makePath(ROOTS.STAFF, RESOURCE.profiles, 'new'),
 			details: (profileId = '') => {
-				return makePath(ROOTS.STAFF, RESOURCE.profiles, 'details', profileId);
+				return {
+					root: makePath(ROOTS.STAFF, RESOURCE.profiles, 'details', profileId),
+					tabs: {
+						basicsAndPermissions: makePath(
+							ROOTS.STAFF,
+							RESOURCE.profiles,
+							'details',
+							profileId,
+						),
+						users: makePath(
+							ROOTS.STAFF,
+							RESOURCE.profiles,
+							'details',
+							profileId,
+							'users',
+						),
+					},
+				};
 			},
 		},
 		tenants: {
