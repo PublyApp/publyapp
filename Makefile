@@ -73,6 +73,7 @@ help:
 	@echo "  clean       - Clean all build artifacts"
 	@echo "  clean-api   - Clean API build artifacts"
 	@echo "  clean-front - Clean frontend build artifacts"
+	@echo "  clean-tx-gen - Clean TranslationKeyGenerator artifacts (fix file lock issues)"
 
 # =============================================================================
 # INSTALLATION
@@ -267,6 +268,12 @@ clean-api:
 	@$(RM) $(API_DIR)/bin
 	@$(RM) $(API_DIR)/obj
 	@$(RM) $(API_DIR)/publish
+
+clean-tx-gen:
+	@echo "Cleaning TranslationKeyGenerator build artifacts..."
+	cd packages/_tx-key-gen && dotnet clean
+	@$(RM) packages/_tx-key-gen/bin
+	@$(RM) packages/_tx-key-gen/obj
 
 clean-front:
 	@echo "Cleaning frontend build artifacts..."
