@@ -51,15 +51,19 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 				'cookie',
 				'isbot',
 				'serialize-error',
+				// ====
 				'@mui/system',
 				'@mui/material',
 				'@mui/utils',
 				'@mui/icons-material',
 				'@mui/styled-engine',
+				// ====
 				'@mui/x-date-pickers',
 				'@mui/x-data-grid',
 				'@mui/x-tree-view',
+				// ====
 				'mui-one-time-password-input',
+				'@tiptap/extension-code-block-lowlight',
 			],
 		},
 		ssr: {
@@ -86,15 +90,5 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 							'@tiptap/extension-code-block-lowlight',
 						],
 		},
-		resolve:
-			// https://github.com/remix-run/react-router/issues/12568#issuecomment-2629986004
-			// process.env.NODE_ENV === 'development'
-			mode === 'development'
-				? {}
-				: {
-						alias: {
-							'react-dom/server': 'react-dom/server.node',
-						},
-					},
 	};
 });
