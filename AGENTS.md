@@ -1095,3 +1095,24 @@ Configuration in `dokploy.yml`.
 ## OpenAPI Documentation
 
 Interactive API documentation available at `/scalar/v1` when API is running. This is the source of truth for the API contract and drives TypeScript client generation.
+
+## Documentation Organization
+
+**CRITICAL:** When generating documentation files during chat sessions (implementation plans, refactoring guides, roadmaps, reviews, etc.), you MUST organize them intelligently in the `docs/` directory to make them easy to find later.
+
+**Guidelines:**
+
+- **NEVER place generated documentation files at the repository root**
+- **Organize by relevance and type** - Create or use subdirectories that make logical sense for the document type
+- **Use existing subdirectories when appropriate** - Check `docs/` for existing folders before creating new ones
+- **Create new subdirectories as needed** - You have full freedom to create new organizational structures that improve searchability
+- **Use descriptive folder names** - Use kebab-case names that clearly indicate the content type (e.g., `implementation-plans`, `architecture-decisions`, `api-designs`, `database-schemas`, `performance-analysis`)
+
+**Existing subdirectories** (as examples, not prescriptive):
+- `docs/implementation-plans/` - Detailed plans for implementing features
+- `docs/refactoring-guides/` - Guides for refactoring existing code
+- `docs/roadmaps/` - Project roadmaps and milestone planning
+- `docs/reviews/` - Code reviews, architecture reviews, design reviews
+- `docs/misc/` - Miscellaneous documentation
+
+**Principle:** Organize intelligently so that developers can easily find relevant documentation by browsing the `docs/` folder structure. Think about how someone would search for this document later.
