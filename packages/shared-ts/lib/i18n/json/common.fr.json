@@ -212,5 +212,12 @@
 	"select-profiles": "Sélectionner les profils",
 	"send-invitation": "Envoyer l'invitation",
 	"staff-profiles": "Profils du staff",
-	"roles": "Rôles"
+	"roles": "Rôles",
+	"profile-details": "Détails du profil",
+	"basics-and-permissions": "Bases & permissions",
+	"assign-user": "Assigner user",
+	"create-profile": "Créer profil",
+	"basic-infos": "Infos de base",
+	"description": "Description",
+	"permissions": "Permissions"
 }
