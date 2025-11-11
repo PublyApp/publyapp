@@ -215,5 +215,9 @@
 	"roles": "Rôles",
 	"profile-details": "Détails du profil",
 	"basics-and-permissions": "Bases & permissions",
-	"assign-user": "Assigner user"
+	"assign-user": "Assigner user",
+	"create-profile": "Créer profil",
+	"basic-infos": "Infos de base",
+	"description": "Description",
+	"permissions": "Permissions"
 }
