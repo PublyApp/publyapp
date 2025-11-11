@@ -52,3 +52,5 @@ packages/*/dist
 .pnpm-store/
 
 .dump/
+
+nul
