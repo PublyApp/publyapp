@@ -8,14 +8,213 @@
 
 ## Table of Contents
 
-1. [Overview](#overview)
-2. [Database Schema Changes](#database-schema-changes)
-3. [Entity Implementation](#entity-implementation)
-4. [Code Changes](#code-changes)
-5. [Migration Strategy](#migration-strategy)
-6. [Seeding Strategy](#seeding-strategy)
-7. [Validation & Constraints](#validation--constraints)
-8. [Testing Checklist](#testing-checklist)
+1. [⚠️ CRITICAL: Common Mistakes to Avoid](#️-critical-common-mistakes-to-avoid)
+2. [Overview](#overview)
+3. [Database Schema Changes](#database-schema-changes)
+4. [Entity Implementation](#entity-implementation)
+5. [Code Changes](#code-changes)
+6. [Migration Strategy](#migration-strategy)
+7. [Seeding Strategy](#seeding-strategy)
+8. [Validation & Constraints](#validation--constraints)
+9. [Testing Checklist](#testing-checklist)
+
+---
+
+## ⚠️ CRITICAL: Common Mistakes to Avoid
+
+**READ THIS FIRST** - These are real bugs found in previous implementations. Following these rules prevents critical runtime errors.
+
+### 🔴 MISTAKE #1: Not Setting Foreign Key in Constructor
+
+**❌ WRONG** (causes runtime errors):
+```csharp
+// In Permission constructor
+Key = key;
+Scope = scope;
+Category = category;
+// Note: PermissionCategoryId will be set automatically by EF Core ← THIS IS FALSE!
+```
+
+**✅ CORRECT**:
+```csharp
+Key = key;
+Scope = scope;
+PermissionCategoryId = category.GetRequiredId(); // ← MUST set FK explicitly
+Category = category;
+```
+
+**Why**: EF Core does NOT auto-populate FK from navigation property during object construction. Object will be in invalid state until SaveChanges.
+
+---
+
+### 🔴 MISTAKE #2: Mutating Static readonly Objects
+
+**❌ WRONG** (causes state pollution):
+```csharp
+// In PermissionSeeder
+foreach (var permission in permissionsToAdd) {
+    permission.Category = dbCategory;  // ← Mutating static object!
+    permission.PermissionCategoryId = dbCategory.Id;
+}
+```
+
+**✅ CORRECT**:
+```csharp
+// Work with database entities, not static definitions
+var existingPermission = await dbContext.Permission.FindAsync(permission.Key);
+if (existingPermission != null) {
+    existingPermission.PermissionCategoryId = dbCategory.Id;  // ← Mutate DB entity, not static
+}
+```
+
+**Why**: Static readonly objects are shared across application lifetime. Mutating them causes unpredictable behavior.
+
+---
+
+### 🔴 MISTAKE #3: Missing `required` Keywords
+
+**❌ WRONG** (loses compile-time safety):
+```csharp
+public string Key { get; set; } = string.Empty;
+public Guid PermissionCategoryId { get; set; }
+```
+
+**✅ CORRECT**:
+```csharp
+public required string Key { get; set; } = string.Empty;
+public required Guid PermissionCategoryId { get; set; }
+```
+
+**Why**: Without `required`, you can create invalid objects. Always mark non-nullable properties as required.
+
+---
+
+### 🔴 MISTAKE #4: Not Initializing Timestamps in Constructor
+
+**❌ WRONG** (object in invalid state):
+```csharp
+private PermissionCategory(string key, string name, string description, PermissionScope scope) {
+    Key = key.ToUpper();
+    Name = name;
+    Description = description;
+    Scope = scope;
+    // CreatedAt, UpdatedAt, IsDeleted are not initialized!
+}
+```
+
+**✅ CORRECT**:
+```csharp
+private PermissionCategory(string key, string name, string description, PermissionScope scope) {
+    Key = key.ToUpper();
+    Name = name;
+    Description = description;
+    Scope = scope;
+
+    // Initialize BaseAttributes timestamps
+    CreatedAt = DateTime.UtcNow;
+    UpdatedAt = DateTime.UtcNow;
+    IsDeleted = false;
+    DeletedAt = null;
+}
+```
+
+**Why**: Object should be valid immediately after construction, not just after SaveChanges.
+
+---
+
+### 🔴 MISTAKE #5: Incorrect Equals/GetHashCode Implementation
+
+**❌ WRONG** (breaks Dictionary/HashSet usage):
+```csharp
+public override bool Equals(object? obj) {
+    return obj is PermissionCategory other && Key == other.Key;  // Case-sensitive!
+}
+
+public override int GetHashCode() {
+    return Key.GetHashCode();  // Case-sensitive hash!
+}
+```
+
+**✅ CORRECT**:
+```csharp
+public override bool Equals(object? obj) {
+    return obj is PermissionCategory other &&
+           string.Equals(Key, other.Key, StringComparison.OrdinalIgnoreCase);
+}
+
+public override int GetHashCode() {
+    return StringComparer.OrdinalIgnoreCase.GetHashCode(Key ?? string.Empty);
+}
+```
+
+**Why**: Keys are normalized to uppercase, but comparisons should be case-insensitive for robustness.
+
+---
+
+### 🔴 MISTAKE #6: Complex SQL Pattern Matching in Migrations
+
+**❌ WRONG** (fragile and hard to maintain):
+```csharp
+// In migration
+migrationBuilder.Sql($@"
+    UPDATE permissions
+    SET permission_category_id = '{staffTenantsId}'
+    WHERE key LIKE '%tenant%' AND scope = 0;
+");
+// More complex pattern matching...
+```
+
+**✅ CORRECT**:
+```csharp
+// In migration - simple fallback
+migrationBuilder.Sql($@"
+    UPDATE permissions
+    SET permission_category_id = '{fallbackCategoryId}'
+    WHERE permission_category_id IS NULL;
+");
+// Let PermissionSeeder handle proper assignment on app startup
+```
+
+**Why**: Migrations should only handle schema. Data logic belongs in seeders where it's testable and maintainable.
+
+---
+
+### 🔴 MISTAKE #7: Seeder Only Handles New Permissions
+
+**❌ WRONG** (doesn't fix migration fallback assignments):
+```csharp
+public async Task SeedAsync(MainApiDbContext dbContext) {
+    var existingKeys = await dbContext.Permission.Select(p => p.Key).ToHashSetAsync();
+    var permissionsToAdd = definedPermissions.Where(p => !existingKeys.Contains(p.Key));
+
+    // Only adds NEW permissions - doesn't update existing ones!
+    await dbContext.Permission.AddRangeAsync(permissionsToAdd);
+}
+```
+
+**✅ CORRECT**:
+```csharp
+public async Task SeedAsync(MainApiDbContext dbContext) {
+    var existingPermissions = await dbContext.Permission
+        .Include(p => p.Category)
+        .ToDictionaryAsync(p => p.Key);
+
+    foreach (var definedPermission in definedPermissions) {
+        if (existingPermissions.TryGetValue(definedPermission.Key, out var existing)) {
+            // UPDATE existing permission's category if needed
+            if (existing.PermissionCategoryId != dbCategory.Id) {
+                existing.PermissionCategoryId = dbCategory.Id;
+                permissionsToUpdate.Add(existing);
+            }
+        } else {
+            // ADD new permission
+            permissionsToAdd.Add(definedPermission);
+        }
+    }
+}
+```
+
+**Why**: Seeder must reassign existing permissions from migration fallback category to correct categories.
 
 ---
 
@@ -111,17 +310,17 @@ namespace MainApi.Src.Features.Common.Permission;
 public class PermissionCategory : BaseAttributes, INoTenantEntity {
     [Column("key")]
     [MaxLength(255)]
-    public required string Key { get; set; } = string.Empty;
+    public required string Key { get; set; } = string.Empty;  // ⚠️ MUST use 'required' keyword!
 
     [Column("name")]
     [MaxLength(500)]
-    public required string Name { get; set; } = string.Empty;
+    public required string Name { get; set; } = string.Empty;  // ⚠️ MUST use 'required' keyword!
 
     [Column("description")]
-    public required string Description { get; set; } = string.Empty;
+    public required string Description { get; set; } = string.Empty;  // ⚠️ MUST use 'required' keyword!
 
     [Column("scope")]
-    public required PermissionScope Scope { get; set; }
+    public required PermissionScope Scope { get; set; }  // ⚠️ MUST use 'required' keyword!
 
     // Navigation properties
     [JsonIgnore]
@@ -152,6 +351,13 @@ public class PermissionCategory : BaseAttributes, INoTenantEntity {
         Name = name;
         Description = description;
         Scope = scope;
+
+        // ⚠️ CRITICAL: Initialize BaseAttributes timestamps (Mistake #4)
+        // Object MUST be valid immediately after construction!
+        CreatedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+        IsDeleted = false;
+        DeletedAt = null;
     }
 
     // Factory methods
@@ -167,13 +373,15 @@ public class PermissionCategory : BaseAttributes, INoTenantEntity {
         return new PermissionCategory(key, name, description, PermissionScope.Project);
     }
 
-    // Equality by Key (for seeders and comparisons)
+    // ⚠️ CRITICAL: Equality by Key (case-insensitive for robustness) - Mistake #5
+    // MUST use StringComparer for case-insensitive comparison!
     public override bool Equals(object? obj) {
-        return obj is PermissionCategory other && Key == other.Key;
+        return obj is PermissionCategory other &&
+               string.Equals(Key, other.Key, StringComparison.OrdinalIgnoreCase);
     }
 
     public override int GetHashCode() {
-        return Key.GetHashCode();
+        return StringComparer.OrdinalIgnoreCase.GetHashCode(Key ?? string.Empty);
     }
 }
 
@@ -264,6 +472,12 @@ public static class PermissionCategoryEnum {
 
 **File**: `apps/api/Src/Features/Common/Permission/Permission.cs`
 
+**CRITICAL IMPLEMENTATION NOTES**:
+1. ✅ **DO** set `PermissionCategoryId` explicitly in constructor (line 330)
+2. ✅ **DO** mark `PermissionCategoryId` as `required` (line 287)
+3. ❌ **DON'T** rely on EF Core to auto-populate FK from navigation property
+4. ❌ **DON'T** leave object in invalid state after construction
+
 ```csharp
 using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations;
@@ -284,7 +498,7 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 
     // NEW: Required foreign key to PermissionCategory
     [Column("permission_category_id")]
-    public required Guid PermissionCategoryId { get; set; }
+    public required Guid PermissionCategoryId { get; set; }  // ⚠️ MUST use 'required' keyword! (Mistake #3)
 
     // Navigation properties
     [JsonIgnore]
@@ -327,6 +541,8 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 
         Key = key;
         Scope = scope;
+        // ⚠️ CRITICAL: MUST set PermissionCategoryId explicitly! (Mistake #1)
+        // EF Core does NOT auto-populate FK from navigation property!
         PermissionCategoryId = category.GetRequiredId();
         Category = category;
     }
@@ -530,6 +746,15 @@ No additional configuration needed in OnModelCreating.
 
 ## Migration Strategy
 
+### Philosophy: Keep Migrations Simple
+
+**IMPORTANT**: Migrations should only handle **schema changes**, not data population. This approach:
+- Makes migrations easier to maintain and debug
+- Avoids complex SQL logic in generated files
+- Lets seeders handle data (where they belong)
+- Makes rollbacks safer and more predictable
+- Follows separation of concerns principle
+
 ### Step 5: Create Migration
 
 **Command**:
@@ -540,6 +765,12 @@ dotnet ef migrations add AddPermissionCategoriesWithScopeConstraint --project ap
 ### Migration Implementation
 
 **File**: `apps/api/Migrations/[timestamp]_AddPermissionCategoriesWithScopeConstraint.cs`
+
+**Key Points**:
+- Migration creates schema only
+- Creates a single "fallback" category for existing permissions
+- Seeders will reassign permissions to correct categories on app startup
+- No complex SQL pattern matching needed
 
 ```csharp
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -589,65 +820,27 @@ namespace MainApi.Migrations
                 column: "scope");
 
             // ====================================================================
-            // STEP 3: Seed default categories (required for existing permissions)
+            // STEP 3: Create a temporary fallback category for data migration
+            // Note: PermissionCategorySeeder will create proper categories and
+            // PermissionSeeder will reassign permissions correctly on app startup
             // ====================================================================
-            // Note: We need to seed categories here so existing permissions can reference them
-
-            var staffTenantsId = Guid.NewGuid();
-            var staffUsersId = Guid.NewGuid();
-            var staffProfilesId = Guid.NewGuid();
-            var staffStaffMembersId = Guid.NewGuid();
+            var fallbackCategoryId = Guid.NewGuid();
             var now = DateTime.UtcNow;
 
             migrationBuilder.InsertData(
                 table: "permission_categories",
                 columns: new[] { "id", "key", "name", "description", "scope", "created_at", "updated_at", "is_deleted", "deleted_at" },
-                values: new object[,]
+                values: new object[]
                 {
-                    {
-                        staffTenantsId,
-                        "STAFF_TENANTS",
-                        "Tenant Management",
-                        "Permissions related to managing tenants in the system",
-                        0, // Staff scope
-                        now,
-                        now,
-                        false,
-                        null
-                    },
-                    {
-                        staffUsersId,
-                        "STAFF_USERS",
-                        "User Management",
-                        "Permissions related to managing users in the system",
-                        0, // Staff scope
-                        now,
-                        now,
-                        false,
-                        null
-                    },
-                    {
-                        staffProfilesId,
-                        "STAFF_PROFILES",
-                        "Profile Management",
-                        "Permissions related to managing profiles and roles",
-                        0, // Staff scope
-                        now,
-                        now,
-                        false,
-                        null
-                    },
-                    {
-                        staffStaffMembersId,
-                        "STAFF_STAFF_MEMBERS",
-                        "Staff Member Management",
-                        "Permissions related to managing staff members",
-                        0, // Staff scope
-                        now,
-                        now,
-                        false,
-                        null
-                    }
+                    fallbackCategoryId,
+                    "MIGRATION_FALLBACK",
+                    "Migration Fallback Category",
+                    "Temporary category for existing permissions during migration. Will be reassigned by seeders.",
+                    0, // Staff scope (most existing permissions are staff scope)
+                    now,
+                    now,
+                    false,
+                    null
                 });
 
             // ====================================================================
@@ -660,41 +853,13 @@ namespace MainApi.Migrations
                 nullable: true);
 
             // ====================================================================
-            // STEP 5: Assign categories to existing permissions based on key patterns
+            // STEP 5: Assign all existing permissions to fallback category
+            // Note: This is temporary. PermissionSeeder will reassign to correct
+            // categories on next app startup based on PermissionEnum definitions.
             // ====================================================================
-
-            // Assign TENANTS category
             migrationBuilder.Sql($@"
                 UPDATE permissions
-                SET permission_category_id = '{staffTenantsId}'
-                WHERE key LIKE '%tenant%' AND scope = 0;
-            ");
-
-            // Assign USERS category
-            migrationBuilder.Sql($@"
-                UPDATE permissions
-                SET permission_category_id = '{staffUsersId}'
-                WHERE key LIKE '%user%' AND scope = 0;
-            ");
-
-            // Assign PROFILES category
-            migrationBuilder.Sql($@"
-                UPDATE permissions
-                SET permission_category_id = '{staffProfilesId}'
-                WHERE key LIKE '%profile%' AND scope = 0;
-            ");
-
-            // Assign STAFF_MEMBERS category
-            migrationBuilder.Sql($@"
-                UPDATE permissions
-                SET permission_category_id = '{staffStaffMembersId}'
-                WHERE key LIKE '%staff%' AND scope = 0;
-            ");
-
-            // Any remaining unassigned permissions get STAFF_TENANTS as default
-            migrationBuilder.Sql($@"
-                UPDATE permissions
-                SET permission_category_id = '{staffTenantsId}'
+                SET permission_category_id = '{fallbackCategoryId}'
                 WHERE permission_category_id IS NULL;
             ");
 
@@ -771,6 +936,15 @@ namespace MainApi.Migrations
     }
 }
 ```
+
+### Why This Approach Is Better
+
+1. **Simplicity**: Migration only handles schema, one simple SQL statement for data
+2. **Maintainability**: No complex pattern matching logic to debug
+3. **Testability**: Seeders are easier to unit test than SQL in migrations
+4. **Flexibility**: Easy to change category assignments without creating new migrations
+5. **Safety**: Less risk of data corruption from pattern matching errors
+6. **Separation of Concerns**: Schema changes in migrations, data in seeders
 
 ---
 
@@ -872,6 +1046,11 @@ public class PermissionCategorySeeder : IEntitySeeder {
 
 **File**: `apps/api/Src/Features/Common/Permission/PermissionSeeder.cs`
 
+**Key Responsibilities**:
+1. Add new permissions defined in PermissionEnum
+2. Update category assignments for existing permissions (handles migration from fallback category)
+3. Validate scope alignment before saving
+
 ```csharp
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
@@ -894,48 +1073,74 @@ public class PermissionSeeder : IEntitySeeder {
             return;
         }
 
-        // Get existing permissions from database
-        var existingPermissionKeys = await dbContext.Permission
+        // Get all categories from database for validation and reference
+        var categoriesFromDb = await dbContext.PermissionCategory
+            .Where(c => !c.IsDeleted)
+            .ToDictionaryAsync(c => c.Key, c => c, cancellationToken);
+
+        // ⚠️ CRITICAL: Get existing permissions from database (Mistake #7)
+        // We MUST handle both new AND existing permissions!
+        // This reassigns existing permissions from fallback category to correct ones.
+        var existingPermissions = await dbContext.Permission
+            .Include(p => p.Category)
             .Where(p => !p.IsDeleted)
-            .Select(p => p.Key)
-            .ToHashSetAsync(cancellationToken);
+            .ToDictionaryAsync(p => p.Key, p => p, cancellationToken);
 
-        // Filter out permissions that already exist
-        var permissionsToAdd = definedPermissions
-            .Where(p => !existingPermissionKeys.Contains(p.Key))
-            .ToList();
+        var permissionsToAdd = new List<Permission>();
+        var permissionsToUpdate = new List<Permission>();
 
-        if (permissionsToAdd.Count == 0) {
-            Console.WriteLine("No new permissions to add.");
-            return;
-        }
-
-        // CRITICAL: Validate scope alignment before adding
-        foreach (var permission in permissionsToAdd) {
-            // Fetch the actual category from database to verify scope
-            var category = await dbContext.PermissionCategory
-                .FirstOrDefaultAsync(c => c.Id == permission.PermissionCategoryId, cancellationToken);
-
-            if (category == null) {
+        foreach (var definedPermission in definedPermissions) {
+            // Get the actual category from database
+            var categoryKey = definedPermission.Category.Key;
+            if (!categoriesFromDb.TryGetValue(categoryKey, out var dbCategory)) {
                 throw new InvalidOperationException(
-                    $"Permission '{permission.Key}' references non-existent category ID '{permission.PermissionCategoryId}'. " +
+                    $"Permission '{definedPermission.Key}' references non-existent category '{categoryKey}'. " +
                     $"Ensure PermissionCategorySeeder runs before PermissionSeeder."
                 );
             }
 
-            if (category.Scope != permission.Scope) {
+            // Validate scope alignment
+            if (dbCategory.Scope != definedPermission.Scope) {
                 throw new InvalidOperationException(
-                    $"Permission '{permission.Key}' has scope {permission.Scope} but is assigned to " +
-                    $"category '{category.Key}' with scope {category.Scope}. Scope mismatch detected!"
+                    $"Permission '{definedPermission.Key}' has scope {definedPermission.Scope} but is assigned to " +
+                    $"category '{categoryKey}' with scope {dbCategory.Scope}. Scope mismatch detected!"
                 );
+            }
+
+            if (existingPermissions.TryGetValue(definedPermission.Key, out var existingPermission)) {
+                // ⚠️ CRITICAL: Permission exists - UPDATE database entity (Mistake #2)
+                // We update the DB entity, NOT the static readonly object!
+                if (existingPermission.PermissionCategoryId != dbCategory.Id) {
+                    existingPermission.PermissionCategoryId = dbCategory.Id;
+                    existingPermission.Category = dbCategory;
+                    existingPermission.UpdatedAt = DateTime.UtcNow;
+                    permissionsToUpdate.Add(existingPermission);
+                }
+            } else {
+                // New permission - set correct category reference
+                // Note: definedPermission here is a NEW object from static field
+                // It's safe to set properties on it before adding to DB
+                definedPermission.PermissionCategoryId = dbCategory.Id;
+                definedPermission.Category = dbCategory;
+                permissionsToAdd.Add(definedPermission);
             }
         }
 
-        // Add new permissions
-        await dbContext.Permission.AddRangeAsync(permissionsToAdd, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        // Save changes
+        if (permissionsToAdd.Count > 0) {
+            await dbContext.Permission.AddRangeAsync(permissionsToAdd, cancellationToken);
+        }
 
-        Console.WriteLine($"Successfully seeded {permissionsToAdd.Count} new permissions.");
+        if (permissionsToUpdate.Count > 0) {
+            dbContext.Permission.UpdateRange(permissionsToUpdate);
+        }
+
+        if (permissionsToAdd.Count > 0 || permissionsToUpdate.Count > 0) {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            Console.WriteLine($"Permissions seeded successfully. Added: {permissionsToAdd.Count}, Updated: {permissionsToUpdate.Count}");
+        } else {
+            Console.WriteLine("No permission changes needed.");
+        }
     }
 
     private static IEnumerable<Permission> GetAllPermissions() {
@@ -1158,17 +1363,115 @@ var categories = await dbContext.PermissionCategory
 
 ---
 
+## Key Architectural Decisions
+
+### 1. Separation of Concerns: Schema vs Data
+
+**Decision**: Migrations handle ONLY schema changes; seeders handle ALL data population.
+
+**Rationale**:
+- Migrations are generated files - complex logic makes them hard to maintain
+- Seeders are testable, migrations are not
+- Data logic belongs in application layer, not in SQL
+- Easier to modify category assignments without new migrations
+- Safer rollbacks
+
+**Implementation**:
+- Migration creates fallback category and assigns all existing permissions to it
+- PermissionSeeder reassigns permissions to correct categories on app startup
+- Simple, predictable, maintainable
+
+### 2. Explicit Foreign Key Assignment
+
+**Decision**: Always set `PermissionCategoryId` explicitly in constructor (line 330 of Permission.cs).
+
+**Rationale**:
+- EF Core does NOT auto-populate FK from navigation property during object construction
+- Fail-fast principle - object should be valid immediately after construction
+- Prevents runtime errors
+- Makes code intent clear
+
+**Anti-Pattern to Avoid**:
+```csharp
+// ❌ DON'T DO THIS
+Category = category;
+// PermissionCategoryId will be null here - WRONG!
+```
+
+**Correct Pattern**:
+```csharp
+// ✅ DO THIS
+PermissionCategoryId = category.GetRequiredId();
+Category = category;
+```
+
+### 3. Immutability of Static Objects
+
+**Decision**: Never mutate static `readonly` Permission objects in PermissionSeeder.
+
+**Rationale**:
+- Static objects are shared across application lifetime
+- Mutation causes state pollution
+- Unpredictable behavior in multi-threaded scenarios
+- Violates immutability principle
+
+**Implementation**:
+- PermissionSeeder loads permissions from static definitions
+- Updates database entities (not static objects)
+- Static objects remain immutable source of truth
+
+### 4. Required Keywords for Compile-Time Safety
+
+**Decision**: Use `required` keyword on all non-nullable properties.
+
+**Implementation**:
+```csharp
+public required string Key { get; set; } = string.Empty;
+public required Guid PermissionCategoryId { get; set; }
+```
+
+**Benefits**:
+- Compile-time validation
+- Prevents invalid object creation
+- Clear API contract
+- Better IDE support
+
+### 5. Timestamp Initialization in Constructors
+
+**Decision**: Initialize `CreatedAt` and `UpdatedAt` in entity constructors.
+
+**Rationale**:
+- Object should be valid immediately after construction
+- While SaveChanges updates these, object shouldn't exist in invalid state
+- Consistent with BaseAttributes contract
+- Defensive programming
+
+### 6. Case-Insensitive Equality for Keys
+
+**Decision**: Use `StringComparer.OrdinalIgnoreCase` for equality comparisons.
+
+**Rationale**:
+- Keys are normalized to uppercase in constructor
+- But comparisons should be resilient to case differences
+- Prevents bugs in Dictionary/HashSet usage
+- More robust than simple `==` operator
+
+---
+
 ## Summary
 
 This implementation plan provides:
 
-1. **Complete entity structure** for PermissionCategory
-2. **Updated Permission entity** with required FK and navigation
+1. **Complete entity structure** for PermissionCategory with proper initialization
+2. **Updated Permission entity** with required FK and robust validation
 3. **Three-layer scope validation** (factory, constructor, database)
-4. **Comprehensive migration** with data migration strategy
-5. **Automatic seeding** from code definitions
+4. **Clean migration strategy** - schema only, no complex SQL logic
+5. **Smart seeding system** - handles both new and existing permissions
 6. **Translation support** via Key property
-7. **Testing checklist** for thorough validation
+7. **Comprehensive testing checklist** for validation
+8. **Architectural best practices** - clear separation of concerns
+9. **Type safety** with `required` keywords throughout
+10. **Defensive programming** patterns to prevent common bugs
 
 ### Key Files to Create/Modify
 
@@ -1196,8 +1499,28 @@ This implementation plan provides:
 
 ## Next Steps
 
-1. Review this plan thoroughly
-2. Confirm all requirements are met
-3. Begin implementation following the order in this document
-4. Test each layer individually as implemented
-5. Run full integration tests after completion
+1. **⚠️ READ THE "COMMON MISTAKES TO AVOID" SECTION FIRST**
+2. Review this plan thoroughly
+3. Confirm all requirements are met
+4. Begin implementation following the order in this document
+5. Test each layer individually as implemented
+6. Run full integration tests after completion
+
+---
+
+## ⚠️ IMPORTANT: This Plan Contains Lessons Learned
+
+This implementation plan has been revised based on a **critical review of a previous implementation** that contained multiple bugs. See [REVIEW_PermissionCategory_Implementation.md](./REVIEW_PermissionCategory_Implementation.md) for detailed analysis.
+
+**All warnings marked with ⚠️ throughout this document are based on REAL bugs found in production code.**
+
+The mistakes documented at the top of this plan are NOT theoretical - they were actual issues that caused:
+- Runtime errors (Mistake #1)
+- State pollution and unpredictable behavior (Mistake #2)
+- Loss of compile-time safety (Mistake #3)
+- Objects in invalid states (Mistake #4)
+- Dictionary/HashSet bugs (Mistake #5)
+- Fragile migrations (Mistake #6)
+- Incomplete data migration (Mistake #7)
+
+**Follow this plan exactly** to avoid repeating these mistakes. Every warning comment in the code examples exists for a reason.
