@@ -41,7 +41,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	// Unified invitation system (Staff/Tenant/Project)
 	public DbSet<Invitation> Invitation { get; init; }
 
-	// Staff backoffice entities
+	// Staff back-office entities
 	public DbSet<AuditLog> AuditLog { get; init; }
 	public DbSet<SystemNotice> SystemNotice { get; init; }
 
@@ -132,7 +132,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	/// <summary>
 	/// Performs the reflection scan to find available seeders. Results are cached.
 	/// </summary>
-	private static IReadOnlyList<Type> DiscoverSeedersInternal() {
+	private static IReadOnlyList<System.Type> DiscoverSeedersInternal() {
 		var seederInterface = typeof(IEntitySeeder);
 		var assembly = typeof(MainApiDbContext).Assembly;
 
