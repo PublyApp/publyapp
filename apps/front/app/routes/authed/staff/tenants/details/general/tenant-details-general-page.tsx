@@ -4,6 +4,8 @@ import { useParams } from 'react-router';
 import { View500 } from '@/front/components/error/500-view';
 import QueryDisplay from '@/front/components/query-display';
 import { useGetTenant } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
+import { logger } from '@/shared/lib/logger/iso-logger';
+import { getErrorMessage } from '@/shared/utils/error.utils';
 import { TenantCreateOrEditFormSkeleton } from '../../components/tenant-create-form-skeleton';
 import { TenantCreateOrEditForm } from '../../components/tenant-create-or-edit-form';
 
@@ -31,7 +33,7 @@ const TenantDetailsGeneralPage = () => {
 export default TenantDetailsGeneralPage;
 
 const ErrorView: FC<{ error: unknown }> = ({ error }) => {
-	console.error(error);
+	logger.error(getErrorMessage(error), { error });
 	// const { t } = useTranslate();
 
 	// if (error instanceof ParseRestError) {

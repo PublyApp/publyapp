@@ -2,7 +2,7 @@ import { Icon, type IconProps } from '@iconify/react';
 import { styled } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 import { useId } from 'react';
-
+import { logger } from '@/shared/lib/logger/iso-logger';
 import { iconifyClasses } from './classes';
 import {
 	allIconNames,
@@ -28,12 +28,13 @@ export const Iconify = ({
 	const id = useId();
 
 	if (!allIconNames.includes(icon)) {
-		console.warn(
+		logger.warn(
 			[
 				`Icon "${icon}" is currently loaded online, which may cause flickering effects.`,
 				'To ensure a smoother experience, please register your icon collection for offline use.',
 				'More information is available at: https://docs.minimals.cc/icons/',
 			].join('\n'),
+			{ icon },
 		);
 	}
 

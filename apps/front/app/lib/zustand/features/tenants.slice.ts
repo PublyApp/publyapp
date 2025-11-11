@@ -1,3 +1,4 @@
+import { logger } from '@/shared/lib/logger/iso-logger';
 import Slice from '../utils/Slice';
 
 export type TenantsSliceValues = {
@@ -17,7 +18,7 @@ const defaultValues: TenantsSliceValues = {
 	// bear: 0,
 	createTenantForm: {
 		submit: () => {
-			console.warn('==== submit create new tenant ====');
+			logger.warn('==== submit create new tenant ====');
 		},
 		isSubmitting: false,
 	},
@@ -36,7 +37,7 @@ const tenantsSlice = new Slice<
 		return {
 			...defaultValues,
 			dummy: () => {
-				console.warn('==== Dummy ====');
+				logger.warn('==== Dummy ====');
 			},
 		};
 	},

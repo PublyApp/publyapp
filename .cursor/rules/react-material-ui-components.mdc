@@ -1,0 +1,311 @@
+# React Material-UI Component Usage
+
+## Rule Overview
+
+**CRITICAL:** This project uses Material-UI (MUI) v6 as the UI component library. Never use native HTML elements or components from other UI libraries (like shadcn/ui, Chakra UI, etc.).
+
+## Component Imports
+
+**Always import MUI components from `@mui/material/[ComponentName]`:**
+
+```tsx
+// ✅ CORRECT - Import MUI components individually
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+
+// ❌ WRONG - Never use native HTML elements for structure
+import { div, span, p } from 'react';
+
+// ❌ WRONG - Never use components from other UI libraries
+import { Card } from '@/components/ui/card';  // shadcn/ui
+import { Button } from '~/components/ui/button';  // shadcn/ui
+```
+
+## Component Mapping Reference
+
+Replace native HTML elements with MUI components:
+
+### Layout Components
+
+| Native HTML | MUI Component | Usage |
+|-------------|---------------|-------|
+| `<div>` | `<Box>` | Generic container |
+| `<main>` | `<Box component="main">` | Main content area |
+| `<section>` | `<Box component="section">` | Section container |
+| `<article>` | `<Box component="article">` | Article container |
+| `<header>` | `<Box component="header">` | Header container |
+| `<footer>` | `<Box component="footer">` | Footer container |
+
+**Example:**
+```tsx
+// ❌ WRONG
+<div className="container">
+  <div className="card">
+    <h1>Title</h1>
+  </div>
+</div>
+
+// ✅ CORRECT
+<Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+  <Card>
+    <CardContent>
+      <Typography variant="h1">Title</Typography>
+    </CardContent>
+  </Card>
+</Box>
+```
+
+### Typography Components
+
+| Native HTML | MUI Component | Variant |
+|-------------|---------------|---------|
+| `<h1>` | `<Typography variant="h1">` | Heading 1 |
+| `<h2>` | `<Typography variant="h2">` | Heading 2 |
+| `<h3>` | `<Typography variant="h3">` | Heading 3 |
+| `<h4>` | `<Typography variant="h4">` | Heading 4 |
+| `<h5>` | `<Typography variant="h5">` | Heading 5 |
+| `<h6>` | `<Typography variant="h6">` | Heading 6 |
+| `<p>` | `<Typography>` or `<Typography variant="body1">` | Paragraph |
+| `<span>` | `<Typography component="span">` | Inline text |
+| `<label>` | `<Typography component="label">` or use `InputLabel` | Form label |
+
+**Example:**
+```tsx
+// ❌ WRONG
+<div>
+  <h1 className="text-3xl font-bold">Title</h1>
+  <p className="text-muted-foreground">Description</p>
+</div>
+
+// ✅ CORRECT
+<Box>
+  <Typography variant="h1">Title</Typography>
+  <Typography variant="body2" color="text.secondary">
+    Description
+  </Typography>
+</Box>
+```
+
+### Form Components
+
+| Native HTML | MUI Component |
+|-------------|---------------|
+| `<input type="text">` | `<TextField>` |
+| `<input type="email">` | `<TextField type="email">` |
+| `<input type="password">` | `<TextField type="password">` |
+| `<input type="number">` | `<TextField type="number">` |
+| `<input type="checkbox">` | `<Checkbox>` |
+| `<input type="radio">` | `<Radio>` with `<RadioGroup>` |
+| `<select>` | `<Select>` with `<MenuItem>` |
+| `<textarea>` | `<TextField multiline>` |
+| `<button>` | `<Button>` |
+| `<label>` | `<InputLabel>` or `<FormLabel>` |
+
+**Example:**
+```tsx
+// ❌ WRONG
+<form className="space-y-4">
+  <div>
+    <label htmlFor="email">Email</label>
+    <input id="email" type="email" />
+  </div>
+  <button type="submit">Submit</button>
+</form>
+
+// ✅ CORRECT
+<Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+  <TextField
+    id="email"
+    label="Email"
+    type="email"
+    fullWidth
+  />
+  <Button type="submit" variant="contained">
+    Submit
+  </Button>
+</Box>
+```
+
+### Table Components
+
+| Native HTML | MUI Component |
+|-------------|---------------|
+| `<table>` | `<Table>` |
+| `<thead>` | `<TableHead>` |
+| `<tbody>` | `<TableBody>` |
+| `<tr>` | `<TableRow>` |
+| `<th>` | `<TableCell>` (in `<TableHead>`) |
+| `<td>` | `<TableCell>` |
+
+**Example:**
+```tsx
+// ❌ WRONG
+<table className="w-full">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>John</td>
+      <td>john@example.com</td>
+    </tr>
+  </tbody>
+</table>
+
+// ✅ CORRECT
+<Table>
+  <TableHead>
+    <TableRow>
+      <TableCell>Name</TableCell>
+      <TableCell>Email</TableCell>
+    </TableRow>
+  </TableHead>
+  <TableBody>
+    <TableRow>
+      <TableCell>John</TableCell>
+      <TableCell>john@example.com</TableCell>
+    </TableRow>
+  </TableBody>
+</Table>
+```
+
+### List Components
+
+| Native HTML | MUI Component |
+|-------------|---------------|
+| `<ul>` | `<List>` |
+| `<ol>` | `<List>` (styled differently) |
+| `<li>` | `<ListItem>` |
+
+### Special Components
+
+**Dialog/Modal:**
+```tsx
+// ❌ WRONG - Using shadcn-style Dialog
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+// ✅ CORRECT - Using MUI Dialog
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+
+<Dialog open={open} onClose={handleClose}>
+  <DialogTitle>Dialog Title</DialogTitle>
+  <DialogContent>
+    Dialog content here
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleClose}>Cancel</Button>
+    <Button onClick={handleSubmit} variant="contained">Submit</Button>
+  </DialogActions>
+</Dialog>
+```
+
+**Card:**
+```tsx
+// ❌ WRONG - Using shadcn-style Card
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+// ✅ CORRECT - Using MUI Card
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardHeader from '@mui/material/CardHeader';
+
+<Card>
+  <CardHeader title="Card Title" subheader="Card subtitle" />
+  <CardContent>
+    Card content here
+  </CardContent>
+</Card>
+```
+
+**Select/Dropdown:**
+```tsx
+// ❌ WRONG - Using shadcn-style Select
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+// ✅ CORRECT - Using MUI Select
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+
+<FormControl fullWidth>
+  <InputLabel id="profile-label">Profile</InputLabel>
+  <Select
+    labelId="profile-label"
+    value={value}
+    label="Profile"
+    onChange={handleChange}
+  >
+    <MenuItem value="admin">Admin</MenuItem>
+    <MenuItem value="user">User</MenuItem>
+  </Select>
+</FormControl>
+```
+
+## Stack vs Flexbox
+
+**Use `<Stack>` for simple flex layouts (MUI convention):**
+
+```tsx
+// ✅ GOOD - Use Stack for simple flex layouts
+<Stack direction="row" spacing={2} alignItems="center">
+  <Button>Cancel</Button>
+  <Button variant="contained">Submit</Button>
+</Stack>
+
+// ✅ ALSO GOOD - Use Box with sx for complex layouts
+<Box sx={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+  <Typography>Title</Typography>
+  <Button>Action</Button>
+</Box>
+```
+
+## Grid System
+
+**Use MUI Grid for responsive layouts:**
+
+```tsx
+import Grid from '@mui/material/Grid2';  // Note: Grid2 is the new API
+
+<Grid container spacing={2}>
+  <Grid size={{ xs: 12, md: 6 }}>
+    <Card>Content 1</Card>
+  </Grid>
+  <Grid size={{ xs: 12, md: 6 }}>
+    <Card>Content 2</Card>
+  </Grid>
+</Grid>
+```
+
+## Reference Resources
+
+For UI patterns and implementation examples, refer to:
+- `.dump/main-template/src/sections/**/*.tsx` - Premium MUI template examples
+- Material-UI official documentation: https://mui.com/material-ui/
+
+## Common Mistakes to Avoid
+
+1. ❌ **Never mix native HTML with MUI components**
+2. ❌ **Never use components from shadcn/ui or other UI libraries**
+3. ❌ **Never use Tailwind CSS classes** (see react-styling-mui.mdc for styling)
+4. ❌ **Never create custom wrapper components when MUI provides them**
+5. ✅ **Always check `.dump/main-template` for implementation patterns first**

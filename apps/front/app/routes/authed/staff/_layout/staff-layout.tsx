@@ -50,6 +50,18 @@ const StaffLayout = () => {
 					deepActiveMatch: true,
 				},
 				{
+					title: `${t('profiles')} (${t('roles')})`,
+					path: FRONT_PATH_NAMES.staff.profiles.root,
+					icon: ICONS.lock,
+					deepActiveMatch: true,
+				},
+				{
+					title: t('staff-invitations'),
+					path: FRONT_PATH_NAMES.staff.invitations.root,
+					icon: ICONS.mail,
+					deepActiveMatch: true,
+				},
+				{
 					title: t('background-jobs'),
 					path: FRONT_PATH_NAMES.staff.backgroundJobs.root,
 					icon: ICONS.job,
