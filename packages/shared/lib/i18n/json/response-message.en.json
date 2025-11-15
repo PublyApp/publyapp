@@ -33,5 +33,7 @@
 	"failed-to-update-staff-member": "Failed to update staff member",
 	"staff-member-updated-successfully": "Staff member updated successfully",
 	"invitation-revoked": "Invitation revoked successfully",
-	"pending-invitation-exists": "A pending invitation already exists"
+	"pending-invitation-exists": "A pending invitation already exists",
+	"staff-profile-created-successfully": "Staff profile created successfully",
+	"profile-name-already-exists": "Profile name already exists"
 }

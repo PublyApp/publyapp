@@ -40,7 +40,6 @@ public class FindTenantProfilesAsStaff {
 		var sortId = findTenantProfilesAsStaffQuery.GetSortId();
 		var sortOrder = findTenantProfilesAsStaffQuery.GetSortOrder();
 
-
 		var profiles = await profileAsStaffService.FindTenantProfilesAsync(
 			tenantId: tenantIdGuid,
 			page: page,

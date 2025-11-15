@@ -38,13 +38,13 @@ For endpoints that require users to have ALL specified permissions:
 ```csharp
 // Single permission
 app.MapGet("/staff/tenants", GetTenants)
-   .WithPermission(PermissionEnum.CAN_ACCESS_TENANTS_LIST);
+   .WithPermission(AppPermissions.Staff.Tenants.LIST);
 
 // Multiple permissions (user must have ALL)
 app.MapPost("/staff/tenants", CreateTenant)
    .WithPermission(
-       PermissionEnum.CAN_ACCESS_TENANTS_LIST,
-       PermissionEnum.CAN_CREATE_TENANT
+       AppPermissions.Staff.Tenants.LIST,
+       AppPermissions.Staff.Tenants.CREATE
    );
 
 // No permissions required (just authenticated staff) - Use custom logic instead
@@ -59,8 +59,8 @@ You can also construct the filter directly:
 ```csharp
 app.MapDelete("/staff/tenants/{id}", DeleteTenant)
    .AddEndpointFilter(new PermissionFilter(new[] {
-       PermissionEnum.CAN_ACCESS_TENANTS_LIST,
-       PermissionEnum.CAN_DELETE_TENANT
+       AppPermissions.Staff.Tenants.LIST,
+       AppPermissions.Staff.Tenants.DELETE
    }));
 ```
 
@@ -84,12 +84,12 @@ public PermissionFilter(Permission[] requiredPermissions)
 
 ```csharp
 // ✅ Valid - Single permission
-new PermissionFilter(new[] { PermissionEnum.CAN_ACCESS_TENANTS_LIST });
+new PermissionFilter(new[] { AppPermissions.Staff.Tenants.LIST });
 
 // ✅ Valid - Multiple permissions
 new PermissionFilter(new[] {
-    PermissionEnum.CAN_ACCESS_TENANTS_LIST,
-    PermissionEnum.CAN_CREATE_TENANT
+    AppPermissions.Staff.Tenants.LIST,
+    AppPermissions.Staff.Tenants.CREATE
 });
 
 // ❌ Invalid - Will throw ArgumentNullException
@@ -180,8 +180,8 @@ The `PermissionLogic` class provides helper methods for common permission patter
 app.MapGet("/flexible-endpoint", GetData)
    .WithPermission(
        PermissionLogic.AnyOf(
-           PermissionEnum.CAN_ACCESS_TENANTS_LIST,
-           PermissionEnum.CAN_ACCESS_USERS_LIST
+           AppPermissions.Staff.Tenants.LIST,
+           AppPermissions.Staff.Users.LIST
        )
    );
 ```
@@ -193,8 +193,8 @@ app.MapGet("/flexible-endpoint", GetData)
 app.MapPost("/secure-endpoint", SecureAction)
    .WithPermission(
        PermissionLogic.AllOf(
-           PermissionEnum.CAN_ACCESS_TENANTS_LIST,
-           PermissionEnum.CAN_CREATE_TENANT
+           AppPermissions.Staff.Tenants.LIST,
+           AppPermissions.Staff.Tenants.CREATE
        )
    );
 ```
@@ -207,8 +207,8 @@ app.MapPut("/advanced-endpoint", AdvancedAction)
    .WithPermission(
        PermissionLogic.AndAlso(
            PermissionLogic.AnyOf(
-               PermissionEnum.CAN_ACCESS_TENANTS_LIST,
-               PermissionEnum.CAN_ACCESS_USERS_LIST
+               AppPermissions.Staff.Tenants.LIST,
+               AppPermissions.Staff.Users.LIST
            ),
            PermissionLogic.HasPermission("can-modify-data")
        )
@@ -227,7 +227,7 @@ app.MapGet("/single-check", SingleCheck)
 // Check single permission by Permission object
 app.MapGet("/object-check", ObjectCheck)
    .WithPermission(
-       PermissionLogic.HasPermission(PermissionEnum.CAN_ACCESS_TENANTS_LIST)
+       PermissionLogic.HasPermission(AppPermissions.Staff.Tenants.LIST)
    );
 ```
 
@@ -244,9 +244,9 @@ public static class CustomPermissionCheckers
         PermissionLogic.OrElse(
             PermissionLogic.HasPermission("super-admin"),
             PermissionLogic.AllOf(
-                PermissionEnum.CAN_ACCESS_USERS_LIST,
-                PermissionEnum.CAN_CREATE_USER,
-                PermissionEnum.CAN_UPDATE_USER
+                AppPermissions.Staff.Users.LIST,
+                AppPermissions.Staff.Users.CREATE,
+                AppPermissions.Staff.Users.UPDATE
             )
         );
 
@@ -256,8 +256,8 @@ public static class CustomPermissionCheckers
             PermissionLogic.AndAlso(
                 PermissionLogic.HasPermission("can-view-reports"),
                 PermissionLogic.AnyOf(
-                    PermissionEnum.CAN_ACCESS_TENANTS_LIST,
-                    PermissionEnum.CAN_ACCESS_USERS_LIST
+                    AppPermissions.Staff.Tenants.LIST,
+                    AppPermissions.Staff.Users.LIST
                 )
             )
         );
@@ -322,14 +322,14 @@ app.MapPost("/deploy", DeployApplication)
 
 ### 1. Use Predefined Permissions
 
-Always use permissions from `PermissionEnum` when possible for consistency:
+Always use permissions from `AppPermissions` when possible for consistency:
 
 ```csharp
 // ✅ Good
-.WithPermission(PermissionEnum.CAN_ACCESS_TENANTS_LIST)
+.WithPermission(AppPermissions.Staff.Tenants.LIST)
 
 // ❌ Avoid
-.WithPermission(userPermissions => userPermissions.Contains("can-access-tenants-list"))
+.WithPermission(userPermissions => userPermissions.Contains("staff:tenants:list"))
 ```
 
 ### 2. Create Reusable Logic
@@ -391,35 +391,64 @@ public void CustomPermissionChecker_ShouldRequireMultiplePermissions()
 
 ### Available Permissions
 
-Current predefined permissions in `PermissionEnum`:
+Current predefined permissions in `AppPermissions`:
 
 ```csharp
-// Tenant Management
-PermissionEnum.CAN_ACCESS_TENANTS_LIST
-PermissionEnum.CAN_CREATE_TENANT
+// Tenant Management (Staff scope)
+AppPermissions.Staff.Tenants.LIST
+AppPermissions.Staff.Tenants.GET
+AppPermissions.Staff.Tenants.CREATE
+AppPermissions.Staff.Tenants.UPDATE
+AppPermissions.Staff.Tenants.DELETE
 
-// User Management
-PermissionEnum.CAN_ACCESS_USERS_LIST
+// User Management (Staff scope)
+AppPermissions.Staff.Users.LIST
+AppPermissions.Staff.Users.GET
+AppPermissions.Staff.Users.CREATE
+AppPermissions.Staff.Users.UPDATE
+AppPermissions.Staff.Users.DELETE
 ```
 
 ### Adding New Permissions
 
 To add new permissions:
 
-1.Add to `PermissionEnum`:
+1. Create a new slice permissions class implementing `ISlicePermissions`:
 
 ```csharp
-public static class PermissionEnum
-{
-    // ... existing permissions ...
+using MainApi.Src.Features.Common.Permission;
+using MainApi.Src.Lib;
 
-    // ==== NEW CATEGORY ====
-    public static readonly Permission CAN_ACCESS_REPORTS = new Permission { Key = "can-access-reports" };
-    public static readonly Permission CAN_EXPORT_DATA = new Permission { Key = "can-export-data" };
+namespace MainApi.Src.Features.Staff.ReportsAsStaff;
+
+public class ReportsAsStaffPermissions : ISlicePermissions {
+    public string KeyPrefix { get; } = "reports";
+
+    public Permission LIST { get; }
+    public Permission EXPORT { get; }
+
+    public ReportsAsStaffPermissions() {
+        LIST = Permission.CreateStaffPermission(
+            string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "list" })
+        );
+        EXPORT = Permission.CreateStaffPermission(
+            string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "export" })
+        );
+    }
 }
 ```
 
-2.Update database profiles to include the new permission keys in their `Permissions` array.
+2. Add the slice to the appropriate scope in `AppPermissions`:
+
+```csharp
+public class StaffScopePermissions : IScopePermissions {
+    public string KeyPrefix { get; } = Permission.ScopeKeyPrefix.Staff;
+    // ... existing slices ...
+    public ReportsAsStaffPermissions Reports { get; } = new ReportsAsStaffPermissions();
+}
+```
+
+3. Update database profiles to include the new permission keys in their `Permissions` array.
 
 ### Profile Structure
 

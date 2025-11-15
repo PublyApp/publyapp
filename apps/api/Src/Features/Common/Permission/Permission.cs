@@ -12,7 +12,7 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 	[Column("key")]
 	public string Key { get; set; } = string.Empty;
 
-	Permission(string key, PermissionScope scope) {
+	private Permission(string key, PermissionScope scope) {
 		if (string.IsNullOrEmpty(key)) {
 			throw new ArgumentException("Key cannot be empty", nameof(key));
 		}
@@ -41,22 +41,24 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 	public ICollection<ProfilePermission> ProfilePermissions { get; set; } = [];
 
 	public static Permission CreateTenantPermission(string key) {
-		return new Permission(string.Concat(ScopeKeyPrefix.Tenant, key.ToLower()), PermissionScope.Tenant) { };
+		return new Permission(string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Tenant, key.ToLower() }), PermissionScope.Tenant) { };
 	}
 
 	public static Permission CreateStaffPermission(string key) {
-		return new Permission(string.Concat(ScopeKeyPrefix.Staff, key.ToLower()), PermissionScope.Staff) { };
+		return new Permission(string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Staff, key.ToLower() }), PermissionScope.Staff) { };
 	}
 
 	public static Permission CreateProjectPermission(string key) {
-		return new Permission(string.Concat(ScopeKeyPrefix.Project, key.ToLower()), PermissionScope.Project) { };
+		return new Permission(string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Project, key.ToLower() }), PermissionScope.Project) { };
 	}
 
 	public static class ScopeKeyPrefix {
-		public static readonly string Staff = "staff:";
-		public static readonly string Tenant = "tenant:";
-		public static readonly string Project = "project:";
+		public static readonly string Staff = "staff";
+		public static readonly string Tenant = "tenant";
+		public static readonly string Project = "project";
 	}
+
+	public static readonly string KeySeparator = ".";
 }
 
 public enum PermissionScope {

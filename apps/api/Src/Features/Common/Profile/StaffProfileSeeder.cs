@@ -1,10 +1,9 @@
 using System.Data;
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Features.Common.Profile;
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Src.Features.Staff;
+namespace MainApi.Src.Features.Common.Profile;
 
 /// <summary>
 /// Seeds foundational staff profiles for runtime assignment.
@@ -33,7 +32,7 @@ public class StaffProfileSeeder : IEntitySeeder {
 		var profileNames = staffProfiles.Select(p => p.Name).ToList();
 		var existingProfilesQuery =
 			from p in dbContext.Profile
-			where profileNames.Contains(p.Name) && p.ProfileScope == ProfileScope.Staff
+			where profileNames.Contains(p.Name) && p.Scope == ProfileScope.Staff
 			select p.Name;
 		var existingProfileNames = await existingProfilesQuery.ToListAsync(cancellationToken);
 

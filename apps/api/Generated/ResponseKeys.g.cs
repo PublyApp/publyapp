@@ -102,6 +102,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PendingInvitationExists = new("pending-invitation-exists");
 
 	/// <summary>
+	/// Profile name already exists
+	/// </summary>
+	public static readonly TranslationKey ProfileNameAlreadyExists = new("profile-name-already-exists");
+
+	/// <summary>
 	/// Query parameter missing
 	/// </summary>
 	public static readonly TranslationKey QueryParametersMissing = new("query-parameters-missing");
@@ -130,6 +135,11 @@ public static partial class ResponseKeys {
 	/// Staff member updated successfully
 	/// </summary>
 	public static readonly TranslationKey StaffMemberUpdatedSuccessfully = new("staff-member-updated-successfully");
+
+	/// <summary>
+	/// Staff profile created successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
 
 	/// <summary>
 	/// Tenant ID required

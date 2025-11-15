@@ -1225,13 +1225,133 @@
         }
       }
     },
+    "/staff/profiles": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Find profiles for a staff member",
+        "operationId": "FindStaffProfiles",
+        "parameters": [
+          {
+            "name": "Cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindStaffProfilesResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Create a new staff profile",
+        "operationId": "CreateStaffProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStaffProfileBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffProfileCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/profiles/tenant/{tenantId}": {
       "get": {
         "tags": [
           "Profiles"
         ],
-        "summary": "Find profiles",
-        "operationId": "FindProfiles",
+        "summary": "Find profiles for a tenant",
+        "operationId": "FindTenantProfiles",
         "parameters": [
           {
             "name": "Page",
@@ -1575,6 +1695,20 @@
           }
         }
       },
+      "CreateStaffProfileBody": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "description": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          }
+        }
+      },
       "CreateTenantAsStaffBody": {
         "type": "object",
         "properties": {
@@ -1611,6 +1745,21 @@
           "count": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "FindStaffProfilesResult": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffProfileItem"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -2019,6 +2168,47 @@
           },
           "level": {
             "type": "string"
+          }
+        }
+      },
+      "StaffProfileCreated": {
+        "required": [
+          "profileId",
+          "name",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "StaffProfileItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "userAccountCount": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

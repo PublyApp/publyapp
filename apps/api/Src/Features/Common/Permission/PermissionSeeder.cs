@@ -1,7 +1,8 @@
 using System.Data;
+using System.Reflection;
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Lib.Filters;
+using MainApi.Src.Lib;
 using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Features.Common.Permission;
@@ -26,7 +27,7 @@ public class PermissionSeeder : IEntitySeeder {
 	public int Order => 10;
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
-		var permissions = GetPermissionsFromEnum();
+		List<Permission> permissions = GetPermissionsPool();
 
 		var existingKeysQuery =
 			from p in dbContext.Permission
@@ -73,19 +74,63 @@ public class PermissionSeeder : IEntitySeeder {
 	}
 
 	/// <summary>
-	/// Extracts permission definitions from the associated enums.
+	/// Extracts permission definitions from AppPermissions by reflecting over its scope and slice permissions.
 	/// </summary>
-	private static List<Permission> GetPermissionsFromEnum() {
-		var staffEnumType = typeof(PermissionEnum.Staff);
-		var tenantEnumType = typeof(PermissionEnum.Tenant);
-		var staffFields = staffEnumType.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
-		var tenantFields = tenantEnumType.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+	private static List<Permission> GetPermissionsPool() {
+		var permissions = new List<Permission>();
+		var appPermissionsType = typeof(AppPermissions);
 
-		return staffFields
-			.Concat(tenantFields)
-			.Where(f => f.FieldType == typeof(Permission))
-			.Select(f => (Permission)f.GetValue(null)!)
-			.ToList();
+		// Get all static properties of AppPermissions (Staff, Tenant, etc.)
+		var scopeProperties = appPermissionsType.GetProperties(BindingFlags.Public | BindingFlags.Static);
+
+		foreach (var scopeProperty in scopeProperties) {
+			var scopeInstance = scopeProperty.GetValue(null);
+
+			// Check if the instance implements IScopePermissions
+			if (scopeInstance is not IScopePermissions) {
+				continue;
+			}
+
+			var scopeType = scopeInstance.GetType();
+
+			// Get all instance properties of the scope
+			var sliceProperties = scopeType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+			foreach (var sliceProperty in sliceProperties) {
+				// Skip the KeyPrefix property
+				if (sliceProperty.Name == nameof(IScopePermissions.KeyPrefix)) {
+					continue;
+				}
+
+				var sliceInstance = sliceProperty.GetValue(scopeInstance);
+
+				// Check if the instance implements ISlicePermissions
+				if (sliceInstance is not ISlicePermissions) {
+					continue;
+				}
+
+				var sliceType = sliceInstance.GetType();
+
+				// Get all instance properties of the slice
+				var permissionProperties = sliceType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+				foreach (var permissionProperty in permissionProperties) {
+					// Skip the KeyPrefix property
+					if (permissionProperty.Name == nameof(ISlicePermissions.KeyPrefix)) {
+						continue;
+					}
+
+					var permissionInstance = permissionProperty.GetValue(sliceInstance);
+
+					// Check if the instance is a Permission
+					if (permissionInstance is Permission permission) {
+						permissions.Add(permission);
+					}
+				}
+			}
+		}
+
+		return permissions;
 	}
 }
 

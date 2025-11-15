@@ -25,20 +25,20 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 	[Column("description")]
 	public string? Description { get; set; }
 
-	[Column("profile_scope")]
-	public ProfileScope ProfileScope { get; set; }
+	[Column("scope")]
+	public ProfileScope Scope { get; set; }
 
 	// Computed properties for easy identification
-	public bool IsStaffProfile => ProfileScope == ProfileScope.Staff && TenantId == null && ProjectId == null;
-	public bool IsTenantProfile => ProfileScope == ProfileScope.Tenant && TenantId != null && ProjectId == null;
-	public bool IsProjectProfile => ProfileScope == ProfileScope.Project && TenantId != null && ProjectId != null;
+	public bool IsStaffProfile => Scope == ProfileScope.Staff && TenantId == null && ProjectId == null;
+	public bool IsTenantProfile => Scope == ProfileScope.Tenant && TenantId != null && ProjectId == null;
+	public bool IsProjectProfile => Scope == ProfileScope.Project && TenantId != null && ProjectId != null;
 
 	// Factory methods for type-safe creation
 	public static Profile CreateStaffProfile(string name, string? description = null) {
 		return new Profile {
 			Name = name,
 			Description = description,
-			ProfileScope = ProfileScope.Staff,
+			Scope = ProfileScope.Staff,
 			TenantId = null,
 			ProjectId = null
 		};
@@ -48,7 +48,7 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 		return new Profile {
 			Name = name,
 			Description = description,
-			ProfileScope = ProfileScope.Tenant,
+			Scope = ProfileScope.Tenant,
 			TenantId = tenantId,
 			ProjectId = null
 		};
@@ -58,7 +58,7 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 		return new Profile {
 			Name = name,
 			Description = description,
-			ProfileScope = ProfileScope.Project,
+			Scope = ProfileScope.Project,
 			TenantId = tenantId,
 			ProjectId = projectId
 		};
@@ -66,7 +66,7 @@ public class Profile : BaseAttributes, IOptionalTenantEntity {
 
 	// Validation
 	public void ValidateProfileType() {
-		switch (ProfileScope) {
+		switch (Scope) {
 			case ProfileScope.Staff:
 				if (TenantId != null || ProjectId != null) {
 					throw new InvalidOperationException("Staff profiles cannot have TenantId or ProjectId");

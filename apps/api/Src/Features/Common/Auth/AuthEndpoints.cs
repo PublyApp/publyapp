@@ -7,7 +7,7 @@ using MainApi.Src.Lib.Extensions;
 
 namespace MainApi.Src.Features.Common.Auth;
 
-public static class AuthEndpoint {
+public static class AuthEndpoints {
 	public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app) {
 		var group = app.MapGroup(PathUtils.GetLastSegment(RoutePath.Auth.Root))
 			.WithTags("Auth")

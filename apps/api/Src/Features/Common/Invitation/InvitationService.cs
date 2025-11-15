@@ -214,7 +214,7 @@ public class InvitationService : IInvitationService {
 	) {
 		var profileQuery =
 			from p in _dbContext.Profile
-			where p.Id == profileId && p.ProfileScope == ProfileScope.Staff
+			where p.Id == profileId && p.Scope == ProfileScope.Staff
 			select p;
 
 		return await profileQuery.FirstOrDefaultAsync(cancellationToken);

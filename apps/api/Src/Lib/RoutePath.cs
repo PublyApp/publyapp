@@ -32,6 +32,8 @@ public static class RoutePath {
 		public static readonly string Root = "/staff";
 		public static class Profiles {
 			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/profiles");
+			public static readonly string CreateForStaff = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/");
+			public static readonly string FindForStaff = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/");
 			public static readonly string FindForTenant = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/tenant/{tenantId}");
 			public static string FindForTenantFn(string tenantId) {
 				return PathUtils.Join(RoutePath.Staff.Profiles.Root, $"/tenant/{tenantId}");
