@@ -605,124 +605,62 @@ public enum PermissionScope {
 
 ## Code Changes
 
-### Step 3: Update PermissionEnum
+### Step 3: Update Permission Slice Classes
 
-**File**: `apps/api/Src/Lib/Filters/PermissionFilter.cs` (lines 165-205)
+**Note**: The old `PermissionEnum` class has been replaced with `AppPermissions` and a new architecture using `IScopePermissions` and `ISlicePermissions`.
+
+**New Structure**:
+- `AppPermissions` is a static class containing scope properties (Staff, Tenant, etc.)
+- Each scope implements `IScopePermissions` and contains slice properties (Tenants, Users, Profiles, etc.)
+- Each slice implements `ISlicePermissions` and contains Permission properties (LIST, GET, CREATE, UPDATE, DELETE, etc.)
+
+**Example File**: `apps/api/Src/Features/Staff/TenantAsStaff/TenantAsStaffPermissions.cs`
 
 ```csharp
-public static class PermissionEnum {
-    //--------------------------------------------------------------------------------------//
-    //                                  Staff permissions                                   //
-    //--------------------------------------------------------------------------------------//
-    public static class Staff {
-        // ==== TENANTS ====
-        public static readonly Permission CAN_LIST_TENANTS =
-            Permission.CreateStaffPermission(
-                nameof(CAN_LIST_TENANTS),
-                PermissionCategoryEnum.Staff.TENANTS
-            );
+using MainApi.Src.Features.Common.Permission;
+using MainApi.Src.Lib;
 
-        public static readonly Permission CAN_GET_TENANT =
-            Permission.CreateStaffPermission(
-                nameof(CAN_GET_TENANT),
-                PermissionCategoryEnum.Staff.TENANTS
-            );
+namespace MainApi.Src.Features.Staff.TenantAsStaff;
 
-        public static readonly Permission CAN_CREATE_TENANT =
-            Permission.CreateStaffPermission(
-                nameof(CAN_CREATE_TENANT),
-                PermissionCategoryEnum.Staff.TENANTS
-            );
+public class TenantAsStaffPermissions : ISlicePermissions {
+    public string KeyPrefix { get; } = "tenants";
 
-        public static readonly Permission CAN_UPDATE_TENANT =
-            Permission.CreateStaffPermission(
-                nameof(CAN_UPDATE_TENANT),
-                PermissionCategoryEnum.Staff.TENANTS
-            );
+    public Permission LIST { get; }
+    public Permission GET { get; }
+    public Permission CREATE { get; }
+    public Permission UPDATE { get; }
+    public Permission DELETE { get; }
 
-        // ==== USERS ====
-        public static readonly Permission CAN_LIST_USERS =
-            Permission.CreateStaffPermission(
-                nameof(CAN_LIST_USERS),
-                PermissionCategoryEnum.Staff.USERS
-            );
-
-        public static readonly Permission CAN_GET_USER =
-            Permission.CreateStaffPermission(
-                nameof(CAN_GET_USER),
-                PermissionCategoryEnum.Staff.USERS
-            );
-
-        public static readonly Permission CAN_CREATE_USER =
-            Permission.CreateStaffPermission(
-                nameof(CAN_CREATE_USER),
-                PermissionCategoryEnum.Staff.USERS
-            );
-
-        public static readonly Permission CAN_UPDATE_USER =
-            Permission.CreateStaffPermission(
-                nameof(CAN_UPDATE_USER),
-                PermissionCategoryEnum.Staff.USERS
-            );
-
-        // ==== PROFILES ====
-        public static readonly Permission CAN_LIST_PROFILES =
-            Permission.CreateStaffPermission(
-                nameof(CAN_LIST_PROFILES),
-                PermissionCategoryEnum.Staff.PROFILES
-            );
-
-        public static readonly Permission CAN_GET_PROFILE =
-            Permission.CreateStaffPermission(
-                nameof(CAN_GET_PROFILE),
-                PermissionCategoryEnum.Staff.PROFILES
-            );
-
-        public static readonly Permission CAN_CREATE_PROFILE =
-            Permission.CreateStaffPermission(
-                nameof(CAN_CREATE_PROFILE),
-                PermissionCategoryEnum.Staff.PROFILES
-            );
-
-        public static readonly Permission CAN_UPDATE_PROFILE =
-            Permission.CreateStaffPermission(
-                nameof(CAN_UPDATE_PROFILE),
-                PermissionCategoryEnum.Staff.PROFILES
-            );
-
-        // ==== STAFF MEMBERS ====
-        public static readonly Permission CAN_LIST_STAFF_MEMBERS =
-            Permission.CreateStaffPermission(
-                nameof(CAN_LIST_STAFF_MEMBERS),
-                PermissionCategoryEnum.Staff.STAFF_MEMBERS
-            );
-
-        public static readonly Permission CAN_CREATE_STAFF_MEMBER =
-            Permission.CreateStaffPermission(
-                nameof(CAN_CREATE_STAFF_MEMBER),
-                PermissionCategoryEnum.Staff.STAFF_MEMBERS
-            );
-
-        public static readonly Permission CAN_GET_STAFF_MEMBER =
-            Permission.CreateStaffPermission(
-                nameof(CAN_GET_STAFF_MEMBER),
-                PermissionCategoryEnum.Staff.STAFF_MEMBERS
-            );
-
-        public static readonly Permission CAN_UPDATE_STAFF_MEMBER =
-            Permission.CreateStaffPermission(
-                nameof(CAN_UPDATE_STAFF_MEMBER),
-                PermissionCategoryEnum.Staff.STAFF_MEMBERS
-            );
-    }
-
-    //--------------------------------------------------------------------------------------//
-    //                                  Tenant Permissions                                  //
-    //--------------------------------------------------------------------------------------//
-    public static class Tenant {
-        // TODO: Add tenant permissions with their categories
+    public TenantAsStaffPermissions() {
+        LIST = Permission.CreateStaffPermission(
+            string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "list" }),
+            PermissionCategoryEnum.Staff.TENANTS
+        );
+        GET = Permission.CreateStaffPermission(
+            string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "get" }),
+            PermissionCategoryEnum.Staff.TENANTS
+        );
+        CREATE = Permission.CreateStaffPermission(
+            string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "create" }),
+            PermissionCategoryEnum.Staff.TENANTS
+        );
+        UPDATE = Permission.CreateStaffPermission(
+            string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "update" }),
+            PermissionCategoryEnum.Staff.TENANTS
+        );
+        DELETE = Permission.CreateStaffPermission(
+            string.Join(Permission.KeySeparator, new string[] { KeyPrefix, "delete" }),
+            PermissionCategoryEnum.Staff.TENANTS
+        );
     }
 }
+```
+
+**Usage**:
+```csharp
+// Access permissions via AppPermissions
+var listTenantsPermission = AppPermissions.Staff.Tenants.LIST;
+var createUserPermission = AppPermissions.Staff.Users.CREATE;
 ```
 
 ### Step 4: Update MainApiDbContext
@@ -1065,11 +1003,11 @@ public class PermissionSeeder : IEntitySeeder {
     public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
         Console.WriteLine("Seeding permissions...");
 
-        // Get all permissions from PermissionEnum via reflection
+        // Get all permissions from AppPermissions via reflection
         var definedPermissions = GetAllPermissions().ToList();
 
         if (definedPermissions.Count == 0) {
-            Console.WriteLine("No permissions defined in PermissionEnum.");
+            Console.WriteLine("No permissions defined in AppPermissions.");
             return;
         }
 
@@ -1145,21 +1083,61 @@ public class PermissionSeeder : IEntitySeeder {
 
     private static IEnumerable<Permission> GetAllPermissions() {
         var permissions = new List<Permission>();
+        var appPermissionsType = typeof(AppPermissions);
 
-        // Get all nested static classes in PermissionEnum
-        var nestedTypes = typeof(PermissionEnum).GetNestedTypes();
+        // Get all static properties of AppPermissions (Staff, Tenant, etc.)
+        var scopeProperties = appPermissionsType.GetProperties(
+            System.Reflection.BindingFlags.Public |
+            System.Reflection.BindingFlags.Static
+        );
 
-        foreach (var nestedType in nestedTypes) {
-            // Get all static readonly Permission fields
-            var fields = nestedType.GetFields(
+        foreach (var scopeProperty in scopeProperties) {
+            var scopeInstance = scopeProperty.GetValue(null);
+
+            // Check if the instance implements IScopePermissions
+            if (scopeInstance is not IScopePermissions) {
+                continue;
+            }
+
+            var scopeType = scopeInstance.GetType();
+
+            // Get all instance properties of the scope
+            var sliceProperties = scopeType.GetProperties(
                 System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.Static
+                System.Reflection.BindingFlags.Instance
             );
 
-            foreach (var field in fields) {
-                if (field.FieldType == typeof(Permission)) {
-                    var permission = field.GetValue(null) as Permission;
-                    if (permission != null) {
+            foreach (var sliceProperty in sliceProperties) {
+                // Skip the KeyPrefix property
+                if (sliceProperty.Name == nameof(IScopePermissions.KeyPrefix)) {
+                    continue;
+                }
+
+                var sliceInstance = sliceProperty.GetValue(scopeInstance);
+
+                // Check if the instance implements ISlicePermissions
+                if (sliceInstance is not ISlicePermissions) {
+                    continue;
+                }
+
+                var sliceType = sliceInstance.GetType();
+
+                // Get all instance properties of the slice
+                var permissionProperties = sliceType.GetProperties(
+                    System.Reflection.BindingFlags.Public |
+                    System.Reflection.BindingFlags.Instance
+                );
+
+                foreach (var permissionProperty in permissionProperties) {
+                    // Skip the KeyPrefix property
+                    if (permissionProperty.Name == nameof(ISlicePermissions.KeyPrefix)) {
+                        continue;
+                    }
+
+                    var permissionInstance = permissionProperty.GetValue(sliceInstance);
+
+                    // Check if the instance is a Permission
+                    if (permissionInstance is Permission permission) {
                         permissions.Add(permission);
                     }
                 }

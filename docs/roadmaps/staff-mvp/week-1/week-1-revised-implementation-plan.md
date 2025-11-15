@@ -273,13 +273,13 @@ public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancel
 
     // Seed all users (staff and tenant users)
     var allUsers = new List<(string Email, UserStatus Status, string? FirstName, string? LastName)>();
-    
+
     // ADDED: Owner from environment (production-critical)
     var ownerEmail = AppEnvironment.STAFF_OWNER_EMAIL;
     if (!string.IsNullOrEmpty(ownerEmail)) {
         allUsers.Add((ownerEmail, UserStatus.Active, "Platform", "Owner"));
     }
-    
+
     // Existing example users (dev/testing)
     allUsers.AddRange(new[] {
         // Staff users
@@ -296,7 +296,7 @@ public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancel
         from u in dbContext.User
         where allUsers.Select(au => au.Email).Contains(u.Email)
         select u.Email;
-    
+
     // ... continue with existing implementation
 }
 ```
@@ -311,13 +311,13 @@ public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancel
 public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
     // Define staff accounts to create
     var staffAccountsData = new List<(string Email, AccountLevel Level)>();
-    
+
     // ADDED: Owner account from environment (production-critical)
     var ownerEmail = AppEnvironment.STAFF_OWNER_EMAIL;
     if (!string.IsNullOrEmpty(ownerEmail)) {
         staffAccountsData.Add((ownerEmail, AccountLevel.Admin));
     }
-    
+
     // Existing example accounts (dev/testing)
     staffAccountsData.AddRange(new[] {
         ("staff-admin@example.com", AccountLevel.Admin),
@@ -326,7 +326,7 @@ public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancel
 
     // Rest of existing logic remains unchanged...
     var staffEmails = staffAccountsData.Select(sa => sa.Email).ToList();
-    
+
     // ... continue with existing implementation
 }
 ```
@@ -606,7 +606,7 @@ This project uses **database-generated UUID v7** for all Guid primary keys (conf
 
 - ✅ **Use `BaseAttributes`**: For entities with **Guid primary key** (database auto-generates UUID v7)
   - Examples: User, Tenant, Profile, Invitation, SystemNotice, Session, **AuditLog**
-  
+
 - ✅ **Use `BaseAttributesNoKey`**: For entities with **non-Guid primary key** (string, composite, etc.)
   - Example: Permission (uses string primary key: `public string Key`)
 
@@ -2446,7 +2446,7 @@ make dev-db
 # - session (with new columns for impersonation)
 
 # Verify Owner was created
-SELECT email, first_name, last_name, is_verified FROM users 
+SELECT email, first_name, last_name, is_verified FROM users
 WHERE email = '<STAFF_OWNER_EMAIL>';
 
 # Verify Owner has staff account with Admin level
@@ -2456,14 +2456,14 @@ WHERE u.email = '<STAFF_OWNER_EMAIL>' AND ua.scope = 0;
 -- Expected: scope=0 (Staff), level=50 (Admin), is_suspended=false
 
 # Verify staff profiles exist (but no assignments yet)
-SELECT name, description, profile_scope FROM profiles 
-WHERE profile_scope = 0 
+SELECT name, description, scope FROM profiles
+WHERE scope = 0
 ORDER BY display_order DESC;
 -- Expected: Staff Owner, Staff Admin, Staff Support
 
 # Check session table has new columns
 \d session
--- Should see: is_impersonation, impersonating_staff_user_id, 
+-- Should see: is_impersonation, impersonating_staff_user_id,
 --              impersonation_reason, impersonation_expires_at
 ```
 
@@ -2741,7 +2741,7 @@ WHERE u.email = '<STAFF_OWNER_EMAIL>' AND ua.scope = 0 AND ua.level = 50;
 
 **Solution:**
 - Ensure `StaffProfileSeeder` (order 35) runs before creating invitations
-- Verify profiles exist in database: `SELECT * FROM profiles WHERE profile_scope = 0;`
+- Verify profiles exist in database: `SELECT * FROM profiles WHERE scope = 0;`
 - Check seeder execution order in logs
 - Profile IDs must exist before calling `InvitationService.CreateStaffInvitationAsync()`
 
@@ -2859,7 +2859,7 @@ Once Week 1 is complete (including full invitation UI), Week 2 will focus on:
 
 ## ADDENDUM: Phase 4 Completion Fixes (2025-11-02)
 
-**Status:** Post-Implementation Review Consensus  
+**Status:** Post-Implementation Review Consensus
 **Refs:** `docs/reviews/staff-mvp-week1-phase4-rejoinder.md`
 
 After implementing Phase 4 core services, GPT 5 and Claude conducted a code review and reached consensus on these minimal, safe improvements:

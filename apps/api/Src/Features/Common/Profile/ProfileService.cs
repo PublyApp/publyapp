@@ -81,7 +81,7 @@ public class ProfileService : IProfileService {
 	) {
 		var query =
 			from p in _dbContext.Profile
-			where p.ProfileScope == ProfileScope.Staff &&
+			where p.Scope == ProfileScope.Staff &&
 					p.UserAccountProfiles.Any(uap => uap.UserAccount.UserId == userId)
 			select new ProfileItem {
 				Id = p.GetRequiredId(),

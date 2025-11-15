@@ -53,8 +53,8 @@ var staffGroup = app.MapGroup(RoutePath.Staff.Root)
 
 // Staff endpoints
 staffGroup.MapTenantAsStaffEndpoints();
-staffGroup.MapStaffMemberEndPoints();
-staffGroup.MapProfileAsStaffEndPoints();
+staffGroup.MapStaffMemberEndpoints();
+staffGroup.MapProfileAsStaffEndpoints();
 staffGroup.MapInvitationAsStaffEndpoints();
 
 // Tenant endpoints

@@ -19,7 +19,7 @@ public static class TenantAsStaffEndpoints {
 			.WithName("CreateTenant")
 			.WithSummary("Create a new tenant")
 			.WithReqBodyValidation<CreateTenantAsStaffBody>()
-			.WithPermission([PermissionEnum.Staff.CAN_CREATE_TENANT])
+			.WithPermission([AppPermissions.Staff.Tenants.CREATE])
 			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
@@ -28,7 +28,7 @@ public static class TenantAsStaffEndpoints {
 		)
 			.WithName("GetTenantById")
 			.WithSummary("Get a tenant by id")
-			.WithPermission([PermissionEnum.Staff.CAN_GET_TENANT])
+			.WithPermission([AppPermissions.Staff.Tenants.GET])
 			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		group.MapGet(
@@ -38,7 +38,7 @@ public static class TenantAsStaffEndpoints {
 			.WithName("FindTenants")
 			.WithSummary("Find tenants with pagination")
 			.WithReqQueryValidation<FindTenantsAsStaffQuery>()
-			.WithPermission([PermissionEnum.Staff.CAN_LIST_TENANTS])
+			.WithPermission([AppPermissions.Staff.Tenants.LIST])
 			.ProducesApiResponses(StatusCodes.Status500InternalServerError);
 
 		return group;

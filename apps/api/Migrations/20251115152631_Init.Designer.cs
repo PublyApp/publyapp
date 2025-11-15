@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20251101124145_Init")]
+    [Migration("20251115152631_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -139,6 +139,107 @@ namespace MainApi.Migrations
                     b.ToTable("user_account_profiles");
                 });
 
+            modelBuilder.Entity("MainApi.Src.Features.Common.Invitation.Invitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("email");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid>("InvitedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invited_by_user_id");
+
+                    b.Property<bool>("IsAccepted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_accepted");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_revoked");
+
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("profile_id");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer")
+                        .HasColumnName("scope");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("token_hash");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("InvitedByUserId");
+
+                    b.HasIndex("ProfileId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "Scope");
+
+                    b.HasIndex("Email", "Scope", "IsAccepted");
+
+                    b.ToTable("invitations", t =>
+                        {
+                            t.HasCheckConstraint("CK_Invitation_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
+
+                            t.HasCheckConstraint("CK_Invitation_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
+
+                            t.HasCheckConstraint("CK_Invitation_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
+                        });
+                });
+
             modelBuilder.Entity("MainApi.Src.Features.Common.Permission.Permission", b =>
                 {
                     b.Property<string>("Key")
@@ -167,7 +268,14 @@ namespace MainApi.Migrations
 
                     b.HasKey("Key");
 
-                    b.ToTable("permissions");
+                    b.ToTable("permissions", t =>
+                        {
+                            t.HasCheckConstraint("CK_Permission_Project_Key_Prefix", "(scope = 2 AND key LIKE 'project.%') OR scope != 2");
+
+                            t.HasCheckConstraint("CK_Permission_Staff_Key_Prefix", "(scope = 0 AND key LIKE 'staff.%') OR scope != 0");
+
+                            t.HasCheckConstraint("CK_Permission_Tenant_Key_Prefix", "(scope = 1 AND key LIKE 'tenant.%') OR scope != 1");
+                        });
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Profile.Profile", b =>
@@ -199,13 +307,13 @@ namespace MainApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
-                    b.Property<int>("ProfileScope")
-                        .HasColumnType("integer")
-                        .HasColumnName("profile_scope");
-
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid")
                         .HasColumnName("project_id");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer")
+                        .HasColumnName("scope");
 
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
@@ -221,13 +329,21 @@ namespace MainApi.Migrations
 
                     b.HasIndex("TenantId");
 
+                    b.HasIndex("Scope", "CreatedAt", "Id")
+                        .HasDatabaseName("ix_profiles_staff_created_at_id")
+                        .HasFilter("\"scope\" = 0");
+
+                    b.HasIndex("Scope", "Name", "Id")
+                        .HasDatabaseName("ix_profiles_staff_name_id")
+                        .HasFilter("\"scope\" = 0");
+
                     b.ToTable("profiles", t =>
                         {
-                            t.HasCheckConstraint("CK_Profile_Project_Constraints", "(profile_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_scope != 2");
+                            t.HasCheckConstraint("CK_Profile_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
 
-                            t.HasCheckConstraint("CK_Profile_Staff_Constraints", "(profile_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_scope != 0");
+                            t.HasCheckConstraint("CK_Profile_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
 
-                            t.HasCheckConstraint("CK_Profile_Tenant_Constraints", "(profile_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_scope != 1");
+                            t.HasCheckConstraint("CK_Profile_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
                         });
                 });
 
@@ -346,9 +462,25 @@ namespace MainApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expires_at");
 
+                    b.Property<Guid?>("ImpersonatingStaffUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("impersonating_staff_user_id");
+
+                    b.Property<DateTime?>("ImpersonationExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("impersonation_expires_at");
+
+                    b.Property<string>("ImpersonationReason")
+                        .HasColumnType("text")
+                        .HasColumnName("impersonation_reason");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
+
+                    b.Property<bool>("IsImpersonation")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_impersonation");
 
                     b.Property<string>("Token")
                         .IsRequired()
@@ -359,13 +491,15 @@ namespace MainApi.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("UserId")
+                    b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("ImpersonatingStaffUserId");
 
                     b.HasIndex("Token")
                         .IsUnique();
@@ -525,6 +659,127 @@ namespace MainApi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MainApi.Src.Features.Staff.Audit.AuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("action");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("text")
+                        .HasColumnName("details");
+
+                    b.Property<string>("IpAddress")
+                        .HasColumnType("text")
+                        .HasColumnName("ip_address");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<Guid?>("TargetId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("text")
+                        .HasColumnName("user_agent");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TargetId");
+
+                    b.HasIndex("Action", "CreatedAt");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
+                    b.ToTable("audit_logs");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Features.Staff.Notice.SystemNotice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedByStaffId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_staff_id");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("message");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("integer")
+                        .HasColumnName("severity");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByStaffId");
+
+                    b.HasIndex("Severity");
+
+                    b.HasIndex("StartsAt", "ExpiresAt");
+
+                    b.ToTable("system_notices");
+                });
+
             modelBuilder.Entity("MainApi.Src.Features.Tenant.Product.Product", b =>
                 {
                     b.Property<Guid>("Id")
@@ -614,6 +869,37 @@ namespace MainApi.Migrations
                     b.Navigation("UserAccount");
                 });
 
+            modelBuilder.Entity("MainApi.Src.Features.Common.Invitation.Invitation", b =>
+                {
+                    b.HasOne("MainApi.Src.Features.Common.User.User", "InvitedByUser")
+                        .WithMany()
+                        .HasForeignKey("InvitedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MainApi.Src.Features.Common.Profile.Profile", "Profile")
+                        .WithMany()
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MainApi.Src.Features.Common.Project.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId");
+
+                    b.HasOne("MainApi.Src.Features.Common.Tenant.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId");
+
+                    b.Navigation("InvitedByUser");
+
+                    b.Navigation("Profile");
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("MainApi.Src.Features.Common.Profile.Profile", b =>
                 {
                     b.HasOne("MainApi.Src.Features.Common.Project.Project", "Project")
@@ -659,11 +945,42 @@ namespace MainApi.Migrations
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Session.Session", b =>
                 {
+                    b.HasOne("MainApi.Src.Features.Common.User.User", "ImpersonatingStaffUser")
+                        .WithMany()
+                        .HasForeignKey("ImpersonatingStaffUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("MainApi.Src.Features.Common.User.User", "User")
                         .WithMany("Sessions")
-                        .HasForeignKey("UserId");
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ImpersonatingStaffUser");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Features.Staff.Audit.AuditLog", b =>
+                {
+                    b.HasOne("MainApi.Src.Features.Common.User.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Features.Staff.Notice.SystemNotice", b =>
+                {
+                    b.HasOne("MainApi.Src.Features.Common.User.User", "CreatedByStaff")
+                        .WithMany()
+                        .HasForeignKey("CreatedByStaffId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByStaff");
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Tenant.Product.Product", b =>

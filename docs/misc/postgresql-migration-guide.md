@@ -69,9 +69,9 @@ permissions (key, description, scope)
 ├── scope: 'staff', 'tenant', or 'both'
 
 -- Unified profiles table
-profiles (id, tenant_id, name, profile_scope)
+profiles (id, tenant_id, name, scope)
 ├── tenant_id: NULL for staff profiles, tenant ID for tenant profiles
-├── profile_scope: 'staff' or 'tenant'
+├── scope: 'staff' or 'tenant'
 
 -- Profile → permission mapping
 profile_permissions (profile_id, permission_key)

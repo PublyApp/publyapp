@@ -2,21 +2,18 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace MainApi.Src.Lib;
 
-public class PaginatedQuery {
-	[FromQuery] public string? Page { get; set; }
+public class CursorPaginatedQuery {
+	[FromQuery] public string? Cursor { get; set; }
 	[FromQuery] public string? Limit { get; set; }
 	[FromQuery] public string? SortId { get; set; }
 	[FromQuery] public string? SortOrder { get; set; }
 
-	public int? GetPage() {
-		if (Page is null) {
+	public string? GetCursor() {
+		if (Cursor is null) {
 			return null;
 		}
 
-		if (!int.TryParse(Page, out var page)) {
-			throw new Exception("Page must be a valid number");
-		}
-		return page;
+		return Cursor;
 	}
 
 	public int? GetLimit() {
@@ -58,4 +55,3 @@ public class PaginatedQuery {
 		}
 	}
 }
-

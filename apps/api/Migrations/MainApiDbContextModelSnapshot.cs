@@ -265,7 +265,14 @@ namespace MainApi.Migrations
 
                     b.HasKey("Key");
 
-                    b.ToTable("permissions");
+                    b.ToTable("permissions", t =>
+                        {
+                            t.HasCheckConstraint("CK_Permission_Project_Key_Prefix", "(scope = 2 AND key LIKE 'project.%') OR scope != 2");
+
+                            t.HasCheckConstraint("CK_Permission_Staff_Key_Prefix", "(scope = 0 AND key LIKE 'staff.%') OR scope != 0");
+
+                            t.HasCheckConstraint("CK_Permission_Tenant_Key_Prefix", "(scope = 1 AND key LIKE 'tenant.%') OR scope != 1");
+                        });
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Profile.Profile", b =>
@@ -297,13 +304,13 @@ namespace MainApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
-                    b.Property<int>("ProfileScope")
-                        .HasColumnType("integer")
-                        .HasColumnName("profile_scope");
-
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid")
                         .HasColumnName("project_id");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer")
+                        .HasColumnName("scope");
 
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid")
@@ -319,13 +326,21 @@ namespace MainApi.Migrations
 
                     b.HasIndex("TenantId");
 
+                    b.HasIndex("Scope", "CreatedAt", "Id")
+                        .HasDatabaseName("ix_profiles_staff_created_at_id")
+                        .HasFilter("\"scope\" = 0");
+
+                    b.HasIndex("Scope", "Name", "Id")
+                        .HasDatabaseName("ix_profiles_staff_name_id")
+                        .HasFilter("\"scope\" = 0");
+
                     b.ToTable("profiles", t =>
                         {
-                            t.HasCheckConstraint("CK_Profile_Project_Constraints", "(profile_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_scope != 2");
+                            t.HasCheckConstraint("CK_Profile_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
 
-                            t.HasCheckConstraint("CK_Profile_Staff_Constraints", "(profile_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_scope != 0");
+                            t.HasCheckConstraint("CK_Profile_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
 
-                            t.HasCheckConstraint("CK_Profile_Tenant_Constraints", "(profile_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_scope != 1");
+                            t.HasCheckConstraint("CK_Profile_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
                         });
                 });
 
