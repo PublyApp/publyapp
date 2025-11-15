@@ -11,7 +11,7 @@ import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type Requ
  */
 export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTenantItemRequestBuilder> {
     /**
-     * Find profiles
+     * Find profiles for a tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<FindTenantProfilesAsStaffResult>}
      * @throws {ApiResponse} error when the service returns a 400 status code
@@ -19,14 +19,14 @@ export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTen
      */
      get(requestConfiguration?: RequestConfiguration<WithTenantItemRequestBuilderGetQueryParameters> | undefined) : Promise<FindTenantProfilesAsStaffResult | undefined>;
     /**
-     * Find profiles
+     * Find profiles for a tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
      toGetRequestInformation(requestConfiguration?: RequestConfiguration<WithTenantItemRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
 }
 /**
- * Find profiles
+ * Find profiles for a tenant
  */
 export interface WithTenantItemRequestBuilderGetQueryParameters {
     limit?: string;
