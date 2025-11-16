@@ -37,6 +37,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ConfirmDeleteDialogText = new("confirm-delete-dialog-text");
 
 	/// <summary>
+	/// error loading {{item}}
+	/// </summary>
+	public static readonly TranslationKey ErrorLoadingItems = new("error-loading-items");
+
+	/// <summary>
 	/// Failed to authenticate user
 	/// </summary>
 	public static readonly TranslationKey FailedToAuthenticateUser = new("failed-to-authenticate-user");
@@ -62,6 +67,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey FailedToRegisterUser = new("failed-to-register-user");
 
 	/// <summary>
+	/// Failed to update staff member
+	/// </summary>
+	public static readonly TranslationKey FailedToUpdateStaffMember = new("failed-to-update-staff-member");
+
+	/// <summary>
 	/// Gateway timeout
 	/// </summary>
 	public static readonly TranslationKey GatewayTimeout = new("gateway-timeout");
@@ -77,9 +87,24 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvalidEmailOrPassword = new("invalid-email-or-password");
 
 	/// <summary>
+	/// Invalid or expired email verification token
+	/// </summary>
+	public static readonly TranslationKey InvalidEmailVerificationToken = new("invalid-email-verification-token");
+
+	/// <summary>
+	/// Invalid or expired password reset token
+	/// </summary>
+	public static readonly TranslationKey InvalidPasswordResetToken = new("invalid-password-reset-token");
+
+	/// <summary>
 	/// Invalid session
 	/// </summary>
 	public static readonly TranslationKey InvalidSession = new("invalid-session");
+
+	/// <summary>
+	/// Invitation revoked successfully
+	/// </summary>
+	public static readonly TranslationKey InvitationRevoked = new("invitation-revoked");
 
 	/// <summary>
 	/// Method not allowed
@@ -87,9 +112,39 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
 
 	/// <summary>
+	/// no {{item}} found
+	/// </summary>
+	public static readonly TranslationKey NoItemsFound = new("no-items-found");
+
+	/// <summary>
 	/// Not found
 	/// </summary>
 	public static readonly TranslationKey NotFound = new("not-found");
+
+	/// <summary>
+	/// Password reset successfully
+	/// </summary>
+	public static readonly TranslationKey PasswordResetSuccess = new("password-reset-success");
+
+	/// <summary>
+	/// A pending invitation already exists
+	/// </summary>
+	public static readonly TranslationKey PendingInvitationExists = new("pending-invitation-exists");
+
+	/// <summary>
+	/// profile
+	/// </summary>
+	public static readonly TranslationKey Profile = new("profile");
+
+	/// <summary>
+	/// Profile name already exists
+	/// </summary>
+	public static readonly TranslationKey ProfileNameAlreadyExists = new("profile-name-already-exists");
+
+	/// <summary>
+	/// profiles
+	/// </summary>
+	public static readonly TranslationKey Profiles = new("profiles");
 
 	/// <summary>
 	/// Query parameter missing
@@ -115,6 +170,26 @@ public static partial class ResponseKeys {
 	/// Service unavailable
 	/// </summary>
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
+
+	/// <summary>
+	/// Staff member updated successfully
+	/// </summary>
+	public static readonly TranslationKey StaffMemberUpdatedSuccessfully = new("staff-member-updated-successfully");
+
+	/// <summary>
+	/// Staff profile created successfully
+	/// </summary>
+	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
+
+	/// <summary>
+	/// staff profiles
+	/// </summary>
+	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
+
+	/// <summary>
+	/// Tenant ID required
+	/// </summary>
+	public static readonly TranslationKey TenantIdRequired = new("tenant-id-required");
 
 	/// <summary>
 	/// Too many requests

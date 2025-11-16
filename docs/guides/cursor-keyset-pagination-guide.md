@@ -116,49 +116,49 @@ if (results.Count > effectiveLimit) {
 }
 ```
 
-### 5. ~~Total Count for Better UX~~ (REMOVED)
+### 5. Total Count for Better UX
 
-**Note**: The `TotalCount` feature has been removed from cursor pagination.
-
-**Reason**: Total count defeats the purpose of cursor pagination:
-- ❌ `COUNT(*)` queries are expensive on large datasets
-- ❌ Total count becomes stale as data changes
-- ❌ Not needed for Previous/Next navigation
-- ❌ Misleading for infinite scroll UX patterns
-
-**Solution**: Use cursor pagination without total count. The table UI shows only "Previous" and "Next" buttons without displaying "X of Y" indicators.
+Including the total count allows frontend tables to show helpful pagination info like "Showing 1-20 of 150":
 
 ```csharp
-// ✅ Simplified: No COUNT query
+// Count total items BEFORE applying cursor filter
+var totalCount = await query.CountAsync(cancellationToken);
+
 return new FindEntitiesResult.Success(
     new CursorPaginatedResult<EntityItem> {
         Data = results,
-        NextCursor = nextCursor,  // null = last page
+        NextCursor = nextCursor,
+        TotalCount = totalCount  // ✅ Frontend can show "X of Y"
     }
 );
 ```
 
-**Performance Impact**: Removes COUNT query overhead, making pagination faster for large datasets.
+**Performance Note**: For small to medium datasets (< 100K rows), the COUNT query is fast enough (typically < 50ms with proper indices).
 
-### 6. ~~Current Offset for Accurate Page Numbers~~ (REMOVED)
+### 6. Current Offset for Accurate Page Numbers
 
-**Note**: The `CurrentOffset` feature has been removed. Cursor pagination should use **Previous/Next navigation only** - not page numbers.
+The `CurrentOffset` property solves the "deep link page number" problem - when a user shares a URL with a cursor, the frontend needs to know which page number to display.
 
-**Reason**: Cursor pagination is fundamentally incompatible with numbered page navigation:
-- ✅ Supports: Previous (reset to first page), Next (sequential forward)
-- ❌ Does not support: Jump to arbitrary page numbers
-
-**UI Pattern**: Display only Previous/Next buttons, hide page numbers:
-```typescript
-muiPaginationProps: {
-  showFirstButton: false,
-  showLastButton: false,
-  siblingCount: 0,       // Hide page numbers
-  boundaryCount: 0,      // Hide boundary numbers
+```csharp
+// Calculate how many items come BEFORE the current cursor
+int currentOffset = 0;
+if (cursor != Guid.Empty) {
+    currentOffset = await handler.GetOffset(query, cursorValue, isAscending);
 }
+
+return new FindEntitiesResult.Success(
+    new CursorPaginatedResult<EntityItem> {
+        Data = results,
+        NextCursor = nextCursor,
+        TotalCount = totalCount,
+        CurrentOffset = currentOffset  // ✅ Frontend: CurrentPage = floor(offset / limit) + 1
+    }
+);
 ```
 
-The simplified approach removes ~50-200ms overhead per request and aligns with cursor pagination best practices.
+**Example**: If `CurrentOffset = 40` and `Limit = 20`, the frontend displays "Page 3".
+
+**Performance Note**: Offset calculation uses the same indexed queries as pagination, typically 50-200ms overhead.
 
 ## Implementation Guide
 
@@ -432,7 +432,7 @@ public class FindEntitiesQuery : CursorPaginatedQuery {
 public class FindEntitiesQueryValidator : CursorPaginatedQueryValidator<FindEntitiesQuery> { }
 
 public class FindEntities {
-    public static async Task<Results<Ok<FindEntitiesResult>, AppBadRequestHttpResult>> HandleFindEntities(
+    public static async Task<Results<Ok<FindEntitiesResult>, BadRequest<ApiResponse>>> HandleFindEntities(
         [AsParameters] FindEntitiesQuery findEntitiesQuery,
         [FromServices] IYourService yourService,
         CancellationToken cancellationToken
@@ -446,7 +446,7 @@ public class FindEntities {
         // Support initial page request (null/empty cursor defaults to Guid.Empty)
         if (!string.IsNullOrEmpty(cursor)) {
             if (!Guid.TryParse(cursor, out cursorGuid)) {
-                return TypedProblems.BadRequest("Invalid cursor", ResponseKeys.BadRequest);
+                return TypedResults.BadRequest(ApiResponse.Create("Invalid cursor", ResponseKeys.BadRequest));
             }
         }
 
@@ -472,17 +472,17 @@ public class FindEntities {
         // STEP 4.4: Handle Result with Pattern Matching
         // ───────────────────────────────────────────────────────────────────
         if (serviceResult is YourFeature.FindEntitiesResult.CursorNotFound cursorError) {
-            return TypedProblems.BadRequest(
+            return TypedResults.BadRequest(ApiResponse.Create(
                 $"Cursor record not found: {cursorError.Cursor}. The record may have been deleted or the cursor is invalid.",
                 ResponseKeys.BadRequest
-            );
+            ));
         }
 
         if (serviceResult is YourFeature.FindEntitiesResult.InvalidSortId sortIdError) {
             return TypedProblems.BadRequest(
                 $"Invalid sort_id: {sortIdError.SortId}. Allowed values: id, name, created_at, related_count",
                 ResponseKeys.BadRequest
-            );
+            ));
         }
 
         if (serviceResult is YourFeature.FindEntitiesResult.Success success) {
@@ -656,7 +656,7 @@ In error messages and documentation, clearly state which sort fields are support
 return TypedProblems.BadRequest(
     $"Invalid sort_id: {sortIdError.SortId}. Allowed values: id, name, created_at, user_account_count",
     ResponseKeys.BadRequest
-);
+));
 ```
 
 ### 5. Use Meaningful Default Sort
@@ -701,7 +701,7 @@ Allow `cursor` to be `null` or `Guid.Empty` for the first page:
 var cursorGuid = Guid.Empty;
 if (!string.IsNullOrEmpty(cursor)) {
     if (!Guid.TryParse(cursor, out cursorGuid)) {
-        return TypedProblems.BadRequest("Invalid cursor", ResponseKeys.BadRequest);
+        return TypedResults.BadRequest(ApiResponse.Create("Invalid cursor", ResponseKeys.BadRequest));
     }
 }
 ```
