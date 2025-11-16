@@ -1760,6 +1760,14 @@
           "nextCursor": {
             "type": "string",
             "nullable": true
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "currentOffset": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

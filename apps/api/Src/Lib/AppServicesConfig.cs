@@ -14,6 +14,7 @@ using MainApi.Src.Features.Staff.StaffMember;
 using MainApi.Src.Features.Staff.TenantAsStaff;
 using MainApi.Src.Lib.Email;
 using Resend;
+using MainApi.Src.Features.Staff.ProfileAsStaff;
 
 namespace MainApi.Src.Lib;
 
@@ -81,7 +82,7 @@ public static class AppServicesConfig {
 		builder.Services.AddScoped<IProfileService, ProfileService>();
 		builder.Services.AddScoped<IStaffMemberService, StaffMemberService>();
 		builder.Services.AddScoped<IPermissionService, PermissionService>();
-
+		builder.Services.AddScoped<IProfileAsStaffService, ProfileAsStaffService>();
 		// Register AuthContext
 		builder.Services.AddScoped<IAuthContext, AuthContext>();
 
