@@ -17,9 +17,29 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey BadRequest = new("bad-request");
 
 	/// <summary>
+	/// are you sure you want to delete this item?
+	/// </summary>
+	public static readonly TranslationKey ConfirmDeleteDialogText = new("confirm-delete-dialog-text");
+
+	/// <summary>
+	/// create your first {{item}}
+	/// </summary>
+	public static readonly TranslationKey CreateFirstItem = new("create-first-item");
+
+	/// <summary>
+	/// delete {{item}}
+	/// </summary>
+	public static readonly TranslationKey DeleteItem = new("delete-item");
+
+	/// <summary>
 	/// Email already verified
 	/// </summary>
 	public static readonly TranslationKey EmailAlreadyVerified = new("email-already-verified");
+
+	/// <summary>
+	/// error loading {{item}}
+	/// </summary>
+	public static readonly TranslationKey ErrorLoadingItems = new("error-loading-items");
 
 	/// <summary>
 	/// Failed to authenticate user
@@ -87,6 +107,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey MethodNotAllowed = new("method-not-allowed");
 
 	/// <summary>
+	/// no {{item}} found
+	/// </summary>
+	public static readonly TranslationKey NoItemsFound = new("no-items-found");
+
+	/// <summary>
 	/// Not found
 	/// </summary>
 	public static readonly TranslationKey NotFound = new("not-found");
@@ -102,9 +127,19 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PendingInvitationExists = new("pending-invitation-exists");
 
 	/// <summary>
+	/// profile
+	/// </summary>
+	public static readonly TranslationKey Profile = new("profile");
+
+	/// <summary>
 	/// Profile name already exists
 	/// </summary>
 	public static readonly TranslationKey ProfileNameAlreadyExists = new("profile-name-already-exists");
+
+	/// <summary>
+	/// profiles
+	/// </summary>
+	public static readonly TranslationKey Profiles = new("profiles");
 
 	/// <summary>
 	/// Query parameter missing
@@ -142,6 +177,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey StaffProfileCreatedSuccessfully = new("staff-profile-created-successfully");
 
 	/// <summary>
+	/// staff profiles
+	/// </summary>
+	public static readonly TranslationKey StaffProfiles = new("staff-profiles");
+
+	/// <summary>
 	/// Tenant ID required
 	/// </summary>
 	public static readonly TranslationKey TenantIdRequired = new("tenant-id-required");
@@ -160,6 +200,11 @@ public static partial class ResponseKeys {
 	/// Unprocessable entity
 	/// </summary>
 	public static readonly TranslationKey UnprocessableEntity = new("unprocessable-entity");
+
+	/// <summary>
+	/// user accounts
+	/// </summary>
+	public static readonly TranslationKey UserAccounts = new("user-accounts");
 
 	/// <summary>
 	/// User already exists
@@ -195,5 +240,10 @@ public static partial class ResponseKeys {
 	/// User suspended
 	/// </summary>
 	public static readonly TranslationKey UserSuspended = new("user-suspended");
+
+	/// <summary>
+	/// view details
+	/// </summary>
+	public static readonly TranslationKey ViewDetails = new("view-details");
 
 }

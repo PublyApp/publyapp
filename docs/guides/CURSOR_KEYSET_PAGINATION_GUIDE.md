@@ -116,6 +116,50 @@ if (results.Count > effectiveLimit) {
 }
 ```
 
+### 5. Total Count for Better UX
+
+Including the total count allows frontend tables to show helpful pagination info like "Showing 1-20 of 150":
+
+```csharp
+// Count total items BEFORE applying cursor filter
+var totalCount = await query.CountAsync(cancellationToken);
+
+return new FindEntitiesResult.Success(
+    new CursorPaginatedResult<EntityItem> {
+        Data = results,
+        NextCursor = nextCursor,
+        TotalCount = totalCount  // ✅ Frontend can show "X of Y"
+    }
+);
+```
+
+**Performance Note**: For small to medium datasets (< 100K rows), the COUNT query is fast enough (typically < 50ms with proper indices).
+
+### 6. Current Offset for Accurate Page Numbers
+
+The `CurrentOffset` property solves the "deep link page number" problem - when a user shares a URL with a cursor, the frontend needs to know which page number to display.
+
+```csharp
+// Calculate how many items come BEFORE the current cursor
+int currentOffset = 0;
+if (cursor != Guid.Empty) {
+    currentOffset = await handler.GetOffset(query, cursorValue, isAscending);
+}
+
+return new FindEntitiesResult.Success(
+    new CursorPaginatedResult<EntityItem> {
+        Data = results,
+        NextCursor = nextCursor,
+        TotalCount = totalCount,
+        CurrentOffset = currentOffset  // ✅ Frontend: CurrentPage = floor(offset / limit) + 1
+    }
+);
+```
+
+**Example**: If `CurrentOffset = 40` and `Limit = 20`, the frontend displays "Page 3".
+
+**Performance Note**: Offset calculation uses the same indexed queries as pagination, typically 50-200ms overhead.
+
 ## Implementation Guide
 
 ### Step 1: Create DTOs
@@ -135,6 +179,8 @@ public class StaffProfileItem {
 // public class CursorPaginatedResult<T> {
 //     public List<T> Data { get; set; } = [];
 //     public string? NextCursor { get; set; } = null;
+//     public int TotalCount { get; set; }         // Total items across all pages
+//     public int CurrentOffset { get; set; }      // Items before current page
 // }
 ```
 
@@ -209,7 +255,14 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.Id)
-                : q.OrderByDescending(e => e.Id)
+                : q.OrderByDescending(e => e.Id),
+            getOffset: async (q, cursorValue, isAsc) => {
+                var cursorGuid = (Guid?)cursorValue;
+                if (cursorGuid is null) return 0;
+                return isAsc
+                    ? await q.CountAsync(e => e.Id < cursorGuid)
+                    : await q.CountAsync(e => e.Id > cursorGuid);
+            }
         ),
 
         // Handler for Name sorting (with tie-breaker)
@@ -230,7 +283,15 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.Name).ThenBy(e => e.Id)
-                : q.OrderByDescending(e => e.Name).ThenByDescending(e => e.Id)
+                : q.OrderByDescending(e => e.Name).ThenByDescending(e => e.Id),
+            getOffset: async (q, cursorValue, isAsc) => {
+                if (cursorValue is null) return 0;
+                var (cursorName, cursorId) = ((string, Guid?))cursorValue;
+                // Count items BEFORE cursor (considering tie-breaker)
+                return isAsc
+                    ? await q.CountAsync(e => e.Name.CompareTo(cursorName) < 0 || (e.Name == cursorName && e.Id < cursorId))
+                    : await q.CountAsync(e => e.Name.CompareTo(cursorName) > 0 || (e.Name == cursorName && e.Id > cursorId));
+            }
         ),
 
         // Handler for CreatedAt sorting (with tie-breaker)
@@ -251,7 +312,14 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.CreatedAt).ThenBy(e => e.Id)
-                : q.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
+                : q.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id),
+            getOffset: async (q, cursorValue, isAsc) => {
+                if (cursorValue is null) return 0;
+                var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
+                return isAsc
+                    ? await q.CountAsync(e => e.CreatedAt < cursorCreatedAt || (e.CreatedAt == cursorCreatedAt && e.Id < cursorId))
+                    : await q.CountAsync(e => e.CreatedAt > cursorCreatedAt || (e.CreatedAt == cursorCreatedAt && e.Id > cursorId));
+            }
         ),
 
         // Handler for computed fields (with tie-breaker)
@@ -272,7 +340,14 @@ public async Task<FindEntitiesResult> FindEntitiesAsync(
             },
             applyOrdering: (q, isAsc) => isAsc
                 ? q.OrderBy(e => e.RelatedEntities.Count).ThenBy(e => e.Id)
-                : q.OrderByDescending(e => e.RelatedEntities.Count).ThenByDescending(e => e.Id)
+                : q.OrderByDescending(e => e.RelatedEntities.Count).ThenByDescending(e => e.Id),
+            getOffset: async (q, cursorValue, isAsc) => {
+                if (cursorValue is null) return 0;
+                var (cursorCount, cursorId) = ((int, Guid?))cursorValue;
+                return isAsc
+                    ? await q.CountAsync(e => e.RelatedEntities.Count < cursorCount || (e.RelatedEntities.Count == cursorCount && e.Id < cursorId))
+                    : await q.CountAsync(e => e.RelatedEntities.Count > cursorCount || (e.RelatedEntities.Count == cursorCount && e.Id > cursorId));
+            }
         )
     };
 

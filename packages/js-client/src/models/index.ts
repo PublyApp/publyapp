@@ -624,8 +624,10 @@ export function deserializeIntoFindStaffMembersResult(findStaffMembersResult: Pa
 // @ts-ignore
 export function deserializeIntoFindStaffProfilesResult(findStaffProfilesResult: Partial<FindStaffProfilesResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "currentOffset": n => { findStaffProfilesResult.currentOffset = n.getNumberValue(); },
         "data": n => { findStaffProfilesResult.data = n.getCollectionOfObjectValues<StaffProfileItem>(createStaffProfileItemFromDiscriminatorValue); },
         "nextCursor": n => { findStaffProfilesResult.nextCursor = n.getStringValue(); },
+        "totalCount": n => { findStaffProfilesResult.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -1020,6 +1022,10 @@ export interface FindStaffMembersResult extends AdditionalDataHolder, Parsable {
 }
 export interface FindStaffProfilesResult extends AdditionalDataHolder, Parsable {
     /**
+     * The currentOffset property
+     */
+    currentOffset?: number | null;
+    /**
      * The data property
      */
     data?: StaffProfileItem[] | null;
@@ -1027,6 +1033,10 @@ export interface FindStaffProfilesResult extends AdditionalDataHolder, Parsable 
      * The nextCursor property
      */
     nextCursor?: string | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface FindTenantProfilesAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
@@ -1486,8 +1496,10 @@ export function serializeFindStaffMembersResult(writer: SerializationWriter, fin
 // @ts-ignore
 export function serializeFindStaffProfilesResult(writer: SerializationWriter, findStaffProfilesResult: Partial<FindStaffProfilesResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findStaffProfilesResult || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("currentOffset", findStaffProfilesResult.currentOffset);
     writer.writeCollectionOfObjectValues<StaffProfileItem>("data", findStaffProfilesResult.data, serializeStaffProfileItem);
     writer.writeStringValue("nextCursor", findStaffProfilesResult.nextCursor);
+    writer.writeNumberValue("totalCount", findStaffProfilesResult.totalCount);
     writer.writeAdditionalData(findStaffProfilesResult.additionalData);
 }
 /**
