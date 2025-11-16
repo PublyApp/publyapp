@@ -1,12 +1,30 @@
 namespace MainApi.Src.Lib;
 
-// Note: XML comments removed to work around .NET 10 OpenAPI source generator bug
-// that causes duplicate key errors for generic types.
-// See: https://github.com/dotnet/aspnetcore/issues/63233
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+/// <summary>
+/// Standard cursor-based pagination result.
+/// Includes total count for better UX (showing "X of Y" in tables).
+/// </summary>
 public class CursorPaginatedResult<T> {
+	/// <summary>
+	/// The data items for the current page.
+	/// </summary>
 	public List<T> Data { get; set; } = [];
 
+	/// <summary>
+	/// Cursor to fetch the next page. Null if this is the last page.
+	/// </summary>
 	public string? NextCursor { get; set; } = null;
+
+	/// <summary>
+	/// Total count of all items (across all pages).
+	/// Used by frontend tables to show "Showing 1-20 of 150".
+	/// </summary>
+	public int TotalCount { get; set; }
+
+	/// <summary>
+	/// Number of items before the current page (offset).
+	/// Used to calculate the current page number: CurrentPage = floor(CurrentOffset / Limit) + 1
+	/// Example: If CurrentOffset = 40 and Limit = 20, then CurrentPage = 3
+	/// </summary>
+	public int CurrentOffset { get; set; }
 }
-#pragma warning restore CS1591

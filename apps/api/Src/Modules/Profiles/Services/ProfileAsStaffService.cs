@@ -1,14 +1,10 @@
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Utils;
-using MainApi.Src.Modules.Invitations.Entities;
-using MainApi.Src.Modules.Permissions.Entities;
-using MainApi.Src.Modules.Profiles.Entities;
-using MainApi.Src.Modules.Users.Entities;
-
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
-namespace MainApi.Src.Modules.Profiles.Services;
+namespace MainApi.Src.Features.Staff.ProfileAsStaff;
 
 public class StaffProfileItem {
 	public Guid Id { get; set; }
@@ -42,43 +38,14 @@ public abstract record FindStaffProfilesResult {
 /// </summary>
 public abstract record CreateStaffProfileResult {
 	/// <summary>
-	/// Successful result containing the created profile and operation statistics.
+	/// Successful result containing the created profile.
 	/// </summary>
-	public sealed record Success(
-		Profile Profile,
-		int PermissionsAssigned,
-		int UsersAssigned,
-		int InvitationsSent,
-		List<(string Email, string Token)> InvitationTokens,
-		List<string> EmailsToNotify
-	) : CreateStaffProfileResult;
+	public sealed record Success(Profile Profile) : CreateStaffProfileResult;
 
 	/// <summary>
 	/// Error result when a profile with the same name already exists.
 	/// </summary>
 	public sealed record ProfileNameExists(string Name) : CreateStaffProfileResult;
-
-	/// <summary>
-	/// Error result when one or more permission keys are invalid.
-	/// </summary>
-	public sealed record InvalidPermissions(List<string> InvalidKeys) : CreateStaffProfileResult;
-
-	/// <summary>
-	/// Error result when duplicate emails are provided.
-	/// </summary>
-	public sealed record DuplicateEmails(List<string> Emails) : CreateStaffProfileResult;
-
-	/// <summary>
-	/// Error result when users already have tenant or project accounts.
-	/// Staff profiles can only be assigned to users without tenant/project accounts.
-	/// </summary>
-	public sealed record UsersWithConflictingAccounts(List<string> Emails) : CreateStaffProfileResult;
-
-	/// <summary>
-	/// Error result when no permissions are provided.
-	/// At least one permission is required for staff profiles.
-	/// </summary>
-	public sealed record NoPermissionsProvided : CreateStaffProfileResult;
 }
 
 public interface IProfileAsStaffService {
@@ -101,23 +68,18 @@ public interface IProfileAsStaffService {
 
 	Task<CreateStaffProfileResult> CreateStaffProfileAsync(
 		string name,
-		string? description,
-		List<string> permissions,
-		List<string> emails,
-		Guid invitedByUserId,
+		string? description = null,
 		CancellationToken cancellationToken = default
 	);
 }
 
 public class ProfileAsStaffService : IProfileAsStaffService {
 	private readonly MainApiDbContext _dbContext;
-	private readonly ILogger<ProfileAsStaffService> _logger;
-	public ProfileAsStaffService(
-		MainApiDbContext dbContext,
-		ILogger<ProfileAsStaffService> logger
-	) {
+	private readonly IOptions<AppSettings> _appSettings;
+
+	public ProfileAsStaffService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings) {
 		_dbContext = dbContext;
-		_logger = logger;
+		_appSettings = appSettings;
 	}
 
 	public async Task<List<Profile>> FindTenantProfilesAsync(
@@ -130,7 +92,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	) {
 		var effectivePage = page ?? 1;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
 
 		var query =
 			from p in _dbContext.Profile
@@ -155,11 +117,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	/// - This ensures no gaps or duplicates in paginated results
 	///
 	/// EXAMPLE:
-	/// Page 1: GET /profiles?sortId=name&amp;sortOrder=asc&amp;limit=3
+	/// Page 1: GET /profiles?sortId=name&sortOrder=asc&limit=3
 	///   - Returns: Alice(id:100), Bob(id:050), Charlie(id:200)
 	///   - NextCursor: "200" (Charlie's id)
 	///
-	/// Page 2: GET /profiles?sortId=name&amp;sortOrder=asc&amp;limit=3&amp;cursor=200
+	/// Page 2: GET /profiles?sortId=name&sortOrder=asc&limit=3&cursor=200
 	///   - Lookup: cursor=200 → Name="Charlie"
 	///   - Query: WHERE (name > 'Charlie') OR (name = 'Charlie' AND id > 200)
 	///   - Returns records after Charlie in alphabetical order
@@ -171,7 +133,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		SortOrder? sortOrder = null,
 		CancellationToken cancellationToken = default
 	) {
-		var effectiveLimit = limit ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
+		var effectiveLimit = limit ?? _appSettings.Value.PAGINATION_DEFAULT_LIMIT;
 		var effectiveSortOrder = sortOrder ?? SortOrder.Desc;
 		var effectiveSortId = (sortId ?? "id").ToLowerInvariant();
 
@@ -202,7 +164,17 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// ApplyOrdering: ORDER BY Id [ASC|DESC]
 				applyOrdering: (q, isAsc) => isAsc
 					? q.OrderBy(p => p.Id)
-					: q.OrderByDescending(p => p.Id)
+					: q.OrderByDescending(p => p.Id),
+				// GetOffset: Count items BEFORE cursor
+				getOffset: async (q, cursorValue, isAsc) => {
+					var cursorGuid = (Guid?)cursorValue;
+					if (cursorGuid is null) return 0;
+					// ASC: Count items with Id < cursor (they come before in sort order)
+					// DESC: Count items with Id > cursor (they come before in sort order)
+					return isAsc
+						? await q.CountAsync(p => p.Id < cursorGuid)
+						: await q.CountAsync(p => p.Id > cursorGuid);
+				}
 			),
 
 			// ═══════════════════════════════════════════════════════════════════════
@@ -236,7 +208,17 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// Id tie-breaker MUST match primary sort direction for keyset pagination to work correctly
 				applyOrdering: (q, isAsc) => isAsc
 					? q.OrderBy(p => p.Name).ThenBy(p => p.Id)
-					: q.OrderByDescending(p => p.Name).ThenByDescending(p => p.Id)
+					: q.OrderByDescending(p => p.Name).ThenByDescending(p => p.Id),
+				// GetOffset: Count items BEFORE cursor (considering tie-breaker)
+				getOffset: async (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return 0;
+					var (cursorName, cursorId) = ((string, Guid?))cursorValue;
+					// ASC: Count items with (Name < cursor) OR (Name = cursor AND Id < cursorId)
+					// DESC: Count items with (Name > cursor) OR (Name = cursor AND Id > cursorId)
+					return isAsc
+						? await q.CountAsync(p => p.Name.CompareTo(cursorName) < 0 || (p.Name == cursorName && p.Id < cursorId))
+						: await q.CountAsync(p => p.Name.CompareTo(cursorName) > 0 || (p.Name == cursorName && p.Id > cursorId));
+				}
 			),
 
 			// ═══════════════════════════════════════════════════════════════════════
@@ -266,7 +248,17 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// ApplyOrdering: ORDER BY CreatedAt, Id (both same direction)
 				applyOrdering: (q, isAsc) => isAsc
 					? q.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
-					: q.OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
+					: q.OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id),
+				// GetOffset: Count items BEFORE cursor (considering tie-breaker)
+				getOffset: async (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return 0;
+					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
+					// ASC: Count items with (CreatedAt < cursor) OR (CreatedAt = cursor AND Id < cursorId)
+					// DESC: Count items with (CreatedAt > cursor) OR (CreatedAt = cursor AND Id > cursorId)
+					return isAsc
+						? await q.CountAsync(p => p.CreatedAt < cursorCreatedAt || (p.CreatedAt == cursorCreatedAt && p.Id < cursorId))
+						: await q.CountAsync(p => p.CreatedAt > cursorCreatedAt || (p.CreatedAt == cursorCreatedAt && p.Id > cursorId));
+				}
 			),
 
 			// ═══════════════════════════════════════════════════════════════════════
@@ -296,16 +288,28 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// ApplyOrdering: ORDER BY UserAccountProfiles.Count, Id (both same direction)
 				applyOrdering: (q, isAsc) => isAsc
 					? q.OrderBy(p => p.UserAccountProfiles.Count).ThenBy(p => p.Id)
-					: q.OrderByDescending(p => p.UserAccountProfiles.Count).ThenByDescending(p => p.Id)
+					: q.OrderByDescending(p => p.UserAccountProfiles.Count).ThenByDescending(p => p.Id),
+				// GetOffset: Count items BEFORE cursor (considering tie-breaker)
+				getOffset: async (q, cursorValue, isAsc) => {
+					if (cursorValue is null) return 0;
+					var (cursorCount, cursorId) = ((int, Guid?))cursorValue;
+					// ASC: Count items with (Count < cursor) OR (Count = cursor AND Id < cursorId)
+					// DESC: Count items with (Count > cursor) OR (Count = cursor AND Id > cursorId)
+					return isAsc
+						? await q.CountAsync(p => p.UserAccountProfiles.Count < cursorCount || (p.UserAccountProfiles.Count == cursorCount && p.Id < cursorId))
+						: await q.CountAsync(p => p.UserAccountProfiles.Count > cursorCount || (p.UserAccountProfiles.Count == cursorCount && p.Id > cursorId));
+				}
 			)
 		};
 
 		// ───────────────────────────────────────────────────────────────────────
 		// STEP 1: Validate sortId parameter
 		// ───────────────────────────────────────────────────────────────────────
-		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out SortFieldHandler? handler)) {
+		if (!sortFieldHandlers.ContainsKey(effectiveSortId)) {
 			return new FindStaffProfilesResult.InvalidSortId(effectiveSortId);
 		}
+
+		var handler = sortFieldHandlers[effectiveSortId];
 
 		// ───────────────────────────────────────────────────────────────────────
 		// STEP 2: Build base query
@@ -315,18 +319,41 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			.Where(p => p.Scope == ProfileScope.Staff && p.Id != null);
 
 		// ───────────────────────────────────────────────────────────────────────
-		// STEP 3: Apply cursor-based filter (if paginating)
+		// STEP 2.5: Get total count (before applying cursor filter)
 		// ───────────────────────────────────────────────────────────────────────
-		// Apply keyset filter to get records AFTER the cursor
+		// Count all staff profiles for pagination UI (shows "X of Y")
+		// This is fast for staff profiles (typically < 1000 records)
+		var totalCount = await query.CountAsync(cancellationToken);
+
+		// ───────────────────────────────────────────────────────────────────────
+		// STEP 2.6: Calculate current offset (for page number calculation)
+		// ───────────────────────────────────────────────────────────────────────
+		// Count items that come BEFORE the current cursor in the sort order
+		// This allows frontend to show correct page number: CurrentPage = floor(offset / limit) + 1
+		int currentOffset = 0;
+		object? cursorValue = null;
+
 		if (cursor != Guid.Empty) {
 			// Fetch the sort field value at the cursor position
-			var cursorValue = await handler.GetCursorValue(cursor);
+			cursorValue = await handler.GetCursorValue(cursor);
 
 			// Validate that cursor exists
 			if (cursorValue is null) {
 				return new FindStaffProfilesResult.CursorNotFound(cursor.ToString());
 			}
 
+			// Calculate how many items come before this cursor
+			// Example: If cursor is at position 40 with limit=20, this returns 40
+			// Frontend calculates: CurrentPage = floor(40 / 20) + 1 = 3
+			currentOffset = await handler.GetOffset(query, cursorValue, effectiveSortOrder == SortOrder.Asc);
+		}
+
+		// ───────────────────────────────────────────────────────────────────────
+		// STEP 3: Apply cursor-based filter (if paginating)
+		// ───────────────────────────────────────────────────────────────────────
+		// Apply keyset filter to get records AFTER the cursor
+		// cursorValue was already fetched and validated in STEP 2.6
+		if (cursor != Guid.Empty && cursorValue is not null) {
 			// Apply the keyset filter based on the sort field
 			// This adds WHERE clause like:
 			// WHERE (Name > 'Charlie') OR (Name = 'Charlie' AND Id > 200)
@@ -347,7 +374,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		// Project to StaffProfileItem at DB level for efficiency
 		var results = await orderedQuery
 			.Select(p => new StaffProfileItem {
-				Id = p.Id ?? Guid.Empty,
+				Id = p.Id!.Value,
 				Name = p.Name,
 				Description = p.Description,
 				UserAccountCount = p.UserAccountProfiles.Count
@@ -372,53 +399,29 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			new CursorPaginatedResult<StaffProfileItem> {
 				Data = results,
 				NextCursor = nextCursor,  // null = last page, otherwise = Id to continue from
+				TotalCount = totalCount,  // Total items across all pages
+				CurrentOffset = currentOffset  // Items before current page (for calculating page number)
 			}
 		);
 	}
 
 	/// <summary>
-	/// Creates a new staff profile with permissions and user assignments.
+	/// Creates a new staff profile.
 	/// </summary>
 	/// <param name="name">The name of the profile</param>
 	/// <param name="description">Optional description for the profile</param>
-	/// <param name="permissions">List of permission keys to assign</param>
-	/// <param name="emails">List of user emails to assign or invite</param>
-	/// <param name="invitedByUserId">User ID creating the profile</param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>
-	/// Success with statistics, or error result if validation fails
+	/// Success with the created profile, or ProfileNameExists if a staff
+	/// profile with the same name already exists
 	/// </returns>
 	public async Task<CreateStaffProfileResult> CreateStaffProfileAsync(
 		string name,
-		string? description,
-		List<string> permissions,
-		List<string> emails,
-		Guid invitedByUserId,
+		string? description = null,
 		CancellationToken cancellationToken = default
 	) {
-		// Normalize and validate inputs
+		// Check if profile with same name already exists for staff scope
 		var normalizedName = name.Trim();
-		var normalizedEmails = emails
-			.Select(e => e.Trim().ToLowerInvariant())
-			.ToList();
-
-		// CRITICAL: Business rule - at least one permission is required
-		if (permissions.Count == 0) {
-			return new CreateStaffProfileResult.NoPermissionsProvided();
-		}
-
-		// Check for duplicate emails in input
-		var duplicateEmails = normalizedEmails
-			.GroupBy(e => e)
-			.Where(g => g.Count() > 1)
-			.Select(g => g.Key)
-			.ToList();
-
-		if (duplicateEmails.Count > 0) {
-			return new CreateStaffProfileResult.DuplicateEmails(duplicateEmails);
-		}
-
-		// Check if profile name already exists
 		var profileExists = await (
 			from p in _dbContext.Profile
 			where p.Scope == ProfileScope.Staff
@@ -430,264 +433,16 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			return new CreateStaffProfileResult.ProfileNameExists(normalizedName);
 		}
 
-		// Validate all permissions exist AND are Staff-scoped
-		var validPermissionKeys = await (
-			from p in _dbContext.Permission
-			where permissions.Contains(p.Key)
-				&& p.Scope == PermissionScope.Staff
-			select p.Key
-		).ToListAsync(cancellationToken);
+		// Create new staff profile using factory method
+		var profile = Profile.CreateStaffProfile(
+			normalizedName,
+			description?.Trim()
+		);
 
-		var invalidPermissions = permissions
-			.Except(validPermissionKeys)
-			.ToList();
+		await _dbContext.Profile.AddAsync(profile, cancellationToken);
+		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		if (invalidPermissions.Count > 0) {
-			return new CreateStaffProfileResult.InvalidPermissions(invalidPermissions);
-		}
-
-		// Begin transaction
-		await using var transaction = await _dbContext.Database
-			.BeginTransactionAsync(cancellationToken);
-
-		try {
-			// Create new staff profile using factory method
-			var profile = Profile.CreateStaffProfile(
-				normalizedName,
-				description?.Trim()
-			);
-
-			await _dbContext.Profile.AddAsync(profile, cancellationToken);
-			await _dbContext.SaveChangesAsync(cancellationToken);
-			// Profile ID is now available
-
-			var profileId = profile.GetRequiredId();
-
-			// Create ProfilePermission entities
-			var profilePermissions = permissions
-				.Select(permissionKey => new ProfilePermission {
-					ProfileId = profileId,
-					PermissionKey = permissionKey
-				})
-				.ToList();
-
-			if (profilePermissions.Count > 0) {
-				await _dbContext.ProfilePermission
-					.AddRangeAsync(profilePermissions, cancellationToken);
-			}
-
-			// Batch fetch existing users
-			var existingUsers = await (
-				from u in _dbContext.User
-				where normalizedEmails.Contains(u.Email)
-					&& !u.IsDeleted
-				select u
-			).ToListAsync(cancellationToken);
-
-			var existingUserEmails = existingUsers
-				.Select(u => u.Email.ToLowerInvariant())
-				.ToHashSet();
-
-			// CRITICAL: Check for users with tenant or project accounts
-			// Staff profiles can ONLY be assigned to users without tenant/project accounts
-			var existingUserIds = existingUsers.Select(u => u.GetRequiredId()).ToList();
-			var conflictingAccounts = await (
-				from ua in _dbContext.UserAccount
-				where existingUserIds.Contains(ua.UserId)
-					&& (ua.Scope == AccountScope.Tenant || ua.Scope == AccountScope.Project)
-					&& !ua.IsDeleted && !ua.IsSuspended
-				select ua.UserId
-			).ToListAsync(cancellationToken);
-
-			if (conflictingAccounts.Count > 0) {
-				// Get emails of users with conflicting accounts
-				var conflictingUserIds = conflictingAccounts.ToHashSet();
-				var conflictingEmails = existingUsers
-					.Where(u => conflictingUserIds.Contains(u.GetRequiredId()))
-					.Select(u => u.Email)
-					.ToList();
-
-				return new CreateStaffProfileResult.UsersWithConflictingAccounts(conflictingEmails);
-			}
-
-			// Batch fetch existing staff accounts for these users
-			var existingStaffAccounts = await (
-				from ua in _dbContext.UserAccount
-				where existingUserIds.Contains(ua.UserId)
-					&& ua.Scope == AccountScope.Staff
-					&& !ua.IsDeleted && !ua.IsSuspended
-				select ua
-			).ToListAsync(cancellationToken);
-
-			var usersWithStaffAccounts = existingStaffAccounts
-				.Select(ua => ua.UserId)
-				.ToHashSet();
-
-			// CRITICAL: Batch fetch existing UserAccountProfile links to prevent duplicates
-			var existingStaffAccountIds = existingStaffAccounts
-				.Select(ua => ua.GetRequiredId())
-				.ToList();
-
-			var existingProfileLinks = await (
-				from uap in _dbContext.UserAccountProfile
-				where existingStaffAccountIds.Contains(uap.UserAccountId)
-					&& uap.ProfileId == profileId
-				select uap.UserAccountId
-			).ToListAsync(cancellationToken);
-
-			var accountsAlreadyLinked = existingProfileLinks.ToHashSet();
-
-			// Identify missing emails (need invitations)
-			var missingEmails = normalizedEmails
-				.Except(existingUserEmails)
-				.ToList();
-
-			// PERFORMANCE OPTIMIZATION: Batch create UserAccounts to avoid multiple SaveChanges
-
-			// Step 6a: Identify users needing new staff accounts
-			var usersNeedingStaffAccounts = existingUsers
-				.Where(u => !usersWithStaffAccounts.Contains(u.GetRequiredId()))
-				.ToList();
-
-			// Step 6b: Batch create all new UserAccounts (SINGLE SaveChanges)
-			var newUserAccountsMap = new Dictionary<Guid, UserAccount>();
-
-			if (usersNeedingStaffAccounts.Count > 0) {
-				var newUserAccountsToCreate = usersNeedingStaffAccounts
-					.Select(user => {
-						var userAccount = UserAccount.CreateStaffAccount(
-							user.GetRequiredId(),
-							AccountLevel.User
-						);
-						newUserAccountsMap[user.GetRequiredId()] = userAccount;
-						return userAccount;
-					})
-					.ToList();
-
-				await _dbContext.UserAccount.AddRangeAsync(newUserAccountsToCreate, cancellationToken);
-				await _dbContext.SaveChangesAsync(cancellationToken);
-				// All UserAccount IDs are now available
-			}
-
-			// Step 6c: Create UserAccountProfile links for all users
-			var newUserAccountProfiles = new List<UserAccountProfile>();
-			var newLinksCreated = 0;
-			var existingLinksSkipped = 0;
-			var emailsToNotify = new List<string>();
-
-			foreach (var user in existingUsers) {
-				var userId = user.GetRequiredId();
-				Guid accountId;
-
-				// Check if user already has a staff account
-				if (!usersWithStaffAccounts.Contains(userId)) {
-					// User just got a new staff account - get it from our map
-					var newAccount = newUserAccountsMap[userId];
-					accountId = newAccount.GetRequiredId();
-					emailsToNotify.Add(user.Email);
-				} else {
-					// User has existing staff account
-					var existingAccount = existingStaffAccounts
-						.First(ua => ua.UserId == userId);
-					accountId = existingAccount.GetRequiredId();
-
-					// CRITICAL: Only create link if it doesn't already exist
-					if (accountsAlreadyLinked.Contains(accountId)) {
-						existingLinksSkipped++;
-						continue;
-					}
-
-					emailsToNotify.Add(user.Email);
-				}
-
-				// Create UserAccountProfile link
-				var userAccountProfile = new UserAccountProfile {
-					UserAccountId = accountId,
-					ProfileId = profileId
-				};
-				newUserAccountProfiles.Add(userAccountProfile);
-				newLinksCreated++;
-			}
-
-			// Batch insert all UserAccountProfile links
-			if (newUserAccountProfiles.Count > 0) {
-				await _dbContext.UserAccountProfile
-					.AddRangeAsync(newUserAccountProfiles, cancellationToken);
-			}
-
-			// Check for existing pending invitations
-			var existingInvitations = await (
-				from i in _dbContext.Invitation
-				where missingEmails.Contains(i.Email)
-					&& i.Scope == InvitationScope.Staff
-					&& !i.IsAccepted && !i.IsRevoked
-				select i.Email.ToLowerInvariant()
-			).ToListAsync(cancellationToken);
-
-			// Filter out emails with pending invitations
-			var emailsNeedingInvitations = missingEmails
-				.Except(existingInvitations)
-				.ToList();
-
-			// Generate invitations with tokens
-			var invitationTokens = new List<(string Email, string Token)>();
-			var newInvitations = new List<Invitation>();
-
-			foreach (var email in emailsNeedingInvitations) {
-				// Generate token using CryptoUtils
-				var token = CryptoUtils.RandomString(AppEnvironment.Instance.INVITATION_TOKEN_LENGTH);
-				var expiresAt = DateTime.UtcNow.AddDays(7);
-
-				var invitation = Invitation.CreateStaffInvitationWithProfiles(
-					email,
-					new List<Guid> { profileId },
-					invitedByUserId,
-					expiresAt,
-					token
-				);
-
-				invitation.ValidateInvitationType();
-				newInvitations.Add(invitation);
-				invitationTokens.Add((email, token));
-			}
-
-			if (newInvitations.Count > 0) {
-				await _dbContext.Invitation
-					.AddRangeAsync(newInvitations, cancellationToken);
-			}
-
-			// Save all changes
-			await _dbContext.SaveChangesAsync(cancellationToken);
-			await transaction.CommitAsync(cancellationToken);
-
-			if (_logger.IsEnabled(LogLevel.Information)) {
-				_logger.LogInformation(
-					"Created staff profile {ProfileName} with {PermissionsCount} permissions, " +
-					"{NewLinksCount} new user assignments, {ExistingLinksCount} existing links skipped, " +
-					"{InvitationsCount} invitations sent",
-					normalizedName,
-					permissions.Count,
-					newLinksCreated,
-					existingLinksSkipped,
-					invitationTokens.Count
-				);
-			}
-
-			return new CreateStaffProfileResult.Success(
-				profile,
-				permissions.Count,
-				newLinksCreated,
-				invitationTokens.Count,
-				invitationTokens,
-				emailsToNotify
-			);
-		} catch (Exception ex) {
-			await transaction.RollbackAsync(cancellationToken);
-			if (_logger.IsEnabled(LogLevel.Error)) {
-				_logger.LogError(ex, "Failed to create staff profile {ProfileName}", normalizedName);
-			}
-			throw;
-		}
+		return new CreateStaffProfileResult.Success(profile);
 	}
 
 	/// <summary>
@@ -727,14 +482,27 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		/// </summary>
 		public Func<IQueryable<Profile>, bool, IQueryable<Profile>> ApplyOrdering { get; }
 
+		/// <summary>
+		/// Counts items that come BEFORE the cursor in the sort order.
+		/// Used to calculate current page number from offset.
+		/// Parameters:
+		/// - IQueryable: The base query (before cursor filter)
+		/// - object?: The cursor value from GetCursorValue
+		/// - bool: true for ascending, false for descending
+		/// Returns: Count of items before cursor
+		/// </summary>
+		public Func<IQueryable<Profile>, object?, bool, Task<int>> GetOffset { get; }
+
 		public SortFieldHandler(
 			Func<Guid, Task<object?>> getCursorValue,
 			Func<IQueryable<Profile>, object?, bool, IQueryable<Profile>> applyFilter,
-			Func<IQueryable<Profile>, bool, IQueryable<Profile>> applyOrdering
+			Func<IQueryable<Profile>, bool, IQueryable<Profile>> applyOrdering,
+			Func<IQueryable<Profile>, object?, bool, Task<int>> getOffset
 		) {
 			GetCursorValue = getCursorValue;
 			ApplyFilter = applyFilter;
 			ApplyOrdering = applyOrdering;
+			GetOffset = getOffset;
 		}
 	}
 }
