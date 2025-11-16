@@ -231,7 +231,7 @@ const ProfileNameCell: MRT_ColumnDef<StaffProfileRowData, string>['Cell'] = (
 			}}
 		>
 			<Avatar alt={name} variant="rounded" sx={{ width: 40, height: 40 }}>
-				{name.charAt(0).toUpperCase()}
+				<Iconify icon="solar:user-id-bold" width={24} />
 			</Avatar>
 
 			<ListItemText
