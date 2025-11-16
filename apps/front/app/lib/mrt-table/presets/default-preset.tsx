@@ -10,6 +10,7 @@ import {
 } from 'material-react-table';
 import { EmptyContent } from '@/front/components/empty-content/empty-content';
 import { Iconify } from '@/front/components/iconify/iconify';
+import { DEFAULT_PAGE_SIZE_OPTIONS } from '../../constants';
 import type { TablePreset } from '../table-presets';
 
 export const defaultTablePreset = (theme: Theme): TablePreset => {
@@ -84,6 +85,7 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 		muiPaginationProps: {
 			showFirstButton: false,
 			showLastButton: false,
+			rowsPerPageOptions: DEFAULT_PAGE_SIZE_OPTIONS,
 			sx: {
 				bgcolor: theme.vars.palette.background.paper,
 			},

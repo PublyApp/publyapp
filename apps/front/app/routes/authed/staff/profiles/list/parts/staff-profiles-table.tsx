@@ -23,7 +23,9 @@ import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { DEFAULT_PAGE_SIZE_OPTIONS } from '@/front/lib/constants';
 import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
+import { checkIfEmptyQueryData } from '@/front/lib/react-query/query-utils';
 import type { StaffProfileItem } from '@/js-client/src/models';
 import { DEFAULT_PAGE_SIZE, FRONT_PATH_NAMES } from '@/shared/lib/constants';
 
@@ -109,13 +111,14 @@ const StaffProfilesTable = () => {
 	});
 
 	// Data fetching with cursor from apiVariables
-	const { data, isPending, error } = useFindStaffProfiles({
+	const findStaffProfilesQuery = useFindStaffProfiles({
 		variables: {
 			cursor: apiVariables.cursor || undefined,
 			limit: apiVariables.limit,
 			sort: apiVariables.sort,
 		},
 	});
+	const { data, isPending, error } = findStaffProfilesQuery;
 
 	// Feed nextCursor back to the hook
 	useEffect(() => {
@@ -190,10 +193,11 @@ const StaffProfilesTable = () => {
 							},
 						}}
 					>
-						<MenuItem value={10}>10</MenuItem>
-						<MenuItem value={20}>20</MenuItem>
-						<MenuItem value={50}>50</MenuItem>
-						<MenuItem value={100}>100</MenuItem>
+						{DEFAULT_PAGE_SIZE_OPTIONS.map((size) => (
+							<MenuItem key={size} value={size}>
+								{size}
+							</MenuItem>
+						))}
 					</Select>
 				</Box>
 
@@ -260,7 +264,10 @@ const StaffProfilesTable = () => {
 	}
 
 	// Empty State
-	if (!isPending && (!data?.data || data.data.length === 0)) {
+	if (
+		// !isPending && (!data?.data || data.data.length === 0)
+		checkIfEmptyQueryData(findStaffProfilesQuery)
+	) {
 		return (
 			<Card
 				sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 3 }}
