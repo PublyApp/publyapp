@@ -236,5 +236,12 @@
 	"create-profile": "Create profile",
 	"basic-infos": "Basic infos",
 	"description": "Description",
-	"permissions": "Permissions"
+	"permissions": "Permissions",
+	"user-accounts": "User accounts",
+	"actions": "Actions",
+	"page": "Page",
+	"previous": "Previous",
+	"next": "Next",
+	"rows-per-page": "Rows per page",
+	"page-x-of-y": "Page {{page}} of {{total}}"
 }
