@@ -116,49 +116,49 @@ if (results.Count > effectiveLimit) {
 }
 ```
 
-### 5. Total Count for Better UX
+### 5. ~~Total Count for Better UX~~ (REMOVED)
 
-Including the total count allows frontend tables to show helpful pagination info like "Showing 1-20 of 150":
+**Note**: The `TotalCount` feature has been removed from cursor pagination.
+
+**Reason**: Total count defeats the purpose of cursor pagination:
+- ❌ `COUNT(*)` queries are expensive on large datasets
+- ❌ Total count becomes stale as data changes
+- ❌ Not needed for Previous/Next navigation
+- ❌ Misleading for infinite scroll UX patterns
+
+**Solution**: Use cursor pagination without total count. The table UI shows only "Previous" and "Next" buttons without displaying "X of Y" indicators.
 
 ```csharp
-// Count total items BEFORE applying cursor filter
-var totalCount = await query.CountAsync(cancellationToken);
-
+// ✅ Simplified: No COUNT query
 return new FindEntitiesResult.Success(
     new CursorPaginatedResult<EntityItem> {
         Data = results,
-        NextCursor = nextCursor,
-        TotalCount = totalCount  // ✅ Frontend can show "X of Y"
+        NextCursor = nextCursor,  // null = last page
     }
 );
 ```
 
-**Performance Note**: For small to medium datasets (< 100K rows), the COUNT query is fast enough (typically < 50ms with proper indices).
+**Performance Impact**: Removes COUNT query overhead, making pagination faster for large datasets.
 
-### 6. Current Offset for Accurate Page Numbers
+### 6. ~~Current Offset for Accurate Page Numbers~~ (REMOVED)
 
-The `CurrentOffset` property solves the "deep link page number" problem - when a user shares a URL with a cursor, the frontend needs to know which page number to display.
+**Note**: The `CurrentOffset` feature has been removed. Cursor pagination should use **Previous/Next navigation only** - not page numbers.
 
-```csharp
-// Calculate how many items come BEFORE the current cursor
-int currentOffset = 0;
-if (cursor != Guid.Empty) {
-    currentOffset = await handler.GetOffset(query, cursorValue, isAscending);
+**Reason**: Cursor pagination is fundamentally incompatible with numbered page navigation:
+- ✅ Supports: Previous (reset to first page), Next (sequential forward)
+- ❌ Does not support: Jump to arbitrary page numbers
+
+**UI Pattern**: Display only Previous/Next buttons, hide page numbers:
+```typescript
+muiPaginationProps: {
+  showFirstButton: false,
+  showLastButton: false,
+  siblingCount: 0,       // Hide page numbers
+  boundaryCount: 0,      // Hide boundary numbers
 }
-
-return new FindEntitiesResult.Success(
-    new CursorPaginatedResult<EntityItem> {
-        Data = results,
-        NextCursor = nextCursor,
-        TotalCount = totalCount,
-        CurrentOffset = currentOffset  // ✅ Frontend: CurrentPage = floor(offset / limit) + 1
-    }
-);
 ```
 
-**Example**: If `CurrentOffset = 40` and `Limit = 20`, the frontend displays "Page 3".
-
-**Performance Note**: Offset calculation uses the same indexed queries as pagination, typically 50-200ms overhead.
+The simplified approach removes ~50-200ms overhead per request and aligns with cursor pagination best practices.
 
 ## Implementation Guide
 

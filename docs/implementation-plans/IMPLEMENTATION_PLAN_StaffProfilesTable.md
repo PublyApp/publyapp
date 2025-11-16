@@ -256,8 +256,6 @@ const StaffProfilesTable = () => {
 		apiVariables,
 		tableState,
 		setNextCursor,      // ← Update cursor from API
-		setCurrentOffset,   // ← Update page index from API offset
-		hasMorePages,       // ← Tracks if more pages exist
 	} = useTableState({
 		defaultSorting,
 		defaultPageSize: DEFAULT_PAGE_SIZE,
@@ -269,15 +267,12 @@ const StaffProfilesTable = () => {
 		variables: apiVariables,  // Already includes cursor!
 	});
 
-	// Update cursor and page index when API response changes
+	// Update cursor when API response changes
 	useEffect(() => {
 		if (data?.nextCursor !== undefined) {
 			setNextCursor(data.nextCursor);  // Update cursor for next page
 		}
-		if (data?.currentOffset !== undefined) {
-			setCurrentOffset(data.currentOffset);  // Update page index for correct display
-		}
-	}, [data?.nextCursor, data?.currentOffset, setNextCursor, setCurrentOffset]);
+	}, [data?.nextCursor, setNextCursor]);
 
 	// Transform data
 	const dataTable = useMemo(() => {
@@ -294,7 +289,7 @@ const StaffProfilesTable = () => {
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
 		state: {
-			...tableState,  // Includes correct pageIndex from setCurrentOffset
+			...tableState,
 			density: 'compact',
 			isLoading: isPending,
 		},
@@ -324,9 +319,9 @@ import { useMemo, useEffect } from 'react';
 **Acceptance Criteria:**
 - [ ] Component uses useTranslate hook
 - [ ] Table state configured with `paginationMode: 'cursor'`
-- [ ] `setNextCursor`, `setCurrentOffset`, and `hasMorePages` destructured from hook
+- [ ] `setNextCursor` destructured from hook
 - [ ] Data fetching uses `apiVariables` (which includes cursor)
-- [ ] useEffect updates cursor and offset from API response
+- [ ] useEffect updates cursor from API response
 - [ ] Data transformation with useMemo
 - [ ] Table configuration includes loading state
 - [ ] Card wrapper with proper flex layout
@@ -817,22 +812,17 @@ Add these keys to `packages/shared/lib/i18n/json/response-message.en.json`:
 - **Features:** Auto cursor management, URL sync, reset on sort/limit changes
 - **Backward Navigation:** Hook resets to first page automatically
 
-### 2. ✅ Total Count (RESOLVED)
-- **Status:** ✅ `TotalCount` added to `CursorPaginatedResult<T>` base class
-- **Solution:** API now returns `totalCount` for all cursor-paginated endpoints
-- **Impact:** Tables can now show "Showing 1-20 of 150" instead of just "1-20"
-- **Usage:** Set `rowCount: data?.totalCount || 0` in table configuration
-- **Implementation:** See [ProfileAsStaffService.cs:326](../api/Src/Features/Staff/ProfileAsStaff/ProfileAsStaffService.cs#L326)
+### 2. ❌ Total Count (REMOVED)
+- **Status:** ❌ `TotalCount` removed from `CursorPaginatedResult<T>` - not needed for cursor pagination
+- **Reason:** Total count is expensive (COUNT query) and not needed for Previous/Next navigation
+- **Impact:** Tables don't show "Showing 1-20 of 150" indicators - just Previous/Next buttons
+- **Decision:** Aligns with cursor pagination best practices - better performance, simpler implementation
 
-### 3. ✅ Deep Link Page Numbers (RESOLVED)
-- **Status:** ✅ `CurrentOffset` added to `CursorPaginatedResult<T>` base class + hook support
-- **Solution:** API calculates offset (items before cursor), hook provides `setCurrentOffset()` method
-- **Impact:** Shared URLs with cursors now show correct page number ("Page 3" not "Page 1")
-- **Usage:** Call `setCurrentOffset(data.currentOffset)` in useEffect - hook handles page index calculation
-- **Performance:** ~50-200ms offset query (acceptable for staff profile dataset)
-- **Implementation:**
-  - API: [ProfileAsStaffService.cs:328-349](../api/Src/Features/Staff/ProfileAsStaff/ProfileAsStaffService.cs#L328-L349)
-  - Hook: [use-table-state.ts:259-279](../front/app/hooks/use-table-state.ts#L259-L279)
+### 3. ❌ Deep Link Page Numbers (REMOVED)
+- **Status:** ❌ `CurrentOffset` feature removed - not needed for cursor pagination with Previous/Next buttons
+- **Reason:** Cursor pagination doesn't support page numbers - only Previous/Next navigation
+- **Impact:** Shared URLs with cursors will start from first page (Previous button resets to beginning)
+- **Decision:** Simplified UI with no page numbers aligns with cursor pagination limitations
 
 ### 4. Delete API Endpoint
 - **Status:** May not be implemented yet
@@ -927,8 +917,27 @@ The implementation is complete when:
 
 ## Revision History
 
-### v2.2 - 2025-01-15
-**Deep Link Page Numbers Support Added**
+### v2.4 - 2025-01-16
+**Removed TotalCount Support**
+- ❌ Removed `TotalCount` property from `CursorPaginatedResult<T>` base class
+- ❌ Removed COUNT query from `FindStaffProfilesAsync` service method
+- ❌ Removed `TotalCount` mapping from FindStaffProfiles handler
+- ❌ Removed `rowCount` from frontend table configuration
+- ✅ Better performance - no COUNT query overhead
+- ✅ Simpler implementation - cursor pagination without total count
+- **Reason:** Total count is expensive and not needed for Previous/Next navigation; aligns with cursor pagination best practices
+
+### v2.3 - 2025-01-16
+**Removed CurrentOffset Support**
+- ❌ Removed `CurrentOffset` property from `CursorPaginatedResult<T>` base class
+- ❌ Removed offset calculation from API service (simplified STEP 3)
+- ❌ Removed `setCurrentOffset()` usage from frontend component
+- ✅ Updated pagination to show only Previous/Next buttons (no page numbers)
+- ✅ Simplified cursor pagination - aligns with UX best practices for large datasets
+- **Reason:** Cursor pagination is incompatible with page numbers; Previous/Next navigation is the correct pattern
+
+### v2.2 - 2025-01-15 (DEPRECATED)
+**Deep Link Page Numbers Support Added** (Later removed in v2.3)
 - ✅ Added `CurrentOffset` property to `CursorPaginatedResult<T>` base class
 - ✅ Implemented offset calculation in all 4 sort handlers (id, name, created_at, user_account_count)
 - ✅ Added `setCurrentOffset()` method to `useTableState` hook in cursor mode
@@ -959,6 +968,6 @@ The implementation is complete when:
 
 ---
 
-**Last Updated:** 2025-01-15 (v2.2)
+**Last Updated:** 2025-01-16 (v2.4)
 **Author:** AI Assistant
-**Status:** ✅ Ready for Implementation (Enhanced with Total Count & Deep Link Support)
+**Status:** ✅ Implemented (Cursor Pagination with Previous/Next Navigation - No Total Count)

@@ -219,5 +219,11 @@
 	"create-profile": "Créer profil",
 	"basic-infos": "Infos de base",
 	"description": "Description",
-	"permissions": "Permissions"
+	"permissions": "Permissions",
+	"user-accounts": "Comptes utilisateur",
+	"actions": "Actions",
+	"page": "Page",
+	"previous": "Précédent",
+	"next": "Suivant",
+	"rows-per-page": "Lignes par page"
 }

@@ -76,10 +76,11 @@ public interface IProfileAsStaffService {
 public class ProfileAsStaffService : IProfileAsStaffService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly IOptions<AppSettings> _appSettings;
-
-	public ProfileAsStaffService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings) {
+	private readonly ILogger<ProfileAsStaffService> _logger;
+	public ProfileAsStaffService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings, ILogger<ProfileAsStaffService> logger) {
 		_dbContext = dbContext;
 		_appSettings = appSettings;
+		_logger = logger;
 	}
 
 	public async Task<List<Profile>> FindTenantProfilesAsync(
@@ -164,17 +165,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// ApplyOrdering: ORDER BY Id [ASC|DESC]
 				applyOrdering: (q, isAsc) => isAsc
 					? q.OrderBy(p => p.Id)
-					: q.OrderByDescending(p => p.Id),
-				// GetOffset: Count items BEFORE cursor
-				getOffset: async (q, cursorValue, isAsc) => {
-					var cursorGuid = (Guid?)cursorValue;
-					if (cursorGuid is null) return 0;
-					// ASC: Count items with Id < cursor (they come before in sort order)
-					// DESC: Count items with Id > cursor (they come before in sort order)
-					return isAsc
-						? await q.CountAsync(p => p.Id < cursorGuid)
-						: await q.CountAsync(p => p.Id > cursorGuid);
-				}
+					: q.OrderByDescending(p => p.Id)
 			),
 
 			// ═══════════════════════════════════════════════════════════════════════
@@ -208,17 +199,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// Id tie-breaker MUST match primary sort direction for keyset pagination to work correctly
 				applyOrdering: (q, isAsc) => isAsc
 					? q.OrderBy(p => p.Name).ThenBy(p => p.Id)
-					: q.OrderByDescending(p => p.Name).ThenByDescending(p => p.Id),
-				// GetOffset: Count items BEFORE cursor (considering tie-breaker)
-				getOffset: async (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return 0;
-					var (cursorName, cursorId) = ((string, Guid?))cursorValue;
-					// ASC: Count items with (Name < cursor) OR (Name = cursor AND Id < cursorId)
-					// DESC: Count items with (Name > cursor) OR (Name = cursor AND Id > cursorId)
-					return isAsc
-						? await q.CountAsync(p => p.Name.CompareTo(cursorName) < 0 || (p.Name == cursorName && p.Id < cursorId))
-						: await q.CountAsync(p => p.Name.CompareTo(cursorName) > 0 || (p.Name == cursorName && p.Id > cursorId));
-				}
+					: q.OrderByDescending(p => p.Name).ThenByDescending(p => p.Id)
 			),
 
 			// ═══════════════════════════════════════════════════════════════════════
@@ -248,17 +229,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// ApplyOrdering: ORDER BY CreatedAt, Id (both same direction)
 				applyOrdering: (q, isAsc) => isAsc
 					? q.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
-					: q.OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id),
-				// GetOffset: Count items BEFORE cursor (considering tie-breaker)
-				getOffset: async (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return 0;
-					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-					// ASC: Count items with (CreatedAt < cursor) OR (CreatedAt = cursor AND Id < cursorId)
-					// DESC: Count items with (CreatedAt > cursor) OR (CreatedAt = cursor AND Id > cursorId)
-					return isAsc
-						? await q.CountAsync(p => p.CreatedAt < cursorCreatedAt || (p.CreatedAt == cursorCreatedAt && p.Id < cursorId))
-						: await q.CountAsync(p => p.CreatedAt > cursorCreatedAt || (p.CreatedAt == cursorCreatedAt && p.Id > cursorId));
-				}
+					: q.OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
 			),
 
 			// ═══════════════════════════════════════════════════════════════════════
@@ -288,17 +259,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				// ApplyOrdering: ORDER BY UserAccountProfiles.Count, Id (both same direction)
 				applyOrdering: (q, isAsc) => isAsc
 					? q.OrderBy(p => p.UserAccountProfiles.Count).ThenBy(p => p.Id)
-					: q.OrderByDescending(p => p.UserAccountProfiles.Count).ThenByDescending(p => p.Id),
-				// GetOffset: Count items BEFORE cursor (considering tie-breaker)
-				getOffset: async (q, cursorValue, isAsc) => {
-					if (cursorValue is null) return 0;
-					var (cursorCount, cursorId) = ((int, Guid?))cursorValue;
-					// ASC: Count items with (Count < cursor) OR (Count = cursor AND Id < cursorId)
-					// DESC: Count items with (Count > cursor) OR (Count = cursor AND Id > cursorId)
-					return isAsc
-						? await q.CountAsync(p => p.UserAccountProfiles.Count < cursorCount || (p.UserAccountProfiles.Count == cursorCount && p.Id < cursorId))
-						: await q.CountAsync(p => p.UserAccountProfiles.Count > cursorCount || (p.UserAccountProfiles.Count == cursorCount && p.Id > cursorId));
-				}
+					: q.OrderByDescending(p => p.UserAccountProfiles.Count).ThenByDescending(p => p.Id)
 			)
 		};
 
@@ -319,41 +280,18 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			.Where(p => p.Scope == ProfileScope.Staff && p.Id != null);
 
 		// ───────────────────────────────────────────────────────────────────────
-		// STEP 2.5: Get total count (before applying cursor filter)
+		// STEP 3: Apply cursor-based filter (if paginating)
 		// ───────────────────────────────────────────────────────────────────────
-		// Count all staff profiles for pagination UI (shows "X of Y")
-		// This is fast for staff profiles (typically < 1000 records)
-		var totalCount = await query.CountAsync(cancellationToken);
-
-		// ───────────────────────────────────────────────────────────────────────
-		// STEP 2.6: Calculate current offset (for page number calculation)
-		// ───────────────────────────────────────────────────────────────────────
-		// Count items that come BEFORE the current cursor in the sort order
-		// This allows frontend to show correct page number: CurrentPage = floor(offset / limit) + 1
-		int currentOffset = 0;
-		object? cursorValue = null;
-
+		// Apply keyset filter to get records AFTER the cursor
 		if (cursor != Guid.Empty) {
 			// Fetch the sort field value at the cursor position
-			cursorValue = await handler.GetCursorValue(cursor);
+			var cursorValue = await handler.GetCursorValue(cursor);
 
 			// Validate that cursor exists
 			if (cursorValue is null) {
 				return new FindStaffProfilesResult.CursorNotFound(cursor.ToString());
 			}
 
-			// Calculate how many items come before this cursor
-			// Example: If cursor is at position 40 with limit=20, this returns 40
-			// Frontend calculates: CurrentPage = floor(40 / 20) + 1 = 3
-			currentOffset = await handler.GetOffset(query, cursorValue, effectiveSortOrder == SortOrder.Asc);
-		}
-
-		// ───────────────────────────────────────────────────────────────────────
-		// STEP 3: Apply cursor-based filter (if paginating)
-		// ───────────────────────────────────────────────────────────────────────
-		// Apply keyset filter to get records AFTER the cursor
-		// cursorValue was already fetched and validated in STEP 2.6
-		if (cursor != Guid.Empty && cursorValue is not null) {
 			// Apply the keyset filter based on the sort field
 			// This adds WHERE clause like:
 			// WHERE (Name > 'Charlie') OR (Name = 'Charlie' AND Id > 200)
@@ -399,8 +337,6 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			new CursorPaginatedResult<StaffProfileItem> {
 				Data = results,
 				NextCursor = nextCursor,  // null = last page, otherwise = Id to continue from
-				TotalCount = totalCount,  // Total items across all pages
-				CurrentOffset = currentOffset  // Items before current page (for calculating page number)
 			}
 		);
 	}
@@ -482,27 +418,14 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		/// </summary>
 		public Func<IQueryable<Profile>, bool, IQueryable<Profile>> ApplyOrdering { get; }
 
-		/// <summary>
-		/// Counts items that come BEFORE the cursor in the sort order.
-		/// Used to calculate current page number from offset.
-		/// Parameters:
-		/// - IQueryable: The base query (before cursor filter)
-		/// - object?: The cursor value from GetCursorValue
-		/// - bool: true for ascending, false for descending
-		/// Returns: Count of items before cursor
-		/// </summary>
-		public Func<IQueryable<Profile>, object?, bool, Task<int>> GetOffset { get; }
-
 		public SortFieldHandler(
 			Func<Guid, Task<object?>> getCursorValue,
 			Func<IQueryable<Profile>, object?, bool, IQueryable<Profile>> applyFilter,
-			Func<IQueryable<Profile>, bool, IQueryable<Profile>> applyOrdering,
-			Func<IQueryable<Profile>, object?, bool, Task<int>> getOffset
+			Func<IQueryable<Profile>, bool, IQueryable<Profile>> applyOrdering
 		) {
 			GetCursorValue = getCursorValue;
 			ApplyFilter = applyFilter;
 			ApplyOrdering = applyOrdering;
-			GetOffset = getOffset;
 		}
 	}
 }

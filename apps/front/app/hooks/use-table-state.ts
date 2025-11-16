@@ -5,7 +5,7 @@ import type {
 	MRT_SortingState,
 } from 'material-react-table';
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { DEFAULT_PAGE_SIZE } from '@/shared/lib/constants';
 
 export type TableQueryKeys = {
@@ -23,6 +23,7 @@ export type UseTableStateOptions = {
 	queryKeys?: TableQueryKeys;
 	defaultSorting?: MRT_SortingState[number];
 	defaultPageSize?: number;
+	paginationMode?: 'offset' | 'cursor';
 };
 
 export type UseTableStateReturn = {
@@ -49,7 +50,8 @@ export type UseTableStateReturn = {
 	// Computed values for API calls
 	apiVariables: {
 		limit: number;
-		page: number;
+		page?: number;
+		cursor?: string | null;
 		sort: {
 			id: string;
 			order: 'asc' | 'desc';
@@ -61,6 +63,12 @@ export type UseTableStateReturn = {
 		pagination: MRT_PaginationState;
 		sorting: MRT_SortingState;
 	};
+
+	// Cursor-specific fields
+	paginationMode: 'offset' | 'cursor';
+	setNextCursor?: (cursor: string | null | undefined) => void;
+	hasNextPage?: boolean;
+	hasPreviousPage?: boolean;
 };
 
 // Default query keys
@@ -75,10 +83,16 @@ const defaultTableQueryKeys: TableQueryKeys = {
 	},
 };
 
+const MAX_CURSOR_HISTORY = 50;
+
 export const useTableState = (
 	options: UseTableStateOptions,
 ): UseTableStateReturn => {
-	const { defaultSorting, defaultPageSize = DEFAULT_PAGE_SIZE } = options;
+	const {
+		defaultSorting,
+		defaultPageSize = DEFAULT_PAGE_SIZE,
+		paginationMode = 'offset',
+	} = options;
 	const queryKeys = _.merge({}, defaultTableQueryKeys, options.queryKeys || {});
 
 	const _sortOrder = ['asc', 'desc'] as const;
@@ -93,13 +107,47 @@ export const useTableState = (
 		),
 	});
 
-	// Pagination state
-	const [paginationState, setPaginationState] = useQueryStates({
-		[queryKeys.pagination.page]: parseAsString.withDefault('1'),
-		[queryKeys.pagination.pageSize]: parseAsString.withDefault(
-			defaultPageSize.toString(),
-		),
-	});
+	// Cursor-specific state (only used in cursor mode)
+	const [_cursorHistory, setCursorHistory] = useState<string[]>([]);
+	const [currentCursor, setCurrentCursor] = useState<string | null>(null);
+	const [nextCursor, setNextCursor] = useState<string | null | undefined>(
+		undefined,
+	);
+	const [virtualPageIndex, setVirtualPageIndex] = useState(0);
+
+	// Pagination state (conditional based on mode)
+	const [paginationState, setPaginationState] = useQueryStates(
+		paginationMode === 'offset'
+			? {
+					[queryKeys.pagination.page]: parseAsString.withDefault('1'),
+					[queryKeys.pagination.pageSize]: parseAsString.withDefault(
+						defaultPageSize.toString(),
+					),
+				}
+			: {
+					[queryKeys.pagination.pageSize]: parseAsString.withDefault(
+						defaultPageSize.toString(),
+					),
+				},
+	);
+
+	// Reset cursor history when sorting or page size changes in cursor mode
+	// All dependencies are intentional (not accidental)
+	// Why they're needed: cursors become invalid when query params change
+	// What would break: without these deps, users would see invalid data when changing sort/size
+	// biome-ignore lint/correctness/useExhaustiveDependencies: All dependencies are intentional (not accidental)
+	useEffect(() => {
+		if (paginationMode === 'cursor') {
+			setCursorHistory([]);
+			setCurrentCursor(null);
+			setVirtualPageIndex(0);
+		}
+	}, [
+		paginationMode,
+		sortingState[queryKeys.sorting.id],
+		sortingState[queryKeys.sorting.order],
+		paginationState[queryKeys.pagination.pageSize],
+	]);
 
 	// Sorting change handler
 	const handleSortingChange = useCallback<OnChangeFn<MRT_SortingState>>(
@@ -145,48 +193,127 @@ export const useTableState = (
 				| MRT_PaginationState
 				| ((prev: MRT_PaginationState) => MRT_PaginationState),
 		) => {
-			if (_.isFunction(updaterOrValue)) {
-				const newPagination = updaterOrValue({
-					pageIndex: Number(paginationState[queryKeys.pagination.page]) - 1,
-					pageSize: Number(paginationState[queryKeys.pagination.pageSize]),
-				});
-				setPaginationState({
-					[queryKeys.pagination.page]: (newPagination.pageIndex + 1).toString(),
-					[queryKeys.pagination.pageSize]: newPagination.pageSize.toString(),
-				});
+			if (paginationMode === 'cursor') {
+				// Cursor mode logic
+				const newPagination = _.isFunction(updaterOrValue)
+					? updaterOrValue({
+							pageIndex: virtualPageIndex,
+							pageSize: Number(paginationState[queryKeys.pagination.pageSize]),
+						})
+					: updaterOrValue;
+
+				const newPageIndex = newPagination.pageIndex;
+				const currentPageIndex = virtualPageIndex;
+
+				if (newPageIndex > currentPageIndex) {
+					// Going forward
+					if (nextCursor) {
+						// Push current cursor to history (limit to MAX_CURSOR_HISTORY)
+						setCursorHistory((prev) => {
+							const newHistory = currentCursor
+								? [...prev, currentCursor]
+								: prev;
+							// Keep only the last MAX_CURSOR_HISTORY items
+							return newHistory.slice(-MAX_CURSOR_HISTORY);
+						});
+						setCurrentCursor(nextCursor);
+						setVirtualPageIndex(newPageIndex);
+					}
+				} else if (newPageIndex < currentPageIndex) {
+					// Going backward
+					setCursorHistory((prev) => {
+						if (prev.length === 0) {
+							// Back to first page
+							setCurrentCursor(null);
+							setVirtualPageIndex(0);
+							return [];
+						}
+
+						// Pop last cursor from history
+						const newHistory = [...prev];
+						const previousCursor = newHistory.pop();
+						setCurrentCursor(previousCursor || null);
+						setVirtualPageIndex(newPageIndex);
+						return newHistory;
+					});
+				}
+
+				// Handle page size change
+				if (
+					newPagination.pageSize !==
+					Number(paginationState[queryKeys.pagination.pageSize])
+				) {
+					setPaginationState({
+						[queryKeys.pagination.pageSize]: newPagination.pageSize.toString(),
+					});
+				}
 			} else {
-				setPaginationState({
-					[queryKeys.pagination.page]: (
-						updaterOrValue.pageIndex + 1
-					).toString(),
-					[queryKeys.pagination.pageSize]: updaterOrValue.pageSize.toString(),
-				});
+				// Offset mode logic (original behavior)
+				if (_.isFunction(updaterOrValue)) {
+					const newPagination = updaterOrValue({
+						pageIndex: Number(paginationState[queryKeys.pagination.page]) - 1,
+						pageSize: Number(paginationState[queryKeys.pagination.pageSize]),
+					});
+					setPaginationState({
+						[queryKeys.pagination.page]: (
+							newPagination.pageIndex + 1
+						).toString(),
+						[queryKeys.pagination.pageSize]: newPagination.pageSize.toString(),
+					});
+				} else {
+					setPaginationState({
+						[queryKeys.pagination.page]: (
+							updaterOrValue.pageIndex + 1
+						).toString(),
+						[queryKeys.pagination.pageSize]: updaterOrValue.pageSize.toString(),
+					});
+				}
 			}
 		},
 		[
+			paginationMode,
 			paginationState,
 			queryKeys.pagination.page,
 			queryKeys.pagination.pageSize,
 			setPaginationState,
+			virtualPageIndex,
+			currentCursor,
+			nextCursor,
 		],
 	);
 
 	// Computed values for API calls
-	const apiVariables = {
-		limit: Number(paginationState[queryKeys.pagination.pageSize]),
-		page: Number(paginationState[queryKeys.pagination.page]),
-		sort: {
-			id: sortingState[queryKeys.sorting.id],
-			order: sortingState[queryKeys.sorting.order] as 'asc' | 'desc',
-		},
-	};
+	const apiVariables =
+		paginationMode === 'cursor'
+			? {
+					limit: Number(paginationState[queryKeys.pagination.pageSize]),
+					cursor: currentCursor,
+					sort: {
+						id: sortingState[queryKeys.sorting.id],
+						order: sortingState[queryKeys.sorting.order] as 'asc' | 'desc',
+					},
+				}
+			: {
+					limit: Number(paginationState[queryKeys.pagination.pageSize]),
+					page: Number(paginationState[queryKeys.pagination.page]),
+					sort: {
+						id: sortingState[queryKeys.sorting.id],
+						order: sortingState[queryKeys.sorting.order] as 'asc' | 'desc',
+					},
+				};
 
 	// Computed values for table state
 	const tableState = {
-		pagination: {
-			pageIndex: Number(paginationState[queryKeys.pagination.page]) - 1,
-			pageSize: Number(paginationState[queryKeys.pagination.pageSize]),
-		},
+		pagination:
+			paginationMode === 'cursor'
+				? {
+						pageIndex: virtualPageIndex,
+						pageSize: Number(paginationState[queryKeys.pagination.pageSize]),
+					}
+				: {
+						pageIndex: Number(paginationState[queryKeys.pagination.page]) - 1,
+						pageSize: Number(paginationState[queryKeys.pagination.pageSize]),
+					},
 		sorting: [
 			{
 				id: sortingState[queryKeys.sorting.id],
@@ -194,6 +321,14 @@ export const useTableState = (
 			},
 		],
 	};
+
+	// Cursor-specific computed values
+	const hasPreviousPage =
+		paginationMode === 'cursor' ? virtualPageIndex > 0 : undefined;
+	const hasNextPage =
+		paginationMode === 'cursor'
+			? nextCursor !== null && nextCursor !== undefined
+			: undefined;
 
 	return {
 		paginationState,
@@ -204,5 +339,9 @@ export const useTableState = (
 		handleSortingChange,
 		apiVariables,
 		tableState,
+		paginationMode,
+		setNextCursor: paginationMode === 'cursor' ? setNextCursor : undefined,
+		hasNextPage,
+		hasPreviousPage,
 	};
 };
