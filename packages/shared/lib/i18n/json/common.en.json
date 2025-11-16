@@ -242,5 +242,6 @@
 	"page": "Page",
 	"previous": "Previous",
 	"next": "Next",
-	"rows-per-page": "Rows per page"
+	"rows-per-page": "Rows per page",
+	"page-x-of-y": "Page {{page}} of {{total}}"
 }

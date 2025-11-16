@@ -225,5 +225,6 @@
 	"page": "Page",
 	"previous": "Précédent",
 	"next": "Suivant",
-	"rows-per-page": "Lignes par page"
+	"rows-per-page": "Lignes par page",
+	"page-x-of-y": "Page {{page}} sur {{total}}"
 }
