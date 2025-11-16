@@ -318,3 +318,122 @@ This is simpler but limits navigation to sequential pages only.
 1. `apps/front/app/hooks/use-table-state.ts` - Core hook implementation
 2. `apps/front/app/routes/authed/staff/profiles/list/parts/staff-profiles-table.tsx` - First consumer
 3. Any other components using `useTableState` that need cursor pagination
+
+---
+
+## Using the Cursor Pagination Preset (Updated Approach)
+
+### Overview
+
+A reusable cursor pagination preset has been created to eliminate boilerplate code. Instead of manually implementing pagination UI in every table, you can now use the `'cursor-pagination'` preset which handles everything automatically.
+
+### Quick Start
+
+**1. Use the preset in your table:**
+
+```typescript
+const table = useMRTTable('cursor-pagination', {
+  columns,
+  data: dataTable,
+  manualSorting: true,
+  onSortingChange: handleSortingChange,
+  state: {
+    ...tableState,
+    isLoading: isPending,
+  },
+  meta: {
+    handlePaginationChange,
+    hasNextPage,
+    hasPreviousPage,
+    isPending,
+  },
+});
+```
+
+**2. That's it!** The preset automatically renders:
+- Page size selector (10, 20, 50, 100)
+- Previous/Next navigation buttons
+- Current page indicator
+- All with proper disabled states
+
+### Complete Example
+
+```typescript
+import { useMRTTable } from '@/front/hooks/use-mrt-table';
+import { useTableState } from '@/front/hooks/use-table-state';
+
+const MyTable = () => {
+  // 1. Setup table state with cursor mode
+  const {
+    handlePaginationChange,
+    handleSortingChange,
+    apiVariables,
+    tableState,
+    setNextCursor,
+    hasNextPage,
+    hasPreviousPage,
+  } = useTableState({
+    paginationMode: 'cursor',
+    defaultSorting: { id: 'createdAt', desc: true },
+    defaultPageSize: DEFAULT_PAGE_SIZE,
+  });
+
+  // 2. Fetch data with cursor
+  const { data, isPending } = useYourQuery({
+    variables: {
+      cursor: apiVariables.cursor || undefined,
+      limit: apiVariables.limit,
+      sort: apiVariables.sort,
+    },
+  });
+
+  // 3. Feed nextCursor back to hook
+  useEffect(() => {
+    setNextCursor?.(data?.nextCursor);
+  }, [data?.nextCursor, setNextCursor]);
+
+  // 4. Use cursor-pagination preset
+  const table = useMRTTable('cursor-pagination', {
+    columns,
+    data: dataTable,
+    manualSorting: true,
+    onSortingChange: handleSortingChange,
+    state: {
+      ...tableState,
+      isLoading: isPending,
+    },
+    meta: {
+      handlePaginationChange,
+      hasNextPage,
+      hasPreviousPage,
+      isPending,
+    },
+  });
+
+  return (
+    <Card>
+      <MaterialReactTable table={table} />
+    </Card>
+  );
+};
+```
+
+### How It Works
+
+1. **Meta Prop**: Pass cursor-specific data via the `meta` prop
+2. **Preset Access**: The preset's `renderBottomToolbarCustomActions` accesses `table.options.meta`
+3. **Automatic UI**: Pagination UI is rendered automatically with all proper states
+
+### Benefits
+
+✅ **Zero Boilerplate** - No pagination JSX in table components
+✅ **Consistency** - All cursor tables have identical UI
+✅ **Type Safety** - TypeScript ensures correct meta shape
+✅ **Maintainability** - Change pagination UI in one place
+✅ **Clean Code** - ~100 lines reduced to ~10 lines per table
+
+### Files Created
+
+1. `apps/front/app/lib/mrt-table/types.ts` - Type definitions for cursor pagination meta
+2. `apps/front/app/lib/mrt-table/presets/cursor-pagination-preset.tsx` - Preset implementation
+3. `apps/front/app/lib/mrt-table/table-presets.ts` - Updated to include cursor pagination preset

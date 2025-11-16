@@ -1,12 +1,9 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
 import ListItemText from '@mui/material/ListItemText';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
 import Tooltip from '@mui/material/Tooltip';
 import _ from 'lodash';
 import {
@@ -23,7 +20,6 @@ import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { DEFAULT_PAGE_SIZE_OPTIONS } from '@/front/lib/constants';
 import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { checkIfEmptyQueryData } from '@/front/lib/react-query/query-utils';
 import type { StaffProfileItem } from '@/js-client/src/models';
@@ -132,12 +128,10 @@ const StaffProfilesTable = () => {
 		return _.map(data?.data, StaffProfileRowDataMapper);
 	}, [data]);
 
-	// Table configuration
-	const table = useMRTTable('default', {
+	// Table configuration with cursor pagination preset
+	const table = useMRTTable('cursor-pagination', {
 		columns,
 		data: dataTable,
-		// Cursor pagination configuration
-		enablePagination: false, // Disable MRT's built-in pagination
 		manualSorting: true,
 		onSortingChange: handleSortingChange,
 		state: {
@@ -150,104 +144,12 @@ const StaffProfilesTable = () => {
 				flexGrow: 1,
 			},
 		},
-		// Custom pagination component
-		muiBottomToolbarProps: {
-			sx: {
-				alignItems: 'center',
-				'& > .MuiBox-root': {
-					px: 2,
-				},
-			},
+		meta: {
+			handlePaginationChange,
+			hasNextPage,
+			hasPreviousPage,
+			isPending,
 		},
-		renderBottomToolbarCustomActions: () => (
-			<Box
-				sx={{
-					display: 'flex',
-					gap: 2,
-					alignItems: 'center',
-					width: '100%',
-				}}
-			>
-				{/* Page Size Selector */}
-				<Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-					<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
-						{t('rows-per-page')}:
-					</Box>
-					<Select
-						size="small"
-						value={tableState.pagination.pageSize}
-						onChange={(e) => {
-							handlePaginationChange((prev) => ({
-								...prev,
-								pageSize: Number(e.target.value),
-								pageIndex: 0, // Reset to first page when changing page size
-							}));
-						}}
-						disabled={isPending}
-						sx={{ minWidth: 70 }}
-						slotProps={{
-							input: {
-								sx: {
-									padding: '4px 10px',
-								},
-							},
-						}}
-					>
-						{DEFAULT_PAGE_SIZE_OPTIONS.map((size) => (
-							<MenuItem key={size} value={size}>
-								{size}
-							</MenuItem>
-						))}
-					</Select>
-				</Box>
-
-				{/* Page Navigation */}
-				<Box
-					sx={{
-						ml: 'auto',
-						display: 'flex',
-						gap: 1,
-						justifyContent: 'center',
-						alignItems: 'center',
-					}}
-				>
-					<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
-						{t('page')} {tableState.pagination.pageIndex + 1}
-					</Box>
-
-					<Box sx={{ display: 'flex', gap: 1 }}>
-						<Button
-							variant="outlined"
-							size="small"
-							onClick={() => {
-								handlePaginationChange((prev) => ({
-									...prev,
-									pageIndex: prev.pageIndex - 1,
-								}));
-							}}
-							disabled={!hasPreviousPage || isPending}
-							startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-						>
-							{t('previous')}
-						</Button>
-						<Button
-							variant="outlined"
-							size="small"
-							onClick={() => {
-								handlePaginationChange((prev) => ({
-									...prev,
-									pageIndex: prev.pageIndex + 1,
-								}));
-							}}
-							disabled={!hasNextPage || isPending}
-							endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
-						>
-							{t('next')}
-						</Button>
-					</Box>
-				</Box>
-			</Box>
-		),
 	});
 
 	// Error State
