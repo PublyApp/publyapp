@@ -1752,15 +1752,18 @@
         }
       },
       "CreateStaffProfileBody": {
-        "required": [
-          "name"
-        ],
         "type": "object",
         "properties": {
           "name": {
-            "$ref": "#/components/schemas/JsonElement"
+            "$ref": "#/components/schemas/NullableOfJsonElement"
           },
           "description": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "emails": {
             "$ref": "#/components/schemas/NullableOfJsonElement"
           }
         }
@@ -2245,7 +2248,10 @@
         "required": [
           "profileId",
           "name",
-          "description"
+          "description",
+          "permissionsAssigned",
+          "usersAssigned",
+          "invitationsSent"
         ],
         "type": "object",
         "properties": {
@@ -2259,6 +2265,18 @@
           "description": {
             "type": "string",
             "nullable": true
+          },
+          "permissionsAssigned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "usersAssigned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "invitationsSent": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

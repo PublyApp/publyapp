@@ -17,6 +17,19 @@ body:json {
   }
 }
 
+script:post-response {
+  // Parse response
+  const data = res.body;
+  
+  console.log(res.body);
+  
+  // Extract session token
+  const token = data.sessionToken;
+  
+  // Save as variable
+  bru.setVar("SESSION_TOKEN", token);
+}
+
 settings {
   encodeUrl: true
   timeout: 0

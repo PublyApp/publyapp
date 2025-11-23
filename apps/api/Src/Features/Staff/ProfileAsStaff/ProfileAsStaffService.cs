@@ -1,4 +1,9 @@
+using System.Security.Cryptography;
+using System.Text;
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Features.Common.Invitation;
+using MainApi.Src.Features.Common.Permission;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Lib;
 using Microsoft.EntityFrameworkCore;
@@ -38,14 +43,43 @@ public abstract record FindStaffProfilesResult {
 /// </summary>
 public abstract record CreateStaffProfileResult {
 	/// <summary>
-	/// Successful result containing the created profile.
+	/// Successful result containing the created profile and operation statistics.
 	/// </summary>
-	public sealed record Success(Profile Profile) : CreateStaffProfileResult;
+	public sealed record Success(
+		Profile Profile,
+		int PermissionsAssigned,
+		int UsersAssigned,
+		int InvitationsSent,
+		List<(string Email, string Token)> InvitationTokens,
+		List<string> EmailsToNotify
+	) : CreateStaffProfileResult;
 
 	/// <summary>
 	/// Error result when a profile with the same name already exists.
 	/// </summary>
 	public sealed record ProfileNameExists(string Name) : CreateStaffProfileResult;
+
+	/// <summary>
+	/// Error result when one or more permission keys are invalid.
+	/// </summary>
+	public sealed record InvalidPermissions(List<string> InvalidKeys) : CreateStaffProfileResult;
+
+	/// <summary>
+	/// Error result when duplicate emails are provided.
+	/// </summary>
+	public sealed record DuplicateEmails(List<string> Emails) : CreateStaffProfileResult;
+
+	/// <summary>
+	/// Error result when users already have tenant or project accounts.
+	/// Staff profiles can only be assigned to users without tenant/project accounts.
+	/// </summary>
+	public sealed record UsersWithConflictingAccounts(List<string> Emails) : CreateStaffProfileResult;
+
+	/// <summary>
+	/// Error result when no permissions are provided.
+	/// At least one permission is required for staff profiles.
+	/// </summary>
+	public sealed record NoPermissionsProvided : CreateStaffProfileResult;
 }
 
 public interface IProfileAsStaffService {
@@ -68,7 +102,10 @@ public interface IProfileAsStaffService {
 
 	Task<CreateStaffProfileResult> CreateStaffProfileAsync(
 		string name,
-		string? description = null,
+		string? description,
+		List<string> permissions,
+		List<string> emails,
+		Guid invitedByUserId,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -266,11 +303,9 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		// ───────────────────────────────────────────────────────────────────────
 		// STEP 1: Validate sortId parameter
 		// ───────────────────────────────────────────────────────────────────────
-		if (!sortFieldHandlers.ContainsKey(effectiveSortId)) {
+		if (!sortFieldHandlers.TryGetValue(effectiveSortId, out SortFieldHandler? handler)) {
 			return new FindStaffProfilesResult.InvalidSortId(effectiveSortId);
 		}
-
-		var handler = sortFieldHandlers[effectiveSortId];
 
 		// ───────────────────────────────────────────────────────────────────────
 		// STEP 2: Build base query
@@ -342,22 +377,48 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	}
 
 	/// <summary>
-	/// Creates a new staff profile.
+	/// Creates a new staff profile with permissions and user assignments.
 	/// </summary>
 	/// <param name="name">The name of the profile</param>
 	/// <param name="description">Optional description for the profile</param>
+	/// <param name="permissions">List of permission keys to assign</param>
+	/// <param name="emails">List of user emails to assign or invite</param>
+	/// <param name="invitedByUserId">User ID creating the profile</param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>
-	/// Success with the created profile, or ProfileNameExists if a staff
-	/// profile with the same name already exists
+	/// Success with statistics, or error result if validation fails
 	/// </returns>
 	public async Task<CreateStaffProfileResult> CreateStaffProfileAsync(
 		string name,
-		string? description = null,
+		string? description,
+		List<string> permissions,
+		List<string> emails,
+		Guid invitedByUserId,
 		CancellationToken cancellationToken = default
 	) {
-		// Check if profile with same name already exists for staff scope
+		// Normalize and validate inputs
 		var normalizedName = name.Trim();
+		var normalizedEmails = emails
+			.Select(e => e.Trim().ToLowerInvariant())
+			.ToList();
+
+		// CRITICAL: Business rule - at least one permission is required
+		if (permissions.Count == 0) {
+			return new CreateStaffProfileResult.NoPermissionsProvided();
+		}
+
+		// Check for duplicate emails in input
+		var duplicateEmails = normalizedEmails
+			.GroupBy(e => e)
+			.Where(g => g.Count() > 1)
+			.Select(g => g.Key)
+			.ToList();
+
+		if (duplicateEmails.Count > 0) {
+			return new CreateStaffProfileResult.DuplicateEmails(duplicateEmails);
+		}
+
+		// Check if profile name already exists
 		var profileExists = await (
 			from p in _dbContext.Profile
 			where p.Scope == ProfileScope.Staff
@@ -369,16 +430,281 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			return new CreateStaffProfileResult.ProfileNameExists(normalizedName);
 		}
 
-		// Create new staff profile using factory method
-		var profile = Profile.CreateStaffProfile(
-			normalizedName,
-			description?.Trim()
-		);
+		// Validate all permissions exist AND are Staff-scoped
+		var validPermissionKeys = await (
+			from p in _dbContext.Permission
+			where permissions.Contains(p.Key)
+				&& p.Scope == PermissionScope.Staff
+			select p.Key
+		).ToListAsync(cancellationToken);
 
-		await _dbContext.Profile.AddAsync(profile, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		var invalidPermissions = permissions
+			.Except(validPermissionKeys)
+			.ToList();
 
-		return new CreateStaffProfileResult.Success(profile);
+		if (invalidPermissions.Count > 0) {
+			return new CreateStaffProfileResult.InvalidPermissions(invalidPermissions);
+		}
+
+		// Begin transaction
+		await using var transaction = await _dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+
+		try {
+			// Create new staff profile using factory method
+			var profile = Profile.CreateStaffProfile(
+				normalizedName,
+				description?.Trim()
+			);
+
+			await _dbContext.Profile.AddAsync(profile, cancellationToken);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+			// Profile ID is now available
+
+			var profileId = profile.GetRequiredId();
+
+			// Create ProfilePermission entities
+			var profilePermissions = permissions
+				.Select(permissionKey => new ProfilePermission {
+					ProfileId = profileId,
+					PermissionKey = permissionKey
+				})
+				.ToList();
+
+			if (profilePermissions.Count > 0) {
+				await _dbContext.ProfilePermission
+					.AddRangeAsync(profilePermissions, cancellationToken);
+			}
+
+			// Batch fetch existing users
+			var existingUsers = await (
+				from u in _dbContext.User
+				where normalizedEmails.Contains(u.Email)
+					&& !u.IsDeleted
+				select u
+			).ToListAsync(cancellationToken);
+
+			var existingUserEmails = existingUsers
+				.Select(u => u.Email.ToLowerInvariant())
+				.ToHashSet();
+
+			// CRITICAL: Check for users with tenant or project accounts
+			// Staff profiles can ONLY be assigned to users without tenant/project accounts
+			var existingUserIds = existingUsers.Select(u => u.GetRequiredId()).ToList();
+			var conflictingAccounts = await (
+				from ua in _dbContext.UserAccount
+				where existingUserIds.Contains(ua.UserId)
+					&& (ua.Scope == AccountScope.Tenant || ua.Scope == AccountScope.Project)
+					&& !ua.IsDeleted && !ua.IsSuspended
+				select ua.UserId
+			).ToListAsync(cancellationToken);
+
+			if (conflictingAccounts.Count > 0) {
+				// Get emails of users with conflicting accounts
+				var conflictingUserIds = conflictingAccounts.ToHashSet();
+				var conflictingEmails = existingUsers
+					.Where(u => conflictingUserIds.Contains(u.GetRequiredId()))
+					.Select(u => u.Email)
+					.ToList();
+
+				return new CreateStaffProfileResult.UsersWithConflictingAccounts(conflictingEmails);
+			}
+
+			// Batch fetch existing staff accounts for these users
+			var existingStaffAccounts = await (
+				from ua in _dbContext.UserAccount
+				where existingUserIds.Contains(ua.UserId)
+					&& ua.Scope == AccountScope.Staff
+					&& !ua.IsDeleted && !ua.IsSuspended
+				select ua
+			).ToListAsync(cancellationToken);
+
+			var usersWithStaffAccounts = existingStaffAccounts
+				.Select(ua => ua.UserId)
+				.ToHashSet();
+
+			// CRITICAL: Batch fetch existing UserAccountProfile links to prevent duplicates
+			var existingStaffAccountIds = existingStaffAccounts
+				.Select(ua => ua.GetRequiredId())
+				.ToList();
+
+			var existingProfileLinks = await (
+				from uap in _dbContext.UserAccountProfile
+				where existingStaffAccountIds.Contains(uap.UserAccountId)
+					&& uap.ProfileId == profileId
+				select uap.UserAccountId
+			).ToListAsync(cancellationToken);
+
+			var accountsAlreadyLinked = existingProfileLinks.ToHashSet();
+
+			// Identify missing emails (need invitations)
+			var missingEmails = normalizedEmails
+				.Except(existingUserEmails)
+				.ToList();
+
+			// PERFORMANCE OPTIMIZATION: Batch create UserAccounts to avoid multiple SaveChanges
+
+			// Step 6a: Identify users needing new staff accounts
+			var usersNeedingStaffAccounts = existingUsers
+				.Where(u => !usersWithStaffAccounts.Contains(u.GetRequiredId()))
+				.ToList();
+
+			// Step 6b: Batch create all new UserAccounts (SINGLE SaveChanges)
+			var newUserAccountsMap = new Dictionary<Guid, UserAccount>();
+
+			if (usersNeedingStaffAccounts.Count > 0) {
+				var newUserAccountsToCreate = usersNeedingStaffAccounts
+					.Select(user => {
+						var userAccount = UserAccount.CreateStaffAccount(
+							user.GetRequiredId(),
+							AccountLevel.User
+						);
+						newUserAccountsMap[user.GetRequiredId()] = userAccount;
+						return userAccount;
+					})
+					.ToList();
+
+				await _dbContext.UserAccount.AddRangeAsync(newUserAccountsToCreate, cancellationToken);
+				await _dbContext.SaveChangesAsync(cancellationToken);
+				// All UserAccount IDs are now available
+			}
+
+			// Step 6c: Create UserAccountProfile links for all users
+			var newUserAccountProfiles = new List<UserAccountProfile>();
+			var newLinksCreated = 0;
+			var existingLinksSkipped = 0;
+			var emailsToNotify = new List<string>();
+
+			foreach (var user in existingUsers) {
+				var userId = user.GetRequiredId();
+				Guid accountId;
+
+				// Check if user already has a staff account
+				if (!usersWithStaffAccounts.Contains(userId)) {
+					// User just got a new staff account - get it from our map
+					var newAccount = newUserAccountsMap[userId];
+					accountId = newAccount.GetRequiredId();
+					emailsToNotify.Add(user.Email);
+				} else {
+					// User has existing staff account
+					var existingAccount = existingStaffAccounts
+						.First(ua => ua.UserId == userId);
+					accountId = existingAccount.GetRequiredId();
+
+					// CRITICAL: Only create link if it doesn't already exist
+					if (accountsAlreadyLinked.Contains(accountId)) {
+						existingLinksSkipped++;
+						continue;
+					}
+
+					emailsToNotify.Add(user.Email);
+				}
+
+				// Create UserAccountProfile link
+				var userAccountProfile = new UserAccountProfile {
+					UserAccountId = accountId,
+					ProfileId = profileId
+				};
+				newUserAccountProfiles.Add(userAccountProfile);
+				newLinksCreated++;
+			}
+
+			// Batch insert all UserAccountProfile links
+			if (newUserAccountProfiles.Count > 0) {
+				await _dbContext.UserAccountProfile
+					.AddRangeAsync(newUserAccountProfiles, cancellationToken);
+			}
+
+			// Check for existing pending invitations
+			var existingInvitations = await (
+				from i in _dbContext.Invitation
+				where missingEmails.Contains(i.Email)
+					&& i.Scope == InvitationScope.Staff
+					&& !i.IsAccepted && !i.IsRevoked
+				select i.Email.ToLowerInvariant()
+			).ToListAsync(cancellationToken);
+
+			// Filter out emails with pending invitations
+			var emailsNeedingInvitations = missingEmails
+				.Except(existingInvitations)
+				.ToList();
+
+			// Generate invitations with tokens
+			var invitationTokens = new List<(string Email, string Token)>();
+			var newInvitations = new List<Invitation>();
+
+			foreach (var email in emailsNeedingInvitations) {
+				// Generate token (same pattern as InvitationService)
+				var (token, tokenHash) = GenerateInvitationToken();
+				var expiresAt = DateTime.UtcNow.AddDays(7);
+
+				var invitation = Invitation.CreateStaffInvitation(
+					email,
+					profileId,
+					invitedByUserId,
+					expiresAt,
+					tokenHash
+				);
+
+				invitation.ValidateInvitationType();
+				newInvitations.Add(invitation);
+				invitationTokens.Add((email, token));
+			}
+
+			if (newInvitations.Count > 0) {
+				await _dbContext.Invitation
+					.AddRangeAsync(newInvitations, cancellationToken);
+			}
+
+			// Save all changes
+			await _dbContext.SaveChangesAsync(cancellationToken);
+			await transaction.CommitAsync(cancellationToken);
+
+			_logger.LogInformation(
+				"Created staff profile {ProfileName} with {PermissionsCount} permissions, " +
+				"{NewLinksCount} new user assignments, {ExistingLinksCount} existing links skipped, " +
+				"{InvitationsCount} invitations sent",
+				normalizedName,
+				permissions.Count,
+				newLinksCreated,
+				existingLinksSkipped,
+				invitationTokens.Count
+			);
+
+			return new CreateStaffProfileResult.Success(
+				profile,
+				permissions.Count,
+				newLinksCreated,
+				invitationTokens.Count,
+				invitationTokens,
+				emailsToNotify
+			);
+		} catch (Exception ex) {
+			await transaction.RollbackAsync(cancellationToken);
+			_logger.LogError(ex, "Failed to create staff profile {ProfileName}", normalizedName);
+			throw;
+		}
+	}
+
+	// Add this private method to ProfileAsStaffService
+	// NOTE: This duplicates logic from InvitationService.GenerateToken() (line 337+)
+	// Kept separate to avoid service-to-service dependencies
+	private static (string Token, string TokenHash) GenerateInvitationToken() {
+		var bytes = new byte[32];
+		RandomNumberGenerator.Fill(bytes);
+		var token = Convert.ToBase64String(bytes)
+			.Replace("+", "-")
+			.Replace("/", "_")
+			.TrimEnd('=');
+
+		var tokenHash = HashToken(token);
+		return (token, tokenHash);
+	}
+
+	private static string HashToken(string token) {
+		var bytes = Encoding.UTF8.GetBytes(token);
+		var hash = SHA256.HashData(bytes);
+		return Convert.ToBase64String(hash);
 	}
 
 	/// <summary>

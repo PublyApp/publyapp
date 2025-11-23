@@ -388,9 +388,17 @@ export interface CreateStaffProfileBody extends AdditionalDataHolder, Parsable {
      */
     description?: UntypedNode | null;
     /**
+     * The emails property
+     */
+    emails?: UntypedNode | null;
+    /**
      * The name property
      */
     name?: UntypedNode | null;
+    /**
+     * The permissions property
+     */
+    permissions?: UntypedNode | null;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -578,7 +586,9 @@ export function deserializeIntoCreateStaffMemberResult(createStaffMemberResult: 
 export function deserializeIntoCreateStaffProfileBody(createStaffProfileBody: Partial<CreateStaffProfileBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "description": n => { createStaffProfileBody.description = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "emails": n => { createStaffProfileBody.emails = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "name": n => { createStaffProfileBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "permissions": n => { createStaffProfileBody.permissions = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -910,8 +920,11 @@ export function deserializeIntoStaffMemberItem(staffMemberItem: Partial<StaffMem
 export function deserializeIntoStaffProfileCreated(staffProfileCreated: Partial<StaffProfileCreated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "description": n => { staffProfileCreated.description = n.getStringValue(); },
+        "invitationsSent": n => { staffProfileCreated.invitationsSent = n.getNumberValue(); },
         "name": n => { staffProfileCreated.name = n.getStringValue(); },
+        "permissionsAssigned": n => { staffProfileCreated.permissionsAssigned = n.getNumberValue(); },
         "profileId": n => { staffProfileCreated.profileId = n.getGuidValue(); },
+        "usersAssigned": n => { staffProfileCreated.usersAssigned = n.getNumberValue(); },
     }
 }
 /**
@@ -1436,7 +1449,9 @@ export function serializeCreateStaffMemberResult(writer: SerializationWriter, cr
 export function serializeCreateStaffProfileBody(writer: SerializationWriter, createStaffProfileBody: Partial<CreateStaffProfileBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createStaffProfileBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("description", createStaffProfileBody.description);
+    writer.writeObjectValue("emails", createStaffProfileBody.emails);
     writer.writeObjectValue("name", createStaffProfileBody.name);
+    writer.writeObjectValue("permissions", createStaffProfileBody.permissions);
     writer.writeAdditionalData(createStaffProfileBody.additionalData);
 }
 /**
@@ -1793,8 +1808,11 @@ export function serializeStaffMemberItem(writer: SerializationWriter, staffMembe
 export function serializeStaffProfileCreated(writer: SerializationWriter, staffProfileCreated: Partial<StaffProfileCreated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!staffProfileCreated || isSerializingDerivedType) { return; }
     writer.writeStringValue("description", staffProfileCreated.description);
+    writer.writeNumberValue("invitationsSent", staffProfileCreated.invitationsSent);
     writer.writeStringValue("name", staffProfileCreated.name);
+    writer.writeNumberValue("permissionsAssigned", staffProfileCreated.permissionsAssigned);
     writer.writeGuidValue("profileId", staffProfileCreated.profileId);
+    writer.writeNumberValue("usersAssigned", staffProfileCreated.usersAssigned);
     writer.writeAdditionalData(staffProfileCreated.additionalData);
 }
 /**
@@ -1934,13 +1952,25 @@ export interface StaffProfileCreated extends AdditionalDataHolder, Parsable {
      */
     description?: string | null;
     /**
+     * The invitationsSent property
+     */
+    invitationsSent?: number | null;
+    /**
      * The name property
      */
     name?: string | null;
     /**
+     * The permissionsAssigned property
+     */
+    permissionsAssigned?: number | null;
+    /**
      * The profileId property
      */
     profileId?: Guid | null;
+    /**
+     * The usersAssigned property
+     */
+    usersAssigned?: number | null;
 }
 export interface StaffProfileItem extends AdditionalDataHolder, Parsable {
     /**
