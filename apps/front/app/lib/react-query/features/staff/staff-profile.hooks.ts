@@ -93,23 +93,21 @@ export const useCreateStaffProfile = createMutation({
 			};
 		}
 
-		// TODO: Add permissions and emails when backend API supports them
-		// For now, only name and description are sent
-		// if (data.permissions && !_.isEmpty(data.permissions)) {
-		// 	body.permissions = {
-		// 		getValue() {
-		// 			return data.permissions;
-		// 		},
-		// 	};
-		// }
+		if (data.permissions && !_.isEmpty(data.permissions)) {
+			body.permissions = {
+				getValue() {
+					return data.permissions;
+				},
+			};
+		}
 
-		// if (data.emails && !_.isEmpty(data.emails)) {
-		// 	body.emails = {
-		// 		getValue() {
-		// 			return data.emails;
-		// 		},
-		// 	};
-		// }
+		if (data.emails && !_.isEmpty(data.emails)) {
+			body.emails = {
+				getValue() {
+					return data.emails;
+				},
+			};
+		}
 
 		const result = await clientManager.apiClient.staff.profiles.post(body);
 

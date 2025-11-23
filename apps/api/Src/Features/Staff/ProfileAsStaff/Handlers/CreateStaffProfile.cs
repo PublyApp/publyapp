@@ -1,6 +1,9 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FluentValidation;
 using MainApi.Localization;
+using MainApi.Src.Features.Common.Email;
+using MainApi.Src.Features.Staff.Audit;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -9,28 +12,65 @@ using Microsoft.AspNetCore.Mvc;
 namespace MainApi.Src.Features.Staff.ProfileAsStaff.Handlers;
 
 public record CreateStaffProfileBody {
-	public required JsonElement Name { get; init; }
+	public JsonElement? Name { get; init; }
 	public JsonElement? Description { get; init; }
+	public JsonElement? Permissions { get; init; }
+	public JsonElement? Emails { get; init; }
+
+	public string GetName() {
+		if (!Name.HasValue) {
+			throw new InvalidOperationException("Name is required");
+		}
+		return Name.Value.GetValueAsString();
+	}
+
+	public string? GetDescription() {
+		return Description.GetValueAsStringOrNull();
+	}
+
+	public List<string> GetPermissions() {
+		if (!Permissions.HasValue) {
+			return [];
+		}
+
+		return Permissions.Value.Deserialize<List<string>>() ?? [];
+	}
+
+	public List<string> GetEmails() {
+		if (!Emails.HasValue) {
+			return [];
+		}
+
+		return Emails.Value.Deserialize<List<string>>() ?? [];
+	}
 }
 
 public record StaffProfileCreated {
 	public required Guid ProfileId { get; init; }
 	public required string Name { get; init; }
 	public required string? Description { get; init; }
+	public required int PermissionsAssigned { get; init; }
+	public required int UsersAssigned { get; init; }
+	public required int InvitationsSent { get; init; }
 }
 
-public class CreateStaffProfileBodyValidator
+public partial class CreateStaffProfileBodyValidator
 	: AbstractValidator<CreateStaffProfileBody> {
 	public CreateStaffProfileBodyValidator() {
 		RuleFor(x => x.Name)
-			.Must(e => e.ValueKind == JsonValueKind.String)
-			.WithMessage("Name must be a string")
-			.Must(e => !string.IsNullOrWhiteSpace(e.GetString()))
+			.Must(e => e.HasValue)
 			.WithMessage("Name is required")
-			.Must(e => e.GetString()!.Trim().Length >= 2)
-			.WithMessage("Name must be at least 2 characters long")
-			.Must(e => e.GetString()!.Trim().Length <= 100)
-			.WithMessage("Name must be at most 100 characters long");
+			.DependentRules(() => {
+				RuleFor(x => x.Name)
+					.Must(e => e!.Value.ValueKind == JsonValueKind.String)
+					.WithMessage("Name must be a string")
+					.Must(e => !string.IsNullOrWhiteSpace(e!.Value.GetString()))
+					.WithMessage("Name cannot be empty")
+					.Must(e => e!.Value.GetString()!.Trim().Length >= 2)
+					.WithMessage("Name must be at least 2 characters long")
+					.Must(e => e!.Value.GetString()!.Trim().Length <= 100)
+					.WithMessage("Name must be at most 100 characters long");
+			});
 
 		RuleFor(x => x.Description)
 			.Must(BeNullableString)
@@ -40,6 +80,25 @@ public class CreateStaffProfileBodyValidator
 					.Must(BeValidDescriptionLength)
 					.WithMessage("Description must be at most 500 characters");
 			});
+
+		RuleFor(x => x.Permissions)
+			.Must(e => e.HasValue)
+			.WithMessage("Permissions is required")
+			.DependentRules(() => {
+				RuleFor(x => x.Permissions)
+					.Must(e => e!.Value.ValueKind == JsonValueKind.Array)
+					.WithMessage("Permissions must be an array")
+					.DependentRules(() => {
+						RuleFor(x => x.Permissions)
+							.Must(BeValidPermissionsArray)
+							.WithMessage("At least one permission is required");
+					});
+			});
+
+		RuleFor(x => x.Emails)
+			.Must(BeValidEmailList)
+			.When(x => x.Emails.HasValue)
+			.WithMessage("Emails must be a list of valid email addresses");
 	}
 
 	private static bool BeNullableString(JsonElement? element) {
@@ -67,6 +126,38 @@ public class CreateStaffProfileBodyValidator
 
 		return description.Trim().Length <= 500;
 	}
+
+	private static bool BeValidPermissionsArray(JsonElement? element) {
+		// This is called only when we know it's an array (from DependentRules)
+		if (!element.HasValue) {
+			return false;
+		}
+
+		try {
+			var list = element.Value.Deserialize<List<string>>();
+
+			// Must have at least one permission
+			return list is not null && list.Count > 0;
+		} catch {
+			return false;
+		}
+	}
+
+	[GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
+	private static partial Regex EmailRegex();
+
+	private static bool BeValidEmailList(JsonElement? element) {
+		if (!element.HasValue) return true;
+		try {
+			var list = element.Value.Deserialize<List<string>>();
+
+			if (list is null) return false;
+
+			return list.All(email => EmailRegex().IsMatch(email));
+		} catch {
+			return false;
+		}
+	}
 }
 
 public static class CreateStaffProfile {
@@ -74,22 +165,36 @@ public static class CreateStaffProfile {
 		Ok<StaffProfileCreated>,
 		BadRequest<ApiResponse>
 	>> HandleCreateStaffProfile(
+		[FromServices] IAuthContext authContext,
 		[FromServices] IProfileAsStaffService profileAsStaffService,
+		[FromServices] IEmailService emailService,
+		[FromServices] IAuditLogService auditLogService,
+		[FromServices] ILoggerFactory loggerFactory,
 		[FromBody] CreateStaffProfileBody body,
 		CancellationToken cancellationToken = default
 	) {
+		var logger = loggerFactory.CreateLogger("CreateStaffProfile");
 		// Extract values after validation
-		string name = body.Name.GetValueAsString();
-		string? description = body.Description.GetValueAsStringOrNull();
+		string name = body.GetName();
+		string? description = body.GetDescription();
+		List<string> permissions = body.GetPermissions();
+		List<string> emails = body.GetEmails();
+
+		// Get current user ID for audit logging and invitations
+		var currentUserId = authContext.AccountStaff?.UserId
+			?? throw new InvalidOperationException("User ID not found in auth context");
 
 		// Create staff profile via service
 		var result = await profileAsStaffService.CreateStaffProfileAsync(
 			name,
 			description,
+			permissions,
+			emails,
+			currentUserId,
 			cancellationToken
 		);
 
-		// Handle result
+		// Handle different result types
 		if (result is CreateStaffProfileResult.ProfileNameExists) {
 			return TypedResults.BadRequest(
 				ApiResponse.Create(
@@ -99,20 +204,234 @@ public static class CreateStaffProfile {
 			);
 		}
 
-		if (result is CreateStaffProfileResult.Success success) {
-			return TypedResults.Ok(new StaffProfileCreated {
-				ProfileId = success.Profile.GetRequiredId(),
-				Name = success.Profile.Name,
-				Description = success.Profile.Description
-			});
+		if (result is CreateStaffProfileResult.InvalidPermissions invalidPerms) {
+			return TypedResults.BadRequest(
+				ApiResponse.Create(
+					$"Invalid permission keys: {string.Join(", ", invalidPerms.InvalidKeys)}",
+					ResponseKeys.BadRequest
+				)
+			);
 		}
 
-		// This should never happen, but handle it just in case
+		if (result is CreateStaffProfileResult.DuplicateEmails duplicates) {
+			return TypedResults.BadRequest(
+				ApiResponse.Create(
+					$"Duplicate emails provided: {string.Join(", ", duplicates.Emails)}",
+					ResponseKeys.BadRequest
+				)
+			);
+		}
+
+		if (result is CreateStaffProfileResult.UsersWithConflictingAccounts conflicts) {
+			return TypedResults.BadRequest(
+				ApiResponse.Create(
+					$"Cannot assign staff profile to users with existing tenant/project accounts: {string.Join(", ", conflicts.Emails)}",
+					ResponseKeys.BadRequest
+				)
+			);
+		}
+
+		if (result is CreateStaffProfileResult.NoPermissionsProvided) {
+			return TypedResults.BadRequest(
+				ApiResponse.Create(
+					"At least one permission is required",
+					ResponseKeys.BadRequest
+				)
+			);
+		}
+
+		if (result is CreateStaffProfileResult.Success success) {
+			return await HandleSuccessAsync(
+				success,
+				emailService,
+				auditLogService,
+				logger,
+				currentUserId,
+				cancellationToken
+			);
+		}
+
 		return TypedResults.BadRequest(
 			ApiResponse.Create(
 				"Failed to create staff profile",
 				ResponseKeys.BadRequest
 			)
 		);
+	}
+
+	private static async Task<Ok<StaffProfileCreated>> HandleSuccessAsync(
+		CreateStaffProfileResult.Success success,
+		IEmailService emailService,
+		IAuditLogService auditLogService,
+		ILogger logger,
+		Guid currentUserId,
+		CancellationToken cancellationToken
+	) {
+		var profileId = success.Profile.GetRequiredId();
+
+		// Send invitation emails to NEW users (fire and forget - don't block response)
+		_ = Task.Run(async () => {
+			await SendInvitationEmailsAsync(
+				emailService,
+				logger,
+				success.InvitationTokens,
+				cancellationToken
+			);
+		}, cancellationToken);
+
+		// Send notification emails to EXISTING users (fire and forget)
+		_ = Task.Run(async () => {
+			await SendNotificationEmailsAsync(
+				emailService,
+				logger,
+				success.EmailsToNotify,
+				cancellationToken
+			);
+		}, cancellationToken);
+
+		// Audit log - profile created
+		await auditLogService.LogAsync(
+			currentUserId,
+			AuditActions.StaffProfileCreated,
+			profileId,
+			new {
+				Name = success.Profile.Name,
+				PermissionsCount = success.PermissionsAssigned,
+				UsersAssigned = success.UsersAssigned,
+				InvitationsSent = success.InvitationsSent
+			},
+			cancellationToken
+		);
+
+		return TypedResults.Ok(new StaffProfileCreated {
+			ProfileId = profileId,
+			Name = success.Profile.Name,
+			Description = success.Profile.Description,
+			PermissionsAssigned = success.PermissionsAssigned,
+			UsersAssigned = success.UsersAssigned,
+			InvitationsSent = success.InvitationsSent
+		});
+	}
+
+	/// <summary>
+	/// Sends invitation emails with controlled concurrency and retry logic.
+	/// </summary>
+	private static async Task SendInvitationEmailsAsync(
+		IEmailService emailService,
+		ILogger logger,
+		List<(string Email, string Token)> invitationTokens,
+		CancellationToken cancellationToken
+	) {
+		if (invitationTokens.Count == 0) return;
+
+		const int maxConcurrency = 5;
+		using var semaphore = new SemaphoreSlim(maxConcurrency);
+
+		var tasks = invitationTokens.Select(async (invitation) => {
+			await semaphore.WaitAsync(cancellationToken);
+			try {
+				await SendEmailWithRetryAsync(
+					async () => await emailService.SendStaffWelcomeEmailAsync(
+						invitation.Email,
+						invitation.Token
+					),
+					logger,
+					invitation.Email,
+					"invitation",
+					cancellationToken
+				);
+			} finally {
+				semaphore.Release();
+			}
+		});
+
+		await Task.WhenAll(tasks);
+	}
+
+	/// <summary>
+	/// Sends notification emails with controlled concurrency and retry logic.
+	/// </summary>
+	private static async Task SendNotificationEmailsAsync(
+		IEmailService emailService,
+		ILogger logger,
+		List<string> emails,
+		CancellationToken cancellationToken
+	) {
+		if (emails.Count == 0) return;
+
+		const int maxConcurrency = 5;
+		using var semaphore = new SemaphoreSlim(maxConcurrency);
+
+		var tasks = emails.Select(async (email) => {
+			await semaphore.WaitAsync(cancellationToken);
+			try {
+				await SendEmailWithRetryAsync(
+					async () => await emailService.SendJoinedStaffNotificationEmailAsync(email),
+					logger,
+					email,
+					"notification",
+					cancellationToken
+				);
+			} finally {
+				semaphore.Release();
+			}
+		});
+
+		await Task.WhenAll(tasks);
+	}
+
+	/// <summary>
+	/// Sends an email with exponential backoff retry logic.
+	/// </summary>
+	private static async Task SendEmailWithRetryAsync(
+		Func<Task> sendEmailAction,
+		ILogger logger,
+		string email,
+		string emailType,
+		CancellationToken cancellationToken
+	) {
+		const int maxRetries = 3;
+		var delays = new[] {
+			TimeSpan.FromSeconds(1),
+			TimeSpan.FromSeconds(2),
+			TimeSpan.FromSeconds(4)
+		};
+
+		for (int attempt = 0; attempt < maxRetries; attempt++) {
+			try {
+				await sendEmailAction();
+				logger.LogInformation(
+					"Successfully sent {EmailType} email to {Email}",
+					emailType,
+					email
+				);
+				return;
+			} catch (Exception ex) {
+				var isLastAttempt = attempt == maxRetries - 1;
+				if (isLastAttempt) {
+					logger.LogError(
+						ex,
+						"Failed to send {EmailType} email to {Email} after {Attempts} attempts",
+						emailType,
+						email,
+						maxRetries
+					);
+					return;
+				}
+
+				logger.LogWarning(
+					ex,
+					"Failed to send {EmailType} email to {Email} (attempt {Attempt}/{MaxRetries}), " +
+					"retrying in {Delay}ms",
+					emailType,
+					email,
+					attempt + 1,
+					maxRetries,
+					delays[attempt].TotalMilliseconds
+				);
+
+				await Task.Delay(delays[attempt], cancellationToken);
+			}
+		}
 	}
 }
