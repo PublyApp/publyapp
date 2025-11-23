@@ -1,5 +1,44 @@
 {
 	"cSpell.language": "en,fr",
+	"editor.defaultFormatter": "biomejs.biome",
+	"editor.codeActionsOnSave": {
+		"source.sortImports": "explicit",
+		"source.fixAll.biome": "explicit",
+		"source.organizeImports.biome": "explicit",
+		"source.fixAll.csharp": "explicit",
+		"source.organizeImports.csharp": "explicit"
+	},
+	"editor.formatOnSave": true,
+	"editor.tabSize": 2,
+	"editor.insertSpaces": false,
+	"editor.renderWhitespace": "all",
+	"editor.renderFinalNewline": "dimmed",
+	"editor.trimAutoWhitespace": true,
+	"material-icon-theme.files.associations": {
+		".env.preprod": "tune",
+		"tsconfig.nextjs.json": "tsconfig",
+		"tsconfig.react-library.json": "tsconfig",
+		"Dockerfile-Bun": "docker",
+		"Dockerfile-Node": "docker"
+	},
+	"material-icon-theme.folders.associations": {
+		"front": "public"
+	},
+	"typescript.tsdk": "node_modules\\typescript\\lib",
+	"files.eol": "\n",
+	"[jsonc]": {
+		"editor.defaultFormatter": "vscode.json-language-features"
+	},
+	"[csharp]": {
+		"editor.defaultFormatter": "anysphere.csharp"
+	},
+	"rest-client.environmentVariables": {
+		"$shared": {
+			"rootUrl": "http://localhost:5000",
+			"sessionToken": "f3d6202a8565dcff45532b526534bec0"
+		}
+	},
+	"dotnet.defaultSolution": "PublyApp.sln",
 	"cSpell.words": [
 		"airbnb",
 		"Aktiv",
@@ -24,6 +63,7 @@
 		"customizer",
 		"datauri",
 		"dayjs",
+		"Dokploy",
 		"dotnet",
 		"ecommerce",
 		"faqs",
@@ -42,6 +82,7 @@
 		"languagedetector",
 		"lastname",
 		"linkedin",
+		"LINQ",
 		"Lngs",
 		"lowlight",
 		"Lowlight",
@@ -63,15 +104,16 @@
 		"Parens",
 		"partialize",
 		"pdash",
-		"pdfvite",
 		"PHOTOSHOP",
 		"Pipeable",
 		"postgres",
+		"postgresql",
 		"posthog",
 		"POWERPOINT",
 		"preprod",
 		"PREPROD",
 		"Proxifier",
+		"publyapp",
 		"radandevist",
 		"remixicon",
 		"Revalidator",
@@ -94,44 +136,10 @@
 		"toastify",
 		"Togglable",
 		"TOGGLABLE",
+		"uuidv",
 		"valueof",
 		"vercel",
 		"yoopta",
 		"zustand"
-	],
-	"editor.defaultFormatter": "biomejs.biome",
-	"editor.codeActionsOnSave": {
-		"source.sortImports": "explicit",
-		"source.fixAll.biome": "explicit",
-		"source.organizeImports.biome": "explicit",
-		"source.fixAll.csharp": "explicit",
-		"source.organizeImports.csharp": "explicit"
-	},
-	"editor.formatOnSave": true,
-	"editor.tabSize": 2,
-	"editor.insertSpaces": false,
-	"editor.renderWhitespace": "all",
-	"editor.renderFinalNewline": "dimmed",
-	"editor.trimAutoWhitespace": true,
-	"material-icon-theme.files.associations": {
-		".env.preprod": "tune",
-		"tsconfig.nextjs.json": "tsconfig",
-		"tsconfig.react-library.json": "tsconfig",
-		"Dockerfile-Bun": "docker",
-		"Dockerfile-Node": "docker"
-	},
-	"typescript.tsdk": "node_modules\\typescript\\lib",
-	"files.eol": "\n",
-	"[jsonc]": {
-		"editor.defaultFormatter": "vscode.json-language-features"
-	},
-	"[csharp]": {
-		"editor.defaultFormatter": "anysphere.csharp"
-	},
-	"rest-client.environmentVariables": {
-		"$shared": {
-			"rootUrl": "http://localhost:5000",
-			"sessionToken": "f3d6202a8565dcff45532b526534bec0"
-		}
-	}
+	]
 }
