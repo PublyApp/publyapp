@@ -66,7 +66,9 @@ just generate-client    # Generate TypeScript client from OpenAPI
 
 This is critical - the frontend TypeScript client is auto-generated from the backend OpenAPI spec.
 
-### Running Tests
+### Running Single Tests
+
+Currently no automated tests are implemented. When added, use:
 
 ```bash
 just test-api          # Run API integration tests (requires Docker)
@@ -85,8 +87,6 @@ cd apps/api && dotnet test Tests/MainApi.Tests.csproj -c Test --filter "ItShould
 cd apps/front && pnpm test
 ```
 
-For the full guide on writing and debugging integration tests, see [`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md).
-
 ## Architecture
 
 ### Monorepo Structure
@@ -100,63 +100,75 @@ apps/
 packages/
 ├── shared/           # Shared utilities, validations, i18n
 ├── js-client/        # Auto-generated TypeScript API client
-└── _tsconfig/        # Shared TypeScript configurations
+├── _tsconfig/        # Shared TypeScript configurations
+└── _tx-key-gen/      # Translation key generator (.NET tool)
 ```
 
-### Backend Architecture (Vertical Slice, Domain-First)
+### Backend Architecture (Vertical Slice)
 
-The backend follows **Vertical Slice Architecture** using a **domain-first** module layout:
+The backend follows **Vertical Slice Architecture** where each feature is self-contained:
 
 ```
-apps/api/Src/Modules/<Domain>/
-├── Entities/                     # EF Core entities for the domain
-├── Services/                     # Domain services (business logic)
-├── Seeders/                      # Seeders for the domain
-├── Permissions/                  # Permission definitions (used by seeder)
-├── Endpoints/                    # Minimal API mappings (by route scope)
-└── Handlers/                     # Request handlers (CQRS-lite)
-    ├── Anonymous/                # Public/auth-free handlers
-    ├── Staff/                    # Staff-only handlers
-    └── Tenant/                   # Tenant-scoped handlers
+Features/[Domain]/[Feature]/
+├── [Feature]Service.cs           # Business logic
+├── [Feature]Endpoints.cs         # API endpoint mappings
+└── Handlers/
+    ├── Create[Feature].cs        # POST handler
+    ├── Get[Feature]ById.cs       # GET by ID handler
+    ├── Find[Feature]s.cs         # GET list handler
+    └── Update[Feature].cs        # PUT handler
 ```
 
 **Key Patterns:**
-- **CQRS-lite**: handlers per operation (create/find/get/update/delete)
-- **Minimal APIs**: endpoints map routes and attach filters/permissions
-- **FluentValidation**: automatic body/query validation via endpoint extensions
-- **Response Format**: errors return RFC 7807 via `TypedProblems.*`; Create success → 201 `Created<T>` with entity DTO; Update success → 200 `Ok<T>` with entity DTO; Delete/action-only success → 200 `Ok<ApiResponse>` with message + translationKey
-- **Namespace discipline**: `IDE0130` is treated as error — file namespace must match its folder path
+- **CQRS-lite**: Request handlers pattern
+- **Minimal APIs**: ASP.NET Core minimal API endpoints
+- **FluentValidation**: Automatic validation via filters
+- **Response Format**: All endpoints return `ApiResponse` with `Message` and `Data`
 
 **Finding Backend Code:**
-- Domain modules (preferred): `apps/api/Src/Modules/<Domain>/` (e.g. `Auth`, `Users`, `Invitations`)
-- Legacy (migration in progress): `apps/api/Src/Modules/{Shared,Staff,Tenant}/` (do not add new code here unless you're migrating existing slices)
-- Cross-cutting utilities/middleware: `apps/api/Src/Lib/`
-- Infrastructure services (email, storage, etc.): `apps/api/Src/Infrastructure/`
+- Common features (auth, accounts, users): `apps/api/Src/Features/Common/`
+- Staff-specific features: `apps/api/Src/Features/Staff/`
+- Tenant-specific features: `apps/api/Src/Features/Tenant/`
+- Shared utilities/middleware: `apps/api/Src/Lib/`
 
-### API Module Structure Rules
+### Multi-Tenant Architecture
 
-For the complete module structure rules (module organization, junction entities, infrastructure placement,
-slice boundaries, permission enforcement, vertical slice design principles, and decision tree), see:
-[`docs/guides/api-module-structure.md`](docs/guides/api-module-structure.md)
+**Three tenant scopes:**
+- `ITenantEntity`: Tenant-scoped entities (filtered by TenantId)
+- `IOptionalTenantEntity`: Entities that may or may not belong to a tenant
+- `INoTenantEntity`: Global entities (Staff, permissions)
 
-**Key principles (always apply):**
-- Domain-first modules: `apps/api/Src/Modules/<Domain>/` — route scope expressed via handler folders + endpoint groups
-- Junction entities live with their **primary entity**'s domain
-- Infrastructure services go in `Infrastructure/`, domain services in `Modules/<Domain>/Services/`
-- Split by actor (Staff/Tenant) when auth/security boundary differs; share handler when only permission differs
-- Enforce permissions at the route level with `.WithPermission()` (Pattern 1, preferred)
-- `AGENTS.md` + its referenced guide files are the single source of truth for architecture rules
+**Automatic tenant isolation:**
+- EF Core global query filters applied in DbContext
+- `TenantContext` provides current tenant info (scoped service)
+- Tenant ID from `X-Tenant-Id` header (injected via middleware)
 
-### Architecture Details
+### Database Layer (EF Core)
 
-For detailed documentation on business rules, database layer, authentication, and i18n, see:
-[`docs/guides/architecture-details.md`](docs/guides/architecture-details.md)
+**Key Patterns:**
+- PostgreSQL 18 with UUID v7 primary keys (database-generated)
+- Soft deletes: `IsDeleted` flag set automatically on Delete()
+- Hard deletes: Use `ForceHardDelete()` method explicitly
+- Audit tracking: `CreatedAt`, `UpdatedAt`, `DeletedAt` set automatically
+- Base entity: All entities inherit from `BaseAttributes`
 
-**Key facts (always apply):**
-- Staff/Tenant mutual exclusivity: a `User` can only have accounts of ONE scope type (Staff or Tenant/Project, never both); suspended accounts still count
-- PostgreSQL 18 with UUID v7 PKs, soft deletes (`IsDeleted`), audit tracking (`CreatedAt`/`UpdatedAt`/`DeletedAt`), all entities inherit `BaseAttributes`
-- Session-based auth via `X-Session-Token`; permission-based authorization via `PermissionFilter`
-- Middleware order: Security headers → Exception handling → CORS → Tenant header → Session header → Session auth → Staff auth
+**Important entities:**
+```csharp
+DbSet<User>               // Users (email, password, status)
+DbSet<UserAccount>        // Accounts (scope: Staff/Tenant/Project)
+DbSet<Tenant>             // Tenants (multi-tenant organizations)
+DbSet<Session>            // User sessions (authentication tokens)
+DbSet<Profile>            // User profiles/roles
+DbSet<ProfilePermission>  // Profile-permission mappings
+DbSet<Permission>         // Available permissions
+DbSet<Project>            // Projects (future use)
+```
+
+**Migration workflow:**
+1. Make entity changes in `apps/api/Src/Data/`
+2. Run `make db-add NAME=DescriptiveName`
+3. Review generated migration in `apps/api/Migrations/`
+4. Run `make db-migrate` to apply
 
 ### Frontend Architecture (React Router v7)
 
@@ -173,36 +185,116 @@ URL State        → nuqs (filters, pagination, search)
 Form State       → React Hook Form (local form state)
 ```
 
-For detailed frontend architecture patterns (API client integration, getting clients in hooks/browser/SSR,
-data fetching patterns by route type, and optimized prefetching), see:
-[`docs/guides/frontend-architecture.md`](docs/guides/frontend-architecture.md)
+**API Client Integration:**
+- Microsoft Kiota auto-generated client from OpenAPI
+- Singleton `ClientManager` in `app/lib/js-client/`
+- Session token from `X-Session-Token` header
+- API client instances: `apiClient` (authenticated), `anonApiClient` (anonymous)
 
-**Key rules (always apply):**
-- Marketing/Auth pages use SSR loaders; Authed pages use TanStack Query (client-only)
-- Never fetch application data in authed page `loader` — use hook factories (`createStaffQuery`, etc.)
-- Use `getClientLoader` wrapper (not raw `clientLoader`) for client-side prefetching
+**Data Fetching Pattern (Route-Type Specific):**
+
+**CRITICAL:** Data fetching strategy depends on route type:
+
+1. **Marketing Pages** (`app/routes/marketing/**`) → SSR with React Router loaders/actions
+2. **Auth Pages** (`app/routes/auth/**`) → SSR with React Router loaders/actions (hide API endpoints)
+3. **Authed Pages** (`app/routes/authed/**`) → Client-only with TanStack Query (NO SSR)
+
+```tsx
+// ❌ WRONG - Server loader in authenticated dashboard page
+// File: app/routes/authed/staff/members-page.tsx
+export const loader = async ({ apiClient }) => {
+  const data = await apiClient.staff.staffMembers.get();
+  return { data };
+};
+
+// ✅ CORRECT - react-query-kit hooks for authenticated pages
+// Step 1: Define hook in app/lib/react-query/features/staff/staff-member.hooks.ts
+import { createQuery } from 'react-query-kit';
+import { getQueryKey } from '../../query-utils';
+
+const findStaffMemberQueryKey = getQueryKey<ApiClient>(
+  (client) => client.staff.staffMembers.get,
+);
+
+export const useFindStaffMember = createQuery({
+  queryKey: [findStaffMemberQueryKey] as const,
+  fetcher: async (params: { page?: number }) => {
+    const result = await clientManager.apiClient.staff.staffMembers.get({
+      queryParameters: { page: params.page?.toString() },
+    });
+    if (_.isNil(result)) throw new Error(`[${findStaffMemberQueryKey}]: result is nil`);
+    return result;
+  },
+});
+
+// Step 2: Use hook in component
+// File: app/routes/authed/staff/members-page.tsx
+import { useFindStaffMember } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+
+function StaffMembersPage() {
+  const { data, isLoading } = useFindStaffMember({ variables: { page: 1 } });
+  return <div>{/* render */}</div>;
+}
+
+// ✅ CORRECT - Server loader for auth pages (hide endpoints)
+// File: app/routes/auth/login/login-page.tsx
+export const loader = getServerLoader({
+  loader: async ({ apiClient }) => {
+    // Pre-fetch data server-side
+    return data({ ... });
+  }
+});
+
+// ✅ CORRECT - Mutations in authed pages use react-query-kit
+// Step 1: Define mutation hook
+import { createMutation } from 'react-query-kit';
+
+export const useCreateMember = createMutation({
+  mutationKey: [createMemberMutationKey] as const,
+  mutationFn: async (data: { email: string }) => {
+    const result = await clientManager.apiClient.staff.members.post({
+      email: { getValue() { return data.email; } },
+    });
+    if (_.isNil(result)) throw new Error('result is nil');
+    return result;
+  },
+});
+
+// Step 2: Use in component
+function CreateMemberDialog() {
+  const { mutate } = useCreateMember({
+    onSuccess: () => queryClient.invalidateQueries(['staff.members.get'])
+  });
+}
+```
+
+**Why different strategies:**
+- **Marketing/Auth pages:** SSR for SEO and security (hide API endpoints)
+- **Authed pages:** Client-only for better UX, real-time updates, no SEO needed
 - Authed layout wrapped in `<ClientOnly>` component
 
-### RFC 7807 + Frontend Logout Semantics (Do Not Regress)
+**Optimized Data Fetching (Optional):**
 
-**Backend invariants:**
-- Error responses must be RFC 7807 `application/problem+json` via `TypedProblems.*` and the `App*HttpResult` types.
-- `422` is for validation problems and must include `errors: Dictionary<string, string[]>` with stable keys.
-- `401` must be reserved for **invalid/missing session** only (frontend treats `401` as "logout now").
-- Tenant header issues should not return `401` (use `400`/`422` as appropriate).
-- Never log secrets: do not log `X-Session-Token` (or any session token value) in any log level.
+For authed pages where you want to optimize initial load time, use `getClientLoader` with react-query-kit prefetching:
 
-**Frontend invariants:**
-- Only `401` triggers centralized logout; `403` must not log users out.
+```tsx
+import { getClientLoader } from '@/front/lib/react-router/client-data';
+import { QueryClient } from '@tanstack/react-query';
 
-### API Routes & Endpoint Path Design
+// ✅ CORRECT - Use getClientLoader wrapper
+export const clientLoader = getClientLoader({
+  loader: async ({ apiClient, z, locale }) => {
+    const queryClient = new QueryClient();
 
-For the complete route design guide (staff/tenant/anonymous route structures, design principles,
-route constants, handler naming conventions, and adding new domain slices), see:
-[`docs/guides/api-route-design.md`](docs/guides/api-route-design.md)
+    // Prefetch using react-query-kit hooks
+    await queryClient.prefetchQuery({
+      queryKey: useFindStaffMember.getKey({ page: 1 }),
+      queryFn: () => useFindStaffMember.fetcher({ page: 1 }),
+    });
 
-For route parameter conventions (no route constraints, ID validation pattern), see:
-[`docs/guides/api-route-parameters.md`](docs/guides/api-route-parameters.md)
+    return null;
+  },
+});
 
 **Key principles (always apply):**
 - Staff API: `/staff/...` with explicit `{tenantId}` in path
@@ -221,9 +313,7 @@ For route parameter conventions (no route constraints, ID validation pattern), s
 
 ## Frontend Coding Standards
 
-For the complete frontend coding standards (MUI components, sx prop styling, Day.js utilities,
-array methods, arrow functions, arrow components, forms, QueryDisplay, and component structure), see:
-[`docs/guides/frontend-coding-standards.md`](docs/guides/frontend-coding-standards.md)
+### UI Component Library: Material-UI
 
 Additional repo-specific preferences for AI assistants (to reduce review churn):
 [`docs/guides/ai-agent-preferences.md`](docs/guides/ai-agent-preferences.md)
@@ -250,12 +340,9 @@ For the marketing-vs-product surface split (what brand DNA must match vs what's 
 
 ## C# Coding Standards
 
-For the complete C# coding standards (null checking, LINQ, async/await, handler architecture,
-DTOs, service layer, DI rules, API responses, formatting, and more), see:
-[`docs/guides/csharp-coding-standards.md`](docs/guides/csharp-coding-standards.md)
+### Null Checking
 
-For FluentValidation conventions (shared extension methods, pagination validators, encrypted-ID queries), see:
-[`docs/guides/validator-conventions.md`](docs/guides/validator-conventions.md)
+**Always use pattern matching (`is`/`is not`) instead of equality operators:**
 
 **Key principles (always apply):**
 - Pattern matching for null checks (`is null` / `is not null`, never `== null`)
@@ -281,29 +368,482 @@ For FluentValidation conventions (shared extension methods, pagination validator
   `StringComparison.OrdinalIgnoreCase`, `StringComparer.OrdinalIgnoreCase`, or explicit
   case-insensitive parsers/dictionaries instead
 
-## Test Conventions
+// ❌ WRONG
+if (user != null)
+if (tenant == null)
+```
 
-For full test conventions (file naming, BDD method naming, folder structure, imports), see:
-[`docs/guides/test-conventions.md`](docs/guides/test-conventions.md)
-For writing and debugging integration tests, see:
-[`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md)
+Pattern matching is safer because it cannot be overridden by custom equality operators.
 
-**Key rules:** `*.Spec.cs` suffix, `ItShould{Expected}When{Scenario}` method names, specs co-located with source, test infra in `Src/Lib/Testing/{Fixtures,Helpers,Fakes}/`
+### LINQ Queries
+
+**Prefer query syntax over method syntax for database queries:**
+
+```csharp
+// ✅ CORRECT - Query syntax for database queries
+var users = from u in db.Users
+            where u.IsDeleted == false
+            orderby u.CreatedAt descending
+            select u;
+
+// ❌ WRONG - Method syntax for database queries
+var users = db.Users
+    .Where(u => u.IsDeleted == false)
+    .OrderByDescending(u => u.CreatedAt);
+```
+
+**Exception:** Method syntax is acceptable for:
+- Simple single operations: `.First()`, `.Count()`, `.Any()`, `.ToList()`
+- Operations without query syntax equivalents
+- In-memory collections
+
+### Async/Await Patterns
+
+**Critical anti-patterns to NEVER use:**
+
+```csharp
+// ❌ NEVER block on async - causes thread pool exhaustion
+.Result
+.Wait()
+.GetAwaiter().GetResult()
+Task.Run(() => await SomeAsyncMethod()) // unnecessary for I/O
+
+// ❌ NEVER use async void (except event handlers)
+public async void ProcessMessage(Message msg)
+```
+
+**Required patterns:**
+
+```csharp
+// ✅ CORRECT - async Task with CancellationToken
+public async Task<User?> GetUserAsync(
+    Guid userId,
+    CancellationToken cancellationToken = default)
+{
+    return await _dbContext.Users
+        .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+}
+
+// ✅ CORRECT - Parallel independent operations
+var userTask = GetUserAsync(id, cancellationToken);
+var permissionsTask = GetPermissionsAsync(id, cancellationToken);
+await Task.WhenAll(userTask, permissionsTask);
+
+// ✅ CORRECT - Controlled concurrency for bulk operations
+const int maxConcurrency = 10;
+using var semaphore = new SemaphoreSlim(maxConcurrency);
+var tasks = ids.Select(async id =>
+{
+    await semaphore.WaitAsync(cancellationToken);
+    try { return await ProcessAsync(id, cancellationToken); }
+    finally { semaphore.Release(); }
+});
+var results = await Task.WhenAll(tasks);
+```
+
+**Important:** Do NOT use `ConfigureAwait(false)` in this ASP.NET Core application. ASP.NET Core has no SynchronizationContext, so it provides zero benefit.
+
+**Always:**
+- Add `CancellationToken cancellationToken = default` to all public async methods
+- Use EF Core async methods: `FindAsync`, `FirstOrDefaultAsync`, `ToListAsync`, `SaveChangesAsync`, `ExecuteUpdateAsync`
+- Run independent queries in parallel with `Task.WhenAll()`
+- Use `SemaphoreSlim` to limit concurrency in bulk operations
+- Use `await using` for transactions with explicit rollback on errors
+
+### Handler Architecture (Vertical Slice)
+
+**CRITICAL:** Each handler file must be self-contained with ALL related code in ONE file.
+
+```csharp
+// ✅ CORRECT - Everything in one file: Handler + DTOs + Validators
+// File: apps/api/Src/Features/Staff/Invitations/Handlers/CreateStaffInvitation.cs
+
+using FluentValidation;
+using System.Text.Json;
+
+namespace MainApi.Src.Features.Staff.Invitations.Handlers;
+
+// Request DTO (Body suffix for request body, Query suffix for query params)
+public record CreateStaffInvitationBody {
+    public required JsonElement Email { get; init; }      // JsonElement for body params!
+    public required JsonElement ProfileId { get; init; }
+}
+
+// Response DTO (no Dto suffix!)
+public record InvitationCreated {
+    public required Guid InvitationId { get; init; }
+    public required string Token { get; init; }
+}
+
+// Validator (in same file)
+public class CreateStaffInvitationBodyValidator : AbstractValidator<CreateStaffInvitationBody> {
+    public CreateStaffInvitationBodyValidator() {
+        RuleFor(x => x.Email).NotEmpty().EmailAddress();
+        RuleFor(x => x.ProfileId).NotEmpty();
+    }
+}
+
+// Handler class (descriptive HandleX method name)
+public static class CreateStaffInvitation {
+    public static async Task<Results<Ok<InvitationCreated>, BadRequest<ApiResponse>, Forbidden<ApiResponse>>>
+    HandleCreateStaffInvitation(  // ✅ Descriptive name, NOT just "Handle"
+        [FromServices] IAuthContext authContext,
+        [FromServices] IInvitationService invitationService,  // ✅ Use service, NOT DbContext
+        [FromBody] CreateStaffInvitationBody request,
+        CancellationToken cancellationToken = default
+    ) {
+        // Handler only orchestrates - no DbContext access!
+        var result = await invitationService.CreateStaffInvitationAsync(...);
+        return TypedResults.Ok(new InvitationCreated { ... });
+    }
+}
+```
+
+**Rules:**
+1. **NO separate DTO files** - Define DTOs in handler file
+2. **NO separate Validator files** - Define validators in handler file
+3. **NO "Dto" suffix** - Use descriptive names like `InvitationCreated`, NOT `InvitationDto`
+4. **Request DTOs naming**:
+   - `Body` suffix for request body params (e.g., `CreateUserBody`)
+   - `Query` suffix for query params (e.g., `ListUsersQuery`)
+5. **Handler method names** - Use `HandleCreateUser`, NOT just `Handle`
+6. **NO DbContext in handlers** - All database access through service layer
+7. **Line length** - Maximum 100 characters, break long lines
+
+### DTO and Request/Response Patterns
+
+**Request Body DTOs MUST use JsonElement:**
+
+```csharp
+// ✅ CORRECT - JsonElement allows FluentValidation to provide friendly errors
+public record CreateUserBody {
+    public required JsonElement Email { get; init; }
+    public required JsonElement Password { get; init; }
+}
+
+// ❌ WRONG - Typed properties throw before validation runs
+public record CreateUserBody {
+    public required string Email { get; init; }  // Throws if not a string!
+    public required Guid Id { get; init; }       // Throws if invalid GUID format!
+}
+```
+
+**Why JsonElement?** ASP.NET Core parameter binding runs BEFORE FluentValidation. Using `JsonElement` defers type conversion to validation, allowing friendly error messages instead of ugly 400 errors.
+
+**Query Parameters use typed properties:**
+
+```csharp
+// ✅ CORRECT - Query params from URL are always strings, so typed properties work
+public record ListUsersQuery {
+    public string? Search { get; init; }
+    public UserStatus? Status { get; init; }
+    public int? Page { get; init; }
+}
+```
+
+### Service Layer Separation
+
+**CRITICAL:** Handlers MUST NOT access `DbContext` directly. Use service layer.
+
+```csharp
+// ❌ WRONG - Handler accesses DbContext
+public static async Task<Ok> Handle(
+    [FromServices] MainApiDbContext dbContext,  // NO!
+    [FromBody] CreateBody request
+) {
+    var user = await dbContext.User.FindAsync(id);  // NO!
+    await dbContext.SaveChangesAsync();  // NO!
+}
+
+// ✅ CORRECT - Handler delegates to service
+public static async Task<Ok> HandleCreateUser(
+    [FromServices] IUserService userService,  // YES!
+    [FromBody] CreateUserBody request
+) {
+    var result = await userService.CreateAsync(...);  // YES!
+    return TypedResults.Ok();
+}
+```
+
+**Handler responsibilities:**
+- Validate authorization
+- Parse/validate input
+- Orchestrate service calls
+- Map responses to HTTP results
+
+**Service responsibilities:**
+- All database access (DbContext)
+- Business logic
+- Transaction management
+- Domain event coordination
+
+### Service Dependencies
+
+**CRITICAL:** Services MUST NOT depend on other services. This prevents circular dependencies.
+
+```csharp
+// ❌ WRONG - Service depending on other services
+public class InvitationService : IInvitationService {
+    private readonly ISessionService _sessionService;      // BAD!
+    private readonly IPasswordService _passwordService;    // BAD!
+
+    public InvitationService(
+        MainApiDbContext dbContext,
+        ISessionService sessionService,
+        IPasswordService passwordService
+    ) { }
+}
+
+// ✅ CORRECT - Services only depend on DbContext and infrastructure
+public class InvitationService : IInvitationService {
+    private readonly MainApiDbContext _dbContext;
+    private readonly ILogger<InvitationService> _logger;
+
+    public InvitationService(
+        MainApiDbContext dbContext,
+        ILogger<InvitationService> logger
+    ) { }
+
+    // Service methods do ONE thing, return data
+    public async Task<User> CreateUserFromInvitationAsync(
+        Invitation invitation,
+        string firstName,
+        string lastName,
+        string passwordHash  // Already hashed by handler!
+    ) {
+        var user = new User {
+            Email = invitation.Email,
+            Password = passwordHash,  // No service dependency needed
+            // ...
+        };
+        await _dbContext.User.AddAsync(user);
+        await _dbContext.SaveChangesAsync();
+        return user;
+    }
+}
+
+// ✅ CORRECT - Handlers orchestrate multiple services
+public static class AcceptInvitation {
+    public static async Task<Results<...>> HandleAcceptInvitation(
+        [FromServices] IInvitationService invitationService,
+        [FromServices] ISessionService sessionService,
+        [FromServices] IPasswordService passwordService,
+        // ... other services
+    ) {
+        // Handler orchestrates - calls services in sequence
+        var hash = passwordService.HashPassword(password);
+        var user = await invitationService.CreateUserFromInvitationAsync(..., hash);
+        var session = await sessionService.CreateSessionForUser(user);
+        return TypedResults.Ok(...);
+    }
+}
+```
+
+**Architecture principle:** Handlers orchestrate, Services implement.
+
+**Exception:** Infrastructure services (ILogger, IConfiguration, IOptions) are OK since they don't create circular dependencies.
+
+### Naming Conventions
+
+**Use "Find" prefix for list/collection retrieval, NOT "List":**
+
+```csharp
+// ❌ WRONG
+Task<List<Invitation>> ListStaffInvitationsAsync();
+public static class ListStaffInvitations { }
+public static async Task<...> HandleListStaffInvitations(...) { }
+
+// ✅ CORRECT
+Task<List<Invitation>> FindStaffInvitationsAsync();
+public static class FindStaffInvitations { }
+public static async Task<...> HandleFindStaffInvitations(...) { }
+```
+
+**Naming patterns:**
+- Get single item: `GetUserById`, `HandleGetUserById`
+- Get list/collection: `FindUsers`, `HandleFindUsers`
+- Create: `CreateUser`, `HandleCreateUser`
+- Update: `UpdateUser`, `HandleUpdateUser`
+- Delete: `DeleteUser`, `HandleDeleteUser`
+- Special actions: Use the verb (e.g., `RevokeInvitation`)
+
+### API Response Pattern
+
+**CRITICAL:** All responses MUST follow the `ApiResponse` pattern.
+
+**Rules:**
+1. **Success WITH data**: Return data directly using `TypedResults.Ok(data)`
+2. **Success WITHOUT data**: Return `ApiResponse` using `TypedResults.Ok(new ApiResponse { ... })`
+3. **All error responses**: MUST return `ApiResponse` with appropriate status code
+
+```csharp
+// ✅ Success WITH data - return data directly
+public static async Task<Results<
+    Ok<User>,
+    NotFound<ApiResponse>
+>> HandleGetUser(...) {
+    var user = await userService.GetUserAsync(id);
+
+    if (user is null) {
+        return TypedResults.NotFound(
+            ApiResponse.Create("User not found", ResponseKeys.NotFound)
+        );
+    }
+
+    return TypedResults.Ok(user);  // Data returned directly
+}
+
+// ✅ Success WITHOUT data - return ApiResponse
+public static async Task<Results<
+    Ok<ApiResponse>,
+    NotFound<ApiResponse>
+>> HandleDeleteUser(...) {
+    var success = await userService.DeleteUserAsync(id);
+
+    if (!success) {
+        return TypedResults.NotFound(
+            ApiResponse.Create("User not found", ResponseKeys.NotFound)
+        );
+    }
+
+    // No data to return, so return ApiResponse
+    return TypedResults.Ok(
+        ApiResponse.Create("User deleted successfully", ResponseKeys.UserDeleted)
+    );
+}
+
+// ✅ For responses that don't support custom payload - use JsonHttpResult
+public static async Task<Results<
+    Ok<User>,
+    BadRequest<ApiResponse>,
+    JsonHttpResult  // For 403 since Forbid() doesn't support payload
+>> HandleUpdateUser(...) {
+    if (!hasPermission) {
+        return TypedResults.Json(
+            ApiResponse.Create(
+                "User does not have the necessary permissions",
+                ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+            ),
+            statusCode: StatusCodes.Status403Forbidden
+        );
+    }
+
+    var updatedUser = await userService.UpdateUserAsync(user);
+    return TypedResults.Ok(updatedUser);
+}
+```
+
+**When TypedResults doesn't support custom payloads** (like `.Forbid()`, `.Unauthorized()`):
+Use `TypedResults.Json()` with explicit status code and `ApiResponse` payload.
+
+**❌ NEVER use:**
+- `TypedResults.Ok()` without payload
+- `TypedResults.Forbid()` (use `TypedResults.Json(..., statusCode: 403)` instead)
+- `TypedResults.Unauthorized()` (use `TypedResults.Json(..., statusCode: 401)` instead)
+
+### String Comparison
+
+**NEVER use `.ToLowerInvariant()` with `==` for case-insensitive comparison:**
+
+```csharp
+// ❌ WRONG - Creates temporary strings
+if (email.ToLowerInvariant() == other.ToLowerInvariant())
+
+// ✅ CORRECT - No temporary strings
+if (email.Equals(other, StringComparison.OrdinalIgnoreCase))
+
+// ✅ CORRECT - For Contains, StartsWith, EndsWith
+if (email.Contains("@example.com", StringComparison.OrdinalIgnoreCase))
+if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+```
+
+**For database queries:** Store emails in lowercase, compare directly:
+
+```csharp
+// ✅ CORRECT - Normalize once for storage
+var normalizedEmail = email.ToLowerInvariant();
+var user = await (
+    from u in _dbContext.User
+    where u.Email == normalizedEmail  // Direct comparison
+    select u
+).FirstOrDefaultAsync(cancellationToken);
+```
+
+### OpenAPI Documentation
+
+**CRITICAL:** Document ALL status codes the handler can return.
+
+```csharp
+// Handler returns these status codes
+public static async Task<Results<
+    Ok<Response>,
+    BadRequest<ApiResponse>,
+    Forbidden<ApiResponse>,       // Must document this!
+    JsonHttpResult<ApiResponse>   // Must document custom status codes!
+>> HandleAction(...) {
+    if (!authorized) {
+        return TypedResults.Json(
+            ApiResponse.Create("Forbidden", ResponseKeys.Forbidden),
+            statusCode: StatusCodes.Status403Forbidden  // Custom status code
+        );
+    }
+}
+
+// Endpoint MUST document ALL possible responses
+group.MapPost("/", Handler.HandleAction)
+    .WithReqBodyValidation<CreateBody>()
+    .ProducesApiResponses(
+        StatusCodes.Status500InternalServerError,  // Always include
+        StatusCodes.Status403Forbidden             // From JsonHttpResult!
+        // 400 auto-documented by WithReqBodyValidation
+        // 200 auto-documented by Ok<Response>
+    );
+```
+
+**Rule:** If handler uses `JsonHttpResult` → Must add status code to `ProducesApiResponses`.
+
+**Why:** TypeScript API client is auto-generated from OpenAPI spec. Missing status codes = broken error handling in frontend.
+
+### Code Formatting
+
+**Maximum line length: 100 characters**
+
+```csharp
+// ❌ WRONG - Line too long
+public static async Task<Results<Ok<Response>, BadRequest<ApiResponse>, Forbidden<ApiResponse>>> HandleAction([FromServices] IAuthContext authContext, [FromServices] IService service, [FromBody] CreateBody request, CancellationToken cancellationToken = default) {
+
+// ✅ CORRECT - Break into multiple lines
+public static async Task<Results<
+    Ok<Response>,
+    BadRequest<ApiResponse>,
+    Forbidden<ApiResponse>
+>> HandleAction(
+    [FromServices] IAuthContext authContext,
+    [FromServices] IService service,
+    [FromBody] CreateBody request,
+    CancellationToken cancellationToken = default
+) {
+    // Implementation
+}
+```
 
 ## Common Workflows
 
-For step-by-step checklists (adding features, updating API contract, adding entities, handling permissions), see:
-[`docs/guides/common-workflows.md`](docs/guides/common-workflows.md)
+### Adding a New Feature
 
 **Quick reference:**
 - After API contract changes: `just build-api && just generate-client` (never modify `packages/client-ts/` manually)
 - New entity: inherit `BaseAttributes`, implement tenant interface, add `DbSet`, `just db-add <MigrationName> && just db-migrate`
 - New permission: add to `Seeder.cs`, use `PermissionFilter` on endpoint, check via `AuthContext.HasPermission()`
 
-## Project Conventions
+**Frontend:**
+1. Create route file in `app/routes/[section]/[page]/`
+2. Add route to `app/routes.ts`
+3. Create query/mutation hooks using `react-query-kit`
+4. Use auto-generated API client from `packages/js-client`
+5. Add translations to `packages/shared/lib/i18n/json/en/common.json`
 
-For detailed conventions (route naming, API response format with JSON examples, validation, error handling, logger rules), see:
-[`docs/guides/project-conventions.md`](docs/guides/project-conventions.md)
+### Updating API Contract
 
 **Key rules (always apply):**
 - Backend routes use kebab-case; constants in `RoutePath.cs` (backend) and `constants.ts` (frontend)
@@ -314,12 +854,26 @@ For detailed conventions (route naming, API response format with JSON examples, 
 
 ## Development Environment
 
-**Local access:** Frontend `localhost:5050` | API `localhost:5000` | Scalar docs `localhost:5000/scalar/v1` | Postgres `localhost:5454`
-**Env vars:** `.env.development` (committed), `.env.production` (not in repo), validated at startup via `AppEnvironment.Initialize()`
+**Access points when running locally:**
+- Frontend: http://localhost:5050
+- API: http://localhost:5000
+- API Documentation (Scalar): http://localhost:5000/scalar/v1
+- PostgreSQL: localhost:5454
+
+**Environment variables:**
+- Development: `.env.development` (committed)
+- Production: `.env.production` (not in repo)
+- Validated at startup via `AppSettings` class
 
 ## Deployment
 
-Dokploy on Hostinger VPS: GitHub → GHCR Docker images → Dokploy → Traefik SSL. Config in `dokploy.yml`.
+The project uses Dokploy on Hostinger VPS:
+1. Code pushed to GitHub
+2. Docker images built and pushed to GitHub Container Registry
+3. Dokploy pulls images and deploys
+4. Traefik reverse proxy handles SSL and routing
+
+Configuration in `dokploy.yml`.
 
 ## OpenAPI Documentation
 
@@ -339,7 +893,21 @@ client regeneration workflow, and TypeScript patterns), see:
 
 ## Documentation Organization
 
-- **Never** place generated docs at the repo root — always under `docs/`
-- Use existing subdirectories when appropriate; create new ones with kebab-case names
-- Existing dirs: `docs/implementation-plans/`, `docs/refactoring-guides/`, `docs/roadmaps/`, `docs/reviews/`, `docs/misc/`
-- Only `docs/guides/` files should be referenced from AGENTS.md; unreferenced guides belong elsewhere
+**CRITICAL:** When generating documentation files during chat sessions (implementation plans, refactoring guides, roadmaps, reviews, etc.), you MUST organize them intelligently in the `docs/` directory to make them easy to find later.
+
+**Guidelines:**
+
+- **NEVER place generated documentation files at the repository root**
+- **Organize by relevance and type** - Create or use subdirectories that make logical sense for the document type
+- **Use existing subdirectories when appropriate** - Check `docs/` for existing folders before creating new ones
+- **Create new subdirectories as needed** - You have full freedom to create new organizational structures that improve searchability
+- **Use descriptive folder names** - Use kebab-case names that clearly indicate the content type (e.g., `implementation-plans`, `architecture-decisions`, `api-designs`, `database-schemas`, `performance-analysis`)
+
+**Existing subdirectories** (as examples, not prescriptive):
+- `docs/implementation-plans/` - Detailed plans for implementing features
+- `docs/refactoring-guides/` - Guides for refactoring existing code
+- `docs/roadmaps/` - Project roadmaps and milestone planning
+- `docs/reviews/` - Code reviews, architecture reviews, design reviews
+- `docs/misc/` - Miscellaneous documentation
+
+**Principle:** Organize intelligently so that developers can easily find relevant documentation by browsing the `docs/` folder structure. Think about how someone would search for this document later.
