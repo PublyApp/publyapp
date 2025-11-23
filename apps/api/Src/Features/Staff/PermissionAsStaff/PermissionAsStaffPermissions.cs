@@ -4,7 +4,7 @@ using MainApi.Src.Lib;
 namespace MainApi.Src.Features.Staff.PermissionAsStaff;
 
 public class PermissionAsStaffPermissions : ISlicePermissions {
-	public string KeyPrefix { get; } = "permission";
+	public string KeyPrefix { get; } = "permissions";
 
 	public Permission LIST_FOR_STAFF { get; }
 	public Permission LIST_FOR_TENANT { get; }
