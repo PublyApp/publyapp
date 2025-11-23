@@ -68,7 +68,7 @@ const StaffInvitationsListPage = () => {
 				heading={getPageTitle(t as never)}
 				links={[
 					{
-						name: _.capitalize(t('staff-invitations')),
+						name: _.capitalize(t('staff-profiles')),
 						href: FRONT_PATH_NAMES.staff.invitations.root,
 					},
 					{ name: _.capitalize(t('list')) },

@@ -45,3 +45,5 @@ csharp_new_line_before_finally = false
 # ==== Braces syntax to follow Js/Java style ====
 # IDE0042: Deconstruct variable declaration
 dotnet_diagnostic.IDE0042.severity = none
+# IDE0028: Simplify collection initialization
+dotnet_diagnostic.IDE0028.severity = none

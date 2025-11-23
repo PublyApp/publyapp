@@ -4,6 +4,7 @@ import { type MotionProps, m } from 'framer-motion';
 import { nanoid } from 'nanoid';
 import { varFade } from '@/front/components/animate';
 import type { PaletteColorKey } from '@/front/lib/mui/theme/core';
+import { APP_NAME } from '@/shared/lib/constants';
 
 // ----------------------------------------------------------------------
 
@@ -247,7 +248,7 @@ export const Texts = ({ sx, ...other }: BoxProps & MotionProps) => {
 						repeat: Number.POSITIVE_INFINITY,
 					}}
 				>
-					Minimal Design System Minimal Design System
+					{APP_NAME} Social Media Management Platform
 				</m.text>
 			</Box>
 		</Box>

@@ -7,10 +7,36 @@ using System.Text.Json.Serialization;
 namespace MainApi.Src.Features.Common.Permission;
 
 [Table("permissions")]
-public class Permission : BaseAttributesNoKey, INoTenantEntity {
+public record Permission : INoTenantEntity {
 	[Key]
 	[Column("key")]
-	public string Key { get; set; } = string.Empty;
+	public string Key { get; init; } = string.Empty;
+
+	[Column("scope")]
+	public PermissionScope Scope { get; init; }
+
+	// Runtime-only property - not mapped to database
+	[NotMapped]
+	[JsonIgnore]
+	public Dictionary<string, PermissionTranslation> Translations { get; init; } = new();
+
+	// Audit properties (from BaseAttributesNoKey)
+	// Using 'set' for EF Core audit tracking, while main properties remain immutable
+	[Column("created_at")]
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+	[Column("updated_at")]
+	public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+	[Column("is_deleted")]
+	public bool IsDeleted { get; set; } = false;
+
+	[Column("deleted_at")]
+	public DateTime? DeletedAt { get; set; }
+
+	private Permission() {
+		// Parameterless constructor for EF Core materialization
+	}
 
 	private Permission(string key, PermissionScope scope) {
 		if (string.IsNullOrEmpty(key)) {
@@ -33,23 +59,44 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 		Scope = scope;
 	}
 
-	[Column("scope")]
-	public PermissionScope Scope { get; set; }
-
 	// Navigation properties
 	[JsonIgnore]
 	public ICollection<ProfilePermission> ProfilePermissions { get; set; } = [];
 
-	public static Permission CreateTenantPermission(string key) {
-		return new Permission(string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Tenant, key.ToLower() }), PermissionScope.Tenant) { };
+	public static Permission CreateTenantPermission(
+		string key,
+		Dictionary<string, PermissionTranslation>? translations = null
+	) {
+		return new Permission(
+			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Tenant, key.ToLower() }),
+			PermissionScope.Tenant
+		) {
+			Translations = translations ?? new()
+		};
 	}
 
-	public static Permission CreateStaffPermission(string key) {
-		return new Permission(string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Staff, key.ToLower() }), PermissionScope.Staff) { };
+	public static Permission CreateStaffPermission(
+		string key,
+		Dictionary<string, PermissionTranslation>? translations = null
+	) {
+		return new Permission(
+			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Staff, key.ToLower() }),
+			PermissionScope.Staff
+		) {
+			Translations = translations ?? new()
+		};
 	}
 
-	public static Permission CreateProjectPermission(string key) {
-		return new Permission(string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Project, key.ToLower() }), PermissionScope.Project) { };
+	public static Permission CreateProjectPermission(
+		string key,
+		Dictionary<string, PermissionTranslation>? translations = null
+	) {
+		return new Permission(
+			string.Join(KeySeparator, new string[] { ScopeKeyPrefix.Project, key.ToLower() }),
+			PermissionScope.Project
+		) {
+			Translations = translations ?? new()
+		};
 	}
 
 	public static class ScopeKeyPrefix {
@@ -59,6 +106,54 @@ public class Permission : BaseAttributesNoKey, INoTenantEntity {
 	}
 
 	public static readonly string KeySeparator = ".";
+
+	/// <summary>
+	/// Gets the translation for a specific locale, or null if not found.
+	/// </summary>
+	public PermissionTranslation? GetTranslation(string locale) {
+		return Translations.TryGetValue(locale, out var translation) ? translation : null;
+	}
+
+	/// <summary>
+	/// Sets the translation for a specific locale.
+	/// Returns a new record instance with the updated translation.
+	/// </summary>
+	public Permission SetTranslation(string locale, PermissionTranslation translation) {
+		var updatedTranslations = new Dictionary<string, PermissionTranslation>(Translations) {
+			[locale] = translation
+		};
+		return this with {
+			Translations = updatedTranslations
+		};
+	}
+
+	/// <summary>
+	/// Gets all translations as a dictionary.
+	/// </summary>
+	public Dictionary<string, PermissionTranslation> GetAllTranslations() {
+		return Translations;
+	}
+
+	/// <summary>
+	/// Sets all translations at once.
+	/// Returns a new record instance with the updated translations.
+	/// </summary>
+	public Permission SetAllTranslations(Dictionary<string, PermissionTranslation> translations) {
+		return this with {
+			Translations = translations
+		};
+	}
+}
+
+/// <summary>
+/// Represents translated name and description for a permission.
+/// </summary>
+public record PermissionTranslation {
+	[JsonPropertyName("name")]
+	public required string Name { get; init; }
+
+	[JsonPropertyName("description")]
+	public string? Description { get; init; }
 }
 
 public enum PermissionScope {

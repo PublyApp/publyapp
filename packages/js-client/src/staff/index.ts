@@ -4,6 +4,8 @@
 // @ts-ignore
 import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
+import { PermissionsRequestBuilderRequestsMetadata, type PermissionsRequestBuilder } from './permissions/index.js';
+// @ts-ignore
 import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
 // @ts-ignore
 import { StaffMembersRequestBuilderNavigationMetadata, StaffMembersRequestBuilderRequestsMetadata, type StaffMembersRequestBuilder } from './staffMembers/index.js';
@@ -20,6 +22,10 @@ export interface StaffRequestBuilder extends BaseRequestBuilder<StaffRequestBuil
      * The invitations property
      */
     get invitations(): InvitationsRequestBuilder;
+    /**
+     * The permissions property
+     */
+    get permissions(): PermissionsRequestBuilder;
     /**
      * The profiles property
      */
@@ -44,6 +50,9 @@ export const StaffRequestBuilderNavigationMetadata: Record<Exclude<keyof StaffRe
     invitations: {
         requestsMetadata: InvitationsRequestBuilderRequestsMetadata,
         navigationMetadata: InvitationsRequestBuilderNavigationMetadata,
+    },
+    permissions: {
+        requestsMetadata: PermissionsRequestBuilderRequestsMetadata,
     },
     profiles: {
         requestsMetadata: ProfilesRequestBuilderRequestsMetadata,

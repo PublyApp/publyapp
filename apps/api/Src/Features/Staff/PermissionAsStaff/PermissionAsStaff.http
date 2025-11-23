@@ -1,11 +1,9 @@
-
-### @name CreateStaffTenant
-
-POST {{rootUrl}}/staff/tenants
+### @name FindStaffPermissions
+GET {{rootUrl}}/staff/permissions
 # Accept: application/json
 Content-Type: application/json
 X-Session-Token: {{sessionToken}}
 
 {
-	"name": "Test Tenant - A002"
+	"language": "en"
 }

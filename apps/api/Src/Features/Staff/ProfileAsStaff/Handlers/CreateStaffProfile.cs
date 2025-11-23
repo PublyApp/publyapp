@@ -37,7 +37,7 @@ public class CreateStaffProfileBodyValidator
 			.WithMessage("Description must be a string or null")
 			.DependentRules(() => {
 				RuleFor(x => x.Description)
-					.Must(e => e!.Value.GetString()!.Trim().Length <= 500)
+					.Must(BeValidDescriptionLength)
 					.WithMessage("Description must be at most 500 characters");
 			});
 	}
@@ -49,6 +49,23 @@ public class CreateStaffProfileBodyValidator
 		return element?.ValueKind == JsonValueKind.String
 			|| element?.ValueKind == JsonValueKind.Null
 			|| element?.ValueKind == JsonValueKind.Undefined;
+	}
+
+	private static bool BeValidDescriptionLength(JsonElement? element) {
+		if (element is null) {
+			return true;
+		}
+
+		if (element.Value.ValueKind != JsonValueKind.String) {
+			return true;
+		}
+
+		var description = element.Value.GetString();
+		if (string.IsNullOrWhiteSpace(description)) {
+			return true;
+		}
+
+		return description.Trim().Length <= 500;
 	}
 }
 

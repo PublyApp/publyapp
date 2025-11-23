@@ -475,6 +475,126 @@ const form = useForm<FormData>({
 });
 ```
 
+### Query State Display: QueryDisplay Component
+
+**CRITICAL:** Always prefer the `QueryDisplay` component over manual conditional rendering for TanStack Query states.
+
+**Why use QueryDisplay:**
+- Consistent loading/error/empty state handling across the app
+- Reduces boilerplate code
+- Prevents common mistakes (forgetting to check `isError`, etc.)
+- Centralized UX patterns for query states
+
+**Pattern:**
+```tsx
+// ❌ WRONG - Manual conditional rendering
+import { useFindStaffMembers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+
+function StaffMembersPage() {
+  const { data, isLoading, isError, error } = useFindStaffMembers();
+
+  if (isLoading) {
+    return <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+      <CircularProgress />
+    </Box>;
+  }
+
+  if (isError) {
+    return <div>Error: {error.message}</div>;
+  }
+
+  return <div>{/* render data */}</div>;
+}
+
+// ✅ CORRECT - Using QueryDisplay component
+import QueryDisplay from '@/front/components/query-display';
+import { useFindStaffMembers } from '@/front/lib/react-query/features/staff/staff-member.hooks';
+
+function StaffMembersPage() {
+  const query = useFindStaffMembers();
+
+  return (
+    <QueryDisplay
+      query={query}
+      LoadingSlot={() => (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+      ErrorSlot={({ error }) => (
+        <Typography color="error">
+          Failed to load members: {error.message}
+        </Typography>
+      )}
+      EmptySlot={() => (
+        <Typography>No members found</Typography>
+      )}
+    >
+      {({ data }) => (
+        <div>{/* render data */}</div>
+      )}
+    </QueryDisplay>
+  );
+}
+```
+
+**QueryDisplay Props:**
+- `query`: The TanStack Query result object (required)
+- `loadingStrategy`: `'loading' | 'pending' | 'fetching'` (defaults to `'pending'`)
+- `LoadingSlot`: Custom loading component (ReactNode or FC)
+- `ErrorSlot`: Custom error component (ReactNode or FC<{ error: unknown }>)
+- `EmptySlot`: Custom empty state component (ReactNode or FC)
+- `children`: Render function with data or ReactNode
+
+**Loading Strategies:**
+- `'pending'` (default): Shows loading on initial fetch only
+- `'loading'`: Shows loading when no cached data exists
+- `'fetching'`: Shows loading on every fetch (including refetches)
+
+**Example with all slots:**
+```tsx
+<QueryDisplay
+  query={permissionsQuery}
+  loadingStrategy="pending"
+  LoadingSlot={() => (
+    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+      <CircularProgress />
+    </Box>
+  )}
+  ErrorSlot={({ error }) => (
+    <Alert severity="error">
+      Failed to load permissions: {error.message}
+    </Alert>
+  )}
+  EmptySlot={() => (
+    <Box sx={{ textAlign: 'center', py: 4 }}>
+      <Typography variant="body2" color="text.secondary">
+        No permissions available
+      </Typography>
+    </Box>
+  )}
+>
+  {({ data }) => (
+    <List>
+      {data.map(item => (
+        <ListItem key={item.id}>{item.name}</ListItem>
+      ))}
+    </List>
+  )}
+</QueryDisplay>
+```
+
+**When to use QueryDisplay:**
+- ✅ Any component that displays TanStack Query data
+- ✅ List pages with loading/error/empty states
+- ✅ Detail pages that fetch single resources
+- ✅ Forms that load initial data from API
+
+**When NOT to use QueryDisplay:**
+- ❌ Mutations (use mutation states directly)
+- ❌ When you need very custom loading logic
+- ❌ Background refetches where you want to show stale data
+
 ### Component Structure Best Practices
 
 1. **Import order:**
