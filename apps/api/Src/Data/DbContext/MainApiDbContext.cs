@@ -211,6 +211,10 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.ToTable(t => t.HasCheckConstraint("CK_Permission_Project_Key_Prefix",
 				"(scope = 2 AND key LIKE 'project.%') OR scope != 2"));
 
+		// Translations is runtime-only, explicitly exclude from mapping
+		modelBuilder.Entity<Permission>()
+			.Ignore(p => p.Translations);
+
 		// Explicit relationships for Session -> User (two FKs to same principal)
 		modelBuilder.Entity<Session>()
 			.HasOne(s => s.User)
@@ -335,6 +339,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.Where(e => e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted);
 
 		foreach (var entry in entries) {
+			// Handle BaseAttributesNoKey entities
 			if (entry.Entity is BaseAttributesNoKey baseEntity) {
 				var now = DateTime.UtcNow;
 
@@ -363,6 +368,38 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 						baseEntity.IsDeleted = true;
 						baseEntity.DeletedAt = now;
 						baseEntity.UpdatedAt = now;
+						break;
+				}
+			}
+			// Handle Permission record (has audit properties but doesn't inherit from BaseAttributesNoKey)
+			else if (entry.Entity is Permission permission) {
+				var now = DateTime.UtcNow;
+
+				switch (entry.State) {
+					case EntityState.Added:
+						permission.CreatedAt = now;
+						permission.UpdatedAt = now;
+						permission.IsDeleted = false;
+						permission.DeletedAt = null;
+						break;
+
+					case EntityState.Modified:
+						permission.UpdatedAt = now;
+						break;
+
+					case EntityState.Deleted:
+						// Check if this is a forced hard delete
+						if (_forceHardDeleteEntities.Contains(entry.Entity)) {
+							// Allow actual deletion - don't convert to soft delete
+							_forceHardDeleteEntities.Remove(entry.Entity);
+							continue;
+						}
+
+						// Default behavior: convert to soft delete
+						entry.State = EntityState.Modified;
+						permission.IsDeleted = true;
+						permission.DeletedAt = now;
+						permission.UpdatedAt = now;
 						break;
 				}
 			}

@@ -15,10 +15,11 @@ using MainApi.Src.Features.Staff.TenantAsStaff;
 using MainApi.Src.Lib.Email;
 using Resend;
 using MainApi.Src.Features.Staff.ProfileAsStaff;
+using MainApi.Src.Features.Staff.PermissionAsStaff;
 
 namespace MainApi.Src.Lib;
 
-public static class AppServicesConfig {
+public static class AppServices {
 	// Helper method to get current tenant ID
 	// (you'll need to implement this based on your authentication/authorization)
 	private static Guid GetCurrentTenantId(IServiceProvider serviceProvider) {
@@ -36,7 +37,7 @@ public static class AppServicesConfig {
 		// return tenantId;
 	}
 
-	public static IHostApplicationBuilder AddServices(this WebApplicationBuilder builder) {
+	public static IHostApplicationBuilder AddAppServices(this WebApplicationBuilder builder) {
 		// Add HealthChecks
 		builder.Services.AddHealthChecks();
 
@@ -83,6 +84,8 @@ public static class AppServicesConfig {
 		builder.Services.AddScoped<IStaffMemberService, StaffMemberService>();
 		builder.Services.AddScoped<IPermissionService, PermissionService>();
 		builder.Services.AddScoped<IProfileAsStaffService, ProfileAsStaffService>();
+		builder.Services.AddScoped<IPermissionAsStaffService, PermissionAsStaffService>();
+
 		// Register AuthContext
 		builder.Services.AddScoped<IAuthContext, AuthContext>();
 

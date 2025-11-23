@@ -1,4 +1,5 @@
 using MainApi.Src.Features.Common.Permission;
+using MainApi.Src.Features.Staff.PermissionAsStaff;
 using MainApi.Src.Features.Staff.ProfileAsStaff;
 using MainApi.Src.Features.Staff.StaffMember;
 using MainApi.Src.Features.Staff.TenantAsStaff;
@@ -19,6 +20,7 @@ public class StaffScopePermissions : IScopePermissions {
 	public TenantAsStaffPermissions Tenants { get; } = new TenantAsStaffPermissions();
 	public UserAsStaffPermissions Users { get; } = new UserAsStaffPermissions();
 	public ProfileAsStaffPermissions Profiles { get; } = new ProfileAsStaffPermissions();
+	public PermissionAsStaffPermissions Permissions { get; } = new PermissionAsStaffPermissions();
 	public StaffMemberPermissions StaffMembers { get; } = new StaffMemberPermissions();
 }
 

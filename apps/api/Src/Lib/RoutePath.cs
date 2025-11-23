@@ -30,6 +30,10 @@ public static class RoutePath {
 	}
 	public static class Staff {
 		public static readonly string Root = "/staff";
+		public static class Permissions {
+			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/permissions");
+			public static readonly string Find = PathUtils.Join(RoutePath.Staff.Permissions.Root, "/");
+		}
 		public static class Profiles {
 			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/profiles");
 			public static readonly string CreateForStaff = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/");
