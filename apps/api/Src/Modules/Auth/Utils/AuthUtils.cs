@@ -1,19 +1,17 @@
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
-
 using Microsoft.AspNetCore.WebUtilities;
 
-namespace MainApi.Src.Modules.Auth.Utils;
+namespace MainApi.Src.Features.Common.Auth;
 
 public static class AuthUtils {
 	public static string CreateVerificationUrl(string token, string email) {
-		var builder = new UriBuilder(AppEnvironment.Instance.FRONT_URL) {
+		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
 			Path = "/verify-email" // Path of the front-end app (using react router)
 		};
 
 		var queryParams = new Dictionary<string, string?> {
 			["token"] = token,
-			// Note: Don't lowercase - base64 is case-sensitive
 			["id"] = CryptoUtils.EncryptString(email)
 		};
 
@@ -23,13 +21,12 @@ public static class AuthUtils {
 	}
 
 	public static string CreateResetPasswordUrl(string token, string email) {
-		var builder = new UriBuilder(AppEnvironment.Instance.FRONT_URL) {
+		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
 			Path = "/reset-password" // Path of the front-end app (using react router)
 		};
 
 		var queryParams = new Dictionary<string, string?> {
 			["token"] = token,
-			// Note: Don't lowercase - base64 is case-sensitive
 			["id"] = CryptoUtils.EncryptString(email)
 		};
 
@@ -39,7 +36,7 @@ public static class AuthUtils {
 	}
 
 	public static string GetFrontendLoginPageUrl() {
-		var builder = new UriBuilder(AppEnvironment.Instance.FRONT_URL) {
+		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
 			Path = "/login" // Path of the front-end app (using react router)
 		};
 
@@ -47,13 +44,12 @@ public static class AuthUtils {
 	}
 
 	public static string CreateAcceptInvitationUrl(string token, string email) {
-		var builder = new UriBuilder(AppEnvironment.Instance.FRONT_URL) {
+		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
 			Path = "/accept-invitation" // Path of the front-end app (using react router)
 		};
 
 		var queryParams = new Dictionary<string, string?> {
 			["token"] = token,
-			// Note: Don't lowercase - base64 is case-sensitive
 			["id"] = CryptoUtils.EncryptString(email)
 		};
 

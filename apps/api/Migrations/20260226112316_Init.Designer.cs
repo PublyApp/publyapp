@@ -12,7 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
+<<<<<<<< HEAD:apps/api/Migrations/20260226112316_Init.Designer.cs
     [Migration("20260226112316_Init")]
+========
+    [Migration("20251126115924_Init")]
+>>>>>>>> 61dfd1963 (feat: Implement invitation token handling and related features):apps/api/Migrations/20251126115924_Init.Designer.cs
     partial class Init
     {
         /// <inheritdoc />

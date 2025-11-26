@@ -87,6 +87,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey InvalidEmailVerificationToken = new("invalid-email-verification-token");
 
 	/// <summary>
+	/// Invalid or expired invitation token
+	/// </summary>
+	public static readonly TranslationKey InvalidInvitationToken = new("invalid-invitation-token");
+
+	/// <summary>
 	/// Invalid or expired password reset token
 	/// </summary>
 	public static readonly TranslationKey InvalidPasswordResetToken = new("invalid-password-reset-token");
