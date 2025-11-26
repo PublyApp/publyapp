@@ -73,7 +73,7 @@
 		"nanoid": "^5.0.4",
 		"nprogress": "^0.2.0",
 		"nuqs": "2.4.3",
-		"posthog-js": "^1.268.1",
+		"posthog-js": "1.268.1",
 		"react": "19.1.0",
 		"react-dom": "19.1.0",
 		"react-dropzone": "^14.3.8",

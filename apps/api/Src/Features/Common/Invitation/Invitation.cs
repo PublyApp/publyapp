@@ -14,7 +14,7 @@ namespace MainApi.Src.Features.Common.Invitation;
 [Index(nameof(InvitedByUserId))]
 [Index(nameof(ExpiresAt))]
 [Index(nameof(TenantId), nameof(Scope))]
-[Index(nameof(TokenHash), IsUnique = true)]
+[Index(nameof(Token), IsUnique = true)]
 public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	[Column("email")]
 	public required string Email { get; set; }
@@ -32,8 +32,8 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	[JsonIgnore]
 	public ProjectEntity? Project { get; set; }
 
-	[Column("token_hash")]
-	public required string TokenHash { get; set; }
+	[Column("token")]
+	public required string Token { get; set; }
 
 	[Column("expires_at")]
 	public required DateTime ExpiresAt { get; set; }
@@ -64,7 +64,7 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	public bool IsTenantInvitation => Scope == InvitationScope.Tenant && TenantId is not null && ProjectId is null;
 	public bool IsProjectInvitation => Scope == InvitationScope.Project && TenantId is not null && ProjectId is not null;
 
-	public static Invitation CreateStaffInvitation(string email, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string tokenHash) {
+	public static Invitation CreateStaffInvitation(string email, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string token) {
 		return new Invitation {
 			Email = email.ToLowerInvariant(),
 			Scope = InvitationScope.Staff,
@@ -73,11 +73,11 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 			ProfileId = profileId,
 			InvitedByUserId = invitedByUserId,
 			ExpiresAt = expiresAt,
-			TokenHash = tokenHash,
+			Token = token,
 		};
 	}
 
-	public static Invitation CreateTenantInvitation(string email, Guid tenantId, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string tokenHash) {
+	public static Invitation CreateTenantInvitation(string email, Guid tenantId, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string token) {
 		return new Invitation {
 			Email = email.ToLowerInvariant(),
 			Scope = InvitationScope.Tenant,
@@ -86,11 +86,11 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 			ProfileId = profileId,
 			InvitedByUserId = invitedByUserId,
 			ExpiresAt = expiresAt,
-			TokenHash = tokenHash,
+			Token = token,
 		};
 	}
 
-	public static Invitation CreateProjectInvitation(string email, Guid tenantId, Guid projectId, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string tokenHash) {
+	public static Invitation CreateProjectInvitation(string email, Guid tenantId, Guid projectId, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string token) {
 		return new Invitation {
 			Email = email.ToLowerInvariant(),
 			Scope = InvitationScope.Project,
@@ -99,7 +99,7 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 			ProfileId = profileId,
 			InvitedByUserId = invitedByUserId,
 			ExpiresAt = expiresAt,
-			TokenHash = tokenHash,
+			Token = token,
 		};
 	}
 

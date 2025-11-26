@@ -42,8 +42,7 @@ export const FRONT_PATH_NAMES = {
 		signup: makePath('sign-up'),
 		verifyEmail: makePath('verify-email'),
 		resetPassword: makePath('reset-password'),
-		acceptInvitation: (token = '') =>
-			makePath('auth', 'accept-invitation', token),
+		acceptInvitation: makePath('accept-invitation'),
 	},
 	tenant: (tenantId = '') => {
 		return {
@@ -176,6 +175,10 @@ export const queryParamKey = {
 	},
 	reset_password_page: {
 		redirect_cause: 'rc',
+		encoded_email: 'id',
+		token: 'token',
+	},
+	accept_invitation_page: {
 		encoded_email: 'id',
 		token: 'token',
 	},

@@ -42,4 +42,19 @@ public static class AuthUtils {
 
 		return builder.Uri.ToString();
 	}
+
+	public static string CreateAcceptInvitationUrl(string token, string email) {
+		var builder = new UriBuilder(AppEnvironment.FRONT_URL) {
+			Path = "/accept-invitation" // Path of the front-end app (using react router)
+		};
+
+		var queryParams = new Dictionary<string, string?> {
+			["token"] = token,
+			["id"] = CryptoUtils.EncryptString(email)
+		};
+
+		var url = QueryHelpers.AddQueryString(builder.Uri.ToString(), queryParams);
+
+		return url;
+	}
 }

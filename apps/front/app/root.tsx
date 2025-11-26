@@ -1,25 +1,25 @@
+// biome-ignore assist/source/organizeImports: file imports must be at the top
 import './styles/main.css';
 
+import { NotFoundView, View403, View500 } from '@/front/components/error';
+import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
+import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
+import { APP_NAME, isServer } from '@/shared/lib/constants';
+import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import { QueryClientProvider } from '@tanstack/react-query';
+import i18next, { type TFunction } from 'i18next';
+import _ from 'lodash';
 import { NuqsAdapter } from 'nuqs/adapters/react-router/v7';
 import { useTranslation } from 'react-i18next';
 import {
+	isRouteErrorResponse,
 	Links,
 	Meta,
 	Outlet,
 	Scripts,
 	ScrollRestoration,
-	isRouteErrorResponse,
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
-
-import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
-import { APP_NAME } from '@/shared/lib/constants';
-// import { getUnifiedCSPConfig } from '@org/shared/lib/csp';
-
-import { NotFoundView, View403, View500 } from '@/front/components/error';
-import { SettingsDrawer, defaultSettings } from '@/front/components/settings';
-import _ from 'lodash';
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
 import View400 from './components/error/400-view';
@@ -29,6 +29,16 @@ import { useNonce } from './hooks/use-nonce';
 import { MuiThemeProvider } from './lib/mui/theme/theme-provider';
 import { defaultQueryClient } from './lib/react-query/query-client';
 import { getServerLoader } from './lib/react-router/server-data.server';
+
+const getPageTitle = (t: TFunction, seo?: boolean) => {
+	let str: string = _.capitalize(t('social-media-management-platform'));
+
+	if (seo) {
+		str = `${APP_NAME} | ${str}`;
+	}
+
+	return str;
+};
 
 export const links: Route.LinksFunction = () => {
 	return [
@@ -45,16 +55,36 @@ export const links: Route.LinksFunction = () => {
 	];
 };
 
-export const meta: Route.MetaFunction = () => {
+export const meta = (args: Route.MetaArgs) => {
+	if (isServer) {
+		return _.get(args.loaderData, 'meta', []);
+	}
+
+	const t: TFunction = i18next.t;
+
 	return [
-		{ title: APP_NAME },
-		{ name: 'description', content: 'PDF Vite Application' },
+		{ title: getPageTitle(t, true) },
+		{
+			name: 'description',
+			content: getPageTitle(t, true),
+		},
 	];
 };
 
 export const loader = getServerLoader({
-	loader: async ({ locale }) => {
-		return { locale };
+	loader: async ({ locale, z }) => {
+		const t = z.t;
+
+		return {
+			locale,
+			meta: [
+				{ title: getPageTitle(t, true) },
+				{
+					name: 'description',
+					content: getPageTitle(t, true),
+				},
+			],
+		};
 	},
 });
 
@@ -73,6 +103,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 				<Links />
 			</head>
 			<body>
+				<InitColorSchemeScript
+					attribute="[data-color-scheme='%s']"
+					nonce={nonce}
+				/>
 				<QueryClientProvider client={defaultQueryClient}>
 					<MuiThemeProvider>
 						<MotionLazy>

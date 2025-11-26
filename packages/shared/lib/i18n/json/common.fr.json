@@ -131,6 +131,7 @@
 	"save-item-confirmation-title": "Sauvegarder {{item}}?",
 	"save-item-confirmation-message": "{{item}} sera sauvegardé avec les informations suivantes. Veuillez Confirmer.",
 	"invalid-email-verification-link-description": "Le lien de vérification que vous avez fourni est invalide ou expiré.",
+	"social-media-management-platform": "Plateforme de gestion des réseaux sociaux",
 	"workspace-name": "Nom du workspace",
 	"create-the-tenant": "Créer le tenant",
 	"add-a-user": "Ajouter un utilisateur",
@@ -209,6 +210,9 @@
 	"view-details": "Voir les détails",
 	"invitation": "Invitation",
 	"new-invitation": "Nouvelle invitation",
+	"accept-invitation": "Accepter l'invitation",
+	"auth-accept-invitation": "Accepter l'invitation",
+	"auth-accept-invitation-description": "Vous avez été invité à rejoindre le rôle {{role}}. Email: {{email}}",
 	"select-profiles": "Sélectionner les profils",
 	"send-invitation": "Envoyer l'invitation",
 	"staff-profiles": "Profils du staff",
@@ -247,5 +251,8 @@
 	"name-must-be-at-least-2-characters": "Le nom doit contenir au moins 2 caractères",
 	"name-must-be-at-most-100-characters": "Le nom doit contenir au plus 100 caractères",
 	"description-must-be-at-most-500-characters": "La description doit contenir au plus 500 caractères",
-	"invalid-email-address": "Adresse email invalide"
+	"invalid-email-address": "Adresse email invalide",
+	"first-name-required": "Le prénom est obligatoire",
+	"at-least-12-chars-and-1-special-char": "Le mot de passe doit contenir au moins 12 caractères et au moins 1 caractère spécial",
+	"passwords-do-not-match": "Les mots de passe ne correspondent pas"
 }

@@ -331,7 +331,7 @@ public static class CreateStaffProfile {
 			await semaphore.WaitAsync(cancellationToken);
 			try {
 				await SendEmailWithRetryAsync(
-					async () => await emailService.SendStaffWelcomeEmailAsync(
+					async () => await emailService.SendInvitationToJoinStaffEmailAsync(
 						invitation.Email,
 						invitation.Token
 					),

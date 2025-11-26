@@ -113,6 +113,7 @@
 	"save-item-confirmation-title": "Save {{item}}?",
 	"save-item-confirmation-message": "{{item}} will be saved with the following informations. Please confirm.",
 	"invalid-email-verification-link-description": "The verification link you issued is invalid or expired.",
+	"social-media-management-platform": "Social media management platform",
 	"workspace-name": "Workspace name",
 	"create-the-tenant": "Create the tenant",
 	"add-a-user": "Add a user",
@@ -209,6 +210,7 @@
 	"staff-revoke": "Revoke",
 	"staff-send-invitation": "Send Invitation",
 	"staff-no-invitations": "No invitations found",
+	"accept-invitation": "Accept invitation",
 	"auth-accept-invitation": "Accept Invitation",
 	"auth-accept-invitation-description": "You've been invited to join as {{role}}. Email: {{email}}",
 	"auth-invitation-invalid": "Invalid Invitation",
@@ -264,5 +266,8 @@
 	"name-must-be-at-least-2-characters": "Name must be at least 2 characters",
 	"name-must-be-at-most-100-characters": "Name must be at most 100 characters",
 	"description-must-be-at-most-500-characters": "Description must be at most 500 characters",
-	"invalid-email-address": "Invalid email address"
+	"invalid-email-address": "Invalid email address",
+	"first-name-required": "First name is required",
+	"at-least-12-chars-and-1-special-char": "Password must be at least 12 characters and contain at least 1 special character",
+	"passwords-do-not-match": "Passwords do not match"
 }

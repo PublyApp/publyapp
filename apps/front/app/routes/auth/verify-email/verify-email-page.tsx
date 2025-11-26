@@ -98,7 +98,6 @@ export const loader = getServerLoader({
 			queryParamKey.reset_password_page.encoded_email,
 		);
 
-		// if no token, we just return success
 		if (!token && !encodedEmail) {
 			return {
 				code: 'NO_TOKEN_AND_ID',
@@ -152,8 +151,9 @@ export const loader = getServerLoader({
 		}
 
 		let redirectUrl: URL;
+
 		try {
-			redirectUrl = new URL(result.data?.resetPasswordLink ?? '');
+			redirectUrl = new URL(result.data?.resetPasswordUrl ?? '');
 		} catch (_error) {
 			context.logger.error('Error when creating redirect URL', _error);
 			redirectUrl = new URL(request.url);

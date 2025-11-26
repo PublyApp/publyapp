@@ -4,6 +4,8 @@
 // @ts-ignore
 import { CheckEmailVerificationTokenRequestBuilderRequestsMetadata, type CheckEmailVerificationTokenRequestBuilder } from './checkEmailVerificationToken/index.js';
 // @ts-ignore
+import { CheckInvitationTokenRequestBuilderRequestsMetadata, type CheckInvitationTokenRequestBuilder } from './checkInvitationToken/index.js';
+// @ts-ignore
 import { CheckResetPasswordTokenRequestBuilderRequestsMetadata, type CheckResetPasswordTokenRequestBuilder } from './checkResetPasswordToken/index.js';
 // @ts-ignore
 import { LoginRequestBuilderRequestsMetadata, type LoginRequestBuilder } from './login/index.js';
@@ -32,6 +34,10 @@ export interface AuthRequestBuilder extends BaseRequestBuilder<AuthRequestBuilde
      * The checkEmailVerificationToken property
      */
     get checkEmailVerificationToken(): CheckEmailVerificationTokenRequestBuilder;
+    /**
+     * The checkInvitationToken property
+     */
+    get checkInvitationToken(): CheckInvitationTokenRequestBuilder;
     /**
      * The checkResetPasswordToken property
      */
@@ -79,6 +85,9 @@ export const AuthRequestBuilderUriTemplate = "{+baseurl}/auth";
 export const AuthRequestBuilderNavigationMetadata: Record<Exclude<keyof AuthRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     checkEmailVerificationToken: {
         requestsMetadata: CheckEmailVerificationTokenRequestBuilderRequestsMetadata,
+    },
+    checkInvitationToken: {
+        requestsMetadata: CheckInvitationTokenRequestBuilderRequestsMetadata,
     },
     checkResetPasswordToken: {
         requestsMetadata: CheckResetPasswordTokenRequestBuilderRequestsMetadata,

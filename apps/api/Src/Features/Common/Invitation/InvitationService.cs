@@ -1,10 +1,11 @@
-using System.Security.Cryptography;
-using System.Text;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Features.Common.User;
+using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using UserEntity = MainApi.Src.Features.Common.User.User;
 
 namespace MainApi.Src.Features.Common.Invitation;
@@ -70,13 +71,16 @@ public record InvitationListItem {
 public class InvitationService : IInvitationService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly ILogger<InvitationService> _logger;
+	private readonly IOptions<AppSettings> _appSettings;
 
 	public InvitationService(
 		MainApiDbContext dbContext,
+		IOptions<AppSettings> appSettings,
 		ILogger<InvitationService> logger
 	) {
 		_dbContext = dbContext;
 		_logger = logger;
+		_appSettings = appSettings;
 	}
 
 	public async Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
@@ -85,7 +89,7 @@ public class InvitationService : IInvitationService {
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default
 	) {
-		var (token, tokenHash) = GenerateToken();
+		var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
 		var invitation = Invitation.CreateStaffInvitation(
@@ -93,7 +97,7 @@ public class InvitationService : IInvitationService {
 			profileId,
 			invitedByUserId,
 			expiresAt,
-			tokenHash
+			token
 		);
 
 		invitation.ValidateInvitationType();
@@ -117,7 +121,7 @@ public class InvitationService : IInvitationService {
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default
 	) {
-		var (token, tokenHash) = GenerateToken();
+		var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
 		var invitation = Invitation.CreateTenantInvitation(
@@ -126,7 +130,7 @@ public class InvitationService : IInvitationService {
 			profileId,
 			invitedByUserId,
 			expiresAt,
-			tokenHash
+			token
 		);
 
 		invitation.ValidateInvitationType();
@@ -148,11 +152,9 @@ public class InvitationService : IInvitationService {
 		string token,
 		CancellationToken cancellationToken = default
 	) {
-		var tokenHash = HashToken(token);
-
 		var invitationQuery =
 			from inv in _dbContext.Invitation
-			where inv.TokenHash == tokenHash
+			where inv.Token == token
 			select inv;
 
 		var invitation = await invitationQuery.FirstOrDefaultAsync(cancellationToken);
@@ -332,22 +334,5 @@ public class InvitationService : IInvitationService {
 			await tx.RollbackAsync(cancellationToken);
 			throw;
 		}
-	}
-
-	private static (string Token, string TokenHash) GenerateToken() {
-		var bytes = new byte[32];
-		RandomNumberGenerator.Fill(bytes);
-		var token = Convert.ToBase64String(bytes)
-			.Replace("+", "-")
-			.Replace("/", "_")
-			.TrimEnd('=');
-
-		var tokenHash = HashToken(token);
-		return (token, tokenHash);
-	}
-
-	private static string HashToken(string token) {
-		var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
-		return Convert.ToHexString(hashBytes).ToLowerInvariant();
 	}
 }

@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MainApi.Migrations
 {
     [DbContext(typeof(MainApiDbContext))]
-    [Migration("20251115152631_Init")]
+    [Migration("20251126115924_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -204,10 +204,10 @@ namespace MainApi.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
-                    b.Property<string>("TokenHash")
+                    b.Property<string>("Token")
                         .IsRequired()
                         .HasColumnType("text")
-                        .HasColumnName("token_hash");
+                        .HasColumnName("token");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -223,7 +223,7 @@ namespace MainApi.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.HasIndex("TokenHash")
+                    b.HasIndex("Token")
                         .IsUnique();
 
                     b.HasIndex("TenantId", "Scope");
