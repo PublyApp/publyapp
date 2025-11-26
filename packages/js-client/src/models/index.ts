@@ -30,9 +30,19 @@ export interface ApiResponse extends AdditionalDataHolder, ApiError, Parsable {
 }
 export interface CheckEmailVerificationTokenResult extends AdditionalDataHolder, Parsable {
     /**
-     * The resetPasswordLink property
+     * The resetPasswordUrl property
      */
-    resetPasswordLink?: string | null;
+    resetPasswordUrl?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+}
+export interface CheckInvitationTokenResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The email property
+     */
+    email?: string | null;
     /**
      * The status property
      */
@@ -74,6 +84,15 @@ export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | u
 // @ts-ignore
 export function createCheckEmailVerificationTokenResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoCheckEmailVerificationTokenResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {CheckInvitationTokenResult}
+ */
+// @ts-ignore
+export function createCheckInvitationTokenResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoCheckInvitationTokenResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -521,8 +540,20 @@ export function deserializeIntoApiResponse(apiResponse: Partial<ApiResponse> | u
 // @ts-ignore
 export function deserializeIntoCheckEmailVerificationTokenResult(checkEmailVerificationTokenResult: Partial<CheckEmailVerificationTokenResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "resetPasswordLink": n => { checkEmailVerificationTokenResult.resetPasswordLink = n.getStringValue(); },
+        "resetPasswordUrl": n => { checkEmailVerificationTokenResult.resetPasswordUrl = n.getStringValue(); },
         "status": n => { checkEmailVerificationTokenResult.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param CheckInvitationTokenResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoCheckInvitationTokenResult(checkInvitationTokenResult: Partial<CheckInvitationTokenResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "email": n => { checkInvitationTokenResult.email = n.getStringValue(); },
+        "status": n => { checkInvitationTokenResult.status = n.getStringValue(); },
     }
 }
 /**
@@ -1379,9 +1410,22 @@ export function serializeApiResponse(writer: SerializationWriter, apiResponse: P
 // @ts-ignore
 export function serializeCheckEmailVerificationTokenResult(writer: SerializationWriter, checkEmailVerificationTokenResult: Partial<CheckEmailVerificationTokenResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!checkEmailVerificationTokenResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("resetPasswordLink", checkEmailVerificationTokenResult.resetPasswordLink);
+    writer.writeStringValue("resetPasswordUrl", checkEmailVerificationTokenResult.resetPasswordUrl);
     writer.writeStringValue("status", checkEmailVerificationTokenResult.status);
     writer.writeAdditionalData(checkEmailVerificationTokenResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param CheckInvitationTokenResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeCheckInvitationTokenResult(writer: SerializationWriter, checkInvitationTokenResult: Partial<CheckInvitationTokenResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!checkInvitationTokenResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("email", checkInvitationTokenResult.email);
+    writer.writeStringValue("status", checkInvitationTokenResult.status);
+    writer.writeAdditionalData(checkInvitationTokenResult.additionalData);
 }
 /**
  * Serializes information the current object

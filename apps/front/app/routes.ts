@@ -4,8 +4,8 @@ import {
 	index,
 	layout,
 	prefix,
-	route,
 	type RouteConfig,
+	route,
 } from '@react-router/dev/routes';
 
 const routes = [
@@ -30,7 +30,7 @@ const routes = [
 			'routes/auth/reset-password/reset-password-page.tsx',
 		),
 		route(
-			getLastPath(FRONT_PATH_NAMES.auth.acceptInvitation(':token'), 2),
+			getLastPath(FRONT_PATH_NAMES.auth.acceptInvitation),
 			'routes/auth/accept-invitation/accept-invitation-page.tsx',
 		),
 	]),

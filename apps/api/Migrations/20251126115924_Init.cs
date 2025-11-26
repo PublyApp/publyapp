@@ -276,7 +276,7 @@ namespace MainApi.Migrations {
 						scope = table.Column<int>(type: "integer", nullable: false),
 						tenant_id = table.Column<Guid>(type: "uuid", nullable: true),
 						project_id = table.Column<Guid>(type: "uuid", nullable: true),
-						token_hash = table.Column<string>(type: "text", nullable: false),
+						token = table.Column<string>(type: "text", nullable: false),
 						expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						is_accepted = table.Column<bool>(type: "boolean", nullable: false),
 						accepted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -418,9 +418,9 @@ namespace MainApi.Migrations {
 					columns: new[] { "tenant_id", "scope" });
 
 			migrationBuilder.CreateIndex(
-					name: "IX_invitations_token_hash",
+					name: "IX_invitations_token",
 					table: "invitations",
-					column: "token_hash",
+					column: "token",
 					unique: true);
 
 			migrationBuilder.CreateIndex(

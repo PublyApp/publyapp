@@ -28,7 +28,7 @@ public class CheckEmailVerificationTokenQueryValidator : AbstractValidator<Check
 
 public class CheckEmailVerificationTokenResult {
 	public string Status { get; set; } = "success";
-	public string ResetPasswordLink { get; set; } = string.Empty;
+	public string? ResetPasswordUrl { get; set; }
 }
 
 public class CheckEmailVerificationToken {
@@ -69,6 +69,12 @@ public class CheckEmailVerificationToken {
 			));
 		}
 
+		var shouldResetPassword = false;
+
+		if (!user.IsVerified) {
+			shouldResetPassword = true;
+		}
+
 		// Check if token is expired
 		if (user.EmailVerifyTokenExpiresAt.HasValue && DateTime.UtcNow > user.EmailVerifyTokenExpiresAt.Value) {
 			return TypedResults.BadRequest(ApiResponse.Create(
@@ -78,21 +84,35 @@ public class CheckEmailVerificationToken {
 		}
 
 		// Generate password reset token
-		var passwordResetToken = CryptoUtils.RandomString(appSettings.Value.PASSWORD_RESET_TOKEN_LENGTH);
-		var passwordResetTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.PASSWORD_RESET_TOKEN_VALIDITY_DURATION);
+		string? passwordResetToken = null;
+		DateTime? passwordResetTokenExpiresAt = null;
+
+		if (shouldResetPassword) {
+			passwordResetToken = CryptoUtils.RandomString(appSettings.Value.PASSWORD_RESET_TOKEN_LENGTH);
+			passwordResetTokenExpiresAt = DateTime.UtcNow.AddDays(appSettings.Value.PASSWORD_RESET_TOKEN_VALIDITY_DURATION);
+		}
 
 		// Update user
 		user.IsVerified = true;
 		user.Status = UserStatus.Active;
-		user.PasswordResetToken = passwordResetToken;
-		user.PasswordResetTokenExpiresAt = passwordResetTokenExpiresAt;
 		user.EmailVerifyToken = null;
 		user.EmailVerifyTokenExpiresAt = null;
+
+		if (shouldResetPassword && passwordResetToken is not null) {
+			user.PasswordResetToken = passwordResetToken;
+		}
+		if (shouldResetPassword && passwordResetTokenExpiresAt is not null) {
+			user.PasswordResetTokenExpiresAt = passwordResetTokenExpiresAt;
+		}
 
 		await userService.UpdateUserAsync(user, cancellationToken);
 
 		// Create reset password link
-		var resetPasswordUrl = AuthUtils.CreateResetPasswordUrl(passwordResetToken, user.Email);
+		string? resetPasswordUrl = null;
+
+		if (shouldResetPassword && passwordResetToken is not null) {
+			resetPasswordUrl = AuthUtils.CreateResetPasswordUrl(passwordResetToken, user.Email);
+		}
 
 		// Send success email asynchronously
 		_ = emailService.SendEmailVerifiedNotificationAsync(user.Email)
@@ -104,7 +124,7 @@ public class CheckEmailVerificationToken {
 
 		return TypedResults.Ok(new CheckEmailVerificationTokenResult {
 			Status = "success",
-			ResetPasswordLink = resetPasswordUrl
+			ResetPasswordUrl = resetPasswordUrl
 		});
 	}
 }

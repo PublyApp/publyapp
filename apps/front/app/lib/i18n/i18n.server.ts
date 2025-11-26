@@ -14,11 +14,11 @@ export const remixI18NextServer = new RemixI18Next({
 		...config,
 		backend: {
 			// loadPath: import.meta.env.DEV
-			// 	? resolve(process.cwd(), '../server/dist/resources/{{lng}}.{{ns}}.json')
-			// 	: resolve(process.cwd(), './dist/resources/{{lng}}.{{ns}}.json'),
+			// 	? resolve(process.cwd(), '../server/dist/resources/{{ns}}.{{lng}}.json')
+			// 	: resolve(process.cwd(), './dist/resources/{{ns}}.{{lng}}.json'),
 			loadPath: import.meta.env.DEV
-				? resolve(process.cwd(), './public/tx/{{lng}}.{{ns}}.json')
-				: resolve(process.cwd(), './build/client/tx/{{lng}}.{{ns}}.json'),
+				? resolve(process.cwd(), './public/tx/{{ns}}.{{lng}}.json')
+				: resolve(process.cwd(), './build/client/tx/{{ns}}.{{lng}}.json'),
 		},
 	},
 	// The i18next plugins you want RemixI18next to use for `i18n.getFixedT` inside loaders and actions.

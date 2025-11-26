@@ -1,11 +1,10 @@
-using System.Security.Cryptography;
-using System.Text;
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Features.Common.Account;
 using MainApi.Src.Features.Common.Invitation;
 using MainApi.Src.Features.Common.Permission;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -634,8 +633,8 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			var newInvitations = new List<Invitation>();
 
 			foreach (var email in emailsNeedingInvitations) {
-				// Generate token (same pattern as InvitationService)
-				var (token, tokenHash) = GenerateInvitationToken();
+				// Generate token using CryptoUtils
+				var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
 				var expiresAt = DateTime.UtcNow.AddDays(7);
 
 				var invitation = Invitation.CreateStaffInvitation(
@@ -643,7 +642,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 					profileId,
 					invitedByUserId,
 					expiresAt,
-					tokenHash
+					token
 				);
 
 				invitation.ValidateInvitationType();
@@ -684,27 +683,6 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			_logger.LogError(ex, "Failed to create staff profile {ProfileName}", normalizedName);
 			throw;
 		}
-	}
-
-	// Add this private method to ProfileAsStaffService
-	// NOTE: This duplicates logic from InvitationService.GenerateToken() (line 337+)
-	// Kept separate to avoid service-to-service dependencies
-	private static (string Token, string TokenHash) GenerateInvitationToken() {
-		var bytes = new byte[32];
-		RandomNumberGenerator.Fill(bytes);
-		var token = Convert.ToBase64String(bytes)
-			.Replace("+", "-")
-			.Replace("/", "_")
-			.TrimEnd('=');
-
-		var tokenHash = HashToken(token);
-		return (token, tokenHash);
-	}
-
-	private static string HashToken(string token) {
-		var bytes = Encoding.UTF8.GetBytes(token);
-		var hash = SHA256.HashData(bytes);
-		return Convert.ToBase64String(hash);
 	}
 
 	/// <summary>

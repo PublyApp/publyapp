@@ -550,6 +550,65 @@
         }
       }
     },
+    "/auth/check-invitation-token": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Check Invitation Token",
+        "operationId": "CheckInvitationToken",
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInvitationTokenResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/invitations/{token}/details": {
       "get": {
         "tags": [
@@ -1684,7 +1743,19 @@
           "status": {
             "type": "string"
           },
-          "resetPasswordLink": {
+          "resetPasswordUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CheckInvitationTokenResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "email": {
             "type": "string"
           }
         }

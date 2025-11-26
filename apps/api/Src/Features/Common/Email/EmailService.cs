@@ -13,6 +13,7 @@ public interface IEmailService {
 	Task SendJoinedStaffNotificationEmailAsync(string email);
 	Task SendResetPasswordRequestEmailAsync(string email, string token);
 	Task SendPasswordResetNotificationEmailAsync(string email);
+	Task SendInvitationToJoinStaffEmailAsync(string email, string token);
 }
 
 public class EmailService : IEmailService {
@@ -132,6 +133,7 @@ public class EmailService : IEmailService {
 		});
 	}
 
+	// used when a user's password is reset following the reset process
 	public async Task SendPasswordResetNotificationEmailAsync(string email) {
 		await _emailSender.SendAsync(new EmailRequest {
 			To = email,
@@ -142,6 +144,23 @@ public class EmailService : IEmailService {
 				<br />
 				You can continue to use {_appSettings.Value.APP_NAME} by {CreateHtmlLink(AuthUtils.GetFrontendLoginPageUrl(), "logging in")}
 			"""
+		});
+	}
+
+	// used when a user is invited to join the staff of our app
+	public async Task SendInvitationToJoinStaffEmailAsync(string email, string token) {
+		var invitationUrl = AuthUtils.CreateAcceptInvitationUrl(token, email);
+		await _emailSender.SendAsync(new EmailRequest {
+			To = email,
+			From = $"{_appSettings.Value.DEFAULT_EMAIL_SENDER_NAME} <{_appSettings.Value.DEFAULT_EMAIL_SENDER_EMAIL}>",
+			Subject = $"You have been invited to join the staff of {_appSettings.Value.APP_NAME}",
+			HtmlBody = $"""
+				You have been invited to join {_appSettings.Value.APP_NAME} as a staff member.
+				<br />
+				Please accept the invitation to join the staff by clicking the link below:
+				<br />
+				{CreateHtmlLink(invitationUrl, "Accept the invitation")}
+				"""
 		});
 	}
 }

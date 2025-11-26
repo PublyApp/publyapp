@@ -16,6 +16,7 @@ public static class RoutePath {
 		public static readonly string CheckEmailVerificationToken = PathUtils.Join(RoutePath.Auth.Root, "/check-email-verification-token");
 		public static readonly string CheckResetPasswordToken = PathUtils.Join(RoutePath.Auth.Root, "/check-reset-password-token");
 		public static readonly string ResetPassword = PathUtils.Join(RoutePath.Auth.Root, "/reset-password");
+		public static readonly string CheckInvitationToken = PathUtils.Join(RoutePath.Auth.Root, "/check-invitation-token");
 	}
 	public static class Invitations {
 		public static readonly string Root = "/invitations";
