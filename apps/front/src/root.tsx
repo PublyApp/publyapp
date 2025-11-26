@@ -90,14 +90,28 @@ export const meta = (args: Route.MetaArgs) => {
 	const t: TFunction = i18next.t;
 
 	return [
-		{ title: APP_NAME },
-		{ name: 'description', content: 'PDF Vite Application' },
+		{ title: getPageTitle(t, true) },
+		{
+			name: 'description',
+			content: getPageTitle(t, true),
+		},
 	];
 };
 
 export const loader = getServerLoader({
-	loader: async ({ locale }) => {
-		return { locale };
+	loader: async ({ locale, z }) => {
+		const t = z.t;
+
+		return {
+			locale,
+			meta: [
+				{ title: getPageTitle(t, true) },
+				{
+					name: 'description',
+					content: getPageTitle(t, true),
+				},
+			],
+		};
 	},
 });
 

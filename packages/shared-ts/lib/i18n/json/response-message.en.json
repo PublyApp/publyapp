@@ -1,7 +1,5 @@
 {
 	"unauthorized": "Unauthorized",
-	"forbidden": "Forbidden",
-	"not-a-staff-user": "Not a staff user",
 	"internal-server-error": "Internal server error",
 	"not-found": "Not found",
 	"bad-request": "Bad request",
@@ -33,8 +31,8 @@
 	"tenant-id-required": "Tenant ID required",
 	"request-body-validation-failed": "Request body validation failed",
 	"query-parameters-validation-failed": "Query parameters validation failed",
-	"failed-to-update-staff-user": "Failed to update staff user",
-	"staff-user-updated-successfully": "Staff user updated successfully",
+	"failed-to-update-staff-member": "Failed to update staff member",
+	"staff-member-updated-successfully": "Staff member updated successfully",
 	"invitation-revoked": "Invitation revoked successfully",
 	"invitation-resent": "Invitation email resent successfully",
 	"invitation-already-accepted": "Accepted invitations cannot be revoked",

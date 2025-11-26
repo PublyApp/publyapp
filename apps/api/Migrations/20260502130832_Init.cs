@@ -300,7 +300,22 @@ namespace MainApi.Migrations {
 			migrationBuilder.CreateTable(
 					name: "invitation_profiles",
 					columns: table => new {
+<<<<<<<< HEAD:apps/api/Migrations/20260226112316_Init.cs
 						invitation_id = table.Column<Guid>(type: "uuid", nullable: false),
+========
+						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
+						email = table.Column<string>(type: "text", nullable: false),
+						scope = table.Column<int>(type: "integer", nullable: false),
+						tenant_id = table.Column<Guid>(type: "uuid", nullable: true),
+						project_id = table.Column<Guid>(type: "uuid", nullable: true),
+						token = table.Column<string>(type: "text", nullable: false),
+						expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+						is_accepted = table.Column<bool>(type: "boolean", nullable: false),
+						accepted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+						is_revoked = table.Column<bool>(type: "boolean", nullable: false),
+						revoked_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+						invited_by_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+>>>>>>>> 61dfd1963 (feat: Implement invitation token handling and related features):apps/api/Migrations/20251126115924_Init.cs
 						profile_id = table.Column<Guid>(type: "uuid", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
 						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)

@@ -1,4 +1,7 @@
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Features.Common.Invitation;
+using MainApi.Src.Features.Common.Permission;
 using MainApi.Src.Features.Common.Profile;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.DI;
@@ -295,14 +298,43 @@ public abstract record UnassignStaffProfileUsersServiceResult {
 /// </summary>
 public abstract record CreateStaffProfileResult {
 	/// <summary>
-	/// Successful result containing the created profile.
+	/// Successful result containing the created profile and operation statistics.
 	/// </summary>
-	public sealed record Success(Profile Profile) : CreateStaffProfileResult;
+	public sealed record Success(
+		Profile Profile,
+		int PermissionsAssigned,
+		int UsersAssigned,
+		int InvitationsSent,
+		List<(string Email, string Token)> InvitationTokens,
+		List<string> EmailsToNotify
+	) : CreateStaffProfileResult;
 
 	/// <summary>
 	/// Error result when a profile with the same name already exists.
 	/// </summary>
 	public sealed record ProfileNameExists(string Name) : CreateStaffProfileResult;
+
+	/// <summary>
+	/// Error result when one or more permission keys are invalid.
+	/// </summary>
+	public sealed record InvalidPermissions(List<string> InvalidKeys) : CreateStaffProfileResult;
+
+	/// <summary>
+	/// Error result when duplicate emails are provided.
+	/// </summary>
+	public sealed record DuplicateEmails(List<string> Emails) : CreateStaffProfileResult;
+
+	/// <summary>
+	/// Error result when users already have tenant or project accounts.
+	/// Staff profiles can only be assigned to users without tenant/project accounts.
+	/// </summary>
+	public sealed record UsersWithConflictingAccounts(List<string> Emails) : CreateStaffProfileResult;
+
+	/// <summary>
+	/// Error result when no permissions are provided.
+	/// At least one permission is required for staff profiles.
+	/// </summary>
+	public sealed record NoPermissionsProvided : CreateStaffProfileResult;
 }
 
 public interface IProfileAsStaffService {
@@ -401,10 +433,11 @@ public interface IProfileAsStaffService {
 public class ProfileAsStaffService : IProfileAsStaffService {
 	private readonly MainApiDbContext _dbContext;
 	private readonly IOptions<AppSettings> _appSettings;
-
-	public ProfileAsStaffService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings) {
+	private readonly ILogger<ProfileAsStaffService> _logger;
+	public ProfileAsStaffService(MainApiDbContext dbContext, IOptions<AppSettings> appSettings, ILogger<ProfileAsStaffService> logger) {
 		_dbContext = dbContext;
 		_appSettings = appSettings;
+		_logger = logger;
 	}
 
 	public async Task<Profile> GetOrCreateDefaultTenantProfileAsync(
@@ -1244,8 +1277,6 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			return new FindStaffProfilesResult.InvalidSortId(effectiveSortId);
 		}
 
-		var handler = sortFieldHandlers[effectiveSortId];
-
 		// ───────────────────────────────────────────────────────────────────────
 		// STEP 2: Build base query
 		// ───────────────────────────────────────────────────────────────────────
@@ -1270,7 +1301,7 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 		}
 
 		// ───────────────────────────────────────────────────────────────────────
-		// STEP 2.5: Get total count (before applying cursor filter)
+		// STEP 3: Apply cursor-based filter (if paginating)
 		// ───────────────────────────────────────────────────────────────────────
 		// Apply keyset filter to get records AFTER the cursor
 		if (args.Cursor != Guid.Empty) {
@@ -1284,18 +1315,6 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				);
 			}
 
-			// Calculate how many items come before this cursor
-			// Example: If cursor is at position 40 with limit=20, this returns 40
-			// Frontend calculates: CurrentPage = floor(40 / 20) + 1 = 3
-			currentOffset = await handler.GetOffset(query, cursorValue, effectiveSortOrder == SortOrder.Asc);
-		}
-
-		// ───────────────────────────────────────────────────────────────────────
-		// STEP 3: Apply cursor-based filter (if paginating)
-		// ───────────────────────────────────────────────────────────────────────
-		// Apply keyset filter to get records AFTER the cursor
-		// cursorValue was already fetched and validated in STEP 2.6
-		if (cursor != Guid.Empty && cursorValue is not null) {
 			// Apply the keyset filter based on the sort field
 			// This adds WHERE clause like:
 			// WHERE (Name > 'Charlie') OR (Name = 'Charlie' AND Id > 200)
@@ -1341,8 +1360,6 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			new CursorPaginatedResult<StaffProfileItem> {
 				Data = results,
 				NextCursor = nextCursor,  // null = last page, otherwise = Id to continue from
-				TotalCount = totalCount,  // Total items across all pages
-				CurrentOffset = currentOffset  // Items before current page (for calculating page number)
 			}
 		);
 	}
@@ -1728,14 +1745,16 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	}
 
 	/// <summary>
-	/// Creates a new staff profile.
+	/// Creates a new staff profile with permissions and user assignments.
 	/// </summary>
 	/// <param name="name">The name of the profile</param>
 	/// <param name="description">Optional description for the profile</param>
+	/// <param name="permissions">List of permission keys to assign</param>
+	/// <param name="emails">List of user emails to assign or invite</param>
+	/// <param name="invitedByUserId">User ID creating the profile</param>
 	/// <param name="cancellationToken">Cancellation token</param>
 	/// <returns>
-	/// Success with the created profile, or ProfileNameExists if a staff
-	/// profile with the same name already exists
+	/// Success with statistics, or error result if validation fails
 	/// </returns>
 	public async Task<CreateStaffProfileResult> CreateStaffProfileAsync(
 		CreateStaffProfileArgs args,
@@ -1749,6 +1768,27 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 
 		// Normalize and validate inputs
 		var normalizedName = name.Trim();
+		var normalizedEmails = emails
+			.Select(e => e.Trim().ToLowerInvariant())
+			.ToList();
+
+		// CRITICAL: Business rule - at least one permission is required
+		if (permissions.Count == 0) {
+			return new CreateStaffProfileResult.NoPermissionsProvided();
+		}
+
+		// Check for duplicate emails in input
+		var duplicateEmails = normalizedEmails
+			.GroupBy(e => e)
+			.Where(g => g.Count() > 1)
+			.Select(g => g.Key)
+			.ToList();
+
+		if (duplicateEmails.Count > 0) {
+			return new CreateStaffProfileResult.DuplicateEmails(duplicateEmails);
+		}
+
+		// Check if profile name already exists
 		var profileExists = await (
 			from p in _dbContext.Profile
 			where p.Scope == ProfileScope.Staff
@@ -1760,14 +1800,17 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			return new CreateStaffProfileResult.ProfileNameExists(normalizedName);
 		}
 
-		// Create new staff profile using factory method
-		var profile = Profile.CreateStaffProfile(
-			normalizedName,
-			description?.Trim()
-		);
+		// Validate all permissions exist AND are Staff-scoped
+		var validPermissionKeys = await (
+			from p in _dbContext.Permission
+			where permissions.Contains(p.Key)
+				&& p.Scope == PermissionScope.Staff
+			select p.Key
+		).ToListAsync(cancellationToken);
 
-		await _dbContext.Profile.AddAsync(profile, cancellationToken);
-		await _dbContext.SaveChangesAsync(cancellationToken);
+		var invalidPermissions = permissions
+			.Except(validPermissionKeys)
+			.ToList();
 
 		if (invalidPermissions.Count > 0) {
 			return new CreateStaffProfileResult.InvalidPermissions(invalidPermissions);

@@ -121,6 +121,7 @@
 	"save-item-confirmation-title": "Save {{item}}?",
 	"save-item-confirmation-message": "{{item}} will be saved with the following informations. Please confirm.",
 	"invalid-email-verification-link-description": "The verification link you issued is invalid or expired.",
+	"social-media-management-platform": "Social media management platform",
 	"workspace-name": "Workspace name",
 	"create-the-tenant": "Create the tenant",
 	"add-a-user": "Add a user",

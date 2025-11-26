@@ -143,6 +143,7 @@
 	"save-item-confirmation-title": "Sauvegarder {{item}}?",
 	"save-item-confirmation-message": "{{item}} sera sauvegardé avec les informations suivantes. Veuillez Confirmer.",
 	"invalid-email-verification-link-description": "Le lien de vérification que vous avez fourni est invalide ou expiré.",
+	"social-media-management-platform": "Plateforme de gestion des réseaux sociaux",
 	"workspace-name": "Nom du workspace",
 	"create-the-tenant": "Créer le tenant",
 	"add-a-user": "Ajouter un utilisateur",
