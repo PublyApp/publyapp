@@ -2,7 +2,7 @@ import * as cookie from 'cookie';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { Suspense } from 'react';
-import { data, Outlet, redirect } from 'react-router';
+import { Outlet, redirect } from 'react-router';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { AuthSplitLayout } from '@/front/layouts/auth-split/layout';
@@ -48,9 +48,9 @@ export const loader = getServerLoader({
 
 		// If no session token exists, return NOT_AUTHENTICATED
 		if (!sessionToken) {
-			return data({
+			return {
 				status: 'NOT_AUTHENTICATED',
-			} as const);
+			} as const;
 		}
 
 		// Session token exists - validate it by calling the API

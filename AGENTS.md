@@ -455,6 +455,141 @@ dayjs(date1).isBefore(date2);               // Boolean
 
 **Reference:** See `.cursor/rules/react-date-handling.mdc` for complete Day.js guide and migration from date-fns.
 
+### Function Definitions: Arrow Functions
+
+**CRITICAL:** Always prefer arrow function expressions over traditional function declarations/expressions in TypeScript and JavaScript. Only use `function` keyword when absolutely necessary (e.g., when you need to access `this` as the first parameter, or for generator functions).
+
+**Pattern:**
+```tsx
+// ❌ WRONG - Using function expression/declaration
+function calculateTotal(items: Item[]): number {
+  return items.reduce((sum, item) => sum + item.price, 0);
+}
+
+function processData(data: Data) {
+  // ...
+}
+
+// ✅ CORRECT - Using arrow functions
+const calculateTotal = (items: Item[]): number => {
+  return items.reduce((sum, item) => sum + item.price, 0);
+};
+
+const processData = (data: Data) => {
+  // ...
+};
+```
+
+**Why arrow functions:**
+- Consistent with modern JavaScript/TypeScript conventions
+- Lexical `this` binding prevents common bugs
+- More concise syntax
+- Easier to read in code reviews
+
+**Exceptions (use `function` keyword):**
+- Generator functions: `function* generateSequence() { ... }`
+- When you explicitly need dynamic `this` binding (rare in modern React)
+- React component lifecycle methods in class components (though we prefer functional components)
+
+**Examples:**
+```tsx
+// ✅ Helper functions
+const clearSessionAndGetLoginUrl = (): string => {
+  clearSessionCookie();
+  return redirectUrl;
+};
+
+// ✅ Event handlers
+const handleSubmit = async (data: FormData) => {
+  await mutation.mutateAsync(data);
+};
+
+// ✅ React components
+const UserProfile = ({ userId }: Props) => {
+  return <div>{/* ... */}</div>;
+};
+
+// ❌ EXCEPTION - Generator function (must use function keyword)
+function* idGenerator() {
+  let id = 0;
+  while (true) yield id++;
+}
+```
+
+### React Components: Arrow Function Components Only
+
+**CRITICAL:** All React components in this codebase MUST be defined as arrow function components. Never use function declarations or class components.
+
+**Pattern:**
+```tsx
+// ❌ WRONG - Function declaration component
+function UserProfile({ userId }: UserProfileProps) {
+  return <div>User: {userId}</div>;
+}
+
+// ❌ WRONG - Class component
+class UserProfile extends React.Component<UserProfileProps> {
+  render() {
+    return <div>User: {this.props.userId}</div>;
+  }
+}
+
+// ✅ CORRECT - Arrow function component
+const UserProfile = ({ userId }: UserProfileProps) => {
+  return <div>User: {userId}</div>;
+};
+
+// ✅ CORRECT - Arrow function component with explicit return type
+const UserProfile: React.FC<UserProfileProps> = ({ userId }) => {
+  return <div>User: {userId}</div>;
+};
+```
+
+**Why arrow function components:**
+- Consistent with modern React best practices and hooks-based development
+- Lexical `this` binding (no need for `.bind()` or arrow functions in class methods)
+- More concise and readable
+- Easier to refactor and test
+- Works seamlessly with React Hooks
+- Consistent with the rest of the codebase's function style
+
+**Component structure:**
+```tsx
+// ✅ CORRECT - Full component example
+type UserCardProps = {
+  userId: string;
+  onEdit: (id: string) => void;
+};
+
+const UserCard = ({ userId, onEdit }: UserCardProps) => {
+  const { data, isLoading } = useGetUser({ userId });
+
+  const handleEdit = () => {
+    onEdit(userId);
+  };
+
+  if (isLoading) {
+    return <CircularProgress />;
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Typography>{data?.name}</Typography>
+        <Button onClick={handleEdit}>Edit</Button>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default UserCard;
+```
+
+**Never use:**
+- `function ComponentName() { ... }` syntax for components
+- Class components (`extends React.Component`)
+- `React.createClass()` (legacy API)
+
 ### Form Handling
 
 **Use React Hook Form with Zod validation:**
