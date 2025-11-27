@@ -135,6 +135,7 @@ export const FRONT_PATH_NAMES = {
 		},
 		invitations: {
 			root: makePath(ROOTS.STAFF, RESOURCE.invitations),
+			new: makePath(ROOTS.STAFF, RESOURCE.invitations, 'new'),
 			details: (invitationId = '') => {
 				return makePath(
 					ROOTS.STAFF,
