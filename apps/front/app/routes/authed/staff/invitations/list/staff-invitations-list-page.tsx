@@ -1,3 +1,10 @@
+import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
+import { Iconify } from '@/front/components/iconify/iconify';
+import { RouterLink } from '@/front/components/router-link';
+import { useTranslate } from '@/front/hooks/use-translate';
+import { DashboardContent } from '@/front/layouts/dashboard/content';
+import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import Button from '@mui/material/Button';
 import { APP_NAME, FRONT_PATH_NAMES } from '@org/shared/lib/constants';
 import { isServer } from '@tanstack/react-query';
 import dayjs from 'dayjs';
@@ -6,12 +13,7 @@ import type { TFunction } from 'i18next';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { data } from 'react-router';
-import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
-import { useTranslate } from '@/front/hooks/use-translate';
-import { DashboardContent } from '@/front/layouts/dashboard/content';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import type { Route } from './+types/staff-invitations-list-page';
-import NewInvitationButton from './parts/new-invitation-button';
 import StaffInvitationsTable from './parts/staff-invitations-table';
 
 // Enable dayjs relative time plugin
@@ -185,3 +187,18 @@ const StaffInvitationsListPage = () => {
 };
 
 export default StaffInvitationsListPage;
+
+const NewInvitationButton = () => {
+	const { t } = useTranslate();
+
+	return (
+		<Button
+			variant="contained"
+			startIcon={<Iconify icon="mingcute:add-line" />}
+			component={RouterLink}
+			href={FRONT_PATH_NAMES.staff.invitations.new}
+		>
+			{t('new-invitation')}
+		</Button>
+	);
+};

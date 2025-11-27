@@ -4,8 +4,8 @@ import {
 	index,
 	layout,
 	prefix,
-	type RouteConfig,
 	route,
+	type RouteConfig,
 } from '@react-router/dev/routes';
 
 const routes = [
@@ -104,6 +104,10 @@ const routes = [
 					...prefix(getLastPath(FRONT_PATH_NAMES.staff.invitations.root), [
 						index(
 							'routes/authed/staff/invitations/list/staff-invitations-list-page.tsx',
+						),
+						route(
+							getLastPath(FRONT_PATH_NAMES.staff.invitations.new),
+							'routes/authed/staff/invitations/new/new-staff-invitation-page.tsx',
 						),
 						route(
 							getLastPath(
