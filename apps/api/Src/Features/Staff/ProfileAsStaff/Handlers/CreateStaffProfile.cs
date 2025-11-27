@@ -8,6 +8,7 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Polly;
 
 namespace MainApi.Src.Features.Staff.ProfileAsStaff.Handlers;
 
@@ -173,7 +174,8 @@ public static class CreateStaffProfile {
 		[FromBody] CreateStaffProfileBody body,
 		CancellationToken cancellationToken = default
 	) {
-		var logger = loggerFactory.CreateLogger("CreateStaffProfile");
+		var logger = loggerFactory.CreateLogger(nameof(CreateStaffProfile));
+
 		// Extract values after validation
 		string name = body.GetName();
 		string? description = body.GetDescription();
@@ -331,10 +333,12 @@ public static class CreateStaffProfile {
 			await semaphore.WaitAsync(cancellationToken);
 			try {
 				await SendEmailWithRetryAsync(
-					async () => await emailService.SendInvitationToJoinStaffEmailAsync(
-						invitation.Email,
-						invitation.Token
-					),
+					async () => {
+						await emailService.SendInvitationToJoinStaffEmailAsync(
+							invitation.Email,
+							invitation.Token
+						);
+					},
 					logger,
 					invitation.Email,
 					"invitation",
@@ -366,7 +370,9 @@ public static class CreateStaffProfile {
 			await semaphore.WaitAsync(cancellationToken);
 			try {
 				await SendEmailWithRetryAsync(
-					async () => await emailService.SendJoinedStaffNotificationEmailAsync(email),
+					async () => {
+						await emailService.SendJoinedStaffNotificationEmailAsync(email);
+					},
 					logger,
 					email,
 					"notification",
@@ -381,7 +387,9 @@ public static class CreateStaffProfile {
 	}
 
 	/// <summary>
-	/// Sends an email with exponential backoff retry logic.
+	/// Sends an email with exponential backoff retry logic using Polly.
+	/// Creates a retry policy per call with Context for per-call logging.
+	/// Policy creation is lightweight, so this approach is acceptable for this use case.
 	/// </summary>
 	private static async Task SendEmailWithRetryAsync(
 		Func<Task> sendEmailAction,
@@ -390,48 +398,59 @@ public static class CreateStaffProfile {
 		string emailType,
 		CancellationToken cancellationToken
 	) {
-		const int maxRetries = 3;
-		var delays = new[] {
-			TimeSpan.FromSeconds(1),
-			TimeSpan.FromSeconds(2),
-			TimeSpan.FromSeconds(4)
+		// Create context to pass logger/email info for retry logging
+		var context = new Context {
+			["logger"] = logger,
+			["email"] = email,
+			["emailType"] = emailType
 		};
 
-		for (int attempt = 0; attempt < maxRetries; attempt++) {
-			try {
-				await sendEmailAction();
-				logger.LogInformation(
-					"Successfully sent {EmailType} email to {Email}",
-					emailType,
-					email
-				);
-				return;
-			} catch (Exception ex) {
-				var isLastAttempt = attempt == maxRetries - 1;
-				if (isLastAttempt) {
-					logger.LogError(
-						ex,
-						"Failed to send {EmailType} email to {Email} after {Attempts} attempts",
-						emailType,
-						email,
-						maxRetries
+		// Create policy with onRetry that uses context (policy creation is lightweight)
+		var retryPolicy = Policy
+			.Handle<Exception>()
+			.WaitAndRetryAsync(
+				retryCount: 3,
+				sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt - 1)),
+				onRetry: (exception, timeSpan, retryCount, ctx) => {
+					var log = (ILogger)ctx["logger"];
+					var emailAddr = (string)ctx["email"];
+					var type = (string)ctx["emailType"];
+
+					log.LogWarning(
+						exception,
+						"Failed to send {EmailType} email to {Email} (attempt {Attempt}/3), " +
+						"retrying in {Delay}ms",
+						type,
+						emailAddr,
+						retryCount,
+						timeSpan.TotalMilliseconds
 					);
-					return;
 				}
+			);
 
-				logger.LogWarning(
-					ex,
-					"Failed to send {EmailType} email to {Email} (attempt {Attempt}/{MaxRetries}), " +
-					"retrying in {Delay}ms",
-					emailType,
-					email,
-					attempt + 1,
-					maxRetries,
-					delays[attempt].TotalMilliseconds
-				);
+		try {
+			await retryPolicy.ExecuteAsync(
+				async (ctx, ct) => {
+					await sendEmailAction();
+				},
+				context,
+				cancellationToken
+			);
 
-				await Task.Delay(delays[attempt], cancellationToken);
-			}
+			// Log success only after policy completes successfully
+			logger.LogInformation(
+				"Successfully sent {EmailType} email to {Email}",
+				emailType,
+				email
+			);
+		} catch (Exception ex) {
+			logger.LogError(
+				ex,
+				"Failed to send {EmailType} email to {Email} after 3 attempts",
+				emailType,
+				email
+			);
+			// Don't rethrow - email failures shouldn't break the main operation
 		}
 	}
 }
