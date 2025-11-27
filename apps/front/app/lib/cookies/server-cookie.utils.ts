@@ -6,6 +6,12 @@ import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
  * This is critical for clearing httpOnly cookies that JavaScript cannot access.
  *
  * IMPORTANT: This must be called from server-side code (loaders/actions) to work.
+ *
+ * Domain behavior: The 'domain' attribute is intentionally omitted from all clear
+ * operations. This uses the default host-only cookie behavior, which matches how
+ * session cookies are currently set in the app (login, accept-invitation, etc.).
+ * Setting explicit domain values could prevent proper cookie clearing if the
+ * original cookie was set with different domain settings.
  */
 export function createClearSessionCookieHeaders(): Headers {
 	const headers = new Headers();

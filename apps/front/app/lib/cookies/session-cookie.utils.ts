@@ -2,28 +2,25 @@ import * as cookie from 'cookie';
 import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
 
 /**
- * Clears session token cookie with multiple flag combinations to ensure removal.
- * This handles cases where httpOnly or other flags might have been set,
- * which could cause security issues (DoS attacks via infinite API calls).
+ * Clears non-httpOnly session token cookies from the client.
  *
- * Note: JavaScript cannot set httpOnly cookies, but attempting to clear with
- * matching path and flags may help browsers remove them properly.
+ * IMPORTANT: This function can ONLY clear non-httpOnly cookies.
+ * JavaScript cannot access or modify httpOnly cookies - browsers completely
+ * ignore the httpOnly flag when set via document.cookie.
+ *
+ * For httpOnly cookies, use server-side clearing via Set-Cookie headers
+ * (see createClearSessionCookieHeaders in server-cookie.utils.ts).
+ *
+ * This function tries multiple path combinations to ensure removal of cookies
+ * that may have been set with different path attributes.
+ *
+ * Domain behavior: The 'domain' attribute is intentionally omitted, using the
+ * default host-only cookie behavior to match how session cookies are set.
  */
 export function clearSessionCookie(): void {
 	const clearCookieOptions = [
 		// Clear cookie with path='/'
 		{ path: '/', expires: new Date(0), maxAge: 0 },
-		// Clear cookie with path='/' and httpOnly
-		{ path: '/', expires: new Date(0), maxAge: 0, httpOnly: true },
-		// Clear cookie with path='/' and all security flags
-		{
-			path: '/',
-			expires: new Date(0),
-			maxAge: 0,
-			httpOnly: true,
-			secure: true,
-			sameSite: 'lax' as const,
-		},
 		// Clear cookie without path (current path)
 		{ expires: new Date(0), maxAge: 0 },
 	];
@@ -33,7 +30,6 @@ export function clearSessionCookie(): void {
 			document.cookie = cookie.serialize(SESSION_TOKEN_COOKIE_KEY, '', options);
 		} catch (_error) {
 			// Ignore errors - this is defensive cleanup
-			// Some options (like httpOnly) cannot be set from JavaScript
 		}
 	});
 }

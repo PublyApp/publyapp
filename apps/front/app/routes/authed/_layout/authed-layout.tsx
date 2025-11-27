@@ -39,6 +39,32 @@ import {
 import { logger } from '@/shared/lib/logger/iso-logger';
 import type { Route } from './+types/authed-layout';
 
+/**
+ * Clears session state (cookies and query cache) and returns the login redirect URL.
+ * This consolidates the cleanup logic used across clientLoader, ErrorBoundary, and AuthQueriesGuard.
+ *
+ * @returns URL string for redirecting to login with invalid_session cause
+ */
+const clearSessionAndGetLoginUrl = (): string => {
+	// Clear session cookie (non-httpOnly only - httpOnly cookies require server-side clearing)
+	clearSessionCookie();
+
+	// Clear react-query cache
+	defaultQueryClient.removeQueries();
+
+	// Build login redirect URL with invalid_session cause
+	const redirectUrl = new URL(
+		FRONT_PATH_NAMES.auth.login,
+		window.location.origin,
+	);
+	redirectUrl.searchParams.set(
+		queryParamKey.login_page.redirect_cause,
+		queryParamValue.login_page.redirect_cause.invalid_session,
+	);
+
+	return redirectUrl.pathname + redirectUrl.search;
+};
+
 export const loader = getServerLoader({
 	loader: async ({ request }) => {
 		const url = new URL(request.url);
@@ -81,22 +107,9 @@ export const clientLoader = getClientLoader({
 
 		if (!sessionToken) {
 			// No session token readable by JavaScript
-			// Clear what we can and redirect to login
-			clearSessionCookie();
-			defaultQueryClient.removeQueries();
-
-			// Use React Router redirect
+			// Clear session and redirect to login
 			// The auth-layout will detect any httpOnly cookie mismatch and prevent infinite loops
-			const redirectUrl = new URL(
-				FRONT_PATH_NAMES.auth.login,
-				window.location.origin,
-			);
-			redirectUrl.searchParams.set(
-				queryParamKey.login_page.redirect_cause,
-				queryParamValue.login_page.redirect_cause.invalid_session,
-			);
-
-			throw redirect(redirectUrl.pathname + redirectUrl.search);
+			throw redirect(clearSessionAndGetLoginUrl());
 		}
 
 		initApiClientOnClient();
@@ -145,29 +158,14 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		error.responseStatusCode === 401 &&
 		_.toLower(error.messageEscaped) === _.toLower('Unauthorized')
 	) {
-		// Clear session token cookie with all possible combinations
-		// This handles cases where old httpOnly cookies might exist
-		clearSessionCookie();
+		// Clear session and get login URL
+		// The auth-layout will handle any httpOnly cookie issues
+		const loginUrl = clearSessionAndGetLoginUrl();
 
-		// clear react-query cache too
-		defaultQueryClient.removeQueries();
-
-		// Redirect to login - the auth-layout will handle any httpOnly cookie issues
-		const redirectUrl = new URL(
-			FRONT_PATH_NAMES.auth.login,
-			window.location.origin,
-		);
-		redirectUrl.searchParams.set(
-			queryParamKey.login_page.redirect_cause,
-			queryParamValue.login_page.redirect_cause.invalid_session,
-		);
-
-		logger.debug('Redirecting to login page', {
-			url: redirectUrl.toString(),
-		});
+		logger.debug('Redirecting to login page', { url: loginUrl });
 
 		// Use hard redirect to ensure clean break from error state
-		window.location.href = redirectUrl.toString();
+		window.location.href = loginUrl;
 
 		return <SplashScreen />;
 	}
@@ -202,21 +200,9 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 
 	if (!sessionToken) {
 		// No session token - this is a safety check
+		// Clear session and redirect to login
 		// The auth-layout will handle any httpOnly cookie issues
-		clearSessionCookie();
-		defaultQueryClient.removeQueries();
-
-		const redirectUrl = new URL(
-			FRONT_PATH_NAMES.auth.login,
-			window.location.origin,
-		);
-		redirectUrl.searchParams.set(
-			queryParamKey.login_page.redirect_cause,
-			queryParamValue.login_page.redirect_cause.invalid_session,
-		);
-
-		// Use hard redirect for safety
-		window.location.href = redirectUrl.toString();
+		window.location.href = clearSessionAndGetLoginUrl();
 
 		return <SplashScreen />;
 	}
