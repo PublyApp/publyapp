@@ -184,10 +184,6 @@ export const action = getServerAction({
 		const cookieOptions = {
 			expires: sessionExpiry,
 			maxAge: duration.toSeconds('7d'),
-			path: '/',
-			httpOnly: true,
-			secure: true,
-			sameSite: 'lax' as const,
 		};
 
 		const sessionTokenCookie = cookie.serialize(
@@ -288,6 +284,11 @@ const AcceptInvitationForm = ({
 	const errorMessage = errorFetcher ? getErrorMessage(errorFetcher) : null;
 
 	const handleSubmit = form.handleSubmit(async (data) => {
+		// Guard against multiple submissions while fetcher is already processing
+		if (fetcher.state === 'submitting' || fetcher.state === 'loading') {
+			return;
+		}
+
 		await fetcher.submit(
 			{
 				...data,
@@ -397,7 +398,11 @@ const AcceptInvitationForm = ({
 					type="submit"
 					variant="contained"
 					sx={{ mt: 3 }}
-					loading={isSubmitting}
+					loading={
+						isSubmitting ||
+						fetcher.state === 'submitting' ||
+						fetcher.state === 'loading'
+					}
 				>
 					{t('create-account')}
 				</Button>
