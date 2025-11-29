@@ -31,7 +31,20 @@
 	"assist": {
 		"actions": {
 			"source": {
-				"organizeImports": "on"
+				"organizeImports": {
+					"level": "on",
+					"options": {
+						"groups": [
+							[":BUN:", ":NODE:"],
+							":BLANK_LINE:",
+							[":PACKAGE:", "!@org/**"],
+							":BLANK_LINE:",
+							[":ALIAS:", "@org/**"],
+							":BLANK_LINE:",
+							":PATH:"
+						]
+					}
+				}
 			}
 		}
 	},

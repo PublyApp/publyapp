@@ -1,13 +1,16 @@
+import type { TFunction } from 'i18next';
+import i18next from 'i18next';
+import _ from 'lodash';
+import { data } from 'react-router';
+
 import { CustomBreadcrumbs } from '@/front/components/custom-breadcrumbs/custom-breadcrumbs';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
-import type { TFunction } from 'i18next';
-import i18next from 'i18next';
-import _ from 'lodash';
-import { data } from 'react-router';
+
 import type { Route } from './+types/new-staff-invitation-page';
+import NewStaffInvitationsForm from './parts/new-staff-invitations-form';
 
 const getPageTitle = (t: TFunction, seo?: true) => {
 	let str: string = _.capitalize(
@@ -57,7 +60,9 @@ const NewStaffInvitationPage = () => {
 					},
 					{ name: _.capitalize(t('new')) },
 				]}
+				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
+			<NewStaffInvitationsForm />
 		</DashboardContent>
 	);
 };

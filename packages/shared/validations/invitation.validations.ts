@@ -12,6 +12,24 @@ export const getCreateInvitationSchema = (z: InterZod) => {
 	});
 };
 
+export const getBulkCreateInvitationsSchema = (z: InterZod) => {
+	return z.object({
+		invitations: z
+			.array(
+				z.object({
+					email: getEmailFieldSchema(z),
+					profileIds: z
+						.array(
+							z.string().uuid(z.t('invalid-item', { item: z.t('profile') })),
+						)
+						.min(1, z.t('at-least-one-profile-required'))
+						.max(MAX_PROFILES_PER_ACCOUNT),
+				}),
+			)
+			.min(1, z.t('at-least-one-invitation-required')),
+	});
+};
+
 export const getAcceptInvitationSchema = (z: InterZod) => {
 	return z
 		.object({
