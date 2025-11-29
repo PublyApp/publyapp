@@ -4,6 +4,8 @@
 // @ts-ignore
 import { createApiResponseFromDiscriminatorValue, createInvitationCreatedFromDiscriminatorValue, createInvitationListItemFromDiscriminatorValue, serializeCreateStaffInvitationBody, serializeInvitationCreated, type ApiResponse, type CreateStaffInvitationBody, type InvitationCreated, type InvitationListItem } from '../../models/index.js';
 // @ts-ignore
+import { BulkRequestBuilderRequestsMetadata, type BulkRequestBuilder } from './bulk/index.js';
+// @ts-ignore
 import { type WithInvitationItemRequestBuilder, WithInvitationItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type Guid, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
@@ -12,6 +14,10 @@ import { type BaseRequestBuilder, type Guid, type KeysToExcludeForNavigationMeta
  * Builds and executes requests for operations under /staff/invitations
  */
 export interface InvitationsRequestBuilder extends BaseRequestBuilder<InvitationsRequestBuilder> {
+    /**
+     * The bulk property
+     */
+    get bulk(): BulkRequestBuilder;
     /**
      * Gets an item from the MainApi.Client.staff.invitations.item collection
      * @param invitationId Unique identifier of the item
@@ -61,6 +67,9 @@ export const InvitationsRequestBuilderNavigationMetadata: Record<Exclude<keyof I
     byInvitationId: {
         requestsMetadata: WithInvitationItemRequestBuilderRequestsMetadata,
         pathParametersMappings: ["invitationId"],
+    },
+    bulk: {
+        requestsMetadata: BulkRequestBuilderRequestsMetadata,
     },
 };
 /**

@@ -59,6 +59,18 @@ public static class InvitationEndpoints {
 				StatusCodes.Status403Forbidden
 			);
 
+		group.MapPost(
+				PathUtils.GetLastSegment(RoutePath.Staff.Invitations.BulkCreate),
+				BulkCreateStaffInvitations.HandleBulkCreateStaffInvitations
+			)
+			.WithName("BulkCreateStaffInvitations")
+			.WithSummary("Bulk create staff invitations (Admin only)")
+			.WithReqBodyValidation<BulkCreateStaffInvitationsBody>()
+			.ProducesApiResponses(
+				StatusCodes.Status500InternalServerError,
+				StatusCodes.Status403Forbidden
+			);
+
 		group.MapGet(
 				PathUtils.GetLastSegment(RoutePath.Staff.Invitations.Find),
 				FindStaffInvitations.HandleFindStaffInvitations

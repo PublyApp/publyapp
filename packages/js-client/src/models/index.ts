@@ -28,6 +28,18 @@ export interface ApiResponse extends AdditionalDataHolder, ApiError, Parsable {
      */
     messageEscaped?: string | null;
 }
+export interface BulkCreateStaffInvitationsBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The invitations property
+     */
+    invitations?: UntypedNode | null;
+}
+export interface BulkStaffInvitationsCreated extends AdditionalDataHolder, Parsable {
+    /**
+     * The created property
+     */
+    created?: number | null;
+}
 export interface CheckEmailVerificationTokenResult extends AdditionalDataHolder, Parsable {
     /**
      * The resetPasswordUrl property
@@ -75,6 +87,24 @@ export function createAcceptInvitationBodyFromDiscriminatorValue(parseNode: Pars
 // @ts-ignore
 export function createApiResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoApiResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkCreateStaffInvitationsBody}
+ */
+// @ts-ignore
+export function createBulkCreateStaffInvitationsBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkCreateStaffInvitationsBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkStaffInvitationsCreated}
+ */
+// @ts-ignore
+export function createBulkStaffInvitationsCreatedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkStaffInvitationsCreated;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -530,6 +560,28 @@ export function deserializeIntoApiResponse(apiResponse: Partial<ApiResponse> | u
     return {
         "key": n => { apiResponse.key = n.getStringValue(); },
         "message": n => { apiResponse.messageEscaped = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkCreateStaffInvitationsBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkCreateStaffInvitationsBody(bulkCreateStaffInvitationsBody: Partial<BulkCreateStaffInvitationsBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "invitations": n => { bulkCreateStaffInvitationsBody.invitations = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkStaffInvitationsCreated The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkStaffInvitationsCreated(bulkStaffInvitationsCreated: Partial<BulkStaffInvitationsCreated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "created": n => { bulkStaffInvitationsCreated.created = n.getNumberValue(); },
     }
 }
 /**
@@ -1400,6 +1452,30 @@ export function serializeApiResponse(writer: SerializationWriter, apiResponse: P
     writer.writeStringValue("key", apiResponse.key);
     writer.writeStringValue("message", apiResponse.messageEscaped);
     writer.writeAdditionalData(apiResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkCreateStaffInvitationsBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkCreateStaffInvitationsBody(writer: SerializationWriter, bulkCreateStaffInvitationsBody: Partial<BulkCreateStaffInvitationsBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkCreateStaffInvitationsBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("invitations", bulkCreateStaffInvitationsBody.invitations);
+    writer.writeAdditionalData(bulkCreateStaffInvitationsBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkStaffInvitationsCreated The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkStaffInvitationsCreated(writer: SerializationWriter, bulkStaffInvitationsCreated: Partial<BulkStaffInvitationsCreated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkStaffInvitationsCreated || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("created", bulkStaffInvitationsCreated.created);
+    writer.writeAdditionalData(bulkStaffInvitationsCreated.additionalData);
 }
 /**
  * Serializes information the current object

@@ -71,6 +71,7 @@ public static class RoutePath {
 			public static readonly string Create = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/");
 			public static readonly string Find = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/");
 			public static readonly string RevokeById = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/{invitationId}");
+			public static readonly string BulkCreate = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/bulk");
 			public static string RevokeByIdFn(string invitationId) {
 				return PathUtils.Join(RoutePath.Staff.Invitations.Root, $"/{invitationId}");
 			}

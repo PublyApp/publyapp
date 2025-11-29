@@ -1,12 +1,13 @@
-import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
-import { getLastPath } from '@org/shared/utils/string.utils';
 import {
 	index,
 	layout,
 	prefix,
-	route,
 	type RouteConfig,
+	route,
 } from '@react-router/dev/routes';
+
+import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
+import { getLastPath } from '@org/shared/utils/string.utils';
 
 const routes = [
 	layout('routes/marketing/_layout/marketing-layout.tsx', [
@@ -107,7 +108,7 @@ const routes = [
 						),
 						route(
 							getLastPath(FRONT_PATH_NAMES.staff.invitations.new),
-							'routes/authed/staff/invitations/new/new-staff-invitation-page.tsx',
+							'routes/authed/staff/invitations/new/new-staff-invitations-page.tsx',
 						),
 						route(
 							getLastPath(

@@ -1,29 +1,17 @@
-import { delay } from '@org/shared/utils/any.utils';
 import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
+
+import { delay } from '@org/shared/utils/any.utils';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
+
 import { getQueryKey } from '../../query-utils';
 
-// Query Keys
+// Query: Find Staff Invitations
 const findStaffInvitationsQueryKey = getQueryKey<ApiClient>(
 	(client) => client.staff.invitations.get,
 );
 
-// const findStaffProfilesQueryKey = getQueryKey<ApiClient>(
-// 	(client) => client.staff.profiles.get,
-// );
-const findStaffProfilesQueryKey = 'client.staff.profiles.get';
-
-const createInvitationMutationKey = getQueryKey<ApiClient>(
-	(client) => client.staff.invitations.post,
-);
-
-const revokeInvitationMutationKey = getQueryKey<ApiClient>(
-	(client) => client.staff.invitations.byInvitationId('').delete,
-);
-
-// Query: Find Staff Invitations
 export const useFindStaffInvitations = createQuery({
 	queryKey: [findStaffInvitationsQueryKey] as const,
 	fetcher: async () => {
@@ -36,6 +24,10 @@ export const useFindStaffInvitations = createQuery({
 });
 
 // Query: Find Staff Profiles
+const findStaffProfilesQueryKey = getQueryKey<ApiClient>(
+	(client) => client.staff.profiles.get,
+);
+
 export const useFindStaffProfiles = createQuery({
 	queryKey: [findStaffProfilesQueryKey] as const,
 	fetcher: async () => {
@@ -49,6 +41,10 @@ export const useFindStaffProfiles = createQuery({
 });
 
 // Mutation: Create Invitation
+const createInvitationMutationKey = getQueryKey<ApiClient>(
+	(client) => client.staff.invitations.post,
+);
+
 type CreateInvitationPayload = {
 	email: string;
 	profileId: string;
@@ -84,20 +80,19 @@ type BulkCreateInvitationsPayload = {
 	}>;
 };
 
-const bulkCreateInvitationsMutationKey = 'staff.invitations.bulk.post';
+const bulkCreateInvitationsMutationKey = getQueryKey<ApiClient>(
+	(client) => client.staff.invitations.bulk.post,
+);
 
 export const useBulkCreateInvitations = createMutation({
 	mutationKey: [bulkCreateInvitationsMutationKey] as const,
 	mutationFn: async (data: BulkCreateInvitationsPayload) => {
-		// TODO: Replace with actual API call when backend is ready
-		// Simulating API delay
-		const result = await delay(2000, {
-			created: data.invitations.length,
-			invitations: data.invitations.map((inv) => ({
-				email: inv.email,
-				profileIds: inv.profileIds,
-				token: `mock-token-${Math.random().toString(36).substring(7)}`,
-			})),
+		const result = await clientManager.apiClient.staff.invitations.bulk.post({
+			invitations: {
+				getValue: () => {
+					return data.invitations;
+				},
+			},
 		});
 
 		if (_.isNil(result)) {
@@ -108,6 +103,10 @@ export const useBulkCreateInvitations = createMutation({
 });
 
 // Mutation: Revoke Invitation
+const revokeInvitationMutationKey = getQueryKey<ApiClient>(
+	(client) => client.staff.invitations.byInvitationId('').delete,
+);
+
 type RevokeInvitationPayload = {
 	invitationId: string;
 };
