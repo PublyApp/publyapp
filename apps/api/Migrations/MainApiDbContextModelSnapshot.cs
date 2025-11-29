@@ -181,10 +181,6 @@ namespace MainApi.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_revoked");
 
-                    b.Property<Guid>("ProfileId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("profile_id");
-
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid")
                         .HasColumnName("project_id");
@@ -216,8 +212,6 @@ namespace MainApi.Migrations
 
                     b.HasIndex("InvitedByUserId");
 
-                    b.HasIndex("ProfileId");
-
                     b.HasIndex("ProjectId");
 
                     b.HasIndex("Token")
@@ -235,6 +229,31 @@ namespace MainApi.Migrations
 
                             t.HasCheckConstraint("CK_Invitation_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
                         });
+                });
+
+            modelBuilder.Entity("MainApi.Src.Features.Common.Invitation.InvitationProfile", b =>
+                {
+                    b.Property<Guid>("InvitationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invitation_id");
+
+                    b.Property<Guid>("ProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("profile_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("InvitationId", "ProfileId");
+
+                    b.HasIndex("ProfileId");
+
+                    b.ToTable("invitation_profiles");
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Permission.Permission", b =>
@@ -874,12 +893,6 @@ namespace MainApi.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("MainApi.Src.Features.Common.Profile.Profile", "Profile")
-                        .WithMany()
-                        .HasForeignKey("ProfileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("MainApi.Src.Features.Common.Project.Project", "Project")
                         .WithMany()
                         .HasForeignKey("ProjectId");
@@ -890,11 +903,28 @@ namespace MainApi.Migrations
 
                     b.Navigation("InvitedByUser");
 
-                    b.Navigation("Profile");
-
                     b.Navigation("Project");
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Features.Common.Invitation.InvitationProfile", b =>
+                {
+                    b.HasOne("MainApi.Src.Features.Common.Invitation.Invitation", "Invitation")
+                        .WithMany("InvitationProfiles")
+                        .HasForeignKey("InvitationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MainApi.Src.Features.Common.Profile.Profile", "Profile")
+                        .WithMany()
+                        .HasForeignKey("ProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Invitation");
+
+                    b.Navigation("Profile");
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Profile.Profile", b =>
@@ -994,6 +1024,11 @@ namespace MainApi.Migrations
             modelBuilder.Entity("MainApi.Src.Features.Common.Account.UserAccount", b =>
                 {
                     b.Navigation("UserAccountProfiles");
+                });
+
+            modelBuilder.Entity("MainApi.Src.Features.Common.Invitation.Invitation", b =>
+                {
+                    b.Navigation("InvitationProfiles");
                 });
 
             modelBuilder.Entity("MainApi.Src.Features.Common.Permission.Permission", b =>

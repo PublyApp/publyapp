@@ -637,9 +637,9 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 				var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
 				var expiresAt = DateTime.UtcNow.AddDays(7);
 
-				var invitation = Invitation.CreateStaffInvitation(
+				var invitation = Invitation.CreateStaffInvitationWithProfiles(
 					email,
-					profileId,
+					new List<Guid> { profileId },
 					invitedByUserId,
 					expiresAt,
 					token

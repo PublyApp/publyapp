@@ -32,20 +32,23 @@ public static class GetInvitationDetails {
 			);
 		}
 
-		var profile = await invitationService.GetStaffProfileAsync(
-			invitation.ProfileId,
-			cancellationToken
-		);
+		// Get profile names from junction table
+		var names = invitation.InvitationProfiles
+			.Select(ip => ip.Profile?.Name)
+			.Where(n => !string.IsNullOrEmpty(n))
+			.ToList();
 
-		if (profile is null) {
+		if (names.Count == 0) {
 			return TypedResults.NotFound(
 				ApiResponse.Create("Profile not found", ResponseKeys.NotFound)
 			);
 		}
 
+		var profileNames = string.Join(", ", names);
+
 		return TypedResults.Ok(new InvitationDetails {
 			Email = invitation.Email,
-			ProfileName = profile.Name,
+			ProfileName = profileNames,
 			ExpiresAt = invitation.ExpiresAt
 		});
 	}

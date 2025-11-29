@@ -33,6 +33,7 @@ public static class BulkCreateStaffInvitations {
 		CancellationToken cancellationToken = default
 	) {
 		// Business logic will be implemented later.
+		await Task.CompletedTask; // Placeholder until implementation
 		throw new NotImplementedException(
 			"Bulk staff invitations creation is not implemented yet."
 		);

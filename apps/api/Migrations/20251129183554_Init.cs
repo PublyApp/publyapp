@@ -200,6 +200,49 @@ namespace MainApi.Migrations {
 					});
 
 			migrationBuilder.CreateTable(
+					name: "invitations",
+					columns: table => new {
+						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
+						email = table.Column<string>(type: "text", nullable: false),
+						scope = table.Column<int>(type: "integer", nullable: false),
+						tenant_id = table.Column<Guid>(type: "uuid", nullable: true),
+						project_id = table.Column<Guid>(type: "uuid", nullable: true),
+						token = table.Column<string>(type: "text", nullable: false),
+						expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+						is_accepted = table.Column<bool>(type: "boolean", nullable: false),
+						accepted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+						is_revoked = table.Column<bool>(type: "boolean", nullable: false),
+						revoked_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+						invited_by_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+					},
+					constraints: table => {
+						table.PrimaryKey("PK_invitations", x => x.id);
+						table.CheckConstraint("CK_Invitation_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
+						table.CheckConstraint("CK_Invitation_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
+						table.CheckConstraint("CK_Invitation_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
+						table.ForeignKey(
+											name: "FK_invitations_projects_project_id",
+											column: x => x.project_id,
+											principalTable: "projects",
+											principalColumn: "id");
+						table.ForeignKey(
+											name: "FK_invitations_tenants_tenant_id",
+											column: x => x.tenant_id,
+											principalTable: "tenants",
+											principalColumn: "id");
+						table.ForeignKey(
+											name: "FK_invitations_users_invited_by_user_id",
+											column: x => x.invited_by_user_id,
+											principalTable: "users",
+											principalColumn: "id",
+											onDelete: ReferentialAction.Cascade);
+					});
+
+			migrationBuilder.CreateTable(
 					name: "profiles",
 					columns: table => new {
 						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
@@ -269,53 +312,27 @@ namespace MainApi.Migrations {
 					});
 
 			migrationBuilder.CreateTable(
-					name: "invitations",
+					name: "invitation_profiles",
 					columns: table => new {
-						id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "uuidv7()"),
-						email = table.Column<string>(type: "text", nullable: false),
-						scope = table.Column<int>(type: "integer", nullable: false),
-						tenant_id = table.Column<Guid>(type: "uuid", nullable: true),
-						project_id = table.Column<Guid>(type: "uuid", nullable: true),
-						token = table.Column<string>(type: "text", nullable: false),
-						expires_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_accepted = table.Column<bool>(type: "boolean", nullable: false),
-						accepted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-						is_revoked = table.Column<bool>(type: "boolean", nullable: false),
-						revoked_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-						invited_by_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+						invitation_id = table.Column<Guid>(type: "uuid", nullable: false),
 						profile_id = table.Column<Guid>(type: "uuid", nullable: false),
 						created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-						is_deleted = table.Column<bool>(type: "boolean", nullable: false),
-						deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+						updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
 					},
 					constraints: table => {
-						table.PrimaryKey("PK_invitations", x => x.id);
-						table.CheckConstraint("CK_Invitation_Project_Constraints", "(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2");
-						table.CheckConstraint("CK_Invitation_Staff_Constraints", "(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0");
-						table.CheckConstraint("CK_Invitation_Tenant_Constraints", "(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1");
+						table.PrimaryKey("PK_invitation_profiles", x => new { x.invitation_id, x.profile_id });
 						table.ForeignKey(
-											name: "FK_invitations_profiles_profile_id",
+											name: "FK_invitation_profiles_invitations_invitation_id",
+											column: x => x.invitation_id,
+											principalTable: "invitations",
+											principalColumn: "id",
+											onDelete: ReferentialAction.Cascade);
+						table.ForeignKey(
+											name: "FK_invitation_profiles_profiles_profile_id",
 											column: x => x.profile_id,
 											principalTable: "profiles",
 											principalColumn: "id",
-											onDelete: ReferentialAction.Cascade);
-						table.ForeignKey(
-											name: "FK_invitations_projects_project_id",
-											column: x => x.project_id,
-											principalTable: "projects",
-											principalColumn: "id");
-						table.ForeignKey(
-											name: "FK_invitations_tenants_tenant_id",
-											column: x => x.tenant_id,
-											principalTable: "tenants",
-											principalColumn: "id");
-						table.ForeignKey(
-											name: "FK_invitations_users_invited_by_user_id",
-											column: x => x.invited_by_user_id,
-											principalTable: "users",
-											principalColumn: "id",
-											onDelete: ReferentialAction.Cascade);
+											onDelete: ReferentialAction.Restrict);
 					});
 
 			migrationBuilder.CreateTable(
@@ -388,6 +405,11 @@ namespace MainApi.Migrations {
 					columns: new[] { "user_id", "created_at" });
 
 			migrationBuilder.CreateIndex(
+					name: "IX_invitation_profiles_profile_id",
+					table: "invitation_profiles",
+					column: "profile_id");
+
+			migrationBuilder.CreateIndex(
 					name: "IX_invitations_email_scope_is_accepted",
 					table: "invitations",
 					columns: new[] { "email", "scope", "is_accepted" });
@@ -401,11 +423,6 @@ namespace MainApi.Migrations {
 					name: "IX_invitations_invited_by_user_id",
 					table: "invitations",
 					column: "invited_by_user_id");
-
-			migrationBuilder.CreateIndex(
-					name: "IX_invitations_profile_id",
-					table: "invitations",
-					column: "profile_id");
 
 			migrationBuilder.CreateIndex(
 					name: "IX_invitations_project_id",
@@ -561,7 +578,7 @@ namespace MainApi.Migrations {
 					name: "audit_logs");
 
 			migrationBuilder.DropTable(
-					name: "invitations");
+					name: "invitation_profiles");
 
 			migrationBuilder.DropTable(
 					name: "products");
@@ -577,6 +594,9 @@ namespace MainApi.Migrations {
 
 			migrationBuilder.DropTable(
 					name: "user_account_profiles");
+
+			migrationBuilder.DropTable(
+					name: "invitations");
 
 			migrationBuilder.DropTable(
 					name: "permissions");

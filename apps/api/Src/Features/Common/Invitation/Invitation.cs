@@ -2,7 +2,6 @@ using MainApi.Src.Data;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
-using ProfileEntity = MainApi.Src.Features.Common.Profile.Profile;
 using ProjectEntity = MainApi.Src.Features.Common.Project.Project;
 using TenantEntity = MainApi.Src.Features.Common.Tenant.Tenant;
 using UserEntity = MainApi.Src.Features.Common.User.User;
@@ -55,52 +54,106 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	[JsonIgnore]
 	public UserEntity InvitedByUser { get; set; } = null!;
 
-	[Column("profile_id")]
-	public required Guid ProfileId { get; set; }
+	// Multiple profiles via junction table
 	[JsonIgnore]
-	public ProfileEntity Profile { get; set; } = null!;
+	public ICollection<InvitationProfile> InvitationProfiles { get; set; } = new List<InvitationProfile>();
+
+	// Helper property for easy access
+	[NotMapped]
+	public List<Guid> ProfileIds => InvitationProfiles.Select(ip => ip.ProfileId).ToList();
 
 	public bool IsStaffInvitation => Scope == InvitationScope.Staff && TenantId is null && ProjectId is null;
 	public bool IsTenantInvitation => Scope == InvitationScope.Tenant && TenantId is not null && ProjectId is null;
 	public bool IsProjectInvitation => Scope == InvitationScope.Project && TenantId is not null && ProjectId is not null;
 
-	public static Invitation CreateStaffInvitation(string email, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string token) {
-		return new Invitation {
+	public static Invitation CreateStaffInvitationWithProfiles(
+		string email,
+		List<Guid> profileIds,
+		Guid invitedByUserId,
+		DateTime expiresAt,
+		string token
+	) {
+		var invitation = new Invitation {
 			Email = email.ToLowerInvariant(),
 			Scope = InvitationScope.Staff,
 			TenantId = null,
 			ProjectId = null,
-			ProfileId = profileId,
 			InvitedByUserId = invitedByUserId,
 			ExpiresAt = expiresAt,
 			Token = token,
 		};
+
+		// Add profiles via junction table
+		// InvitationId will be set by EF Core when invitation is saved
+		foreach (var profileId in profileIds) {
+			invitation.InvitationProfiles.Add(new InvitationProfile {
+				InvitationId = default!, // Will be set by EF Core when invitation is saved
+				ProfileId = profileId
+			});
+		}
+
+		return invitation;
 	}
 
-	public static Invitation CreateTenantInvitation(string email, Guid tenantId, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string token) {
-		return new Invitation {
+	public static Invitation CreateTenantInvitationWithProfiles(
+		string email,
+		Guid tenantId,
+		List<Guid> profileIds,
+		Guid invitedByUserId,
+		DateTime expiresAt,
+		string token
+	) {
+		var invitation = new Invitation {
 			Email = email.ToLowerInvariant(),
 			Scope = InvitationScope.Tenant,
 			TenantId = tenantId,
 			ProjectId = null,
-			ProfileId = profileId,
 			InvitedByUserId = invitedByUserId,
 			ExpiresAt = expiresAt,
 			Token = token,
 		};
+
+		// Add profiles via junction table
+		// InvitationId will be set by EF Core when invitation is saved
+		foreach (var profileId in profileIds) {
+			invitation.InvitationProfiles.Add(new InvitationProfile {
+				InvitationId = default!, // Will be set by EF Core when invitation is saved
+				ProfileId = profileId
+			});
+		}
+
+		return invitation;
 	}
 
-	public static Invitation CreateProjectInvitation(string email, Guid tenantId, Guid projectId, Guid profileId, Guid invitedByUserId, DateTime expiresAt, string token) {
-		return new Invitation {
+	public static Invitation CreateProjectInvitationWithProfiles(
+		string email,
+		Guid tenantId,
+		Guid projectId,
+		List<Guid> profileIds,
+		Guid invitedByUserId,
+		DateTime expiresAt,
+		string token
+	) {
+		var invitation = new Invitation {
 			Email = email.ToLowerInvariant(),
 			Scope = InvitationScope.Project,
 			TenantId = tenantId,
 			ProjectId = projectId,
-			ProfileId = profileId,
 			InvitedByUserId = invitedByUserId,
 			ExpiresAt = expiresAt,
 			Token = token,
 		};
+
+		// Add profiles via junction table
+		// InvitationId will be set by EF Core when invitation is saved
+		foreach (var profileId in profileIds) {
+			invitation.InvitationProfiles.Add(new InvitationProfile {
+				InvitationId = default!, // Will be set by EF Core when invitation is saved
+				ProfileId = profileId
+			});
+		}
+
+		return invitation;
 	}
 
 	public void ValidateInvitationType() {

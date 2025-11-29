@@ -125,10 +125,10 @@ public static class CreateStaffInvitation {
 			);
 		}
 
-		// Create invitation via service
+		// Create invitation via service (wrap single profileId in list for new API)
 		var (invitation, token) = await invitationService.CreateStaffInvitationAsync(
 			email,
-			profileId,
+			new List<Guid> { profileId },
 			account.UserId,
 			cancellationToken
 		);
