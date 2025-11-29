@@ -13,14 +13,14 @@ namespace MainApi.Src.Features.Common.Invitation;
 public interface IInvitationService {
 	Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
 		string email,
-		Guid profileId,
+		List<Guid> profileIds,
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default);
 
 	Task<(Invitation Invitation, string Token)> CreateTenantInvitationAsync(
 		string email,
 		Guid tenantId,
-		Guid profileId,
+		List<Guid> profileIds,
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default);
 
@@ -85,16 +85,16 @@ public class InvitationService : IInvitationService {
 
 	public async Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
 		string email,
-		Guid profileId,
+		List<Guid> profileIds,
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default
 	) {
 		var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
-		var invitation = Invitation.CreateStaffInvitation(
+		var invitation = Invitation.CreateStaffInvitationWithProfiles(
 			email,
-			profileId,
+			profileIds,
 			invitedByUserId,
 			expiresAt,
 			token
@@ -106,8 +106,9 @@ public class InvitationService : IInvitationService {
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		_logger.LogInformation(
-			"Created staff invitation for {Email} by user {InvitedByUserId}",
+			"Created staff invitation for {Email} with {ProfileCount} profiles by user {InvitedByUserId}",
 			email,
+			profileIds.Count,
 			invitedByUserId
 		);
 
@@ -117,17 +118,17 @@ public class InvitationService : IInvitationService {
 	public async Task<(Invitation Invitation, string Token)> CreateTenantInvitationAsync(
 		string email,
 		Guid tenantId,
-		Guid profileId,
+		List<Guid> profileIds,
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default
 	) {
 		var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
 		var expiresAt = DateTime.UtcNow.AddDays(7);
 
-		var invitation = Invitation.CreateTenantInvitation(
+		var invitation = Invitation.CreateTenantInvitationWithProfiles(
 			email,
 			tenantId,
-			profileId,
+			profileIds,
 			invitedByUserId,
 			expiresAt,
 			token
@@ -139,9 +140,10 @@ public class InvitationService : IInvitationService {
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		_logger.LogInformation(
-			"Created tenant invitation for {Email} in tenant {TenantId} by user {InvitedByUserId}",
+			"Created tenant invitation for {Email} in tenant {TenantId} with {ProfileCount} profiles by user {InvitedByUserId}",
 			email,
 			tenantId,
+			profileIds.Count,
 			invitedByUserId
 		);
 
@@ -157,7 +159,10 @@ public class InvitationService : IInvitationService {
 			where inv.Token == token
 			select inv;
 
-		var invitation = await invitationQuery.FirstOrDefaultAsync(cancellationToken);
+		var invitation = await invitationQuery
+			.Include(inv => inv.InvitationProfiles)
+			.ThenInclude(ip => ip.Profile)
+			.FirstOrDefaultAsync(cancellationToken);
 
 		if (invitation is null) {
 			return null;
@@ -259,22 +264,46 @@ public class InvitationService : IInvitationService {
 		var invitationsQuery =
 			from inv in _dbContext.Invitation
 			where inv.Scope == InvitationScope.Staff
-			join profile in _dbContext.Profile on inv.ProfileId equals profile.Id
 			join inviter in _dbContext.User on inv.InvitedByUserId equals inviter.Id
 			orderby inv.CreatedAt descending
-			select new InvitationListItem {
-				Id = inv.GetRequiredId(),
-				Email = inv.Email,
-				Scope = "Staff",
-				ProfileName = profile.Name,
-				ExpiresAt = inv.ExpiresAt,
-				IsAccepted = inv.IsAccepted,
-				IsRevoked = inv.IsRevoked,
-				CreatedAt = inv.CreatedAt,
-				InvitedByName = $"{inviter.FirstName} {inviter.LastName}"
+			select new {
+				Invitation = inv,
+				InviterName = $"{inviter.FirstName} {inviter.LastName}"
 			};
 
-		return await invitationsQuery.ToListAsync(cancellationToken);
+		var results = await invitationsQuery.ToListAsync(cancellationToken);
+
+		// Load profile names for each invitation
+		var invitationIds = results.Select(r => r.Invitation.GetRequiredId()).ToList();
+		var profileNamesQuery =
+			from ip in _dbContext.InvitationProfile
+			where invitationIds.Contains(ip.InvitationId)
+			join p in _dbContext.Profile on ip.ProfileId equals p.Id
+			select new {
+				InvitationId = ip.InvitationId,
+				ProfileName = p.Name
+			};
+
+		var profileNames = await profileNamesQuery.ToListAsync(cancellationToken);
+		var profileNamesByInvitation = profileNames
+			.GroupBy(pn => pn.InvitationId)
+			.ToDictionary(g => g.Key, g => string.Join(", ", g.Select(x => x.ProfileName)));
+
+		return results.Select(r => {
+			var invitationId = r.Invitation.GetRequiredId();
+			var profileName = profileNamesByInvitation.TryGetValue(invitationId, out var name) ? name : "";
+			return new InvitationListItem {
+				Id = invitationId,
+				Email = r.Invitation.Email,
+				Scope = "Staff",
+				ProfileName = profileName,
+				ExpiresAt = r.Invitation.ExpiresAt,
+				IsAccepted = r.Invitation.IsAccepted,
+				IsRevoked = r.Invitation.IsRevoked,
+				CreatedAt = r.Invitation.CreatedAt,
+				InvitedByName = r.InviterName
+			};
+		}).ToList();
 	}
 
 	public async Task<UserEntity> AcceptStaffInvitationAsync(
@@ -307,14 +336,23 @@ public class InvitationService : IInvitationService {
 			await _dbContext.UserAccount.AddAsync(account, cancellationToken);
 			await _dbContext.SaveChangesAsync(cancellationToken);
 
-			// Assign profile
-			await _dbContext.UserAccountProfile.AddAsync(
-				new UserAccountProfile {
-					UserAccountId = account.GetRequiredId(),
-					ProfileId = invitation.ProfileId
-				},
-				cancellationToken
-			);
+			// Load invitation profiles
+			var invitationProfiles = await (
+				from ip in _dbContext.InvitationProfile
+				where ip.InvitationId == invitation.GetRequiredId()
+				select ip
+			).ToListAsync(cancellationToken);
+
+			// Assign ALL profiles from the invitation
+			foreach (var invitationProfile in invitationProfiles) {
+				await _dbContext.UserAccountProfile.AddAsync(
+					new UserAccountProfile {
+						UserAccountId = account.GetRequiredId(),
+						ProfileId = invitationProfile.ProfileId
+					},
+					cancellationToken
+				);
+			}
 
 			// Mark invitation as accepted
 			invitation.IsAccepted = true;
@@ -324,8 +362,9 @@ public class InvitationService : IInvitationService {
 			await tx.CommitAsync(cancellationToken);
 
 			_logger.LogInformation(
-				"Staff invitation accepted: User {UserId} created from invitation {InvitationId}",
+				"Staff invitation accepted: User {UserId} created with {ProfileCount} profiles from invitation {InvitationId}",
 				user.GetRequiredId(),
+				invitationProfiles.Count,
 				invitation.GetRequiredId()
 			);
 

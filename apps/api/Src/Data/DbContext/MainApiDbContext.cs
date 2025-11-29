@@ -40,6 +40,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 	// Unified invitation system (Staff/Tenant/Project)
 	public DbSet<Invitation> Invitation { get; init; }
+	public DbSet<InvitationProfile> InvitationProfile { get; init; }
 
 	// Staff back-office entities
 	public DbSet<AuditLog> AuditLog { get; init; }
@@ -227,6 +228,21 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.WithMany()
 			.HasForeignKey(s => s.ImpersonatingStaffUserId)
 			.OnDelete(DeleteBehavior.Restrict);
+
+		// Configure InvitationProfile junction table
+		modelBuilder.Entity<InvitationProfile>(entity => {
+			entity.HasKey(e => new { e.InvitationId, e.ProfileId });
+
+			entity.HasOne(e => e.Invitation)
+				.WithMany(i => i.InvitationProfiles)
+				.HasForeignKey(e => e.InvitationId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			entity.HasOne(e => e.Profile)
+				.WithMany()
+				.HasForeignKey(e => e.ProfileId)
+				.OnDelete(DeleteBehavior.Restrict);
+		});
 
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.Entity<User>()
