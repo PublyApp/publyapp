@@ -9,7 +9,7 @@ import { DashboardContent } from '@/front/layouts/dashboard/content';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { APP_NAME, FRONT_PATH_NAMES, isServer } from '@/shared/lib/constants';
 
-import type { Route } from './+types/new-staff-invitation-page';
+import type { Route } from './+types/new-staff-invitations-page';
 import NewStaffInvitationsForm from './parts/new-staff-invitations-form';
 
 const getPageTitle = (t: TFunction, seo?: true) => {

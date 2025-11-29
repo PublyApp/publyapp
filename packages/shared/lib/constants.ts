@@ -169,7 +169,7 @@ export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detec
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
 export const queryParamKey = {
-	clear_http_only: '_clearHttpOnly',
+	clear_http_only: 'clear_session',
 	language: 'lng',
 	token: 'token',
 	login_page: {

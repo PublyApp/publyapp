@@ -15,6 +15,7 @@
 		"postinstall": "node scripts/generate-zod-i18n-map.mjs"
 	},
 	"dependencies": {
+		"nanoid": "^5.0.4",
 		"axios": "^1.6.5",
 		"dayjs": "^1.11.10",
 		"i18next": "^24.2.2",

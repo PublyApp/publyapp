@@ -1642,6 +1642,67 @@
         }
       }
     },
+    "/staff/invitations/bulk": {
+      "post": {
+        "tags": [
+          "Staff Invitations"
+        ],
+        "summary": "Bulk create staff invitations (Admin only)",
+        "operationId": "BulkCreateStaffInvitations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateStaffInvitationsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkStaffInvitationsCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/invitations/{invitationId}": {
       "delete": {
         "tags": [
@@ -1734,6 +1795,29 @@
           },
           "key": {
             "type": "string"
+          }
+        }
+      },
+      "BulkCreateStaffInvitationsBody": {
+        "required": [
+          "invitations"
+        ],
+        "type": "object",
+        "properties": {
+          "invitations": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "BulkStaffInvitationsCreated": {
+        "required": [
+          "created"
+        ],
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
