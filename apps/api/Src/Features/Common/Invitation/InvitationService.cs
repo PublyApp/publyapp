@@ -54,6 +54,26 @@ public interface IInvitationService {
 		string lastName,
 		string passwordHash,
 		CancellationToken cancellationToken = default);
+
+	// Batch validation methods for bulk operations
+	Task<List<string>> GetExistingUserEmailsAsync(
+		List<string> emails,
+		CancellationToken cancellationToken = default);
+
+	Task<List<string>> GetPendingInvitationEmailsAsync(
+		List<string> emails,
+		InvitationScope scope,
+		CancellationToken cancellationToken = default);
+
+	Task<List<Guid>> ValidateStaffProfilesAsync(
+		List<Guid> profileIds,
+		CancellationToken cancellationToken = default);
+
+	// Bulk creation method
+	Task<int> BulkCreateStaffInvitationsAsync(
+		List<BulkStaffInvitationItem> invitations,
+		Guid invitedByUserId,
+		CancellationToken cancellationToken = default);
 }
 
 public record InvitationListItem {
@@ -66,6 +86,11 @@ public record InvitationListItem {
 	public required bool IsRevoked { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public string? InvitedByName { get; init; }
+}
+
+public record BulkStaffInvitationItem {
+	public required string Email { get; init; }
+	public required List<Guid> ProfileIds { get; init; }
 }
 
 public class InvitationService : IInvitationService {
@@ -369,6 +394,105 @@ public class InvitationService : IInvitationService {
 			);
 
 			return user;
+		} catch {
+			await tx.RollbackAsync(cancellationToken);
+			throw;
+		}
+	}
+
+	public async Task<List<string>> GetExistingUserEmailsAsync(
+		List<string> emails,
+		CancellationToken cancellationToken = default
+	) {
+		var normalizedEmails = emails.Select(e => e.ToLowerInvariant()).ToList();
+
+		var existingEmails = await (
+			from u in _dbContext.User.AsNoTracking()
+			where normalizedEmails.Contains(u.Email)
+			select u.Email
+		).ToListAsync(cancellationToken);
+
+		return existingEmails;
+	}
+
+	public async Task<List<string>> GetPendingInvitationEmailsAsync(
+		List<string> emails,
+		InvitationScope scope,
+		CancellationToken cancellationToken = default
+	) {
+		var normalizedEmails = emails.Select(e => e.ToLowerInvariant()).ToList();
+
+		var existingEmails = await (
+			from inv in _dbContext.Invitation.AsNoTracking()
+			where normalizedEmails.Contains(inv.Email)
+				&& inv.Scope == scope
+				&& inv.IsAccepted == false
+				&& inv.IsRevoked == false
+				&& inv.ExpiresAt > DateTime.UtcNow
+			select inv.Email
+		).ToListAsync(cancellationToken);
+
+		return existingEmails;
+	}
+
+	public async Task<List<Guid>> ValidateStaffProfilesAsync(
+		List<Guid> profileIds,
+		CancellationToken cancellationToken = default
+	) {
+		var validProfileIds = await (
+			from p in _dbContext.Profile.AsNoTracking()
+			where profileIds.Contains(p.Id) && p.Scope == ProfileScope.Staff
+			select p.Id
+		).ToListAsync(cancellationToken);
+
+		return validProfileIds;
+	}
+
+	public async Task<int> BulkCreateStaffInvitationsAsync(
+		List<BulkStaffInvitationItem> invitations,
+		Guid invitedByUserId,
+		CancellationToken cancellationToken = default
+	) {
+		await using var tx = await _dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+		try {
+			var expiresAt = DateTime.UtcNow.AddDays(7);
+
+			foreach (var item in invitations) {
+				// Generate unique token per invitation (one per email)
+				var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
+
+				// Use factory to create invitation with multiple profiles
+				var invitation = Invitation.CreateStaffInvitationWithProfiles(
+					item.Email,
+					item.ProfileIds,
+					invitedByUserId,
+					expiresAt,
+					token
+				);
+
+				// Validate invitation type
+				invitation.ValidateInvitationType();
+
+				// Add invitation (EF Core will also track the InvitationProfile junction records)
+				_dbContext.Invitation.Add(invitation);
+			}
+
+			// Save all changes (single database INSERT with multiple rows)
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			// Commit transaction
+			await tx.CommitAsync(cancellationToken);
+
+			var totalCreated = invitations.Count; // Number of invitations (emails), not junction records
+
+			_logger.LogInformation(
+				"Created {Count} staff invitations in bulk by user {InvitedByUserId}",
+				totalCreated,
+				invitedByUserId
+			);
+
+			return totalCreated;
 		} catch {
 			await tx.RollbackAsync(cancellationToken);
 			throw;

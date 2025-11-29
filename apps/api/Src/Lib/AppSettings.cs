@@ -48,5 +48,7 @@ public class AppSettings {
 
 	public readonly int PAGINATION_DEFAULT_LIMIT = 100;
 
+	public readonly int MAX_BULK_INVITATIONS_SIZE = 100;
+
 	public static readonly int DEFAULT_MAX_USERS_PER_TENANT = 5;
 }
