@@ -76,6 +76,37 @@ export const useCreateInvitation = createMutation({
 	},
 });
 
+// Mutation: Bulk Create Invitations
+type BulkCreateInvitationsPayload = {
+	invitations: Array<{
+		email: string;
+		profileIds: string[];
+	}>;
+};
+
+const bulkCreateInvitationsMutationKey = 'staff.invitations.bulk.post';
+
+export const useBulkCreateInvitations = createMutation({
+	mutationKey: [bulkCreateInvitationsMutationKey] as const,
+	mutationFn: async (data: BulkCreateInvitationsPayload) => {
+		// TODO: Replace with actual API call when backend is ready
+		// Simulating API delay
+		const result = await delay(2000, {
+			created: data.invitations.length,
+			invitations: data.invitations.map((inv) => ({
+				email: inv.email,
+				profileIds: inv.profileIds,
+				token: `mock-token-${Math.random().toString(36).substring(7)}`,
+			})),
+		});
+
+		if (_.isNil(result)) {
+			throw new Error(`[${bulkCreateInvitationsMutationKey}]: result is nil`);
+		}
+		return result;
+	},
+});
+
 // Mutation: Revoke Invitation
 type RevokeInvitationPayload = {
 	invitationId: string;

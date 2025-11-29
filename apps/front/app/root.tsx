@@ -1,10 +1,5 @@
-// biome-ignore assist/source/organizeImports: file imports must be at the top
 import './styles/main.css';
 
-import { NotFoundView, View403, View500 } from '@/front/components/error';
-import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
-import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
-import { APP_NAME, isServer } from '@/shared/lib/constants';
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import { QueryClientProvider } from '@tanstack/react-query';
 import i18next, { type TFunction } from 'i18next';
@@ -20,6 +15,12 @@ import {
 	ScrollRestoration,
 } from 'react-router';
 import { useChangeLanguage } from 'remix-i18next/react';
+
+import { NotFoundView, View403, View500 } from '@/front/components/error';
+import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
+import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
+import { APP_NAME, isServer } from '@/shared/lib/constants';
+
 import type { Route } from './+types/root';
 import { MotionLazy } from './components/animate/motion-lazy';
 import View400 from './components/error/400-view';
