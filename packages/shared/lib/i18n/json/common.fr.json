@@ -47,8 +47,8 @@
 	"dashboard": "Tableau de bord",
 	"staff-member": "Membre du staff",
 	"staff-members": "Membres du staff",
-	"staff-invitations": "Invitations du staff",
-	"staff-invitations-description": "Gérer les invitations du staff",
+	"staff-invitations": "Invitations au staff",
+	"staff-invitations-description": "Gérer les invitations au staff",
 	"staff-invite-staff": "Inviter un membre du staff",
 	"staff-invite-staff-member": "Inviter un membre du staff",
 	"staff-invite-staff-description": "Envoyer une invitation à un membre du staff",
@@ -262,5 +262,7 @@
 	"invalid-email-address": "Adresse email invalide",
 	"first-name-required": "Le prénom est obligatoire",
 	"at-least-12-chars-and-1-special-char": "Le mot de passe doit contenir au moins 12 caractères et au moins 1 caractère spécial",
-	"passwords-do-not-match": "Les mots de passe ne correspondent pas"
+	"passwords-do-not-match": "Les mots de passe ne correspondent pas",
+	"staff": "Staff",
+	"invitations": "Invitations"
 }

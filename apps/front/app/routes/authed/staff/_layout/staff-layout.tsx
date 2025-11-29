@@ -40,23 +40,23 @@ const StaffLayout = () => {
 			],
 		},
 		{
-			subheader: t('platform'),
+			subheader: t('staff'),
 			collapsible: false,
 			items: [
 				{
-					title: t('staff-members'),
+					title: t('users'),
 					path: FRONT_PATH_NAMES.staff.staffMembers.root,
 					icon: ICONS.user,
 					deepActiveMatch: true,
 				},
 				{
-					title: `${t('profiles')} (${t('roles')})`,
+					title: `${t('profiles')}`,
 					path: FRONT_PATH_NAMES.staff.profiles.root,
 					icon: ICONS.lock,
 					deepActiveMatch: true,
 				},
 				{
-					title: t('staff-invitations'),
+					title: t('invitations'),
 					path: FRONT_PATH_NAMES.staff.invitations.root,
 					icon: ICONS.mail,
 					deepActiveMatch: true,

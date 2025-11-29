@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router';
+
 import { View500 } from '@/front/components/error';
 
 const PageLayout = () => {

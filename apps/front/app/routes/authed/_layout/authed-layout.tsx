@@ -5,6 +5,7 @@ import _ from 'lodash';
 import { type ReactNode, Suspense } from 'react';
 import { Outlet, redirect } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
+
 import { View500 } from '@/front/components/error';
 import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
 import { SplashScreen } from '@/front/components/loading-screen';
@@ -37,6 +38,7 @@ import {
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
+
 import type { Route } from './+types/authed-layout';
 
 /**

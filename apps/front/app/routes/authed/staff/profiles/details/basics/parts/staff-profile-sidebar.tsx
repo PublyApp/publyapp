@@ -1,5 +1,6 @@
 import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
+
 import { Label } from '@/front/components/label/label';
 import { navSectionCssVars } from '@/front/components/nav-section/styles/css-vars';
 import type { NavSectionProps } from '@/front/components/nav-section/types';
