@@ -4,7 +4,7 @@ using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Shared.Invitation.Handlers;
 
-namespace MainApi.Src.Modules.Shared.Invitation;
+namespace MainApi.Src.Modules.Shared.Invitations;
 
 public static class InvitationEndpoints {
 	public static IEndpointRouteBuilder MapInvitationAnonymousEndpoints(

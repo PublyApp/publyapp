@@ -3,12 +3,12 @@ using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Modules.Tenant.Product;
-using MainApi.Src.Modules.Staff.Invitation;
 using MainApi.Src.Modules.Staff.StaffMember;
 using MainApi.Src.Modules.Staff.TenantAsStaff;
 using MainApi.Src.Modules.Staff.ProfileAsStaff;
 using MainApi.Src.Modules.Staff.PermissionAsStaff;
-using MainApi.Src.Modules.Shared.Invitation;
+using MainApi.Src.Modules.Staff.InvitationsAsStaff;
+using MainApi.Src.Modules.Shared.Invitations;
 
 AppEnvironment.LoadEnv(); // ! must be called before anything else
 

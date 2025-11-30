@@ -1,12 +1,12 @@
 using MainApi.Localization;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Shared.Invitation;
-using MainApi.Src.Modules.Staff.AuditLog;
+using MainApi.Src.Modules.Staff.AuditLogs;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Modules.Staff.Invitation.Handlers;
+namespace MainApi.Src.Modules.Staff.InvitationsAsStaff.Handlers;
 
 public static class RevokeInvitation {
 	public static async Task<Results<

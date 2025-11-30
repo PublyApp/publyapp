@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;
-using MainApi.Src.Modules.Staff.AuditLog;
+using MainApi.Src.Modules.Staff.AuditLogs;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;

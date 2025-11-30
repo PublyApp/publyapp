@@ -2,7 +2,7 @@ using System.Text.Json;
 using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Modules.Shared.Auth;
-using MainApi.Src.Modules.Staff.AuditLog;
+using MainApi.Src.Modules.Staff.AuditLogs;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;

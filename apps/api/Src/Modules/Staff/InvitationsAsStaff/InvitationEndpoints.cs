@@ -1,10 +1,10 @@
-using MainApi.Src.Modules.Staff.Invitation.Handlers;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Staff.InvitationsAsStaff.Handlers;
 
-namespace MainApi.Src.Modules.Staff.Invitation;
+namespace MainApi.Src.Modules.Staff.InvitationsAsStaff;
 
 public static class InvitationEndpoints {
 	public static IEndpointRouteBuilder MapInvitationAsStaffEndpoints(

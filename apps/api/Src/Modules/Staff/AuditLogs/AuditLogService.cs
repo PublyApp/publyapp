@@ -1,7 +1,7 @@
 using System.Text.Json;
 using MainApi.Src.Data.DbContext;
 
-namespace MainApi.Src.Modules.Staff.AuditLog;
+namespace MainApi.Src.Modules.Staff.AuditLogs;
 
 public interface IAuditLogService {
 	Task LogAsync(
