@@ -1,9 +1,15 @@
+import * as cookie from 'cookie';
 import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
 
 import { delay } from '@org/shared/utils/any.utils';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
+import type { BulkStaffInvitationsCreated } from '@/js-client/src/models';
+import {
+	SESSION_TOKEN_COOKIE_KEY,
+	SESSION_TOKEN_HEADER_KEY,
+} from '@/shared/lib/constants';
 
 import { getQueryKey } from '../../query-utils';
 
@@ -87,13 +93,26 @@ const bulkCreateInvitationsMutationKey = getQueryKey<ApiClient>(
 export const useBulkCreateInvitations = createMutation({
 	mutationKey: [bulkCreateInvitationsMutationKey] as const,
 	mutationFn: async (data: BulkCreateInvitationsPayload) => {
-		const result = await clientManager.apiClient.staff.invitations.bulk.post({
-			invitations: {
-				getValue: () => {
-					return data.invitations;
-				},
+		// const result = await
+		const reqInfo =
+			clientManager.apiClient.staff.invitations.bulk.toPostRequestInformation(
+				{},
+			);
+		const browserCookies = cookie.parse(document.cookie);
+		const sessionToken = browserCookies[SESSION_TOKEN_COOKIE_KEY];
+
+		const response = await fetch(reqInfo.URL, {
+			method: reqInfo.httpMethod,
+			body: JSON.stringify({
+				invitations: data.invitations,
+			}),
+			headers: {
+				'Content-Type': 'application/json',
+				[SESSION_TOKEN_HEADER_KEY]: sessionToken || '',
 			},
 		});
+		const result: BulkStaffInvitationsCreated | undefined =
+			await response.json();
 
 		if (_.isNil(result)) {
 			throw new Error(`[${bulkCreateInvitationsMutationKey}]: result is nil`);
