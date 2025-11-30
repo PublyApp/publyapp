@@ -200,7 +200,6 @@ public class CreateStaffMember {
 	> HandleCreateStaffMember(
 		[FromBody] CreateStaffMemberBody body,
 		[FromServices] IUserService userService,
-		[FromServices] IPasswordService passwordService,
 		[FromServices] IAccountService accountService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IOptions<AppSettings> appSettings,
@@ -208,7 +207,7 @@ public class CreateStaffMember {
 		CancellationToken cancellationToken
 	) {
 		var password = CryptoUtils.RandomString(appSettings.Value.PASSWORD_MIN_LENGTH);
-		password = passwordService.HashPassword(password);
+		password = PasswordUtils.HashPassword(password);
 
 		var user = new User {
 			Email = body.GetEmail(),

@@ -54,14 +54,13 @@ public static class PasswordRegister {
 	>> HandlePasswordRegister(
 		[FromBody] PasswordRegisterBody registerBody,
 		[FromServices] IUserService userService,
-		[FromServices] IPasswordService passwordService,
 		CancellationToken cancellationToken
 ) {
 		var email = registerBody.GetEmail();
 		var password = registerBody.GetPassword();
 
 		// hash the password
-		password = passwordService.HashPassword(password);
+		password = PasswordUtils.HashPassword(password);
 
 		var newUser = new MainApi.Src.Modules.Shared.Users.User {
 			Email = email,

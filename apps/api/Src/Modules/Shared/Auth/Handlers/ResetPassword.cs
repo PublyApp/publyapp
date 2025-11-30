@@ -111,7 +111,6 @@ public class ResetPassword {
 	> HandleResetPassword(
 		[FromBody] ResetPasswordBody body,
 		[FromServices] IUserService userService,
-		[FromServices] IPasswordService passwordService,
 		[FromServices] IEmailService emailService,
 		[FromServices] ILogger<ResetPassword> logger,
 		CancellationToken cancellationToken
@@ -159,7 +158,7 @@ public class ResetPassword {
 		}
 
 		// Hash new password
-		var hashedPassword = passwordService.HashPassword(newPassword);
+		var hashedPassword = PasswordUtils.HashPassword(newPassword);
 
 		// Update user
 		user.Password = hashedPassword;

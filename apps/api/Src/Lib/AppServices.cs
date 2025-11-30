@@ -78,7 +78,6 @@ public static class AppServices {
 
 		// scoped services
 		builder.Services.AddScoped<IUserService, UserService>();
-		builder.Services.AddScoped<IPasswordService, PasswordService>();
 		builder.Services.AddScoped<ISessionService, SessionService>();
 		builder.Services.AddScoped<ITenantAsStaffService, TenantAsStaffService>();
 		builder.Services.AddScoped<IProductService, ProductService>();
