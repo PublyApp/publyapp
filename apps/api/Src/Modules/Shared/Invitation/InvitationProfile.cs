@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using ProfileEntity = MainApi.Src.Modules.Shared.Profiles.Profile;
 
-namespace MainApi.Src.Modules.Shared.Invitations;
+namespace MainApi.Src.Modules.Shared.Invitation;
 
 [Table("invitation_profiles")]
 public class InvitationProfile : INoTenantEntity {

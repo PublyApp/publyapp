@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using UserEntity = MainApi.Src.Modules.Shared.Users.User;
 
-namespace MainApi.Src.Modules.Shared.Invitations;
+namespace MainApi.Src.Modules.Shared.Invitation;
 
 public interface IInvitationService {
 	Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(

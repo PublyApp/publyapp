@@ -1,11 +1,11 @@
 using MainApi.Localization;
 using MainApi.Src.Modules.Shared.Users;
-using MainApi.Src.Modules.Shared.Invitations;
+using MainApi.Src.Modules.Shared.Invitation;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Modules.Staff.Invitations.Handlers;
+namespace MainApi.Src.Modules.Staff.Invitation.Handlers;
 
 public static class FindStaffInvitations {
 	public static async Task<Results<
