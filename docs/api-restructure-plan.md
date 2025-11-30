@@ -39,10 +39,9 @@ apps/api/Src/
 │   │   │
 │   │   ├── Auth/                        # Vertical slice: Auth module
 │   │   │   ├── Session.cs               # Entity
-│   │   │   ├── PasswordService.cs       # Service
-│   │   │   ├── EmailService.cs          # Service
-│   │   │   ├── AuthService.cs           # Service
-│   │   │   ├── AuthUtils.cs             # Utilities
+│   │   │   ├── PasswordService.cs       # Auth business logic
+│   │   │   ├── AuthService.cs           # Auth business logic
+│   │   │   ├── AuthUtils.cs             # Auth utilities
 │   │   │   ├── AuthEndpoint.cs          # Endpoints
 │   │   │   └── Handlers/                # Auth handlers
 │   │   │       ├── PasswordLogin.cs
@@ -54,6 +53,7 @@ apps/api/Src/
 │   │   │       ├── GetTenantAuthData.cs
 │   │   │       ├── CheckEmailVerificationToken.cs
 │   │   │       ├── CheckResetPasswordToken.cs
+│   │   │       ├── CheckInvitationToken.cs
 │   │   │       └── GetVerificationLink.cs
 │   │   │
 │   │   ├── Invitations/                 # Vertical slice: Invitation module
@@ -77,8 +77,15 @@ apps/api/Src/
 │   │   │   ├── Project.cs               # Entity
 │   │   │   └── Handlers/                # Project operations (if any)
 │   │   │
-│   │   └── Sessions/                    # Vertical slice: Session module (if separate)
-│   │       └── Session.cs               # Or move to Auth/
+│   │   └── Infrastructure/              # Architectural/infrastructure services
+│   │       ├── Messaging/               # Communication services
+│   │       │   ├── Email/
+│   │       │   │   ├── IEmailService.cs
+│   │       │   │   └── EmailService.cs
+│   │       │   └── Sms/                 # (Future) SMS services
+│   │       ├── Storage/                 # (Future) File storage services
+│   │       ├── Caching/                 # (Future) Cache services
+│   │       └── Audit/                   # (Future) Cross-scope audit if needed
 │   │
 │   ├── Staff/                           # Staff scope (unchanged)
 │   │   ├── ProfileAsStaff/
@@ -150,7 +157,82 @@ git mv apps/api/Src/Modules/Common apps/api/Src/Modules/Shared
 
 **Why this matters**: When working on a module, you have ALL related entities (including junctions) in one place. For example, when working on the Users module, you see both `UserAccount` and `UserAccountProfile` together.
 
-### 4. Organize `Shared/` into Domain Modules
+### 4. Infrastructure Services (No Entity) Placement Rules
+
+**Problem**: Some services don't have entities (e.g., EmailService, SmsService, FileStorageService). Where should they live in a vertical slice architecture?
+
+**Solution**: Create `Modules/Shared/Infrastructure/` immediately for all architectural/infrastructure concerns.
+
+#### Infrastructure Module Structure
+
+Create this structure from the start to maintain clear separation between domain modules and infrastructure services:
+
+```
+Modules/Shared/Infrastructure/
+├── Messaging/
+│   ├── Email/
+│   │   ├── IEmailService.cs         # Interface
+│   │   └── EmailService.cs          # Implementation (Resend adapter)
+│   └── Sms/                          # (Future) SMS services
+│       ├── ISmsService.cs
+│       └── TwilioSmsService.cs
+├── Storage/                          # (Future) File storage
+│   ├── IFileStorageService.cs
+│   └── S3FileStorageService.cs
+├── Caching/                          # (Future) Cache services
+│   ├── ICacheService.cs
+│   └── RedisCacheService.cs
+└── Audit/                            # (Future) If used cross-scope
+    ├── IAuditLogService.cs
+    └── AuditLogService.cs
+```
+
+#### Placement Rules
+
+| Service Type | Location | Example |
+|--------------|----------|---------|
+| **Infrastructure/architectural concerns** | `Infrastructure/` | EmailService, SmsService, FileStorageService, CacheService |
+| **Domain business logic** | Domain module folder | UserService, InvitationService, ProductService |
+| **Pure utilities (stateless)** | `Lib/` | StringHelpers, DateTimeExtensions |
+
+#### Why Infrastructure Folder from the Start?
+
+1. **Clear separation of concerns**: Domain modules contain business logic, Infrastructure contains technical services
+2. **Better discoverability**: All infrastructure services in one place
+3. **Easier testing**: Mock all infrastructure at once
+4. **Scalability**: Easy to add new infrastructure services without cluttering domain modules
+5. **Architecture clarity**: Makes it obvious what's domain vs infrastructure
+
+#### Current Services to Move
+
+**✅ Move to Infrastructure**:
+- **EmailService** → `Modules/Shared/Infrastructure/Messaging/Email/`
+  - Sends transactional emails (welcome, verification, password reset, invitations)
+  - Technical concern, not domain logic
+
+**✅ Keep in Domain Modules** (business logic):
+- **PasswordService** → `Modules/Shared/Auth/` (password hashing/validation logic)
+- **AuthService** → `Modules/Shared/Auth/` (authentication business logic)
+- **UserService** → `Modules/Shared/Users/` (user business logic)
+- **InvitationService** → `Modules/Shared/Invitations/` (invitation business logic)
+
+**✅ Keep in Scope Modules** (scope-specific logic):
+- **ImpersonationService** → `Modules/Staff/Impersonation/` (staff-only feature)
+- **AuditLogService** → `Modules/Staff/Audit/` (currently staff-only; move to Infrastructure if used by Tenant scope later)
+
+#### Key Principle
+
+**Infrastructure folder = Technical/architectural services that provide capabilities TO domain modules**
+
+Examples:
+- ✅ EmailService (sends emails FOR auth, invitations, etc.)
+- ✅ SmsService (sends SMS FOR 2FA, notifications, etc.)
+- ✅ FileStorageService (stores files FOR users, products, etc.)
+- ✅ CacheService (caches data FOR any module)
+- ❌ UserService (user business logic, not infrastructure)
+- ❌ InvitationService (invitation business logic, not infrastructure)
+
+### 5. Organize `Shared/` into Domain Modules
 
 **Rationale**: Each domain module is a vertical slice containing everything related
 
@@ -225,7 +307,7 @@ git mv apps/api/Src/Modules/Shared/Invitation/* apps/api/Src/Modules/Shared/Invi
 # Note: InvitationProfile (junction entity) lives here because Invitation is the primary entity
 ```
 
-### 5. Update AGENTS.md to Enforce New Structure
+### 6. Update AGENTS.md to Enforce New Structure
 
 **Rationale**: AGENTS.md guides AI assistants through the codebase. Updating it enforces the new structure and ensures consistency.
 
@@ -265,7 +347,7 @@ git mv apps/api/Src/Modules/Shared/Invitation/* apps/api/Src/Modules/Shared/Invi
 - New developers understand the organization
 - The structure is self-documenting
 
-### 6. Delete Empty Old Folders
+### 7. Delete Empty Old Folders
 
 ```bash
 # Remove old singular-named folders
@@ -280,7 +362,7 @@ rm -rf apps/api/Src/Modules/Shared/Email
 rm -rf apps/api/Src/Modules/Shared/Invitation
 ```
 
-### 7. Delete Unused Service Files
+### 8. Delete Unused Service Files
 
 **Check and delete if unused**:
 ```bash
@@ -308,12 +390,19 @@ git mv apps/api/Src/Modules/Common apps/api/Src/Modules/Shared
 ### Phase 2: Create New Module Folders (2 minutes)
 
 ```bash
+# Domain modules
 mkdir apps/api/Src/Modules/Shared/Users
 mkdir apps/api/Src/Modules/Shared/Profiles
 mkdir apps/api/Src/Modules/Shared/Permissions
 mkdir apps/api/Src/Modules/Shared/Tenants
 mkdir apps/api/Src/Modules/Shared/Projects
 mkdir apps/api/Src/Modules/Shared/Invitations
+
+# Infrastructure folders
+mkdir -p apps/api/Src/Modules/Shared/Infrastructure/Messaging/Email
+mkdir -p apps/api/Src/Modules/Shared/Infrastructure/Messaging/Sms
+mkdir -p apps/api/Src/Modules/Shared/Infrastructure/Storage
+mkdir -p apps/api/Src/Modules/Shared/Infrastructure/Caching
 ```
 
 ### Phase 3: Move Files into Modules (20 minutes)
@@ -384,11 +473,19 @@ git mv apps/api/Src/Modules/Shared/Invitation/* apps/api/Src/Modules/Shared/Invi
 
 #### Auth Module (reorganize)
 ```bash
-# Move Session and Email into Auth
+# Move Session into Auth
 git mv apps/api/Src/Modules/Shared/Session/Session.cs apps/api/Src/Modules/Shared/Auth/ 2>/dev/null || true
-git mv apps/api/Src/Modules/Shared/Email/EmailService.cs apps/api/Src/Modules/Shared/Auth/ 2>/dev/null || true
 
 # Auth namespace stays: MainApi.Src.Modules.Shared.Auth;
+```
+
+#### Infrastructure Module (create and populate)
+```bash
+# Move EmailService to Infrastructure
+git mv apps/api/Src/Modules/Shared/Email/IEmailService.cs apps/api/Src/Modules/Shared/Infrastructure/Messaging/Email/ 2>/dev/null || true
+git mv apps/api/Src/Modules/Shared/Email/EmailService.cs apps/api/Src/Modules/Shared/Infrastructure/Messaging/Email/ 2>/dev/null || true
+
+# Update namespace: MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;
 ```
 
 ### Phase 4: Update Namespaces in Moved Files (15 minutes)
@@ -427,7 +524,7 @@ rm -rf apps/api/Src/Modules/Shared/Permission
 rm -rf apps/api/Src/Modules/Shared/Tenant
 rm -rf apps/api/Src/Modules/Shared/Project
 rm -rf apps/api/Src/Modules/Shared/Session
-rm -rf apps/api/Src/Modules/Shared/Email
+rm -rf apps/api/Src/Modules/Shared/Email  # Moved to Infrastructure/Messaging/Email/
 rm -rf apps/api/Src/Modules/Shared/Invitation
 ```
 
@@ -452,7 +549,7 @@ Get-ChildItem -Path "apps/api/Src" -Filter "*.cs" -Recurse | ForEach-Object {
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Tenant;', 'using MainApi.Src.Modules.Shared.Tenants;'
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Project;', 'using MainApi.Src.Modules.Shared.Projects;'
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Invitation;', 'using MainApi.Src.Modules.Shared.Invitations;'
-    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Email;', 'using MainApi.Src.Modules.Shared.Auth;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Email;', 'using MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;'
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Session;', 'using MainApi.Src.Modules.Shared.Auth;'
     $content | Set-Content $_.FullName
 }
@@ -511,12 +608,23 @@ make dev-api
    ### Module Examples
    - `Modules/Shared/Users/` - User and UserAccount entities, seeders, handlers
    - `Modules/Shared/Profiles/` - Profile entity, ProfilePermission junction, seeders
-   - `Modules/Shared/Auth/` - Authentication entities, services, handlers
+   - `Modules/Shared/Auth/` - Authentication entities, services (PasswordService, AuthService), handlers
    - `Modules/Shared/Invitations/` - Invitation entity, InvitationProfile junction
+   - `Modules/Shared/Infrastructure/` - Architectural services (EmailService, future: SmsService, FileStorageService)
 
    ### Junction Entity Rule
    - Junction entities live with their PRIMARY entity
    - Example: `UserAccountProfile` → lives in `Users/` (primary: UserAccount)
+
+   ### Infrastructure Services Placement Rules
+   - **Infrastructure folder**: Technical/architectural services that provide capabilities to domain modules
+     - Example: `EmailService` → `Infrastructure/Messaging/Email/` (sends emails FOR auth, invitations, etc.)
+     - Example: `SmsService` → `Infrastructure/Messaging/Sms/` (sends SMS FOR 2FA, notifications, etc.)
+     - Example: `FileStorageService` → `Infrastructure/Storage/` (stores files FOR users, products, etc.)
+   - **Domain modules**: Business logic services specific to that domain
+     - Example: `PasswordService` → `Auth/` (password hashing/validation)
+     - Example: `UserService` → `Users/` (user business logic)
+   - **Pure utilities**: Stateless helpers without dependencies → `Lib/`
 
    ### Scopes
    - `Modules/Shared/` - Cross-scope functionality (used by both Staff and Tenant)
@@ -530,6 +638,11 @@ make dev-api
    - New shared entity? → Create module in `Modules/Shared/`
    - Staff operation? → Add to `Modules/Staff/`
    - Tenant operation? → Add to `Modules/Tenant/`
+   - New infrastructure service? → Add to `Modules/Shared/Infrastructure/`
+     - Email/SMS → `Infrastructure/Messaging/`
+     - File storage → `Infrastructure/Storage/`
+     - Caching → `Infrastructure/Caching/`
+   - New domain business logic? → Add to appropriate domain module
 
 **This ensures all future AI assistance and development follows the structure.**
 
@@ -573,6 +686,7 @@ Update references in:
 - [ ] All `Common/` references changed to `Shared/`
 - [ ] Module structure rules section added
 - [ ] Junction entity placement rule documented
+- [ ] Infrastructure services placement rules documented
 - [ ] "Where to Put New Code" guidelines added
 - [ ] Architecture diagrams updated (if present)
 - [ ] Vertical slice principles clearly explained
@@ -658,6 +772,7 @@ If issues occur during refactoring:
 - ❌ `Common/` → ✅ `Shared/`
 - ❌ Singular folder names (`User/`, `Profile/`) → ✅ Plural (`Users/`, `Profiles/`)
 - ❌ Files scattered across entity folders → ✅ Everything grouped by domain module
+- ✅ **NEW**: Clear rules for services without entities (EmailService → Auth/)
 
 **What's NOT changing**:
 - ✅ Vertical slice principles (maintained and improved)
