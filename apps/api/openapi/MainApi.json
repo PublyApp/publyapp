@@ -672,7 +672,7 @@
         }
       }
     },
-    "/invitations/check-invitation-token": {
+    "/invitations/check": {
       "get": {
         "tags": [
           "Invitations (Anonymous)"

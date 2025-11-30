@@ -27,10 +27,7 @@ public static class RoutePath {
 		public static string AcceptByTokenFn(string token) {
 			return PathUtils.Join(RoutePath.Invitations.Root, $"/{token}/accept");
 		}
-		public static readonly string CheckInvitationToken = PathUtils.Join(RoutePath.Invitations.Root, "/check-invitation-token");
-		public static string CheckInvitationTokenFn(string token) {
-			return PathUtils.Join(RoutePath.Invitations.Root, $"/check-invitation-token");
-		}
+		public static readonly string Check = PathUtils.Join(RoutePath.Invitations.Root, "/check");
 	}
 	public static class Staff {
 		public static readonly string Root = "/staff";
