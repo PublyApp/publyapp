@@ -12,7 +12,7 @@ namespace MainApi.Src.Modules.Shared.Users;
 /// </summary>
 public class UserSeeder : IEntitySeeder {
 	private static readonly Lazy<string> CachedSeedPassword = new(
-		() => new PasswordService().HashPassword("ChangeMe123!@3#lol"),
+		() => PasswordUtils.HashPassword("ChangeMe123!@3#lol"),
 		LazyThreadSafetyMode.ExecutionAndPublication
 	);
 

@@ -68,7 +68,6 @@ public class PasswordLogin {
 		[FromBody] PasswordLoginBody loginBody,
 		[FromServices] IUserService userService,
 		[FromServices] ISessionService sessionService,
-		[FromServices] IPasswordService passwordService,
 		CancellationToken cancellationToken
 	) {
 		// Get validated string values
@@ -106,7 +105,7 @@ public class PasswordLogin {
 		}
 
 		// Verify the password
-		if (!passwordService.VerifyPassword(password, user.Password)) {
+		if (PasswordUtils.VerifyPassword(password, user.Password) is false) {
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"Invalid email or password",
 				ResponseKeys.InvalidEmailOrPassword

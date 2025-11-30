@@ -55,7 +55,6 @@ public static class AcceptInvitation {
 		[FromRoute] string token,
 		[FromBody] AcceptInvitationBody request,
 		[FromServices] IInvitationService invitationService,
-		[FromServices] IPasswordService passwordService,
 		[FromServices] ISessionService sessionService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
@@ -92,7 +91,7 @@ public static class AcceptInvitation {
 		var password = request.Password.GetString()!;
 
 		// Handler orchestrates multiple services
-		var passwordHash = passwordService.HashPassword(password);
+		var passwordHash = PasswordUtils.HashPassword(password);
 
 		var user = await invitationService.AcceptStaffInvitationAsync(
 			invitation,
