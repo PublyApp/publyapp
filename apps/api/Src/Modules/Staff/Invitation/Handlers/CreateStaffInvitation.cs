@@ -3,14 +3,14 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;
-using MainApi.Src.Modules.Shared.Invitations;
+using MainApi.Src.Modules.Shared.Invitation;
 using MainApi.Src.Modules.Staff.Audit;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Polly;
 
-namespace MainApi.Src.Modules.Staff.Invitations.Handlers;
+namespace MainApi.Src.Modules.Staff.Invitation.Handlers;
 
 public record CreateStaffInvitationBody {
 	public required JsonElement Email { get; init; }

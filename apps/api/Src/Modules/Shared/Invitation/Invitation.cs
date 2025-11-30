@@ -6,7 +6,7 @@ using ProjectEntity = MainApi.Src.Modules.Shared.Projects.Project;
 using TenantEntity = MainApi.Src.Modules.Shared.Tenants.Tenant;
 using UserEntity = MainApi.Src.Modules.Shared.Users.User;
 
-namespace MainApi.Src.Modules.Shared.Invitations;
+namespace MainApi.Src.Modules.Shared.Invitation;
 
 [Table("invitations")]
 [Index(nameof(Email), nameof(Scope), nameof(IsAccepted))]

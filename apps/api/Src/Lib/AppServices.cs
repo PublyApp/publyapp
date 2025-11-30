@@ -8,7 +8,7 @@ using MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;
 using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Profiles;
 using MainApi.Src.Modules.Shared.Tenants;
-using MainApi.Src.Modules.Shared.Invitations;
+using MainApi.Src.Modules.Shared.Invitation;
 using MainApi.Src.Modules.Staff.Audit;
 using MainApi.Src.Modules.Staff.Impersonation;
 using MainApi.Src.Modules.Staff.StaffMember;

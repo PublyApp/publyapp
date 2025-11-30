@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using UserEntity = MainApi.Src.Modules.Shared.Users.User;
 
-namespace MainApi.Src.Modules.Staff.Notice;
+namespace MainApi.Src.Modules.Staff.SystemNotice;
 
 [Table("system_notices")]
 [Index(nameof(StartsAt), nameof(ExpiresAt))]

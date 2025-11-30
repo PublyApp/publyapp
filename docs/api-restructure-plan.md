@@ -548,7 +548,7 @@ Get-ChildItem -Path "apps/api/Src" -Filter "*.cs" -Recurse | ForEach-Object {
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Permission;', 'using MainApi.Src.Modules.Shared.Permissions;'
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Tenant;', 'using MainApi.Src.Modules.Shared.Tenants;'
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Project;', 'using MainApi.Src.Modules.Shared.Projects;'
-    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Invitation;', 'using MainApi.Src.Modules.Shared.Invitations;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Invitation;', 'using MainApi.Src.Modules.Shared.Invitation;'
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Email;', 'using MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;'
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Session;', 'using MainApi.Src.Modules.Shared.Auth;'
     $content | Set-Content $_.FullName

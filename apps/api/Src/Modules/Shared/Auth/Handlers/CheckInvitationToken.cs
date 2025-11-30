@@ -1,6 +1,6 @@
 using FluentValidation;
 using MainApi.Localization;
-using MainApi.Src.Modules.Shared.Invitations;
+using MainApi.Src.Modules.Shared.Invitation;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
 using Microsoft.AspNetCore.Http.HttpResults;
