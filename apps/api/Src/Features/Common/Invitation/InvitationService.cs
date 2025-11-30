@@ -441,8 +441,10 @@ public class InvitationService : IInvitationService {
 	) {
 		var validProfileIds = await (
 			from p in _dbContext.Profile.AsNoTracking()
-			where profileIds.Contains(p.Id) && p.Scope == ProfileScope.Staff
-			select p.Id
+			where p.Id != null
+				&& profileIds.Contains(p.Id.Value)
+				&& p.Scope == ProfileScope.Staff
+			select p.Id!.Value
 		).ToListAsync(cancellationToken);
 
 		return validProfileIds;
