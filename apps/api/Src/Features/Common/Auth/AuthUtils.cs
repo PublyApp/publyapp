@@ -12,7 +12,7 @@ public static class AuthUtils {
 
 		var queryParams = new Dictionary<string, string?> {
 			["token"] = token,
-			["id"] = CryptoUtils.EncryptString(email)
+			["id"] = CryptoUtils.EncryptString(email).ToLowerInvariant()
 		};
 
 		var url = QueryHelpers.AddQueryString(builder.Uri.ToString(), queryParams);
@@ -27,7 +27,7 @@ public static class AuthUtils {
 
 		var queryParams = new Dictionary<string, string?> {
 			["token"] = token,
-			["id"] = CryptoUtils.EncryptString(email)
+			["id"] = CryptoUtils.EncryptString(email).ToLowerInvariant()
 		};
 
 		var url = QueryHelpers.AddQueryString(builder.Uri.ToString(), queryParams);
@@ -50,7 +50,7 @@ public static class AuthUtils {
 
 		var queryParams = new Dictionary<string, string?> {
 			["token"] = token,
-			["id"] = CryptoUtils.EncryptString(email)
+			["id"] = CryptoUtils.EncryptString(email).ToLowerInvariant()
 		};
 
 		var url = QueryHelpers.AddQueryString(builder.Uri.ToString(), queryParams);

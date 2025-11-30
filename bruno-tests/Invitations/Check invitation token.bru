@@ -1,0 +1,21 @@
+meta {
+  name: Check invitation token
+  type: http
+  seq: 2
+}
+
+get {
+  url: http://localhost:5000/auth/check-invitation-token?Id=plVPV9GGPvBwPVxdmo07z2HHvreSnOGWFPan6acnYxL-xIp-yobZhU5oDGY4pxxLqA&Token=7gQreADqUKDmLSdQJQSfo3805BdxJCJd
+  body: none
+  auth: inherit
+}
+
+params:query {
+  Id: plVPV9GGPvBwPVxdmo07z2HHvreSnOGWFPan6acnYxL-xIp-yobZhU5oDGY4pxxLqA
+  Token: 7gQreADqUKDmLSdQJQSfo3805BdxJCJd
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

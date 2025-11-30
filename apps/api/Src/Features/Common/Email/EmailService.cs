@@ -150,6 +150,7 @@ public class EmailService : IEmailService {
 	// used when a user is invited to join the staff of our app
 	public async Task SendInvitationToJoinStaffEmailAsync(string email, string token) {
 		var invitationUrl = AuthUtils.CreateAcceptInvitationUrl(token, email);
+
 		await _emailSender.SendAsync(new EmailRequest {
 			To = email,
 			From = $"{_appSettings.Value.DEFAULT_EMAIL_SENDER_NAME} <{_appSettings.Value.DEFAULT_EMAIL_SENDER_EMAIL}>",

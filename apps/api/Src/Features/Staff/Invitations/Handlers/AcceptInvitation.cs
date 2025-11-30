@@ -63,7 +63,7 @@ public static class AcceptInvitation {
 		CancellationToken cancellationToken = default
 	) {
 		// Validate invitation
-		var invitation = await invitationService.ValidateInvitationTokenAsync(
+		var invitation = await invitationService.GetInvitationByTokenAsync(
 			token,
 			cancellationToken
 		);

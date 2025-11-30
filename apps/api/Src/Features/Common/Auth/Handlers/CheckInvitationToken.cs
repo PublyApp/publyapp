@@ -29,7 +29,7 @@ public class CheckInvitationTokenResult {
 	public string Email { get; set; } = string.Empty;
 }
 
-public class CheckInvitationToken {
+public static class CheckInvitationToken {
 	public static async Task<
 		Results<
 			Ok<CheckInvitationTokenResult>,
@@ -38,24 +38,27 @@ public class CheckInvitationToken {
 	> HandleCheckInvitationToken(
 		[AsParameters] CheckInvitationTokenQuery query,
 		[FromServices] IInvitationService invitationService,
+		[FromServices] ILoggerFactory loggerFactory,
 		CancellationToken cancellationToken
 	) {
+		var logger = loggerFactory.CreateLogger(nameof(CheckInvitationToken));
+
 		string id = query.Id;
 		string token = query.Token;
 
 		// Decrypt the ID to get email
 		string email;
 		try {
-			email = CryptoUtils.DecryptString(id);
+			email = CryptoUtils.DecryptString(id).ToLowerInvariant();
 		} catch {
 			return TypedResults.BadRequest(ApiResponse.Create(
-				"Invalid or expired password reset token",
-				ResponseKeys.InvalidPasswordResetToken
+				"Invalid or expired invitation token",
+				ResponseKeys.InvalidInvitationToken
 			));
 		}
 
-		// Query user by email and password reset token
-		var invitation = await invitationService.ValidateInvitationTokenAsync(token, cancellationToken);
+		// Query invitation by token
+		var invitation = await invitationService.GetInvitationByTokenAsync(token, cancellationToken);
 
 		if (invitation is null) {
 			return TypedResults.BadRequest(ApiResponse.Create(
@@ -65,9 +68,13 @@ public class CheckInvitationToken {
 		}
 
 		// check if invitation is for the given email
-		if (invitation.Email != email) {
+		if (string.Equals(invitation.Email, email, StringComparison.OrdinalIgnoreCase) is false) {
+			logger.LogDebug("Invalid invitation token: @{LogData}", new {
+				Email = email,
+				InvitationEmail = invitation.Email,
+			});
 			return TypedResults.BadRequest(ApiResponse.Create(
-				"Invalid invitation token",
+				"Invalid or expired invitation token",
 				ResponseKeys.InvalidInvitationToken
 			));
 		}

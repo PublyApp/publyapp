@@ -51,7 +51,7 @@ public class CheckEmailVerificationToken {
 		// Decrypt the ID to get email
 		string email;
 		try {
-			email = CryptoUtils.DecryptString(id);
+			email = CryptoUtils.DecryptString(id).ToLowerInvariant();
 		} catch {
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"Invalid or expired email verification token",
@@ -59,10 +59,18 @@ public class CheckEmailVerificationToken {
 			));
 		}
 
-		// Query user by email and email verification token
-		var user = await userService.GetUserByEmailAndEmailVerifyTokenAsync(email, token, cancellationToken);
+		// Query user by email verification token
+		var user = await userService.GetUserByEmailVerificationTokenAsync(token, cancellationToken);
 
 		if (user is null) {
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"Invalid or expired email verification token",
+				ResponseKeys.InvalidEmailVerificationToken
+			));
+		}
+
+		// check if token is for the given email
+		if (string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase) is false) {
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"Invalid or expired email verification token",
 				ResponseKeys.InvalidEmailVerificationToken

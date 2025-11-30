@@ -16,6 +16,7 @@ import { useForm } from 'react-hook-form';
 import { redirect, useFetcher, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
 import type { z } from 'zod';
+
 import { Field, Form } from '@/front/components/hook-form';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { RouterLink } from '@/front/components/router-link';
@@ -37,6 +38,7 @@ import {
 import duration from '@/shared/utils/duration.utils';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 import { getAcceptInvitationSchema } from '@/shared/validations/invitation.validations';
+
 import type { Route } from './+types/accept-invitation-page';
 
 const getPageTitle = (t: TFunction, seo?: boolean) => {
