@@ -2,364 +2,469 @@
 
 ## Executive Summary
 
-This document outlines the plan to reorganize `apps/api/Src/Features/` to align with **Vertical Slice Architecture** principles, separating entity definitions, shared services, and context-based features.
+This document outlines the plan to reorganize `apps/api/Src/Features/` to align with **Vertical Slice Architecture** principles, organizing code by scope (Staff/Tenant/Shared) and domain modules.
 
 ## Current Problems
 
-1. **Mixed Concerns**: Entities, services, seeders, and features are all in `Features/Common/`
-2. **Ambiguous "Common"**: Unclear whether it means "shared utilities" or "common entities"
-3. **Namespace Inconsistency**: Entities use `Features.Common.{Entity}` namespace
-4. **DbContext Imports**: MainApiDbContext imports from `Features/Common/*`, violating layering
+1. **Confusing "Features" naming**: Not clear that this is about modules/domains
+2. **Ambiguous "Common"**: Unclear that it means "shared cross-scope modules"
+3. **Otherwise the structure is correct**: We already follow vertical slice principles
+
+## The Real Issue
+
+The current structure is **already correct for vertical slices**. The only problem is **naming confusion**:
+- "Features" sounds like user-facing capabilities, not domain modules
+- "Common" doesn't clearly communicate "shared cross-scope functionality"
 
 ## Target Structure
 
 ```
 apps/api/Src/
-├── Data/
-│   ├── Entities/                        # ✨ NEW - All entity definitions
-│   │   ├── User.cs
-│   │   ├── UserAccount.cs
-│   │   ├── UserAccountProfile.cs
-│   │   ├── Profile.cs
-│   │   ├── ProfilePermission.cs
-│   │   ├── Tenant.cs
-│   │   ├── Project.cs
-│   │   ├── Session.cs
-│   │   ├── Permission.cs
-│   │   └── Product.cs
+├── Modules/                             # ✨ RENAMED from "Features"
+│   ├── Shared/                          # ✨ RENAMED from "Common"
+│   │   ├── Users/                       # Vertical slice: User module
+│   │   │   ├── User.cs                  # Entity
+│   │   │   ├── UserAccount.cs           # Entity
+│   │   │   ├── UserAccountProfile.cs    # Junction entity
+│   │   │   ├── UserSeeder.cs            # Seeder
+│   │   │   ├── UserAccountSeeder.cs     # Seeder
+│   │   │   └── Handlers/                # User-related operations (if any)
+│   │   │
+│   │   ├── Profiles/                    # Vertical slice: Profile module
+│   │   │   ├── Profile.cs               # Entity
+│   │   │   ├── ProfilePermission.cs     # Junction entity
+│   │   │   ├── ProfileSeeder.cs         # Seeder
+│   │   │   ├── StaffProfileSeeder.cs    # Seeder
+│   │   │   └── Handlers/                # Profile operations (if any)
+│   │   │
+│   │   ├── Auth/                        # Vertical slice: Auth module
+│   │   │   ├── Session.cs               # Entity
+│   │   │   ├── PasswordService.cs       # Service
+│   │   │   ├── EmailService.cs          # Service
+│   │   │   ├── AuthService.cs           # Service
+│   │   │   ├── AuthUtils.cs             # Utilities
+│   │   │   ├── AuthEndpoint.cs          # Endpoints
+│   │   │   └── Handlers/                # Auth handlers
+│   │   │       ├── PasswordLogin.cs
+│   │   │       ├── PasswordRegister.cs
+│   │   │       ├── ResetPassword.cs
+│   │   │       ├── VerifyEmailRequest.cs
+│   │   │       ├── GetRedirectCode.cs
+│   │   │       ├── GetUserAuthData.cs
+│   │   │       ├── GetTenantAuthData.cs
+│   │   │       ├── CheckEmailVerificationToken.cs
+│   │   │       ├── CheckResetPasswordToken.cs
+│   │   │       └── GetVerificationLink.cs
+│   │   │
+│   │   ├── Invitations/                 # Vertical slice: Invitation module
+│   │   │   ├── Invitation.cs            # Entity
+│   │   │   ├── InvitationProfile.cs     # Junction entity
+│   │   │   ├── InvitationSeeder.cs      # Seeder (if exists)
+│   │   │   ├── InvitationService.cs     # Service (if exists)
+│   │   │   └── Handlers/                # Invitation operations
+│   │   │
+│   │   ├── Permissions/                 # Vertical slice: Permission module
+│   │   │   ├── Permission.cs            # Entity
+│   │   │   ├── PermissionSeeder.cs      # Seeder
+│   │   │   └── Handlers/                # Permission operations (if any)
+│   │   │
+│   │   ├── Tenants/                     # Vertical slice: Tenant module
+│   │   │   ├── Tenant.cs                # Entity
+│   │   │   ├── TenantSeeder.cs          # Seeder
+│   │   │   └── Handlers/                # Tenant operations (if any)
+│   │   │
+│   │   ├── Projects/                    # Vertical slice: Project module
+│   │   │   ├── Project.cs               # Entity
+│   │   │   └── Handlers/                # Project operations (if any)
+│   │   │
+│   │   └── Sessions/                    # Vertical slice: Session module (if separate)
+│   │       └── Session.cs               # Or move to Auth/
 │   │
-│   ├── Seeders/                         # ✨ NEW - All seeder classes
-│   │   ├── UserSeeder.cs
-│   │   ├── UserAccountSeeder.cs
-│   │   ├── TenantSeeder.cs
-│   │   └── PermissionSeeder.cs
+│   ├── Staff/                           # Staff scope (unchanged)
+│   │   ├── ProfileAsStaff/
+│   │   ├── StaffMember/
+│   │   ├── TenantAsStaff/
+│   │   ├── PermissionAsStaff/
+│   │   └── InvitationAsStaff/
 │   │
-│   ├── DbContext/
-│   │   ├── MainApiDbContext.cs
-│   │   └── TenantExtension.cs
-│   │
-│   ├── BaseAttributes.cs
-│   ├── IEntity.cs
-│   ├── IEntitySeeder.cs
-│   └── DbSetExtensions.cs
+│   └── Tenant/                          # Tenant scope (unchanged)
+│       └── Products/
+│           ├── Product.cs
+│           └── Handlers/
 │
-├── Services/                            # ✨ NEW - Shared/reusable services
-│   ├── EmailService.cs                  # Cross-cutting email service
-│   ├── PasswordService.cs               # Shared password hashing/validation
-│   └── IEmailService.cs                 # Interface for EmailService
-│
-└── Features/
-    ├── Auth/                            # ✨ MOVED from Common/Auth
-    │   ├── Handlers/
-    │   │   ├── PasswordLogin.cs
-    │   │   ├── PasswordRegister.cs
-    │   │   ├── ResetPassword.cs
-    │   │   ├── VerifyEmailRequest.cs
-    │   │   ├── GetRedirectCode.cs
-    │   │   ├── GetUserAuthData.cs
-    │   │   ├── GetTenantAuthData.cs
-    │   │   ├── CheckEmailVerificationToken.cs
-    │   │   ├── CheckResetPasswordToken.cs
-    │   │   └── GetVerificationLink.cs
-    │   ├── AuthService.cs               # Auth-specific business logic
-    │   ├── AuthEndpoint.cs
-    │   └── AuthUtils.cs
-    │
-    ├── Staff/                           # Staff business context (unchanged)
-    │   ├── ProfileAsStaff/
-    │   ├── StaffMember/
-    │   └── TenantAsStaff/
-    │
-    └── Tenant/                          # Tenant business context (unchanged)
-        └── Product/
+└── Data/
+    ├── DbContext/
+    │   ├── MainApiDbContext.cs
+    │   └── TenantExtension.cs
+    ├── BaseAttributes.cs
+    ├── IEntity.cs
+    ├── IEntitySeeder.cs
+    └── DbSetExtensions.cs
 ```
 
 ## Key Changes
 
-### 1. Create `Data/Entities/` for All Entity Definitions
+### 1. Rename `Features/` → `Modules/`
 
-**Rationale**: Entities are data layer concerns, not features
+**Rationale**: "Modules" better conveys domain-based organization
 
-**Files to Move**:
-- `Features/Common/User/User.cs` → `Data/Entities/User.cs`
-- `Features/Common/User/UserService.cs` → ❌ DELETE (unused)
-- `Features/Common/Account/UserAccount.cs` → `Data/Entities/UserAccount.cs`
-- `Features/Common/Account/UserAccountProfile.cs` → `Data/Entities/UserAccountProfile.cs`
-- `Features/Common/Account/AccountService.cs` → ❌ DELETE (unused)
-- `Features/Common/Profile/Profile.cs` → `Data/Entities/Profile.cs`
-- `Features/Common/Profile/ProfilePermission.cs` → `Data/Entities/ProfilePermission.cs`
-- `Features/Common/Profile/ProfileService.cs` → ❌ DELETE (unused)
-- `Features/Common/Tenant/Tenant.cs` → `Data/Entities/Tenant.cs`
-- `Features/Common/Tenant/TenantService.cs` → ❌ DELETE (unused)
-- `Features/Common/Project/Project.cs` → `Data/Entities/Project.cs`
-- `Features/Common/Project/ProjectService.cs` → ❌ DELETE (unused)
-- `Features/Common/Session/Session.cs` → `Data/Entities/Session.cs`
-- `Features/Common/Session/SessionService.cs` → ❌ DELETE (unused)
-- `Features/Common/Permission/Permission.cs` → `Data/Entities/Permission.cs`
-- `Features/Common/Permission/PermissionService.cs` → ❌ DELETE (unused)
-- `Features/Tenant/Product/Product.cs` → `Data/Entities/Product.cs` (if entity-only)
+**Action**:
+```bash
+git mv apps/api/Src/Features apps/api/Src/Modules
+```
 
-**Namespace Changes**:
+**Namespace Change**:
 ```csharp
 // OLD
 namespace MainApi.Src.Features.Common.User;
 
 // NEW
-namespace MainApi.Src.Data.Entities;
+namespace MainApi.Src.Modules.Shared.Users;
 ```
 
-### 2. Create `Data/Seeders/` for All Seeder Classes
+### 2. Rename `Common/` → `Shared/`
 
-**Rationale**: Seeders are database initialization logic, not feature logic
+**Rationale**: "Shared" clearly means "shared cross-scope functionality"
 
-**Files to Move**:
-- `Features/Common/User/UserSeeder.cs` → `Data/Seeders/UserSeeder.cs`
-- `Features/Common/Account/UserAccountSeeder.cs` → `Data/Seeders/UserAccountSeeder.cs`
-- `Features/Common/Tenant/TenantSeeder.cs` → `Data/Seeders/TenantSeeder.cs`
-- `Features/Common/Permission/PermissionSeeder.cs` → `Data/Seeders/PermissionSeeder.cs`
-
-**Namespace Changes**:
-```csharp
-// OLD
-namespace MainApi.Src.Features.Common.User;
-
-// NEW
-namespace MainApi.Src.Data.Seeders;
+**Action**:
+```bash
+git mv apps/api/Src/Modules/Common apps/api/Src/Modules/Shared
 ```
 
-### 3. Create `Services/` for Shared Cross-Cutting Services
+### 3. Junction Entity Placement Rule
 
-**Rationale**: Services used across multiple features should be shared utilities
+**IMPORTANT**: Junction entities (many-to-many relationship tables) should live with their **primary entity**.
 
-**Files to Move**:
-- `Features/Common/Email/EmailService.cs` → `Services/EmailService.cs`
-- `Features/Common/Auth/PasswordService.cs` → `Services/PasswordService.cs`
+**Junction Entities in This Project**:
+- **`UserAccountProfile`** (joins UserAccount ↔ Profile)
+  - Primary: `UserAccount`
+  - **Location**: `Modules/Shared/Users/UserAccountProfile.cs`
 
-**Namespace Changes**:
-```csharp
-// OLD
-namespace MainApi.Src.Features.Common.Email;
+- **`ProfilePermission`** (joins Profile ↔ Permission)
+  - Primary: `Profile`
+  - **Location**: `Modules/Shared/Profiles/ProfilePermission.cs`
 
-// NEW
-namespace MainApi.Src.Services;
+- **`InvitationProfile`** (joins Invitation ↔ Profile)
+  - Primary: `Invitation`
+  - **Location**: `Modules/Shared/Invitations/InvitationProfile.cs`
+
+**Why this matters**: When working on a module, you have ALL related entities (including junctions) in one place. For example, when working on the Users module, you see both `UserAccount` and `UserAccountProfile` together.
+
+### 4. Organize `Shared/` into Domain Modules
+
+**Rationale**: Each domain module is a vertical slice containing everything related
+
+**Reorganization**:
+
+#### Create Modules/Shared/Users/
+```bash
+mkdir apps/api/Src/Modules/Shared/Users
+
+# Core entities
+git mv apps/api/Src/Modules/Shared/User/User.cs apps/api/Src/Modules/Shared/Users/
+git mv apps/api/Src/Modules/Shared/Account/UserAccount.cs apps/api/Src/Modules/Shared/Users/
+
+# Junction entity (UserAccount is primary)
+git mv apps/api/Src/Modules/Shared/Account/UserAccountProfile.cs apps/api/Src/Modules/Shared/Users/
+
+# Seeders
+git mv apps/api/Src/Modules/Shared/User/UserSeeder.cs apps/api/Src/Modules/Shared/Users/
+git mv apps/api/Src/Modules/Shared/Account/UserAccountSeeder.cs apps/api/Src/Modules/Shared/Users/
 ```
 
-**Interfaces to Create**:
-```csharp
-// Services/IEmailService.cs
-namespace MainApi.Src.Services;
+#### Create Modules/Shared/Profiles/
+```bash
+mkdir apps/api/Src/Modules/Shared/Profiles
 
-public interface IEmailService {
-    Task SendEmailAsync(string to, string subject, string body, CancellationToken cancellationToken = default);
-    Task SendVerificationEmailAsync(string to, string verificationLink, CancellationToken cancellationToken = default);
-    Task SendPasswordResetEmailAsync(string to, string resetLink, CancellationToken cancellationToken = default);
-}
+# Core entity
+git mv apps/api/Src/Modules/Shared/Profile/Profile.cs apps/api/Src/Modules/Shared/Profiles/
+
+# Junction entity (Profile is primary)
+git mv apps/api/Src/Modules/Shared/Profile/ProfilePermission.cs apps/api/Src/Modules/Shared/Profiles/
+
+# Seeders
+git mv apps/api/Src/Modules/Shared/Profile/ProfileSeeder.cs apps/api/Src/Modules/Shared/Profiles/
+git mv apps/api/Src/Modules/Shared/Profile/StaffProfileSeeder.cs apps/api/Src/Modules/Shared/Profiles/
 ```
 
-### 4. Move `Auth/` Feature Out of `Common/`
-
-**Rationale**: Auth is a feature with endpoints and handlers, not a "common" entity
-
-**Files to Move**:
-- `Features/Common/Auth/` → `Features/Auth/`
-
-**Namespace Changes**:
-```csharp
-// OLD
-namespace MainApi.Src.Features.Common.Auth;
-
-// NEW
-namespace MainApi.Src.Features.Auth;
+#### Create Modules/Shared/Permissions/
+```bash
+mkdir apps/api/Src/Modules/Shared/Permissions
+git mv apps/api/Src/Modules/Shared/Permission/Permission.cs apps/api/Src/Modules/Shared/Permissions/
+git mv apps/api/Src/Modules/Shared/Permission/PermissionSeeder.cs apps/api/Src/Modules/Shared/Permissions/
 ```
 
-**Keep these files**:
-- All handlers in `Auth/Handlers/`
-- `AuthService.cs` (contains business logic)
-- `AuthEndpoint.cs`
-- `AuthUtils.cs`
+#### Create Modules/Shared/Tenants/
+```bash
+mkdir apps/api/Src/Modules/Shared/Tenants
+git mv apps/api/Src/Modules/Shared/Tenant/Tenant.cs apps/api/Src/Modules/Shared/Tenants/
+git mv apps/api/Src/Modules/Shared/Tenant/TenantSeeder.cs apps/api/Src/Modules/Shared/Tenants/
+```
 
-### 5. Delete `Features/Common/` Entirely
+#### Create Modules/Shared/Projects/
+```bash
+mkdir apps/api/Src/Modules/Shared/Projects
+git mv apps/api/Src/Modules/Shared/Project/Project.cs apps/api/Src/Modules/Shared/Projects/
+```
 
-After moving all files, the `Features/Common/` directory should be empty and deleted.
+#### Organize Modules/Shared/Auth/
+```bash
+# Auth already exists, just move services into it
+git mv apps/api/Src/Modules/Shared/Email/EmailService.cs apps/api/Src/Modules/Shared/Auth/
+git mv apps/api/Src/Modules/Shared/Session/Session.cs apps/api/Src/Modules/Shared/Auth/
+# PasswordService should already be in Auth
+```
+
+#### Organize Modules/Shared/Invitations/
+```bash
+mkdir apps/api/Src/Modules/Shared/Invitations
+
+# Move all invitation-related files (includes Invitation entity and InvitationProfile junction)
+git mv apps/api/Src/Modules/Shared/Invitation/* apps/api/Src/Modules/Shared/Invitations/
+
+# Note: InvitationProfile (junction entity) lives here because Invitation is the primary entity
+```
+
+### 5. Update AGENTS.md to Enforce New Structure
+
+**Rationale**: AGENTS.md guides AI assistants through the codebase. Updating it enforces the new structure and ensures consistency.
+
+**Critical Updates Required**:
+
+1. **Update Folder Structure Documentation**:
+   - Change all references from `Features/` to `Modules/`
+   - Change all references from `Common/` to `Shared/`
+   - Document the new module organization (Users, Profiles, Auth, etc.)
+
+2. **Update Entity Location Guidelines**:
+   - Specify that entities live in their module folders
+   - Document junction entity placement rules
+   - Update example paths (e.g., `Modules/Shared/Users/User.cs`)
+
+3. **Add Vertical Slice Enforcement Rules**:
+   ```markdown
+   ## API Module Structure Rules
+
+   - Each module in `Modules/Shared/` is a vertical slice containing:
+     - Entities (*.cs files defining database models)
+     - Junction entities (many-to-many relationships live with primary entity)
+     - Seeders (*Seeder.cs files)
+     - Services (business logic)
+     - Handlers (request/response handlers)
+
+   - Scopes:
+     - `Modules/Shared/` - Cross-scope modules (Users, Auth, Profiles, etc.)
+     - `Modules/Staff/` - Staff-scoped operations
+     - `Modules/Tenant/` - Tenant-scoped operations
+   ```
+
+4. **Update Architecture Diagrams** (if any exist in AGENTS.md)
+
+**This ensures**:
+- Future AI assistance follows the new structure
+- New developers understand the organization
+- The structure is self-documenting
+
+### 6. Delete Empty Old Folders
+
+```bash
+# Remove old singular-named folders
+rm -rf apps/api/Src/Modules/Shared/User
+rm -rf apps/api/Src/Modules/Shared/Account
+rm -rf apps/api/Src/Modules/Shared/Profile
+rm -rf apps/api/Src/Modules/Shared/Permission
+rm -rf apps/api/Src/Modules/Shared/Tenant
+rm -rf apps/api/Src/Modules/Shared/Project
+rm -rf apps/api/Src/Modules/Shared/Session
+rm -rf apps/api/Src/Modules/Shared/Email
+rm -rf apps/api/Src/Modules/Shared/Invitation
+```
+
+### 7. Delete Unused Service Files
+
+**Check and delete if unused**:
+```bash
+# These are likely empty or minimal
+rm apps/api/Src/Modules/Shared/Users/UserService.cs        # If exists
+rm apps/api/Src/Modules/Shared/Users/AccountService.cs     # If exists
+rm apps/api/Src/Modules/Shared/Profiles/ProfileService.cs  # If exists
+rm apps/api/Src/Modules/Shared/Tenants/TenantService.cs    # If exists
+rm apps/api/Src/Modules/Shared/Projects/ProjectService.cs  # If exists
+rm apps/api/Src/Modules/Shared/Permissions/PermissionService.cs  # If exists
+```
 
 ## Implementation Steps
 
-### Phase 1: Setup New Directories (5 minutes)
+### Phase 1: Rename Top-Level Folders (2 minutes)
 
 ```bash
-# Create new directories
-mkdir -p apps/api/Src/Data/Entities
-mkdir -p apps/api/Src/Data/Seeders
-mkdir -p apps/api/Src/Services
+# Rename Features → Modules
+git mv apps/api/Src/Features apps/api/Src/Modules
+
+# Rename Common → Shared
+git mv apps/api/Src/Modules/Common apps/api/Src/Modules/Shared
 ```
 
-### Phase 2: Move Entity Files (30 minutes)
-
-**Order matters** - move in dependency order (least dependencies first):
-
-1. **Move enums and simple entities**:
-   ```bash
-   # User entity (UserStatus enum included)
-   git mv apps/api/Src/Features/Common/User/User.cs apps/api/Src/Data/Entities/User.cs
-
-   # Session entity
-   git mv apps/api/Src/Features/Common/Session/Session.cs apps/api/Src/Data/Entities/Session.cs
-
-   # Permission entity
-   git mv apps/api/Src/Features/Common/Permission/Permission.cs apps/api/Src/Data/Entities/Permission.cs
-
-   # Tenant entity
-   git mv apps/api/Src/Features/Common/Tenant/Tenant.cs apps/api/Src/Data/Entities/Tenant.cs
-
-   # Project entity
-   git mv apps/api/Src/Features/Common/Project/Project.cs apps/api/Src/Data/Entities/Project.cs
-   ```
-
-2. **Move entities with dependencies**:
-   ```bash
-   # UserAccount (depends on User, Tenant, Project)
-   git mv apps/api/Src/Features/Common/Account/UserAccount.cs apps/api/Src/Data/Entities/UserAccount.cs
-
-   # Profile (depends on Tenant, Project)
-   git mv apps/api/Src/Features/Common/Profile/Profile.cs apps/api/Src/Data/Entities/Profile.cs
-
-   # ProfilePermission (depends on Profile, Permission)
-   git mv apps/api/Src/Features/Common/Profile/ProfilePermission.cs apps/api/Src/Data/Entities/ProfilePermission.cs
-
-   # UserAccountProfile (depends on UserAccount, Profile)
-   git mv apps/api/Src/Features/Common/Account/UserAccountProfile.cs apps/api/Src/Data/Entities/UserAccountProfile.cs
-   ```
-
-3. **Move Product entity (if it's entity-only)**:
-   ```bash
-   # Check if Product.cs has only entity definition
-   # If yes: move it
-   # If no: keep in Features/Tenant/Product/
-   ```
-
-4. **Update namespaces in all moved entity files**:
-   - Find and replace `namespace MainApi.Src.Features.Common.{Entity};` → `namespace MainApi.Src.Data.Entities;`
-   - Update imports: `using MainApi.Src.Features.Common.{Entity};` → `using MainApi.Src.Data.Entities;`
-
-### Phase 3: Move Seeder Files (15 minutes)
+### Phase 2: Create New Module Folders (2 minutes)
 
 ```bash
-# Move seeders
-git mv apps/api/Src/Features/Common/User/UserSeeder.cs apps/api/Src/Data/Seeders/UserSeeder.cs
-git mv apps/api/Src/Features/Common/Account/UserAccountSeeder.cs apps/api/Src/Data/Seeders/UserAccountSeeder.cs
-git mv apps/api/Src/Features/Common/Tenant/TenantSeeder.cs apps/api/Src/Data/Seeders/TenantSeeder.cs
-git mv apps/api/Src/Features/Common/Permission/PermissionSeeder.cs apps/api/Src/Data/Seeders/PermissionSeeder.cs
+mkdir apps/api/Src/Modules/Shared/Users
+mkdir apps/api/Src/Modules/Shared/Profiles
+mkdir apps/api/Src/Modules/Shared/Permissions
+mkdir apps/api/Src/Modules/Shared/Tenants
+mkdir apps/api/Src/Modules/Shared/Projects
+mkdir apps/api/Src/Modules/Shared/Invitations
 ```
 
-**Update namespaces**:
-- Find and replace `namespace MainApi.Src.Features.Common.{Entity};` → `namespace MainApi.Src.Data.Seeders;`
-- Update entity imports to `using MainApi.Src.Data.Entities;`
+### Phase 3: Move Files into Modules (20 minutes)
 
-### Phase 4: Move Shared Services (15 minutes)
+**Move in dependency order** (least dependencies first):
 
+#### Users Module
 ```bash
-# Move services
-git mv apps/api/Src/Features/Common/Email/EmailService.cs apps/api/Src/Services/EmailService.cs
-git mv apps/api/Src/Features/Common/Auth/PasswordService.cs apps/api/Src/Services/PasswordService.cs
+# Core entities
+git mv apps/api/Src/Modules/Shared/User/User.cs apps/api/Src/Modules/Shared/Users/
+git mv apps/api/Src/Modules/Shared/Account/UserAccount.cs apps/api/Src/Modules/Shared/Users/
+
+# Junction entity (UserAccount is primary) ⚠️
+git mv apps/api/Src/Modules/Shared/Account/UserAccountProfile.cs apps/api/Src/Modules/Shared/Users/
+
+# Seeders
+git mv apps/api/Src/Modules/Shared/User/UserSeeder.cs apps/api/Src/Modules/Shared/Users/
+git mv apps/api/Src/Modules/Shared/Account/UserAccountSeeder.cs apps/api/Src/Modules/Shared/Users/
+
+# Update namespace in all moved files to: MainApi.Src.Modules.Shared.Users;
 ```
 
-**Update namespaces**:
-- Change to `namespace MainApi.Src.Services;`
-- Update entity imports to `using MainApi.Src.Data.Entities;`
-
-**Create interfaces**:
-- Create `Services/IEmailService.cs`
-- Extract interface from `EmailService`
-- Register in DI container with interface
-
-### Phase 5: Move Auth Feature (10 minutes)
-
+#### Tenants Module
 ```bash
-# Move entire Auth directory
-git mv apps/api/Src/Features/Common/Auth apps/api/Src/Features/Auth
+git mv apps/api/Src/Modules/Shared/Tenant/Tenant.cs apps/api/Src/Modules/Shared/Tenants/
+git mv apps/api/Src/Modules/Shared/Tenant/TenantSeeder.cs apps/api/Src/Modules/Shared/Tenants/
+
+# Update namespace: MainApi.Src.Modules.Shared.Tenants;
 ```
 
-**Update namespaces**:
-- Find and replace `namespace MainApi.Src.Features.Common.Auth` → `namespace MainApi.Src.Features.Auth`
-- Update imports in handlers
-- Update `AuthService` imports to use `Data.Entities` and `Services`
-
-### Phase 6: Delete Unused Service Files (5 minutes)
-
-**Verify these services are unused, then delete**:
+#### Projects Module
 ```bash
-# These should be empty or contain minimal logic already in feature services
-rm apps/api/Src/Features/Common/User/UserService.cs
-rm apps/api/Src/Features/Common/Account/AccountService.cs
-rm apps/api/Src/Features/Common/Profile/ProfileService.cs
-rm apps/api/Src/Features/Common/Tenant/TenantService.cs
-rm apps/api/Src/Features/Common/Project/ProjectService.cs
-rm apps/api/Src/Features/Common/Session/SessionService.cs
-rm apps/api/Src/Features/Common/Permission/PermissionService.cs
+git mv apps/api/Src/Modules/Shared/Project/Project.cs apps/api/Src/Modules/Shared/Projects/
+
+# Update namespace: MainApi.Src.Modules.Shared.Projects;
 ```
 
-**If any contain logic**:
-- Extract the logic into appropriate feature services (e.g., `StaffMemberService`, `AuthService`)
-- Then delete the file
-
-### Phase 7: Delete Empty Directories (2 minutes)
-
+#### Permissions Module
 ```bash
-# Remove all Common subdirectories
-rm -rf apps/api/Src/Features/Common/User
-rm -rf apps/api/Src/Features/Common/Account
-rm -rf apps/api/Src/Features/Common/Profile
-rm -rf apps/api/Src/Features/Common/Tenant
-rm -rf apps/api/Src/Features/Common/Project
-rm -rf apps/api/Src/Features/Common/Session
-rm -rf apps/api/Src/Features/Common/Permission
-rm -rf apps/api/Src/Features/Common/Email
+git mv apps/api/Src/Modules/Shared/Permission/Permission.cs apps/api/Src/Modules/Shared/Permissions/
+git mv apps/api/Src/Modules/Shared/Permission/PermissionSeeder.cs apps/api/Src/Modules/Shared/Permissions/
 
-# Delete Common directory itself
-rm -rf apps/api/Src/Features/Common
+# Update namespace: MainApi.Src.Modules.Shared.Permissions;
 ```
 
-### Phase 8: Update All Imports Across Codebase (20 minutes)
+#### Profiles Module
+```bash
+# Core entity
+git mv apps/api/Src/Modules/Shared/Profile/Profile.cs apps/api/Src/Modules/Shared/Profiles/
 
-**Run global find-and-replace**:
+# Junction entity (Profile is primary) ⚠️
+git mv apps/api/Src/Modules/Shared/Profile/ProfilePermission.cs apps/api/Src/Modules/Shared/Profiles/
+
+# Seeders
+git mv apps/api/Src/Modules/Shared/Profile/ProfileSeeder.cs apps/api/Src/Modules/Shared/Profiles/
+git mv apps/api/Src/Modules/Shared/Profile/StaffProfileSeeder.cs apps/api/Src/Modules/Shared/Profiles/
+
+# Update namespace: MainApi.Src.Modules.Shared.Profiles;
+```
+
+#### Invitations Module
+```bash
+# Move all invitation files (includes Invitation entity and InvitationProfile junction) ⚠️
+git mv apps/api/Src/Modules/Shared/Invitation/* apps/api/Src/Modules/Shared/Invitations/ 2>/dev/null || true
+
+# Update namespace: MainApi.Src.Modules.Shared.Invitations;
+```
+
+#### Auth Module (reorganize)
+```bash
+# Move Session and Email into Auth
+git mv apps/api/Src/Modules/Shared/Session/Session.cs apps/api/Src/Modules/Shared/Auth/ 2>/dev/null || true
+git mv apps/api/Src/Modules/Shared/Email/EmailService.cs apps/api/Src/Modules/Shared/Auth/ 2>/dev/null || true
+
+# Auth namespace stays: MainApi.Src.Modules.Shared.Auth;
+```
+
+### Phase 4: Update Namespaces in Moved Files (15 minutes)
+
+For each moved file, update:
+1. The namespace declaration
+2. Any using statements that reference old locations
+
+**Example**:
+```csharp
+// In Users/User.cs
+// OLD
+namespace MainApi.Src.Features.Common.User;
+
+// NEW
+namespace MainApi.Src.Modules.Shared.Users;
+```
+
+```csharp
+// In any file that uses User
+// OLD
+using MainApi.Src.Features.Common.User;
+using MainApi.Src.Features.Common.Account;
+
+// NEW
+using MainApi.Src.Modules.Shared.Users;
+```
+
+### Phase 5: Delete Empty Old Folders (2 minutes)
 
 ```bash
-# Update entity imports
-find apps/api/Src -type f -name "*.cs" -exec sed -i 's/using MainApi.Src.Features.Common.User;/using MainApi.Src.Data.Entities;/g' {} +
-find apps/api/Src -type f -name "*.cs" -exec sed -i 's/using MainApi.Src.Features.Common.Account;/using MainApi.Src.Data.Entities;/g' {} +
-find apps/api/Src -type f -name "*.cs" -exec sed -i 's/using MainApi.Src.Features.Common.Profile;/using MainApi.Src.Data.Entities;/g' {} +
-find apps/api/Src -type f -name "*.cs" -exec sed -i 's/using MainApi.Src.Features.Common.Tenant;/using MainApi.Src.Data.Entities;/g' {} +
-find apps/api/Src -type f -name "*.cs" -exec sed -i 's/using MainApi.Src.Features.Common.Project;/using MainApi.Src.Data.Entities;/g' {} +
-find apps/api/Src -type f -name "*.cs" -exec sed -i 's/using MainApi.Src.Features.Common.Session;/using MainApi.Src.Data.Entities;/g' {} +
-find apps/api/Src -type f -name "*.cs" -exec sed -i 's/using MainApi.Src.Features.Common.Permission;/using MainApi.Src.Data.Entities;/g' {} +
+rm -rf apps/api/Src/Modules/Shared/User
+rm -rf apps/api/Src/Modules/Shared/Account
+rm -rf apps/api/Src/Modules/Shared/Profile
+rm -rf apps/api/Src/Modules/Shared/Permission
+rm -rf apps/api/Src/Modules/Shared/Tenant
+rm -rf apps/api/Src/Modules/Shared/Project
+rm -rf apps/api/Src/Modules/Shared/Session
+rm -rf apps/api/Src/Modules/Shared/Email
+rm -rf apps/api/Src/Modules/Shared/Invitation
+```
 
-# Update Auth imports
-find apps/api/Src -type f -name "*.cs" -exec sed -i 's/using MainApi.Src.Features.Common.Auth;/using MainApi.Src.Features.Auth;/g' {} +
+### Phase 6: Update All Imports Across Codebase (20 minutes)
 
-# Update service imports
-find apps/api/Src -type f -name "*.cs" -exec sed -i 's/using MainApi.Src.Features.Common.Email;/using MainApi.Src.Services;/g' {} +
+Update all files that import from the old locations:
+
+**In PowerShell (Windows)**:
+```powershell
+# Update Features → Modules
+Get-ChildItem -Path "apps/api/Src" -Filter "*.cs" -Recurse | ForEach-Object {
+    (Get-Content $_.FullName) -replace 'MainApi\.Src\.Features\.', 'MainApi.Src.Modules.' | Set-Content $_.FullName
+}
+
+# Update specific module imports
+Get-ChildItem -Path "apps/api/Src" -Filter "*.cs" -Recurse | ForEach-Object {
+    $content = Get-Content $_.FullName
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.User;', 'using MainApi.Src.Modules.Shared.Users;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Account;', 'using MainApi.Src.Modules.Shared.Users;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Profile;', 'using MainApi.Src.Modules.Shared.Profiles;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Permission;', 'using MainApi.Src.Modules.Shared.Permissions;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Tenant;', 'using MainApi.Src.Modules.Shared.Tenants;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Project;', 'using MainApi.Src.Modules.Shared.Projects;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Invitation;', 'using MainApi.Src.Modules.Shared.Invitations;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Email;', 'using MainApi.Src.Modules.Shared.Auth;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Session;', 'using MainApi.Src.Modules.Shared.Auth;'
+    $content | Set-Content $_.FullName
+}
 ```
 
 **Manual verification required for**:
-- `MainApiDbContext.cs` - update entity imports
-- Feature services (`StaffMemberService`, `TenantAsStaffService`, etc.) - update entity imports
-- Middleware files - update entity imports if used
-- `Program.cs` - update DI registrations if needed
+- [MainApiDbContext.cs](apps/api/Src/Data/DbContext/MainApiDbContext.cs) - verify entity imports
+- Staff scope services - verify imports
+- Tenant scope services - verify imports
+- [Program.cs](apps/api/Src/Program.cs) - verify DI registrations
 
-### Phase 9: Update DI Registrations (10 minutes)
-
-**In `Program.cs` or service registration files**:
-
-```csharp
-// Update service registrations
-builder.Services.AddScoped<IEmailService, EmailService>();  // Add interface
-builder.Services.AddScoped<PasswordService>();              // Keep as concrete
-
-// Remove any old service registrations for deleted services
-// (UserService, AccountService, ProfileService, etc.)
-```
-
-### Phase 10: Build and Test (15 minutes)
+### Phase 7: Build and Test (15 minutes)
 
 ```bash
 # Clean build
@@ -368,7 +473,7 @@ make clean-api
 # Rebuild API
 make build-api
 
-# Run migrations (should work if entities are found correctly)
+# Run migrations
 make db-migrate
 
 # Test development server
@@ -381,43 +486,96 @@ make dev-api
 - ✅ Seeders execute successfully
 - ✅ API endpoints respond correctly
 - ✅ Authentication flows work
-- ✅ Tenant isolation works
+- ✅ Staff scope works
+- ✅ Tenant scope works
 
-### Phase 11: Update Documentation (10 minutes)
+### Phase 8: Update AGENTS.md to Enforce Structure (20 minutes)
+
+**CRITICAL**: This phase enforces the new structure for all future development.
+
+**Update [AGENTS.md](AGENTS.md)**:
+
+1. **Update Folder Structure References**:
+   - Change all `Features/` → `Modules/`
+   - Change all `Features/Common/` → `Modules/Shared/`
+   - Update entity location examples (e.g., `Common/User/User.cs` → `Shared/Users/User.cs`)
+
+2. **Add Module Structure Rules Section**:
+   ```markdown
+   ## API Module Structure
+
+   ### Vertical Slice Organization
+   - Each module in `Modules/Shared/` is a complete vertical slice
+   - All related code lives together: entities, seeders, services, handlers
+
+   ### Module Examples
+   - `Modules/Shared/Users/` - User and UserAccount entities, seeders, handlers
+   - `Modules/Shared/Profiles/` - Profile entity, ProfilePermission junction, seeders
+   - `Modules/Shared/Auth/` - Authentication entities, services, handlers
+   - `Modules/Shared/Invitations/` - Invitation entity, InvitationProfile junction
+
+   ### Junction Entity Rule
+   - Junction entities live with their PRIMARY entity
+   - Example: `UserAccountProfile` → lives in `Users/` (primary: UserAccount)
+
+   ### Scopes
+   - `Modules/Shared/` - Cross-scope functionality (used by both Staff and Tenant)
+   - `Modules/Staff/` - Staff-only operations
+   - `Modules/Tenant/` - Tenant-only operations
+   ```
+
+3. **Update Architecture Diagrams** (if present)
+
+4. **Add "Where to Put New Code" Guidelines**:
+   - New shared entity? → Create module in `Modules/Shared/`
+   - Staff operation? → Add to `Modules/Staff/`
+   - Tenant operation? → Add to `Modules/Tenant/`
+
+**This ensures all future AI assistance and development follows the structure.**
+
+### Phase 9: Update Other Documentation (10 minutes)
 
 Update references in:
-- `CLAUDE.md` - Update entity location references
-- `docs/vertical-slice-design-principles.md` - Update example paths
-- Any API documentation - Update architecture diagrams
+- **[CLAUDE.md](CLAUDE.md)** - Update module location references
+- **[docs/vertical-slice-design-principles.md](docs/vertical-slice-design-principles.md)** - Update example paths
+- Any other API documentation - Update architecture diagrams
 
 ## Testing Checklist
 
-After each phase, verify:
+### After Phase 3 (File Moves)
+- [ ] All files moved successfully
+- [ ] No files left in old singular folders
+- [ ] Git history preserved (using `git mv`)
 
-### Phase 2 Completion (Entity Move)
-- [ ] All entities compile without errors
-- [ ] Entity relationships preserved
-- [ ] No circular dependencies
-- [ ] MainApiDbContext finds all entities
+### After Phase 4 (Namespace Updates)
+- [ ] All namespaces updated in moved files
+- [ ] No compilation errors in moved files
+- [ ] Using statements updated
 
-### Phase 3 Completion (Seeder Move)
-- [ ] All seeders compile
-- [ ] `DiscoverSeedersInternal()` finds all seeders
-- [ ] Seeders execute in correct order
-- [ ] Database seeds successfully
+### After Phase 6 (Import Updates)
+- [ ] All imports updated across codebase
+- [ ] No compilation errors
+- [ ] MainApiDbContext compiles
+- [ ] All services compile
 
-### Phase 5 Completion (Auth Move)
-- [ ] Auth endpoints register correctly
-- [ ] Login/Register works
-- [ ] Email verification works
-- [ ] Password reset works
-
-### Phase 10 Completion (Final Build)
+### After Phase 7 (Final Build)
 - [ ] Full API builds without warnings
 - [ ] All endpoints accessible via `/scalar/v1`
 - [ ] OpenAPI spec generates correctly
 - [ ] Frontend TypeScript client generation works (`make generate-client`)
-- [ ] All existing features work correctly
+- [ ] Database seeds successfully
+- [ ] Login/Register works
+- [ ] Staff operations work
+- [ ] Tenant operations work
+
+### After Phase 8 (AGENTS.md Update) - CRITICAL
+- [ ] All `Features/` references changed to `Modules/`
+- [ ] All `Common/` references changed to `Shared/`
+- [ ] Module structure rules section added
+- [ ] Junction entity placement rule documented
+- [ ] "Where to Put New Code" guidelines added
+- [ ] Architecture diagrams updated (if present)
+- [ ] Vertical slice principles clearly explained
 
 ## Rollback Plan
 
@@ -428,93 +586,85 @@ If issues occur during refactoring:
 3. **Branch strategy**:
    ```bash
    # Create refactoring branch
-   git checkout -b refactor/api-structure
+   git checkout -b refactor/modules-restructure
 
    # Commit after each phase
-   git add -A && git commit -m "Phase 2: Move entity files"
-   git add -A && git commit -m "Phase 3: Move seeder files"
-   # etc.
+   git add -A && git commit -m "Phase 1: Rename Features to Modules"
+   git add -A && git commit -m "Phase 2: Create new module folders"
+   git add -A && git commit -m "Phase 3: Move files into modules"
+   git add -A && git commit -m "Phase 4: Update namespaces"
+   git add -A && git commit -m "Phase 5: Delete empty folders"
+   git add -A && git commit -m "Phase 6: Update imports"
+   git add -A && git commit -m "Phase 7: Build and test successful"
+   git add -A && git commit -m "Phase 8: Update AGENTS.md structure enforcement"
+   git add -A && git commit -m "Phase 9: Update other documentation"
    ```
 
 4. **If you need to abort mid-refactor**:
    ```bash
    git reset --hard HEAD  # Discard all uncommitted changes
-   git checkout main       # Return to main branch
+   git checkout main      # Return to main branch
    ```
 
 ## Benefits After Refactoring
 
-1. **Clear Separation of Concerns**:
-   - Entities are data layer
-   - Services are reusable logic
-   - Features are business capabilities
+1. **Clearer Naming**:
+   - "Modules" better conveys domain-based organization
+   - "Shared" clearly means cross-scope functionality
 
-2. **Better Dependency Flow**:
-   - `Data` (entities) → `Services` → `Features`
-   - No circular dependencies
-   - Clear layering
+2. **True Vertical Slices**:
+   - Each module contains everything: entities, junction entities, seeders, services, handlers
+   - Want to work on Users? Everything is in `Modules/Shared/Users/`
+   - Want to work on Auth? Everything is in `Modules/Shared/Auth/`
 
-3. **Improved Discoverability**:
-   - Need an entity? Check `Data/Entities/`
-   - Need auth logic? Check `Features/Auth/`
-   - Need email sending? Check `Services/`
+3. **Scope Clarity**:
+   - `Modules/Staff/` - Staff scope operations
+   - `Modules/Tenant/` - Tenant scope operations
+   - `Modules/Shared/` - Cross-scope functionality
 
-4. **Vertical Slice Integrity**:
-   - Staff context clearly separated
-   - Tenant context clearly separated
-   - Auth is its own feature slice
+4. **Maintained Principles**:
+   - No horizontal layering (Data/Entities/, Services/)
+   - Everything related lives together
+   - Easy to understand and navigate
 
 5. **Easier Testing**:
-   - Mock interfaces from `Services/`
-   - Test features independently
-   - Entities are POCOs (easy to instantiate)
+   - Each module is independently testable
+   - Clear boundaries between modules
+   - Mock dependencies at module boundaries
 
 6. **Scalability**:
-   - Easy to add new contexts (e.g., `Features/Project/`)
-   - Easy to add new shared services
-   - Easy to extract microservices later
+   - Easy to add new shared modules
+   - Easy to add new scope-specific operations
+   - Clear where new code should go
 
 ## Timeline Estimate
 
-- **Phase 1-7** (Move files): 1.5 hours
-- **Phase 8-9** (Update imports/DI): 30 minutes
-- **Phase 10** (Build/Test): 15 minutes
-- **Phase 11** (Documentation): 10 minutes
+- **Phase 1** (Rename top folders): 2 minutes
+- **Phase 2** (Create new folders): 2 minutes
+- **Phase 3** (Move files): 20 minutes
+- **Phase 4** (Update namespaces): 15 minutes
+- **Phase 5** (Delete empty folders): 2 minutes
+- **Phase 6** (Update imports): 20 minutes
+- **Phase 7** (Build/Test): 15 minutes
+- **Phase 8** (Update AGENTS.md - CRITICAL): 20 minutes
+- **Phase 9** (Update other documentation): 10 minutes
 
-**Total: ~2.5 hours** (for careful, methodical execution)
+**Total: ~2 hours** (for careful, methodical execution)
 
-## Post-Refactor File Count
+## Summary of Changes
 
-**Deleted**:
-- 8 folders (`Features/Common/*`)
-- ~7 unused service files
-- Total: ~15 deleted items
+**What's changing**:
+- ❌ `Features/` → ✅ `Modules/`
+- ❌ `Common/` → ✅ `Shared/`
+- ❌ Singular folder names (`User/`, `Profile/`) → ✅ Plural (`Users/`, `Profiles/`)
+- ❌ Files scattered across entity folders → ✅ Everything grouped by domain module
 
-**Created**:
-- 2 new folders (`Data/Entities/`, `Data/Seeders/`, `Services/`)
-- 1 interface file (`IEmailService.cs`)
-- Total: 3 new directories
-
-**Moved**:
-- ~10 entity files
-- ~4 seeder files
-- ~2 service files
-- 1 feature directory (`Auth/`)
-- Total: ~17 moved items
-
-**Net Result**: Cleaner, more organized structure with better separation of concerns.
+**What's NOT changing**:
+- ✅ Vertical slice principles (maintained and improved)
+- ✅ Staff and Tenant scope separation
+- ✅ File contents (only namespaces change)
+- ✅ Database schema (no migrations needed)
 
 ---
 
-## Questions Before Starting?
-
-1. **Are there any other services in `Common/` we missed?**
-2. **Should we keep `Product.cs` in `Features/Tenant/Product/` or move to `Entities/`?**
-   - If Product has business logic (like price calculations): Keep in `Features/`
-   - If Product is just a data entity: Move to `Entities/`
-3. **Do we need to update any CI/CD pipelines that reference file paths?**
-4. **Should we create a migration for any database schema changes?** (Likely not needed - this is code organization only)
-
----
-
-**Ready to execute?** Let me know and I'll help you implement this step-by-step!
+**Ready to execute?** This is now a simple refactoring focused on better naming and organization while maintaining the vertical slice architecture you already have!
