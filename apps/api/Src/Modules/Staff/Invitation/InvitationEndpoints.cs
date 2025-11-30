@@ -7,39 +7,6 @@ using MainApi.Src.Lib.Utils;
 namespace MainApi.Src.Modules.Staff.Invitation;
 
 public static class InvitationEndpoints {
-	public static IEndpointRouteBuilder MapInvitationAnonymousEndpoints(
-		this IEndpointRouteBuilder app
-	) {
-		var group = app.MapGroup(PathUtils.GetLastSegment(RoutePath.Invitations.Root))
-			.WithTags("Invitations (Anonymous)")
-			.WithOpenApi();
-
-		group.MapGet(
-				PathUtils.GetLastSegment(RoutePath.Invitations.DetailsByToken, 2),
-				GetInvitationDetails.HandleGetInvitationDetails
-			)
-			.WithName("GetInvitationDetails")
-			.WithSummary("Get invitation details by token")
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status404NotFound
-			);
-
-		group.MapPost(
-				PathUtils.GetLastSegment(RoutePath.Invitations.AcceptByToken, 2),
-				AcceptInvitation.HandleAcceptInvitation
-			)
-			.WithName("AcceptInvitation")
-			.WithSummary("Accept invitation and create account + session")
-			.WithReqBodyValidation<AcceptInvitationBody>()
-			.ProducesApiResponses(
-				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status404NotFound
-			);
-
-		return app;
-	}
-
 	public static IEndpointRouteBuilder MapInvitationAsStaffEndpoints(
 		this IEndpointRouteBuilder routes
 	) {

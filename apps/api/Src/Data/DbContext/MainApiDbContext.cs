@@ -6,7 +6,6 @@ using MainApi.Src.Modules.Shared.Projects;
 using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Invitation;
-using MainApi.Src.Modules.Staff.Audit;
 using MainApi.Src.Modules.Staff.SystemNotice;
 using MainApi.Src.Modules.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +41,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	public DbSet<InvitationProfile> InvitationProfile { get; init; }
 
 	// Staff back-office entities
-	public DbSet<AuditLog> AuditLog { get; init; }
+	public DbSet<MainApi.Src.Modules.Staff.AuditLog.AuditLog> AuditLog { get; init; }
 	public DbSet<SystemNotice> SystemNotice { get; init; }
 
 	public Guid? TenantId { get; set; }

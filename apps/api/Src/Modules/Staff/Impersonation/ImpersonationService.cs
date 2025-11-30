@@ -1,7 +1,7 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Shared.Auth;
-using MainApi.Src.Modules.Staff.Audit;
+using MainApi.Src.Modules.Staff.AuditLog;
 using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Lib.Utils;
 

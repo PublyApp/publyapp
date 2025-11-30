@@ -8,6 +8,7 @@ using MainApi.Src.Modules.Staff.StaffMember;
 using MainApi.Src.Modules.Staff.TenantAsStaff;
 using MainApi.Src.Modules.Staff.ProfileAsStaff;
 using MainApi.Src.Modules.Staff.PermissionAsStaff;
+using MainApi.Src.Modules.Shared.Invitation;
 
 AppEnvironment.LoadEnv(); // ! must be called before anything else
 

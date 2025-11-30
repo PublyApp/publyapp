@@ -550,65 +550,6 @@
         }
       }
     },
-    "/auth/check-invitation-token": {
-      "get": {
-        "tags": [
-          "Auth"
-        ],
-        "summary": "Check Invitation Token",
-        "operationId": "CheckInvitationToken",
-        "parameters": [
-          {
-            "name": "Id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Token",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CheckInvitationTokenResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/invitations/{token}/details": {
       "get": {
         "tags": [
@@ -704,6 +645,65 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/check-invitation-token": {
+      "get": {
+        "tags": [
+          "Invitations (Anonymous)"
+        ],
+        "summary": "Check Invitation Token",
+        "operationId": "CheckInvitationToken",
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInvitationTokenResult"
                 }
               }
             }

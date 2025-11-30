@@ -1,10 +1,9 @@
 using MainApi.Localization;
-using MainApi.Src.Modules.Shared.Invitation;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Modules.Staff.Invitation.Handlers;
+namespace MainApi.Src.Modules.Shared.Invitation.Handlers;
 
 public record InvitationDetails {
 	public required string Email { get; init; }
