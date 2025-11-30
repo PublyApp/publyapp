@@ -24,7 +24,7 @@ public interface IInvitationService {
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default);
 
-	Task<Invitation?> ValidateInvitationTokenAsync(
+	Task<Invitation?> GetInvitationByTokenAsync(
 		string token,
 		CancellationToken cancellationToken = default);
 
@@ -175,7 +175,7 @@ public class InvitationService : IInvitationService {
 		return (invitation, token);
 	}
 
-	public async Task<Invitation?> ValidateInvitationTokenAsync(
+	public async Task<Invitation?> GetInvitationByTokenAsync(
 		string token,
 		CancellationToken cancellationToken = default
 	) {

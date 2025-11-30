@@ -21,7 +21,7 @@ public static class GetInvitationDetails {
 		[FromServices] IInvitationService invitationService,
 		CancellationToken cancellationToken = default
 	) {
-		var invitation = await invitationService.ValidateInvitationTokenAsync(
+		var invitation = await invitationService.GetInvitationByTokenAsync(
 			token,
 			cancellationToken
 		);

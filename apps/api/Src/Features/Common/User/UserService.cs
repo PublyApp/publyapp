@@ -11,8 +11,8 @@ public abstract record CreateUserResult {
 public interface IUserService {
 	Task<CreateUserResult> CreateUserAsync(User user, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
-	Task<User?> GetUserByEmailAndEmailVerifyTokenAsync(string email, string token, CancellationToken cancellationToken = default);
-	Task<User?> GetUserByEmailAndPasswordResetTokenAsync(string email, string token, CancellationToken cancellationToken = default);
+	Task<User?> GetUserByEmailVerificationTokenAsync(string token, CancellationToken cancellationToken = default);
+	Task<User?> GetUserByPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default);
 	/// <summary>
 	/// Updates a user entity (PUT-style full replacement).
 	/// NOTE: This marks ALL properties as modified, even unchanged ones.
@@ -78,21 +78,20 @@ public class UserService : IUserService {
 		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
-	public async Task<User?> GetUserByEmailAndEmailVerifyTokenAsync(string email, string token, CancellationToken cancellationToken = default) {
+	public async Task<User?> GetUserByEmailVerificationTokenAsync(string token, CancellationToken cancellationToken = default) {
 		var query =
 			from u in _dbContext.User
-			where u.Email == email
+			where u.EmailVerifyToken == token
 			&& u.EmailVerifyToken == token
 			select u;
 
 		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
-	public async Task<User?> GetUserByEmailAndPasswordResetTokenAsync(string email, string token, CancellationToken cancellationToken = default) {
+	public async Task<User?> GetUserByPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default) {
 		var query =
 			from u in _dbContext.User
-			where u.Email == email
-			&& u.PasswordResetToken == token
+			where u.PasswordResetToken == token
 			select u;
 
 		return await query.FirstOrDefaultAsync(cancellationToken);

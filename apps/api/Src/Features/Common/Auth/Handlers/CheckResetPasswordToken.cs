@@ -46,7 +46,7 @@ public class CheckResetPasswordToken {
 		// Decrypt the ID to get email
 		string email;
 		try {
-			email = CryptoUtils.DecryptString(id);
+			email = CryptoUtils.DecryptString(id).ToLowerInvariant();
 		} catch {
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"Invalid or expired password reset token",
@@ -55,9 +55,17 @@ public class CheckResetPasswordToken {
 		}
 
 		// Query user by email and password reset token
-		var user = await userService.GetUserByEmailAndPasswordResetTokenAsync(email, token, cancellationToken);
+		var user = await userService.GetUserByPasswordResetTokenAsync(token, cancellationToken);
 
 		if (user is null) {
+			return TypedResults.BadRequest(ApiResponse.Create(
+				"Invalid or expired password reset token",
+				ResponseKeys.InvalidPasswordResetToken
+			));
+		}
+
+		// check if token is for the given email
+		if (string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase) is false) {
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"Invalid or expired password reset token",
 				ResponseKeys.InvalidPasswordResetToken
