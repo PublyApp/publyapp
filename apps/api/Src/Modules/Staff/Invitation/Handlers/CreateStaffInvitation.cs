@@ -4,7 +4,7 @@ using MainApi.Localization;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;
 using MainApi.Src.Modules.Shared.Invitation;
-using MainApi.Src.Modules.Staff.Audit;
+using MainApi.Src.Modules.Staff.AuditLog;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;

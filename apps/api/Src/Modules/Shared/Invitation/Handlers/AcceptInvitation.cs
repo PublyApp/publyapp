@@ -2,13 +2,12 @@ using System.Text.Json;
 using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Modules.Shared.Auth;
-using MainApi.Src.Modules.Shared.Invitation;
-using MainApi.Src.Modules.Staff.Audit;
+using MainApi.Src.Modules.Staff.AuditLog;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Modules.Staff.Invitation.Handlers;
+namespace MainApi.Src.Modules.Shared.Invitation.Handlers;
 
 public record AcceptInvitationBody {
 	public required JsonElement FirstName { get; init; }

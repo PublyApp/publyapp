@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using UserEntity = MainApi.Src.Modules.Shared.Users.User;
 
-namespace MainApi.Src.Modules.Staff.Audit;
+namespace MainApi.Src.Modules.Staff.AuditLog;
 
 [Table("audit_logs")]
 [Index(nameof(UserId), nameof(CreatedAt))]
