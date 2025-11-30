@@ -2,11 +2,13 @@ using System.Text.Json;
 using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Features.Common.Email;
 using MainApi.Src.Features.Common.Invitation;
 using MainApi.Src.Features.Staff.Audit;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Polly;
 
 namespace MainApi.Src.Features.Staff.Invitations.Handlers;
 
@@ -63,10 +65,13 @@ public static class CreateStaffInvitation {
 	>> HandleCreateStaffInvitation(
 		[FromServices] IAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
+		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
+		[FromServices] ILoggerFactory loggerFactory,
 		[FromBody] CreateStaffInvitationBody request,
 		CancellationToken cancellationToken = default
 	) {
+		var logger = loggerFactory.CreateLogger(nameof(CreateStaffInvitation));
 		// Authorization check
 		var account = authContext.AccountStaff;
 		if (account is null
@@ -133,6 +138,17 @@ public static class CreateStaffInvitation {
 			cancellationToken
 		);
 
+		// Send invitation email (fire and forget - don't block response)
+		_ = Task.Run(async () => {
+			await SendInvitationEmailWithRetryAsync(
+				emailService,
+				logger,
+				email,
+				token,
+				cancellationToken
+			);
+		}, cancellationToken);
+
 		// Audit log
 		await auditLogService.LogAsync(
 			account.UserId,
@@ -147,5 +163,66 @@ public static class CreateStaffInvitation {
 			Token = token,
 			ExpiresAt = invitation.ExpiresAt
 		});
+	}
+
+	/// <summary>
+	/// Sends an invitation email with exponential backoff retry logic using Polly.
+	/// </summary>
+	private static async Task SendInvitationEmailWithRetryAsync(
+		IEmailService emailService,
+		ILogger logger,
+		string email,
+		string token,
+		CancellationToken cancellationToken
+	) {
+		// Create context to pass logger/email info for retry logging
+		var context = new Context {
+			["logger"] = logger,
+			["email"] = email
+		};
+
+		// Create policy with onRetry that uses context
+		var retryPolicy = Policy
+			.Handle<Exception>()
+			.WaitAndRetryAsync(
+				retryCount: 3,
+				sleepDurationProvider: retryAttempt =>
+					TimeSpan.FromSeconds(Math.Pow(2, retryAttempt - 1)),
+				onRetry: (exception, timeSpan, retryCount, ctx) => {
+					var log = (ILogger)ctx["logger"];
+					var emailAddr = (string)ctx["email"];
+
+					log.LogWarning(
+						exception,
+						"Failed to send invitation email to {Email} (attempt {Attempt}/3), " +
+						"retrying in {Delay}ms",
+						emailAddr,
+						retryCount,
+						timeSpan.TotalMilliseconds
+					);
+				}
+			);
+
+		try {
+			await retryPolicy.ExecuteAsync(
+				async (ctx, ct) => {
+					await emailService.SendInvitationToJoinStaffEmailAsync(email, token);
+				},
+				context,
+				cancellationToken
+			);
+
+			logger.LogInformation(
+				"Successfully sent invitation email to {Email}",
+				email
+			);
+		} catch (Exception ex) {
+			logger.LogError(
+				ex,
+				"Failed to send invitation email to {Email} after 3 attempts",
+				email
+			);
+			// Don't rethrow - email failures shouldn't break the main operation
+		}
 	}
 }
