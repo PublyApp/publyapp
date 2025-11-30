@@ -795,6 +795,31 @@ var users = db.Users
 - Operations without query syntax equivalents
 - In-memory collections
 
+### Collection Checking
+
+**Prefer comparing `Count` to 0 rather than using `.Any()` for clarity and performance:**
+
+```csharp
+// ❌ WRONG - Using .Any() to check if collection has items
+if (invitations.Any())
+if (!users.Any())
+
+// ✅ CORRECT - Compare Count to 0
+if (invitations.Count > 0)
+if (users.Count == 0)
+```
+
+**Why prefer `Count > 0`:**
+- More explicit and clearer intent
+- Better performance for collections that already have a Count property (List<T>, array, etc.)
+- Avoids unnecessary enumeration overhead
+- More consistent with common C# idioms
+
+**Exception:** Use `.Any()` when:
+- Working with IEnumerable<T> that doesn't have an efficient Count implementation
+- Using `.Any(predicate)` with a condition: `users.Any(u => u.IsActive)`
+- The collection is a LINQ query that hasn't been materialized yet
+
 ### Async/Await Patterns
 
 **Critical anti-patterns to NEVER use:**

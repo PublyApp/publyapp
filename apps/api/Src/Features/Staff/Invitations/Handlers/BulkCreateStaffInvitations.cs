@@ -189,7 +189,7 @@ public static class BulkCreateStaffInvitations {
 			.Select(g => g.Key)
 			.ToList();
 
-		if (duplicates.Any()) {
+		if (duplicates.Count > 0) {
 			return TypedResults.BadRequest(
 				ApiResponse.Create(
 					$"Duplicate email(s) found in batch: {string.Join(", ", duplicates)}",
@@ -208,7 +208,7 @@ public static class BulkCreateStaffInvitations {
 			cancellationToken
 		);
 
-		if (existingUserEmails.Any()) {
+		if (existingUserEmails.Count > 0) {
 			return TypedResults.BadRequest(
 				ApiResponse.Create(
 					$"User(s) already exist: {string.Join(", ", existingUserEmails)}",
@@ -223,7 +223,7 @@ public static class BulkCreateStaffInvitations {
 			cancellationToken
 		);
 
-		if (existingInvitationEmails.Any()) {
+		if (existingInvitationEmails.Count > 0) {
 			return TypedResults.BadRequest(
 				ApiResponse.Create(
 					$"Pending invitation(s) exist: {string.Join(", ", existingInvitationEmails)}",
@@ -240,7 +240,7 @@ public static class BulkCreateStaffInvitations {
 
 		var missingProfileIds = allProfileIds.Except(validProfileIds).ToList();
 
-		if (missingProfileIds.Any()) {
+		if (missingProfileIds.Count > 0) {
 			return TypedResults.BadRequest(
 				ApiResponse.Create(
 					$"Profile(s) not found: {string.Join(", ", missingProfileIds)}",
