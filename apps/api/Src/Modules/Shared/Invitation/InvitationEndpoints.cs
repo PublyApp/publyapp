@@ -38,7 +38,7 @@ public static class InvitationEndpoints {
 			);
 
 		group.MapGet(
-		PathUtils.GetLastSegment(RoutePath.Invitations.CheckInvitationToken),
+		PathUtils.GetLastSegment(RoutePath.Invitations.Check),
 		CheckInvitationToken.HandleCheckInvitationToken
 	)
 		.WithName("CheckInvitationToken")
