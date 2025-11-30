@@ -90,9 +90,11 @@ packages/
 The backend follows **Vertical Slice Architecture** where each feature is self-contained:
 
 ```
-Features/[Domain]/[Feature]/
-├── [Feature]Service.cs           # Business logic
-├── [Feature]Endpoints.cs         # API endpoint mappings
+Modules/[Scope]/[Module]/
+├── [Module]Service.cs           # Business logic (if needed)
+├── [Module]Endpoints.cs         # API endpoint mappings (if needed)
+├── [Entity].cs                   # Entity definitions
+├── [Entity]Seeder.cs            # Seeder (if needed)
 └── Handlers/
     ├── Create[Feature].cs        # POST handler
     ├── Get[Feature]ById.cs       # GET by ID handler
@@ -107,10 +109,71 @@ Features/[Domain]/[Feature]/
 - **Response Format**: All endpoints return `ApiResponse` with `Message` and `Data`
 
 **Finding Backend Code:**
-- Common features (auth, accounts, users): `apps/api/Src/Features/Common/`
-- Staff-specific features: `apps/api/Src/Features/Staff/`
-- Tenant-specific features: `apps/api/Src/Features/Tenant/`
+- Shared modules (auth, users, profiles, etc.): `apps/api/Src/Modules/Shared/`
+- Staff-specific modules: `apps/api/Src/Modules/Staff/`
+- Tenant-specific modules: `apps/api/Src/Modules/Tenant/`
 - Shared utilities/middleware: `apps/api/Src/Lib/`
+
+### API Module Structure Rules
+
+**CRITICAL:** The API follows Vertical Slice Architecture with domain-based module organization.
+
+#### Module Organization
+
+Each module in `Modules/Shared/` is a complete vertical slice containing:
+- **Entities** (`*.cs` files defining database models)
+- **Junction entities** (many-to-many relationships live with their primary entity)
+- **Seeders** (`*Seeder.cs` files)
+- **Services** (business logic services)
+- **Handlers** (request/response handlers in `Handlers/` subdirectory)
+
+#### Module Examples
+
+- `Modules/Shared/Users/` - User and UserAccount entities, seeders, handlers
+- `Modules/Shared/Profiles/` - Profile entity, ProfilePermission junction, seeders
+- `Modules/Shared/Auth/` - Authentication entities (Session), services (PasswordService, AuthService), handlers
+- `Modules/Shared/Invitations/` - Invitation entity, InvitationProfile junction
+- `Modules/Shared/Infrastructure/` - Architectural services (EmailService, future: SmsService, FileStorageService)
+
+#### Junction Entity Placement Rule
+
+**IMPORTANT:** Junction entities (many-to-many relationship tables) should live with their **primary entity**.
+
+Examples:
+- `UserAccountProfile` → lives in `Users/` (primary: UserAccount)
+- `ProfilePermission` → lives in `Profiles/` (primary: Profile)
+- `InvitationProfile` → lives in `Invitations/` (primary: Invitation)
+
+#### Infrastructure Services Placement Rules
+
+**Infrastructure folder** (`Modules/Shared/Infrastructure/`): Technical/architectural services that provide capabilities TO domain modules
+- Example: `EmailService` → `Infrastructure/Messaging/Email/` (sends emails FOR auth, invitations, etc.)
+- Example: `SmsService` → `Infrastructure/Messaging/Sms/` (sends SMS FOR 2FA, notifications, etc.)
+- Example: `FileStorageService` → `Infrastructure/Storage/` (stores files FOR users, products, etc.)
+
+**Domain modules**: Business logic services specific to that domain
+- Example: `PasswordService` → `Auth/` (password hashing/validation)
+- Example: `UserService` → `Users/` (user business logic)
+- Example: `InvitationService` → `Invitations/` (invitation business logic)
+
+**Pure utilities**: Stateless helpers without dependencies → `Lib/`
+
+#### Scopes
+
+- `Modules/Shared/` - Cross-scope functionality (used by both Staff and Tenant)
+- `Modules/Staff/` - Staff-only operations
+- `Modules/Tenant/` - Tenant-only operations
+
+#### Where to Put New Code
+
+- **New shared entity?** → Create module in `Modules/Shared/`
+- **Staff operation?** → Add to `Modules/Staff/`
+- **Tenant operation?** → Add to `Modules/Tenant/`
+- **New infrastructure service?** → Add to `Modules/Shared/Infrastructure/`
+  - Email/SMS → `Infrastructure/Messaging/`
+  - File storage → `Infrastructure/Storage/`
+  - Caching → `Infrastructure/Caching/`
+- **New domain business logic?** → Add to appropriate domain module
 
 ### Multi-Tenant Architecture
 
@@ -879,7 +942,7 @@ var results = await Task.WhenAll(tasks);
 
 ```csharp
 // ✅ CORRECT - Everything in one file: Handler + DTOs + Validators
-// File: apps/api/Src/Features/Staff/Invitations/Handlers/CreateStaffInvitation.cs
+// File: apps/api/Src/Modules/Staff/Invitations/Handlers/CreateStaffInvitation.cs
 
 using FluentValidation;
 using System.Text.Json;
@@ -1255,7 +1318,7 @@ public static async Task<Results<
 ### Adding a New Feature
 
 **Backend:**
-1. Create feature directory: `apps/api/Src/Features/[Domain]/[Feature]/`
+1. Create module directory: `apps/api/Src/Modules/[Scope]/[Module]/`
 2. Create service: `[Feature]Service.cs`
 3. Create handlers in `Handlers/` directory
 4. Create validators using FluentValidation
@@ -1290,7 +1353,7 @@ The TypeScript client is auto-generated - never modify files in `packages/js-cli
 
 ### Adding Database Entities
 
-1. Create entity class in `apps/api/Src/Features/[Domain]/[Entity].cs`
+1. Create entity class in `apps/api/Src/Modules/[Scope]/[Module]/[Entity].cs`
 2. Implement appropriate tenant interface: `ITenantEntity`, `IOptionalTenantEntity`, or `INoTenantEntity`
 3. Inherit from `BaseAttributes` for automatic audit tracking
 4. Add `DbSet<[Entity]>` to `MainApiDbContext`

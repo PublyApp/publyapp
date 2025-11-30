@@ -1,4 +1,4 @@
-using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Modules.Shared.Users;
 
 namespace MainApi.Src.Lib;
 

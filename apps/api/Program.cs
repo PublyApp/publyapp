@@ -1,13 +1,13 @@
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
-using MainApi.Src.Features.Common.Auth;
-using MainApi.Src.Features.Tenant.Product;
-using MainApi.Src.Features.Staff.TenantAsStaff;
-using MainApi.Src.Features.Staff.StaffMember;
-using MainApi.Src.Features.Staff.ProfileAsStaff;
+using MainApi.Src.Modules.Shared.Auth;
+using MainApi.Src.Modules.Tenant.Product;
+using MainApi.Src.Modules.Staff.TenantAsStaff;
+using MainApi.Src.Modules.Staff.StaffMember;
+using MainApi.Src.Modules.Staff.ProfileAsStaff;
 using MainApi.Src.Lib.Filters;
-using MainApi.Src.Features.Staff.Invitations;
-using MainApi.Src.Features.Staff.PermissionAsStaff;
+using MainApi.Src.Modules.Staff.Invitations;
+using MainApi.Src.Modules.Staff.PermissionAsStaff;
 
 AppEnvironment.LoadEnv(); // ! must be called before anything else
 
