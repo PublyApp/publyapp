@@ -1,5 +1,5 @@
 using MainApi.Localization;
-using MainApi.Src.Features.Common.Session;
+using MainApi.Src.Modules.Shared.Auth;
 using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Lib.Filters;

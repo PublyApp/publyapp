@@ -1,15 +1,14 @@
 using System.Linq.Expressions;
-using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Features.Common.Profile;
-using MainApi.Src.Features.Common.Permission;
-using MainApi.Src.Features.Common.Project;
-using MainApi.Src.Features.Common.Session;
-using MainApi.Src.Features.Common.Tenant;
-using MainApi.Src.Features.Common.User;
-using MainApi.Src.Features.Common.Invitation;
-using MainApi.Src.Features.Staff.Audit;
-using MainApi.Src.Features.Staff.Notice;
-using MainApi.Src.Features.Tenant.Product;
+using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Shared.Profiles;
+using MainApi.Src.Modules.Shared.Permissions;
+using MainApi.Src.Modules.Shared.Projects;
+using MainApi.Src.Modules.Shared.Auth;
+using MainApi.Src.Modules.Shared.Tenants;
+using MainApi.Src.Modules.Shared.Invitations;
+using MainApi.Src.Modules.Staff.Audit;
+using MainApi.Src.Modules.Staff.Notice;
+using MainApi.Src.Modules.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 

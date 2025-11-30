@@ -1,5 +1,5 @@
 using MainApi.Localization;
-using MainApi.Src.Features.Common.Session;
+using MainApi.Src.Modules.Shared.Auth;
 
 namespace MainApi.Src.Lib.Middlewares;
 

@@ -1,40 +1,40 @@
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
-using MainApi.Src.Features.Tenant.Product;
+using MainApi.Src.Modules.Tenant.Product;
 using FluentValidation;
-using MainApi.Src.Features.Common.User;
-using MainApi.Src.Features.Common.Auth;
-using MainApi.Src.Features.Common.Session;
-using MainApi.Src.Features.Common.Email;
-using MainApi.Src.Features.Common.Permission;
-using MainApi.Src.Features.Common.Profile;
-using MainApi.Src.Features.Common.Tenant;
-using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Features.Staff.StaffMember;
-using MainApi.Src.Features.Staff.TenantAsStaff;
+using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Shared.Auth;
+using MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;
+using MainApi.Src.Modules.Shared.Permissions;
+using MainApi.Src.Modules.Shared.Profiles;
+using MainApi.Src.Modules.Shared.Tenants;
+using MainApi.Src.Modules.Shared.Invitations;
+using MainApi.Src.Modules.Staff.Audit;
+using MainApi.Src.Modules.Staff.Impersonation;
+using MainApi.Src.Modules.Staff.StaffMember;
+using MainApi.Src.Modules.Staff.TenantAsStaff;
 using MainApi.Src.Lib.Email;
 using Resend;
-using MainApi.Src.Features.Staff.ProfileAsStaff;
-using MainApi.Src.Features.Staff.PermissionAsStaff;
+using MainApi.Src.Modules.Staff.ProfileAsStaff;
+using MainApi.Src.Modules.Staff.PermissionAsStaff;
 
 namespace MainApi.Src.Lib;
 
 public static class AppServices {
 	// Helper method to get current tenant ID
 	// (you'll need to implement this based on your authentication/authorization)
-	private static Guid GetCurrentTenantId(IServiceProvider serviceProvider) {
-		// TODO: implement this
-		// Default tenant ID for development
-		// var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-		// var tenantIdHeader = httpContextAccessor.HttpContext?.Request.Headers["X-Tenant-Id"].FirstOrDefault();
-		return Guid.Parse("01234567-89ab-7def-0123-456789abcdef");
+	private static Guid? GetCurrentTenantId(IHttpContextAccessor httpContextAccessor) {
+		var httpContext = httpContextAccessor.HttpContext;
+		if (httpContext is null) {
+			return null;
+		}
 
-		// if (tenantIdHeader == null || !Guid.TryParse(tenantIdHeader, out Guid tenantId))
-		// {
-		// 	throw new Exception("Valid Tenant ID is required");
-		// }
+		var tenantIdHeader = httpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault();
+		if (string.IsNullOrEmpty(tenantIdHeader)) {
+			return null;
+		}
 
-		// return tenantId;
+		return Guid.TryParse(tenantIdHeader, out var tenantId) ? tenantId : null;
 	}
 
 	public static IHostApplicationBuilder AddAppServices(this WebApplicationBuilder builder) {
@@ -57,10 +57,14 @@ public static class AppServices {
 		// Register scoped DbContext (for per-request instances)
 		// EF Core DbContext is not thread-safe and must be scoped, not singleton
 		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) => {
-			var tenantId = GetCurrentTenantId(serviceProvider);
-			options
-				.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING)
-				.UseTenantId(tenantId);
+			var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
+			var tenantId = GetCurrentTenantId(httpContextAccessor);
+
+			options.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING);
+
+			if (tenantId.HasValue) {
+				options.UseTenantId(tenantId.Value);
+			}
 		}, ServiceLifetime.Scoped);
 
 		// Register FluentValidation
@@ -81,6 +85,9 @@ public static class AppServices {
 		builder.Services.AddScoped<ITenantService, TenantService>();
 		builder.Services.AddScoped<IAccountService, AccountService>();
 		builder.Services.AddScoped<IProfileService, ProfileService>();
+		builder.Services.AddScoped<IInvitationService, InvitationService>();
+		builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+		builder.Services.AddScoped<IImpersonationService, ImpersonationService>();
 		builder.Services.AddScoped<IStaffMemberService, StaffMemberService>();
 		builder.Services.AddScoped<IPermissionService, PermissionService>();
 		builder.Services.AddScoped<IProfileAsStaffService, ProfileAsStaffService>();

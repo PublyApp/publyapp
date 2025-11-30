@@ -1,9 +1,9 @@
-using MainApi.Src.Features.Common.Permission;
-using MainApi.Src.Features.Staff.PermissionAsStaff;
-using MainApi.Src.Features.Staff.ProfileAsStaff;
-using MainApi.Src.Features.Staff.StaffMember;
-using MainApi.Src.Features.Staff.TenantAsStaff;
-using MainApi.Src.Features.Staff.UserAsStaff;
+using MainApi.Src.Modules.Shared.Permissions;
+using MainApi.Src.Modules.Staff.PermissionAsStaff;
+using MainApi.Src.Modules.Staff.ProfileAsStaff;
+using MainApi.Src.Modules.Staff.StaffMember;
+using MainApi.Src.Modules.Staff.TenantAsStaff;
+using MainApi.Src.Modules.Staff.UserAsStaff;
 
 namespace MainApi.Src.Lib;
 
