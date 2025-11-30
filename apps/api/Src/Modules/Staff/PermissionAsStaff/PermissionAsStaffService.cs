@@ -1,10 +1,10 @@
 
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Features.Common.Permission;
+using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Lib;
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Src.Features.Staff.PermissionAsStaff;
+namespace MainApi.Src.Modules.Staff.PermissionAsStaff;
 
 public class PermissionAsStaffItem {
 	public string Key { get; set; } = string.Empty;

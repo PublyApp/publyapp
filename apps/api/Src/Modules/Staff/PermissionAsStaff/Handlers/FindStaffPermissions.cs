@@ -3,7 +3,7 @@ using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Features.Staff.PermissionAsStaff.Handlers;
+namespace MainApi.Src.Modules.Staff.PermissionAsStaff.Handlers;
 
 public class FindStaffPermissionsQuery {
 	public string? Language { get; set; }

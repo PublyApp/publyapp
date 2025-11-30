@@ -1,7 +1,6 @@
 using MainApi.Localization;
-using MainApi.Src.Lib.Extensions;
-using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Modules.Auth.Services;
+using MainApi.Src.Modules.Shared.Auth;
+using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Lib.Filters;
 
@@ -22,24 +21,30 @@ public class SessionAuthFilter : IEndpointFilter {
 		EndpointFilterDelegate next
 	) {
 		var httpContext = context.HttpContext;
-		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
+		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
 		var sessionService = httpContext.RequestServices.GetRequiredService<ISessionService>();
-		var env = AppEnvironment.Instance;
+		var appSettings = httpContext.RequestServices.GetRequiredService<IOptions<AppSettings>>();
 
 		// Get session token (should be set by CheckSessionHeaderFilter)
 		var sessionToken = authContext.SessionToken
-			?? httpContext.Request.Headers[env.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
+			?? httpContext.Request.Headers[appSettings.Value.SESSION_TOKEN_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(sessionToken)) {
 			_logger.LogDebug("Session token is missing in request");
-			return TypedProblems.Unauthorized("Session token is missing", ResponseKeys.Unauthorized);
+			return TypedResults.Json(
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
+				statusCode: StatusCodes.Status401Unauthorized
+			);
 		}
 
 		var sessionData = await sessionService.GetSessionByToken(sessionToken, httpContext.RequestAborted);
 
 		if (sessionData is null) {
 			_logger.LogDebug("Session token is invalid or expired");
-			return TypedProblems.Unauthorized("Session token is invalid or expired", ResponseKeys.Unauthorized);
+			return TypedResults.Json(
+				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
+				statusCode: StatusCodes.Status401Unauthorized
+			);
 		}
 
 		// Attach userId for downstream filters/handlers
@@ -48,7 +53,10 @@ public class SessionAuthFilter : IEndpointFilter {
 
 		if (!authContext.IsAuthenticated) {
 			_logger.LogError("Failed to authenticate user, session has no user attached");
-			return TypedProblems.InternalServerError("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser);
+			return TypedResults.Json(
+				ApiResponse.Create("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser),
+				statusCode: StatusCodes.Status500InternalServerError
+			);
 		}
 
 		return await next(context);
@@ -65,9 +73,7 @@ public static class SessionAuthFilterExtensions {
 	/// Requires CheckSessionHeaderFilter to be applied first.
 	/// </summary>
 	public static RouteGroupBuilder WithSessionAuthentication(this RouteGroupBuilder builder) {
-		return builder
-			.AddEndpointFilter<SessionAuthFilter>()
-			.ProducesAppProblem(StatusCodes.Status401Unauthorized, StatusCodes.Status500InternalServerError);
+		return builder.AddEndpointFilter<SessionAuthFilter>();
 	}
 
 	/// <summary>
@@ -76,9 +82,6 @@ public static class SessionAuthFilterExtensions {
 	/// Requires CheckSessionHeaderFilter to be applied first.
 	/// </summary>
 	public static RouteHandlerBuilder WithSessionAuthentication(this RouteHandlerBuilder builder) {
-		return builder
-			.AddEndpointFilter<SessionAuthFilter>()
-			.Produces<AppProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")
-			.Produces<AppProblemDetails>(StatusCodes.Status500InternalServerError, "application/problem+json");
+		return builder.AddEndpointFilter<SessionAuthFilter>();
 	}
 }

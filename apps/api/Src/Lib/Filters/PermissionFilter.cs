@@ -1,11 +1,7 @@
 using MainApi.Localization;
-using MainApi.Src.Lib.Extensions;
-using MainApi.Src.Lib.ProblemResults;
-using MainApi.Src.Modules.Permissions.Entities;
-using MainApi.Src.Modules.Permissions.Services;
-using MainApi.Src.Modules.Users.Entities;
-
-namespace MainApi.Src.Lib.Filters;
+using MainApi.Src.Data.DbContext;
+using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Shared.Permissions;
 
 namespace MainApi.Src.Lib.Filters;
 
@@ -34,13 +30,14 @@ public class PermissionFilter : IEndpointFilter {
 		EndpointFilterDelegate next
 	) {
 		var httpContext = context.HttpContext;
-		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
+		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
 		var accountStaff = authContext.AccountStaff;
+		var dbContext = httpContext.RequestServices.GetRequiredService<MainApiDbContext>();
 		var permissionService = httpContext.RequestServices.GetRequiredService<IPermissionService>();
 		var logger = httpContext.RequestServices.GetRequiredService<ILogger<PermissionFilter>>();
 
 		if (accountStaff == null) {
-			throw new Exception("PermissionFilter must be set behind StaffAuthFilter.");
+			throw new Exception("PermissionFilter must be set behind StaffAuthMiddleware.");
 		}
 
 		// if user is not admin, check user permissions
@@ -55,17 +52,16 @@ public class PermissionFilter : IEndpointFilter {
 
 				// early clause guard to avoid unnecessary permission checks
 				if (userPermissions.Count == 0) {
-					if (logger.IsEnabled(LogLevel.Debug)) {
-						logger.LogDebug("User is not an admin and has no permissions: {@AccountStaff}", new {
-							accountId = accountStaff.Id,
-							userId = accountStaff.UserId,
-						});
-					}
+					logger.LogDebug("User is not an admin and has no permissions: {@AccountStaff}", new {
+						accountId = accountStaff.Id,
+						userId = accountStaff.UserId,
+						sessionToken = authContext.SessionToken,
+					});
 
-					return TypedProblems.Forbidden(
-						"User has no permissions",
-						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-					);
+					return TypedResults.Json(new {
+						message = "Unauthorized",
+						key = "unauthorized",
+					}, statusCode: StatusCodes.Status401Unauthorized);
 				}
 
 				bool hasRequiredPermissions;
@@ -83,19 +79,18 @@ public class PermissionFilter : IEndpointFilter {
 				}
 
 				if (!hasRequiredPermissions) {
-					if (logger.IsEnabled(LogLevel.Debug)) {
-						logger.LogDebug("User failed permission check: {@PermissionCheck}", new {
-							accountId = accountStaff.Id,
-							userId = accountStaff.UserId,
-							userPermissionsCount = userPermissions.Count,
-							hasCustomChecker = _customPermissionChecker != null
-							// userPermissions = userPermissions.ToArray(),
-						});
-					}
+					logger.LogDebug("User failed permission check: {@PermissionCheck}", new {
+						accountId = accountStaff.Id,
+						userId = accountStaff.UserId,
+						userPermissionsCount = userPermissions.Count,
+						hasCustomChecker = _customPermissionChecker != null
+						// userPermissions = userPermissions.ToArray(),
+					});
 
-					return TypedProblems.Forbidden(
+					return TypedResults.Json(ApiResponse.Create(
 						"User does not have the necessary permissions",
-						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+						ResponseKeys.UserDoesNotHaveTheNecessaryPermissions),
+						statusCode: StatusCodes.Status403Forbidden
 					);
 				}
 			}
@@ -106,54 +101,18 @@ public class PermissionFilter : IEndpointFilter {
 }
 
 public static class PermissionFilterExtensions {
-	/// <summary>
-	/// Adds PermissionFilter to the route group with required permissions.
-	/// All specified permissions are required (AND logic).
-	/// </summary>
-	public static RouteGroupBuilder WithPermission(
-		this RouteGroupBuilder builder,
-		Permission[] requiredPermissions
-	) {
-		return builder
-			.AddEndpointFilter(new PermissionFilter(requiredPermissions))
-			.ProducesAppProblem(StatusCodes.Status403Forbidden);
-	}
-
-	/// <summary>
-	/// Adds PermissionFilter to the route group with a custom permission checker.
-	/// </summary>
-	public static RouteGroupBuilder WithPermission(
-		this RouteGroupBuilder builder,
-		Func<HashSet<string>, bool> customPermissionChecker
-	) {
-		return builder
-			.AddEndpointFilter(new PermissionFilter(customPermissionChecker))
-			.ProducesAppProblem(StatusCodes.Status403Forbidden);
-	}
-
-	/// <summary>
-	/// Adds PermissionFilter to the route handler with required permissions.
-	/// All specified permissions are required (AND logic).
-	/// </summary>
 	public static RouteHandlerBuilder WithPermission(
 		this RouteHandlerBuilder builder,
 		Permission[] requiredPermissions
 	) {
-		return builder
-			.AddEndpointFilter(new PermissionFilter(requiredPermissions))
-			.ProducesAppProblem(StatusCodes.Status403Forbidden);
+		return builder.AddEndpointFilter(new PermissionFilter(requiredPermissions));
 	}
 
-	/// <summary>
-	/// Adds PermissionFilter to the route handler with a custom permission checker.
-	/// </summary>
 	public static RouteHandlerBuilder WithPermission(
 		this RouteHandlerBuilder builder,
 		Func<HashSet<string>, bool> customPermissionChecker
 	) {
-		return builder
-			.AddEndpointFilter(new PermissionFilter(customPermissionChecker))
-			.ProducesAppProblem(StatusCodes.Status403Forbidden);
+		return builder.AddEndpointFilter(new PermissionFilter(customPermissionChecker));
 	}
 }
 
