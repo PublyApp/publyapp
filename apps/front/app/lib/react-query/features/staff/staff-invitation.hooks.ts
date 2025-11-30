@@ -93,7 +93,6 @@ const bulkCreateInvitationsMutationKey = getQueryKey<ApiClient>(
 export const useBulkCreateInvitations = createMutation({
 	mutationKey: [bulkCreateInvitationsMutationKey] as const,
 	mutationFn: async (data: BulkCreateInvitationsPayload) => {
-		// const result = await
 		const reqInfo =
 			clientManager.apiClient.staff.invitations.bulk.toPostRequestInformation(
 				{},

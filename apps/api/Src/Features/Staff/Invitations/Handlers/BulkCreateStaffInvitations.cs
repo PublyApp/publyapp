@@ -1,13 +1,14 @@
 using System.Text.Json;
 using FluentValidation;
 using MainApi.Localization;
-using MainApi.Src.Features.Common.Account;
+using MainApi.Src.Features.Common.Email;
 using MainApi.Src.Features.Common.Invitation;
 using MainApi.Src.Features.Staff.Audit;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using Polly;
 
 namespace MainApi.Src.Features.Staff.Invitations.Handlers;
 
@@ -131,7 +132,7 @@ public class BulkCreateStaffInvitationsBodyValidator
 			});
 	}
 
-	private bool BeValidEmail(string email) {
+	private static bool BeValidEmail(string email) {
 		if (string.IsNullOrWhiteSpace(email)) return false;
 		try {
 			return System.Net.Mail.MailAddress.TryCreate(email, out _);
@@ -149,21 +150,24 @@ public static class BulkCreateStaffInvitations {
 	>> HandleBulkCreateStaffInvitations(
 		[FromServices] IAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
+		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
+		[FromServices] ILoggerFactory loggerFactory,
 		[FromBody] BulkCreateStaffInvitationsBody request,
 		CancellationToken cancellationToken = default
 	) {
-		// Authorization check
+		var logger = loggerFactory.CreateLogger(nameof(BulkCreateStaffInvitations));
+
 		var account = authContext.AccountStaff;
-		if (account is null
-			|| account.Scope != AccountScope.Staff
-			|| account.Level != AccountLevel.Admin) {
+
+		// should never happen because handler must be set behind StaffAuthFilter
+		if (account is null) {
 			return TypedResults.Json(
 				ApiResponse.Create(
-					"User does not have the necessary permissions",
-					ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+					"Internal server error",
+					ResponseKeys.InternalServerError
 				),
-				statusCode: StatusCodes.Status403Forbidden
+				statusCode: StatusCodes.Status500InternalServerError
 			);
 		}
 
@@ -250,25 +254,134 @@ public static class BulkCreateStaffInvitations {
 		}
 
 		// Call the service to create invitations
-		var created = await invitationService.BulkCreateStaffInvitationsAsync(
+		var invitationTokens = await invitationService.BulkCreateStaffInvitationsAsync(
 			invitations,
 			account.UserId,
 			cancellationToken
 		);
+
+		// Send invitation emails (fire and forget - don't block response)
+		_ = Task.Run(async () => {
+			await SendInvitationEmailsAsync(
+				emailService,
+				logger,
+				invitationTokens,
+				cancellationToken
+			);
+		}, cancellationToken);
 
 		// Audit logging
 		await auditLogService.LogAsync(
 			account.UserId,
 			AuditActions.InvitationCreated,
 			null, // Bulk operation has no single target
-			new { Count = created, Scope = "Staff" },
+			new { Count = invitationTokens.Count, Scope = "Staff" },
 			cancellationToken
 		);
 
 		// Return success response
 		return TypedResults.Ok(new BulkStaffInvitationsCreated {
-			Created = created
+			Created = invitationTokens.Count
 		});
+	}
+
+	/// <summary>
+	/// Sends invitation emails with controlled concurrency and retry logic.
+	/// </summary>
+	private static async Task SendInvitationEmailsAsync(
+		IEmailService emailService,
+		ILogger logger,
+		List<(string Email, string Token)> invitationTokens,
+		CancellationToken cancellationToken
+	) {
+		if (invitationTokens.Count == 0) return;
+
+		const int maxConcurrency = 5;
+		using var semaphore = new SemaphoreSlim(maxConcurrency);
+
+		var tasks = invitationTokens.Select(async (invitation) => {
+			await semaphore.WaitAsync(cancellationToken);
+			try {
+				await SendEmailWithRetryAsync(
+					async () => {
+						await emailService.SendInvitationToJoinStaffEmailAsync(
+							invitation.Email,
+							invitation.Token
+						);
+					},
+					logger,
+					invitation.Email,
+					cancellationToken
+				);
+			} finally {
+				semaphore.Release();
+			}
+		});
+
+		await Task.WhenAll(tasks);
+	}
+
+	/// <summary>
+	/// Sends an email with exponential backoff retry logic using Polly.
+	/// Creates a retry policy per call with Context for per-call logging.
+	/// Policy creation is lightweight, so this approach is acceptable for this use case.
+	/// </summary>
+	private static async Task SendEmailWithRetryAsync(
+		Func<Task> sendEmailAction,
+		ILogger logger,
+		string email,
+		CancellationToken cancellationToken
+	) {
+		// Create context to pass logger/email info for retry logging
+		var context = new Context {
+			["logger"] = logger,
+			["email"] = email
+		};
+
+		// Create policy with onRetry that uses context (policy creation is lightweight)
+		var retryPolicy = Policy
+			.Handle<Exception>()
+			.WaitAndRetryAsync(
+				retryCount: 3,
+				sleepDurationProvider: retryAttempt =>
+					TimeSpan.FromSeconds(Math.Pow(2, retryAttempt - 1)),
+				onRetry: (exception, timeSpan, retryCount, ctx) => {
+					var log = (ILogger)ctx["logger"];
+					var emailAddr = (string)ctx["email"];
+
+					log.LogWarning(
+						exception,
+						"Failed to send invitation email to {Email} (attempt {Attempt}/3), " +
+						"retrying in {Delay}ms",
+						emailAddr,
+						retryCount,
+						timeSpan.TotalMilliseconds
+					);
+				}
+			);
+
+		try {
+			await retryPolicy.ExecuteAsync(
+				async (ctx, ct) => {
+					await sendEmailAction();
+				},
+				context,
+				cancellationToken
+			);
+
+			// Log success only after policy completes successfully
+			logger.LogInformation(
+				"Successfully sent invitation email to {Email}",
+				email
+			);
+		} catch (Exception ex) {
+			logger.LogError(
+				ex,
+				"Failed to send invitation email to {Email} after 3 attempts",
+				email
+			);
+			// Don't rethrow - email failures shouldn't break the main operation
+		}
 	}
 }
 

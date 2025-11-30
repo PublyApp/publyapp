@@ -70,7 +70,7 @@ public interface IInvitationService {
 		CancellationToken cancellationToken = default);
 
 	// Bulk creation method
-	Task<int> BulkCreateStaffInvitationsAsync(
+	Task<List<(string Email, string Token)>> BulkCreateStaffInvitationsAsync(
 		List<BulkStaffInvitationItem> invitations,
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default);
@@ -450,7 +450,7 @@ public class InvitationService : IInvitationService {
 		return validProfileIds;
 	}
 
-	public async Task<int> BulkCreateStaffInvitationsAsync(
+	public async Task<List<(string Email, string Token)>> BulkCreateStaffInvitationsAsync(
 		List<BulkStaffInvitationItem> invitations,
 		Guid invitedByUserId,
 		CancellationToken cancellationToken = default
@@ -459,6 +459,7 @@ public class InvitationService : IInvitationService {
 			.BeginTransactionAsync(cancellationToken);
 		try {
 			var expiresAt = DateTime.UtcNow.AddDays(7);
+			var invitationTokens = new List<(string Email, string Token)>();
 
 			foreach (var item in invitations) {
 				// Generate unique token per invitation (one per email)
@@ -478,6 +479,9 @@ public class InvitationService : IInvitationService {
 
 				// Add invitation (EF Core will also track the InvitationProfile junction records)
 				_dbContext.Invitation.Add(invitation);
+
+				// Collect email and token for sending emails later
+				invitationTokens.Add((item.Email, token));
 			}
 
 			// Save all changes (single database INSERT with multiple rows)
@@ -486,15 +490,13 @@ public class InvitationService : IInvitationService {
 			// Commit transaction
 			await tx.CommitAsync(cancellationToken);
 
-			var totalCreated = invitations.Count; // Number of invitations (emails), not junction records
-
 			_logger.LogInformation(
 				"Created {Count} staff invitations in bulk by user {InvitedByUserId}",
-				totalCreated,
+				invitationTokens.Count,
 				invitedByUserId
 			);
 
-			return totalCreated;
+			return invitationTokens;
 		} catch {
 			await tx.RollbackAsync(cancellationToken);
 			throw;
