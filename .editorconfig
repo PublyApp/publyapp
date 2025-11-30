@@ -49,3 +49,5 @@ dotnet_diagnostic.IDE0042.severity = none
 dotnet_diagnostic.IDE0028.severity = none
 # CA1860: Avoid using 'Enumerable.Any()' extension method
 dotnet_diagnostic.CA1860.severity = warning
+# IDE0130: Namespace declaration does not match folder structure
+dotnet_diagnostic.IDE0130.severity = warning
