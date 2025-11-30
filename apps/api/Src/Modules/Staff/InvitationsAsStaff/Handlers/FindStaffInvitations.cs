@@ -5,7 +5,7 @@ using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Modules.Staff.Invitation.Handlers;
+namespace MainApi.Src.Modules.Staff.InvitationsAsStaff.Handlers;
 
 public static class FindStaffInvitations {
 	public static async Task<Results<

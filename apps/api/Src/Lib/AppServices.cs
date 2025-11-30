@@ -9,7 +9,7 @@ using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Profiles;
 using MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Invitation;
-using MainApi.Src.Modules.Staff.AuditLog;
+using MainApi.Src.Modules.Staff.AuditLogs;
 using MainApi.Src.Modules.Staff.Impersonation;
 using MainApi.Src.Modules.Staff.StaffMember;
 using MainApi.Src.Modules.Staff.TenantAsStaff;

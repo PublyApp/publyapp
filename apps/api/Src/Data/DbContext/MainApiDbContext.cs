@@ -10,6 +10,7 @@ using MainApi.Src.Modules.Staff.SystemNotice;
 using MainApi.Src.Modules.Tenant.Product;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using MainApi.Src.Modules.Staff.AuditLogs;
 
 namespace MainApi.Src.Data.DbContext;
 
@@ -41,7 +42,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	public DbSet<InvitationProfile> InvitationProfile { get; init; }
 
 	// Staff back-office entities
-	public DbSet<MainApi.Src.Modules.Staff.AuditLog.AuditLog> AuditLog { get; init; }
+	public DbSet<AuditLog> AuditLog { get; init; }
 	public DbSet<SystemNotice> SystemNotice { get; init; }
 
 	public Guid? TenantId { get; set; }
