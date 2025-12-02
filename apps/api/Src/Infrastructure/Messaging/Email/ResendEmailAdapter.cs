@@ -1,6 +1,6 @@
 using Resend;
 
-namespace MainApi.Src.Lib.Email;
+namespace MainApi.Src.Infrastructure.Messaging.Email;
 
 // Adapts Resend SDK to IEmailSender interface
 public class ResendEmailAdapter : IEmailSender {
