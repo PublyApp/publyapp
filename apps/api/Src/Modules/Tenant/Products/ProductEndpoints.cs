@@ -1,6 +1,6 @@
 using MainApi.Src.Lib.Extensions;
 
-namespace MainApi.Src.Modules.Tenant.Product;
+namespace MainApi.Src.Modules.Tenant.Products;
 
 public static class ProductEndpoints {
 	public static IEndpointRouteBuilder MapProductEndpoints(this IEndpointRouteBuilder routes) {

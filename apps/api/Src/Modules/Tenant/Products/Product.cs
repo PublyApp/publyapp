@@ -2,7 +2,7 @@ using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
-namespace MainApi.Src.Modules.Tenant.Product;
+namespace MainApi.Src.Modules.Tenant.Products;
 
 [Table("products")]
 public class Product : BaseAttributes, ITenantEntity {

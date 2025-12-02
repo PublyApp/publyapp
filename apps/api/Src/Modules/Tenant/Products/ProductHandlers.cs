@@ -1,4 +1,4 @@
-namespace MainApi.Src.Modules.Tenant.Product;
+namespace MainApi.Src.Modules.Tenant.Products;
 
 public static class ProductHandlers {
 	public static async Task<IResult> GetProducts(IProductService productService, CancellationToken cancellationToken = default) {
