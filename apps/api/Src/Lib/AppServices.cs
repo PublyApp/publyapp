@@ -13,7 +13,6 @@ using MainApi.Src.Modules.Staff.AuditLogs;
 using MainApi.Src.Modules.Staff.Impersonation;
 using MainApi.Src.Modules.Staff.StaffMember;
 using MainApi.Src.Modules.Staff.TenantAsStaff;
-using MainApi.Src.Lib.Email;
 using Resend;
 using MainApi.Src.Modules.Staff.ProfileAsStaff;
 using MainApi.Src.Modules.Staff.PermissionAsStaff;

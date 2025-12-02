@@ -1,4 +1,4 @@
-namespace MainApi.Src.Lib.Email;
+namespace MainApi.Src.Infrastructure.Messaging.Email;
 
 // Simpler version for basic use cases
 public class EmailRequest {

@@ -1,6 +1,5 @@
 using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Email;
 using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Infrastructure.Messaging.Email;
