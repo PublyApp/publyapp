@@ -1,7 +1,7 @@
 using System.Text.Json;
 using FluentValidation;
 using MainApi.Localization;
-using MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;
+using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;

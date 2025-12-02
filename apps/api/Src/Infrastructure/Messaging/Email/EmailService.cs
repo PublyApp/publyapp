@@ -3,7 +3,7 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Email;
 using Microsoft.Extensions.Options;
 
-namespace MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;
+namespace MainApi.Src.Infrastructure.Messaging.Email;
 
 public interface IEmailService {
 	Task SendWelComeEmailAsync(string email, string token);

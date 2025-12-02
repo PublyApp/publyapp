@@ -4,6 +4,8 @@
 
 This document outlines the plan to reorganize `apps/api/Src/Features/` to align with **Vertical Slice Architecture** principles, organizing code by scope (Staff/Tenant/Shared) and domain modules.
 
+**📝 UPDATE (December 2024)**: After implementation and review of Milan Jovanovic's Vertical Slice Architecture best practices, we moved `Infrastructure/` from `Modules/Shared/Infrastructure/` to the top level `apps/api/Src/Infrastructure/`. This better separates technical infrastructure services from domain modules, following the principle that Infrastructure is a separate architectural layer (Tier 1 in Milan's framework), not a domain module.
+
 ## Current Problems
 
 1. **Confusing "Features" naming**: Not clear that this is about modules/domains
@@ -20,93 +22,95 @@ The current structure is **already correct for vertical slices**. The only probl
 
 ```
 apps/api/Src/
-├── Modules/                             # ✨ RENAMED from "Features"
-│   ├── Shared/                          # ✨ RENAMED from "Common"
-│   │   ├── Users/                       # Vertical slice: User module
-│   │   │   ├── User.cs                  # Entity
-│   │   │   ├── UserAccount.cs           # Entity
-│   │   │   ├── UserAccountProfile.cs    # Junction entity
-│   │   │   ├── UserSeeder.cs            # Seeder
-│   │   │   ├── UserAccountSeeder.cs     # Seeder
-│   │   │   └── Handlers/                # User-related operations (if any)
-│   │   │
-│   │   ├── Profiles/                    # Vertical slice: Profile module
-│   │   │   ├── Profile.cs               # Entity
-│   │   │   ├── ProfilePermission.cs     # Junction entity
-│   │   │   ├── ProfileSeeder.cs         # Seeder
-│   │   │   ├── StaffProfileSeeder.cs    # Seeder
-│   │   │   └── Handlers/                # Profile operations (if any)
-│   │   │
-│   │   ├── Auth/                        # Vertical slice: Auth module
-│   │   │   ├── Session.cs               # Entity
-│   │   │   ├── PasswordService.cs       # Auth business logic
-│   │   │   ├── AuthService.cs           # Auth business logic
-│   │   │   ├── AuthUtils.cs             # Auth utilities
-│   │   │   ├── AuthEndpoint.cs          # Endpoints
-│   │   │   └── Handlers/                # Auth handlers
-│   │   │       ├── PasswordLogin.cs
-│   │   │       ├── PasswordRegister.cs
-│   │   │       ├── ResetPassword.cs
-│   │   │       ├── VerifyEmailRequest.cs
-│   │   │       ├── GetRedirectCode.cs
-│   │   │       ├── GetUserAuthData.cs
-│   │   │       ├── GetTenantAuthData.cs
-│   │   │       ├── CheckEmailVerificationToken.cs
-│   │   │       ├── CheckResetPasswordToken.cs
-│   │   │       ├── CheckInvitationToken.cs
-│   │   │       └── GetVerificationLink.cs
-│   │   │
-│   │   ├── Invitations/                 # Vertical slice: Invitation module
-│   │   │   ├── Invitation.cs            # Entity
-│   │   │   ├── InvitationProfile.cs     # Junction entity
-│   │   │   ├── InvitationSeeder.cs      # Seeder (if exists)
-│   │   │   ├── InvitationService.cs     # Service (if exists)
-│   │   │   └── Handlers/                # Invitation operations
-│   │   │
-│   │   ├── Permissions/                 # Vertical slice: Permission module
-│   │   │   ├── Permission.cs            # Entity
-│   │   │   ├── PermissionSeeder.cs      # Seeder
-│   │   │   └── Handlers/                # Permission operations (if any)
-│   │   │
-│   │   ├── Tenants/                     # Vertical slice: Tenant module
-│   │   │   ├── Tenant.cs                # Entity
-│   │   │   ├── TenantSeeder.cs          # Seeder
-│   │   │   └── Handlers/                # Tenant operations (if any)
-│   │   │
-│   │   ├── Projects/                    # Vertical slice: Project module
-│   │   │   ├── Project.cs               # Entity
-│   │   │   └── Handlers/                # Project operations (if any)
-│   │   │
-│   │   └── Infrastructure/              # Architectural/infrastructure services
-│   │       ├── Messaging/               # Communication services
-│   │       │   ├── Email/
-│   │       │   │   ├── IEmailService.cs
-│   │       │   │   └── EmailService.cs
-│   │       │   └── Sms/                 # (Future) SMS services
-│   │       ├── Storage/                 # (Future) File storage services
-│   │       ├── Caching/                 # (Future) Cache services
-│   │       └── Audit/                   # (Future) Cross-scope audit if needed
-│   │
-│   ├── Staff/                           # Staff scope (unchanged)
-│   │   ├── ProfileAsStaff/
-│   │   ├── StaffMember/
-│   │   ├── TenantAsStaff/
-│   │   ├── PermissionAsStaff/
-│   │   └── InvitationAsStaff/
-│   │
-│   └── Tenant/                          # Tenant scope (unchanged)
-│       └── Products/
-│           ├── Product.cs
-│           └── Handlers/
+├── Data/                                # Database layer
+│   ├── DbContext/
+│   │   ├── MainApiDbContext.cs
+│   │   └── TenantExtension.cs
+│   ├── BaseAttributes.cs
+│   ├── IEntity.cs
+│   ├── IEntitySeeder.cs
+│   └── DbSetExtensions.cs
 │
-└── Data/
-    ├── DbContext/
-    │   ├── MainApiDbContext.cs
-    │   └── TenantExtension.cs
-    ├── BaseAttributes.cs
-    ├── IEntity.cs
-    ├── IEntitySeeder.cs
-    └── DbSetExtensions.cs
+├── Lib/                                 # Pure utilities
+│
+├── Infrastructure/                      # 🔄 MOVED from Modules/Shared/ (Tier 1: Technical services)
+│   ├── Messaging/                       # Communication services
+│   │   ├── Email/
+│   │   │   ├── IEmailService.cs
+│   │   │   └── EmailService.cs
+│   │   └── Sms/                         # (Future) SMS services
+│   ├── Storage/                         # (Future) File storage services
+│   ├── Caching/                         # (Future) Cache services
+│   └── Audit/                           # (Future) Cross-scope audit if needed
+│
+└── Modules/                             # ✨ RENAMED from "Features" (Domain layer)
+    ├── Shared/                          # ✨ RENAMED from "Common" (Cross-scope domain modules)
+    │   ├── Users/                       # Vertical slice: User module
+    │   │   ├── User.cs                  # Entity
+    │   │   ├── UserAccount.cs           # Entity
+    │   │   ├── UserAccountProfile.cs    # Junction entity
+    │   │   ├── UserSeeder.cs            # Seeder
+    │   │   ├── UserAccountSeeder.cs     # Seeder
+    │   │   └── Handlers/                # User-related operations (if any)
+    │   │
+    │   ├── Profiles/                    # Vertical slice: Profile module
+    │   │   ├── Profile.cs               # Entity
+    │   │   ├── ProfilePermission.cs     # Junction entity
+    │   │   ├── ProfileSeeder.cs         # Seeder
+    │   │   ├── StaffProfileSeeder.cs    # Seeder
+    │   │   └── Handlers/                # Profile operations (if any)
+    │   │
+    │   ├── Auth/                        # Vertical slice: Auth module
+    │   │   ├── Session.cs               # Entity
+    │   │   ├── PasswordService.cs       # Auth business logic
+    │   │   ├── AuthService.cs           # Auth business logic
+    │   │   ├── AuthUtils.cs             # Auth utilities
+    │   │   ├── AuthEndpoint.cs          # Endpoints
+    │   │   └── Handlers/                # Auth handlers
+    │   │       ├── PasswordLogin.cs
+    │   │       ├── PasswordRegister.cs
+    │   │       ├── ResetPassword.cs
+    │   │       ├── VerifyEmailRequest.cs
+    │   │       ├── GetRedirectCode.cs
+    │   │       ├── GetUserAuthData.cs
+    │   │       ├── GetTenantAuthData.cs
+    │   │       ├── CheckEmailVerificationToken.cs
+    │   │       ├── CheckResetPasswordToken.cs
+    │   │       ├── CheckInvitationToken.cs
+    │   │       └── GetVerificationLink.cs
+    │   │
+    │   ├── Invitations/                 # Vertical slice: Invitation module
+    │   │   ├── Invitation.cs            # Entity
+    │   │   ├── InvitationProfile.cs     # Junction entity
+    │   │   ├── InvitationSeeder.cs      # Seeder (if exists)
+    │   │   ├── InvitationService.cs     # Service (if exists)
+    │   │   └── Handlers/                # Invitation operations
+    │   │
+    │   ├── Permissions/                 # Vertical slice: Permission module
+    │   │   ├── Permission.cs            # Entity
+    │   │   ├── PermissionSeeder.cs      # Seeder
+    │   │   └── Handlers/                # Permission operations (if any)
+    │   │
+    │   ├── Tenants/                     # Vertical slice: Tenant module
+    │   │   ├── Tenant.cs                # Entity
+    │   │   ├── TenantSeeder.cs          # Seeder
+    │   │   └── Handlers/                # Tenant operations (if any)
+    │   │
+    │   └── Projects/                    # Vertical slice: Project module
+    │       ├── Project.cs               # Entity
+    │       └── Handlers/                # Project operations (if any)
+    │
+    ├── Staff/                           # Staff scope (unchanged)
+    │   ├── ProfileAsStaff/
+    │   ├── StaffMember/
+    │   ├── TenantAsStaff/
+    │   ├── PermissionAsStaff/
+    │   └── InvitationAsStaff/
+    │
+    └── Tenant/                          # Tenant scope (unchanged)
+        └── Products/
+            ├── Product.cs
+            └── Handlers/
 ```
 
 ## Key Changes
@@ -161,14 +165,16 @@ git mv apps/api/Src/Modules/Common apps/api/Src/Modules/Shared
 
 **Problem**: Some services don't have entities (e.g., EmailService, SmsService, FileStorageService). Where should they live in a vertical slice architecture?
 
-**Solution**: Create `Modules/Shared/Infrastructure/` immediately for all architectural/infrastructure concerns.
+**Solution**: Create `Infrastructure/` at the **top level** (`apps/api/Src/Infrastructure/`) for all architectural/infrastructure concerns. This separates technical services (Tier 1) from domain modules.
+
+**📝 UPDATE**: Initially we planned `Modules/Shared/Infrastructure/`, but after reviewing Milan Jovanovic's VSA best practices, we moved it to the top level. Infrastructure is a separate architectural layer, not a domain module.
 
 #### Infrastructure Module Structure
 
 Create this structure from the start to maintain clear separation between domain modules and infrastructure services:
 
 ```
-Modules/Shared/Infrastructure/
+apps/api/Src/Infrastructure/
 ├── Messaging/
 │   ├── Email/
 │   │   ├── IEmailService.cs         # Interface
@@ -206,7 +212,7 @@ Modules/Shared/Infrastructure/
 #### Current Services to Move
 
 **✅ Move to Infrastructure**:
-- **EmailService** → `Modules/Shared/Infrastructure/Messaging/Email/`
+- **EmailService** → `Infrastructure/Messaging/Email/`
   - Sends transactional emails (welcome, verification, password reset, invitations)
   - Technical concern, not domain logic
 
@@ -398,11 +404,11 @@ mkdir apps/api/Src/Modules/Shared/Tenants
 mkdir apps/api/Src/Modules/Shared/Projects
 mkdir apps/api/Src/Modules/Shared/Invitations
 
-# Infrastructure folders
-mkdir -p apps/api/Src/Modules/Shared/Infrastructure/Messaging/Email
-mkdir -p apps/api/Src/Modules/Shared/Infrastructure/Messaging/Sms
-mkdir -p apps/api/Src/Modules/Shared/Infrastructure/Storage
-mkdir -p apps/api/Src/Modules/Shared/Infrastructure/Caching
+# Infrastructure folders (at top level, not in Modules/)
+mkdir -p apps/api/Src/Infrastructure/Messaging/Email
+mkdir -p apps/api/Src/Infrastructure/Messaging/Sms
+mkdir -p apps/api/Src/Infrastructure/Storage
+mkdir -p apps/api/Src/Infrastructure/Caching
 ```
 
 ### Phase 3: Move Files into Modules (20 minutes)
@@ -481,11 +487,11 @@ git mv apps/api/Src/Modules/Shared/Session/Session.cs apps/api/Src/Modules/Share
 
 #### Infrastructure Module (create and populate)
 ```bash
-# Move EmailService to Infrastructure
-git mv apps/api/Src/Modules/Shared/Email/IEmailService.cs apps/api/Src/Modules/Shared/Infrastructure/Messaging/Email/ 2>/dev/null || true
-git mv apps/api/Src/Modules/Shared/Email/EmailService.cs apps/api/Src/Modules/Shared/Infrastructure/Messaging/Email/ 2>/dev/null || true
+# Move EmailService to Infrastructure (top level, not in Modules/)
+git mv apps/api/Src/Modules/Shared/Email/IEmailService.cs apps/api/Src/Infrastructure/Messaging/Email/ 2>/dev/null || true
+git mv apps/api/Src/Modules/Shared/Email/EmailService.cs apps/api/Src/Infrastructure/Messaging/Email/ 2>/dev/null || true
 
-# Update namespace: MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;
+# Update namespace: MainApi.Src.Infrastructure.Messaging.Email;
 ```
 
 ### Phase 4: Update Namespaces in Moved Files (15 minutes)
@@ -549,7 +555,7 @@ Get-ChildItem -Path "apps/api/Src" -Filter "*.cs" -Recurse | ForEach-Object {
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Tenant;', 'using MainApi.Src.Modules.Shared.Tenants;'
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Project;', 'using MainApi.Src.Modules.Shared.Projects;'
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Invitation;', 'using MainApi.Src.Modules.Shared.Invitation;'
-    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Email;', 'using MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;'
+    $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Email;', 'using MainApi.Src.Infrastructure.Messaging.Email;'
     $content = $content -replace 'using MainApi\.Src\.Modules\.Shared\.Session;', 'using MainApi.Src.Modules.Shared.Auth;'
     $content | Set-Content $_.FullName
 }
@@ -610,7 +616,7 @@ make dev-api
    - `Modules/Shared/Profiles/` - Profile entity, ProfilePermission junction, seeders
    - `Modules/Shared/Auth/` - Authentication entities, services (PasswordService, AuthService), handlers
    - `Modules/Shared/Invitations/` - Invitation entity, InvitationProfile junction
-   - `Modules/Shared/Infrastructure/` - Architectural services (EmailService, future: SmsService, FileStorageService)
+   - `Infrastructure/` - Architectural services (EmailService, future: SmsService, FileStorageService)
 
    ### Junction Entity Rule
    - Junction entities live with their PRIMARY entity
@@ -638,7 +644,7 @@ make dev-api
    - New shared entity? → Create module in `Modules/Shared/`
    - Staff operation? → Add to `Modules/Staff/`
    - Tenant operation? → Add to `Modules/Tenant/`
-   - New infrastructure service? → Add to `Modules/Shared/Infrastructure/`
+   - New infrastructure service? → Add to `Infrastructure/` (top level, not in Modules/)
      - Email/SMS → `Infrastructure/Messaging/`
      - File storage → `Infrastructure/Storage/`
      - Caching → `Infrastructure/Caching/`
@@ -772,7 +778,8 @@ If issues occur during refactoring:
 - ❌ `Common/` → ✅ `Shared/`
 - ❌ Singular folder names (`User/`, `Profile/`) → ✅ Plural (`Users/`, `Profiles/`)
 - ❌ Files scattered across entity folders → ✅ Everything grouped by domain module
-- ✅ **NEW**: Clear rules for services without entities (EmailService → Auth/)
+- ✅ **NEW**: Infrastructure at top level (`Infrastructure/`), not nested in `Modules/Shared/`
+- ✅ **NEW**: Clear separation between technical services (Infrastructure) and domain modules (Modules)
 
 **What's NOT changing**:
 - ✅ Vertical slice principles (maintained and improved)
