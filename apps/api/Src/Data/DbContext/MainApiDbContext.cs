@@ -7,7 +7,7 @@ using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Invitation;
 using MainApi.Src.Modules.Staff.SystemNotice;
-using MainApi.Src.Modules.Tenant.Product;
+using MainApi.Src.Modules.Tenant.Products;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using MainApi.Src.Modules.Staff.AuditLogs;

@@ -2,7 +2,7 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Modules.Shared.Auth;
-using MainApi.Src.Modules.Tenant.Product;
+using MainApi.Src.Modules.Tenant.Products;
 using MainApi.Src.Modules.Staff.StaffMember;
 using MainApi.Src.Modules.Staff.TenantAsStaff;
 using MainApi.Src.Modules.Staff.ProfileAsStaff;

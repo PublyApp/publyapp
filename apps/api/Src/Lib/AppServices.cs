@@ -1,6 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
-using MainApi.Src.Modules.Tenant.Product;
+using MainApi.Src.Modules.Tenant.Products;
 using FluentValidation;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Shared.Auth;
