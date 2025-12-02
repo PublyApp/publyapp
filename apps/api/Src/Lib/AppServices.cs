@@ -4,7 +4,7 @@ using MainApi.Src.Modules.Tenant.Products;
 using FluentValidation;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Shared.Auth;
-using MainApi.Src.Modules.Shared.Infrastructure.Messaging.Email;
+using MainApi.Src.Infrastructure.Messaging.Email;
 using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Profiles;
 using MainApi.Src.Modules.Shared.Tenants;

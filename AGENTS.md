@@ -133,7 +133,7 @@ Each module in `Modules/Shared/` is a complete vertical slice containing:
 - `Modules/Shared/Profiles/` - Profile entity, ProfilePermission junction, seeders
 - `Modules/Shared/Auth/` - Authentication entities (Session), services (PasswordService, AuthService), handlers
 - `Modules/Shared/Invitations/` - Invitation entity, InvitationProfile junction
-- `Modules/Shared/Infrastructure/` - Architectural services (EmailService, future: SmsService, FileStorageService)
+- `Infrastructure/` - Architectural services (EmailService, future: SmsService, FileStorageService)
 
 #### Junction Entity Placement Rule
 
@@ -146,7 +146,7 @@ Examples:
 
 #### Infrastructure Services Placement Rules
 
-**Infrastructure folder** (`Modules/Shared/Infrastructure/`): Technical/architectural services that provide capabilities TO domain modules
+**Infrastructure folder** (`Infrastructure/`): Technical/architectural services that provide capabilities TO domain modules
 - Example: `EmailService` → `Infrastructure/Messaging/Email/` (sends emails FOR auth, invitations, etc.)
 - Example: `SmsService` → `Infrastructure/Messaging/Sms/` (sends SMS FOR 2FA, notifications, etc.)
 - Example: `FileStorageService` → `Infrastructure/Storage/` (stores files FOR users, products, etc.)
@@ -169,7 +169,7 @@ Examples:
 - **New shared entity?** → Create module in `Modules/Shared/`
 - **Staff operation?** → Add to `Modules/Staff/`
 - **Tenant operation?** → Add to `Modules/Tenant/`
-- **New infrastructure service?** → Add to `Modules/Shared/Infrastructure/`
+- **New infrastructure service?** → Add to `Infrastructure/`
   - Email/SMS → `Infrastructure/Messaging/`
   - File storage → `Infrastructure/Storage/`
   - Caching → `Infrastructure/Caching/`
