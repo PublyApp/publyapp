@@ -346,7 +346,7 @@ export async function clientLoader() { ... }
 
 **Benefits:** `getClientLoader` provides initialized `apiClient`, `z` (Zod with i18n), and `locale` - just like `getServerLoader` on the server.
 
-**Reference:** See `.cursor/rules/react-router-data-fetching.mdc` for complete patterns.
+**Reference:** See the "Data Fetching Pattern" section above for complete patterns.
 
 ### Authentication & Authorization
 
@@ -436,7 +436,7 @@ import { Card } from '~/components/ui/card';  // Wrong library!
 - `<select>` → `<Select>` with `<MenuItem>`
 - `<table>` → `<Table>` with `<TableHead>`, `<TableBody>`, `<TableRow>`, `<TableCell>`
 
-**Reference:** See `.cursor/rules/react-material-ui-components.mdc` for complete mapping guide and `.dump/main-template/src/sections/**/*.tsx` for real-world examples.
+**Reference:** See `.dump/main-template/src/sections/**/*.tsx` for real-world examples.
 
 ### Styling: sx Prop and Theme System
 
@@ -479,7 +479,7 @@ import { Card } from '~/components/ui/card';  // Wrong library!
 }}>
 ```
 
-**Reference:** See `.cursor/rules/react-styling-mui.mdc` for complete Tailwind-to-sx conversion guide.
+**Reference:** See the "Styling: sx Prop and Theme System" section above for complete Tailwind-to-sx conversion guide.
 
 ### Date Handling: Day.js
 
@@ -516,7 +516,7 @@ dayjs(date1).isAfter(date2);                // Boolean
 dayjs(date1).isBefore(date2);               // Boolean
 ```
 
-**Reference:** See `.cursor/rules/react-date-handling.mdc` for complete Day.js guide and migration from date-fns.
+**Reference:** See the "Date Handling: Day.js" section above for complete Day.js guide and migration from date-fns.
 
 ### Function Definitions: Arrow Functions
 

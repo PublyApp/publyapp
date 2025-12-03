@@ -10,7 +10,7 @@
 
 **CRITICAL:** Before implementing:
 1. Read `CLAUDE.md` in project root
-2. Review coding rules in `.cursor/rules/` folder
+2. Review coding rules in `AGENTS.md`
 3. Use `is`/`is not` for null checks (NEVER `==`/`!=`)
 4. Use LINQ query syntax for database queries
 5. Always add `CancellationToken` parameters
