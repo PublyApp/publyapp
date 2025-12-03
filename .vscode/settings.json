@@ -30,7 +30,8 @@
 		"editor.defaultFormatter": "vscode.json-language-features"
 	},
 	"[csharp]": {
-		"editor.defaultFormatter": "anysphere.csharp"
+		"editor.defaultFormatter": "anysphere.csharp",
+		"editor.formatOnSave": true
 	},
 	"rest-client.environmentVariables": {
 		"$shared": {
@@ -39,6 +40,8 @@
 		}
 	},
 	"dotnet.defaultSolution": "PublyApp.sln",
+	"dotnet.formatting.organizeImportsOnFormat": true,
+	"dotnet.server.useOmnisharp": false,
 	"cSpell.words": [
 		"airbnb",
 		"Aktiv",
