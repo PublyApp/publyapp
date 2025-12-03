@@ -51,3 +51,8 @@ dotnet_diagnostic.IDE0028.severity = none
 dotnet_diagnostic.CA1860.severity = warning
 # IDE0130: Namespace declaration does not match folder structure
 dotnet_diagnostic.IDE0130.severity = warning
+# ==== Using directive organization ====
+# Sort System.* using directives first
+dotnet_sort_system_directives_first = true
+# Separate using directive groups with blank lines
+dotnet_separate_import_directive_groups = true
