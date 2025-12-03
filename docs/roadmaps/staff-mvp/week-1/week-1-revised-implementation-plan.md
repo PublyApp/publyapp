@@ -14,9 +14,9 @@
 
 1. **Read the coding guidelines:**
    - Review `CLAUDE.md` in the project root
-   - Review C# coding rules in `.cursor/rules/` folder:
-     - `csharp-null-checking.mdc` - Use `is`/`is not` patterns
-     - `csharp-linq-query-syntax.mdc` - Use query syntax for DB queries
+   - Review C# coding rules in `AGENTS.md`:
+     - Null checking: Use `is`/`is not` patterns
+     - LINQ queries: Use query syntax for DB queries
      - `csharp-async.mdc` - Async/await best practices
    - Follow ALL conventions specified in these documents
 

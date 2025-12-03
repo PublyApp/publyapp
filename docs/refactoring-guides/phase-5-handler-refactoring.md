@@ -6,7 +6,7 @@
 
 ## Overview
 
-This guide documents all the changes needed to bring the Phase 5 implementation into compliance with our coding standards. All rules have been documented in `.cursor/rules/` and `CLAUDE.md`.
+This guide documents all the changes needed to bring the Phase 5 implementation into compliance with our coding standards. All rules have been documented in `AGENTS.md`.
 
 ## Issues to Fix
 
@@ -526,6 +526,6 @@ After refactoring, verify:
 
 ## References
 
-- Cursor Rules: `.cursor/rules/*.mdc`
+- Coding Rules: `AGENTS.md`
 - Coding Standards: `CLAUDE.md`
 - Phase 5 Plan: `docs/roadmaps/staff-mvp/week-1-revised-implementation-plan.md`
