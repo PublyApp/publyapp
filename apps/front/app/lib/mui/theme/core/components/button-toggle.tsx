@@ -1,7 +1,7 @@
 import type { Components, CSSObject, Theme } from '@mui/material/styles';
 import {
-	toggleButtonClasses,
 	type ToggleButtonProps,
+	toggleButtonClasses,
 } from '@mui/material/ToggleButton';
 import { varAlpha } from 'minimal-shared/utils';
 

@@ -550,6 +550,187 @@
         }
       }
     },
+    "/invitations/{token}/details": {
+      "get": {
+        "tags": [
+          "Invitations (Anonymous)"
+        ],
+        "summary": "Get invitation details by token",
+        "operationId": "GetInvitationDetails",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/{token}/accept": {
+      "post": {
+        "tags": [
+          "Invitations (Anonymous)"
+        ],
+        "summary": "Accept invitation and create account + session",
+        "operationId": "AcceptInvitation",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationAccepted"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/check": {
+      "get": {
+        "tags": [
+          "Invitations (Anonymous)"
+        ],
+        "summary": "Check Invitation Token",
+        "operationId": "CheckInvitationToken",
+        "parameters": [
+          {
+            "name": "Id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInvitationTokenResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tenant/products": {
       "get": {
         "tags": [
@@ -689,6 +870,261 @@
           }
         ],
         "responses": {
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/permissions": {
+      "get": {
+        "tags": [
+          "Permissions"
+        ],
+        "summary": "Find staff permissions",
+        "operationId": "FindStaffPermissions",
+        "parameters": [
+          {
+            "name": "Language",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "$ref": "#/components/schemas/PermissionAsStaffItem"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/profiles": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Find profiles for a staff member",
+        "operationId": "FindStaffProfiles",
+        "parameters": [
+          {
+            "name": "Cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindStaffProfilesResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Create a new staff profile",
+        "operationId": "CreateStaffProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStaffProfileBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffProfileCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/profiles/tenant/{tenantId}": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Find profiles for a tenant",
+        "operationId": "FindTenantProfiles",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SortOrder",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindTenantProfilesAsStaffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -1103,58 +1539,30 @@
         }
       }
     },
-    "/staff/profiles/tenant/{tenantId}": {
-      "get": {
+    "/staff/invitations": {
+      "post": {
         "tags": [
-          "Profiles"
+          "Staff Invitations"
         ],
-        "summary": "Find profiles",
-        "operationId": "FindProfiles",
-        "parameters": [
-          {
-            "name": "Page",
-            "in": "query",
-            "schema": {
-              "type": "string"
+        "summary": "Create a staff invitation (Admin only)",
+        "operationId": "CreateStaffInvitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStaffInvitationBody"
+              }
             }
           },
-          {
-            "name": "Limit",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "SortId",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "SortOrder",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "tenantId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FindTenantProfilesAsStaffResult"
+                  "$ref": "#/components/schemas/InvitationCreated"
                 }
               }
             }
@@ -1178,6 +1586,181 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Staff Invitations"
+        ],
+        "summary": "Find staff invitations",
+        "operationId": "FindStaffInvitations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationListItem"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/invitations/bulk": {
+      "post": {
+        "tags": [
+          "Staff Invitations"
+        ],
+        "summary": "Bulk create staff invitations (Admin only)",
+        "operationId": "BulkCreateStaffInvitations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkCreateStaffInvitationsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkStaffInvitationsCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/invitations/{invitationId}": {
+      "delete": {
+        "tags": [
+          "Staff Invitations"
+        ],
+        "summary": "Revoke a staff invitation (Admin only)",
+        "operationId": "RevokeInvitation",
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1185,6 +1768,25 @@
   },
   "components": {
     "schemas": {
+      "AcceptInvitationBody": {
+        "required": [
+          "firstName",
+          "lastName",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "lastName": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "password": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
       "ApiResponse": {
         "type": "object",
         "properties": {
@@ -1196,13 +1798,48 @@
           }
         }
       },
+      "BulkCreateStaffInvitationsBody": {
+        "required": [
+          "invitations"
+        ],
+        "type": "object",
+        "properties": {
+          "invitations": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "BulkStaffInvitationsCreated": {
+        "required": [
+          "created"
+        ],
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "CheckEmailVerificationTokenResult": {
         "type": "object",
         "properties": {
           "status": {
             "type": "string"
           },
-          "resetPasswordLink": {
+          "resetPasswordUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CheckInvitationTokenResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "email": {
             "type": "string"
           }
         }
@@ -1215,6 +1852,21 @@
           },
           "email": {
             "type": "string"
+          }
+        }
+      },
+      "CreateStaffInvitationBody": {
+        "required": [
+          "email",
+          "profileId"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "profileId": {
+            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },
@@ -1254,6 +1906,23 @@
           }
         }
       },
+      "CreateStaffProfileBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "description": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          },
+          "emails": {
+            "$ref": "#/components/schemas/NullableOfJsonElement"
+          }
+        }
+      },
       "CreateTenantAsStaffBody": {
         "type": "object",
         "properties": {
@@ -1290,6 +1959,21 @@
           "count": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "FindStaffProfilesResult": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffProfileItem"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -1389,6 +2073,119 @@
           }
         }
       },
+      "InvitationAccepted": {
+        "required": [
+          "userId",
+          "sessionToken",
+          "sessionExpiresAt",
+          "sessionExpiresInMs"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionToken": {
+            "type": "string"
+          },
+          "sessionExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sessionExpiresInMs": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "InvitationCreated": {
+        "required": [
+          "invitationId",
+          "token",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "invitationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "token": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "InvitationDetails": {
+        "required": [
+          "email",
+          "profileName",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "InvitationListItem": {
+        "required": [
+          "id",
+          "email",
+          "scope",
+          "profileName",
+          "expiresAt",
+          "isAccepted",
+          "isRevoked",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isAccepted": {
+            "type": "boolean"
+          },
+          "isRevoked": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "invitedByName": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "JsonElement": { },
       "NullableOfJsonElement": {
         "nullable": true
@@ -1452,6 +2249,20 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "PermissionAsStaffItem": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
           }
         }
       },
@@ -1588,6 +2399,62 @@
           }
         }
       },
+      "StaffProfileCreated": {
+        "required": [
+          "profileId",
+          "name",
+          "description",
+          "permissionsAssigned",
+          "usersAssigned",
+          "invitationsSent"
+        ],
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "permissionsAssigned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "usersAssigned": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "invitationsSent": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "StaffProfileItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "userAccountCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "Tenant": {
         "type": "object",
         "properties": {
@@ -1704,7 +2571,16 @@
       "name": "Auth"
     },
     {
+      "name": "Invitations (Anonymous)"
+    },
+    {
       "name": "Products"
+    },
+    {
+      "name": "Permissions"
+    },
+    {
+      "name": "Profiles"
     },
     {
       "name": "Tenants"
@@ -1713,7 +2589,7 @@
       "name": "Staff Members"
     },
     {
-      "name": "Profiles"
+      "name": "Staff Invitations"
     }
   ]
 }

@@ -21,7 +21,7 @@ import {
 	USER_STATUS_ENUM,
 	type UserStatus,
 } from '@/shared/lib/constants';
-import { getUpdateStaffMemberSchema } from '@/shared/validations/staff-member/staff-member.validation';
+import { getUpdateStaffMemberSchema } from '@/shared/validations/staff-member.validations';
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 
 type UpdateUserSchemaType = Prettify<

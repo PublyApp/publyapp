@@ -1,4 +1,4 @@
-import { styled, type CSSObject } from '@mui/material/styles';
+import { type CSSObject, styled } from '@mui/material/styles';
 import { varAlpha } from 'minimal-shared/utils';
 import { Toaster } from 'sonner';
 

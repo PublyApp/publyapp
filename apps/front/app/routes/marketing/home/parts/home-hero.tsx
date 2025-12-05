@@ -142,7 +142,8 @@ export const HomeHero = ({ sx, ...other }: BoxProps) => {
 						},
 					]}
 				>
-					Plan, schedule, and publish your social media content across all platforms — effortlessly.
+					Plan, schedule, and publish your social media content across all
+					platforms — effortlessly.
 				</Typography>
 			</m.div>
 		);

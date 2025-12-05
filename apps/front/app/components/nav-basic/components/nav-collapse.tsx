@@ -1,5 +1,5 @@
 import Collapse from '@mui/material/Collapse';
-import { styled, type CSSObject } from '@mui/material/styles';
+import { type CSSObject, styled } from '@mui/material/styles';
 
 import { navBasicClasses } from '../styles';
 

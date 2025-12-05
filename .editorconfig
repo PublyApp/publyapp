@@ -45,3 +45,14 @@ csharp_new_line_before_finally = false
 # ==== Braces syntax to follow Js/Java style ====
 # IDE0042: Deconstruct variable declaration
 dotnet_diagnostic.IDE0042.severity = none
+# IDE0028: Simplify collection initialization
+dotnet_diagnostic.IDE0028.severity = none
+# CA1860: Avoid using 'Enumerable.Any()' extension method
+dotnet_diagnostic.CA1860.severity = warning
+# IDE0130: Namespace declaration does not match folder structure
+dotnet_diagnostic.IDE0130.severity = warning
+# ==== Using directive organization ====
+# Sort System.* using directives first
+dotnet_sort_system_directives_first = true
+# Separate using directive groups with blank lines
+dotnet_separate_import_directive_groups = true

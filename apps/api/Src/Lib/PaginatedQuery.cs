@@ -51,9 +51,11 @@ public class PaginatedQuery {
 			throw new Exception("SortOrder must equal 'asc' or 'desc'");
 		}
 
-		return SortOrder == "asc"
-			? Lib.SortOrder.Asc
-			: Lib.SortOrder.Desc;
+		if (SortOrder.Equals("asc", StringComparison.OrdinalIgnoreCase)) {
+			return Lib.SortOrder.Asc;
+		} else {
+			return Lib.SortOrder.Desc;
+		}
 	}
 }
 

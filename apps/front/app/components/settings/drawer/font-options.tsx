@@ -1,5 +1,5 @@
 import Box, { type BoxProps } from '@mui/material/Box';
-import Slider, { sliderClasses, type SliderProps } from '@mui/material/Slider';
+import Slider, { type SliderProps, sliderClasses } from '@mui/material/Slider';
 import { setFont } from 'minimal-shared/utils';
 
 import type { SettingsState } from '../types';

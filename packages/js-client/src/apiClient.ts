@@ -4,6 +4,8 @@
 // @ts-ignore
 import { AuthRequestBuilderNavigationMetadata, type AuthRequestBuilder } from './auth/index.js';
 // @ts-ignore
+import { InvitationsRequestBuilderNavigationMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
+// @ts-ignore
 import { StaffRequestBuilderNavigationMetadata, type StaffRequestBuilder } from './staff/index.js';
 // @ts-ignore
 import { TenantRequestBuilderNavigationMetadata, type TenantRequestBuilder } from './tenant/index.js';
@@ -26,6 +28,10 @@ export interface ApiClient extends BaseRequestBuilder<ApiClient> {
      * The auth property
      */
     get auth(): AuthRequestBuilder;
+    /**
+     * The invitations property
+     */
+    get invitations(): InvitationsRequestBuilder;
     /**
      * The staff property
      */
@@ -76,6 +82,9 @@ export const ApiClientUriTemplate = "{+baseurl}";
 export const ApiClientNavigationMetadata: Record<Exclude<keyof ApiClient, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     auth: {
         navigationMetadata: AuthRequestBuilderNavigationMetadata,
+    },
+    invitations: {
+        navigationMetadata: InvitationsRequestBuilderNavigationMetadata,
     },
     staff: {
         navigationMetadata: StaffRequestBuilderNavigationMetadata,

@@ -1,0 +1,36 @@
+meta {
+  name: happy path
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/auth/login
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email": "staff-admin@example.com",
+    "password": "ChangeMe123!@3#lol"
+  }
+}
+
+script:post-response {
+  // Parse response
+  const data = res.body;
+  
+  console.log(res.body);
+  
+  // Extract session token
+  const token = data.sessionToken;
+  
+  // Save as variable
+  bru.setVar("SESSION_TOKEN", token);
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

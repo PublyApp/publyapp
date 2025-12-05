@@ -1,7 +1,7 @@
 using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Features.Common.Permission;
+using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Shared.Permissions;
 
 namespace MainApi.Src.Lib.Filters;
 
@@ -159,47 +159,5 @@ public static class PermissionLogic {
 	/// </summary>
 	public static Func<HashSet<string>, bool> HasPermission(Permission permission) {
 		return userPermissions => userPermissions.Contains(permission.Key);
-	}
-}
-
-public static class PermissionEnum {
-	//--------------------------------------------------------------------------------------//
-	//                                                                                      //
-	//                                  Staff permissions                                   //
-	//                                                                                      //
-	//--------------------------------------------------------------------------------------//
-	public static class Staff {
-		// ==== TENANTS ====
-		public static readonly Permission CAN_LIST_TENANTS = Permission.CreateStaffPermission(nameof(CAN_LIST_TENANTS));
-		public static readonly Permission CAN_GET_TENANT = Permission.CreateStaffPermission(nameof(CAN_GET_TENANT));
-		public static readonly Permission CAN_CREATE_TENANT = Permission.CreateStaffPermission(nameof(CAN_CREATE_TENANT));
-		public static readonly Permission CAN_UPDATE_TENANT = Permission.CreateStaffPermission(nameof(CAN_UPDATE_TENANT));
-
-		// ==== USERS ====
-		public static readonly Permission CAN_LIST_USERS = Permission.CreateStaffPermission(nameof(CAN_LIST_USERS));
-		public static readonly Permission CAN_GET_USER = Permission.CreateStaffPermission(nameof(CAN_GET_USER));
-		public static readonly Permission CAN_CREATE_USER = Permission.CreateStaffPermission(nameof(CAN_CREATE_USER));
-		public static readonly Permission CAN_UPDATE_USER = Permission.CreateStaffPermission(nameof(CAN_UPDATE_USER));
-
-		// ==== PROFILES ====
-		public static readonly Permission CAN_LIST_PROFILES = Permission.CreateStaffPermission(nameof(CAN_LIST_PROFILES));
-		public static readonly Permission CAN_GET_PROFILE = Permission.CreateStaffPermission(nameof(CAN_GET_PROFILE));
-		public static readonly Permission CAN_CREATE_PROFILE = Permission.CreateStaffPermission(nameof(CAN_CREATE_PROFILE));
-		public static readonly Permission CAN_UPDATE_PROFILE = Permission.CreateStaffPermission(nameof(CAN_UPDATE_PROFILE));
-
-		// ==== STAFF MEMBERS ====
-		public static readonly Permission CAN_LIST_STAFF_MEMBERS = Permission.CreateStaffPermission(nameof(CAN_LIST_STAFF_MEMBERS));
-		public static readonly Permission CAN_CREATE_STAFF_MEMBER = Permission.CreateStaffPermission(nameof(CAN_CREATE_STAFF_MEMBER));
-		public static readonly Permission CAN_GET_STAFF_MEMBER = Permission.CreateStaffPermission(nameof(CAN_GET_STAFF_MEMBER));
-		public static readonly Permission CAN_UPDATE_STAFF_MEMBER = Permission.CreateStaffPermission(nameof(CAN_UPDATE_STAFF_MEMBER));
-	}
-
-	//--------------------------------------------------------------------------------------//
-	//                                                                                      //
-	//                                  Tenant Permissions                                  //
-	//                                                                                      //
-	//--------------------------------------------------------------------------------------//
-	public static class Tenant {
-		// TODO: Add tenant permissions
 	}
 }

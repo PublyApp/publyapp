@@ -1,4 +1,4 @@
-import { styled, type SxProps, type Theme } from '@mui/material/styles';
+import { type SxProps, styled, type Theme } from '@mui/material/styles';
 import { mergeClasses } from 'minimal-shared/utils';
 
 import UploadIllustration from '@/front/assets/illustrations/upload-illustration';

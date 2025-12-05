@@ -17,10 +17,28 @@ public static class RoutePath {
 		public static readonly string CheckResetPasswordToken = PathUtils.Join(RoutePath.Auth.Root, "/check-reset-password-token");
 		public static readonly string ResetPassword = PathUtils.Join(RoutePath.Auth.Root, "/reset-password");
 	}
+	public static class Invitations {
+		public static readonly string Root = "/invitations";
+		public static readonly string DetailsByToken = PathUtils.Join(RoutePath.Invitations.Root, "/{token}/details");
+		public static string DetailsByTokenFn(string token) {
+			return PathUtils.Join(RoutePath.Invitations.Root, $"/{token}/details");
+		}
+		public static readonly string AcceptByToken = PathUtils.Join(RoutePath.Invitations.Root, "/{token}/accept");
+		public static string AcceptByTokenFn(string token) {
+			return PathUtils.Join(RoutePath.Invitations.Root, $"/{token}/accept");
+		}
+		public static readonly string Check = PathUtils.Join(RoutePath.Invitations.Root, "/check");
+	}
 	public static class Staff {
 		public static readonly string Root = "/staff";
+		public static class Permissions {
+			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/permissions");
+			public static readonly string Find = PathUtils.Join(RoutePath.Staff.Permissions.Root, "/");
+		}
 		public static class Profiles {
 			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/profiles");
+			public static readonly string CreateForStaff = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/");
+			public static readonly string FindForStaff = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/");
 			public static readonly string FindForTenant = PathUtils.Join(RoutePath.Staff.Profiles.Root, "/tenant/{tenantId}");
 			public static string FindForTenantFn(string tenantId) {
 				return PathUtils.Join(RoutePath.Staff.Profiles.Root, $"/tenant/{tenantId}");
@@ -46,6 +64,16 @@ public static class RoutePath {
 			public static readonly string GetById = PathUtils.Join(RoutePath.Staff.Tenants.Root, "/{tenantId}");
 			public static string GetByIdFn(string tenantId) {
 				return PathUtils.Join(RoutePath.Staff.Tenants.Root, $"/{tenantId}");
+			}
+		}
+		public static class Invitations {
+			public static readonly string Root = PathUtils.Join(RoutePath.Staff.Root, "/invitations");
+			public static readonly string Create = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/");
+			public static readonly string Find = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/");
+			public static readonly string RevokeById = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/{invitationId}");
+			public static readonly string BulkCreate = PathUtils.Join(RoutePath.Staff.Invitations.Root, "/bulk");
+			public static string RevokeByIdFn(string invitationId) {
+				return PathUtils.Join(RoutePath.Staff.Invitations.Root, $"/{invitationId}");
 			}
 		}
 	};

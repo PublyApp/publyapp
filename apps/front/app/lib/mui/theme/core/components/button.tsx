@@ -1,4 +1,4 @@
-import { buttonClasses, type ButtonProps } from '@mui/material/Button';
+import { type ButtonProps, buttonClasses } from '@mui/material/Button';
 import type {
 	Components,
 	ComponentsVariants,

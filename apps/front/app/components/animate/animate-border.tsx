@@ -1,11 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-
 import Box, { type BoxProps } from '@mui/material/Box';
 import {
-	useTheme,
 	type CSSObject,
 	type SxProps,
 	type Theme,
+	useTheme,
 } from '@mui/material/styles';
 import {
 	m,
@@ -15,6 +13,7 @@ import {
 	useTransform,
 } from 'framer-motion';
 import { mergeClasses } from 'minimal-shared/utils';
+import { useEffect, useRef, useState } from 'react';
 
 import { createClasses } from '@/front/lib/mui/theme/create-classes';
 

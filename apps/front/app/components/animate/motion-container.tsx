@@ -1,5 +1,5 @@
 import Box, { type BoxProps } from '@mui/material/Box';
-import { m, type MotionProps } from 'framer-motion';
+import { type MotionProps, m } from 'framer-motion';
 
 import { varContainer } from './variants';
 

@@ -1,5 +1,3 @@
-import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
-import { getLastPath } from '@org/shared/utils/string.utils';
 import {
 	index,
 	layout,
@@ -7,6 +5,9 @@ import {
 	type RouteConfig,
 	route,
 } from '@react-router/dev/routes';
+
+import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
+import { getLastPath } from '@org/shared/utils/string.utils';
 
 const routes = [
 	layout('routes/marketing/_layout/marketing-layout.tsx', [
@@ -28,6 +29,10 @@ const routes = [
 		route(
 			getLastPath(FRONT_PATH_NAMES.auth.resetPassword),
 			'routes/auth/reset-password/reset-password-page.tsx',
+		),
+		route(
+			getLastPath(FRONT_PATH_NAMES.auth.acceptInvitation),
+			'routes/auth/accept-invitation/accept-invitation-page.tsx',
 		),
 	]),
 	layout('routes/authed/_layout/authed-layout.tsx', [
@@ -95,6 +100,53 @@ const routes = [
 								2,
 							),
 							'routes/authed/staff/staff-members/details/staff-member-details-page.tsx',
+						),
+					]),
+					...prefix(getLastPath(FRONT_PATH_NAMES.staff.invitations.root), [
+						index(
+							'routes/authed/staff/invitations/list/staff-invitations-list-page.tsx',
+						),
+						route(
+							getLastPath(FRONT_PATH_NAMES.staff.invitations.new),
+							'routes/authed/staff/invitations/new/new-staff-invitations-page.tsx',
+						),
+						route(
+							getLastPath(
+								FRONT_PATH_NAMES.staff.invitations.details(':invitationId'),
+							),
+							'routes/authed/staff/invitations/details/staff-invitation-details-page.tsx',
+						),
+					]),
+					...prefix(getLastPath(FRONT_PATH_NAMES.staff.profiles.root), [
+						index(
+							'routes/authed/staff/profiles/list/staff-profiles-list-page.tsx',
+						),
+						route(
+							getLastPath(FRONT_PATH_NAMES.staff.profiles.new),
+							'routes/authed/staff/profiles/new/new-staff-profile-page.tsx',
+						),
+						route(
+							getLastPath(
+								FRONT_PATH_NAMES.staff.profiles.details(':profileId').root,
+								2,
+							),
+							'routes/authed/staff/profiles/details/_layout/staff-profile-details-layout.tsx',
+							[
+								index(
+									'routes/authed/staff/profiles/details/basics/staff-profile-details-basics-tab-page.tsx',
+								),
+								route(
+									getLastPath(
+										FRONT_PATH_NAMES.staff.profiles.details(':profileId').tabs
+											.users,
+									),
+									'routes/authed/staff/profiles/details/users/staff-profile-details-users-tab-page.tsx',
+								),
+								route(
+									'*',
+									'routes/authed/staff/profiles/details/_errors/staff-profile-details-fallback-tab-page.tsx',
+								),
+							],
 						),
 					]),
 				]),
