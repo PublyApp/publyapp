@@ -1,7 +1,6 @@
 // import type { ApiClient } from '@/parse-api-client/ApiClient';
 // import { clientManager } from '../js-client/client-manager';
 
-import type { ApiClient } from '@org/js-client/src/apiClient';
 import * as cookie from 'cookie';
 import _ from 'lodash';
 import {
@@ -10,21 +9,19 @@ import {
 	type LoaderFunctionArgs,
 	redirect,
 } from 'react-router';
+
+import type { ApiClient } from '@org/js-client/src/apiClient';
 import {
-	// CLOUDFLARE_CONNECTING_IP_HEADER_KEY,
-	// FORWARDED_FOR_HEADER_KEY,
 	FRONT_PATH_NAMES,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
-import { logger } from '@/shared/lib/logger/iso-logger';
 import InterZod from '@/shared/lib/zod/InterZod';
 import { isPromise } from '@/shared/utils/any.utils';
+
 import { initApiClientOnServer } from '../api';
 import { remixI18NextServer } from '../i18n/i18n.server';
 import { getRequestLocale } from './data.utils';
-
-// import { getFinalLoadContext } from './get-final-load-context.server';
 
 type GetServerLoaderParamsWhenRequireUser<
 	T extends

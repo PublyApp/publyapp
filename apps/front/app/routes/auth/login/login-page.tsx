@@ -1,4 +1,3 @@
-import duration from '@org/shared/utils/duration.utils';
 import * as cookie from 'cookie';
 import dayjs from 'dayjs';
 import i18next, { type TFunction } from 'i18next';
@@ -6,6 +5,8 @@ import _ from 'lodash';
 import { useEffect, useRef } from 'react';
 import { data, redirect, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
+
+import duration from '@org/shared/utils/duration.utils';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { clientManager } from '@/front/lib/js-client/client-manager';
@@ -23,8 +24,8 @@ import {
 	queryParamValue,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
-import { logger } from '@/shared/lib/logger/iso-logger';
 import { makePath } from '@/shared/utils/string.utils';
+
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';
 
