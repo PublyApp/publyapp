@@ -17,6 +17,7 @@ import {
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import type { AppLocale } from '@/shared/lib/i18n/resources';
+import { logger } from '@/shared/lib/logger/iso-logger';
 import InterZod from '@/shared/lib/zod/InterZod';
 import { isPromise } from '@/shared/utils/any.utils';
 import { initApiClientOnServer } from '../api';

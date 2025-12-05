@@ -4,7 +4,7 @@ import Divider from '@mui/material/Divider';
 import Grid from '@mui/material/Grid';
 import IconButton from '@mui/material/IconButton';
 import Link from '@mui/material/Link';
-import { styled, type Breakpoint } from '@mui/material/styles';
+import { type Breakpoint, styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 
 // import { Iconify } from '@/front/components/iconify';

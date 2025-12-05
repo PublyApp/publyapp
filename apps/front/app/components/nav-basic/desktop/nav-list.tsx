@@ -1,9 +1,8 @@
-import { useCallback, useEffect } from 'react';
-
 import { popoverClasses } from '@mui/material/Popover';
 import { useTheme } from '@mui/material/styles';
 import { usePopoverHover } from 'minimal-shared/hooks';
 import { isActiveLink, isExternalLink } from 'minimal-shared/utils';
+import { useCallback, useEffect } from 'react';
 
 import { usePathname } from '@/front/hooks/use-pathname';
 

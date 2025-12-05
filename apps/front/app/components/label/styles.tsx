@@ -1,8 +1,7 @@
-import { styled, type CSSObject } from '@mui/material/styles';
-import { varAlpha } from 'minimal-shared/utils';
-
-import type { LabelProps } from './types';
+import { type CSSObject, styled } from '@mui/material/styles';
 import _ from 'lodash';
+import { varAlpha } from 'minimal-shared/utils';
+import type { LabelProps } from './types';
 
 // ----------------------------------------------------------------------
 

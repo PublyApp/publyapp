@@ -1,8 +1,3 @@
-import type { IAddressItem } from '@/front/types/common';
-
-import { useBoolean, usePopover } from 'minimal-shared/hooks';
-import { useCallback, useState } from 'react';
-
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardHeader from '@mui/material/CardHeader';
@@ -10,7 +5,10 @@ import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Stack from '@mui/material/Stack';
-
+import { useBoolean, usePopover } from 'minimal-shared/hooks';
+import { useCallback, useState } from 'react';
+import type { IAddressItem } from '@/front/types/common';
+import { logger } from '@/shared/lib/logger/iso-logger';
 import { AddressItem, AddressNewForm } from '../address';
 import { CustomPopover } from '../custom-popover/custom-popover';
 import { Iconify } from '../iconify/iconify';
@@ -28,7 +26,7 @@ export function AccountBillingAddress({ addressBook }: Props) {
 	const [addressId, setAddressId] = useState('');
 
 	const handleAddNewAddress = useCallback((address: IAddressItem) => {
-		console.info('ADDRESS', address);
+		logger.info('ADDRESS', { address });
 	}, []);
 
 	const handleSelectedId = useCallback(
@@ -54,7 +52,7 @@ export function AccountBillingAddress({ addressBook }: Props) {
 				<MenuItem
 					onClick={() => {
 						handleClose();
-						console.info('SET AS PRIMARY', addressId);
+						logger.info('SET AS PRIMARY', { addressId });
 					}}
 				>
 					<Iconify icon="eva:star-fill" />
@@ -64,7 +62,7 @@ export function AccountBillingAddress({ addressBook }: Props) {
 				<MenuItem
 					onClick={() => {
 						handleClose();
-						console.info('EDIT', addressId);
+						logger.info('EDIT', { addressId });
 					}}
 				>
 					<Iconify icon="solar:pen-bold" />
@@ -74,7 +72,7 @@ export function AccountBillingAddress({ addressBook }: Props) {
 				<MenuItem
 					onClick={() => {
 						handleClose();
-						console.info('DELETE', addressId);
+						logger.info('DELETE', { addressId });
 					}}
 					sx={{ color: 'error.main' }}
 				>

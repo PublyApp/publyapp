@@ -18,7 +18,7 @@ import {
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 } from '@/shared/lib/constants';
-import { getNewStaffMemberSchema } from '@/shared/validations/staff-member/staff-member.validation';
+import { getNewStaffMemberSchema } from '@/shared/validations/staff-member.validations';
 import { UserNewEditForm } from '../../components/user-new-edit-form';
 
 type NewUserSchemaType = Prettify<

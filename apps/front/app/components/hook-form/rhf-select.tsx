@@ -1,5 +1,3 @@
-import _ from 'lodash';
-
 import Box from '@mui/material/Box';
 import Checkbox, { type CheckboxProps } from '@mui/material/Checkbox';
 import Chip, { type ChipProps } from '@mui/material/Chip';
@@ -9,6 +7,7 @@ import InputLabel, { type InputLabelProps } from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Select, { type SelectProps } from '@mui/material/Select';
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
+import _ from 'lodash';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import { HelperText } from './help-text';

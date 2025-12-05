@@ -2,13 +2,11 @@ import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
-
+import { useRouter } from '@/front/hooks/use-router';
 // import ServerErrorIllustration from '@/front/assets/illustrations/server-error-illustration';
 import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
-
 import { MotionContainer } from '../animate/motion-container';
-import { useRouter } from '@/front/hooks/use-router';
 
 // ----------------------------------------------------------------------
 

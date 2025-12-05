@@ -1,5 +1,47 @@
 {
 	"cSpell.language": "en,fr",
+	"editor.defaultFormatter": "biomejs.biome",
+	"editor.codeActionsOnSave": {
+		"source.sortImports": "explicit",
+		"source.fixAll.biome": "explicit",
+		"source.organizeImports.biome": "explicit",
+		"source.fixAll.csharp": "explicit",
+		"source.organizeImports.csharp": "explicit"
+	},
+	"editor.formatOnSave": true,
+	"editor.tabSize": 2,
+	"editor.insertSpaces": false,
+	"editor.renderWhitespace": "all",
+	"editor.renderFinalNewline": "dimmed",
+	"editor.trimAutoWhitespace": true,
+	"material-icon-theme.files.associations": {
+		".env.preprod": "tune",
+		"tsconfig.nextjs.json": "tsconfig",
+		"tsconfig.react-library.json": "tsconfig",
+		"Dockerfile-Bun": "docker",
+		"Dockerfile-Node": "docker"
+	},
+	"material-icon-theme.folders.associations": {
+		"front": "public"
+	},
+	"typescript.tsdk": "node_modules\\typescript\\lib",
+	"files.eol": "\n",
+	"[jsonc]": {
+		"editor.defaultFormatter": "vscode.json-language-features"
+	},
+	"[csharp]": {
+		"editor.defaultFormatter": "anysphere.csharp",
+		"editor.formatOnSave": true
+	},
+	"rest-client.environmentVariables": {
+		"$shared": {
+			"rootUrl": "http://localhost:5000",
+			"sessionToken": "f3d6202a8565dcff45532b526534bec0"
+		}
+	},
+	"dotnet.defaultSolution": "PublyApp.sln",
+	"dotnet.formatting.organizeImportsOnFormat": true,
+	"dotnet.server.useOmnisharp": false,
 	"cSpell.words": [
 		"airbnb",
 		"Aktiv",
@@ -102,44 +144,5 @@
 		"vercel",
 		"yoopta",
 		"zustand"
-	],
-	"editor.defaultFormatter": "biomejs.biome",
-	"editor.codeActionsOnSave": {
-		"source.sortImports": "explicit",
-		"source.fixAll.biome": "explicit",
-		"source.organizeImports.biome": "explicit",
-		"source.fixAll.csharp": "explicit",
-		"source.organizeImports.csharp": "explicit"
-	},
-	"editor.formatOnSave": true,
-	"editor.tabSize": 2,
-	"editor.insertSpaces": false,
-	"editor.renderWhitespace": "all",
-	"editor.renderFinalNewline": "dimmed",
-	"editor.trimAutoWhitespace": true,
-	"material-icon-theme.files.associations": {
-		".env.preprod": "tune",
-		"tsconfig.nextjs.json": "tsconfig",
-		"tsconfig.react-library.json": "tsconfig",
-		"Dockerfile-Bun": "docker",
-		"Dockerfile-Node": "docker"
-	},
-	"material-icon-theme.folders.associations": {
-		"front": "public"
-	},
-	"typescript.tsdk": "node_modules\\typescript\\lib",
-	"files.eol": "\n",
-	"[jsonc]": {
-		"editor.defaultFormatter": "vscode.json-language-features"
-	},
-	"[csharp]": {
-		"editor.defaultFormatter": "anysphere.csharp"
-	},
-	"rest-client.environmentVariables": {
-		"$shared": {
-			"rootUrl": "http://localhost:5000",
-			"sessionToken": "f3d6202a8565dcff45532b526534bec0"
-		}
-	},
-	"dotnet.defaultSolution": "PublyApp.sln"
+	]
 }

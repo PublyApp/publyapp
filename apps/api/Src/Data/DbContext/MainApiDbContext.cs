@@ -1,12 +1,16 @@
 using System.Linq.Expressions;
-using MainApi.Src.Features.Common.Account;
-using MainApi.Src.Features.Common.Profile;
-using MainApi.Src.Features.Common.Permission;
-using MainApi.Src.Features.Common.Project;
-using MainApi.Src.Features.Common.Session;
-using MainApi.Src.Features.Common.Tenant;
-using MainApi.Src.Features.Common.User;
-using MainApi.Src.Features.Tenant.Product;
+
+using MainApi.Src.Modules.Shared.Auth;
+using MainApi.Src.Modules.Shared.Invitation;
+using MainApi.Src.Modules.Shared.Permissions;
+using MainApi.Src.Modules.Shared.Profiles;
+using MainApi.Src.Modules.Shared.Projects;
+using MainApi.Src.Modules.Shared.Tenants;
+using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Staff.AuditLogs;
+using MainApi.Src.Modules.Staff.SystemNotice;
+using MainApi.Src.Modules.Tenant.Products;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -16,7 +20,7 @@ namespace MainApi.Src.Data.DbContext;
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
 public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
-	private static readonly Lazy<IReadOnlyList<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
+	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
 	public DbSet<Session> Session { get; init; }
 	public DbSet<Product> Product { get; init; }
@@ -34,6 +38,14 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 
 	// Unified account system (handles Staff, Tenant, and Project accounts)
 	public DbSet<UserAccount> UserAccount { get; init; }
+
+	// Unified invitation system (Staff/Tenant/Project)
+	public DbSet<Invitation> Invitation { get; init; }
+	public DbSet<InvitationProfile> InvitationProfile { get; init; }
+
+	// Staff back-office entities
+	public DbSet<AuditLog> AuditLog { get; init; }
+	public DbSet<SystemNotice> SystemNotice { get; init; }
 
 	public Guid? TenantId { get; set; }
 
@@ -54,7 +66,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			}
 
 			var infrastructure = (IInfrastructure<IServiceProvider>)dbContext;
-			SeedAllSync(dbContext, infrastructure.Instance);
+			SeedAll(dbContext, infrastructure.Instance);
 		});
 
 		optionsBuilder.UseAsyncSeeding(async (context, _, cancellationToken) => {
@@ -72,7 +84,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	/// <summary>
 	/// Discovers and executes all entity seeders synchronously.
 	/// </summary>
-	private static void SeedAllSync(MainApiDbContext dbContext, IServiceProvider serviceProvider) {
+	private static void SeedAll(MainApiDbContext dbContext, IServiceProvider serviceProvider) {
 		Task.Run(() => SeedAllAsync(dbContext, serviceProvider, CancellationToken.None))
 			.GetAwaiter()
 			.GetResult();
@@ -94,14 +106,14 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	/// <summary>
 	/// Discovers all classes that implement <see cref="IEntitySeeder"/> using reflection.
 	/// </summary>
-	private static IReadOnlyList<Type> DiscoverSeeders() => SeederTypeCache.Value;
+	private static List<Type> DiscoverSeeders() => SeederTypeCache.Value;
 
 	/// <summary>
 	/// Creates seeded instances via dependency injection with robust error handling.
 	/// </summary>
 	/// <param name="serviceProvider">The service provider used for DI instantiation.</param>
 	/// <exception cref="InvalidOperationException">Thrown if a seeder cannot be instantiated.</exception>
-	private static IReadOnlyList<IEntitySeeder> CreateSeeders(IServiceProvider serviceProvider) {
+	private static List<IEntitySeeder> CreateSeeders(IServiceProvider serviceProvider) {
 		var seederTypes = DiscoverSeeders();
 		var seeders = new List<IEntitySeeder>(seederTypes.Count);
 
@@ -122,7 +134,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	/// <summary>
 	/// Performs the reflection scan to find available seeders. Results are cached.
 	/// </summary>
-	private static IReadOnlyList<Type> DiscoverSeedersInternal() {
+	private static List<System.Type> DiscoverSeedersInternal() {
 		var seederInterface = typeof(IEntitySeeder);
 		var assembly = typeof(MainApiDbContext).Assembly;
 
@@ -165,15 +177,73 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		// Database-level profile type constraints
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Staff_Constraints",
-				"(profile_scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR profile_scope != 0"));
+				"(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
 
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Tenant_Constraints",
-				"(profile_scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR profile_scope != 1"));
+				"(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
 
 		modelBuilder.Entity<Profile>()
 			.ToTable(t => t.HasCheckConstraint("CK_Profile_Project_Constraints",
-				"(profile_scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR profile_scope != 2"));
+				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
+
+		// Database-level invitation scope constraints
+		modelBuilder.Entity<Invitation>()
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Staff_Constraints",
+				"(scope = 0 AND tenant_id IS NULL AND project_id IS NULL) OR scope != 0"));
+
+		modelBuilder.Entity<Invitation>()
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Tenant_Constraints",
+				"(scope = 1 AND tenant_id IS NOT NULL AND project_id IS NULL) OR scope != 1"));
+
+		modelBuilder.Entity<Invitation>()
+			.ToTable(t => t.HasCheckConstraint("CK_Invitation_Project_Constraints",
+				"(scope = 2 AND tenant_id IS NOT NULL AND project_id IS NOT NULL) OR scope != 2"));
+
+		// Database-level permission key prefix constraints
+		modelBuilder.Entity<Permission>()
+			.ToTable(t => t.HasCheckConstraint("CK_Permission_Staff_Key_Prefix",
+				"(scope = 0 AND key LIKE 'staff.%') OR scope != 0"));
+
+		modelBuilder.Entity<Permission>()
+			.ToTable(t => t.HasCheckConstraint("CK_Permission_Tenant_Key_Prefix",
+				"(scope = 1 AND key LIKE 'tenant.%') OR scope != 1"));
+
+		modelBuilder.Entity<Permission>()
+			.ToTable(t => t.HasCheckConstraint("CK_Permission_Project_Key_Prefix",
+				"(scope = 2 AND key LIKE 'project.%') OR scope != 2"));
+
+		// Translations is runtime-only, explicitly exclude from mapping
+		modelBuilder.Entity<Permission>()
+			.Ignore(p => p.Translations);
+
+		// Explicit relationships for Session -> User (two FKs to same principal)
+		modelBuilder.Entity<Session>()
+			.HasOne(s => s.User)
+			.WithMany(u => u.Sessions)
+			.HasForeignKey(s => s.UserId)
+			.IsRequired();
+
+		modelBuilder.Entity<Session>()
+			.HasOne(s => s.ImpersonatingStaffUser)
+			.WithMany()
+			.HasForeignKey(s => s.ImpersonatingStaffUserId)
+			.OnDelete(DeleteBehavior.Restrict);
+
+		// Configure InvitationProfile junction table
+		modelBuilder.Entity<InvitationProfile>(entity => {
+			entity.HasKey(e => new { e.InvitationId, e.ProfileId });
+
+			entity.HasOne(e => e.Invitation)
+				.WithMany(i => i.InvitationProfiles)
+				.HasForeignKey(e => e.InvitationId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			entity.HasOne(e => e.Profile)
+				.WithMany()
+				.HasForeignKey(e => e.ProfileId)
+				.OnDelete(DeleteBehavior.Restrict);
+		});
 
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.Entity<User>()
@@ -190,6 +260,19 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.HasIndex(u => new { u.UserId, u.Scope })
 			.HasDatabaseName("ix_user_accounts_user_id_account_type_active")
 			.HasFilter("\"is_deleted\" = false AND \"is_suspended\" = false");
+
+		// Keyset pagination indexes for staff profiles
+		// Supports efficient sorting by Name with Id as tie-breaker
+		modelBuilder.Entity<Profile>()
+			.HasIndex(p => new { p.Scope, p.Name, p.Id })
+			.HasDatabaseName("ix_profiles_staff_name_id")
+			.HasFilter("\"scope\" = 0");
+
+		// Supports efficient sorting by CreatedAt with Id as tie-breaker
+		modelBuilder.Entity<Profile>()
+			.HasIndex(p => new { p.Scope, p.CreatedAt, p.Id })
+			.HasDatabaseName("ix_profiles_staff_created_at_id")
+			.HasFilter("\"scope\" = 0");
 
 		// Apply matching query filters to ensure consistent filtering
 		if (TenantId != null) {
@@ -273,6 +356,7 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			.Where(e => e.State == EntityState.Added || e.State == EntityState.Modified || e.State == EntityState.Deleted);
 
 		foreach (var entry in entries) {
+			// Handle BaseAttributesNoKey entities
 			if (entry.Entity is BaseAttributesNoKey baseEntity) {
 				var now = DateTime.UtcNow;
 
@@ -301,6 +385,38 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 						baseEntity.IsDeleted = true;
 						baseEntity.DeletedAt = now;
 						baseEntity.UpdatedAt = now;
+						break;
+				}
+			}
+			// Handle Permission record (has audit properties but doesn't inherit from BaseAttributesNoKey)
+			else if (entry.Entity is Permission permission) {
+				var now = DateTime.UtcNow;
+
+				switch (entry.State) {
+					case EntityState.Added:
+						permission.CreatedAt = now;
+						permission.UpdatedAt = now;
+						permission.IsDeleted = false;
+						permission.DeletedAt = null;
+						break;
+
+					case EntityState.Modified:
+						permission.UpdatedAt = now;
+						break;
+
+					case EntityState.Deleted:
+						// Check if this is a forced hard delete
+						if (_forceHardDeleteEntities.Contains(entry.Entity)) {
+							// Allow actual deletion - don't convert to soft delete
+							_forceHardDeleteEntities.Remove(entry.Entity);
+							continue;
+						}
+
+						// Default behavior: convert to soft delete
+						entry.State = EntityState.Modified;
+						permission.IsDeleted = true;
+						permission.DeletedAt = now;
+						permission.UpdatedAt = now;
 						break;
 				}
 			}

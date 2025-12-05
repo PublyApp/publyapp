@@ -24,6 +24,8 @@ const RESOURCE = {
 	shortUrl: 'short-url',
 	staffMembers: 'staff-members',
 	tenantUSers: 'tenant-users',
+	profiles: 'profiles',
+	invitations: 'invitations',
 } as const;
 
 const ROOTS = {
@@ -40,6 +42,7 @@ export const FRONT_PATH_NAMES = {
 		signup: makePath('sign-up'),
 		verifyEmail: makePath('verify-email'),
 		resetPassword: makePath('reset-password'),
+		acceptInvitation: makePath('accept-invitation'),
 	},
 	tenant: (tenantId = '') => {
 		return {
@@ -48,6 +51,30 @@ export const FRONT_PATH_NAMES = {
 	},
 	staff: {
 		root: makePath(ROOTS.STAFF),
+		profiles: {
+			root: makePath(ROOTS.STAFF, RESOURCE.profiles),
+			new: makePath(ROOTS.STAFF, RESOURCE.profiles, 'new'),
+			details: (profileId = '') => {
+				return {
+					root: makePath(ROOTS.STAFF, RESOURCE.profiles, 'details', profileId),
+					tabs: {
+						basicsAndPermissions: makePath(
+							ROOTS.STAFF,
+							RESOURCE.profiles,
+							'details',
+							profileId,
+						),
+						users: makePath(
+							ROOTS.STAFF,
+							RESOURCE.profiles,
+							'details',
+							profileId,
+							'users',
+						),
+					},
+				};
+			},
+		},
 		tenants: {
 			root: makePath(ROOTS.STAFF, RESOURCE.tenants),
 			new: makePath(ROOTS.STAFF, RESOURCE.tenants, 'new'),
@@ -106,6 +133,18 @@ export const FRONT_PATH_NAMES = {
 				return makePath(ROOTS.STAFF, RESOURCE.staffMembers, 'details', userId);
 			},
 		},
+		invitations: {
+			root: makePath(ROOTS.STAFF, RESOURCE.invitations),
+			new: makePath(ROOTS.STAFF, RESOURCE.invitations, 'new'),
+			details: (invitationId = '') => {
+				return makePath(
+					ROOTS.STAFF,
+					RESOURCE.invitations,
+					'details',
+					invitationId,
+				);
+			},
+		},
 		backgroundJobs: {
 			root: makePath(ROOTS.STAFF, 'background-jobs'),
 		},
@@ -130,6 +169,7 @@ export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detec
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
 export const queryParamKey = {
+	clear_http_only: 'clear_session',
 	language: 'lng',
 	token: 'token',
 	login_page: {
@@ -137,6 +177,10 @@ export const queryParamKey = {
 	},
 	reset_password_page: {
 		redirect_cause: 'rc',
+		encoded_email: 'id',
+		token: 'token',
+	},
+	accept_invitation_page: {
 		encoded_email: 'id',
 		token: 'token',
 	},
@@ -255,3 +299,5 @@ export const I18N_NAMESPACES = {
 	ZOD: 'zod',
 	RESPONSE_MESSAGE: 'response-message',
 } as const satisfies Record<string, NameSpace>;
+
+export const MAX_PROFILES_PER_ACCOUNT = 5;

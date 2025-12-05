@@ -8,7 +8,7 @@ export const checkIfEmptyQueryData = <TData = unknown, TError = Error>(
 		query.data === null ||
 		(Array.isArray(query.data) && query.data.length === 0);
 
-	return isEmpty;
+	return !query.isPending && isEmpty;
 };
 
 // Utility to generate a stable React Query key from a Kiota-style accessor
