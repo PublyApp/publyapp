@@ -93,7 +93,7 @@ export const loader = getServerLoader({
 		}
 
 		const checkInvitationToken = safeRun(async () => {
-			return apiClient.auth.checkInvitationToken.get({
+			return apiClient.invitations.check.get({
 				queryParameters: {
 					id: encodedEmail,
 					token: token,
