@@ -149,12 +149,12 @@
 **Focus:** Make staff portal operationally useful with tenant administration and impersonation UI.
 
 **Backend Tasks:**
-1. Fix tenant authorization (Issue #87 - `TenantAuthFilter`)
-2. Implement tenant suspend/reactivate with audit logging
-3. Create tenant usage aggregation service (count users, projects, schedules)
-4. Add impersonation start/end endpoints (service already exists)
-5. System notice CRUD endpoints
-6. Audit log query endpoints with filters
+1. Implement tenant suspend/reactivate with audit logging
+2. Create tenant usage aggregation service (count users, projects, schedules)
+3. Add impersonation start/end endpoints (service already exists)
+4. System notice CRUD endpoints
+5. Audit log query endpoints with filters
+6. Fix tenant authorization (Issue #87 - `TenantAuthFilter`)
 
 **Frontend Tasks:**
 1. **Fix Issue #94**: Resolve TypeScript errors in tenant management module

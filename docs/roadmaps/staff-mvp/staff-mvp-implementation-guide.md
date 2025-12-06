@@ -116,13 +116,7 @@ Week 1 completed invitation endpoints AND frontend, which was originally split b
 
 #### Backend Tasks (12-16 hours)
 
-1. **Fix Tenant Authorization (Issue #87)** - 3-4 hours
-   - Implement `TenantAuthFilter` authorization logic
-   - Ensure proper permission checks for tenant operations
-   - Add role-based access control for tenant actions
-   - **Files:** `apps/api/Src/Lib/Filters/TenantAuthFilter.cs`
-
-2. **Tenant Suspend/Reactivate** - 4-6 hours
+1. **Tenant Suspend/Reactivate** - 4-6 hours
    - Create `SuspendTenantAsync(tenantId, reason, staffUserId)` handler
    - Create `ReactivateTenantAsync(tenantId, reason, staffUserId)` handler
    - Update `Tenant` entity with `IsSuspended` tracking (if not exists)
@@ -132,19 +126,19 @@ Week 1 completed invitation endpoints AND frontend, which was originally split b
      - `POST /staff/tenants/{id}/reactivate`
    - **Files:** `apps/api/Src/Modules/Staff/TenantsAsStaff/`
 
-3. **Tenant Usage Aggregation** - 2-3 hours
+2. **Tenant Usage Aggregation** - 2-3 hours
    - Create `GetTenantUsageAsync(tenantId)` method
    - Aggregate: user count, project count, schedule count, last activity
    - Add endpoint: `GET /staff/tenants/{id}/usage`
    - **Files:** `apps/api/Src/Modules/Staff/TenantsAsStaff/TenantUsageService.cs`
 
-4. **Impersonation Start/End Endpoints** - 2-3 hours
+3. **Impersonation Start/End Endpoints** - 2-3 hours
    - `POST /staff/impersonation/start` - Uses existing `ImpersonationService`
    - `POST /staff/impersonation/end` - Terminates active session
    - `GET /staff/impersonation/active` - Check current impersonation status
    - **Files:** `apps/api/Src/Modules/Staff/Impersonations/ImpersonationEndpoints.cs`
 
-5. **System Notice CRUD** - 2-3 hours
+4. **System Notice CRUD** - 2-3 hours
    - `POST /staff/notices` - Create notice
    - `GET /staff/notices` - List all notices
    - `PATCH /staff/notices/{id}` - Update notice
@@ -152,11 +146,17 @@ Week 1 completed invitation endpoints AND frontend, which was originally split b
    - `GET /notices/active` - Public endpoint for active notices
    - **Files:** `apps/api/Src/Modules/Staff/SystemNotice/SystemNoticeEndpoints.cs`
 
-6. **Audit Log Query Endpoints** - 2-3 hours
+5. **Audit Log Query Endpoints** - 2-3 hours
    - `GET /staff/audit-logs` - Paginated list with filters
    - Add filters: userId, action, dateRange, targetId
    - `GET /staff/audit-logs/export` - Export to CSV/JSON
    - **Files:** `apps/api/Src/Modules/Staff/AuditLogs/AuditLogEndpoints.cs`
+
+6. **Fix Tenant Authorization (Issue #87)** - 3-4 hours
+   - Implement `TenantAuthFilter` authorization logic
+   - Ensure proper permission checks for tenant operations
+   - Add role-based access control for tenant actions
+   - **Files:** `apps/api/Src/Lib/Filters/TenantAuthFilter.cs`
 
 #### Frontend Tasks (21-28 hours)
 
