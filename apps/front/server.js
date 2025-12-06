@@ -47,5 +47,9 @@ if (DEVELOPMENT) {
 }
 
 app.listen(PORT, () => {
-	console.log(`Server is running on http://localhost:${PORT}`);
+	console.log(`\n${'='.repeat(60)}`);
+	console.log(
+		`🚀  Server is running at: \x1b[32mhttp://localhost:${PORT}\x1b[0m`,
+	);
+	console.log(`${'='.repeat(60)}\n`);
 });

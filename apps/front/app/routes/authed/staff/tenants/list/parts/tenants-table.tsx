@@ -14,6 +14,7 @@ import {
 } from 'material-react-table';
 import { nanoid } from 'nanoid';
 import { useMemo } from 'react';
+
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label/label';
 import type { LabelColor } from '@/front/components/label/types';
@@ -69,13 +70,7 @@ const TenantsTable = () => {
 			}),
 			columnHelper.accessor('usersCount', {
 				header: t('users'),
-				Cell: (props) => {
-					return (
-						<>
-							{props.cell.getValue()} / {props.row.original.maxUsers}
-						</>
-					);
-				},
+				Cell: UsersCountCell,
 				size: 70,
 			}),
 			// columnHelper.accessor('pricingPlan', {
@@ -209,6 +204,16 @@ const StatusCell: MRT_ColumnDef<TenantRowData, string>['Cell'] = (props) => {
 		<Label variant="soft" color={color}>
 			{status || _.toLower(t('unknown-item', { item: 'status' }))}
 		</Label>
+	);
+};
+
+const UsersCountCell: MRT_ColumnDef<TenantRowData, number>['Cell'] = (
+	props,
+) => {
+	return (
+		<>
+			{props.cell.getValue()} / {props.row.original.maxUsers}
+		</>
 	);
 };
 
