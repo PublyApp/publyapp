@@ -13,7 +13,6 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
@@ -51,8 +50,6 @@ import { interZodClient } from '#app/lib/zod/zod.client.ts';
 import { useMainStore } from '#app/lib/zustand/store.ts';
 import { fData } from '#app/utils/format-number.ts';
 
-// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
-
 // ----------------------------------------------------------------------
 
 type NewTenantSchemaType = zod.infer<
@@ -61,25 +58,24 @@ type NewTenantSchemaType = zod.infer<
 
 // ----------------------------------------------------------------------
 
-const ROLE_OPTIONS = _.chain(/* tenantSubRoleEnum */ [])
+const ACCOUNT_LEVEL_OPTIONS = _.chain(ACCOUNT_LEVEL_ENUM)
+	.entries()
 	.map((value) => {
-		return {
-			value: value,
-			label: value,
-		};
+		const [, accountLevel] = value;
+		return accountLevel;
 	})
 	.value();
 
-const initialUserValue = {
+const initialUser = {
 	email: '',
-	role: /* tenantSubRoleEnum.ADMIN */ '',
+	accountLevel: ACCOUNT_LEVEL_ENUM.ADMIN,
 };
 
 const defaultValues = {
 	name: '',
 	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 	logo: undefined,
-	initialUsers: [initialUserValue],
+	initialUsers: [initialUser],
 } satisfies NewTenantSchemaType;
 
 type ITenantItem = {
@@ -225,8 +221,11 @@ export const TenantCreateOrEditForm = ({
 					if (_.isArray(fieldValue)) {
 						values = _.map(fieldValue, (value) => {
 							return (
-								<Typography key={`${value.email}_${value.role}`} sx={{ mb: 1 }}>
-									&nbsp;&nbsp;&nbsp;&nbsp;- {value.email} / {value.role}
+								<Typography
+									key={`${value.email}_${value.accountLevel}`}
+									sx={{ mb: 1 }}
+								>
+									&nbsp;&nbsp;&nbsp;&nbsp;- {value.email} / {value.accountLevel}
 								</Typography>
 							);
 						});
@@ -666,15 +665,15 @@ const UserRow = ({
 			>
 				<span>
 					<Field.Select
-						name={`initialUsers.${index}.role`}
-						label={t('role')}
+						name={`initialUsers.${index}.accountLevel`}
+						label={t('level')}
 						required
 						onChange={handleChangeRole}
 						disabled={isTheOnlyAdmin}
 					>
-						{ROLE_OPTIONS.map((option) => (
-							<MenuItem key={option.value} value={option.label}>
-								{option.label}
+						{ACCOUNT_LEVEL_OPTIONS.map((option) => (
+							<MenuItem key={option} value={option}>
+								{option}
 							</MenuItem>
 						))}
 					</Field.Select>
