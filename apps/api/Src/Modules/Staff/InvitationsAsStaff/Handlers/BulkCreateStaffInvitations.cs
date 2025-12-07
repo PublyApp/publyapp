@@ -1,19 +1,56 @@
 using System.Text.Json;
+
 using FluentValidation;
+
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
+using MainApi.Src.Lib;
 using MainApi.Src.Modules.Shared.Invitation;
 using MainApi.Src.Modules.Staff.AuditLogs;
-using MainApi.Src.Lib;
+
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+
 using Polly;
 
 namespace MainApi.Src.Modules.Staff.InvitationsAsStaff.Handlers;
 
 public record BulkCreateStaffInvitationsBody {
-	public required JsonElement Invitations { get; init; }
+	public JsonElement Invitations { get; init; }
+	// cached parsed invitations
+	private List<BulkStaffInvitationItem> _invitations = new();
+	private bool _invitationsParsed = false;
+
+	private List<BulkStaffInvitationItem> ParseInvitations() {
+		var invitations = new List<BulkStaffInvitationItem>();
+
+		foreach (var item in Invitations.EnumerateArray()) {
+			var email = item.GetProperty("email").GetString()!;
+			var profileIds = item.GetProperty("profileIds")
+				.EnumerateArray()
+				.Select(e => Guid.Parse(e.GetString()!))
+				.ToList();
+
+			invitations.Add(new BulkStaffInvitationItem {
+				Email = email,
+				ProfileIds = profileIds
+			});
+		}
+
+		return invitations;
+	}
+
+	public List<BulkStaffInvitationItem> GetInvitations() {
+		if (_invitationsParsed) {
+			return _invitations;
+		}
+
+		_invitations = ParseInvitations();
+		_invitationsParsed = true;
+
+		return _invitations;
+	}
 }
 
 public record BulkStaffInvitationsCreated {
@@ -46,6 +83,11 @@ public class BulkCreateStaffInvitationsBodyValidator
 					);
 					return;
 				}
+
+				// Track emails for duplicate detection
+				var emailOccurrences = new Dictionary<string, List<int>>(
+					StringComparer.OrdinalIgnoreCase
+				);
 
 				// Validate each item
 				for (var i = 0; i < array.Count; i++) {
@@ -84,6 +126,13 @@ public class BulkCreateStaffInvitationsBodyValidator
 									$"invitations[{index}].email",
 									"Invalid email format"
 								);
+							} else {
+								// Track email occurrences for duplicate check
+								if (!emailOccurrences.TryGetValue(email, out var indices)) {
+									indices = new List<int>();
+									emailOccurrences[email] = indices;
+								}
+								indices.Add(index);
 							}
 						}
 					}
@@ -129,6 +178,20 @@ public class BulkCreateStaffInvitationsBodyValidator
 						}
 					}
 				}
+
+				// Check for duplicate emails after iterating through all items
+				var duplicateEmails = emailOccurrences
+					.Where(kvp => kvp.Value.Count > 1)
+					.Select(kvp => kvp.Key)
+					.ToList();
+
+				if (duplicateEmails.Count > 0) {
+					var emailList = string.Join(", ", duplicateEmails);
+					context.AddFailure(
+						"Invitations",
+						$"Duplicate email(s) found: {emailList}"
+					);
+				}
 			});
 	}
 
@@ -157,7 +220,6 @@ public static class BulkCreateStaffInvitations {
 		CancellationToken cancellationToken = default
 	) {
 		var logger = loggerFactory.CreateLogger(nameof(BulkCreateStaffInvitations));
-
 		var account = authContext.AccountStaff;
 
 		// should never happen because handler must be set behind StaffAuthFilter
@@ -172,35 +234,7 @@ public static class BulkCreateStaffInvitations {
 		}
 
 		// Parse JsonElement into typed list
-		var invitations = new List<BulkStaffInvitationItem>();
-		foreach (var item in request.Invitations.EnumerateArray()) {
-			var email = item.GetProperty("email").GetString()!;
-			var profileIds = item.GetProperty("profileIds")
-				.EnumerateArray()
-				.Select(e => Guid.Parse(e.GetString()!))
-				.ToList();
-
-			invitations.Add(new BulkStaffInvitationItem {
-				Email = email,
-				ProfileIds = profileIds
-			});
-		}
-
-		// Check for duplicate emails within the batch
-		var duplicates = invitations
-			.GroupBy(x => x.Email, StringComparer.OrdinalIgnoreCase)
-			.Where(g => g.Count() > 1)
-			.Select(g => g.Key)
-			.ToList();
-
-		if (duplicates.Count > 0) {
-			return TypedResults.BadRequest(
-				ApiResponse.Create(
-					$"Duplicate email(s) found in batch: {string.Join(", ", duplicates)}",
-					ResponseKeys.RequestBodyValidationFailed
-				)
-			);
-		}
+		var invitations = request.GetInvitations();
 
 		// Extract all unique emails and profile IDs for batch validation
 		var uniqueEmails = invitations.Select(i => i.Email).Distinct().ToList();

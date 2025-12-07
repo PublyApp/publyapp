@@ -1,11 +1,13 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using CommonTenantNs = MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Users;
 
-namespace MainApi.Src.Modules.Staff.TenantAsStaff;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+
+using CommonTenantNs = MainApi.Src.Modules.Shared.Tenants;
+
+namespace MainApi.Src.Modules.Staff.TenantsAsStaff;
 
 public class TenantAsStaffItem {
 	public CommonTenantNs.Tenant Tenant { get; set; } = new CommonTenantNs.Tenant {
