@@ -1,14 +1,19 @@
-using MainApi.Src.Lib;
 using System.Text.Json;
-using FluentValidation;
-using MainApi.Src.Lib.Utils;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace MainApi.Src.Modules.Staff.TenantAsStaff.Handlers;
+using FluentValidation;
+
+using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
+
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
+namespace MainApi.Src.Modules.Staff.TenantsAsStaff.Handlers;
 
 public class CreateTenantAsStaffBody {
 	public JsonElement Name { get; set; }
+	public JsonElement MaxUsers { get; set; }
+	public JsonElement InitialUsers { get; set; }
 
 	public string GetName() {
 		string name = Name.ValueKind switch {
@@ -53,9 +58,12 @@ public static class CreateTenantAsStaff {
 		) {
 		string tenantName = createTenantBody.GetName();
 
+		// int maxUsers = createTenantBody.GetMaxUsers();
+
 		var tenant = new MainApi.Src.Modules.Shared.Tenants.Tenant {
 			Name = tenantName,
-			Code = CryptoUtils.RandomString(10).ToLower()
+			Code = CryptoUtils.RandomString(10).ToLower(),
+			Status = Shared.Tenants.TenantStatus.Pending
 		};
 
 		var savedTenant = await tenantAsStaffService.CreateTenant(tenant, cancellationToken);

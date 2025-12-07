@@ -18,7 +18,7 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
 import { useMemo } from 'react';
 import { useParams } from 'react-router';
-import type { TenantProfile } from '@/front/_mock/_tenant-profiles';
+
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { toast } from '@/front/components/snackbar';
@@ -78,10 +78,11 @@ const TenantProfilesTable = () => {
 	});
 
 	const profilesMap = useMemo(() => {
-		const map = new Map<string, TenantProfile>();
+		const map = new Map<string, unknown>();
 
-		_.forEach(profiles, (profile) => {
-			map.set(profile.objectId, profile);
+		_.forEach(profiles?.profiles, (profile) => {
+			if (!profile || !profile.id) return;
+			map.set(profile.id, profile);
 		});
 
 		return map;
