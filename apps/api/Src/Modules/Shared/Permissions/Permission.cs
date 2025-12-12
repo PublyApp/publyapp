@@ -1,8 +1,9 @@
-using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using MainApi.Src.Modules.Shared.Profiles;
 using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
+using MainApi.Src.Modules.Shared.Profiles;
 
 namespace MainApi.Src.Modules.Shared.Permissions;
 

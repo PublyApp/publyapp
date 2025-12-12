@@ -1,7 +1,9 @@
-using MainApi.Src.Data;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Shared.Users;
 

@@ -1,6 +1,7 @@
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Users;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 

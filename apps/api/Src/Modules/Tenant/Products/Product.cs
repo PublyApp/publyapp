@@ -1,6 +1,7 @@
-using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
 
 namespace MainApi.Src.Modules.Tenant.Products;
 

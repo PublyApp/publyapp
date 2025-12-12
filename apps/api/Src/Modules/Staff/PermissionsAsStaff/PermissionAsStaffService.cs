@@ -1,7 +1,8 @@
 
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Permissions;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Staff.PermissionAsStaff;

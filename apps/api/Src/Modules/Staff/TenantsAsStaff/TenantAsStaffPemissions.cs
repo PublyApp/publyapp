@@ -1,5 +1,5 @@
-using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Permissions;
 
 namespace MainApi.Src.Modules.Staff.TenantsAsStaff;
 

@@ -1,6 +1,7 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Modules.Shared.Profiles;
 using MainApi.Src.Modules.Shared.Users;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Shared.Permissions;

@@ -1,8 +1,10 @@
 using System.Data;
+
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Auth;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Shared.Users;

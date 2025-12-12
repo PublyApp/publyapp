@@ -1,9 +1,10 @@
 using FluentValidation;
-using MainApi.Src.Lib.Filters;
-using MainApi.Src.Modules.Shared.Auth.Handlers;
+
 using MainApi.Src.Lib;
-using MainApi.Src.Lib.Utils;
 using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Lib.Filters;
+using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Shared.Auth.Handlers;
 
 namespace MainApi.Src.Modules.Shared.Auth;
 

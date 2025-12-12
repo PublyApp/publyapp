@@ -18,6 +18,6 @@ module.exports = {
 		const includeParams = relativePaths
 			.map((path) => `--include ${path}`)
 			.join(' ');
-		return `dotnet format ${includeParams}`;
+		return `dotnet format ${includeParams} --exclude-diagnostics IDE0130`;
 	},
 };
