@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 using MainApi.Src.Data;
-using MainApi.Src.Lib;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +32,7 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	public bool IsSuspended { get; set; } = false;
 
 	[Column("max_users")]
-	public int MaxUsers { get; set; } = AppSettings.DEFAULT_MAX_USERS_PER_TENANT_STATIC;
+	public required int MaxUsers { get; set; }
 
 	// navigation properties
 	[JsonIgnore]

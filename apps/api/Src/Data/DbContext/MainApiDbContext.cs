@@ -14,7 +14,6 @@ using MainApi.Src.Modules.Tenant.Products;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Data.DbContext;
 
@@ -156,9 +155,8 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
 		base.OnModelCreating(modelBuilder);
 
-		// Access AppSettings from service provider
-		var serviceProvider = ((IInfrastructure<IServiceProvider>)this).Instance;
-		var appSettings = serviceProvider.GetRequiredService<IOptions<AppSettings>>().Value;
+		// Instantiate AppSettings to access default values for database schema configuration
+		var appSettings = new AppSettings();
 
 		// Database-level lowercase constraints
 		modelBuilder.Entity<Tenant>()

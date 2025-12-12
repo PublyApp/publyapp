@@ -13,10 +13,7 @@ using CommonTenantNs = MainApi.Src.Modules.Shared.Tenants;
 namespace MainApi.Src.Modules.Staff.TenantsAsStaff;
 
 public class TenantAsStaffItem {
-	public CommonTenantNs.Tenant Tenant { get; set; } = new CommonTenantNs.Tenant {
-		Code = string.Empty,
-		Name = string.Empty,
-	};
+	public required CommonTenantNs.Tenant Tenant { get; set; }
 	public int UsersCount { get; set; }
 }
 

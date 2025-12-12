@@ -50,6 +50,5 @@ public class AppSettings {
 
 	public readonly int MAX_BULK_INVITATIONS_SIZE = 1000;
 
-	public static readonly int DEFAULT_MAX_USERS_PER_TENANT_STATIC = 5;
-	public readonly int DEFAULT_MAX_USERS_PER_TENANT = DEFAULT_MAX_USERS_PER_TENANT_STATIC;
+	public readonly int DEFAULT_MAX_USERS_PER_TENANT = 5;
 }

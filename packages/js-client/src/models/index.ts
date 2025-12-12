@@ -469,6 +469,14 @@ export function createStaffProfileItemFromDiscriminatorValue(parseNode: ParseNod
 }
 export interface CreateTenantAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
+     * The initialUsers property
+     */
+    initialUsers?: UntypedNode | null;
+    /**
+     * The maxUsers property
+     */
+    maxUsers?: UntypedNode | null;
+    /**
      * The name property
      */
     name?: UntypedNode | null;
@@ -682,6 +690,8 @@ export function deserializeIntoCreateStaffProfileBody(createStaffProfileBody: Pa
 // @ts-ignore
 export function deserializeIntoCreateTenantAsStaffBody(createTenantAsStaffBody: Partial<CreateTenantAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "initialUsers": n => { createTenantAsStaffBody.initialUsers = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "maxUsers": n => { createTenantAsStaffBody.maxUsers = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "name": n => { createTenantAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
@@ -808,6 +818,7 @@ export function deserializeIntoInvitationAccepted(invitationAccepted: Partial<In
         "sessionExpiresAt": n => { invitationAccepted.sessionExpiresAt = n.getDateValue(); },
         "sessionExpiresInMs": n => { invitationAccepted.sessionExpiresInMs = n.getNumberValue(); },
         "sessionToken": n => { invitationAccepted.sessionToken = n.getStringValue(); },
+        "tenantId": n => { invitationAccepted.tenantId = n.getGuidValue(); },
         "userId": n => { invitationAccepted.userId = n.getGuidValue(); },
     }
 }
@@ -1214,6 +1225,10 @@ export interface InvitationAccepted extends AdditionalDataHolder, Parsable {
      */
     sessionToken?: string | null;
     /**
+     * The tenantId property
+     */
+    tenantId?: Guid | null;
+    /**
      * The userId property
      */
     userId?: Guid | null;
@@ -1583,6 +1598,8 @@ export function serializeCreateStaffProfileBody(writer: SerializationWriter, cre
 // @ts-ignore
 export function serializeCreateTenantAsStaffBody(writer: SerializationWriter, createTenantAsStaffBody: Partial<CreateTenantAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!createTenantAsStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("initialUsers", createTenantAsStaffBody.initialUsers);
+    writer.writeObjectValue("maxUsers", createTenantAsStaffBody.maxUsers);
     writer.writeObjectValue("name", createTenantAsStaffBody.name);
     writer.writeAdditionalData(createTenantAsStaffBody.additionalData);
 }
@@ -1719,6 +1736,7 @@ export function serializeInvitationAccepted(writer: SerializationWriter, invitat
     writer.writeDateValue("sessionExpiresAt", invitationAccepted.sessionExpiresAt);
     writer.writeNumberValue("sessionExpiresInMs", invitationAccepted.sessionExpiresInMs);
     writer.writeStringValue("sessionToken", invitationAccepted.sessionToken);
+    writer.writeGuidValue("tenantId", invitationAccepted.tenantId);
     writer.writeGuidValue("userId", invitationAccepted.userId);
     writer.writeAdditionalData(invitationAccepted.additionalData);
 }
