@@ -1,6 +1,6 @@
 using MainApi.Localization;
 using MainApi.Src.Modules.Shared.Users;
-using MainApi.Src.Modules.Shared.Invitation;
+using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Staff.AuditLogs;
 using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;

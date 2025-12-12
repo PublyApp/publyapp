@@ -56,3 +56,5 @@ dotnet_diagnostic.IDE0130.severity = warning
 dotnet_sort_system_directives_first = true
 # Separate using directive groups with blank lines
 dotnet_separate_import_directive_groups = true
+# CS0168: The variable 'name' is declared but never used
+dotnet_diagnostic.CS0168.severity = warning
