@@ -1,10 +1,11 @@
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Lib;
+using MainApi.Src.Lib.Utils;
 using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Profiles;
-using MainApi.Src.Lib;
-using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Shared.Users;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 

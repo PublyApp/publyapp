@@ -1,7 +1,10 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using MainApi.Src.Data;
-using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
+
+using Microsoft.EntityFrameworkCore;
+
 using UserEntity = MainApi.Src.Modules.Shared.Users.User;
 
 namespace MainApi.Src.Modules.Shared.Auth;

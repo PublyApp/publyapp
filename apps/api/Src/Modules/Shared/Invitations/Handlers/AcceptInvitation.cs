@@ -5,7 +5,6 @@ using FluentValidation;
 using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Modules.Shared.Auth;
-using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Staff.AuditLogs;
 

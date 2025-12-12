@@ -1,9 +1,10 @@
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Modules.Shared.Users;
-using MainApi.Src.Modules.Shared.Auth;
-using MainApi.Src.Modules.Staff.AuditLogs;
-using Microsoft.EntityFrameworkCore;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Shared.Auth;
+using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Staff.AuditLogs;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Staff.Impersonation;
 

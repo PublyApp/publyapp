@@ -1,9 +1,11 @@
 using FluentValidation;
+
+using MainApi.Localization;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Users;
+
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using MainApi.Src.Modules.Shared.Users;
-using MainApi.Localization;
 
 namespace MainApi.Src.Modules.Shared.Auth.Handlers;
 

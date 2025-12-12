@@ -1,21 +1,24 @@
-using MainApi.Src.Data.DbContext;
-using Microsoft.EntityFrameworkCore;
-using MainApi.Src.Modules.Tenant.Products;
 using FluentValidation;
-using MainApi.Src.Modules.Shared.Users;
-using MainApi.Src.Modules.Shared.Auth;
+
+using MainApi.Src.Data.DbContext;
 using MainApi.Src.Infrastructure.Messaging.Email;
+using MainApi.Src.Modules.Shared.Auth;
+using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Profiles;
 using MainApi.Src.Modules.Shared.Tenants;
-using MainApi.Src.Modules.Shared.Invitations;
+using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Staff.AuditLogs;
 using MainApi.Src.Modules.Staff.Impersonation;
+using MainApi.Src.Modules.Staff.PermissionAsStaff;
+using MainApi.Src.Modules.Staff.ProfileAsStaff;
 using MainApi.Src.Modules.Staff.StaffMember;
 using MainApi.Src.Modules.Staff.TenantsAsStaff;
+using MainApi.Src.Modules.Tenant.Products;
+
+using Microsoft.EntityFrameworkCore;
+
 using Resend;
-using MainApi.Src.Modules.Staff.ProfileAsStaff;
-using MainApi.Src.Modules.Staff.PermissionAsStaff;
 
 namespace MainApi.Src.Lib;
 

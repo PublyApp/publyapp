@@ -1,6 +1,7 @@
 using MainApi.Localization;
-using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Users;
+
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 

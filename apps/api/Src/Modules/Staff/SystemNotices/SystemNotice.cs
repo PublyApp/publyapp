@@ -1,7 +1,10 @@
-using MainApi.Src.Data;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
+
+using Microsoft.EntityFrameworkCore;
+
 using UserEntity = MainApi.Src.Modules.Shared.Users.User;
 
 namespace MainApi.Src.Modules.Staff.SystemNotice;
