@@ -1,7 +1,9 @@
-using MainApi.Src.Data;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Shared.Users;
 
@@ -45,7 +47,10 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 	public bool IsProjectAccount => Scope == AccountScope.Project && TenantId != null && ProjectId != null;
 
 	// Factory methods for type-safe creation
-	public static UserAccount CreateStaffAccount(Guid userId, AccountLevel? accountLevel = null) {
+	public static UserAccount CreateStaffAccount(
+		Guid userId,
+		AccountLevel? accountLevel = null
+	) {
 		return new UserAccount {
 			UserId = userId,
 			Scope = AccountScope.Staff,
@@ -55,12 +60,17 @@ public class UserAccount : BaseAttributes, IOptionalTenantEntity {
 		};
 	}
 
-	public static UserAccount CreateTenantAccount(Guid userId, Guid tenantId) {
+	public static UserAccount CreateTenantAccount(
+		Guid userId,
+		Guid tenantId,
+		AccountLevel? accountLevel = null
+	) {
 		return new UserAccount {
 			UserId = userId,
 			Scope = AccountScope.Tenant,
 			TenantId = tenantId,
-			ProjectId = null
+			ProjectId = null,
+			Level = accountLevel ?? AccountLevel.User
 		};
 	}
 

@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -10,12 +11,19 @@ public abstract record CreateStaffAccountResult {
 	public sealed record UserAlreadyStaffMember : CreateStaffAccountResult;
 }
 
+public abstract record CreateTenantAccountResult {
+	public sealed record Success(UserAccount Account) : CreateTenantAccountResult;
+	public sealed record UserAlreadyMemberOfTenant : CreateTenantAccountResult;
+}
+
 public interface IAccountService {
 	Task<CreateStaffAccountResult> CreateStaffAccountAsync(Guid userId, AccountLevel? accountLevel = null, CancellationToken cancellationToken = default);
 	Task<UserAccount?> GetUserStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserStaffMemberAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserMemberOfTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<List<UserAccount>> FindUserTenantAccountsAsync(Guid userId, int? limit = null, CancellationToken cancellationToken = default);
+	Task<CreateTenantAccountResult> CreateTenantAccountAsync(Guid userId, Guid tenantId, AccountLevel accountLevel, CancellationToken cancellationToken = default);
+	Task AssignProfileToAccountAsync(Guid accountId, Guid profileId, CancellationToken cancellationToken = default);
 }
 
 public class AccountService : IAccountService {
@@ -107,5 +115,55 @@ public class AccountService : IAccountService {
 			select ua;
 
 		return await query.Take(effectiveLimit).ToListAsync(cancellationToken);
+	}
+
+	public async Task<CreateTenantAccountResult> CreateTenantAccountAsync(
+		Guid userId,
+		Guid tenantId,
+		AccountLevel accountLevel,
+		CancellationToken cancellationToken = default
+	) {
+		// Check if user is already a member of this tenant
+		var isUserMemberOfTenant = await IsUserMemberOfTenantAsync(userId, tenantId, cancellationToken);
+		if (isUserMemberOfTenant) {
+			return new CreateTenantAccountResult.UserAlreadyMemberOfTenant();
+		}
+
+		var account = UserAccount.CreateTenantAccount(userId, tenantId, accountLevel);
+		account.ValidateAccountType();
+
+		var addedAccount = await _dbContext.UserAccount
+			.AddAsync(account, cancellationToken);
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		return new CreateTenantAccountResult.Success(addedAccount.Entity);
+	}
+
+	public async Task AssignProfileToAccountAsync(
+		Guid accountId,
+		Guid profileId,
+		CancellationToken cancellationToken = default
+	) {
+		// Check if assignment already exists
+		var existingAssignment = await (
+			from uap in _dbContext.UserAccountProfile
+			where uap.UserAccountId == accountId
+			&& uap.ProfileId == profileId
+			select uap
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (existingAssignment is not null) {
+			// Already assigned, no-op
+			return;
+		}
+
+		var userAccountProfile = new UserAccountProfile {
+			UserAccountId = accountId,
+			ProfileId = profileId
+		};
+
+		await _dbContext.UserAccountProfile.AddAsync(userAccountProfile, cancellationToken);
+		await _dbContext.SaveChangesAsync(cancellationToken);
 	}
 }

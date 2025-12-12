@@ -1,9 +1,11 @@
-using MainApi.Src.Data;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
-using MainApi.Src.Modules.Shared.Users;
-using MainApi.Src.Modules.Shared.Profiles;
 using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
+using MainApi.Src.Modules.Shared.Profiles;
+using MainApi.Src.Modules.Shared.Users;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Shared.Projects;
 

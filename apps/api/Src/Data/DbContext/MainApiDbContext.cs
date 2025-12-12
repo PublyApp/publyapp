@@ -1,7 +1,8 @@
 using System.Linq.Expressions;
 
+using MainApi.Src.Lib;
 using MainApi.Src.Modules.Shared.Auth;
-using MainApi.Src.Modules.Shared.Invitation;
+using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Profiles;
 using MainApi.Src.Modules.Shared.Projects;
@@ -154,9 +155,14 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	protected override void OnModelCreating(ModelBuilder modelBuilder) {
 		base.OnModelCreating(modelBuilder);
 
+		// Instantiate AppSettings to access default values for database schema configuration
+		var appSettings = new AppSettings();
+
 		// Database-level lowercase constraints
 		modelBuilder.Entity<Tenant>()
-			.ToTable(t => t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)"));
+			.ToTable(t => t.HasCheckConstraint("CK_Tenant_Code_Lowercase", "code = LOWER(code)"))
+			.Property(t => t.MaxUsers)
+			.HasDefaultValue(appSettings.DEFAULT_MAX_USERS_PER_TENANT);
 
 		modelBuilder.Entity<User>()
 			.ToTable(t => t.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)"));

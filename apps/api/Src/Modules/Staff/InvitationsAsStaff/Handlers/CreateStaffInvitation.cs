@@ -1,13 +1,17 @@
 using System.Text.Json;
+
 using FluentValidation;
+
 using MainApi.Localization;
-using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Infrastructure.Messaging.Email;
-using MainApi.Src.Modules.Shared.Invitation;
-using MainApi.Src.Modules.Staff.AuditLogs;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Invitations;
+using MainApi.Src.Modules.Shared.Users;
+using MainApi.Src.Modules.Staff.AuditLogs;
+
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+
 using Polly;
 
 namespace MainApi.Src.Modules.Staff.InvitationsAsStaff.Handlers;

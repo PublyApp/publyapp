@@ -1,13 +1,15 @@
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Modules.Shared.Users;
-using MainApi.Src.Modules.Shared.Profiles;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Shared.Profiles;
+using MainApi.Src.Modules.Shared.Users;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+
 using UserEntity = MainApi.Src.Modules.Shared.Users.User;
 
-namespace MainApi.Src.Modules.Shared.Invitation;
+namespace MainApi.Src.Modules.Shared.Invitations;
 
 public interface IInvitationService {
 	Task<(Invitation Invitation, string Token)> CreateStaffInvitationAsync(
@@ -54,6 +56,13 @@ public interface IInvitationService {
 		string passwordHash,
 		CancellationToken cancellationToken = default);
 
+	Task<UserEntity> AcceptTenantInvitationAsync(
+		Invitation invitation,
+		string firstName,
+		string lastName,
+		string passwordHash,
+		CancellationToken cancellationToken = default);
+
 	// Batch validation methods for bulk operations
 	Task<List<string>> GetExistingUserEmailsAsync(
 		List<string> emails,
@@ -72,6 +81,10 @@ public interface IInvitationService {
 	Task<List<(string Email, string Token)>> BulkCreateStaffInvitationsAsync(
 		List<BulkStaffInvitationItem> invitations,
 		Guid invitedByUserId,
+		CancellationToken cancellationToken = default);
+
+	Task MarkInvitationAsAcceptedAsync(
+		Guid invitationId,
 		CancellationToken cancellationToken = default);
 }
 
@@ -399,6 +412,88 @@ public class InvitationService : IInvitationService {
 		}
 	}
 
+	public async Task<UserEntity> AcceptTenantInvitationAsync(
+		Invitation invitation,
+		string firstName,
+		string lastName,
+		string passwordHash,
+		CancellationToken cancellationToken = default
+	) {
+		await using var tx = await _dbContext.Database
+			.BeginTransactionAsync(cancellationToken);
+		try {
+			// Validate invitation has TenantId
+			if (invitation.TenantId is null) {
+				throw new InvalidOperationException(
+					$"Tenant invitation {invitation.GetRequiredId()} has no TenantId"
+				);
+			}
+
+			var tenantId = invitation.TenantId.Value;
+			var accountLevel = invitation.AccountLevel ?? AccountLevel.User;
+
+			// Create user
+			var user = new UserEntity {
+				Email = invitation.Email,
+				Password = passwordHash,
+				FirstName = firstName,
+				LastName = lastName,
+				Status = UserStatus.Active,
+				IsVerified = true
+			};
+			await _dbContext.User.AddAsync(user, cancellationToken);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			// Create tenant account
+			var account = UserAccount.CreateTenantAccount(
+				user.GetRequiredId(),
+				tenantId,
+				accountLevel
+			);
+			await _dbContext.UserAccount.AddAsync(account, cancellationToken);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			// Load invitation profiles
+			var invitationProfiles = await (
+				from ip in _dbContext.InvitationProfile
+				where ip.InvitationId == invitation.GetRequiredId()
+				select ip
+			).ToListAsync(cancellationToken);
+
+			// Assign ALL profiles from the invitation
+			foreach (var invitationProfile in invitationProfiles) {
+				await _dbContext.UserAccountProfile.AddAsync(
+					new UserAccountProfile {
+						UserAccountId = account.GetRequiredId(),
+						ProfileId = invitationProfile.ProfileId
+					},
+					cancellationToken
+				);
+			}
+
+			// Mark invitation as accepted
+			invitation.IsAccepted = true;
+			invitation.AcceptedAt = DateTime.UtcNow;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			await tx.CommitAsync(cancellationToken);
+
+			_logger.LogInformation(
+				"Tenant invitation accepted: User {UserId} created in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
+				user.GetRequiredId(),
+				tenantId,
+				accountLevel,
+				invitationProfiles.Count,
+				invitation.GetRequiredId()
+			);
+
+			return user;
+		} catch {
+			await tx.RollbackAsync(cancellationToken);
+			throw;
+		}
+	}
+
 	public async Task<List<string>> GetExistingUserEmailsAsync(
 		List<string> emails,
 		CancellationToken cancellationToken = default
@@ -500,5 +595,36 @@ public class InvitationService : IInvitationService {
 			await tx.RollbackAsync(cancellationToken);
 			throw;
 		}
+	}
+
+	public async Task MarkInvitationAsAcceptedAsync(
+		Guid invitationId,
+		CancellationToken cancellationToken = default
+	) {
+		var invitation = await _dbContext.Invitation
+			.FindAsync(new object[] { invitationId }, cancellationToken);
+
+		if (invitation is null) {
+			_logger.LogWarning(
+				"Attempt to mark non-existent invitation {InvitationId} as accepted",
+				invitationId
+			);
+			return;
+		}
+
+		if (invitation.IsAccepted) {
+			_logger.LogInformation(
+				"Invitation {InvitationId} is already accepted; no-op",
+				invitationId
+			);
+			return;
+		}
+
+		invitation.IsAccepted = true;
+		invitation.AcceptedAt = DateTime.UtcNow;
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		_logger.LogInformation("Marked invitation {InvitationId} as accepted", invitationId);
 	}
 }

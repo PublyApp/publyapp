@@ -1,9 +1,11 @@
-using MainApi.Src.Lib;
 using MainApi.Localization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http.HttpResults;
+using MainApi.Src.Lib;
 
-namespace MainApi.Src.Modules.Staff.TenantAsStaff.Handlers;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
+namespace MainApi.Src.Modules.Staff.TenantsAsStaff.Handlers;
+
 public class GetTenantAsStaffResult {
 	public Guid TenantId { get; set; }
 	public string Name { get; set; } = string.Empty;

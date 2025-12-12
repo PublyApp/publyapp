@@ -1,12 +1,16 @@
-using MainApi.Src.Data;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
+using MainApi.Src.Modules.Shared.Users;
+
+using Microsoft.EntityFrameworkCore;
+
 using ProjectEntity = MainApi.Src.Modules.Shared.Projects.Project;
 using TenantEntity = MainApi.Src.Modules.Shared.Tenants.Tenant;
 using UserEntity = MainApi.Src.Modules.Shared.Users.User;
 
-namespace MainApi.Src.Modules.Shared.Invitation;
+namespace MainApi.Src.Modules.Shared.Invitations;
 
 [Table("invitations")]
 [Index(nameof(Email), nameof(Scope), nameof(IsAccepted))]
@@ -53,6 +57,9 @@ public class Invitation : BaseAttributes, IOptionalTenantEntity {
 	public required Guid InvitedByUserId { get; set; }
 	[JsonIgnore]
 	public UserEntity InvitedByUser { get; set; } = null!;
+
+	[Column("account_level")]
+	public AccountLevel? AccountLevel { get; set; }
 
 	// Multiple profiles via junction table
 	[JsonIgnore]

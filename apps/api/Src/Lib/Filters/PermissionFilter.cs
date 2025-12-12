@@ -1,7 +1,7 @@
 using MainApi.Localization;
 using MainApi.Src.Data.DbContext;
-using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Shared.Permissions;
+using MainApi.Src.Modules.Shared.Users;
 
 namespace MainApi.Src.Lib.Filters;
 

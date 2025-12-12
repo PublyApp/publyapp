@@ -1799,9 +1799,6 @@
         }
       },
       "BulkCreateStaffInvitationsBody": {
-        "required": [
-          "invitations"
-        ],
         "type": "object",
         "properties": {
           "invitations": {
@@ -1927,6 +1924,12 @@
         "type": "object",
         "properties": {
           "name": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "maxUsers": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "initialUsers": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
@@ -2085,6 +2088,11 @@
           "userId": {
             "type": "string",
             "format": "uuid"
+          },
+          "tenantId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
           },
           "sessionToken": {
             "type": "string"

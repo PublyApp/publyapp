@@ -1,9 +1,11 @@
 using MainApi.Src.Lib;
-using Microsoft.AspNetCore.Mvc;
+
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
 using CommonTenantNs = MainApi.Src.Modules.Shared.Tenants;
 
-namespace MainApi.Src.Modules.Staff.TenantAsStaff.Handlers;
+namespace MainApi.Src.Modules.Staff.TenantsAsStaff.Handlers;
 
 public class TenantAsStaffItem {
 	public Guid Id { get; set; }

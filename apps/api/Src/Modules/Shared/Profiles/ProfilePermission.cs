@@ -1,8 +1,10 @@
-using MainApi.Src.Data;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
+
+using MainApi.Src.Data;
 using MainApi.Src.Modules.Shared.Permissions;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Shared.Profiles;
 

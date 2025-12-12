@@ -1,8 +1,10 @@
-using MainApi.Src.Modules.Shared.Users;
-using UserNs = MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Users;
+
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+
+using UserNs = MainApi.Src.Modules.Shared.Users;
 
 namespace MainApi.Src.Modules.Staff.StaffMember.Handlers;
 
