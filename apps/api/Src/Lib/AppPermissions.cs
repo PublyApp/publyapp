@@ -2,7 +2,7 @@ using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Staff.PermissionAsStaff;
 using MainApi.Src.Modules.Staff.ProfileAsStaff;
 using MainApi.Src.Modules.Staff.StaffMember;
-using MainApi.Src.Modules.Staff.TenantAsStaff;
+using MainApi.Src.Modules.Staff.TenantsAsStaff;
 using MainApi.Src.Modules.Staff.UserAsStaff;
 
 namespace MainApi.Src.Lib;

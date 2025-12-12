@@ -1,10 +1,10 @@
 using MainApi.Src.Lib;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
-using MainApi.Src.Lib.Extensions;
-using MainApi.Src.Modules.Staff.TenantAsStaff.Handlers;
+using MainApi.Src.Modules.Staff.TenantsAsStaff.Handlers;
 
-namespace MainApi.Src.Modules.Staff.TenantAsStaff;
+namespace MainApi.Src.Modules.Staff.TenantsAsStaff;
 
 public static class TenantAsStaffEndpoints {
 	public static IEndpointRouteBuilder MapTenantAsStaffEndpoints(this IEndpointRouteBuilder routes) {

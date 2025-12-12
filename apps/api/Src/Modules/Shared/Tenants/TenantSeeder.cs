@@ -1,7 +1,11 @@
 using System.Data;
+
 using MainApi.Src.Data;
 using MainApi.Src.Data.DbContext;
+using MainApi.Src.Lib;
+
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Modules.Shared.Tenants;
 
@@ -10,9 +14,11 @@ namespace MainApi.Src.Modules.Shared.Tenants;
 /// </summary>
 public class TenantSeeder : IEntitySeeder {
 	private readonly ILogger<TenantSeeder> _logger;
+	private readonly IOptions<AppSettings> _appSettings;
 
-	public TenantSeeder(ILogger<TenantSeeder>? logger = null) {
+	public TenantSeeder(ILogger<TenantSeeder>? logger = null, IOptions<AppSettings>? appSettings = null) {
 		_logger = logger ?? CreateDefaultLogger();
+		_appSettings = appSettings ?? Options.Create(new AppSettings());
 	}
 
 	private static ILogger<TenantSeeder> CreateDefaultLogger() {
@@ -24,7 +30,10 @@ public class TenantSeeder : IEntitySeeder {
 
 	public int Order => 20;
 
-	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
+	public async Task SeedAsync(
+		MainApiDbContext dbContext,
+		CancellationToken cancellationToken = default
+	) {
 		var tenantsData = new List<(string Code, string Name, TenantStatus Status)> {
 			("acme-corp", "Acme Corporation", TenantStatus.Active),
 			("techstart-inc", "TechStart Inc", TenantStatus.Active),
@@ -43,7 +52,8 @@ public class TenantSeeder : IEntitySeeder {
 			.Select(td => new Tenant {
 				Code = td.Code,
 				Name = td.Name,
-				Status = td.Status
+				Status = td.Status,
+				MaxUsers = _appSettings.Value.DEFAULT_MAX_USERS_PER_TENANT
 			})
 			.ToList();
 

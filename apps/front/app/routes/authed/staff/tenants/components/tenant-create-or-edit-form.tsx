@@ -13,13 +13,14 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
 import _ from 'lodash';
 import { useBoolean } from 'minimal-shared/hooks';
 import { nanoid } from 'nanoid';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import type zod from 'zod';
+
+import { getNewTenantSchemaClientSide } from '@org/shared/validations/tenant/tenant-client.validations';
 import { FieldContainer } from '@/front/components/form-extras';
 import { Field } from '@/front/components/hook-form/fields';
 import { Form } from '@/front/components/hook-form/form-provider';
@@ -34,12 +35,12 @@ import { defaultZodClient } from '@/front/lib/zod/zod.client';
 import { useMainStore } from '@/front/lib/zustand/store';
 import { fData } from '@/front/utils/format-number';
 import {
+	ACCOUNT_LEVEL_ENUM,
+	type AccountLevel,
 	DEFAULT_MAX_USER_PER_TENANT,
 	FRONT_PATH_NAMES,
 } from '@/shared/lib/constants';
 import { mbToBytes } from '@/shared/utils/any.utils';
-
-// import ParseRestError from 'packages/parse-rest-client/ParseRestError';
 
 // ----------------------------------------------------------------------
 
@@ -49,25 +50,24 @@ type NewTenantSchemaType = zod.infer<
 
 // ----------------------------------------------------------------------
 
-const ROLE_OPTIONS = _.chain(/* tenantSubRoleEnum */ [])
+const ACCOUNT_LEVEL_OPTIONS = _.chain(ACCOUNT_LEVEL_ENUM)
+	.entries()
 	.map((value) => {
-		return {
-			value: value,
-			label: value,
-		};
+		const [, accountLevel] = value;
+		return accountLevel;
 	})
 	.value();
 
-const initialUserValue = {
+const initialUser = {
 	email: '',
-	role: /* tenantSubRoleEnum.ADMIN */ '',
+	accountLevel: ACCOUNT_LEVEL_ENUM.ADMIN,
 };
 
 const defaultValues = {
 	name: '',
 	maxUsers: DEFAULT_MAX_USER_PER_TENANT,
 	logo: undefined,
-	initialUsers: [initialUserValue],
+	initialUsers: [initialUser],
 } satisfies NewTenantSchemaType;
 
 type ITenantItem = {
@@ -228,8 +228,11 @@ export const TenantCreateOrEditForm = ({
 					if (_.isArray(fieldValue)) {
 						values = _.map(fieldValue, (value) => {
 							return (
-								<Typography key={`${value.email}_${value.role}`} sx={{ mb: 1 }}>
-									&nbsp;&nbsp;&nbsp;&nbsp;- {value.email} / {value.role}
+								<Typography
+									key={`${value.email}_${value.accountLevel}`}
+									sx={{ mb: 1 }}
+								>
+									&nbsp;&nbsp;&nbsp;&nbsp;- {value.email} / {value.accountLevel}
 								</Typography>
 							);
 						});
@@ -302,7 +305,7 @@ export const TenantCreateOrEditForm = ({
 	const handleAddUserToForm = () => {
 		append({
 			email: '',
-			role: '',
+			accountLevel: ACCOUNT_LEVEL_ENUM.ADMIN,
 			// role: _.isEmpty(fields)
 			// 	? tenantSubRoleEnum.ADMIN
 			// 	: tenantSubRoleEnum.CONTRIBUTOR,
@@ -520,7 +523,7 @@ export const TenantCreateOrEditForm = ({
 	);
 };
 
-type UserRowType = { email: string; role: /* TenantSubRole */ any };
+type UserRowType = { email: string; accountLevel: AccountLevel };
 
 type UserRowProps = {
 	index: number;
@@ -539,19 +542,19 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 
 	const handleChangeRole = useCallback(
 		(e: React.ChangeEvent<HTMLInputElement>) => {
-			const value = e.target.value as TenantSubRole;
+			const value = e.target.value as AccountLevel;
 			update(index, {
 				...fields[index],
-				role: value,
+				accountLevel: value,
 			});
 		},
 		[fields, index, update],
 	);
 
 	const isAdmin =
-		_.get(fields, `${index}.role`) === /* tenantSubRoleEnum.ADMIN */ '';
+		_.get(fields, `${index}.accountLevel`) === ACCOUNT_LEVEL_ENUM.ADMIN;
 	const adminsList = _.filter(fields, (field) => {
-		return field.role === /* tenantSubRoleEnum.ADMIN */ '';
+		return field.accountLevel === ACCOUNT_LEVEL_ENUM.ADMIN;
 	});
 	const isTheOnlyAdmin = isAdmin && adminsList.length === 1;
 
@@ -570,15 +573,15 @@ const UserRow = ({ index, remove, fields, hasError, update }: UserRowProps) => {
 			>
 				<span>
 					<Field.Select
-						name={`initialUsers.${index}.role`}
-						label={t('role')}
+						name={`initialUsers.${index}.accountLevel`}
+						label={t('level')}
 						required
 						onChange={handleChangeRole}
 						disabled={isTheOnlyAdmin}
 					>
-						{ROLE_OPTIONS.map((option) => (
-							<MenuItem key={option.value} value={option.label}>
-								{option.label}
+						{ACCOUNT_LEVEL_OPTIONS.map((option) => (
+							<MenuItem key={option} value={option}>
+								{option}
 							</MenuItem>
 						))}
 					</Field.Select>

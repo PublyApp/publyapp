@@ -1,6 +1,8 @@
-using FluentValidation;
-using MainApi.Localization;
 using System.Runtime.CompilerServices;
+
+using FluentValidation;
+
+using MainApi.Localization;
 
 namespace MainApi.Src.Lib.Filters;
 

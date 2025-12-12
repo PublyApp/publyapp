@@ -1,18 +1,25 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using CommonTenantNs = MainApi.Src.Modules.Shared.Tenants;
+using MainApi.Src.Lib.Utils;
+using MainApi.Src.Modules.Shared.Invitations;
+using MainApi.Src.Modules.Shared.Profiles;
 using MainApi.Src.Modules.Shared.Users;
 
-namespace MainApi.Src.Modules.Staff.TenantAsStaff;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+
+using CommonTenantNs = MainApi.Src.Modules.Shared.Tenants;
+
+namespace MainApi.Src.Modules.Staff.TenantsAsStaff;
 
 public class TenantAsStaffItem {
-	public CommonTenantNs.Tenant Tenant { get; set; } = new CommonTenantNs.Tenant {
-		Code = string.Empty,
-		Name = string.Empty,
-	};
+	public required CommonTenantNs.Tenant Tenant { get; set; }
 	public int UsersCount { get; set; }
+}
+
+public record CreateTenantWithInitialUsersResult {
+	public required CommonTenantNs.Tenant Tenant { get; init; }
+	public required List<(string Email, string Token, AccountLevel Level)> InvitationTokens { get; init; }
 }
 
 public interface ITenantAsStaffService {
@@ -26,6 +33,15 @@ public interface ITenantAsStaffService {
 		CancellationToken cancellationToken = default
 	);
 	Task<int> CountTenantsAsync(CancellationToken cancellationToken = default);
+
+	// NEW: Create tenant with initial users via invitations
+	Task<CreateTenantWithInitialUsersResult> CreateTenantWithInitialUsersAsync(
+		string name,
+		int maxUsers,
+		List<(string Email, AccountLevel AccountLevel)> initialUsers,
+		Guid invitedByUserId,
+		CancellationToken cancellationToken = default
+	);
 }
 
 public class TenantAsStaffService : ITenantAsStaffService {
@@ -112,5 +128,89 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			select tenant;
 
 		return await query.CountAsync(cancellationToken);
+	}
+
+	public async Task<CreateTenantWithInitialUsersResult> CreateTenantWithInitialUsersAsync(
+		string name,
+		int maxUsers,
+		List<(string Email, AccountLevel AccountLevel)> initialUsers,
+		Guid invitedByUserId,
+		CancellationToken cancellationToken = default
+	) {
+		await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+		try {
+			// 1. Create tenant
+			var tenant = new CommonTenantNs.Tenant {
+				Name = name,
+				Code = CryptoUtils.RandomString(10).ToLower(),
+				Status = CommonTenantNs.TenantStatus.Pending,
+				MaxUsers = maxUsers
+			};
+
+			var savedTenant = await _dbContext.Tenant.AddAsync(tenant, cancellationToken);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+			var tenantId = savedTenant.Entity.GetRequiredId();
+
+			// 2. Create "Default profile" for non-admin users
+			var defaultProfile = Profile.CreateTenantProfile(
+				tenantId,
+				name: "Default profile",
+				description: "Default profile with no permissions"
+			);
+			var savedDefaultProfile = await _dbContext.Profile.AddAsync(defaultProfile, cancellationToken);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+			var defaultProfileId = savedDefaultProfile.Entity.GetRequiredId();
+
+			// 3. Create invitations with appropriate profiles
+			// NOTE: No need to validate existing users/memberships for a BRAND NEW tenant!
+			// All validation is done in the validator (duplicates, admin requirement, etc.)
+			var invitationTokens = new List<(string Email, string Token, AccountLevel Level)>();
+			var expiresAt = DateTime.UtcNow.AddDays(7);
+
+			foreach (var (email, accountLevel) in initialUsers) {
+				var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
+
+				// Determine profile IDs based on account level
+				List<Guid> profileIds;
+				if (accountLevel == AccountLevel.Admin) {
+					// Admin users don't need profiles (they have all rights)
+					profileIds = new List<Guid>();
+				} else {
+					// Non-admin users need at least 1 profile (app requirement)
+					// Assign the default profile
+					profileIds = new List<Guid> { defaultProfileId };
+				}
+
+				var invitation = Invitation.CreateTenantInvitationWithProfiles(
+					email,
+					tenantId,
+					profileIds,
+					invitedByUserId,
+					expiresAt,
+					token
+				);
+
+				// Store the account level in the invitation
+				invitation.AccountLevel = accountLevel;
+
+				invitation.ValidateInvitationType();
+				_dbContext.Invitation.Add(invitation);
+
+				invitationTokens.Add((email, token, accountLevel));
+			}
+
+			await _dbContext.SaveChangesAsync(cancellationToken);
+			await transaction.CommitAsync(cancellationToken);
+
+			return new CreateTenantWithInitialUsersResult {
+				Tenant = savedTenant.Entity,
+				InvitationTokens = invitationTokens
+			};
+
+		} catch {
+			await transaction.RollbackAsync(cancellationToken);
+			throw;
+		}
 	}
 }

@@ -1,13 +1,17 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+
 using FluentValidation;
+
 using MainApi.Localization;
 using MainApi.Src.Infrastructure.Messaging.Email;
-using MainApi.Src.Modules.Staff.AuditLogs;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
+using MainApi.Src.Modules.Staff.AuditLogs;
+
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+
 using Polly;
 
 namespace MainApi.Src.Modules.Staff.ProfileAsStaff.Handlers;
