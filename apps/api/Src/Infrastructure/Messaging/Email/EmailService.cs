@@ -1,5 +1,7 @@
-using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Auth;
+using MainApi.Src.Modules.Shared.Users;
+
 using Microsoft.Extensions.Options;
 
 namespace MainApi.Src.Infrastructure.Messaging.Email;
@@ -13,6 +15,7 @@ public interface IEmailService {
 	Task SendResetPasswordRequestEmailAsync(string email, string token);
 	Task SendPasswordResetNotificationEmailAsync(string email);
 	Task SendInvitationToJoinStaffEmailAsync(string email, string token);
+	Task SendTenantInvitationEmailAsync(string email, string tenantName, string token, AccountLevel level);
 }
 
 public class EmailService : IEmailService {
@@ -20,12 +23,10 @@ public class EmailService : IEmailService {
 	private readonly IOptions<AppSettings> _appSettings;
 	private readonly ILogger<EmailService> _logger;
 
-
 	private static string CreateHtmlLink(string url, string text) {
 		string linkStyle = "text-decoration: underline; color: #007bff;";
 		return $"<a href=\"{url}\" style=\"{linkStyle}\">{text}</a>";
 	}
-
 
 	public EmailService(
 		IEmailSender emailSender,
@@ -158,6 +159,30 @@ public class EmailService : IEmailService {
 				You have been invited to join {_appSettings.Value.APP_NAME} as a staff member.
 				<br />
 				Please accept the invitation to join the staff by clicking the link below:
+				<br />
+				{CreateHtmlLink(invitationUrl, "Accept the invitation")}
+				"""
+		});
+	}
+
+	// used when a user is invited to join a tenant
+	public async Task SendTenantInvitationEmailAsync(
+		string email,
+		string tenantName,
+		string token,
+		AccountLevel level
+	) {
+		var invitationUrl = AuthUtils.CreateAcceptInvitationUrl(token, email);
+		var accountLevelText = level == AccountLevel.Admin ? "admin" : "user";
+
+		await _emailSender.SendAsync(new EmailRequest {
+			To = email,
+			From = $"{_appSettings.Value.DEFAULT_EMAIL_SENDER_NAME} <{_appSettings.Value.DEFAULT_EMAIL_SENDER_EMAIL}>",
+			Subject = $"You have been invited to join {tenantName} on {_appSettings.Value.APP_NAME}",
+			HtmlBody = $"""
+				You have been invited to join {tenantName} on {_appSettings.Value.APP_NAME} as a {accountLevelText}.
+				<br />
+				Please accept the invitation by clicking the link below:
 				<br />
 				{CreateHtmlLink(invitationUrl, "Accept the invitation")}
 				"""

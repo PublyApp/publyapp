@@ -1,6 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Modules.Shared.Users;
-using MainApi.Src.Modules.Shared.Invitation;
+using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Profiles;
 using MainApi.Src.Lib;
@@ -630,14 +630,14 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 
 			// Generate invitations with tokens
 			var invitationTokens = new List<(string Email, string Token)>();
-			var newInvitations = new List<MainApi.Src.Modules.Shared.Invitation.Invitation>();
+			var newInvitations = new List<MainApi.Src.Modules.Shared.Invitations.Invitation>();
 
 			foreach (var email in emailsNeedingInvitations) {
 				// Generate token using CryptoUtils
 				var token = CryptoUtils.RandomString(_appSettings.Value.INVITATION_TOKEN_LENGTH);
 				var expiresAt = DateTime.UtcNow.AddDays(7);
 
-				var invitation = Shared.Invitation.Invitation.CreateStaffInvitationWithProfiles(
+				var invitation = Invitation.CreateStaffInvitationWithProfiles(
 					email,
 					new List<Guid> { profileId },
 					invitedByUserId,

@@ -1,7 +1,10 @@
-using MainApi.Src.Data;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
+
+using Microsoft.EntityFrameworkCore;
+
 using UserEntity = MainApi.Src.Modules.Shared.Users.User;
 
 namespace MainApi.Src.Modules.Staff.AuditLogs;
@@ -47,4 +50,5 @@ public static class AuditActions {
 	public const string StaffProfileCreated = "staff.profile.created";
 	public const string StaffProfilePermissionsAssigned = "staff.profile.permissions.assigned";
 	public const string StaffProfileUserAssigned = "staff.profile.user.assigned";
+	public const string TenantInvitationAccepted = "tenant.invitation.accepted";
 }

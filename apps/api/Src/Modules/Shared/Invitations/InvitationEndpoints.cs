@@ -2,7 +2,7 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
-using MainApi.Src.Modules.Shared.Invitation.Handlers;
+using MainApi.Src.Modules.Shared.Invitations.Handlers;
 
 namespace MainApi.Src.Modules.Shared.Invitations;
 

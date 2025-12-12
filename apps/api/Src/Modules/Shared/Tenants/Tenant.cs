@@ -1,9 +1,11 @@
-using MainApi.Src.Data;
-using MainApi.Src.Modules.Shared.Users;
-using MainApi.Src.Lib;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+
+using MainApi.Src.Data;
+using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Users;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Shared.Tenants;
 
@@ -31,7 +33,7 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	public bool IsSuspended { get; set; } = false;
 
 	[Column("max_users")]
-	public int MaxUsers { get; set; } = AppSettings.DEFAULT_MAX_USERS_PER_TENANT;
+	public int MaxUsers { get; set; } = AppSettings.DEFAULT_MAX_USERS_PER_TENANT_STATIC;
 
 	// navigation properties
 	[JsonIgnore]
