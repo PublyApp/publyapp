@@ -6,6 +6,7 @@ import express from 'express';
 import helmet from 'helmet';
 import _ from 'lodash';
 import { nanoid } from 'nanoid';
+
 import { analytics } from '@/front/lib/analytics/analytics';
 import {
 	isPreRenderPath,
