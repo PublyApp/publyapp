@@ -2,9 +2,12 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import type { Breakpoint } from '@mui/material/styles';
 import _ from 'lodash';
+
 import { Logo } from '@/front/components/logo/logo';
 import { allLangs } from '@/front/lib/locales/all-langs';
+
 import { LanguagePopover } from '../components/language-popover';
+import { SettingsButton } from '../components/settings-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
@@ -68,7 +71,7 @@ export const AuthSplitLayout = ({
 					</Link> */}
 
 					{/** @slot Settings button */}
-					{/* <SettingsButton /> */}
+					<SettingsButton />
 
 					{/** @slot Language popover */}
 					<LanguagePopover data={allLangs} />
