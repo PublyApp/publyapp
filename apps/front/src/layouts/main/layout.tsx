@@ -4,13 +4,14 @@ import Button from '@mui/material/Button';
 import type { Breakpoint } from '@mui/material/styles';
 import { useBoolean } from 'minimal-shared/hooks';
 
-import { FRONT_PATH_NAMES } from '@org/shared-ts/lib/constants';
-import { makePath } from '@org/shared-ts/utils/string.utils';
 import { Logo } from '@/front/components/logo/logo';
 import { RouterLink } from '@/front/components/router-link';
 import { usePathname } from '@/front/hooks/use-pathname';
+import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import { makePath } from '@/shared/utils/string.utils';
 
 import { MenuButton } from '../components/menu-button';
+import { SettingsButton } from '../components/settings-button';
 import { SignInButton } from '../components/sign-in-button';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
@@ -67,7 +68,7 @@ export const MainLayout = ({
 						sx={(theme) => {
 							return {
 								mr: 1,
-								// ml: -1,
+								ml: -1,
 								[theme.breakpoints.up(layoutQuery)]: { display: 'none' },
 							};
 						}}
@@ -102,7 +103,7 @@ export const MainLayout = ({
 						}}
 					>
 						{/** @slot Settings button */}
-						{/* <SettingsButton /> */}
+						<SettingsButton />
 
 						{/** @slot Sign in button */}
 						<SignInButton />
