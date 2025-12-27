@@ -19,17 +19,24 @@ import {
 	useGetUserTenants,
 } from '#app/lib/react-query/features/common/auth.hooks.ts';
 
+import { AccountDrawer } from '../components/account-drawer';
 import { ColorSchemePopover } from '../components/colorscheme-popover';
 import { LanguagePopover } from '../components/language-popover';
 import { MenuButton } from '../components/menu-button';
-import { SidebarToggleButton } from '../components/sidebar-toggle-button';
-import { SidebarUserMenu } from '../components/sidebar-user-menu';
-import { SidebarWorkspaceSwitcher } from '../components/sidebar-workspace-switcher';
+// import { AccountDrawer } from '../components/account-drawer';
+// import { ContactsPopover } from '../components/contacts-popover';
+// import { NotificationsDrawer } from '../components/notifications-drawer';
+// import { Searchbar } from '../components/searchbar';
+import { SettingsButton } from '../components/settings-button';
+import { WorkspacesPopover } from '../components/workspaces-popover';
 import { layoutClasses } from '../core/classes';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
+// import { _contacts, _notifications } from '@/front/_mock';
+import { _account } from '../nav-config-account';
 import { navData as dashboardNavData } from '../nav-config-dashboard';
+import { _workspaces } from '../nav-config-workspace';
 import { VerticalDivider } from './content';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 import { NavHorizontal } from './nav-horizontal';
@@ -42,7 +49,6 @@ type LayoutBaseProps = Pick<LayoutSectionProps, 'sx' | 'children' | 'cssVars'>;
 
 export type DashboardLayoutProps = LayoutBaseProps & {
 	layoutQuery?: Breakpoint;
-	checkPermissions?: (allowedRoles?: NavItemProps['allowedRoles']) => boolean;
 	slotProps?: {
 		header?: HeaderSectionProps;
 		nav?: {
@@ -57,13 +63,11 @@ export const DashboardLayout = ({
 	cssVars,
 	children,
 	slotProps,
-	checkPermissions: customCheckPermissions,
 	layoutQuery = 'lg',
 }: DashboardLayoutProps) => {
 	const theme = useTheme();
 
-	const { data: userData } = useGetUserAuthData();
-	const { data: tenantsData } = useGetUserTenants();
+	const { user } = useMockedUser();
 
 	const settings = useSettingsContext();
 
@@ -84,12 +88,7 @@ export const DashboardLayout = ({
 	const canDisplayItemByRole = (
 		allowedRoles: NavItemProps['allowedRoles'],
 	): boolean => {
-		// Use custom permission check if provided, otherwise use default role-based check
-		if (customCheckPermissions) {
-			return customCheckPermissions(allowedRoles);
-		}
-		// Default: show all items if no custom check provided
-		return false;
+		return !allowedRoles?.includes(user?.role);
 	};
 
 	const renderHeader = () => {
@@ -97,7 +96,7 @@ export const DashboardLayout = ({
 			container: {
 				maxWidth: false,
 				sx: {
-					...(isNavVertical && { px: { [layoutQuery]: 2 } }),
+					...(isNavVertical && { px: { [layoutQuery]: 5 } }),
 					...(isNavHorizontal && {
 						bgcolor: 'var(--layout-nav-bg)',
 						height: { [layoutQuery]: 'var(--layout-nav-horizontal-height)' },
@@ -130,7 +129,7 @@ export const DashboardLayout = ({
 						onClick={onOpen}
 						sx={{
 							mr: 1,
-							// ml: -1,
+							ml: -1,
 							[theme.breakpoints.up(layoutQuery)]: { display: 'none' },
 						}}
 					/>
@@ -141,25 +140,6 @@ export const DashboardLayout = ({
 						cssVars={navVars.section}
 						checkPermissions={canDisplayItemByRole}
 					/>
-
-					{/** @slot Sidebar toggle (desktop only) */}
-					{isNavVertical && (
-						<SidebarToggleButton
-							isNavMini={isNavMini}
-							onClick={() => {
-								settings.setField(
-									'navLayout',
-									settings.state.navLayout === 'vertical' ? 'mini' : 'vertical',
-								);
-							}}
-							sx={{
-								display: 'none',
-								[theme.breakpoints.up(layoutQuery)]: {
-									display: 'inline-flex',
-								},
-							}}
-						/>
-					)}
 
 					{/** @slot Logo */}
 					{isNavHorizontal && (
@@ -177,6 +157,16 @@ export const DashboardLayout = ({
 							sx={{ [theme.breakpoints.up(layoutQuery)]: { display: 'flex' } }}
 						/>
 					)}
+
+					{/** @slot Workspace popover */}
+					<WorkspacesPopover
+						data={_workspaces}
+						sx={{
+							...(isNavHorizontal && {
+								color: 'var(--layout-nav-text-primary-color)',
+							}),
+						}}
+					/>
 				</>
 			),
 			rightArea: (
@@ -187,14 +177,26 @@ export const DashboardLayout = ({
 						gap: { xs: 0, sm: 0.75 },
 					}}
 				>
-					{/** @slot Color scheme */}
+					{/** @slot Searchbar */}
+					{/* <Searchbar data={navData} /> */}
+
+					{/** @slot Settings button */}
 					<ColorSchemePopover />
 
 					{/** @slot Language popover */}
 					<LanguagePopover data={allLangs} />
 
+					{/** @slot Notifications popover */}
+					{/* <NotificationsDrawer data={_notifications} /> */}
+
+					{/** @slot Contacts popover */}
+					{/* <ContactsPopover data={_contacts} /> */}
+
 					{/** @slot Settings button */}
-					{/* <SettingsButton /> */}
+					<SettingsButton />
+
+					{/** @slot Account drawer */}
+					<AccountDrawer data={_account} />
 				</Box>
 			),
 		};
@@ -224,18 +226,7 @@ export const DashboardLayout = ({
 		);
 	};
 
-	const tenants = useMemo(() => {
-		return (tenantsData?.tenants ?? []).map((t) => ({
-			id: t.id?.toString() ?? '',
-			name: t.name ?? '',
-			code: t.code ?? '',
-			logoUrl: t.logoUrl,
-		}));
-	}, [tenantsData?.tenants]);
-
 	const renderSidebar = () => {
-		const hasTenants = tenants.length > 0;
-
 		return (
 			<NavVertical
 				data={navData}
@@ -243,27 +234,11 @@ export const DashboardLayout = ({
 				layoutQuery={layoutQuery}
 				cssVars={navVars.section}
 				checkPermissions={canDisplayItemByRole}
-				slots={{
-					topArea: hasTenants ? (
-						<SidebarWorkspaceSwitcher
-							tenants={tenants}
-							totalCount={tenantsData?.totalCount ?? 0}
-							isCollapsed={isNavMini}
-						/>
-					) : (
-						<Logo sx={isNavMini ? { width: 28, height: 28 } : undefined} />
-					),
-					bottomArea: (
-						<SidebarUserMenu
-							user={{
-								firstName: userData?.firstName,
-								lastName: userData?.lastName,
-								email: userData?.email ?? '',
-								photoURL: userData?.avatarUrl ?? '',
-							}}
-							isCollapsed={isNavMini}
-						/>
-					),
+				onToggleNav={() => {
+					return settings.setField(
+						'navLayout',
+						settings.state.navLayout === 'vertical' ? 'mini' : 'vertical',
+					);
 				}}
 			/>
 		);
