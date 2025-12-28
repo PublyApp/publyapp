@@ -1,4 +1,5 @@
 import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
@@ -104,23 +105,36 @@ export const SidebarWorkspaceSwitcher = ({
 					alt={workspace?.name}
 					src={workspace?.logo}
 					sx={(theme) => ({
-						width: 24,
-						height: 24,
+						width: 32,
+						height: 32,
 						borderRadius: `${theme.shape.borderRadius}px`,
 					})}
 				/>
 
-				<Typography
-					noWrap
-					variant="body2"
-					sx={{ flex: 1, fontWeight: 600, fontSize: '0.8125rem' }}
-				>
-					{workspace?.name}
-				</Typography>
+				<Box sx={{ flex: 1, minWidth: 0 }}>
+					<Typography
+						noWrap
+						variant="body2"
+						sx={{ fontWeight: 600, fontSize: '0.8125rem', lineHeight: 1.2 }}
+					>
+						{workspace?.name}
+					</Typography>
+					<Typography
+						noWrap
+						variant="caption"
+						sx={{
+							color: 'text.secondary',
+							fontSize: '0.7rem',
+							lineHeight: 1.2,
+						}}
+					>
+						{workspace?.plan} plan
+					</Typography>
+				</Box>
 
 				<Iconify
-					width={16}
-					icon="lucide:chevrons-up-down"
+					width={18}
+					icon="eva:more-vertical-fill"
 					sx={{ color: 'text.disabled', flexShrink: 0 }}
 				/>
 			</ButtonBase>
