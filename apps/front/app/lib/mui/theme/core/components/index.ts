@@ -14,6 +14,7 @@ import { card } from './card';
 import { checkbox } from './checkbox';
 import { chip } from './chip';
 import { dialog } from './dialog';
+import { divider } from './divider';
 import { drawer } from './drawer';
 import { form } from './form';
 import { link } from './link';
@@ -60,6 +61,7 @@ export const components = {
 	...badge,
 	...radio,
 	...dialog,
+	...divider,
 	...appBar,
 	...avatar,
 	...drawer,

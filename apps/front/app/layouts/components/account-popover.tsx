@@ -7,10 +7,10 @@ import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
 import { usePopover } from 'minimal-shared/hooks';
 
-// import { useMockedUser } from 'src/auth/hooks';
-// import { RouterLink } from 'src/routes/components';
-// import { usePathname } from 'src/routes/hooks';
-// import { paths } from 'src/routes/paths';
+// import { useMockedUser } from '@/front/auth/hooks';
+// import { RouterLink } from '@/front/routes/components';
+// import { usePathname } from '@/front/routes/hooks';
+// import { paths } from '@/front/routes/paths';
 
 import { CustomPopover } from '@/front/components/custom-popover';
 import { Label } from '@/front/components/label';

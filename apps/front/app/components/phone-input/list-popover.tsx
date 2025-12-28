@@ -1,140 +1,133 @@
-import Box from '@mui/material/Box';
-import ButtonBase from '@mui/material/ButtonBase';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import ListItemText from '@mui/material/ListItemText';
-import MenuItem from '@mui/material/MenuItem';
-import MenuList from '@mui/material/MenuList';
-import Popover from '@mui/material/Popover';
-import TextField from '@mui/material/TextField';
-import { usePopover } from 'minimal-shared/hooks';
-import { useMemo } from 'react';
 import type { Country } from 'react-phone-number-input/input';
 
-// import { Iconify } from '../iconify';
-// import { FlagIcon } from '../flag-icon';
-// import { SearchNotFound } from '../search-not-found';
+import { useMemo } from 'react';
+import { usePopover } from 'minimal-shared/hooks';
 
-import { FlagIcon } from '../flag-icon/flag-icon';
-import { Iconify } from '../iconify/iconify';
-import { SearchNotFound } from '../search-not-found/search-not-found';
+import Box from '@mui/material/Box';
+import Popover from '@mui/material/Popover';
+import MenuList from '@mui/material/MenuList';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
+import ButtonBase from '@mui/material/ButtonBase';
+import IconButton from '@mui/material/IconButton';
+import ListItemText from '@mui/material/ListItemText';
+import InputAdornment from '@mui/material/InputAdornment';
+
+import { Iconify } from '@/front/components/iconify';
+import { FlagIcon } from '../flag-icon';
+import { SearchNotFound } from '../search-not-found';
 
 import type { CountryListProps } from './types';
 
 // ----------------------------------------------------------------------
 
-export const CountryListPopover = ({
+export function CountryListPopover({
 	sx,
 	countries,
 	countryCode,
 	searchCountry,
 	onClickCountry,
 	onSearchCountry,
-}: CountryListProps) => {
+}: CountryListProps) {
 	const { open, onClose, onOpen, anchorEl } = usePopover();
 
-	const selectedCountry = useMemo(() => {
-		return countries.find((country) => {
-			return country.code === countryCode;
-		});
-	}, [countries, countryCode]);
+	const selectedCountry = useMemo(
+		() => countries.find((country) => country.code === countryCode),
+		[countries, countryCode],
+	);
 
-	const dataFiltered = useMemo(() => {
-		return applyFilter({
-			inputData: countries,
-			query: searchCountry,
-		});
-	}, [countries, searchCountry]);
+	const dataFiltered = useMemo(
+		() =>
+			applyFilter({
+				inputData: countries,
+				query: searchCountry,
+			}),
+		[countries, searchCountry],
+	);
 
 	const notFound = dataFiltered.length === 0 && !!searchCountry;
 
 	const btnId = 'country-list-button';
 	const menuId = 'country-list-menu';
 
-	const renderButton = () => {
-		return (
-			<ButtonBase
-				disableRipple
-				id={btnId}
-				aria-haspopup="true"
-				aria-controls={open ? menuId : undefined}
-				aria-expanded={open ? 'true' : undefined}
-				onClick={onOpen}
-				sx={[
-					{
-						zIndex: 9,
-						display: 'flex',
-						position: 'absolute',
-						justifyContent: 'flex-start',
-						width: 'var(--popover-button-width)',
-						height: 'var(--popover-button-height)',
-					},
-					...(Array.isArray(sx) ? sx : [sx]),
-				]}
-			>
-				<FlagIcon
-					code={selectedCountry?.code}
-					sx={{
-						borderRadius: '50%',
-						width: 'var(--popover-button-height)',
-						height: 'var(--popover-button-height)',
-					}}
-				/>
+	const renderButton = () => (
+		<ButtonBase
+			disableRipple
+			id={btnId}
+			aria-haspopup="true"
+			aria-controls={open ? menuId : undefined}
+			aria-expanded={open ? 'true' : undefined}
+			onClick={onOpen}
+			sx={[
+				{
+					zIndex: 9,
+					display: 'flex',
+					position: 'absolute',
+					justifyContent: 'flex-start',
+					width: 'var(--popover-button-width)',
+					height: 'var(--popover-button-height)',
+				},
+				...(Array.isArray(sx) ? sx : [sx]),
+			]}
+		>
+			<FlagIcon
+				code={selectedCountry?.code}
+				sx={{
+					borderRadius: '50%',
+					width: 'var(--popover-button-height)',
+					height: 'var(--popover-button-height)',
+				}}
+			/>
 
-				<Iconify
-					icon="eva:chevron-down-fill"
-					sx={{ ml: 0.25, flexShrink: 0, color: 'text.disabled' }}
-				/>
+			<Iconify
+				icon="eva:chevron-down-fill"
+				sx={{ ml: 0.25, flexShrink: 0, color: 'text.disabled' }}
+			/>
 
-				<Box
-					component="span"
-					sx={(theme) => {
-						return {
-							height: 20,
-							ml: 'auto',
-							width: '1px',
-							bgcolor: theme.vars.palette.divider,
-						};
-					}}
-				/>
-			</ButtonBase>
-		);
-	};
-
-	const renderList = () => {
-		return (
-			<MenuList>
-				{dataFiltered.map((country) => {
-					return (
-						<MenuItem
-							key={country.code}
-							selected={open && countryCode === country.code}
-							autoFocus={open && countryCode === country.code}
-							onClick={() => {
-								onClose();
-								onSearchCountry('');
-								onClickCountry(country.code as Country);
-							}}
-						>
-							<FlagIcon
-								code={country.code}
-								sx={{ mr: 1, width: 22, height: 22, borderRadius: '50%' }}
-							/>
-
-							<ListItemText
-								primary={country.label}
-								secondary={`${country.code} (+${country.phone})`}
-								slotProps={{
-									primary: { noWrap: true, sx: { typography: 'body2' } },
-									secondary: { sx: { typography: 'caption' } },
-								}}
-							/>
-						</MenuItem>
-					);
+			<Box
+				component="span"
+				sx={(theme) => ({
+					height: 20,
+					ml: 'auto',
+					width: '1px',
+					bgcolor: theme.vars.palette.divider,
 				})}
-			</MenuList>
-		);
-	};
+			/>
+		</ButtonBase>
+	);
+
+	const renderList = () => (
+		<MenuList sx={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+			{dataFiltered.map((country) => (
+				<MenuItem
+					key={country.code}
+					dense
+					selected={open && countryCode === country.code}
+					autoFocus={open && countryCode === country.code}
+					onClick={() => {
+						onClose();
+						onSearchCountry('');
+						onClickCountry(country.code as Country);
+					}}
+					sx={{ py: 0.5, minHeight: 30 }}
+				>
+					<FlagIcon
+						code={country.code}
+						sx={{ mr: 1, width: 18, height: 18, borderRadius: '50%' }}
+					/>
+
+					<ListItemText
+						primary={country.label}
+						secondary={`${country.code} (+${country.phone})`}
+						slotProps={{
+							primary: { noWrap: true, sx: { typography: 'body2' } },
+							secondary: { sx: { typography: 'caption', lineHeight: 1.2 } },
+						}}
+					/>
+				</MenuItem>
+			))}
+		</MenuList>
+	);
 
 	return (
 		<>
@@ -163,14 +156,12 @@ export const CountryListPopover = ({
 					},
 				}}
 			>
-				<Box sx={{ px: 1, py: 1.5 }}>
+				<Box sx={{ p: 0.5 }}>
 					<TextField
 						autoFocus
 						fullWidth
 						value={searchCountry}
-						onChange={(event) => {
-							return onSearchCountry(event.target.value);
-						}}
+						onChange={(event) => onSearchCountry(event.target.value)}
 						placeholder="Search..."
 						slotProps={{
 							input: {
@@ -187,9 +178,7 @@ export const CountryListPopover = ({
 										<IconButton
 											size="small"
 											edge="end"
-											onClick={() => {
-												return onSearchCountry('');
-											}}
+											onClick={() => onSearchCountry('')}
 										>
 											<Iconify width={16} icon="mingcute:close-line" />
 										</IconButton>
@@ -210,7 +199,7 @@ export const CountryListPopover = ({
 			</Popover>
 		</>
 	);
-};
+}
 
 // ----------------------------------------------------------------------
 
@@ -219,12 +208,12 @@ type ApplyFilterProps = {
 	inputData: CountryListProps['countries'];
 };
 
-const applyFilter = ({ inputData, query }: ApplyFilterProps) => {
+function applyFilter({ inputData, query }: ApplyFilterProps) {
 	if (!query) return inputData;
 
-	return inputData.filter(({ label, code, phone }) => {
-		return [label, code, phone].some((field) => {
-			return field?.toLowerCase().includes(query.toLowerCase());
-		});
-	});
-};
+	return inputData.filter(({ label, code, phone }) =>
+		[label, code, phone].some((field) =>
+			field?.toLowerCase().includes(query.toLowerCase()),
+		),
+	);
+}

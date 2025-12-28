@@ -1,4 +1,5 @@
-import type { Components, Theme } from '@mui/material/styles';
+import type { Theme, Components } from '@mui/material/styles';
+
 import { tabClasses } from '@mui/material/Tab';
 
 // ----------------------------------------------------------------------
@@ -15,16 +16,15 @@ const MuiTabs: Components<Theme>['MuiTabs'] = {
 
 	/** **************************************
 	 * STYLE
+	 * Compact with responsive gap restored
 	 *************************************** */
 	styleOverrides: {
-		list: ({ ownerState, theme }) => {
-			return {
-				...(ownerState.variant !== 'fullWidth' && {
-					gap: '24px',
-					[theme.breakpoints.up('sm')]: { gap: '40px' },
-				}),
-			};
-		},
+		flexContainer: ({ ownerState, theme }) => ({
+			...(ownerState.variant !== 'fullWidth' && {
+				gap: theme.spacing(3), // 24px base
+				[theme.breakpoints.up('sm')]: { gap: theme.spacing(4) }, // 32px on sm+
+			}),
+		}),
 		indicator: { backgroundColor: 'currentColor' },
 	},
 };
@@ -39,23 +39,24 @@ const MuiTab: Components<Theme>['MuiTab'] = {
 
 	/** **************************************
 	 * STYLE
+	 * Compact sizing with restored lineHeight
 	 *************************************** */
 	styleOverrides: {
-		root: ({ theme }) => {
-			return {
-				opacity: 1,
-				minWidth: 48,
-				minHeight: 48,
-				padding: theme.spacing(1, 0),
-				color: theme.vars.palette.text.secondary,
-				fontWeight: theme.typography.fontWeightMedium,
-				lineHeight: theme.typography.body2.lineHeight,
-				[`&.${tabClasses.selected}`]: {
-					color: theme.vars.palette.text.primary,
-					fontWeight: theme.typography.fontWeightSemiBold,
-				},
-			};
-		},
+		root: ({ theme }) => ({
+			opacity: 1,
+			minWidth: 48,
+			minHeight: 40,
+			padding: theme.spacing(1, 0),
+			textTransform: 'none',
+			fontSize: theme.typography.pxToRem(13),
+			color: theme.vars.palette.text.secondary,
+			fontWeight: theme.typography.fontWeightMedium,
+			lineHeight: theme.typography.body2.lineHeight,
+			[`&.${tabClasses.selected}`]: {
+				color: theme.vars.palette.text.primary,
+				fontWeight: theme.typography.fontWeightSemiBold,
+			},
+		}),
 	},
 };
 

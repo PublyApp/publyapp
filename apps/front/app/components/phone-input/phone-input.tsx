@@ -1,23 +1,26 @@
+import type { TextFieldProps } from '@mui/material/TextField';
+import type { Value, Country } from 'react-phone-number-input/input';
+
+import { parsePhoneNumber } from 'react-phone-number-input';
+import PhoneNumberInput from 'react-phone-number-input/input';
+import { useState, useEffect, useCallback, startTransition } from 'react';
+
 import Box from '@mui/material/Box';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import { inputBaseClasses } from '@mui/material/InputBase';
-import TextField, { type TextFieldProps } from '@mui/material/TextField';
-import _ from 'lodash';
-import { startTransition, useCallback, useEffect, useState } from 'react';
-import { parsePhoneNumber } from 'react-phone-number-input';
-import PhoneNumberInput, {
-	type Country,
-	type Value,
-} from 'react-phone-number-input/input';
+
 import { countries } from '@/front/assets/data/countries';
-import { Iconify } from '../iconify/iconify';
+
+import { Iconify } from '@/front/components/iconify';
 import { CountryListPopover } from './list-popover';
+
 import type { PhoneInputProps } from './types';
 
 // ----------------------------------------------------------------------
 
-export const PhoneInput = ({
+export function PhoneInput({
 	sx,
 	size,
 	value,
@@ -28,7 +31,7 @@ export const PhoneInput = ({
 	variant = 'outlined',
 	country: inputCountryCode,
 	...other
-}: PhoneInputProps) => {
+}: PhoneInputProps) {
 	const defaultCountryCode = getCountryCode(value, inputCountryCode);
 
 	const [searchCountry, setSearchCountry] = useState('');
@@ -36,7 +39,7 @@ export const PhoneInput = ({
 
 	const hasLabel = !!label;
 
-	const cleanValue = _.replace(value, /[\s-]+/g, '');
+	const cleanValue = value.replace(/[\s-]+/g, '');
 
 	const handleClear = useCallback(() => {
 		onChange('' as Value);
@@ -61,19 +64,17 @@ export const PhoneInput = ({
 	return (
 		<Box
 			sx={[
-				() => {
-					return {
-						'--popover-button-mr': '12px',
-						'--popover-button-height': '22px',
-						'--popover-button-width': variant === 'standard' ? '48px' : '60px',
-						position: 'relative',
-						...(!disableSelect && {
-							[`& .${inputBaseClasses.input}`]: {
-								pl: 'calc(var(--popover-button-width) + var(--popover-button-mr))',
-							},
-						}),
-					};
-				},
+				() => ({
+					'--popover-button-mr': '12px',
+					'--popover-button-height': '22px',
+					'--popover-button-width': variant === 'standard' ? '48px' : '60px',
+					position: 'relative',
+					...(!disableSelect && {
+						[`& .${inputBaseClasses.input}`]: {
+							pl: 'calc(var(--popover-button-width) + var(--popover-button-mr))',
+						},
+					}),
+				}),
 				...(Array.isArray(sx) ? sx : [sx]),
 			]}
 		>
@@ -86,13 +87,10 @@ export const PhoneInput = ({
 					onSearchCountry={handleSearchCountry}
 					sx={{
 						pl: variant === 'standard' ? 0 : 1.5,
-						...(variant === 'standard' &&
-							hasLabel && { mt: size === 'small' ? '16px' : '20px' }),
-						...((variant === 'filled' || variant === 'outlined') && {
-							mt: size === 'small' ? '8px' : '16px',
-						}),
-						...(variant === 'filled' &&
-							hasLabel && { mt: size === 'small' ? '21px' : '25px' }),
+						top: 0,
+						bottom: 0,
+						my: 'auto',
+						height: 'fit-content',
 					}}
 				/>
 			)}
@@ -123,21 +121,21 @@ export const PhoneInput = ({
 			/>
 		</Box>
 	);
-};
+}
 
 // ----------------------------------------------------------------------
 
-const CustomInput = ({ ref, ...other }: TextFieldProps) => {
+function CustomInput({ ref, ...other }: TextFieldProps) {
 	return <TextField inputRef={ref} {...other} />;
-};
+}
 
 // ----------------------------------------------------------------------
 
-const getCountryCode = (inputValue: string, countryCode?: Country): Country => {
+function getCountryCode(inputValue: string, countryCode?: Country): Country {
 	if (inputValue) {
 		const phoneNumber = parsePhoneNumber(inputValue);
 		return phoneNumber?.country as Country;
 	}
 
 	return countryCode as Country;
-};
+}

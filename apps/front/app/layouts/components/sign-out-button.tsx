@@ -2,7 +2,7 @@ import Button, { type ButtonProps } from '@mui/material/Button';
 import { useCallback } from 'react';
 
 // import { useAuth0 } from '@auth0/auth0-react';
-// import { useAuthContext } from 'src/auth/hooks';
+// import { useAuthContext } from '@/front/auth/hooks';
 import { toast } from '@/front/components/snackbar';
 import { useRouter } from '@/front/hooks/use-router';
 import { logger } from '@/shared/lib/logger/iso-logger';

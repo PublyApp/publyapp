@@ -1,19 +1,22 @@
+import type { Theme, SxProps } from '@mui/material/styles';
 import type { BreadcrumbsProps } from '@mui/material/Breadcrumbs';
+
 import Breadcrumbs from '@mui/material/Breadcrumbs';
-import type { SxProps, Theme } from '@mui/material/styles';
 
 import { BackLink } from './back-link';
-import type { BreadcrumbsLinkProps } from './breadcrumb-link';
-import { BreadcrumbsLink } from './breadcrumb-link';
-import type { MoreLinksProps } from './more-links';
 import { MoreLinks } from './more-links';
+import { BreadcrumbsLink } from './breadcrumb-link';
+import { BreadcrumbsPortalContent } from './breadcrumbs-portal';
 import {
-	BreadcrumbsContainer,
-	BreadcrumbsContent,
-	BreadcrumbsHeading,
 	BreadcrumbsRoot,
+	BreadcrumbsHeading,
+	BreadcrumbsContent,
+	BreadcrumbsContainer,
 	BreadcrumbsSeparator,
 } from './styles';
+
+import type { MoreLinksProps } from './more-links';
+import type { BreadcrumbsLinkProps } from './breadcrumb-link';
 
 // ----------------------------------------------------------------------
 
@@ -27,6 +30,7 @@ export type CustomBreadcrumbsSlotProps = {
 
 export type CustomBreadcrumbsSlots = {
 	breadcrumbs?: React.ReactNode;
+	brandSwitcher?: React.ReactNode;
 };
 
 export type CustomBreadcrumbsProps = React.ComponentProps<'div'> & {
@@ -41,7 +45,7 @@ export type CustomBreadcrumbsProps = React.ComponentProps<'div'> & {
 	slotProps?: Partial<CustomBreadcrumbsSlotProps>;
 };
 
-export const CustomBreadcrumbs = ({
+export function CustomBreadcrumbs({
 	sx,
 	action,
 	backHref,
@@ -52,7 +56,7 @@ export const CustomBreadcrumbs = ({
 	slotProps = {},
 	activeLast = false,
 	...other
-}: CustomBreadcrumbsProps) => {
+}: CustomBreadcrumbsProps) {
 	const lastLink = links[links.length - 1]?.name;
 
 	const renderHeading = () => (
@@ -63,20 +67,23 @@ export const CustomBreadcrumbs = ({
 
 	const renderLinks = () =>
 		slots?.breadcrumbs ?? (
-			<Breadcrumbs
-				separator={<BreadcrumbsSeparator />}
-				{...slotProps?.breadcrumbs}
-			>
-				{links.map((link, index) => (
-					<BreadcrumbsLink
-						key={link.name ?? index}
-						icon={link.icon}
-						href={link.href}
-						name={link.name}
-						disabled={link.name === lastLink && !activeLast}
-					/>
-				))}
-			</Breadcrumbs>
+			<BreadcrumbsPortalContent>
+				<Breadcrumbs
+					separator={<BreadcrumbsSeparator />}
+					{...slotProps?.breadcrumbs}
+				>
+					{slots?.brandSwitcher}
+					{links.map((link, index) => (
+						<BreadcrumbsLink
+							key={link.name ?? index}
+							icon={link.icon}
+							href={link.href}
+							name={link.name}
+							disabled={link.name === lastLink && !activeLast}
+						/>
+					))}
+				</Breadcrumbs>
+			</BreadcrumbsPortalContent>
 		);
 
 	const renderMoreLinks = () => (
@@ -96,4 +103,4 @@ export const CustomBreadcrumbs = ({
 			{!!moreLinks?.length && renderMoreLinks()}
 		</BreadcrumbsRoot>
 	);
-};
+}

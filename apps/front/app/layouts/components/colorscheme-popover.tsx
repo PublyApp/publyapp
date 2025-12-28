@@ -45,7 +45,7 @@ export const ColorSchemePopover = ({
 	const renderMenuList = () => {
 		return (
 			<CustomPopover open={open} anchorEl={anchorEl} onClose={onClose}>
-				<MenuList sx={{ width: 160, minHeight: 72 }}>
+				<MenuList sx={{ width: 160 }}>
 					{_.map(allColorSchemes, (option) => {
 						return (
 							<MenuItem

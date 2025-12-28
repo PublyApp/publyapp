@@ -1,14 +1,16 @@
-import { type CSSObject, styled } from '@mui/material/styles';
-import _ from 'lodash';
+import type { CSSObject } from '@mui/material/styles';
+
 import { varAlpha } from 'minimal-shared/utils';
+
+import { styled } from '@mui/material/styles';
+
 import type { LabelProps } from './types';
 
 // ----------------------------------------------------------------------
 
 export const LabelRoot = styled('span', {
-	shouldForwardProp: (prop: string) => {
-		return !['color', 'variant', 'disabled', 'sx'].includes(prop);
-	},
+	shouldForwardProp: (prop: string) =>
+		!['color', 'variant', 'disabled', 'sx'].includes(prop),
 })<LabelProps>(({ color, variant, disabled, theme }) => {
 	const defaultStyles: CSSObject = {
 		...(color === 'default' && {
@@ -89,20 +91,20 @@ export const LabelRoot = styled('span', {
 	};
 
 	return {
-		height: 24,
-		minWidth: 24,
+		height: 20,
+		minWidth: 20,
 		lineHeight: 0,
 		flexShrink: 0,
 		cursor: 'default',
 		alignItems: 'center',
 		whiteSpace: 'nowrap',
 		display: 'inline-flex',
-		gap: theme.spacing(0.75),
+		gap: theme.spacing(0.5),
 		justifyContent: 'center',
-		padding: theme.spacing(0, 0.75),
-		fontSize: theme.typography.pxToRem(12),
+		padding: theme.spacing(0, 0.5),
+		fontSize: theme.typography.pxToRem(11),
 		fontWeight: theme.typography.fontWeightBold,
-		borderRadius: _.toNumber(theme.shape.borderRadius) * 0.75,
+		borderRadius: Number(theme.shape.borderRadius) * 0.75,
 		transition: theme.transitions.create(['all'], {
 			duration: theme.transitions.duration.shorter,
 		}),

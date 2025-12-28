@@ -1,11 +1,12 @@
-import { avatarGroupClasses } from '@mui/material/AvatarGroup';
 import type {
+	Theme,
 	Components,
 	ComponentsVariants,
-	Theme,
 } from '@mui/material/styles';
-import _ from 'lodash';
+
 import { varAlpha } from 'minimal-shared/utils';
+
+import { avatarGroupClasses } from '@mui/material/AvatarGroup';
 
 // ----------------------------------------------------------------------
 
@@ -32,14 +33,14 @@ const COLORS = [
 type PaletteColor = (typeof COLORS)[number] | 'default';
 
 const colorByName = (name?: string): PaletteColor => {
-	const charAt = name?.charAt(0).toLowerCase() || '';
+	const charAt = name?.charAt(0).toLowerCase();
 
-	if (['a', 'c', 'f'].includes(charAt)) return 'primary';
-	if (['e', 'd', 'h'].includes(charAt)) return 'secondary';
-	if (['i', 'k', 'l'].includes(charAt)) return 'info';
-	if (['m', 'n', 'p'].includes(charAt)) return 'success';
-	if (['q', 's', 't'].includes(charAt)) return 'warning';
-	if (['v', 'x', 'y'].includes(charAt)) return 'error';
+	if (['a', 'c', 'f'].includes(charAt!)) return 'primary';
+	if (['e', 'd', 'h'].includes(charAt!)) return 'secondary';
+	if (['i', 'k', 'l'].includes(charAt!)) return 'info';
+	if (['m', 'n', 'p'].includes(charAt!)) return 'success';
+	if (['q', 's', 't'].includes(charAt!)) return 'warning';
+	if (['v', 'x', 'y'].includes(charAt!)) return 'error';
 
 	return 'default';
 };
@@ -47,51 +48,40 @@ const colorByName = (name?: string): PaletteColor => {
 // ----------------------------------------------------------------------
 
 const avatarColors: Record<string, ComponentsVariants<Theme>['MuiAvatar']> = {
-	colors: COLORS.map((color) => {
-		return {
-			props: ({ ownerState }) => {
-				return ownerState.color === color;
-			},
-			style: ({ theme }) => {
-				return {
-					color: theme.vars.palette[color].contrastText,
-					backgroundColor: theme.vars.palette[color].main,
-				};
-			},
-		};
-	}),
+	colors: COLORS.map((color) => ({
+		props: ({ ownerState }) => ownerState.color === color,
+		style: ({ theme }) => ({
+			color: theme.vars.palette[color].contrastText,
+			backgroundColor: theme.vars.palette[color].main,
+		}),
+	})),
 	defaultColor: [
 		{
-			props: ({ ownerState }) => {
-				return ownerState.color === 'default';
-			},
-			style: ({ theme }) => {
-				return {
-					color: theme.vars.palette.text.secondary,
-					backgroundColor: varAlpha(
-						theme.vars.palette.grey['500Channel'],
-						0.24,
-					),
-				};
-			},
+			props: ({ ownerState }) => ownerState.color === 'default',
+			style: ({ theme }) => ({
+				color: theme.vars.palette.text.secondary,
+				backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.24),
+			}),
 		},
 	],
 };
 
 const MuiAvatar: Components<Theme>['MuiAvatar'] = {
 	/** **************************************
+	 * DEFAULT PROPS - Metronic-inspired compact defaults
+	 *************************************** */
+	defaultProps: {},
+	/** **************************************
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: {
-			variants: [
-				avatarColors.defaultColor,
-				avatarColors.colors,
-			].flat() as never,
-		},
-		rounded: ({ theme }) => {
-			return { borderRadius: _.toNumber(theme.shape.borderRadius) * 1.5 };
-		},
+		root: ({ theme }) => ({
+			variants: [avatarColors.defaultColor, avatarColors.colors].flat(),
+			width: 32, // Compact default (was 40)
+			height: 32,
+			fontSize: theme.typography.pxToRem(13),
+		}),
+		rounded: ({ theme }) => ({ borderRadius: theme.shape.borderRadius }),
 		colorDefault: ({ ownerState, theme }) => {
 			const color = colorByName(ownerState.alt);
 
@@ -127,35 +117,31 @@ const MuiAvatarGroup: Components<Theme>['MuiAvatarGroup'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: ({ ownerState }) => {
-			return {
-				justifyContent: 'flex-end',
-				...(ownerState.variant === 'compact' && {
-					width: 40,
-					height: 40,
-					position: 'relative',
-					[`& .${avatarGroupClasses.avatar}`]: {
-						margin: 0,
-						width: 28,
-						height: 28,
-						position: 'absolute',
-						'&:first-of-type': { left: 0, bottom: 0, zIndex: 9 },
-						'&:last-of-type': { top: 0, right: 0 },
-					},
-				}),
-			};
-		},
-		avatar: ({ theme }) => {
-			return {
-				fontSize: 16,
-				fontWeight: theme.typography.fontWeightSemiBold,
-				'&:first-of-type': {
-					fontSize: 12,
-					color: theme.vars.palette.primary.dark,
-					backgroundColor: theme.vars.palette.primary.lighter,
+		root: ({ ownerState }) => ({
+			justifyContent: 'flex-end',
+			...(ownerState.variant === 'compact' && {
+				width: 40,
+				height: 40,
+				position: 'relative',
+				[`& .${avatarGroupClasses.avatar}`]: {
+					margin: 0,
+					width: 28,
+					height: 28,
+					position: 'absolute',
+					'&:first-of-type': { left: 0, bottom: 0, zIndex: 9 },
+					'&:last-of-type': { top: 0, right: 0 },
 				},
-			};
-		},
+			}),
+		}),
+		avatar: ({ theme }) => ({
+			fontSize: 16,
+			fontWeight: theme.typography.fontWeightSemiBold,
+			'&:first-of-type': {
+				fontSize: 12,
+				color: theme.vars.palette.primary.dark,
+				backgroundColor: theme.vars.palette.primary.lighter,
+			},
+		}),
 	},
 };
 

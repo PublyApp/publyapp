@@ -1,8 +1,14 @@
-import type { Components, Theme } from '@mui/material/styles';
-import { varAlpha } from 'minimal-shared/utils';
+import type { Theme, Components } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 
+/**
+ * UI Foundations Paper styling:
+ * - elevation: 0
+ * - borderWidth: 0.5
+ * - borderStyle: 'solid'
+ * - borderColor: gray[200]
+ */
 const MuiPaper: Components<Theme>['MuiPaper'] = {
 	/** **************************************
 	 * DEFAULT PROPS
@@ -13,12 +19,23 @@ const MuiPaper: Components<Theme>['MuiPaper'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: { backgroundImage: 'none' },
-		outlined: ({ theme }) => {
-			return {
-				borderColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
-			};
-		},
+		root: ({ theme }) => ({
+			backgroundImage: 'none',
+			borderColor: theme.vars.palette.grey[200],
+			color: theme.vars.palette.grey[800],
+			borderWidth: 0.5,
+			borderStyle: 'solid',
+			...theme.applyStyles('dark', {
+				borderColor: theme.vars.palette.grey[700],
+				color: theme.vars.palette.grey[200],
+			}),
+		}),
+		outlined: ({ theme }) => ({
+			borderColor: theme.vars.palette.grey[200],
+			...theme.applyStyles('dark', {
+				borderColor: theme.vars.palette.grey[700],
+			}),
+		}),
 	},
 };
 
