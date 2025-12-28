@@ -1,7 +1,6 @@
 import Box from '@mui/material/Box';
 import { type Breakpoint, styled } from '@mui/material/styles';
 import { mergeClasses, varAlpha } from 'minimal-shared/utils';
-
 import { Logo } from '@/front/components/logo';
 import {
 	NavSectionMini,
@@ -9,7 +8,7 @@ import {
 	NavSectionVertical,
 } from '@/front/components/nav-section';
 import { Scrollbar } from '@/front/components/scrollbar';
-
+import { NavToggleButton } from '../components/nav-toggle-button';
 import { layoutClasses } from '../core/classes';
 
 // ----------------------------------------------------------------------
@@ -18,6 +17,7 @@ export type NavVerticalProps = React.ComponentProps<'div'> &
 	NavSectionProps & {
 		isNavMini: boolean;
 		layoutQuery?: Breakpoint;
+		onToggleNav: () => void;
 		slots?: {
 			topArea?: React.ReactNode;
 			bottomArea?: React.ReactNode;
@@ -31,6 +31,7 @@ export const NavVertical = ({
 	cssVars,
 	className,
 	isNavMini,
+	onToggleNav,
 	checkPermissions,
 	layoutQuery = 'md',
 	...other
@@ -38,29 +39,22 @@ export const NavVertical = ({
 	const renderNavVertical = () => {
 		return (
 			<>
-				{/* Top area: Workspace switcher or Logo */}
-				<Box sx={{ px: 1.5, pt: 1.5, pb: 1 }}>
-					{slots?.topArea ?? (
-						<Box sx={{ pl: 1 }}>
-							<Logo />
-						</Box>
-					)}
-				</Box>
+				{slots?.topArea ?? (
+					<Box sx={{ pl: 3.5, pt: 2.5, pb: 1 }}>
+						<Logo />
+					</Box>
+				)}
 
-				{/* Navigation items */}
-				<Scrollbar fillContent sx={{ flex: '1 1 auto' }}>
+				<Scrollbar fillContent>
 					<NavSectionVertical
 						data={data}
 						cssVars={cssVars}
 						checkPermissions={checkPermissions}
-						sx={{ px: 2 }}
+						sx={{ px: 2, flex: '1 1 auto' }}
 					/>
-				</Scrollbar>
 
-				{/* Bottom area: User menu */}
-				{slots?.bottomArea && (
-					<Box sx={{ px: 1.5, pt: 1, pb: 1.5 }}>{slots.bottomArea}</Box>
-				)}
+					{slots?.bottomArea /* ?? <NavUpgrade /> */}
+				</Scrollbar>
 			</>
 		);
 	};
@@ -68,35 +62,30 @@ export const NavVertical = ({
 	const renderNavMini = () => {
 		return (
 			<>
-				{/* Top area: Workspace switcher or Logo */}
-				<Box sx={{ pt: 1.5, pb: 1, display: 'flex', justifyContent: 'center' }}>
-					{slots?.topArea ?? <Logo sx={{ width: 28, height: 28 }} />}
-				</Box>
+				{slots?.topArea ?? (
+					<Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5 }}>
+						<Logo sx={{ width: 28, height: 28 }} />
+					</Box>
+				)}
 
-				{/* Navigation items */}
 				<NavSectionMini
 					data={data}
 					cssVars={cssVars}
 					checkPermissions={checkPermissions}
 					sx={[
-						(theme) => ({
-							...theme.mixins.hideScrollY,
-							pb: 2,
-							px: 0.5,
-							flex: '1 1 auto',
-							overflowY: 'auto',
-						}),
+						(theme) => {
+							return {
+								...theme.mixins.hideScrollY,
+								pb: 2,
+								px: 0.5,
+								flex: '1 1 auto',
+								overflowY: 'auto',
+							};
+						},
 					]}
 				/>
 
-				{/* Bottom area: User menu */}
-				{slots?.bottomArea && (
-					<Box
-						sx={{ pt: 1, pb: 1.5, display: 'flex', justifyContent: 'center' }}
-					>
-						{slots.bottomArea}
-					</Box>
-				)}
+				{slots?.bottomArea}
 			</>
 		);
 	};
@@ -113,6 +102,18 @@ export const NavVertical = ({
 			sx={sx}
 			{...other}
 		>
+			<NavToggleButton
+				isNavMini={isNavMini}
+				onClick={onToggleNav}
+				sx={[
+					(theme) => {
+						return {
+							display: 'none',
+							[theme.breakpoints.up(layoutQuery)]: { display: 'inline-flex' },
+						};
+					},
+				]}
+			/>
 			{isNavMini ? renderNavMini() : renderNavVertical()}
 		</NavRoot>
 	);

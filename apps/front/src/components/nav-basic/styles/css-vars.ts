@@ -1,4 +1,5 @@
 import type { Theme } from '@mui/material/styles';
+
 import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------

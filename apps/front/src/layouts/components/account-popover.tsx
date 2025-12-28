@@ -12,14 +12,11 @@ import { usePopover } from 'minimal-shared/hooks';
 // import { usePathname } from '@/front/routes/hooks';
 // import { paths } from '@/front/routes/paths';
 
-import { useCallback } from 'react';
-
 import { CustomPopover } from '@/front/components/custom-popover';
 import { Label } from '@/front/components/label';
 import { RouterLink } from '@/front/components/router-link';
+import { useMockedUser } from '@/front/hooks/use-mocked-user';
 import { usePathname } from '@/front/hooks/use-pathname';
-import { logout } from '@/front/lib/cookies/logout.utils';
-import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
 
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';
@@ -44,12 +41,7 @@ export const AccountPopover = ({
 
 	const { open, anchorEl, onClose, onOpen } = usePopover();
 
-	const { data: userData } = useGetUserAuthData();
-
-	const handleLogout = useCallback(() => {
-		onClose();
-		logout();
-	}, [onClose]);
+	const { user } = useMockedUser();
 
 	const renderMenuActions = () => {
 		return (
@@ -64,11 +56,11 @@ export const AccountPopover = ({
 			>
 				<Box sx={{ p: 2, pb: 1.5 }}>
 					<Typography variant="subtitle2" noWrap>
-						{userData?.email}
+						{user?.displayName}
 					</Typography>
 
 					<Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
-						{userData?.email}
+						{user?.email}
 					</Typography>
 				</Box>
 
@@ -124,7 +116,7 @@ export const AccountPopover = ({
 					<SignOutButton
 						size="medium"
 						variant="text"
-						onClick={handleLogout}
+						onClose={onClose}
 						sx={{ display: 'block', textAlign: 'left' }}
 					/>
 				</Box>
@@ -136,8 +128,8 @@ export const AccountPopover = ({
 		<>
 			<AccountButton
 				onClick={onOpen}
-				photoURL={userData?.avatarUrl ?? ''}
-				displayName={userData?.email ?? ''}
+				photoURL={user?.photoURL}
+				displayName={user?.displayName}
 				sx={sx}
 				{...other}
 			/>
