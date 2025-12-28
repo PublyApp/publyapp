@@ -40,12 +40,7 @@ export const AccountPopover = ({
 
 	const { open, anchorEl, onClose, onOpen } = usePopover();
 
-	const { data: userData } = useGetUserAuthData();
-
-	const handleLogout = useCallback(() => {
-		onClose();
-		logout();
-	}, [onClose]);
+	const { user } = useMockedUser();
 
 	const renderMenuActions = () => {
 		return (
@@ -60,11 +55,11 @@ export const AccountPopover = ({
 			>
 				<Box sx={{ p: 2, pb: 1.5 }}>
 					<Typography variant="subtitle2" noWrap>
-						{userData?.email}
+						{user?.displayName}
 					</Typography>
 
 					<Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
-						{userData?.email}
+						{user?.email}
 					</Typography>
 				</Box>
 
@@ -120,7 +115,7 @@ export const AccountPopover = ({
 					<SignOutButton
 						size="medium"
 						variant="text"
-						onClick={handleLogout}
+						onClose={onClose}
 						sx={{ display: 'block', textAlign: 'left' }}
 					/>
 				</Box>
@@ -132,8 +127,8 @@ export const AccountPopover = ({
 		<>
 			<AccountButton
 				onClick={onOpen}
-				photoURL={userData?.avatarUrl ?? ''}
-				displayName={userData?.email ?? ''}
+				photoURL={user?.photoURL}
+				displayName={user?.displayName}
 				sx={sx}
 				{...other}
 			/>

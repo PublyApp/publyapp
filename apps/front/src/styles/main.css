@@ -37,7 +37,6 @@
 html {
 	height: 100%;
 	-webkit-overflow-scrolling: touch;
-	overflow-y: scroll;
 }
 body,
 #root,
@@ -70,8 +69,8 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 /** **************************************
- * UI Foundations focus styles
- *************************************** */
+* UI Foundations focus styles
+*************************************** */
 .Mui-focusVisible {
 	/* TODO: Investigate why this needs !important. */
 	box-shadow: 0 0 0 2px var(--mui-palette-primary-200) !important;
