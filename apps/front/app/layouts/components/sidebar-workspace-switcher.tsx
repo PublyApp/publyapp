@@ -134,7 +134,6 @@ export const SidebarWorkspaceSwitcher = ({
 				anchorEl={anchorEl}
 				onClose={onClose}
 				slotProps={{
-					arrow: { hide: true },
 					paper: {
 						sx: {
 							width: 200,

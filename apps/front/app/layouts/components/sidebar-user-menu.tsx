@@ -160,7 +160,6 @@ export const SidebarUserMenu = ({
 				anchorEl={anchorEl}
 				onClose={onClose}
 				slotProps={{
-					arrow: { hide: true },
 					paper: {
 						sx: {
 							width: 200,
