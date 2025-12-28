@@ -1,4 +1,4 @@
-import type { CSSObject, Theme } from '@mui/material/styles';
+import type { Theme, CSSObject } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 
@@ -15,8 +15,8 @@ type NavItemStyles = {
 
 export const navItemStyles: NavItemStyles = {
 	icon: {
-		width: 22,
-		height: 22,
+		width: 20,
+		height: 20,
 		flexShrink: 0,
 		display: 'inline-flex',
 		/**
@@ -29,36 +29,32 @@ export const navItemStyles: NavItemStyles = {
 		},
 	},
 	texts: { flex: '1 1 auto', display: 'inline-flex', flexDirection: 'column' },
-	title: (theme: Theme) => {
-		return {
-			...theme.mixins.maxLine({ line: 1 }),
-			flex: '1 1 auto',
-		};
-	},
+	title: (theme: Theme) => ({
+		...theme.mixins.maxLine({ line: 1 }),
+		flex: '1 1 auto',
+		fontSize: '13px',
+	}),
 	info: {
-		fontSize: 12,
+		fontSize: 11,
 		flexShrink: 0,
 		fontWeight: 600,
-		marginLeft: '6px',
-		lineHeight: 18 / 12,
+		marginLeft: '4px',
+		lineHeight: 16 / 11,
 		display: 'inline-flex',
 	},
-	arrow: (theme: Theme) => {
-		return {
-			width: 16,
-			height: 16,
-			flexShrink: 0,
-			marginLeft: '6px',
-			display: 'inline-flex',
-			...(theme.direction === 'rtl' && { transform: 'scaleX(-1)' }),
-		};
-	},
-	captionIcon: { width: 16, height: 16 },
-	captionText: (theme: Theme) => {
-		return {
-			...theme.mixins.maxLine({ line: 1 }),
-			...theme.typography.caption,
-		};
-	},
+	arrow: (theme: Theme) => ({
+		width: 14,
+		height: 14,
+		flexShrink: 0,
+		marginLeft: '4px',
+		display: 'inline-flex',
+		...(theme.direction === 'rtl' && { transform: 'scaleX(-1)' }),
+	}),
+	captionIcon: { width: 14, height: 14 },
+	captionText: (theme: Theme) => ({
+		...theme.mixins.maxLine({ line: 1 }),
+		...theme.typography.caption,
+		fontSize: '11px',
+	}),
 	disabled: { opacity: 0.48, pointerEvents: 'none' },
 };

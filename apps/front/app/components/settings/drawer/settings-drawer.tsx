@@ -288,7 +288,6 @@ export const SettingsDrawer = ({
 							}}
 							options={[
 								themeConfig.fontFamily.primary,
-								'Inter Variable',
 								'DM Sans Variable',
 								'Nunito Sans Variable',
 							]}

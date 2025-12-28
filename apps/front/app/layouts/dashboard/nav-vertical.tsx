@@ -63,8 +63,8 @@ export const NavVertical = ({
 		return (
 			<>
 				{slots?.topArea ?? (
-					<Box sx={{ display: 'flex', justifyContent: 'center', py: 2.5 }}>
-						<Logo />
+					<Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5 }}>
+						<Logo sx={{ width: 28, height: 28 }} />
 					</Box>
 				)}
 

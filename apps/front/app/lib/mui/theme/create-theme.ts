@@ -1,21 +1,21 @@
-import {
-	type Components,
-	createTheme as createMuiTheme,
-	type Theme,
-} from '@mui/material/styles';
+import type { SettingsState } from '@/front/components/settings';
+import type { Theme, Components } from '@mui/material/styles';
 
-import { components } from './core/components';
-import { customShadows } from './core/custom-shadows';
+import { createTheme as createMuiTheme } from '@mui/material/styles';
+
 import { mixins } from './core/mixins';
-import { palette } from './core/palette';
 import { shadows } from './core/shadows';
-import { typography } from './core/typography';
+import { palette } from './core/palette';
 import { themeConfig } from './theme-config';
-import type { ThemeOptions } from './types';
+import { components } from './core/components';
+import { typography } from './core/typography';
+import { customShadows } from './core/custom-shadows';
 import {
-	updateComponentsWithSettings,
 	updateCoreWithSettings,
+	updateComponentsWithSettings,
 } from './with-settings';
+
+import type { ThemeOptions } from './types';
 
 // ----------------------------------------------------------------------
 
@@ -35,7 +35,7 @@ export const baseTheme: ThemeOptions = {
 	mixins,
 	components,
 	typography,
-	shape: { borderRadius: 8 },
+	shape: { borderRadius: 6 }, // Reduced from 8 for a sharper, more modern look (Metronic-inspired)
 	direction: themeConfig.direction,
 	cssVariables: themeConfig.cssVariables,
 	defaultColorScheme: themeConfig.defaultMode,
@@ -44,17 +44,16 @@ export const baseTheme: ThemeOptions = {
 // ----------------------------------------------------------------------
 
 type CreateThemeProps = {
-	// biome-ignore lint/suspicious/noExplicitAny: fix later
-	settingsState?: any; // SettingsState; // TODO: fix type later
+	settingsState?: SettingsState;
 	themeOverrides?: ThemeOptions;
 	localeComponents?: { components?: Components<Theme> };
 };
 
-export const createTheme = ({
+export function createTheme({
 	settingsState,
 	themeOverrides = {},
 	localeComponents = {},
-}: CreateThemeProps = {}): Theme => {
+}: CreateThemeProps = {}): Theme {
 	// Update core theme settings
 	const updatedCore = settingsState
 		? updateCoreWithSettings(baseTheme, settingsState)
@@ -74,4 +73,4 @@ export const createTheme = ({
 	);
 
 	return theme;
-};
+}

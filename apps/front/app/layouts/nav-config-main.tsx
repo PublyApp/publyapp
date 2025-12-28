@@ -1,4 +1,4 @@
-// import { '#' from 'src/routes/'#'
+// import { '#' from '@/front/routes/'#'
 
 //
 
