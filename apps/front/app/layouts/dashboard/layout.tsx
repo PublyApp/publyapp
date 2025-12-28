@@ -14,22 +14,17 @@ import { useMockedUser } from '@/front/hooks/use-mocked-user';
 import { useSettingsContext } from '@/front/hooks/use-settings-context';
 import { allLangs } from '@/front/lib/locales/all-langs';
 
-import { AccountDrawer } from '../components/account-drawer';
 import { ColorSchemePopover } from '../components/colorscheme-popover';
 import { LanguagePopover } from '../components/language-popover';
 import { MenuButton } from '../components/menu-button';
-// import { AccountDrawer } from '../components/account-drawer';
-// import { ContactsPopover } from '../components/contacts-popover';
-// import { NotificationsDrawer } from '../components/notifications-drawer';
-// import { Searchbar } from '../components/searchbar';
 import { SettingsButton } from '../components/settings-button';
-import { WorkspacesPopover } from '../components/workspaces-popover';
+import { SidebarToggleButton } from '../components/sidebar-toggle-button';
+import { SidebarUserMenu } from '../components/sidebar-user-menu';
+import { SidebarWorkspaceSwitcher } from '../components/sidebar-workspace-switcher';
 import { layoutClasses } from '../core/classes';
 import { HeaderSection, type HeaderSectionProps } from '../core/header-section';
 import { LayoutSection, type LayoutSectionProps } from '../core/layout-section';
 import { MainSection, type MainSectionProps } from '../core/main-section';
-// import { _contacts, _notifications } from '@/front/_mock';
-import { _account } from '../nav-config-account';
 import { navData as dashboardNavData } from '../nav-config-dashboard';
 import { _workspaces } from '../nav-config-workspace';
 import { VerticalDivider } from './content';
@@ -136,6 +131,26 @@ export const DashboardLayout = ({
 						checkPermissions={canDisplayItemByRole}
 					/>
 
+					{/** @slot Sidebar toggle (desktop only) */}
+					{isNavVertical && (
+						<SidebarToggleButton
+							isNavMini={isNavMini}
+							onClick={() => {
+								settings.setField(
+									'navLayout',
+									settings.state.navLayout === 'vertical' ? 'mini' : 'vertical',
+								);
+							}}
+							sx={{
+								display: 'none',
+								[theme.breakpoints.up(layoutQuery)]: {
+									display: 'inline-flex',
+									ml: -3,
+								},
+							}}
+						/>
+					)}
+
 					{/** @slot Logo */}
 					{isNavHorizontal && (
 						<Logo
@@ -152,16 +167,6 @@ export const DashboardLayout = ({
 							sx={{ [theme.breakpoints.up(layoutQuery)]: { display: 'flex' } }}
 						/>
 					)}
-
-					{/** @slot Workspace popover */}
-					<WorkspacesPopover
-						data={_workspaces}
-						sx={{
-							...(isNavHorizontal && {
-								color: 'var(--layout-nav-text-primary-color)',
-							}),
-						}}
-					/>
 				</>
 			),
 			rightArea: (
@@ -172,26 +177,14 @@ export const DashboardLayout = ({
 						gap: { xs: 0, sm: 0.75 },
 					}}
 				>
-					{/** @slot Searchbar */}
-					{/* <Searchbar data={navData} /> */}
-
-					{/** @slot Settings button */}
+					{/** @slot Color scheme */}
 					<ColorSchemePopover />
 
 					{/** @slot Language popover */}
 					<LanguagePopover data={allLangs} />
 
-					{/** @slot Notifications popover */}
-					{/* <NotificationsDrawer data={_notifications} /> */}
-
-					{/** @slot Contacts popover */}
-					{/* <ContactsPopover data={_contacts} /> */}
-
 					{/** @slot Settings button */}
 					<SettingsButton />
-
-					{/** @slot Account drawer */}
-					<AccountDrawer data={_account} />
 				</Box>
 			),
 		};
@@ -216,11 +209,24 @@ export const DashboardLayout = ({
 				layoutQuery={layoutQuery}
 				cssVars={navVars.section}
 				checkPermissions={canDisplayItemByRole}
-				onToggleNav={() => {
-					return settings.setField(
-						'navLayout',
-						settings.state.navLayout === 'vertical' ? 'mini' : 'vertical',
-					);
+				slots={{
+					topArea: (
+						<SidebarWorkspaceSwitcher
+							data={_workspaces}
+							isCollapsed={isNavMini}
+						/>
+					),
+					bottomArea: (
+						<SidebarUserMenu
+							user={{
+								displayName: user?.displayName || 'User',
+								email: user?.email || 'user@example.com',
+								photoURL:
+									user?.photoURL || '/assets/images/avatar/avatar-1.webp',
+							}}
+							isCollapsed={isNavMini}
+						/>
+					),
 				}}
 			/>
 		);
