@@ -9,7 +9,7 @@ using MainApi.Src.Modules.Shared.Users;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace MainApi.Src.Modules.Staff.ProfileAsStaff;
+namespace MainApi.Src.Modules.Staff.ProfilesAsStaff;
 
 public class StaffProfileItem {
 	public Guid Id { get; set; }
@@ -155,11 +155,11 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 	/// - This ensures no gaps or duplicates in paginated results
 	///
 	/// EXAMPLE:
-	/// Page 1: GET /profiles?sortId=name&sortOrder=asc&limit=3
+	/// Page 1: GET /profiles?sortId=name&amp;sortOrder=asc&amp;limit=3
 	///   - Returns: Alice(id:100), Bob(id:050), Charlie(id:200)
 	///   - NextCursor: "200" (Charlie's id)
 	///
-	/// Page 2: GET /profiles?sortId=name&sortOrder=asc&limit=3&cursor=200
+	/// Page 2: GET /profiles?sortId=name&amp;sortOrder=asc&amp;limit=3&amp;cursor=200
 	///   - Lookup: cursor=200 → Name="Charlie"
 	///   - Query: WHERE (name > 'Charlie') OR (name = 'Charlie' AND id > 200)
 	///   - Returns records after Charlie in alphabetical order
