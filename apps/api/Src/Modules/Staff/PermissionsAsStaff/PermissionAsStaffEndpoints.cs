@@ -2,15 +2,14 @@ using MainApi.Src.Lib;
 using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Lib.Filters;
 using MainApi.Src.Lib.Utils;
-using MainApi.Src.Modules.Staff.PermissionAsStaff.Handlers;
+using MainApi.Src.Modules.Staff.PermissionsAsStaff.Handlers;
 
-namespace MainApi.Src.Modules.Staff.PermissionAsStaff;
+namespace MainApi.Src.Modules.Staff.PermissionsAsStaff;
 
 public static class PermissionAsStaffEndpoints {
 	public static IEndpointRouteBuilder MapPermissionAsStaffEndpoints(this IEndpointRouteBuilder routes) {
 		var group = routes.MapGroup(PathUtils.GetLastSegment(RoutePath.Staff.Permissions.Root))
-			.WithTags("Permissions")
-			.WithOpenApi();
+			.WithTags("Permissions");
 
 		group.MapGet(
 			PathUtils.GetLastSegment(RoutePath.Staff.Permissions.Find),

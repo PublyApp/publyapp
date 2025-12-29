@@ -5,8 +5,7 @@ namespace MainApi.Src.Modules.Tenant.Products;
 public static class ProductEndpoints {
 	public static IEndpointRouteBuilder MapProductEndpoints(this IEndpointRouteBuilder routes) {
 		var group = routes.MapGroup("/products")
-				.WithTags("Products")
-		.WithOpenApi();
+				.WithTags("Products");
 
 		group.MapGet("/", ProductHandlers.GetProducts)
 			.WithName("GetProducts")

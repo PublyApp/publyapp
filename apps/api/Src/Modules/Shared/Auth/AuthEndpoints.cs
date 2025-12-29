@@ -11,8 +11,7 @@ namespace MainApi.Src.Modules.Shared.Auth;
 public static class AuthEndpoints {
 	public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app) {
 		var group = app.MapGroup(PathUtils.GetLastSegment(RoutePath.Auth.Root))
-			.WithTags("Auth")
-			.WithOpenApi();
+			.WithTags("Auth");
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Auth.Login),
