@@ -9,8 +9,7 @@ namespace MainApi.Src.Modules.Staff.TenantsAsStaff;
 public static class TenantAsStaffEndpoints {
 	public static IEndpointRouteBuilder MapTenantAsStaffEndpoints(this IEndpointRouteBuilder routes) {
 		var group = routes.MapGroup(PathUtils.GetLastSegment(RoutePath.Staff.Tenants.Root))
-			.WithTags("Tenants")
-			.WithOpenApi();
+			.WithTags("Tenants");
 
 		group.MapPost(
 			PathUtils.GetLastSegment(RoutePath.Staff.Tenants.Create),

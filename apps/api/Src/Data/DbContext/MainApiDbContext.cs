@@ -9,7 +9,7 @@ using MainApi.Src.Modules.Shared.Projects;
 using MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Users;
 using MainApi.Src.Modules.Staff.AuditLogs;
-using MainApi.Src.Modules.Staff.SystemNotice;
+using MainApi.Src.Modules.Staff.SystemNotices;
 using MainApi.Src.Modules.Tenant.Products;
 
 using Microsoft.EntityFrameworkCore;
