@@ -1,7 +1,7 @@
 using MainApi.Src.Lib;
 using MainApi.Src.Modules.Shared.Permissions;
 
-namespace MainApi.Src.Modules.Staff.ProfileAsStaff;
+namespace MainApi.Src.Modules.Staff.ProfilesAsStaff;
 
 public class ProfileAsStaffPermissions : ISlicePermissions {
 	public string KeyPrefix { get; } = "profiles";

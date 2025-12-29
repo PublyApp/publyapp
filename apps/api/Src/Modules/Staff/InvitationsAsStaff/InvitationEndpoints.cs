@@ -11,8 +11,7 @@ public static class InvitationEndpoints {
 		this IEndpointRouteBuilder routes
 	) {
 		var group = routes.MapGroup(PathUtils.GetLastSegment(RoutePath.Staff.Invitations.Root))
-			.WithTags("Staff Invitations")
-			.WithOpenApi();
+			.WithTags("Staff Invitations");
 
 		group.MapPost(
 				PathUtils.GetLastSegment(RoutePath.Staff.Invitations.Create),

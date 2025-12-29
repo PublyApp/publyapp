@@ -4,7 +4,7 @@ using MainApi.Src.Lib;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace MainApi.Src.Modules.Staff.ProfileAsStaff.Handlers;
+namespace MainApi.Src.Modules.Staff.ProfilesAsStaff.Handlers;
 
 public class ProfileAsStaffItem {
 	public Guid Id { get; set; }

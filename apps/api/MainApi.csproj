@@ -9,12 +9,10 @@
 		<PackageReference Include="DotNetEnv" />
 		<PackageReference Include="FluentValidation.AspNetCore" />
 		<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
-		<PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
 		<PackageReference Include="Resend" />
-		<PackageReference Include="System.Text.Json" />
 		<PackageReference Include="Scalar.AspNetCore" />
 		<PackageReference Include="Serilog.AspNetCore" />
 		<PackageReference Include="Serilog.Enrichers.Environment" />
@@ -32,8 +30,9 @@
 	</ItemGroup>
 
 	<!-- for exporting openapi documents to json file at build time -->
+	<!-- Disabled due to .NET 10 OpenAPI generator issue with generic types (duplicate XML comment keys) -->
 	<PropertyGroup>
-		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+		<OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
 		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\openapi</OpenApiDocumentsDirectory>
 	</PropertyGroup>
 
@@ -43,7 +42,7 @@
 		<TranslationJsonFile>$(MSBuildProjectDirectory)\..\..\packages\shared\lib\i18n\json\response-message.en.json</TranslationJsonFile>
 		<GeneratedKeysFile>$(MSBuildProjectDirectory)\$(GeneratedDir)\ResponseKeys.g.cs</GeneratedKeysFile>
 		<TranslationKeyGenProject>$(MSBuildProjectDirectory)\..\..\packages\_tx-key-gen\TranslationKeyGenerator.csproj</TranslationKeyGenProject>
-		<TranslationKeyGenOutputDir>$(MSBuildProjectDirectory)\..\..\packages\_tx-key-gen\bin\$(Configuration)\net9.0</TranslationKeyGenOutputDir>
+		<TranslationKeyGenOutputDir>$(MSBuildProjectDirectory)\..\..\packages\_tx-key-gen\bin\$(Configuration)\net10.0</TranslationKeyGenOutputDir>
 		<TranslationKeyGenDll>$(TranslationKeyGenOutputDir)\TranslationKeyGenerator.dll</TranslationKeyGenDll>
 	</PropertyGroup>
 

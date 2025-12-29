@@ -5,7 +5,7 @@ using MainApi.Src.Modules.Shared.Permissions;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Src.Modules.Staff.PermissionAsStaff;
+namespace MainApi.Src.Modules.Staff.PermissionsAsStaff;
 
 public class PermissionAsStaffItem {
 	public string Key { get; set; } = string.Empty;

@@ -59,3 +59,5 @@ dotnet_separate_import_directive_groups = true
 # ======================================
 # CS0168: The variable 'name' is declared but never used
 dotnet_diagnostic.CS0168.severity = warning
+# CS1591: Missing XML comment for publicly visible type or member
+dotnet_diagnostic.CS1591.severity = none

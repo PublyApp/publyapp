@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.1",
+  "openapi": "3.1.1",
   "info": {
     "title": "MainApi | v1",
     "version": "1.0.0"
@@ -1813,7 +1813,11 @@
         "type": "object",
         "properties": {
           "created": {
-            "type": "integer",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         }
@@ -1825,8 +1829,10 @@
             "type": "string"
           },
           "resetPasswordUrl": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -1877,16 +1883,44 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "firstName": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "avatarUrl": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "accountLevel": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "sendNotification": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         }
       },
@@ -1907,16 +1941,44 @@
         "type": "object",
         "properties": {
           "name": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "description": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "permissions": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "emails": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         }
       },
@@ -1960,7 +2022,11 @@
             }
           },
           "count": {
-            "type": "integer",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         }
@@ -1975,8 +2041,10 @@
             }
           },
           "nextCursor": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -1994,7 +2062,11 @@
             }
           },
           "count": {
-            "type": "integer",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         }
@@ -2018,16 +2090,22 @@
             "type": "string"
           },
           "lastName": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "firstName": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "avatarUrl": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "accountLevel": {
             "type": "string"
@@ -2060,8 +2138,10 @@
             "type": "string"
           },
           "avatarUrl": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2090,9 +2170,11 @@
             "format": "uuid"
           },
           "tenantId": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           },
           "sessionToken": {
             "type": "string"
@@ -2102,7 +2184,11 @@
             "format": "date-time"
           },
           "sessionExpiresInMs": {
-            "type": "number",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
             "format": "double"
           }
         }
@@ -2189,15 +2275,14 @@
             "format": "date-time"
           },
           "invitedByName": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "JsonElement": { },
-      "NullableOfJsonElement": {
-        "nullable": true
-      },
       "PasswordLoginBody": {
         "type": "object",
         "properties": {
@@ -2224,7 +2309,11 @@
             "format": "date-time"
           },
           "sessionExpiresInMs": {
-            "type": "number",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
             "format": "double"
           }
         }
@@ -2278,15 +2367,23 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "description": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "price": {
-            "type": "number",
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
             "format": "double"
           },
           "tenantId": {
@@ -2294,9 +2391,11 @@
             "format": "uuid"
           },
           "id": {
-            "type": "string",
-            "format": "uuid",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           },
           "createdAt": {
             "type": "string",
@@ -2310,9 +2409,11 @@
             "type": "boolean"
           },
           "deletedAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -2388,16 +2489,22 @@
             "type": "string"
           },
           "lastName": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "firstName": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "avatarUrl": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "status": {
             "type": "string"
@@ -2426,19 +2533,33 @@
             "type": "string"
           },
           "description": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "permissionsAssigned": {
-            "type": "integer",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "usersAssigned": {
-            "type": "integer",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "invitationsSent": {
-            "type": "integer",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         }
@@ -2454,11 +2575,17 @@
             "type": "string"
           },
           "description": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "userAccountCount": {
-            "type": "integer",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         }
@@ -2495,15 +2622,25 @@
             "type": "string"
           },
           "logoUrl": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "usersCount": {
-            "type": "integer",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "maxUsers": {
-            "type": "integer",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           },
           "status": {
@@ -2525,7 +2662,11 @@
             }
           },
           "count": {
-            "type": "integer",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
             "format": "int32"
           }
         }
@@ -2534,22 +2675,64 @@
         "type": "object",
         "properties": {
           "email": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "lastName": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "firstName": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "avatarUrl": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "accountLevel": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           },
           "status": {
-            "$ref": "#/components/schemas/NullableOfJsonElement"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         }
       },

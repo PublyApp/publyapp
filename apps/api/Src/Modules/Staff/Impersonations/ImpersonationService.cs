@@ -6,7 +6,7 @@ using MainApi.Src.Modules.Staff.AuditLogs;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace MainApi.Src.Modules.Staff.Impersonation;
+namespace MainApi.Src.Modules.Staff.Impersonations;
 
 public interface IImpersonationService {
 	Task<Session> CreateImpersonationSessionAsync(

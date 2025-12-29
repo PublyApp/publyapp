@@ -14,7 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using Polly;
 
-namespace MainApi.Src.Modules.Staff.ProfileAsStaff.Handlers;
+namespace MainApi.Src.Modules.Staff.ProfilesAsStaff.Handlers;
 
 public record CreateStaffProfileBody {
 	public JsonElement? Name { get; init; }
