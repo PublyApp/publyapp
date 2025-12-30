@@ -2,6 +2,7 @@ using FluentValidation;
 
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Infrastructure.Messaging.Email;
+using MainApi.Src.Lib.Extensions;
 using MainApi.Src.Modules.Shared.Auth;
 using MainApi.Src.Modules.Shared.Invitations;
 using MainApi.Src.Modules.Shared.Permissions;
@@ -43,6 +44,9 @@ public static class AppServices {
 	public static IHostApplicationBuilder AddAppServices(this WebApplicationBuilder builder) {
 		// Add HealthChecks
 		builder.Services.AddHealthChecks();
+
+		// Add Response Compression
+		builder.Services.AddResponseCompressionServices();
 
 		// Configure strongly-typed settings
 		builder.Services.AddOptions<AppSettings>()
