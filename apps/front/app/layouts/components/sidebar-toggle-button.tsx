@@ -33,7 +33,9 @@ export const SidebarToggleButton = ({
 			<Iconify
 				width={20}
 				icon="solar:sidebar-minimalistic-linear"
-				sx={{ '& g': { strokeWidth: 1.7 } }}
+				sx={{
+					'& g': { strokeWidth: 1.8 },
+				}}
 			/>
 		</IconButton>
 	);

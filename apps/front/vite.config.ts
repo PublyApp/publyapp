@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
 import { reactRouterDevTools } from 'react-router-devtools';
 import { defineConfig } from 'vite';
-import checker from 'vite-plugin-checker';
+// import checker from 'vite-plugin-checker';
 import devtoolsJson from 'vite-plugin-devtools-json';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
@@ -26,10 +26,10 @@ export default defineConfig(({ mode, isSsrBuild }) => {
 			generateClient(),
 			devtoolsJson(),
 			tsconfigPaths(),
-			checker({
-				typescript: true,
-				biome: true,
-			}),
+			// checker({
+			// 	typescript: true,
+			// 	biome: true,
+			// }),
 			reactRouterDevTools(),
 			reactRouter(),
 		],
