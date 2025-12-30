@@ -10,7 +10,21 @@
 			"Bash(grep:*)",
 			"Bash(dir:*)",
 			"Bash(npx tsc:*)",
-			"Bash(dotnet clean:*)"
+			"Bash(dotnet clean:*)",
+			"Bash(make tsc-front:*)",
+			"Bash(pnpm tsc:*)",
+			"Bash(pnpm run:*)",
+			"Bash(pnpm biome check:*)",
+			"Bash(make check-write:*)",
+			"Bash(npx biome:*)",
+			"Bash(pnpm tsc-front:*)",
+			"Bash(pnpm tsc:front:*)",
+			"Bash(pnpm:*)",
+			"Bash(pnpm typecheck:*)",
+			"Bash(xxd:*)",
+			"Bash(echo:*)",
+			"Bash(npx react-router:*)",
+			"Bash(timeout:*)"
 		]
 	}
 }
