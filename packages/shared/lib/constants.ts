@@ -33,10 +33,12 @@ const ROOTS = {
 	DASHBOARD: 'dashboard',
 	STAFF: 'staff',
 	UPLOAD: 'upload',
+	ONBOARDING: 'onboarding',
 } as const;
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
+	maintenance: makePath('maintenance'),
 	auth: {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
@@ -47,6 +49,59 @@ export const FRONT_PATH_NAMES = {
 	tenant: (tenantId = '') => {
 		return {
 			root: makePath(RESOURCE.client, tenantId),
+			analytics: {
+				root: makePath(RESOURCE.client, tenantId, 'analytics'),
+			},
+			drafts: {
+				root: makePath(RESOURCE.client, tenantId, 'drafts'),
+			},
+			posts: {
+				root: makePath(RESOURCE.client, tenantId, 'posts'),
+				new: makePath(RESOURCE.client, tenantId, 'posts', 'new'),
+				edit: (postId = '') =>
+					makePath(RESOURCE.client, tenantId, 'posts', postId, 'edit'),
+			},
+			schedule: {
+				root: makePath(RESOURCE.client, tenantId, 'schedule'),
+			},
+			media: {
+				root: makePath(RESOURCE.client, tenantId, 'media'),
+			},
+			accounts: {
+				root: makePath(RESOURCE.client, tenantId, 'accounts'),
+				socialAccounts: makePath(
+					RESOURCE.client,
+					tenantId,
+					'accounts',
+					'social',
+				),
+			},
+			settings: {
+				root: makePath(RESOURCE.client, tenantId, 'settings'),
+				general: makePath(RESOURCE.client, tenantId, 'settings', 'general'),
+				members: makePath(RESOURCE.client, tenantId, 'settings', 'members'),
+				invitations: {
+					root: makePath(RESOURCE.client, tenantId, 'settings', 'invitations'),
+					new: makePath(
+						RESOURCE.client,
+						tenantId,
+						'settings',
+						'invitations',
+						'new',
+					),
+				},
+				profiles: {
+					root: makePath(RESOURCE.client, tenantId, 'settings', 'profiles'),
+					new: makePath(
+						RESOURCE.client,
+						tenantId,
+						'settings',
+						'profiles',
+						'new',
+					),
+				},
+				billing: makePath(RESOURCE.client, tenantId, 'settings', 'billing'),
+			},
 		};
 	},
 	staff: {
@@ -151,6 +206,18 @@ export const FRONT_PATH_NAMES = {
 		settings: {
 			root: makePath(ROOTS.STAFF, 'settings'),
 		},
+		auditLogs: {
+			root: makePath(ROOTS.STAFF, 'audit-logs'),
+		},
+	},
+	settings: {
+		root: makePath('settings'),
+		profile: makePath('settings', 'profile'),
+		security: makePath('settings', 'security'),
+		notifications: makePath('settings', 'notifications'),
+	},
+	onboarding: {
+		root: makePath(ROOTS.ONBOARDING),
 	},
 } as const;
 
