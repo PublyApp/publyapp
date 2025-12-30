@@ -1,8 +1,14 @@
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
+
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
 import type { CreateStaffProfileBody } from '@/js-client/src/models';
+
 import { getQueryKey } from '../../query-utils';
 
 type FindStaffProfilesParams = {
@@ -76,37 +82,28 @@ export const useCreateStaffProfile = createMutation({
 	mutationFn: async (data: CreateStaffProfilePayload) => {
 		const body: CreateStaffProfileBody = {};
 
-		// Map payload to API body format
+		// Map payload to API body format using Kiota's UntypedNode factories
+		// Type assertions are needed because the generated types don't include UntypedNode in the union
 		if (data.name) {
-			body.name = {
-				getValue() {
-					return data.name;
-				},
-			};
+			body.name = createUntypedString(data.name) as typeof body.name;
 		}
 
 		if (data.description) {
-			body.description = {
-				getValue() {
-					return data.description;
-				},
-			};
+			body.description = createUntypedString(
+				data.description,
+			) as typeof body.description;
 		}
 
 		if (data.permissions && !_.isEmpty(data.permissions)) {
-			body.permissions = {
-				getValue() {
-					return data.permissions;
-				},
-			};
+			body.permissions = createUntypedArray(
+				data.permissions.map((p) => createUntypedString(p)),
+			) as typeof body.permissions;
 		}
 
 		if (data.emails && !_.isEmpty(data.emails)) {
-			body.emails = {
-				getValue() {
-					return data.emails;
-				},
-			};
+			body.emails = createUntypedArray(
+				data.emails.map((e) => createUntypedString(e)),
+			) as typeof body.emails;
 		}
 
 		const result = await clientManager.apiClient.staff.profiles.post(body);

@@ -22,6 +22,7 @@ import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import { useFindTenants } from '@/front/lib/react-query/features/staff/staff-tenant.hooks';
 import type { TenantAsStaffItem } from '@/js-client/src/models';
 import {
@@ -45,8 +46,8 @@ const TenantRowDataMapper = (tenant: TenantAsStaffItem): TenantRowData => {
 		id: tenant.id || nanoid(),
 		name: tenant.name || '-',
 		logoUrl: tenant.logoUrl || '-',
-		usersCount: tenant.usersCount || 0,
-		maxUsers: tenant.maxUsers || 0,
+		usersCount: getUntypedNumber(tenant.usersCount, 0),
+		maxUsers: getUntypedNumber(tenant.maxUsers, 0),
 		status: tenant.status || '-',
 	};
 };
@@ -115,7 +116,7 @@ const TenantsTable = () => {
 	const table = useMRTTable('default', {
 		columns,
 		data: dataTable,
-		rowCount: data?.count || 0,
+		rowCount: getUntypedNumber(data?.count, 0),
 		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
 		manualSorting: true,

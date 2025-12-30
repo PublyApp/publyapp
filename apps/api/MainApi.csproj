@@ -30,9 +30,8 @@
 	</ItemGroup>
 
 	<!-- for exporting openapi documents to json file at build time -->
-	<!-- Disabled due to .NET 10 OpenAPI generator issue with generic types (duplicate XML comment keys) -->
 	<PropertyGroup>
-		<OpenApiGenerateDocuments>false</OpenApiGenerateDocuments>
+		<OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
 		<OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\openapi</OpenApiDocumentsDirectory>
 	</PropertyGroup>
 
