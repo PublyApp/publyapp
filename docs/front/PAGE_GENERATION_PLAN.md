@@ -2,6 +2,8 @@
 
 This document outlines the remaining pages to be implemented in `./apps/front`, recycled from the original UI strategy.
 
+> **Reference Template:** For design inspiration, refer to `C:\Users\radan\Documents\_RADAN\Dev\PublyApp\work-redesign\minimal-v7.0.0`.
+
 ---
 
 ## Screen Inventory
@@ -78,57 +80,74 @@ This document outlines the remaining pages to be implemented in `./apps/front`, 
 
 ## Build Order
 
-### Phase 1: Reusable Components
-
-Before building screens, ensure these shared components are ready:
+### Completed: Reusable Components
 
 - [x] Data table component (for staff lists)
 - [x] Form components with React Hook Form (Field namespace)
 - [x] Empty states
 - [x] Loading skeletons
 
-### Phase 2: Staff Screens
+---
 
-- [ ] Staff dashboard *(empty)*
-- [x] Tenants CRUD *(billing tab uses mock data)*
-- [x] Staff members CRUD
-- [x] Profiles CRUD *(users tab is empty)*
-- [x] Invitations CRUD *(details page is empty)*
-- [ ] Settings
+## Generation Queue (30 pages)
 
-### Phase 3: Customer Screens - Core App
+### Phase 1: Complete Staff Side (6 pages)
 
-- [ ] Tenant dashboard
-- [ ] Calendar view
-- [ ] Post card component
-- [ ] Post create/edit (modal or page)
-- [ ] Schedule page
-- [ ] Posts list page
-- [ ] Drafts page
-- [ ] Social accounts management
-- [ ] Media library
-- [ ] Analytics/Reports
+Complete the remaining staff section pages:
 
-### Phase 4: Customer Screens - Tenant Settings
+1. [ ] **Staff Dashboard** (`/staff`) - Empty placeholder with stats overview
+2. [ ] **Tenant Details - Billing** (`/staff/tenants/:id/billing`) - Billing tab with mock data
+3. [ ] **Profile Details - Users** (`/staff/profiles/:id/users`) - Users assigned to this role
+4. [ ] **Invitation Details** (`/staff/invitations/:id`) - View invitation details
+5. [ ] **Staff Settings** (`/staff/settings`) - Platform-wide settings
+6. [ ] **Audit Logs** (`/staff/audit-logs`) - Activity logs (who did what, when)
 
-- [ ] Tenant general settings
-- [ ] Tenant members management
-- [ ] Tenant invitations
-- [ ] Tenant profiles/roles management
-- [ ] Tenant billing
+### Phase 2: User Settings (3 pages)
 
-### Phase 5: Customer Screens - User Settings
+Personal settings for individual users:
 
-- [ ] User profile settings
-- [ ] User security settings
-- [ ] User notification preferences
+7. [ ] **User Profile** (`/settings/profile`) - Name, avatar, email
+8. [ ] **User Security** (`/settings/security`) - Password, 2FA
+9. [ ] **User Notifications** (`/settings/notifications`) - Notification preferences
 
-### Phase 6: Other Screens
+### Phase 3: Tenant Settings (5 pages)
 
-- [ ] Onboarding flow
-- [ ] Maintenance mode page
-- [ ] Error pages redesign (400, 401, 403, 404, 500)
-- [ ] Staff audit logs
+Settings for tenant administrators:
+
+10. [ ] **Tenant General Settings** (`/settings/tenant`) - Organization name, logo, etc.
+11. [ ] **Tenant Members** (`/settings/tenant/members`) - Invite, remove, manage member roles
+12. [ ] **Tenant Invitations** (`/settings/tenant/invitations`) - Invite new members to the tenant
+13. [ ] **Tenant Profiles/Roles** (`/settings/tenant/profiles`) - Manage tenant-level roles
+14. [ ] **Tenant Billing** (`/settings/tenant/billing`) - Subscription, payment methods, invoices
+
+### Phase 4: Core App Features (8 pages)
+
+Main application functionality:
+
+15. [ ] **Customer Dashboard** (`/`) - Tenant home page with overview
+16. [ ] **Posts List** (`/posts`) - Posts list view
+17. [ ] **Drafts** (`/drafts`) - Saved draft posts before scheduling
+18. [ ] **Post Create/Edit** - Create or edit a post (modal or page - TBD)
+19. [ ] **Schedule/Calendar** (`/schedule`) - Calendar view with scheduled posts
+20. [ ] **Social Accounts** (`/accounts`) - Connect & manage social media channels
+21. [ ] **Media Library** (`/media`) - Upload and manage images/videos for posts
+22. [ ] **Analytics** (`/analytics`) - Post performance, engagement stats, reports
+
+### Phase 5: Error Pages (6 pages)
+
+Custom error pages with illustrations:
+
+23. [ ] **404 Not Found** - Page not found
+24. [ ] **400 Bad Request** - Bad request error
+25. [ ] **401 Unauthorized** - Authentication required
+26. [ ] **403 Forbidden** - Access denied
+27. [ ] **500 Server Error** - Internal server error
+28. [ ] **Generic Error** - Fallback error page
+
+### Phase 6: Other (2 pages)
+
+29. [ ] **Onboarding Flow** - First-time user/tenant setup wizard
+30. [ ] **Maintenance Mode** - Page shown when app is under maintenance
 
 ---
 
