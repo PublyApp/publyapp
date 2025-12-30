@@ -1,5 +1,4 @@
-import type { Components, Theme } from '@mui/material/styles';
-import _ from 'lodash';
+import type { Theme, Components } from '@mui/material/styles';
 
 // ----------------------------------------------------------------------
 
@@ -16,15 +15,17 @@ const MuiDialog: Components<Theme>['MuiDialog'] = {
 	},
 	/** **************************************
 	 * STYLE
+	 * Metronic-inspired: borderRadius * 1.5
 	 *************************************** */
 	styleOverrides: {
-		paper: ({ ownerState, theme }) => {
-			return {
-				boxShadow: theme.vars.customShadows.dialog,
-				borderRadius: _.toNumber(theme.shape.borderRadius) * 2,
-				...(!ownerState.fullScreen && { margin: theme.spacing(2) }),
-			};
-		},
+		paper: ({ ownerState, theme }) => ({
+			boxShadow: theme.vars.customShadows.dialog,
+			borderRadius: Number(theme.shape.borderRadius) * 1.5, // 9px - sharper
+			padding: 0,
+			backgroundImage: 'none',
+			border: `1px solid ${theme.vars.palette.divider}`,
+			...(!ownerState.fullScreen && { margin: theme.spacing(2) }),
+		}),
 		paperFullScreen: { borderRadius: 0 },
 	},
 };
@@ -34,9 +35,11 @@ const MuiDialogTitle: Components<Theme>['MuiDialogTitle'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: ({ theme }) => {
-			return { padding: theme.spacing(3) };
-		},
+		root: ({ theme }) => ({
+			padding: theme.spacing(2),
+			fontSize: theme.typography.h3.fontSize,
+			fontWeight: theme.typography.h3.fontWeight,
+		}),
 	},
 };
 
@@ -45,16 +48,12 @@ const MuiDialogContent: Components<Theme>['MuiDialogContent'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: ({ theme }) => {
-			return { padding: theme.spacing(0, 3) };
-		},
-		dividers: ({ theme }) => {
-			return {
-				borderTop: 0,
-				borderBottomStyle: 'dashed',
-				paddingBottom: theme.spacing(3),
-			};
-		},
+		root: ({ theme }) => ({ padding: theme.spacing(0, 2) }),
+		dividers: ({ theme }) => ({
+			borderTop: 0,
+			borderBottomStyle: 'dashed',
+			paddingBottom: theme.spacing(2),
+		}),
 	},
 };
 
@@ -68,12 +67,10 @@ const MuiDialogActions: Components<Theme>['MuiDialogActions'] = {
 	 * STYLE
 	 *************************************** */
 	styleOverrides: {
-		root: ({ theme }) => {
-			return {
-				padding: theme.spacing(3),
-				'& > :not(:first-of-type)': { marginLeft: theme.spacing(1.5) },
-			};
-		},
+		root: ({ theme }) => ({
+			padding: theme.spacing(2),
+			'& > :not(:first-of-type)': { marginLeft: theme.spacing(1.5) },
+		}),
 	},
 };
 

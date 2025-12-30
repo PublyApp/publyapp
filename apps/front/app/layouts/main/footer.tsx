@@ -9,8 +9,8 @@ import Typography from '@mui/material/Typography';
 
 // import { Iconify } from '@/front/components/iconify';
 // import { Logo } from '@/front/components/logo';
-// import { RouterLink } from 'src/routes/components';
-// import { paths } from 'src/routes/paths';
+// import { RouterLink } from '@/front/routes/components';
+// import { paths } from '@/front/routes/paths';
 
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Logo } from '@/front/components/logo/logo';

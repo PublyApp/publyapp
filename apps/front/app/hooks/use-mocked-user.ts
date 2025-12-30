@@ -3,11 +3,11 @@
 import { _mock } from '../_mock/_mock';
 
 // Change:
-// import { useMockedUser } from 'src/auth/hooks';
+// import { useMockedUser } from '@/front/auth/hooks';
 // const { user } = useMockedUser();
 
 // To:
-// import { useAuthContext } from 'src/auth/hooks';
+// import { useAuthContext } from '@/front/auth/hooks';
 // const { user } = useAuthContext();
 
 // ----------------------------------------------------------------------
