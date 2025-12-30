@@ -1,21 +1,18 @@
-import type { TextFieldProps } from '@mui/material/TextField';
-import type { Value, Country } from 'react-phone-number-input/input';
-
-import { parsePhoneNumber } from 'react-phone-number-input';
-import PhoneNumberInput from 'react-phone-number-input/input';
-import { useState, useEffect, useCallback, startTransition } from 'react';
-
 import Box from '@mui/material/Box';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import { inputBaseClasses } from '@mui/material/InputBase';
+import type { TextFieldProps } from '@mui/material/TextField';
+import TextField from '@mui/material/TextField';
+import { startTransition, useCallback, useEffect, useState } from 'react';
+import { parsePhoneNumber } from 'react-phone-number-input';
+import type { Country, Value } from 'react-phone-number-input/input';
+import PhoneNumberInput from 'react-phone-number-input/input';
 
 import { countries } from '@/front/assets/data/countries';
-
 import { Iconify } from '@/front/components/iconify';
-import { CountryListPopover } from './list-popover';
 
+import { CountryListPopover } from './list-popover';
 import type { PhoneInputProps } from './types';
 
 // ----------------------------------------------------------------------
@@ -37,7 +34,7 @@ export function PhoneInput({
 	const [searchCountry, setSearchCountry] = useState('');
 	const [selectedCountry, setSelectedCountry] = useState(defaultCountryCode);
 
-	const hasLabel = !!label;
+	// const hasLabel = !!label;
 
 	const cleanValue = value.replace(/[\s-]+/g, '');
 
