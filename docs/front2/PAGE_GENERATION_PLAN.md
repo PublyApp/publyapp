@@ -25,6 +25,14 @@ This document outlines the remaining pages to be implemented in `./apps/front`, 
 - [ ] **User Security** (`/settings/security`) - Password, 2FA
 - [ ] **User Notifications** (`/settings/notifications`) - Notification preferences
 
+#### Error Pages
+- [ ] **404 Not Found** - Page not found with custom illustration
+- [ ] **400 Bad Request** - Bad request error page
+- [ ] **401 Unauthorized** - Authentication required page
+- [ ] **403 Forbidden** - Access denied page
+- [ ] **500 Server Error** - Internal server error page
+- [ ] **Generic Error** - Fallback error page
+
 #### TBD
 <!-- Add more pages here as requirements become clearer -->
 
@@ -92,6 +100,16 @@ Before building screens, ensure these shared components are ready:
 - [ ] User profile settings
 - [ ] User security settings
 - [ ] User notification preferences
+
+---
+
+## Design Assets
+
+### Illustrations
+- [ ] **Replace Minimal template illustrations** - Current illustrations are from the Minimal template and need to be replaced with custom PublyApp illustrations
+- [ ] **Error page illustrations** - Custom illustrations for 400, 401, 403, 404, 500 error pages
+- [ ] **Empty state illustrations** - Custom illustrations for empty states (no data, no results, etc.)
+- [ ] **Onboarding/Welcome illustrations** - If needed for onboarding flows
 
 ---
 
