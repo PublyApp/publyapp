@@ -68,10 +68,12 @@ const ROOTS = {
 	DASHBOARD: 'dashboard',
 	STAFF: 'staff',
 	UPLOAD: 'upload',
+	ONBOARDING: 'onboarding',
 } as const;
 
 export const FRONT_PATH_NAMES = {
 	home: '/',
+	maintenance: makePath('maintenance'),
 	auth: {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
@@ -221,6 +223,18 @@ export const FRONT_PATH_NAMES = {
 		settings: {
 			root: makePath(ROOTS.STAFF, 'settings'),
 		},
+		auditLogs: {
+			root: makePath(ROOTS.STAFF, 'audit-logs'),
+		},
+	},
+	settings: {
+		root: makePath('settings'),
+		profile: makePath('settings', 'profile'),
+		security: makePath('settings', 'security'),
+		notifications: makePath('settings', 'notifications'),
+	},
+	onboarding: {
+		root: makePath(ROOTS.ONBOARDING),
 	},
 } as const;
 
