@@ -518,6 +518,64 @@ dayjs(date1).isBefore(date2);               // Boolean
 
 **Reference:** See the "Date Handling: Day.js" section above for complete Day.js guide and migration from date-fns.
 
+### Array Methods: Avoid reduce()
+
+**CRITICAL:** Do not use `Array.prototype.reduce()` or `Array.prototype.reduceRight()`. These methods produce hard-to-read code and can almost always be replaced with clearer alternatives.
+
+**Why avoid reduce:**
+- Hard to read and understand at a glance
+- Often misused for operations better suited to other methods
+- Makes code reviews more difficult
+- Usually indicates a need for a simpler approach
+
+**Alternatives:**
+```tsx
+// ❌ WRONG - Using reduce to find an item
+const result = items.reduce((acc, item) => {
+  if (!acc && item.id === targetId) return item;
+  return acc;
+}, null);
+
+// ✅ CORRECT - Use find
+const result = items.find((item) => item.id === targetId);
+
+// ❌ WRONG - Using reduce to filter and map
+const result = items.reduce((acc, item) => {
+  if (item.isActive) acc.push(item.name);
+  return acc;
+}, []);
+
+// ✅ CORRECT - Use filter + map
+const result = items.filter((item) => item.isActive).map((item) => item.name);
+
+// ❌ WRONG - Using reduce to sum values
+const total = items.reduce((sum, item) => sum + item.price, 0);
+
+// ✅ CORRECT - Use a for...of loop for clarity
+let total = 0;
+for (const item of items) {
+  total += item.price;
+}
+
+// ❌ WRONG - Using reduce to group items
+const grouped = items.reduce((acc, item) => {
+  const key = item.category;
+  if (!acc[key]) acc[key] = [];
+  acc[key].push(item);
+  return acc;
+}, {});
+
+// ✅ CORRECT - Use Object.groupBy (ES2024) or a for...of loop
+const grouped = Object.groupBy(items, (item) => item.category);
+// OR
+const grouped: Record<string, Item[]> = {};
+for (const item of items) {
+  (grouped[item.category] ??= []).push(item);
+}
+```
+
+**Note:** Biome does not yet have a `noArrayReduce` rule (like ESLint's `unicorn/no-array-reduce`). This is a manual code review guideline until Biome adds support.
+
 ### Function Definitions: Arrow Functions
 
 **CRITICAL:** Always prefer arrow function expressions over traditional function declarations/expressions in TypeScript and JavaScript. Only use `function` keyword when absolutely necessary (e.g., when you need to access `this` as the first parameter, or for generator functions).
