@@ -18,6 +18,9 @@ export interface AcceptInvitationBody extends AdditionalDataHolder, Parsable {
      */
     password?: UntypedNode | null;
 }
+/**
+ * Represents an API response with a message and a type-safe translation key
+ */
 export interface ApiResponse extends AdditionalDataHolder, ApiError, Parsable {
     /**
      * The key property
@@ -38,7 +41,7 @@ export interface BulkStaffInvitationsCreated extends AdditionalDataHolder, Parsa
     /**
      * The created property
      */
-    created?: UntypedNode | null;
+    created?: number | null;
 }
 export interface CheckEmailVerificationTokenResult extends AdditionalDataHolder, Parsable {
     /**
@@ -874,7 +877,7 @@ export function deserializeIntoBulkCreateStaffInvitationsBody(bulkCreateStaffInv
 // @ts-ignore
 export function deserializeIntoBulkStaffInvitationsCreated(bulkStaffInvitationsCreated: Partial<BulkStaffInvitationsCreated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "created": n => { bulkStaffInvitationsCreated.created = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "created": n => { bulkStaffInvitationsCreated.created = n.getNumberValue(); },
     }
 }
 /**
@@ -1176,7 +1179,7 @@ export function deserializeIntoCreateTenantAsStaffResult(createTenantAsStaffResu
 // @ts-ignore
 export function deserializeIntoFindStaffMembersResult(findStaffMembersResult: Partial<FindStaffMembersResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "count": n => { findStaffMembersResult.count = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "count": n => { findStaffMembersResult.count = n.getNumberValue(); },
         "staffMembers": n => { findStaffMembersResult.staffMembers = n.getCollectionOfObjectValues<StaffMemberItem>(createStaffMemberItemFromDiscriminatorValue); },
     }
 }
@@ -1200,7 +1203,7 @@ export function deserializeIntoFindStaffProfilesResult(findStaffProfilesResult: 
 // @ts-ignore
 export function deserializeIntoFindTenantProfilesAsStaffResult(findTenantProfilesAsStaffResult: Partial<FindTenantProfilesAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "count": n => { findTenantProfilesAsStaffResult.count = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "count": n => { findTenantProfilesAsStaffResult.count = n.getNumberValue(); },
         "profiles": n => { findTenantProfilesAsStaffResult.profiles = n.getCollectionOfObjectValues<ProfileAsStaffItem>(createProfileAsStaffItemFromDiscriminatorValue); },
     }
 }
@@ -1277,7 +1280,7 @@ export function deserializeIntoGetVerificationLinkResult(getVerificationLinkResu
 export function deserializeIntoInvitationAccepted(invitationAccepted: Partial<InvitationAccepted> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "sessionExpiresAt": n => { invitationAccepted.sessionExpiresAt = n.getDateValue(); },
-        "sessionExpiresInMs": n => { invitationAccepted.sessionExpiresInMs = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "sessionExpiresInMs": n => { invitationAccepted.sessionExpiresInMs = n.getNumberValue(); },
         "sessionToken": n => { invitationAccepted.sessionToken = n.getStringValue(); },
         "tenantId": n => { invitationAccepted.tenantId = n.getGuidValue(); },
         "userId": n => { invitationAccepted.userId = n.getGuidValue(); },
@@ -1359,7 +1362,7 @@ export function deserializeIntoPasswordLoginBody(passwordLoginBody: Partial<Pass
 export function deserializeIntoPasswordLoginResult(passwordLoginResult: Partial<PasswordLoginResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "sessionExpiresAt": n => { passwordLoginResult.sessionExpiresAt = n.getDateValue(); },
-        "sessionExpiresInMs": n => { passwordLoginResult.sessionExpiresInMs = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "sessionExpiresInMs": n => { passwordLoginResult.sessionExpiresInMs = n.getNumberValue(); },
         "sessionToken": n => { passwordLoginResult.sessionToken = n.getStringValue(); },
         "userId": n => { passwordLoginResult.userId = n.getGuidValue(); },
     }
@@ -1404,7 +1407,7 @@ export function deserializeIntoProduct(product: Partial<Product> | undefined = {
         "id": n => { product.id = n.getGuidValue(); },
         "isDeleted": n => { product.isDeleted = n.getBooleanValue(); },
         "name": n => { product.name = n.getStringValue(); },
-        "price": n => { product.price = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "price": n => { product.price = n.getNumberValue(); },
         "tenantId": n => { product.tenantId = n.getGuidValue(); },
         "updatedAt": n => { product.updatedAt = n.getDateValue(); },
     }
@@ -1485,11 +1488,11 @@ export function deserializeIntoStaffMemberItem(staffMemberItem: Partial<StaffMem
 export function deserializeIntoStaffProfileCreated(staffProfileCreated: Partial<StaffProfileCreated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "description": n => { staffProfileCreated.description = n.getStringValue(); },
-        "invitationsSent": n => { staffProfileCreated.invitationsSent = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "invitationsSent": n => { staffProfileCreated.invitationsSent = n.getNumberValue(); },
         "name": n => { staffProfileCreated.name = n.getStringValue(); },
-        "permissionsAssigned": n => { staffProfileCreated.permissionsAssigned = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "permissionsAssigned": n => { staffProfileCreated.permissionsAssigned = n.getNumberValue(); },
         "profileId": n => { staffProfileCreated.profileId = n.getGuidValue(); },
-        "usersAssigned": n => { staffProfileCreated.usersAssigned = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "usersAssigned": n => { staffProfileCreated.usersAssigned = n.getNumberValue(); },
     }
 }
 /**
@@ -1503,7 +1506,7 @@ export function deserializeIntoStaffProfileItem(staffProfileItem: Partial<StaffP
         "description": n => { staffProfileItem.description = n.getStringValue(); },
         "id": n => { staffProfileItem.id = n.getGuidValue(); },
         "name": n => { staffProfileItem.name = n.getStringValue(); },
-        "userAccountCount": n => { staffProfileItem.userAccountCount = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "userAccountCount": n => { staffProfileItem.userAccountCount = n.getNumberValue(); },
     }
 }
 /**
@@ -1530,10 +1533,10 @@ export function deserializeIntoTenantAsStaffItem(tenantAsStaffItem: Partial<Tena
     return {
         "id": n => { tenantAsStaffItem.id = n.getGuidValue(); },
         "logoUrl": n => { tenantAsStaffItem.logoUrl = n.getStringValue(); },
-        "maxUsers": n => { tenantAsStaffItem.maxUsers = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "maxUsers": n => { tenantAsStaffItem.maxUsers = n.getNumberValue(); },
         "name": n => { tenantAsStaffItem.name = n.getStringValue(); },
         "status": n => { tenantAsStaffItem.status = n.getStringValue(); },
-        "usersCount": n => { tenantAsStaffItem.usersCount = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "usersCount": n => { tenantAsStaffItem.usersCount = n.getNumberValue(); },
     }
 }
 /**
@@ -1544,7 +1547,7 @@ export function deserializeIntoTenantAsStaffItem(tenantAsStaffItem: Partial<Tena
 // @ts-ignore
 export function deserializeIntoTenantAsStaffResult(tenantAsStaffResult: Partial<TenantAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "count": n => { tenantAsStaffResult.count = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "count": n => { tenantAsStaffResult.count = n.getNumberValue(); },
         "tenants": n => { tenantAsStaffResult.tenants = n.getCollectionOfObjectValues<TenantAsStaffItem>(createTenantAsStaffItemFromDiscriminatorValue); },
     }
 }
@@ -1722,7 +1725,7 @@ export interface FindStaffMembersResult extends AdditionalDataHolder, Parsable {
     /**
      * The count property
      */
-    count?: UntypedNode | null;
+    count?: number | null;
     /**
      * The staffMembers property
      */
@@ -1742,7 +1745,7 @@ export interface FindTenantProfilesAsStaffResult extends AdditionalDataHolder, P
     /**
      * The count property
      */
-    count?: UntypedNode | null;
+    count?: number | null;
     /**
      * The profiles property
      */
@@ -1822,7 +1825,7 @@ export interface InvitationAccepted extends AdditionalDataHolder, Parsable {
     /**
      * The sessionExpiresInMs property
      */
-    sessionExpiresInMs?: UntypedNode | null;
+    sessionExpiresInMs?: number | null;
     /**
      * The sessionToken property
      */
@@ -1922,7 +1925,7 @@ export interface PasswordLoginResult extends AdditionalDataHolder, Parsable {
     /**
      * The sessionExpiresInMs property
      */
-    sessionExpiresInMs?: UntypedNode | null;
+    sessionExpiresInMs?: number | null;
     /**
      * The sessionToken property
      */
@@ -1988,7 +1991,7 @@ export interface Product extends AdditionalDataHolder, Parsable {
     /**
      * The price property
      */
-    price?: UntypedNode | null;
+    price?: number | null;
     /**
      * The tenantId property
      */
@@ -2094,7 +2097,7 @@ export function serializeBulkCreateStaffInvitationsBody(writer: SerializationWri
 // @ts-ignore
 export function serializeBulkStaffInvitationsCreated(writer: SerializationWriter, bulkStaffInvitationsCreated: Partial<BulkStaffInvitationsCreated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!bulkStaffInvitationsCreated || isSerializingDerivedType) { return; }
-    writer.writeObjectValue("created", bulkStaffInvitationsCreated.created);
+    writer.writeNumberValue("created", bulkStaffInvitationsCreated.created);
     writer.writeAdditionalData(bulkStaffInvitationsCreated.additionalData);
 }
 /**
@@ -2406,7 +2409,7 @@ export function serializeCreateTenantAsStaffResult(writer: SerializationWriter, 
 // @ts-ignore
 export function serializeFindStaffMembersResult(writer: SerializationWriter, findStaffMembersResult: Partial<FindStaffMembersResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findStaffMembersResult || isSerializingDerivedType) { return; }
-    writer.writeObjectValue("count", findStaffMembersResult.count);
+    writer.writeNumberValue("count", findStaffMembersResult.count);
     writer.writeCollectionOfObjectValues<StaffMemberItem>("staffMembers", findStaffMembersResult.staffMembers, serializeStaffMemberItem);
     writer.writeAdditionalData(findStaffMembersResult.additionalData);
 }
@@ -2432,7 +2435,7 @@ export function serializeFindStaffProfilesResult(writer: SerializationWriter, fi
 // @ts-ignore
 export function serializeFindTenantProfilesAsStaffResult(writer: SerializationWriter, findTenantProfilesAsStaffResult: Partial<FindTenantProfilesAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findTenantProfilesAsStaffResult || isSerializingDerivedType) { return; }
-    writer.writeObjectValue("count", findTenantProfilesAsStaffResult.count);
+    writer.writeNumberValue("count", findTenantProfilesAsStaffResult.count);
     writer.writeCollectionOfObjectValues<ProfileAsStaffItem>("profiles", findTenantProfilesAsStaffResult.profiles, serializeProfileAsStaffItem);
     writer.writeAdditionalData(findTenantProfilesAsStaffResult.additionalData);
 }
@@ -2515,7 +2518,7 @@ export function serializeGetVerificationLinkResult(writer: SerializationWriter, 
 export function serializeInvitationAccepted(writer: SerializationWriter, invitationAccepted: Partial<InvitationAccepted> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!invitationAccepted || isSerializingDerivedType) { return; }
     writer.writeDateValue("sessionExpiresAt", invitationAccepted.sessionExpiresAt);
-    writer.writeObjectValue("sessionExpiresInMs", invitationAccepted.sessionExpiresInMs);
+    writer.writeNumberValue("sessionExpiresInMs", invitationAccepted.sessionExpiresInMs);
     writer.writeStringValue("sessionToken", invitationAccepted.sessionToken);
     writer.writeGuidValue("tenantId", invitationAccepted.tenantId);
     writer.writeGuidValue("userId", invitationAccepted.userId);
@@ -2603,7 +2606,7 @@ export function serializePasswordLoginBody(writer: SerializationWriter, password
 export function serializePasswordLoginResult(writer: SerializationWriter, passwordLoginResult: Partial<PasswordLoginResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!passwordLoginResult || isSerializingDerivedType) { return; }
     writer.writeDateValue("sessionExpiresAt", passwordLoginResult.sessionExpiresAt);
-    writer.writeObjectValue("sessionExpiresInMs", passwordLoginResult.sessionExpiresInMs);
+    writer.writeNumberValue("sessionExpiresInMs", passwordLoginResult.sessionExpiresInMs);
     writer.writeStringValue("sessionToken", passwordLoginResult.sessionToken);
     writer.writeGuidValue("userId", passwordLoginResult.userId);
     writer.writeAdditionalData(passwordLoginResult.additionalData);
@@ -2651,7 +2654,7 @@ export function serializeProduct(writer: SerializationWriter, product: Partial<P
     writer.writeGuidValue("id", product.id);
     writer.writeBooleanValue("isDeleted", product.isDeleted);
     writer.writeStringValue("name", product.name);
-    writer.writeObjectValue("price", product.price);
+    writer.writeNumberValue("price", product.price);
     writer.writeGuidValue("tenantId", product.tenantId);
     writer.writeDateValue("updatedAt", product.updatedAt);
     writer.writeAdditionalData(product.additionalData);
@@ -2738,11 +2741,11 @@ export function serializeStaffMemberItem(writer: SerializationWriter, staffMembe
 export function serializeStaffProfileCreated(writer: SerializationWriter, staffProfileCreated: Partial<StaffProfileCreated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!staffProfileCreated || isSerializingDerivedType) { return; }
     writer.writeStringValue("description", staffProfileCreated.description);
-    writer.writeObjectValue("invitationsSent", staffProfileCreated.invitationsSent);
+    writer.writeNumberValue("invitationsSent", staffProfileCreated.invitationsSent);
     writer.writeStringValue("name", staffProfileCreated.name);
-    writer.writeObjectValue("permissionsAssigned", staffProfileCreated.permissionsAssigned);
+    writer.writeNumberValue("permissionsAssigned", staffProfileCreated.permissionsAssigned);
     writer.writeGuidValue("profileId", staffProfileCreated.profileId);
-    writer.writeObjectValue("usersAssigned", staffProfileCreated.usersAssigned);
+    writer.writeNumberValue("usersAssigned", staffProfileCreated.usersAssigned);
     writer.writeAdditionalData(staffProfileCreated.additionalData);
 }
 /**
@@ -2757,7 +2760,7 @@ export function serializeStaffProfileItem(writer: SerializationWriter, staffProf
     writer.writeStringValue("description", staffProfileItem.description);
     writer.writeGuidValue("id", staffProfileItem.id);
     writer.writeStringValue("name", staffProfileItem.name);
-    writer.writeObjectValue("userAccountCount", staffProfileItem.userAccountCount);
+    writer.writeNumberValue("userAccountCount", staffProfileItem.userAccountCount);
     writer.writeAdditionalData(staffProfileItem.additionalData);
 }
 /**
@@ -2786,10 +2789,10 @@ export function serializeTenantAsStaffItem(writer: SerializationWriter, tenantAs
     if (!tenantAsStaffItem || isSerializingDerivedType) { return; }
     writer.writeGuidValue("id", tenantAsStaffItem.id);
     writer.writeStringValue("logoUrl", tenantAsStaffItem.logoUrl);
-    writer.writeObjectValue("maxUsers", tenantAsStaffItem.maxUsers);
+    writer.writeNumberValue("maxUsers", tenantAsStaffItem.maxUsers);
     writer.writeStringValue("name", tenantAsStaffItem.name);
     writer.writeStringValue("status", tenantAsStaffItem.status);
-    writer.writeObjectValue("usersCount", tenantAsStaffItem.usersCount);
+    writer.writeNumberValue("usersCount", tenantAsStaffItem.usersCount);
     writer.writeAdditionalData(tenantAsStaffItem.additionalData);
 }
 /**
@@ -2801,7 +2804,7 @@ export function serializeTenantAsStaffItem(writer: SerializationWriter, tenantAs
 // @ts-ignore
 export function serializeTenantAsStaffResult(writer: SerializationWriter, tenantAsStaffResult: Partial<TenantAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantAsStaffResult || isSerializingDerivedType) { return; }
-    writer.writeObjectValue("count", tenantAsStaffResult.count);
+    writer.writeNumberValue("count", tenantAsStaffResult.count);
     writer.writeCollectionOfObjectValues<TenantAsStaffItem>("tenants", tenantAsStaffResult.tenants, serializeTenantAsStaffItem);
     writer.writeAdditionalData(tenantAsStaffResult.additionalData);
 }
@@ -3016,7 +3019,7 @@ export interface StaffProfileCreated extends AdditionalDataHolder, Parsable {
     /**
      * The invitationsSent property
      */
-    invitationsSent?: UntypedNode | null;
+    invitationsSent?: number | null;
     /**
      * The name property
      */
@@ -3024,7 +3027,7 @@ export interface StaffProfileCreated extends AdditionalDataHolder, Parsable {
     /**
      * The permissionsAssigned property
      */
-    permissionsAssigned?: UntypedNode | null;
+    permissionsAssigned?: number | null;
     /**
      * The profileId property
      */
@@ -3032,7 +3035,7 @@ export interface StaffProfileCreated extends AdditionalDataHolder, Parsable {
     /**
      * The usersAssigned property
      */
-    usersAssigned?: UntypedNode | null;
+    usersAssigned?: number | null;
 }
 export interface StaffProfileItem extends AdditionalDataHolder, Parsable {
     /**
@@ -3050,7 +3053,7 @@ export interface StaffProfileItem extends AdditionalDataHolder, Parsable {
     /**
      * The userAccountCount property
      */
-    userAccountCount?: UntypedNode | null;
+    userAccountCount?: number | null;
 }
 export interface Tenant extends AdditionalDataHolder, Parsable {
     /**
@@ -3082,7 +3085,7 @@ export interface TenantAsStaffItem extends AdditionalDataHolder, Parsable {
     /**
      * The maxUsers property
      */
-    maxUsers?: UntypedNode | null;
+    maxUsers?: number | null;
     /**
      * The name property
      */
@@ -3094,13 +3097,13 @@ export interface TenantAsStaffItem extends AdditionalDataHolder, Parsable {
     /**
      * The usersCount property
      */
-    usersCount?: UntypedNode | null;
+    usersCount?: number | null;
 }
 export interface TenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
      * The count property
      */
-    count?: UntypedNode | null;
+    count?: number | null;
     /**
      * The tenants property
      */

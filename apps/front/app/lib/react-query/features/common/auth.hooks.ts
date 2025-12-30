@@ -1,3 +1,4 @@
+import { createUntypedString } from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
 import {
 	createMutation,
@@ -7,6 +8,7 @@ import {
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import type { ApiClient } from '@/js-client/src/apiClient';
+import type { VerifyEmailRequestBody } from '@/js-client/src/models';
 import { getQueryKey } from '../../query-utils';
 
 const getUserAuthDataQueryKey = getQueryKey<ApiClient>(
@@ -97,13 +99,11 @@ const getVerifyEmailRequestQueryKey = getQueryKey<ApiClient>(
 export const useSendEmailVerificationReminder = createMutation({
 	mutationKey: [getVerifyEmailRequestQueryKey] as const,
 	mutationFn: async ({ email }: { email: string }) => {
-		const result = await clientManager.apiClient.auth.verifyEmailRequest.post({
-			email: {
-				getValue() {
-					return email;
-				},
-			},
-		});
+		const body: VerifyEmailRequestBody = {
+			email: createUntypedString(email) as typeof body.email,
+		};
+		const result =
+			await clientManager.apiClient.auth.verifyEmailRequest.post(body);
 		if (_.isNil(result)) {
 			throw new Error(`[${getVerifyEmailRequestQueryKey}]: result is nil`);
 		}

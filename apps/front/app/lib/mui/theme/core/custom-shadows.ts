@@ -35,6 +35,7 @@ export interface CustomShadows {
 	warning?: string;
 	error?: string;
 	card?: string;
+	cardErrorOutline?: string;
 	dialog?: string;
 	dropdown?: string;
 }
@@ -61,6 +62,7 @@ function createCustomShadows(colorChannel: string): CustomShadows {
 		/********/
 		dialog: `-40px 40px 80px -8px ${varAlpha(common.blackChannel, 0.24)}`,
 		card: `0 0 2px 0 ${varAlpha(colorChannel, 0.2)}, 0 12px 24px -4px ${varAlpha(colorChannel, 0.12)}`,
+		cardErrorOutline: `0 0 0 2px ${varAlpha(error.mainChannel, 0.24)}, 0 12px 24px -4px ${varAlpha(error.mainChannel, 0.12)}`,
 		dropdown: `0 0 2px 0 ${varAlpha(colorChannel, 0.24)}, -20px 20px 40px -4px ${varAlpha(colorChannel, 0.24)}`,
 		/********/
 		primary: createShadowColor(primary.mainChannel),

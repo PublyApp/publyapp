@@ -17,6 +17,7 @@ using MainApi.Src.Modules.Staff.TenantsAsStaff;
 using MainApi.Src.Modules.Tenant.Products;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 
 using Resend;
 
@@ -51,7 +52,28 @@ public static class AppServices {
 
 		// Add EndpointsApiExplorer and OpenApi
 		builder.Services.AddEndpointsApiExplorer();
-		builder.Services.AddOpenApi();
+		builder.Services.AddOpenApi(options => {
+			// Fix for .NET 10 OpenAPI generation producing ["integer", "string"] union types
+			// instead of just "integer" for int properties. This causes Kiota to generate
+			// UntypedNode types instead of proper number types in TypeScript.
+			options.AddSchemaTransformer((schema, context, cancellationToken) => {
+				if (schema.Type.HasValue) {
+					var schemaType = schema.Type.Value;
+
+					// Check if type is a union (has multiple flags set) containing Integer and String
+					if (schemaType.HasFlag(JsonSchemaType.Integer) && schemaType.HasFlag(JsonSchemaType.String)) {
+						// Keep only Integer, remove String
+						schema.Type = JsonSchemaType.Integer;
+					}
+					// Check if type is a union containing Number and String
+					else if (schemaType.HasFlag(JsonSchemaType.Number) && schemaType.HasFlag(JsonSchemaType.String)) {
+						// Keep only Number, remove String
+						schema.Type = JsonSchemaType.Number;
+					}
+				}
+				return Task.CompletedTask;
+			});
+		});
 
 		// Add HttpContextAccessor for accessing HTTP context in services
 		builder.Services.AddHttpContextAccessor();

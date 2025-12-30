@@ -1,3 +1,4 @@
+import { createUntypedString } from '@microsoft/kiota-abstractions';
 import * as cookie from 'cookie';
 import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
@@ -5,7 +6,10 @@ import { createMutation, createQuery } from 'react-query-kit';
 import { delay } from '@org/shared/utils/any.utils';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
-import type { BulkStaffInvitationsCreated } from '@/js-client/src/models';
+import type {
+	BulkStaffInvitationsCreated,
+	CreateStaffInvitationBody,
+} from '@/js-client/src/models';
 import {
 	SESSION_TOKEN_COOKIE_KEY,
 	SESSION_TOKEN_HEADER_KEY,
@@ -59,18 +63,11 @@ type CreateInvitationPayload = {
 export const useCreateInvitation = createMutation({
 	mutationKey: [createInvitationMutationKey] as const,
 	mutationFn: async (data: CreateInvitationPayload) => {
-		const result = await clientManager.apiClient.staff.invitations.post({
-			email: {
-				getValue() {
-					return data.email;
-				},
-			},
-			profileId: {
-				getValue() {
-					return data.profileId;
-				},
-			},
-		});
+		const body: CreateStaffInvitationBody = {
+			email: createUntypedString(data.email) as typeof body.email,
+			profileId: createUntypedString(data.profileId) as typeof body.profileId,
+		};
+		const result = await clientManager.apiClient.staff.invitations.post(body);
 		if (_.isNil(result)) {
 			throw new Error(`[${createInvitationMutationKey}]: result is nil`);
 		}

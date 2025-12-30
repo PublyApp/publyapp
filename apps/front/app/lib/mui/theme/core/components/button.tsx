@@ -1,14 +1,12 @@
 import type { ButtonProps } from '@mui/material/Button';
+import { buttonClasses } from '@mui/material/Button';
 import type {
-	Theme,
-	CSSObject,
 	Components,
 	ComponentsVariants,
+	CSSObject,
+	Theme,
 } from '@mui/material/styles';
-
 import { varAlpha } from 'minimal-shared/utils';
-
-import { buttonClasses } from '@mui/material/Button';
 
 // ----------------------------------------------------------------------
 
@@ -39,15 +37,12 @@ type PaletteColor = (typeof COLORS)[number];
 function styleColors(
 	ownerState: ButtonProps,
 	styles: (val: PaletteColor) => CSSObject,
-) {
-	const outputStyle = COLORS.reduce((acc, color) => {
-		if (!ownerState.disabled && ownerState.color === color) {
-			acc = styles(color);
-		}
-		return acc;
-	}, {});
+): CSSObject {
+	const matchedColor = COLORS.find(
+		(color) => !ownerState.disabled && ownerState.color === color,
+	);
 
-	return outputStyle;
+	return matchedColor ? styles(matchedColor) : {};
 }
 
 // ----------------------------------------------------------------------
@@ -255,7 +250,7 @@ const MuiIconButton: Components<Theme>['MuiIconButton'] = {
 	 * STYLE - Compact sizes matching buttons
 	 *************************************** */
 	styleOverrides: {
-		root: ({ theme }) => ({
+		root: () => ({
 			borderRadius: '50%', // Circular icon buttons
 		}),
 		sizeSmall: {

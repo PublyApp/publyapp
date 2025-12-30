@@ -1,8 +1,10 @@
+import { createUntypedString } from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
 
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import type { ApiClient } from '@/js-client/src/apiClient';
+import type { CreateTenantAsStaffBody } from '@/js-client/src/models';
 
 import { getQueryKey } from '../../query-utils';
 
@@ -13,13 +15,10 @@ const createTenantMutationKey = getQueryKey<ApiClient>(
 export const useCreateTenant = createMutation({
 	mutationKey: [createTenantMutationKey] as const,
 	mutationFn: async (params: { name: string }) => {
-		return clientManager.apiClient.staff.tenants.post({
-			name: {
-				getValue() {
-					return params.name;
-				},
-			},
-		});
+		const body: CreateTenantAsStaffBody = {
+			name: createUntypedString(params.name) as typeof body.name,
+		};
+		return clientManager.apiClient.staff.tenants.post(body);
 	},
 });
 

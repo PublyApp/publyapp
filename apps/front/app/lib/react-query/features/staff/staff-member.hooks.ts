@@ -1,3 +1,8 @@
+import {
+	createUntypedBoolean,
+	createUntypedString,
+	type UntypedNode,
+} from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
 import { createMutation, createQuery } from 'react-query-kit';
 import { clientManager } from '@/front/lib/js-client/client-manager';
@@ -8,6 +13,21 @@ import type {
 } from '@/js-client/src/models';
 import type { AccountLevel, UserStatus } from '@/shared/lib/constants';
 import { getQueryKey } from '../../query-utils';
+
+// Helper to create UntypedNode from various value types
+const createUntypedValue = (value: unknown): UntypedNode => {
+	if (typeof value === 'string') {
+		return createUntypedString(value);
+	}
+	if (typeof value === 'boolean') {
+		return createUntypedBoolean(value);
+	}
+	// For other types, create a simple UntypedNode
+	return {
+		getValue: () => value,
+		value,
+	} as UntypedNode;
+};
 
 const createStaffMemberMutationKey = getQueryKey<ApiClient>(
 	(client) => client.staff.staffMembers.post,
@@ -27,11 +47,10 @@ export const useCreateStaffMember = createMutation({
 	mutationFn: async (data: CreateStaffMemberPayload) => {
 		const body: CreateStaffMemberBody = {};
 		_.forEach(data, (value, key) => {
-			body[key as keyof CreateStaffMemberBody] = {
-				getValue() {
-					return value;
-				},
-			};
+			if (value !== undefined) {
+				// Use type assertion since generated types don't include UntypedNode in unions
+				(body as Record<string, unknown>)[key] = createUntypedValue(value);
+			}
 		});
 		const result = await clientManager.apiClient.staff.staffMembers.post(body);
 		if (_.isNil(result)) {
@@ -105,14 +124,11 @@ export const useUpdateStaffMember = createMutation({
 	mutationFn: async (data: UpdateStaffMemberPayload) => {
 		const body: UpdateStaffMemberBody = {};
 		_.forEach(data, (value, key) => {
-			if (key === 'id') {
+			if (key === 'id' || value === undefined) {
 				return;
 			}
-			body[key as keyof UpdateStaffMemberBody] = {
-				getValue() {
-					return value;
-				},
-			};
+			// Use type assertion since generated types don't include UntypedNode in unions
+			(body as Record<string, unknown>)[key] = createUntypedValue(value);
 		});
 		const result = await clientManager.apiClient.staff.staffMembers
 			.byUserId(data.id)

@@ -25,6 +25,7 @@ import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { isJsClientError } from '@/front/lib/js-client/js-client-error';
+import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
 	useGetUserAuthData,
 	useGetVerificationLink,
@@ -132,7 +133,7 @@ const StaffMembersTable = () => {
 	const table = useMRTTable('default', {
 		columns,
 		data: dataTable,
-		rowCount: data?.count || 0,
+		rowCount: getUntypedNumber(data?.count, 0),
 		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
 		manualSorting: true,

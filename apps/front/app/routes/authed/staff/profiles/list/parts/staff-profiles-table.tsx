@@ -20,6 +20,7 @@ import { RouterLink } from '@/front/components/router-link';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import { useFindStaffProfiles } from '@/front/lib/react-query/features/staff/staff-profile.hooks';
 import { checkIfEmptyQueryData } from '@/front/lib/react-query/query-utils';
 import type { StaffProfileItem } from '@/js-client/src/models';
@@ -41,7 +42,7 @@ const StaffProfileRowDataMapper = (
 		id: profile.id || '',
 		name: profile.name || '-',
 		description: profile.description || null,
-		user_account_count: profile.userAccountCount || 0,
+		user_account_count: getUntypedNumber(profile.userAccountCount, 0),
 	};
 };
 
