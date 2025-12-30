@@ -4,7 +4,6 @@
 # Project paths
 API_DIR = apps/api
 FRONTEND_DIR = apps/front
-FRONTEND2_DIR = apps/front2
 SHARED_DIR = packages/shared
 JS_CLIENT_DIR = packages/js-client
 ROOT_DIR = .
@@ -30,23 +29,19 @@ help:
 	@echo "  dev-api     - Start API development server (dotnet watch)"
 	@echo "  dev-api-alt - Start API with Node.js script"
 	@echo "  dev-front   - Start frontend development server"
-	@echo "  dev-front2  - Start front2 development server"
 	@echo "  dev-db      - Start database with Docker"
 	@echo ""
 	@echo "=== BUILDING ==="
 	@echo "  build-api   - Build API only (dotnet build)"
 	@echo "  build-front - Build frontend only"
-	@echo "  build-front2 - Build front2 only"
 	@echo "  build-deploy - Build for deployment"
 	@echo ""
 	@echo "=== RUNNING ==="
 	@echo "  run-api     - Run API (dotnet run)"
 	@echo "  start-front - Start frontend production server"
-	@echo "  start-front2 - Start front2 production server"
 	@echo ""
 	@echo "=== TYPE CHECKING ==="
 	@echo "  tsc-front   - Type check frontend (pnpm)"
-	@echo "  tsc-front2  - Type check front2 (pnpm)"
 	@echo ""
 	@echo "=== CODE QUALITY ==="
 	@echo "  lint        - Run linting (biome lint)"
@@ -78,7 +73,6 @@ help:
 	@echo "  clean       - Clean all build artifacts"
 	@echo "  clean-api   - Clean API build artifacts"
 	@echo "  clean-front - Clean frontend build artifacts"
-	@echo "  clean-front2 - Clean front2 build artifacts"
 	@echo "  clean-tx-gen - Clean TranslationKeyGenerator artifacts (fix file lock issues)"
 
 # =============================================================================
@@ -113,10 +107,6 @@ dev-front:
 	@echo "Starting frontend development server..."
 	cd $(FRONTEND_DIR) && pnpm dev
 
-dev-front2:
-	@echo "Starting front2 development server..."
-	cd $(FRONTEND2_DIR) && pnpm dev
-
 dev-services:
 	@echo "Starting services with Docker..."
 	docker-compose -f docker-compose.services.yml up -d
@@ -137,10 +127,6 @@ build-front:
 	@echo "Building frontend..."
 	cd $(FRONTEND_DIR) && pnpm build
 
-build-front2:
-	@echo "Building front2..."
-	cd $(FRONTEND2_DIR) && pnpm build
-
 build-deploy:
 	@echo "Building for deployment..."
 	node ./scripts/deploy.mjs
@@ -157,10 +143,6 @@ start-front:
 	@echo "Starting frontend production server..."
 	cd $(FRONTEND_DIR) && pnpm start
 
-start-front2:
-	@echo "Starting front2 production server..."
-	cd $(FRONTEND2_DIR) && pnpm start
-
 # =============================================================================
 # TYPE CHECKING
 # =============================================================================
@@ -168,10 +150,6 @@ start-front2:
 tsc-front:
 	@echo "Type checking frontend with pnpm..."
 	cd $(FRONTEND_DIR) && pnpm type-check
-
-tsc-front2:
-	@echo "Type checking front2 with pnpm..."
-	cd $(FRONTEND2_DIR) && pnpm type-check
 
 # =============================================================================
 # CODE QUALITY
@@ -275,7 +253,6 @@ clean:
 	@$(RM) node_modules
 	@$(RM) apps/api/node_modules
 	@$(RM) apps/front/node_modules
-	@$(RM) apps/front2/node_modules
 	@$(RM) packages/shared/node_modules
 	@$(RM) packages/js-client/node_modules
 	@$(RM) apps/api/bin
@@ -284,8 +261,6 @@ clean:
 	@$(RM) apps/front/build
 	@$(RM) apps/front/dist
 	@$(RM) apps/front/.next
-	@$(RM) apps/front2/build
-	@$(RM) apps/front2/dist
 
 clean-api:
 	@echo "Cleaning API build artifacts..."
@@ -305,11 +280,6 @@ clean-front:
 	@$(RM) $(FRONTEND_DIR)/build
 	@$(RM) $(FRONTEND_DIR)/dist
 	@$(RM) $(FRONTEND_DIR)/.next
-
-clean-front2:
-	@echo "Cleaning front2 build artifacts..."
-	@$(RM) $(FRONTEND2_DIR)/build
-	@$(RM) $(FRONTEND2_DIR)/dist
 
 # =============================================================================
 # UTILITY COMMANDS
