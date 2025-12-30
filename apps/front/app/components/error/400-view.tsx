@@ -1,11 +1,14 @@
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import { m } from 'framer-motion';
+import { useHomePath } from '@/front/hooks/use-home-path';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { SimpleCompactContent } from '@/front/layouts/simple/content';
 import { SimpleLayout } from '@/front/layouts/simple/layout';
 import { MotionContainer } from '../animate/motion-container';
+import { varBounce } from '../animate/variants';
 import { RouterLink } from '../router-link';
 
 // ----------------------------------------------------------------------
@@ -18,44 +21,79 @@ type View400Props = {
 
 const View400 = ({ withLayout = true, title, description }: View400Props) => {
 	const { t } = useTranslate();
+	const homePath = useHomePath();
 
 	const renderContent = () => {
 		return (
-			<Container component={MotionContainer}>
-				<m.div /* variants={varBounce('in')} */>
-					<Typography
-						variant="h5"
-						sx={(theme) => ({ mb: 0, color: theme.palette.primary.main })}
+			<Container component={MotionContainer} sx={{ textAlign: 'center' }}>
+				<m.div variants={varBounce('in')}>
+					<Box
+						sx={{
+							display: 'inline-flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							mb: 3,
+						}}
 					>
-						400
+						<Typography
+							variant="h1"
+							sx={(theme) => ({
+								fontSize: { xs: '6rem', sm: '8rem', md: '10rem' },
+								fontWeight: 800,
+								lineHeight: 1,
+								background: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.error.main} 100%)`,
+								backgroundClip: 'text',
+								WebkitBackgroundClip: 'text',
+								WebkitTextFillColor: 'transparent',
+								textShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+							})}
+						>
+							400
+						</Typography>
+					</Box>
+				</m.div>
+
+				<m.div variants={varBounce('in')}>
+					<Typography
+						variant="h3"
+						sx={{
+							mb: 2,
+							fontWeight: 700,
+						}}
+					>
+						{title ?? t('bad-request')}
 					</Typography>
 				</m.div>
 
-				<m.div /* variants={varBounce('in')} */>
-					<Typography variant="h3" sx={{ mb: 2 }}>
-						{title ?? '400 Bad Request'}
+				<m.div variants={varBounce('in')}>
+					<Typography
+						sx={{
+							color: 'text.secondary',
+							mb: 4,
+							maxWidth: 480,
+							mx: 'auto',
+							lineHeight: 1.6,
+						}}
+					>
+						{description ?? t('bad-request-sentence')}
 					</Typography>
 				</m.div>
 
-				<m.div /* variants={varBounce('in')} */>
-					<Typography sx={{ color: 'text.secondary', mb: 2 }}>
-						{description ??
-							'The server cannot or will not process the request due to an apparent client error.'}
-					</Typography>
+				<m.div variants={varBounce('in')}>
+					<Button
+						component={RouterLink}
+						href={homePath}
+						size="large"
+						variant="contained"
+						sx={{
+							px: 4,
+							py: 1.5,
+							fontWeight: 600,
+						}}
+					>
+						{t('go-to-home')}
+					</Button>
 				</m.div>
-
-				{/* <m.div variants={varBounce('in')}>
-					<PageNotFoundIllustration sx={{ my: { xs: 5, sm: 10 } }} />
-				</m.div> */}
-
-				<Button
-					component={RouterLink}
-					href="/"
-					size="large"
-					variant="contained"
-				>
-					{t('go-to-home')}
-				</Button>
 			</Container>
 		);
 	};
