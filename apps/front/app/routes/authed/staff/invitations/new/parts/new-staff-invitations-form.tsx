@@ -22,6 +22,7 @@ import { useRouter } from '@/front/hooks/use-router';
 import { useSyncFormToLang } from '@/front/hooks/use-sync-form-to-lang';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { isJsClientError } from '@/front/lib/js-client/js-client-error';
+import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
 	useBulkCreateInvitations,
 	useFindStaffInvitations,
@@ -88,10 +89,11 @@ const NewStaffInvitationsForm = () => {
 
 	const { mutate: createInvitations, isPending } = useBulkCreateInvitations({
 		onSuccess: (data) => {
+			const createdCount = getUntypedNumber(data?.created, 0);
 			toast.success(
 				t('invitations-sent-successfully', {
-					count: data?.created ?? 0,
-					defaultValue: `${data?.created ?? 0} invitation(s) sent successfully`,
+					count: createdCount,
+					defaultValue: `${createdCount} invitation(s) sent successfully`,
 				}),
 			);
 			queryClient.invalidateQueries({

@@ -9,7 +9,7 @@ export const BreadcrumbsRoot = styled('div')(({ theme }) => ({
 }));
 
 export const BreadcrumbsHeading = styled('h6')(({ theme }) => ({
-	...theme.typography.h4,
+	...theme.typography.h3,
 	margin: 0,
 	padding: 0,
 	display: 'inline-flex',
@@ -26,7 +26,7 @@ export const BreadcrumbsContainer = styled('div')(({ theme }) => ({
 export const BreadcrumbsContent = styled('div')(({ theme }) => ({
 	display: 'flex',
 	flex: '1 1 auto',
-	gap: theme.spacing(2),
+	gap: theme.spacing(1),
 	flexDirection: 'column',
 }));
 

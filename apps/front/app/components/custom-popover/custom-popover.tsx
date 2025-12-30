@@ -55,7 +55,7 @@ export const CustomPopover = ({
 			}}
 			{...other}
 		>
-			{!arrowProps?.hide && (
+			{arrowProps?.hide === false && (
 				<Arrow
 					size={arrowSize}
 					offset={arrowOffset}

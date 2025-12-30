@@ -8,9 +8,11 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { hasKeys, varAlpha } from 'minimal-shared/utils';
 import { useCallback, useEffect } from 'react';
+
 import { themeConfig } from '@/front/lib/mui/theme/theme-config';
 import type { ThemeColorScheme } from '@/front/lib/mui/theme/types';
 import { primaryColorPresets } from '@/front/lib/mui/theme/with-settings';
+
 import { useSettingsContext } from '../../../hooks/use-settings-context';
 import { Iconify } from '../../iconify/iconify';
 import { Scrollbar } from '../../scrollbar';
@@ -286,7 +288,6 @@ export const SettingsDrawer = ({
 							}}
 							options={[
 								themeConfig.fontFamily.primary,
-								'Inter Variable',
 								'DM Sans Variable',
 								'Nunito Sans Variable',
 							]}
