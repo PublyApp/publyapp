@@ -1,18 +1,12 @@
 namespace MainApi.Src.Lib;
 
-/// <summary>
-/// Standard cursor-based pagination result.
-/// Does not include total count - cursor pagination is designed for infinite scroll
-/// and Previous/Next navigation where total count is not needed.
-/// </summary>
+// Note: XML comments removed to work around .NET 10 OpenAPI source generator bug
+// that causes duplicate key errors for generic types.
+// See: https://github.com/dotnet/aspnetcore/issues/63233
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 public class CursorPaginatedResult<T> {
-	/// <summary>
-	/// The data items for the current page.
-	/// </summary>
 	public List<T> Data { get; set; } = [];
 
-	/// <summary>
-	/// Cursor to fetch the next page. Null if this is the last page.
-	/// </summary>
 	public string? NextCursor { get; set; } = null;
 }
+#pragma warning restore CS1591

@@ -31,6 +31,7 @@ import { toast } from '@/front/components/snackbar';
 import { useMRTTable } from '@/front/hooks/use-mrt-table';
 import { useTableState } from '@/front/hooks/use-table-state';
 import { useTranslate } from '@/front/hooks/use-translate';
+import { getUntypedNumber } from '@/front/lib/js-client/kiota-utils';
 import {
 	useGetVerificationLink,
 	useSendEmailVerificationReminder,
@@ -41,21 +42,7 @@ import { logger } from '@/shared/lib/logger/iso-logger';
 import { getErrorMessage } from '@/shared/utils/error.utils';
 import { getUserFullName } from '@/shared/utils/user.utils';
 
-const UserStatus = {
-	Inactive: 10,
-	Pending: 20,
-	Suspended: 30,
-	Active: 40,
-	Deleted: 50,
-} as const;
-
-const statusMapLabel: Record<number, string> = {
-	[UserStatus.Inactive]: 'inactive',
-	[UserStatus.Pending]: 'pending',
-	[UserStatus.Suspended]: 'suspended',
-	[UserStatus.Active]: 'active',
-	[UserStatus.Deleted]: 'deleted',
-};
+// Status values are now returned as strings from the API
 
 export type TenantUserRowData = {
 	id: string;
@@ -136,7 +123,7 @@ const TenantUsersTable = () => {
 				firstName: staffMember.firstName || '',
 				lastName: staffMember.lastName || '',
 				// role: staffMember.roleData?.role || '',
-				status: statusMapLabel[staffMember.status || 0] || '',
+				status: staffMember.status || '',
 				email: staffMember.email || '',
 			};
 		});
@@ -145,7 +132,7 @@ const TenantUsersTable = () => {
 	const table = useMRTTable('default', {
 		columns,
 		data: rows,
-		rowCount: data?.count || 0,
+		rowCount: getUntypedNumber(data?.count, 0),
 		manualPagination: true,
 		onPaginationChange: handlePaginationChange,
 		manualSorting: true,
