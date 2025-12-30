@@ -21,6 +21,7 @@ builder.AddCors();
 var app = builder.Build();
 
 // ! order matters !
+app.UseResponseCompression(); // Compress responses (should be early in the pipeline)
 app.UseSecurityHeaders();
 app.UseCustomExceptionHandler();
 app.UseHttpsRedirection();
