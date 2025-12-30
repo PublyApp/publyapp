@@ -20,21 +20,6 @@ const config: KnipConfig = {
 				'server/**/*.{ts,mjs,js,cjs,json}',
 			],
 		},
-		'apps/front2': {
-			entry: [
-				'server.js',
-				'server/app.ts',
-				'server/dev.js',
-				'app/entry.server.tsx',
-				'app/entry.client.tsx',
-				'app/root.tsx',
-				'app/routes.ts',
-			],
-			project: [
-				'app/**/*.{tsx,ts,mjs,js,cjs,json}',
-				'server/**/*.{ts,mjs,js,cjs,json}',
-			],
-		},
 		'apps/api': {
 			entry: 'run-dev.mjs',
 		},
