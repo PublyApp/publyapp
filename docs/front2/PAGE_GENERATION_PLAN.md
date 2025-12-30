@@ -13,10 +13,15 @@ This document outlines the remaining pages to be implemented in `./apps/front`, 
 - [ ] **Schedule** (`/schedule`) - Calendar view with scheduled posts
 - [ ] **Posts** (`/posts`) - Posts list view
 - [ ] **Post Create/Edit** - Create or edit a post (modal or page?)
+- [ ] **Drafts** (`/drafts`) - Saved draft posts before scheduling
+- [ ] **Social Accounts** (`/accounts`) - Connect & manage social media channels (Facebook, Twitter, Instagram, LinkedIn, etc.)
+- [ ] **Media Library** (`/media`) - Upload and manage images/videos for posts
+- [ ] **Analytics** (`/analytics`) - Post performance, engagement stats, reports
 
 #### Tenant Settings (for tenant admins)
 - [ ] **Tenant General Settings** (`/settings/tenant`) - Organization name, logo, etc.
 - [ ] **Tenant Members** (`/settings/tenant/members`) - Invite, remove, manage member roles
+- [ ] **Tenant Invitations** (`/settings/tenant/invitations`) - Invite new members to the tenant
 - [ ] **Tenant Profiles/Roles** (`/settings/tenant/profiles`) - Manage tenant-level roles
 - [ ] **Tenant Billing** (`/settings/tenant/billing`) - Subscription, payment methods, invoices
 
@@ -32,6 +37,17 @@ This document outlines the remaining pages to be implemented in `./apps/front`, 
 - [ ] **403 Forbidden** - Access denied page
 - [ ] **500 Server Error** - Internal server error page
 - [ ] **Generic Error** - Fallback error page
+
+#### Auth Pages
+- [x] **Login** (`/auth/login`) - User login
+- [x] **Sign Up** (`/auth/signup`) - New user registration
+- [x] **Reset Password** (`/auth/reset-password`) - Password reset flow
+- [x] **Verify Email** (`/auth/verify-email`) - Email verification
+- [x] **Accept Invitation** (`/auth/accept-invitation`) - Accept tenant/staff invitation
+
+#### Other
+- [ ] **Onboarding Flow** - First-time user/tenant setup wizard
+- [ ] **Maintenance Mode** - Page shown when app is under maintenance
 
 #### TBD
 <!-- Add more pages here as requirements become clearer -->
@@ -55,6 +71,7 @@ This document outlines the remaining pages to be implemented in `./apps/front`, 
 - [x] **Invitations List** (`/staff/invitations`) - Pending/sent invitations
 - [x] **New Invitation** (`/staff/invitations/new`) - Invite new staff member
 - [ ] **Invitation Details** (`/staff/invitations/:id`) - View invitation details *(empty placeholder)*
+- [ ] **Audit Logs** (`/staff/audit-logs`) - Activity logs (who did what, when)
 - [ ] **Settings** (`/staff/settings`) - Platform-wide settings
 
 ---
@@ -87,11 +104,16 @@ Before building screens, ensure these shared components are ready:
 - [ ] Post create/edit (modal or page)
 - [ ] Schedule page
 - [ ] Posts list page
+- [ ] Drafts page
+- [ ] Social accounts management
+- [ ] Media library
+- [ ] Analytics/Reports
 
 ### Phase 4: Customer Screens - Tenant Settings
 
 - [ ] Tenant general settings
 - [ ] Tenant members management
+- [ ] Tenant invitations
 - [ ] Tenant profiles/roles management
 - [ ] Tenant billing
 
@@ -100,6 +122,13 @@ Before building screens, ensure these shared components are ready:
 - [ ] User profile settings
 - [ ] User security settings
 - [ ] User notification preferences
+
+### Phase 6: Other Screens
+
+- [ ] Onboarding flow
+- [ ] Maintenance mode page
+- [ ] Error pages redesign (400, 401, 403, 404, 500)
+- [ ] Staff audit logs
 
 ---
 
