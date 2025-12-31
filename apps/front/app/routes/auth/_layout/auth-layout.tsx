@@ -3,11 +3,14 @@ import i18next from 'i18next';
 import _ from 'lodash';
 import { Suspense } from 'react';
 import { Outlet, redirect } from 'react-router';
+
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { AuthSplitLayout } from '@/front/layouts/auth-split/layout';
-import { createClearSessionCookieHeaders } from '@/front/lib/cookies/server-cookie.utils';
-import { clearSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
+import {
+	clearSessionCookie,
+	getSessionCookieFromClient,
+} from '@/front/lib/cookies/session-cookie.utils';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
@@ -18,33 +21,18 @@ import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import {
+	formActionKey,
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 	LAST_USED_TENANT_ID_COOKIE_KEY,
-	queryParamKey,
 	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 
 export const loader = getServerLoader({
 	loader: async ({ request }) => {
-		const url = new URL(request.url);
-		const forceHttpOnlyClear =
-			url.searchParams.get(queryParamKey.clear_http_only) === 'true';
-
 		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
 		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
-
-		// Handle httpOnly cookie clearing (only when parameter is present AND there's a session token)
-		if (forceHttpOnlyClear && sessionToken) {
-			// This scenario means: server can see the cookie but JavaScript cannot (httpOnly mismatch)
-			// Clear the httpOnly cookie and redirect
-			const clearHeaders = createClearSessionCookieHeaders();
-			url.searchParams.delete(queryParamKey.clear_http_only);
-			return redirect(url.pathname + url.search, {
-				headers: clearHeaders,
-			});
-		}
 
 		// If no session token exists, return NOT_AUTHENTICATED
 		if (!sessionToken) {
@@ -91,11 +79,9 @@ export const clientLoader = getClientLoader({
 
 		const serverData = await serverLoader<typeof loader>();
 
-		// If server detected no session, it sent headers to clear httpOnly cookies
-		// The headers are already set in the response, so we just proceed
+		// No session token visible to server - user is not authenticated
 		if (serverData.status === 'NOT_AUTHENTICATED') {
-			// The server has already cleared any httpOnly cookies
-			// Just ensure client-side cookies are also cleared
+			// Clear any JS-accessible cookies (if any exist) and proceed to render auth page
 			clearSessionCookie();
 			return null;
 		}
@@ -105,25 +91,33 @@ export const clientLoader = getClientLoader({
 			// If server can see a cookie but JavaScript cannot, it means there's an httpOnly cookie
 			// In this case, we should NOT redirect away from login page, as this would cause
 			// an infinite loop: login → authed (no JS cookie) → login → repeat
-			const { getSessionCookieFromClient } = await import(
-				'@/front/lib/cookies/session-cookie.utils'
-			);
 			const clientCanSeeToken = getSessionCookieFromClient();
 
 			if (!clientCanSeeToken) {
 				// httpOnly cookie detected! Server sees it but JS doesn't
-				// Reload with a special query parameter to trigger server-side cookie clearing
+				// Submit a form to the dedicated clear-session route
+				// POST + Origin validation prevents link-based logout attacks
+				// Note: fetch() doesn't apply Set-Cookie headers, so we must use form submission
 				logger.warn(
-					'Detected httpOnly session cookie mismatch. Reloading to clear httpOnly cookie.',
+					'[auth-layout clientLoader] Detected httpOnly session cookie mismatch. Clearing via POST.',
 				);
 				clearSessionCookie();
 
-				// Hard reload with query parameter to trigger server-side clear
-				const reloadUrl = new URL(window.location.href);
-				reloadUrl.searchParams.set(queryParamKey.clear_http_only, 'true');
-				window.location.href = reloadUrl.toString();
+				// Create and submit a real form - this ensures Set-Cookie headers are processed
+				const form = document.createElement('form');
+				form.method = 'POST';
+				form.action = FRONT_PATH_NAMES.auth.clearSession;
 
-				// Return null while reloading
+				const input = document.createElement('input');
+				input.type = 'hidden';
+				input.name = 'action';
+				input.value = formActionKey.clear_httponly_session;
+				form.appendChild(input);
+
+				document.body.appendChild(form);
+				form.submit();
+
+				// Return null while form is submitting
 				return null;
 			}
 

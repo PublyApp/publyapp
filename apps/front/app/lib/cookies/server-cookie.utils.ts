@@ -19,9 +19,31 @@ export function createClearSessionCookieHeaders(): Headers {
 	// Clear cookie with various flag combinations to ensure removal
 	// This handles cases where cookies were set with different flags
 	const clearCookieOptions = [
-		// Standard clear
+		// Standard clear (non-httpOnly)
 		{ path: '/', expires: new Date(0), maxAge: 0 },
-		// Clear httpOnly cookie
+		// Clear httpOnly cookie (non-secure, for localhost/HTTP)
+		{
+			path: '/',
+			expires: new Date(0),
+			maxAge: 0,
+			httpOnly: true,
+		},
+		// Clear httpOnly cookie with sameSite (non-secure, for localhost/HTTP)
+		{
+			path: '/',
+			expires: new Date(0),
+			maxAge: 0,
+			httpOnly: true,
+			sameSite: 'lax' as const,
+		},
+		{
+			path: '/',
+			expires: new Date(0),
+			maxAge: 0,
+			httpOnly: true,
+			sameSite: 'strict' as const,
+		},
+		// Clear httpOnly secure cookie (for production/HTTPS)
 		{
 			path: '/',
 			expires: new Date(0),
@@ -30,7 +52,6 @@ export function createClearSessionCookieHeaders(): Headers {
 			secure: true,
 			sameSite: 'lax' as const,
 		},
-		// Clear with different sameSite values
 		{
 			path: '/',
 			expires: new Date(0),
