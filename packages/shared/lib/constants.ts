@@ -45,6 +45,7 @@ export const FRONT_PATH_NAMES = {
 		verifyEmail: makePath('verify-email'),
 		resetPassword: makePath('reset-password'),
 		acceptInvitation: makePath('accept-invitation'),
+		clearSession: makePath(ROOTS.AUTH, 'clear-session'),
 	},
 	tenant: (tenantId = '') => {
 		return {
@@ -236,7 +237,6 @@ export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detec
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
 export const queryParamKey = {
-	clear_http_only: 'clear_session',
 	language: 'lng',
 	token: 'token',
 	login_page: {
@@ -251,6 +251,18 @@ export const queryParamKey = {
 		encoded_email: 'id',
 		token: 'token',
 	},
+} as const;
+
+/**
+ * Form action keys for POST-based operations.
+ * Using POST instead of GET query params prevents CSRF attacks.
+ */
+export const formActionKey = {
+	/**
+	 * Action to clear httpOnly session cookies.
+	 * Used when client-side JS detects it cannot read a cookie that the server can see.
+	 */
+	clear_httponly_session: 'clear_httponly_session',
 } as const;
 
 export const queryParamValue = {
