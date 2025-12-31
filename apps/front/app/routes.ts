@@ -15,6 +15,11 @@ const routes = [
 		getLastPath(FRONT_PATH_NAMES.maintenance),
 		'routes/maintenance/maintenance-page.tsx',
 	),
+	// Action-only route for clearing httpOnly session cookies (POST + Origin/Fetch-metadata validation)
+	route(
+		getLastPath(FRONT_PATH_NAMES.auth.clearSession, 2),
+		'routes/auth/clear-session.tsx',
+	),
 	// Marketing routes
 	layout('routes/marketing/_layout/marketing-layout.tsx', [
 		index('routes/marketing/home/home-page.tsx'),

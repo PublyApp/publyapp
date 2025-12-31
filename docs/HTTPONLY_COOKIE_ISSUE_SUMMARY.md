@@ -1,5 +1,9 @@
 # HttpOnly Cookie Issue - Complete Summary
 
+> **IMPORTANT UPDATE (2025-12-31):** The implementation described in this document has been superseded.
+> The query-param approach (`?_clearHttpOnly=true`) was vulnerable to CSRF attacks.
+> See [secure-httponly-cookie-clearing.md](./changes/secure-httponly-cookie-clearing.md) for the current POST-based implementation using `/auth/clear-session`.
+
 ## Table of Contents
 1. [Original Problem](#original-problem)
 2. [Root Cause Analysis](#root-cause-analysis)
@@ -151,7 +155,7 @@ export const loader = getServerLoader({
     loader: async ({ request }) => {
         const url = new URL(request.url);
         const forceHttpOnlyClear =
-            url.searchParams.get(queryParamKey.clear_http_only) === 'true';
+            url.searchParams.get(queryParamKey.clear_session_token_cookie) === 'true';
 
         const reqCookies = cookie.parse(request.headers.get('cookie') || '');
         const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
@@ -160,7 +164,7 @@ export const loader = getServerLoader({
         if (forceHttpOnlyClear && sessionToken) {
             // Server sees cookie but JS doesn't (httpOnly mismatch)
             const clearHeaders = createClearSessionCookieHeaders();
-            url.searchParams.delete(queryParamKey.clear_http_only);
+            url.searchParams.delete(queryParamKey.clear_session_token_cookie);
             return redirect(url.pathname + url.search, {
                 headers: clearHeaders,
             });
@@ -187,7 +191,7 @@ if (serverData.status === 'HAS_AUTH_TOKEN') {
 
         // Hard reload with query parameter
         const reloadUrl = new URL(window.location.href);
-        reloadUrl.searchParams.set(queryParamKey.clear_http_only, 'true');
+        reloadUrl.searchParams.set(queryParamKey.clear_session_token_cookie, 'true');
         window.location.href = reloadUrl.toString();
 
         return null;
@@ -204,7 +208,7 @@ export const loader = getServerLoader({
     loader: async ({ request }) => {
         const url = new URL(request.url);
         const forceHttpOnlyClear =
-            url.searchParams.get(queryParamKey.clear_http_only) === 'true';
+            url.searchParams.get(queryParamKey.clear_session_token_cookie) === 'true';
 
         const reqCookies = cookie.parse(request.headers.get('cookie') || '');
         const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
@@ -292,7 +296,7 @@ export function createClearSessionCookieHeaders(): Headers {
 
 **Reproduction:**
 1. User is authenticated with valid non-httpOnly session cookie
-2. User manually adds `?clear_http_only=true` to URL
+2. User manually adds `?clear_session_token_cookie=true` to URL
 3. Session cookie gets cleared
 4. User is logged out
 
@@ -443,7 +447,7 @@ This ensures the cookie gets cleared regardless of which exact flags it was set 
 ```typescript
 export const queryParamKey = {
     // ... existing keys
-    clear_http_only: '_clearHttpOnly',
+    clear_session_token_cookie: '_clearHttpOnly',
 };
 ```
 

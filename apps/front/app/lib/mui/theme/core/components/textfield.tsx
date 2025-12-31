@@ -1,10 +1,8 @@
-import type { Theme, Components } from '@mui/material/styles';
-
-import { varAlpha } from 'minimal-shared/utils';
-
-import { inputBaseClasses } from '@mui/material/InputBase';
 import { filledInputClasses } from '@mui/material/FilledInput';
+import { inputBaseClasses } from '@mui/material/InputBase';
 import { outlinedInputClasses } from '@mui/material/OutlinedInput';
+import type { Components, Theme } from '@mui/material/styles';
+import { varAlpha } from 'minimal-shared/utils';
 
 // ----------------------------------------------------------------------
 
@@ -31,11 +29,26 @@ const MuiInputBase: Components<Theme>['MuiInputBase'] = {
 			fontWeight: 400,
 			letterSpacing: '-0.006em',
 			padding: '7px 12px', // Metronic: px-3 py-1.5
+			// Make input fill parent height to prevent autofill background gaps
+			height: '100%',
+			boxSizing: 'border-box',
 			'&::placeholder': {
 				opacity: 0.8, // Metronic: placeholder:text-muted-foreground/80
 				color: theme.vars.palette.text.disabled,
 				fontWeight: 400,
 			},
+			// Autofill styles to remove browser's default yellow/blue background
+			// Uses transparent box-shadow and inherits text color
+			'&:-webkit-autofill, &:-webkit-autofill:hover, &:-webkit-autofill:focus, &:-webkit-autofill:active':
+				{
+					WebkitBoxShadow: '0 0 0 1000px transparent inset !important',
+					boxShadow: '0 0 0 1000px transparent inset !important',
+					WebkitTextFillColor: 'inherit !important',
+					caretColor: 'inherit',
+					// Long transition effectively prevents autofill background from ever showing
+					transition: 'background-color 600000s 0s, color 600000s 0s',
+					borderRadius: 'inherit',
+				},
 		}),
 		inputSizeSmall: {
 			fontSize: '0.75rem', // 12px - text-xs
@@ -75,6 +88,8 @@ const MuiOutlinedInput: Components<Theme>['MuiOutlinedInput'] = {
 			backgroundColor: theme.vars.palette.background.paper,
 			boxShadow: theme.vars.customShadows.z1,
 			borderRadius: theme.shape.borderRadius,
+			// Keep adornments (icons) vertically centered
+			alignItems: 'center',
 			[`&.${outlinedInputClasses.focused}`]: {
 				[`& .${outlinedInputClasses.notchedOutline}`]: {
 					borderColor: theme.vars.palette.primary.main,
@@ -107,31 +122,27 @@ const MuiOutlinedInput: Components<Theme>['MuiOutlinedInput'] = {
 			}),
 		}),
 		// Metronic compact sizes
-		// Note: minHeight is used instead of height to allow expansion for multi-select chips
+		// Using height instead of minHeight for single-line inputs so child input can use height: 100%
+		// For multi-select with chips, use multiline variant which has different styling
 		sizeSmall: {
 			[`&:not(.${outlinedInputClasses.multiline})`]: {
-				minHeight: 34, // Metronic: h-8.5
+				height: 34, // Metronic: h-8.5
 			},
 		},
-		input: ({ theme }) => ({
+		input: {
 			padding: '7px 12px', // Compact padding
-			// Override browser autofill background to match our design
-			'&:-webkit-autofill': {
-				WebkitBoxShadow: `0 0 0 1000px ${theme.vars.palette.background.paper} inset`,
-				WebkitTextFillColor: theme.vars.palette.text.primary,
-				caretColor: theme.vars.palette.text.primary,
-				borderRadius: 'inherit',
-			},
-		}),
-		inputSizeSmall: ({ theme }) => ({
+			// Stretch input to fill container height (for autofill background coverage)
+			// while adornments stay centered via alignItems: 'center' on root
+			alignSelf: 'stretch',
+			height: '100%',
+			boxSizing: 'border-box',
+		},
+		inputSizeSmall: {
 			padding: '5px 10px', // Even more compact for small
-			'&:-webkit-autofill': {
-				WebkitBoxShadow: `0 0 0 1000px ${theme.vars.palette.background.paper} inset`,
-				WebkitTextFillColor: theme.vars.palette.text.primary,
-				caretColor: theme.vars.palette.text.primary,
-				borderRadius: 'inherit',
-			},
-		}),
+			alignSelf: 'stretch',
+			height: '100%',
+			boxSizing: 'border-box',
+		},
 		// Reset padding on multiline root - padding will be on the textarea only
 		multiline: {
 			padding: 0,
