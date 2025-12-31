@@ -7,7 +7,10 @@ import { Outlet, redirect } from 'react-router';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { AuthSplitLayout } from '@/front/layouts/auth-split/layout';
-import { clearSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
+import {
+	clearSessionCookie,
+	getSessionCookieFromClient,
+} from '@/front/lib/cookies/session-cookie.utils';
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
@@ -88,9 +91,6 @@ export const clientLoader = getClientLoader({
 			// If server can see a cookie but JavaScript cannot, it means there's an httpOnly cookie
 			// In this case, we should NOT redirect away from login page, as this would cause
 			// an infinite loop: login → authed (no JS cookie) → login → repeat
-			const { getSessionCookieFromClient } = await import(
-				'@/front/lib/cookies/session-cookie.utils'
-			);
 			const clientCanSeeToken = getSessionCookieFromClient();
 
 			if (!clientCanSeeToken) {
