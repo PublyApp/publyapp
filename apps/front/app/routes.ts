@@ -10,6 +10,12 @@ import { FRONT_PATH_NAMES } from '@org/shared/lib/constants';
 import { getLastPath } from '@org/shared/utils/string.utils';
 
 const routes = [
+	// Standalone routes (no layout)
+	route(
+		getLastPath(FRONT_PATH_NAMES.maintenance),
+		'routes/maintenance/maintenance-page.tsx',
+	),
+	// Marketing routes
 	layout('routes/marketing/_layout/marketing-layout.tsx', [
 		index('routes/marketing/home/home-page.tsx'),
 	]),
@@ -36,6 +42,10 @@ const routes = [
 		),
 	]),
 	layout('routes/authed/_layout/authed-layout.tsx', [
+		route(
+			getLastPath(FRONT_PATH_NAMES.onboarding.root),
+			'routes/authed/onboarding/onboarding-page.tsx',
+		),
 		route(
 			getLastPath(FRONT_PATH_NAMES.staff.root),
 			'routes/authed/staff/_layout/staff-layout.tsx',
@@ -149,6 +159,14 @@ const routes = [
 							],
 						),
 					]),
+					route(
+						getLastPath(FRONT_PATH_NAMES.staff.settings.root),
+						'routes/authed/staff/settings/staff-settings-page.tsx',
+					),
+					route(
+						getLastPath(FRONT_PATH_NAMES.staff.auditLogs.root),
+						'routes/authed/staff/audit-logs/staff-audit-logs-page.tsx',
+					),
 				]),
 				route('*', 'routes/authed/staff/_errors/staff-not-found-page.tsx'),
 			],
@@ -158,9 +176,68 @@ const routes = [
 			'routes/authed/tenant/_layout/tenant-layout.tsx',
 			[
 				index('routes/authed/tenant/dashboard/tenant-home-page.tsx'),
+				route('analytics', 'routes/authed/tenant/analytics/analytics-page.tsx'),
+				route('drafts', 'routes/authed/tenant/drafts/drafts-page.tsx'),
+				...prefix('posts', [
+					index('routes/authed/tenant/posts/list/posts-list-page.tsx'),
+					route(
+						'new',
+						'routes/authed/tenant/posts/create-edit/post-create-edit-page.tsx',
+						{ id: 'tenant-post-create' },
+					),
+					route(
+						':postId/edit',
+						'routes/authed/tenant/posts/create-edit/post-create-edit-page.tsx',
+						{ id: 'tenant-post-edit' },
+					),
+				]),
+				route('media', 'routes/authed/tenant/media/media-library-page.tsx'),
+				route('schedule', 'routes/authed/tenant/schedule/schedule-page.tsx'),
+				...prefix('accounts', [
+					route(
+						'social',
+						'routes/authed/tenant/accounts/social-accounts-page.tsx',
+					),
+				]),
+				...prefix('settings', [
+					route(
+						'general',
+						'routes/authed/tenant/settings/general/tenant-settings-general-page.tsx',
+					),
+					route(
+						'members',
+						'routes/authed/tenant/settings/members/tenant-settings-members-page.tsx',
+					),
+					route(
+						'invitations',
+						'routes/authed/tenant/settings/invitations/tenant-settings-invitations-page.tsx',
+					),
+					route(
+						'profiles',
+						'routes/authed/tenant/settings/profiles/tenant-settings-profiles-page.tsx',
+					),
+					route(
+						'billing',
+						'routes/authed/tenant/settings/billing/tenant-settings-billing-page.tsx',
+					),
+				]),
 				route('*', 'routes/authed/tenant/_errors/tenant-not-found-page.tsx'),
 			],
 		),
+		...prefix(getLastPath(FRONT_PATH_NAMES.settings.root), [
+			route(
+				getLastPath(FRONT_PATH_NAMES.settings.profile),
+				'routes/authed/settings/profile/user-profile-page.tsx',
+			),
+			route(
+				getLastPath(FRONT_PATH_NAMES.settings.security),
+				'routes/authed/settings/security/user-security-page.tsx',
+			),
+			route(
+				getLastPath(FRONT_PATH_NAMES.settings.notifications),
+				'routes/authed/settings/notifications/user-notifications-page.tsx',
+			),
+		]),
 	]),
 ] satisfies RouteConfig;
 
