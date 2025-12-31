@@ -22,7 +22,6 @@ import { logger } from '@/shared/lib/logger/iso-logger';
  */
 export const action = getServerAction({
 	action: async ({ request }) => {
-		// Validate request origin to prevent cross-site form submissions
 		const origin = request.headers.get('Origin');
 		const secFetchSite = request.headers.get('Sec-Fetch-Site');
 		const requestUrl = new URL(request.url);
@@ -41,9 +40,10 @@ export const action = getServerAction({
 			}
 		};
 
-		// Prefer Origin when present; fall back to Fetch Metadata; if both are missing, reject.
+		// Prefer Origin when present and valid; fall back to Fetch Metadata; if both are missing, reject.
 		// This blocks cross-site form posts that attempt to clear cookies (logout CSRF vector).
-		if (origin) {
+		// Note: Origin can be the literal string 'null' in certain contexts (sandboxed iframes, data: URLs, etc.)
+		if (origin && origin !== 'null') {
 			if (!isSameOrigin(origin)) {
 				logger.warn('[clear-session action] Rejected cross-origin request', {
 					origin,
@@ -72,11 +72,6 @@ export const action = getServerAction({
 		const actionType = formData.get('action');
 		const redirectCause = formData.get(queryParamKey.login_page.redirect_cause);
 
-		logger.debug('[clear-session action] Action called', {
-			actionType,
-			redirectCause,
-		});
-
 		// Build login URL with optional redirect_cause
 		const buildLoginUrl = () => {
 			if (redirectCause && typeof redirectCause === 'string') {
@@ -102,9 +97,6 @@ export const action = getServerAction({
 		}
 
 		// Invalid action - redirect to login
-		logger.debug(
-			'[clear-session action] No action taken, redirecting to login',
-		);
 		return redirect(buildLoginUrl());
 	},
 });

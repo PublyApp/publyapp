@@ -99,20 +99,14 @@ export const clientLoader = getClientLoader({
 				// POST + Origin validation prevents link-based logout attacks
 				// Note: fetch() doesn't apply Set-Cookie headers, so we must use form submission
 				logger.warn(
-					'[auth-layout clientLoader] Detected httpOnly session cookie mismatch. Submitting form to clear httpOnly cookie.',
+					'[auth-layout clientLoader] Detected httpOnly session cookie mismatch. Clearing via POST.',
 				);
 				clearSessionCookie();
-
-				const clearSessionUrl = FRONT_PATH_NAMES.auth.clearSession;
-				logger.debug('[auth-layout clientLoader] Creating form to post to:', {
-					url: clearSessionUrl,
-					action: formActionKey.clear_httponly_session,
-				});
 
 				// Create and submit a real form - this ensures Set-Cookie headers are processed
 				const form = document.createElement('form');
 				form.method = 'POST';
-				form.action = clearSessionUrl;
+				form.action = FRONT_PATH_NAMES.auth.clearSession;
 
 				const input = document.createElement('input');
 				input.type = 'hidden';
@@ -121,7 +115,6 @@ export const clientLoader = getClientLoader({
 				form.appendChild(input);
 
 				document.body.appendChild(form);
-				logger.debug('[auth-layout clientLoader] Submitting form...');
 				form.submit();
 
 				// Return null while form is submitting

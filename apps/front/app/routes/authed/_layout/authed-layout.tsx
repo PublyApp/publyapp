@@ -55,10 +55,6 @@ const clearSessionAndRedirectToLogin = (): void => {
 	// 1. Clear any httpOnly session cookie on the server
 	// 2. Redirect to login page
 	// POST + Origin validation on server prevents link-based logout attacks
-	logger.debug('[authed-layout] Submitting form to clear session', {
-		url: FRONT_PATH_NAMES.auth.clearSession,
-	});
-
 	const form = document.createElement('form');
 	form.method = 'POST';
 	form.action = FRONT_PATH_NAMES.auth.clearSession;
@@ -136,26 +132,13 @@ export const clientLoader = getClientLoader({
 });
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	// check response error.body.code
-	// if invalid session token, redirect to login
-	// with a query param: redirectCause=invalid_session
-	// don't forget to remove session token cookie
-	// clear react-query cache too
-	// const error = useRouteError();
-
-	logger.debug('ErrorBoundary', { error });
-
 	if (
 		isJsClientError(error) &&
 		error.responseStatusCode === 401 &&
 		_.toLower(error.messageEscaped) === _.toLower('Unauthorized')
 	) {
 		// Clear session and submit form to clear any httpOnly cookie
-		logger.debug(
-			'Unauthorized error, clearing session and redirecting to login',
-		);
 		clearSessionAndRedirectToLogin();
-
 		return <SplashScreen />;
 	}
 
