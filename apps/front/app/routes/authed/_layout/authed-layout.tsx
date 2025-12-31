@@ -3,7 +3,7 @@ import * as cookie from 'cookie';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { type ReactNode, Suspense } from 'react';
-import { Outlet, redirect } from 'react-router';
+import { Outlet } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
 import { View500 } from '@/front/components/error';
@@ -18,7 +18,6 @@ import {
 } from '@/front/lib/constants';
 import {
 	clearSessionCookie,
-	createClearSessionCookieHeaders,
 	getSessionCookieFromClient,
 } from '@/front/lib/cookies';
 import { isJsClientError } from '@/front/lib/js-client/js-client-error';
@@ -31,68 +30,58 @@ import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { useMainStore } from '@/front/lib/zustand/store';
 import {
+	formActionKey,
 	FRONT_PATH_NAMES,
 	I18N_NAMESPACES,
 	queryParamKey,
 	queryParamValue,
-	SESSION_TOKEN_COOKIE_KEY,
 } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 
 import type { Route } from './+types/authed-layout';
 
 /**
- * Clears session state (cookies and query cache) and returns the login redirect URL.
- * This consolidates the cleanup logic used across clientLoader, ErrorBoundary, and AuthQueriesGuard.
- *
- * @returns URL string for redirecting to login with invalid_session cause
+ * Clears session state and submits a form to clear any httpOnly cookies server-side.
+ * This ensures both JS-accessible and httpOnly cookies are cleared in one redirect.
  */
-const clearSessionAndGetLoginUrl = (): string => {
-	// Clear session cookie (non-httpOnly only - httpOnly cookies require server-side clearing)
+const clearSessionAndRedirectToLogin = (): void => {
+	// Clear session cookie (non-httpOnly only)
 	clearSessionCookie();
 
 	// Clear react-query cache
 	defaultQueryClient.removeQueries();
 
-	// Build login redirect URL with invalid_session cause
-	const redirectUrl = new URL(
-		FRONT_PATH_NAMES.auth.login,
-		window.location.origin,
-	);
-	redirectUrl.searchParams.set(
-		queryParamKey.login_page.redirect_cause,
-		queryParamValue.login_page.redirect_cause.invalid_session,
-	);
+	// Submit form to clear-session route which will:
+	// 1. Clear any httpOnly session cookie on the server
+	// 2. Redirect to login page
+	// POST + Origin validation on server prevents link-based logout attacks
+	logger.debug('[authed-layout] Submitting form to clear session', {
+		url: FRONT_PATH_NAMES.auth.clearSession,
+	});
 
-	return redirectUrl.pathname + redirectUrl.search;
+	const form = document.createElement('form');
+	form.method = 'POST';
+	form.action = FRONT_PATH_NAMES.auth.clearSession;
+
+	const actionInput = document.createElement('input');
+	actionInput.type = 'hidden';
+	actionInput.name = 'action';
+	actionInput.value = formActionKey.clear_httponly_session;
+	form.appendChild(actionInput);
+
+	// Add redirect_cause so login page shows appropriate message
+	const causeInput = document.createElement('input');
+	causeInput.type = 'hidden';
+	causeInput.name = queryParamKey.login_page.redirect_cause;
+	causeInput.value = queryParamValue.login_page.redirect_cause.invalid_session;
+	form.appendChild(causeInput);
+
+	document.body.appendChild(form);
+	form.submit();
 };
 
 export const loader = getServerLoader({
-	loader: async ({ request }) => {
-		const url = new URL(request.url);
-		const forceHttpOnlyClear =
-			url.searchParams.get(queryParamKey.clear_http_only) === 'true';
-
-		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
-		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
-
-		// Handle httpOnly cookie clearing (only when parameter is present AND there's a session token)
-		// This indicates JavaScript couldn't read the cookie (httpOnly mismatch)
-		if (forceHttpOnlyClear && sessionToken) {
-			// Clear the httpOnly cookie and redirect to login
-			const clearHeaders = createClearSessionCookieHeaders();
-
-			const loginUrl = new URL(FRONT_PATH_NAMES.auth.login, url.origin);
-			loginUrl.searchParams.set(
-				queryParamKey.login_page.redirect_cause,
-				queryParamValue.login_page.redirect_cause.invalid_session,
-			);
-
-			return redirect(loginUrl.pathname + loginUrl.search, {
-				headers: clearHeaders,
-			});
-		}
-
+	loader: async () => {
 		return null;
 	},
 });
@@ -109,9 +98,10 @@ export const clientLoader = getClientLoader({
 
 		if (!sessionToken) {
 			// No session token readable by JavaScript
-			// Clear session and redirect to login
-			// The auth-layout will detect any httpOnly cookie mismatch and prevent infinite loops
-			throw redirect(clearSessionAndGetLoginUrl());
+			// Submit form to clear any httpOnly cookie and redirect to login
+			clearSessionAndRedirectToLogin();
+			// Return null while form is submitting (navigation will take over)
+			return null;
 		}
 
 		initApiClientOnClient();
@@ -160,14 +150,11 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 		error.responseStatusCode === 401 &&
 		_.toLower(error.messageEscaped) === _.toLower('Unauthorized')
 	) {
-		// Clear session and get login URL
-		// The auth-layout will handle any httpOnly cookie issues
-		const loginUrl = clearSessionAndGetLoginUrl();
-
-		logger.debug('Redirecting to login page', { url: loginUrl });
-
-		// Use hard redirect to ensure clean break from error state
-		window.location.href = loginUrl;
+		// Clear session and submit form to clear any httpOnly cookie
+		logger.debug(
+			'Unauthorized error, clearing session and redirecting to login',
+		);
+		clearSessionAndRedirectToLogin();
 
 		return <SplashScreen />;
 	}
@@ -202,9 +189,8 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 
 	if (!sessionToken) {
 		// No session token - this is a safety check
-		// Clear session and redirect to login
-		// The auth-layout will handle any httpOnly cookie issues
-		window.location.href = clearSessionAndGetLoginUrl();
+		// Submit form to clear any httpOnly cookie and redirect to login
+		clearSessionAndRedirectToLogin();
 
 		return <SplashScreen />;
 	}
