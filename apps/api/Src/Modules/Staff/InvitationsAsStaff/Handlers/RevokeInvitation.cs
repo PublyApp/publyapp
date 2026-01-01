@@ -16,7 +16,7 @@ public static class RevokeInvitation {
 		JsonHttpResult<ApiResponse>
 	>> HandleRevokeInvitation(
 		[FromRoute] Guid invitationId,
-		[FromServices] IAuthContext authContext,
+		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default

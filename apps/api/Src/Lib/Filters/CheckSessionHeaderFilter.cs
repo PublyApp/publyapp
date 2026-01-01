@@ -14,7 +14,7 @@ public class CheckSessionHeaderFilter : IEndpointFilter {
 		EndpointFilterDelegate next
 	) {
 		var httpContext = context.HttpContext;
-		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
+		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
 		var appSettings = httpContext.RequestServices.GetRequiredService<IOptions<AppSettings>>();
 
 		// Try to get token from AuthContext first, then from header

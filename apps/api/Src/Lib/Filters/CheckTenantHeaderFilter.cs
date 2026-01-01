@@ -12,10 +12,10 @@ public class CheckTenantHeaderFilter : IEndpointFilter {
 		EndpointFilterDelegate next
 	) {
 		var httpContext = context.HttpContext;
-		var tenantContext = httpContext.RequestServices.GetRequiredService<ITenantContext>();
+		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
 
-		// Try to get tenant ID from TenantContext first, then from header
-		var tenantId = tenantContext.TenantId
+		// Try to get tenant ID from AuthContext first, then from header
+		var tenantId = authContext.TenantId
 			?? httpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(tenantId)) {
@@ -25,8 +25,8 @@ public class CheckTenantHeaderFilter : IEndpointFilter {
 			);
 		}
 
-		// Set tenant ID in TenantContext for downstream filters/handlers
-		tenantContext.TenantId = tenantId;
+		// Set tenant ID in AuthContext for downstream filters/handlers
+		authContext.TenantId = tenantId;
 
 		return await next(context);
 	}

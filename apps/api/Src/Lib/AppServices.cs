@@ -120,12 +120,8 @@ public static class AppServices {
 		builder.Services.AddScoped<IProfileAsStaffService, ProfileAsStaffService>();
 		builder.Services.AddScoped<IPermissionAsStaffService, PermissionAsStaffService>();
 
-		// Register AuthContext
-		builder.Services.AddScoped<IAuthContext, AuthContext>();
-
-		// TODO: move tenant informations to the auth context
-		// Register TenantContext
-		builder.Services.AddScoped<ITenantContext, TenantContext>();
+		// Register RequestAuthContext (unified auth + tenant context)
+		builder.Services.AddScoped<IRequestAuthContext, RequestAuthContext>();
 
 		// Validate services at build time
 		builder.Host.UseDefaultServiceProvider(options => {
