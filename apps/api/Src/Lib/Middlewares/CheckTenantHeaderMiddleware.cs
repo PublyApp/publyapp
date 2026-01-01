@@ -6,7 +6,7 @@ public class CheckTenantHeaderMiddleware {
 	private readonly RequestDelegate _next;
 
 	public static string? GetTenantId(HttpContext httpContext) {
-		var tenantId = httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId
+		var tenantId = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>().TenantId
 			?? httpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(tenantId as string)) {
@@ -21,7 +21,7 @@ public class CheckTenantHeaderMiddleware {
 		_next = next;
 	}
 
-	public async Task InvokeAsync(HttpContext httpContext) {
+	public async Task InvokeAsync(HttpContext httpContext, IRequestAuthContext authContext) {
 		var tenantId = GetTenantId(httpContext);
 
 		if (string.IsNullOrEmpty(tenantId)) {
@@ -32,8 +32,7 @@ public class CheckTenantHeaderMiddleware {
 			return;
 		}
 
-		var tenantContext = httpContext.RequestServices.GetRequiredService<ITenantContext>();
-		tenantContext.TenantId = tenantId;
+		authContext.TenantId = tenantId;
 
 		await _next(httpContext);
 	}

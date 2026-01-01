@@ -24,7 +24,7 @@ public record CreateTenantWithInitialUsersResult {
 
 public interface ITenantAsStaffService {
 	Task<CommonTenantNs.Tenant> CreateTenant(CommonTenantNs.Tenant tenant, CancellationToken cancellationToken = default);
-	Task<CommonTenantNs.Tenant?> GetTenantAsync(Guid tenantId, CancellationToken cancellationToken = default);
+	Task<CommonTenantNs.Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
 	Task<List<TenantAsStaffItem>> FindTenantsAsync(
 		int? page = null,
 		int? limit = null,
@@ -59,12 +59,19 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		return result.Entity;
 	}
 
-	public async Task<CommonTenantNs.Tenant?> GetTenantAsync(Guid tenantId, CancellationToken cancellationToken = default) {
+	public async Task<CommonTenantNs.Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default) {
 		var query =
 			from tenant in _dbContext.Tenant
 			where tenant.Id == tenantId
 			select tenant;
-		return await query.FirstOrDefaultAsync(cancellationToken);
+
+		var foundTenant = await query.FirstOrDefaultAsync(cancellationToken);
+
+		if (foundTenant is not null && !CommonTenantNs.Tenant.IsTenantActive(foundTenant)) {
+			return null;
+		}
+
+		return foundTenant;
 	}
 
 	public async Task<List<TenantAsStaffItem>> FindTenantsAsync(

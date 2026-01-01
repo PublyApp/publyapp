@@ -19,6 +19,7 @@ public abstract record CreateTenantAccountResult {
 public interface IAccountService {
 	Task<CreateStaffAccountResult> CreateStaffAccountAsync(Guid userId, AccountLevel? accountLevel = null, CancellationToken cancellationToken = default);
 	Task<UserAccount?> GetUserStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<UserAccount?> GetUserTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserStaffMemberAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserMemberOfTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<List<UserAccount>> FindUserTenantAccountsAsync(Guid userId, int? limit = null, CancellationToken cancellationToken = default);
@@ -71,6 +72,22 @@ public class AccountService : IAccountService {
 		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
+	public async Task<UserAccount?> GetUserTenantAccountAsync(
+		Guid userId,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var query =
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+			&& ua.TenantId == tenantId
+			&& ua.Scope == AccountScope.Tenant
+			&& !ua.IsDeleted && !ua.IsSuspended
+			select ua;
+
+		return await query.FirstOrDefaultAsync(cancellationToken);
+	}
+
 	public async Task<bool> IsUserStaffMemberAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
@@ -94,6 +111,8 @@ public class AccountService : IAccountService {
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.TenantId == tenantId
+			&& ua.Scope == AccountScope.Tenant
+			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);

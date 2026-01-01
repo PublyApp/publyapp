@@ -25,11 +25,17 @@ public class GetTenantAuthDataResult {
 		public string Name { get; set; } = string.Empty;
 		public string Code { get; set; } = string.Empty;
 		public List<ProfileItem> Profiles { get; set; } = [];
+		public string AccountLevel { get; set; } = string.Empty;
+		public bool IsAdmin { get; set; } = false;
+		public List<string> Permissions { get; set; } = [];
 	}
 
 	public class Staff {
 		public string Code { get; set; } = "staff";
 		public List<ProfileItem> Profiles { get; set; } = [];
+		public string AccountLevel { get; set; } = string.Empty;
+		public bool IsAdmin { get; set; } = false;
+		public List<string> Permissions { get; set; } = [];
 	}
 }
 
@@ -38,10 +44,11 @@ public class GetTenantAuthData {
 		Results<
 			Ok<GetTenantAuthDataResult.Staff>,
 			Ok<GetTenantAuthDataResult.Tenant>,
-			BadRequest<ApiResponse>
-			>
-		> HandleGetTenantAuthData(
-		IAuthContext authContext,
+			BadRequest<ApiResponse>,
+			JsonHttpResult<ApiResponse>
+		>
+	> HandleGetTenantAuthData(
+		IRequestAuthContext authContext,
 		ILogger<GetTenantAuthData> logger,
 		[AsParameters] GetTenantAuthDataQuery query,
 		[FromServices] IOptions<AppSettings> appSettings,
@@ -79,11 +86,14 @@ public class GetTenantAuthData {
 					}
 				);
 
-				return TypedResults.BadRequest(ApiResponse.Create(
+				return TypedResults.Json(ApiResponse.Create(
 					"Unauthorized",
 					ResponseKeys.Unauthorized
-				));
+				), statusCode: StatusCodes.Status403Forbidden);
 			}
+
+			// Get the user's staff account for level info
+			var staffAccount = await accountService.GetUserStaffAccountAsync(userId, cancellationToken);
 
 			// Get the user's profiles and permissions for the staff scope
 			var staffProfileItems = await profileService.GetStaffProfilesWithPermissionsAsync(
@@ -91,10 +101,19 @@ public class GetTenantAuthData {
 				cancellationToken: cancellationToken
 			);
 
+			// Flatten permissions from all profiles
+			var staffPermissions = staffProfileItems
+				.SelectMany(p => p.Permissions)
+				.Distinct()
+				.ToList();
+
 			return TypedResults.Ok(
 				new GetTenantAuthDataResult.Staff {
 					Code = "staff",
-					Profiles = staffProfileItems
+					Profiles = staffProfileItems,
+					AccountLevel = UserAccount.GetAccountLevelDescription(staffAccount?.Level ?? AccountLevel.User),
+					IsAdmin = staffAccount?.Level == AccountLevel.Admin,
+					Permissions = staffPermissions
 				}
 			);
 		}
@@ -102,19 +121,19 @@ public class GetTenantAuthData {
 		var tenantId = query.GetTenantId();
 
 		if (tenantId == Guid.Empty) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedResults.Json(ApiResponse.Create(
 				"Tenant not found",
 				ResponseKeys.NotFound
-			));
+			), statusCode: StatusCodes.Status404NotFound);
 		}
 
-		var tenant = await tenantService.GetTenantAsync(tenantId, cancellationToken);
+		var tenant = await tenantService.GetTenantByIdAsync(tenantId, cancellationToken);
 
 		if (tenant is null) {
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedResults.Json(ApiResponse.Create(
 				"Tenant not found",
 				ResponseKeys.NotFound
-			));
+			), statusCode: StatusCodes.Status404NotFound);
 		}
 
 		var isUserMemberOfTenant = await accountService.IsUserMemberOfTenantAsync(userId, tenantId, cancellationToken);
@@ -129,11 +148,14 @@ public class GetTenantAuthData {
 				}
 			);
 
-			return TypedResults.BadRequest(ApiResponse.Create(
+			return TypedResults.Json(ApiResponse.Create(
 				"Unauthorized",
 				ResponseKeys.Unauthorized
-			));
+			), statusCode: StatusCodes.Status403Forbidden);
 		}
+
+		// Get user's tenant account for level info
+		var tenantAccount = await accountService.GetUserTenantAccountAsync(userId, tenantId, cancellationToken);
 
 		var tenantProfileItems = await profileService.GetUserProfilesWithPermissionsForTenantAsync(
 			userId,
@@ -142,12 +164,21 @@ public class GetTenantAuthData {
 			cancellationToken
 		);
 
+		// Flatten permissions from all profiles
+		var tenantPermissions = tenantProfileItems
+			.SelectMany(p => p.Permissions)
+			.Distinct()
+			.ToList();
+
 		return TypedResults.Ok(
 			new GetTenantAuthDataResult.Tenant {
 				Id = tenantId,
 				Name = tenant.Name,
 				Code = tenant.Code,
-				Profiles = tenantProfileItems
+				Profiles = tenantProfileItems,
+				AccountLevel = UserAccount.GetAccountLevelDescription(tenantAccount?.Level ?? AccountLevel.User),
+				IsAdmin = tenantAccount?.Level == AccountLevel.Admin,
+				Permissions = tenantPermissions
 			}
 		);
 	}

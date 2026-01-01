@@ -13,7 +13,7 @@ public static class FindStaffInvitations {
 		Ok<List<InvitationListItem>>,
 		JsonHttpResult<ApiResponse>
 	>> HandleFindStaffInvitations(
-		[FromServices] IAuthContext authContext,
+		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		CancellationToken cancellationToken = default
 	) {

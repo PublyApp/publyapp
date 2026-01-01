@@ -15,7 +15,7 @@ public class SessionAuthMiddleware {
 	public async Task InvokeAsync(
 		HttpContext httpContext,
 		ISessionService sessionService,
-		IAuthContext authContext
+		IRequestAuthContext authContext
 	) {
 		var sessionToken = CheckSessionHeaderMiddleware.GetSessionToken(httpContext);
 

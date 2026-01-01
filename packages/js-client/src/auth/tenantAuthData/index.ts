@@ -16,6 +16,8 @@ export interface TenantAuthDataRequestBuilder extends BaseRequestBuilder<TenantA
      * @returns {Promise<Tenant>}
      * @throws {ApiResponse} error when the service returns a 400 status code
      * @throws {ApiResponse} error when the service returns a 401 status code
+     * @throws {ApiResponse} error when the service returns a 403 status code
+     * @throws {ApiResponse} error when the service returns a 404 status code
      * @throws {ApiResponse} error when the service returns a 500 status code
      */
      get(requestConfiguration?: RequestConfiguration<TenantAuthDataRequestBuilderGetQueryParameters> | undefined) : Promise<Tenant | undefined>;
@@ -52,6 +54,8 @@ export const TenantAuthDataRequestBuilderRequestsMetadata: RequestsMetadata = {
         errorMappings: {
             400: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
             401: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
+            403: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
+            404: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
         },
         adapterMethodName: "send",

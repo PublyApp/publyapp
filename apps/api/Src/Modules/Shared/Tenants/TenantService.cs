@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace MainApi.Src.Modules.Shared.Tenants;
 
 public interface ITenantService {
-	Task<Tenant?> GetTenantAsync(Guid tenantId, CancellationToken cancellationToken = default);
+	Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default);
 }
 
 public class TenantService : ITenantService {
@@ -19,12 +19,18 @@ public class TenantService : ITenantService {
 		_appSettings = appSettings;
 	}
 
-	public async Task<Tenant?> GetTenantAsync(Guid tenantId, CancellationToken cancellationToken = default) {
-		return await _dbContext.Tenant
-			.Where(x => x.Id == tenantId)
-			.FirstOrDefaultAsync(cancellationToken);
+	public async Task<Tenant?> GetTenantByIdAsync(Guid tenantId, CancellationToken cancellationToken = default) {
+		var query =
+			from tenant in _dbContext.Tenant
+			where tenant.Id == tenantId
+			select tenant;
 
+		var foundTenant = await query.FirstOrDefaultAsync(cancellationToken);
 
+		if (foundTenant is not null && !Tenant.IsTenantActive(foundTenant)) {
+			return null;
+		}
+
+		return foundTenant;
 	}
-
 }

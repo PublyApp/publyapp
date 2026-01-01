@@ -7,6 +7,7 @@ import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
 import { useBoolean } from 'minimal-shared/hooks';
+
 import { AnimateBorder } from '@/front/components/animate';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { Label } from '@/front/components/label';
@@ -15,6 +16,9 @@ import { Scrollbar } from '@/front/components/scrollbar';
 import { usePathname } from '@/front/hooks/use-pathname';
 import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
 import { getUserFullName } from '@/shared/utils/user.utils';
+
+import { logout } from '@/front/lib/cookies';
+import { useCallback } from 'react';
 import { AccountButton } from './account-button';
 import { SignOutButton } from './sign-out-button';
 
@@ -118,6 +122,11 @@ export const AccountDrawer = ({
 			</MenuList>
 		);
 	};
+
+	const handleLogout = useCallback(() => {
+		onClose();
+		logout();
+	}, [onClose]);
 
 	return (
 		<>
@@ -226,7 +235,7 @@ export const AccountDrawer = ({
 				</Scrollbar>
 
 				<Box sx={{ p: 2.5 }}>
-					<SignOutButton onClose={onClose} />
+					<SignOutButton onClick={handleLogout} />
 				</Box>
 			</Drawer>
 		</>

@@ -15,7 +15,7 @@ public class StaffAuthMiddleware {
 	public async Task InvokeAsync(
 		HttpContext httpContext,
 		IAccountService accountService,
-		IAuthContext authContext
+		IRequestAuthContext authContext
 	) {
 		if (!authContext.IsAuthenticated) {
 			_logger.LogError("Request userId or sessionToken is missing: {@StaffAuthData}", new {

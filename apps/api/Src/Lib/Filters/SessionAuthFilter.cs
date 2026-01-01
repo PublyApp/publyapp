@@ -22,7 +22,7 @@ public class SessionAuthFilter : IEndpointFilter {
 		EndpointFilterDelegate next
 	) {
 		var httpContext = context.HttpContext;
-		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
+		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
 		var sessionService = httpContext.RequestServices.GetRequiredService<ISessionService>();
 		var appSettings = httpContext.RequestServices.GetRequiredService<IOptions<AppSettings>>();
 

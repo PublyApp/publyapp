@@ -18,6 +18,8 @@ import { TenantAuthDataRequestBuilderRequestsMetadata, type TenantAuthDataReques
 // @ts-ignore
 import { type UserAuthDataRequestBuilder, UserAuthDataRequestBuilderRequestsMetadata } from './userAuthData/index.js';
 // @ts-ignore
+import { type UserTenantsRequestBuilder, UserTenantsRequestBuilderRequestsMetadata } from './userTenants/index.js';
+// @ts-ignore
 import { type VerificationLinkRequestBuilder, VerificationLinkRequestBuilderRequestsMetadata } from './verificationLink/index.js';
 // @ts-ignore
 import { type VerifyEmailRequestRequestBuilder, VerifyEmailRequestRequestBuilderRequestsMetadata } from './verifyEmailRequest/index.js';
@@ -61,6 +63,10 @@ export interface AuthRequestBuilder extends BaseRequestBuilder<AuthRequestBuilde
      */
     get userAuthData(): UserAuthDataRequestBuilder;
     /**
+     * The userTenants property
+     */
+    get userTenants(): UserTenantsRequestBuilder;
+    /**
      * The verificationLink property
      */
     get verificationLink(): VerificationLinkRequestBuilder;
@@ -100,6 +106,9 @@ export const AuthRequestBuilderNavigationMetadata: Record<Exclude<keyof AuthRequ
     },
     userAuthData: {
         requestsMetadata: UserAuthDataRequestBuilderRequestsMetadata,
+    },
+    userTenants: {
+        requestsMetadata: UserTenantsRequestBuilderRequestsMetadata,
     },
     verificationLink: {
         requestsMetadata: VerificationLinkRequestBuilderRequestsMetadata,

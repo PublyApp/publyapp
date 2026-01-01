@@ -12,6 +12,8 @@ public class GetUserAuthDataResult {
 	public Guid Id { get; set; }
 	public string Email { get; set; } = string.Empty;
 	public string? AvatarUrl { get; set; }
+	public string? FirstName { get; set; }
+	public string? LastName { get; set; }
 }
 
 public class GetUserAuthData {
@@ -21,7 +23,7 @@ public class GetUserAuthData {
 		BadRequest<ApiResponse>
 		>
 	> HandleGetUserAuthData(
-		IAuthContext authContext,
+		IRequestAuthContext authContext,
 		ILogger<GetUserAuthData> logger,
 		[FromServices] IUserService userService,
 		CancellationToken cancellationToken
@@ -55,7 +57,9 @@ public class GetUserAuthData {
 		return TypedResults.Ok(new GetUserAuthDataResult {
 			Id = user.GetRequiredId(),
 			Email = user.Email,
-			AvatarUrl = user.AvatarUrl
+			AvatarUrl = user.AvatarUrl,
+			FirstName = user.FirstName,
+			LastName = user.LastName
 		});
 	}
 }

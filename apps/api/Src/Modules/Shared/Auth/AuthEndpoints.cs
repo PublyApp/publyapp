@@ -54,7 +54,9 @@ public static class AuthEndpoints {
 			.WithSessionAuthentication()
 			.ProducesApiResponses(
 				StatusCodes.Status500InternalServerError,
-				StatusCodes.Status401Unauthorized
+				StatusCodes.Status401Unauthorized,
+				StatusCodes.Status403Forbidden,
+				StatusCodes.Status404NotFound
 			);
 
 		group.MapPost(
@@ -82,6 +84,19 @@ public static class AuthEndpoints {
 			.WithName("GetRedirectCode")
 			.WithSummary("Get Redirect Code")
 			.WithReqQueryValidation<GetRedirectCodeQuery>()
+			.WithCheckSessionHeader()
+			.WithSessionAuthentication()
+			.ProducesApiResponses(
+				StatusCodes.Status500InternalServerError,
+				StatusCodes.Status401Unauthorized
+			);
+
+		group.MapGet(
+			PathUtils.GetLastSegment(RoutePath.Auth.GetUserTenants),
+			GetUserTenants.HandleGetUserTenants
+		)
+			.WithName("GetUserTenants")
+			.WithSummary("Get User Tenants")
 			.WithCheckSessionHeader()
 			.WithSessionAuthentication()
 			.ProducesApiResponses(

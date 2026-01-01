@@ -14,6 +14,7 @@ export const CLOUDFLARE_CONNECTING_IP_HEADER_KEY = 'CF-Connecting-IP';
 
 const RESOURCE = {
 	users: 'users',
+	app: 'app',
 	client: 'client',
 	clients: 'clients',
 	tenant: 'tenant',
@@ -39,6 +40,7 @@ const ROOTS = {
 export const FRONT_PATH_NAMES = {
 	home: '/',
 	maintenance: makePath('maintenance'),
+	unauthorized: makePath('unauthorized'),
 	auth: {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
@@ -49,42 +51,38 @@ export const FRONT_PATH_NAMES = {
 	},
 	tenant: (tenantId = '') => {
 		return {
-			root: makePath(RESOURCE.client, tenantId),
+			_root: makePath(RESOURCE.app),
+			root: makePath(RESOURCE.app, tenantId),
 			analytics: {
-				root: makePath(RESOURCE.client, tenantId, 'analytics'),
+				root: makePath(RESOURCE.app, tenantId, 'analytics'),
 			},
 			drafts: {
-				root: makePath(RESOURCE.client, tenantId, 'drafts'),
+				root: makePath(RESOURCE.app, tenantId, 'drafts'),
 			},
 			posts: {
-				root: makePath(RESOURCE.client, tenantId, 'posts'),
-				new: makePath(RESOURCE.client, tenantId, 'posts', 'new'),
+				root: makePath(RESOURCE.app, tenantId, 'posts'),
+				new: makePath(RESOURCE.app, tenantId, 'posts', 'new'),
 				edit: (postId = '') =>
-					makePath(RESOURCE.client, tenantId, 'posts', postId, 'edit'),
+					makePath(RESOURCE.app, tenantId, 'posts', postId, 'edit'),
 			},
 			schedule: {
-				root: makePath(RESOURCE.client, tenantId, 'schedule'),
+				root: makePath(RESOURCE.app, tenantId, 'schedule'),
 			},
 			media: {
-				root: makePath(RESOURCE.client, tenantId, 'media'),
+				root: makePath(RESOURCE.app, tenantId, 'media'),
 			},
 			accounts: {
-				root: makePath(RESOURCE.client, tenantId, 'accounts'),
-				socialAccounts: makePath(
-					RESOURCE.client,
-					tenantId,
-					'accounts',
-					'social',
-				),
+				root: makePath(RESOURCE.app, tenantId, 'accounts'),
+				socialAccounts: makePath(RESOURCE.app, tenantId, 'accounts', 'social'),
 			},
 			settings: {
-				root: makePath(RESOURCE.client, tenantId, 'settings'),
-				general: makePath(RESOURCE.client, tenantId, 'settings', 'general'),
-				members: makePath(RESOURCE.client, tenantId, 'settings', 'members'),
+				root: makePath(RESOURCE.app, tenantId, 'settings'),
+				general: makePath(RESOURCE.app, tenantId, 'settings', 'general'),
+				members: makePath(RESOURCE.app, tenantId, 'settings', 'members'),
 				invitations: {
-					root: makePath(RESOURCE.client, tenantId, 'settings', 'invitations'),
+					root: makePath(RESOURCE.app, tenantId, 'settings', 'invitations'),
 					new: makePath(
-						RESOURCE.client,
+						RESOURCE.app,
 						tenantId,
 						'settings',
 						'invitations',
@@ -92,16 +90,10 @@ export const FRONT_PATH_NAMES = {
 					),
 				},
 				profiles: {
-					root: makePath(RESOURCE.client, tenantId, 'settings', 'profiles'),
-					new: makePath(
-						RESOURCE.client,
-						tenantId,
-						'settings',
-						'profiles',
-						'new',
-					),
+					root: makePath(RESOURCE.app, tenantId, 'settings', 'profiles'),
+					new: makePath(RESOURCE.app, tenantId, 'settings', 'profiles', 'new'),
 				},
-				billing: makePath(RESOURCE.client, tenantId, 'settings', 'billing'),
+				billing: makePath(RESOURCE.app, tenantId, 'settings', 'billing'),
 			},
 		};
 	},

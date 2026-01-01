@@ -30,7 +30,53 @@ public class UserAccountSeeder : IEntitySeeder {
 
 	public async Task SeedAsync(MainApiDbContext dbContext, CancellationToken cancellationToken = default) {
 		AppEnvironment.LoadEnv();
-		// Define staff accounts to create
+
+		var newAccounts = new List<UserAccount>();
+
+		// Seed staff accounts
+		var staffAccounts = await SeedStaffAccountsAsync(dbContext, cancellationToken);
+		newAccounts.AddRange(staffAccounts);
+
+		// Seed tenant accounts
+		var tenantAccounts = await SeedTenantAccountsAsync(dbContext, cancellationToken);
+		newAccounts.AddRange(tenantAccounts);
+
+		if (newAccounts.Count == 0) {
+			_logger.LogInformation("UserAccount seeding skipped; all accounts already exist.");
+			return;
+		}
+
+		// Check if already in a transaction (e.g., during migrations)
+		var existingTransaction = dbContext.Database.CurrentTransaction;
+		var shouldManageTransaction = existingTransaction is null;
+
+		if (shouldManageTransaction) {
+			await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+			try {
+				await dbContext.UserAccount.AddRangeAsync(newAccounts, cancellationToken);
+				await dbContext.SaveChangesAsync(cancellationToken);
+				await transaction.CommitAsync(cancellationToken);
+				_logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
+			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				await transaction.RollbackAsync(cancellationToken);
+				_logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
+			} catch (Exception) {
+				await transaction.RollbackAsync(cancellationToken);
+				throw;
+			}
+		} else {
+			// Already in transaction (likely migration), just save changes
+			try {
+				await dbContext.UserAccount.AddRangeAsync(newAccounts, cancellationToken);
+				await dbContext.SaveChangesAsync(cancellationToken);
+				_logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
+			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
+				_logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
+			}
+		}
+	}
+
+	private async Task<List<UserAccount>> SeedStaffAccountsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
 		var staffAccountsData = new List<(string Email, AccountLevel Level)>();
 
 		var ownerEmail = AppEnvironment.STAFF_OWNER_EMAIL;
@@ -43,75 +89,120 @@ public class UserAccountSeeder : IEntitySeeder {
 			("staff-user@example.com", AccountLevel.User)
 		});
 
-		// Get user IDs for the staff users
 		var staffEmails = staffAccountsData.Select(sa => sa.Email).ToList();
-		var usersQuery =
+		var users = await (
 			from u in dbContext.User
 			where staffEmails.Contains(u.Email)
-			select u;
-		var users = await usersQuery.ToListAsync(cancellationToken);
+			select u
+		).ToListAsync(cancellationToken);
 
 		if (users.Count == 0) {
-			_logger.LogWarning("No staff users found for account creation. Ensure UserSeeder runs before UserAccountSeeder.");
-			return;
+			_logger.LogWarning("No staff users found for account creation.");
+			return [];
 		}
 
-		// Map email to user ID
 		var emailToUserId = users
 			.Where(u => u.Id.HasValue)
 			.ToDictionary(u => u.Email, u => u.Id!.Value);
 
-		// Check which staff accounts already exist
-		var userIds = users.Where(u => u.Id.HasValue).Select(u => u.Id!.Value).ToList();
-		var existingStaffAccountsQuery =
+		var userIds = emailToUserId.Values.ToList();
+		var existingStaffUserIds = await (
 			from ua in dbContext.UserAccount
 			where userIds.Contains(ua.UserId) && ua.Scope == AccountScope.Staff
-			select ua;
-		var existingStaffAccounts = await existingStaffAccountsQuery.ToListAsync(cancellationToken);
-		var existingStaffUserIds = existingStaffAccounts.Select(ua => ua.UserId).ToHashSet();
+			select ua.UserId
+		).ToListAsync(cancellationToken);
+		var existingSet = existingStaffUserIds.ToHashSet();
 
-		// Create new staff accounts
 		var newStaffAccounts = new List<UserAccount>();
 		foreach (var sa in staffAccountsData) {
-			if (emailToUserId.TryGetValue(sa.Email, out var userId) && !existingStaffUserIds.Contains(userId)) {
+			if (emailToUserId.TryGetValue(sa.Email, out var userId) && !existingSet.Contains(userId)) {
 				var account = UserAccount.CreateStaffAccount(userId, sa.Level);
 				account.ValidateAccountType();
 				newStaffAccounts.Add(account);
 			}
 		}
 
-		if (newStaffAccounts.Count == 0) {
-			_logger.LogInformation("UserAccount seeding skipped; all staff accounts already exist.");
-			return;
+		return newStaffAccounts;
+	}
+
+	private async Task<List<UserAccount>> SeedTenantAccountsAsync(MainApiDbContext dbContext, CancellationToken cancellationToken) {
+		// Define tenant accounts: (UserEmail, TenantCode, Level)
+		var tenantAccountsData = new List<(string Email, string TenantCode, AccountLevel Level)> {
+			// Acme Corporation users
+			("admin-acme@example.com", "acme-corp", AccountLevel.Admin),
+			("user-acme@example.com", "acme-corp", AccountLevel.User),
+			// TechStart Inc users
+			("admin-techstart@example.com", "techstart-inc", AccountLevel.Admin),
+			("user-techstart@example.com", "techstart-inc", AccountLevel.User),
+			// Global Solutions users
+			("admin-global@example.com", "global-solutions", AccountLevel.Admin),
+			("user-global@example.com", "global-solutions", AccountLevel.User),
+			// Cross-tenant users (member of multiple tenants)
+			("alice@example.com", "acme-corp", AccountLevel.User),
+			("alice@example.com", "techstart-inc", AccountLevel.User),
+			("bob@example.com", "techstart-inc", AccountLevel.User),
+			("bob@example.com", "global-solutions", AccountLevel.User),
+			("charlie@example.com", "acme-corp", AccountLevel.Admin),
+			("charlie@example.com", "global-solutions", AccountLevel.User),
+		};
+
+		// Get all relevant users
+		var userEmails = tenantAccountsData.Select(ta => ta.Email).Distinct().ToList();
+		var users = await (
+			from u in dbContext.User
+			where userEmails.Contains(u.Email)
+			select u
+		).ToListAsync(cancellationToken);
+
+		if (users.Count == 0) {
+			_logger.LogWarning("No tenant users found for account creation.");
+			return [];
 		}
 
-		// Check if already in a transaction (e.g., during migrations)
-		var existingTransaction = dbContext.Database.CurrentTransaction;
-		var shouldManageTransaction = existingTransaction is null;
+		var emailToUserId = users
+			.Where(u => u.Id.HasValue)
+			.ToDictionary(u => u.Email, u => u.Id!.Value);
 
-		if (shouldManageTransaction) {
-			await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-			try {
-				await dbContext.UserAccount.AddRangeAsync(newStaffAccounts, cancellationToken);
-				await dbContext.SaveChangesAsync(cancellationToken);
-				await transaction.CommitAsync(cancellationToken);
-				_logger.LogInformation("Seeded {Count} staff accounts.", newStaffAccounts.Count);
-			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				await transaction.RollbackAsync(cancellationToken);
-				_logger.LogWarning(ex, "Duplicate staff accounts detected during seeding; skipping insert.");
-			} catch (Exception) {
-				await transaction.RollbackAsync(cancellationToken);
-				throw;
-			}
-		} else {
-			// Already in transaction (likely migration), just save changes
-			try {
-				await dbContext.UserAccount.AddRangeAsync(newStaffAccounts, cancellationToken);
-				await dbContext.SaveChangesAsync(cancellationToken);
-				_logger.LogInformation("Seeded {Count} staff accounts.", newStaffAccounts.Count);
-			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
-				_logger.LogWarning(ex, "Duplicate staff accounts detected during seeding; skipping insert.");
-			}
+		// Get all relevant tenants
+		var tenantCodes = tenantAccountsData.Select(ta => ta.TenantCode).Distinct().ToList();
+		var tenants = await (
+			from t in dbContext.Tenant
+			where tenantCodes.Contains(t.Code)
+			select t
+		).ToListAsync(cancellationToken);
+
+		if (tenants.Count == 0) {
+			_logger.LogWarning("No tenants found for account creation.");
+			return [];
 		}
+
+		var codeToTenantId = tenants
+			.Where(t => t.Id.HasValue)
+			.ToDictionary(t => t.Code, t => t.Id!.Value);
+
+		// Get existing tenant accounts
+		var userIds = emailToUserId.Values.ToList();
+		var existingTenantAccounts = await (
+			from ua in dbContext.UserAccount
+			where userIds.Contains(ua.UserId) && ua.Scope == AccountScope.Tenant
+			select new { ua.UserId, ua.TenantId }
+		).ToListAsync(cancellationToken);
+		var existingSet = existingTenantAccounts
+			.Where(e => e.TenantId.HasValue)
+			.Select(e => (e.UserId, e.TenantId!.Value))
+			.ToHashSet();
+
+		var newTenantAccounts = new List<UserAccount>();
+		foreach (var ta in tenantAccountsData) {
+			if (!emailToUserId.TryGetValue(ta.Email, out var userId)) continue;
+			if (!codeToTenantId.TryGetValue(ta.TenantCode, out var tenantId)) continue;
+			if (existingSet.Contains((userId, tenantId))) continue;
+
+			var account = UserAccount.CreateTenantAccount(userId, tenantId, ta.Level);
+			account.ValidateAccountType();
+			newTenantAccounts.Add(account);
+		}
+
+		return newTenantAccounts;
 	}
 }

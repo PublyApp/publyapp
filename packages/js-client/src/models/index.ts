@@ -400,6 +400,15 @@ export function createGetUserAuthDataResultFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetUserTenantsResult}
+ */
+// @ts-ignore
+export function createGetUserTenantsResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetUserTenantsResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetVerificationLinkResult}
  */
 // @ts-ignore
@@ -697,6 +706,15 @@ export function createTenantAsStaffResultFromDiscriminatorValue(parseNode: Parse
 // @ts-ignore
 export function createTenantFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoTenant;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantListItem}
+ */
+// @ts-ignore
+export function createTenantListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantListItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1257,7 +1275,21 @@ export function deserializeIntoGetUserAuthDataResult(getUserAuthDataResult: Part
     return {
         "avatarUrl": n => { getUserAuthDataResult.avatarUrl = n.getStringValue(); },
         "email": n => { getUserAuthDataResult.email = n.getStringValue(); },
+        "firstName": n => { getUserAuthDataResult.firstName = n.getStringValue(); },
         "id": n => { getUserAuthDataResult.id = n.getGuidValue(); },
+        "lastName": n => { getUserAuthDataResult.lastName = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetUserTenantsResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetUserTenantsResult(getUserTenantsResult: Partial<GetUserTenantsResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "tenants": n => { getUserTenantsResult.tenants = n.getCollectionOfObjectValues<TenantListItem>(createTenantListItemFromDiscriminatorValue); },
+        "totalCount": n => { getUserTenantsResult.totalCount = n.getNumberValue(); },
     }
 }
 /**
@@ -1517,9 +1549,12 @@ export function deserializeIntoStaffProfileItem(staffProfileItem: Partial<StaffP
 // @ts-ignore
 export function deserializeIntoTenant(tenant: Partial<Tenant> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "accountLevel": n => { tenant.accountLevel = n.getStringValue(); },
         "code": n => { tenant.code = n.getStringValue(); },
         "id": n => { tenant.id = n.getGuidValue(); },
+        "isAdmin": n => { tenant.isAdmin = n.getBooleanValue(); },
         "name": n => { tenant.name = n.getStringValue(); },
+        "permissions": n => { tenant.permissions = n.getCollectionOfPrimitiveValues<string>(); },
         "profiles": n => { tenant.profiles = n.getCollectionOfObjectValues<ProfileItem>(createProfileItemFromDiscriminatorValue); },
     }
 }
@@ -1549,6 +1584,20 @@ export function deserializeIntoTenantAsStaffResult(tenantAsStaffResult: Partial<
     return {
         "count": n => { tenantAsStaffResult.count = n.getNumberValue(); },
         "tenants": n => { tenantAsStaffResult.tenants = n.getCollectionOfObjectValues<TenantAsStaffItem>(createTenantAsStaffItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param TenantListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantListItem(tenantListItem: Partial<TenantListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "code": n => { tenantListItem.code = n.getStringValue(); },
+        "id": n => { tenantListItem.id = n.getGuidValue(); },
+        "logoUrl": n => { tenantListItem.logoUrl = n.getStringValue(); },
+        "name": n => { tenantListItem.name = n.getStringValue(); },
     }
 }
 /**
@@ -1807,9 +1856,27 @@ export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
      */
     email?: string | null;
     /**
+     * The firstName property
+     */
+    firstName?: string | null;
+    /**
      * The id property
      */
     id?: Guid | null;
+    /**
+     * The lastName property
+     */
+    lastName?: string | null;
+}
+export interface GetUserTenantsResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The tenants property
+     */
+    tenants?: TenantListItem[] | null;
+    /**
+     * The totalCount property
+     */
+    totalCount?: number | null;
 }
 export interface GetVerificationLinkResult extends AdditionalDataHolder, Parsable {
     /**
@@ -2493,8 +2560,23 @@ export function serializeGetUserAuthDataResult(writer: SerializationWriter, getU
     if (!getUserAuthDataResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("avatarUrl", getUserAuthDataResult.avatarUrl);
     writer.writeStringValue("email", getUserAuthDataResult.email);
+    writer.writeStringValue("firstName", getUserAuthDataResult.firstName);
     writer.writeGuidValue("id", getUserAuthDataResult.id);
+    writer.writeStringValue("lastName", getUserAuthDataResult.lastName);
     writer.writeAdditionalData(getUserAuthDataResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetUserTenantsResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetUserTenantsResult(writer: SerializationWriter, getUserTenantsResult: Partial<GetUserTenantsResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getUserTenantsResult || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<TenantListItem>("tenants", getUserTenantsResult.tenants, serializeTenantListItem);
+    writer.writeNumberValue("totalCount", getUserTenantsResult.totalCount);
+    writer.writeAdditionalData(getUserTenantsResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -2772,9 +2854,12 @@ export function serializeStaffProfileItem(writer: SerializationWriter, staffProf
 // @ts-ignore
 export function serializeTenant(writer: SerializationWriter, tenant: Partial<Tenant> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenant || isSerializingDerivedType) { return; }
+    writer.writeStringValue("accountLevel", tenant.accountLevel);
     writer.writeStringValue("code", tenant.code);
     writer.writeGuidValue("id", tenant.id);
+    writer.writeBooleanValue("isAdmin", tenant.isAdmin);
     writer.writeStringValue("name", tenant.name);
+    writer.writeCollectionOfPrimitiveValues<string>("permissions", tenant.permissions);
     writer.writeCollectionOfObjectValues<ProfileItem>("profiles", tenant.profiles, serializeProfileItem);
     writer.writeAdditionalData(tenant.additionalData);
 }
@@ -2807,6 +2892,21 @@ export function serializeTenantAsStaffResult(writer: SerializationWriter, tenant
     writer.writeNumberValue("count", tenantAsStaffResult.count);
     writer.writeCollectionOfObjectValues<TenantAsStaffItem>("tenants", tenantAsStaffResult.tenants, serializeTenantAsStaffItem);
     writer.writeAdditionalData(tenantAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantListItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantListItem(writer: SerializationWriter, tenantListItem: Partial<TenantListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantListItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("code", tenantListItem.code);
+    writer.writeGuidValue("id", tenantListItem.id);
+    writer.writeStringValue("logoUrl", tenantListItem.logoUrl);
+    writer.writeStringValue("name", tenantListItem.name);
+    writer.writeAdditionalData(tenantListItem.additionalData);
 }
 /**
  * Serializes information the current object
@@ -3057,6 +3157,10 @@ export interface StaffProfileItem extends AdditionalDataHolder, Parsable {
 }
 export interface Tenant extends AdditionalDataHolder, Parsable {
     /**
+     * The accountLevel property
+     */
+    accountLevel?: string | null;
+    /**
      * The code property
      */
     code?: string | null;
@@ -3065,9 +3169,17 @@ export interface Tenant extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The isAdmin property
+     */
+    isAdmin?: boolean | null;
+    /**
      * The name property
      */
     name?: string | null;
+    /**
+     * The permissions property
+     */
+    permissions?: string[] | null;
     /**
      * The profiles property
      */
@@ -3108,6 +3220,24 @@ export interface TenantAsStaffResult extends AdditionalDataHolder, Parsable {
      * The tenants property
      */
     tenants?: TenantAsStaffItem[] | null;
+}
+export interface TenantListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The code property
+     */
+    code?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The logoUrl property
+     */
+    logoUrl?: string | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
 }
 export interface UpdateStaffMemberBody extends AdditionalDataHolder, Parsable {
     /**

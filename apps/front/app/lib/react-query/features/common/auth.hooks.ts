@@ -5,10 +5,13 @@ import {
 	createQuery,
 	createSuspenseQuery,
 } from 'react-query-kit';
+
 import { clientManager } from '@/front/lib/js-client/client-manager';
 import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import type { ApiClient } from '@/js-client/src/apiClient';
 import type { VerifyEmailRequestBody } from '@/js-client/src/models';
+import { logger } from '@/shared/lib/logger/iso-logger';
+
 import { getQueryKey } from '../../query-utils';
 
 const getUserAuthDataQueryKey = getQueryKey<ApiClient>(
@@ -92,6 +95,26 @@ export const useGetVerificationLink = createQuery({
 	},
 });
 
+const getRedirectCodeQueryKey = getQueryKey<ApiClient>(
+	(client) => client.auth.redirectCode.get,
+);
+
+export const useGetRedirectCode = createQuery({
+	queryKey: [getRedirectCodeQueryKey] as const,
+	fetcher: async ({ tenantId }: { tenantId?: string }) => {
+		const result = await clientManager.apiClient.auth.redirectCode.get({
+			queryParameters: {
+				tenantId,
+			},
+		});
+		if (_.isNil(result)) {
+			throw new Error(`[${getRedirectCodeQueryKey}]: result is nil`);
+		}
+		logger.debug('🔍🔍🔍🔍', { result });
+		return result;
+	},
+});
+
 const getVerifyEmailRequestQueryKey = getQueryKey<ApiClient>(
 	(client) => client.auth.verifyEmailRequest.post,
 );
@@ -106,6 +129,21 @@ export const useSendEmailVerificationReminder = createMutation({
 			await clientManager.apiClient.auth.verifyEmailRequest.post(body);
 		if (_.isNil(result)) {
 			throw new Error(`[${getVerifyEmailRequestQueryKey}]: result is nil`);
+		}
+		return result;
+	},
+});
+
+const getUserTenantsQueryKey = getQueryKey<ApiClient>(
+	(client) => client.auth.userTenants.get,
+);
+
+export const useGetUserTenants = createQuery({
+	queryKey: [getUserTenantsQueryKey] as const,
+	fetcher: async () => {
+		const result = await clientManager.apiClient.auth.userTenants.get();
+		if (_.isNil(result)) {
+			throw new Error(`[${getUserTenantsQueryKey}]: result is nil`);
 		}
 		return result;
 	},

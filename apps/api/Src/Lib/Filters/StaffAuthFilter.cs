@@ -20,7 +20,7 @@ public class StaffAuthFilter : IEndpointFilter {
 		EndpointFilterDelegate next
 	) {
 		var httpContext = context.HttpContext;
-		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
+		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
 		var accountService = httpContext.RequestServices.GetRequiredService<IAccountService>();
 
 		if (!authContext.IsAuthenticated) {

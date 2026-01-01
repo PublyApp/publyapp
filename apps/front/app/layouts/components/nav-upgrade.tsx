@@ -6,12 +6,12 @@ import { m } from 'framer-motion';
 import { varAlpha } from 'minimal-shared/utils';
 
 import { Label } from '@/front/components/label';
-import { useMockedUser } from '@/front/hooks/use-mocked-user';
+import { useGetUserAuthData } from '@/front/lib/react-query/features/common/auth.hooks';
 
 // ----------------------------------------------------------------------
 
 export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
-	const { user } = useMockedUser();
+	const { data: userData } = useGetUserAuthData();
 
 	return (
 		<Box
@@ -26,11 +26,11 @@ export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
 			>
 				<Box sx={{ position: 'relative' }}>
 					<Avatar
-						src={user?.photoURL}
-						alt={user?.displayName}
+						src={userData?.avatarUrl ?? undefined}
+						alt={userData?.email ?? undefined}
 						sx={{ width: 48, height: 48 }}
 					>
-						{user?.displayName?.charAt(0).toUpperCase()}
+						{userData?.email?.charAt(0).toUpperCase()}
 					</Avatar>
 
 					<Label
@@ -55,7 +55,7 @@ export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
 						noWrap
 						sx={{ mb: 1, color: 'var(--layout-nav-text-primary-color)' }}
 					>
-						{user?.displayName}
+						{userData?.email}
 					</Typography>
 
 					<Typography
@@ -63,7 +63,7 @@ export const NavUpgrade = ({ sx, ...other }: BoxProps) => {
 						noWrap
 						sx={{ color: 'var(--layout-nav-text-disabled-color)' }}
 					>
-						{user?.email}
+						{userData?.email}
 					</Typography>
 				</Box>
 
