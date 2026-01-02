@@ -1,9 +1,11 @@
 import type { Theme } from '@mui/material';
 import type { MRT_RowData, MRT_TableOptions } from 'material-react-table';
+
 import { cursorPaginationPreset } from './presets/cursor-pagination-preset';
 import { defaultTablePreset } from './presets/default-preset';
+import { uiFoundationsTablePreset } from './presets/ui-foundations-preset';
 
-export type PresetKey = 'default' | 'cursor-pagination';
+export type PresetKey = 'default' | 'cursor-pagination' | 'ui-foundations';
 export type TablePreset = Omit<
 	MRT_TableOptions<MRT_RowData>,
 	'columns' | 'data'
@@ -12,4 +14,5 @@ export type TablePreset = Omit<
 export const tablePresets: Record<PresetKey, (theme: Theme) => TablePreset> = {
 	default: defaultTablePreset,
 	'cursor-pagination': cursorPaginationPreset,
+	'ui-foundations': uiFoundationsTablePreset,
 };

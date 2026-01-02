@@ -113,7 +113,7 @@ const TenantsTable = () => {
 		return _.map(data?.tenants, (tenant) => TenantRowDataMapper(tenant));
 	}, [data]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('ui-foundations', {
 		columns,
 		data: dataTable,
 		rowCount: getUntypedNumber(data?.count, 0),
@@ -134,9 +134,9 @@ const TenantsTable = () => {
 	});
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
-		</Card>
+		</Box>
 	);
 };
 
