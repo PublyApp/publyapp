@@ -80,11 +80,13 @@ public class ImpersonationService : IImpersonationService {
 			cancellationToken
 		);
 
-		_logger.LogInformation(
-			"Staff user {StaffUserId} started impersonation session for tenant {TenantId}",
-			staffUserId,
-			tenantId
-		);
+		if (_logger.IsEnabled(LogLevel.Information)) {
+			_logger.LogInformation(
+				"Staff user {StaffUserId} started impersonation session for tenant {TenantId}",
+				staffUserId,
+				tenantId
+			);
+		}
 
 		return session;
 	}

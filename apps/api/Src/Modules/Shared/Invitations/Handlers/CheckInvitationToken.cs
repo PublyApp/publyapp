@@ -70,10 +70,12 @@ public static class CheckInvitationToken {
 
 		// check if invitation is for the given email
 		if (string.Equals(invitation.Email, email, StringComparison.OrdinalIgnoreCase) is false) {
-			logger.LogDebug("Invalid invitation token: @{LogData}", new {
-				Email = email,
-				InvitationEmail = invitation.Email,
-			});
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug("Invalid invitation token: @{LogData}", new {
+					Email = email,
+					InvitationEmail = invitation.Email,
+				});
+			}
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"Invalid or expired invitation token",
 				ResponseKeys.InvalidInvitationToken

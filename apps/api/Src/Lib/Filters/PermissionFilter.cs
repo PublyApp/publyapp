@@ -50,11 +50,13 @@ public class PermissionFilter : IEndpointFilter {
 
 				// early clause guard to avoid unnecessary permission checks
 				if (userPermissions.Count == 0) {
-					logger.LogDebug("User is not an admin and has no permissions: {@AccountStaff}", new {
-						accountId = accountStaff.Id,
-						userId = accountStaff.UserId,
-						sessionToken = authContext.SessionToken,
-					});
+					if (logger.IsEnabled(LogLevel.Debug)) {
+						logger.LogDebug("User is not an admin and has no permissions: {@AccountStaff}", new {
+							accountId = accountStaff.Id,
+							userId = accountStaff.UserId,
+							sessionToken = authContext.SessionToken,
+						});
+					}
 
 					return TypedResults.Json(
 						ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
@@ -77,13 +79,15 @@ public class PermissionFilter : IEndpointFilter {
 				}
 
 				if (!hasRequiredPermissions) {
-					logger.LogDebug("User failed permission check: {@PermissionCheck}", new {
-						accountId = accountStaff.Id,
-						userId = accountStaff.UserId,
-						userPermissionsCount = userPermissions.Count,
-						hasCustomChecker = _customPermissionChecker != null
-						// userPermissions = userPermissions.ToArray(),
-					});
+					if (logger.IsEnabled(LogLevel.Debug)) {
+						logger.LogDebug("User failed permission check: {@PermissionCheck}", new {
+							accountId = accountStaff.Id,
+							userId = accountStaff.UserId,
+							userPermissionsCount = userPermissions.Count,
+							hasCustomChecker = _customPermissionChecker != null
+							// userPermissions = userPermissions.ToArray(),
+						});
+					}
 
 					return TypedResults.Json(ApiResponse.Create(
 						"User does not have the necessary permissions",

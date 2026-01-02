@@ -128,7 +128,9 @@ public class CheckEmailVerificationToken {
 		_ = emailService.SendEmailVerifiedNotificationAsync(user.Email)
 		.ContinueWith(t => {
 			if (t.Exception != null) {
-				logger.LogError(t.Exception, "Error sending email verification success email to {Email}", user.Email);
+				if (logger.IsEnabled(LogLevel.Error)) {
+					logger.LogError(t.Exception, "Error sending email verification success email to {Email}", user.Email);
+				}
 			}
 		}, cancellationToken);
 
