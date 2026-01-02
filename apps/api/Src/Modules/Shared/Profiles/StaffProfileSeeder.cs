@@ -60,7 +60,9 @@ public class StaffProfileSeeder : IEntitySeeder {
 				await dbContext.Profile.AddRangeAsync(newProfiles, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				_logger.LogInformation("Seeded {Count} staff profiles.", newProfiles.Count);
+				if (_logger.IsEnabled(LogLevel.Information)) {
+					_logger.LogInformation("Seeded {Count} staff profiles.", newProfiles.Count);
+				}
 			} catch (Exception) {
 				await transaction.RollbackAsync(cancellationToken);
 				throw;
@@ -68,7 +70,9 @@ public class StaffProfileSeeder : IEntitySeeder {
 		} else {
 			await dbContext.Profile.AddRangeAsync(newProfiles, cancellationToken);
 			await dbContext.SaveChangesAsync(cancellationToken);
-			_logger.LogInformation("Seeded {Count} staff profiles.", newProfiles.Count);
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation("Seeded {Count} staff profiles.", newProfiles.Count);
+			}
 		}
 	}
 }

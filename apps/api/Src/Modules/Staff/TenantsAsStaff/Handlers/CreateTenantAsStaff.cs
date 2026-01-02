@@ -259,11 +259,13 @@ public static class CreateTenantAsStaff {
 				);
 			}, cancellationToken);
 
-			logger.LogInformation(
-				"Created tenant {TenantId} with {UserCount} initial user invitations",
-				result.Tenant.GetRequiredId(),
-				result.InvitationTokens.Count
-			);
+			if (logger.IsEnabled(LogLevel.Information)) {
+				logger.LogInformation(
+					"Created tenant {TenantId} with {UserCount} initial user invitations",
+					result.Tenant.GetRequiredId(),
+					result.InvitationTokens.Count
+				);
+			}
 
 			return TypedResults.Ok(new CreateTenantAsStaffResult {
 				Id = result.Tenant.GetRequiredId(),
@@ -339,14 +341,16 @@ public static class CreateTenantAsStaff {
 					var log = (ILogger)ctx["logger"];
 					var emailAddr = (string)ctx["email"];
 
-					log.LogWarning(
-						exception,
-						"Failed to send tenant invitation email to {Email} (attempt {Attempt}/3), " +
-						"retrying in {Delay}ms",
-						emailAddr,
-						retryCount,
-						timeSpan.TotalMilliseconds
-					);
+					if (log.IsEnabled(LogLevel.Warning)) {
+						log.LogWarning(
+							exception,
+							"Failed to send tenant invitation email to {Email} (attempt {Attempt}/3), " +
+							"retrying in {Delay}ms",
+							emailAddr,
+							retryCount,
+							timeSpan.TotalMilliseconds
+						);
+					}
 				}
 			);
 
@@ -359,16 +363,20 @@ public static class CreateTenantAsStaff {
 				cancellationToken
 			);
 
-			logger.LogInformation(
-				"Successfully sent tenant invitation email to {Email}",
-				email
-			);
+			if (logger.IsEnabled(LogLevel.Information)) {
+				logger.LogInformation(
+					"Successfully sent tenant invitation email to {Email}",
+					email
+				);
+			}
 		} catch (Exception ex) {
-			logger.LogError(
-				ex,
-				"Failed to send tenant invitation email to {Email} after 3 attempts",
-				email
-			);
+			if (logger.IsEnabled(LogLevel.Error)) {
+				logger.LogError(
+					ex,
+					"Failed to send tenant invitation email to {Email} after 3 attempts",
+					email
+				);
+			}
 			// Don't rethrow - email failures shouldn't break the main operation
 		}
 	}

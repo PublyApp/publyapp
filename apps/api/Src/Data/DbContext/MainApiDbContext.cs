@@ -23,30 +23,30 @@ namespace MainApi.Src.Data.DbContext;
 public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
-	public DbSet<Session> Session { get; init; }
-	public DbSet<Product> Product { get; init; }
-	public DbSet<User> User { get; init; }
-	public DbSet<Tenant> Tenant { get; init; }
+	public DbSet<Session> Session { get; init; } = null!;
+	public DbSet<Product> Product { get; init; } = null!;
+	public DbSet<User> User { get; init; } = null!;
+	public DbSet<Tenant> Tenant { get; init; } = null!;
 
 	// Project system entities (still needed for Project entity)
-	public DbSet<Project> Project { get; init; }
+	public DbSet<Project> Project { get; init; } = null!;
 
 	// Unified permission system entities
-	public DbSet<Permission> Permission { get; init; }
-	public DbSet<Profile> Profile { get; init; }
-	public DbSet<ProfilePermission> ProfilePermission { get; init; }
-	public DbSet<UserAccountProfile> UserAccountProfile { get; init; }
+	public DbSet<Permission> Permission { get; init; } = null!;
+	public DbSet<Profile> Profile { get; init; } = null!;
+	public DbSet<ProfilePermission> ProfilePermission { get; init; } = null!;
+	public DbSet<UserAccountProfile> UserAccountProfile { get; init; } = null!;
 
 	// Unified account system (handles Staff, Tenant, and Project accounts)
-	public DbSet<UserAccount> UserAccount { get; init; }
+	public DbSet<UserAccount> UserAccount { get; init; } = null!;
 
 	// Unified invitation system (Staff/Tenant/Project)
-	public DbSet<Invitation> Invitation { get; init; }
-	public DbSet<InvitationProfile> InvitationProfile { get; init; }
+	public DbSet<Invitation> Invitation { get; init; } = null!;
+	public DbSet<InvitationProfile> InvitationProfile { get; init; } = null!;
 
 	// Staff back-office entities
-	public DbSet<AuditLog> AuditLog { get; init; }
-	public DbSet<SystemNotice> SystemNotice { get; init; }
+	public DbSet<AuditLog> AuditLog { get; init; } = null!;
+	public DbSet<SystemNotice> SystemNotice { get; init; } = null!;
 
 	public Guid? TenantId { get; set; }
 
@@ -99,7 +99,9 @@ public class MainApiDbContext : Microsoft.EntityFrameworkCore.DbContext {
 		var seeders = CreateSeeders(serviceProvider);
 
 		foreach (var seeder in seeders) {
-			logger?.LogInformation("Running seeder {Seeder} with order {Order}", seeder.GetType().Name, seeder.Order);
+			if (logger?.IsEnabled(LogLevel.Information) == true) {
+				logger.LogInformation("Running seeder {Seeder} with order {Order}", seeder.GetType().Name, seeder.Order);
+			}
 			await seeder.SeedAsync(dbContext, cancellationToken);
 		}
 	}

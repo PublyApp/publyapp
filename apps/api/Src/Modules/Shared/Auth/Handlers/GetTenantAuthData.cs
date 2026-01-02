@@ -58,10 +58,12 @@ public class GetTenantAuthData {
 		CancellationToken cancellationToken
 	) {
 		if (!authContext.IsAuthenticated) {
-			logger.LogError("{@GetUserAuthData}", new {
-				UserId = authContext.UserId,
-				SessionToken = authContext.SessionToken
-			});
+			if (logger.IsEnabled(LogLevel.Error)) {
+				logger.LogError("{@GetUserAuthData}", new {
+					UserId = authContext.UserId,
+					SessionToken = authContext.SessionToken
+				});
+			}
 			throw new Exception($"{nameof(GetTenantAuthData)} must be set behind {nameof(SessionAuthMiddleware)}.");
 		}
 
@@ -77,14 +79,16 @@ public class GetTenantAuthData {
 			var isUserStaffMember = await accountService.IsUserStaffMemberAsync(userId, cancellationToken);
 
 			if (!isUserStaffMember) {
-				logger.LogWarning(
-					"Attempt to access staff auth data by user who is not a staff member, {@LogData}",
-					new {
-						UserId = userId,
-						TenantId = query.TenantId,
-						SessionToken = authContext.SessionToken,
-					}
-				);
+				if (logger.IsEnabled(LogLevel.Warning)) {
+					logger.LogWarning(
+						"Attempt to access staff auth data by user who is not a staff member, {@LogData}",
+						new {
+							UserId = userId,
+							TenantId = query.TenantId,
+							SessionToken = authContext.SessionToken,
+						}
+					);
+				}
 
 				return TypedResults.Json(ApiResponse.Create(
 					"Unauthorized",
@@ -139,14 +143,16 @@ public class GetTenantAuthData {
 		var isUserMemberOfTenant = await accountService.IsUserMemberOfTenantAsync(userId, tenantId, cancellationToken);
 
 		if (!isUserMemberOfTenant) {
-			logger.LogWarning(
-				"Attempt to access tenant auth data by user who is not a member of the tenant, {@LogData}",
-				new {
-					UserId = userId,
-					TenantId = tenantId,
-					SessionToken = authContext.SessionToken,
-				}
-			);
+			if (logger.IsEnabled(LogLevel.Warning)) {
+				logger.LogWarning(
+					"Attempt to access tenant auth data by user who is not a member of the tenant, {@LogData}",
+					new {
+						UserId = userId,
+						TenantId = tenantId,
+						SessionToken = authContext.SessionToken,
+					}
+				);
+			}
 
 			return TypedResults.Json(ApiResponse.Create(
 				"Unauthorized",

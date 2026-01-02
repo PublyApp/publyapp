@@ -67,3 +67,7 @@ dotnet_diagnostic.IDE0059.severity = warning
 dotnet_diagnostic.IDE0060.severity = warning
 # CS1591: Missing XML comment for publicly visible type or member
 dotnet_diagnostic.CS1591.severity = none
+# CA1848: Use the LoggerMessage delegates for performance
+dotnet_diagnostic.CA1848.severity = none
+# CA1062: Validate arguments of public methods
+dotnet_diagnostic.CA1873.severity = warning

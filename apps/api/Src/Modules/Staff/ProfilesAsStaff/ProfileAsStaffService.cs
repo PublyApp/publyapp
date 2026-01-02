@@ -660,16 +660,18 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			await _dbContext.SaveChangesAsync(cancellationToken);
 			await transaction.CommitAsync(cancellationToken);
 
-			_logger.LogInformation(
-				"Created staff profile {ProfileName} with {PermissionsCount} permissions, " +
-				"{NewLinksCount} new user assignments, {ExistingLinksCount} existing links skipped, " +
-				"{InvitationsCount} invitations sent",
-				normalizedName,
-				permissions.Count,
-				newLinksCreated,
-				existingLinksSkipped,
-				invitationTokens.Count
-			);
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Created staff profile {ProfileName} with {PermissionsCount} permissions, " +
+					"{NewLinksCount} new user assignments, {ExistingLinksCount} existing links skipped, " +
+					"{InvitationsCount} invitations sent",
+					normalizedName,
+					permissions.Count,
+					newLinksCreated,
+					existingLinksSkipped,
+					invitationTokens.Count
+				);
+			}
 
 			return new CreateStaffProfileResult.Success(
 				profile,
@@ -681,7 +683,9 @@ public class ProfileAsStaffService : IProfileAsStaffService {
 			);
 		} catch (Exception ex) {
 			await transaction.RollbackAsync(cancellationToken);
-			_logger.LogError(ex, "Failed to create staff profile {ProfileName}", normalizedName);
+			if (_logger.IsEnabled(LogLevel.Error)) {
+				_logger.LogError(ex, "Failed to create staff profile {ProfileName}", normalizedName);
+			}
 			throw;
 		}
 	}

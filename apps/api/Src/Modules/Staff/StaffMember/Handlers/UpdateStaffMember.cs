@@ -238,7 +238,9 @@ public class UpdateStaffMember {
 		var parseResult = Guid.TryParse(userId, out var userIdGuid);
 
 		if (!parseResult) {
-			logger.LogDebug("Invalid user id: {@LogData}", new { UserId = userId });
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug("Invalid user id: {@LogData}", new { UserId = userId });
+			}
 
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"User does not exist or is not a staff member",
@@ -257,7 +259,9 @@ public class UpdateStaffMember {
 		var result = await staffMemberService.UpdateStaffMemberByIdAsync(userIdGuid, updateUserDocument, cancellationToken);
 
 		if (result is UpdateUserByIdResult.UserNotFound) {
-			logger.LogDebug("User not found: {@LogData}", new { UserId = userIdGuid });
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug("User not found: {@LogData}", new { UserId = userIdGuid });
+			}
 
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"User does not exist or is not a staff member",
@@ -266,7 +270,9 @@ public class UpdateStaffMember {
 		}
 
 		if (result is UpdateUserByIdResult.UserAccountNotFound) {
-			logger.LogDebug("User account not found: {@LogData}", new { UserId = userIdGuid });
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug("User account not found: {@LogData}", new { UserId = userIdGuid });
+			}
 
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"User account does not exist or is not a staff member",
@@ -275,7 +281,9 @@ public class UpdateStaffMember {
 		}
 
 		if (result is UpdateUserByIdResult.UpdateFailed updateFailed) {
-			logger.LogError("Failed to update staff member: {@LogData}", new { UserId = userIdGuid, ErrorMessage = updateFailed.ErrorMessage });
+			if (logger.IsEnabled(LogLevel.Error)) {
+				logger.LogError("Failed to update staff member: {@LogData}", new { UserId = userIdGuid, ErrorMessage = updateFailed.ErrorMessage });
+			}
 
 			return TypedResults.InternalServerError(ApiResponse.Create(
 				"Failed to update staff member",

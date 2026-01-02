@@ -419,15 +419,17 @@ public static class CreateStaffProfile {
 					var emailAddr = (string)ctx["email"];
 					var type = (string)ctx["emailType"];
 
-					log.LogWarning(
-						exception,
-						"Failed to send {EmailType} email to {Email} (attempt {Attempt}/3), " +
-						"retrying in {Delay}ms",
-						type,
-						emailAddr,
-						retryCount,
-						timeSpan.TotalMilliseconds
-					);
+					if (log.IsEnabled(LogLevel.Warning)) {
+						log.LogWarning(
+							exception,
+							"Failed to send {EmailType} email to {Email} (attempt {Attempt}/3), " +
+							"retrying in {Delay}ms",
+							type,
+							emailAddr,
+							retryCount,
+							timeSpan.TotalMilliseconds
+						);
+					}
 				}
 			);
 
@@ -441,18 +443,22 @@ public static class CreateStaffProfile {
 			);
 
 			// Log success only after policy completes successfully
-			logger.LogInformation(
-				"Successfully sent {EmailType} email to {Email}",
-				emailType,
-				email
-			);
+			if (logger.IsEnabled(LogLevel.Information)) {
+				logger.LogInformation(
+					"Successfully sent {EmailType} email to {Email}",
+					emailType,
+					email
+				);
+			}
 		} catch (Exception ex) {
-			logger.LogError(
-				ex,
-				"Failed to send {EmailType} email to {Email} after 3 attempts",
-				emailType,
-				email
-			);
+			if (logger.IsEnabled(LogLevel.Error)) {
+				logger.LogError(
+					ex,
+					"Failed to send {EmailType} email to {Email} after 3 attempts",
+					emailType,
+					email
+				);
+			}
 			// Don't rethrow - email failures shouldn't break the main operation
 		}
 	}

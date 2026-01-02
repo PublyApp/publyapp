@@ -175,7 +175,9 @@ public class ResetPassword {
 		_ = emailService.SendPasswordResetNotificationEmailAsync(user.Email)
 			.ContinueWith(t => {
 				if (t.Exception != null) {
-					logger.LogError(t.Exception, "Error sending password reset notification email to {Email}", user.Email);
+					if (logger.IsEnabled(LogLevel.Error)) {
+						logger.LogError(t.Exception, "Error sending password reset notification email to {Email}", user.Email);
+					}
 				}
 			}, cancellationToken);
 

@@ -45,7 +45,9 @@ public class GetVerificationLink {
 		if (userId == Guid.Empty) {
 			// user id is invalid but for security reasons we do not disclose that
 			// This also save unnecessary database queries
-			logger.LogDebug("Invalid user ID: {@UserId}", userId);
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug("Invalid user ID: {@UserId}", userId);
+			}
 			return TypedResults.BadRequest(
 				ApiResponse.Create("User not found", ResponseKeys.UserNotFound)
 			);

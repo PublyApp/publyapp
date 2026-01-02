@@ -28,10 +28,12 @@ public class GetUserTenants {
 		CancellationToken cancellationToken
 	) {
 		if (!authContext.IsAuthenticated) {
-			logger.LogError("{@GetUserTenants}", new {
-				UserId = authContext.UserId,
-				SessionToken = authContext.SessionToken
-			});
+			if (logger.IsEnabled(LogLevel.Error)) {
+				logger.LogError("{@GetUserTenants}", new {
+					UserId = authContext.UserId,
+					SessionToken = authContext.SessionToken
+				});
+			}
 			throw new Exception($"{nameof(GetUserTenants)} must be set behind {nameof(SessionAuthMiddleware)}.");
 		}
 

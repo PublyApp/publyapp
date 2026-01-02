@@ -56,7 +56,9 @@ public class UserAccountSeeder : IEntitySeeder {
 				await dbContext.UserAccount.AddRangeAsync(newAccounts, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
 				await transaction.CommitAsync(cancellationToken);
-				_logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
+				if (_logger.IsEnabled(LogLevel.Information)) {
+					_logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
+				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
 				await transaction.RollbackAsync(cancellationToken);
 				_logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
@@ -69,7 +71,9 @@ public class UserAccountSeeder : IEntitySeeder {
 			try {
 				await dbContext.UserAccount.AddRangeAsync(newAccounts, cancellationToken);
 				await dbContext.SaveChangesAsync(cancellationToken);
-				_logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
+				if (_logger.IsEnabled(LogLevel.Information)) {
+					_logger.LogInformation("Seeded {Count} user accounts.", newAccounts.Count);
+				}
 			} catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException pgEx && pgEx.SqlState == "23505") {
 				_logger.LogWarning(ex, "Duplicate accounts detected during seeding; skipping insert.");
 			}

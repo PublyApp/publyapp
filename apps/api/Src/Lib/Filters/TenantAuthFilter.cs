@@ -26,10 +26,10 @@ public class TenantAuthFilter : IEndpointFilter {
 
 		// 1. Verify SessionAuthFilter has run
 		if (!authContext.IsAuthenticated) {
-			_logger.LogError("Request userId or sessionToken is missing: {@TenantAuthData}", new {
-				UserId = authContext.UserId,
-			});
-			_logger.LogError("{SessionAuthFilter} must be passed before {TenantAuthFilter}", nameof(SessionAuthFilter), nameof(TenantAuthFilter));
+			if (_logger.IsEnabled(LogLevel.Error)) {
+				_logger.LogError("Request userId or sessionToken is missing: {UserId}", authContext.UserId);
+				_logger.LogError("{SessionAuthFilter} must be passed before {TenantAuthFilter}", nameof(SessionAuthFilter), nameof(TenantAuthFilter));
+			}
 			return TypedResults.Json(
 				ApiResponse.Create("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser),
 				statusCode: StatusCodes.Status500InternalServerError
@@ -38,15 +38,14 @@ public class TenantAuthFilter : IEndpointFilter {
 
 		// 2. Verify CheckTenantHeaderFilter has run
 		if (string.IsNullOrEmpty(authContext.TenantId)) {
-			_logger.LogError("Tenant ID is missing: {@TenantAuthData}", new {
-				UserId = authContext.UserId,
-				TenantId = authContext.TenantId,
-			});
-			_logger.LogError(
-				"{CheckTenantHeaderFilter} must be passed before {TenantAuthFilter}",
-				nameof(CheckTenantHeaderFilter),
-				nameof(TenantAuthFilter)
-			);
+			if (_logger.IsEnabled(LogLevel.Error)) {
+				_logger.LogError("Tenant ID is missing: {UserId} {TenantId}", authContext.UserId, authContext.TenantId);
+				_logger.LogError(
+					"{CheckTenantHeaderFilter} must be passed before {TenantAuthFilter}",
+					nameof(CheckTenantHeaderFilter),
+					nameof(TenantAuthFilter)
+				);
+			}
 			return TypedResults.Json(
 				ApiResponse.Create("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser),
 				statusCode: StatusCodes.Status500InternalServerError
@@ -59,10 +58,12 @@ public class TenantAuthFilter : IEndpointFilter {
 
 		// 3. Parse tenant ID
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
-			_logger.LogWarning(
-				"Invalid tenant ID format: {TenantId}",
-				authContext.TenantId
-			);
+			if (_logger.IsEnabled(LogLevel.Warning)) {
+				_logger.LogWarning(
+					"Invalid tenant ID format: {TenantId}",
+					authContext.TenantId
+				);
+			}
 			return TypedResults.Json(
 				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
 				statusCode: StatusCodes.Status401Unauthorized
@@ -73,10 +74,12 @@ public class TenantAuthFilter : IEndpointFilter {
 		var tenant = await tenantService.GetTenantByIdAsync(tenantId, httpContext.RequestAborted);
 
 		if (tenant is null) {
-			_logger.LogWarning(
-				"Tenant not found or inactive: {TenantId}",
-				tenantId
-			);
+			if (_logger.IsEnabled(LogLevel.Warning)) {
+				_logger.LogWarning(
+					"Tenant not found or inactive: {TenantId}",
+					tenantId
+				);
+			}
 			return TypedResults.Json(
 				ApiResponse.Create("Tenant not found", ResponseKeys.NotFound),
 				statusCode: StatusCodes.Status404NotFound
@@ -91,11 +94,13 @@ public class TenantAuthFilter : IEndpointFilter {
 		);
 
 		if (tenantAccount is null) {
-			_logger.LogDebug(
-				"User {UserId} does not have access to tenant {TenantId}",
-				userId,
-				tenantId
-			);
+			if (_logger.IsEnabled(LogLevel.Debug)) {
+				_logger.LogDebug(
+					"User {UserId} does not have access to tenant {TenantId}",
+					userId,
+					tenantId
+				);
+			}
 			return TypedResults.Json(
 				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
 				statusCode: StatusCodes.Status403Forbidden

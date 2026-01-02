@@ -202,7 +202,9 @@ public class StaffMemberService : IStaffMemberService {
 			return new UpdateUserByIdResult.Success();
 		} catch (Exception exception) {
 			await transaction.RollbackAsync(cancellationToken);
-			_logger.LogError(exception, "Failed to update staff member {UserId}", userId);
+			if (_logger.IsEnabled(LogLevel.Error)) {
+				_logger.LogError(exception, "Failed to update staff member {UserId}", userId);
+			}
 			return new UpdateUserByIdResult.UpdateFailed(exception.Message);
 		}
 	}

@@ -236,23 +236,29 @@ public class CreateStaffMember {
 
 		if (userResult is CreateUserResult.UserAlreadyExists alreadyExistUserResult) {
 			// That's okay, we can use the existing user
-			logger.LogDebug(
-				"User already exists, using existing user: {@LogData}",
-				new { UserId = alreadyExistUserResult.User.GetRequiredId() }
-			);
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug(
+					"User already exists, using existing user: {@LogData}",
+					new { UserId = alreadyExistUserResult.User.GetRequiredId() }
+				);
+			}
 			userIdGuid = alreadyExistUserResult.User.GetRequiredId();
 		} else if (userResult is CreateUserResult.Success successCreateUserResult) {
 			shouldVerifyEmail = true;
-			logger.LogDebug(
-				"User created successfully, using new user: {@LogData}",
-				new { UserId = successCreateUserResult.User.GetRequiredId() }
-			);
+			if (logger.IsEnabled(LogLevel.Debug)) {
+				logger.LogDebug(
+					"User created successfully, using new user: {@LogData}",
+					new { UserId = successCreateUserResult.User.GetRequiredId() }
+				);
+			}
 			userIdGuid = successCreateUserResult.User.GetRequiredId();
 		} else {
-			logger.LogError(
-				"Failed to create user: {@LogData}",
-				new { UserResult = userResult }
-			);
+			if (logger.IsEnabled(LogLevel.Error)) {
+				logger.LogError(
+					"Failed to create user: {@LogData}",
+					new { UserResult = userResult }
+				);
+			}
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"Failed to create user",
 				ResponseKeys.FailedToCreateUser
