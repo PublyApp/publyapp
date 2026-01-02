@@ -185,7 +185,14 @@ const TenantSettingsMembersPage = () => {
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
 
-			<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+			<Box
+				sx={{
+					flexGrow: 1,
+					display: 'flex',
+					flexDirection: 'column',
+					border: 'none',
+				}}
+			>
 				<MaterialReactTable table={table} />
 			</Box>
 		</DashboardContent>
