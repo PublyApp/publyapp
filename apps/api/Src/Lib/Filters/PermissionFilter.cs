@@ -1,5 +1,4 @@
 using MainApi.Localization;
-using MainApi.Src.Data.DbContext;
 using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -32,12 +31,11 @@ public class PermissionFilter : IEndpointFilter {
 		var httpContext = context.HttpContext;
 		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
 		var accountStaff = authContext.AccountStaff;
-		var dbContext = httpContext.RequestServices.GetRequiredService<MainApiDbContext>();
 		var permissionService = httpContext.RequestServices.GetRequiredService<IPermissionService>();
 		var logger = httpContext.RequestServices.GetRequiredService<ILogger<PermissionFilter>>();
 
 		if (accountStaff == null) {
-			throw new Exception("PermissionFilter must be set behind StaffAuthMiddleware.");
+			throw new Exception("PermissionFilter must be set behind StaffAuthFilter.");
 		}
 
 		// if user is not admin, check user permissions
