@@ -20,7 +20,7 @@ public class GetUserAuthData {
 	public static async Task<
 	Results<
 		Ok<GetUserAuthDataResult>,
-		BadRequest<ApiResponse>
+		JsonHttpResult<ApiResponse>
 		>
 	> HandleGetUserAuthData(
 		IRequestAuthContext authContext,
@@ -48,10 +48,10 @@ public class GetUserAuthData {
 				UserId = authContext.UserId,
 			});
 
-			return TypedResults.BadRequest(ApiResponse.Create(
-					"Invalid session",
-					ResponseKeys.InvalidSession
-				));
+			return TypedResults.Json(
+				ApiResponse.Create("Invalid session", ResponseKeys.InvalidSession),
+				statusCode: StatusCodes.Status401Unauthorized
+			);
 		}
 
 		return TypedResults.Ok(new GetUserAuthDataResult {

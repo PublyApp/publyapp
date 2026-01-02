@@ -6,6 +6,11 @@ export const APP_NAME = 'PublyApp';
 
 export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
+export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
+export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
+export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
+export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
+
 export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
 export const TENANT_ID_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-TenantId`;
 export const FORWARDED_FOR_HEADER_KEY = 'X-Forwarded-For';
@@ -219,12 +224,6 @@ export const DEFAULT_PAGE_SIZE = 100;
 export const isServer = typeof window === 'undefined';
 
 export const isBun = typeof Bun !== 'undefined';
-
-export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
-
-export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
-export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
-export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
 
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 

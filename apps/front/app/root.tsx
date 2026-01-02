@@ -17,7 +17,6 @@ import {
 import { useChangeLanguage } from 'remix-i18next/react';
 
 import { NotFoundView, View403, View500 } from '@/front/components/error';
-import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
 import { defaultSettings, SettingsDrawer } from '@/front/components/settings';
 import { APP_NAME, isServer } from '@/shared/lib/constants';
 

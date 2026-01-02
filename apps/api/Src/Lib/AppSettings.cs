@@ -16,6 +16,9 @@ public class AppSettings {
 	[Required(ErrorMessage = "SESSION_TOKEN_HEADER_KEY is required in appsettings.json::AppSettings")]
 	public string SESSION_TOKEN_HEADER_KEY { get; init; } = string.Empty;
 
+	[Required(ErrorMessage = "TENANT_ID_HEADER_KEY is required in appsettings.json::AppSettings")]
+	public string TENANT_ID_HEADER_KEY { get; init; } = string.Empty;
+
 	[Required(ErrorMessage = "SESSION_EXPIRY_DAYS is required in appsettings.json::AppSettings")]
 	[Range(1, 365, ErrorMessage = "SESSION_EXPIRY_DAYS must be between 1 and 365")]
 	public int SESSION_EXPIRY_DAYS { get; init; }

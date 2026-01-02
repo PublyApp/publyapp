@@ -1,13 +1,15 @@
 using MainApi.Localization;
 
+using Microsoft.Extensions.Options;
+
 namespace MainApi.Src.Lib.Middlewares;
 
 public class CheckTenantHeaderMiddleware {
 	private readonly RequestDelegate _next;
 
-	public static string? GetTenantId(HttpContext httpContext) {
+	public static string? GetTenantId(HttpContext httpContext, AppSettings appSettings) {
 		var tenantId = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>().TenantId
-			?? httpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault();
+			?? httpContext.Request.Headers[appSettings.TENANT_ID_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(tenantId as string)) {
 
@@ -21,8 +23,9 @@ public class CheckTenantHeaderMiddleware {
 		_next = next;
 	}
 
-	public async Task InvokeAsync(HttpContext httpContext, IRequestAuthContext authContext) {
-		var tenantId = GetTenantId(httpContext);
+	public async Task InvokeAsync(HttpContext httpContext, IRequestAuthContext authContext, IOptions<AppSettings> appSettingsOptions) {
+		var appSettings = appSettingsOptions.Value;
+		var tenantId = GetTenantId(httpContext, appSettings);
 
 		if (string.IsNullOrEmpty(tenantId)) {
 			httpContext.Response.StatusCode = StatusCodes.Status401Unauthorized;

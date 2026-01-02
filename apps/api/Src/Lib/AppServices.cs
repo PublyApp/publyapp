@@ -18,6 +18,7 @@ using MainApi.Src.Modules.Staff.TenantsAsStaff;
 using MainApi.Src.Modules.Tenant.Products;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 
 using Resend;
@@ -27,13 +28,13 @@ namespace MainApi.Src.Lib;
 public static class AppServices {
 	// Helper method to get current tenant ID
 	// (you'll need to implement this based on your authentication/authorization)
-	private static Guid? GetCurrentTenantId(IHttpContextAccessor httpContextAccessor) {
+	private static Guid? GetCurrentTenantId(IHttpContextAccessor httpContextAccessor, AppSettings appSettings) {
 		var httpContext = httpContextAccessor.HttpContext;
 		if (httpContext is null) {
 			return null;
 		}
 
-		var tenantIdHeader = httpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault();
+		var tenantIdHeader = httpContext.Request.Headers[appSettings.TENANT_ID_HEADER_KEY].FirstOrDefault();
 		if (string.IsNullOrEmpty(tenantIdHeader)) {
 			return null;
 		}
@@ -86,7 +87,8 @@ public static class AppServices {
 		// EF Core DbContext is not thread-safe and must be scoped, not singleton
 		builder.Services.AddDbContext<MainApiDbContext>((serviceProvider, options) => {
 			var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-			var tenantId = GetCurrentTenantId(httpContextAccessor);
+			var appSettings = serviceProvider.GetRequiredService<IOptions<AppSettings>>().Value;
+			var tenantId = GetCurrentTenantId(httpContextAccessor, appSettings);
 
 			options.UseNpgsql(AppEnvironment.POSTGRES_CONNECTION_STRING);
 

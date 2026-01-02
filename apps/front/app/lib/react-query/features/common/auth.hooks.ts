@@ -10,7 +10,6 @@ import { clientManager } from '@/front/lib/js-client/client-manager';
 import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import type { ApiClient } from '@/js-client/src/apiClient';
 import type { VerifyEmailRequestBody } from '@/js-client/src/models';
-import { logger } from '@/shared/lib/logger/iso-logger';
 
 import { getQueryKey } from '../../query-utils';
 
@@ -110,7 +109,6 @@ export const useGetRedirectCode = createQuery({
 		if (_.isNil(result)) {
 			throw new Error(`[${getRedirectCodeQueryKey}]: result is nil`);
 		}
-		logger.debug('🔍🔍🔍🔍', { result });
 		return result;
 	},
 });

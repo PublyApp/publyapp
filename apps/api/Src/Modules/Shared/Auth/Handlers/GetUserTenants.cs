@@ -1,11 +1,8 @@
-using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Middlewares;
-using MainApi.Src.Modules.Shared.Tenants;
 using MainApi.Src.Modules.Shared.Users;
 
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.EntityFrameworkCore;
 
 namespace MainApi.Src.Modules.Shared.Auth.Handlers;
 
@@ -27,7 +24,7 @@ public class GetUserTenants {
 	public static async Task<Ok<GetUserTenantsResult>> HandleGetUserTenants(
 		IRequestAuthContext authContext,
 		ILogger<GetUserTenants> logger,
-		MainApiDbContext dbContext,
+		IAccountService accountService,
 		CancellationToken cancellationToken
 	) {
 		if (!authContext.IsAuthenticated) {
@@ -42,39 +39,16 @@ public class GetUserTenants {
 			throw new Exception($"{nameof(authContext.UserId)} is not a GUID");
 		}
 
-		// Get total count of user's tenant memberships
-		var totalCount = await (
-			from ua in dbContext.UserAccount
-			join t in dbContext.Tenant on ua.TenantId equals t.Id
-			where ua.UserId == userId
-				&& ua.Scope == AccountScope.Tenant
-				&& ua.TenantId != null
-				&& !ua.IsDeleted && !ua.IsSuspended
-				&& t.Status == TenantStatus.Active && !t.IsSuspended
-			select ua
-		).CountAsync(cancellationToken);
+		var result = await accountService.GetUserTenantsAsync(userId, MaxTenantsInList, cancellationToken);
 
-		// Get limited tenant list
-		var tenants = await (
-			from ua in dbContext.UserAccount
-			join t in dbContext.Tenant on ua.TenantId equals t.Id
-			where ua.UserId == userId
-				&& ua.Scope == AccountScope.Tenant
-				&& ua.TenantId != null
-				&& !ua.IsDeleted && !ua.IsSuspended
-				&& t.Status == TenantStatus.Active && !t.IsSuspended
-			orderby t.Name
-			select new TenantListItem {
-				Id = t.Id!.Value,
+		return TypedResults.Ok(new GetUserTenantsResult {
+			Tenants = result.Tenants.Select(t => new TenantListItem {
+				Id = t.Id,
 				Name = t.Name,
 				Code = t.Code,
 				LogoUrl = t.LogoUrl
-			}
-		).Take(MaxTenantsInList).ToListAsync(cancellationToken);
-
-		return TypedResults.Ok(new GetUserTenantsResult {
-			Tenants = tenants,
-			TotalCount = totalCount
+			}).ToList(),
+			TotalCount = result.TotalCount
 		});
 	}
 }
