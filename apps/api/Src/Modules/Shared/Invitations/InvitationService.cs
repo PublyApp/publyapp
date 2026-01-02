@@ -142,12 +142,14 @@ public class InvitationService : IInvitationService {
 		await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		_logger.LogInformation(
-			"Created staff invitation for {Email} with {ProfileCount} profiles by user {InvitedByUserId}",
-			email,
-			profileIds.Count,
-			invitedByUserId
-		);
+		if (_logger.IsEnabled(LogLevel.Information)) {
+			_logger.LogInformation(
+				"Created staff invitation for {Email} with {ProfileCount} profiles by user {InvitedByUserId}",
+				email,
+				profileIds.Count,
+				invitedByUserId
+			);
+		}
 
 		return (invitation, token);
 	}
@@ -176,13 +178,15 @@ public class InvitationService : IInvitationService {
 		await _dbContext.Invitation.AddAsync(invitation, cancellationToken);
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		_logger.LogInformation(
-			"Created tenant invitation for {Email} in tenant {TenantId} with {ProfileCount} profiles by user {InvitedByUserId}",
-			email,
-			tenantId,
-			profileIds.Count,
-			invitedByUserId
-		);
+		if (_logger.IsEnabled(LogLevel.Information)) {
+			_logger.LogInformation(
+				"Created tenant invitation for {Email} in tenant {TenantId} with {ProfileCount} profiles by user {InvitedByUserId}",
+				email,
+				tenantId,
+				profileIds.Count,
+				invitedByUserId
+			);
+		}
 
 		return (invitation, token);
 	}
@@ -206,10 +210,12 @@ public class InvitationService : IInvitationService {
 		}
 
 		if (invitation.CanBeAccepted() is false) {
-			_logger.LogWarning(
-				"Invitation {InvitationId} cannot be accepted (expired, revoked, or deleted)",
-				invitation.Id
-			);
+			if (_logger.IsEnabled(LogLevel.Warning)) {
+				_logger.LogWarning(
+					"Invitation {InvitationId} cannot be accepted (expired, revoked, or deleted)",
+					invitation.Id
+				);
+			}
 			return null;
 		}
 
@@ -228,18 +234,22 @@ public class InvitationService : IInvitationService {
 		}
 
 		if (invitation.IsRevoked) {
-			_logger.LogInformation(
-				"Invitation {InvitationId} is already revoked; no-op",
-				invitationId
-			);
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Invitation {InvitationId} is already revoked; no-op",
+					invitationId
+				);
+			}
 			return true;
 		}
 
 		if (invitation.IsAccepted) {
-			_logger.LogWarning(
-				"Attempt to revoke accepted invitation {InvitationId} blocked",
-				invitationId
-			);
+			if (_logger.IsEnabled(LogLevel.Warning)) {
+				_logger.LogWarning(
+					"Attempt to revoke accepted invitation {InvitationId} blocked",
+					invitationId
+				);
+			}
 			return false;
 		}
 
@@ -248,7 +258,9 @@ public class InvitationService : IInvitationService {
 
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		_logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
+		if (_logger.IsEnabled(LogLevel.Information)) {
+			_logger.LogInformation("Revoked invitation {InvitationId}", invitationId);
+		}
 		return true;
 	}
 
@@ -398,12 +410,14 @@ public class InvitationService : IInvitationService {
 
 			await tx.CommitAsync(cancellationToken);
 
-			_logger.LogInformation(
-				"Staff invitation accepted: User {UserId} created with {ProfileCount} profiles from invitation {InvitationId}",
-				user.GetRequiredId(),
-				invitationProfiles.Count,
-				invitation.GetRequiredId()
-			);
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Staff invitation accepted: User {UserId} created with {ProfileCount} profiles from invitation {InvitationId}",
+					user.GetRequiredId(),
+					invitationProfiles.Count,
+					invitation.GetRequiredId()
+				);
+			}
 
 			return user;
 		} catch {
@@ -478,14 +492,16 @@ public class InvitationService : IInvitationService {
 
 			await tx.CommitAsync(cancellationToken);
 
-			_logger.LogInformation(
-				"Tenant invitation accepted: User {UserId} created in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
-				user.GetRequiredId(),
-				tenantId,
-				accountLevel,
-				invitationProfiles.Count,
-				invitation.GetRequiredId()
-			);
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Tenant invitation accepted: User {UserId} created in tenant {TenantId} with AccountLevel {AccountLevel} and {ProfileCount} profiles from invitation {InvitationId}",
+					user.GetRequiredId(),
+					tenantId,
+					accountLevel,
+					invitationProfiles.Count,
+					invitation.GetRequiredId()
+				);
+			}
 
 			return user;
 		} catch {
@@ -584,11 +600,13 @@ public class InvitationService : IInvitationService {
 			// Commit transaction
 			await tx.CommitAsync(cancellationToken);
 
-			_logger.LogInformation(
-				"Created {Count} staff invitations in bulk by user {InvitedByUserId}",
-				invitationTokens.Count,
-				invitedByUserId
-			);
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Created {Count} staff invitations in bulk by user {InvitedByUserId}",
+					invitationTokens.Count,
+					invitedByUserId
+				);
+			}
 
 			return invitationTokens;
 		} catch {
@@ -605,18 +623,22 @@ public class InvitationService : IInvitationService {
 			.FindAsync(new object[] { invitationId }, cancellationToken);
 
 		if (invitation is null) {
-			_logger.LogWarning(
-				"Attempt to mark non-existent invitation {InvitationId} as accepted",
-				invitationId
-			);
+			if (_logger.IsEnabled(LogLevel.Warning)) {
+				_logger.LogWarning(
+					"Attempt to mark non-existent invitation {InvitationId} as accepted",
+					invitationId
+				);
+			}
 			return;
 		}
 
 		if (invitation.IsAccepted) {
-			_logger.LogInformation(
-				"Invitation {InvitationId} is already accepted; no-op",
-				invitationId
-			);
+			if (_logger.IsEnabled(LogLevel.Information)) {
+				_logger.LogInformation(
+					"Invitation {InvitationId} is already accepted; no-op",
+					invitationId
+				);
+			}
 			return;
 		}
 
@@ -625,6 +647,8 @@ public class InvitationService : IInvitationService {
 
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		_logger.LogInformation("Marked invitation {InvitationId} as accepted", invitationId);
+		if (_logger.IsEnabled(LogLevel.Information)) {
+			_logger.LogInformation("Marked invitation {InvitationId} as accepted", invitationId);
+		}
 	}
 }
