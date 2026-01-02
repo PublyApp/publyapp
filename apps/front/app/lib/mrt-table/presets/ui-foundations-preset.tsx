@@ -1,15 +1,15 @@
 import type { Theme } from '@mui/material';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import { inputBaseClasses } from '@mui/material/InputBase';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
-import { textFieldClasses } from '@mui/material/TextField';
+import _ from 'lodash';
 import {
 	MRT_GlobalFilterTextField,
 	type MRT_RowData,
 	type MRT_TableInstance,
 } from 'material-react-table';
+import { varAlpha } from 'minimal-shared/utils';
 
 import { EmptyContent } from '@/front/components/empty-content/empty-content';
 import { Iconify } from '@/front/components/iconify/iconify';
@@ -18,22 +18,21 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import { DEFAULT_PAGE_SIZE_OPTIONS } from '../../constants';
 import type { TablePreset } from '../table-presets';
 
-export const defaultTablePreset = (theme: Theme): TablePreset => {
+export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 	return {
-		// columns,
-		// data,
 		layoutMode: 'grid',
 		enableStickyHeader: true,
 		enableRowSelection: true,
 		enableColumnActions: false,
 		sortDescFirst: true,
-		// enableColumnFilters: false,
+		// enableColumnFilters: false, // Default is fine
 		// enableDensityToggle: false,
 		// enableFullScreenToggle: false,
 		// enableHiding: false,
 		// enableGlobalFilter: true,
 		// enableColumnResizing: true,
 		// enableTopToolbar: true,
+
 		renderEmptyRowsFallback: () => (
 			<EmptyContent
 				className="empty-content"
@@ -55,8 +54,13 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 		state: {
 			showLoadingOverlay: false,
 			showGlobalFilter: true,
-			density: 'spacious',
+			density: 'comfortable', // Match the 'sm' breakpoint height (52px) better than 'compact'
 		},
+
+		// -----------------------------------------------------------------
+		// STYLING PRESETS
+		// -----------------------------------------------------------------
+
 		muiTablePaperProps: {
 			sx: {
 				minHeight: 640,
@@ -64,38 +68,129 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 				display: 'flex',
 				flexDirection: 'column',
 				height: '1px',
-				bgcolor: theme.vars.palette.background.paper,
-				// Remove Paper border to avoid double border with table cells
-				// border: 'none',
-				boxShadow: theme.vars.customShadows.card,
+				bgcolor: theme.vars.palette.background.default,
+				backgroundImage: 'none', // Remove elevation overlay in dark mode
+				// No border for the paper itself
+				border: 'none',
+				boxShadow: 'none',
 			},
 		},
 		muiTableContainerProps: {
 			sx: {
 				scrollbarWidth: 'unset',
 				flexGrow: 1,
+				bgcolor: theme.vars.palette.background.default,
+				// Border top as seen in template Table.tsx
+				borderTop: `1px solid ${theme.vars.palette.grey[200]}`,
 			},
 		},
 		muiTableHeadProps: {
 			sx: {
+				// Transparent/Paper background for headers
 				'& > tr > th': {
-					bgcolor: theme.vars.palette.background.paper,
+					bgcolor: theme.vars.palette.background.default, // Match main background for sticky header
+					borderBottom: `1px solid ${theme.vars.palette.grey[200]}`,
+					height: 48, // Template matchesSmBreakpoint ? 48 : 42
 				},
 			},
 		},
 		muiTableBodyProps: {
 			sx: {
+				bgcolor: theme.vars.palette.background.default,
 				'& > tr > td': {
-					bgcolor: theme.vars.palette.background.paper,
+					bgcolor: theme.vars.palette.background.default, // Allow row background to show through
+				},
+				// Error Row Style (Red stripes)
+				'& .ui-foundations-row-error': {
+					backgroundColor:
+						theme.vars.palette.error.lighter ||
+						varAlpha(theme.vars.palette.error.mainChannel, 0.08),
+					// Striped pattern
+					backgroundImage: `repeating-linear-gradient(
+						45deg,
+						transparent,
+						transparent 6px,
+						${varAlpha(theme.vars.palette.error.mainChannel, 0.08)} 6px,
+						${varAlpha(theme.vars.palette.error.mainChannel, 0.08)} 12px
+					)`,
+					'&:hover': {
+						backgroundColor:
+							theme.vars.palette.error.lighter ||
+							varAlpha(theme.vars.palette.error.mainChannel, 0.12),
+					},
+					'& td': {
+						backgroundColor: theme.vars.palette.background.default,
+					},
+				},
+				// Disabled/Canceled Row Style (Gray stripes)
+				'& .ui-foundations-row-disabled': {
+					backgroundColor: theme.vars.palette.grey[100],
+					opacity: 0.8,
+					// Striped pattern
+					backgroundImage: `repeating-linear-gradient(
+						45deg,
+						transparent,
+						transparent 6px,
+						${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)} 6px,
+						${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)} 12px
+					)`,
+					'&:hover': {
+						backgroundColor: theme.vars.palette.grey[200],
+					},
+					'& td': {
+						backgroundColor: theme.vars.palette.background.default,
+					},
 				},
 			},
 		},
-		// Disable built-in pagination UI
+		muiTableBodyRowProps: ({ row }) => {
+			// Helper logic to auto-apply classes if data matches common patterns
+			// This makes it work "out of the box" for similar data structures
+			const status = _.chain(row.original).get('status').toLower().value();
+			let className = '';
+
+			if (status === 'failed' || status === 'error') {
+				className = 'ui-foundations-row-error';
+			} else if (
+				status === 'canceled' ||
+				status === 'cancelled' ||
+				status === 'disabled'
+			) {
+				className = 'ui-foundations-row-disabled';
+			}
+
+			return {
+				className,
+				sx: {
+					bgcolor: theme.vars.palette.background.default,
+					height: 52, // Template matchesSmBreakpoint ? 52 : 42
+					// Remove focus outline
+					'&:focus, &:focus-within': {
+						outline: 'none',
+					},
+				},
+			};
+		},
+		muiTableBodyCellProps: {
+			sx: {
+				// Remove focus outline
+				'&:focus, &:focus-within': {
+					outline: 'none',
+				},
+				borderBottom: `1px solid ${theme.vars.palette.grey[200]}`,
+			},
+		},
+
+		// -----------------------------------------------------------------
+		// PAGINATION & TOOLBAR
+		// -----------------------------------------------------------------
+
 		enablePagination: false,
 		muiBottomToolbarProps: {
 			sx: {
-				bgcolor: theme.vars.palette.background.paper,
+				bgcolor: theme.vars.palette.background.default,
 				alignItems: 'center',
+				borderTop: `1px solid ${theme.vars.palette.grey[200]}`,
 				'& > .MuiBox-root': {
 					px: 2,
 				},
@@ -185,6 +280,7 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 		},
 		muiTableProps: {
 			sx: {
+				bgcolor: theme.vars.palette.background.default,
 				'& tr > th:last-of-type > .Mui-TableHeadCell-Content:has(.is-actions-column), & tr > td:last-of-type:not(:has(.empty-content)):has(.is-actions-column)':
 					{
 						justifyContent: 'flex-end',
@@ -214,25 +310,14 @@ const CustomToolbar = <TData extends MRT_RowData>({
 					display: 'flex',
 					gap: theme.spacing(2),
 					padding: theme.spacing(2),
-					[`& .${textFieldClasses.root}`]: {
-						padding: 0,
-						width: '100%',
-						[`& .${inputBaseClasses.input}`]: {
-							paddingTop: theme.spacing(2),
-							paddingBottom: theme.spacing(2),
-						},
-						[theme.breakpoints.up('md')]: { width: 'unset' },
+					// Keep search bar compact
+					[`& .${'MuiTextField-root'}`]: {
+						// Using string literal if class not imported
+						minWidth: '200px',
 					},
 				};
 			}}
 		>
-			{/* <GridToolbarContainer> */}
-			{/* <ProductTableToolbar
-          filters={filters}
-          options={{ stocks: PRODUCT_STOCK_OPTIONS, publish: PUBLISH_OPTIONS }}
-        /> */}
-
-			{/* <GridToolbarQuickFilter /> */}
 			<MRT_GlobalFilterTextField table={table} />
 
 			<Box
@@ -254,19 +339,7 @@ const CustomToolbar = <TData extends MRT_RowData>({
 						Delete ({selectedRowsCount})
 					</Button>
 				)}
-
-				{/* <GridToolbarColumnsButton /> */}
-				{/* <GridToolbarFilterButton ref={setFilterButtonEl} /> */}
-				{/* <GridToolbarExport /> */}
 			</Box>
-			{/* </GridToolbarContainer> */}
-			{/* {canReset && (
-				<ProductTableFiltersResult
-					filters={filters}
-					totalResults={filteredResults}
-					sx={{ p: 2.5, pt: 0 }}
-				/>
-			)} */}
 		</Box>
 	);
 };

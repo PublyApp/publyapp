@@ -15,6 +15,7 @@ import {
 } from 'material-react-table';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useMemo } from 'react';
+
 import { ConfirmDialog } from '@/front/components/custom-dialog/confirm-dialog';
 import { Iconify } from '@/front/components/iconify/iconify';
 import type { LabelColor } from '@/front/components/label';
@@ -151,9 +152,9 @@ const StaffMembersTable = () => {
 	});
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
-		</Card>
+		</Box>
 	);
 };
 

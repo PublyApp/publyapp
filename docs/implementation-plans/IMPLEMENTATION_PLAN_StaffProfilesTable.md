@@ -301,9 +301,9 @@ const StaffProfilesTable = () => {
 	});
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
 			<MaterialReactTable table={table} />
-		</Card>
+		</Box>
 	);
 };
 ```
