@@ -24,7 +24,9 @@
 			"Bash(xxd:*)",
 			"Bash(echo:*)",
 			"Bash(npx react-router:*)",
-			"Bash(timeout:*)"
+			"Bash(timeout:*)",
+			"WebFetch(domain:api.iconify.design)",
+			"Bash(curl:*)"
 		]
 	}
 }
