@@ -1,5 +1,6 @@
 using MainApi.Src.Data.DbContext;
 using MainApi.Src.Lib;
+using MainApi.Src.Modules.Shared.Tenants;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -16,12 +17,26 @@ public abstract record CreateTenantAccountResult {
 	public sealed record UserAlreadyMemberOfTenant : CreateTenantAccountResult;
 }
 
+public record UserTenantInfo {
+	public Guid Id { get; init; }
+	public string Name { get; init; } = string.Empty;
+	public string Code { get; init; } = string.Empty;
+	public string? LogoUrl { get; init; }
+}
+
+public record UserTenantsResult {
+	public List<UserTenantInfo> Tenants { get; init; } = [];
+	public int TotalCount { get; init; }
+}
+
 public interface IAccountService {
 	Task<CreateStaffAccountResult> CreateStaffAccountAsync(Guid userId, AccountLevel? accountLevel = null, CancellationToken cancellationToken = default);
 	Task<UserAccount?> GetUserStaffAccountAsync(Guid userId, CancellationToken cancellationToken = default);
+	Task<UserAccount?> GetUserTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserStaffMemberAsync(Guid userId, CancellationToken cancellationToken = default);
 	Task<bool> IsUserMemberOfTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default);
 	Task<List<UserAccount>> FindUserTenantAccountsAsync(Guid userId, int? limit = null, CancellationToken cancellationToken = default);
+	Task<UserTenantsResult> GetUserTenantsAsync(Guid userId, int limit = 5, CancellationToken cancellationToken = default);
 	Task<CreateTenantAccountResult> CreateTenantAccountAsync(Guid userId, Guid tenantId, AccountLevel accountLevel, CancellationToken cancellationToken = default);
 	Task AssignProfileToAccountAsync(Guid accountId, Guid profileId, CancellationToken cancellationToken = default);
 }
@@ -71,6 +86,22 @@ public class AccountService : IAccountService {
 		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
+	public async Task<UserAccount?> GetUserTenantAccountAsync(
+		Guid userId,
+		Guid tenantId,
+		CancellationToken cancellationToken = default
+	) {
+		var query =
+			from ua in _dbContext.UserAccount
+			where ua.UserId == userId
+			&& ua.TenantId == tenantId
+			&& ua.Scope == AccountScope.Tenant
+			&& !ua.IsDeleted && !ua.IsSuspended
+			select ua;
+
+		return await query.FirstOrDefaultAsync(cancellationToken);
+	}
+
 	public async Task<bool> IsUserStaffMemberAsync(
 		Guid userId,
 		CancellationToken cancellationToken = default
@@ -94,6 +125,8 @@ public class AccountService : IAccountService {
 			from ua in _dbContext.UserAccount
 			where ua.UserId == userId
 			&& ua.TenantId == tenantId
+			&& ua.Scope == AccountScope.Tenant
+			&& !ua.IsDeleted && !ua.IsSuspended
 			select ua;
 
 		return await query.AnyAsync(cancellationToken);
@@ -165,5 +198,39 @@ public class AccountService : IAccountService {
 
 		await _dbContext.UserAccountProfile.AddAsync(userAccountProfile, cancellationToken);
 		await _dbContext.SaveChangesAsync(cancellationToken);
+	}
+
+	public async Task<UserTenantsResult> GetUserTenantsAsync(
+		Guid userId,
+		int limit = 5,
+		CancellationToken cancellationToken = default
+	) {
+		var baseQuery =
+			from ua in _dbContext.UserAccount
+			join t in _dbContext.Tenant on ua.TenantId equals t.Id
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& ua.TenantId != null
+				&& !ua.IsDeleted && !ua.IsSuspended
+				&& t.Status == TenantStatus.Active && !t.IsSuspended
+			select new { ua, t };
+
+		var totalCount = await baseQuery.CountAsync(cancellationToken);
+
+		var tenants = await baseQuery
+			.OrderBy(x => x.t.Name)
+			.Take(limit)
+			.Select(x => new UserTenantInfo {
+				Id = x.t.Id!.Value,
+				Name = x.t.Name,
+				Code = x.t.Code,
+				LogoUrl = x.t.LogoUrl
+			})
+			.ToListAsync(cancellationToken);
+
+		return new UserTenantsResult {
+			Tenants = tenants,
+			TotalCount = totalCount
+		};
 	}
 }

@@ -6,6 +6,11 @@ export const APP_NAME = 'PublyApp';
 
 export const APP_NAME_PASCAl_CASE = toPascalCase(APP_NAME);
 
+export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
+export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
+export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
+export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
+
 export const LOCALE_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-Locale`;
 export const TENANT_ID_HEADER_KEY = `X-${APP_NAME_PASCAl_CASE}-TenantId`;
 export const FORWARDED_FOR_HEADER_KEY = 'X-Forwarded-For';
@@ -14,6 +19,7 @@ export const CLOUDFLARE_CONNECTING_IP_HEADER_KEY = 'CF-Connecting-IP';
 
 const RESOURCE = {
 	users: 'users',
+	app: 'app',
 	client: 'client',
 	clients: 'clients',
 	tenant: 'tenant',
@@ -39,51 +45,49 @@ const ROOTS = {
 export const FRONT_PATH_NAMES = {
 	home: '/',
 	maintenance: makePath('maintenance'),
+	unauthorized: makePath('unauthorized'),
 	auth: {
 		login: makePath('login'),
 		signup: makePath('sign-up'),
 		verifyEmail: makePath('verify-email'),
 		resetPassword: makePath('reset-password'),
 		acceptInvitation: makePath('accept-invitation'),
+		clearSession: makePath(ROOTS.AUTH, 'clear-session'),
 	},
 	tenant: (tenantId = '') => {
 		return {
-			root: makePath(RESOURCE.client, tenantId),
+			_root: makePath(RESOURCE.app),
+			root: makePath(RESOURCE.app, tenantId),
 			analytics: {
-				root: makePath(RESOURCE.client, tenantId, 'analytics'),
+				root: makePath(RESOURCE.app, tenantId, 'analytics'),
 			},
 			drafts: {
-				root: makePath(RESOURCE.client, tenantId, 'drafts'),
+				root: makePath(RESOURCE.app, tenantId, 'drafts'),
 			},
 			posts: {
-				root: makePath(RESOURCE.client, tenantId, 'posts'),
-				new: makePath(RESOURCE.client, tenantId, 'posts', 'new'),
+				root: makePath(RESOURCE.app, tenantId, 'posts'),
+				new: makePath(RESOURCE.app, tenantId, 'posts', 'new'),
 				edit: (postId = '') =>
-					makePath(RESOURCE.client, tenantId, 'posts', postId, 'edit'),
+					makePath(RESOURCE.app, tenantId, 'posts', postId, 'edit'),
 			},
 			schedule: {
-				root: makePath(RESOURCE.client, tenantId, 'schedule'),
+				root: makePath(RESOURCE.app, tenantId, 'schedule'),
 			},
 			media: {
-				root: makePath(RESOURCE.client, tenantId, 'media'),
+				root: makePath(RESOURCE.app, tenantId, 'media'),
 			},
 			accounts: {
-				root: makePath(RESOURCE.client, tenantId, 'accounts'),
-				socialAccounts: makePath(
-					RESOURCE.client,
-					tenantId,
-					'accounts',
-					'social',
-				),
+				root: makePath(RESOURCE.app, tenantId, 'accounts'),
+				socialAccounts: makePath(RESOURCE.app, tenantId, 'accounts', 'social'),
 			},
 			settings: {
-				root: makePath(RESOURCE.client, tenantId, 'settings'),
-				general: makePath(RESOURCE.client, tenantId, 'settings', 'general'),
-				members: makePath(RESOURCE.client, tenantId, 'settings', 'members'),
+				root: makePath(RESOURCE.app, tenantId, 'settings'),
+				general: makePath(RESOURCE.app, tenantId, 'settings', 'general'),
+				members: makePath(RESOURCE.app, tenantId, 'settings', 'members'),
 				invitations: {
-					root: makePath(RESOURCE.client, tenantId, 'settings', 'invitations'),
+					root: makePath(RESOURCE.app, tenantId, 'settings', 'invitations'),
 					new: makePath(
-						RESOURCE.client,
+						RESOURCE.app,
 						tenantId,
 						'settings',
 						'invitations',
@@ -91,16 +95,10 @@ export const FRONT_PATH_NAMES = {
 					),
 				},
 				profiles: {
-					root: makePath(RESOURCE.client, tenantId, 'settings', 'profiles'),
-					new: makePath(
-						RESOURCE.client,
-						tenantId,
-						'settings',
-						'profiles',
-						'new',
-					),
+					root: makePath(RESOURCE.app, tenantId, 'settings', 'profiles'),
+					new: makePath(RESOURCE.app, tenantId, 'settings', 'profiles', 'new'),
 				},
-				billing: makePath(RESOURCE.client, tenantId, 'settings', 'billing'),
+				billing: makePath(RESOURCE.app, tenantId, 'settings', 'billing'),
 			},
 		};
 	},
@@ -227,16 +225,9 @@ export const isServer = typeof window === 'undefined';
 
 export const isBun = typeof Bun !== 'undefined';
 
-export const SESSION_TOKEN_HEADER_KEY = 'X-Session-Token';
-
-export const SESSION_TOKEN_COOKIE_KEY = `${APP_ID}-session_token`;
-export const LAST_USED_TENANT_ID_COOKIE_KEY = `${APP_ID}-last_used_tenant`;
-export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detect language server-side
-
 export const SLUG_REGEX = /^[a-z0-9-]+$/;
 
 export const queryParamKey = {
-	clear_http_only: 'clear_session',
 	language: 'lng',
 	token: 'token',
 	login_page: {
@@ -251,6 +242,18 @@ export const queryParamKey = {
 		encoded_email: 'id',
 		token: 'token',
 	},
+} as const;
+
+/**
+ * Form action keys for POST-based operations.
+ * Using POST instead of GET query params prevents CSRF attacks.
+ */
+export const formActionKey = {
+	/**
+	 * Action to clear httpOnly session cookies.
+	 * Used when client-side JS detects it cannot read a cookie that the server can see.
+	 */
+	clear_httponly_session: 'clear_httponly_session',
 } as const;
 
 export const queryParamValue = {

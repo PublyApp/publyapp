@@ -67,7 +67,7 @@ public static class CreateStaffInvitation {
 		BadRequest<ApiResponse>,
 		JsonHttpResult<ApiResponse>
 	>> HandleCreateStaffInvitation(
-		[FromServices] IAuthContext authContext,
+		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,

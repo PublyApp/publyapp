@@ -204,7 +204,7 @@ public static class CreateTenantAsStaff {
 		[FromBody] CreateTenantAsStaffBody createTenantBody,
 		[FromServices] ITenantAsStaffService tenantAsStaffService,
 		[FromServices] IEmailService emailService,
-		[FromServices] IAuthContext authContext,
+		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IOptions<AppSettings> appSettings,
 		[FromServices] ILoggerFactory loggerFactory,
 		CancellationToken cancellationToken

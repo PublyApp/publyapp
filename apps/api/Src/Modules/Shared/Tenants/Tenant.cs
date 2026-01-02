@@ -49,6 +49,10 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 			_ => throw new ArgumentException("Unknown"),
 		};
 	}
+
+	public static bool IsTenantActive(Tenant tenant) {
+		return tenant.Status == TenantStatus.Active && !tenant.IsSuspended;
+	}
 }
 
 public enum TenantStatus {

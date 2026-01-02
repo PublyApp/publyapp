@@ -30,9 +30,12 @@
 		"editor.defaultFormatter": "vscode.json-language-features"
 	},
 	"[csharp]": {
-		"editor.defaultFormatter": "anysphere.csharp",
+		"editor.defaultFormatter": "ms-dotnettools.csharp",
 		"editor.formatOnSave": true
 	},
+	"dotnet.server.useOmnisharp": true,
+	"omnisharp.enableEditorConfigSupport": true,
+	"omnisharp.enableRoslynAnalyzers": true,
 	"rest-client.environmentVariables": {
 		"$shared": {
 			"rootUrl": "http://localhost:5000",
@@ -41,7 +44,6 @@
 	},
 	"dotnet.defaultSolution": "PublyApp.sln",
 	"dotnet.formatting.organizeImportsOnFormat": true,
-	"dotnet.server.useOmnisharp": false,
 	"cSpell.words": [
 		"airbnb",
 		"Aktiv",
@@ -75,6 +77,7 @@
 		"firstname",
 		"goplan",
 		"hookform",
+		"httponly",
 		"ianvs",
 		"iconify",
 		"immer",
