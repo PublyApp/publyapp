@@ -24,14 +24,14 @@ public class StaffAuthFilter : IEndpointFilter {
 		var accountService = httpContext.RequestServices.GetRequiredService<IAccountService>();
 
 		if (!authContext.IsAuthenticated) {
-			_logger.LogError("Request userId or sessionToken is missing: {@StaffAuthData}", new {
-				UserId = authContext.UserId,
-			});
-			_logger.LogError(
-				"{SessionAuthFilter} must be passed before {StaffAuthFilter}",
-				nameof(SessionAuthFilter),
-				nameof(StaffAuthFilter)
-			);
+			if (_logger.IsEnabled(LogLevel.Error)) {
+				_logger.LogError("Request userId or sessionToken is missing: {UserId}", authContext.UserId);
+				_logger.LogError(
+					"{SessionAuthFilter} must be passed before {StaffAuthFilter}",
+					nameof(SessionAuthFilter),
+					nameof(StaffAuthFilter)
+				);
+			}
 			return TypedResults.Json(
 				ApiResponse.Create("Failed to authenticate user", ResponseKeys.FailedToAuthenticateUser),
 				statusCode: StatusCodes.Status500InternalServerError
@@ -47,7 +47,9 @@ public class StaffAuthFilter : IEndpointFilter {
 			.GetUserStaffAccountAsync(userId, httpContext.RequestAborted);
 
 		if (accountStaff is null) {
-			_logger.LogDebug("User is not a staff member: {@StaffAuthData}", new { UserId = authContext.UserId });
+			if (_logger.IsEnabled(LogLevel.Debug)) {
+				_logger.LogDebug("User is not a staff member: {UserId}", authContext.UserId);
+			}
 			return TypedResults.Json(
 				ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
 				statusCode: StatusCodes.Status401Unauthorized

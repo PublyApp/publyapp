@@ -81,7 +81,9 @@ public class VerifyEmailRequest {
 			_ = emailService.SendEmailVerificationRequestAsync(userEmail, user.EmailVerifyToken)
 				.ContinueWith(t => {
 					if (t.Exception != null) {
-						logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
+						if (logger.IsEnabled(LogLevel.Error)) {
+							logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
+						}
 					}
 				}, cancellationToken);
 
@@ -102,7 +104,9 @@ public class VerifyEmailRequest {
 		_ = emailService.SendEmailVerificationRequestAsync(userEmail, user.EmailVerifyToken)
 			.ContinueWith(t => {
 				if (t.Exception != null) {
-					logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
+					if (logger.IsEnabled(LogLevel.Error)) {
+						logger.LogError(t.Exception, "Error sending verification email to {Email}", userEmail);
+					}
 				}
 			}, cancellationToken);
 

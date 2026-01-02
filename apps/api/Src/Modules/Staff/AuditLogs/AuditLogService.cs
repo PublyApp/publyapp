@@ -49,11 +49,13 @@ public class AuditLogService : IAuditLogService {
 		await _dbContext.AuditLog.AddAsync(auditLog, cancellationToken);
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		_logger.LogInformation(
-			"Audit log created for action {Action} by user {UserId} targeting {TargetId}",
-			action,
-			userId,
-			targetId
-		);
+		if (_logger.IsEnabled(LogLevel.Information)) {
+			_logger.LogInformation(
+				"Audit log created for action {Action} by user {UserId} targeting {TargetId}",
+				action,
+				userId,
+				targetId
+			);
+		}
 	}
 }

@@ -383,14 +383,16 @@ public static class BulkCreateStaffInvitations {
 					var log = (ILogger)ctx["logger"];
 					var emailAddr = (string)ctx["email"];
 
-					log.LogWarning(
-						exception,
-						"Failed to send invitation email to {Email} (attempt {Attempt}/3), " +
-						"retrying in {Delay}ms",
-						emailAddr,
-						retryCount,
-						timeSpan.TotalMilliseconds
-					);
+					if (log.IsEnabled(LogLevel.Warning)) {
+						log.LogWarning(
+							exception,
+							"Failed to send invitation email to {Email} (attempt {Attempt}/3), " +
+							"retrying in {Delay}ms",
+							emailAddr,
+							retryCount,
+							timeSpan.TotalMilliseconds
+						);
+					}
 				}
 			);
 
@@ -404,16 +406,20 @@ public static class BulkCreateStaffInvitations {
 			);
 
 			// Log success only after policy completes successfully
-			logger.LogInformation(
-				"Successfully sent invitation email to {Email}",
-				email
-			);
+			if (logger.IsEnabled(LogLevel.Information)) {
+				logger.LogInformation(
+					"Successfully sent invitation email to {Email}",
+					email
+				);
+			}
 		} catch (Exception ex) {
-			logger.LogError(
-				ex,
-				"Failed to send invitation email to {Email} after 3 attempts",
-				email
-			);
+			if (logger.IsEnabled(LogLevel.Error)) {
+				logger.LogError(
+					ex,
+					"Failed to send invitation email to {Email} after 3 attempts",
+					email
+				);
+			}
 			// Don't rethrow - email failures shouldn't break the main operation
 		}
 	}
