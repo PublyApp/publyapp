@@ -6,8 +6,7 @@ import { type ReactNode, Suspense } from 'react';
 import { Outlet } from 'react-router';
 import { ClientOnly } from 'remix-utils/client-only';
 
-import { View500 } from '@/front/components/error';
-import { ErrorBoundary as TemplateErrorBoundary } from '@/front/components/error-boundary';
+import { NotFoundView, View403, View500 } from '@/front/components/error';
 import { SplashScreen } from '@/front/components/loading-screen';
 import type { SettingsState } from '@/front/components/settings';
 import { useTenantParam } from '@/front/hooks/use-tenant-param';
@@ -16,71 +15,25 @@ import {
 	SIDEBAR_COOKIE_MAX_AGE,
 	SIDEBAR_COOKIE_NAME,
 } from '@/front/lib/constants';
-import {
-	clearSessionCookie,
-	getSessionCookieFromClient,
-} from '@/front/lib/cookies';
+import { getSessionCookieFromClient, logout } from '@/front/lib/cookies';
 import { isJsClientError } from '@/front/lib/js-client/js-client-error';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import { defaultQueryClient } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
-import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+// import { getServerLoader } from '@/front/lib/react-router/server-data.server';
 import { useMainStore } from '@/front/lib/zustand/store';
-import {
-	formActionKey,
-	FRONT_PATH_NAMES,
-	I18N_NAMESPACES,
-	queryParamKey,
-	queryParamValue,
-} from '@/shared/lib/constants';
+import { I18N_NAMESPACES } from '@/shared/lib/constants';
 import { logger } from '@/shared/lib/logger/iso-logger';
 
 import type { Route } from './+types/authed-layout';
 
-/**
- * Clears session state and submits a form to clear any httpOnly cookies server-side.
- * This ensures both JS-accessible and httpOnly cookies are cleared in one redirect.
- */
-const clearSessionAndRedirectToLogin = (): void => {
-	// Clear session cookie (non-httpOnly only)
-	clearSessionCookie();
-
-	// Clear react-query cache
-	defaultQueryClient.removeQueries();
-
-	// Submit form to clear-session route which will:
-	// 1. Clear any httpOnly session cookie on the server
-	// 2. Redirect to login page
-	// POST + Origin validation on server prevents link-based logout attacks
-	const form = document.createElement('form');
-	form.method = 'POST';
-	form.action = FRONT_PATH_NAMES.auth.clearSession;
-
-	const actionInput = document.createElement('input');
-	actionInput.type = 'hidden';
-	actionInput.name = 'action';
-	actionInput.value = formActionKey.clear_httponly_session;
-	form.appendChild(actionInput);
-
-	// Add redirect_cause so login page shows appropriate message
-	const causeInput = document.createElement('input');
-	causeInput.type = 'hidden';
-	causeInput.name = queryParamKey.login_page.redirect_cause;
-	causeInput.value = queryParamValue.login_page.redirect_cause.invalid_session;
-	form.appendChild(causeInput);
-
-	document.body.appendChild(form);
-	form.submit();
-};
-
-export const loader = getServerLoader({
-	loader: async () => {
-		return null;
-	},
-});
+// export const loader = getServerLoader({
+// 	loader: async () => {
+// 		return null;
+// 	},
+// });
 
 export const clientLoader = getClientLoader({
 	loader: async (_args: Route.ClientLoaderArgs) => {
@@ -95,7 +48,7 @@ export const clientLoader = getClientLoader({
 		if (!sessionToken) {
 			// No session token readable by JavaScript
 			// Submit form to clear any httpOnly cookie and redirect to login
-			clearSessionAndRedirectToLogin();
+			logout({ redirectCause: 'invalid_session' });
 			// Return null while form is submitting (navigation will take over)
 			return null;
 		}
@@ -131,35 +84,18 @@ export const clientLoader = getClientLoader({
 	},
 });
 
-export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	if (
-		isJsClientError(error) &&
-		error.responseStatusCode === 401 &&
-		_.toLower(error.messageEscaped) === _.toLower('Unauthorized')
-	) {
-		// Clear session and submit form to clear any httpOnly cookie
-		clearSessionAndRedirectToLogin();
-		return <SplashScreen />;
-	}
-
-	if (import.meta.env.DEV) {
-		return <TemplateErrorBoundary error={error} />;
-	}
-
-	// else, show the error page
-	return <View500 />;
-};
-
 const AuthQueriesLoader = ({ children }: { children: ReactNode }) => {
 	const tenantId = useTenantParam();
 
+	// Build queries array - only include tenant auth if we have a tenantId
+	const queries = [useGetUserAuthData.getOptions()];
+
+	if (tenantId) {
+		queries.push(useGetTenantAuthData.getOptions({ tenantId }));
+	}
+
 	// trigger the queries in parallel
-	useSuspenseQueries({
-		queries: [
-			useGetUserAuthData.getOptions(),
-			useGetTenantAuthData.getOptions({ tenantId }),
-		],
-	});
+	useSuspenseQueries({ queries });
 
 	return <>{children}</>;
 };
@@ -173,7 +109,7 @@ const AuthQueriesGuard = ({ children }: { children: ReactNode }) => {
 	if (!sessionToken) {
 		// No session token - this is a safety check
 		// Submit form to clear any httpOnly cookie and redirect to login
-		clearSessionAndRedirectToLogin();
+		logout({ redirectCause: 'invalid_session' });
 
 		return <SplashScreen />;
 	}
@@ -201,4 +137,34 @@ export default AuthedLayout;
 
 export const HydrateFallback = () => {
 	return <SplashScreen />;
+};
+
+export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+	// Handle 401 Unauthorized - session expired or invalid
+	if (
+		isJsClientError(error) &&
+		error.responseStatusCode === 401 &&
+		_.toLower(error.messageEscaped) === _.toLower('Unauthorized')
+	) {
+		// Clear session and submit form to clear any httpOnly cookie
+		logout({ redirectCause: 'invalid_session' });
+		return <SplashScreen />;
+	}
+
+	// Handle 403 Forbidden - user doesn't have access to the tenant
+	if (isJsClientError(error) && error.responseStatusCode === 403) {
+		return <View403 />;
+	}
+
+	// handle 404 Not found error
+	if (isJsClientError(error) && error.responseStatusCode === 404) {
+		return <NotFoundView />;
+	}
+
+	// if (import.meta.env.DEV) {
+	// 	return <TemplateErrorBoundary error={error} />;
+	// }
+
+	// else, show the error 500 page
+	return <View500 />;
 };

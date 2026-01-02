@@ -59,7 +59,7 @@ public record StaffProfileCreated {
 	public required int InvitationsSent { get; init; }
 }
 
-public partial class CreateStaffProfileBodyValidator
+public class CreateStaffProfileBodyValidator
 	: AbstractValidator<CreateStaffProfileBody> {
 	public CreateStaffProfileBodyValidator() {
 		RuleFor(x => x.Name)
@@ -148,8 +148,7 @@ public partial class CreateStaffProfileBodyValidator
 		}
 	}
 
-	[GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
-	private static partial Regex EmailRegex();
+	private static readonly Regex EmailRegex = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
 
 	private static bool BeValidEmailList(JsonElement? element) {
 		if (!element.HasValue) return true;
@@ -158,7 +157,7 @@ public partial class CreateStaffProfileBodyValidator
 
 			if (list is null) return false;
 
-			return list.All(email => EmailRegex().IsMatch(email));
+			return list.All(email => EmailRegex.IsMatch(email));
 		} catch {
 			return false;
 		}
@@ -170,7 +169,7 @@ public static class CreateStaffProfile {
 		Ok<StaffProfileCreated>,
 		BadRequest<ApiResponse>
 	>> HandleCreateStaffProfile(
-		[FromServices] IAuthContext authContext,
+		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IProfileAsStaffService profileAsStaffService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,

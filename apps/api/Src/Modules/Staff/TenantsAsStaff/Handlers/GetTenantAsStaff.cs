@@ -22,7 +22,6 @@ public class GetTenantAsStaff {
 		[FromRoute] string tenantId,
 		CancellationToken cancellationToken
 	) {
-
 		if (!Guid.TryParse(tenantId, out var tenantIdGuid)) {
 			return TypedResults.BadRequest(ApiResponse.Create(
 				"Tenant not found",
@@ -30,7 +29,7 @@ public class GetTenantAsStaff {
 			));
 		}
 
-		var tenant = await tenantAsStaffService.GetTenantAsync(tenantIdGuid, cancellationToken);
+		var tenant = await tenantAsStaffService.GetTenantByIdAsync(tenantIdGuid, cancellationToken);
 
 		if (tenant is null) {
 			return TypedResults.BadRequest(ApiResponse.Create(

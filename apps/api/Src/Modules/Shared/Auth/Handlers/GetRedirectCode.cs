@@ -1,6 +1,5 @@
 using FluentValidation;
 
-using MainApi.Localization;
 using MainApi.Src.Lib;
 using MainApi.Src.Lib.Middlewares;
 using MainApi.Src.Modules.Shared.Tenants;
@@ -30,14 +29,9 @@ public class GetRedirectCodeResult {
 }
 
 public class GetRedirectCode {
-	public static async Task<
-		Results<
-			Ok<GetRedirectCodeResult>,
-			BadRequest<ApiResponse>
-		>
-	> HandleGetRedirectCode(
+	public static async Task<Ok<GetRedirectCodeResult>> HandleGetRedirectCode(
 		[AsParameters] GetRedirectCodeQuery query,
-		IAuthContext authContext,
+		IRequestAuthContext authContext,
 		ILogger<GetRedirectCode> logger,
 		[FromServices] IAccountService accountService,
 		[FromServices] ITenantService tenantService,
@@ -60,12 +54,19 @@ public class GetRedirectCode {
 		// Check if user is a staff member
 		var isUserStaffMember = await accountService.IsUserStaffMemberAsync(userId, cancellationToken);
 
+		logger.LogInformation(
+			"User {UserId} isStaffMember: {IsStaffMember}, tenantId from query: {TenantId}",
+			userId,
+			isUserStaffMember,
+			tenantId
+		);
+
 		if (isUserStaffMember) {
 			if (tenantId is not Guid guidTenantIdAsStaff) {
 				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "staff" });
 			}
 
-			var tenantFoundAsStaff = await tenantService.GetTenantAsync(guidTenantIdAsStaff, cancellationToken);
+			var tenantFoundAsStaff = await tenantService.GetTenantByIdAsync(guidTenantIdAsStaff, cancellationToken);
 
 			if (tenantFoundAsStaff is not null) {
 				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenantFoundAsStaff.GetRequiredId().ToString() });
@@ -76,13 +77,52 @@ public class GetRedirectCode {
 
 		// User is not a staff member, check tenant access
 		if (tenantId is not Guid guidTenantIdAsMember) {
-			return TypedResults.BadRequest(ApiResponse.Create("Tenant Id is required", ResponseKeys.TenantIdRequired));
+			// No tenantId provided, find user's first tenant account
+			var userFirstTenantAccount = await accountService.FindUserTenantAccountsAsync(
+				userId, limit: 1, cancellationToken: cancellationToken
+			);
+
+			logger.LogInformation(
+				"FindUserTenantAccountsAsync for user {UserId} returned {Count} accounts",
+				userId,
+				userFirstTenantAccount.Count
+			);
+
+			var firstTenant = userFirstTenantAccount.FirstOrDefault();
+
+			if (firstTenant?.TenantId is not null) {
+				logger.LogInformation(
+					"Redirecting user {UserId} to tenant {TenantId}",
+					userId,
+					firstTenant.TenantId.Value
+				);
+				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = firstTenant.TenantId.Value.ToString() });
+			}
+
+			logger.LogWarning(
+				"User {UserId} has no tenant accounts, returning unauthorized",
+				userId
+			);
+			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "unauthorized" });
 		}
 
-		var tenantFound = await tenantService.GetTenantAsync(guidTenantIdAsMember, cancellationToken);
+		logger.LogInformation(
+			"User {UserId} provided tenantId {TenantId}, checking access",
+			userId,
+			guidTenantIdAsMember
+		);
+
+		var tenantFound = await tenantService.GetTenantByIdAsync(guidTenantIdAsMember, cancellationToken);
 
 		if (tenantFound is not null) {
 			var isMember = await accountService.IsUserMemberOfTenantAsync(userId, guidTenantIdAsMember, cancellationToken);
+
+			logger.LogInformation(
+				"User {UserId} isMember of tenant {TenantId}: {IsMember}",
+				userId,
+				guidTenantIdAsMember,
+				isMember
+			);
 
 			if (isMember) {
 				return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = tenantFound.GetRequiredId().ToString() });
@@ -97,9 +137,20 @@ public class GetRedirectCode {
 			return TypedResults.Ok(new GetRedirectCodeResult { RedirectCode = "unauthorized" });
 		}
 
+		logger.LogInformation(
+			"Tenant {TenantId} not found or inactive, looking for fallback",
+			guidTenantIdAsMember
+		);
+
 		// Get fallback tenant (first tenant the user is a member of)
 		var userTenantAccounts = await accountService.FindUserTenantAccountsAsync(
 			userId, limit: 1, cancellationToken: cancellationToken
+		);
+
+		logger.LogInformation(
+			"Fallback search for user {UserId} returned {Count} accounts",
+			userId,
+			userTenantAccounts.Count
 		);
 
 		var fallbackTenant = userTenantAccounts.FirstOrDefault();

@@ -1,5 +1,4 @@
 using MainApi.Localization;
-using MainApi.Src.Data.DbContext;
 using MainApi.Src.Modules.Shared.Permissions;
 using MainApi.Src.Modules.Shared.Users;
 
@@ -30,14 +29,13 @@ public class PermissionFilter : IEndpointFilter {
 		EndpointFilterDelegate next
 	) {
 		var httpContext = context.HttpContext;
-		var authContext = httpContext.RequestServices.GetRequiredService<IAuthContext>();
+		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
 		var accountStaff = authContext.AccountStaff;
-		var dbContext = httpContext.RequestServices.GetRequiredService<MainApiDbContext>();
 		var permissionService = httpContext.RequestServices.GetRequiredService<IPermissionService>();
 		var logger = httpContext.RequestServices.GetRequiredService<ILogger<PermissionFilter>>();
 
 		if (accountStaff == null) {
-			throw new Exception("PermissionFilter must be set behind StaffAuthMiddleware.");
+			throw new Exception("PermissionFilter must be set behind StaffAuthFilter.");
 		}
 
 		// if user is not admin, check user permissions
@@ -58,10 +56,10 @@ public class PermissionFilter : IEndpointFilter {
 						sessionToken = authContext.SessionToken,
 					});
 
-					return TypedResults.Json(new {
-						message = "Unauthorized",
-						key = "unauthorized",
-					}, statusCode: StatusCodes.Status401Unauthorized);
+					return TypedResults.Json(
+						ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
+						statusCode: StatusCodes.Status401Unauthorized
+					);
 				}
 
 				bool hasRequiredPermissions;

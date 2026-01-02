@@ -15,6 +15,10 @@ const routes = [
 		getLastPath(FRONT_PATH_NAMES.maintenance),
 		'routes/maintenance/maintenance-page.tsx',
 	),
+	route(
+		getLastPath(FRONT_PATH_NAMES.unauthorized),
+		'routes/unauthorized/unauthorized-page.tsx',
+	),
 	// Action-only route for clearing httpOnly session cookies (POST + Origin/Fetch-metadata validation)
 	route(
 		getLastPath(FRONT_PATH_NAMES.auth.clearSession, 2),
@@ -175,6 +179,10 @@ const routes = [
 				]),
 				route('*', 'routes/authed/staff/_errors/staff-not-found-page.tsx'),
 			],
+		),
+		route(
+			getLastPath(FRONT_PATH_NAMES.tenant(':tenantId')._root),
+			'routes/authed/tenant/_portal/tenant-portal-page.tsx',
 		),
 		route(
 			getLastPath(FRONT_PATH_NAMES.tenant(':tenantId').root, 2),

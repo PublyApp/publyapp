@@ -1,9 +1,11 @@
 using MainApi.Localization;
 
+using Microsoft.Extensions.Options;
+
 namespace MainApi.Src.Lib.Filters;
 
 /// <summary>
-/// Validates that the X-Tenant-Id header is present in the request.
+/// Validates that the tenant ID header (configured in AppSettings.TENANT_ID_HEADER_KEY) is present in the request.
 /// Sets the tenant ID in TenantContext if present.
 /// </summary>
 public class CheckTenantHeaderFilter : IEndpointFilter {
@@ -12,11 +14,12 @@ public class CheckTenantHeaderFilter : IEndpointFilter {
 		EndpointFilterDelegate next
 	) {
 		var httpContext = context.HttpContext;
-		var tenantContext = httpContext.RequestServices.GetRequiredService<ITenantContext>();
+		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
+		var appSettings = httpContext.RequestServices.GetRequiredService<IOptions<AppSettings>>().Value;
 
-		// Try to get tenant ID from TenantContext first, then from header
-		var tenantId = tenantContext.TenantId
-			?? httpContext.Request.Headers["X-Tenant-Id"].FirstOrDefault();
+		// Try to get tenant ID from AuthContext first, then from header
+		var tenantId = authContext.TenantId
+			?? httpContext.Request.Headers[appSettings.TENANT_ID_HEADER_KEY].FirstOrDefault();
 
 		if (string.IsNullOrEmpty(tenantId)) {
 			return TypedResults.Json(
@@ -25,8 +28,8 @@ public class CheckTenantHeaderFilter : IEndpointFilter {
 			);
 		}
 
-		// Set tenant ID in TenantContext for downstream filters/handlers
-		tenantContext.TenantId = tenantId;
+		// Set tenant ID in AuthContext for downstream filters/handlers
+		authContext.TenantId = tenantId;
 
 		return await next(context);
 	}
@@ -38,7 +41,7 @@ public class CheckTenantHeaderFilter : IEndpointFilter {
 public static class CheckTenantHeaderFilterExtensions {
 	/// <summary>
 	/// Adds CheckTenantHeaderFilter to the route group.
-	/// Validates that X-Tenant-Id header is present.
+	/// Validates that the tenant ID header is present.
 	/// </summary>
 	public static RouteGroupBuilder WithCheckTenantHeader(this RouteGroupBuilder builder) {
 		return builder.AddEndpointFilter<CheckTenantHeaderFilter>();
@@ -46,7 +49,7 @@ public static class CheckTenantHeaderFilterExtensions {
 
 	/// <summary>
 	/// Adds CheckTenantHeaderFilter to the route handler.
-	/// Validates that X-Tenant-Id header is present.
+	/// Validates that the tenant ID header is present.
 	/// </summary>
 	public static RouteHandlerBuilder WithCheckTenantHeader(this RouteHandlerBuilder builder) {
 		return builder.AddEndpointFilter<CheckTenantHeaderFilter>();
