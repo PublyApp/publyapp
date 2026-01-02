@@ -14,7 +14,6 @@ export interface RedirectCodeRequestBuilder extends BaseRequestBuilder<RedirectC
      * Get Redirect Code
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<GetRedirectCodeResult>}
-     * @throws {ApiResponse} error when the service returns a 400 status code
      * @throws {ApiResponse} error when the service returns a 401 status code
      * @throws {ApiResponse} error when the service returns a 500 status code
      */
@@ -50,7 +49,6 @@ export const RedirectCodeRequestBuilderRequestsMetadata: RequestsMetadata = {
         uriTemplate: RedirectCodeRequestBuilderUriTemplate,
         responseBodyContentType: "application/json",
         errorMappings: {
-            400: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
             401: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createApiResponseFromDiscriminatorValue as ParsableFactory<Parsable>,
         },

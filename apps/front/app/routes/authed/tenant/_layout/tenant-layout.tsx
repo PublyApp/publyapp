@@ -1,15 +1,53 @@
-import { Suspense } from 'react';
+import * as cookie from 'cookie';
+import { Suspense, useEffect } from 'react';
 import { Outlet, useParams } from 'react-router';
 
 import { LoadingScreen } from '@/front/components/loading-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { DashboardLayout } from '@/front/layouts/dashboard/layout';
 import { ICONS, type NavDataType } from '@/front/layouts/nav-config-dashboard';
-import { FRONT_PATH_NAMES } from '@/shared/lib/constants';
+import {
+	FRONT_PATH_NAMES,
+	LAST_USED_TENANT_ID_COOKIE_KEY,
+} from '@/shared/lib/constants';
+import duration from '@org/shared/utils/duration.utils';
 
 const TenantLayout = () => {
 	const { t } = useTranslate();
 	const { tenantId } = useParams();
+
+	// Update last used tenant cookie whenever tenantId changes or tab gains focus
+	useEffect(() => {
+		const updateCookie = () => {
+			if (tenantId) {
+				const lastUsedTenantCookie = cookie.serialize(
+					LAST_USED_TENANT_ID_COOKIE_KEY,
+					tenantId,
+					{
+						path: '/',
+						maxAge: duration.toSeconds('3d'),
+					},
+				);
+				document.cookie = lastUsedTenantCookie;
+			}
+		};
+
+		// Update on mount and when tenantId changes
+		updateCookie();
+
+		// Update when tab becomes visible (user switches back to this tab)
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === 'visible') {
+				updateCookie();
+			}
+		};
+
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
+	}, [tenantId]);
 
 	const tenantNavData: NavDataType = [
 		{

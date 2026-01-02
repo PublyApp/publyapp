@@ -211,7 +211,7 @@ public static class BulkCreateStaffInvitations {
 		BadRequest<ApiResponse>,
 		JsonHttpResult<ApiResponse>
 	>> HandleBulkCreateStaffInvitations(
-		[FromServices] IAuthContext authContext,
+		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IInvitationService invitationService,
 		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,

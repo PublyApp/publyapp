@@ -59,5 +59,11 @@ dotnet_separate_import_directive_groups = true
 # ======================================
 # CS0168: The variable 'name' is declared but never used
 dotnet_diagnostic.CS0168.severity = warning
+# CS0219: Variable is assigned but its value is never used
+dotnet_diagnostic.CS0219.severity = warning
+# IDE0059: Unnecessary assignment of a value
+dotnet_diagnostic.IDE0059.severity = warning
+# IDE0060: Remove unused parameter
+dotnet_diagnostic.IDE0060.severity = warning
 # CS1591: Missing XML comment for publicly visible type or member
 dotnet_diagnostic.CS1591.severity = none

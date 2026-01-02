@@ -2,8 +2,10 @@ import { StrictMode, startTransition } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 import { HydratedRouter } from 'react-router/dom';
+
 import { logger } from '@/shared/lib/logger/iso-logger';
 import { LogLevelEnum } from '@/shared/lib/logger/logger.utils';
+
 import { NonceProvider } from './hooks/use-nonce';
 import { initApiClientOnClient } from './lib/api';
 import { initI18nOnClient } from './lib/i18n/init-i18n.client';

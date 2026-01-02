@@ -125,16 +125,6 @@
               }
             }
           },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
-                }
-              }
-            }
-          },
           "500": {
             "description": "Internal Server Error",
             "content": {
@@ -208,6 +198,26 @@
           },
           "401": {
             "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/json": {
                 "schema": {
@@ -348,12 +358,43 @@
               }
             }
           },
-          "400": {
-            "description": "Bad Request",
+          "500": {
+            "description": "Internal Server Error",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/user-tenants": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Get User Tenants",
+        "operationId": "GetUserTenants",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserTenantsResult"
                 }
               }
             }
@@ -2134,6 +2175,34 @@
               "null",
               "string"
             ]
+          },
+          "firstName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "GetUserTenantsResult": {
+        "type": "object",
+        "properties": {
+          "tenants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantListItem"
+            }
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -2579,6 +2648,18 @@
             "items": {
               "$ref": "#/components/schemas/ProfileItem"
             }
+          },
+          "accountLevel": {
+            "type": "string"
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -2630,6 +2711,27 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "TenantListItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
