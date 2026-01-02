@@ -93,7 +93,7 @@ export const SidebarUserMenu = ({
 						<Iconify
 							width={24}
 							icon="solar:user-rounded-bold"
-							sx={{ color: 'text.secondary' }}
+							sx={{ color: 'text.disabled' }}
 						/>
 					</Avatar>
 				</ButtonBase>
@@ -126,7 +126,7 @@ export const SidebarUserMenu = ({
 					<Iconify
 						width={24}
 						icon="solar:user-rounded-bold"
-						sx={{ color: 'text.secondary' }}
+						sx={{ color: 'text.disabled' }}
 					/>
 				</Avatar>
 
@@ -191,7 +191,7 @@ export const SidebarUserMenu = ({
 					<Typography variant="subtitle2" noWrap sx={{ fontSize: '0.8125rem' }}>
 						{displayName}
 					</Typography>
-					<Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
+					<Typography variant="caption" sx={{ color: 'text.disabled' }} noWrap>
 						{user?.email}
 					</Typography>
 				</Box>

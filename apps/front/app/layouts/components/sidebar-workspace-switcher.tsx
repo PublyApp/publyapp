@@ -105,9 +105,9 @@ export const SidebarWorkspaceSwitcher = ({
 							})}
 						>
 							<Iconify
-								width={16}
-								icon="solar:buildings-2-linear"
-								sx={{ color: 'text.secondary' }}
+								width={18}
+								icon="solar:buildings-bold"
+								sx={{ color: 'text.disabled' }}
 							/>
 						</Box>
 					)}
@@ -161,8 +161,8 @@ export const SidebarWorkspaceSwitcher = ({
 					>
 						<Iconify
 							width={20}
-							icon="solar:buildings-2-linear"
-							sx={{ color: 'text.secondary' }}
+							icon="solar:buildings-bold"
+							sx={{ color: 'text.disabled' }}
 						/>
 					</Box>
 				)}
@@ -270,8 +270,8 @@ export const SidebarWorkspaceSwitcher = ({
 										>
 											<Iconify
 												width={16}
-												icon="solar:buildings-2-linear"
-												sx={{ color: 'text.secondary' }}
+												icon="solar:buildings-bold"
+												sx={{ color: 'text.disabled' }}
 											/>
 										</Box>
 									)}
