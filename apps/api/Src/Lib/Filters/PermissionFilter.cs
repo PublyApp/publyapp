@@ -58,10 +58,10 @@ public class PermissionFilter : IEndpointFilter {
 						sessionToken = authContext.SessionToken,
 					});
 
-					return TypedResults.Json(new {
-						message = "Unauthorized",
-						key = "unauthorized",
-					}, statusCode: StatusCodes.Status401Unauthorized);
+					return TypedResults.Json(
+						ApiResponse.Create("Unauthorized", ResponseKeys.Unauthorized),
+						statusCode: StatusCodes.Status401Unauthorized
+					);
 				}
 
 				bool hasRequiredPermissions;
