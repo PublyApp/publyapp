@@ -21,7 +21,6 @@ import {
 import { ColorSchemePopover } from '../components/colorscheme-popover';
 import { LanguagePopover } from '../components/language-popover';
 import { MenuButton } from '../components/menu-button';
-import { SettingsButton } from '../components/settings-button';
 import { SidebarToggleButton } from '../components/sidebar-toggle-button';
 import { SidebarUserMenu } from '../components/sidebar-user-menu';
 import { SidebarWorkspaceSwitcher } from '../components/sidebar-workspace-switcher';
@@ -195,7 +194,7 @@ export const DashboardLayout = ({
 					<LanguagePopover data={allLangs} />
 
 					{/** @slot Settings button */}
-					<SettingsButton />
+					{/* <SettingsButton /> */}
 				</Box>
 			),
 		};
