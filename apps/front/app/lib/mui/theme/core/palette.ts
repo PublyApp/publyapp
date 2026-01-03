@@ -1,13 +1,11 @@
 import type {
-	PaletteColor,
 	ColorSystemOptions,
+	PaletteColor,
 	PaletteColorChannel,
 } from '@mui/material/styles';
-
-import { varAlpha, createPaletteChannel } from 'minimal-shared/utils';
+import { createPaletteChannel, varAlpha } from 'minimal-shared/utils';
 
 import { themeConfig } from '../theme-config';
-
 import type { ThemeColorScheme } from '../types';
 
 // ----------------------------------------------------------------------
@@ -121,12 +119,12 @@ export const background = {
 	light: createPaletteChannel({
 		paper: '#FFFFFF',
 		default: '#FCFCFD', // hsla(210, 20%, 99%, 1)
-		neutral: grey[100], // #F3F4F6
+		neutral: grey[100], // #F3F4F6 - also used for hover states
 	}),
 	dark: createPaletteChannel({
 		paper: '#2A2B2E', // UI Foundations exact paper color
 		default: '#1E1E1F', // hsla(220, 2%, 12%, 1)
-		neutral: '#3A3B3E', // Slightly elevated for cards
+		neutral: '#3A3B3E', // Slightly elevated for cards, also used for hover states
 	}),
 };
 

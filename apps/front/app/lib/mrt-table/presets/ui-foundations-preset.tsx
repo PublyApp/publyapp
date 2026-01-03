@@ -108,6 +108,7 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 		muiTableHeadProps: {
 			sx: {
 				boxShadow: 'none', // Remove any header shadows
+				opacity: 1, // Force full opacity (MRT sets 0.97 by default for sticky header)
 				// Header row
 				'& > tr': {
 					boxShadow: 'none',
@@ -134,6 +135,7 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 		muiTableBodyProps: {
 			sx: {
 				bgcolor: theme.vars.palette.background.default,
+				opacity: 1, // Ensure full opacity for correct color rendering
 				'& > tr > td': {
 					bgcolor: 'transparent', // Allow row background to show through
 				},
@@ -187,6 +189,15 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 		},
 		muiTableBodyCellProps: {
 			sx: {
+				// Ensure cells are transparent so row hover background shows through
+				bgcolor: 'transparent !important',
+				'&:hover': {
+					bgcolor: 'transparent !important',
+				},
+				// Disable MRT's ::after pseudo-element overlay that causes color shift
+				'&::after': {
+					display: 'none !important',
+				},
 				// Remove focus outline
 				'&:focus, &:focus-within': {
 					outline: 'none',
@@ -213,32 +224,23 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 				className = 'ui-foundations-row-disabled';
 			}
 
-			// Check if this is the last row to remove its border
-			const isLastRow = row.index === table.getRowModel().rows.length - 1;
-
 			return {
 				className,
 				sx: {
 					bgcolor: theme.vars.palette.background.default,
+					opacity: 1, // Ensure full opacity for correct color rendering
 					height: 52, // Template matchesSmBreakpoint ? 52 : 42
+					// Smooth transition for hover
+					transition: theme.transitions.create('background-color', {
+						duration: theme.transitions.duration.shorter,
+					}),
 					'&:focus, &:focus-within': {
 						outline: 'none',
 					},
-					// Subtle hover effect
+					// Subtle hover effect - use grey[100] for visible contrast against default bg
 					'&:hover': {
-						bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.04),
+						bgcolor: `${theme.vars.palette.background.neutral} !important`,
 					},
-					...theme.applyStyles('dark', {
-						'&:hover': {
-							bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
-						},
-					}),
-					// Remove border-bottom from last row cells (bottom toolbar has the border)
-					...(isLastRow && {
-						'& > td': {
-							borderBottom: 'none',
-						},
-					}),
 				},
 			};
 		},
