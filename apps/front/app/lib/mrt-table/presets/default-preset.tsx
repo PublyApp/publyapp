@@ -10,9 +10,11 @@ import {
 	type MRT_RowData,
 	type MRT_TableInstance,
 } from 'material-react-table';
+
 import { EmptyContent } from '@/front/components/empty-content/empty-content';
 import { Iconify } from '@/front/components/iconify/iconify';
 import { useTranslate } from '@/front/hooks/use-translate';
+
 import { DEFAULT_PAGE_SIZE_OPTIONS } from '../../constants';
 import type { TablePreset } from '../table-presets';
 
@@ -63,6 +65,9 @@ export const defaultTablePreset = (theme: Theme): TablePreset => {
 				flexDirection: 'column',
 				height: '1px',
 				bgcolor: theme.vars.palette.background.paper,
+				// Remove Paper border to avoid double border with table cells
+				// border: 'none',
+				boxShadow: theme.vars.customShadows.card,
 			},
 		},
 		muiTableContainerProps: {

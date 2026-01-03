@@ -117,7 +117,7 @@ const TenantProfilesTable = () => {
 		return columnsDefinition;
 	}, [profilesMap]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns: isPending ? placeholderColumns : columns,
 		data: rows,
 		state: {
@@ -157,7 +157,12 @@ const TenantProfilesTable = () => {
 
 	return (
 		<Card
-			sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
 			style={{
 				['--permission-column-bg' as string]:
 					mode === 'dark'

@@ -134,7 +134,7 @@ const TenantSettingsMembersPage = () => {
 	// Empty data for now - no API integration yet
 	const dataTable: TenantMemberRowData[] = useMemo(() => [], []);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: dataTable,
 		rowCount: 0,
@@ -185,9 +185,16 @@ const TenantSettingsMembersPage = () => {
 				sx={{ mb: { xs: 3, md: 5 } }}
 			/>
 
-			<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+			<Box
+				sx={{
+					flexGrow: 1,
+					display: 'flex',
+					flexDirection: 'column',
+					border: 'none',
+				}}
+			>
 				<MaterialReactTable table={table} />
-			</Card>
+			</Box>
 		</DashboardContent>
 	);
 };
