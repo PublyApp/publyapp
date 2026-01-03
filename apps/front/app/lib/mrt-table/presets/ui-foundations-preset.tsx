@@ -18,6 +18,13 @@ import { useTranslate } from '@/front/hooks/use-translate';
 import { DEFAULT_PAGE_SIZE_OPTIONS } from '../../constants';
 import type { TablePreset } from '../table-presets';
 
+// UI Foundations border style - subtle, matches topbar/sidebar
+// Light: 12% opacity, Dark: 8% opacity (matches appbar.tsx pattern)
+const getBorderColor = (theme: Theme) =>
+	varAlpha(theme.vars.palette.grey['500Channel'], 0.12);
+const getBorderColorDark = (theme: Theme) =>
+	varAlpha(theme.vars.palette.grey['500Channel'], 0.08);
+
 export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 	return {
 		layoutMode: 'grid',
@@ -62,6 +69,7 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 		// -----------------------------------------------------------------
 
 		muiTablePaperProps: {
+			elevation: 0, // Remove Paper elevation/shadow
 			sx: {
 				minHeight: 640,
 				flexGrow: 1,
@@ -72,7 +80,7 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 				backgroundImage: 'none', // Remove elevation overlay in dark mode
 				// No border for the paper itself
 				border: 'none',
-				boxShadow: 'none',
+				boxShadow: 'none !important', // Force remove any shadow
 			},
 		},
 		muiTableContainerProps: {
@@ -80,17 +88,46 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 				scrollbarWidth: 'unset',
 				flexGrow: 1,
 				bgcolor: theme.vars.palette.background.default,
-				// Border top as seen in template Table.tsx
-				borderTop: `1px solid ${theme.vars.palette.grey[200]}`,
+				boxShadow: 'none', // Remove any shadows
+				// Thin border matching row separators (0.5px)
+				borderTopWidth: 0.5,
+				borderTopStyle: 'solid',
+				borderTopColor: getBorderColor(theme),
+				// Explicitly remove bottom border to prevent double border with bottom toolbar
+				borderBottom: 'none',
+				// Remove any internal table borders
+				'& > table': {
+					borderBottom: 'none',
+					boxShadow: 'none',
+				},
+				...theme.applyStyles('dark', {
+					borderTopColor: getBorderColorDark(theme),
+				}),
 			},
 		},
 		muiTableHeadProps: {
 			sx: {
-				// Transparent/Paper background for headers
+				boxShadow: 'none', // Remove any header shadows
+				// Header row
+				'& > tr': {
+					boxShadow: 'none',
+				},
+				// Header cells - same border as body cells for visual consistency
 				'& > tr > th': {
 					bgcolor: theme.vars.palette.background.default, // Match main background for sticky header
-					borderBottom: `1px solid ${theme.vars.palette.grey[200]}`,
+					// Same subtle border as body cells (0.5px)
+					borderBottom: `0.5px solid ${getBorderColor(theme)} !important`,
+					boxShadow: 'none',
 					height: 48, // Template matchesSmBreakpoint ? 48 : 42
+					// Use flexbox to vertically center the content wrapper
+					display: 'flex',
+					// alignItems: 'center',
+					justifyContent: 'center', // Vertical centering!! I checked!!!!
+					// Consistent padding for all header cells
+					py: 0.5,
+					...theme.applyStyles('dark', {
+						borderBottom: `0.5px solid ${getBorderColorDark(theme)} !important`,
+					}),
 				},
 			},
 		},
@@ -98,54 +135,71 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 			sx: {
 				bgcolor: theme.vars.palette.background.default,
 				'& > tr > td': {
-					bgcolor: theme.vars.palette.background.default, // Allow row background to show through
+					bgcolor: 'transparent', // Allow row background to show through
 				},
 				// Error Row Style (Red stripes)
 				'& .ui-foundations-row-error': {
-					backgroundColor:
-						theme.vars.palette.error.lighter ||
-						varAlpha(theme.vars.palette.error.mainChannel, 0.08),
+					backgroundColor: varAlpha(theme.vars.palette.error.mainChannel, 0.06),
 					// Striped pattern
 					backgroundImage: `repeating-linear-gradient(
-						45deg,
-						transparent,
-						transparent 6px,
-						${varAlpha(theme.vars.palette.error.mainChannel, 0.08)} 6px,
-						${varAlpha(theme.vars.palette.error.mainChannel, 0.08)} 12px
-					)`,
+					45deg,
+					transparent,
+					transparent 6px,
+					${varAlpha(theme.vars.palette.error.mainChannel, 0.06)} 6px,
+					${varAlpha(theme.vars.palette.error.mainChannel, 0.06)} 12px
+				)`,
 					'&:hover': {
-						backgroundColor:
-							theme.vars.palette.error.lighter ||
-							varAlpha(theme.vars.palette.error.mainChannel, 0.12),
+						backgroundColor: varAlpha(
+							theme.vars.palette.error.mainChannel,
+							0.1,
+						),
 					},
 					'& td': {
-						backgroundColor: theme.vars.palette.background.default,
+						backgroundColor: 'transparent',
 					},
 				},
 				// Disabled/Canceled Row Style (Gray stripes)
 				'& .ui-foundations-row-disabled': {
-					backgroundColor: theme.vars.palette.grey[100],
+					backgroundColor: varAlpha(
+						theme.vars.palette.grey['500Channel'],
+						0.04,
+					),
 					opacity: 0.8,
 					// Striped pattern
 					backgroundImage: `repeating-linear-gradient(
-						45deg,
-						transparent,
-						transparent 6px,
-						${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)} 6px,
-						${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)} 12px
-					)`,
+					45deg,
+					transparent,
+					transparent 6px,
+					${varAlpha(theme.vars.palette.grey['500Channel'], 0.06)} 6px,
+					${varAlpha(theme.vars.palette.grey['500Channel'], 0.06)} 12px
+				)`,
 					'&:hover': {
-						backgroundColor: theme.vars.palette.grey[200],
+						backgroundColor: varAlpha(
+							theme.vars.palette.grey['500Channel'],
+							0.08,
+						),
 					},
 					'& td': {
-						backgroundColor: theme.vars.palette.background.default,
+						backgroundColor: 'transparent',
 					},
 				},
 			},
 		},
-		muiTableBodyRowProps: ({ row }) => {
+		muiTableBodyCellProps: {
+			sx: {
+				// Remove focus outline
+				'&:focus, &:focus-within': {
+					outline: 'none',
+				},
+				// Thin border matching row separators (0.5px)
+				borderBottom: `0.5px solid ${getBorderColor(theme)} !important`,
+				...theme.applyStyles('dark', {
+					borderBottom: `0.5px solid ${getBorderColorDark(theme)} !important`,
+				}),
+			},
+		},
+		muiTableBodyRowProps: ({ row, table }) => {
 			// Helper logic to auto-apply classes if data matches common patterns
-			// This makes it work "out of the box" for similar data structures
 			const status = _.chain(row.original).get('status').toLower().value();
 			let className = '';
 
@@ -159,26 +213,34 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 				className = 'ui-foundations-row-disabled';
 			}
 
+			// Check if this is the last row to remove its border
+			const isLastRow = row.index === table.getRowModel().rows.length - 1;
+
 			return {
 				className,
 				sx: {
 					bgcolor: theme.vars.palette.background.default,
 					height: 52, // Template matchesSmBreakpoint ? 52 : 42
-					// Remove focus outline
 					'&:focus, &:focus-within': {
 						outline: 'none',
 					},
+					// Subtle hover effect
+					'&:hover': {
+						bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.04),
+					},
+					...theme.applyStyles('dark', {
+						'&:hover': {
+							bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+						},
+					}),
+					// Remove border-bottom from last row cells (bottom toolbar has the border)
+					...(isLastRow && {
+						'& > td': {
+							borderBottom: 'none',
+						},
+					}),
 				},
 			};
-		},
-		muiTableBodyCellProps: {
-			sx: {
-				// Remove focus outline
-				'&:focus, &:focus-within': {
-					outline: 'none',
-				},
-				borderBottom: `1px solid ${theme.vars.palette.grey[200]}`,
-			},
 		},
 
 		// -----------------------------------------------------------------
@@ -190,9 +252,21 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 			sx: {
 				bgcolor: theme.vars.palette.background.default,
 				alignItems: 'center',
-				borderTop: `1px solid ${theme.vars.palette.grey[200]}`,
+				// Remove any border/shadow from outer toolbar
+				border: 'none',
+				boxShadow: 'none',
+				// Target the inner MRT Box wrapper and apply thin border there
 				'& > .MuiBox-root': {
 					px: 2,
+					// Thin border matching row separators (0.5px like table cells)
+					borderTopWidth: 0.5,
+					borderTopStyle: 'solid',
+					borderTopColor: getBorderColor(theme),
+					// Remove any box-shadow from inner element
+					boxShadow: 'none',
+					...theme.applyStyles('dark', {
+						borderTopColor: getBorderColorDark(theme),
+					}),
 				},
 			},
 		},
@@ -281,6 +355,8 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 		muiTableProps: {
 			sx: {
 				bgcolor: theme.vars.palette.background.default,
+				// Remove any default table border
+				border: 'none',
 				'& tr > th:last-of-type > .Mui-TableHeadCell-Content:has(.is-actions-column), & tr > td:last-of-type:not(:has(.empty-content)):has(.is-actions-column)':
 					{
 						justifyContent: 'flex-end',
