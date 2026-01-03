@@ -3,7 +3,7 @@ import type { MRT_PaginationState } from 'material-react-table';
 
 /**
  * Metadata for cursor-based pagination tables
- * Pass this via the `meta` prop when using the 'cursor-pagination' preset
+ * Pass this via the `meta` prop when using the 'default-cursor' or 'minimal-cursor' presets
  */
 export type CursorPaginationMeta = {
 	/** Pagination change handler from useTableState */

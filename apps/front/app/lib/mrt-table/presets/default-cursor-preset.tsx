@@ -12,7 +12,7 @@ import type { CursorPaginationMeta } from '../types';
 import { defaultTablePreset } from './default-preset';
 
 /**
- * Cursor pagination preset for Material React Table
+ * Default cursor pagination preset for Material React Table
  *
  * This preset provides a complete cursor-based pagination UI with:
  * - Page size selector
@@ -21,7 +21,7 @@ import { defaultTablePreset } from './default-preset';
  *
  * Usage:
  * ```tsx
- * const table = useMRTTable('cursor-pagination', {
+ * const table = useMRTTable('default-cursor', {
  *   columns,
  *   data: dataTable,
  *   manualSorting: true,
@@ -36,7 +36,7 @@ import { defaultTablePreset } from './default-preset';
  * });
  * ```
  */
-export const cursorPaginationPreset = (theme: Theme): TablePreset => {
+export const defaultCursorPreset = (theme: Theme): TablePreset => {
 	const basePreset = defaultTablePreset(theme);
 
 	return {
