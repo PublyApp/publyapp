@@ -87,7 +87,7 @@ const StaffProfileDetailsUsersTabPage = () => {
 		return [];
 	}, []);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: dataTable,
 		rowCount: 0,
@@ -116,9 +116,16 @@ const StaffProfileDetailsUsersTabPage = () => {
 	});
 
 	return (
-		<Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+		<Box
+			sx={{
+				flexGrow: 1,
+				display: 'flex',
+				flexDirection: 'column',
+				border: 'none',
+			}}
+		>
 			<MaterialReactTable table={table} />
-		</Card>
+		</Box>
 	);
 };
 

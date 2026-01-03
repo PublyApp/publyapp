@@ -411,9 +411,9 @@ const MyTable = () => {
   });
 
   return (
-    <Card>
+    <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', border: 'none', }}>
       <MaterialReactTable table={table} />
-    </Card>
+    </Box>
   );
 };
 ```
