@@ -87,7 +87,7 @@ const StaffProfileDetailsUsersTabPage = () => {
 		return [];
 	}, []);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: dataTable,
 		rowCount: 0,

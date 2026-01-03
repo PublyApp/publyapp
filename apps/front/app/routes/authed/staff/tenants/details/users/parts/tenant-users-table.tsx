@@ -129,7 +129,7 @@ const TenantUsersTable = () => {
 		});
 	}, [data]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: rows,
 		rowCount: getUntypedNumber(data?.count, 0),
