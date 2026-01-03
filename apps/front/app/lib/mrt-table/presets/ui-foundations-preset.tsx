@@ -119,7 +119,6 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 					// Same subtle border as body cells (0.5px)
 					borderBottom: `0.5px solid ${getBorderColor(theme)} !important`,
 					boxShadow: 'none',
-					height: 48, // Template matchesSmBreakpoint ? 48 : 42
 					// Use flexbox to vertically center the content wrapper
 					display: 'flex',
 					// alignItems: 'center',
@@ -229,7 +228,6 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 				sx: {
 					bgcolor: theme.vars.palette.background.default,
 					opacity: 1, // Ensure full opacity for correct color rendering
-					height: 52, // Template matchesSmBreakpoint ? 52 : 42
 					// Smooth transition for hover
 					transition: theme.transitions.create('background-color', {
 						duration: theme.transitions.duration.shorter,
