@@ -25,7 +25,7 @@ const getBorderColor = (theme: Theme) =>
 const getBorderColorDark = (theme: Theme) =>
 	varAlpha(theme.vars.palette.grey['500Channel'], 0.08);
 
-export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
+export const minimalTablePreset = (theme: Theme): TablePreset => {
 	return {
 		layoutMode: 'grid',
 		enableStickyHeader: true,

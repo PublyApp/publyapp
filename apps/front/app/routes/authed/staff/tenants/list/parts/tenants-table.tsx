@@ -113,7 +113,7 @@ const TenantsTable = () => {
 		return _.map(data?.tenants, (tenant) => TenantRowDataMapper(tenant));
 	}, [data]);
 
-	const table = useMRTTable('ui-foundations', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: dataTable,
 		rowCount: getUntypedNumber(data?.count, 0),

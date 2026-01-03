@@ -120,7 +120,7 @@ const TenantSettingsProfilesPage = () => {
 	const dataTable: TenantProfileRowData[] = [];
 
 	// Table configuration
-	const table = useMRTTable('cursor-pagination', {
+	const table = useMRTTable('default-cursor', {
 		columns,
 		data: dataTable,
 		state: {

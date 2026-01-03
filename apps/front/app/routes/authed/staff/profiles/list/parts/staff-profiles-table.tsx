@@ -131,7 +131,7 @@ const StaffProfilesTable = () => {
 	}, [data]);
 
 	// Table configuration with cursor pagination preset
-	const table = useMRTTable('cursor-pagination', {
+	const table = useMRTTable('minimal-cursor', {
 		columns,
 		data: dataTable,
 		manualSorting: true,
