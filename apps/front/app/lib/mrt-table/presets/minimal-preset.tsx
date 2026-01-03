@@ -125,6 +125,10 @@ export const minimalTablePreset = (theme: Theme): TablePreset => {
 					justifyContent: 'center', // Vertical centering!! I checked!!!!
 					// Consistent padding for all header cells
 					py: 0.5,
+					// Make sort icons more visible in light mode
+					'& .MuiTableSortLabel-icon': {
+						color: `${theme.vars.palette.grey['400']} !important`,
+					},
 					...theme.applyStyles('dark', {
 						borderBottom: `0.5px solid ${getBorderColorDark(theme)} !important`,
 					}),
