@@ -20,7 +20,7 @@
 		"markdownlint-cli": "^0.45.0",
 		"tsconfig": "workspace:*",
 		"turbo": "^2.0.3",
-		"typescript": "^5.8.3"
+		"typescript": "^5.9.3"
 	},
 	"packageManager": "pnpm@10.13.1",
 	"engines": {
