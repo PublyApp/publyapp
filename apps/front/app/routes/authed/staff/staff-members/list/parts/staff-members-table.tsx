@@ -131,7 +131,7 @@ const StaffMembersTable = () => {
 		return _.map(data?.staffMembers, StaffMemberRowDataMapper);
 	}, [data]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: dataTable,
 		rowCount: getUntypedNumber(data?.count, 0),

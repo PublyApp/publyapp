@@ -140,7 +140,7 @@ const TenantSettingsInvitationsPage = () => {
 	const dataTable: TenantInvitationRowData[] = [];
 
 	// Table configuration
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: dataTable,
 		state: {

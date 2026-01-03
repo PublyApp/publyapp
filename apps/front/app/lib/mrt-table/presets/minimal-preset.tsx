@@ -212,7 +212,7 @@ export const minimalTablePreset = (theme: Theme): TablePreset => {
 				}),
 			},
 		},
-		muiTableBodyRowProps: ({ row, table }) => {
+		muiTableBodyRowProps: ({ row }) => {
 			// Helper logic to auto-apply classes if data matches common patterns
 			const status = _.chain(row.original).get('status').toLower().value();
 			let className = '';

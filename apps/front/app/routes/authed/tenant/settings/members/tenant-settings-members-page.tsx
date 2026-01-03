@@ -134,7 +134,7 @@ const TenantSettingsMembersPage = () => {
 	// Empty data for now - no API integration yet
 	const dataTable: TenantMemberRowData[] = useMemo(() => [], []);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns,
 		data: dataTable,
 		rowCount: 0,

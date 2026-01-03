@@ -117,7 +117,7 @@ const TenantProfilesTable = () => {
 		return columnsDefinition;
 	}, [profilesMap]);
 
-	const table = useMRTTable('default', {
+	const table = useMRTTable('minimal', {
 		columns: isPending ? placeholderColumns : columns,
 		data: rows,
 		state: {
