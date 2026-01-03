@@ -41,6 +41,8 @@ const MuiSelect: Components<Theme>['MuiSelect'] = {
 			transform: 'rotate(180deg)',
 		},
 		select: {
+			display: 'flex',
+			alignItems: 'center',
 			'&:focus': {
 				backgroundColor: 'transparent',
 			},

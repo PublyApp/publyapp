@@ -287,7 +287,9 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 					}}
 				>
 					{/* Page Size Selector */}
-					<Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+					<Box
+						sx={{ display: 'flex', gap: 1, alignItems: 'center', ml: 'auto' }}
+					>
 						<Box sx={{ typography: 'body2', color: 'text.secondary' }}>
 							{t('rows-per-page')}:
 						</Box>
@@ -298,13 +300,6 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 								table.setPageSize(Number(e.target.value));
 							}}
 							sx={{ minWidth: 70 }}
-							slotProps={{
-								input: {
-									sx: {
-										padding: '4px 10px',
-									},
-								},
-							}}
 						>
 							{DEFAULT_PAGE_SIZE_OPTIONS.map((size) => (
 								<MenuItem key={size} value={size}>
@@ -317,7 +312,6 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 					{/* Page Navigation */}
 					<Box
 						sx={{
-							ml: 'auto',
 							display: 'flex',
 							gap: 1,
 							justifyContent: 'center',
@@ -334,18 +328,18 @@ export const uiFoundationsTablePreset = (theme: Theme): TablePreset => {
 								size="small"
 								onClick={() => table.previousPage()}
 								disabled={!table.getCanPreviousPage()}
-								startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+								sx={{ height: 32, minWidth: 32, width: 32, px: 1 }}
 							>
-								{t('previous')}
+								<Iconify icon="eva:arrow-ios-back-fill" />
 							</Button>
 							<Button
 								variant="outlined"
 								size="small"
 								onClick={() => table.nextPage()}
 								disabled={!table.getCanNextPage()}
-								endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
+								sx={{ height: 32, minWidth: 32, width: 32, px: 1 }}
 							>
-								{t('next')}
+								<Iconify icon="eva:arrow-ios-forward-fill" />
 							</Button>
 						</Box>
 					</Box>
