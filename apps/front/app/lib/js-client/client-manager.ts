@@ -106,11 +106,22 @@ export class ClientManager {
 	 * - 'staff': returns staffToken
 	 * - 'tenant': returns tenantToken
 	 * - undefined: returns tenantToken if available, otherwise staffToken
+	 *
+	 * On browser, reads fresh from cookies to handle token changes without page reload.
+	 * On server, uses tokens passed at construction time.
 	 */
 	private getSessionToken(context?: 'staff' | 'tenant'): string | undefined {
+		// On browser, read fresh from cookies to handle token changes
+		if (!isServer) {
+			const tokens = getSessionTokensFromClient();
+			if (context === 'staff') return tokens.staffToken;
+			if (context === 'tenant') return tokens.tenantToken;
+			return tokens.tenantToken ?? tokens.staffToken;
+		}
+
+		// On server, use tokens passed at construction
 		if (context === 'staff') return this.staffToken;
 		if (context === 'tenant') return this.tenantToken;
-		// Default: tenant if available, otherwise staff
 		return this.tenantToken ?? this.staffToken;
 	}
 
@@ -153,10 +164,18 @@ export class ClientManager {
 	}
 
 	/**
-	 * Gets or creates a cached staff client (no tenant ID).
+	 * Gets or creates a cached staff client.
+	 * Uses staffToken and does NOT send tenant-id header.
 	 */
 	public getStaffClient(): ApiClient {
-		return this.getOrCreateClient('staff');
+		let client = this.clientsCache.get('__staff__');
+
+		if (!client) {
+			client = this.createClient({ context: 'staff' });
+			this.clientsCache.set('__staff__', client);
+		}
+
+		return client;
 	}
 
 	/**
@@ -184,7 +203,7 @@ export class ClientManager {
 	 * Removes the cached staff client.
 	 */
 	public removeStaffClient(): void {
-		this.removeClient('staff');
+		this.clientsCache.delete('__staff__');
 	}
 
 	/**
