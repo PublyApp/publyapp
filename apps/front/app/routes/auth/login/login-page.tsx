@@ -9,7 +9,7 @@ import { serializeError } from 'serialize-error';
 import duration from '@org/shared/utils/duration.utils';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
-import { clientManager } from '@/front/lib/js-client/client-manager';
+import { initApiClientOnServer } from '@/front/lib/api';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
@@ -115,7 +115,7 @@ export const action = getServerAction({
 		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
 		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
-		const authedApiClient = clientManager.createApiClient(sessionToken);
+		const authedApiClient = initApiClientOnServer({ sessionToken });
 
 		const getRedirectCode = safeRun(async () => {
 			return authedApiClient.auth.redirectCode.get({

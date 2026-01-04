@@ -4,15 +4,14 @@ import {
 	type UntypedNode,
 } from '@microsoft/kiota-abstractions';
 import _ from 'lodash';
-import { createMutation, createQuery } from 'react-query-kit';
-import { clientManager } from '@/front/lib/js-client/client-manager';
-import type { ApiClient } from '@/js-client/src/apiClient';
+
 import type {
 	CreateStaffMemberBody,
 	UpdateStaffMemberBody,
 } from '@/js-client/src/models';
 import type { AccountLevel, UserStatus } from '@/shared/lib/constants';
-import { getQueryKey } from '../../query-utils';
+
+import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 
 // Helper to create UntypedNode from various value types
 const createUntypedValue = (value: unknown): UntypedNode => {
@@ -29,10 +28,6 @@ const createUntypedValue = (value: unknown): UntypedNode => {
 	} as UntypedNode;
 };
 
-const createStaffMemberMutationKey = getQueryKey<ApiClient>(
-	(client) => client.staff.staffMembers.post,
-);
-
 type CreateStaffMemberPayload = {
 	email: string;
 	firstName?: string;
@@ -42,9 +37,9 @@ type CreateStaffMemberPayload = {
 	accountLevel?: AccountLevel;
 };
 
-export const useCreateStaffMember = createMutation({
-	mutationKey: [createStaffMemberMutationKey] as const,
-	mutationFn: async (data: CreateStaffMemberPayload) => {
+export const useCreateStaffMember = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.staffMembers.post,
+	mutationFn: async (client, data: CreateStaffMemberPayload) => {
 		const body: CreateStaffMemberBody = {};
 		_.forEach(data, (value, key) => {
 			if (value !== undefined) {
@@ -52,17 +47,13 @@ export const useCreateStaffMember = createMutation({
 				(body as Record<string, unknown>)[key] = createUntypedValue(value);
 			}
 		});
-		const result = await clientManager.apiClient.staff.staffMembers.post(body);
+		const result = await client.staff.staffMembers.post(body);
 		if (_.isNil(result)) {
-			throw new Error(`[${createStaffMemberMutationKey}]: result is nil`);
+			throw new Error('useCreateStaffMember: result is nil');
 		}
 		return result;
 	},
 });
-
-const findStaffMemberQueryKey = getQueryKey<ApiClient>(
-	(client) => client.staff.staffMembers.get,
-);
 
 type FindStaffMembersQuery = {
 	limit?: number;
@@ -70,10 +61,10 @@ type FindStaffMembersQuery = {
 	sort?: { id: string; order: 'desc' | 'asc' };
 };
 
-export const useFindStaffMember = createQuery({
-	queryKey: [findStaffMemberQueryKey] as const,
-	fetcher: async (params: FindStaffMembersQuery) => {
-		const result = await clientManager.apiClient.staff.staffMembers.get({
+export const useFindStaffMember = createStaffQuery({
+	queryKeyFn: (client) => client.staff.staffMembers.get,
+	fetcher: async (client, params: FindStaffMembersQuery) => {
+		const result = await client.staff.staffMembers.get({
 			queryParameters: {
 				page: params.page ? params.page.toString() : undefined,
 				limit: params.limit ? params.limit.toString() : undefined,
@@ -82,32 +73,24 @@ export const useFindStaffMember = createQuery({
 			},
 		});
 		if (_.isNil(result)) {
-			throw new Error(`[${findStaffMemberQueryKey}] result is nil`);
+			throw new Error('useFindStaffMember: result is nil');
 		}
 		return result;
 	},
 });
 
-const getStaffMemberByIdQueryKey = getQueryKey<ApiClient>(
-	(client) => client.staff.staffMembers.byUserId('').get,
-);
-
-export const useGetStaffMemberById = createQuery({
-	queryKey: [getStaffMemberByIdQueryKey] as const,
-	fetcher: async (params: { userId: string }) => {
-		const result = await clientManager.apiClient.staff.staffMembers
+export const useGetStaffMemberById = createStaffQuery({
+	queryKeyFn: (client) => client.staff.staffMembers.byUserId('').get,
+	fetcher: async (client, params: { userId: string }) => {
+		const result = await client.staff.staffMembers
 			.byUserId(params.userId)
 			.get();
 		if (_.isNil(result)) {
-			throw new Error(`[${getStaffMemberByIdQueryKey}]: result is nil`);
+			throw new Error('useGetStaffMemberById: result is nil');
 		}
 		return result;
 	},
 });
-
-const updateStaffMemberMutationKey = getQueryKey<ApiClient>(
-	(client) => client.staff.staffMembers.byUserId('').patch,
-);
 
 type UpdateStaffMemberPayload = {
 	id: string;
@@ -119,9 +102,9 @@ type UpdateStaffMemberPayload = {
 	status?: UserStatus;
 };
 
-export const useUpdateStaffMember = createMutation({
-	mutationKey: [updateStaffMemberMutationKey] as const,
-	mutationFn: async (data: UpdateStaffMemberPayload) => {
+export const useUpdateStaffMember = createStaffMutation({
+	mutationKeyFn: (client) => client.staff.staffMembers.byUserId('').patch,
+	mutationFn: async (client, data: UpdateStaffMemberPayload) => {
 		const body: UpdateStaffMemberBody = {};
 		_.forEach(data, (value, key) => {
 			if (key === 'id' || value === undefined) {
@@ -130,11 +113,11 @@ export const useUpdateStaffMember = createMutation({
 			// Use type assertion since generated types don't include UntypedNode in unions
 			(body as Record<string, unknown>)[key] = createUntypedValue(value);
 		});
-		const result = await clientManager.apiClient.staff.staffMembers
+		const result = await client.staff.staffMembers
 			.byUserId(data.id)
 			.patch(body);
 		if (_.isNil(result)) {
-			throw new Error(`[${updateStaffMemberMutationKey}]: result is nil`);
+			throw new Error('useUpdateStaffMember: result is nil');
 		}
 		return result;
 	},

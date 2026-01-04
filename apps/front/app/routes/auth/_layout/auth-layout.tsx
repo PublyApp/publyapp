@@ -7,11 +7,11 @@ import { Outlet, redirect } from 'react-router';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { AuthSplitLayout } from '@/front/layouts/auth-split/layout';
+import { initApiClientOnServer } from '@/front/lib/api';
 import {
 	clearSessionCookie,
 	getSessionCookieFromClient,
 } from '@/front/lib/cookies/session-cookie.utils';
-import { clientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
@@ -42,7 +42,7 @@ export const loader = getServerLoader({
 		}
 
 		// Session token exists - validate it by calling the API
-		const authedApiClient = clientManager.createApiClient(sessionToken);
+		const authedApiClient = initApiClientOnServer({ sessionToken });
 
 		const getUserAuthData = safeRun(async () => {
 			return authedApiClient.auth.userAuthData.get();

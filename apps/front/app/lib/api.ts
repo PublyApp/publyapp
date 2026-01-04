@@ -1,53 +1,56 @@
-import * as cookie from 'cookie';
-import _ from 'lodash';
-import { SESSION_TOKEN_COOKIE_KEY } from '@/shared/lib/constants';
-import { clientManager } from './js-client/client-manager';
+import { AnonymousAuthenticationProvider } from '@microsoft/kiota-abstractions';
+import {
+	FetchRequestAdapter,
+	KiotaClientFactory,
+} from '@microsoft/kiota-http-fetchlibrary';
 
-export const initApiClientOnClient = () => {
-	const browserCookies = cookie.parse(document.cookie);
-	const sessionToken = decodeURIComponent(
-		_.get(browserCookies, SESSION_TOKEN_COOKIE_KEY) || '',
-	);
+import { type ApiClient, createApiClient } from '@org/js-client/src/apiClient';
+import {
+	SESSION_TOKEN_HEADER_KEY,
+	TENANT_ID_HEADER_KEY,
+} from '@/shared/lib/constants';
 
-	// defaultApiClient.parseRestClient.setSessionToken(sessionToken);
-	// defaultApiClient.parseRestClient.setHeader(LOCALE_HEADER_KEY, i18n.language);
-	// TODO: set last used tenant id header too
+import { env } from './env';
 
-	// return defaultApiClient;
-	// let apiClient: ApiClient;
-
-	if (!_.isNil(sessionToken) && !_.isEmpty(sessionToken)) {
-		const apiClient = clientManager.createApiClient(sessionToken);
-		clientManager.setApiClient(apiClient);
-	}
-
-	return clientManager.apiClient;
-};
-
+/**
+ * Creates an API client for server-side usage.
+ * Unlike client-side, session tokens must be explicitly provided (from request cookies).
+ *
+ * Note: For client-side usage, use clientManager directly:
+ * - `clientManager.getOrCreateClient(tenantId)` - for tenant-scoped requests
+ * - `clientManager.getStaffClient()` - for staff requests
+ * - `clientManager.anonymousClient` - for public/anonymous requests
+ */
 export const initApiClientOnServer = ({
-	// locale,
 	sessionToken,
-	// requestIp,
+	tenantId,
 }: {
-	// locale: AppLocale;
 	sessionToken?: string;
-	// requestIp?: string | null;
-}) => {
-	// set locale header
-	// parseRestClient.setHeader(LOCALE_HEADER_KEY, locale);
+	tenantId?: string;
+}): ApiClient => {
+	// Custom fetch that injects session token and tenant ID headers
+	const customFetch = (
+		url: Parameters<typeof fetch>[0],
+		init?: RequestInit,
+	) => {
+		return fetch(url, {
+			...init,
+			headers: {
+				...init?.headers,
+				...(sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: sessionToken } : {}),
+				...(tenantId ? { [TENANT_ID_HEADER_KEY]: tenantId } : {}),
+			},
+		});
+	};
 
-	// const apiClient = new ApiClient({
-	// 	parseRestClient,
-	// });
-	const apiClient = clientManager.createApiClient(sessionToken);
-
-	// if (sessionToken) {
-	// 	apiClient.parseRestClient.setSessionToken(decodeURIComponent(sessionToken));
-	// }
-
-	// if (requestIp) {
-	// 	apiClient.parseRestClient.setHeader(REMIX_CLIENT_IP_HEADER_KEY, requestIp);
-	// }
-
-	return apiClient;
+	const authProvider = new AnonymousAuthenticationProvider();
+	const httpClient = KiotaClientFactory.create(customFetch);
+	const adapter = new FetchRequestAdapter(
+		authProvider,
+		undefined,
+		undefined,
+		httpClient,
+	);
+	adapter.baseUrl = env.VITE_ASP_SERVER_URL;
+	return createApiClient(adapter);
 };
