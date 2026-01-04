@@ -1,3 +1,4 @@
+import * as cookie from 'cookie';
 import i18next from 'i18next';
 import first from 'lodash/first';
 import some from 'lodash/some';
@@ -29,9 +30,11 @@ import { safeRun } from '#app/lib/react-router/safeRun.ts';
 import { getServerLoader } from '#app/lib/react-router/server-data.server.ts';
 
 export const loader = getServerLoader({
-	loader: async ({ request, sessionToken, staffToken, tenantToken }) => {
+	loader: async ({ request }) => {
+		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
+		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
+
 		// If no session token exists, return NOT_AUTHENTICATED
-		// sessionToken is the primary token (tenantToken ?? staffToken) parsed by getServerLoader
 		if (!sessionToken) {
 			return {
 				status: 'NOT_AUTHENTICATED',
@@ -39,23 +42,19 @@ export const loader = getServerLoader({
 		}
 
 		// Session token exists - validate it by calling the API
-		const authedApiClient = getClientManager({
-			staffToken,
-			tenantToken,
+		const authedApiClient = ClientManager.create({
+			sessionToken,
 		}).createClient();
 
 		const getUserAuthData = safeRun(async () => {
 			return authedApiClient.auth.userAuthData.get();
 		});
 
-		// Read legacy tenant hint - identity-scoped lookup would require userId
-		// which we don't have until userAuthData resolves. For auth-layout's
-		// redirect-away case, legacy fallback is acceptable during migration.
-		const { legacyTenantId } = readTenantHintsFromRequestHeaders(request);
+		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
 		const getRedirectCode = safeRun(async () => {
 			return authedApiClient.auth.redirectCode.get({
-				queryParameters: { tenantId: legacyTenantId },
+				queryParameters: { tenantId },
 			});
 		});
 
@@ -170,7 +169,10 @@ export const clientLoader = getClientLoader({
 					? redirectCodeResult.data?.redirectCode
 					: undefined;
 
-			getQueryClient().setQueryData(useGetUserAuthData.getKey(), userAuthData);
+			defaultQueryClient.setQueryData(
+				useGetUserAuthData.getKey(),
+				userAuthData,
+			);
 
 			if (isInvitationRoute) {
 				return null;
