@@ -669,3 +669,227 @@ This ensures:
 - Org A's data is cached separately from Org B's data
 - Switching tenants triggers fresh data fetch
 - No stale cross-tenant data displayed
+
+---
+
+## Phase 8: Dual Session Token Cookie Format (Impersonation Support)
+
+**Status: PLANNED**
+
+Staff users need to impersonate tenant users while maintaining their staff session. This requires storing two session tokens simultaneously.
+
+### Cookie Format
+
+```
+# Non-staff user (tenant only)
+t:${tenant_token}
+
+# Staff user (not impersonating)
+s:${staff_token}
+
+# Staff user impersonating
+s:${staff_token}+t:${impersonation_token}
+```
+
+**Delimiter:** `+` separates tokens
+**Prefixes:** `s:` = staff, `t:` = tenant
+
+### Backward Compatibility
+
+Old cookies (no prefix) are treated as tenant tokens:
+```typescript
+if (!cookieValue.includes(':')) {
+  return { tenantToken: cookieValue };  // Legacy format
+}
+```
+
+### Cookie Parsing Utilities
+
+**File:** `apps/front/app/lib/cookies/session-cookie.utils.ts`
+
+```typescript
+export type ParsedSessionTokens = {
+  staffToken?: string;
+  tenantToken?: string;
+};
+
+export function parseSessionCookie(cookieValue: string): ParsedSessionTokens {
+  const result: ParsedSessionTokens = {};
+
+  // Legacy format (no prefix) = tenant token
+  if (!cookieValue.includes(':')) {
+    return { tenantToken: cookieValue };
+  }
+
+  for (const part of cookieValue.split('+')) {
+    if (part.startsWith('s:')) {
+      result.staffToken = part.slice(2);
+    } else if (part.startsWith('t:')) {
+      result.tenantToken = part.slice(2);
+    }
+  }
+
+  return result;
+}
+
+export function formatSessionCookie(tokens: ParsedSessionTokens): string {
+  const parts: string[] = [];
+  if (tokens.staffToken) parts.push(`s:${tokens.staffToken}`);
+  if (tokens.tenantToken) parts.push(`t:${tokens.tenantToken}`);
+  return parts.join('+');
+}
+
+export function getSessionTokensFromClient(): ParsedSessionTokens {
+  const browserCookies = cookie.parse(document.cookie);
+  const rawValue = browserCookies[SESSION_TOKEN_COOKIE_KEY];
+  if (!rawValue) return {};
+  return parseSessionCookie(rawValue);
+}
+```
+
+### ClientManager Updates
+
+**File:** `apps/front/app/lib/js-client/client-manager.ts`
+
+```typescript
+type ClientManagerOptions = {
+  staffToken?: string;
+  tenantToken?: string;
+};
+
+type CreateClientOptions = {
+  tenantId?: string;
+  skipAuth?: boolean;
+  /** Which token context to use. Required when both tokens exist. */
+  context?: 'staff' | 'tenant';
+};
+
+export class ClientManager {
+  private readonly staffToken?: string;
+  private readonly tenantToken?: string;
+
+  private constructor(options?: ClientManagerOptions) {
+    this.staffToken = options?.staffToken;
+    this.tenantToken = options?.tenantToken;
+  }
+
+  public static create(options?: ClientManagerOptions): ClientManager {
+    if (!isServer) {
+      // Browser: return singleton, read tokens from cookie
+      if (!ClientManager._instance) {
+        const tokens = getSessionTokensFromClient();
+        ClientManager._instance = new ClientManager({
+          staffToken: tokens.staffToken,
+          tenantToken: tokens.tenantToken,
+        });
+      }
+      return ClientManager._instance;
+    }
+    // Server: create new instance per request
+    return new ClientManager(options);
+  }
+
+  // Reset browser singleton after cookie changes
+  public static resetInstance(): void {
+    if (!isServer) {
+      ClientManager._instance = undefined as never;
+    }
+  }
+
+  private getSessionToken(context?: 'staff' | 'tenant'): string | undefined {
+    if (context === 'staff') return this.staffToken;
+    if (context === 'tenant') return this.tenantToken;
+    // Default: tenant if available, otherwise staff
+    return this.tenantToken ?? this.staffToken;
+  }
+
+  public createClient(options?: CreateClientOptions): ApiClient {
+    if (options?.skipAuth) {
+      return this.createClientWithToken(undefined, options?.tenantId);
+    }
+    const token = this.getSessionToken(options?.context);
+    return this.createClientWithToken(token, options?.tenantId);
+  }
+}
+```
+
+### Login Flow
+
+Login doesn't know if user is staff (determined via `/auth/tenant-auth-data?tenantId=staff`).
+
+**Approach:** Login writes token without prefix. Prefix is determined after auth data loads:
+
+```typescript
+// Login action - write raw token
+const sessionTokenCookie = cookie.serialize(
+  SESSION_TOKEN_COOKIE_KEY,
+  sessionToken,  // No prefix initially
+  cookieOptions,
+);
+
+// After auth data loads (in auth layout/context)
+const hasStaffAccess = userAuthData.staff !== null;
+const newCookieValue = hasStaffAccess
+  ? `s:${currentToken}`
+  : `t:${currentToken}`;
+// Update cookie and call ClientManager.resetInstance()
+```
+
+### Impersonation Flow (Future)
+
+**Start impersonation:**
+1. Call impersonation endpoint → get impersonation session token
+2. Parse existing cookie → extract `s:${staffToken}`
+3. Write new cookie: `s:${staffToken}+t:${impersonationToken}`
+4. Call `ClientManager.resetInstance()`
+
+**End impersonation:**
+1. Parse existing cookie → extract `s:${staffToken}`
+2. Write new cookie: `s:${staffToken}` (remove `+t:...` part)
+3. Call `ClientManager.resetInstance()`
+
+### Server-Side Updates
+
+**File:** `apps/front/app/lib/react-router/server-data.server.ts`
+
+```typescript
+import { parseSessionCookie } from '../cookies/session-cookie.utils';
+
+// In getServerLoader/getServerAction:
+const reqCookies = cookie.parse(args.request.headers.get('Cookie') || '');
+const rawSessionCookie = reqCookies[SESSION_TOKEN_COOKIE_KEY] as string | undefined;
+const sessionTokens = rawSessionCookie ? parseSessionCookie(rawSessionCookie) : {};
+
+return params.loader({
+  ...args,
+  staffToken: sessionTokens.staffToken,
+  tenantToken: sessionTokens.tenantToken,
+  z,
+  locale,
+});
+```
+
+### Singleton Reset Call Sites
+
+Call `ClientManager.resetInstance()` after:
+- Login cookie is set
+- Cookie prefix is updated (staff/tenant determination)
+- Impersonation starts (cookie gains `+t:` part)
+- Impersonation ends (cookie loses `+t:` part)
+- In `logout()` function
+
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `apps/front/app/lib/cookies/session-cookie.utils.ts` | Add parse/format functions |
+| `apps/front/app/lib/js-client/client-manager.ts` | Dual token support, context flag, resetInstance |
+| `apps/front/app/lib/react-router/server-data.server.ts` | Parse dual tokens, pass both to loaders |
+| `apps/front/app/routes/auth/login/login-page.tsx` | Cookie format updates |
+| `apps/front/app/routes/auth/accept-invitation/accept-invitation-page.tsx` | Write with `t:` prefix |
+
+### Notes
+
+- **No backend changes required** - Staff status available via existing `/auth/tenant-auth-data?tenantId=staff`
+- **React Query cache** - Keep shared cache; query keys already include tenant-specific identifiers
+- **Logout** - Clearing cookie clears both tokens (no changes needed)
