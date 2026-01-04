@@ -116,8 +116,9 @@ export const action = getServerAction({
 		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
 		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
+		// Note: Login token is treated as tenantToken for backward compatibility
 		const authedApiClient = ClientManager.create({
-			sessionToken,
+			tenantToken: sessionToken,
 		}).createClient();
 
 		const getRedirectCode = safeRun(async () => {

@@ -15,6 +15,7 @@ import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
 import { isPromise } from '@/shared/utils/any.utils';
 
+import { parseSessionCookie } from '../cookies/session-cookie.utils';
 import { remixI18NextServer } from '../i18n/i18n.server';
 import { getRequestLocale } from './data.utils';
 
@@ -28,7 +29,12 @@ type GetServerLoaderParamsWhenRequireUser<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
+			/** Primary token (tenantToken ?? staffToken) - guaranteed when requireUser */
 			sessionToken: string;
+			/** Staff session token (for staff UI) */
+			staffToken?: string;
+			/** Tenant session token (for tenant UI/impersonation) */
+			tenantToken?: string;
 		},
 	) => Promise<D>;
 };
@@ -44,7 +50,12 @@ type GetServerLoaderParamsWithoutAuthDataPromise<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
+			/** Primary token (tenantToken ?? staffToken) */
 			sessionToken: string | undefined;
+			/** Staff session token (for staff UI) */
+			staffToken?: string;
+			/** Tenant session token (for tenant UI/impersonation) */
+			tenantToken?: string;
 		},
 	) => Promise<D>;
 };
@@ -60,7 +71,12 @@ type GetServerLoaderParamsWithAuthDataPromise<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
+			/** Primary token (tenantToken ?? staffToken) */
 			sessionToken: string | undefined;
+			/** Staff session token (for staff UI) */
+			staffToken?: string;
+			/** Tenant session token (for tenant UI/impersonation) */
+			tenantToken?: string;
 		},
 	) => Promise<D>;
 };
@@ -116,22 +132,28 @@ export const getServerLoader: GetServerLoader = <
 
 		const finalLoadContext = args.context;
 
-		// Extract session token from cookies
+		// Extract and parse session token(s) from cookies
 		const reqCookies = cookie.parse(args.request.headers.get('Cookie') || '');
-		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY) as
+		const rawCookieValue = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY) as
 			| string
 			| undefined;
+
+		// Parse dual-token format (handles legacy single-token format too)
+		const tokens = rawCookieValue ? parseSessionCookie(rawCookieValue) : {};
+		const sessionToken = tokens.tenantToken ?? tokens.staffToken;
 
 		// Redirect to login if user is required but no session token
 		if (params.requireUser && !sessionToken) {
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		// Pass sessionToken to loader - caller creates their own client with desired tenantId
+		// Pass all tokens to loader - caller can use sessionToken (primary) or specific tokens
 		return params.loader({
 			...args,
 			context: finalLoadContext,
 			sessionToken: sessionToken as never,
+			staffToken: tokens.staffToken,
+			tenantToken: tokens.tenantToken,
 			z,
 			locale,
 		});
@@ -149,7 +171,12 @@ type GetServerActionParamsWhenRequireUser<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
+			/** Primary token (tenantToken ?? staffToken) - guaranteed when requireUser */
 			sessionToken: string;
+			/** Staff session token (for staff UI) */
+			staffToken?: string;
+			/** Tenant session token (for tenant UI/impersonation) */
+			tenantToken?: string;
 		},
 	) => Promise<D>;
 };
@@ -163,7 +190,12 @@ type GetServerActionParamsWhenWhenUserNotRequired<
 		args: T & {
 			z: InterZod;
 			locale: AppLocale;
+			/** Primary token (tenantToken ?? staffToken) */
 			sessionToken: string | undefined;
+			/** Staff session token (for staff UI) */
+			staffToken?: string;
+			/** Tenant session token (for tenant UI/impersonation) */
+			tenantToken?: string;
 		},
 	) => Promise<D>;
 };
@@ -211,22 +243,28 @@ export const getServerAction: GetServerAction = <
 
 		const finalLoadContext = args.context;
 
-		// Extract session token from cookies
+		// Extract and parse session token(s) from cookies
 		const reqCookies = cookie.parse(args.request.headers.get('Cookie') || '');
-		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY) as
+		const rawCookieValue = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY) as
 			| string
 			| undefined;
+
+		// Parse dual-token format (handles legacy single-token format too)
+		const tokens = rawCookieValue ? parseSessionCookie(rawCookieValue) : {};
+		const sessionToken = tokens.tenantToken ?? tokens.staffToken;
 
 		// Redirect to login if user is required but no session token
 		if (params.requireUser && !sessionToken) {
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		// Pass sessionToken to action - caller creates their own client with desired tenantId
+		// Pass all tokens to action - caller can use sessionToken (primary) or specific tokens
 		return params.action({
 			...args,
 			context: finalLoadContext,
 			sessionToken: sessionToken as never,
+			staffToken: tokens.staffToken,
+			tenantToken: tokens.tenantToken,
 			z,
 			locale,
 		});
