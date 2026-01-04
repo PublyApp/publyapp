@@ -113,7 +113,7 @@ export const action = getServerAction({
 		);
 		responseHeaders.append('Set-Cookie', sessionTokenCookie);
 
-		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
+		const reqCookies = cookie.parse(request.headers.get('Cookie') || '');
 		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
 		// Note: Login token is treated as tenantToken for backward compatibility

@@ -33,15 +33,17 @@ export function parseSessionCookie(cookieValue: string): ParsedSessionTokens {
 	const result: ParsedSessionTokens = {};
 
 	// Legacy format (no prefix) = tenant token
+	// Normalize empty strings to undefined
 	if (!cookieValue.includes(':')) {
-		return { tenantToken: cookieValue };
+		return { tenantToken: cookieValue || undefined };
 	}
 
 	for (const part of cookieValue.split('+')) {
 		if (part.startsWith('s:')) {
-			result.staffToken = part.slice(2);
+			// Normalize empty strings to undefined (e.g., `s:` with no value)
+			result.staffToken = part.slice(2) || undefined;
 		} else if (part.startsWith('t:')) {
-			result.tenantToken = part.slice(2);
+			result.tenantToken = part.slice(2) || undefined;
 		}
 	}
 

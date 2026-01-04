@@ -1,16 +1,13 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
-import * as cookie from 'cookie';
 import _ from 'lodash';
 
 import { delay } from '@org/shared/utils/any.utils';
+import { getSessionTokensFromClient } from '@/front/lib/cookies/session-cookie.utils';
 import type {
 	BulkStaffInvitationsCreated,
 	CreateStaffInvitationBody,
 } from '@/js-client/src/models';
-import {
-	SESSION_TOKEN_COOKIE_KEY,
-	SESSION_TOKEN_HEADER_KEY,
-} from '@/shared/lib/constants';
+import { SESSION_TOKEN_HEADER_KEY } from '@/shared/lib/constants';
 
 import { createStaffMutation, createStaffQuery } from '../../create-hooks';
 
@@ -74,8 +71,9 @@ export const useBulkCreateInvitations = createStaffMutation({
 	mutationFn: async (client, data: BulkCreateInvitationsPayload) => {
 		// Use client to get request info, but make custom fetch for bulk endpoint
 		const reqInfo = client.staff.invitations.bulk.toPostRequestInformation({});
-		const browserCookies = cookie.parse(document.cookie);
-		const sessionToken = browserCookies[SESSION_TOKEN_COOKIE_KEY];
+		// Use staffToken for staff endpoints (falls back to tenantToken if no staffToken)
+		const tokens = getSessionTokensFromClient();
+		const sessionToken = tokens.staffToken ?? tokens.tenantToken;
 
 		const response = await fetch(reqInfo.URL, {
 			method: reqInfo.httpMethod,
