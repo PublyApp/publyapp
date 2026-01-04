@@ -32,15 +32,20 @@ export type ParsedSessionTokens = {
 export function parseSessionCookie(cookieValue: string): ParsedSessionTokens {
 	const result: ParsedSessionTokens = {};
 
-	// Legacy format (no prefix) = tenant token
+	const normalizedCookieValue = cookieValue.trim();
+	const isDualTokenFormat =
+		normalizedCookieValue.startsWith('s:') ||
+		normalizedCookieValue.startsWith('t:');
+
+	// Legacy format (no s:/t: prefix) = tenant token
 	// Normalize empty strings to undefined
-	if (!cookieValue.includes(':')) {
-		return { tenantToken: cookieValue || undefined };
+	if (!isDualTokenFormat) {
+		return { tenantToken: normalizedCookieValue || undefined };
 	}
 
-	for (const part of cookieValue.split('+')) {
+	for (const part of normalizedCookieValue.split('+')) {
 		if (part.startsWith('s:')) {
-			// Normalize empty strings to undefined (e.g., `s:` with no value)
+			// Normalize empty strings to undefined (e.g., s: with no value)
 			result.staffToken = part.slice(2) || undefined;
 		} else if (part.startsWith('t:')) {
 			result.tenantToken = part.slice(2) || undefined;

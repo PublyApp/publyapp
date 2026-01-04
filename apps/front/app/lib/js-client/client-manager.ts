@@ -227,15 +227,14 @@ export class ClientManager {
 	}): typeof fetch {
 		return (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
 			const sessionToken = options.getSessionToken();
+			const headers = new Headers(init?.headers);
+
+			if (sessionToken) headers.set(SESSION_TOKEN_HEADER_KEY, sessionToken);
+			if (options.tenantId) headers.set(TENANT_ID_HEADER_KEY, options.tenantId);
+
 			return fetch(url, {
 				...init,
-				headers: {
-					...init?.headers,
-					...(sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: sessionToken } : {}),
-					...(options.tenantId
-						? { [TENANT_ID_HEADER_KEY]: options.tenantId }
-						: {}),
-				},
+				headers,
 			});
 		};
 	}
