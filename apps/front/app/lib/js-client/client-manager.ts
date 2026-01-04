@@ -12,58 +12,77 @@ import {
 	TENANT_ID_HEADER_KEY,
 } from '@/shared/lib/constants';
 
-import { getSessionCookieFromClient } from '../cookies/session-cookie.utils';
+import { getSessionTokensFromClient } from '../cookies/session-cookie.utils';
 import { env } from '../env';
 
 type ClientManagerOptions = {
-	/** Session token for authentication. If not provided, reads from cookie (browser). */
-	sessionToken?: string;
+	/** Staff session token (for staff UI access). */
+	staffToken?: string;
+	/** Tenant session token (for tenant UI access, including impersonation). */
+	tenantToken?: string;
+};
+
+type CreateClientOptions = {
+	/** Optional tenant ID to include in requests. */
+	tenantId?: string;
+	/** If true, don't include session token (anonymous). */
+	skipAuth?: boolean;
+	/** Which token context to use. Defaults to 'tenant' if available, otherwise 'staff'. */
+	context?: 'staff' | 'tenant';
 };
 
 /**
- * Manager for creating API clients.
+ * Manager for creating API clients with dual token support.
+ *
+ * Supports two session tokens for impersonation:
+ * - staffToken: For staff UI access
+ * - tenantToken: For tenant UI access (regular or impersonation)
  *
  * Usage:
- * - Browser: `ClientManager.create()` returns singleton (reads session from cookie)
- * - Server: `ClientManager.create({ sessionToken })` creates per-request instance
+ * - Browser: `ClientManager.create()` returns singleton (reads tokens from cookie)
+ * - Server: `ClientManager.create({ staffToken, tenantToken })` creates per-request instance
  *
  * @example
  * import { ClientManager } from '@/front/lib/js-client/client-manager';
  *
- * // Browser - returns singleton, session from cookie
+ * // Browser - returns singleton, tokens from cookie
  * ClientManager.create().createClient({ tenantId });
  *
  * // Server - new instance per request
- * ClientManager.create({ sessionToken }).createClient({ tenantId });
+ * ClientManager.create({ staffToken, tenantToken }).createClient({ tenantId });
  *
- * // Server - public/anonymous endpoints
+ * // Explicit context (for staff UI while impersonating)
+ * ClientManager.create().createClient({ context: 'staff' });
+ *
+ * // Public/anonymous endpoints
  * ClientManager.create().createClient({ skipAuth: true });
  */
 export class ClientManager {
-	private static _instance: ClientManager;
+	private static _instance: ClientManager | undefined;
 
-	private readonly explicitSessionToken?: string;
-	private readonly hasExplicitToken: boolean;
+	private readonly staffToken?: string;
+	private readonly tenantToken?: string;
 	private readonly clientsCache = new Map<string, ApiClient>();
 
 	private constructor(options?: ClientManagerOptions) {
-		this.explicitSessionToken = options?.sessionToken;
-		this.hasExplicitToken =
-			!_.isNil(options?.sessionToken) && !_.isEmpty(options?.sessionToken);
+		this.staffToken = options?.staffToken;
+		this.tenantToken = options?.tenantToken;
 	}
 
 	/**
 	 * Creates or returns a ClientManager instance.
-	 * - Browser: returns singleton (session from cookie)
-	 * - Server: creates new instance (pass sessionToken for auth)
-	 *
-	 * @param options.sessionToken - Session token for authentication (server only)
+	 * - Browser: returns singleton (reads tokens from cookie)
+	 * - Server: creates new instance (pass staffToken/tenantToken)
 	 */
 	public static create(options?: ClientManagerOptions): ClientManager {
 		if (!isServer) {
-			// Browser: return singleton
+			// Browser: return singleton, read tokens from cookie
 			if (!ClientManager._instance) {
-				ClientManager._instance = new ClientManager();
+				const tokens = getSessionTokensFromClient();
+				ClientManager._instance = new ClientManager({
+					staffToken: tokens.staffToken,
+					tenantToken: tokens.tenantToken,
+				});
 			}
 			return ClientManager._instance;
 		}
@@ -73,17 +92,26 @@ export class ClientManager {
 	}
 
 	/**
-	 * Gets the session token - either explicit (server) or from cookie (browser).
+	 * Resets the browser singleton. Call after cookie changes
+	 * (login, logout, impersonation start/end).
 	 */
-	private getSessionToken(): string | undefined {
-		if (this.hasExplicitToken) {
-			return this.explicitSessionToken;
+	public static resetInstance(): void {
+		if (!isServer) {
+			ClientManager._instance = undefined;
 		}
-		if (isServer) {
-			// No cookie access on server - return undefined (anonymous)
-			return undefined;
-		}
-		return getSessionCookieFromClient();
+	}
+
+	/**
+	 * Gets the session token based on context.
+	 * - 'staff': returns staffToken
+	 * - 'tenant': returns tenantToken
+	 * - undefined: returns tenantToken if available, otherwise staffToken
+	 */
+	private getSessionToken(context?: 'staff' | 'tenant'): string | undefined {
+		if (context === 'staff') return this.staffToken;
+		if (context === 'tenant') return this.tenantToken;
+		// Default: tenant if available, otherwise staff
+		return this.tenantToken ?? this.staffToken;
 	}
 
 	/**
@@ -91,16 +119,14 @@ export class ClientManager {
 	 *
 	 * @param options.tenantId - Optional tenant ID to include in requests
 	 * @param options.skipAuth - If true, don't include session token (anonymous)
+	 * @param options.context - Which token to use: 'staff' or 'tenant' (default: tenant if available)
 	 */
-	public createClient(options?: {
-		tenantId?: string;
-		skipAuth?: boolean;
-	}): ApiClient {
+	public createClient(options?: CreateClientOptions): ApiClient {
 		const getSessionToken = (): string | undefined => {
 			if (options?.skipAuth) {
 				return undefined;
 			}
-			return this.getSessionToken();
+			return this.getSessionToken(options?.context);
 		};
 
 		const customFetch = ClientManager.createCustomFetch({

@@ -42,8 +42,9 @@ export const loader = getServerLoader({
 		}
 
 		// Session token exists - validate it by calling the API
+		// Note: Legacy single token is treated as tenantToken for backward compatibility
 		const authedApiClient = ClientManager.create({
-			sessionToken,
+			tenantToken: sessionToken,
 		}).createClient();
 
 		const getUserAuthData = safeRun(async () => {

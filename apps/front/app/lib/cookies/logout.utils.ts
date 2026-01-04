@@ -31,8 +31,9 @@ export const logout = (options?: LogoutOptions): void => {
 	// Clear react-query cache
 	defaultQueryClient.removeQueries();
 
-	// Clear cached API clients (ensures clean state for next user)
+	// Clear cached API clients and reset singleton (ensures clean state for next user)
 	ClientManager.create().clearClients();
+	ClientManager.resetInstance();
 
 	// Submit form to clear-session route which will:
 	// 1. Clear any httpOnly session cookie on the server
