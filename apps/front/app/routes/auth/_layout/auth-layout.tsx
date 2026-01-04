@@ -11,7 +11,7 @@ import {
 	clearSessionCookie,
 	getSessionCookieFromClient,
 } from '@/front/lib/cookies/session-cookie.utils';
-import { createClientOnServer } from '@/front/lib/js-client/client-manager';
+import { ClientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
@@ -42,7 +42,9 @@ export const loader = getServerLoader({
 		}
 
 		// Session token exists - validate it by calling the API
-		const authedApiClient = createClientOnServer({ sessionToken });
+		const authedApiClient = ClientManager.create({
+			sessionToken,
+		}).createClient();
 
 		const getUserAuthData = safeRun(async () => {
 			return authedApiClient.auth.userAuthData.get();
