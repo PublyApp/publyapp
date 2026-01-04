@@ -54,7 +54,7 @@ class ClientManager {
 	}
 
 	/**
-	 * Gets or creates an API client for the specified tenant.
+	 * Gets or creates an API client for the specified tenant (browser-only).
 	 * Session tokens are read fresh from cookies on every request.
 	 *
 	 * @param tenantId - The tenant ID to create the client for
@@ -62,15 +62,15 @@ class ClientManager {
 	 */
 	public getOrCreateClient(tenantId: string) {
 		if (isServer) {
-			throw new Error(
-				'It is not allowed to use the getOrCreateClient on the server because it uses the clients store internally',
-			);
+			// This method should not be invoked on the server because
+			// it depends on browser-side session tokens/cookies.
+			throw new Error('getOrCreateClient cannot be used on the server');
 		}
 
 		let client = this.clientsStore.get(tenantId);
 
 		if (!client) {
-			client = this.createClientWithOptions({ tenantId });
+			client = this.createClientOnBrowser({ tenantId });
 			this.clientsStore.set(tenantId, client);
 		}
 
@@ -78,14 +78,14 @@ class ClientManager {
 	}
 
 	/**
-	 * Creates an API client with the specified options.
+	 * Creates an API client for browser-side usage.
 	 * Session tokens are read fresh from cookies on every request (unless skipAuth is true).
 	 *
 	 * @param options.tenantId - Optional tenant ID to include in requests
 	 * @param options.skipAuth - If true, don't include session token (for anonymous/public endpoints)
 	 * @returns A new API client instance
 	 */
-	public createClientWithOptions(options: {
+	public createClientOnBrowser(options: {
 		tenantId?: string;
 		skipAuth?: boolean;
 	}) {
@@ -111,7 +111,47 @@ class ClientManager {
 			});
 		};
 
-		// Always use anonymous auth provider - auth is handled via customFetch
+		return ClientManager.createClientWithFetch(customFetch);
+	}
+
+	/**
+	 * Creates an API client for server-side usage (SSR).
+	 * Session tokens must be explicitly provided (from request cookies).
+	 *
+	 * @param options.sessionToken - Optional session token from request cookies
+	 * @param options.tenantId - Optional tenant ID to include in requests
+	 * @returns A new API client instance
+	 */
+	public static createClientOnServer(options: {
+		sessionToken?: string;
+		tenantId?: string;
+	}) {
+		// Custom fetch that injects session token and tenant ID headers
+		const customFetch = (
+			url: Parameters<typeof fetch>[0],
+			init?: RequestInit,
+		) => {
+			return fetch(url, {
+				...init,
+				headers: {
+					...init?.headers,
+					...(options.sessionToken
+						? { [SESSION_TOKEN_HEADER_KEY]: options.sessionToken }
+						: {}),
+					...(options.tenantId
+						? { [TENANT_ID_HEADER_KEY]: options.tenantId }
+						: {}),
+				},
+			});
+		};
+
+		return ClientManager.createClientWithFetch(customFetch);
+	}
+
+	/**
+	 * Internal helper to create an API client with a custom fetch function.
+	 */
+	private static createClientWithFetch(customFetch: typeof fetch) {
 		const authProvider = new AnonymousAuthenticationProvider();
 		const httpClient = KiotaClientFactory.create(customFetch);
 		const adapter = new FetchRequestAdapter(
@@ -126,7 +166,7 @@ class ClientManager {
 
 	private constructor() {
 		// Anonymous client explicitly skips auth (no session token)
-		ClientManager._anonymousClient = this.createClientWithOptions({
+		ClientManager._anonymousClient = this.createClientOnBrowser({
 			skipAuth: true,
 		});
 
@@ -145,3 +185,4 @@ class ClientManager {
 }
 
 export const clientManager = ClientManager.getInstance();
+export const createClientOnServer = ClientManager.createClientOnServer;

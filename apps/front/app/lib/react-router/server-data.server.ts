@@ -1,6 +1,3 @@
-// import type { ApiClient } from '@/parse-api-client/ApiClient';
-// import { clientManager } from '../js-client/client-manager';
-
 import * as cookie from 'cookie';
 import _ from 'lodash';
 import {
@@ -19,8 +16,8 @@ import type { AppLocale } from '@/shared/lib/i18n/resources';
 import InterZod from '@/shared/lib/zod/InterZod';
 import { isPromise } from '@/shared/utils/any.utils';
 
-import { initApiClientOnServer } from '../api';
 import { remixI18NextServer } from '../i18n/i18n.server';
+import { createClientOnServer } from '../js-client/client-manager';
 import { getRequestLocale } from './data.utils';
 
 type GetServerLoaderParamsWhenRequireUser<
@@ -130,7 +127,7 @@ export const getServerLoader: GetServerLoader = <
 		// 	args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
-			const apiClient = initApiClientOnServer({});
+			const apiClient = createClientOnServer({});
 
 			if (!params.withAuthDataPromise) {
 				return params.loader({
@@ -164,7 +161,7 @@ export const getServerLoader: GetServerLoader = <
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		const apiClient = initApiClientOnServer({ sessionToken });
+		const apiClient = createClientOnServer({ sessionToken });
 		// const authData = await apiClient.auth.getUserAuthData();
 
 		return params.loader({
@@ -259,7 +256,7 @@ export const getServerAction: GetServerAction = <
 		// 	args.request.headers.get(_.toLower(FORWARDED_FOR_HEADER_KEY));
 
 		if (!params.requireUser) {
-			const apiClient = initApiClientOnServer({});
+			const apiClient = createClientOnServer({});
 			return params.action({
 				...args,
 				context: finalLoadContext,
@@ -278,7 +275,7 @@ export const getServerAction: GetServerAction = <
 			return redirect(FRONT_PATH_NAMES.auth.login) as never;
 		}
 
-		const apiClient = initApiClientOnServer({ sessionToken });
+		const apiClient = createClientOnServer({ sessionToken });
 
 		// ! Don't force every loader to have auth data
 		// ! Let the developer decide if they want to have auth data or not
