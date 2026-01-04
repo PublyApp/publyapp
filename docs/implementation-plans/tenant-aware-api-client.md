@@ -6,15 +6,16 @@ All phases have been completed. See PR #159 for the full implementation.
 
 **Note:** After initial implementation, follow-up refactoring was done:
 
-1. **Request-scoped ClientManager:**
-   - Browser: `getClientManager()` returns a singleton (tokens read from cookie)
-   - Server: `getClientManager({ staffToken, tenantToken })` creates a per-request instance
-   - Dual-token cookie format supported for impersonation (`s:` + `t:`)
+1. **Client creation consolidation:**
+   - Renamed `createClientWithOptions` → `createClientOnBrowser` (browser-only, reads session from cookies)
+   - Added `createClientOnServer` to `ClientManager` (for SSR, requires explicit sessionToken)
+   - Deleted `initApiClientOnServer` from `api.ts` (duplicate logic now in ClientManager)
 
 2. **Server HOF refactoring (getServerLoader/getServerAction):**
    - Removed `apiClient` auto-creation from HOFs
-   - Now pass `sessionToken` (+ `staffToken` / `tenantToken`) as primitives instead
-   - Callers create their own client: `getClientManager({ staffToken, tenantToken }).createClient({ tenantId })`
+   - Now pass `sessionToken` as a primitive instead
+   - Callers create their own client with `createClientOnServer({ sessionToken, tenantId? })`
+   - This allows callers to specify the exact auth dimensions they need (sessionToken + optional tenantId)
 
 ---
 
@@ -33,27 +34,145 @@ API requests don't consistently include the `X-PublyApp-TenantId` header, riskin
 
 **File:** `apps/front/app/lib/js-client/client-manager.ts`
 
-### Current Implementation
+### Existing Changes (Already Implemented)
 
-See `apps/front/app/lib/js-client/client-manager.ts`.
+The following refactoring has already been done to the ClientManager:
 
-Key points:
-- Browser: `getClientManager()` returns a singleton (tokens read from cookie)
-- Server: `getClientManager({ staffToken, tenantToken })` creates a per-request instance
-- Main methods: `createClient`, `getOrCreateClient`, `getOrCreateStaffClient`, `getOrCreateAnonymousClient`, `clearClients`, `resetInstance`
+```typescript
+class ClientManager {
+  private static _instance: ClientManager;
+  private static _anonymousClient: ApiClient;
+  private _clientsStore: Map<string, ApiClient> = new Map();
+  public clientsStore: Map<string, ApiClient>;
+
+  // Get or create a client for a specific tenant
+  public getOrCreateClient(tenantId: string, sessionToken?: string) { ... }
+
+  // Staff client (keyed as 'staff')
+  public getStaffClient(sessionToken?: string) {
+    return this.getOrCreateClient('staff', sessionToken);
+  }
+
+  // Client management
+  public setClient(tenantId: string, client: ApiClient) { ... }
+  public removeClient(tenantId: string) { ... }
+  public clearClients() { ... }
+
+  // Create client with options
+  public createClientWithOptions(options: { sessionToken?: string, tenantId?: string }) { ... }
+
+  // Server-side protection via Proxy (prevents memory leaks)
+  private constructor() {
+    if (isServer) {
+      this.clientsStore = new Proxy(this._clientsStore, {
+        get: () => { throw new Error('Cannot use clientsStore on server'); }
+      });
+    } else {
+      this.clientsStore = this._clientsStore;
+    }
+  }
+}
+```
 
 ### Key Insight: Read Session Token Fresh on Every Request
 
 Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inject it fresh in `customFetch`. This makes clients stateless regarding auth - they only care about which tenant to target.
 
-### Implementation Summary
+### Changes:
 
-- `ClientManager` injects `X-Session-Token` (fresh) and optional `X-PublyApp-TenantId` via a custom `fetch`.
-- `getClientManager()` returns a browser singleton; `getClientManager({ staffToken, tenantToken })` creates a per-request server instance.
-- Cached clients:
-  - `getOrCreateClient(tenantId)` (tenant-scoped)
-  - `getOrCreateStaffClient()` (staff-scoped, no tenant header)
-  - `getOrCreateAnonymousClient()` (no auth)
+1. **`createClientOnBrowser` - for browser-side usage (reads session token from cookies):**
+   ```typescript
+   public createClientOnBrowser(options: { tenantId?: string; skipAuth?: boolean }) {
+     const customFetch = ClientManager.createCustomFetch({
+       getSessionToken: () => options.skipAuth ? undefined : getSessionCookieFromClient(),
+       tenantId: options.tenantId,
+     });
+     return ClientManager.createClientWithFetch(customFetch);
+   }
+   ```
+
+2. **`createClientOnServer` - static method for SSR usage (requires explicit sessionToken):**
+   ```typescript
+   public static createClientOnServer(options: { sessionToken?: string; tenantId?: string }) {
+     const customFetch = ClientManager.createCustomFetch({
+       getSessionToken: () => options.sessionToken,
+       tenantId: options.tenantId,
+     });
+     return ClientManager.createClientWithFetch(customFetch);
+   }
+   ```
+
+   **Export as standalone function:**
+   ```typescript
+   export const createClientOnServer = ClientManager.createClientOnServer;
+   ```
+
+3. **`createCustomFetch` - creates fetch with header injection:**
+   ```typescript
+   private static createCustomFetch(options: {
+     getSessionToken: () => string | undefined;
+     tenantId?: string;
+   }): typeof fetch {
+     return (url, init) => {
+       const sessionToken = options.getSessionToken();
+       return fetch(url, {
+         ...init,
+         headers: {
+           ...init?.headers,
+           ...(sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: sessionToken } : {}),
+           ...(options.tenantId ? { [TENANT_ID_HEADER_KEY]: options.tenantId } : {}),
+         },
+       });
+     };
+   }
+   ```
+
+4. **`createClientWithFetch` - creates API client from custom fetch:**
+   ```typescript
+   private static createClientWithFetch(customFetch: typeof fetch) {
+     const authProvider = new AnonymousAuthenticationProvider();
+     const httpClient = KiotaClientFactory.create(customFetch);
+     const adapter = new FetchRequestAdapter(authProvider, undefined, undefined, httpClient);
+     adapter.baseUrl = env.VITE_ASP_SERVER_URL;
+     return createApiClient(adapter);
+   }
+   ```
+
+   **Update constructor to use createClientOnBrowser for anonymous client:**
+   ```typescript
+   private constructor() {
+     // Anonymous client explicitly skips auth
+     ClientManager._anonymousClient = this.createClientOnBrowser({ skipAuth: true });
+     // ...
+   }
+   ```
+
+5. **Simplify `getOrCreateClient` - no sessionToken parameter needed:**
+   ```typescript
+   public getOrCreateClient(tenantId: string) {
+     if (isServer) {
+       throw new Error('Cannot use getOrCreateClient on server');
+     }
+
+     let client = this.clientsStore.get(tenantId);
+
+     if (!client) {
+       client = this.createClientOnBrowser({ tenantId });
+       this.clientsStore.set(tenantId, client);
+     }
+
+     return client;
+   }
+   ```
+
+6. **Simplify `getStaffClient` - no sessionToken parameter:**
+   ```typescript
+   public getStaffClient() {
+     return this.getOrCreateClient('staff');
+   }
+   ```
+
+7. **Remove commented-out `apiClient` getter** - Clean up dead code
 
 ### Benefits of This Approach:
 - **No `_tokenStore` needed** - token read fresh, not baked in
@@ -64,28 +183,18 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
 
 ### Client Types Summary:
 
-**Unified API via `getClientManager()`:**
-```typescript
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+**Browser-side (reads session from cookies):**
+| Client | tenantId | skipAuth | Session Token |
+|--------|----------|----------|---------------|
+| `getOrCreateClient(tenantId)` | ✓ | ✗ | Fresh from cookie |
+| `getStaffClient()` | ✗ | ✗ | Fresh from cookie |
+| `anonymousClient` | ✗ | ✓ | Never included |
+| `createClientOnBrowser({ tenantId?, skipAuth? })` | Optional | Optional | Fresh from cookie (unless skipAuth) |
 
- // Browser - returns singleton, session from cookie
- getClientManager().createClient({ tenantId });
- getClientManager().getOrCreateClient(tenantId);  // cached
-getClientManager().getOrCreateStaffClient();      // cached
-getClientManager().getOrCreateAnonymousClient();  // cached
-
- // Server - new instance per request
-getClientManager({ staffToken, tenantToken }).createClient({ tenantId });
-
-// Server - anonymous/public endpoints
-getClientManager().createClient({ skipAuth: true });
-```
-
-| Context | Pattern | Session Token |
-|---------|---------|---------------|
-| Browser | `getClientManager().createClient()` | From cookie (singleton) |
-| Server (auth) | `getClientManager({ staffToken, tenantToken }).createClient()` | Explicit (new instance) |
-| Server (public) | `getClientManager().createClient({ skipAuth: true })` | None |
+**Server-side (requires explicit sessionToken):**
+| Function | sessionToken | tenantId | Import |
+|----------|--------------|----------|--------|
+| `createClientOnServer({ sessionToken?, tenantId? })` | Explicit | Optional | Direct import from `client-manager.ts` |
 
 ---
 
@@ -93,54 +202,80 @@ getClientManager().createClient({ skipAuth: true });
 
 **New File:** `apps/front/app/lib/react-query/create-hooks.ts`
 
-Create factory functions that wrap the user's fetcher to:
+Create factory functions that use react-query-kit middleware internally to:
+- Inject session token from cookies
 - Create the appropriate client (tenant/staff/anonymous)
-- Read session tokens fresh from cookies (via `ClientManager`)
-- Enforce `tenantId` at the type level for tenant-scoped hooks
+- Wrap the user's fetcher with client injection
 
 ### Factory Implementation Pattern:
 
 ```typescript
-import { createMutation, createQuery, createSuspenseQuery } from 'react-query-kit';
-
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+import { createQuery, createMutation, type Middleware, type QueryHook } from 'react-query-kit';
+import { clientManager } from '@/front/lib/js-client/client-manager';
+import { getSessionCookieFromClient } from '@/front/lib/cookies';
 import type { ApiClient } from '@/js-client/src/apiClient';
 import { getQueryKey } from './query-utils';
 
-// Type for tenant-scoped variables (tenantId REQUIRED)
-type WithTenantId<T> = { tenantId: string } & Omit<T, 'tenantId'>;
+// Type for tenant-scoped variables
+type WithTenantId<T> = T & { tenantId: string };
 
-export function createTenantQuery<TData, TVariables extends Record<string, unknown>>(config: {
+// Middleware that wraps fetcher to inject tenant client
+function createTenantClientMiddleware<TData, TVariables>(): Middleware<QueryHook<TData, WithTenantId<TVariables>>> {
+  return (useQueryNext) => (options) => {
+    const wrappedFetcher = async (variables: WithTenantId<TVariables>, context: any) => {
+      const { tenantId, ...rest } = variables;
+      const client = clientManager.getOrCreateClient(tenantId);  // No sessionToken needed!
+      // Call original fetcher with client injected
+      return (options as any)._originalFetcher(client, rest as TVariables);
+    };
+    return useQueryNext({ ...options, fetcher: wrappedFetcher });
+  };
+}
+
+// Middleware for staff client (no tenantId)
+function createStaffClientMiddleware<TData, TVariables>(): Middleware<QueryHook<TData, TVariables>> {
+  return (useQueryNext) => (options) => {
+    const wrappedFetcher = async (variables: TVariables, context: any) => {
+      const client = clientManager.getStaffClient();  // No sessionToken needed!
+      return (options as any)._originalFetcher(client, variables);
+    };
+    return useQueryNext({ ...options, fetcher: wrappedFetcher });
+  };
+}
+
+// Factory: Tenant-scoped queries (tenantId REQUIRED)
+export function createTenantQuery<TData, TVariables>(config: {
   queryKeyFn: (client: ApiClient) => unknown;
-  fetcher: (client: ApiClient, variables: WithTenantId<TVariables>) => Promise<TData>;
+  fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
 }) {
   const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
 
   return createQuery<TData, WithTenantId<TVariables>>({
     queryKey: [queryKey] as const,
-    fetcher: async (variables) => {
-      const client = getClientManager().getOrCreateClient(variables.tenantId);
-      return config.fetcher(client, variables);
-    },
-  });
+    fetcher: () => Promise.reject('Should be wrapped by middleware'),
+    use: [createTenantClientMiddleware<TData, TVariables>()],
+    // Store original fetcher for middleware to use
+    _originalFetcher: config.fetcher,
+  } as any);
 }
 
-export function createTenantSuspenseQuery<TData, TVariables extends Record<string, unknown>>(config: {
+// Factory: Staff queries (no tenantId)
+export function createStaffQuery<TData, TVariables>(config: {
   queryKeyFn: (client: ApiClient) => unknown;
-  fetcher: (client: ApiClient, variables: WithTenantId<TVariables>) => Promise<TData>;
+  fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
 }) {
   const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
 
-  return createSuspenseQuery<TData, WithTenantId<TVariables>>({
+  return createQuery<TData, TVariables>({
     queryKey: [queryKey] as const,
-    fetcher: async (variables) => {
-      const client = getClientManager().getOrCreateClient(variables.tenantId);
-      return config.fetcher(client, variables);
-    },
-  });
+    fetcher: () => Promise.reject('Should be wrapped by middleware'),
+    use: [createStaffClientMiddleware<TData, TVariables>()],
+    _originalFetcher: config.fetcher,
+  } as any);
 }
 
-export function createStaffQuery<TData, TVariables extends Record<string, unknown>>(config: {
+// Factory: Anonymous/public queries
+export function createPublicQuery<TData, TVariables>(config: {
   queryKeyFn: (client: ApiClient) => unknown;
   fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
 }) {
@@ -149,31 +284,16 @@ export function createStaffQuery<TData, TVariables extends Record<string, unknow
   return createQuery<TData, TVariables>({
     queryKey: [queryKey] as const,
     fetcher: async (variables) => {
-      const client = getClientManager().getOrCreateStaffClient();
-      return config.fetcher(client, variables);
+      return config.fetcher(clientManager.anonymousClient, variables);
     },
   });
 }
 
-export function createPublicQuery<TData, TVariables extends Record<string, unknown>>(config: {
-  queryKeyFn: (client: ApiClient) => unknown;
-  fetcher: (client: ApiClient, variables: TVariables) => Promise<TData>;
-}) {
-  const queryKey = getQueryKey<ApiClient>(config.queryKeyFn);
-
-  return createQuery<TData, TVariables>({
-    queryKey: [queryKey] as const,
-    fetcher: async (variables) => {
-      return config.fetcher(
-        getClientManager().getOrCreateAnonymousClient(),
-        variables,
-      );
-    },
-  });
-}
+// Similar factories for mutations: createTenantMutation, createStaffMutation
 ```
 
 ### Key Design Points:
+- **Middleware inside factories** - Each factory uses its own middleware via `use: [...]`
 - **No global middleware** - QueryClient remains unchanged
 - **tenantId in query key** - react-query-kit automatically includes variables in query key
 - **Type-safe** - `createTenantQuery` enforces `tenantId` in variables at compile time
@@ -234,15 +354,14 @@ export const useFindTenants = createStaffQuery({
 Add client store cleanup to logout:
 
 ```typescript
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+import { clientManager } from '@/front/lib/js-client/client-manager';
 
 export const logout = (options?: LogoutOptions): void => {
   clearSessionCookie();
   defaultQueryClient.removeQueries();
 
-  // Clear cached API clients and reset singleton (ensures clean state for next user)
-  getClientManager().clearClients();
-  ClientManager.resetInstance();
+  // Clear API clients (they have session tokens baked in)
+  clientManager.clearClients();
 
   // ... rest of form submission
 };
@@ -271,26 +390,26 @@ Remove `initApiClientOnClient` and `initApiClientOnServer` entirely. Update call
 |--------|---------------|-------------|
 | `entry.client.tsx` | `initApiClientOnClient()` | Remove call (not needed) |
 | `authed-layout.tsx` | `initApiClientOnClient()` | Remove call (not needed) |
-| `client-data.ts` | `initApiClientOnClient()` | Use `getClientManager().getOrCreateClient()` directly |
+| `client-data.ts` | `initApiClientOnClient()` | Use `clientManager.getOrCreateClient()` directly |
 
 **New pattern for accessing client outside React hooks (e.g., in router loaders):**
 
 ```typescript
 // In getClientLoader or any non-React context
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+import { clientManager } from '@/front/lib/js-client/client-manager';
 
 export const clientLoader = getClientLoader({
   loader: async ({ params }) => {
     const tenantId = params.tenantId!;
 
     // For tenant-scoped operations:
-    const client = getClientManager().getOrCreateClient(tenantId);
+    const client = clientManager.getOrCreateClient(tenantId);
 
     // For staff operations:
-    const staffClient = getClientManager().getOrCreateStaffClient();
+    const staffClient = clientManager.getStaffClient();
 
     // For anonymous operations:
-    const anonClient = getClientManager().getOrCreateAnonymousClient();
+    const anonClient = clientManager.anonymousClient;
 
     // Use client... (session token read fresh on every request)
     return null;
@@ -341,7 +460,7 @@ export const clientLoader = getClientLoader({
 
 **Key react-query-kit methods for prefetching:**
 - `hook.getKey(variables)` - Get type-safe query key including variables
-- `hook.fetcher(variables)` - Call the fetcher directly (factory will create the right client)
+- `hook.fetcher(variables)` - Call the fetcher directly (middleware will inject client)
 - `hook.getOptions(variables)` - Get full query options for useSuspenseQueries
 
 ---
@@ -363,7 +482,7 @@ export const clientLoader = getClientLoader({
 
 1. **Old initialization:**
    - `initApiClientOnClient()` → Remove references
-   - `clientManager.apiClient` → `getClientManager().getOrCreateClient(tenantId)` or `getClientManager().getOrCreateStaffClient()`
+   - `clientManager.apiClient` → `clientManager.getOrCreateClient(tenantId)` or `clientManager.getStaffClient()`
    - `clientManager.setApiClient()` → Remove references
 
 2. **Old hook patterns:**
@@ -371,8 +490,8 @@ export const clientLoader = getClientLoader({
    - Missing tenantId in tenant-scoped hooks → Add tenantId parameter
 
 3. **Old client creation:**
-   - `createApiClient(sessionToken)` → `getClientManager().getOrCreateClient(tenantId)` or `getClientManager().getOrCreateStaffClient()`
-   - `ApiKeyAuthenticationProvider` usage → Note we now use `AnonymousAuthenticationProvider` with fresh token injection in `customFetch`
+   - `createApiClient(sessionToken)` → `getOrCreateClient(tenantId)` or `getStaffClient()`
+   - `ApiKeyAuthenticationProvider` usage → Note we now use `AnonymousAuthenticationProvider` with fresh token in customFetch
 
 4. **Outdated TODOs:**
    - `// TODO: set last used tenant id header too` → Remove (now implemented)
@@ -411,16 +530,16 @@ Update the "API Client Integration" section (around line 232) to document the ne
 
 2. **Outside React lifecycle** (e.g., router loaders):
    ```typescript
-   import { getClientManager } from '@/front/lib/js-client/client-manager';
+   import { clientManager } from '@/front/lib/js-client/client-manager';
 
    // Tenant client (with tenant-id header)
-   const client = getClientManager().getOrCreateClient(tenantId);
+   const client = clientManager.getOrCreateClient(tenantId);
 
    // Staff client (no tenant-id header)
-   const staffClient = getClientManager().getOrCreateStaffClient();
+   const staffClient = clientManager.getStaffClient();
 
    // Anonymous client (no auth, no tenant)
-   const anonClient = getClientManager().getOrCreateAnonymousClient();
+   const anonClient = clientManager.anonymousClient;
 
    // Note: Session token is read fresh from cookies on every request
    ```
@@ -462,18 +581,18 @@ Update the "API Client Integration" section (around line 232) to document the ne
 
 | File | Changes |
 |------|---------|
-| `apps/front/app/lib/js-client/client-manager.ts` | Unified `getClientManager()` + `createClient()` + tenant header injection |
-| `apps/front/app/lib/react-query/create-hooks.ts` | **NEW** - Hook factories (client injection) |
-| `apps/front/app/lib/cookies/logout.utils.ts` | Add `getClientManager().clearClients()` + `ClientManager.resetInstance()` |
+| `apps/front/app/lib/js-client/client-manager.ts` | Add `createClientOnBrowser`, `createClientOnServer`, `createClientWithFetch` |
+| `apps/front/app/lib/react-query/create-hooks.ts` | **NEW** - Hook factories with embedded middleware |
+| `apps/front/app/lib/cookies/logout.utils.ts` | Add `clientManager.clearClients()` |
 | `apps/front/app/lib/api.ts` | **DELETED** - Logic consolidated in ClientManager |
 | `apps/front/app/entry.client.tsx` | Remove `initApiClientOnClient()` call |
 | `apps/front/app/routes/authed/_layout/authed-layout.tsx` | Remove `initApiClientOnClient()` call |
-| `apps/front/app/lib/react-router/client-data.ts` | Use `getClientManager().getOrCreateClient()` directly |
-| `apps/front/app/lib/react-router/server-data.server.ts` | Pass `sessionToken` to callers |
-| `apps/front/app/routes/auth/_layout/auth-layout.tsx` | Use `getClientManager().createClient()` |
-| `apps/front/app/routes/auth/login/login-page.tsx` | Use `getClientManager().createClient()` |
+| `apps/front/app/lib/react-router/client-data.ts` | Use `clientManager.getOrCreateClient()` directly |
+| `apps/front/app/lib/react-router/server-data.server.ts` | Use `createClientOnServer()` (direct import) |
+| `apps/front/app/routes/auth/_layout/auth-layout.tsx` | Use `createClientOnServer()` (direct import) |
+| `apps/front/app/routes/auth/login/login-page.tsx` | Use `createClientOnServer()` (direct import) |
 | `apps/front/app/lib/react-query/features/staff/staff-tenant.hooks.ts` | Migrate to factories |
-| `apps/front/app/lib/react-query/features/staff/staff-user.hooks.ts` | Migrate to factories |
+| `apps/front/app/lib/react-query/features/staff/staff-member.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/staff/staff-invitation.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/staff/staff-profile.hooks.ts` | Migrate to factories |
 | `apps/front/app/lib/react-query/features/common/auth.hooks.ts` | Migrate to factories |
@@ -535,227 +654,3 @@ This ensures:
 - Org A's data is cached separately from Org B's data
 - Switching tenants triggers fresh data fetch
 - No stale cross-tenant data displayed
-
----
-
-## Phase 8: Dual Session Token Cookie Format (Impersonation Support)
-
-**Status: PLANNED**
-
-Staff users need to impersonate tenant users while maintaining their staff session. This requires storing two session tokens simultaneously.
-
-### Cookie Format
-
-```
-# Non-staff user (tenant only)
-t:${tenant_token}
-
-# Staff user (not impersonating)
-s:${staff_token}
-
-# Staff user impersonating
-s:${staff_token}+t:${impersonation_token}
-```
-
-**Delimiter:** `+` separates tokens
-**Prefixes:** `s:` = staff, `t:` = tenant
-
-### Backward Compatibility
-
-Old cookies (no prefix) are treated as tenant tokens:
-```typescript
-if (!cookieValue.includes(':')) {
-  return { tenantToken: cookieValue };  // Legacy format
-}
-```
-
-### Cookie Parsing Utilities
-
-**File:** `apps/front/app/lib/cookies/session-cookie.utils.ts`
-
-```typescript
-export type ParsedSessionTokens = {
-  staffToken?: string;
-  tenantToken?: string;
-};
-
-export function parseSessionCookie(cookieValue: string): ParsedSessionTokens {
-  const result: ParsedSessionTokens = {};
-
-  // Legacy format (no prefix) = tenant token
-  if (!cookieValue.includes(':')) {
-    return { tenantToken: cookieValue };
-  }
-
-  for (const part of cookieValue.split('+')) {
-    if (part.startsWith('s:')) {
-      result.staffToken = part.slice(2);
-    } else if (part.startsWith('t:')) {
-      result.tenantToken = part.slice(2);
-    }
-  }
-
-  return result;
-}
-
-export function formatSessionCookie(tokens: ParsedSessionTokens): string {
-  const parts: string[] = [];
-  if (tokens.staffToken) parts.push(`s:${tokens.staffToken}`);
-  if (tokens.tenantToken) parts.push(`t:${tokens.tenantToken}`);
-  return parts.join('+');
-}
-
-export function getSessionTokensFromClient(): ParsedSessionTokens {
-  const browserCookies = cookie.parse(document.cookie);
-  const rawValue = browserCookies[SESSION_TOKEN_COOKIE_KEY];
-  if (!rawValue) return {};
-  return parseSessionCookie(rawValue);
-}
-```
-
-### ClientManager Updates
-
-**File:** `apps/front/app/lib/js-client/client-manager.ts`
-
-```typescript
-type ClientManagerOptions = {
-  staffToken?: string;
-  tenantToken?: string;
-};
-
-type CreateClientOptions = {
-  tenantId?: string;
-  skipAuth?: boolean;
-  /** Which token context to use. Required when both tokens exist. */
-  context?: 'staff' | 'tenant';
-};
-
-export class ClientManager {
-  private readonly staffToken?: string;
-  private readonly tenantToken?: string;
-
-  private constructor(options?: ClientManagerOptions) {
-    this.staffToken = options?.staffToken;
-    this.tenantToken = options?.tenantToken;
-  }
-
-  public static create(options?: ClientManagerOptions): ClientManager {
-    if (!isServer) {
-      // Browser: return singleton, read tokens from cookie
-      if (!ClientManager._instance) {
-        const tokens = getSessionTokensFromClient();
-        ClientManager._instance = new ClientManager({
-          staffToken: tokens.staffToken,
-          tenantToken: tokens.tenantToken,
-        });
-      }
-      return ClientManager._instance;
-    }
-    // Server: create new instance per request
-    return new ClientManager(options);
-  }
-
-  // Reset browser singleton after cookie changes
-  public static resetInstance(): void {
-    if (!isServer) {
-      ClientManager._instance = undefined as never;
-    }
-  }
-
-  private getSessionToken(context?: 'staff' | 'tenant'): string | undefined {
-    if (context === 'staff') return this.staffToken;
-    if (context === 'tenant') return this.tenantToken;
-    // Default: tenant if available, otherwise staff
-    return this.tenantToken ?? this.staffToken;
-  }
-
-  public createClient(options?: CreateClientOptions): ApiClient {
-    if (options?.skipAuth) {
-      return this.createClientWithToken(undefined, options?.tenantId);
-    }
-    const token = this.getSessionToken(options?.context);
-    return this.createClientWithToken(token, options?.tenantId);
-  }
-}
-```
-
-### Login Flow
-
-Login doesn't know if user is staff (determined via `/auth/tenant-auth-data?tenantId=staff`).
-
-**Approach:** Login writes token without prefix. Prefix is determined after auth data loads:
-
-```typescript
-// Login action - write raw token
-const sessionTokenCookie = cookie.serialize(
-  SESSION_TOKEN_COOKIE_KEY,
-  sessionToken,  // No prefix initially
-  cookieOptions,
-);
-
-// After auth data loads (in auth layout/context)
-const hasStaffAccess = userAuthData.staff !== null;
-const newCookieValue = hasStaffAccess
-  ? `s:${currentToken}`
-  : `t:${currentToken}`;
-// Update cookie and call ClientManager.resetInstance()
-```
-
-### Impersonation Flow (Future)
-
-**Start impersonation:**
-1. Call impersonation endpoint → get impersonation session token
-2. Parse existing cookie → extract `s:${staffToken}`
-3. Write new cookie: `s:${staffToken}+t:${impersonationToken}`
-4. Call `ClientManager.resetInstance()`
-
-**End impersonation:**
-1. Parse existing cookie → extract `s:${staffToken}`
-2. Write new cookie: `s:${staffToken}` (remove `+t:...` part)
-3. Call `ClientManager.resetInstance()`
-
-### Server-Side Updates
-
-**File:** `apps/front/app/lib/react-router/server-data.server.ts`
-
-```typescript
-import { parseSessionCookie } from '../cookies/session-cookie.utils';
-
-// In getServerLoader/getServerAction:
-const reqCookies = cookie.parse(args.request.headers.get('Cookie') || '');
-const rawSessionCookie = reqCookies[SESSION_TOKEN_COOKIE_KEY] as string | undefined;
-const sessionTokens = rawSessionCookie ? parseSessionCookie(rawSessionCookie) : {};
-
-return params.loader({
-  ...args,
-  staffToken: sessionTokens.staffToken,
-  tenantToken: sessionTokens.tenantToken,
-  z,
-  locale,
-});
-```
-
-### Singleton Reset Call Sites
-
-Call `ClientManager.resetInstance()` after:
-- Login cookie is set
-- Cookie prefix is updated (staff/tenant determination)
-- Impersonation starts (cookie gains `+t:` part)
-- Impersonation ends (cookie loses `+t:` part)
-- In `logout()` function
-
-### Files to Modify
-
-| File | Changes |
-|------|---------|
-| `apps/front/app/lib/cookies/session-cookie.utils.ts` | Add parse/format functions |
-| `apps/front/app/lib/js-client/client-manager.ts` | Dual token support, context flag, resetInstance |
-| `apps/front/app/lib/react-router/server-data.server.ts` | Parse dual tokens, pass both to loaders |
-| `apps/front/app/routes/auth/login/login-page.tsx` | Cookie format updates |
-| `apps/front/app/routes/auth/accept-invitation/accept-invitation-page.tsx` | Write with `t:` prefix |
-
-### Notes
-
-- **No backend changes required** - Staff status available via existing `/auth/tenant-auth-data?tenantId=staff`
-- **React Query cache** - Keep shared cache; query keys already include tenant-specific identifiers
-- **Logout** - Clearing cookie clears both tokens (no changes needed)
