@@ -1,15 +1,9 @@
+import * as cookie from 'cookie';
 import i18next from 'i18next';
 import _ from 'lodash';
 import { Suspense } from 'react';
 import { Outlet, redirect } from 'react-router';
 
-import {
-	FRONT_PATH_NAMES,
-	formActionKey,
-	I18N_NAMESPACES,
-	REDIRECT_CODE,
-} from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { SplashScreen } from '@/front/components/loading-screen/splash-screen';
 import { useTranslate } from '@/front/hooks/use-translate';
 import { AuthSplitLayout } from '@/front/layouts/auth-split/layout';
@@ -17,21 +11,30 @@ import {
 	clearSessionCookie,
 	getSessionCookieFromClient,
 } from '@/front/lib/cookies/session-cookie.utils';
-import { readTenantHintsFromRequestHeaders } from '@/front/lib/cookies/tenant-hint-cookie.utils';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+import { ClientManager } from '@/front/lib/js-client/client-manager';
 import {
 	useGetTenantAuthData,
 	useGetUserAuthData,
 } from '@/front/lib/react-query/features/common/auth.hooks';
-import { getQueryClient } from '@/front/lib/react-query/query-client';
+import { defaultQueryClient } from '@/front/lib/react-query/query-client';
 import { getClientLoader } from '@/front/lib/react-router/client-data';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import { getServerLoader } from '@/front/lib/react-router/server-data.server';
+import {
+	FRONT_PATH_NAMES,
+	formActionKey,
+	I18N_NAMESPACES,
+	LAST_USED_TENANT_ID_COOKIE_KEY,
+	SESSION_TOKEN_COOKIE_KEY,
+} from '@/shared/lib/constants';
+import { logger } from '@/shared/lib/logger/iso-logger';
 
 export const loader = getServerLoader({
-	loader: async ({ request, sessionToken, staffToken, tenantToken }) => {
+	loader: async ({ request }) => {
+		const reqCookies = cookie.parse(request.headers.get('cookie') || '');
+		const sessionToken = _.get(reqCookies, SESSION_TOKEN_COOKIE_KEY);
+
 		// If no session token exists, return NOT_AUTHENTICATED
-		// sessionToken is the primary token (tenantToken ?? staffToken) parsed by getServerLoader
 		if (!sessionToken) {
 			return {
 				status: 'NOT_AUTHENTICATED',
@@ -39,23 +42,19 @@ export const loader = getServerLoader({
 		}
 
 		// Session token exists - validate it by calling the API
-		const authedApiClient = getClientManager({
-			staffToken,
-			tenantToken,
+		const authedApiClient = ClientManager.create({
+			sessionToken,
 		}).createClient();
 
 		const getUserAuthData = safeRun(async () => {
 			return authedApiClient.auth.userAuthData.get();
 		});
 
-		// Read legacy tenant hint - identity-scoped lookup would require userId
-		// which we don't have until userAuthData resolves. For auth-layout's
-		// redirect-away case, legacy fallback is acceptable during migration.
-		const { legacyTenantId } = readTenantHintsFromRequestHeaders(request);
+		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
 		const getRedirectCode = safeRun(async () => {
 			return authedApiClient.auth.redirectCode.get({
-				queryParameters: { tenantId: legacyTenantId },
+				queryParameters: { tenantId },
 			});
 		});
 
@@ -167,25 +166,26 @@ export const clientLoader = getClientLoader({
 					? redirectCodeResult.data?.redirectCode
 					: undefined;
 
-			getQueryClient().setQueryData(useGetUserAuthData.getKey(), userAuthData);
+			defaultQueryClient.setQueryData(
+				useGetUserAuthData.getKey(),
+				userAuthData,
+			);
 
-			if (redirectCode && redirectCode !== REDIRECT_CODE.UNAUTHORIZED) {
-				if (redirectCode === REDIRECT_CODE.STAFF) {
+			if (redirectCode && redirectCode !== 'unauthorized') {
+				defaultQueryClient.prefetchQuery({
+					queryKey: useGetTenantAuthData.getKey({ tenantId: redirectCode }),
+					queryFn: async ({ queryKey }) => {
+						const tenantId = _.get(queryKey, '1.tenantId');
+						const result = await useGetTenantAuthData.fetcher({
+							tenantId: tenantId as never,
+						});
+						return result;
+					},
+				});
+
+				if (redirectCode === 'staff') {
 					return redirect(FRONT_PATH_NAMES.staff.root);
 				}
-
-				if (redirectCode === REDIRECT_CODE.TENANT_PICKER) {
-					// Multiple tenants, no valid hint - go to tenant portal/picker
-					// Don't prefetch tenant auth data (no specific tenant yet)
-					return redirect(FRONT_PATH_NAMES.tenant()._root);
-				}
-
-				// redirectCode is a valid tenant ID - prefetch and redirect
-				getQueryClient().prefetchQuery({
-					queryKey: useGetTenantAuthData.getKey({ tenantId: redirectCode }),
-					queryFn: () =>
-						useGetTenantAuthData.fetcher({ tenantId: redirectCode }),
-				});
 
 				return redirect(FRONT_PATH_NAMES.tenant(redirectCode).root);
 			}

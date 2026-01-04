@@ -1,37 +1,30 @@
 import * as cookie from 'cookie';
+import dayjs from 'dayjs';
 import i18next, { type TFunction } from 'i18next';
 import _ from 'lodash';
 import { useEffect, useRef } from 'react';
 import { data, redirect, useSearchParams } from 'react-router';
 import { serializeError } from 'serialize-error';
 
-import {
-	APP_NAME,
-	FRONT_PATH_NAMES,
-	isServer,
-	queryParamKey,
-	queryParamValue,
-	REDIRECT_CODE,
-	SESSION_TOKEN_COOKIE_KEY,
-} from '@org/shared-ts/lib/constants';
+import duration from '@org/shared/utils/duration.utils';
 import { toast } from '@/front/components/snackbar';
 import { useTranslate } from '@/front/hooks/use-translate';
-import {
-	getTenantHintForUser,
-	isSecureCookieFromRequest,
-	readTenantHintsFromRequestHeaders,
-	serializeClearLegacyCookieHeaders,
-	serializeTenantHintsForResponse,
-	setTenantHintForUser,
-} from '@/front/lib/cookies';
-import { formatSessionCookie } from '@/front/lib/cookies/session-cookie.utils';
-import { getClientManager } from '@/front/lib/js-client/client-manager';
+import { ClientManager } from '@/front/lib/js-client/client-manager';
 import { safeRun } from '@/front/lib/react-router/safeRun';
 import {
 	getServerAction,
 	getServerLoader,
 } from '@/front/lib/react-router/server-data.server';
-import { fSecondsUntil } from '@/front/utils/format-time';
+import {
+	APP_NAME,
+	FRONT_PATH_NAMES,
+	isServer,
+	LAST_USED_TENANT_ID_COOKIE_KEY,
+	queryParamKey,
+	queryParamValue,
+	SESSION_TOKEN_COOKIE_KEY,
+} from '@/shared/lib/constants';
+import { makePath } from '@/shared/utils/string.utils';
 
 import type { Route } from './+types/login-page';
 import LoginForm from './login-form';
@@ -70,11 +63,11 @@ export type LoginActionResult = Awaited<ReturnType<typeof action>>['data'];
 
 export const action = getServerAction({
 	action: async ({ request, context }) => {
-		const apiClient = getClientManager().createClient({ skipAuth: true });
+		const apiClient = ClientManager.create().createClient({ skipAuth: true });
 		const formData = await request.formData();
 
-		const email = _.toString(formData.get('email'));
-		const password = _.toString(formData.get('password'));
+		const email = formData.get('email');
+		const password = formData.get('password');
 
 		const passwordLogin = safeRun(
 			async ({ email, password }: { email: string; password: string }) => {
@@ -93,13 +86,9 @@ export const action = getServerAction({
 			},
 		);
 
-		const loginResult = await passwordLogin({ email, password });
+		const loginResult = await passwordLogin({ email, password } as never);
 
 		if (loginResult.status === 'error') {
-			context.logger.error('Failed to login', {
-				error: serializeError(loginResult.error),
-			});
-
 			return data({
 				error: serializeError(loginResult.error),
 			});
@@ -109,37 +98,31 @@ export const action = getServerAction({
 
 		const cookieOptions = {
 			expires: loginResult.data?.sessionExpiresAt || new Date(),
-			maxAge: fSecondsUntil(loginResult.data?.sessionExpiresAt),
+			maxAge: dayjs(loginResult.data?.sessionExpiresAt).diff(
+				dayjs(),
+				'seconds',
+			),
 		};
 
 		const sessionToken = loginResult.data?.sessionToken || '';
 
-		// Get userId from login response (required for identity-scoped cookie)
-		const userId = loginResult.data?.userId;
-		if (!userId) {
-			context.logger.error('Login response missing userId');
-			throw new Error('Failed to login');
-		}
+		const sessionTokenCookie = cookie.serialize(
+			SESSION_TOKEN_COOKIE_KEY,
+			sessionToken,
+			cookieOptions,
+		);
+		responseHeaders.append('Set-Cookie', sessionTokenCookie);
 
-		// Read tenant hints mapping from request (parses cookies internally)
-		const { map: hintsMap, legacyTenantId } =
-			readTenantHintsFromRequestHeaders(request);
+		const reqCookies = cookie.parse(request.headers.get('Set-Cookie') || '');
+		const tenantId = _.get(reqCookies, LAST_USED_TENANT_ID_COOKIE_KEY);
 
-		// Get hint for current user (check mapping first, then legacy cookie)
-		let tenantHint = getTenantHintForUser(hintsMap, userId);
-		if (!tenantHint && legacyTenantId) {
-			// Migration: use legacy cookie as hint candidate
-			tenantHint = legacyTenantId;
-		}
-
-		// Note: Login token is treated as tenantToken for backward compatibility
-		const authedApiClient = getClientManager({
-			tenantToken: sessionToken,
+		const authedApiClient = ClientManager.create({
+			sessionToken,
 		}).createClient();
 
 		const getRedirectCode = safeRun(async () => {
 			return authedApiClient.auth.redirectCode.get({
-				queryParameters: { tenantId: tenantHint },
+				queryParameters: { tenantId },
 			});
 		});
 		const getRedirectCodeResult = await getRedirectCode();
@@ -148,63 +131,26 @@ export const action = getServerAction({
 			context.logger.error('Failed to get redirect code', {
 				error: serializeError(getRedirectCodeResult.error),
 			});
+			// throw a generic error
 			throw new Error('Failed to login');
 		}
 
-		const redirectCodeData = getRedirectCodeResult.data;
 		const redirectCode =
-			redirectCodeData?.redirectCode || REDIRECT_CODE.UNAUTHORIZED;
-		const hasSuspendedTenants =
-			(redirectCodeData as { hasSuspendedTenants?: boolean })
-				?.hasSuspendedTenants ?? false;
+			getRedirectCodeResult.data?.redirectCode || 'unauthorized';
 
-		let redirectPath: string;
-		const isSecure = isSecureCookieFromRequest(request);
+		let redirectPath = makePath(redirectCode);
 
-		const sessionCookieValue =
-			redirectCode === REDIRECT_CODE.STAFF
-				? formatSessionCookie({ staffToken: sessionToken })
-				: formatSessionCookie({ tenantToken: sessionToken });
-
-		const sessionTokenCookie = cookie.serialize(
-			SESSION_TOKEN_COOKIE_KEY,
-			sessionCookieValue,
-			cookieOptions,
-		);
-		responseHeaders.append('Set-Cookie', sessionTokenCookie);
-
-		if (redirectCode === REDIRECT_CODE.STAFF) {
-			redirectPath = FRONT_PATH_NAMES.staff.root;
-		} else if (redirectCode === REDIRECT_CODE.UNAUTHORIZED) {
-			redirectPath = FRONT_PATH_NAMES.unauthorized;
-		} else if (redirectCode === REDIRECT_CODE.TENANT_PICKER) {
-			// Multiple tenants, no valid hint - go to tenant picker
-			redirectPath = FRONT_PATH_NAMES.tenant()._root;
-		} else {
-			// Valid tenant - update mapping and set cookie
-			const updatedMap = setTenantHintForUser(hintsMap, userId, redirectCode);
-			const mappingCookie = serializeTenantHintsForResponse(
-				updatedMap,
-				isSecure,
+		if (redirectCode !== 'staff' && redirectCode !== 'unauthorized') {
+			const lastUsedTenantIdCookie = cookie.serialize(
+				LAST_USED_TENANT_ID_COOKIE_KEY,
+				redirectCode,
+				{
+					expires: dayjs().add(3, 'day').toDate(),
+					maxAge: duration.toSeconds('3d'),
+				},
 			);
-			responseHeaders.append('Set-Cookie', mappingCookie);
-
+			responseHeaders.append('Set-Cookie', lastUsedTenantIdCookie);
 			redirectPath = FRONT_PATH_NAMES.tenant(redirectCode).root;
-
-			// Notify user about suspended orgs via query param
-			if (hasSuspendedTenants) {
-				redirectPath += `?${queryParamKey.notice}=${queryParamValue.notice.org_suspended}`;
-			}
-		}
-
-		// Clear legacy cookie if it existed (one-time migration)
-		// This happens on ALL redirect paths, not just successful tenant redirect,
-		// ensuring migration completes regardless of outcome.
-		// HARDENING: Clear at ALL likely paths to handle path-scoped duplicates
-		if (legacyTenantId) {
-			for (const clearHeader of serializeClearLegacyCookieHeaders()) {
-				responseHeaders.append('Set-Cookie', clearHeader);
-			}
 		}
 
 		return redirect(redirectPath, {
