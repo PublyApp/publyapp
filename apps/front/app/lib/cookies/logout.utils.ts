@@ -1,5 +1,3 @@
-import { clearSessionCookie } from './session-cookie.utils';
-
 import { ClientManager } from '@/front/lib/js-client/client-manager';
 import { defaultQueryClient } from '@/front/lib/react-query/query-client';
 import {
@@ -8,6 +6,8 @@ import {
 	queryParamKey,
 	queryParamValue,
 } from '@/shared/lib/constants';
+
+import { clearSessionCookie } from './session-cookie.utils';
 
 type LogoutOptions = {
 	/**

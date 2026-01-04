@@ -301,7 +301,10 @@ export function createPublicQuery<
 	return createQuery<TData, TVariables>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
-			return config.fetcher(ClientManager.create().anonymousClient, variables);
+			return config.fetcher(
+				ClientManager.create().getAnonymousClient(),
+				variables,
+			);
 		},
 		...(config.retry ? { retry: config.retry } : {}),
 	});
@@ -320,7 +323,10 @@ export function createPublicSuspenseQuery<
 	return createSuspenseQuery<TData, TVariables>({
 		queryKey: [queryKey] as const,
 		fetcher: async (variables) => {
-			return config.fetcher(ClientManager.create().anonymousClient, variables);
+			return config.fetcher(
+				ClientManager.create().getAnonymousClient(),
+				variables,
+			);
 		},
 		...(config.retry ? { retry: config.retry } : {}),
 	});
@@ -345,7 +351,7 @@ export function createPublicMutation<
 		mutationKey: [mutationKey] as const,
 		mutationFn: async (variables) => {
 			return config.mutationFn(
-				ClientManager.create().anonymousClient,
+				ClientManager.create().getAnonymousClient(),
 				variables,
 			);
 		},
@@ -353,4 +359,4 @@ export function createPublicMutation<
 }
 
 // Re-export types for use in hook files
-export type { WithTenantId, MaybeWithTenantId, RetryFn };
+export type { MaybeWithTenantId, RetryFn, WithTenantId };
