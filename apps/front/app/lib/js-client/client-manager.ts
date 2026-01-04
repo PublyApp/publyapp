@@ -89,28 +89,11 @@ class ClientManager {
 		tenantId?: string;
 		skipAuth?: boolean;
 	}) {
-		// Custom fetch that injects session token and tenant ID headers on every request
-		const customFetch = (
-			url: Parameters<typeof fetch>[0],
-			init?: RequestInit,
-		) => {
-			// Read session token FRESH on every request (unless skipAuth)
-			const sessionToken = options.skipAuth
-				? undefined
-				: getSessionCookieFromClient();
-
-			return fetch(url, {
-				...init,
-				headers: {
-					...init?.headers,
-					...(sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: sessionToken } : {}),
-					...(options.tenantId
-						? { [TENANT_ID_HEADER_KEY]: options.tenantId }
-						: {}),
-				},
-			});
-		};
-
+		const customFetch = ClientManager.createCustomFetch({
+			getSessionToken: () =>
+				options.skipAuth ? undefined : getSessionCookieFromClient(),
+			tenantId: options.tenantId,
+		});
 		return ClientManager.createClientWithFetch(customFetch);
 	}
 
@@ -126,26 +109,33 @@ class ClientManager {
 		sessionToken?: string;
 		tenantId?: string;
 	}) {
-		// Custom fetch that injects session token and tenant ID headers
-		const customFetch = (
-			url: Parameters<typeof fetch>[0],
-			init?: RequestInit,
-		) => {
+		const customFetch = ClientManager.createCustomFetch({
+			getSessionToken: () => options.sessionToken,
+			tenantId: options.tenantId,
+		});
+		return ClientManager.createClientWithFetch(customFetch);
+	}
+
+	/**
+	 * Creates a custom fetch function that injects session token and tenant ID headers.
+	 */
+	private static createCustomFetch(options: {
+		getSessionToken: () => string | undefined;
+		tenantId?: string;
+	}): typeof fetch {
+		return (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const sessionToken = options.getSessionToken();
 			return fetch(url, {
 				...init,
 				headers: {
 					...init?.headers,
-					...(options.sessionToken
-						? { [SESSION_TOKEN_HEADER_KEY]: options.sessionToken }
-						: {}),
+					...(sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: sessionToken } : {}),
 					...(options.tenantId
 						? { [TENANT_ID_HEADER_KEY]: options.tenantId }
 						: {}),
 				},
 			});
 		};
-
-		return ClientManager.createClientWithFetch(customFetch);
 	}
 
 	/**

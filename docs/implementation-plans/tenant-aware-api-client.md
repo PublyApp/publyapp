@@ -75,38 +75,21 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
 1. **`createClientOnBrowser` - for browser-side usage (reads session token from cookies):**
    ```typescript
    public createClientOnBrowser(options: { tenantId?: string; skipAuth?: boolean }) {
-     const customFetch = (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
-       // Read session token FRESH on every request (unless skipAuth)
-       const sessionToken = options.skipAuth ? undefined : getSessionCookieFromClient();
-
-       return fetch(url, {
-         ...init,
-         headers: {
-           ...init?.headers,
-           ...(sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: sessionToken } : {}),
-           ...(options.tenantId ? { [TENANT_ID_HEADER_KEY]: options.tenantId } : {}),
-         },
-       });
-     };
-
-     return this.createClientWithFetch(customFetch);
+     const customFetch = ClientManager.createCustomFetch({
+       getSessionToken: () => options.skipAuth ? undefined : getSessionCookieFromClient(),
+       tenantId: options.tenantId,
+     });
+     return ClientManager.createClientWithFetch(customFetch);
    }
    ```
 
 2. **`createClientOnServer` - static method for SSR usage (requires explicit sessionToken):**
    ```typescript
    public static createClientOnServer(options: { sessionToken?: string; tenantId?: string }) {
-     const customFetch = (url: Parameters<typeof fetch>[0], init?: RequestInit) => {
-       return fetch(url, {
-         ...init,
-         headers: {
-           ...init?.headers,
-           ...(options.sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: options.sessionToken } : {}),
-           ...(options.tenantId ? { [TENANT_ID_HEADER_KEY]: options.tenantId } : {}),
-         },
-       });
-     };
-
+     const customFetch = ClientManager.createCustomFetch({
+       getSessionToken: () => options.sessionToken,
+       tenantId: options.tenantId,
+     });
      return ClientManager.createClientWithFetch(customFetch);
    }
    ```
@@ -116,7 +99,27 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
    export const createClientOnServer = ClientManager.createClientOnServer;
    ```
 
-3. **Private static helper `createClientWithFetch` - shared logic:**
+3. **`createCustomFetch` - creates fetch with header injection:**
+   ```typescript
+   private static createCustomFetch(options: {
+     getSessionToken: () => string | undefined;
+     tenantId?: string;
+   }): typeof fetch {
+     return (url, init) => {
+       const sessionToken = options.getSessionToken();
+       return fetch(url, {
+         ...init,
+         headers: {
+           ...init?.headers,
+           ...(sessionToken ? { [SESSION_TOKEN_HEADER_KEY]: sessionToken } : {}),
+           ...(options.tenantId ? { [TENANT_ID_HEADER_KEY]: options.tenantId } : {}),
+         },
+       });
+     };
+   }
+   ```
+
+4. **`createClientWithFetch` - creates API client from custom fetch:**
    ```typescript
    private static createClientWithFetch(customFetch: typeof fetch) {
      const authProvider = new AnonymousAuthenticationProvider();
@@ -136,7 +139,7 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
    }
    ```
 
-4. **Simplify `getOrCreateClient` - no sessionToken parameter needed:**
+5. **Simplify `getOrCreateClient` - no sessionToken parameter needed:**
    ```typescript
    public getOrCreateClient(tenantId: string) {
      if (isServer) {
@@ -154,14 +157,14 @@ Instead of baking the session token into `ApiKeyAuthenticationProvider`, we inje
    }
    ```
 
-5. **Simplify `getStaffClient` - no sessionToken parameter:**
+6. **Simplify `getStaffClient` - no sessionToken parameter:**
    ```typescript
    public getStaffClient() {
      return this.getOrCreateClient('staff');
    }
    ```
 
-6. **Remove commented-out `apiClient` getter** - Clean up dead code
+7. **Remove commented-out `apiClient` getter** - Clean up dead code
 
 ### Benefits of This Approach:
 - **No `_tokenStore` needed** - token read fresh, not baked in
